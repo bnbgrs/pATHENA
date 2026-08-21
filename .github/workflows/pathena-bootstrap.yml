@@ -101,7 +101,7 @@ jobs:
           uv lock --check
           uv run --locked --extra dev --extra desktop python scripts/quality.py
 
-      - name: Commit verified baseline without workflow file
+      - name: Commit verified baseline without workflow mutations
         if: steps.baseline.outputs.complete != 'true'
         shell: bash
         run: |
@@ -126,7 +126,6 @@ jobs:
             uv.lock
           git rm -r --ignore-unmatch -- \
             .pathena \
-            .pathena-bootstrap \
-            .github/workflows/pathena-bootstrap.yml
+            .pathena-bootstrap
           git commit -m "chore: import verified ATHENA baseline for pATHENA"
           git push origin "HEAD:${branch}"
