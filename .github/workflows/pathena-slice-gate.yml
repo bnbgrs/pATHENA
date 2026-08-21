@@ -23,7 +23,7 @@ jobs:
     env:
       QT_QPA_PLATFORM: offscreen
       SLICE_DIR: .pathena/slices/001-durable-send-identity
-      PATCH_SHA256: eada5132a3a7041d84c6708decbdbed5df65e9fb3cf0a12ff889762e4763f673
+      PATCH_SHA256: 8109ef8cd34535389b45e5b3313f77f5d7fde3bbcac92107ee7e2ce5919db338
 
     steps:
       - name: Check out pATHENA development branch
@@ -111,7 +111,12 @@ jobs:
           uv run --locked --extra dev python -m pytest -q \
             tests/unit/test_chat_request_fingerprint.py \
             tests/unit/test_chat_send_operation_repository.py \
-            tests/unit/test_schema_v41_chat_send_operations.py
+            tests/unit/test_schema_v41_chat_send_operations.py \
+            tests/unit/test_grounded_response_receipt.py \
+            tests/unit/test_knowledge_schema.py \
+            tests/unit/test_protected_source_semantic_schema.py \
+            tests/unit/test_schema_evolution_boundary.py \
+            tests/unit/test_schema_verification_boundary.py
 
       - name: Commit verified slice
         shell: bash
@@ -132,7 +137,12 @@ jobs:
             src/athena/storage/schema_verification.py \
             tests/unit/test_chat_request_fingerprint.py \
             tests/unit/test_chat_send_operation_repository.py \
-            tests/unit/test_schema_v41_chat_send_operations.py
+            tests/unit/test_schema_v41_chat_send_operations.py \
+            tests/unit/test_grounded_response_receipt.py \
+            tests/unit/test_knowledge_schema.py \
+            tests/unit/test_protected_source_semantic_schema.py \
+            tests/unit/test_schema_evolution_boundary.py \
+            tests/unit/test_schema_verification_boundary.py
           git diff --cached --check
           git commit -m "feat(chat): add durable send operation identity"
           git push origin "HEAD:${branch}"
