@@ -1,6 +1,11 @@
 name: pATHENA Slice Gate
 
 on:
+  push:
+    branches:
+      - agent/pathena
+    paths:
+      - ".pathena/slices/**"
   pull_request:
     branches:
       - main
@@ -11,13 +16,13 @@ permissions:
   contents: write
 
 concurrency:
-  group: pathena-slice-${{ github.event.pull_request.number }}
+  group: pathena-slice-${{ github.event.pull_request.number || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
   validate-and-commit:
     name: Validate and commit pATHENA slice
-    if: github.event.pull_request.head.repo.full_name == github.repository
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -29,14 +34,14 @@ jobs:
       - name: Check out pATHENA development branch
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
+          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
           fetch-depth: 0
 
       - name: Require complete baseline and slice carrier
         shell: bash
         run: |
           set -euo pipefail
-          test "${{ github.event.pull_request.head.ref }}" = "agent/pathena"
+          test "${{ github.event.pull_request.head.ref || github.ref_name }}" = "agent/pathena"
           test -f PATHENA_BASELINE.md
           test -f pyproject.toml
           test -d src
@@ -124,8 +129,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          branch="${{ github.event.pull_request.head.ref }}"
-          expected="${{ github.event.pull_request.head.sha }}"
+          branch="${{ github.event.pull_request.head.ref || github.ref_name }}"
+          expected="${{ github.event.pull_request.head.sha || github.sha }}"
           remote_head="$(git ls-remote origin "refs/heads/${branch}" | cut -f1)"
           test "${remote_head}" = "${expected}"
           git config user.name "pATHENA Slice Gate"
