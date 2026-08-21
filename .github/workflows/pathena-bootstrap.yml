@@ -1,0 +1,97 @@
+name: pATHENA Bootstrap
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/pathena-bootstrap.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  import-baseline:
+    name: Import ATHENA baseline
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      SOURCE_REPOSITORY: bnbgrs/ATHENA
+      SOURCE_COMMIT: 8b02beec4f5ef83344e405f92074072623e8b318
+      QT_QPA_PLATFORM: offscreen
+
+    steps:
+      - name: Check out pATHENA
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Fetch exact ATHENA source snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/pathena-source
+          git init -q /tmp/pathena-source
+          git -C /tmp/pathena-source remote add origin "https://github.com/${SOURCE_REPOSITORY}.git"
+          git -C /tmp/pathena-source fetch --depth=1 origin "${SOURCE_COMMIT}"
+          git -C /tmp/pathena-source checkout -q --detach FETCH_HEAD
+          test "$(git -C /tmp/pathena-source rev-parse HEAD)" = "${SOURCE_COMMIT}"
+
+      - name: Replace bootstrap repository with source snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          rsync -a --delete \
+            --exclude='.git/' \
+            --exclude='.github/workflows/pathena-bootstrap.yml' \
+            /tmp/pathena-source/ ./
+          rm -f .pathena-bootstrap
+          rm -f .github/workflows/pathena-bootstrap.yml
+          cat > PATHENA_BASELINE.md <<EOF
+          # pATHENA baseline
+
+          pATHENA is an independent experimental development line derived from ATHENA.
+
+          - Source repository: https://github.com/${SOURCE_REPOSITORY}
+          - Source commit: `${SOURCE_COMMIT}`
+          - Imported into: `bnbgrs/pATHENA`
+          - ATHENA remains read-only for pATHENA development.
+
+          Subsequent pATHENA commits belong only to this repository.
+          EOF
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install pinned resolver and desktop runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check "pip==26.1.2"
+          python -m pip install --disable-pip-version-check "uv==0.11.21"
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y libegl1
+
+      - name: Validate imported baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          uv lock --check
+          uv run --locked --extra dev --extra desktop python scripts/quality.py
+
+      - name: Commit independent pATHENA baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "pATHENA Bootstrap"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No bootstrap changes to commit."
+            exit 0
+          fi
+          git commit -m "chore: import ATHENA baseline for pATHENA"
+          git push origin HEAD:main
