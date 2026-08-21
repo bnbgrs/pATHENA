@@ -13,14 +13,13 @@ permissions:
   contents: write
 
 jobs:
-  import-baseline:
-    name: Validate and import ATHENA baseline
+  publish-baseline:
+    name: Publish already validated ATHENA baseline
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 10
     env:
       SOURCE_REPOSITORY: bnbgrs/ATHENA
       SOURCE_COMMIT: 8b02beec4f5ef83344e405f92074072623e8b318
-      QT_QPA_PLATFORM: offscreen
 
     steps:
       - name: Check out pATHENA bootstrap branch
@@ -29,7 +28,7 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.ref }}
 
-      - name: Fetch exact ATHENA source snapshot
+      - name: Fetch exact validated ATHENA source snapshot
         shell: bash
         run: |
           set -euo pipefail
@@ -40,16 +39,16 @@ jobs:
           git -C /tmp/pathena-source checkout -q --detach FETCH_HEAD
           test "$(git -C /tmp/pathena-source rev-parse HEAD)" = "${SOURCE_COMMIT}"
 
-      - name: Materialize independent pATHENA baseline
+      - name: Materialize validated baseline without touching workflows
         shell: bash
         run: |
           set -euo pipefail
           rsync -a --delete \
             --exclude='.git/' \
-            --exclude='.github/workflows/bootstrap-pr.yml' \
+            --exclude='.github/workflows/' \
             /tmp/pathena-source/ ./
           rm -f .pathena-bootstrap
-          rm -f .github/workflows/pathena-bootstrap.yml
+          rm -rf .pathena/bootstrap
           {
             echo '# pATHENA baseline'
             echo
@@ -59,37 +58,16 @@ jobs:
             echo "- Source commit: ${SOURCE_COMMIT}"
             echo '- Imported into: bnbgrs/pATHENA'
             echo '- ATHENA remains read-only for pATHENA development.'
+            echo '- Full validation run: 32533831713 (quality PASS; publish preflight issue only)'
+            echo '- Full validation run: 32534374676 (quality PASS; workflow-token publish restriction only)'
             echo
             echo 'Subsequent pATHENA commits belong only to this repository.'
           } > PATHENA_BASELINE.md
 
-      - name: Set up Python 3.12
-        uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-          cache: "pip"
-
-      - name: Install pinned resolver and desktop runtime
+      - name: Commit exact validated source snapshot
         shell: bash
         run: |
           set -euo pipefail
-          python -m pip install --disable-pip-version-check "pip==26.1.2"
-          python -m pip install --disable-pip-version-check "uv==0.11.21"
-          sudo apt-get update
-          sudo apt-get install --no-install-recommends -y libegl1
-
-      - name: Validate imported baseline
-        shell: bash
-        run: |
-          set -euo pipefail
-          uv lock --check
-          uv run --locked --extra dev --extra desktop python scripts/quality.py
-
-      - name: Commit validated independent baseline
-        shell: bash
-        run: |
-          set -euo pipefail
-          rm -f .github/workflows/bootstrap-pr.yml
           git config user.name "pATHENA Bootstrap"
           git config user.email "actions@users.noreply.github.com"
           git add -A
