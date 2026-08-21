@@ -23,7 +23,7 @@ jobs:
     env:
       QT_QPA_PLATFORM: offscreen
       SLICE_DIR: .pathena/slices/001-durable-send-identity
-      PATCH_SHA256: 8109ef8cd34535389b45e5b3313f77f5d7fde3bbcac92107ee7e2ce5919db338
+      PATCH_SHA256: e1ad904a567685a66dd3e4720fb89e1e84dba30a828204008f6f5f609842803c
 
     steps:
       - name: Check out pATHENA development branch
@@ -44,6 +44,7 @@ jobs:
           test -f "${SLICE_DIR}/000.b64"
           test -f "${SLICE_DIR}/001.b64"
           test -f "${SLICE_DIR}/002.b64"
+          test -f "${SLICE_DIR}/003.b64"
           test -f "${SLICE_DIR}/manifest.txt"
 
       - name: Reconstruct and verify slice patch
@@ -53,6 +54,7 @@ jobs:
           cat "${SLICE_DIR}/000.b64" \
               "${SLICE_DIR}/001.b64" \
               "${SLICE_DIR}/002.b64" \
+              "${SLICE_DIR}/003.b64" \
             | base64 --decode \
             | gzip -dc > /tmp/pathena-slice.patch
           printf '%s  %s\n' "${PATCH_SHA256}" /tmp/pathena-slice.patch \
