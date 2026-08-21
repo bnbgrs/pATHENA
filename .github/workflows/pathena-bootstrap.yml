@@ -101,7 +101,7 @@ jobs:
           uv lock --check
           uv run --locked --extra dev --extra desktop python scripts/quality.py
 
-      - name: Commit verified baseline to bootstrap branch
+      - name: Commit verified baseline without workflow file
         if: steps.baseline.outputs.complete != 'true'
         shell: bash
         run: |
@@ -110,8 +110,23 @@ jobs:
           expected="${{ github.event.pull_request.head.sha || github.sha }}"
           remote_head="$(git ls-remote origin "refs/heads/${branch}" | cut -f1)"
           test "${remote_head}" = "${expected}"
+          rm -f .github/workflows/quality.yml
           git config user.name "pATHENA Bootstrap"
           git config user.email "actions@users.noreply.github.com"
-          git add -A
+          git add -- \
+            .gitattributes \
+            .gitignore \
+            README.md \
+            PATHENA_BASELINE.md \
+            docs \
+            pyproject.toml \
+            scripts \
+            src \
+            tests \
+            uv.lock
+          git rm -r --ignore-unmatch -- \
+            .pathena \
+            .pathena-bootstrap \
+            .github/workflows/pathena-bootstrap.yml
           git commit -m "chore: import verified ATHENA baseline for pATHENA"
           git push origin "HEAD:${branch}"
