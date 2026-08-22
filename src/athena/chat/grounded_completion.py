@@ -189,6 +189,37 @@ class GroundedSendCompletionRepository:
                     "Only Grounded send operations may store Grounded receipts."
                 )
 
+            provider_table = connection.execute(
+                """
+                SELECT 1 FROM sqlite_master
+                WHERE type = 'table' AND name = 'grounded_provider_results'
+                """
+            ).fetchone()
+            if provider_table is None:
+                raise GroundedSendCompletionConflictError(
+                    "Grounded completion requires a durable provider result journal."
+                )
+            provider_result = connection.execute(
+                """
+                SELECT chat_id, processing_run_id,
+                       receipt_payload_json, receipt_payload_sha256
+                FROM grounded_provider_results
+                WHERE operation_id = ?
+                """,
+                (uuid_to_blob(operation_id),),
+            ).fetchone()
+            if (
+                provider_result is None
+                or uuid_from_blob(bytes(provider_result["chat_id"])) != chat_id
+                or uuid_from_blob(bytes(provider_result["processing_run_id"]))
+                != processing_run_id
+                or str(provider_result["receipt_payload_json"]) != canonical
+                or str(provider_result["receipt_payload_sha256"]) != digest
+            ):
+                raise GroundedSendCompletionConflictError(
+                    "Grounded completion conflicts with the durable provider result."
+                )
+
             existing = self._load_in_transaction(connection, operation_id)
             if existing is not None:
                 if (
