@@ -124,6 +124,39 @@ def validate_grounded_processing_run(
         )
 
 
+def _finish_bound_run(
+    repository: ModelRunRepository,
+    run: ProcessingRun,
+    *,
+    status: str,
+    error_detail: str | None = None,
+) -> ProcessingRun:
+    if run.status == status and run.finished_at_us is not None:
+        return run
+    if run.status != "running" or run.finished_at_us is not None:
+        raise GroundedProcessingRunError(
+            "Grounded ProcessingRun conflicts with the requested terminal state."
+        )
+    try:
+        return repository.finish_run(
+            run.processing_run_id,
+            status=status,
+            error_detail=error_detail,
+        )
+    except ProcessingRunNotFoundError as exc:
+        try:
+            recovered = repository.load_run(run.processing_run_id)
+        except ProcessingRunNotFoundError as missing_exc:
+            raise GroundedProcessingRunError(
+                "Grounded ProcessingRun disappeared during terminal finalization."
+            ) from missing_exc
+        if recovered.status == status and recovered.finished_at_us is not None:
+            return recovered
+        raise GroundedProcessingRunError(
+            "Grounded ProcessingRun could not reach the requested terminal state."
+        ) from exc
+
+
 def complete_grounded_processing_run(
     database: SQLiteDatabase,
     *,
@@ -138,18 +171,27 @@ def complete_grounded_processing_run(
         package=package,
         trigger_actor_id=trigger_actor_id,
     )
-    if run.status == "succeeded" and run.finished_at_us is not None:
-        return run
-    if run.status != "running" or run.finished_at_us is not None:
-        raise GroundedProcessingRunError(
-            "Grounded provider result conflicts with the ProcessingRun terminal state."
-        )
-    try:
-        return repository.finish_run(processing_run_id, status="succeeded")
-    except ProcessingRunNotFoundError as exc:
-        recovered = repository.load_run(processing_run_id)
-        if recovered.status == "succeeded" and recovered.finished_at_us is not None:
-            return recovered
-        raise GroundedProcessingRunError(
-            "Grounded ProcessingRun could not be finalized as succeeded."
-        ) from exc
+    return _finish_bound_run(repository, run, status="succeeded")
+
+
+def fail_grounded_processing_run(
+    database: SQLiteDatabase,
+    *,
+    processing_run_id: uuid.UUID,
+    package: ContextPackage,
+    trigger_actor_id: uuid.UUID,
+    error_detail: str,
+) -> ProcessingRun:
+    """Mark a proven Grounded execution failure failed, idempotently."""
+    repository, run = _load_bound_run(
+        database,
+        processing_run_id=processing_run_id,
+        package=package,
+        trigger_actor_id=trigger_actor_id,
+    )
+    return _finish_bound_run(
+        repository,
+        run,
+        status="failed",
+        error_detail=error_detail,
+    )
