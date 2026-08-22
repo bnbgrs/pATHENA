@@ -9,7 +9,11 @@ from athena.chat.grounded_provider_attempt import GroundedProviderAttemptConflic
 from athena.chat.grounded_recovery import GroundedRecoveryState
 from athena.chat.grounded_send import GroundedSendCoordinator
 from athena.chat.repository import ChatRepository
-from athena.chat.request_fingerprint import ChatSendMode, ChatRequestFingerprint, build_chat_request_fingerprint
+from athena.chat.request_fingerprint import (
+    ChatRequestFingerprint,
+    ChatSendMode,
+    build_chat_request_fingerprint,
+)
 from athena.model.domain import ModelInfo
 from athena.model.provenance import ModelRunRepository
 from athena.retrieval.context_package import (
@@ -201,8 +205,8 @@ def test_low_level_result_rejects_unknown_run_when_context_is_pinned(
 def test_low_level_result_accepts_exact_matching_run_when_context_is_pinned(
     tmp_path: Path,
 ) -> None:
-    database, coordinator, operation_id, chat_id, fingerprint, run_id = _ready_operation(
-        tmp_path
+    database, coordinator, operation_id, chat_id, fingerprint, run_id = (
+        _ready_operation(tmp_path)
     )
     try:
         result = coordinator.provider_attempts.store_result(
