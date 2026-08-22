@@ -350,9 +350,13 @@ class GroundedSendCompletionRepository:
                 raise GroundedSendCompletionConflictError(
                     "Grounded completion requires assistant_committed state."
                 )
-            if operation["processing_run_id"] is not None:
+            if (
+                operation["processing_run_id"] is not None
+                and uuid_from_blob(bytes(operation["processing_run_id"]))
+                != processing_run_id
+            ):
                 raise GroundedSendCompletionConflictError(
-                    "Grounded operation already has unexpected processing-run identity."
+                    "Grounded completion conflicts with the pinned processing-run identity."
                 )
             if operation["receipt_payload_sha256"] is not None:
                 raise GroundedSendCompletionConflictError(
