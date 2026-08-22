@@ -3,21 +3,27 @@ from __future__ import annotations
 import json
 import uuid
 from collections.abc import Iterator, Sequence
+from pathlib import Path
 
 import pytest
 
-from athena.chat.durable_grounded_generation import DurableGroundedGenerationService
+from athena.chat.durable_grounded_generation import (
+    DurableGroundedGenerationError,
+    DurableGroundedGenerationService,
+)
 from athena.chat.generation import ChatGenerationService
 from athena.chat.grounding import GroundingContract
 from athena.chat.grounded_recovery import GroundedRecoveryState, GroundedSendRecovery
 from athena.chat.grounded_send import GroundedProviderBoundaryError, GroundedSendCoordinator
+from athena.chat.models import ChatMessage
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
 from athena.chat.service import ChatService
 from athena.model.domain import ModelChatMessage, ModelInfo, ProviderHealth, ProviderHealthStatus
-from athena.model.provenance import ModelSignature
+from athena.model.provenance import ModelRunRepository
 from athena.retrieval.context import ContextBuilderService
 from athena.retrieval.context_package import (
+    ContextPackage,
     ContextPackageBudget,
     ContextPackageService,
     ContextTokenEstimates,
@@ -66,24 +72,29 @@ class _Provider:
         yield "durable answer"
 
 
-def _package(user_message, *, snapshot_commit_seq: int):
+def _package_and_run(
+    database: SQLiteDatabase,
+    user_message: ChatMessage,
+    *,
+    snapshot_commit_seq: int,
+) -> tuple[ContextPackage, uuid.UUID]:
+    if user_message.actor_id is None:
+        raise AssertionError("Test user message must have an actor.")
+    model_runs = ModelRunRepository(database)
+    signature = model_runs.get_or_create_signature(
+        model=_Provider().discover_models()[0],
+        generation_parameters={
+            "max_output_tokens": 1000,
+            "reasoning_mode": "off",
+        },
+        context_configuration={"context_package_version": 1},
+    )
     context = ContextBuilderService().build_from_ranked(
         query=user_message.content or "request",
         results=(),
         max_estimated_tokens=300,
     )
-    signature = ModelSignature(
-        model_signature_id=uuid.uuid4(),
-        provider="lm_studio",
-        model_identifier="primary",
-        model_revision=None,
-        quantization="Q4_K_M",
-        generation_parameters_json='{"max_output_tokens":1000,"reasoning_mode":"off"}',
-        context_configuration_json='{"context_package_version":1}',
-        signature_hash=b"s" * 32,
-        created_at_us=1,
-    )
-    return ContextPackageService.build(
+    package = ContextPackageService.build(
         model_signature=signature,
         context=context,
         system_text="PACKAGE SYSTEM",
@@ -107,9 +118,37 @@ def _package(user_message, *, snapshot_commit_seq: int):
         retrieval_candidate_count=0,
         memory_candidate_count=0,
     )
+    run = model_runs.start_run(
+        run_type="chat.unified_local_context_package",
+        trigger_actor_id=user_message.actor_id,
+        pipeline_version="durable-grounded-test-v1",
+        input_snapshot=package.run_snapshot(),
+        configuration={"context_package_version": 1},
+        model_signature_id=signature.model_signature_id,
+        prompt_template_id="durable-grounded-test",
+        prompt_template_version="1",
+    )
+    return package, run.processing_run_id
 
 
-def test_provider_result_survives_restart_and_finalizes_without_replay(tmp_path) -> None:
+def _fingerprint(chat_id: uuid.UUID):
+    return build_chat_request_fingerprint(
+        mode=ChatSendMode.GROUNDED,
+        chat_id=chat_id,
+        content="hello",
+        requested_model_id="primary",
+        requested_embedding_model_id=None,
+        effective_context_limit=4096,
+        max_output_tokens=1000,
+        temperature=None,
+        reasoning_mode="off",
+        retrieval_configuration={},
+    )
+
+
+def test_provider_result_survives_restart_and_finalizes_without_replay(
+    tmp_path: Path,
+) -> None:
     path = tmp_path / "athena.db"
     database = SQLiteDatabase(path)
     database.start()
@@ -118,18 +157,7 @@ def test_provider_result_survives_restart_and_finalizes_without_replay(tmp_path)
         user = chats.create_actor(actor_type="user")
         chat_id = chats.create_chat(actor_id=user)
         operation_id = uuid.uuid4()
-        fingerprint = build_chat_request_fingerprint(
-            mode=ChatSendMode.GROUNDED,
-            chat_id=chat_id,
-            content="hello",
-            requested_model_id="primary",
-            requested_embedding_model_id=None,
-            effective_context_limit=4096,
-            max_output_tokens=1000,
-            temperature=None,
-            reasoning_mode="off",
-            retrieval_configuration={},
-        )
+        fingerprint = _fingerprint(chat_id)
         coordinator = GroundedSendCoordinator(database)
         started = coordinator.start(
             operation_id=operation_id,
@@ -138,14 +166,16 @@ def test_provider_result_survives_restart_and_finalizes_without_replay(tmp_path)
             content="hello",
             fingerprint=fingerprint,
         )
-        package = _package(started.user_message, snapshot_commit_seq=1)
+        package, run_id = _package_and_run(
+            database,
+            started.user_message,
+            snapshot_commit_seq=1,
+        )
         provider = _Provider()
         generation = DurableGroundedGenerationService(
             ChatGenerationService(ChatService(chats), provider),
             coordinator,
         )
-        run_id = uuid.uuid4()
-
         result = generation.send_context_package(
             operation_id=operation_id,
             chat_id=chat_id,
@@ -161,7 +191,6 @@ def test_provider_result_survives_restart_and_finalizes_without_replay(tmp_path)
                 }
             ),
         )
-
         assert provider.calls == 1
         assert result.assistant_message.content == "durable answer"
         recorded = coordinator.provider_attempts.load_result(operation_id)
@@ -190,7 +219,6 @@ def test_provider_result_survives_restart_and_finalizes_without_replay(tmp_path)
         assert pending.provider_identity is not None
         assert pending.provider_identity.provider_id == "lm_studio"
         assert pending.provider_identity.model_id == "primary"
-
         receipt = recovery.finalize_recorded_result(
             operation_id=operation_id,
             chat_id=chat_id,
@@ -221,7 +249,7 @@ def test_provider_result_survives_restart_and_finalizes_without_replay(tmp_path)
         database.stop()
 
 
-def test_grounding_retry_is_fenced_before_second_provider_call(tmp_path) -> None:
+def test_grounding_retry_is_fenced_before_second_provider_call(tmp_path: Path) -> None:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
     try:
@@ -229,18 +257,7 @@ def test_grounding_retry_is_fenced_before_second_provider_call(tmp_path) -> None
         user = chats.create_actor(actor_type="user")
         chat_id = chats.create_chat(actor_id=user)
         operation_id = uuid.uuid4()
-        fingerprint = build_chat_request_fingerprint(
-            mode=ChatSendMode.GROUNDED,
-            chat_id=chat_id,
-            content="hello",
-            requested_model_id="primary",
-            requested_embedding_model_id=None,
-            effective_context_limit=4096,
-            max_output_tokens=1000,
-            temperature=None,
-            reasoning_mode="off",
-            retrieval_configuration={},
-        )
+        fingerprint = _fingerprint(chat_id)
         coordinator = GroundedSendCoordinator(database)
         started = coordinator.start(
             operation_id=operation_id,
@@ -249,7 +266,11 @@ def test_grounding_retry_is_fenced_before_second_provider_call(tmp_path) -> None
             content="hello",
             fingerprint=fingerprint,
         )
-        package = _package(started.user_message, snapshot_commit_seq=1)
+        package, run_id = _package_and_run(
+            database,
+            started.user_message,
+            snapshot_commit_seq=1,
+        )
         provider = _Provider()
         generation = DurableGroundedGenerationService(
             ChatGenerationService(ChatService(chats), provider),
@@ -267,7 +288,7 @@ def test_grounding_retry_is_fenced_before_second_provider_call(tmp_path) -> None
                 chat_id=chat_id,
                 user_message=started.user_message,
                 context_package=package,
-                processing_run_id=uuid.uuid4(),
+                processing_run_id=run_id,
                 fingerprint=fingerprint,
                 receipt_payload_builder=lambda content, provider_id, model_id: json.dumps(
                     {
@@ -283,7 +304,6 @@ def test_grounding_retry_is_fenced_before_second_provider_call(tmp_path) -> None
                 ),
                 on_before_provider_call=on_before_provider_call,
             )
-
         assert exc_info.value.status.state is GroundedRecoveryState.AMBIGUOUS
         assert provider.calls == 1
         assert before_provider_calls == 1
@@ -294,6 +314,70 @@ def test_grounding_retry_is_fenced_before_second_provider_call(tmp_path) -> None
             chat_id=chat_id,
             fingerprint=fingerprint,
         ).state is GroundedRecoveryState.AMBIGUOUS
+        assert len(chats.load_chat(chat_id).messages) == 1
+    finally:
+        database.stop()
+
+
+def test_unknown_processing_run_is_fenced_before_package_and_provider(
+    tmp_path: Path,
+) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        chats = ChatRepository(database)
+        user = chats.create_actor(actor_type="user")
+        chat_id = chats.create_chat(actor_id=user)
+        operation_id = uuid.uuid4()
+        fingerprint = _fingerprint(chat_id)
+        coordinator = GroundedSendCoordinator(database)
+        started = coordinator.start(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            actor_id=user,
+            content="hello",
+            fingerprint=fingerprint,
+        )
+        package, valid_run_id = _package_and_run(
+            database,
+            started.user_message,
+            snapshot_commit_seq=1,
+        )
+        assert valid_run_id != uuid.UUID(int=0)
+        provider = _Provider()
+        generation = DurableGroundedGenerationService(
+            ChatGenerationService(ChatService(chats), provider),
+            coordinator,
+        )
+
+        with pytest.raises(
+            DurableGroundedGenerationError,
+            match="ProcessingRun provenance",
+        ):
+            generation.send_context_package(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                user_message=started.user_message,
+                context_package=package,
+                processing_run_id=uuid.uuid4(),
+                fingerprint=fingerprint,
+                receipt_payload_builder=lambda content, provider_id, model_id: json.dumps(
+                    {
+                        "assistant_text": content,
+                        "provider_id": provider_id,
+                        "model_id": model_id,
+                    }
+                ),
+            )
+
+        assert provider.calls == 0
+        assert coordinator.load_context_package(operation_id) is None
+        assert coordinator.provider_attempts.load(operation_id) is None
+        assert coordinator.recover(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        ).state is GroundedRecoveryState.RESUMABLE
         assert len(chats.load_chat(chat_id).messages) == 1
     finally:
         database.stop()
