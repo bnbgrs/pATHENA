@@ -15,6 +15,10 @@ from athena.chat.grounded_context_package import (
     GroundedContextPackageRepository,
     GroundedContextPackageSchemaError,
 )
+from athena.chat.grounded_processing_run import (
+    GroundedProcessingRunError,
+    complete_grounded_processing_run,
+)
 from athena.chat.grounded_provider_attempt import (
     GroundedProviderAttemptRepository,
     GroundedProviderAttemptSchemaError,
@@ -38,7 +42,7 @@ from athena.chat.request_fingerprint import ChatRequestFingerprint
 from athena.chat.send_identity import assistant_message_id_for_operation
 from athena.chat.send_operation import ChatSendOperationRepository, ChatSendOperationState
 from athena.chat.service import ChatService
-from athena.common.ids import uuid_to_blob
+from athena.common.ids import uuid_from_blob, uuid_to_blob
 from athena.storage.database import SQLiteDatabase
 
 
@@ -326,6 +330,45 @@ class GroundedSendRecovery:
             raise GroundedRecoveryConflictError(
                 "Grounded result finalization found an unexpected operation state."
             )
+
+        try:
+            context_record = self.context_packages.load(operation_id)
+        except GroundedContextPackageSchemaError as exc:
+            raise GroundedRecoveryConflictError(
+                "Grounded recovery found a corrupted pinned ContextPackage."
+            ) from exc
+        if context_record is not None:
+            if context_record.chat_id != chat_id:
+                raise GroundedRecoveryConflictError(
+                    "Pinned ContextPackage chat conflicts with Grounded recovery."
+                )
+            user = self.database.connection.execute(
+                """
+                SELECT chat_id, actor_id, message_type
+                FROM chat_messages
+                WHERE message_id = ?
+                """,
+                (uuid_to_blob(operation_id),),
+            ).fetchone()
+            if (
+                user is None
+                or uuid_from_blob(bytes(user["chat_id"])) != chat_id
+                or str(user["message_type"]) != "user"
+            ):
+                raise GroundedRecoveryConflictError(
+                    "Pinned ContextPackage is missing its durable Grounded trigger user."
+                )
+            try:
+                complete_grounded_processing_run(
+                    self.database,
+                    processing_run_id=result.processing_run_id,
+                    package=context_record.package,
+                    trigger_actor_id=uuid_from_blob(bytes(user["actor_id"])),
+                )
+            except GroundedProcessingRunError as exc:
+                raise GroundedRecoveryConflictError(
+                    "Recorded provider result conflicts with its durable ProcessingRun."
+                ) from exc
 
         return self.completions.complete(
             operation_id=operation_id,
