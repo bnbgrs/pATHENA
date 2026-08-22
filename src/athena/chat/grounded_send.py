@@ -15,6 +15,10 @@ from athena.chat.grounded_completion import (
     GroundedSendCompletionRepository,
     GroundedSendReceipt,
 )
+from athena.chat.grounded_processing_run import (
+    GroundedProcessingRunError,
+    validate_grounded_processing_run,
+)
 from athena.chat.grounded_provider_attempt import (
     GroundedProviderAttempt,
     GroundedProviderAttemptConflictError,
@@ -35,7 +39,7 @@ from athena.chat.grounded_recovery import (
 from athena.chat.grounded_turn import GroundedUserTurnRepository
 from athena.chat.models import ChatMessage
 from athena.chat.request_fingerprint import ChatRequestFingerprint
-from athena.common.ids import uuid_to_blob
+from athena.common.ids import uuid_from_blob, uuid_to_blob
 from athena.retrieval.context_package import ContextPackage, ContextPackageError
 from athena.storage.database import SQLiteDatabase
 
@@ -85,6 +89,10 @@ class GroundedProviderResultError(RuntimeError):
 
 class GroundedProviderIdentityError(RuntimeError):
     """Provider result identity conflicts with the pinned ContextPackage model."""
+
+
+class GroundedProviderRunError(RuntimeError):
+    """Provider result provenance conflicts with its durable ProcessingRun."""
 
 
 class GroundedAssistantCommitError(RuntimeError):
@@ -294,6 +302,33 @@ class GroundedSendCoordinator:
                 raise GroundedProviderIdentityError(
                     "Provider result identity conflicts with the pinned ContextPackage model."
                 )
+        user = self.database.connection.execute(
+            """
+            SELECT chat_id, actor_id, message_type
+            FROM chat_messages
+            WHERE message_id = ?
+            """,
+            (uuid_to_blob(operation_id),),
+        ).fetchone()
+        if (
+            user is None
+            or uuid_from_blob(bytes(user["chat_id"])) != chat_id
+            or str(user["message_type"]) != "user"
+        ):
+            raise GroundedProviderRunError(
+                "Grounded provider result is missing its durable trigger user."
+            )
+        try:
+            validate_grounded_processing_run(
+                self.database,
+                processing_run_id=processing_run_id,
+                package=context_record.package,
+                trigger_actor_id=uuid_from_blob(bytes(user["actor_id"])),
+            )
+        except GroundedProcessingRunError as exc:
+            raise GroundedProviderRunError(
+                "Grounded provider result conflicts with its durable ProcessingRun."
+            ) from exc
         before = self.recover(
             operation_id=operation_id,
             chat_id=chat_id,
