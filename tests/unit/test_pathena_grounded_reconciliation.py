@@ -220,3 +220,49 @@ def test_reconciliation_fails_closed_when_complete_operation_loses_receipt(tmp_p
     assert status.state is GroundedReconciliationState.CONFLICT
     assert status.receipt is None
     database.stop()
+
+
+def test_reconciliation_fails_closed_when_receipt_is_corrupted(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        actor, chat_id = _chat(database)
+        operation_id = uuid.uuid4()
+        fingerprint = _fingerprint(chat_id)
+        _start(
+            database,
+            actor_id=actor,
+            chat_id=chat_id,
+            operation_id=operation_id,
+            fingerprint=fingerprint,
+        )
+        run_id = uuid.uuid4()
+        payload = '{"assistant_text":"answer"}'
+        _journal_and_force_assistant(
+            database,
+            chat_id=chat_id,
+            operation_id=operation_id,
+            processing_run_id=run_id,
+            payload_json=payload,
+        )
+        GroundedSendCompletionRepository(database).complete(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            processing_run_id=run_id,
+            payload_json=payload,
+        )
+        with database.write_transaction() as connection:
+            connection.execute(
+                "UPDATE grounded_send_receipts SET payload_json = ? WHERE operation_id = ?",
+                ('{"assistant_text":"tampered"}', uuid_to_blob(operation_id)),
+            )
+
+        status = GroundedSendReconciler(database).inspect(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        )
+        assert status.state is GroundedReconciliationState.CONFLICT
+        assert status.receipt is None
+    finally:
+        database.stop()
