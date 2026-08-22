@@ -19,6 +19,7 @@ from athena.chat.models import ChatMessage
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
 from athena.chat.service import ChatService
+from athena.common.ids import uuid_to_blob
 from athena.model.domain import ModelChatMessage, ModelInfo, ProviderHealth, ProviderHealthStatus
 from athena.model.provenance import ModelRunRepository
 from athena.retrieval.context import ContextBuilderService
@@ -72,11 +73,23 @@ class _Provider:
         yield "durable answer"
 
 
+def _user_commit_seq(database: SQLiteDatabase, user_message: ChatMessage) -> int:
+    row = database.connection.execute(
+        """
+        SELECT c.commit_seq
+        FROM revisions AS r
+        JOIN commit_records AS c ON c.commit_id = r.commit_id
+        WHERE r.revision_id = ?
+        """,
+        (uuid_to_blob(user_message.revision_id),),
+    ).fetchone()
+    assert row is not None
+    return int(row["commit_seq"])
+
+
 def _package_and_run(
     database: SQLiteDatabase,
     user_message: ChatMessage,
-    *,
-    snapshot_commit_seq: int,
 ) -> tuple[ContextPackage, uuid.UUID]:
     if user_message.actor_id is None:
         raise AssertionError("Test user message must have an actor.")
@@ -114,7 +127,7 @@ def _package_and_run(
             estimated_input_tokens=20,
             estimated_total_tokens=1220,
         ),
-        snapshot_commit_seq=snapshot_commit_seq,
+        snapshot_commit_seq=_user_commit_seq(database, user_message),
         retrieval_candidate_count=0,
         memory_candidate_count=0,
     )
@@ -166,11 +179,7 @@ def test_provider_result_survives_restart_and_finalizes_without_replay(
             content="hello",
             fingerprint=fingerprint,
         )
-        package, run_id = _package_and_run(
-            database,
-            started.user_message,
-            snapshot_commit_seq=1,
-        )
+        package, run_id = _package_and_run(database, started.user_message)
         provider = _Provider()
         generation = DurableGroundedGenerationService(
             ChatGenerationService(ChatService(chats), provider),
@@ -266,11 +275,7 @@ def test_grounding_retry_is_fenced_before_second_provider_call(tmp_path: Path) -
             content="hello",
             fingerprint=fingerprint,
         )
-        package, run_id = _package_and_run(
-            database,
-            started.user_message,
-            snapshot_commit_seq=1,
-        )
+        package, run_id = _package_and_run(database, started.user_message)
         provider = _Provider()
         generation = DurableGroundedGenerationService(
             ChatGenerationService(ChatService(chats), provider),
@@ -338,11 +343,7 @@ def test_unknown_processing_run_is_fenced_before_package_and_provider(
             content="hello",
             fingerprint=fingerprint,
         )
-        package, valid_run_id = _package_and_run(
-            database,
-            started.user_message,
-            snapshot_commit_seq=1,
-        )
+        package, valid_run_id = _package_and_run(database, started.user_message)
         assert valid_run_id != uuid.UUID(int=0)
         provider = _Provider()
         generation = DurableGroundedGenerationService(
@@ -402,11 +403,7 @@ def test_crashing_pre_provider_hook_leaves_durable_ambiguous_boundary(
             content="hello",
             fingerprint=fingerprint,
         )
-        package, run_id = _package_and_run(
-            database,
-            started.user_message,
-            snapshot_commit_seq=1,
-        )
+        package, run_id = _package_and_run(database, started.user_message)
         provider = _Provider()
         generation = DurableGroundedGenerationService(
             ChatGenerationService(ChatService(chats), provider),
@@ -443,6 +440,10 @@ def test_crashing_pre_provider_hook_leaves_durable_ambiguous_boundary(
             chat_id=chat_id,
             fingerprint=fingerprint,
         ).state is GroundedRecoveryState.AMBIGUOUS
+        failed_run = ModelRunRepository(database).load_run(run_id)
+        assert failed_run.status == "failed"
+        assert failed_run.finished_at_us is not None
+        assert failed_run.error_detail == "RuntimeError"
         assert len(chats.load_chat(chat_id).messages) == 1
     finally:
         database.stop()
