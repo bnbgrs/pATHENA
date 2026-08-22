@@ -145,6 +145,8 @@ class GroundedSendCoordinator:
         processing_run_id: uuid.UUID,
         assistant_content: str,
         receipt_payload_json: str,
+        provider_id: str | None = None,
+        model_id: str | None = None,
     ) -> GroundedProviderResult:
         before = self.recover(
             operation_id=operation_id,
@@ -159,6 +161,8 @@ class GroundedSendCoordinator:
             processing_run_id=processing_run_id,
             assistant_content=assistant_content,
             receipt_payload_json=receipt_payload_json,
+            provider_id=provider_id,
+            model_id=model_id,
         )
         after = self.recover(
             operation_id=operation_id,
@@ -176,8 +180,8 @@ class GroundedSendCoordinator:
         *,
         operation_id: uuid.UUID,
         chat_id: uuid.UUID,
-        actor_id: uuid.UUID,
         fingerprint: ChatRequestFingerprint,
+        actor_id: uuid.UUID | None = None,
     ) -> GroundedSendReceipt:
         return self.recovery.finalize_recorded_result(
             operation_id=operation_id,
