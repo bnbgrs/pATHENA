@@ -91,7 +91,7 @@ _REQUIRED_COLUMNS = (
 )
 
 _CREATE_SQL = """
-CREATE TABLE chat_send_operations (
+CREATE TABLE IF NOT EXISTS chat_send_operations (
     operation_id BLOB(16) PRIMARY KEY NOT NULL CHECK(length(operation_id) = 16),
     chat_id BLOB(16) NOT NULL CHECK(length(chat_id) = 16),
     mode TEXT NOT NULL CHECK(mode IN ('direct', 'grounded')),
@@ -116,6 +116,11 @@ CREATE TABLE chat_send_operations (
 """
 
 
+def _normalized_schema_sql(sql: str) -> str:
+    normalized = " ".join(sql.split())
+    return normalized.replace("CREATE TABLE IF NOT EXISTS ", "CREATE TABLE ", 1)
+
+
 class ChatSendOperationRepository:
     """Transactional persistence for retry/reconciliation identity."""
 
@@ -135,6 +140,19 @@ class ChatSendOperationRepository:
 
     def _verify_extension_schema(self) -> None:
         connection = self.database.connection
+        schema_row = connection.execute(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'chat_send_operations'"
+        ).fetchone()
+        if (
+            schema_row is None
+            or schema_row["sql"] is None
+            or _normalized_schema_sql(str(schema_row["sql"]))
+            != _normalized_schema_sql(_CREATE_SQL)
+        ):
+            raise ChatSendOperationSchemaError(
+                "chat_send_operations has an incompatible schema extension definition."
+            )
+
         rows = connection.execute("PRAGMA table_info(chat_send_operations)").fetchall()
         actual = tuple(str(row["name"]) for row in rows)
         if actual != _REQUIRED_COLUMNS:

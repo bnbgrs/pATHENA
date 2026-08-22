@@ -159,3 +159,33 @@ def test_incompatible_preexisting_extension_fails_closed(tmp_path) -> None:
     with pytest.raises(ChatSendOperationSchemaError):
         ChatSendOperationRepository(database)
     database.stop()
+
+
+def test_same_named_but_weakened_extension_definition_fails_closed(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    database.connection.execute(
+        """
+        CREATE TABLE chat_send_operations (
+            operation_id BLOB PRIMARY KEY,
+            chat_id BLOB,
+            mode TEXT,
+            request_fingerprint_payload_json TEXT,
+            request_fingerprint_sha256 TEXT,
+            request_fingerprint_format_version INTEGER,
+            extension_schema_version INTEGER,
+            state TEXT,
+            processing_run_id BLOB,
+            receipt_payload_sha256 TEXT,
+            created_at_us INTEGER,
+            updated_at_us INTEGER,
+            FOREIGN KEY(chat_id) REFERENCES chats(chat_id) ON DELETE CASCADE
+        )
+        """
+    )
+    with pytest.raises(
+        ChatSendOperationSchemaError,
+        match="incompatible schema extension definition",
+    ):
+        ChatSendOperationRepository(database)
+    database.stop()

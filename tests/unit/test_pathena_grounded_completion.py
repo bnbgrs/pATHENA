@@ -7,6 +7,7 @@ import pytest
 
 from athena.chat.grounded_completion import (
     GroundedSendCompletionConflictError,
+    GroundedSendCompletionCorruptionError,
     GroundedSendCompletionRepository,
 )
 from athena.chat.repository import ChatRepository
@@ -172,4 +173,37 @@ def test_exact_receipt_survives_restart(tmp_path) -> None:
     ChatSendOperationRepository(database)
     recovered = GroundedSendCompletionRepository(database).load(operation_id)
     assert recovered == stored
+    database.stop()
+
+
+def test_same_named_but_weakened_receipt_definition_fails_closed(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    chat_id, operation_id, operations = _setup(database)
+    assert chat_id is not None
+    assert operation_id is not None
+    assert operations is not None
+    database.connection.execute(
+        """
+        CREATE TABLE grounded_send_receipts (
+            operation_id BLOB PRIMARY KEY,
+            chat_id BLOB,
+            processing_run_id BLOB,
+            payload_json TEXT,
+            payload_sha256 TEXT,
+            format_version INTEGER,
+            extension_schema_version INTEGER,
+            created_at_us INTEGER,
+            FOREIGN KEY(operation_id)
+                REFERENCES chat_send_operations(operation_id) ON DELETE CASCADE,
+            FOREIGN KEY(chat_id)
+                REFERENCES chats(chat_id) ON DELETE CASCADE
+        )
+        """
+    )
+    with pytest.raises(
+        GroundedSendCompletionCorruptionError,
+        match="incompatible extension definition",
+    ):
+        GroundedSendCompletionRepository(database)
     database.stop()

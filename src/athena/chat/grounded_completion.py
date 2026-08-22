@@ -51,7 +51,7 @@ _REQUIRED_COLUMNS = (
 )
 
 _CREATE_SQL = """
-CREATE TABLE grounded_send_receipts (
+CREATE TABLE IF NOT EXISTS grounded_send_receipts (
     operation_id BLOB(16) PRIMARY KEY NOT NULL CHECK(length(operation_id) = 16),
     chat_id BLOB(16) NOT NULL CHECK(length(chat_id) = 16),
     processing_run_id BLOB(16) NOT NULL CHECK(length(processing_run_id) = 16),
@@ -66,6 +66,11 @@ CREATE TABLE grounded_send_receipts (
         REFERENCES chats(chat_id) ON DELETE CASCADE
 ) WITHOUT ROWID
 """
+
+
+def _normalized_schema_sql(sql: str) -> str:
+    normalized = " ".join(sql.split())
+    return normalized.replace("CREATE TABLE IF NOT EXISTS ", "CREATE TABLE ", 1)
 
 
 def _canonical_payload(payload_json: str) -> tuple[str, str]:
@@ -104,6 +109,19 @@ class GroundedSendCompletionRepository:
 
     def _verify_extension_schema(self) -> None:
         connection = self.database.connection
+        schema_row = connection.execute(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'grounded_send_receipts'"
+        ).fetchone()
+        if (
+            schema_row is None
+            or schema_row["sql"] is None
+            or _normalized_schema_sql(str(schema_row["sql"]))
+            != _normalized_schema_sql(_CREATE_SQL)
+        ):
+            raise GroundedSendCompletionCorruptionError(
+                "grounded_send_receipts has an incompatible extension definition."
+            )
+
         columns = connection.execute("PRAGMA table_info(grounded_send_receipts)").fetchall()
         if tuple(str(row["name"]) for row in columns) != _REQUIRED_COLUMNS:
             raise GroundedSendCompletionCorruptionError(
