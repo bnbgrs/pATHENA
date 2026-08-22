@@ -65,6 +65,7 @@ class CoreApiGateway(Protocol):
         temperature: float | None = None,
         thinking_enabled: bool | None = None,
     ) -> ChatThreadResponse: ...
+
     def send_unified_local_chat_message(
         self,
         chat_id: str,
@@ -72,11 +73,13 @@ class CoreApiGateway(Protocol):
         content: str,
         model_id: str | None = None,
         embedding_model_id: str | None = None,
+        operation_id: str | None = None,
         effective_context_limit: int | None = None,
         max_output_tokens: int | None = None,
         temperature: float | None = None,
         thinking_enabled: bool | None = None,
     ) -> GroundedChatResponse: ...
+
     def remember_chat_message(
         self,
         chat_id: str,
@@ -121,6 +124,7 @@ class CoreApiGateway(Protocol):
         *,
         preview_digest: str,
     ) -> DeletionResultResponse: ...
+
 
 SnapshotFreshness = Literal["fresh", "stale", "unavailable"]
 
@@ -197,6 +201,7 @@ class _ChatOperationOutcome:
         if self.error is None and result_count != 1:
             raise ValueError("Successful chat outcome requires exactly one result.")
 
+
 _DirectSendReconciliationState = Literal[
     "absent",
     "incomplete",
@@ -214,70 +219,40 @@ def _classify_direct_send(
 ) -> _DirectSendReconciliationState:
     if thread.chat_id != chat_id:
         return "conflict"
-
     try:
-        parsed_operation_id = uuid.UUID(
-            operation_id
-        )
+        parsed_operation_id = uuid.UUID(operation_id)
     except ValueError:
         return "conflict"
-
-    expected_user_id = str(
-        parsed_operation_id
-    )
-
-    expected_assistant_id = str(
-        assistant_message_id_for_operation(
-            parsed_operation_id
-        )
-    )
-
+    expected_user_id = str(parsed_operation_id)
+    expected_assistant_id = str(assistant_message_id_for_operation(parsed_operation_id))
     user_matches = tuple(
-        message
-        for message in thread.messages
-        if message.message_id == expected_user_id
+        message for message in thread.messages if message.message_id == expected_user_id
     )
-
     assistant_matches = tuple(
-        message
-        for message in thread.messages
-        if message.message_id == expected_assistant_id
+        message for message in thread.messages if message.message_id == expected_assistant_id
     )
-
-    if (
-        not user_matches
-        and not assistant_matches
-    ):
+    if not user_matches and not assistant_matches:
         return "absent"
-
     if len(user_matches) != 1:
         return "conflict"
-
     user_message = user_matches[0]
-
     if (
         user_message.chat_id != chat_id
         or user_message.message_type != "user"
         or user_message.content != content
     ):
         return "conflict"
-
     if not assistant_matches:
         return "incomplete"
-
     if len(assistant_matches) != 1:
         return "conflict"
-
     assistant_message = assistant_matches[0]
-
     if (
         assistant_message.chat_id != chat_id
         or assistant_message.message_type != "assistant"
-        or assistant_message.sequence_no
-        != user_message.sequence_no + 1
+        or assistant_message.sequence_no != user_message.sequence_no + 1
     ):
         return "conflict"
-
     return "complete"
 
 
@@ -326,6 +301,7 @@ class _ChatTask(QRunnable):
         self.outcomes = outcomes
         self.receiver = receiver
         self.setAutoDelete(False)
+
     @Slot()
     def run(self) -> None:
         resolved_chat_id = self.chat_id
@@ -333,63 +309,31 @@ class _ChatTask(QRunnable):
             if self.operation == "load":
                 if resolved_chat_id is None:
                     raise ValueError("Chat load requires a chat ID.")
-                thread = self.gateway.load_chat(
-                    resolved_chat_id
-                )
+                thread = self.gateway.load_chat(resolved_chat_id)
                 if thread.chat_id != resolved_chat_id:
-                    raise RuntimeError(
-                        "Loaded chat belongs to another chat."
-                    )
-                outcome = _ChatOperationOutcome(
-                    operation=self.operation,
-                    thread=thread,
-                )
+                    raise RuntimeError("Loaded chat belongs to another chat.")
+                outcome = _ChatOperationOutcome(operation=self.operation, thread=thread)
             elif self.operation == "send":
                 content = self.content
                 operation_id = self.operation_id
-
                 if content is None or not content.strip():
-                    raise ValueError(
-                        "Chat send requires message content."
-                    )
-
+                    raise ValueError("Chat send requires message content.")
                 if operation_id is None:
-                    raise ValueError(
-                        "Direct chat send requires "
-                        "a stable operation ID."
-                    )
-
-                parsed_operation_id = uuid.UUID(
-                    operation_id
-                )
-
+                    raise ValueError("Direct chat send requires a stable operation ID.")
+                parsed_operation_id = uuid.UUID(operation_id)
                 if resolved_chat_id is None:
-                    resolved_chat_id = str(
-                        chat_id_for_operation(
-                            parsed_operation_id
-                        )
-                    )
-
+                    resolved_chat_id = str(chat_id_for_operation(parsed_operation_id))
                     try:
-                        created = self.gateway.create_chat(
-                            resolved_chat_id
-                        )
+                        created = self.gateway.create_chat(resolved_chat_id)
                     except CoreApiClientError as create_exc:
                         if create_exc.status is not None:
                             raise
-
                         try:
-                            created = self.gateway.load_chat(
-                                resolved_chat_id
-                            )
+                            created = self.gateway.load_chat(resolved_chat_id)
                         except Exception as reconcile_exc:
                             raise create_exc from reconcile_exc
-
                     if created.chat_id != resolved_chat_id:
-                        raise RuntimeError(
-                            "Created chat belongs to another chat."
-                        )
-
+                        raise RuntimeError("Created chat belongs to another chat.")
                 if (
                     self.effective_context_limit is None
                     and self.max_output_tokens is None
@@ -412,9 +356,7 @@ class _ChatTask(QRunnable):
                         content=content,
                         model_id=self.model_id,
                         operation_id=operation_id,
-                        effective_context_limit=(
-                            self.effective_context_limit
-                        ),
+                        effective_context_limit=self.effective_context_limit,
                     )
                 else:
                     thread = self.gateway.send_chat_message(
@@ -422,18 +364,11 @@ class _ChatTask(QRunnable):
                         content=content,
                         model_id=self.model_id,
                         operation_id=operation_id,
-                        effective_context_limit=(
-                            self.effective_context_limit
-                        ),
-                        max_output_tokens=(
-                            self.max_output_tokens
-                        ),
+                        effective_context_limit=self.effective_context_limit,
+                        max_output_tokens=self.max_output_tokens,
                         temperature=self.temperature,
-                        thinking_enabled=(
-                            self.thinking_enabled
-                        ),
+                        thinking_enabled=self.thinking_enabled,
                     )
-
                 if (
                     _classify_direct_send(
                         thread,
@@ -444,19 +379,30 @@ class _ChatTask(QRunnable):
                     != "complete"
                 ):
                     raise RuntimeError(
-                        "Direct chat response does not contain "
-                        "the expected durable send operation."
+                        "Direct chat response does not contain the expected durable send operation."
                     )
-
-                outcome = _ChatOperationOutcome(
-                    operation=self.operation,
-                    thread=thread,
-                )
+                outcome = _ChatOperationOutcome(operation=self.operation, thread=thread)
             elif self.operation == "send_grounded":
-                if self.content is None or not self.content.strip():
+                content = self.content
+                operation_id = self.operation_id
+                if content is None or not content.strip():
                     raise ValueError("Grounded chat send requires message content.")
+                if operation_id is None:
+                    raise ValueError("Grounded chat send requires a stable operation ID.")
+                parsed_operation_id = uuid.UUID(operation_id)
                 if resolved_chat_id is None:
-                    resolved_chat_id = self.gateway.create_chat().chat_id
+                    resolved_chat_id = str(chat_id_for_operation(parsed_operation_id))
+                    try:
+                        created = self.gateway.create_chat(resolved_chat_id)
+                    except CoreApiClientError as create_exc:
+                        if create_exc.status is not None:
+                            raise
+                        try:
+                            created = self.gateway.load_chat(resolved_chat_id)
+                        except Exception as reconcile_exc:
+                            raise create_exc from reconcile_exc
+                    if created.chat_id != resolved_chat_id:
+                        raise RuntimeError("Created Grounded chat belongs to another chat.")
                 if (
                     self.effective_context_limit is None
                     and self.max_output_tokens is None
@@ -465,8 +411,9 @@ class _ChatTask(QRunnable):
                 ):
                     grounded = self.gateway.send_unified_local_chat_message(
                         resolved_chat_id,
-                        content=self.content,
+                        content=content,
                         model_id=self.model_id,
+                        operation_id=operation_id,
                     )
                 elif (
                     self.max_output_tokens is None
@@ -475,15 +422,17 @@ class _ChatTask(QRunnable):
                 ):
                     grounded = self.gateway.send_unified_local_chat_message(
                         resolved_chat_id,
-                        content=self.content,
+                        content=content,
                         model_id=self.model_id,
+                        operation_id=operation_id,
                         effective_context_limit=self.effective_context_limit,
                     )
                 else:
                     grounded = self.gateway.send_unified_local_chat_message(
                         resolved_chat_id,
-                        content=self.content,
+                        content=content,
                         model_id=self.model_id,
+                        operation_id=operation_id,
                         effective_context_limit=self.effective_context_limit,
                         max_output_tokens=self.max_output_tokens,
                         temperature=self.temperature,
@@ -491,21 +440,24 @@ class _ChatTask(QRunnable):
                     )
                 if grounded.thread.chat_id != resolved_chat_id:
                     raise RuntimeError("Grounded response belongs to another chat.")
-                outcome = _ChatOperationOutcome(
-                    operation=self.operation,
-                    grounded=grounded,
-                )
+                if (
+                    _classify_direct_send(
+                        grounded.thread,
+                        chat_id=resolved_chat_id,
+                        operation_id=operation_id,
+                        content=content,
+                    )
+                    != "complete"
+                ):
+                    raise RuntimeError(
+                        "Grounded response does not contain the expected durable send operation."
+                    )
+                outcome = _ChatOperationOutcome(operation=self.operation, grounded=grounded)
             elif self.operation == "remember":
                 message_id = self.message_id
                 revision_id = self.revision_id
-                if (
-                    resolved_chat_id is None
-                    or message_id is None
-                    or revision_id is None
-                ):
-                    raise ValueError(
-                        "Remember requires stable chat-message identity."
-                    )
+                if resolved_chat_id is None or message_id is None or revision_id is None:
+                    raise ValueError("Remember requires stable chat-message identity.")
                 remembered = self.gateway.remember_chat_message(
                     resolved_chat_id,
                     message_id,
@@ -516,9 +468,7 @@ class _ChatTask(QRunnable):
                     or remembered.message_id != message_id
                     or remembered.message_revision_id != revision_id
                 ):
-                    raise RuntimeError(
-                        "Remember result belongs to another message revision."
-                    )
+                    raise RuntimeError("Remember result belongs to another message revision.")
                 outcome = _ChatOperationOutcome(
                     operation=self.operation,
                     remembered=remembered,
@@ -526,14 +476,8 @@ class _ChatTask(QRunnable):
             elif self.operation == "extract_knowledge":
                 message_id = self.message_id
                 revision_id = self.revision_id
-                if (
-                    resolved_chat_id is None
-                    or message_id is None
-                    or revision_id is None
-                ):
-                    raise ValueError(
-                        "Knowledge extraction requires stable chat-message identity."
-                    )
+                if resolved_chat_id is None or message_id is None or revision_id is None:
+                    raise ValueError("Knowledge extraction requires stable chat-message identity.")
                 extraction = self.gateway.extract_chat_message_knowledge(
                     resolved_chat_id,
                     message_id,
@@ -547,9 +491,7 @@ class _ChatTask(QRunnable):
                     or extraction.message_id != message_id
                     or extraction.message_revision_id != revision_id
                 ):
-                    raise RuntimeError(
-                        "Knowledge extraction result belongs to another message revision."
-                    )
+                    raise RuntimeError("Knowledge extraction result belongs to another message revision.")
                 outcome = _ChatOperationOutcome(
                     operation=self.operation,
                     knowledge_extraction=extraction,
@@ -557,14 +499,10 @@ class _ChatTask(QRunnable):
             elif self.operation == "prepare_knowledge_review":
                 processing_run_id = self.processing_run_id
                 if processing_run_id is None:
-                    raise ValueError(
-                        "Knowledge review requires a ProcessingRun ID."
-                    )
+                    raise ValueError("Knowledge review requires a ProcessingRun ID.")
                 outcome = _ChatOperationOutcome(
                     operation=self.operation,
-                    knowledge_review=self.gateway.prepare_knowledge_review(
-                        processing_run_id
-                    ),
+                    knowledge_review=self.gateway.prepare_knowledge_review(processing_run_id),
                 )
             elif self.operation == "load_merge_review":
                 review_id = self.review_id
@@ -572,17 +510,13 @@ class _ChatTask(QRunnable):
                     raise ValueError("Merge review load requires a review ID.")
                 outcome = _ChatOperationOutcome(
                     operation=self.operation,
-                    merge_review=self.gateway.load_knowledge_merge_review(
-                        review_id
-                    ),
+                    merge_review=self.gateway.load_knowledge_merge_review(review_id),
                 )
             elif self.operation == "resolve_merge_review":
                 review_id = self.review_id
                 review_decision = self.review_decision
                 if review_id is None or review_decision is None:
-                    raise ValueError(
-                        "Merge review resolution requires review identity and decision."
-                    )
+                    raise ValueError("Merge review resolution requires review identity and decision.")
                 outcome = _ChatOperationOutcome(
                     operation=self.operation,
                     merge_review=self.gateway.resolve_knowledge_merge_review(
@@ -595,9 +529,7 @@ class _ChatTask(QRunnable):
                     raise ValueError("Chat deletion preview requires a chat ID.")
                 outcome = _ChatOperationOutcome(
                     operation=self.operation,
-                    deletion_preview=self.gateway.preview_chat_deletion(
-                        resolved_chat_id
-                    ),
+                    deletion_preview=self.gateway.preview_chat_deletion(resolved_chat_id),
                 )
             elif self.operation == "delete":
                 if resolved_chat_id is None or self.preview_digest is None:
@@ -622,17 +554,11 @@ class _ChatTask(QRunnable):
                 and self.content is not None
             ):
                 try:
-                    reconciled = self.gateway.load_chat(
-                        resolved_chat_id
-                    )
+                    reconciled = self.gateway.load_chat(resolved_chat_id)
                 except Exception:
                     reconciled = None
-
                 if reconciled is None:
-                    outcome = _ChatOperationOutcome(
-                        operation=self.operation,
-                        error=str(exc),
-                    )
+                    outcome = _ChatOperationOutcome(operation=self.operation, error=str(exc))
                 else:
                     state = _classify_direct_send(
                         reconciled,
@@ -640,7 +566,6 @@ class _ChatTask(QRunnable):
                         operation_id=self.operation_id,
                         content=self.content,
                     )
-
                     if state == "complete":
                         outcome = _ChatOperationOutcome(
                             operation=self.operation,
@@ -651,9 +576,8 @@ class _ChatTask(QRunnable):
                             operation=self.operation,
                             thread=reconciled,
                             error=(
-                                "Direct send persisted the user turn "
-                                "but no completed assistant turn. "
-                                "Automatic re-execution is blocked."
+                                "Direct send persisted the user turn but no completed "
+                                "assistant turn. Automatic re-execution is blocked."
                             ),
                         )
                     elif state == "conflict":
@@ -661,8 +585,8 @@ class _ChatTask(QRunnable):
                             operation=self.operation,
                             thread=reconciled,
                             error=(
-                                "Direct send reconciliation detected "
-                                "conflicting durable message identity."
+                                "Direct send reconciliation detected conflicting durable "
+                                "message identity."
                             ),
                         )
                     else:
@@ -671,35 +595,63 @@ class _ChatTask(QRunnable):
                             thread=reconciled,
                             error=str(exc),
                         )
-
             elif (
                 self.operation == "send_grounded"
                 and resolved_chat_id is not None
+                and self.operation_id is not None
+                and self.content is not None
             ):
                 try:
-                    reconciled = self.gateway.load_chat(
-                        resolved_chat_id
-                    )
+                    reconciled = self.gateway.load_chat(resolved_chat_id)
                 except Exception:
                     reconciled = None
-
-                outcome = _ChatOperationOutcome(
-                    operation=self.operation,
-                    thread=reconciled,
-                    error=str(exc),
-                )
-
+                if reconciled is None:
+                    outcome = _ChatOperationOutcome(operation=self.operation, error=str(exc))
+                else:
+                    state = _classify_direct_send(
+                        reconciled,
+                        chat_id=resolved_chat_id,
+                        operation_id=self.operation_id,
+                        content=self.content,
+                    )
+                    if state == "complete":
+                        outcome = _ChatOperationOutcome(
+                            operation=self.operation,
+                            thread=reconciled,
+                            error=(
+                                "Grounded send completed durably, but the grounded response "
+                                "payload was lost. Retry the same operation to replay it."
+                            ),
+                        )
+                    elif state == "incomplete":
+                        outcome = _ChatOperationOutcome(
+                            operation=self.operation,
+                            thread=reconciled,
+                            error=(
+                                "Grounded send is durably incomplete. Retry the same operation "
+                                "identity to resume or recover it safely."
+                            ),
+                        )
+                    elif state == "conflict":
+                        outcome = _ChatOperationOutcome(
+                            operation=self.operation,
+                            thread=reconciled,
+                            error="Grounded send reconciliation detected conflicting identity.",
+                        )
+                    else:
+                        outcome = _ChatOperationOutcome(
+                            operation=self.operation,
+                            thread=reconciled,
+                            error=str(exc),
+                        )
             elif (
                 self.operation == "delete"
                 and resolved_chat_id is not None
                 and exc.status is None
             ):
                 deletion_reconciled = False
-
                 try:
-                    self.gateway.load_chat(
-                        resolved_chat_id
-                    )
+                    self.gateway.load_chat(resolved_chat_id)
                 except CoreApiClientError as reconcile_exc:
                     deletion_reconciled = (
                         reconcile_exc.status == 404
@@ -707,23 +659,15 @@ class _ChatTask(QRunnable):
                     )
                 except Exception:
                     deletion_reconciled = False
-
                 if deletion_reconciled:
                     outcome = _ChatOperationOutcome(
                         operation=self.operation,
                         deleted_chat_id=resolved_chat_id,
                     )
                 else:
-                    outcome = _ChatOperationOutcome(
-                        operation=self.operation,
-                        error=str(exc),
-                    )
-
+                    outcome = _ChatOperationOutcome(operation=self.operation, error=str(exc))
             else:
-                outcome = _ChatOperationOutcome(
-                    operation=self.operation,
-                    error=str(exc),
-                )
+                outcome = _ChatOperationOutcome(operation=self.operation, error=str(exc))
         except Exception:
             outcome = _ChatOperationOutcome(
                 operation=self.operation,
@@ -738,6 +682,8 @@ class _ChatTask(QRunnable):
         )
         if not queued:
             raise RuntimeError("ATHENA desktop could not queue the chat result.")
+
+
 def _chat_snapshot(
     gateway: CoreApiGateway,
     *,
@@ -746,46 +692,26 @@ def _chat_snapshot(
     chats: list[ChatSummaryResponse] = []
     seen_chat_ids: set[str] = set()
     offset = 0
-
     while True:
         try:
             page = (
-                gateway.list_chats(
-                    limit=chat_limit,
-                )
+                gateway.list_chats(limit=chat_limit)
                 if offset == 0
-                else gateway.list_chats(
-                    limit=chat_limit,
-                    offset=offset,
-                )
+                else gateway.list_chats(limit=chat_limit, offset=offset)
             )
         except CoreApiClientError as exc:
             return (), str(exc)
         except Exception:
             return (), "ATHENA chat status refresh failed."
-
         if len(page) > chat_limit:
-            return (
-                (),
-                "ATHENA chat pagination exceeded the requested page size.",
-            )
-
+            return (), "ATHENA chat pagination exceeded the requested page size."
         for chat in page:
             if chat.chat_id in seen_chat_ids:
-                return (
-                    (),
-                    "ATHENA chat pagination returned a duplicate chat identity.",
-                )
-
-            seen_chat_ids.add(
-                chat.chat_id
-            )
-
+                return (), "ATHENA chat pagination returned a duplicate chat identity."
+            seen_chat_ids.add(chat.chat_id)
         chats.extend(page)
-
         if len(page) < chat_limit:
             return tuple(chats), None
-
         offset += len(page)
 
 
@@ -798,7 +724,6 @@ def _model_snapshot(
         return None, (), str(exc)
     except Exception:
         return None, (), "ATHENA model provider status refresh failed."
-
     try:
         return provider, gateway.list_models(), None
     except CoreApiClientError as exc:
@@ -841,41 +766,26 @@ class _RefreshTask(QRunnable):
         self.chat_limit = chat_limit
         self.outcomes = outcomes
         self.receiver = receiver
-
-        # The controller retains this runnable until the queued UI delivery
-        # completes. Do not let QThreadPool delete the native runnable first.
         self.setAutoDelete(False)
 
     @Slot()
     def run(self) -> None:
         try:
-            snapshot = _collect_snapshot(
-                self.gateway,
-                chat_limit=self.chat_limit,
-            )
+            snapshot = _collect_snapshot(self.gateway, chat_limit=self.chat_limit)
         except CoreApiClientError as exc:
             outcome = _RefreshOutcome(error=str(exc))
         except Exception:
-            outcome = _RefreshOutcome(
-                error="ATHENA Core status refresh failed."
-            )
+            outcome = _RefreshOutcome(error="ATHENA Core status refresh failed.")
         else:
             outcome = _RefreshOutcome(snapshot=snapshot)
-
-        # SimpleQueue is the only cross-thread data boundary. No UI QObject
-        # state is mutated from this worker thread.
         self.outcomes.put(outcome)
-
         queued = QMetaObject.invokeMethod(
             self.receiver,
             "_drain_worker_outcome",
             Qt.ConnectionType.QueuedConnection,
         )
-
         if not queued:
-            raise RuntimeError(
-                "ATHENA desktop could not queue the API refresh result."
-            )
+            raise RuntimeError("ATHENA desktop could not queue the API refresh result.")
 
 
 class DesktopApiController(QObject):
@@ -958,6 +868,7 @@ class DesktopApiController(QObject):
             temperature=temperature,
             thinking_enabled=thinking_enabled,
         )
+
     def send_grounded_message(
         self,
         *,
@@ -976,11 +887,13 @@ class DesktopApiController(QObject):
             chat_id=chat_id,
             content=content,
             model_id=model_id,
+            operation_id=str(uuid.uuid4()),
             effective_context_limit=effective_context_limit,
             max_output_tokens=max_output_tokens,
             temperature=temperature,
             thinking_enabled=thinking_enabled,
         )
+
     def remember_message(
         self,
         *,
@@ -1019,10 +932,7 @@ class DesktopApiController(QObject):
             max_output_tokens=max_output_tokens,
         )
 
-    def prepare_knowledge_review(
-        self,
-        processing_run_id: str,
-    ) -> None:
+    def prepare_knowledge_review(self, processing_run_id: str) -> None:
         if self._chat_busy or not processing_run_id:
             return
         self._start_chat_task(
@@ -1046,11 +956,7 @@ class DesktopApiController(QObject):
         *,
         decision: str,
     ) -> None:
-        if (
-            self._chat_busy
-            or not review_id
-            or decision not in {"merge", "keep_separate"}
-        ):
+        if self._chat_busy or not review_id or decision not in {"merge", "keep_separate"}:
             return
         self._start_chat_task(
             operation="resolve_merge_review",
@@ -1116,6 +1022,7 @@ class DesktopApiController(QObject):
         self._chat_busy = True
         self.chat_busy_changed.emit(True)
         self.thread_pool.start(task)
+
     @Slot()
     def refresh(self) -> None:
         if self._refreshing:
@@ -1150,10 +1057,8 @@ class DesktopApiController(QObject):
         else:
             chats = ()
             chat_freshness = "unavailable"
-
         provider = snapshot.provider
         models = snapshot.models
-
         if snapshot.model_error is None:
             self._last_good_provider = provider
             self._last_good_models = models
@@ -1161,24 +1066,14 @@ class DesktopApiController(QObject):
         else:
             if provider is not None:
                 self._last_good_provider = provider
-
             if self._last_good_models is not None:
-                provider = (
-                    provider
-                    if provider is not None
-                    else self._last_good_provider
-                )
+                provider = provider if provider is not None else self._last_good_provider
                 models = self._last_good_models
                 model_freshness = "stale"
             else:
-                provider = (
-                    provider
-                    if provider is not None
-                    else self._last_good_provider
-                )
+                provider = provider if provider is not None else self._last_good_provider
                 models = ()
                 model_freshness = "unavailable"
-
         return DesktopApiSnapshot(
             health=snapshot.health,
             provider=provider,
@@ -1196,14 +1091,10 @@ class DesktopApiController(QObject):
             try:
                 outcome = self._outcomes.get_nowait()
             except Empty:
-                self.connection_failed.emit(
-                    "ATHENA Core status refresh result was lost."
-                )
+                self.connection_failed.emit("ATHENA Core status refresh result was lost.")
                 return
             if outcome.snapshot is not None:
-                self.snapshot_ready.emit(
-                    self._stabilize_snapshot(outcome.snapshot)
-                )
+                self.snapshot_ready.emit(self._stabilize_snapshot(outcome.snapshot))
                 return
             assert outcome.error is not None
             self.connection_failed.emit(outcome.error)
@@ -1230,18 +1121,11 @@ class DesktopApiController(QObject):
                     "ATHENA chat result was lost.",
                 )
                 return
-
             if outcome.error is not None:
-                # Failed send mutations may have committed the user turn. The
-                # worker reconciles only with a safe GET; it never retries POST.
                 if outcome.thread is not None:
                     self.chat_loaded.emit(outcome.thread)
-                self.chat_operation_failed.emit(
-                    outcome.operation,
-                    outcome.error,
-                )
+                self.chat_operation_failed.emit(outcome.operation, outcome.error)
                 return
-
             if outcome.grounded is not None:
                 self.grounded_chat_sent.emit(outcome.grounded)
             elif outcome.deletion_preview is not None:
