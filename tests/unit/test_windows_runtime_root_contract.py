@@ -1,0 +1,25 @@
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+WINDOWS_COMMON = REPO_ROOT / "scripts" / "windows_common.ps1"
+ENTRYPOINTS = (
+    REPO_ROOT / "scripts" / "bootstrap_windows.ps1",
+    REPO_ROOT / "scripts" / "check_windows.ps1",
+    REPO_ROOT / "scripts" / "start_windows.ps1",
+)
+
+
+def test_windows_common_defines_single_effective_runtime_root_contract() -> None:
+    source = WINDOWS_COMMON.read_text(encoding="utf-8")
+
+    assert "function Resolve-PathenaDefaultLocalRoot" in source
+    assert "function Resolve-PathenaEffectiveLocalRoot" in source
+    assert "function Assert-PathenaLocalRootReady" in source
+    assert ".pathena-write-probe-" in source
+    assert "pATHENA runtime root is not writable" in source
+
+
+def test_all_windows_entrypoints_preflight_runtime_root() -> None:
+    for path in ENTRYPOINTS:
+        source = path.read_text(encoding="utf-8")
+        assert "Assert-PathenaLocalRootReady" in source, path
