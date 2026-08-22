@@ -22,6 +22,10 @@ from athena.chat.grounded_send import (
     GroundedProviderBoundaryError,
     GroundedSendCoordinator,
 )
+from athena.chat.grounded_snapshot import (
+    GroundedSnapshotBindingError,
+    validate_grounded_snapshot_current,
+)
 from athena.chat.models import ChatMessage
 from athena.chat.request_fingerprint import ChatRequestFingerprint
 from athena.chat.service import ChatService
@@ -180,6 +184,16 @@ class DurableGroundedGenerationService:
                 "Grounded ContextPackage conflicts with the durable request fingerprint."
             ) from exc
         try:
+            validate_grounded_snapshot_current(
+                self.coordinator.database,
+                package=context_package,
+                operation_id=operation_id,
+            )
+        except GroundedSnapshotBindingError as exc:
+            raise DurableGroundedGenerationError(
+                "Grounded ContextPackage no longer owns the current canonical snapshot."
+            ) from exc
+        try:
             validate_grounded_processing_run(
                 self.coordinator.database,
                 processing_run_id=processing_run_id,
@@ -220,6 +234,16 @@ class DurableGroundedGenerationService:
             )
             if before.state is not GroundedRecoveryState.RESUMABLE:
                 raise GroundedProviderBoundaryError(before)
+            try:
+                validate_grounded_snapshot_current(
+                    self.coordinator.database,
+                    package=context_package,
+                    operation_id=operation_id,
+                )
+            except GroundedSnapshotBindingError as exc:
+                raise DurableGroundedGenerationError(
+                    "Canonical state changed before the Grounded provider boundary."
+                ) from exc
             self.coordinator.begin_provider_attempt(
                 operation_id=operation_id,
                 chat_id=chat_id,
