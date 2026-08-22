@@ -10,6 +10,7 @@ from athena.chat.grounded_context_package import (
     GroundedContextPackageSchemaError,
 )
 from athena.chat.grounded_provider_attempt import GroundedProviderAttemptRepository
+from athena.chat.grounded_recovery import GroundedRecoveryState, GroundedSendRecovery
 from athena.chat.grounded_turn import GroundedUserTurnRepository
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
@@ -265,5 +266,55 @@ def test_context_package_cannot_be_backfilled_after_provider_start(tmp_path) -> 
             )
 
         assert repository.load(operation_id) is None
+    finally:
+        database.stop()
+
+
+def test_recovery_rejects_result_missing_identity_when_context_is_pinned(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        chats = ChatRepository(database)
+        user = chats.create_actor(actor_type="user")
+        chat_id = chats.create_chat(actor_id=user)
+        operation_id = uuid.uuid4()
+        fingerprint = _fingerprint(chat_id)
+        message = GroundedUserTurnRepository(database).commit(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            actor_id=user,
+            content="hello",
+            fingerprint=fingerprint,
+        )
+        GroundedContextPackageRepository(database).store(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            package=_package(operation_id, message.revision_id),
+        )
+        provider = GroundedProviderAttemptRepository(database)
+        provider.mark_started(operation_id=operation_id, chat_id=chat_id)
+        provider.store_result(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            processing_run_id=uuid.uuid4(),
+            assistant_content="answer",
+            receipt_payload_json='{"assistant_text":"answer"}',
+            provider_id="lm_studio",
+            model_id="primary",
+        )
+        with database.write_transaction() as connection:
+            connection.execute(
+                "DELETE FROM grounded_provider_result_identities WHERE operation_id = ?",
+                (uuid_to_blob(operation_id),),
+            )
+
+        status = GroundedSendRecovery(database).inspect(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        )
+        assert status.state is GroundedRecoveryState.CONFLICT
+        assert status.provider_result is None
+        assert status.provider_identity is None
     finally:
         database.stop()
