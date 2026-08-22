@@ -69,3 +69,42 @@ def test_recovery_inspect_classifies_provider_result_corruption_as_conflict(tmp_
         assert status.provider_identity is None
     finally:
         database.stop()
+
+
+def test_recovery_inspect_classifies_provider_attempt_identity_corruption_as_conflict(
+    tmp_path,
+) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        chats = ChatRepository(database)
+        user = chats.create_actor(actor_type="user")
+        chat_id = chats.create_chat(actor_id=user)
+        other_chat_id = chats.create_chat(actor_id=user)
+        operation_id = uuid.uuid4()
+        fingerprint = _fingerprint(chat_id)
+        GroundedUserTurnRepository(database).commit(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            actor_id=user,
+            content="hello",
+            fingerprint=fingerprint,
+        )
+        provider = GroundedProviderAttemptRepository(database)
+        provider.mark_started(operation_id=operation_id, chat_id=chat_id)
+        with database.write_transaction() as connection:
+            connection.execute(
+                "UPDATE grounded_provider_attempts SET chat_id = ? WHERE operation_id = ?",
+                (uuid_to_blob(other_chat_id), uuid_to_blob(operation_id)),
+            )
+
+        status = GroundedSendRecovery(database).inspect(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        )
+        assert status.state is GroundedRecoveryState.CONFLICT
+        assert status.provider_result is None
+        assert status.provider_identity is None
+    finally:
+        database.stop()
