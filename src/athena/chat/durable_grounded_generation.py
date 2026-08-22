@@ -12,7 +12,10 @@ from athena.chat.grounded_request_context import (
     GroundedRequestContextBindingError,
     validate_grounded_request_context_binding,
 )
-from athena.chat.grounded_send import GroundedSendCoordinator
+from athena.chat.grounded_send import (
+    GroundedProviderBoundaryError,
+    GroundedSendCoordinator,
+)
 from athena.chat.models import ChatMessage
 from athena.chat.request_fingerprint import ChatRequestFingerprint
 from athena.chat.service import ChatService
@@ -156,13 +159,20 @@ class DurableGroundedGenerationService:
         )
 
         def before_provider() -> None:
+            before = self.coordinator.recover(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                fingerprint=fingerprint,
+            )
+            if before.state is not GroundedRecoveryState.RESUMABLE:
+                raise GroundedProviderBoundaryError(before)
+            if on_before_provider_call is not None:
+                on_before_provider_call()
             self.coordinator.begin_provider_attempt(
                 operation_id=operation_id,
                 chat_id=chat_id,
                 fingerprint=fingerprint,
             )
-            if on_before_provider_call is not None:
-                on_before_provider_call()
 
         result = delegated.send_context_package(
             chat_id=chat_id,
