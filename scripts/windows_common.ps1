@@ -6,6 +6,20 @@ function Get-PathenaWindowsSettingsPath {
     return (Join-Path $RepoRoot ".pathena.windows.ps1")
 }
 
+function Resolve-PathenaDefaultLocalRoot {
+    $localAppData = [Environment]::GetFolderPath("LocalApplicationData")
+    if ($localAppData) {
+        return (Join-Path $localAppData "ATHENA")
+    }
+    if ($env:LOCALAPPDATA) {
+        return (Join-Path $env:LOCALAPPDATA "ATHENA")
+    }
+    if ($env:USERPROFILE) {
+        return (Join-Path $env:USERPROFILE "AppData\Local\ATHENA")
+    }
+    throw "Windows local application-data directory could not be resolved. Pass -LocalRoot explicitly."
+}
+
 function Get-PathenaUvVersion {
     $command = Get-Command uv -ErrorAction SilentlyContinue
     if ($null -eq $command) {
