@@ -1,12 +1,14 @@
-# CI #506 — Ruff import-order failure in Windows safety tests
+# CI #506 / #512 — Ruff import-block formatting failure in Windows safety tests
 
-- Timestamp: 2026-08-23 00:20 Europe/Berlin
+- First observed: 2026-08-23 00:20 Europe/Berlin
+- Reclassified: 2026-08-23 00:26 Europe/Berlin
 - Repository: `bnbgrs/pATHENA`
 - Branch: `agent/pathena`
-- Failing pATHENA HEAD: `b7a99563f701d8b8fd9ee2cdb825f167df1b5755`
-- Fix HEAD after code changes: `2a7830ddae55bb549190732e92fcffe4c02f77e8`
-- GitHub Actions run: `32601758870` / run number `506`
-- Job: `97100982776` — `Python 3.12 quality`
+- First failing pATHENA HEAD: `b7a99563f701d8b8fd9ee2cdb825f167df1b5755`
+- First attempted fix HEAD: `36b298f116e3b4475b0105313783dc7d51455f02`
+- Corrected code HEAD before this log update: `411e5a2c29cc101c4775ceac3322fbe7cfe00b51`
+- GitHub Actions runs: `32601758870` / #506 and `32602260319` / #512
+- Jobs: `97100982776` and `97102238068` — `Python 3.12 quality`
 - Failed step: `Run ATHENA quality gate`
 - Classification: `CODE/TEST-LINT`
 - Status: `FIXED_PENDING_CI`
@@ -22,7 +24,7 @@
 uv run --locked --extra dev --extra desktop python scripts/quality.py
 ```
 
-The specification validator passed `63/63`. The gate then failed in Ruff before mypy or pytest could run.
+In both observed CI runs the specification validator passed `63/63`. The gate then failed in Ruff before mypy or pytest could run.
 
 ## Relevant error excerpt
 
@@ -39,35 +41,48 @@ Found 2 errors.
 [FAIL] Ruff returned 1.
 ```
 
-## Root cause
+## Root cause and reclassification
 
-Both new Windows safety tests carried an unnecessary `from __future__ import annotations` import. These files do not require postponed annotation evaluation under the project's Python 3.12-only runtime. Removing the unused future import leaves a single standard-library import and eliminates the Ruff isort/I001 failure without changing test behavior.
+The first diagnosis was incomplete. The original files combined a future import and a standard-library import without the group separation Ruff expects. The first attempted fix removed the unnecessary future imports but left **two blank lines** between the remaining import block and the module constants. CI #512 reproduced the same `I001` findings, proving that attempt did not satisfy Ruff's import-block formatter.
 
-## Fix
+The corrected form keeps the single `from pathlib import Path` import and exactly one blank line before the module constants. This is a formatting-only change; the tests' behavior is unchanged.
 
-- Removed the unnecessary future import from both affected tests.
-- No production behavior changed.
-- `bnbgrs/ATHENA` was not modified.
+## Fix history
 
-Commits:
+First attempted fix — **did not resolve CI**:
 
-- `38385ff6414331a44baa80206a99e89e31c1cd34` — settings safety test
-- `2a7830ddae55bb549190732e92fcffe4c02f77e8` — uv probe safety test
+- `38385ff6414331a44baa80206a99e89e31c1cd34` — removed future import from settings safety test
+- `2a7830ddae55bb549190732e92fcffe4c02f77e8` — removed future import from uv-probe safety test
+- `36b298f116e3b4475b0105313783dc7d51455f02` — log-bearing HEAD tested by CI #512
+
+Corrected fix:
+
+- `6f2a283022032a825793d0b36b73b6ed5711a801` — normalized blank-line spacing after settings safety import block
+- `411e5a2c29cc101c4775ceac3322fbe7cfe00b51` — normalized blank-line spacing after uv-probe safety import block
+
+No production behavior changed. `bnbgrs/ATHENA` was not modified.
 
 ## Verification evidence
 
-Observed before fix:
+Observed on CI #506:
 
-- Spec validator: `PASS`, `63/63`
-- Ruff: `FAIL`, exactly two `I001` findings above
+- Specification validator: `PASS`, `63/63`
+- Ruff: `FAIL`, two `I001` findings
 - mypy: not reached due fail-fast gate
 - pytest: not reached due fail-fast gate
 
-Observed after fix:
+Observed on CI #512 after the first attempted fix:
 
-- Repository edits completed successfully.
-- New CI result not yet observed at the time this log was created.
+- Specification validator: `PASS`, `63/63`
+- Ruff: `FAIL`, the same two `I001` findings
+- mypy: not reached due fail-fast gate
+- pytest: not reached due fail-fast gate
+
+Observed after the corrected fix:
+
+- Repository edits completed successfully at `411e5a2c29cc101c4775ceac3322fbe7cfe00b51`.
+- A CI result for the corrected formatting has not yet been observed at the time of this update.
 
 ## Next action
 
-Inspect the workflow run triggered by fix HEAD `2a7830ddae55bb549190732e92fcffe4c02f77e8` (or a later current head). If Ruff passes, continue through mypy/pytest and update this log to `FIXED` with the observed gate evidence. If another gate failure appears, create a separate durable error log for that distinct failure before continuing.
+Inspect the pull-request quality run for `411e5a2c29cc101c4775ceac3322fbe7cfe00b51` or the later current `agent/pathena` head. If Ruff passes, continue through mypy and pytest and update this log to `FIXED` with exact observed evidence. If a distinct failure appears later in the gate, create a separate durable error log for that new failure before fixing it.
