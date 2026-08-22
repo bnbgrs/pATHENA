@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import uuid
+from collections.abc import Mapping
+from typing import Any
 
 from athena.chat.request_fingerprint import (
     ChatRequestFingerprint,
@@ -11,7 +13,7 @@ from athena.chat.request_fingerprint import (
     build_chat_request_fingerprint,
 )
 
-UNIFIED_GROUNDED_RECEIPT_VERSION = 1
+UNIFIED_GROUNDED_RECEIPT_VERSION = 2
 
 
 def build_unified_grounded_fingerprint(
@@ -77,8 +79,9 @@ def build_unified_grounded_receipt(
     processing_run_id: uuid.UUID,
     context_package_request_id: uuid.UUID,
     embedding_model_id: str | None,
+    replay_projection: Mapping[str, Any],
 ) -> str:
-    """Build the minimum crash-safe receipt for one Unified provider result."""
+    """Build the exact-replay receipt for one Unified provider result."""
     return json.dumps(
         {
             "assistant_text": assistant_text,
@@ -89,6 +92,7 @@ def build_unified_grounded_receipt(
             "processing_run_id": str(processing_run_id),
             "provider_id": provider_id,
             "unified_grounded_receipt_version": UNIFIED_GROUNDED_RECEIPT_VERSION,
+            "unified_replay_projection": dict(replay_projection),
         },
         ensure_ascii=False,
         allow_nan=False,
