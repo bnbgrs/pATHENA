@@ -7,6 +7,7 @@ from collections.abc import Callable
 
 from athena.chat.generation import ChatGenerationResult, ChatGenerationService
 from athena.chat.grounding import GroundingContract
+from athena.chat.grounded_recovery import GroundedRecoveryState
 from athena.chat.grounded_request_context import (
     GroundedRequestContextBindingError,
     validate_grounded_request_context_binding,
@@ -113,6 +114,15 @@ class DurableGroundedGenerationService:
         if user_message.message_id != operation_id:
             raise DurableGroundedGenerationError(
                 "Grounded generation user message must equal the operation identity."
+            )
+        recovery = self.coordinator.recover(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        )
+        if recovery.state is not GroundedRecoveryState.RESUMABLE:
+            raise DurableGroundedGenerationError(
+                "Grounded generation request identity is not safely resumable."
             )
         try:
             validate_grounded_request_context_binding(
