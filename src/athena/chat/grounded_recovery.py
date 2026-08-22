@@ -12,6 +12,10 @@ from athena.chat.grounded_completion import (
     GroundedSendReceipt,
 )
 from athena.chat.grounded_provider_attempt import GroundedProviderAttemptRepository
+from athena.chat.grounded_provider_result_contract import (
+    GroundedProviderResultContractError,
+    validate_provider_result_contract,
+)
 from athena.chat.grounded_reconciliation import (
     GroundedReconciliationState,
     GroundedSendReconciler,
@@ -141,6 +145,15 @@ class GroundedSendRecovery:
             raise GroundedRecoveryConflictError(
                 "Recorded provider result is missing or belongs to another chat."
             )
+        try:
+            validate_provider_result_contract(
+                assistant_content=result.assistant_content,
+                receipt_payload_json=result.receipt_payload_json,
+            )
+        except GroundedProviderResultContractError as exc:
+            raise GroundedRecoveryConflictError(
+                "Recorded provider result violates its durable receipt contract."
+            ) from exc
 
         identity = self.provider_attempts.load_result_identity(operation_id)
         if identity is None:
