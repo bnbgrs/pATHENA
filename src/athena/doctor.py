@@ -98,9 +98,22 @@ def _check_model(settings: AthenaSettings) -> DoctorCheck:
             models = provider.discover_models()
         except Exception as exc:
             return DoctorCheck("lm-studio", "FAIL", f"discovery failed: {exc}")
-        loaded = tuple(model for model in models if model.loaded)
+
+        llms = tuple(model for model in models if model.model_type == "llm")
+        loaded_llms = tuple(model for model in llms if model.loaded)
+        if not loaded_llms:
+            detail = (
+                f"server ready at {provider.base_url}; models={len(models)} "
+                f"llms={len(llms)} loaded_llms=0; load a local LLM in LM Studio"
+            )
+            return DoctorCheck("lm-studio", "WARN", detail)
+
+        loaded_ids = ", ".join(model.backend_model_id for model in loaded_llms[:3])
+        if len(loaded_llms) > 3:
+            loaded_ids += f", +{len(loaded_llms) - 3} more"
         detail = (
-            f"ready at {provider.base_url}; models={len(models)} loaded={len(loaded)}"
+            f"chat ready at {provider.base_url}; models={len(models)} "
+            f"loaded_llms={len(loaded_llms)} [{loaded_ids}]"
         )
         return DoctorCheck("lm-studio", "PASS", detail)
     detail = health.detail or f"provider status is {health.status.value}"
@@ -202,7 +215,7 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--require-model",
         action="store_true",
-        help="Return a failing exit code when LM Studio is not ready.",
+        help="Return a failing exit code unless LM Studio has a loaded local LLM.",
     )
     return parser
 
@@ -221,7 +234,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"[{check.status}] {check.name}: {check.detail}")
 
     print(f"Core ready: {'YES' if report.core_ready else 'NO'}")
-    print(f"LM Studio ready: {'YES' if report.model_ready else 'NO'}")
+    print(f"Local chat model ready: {'YES' if report.model_ready else 'NO'}")
 
     if not report.core_ready:
         return 2
