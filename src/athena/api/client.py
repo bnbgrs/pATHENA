@@ -115,7 +115,6 @@ class CoreApiClient:
         *,
         timeout_seconds: float = _DEFAULT_TIMEOUT_SECONDS,
     ) -> CoreApiClient:
-        """Create the desktop client from ATHENA's normal local runtime root."""
         settings = AthenaSettings.from_environment()
         paths = RuntimePaths.from_settings(settings)
         return cls(
@@ -143,56 +142,27 @@ class CoreApiClient:
             raise ValueError("Chat list limit must be between 1 and 200.")
         if offset < 0:
             raise ValueError("Chat list offset must be zero or greater.")
-
         query = {"limit": str(limit)}
         if offset:
             query["offset"] = str(offset)
+        payload = self._get("/api/v1/chats", query=query)
+        return tuple(_chat_summary(item) for item in _items(payload))
 
-        payload = self._get(
-            "/api/v1/chats",
-            query=query,
-        )
-        return tuple(
-            _chat_summary(item)
-            for item in _items(payload)
-        )
-
-    def create_chat(
-        self,
-        chat_id: str | None = None,
-    ) -> ChatThreadResponse:
+    def create_chat(self, chat_id: str | None = None) -> ChatThreadResponse:
         if chat_id is None:
             return _chat_thread(
-                self._request(
-                    "POST",
-                    "/api/v1/chats",
-                    expected_status=201,
-                )
+                self._request("POST", "/api/v1/chats", expected_status=201)
             )
-
         if not chat_id or "/" in chat_id:
-            raise ValueError(
-                "Chat ID must be a single non-empty path segment."
-            )
-
+            raise ValueError("Chat ID must be a single non-empty path segment.")
         try:
-            canonical_chat_id = str(
-                uuid.UUID(
-                    chat_id
-                )
-            )
+            canonical_chat_id = str(uuid.UUID(chat_id))
         except ValueError as exc:
-            raise ValueError(
-                "Chat ID must be a valid UUID."
-            ) from exc
-
+            raise ValueError("Chat ID must be a valid UUID.") from exc
         return _chat_thread(
             self._request(
                 "PUT",
-                (
-                    "/api/v1/chats/"
-                    + canonical_chat_id
-                ),
+                "/api/v1/chats/" + canonical_chat_id,
                 expected_status=201,
             )
         )
@@ -215,163 +185,25 @@ class CoreApiClient:
         thinking_enabled: bool | None = None,
     ) -> ChatThreadResponse:
         if not chat_id or "/" in chat_id:
-            raise ValueError(
-                "Chat ID must be a single non-empty path segment."
-            )
-
+            raise ValueError("Chat ID must be a single non-empty path segment.")
         if not content.strip():
-            raise ValueError(
-                "Chat message content must contain "
-                "non-whitespace text."
-            )
-
-        if (
-            model_id is not None
-            and not model_id.strip()
-        ):
-            raise ValueError(
-                "Chat model_id must be non-empty when provided."
-            )
-
+            raise ValueError("Chat message content must contain non-whitespace text.")
+        if model_id is not None and not model_id.strip():
+            raise ValueError("Chat model_id must be non-empty when provided.")
         canonical_operation_id: str | None = None
-
         if operation_id is not None:
             if not operation_id.strip():
-                raise ValueError(
-                    "Chat operation_id must be non-empty "
-                    "when provided."
-                )
-
+                raise ValueError("Chat operation_id must be non-empty when provided.")
             try:
-                canonical_operation_id = str(
-                    uuid.UUID(operation_id)
-                )
+                canonical_operation_id = str(uuid.UUID(operation_id))
             except ValueError as exc:
-                raise ValueError(
-                    "Chat operation_id must be a valid UUID."
-                ) from exc
-
+                raise ValueError("Chat operation_id must be a valid UUID.") from exc
         if effective_context_limit is not None and (
             isinstance(effective_context_limit, bool)
             or not isinstance(effective_context_limit, int)
             or effective_context_limit < 1
         ):
-            raise ValueError(
-                "Chat effective_context_limit must be "
-                "positive when provided."
-            )
-
-        if max_output_tokens is not None and (
-            isinstance(max_output_tokens, bool)
-            or not isinstance(max_output_tokens, int)
-            or max_output_tokens < 1
-        ):
-            raise ValueError(
-                "Chat max_output_tokens must be positive "
-                "when provided."
-            )
-
-        if temperature is not None and (
-            isinstance(temperature, bool)
-            or not isinstance(temperature, (int, float))
-            or not 0.0 <= float(temperature) <= 2.0
-        ):
-            raise ValueError(
-                "Chat temperature must be between 0.0 and 2.0."
-            )
-
-        if (
-            thinking_enabled is not None
-            and not isinstance(thinking_enabled, bool)
-        ):
-            raise ValueError(
-                "Chat thinking_enabled must be boolean "
-                "when provided."
-            )
-
-        payload: dict[str, JsonValue] = {
-            "content": content
-        }
-
-        if model_id is not None:
-            payload["model_id"] = model_id
-
-        if canonical_operation_id is not None:
-            payload[
-                "operation_id"
-            ] = canonical_operation_id
-
-        if effective_context_limit is not None:
-            payload[
-                "effective_context_limit"
-            ] = effective_context_limit
-
-        if max_output_tokens is not None:
-            payload[
-                "max_output_tokens"
-            ] = max_output_tokens
-
-        if temperature is not None:
-            payload[
-                "temperature"
-            ] = float(temperature)
-
-        if thinking_enabled is not None:
-            payload[
-                "thinking_enabled"
-            ] = thinking_enabled
-
-        return _chat_thread(
-            self._request(
-                "POST",
-                f"/api/v1/chats/{chat_id}/messages",
-                expected_status=200,
-                json_body=payload,
-                timeout_seconds=(
-                    self.generation_timeout_seconds
-                ),
-            )
-        )
-
-    def send_unified_local_chat_message(
-        self,
-        chat_id: str,
-        *,
-        content: str,
-        model_id: str | None = None,
-        embedding_model_id: str | None = None,
-        effective_context_limit: int | None = None,
-        max_output_tokens: int | None = None,
-        temperature: float | None = None,
-        thinking_enabled: bool | None = None,
-    ) -> GroundedChatResponse:
-        if not chat_id or "/" in chat_id:
-            raise ValueError(
-                "Chat ID must be a single non-empty path segment."
-            )
-        if not content.strip():
-            raise ValueError(
-                "Chat message content must contain non-whitespace text."
-            )
-        if model_id is not None and not model_id.strip():
-            raise ValueError(
-                "Chat model_id must be non-empty when provided."
-            )
-        if (
-            embedding_model_id is not None
-            and not embedding_model_id.strip()
-        ):
-            raise ValueError(
-                "Chat embedding_model_id must be non-empty when provided."
-            )
-        if effective_context_limit is not None and (
-            isinstance(effective_context_limit, bool)
-            or not isinstance(effective_context_limit, int)
-            or effective_context_limit < 1
-        ):
-            raise ValueError(
-                "Chat effective_context_limit must be positive when provided."
-            )
+            raise ValueError("Chat effective_context_limit must be positive when provided.")
         if max_output_tokens is not None and (
             isinstance(max_output_tokens, bool)
             or not isinstance(max_output_tokens, int)
@@ -386,12 +218,11 @@ class CoreApiClient:
             raise ValueError("Chat temperature must be between 0.0 and 2.0.")
         if thinking_enabled is not None and not isinstance(thinking_enabled, bool):
             raise ValueError("Chat thinking_enabled must be boolean when provided.")
-
         payload: dict[str, JsonValue] = {"content": content}
         if model_id is not None:
             payload["model_id"] = model_id
-        if embedding_model_id is not None:
-            payload["embedding_model_id"] = embedding_model_id
+        if canonical_operation_id is not None:
+            payload["operation_id"] = canonical_operation_id
         if effective_context_limit is not None:
             payload["effective_context_limit"] = effective_context_limit
         if max_output_tokens is not None:
@@ -400,7 +231,80 @@ class CoreApiClient:
             payload["temperature"] = float(temperature)
         if thinking_enabled is not None:
             payload["thinking_enabled"] = thinking_enabled
+        return _chat_thread(
+            self._request(
+                "POST",
+                f"/api/v1/chats/{chat_id}/messages",
+                expected_status=200,
+                json_body=payload,
+                timeout_seconds=self.generation_timeout_seconds,
+            )
+        )
 
+    def send_unified_local_chat_message(
+        self,
+        chat_id: str,
+        *,
+        content: str,
+        model_id: str | None = None,
+        embedding_model_id: str | None = None,
+        operation_id: str | None = None,
+        effective_context_limit: int | None = None,
+        max_output_tokens: int | None = None,
+        temperature: float | None = None,
+        thinking_enabled: bool | None = None,
+    ) -> GroundedChatResponse:
+        if not chat_id or "/" in chat_id:
+            raise ValueError("Chat ID must be a single non-empty path segment.")
+        if not content.strip():
+            raise ValueError("Chat message content must contain non-whitespace text.")
+        if model_id is not None and not model_id.strip():
+            raise ValueError("Chat model_id must be non-empty when provided.")
+        if embedding_model_id is not None and not embedding_model_id.strip():
+            raise ValueError("Chat embedding_model_id must be non-empty when provided.")
+        canonical_operation_id: str | None = None
+        if operation_id is not None:
+            if not operation_id.strip():
+                raise ValueError("Chat operation_id must be non-empty when provided.")
+            try:
+                canonical_operation_id = str(uuid.UUID(operation_id))
+            except ValueError as exc:
+                raise ValueError("Chat operation_id must be a valid UUID.") from exc
+        if effective_context_limit is not None and (
+            isinstance(effective_context_limit, bool)
+            or not isinstance(effective_context_limit, int)
+            or effective_context_limit < 1
+        ):
+            raise ValueError("Chat effective_context_limit must be positive when provided.")
+        if max_output_tokens is not None and (
+            isinstance(max_output_tokens, bool)
+            or not isinstance(max_output_tokens, int)
+            or max_output_tokens < 1
+        ):
+            raise ValueError("Chat max_output_tokens must be positive when provided.")
+        if temperature is not None and (
+            isinstance(temperature, bool)
+            or not isinstance(temperature, (int, float))
+            or not 0.0 <= float(temperature) <= 2.0
+        ):
+            raise ValueError("Chat temperature must be between 0.0 and 2.0.")
+        if thinking_enabled is not None and not isinstance(thinking_enabled, bool):
+            raise ValueError("Chat thinking_enabled must be boolean when provided.")
+        payload: dict[str, JsonValue] = {"content": content}
+        if model_id is not None:
+            payload["model_id"] = model_id
+        if embedding_model_id is not None:
+            payload["embedding_model_id"] = embedding_model_id
+        if canonical_operation_id is not None:
+            payload["operation_id"] = canonical_operation_id
+        if effective_context_limit is not None:
+            payload["effective_context_limit"] = effective_context_limit
+        if max_output_tokens is not None:
+            payload["max_output_tokens"] = max_output_tokens
+        if temperature is not None:
+            payload["temperature"] = float(temperature)
+        if thinking_enabled is not None:
+            payload["thinking_enabled"] = thinking_enabled
         return _grounded_chat(
             self._request(
                 "POST",
@@ -460,9 +364,7 @@ class CoreApiClient:
         if not revision_id.strip():
             raise ValueError("Message revision_id must be non-empty.")
         if model_id is not None and not model_id.strip():
-            raise ValueError(
-                "Knowledge extraction model_id must be non-empty when provided."
-            )
+            raise ValueError("Knowledge extraction model_id must be non-empty when provided.")
         if effective_context_limit is not None and (
             isinstance(effective_context_limit, bool)
             or not isinstance(effective_context_limit, int)
@@ -476,9 +378,7 @@ class CoreApiClient:
             or not isinstance(max_output_tokens, int)
             or max_output_tokens < 1
         ):
-            raise ValueError(
-                "Knowledge extraction max_output_tokens must be positive when provided."
-            )
+            raise ValueError("Knowledge extraction max_output_tokens must be positive when provided.")
         payload: dict[str, JsonValue] = {"revision_id": revision_id}
         if model_id is not None:
             payload["model_id"] = model_id
@@ -506,10 +406,7 @@ class CoreApiClient:
             )
         return result
 
-    def prepare_knowledge_review(
-        self,
-        processing_run_id: str,
-    ) -> KnowledgeReviewResponse:
+    def prepare_knowledge_review(self, processing_run_id: str) -> KnowledgeReviewResponse:
         _require_path_segment(processing_run_id, label="ProcessingRun ID")
         return _knowledge_review(
             self._request(
@@ -519,10 +416,7 @@ class CoreApiClient:
             )
         )
 
-    def load_knowledge_merge_review(
-        self,
-        review_id: str,
-    ) -> KnowledgeMergeReviewResponse:
+    def load_knowledge_merge_review(self, review_id: str) -> KnowledgeMergeReviewResponse:
         _require_path_segment(review_id, label="Knowledge review ID")
         return _knowledge_merge_review(
             self._get(f"/api/v1/knowledge-merge-reviews/{review_id}")
@@ -536,9 +430,7 @@ class CoreApiClient:
     ) -> KnowledgeMergeReviewResponse:
         _require_path_segment(review_id, label="Knowledge review ID")
         if decision not in {"merge", "keep_separate"}:
-            raise ValueError(
-                "Knowledge merge decision must be 'merge' or 'keep_separate'."
-            )
+            raise ValueError("Knowledge merge decision must be 'merge' or 'keep_separate'.")
         result = _knowledge_merge_review(
             self._request(
                 "POST",
@@ -557,9 +449,7 @@ class CoreApiClient:
     def preview_chat_deletion(self, chat_id: str) -> DeletionPreviewResponse:
         if not chat_id or "/" in chat_id:
             raise ValueError("Chat ID must be a single non-empty path segment.")
-        return _deletion_preview(
-            self._get(f"/api/v1/chats/{chat_id}/deletion-preview")
-        )
+        return _deletion_preview(self._get(f"/api/v1/chats/{chat_id}/deletion-preview"))
 
     def delete_chat(
         self,
@@ -592,16 +482,10 @@ class CoreApiClient:
         return tuple(_model(item) for item in _items(payload))
 
     def discovery_process_id(self) -> int:
-        """Return the PID that published the currently trusted discovery state."""
         return self._load_bootstrap().process_id
 
     def request_shutdown(self) -> None:
-        """Request graceful shutdown without retrying the mutating command."""
-        self._request(
-            "POST",
-            "/api/v1/system/shutdown",
-            expected_status=202,
-        )
+        self._request("POST", "/api/v1/system/shutdown", expected_status=202)
 
     def _get(
         self,
@@ -623,7 +507,6 @@ class CoreApiClient:
     ) -> dict[str, JsonValue]:
         attempts = 2 if method == "GET" else 1
         last_transport_error: CoreApiClientError | None = None
-
         for attempt in range(attempts):
             bootstrap = self._load_bootstrap()
             try:
@@ -638,16 +521,12 @@ class CoreApiClient:
                 )
             except CoreApiClientError as exc:
                 if exc.status == 401 and attempt == 0:
-                    # Authentication failure cannot have performed the requested
-                    # domain action, so one bootstrap refresh is safe for GETs.
                     last_transport_error = exc
                     continue
                 if exc.status is None and method == "GET" and attempt == 0:
-                    # Reads are safe to retry once after a Core restart/port move.
                     last_transport_error = exc
                     continue
                 raise
-
         if last_transport_error is not None:
             raise last_transport_error
         raise CoreApiClientError("ATHENA Core API request failed.")
@@ -679,16 +558,8 @@ class CoreApiClient:
                 separators=(",", ":"),
             ).encode("utf-8")
             headers["Content-Type"] = "application/json"
-        request = Request(
-            url,
-            data=data,
-            method=method,
-            headers=headers,
-        )
-        resolved_timeout = (
-            self.timeout_seconds if timeout_seconds is None else timeout_seconds
-        )
-
+        request = Request(url, data=data, method=method, headers=headers)
+        resolved_timeout = self.timeout_seconds if timeout_seconds is None else timeout_seconds
         try:
             with urlopen(request, timeout=resolved_timeout) as response:
                 status = int(response.status)
@@ -702,7 +573,6 @@ class CoreApiClient:
                 code="core_unavailable",
                 retryable=True,
             ) from exc
-
         if status != expected_status:
             raise CoreApiClientError(
                 f"ATHENA Core returned unexpected HTTP status {status}.",
@@ -723,7 +593,6 @@ class CoreApiClient:
                 "ATHENA API discovery file is not trusted.",
                 code="invalid_discovery",
             )
-
         try:
             payload = json.loads(self.discovery_path.read_text(encoding="utf-8"))
         except (OSError, UnicodeError, json.JSONDecodeError) as exc:
@@ -732,19 +601,16 @@ class CoreApiClient:
                 code="discovery_unavailable",
                 retryable=True,
             ) from exc
-
         if not isinstance(payload, dict):
             raise CoreApiClientError(
                 "ATHENA Core discovery metadata is invalid.",
                 code="invalid_discovery",
             )
-
         version = payload.get("api_version")
         host = payload.get("host")
         port = payload.get("port")
         token_path_raw = payload.get("token_path")
         process_id = payload.get("process_id")
-
         if version != API_VERSION:
             raise CoreApiClientError(
                 "ATHENA Core API version is incompatible with this desktop client.",
@@ -770,7 +636,6 @@ class CoreApiClient:
                 "ATHENA Core discovery contains an invalid token path.",
                 code="invalid_discovery",
             )
-
         token_path = Path(token_path_raw)
         expected_token_path = root / _TOKEN_FILE
         try:
@@ -786,7 +651,6 @@ class CoreApiClient:
                 "ATHENA Core discovery attempted an unexpected token path.",
                 code="invalid_discovery",
             )
-
         try:
             token = token_path.read_text(encoding="ascii").strip()
         except (OSError, UnicodeError) as exc:
@@ -800,12 +664,7 @@ class CoreApiClient:
                 "ATHENA Core session token is invalid.",
                 code="invalid_discovery",
             )
-        return _Bootstrap(
-            host=host,
-            port=port,
-            token=token,
-            process_id=process_id,
-        )
+        return _Bootstrap(host=host, port=port, token=token, process_id=process_id)
 
 
 def _require_path_segment(value: str, *, label: str) -> None:
@@ -822,7 +681,6 @@ def _problem_from_http_error(status: int, raw: bytes) -> CoreApiClientError:
             status=status,
             code="http_error",
         )
-
     code = payload.get("code")
     message = payload.get("message")
     request_id = payload.get("request_id")
@@ -867,14 +725,18 @@ def _items(payload: dict[str, JsonValue]) -> tuple[dict[str, JsonValue], ...]:
 def _required_str(payload: dict[str, JsonValue], key: str) -> str:
     value = payload.get(key)
     if not isinstance(value, str):
-        raise CoreApiClientError(f"ATHENA Core response field {key!r} is invalid.", code="invalid_response")
+        raise CoreApiClientError(
+            f"ATHENA Core response field {key!r} is invalid.", code="invalid_response"
+        )
     return value
 
 
 def _required_int(payload: dict[str, JsonValue], key: str) -> int:
     value = payload.get(key)
     if not isinstance(value, int) or isinstance(value, bool):
-        raise CoreApiClientError(f"ATHENA Core response field {key!r} is invalid.", code="invalid_response")
+        raise CoreApiClientError(
+            f"ATHENA Core response field {key!r} is invalid.", code="invalid_response"
+        )
     return value
 
 
@@ -893,7 +755,9 @@ def _optional_int(payload: dict[str, JsonValue], key: str) -> int | None:
     if value is None:
         return None
     if not isinstance(value, int) or isinstance(value, bool):
-        raise CoreApiClientError(f"ATHENA Core response field {key!r} is invalid.", code="invalid_response")
+        raise CoreApiClientError(
+            f"ATHENA Core response field {key!r} is invalid.", code="invalid_response"
+        )
     return value
 
 
@@ -902,14 +766,18 @@ def _optional_str(payload: dict[str, JsonValue], key: str) -> str | None:
     if value is None:
         return None
     if not isinstance(value, str):
-        raise CoreApiClientError(f"ATHENA Core response field {key!r} is invalid.", code="invalid_response")
+        raise CoreApiClientError(
+            f"ATHENA Core response field {key!r} is invalid.", code="invalid_response"
+        )
     return value
 
 
 def _required_bool(payload: dict[str, JsonValue], key: str) -> bool:
     value = payload.get(key)
     if not isinstance(value, bool):
-        raise CoreApiClientError(f"ATHENA Core response field {key!r} is invalid.", code="invalid_response")
+        raise CoreApiClientError(
+            f"ATHENA Core response field {key!r} is invalid.", code="invalid_response"
+        )
     return value
 
 
@@ -918,7 +786,9 @@ def _optional_bool(payload: dict[str, JsonValue], key: str) -> bool | None:
     if value is None:
         return None
     if not isinstance(value, bool):
-        raise CoreApiClientError(f"ATHENA Core response field {key!r} is invalid.", code="invalid_response")
+        raise CoreApiClientError(
+            f"ATHENA Core response field {key!r} is invalid.", code="invalid_response"
+        )
     return value
 
 
@@ -949,7 +819,6 @@ def _chat_summary(payload: dict[str, JsonValue]) -> ChatSummaryResponse:
         lifecycle_state=_required_str(payload, "lifecycle_state"),
         message_count=_required_int(payload, "message_count"),
     )
-
 
 
 def _remembered_chat_message(
@@ -1051,12 +920,8 @@ def _message_knowledge_extraction(
             _knowledge_unit_proposal(item)
             for item in _object_items(payload, "knowledge_units")
         ),
-        claims=tuple(
-            _claim_proposal(item) for item in _object_items(payload, "claims")
-        ),
-        relations=tuple(
-            _relation_proposal(item) for item in _object_items(payload, "relations")
-        ),
+        claims=tuple(_claim_proposal(item) for item in _object_items(payload, "claims")),
+        relations=tuple(_relation_proposal(item) for item in _object_items(payload, "relations")),
         extractor_merge_candidates=tuple(
             _extractor_merge_candidate(item)
             for item in _object_items(payload, "extractor_merge_candidates")
@@ -1069,9 +934,7 @@ def _message_knowledge_extraction(
             "ATHENA Core returned non-contiguous Knowledge proposal indexes.",
             code="invalid_response",
         )
-    if tuple(item.proposal_index for item in result.claims) != tuple(
-        range(len(result.claims))
-    ):
+    if tuple(item.proposal_index for item in result.claims) != tuple(range(len(result.claims))):
         raise CoreApiClientError(
             "ATHENA Core returned non-contiguous Claim proposal indexes.",
             code="invalid_response",
@@ -1083,9 +946,9 @@ def _message_knowledge_extraction(
             "ATHENA Core returned non-contiguous relation indexes.",
             code="invalid_response",
         )
-    if tuple(
-        item.candidate_index for item in result.extractor_merge_candidates
-    ) != tuple(range(len(result.extractor_merge_candidates))):
+    if tuple(item.candidate_index for item in result.extractor_merge_candidates) != tuple(
+        range(len(result.extractor_merge_candidates))
+    ):
         raise CoreApiClientError(
             "ATHENA Core returned non-contiguous merge-candidate indexes.",
             code="invalid_response",
@@ -1117,9 +980,7 @@ def _message_knowledge_extraction(
     return result
 
 
-def _dedup_decision(
-    payload: dict[str, JsonValue],
-) -> DedupDecisionResponse:
+def _dedup_decision(payload: dict[str, JsonValue]) -> DedupDecisionResponse:
     proposal_type = _required_str(payload, "proposal_type")
     proposal_index = _required_int(payload, "proposal_index")
     action = _required_str(payload, "action")
@@ -1132,11 +993,7 @@ def _dedup_decision(
             code="invalid_response",
         )
     if action == "create":
-        valid = (
-            existing_entity_id is None
-            and existing_revision_id is None
-            and duplicate_of is None
-        )
+        valid = existing_entity_id is None and existing_revision_id is None and duplicate_of is None
     elif action == "reuse_canonical":
         valid = (
             existing_entity_id is not None
@@ -1167,9 +1024,7 @@ def _dedup_decision(
     )
 
 
-def _canonical_merge_review(
-    payload: dict[str, JsonValue],
-) -> CanonicalMergeReviewResponse:
+def _canonical_merge_review(payload: dict[str, JsonValue]) -> CanonicalMergeReviewResponse:
     candidate_index = _required_int(payload, "candidate_index")
     proposal_type = _required_str(payload, "proposal_type")
     proposal_index = _required_int(payload, "proposal_index")
@@ -1196,9 +1051,7 @@ def _canonical_merge_review(
     )
 
 
-def _knowledge_review(
-    payload: dict[str, JsonValue],
-) -> KnowledgeReviewResponse:
+def _knowledge_review(payload: dict[str, JsonValue]) -> KnowledgeReviewResponse:
     raw_ready = payload.get("ready_to_accept")
     if not isinstance(raw_ready, bool):
         raise CoreApiClientError(
@@ -1212,27 +1065,19 @@ def _knowledge_review(
         blocked_reason=_optional_str(payload, "blocked_reason"),
         preflight_digest=_optional_str(payload, "preflight_digest"),
         knowledge_decisions=tuple(
-            _dedup_decision(item)
-            for item in _object_items(payload, "knowledge_decisions")
+            _dedup_decision(item) for item in _object_items(payload, "knowledge_decisions")
         ),
         claim_decisions=tuple(
-            _dedup_decision(item)
-            for item in _object_items(payload, "claim_decisions")
+            _dedup_decision(item) for item in _object_items(payload, "claim_decisions")
         ),
         canonical_merge_candidates=tuple(
             _canonical_merge_review(item)
             for item in _object_items(payload, "canonical_merge_candidates")
         ),
     )
-    allowed_blockers = {
-        "extractor_merge_candidates",
-        "canonical_merge_candidates",
-    }
+    allowed_blockers = {"extractor_merge_candidates", "canonical_merge_candidates"}
     if result.ready_to_accept:
-        if (
-            result.blocked_reason is not None
-            or result.canonical_merge_candidates
-        ):
+        if result.blocked_reason is not None or result.canonical_merge_candidates:
             raise CoreApiClientError(
                 "ATHENA Core returned an inconsistent Knowledge review state.",
                 code="invalid_response",
@@ -1256,10 +1101,7 @@ def _knowledge_review(
                 code="invalid_response",
             )
     else:
-        if (
-            result.blocked_reason not in allowed_blockers
-            or result.preflight_digest is not None
-        ):
+        if result.blocked_reason not in allowed_blockers or result.preflight_digest is not None:
             raise CoreApiClientError(
                 "ATHENA Core returned an inconsistent blocked Knowledge review.",
                 code="invalid_response",
@@ -1281,35 +1123,30 @@ def _knowledge_review(
                 "Canonical-merge blocker is missing merge-review candidates.",
                 code="invalid_response",
             )
-
     if tuple(item.proposal_index for item in result.knowledge_decisions) != tuple(
         range(len(result.knowledge_decisions))
-    ) or any(
-        item.proposal_type != "knowledge" for item in result.knowledge_decisions
-    ):
+    ) or any(item.proposal_type != "knowledge" for item in result.knowledge_decisions):
         raise CoreApiClientError(
             "ATHENA Core returned invalid Knowledge deduplication indexes.",
             code="invalid_response",
         )
     if tuple(item.proposal_index for item in result.claim_decisions) != tuple(
         range(len(result.claim_decisions))
-    ) or any(
-        item.proposal_type != "claim" for item in result.claim_decisions
-    ):
+    ) or any(item.proposal_type != "claim" for item in result.claim_decisions):
         raise CoreApiClientError(
             "ATHENA Core returned invalid Claim deduplication indexes.",
             code="invalid_response",
         )
-    if tuple(
-        item.candidate_index for item in result.canonical_merge_candidates
-    ) != tuple(range(len(result.canonical_merge_candidates))):
+    if tuple(item.candidate_index for item in result.canonical_merge_candidates) != tuple(
+        range(len(result.canonical_merge_candidates))
+    ):
         raise CoreApiClientError(
             "ATHENA Core returned non-contiguous canonical merge indexes.",
             code="invalid_response",
         )
-    if len(
-        {item.review_id for item in result.canonical_merge_candidates}
-    ) != len(result.canonical_merge_candidates):
+    if len({item.review_id for item in result.canonical_merge_candidates}) != len(
+        result.canonical_merge_candidates
+    ):
         raise CoreApiClientError(
             "ATHENA Core returned duplicate canonical merge-review IDs.",
             code="invalid_response",
@@ -1328,9 +1165,7 @@ def _knowledge_review(
     return result
 
 
-def _knowledge_merge_review(
-    payload: dict[str, JsonValue],
-) -> KnowledgeMergeReviewResponse:
+def _knowledge_merge_review(payload: dict[str, JsonValue]) -> KnowledgeMergeReviewResponse:
     similarity = _required_float(payload, "similarity")
     proposal_type = _required_str(payload, "proposal_type")
     proposal_index = _required_int(payload, "proposal_index")
@@ -1351,10 +1186,7 @@ def _knowledge_merge_review(
             "Pending Knowledge merge review cannot have a decision.",
             code="invalid_response",
         )
-    if status == "accepted" and decision not in {
-        "merge",
-        "keep_separate",
-    }:
+    if status == "accepted" and decision not in {"merge", "keep_separate"}:
         raise CoreApiClientError(
             "Resolved Knowledge merge review has an invalid decision.",
             code="invalid_response",
@@ -1373,10 +1205,7 @@ def _knowledge_merge_review(
         source_revision_id=_required_str(payload, "source_revision_id"),
         proposal_text=_required_str(payload, "proposal_text"),
         proposal_kind=_required_str(payload, "proposal_kind"),
-        proposal_epistemic_status=_required_str(
-            payload,
-            "proposal_epistemic_status",
-        ),
+        proposal_epistemic_status=_required_str(payload, "proposal_epistemic_status"),
         similarity=similarity,
         decision=decision,
         existing_entity_id=_required_str(payload, "existing_entity_id"),
@@ -1384,9 +1213,7 @@ def _knowledge_merge_review(
     )
 
 
-def _deletion_dependency(
-    payload: dict[str, JsonValue],
-) -> DeletionDependencyResponse:
+def _deletion_dependency(payload: dict[str, JsonValue]) -> DeletionDependencyResponse:
     return DeletionDependencyResponse(
         relation=_required_str(payload, "relation"),
         count=_required_int(payload, "count"),
@@ -1409,9 +1236,7 @@ def _deletion_preview(payload: dict[str, JsonValue]) -> DeletionPreviewResponse:
                 "ATHENA Core deletion dependency is invalid.",
                 code="invalid_response",
             )
-        dependencies_list.append(
-            _deletion_dependency(raw_dependency)
-        )
+        dependencies_list.append(_deletion_dependency(raw_dependency))
     dependencies = tuple(dependencies_list)
     preview = DeletionPreviewResponse(
         entity_id=_required_str(payload, "entity_id"),
@@ -1504,10 +1329,7 @@ def _required_str_tuple(
     key: str,
 ) -> tuple[str, ...]:
     value = payload.get(key)
-    if (
-        not isinstance(value, list)
-        or not all(isinstance(item, str) for item in value)
-    ):
+    if not isinstance(value, list) or not all(isinstance(item, str) for item in value):
         raise CoreApiClientError(
             f"ATHENA Core response field {key!r} is invalid.",
             code="invalid_response",
@@ -1515,9 +1337,7 @@ def _required_str_tuple(
     return tuple(cast(list[str], value))
 
 
-def _grounded_evidence(
-    payload: dict[str, JsonValue],
-) -> GroundedEvidenceResponse:
+def _grounded_evidence(payload: dict[str, JsonValue]) -> GroundedEvidenceResponse:
     if "epistemic_status" not in payload:
         raise CoreApiClientError(
             "ATHENA Core response field 'epistemic_status' is missing.",
@@ -1532,15 +1352,9 @@ def _grounded_evidence(
         title=_optional_str(payload, "title"),
         text=_required_str(payload, "text"),
         cited=_required_bool(payload, "cited"),
-        epistemic_status=_optional_str(
-            payload,
-            "epistemic_status",
-        ),
+        epistemic_status=_optional_str(payload, "epistemic_status"),
         source_id=_optional_str(payload, "source_id"),
-        representation_id=_optional_str(
-            payload,
-            "representation_id",
-        ),
+        representation_id=_optional_str(payload, "representation_id"),
         source_name=_optional_str(payload, "source_name"),
         source_uri=_optional_str(payload, "source_uri"),
         start_offset=_optional_int(payload, "start_offset"),
@@ -1550,7 +1364,6 @@ def _grounded_evidence(
         quoted_sha256=_optional_str(payload, "quoted_sha256"),
         truncated=_required_bool(payload, "truncated"),
     )
-
     source_metadata = (
         item.source_id,
         item.representation_id,
@@ -1569,10 +1382,7 @@ def _grounded_evidence(
         "unknown",
     }
     if item.evidence_class == "canonical":
-        if (
-            item.epistemic_status
-            not in allowed_epistemic_statuses
-        ):
+        if item.epistemic_status not in allowed_epistemic_statuses:
             raise CoreApiClientError(
                 "ATHENA Core returned canonical evidence without a valid epistemic status.",
                 code="invalid_response",
@@ -1582,7 +1392,6 @@ def _grounded_evidence(
             "ATHENA Core mixed canonical epistemic status into non-canonical evidence.",
             code="invalid_response",
         )
-
     if item.evidence_class == "source":
         if (
             item.entity_type != "source_anchor"
@@ -1624,177 +1433,91 @@ def _grounded_evidence(
                 "ATHENA Core mixed source metadata into non-source evidence.",
                 code="invalid_response",
             )
-
     return item
 
 
-def _grounded_memory(
-    payload: dict[str, JsonValue],
-) -> GroundedMemoryResponse:
+def _grounded_memory(payload: dict[str, JsonValue]) -> GroundedMemoryResponse:
     return GroundedMemoryResponse(
         context_id=_required_str(payload, "context_id"),
         memory_id=_required_str(payload, "memory_id"),
         revision_id=_required_str(payload, "revision_id"),
         memory_kind=_required_str(payload, "memory_kind"),
         scope_kind=_required_str(payload, "scope_kind"),
-        scope_entity_id=_optional_str(
-            payload,
-            "scope_entity_id",
-        ),
+        scope_entity_id=_optional_str(payload, "scope_entity_id"),
         content=_required_str(payload, "content"),
     )
 
 
-def _grounding(
-    payload: dict[str, JsonValue],
-) -> GroundingResponse:
+def _grounding(payload: dict[str, JsonValue]) -> GroundingResponse:
     return GroundingResponse(
-        cited_context_ids=_required_str_tuple(
-            payload,
-            "cited_context_ids",
-        ),
-        canonical_context_ids=_required_str_tuple(
-            payload,
-            "canonical_context_ids",
-        ),
-        user_statement_context_ids=_required_str_tuple(
-            payload,
-            "user_statement_context_ids",
-        ),
-        conversation_context_ids=_required_str_tuple(
-            payload,
-            "conversation_context_ids",
-        ),
-        source_context_ids=_required_str_tuple(
-            payload,
-            "source_context_ids",
-        ),
-        research_context_ids=_required_str_tuple(
-            payload,
-            "research_context_ids",
-        ),
-        news_context_ids=_required_str_tuple(
-            payload,
-            "news_context_ids",
-        ),
-        invalid_context_ids=_required_str_tuple(
-            payload,
-            "invalid_context_ids",
-        ),
-        uses_inference=_required_bool(
-            payload,
-            "uses_inference",
-        ),
-        uses_model_prior=_required_bool(
-            payload,
-            "uses_model_prior",
-        ),
-        uses_unknown=_required_bool(
-            payload,
-            "uses_unknown",
-        ),
-        has_provenance_marker=_required_bool(
-            payload,
-            "has_provenance_marker",
-        ),
+        cited_context_ids=_required_str_tuple(payload, "cited_context_ids"),
+        canonical_context_ids=_required_str_tuple(payload, "canonical_context_ids"),
+        user_statement_context_ids=_required_str_tuple(payload, "user_statement_context_ids"),
+        conversation_context_ids=_required_str_tuple(payload, "conversation_context_ids"),
+        source_context_ids=_required_str_tuple(payload, "source_context_ids"),
+        research_context_ids=_required_str_tuple(payload, "research_context_ids"),
+        news_context_ids=_required_str_tuple(payload, "news_context_ids"),
+        invalid_context_ids=_required_str_tuple(payload, "invalid_context_ids"),
+        uses_inference=_required_bool(payload, "uses_inference"),
+        uses_model_prior=_required_bool(payload, "uses_model_prior"),
+        uses_unknown=_required_bool(payload, "uses_unknown"),
+        has_provenance_marker=_required_bool(payload, "has_provenance_marker"),
     )
 
 
-def _grounded_chat(
-    payload: dict[str, JsonValue],
-) -> GroundedChatResponse:
+def _grounded_chat(payload: dict[str, JsonValue]) -> GroundedChatResponse:
     raw_evidence = payload.get("evidence")
     if not isinstance(raw_evidence, list):
-        raise CoreApiClientError(
-            "ATHENA Core grounded evidence is invalid.",
-            code="invalid_response",
-        )
-    evidence = tuple(
-        _grounded_evidence(
-            item
-        )
-        for item in raw_evidence
-        if isinstance(item, dict)
-    )
+        raise CoreApiClientError("ATHENA Core grounded evidence is invalid.", code="invalid_response")
+    evidence = tuple(_grounded_evidence(item) for item in raw_evidence if isinstance(item, dict))
     if len(evidence) != len(raw_evidence):
         raise CoreApiClientError(
-            "ATHENA Core grounded evidence item is invalid.",
-            code="invalid_response",
+            "ATHENA Core grounded evidence item is invalid.", code="invalid_response"
         )
-
     raw_memory = payload.get("personal_memory")
     if not isinstance(raw_memory, list):
         raise CoreApiClientError(
-            "ATHENA Core grounded Personal Memory is invalid.",
-            code="invalid_response",
+            "ATHENA Core grounded Personal Memory is invalid.", code="invalid_response"
         )
     personal_memory = tuple(
-        _grounded_memory(
-            item
-        )
-        for item in raw_memory
-        if isinstance(item, dict)
+        _grounded_memory(item) for item in raw_memory if isinstance(item, dict)
     )
     if len(personal_memory) != len(raw_memory):
         raise CoreApiClientError(
-            "ATHENA Core grounded Personal Memory item is invalid.",
-            code="invalid_response",
+            "ATHENA Core grounded Personal Memory item is invalid.", code="invalid_response"
         )
-
-    grounding = _grounding(
-        _required_object(payload, "grounding")
-    )
+    grounding = _grounding(_required_object(payload, "grounding"))
     evidence_ids = tuple(item.context_id for item in evidence)
     if len(set(evidence_ids)) != len(evidence_ids):
         raise CoreApiClientError(
-            "ATHENA Core returned duplicate evidence context IDs.",
-            code="invalid_response",
+            "ATHENA Core returned duplicate evidence context IDs.", code="invalid_response"
         )
     cited = set(grounding.cited_context_ids)
     if not cited.issubset(evidence_ids):
-        raise CoreApiClientError(
-            "ATHENA Core grounding cites missing evidence.",
-            code="invalid_response",
-        )
+        raise CoreApiClientError("ATHENA Core grounding cites missing evidence.", code="invalid_response")
     for item in evidence:
         if item.cited != (item.context_id in cited):
             raise CoreApiClientError(
-                "ATHENA Core evidence citation state is inconsistent.",
-                code="invalid_response",
+                "ATHENA Core evidence citation state is inconsistent.", code="invalid_response"
             )
     if grounding.invalid_context_ids:
         raise CoreApiClientError(
-            "ATHENA Core returned invalid grounding references.",
-            code="invalid_response",
+            "ATHENA Core returned invalid grounding references.", code="invalid_response"
         )
-
-    assistant_text = _required_str(
-        payload,
-        "assistant_text",
-    ).strip()
+    assistant_text = _required_str(payload, "assistant_text").strip()
     if not assistant_text:
         raise CoreApiClientError(
-            "ATHENA Core grounded assistant text is blank.",
-            code="invalid_response",
+            "ATHENA Core grounded assistant text is blank.", code="invalid_response"
         )
-
     return GroundedChatResponse(
-        thread=_chat_thread(
-            _required_object(payload, "thread")
-        ),
+        thread=_chat_thread(_required_object(payload, "thread")),
         assistant_text=assistant_text,
         evidence=evidence,
         personal_memory=personal_memory,
         grounding=grounding,
-        processing_run_id=_required_str(
-            payload,
-            "processing_run_id",
-        ),
+        processing_run_id=_required_str(payload, "processing_run_id"),
         model_id=_required_str(payload, "model_id"),
-        embedding_model_id=_optional_str(
-            payload,
-            "embedding_model_id",
-        ),
+        embedding_model_id=_optional_str(payload, "embedding_model_id"),
     )
 
 
