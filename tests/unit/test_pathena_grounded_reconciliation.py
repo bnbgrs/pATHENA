@@ -8,9 +8,9 @@ from athena.chat.grounded_reconciliation import (
     GroundedReconciliationState,
     GroundedSendReconciler,
 )
+from athena.chat.grounded_turn import GroundedUserTurnRepository
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
-from athena.chat.send_operation import ChatSendOperationMode, ChatSendOperationRepository
 from athena.common.ids import uuid_to_blob
 from athena.storage.database import SQLiteDatabase
 
@@ -30,10 +30,27 @@ def _fingerprint(chat_id: uuid.UUID, content: str = "hello"):
     )
 
 
-def _chat(database: SQLiteDatabase) -> uuid.UUID:
+def _chat(database: SQLiteDatabase) -> tuple[uuid.UUID, uuid.UUID]:
     chats = ChatRepository(database)
     actor = chats.create_actor(actor_type="user")
-    return chats.create_chat(actor_id=actor)
+    return actor, chats.create_chat(actor_id=actor)
+
+
+def _start(
+    database: SQLiteDatabase,
+    *,
+    actor_id: uuid.UUID,
+    chat_id: uuid.UUID,
+    operation_id: uuid.UUID,
+    fingerprint,
+) -> None:
+    GroundedUserTurnRepository(database).commit(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        actor_id=actor_id,
+        content="hello",
+        fingerprint=fingerprint,
+    )
 
 
 def _journal_and_force_assistant(
@@ -62,7 +79,7 @@ def _journal_and_force_assistant(
 def test_reconciliation_projects_absent_incomplete_complete_and_conflict(tmp_path) -> None:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
-    chat_id = _chat(database)
+    actor, chat_id = _chat(database)
     operation_id = uuid.uuid4()
     fingerprint = _fingerprint(chat_id)
     reconciler = GroundedSendReconciler(database)
@@ -73,11 +90,11 @@ def test_reconciliation_projects_absent_incomplete_complete_and_conflict(tmp_pat
         fingerprint=fingerprint,
     ).state is GroundedReconciliationState.ABSENT
 
-    operations = ChatSendOperationRepository(database)
-    operations.store_user_committed(
-        operation_id=operation_id,
+    _start(
+        database,
+        actor_id=actor,
         chat_id=chat_id,
-        mode=ChatSendOperationMode.GROUNDED,
+        operation_id=operation_id,
         fingerprint=fingerprint,
     )
     assert reconciler.inspect(
@@ -122,14 +139,14 @@ def test_reconciliation_survives_restart_and_returns_exact_receipt(tmp_path) -> 
     path = tmp_path / "athena.db"
     database = SQLiteDatabase(path)
     database.start()
-    chat_id = _chat(database)
+    actor, chat_id = _chat(database)
     operation_id = uuid.uuid4()
     fingerprint = _fingerprint(chat_id)
-    operations = ChatSendOperationRepository(database)
-    operations.store_user_committed(
-        operation_id=operation_id,
+    _start(
+        database,
+        actor_id=actor,
         chat_id=chat_id,
-        mode=ChatSendOperationMode.GROUNDED,
+        operation_id=operation_id,
         fingerprint=fingerprint,
     )
     run_id = uuid.uuid4()
@@ -165,14 +182,14 @@ def test_reconciliation_survives_restart_and_returns_exact_receipt(tmp_path) -> 
 def test_reconciliation_fails_closed_when_complete_operation_loses_receipt(tmp_path) -> None:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
-    chat_id = _chat(database)
+    actor, chat_id = _chat(database)
     operation_id = uuid.uuid4()
     fingerprint = _fingerprint(chat_id)
-    operations = ChatSendOperationRepository(database)
-    operations.store_user_committed(
-        operation_id=operation_id,
+    _start(
+        database,
+        actor_id=actor,
         chat_id=chat_id,
-        mode=ChatSendOperationMode.GROUNDED,
+        operation_id=operation_id,
         fingerprint=fingerprint,
     )
     run_id = uuid.uuid4()
