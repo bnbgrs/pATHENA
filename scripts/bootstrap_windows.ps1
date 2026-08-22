@@ -137,19 +137,20 @@ if ($env:ATHENA_LMSTUDIO_BASE_URL) {
 }
 
 $hasExplicitSettings = $LocalRoot.Trim() -or $LmStudioBaseUrl.Trim()
+
+Write-Step "Synchronize locked pATHENA runtime"
+Invoke-Checked uv sync --locked --extra desktop
+
+Write-Step "Verify installed interpreter, package, and configuration"
+Invoke-Checked uv run --locked --extra desktop python -c "import sys; import athena; from athena.config.settings import AthenaSettings; assert sys.version_info[:2] == (3, 12); settings = AthenaSettings.from_environment(); print(sys.executable); print('athena import: OK'); print(f'local root: {settings.local_root}'); print(f'LM Studio: {settings.lm_studio_base_url}')"
+
 if ($hasExplicitSettings -and -not $NoPersistSettings) {
     Save-PathenaWindowsSettings `
         -RepoRoot $RepoRoot `
         -LocalRoot $env:ATHENA_LOCAL_ROOT `
         -LmStudioBaseUrl $env:ATHENA_LMSTUDIO_BASE_URL
-    Write-Host "Saved local launcher settings to .pathena.windows.ps1"
+    Write-Host "Saved validated local launcher settings to .pathena.windows.ps1"
 }
-
-Write-Step "Synchronize locked pATHENA runtime"
-Invoke-Checked uv sync --locked --extra desktop
-
-Write-Step "Verify installed interpreter and package"
-Invoke-Checked uv run --locked --extra desktop python -c "import sys; import athena; assert sys.version_info[:2] == (3, 12); print(sys.executable); print('athena import: OK')"
 
 if (-not $SkipSmokeTest) {
     Write-Step "Run pATHENA local doctor"
