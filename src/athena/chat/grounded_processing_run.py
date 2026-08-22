@@ -59,6 +59,14 @@ def _load_bound_run(
         raise GroundedProcessingRunError(
             "ProcessingRun type conflicts with the Grounded chat operation."
         )
+    if not run.pipeline_version.strip():
+        raise GroundedProcessingRunError(
+            "Grounded ProcessingRun has an invalid pipeline version."
+        )
+    if (run.prompt_template_id is None) != (run.prompt_template_version is None):
+        raise GroundedProcessingRunError(
+            "Grounded ProcessingRun prompt-template provenance is incomplete."
+        )
     if run.trigger_actor_id != trigger_actor_id:
         raise GroundedProcessingRunError(
             "ProcessingRun trigger actor conflicts with the Grounded user actor."
