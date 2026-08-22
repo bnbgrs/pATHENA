@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
+import json
 import uuid
 from collections.abc import Callable
 
 from athena.chat.generation import ChatGenerationResult, ChatGenerationService
 from athena.chat.grounding import GroundingContract
+from athena.chat.grounded_provider_result_contract import (
+    GroundedProviderResultContractError,
+    validate_provider_result_contract,
+)
 from athena.chat.grounded_recovery import GroundedRecoveryState
 from athena.chat.grounded_request_context import (
     GroundedRequestContextBindingError,
@@ -62,11 +67,44 @@ class _DurableAssistantChatService(ChatService):
                 "Generated assistant persistence escaped its Grounded operation identity."
             )
 
-        payload_json = self._receipt_payload_builder(
-            content,
-            provider_id,
-            model_id,
-        )
+        try:
+            payload_json = self._receipt_payload_builder(
+                content,
+                provider_id,
+                model_id,
+            )
+            validate_provider_result_contract(
+                assistant_content=content,
+                receipt_payload_json=payload_json,
+            )
+        except Exception as exc:
+            fallback_payload_json = json.dumps(
+                {
+                    "assistant_text": content,
+                    "model_id": model_id,
+                    "provider_id": provider_id,
+                    "recovery_receipt": True,
+                },
+                ensure_ascii=False,
+                allow_nan=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            )
+            self._coordinator.record_provider_result(
+                operation_id=self._operation_id,
+                chat_id=self._chat_id,
+                fingerprint=self._fingerprint,
+                processing_run_id=self._processing_run_id,
+                assistant_content=content,
+                receipt_payload_json=fallback_payload_json,
+                provider_id=provider_id,
+                model_id=model_id,
+            )
+            raise DurableGroundedGenerationError(
+                "Provider returned a valid assistant answer, but durable receipt "
+                "construction failed; the answer was journaled for recovery."
+            ) from exc
+
         result = self._coordinator.record_provider_result(
             operation_id=self._operation_id,
             chat_id=self._chat_id,
