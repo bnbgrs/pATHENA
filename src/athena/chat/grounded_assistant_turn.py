@@ -220,12 +220,19 @@ class GroundedAssistantTurnRepository:
             if context_record is not None:
                 assert operation_run_blob is not None
                 try:
-                    validate_grounded_processing_run_provenance(
+                    run = validate_grounded_processing_run_provenance(
                         self.database,
                         processing_run_id=uuid_from_blob(bytes(operation_run_blob)),
                         package=context_record.package,
                         trigger_actor_id=uuid_from_blob(bytes(user["actor_id"])),
                     )
+                    if not (
+                        (run.status == "running" and run.finished_at_us is None)
+                        or (run.status == "succeeded" and run.finished_at_us is not None)
+                    ):
+                        raise GroundedProcessingRunError(
+                            "Grounded assistant turn requires a live or succeeded ProcessingRun."
+                        )
                 except GroundedProcessingRunError as exc:
                     raise ChatSendOperationConflictError(
                         "Grounded assistant turn found invalid ProcessingRun provenance."
