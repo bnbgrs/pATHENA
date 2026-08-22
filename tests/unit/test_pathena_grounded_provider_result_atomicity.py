@@ -11,7 +11,10 @@ from athena.chat.grounded_provider_attempt import (
 from athena.chat.grounded_turn import GroundedUserTurnRepository
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
-from athena.chat.send_operation import ChatSendOperationRepository
+from athena.chat.send_operation import (
+    ChatSendOperationConflictError,
+    ChatSendOperationRepository,
+)
 from athena.common.ids import uuid_to_blob
 from athena.storage.database import SQLiteDatabase
 
@@ -87,7 +90,7 @@ def test_provider_result_run_conflict_rolls_back_before_persistence(tmp_path) ->
         database.stop()
 
 
-def test_existing_provider_result_replay_rejects_later_run_conflict(tmp_path) -> None:
+def test_existing_provider_result_replay_rejects_legacy_run_conflict(tmp_path) -> None:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
     try:
@@ -103,11 +106,19 @@ def test_existing_provider_result_replay_rejects_later_run_conflict(tmp_path) ->
             model_id="primary",
         )
 
-        ChatSendOperationRepository(database).bind_grounded_processing_run(
-            operation_id=operation_id,
-            chat_id=chat_id,
-            processing_run_id=uuid.uuid4(),
-        )
+        conflicting_run_id = uuid.uuid4()
+        with database.write_transaction() as connection:
+            connection.execute(
+                """
+                UPDATE chat_send_operations
+                SET processing_run_id = ?
+                WHERE operation_id = ?
+                """,
+                (
+                    uuid_to_blob(conflicting_run_id),
+                    uuid_to_blob(operation_id),
+                ),
+            )
 
         with pytest.raises(
             GroundedProviderAttemptConflictError,
@@ -122,5 +133,49 @@ def test_existing_provider_result_replay_rejects_later_run_conflict(tmp_path) ->
                 provider_id="lm_studio",
                 model_id="primary",
             )
+    finally:
+        database.stop()
+
+
+def test_run_binding_rejects_recorded_provider_result_conflict(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        operation_id, chat_id, provider = _prepare_grounded_attempt(database)
+        result_run_id = uuid.uuid4()
+        provider.store_result(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            processing_run_id=result_run_id,
+            assistant_content="answer",
+            receipt_payload_json='{"assistant_text":"answer","evidence":[]}',
+            provider_id="lm_studio",
+            model_id="primary",
+        )
+
+        operations = ChatSendOperationRepository(database)
+        with pytest.raises(
+            ChatSendOperationConflictError,
+            match="recorded provider result",
+        ):
+            operations.bind_grounded_processing_run(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                processing_run_id=uuid.uuid4(),
+            )
+
+        operation = operations.load(operation_id)
+        assert operation is not None
+        assert operation.processing_run_id is None
+
+        bound = operations.bind_grounded_processing_run(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            processing_run_id=result_run_id,
+        )
+        assert bound.processing_run_id == result_run_id
+        stored = provider.load_result(operation_id)
+        assert stored is not None
+        assert stored.processing_run_id == result_run_id
     finally:
         database.stop()
