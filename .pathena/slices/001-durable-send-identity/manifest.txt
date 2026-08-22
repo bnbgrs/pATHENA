@@ -4,4 +4,4 @@ baseline: bnbgrs/ATHENA@8b02beec4f5ef83344e405f92074072623e8b318
 patch_sha256: e1ad904a567685a66dd3e4720fb89e1e84dba30a828204008f6f5f609842803c
 chunks: 000.b64 001.b64 002.b64 003.b64
 policy: validate syntax + Ruff + full-source Mypy + targeted tests before implementation commit
-trigger: agent/pathena git-ref gate retry 2026-08-22T04:08+02:00
+trigger: agent/pathena slice-gate retry 2026-08-22T04:53+02:00
