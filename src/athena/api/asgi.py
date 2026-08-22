@@ -279,6 +279,7 @@ class CoreApiAsgiApp:
                     "content",
                     "model_id",
                     "embedding_model_id",
+                    "operation_id",
                     "effective_context_limit",
                     "max_output_tokens",
                     "temperature",
@@ -315,6 +316,24 @@ class CoreApiAsgiApp:
                         "Chat embedding_model_id must be a "
                         "non-empty string or null."
                     )
+
+                operation_id = payload.get("operation_id")
+                if operation_id is not None:
+                    if (
+                        not isinstance(operation_id, str)
+                        or not operation_id.strip()
+                    ):
+                        raise ValueError(
+                            "Chat operation_id must be a "
+                            "non-empty UUID string or null."
+                        )
+                    try:
+                        operation_id = str(uuid.UUID(operation_id))
+                    except ValueError as exc:
+                        raise ValueError(
+                            "Chat operation_id must be a "
+                            "valid UUID string or null."
+                        ) from exc
 
                 effective_context_limit = payload.get(
                     "effective_context_limit"
@@ -365,6 +384,7 @@ class CoreApiAsgiApp:
                         requested_embedding_model_id=(
                             embedding_model_id
                         ),
+                        operation_id=operation_id,
                         effective_context_limit=effective_context_limit,
                         max_output_tokens=max_output_tokens,
                         temperature=temperature,
