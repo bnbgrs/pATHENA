@@ -206,6 +206,10 @@ def test_canonical_drift_inside_boundary_is_fenced_before_provider(tmp_path: Pat
             chat_id=chat_id,
             fingerprint=fingerprint,
         ).state is GroundedRecoveryState.AMBIGUOUS
+        failed_run = ModelRunRepository(database).load_run(run_id)
+        assert failed_run.status == "failed"
+        assert failed_run.finished_at_us is not None
+        assert failed_run.error_detail == "DurableGroundedGenerationError"
         assert len(chats.load_chat(chat_id).messages) == 1
     finally:
         database.stop()
