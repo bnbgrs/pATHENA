@@ -10,6 +10,7 @@ from athena.chat.generation import ChatGenerationResult, ChatGenerationService
 from athena.chat.grounding import GroundingContract
 from athena.chat.grounded_processing_run import (
     GroundedProcessingRunError,
+    complete_grounded_processing_run,
     validate_grounded_processing_run,
 )
 from athena.chat.grounded_provider_result_contract import validate_provider_result_contract
@@ -272,6 +273,17 @@ class DurableGroundedGenerationService:
             grounding_contract=grounding_contract,
             on_before_provider_call=before_provider,
         )
+        try:
+            complete_grounded_processing_run(
+                self.coordinator.database,
+                processing_run_id=processing_run_id,
+                package=context_package,
+                trigger_actor_id=user_message.actor_id,
+            )
+        except GroundedProcessingRunError as exc:
+            raise DurableGroundedGenerationError(
+                "Grounded answer is durable, but ProcessingRun finalization failed."
+            ) from exc
         if on_delta is not None:
             persisted_content = result.assistant_message.content
             if persisted_content is None:
