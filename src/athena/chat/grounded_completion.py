@@ -146,16 +146,50 @@ class GroundedSendCompletionRepository:
     def load(self, operation_id: uuid.UUID) -> GroundedSendReceipt | None:
         row = self.database.connection.execute(
             """
-            SELECT operation_id, chat_id, processing_run_id,
-                   payload_json, payload_sha256, format_version, created_at_us
-            FROM grounded_send_receipts
-            WHERE operation_id = ?
+            SELECT r.operation_id, r.chat_id, r.processing_run_id,
+                   r.payload_json, r.payload_sha256, r.format_version, r.created_at_us,
+                   o.chat_id AS operation_chat_id, o.mode AS operation_mode,
+                   o.state AS operation_state,
+                   o.processing_run_id AS operation_processing_run_id,
+                   o.receipt_payload_sha256 AS operation_receipt_payload_sha256,
+                   p.chat_id AS provider_chat_id,
+                   p.processing_run_id AS provider_processing_run_id,
+                   p.receipt_payload_json AS provider_payload_json,
+                   p.receipt_payload_sha256 AS provider_payload_sha256
+            FROM grounded_send_receipts AS r
+            LEFT JOIN chat_send_operations AS o ON o.operation_id = r.operation_id
+            LEFT JOIN grounded_provider_results AS p ON p.operation_id = r.operation_id
+            WHERE r.operation_id = ?
             """,
             (uuid_to_blob(operation_id),),
         ).fetchone()
         if row is None:
             return None
-        return self._from_row(row)
+        receipt = self._from_row(row)
+        if (
+            row["operation_chat_id"] is None
+            or row["operation_processing_run_id"] is None
+            or row["operation_receipt_payload_sha256"] is None
+            or row["provider_chat_id"] is None
+            or row["provider_processing_run_id"] is None
+            or row["provider_payload_json"] is None
+            or row["provider_payload_sha256"] is None
+            or uuid_from_blob(bytes(row["operation_chat_id"])) != receipt.chat_id
+            or str(row["operation_mode"]) != "grounded"
+            or str(row["operation_state"]) != ChatSendOperationState.COMPLETE.value
+            or uuid_from_blob(bytes(row["operation_processing_run_id"]))
+            != receipt.processing_run_id
+            or str(row["operation_receipt_payload_sha256"]) != receipt.payload_sha256
+            or uuid_from_blob(bytes(row["provider_chat_id"])) != receipt.chat_id
+            or uuid_from_blob(bytes(row["provider_processing_run_id"]))
+            != receipt.processing_run_id
+            or str(row["provider_payload_json"]) != receipt.payload_json
+            or str(row["provider_payload_sha256"]) != receipt.payload_sha256
+        ):
+            raise GroundedSendCompletionCorruptionError(
+                "Persisted Grounded receipt no longer matches its durable operation chain."
+            )
+        return receipt
 
     def complete(
         self,
@@ -201,16 +235,20 @@ class GroundedSendCompletionRepository:
                 )
             provider_result = connection.execute(
                 """
-                SELECT chat_id, processing_run_id,
-                       receipt_payload_json, receipt_payload_sha256
-                FROM grounded_provider_results
-                WHERE operation_id = ?
+                SELECT r.chat_id, r.processing_run_id,
+                       r.receipt_payload_json, r.receipt_payload_sha256,
+                       a.chat_id AS attempt_chat_id
+                FROM grounded_provider_results AS r
+                LEFT JOIN grounded_provider_attempts AS a ON a.operation_id = r.operation_id
+                WHERE r.operation_id = ?
                 """,
                 (uuid_to_blob(operation_id),),
             ).fetchone()
             if (
                 provider_result is None
+                or provider_result["attempt_chat_id"] is None
                 or uuid_from_blob(bytes(provider_result["chat_id"])) != chat_id
+                or uuid_from_blob(bytes(provider_result["attempt_chat_id"])) != chat_id
                 or uuid_from_blob(bytes(provider_result["processing_run_id"]))
                 != processing_run_id
                 or str(provider_result["receipt_payload_json"]) != canonical
