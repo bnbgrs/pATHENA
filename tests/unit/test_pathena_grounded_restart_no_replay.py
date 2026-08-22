@@ -12,7 +12,11 @@ from athena.chat.durable_grounded_generation import (
     DurableGroundedGenerationService,
 )
 from athena.chat.generation import ChatGenerationService
-from athena.chat.grounded_recovery import GroundedRecoveryState, GroundedSendRecovery
+from athena.chat.grounded_recovery import (
+    GroundedRecoveryConflictError,
+    GroundedRecoveryState,
+    GroundedSendRecovery,
+)
 from athena.chat.grounded_send import GroundedSendCoordinator
 from athena.chat.models import ChatMessage
 from athena.chat.repository import ChatRepository
@@ -271,6 +275,90 @@ def test_restart_normal_send_path_cannot_replay_recorded_provider_result(
         assert complete.state is GroundedRecoveryState.COMPLETE
         assert complete.receipt == receipt
         assert len(restarted_chats.load_chat(chat_id).messages) == 2
+        run = ModelRunRepository(database).load_run(processing_run_id)
+        assert run.status == "succeeded"
+    finally:
+        database.stop()
+
+
+def test_restart_inspect_rejects_corrupted_provider_processing_run(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "athena.db"
+    database = SQLiteDatabase(path)
+    database.start()
+    provider = _Provider()
+    operation_id = uuid.uuid4()
+    try:
+        chats = ChatRepository(database)
+        user = chats.create_actor(actor_type="user")
+        chat_id = chats.create_chat(actor_id=user)
+        fingerprint = _fingerprint(chat_id)
+        coordinator = GroundedSendCoordinator(database)
+        started = coordinator.start(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            actor_id=user,
+            content="hello",
+            fingerprint=fingerprint,
+        )
+        package, processing_run_id = _package_and_run(database, started.user_message)
+        generation = DurableGroundedGenerationService(
+            ChatGenerationService(ChatService(chats), provider),
+            coordinator,
+        )
+        generation.send_context_package(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            user_message=started.user_message,
+            context_package=package,
+            processing_run_id=processing_run_id,
+            fingerprint=fingerprint,
+            receipt_payload_builder=_receipt_payload,
+        )
+        assert provider.calls == 1
+        assert coordinator.recover(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        ).state is GroundedRecoveryState.FINALIZATION_REQUIRED
+
+        foreign_processing_run_id = uuid.uuid4()
+        with database.write_transaction() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE grounded_provider_results
+                SET processing_run_id = ?
+                WHERE operation_id = ?
+                """,
+                (
+                    uuid_to_blob(foreign_processing_run_id),
+                    uuid_to_blob(operation_id),
+                ),
+            )
+            assert cursor.rowcount == 1
+
+        database.stop()
+        database = SQLiteDatabase(path)
+        database.start()
+        recovery = GroundedSendRecovery(database)
+        status = recovery.inspect(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        )
+        assert status.state is GroundedRecoveryState.CONFLICT
+        with pytest.raises(
+            GroundedRecoveryConflictError,
+            match="cannot finalize from conflict",
+        ):
+            recovery.finalize_recorded_result(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                fingerprint=fingerprint,
+            )
+        assert provider.calls == 1
+        assert len(ChatRepository(database).load_chat(chat_id).messages) == 2
         run = ModelRunRepository(database).load_run(processing_run_id)
         assert run.status == "succeeded"
     finally:
