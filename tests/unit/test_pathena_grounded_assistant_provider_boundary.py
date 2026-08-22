@@ -9,7 +9,11 @@ from athena.chat.grounded_provider_attempt import GroundedProviderAttemptReposit
 from athena.chat.grounded_turn import GroundedUserTurnRepository
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
-from athena.chat.send_operation import ChatSendOperationConflictError, ChatSendOperationRepository, ChatSendOperationState
+from athena.chat.send_operation import (
+    ChatSendOperationConflictError,
+    ChatSendOperationRepository,
+    ChatSendOperationState,
+)
 from athena.chat.service import ChatService
 from athena.common.ids import uuid_to_blob
 from athena.storage.database import SQLiteDatabase
@@ -57,15 +61,24 @@ def _setup(database: SQLiteDatabase):
     return chats, chat_id, operation_id, model_actor
 
 
-def test_assistant_commit_rejects_semantically_corrupted_provider_result(tmp_path) -> None:
+def test_assistant_commit_rejects_semantically_corrupted_provider_result(
+    tmp_path,
+) -> None:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
     try:
         _chats, chat_id, operation_id, model_actor = _setup(database)
         with database.write_transaction() as connection:
             connection.execute(
-                "UPDATE grounded_provider_results SET receipt_payload_json = ? WHERE operation_id = ?",
-                ('{"assistant_text":"tampered","evidence":[]}', uuid_to_blob(operation_id)),
+                """
+                UPDATE grounded_provider_results
+                SET receipt_payload_json = ?
+                WHERE operation_id = ?
+                """,
+                (
+                    '{"assistant_text":"tampered","evidence":[]}',
+                    uuid_to_blob(operation_id),
+                ),
             )
 
         with pytest.raises(
@@ -85,7 +98,9 @@ def test_assistant_commit_rejects_semantically_corrupted_provider_result(tmp_pat
         database.stop()
 
 
-def test_assistant_commit_rejects_corrupted_provider_attempt_identity(tmp_path) -> None:
+def test_assistant_commit_rejects_corrupted_provider_attempt_identity(
+    tmp_path,
+) -> None:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
     try:
@@ -94,7 +109,11 @@ def test_assistant_commit_rejects_corrupted_provider_attempt_identity(tmp_path) 
         other_chat_id = chats.create_chat(actor_id=user)
         with database.write_transaction() as connection:
             connection.execute(
-                "UPDATE grounded_provider_attempts SET chat_id = ? WHERE operation_id = ?",
+                """
+                UPDATE grounded_provider_attempts
+                SET chat_id = ?
+                WHERE operation_id = ?
+                """,
                 (uuid_to_blob(other_chat_id), uuid_to_blob(operation_id)),
             )
 
