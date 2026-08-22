@@ -4,6 +4,10 @@ from __future__ import annotations
 
 import uuid
 
+from athena.chat.grounded_context_package import (
+    GroundedContextPackageRepository,
+    GroundedContextPackageSchemaError,
+)
 from athena.chat.grounded_provider_attempt import (
     GroundedProviderAttemptRepository,
     _canonical_receipt_payload,
@@ -31,6 +35,7 @@ class GroundedAssistantTurnRepository:
     def __init__(self, database: SQLiteDatabase) -> None:
         self.database = database
         self.operations = ChatSendOperationRepository(database)
+        self.context_packages = GroundedContextPackageRepository(database)
         self.provider_attempts = GroundedProviderAttemptRepository(database)
         self.chat = ChatRepository(database)
 
@@ -119,6 +124,7 @@ class GroundedAssistantTurnRepository:
                 raise ChatSendOperationConflictError(
                     "Grounded assistant turn found a corrupted durable provider result checksum."
                 )
+
             provider_identity = connection.execute(
                 """
                 SELECT provider_id, model_id
@@ -127,7 +133,30 @@ class GroundedAssistantTurnRepository:
                 """,
                 (uuid_to_blob(operation_id),),
             ).fetchone()
+            try:
+                context_record = self.context_packages.load(operation_id)
+            except GroundedContextPackageSchemaError as exc:
+                raise ChatSendOperationConflictError(
+                    "Grounded assistant turn found a corrupted pinned ContextPackage."
+                ) from exc
+            pinned_identity: tuple[str, str] | None = None
+            if context_record is not None:
+                signature = context_record.package.model_signature
+                pinned_identity = (signature.provider, signature.model_identifier)
+
+            expected_actor_identity: tuple[str, str] | None = pinned_identity
             if provider_identity is not None:
+                durable_identity = (
+                    str(provider_identity["provider_id"]),
+                    str(provider_identity["model_id"]),
+                )
+                if pinned_identity is not None and durable_identity != pinned_identity:
+                    raise ChatSendOperationConflictError(
+                        "Grounded assistant provider identity conflicts with pinned ContextPackage model."
+                    )
+                expected_actor_identity = durable_identity
+
+            if expected_actor_identity is not None:
                 actor = connection.execute(
                     """
                     SELECT actor_type, display_name
@@ -137,7 +166,7 @@ class GroundedAssistantTurnRepository:
                     (uuid_to_blob(actor_id),),
                 ).fetchone()
                 expected_display_name = (
-                    f"{provider_identity['provider_id']}:{provider_identity['model_id']}"
+                    f"{expected_actor_identity[0]}:{expected_actor_identity[1]}"
                 )
                 if (
                     actor is None
