@@ -8,10 +8,9 @@ from athena.chat.grounded_context_package import (
     GroundedContextPackageConflictError,
     GroundedContextPackageRepository,
 )
-from athena.chat.models import MessageType
+from athena.chat.grounded_turn import GroundedUserTurnRepository
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
-from athena.chat.send_operation import ChatSendOperationMode, ChatSendOperationRepository
 from athena.model.provenance import ModelSignature
 from athena.retrieval.context_package import (
     ContextIncludedRef,
@@ -89,22 +88,8 @@ def _package(operation_id: uuid.UUID, revision_id: uuid.UUID):
     )
 
 
-def test_exact_grounded_context_package_survives_restart(tmp_path) -> None:
-    path = tmp_path / "athena.db"
-    database = SQLiteDatabase(path)
-    database.start()
-    chats = ChatRepository(database)
-    user = chats.create_actor(actor_type="user")
-    chat_id = chats.create_chat(actor_id=user)
-    operation_id = uuid.uuid4()
-    message = chats.append_message(
-        chat_id=chat_id,
-        actor_id=user,
-        message_type=MessageType.USER,
-        content="hello",
-        message_id=operation_id,
-    )
-    fingerprint = build_chat_request_fingerprint(
+def _fingerprint(chat_id: uuid.UUID):
+    return build_chat_request_fingerprint(
         mode=ChatSendMode.GROUNDED,
         chat_id=chat_id,
         content="hello",
@@ -116,11 +101,22 @@ def test_exact_grounded_context_package_survives_restart(tmp_path) -> None:
         reasoning_mode="off",
         retrieval_configuration={},
     )
-    ChatSendOperationRepository(database).store_user_committed(
+
+
+def test_exact_grounded_context_package_survives_restart(tmp_path) -> None:
+    path = tmp_path / "athena.db"
+    database = SQLiteDatabase(path)
+    database.start()
+    chats = ChatRepository(database)
+    user = chats.create_actor(actor_type="user")
+    chat_id = chats.create_chat(actor_id=user)
+    operation_id = uuid.uuid4()
+    message = GroundedUserTurnRepository(database).commit(
         operation_id=operation_id,
         chat_id=chat_id,
-        mode=ChatSendOperationMode.GROUNDED,
-        fingerprint=fingerprint,
+        actor_id=user,
+        content="hello",
+        fingerprint=_fingerprint(chat_id),
     )
     package = _package(operation_id, message.revision_id)
     repository = GroundedContextPackageRepository(database)
@@ -153,23 +149,12 @@ def test_grounded_context_package_rejects_other_current_user(tmp_path) -> None:
     user = chats.create_actor(actor_type="user")
     chat_id = chats.create_chat(actor_id=user)
     operation_id = uuid.uuid4()
-    fingerprint = build_chat_request_fingerprint(
-        mode=ChatSendMode.GROUNDED,
-        chat_id=chat_id,
-        content="hello",
-        requested_model_id="primary",
-        requested_embedding_model_id=None,
-        effective_context_limit=4096,
-        max_output_tokens=1000,
-        temperature=None,
-        reasoning_mode="off",
-        retrieval_configuration={},
-    )
-    ChatSendOperationRepository(database).store_user_committed(
+    GroundedUserTurnRepository(database).commit(
         operation_id=operation_id,
         chat_id=chat_id,
-        mode=ChatSendOperationMode.GROUNDED,
-        fingerprint=fingerprint,
+        actor_id=user,
+        content="hello",
+        fingerprint=_fingerprint(chat_id),
     )
     with pytest.raises(GroundedContextPackageConflictError):
         GroundedContextPackageRepository(database).store(
