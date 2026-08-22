@@ -14,7 +14,7 @@ from athena.chat.send_operation import ChatSendOperationMode, ChatSendOperationR
 from athena.storage.database import SQLiteDatabase
 
 
-def test_provider_result_identity_is_atomic_and_immutable(tmp_path) -> None:
+def _repository(tmp_path):
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
     chats = ChatRepository(database)
@@ -41,6 +41,11 @@ def test_provider_result_identity_is_atomic_and_immutable(tmp_path) -> None:
     )
     repository = GroundedProviderAttemptRepository(database)
     repository.mark_started(operation_id=operation_id, chat_id=chat_id)
+    return database, repository, chat_id, operation_id
+
+
+def test_provider_result_identity_is_atomic_and_immutable(tmp_path) -> None:
+    database, repository, chat_id, operation_id = _repository(tmp_path)
     run_id = uuid.uuid4()
     result = repository.store_result(
         operation_id=operation_id,
@@ -77,4 +82,39 @@ def test_provider_result_identity_is_atomic_and_immutable(tmp_path) -> None:
             provider_id="other",
             model_id="primary",
         )
+    database.stop()
+
+
+def test_legacy_provider_result_cannot_gain_identity_on_replay(tmp_path) -> None:
+    database, repository, chat_id, operation_id = _repository(tmp_path)
+    run_id = uuid.uuid4()
+    result = repository.store_result(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        processing_run_id=run_id,
+        assistant_content="answer",
+        receipt_payload_json='{"assistant_text":"answer"}',
+    )
+    assert repository.load_result_identity(operation_id) is None
+    assert repository.store_result(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        processing_run_id=run_id,
+        assistant_content="answer",
+        receipt_payload_json='{"assistant_text":"answer"}',
+    ) == result
+
+    with pytest.raises(GroundedProviderAttemptConflictError):
+        repository.store_result(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            processing_run_id=run_id,
+            assistant_content="answer",
+            receipt_payload_json='{"assistant_text":"answer"}',
+            provider_id="lm_studio",
+            model_id="primary",
+        )
+
+    assert repository.load_result(operation_id) == result
+    assert repository.load_result_identity(operation_id) is None
     database.stop()
