@@ -11,6 +11,7 @@ from PySide6.QtCore import QObject, QProcess, QProcessEnvironment, Slot
 
 from athena.api.client import CoreApiClient, CoreApiClientError
 
+_START_TIMEOUT_MS = 5_000
 _GRACEFUL_SHUTDOWN_TIMEOUT_MS = 3_000
 _TERMINATE_TIMEOUT_MS = 1_000
 _KILL_TIMEOUT_MS = 1_000
@@ -49,6 +50,10 @@ class ManagedProcess(Protocol):
     def setProcessChannelMode(self, mode: QProcess.ProcessChannelMode) -> None: ...  # noqa: N802
 
     def start(self) -> None: ...
+
+    def waitForStarted(self, msecs: int = ...) -> bool: ...  # noqa: N802
+
+    def errorString(self) -> str: ...  # noqa: N802
 
     def processId(self) -> int: ...  # noqa: N802
 
@@ -124,7 +129,7 @@ class DesktopCoreSupervisor(QObject):
 
     @Slot()
     def start(self) -> None:
-        """Launch the dedicated Core without invoking uv or shell tooling."""
+        """Launch the dedicated Core and require OS-level process acknowledgement."""
         if self.child_active:
             return
 
@@ -138,6 +143,9 @@ class DesktopCoreSupervisor(QObject):
         self.process.setProcessEnvironment(environment)
         self.process.setProcessChannelMode(QProcess.ProcessChannelMode.ForwardedChannels)
         self.process.start()
+        if not self.process.waitForStarted(_START_TIMEOUT_MS):
+            detail = self.process.errorString().strip() or "unknown QProcess startup error"
+            raise RuntimeError(f"ATHENA Core process failed to start: {detail}")
 
     @Slot()
     def stop(self) -> None:
