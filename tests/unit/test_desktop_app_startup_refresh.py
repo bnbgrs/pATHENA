@@ -48,3 +48,46 @@ def test_initial_core_refreshes_cover_slow_windows_startup(
     for _delay_ms, callback in scheduled:
         callback()
     assert controller.refresh_calls == 7
+
+
+def test_core_refresh_heartbeat_survives_startup_retry_window(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class _Timeout:
+        def __init__(self) -> None:
+            self.callback: Callable[[], None] | None = None
+
+        def connect(self, callback: Callable[[], None]) -> None:
+            self.callback = callback
+
+    class _Timer:
+        def __init__(self, parent: object) -> None:
+            self.parent = parent
+            self.timeout = _Timeout()
+            self.interval_ms: int | None = None
+            self.started = False
+            self.stopped = False
+
+        def setInterval(self, interval_ms: int) -> None:  # noqa: N802
+            self.interval_ms = interval_ms
+
+        def start(self) -> None:
+            self.started = True
+
+        def stop(self) -> None:
+            self.stopped = True
+
+    monkeypatch.setattr(desktop_app, "QTimer", _Timer)
+    controller = _Controller()
+
+    timer = desktop_app._start_core_refresh_heartbeat(
+        cast(DesktopApiController, cast(Any, controller))
+    )
+
+    assert timer.parent is controller
+    assert timer.interval_ms == 30_000
+    assert timer.started is True
+    assert timer.timeout.callback is not None
+
+    timer.timeout.callback()
+    assert controller.refresh_calls == 1
