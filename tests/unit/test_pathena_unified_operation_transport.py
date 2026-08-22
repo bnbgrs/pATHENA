@@ -7,8 +7,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from athena.api.asgi import CoreApiAsgiApp
-from athena.api.contracts import HealthResponse
+from athena.api.client import CoreApiClient
+from athena.api.contracts import HealthResponse, JsonValue
 from athena.api.runtime import LocalApiRuntime
 
 
@@ -41,6 +44,59 @@ class _UnifiedSurface:
         assert content == "hello"
         self.operation_id = operation_id
         return HealthResponse(api_version="v1", core_status="ok", detail=None)
+
+
+class _CaptureClient(CoreApiClient):
+    def __init__(self, runtime_root: Path) -> None:
+        super().__init__(runtime_root)
+        self.body: dict[str, JsonValue] | None = None
+
+    def _request(
+        self,
+        method: str,
+        path: str,
+        *,
+        query: dict[str, str] | None = None,
+        expected_status: int,
+        json_body: dict[str, JsonValue] | None = None,
+        timeout_seconds: float | None = None,
+    ) -> dict[str, JsonValue]:
+        del query, timeout_seconds
+        assert method == "POST"
+        assert path.endswith("/messages/unified-local")
+        assert expected_status == 200
+        assert json_body is not None
+        self.body = dict(json_body)
+        return {
+            "thread": {
+                "chat_id": "11111111-1111-1111-1111-111111111111",
+                "started_at_us": 1,
+                "ended_at_us": None,
+                "archive_mode": "archive",
+                "lifecycle_state": "active",
+                "messages": [],
+            },
+            "assistant_text": "answer",
+            "evidence": [],
+            "personal_memory": [],
+            "grounding": {
+                "cited_context_ids": [],
+                "canonical_context_ids": [],
+                "user_statement_context_ids": [],
+                "conversation_context_ids": [],
+                "source_context_ids": [],
+                "research_context_ids": [],
+                "news_context_ids": [],
+                "invalid_context_ids": [],
+                "uses_inference": False,
+                "uses_model_prior": True,
+                "uses_unknown": False,
+                "has_provenance_marker": True,
+            },
+            "processing_run_id": "22222222-2222-4222-8222-222222222222",
+            "model_id": "primary",
+            "embedding_model_id": None,
+        }
 
 
 async def _post(
@@ -135,3 +191,31 @@ def test_asgi_rejects_invalid_unified_operation_id_before_facade(tmp_path: Path)
     assert status == 400
     assert payload["code"] == "invalid_request"
     assert surface.operation_id is None
+
+
+def test_client_canonicalizes_unified_operation_id_in_json(tmp_path: Path) -> None:
+    client = _CaptureClient(tmp_path)
+    operation_id = uuid.UUID("AAAAAAAA-AAAA-4AAA-8AAA-AAAAAAAAAAAA")
+
+    response = client.send_unified_local_chat_message(
+        "11111111-1111-1111-1111-111111111111",
+        content="hello",
+        operation_id=str(operation_id).upper(),
+    )
+
+    assert response.assistant_text == "answer"
+    assert client.body is not None
+    assert client.body["operation_id"] == str(operation_id)
+
+
+def test_client_rejects_invalid_unified_operation_id_before_request(tmp_path: Path) -> None:
+    client = _CaptureClient(tmp_path)
+
+    with pytest.raises(ValueError, match="operation_id"):
+        client.send_unified_local_chat_message(
+            "11111111-1111-1111-1111-111111111111",
+            content="hello",
+            operation_id="not-a-uuid",
+        )
+
+    assert client.body is None
