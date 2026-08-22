@@ -11,11 +11,13 @@ from athena.chat.request_fingerprint import ChatRequestFingerprint
 from athena.chat.unified import (
     UnifiedGroundedRecoveryRequiredError,
     UnifiedLocalChatResult,
-    UnifiedLocalChatService as _DurableUnifiedLocalChatService,
     _DurableUnifiedModelRunRepository,
     _DurableUnifiedUserChatService,
     _UnifiedDurableCallState,
     _UnifiedDurableGenerationAdapter,
+)
+from athena.chat.unified import (
+    UnifiedLocalChatService as _DurableUnifiedLocalChatService,
 )
 from athena.chat.unified_durable import build_unified_grounded_fingerprint
 from athena.chat.unified_pre_user_recovery import (
