@@ -10,6 +10,7 @@ from athena.chat.generation import ChatGenerationResult, ChatGenerationService
 from athena.chat.grounding import GroundingContract
 from athena.chat.grounded_processing_run import (
     GroundedProcessingRunError,
+    cancel_grounded_processing_run,
     complete_grounded_processing_run,
     fail_grounded_processing_run,
     validate_grounded_processing_run,
@@ -170,7 +171,7 @@ class DurableGroundedGenerationService:
         context_package: ContextPackage,
         processing_run_id: uuid.UUID,
         trigger_actor_id: uuid.UUID,
-        error: Exception,
+        error: BaseException,
     ) -> None:
         recovery = self.coordinator.recover(
             operation_id=operation_id,
@@ -190,13 +191,21 @@ class DurableGroundedGenerationService:
                     trigger_actor_id=trigger_actor_id,
                 )
             elif recovery.state is GroundedRecoveryState.AMBIGUOUS:
-                fail_grounded_processing_run(
-                    self.coordinator.database,
-                    processing_run_id=processing_run_id,
-                    package=context_package,
-                    trigger_actor_id=trigger_actor_id,
-                    error_detail=type(error).__name__,
-                )
+                if isinstance(error, KeyboardInterrupt):
+                    cancel_grounded_processing_run(
+                        self.coordinator.database,
+                        processing_run_id=processing_run_id,
+                        package=context_package,
+                        trigger_actor_id=trigger_actor_id,
+                    )
+                else:
+                    fail_grounded_processing_run(
+                        self.coordinator.database,
+                        processing_run_id=processing_run_id,
+                        package=context_package,
+                        trigger_actor_id=trigger_actor_id,
+                        error_detail=type(error).__name__,
+                    )
         except GroundedProcessingRunError as exc:
             raise DurableGroundedGenerationError(
                 "Grounded failure could not reconcile its ProcessingRun provenance."
@@ -316,6 +325,17 @@ class DurableGroundedGenerationService:
                 grounding_contract=grounding_contract,
                 on_before_provider_call=before_provider,
             )
+        except KeyboardInterrupt as exc:
+            self._reconcile_processing_run_after_error(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                fingerprint=fingerprint,
+                context_package=context_package,
+                processing_run_id=processing_run_id,
+                trigger_actor_id=user_message.actor_id,
+                error=exc,
+            )
+            raise
         except Exception as exc:
             self._reconcile_processing_run_after_error(
                 operation_id=operation_id,
