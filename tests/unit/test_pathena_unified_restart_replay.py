@@ -8,7 +8,6 @@ import pytest
 
 from athena.chat.generation import ChatGenerationService
 from athena.chat.grounded_recovery import GroundedRecoveryState, GroundedSendRecovery
-from athena.chat.models import ChatMessage
 from athena.chat.repository import ChatRepository
 from athena.chat.service import ChatService
 from athena.chat.unified import (
