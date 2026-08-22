@@ -10,6 +10,7 @@ from athena.chat.grounded_completion import (
     GroundedSendCompletionRepository,
     GroundedSendReceipt,
 )
+from athena.chat.grounded_provider_result_contract import validate_provider_result_contract
 from athena.chat.grounded_provider_attempt import (
     GroundedProviderAttempt,
     GroundedProviderAttemptRepository,
@@ -148,6 +149,10 @@ class GroundedSendCoordinator:
         provider_id: str | None = None,
         model_id: str | None = None,
     ) -> GroundedProviderResult:
+        validate_provider_result_contract(
+            assistant_content=assistant_content,
+            receipt_payload_json=receipt_payload_json,
+        )
         before = self.recover(
             operation_id=operation_id,
             chat_id=chat_id,
