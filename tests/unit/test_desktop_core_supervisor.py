@@ -175,6 +175,42 @@ def test_explicit_supervisor_executable_is_not_rewritten() -> None:
     assert process.environment.value("__PYVENV_LAUNCHER__") == ""
 
 
+def test_supervisor_restarts_unexpectedly_stopped_child() -> None:
+    process = _Process()
+    supervisor = DesktopCoreSupervisor(client=_Client(), process=process)
+    supervisor.start()
+    process.process_state = QProcess.ProcessState.NotRunning
+
+    supervisor.ensure_running()
+
+    assert process.start_wait_timeouts == [5_000, 5_000]
+    assert supervisor.child_active is True
+    assert supervisor.stopping is False
+
+
+def test_supervisor_does_not_restart_during_intentional_shutdown() -> None:
+    process = _Process()
+    supervisor = DesktopCoreSupervisor(client=_Client(), process=process)
+
+    supervisor.stop()
+    supervisor.ensure_running()
+
+    assert process.start_wait_timeouts == []
+    assert supervisor.child_active is False
+    assert supervisor.stopping is True
+
+
+def test_supervisor_recovery_tolerates_transient_start_failure() -> None:
+    process = _Process(start_ok=False, startup_error="transient launch failure")
+    supervisor = DesktopCoreSupervisor(client=_Client(), process=process)
+
+    supervisor.ensure_running()
+
+    assert process.start_wait_timeouts == [5_000]
+    assert supervisor.child_active is False
+    assert supervisor.stopping is False
+
+
 def test_supervisor_gracefully_stops_matching_child() -> None:
     client = _Client(process_id=4242)
     process = _Process(process_id=4242, waits=(True,))
@@ -187,6 +223,7 @@ def test_supervisor_gracefully_stops_matching_child() -> None:
     assert process.terminate_calls == 0
     assert process.kill_calls == 0
     assert supervisor.child_active is False
+    assert supervisor.stopping is True
 
 
 def test_supervisor_never_shutdowns_discovery_owned_by_another_process() -> None:
