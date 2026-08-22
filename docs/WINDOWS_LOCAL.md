@@ -10,13 +10,23 @@ Open PowerShell in the pATHENA repository and run:
 .\scripts\bootstrap_windows.ps1
 ```
 
-The script verifies or installs the pinned `uv 0.11.21`, installs Python 3.12 through `uv`, runs the locked dependency sync including the desktop extra, imports the installed package, and starts/stops the real ATHENA Core once as a storage/runtime smoke test.
+The bootstrap repairs the required `uv 0.11.21` version when `uv` is missing or a different version is active, installs Python 3.12 through `uv`, synchronizes the locked desktop environment, validates the installed package/configuration, runs the local doctor, and runs a disposable Core/API restart smoke test.
 
 A custom operational root can be selected explicitly:
 
 ```powershell
 .\scripts\bootstrap_windows.ps1 -LocalRoot "D:\pATHENA-data"
 ```
+
+A non-default local LM Studio endpoint can be selected at the same time:
+
+```powershell
+.\scripts\bootstrap_windows.ps1 `
+    -LocalRoot "D:\pATHENA-data" `
+    -LmStudioBaseUrl "http://127.0.0.1:1234"
+```
+
+Explicit bootstrap settings are validated and then saved in the repository-local, git-ignored `.pathena.windows.ps1`. Subsequent Windows launches reuse them automatically. This does not modify global Windows environment variables. Use `-NoPersistSettings` for a one-off bootstrap override.
 
 The repository itself is not the personal knowledge store.
 
@@ -54,9 +64,29 @@ ATHENA_MODEL_GENERATION_TIMEOUT_SECONDS
 
 Path overrides must be absolute. Archive, backup and projection roots are intentionally not invented automatically.
 
-## 3. Diagnose the local installation
+## 3. One-command local readiness check
 
-Run:
+After bootstrap, the normal Windows diagnostic is:
+
+```powershell
+.\scripts\check_windows.ps1
+```
+
+It synchronizes the locked desktop runtime, runs the full pATHENA doctor including Core startup/shutdown, and then proves model-independent Core/API persistence across a clean process restart in a disposable runtime root.
+
+To require a loaded LM Studio LLM as part of the check:
+
+```powershell
+.\scripts\check_windows.ps1 -RequireModel
+```
+
+For a previously synchronized environment:
+
+```powershell
+.\scripts\check_windows.ps1 -NoSync
+```
+
+The lower-level doctor remains available directly:
 
 ```powershell
 uv run --locked --extra desktop athena-doctor
@@ -74,19 +104,13 @@ The doctor checks:
 
 LM Studio being offline is reported separately and does not prevent the Core itself from being considered runnable.
 
-To require a working model backend as part of the check:
-
-```powershell
-uv run --locked --extra desktop athena-doctor --require-model
-```
-
 ## 4. Start the desktop
 
 ```powershell
 .\scripts\start_windows.ps1
 ```
 
-The launcher synchronizes the locked runtime first and then launches `athena-desktop`.
+The launcher loads `.pathena.windows.ps1` when present, applies any explicit command-line overrides, synchronizes the locked runtime, runs a fast model-independent runtime/database preflight, and only then launches `athena-desktop`.
 
 For a previously synchronized environment:
 
@@ -94,7 +118,7 @@ For a previously synchronized environment:
 .\scripts\start_windows.ps1 -NoSync
 ```
 
-For an isolated runtime root:
+For an isolated one-off runtime root:
 
 ```powershell
 .\scripts\start_windows.ps1 -LocalRoot "D:\pATHENA-data"
@@ -105,6 +129,8 @@ For a non-default local LM Studio port:
 ```powershell
 .\scripts\start_windows.ps1 -LmStudioBaseUrl "http://127.0.0.1:1234"
 ```
+
+`start_windows.ps1` command-line overrides apply only to that process; use the bootstrap parameters above when you want them persisted. `-SkipPreflight` exists for diagnostics but should not be the normal startup path.
 
 The desktop owns one dedicated Core child process. The Core binds only to loopback and uses runtime discovery so the desktop does not rely on a fixed API port.
 
@@ -148,14 +174,22 @@ uv run --locked --extra desktop athena chat new
 
 Model-independent persistence should work even while LM Studio is offline.
 
+The disposable restart test can also be run directly:
+
+```powershell
+uv run --locked --extra desktop athena-local-smoke
+```
+
+It creates a chat through the loopback Core API, shuts the Core process down, starts a fresh Core process against the same disposable database, and verifies that the same durable chat is recoverable.
+
 ## 7. Recovery behavior
 
 pATHENA performs a read-only SQLite inspection before normal writer startup. If the database, WAL/SHM state, application ID, schema version or quick integrity check is unsafe, normal startup fails closed instead of silently replacing state.
 
-Run the doctor first when startup fails:
+Run the Windows check first when startup fails:
 
 ```powershell
-uv run --locked --extra desktop athena-doctor
+.\scripts\check_windows.ps1
 ```
 
 Do not delete `athena.db`, `athena.db-wal` or `athena.db-shm` merely to make startup succeed. Those files can contain durable operational state.
@@ -180,4 +214,4 @@ Full repository quality command:
 uv run --locked --extra dev --extra desktop python scripts/quality.py
 ```
 
-A failing GitHub Actions run is useful engineering evidence, but local Windows runtime correctness is also validated through the bootstrap, doctor, targeted tests and actual desktop/Core startup path.
+A failing GitHub Actions run is useful engineering evidence, but local Windows runtime correctness is also validated through the bootstrap, doctor, disposable restart test and actual desktop/Core startup path.
