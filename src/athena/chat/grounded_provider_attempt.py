@@ -242,7 +242,8 @@ class GroundedProviderAttemptRepository:
                    r.assistant_content, r.receipt_payload_json,
                    r.receipt_payload_sha256, r.created_at_us,
                    a.chat_id AS attempt_chat_id,
-                   o.chat_id AS operation_chat_id, o.mode AS operation_mode
+                   o.chat_id AS operation_chat_id, o.mode AS operation_mode,
+                   o.processing_run_id AS operation_processing_run_id
             FROM grounded_provider_results AS r
             LEFT JOIN grounded_provider_attempts AS a ON a.operation_id = r.operation_id
             LEFT JOIN chat_send_operations AS o ON o.operation_id = r.operation_id
@@ -260,6 +261,11 @@ class GroundedProviderAttemptRepository:
             or uuid_from_blob(bytes(row["chat_id"]))
             != uuid_from_blob(bytes(row["operation_chat_id"]))
             or str(row["operation_mode"]) != "grounded"
+            or (
+                row["operation_processing_run_id"] is not None
+                and uuid_from_blob(bytes(row["operation_processing_run_id"]))
+                != uuid_from_blob(bytes(row["processing_run_id"]))
+            )
         ):
             raise GroundedProviderAttemptSchemaError(
                 "Persisted provider result no longer matches its Grounded operation."
@@ -356,6 +362,10 @@ class GroundedProviderAttemptRepository:
                     "Provider attempt may start only from user_committed state."
                 )
             if require_pinned_context:
+                if operation["processing_run_id"] is None:
+                    raise GroundedProviderAttemptConflictError(
+                        "Provider attempt claim requires a pinned Grounded ProcessingRun."
+                    )
                 self._require_pinned_context_before_claim_in_transaction(
                     connection,
                     operation_id=operation_id,
@@ -509,6 +519,14 @@ class GroundedProviderAttemptRepository:
                     "A new provider result may be recorded only before assistant commit."
                 )
             if context_record is not None:
+                if (
+                    operation["processing_run_id"] is None
+                    or uuid_from_blob(bytes(operation["processing_run_id"]))
+                    != processing_run_id
+                ):
+                    raise GroundedProviderAttemptConflictError(
+                        "Provider result conflicts with the pinned Grounded ProcessingRun."
+                    )
                 current_context = connection.execute(
                     """
                     SELECT chat_id, payload_sha256
@@ -718,7 +736,11 @@ class GroundedProviderAttemptRepository:
         chat_id: uuid.UUID,
     ) -> sqlite3.Row:
         operation = connection.execute(
-            "SELECT chat_id, mode, state FROM chat_send_operations WHERE operation_id = ?",
+            """
+            SELECT chat_id, mode, state, processing_run_id
+            FROM chat_send_operations
+            WHERE operation_id = ?
+            """,
             (uuid_to_blob(operation_id),),
         ).fetchone()
         if operation is None:
