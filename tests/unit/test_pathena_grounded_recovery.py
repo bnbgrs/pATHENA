@@ -27,7 +27,7 @@ def _fingerprint(chat_id: uuid.UUID, content: str = "hello"):
     )
 
 
-def test_recovery_distinguishes_safe_ambiguous_finalize_and_replay(tmp_path) -> None:
+def test_recovery_distinguishes_provider_crash_boundaries_and_exact_replay(tmp_path) -> None:
     path = tmp_path / "athena.db"
     database = SQLiteDatabase(path)
     database.start()
@@ -36,6 +36,7 @@ def test_recovery_distinguishes_safe_ambiguous_finalize_and_replay(tmp_path) -> 
     model = chats.create_actor(actor_type="primary_model", display_name="local:model")
     chat_id = chats.create_chat(actor_id=user)
     operation_id = uuid.uuid4()
+    run_id = uuid.uuid4()
     fingerprint = _fingerprint(chat_id)
     recovery = GroundedSendRecovery(database)
 
@@ -58,20 +59,50 @@ def test_recovery_distinguishes_safe_ambiguous_finalize_and_replay(tmp_path) -> 
         fingerprint=fingerprint,
     ).state is GroundedRecoveryState.RESUMABLE
 
-    first_attempt = GroundedProviderAttemptRepository(database).mark_started(
+    provider = GroundedProviderAttemptRepository(database)
+    first_attempt = provider.mark_started(
         operation_id=operation_id,
         chat_id=chat_id,
     )
-    same_attempt = GroundedProviderAttemptRepository(database).mark_started(
+    assert provider.mark_started(
         operation_id=operation_id,
         chat_id=chat_id,
-    )
-    assert first_attempt == same_attempt
+    ) == first_attempt
     assert recovery.inspect(
         operation_id=operation_id,
         chat_id=chat_id,
         fingerprint=fingerprint,
     ).state is GroundedRecoveryState.AMBIGUOUS
+
+    result = provider.store_result(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        processing_run_id=run_id,
+        assistant_content="answer",
+        receipt_payload_json='{"assistant_text":"answer","evidence":["CTX-001"]}',
+    )
+    assert provider.store_result(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        processing_run_id=run_id,
+        assistant_content="answer",
+        receipt_payload_json='{"evidence":["CTX-001"],"assistant_text":"answer"}',
+    ) == result
+    assert recovery.inspect(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        fingerprint=fingerprint,
+    ).state is GroundedRecoveryState.RESULT_AVAILABLE
+
+    database.stop()
+    database = SQLiteDatabase(path)
+    database.start()
+    recovery = GroundedSendRecovery(database)
+    assert recovery.inspect(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        fingerprint=fingerprint,
+    ).state is GroundedRecoveryState.RESULT_AVAILABLE
 
     GroundedAssistantTurnRepository(database).commit(
         operation_id=operation_id,
@@ -85,11 +116,15 @@ def test_recovery_distinguishes_safe_ambiguous_finalize_and_replay(tmp_path) -> 
         fingerprint=fingerprint,
     ).state is GroundedRecoveryState.FINALIZATION_REQUIRED
 
-    receipt = GroundedSendCompletionRepository(database).complete(
+    database.stop()
+    database = SQLiteDatabase(path)
+    database.start()
+    recovery = GroundedSendRecovery(database)
+    receipt = recovery.finalize_recorded_result(
         operation_id=operation_id,
         chat_id=chat_id,
-        processing_run_id=uuid.uuid4(),
-        payload_json='{"assistant_text":"answer"}',
+        actor_id=model,
+        fingerprint=fingerprint,
     )
     complete = recovery.inspect(
         operation_id=operation_id,
@@ -98,17 +133,16 @@ def test_recovery_distinguishes_safe_ambiguous_finalize_and_replay(tmp_path) -> 
     )
     assert complete.state is GroundedRecoveryState.COMPLETE
     assert complete.receipt == receipt
+    assert receipt.processing_run_id == run_id
+    assert receipt.payload_json == result.receipt_payload_json
 
-    database.stop()
-    database = SQLiteDatabase(path)
-    database.start()
-    replay = GroundedSendRecovery(database).inspect(
+    assert recovery.finalize_recorded_result(
         operation_id=operation_id,
         chat_id=chat_id,
+        actor_id=model,
         fingerprint=fingerprint,
-    )
-    assert replay.state is GroundedRecoveryState.COMPLETE
-    assert replay.receipt == receipt
+    ) == receipt
+    assert len(ChatRepository(database).load_chat(chat_id).messages) == 2
     database.stop()
 
 
