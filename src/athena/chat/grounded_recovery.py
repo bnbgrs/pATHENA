@@ -13,6 +13,7 @@ from athena.chat.grounded_completion import (
 )
 from athena.chat.grounded_provider_attempt import (
     GroundedProviderAttemptRepository,
+    GroundedProviderAttemptSchemaError,
     GroundedProviderResult,
     GroundedProviderResultIdentity,
 )
@@ -94,7 +95,14 @@ class GroundedSendRecovery:
                     chat_id,
                     GroundedRecoveryState.CONFLICT,
                 )
-            result = self.provider_attempts.load_result(operation_id)
+            try:
+                result, identity = self._load_provider_state(operation_id)
+            except GroundedProviderAttemptSchemaError:
+                return self._status(
+                    operation_id,
+                    chat_id,
+                    GroundedRecoveryState.CONFLICT,
+                )
             if (
                 result is None
                 or result.chat_id != chat_id
@@ -118,7 +126,6 @@ class GroundedSendRecovery:
                     chat_id,
                     GroundedRecoveryState.CONFLICT,
                 )
-            identity = self.provider_attempts.load_result_identity(operation_id)
             if not self._assistant_matches_result(
                 operation_id=operation_id,
                 chat_id=chat_id,
@@ -142,12 +149,10 @@ class GroundedSendRecovery:
         operation = self.operations.load(operation_id)
         if operation is None:
             return self._status(operation_id, chat_id, GroundedRecoveryState.CONFLICT)
-        result = self.provider_attempts.load_result(operation_id)
-        identity = (
-            None
-            if result is None
-            else self.provider_attempts.load_result_identity(operation_id)
-        )
+        try:
+            result, identity = self._load_provider_state(operation_id)
+        except GroundedProviderAttemptSchemaError:
+            return self._status(operation_id, chat_id, GroundedRecoveryState.CONFLICT)
         if result is not None:
             try:
                 validate_provider_result_contract(
@@ -228,7 +233,12 @@ class GroundedSendRecovery:
             raise GroundedRecoveryConflictError(
                 f"Grounded provider result cannot finalize from {status.state.value}."
             )
-        result = self.provider_attempts.load_result(operation_id)
+        try:
+            result, identity = self._load_provider_state(operation_id)
+        except GroundedProviderAttemptSchemaError as exc:
+            raise GroundedRecoveryConflictError(
+                "Recorded provider result journal is corrupted."
+            ) from exc
         if result is None or result.chat_id != chat_id:
             raise GroundedRecoveryConflictError(
                 "Recorded provider result is missing or belongs to another chat."
@@ -243,7 +253,6 @@ class GroundedSendRecovery:
                 "Recorded provider result violates its durable receipt contract."
             ) from exc
 
-        identity = self.provider_attempts.load_result_identity(operation_id)
         if identity is None:
             if actor_id is None:
                 raise GroundedRecoveryConflictError(
@@ -296,6 +305,18 @@ class GroundedSendRecovery:
             processing_run_id=result.processing_run_id,
             payload_json=result.receipt_payload_json,
         )
+
+    def _load_provider_state(
+        self,
+        operation_id: uuid.UUID,
+    ) -> tuple[GroundedProviderResult | None, GroundedProviderResultIdentity | None]:
+        result = self.provider_attempts.load_result(operation_id)
+        identity = (
+            None
+            if result is None
+            else self.provider_attempts.load_result_identity(operation_id)
+        )
+        return result, identity
 
     def _assistant_matches_result(
         self,
