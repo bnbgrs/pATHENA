@@ -126,7 +126,10 @@ class GroundedSendRecovery:
                     GroundedRecoveryState.CONFLICT,
                 )
             try:
-                result, identity = self._load_provider_state(operation_id)
+                result, identity = self._load_provider_state(
+                    operation_id,
+                    require_succeeded_run=True,
+                )
             except GroundedProviderAttemptSchemaError:
                 return self._status(
                     operation_id,
@@ -381,6 +384,8 @@ class GroundedSendRecovery:
     def _load_provider_state(
         self,
         operation_id: uuid.UUID,
+        *,
+        require_succeeded_run: bool = False,
     ) -> tuple[GroundedProviderResult | None, GroundedProviderResultIdentity | None]:
         result = self.provider_attempts.load_result(operation_id)
         if result is None:
@@ -423,7 +428,7 @@ class GroundedSendRecovery:
                     "Pinned ContextPackage is missing its durable Grounded trigger user."
                 )
             try:
-                validate_grounded_processing_run_provenance(
+                run = validate_grounded_processing_run_provenance(
                     self.database,
                     processing_run_id=result.processing_run_id,
                     package=context_record.package,
@@ -433,6 +438,22 @@ class GroundedSendRecovery:
                 raise GroundedProviderAttemptSchemaError(
                     "Persisted provider result conflicts with its pinned ProcessingRun provenance."
                 ) from exc
+            if run.status not in {"running", "succeeded"}:
+                raise GroundedProviderAttemptSchemaError(
+                    "Persisted provider result conflicts with its ProcessingRun lifecycle."
+                )
+            if run.status == "running" and run.finished_at_us is not None:
+                raise GroundedProviderAttemptSchemaError(
+                    "Running provider ProcessingRun has an impossible finish timestamp."
+                )
+            if run.status == "succeeded" and run.finished_at_us is None:
+                raise GroundedProviderAttemptSchemaError(
+                    "Succeeded provider ProcessingRun is missing its finish timestamp."
+                )
+            if require_succeeded_run and run.status != "succeeded":
+                raise GroundedProviderAttemptSchemaError(
+                    "Completed Grounded send requires a succeeded ProcessingRun."
+                )
         return result, identity
 
     def _assistant_matches_result(
