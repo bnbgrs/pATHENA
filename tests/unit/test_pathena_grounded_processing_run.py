@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from pathlib import Path
 
 import pytest
 
@@ -10,9 +11,14 @@ from athena.chat.grounded_processing_run import (
 )
 from athena.chat.repository import ChatRepository
 from athena.model.domain import ModelInfo
-from athena.model.provenance import ModelRunRepository
+from athena.model.provenance import (
+    ModelRunRepository,
+    ModelSignature,
+    ProcessingRun,
+)
 from athena.retrieval.context_package import (
     ContextIncludedRef,
+    ContextPackage,
     ContextPackageBudget,
     ContextPackageService,
     ContextSection,
@@ -37,7 +43,11 @@ def _model(model_id: str = "primary") -> ModelInfo:
     )
 
 
-def _package(signature, operation_id: uuid.UUID, revision_id: uuid.UUID):
+def _package(
+    signature: ModelSignature,
+    operation_id: uuid.UUID,
+    revision_id: uuid.UUID,
+) -> ContextPackage:
     return ContextPackageService.build_from_sections(
         model_signature=signature,
         budget=ContextPackageBudget(
@@ -91,7 +101,11 @@ def _package(signature, operation_id: uuid.UUID, revision_id: uuid.UUID):
     )
 
 
-def _provenance(database: SQLiteDatabase, *, model_id: str = "primary"):
+def _provenance(
+    database: SQLiteDatabase,
+    *,
+    model_id: str = "primary",
+) -> tuple[ModelRunRepository, ModelSignature, ProcessingRun]:
     chats = ChatRepository(database)
     user = chats.create_actor(actor_type="user")
     model_runs = ModelRunRepository(database)
@@ -116,7 +130,9 @@ def _provenance(database: SQLiteDatabase, *, model_id: str = "primary"):
     return model_runs, signature, run
 
 
-def test_grounded_processing_run_accepts_matching_live_provenance(tmp_path) -> None:
+def test_grounded_processing_run_accepts_matching_live_provenance(
+    tmp_path: Path,
+) -> None:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
     try:
@@ -130,7 +146,7 @@ def test_grounded_processing_run_accepts_matching_live_provenance(tmp_path) -> N
         database.stop()
 
 
-def test_grounded_processing_run_rejects_unknown_run(tmp_path) -> None:
+def test_grounded_processing_run_rejects_unknown_run(tmp_path: Path) -> None:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
     try:
@@ -148,7 +164,7 @@ def test_grounded_processing_run_rejects_unknown_run(tmp_path) -> None:
         database.stop()
 
 
-def test_grounded_processing_run_rejects_finished_run(tmp_path) -> None:
+def test_grounded_processing_run_rejects_finished_run(tmp_path: Path) -> None:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
     try:
@@ -167,7 +183,9 @@ def test_grounded_processing_run_rejects_finished_run(tmp_path) -> None:
         database.stop()
 
 
-def test_grounded_processing_run_rejects_other_model_signature(tmp_path) -> None:
+def test_grounded_processing_run_rejects_other_model_signature(
+    tmp_path: Path,
+) -> None:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
     try:
