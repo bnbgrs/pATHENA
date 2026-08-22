@@ -4,12 +4,14 @@ import uuid
 
 import pytest
 
+from athena.chat.grounded_recovery import GroundedRecoveryState
 from athena.chat.grounded_send import (
     GroundedProviderIdentityError,
     GroundedSendCoordinator,
 )
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
+from athena.common.ids import uuid_to_blob
 from athena.model.provenance import ModelSignature
 from athena.retrieval.context_package import (
     ContextIncludedRef,
@@ -96,33 +98,38 @@ def _package(operation_id: uuid.UUID, revision_id: uuid.UUID):
     )
 
 
+def _started_coordinator(database: SQLiteDatabase):
+    chats = ChatRepository(database)
+    user = chats.create_actor(actor_type="user")
+    chat_id = chats.create_chat(actor_id=user)
+    operation_id = uuid.uuid4()
+    fingerprint = _fingerprint(chat_id)
+    coordinator = GroundedSendCoordinator(database)
+    started = coordinator.start(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        actor_id=user,
+        content="hello",
+        fingerprint=fingerprint,
+    )
+    coordinator.store_context_package(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        package=_package(operation_id, started.user_message.revision_id),
+    )
+    coordinator.begin_provider_attempt(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        fingerprint=fingerprint,
+    )
+    return coordinator, chat_id, operation_id, fingerprint
+
+
 def test_provider_result_identity_must_match_pinned_context_model(tmp_path) -> None:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
     try:
-        chats = ChatRepository(database)
-        user = chats.create_actor(actor_type="user")
-        chat_id = chats.create_chat(actor_id=user)
-        operation_id = uuid.uuid4()
-        fingerprint = _fingerprint(chat_id)
-        coordinator = GroundedSendCoordinator(database)
-        started = coordinator.start(
-            operation_id=operation_id,
-            chat_id=chat_id,
-            actor_id=user,
-            content="hello",
-            fingerprint=fingerprint,
-        )
-        coordinator.store_context_package(
-            operation_id=operation_id,
-            chat_id=chat_id,
-            package=_package(operation_id, started.user_message.revision_id),
-        )
-        coordinator.begin_provider_attempt(
-            operation_id=operation_id,
-            chat_id=chat_id,
-            fingerprint=fingerprint,
-        )
+        coordinator, chat_id, operation_id, fingerprint = _started_coordinator(database)
 
         with pytest.raises(
             GroundedProviderIdentityError,
@@ -141,5 +148,42 @@ def test_provider_result_identity_must_match_pinned_context_model(tmp_path) -> N
 
         assert coordinator.provider_attempts.load_result(operation_id) is None
         assert coordinator.provider_attempts.load_result_identity(operation_id) is None
+    finally:
+        database.stop()
+
+
+def test_recovery_rejects_provider_identity_tampered_after_persistence(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        coordinator, chat_id, operation_id, fingerprint = _started_coordinator(database)
+        coordinator.record_provider_result(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+            processing_run_id=uuid.uuid4(),
+            assistant_content="answer",
+            receipt_payload_json='{"assistant_text":"answer"}',
+            provider_id="lm_studio",
+            model_id="primary",
+        )
+        with database.write_transaction() as connection:
+            connection.execute(
+                """
+                UPDATE grounded_provider_result_identities
+                SET provider_id = ?
+                WHERE operation_id = ?
+                """,
+                ("tampered_provider", uuid_to_blob(operation_id)),
+            )
+
+        status = coordinator.recover(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        )
+        assert status.state is GroundedRecoveryState.CONFLICT
+        assert status.provider_result is None
+        assert status.provider_identity is None
     finally:
         database.stop()
