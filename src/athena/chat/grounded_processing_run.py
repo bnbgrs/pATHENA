@@ -195,3 +195,25 @@ def fail_grounded_processing_run(
         status="failed",
         error_detail=error_detail,
     )
+
+
+def cancel_grounded_processing_run(
+    database: SQLiteDatabase,
+    *,
+    processing_run_id: uuid.UUID,
+    package: ContextPackage,
+    trigger_actor_id: uuid.UUID,
+) -> ProcessingRun:
+    """Mark an interrupted Grounded execution cancelled, idempotently."""
+    repository, run = _load_bound_run(
+        database,
+        processing_run_id=processing_run_id,
+        package=package,
+        trigger_actor_id=trigger_actor_id,
+    )
+    return _finish_bound_run(
+        repository,
+        run,
+        status="cancelled",
+        error_detail="KeyboardInterrupt",
+    )
