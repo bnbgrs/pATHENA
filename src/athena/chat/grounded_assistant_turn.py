@@ -8,6 +8,10 @@ from athena.chat.grounded_context_package import (
     GroundedContextPackageRepository,
     GroundedContextPackageSchemaError,
 )
+from athena.chat.grounded_processing_run import (
+    GroundedProcessingRunError,
+    validate_grounded_processing_run_provenance,
+)
 from athena.chat.grounded_provider_attempt import (
     GroundedProviderAttemptRepository,
     _canonical_receipt_payload,
@@ -199,7 +203,7 @@ class GroundedAssistantTurnRepository:
 
             user = connection.execute(
                 """
-                SELECT chat_id, sequence_no, message_type
+                SELECT chat_id, sequence_no, message_type, actor_id
                 FROM chat_messages
                 WHERE message_id = ?
                 """,
@@ -213,6 +217,19 @@ class GroundedAssistantTurnRepository:
                 raise ChatSendOperationConflictError(
                     "Grounded operation user turn is missing or inconsistent."
                 )
+            if context_record is not None:
+                assert operation_run_blob is not None
+                try:
+                    validate_grounded_processing_run_provenance(
+                        self.database,
+                        processing_run_id=uuid_from_blob(bytes(operation_run_blob)),
+                        package=context_record.package,
+                        trigger_actor_id=uuid_from_blob(bytes(user["actor_id"])),
+                    )
+                except GroundedProcessingRunError as exc:
+                    raise ChatSendOperationConflictError(
+                        "Grounded assistant turn found invalid ProcessingRun provenance."
+                    ) from exc
             user_sequence = int(user["sequence_no"])
             latest_sequence = int(
                 connection.execute(
