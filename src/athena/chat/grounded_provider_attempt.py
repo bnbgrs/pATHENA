@@ -9,7 +9,10 @@ import uuid
 from dataclasses import dataclass
 from typing import cast
 
-from athena.chat.grounded_provider_result_contract import validate_provider_result_contract
+from athena.chat.grounded_provider_result_contract import (
+    GroundedProviderResultContractError,
+    validate_provider_result_contract,
+)
 from athena.chat.send_operation import ChatSendOperationRepository, ChatSendOperationState
 from athena.common.ids import uuid_from_blob, uuid_to_blob
 from athena.common.time import utc_now_us
@@ -515,7 +518,16 @@ class GroundedProviderAttemptRepository:
             receipt_payload_sha256=str(row["receipt_payload_sha256"]),
             created_at_us=int(row["created_at_us"]),
         )
-        canonical, digest = _canonical_receipt_payload(result.receipt_payload_json)
+        try:
+            canonical, digest = _canonical_receipt_payload(result.receipt_payload_json)
+            validate_provider_result_contract(
+                assistant_content=result.assistant_content,
+                receipt_payload_json=result.receipt_payload_json,
+            )
+        except (ValueError, GroundedProviderResultContractError) as exc:
+            raise GroundedProviderAttemptSchemaError(
+                "Persisted provider result violates its durable receipt contract."
+            ) from exc
         if canonical != result.receipt_payload_json or digest != result.receipt_payload_sha256:
             raise GroundedProviderAttemptSchemaError(
                 "Persisted provider result failed checksum verification."
