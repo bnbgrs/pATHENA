@@ -22,13 +22,17 @@ def _before_provider_function() -> ast.FunctionDef:
     return before_provider
 
 
-def _call_lines(function: ast.FunctionDef, attribute: str) -> tuple[int, ...]:
+def _call_lines(function: ast.FunctionDef, call_name: str) -> tuple[int, ...]:
     return tuple(
         node.lineno
         for node in ast.walk(function)
         if isinstance(node, ast.Call)
-        and isinstance(node.func, ast.Attribute)
-        and node.func.attr == attribute
+        and (
+            isinstance(node.func, ast.Attribute)
+            and node.func.attr == call_name
+            or isinstance(node.func, ast.Name)
+            and node.func.id == call_name
+        )
     )
 
 
