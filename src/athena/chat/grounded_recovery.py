@@ -11,7 +11,11 @@ from athena.chat.grounded_completion import (
     GroundedSendCompletionRepository,
     GroundedSendReceipt,
 )
-from athena.chat.grounded_provider_attempt import GroundedProviderAttemptRepository
+from athena.chat.grounded_provider_attempt import (
+    GroundedProviderAttemptRepository,
+    GroundedProviderResult,
+    GroundedProviderResultIdentity,
+)
 from athena.chat.grounded_provider_result_contract import (
     GroundedProviderResultContractError,
     validate_provider_result_contract,
@@ -44,6 +48,8 @@ class GroundedRecoveryStatus:
     chat_id: uuid.UUID
     state: GroundedRecoveryState
     receipt: GroundedSendReceipt | None
+    provider_result: GroundedProviderResult | None = None
+    provider_identity: GroundedProviderResultIdentity | None = None
 
 
 class GroundedRecoveryConflictError(RuntimeError):
@@ -91,13 +97,36 @@ class GroundedSendRecovery:
         if operation is None:
             return self._status(operation_id, chat_id, GroundedRecoveryState.CONFLICT)
         result = self.provider_attempts.load_result(operation_id)
+        identity = (
+            None
+            if result is None
+            else self.provider_attempts.load_result_identity(operation_id)
+        )
+        if result is not None:
+            try:
+                validate_provider_result_contract(
+                    assistant_content=result.assistant_content,
+                    receipt_payload_json=result.receipt_payload_json,
+                )
+            except GroundedProviderResultContractError:
+                return self._status(
+                    operation_id,
+                    chat_id,
+                    GroundedRecoveryState.CONFLICT,
+                )
         if operation.state is ChatSendOperationState.ASSISTANT_COMMITTED:
             state = (
                 GroundedRecoveryState.FINALIZATION_REQUIRED
                 if result is not None
                 else GroundedRecoveryState.AMBIGUOUS
             )
-            return self._status(operation_id, chat_id, state)
+            return self._status(
+                operation_id,
+                chat_id,
+                state,
+                provider_result=result,
+                provider_identity=identity,
+            )
         if operation.state is not ChatSendOperationState.USER_COMMITTED:
             return self._status(operation_id, chat_id, GroundedRecoveryState.CONFLICT)
         if result is not None:
@@ -105,6 +134,8 @@ class GroundedSendRecovery:
                 operation_id,
                 chat_id,
                 GroundedRecoveryState.RESULT_AVAILABLE,
+                provider_result=result,
+                provider_identity=identity,
             )
         attempt = self.provider_attempts.load(operation_id)
         state = (
@@ -214,10 +245,15 @@ class GroundedSendRecovery:
         operation_id: uuid.UUID,
         chat_id: uuid.UUID,
         state: GroundedRecoveryState,
+        *,
+        provider_result: GroundedProviderResult | None = None,
+        provider_identity: GroundedProviderResultIdentity | None = None,
     ) -> GroundedRecoveryStatus:
         return GroundedRecoveryStatus(
             operation_id=operation_id,
             chat_id=chat_id,
             state=state,
             receipt=None,
+            provider_result=provider_result,
+            provider_identity=provider_identity,
         )
