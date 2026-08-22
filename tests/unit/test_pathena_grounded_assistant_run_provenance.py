@@ -7,7 +7,10 @@ import pytest
 
 from athena.chat.grounded_assistant_turn import GroundedAssistantTurnRepository
 from athena.chat.grounded_context_package import GroundedContextPackageRepository
-from athena.chat.grounded_processing_run import bind_grounded_processing_run
+from athena.chat.grounded_processing_run import (
+    bind_grounded_processing_run,
+    complete_grounded_processing_run,
+)
 from athena.chat.grounded_provider_attempt import GroundedProviderAttemptRepository
 from athena.chat.grounded_recovery import GroundedRecoveryState, GroundedSendRecovery
 from athena.chat.grounded_turn import GroundedUserTurnRepository
@@ -281,5 +284,64 @@ def test_restart_after_assistant_commit_completes_processing_run_once(
             fingerprint=fingerprint,
         ) == receipt
         assert len(ChatRepository(database).load_chat(chat_id).messages) == 2
+    finally:
+        database.stop()
+
+
+def test_restart_after_run_completion_finishes_receipt_without_duplicate(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "athena.db"
+    database = SQLiteDatabase(path)
+    database.start()
+    chat_id, operation_id, model, run_id, fingerprint = _prepare_recorded_result(
+        database
+    )
+    GroundedAssistantTurnRepository(database).commit(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        actor_id=model,
+        content="answer",
+    )
+    context_record = GroundedContextPackageRepository(database).load(operation_id)
+    assert context_record is not None
+    user_message = ChatRepository(database).load_chat(chat_id).messages[0]
+    complete_grounded_processing_run(
+        database,
+        processing_run_id=run_id,
+        package=context_record.package,
+        trigger_actor_id=user_message.actor_id,
+    )
+    assert ModelRunRepository(database).load_run(run_id).status == "succeeded"
+    pending = GroundedSendRecovery(database).inspect(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        fingerprint=fingerprint,
+    )
+    assert pending.state is GroundedRecoveryState.FINALIZATION_REQUIRED
+
+    database.stop()
+    database = SQLiteDatabase(path)
+    database.start()
+    try:
+        recovery = GroundedSendRecovery(database)
+        receipt = recovery.finalize_recorded_result(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        )
+        complete = recovery.inspect(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        )
+
+        assert complete.state is GroundedRecoveryState.COMPLETE
+        assert complete.receipt == receipt
+        operation = ChatSendOperationRepository(database).load(operation_id)
+        assert operation is not None
+        assert operation.state is ChatSendOperationState.COMPLETE
+        assert len(ChatRepository(database).load_chat(chat_id).messages) == 2
+        assert ModelRunRepository(database).load_run(run_id).status == "succeeded"
     finally:
         database.stop()
