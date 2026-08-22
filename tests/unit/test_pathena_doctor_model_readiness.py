@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from athena.config.settings import AthenaSettings
 from athena.doctor import _check_model
 from athena.model.domain import ModelInfo, ProviderHealth, ProviderHealthStatus
@@ -33,7 +35,7 @@ def _model(*, model_type: str, loaded: bool, model_id: str) -> ModelInfo:
 
 
 def _settings() -> AthenaSettings:
-    return AthenaSettings(local_root=__import__("pathlib").Path.cwd().resolve())
+    return AthenaSettings(local_root=Path.cwd().resolve())
 
 
 def test_doctor_warns_when_server_has_no_loaded_llm(monkeypatch) -> None:
