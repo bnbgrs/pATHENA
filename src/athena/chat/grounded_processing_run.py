@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import uuid
 
@@ -24,6 +25,15 @@ def _canonical_snapshot(package: ContextPackage) -> str:
         separators=(",", ":"),
         allow_nan=False,
     )
+
+
+def _expected_configuration_hash(package: ContextPackage) -> bytes:
+    configuration_json = package.model_signature.context_configuration_json
+    if configuration_json is None:
+        raise GroundedProcessingRunError(
+            "Grounded ContextPackage is missing ProcessingRun configuration provenance."
+        )
+    return hashlib.sha256(configuration_json.encode("utf-8")).digest()
 
 
 def validate_grounded_processing_run(
@@ -65,6 +75,10 @@ def validate_grounded_processing_run(
     if run.input_snapshot_json != _canonical_snapshot(package):
         raise GroundedProcessingRunError(
             "ProcessingRun input snapshot conflicts with the Grounded ContextPackage."
+        )
+    if run.configuration_hash != _expected_configuration_hash(package):
+        raise GroundedProcessingRunError(
+            "ProcessingRun configuration conflicts with the Grounded ContextPackage."
         )
 
     try:
