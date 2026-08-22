@@ -5,6 +5,10 @@ from __future__ import annotations
 import uuid
 
 from athena.chat.grounded_provider_attempt import GroundedProviderAttemptRepository
+from athena.chat.grounded_provider_result_contract import (
+    GroundedProviderResultContractError,
+    validate_provider_result_contract,
+)
 from athena.chat.models import ChatMessage, MessageType
 from athena.chat.repository import ChatRepository, _message_payload_hash
 from athena.chat.send_identity import assistant_message_id_for_operation
@@ -73,20 +77,33 @@ class GroundedAssistantTurnRepository:
                 )
             provider_result = connection.execute(
                 """
-                SELECT chat_id, assistant_content
-                FROM grounded_provider_results
-                WHERE operation_id = ?
+                SELECT r.chat_id, r.assistant_content, r.receipt_payload_json,
+                       a.chat_id AS attempt_chat_id
+                FROM grounded_provider_results AS r
+                LEFT JOIN grounded_provider_attempts AS a ON a.operation_id = r.operation_id
+                WHERE r.operation_id = ?
                 """,
                 (uuid_to_blob(operation_id),),
             ).fetchone()
             if (
                 provider_result is None
+                or provider_result["attempt_chat_id"] is None
                 or uuid_from_blob(bytes(provider_result["chat_id"])) != chat_id
+                or uuid_from_blob(bytes(provider_result["attempt_chat_id"])) != chat_id
                 or str(provider_result["assistant_content"]) != content
             ):
                 raise ChatSendOperationConflictError(
                     "Grounded assistant turn requires the matching durable provider result."
                 )
+            try:
+                validate_provider_result_contract(
+                    assistant_content=str(provider_result["assistant_content"]),
+                    receipt_payload_json=str(provider_result["receipt_payload_json"]),
+                )
+            except GroundedProviderResultContractError as exc:
+                raise ChatSendOperationConflictError(
+                    "Grounded assistant turn found a corrupted durable provider result."
+                ) from exc
             provider_identity = connection.execute(
                 """
                 SELECT provider_id, model_id
