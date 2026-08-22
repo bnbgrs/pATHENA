@@ -388,6 +388,7 @@ class GroundedProviderAttemptRepository:
                     operation_id=operation_id,
                     provider_id=provider_id,
                     model_id=model_id,
+                    allow_store=False,
                 )
                 return result
             if str(operation["state"]) != ChatSendOperationState.USER_COMMITTED.value:
@@ -419,6 +420,7 @@ class GroundedProviderAttemptRepository:
                 operation_id=operation_id,
                 provider_id=provider_id,
                 model_id=model_id,
+                allow_store=True,
             )
         stored = self.load_result(operation_id)
         if stored is None:
@@ -432,6 +434,7 @@ class GroundedProviderAttemptRepository:
         operation_id: uuid.UUID,
         provider_id: str | None,
         model_id: str | None,
+        allow_store: bool,
     ) -> None:
         existing = connection.execute(
             """
@@ -455,6 +458,10 @@ class GroundedProviderAttemptRepository:
                 return
             raise GroundedProviderAttemptConflictError(
                 "Provider result identity conflicts with the recorded model identity."
+            )
+        if not allow_store:
+            raise GroundedProviderAttemptConflictError(
+                "Provider result identity cannot be added after the result was recorded."
             )
         connection.execute(
             """
