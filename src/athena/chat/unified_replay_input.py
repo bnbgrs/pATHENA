@@ -11,6 +11,7 @@ from typing import Any, cast
 
 from athena.chat.grounded_context_package import GroundedContextPackageRepository
 from athena.chat.send_operation import ChatSendOperationMode, ChatSendOperationRepository
+from athena.chat.unified_durable import UNIFIED_GROUNDED_RECEIPT_VERSION
 from athena.chat.unified_replay import (
     UnifiedReplayProjection,
     UnifiedReplayProjectionError,
@@ -363,3 +364,44 @@ class UnifiedReplayInputRepository:
             projection=projection,
             created_at_us=int(row["created_at_us"]),
         )
+
+    def require_receipt_match(
+        self,
+        operation_id: uuid.UUID,
+        *,
+        receipt_payload_json: str,
+    ) -> UnifiedReplayInputRecord:
+        record = self.load(operation_id)
+        if record is None:
+            raise UnifiedReplayInputConflictError(
+                "Unified receipt requires a pre-provider replay checkpoint."
+            )
+        try:
+            receipt_raw = json.loads(receipt_payload_json)
+            checkpoint_raw = json.loads(record.payload_json)
+        except json.JSONDecodeError as exc:
+            raise UnifiedReplayInputConflictError(
+                "Unified receipt/checkpoint comparison found invalid JSON."
+            ) from exc
+        if not isinstance(receipt_raw, dict) or not isinstance(checkpoint_raw, dict):
+            raise UnifiedReplayInputConflictError(
+                "Unified receipt/checkpoint payloads must be JSON objects."
+            )
+        receipt = cast(dict[str, Any], receipt_raw)
+        checkpoint = cast(dict[str, Any], checkpoint_raw)
+        if receipt.get("unified_grounded_receipt_version") != UNIFIED_GROUNDED_RECEIPT_VERSION:
+            raise UnifiedReplayInputConflictError(
+                "Unified receipt version conflicts with its replay checkpoint."
+            )
+        if (
+            receipt.get("operation_id") != str(record.operation_id)
+            or receipt.get("processing_run_id") != str(record.processing_run_id)
+            or receipt.get("context_package_request_id")
+            != str(record.context_package_request_id)
+            or receipt.get("unified_replay_projection")
+            != checkpoint.get("unified_replay_projection")
+        ):
+            raise UnifiedReplayInputConflictError(
+                "Unified receipt does not match its pre-provider replay checkpoint."
+            )
+        return record
