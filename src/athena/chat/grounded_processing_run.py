@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import uuid
 
 from athena.model.provenance import ModelRunRepository, ProcessingRunNotFoundError
@@ -13,13 +14,23 @@ class GroundedProcessingRunError(RuntimeError):
     """A Grounded provider call is not backed by matching durable model provenance."""
 
 
+def _canonical_snapshot(package: ContextPackage) -> str:
+    return json.dumps(
+        package.run_snapshot(),
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        allow_nan=False,
+    )
+
+
 def validate_grounded_processing_run(
     database: SQLiteDatabase,
     *,
     processing_run_id: uuid.UUID,
     package: ContextPackage,
 ) -> None:
-    """Require one live ProcessingRun and ModelSignature matching the package."""
+    """Require one live ProcessingRun exactly bound to the provider-facing package."""
     repository = ModelRunRepository(database)
     try:
         run = repository.load_run(processing_run_id)
@@ -39,6 +50,10 @@ def validate_grounded_processing_run(
     if run.model_signature_id != package.model_signature.model_signature_id:
         raise GroundedProcessingRunError(
             "ProcessingRun ModelSignature conflicts with the Grounded ContextPackage."
+        )
+    if run.input_snapshot_json != _canonical_snapshot(package):
+        raise GroundedProcessingRunError(
+            "ProcessingRun input snapshot conflicts with the Grounded ContextPackage."
         )
 
     try:
