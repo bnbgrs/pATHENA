@@ -35,20 +35,6 @@ function Invoke-Checked {
     }
 }
 
-function Resolve-DefaultLocalRoot {
-    $localAppData = [Environment]::GetFolderPath("LocalApplicationData")
-    if ($localAppData) {
-        return (Join-Path $localAppData "ATHENA")
-    }
-    if ($env:LOCALAPPDATA) {
-        return (Join-Path $env:LOCALAPPDATA "ATHENA")
-    }
-    if ($env:USERPROFILE) {
-        return (Join-Path $env:USERPROFILE "AppData\Local\ATHENA")
-    }
-    throw "Windows local application-data directory could not be resolved. Pass -LocalRoot explicitly."
-}
-
 function Install-PinnedUv {
     param([Parameter(Mandatory = $true)][string]$Version)
 
@@ -114,7 +100,7 @@ if ($LmStudioBaseUrl.Trim()) {
 if ($env:ATHENA_LOCAL_ROOT) {
     Write-Host "ATHENA_LOCAL_ROOT=$env:ATHENA_LOCAL_ROOT"
 } else {
-    $defaultRoot = Resolve-DefaultLocalRoot
+    $defaultRoot = Resolve-PathenaDefaultLocalRoot
     Write-Host "ATHENA_LOCAL_ROOT is not overridden. pATHENA will use: $defaultRoot"
 }
 if ($env:ATHENA_LMSTUDIO_BASE_URL) {
