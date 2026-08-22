@@ -86,16 +86,13 @@ def validate_grounded_request_context_binding(
         )
 
     requested_temperature = payload.get("temperature")
-    if requested_temperature is not None and requested_temperature != package_temperature:
+    if requested_temperature != package_temperature:
         raise GroundedRequestContextBindingError(
             "Grounded ContextPackage temperature conflicts with the durable request fingerprint."
         )
 
     requested_reasoning_mode = payload.get("reasoning_mode")
-    if (
-        requested_reasoning_mode is not None
-        and requested_reasoning_mode != package_reasoning_mode
-    ):
+    if requested_reasoning_mode != package_reasoning_mode:
         raise GroundedRequestContextBindingError(
             "Grounded ContextPackage reasoning mode conflicts with the durable request fingerprint."
         )
