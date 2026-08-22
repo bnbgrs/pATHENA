@@ -16,6 +16,7 @@ from athena.chat.send_operation import (
     ChatSendOperationMatch,
     ChatSendOperationMode,
     ChatSendOperationRepository,
+    ChatSendOperationSchemaError,
     ChatSendOperationState,
 )
 from athena.storage.database import SQLiteDatabase
@@ -50,12 +51,19 @@ class GroundedSendReconciler:
         chat_id: uuid.UUID,
         fingerprint: ChatRequestFingerprint,
     ) -> GroundedReconciliationStatus:
-        match = self.operations.match_request(
-            operation_id=operation_id,
-            chat_id=chat_id,
-            mode=ChatSendOperationMode.GROUNDED,
-            fingerprint=fingerprint,
-        )
+        try:
+            match = self.operations.match_request(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                mode=ChatSendOperationMode.GROUNDED,
+                fingerprint=fingerprint,
+            )
+        except ChatSendOperationSchemaError:
+            return self._status(
+                operation_id,
+                chat_id,
+                GroundedReconciliationState.CONFLICT,
+            )
         if match is ChatSendOperationMatch.ABSENT:
             return self._status(
                 operation_id,
@@ -69,7 +77,14 @@ class GroundedSendReconciler:
                 GroundedReconciliationState.CONFLICT,
             )
 
-        operation = self.operations.load(operation_id)
+        try:
+            operation = self.operations.load(operation_id)
+        except ChatSendOperationSchemaError:
+            return self._status(
+                operation_id,
+                chat_id,
+                GroundedReconciliationState.CONFLICT,
+            )
         if operation is None:
             return self._status(
                 operation_id,
