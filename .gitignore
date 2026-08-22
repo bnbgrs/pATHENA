@@ -23,6 +23,7 @@ desktop.ini
 .env
 .env.*
 !.env.example
+.pathena.windows.ps1
 *.key
 *.pem
 /secrets/
