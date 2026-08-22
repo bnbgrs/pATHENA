@@ -285,6 +285,11 @@ class ChatSendOperationRepository:
                 raise ChatSendOperationConflictError(
                     "Incomplete Grounded operation cannot already own a receipt."
                 )
+            self._require_recorded_provider_result_run_match_in_transaction(
+                connection,
+                operation_id=operation_id,
+                processing_run_id=processing_run_id,
+            )
             run_id = self._merge_run_id(
                 existing.processing_run_id,
                 processing_run_id,
@@ -312,6 +317,43 @@ class ChatSendOperationRepository:
         if operation is None:
             raise RuntimeError("Grounded processing-run binding disappeared after commit.")
         return operation
+
+    @staticmethod
+    def _require_recorded_provider_result_run_match_in_transaction(
+        connection: sqlite3.Connection,
+        *,
+        operation_id: uuid.UUID,
+        processing_run_id: uuid.UUID,
+    ) -> None:
+        result_table = connection.execute(
+            """
+            SELECT 1
+            FROM sqlite_master
+            WHERE type = 'table' AND name = 'grounded_provider_results'
+            """
+        ).fetchone()
+        if result_table is None:
+            return
+        result = connection.execute(
+            """
+            SELECT processing_run_id
+            FROM grounded_provider_results
+            WHERE operation_id = ?
+            """,
+            (uuid_to_blob(operation_id),),
+        ).fetchone()
+        if result is None:
+            return
+        try:
+            result_run_id = uuid_from_blob(bytes(result["processing_run_id"]))
+        except (TypeError, ValueError) as exc:
+            raise ChatSendOperationSchemaError(
+                "Recorded Grounded provider result has an invalid ProcessingRun identity."
+            ) from exc
+        if result_run_id != processing_run_id:
+            raise ChatSendOperationConflictError(
+                "Grounded ProcessingRun conflicts with the recorded provider result."
+            )
 
     def advance(
         self,
