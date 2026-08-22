@@ -9,6 +9,14 @@ import uuid
 from dataclasses import dataclass
 from typing import cast
 
+from athena.chat.grounded_context_package import (
+    GroundedContextPackageRepository,
+    GroundedContextPackageSchemaError,
+)
+from athena.chat.grounded_processing_run import (
+    GroundedProcessingRunError,
+    validate_grounded_processing_run,
+)
 from athena.chat.grounded_provider_result_contract import (
     GroundedProviderResultContractError,
     validate_provider_result_contract,
@@ -438,6 +446,25 @@ class GroundedProviderAttemptRepository:
         if model_id is not None and not model_id.strip():
             raise ValueError("Provider result model_id must not be blank.")
         canonical, digest = _canonical_receipt_payload(receipt_payload_json)
+
+        context_record = None
+        context_table = self.database.connection.execute(
+            """
+            SELECT 1
+            FROM sqlite_master
+            WHERE type = 'table' AND name = 'grounded_context_packages'
+            """
+        ).fetchone()
+        if context_table is not None:
+            try:
+                context_record = GroundedContextPackageRepository(self.database).load(
+                    operation_id
+                )
+            except GroundedContextPackageSchemaError as exc:
+                raise GroundedProviderAttemptSchemaError(
+                    "Pinned ContextPackage is unreadable before provider-result commit."
+                ) from exc
+
         with self.database.write_transaction() as connection:
             operation = self._require_grounded_operation(connection, operation_id, chat_id)
             attempt = connection.execute(
@@ -481,6 +508,52 @@ class GroundedProviderAttemptRepository:
                 raise GroundedProviderAttemptConflictError(
                     "A new provider result may be recorded only before assistant commit."
                 )
+            if context_record is not None:
+                current_context = connection.execute(
+                    """
+                    SELECT chat_id, payload_sha256
+                    FROM grounded_context_packages
+                    WHERE operation_id = ?
+                    """,
+                    (uuid_to_blob(operation_id),),
+                ).fetchone()
+                if (
+                    current_context is None
+                    or uuid_from_blob(bytes(current_context["chat_id"])) != chat_id
+                    or context_record.chat_id != chat_id
+                    or str(current_context["payload_sha256"])
+                    != context_record.payload_sha256
+                ):
+                    raise GroundedProviderAttemptSchemaError(
+                        "Pinned ContextPackage changed before provider-result commit."
+                    )
+                user = connection.execute(
+                    """
+                    SELECT chat_id, actor_id, message_type
+                    FROM chat_messages
+                    WHERE message_id = ?
+                    """,
+                    (uuid_to_blob(operation_id),),
+                ).fetchone()
+                if (
+                    user is None
+                    or uuid_from_blob(bytes(user["chat_id"])) != chat_id
+                    or str(user["message_type"]) != "user"
+                ):
+                    raise GroundedProviderAttemptConflictError(
+                        "Provider result is missing its durable Grounded trigger user."
+                    )
+                try:
+                    validate_grounded_processing_run(
+                        self.database,
+                        processing_run_id=processing_run_id,
+                        package=context_record.package,
+                        trigger_actor_id=uuid_from_blob(bytes(user["actor_id"])),
+                    )
+                except GroundedProcessingRunError as exc:
+                    raise GroundedProviderAttemptConflictError(
+                        "Provider result ProcessingRun conflicts with the pinned ContextPackage."
+                    ) from exc
             self._require_pinned_context_identity_in_transaction(
                 connection,
                 operation_id=operation_id,
