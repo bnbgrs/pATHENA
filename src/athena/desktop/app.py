@@ -15,7 +15,7 @@ from athena.desktop.supervisor import DesktopCoreSupervisor
 from athena.desktop.theme import APP_STYLESHEET
 from athena.desktop.window import AthenaMainWindow
 
-_INITIAL_CORE_REFRESH_DELAYS_MS = (250, 750, 1_500)
+_INITIAL_CORE_REFRESH_DELAYS_MS = (250, 750, 1_500, 3_000, 5_000, 10_000, 20_000)
 
 
 def create_application(argv: Sequence[str] | None = None) -> QApplication:
@@ -36,7 +36,7 @@ def create_application(argv: Sequence[str] | None = None) -> QApplication:
 
 
 def _schedule_initial_core_refreshes(controller: DesktopApiController) -> None:
-    """Bridge the normal child-Core discovery race with safe read-only refreshes."""
+    """Bridge slow child-Core readiness with bounded, non-blocking refreshes."""
     for delay_ms in _INITIAL_CORE_REFRESH_DELAYS_MS:
         QTimer.singleShot(delay_ms, controller.refresh)
 
