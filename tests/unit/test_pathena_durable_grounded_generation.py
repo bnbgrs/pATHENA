@@ -4,10 +4,13 @@ import json
 import uuid
 from collections.abc import Iterator, Sequence
 
+import pytest
+
 from athena.chat.durable_grounded_generation import DurableGroundedGenerationService
 from athena.chat.generation import ChatGenerationService
+from athena.chat.grounding import GroundingContract
 from athena.chat.grounded_recovery import GroundedRecoveryState, GroundedSendRecovery
-from athena.chat.grounded_send import GroundedSendCoordinator
+from athena.chat.grounded_send import GroundedProviderBoundaryError, GroundedSendCoordinator
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
 from athena.chat.service import ChatService
@@ -214,5 +217,83 @@ def test_provider_result_survives_restart_and_finalizes_without_replay(tmp_path)
         assert restarted_complete.state is GroundedRecoveryState.COMPLETE
         assert restarted_complete.receipt == receipt
         assert provider.calls == 1
+    finally:
+        database.stop()
+
+
+def test_grounding_retry_is_fenced_before_second_provider_call(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        chats = ChatRepository(database)
+        user = chats.create_actor(actor_type="user")
+        chat_id = chats.create_chat(actor_id=user)
+        operation_id = uuid.uuid4()
+        fingerprint = build_chat_request_fingerprint(
+            mode=ChatSendMode.GROUNDED,
+            chat_id=chat_id,
+            content="hello",
+            requested_model_id="primary",
+            requested_embedding_model_id=None,
+            effective_context_limit=4096,
+            max_output_tokens=1000,
+            temperature=None,
+            reasoning_mode="off",
+            retrieval_configuration={},
+        )
+        coordinator = GroundedSendCoordinator(database)
+        started = coordinator.start(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            actor_id=user,
+            content="hello",
+            fingerprint=fingerprint,
+        )
+        package = _package(started.user_message, snapshot_commit_seq=1)
+        provider = _Provider()
+        generation = DurableGroundedGenerationService(
+            ChatGenerationService(ChatService(chats), provider),
+            coordinator,
+        )
+        before_provider_calls = 0
+
+        def on_before_provider_call() -> None:
+            nonlocal before_provider_calls
+            before_provider_calls += 1
+
+        with pytest.raises(GroundedProviderBoundaryError) as exc_info:
+            generation.send_context_package(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                user_message=started.user_message,
+                context_package=package,
+                processing_run_id=uuid.uuid4(),
+                fingerprint=fingerprint,
+                receipt_payload_builder=lambda content, provider_id, model_id: json.dumps(
+                    {
+                        "assistant_text": content,
+                        "provider_id": provider_id,
+                        "model_id": model_id,
+                    }
+                ),
+                grounding_contract=GroundingContract(
+                    evidence_refs=(),
+                    allow_model_prior=False,
+                    require_provenance_markers=True,
+                ),
+                on_before_provider_call=on_before_provider_call,
+            )
+
+        assert exc_info.value.status.state is GroundedRecoveryState.AMBIGUOUS
+        assert provider.calls == 1
+        assert before_provider_calls == 1
+        assert coordinator.provider_attempts.load(operation_id) is not None
+        assert coordinator.provider_attempts.load_result(operation_id) is None
+        assert coordinator.recover(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        ).state is GroundedRecoveryState.AMBIGUOUS
+        assert len(chats.load_chat(chat_id).messages) == 1
     finally:
         database.stop()
