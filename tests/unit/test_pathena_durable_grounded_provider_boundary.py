@@ -14,6 +14,7 @@ from athena.chat.grounded_send import GroundedProviderBoundaryError
 
 class _Coordinator:
     def __init__(self) -> None:
+        self.database = object()
         self.calls: list[tuple[uuid.UUID, uuid.UUID, object]] = []
         self.context_packages: list[tuple[uuid.UUID, uuid.UUID, object]] = []
         self.events: list[str] = []
@@ -81,15 +82,16 @@ def _service(monkeypatch, delegated_type: type[_DelegatedGeneration]):
         provider=object(),
         interactive_demand=None,
     )
-    monkeypatch.setattr(
-        durable_module,
-        "ChatGenerationService",
-        delegated_type,
-    )
+    monkeypatch.setattr(durable_module, "ChatGenerationService", delegated_type)
     monkeypatch.setattr(
         durable_module,
         "validate_grounded_request_context_binding",
         lambda **kwargs: None,
+    )
+    monkeypatch.setattr(
+        durable_module,
+        "validate_grounded_processing_run",
+        lambda *args, **kwargs: None,
     )
     return (
         DurableGroundedGenerationService(
@@ -100,15 +102,12 @@ def _service(monkeypatch, delegated_type: type[_DelegatedGeneration]):
     )
 
 
-def test_durable_generation_persists_exact_package_before_provider_guard(
-    monkeypatch,
-) -> None:
+def test_durable_generation_persists_exact_package_before_provider_guard(monkeypatch) -> None:
     operation_id = uuid.uuid4()
     chat_id = uuid.uuid4()
     fingerprint = object()
     context_package = object()
     service, coordinator = _service(monkeypatch, _DelegatedGeneration)
-
     result = service.send_context_package(
         operation_id=operation_id,
         chat_id=chat_id,
@@ -118,7 +117,6 @@ def test_durable_generation_persists_exact_package_before_provider_guard(
         fingerprint=cast(Any, fingerprint),
         receipt_payload_builder=lambda content, provider_id, model_id: "{}",
     )
-
     assert result is _RESULT
     assert coordinator.context_packages == [(operation_id, chat_id, context_package)]
     assert coordinator.calls == [(operation_id, chat_id, fingerprint)]
@@ -130,7 +128,6 @@ def test_external_provider_hook_precedes_irreversible_guard(monkeypatch) -> None
     chat_id = uuid.uuid4()
     fingerprint = object()
     service, coordinator = _service(monkeypatch, _DelegatedGeneration)
-
     result = service.send_context_package(
         operation_id=operation_id,
         chat_id=chat_id,
@@ -141,7 +138,6 @@ def test_external_provider_hook_precedes_irreversible_guard(monkeypatch) -> None
         receipt_payload_builder=lambda content, provider_id, model_id: "{}",
         on_before_provider_call=lambda: coordinator.events.append("hook"),
     )
-
     assert result is _RESULT
     assert coordinator.events == ["package", "hook", "guard"]
 
@@ -151,7 +147,6 @@ def test_internal_grounding_retry_is_fenced_before_second_hook(monkeypatch) -> N
     chat_id = uuid.uuid4()
     fingerprint = object()
     service, coordinator = _service(monkeypatch, _RetryingDelegatedGeneration)
-
     with pytest.raises(GroundedProviderBoundaryError) as exc_info:
         service.send_context_package(
             operation_id=operation_id,
@@ -163,7 +158,6 @@ def test_internal_grounding_retry_is_fenced_before_second_hook(monkeypatch) -> N
             receipt_payload_builder=lambda content, provider_id, model_id: "{}",
             on_before_provider_call=lambda: coordinator.events.append("hook"),
         )
-
     assert exc_info.value.status.state is GroundedRecoveryState.AMBIGUOUS
     assert coordinator.calls == [(operation_id, chat_id, fingerprint)]
     assert coordinator.events == ["package", "hook", "guard"]
