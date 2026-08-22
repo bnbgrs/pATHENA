@@ -12,12 +12,14 @@ from athena.chat.grounded_completion import (
     GroundedSendReceipt,
 )
 from athena.chat.grounded_context_package import (
+    GroundedContextPackageRecord,
     GroundedContextPackageRepository,
     GroundedContextPackageSchemaError,
 )
 from athena.chat.grounded_processing_run import (
     GroundedProcessingRunError,
     complete_grounded_processing_run,
+    validate_early_grounded_processing_run_binding,
     validate_grounded_processing_run_provenance,
 )
 from athena.chat.grounded_provider_attempt import (
@@ -41,7 +43,11 @@ from athena.chat.grounded_request_context import (
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatRequestFingerprint
 from athena.chat.send_identity import assistant_message_id_for_operation
-from athena.chat.send_operation import ChatSendOperationRepository, ChatSendOperationState
+from athena.chat.send_operation import (
+    ChatSendOperation,
+    ChatSendOperationRepository,
+    ChatSendOperationState,
+)
 from athena.chat.service import ChatService
 from athena.common.ids import uuid_from_blob, uuid_to_blob
 from athena.storage.database import SQLiteDatabase
@@ -65,6 +71,7 @@ class GroundedRecoveryStatus:
     receipt: GroundedSendReceipt | None
     provider_result: GroundedProviderResult | None = None
     provider_identity: GroundedProviderResultIdentity | None = None
+    processing_run_id: uuid.UUID | None = None
 
 
 class GroundedRecoveryConflictError(RuntimeError):
@@ -117,6 +124,12 @@ class GroundedSendRecovery:
             except GroundedRequestContextBindingError:
                 return self._status(operation_id, chat_id, GroundedRecoveryState.CONFLICT)
 
+        operation = self.operations.load(operation_id)
+        if operation is None:
+            return self._status(operation_id, chat_id, GroundedRecoveryState.CONFLICT)
+        if context_record is not None and operation.processing_run_id is None:
+            return self._status(operation_id, chat_id, GroundedRecoveryState.CONFLICT)
+
         if base.state is GroundedReconciliationState.COMPLETE:
             receipt = base.receipt
             if receipt is None:
@@ -124,6 +137,17 @@ class GroundedSendRecovery:
                     operation_id,
                     chat_id,
                     GroundedRecoveryState.CONFLICT,
+                    processing_run_id=operation.processing_run_id,
+                )
+            if (
+                operation.processing_run_id is not None
+                and operation.processing_run_id != receipt.processing_run_id
+            ):
+                return self._status(
+                    operation_id,
+                    chat_id,
+                    GroundedRecoveryState.CONFLICT,
+                    processing_run_id=operation.processing_run_id,
                 )
             try:
                 result, identity = self._load_provider_state(
@@ -135,6 +159,7 @@ class GroundedSendRecovery:
                     operation_id,
                     chat_id,
                     GroundedRecoveryState.CONFLICT,
+                    processing_run_id=operation.processing_run_id,
                 )
             if (
                 result is None
@@ -147,6 +172,7 @@ class GroundedSendRecovery:
                     operation_id,
                     chat_id,
                     GroundedRecoveryState.CONFLICT,
+                    processing_run_id=operation.processing_run_id,
                 )
             try:
                 validate_provider_result_contract(
@@ -158,6 +184,7 @@ class GroundedSendRecovery:
                     operation_id,
                     chat_id,
                     GroundedRecoveryState.CONFLICT,
+                    processing_run_id=operation.processing_run_id,
                 )
             if not self._assistant_matches_result(
                 operation_id=operation_id,
@@ -169,6 +196,7 @@ class GroundedSendRecovery:
                     operation_id,
                     chat_id,
                     GroundedRecoveryState.CONFLICT,
+                    processing_run_id=operation.processing_run_id,
                 )
             return GroundedRecoveryStatus(
                 operation_id=operation_id,
@@ -177,15 +205,18 @@ class GroundedSendRecovery:
                 receipt=receipt,
                 provider_result=result,
                 provider_identity=identity,
+                processing_run_id=receipt.processing_run_id,
             )
 
-        operation = self.operations.load(operation_id)
-        if operation is None:
-            return self._status(operation_id, chat_id, GroundedRecoveryState.CONFLICT)
         try:
             result, identity = self._load_provider_state(operation_id)
         except GroundedProviderAttemptSchemaError:
-            return self._status(operation_id, chat_id, GroundedRecoveryState.CONFLICT)
+            return self._status(
+                operation_id,
+                chat_id,
+                GroundedRecoveryState.CONFLICT,
+                processing_run_id=operation.processing_run_id,
+            )
         if result is not None:
             try:
                 validate_provider_result_contract(
@@ -197,7 +228,29 @@ class GroundedSendRecovery:
                     operation_id,
                     chat_id,
                     GroundedRecoveryState.CONFLICT,
+                    processing_run_id=operation.processing_run_id,
                 )
+        try:
+            attempt = self.provider_attempts.load(operation_id)
+        except GroundedProviderAttemptSchemaError:
+            return self._status(
+                operation_id,
+                chat_id,
+                GroundedRecoveryState.CONFLICT,
+                processing_run_id=operation.processing_run_id,
+            )
+        if not self._operation_processing_run_is_valid(
+            operation=operation,
+            context_record=context_record,
+            provider_result=result,
+            has_provider_attempt=attempt is not None,
+        ):
+            return self._status(
+                operation_id,
+                chat_id,
+                GroundedRecoveryState.CONFLICT,
+                processing_run_id=operation.processing_run_id,
+            )
         if operation.state is ChatSendOperationState.ASSISTANT_COMMITTED:
             if result is not None and not self._assistant_matches_result(
                 operation_id=operation_id,
@@ -209,6 +262,7 @@ class GroundedSendRecovery:
                     operation_id,
                     chat_id,
                     GroundedRecoveryState.CONFLICT,
+                    processing_run_id=operation.processing_run_id,
                 )
             state = (
                 GroundedRecoveryState.FINALIZATION_REQUIRED
@@ -221,9 +275,15 @@ class GroundedSendRecovery:
                 state,
                 provider_result=result,
                 provider_identity=identity,
+                processing_run_id=operation.processing_run_id,
             )
         if operation.state is not ChatSendOperationState.USER_COMMITTED:
-            return self._status(operation_id, chat_id, GroundedRecoveryState.CONFLICT)
+            return self._status(
+                operation_id,
+                chat_id,
+                GroundedRecoveryState.CONFLICT,
+                processing_run_id=operation.processing_run_id,
+            )
         if result is not None:
             return self._status(
                 operation_id,
@@ -231,17 +291,19 @@ class GroundedSendRecovery:
                 GroundedRecoveryState.RESULT_AVAILABLE,
                 provider_result=result,
                 provider_identity=identity,
+                processing_run_id=operation.processing_run_id,
             )
-        try:
-            attempt = self.provider_attempts.load(operation_id)
-        except GroundedProviderAttemptSchemaError:
-            return self._status(operation_id, chat_id, GroundedRecoveryState.CONFLICT)
         state = (
             GroundedRecoveryState.RESUMABLE
             if attempt is None
             else GroundedRecoveryState.AMBIGUOUS
         )
-        return self._status(operation_id, chat_id, state)
+        return self._status(
+            operation_id,
+            chat_id,
+            state,
+            processing_run_id=operation.processing_run_id,
+        )
 
     def finalize_recorded_result(
         self,
@@ -308,6 +370,11 @@ class GroundedSendRecovery:
         operation = self.operations.load(operation_id)
         if operation is None:
             raise GroundedRecoveryConflictError("Grounded send operation disappeared.")
+        if operation.processing_run_id is not None:
+            if operation.processing_run_id != result.processing_run_id:
+                raise GroundedRecoveryConflictError(
+                    "Recorded provider result conflicts with the operation ProcessingRun."
+                )
         if operation.state is ChatSendOperationState.USER_COMMITTED:
             self.assistant_turns.commit(
                 operation_id=operation_id,
@@ -381,6 +448,87 @@ class GroundedSendRecovery:
             payload_json=result.receipt_payload_json,
         )
 
+    def _operation_processing_run_is_valid(
+        self,
+        *,
+        operation: ChatSendOperation,
+        context_record: GroundedContextPackageRecord | None,
+        provider_result: GroundedProviderResult | None,
+        has_provider_attempt: bool,
+    ) -> bool:
+        processing_run_id = operation.processing_run_id
+        if context_record is not None and processing_run_id is None:
+            return False
+        if processing_run_id is None:
+            return True
+        if (
+            provider_result is not None
+            and provider_result.processing_run_id != processing_run_id
+        ):
+            return False
+
+        trigger_actor_id = self._trigger_actor_id(
+            operation.operation_id,
+            operation.chat_id,
+        )
+        if trigger_actor_id is None:
+            return False
+        try:
+            if context_record is None:
+                if has_provider_attempt:
+                    # Preserve legacy low-level journals that predate pinned
+                    # ContextPackages. Productive claims require the package first.
+                    return True
+                validate_early_grounded_processing_run_binding(
+                    self.database,
+                    processing_run_id=processing_run_id,
+                    trigger_actor_id=trigger_actor_id,
+                )
+                return True
+
+            run = validate_grounded_processing_run_provenance(
+                self.database,
+                processing_run_id=processing_run_id,
+                package=context_record.package,
+                trigger_actor_id=trigger_actor_id,
+            )
+        except GroundedProcessingRunError:
+            return False
+
+        if provider_result is not None:
+            return run.status in {"running", "succeeded"} and (
+                (run.status == "running" and run.finished_at_us is None)
+                or (run.status == "succeeded" and run.finished_at_us is not None)
+            )
+        if has_provider_attempt:
+            return run.status in {"running", "failed", "cancelled"} and (
+                (run.status == "running" and run.finished_at_us is None)
+                or (run.status in {"failed", "cancelled"} and run.finished_at_us is not None)
+            )
+        return run.status == "running" and run.finished_at_us is None
+
+    def _trigger_actor_id(
+        self,
+        operation_id: uuid.UUID,
+        chat_id: uuid.UUID,
+    ) -> uuid.UUID | None:
+        user = self.database.connection.execute(
+            """
+            SELECT chat_id, actor_id, message_type
+            FROM chat_messages
+            WHERE message_id = ?
+            """,
+            (uuid_to_blob(operation_id),),
+        ).fetchone()
+        if (
+            user is None
+            or user["actor_id"] is None
+            or uuid_from_blob(bytes(user["chat_id"])) != chat_id
+            or str(user["message_type"]) != "user"
+        ):
+            return None
+        return uuid_from_blob(bytes(user["actor_id"]))
+
     def _load_provider_state(
         self,
         operation_id: uuid.UUID,
@@ -390,6 +538,15 @@ class GroundedSendRecovery:
         result = self.provider_attempts.load_result(operation_id)
         if result is None:
             return None, None
+        operation = self.operations.load(operation_id)
+        if (
+            operation is not None
+            and operation.processing_run_id is not None
+            and result.processing_run_id != operation.processing_run_id
+        ):
+            raise GroundedProviderAttemptSchemaError(
+                "Provider result conflicts with the operation-pinned ProcessingRun."
+            )
         identity = self.provider_attempts.load_result_identity(operation_id)
         try:
             context_record = self.context_packages.load(operation_id)
@@ -398,6 +555,14 @@ class GroundedSendRecovery:
                 "Provider identity cannot be verified against a corrupted ContextPackage."
             ) from exc
         if context_record is not None:
+            if operation is None or operation.processing_run_id is None:
+                raise GroundedProviderAttemptSchemaError(
+                    "Pinned ContextPackage requires an operation-pinned ProcessingRun."
+                )
+            if result.processing_run_id != operation.processing_run_id:
+                raise GroundedProviderAttemptSchemaError(
+                    "Provider result conflicts with the pinned Grounded ProcessingRun."
+                )
             if identity is None:
                 raise GroundedProviderAttemptSchemaError(
                     "Pinned ContextPackage requires durable provider result identity."
@@ -410,20 +575,11 @@ class GroundedSendRecovery:
                 raise GroundedProviderAttemptSchemaError(
                     "Persisted provider identity conflicts with the pinned ContextPackage model."
                 )
-            user = self.database.connection.execute(
-                """
-                SELECT chat_id, actor_id, message_type
-                FROM chat_messages
-                WHERE message_id = ?
-                """,
-                (uuid_to_blob(operation_id),),
-            ).fetchone()
-            if (
-                user is None
-                or user["actor_id"] is None
-                or uuid_from_blob(bytes(user["chat_id"])) != context_record.chat_id
-                or str(user["message_type"]) != "user"
-            ):
+            trigger_actor_id = self._trigger_actor_id(
+                operation_id,
+                context_record.chat_id,
+            )
+            if trigger_actor_id is None:
                 raise GroundedProviderAttemptSchemaError(
                     "Pinned ContextPackage is missing its durable Grounded trigger user."
                 )
@@ -432,7 +588,7 @@ class GroundedSendRecovery:
                     self.database,
                     processing_run_id=result.processing_run_id,
                     package=context_record.package,
-                    trigger_actor_id=uuid_from_blob(bytes(user["actor_id"])),
+                    trigger_actor_id=trigger_actor_id,
                 )
             except GroundedProcessingRunError as exc:
                 raise GroundedProviderAttemptSchemaError(
@@ -498,6 +654,7 @@ class GroundedSendRecovery:
         *,
         provider_result: GroundedProviderResult | None = None,
         provider_identity: GroundedProviderResultIdentity | None = None,
+        processing_run_id: uuid.UUID | None = None,
     ) -> GroundedRecoveryStatus:
         return GroundedRecoveryStatus(
             operation_id=operation_id,
@@ -506,4 +663,5 @@ class GroundedSendRecovery:
             receipt=None,
             provider_result=provider_result,
             provider_identity=provider_identity,
+            processing_run_id=processing_run_id,
         )
