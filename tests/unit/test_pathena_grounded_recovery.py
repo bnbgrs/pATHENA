@@ -188,3 +188,95 @@ def test_recovery_conflict_for_same_operation_different_request(tmp_path) -> Non
     )
     assert status.state is GroundedRecoveryState.CONFLICT
     database.stop()
+
+
+def test_recovery_inspect_fails_closed_when_assistant_content_conflicts(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    chats = ChatRepository(database)
+    user = chats.create_actor(actor_type="user")
+    model = chats.create_actor(
+        actor_type="primary_model",
+        display_name="lm_studio:primary",
+    )
+    chat_id = chats.create_chat(actor_id=user)
+    operation_id = uuid.uuid4()
+    fingerprint = _fingerprint(chat_id)
+    GroundedUserTurnRepository(database).commit(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        actor_id=user,
+        content="hello",
+        fingerprint=fingerprint,
+    )
+    provider = GroundedProviderAttemptRepository(database)
+    provider.mark_started(operation_id=operation_id, chat_id=chat_id)
+    provider.store_result(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        processing_run_id=uuid.uuid4(),
+        assistant_content="recorded answer",
+        receipt_payload_json='{"assistant_text":"recorded answer","evidence":[]}',
+        provider_id="lm_studio",
+        model_id="primary",
+    )
+    GroundedAssistantTurnRepository(database).commit(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        actor_id=model,
+        content="different answer",
+    )
+
+    status = GroundedSendRecovery(database).inspect(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        fingerprint=fingerprint,
+    )
+    assert status.state is GroundedRecoveryState.CONFLICT
+    database.stop()
+
+
+def test_recovery_inspect_fails_closed_when_assistant_model_conflicts(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    chats = ChatRepository(database)
+    user = chats.create_actor(actor_type="user")
+    wrong_model = chats.create_actor(
+        actor_type="primary_model",
+        display_name="lm_studio:other",
+    )
+    chat_id = chats.create_chat(actor_id=user)
+    operation_id = uuid.uuid4()
+    fingerprint = _fingerprint(chat_id)
+    GroundedUserTurnRepository(database).commit(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        actor_id=user,
+        content="hello",
+        fingerprint=fingerprint,
+    )
+    provider = GroundedProviderAttemptRepository(database)
+    provider.mark_started(operation_id=operation_id, chat_id=chat_id)
+    provider.store_result(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        processing_run_id=uuid.uuid4(),
+        assistant_content="answer",
+        receipt_payload_json='{"assistant_text":"answer","evidence":[]}',
+        provider_id="lm_studio",
+        model_id="primary",
+    )
+    GroundedAssistantTurnRepository(database).commit(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        actor_id=wrong_model,
+        content="answer",
+    )
+
+    status = GroundedSendRecovery(database).inspect(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        fingerprint=fingerprint,
+    )
+    assert status.state is GroundedRecoveryState.CONFLICT
+    database.stop()
