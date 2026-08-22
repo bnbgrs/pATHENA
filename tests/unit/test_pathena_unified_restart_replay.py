@@ -15,6 +15,7 @@ from athena.chat.unified import (
     UnifiedLocalChatService,
 )
 from athena.chat.unified_durable import build_unified_grounded_fingerprint
+from athena.chat.unified_replay_input import UnifiedReplayInputRepository
 from athena.model.domain import ModelChatMessage, ModelInfo
 from athena.model.provenance import ModelRunRepository
 from athena.retrieval.context import ContextBuilderService
@@ -156,6 +157,19 @@ class _UnusedAnchors:
         )
 
 
+class _FailOnceContextPackages(ContextPackageService):
+    def __init__(self, database: SQLiteDatabase, *, phase: str) -> None:
+        super().__init__(database)
+        self.phase = phase
+        self.failed = False
+
+    def assert_snapshot_current(self, expected_commit_seq: int, *, phase: str) -> None:
+        if phase == self.phase and not self.failed:
+            self.failed = True
+            raise RuntimeError("synthetic unified pre-provider crash")
+        super().assert_snapshot_current(expected_commit_seq, phase=phase)
+
+
 def _service(
     database: SQLiteDatabase,
     *,
@@ -163,6 +177,7 @@ def _service(
     embedding: _EmbeddingProvider,
     hybrid: _EmptyHybridRetrieval,
     archive: _EmptyArchiveRetrieval,
+    context_packages: ContextPackageService | None = None,
 ) -> UnifiedLocalChatService:
     chat = ChatService(ChatRepository(database))
     generation = ChatGenerationService(chat, provider)
@@ -177,7 +192,11 @@ def _service(
         source_context_builder=SourceContextBuilderService(
             _UnusedAnchors()  # type: ignore[arg-type]
         ),
-        context_packages=ContextPackageService(database),
+        context_packages=(
+            ContextPackageService(database)
+            if context_packages is None
+            else context_packages
+        ),
         model_runs=ModelRunRepository(database),
     )
 
@@ -258,10 +277,7 @@ def test_unified_complete_retry_replays_exact_result_without_live_retrieval(
             chat_id=chat_id,
             fingerprint=_fingerprint(chat_id, content),
         )
-        assert first_recovery.state in {
-            GroundedRecoveryState.FINALIZATION_REQUIRED,
-            GroundedRecoveryState.COMPLETE,
-        }
+        assert first_recovery.state is GroundedRecoveryState.COMPLETE
         retrieval_counts = (
             embedding.calls,
             hybrid.calls,
@@ -309,6 +325,97 @@ def test_unified_complete_retry_replays_exact_result_without_live_retrieval(
         assert complete.provider_result.processing_run_id == (
             initial.processing_run.processing_run_id
         )
+    finally:
+        database.stop()
+
+
+def test_unified_checkpointed_preflight_crash_resumes_without_retrieval(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "athena.db"
+    provider = _Provider()
+    embedding = _EmbeddingProvider()
+    hybrid = _EmptyHybridRetrieval()
+    archive = _EmptyArchiveRetrieval()
+    operation_id = uuid.uuid4()
+    content = "Resume from the frozen unified context."
+
+    database = SQLiteDatabase(path)
+    database.start()
+    try:
+        chat_id = ChatService(ChatRepository(database)).create_chat()
+        failing_packages = _FailOnceContextPackages(
+            database,
+            phase="immediately-before-primary-model-call",
+        )
+        service = _service(
+            database,
+            provider=provider,
+            embedding=embedding,
+            hybrid=hybrid,
+            archive=archive,
+            context_packages=failing_packages,
+        )
+        with pytest.raises(RuntimeError, match="synthetic unified pre-provider crash"):
+            _send(
+                service,
+                chat_id=chat_id,
+                operation_id=operation_id,
+                content=content,
+            )
+        assert provider.calls == 0
+        recovery = GroundedSendRecovery(database).inspect(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=_fingerprint(chat_id, content),
+        )
+        assert recovery.state is GroundedRecoveryState.RESUMABLE
+        assert recovery.processing_run_id is not None
+        checkpoint = UnifiedReplayInputRepository(database).load(operation_id)
+        assert checkpoint is not None
+        assert checkpoint.processing_run_id == recovery.processing_run_id
+        assert len(ChatRepository(database).load_chat(chat_id).messages) == 1
+        retrieval_counts = (
+            embedding.calls,
+            hybrid.calls,
+            hybrid.lexical_calls,
+            archive.calls,
+            archive.lexical_calls,
+        )
+
+        database.stop()
+        database = SQLiteDatabase(path)
+        database.start()
+        restarted = _service(
+            database,
+            provider=provider,
+            embedding=embedding,
+            hybrid=hybrid,
+            archive=archive,
+        )
+        completed = _send(
+            restarted,
+            chat_id=chat_id,
+            operation_id=operation_id,
+            content=content,
+        )
+
+        assert provider.calls == 1
+        assert (
+            embedding.calls,
+            hybrid.calls,
+            hybrid.lexical_calls,
+            archive.calls,
+            archive.lexical_calls,
+        ) == retrieval_counts
+        assert completed.processing_run.processing_run_id == recovery.processing_run_id
+        assert completed.processing_run.status == "succeeded"
+        assert len(ChatRepository(database).load_chat(chat_id).messages) == 2
+        assert GroundedSendRecovery(database).inspect(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=_fingerprint(chat_id, content),
+        ).state is GroundedRecoveryState.COMPLETE
     finally:
         database.stop()
 
