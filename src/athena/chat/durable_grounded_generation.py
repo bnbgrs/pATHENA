@@ -11,6 +11,7 @@ from athena.chat.grounding import GroundingContract
 from athena.chat.grounded_processing_run import (
     GroundedProcessingRunError,
     complete_grounded_processing_run,
+    fail_grounded_processing_run,
     validate_grounded_processing_run,
 )
 from athena.chat.grounded_provider_result_contract import validate_provider_result_contract
@@ -160,6 +161,47 @@ class DurableGroundedGenerationService:
         except GroundedSnapshotBindingError as exc:
             raise DurableGroundedGenerationError(message) from exc
 
+    def _reconcile_processing_run_after_error(
+        self,
+        *,
+        operation_id: uuid.UUID,
+        chat_id: uuid.UUID,
+        fingerprint: ChatRequestFingerprint,
+        context_package: ContextPackage,
+        processing_run_id: uuid.UUID,
+        trigger_actor_id: uuid.UUID,
+        error: Exception,
+    ) -> None:
+        recovery = self.coordinator.recover(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        )
+        try:
+            if recovery.state in {
+                GroundedRecoveryState.RESULT_AVAILABLE,
+                GroundedRecoveryState.FINALIZATION_REQUIRED,
+                GroundedRecoveryState.COMPLETE,
+            }:
+                complete_grounded_processing_run(
+                    self.coordinator.database,
+                    processing_run_id=processing_run_id,
+                    package=context_package,
+                    trigger_actor_id=trigger_actor_id,
+                )
+            elif recovery.state is GroundedRecoveryState.AMBIGUOUS:
+                fail_grounded_processing_run(
+                    self.coordinator.database,
+                    processing_run_id=processing_run_id,
+                    package=context_package,
+                    trigger_actor_id=trigger_actor_id,
+                    error_detail=type(error).__name__,
+                )
+        except GroundedProcessingRunError as exc:
+            raise DurableGroundedGenerationError(
+                "Grounded failure could not reconcile its ProcessingRun provenance."
+            ) from exc
+
     def send_context_package(
         self,
         *,
@@ -264,15 +306,27 @@ class DurableGroundedGenerationService:
                 message="Canonical state changed inside the Grounded provider boundary.",
             )
 
-        result = delegated.send_context_package(
-            chat_id=chat_id,
-            user_message=user_message,
-            context_package=context_package,
-            operation_id=operation_id,
-            on_delta=None,
-            grounding_contract=grounding_contract,
-            on_before_provider_call=before_provider,
-        )
+        try:
+            result = delegated.send_context_package(
+                chat_id=chat_id,
+                user_message=user_message,
+                context_package=context_package,
+                operation_id=operation_id,
+                on_delta=None,
+                grounding_contract=grounding_contract,
+                on_before_provider_call=before_provider,
+            )
+        except Exception as exc:
+            self._reconcile_processing_run_after_error(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                fingerprint=fingerprint,
+                context_package=context_package,
+                processing_run_id=processing_run_id,
+                trigger_actor_id=user_message.actor_id,
+                error=exc,
+            )
+            raise
         try:
             complete_grounded_processing_run(
                 self.coordinator.database,
