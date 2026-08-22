@@ -29,6 +29,7 @@ from athena.chat.request_fingerprint import ChatRequestFingerprint
 from athena.chat.send_identity import assistant_message_id_for_operation
 from athena.chat.send_operation import ChatSendOperationRepository, ChatSendOperationState
 from athena.chat.service import ChatService
+from athena.common.ids import uuid_to_blob
 from athena.storage.database import SQLiteDatabase
 
 
@@ -115,6 +116,17 @@ class GroundedSendRecovery:
                     GroundedRecoveryState.CONFLICT,
                 )
         if operation.state is ChatSendOperationState.ASSISTANT_COMMITTED:
+            if result is not None and not self._assistant_matches_result(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                result=result,
+                identity=identity,
+            ):
+                return self._status(
+                    operation_id,
+                    chat_id,
+                    GroundedRecoveryState.CONFLICT,
+                )
             state = (
                 GroundedRecoveryState.FINALIZATION_REQUIRED
                 if result is not None
@@ -238,6 +250,40 @@ class GroundedSendRecovery:
             chat_id=chat_id,
             processing_run_id=result.processing_run_id,
             payload_json=result.receipt_payload_json,
+        )
+
+    def _assistant_matches_result(
+        self,
+        *,
+        operation_id: uuid.UUID,
+        chat_id: uuid.UUID,
+        result: GroundedProviderResult,
+        identity: GroundedProviderResultIdentity | None,
+    ) -> bool:
+        assistant_id = assistant_message_id_for_operation(operation_id)
+        thread = self.chats.load_chat(chat_id)
+        assistant = next(
+            (message for message in thread.messages if message.message_id == assistant_id),
+            None,
+        )
+        if assistant is None or assistant.content != result.assistant_content:
+            return False
+        if identity is None:
+            return True
+
+        actor = self.database.connection.execute(
+            """
+            SELECT actor_type, display_name
+            FROM actors
+            WHERE actor_id = ?
+            """,
+            (uuid_to_blob(assistant.actor_id),),
+        ).fetchone()
+        return (
+            actor is not None
+            and str(actor["actor_type"]) == "primary_model"
+            and str(actor["display_name"])
+            == f"{identity.provider_id}:{identity.model_id}"
         )
 
     @staticmethod
