@@ -25,14 +25,9 @@ if ($loadedSettings) {
     Write-Host "Loaded local Windows settings from .pathena.windows.ps1"
 }
 
-$uvCommand = Get-Command uv -ErrorAction SilentlyContinue
-if ($null -eq $uvCommand) {
-    throw "uv is not available. Run .\scripts\bootstrap_windows.ps1 first."
-}
-
-$uvVersion = (& uv --version).Trim()
-if ($LASTEXITCODE -ne 0 -or $uvVersion -ne "uv 0.11.21") {
-    throw "pATHENA requires uv 0.11.21. Run .\scripts\bootstrap_windows.ps1."
+$uvVersion = Get-PathenaUvVersion
+if ($uvVersion -ne "uv 0.11.21") {
+    throw "pATHENA requires executable uv 0.11.21. Run .\scripts\bootstrap_windows.ps1 first."
 }
 
 if (-not $NoSync) {
