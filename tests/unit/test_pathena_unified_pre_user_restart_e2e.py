@@ -10,7 +10,10 @@ from athena.chat.generation import ChatGenerationService
 from athena.chat.grounded_send import GroundedSendCoordinator
 from athena.chat.repository import ChatRepository
 from athena.chat.service import ChatService
-from athena.chat.unified_resumable import UnifiedLocalChatService
+from athena.chat.unified_resumable import (
+    UnifiedLocalChatService,
+    UnifiedPreUserRecoveryRequiredError,
+)
 from athena.chat.unified_send_plan import UnifiedSendPlanRepository
 from athena.common.ids import new_uuid7
 from athena.model.domain import ModelChatMessage, ModelInfo
@@ -274,5 +277,107 @@ def test_pre_user_crash_restarts_without_retrieval_or_duplicate_turns(
         assert completed.processing_run.status == "succeeded"
         reloaded_plan = UnifiedSendPlanRepository(database).load(operation_id)
         assert reloaded_plan == plan
+    finally:
+        database.stop()
+
+
+def test_pre_user_retry_fails_closed_after_snapshot_drift(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    path = tmp_path / "athena.db"
+    provider = _Provider()
+    embedding = _EmbeddingProvider()
+    hybrid = _EmptyRetrieval()
+    archive = _EmptyRetrieval()
+    operation_id = new_uuid7()
+    content = "Keep the frozen retrieval snapshot exact."
+
+    database = SQLiteDatabase(path)
+    database.start()
+    try:
+        chats = ChatService(ChatRepository(database))
+        chat_id = chats.create_chat()
+        service = _service(
+            database,
+            provider=provider,
+            embedding=embedding,
+            hybrid=hybrid,
+            archive=archive,
+        )
+
+        def crash_before_user_operation(
+            self: GroundedSendCoordinator,
+            *args: object,
+            **kwargs: object,
+        ) -> object:
+            del self, args, kwargs
+            raise RuntimeError("synthetic crash before durable user operation")
+
+        with monkeypatch.context() as scoped:
+            scoped.setattr(
+                GroundedSendCoordinator,
+                "start",
+                crash_before_user_operation,
+            )
+            with pytest.raises(
+                RuntimeError,
+                match="synthetic crash before durable user operation",
+            ):
+                _send(
+                    service,
+                    chat_id=chat_id,
+                    operation_id=operation_id,
+                    content=content,
+                )
+
+        plan = UnifiedSendPlanRepository(database).load(operation_id)
+        assert plan is not None
+        assert ChatRepository(database).load_chat(chat_id).messages == ()
+        assert provider.calls == 0
+        retrieval_counts = (
+            embedding.calls,
+            hybrid.calls,
+            hybrid.lexical_calls,
+            archive.calls,
+            archive.lexical_calls,
+        )
+
+        drift_chat_id = ChatRepository(database).create_chat(
+            actor_id=plan.user_actor_id,
+        )
+        assert drift_chat_id != chat_id
+
+        database.stop()
+        database = SQLiteDatabase(path)
+        database.start()
+        restarted = _service(
+            database,
+            provider=provider,
+            embedding=embedding,
+            hybrid=hybrid,
+            archive=archive,
+        )
+        with pytest.raises(
+            UnifiedPreUserRecoveryRequiredError,
+            match="Canonical state changed",
+        ):
+            _send(
+                restarted,
+                chat_id=chat_id,
+                operation_id=operation_id,
+                content=content,
+            )
+
+        assert provider.calls == 0
+        assert (
+            embedding.calls,
+            hybrid.calls,
+            hybrid.lexical_calls,
+            archive.calls,
+            archive.lexical_calls,
+        ) == retrieval_counts
+        assert ChatRepository(database).load_chat(chat_id).messages == ()
+        assert UnifiedSendPlanRepository(database).load(operation_id) == plan
     finally:
         database.stop()
