@@ -30,6 +30,9 @@ if ($uvVersion -ne "uv 0.11.21") {
     throw "pATHENA requires executable uv 0.11.21. Run .\scripts\bootstrap_windows.ps1 first."
 }
 
+$runtimeRoot = Assert-PathenaLocalRootReady
+Write-Host "Runtime root ready: $runtimeRoot"
+
 if (-not $NoSync) {
     Write-Host "Synchronizing locked desktop runtime..."
     & uv sync --locked --extra desktop
