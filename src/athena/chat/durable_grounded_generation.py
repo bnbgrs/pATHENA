@@ -12,10 +12,7 @@ from athena.chat.grounded_processing_run import (
     GroundedProcessingRunError,
     validate_grounded_processing_run,
 )
-from athena.chat.grounded_provider_result_contract import (
-    GroundedProviderResultContractError,
-    validate_provider_result_contract,
-)
+from athena.chat.grounded_provider_result_contract import validate_provider_result_contract
 from athena.chat.grounded_recovery import GroundedRecoveryState
 from athena.chat.grounded_request_context import (
     GroundedRequestContextBindingError,
