@@ -97,7 +97,7 @@ def _normalized_schema_sql(sql: str) -> str:
     return normalized.replace("CREATE TABLE IF NOT EXISTS ", "CREATE TABLE ", 1)
 
 
-def _canonical_receipt_payload(payload_json: str) -> tuple[str, str]:
+def _canonical_receipt_payload(payload_json: str) -> tuple[str, str, str]:
     try:
         payload = json.loads(payload_json)
     except json.JSONDecodeError as exc:
@@ -111,8 +111,13 @@ def _canonical_receipt_payload(payload_json: str) -> tuple[str, str]:
         sort_keys=True,
         separators=(",", ":"),
     )
+    assistant_text = payload.get("assistant_text")
+    if not isinstance(assistant_text, str) or not assistant_text.strip():
+        raise ValueError(
+            "Provider result receipt payload requires non-empty assistant_text."
+        )
     digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
-    return canonical, digest
+    return canonical, digest, assistant_text
 
 
 class GroundedProviderAttemptRepository:
@@ -254,7 +259,13 @@ class GroundedProviderAttemptRepository:
     ) -> GroundedProviderResult:
         if not assistant_content.strip():
             raise ValueError("Provider result assistant content must not be blank.")
-        canonical, digest = _canonical_receipt_payload(receipt_payload_json)
+        canonical, digest, receipt_assistant_text = _canonical_receipt_payload(
+            receipt_payload_json
+        )
+        if receipt_assistant_text != assistant_content:
+            raise ValueError(
+                "Provider result receipt assistant_text must match assistant content exactly."
+            )
         with self.database.write_transaction() as connection:
             operation = self._require_grounded_operation(connection, operation_id, chat_id)
             attempt = connection.execute(
@@ -351,8 +362,14 @@ class GroundedProviderAttemptRepository:
             receipt_payload_sha256=str(row["receipt_payload_sha256"]),
             created_at_us=int(row["created_at_us"]),
         )
-        canonical, digest = _canonical_receipt_payload(result.receipt_payload_json)
-        if canonical != result.receipt_payload_json or digest != result.receipt_payload_sha256:
+        canonical, digest, receipt_assistant_text = _canonical_receipt_payload(
+            result.receipt_payload_json
+        )
+        if (
+            canonical != result.receipt_payload_json
+            or digest != result.receipt_payload_sha256
+            or receipt_assistant_text != result.assistant_content
+        ):
             raise GroundedProviderAttemptSchemaError(
                 "Persisted provider result failed checksum verification."
             )
