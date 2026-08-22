@@ -451,3 +451,93 @@ def test_restart_complete_rejects_non_succeeded_processing_run(
         assert len(ChatRepository(database).load_chat(chat_id).messages) == 2
     finally:
         database.stop()
+
+
+def test_direct_completion_finalizes_processing_run_before_complete(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "athena-direct-complete.db"
+    database = SQLiteDatabase(path)
+    database.start()
+    operation_id = uuid.uuid4()
+    try:
+        chats = ChatRepository(database)
+        user = chats.create_actor(actor_type="user")
+        chat_id = chats.create_chat(actor_id=user)
+        fingerprint = _fingerprint(chat_id)
+        coordinator = GroundedSendCoordinator(database)
+        started = coordinator.start(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            actor_id=user,
+            content="hello",
+            fingerprint=fingerprint,
+        )
+        package, processing_run_id = _package_and_run(database, started.user_message)
+        coordinator.store_context_package(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            package=package,
+        )
+        coordinator.begin_provider_attempt(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        )
+        result = coordinator.record_provider_result(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+            processing_run_id=processing_run_id,
+            assistant_content="durable answer",
+            receipt_payload_json=_receipt_payload(
+                "durable answer",
+                "lm_studio",
+                "primary",
+            ),
+            provider_id="lm_studio",
+            model_id="primary",
+        )
+        model_actor = ChatService(chats).ensure_primary_model(
+            provider_id="lm_studio",
+            model_id="primary",
+        )
+        coordinator.commit_assistant(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            actor_id=model_actor,
+            content=result.assistant_content,
+        )
+        before = ModelRunRepository(database).load_run(processing_run_id)
+        assert before.status == "running"
+        assert before.finished_at_us is None
+
+        receipt = coordinator.complete(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            processing_run_id=processing_run_id,
+            payload_json=result.receipt_payload_json,
+        )
+        assert receipt.processing_run_id == processing_run_id
+        after = ModelRunRepository(database).load_run(processing_run_id)
+        assert after.status == "succeeded"
+        assert after.finished_at_us is not None
+        assert coordinator.recover(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        ).state is GroundedRecoveryState.COMPLETE
+
+        database.stop()
+        database = SQLiteDatabase(path)
+        database.start()
+        restarted = GroundedSendRecovery(database).inspect(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        )
+        assert restarted.state is GroundedRecoveryState.COMPLETE
+        assert restarted.receipt == receipt
+        assert len(ChatRepository(database).load_chat(chat_id).messages) == 2
+    finally:
+        database.stop()
