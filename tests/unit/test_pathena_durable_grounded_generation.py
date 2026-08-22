@@ -12,9 +12,9 @@ from athena.chat.durable_grounded_generation import (
     DurableGroundedGenerationService,
 )
 from athena.chat.generation import ChatGenerationService
-from athena.chat.grounding import GroundingContract
 from athena.chat.grounded_recovery import GroundedRecoveryState, GroundedSendRecovery
 from athena.chat.grounded_send import GroundedProviderBoundaryError, GroundedSendCoordinator
+from athena.chat.grounding import GroundingContract
 from athena.chat.models import ChatMessage
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
