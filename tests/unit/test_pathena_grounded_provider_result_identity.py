@@ -9,6 +9,7 @@ from athena.chat.grounded_provider_attempt import (
     GroundedProviderAttemptConflictError,
     GroundedProviderAttemptRepository,
 )
+from athena.chat.grounded_provider_result_contract import GroundedProviderResultContractError
 from athena.chat.grounded_turn import GroundedUserTurnRepository
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
@@ -122,3 +123,26 @@ def test_legacy_provider_result_cannot_gain_identity_on_replay(tmp_path: Path) -
     assert repository.load_result(operation_id) == result
     assert repository.load_result_identity(operation_id) is None
     database.stop()
+
+
+def test_provider_result_repository_rejects_receipt_content_mismatch(
+    tmp_path: Path,
+) -> None:
+    database, repository, chat_id, operation_id = _repository(tmp_path)
+    try:
+        with pytest.raises(
+            GroundedProviderResultContractError,
+            match="must match assistant content exactly",
+        ):
+            repository.store_result(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                processing_run_id=uuid.uuid4(),
+                assistant_content="answer",
+                receipt_payload_json='{"assistant_text":"different"}',
+            )
+
+        assert repository.load_result(operation_id) is None
+        assert repository.load_result_identity(operation_id) is None
+    finally:
+        database.stop()
