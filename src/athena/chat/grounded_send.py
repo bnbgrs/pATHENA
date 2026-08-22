@@ -318,6 +318,20 @@ class GroundedSendCoordinator:
                 "Grounded assistant commit requires the matching durable provider result."
             )
         identity = self.provider_attempts.load_result_identity(operation_id)
+        context_record = self.context_packages.load(operation_id)
+        if context_record is not None:
+            if context_record.chat_id != chat_id or identity is None:
+                raise GroundedAssistantCommitError(
+                    "Pinned ContextPackage requires durable provider identity before assistant commit."
+                )
+            signature = context_record.package.model_signature
+            if (
+                identity.provider_id != signature.provider
+                or identity.model_id != signature.model_identifier
+            ):
+                raise GroundedAssistantCommitError(
+                    "Durable provider identity conflicts with pinned ContextPackage before assistant commit."
+                )
         if identity is not None:
             actor = self.database.connection.execute(
                 """
