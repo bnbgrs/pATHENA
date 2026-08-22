@@ -430,6 +430,12 @@ class GroundedProviderAttemptRepository:
                 raise GroundedProviderAttemptConflictError(
                     "A new provider result may be recorded only before assistant commit."
                 )
+            self._require_pinned_context_identity_in_transaction(
+                connection,
+                operation_id=operation_id,
+                provider_id=provider_id,
+                model_id=model_id,
+            )
             created_at_us = utc_now_us()
             connection.execute(
                 """
@@ -461,6 +467,66 @@ class GroundedProviderAttemptRepository:
         if stored is None:
             raise RuntimeError("Provider result disappeared after commit.")
         return stored
+
+    @staticmethod
+    def _require_pinned_context_identity_in_transaction(
+        connection: sqlite3.Connection,
+        *,
+        operation_id: uuid.UUID,
+        provider_id: str | None,
+        model_id: str | None,
+    ) -> None:
+        context = connection.execute(
+            """
+            SELECT payload_json, payload_sha256
+            FROM grounded_context_packages
+            WHERE operation_id = ?
+            """,
+            (uuid_to_blob(operation_id),),
+        ).fetchone()
+        if context is None:
+            return
+        payload_json = str(context["payload_json"])
+        expected_sha256 = str(context["payload_sha256"])
+        actual_sha256 = hashlib.sha256(payload_json.encode("utf-8")).hexdigest()
+        if actual_sha256 != expected_sha256:
+            raise GroundedProviderAttemptSchemaError(
+                "Pinned ContextPackage failed checksum verification before provider-result commit."
+            )
+        try:
+            payload = json.loads(payload_json)
+        except json.JSONDecodeError as exc:
+            raise GroundedProviderAttemptSchemaError(
+                "Pinned ContextPackage is invalid JSON before provider-result commit."
+            ) from exc
+        if not isinstance(payload, dict):
+            raise GroundedProviderAttemptSchemaError(
+                "Pinned ContextPackage payload is not an object."
+            )
+        signature = payload.get("model_signature")
+        if not isinstance(signature, dict):
+            raise GroundedProviderAttemptSchemaError(
+                "Pinned ContextPackage is missing its model signature."
+            )
+        pinned_provider = signature.get("provider")
+        pinned_model = signature.get("model_identifier")
+        if (
+            not isinstance(pinned_provider, str)
+            or not pinned_provider.strip()
+            or not isinstance(pinned_model, str)
+            or not pinned_model.strip()
+        ):
+            raise GroundedProviderAttemptSchemaError(
+                "Pinned ContextPackage has an invalid model identity."
+            )
+        if provider_id is None or model_id is None:
+            raise GroundedProviderAttemptConflictError(
+                "Provider result identity is required by the pinned ContextPackage model."
+            )
+        if provider_id != pinned_provider or model_id != pinned_model:
+            raise GroundedProviderAttemptConflictError(
+                "Provider result identity conflicts with the pinned ContextPackage model."
+            )
 
     @staticmethod
     def _match_or_store_identity_in_transaction(
