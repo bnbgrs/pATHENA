@@ -476,6 +476,15 @@ class GroundedProviderAttemptRepository:
         provider_id: str | None,
         model_id: str | None,
     ) -> None:
+        context_table = connection.execute(
+            """
+            SELECT 1
+            FROM sqlite_master
+            WHERE type = 'table' AND name = 'grounded_context_packages'
+            """
+        ).fetchone()
+        if context_table is None:
+            return
         context = connection.execute(
             """
             SELECT payload_json, payload_sha256
