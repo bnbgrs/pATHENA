@@ -28,6 +28,7 @@ dev = [
 [project.scripts]
 athena = "athena.__main__:main"
 athena-doctor = "athena.doctor:main"
+athena-local-smoke = "athena.local_smoke:main"
 athena-recover = "athena.recovery_cli:main"
 athena-desktop = "athena.desktop.app:main"
 
