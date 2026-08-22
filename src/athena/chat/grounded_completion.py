@@ -8,6 +8,10 @@ import sqlite3
 import uuid
 from dataclasses import dataclass
 
+from athena.chat.grounded_provider_result_contract import (
+    GroundedProviderResultContractError,
+    validate_provider_result_contract,
+)
 from athena.chat.send_operation import ChatSendOperationState
 from athena.common.ids import uuid_from_blob, uuid_to_blob
 from athena.common.time import utc_now_us
@@ -154,6 +158,7 @@ class GroundedSendCompletionRepository:
                    o.receipt_payload_sha256 AS operation_receipt_payload_sha256,
                    p.chat_id AS provider_chat_id,
                    p.processing_run_id AS provider_processing_run_id,
+                   p.assistant_content AS provider_assistant_content,
                    p.receipt_payload_json AS provider_payload_json,
                    p.receipt_payload_sha256 AS provider_payload_sha256
             FROM grounded_send_receipts AS r
@@ -172,6 +177,7 @@ class GroundedSendCompletionRepository:
             or row["operation_receipt_payload_sha256"] is None
             or row["provider_chat_id"] is None
             or row["provider_processing_run_id"] is None
+            or row["provider_assistant_content"] is None
             or row["provider_payload_json"] is None
             or row["provider_payload_sha256"] is None
             or uuid_from_blob(bytes(row["operation_chat_id"])) != receipt.chat_id
@@ -189,6 +195,15 @@ class GroundedSendCompletionRepository:
             raise GroundedSendCompletionCorruptionError(
                 "Persisted Grounded receipt no longer matches its durable operation chain."
             )
+        try:
+            validate_provider_result_contract(
+                assistant_content=str(row["provider_assistant_content"]),
+                receipt_payload_json=str(row["provider_payload_json"]),
+            )
+        except GroundedProviderResultContractError as exc:
+            raise GroundedSendCompletionCorruptionError(
+                "Persisted Grounded completion has a corrupted provider result contract."
+            ) from exc
         return receipt
 
     def complete(
@@ -235,7 +250,7 @@ class GroundedSendCompletionRepository:
                 )
             provider_result = connection.execute(
                 """
-                SELECT r.chat_id, r.processing_run_id,
+                SELECT r.chat_id, r.processing_run_id, r.assistant_content,
                        r.receipt_payload_json, r.receipt_payload_sha256,
                        a.chat_id AS attempt_chat_id
                 FROM grounded_provider_results AS r
@@ -257,6 +272,15 @@ class GroundedSendCompletionRepository:
                 raise GroundedSendCompletionConflictError(
                     "Grounded completion conflicts with the durable provider result."
                 )
+            try:
+                validate_provider_result_contract(
+                    assistant_content=str(provider_result["assistant_content"]),
+                    receipt_payload_json=str(provider_result["receipt_payload_json"]),
+                )
+            except GroundedProviderResultContractError as exc:
+                raise GroundedSendCompletionConflictError(
+                    "Grounded completion found a corrupted durable provider result."
+                ) from exc
 
             existing = self._load_in_transaction(connection, operation_id)
             if existing is not None:
