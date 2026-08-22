@@ -4,6 +4,7 @@ import uuid
 
 import pytest
 
+from athena.chat.grounded_assistant_turn import GroundedAssistantTurnRepository
 from athena.chat.grounded_completion import (
     GroundedSendCompletionConflictError,
     GroundedSendCompletionCorruptionError,
@@ -14,7 +15,7 @@ from athena.chat.grounded_turn import GroundedUserTurnRepository
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
 from athena.chat.send_operation import ChatSendOperationRepository, ChatSendOperationState
-from athena.common.ids import uuid_to_blob
+from athena.common.ids import uuid_from_blob, uuid_to_blob
 from athena.storage.database import SQLiteDatabase
 
 
@@ -56,10 +57,17 @@ def _setup(database: SQLiteDatabase):
     return chat_id, operation_id, run_id, payload
 
 
-def _force_assistant_committed(database: SQLiteDatabase, operation_id: uuid.UUID) -> None:
-    database.connection.execute(
-        "UPDATE chat_send_operations SET state = 'assistant_committed' WHERE operation_id = ?",
+def _commit_assistant(database: SQLiteDatabase, operation_id: uuid.UUID) -> None:
+    user = database.connection.execute(
+        "SELECT chat_id, actor_id FROM chat_messages WHERE message_id = ?",
         (uuid_to_blob(operation_id),),
+    ).fetchone()
+    assert user is not None
+    GroundedAssistantTurnRepository(database).commit(
+        operation_id=operation_id,
+        chat_id=uuid_from_blob(bytes(user["chat_id"])),
+        actor_id=uuid_from_blob(bytes(user["actor_id"])),
+        content="answer",
     )
 
 
@@ -68,7 +76,7 @@ def test_completion_rejects_semantically_corrupted_provider_result(tmp_path) -> 
     database.start()
     try:
         chat_id, operation_id, run_id, payload = _setup(database)
-        _force_assistant_committed(database, operation_id)
+        _commit_assistant(database, operation_id)
         with database.write_transaction() as connection:
             connection.execute(
                 "UPDATE grounded_provider_results SET assistant_content = ? WHERE operation_id = ?",
@@ -99,7 +107,7 @@ def test_completion_load_rejects_semantically_corrupted_provider_result(tmp_path
     database.start()
     try:
         chat_id, operation_id, run_id, payload = _setup(database)
-        _force_assistant_committed(database, operation_id)
+        _commit_assistant(database, operation_id)
         completions = GroundedSendCompletionRepository(database)
         completions.complete(
             operation_id=operation_id,
