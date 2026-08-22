@@ -46,7 +46,11 @@ if ($env:ATHENA_LOCAL_ROOT) {
 } else {
     Write-Host "Runtime root: $env:LOCALAPPDATA\ATHENA"
 }
-Write-Host "LM Studio: $($env:ATHENA_LMSTUDIO_BASE_URL ?? 'http://127.0.0.1:1234')"
+if ($env:ATHENA_LMSTUDIO_BASE_URL) {
+    Write-Host "LM Studio: $env:ATHENA_LMSTUDIO_BASE_URL"
+} else {
+    Write-Host "LM Studio: http://127.0.0.1:1234"
+}
 
 & uv run --locked --extra desktop athena-desktop
 $exitCode = $LASTEXITCODE
