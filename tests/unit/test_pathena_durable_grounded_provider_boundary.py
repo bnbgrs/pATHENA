@@ -78,7 +78,7 @@ _RESULT = object()
 def _service(monkeypatch, delegated_type: type[_DelegatedGeneration]):
     coordinator = _Coordinator()
     base_generation = SimpleNamespace(
-        chat=object(),
+        chat=SimpleNamespace(repository=object()),
         provider=object(),
         interactive_demand=None,
     )
@@ -90,7 +90,22 @@ def _service(monkeypatch, delegated_type: type[_DelegatedGeneration]):
     )
     monkeypatch.setattr(
         durable_module,
-        "validate_grounded_processing_run",
+        "validate_grounded_snapshot_current",
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        durable_module,
+        "bind_grounded_processing_run",
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        durable_module,
+        "complete_grounded_processing_run",
+        lambda *args, **kwargs: None,
+    )
+    monkeypatch.setattr(
+        durable_module,
+        "fail_grounded_processing_run",
         lambda *args, **kwargs: None,
     )
     return (
@@ -99,6 +114,13 @@ def _service(monkeypatch, delegated_type: type[_DelegatedGeneration]):
             cast(Any, coordinator),
         ),
         coordinator,
+    )
+
+
+def _user_message(operation_id: uuid.UUID) -> object:
+    return SimpleNamespace(
+        message_id=operation_id,
+        actor_id=uuid.uuid4(),
     )
 
 
@@ -111,7 +133,7 @@ def test_durable_generation_persists_exact_package_before_provider_guard(monkeyp
     result = service.send_context_package(
         operation_id=operation_id,
         chat_id=chat_id,
-        user_message=cast(Any, SimpleNamespace(message_id=operation_id)),
+        user_message=cast(Any, _user_message(operation_id)),
         context_package=cast(Any, context_package),
         processing_run_id=uuid.uuid4(),
         fingerprint=cast(Any, fingerprint),
@@ -131,7 +153,7 @@ def test_external_provider_hook_precedes_irreversible_guard(monkeypatch) -> None
     result = service.send_context_package(
         operation_id=operation_id,
         chat_id=chat_id,
-        user_message=cast(Any, SimpleNamespace(message_id=operation_id)),
+        user_message=cast(Any, _user_message(operation_id)),
         context_package=cast(Any, object()),
         processing_run_id=uuid.uuid4(),
         fingerprint=cast(Any, fingerprint),
@@ -151,7 +173,7 @@ def test_internal_grounding_retry_is_fenced_before_second_hook(monkeypatch) -> N
         service.send_context_package(
             operation_id=operation_id,
             chat_id=chat_id,
-            user_message=cast(Any, SimpleNamespace(message_id=operation_id)),
+            user_message=cast(Any, _user_message(operation_id)),
             context_package=cast(Any, object()),
             processing_run_id=uuid.uuid4(),
             fingerprint=cast(Any, fingerprint),
