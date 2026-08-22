@@ -142,6 +142,7 @@ def test_grounded_processing_run_accepts_matching_live_provenance(
             database,
             processing_run_id=run.processing_run_id,
             package=package,
+            trigger_actor_id=run.trigger_actor_id,
         )
     finally:
         database.stop()
@@ -151,7 +152,7 @@ def test_grounded_processing_run_rejects_unknown_run(tmp_path: Path) -> None:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
     try:
-        _, _, _, package = _provenance(database)
+        _, _, run, package = _provenance(database)
         with pytest.raises(
             GroundedProcessingRunError,
             match="persisted ProcessingRun",
@@ -160,6 +161,7 @@ def test_grounded_processing_run_rejects_unknown_run(tmp_path: Path) -> None:
                 database,
                 processing_run_id=uuid.uuid4(),
                 package=package,
+                trigger_actor_id=run.trigger_actor_id,
             )
     finally:
         database.stop()
@@ -179,6 +181,30 @@ def test_grounded_processing_run_rejects_finished_run(tmp_path: Path) -> None:
                 database,
                 processing_run_id=run.processing_run_id,
                 package=package,
+                trigger_actor_id=run.trigger_actor_id,
+            )
+    finally:
+        database.stop()
+
+
+def test_grounded_processing_run_rejects_other_trigger_actor(
+    tmp_path: Path,
+) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        _, _, run, package = _provenance(database)
+        other_user = ChatRepository(database).create_actor(actor_type="user")
+        assert other_user != run.trigger_actor_id
+        with pytest.raises(
+            GroundedProcessingRunError,
+            match="trigger actor conflicts",
+        ):
+            validate_grounded_processing_run(
+                database,
+                processing_run_id=run.processing_run_id,
+                package=package,
+                trigger_actor_id=other_user,
             )
     finally:
         database.stop()
@@ -207,6 +233,7 @@ def test_grounded_processing_run_rejects_other_model_signature(
                 database,
                 processing_run_id=run.processing_run_id,
                 package=_package(other_signature, uuid.uuid4(), uuid.uuid4()),
+                trigger_actor_id=run.trigger_actor_id,
             )
     finally:
         database.stop()
@@ -228,6 +255,7 @@ def test_grounded_processing_run_rejects_other_context_snapshot(
                 database,
                 processing_run_id=run.processing_run_id,
                 package=other_package,
+                trigger_actor_id=run.trigger_actor_id,
             )
     finally:
         database.stop()
