@@ -1,7 +1,8 @@
 param(
     [string]$LocalRoot = "",
     [string]$LmStudioBaseUrl = "",
-    [switch]$NoSync
+    [switch]$NoSync,
+    [switch]$SkipPreflight
 )
 
 Set-StrictMode -Version Latest
@@ -48,6 +49,14 @@ if (-not $NoSync) {
     & uv sync --locked --extra desktop
     if ($LASTEXITCODE -ne 0) {
         throw "Locked desktop environment synchronization failed."
+    }
+}
+
+if (-not $SkipPreflight) {
+    Write-Host "Running local runtime preflight..."
+    & uv run --locked --extra desktop --no-sync athena-doctor --no-startup-smoke
+    if ($LASTEXITCODE -ne 0) {
+        throw "pATHENA preflight failed. Resolve the [FAIL] diagnostics above before starting the desktop."
     }
 }
 
