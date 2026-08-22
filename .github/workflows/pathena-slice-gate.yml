@@ -9,6 +9,7 @@ on:
   pull_request:
     branches:
       - main
+      - agent/pathena
     paths:
       - ".pathena/slices/**"
 
@@ -31,7 +32,7 @@ jobs:
       PATCH_SHA256: e1ad904a567685a66dd3e4720fb89e1e84dba30a828204008f6f5f609842803c
 
     steps:
-      - name: Check out pATHENA development branch
+      - name: Check out pATHENA candidate
         uses: actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
@@ -41,7 +42,11 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "${{ github.event.pull_request.head.ref || github.ref_name }}" = "agent/pathena"
+          if test "${{ github.event_name }}" = "push"; then
+            test "${{ github.ref_name }}" = "agent/pathena"
+          else
+            test "${{ github.event.pull_request.base.ref }}" = "agent/pathena"
+          fi
           test -f PATHENA_BASELINE.md
           test -f pyproject.toml
           test -d src
@@ -125,12 +130,16 @@ jobs:
             tests/unit/test_schema_evolution_boundary.py \
             tests/unit/test_schema_verification_boundary.py
 
-      - name: Commit verified slice
+      - name: Commit verified slice to agent/pathena
         shell: bash
         run: |
           set -euo pipefail
-          branch="${{ github.event.pull_request.head.ref || github.ref_name }}"
-          expected="${{ github.event.pull_request.head.sha || github.sha }}"
+          branch="agent/pathena"
+          if test "${{ github.event_name }}" = "push"; then
+            expected="${{ github.sha }}"
+          else
+            expected="${{ github.event.pull_request.base.sha }}"
+          fi
           remote_head="$(git ls-remote origin "refs/heads/${branch}" | cut -f1)"
           test "${remote_head}" = "${expected}"
           git config user.name "pATHENA Slice Gate"
