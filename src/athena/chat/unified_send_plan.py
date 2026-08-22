@@ -295,7 +295,7 @@ def _decode_payload(
         fingerprint,
         user_actor_id,
         snapshot_seq,
-        cast(str | None, retrieval_query_override),
+        retrieval_query_override,
         UnifiedReplayProjection(
             primary_model=primary_model,
             embedding_model=embedding_model,
