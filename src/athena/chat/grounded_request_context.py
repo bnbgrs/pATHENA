@@ -2,9 +2,13 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 
-from athena.chat.request_fingerprint import ChatRequestFingerprint
+from athena.chat.request_fingerprint import (
+    CHAT_REQUEST_FINGERPRINT_FORMAT_VERSION,
+    ChatRequestFingerprint,
+)
 from athena.retrieval.context_package import ContextPackage, ContextPackageError
 
 
@@ -18,6 +22,15 @@ def validate_grounded_request_context_binding(
     fingerprint: ChatRequestFingerprint,
 ) -> None:
     """Fail closed when explicitly requested model inputs drift before execution."""
+    if fingerprint.format_version != CHAT_REQUEST_FINGERPRINT_FORMAT_VERSION:
+        raise GroundedRequestContextBindingError(
+            "Grounded request fingerprint format version is unsupported."
+        )
+    expected_sha256 = hashlib.sha256(fingerprint.payload_json.encode("utf-8")).hexdigest()
+    if fingerprint.payload_sha256 != expected_sha256:
+        raise GroundedRequestContextBindingError(
+            "Grounded request fingerprint checksum does not match its payload."
+        )
     try:
         payload = json.loads(fingerprint.payload_json)
     except json.JSONDecodeError as exc:
@@ -27,6 +40,14 @@ def validate_grounded_request_context_binding(
     if not isinstance(payload, dict):
         raise GroundedRequestContextBindingError(
             "Grounded request fingerprint must contain a JSON object."
+        )
+    if payload.get("fingerprint_format_version") != fingerprint.format_version:
+        raise GroundedRequestContextBindingError(
+            "Grounded request fingerprint payload version is inconsistent."
+        )
+    if payload.get("mode") != "grounded":
+        raise GroundedRequestContextBindingError(
+            "Grounded request fingerprint must use Grounded mode."
         )
 
     try:
