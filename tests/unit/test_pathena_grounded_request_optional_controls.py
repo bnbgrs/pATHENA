@@ -202,3 +202,24 @@ def test_explicit_embedding_model_matches_pinned_context_configuration() -> None
             requested_embedding_model_id="embed-a",
         ),
     )
+
+
+def test_invalid_context_configuration_is_rejected_without_embedding_override() -> None:
+    with pytest.raises(
+        GroundedRequestContextBindingError,
+        match="context configuration is invalid JSON",
+    ):
+        validate_grounded_request_context_binding(
+            package=_package(
+                uuid.uuid4(),
+                generation_parameters_json=(
+                    '{"max_output_tokens":1000,"reasoning_mode":"off"}'
+                ),
+                context_configuration_json="not-json",
+            ),
+            fingerprint=_fingerprint(
+                uuid.uuid4(),
+                temperature=None,
+                reasoning_mode="off",
+            ),
+        )
