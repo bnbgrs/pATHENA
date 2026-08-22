@@ -28,6 +28,20 @@ function Invoke-Checked {
     }
 }
 
+function Resolve-DefaultLocalRoot {
+    $localAppData = [Environment]::GetFolderPath("LocalApplicationData")
+    if ($localAppData) {
+        return (Join-Path $localAppData "ATHENA")
+    }
+    if ($env:LOCALAPPDATA) {
+        return (Join-Path $env:LOCALAPPDATA "ATHENA")
+    }
+    if ($env:USERPROFILE) {
+        return (Join-Path $env:USERPROFILE "AppData\Local\ATHENA")
+    }
+    throw "Windows local application-data directory could not be resolved. Pass -LocalRoot explicitly."
+}
+
 if ($env:OS -ne "Windows_NT") {
     throw "This bootstrap script is intended for Windows."
 }
@@ -78,7 +92,7 @@ if ($LocalRoot.Trim()) {
 } elseif ($env:ATHENA_LOCAL_ROOT) {
     Write-Host "ATHENA_LOCAL_ROOT=$env:ATHENA_LOCAL_ROOT"
 } else {
-    $defaultRoot = Join-Path $env:LOCALAPPDATA "ATHENA"
+    $defaultRoot = Resolve-DefaultLocalRoot
     Write-Host "ATHENA_LOCAL_ROOT is not overridden. pATHENA will use: $defaultRoot"
 }
 
@@ -89,11 +103,13 @@ Write-Step "Verify installed interpreter and package"
 Invoke-Checked uv run --locked --extra desktop python -c "import sys; import athena; assert sys.version_info[:2] == (3, 12); print(sys.executable); print('athena import: OK')"
 
 if (-not $SkipSmokeTest) {
-    Write-Step "Run local storage/startup smoke test"
-    Invoke-Checked uv run --locked --extra desktop athena --show-paths
+    Write-Step "Run pATHENA local doctor"
+    Invoke-Checked uv run --locked --extra desktop athena-doctor
 }
 
 Write-Step "Bootstrap complete"
+Write-Host "Core/runtime bootstrap succeeded. LM Studio may still be offline; athena-doctor reports that separately."
+Write-Host ""
 Write-Host "Start the desktop UI with:"
 Write-Host "  .\scripts\start_windows.ps1"
 Write-Host ""
