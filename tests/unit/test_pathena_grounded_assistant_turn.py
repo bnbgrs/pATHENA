@@ -5,6 +5,7 @@ import uuid
 import pytest
 
 from athena.chat.grounded_assistant_turn import GroundedAssistantTurnRepository
+from athena.chat.grounded_provider_attempt import GroundedProviderAttemptRepository
 from athena.chat.grounded_turn import GroundedUserTurnRepository
 from athena.chat.models import MessageType
 from athena.chat.repository import ChatRepository
@@ -42,6 +43,18 @@ def _setup(database: SQLiteDatabase):
         actor_id=user,
         content="hello",
         fingerprint=fingerprint,
+    )
+    provider = GroundedProviderAttemptRepository(database)
+    provider.mark_started(
+        operation_id=operation_id,
+        chat_id=chat_id,
+    )
+    provider.store_result(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        processing_run_id=uuid.uuid4(),
+        assistant_content="answer",
+        receipt_payload_json='{"assistant_text":"answer"}',
     )
     return chats, user, model, chat_id, operation_id
 
@@ -116,4 +129,43 @@ def test_interleaved_turn_blocks_operation_assistant(tmp_path) -> None:
         "SELECT COUNT(*) FROM chat_messages WHERE chat_id = ?",
         (uuid_to_blob(chat_id),),
     ).fetchone()[0] == 2
+    database.stop()
+
+
+def test_assistant_turn_requires_recorded_provider_result(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    chats, _, model, chat_id, operation_id = _setup(database)
+    database.connection.execute(
+        "DELETE FROM grounded_provider_results WHERE operation_id = ?",
+        (uuid_to_blob(operation_id),),
+    )
+    before = chats.load_chat(chat_id)
+    with pytest.raises(ChatSendOperationConflictError, match="matching durable provider result"):
+        GroundedAssistantTurnRepository(database).commit(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            actor_id=model,
+            content="answer",
+        )
+    assert chats.load_chat(chat_id) == before
+    database.stop()
+
+
+def test_assistant_turn_rejects_content_different_from_recorded_result(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    chats, _, model, chat_id, operation_id = _setup(database)
+    before = chats.load_chat(chat_id)
+    with pytest.raises(
+        ChatSendOperationConflictError,
+        match="matching durable provider result",
+    ):
+        GroundedAssistantTurnRepository(database).commit(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            actor_id=model,
+            content="different answer",
+        )
+    assert chats.load_chat(chat_id) == before
     database.stop()
