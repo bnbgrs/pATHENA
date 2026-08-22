@@ -4,7 +4,10 @@ from __future__ import annotations
 
 import uuid
 
-from athena.chat.grounded_provider_attempt import GroundedProviderAttemptRepository
+from athena.chat.grounded_provider_attempt import (
+    GroundedProviderAttemptRepository,
+    _canonical_receipt_payload,
+)
 from athena.chat.grounded_provider_result_contract import (
     GroundedProviderResultContractError,
     validate_provider_result_contract,
@@ -78,6 +81,7 @@ class GroundedAssistantTurnRepository:
             provider_result = connection.execute(
                 """
                 SELECT r.chat_id, r.assistant_content, r.receipt_payload_json,
+                       r.receipt_payload_sha256,
                        a.chat_id AS attempt_chat_id
                 FROM grounded_provider_results AS r
                 LEFT JOIN grounded_provider_attempts AS a ON a.operation_id = r.operation_id
@@ -96,14 +100,25 @@ class GroundedAssistantTurnRepository:
                     "Grounded assistant turn requires the matching durable provider result."
                 )
             try:
+                receipt_payload_json = str(provider_result["receipt_payload_json"])
+                canonical_receipt, receipt_digest = _canonical_receipt_payload(
+                    receipt_payload_json
+                )
                 validate_provider_result_contract(
                     assistant_content=str(provider_result["assistant_content"]),
-                    receipt_payload_json=str(provider_result["receipt_payload_json"]),
+                    receipt_payload_json=receipt_payload_json,
                 )
-            except GroundedProviderResultContractError as exc:
+            except (ValueError, GroundedProviderResultContractError) as exc:
                 raise ChatSendOperationConflictError(
                     "Grounded assistant turn found a corrupted durable provider result."
                 ) from exc
+            if (
+                canonical_receipt != receipt_payload_json
+                or receipt_digest != str(provider_result["receipt_payload_sha256"])
+            ):
+                raise ChatSendOperationConflictError(
+                    "Grounded assistant turn found a corrupted durable provider result checksum."
+                )
             provider_identity = connection.execute(
                 """
                 SELECT provider_id, model_id
