@@ -105,7 +105,7 @@ def _provenance(
     database: SQLiteDatabase,
     *,
     model_id: str = "primary",
-) -> tuple[ModelRunRepository, ModelSignature, ProcessingRun]:
+) -> tuple[ModelRunRepository, ModelSignature, ProcessingRun, ContextPackage]:
     chats = ChatRepository(database)
     user = chats.create_actor(actor_type="user")
     model_runs = ModelRunRepository(database)
@@ -117,17 +117,18 @@ def _provenance(
         },
         context_configuration={"context_package_version": 1},
     )
+    package = _package(signature, uuid.uuid4(), uuid.uuid4())
     run = model_runs.start_run(
         run_type="chat.unified_local_context_package",
         trigger_actor_id=user,
         pipeline_version="test-v1",
-        input_snapshot={"kind": "test"},
+        input_snapshot=package.run_snapshot(),
         configuration={"context_package_version": 1},
         model_signature_id=signature.model_signature_id,
         prompt_template_id="grounded-test",
         prompt_template_version="1",
     )
-    return model_runs, signature, run
+    return model_runs, signature, run, package
 
 
 def test_grounded_processing_run_accepts_matching_live_provenance(
@@ -136,11 +137,11 @@ def test_grounded_processing_run_accepts_matching_live_provenance(
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
     try:
-        _, signature, run = _provenance(database)
+        _, _, run, package = _provenance(database)
         validate_grounded_processing_run(
             database,
             processing_run_id=run.processing_run_id,
-            package=_package(signature, uuid.uuid4(), uuid.uuid4()),
+            package=package,
         )
     finally:
         database.stop()
@@ -150,7 +151,7 @@ def test_grounded_processing_run_rejects_unknown_run(tmp_path: Path) -> None:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
     try:
-        _, signature, _ = _provenance(database)
+        _, _, _, package = _provenance(database)
         with pytest.raises(
             GroundedProcessingRunError,
             match="persisted ProcessingRun",
@@ -158,7 +159,7 @@ def test_grounded_processing_run_rejects_unknown_run(tmp_path: Path) -> None:
             validate_grounded_processing_run(
                 database,
                 processing_run_id=uuid.uuid4(),
-                package=_package(signature, uuid.uuid4(), uuid.uuid4()),
+                package=package,
             )
     finally:
         database.stop()
@@ -168,7 +169,7 @@ def test_grounded_processing_run_rejects_finished_run(tmp_path: Path) -> None:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
     try:
-        model_runs, signature, run = _provenance(database)
+        model_runs, _, run, package = _provenance(database)
         model_runs.finish_run(run.processing_run_id, status="succeeded")
         with pytest.raises(
             GroundedProcessingRunError,
@@ -177,7 +178,7 @@ def test_grounded_processing_run_rejects_finished_run(tmp_path: Path) -> None:
             validate_grounded_processing_run(
                 database,
                 processing_run_id=run.processing_run_id,
-                package=_package(signature, uuid.uuid4(), uuid.uuid4()),
+                package=package,
             )
     finally:
         database.stop()
@@ -189,7 +190,7 @@ def test_grounded_processing_run_rejects_other_model_signature(
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
     try:
-        model_runs, _, run = _provenance(database)
+        model_runs, _, run, _ = _provenance(database)
         other_signature = model_runs.get_or_create_signature(
             model=_model("other"),
             generation_parameters={
@@ -206,6 +207,27 @@ def test_grounded_processing_run_rejects_other_model_signature(
                 database,
                 processing_run_id=run.processing_run_id,
                 package=_package(other_signature, uuid.uuid4(), uuid.uuid4()),
+            )
+    finally:
+        database.stop()
+
+
+def test_grounded_processing_run_rejects_other_context_snapshot(
+    tmp_path: Path,
+) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        _, signature, run, _ = _provenance(database)
+        other_package = _package(signature, uuid.uuid4(), uuid.uuid4())
+        with pytest.raises(
+            GroundedProcessingRunError,
+            match="input snapshot conflicts",
+        ):
+            validate_grounded_processing_run(
+                database,
+                processing_run_id=run.processing_run_id,
+                package=other_package,
             )
     finally:
         database.stop()
