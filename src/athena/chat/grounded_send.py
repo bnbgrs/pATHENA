@@ -509,6 +509,10 @@ class GroundedSendCoordinator:
             raise GroundedCompletionCommitError(
                 "Grounded completion requires the exact durable provider result."
             )
+        self._complete_recorded_processing_run_if_present(
+            operation_id=operation_id,
+            chat_id=chat_id,
+        )
         return self.completions.complete(
             operation_id=operation_id,
             chat_id=chat_id,
