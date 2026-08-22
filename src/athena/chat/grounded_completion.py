@@ -12,6 +12,10 @@ from athena.chat.grounded_context_package import (
     GroundedContextPackageRepository,
     GroundedContextPackageSchemaError,
 )
+from athena.chat.grounded_processing_run import (
+    GroundedProcessingRunError,
+    validate_grounded_processing_run_provenance,
+)
 from athena.chat.grounded_provider_result_contract import (
     GroundedProviderResultContractError,
     validate_provider_result_contract,
@@ -215,6 +219,12 @@ class GroundedSendCompletionRepository:
             operation_id=operation_id,
             corruption=True,
         )
+        self._validate_processing_run_chain(
+            self.database.connection,
+            operation_id=operation_id,
+            processing_run_id=receipt.processing_run_id,
+            corruption=True,
+        )
         self._validate_assistant_chain(
             self.database.connection,
             operation_id=operation_id,
@@ -304,6 +314,12 @@ class GroundedSendCompletionRepository:
                 operation_id=operation_id,
                 corruption=False,
             )
+            self._validate_processing_run_chain(
+                connection,
+                operation_id=operation_id,
+                processing_run_id=processing_run_id,
+                corruption=False,
+            )
             self._validate_assistant_chain(
                 connection,
                 operation_id=operation_id,
@@ -384,6 +400,74 @@ class GroundedSendCompletionRepository:
                 "Committed Grounded receipt disappeared after transaction."
             )
         return receipt
+
+    def _validate_processing_run_chain(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        operation_id: uuid.UUID,
+        processing_run_id: uuid.UUID,
+        corruption: bool,
+    ) -> None:
+        try:
+            context_record = self.context_packages.load(operation_id)
+        except GroundedContextPackageSchemaError as exc:
+            if corruption:
+                raise GroundedSendCompletionCorruptionError(
+                    "Persisted completion has a corrupted pinned ContextPackage."
+                ) from exc
+            raise GroundedSendCompletionConflictError(
+                "Grounded completion found a corrupted pinned ContextPackage."
+            ) from exc
+        if context_record is None:
+            return
+
+        user = connection.execute(
+            """
+            SELECT chat_id, actor_id, message_type
+            FROM chat_messages
+            WHERE message_id = ?
+            """,
+            (uuid_to_blob(operation_id),),
+        ).fetchone()
+        if (
+            user is None
+            or user["actor_id"] is None
+            or uuid_from_blob(bytes(user["chat_id"])) != context_record.chat_id
+            or str(user["message_type"]) != "user"
+        ):
+            if corruption:
+                raise GroundedSendCompletionCorruptionError(
+                    "Persisted completion is missing its Grounded trigger user."
+                )
+            raise GroundedSendCompletionConflictError(
+                "Grounded completion is missing its Grounded trigger user."
+            )
+
+        try:
+            run = validate_grounded_processing_run_provenance(
+                self.database,
+                processing_run_id=processing_run_id,
+                package=context_record.package,
+                trigger_actor_id=uuid_from_blob(bytes(user["actor_id"])),
+            )
+        except GroundedProcessingRunError as exc:
+            if corruption:
+                raise GroundedSendCompletionCorruptionError(
+                    "Persisted completion conflicts with its ProcessingRun provenance."
+                ) from exc
+            raise GroundedSendCompletionConflictError(
+                "Grounded completion conflicts with its ProcessingRun provenance."
+            ) from exc
+        if run.status == "succeeded" and run.finished_at_us is not None:
+            return
+        if corruption:
+            raise GroundedSendCompletionCorruptionError(
+                "Persisted completion requires a succeeded ProcessingRun."
+            )
+        raise GroundedSendCompletionConflictError(
+            "Grounded completion requires a succeeded ProcessingRun."
+        )
 
     def _validate_pinned_provider_identity(
         self,
