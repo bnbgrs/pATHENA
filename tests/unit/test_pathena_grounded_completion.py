@@ -11,13 +11,10 @@ from athena.chat.grounded_completion import (
     GroundedSendCompletionRepository,
 )
 from athena.chat.grounded_provider_attempt import GroundedProviderAttemptRepository
+from athena.chat.grounded_turn import GroundedUserTurnRepository
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
-from athena.chat.send_operation import (
-    ChatSendOperationMode,
-    ChatSendOperationRepository,
-    ChatSendOperationState,
-)
+from athena.chat.send_operation import ChatSendOperationRepository, ChatSendOperationState
 from athena.common.ids import uuid_to_blob
 from athena.storage.database import SQLiteDatabase
 
@@ -40,10 +37,11 @@ def _setup(database: SQLiteDatabase):
         reasoning_mode="off",
         retrieval_configuration={"max_items": 4},
     )
-    operations.store_user_committed(
+    GroundedUserTurnRepository(database).commit(
         operation_id=operation_id,
         chat_id=chat_id,
-        mode=ChatSendOperationMode.GROUNDED,
+        actor_id=actor,
+        content="hello",
         fingerprint=fingerprint,
     )
     return chat_id, operation_id, operations
