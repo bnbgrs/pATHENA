@@ -17,6 +17,7 @@ from athena.chat.send_operation import (
     ChatSendOperationRepository,
     ChatSendOperationState,
 )
+from athena.common.ids import uuid_to_blob
 from athena.storage.database import SQLiteDatabase
 
 
@@ -47,11 +48,21 @@ def _setup(database: SQLiteDatabase):
     return chat_id, operation_id, operations
 
 
+def _force_assistant_committed(
+    database: SQLiteDatabase,
+    operation_id: uuid.UUID,
+) -> None:
+    database.connection.execute(
+        "UPDATE chat_send_operations SET state = 'assistant_committed' WHERE operation_id = ?",
+        (uuid_to_blob(operation_id),),
+    )
+
+
 def test_completion_is_atomic_exact_and_idempotent(tmp_path) -> None:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
     chat_id, operation_id, operations = _setup(database)
-    operations.advance(operation_id, ChatSendOperationState.ASSISTANT_COMMITTED)
+    _force_assistant_committed(database, operation_id)
     completions = GroundedSendCompletionRepository(database)
     run_id = uuid.uuid4()
     payload = json.dumps({"text": "Äthena", "evidence": [2, 1]})
@@ -102,7 +113,7 @@ def test_completion_conflict_preserves_original_receipt(tmp_path) -> None:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
     chat_id, operation_id, operations = _setup(database)
-    operations.advance(operation_id, ChatSendOperationState.ASSISTANT_COMMITTED)
+    _force_assistant_committed(database, operation_id)
     completions = GroundedSendCompletionRepository(database)
     run_id = uuid.uuid4()
     original = completions.complete(
@@ -126,7 +137,7 @@ def test_failed_operation_update_rolls_back_receipt_insert(tmp_path) -> None:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
     chat_id, operation_id, operations = _setup(database)
-    operations.advance(operation_id, ChatSendOperationState.ASSISTANT_COMMITTED)
+    _force_assistant_committed(database, operation_id)
     completions = GroundedSendCompletionRepository(database)
     database.connection.execute(
         """
@@ -157,7 +168,7 @@ def test_exact_receipt_survives_restart(tmp_path) -> None:
     database = SQLiteDatabase(path)
     database.start()
     chat_id, operation_id, operations = _setup(database)
-    operations.advance(operation_id, ChatSendOperationState.ASSISTANT_COMMITTED)
+    _force_assistant_committed(database, operation_id)
     completions = GroundedSendCompletionRepository(database)
     run_id = uuid.uuid4()
     stored = completions.complete(
