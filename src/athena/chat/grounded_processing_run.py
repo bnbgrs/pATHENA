@@ -6,6 +6,11 @@ import hashlib
 import json
 import uuid
 
+from athena.chat.send_operation import (
+    ChatSendOperationConflictError,
+    ChatSendOperationNotFoundError,
+    ChatSendOperationRepository,
+)
 from athena.model.provenance import (
     ModelRunRepository,
     ProcessingRun,
@@ -147,6 +152,48 @@ def validate_grounded_processing_run(
         raise GroundedProcessingRunError(
             "Grounded generation requires a running ProcessingRun."
         )
+
+
+def bind_grounded_processing_run(
+    database: SQLiteDatabase,
+    *,
+    operation_id: uuid.UUID,
+    chat_id: uuid.UUID,
+    processing_run_id: uuid.UUID,
+    package: ContextPackage,
+    trigger_actor_id: uuid.UUID,
+) -> ProcessingRun:
+    """Durably pin the exact live ProcessingRun before provider execution."""
+    current_user = package.current_user_ref()
+    if current_user.entity_id != operation_id:
+        raise GroundedProcessingRunError(
+            "Grounded ProcessingRun operation identity conflicts with CURRENT-USER."
+        )
+    run = validate_grounded_processing_run_provenance(
+        database,
+        processing_run_id=processing_run_id,
+        package=package,
+        trigger_actor_id=trigger_actor_id,
+    )
+    if run.status != "running" or run.finished_at_us is not None:
+        raise GroundedProcessingRunError(
+            "Grounded ProcessingRun must be running when it is pinned."
+        )
+    try:
+        operation = ChatSendOperationRepository(database).bind_grounded_processing_run(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            processing_run_id=processing_run_id,
+        )
+    except (ChatSendOperationConflictError, ChatSendOperationNotFoundError) as exc:
+        raise GroundedProcessingRunError(
+            "Grounded ProcessingRun conflicts with durable operation identity."
+        ) from exc
+    if operation.processing_run_id != processing_run_id:
+        raise GroundedProcessingRunError(
+            "Grounded ProcessingRun binding did not persist the requested identity."
+        )
+    return run
 
 
 def _finish_bound_run(
