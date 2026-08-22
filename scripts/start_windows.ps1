@@ -40,6 +40,9 @@ if ($LmStudioBaseUrl.Trim()) {
     $env:ATHENA_LMSTUDIO_BASE_URL = $LmStudioBaseUrl.Trim()
 }
 
+$runtimeRoot = Assert-PathenaLocalRootReady
+Write-Host "Runtime root ready: $runtimeRoot"
+
 if (-not $NoSync) {
     & uv sync --locked --extra desktop
     if ($LASTEXITCODE -ne 0) {
@@ -56,11 +59,7 @@ if (-not $SkipPreflight) {
 }
 
 Write-Host "Starting pATHENA desktop..."
-if ($env:ATHENA_LOCAL_ROOT) {
-    Write-Host "Runtime root: $env:ATHENA_LOCAL_ROOT"
-} else {
-    Write-Host "Runtime root: $(Resolve-PathenaDefaultLocalRoot)"
-}
+Write-Host "Runtime root: $runtimeRoot"
 if ($env:ATHENA_LMSTUDIO_BASE_URL) {
     Write-Host "LM Studio: $env:ATHENA_LMSTUDIO_BASE_URL"
 } else {
