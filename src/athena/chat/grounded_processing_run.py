@@ -9,6 +9,8 @@ from athena.model.provenance import ModelRunRepository, ProcessingRunNotFoundErr
 from athena.retrieval.context_package import ContextPackage
 from athena.storage.database import SQLiteDatabase
 
+GROUNDED_PROCESSING_RUN_TYPE = "chat.unified_local_context_package"
+
 
 class GroundedProcessingRunError(RuntimeError):
     """A Grounded provider call is not backed by matching durable model provenance."""
@@ -43,6 +45,10 @@ def validate_grounded_processing_run(
     if run.status != "running" or run.finished_at_us is not None:
         raise GroundedProcessingRunError(
             "Grounded generation requires a running ProcessingRun."
+        )
+    if run.run_type != GROUNDED_PROCESSING_RUN_TYPE:
+        raise GroundedProcessingRunError(
+            "ProcessingRun type conflicts with the Grounded chat operation."
         )
     if run.trigger_actor_id != trigger_actor_id:
         raise GroundedProcessingRunError(
