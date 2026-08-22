@@ -1,0 +1,79 @@
+name: pATHENA Bootstrap PR
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions:
+  contents: write
+
+jobs:
+  publish-baseline:
+    name: Publish already validated ATHENA baseline
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      SOURCE_REPOSITORY: bnbgrs/ATHENA
+      SOURCE_COMMIT: 8b02beec4f5ef83344e405f92074072623e8b318
+
+    steps:
+      - name: Check out pATHENA bootstrap branch
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.ref }}
+
+      - name: Fetch exact validated ATHENA source snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -rf /tmp/pathena-source
+          git init -q /tmp/pathena-source
+          git -C /tmp/pathena-source remote add origin "https://github.com/${SOURCE_REPOSITORY}.git"
+          git -C /tmp/pathena-source fetch --depth=1 origin "${SOURCE_COMMIT}"
+          git -C /tmp/pathena-source checkout -q --detach FETCH_HEAD
+          test "$(git -C /tmp/pathena-source rev-parse HEAD)" = "${SOURCE_COMMIT}"
+
+      - name: Materialize validated baseline without touching workflows
+        shell: bash
+        run: |
+          set -euo pipefail
+          rsync -a --delete \
+            --exclude='.git/' \
+            --exclude='.github/workflows/' \
+            /tmp/pathena-source/ ./
+          rm -f .pathena-bootstrap
+          rm -rf .pathena/bootstrap
+          {
+            echo '# pATHENA baseline'
+            echo
+            echo 'pATHENA is an independent experimental development line derived from ATHENA.'
+            echo
+            echo "- Source repository: https://github.com/${SOURCE_REPOSITORY}"
+            echo "- Source commit: ${SOURCE_COMMIT}"
+            echo '- Imported into: bnbgrs/pATHENA'
+            echo '- ATHENA remains read-only for pATHENA development.'
+            echo '- Full validation run: 32533831713 (quality PASS; publish preflight issue only)'
+            echo '- Full validation run: 32534374676 (quality PASS; workflow-token publish restriction only)'
+            echo
+            echo 'Subsequent pATHENA commits belong only to this repository.'
+          } > PATHENA_BASELINE.md
+
+      - name: Commit exact validated source snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "pATHENA Bootstrap"
+          git config user.email "actions@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No bootstrap changes to commit."
+            exit 0
+          fi
+          git commit -m "chore: import validated ATHENA baseline"
+          git push origin "HEAD:${{ github.event.pull_request.head.ref }}"
