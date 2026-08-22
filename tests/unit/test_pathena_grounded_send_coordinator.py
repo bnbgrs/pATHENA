@@ -7,6 +7,8 @@ import pytest
 from athena.chat.grounded_reconciliation import GroundedReconciliationState
 from athena.chat.grounded_recovery import GroundedRecoveryState
 from athena.chat.grounded_send import (
+    GroundedAssistantCommitError,
+    GroundedCompletionCommitError,
     GroundedProviderBoundaryError,
     GroundedSendCoordinator,
     GroundedSendStateError,
@@ -230,4 +232,95 @@ def test_same_operation_different_request_is_conflict(tmp_path) -> None:
             fingerprint=_fingerprint(chat_id, "different"),
         )
     assert exc_info.value.status.state is GroundedReconciliationState.CONFLICT
+    database.stop()
+
+
+def test_assistant_commit_requires_recorded_provider_result(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    _, user, model, chat_id = _setup(database)
+    operation_id = uuid.uuid4()
+    coordinator = GroundedSendCoordinator(database)
+    coordinator.start(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        actor_id=user,
+        content="hello",
+        fingerprint=_fingerprint(chat_id),
+    )
+
+    with pytest.raises(GroundedAssistantCommitError):
+        coordinator.commit_assistant(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            actor_id=model,
+            content="answer",
+        )
+
+    assert len(ChatRepository(database).load_chat(chat_id).messages) == 1
+    database.stop()
+
+
+def test_completion_requires_exact_recorded_provider_result(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    _, user, model, chat_id = _setup(database)
+    operation_id = uuid.uuid4()
+    run_id = uuid.uuid4()
+    fingerprint = _fingerprint(chat_id)
+    coordinator = GroundedSendCoordinator(database)
+    coordinator.start(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        actor_id=user,
+        content="hello",
+        fingerprint=fingerprint,
+    )
+    coordinator.begin_provider_attempt(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        fingerprint=fingerprint,
+    )
+    result = coordinator.record_provider_result(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        fingerprint=fingerprint,
+        processing_run_id=run_id,
+        assistant_content="answer",
+        receipt_payload_json='{"assistant_text":"answer","evidence":[]}',
+    )
+    coordinator.commit_assistant(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        actor_id=model,
+        content=result.assistant_content,
+    )
+
+    with pytest.raises(GroundedCompletionCommitError):
+        coordinator.complete(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            processing_run_id=uuid.uuid4(),
+            payload_json=result.receipt_payload_json,
+        )
+    with pytest.raises(GroundedCompletionCommitError):
+        coordinator.complete(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            processing_run_id=run_id,
+            payload_json='{"assistant_text":"different"}',
+        )
+
+    receipt = coordinator.complete(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        processing_run_id=run_id,
+        payload_json=result.receipt_payload_json,
+    )
+    assert receipt.processing_run_id == run_id
+    assert coordinator.recover(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        fingerprint=fingerprint,
+    ).state is GroundedRecoveryState.COMPLETE
     database.stop()
