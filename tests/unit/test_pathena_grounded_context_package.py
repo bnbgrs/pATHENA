@@ -42,10 +42,20 @@ def _commit_seq(database: SQLiteDatabase, revision_id: uuid.UUID) -> int:
     return int(row["commit_seq"])
 
 
+def _current_commit_seq(database: SQLiteDatabase) -> int:
+    row = database.connection.execute(
+        "SELECT COALESCE(MAX(commit_seq), 0) AS commit_seq FROM commit_records"
+    ).fetchone()
+    assert row is not None
+    return int(row["commit_seq"])
+
+
 def _package(
     database: SQLiteDatabase,
     operation_id: uuid.UUID,
     revision_id: uuid.UUID,
+    *,
+    snapshot_commit_seq: int | None = None,
 ):
     signature = ModelSignature(
         model_signature_id=uuid.uuid4(),
@@ -57,6 +67,11 @@ def _package(
         context_configuration_json='{"mode":"unified_local_chat"}',
         signature_hash=b"s" * 32,
         created_at_us=1,
+    )
+    resolved_snapshot_commit_seq = (
+        _commit_seq(database, revision_id)
+        if snapshot_commit_seq is None
+        else snapshot_commit_seq
     )
     return ContextPackageService.build_from_sections(
         model_signature=signature,
@@ -107,7 +122,7 @@ def _package(
             estimated_input_tokens=20,
             estimated_total_tokens=1220,
         ),
-        snapshot_commit_seq=_commit_seq(database, revision_id),
+        snapshot_commit_seq=resolved_snapshot_commit_seq,
     )
 
 
@@ -183,7 +198,12 @@ def test_grounded_context_package_rejects_other_current_user(tmp_path) -> None:
         GroundedContextPackageRepository(database).store(
             operation_id=operation_id,
             chat_id=chat_id,
-            package=_package(database, uuid.uuid4(), uuid.uuid4()),
+            package=_package(
+                database,
+                uuid.uuid4(),
+                uuid.uuid4(),
+                snapshot_commit_seq=_current_commit_seq(database),
+            ),
         )
     database.stop()
 
@@ -211,7 +231,12 @@ def test_context_package_rejects_wrong_current_user_revision(tmp_path) -> None:
             GroundedContextPackageRepository(database).store(
                 operation_id=operation_id,
                 chat_id=chat_id,
-                package=_package(database, operation_id, uuid.uuid4()),
+                package=_package(
+                    database,
+                    operation_id,
+                    uuid.uuid4(),
+                    snapshot_commit_seq=_current_commit_seq(database),
+                ),
             )
     finally:
         database.stop()
