@@ -11,12 +11,14 @@ from athena.chat.grounded_completion import (
     GroundedSendCompletionCorruptionError,
     GroundedSendCompletionRepository,
 )
+from athena.chat.grounded_processing_run import complete_grounded_processing_run
+from athena.chat.grounded_recovery import GroundedRecoveryState
 from athena.chat.grounded_send import GroundedProviderRunError, GroundedSendCoordinator
 from athena.chat.models import ChatMessage
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
 from athena.chat.service import ChatService
-from athena.common.ids import uuid_to_blob
+from athena.common.ids import uuid_from_blob, uuid_to_blob
 from athena.model.domain import ModelInfo
 from athena.model.provenance import ModelRunRepository
 from athena.retrieval.context import ContextBuilderService
@@ -315,5 +317,75 @@ def test_coordinator_completion_rejects_missing_pinned_processing_run(
         original = ModelRunRepository(database).load_run(processing_run_id)
         assert original.status == "running"
         assert original.finished_at_us is None
+    finally:
+        database.stop()
+
+
+def test_restart_recovers_after_run_succeeds_before_receipt_commit(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "athena.db"
+    database = SQLiteDatabase(path)
+    database.start()
+    try:
+        coordinator, operation_id, chat_id, processing_run_id, _payload = (
+            _prepare_assistant_committed(database)
+        )
+        context_record = coordinator.load_context_package(operation_id)
+        assert context_record is not None
+        user = database.connection.execute(
+            """
+            SELECT actor_id
+            FROM chat_messages
+            WHERE message_id = ? AND chat_id = ? AND message_type = 'user'
+            """,
+            (uuid_to_blob(operation_id), uuid_to_blob(chat_id)),
+        ).fetchone()
+        assert user is not None
+        completed_run = complete_grounded_processing_run(
+            database,
+            processing_run_id=processing_run_id,
+            package=context_record.package,
+            trigger_actor_id=uuid_from_blob(bytes(user["actor_id"])),
+        )
+        assert completed_run.status == "succeeded"
+        assert completed_run.finished_at_us is not None
+        assert coordinator.completions.load(operation_id) is None
+        fingerprint = _fingerprint(chat_id)
+        assert coordinator.recover(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        ).state is GroundedRecoveryState.FINALIZATION_REQUIRED
+
+        database.stop()
+        database = SQLiteDatabase(path)
+        database.start()
+        restarted = GroundedSendCoordinator(database)
+        pending = restarted.recover(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        )
+        assert pending.state is GroundedRecoveryState.FINALIZATION_REQUIRED
+        receipt = restarted.finalize_recorded_result(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        )
+        assert receipt.operation_id == operation_id
+        assert receipt.chat_id == chat_id
+        assert receipt.processing_run_id == processing_run_id
+        complete = restarted.recover(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        )
+        assert complete.state is GroundedRecoveryState.COMPLETE
+        assert complete.receipt == receipt
+        assert len(ChatRepository(database).load_chat(chat_id).messages) == 2
+        run = ModelRunRepository(database).load_run(processing_run_id)
+        assert run.status == "succeeded"
+        assert run.finished_at_us is not None
     finally:
         database.stop()
