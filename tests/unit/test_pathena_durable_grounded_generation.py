@@ -384,7 +384,7 @@ def test_unknown_processing_run_is_fenced_before_package_and_provider(
         database.stop()
 
 
-def test_crashing_pre_provider_hook_leaves_durable_ambiguous_boundary(
+def test_crashing_pre_provider_hook_keeps_durable_boundary_resumable(
     tmp_path: Path,
 ) -> None:
     database = SQLiteDatabase(tmp_path / "athena.db")
@@ -433,17 +433,17 @@ def test_crashing_pre_provider_hook_leaves_durable_ambiguous_boundary(
 
         assert provider.calls == 0
         assert coordinator.load_context_package(operation_id) is not None
-        assert coordinator.provider_attempts.load(operation_id) is not None
+        assert coordinator.provider_attempts.load(operation_id) is None
         assert coordinator.provider_attempts.load_result(operation_id) is None
         assert coordinator.recover(
             operation_id=operation_id,
             chat_id=chat_id,
             fingerprint=fingerprint,
-        ).state is GroundedRecoveryState.AMBIGUOUS
-        failed_run = ModelRunRepository(database).load_run(run_id)
-        assert failed_run.status == "failed"
-        assert failed_run.finished_at_us is not None
-        assert failed_run.error_detail == "RuntimeError"
+        ).state is GroundedRecoveryState.RESUMABLE
+        running_run = ModelRunRepository(database).load_run(run_id)
+        assert running_run.status == "running"
+        assert running_run.finished_at_us is None
+        assert running_run.error_detail is None
         assert len(chats.load_chat(chat_id).messages) == 1
     finally:
         database.stop()
