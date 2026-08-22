@@ -5,7 +5,10 @@ from __future__ import annotations
 import uuid
 from collections.abc import Callable
 
-from athena.chat.grounded_recovery import GroundedRecoveryState
+from athena.chat.grounded_recovery import (
+    GroundedRecoveryState,
+    GroundedRecoveryStatus,
+)
 from athena.chat.grounded_send import GroundedSendCoordinator
 from athena.chat.request_fingerprint import ChatRequestFingerprint
 from athena.chat.send_identity import SendOperationStateError
@@ -43,11 +46,12 @@ class UnifiedPreUserRecoveryRequiredError(SendOperationStateError):
             self.args = (status.reason,)
 
 
-class UnifiedGroundedTransportRecoveryRequiredError(
-    UnifiedGroundedRecoveryRequiredError,
-    SendOperationStateError,
-):
+class UnifiedGroundedTransportRecoveryRequiredError(SendOperationStateError):
     """Expose post-user Unified recovery through the durable API state boundary."""
+
+    def __init__(self, status: GroundedRecoveryStatus) -> None:
+        self.recovery_status = status
+        super().__init__(status)
 
 
 class UnifiedLocalChatService(_DurableUnifiedLocalChatService):
