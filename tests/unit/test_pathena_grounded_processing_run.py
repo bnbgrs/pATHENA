@@ -10,6 +10,7 @@ from athena.chat.grounded_processing_run import (
     validate_grounded_processing_run,
 )
 from athena.chat.repository import ChatRepository
+from athena.common.ids import uuid_to_blob
 from athena.model.domain import ModelInfo
 from athena.model.provenance import (
     ModelRunRepository,
@@ -284,6 +285,36 @@ def test_grounded_processing_run_rejects_other_context_snapshot(
                 database,
                 processing_run_id=run.processing_run_id,
                 package=other_package,
+                trigger_actor_id=run.trigger_actor_id,
+            )
+    finally:
+        database.stop()
+
+
+def test_grounded_processing_run_rejects_snapshot_checksum_corruption(
+    tmp_path: Path,
+) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        _, _, run, package = _provenance(database)
+        with database.write_transaction() as connection:
+            connection.execute(
+                """
+                UPDATE processing_runs
+                SET input_snapshot_sha256 = ?
+                WHERE processing_run_id = ?
+                """,
+                ("0" * 64, uuid_to_blob(run.processing_run_id)),
+            )
+        with pytest.raises(
+            GroundedProcessingRunError,
+            match="snapshot checksum conflicts",
+        ):
+            validate_grounded_processing_run(
+                database,
+                processing_run_id=run.processing_run_id,
+                package=package,
                 trigger_actor_id=run.trigger_actor_id,
             )
     finally:
