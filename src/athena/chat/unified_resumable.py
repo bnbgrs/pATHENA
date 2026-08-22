@@ -8,7 +8,6 @@ from collections.abc import Callable
 from athena.chat.grounded_recovery import GroundedRecoveryState
 from athena.chat.grounded_send import GroundedSendCoordinator
 from athena.chat.request_fingerprint import ChatRequestFingerprint
-from athena.chat.unified import UnifiedLocalChatService as _DurableUnifiedLocalChatService
 from athena.chat.unified import (
     UnifiedGroundedRecoveryRequiredError,
     UnifiedLocalChatResult,
@@ -17,6 +16,7 @@ from athena.chat.unified import (
     _UnifiedDurableCallState,
     _UnifiedDurableGenerationAdapter,
 )
+from athena.chat.unified import UnifiedLocalChatService as _DurableUnifiedLocalChatService
 from athena.chat.unified_durable import build_unified_grounded_fingerprint
 from athena.chat.unified_pre_user_recovery import (
     UnifiedPreUserRecoveryInspector,
