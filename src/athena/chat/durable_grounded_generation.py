@@ -8,6 +8,10 @@ from collections.abc import Callable
 
 from athena.chat.generation import ChatGenerationResult, ChatGenerationService
 from athena.chat.grounding import GroundingContract
+from athena.chat.grounded_processing_run import (
+    GroundedProcessingRunError,
+    validate_grounded_processing_run,
+)
 from athena.chat.grounded_provider_result_contract import (
     GroundedProviderResultContractError,
     validate_provider_result_contract,
@@ -173,6 +177,16 @@ class DurableGroundedGenerationService:
         except GroundedRequestContextBindingError as exc:
             raise DurableGroundedGenerationError(
                 "Grounded ContextPackage conflicts with the durable request fingerprint."
+            ) from exc
+        try:
+            validate_grounded_processing_run(
+                self.coordinator.database,
+                processing_run_id=processing_run_id,
+                package=context_package,
+            )
+        except GroundedProcessingRunError as exc:
+            raise DurableGroundedGenerationError(
+                "Grounded generation lacks matching durable ProcessingRun provenance."
             ) from exc
 
         self.coordinator.store_context_package(
