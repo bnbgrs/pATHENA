@@ -112,6 +112,23 @@ def _load_bound_run(
     return repository, run
 
 
+def validate_grounded_processing_run_provenance(
+    database: SQLiteDatabase,
+    *,
+    processing_run_id: uuid.UUID,
+    package: ContextPackage,
+    trigger_actor_id: uuid.UUID,
+) -> ProcessingRun:
+    """Require exact durable Grounded run provenance regardless of lifecycle state."""
+    _repository, run = _load_bound_run(
+        database,
+        processing_run_id=processing_run_id,
+        package=package,
+        trigger_actor_id=trigger_actor_id,
+    )
+    return run
+
+
 def validate_grounded_processing_run(
     database: SQLiteDatabase,
     *,
@@ -120,7 +137,7 @@ def validate_grounded_processing_run(
     trigger_actor_id: uuid.UUID,
 ) -> None:
     """Require one live ProcessingRun exactly bound to its Grounded request."""
-    _repository, run = _load_bound_run(
+    run = validate_grounded_processing_run_provenance(
         database,
         processing_run_id=processing_run_id,
         package=package,
