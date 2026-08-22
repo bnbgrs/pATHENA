@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import uuid
 
 from athena.chat.models import ChatMessage, MessageType
@@ -38,6 +39,17 @@ class GroundedUserTurnRepository:
         if not content.strip():
             raise ValueError("Grounded user message must contain non-whitespace text.")
         ChatSendOperationRepository._validate_fingerprint(fingerprint)
+        fingerprint_payload = json.loads(fingerprint.payload_json)
+        if (
+            fingerprint_payload.get("fingerprint_format_version")
+            != fingerprint.format_version
+            or fingerprint_payload.get("mode") != ChatSendOperationMode.GROUNDED.value
+            or fingerprint_payload.get("chat_id") != str(chat_id)
+            or fingerprint_payload.get("content") != content
+        ):
+            raise ChatSendOperationConflictError(
+                "Grounded request fingerprint does not match the committed user turn."
+            )
         revision_id = new_uuid7()
         provenance_id = new_uuid7()
         commit_id = new_uuid7()
