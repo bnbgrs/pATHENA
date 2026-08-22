@@ -371,7 +371,9 @@ class GroundedSendCoordinator:
             (uuid_to_blob(result.processing_run_id),),
         ).fetchone()
         if run_row is None:
-            return
+            raise GroundedProviderRunError(
+                "Grounded completion is missing its durable ProcessingRun."
+            )
         user = self.database.connection.execute(
             """
             SELECT chat_id, actor_id, message_type
