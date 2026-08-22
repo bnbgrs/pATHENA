@@ -14,6 +14,7 @@ from athena.chat.direct import (
 )
 from athena.chat.grounding import GroundingContract, render_grounding_instructions
 from athena.chat.models import ChatMessage
+from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatRequestFingerprint
 from athena.chat.unified_legacy import (
     _EPISTEMIC_GROUNDING_VERSION,
@@ -84,6 +85,7 @@ class UnifiedPreUserResumeMaterializer:
         self.transitions = UnifiedPreUserTransitionService(database)
         self.context_packages = ContextPackageService(database)
         self.model_runs = ModelRunRepository(database)
+        self.chats = ChatRepository(database)
 
     def materialize(
         self,
@@ -104,15 +106,7 @@ class UnifiedPreUserResumeMaterializer:
                 f"state={status.state.value}."
             )
         plan = status.plan
-
-        # Capture the exact pre-user conversation while the plan's commit pin is still current.
-        thread = self.database.connection.execute(
-            "SELECT 1 FROM chats WHERE chat_id = ?",
-            (plan.chat_id.bytes,),
-        ).fetchone()
-        if thread is None:
-            raise UnifiedPreUserResumeError("Unified pre-user resume chat no longer exists.")
-        chat_thread = self.transitions.coordinator.chats.load_chat(chat_id)
+        chat_thread = self.chats.load_chat(chat_id)
 
         signature = self.model_runs.load_signature(plan.model_signature_id)
         configuration = _json_object(
