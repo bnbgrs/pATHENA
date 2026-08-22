@@ -16,6 +16,7 @@ from athena.retrieval.context_package import (
     ContextModelSignature,
     ContextPackage,
     ContextPackageBudget,
+    ContextPackageError,
     ContextSection,
     ContextTokenEstimates,
     ExcludedCandidateSummary,
@@ -177,6 +178,15 @@ def _required_int(mapping: dict[str, Any], key: str) -> int:
     return value
 
 
+def _parse_uuid(value: str, label: str) -> uuid.UUID:
+    try:
+        return uuid.UUID(value)
+    except ValueError as exc:
+        raise GroundedContextPackageSchemaError(
+            f"{label} must be a valid UUID string."
+        ) from exc
+
+
 def _decode_package(payload_json: str, expected_sha256: str) -> ContextPackage:
     digest = hashlib.sha256(payload_json.encode("utf-8")).hexdigest()
     if digest != expected_sha256:
@@ -234,17 +244,22 @@ def _decode_package(payload_json: str, expected_sha256: str) -> ContextPackage:
             ContextIncludedRef(
                 ref_id=_required_str(item, "ref_id"),
                 entity_type=_required_str(item, "entity_type"),
-                entity_id=uuid.UUID(_required_str(item, "entity_id")),
+                entity_id=_parse_uuid(_required_str(item, "entity_id"), "entity_id"),
                 revision_id=(
-                    None if revision_value is None else uuid.UUID(revision_value)
+                    None
+                    if revision_value is None
+                    else _parse_uuid(revision_value, "revision_id")
                 ),
             )
         )
 
     return ContextPackage(
-        request_id=uuid.UUID(_required_str(root, "request_id")),
+        request_id=_parse_uuid(_required_str(root, "request_id"), "request_id"),
         model_signature=ContextModelSignature(
-            model_signature_id=uuid.UUID(_required_str(signature, "model_signature_id")),
+            model_signature_id=_parse_uuid(
+                _required_str(signature, "model_signature_id"),
+                "model_signature_id",
+            ),
             provider=_required_str(signature, "provider"),
             model_identifier=_required_str(signature, "model_identifier"),
             quantization=_optional_str(signature, "quantization"),
@@ -416,11 +431,20 @@ class GroundedContextPackageRepository:
         package = _decode_package(payload_json, payload_sha256)
         operation = self.operations.load(operation_id)
         chat_id = uuid_from_blob(bytes(row["chat_id"]))
+        try:
+            current_ref = package.current_user_ref()
+            package.generation_controls()
+            package.generation_temperature()
+            package.structured_schema()
+        except ContextPackageError as exc:
+            raise GroundedContextPackageSchemaError(
+                "Persisted ContextPackage violates its model-input contract."
+            ) from exc
         if (
             operation is None
             or operation.chat_id != chat_id
             or operation.mode is not ChatSendOperationMode.GROUNDED
-            or package.current_user_ref().entity_id != operation_id
+            or current_ref.entity_id != operation_id
         ):
             raise GroundedContextPackageSchemaError(
                 "Persisted ContextPackage no longer matches its Grounded operation."
