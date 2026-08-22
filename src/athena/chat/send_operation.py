@@ -358,10 +358,7 @@ class ChatSendOperationRepository:
     def _merge_receipt_sha(existing: str | None, incoming: str | None) -> str | None:
         if incoming is not None and (
             len(incoming) != 64
-            or any(
-                character not in "0123456789abcdef"
-                for character in incoming
-            )
+            or any(character not in "0123456789abcdef" for character in incoming)
         ):
             raise ValueError("Receipt SHA-256 must be lowercase hexadecimal.")
         if existing is not None and incoming is not None and existing != incoming:
@@ -384,14 +381,8 @@ class ChatSendOperationRepository:
             )
 
         if mode is ChatSendOperationMode.GROUNDED:
-            if (
-                current is ChatSendOperationState.USER_COMMITTED
-                and target is ChatSendOperationState.ASSISTANT_COMMITTED
-            ):
-                return
             raise ChatSendOperationConflictError(
-                "Grounded receipt and completion transitions must use the "
-                "atomic Grounded completion repositories."
+                "Grounded lifecycle transitions must use the atomic Grounded repositories."
             )
 
         allowed_direct = {
