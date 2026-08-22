@@ -2,16 +2,18 @@
 
 - First observed: 2026-08-23 00:20 Europe/Berlin
 - Reclassified: 2026-08-23 00:26 Europe/Berlin
+- Verified fixed: 2026-08-23 00:45 Europe/Berlin
 - Repository: `bnbgrs/pATHENA`
 - Branch: `agent/pathena`
 - First failing pATHENA HEAD: `b7a99563f701d8b8fd9ee2cdb825f167df1b5755`
 - First attempted fix HEAD: `36b298f116e3b4475b0105313783dc7d51455f02`
-- Corrected code HEAD before this log update: `411e5a2c29cc101c4775ceac3322fbe7cfe00b51`
-- GitHub Actions runs: `32601758870` / #506 and `32602260319` / #512
-- Jobs: `97100982776` and `97102238068` — `Python 3.12 quality`
-- Failed step: `Run ATHENA quality gate`
+- Corrected code HEAD: `411e5a2c29cc101c4775ceac3322fbe7cfe00b51`
+- Verification HEAD: `fa98b6aa8cafc2f169dbf01c91b9af3e318c59c1`
+- GitHub Actions runs: `32601758870` / #506, `32602260319` / #512, `32602427831` / #518
+- Jobs: `97100982776`, `97102238068`, `97102644559` — `Python 3.12 quality`
+- Gate step: `Run ATHENA quality gate`
 - Classification: `CODE/TEST-LINT`
-- Status: `FIXED_PENDING_CI`
+- Status: `FIXED`
 
 ## Affected files
 
@@ -24,7 +26,7 @@
 uv run --locked --extra dev --extra desktop python scripts/quality.py
 ```
 
-In both observed CI runs the specification validator passed `63/63`. The gate then failed in Ruff before mypy or pytest could run.
+In CI #506 and #512 the specification validator passed `63/63`, then Ruff failed before mypy or pytest could run.
 
 ## Relevant error excerpt
 
@@ -78,11 +80,18 @@ Observed on CI #512 after the first attempted fix:
 - mypy: not reached due fail-fast gate
 - pytest: not reached due fail-fast gate
 
-Observed after the corrected fix:
+Observed on CI #518 (`32602427831`) for pATHENA HEAD `fa98b6aa8cafc2f169dbf01c91b9af3e318c59c1`:
 
-- Repository edits completed successfully at `411e5a2c29cc101c4775ceac3322fbe7cfe00b51`.
-- A CI result for the corrected formatting has not yet been observed at the time of this update.
+```text
+TOTAL 63/63 PASS
+All checks passed!
+Success: no issues found in 234 source files
+============================= test session starts ==============================
+collected 1453 items
+```
+
+This proves both Ruff and mypy passed and pytest started. The overall workflow was later cancelled during pytest at approximately 83% after multiple separate test failures had already been observed. Those pytest regressions are not part of this lint defect and are tracked separately.
 
 ## Next action
 
-Inspect the pull-request quality run for `411e5a2c29cc101c4775ceac3322fbe7cfe00b51` or the later current `agent/pathena` head. If Ruff passes, continue through mypy and pytest and update this log to `FIXED` with exact observed evidence. If a distinct failure appears later in the gate, create a separate durable error log for that new failure before fixing it.
+No further action for this Ruff defect. Preserve the Windows safety tests and continue resolving the separately logged pytest regressions from CI #518.
