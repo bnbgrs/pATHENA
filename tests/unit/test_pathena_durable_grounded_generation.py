@@ -381,3 +381,68 @@ def test_unknown_processing_run_is_fenced_before_package_and_provider(
         assert len(chats.load_chat(chat_id).messages) == 1
     finally:
         database.stop()
+
+
+def test_crashing_pre_provider_hook_leaves_durable_ambiguous_boundary(
+    tmp_path: Path,
+) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        chats = ChatRepository(database)
+        user = chats.create_actor(actor_type="user")
+        chat_id = chats.create_chat(actor_id=user)
+        operation_id = uuid.uuid4()
+        fingerprint = _fingerprint(chat_id)
+        coordinator = GroundedSendCoordinator(database)
+        started = coordinator.start(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            actor_id=user,
+            content="hello",
+            fingerprint=fingerprint,
+        )
+        package, run_id = _package_and_run(
+            database,
+            started.user_message,
+            snapshot_commit_seq=1,
+        )
+        provider = _Provider()
+        generation = DurableGroundedGenerationService(
+            ChatGenerationService(ChatService(chats), provider),
+            coordinator,
+        )
+
+        def crash_before_provider() -> None:
+            raise RuntimeError("simulated crash at provider boundary")
+
+        with pytest.raises(RuntimeError, match="simulated crash"):
+            generation.send_context_package(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                user_message=started.user_message,
+                context_package=package,
+                processing_run_id=run_id,
+                fingerprint=fingerprint,
+                receipt_payload_builder=lambda content, provider_id, model_id: json.dumps(
+                    {
+                        "assistant_text": content,
+                        "provider_id": provider_id,
+                        "model_id": model_id,
+                    }
+                ),
+                on_before_provider_call=crash_before_provider,
+            )
+
+        assert provider.calls == 0
+        assert coordinator.load_context_package(operation_id) is not None
+        assert coordinator.provider_attempts.load(operation_id) is not None
+        assert coordinator.provider_attempts.load_result(operation_id) is None
+        assert coordinator.recover(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        ).state is GroundedRecoveryState.AMBIGUOUS
+        assert len(chats.load_chat(chat_id).messages) == 1
+    finally:
+        database.stop()
