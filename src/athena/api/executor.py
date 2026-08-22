@@ -425,11 +425,54 @@ class SerializedCoreApiSurface:
         content: str,
         requested_model_id: str | None = None,
         requested_embedding_model_id: str | None = None,
+        operation_id: str | None = None,
         effective_context_limit: int | None = None,
         max_output_tokens: int | None = None,
         temperature: float | None = None,
         thinking_enabled: bool | None = None,
     ) -> GroundedChatResponse:
+        if operation_id is None:
+            if (
+                effective_context_limit is None
+                and max_output_tokens is None
+                and temperature is None
+                and thinking_enabled is None
+            ):
+                return self._executor.call(
+                    lambda: self._surface.send_unified_local_chat_message(
+                        chat_id,
+                        content=content,
+                        requested_model_id=requested_model_id,
+                        requested_embedding_model_id=requested_embedding_model_id,
+                    )
+                )
+            if (
+                max_output_tokens is None
+                and temperature is None
+                and thinking_enabled is None
+            ):
+                return self._executor.call(
+                    lambda: self._surface.send_unified_local_chat_message(
+                        chat_id,
+                        content=content,
+                        requested_model_id=requested_model_id,
+                        requested_embedding_model_id=requested_embedding_model_id,
+                        effective_context_limit=effective_context_limit,
+                    )
+                )
+            return self._executor.call(
+                lambda: self._surface.send_unified_local_chat_message(
+                    chat_id,
+                    content=content,
+                    requested_model_id=requested_model_id,
+                    requested_embedding_model_id=requested_embedding_model_id,
+                    effective_context_limit=effective_context_limit,
+                    max_output_tokens=max_output_tokens,
+                    temperature=temperature,
+                    thinking_enabled=thinking_enabled,
+                )
+            )
+
         if (
             effective_context_limit is None
             and max_output_tokens is None
@@ -442,6 +485,7 @@ class SerializedCoreApiSurface:
                     content=content,
                     requested_model_id=requested_model_id,
                     requested_embedding_model_id=requested_embedding_model_id,
+                    operation_id=operation_id,
                 )
             )
         if (
@@ -455,6 +499,7 @@ class SerializedCoreApiSurface:
                     content=content,
                     requested_model_id=requested_model_id,
                     requested_embedding_model_id=requested_embedding_model_id,
+                    operation_id=operation_id,
                     effective_context_limit=effective_context_limit,
                 )
             )
@@ -464,6 +509,7 @@ class SerializedCoreApiSurface:
                 content=content,
                 requested_model_id=requested_model_id,
                 requested_embedding_model_id=requested_embedding_model_id,
+                operation_id=operation_id,
                 effective_context_limit=effective_context_limit,
                 max_output_tokens=max_output_tokens,
                 temperature=temperature,
