@@ -8,22 +8,26 @@ on:
       - ".pathena/slices/**"
   pull_request:
     branches:
-      - main
       - agent/pathena
-    paths:
-      - ".pathena/slices/**"
 
 permissions:
   contents: write
 
 concurrency:
-  group: pathena-slice-${{ github.event.pull_request.number || github.ref_name }}
+  group: pathena-slice-agent-pathena
   cancel-in-progress: true
 
 jobs:
   validate-and-commit:
     name: Validate and commit pATHENA slice
-    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    if: >-
+      github.event_name == 'push' ||
+      (
+        github.event_name == 'pull_request' &&
+        github.event.pull_request.base.ref == 'agent/pathena' &&
+        github.event.pull_request.head.ref == 'bootstrap/import-current' &&
+        github.event.pull_request.head.repo.full_name == github.repository
+      )
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -32,21 +36,16 @@ jobs:
       PATCH_SHA256: e1ad904a567685a66dd3e4720fb89e1e84dba30a828204008f6f5f609842803c
 
     steps:
-      - name: Check out pATHENA candidate
+      - name: Check out pATHENA development branch
         uses: actions/checkout@v6
         with:
-          ref: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          ref: agent/pathena
           fetch-depth: 0
 
       - name: Require complete baseline and slice carrier
         shell: bash
         run: |
           set -euo pipefail
-          if test "${{ github.event_name }}" = "push"; then
-            test "${{ github.ref_name }}" = "agent/pathena"
-          else
-            test "${{ github.event.pull_request.base.ref }}" = "agent/pathena"
-          fi
           test -f PATHENA_BASELINE.md
           test -f pyproject.toml
           test -d src
