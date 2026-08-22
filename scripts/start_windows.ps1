@@ -44,7 +44,12 @@ Write-Host "Starting pATHENA desktop..."
 if ($env:ATHENA_LOCAL_ROOT) {
     Write-Host "Runtime root: $env:ATHENA_LOCAL_ROOT"
 } else {
-    Write-Host "Runtime root: $env:LOCALAPPDATA\ATHENA"
+    $defaultRoot = [Environment]::GetFolderPath("LocalApplicationData")
+    if ($defaultRoot) {
+        Write-Host "Runtime root: $defaultRoot\ATHENA"
+    } else {
+        Write-Host "Runtime root: Windows local application-data default"
+    }
 }
 if ($env:ATHENA_LMSTUDIO_BASE_URL) {
     Write-Host "LM Studio: $env:ATHENA_LMSTUDIO_BASE_URL"
@@ -52,7 +57,7 @@ if ($env:ATHENA_LMSTUDIO_BASE_URL) {
     Write-Host "LM Studio: http://127.0.0.1:1234"
 }
 
-& uv run --locked --extra desktop athena-desktop
+& uv run --locked --extra desktop --no-sync athena-desktop
 $exitCode = $LASTEXITCODE
 if ($exitCode -ne 0) {
     throw "pATHENA desktop exited with code $exitCode."
