@@ -29,6 +29,10 @@ from athena.chat.grounded_reconciliation import (
     GroundedReconciliationState,
     GroundedSendReconciler,
 )
+from athena.chat.grounded_request_context import (
+    GroundedRequestContextBindingError,
+    validate_grounded_request_context_binding,
+)
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatRequestFingerprint
 from athena.chat.send_identity import assistant_message_id_for_operation
@@ -92,6 +96,22 @@ class GroundedSendRecovery:
             return self._status(operation_id, chat_id, GroundedRecoveryState.ABSENT)
         if base.state is GroundedReconciliationState.CONFLICT:
             return self._status(operation_id, chat_id, GroundedRecoveryState.CONFLICT)
+
+        try:
+            context_record = self.context_packages.load(operation_id)
+        except GroundedContextPackageSchemaError:
+            return self._status(operation_id, chat_id, GroundedRecoveryState.CONFLICT)
+        if context_record is not None:
+            if context_record.chat_id != chat_id:
+                return self._status(operation_id, chat_id, GroundedRecoveryState.CONFLICT)
+            try:
+                validate_grounded_request_context_binding(
+                    package=context_record.package,
+                    fingerprint=fingerprint,
+                )
+            except GroundedRequestContextBindingError:
+                return self._status(operation_id, chat_id, GroundedRecoveryState.CONFLICT)
+
         if base.state is GroundedReconciliationState.COMPLETE:
             receipt = base.receipt
             if receipt is None:
