@@ -319,27 +319,28 @@ class GroundedSendRecovery:
         operation_id: uuid.UUID,
     ) -> tuple[GroundedProviderResult | None, GroundedProviderResultIdentity | None]:
         result = self.provider_attempts.load_result(operation_id)
-        identity = (
-            None
-            if result is None
-            else self.provider_attempts.load_result_identity(operation_id)
-        )
-        if identity is not None:
-            try:
-                context_record = self.context_packages.load(operation_id)
-            except GroundedContextPackageSchemaError as exc:
+        if result is None:
+            return None, None
+        identity = self.provider_attempts.load_result_identity(operation_id)
+        try:
+            context_record = self.context_packages.load(operation_id)
+        except GroundedContextPackageSchemaError as exc:
+            raise GroundedProviderAttemptSchemaError(
+                "Provider identity cannot be verified against a corrupted ContextPackage."
+            ) from exc
+        if context_record is not None:
+            if identity is None:
                 raise GroundedProviderAttemptSchemaError(
-                    "Provider identity cannot be verified against a corrupted ContextPackage."
-                ) from exc
-            if context_record is not None:
-                signature = context_record.package.model_signature
-                if (
-                    identity.provider_id != signature.provider
-                    or identity.model_id != signature.model_identifier
-                ):
-                    raise GroundedProviderAttemptSchemaError(
-                        "Persisted provider identity conflicts with the pinned ContextPackage model."
-                    )
+                    "Pinned ContextPackage requires durable provider result identity."
+                )
+            signature = context_record.package.model_signature
+            if (
+                identity.provider_id != signature.provider
+                or identity.model_id != signature.model_identifier
+            ):
+                raise GroundedProviderAttemptSchemaError(
+                    "Persisted provider identity conflicts with the pinned ContextPackage model."
+                )
         return result, identity
 
     def _assistant_matches_result(
