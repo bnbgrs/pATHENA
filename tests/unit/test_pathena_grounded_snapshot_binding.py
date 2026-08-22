@@ -187,10 +187,12 @@ def test_snapshot_identity_rejects_declared_sequence_drift(tmp_path: Path) -> No
     database.start()
     try:
         _chats, _user, _chat_id, operation_id, package = _started(database)
+        revision_id = package.current_user_ref().revision_id
+        assert revision_id is not None
         wrong = _package(
             signature=_signature(database),
             operation_id=operation_id,
-            revision_id=package.current_user_ref().revision_id,
+            revision_id=revision_id,
             snapshot_commit_seq=package.snapshot_commit_seq + 1,
         )
         with pytest.raises(
