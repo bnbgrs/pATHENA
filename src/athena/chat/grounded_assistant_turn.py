@@ -87,6 +87,34 @@ class GroundedAssistantTurnRepository:
                 raise ChatSendOperationConflictError(
                     "Grounded assistant turn requires the matching durable provider result."
                 )
+            provider_identity = connection.execute(
+                """
+                SELECT provider_id, model_id
+                FROM grounded_provider_result_identities
+                WHERE operation_id = ?
+                """,
+                (uuid_to_blob(operation_id),),
+            ).fetchone()
+            if provider_identity is not None:
+                actor = connection.execute(
+                    """
+                    SELECT actor_type, display_name
+                    FROM actors
+                    WHERE actor_id = ?
+                    """,
+                    (uuid_to_blob(actor_id),),
+                ).fetchone()
+                expected_display_name = (
+                    f"{provider_identity['provider_id']}:{provider_identity['model_id']}"
+                )
+                if (
+                    actor is None
+                    or str(actor["actor_type"]) != "primary_model"
+                    or str(actor["display_name"]) != expected_display_name
+                ):
+                    raise ChatSendOperationConflictError(
+                        "Grounded assistant actor conflicts with durable provider identity."
+                    )
 
             user = connection.execute(
                 """
