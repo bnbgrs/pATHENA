@@ -11,6 +11,7 @@ from athena.chat.grounded_context_package import (
 )
 from athena.chat.grounded_provider_attempt import GroundedProviderAttemptRepository
 from athena.chat.grounded_recovery import GroundedRecoveryState, GroundedSendRecovery
+from athena.chat.grounded_send import GroundedProviderContextError, GroundedSendCoordinator
 from athena.chat.grounded_turn import GroundedUserTurnRepository
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
@@ -316,5 +317,59 @@ def test_recovery_rejects_result_missing_identity_when_context_is_pinned(tmp_pat
         assert status.state is GroundedRecoveryState.CONFLICT
         assert status.provider_result is None
         assert status.provider_identity is None
+    finally:
+        database.stop()
+
+
+def test_provider_boundary_rejects_context_model_mismatch_with_request(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        chats = ChatRepository(database)
+        user = chats.create_actor(actor_type="user")
+        chat_id = chats.create_chat(actor_id=user)
+        operation_id = uuid.uuid4()
+        fingerprint = build_chat_request_fingerprint(
+            mode=ChatSendMode.GROUNDED,
+            chat_id=chat_id,
+            content="hello",
+            requested_model_id="other-model",
+            requested_embedding_model_id=None,
+            effective_context_limit=4096,
+            max_output_tokens=1000,
+            temperature=None,
+            reasoning_mode="off",
+            retrieval_configuration={},
+        )
+        coordinator = GroundedSendCoordinator(database)
+        started = coordinator.start(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            actor_id=user,
+            content="hello",
+            fingerprint=fingerprint,
+        )
+        coordinator.store_context_package(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            package=_package(operation_id, started.user_message.revision_id),
+        )
+
+        with pytest.raises(
+            GroundedProviderContextError,
+            match="model conflicts",
+        ):
+            coordinator.begin_provider_attempt(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                fingerprint=fingerprint,
+            )
+
+        assert coordinator.provider_attempts.load(operation_id) is None
+        assert coordinator.recover(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        ).state is GroundedRecoveryState.RESUMABLE
     finally:
         database.stop()
