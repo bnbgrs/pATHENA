@@ -239,3 +239,57 @@ def test_assistant_commit_rejects_legacy_provider_result_run_conflict(tmp_path) 
         assert operation.state.value == "user_committed"
     finally:
         database.stop()
+
+
+def test_assistant_commit_requires_run_pin_when_context_package_exists(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        operation_id, chat_id, provider = _prepare_grounded_attempt(database)
+        result_run_id = uuid.uuid4()
+        provider.store_result(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            processing_run_id=result_run_id,
+            assistant_content="answer",
+            receipt_payload_json='{"assistant_text":"answer","evidence":[]}',
+            provider_id="lm_studio",
+            model_id="primary",
+        )
+        actor_id = ChatService(ChatRepository(database)).ensure_primary_model(
+            provider_id="lm_studio",
+            model_id="primary",
+        )
+        repository = GroundedAssistantTurnRepository(database)
+        monkeypatch.setattr(
+            repository.context_packages,
+            "load",
+            lambda _operation_id: object(),
+        )
+
+        with pytest.raises(
+            ChatSendOperationConflictError,
+            match="requires operation-pinned ProcessingRun",
+        ):
+            repository.commit(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                actor_id=actor_id,
+                content="answer",
+            )
+
+        assistant_id = assistant_message_id_for_operation(operation_id)
+        assistant = database.connection.execute(
+            "SELECT 1 FROM chat_messages WHERE message_id = ?",
+            (uuid_to_blob(assistant_id),),
+        ).fetchone()
+        assert assistant is None
+        operation = ChatSendOperationRepository(database).load(operation_id)
+        assert operation is not None
+        assert operation.processing_run_id is None
+        assert operation.state.value == "user_committed"
+    finally:
+        database.stop()
