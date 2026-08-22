@@ -422,21 +422,73 @@ class ChatSendOperationRepository:
 
     @staticmethod
     def _from_row(row: sqlite3.Row) -> ChatSendOperation:
-        run_blob = row["processing_run_id"]
-        return ChatSendOperation(
-            operation_id=uuid_from_blob(bytes(row["operation_id"])),
-            chat_id=uuid_from_blob(bytes(row["chat_id"])),
-            mode=ChatSendOperationMode(str(row["mode"])),
-            request_fingerprint_payload_json=str(row["request_fingerprint_payload_json"]),
-            request_fingerprint_sha256=str(row["request_fingerprint_sha256"]),
-            request_fingerprint_format_version=int(row["request_fingerprint_format_version"]),
-            state=ChatSendOperationState(str(row["state"])),
-            processing_run_id=(uuid_from_blob(bytes(run_blob)) if run_blob is not None else None),
-            receipt_payload_sha256=(
-                str(row["receipt_payload_sha256"])
-                if row["receipt_payload_sha256"] is not None
-                else None
-            ),
-            created_at_us=int(row["created_at_us"]),
-            updated_at_us=int(row["updated_at_us"]),
+        try:
+            run_blob = row["processing_run_id"]
+            operation = ChatSendOperation(
+                operation_id=uuid_from_blob(bytes(row["operation_id"])),
+                chat_id=uuid_from_blob(bytes(row["chat_id"])),
+                mode=ChatSendOperationMode(str(row["mode"])),
+                request_fingerprint_payload_json=str(row["request_fingerprint_payload_json"]),
+                request_fingerprint_sha256=str(row["request_fingerprint_sha256"]),
+                request_fingerprint_format_version=int(row["request_fingerprint_format_version"]),
+                state=ChatSendOperationState(str(row["state"])),
+                processing_run_id=(
+                    uuid_from_blob(bytes(run_blob)) if run_blob is not None else None
+                ),
+                receipt_payload_sha256=(
+                    str(row["receipt_payload_sha256"])
+                    if row["receipt_payload_sha256"] is not None
+                    else None
+                ),
+                created_at_us=int(row["created_at_us"]),
+                updated_at_us=int(row["updated_at_us"]),
+            )
+        except (TypeError, ValueError) as exc:
+            raise ChatSendOperationSchemaError(
+                "Persisted chat send operation contains invalid typed fields."
+            ) from exc
+
+        fingerprint = ChatRequestFingerprint(
+            payload_json=operation.request_fingerprint_payload_json,
+            payload_sha256=operation.request_fingerprint_sha256,
+            format_version=operation.request_fingerprint_format_version,
         )
+        try:
+            ChatSendOperationRepository._validate_fingerprint(fingerprint)
+        except ValueError as exc:
+            raise ChatSendOperationSchemaError(
+                "Persisted chat send operation has an invalid request fingerprint."
+            ) from exc
+        if operation.updated_at_us < operation.created_at_us:
+            raise ChatSendOperationSchemaError(
+                "Persisted chat send operation timestamps move backwards."
+            )
+        receipt_sha = operation.receipt_payload_sha256
+        if receipt_sha is not None and (
+            len(receipt_sha) != 64
+            or any(character not in "0123456789abcdef" for character in receipt_sha)
+        ):
+            raise ChatSendOperationSchemaError(
+                "Persisted chat send operation has an invalid receipt hash."
+            )
+        if operation.mode is ChatSendOperationMode.DIRECT:
+            if (
+                operation.state is ChatSendOperationState.RECEIPT_COMMITTED
+                or receipt_sha is not None
+            ):
+                raise ChatSendOperationSchemaError(
+                    "Persisted Direct operation contains Grounded receipt state."
+                )
+        elif operation.state in {
+            ChatSendOperationState.USER_COMMITTED,
+            ChatSendOperationState.ASSISTANT_COMMITTED,
+        }:
+            if operation.processing_run_id is not None or receipt_sha is not None:
+                raise ChatSendOperationSchemaError(
+                    "Persisted incomplete Grounded operation contains completion identity."
+                )
+        elif operation.processing_run_id is None or receipt_sha is None:
+            raise ChatSendOperationSchemaError(
+                "Persisted completed Grounded operation is missing completion identity."
+            )
+        return operation
