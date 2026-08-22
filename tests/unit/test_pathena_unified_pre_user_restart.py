@@ -11,8 +11,8 @@ from athena.chat.generation import ChatGenerationService
 from athena.chat.grounded_recovery import GroundedRecoveryState, GroundedSendRecovery
 from athena.chat.repository import ChatRepository
 from athena.chat.service import ChatService
-from athena.chat.unified import UnifiedLocalChatService
 from athena.chat.unified_durable import build_unified_grounded_fingerprint
+from athena.chat.unified_resumable import UnifiedLocalChatService
 from athena.chat.unified_send_plan import UnifiedSendPlanRepository
 from athena.common.ids import new_uuid7, uuid_to_blob
 from athena.model.domain import ModelChatMessage, ModelInfo
@@ -268,6 +268,13 @@ def test_pre_user_plan_survives_rolled_back_user_transaction_and_retry(
             chat_id=chat_id,
             fingerprint=fingerprint,
         ).state is GroundedRecoveryState.ABSENT
+        retrieval_counts = (
+            embedding.calls,
+            hybrid.calls,
+            hybrid.lexical_calls,
+            archive.calls,
+            archive.lexical_calls,
+        )
 
         database.connection.execute("DROP TRIGGER fail_unified_user_operation")
         first_plan_sha = first_plan.payload_sha256
@@ -291,6 +298,13 @@ def test_pre_user_plan_survives_rolled_back_user_transaction_and_retry(
         )
 
         assert provider.calls == 1
+        assert (
+            embedding.calls,
+            hybrid.calls,
+            hybrid.lexical_calls,
+            archive.calls,
+            archive.lexical_calls,
+        ) == retrieval_counts
         assert completed.processing_run.status == "succeeded"
         assert len(ChatRepository(database).load_chat(chat_id).messages) == 2
         final_plan = UnifiedSendPlanRepository(database).load(
