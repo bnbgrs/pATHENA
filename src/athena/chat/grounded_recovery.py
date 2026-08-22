@@ -18,6 +18,7 @@ from athena.chat.grounded_context_package import (
 from athena.chat.grounded_processing_run import (
     GroundedProcessingRunError,
     complete_grounded_processing_run,
+    validate_grounded_processing_run_provenance,
 )
 from athena.chat.grounded_provider_attempt import (
     GroundedProviderAttemptRepository,
@@ -404,6 +405,34 @@ class GroundedSendRecovery:
                 raise GroundedProviderAttemptSchemaError(
                     "Persisted provider identity conflicts with the pinned ContextPackage model."
                 )
+            user = self.database.connection.execute(
+                """
+                SELECT chat_id, actor_id, message_type
+                FROM chat_messages
+                WHERE message_id = ?
+                """,
+                (uuid_to_blob(operation_id),),
+            ).fetchone()
+            if (
+                user is None
+                or user["actor_id"] is None
+                or uuid_from_blob(bytes(user["chat_id"])) != context_record.chat_id
+                or str(user["message_type"]) != "user"
+            ):
+                raise GroundedProviderAttemptSchemaError(
+                    "Pinned ContextPackage is missing its durable Grounded trigger user."
+                )
+            try:
+                validate_grounded_processing_run_provenance(
+                    self.database,
+                    processing_run_id=result.processing_run_id,
+                    package=context_record.package,
+                    trigger_actor_id=uuid_from_blob(bytes(user["actor_id"])),
+                )
+            except GroundedProcessingRunError as exc:
+                raise GroundedProviderAttemptSchemaError(
+                    "Persisted provider result conflicts with its pinned ProcessingRun provenance."
+                ) from exc
         return result, identity
 
     def _assistant_matches_result(
