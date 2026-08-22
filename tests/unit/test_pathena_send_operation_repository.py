@@ -4,6 +4,7 @@ import uuid
 
 import pytest
 
+from athena.chat.grounded_turn import GroundedUserTurnRepository
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
 from athena.chat.send_operation import (
@@ -17,13 +18,20 @@ from athena.chat.send_operation import (
 from athena.storage.database import SQLiteDatabase
 
 
-def _fingerprint(chat_id: uuid.UUID, content: str = "hello"):
+def _fingerprint(
+    chat_id: uuid.UUID,
+    content: str = "hello",
+    *,
+    mode: ChatSendMode = ChatSendMode.GROUNDED,
+):
     return build_chat_request_fingerprint(
-        mode=ChatSendMode.GROUNDED,
+        mode=mode,
         chat_id=chat_id,
         content=content,
         requested_model_id="model",
-        requested_embedding_model_id="embed",
+        requested_embedding_model_id=(
+            "embed" if mode is ChatSendMode.GROUNDED else None
+        ),
         effective_context_limit=4096,
         max_output_tokens=1024,
         temperature=0.3,
@@ -32,24 +40,40 @@ def _fingerprint(chat_id: uuid.UUID, content: str = "hello"):
     )
 
 
-def _chat(database: SQLiteDatabase) -> uuid.UUID:
+def _chat(database: SQLiteDatabase) -> tuple[uuid.UUID, uuid.UUID]:
     repository = ChatRepository(database)
     actor_id = repository.create_actor(actor_type="user")
-    return repository.create_chat(actor_id=actor_id)
+    return actor_id, repository.create_chat(actor_id=actor_id)
+
+
+def _start_grounded(
+    database: SQLiteDatabase,
+    *,
+    actor_id: uuid.UUID,
+    chat_id: uuid.UUID,
+    operation_id: uuid.UUID,
+) -> None:
+    GroundedUserTurnRepository(database).commit(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        actor_id=actor_id,
+        content="hello",
+        fingerprint=_fingerprint(chat_id),
+    )
 
 
 def test_extension_is_created_and_survives_restart(tmp_path) -> None:
     path = tmp_path / "athena.db"
     database = SQLiteDatabase(path)
     database.start()
-    chat = _chat(database)
+    _, chat = _chat(database)
     operation_id = uuid.uuid4()
     repository = ChatSendOperationRepository(database)
     stored = repository.store_user_committed(
         operation_id=operation_id,
         chat_id=chat,
-        mode=ChatSendOperationMode.GROUNDED,
-        fingerprint=_fingerprint(chat),
+        mode=ChatSendOperationMode.DIRECT,
+        fingerprint=_fingerprint(chat, mode=ChatSendMode.DIRECT),
     )
     assert stored.state is ChatSendOperationState.USER_COMMITTED
     database.stop()
@@ -64,42 +88,72 @@ def test_extension_is_created_and_survives_restart(tmp_path) -> None:
 def test_same_operation_id_with_different_request_conflicts(tmp_path) -> None:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
-    chat = _chat(database)
+    _, chat = _chat(database)
     operation_id = uuid.uuid4()
     repository = ChatSendOperationRepository(database)
     repository.store_user_committed(
         operation_id=operation_id,
         chat_id=chat,
-        mode=ChatSendOperationMode.GROUNDED,
-        fingerprint=_fingerprint(chat),
+        mode=ChatSendOperationMode.DIRECT,
+        fingerprint=_fingerprint(chat, mode=ChatSendMode.DIRECT),
     )
     assert repository.match_request(
         operation_id=operation_id,
         chat_id=chat,
-        mode=ChatSendOperationMode.GROUNDED,
-        fingerprint=_fingerprint(chat, "different"),
+        mode=ChatSendOperationMode.DIRECT,
+        fingerprint=_fingerprint(
+            chat,
+            "different",
+            mode=ChatSendMode.DIRECT,
+        ),
     ) is ChatSendOperationMatch.CONFLICT
     with pytest.raises(ChatSendOperationConflictError):
         repository.store_user_committed(
             operation_id=operation_id,
             chat_id=chat,
-            mode=ChatSendOperationMode.GROUNDED,
-            fingerprint=_fingerprint(chat, "different"),
+            mode=ChatSendOperationMode.DIRECT,
+            fingerprint=_fingerprint(
+                chat,
+                "different",
+                mode=ChatSendMode.DIRECT,
+            ),
         )
+    database.stop()
+
+
+def test_grounded_start_cannot_bypass_atomic_user_turn_repository(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    _, chat = _chat(database)
+    operation_id = uuid.uuid4()
+    repository = ChatSendOperationRepository(database)
+
+    with pytest.raises(
+        ChatSendOperationConflictError,
+        match="atomic Grounded user-turn repository",
+    ):
+        repository.store_user_committed(
+            operation_id=operation_id,
+            chat_id=chat,
+            mode=ChatSendOperationMode.GROUNDED,
+            fingerprint=_fingerprint(chat),
+        )
+
+    assert repository.load(operation_id) is None
     database.stop()
 
 
 def test_grounded_lifecycle_cannot_bypass_atomic_repositories(tmp_path) -> None:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
-    chat = _chat(database)
+    actor, chat = _chat(database)
     operation_id = uuid.uuid4()
     repository = ChatSendOperationRepository(database)
-    repository.store_user_committed(
-        operation_id=operation_id,
+    _start_grounded(
+        database,
+        actor_id=actor,
         chat_id=chat,
-        mode=ChatSendOperationMode.GROUNDED,
-        fingerprint=_fingerprint(chat),
+        operation_id=operation_id,
     )
 
     with pytest.raises(
@@ -137,14 +191,14 @@ def test_grounded_lifecycle_cannot_bypass_atomic_repositories(tmp_path) -> None:
 def test_grounded_lifecycle_cannot_skip_assistant_commit(tmp_path) -> None:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
-    chat = _chat(database)
+    actor, chat = _chat(database)
     operation_id = uuid.uuid4()
     repository = ChatSendOperationRepository(database)
-    repository.store_user_committed(
-        operation_id=operation_id,
+    _start_grounded(
+        database,
+        actor_id=actor,
         chat_id=chat,
-        mode=ChatSendOperationMode.GROUNDED,
-        fingerprint=_fingerprint(chat),
+        operation_id=operation_id,
     )
     with pytest.raises(
         ChatSendOperationConflictError,
