@@ -135,12 +135,20 @@ class DurableGroundedGenerationService:
                 fingerprint=fingerprint,
             )
 
-        return delegated.send_context_package(
+        result = delegated.send_context_package(
             chat_id=chat_id,
             user_message=user_message,
             context_package=context_package,
             operation_id=operation_id,
-            on_delta=on_delta,
+            on_delta=None,
             grounding_contract=grounding_contract,
             on_before_provider_call=before_provider,
         )
+        if on_delta is not None:
+            persisted_content = result.assistant_message.content
+            if persisted_content is None:
+                raise DurableGroundedGenerationError(
+                    "Durable Grounded assistant has no persisted content to publish."
+                )
+            on_delta(persisted_content)
+        return result
