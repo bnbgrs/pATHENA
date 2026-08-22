@@ -6,15 +6,18 @@ import json
 import uuid
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 from athena.chat.durable_grounded_generation import DurableGroundedGenerationService
 from athena.chat.generation import ChatGenerationResult, ChatGenerationService
+from athena.chat.grounded_context_package import GroundedContextPackageRepository
 from athena.chat.grounded_recovery import GroundedRecoveryState, GroundedRecoveryStatus
 from athena.chat.grounded_send import GroundedSendCoordinator
-from athena.chat.grounding import GroundingContract
+from athena.chat.grounding import GroundingContract, validate_grounded_answer
 from athena.chat.models import ChatMessage
+from athena.chat.provenance import strip_durable_provenance_manifest
 from athena.chat.request_fingerprint import ChatRequestFingerprint
+from athena.chat.send_identity import assistant_message_id_for_operation
 from athena.chat.service import ChatService
 from athena.chat.unified_durable import (
     build_unified_grounded_fingerprint,
@@ -36,15 +39,25 @@ from athena.chat.unified_legacy import _render_epistemic_context as _render_epis
 from athena.chat.unified_legacy import (
     _resolve_contextual_retrieval_query as _resolve_contextual_retrieval_query,
 )
+from athena.chat.unified_replay import (
+    UnifiedReplayProjectionError,
+    build_unified_replay_projection,
+    load_unified_replay_projection,
+)
 from athena.common.ids import new_uuid7
 from athena.memory.models import MemoryScopeKind
+from athena.model.adapters.lm_studio_embeddings import LMStudioEmbeddingProvider
+from athena.model.domain import ModelInfo
 from athena.model.provenance import (
     ModelRunRepository,
     ModelSignature,
     ProcessingRun,
 )
-from athena.retrieval.context import ContextBuilderError
+from athena.retrieval.context import ContextBuilderError, ContextBuilderService, ContextBundle
 from athena.retrieval.context_package import ContextPackage
+from athena.retrieval.evidence import MemoryEvidencePolicy, MemoryEvidenceSelection
+from athena.retrieval.hybrid import HybridSearchResult
+from athena.retrieval.source_context import SourceContextBuilderService, SourceContextBundle
 
 
 class UnifiedGroundedRecoveryRequiredError(RuntimeError):
@@ -67,6 +80,97 @@ class _UnifiedDurableCallState:
     retrieval_query_override: str | None
     processing_run_id: uuid.UUID | None = None
     context_configuration: dict[str, Any] | None = None
+    primary_model: ModelInfo | None = None
+    embedding_model: ModelInfo | None = None
+    embedding_model_captured: bool = False
+    memory_context: ContextBundle | None = None
+    source_context: SourceContextBundle | None = None
+    evidence_selection: MemoryEvidenceSelection | None = None
+
+
+class _CapturingEmbeddingProvider:
+    def __init__(
+        self,
+        base: LMStudioEmbeddingProvider,
+        state: _UnifiedDurableCallState,
+    ) -> None:
+        self._base = base
+        self._state = state
+
+    def resolve_model(self, requested_model_id: str | None = None) -> ModelInfo:
+        try:
+            model = self._base.resolve_model(requested_model_id)
+        except Exception:
+            self._state.embedding_model = None
+            self._state.embedding_model_captured = True
+            raise
+        self._state.embedding_model = model
+        self._state.embedding_model_captured = True
+        return model
+
+
+class _CapturingMemoryContextBuilder:
+    def __init__(
+        self,
+        base: ContextBuilderService,
+        state: _UnifiedDurableCallState,
+    ) -> None:
+        self._base = base
+        self._state = state
+
+    def build_from_hybrid(self, *args: Any, **kwargs: Any) -> ContextBundle:
+        bundle = self._base.build_from_hybrid(*args, **kwargs)
+        self._state.memory_context = bundle
+        return bundle
+
+
+class _CapturingEvidencePolicy:
+    def __init__(
+        self,
+        base: MemoryEvidencePolicy,
+        state: _UnifiedDurableCallState,
+    ) -> None:
+        self._base = base
+        self._state = state
+
+    def classify(
+        self,
+        results: tuple[HybridSearchResult, ...],
+    ) -> MemoryEvidenceSelection:
+        selection = self._base.classify(results)
+        self._state.evidence_selection = selection
+        return selection
+
+
+class _CapturingSourceContextBuilder:
+    def __init__(
+        self,
+        base: SourceContextBuilderService,
+        state: _UnifiedDurableCallState,
+    ) -> None:
+        self._base = base
+        self._state = state
+
+    def build_from_hybrid(self, *args: Any, **kwargs: Any) -> SourceContextBundle:
+        bundle = self._base.build_from_hybrid(*args, **kwargs)
+        self._state.source_context = bundle
+        return bundle
+
+    def verify_bundle(self, bundle: SourceContextBundle) -> None:
+        self._base.verify_bundle(bundle)
+
+    def rebase_context_ids(
+        self,
+        bundle: SourceContextBundle,
+        *,
+        start_index: int,
+    ) -> SourceContextBundle:
+        rebased = self._base.rebase_context_ids(
+            bundle,
+            start_index=start_index,
+        )
+        self._state.source_context = rebased
+        return rebased
 
 
 class _DurableUnifiedUserChatService(ChatService):
@@ -216,10 +320,6 @@ class _DurableUnifiedModelRunRepository(ModelRunRepository):
                 fingerprint=self._state.fingerprint,
             )
             if recovery.state is GroundedRecoveryState.RESUMABLE:
-                # The durable adapter deliberately leaves a run live when a
-                # deterministic pre-provider callback fails. The legacy outer
-                # orchestration must not turn that safely resumable state into a
-                # false terminal failure.
                 return run
 
         return self._base.finish_run(
@@ -245,6 +345,11 @@ class _UnifiedDurableGenerationAdapter(ChatGenerationService):
         )
         self._durable = DurableGroundedGenerationService(base, coordinator)
         self._state = state
+
+    def select_model(self, requested_model_id: str | None = None) -> ModelInfo:
+        model = super().select_model(requested_model_id)
+        self._state.primary_model = model
+        return model
 
     def send_context_package(
         self,
@@ -274,6 +379,37 @@ class _UnifiedDurableGenerationAdapter(ChatGenerationService):
             provider_id: str,
             model_id: str,
         ) -> str:
+            if self._state.primary_model is None:
+                raise UnifiedReplayProjectionError(
+                    "Unified replay projection is missing its primary model."
+                )
+            if not self._state.embedding_model_captured:
+                raise UnifiedReplayProjectionError(
+                    "Unified replay projection is missing embedding resolution."
+                )
+            if self._state.memory_context is None:
+                raise UnifiedReplayProjectionError(
+                    "Unified replay projection is missing Memory/Knowledge context."
+                )
+            if self._state.source_context is None:
+                raise UnifiedReplayProjectionError(
+                    "Unified replay projection is missing Raw Archive context."
+                )
+            if self._state.evidence_selection is None:
+                raise UnifiedReplayProjectionError(
+                    "Unified replay projection is missing evidence classification."
+                )
+            replay_projection = build_unified_replay_projection(
+                operation_id=self._state.operation_id,
+                chat_id=chat_id,
+                processing_run_id=processing_run_id,
+                context_package=context_package,
+                primary_model=self._state.primary_model,
+                embedding_model=self._state.embedding_model,
+                memory_context=self._state.memory_context,
+                source_context=self._state.source_context,
+                evidence_selection=self._state.evidence_selection,
+            )
             return build_unified_grounded_receipt(
                 assistant_text=assistant_text,
                 provider_id=provider_id,
@@ -282,6 +418,7 @@ class _UnifiedDurableGenerationAdapter(ChatGenerationService):
                 processing_run_id=processing_run_id,
                 context_package_request_id=context_package.request_id,
                 embedding_model_id=embedding_model_id,
+                replay_projection=replay_projection,
             )
 
         return self._durable.send_context_package(
@@ -313,8 +450,143 @@ def _embedding_model_id(package: ContextPackage) -> str | None:
     return value
 
 
+def _budget_from_package(package: ContextPackage) -> UnifiedLocalBudgetReport:
+    try:
+        configuration = json.loads(
+            package.model_signature.context_configuration_json or "{}"
+        )
+    except json.JSONDecodeError as exc:
+        raise UnifiedReplayProjectionError(
+            "Unified replay ContextPackage configuration is invalid JSON."
+        ) from exc
+    if not isinstance(configuration, dict):
+        raise UnifiedReplayProjectionError(
+            "Unified replay ContextPackage configuration is not an object."
+        )
+    memory_budget = configuration.get("memory_context_budget")
+    source_budget = configuration.get("source_context_budget")
+    if (
+        isinstance(memory_budget, bool)
+        or not isinstance(memory_budget, int)
+        or isinstance(source_budget, bool)
+        or not isinstance(source_budget, int)
+    ):
+        raise UnifiedReplayProjectionError(
+            "Unified replay ContextPackage is missing retrieval budgets."
+        )
+    return UnifiedLocalBudgetReport(
+        effective_context_limit=package.budget.effective_context_limit,
+        memory_context_budget=memory_budget,
+        source_context_budget=source_budget,
+        estimated_input_tokens=package.token_estimates.estimated_input_tokens,
+        context_tokens=package.token_estimates.context_tokens,
+        output_reserve=package.budget.output_reserve,
+        safety_margin=package.budget.safety_margin,
+        estimated_total_tokens=package.token_estimates.estimated_total_tokens,
+    )
+
+
 class UnifiedLocalChatService(_LegacyUnifiedLocalChatService):
     """Run the mature Unified retrieval algorithm behind a durable send boundary."""
+
+    def _replay_complete(
+        self,
+        *,
+        status: GroundedRecoveryStatus,
+    ) -> UnifiedLocalChatResult:
+        if status.state is not GroundedRecoveryState.COMPLETE:
+            raise UnifiedGroundedRecoveryRequiredError(status)
+        result = status.provider_result
+        identity = status.provider_identity
+        receipt = status.receipt
+        processing_run_id = status.processing_run_id
+        if (
+            result is None
+            or identity is None
+            or receipt is None
+            or processing_run_id is None
+        ):
+            raise UnifiedReplayProjectionError(
+                "Complete Unified recovery is missing durable replay state."
+            )
+        if (
+            result.processing_run_id != processing_run_id
+            or receipt.processing_run_id != processing_run_id
+            or result.receipt_payload_json != receipt.payload_json
+        ):
+            raise UnifiedReplayProjectionError(
+                "Complete Unified recovery has inconsistent run/receipt identity."
+            )
+
+        context_record = GroundedContextPackageRepository(
+            self.model_runs.database
+        ).load(status.operation_id)
+        if context_record is None or context_record.chat_id != status.chat_id:
+            raise UnifiedReplayProjectionError(
+                "Complete Unified recovery is missing its exact ContextPackage."
+            )
+        package = context_record.package
+        projection = load_unified_replay_projection(
+            receipt_payload_json=receipt.payload_json,
+            operation_id=status.operation_id,
+            chat_id=status.chat_id,
+            processing_run_id=processing_run_id,
+            context_package=package,
+            provider_id=identity.provider_id,
+            model_id=identity.model_id,
+        )
+
+        run = self.model_runs.load_run(processing_run_id)
+        if run.status != "succeeded" or run.finished_at_us is None:
+            raise UnifiedReplayProjectionError(
+                "Complete Unified recovery requires a succeeded ProcessingRun."
+            )
+        thread = self.chat_generation.chat.load_chat(status.chat_id)
+        assistant_id = assistant_message_id_for_operation(status.operation_id)
+        user_message = next(
+            (item for item in thread.messages if item.message_id == status.operation_id),
+            None,
+        )
+        assistant_message = next(
+            (item for item in thread.messages if item.message_id == assistant_id),
+            None,
+        )
+        if user_message is None or assistant_message is None:
+            raise UnifiedReplayProjectionError(
+                "Complete Unified recovery is missing its deterministic chat turns."
+            )
+        if assistant_message.content != result.assistant_content:
+            raise UnifiedReplayProjectionError(
+                "Complete Unified assistant turn conflicts with provider result."
+            )
+
+        grounding_contract = _LegacyUnifiedLocalChatService._grounding_contract(
+            memory_context=projection.memory_context,
+            source_context=projection.source_context,
+            evidence_selection=projection.evidence_selection,
+            allow_model_prior=_allow_model_prior(package),
+        )
+        public_text = strip_durable_provenance_manifest(result.assistant_content)
+        grounding_report = validate_grounded_answer(
+            public_text,
+            contract=grounding_contract,
+        )
+        generation = ChatGenerationResult(
+            user_message=user_message,
+            assistant_message=assistant_message,
+            model=projection.primary_model,
+            grounding_report=grounding_report,
+        )
+        return UnifiedLocalChatResult(
+            generation=generation,
+            memory_context=projection.memory_context,
+            source_context=projection.source_context,
+            context_package=package,
+            processing_run=run,
+            embedding_model=projection.embedding_model,
+            evidence_selection=projection.evidence_selection,
+            budget=_budget_from_package(package),
+        )
 
     def send_message(
         self,
@@ -378,12 +650,25 @@ class UnifiedLocalChatService(_LegacyUnifiedLocalChatService):
             chat_id=chat_id,
             fingerprint=fingerprint,
         )
+        if recovery.state in {
+            GroundedRecoveryState.RESULT_AVAILABLE,
+            GroundedRecoveryState.FINALIZATION_REQUIRED,
+        }:
+            coordinator.finalize_recorded_result(
+                operation_id=resolved_operation_id,
+                chat_id=chat_id,
+                fingerprint=fingerprint,
+            )
+            recovery = coordinator.recover(
+                operation_id=resolved_operation_id,
+                chat_id=chat_id,
+                fingerprint=fingerprint,
+            )
+        if recovery.state is GroundedRecoveryState.COMPLETE:
+            return self._replay_complete(status=recovery)
         if recovery.state is not GroundedRecoveryState.ABSENT:
             raise UnifiedGroundedRecoveryRequiredError(recovery)
 
-        # Resolve/create the canonical Local User before retrieval begins. Actor
-        # creation must never become an unexpected semantic write between the
-        # retrieval snapshot and the exact Grounded user commit.
         user_actor_id = self.chat_generation.chat.ensure_local_user()
         state = _UnifiedDurableCallState(
             operation_id=resolved_operation_id,
@@ -410,13 +695,25 @@ class UnifiedLocalChatService(_LegacyUnifiedLocalChatService):
         )
         delegated = _LegacyUnifiedLocalChatService(
             chat_generation=durable_generation,
-            embedding_provider=self.embedding_provider,
+            embedding_provider=cast(
+                LMStudioEmbeddingProvider,
+                _CapturingEmbeddingProvider(self.embedding_provider, state),
+            ),
             hybrid_retrieval=self.hybrid_retrieval,
-            memory_context_builder=self.memory_context_builder,
-            evidence_policy=self.evidence_policy,
+            memory_context_builder=cast(
+                ContextBuilderService,
+                _CapturingMemoryContextBuilder(self.memory_context_builder, state),
+            ),
+            evidence_policy=cast(
+                MemoryEvidencePolicy,
+                _CapturingEvidencePolicy(self.evidence_policy, state),
+            ),
             personal_memory=self.personal_memory,
             archive_retrieval=self.archive_retrieval,
-            source_context_builder=self.source_context_builder,
+            source_context_builder=cast(
+                SourceContextBuilderService,
+                _CapturingSourceContextBuilder(self.source_context_builder, state),
+            ),
             context_packages=self.context_packages,
             model_runs=durable_model_runs,
         )
@@ -442,3 +739,24 @@ class UnifiedLocalChatService(_LegacyUnifiedLocalChatService):
             allow_model_prior=allow_model_prior,
             on_delta=on_delta,
         )
+
+
+def _allow_model_prior(package: ContextPackage) -> bool:
+    try:
+        configuration = json.loads(
+            package.model_signature.context_configuration_json or "{}"
+        )
+    except json.JSONDecodeError as exc:
+        raise UnifiedReplayProjectionError(
+            "Unified replay ContextPackage configuration is invalid JSON."
+        ) from exc
+    if not isinstance(configuration, dict):
+        raise UnifiedReplayProjectionError(
+            "Unified replay ContextPackage configuration is not an object."
+        )
+    value = configuration.get("allow_model_prior")
+    if not isinstance(value, bool):
+        raise UnifiedReplayProjectionError(
+            "Unified replay ContextPackage is missing allow_model_prior."
+        )
+    return value
