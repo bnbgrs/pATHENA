@@ -630,6 +630,8 @@ class GroundedSendRecovery:
             return False
         if identity is None:
             return True
+        if assistant.actor_id is None:
+            return False
 
         actor = self.database.connection.execute(
             """
