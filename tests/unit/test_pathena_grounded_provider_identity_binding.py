@@ -4,6 +4,7 @@ import uuid
 
 import pytest
 
+from athena.chat.grounded_provider_attempt import GroundedProviderAttemptConflictError
 from athena.chat.grounded_recovery import GroundedRecoveryState
 from athena.chat.grounded_send import (
     GroundedProviderIdentityError,
@@ -144,6 +145,56 @@ def test_provider_result_identity_must_match_pinned_context_model(tmp_path) -> N
                 receipt_payload_json='{"assistant_text":"answer"}',
                 provider_id="other_provider",
                 model_id="other_model",
+            )
+
+        assert coordinator.provider_attempts.load_result(operation_id) is None
+        assert coordinator.provider_attempts.load_result_identity(operation_id) is None
+    finally:
+        database.stop()
+
+
+def test_low_level_provider_result_cannot_bypass_pinned_context_model(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        coordinator, chat_id, operation_id, _ = _started_coordinator(database)
+
+        with pytest.raises(
+            GroundedProviderAttemptConflictError,
+            match="pinned ContextPackage model",
+        ):
+            coordinator.provider_attempts.store_result(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                processing_run_id=uuid.uuid4(),
+                assistant_content="answer",
+                receipt_payload_json='{"assistant_text":"answer"}',
+                provider_id="other_provider",
+                model_id="other_model",
+            )
+
+        assert coordinator.provider_attempts.load_result(operation_id) is None
+        assert coordinator.provider_attempts.load_result_identity(operation_id) is None
+    finally:
+        database.stop()
+
+
+def test_low_level_provider_result_requires_identity_when_context_pins_model(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        coordinator, chat_id, operation_id, _ = _started_coordinator(database)
+
+        with pytest.raises(
+            GroundedProviderAttemptConflictError,
+            match="identity is required",
+        ):
+            coordinator.provider_attempts.store_result(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                processing_run_id=uuid.uuid4(),
+                assistant_content="answer",
+                receipt_payload_json='{"assistant_text":"answer"}',
             )
 
         assert coordinator.provider_attempts.load_result(operation_id) is None
