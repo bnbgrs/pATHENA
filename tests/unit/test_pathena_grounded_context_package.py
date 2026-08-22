@@ -11,7 +11,7 @@ from athena.chat.grounded_context_package import (
 )
 from athena.chat.grounded_provider_attempt import GroundedProviderAttemptRepository
 from athena.chat.grounded_recovery import GroundedRecoveryState, GroundedSendRecovery
-from athena.chat.grounded_send import GroundedProviderContextError, GroundedSendCoordinator
+from athena.chat.grounded_send import GroundedProviderBoundaryError, GroundedSendCoordinator
 from athena.chat.grounded_turn import GroundedUserTurnRepository
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
@@ -355,21 +355,19 @@ def test_provider_boundary_rejects_context_model_mismatch_with_request(tmp_path)
             package=_package(operation_id, started.user_message.revision_id),
         )
 
-        with pytest.raises(
-            GroundedProviderContextError,
-            match="model conflicts",
-        ):
+        with pytest.raises(GroundedProviderBoundaryError) as exc_info:
             coordinator.begin_provider_attempt(
                 operation_id=operation_id,
                 chat_id=chat_id,
                 fingerprint=fingerprint,
             )
 
+        assert exc_info.value.status.state is GroundedRecoveryState.CONFLICT
         assert coordinator.provider_attempts.load(operation_id) is None
         assert coordinator.recover(
             operation_id=operation_id,
             chat_id=chat_id,
             fingerprint=fingerprint,
-        ).state is GroundedRecoveryState.RESUMABLE
+        ).state is GroundedRecoveryState.CONFLICT
     finally:
         database.stop()
