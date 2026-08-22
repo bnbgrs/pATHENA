@@ -6,7 +6,11 @@ import hashlib
 import json
 import uuid
 
-from athena.model.provenance import ModelRunRepository, ProcessingRunNotFoundError
+from athena.model.provenance import (
+    ModelRunRepository,
+    ProcessingRun,
+    ProcessingRunNotFoundError,
+)
 from athena.retrieval.context_package import ContextPackage
 from athena.storage.database import SQLiteDatabase
 
@@ -36,14 +40,13 @@ def _expected_configuration_hash(package: ContextPackage) -> bytes:
     return hashlib.sha256(configuration_json.encode("utf-8")).digest()
 
 
-def validate_grounded_processing_run(
+def _load_bound_run(
     database: SQLiteDatabase,
     *,
     processing_run_id: uuid.UUID,
     package: ContextPackage,
     trigger_actor_id: uuid.UUID,
-) -> None:
-    """Require one live ProcessingRun exactly bound to its Grounded request."""
+) -> tuple[ModelRunRepository, ProcessingRun]:
     repository = ModelRunRepository(database)
     try:
         run = repository.load_run(processing_run_id)
@@ -52,10 +55,6 @@ def validate_grounded_processing_run(
             "Grounded generation requires a persisted ProcessingRun."
         ) from exc
 
-    if run.status != "running" or run.finished_at_us is not None:
-        raise GroundedProcessingRunError(
-            "Grounded generation requires a running ProcessingRun."
-        )
     if run.run_type != GROUNDED_PROCESSING_RUN_TYPE:
         raise GroundedProcessingRunError(
             "ProcessingRun type conflicts with the Grounded chat operation."
@@ -102,3 +101,55 @@ def validate_grounded_processing_run(
         raise GroundedProcessingRunError(
             "Persisted ModelSignature conflicts with the Grounded ContextPackage."
         )
+    return repository, run
+
+
+def validate_grounded_processing_run(
+    database: SQLiteDatabase,
+    *,
+    processing_run_id: uuid.UUID,
+    package: ContextPackage,
+    trigger_actor_id: uuid.UUID,
+) -> None:
+    """Require one live ProcessingRun exactly bound to its Grounded request."""
+    _repository, run = _load_bound_run(
+        database,
+        processing_run_id=processing_run_id,
+        package=package,
+        trigger_actor_id=trigger_actor_id,
+    )
+    if run.status != "running" or run.finished_at_us is not None:
+        raise GroundedProcessingRunError(
+            "Grounded generation requires a running ProcessingRun."
+        )
+
+
+def complete_grounded_processing_run(
+    database: SQLiteDatabase,
+    *,
+    processing_run_id: uuid.UUID,
+    package: ContextPackage,
+    trigger_actor_id: uuid.UUID,
+) -> ProcessingRun:
+    """Mark a proven returned Grounded model execution succeeded, idempotently."""
+    repository, run = _load_bound_run(
+        database,
+        processing_run_id=processing_run_id,
+        package=package,
+        trigger_actor_id=trigger_actor_id,
+    )
+    if run.status == "succeeded" and run.finished_at_us is not None:
+        return run
+    if run.status != "running" or run.finished_at_us is not None:
+        raise GroundedProcessingRunError(
+            "Grounded provider result conflicts with the ProcessingRun terminal state."
+        )
+    try:
+        return repository.finish_run(processing_run_id, status="succeeded")
+    except ProcessingRunNotFoundError as exc:
+        recovered = repository.load_run(processing_run_id)
+        if recovered.status == "succeeded" and recovered.finished_at_us is not None:
+            return recovered
+        raise GroundedProcessingRunError(
+            "Grounded ProcessingRun could not be finalized as succeeded."
+        ) from exc
