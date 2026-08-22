@@ -9,7 +9,9 @@ import pytest
 from athena.chat.generation import ChatGenerationService
 from athena.chat.grounded_send import GroundedSendCoordinator
 from athena.chat.repository import ChatRepository
+from athena.chat.send_identity import SendOperationStateError
 from athena.chat.service import ChatService
+from athena.chat.unified_pre_user_recovery import UnifiedPreUserRecoveryState
 from athena.chat.unified_resumable import (
     UnifiedLocalChatService,
     UnifiedPreUserRecoveryRequiredError,
@@ -361,7 +363,7 @@ def test_pre_user_retry_fails_closed_after_snapshot_drift(
         with pytest.raises(
             UnifiedPreUserRecoveryRequiredError,
             match="Canonical state changed",
-        ):
+        ) as exc_info:
             _send(
                 restarted,
                 chat_id=chat_id,
@@ -369,6 +371,9 @@ def test_pre_user_retry_fails_closed_after_snapshot_drift(
                 content=content,
             )
 
+        assert isinstance(exc_info.value, SendOperationStateError)
+        assert exc_info.value.recovery_status is exc_info.value.status
+        assert exc_info.value.status.state is UnifiedPreUserRecoveryState.CONFLICT
         assert provider.calls == 0
         assert (
             embedding.calls,
