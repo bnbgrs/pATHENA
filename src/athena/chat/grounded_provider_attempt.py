@@ -16,6 +16,7 @@ from athena.storage.database import SQLiteDatabase
 
 GROUNDED_PROVIDER_ATTEMPT_EXTENSION_VERSION = 1
 GROUNDED_PROVIDER_RESULT_EXTENSION_VERSION = 1
+GROUNDED_PROVIDER_RESULT_IDENTITY_EXTENSION_VERSION = 1
 
 
 class GroundedProviderAttemptConflictError(RuntimeError):
@@ -44,6 +45,13 @@ class GroundedProviderResult:
     created_at_us: int
 
 
+@dataclass(frozen=True, slots=True)
+class GroundedProviderResultIdentity:
+    operation_id: uuid.UUID
+    provider_id: str
+    model_id: str
+
+
 _ATTEMPT_COLUMNS = (
     "operation_id",
     "chat_id",
@@ -59,6 +67,12 @@ _RESULT_COLUMNS = (
     "receipt_payload_sha256",
     "extension_schema_version",
     "created_at_us",
+)
+_RESULT_IDENTITY_COLUMNS = (
+    "operation_id",
+    "provider_id",
+    "model_id",
+    "extension_schema_version",
 )
 
 _ATTEMPT_CREATE_SQL = """
@@ -88,6 +102,17 @@ CREATE TABLE IF NOT EXISTS grounded_provider_results (
         REFERENCES grounded_provider_attempts(operation_id) ON DELETE CASCADE,
     FOREIGN KEY(chat_id)
         REFERENCES chats(chat_id) ON DELETE CASCADE
+) WITHOUT ROWID
+"""
+
+_RESULT_IDENTITY_CREATE_SQL = """
+CREATE TABLE IF NOT EXISTS grounded_provider_result_identities (
+    operation_id BLOB(16) PRIMARY KEY NOT NULL CHECK(length(operation_id) = 16),
+    provider_id TEXT NOT NULL CHECK(length(trim(provider_id)) > 0),
+    model_id TEXT NOT NULL CHECK(length(trim(model_id)) > 0),
+    extension_schema_version INTEGER NOT NULL CHECK(extension_schema_version = 1),
+    FOREIGN KEY(operation_id)
+        REFERENCES grounded_provider_results(operation_id) ON DELETE CASCADE
 ) WITHOUT ROWID
 """
 
@@ -127,6 +152,7 @@ class GroundedProviderAttemptRepository:
         with self.database.write_transaction() as connection:
             connection.execute(_ATTEMPT_CREATE_SQL)
             connection.execute(_RESULT_CREATE_SQL)
+            connection.execute(_RESULT_IDENTITY_CREATE_SQL)
         self._verify_table(
             "grounded_provider_attempts",
             _ATTEMPT_CREATE_SQL,
@@ -136,6 +162,11 @@ class GroundedProviderAttemptRepository:
             "grounded_provider_results",
             _RESULT_CREATE_SQL,
             _RESULT_COLUMNS,
+        )
+        self._verify_table(
+            "grounded_provider_result_identities",
+            _RESULT_IDENTITY_CREATE_SQL,
+            _RESULT_IDENTITY_COLUMNS,
         )
 
     def _verify_table(
@@ -194,6 +225,32 @@ class GroundedProviderAttemptRepository:
         ).fetchone()
         return None if row is None else self._result_from_row(row)
 
+    def load_result_identity(
+        self,
+        operation_id: uuid.UUID,
+    ) -> GroundedProviderResultIdentity | None:
+        row = self.database.connection.execute(
+            """
+            SELECT operation_id, provider_id, model_id
+            FROM grounded_provider_result_identities
+            WHERE operation_id = ?
+            """,
+            (uuid_to_blob(operation_id),),
+        ).fetchone()
+        if row is None:
+            return None
+        provider_id = str(row["provider_id"])
+        model_id = str(row["model_id"])
+        if not provider_id.strip() or not model_id.strip():
+            raise GroundedProviderAttemptSchemaError(
+                "Persisted provider-result identity is blank."
+            )
+        return GroundedProviderResultIdentity(
+            operation_id=uuid_from_blob(bytes(row["operation_id"])),
+            provider_id=provider_id,
+            model_id=model_id,
+        )
+
     def mark_started(
         self,
         *,
@@ -251,9 +308,19 @@ class GroundedProviderAttemptRepository:
         processing_run_id: uuid.UUID,
         assistant_content: str,
         receipt_payload_json: str,
+        provider_id: str | None = None,
+        model_id: str | None = None,
     ) -> GroundedProviderResult:
         if not assistant_content.strip():
             raise ValueError("Provider result assistant content must not be blank.")
+        if (provider_id is None) != (model_id is None):
+            raise ValueError(
+                "Provider result identity requires both provider_id and model_id."
+            )
+        if provider_id is not None and not provider_id.strip():
+            raise ValueError("Provider result provider_id must not be blank.")
+        if model_id is not None and not model_id.strip():
+            raise ValueError("Provider result model_id must not be blank.")
         canonical, digest = _canonical_receipt_payload(receipt_payload_json)
         with self.database.write_transaction() as connection:
             operation = self._require_grounded_operation(connection, operation_id, chat_id)
@@ -276,17 +343,23 @@ class GroundedProviderAttemptRepository:
             ).fetchone()
             if existing is not None:
                 result = self._result_from_row(existing)
-                if (
+                if not (
                     result.chat_id == chat_id
                     and result.processing_run_id == processing_run_id
                     and result.assistant_content == assistant_content
                     and result.receipt_payload_json == canonical
                     and result.receipt_payload_sha256 == digest
                 ):
-                    return result
-                raise GroundedProviderAttemptConflictError(
-                    "Provider result conflicts with the already recorded result."
+                    raise GroundedProviderAttemptConflictError(
+                        "Provider result conflicts with the already recorded result."
+                    )
+                self._match_or_store_identity_in_transaction(
+                    connection,
+                    operation_id=operation_id,
+                    provider_id=provider_id,
+                    model_id=model_id,
                 )
+                return result
             if str(operation["state"]) != ChatSendOperationState.USER_COMMITTED.value:
                 raise GroundedProviderAttemptConflictError(
                     "A new provider result may be recorded only before assistant commit."
@@ -311,10 +384,61 @@ class GroundedProviderAttemptRepository:
                     created_at_us,
                 ),
             )
+            self._match_or_store_identity_in_transaction(
+                connection,
+                operation_id=operation_id,
+                provider_id=provider_id,
+                model_id=model_id,
+            )
         stored = self.load_result(operation_id)
         if stored is None:
             raise RuntimeError("Provider result disappeared after commit.")
         return stored
+
+    @staticmethod
+    def _match_or_store_identity_in_transaction(
+        connection: sqlite3.Connection,
+        *,
+        operation_id: uuid.UUID,
+        provider_id: str | None,
+        model_id: str | None,
+    ) -> None:
+        existing = connection.execute(
+            """
+            SELECT provider_id, model_id
+            FROM grounded_provider_result_identities
+            WHERE operation_id = ?
+            """,
+            (uuid_to_blob(operation_id),),
+        ).fetchone()
+        if provider_id is None or model_id is None:
+            if existing is not None:
+                raise GroundedProviderAttemptConflictError(
+                    "Provider result identity already exists and cannot be omitted."
+                )
+            return
+        if existing is not None:
+            if (
+                str(existing["provider_id"]) == provider_id
+                and str(existing["model_id"]) == model_id
+            ):
+                return
+            raise GroundedProviderAttemptConflictError(
+                "Provider result identity conflicts with the recorded model identity."
+            )
+        connection.execute(
+            """
+            INSERT INTO grounded_provider_result_identities (
+                operation_id, provider_id, model_id, extension_schema_version
+            ) VALUES (?, ?, ?, ?)
+            """,
+            (
+                uuid_to_blob(operation_id),
+                provider_id,
+                model_id,
+                GROUNDED_PROVIDER_RESULT_IDENTITY_EXTENSION_VERSION,
+            ),
+        )
 
     @staticmethod
     def _require_grounded_operation(
