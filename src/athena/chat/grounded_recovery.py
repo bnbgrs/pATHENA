@@ -186,12 +186,6 @@ class GroundedSendRecovery:
             result, identity = self._load_provider_state(operation_id)
         except GroundedProviderAttemptSchemaError:
             return self._status(operation_id, chat_id, GroundedRecoveryState.CONFLICT)
-        if (
-            result is not None
-            and operation.processing_run_id is not None
-            and result.processing_run_id != operation.processing_run_id
-        ):
-            return self._status(operation_id, chat_id, GroundedRecoveryState.CONFLICT)
         if result is not None:
             try:
                 validate_provider_result_contract(
