@@ -1,0 +1,193 @@
+from __future__ import annotations
+
+import uuid
+
+import pytest
+
+from athena.chat.grounded_processing_run import (
+    GroundedProcessingRunError,
+    validate_grounded_processing_run,
+)
+from athena.chat.repository import ChatRepository
+from athena.model.domain import ModelInfo
+from athena.model.provenance import ModelRunRepository
+from athena.retrieval.context_package import (
+    ContextIncludedRef,
+    ContextPackageBudget,
+    ContextPackageService,
+    ContextSection,
+    ContextTokenEstimates,
+    ExcludedCandidateSummary,
+)
+from athena.storage.database import SQLiteDatabase
+
+
+def _model(model_id: str = "primary") -> ModelInfo:
+    return ModelInfo(
+        provider="lm_studio",
+        backend_model_id=model_id,
+        display_name=model_id,
+        model_type="llm",
+        context_capacity=32768,
+        quantization="Q4_K_M",
+        loaded=True,
+        vision=False,
+        trained_for_tool_use=False,
+        loaded_context_length=4096,
+    )
+
+
+def _package(signature, operation_id: uuid.UUID, revision_id: uuid.UUID):
+    return ContextPackageService.build_from_sections(
+        model_signature=signature,
+        budget=ContextPackageBudget(
+            effective_context_limit=4096,
+            context_budget=2800,
+            output_reserve=1000,
+            safety_margin=200,
+        ),
+        sections=(
+            ContextSection(
+                name="system",
+                role="system",
+                content="grounded",
+                included_ref_ids=(),
+            ),
+            ContextSection(
+                name="current_user",
+                role="user",
+                content="hello",
+                included_ref_ids=("CURRENT-USER",),
+            ),
+        ),
+        included_refs=(
+            ContextIncludedRef(
+                ref_id="CURRENT-USER",
+                entity_type="chat_message",
+                entity_id=operation_id,
+                revision_id=revision_id,
+            ),
+        ),
+        excluded_candidate_summary=ExcludedCandidateSummary(
+            retrieval_candidate_count=0,
+            retrieval_included_count=0,
+            retrieval_excluded_count=0,
+            memory_candidate_count=0,
+            memory_included_count=0,
+            memory_excluded_count=0,
+            conversation_candidate_count=0,
+            conversation_included_count=0,
+            conversation_excluded_count=0,
+        ),
+        token_estimates=ContextTokenEstimates(
+            conversation_tokens=0,
+            current_user_tokens=10,
+            system_tokens=10,
+            context_tokens=0,
+            estimated_input_tokens=20,
+            estimated_total_tokens=1220,
+        ),
+        snapshot_commit_seq=1,
+    )
+
+
+def _provenance(database: SQLiteDatabase, *, model_id: str = "primary"):
+    chats = ChatRepository(database)
+    user = chats.create_actor(actor_type="user")
+    model_runs = ModelRunRepository(database)
+    signature = model_runs.get_or_create_signature(
+        model=_model(model_id),
+        generation_parameters={
+            "max_output_tokens": 1000,
+            "reasoning_mode": "off",
+        },
+        context_configuration={"context_package_version": 1},
+    )
+    run = model_runs.start_run(
+        run_type="chat.unified_local_context_package",
+        trigger_actor_id=user,
+        pipeline_version="test-v1",
+        input_snapshot={"kind": "test"},
+        configuration={"context_package_version": 1},
+        model_signature_id=signature.model_signature_id,
+        prompt_template_id="grounded-test",
+        prompt_template_version="1",
+    )
+    return model_runs, signature, run
+
+
+def test_grounded_processing_run_accepts_matching_live_provenance(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        _, signature, run = _provenance(database)
+        validate_grounded_processing_run(
+            database,
+            processing_run_id=run.processing_run_id,
+            package=_package(signature, uuid.uuid4(), uuid.uuid4()),
+        )
+    finally:
+        database.stop()
+
+
+def test_grounded_processing_run_rejects_unknown_run(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        _, signature, _ = _provenance(database)
+        with pytest.raises(
+            GroundedProcessingRunError,
+            match="persisted ProcessingRun",
+        ):
+            validate_grounded_processing_run(
+                database,
+                processing_run_id=uuid.uuid4(),
+                package=_package(signature, uuid.uuid4(), uuid.uuid4()),
+            )
+    finally:
+        database.stop()
+
+
+def test_grounded_processing_run_rejects_finished_run(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        model_runs, signature, run = _provenance(database)
+        model_runs.finish_run(run.processing_run_id, status="succeeded")
+        with pytest.raises(
+            GroundedProcessingRunError,
+            match="running ProcessingRun",
+        ):
+            validate_grounded_processing_run(
+                database,
+                processing_run_id=run.processing_run_id,
+                package=_package(signature, uuid.uuid4(), uuid.uuid4()),
+            )
+    finally:
+        database.stop()
+
+
+def test_grounded_processing_run_rejects_other_model_signature(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        model_runs, _, run = _provenance(database)
+        other_signature = model_runs.get_or_create_signature(
+            model=_model("other"),
+            generation_parameters={
+                "max_output_tokens": 1000,
+                "reasoning_mode": "off",
+            },
+            context_configuration={"context_package_version": 1},
+        )
+        with pytest.raises(
+            GroundedProcessingRunError,
+            match="ModelSignature conflicts",
+        ):
+            validate_grounded_processing_run(
+                database,
+                processing_run_id=run.processing_run_id,
+                package=_package(other_signature, uuid.uuid4(), uuid.uuid4()),
+            )
+    finally:
+        database.stop()
