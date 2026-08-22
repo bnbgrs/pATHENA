@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from enum import Enum
 
 from athena.chat.grounded_completion import (
+    GroundedSendCompletionCorruptionError,
     GroundedSendCompletionRepository,
     GroundedSendReceipt,
 )
@@ -75,7 +76,14 @@ class GroundedSendReconciler:
                 chat_id,
                 GroundedReconciliationState.CONFLICT,
             )
-        receipt = self.completions.load(operation_id)
+        try:
+            receipt = self.completions.load(operation_id)
+        except GroundedSendCompletionCorruptionError:
+            return self._status(
+                operation_id,
+                chat_id,
+                GroundedReconciliationState.CONFLICT,
+            )
 
         if operation.state is ChatSendOperationState.COMPLETE:
             if (
