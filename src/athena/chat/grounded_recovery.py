@@ -20,6 +20,7 @@ from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatRequestFingerprint
 from athena.chat.send_identity import assistant_message_id_for_operation
 from athena.chat.send_operation import ChatSendOperationRepository, ChatSendOperationState
+from athena.chat.service import ChatService
 from athena.storage.database import SQLiteDatabase
 
 
@@ -56,6 +57,7 @@ class GroundedSendRecovery:
         self.assistant_turns = GroundedAssistantTurnRepository(database)
         self.completions = GroundedSendCompletionRepository(database)
         self.chats = ChatRepository(database)
+        self.chat = ChatService(self.chats)
 
     def inspect(
         self,
@@ -113,8 +115,8 @@ class GroundedSendRecovery:
         *,
         operation_id: uuid.UUID,
         chat_id: uuid.UUID,
-        actor_id: uuid.UUID,
         fingerprint: ChatRequestFingerprint,
+        actor_id: uuid.UUID | None = None,
     ) -> GroundedSendReceipt:
         status = self.inspect(
             operation_id=operation_id,
@@ -140,6 +142,23 @@ class GroundedSendRecovery:
                 "Recorded provider result is missing or belongs to another chat."
             )
 
+        identity = self.provider_attempts.load_result_identity(operation_id)
+        if identity is None:
+            if actor_id is None:
+                raise GroundedRecoveryConflictError(
+                    "Legacy provider result is missing model identity for autonomous recovery."
+                )
+            resolved_actor_id = actor_id
+        else:
+            resolved_actor_id = self.chat.ensure_primary_model(
+                provider_id=identity.provider_id,
+                model_id=identity.model_id,
+            )
+            if actor_id is not None and actor_id != resolved_actor_id:
+                raise GroundedRecoveryConflictError(
+                    "Requested recovery actor conflicts with durable provider model identity."
+                )
+
         operation = self.operations.load(operation_id)
         if operation is None:
             raise GroundedRecoveryConflictError("Grounded send operation disappeared.")
@@ -147,7 +166,7 @@ class GroundedSendRecovery:
             self.assistant_turns.commit(
                 operation_id=operation_id,
                 chat_id=chat_id,
-                actor_id=actor_id,
+                actor_id=resolved_actor_id,
                 content=result.assistant_content,
             )
         elif operation.state is ChatSendOperationState.ASSISTANT_COMMITTED:
@@ -157,7 +176,11 @@ class GroundedSendRecovery:
                 (message for message in thread.messages if message.message_id == assistant_id),
                 None,
             )
-            if assistant is None or assistant.content != result.assistant_content:
+            if (
+                assistant is None
+                or assistant.content != result.assistant_content
+                or assistant.actor_id != resolved_actor_id
+            ):
                 raise GroundedRecoveryConflictError(
                     "Persisted assistant turn conflicts with recorded provider result."
                 )
