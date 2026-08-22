@@ -294,6 +294,7 @@ class GroundedProviderAttemptRepository:
             operation_id=operation_id,
             chat_id=chat_id,
             allow_existing=True,
+            require_pinned_context=False,
         )
 
     def claim_started(
@@ -307,6 +308,7 @@ class GroundedProviderAttemptRepository:
             operation_id=operation_id,
             chat_id=chat_id,
             allow_existing=False,
+            require_pinned_context=True,
         )
 
     def _mark_started(
@@ -315,6 +317,7 @@ class GroundedProviderAttemptRepository:
         operation_id: uuid.UUID,
         chat_id: uuid.UUID,
         allow_existing: bool,
+        require_pinned_context: bool,
     ) -> GroundedProviderAttempt:
         with self.database.write_transaction() as connection:
             operation = self._require_grounded_operation(connection, operation_id, chat_id)
@@ -344,6 +347,12 @@ class GroundedProviderAttemptRepository:
                 raise GroundedProviderAttemptConflictError(
                     "Provider attempt may start only from user_committed state."
                 )
+            if require_pinned_context:
+                self._require_pinned_context_before_claim_in_transaction(
+                    connection,
+                    operation_id=operation_id,
+                    chat_id=chat_id,
+                )
             started_at_us = utc_now_us()
             connection.execute(
                 """
@@ -362,6 +371,48 @@ class GroundedProviderAttemptRepository:
         if stored is None:
             raise RuntimeError("Provider attempt marker disappeared after commit.")
         return stored
+
+    @staticmethod
+    def _require_pinned_context_before_claim_in_transaction(
+        connection: sqlite3.Connection,
+        *,
+        operation_id: uuid.UUID,
+        chat_id: uuid.UUID,
+    ) -> None:
+        context_table = connection.execute(
+            """
+            SELECT 1
+            FROM sqlite_master
+            WHERE type = 'table' AND name = 'grounded_context_packages'
+            """
+        ).fetchone()
+        if context_table is None:
+            raise GroundedProviderAttemptConflictError(
+                "Provider attempt claim requires a durable ContextPackage."
+            )
+        context = connection.execute(
+            """
+            SELECT chat_id, payload_json, payload_sha256
+            FROM grounded_context_packages
+            WHERE operation_id = ?
+            """,
+            (uuid_to_blob(operation_id),),
+        ).fetchone()
+        if context is None:
+            raise GroundedProviderAttemptConflictError(
+                "Provider attempt claim requires a durable ContextPackage."
+            )
+        if uuid_from_blob(bytes(context["chat_id"])) != chat_id:
+            raise GroundedProviderAttemptConflictError(
+                "Pinned ContextPackage chat identity conflicts with provider attempt."
+            )
+        payload_json = str(context["payload_json"])
+        expected_sha256 = str(context["payload_sha256"])
+        actual_sha256 = hashlib.sha256(payload_json.encode("utf-8")).hexdigest()
+        if actual_sha256 != expected_sha256:
+            raise GroundedProviderAttemptSchemaError(
+                "Pinned ContextPackage failed checksum verification before provider claim."
+            )
 
     def store_result(
         self,
