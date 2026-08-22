@@ -11,7 +11,19 @@ from athena.chat.durable_grounded_generation import DurableGroundedGenerationSer
 class _Coordinator:
     def __init__(self) -> None:
         self.calls: list[tuple[uuid.UUID, uuid.UUID, object]] = []
+        self.context_packages: list[tuple[uuid.UUID, uuid.UUID, object]] = []
         self.events: list[str] = []
+
+    def store_context_package(
+        self,
+        *,
+        operation_id: uuid.UUID,
+        chat_id: uuid.UUID,
+        package: object,
+    ) -> object:
+        self.events.append("package")
+        self.context_packages.append((operation_id, chat_id, package))
+        return object()
 
     def begin_provider_attempt(
         self,
@@ -38,10 +50,13 @@ class _DelegatedGeneration:
 _RESULT = object()
 
 
-def test_durable_generation_uses_recovery_guard_before_provider(monkeypatch) -> None:
+def test_durable_generation_persists_exact_package_before_recovery_guard(
+    monkeypatch,
+) -> None:
     operation_id = uuid.uuid4()
     chat_id = uuid.uuid4()
     fingerprint = object()
+    context_package = object()
     coordinator = _Coordinator()
     base_generation = SimpleNamespace(
         chat=object(),
@@ -62,14 +77,16 @@ def test_durable_generation_uses_recovery_guard_before_provider(monkeypatch) -> 
         operation_id=operation_id,
         chat_id=chat_id,
         user_message=cast(Any, SimpleNamespace(message_id=operation_id)),
-        context_package=cast(Any, object()),
+        context_package=cast(Any, context_package),
         processing_run_id=uuid.uuid4(),
         fingerprint=cast(Any, fingerprint),
         receipt_payload_builder=lambda content, provider_id, model_id: "{}",
     )
 
     assert result is _RESULT
+    assert coordinator.context_packages == [(operation_id, chat_id, context_package)]
     assert coordinator.calls == [(operation_id, chat_id, fingerprint)]
+    assert coordinator.events == ["package", "guard"]
 
 
 def test_recovery_guard_precedes_external_provider_hook(monkeypatch) -> None:
@@ -104,4 +121,4 @@ def test_recovery_guard_precedes_external_provider_hook(monkeypatch) -> None:
     )
 
     assert result is _RESULT
-    assert coordinator.events == ["guard", "hook"]
+    assert coordinator.events == ["package", "guard", "hook"]

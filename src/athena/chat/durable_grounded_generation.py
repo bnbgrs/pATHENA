@@ -111,6 +111,12 @@ class DurableGroundedGenerationService:
                 "Grounded generation user message must equal the operation identity."
             )
 
+        self.coordinator.store_context_package(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            package=context_package,
+        )
+
         durable_chat = _DurableAssistantChatService(
             self.generation.chat,
             coordinator=self.coordinator,
