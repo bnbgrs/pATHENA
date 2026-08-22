@@ -80,6 +80,8 @@ def test_recovery_distinguishes_provider_crash_boundaries_and_exact_replay(tmp_p
         processing_run_id=run_id,
         assistant_content="answer",
         receipt_payload_json='{"assistant_text":"answer","evidence":["CTX-001"]}',
+        provider_id="lm_studio",
+        model_id="primary",
     )
     assert provider.store_result(
         operation_id=operation_id,
@@ -87,34 +89,54 @@ def test_recovery_distinguishes_provider_crash_boundaries_and_exact_replay(tmp_p
         processing_run_id=run_id,
         assistant_content="answer",
         receipt_payload_json='{"evidence":["CTX-001"],"assistant_text":"answer"}',
+        provider_id="lm_studio",
+        model_id="primary",
     ) == result
-    assert recovery.inspect(
+    available = recovery.inspect(
         operation_id=operation_id,
         chat_id=chat_id,
         fingerprint=fingerprint,
-    ).state is GroundedRecoveryState.RESULT_AVAILABLE
+    )
+    assert available.state is GroundedRecoveryState.RESULT_AVAILABLE
+    assert available.provider_result == result
+    assert available.provider_identity is not None
+    assert available.provider_identity.provider_id == "lm_studio"
+    assert available.provider_identity.model_id == "primary"
 
     database.stop()
     database = SQLiteDatabase(path)
     database.start()
     recovery = GroundedSendRecovery(database)
-    assert recovery.inspect(
+    restarted = recovery.inspect(
         operation_id=operation_id,
         chat_id=chat_id,
         fingerprint=fingerprint,
-    ).state is GroundedRecoveryState.RESULT_AVAILABLE
+    )
+    assert restarted.state is GroundedRecoveryState.RESULT_AVAILABLE
+    assert restarted.provider_result == result
+    assert restarted.provider_identity is not None
+    assert restarted.provider_identity.provider_id == "lm_studio"
+    assert restarted.provider_identity.model_id == "primary"
 
+    durable_model = recovery.chat.ensure_primary_model(
+        provider_id="lm_studio",
+        model_id="primary",
+    )
     GroundedAssistantTurnRepository(database).commit(
         operation_id=operation_id,
         chat_id=chat_id,
-        actor_id=model,
+        actor_id=durable_model,
         content="answer",
     )
-    assert recovery.inspect(
+    pending_finalization = recovery.inspect(
         operation_id=operation_id,
         chat_id=chat_id,
         fingerprint=fingerprint,
-    ).state is GroundedRecoveryState.FINALIZATION_REQUIRED
+    )
+    assert pending_finalization.state is GroundedRecoveryState.FINALIZATION_REQUIRED
+    assert pending_finalization.provider_result == result
+    assert pending_finalization.provider_identity is not None
+    assert pending_finalization.provider_identity.model_id == "primary"
 
     database.stop()
     database = SQLiteDatabase(path)
@@ -123,7 +145,6 @@ def test_recovery_distinguishes_provider_crash_boundaries_and_exact_replay(tmp_p
     receipt = recovery.finalize_recorded_result(
         operation_id=operation_id,
         chat_id=chat_id,
-        actor_id=model,
         fingerprint=fingerprint,
     )
     complete = recovery.inspect(
