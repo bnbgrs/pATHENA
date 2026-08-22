@@ -21,6 +21,7 @@ from athena.chat.unified_durable import build_unified_grounded_fingerprint
 from athena.chat.unified_pre_user_recovery import (
     UnifiedPreUserRecoveryInspector,
     UnifiedPreUserRecoveryState,
+    UnifiedPreUserRecoveryStatus,
 )
 from athena.chat.unified_pre_user_resume import (
     UnifiedPreUserResumeMaterialization,
@@ -33,6 +34,16 @@ from athena.retrieval.context import ContextBuilderError
 
 class UnifiedPreUserRecoveryRequiredError(RuntimeError):
     """A frozen pre-user operation cannot safely enter a new retrieval cycle."""
+
+    def __init__(self, status: UnifiedPreUserRecoveryStatus) -> None:
+        self.status = status
+        super().__init__(
+            status.reason
+            or (
+                f"Unified pre-user operation {status.operation_id} is "
+                f"{status.state.value}."
+            )
+        )
 
 
 class UnifiedLocalChatService(_DurableUnifiedLocalChatService):
@@ -216,9 +227,7 @@ class UnifiedLocalChatService(_DurableUnifiedLocalChatService):
                 on_delta=on_delta,
             )
         if pre_user.state is UnifiedPreUserRecoveryState.CONFLICT:
-            raise UnifiedPreUserRecoveryRequiredError(
-                pre_user.reason or "Unified pre-user recovery is conflicted."
-            )
+            raise UnifiedPreUserRecoveryRequiredError(pre_user)
 
         return super().send_message(
             chat_id=chat_id,
