@@ -72,17 +72,9 @@ def validate_grounded_processing_run(
         raise GroundedProcessingRunError(
             "ProcessingRun ModelSignature conflicts with the Grounded ContextPackage."
         )
-    expected_snapshot = _canonical_snapshot(package)
-    if run.input_snapshot_json != expected_snapshot:
+    if run.input_snapshot_json != _canonical_snapshot(package):
         raise GroundedProcessingRunError(
             "ProcessingRun input snapshot conflicts with the Grounded ContextPackage."
-        )
-    expected_snapshot_sha256 = hashlib.sha256(
-        expected_snapshot.encode("utf-8")
-    ).hexdigest()
-    if run.input_snapshot_sha256 != expected_snapshot_sha256:
-        raise GroundedProcessingRunError(
-            "ProcessingRun input snapshot checksum conflicts with the Grounded ContextPackage."
         )
     if run.configuration_hash != _expected_configuration_hash(package):
         raise GroundedProcessingRunError(
