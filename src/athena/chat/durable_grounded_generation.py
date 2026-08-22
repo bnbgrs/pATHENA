@@ -302,17 +302,21 @@ class DurableGroundedGenerationService:
                 operation_id=operation_id,
                 message="Canonical state changed before the Grounded provider boundary.",
             )
-            self.coordinator.begin_provider_attempt(
-                operation_id=operation_id,
-                chat_id=chat_id,
-                fingerprint=fingerprint,
-            )
             if on_before_provider_call is not None:
                 on_before_provider_call()
             self._require_current_snapshot(
                 context_package=context_package,
                 operation_id=operation_id,
-                message="Canonical state changed inside the Grounded provider boundary.",
+                message="Canonical state changed during Grounded provider preflight.",
+            )
+            # Claim ambiguity only after every deterministic caller preflight has
+            # succeeded. Once this durable claim returns, the provider call is the
+            # very next external side effect and recovery must conservatively assume
+            # it may have happened.
+            self.coordinator.begin_provider_attempt(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                fingerprint=fingerprint,
             )
 
         try:
