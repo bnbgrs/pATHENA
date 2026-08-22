@@ -8,6 +8,10 @@ import sqlite3
 import uuid
 from dataclasses import dataclass
 
+from athena.chat.grounded_context_package import (
+    GroundedContextPackageRepository,
+    GroundedContextPackageSchemaError,
+)
 from athena.chat.grounded_provider_result_contract import (
     GroundedProviderResultContractError,
     validate_provider_result_contract,
@@ -100,6 +104,7 @@ class GroundedSendCompletionRepository:
 
     def __init__(self, database: SQLiteDatabase) -> None:
         self.database = database
+        self.context_packages = GroundedContextPackageRepository(database)
         self._ensure_extension_schema()
 
     def _ensure_extension_schema(self) -> None:
@@ -204,6 +209,11 @@ class GroundedSendCompletionRepository:
             raise GroundedSendCompletionCorruptionError(
                 "Persisted Grounded completion has a corrupted provider result contract."
             ) from exc
+        self._validate_pinned_provider_identity(
+            self.database.connection,
+            operation_id=operation_id,
+            corruption=True,
+        )
         return receipt
 
     def complete(
@@ -281,6 +291,11 @@ class GroundedSendCompletionRepository:
                 raise GroundedSendCompletionConflictError(
                     "Grounded completion found a corrupted durable provider result."
                 ) from exc
+            self._validate_pinned_provider_identity(
+                connection,
+                operation_id=operation_id,
+                corruption=False,
+            )
 
             existing = self._load_in_transaction(connection, operation_id)
             if existing is not None:
@@ -354,6 +369,49 @@ class GroundedSendCompletionRepository:
                 "Committed Grounded receipt disappeared after transaction."
             )
         return receipt
+
+    def _validate_pinned_provider_identity(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        operation_id: uuid.UUID,
+        corruption: bool,
+    ) -> None:
+        try:
+            context_record = self.context_packages.load(operation_id)
+        except GroundedContextPackageSchemaError as exc:
+            if corruption:
+                raise GroundedSendCompletionCorruptionError(
+                    "Persisted completion has a corrupted pinned ContextPackage."
+                ) from exc
+            raise GroundedSendCompletionConflictError(
+                "Grounded completion found a corrupted pinned ContextPackage."
+            ) from exc
+        if context_record is None:
+            return
+        identity = connection.execute(
+            """
+            SELECT provider_id, model_id
+            FROM grounded_provider_result_identities
+            WHERE operation_id = ?
+            """,
+            (uuid_to_blob(operation_id),),
+        ).fetchone()
+        signature = context_record.package.model_signature
+        matches = (
+            identity is not None
+            and str(identity["provider_id"]) == signature.provider
+            and str(identity["model_id"]) == signature.model_identifier
+        )
+        if matches:
+            return
+        if corruption:
+            raise GroundedSendCompletionCorruptionError(
+                "Persisted completion provider identity conflicts with pinned ContextPackage model."
+            )
+        raise GroundedSendCompletionConflictError(
+            "Grounded completion provider identity conflicts with pinned ContextPackage model."
+        )
 
     def _load_in_transaction(
         self,
