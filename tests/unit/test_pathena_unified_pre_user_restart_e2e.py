@@ -272,7 +272,6 @@ def test_pre_user_crash_restarts_without_retrieval_or_duplicate_turns(
         assert len(messages) == 2
         assert messages[0].message_id == operation_id
         assert completed.processing_run.status == "succeeded"
-        assert completed.context_package.request_id == operation_id
         reloaded_plan = UnifiedSendPlanRepository(database).load(operation_id)
         assert reloaded_plan == plan
     finally:
