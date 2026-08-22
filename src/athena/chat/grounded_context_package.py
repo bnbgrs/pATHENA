@@ -368,6 +368,14 @@ class GroundedContextPackageRepository:
                 raise GroundedContextPackageConflictError(
                     "Grounded operation already owns a different ContextPackage."
                 )
+            provider_attempt = connection.execute(
+                "SELECT 1 FROM grounded_provider_attempts WHERE operation_id = ?",
+                (uuid_to_blob(operation_id),),
+            ).fetchone()
+            if provider_attempt is not None:
+                raise GroundedContextPackageConflictError(
+                    "ContextPackage must be persisted before provider execution begins."
+                )
             created_at_us = utc_now_us()
             connection.execute(
                 """
