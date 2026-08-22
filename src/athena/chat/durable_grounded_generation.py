@@ -7,7 +7,6 @@ import uuid
 from collections.abc import Callable
 
 from athena.chat.generation import ChatGenerationResult, ChatGenerationService
-from athena.chat.grounding import GroundingContract
 from athena.chat.grounded_processing_run import (
     GroundedProcessingRunError,
     bind_grounded_processing_run,
@@ -29,6 +28,7 @@ from athena.chat.grounded_snapshot import (
     GroundedSnapshotBindingError,
     validate_grounded_snapshot_current,
 )
+from athena.chat.grounding import GroundingContract
 from athena.chat.models import ChatMessage
 from athena.chat.request_fingerprint import ChatRequestFingerprint
 from athena.chat.service import ChatService

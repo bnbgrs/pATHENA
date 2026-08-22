@@ -5,6 +5,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 from enum import Enum
+from typing import Protocol
 
 _ASSISTANT_MESSAGE_NAMESPACE = uuid.UUID(
     "1db1d2a3-19d4-4b52-a70b-72fd254f0933"
@@ -34,12 +35,25 @@ class SendOperationStatus:
     state: SendOperationState
 
 
+class DurableSendStatus(Protocol):
+    """Minimal status shape understood by the local API recovery boundary."""
+
+    @property
+    def chat_id(self) -> uuid.UUID: ...
+
+    @property
+    def operation_id(self) -> uuid.UUID: ...
+
+    @property
+    def state(self) -> Enum: ...
+
+
 class SendOperationStateError(RuntimeError):
-    """Raised when a non-absent durable send is executed again."""
+    """Raised when a durable send needs explicit state-aware handling."""
 
     def __init__(
         self,
-        status: SendOperationStatus,
+        status: DurableSendStatus,
     ) -> None:
         self.status = status
 

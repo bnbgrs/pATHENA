@@ -19,7 +19,7 @@ from athena.chat.repository import ChatRepository
 from athena.chat.research_grounding import ResearchGroundedChatService
 from athena.chat.service import ChatService
 from athena.chat.source_grounding import SourceGroundedChatService
-from athena.chat.unified import UnifiedLocalChatService
+from athena.chat.unified_resumable import UnifiedLocalChatService
 from athena.config.settings import AthenaSettings
 from athena.core.services import LifecycleService, ServiceManager
 from athena.external.gateway import ExternalAccessGateway, ExternalResearchService
