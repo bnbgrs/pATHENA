@@ -10,10 +10,20 @@ from athena.chat.grounded_completion import (
     GroundedSendCompletionRepository,
     GroundedSendReceipt,
 )
+from athena.chat.grounded_provider_attempt import (
+    GroundedProviderAttempt,
+    GroundedProviderAttemptRepository,
+    GroundedProviderResult,
+)
 from athena.chat.grounded_reconciliation import (
     GroundedReconciliationState,
     GroundedReconciliationStatus,
     GroundedSendReconciler,
+)
+from athena.chat.grounded_recovery import (
+    GroundedRecoveryState,
+    GroundedRecoveryStatus,
+    GroundedSendRecovery,
 )
 from athena.chat.grounded_turn import GroundedUserTurnRepository
 from athena.chat.models import ChatMessage
@@ -38,11 +48,35 @@ class GroundedSendStateError(RuntimeError):
         )
 
 
+class GroundedProviderBoundaryError(RuntimeError):
+    """The provider boundary is unsafe for the current durable recovery state."""
+
+    def __init__(self, status: GroundedRecoveryStatus) -> None:
+        self.status = status
+        super().__init__(
+            f"Grounded send operation {status.operation_id} is {status.state.value}; "
+            "only resumable operations may begin a provider attempt."
+        )
+
+
+class GroundedProviderResultError(RuntimeError):
+    """A provider result cannot be journaled from the current recovery state."""
+
+    def __init__(self, status: GroundedRecoveryStatus) -> None:
+        self.status = status
+        super().__init__(
+            f"Grounded send operation {status.operation_id} is {status.state.value}; "
+            "only ambiguous operations may record a first provider result."
+        )
+
+
 class GroundedSendCoordinator:
     """Coordinate crash-safe start, assistant commit, completion and replay."""
 
     def __init__(self, database: SQLiteDatabase) -> None:
         self.reconciler = GroundedSendReconciler(database)
+        self.recovery = GroundedSendRecovery(database)
+        self.provider_attempts = GroundedProviderAttemptRepository(database)
         self.user_turns = GroundedUserTurnRepository(database)
         self.assistant_turns = GroundedAssistantTurnRepository(database)
         self.completions = GroundedSendCompletionRepository(database)
@@ -57,6 +91,98 @@ class GroundedSendCoordinator:
         return self.reconciler.inspect(
             operation_id=operation_id,
             chat_id=chat_id,
+            fingerprint=fingerprint,
+        )
+
+    def recover(
+        self,
+        *,
+        operation_id: uuid.UUID,
+        chat_id: uuid.UUID,
+        fingerprint: ChatRequestFingerprint,
+    ) -> GroundedRecoveryStatus:
+        return self.recovery.inspect(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        )
+
+    def begin_provider_attempt(
+        self,
+        *,
+        operation_id: uuid.UUID,
+        chat_id: uuid.UUID,
+        fingerprint: ChatRequestFingerprint,
+    ) -> GroundedProviderAttempt:
+        before = self.recover(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        )
+        if before.state is not GroundedRecoveryState.RESUMABLE:
+            raise GroundedProviderBoundaryError(before)
+        attempt = self.provider_attempts.mark_started(
+            operation_id=operation_id,
+            chat_id=chat_id,
+        )
+        after = self.recover(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        )
+        if after.state is not GroundedRecoveryState.AMBIGUOUS:
+            raise RuntimeError(
+                "Grounded provider attempt did not become durably ambiguous."
+            )
+        return attempt
+
+    def record_provider_result(
+        self,
+        *,
+        operation_id: uuid.UUID,
+        chat_id: uuid.UUID,
+        fingerprint: ChatRequestFingerprint,
+        processing_run_id: uuid.UUID,
+        assistant_content: str,
+        receipt_payload_json: str,
+    ) -> GroundedProviderResult:
+        before = self.recover(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        )
+        if before.state is not GroundedRecoveryState.AMBIGUOUS:
+            raise GroundedProviderResultError(before)
+        result = self.provider_attempts.store_result(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            processing_run_id=processing_run_id,
+            assistant_content=assistant_content,
+            receipt_payload_json=receipt_payload_json,
+        )
+        after = self.recover(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        )
+        if after.state is not GroundedRecoveryState.RESULT_AVAILABLE:
+            raise RuntimeError(
+                "Grounded provider result did not become durably recoverable."
+            )
+        return result
+
+    def finalize_recorded_result(
+        self,
+        *,
+        operation_id: uuid.UUID,
+        chat_id: uuid.UUID,
+        actor_id: uuid.UUID,
+        fingerprint: ChatRequestFingerprint,
+    ) -> GroundedSendReceipt:
+        return self.recovery.finalize_recorded_result(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            actor_id=actor_id,
             fingerprint=fingerprint,
         )
 

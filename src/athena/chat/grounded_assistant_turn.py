@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 
+from athena.chat.grounded_provider_attempt import GroundedProviderAttemptRepository
 from athena.chat.models import ChatMessage, MessageType
 from athena.chat.repository import ChatRepository, _message_payload_hash
 from athena.chat.send_identity import assistant_message_id_for_operation
@@ -23,6 +24,7 @@ class GroundedAssistantTurnRepository:
     def __init__(self, database: SQLiteDatabase) -> None:
         self.database = database
         self.operations = ChatSendOperationRepository(database)
+        self.provider_attempts = GroundedProviderAttemptRepository(database)
         self.chat = ChatRepository(database)
 
     def commit(
@@ -68,6 +70,22 @@ class GroundedAssistantTurnRepository:
             if str(operation["state"]) != ChatSendOperationState.USER_COMMITTED.value:
                 raise ChatSendOperationConflictError(
                     "Grounded assistant operation must be user_committed; reconcile before retry."
+                )
+            provider_result = connection.execute(
+                """
+                SELECT chat_id, assistant_content
+                FROM grounded_provider_results
+                WHERE operation_id = ?
+                """,
+                (uuid_to_blob(operation_id),),
+            ).fetchone()
+            if (
+                provider_result is None
+                or uuid_from_blob(bytes(provider_result["chat_id"])) != chat_id
+                or str(provider_result["assistant_content"]) != content
+            ):
+                raise ChatSendOperationConflictError(
+                    "Grounded assistant turn requires the matching durable provider result."
                 )
 
             user = connection.execute(
