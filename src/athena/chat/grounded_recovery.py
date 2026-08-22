@@ -11,6 +11,10 @@ from athena.chat.grounded_completion import (
     GroundedSendCompletionRepository,
     GroundedSendReceipt,
 )
+from athena.chat.grounded_context_package import (
+    GroundedContextPackageRepository,
+    GroundedContextPackageSchemaError,
+)
 from athena.chat.grounded_provider_attempt import (
     GroundedProviderAttemptRepository,
     GroundedProviderAttemptSchemaError,
@@ -65,6 +69,7 @@ class GroundedSendRecovery:
         self.database = database
         self.operations = ChatSendOperationRepository(database)
         self.reconciler = GroundedSendReconciler(database)
+        self.context_packages = GroundedContextPackageRepository(database)
         self.provider_attempts = GroundedProviderAttemptRepository(database)
         self.assistant_turns = GroundedAssistantTurnRepository(database)
         self.completions = GroundedSendCompletionRepository(database)
@@ -319,6 +324,22 @@ class GroundedSendRecovery:
             if result is None
             else self.provider_attempts.load_result_identity(operation_id)
         )
+        if identity is not None:
+            try:
+                context_record = self.context_packages.load(operation_id)
+            except GroundedContextPackageSchemaError as exc:
+                raise GroundedProviderAttemptSchemaError(
+                    "Provider identity cannot be verified against a corrupted ContextPackage."
+                ) from exc
+            if context_record is not None:
+                signature = context_record.package.model_signature
+                if (
+                    identity.provider_id != signature.provider
+                    or identity.model_id != signature.model_identifier
+                ):
+                    raise GroundedProviderAttemptSchemaError(
+                        "Persisted provider identity conflicts with the pinned ContextPackage model."
+                    )
         return result, identity
 
     def _assistant_matches_result(
