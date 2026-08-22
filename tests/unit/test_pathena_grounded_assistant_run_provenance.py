@@ -306,6 +306,7 @@ def test_restart_after_run_completion_finishes_receipt_without_duplicate(
     context_record = GroundedContextPackageRepository(database).load(operation_id)
     assert context_record is not None
     user_message = ChatRepository(database).load_chat(chat_id).messages[0]
+    assert user_message.actor_id is not None
     complete_grounded_processing_run(
         database,
         processing_run_id=run_id,
