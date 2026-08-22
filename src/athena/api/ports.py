@@ -112,6 +112,7 @@ class CoreApiSurface(Protocol):
         content: str,
         requested_model_id: str | None = None,
         requested_embedding_model_id: str | None = None,
+        operation_id: str | None = None,
         effective_context_limit: int | None = None,
         max_output_tokens: int | None = None,
         temperature: float | None = None,
