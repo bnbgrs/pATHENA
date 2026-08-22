@@ -62,6 +62,22 @@ def _check_disk_space(root: Path) -> DoctorCheck:
     return DoctorCheck("disk-space", status, f"{free_gib:.1f} GiB free at {root}")
 
 
+def _check_optional_storage_root(
+    name: str,
+    root: Path | None,
+    *,
+    missing_status: str,
+    missing_detail: str,
+) -> DoctorCheck:
+    if root is None:
+        return DoctorCheck(name, missing_status, missing_detail)
+    if root.is_symlink():
+        return DoctorCheck(name, "WARN", f"configured root is a symbolic link: {root}")
+    if not root.is_dir():
+        return DoctorCheck(name, "WARN", f"configured root is unavailable: {root}")
+    return DoctorCheck(name, "PASS", str(root))
+
+
 def _check_database(paths: RuntimePaths) -> DoctorCheck:
     try:
         report = inspect_database_read_only(paths.database_path)
@@ -146,6 +162,31 @@ def run_doctor(
         checks.append(
             DoctorCheck("disk-space", "SKIP", "runtime root is not writable")
         )
+
+    checks.append(
+        _check_optional_storage_root(
+            "archive-root",
+            paths.archive_root,
+            missing_status="PASS",
+            missing_detail="not configured; source bytes remain in durable local spool",
+        )
+    )
+    checks.append(
+        _check_optional_storage_root(
+            "backup-root",
+            paths.backup_root,
+            missing_status="WARN",
+            missing_detail="not configured; local pATHENA data is not externally backed up",
+        )
+    )
+    checks.append(
+        _check_optional_storage_root(
+            "projection-root",
+            paths.projection_root,
+            missing_status="PASS",
+            missing_detail="not configured; external projection is optional",
+        )
+    )
 
     database_check = _check_database(paths)
     checks.append(database_check)
