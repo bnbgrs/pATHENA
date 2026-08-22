@@ -8,7 +8,11 @@ from athena.chat.grounded_recovery import GroundedRecoveryState, GroundedSendRec
 from athena.chat.grounded_send import GroundedSendCoordinator
 from athena.chat.models import ChatMessage
 from athena.chat.repository import ChatRepository
-from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
+from athena.chat.request_fingerprint import (
+    ChatRequestFingerprint,
+    ChatSendMode,
+    build_chat_request_fingerprint,
+)
 from athena.common.ids import uuid_to_blob
 from athena.model.domain import ModelInfo
 from athena.model.provenance import ModelRunRepository
@@ -107,7 +111,7 @@ def _package_and_run(
     return package, run.processing_run_id
 
 
-def _fingerprint(chat_id: uuid.UUID):
+def _fingerprint(chat_id: uuid.UUID) -> ChatRequestFingerprint:
     return build_chat_request_fingerprint(
         mode=ChatSendMode.GROUNDED,
         chat_id=chat_id,
@@ -124,7 +128,7 @@ def _fingerprint(chat_id: uuid.UUID):
 
 def _pin_run_before_context(
     database: SQLiteDatabase,
-) -> tuple[uuid.UUID, uuid.UUID, uuid.UUID, object]:
+) -> tuple[uuid.UUID, uuid.UUID, uuid.UUID, ChatRequestFingerprint]:
     chats = ChatRepository(database)
     user = chats.create_actor(actor_type="user")
     chat_id = chats.create_chat(actor_id=user)
