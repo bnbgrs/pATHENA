@@ -9,7 +9,9 @@ from typing import Any, cast
 
 from athena.chat.grounded_recovery import GroundedRecoveryState
 from athena.chat.grounded_send import GroundedSendCoordinator
+from athena.chat.models import ChatMessage
 from athena.chat.request_fingerprint import ChatRequestFingerprint
+from athena.chat.service import ChatService
 from athena.chat.unified import (
     UnifiedGroundedRecoveryRequiredError,
     UnifiedLocalChatResult,
@@ -30,16 +32,15 @@ from athena.chat.unified_pre_user_recovery import (
     UnifiedPreUserRecoveryState,
 )
 from athena.chat.unified_pre_user_resume import (
-    UnifiedPreUserResumeError,
-    UnifiedPreUserResumeMaterializer,
     UnifiedPreUserResumeMaterialization,
+    UnifiedPreUserResumeMaterializer,
 )
 from athena.chat.unified_send_plan import UnifiedSendPlanRepository
 from athena.common.ids import new_uuid7
 from athena.memory.models import MemoryScopeKind
 from athena.model.adapters.lm_studio_embeddings import LMStudioEmbeddingProvider
 from athena.model.domain import ModelInfo
-from athena.model.provenance import ModelSignature
+from athena.model.provenance import ModelRunRepository, ModelSignature
 from athena.retrieval.context import ContextBuilderError, ContextBuilderService
 from athena.retrieval.context_package import ContextPackageService
 from athena.retrieval.evidence import MemoryEvidencePolicy
@@ -72,14 +73,18 @@ class _CapturingContextPackageService(ContextPackageService):
     def assert_snapshot_current(self, expected_commit_seq: int, *, phase: str) -> None:
         self._base.assert_snapshot_current(expected_commit_seq, phase=phase)
 
-    def assert_user_commit_follows(self, previous_commit_seq: int, user_message):
+    def assert_user_commit_follows(
+        self,
+        previous_commit_seq: int,
+        user_message: ChatMessage,
+    ) -> int:
         return self._base.assert_user_commit_follows(previous_commit_seq, user_message)
 
 
 class _PlanCapturingModelRuns(_DurableUnifiedModelRunRepository):
     def __init__(
         self,
-        base,
+        base: ModelRunRepository,
         *,
         coordinator: GroundedSendCoordinator,
         state: _UnifiedDurableCallState,
@@ -100,7 +105,10 @@ class _PlanCapturingModelRuns(_DurableUnifiedModelRunRepository):
             generation_parameters=generation_parameters,
             context_configuration=context_configuration,
         )
-        if context_configuration is not None and context_configuration.get("mode") == "unified_local_chat":
+        if (
+            context_configuration is not None
+            and context_configuration.get("mode") == "unified_local_chat"
+        ):
             if self._capture.model_signature_id is not None:
                 raise RuntimeError("Unified ModelSignature was pinned more than once.")
             self._capture.model_signature_id = signature.model_signature_id
@@ -110,7 +118,7 @@ class _PlanCapturingModelRuns(_DurableUnifiedModelRunRepository):
 class _PlanDurableUserChatService(_DurableUnifiedUserChatService):
     def __init__(
         self,
-        base,
+        base: ChatService,
         *,
         coordinator: GroundedSendCoordinator,
         state: _UnifiedDurableCallState,
@@ -125,7 +133,7 @@ class _PlanDurableUserChatService(_DurableUnifiedUserChatService):
         chat_id: uuid.UUID,
         content: str,
         operation_id: uuid.UUID | None = None,
-    ):
+    ) -> ChatMessage:
         state = self._state
         snapshot_seq = self._capture.retrieval_snapshot_commit_seq
         model_signature_id = self._capture.model_signature_id
@@ -231,7 +239,10 @@ class UnifiedLocalChatService(_DurableUnifiedLocalChatService):
                 grounding_contract=materialized.grounding_contract,
             )
         except KeyboardInterrupt:
-            durable_model_runs.finish_run(processing_run.processing_run_id, status="cancelled")
+            durable_model_runs.finish_run(
+                processing_run.processing_run_id,
+                status="cancelled",
+            )
             raise
         except Exception as exc:
             durable_model_runs.finish_run(
@@ -240,7 +251,10 @@ class UnifiedLocalChatService(_DurableUnifiedLocalChatService):
                 error_detail=f"{type(exc).__name__}: {exc}"[:4000],
             )
             raise
-        durable_model_runs.finish_run(processing_run.processing_run_id, status="succeeded")
+        durable_model_runs.finish_run(
+            processing_run.processing_run_id,
+            status="succeeded",
+        )
         coordinator.finalize_recorded_result(
             operation_id=plan.operation_id,
             chat_id=plan.chat_id,
@@ -298,7 +312,9 @@ class UnifiedLocalChatService(_DurableUnifiedLocalChatService):
             max_source_context_tokens=max_source_context_tokens,
             max_source_context_items=max_source_context_items,
             max_recent_conversation_turns=max_recent_conversation_turns,
-            memory_scope_kind=None if memory_scope_kind is None else memory_scope_kind.value,
+            memory_scope_kind=(
+                None if memory_scope_kind is None else memory_scope_kind.value
+            ),
             memory_scope_entity_id=memory_scope_entity_id,
             effective_context_limit=effective_context_limit,
             output_reserve=output_reserve,
