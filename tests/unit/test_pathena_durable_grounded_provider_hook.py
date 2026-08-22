@@ -6,7 +6,10 @@ from collections.abc import Iterator, Sequence
 
 import pytest
 
-from athena.chat.durable_grounded_generation import DurableGroundedGenerationService
+from athena.chat.durable_grounded_generation import (
+    DurableGroundedGenerationError,
+    DurableGroundedGenerationService,
+)
 from athena.chat.generation import ChatGenerationService
 from athena.chat.grounded_recovery import GroundedRecoveryState
 from athena.chat.grounded_send import GroundedSendCoordinator
@@ -133,29 +136,54 @@ def _receipt(content: str, provider_id: str, model_id: str) -> str:
     )
 
 
+def _prepared_generation(database: SQLiteDatabase):
+    chats = ChatRepository(database)
+    user = chats.create_actor(actor_type="user")
+    chat_id = chats.create_chat(actor_id=user)
+    operation_id = uuid.uuid4()
+    fingerprint = _fingerprint(chat_id)
+    coordinator = GroundedSendCoordinator(database)
+    started = coordinator.start(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        actor_id=user,
+        content="hello",
+        fingerprint=fingerprint,
+    )
+    package = _package(started.user_message)
+    provider = _Provider()
+    generation = DurableGroundedGenerationService(
+        ChatGenerationService(ChatService(chats), provider),
+        coordinator,
+    )
+    return (
+        chats,
+        chat_id,
+        operation_id,
+        fingerprint,
+        coordinator,
+        started,
+        package,
+        provider,
+        generation,
+    )
+
+
 def test_provider_hook_failure_does_not_claim_irreversible_boundary(tmp_path) -> None:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
     try:
-        chats = ChatRepository(database)
-        user = chats.create_actor(actor_type="user")
-        chat_id = chats.create_chat(actor_id=user)
-        operation_id = uuid.uuid4()
-        fingerprint = _fingerprint(chat_id)
-        coordinator = GroundedSendCoordinator(database)
-        started = coordinator.start(
-            operation_id=operation_id,
-            chat_id=chat_id,
-            actor_id=user,
-            content="hello",
-            fingerprint=fingerprint,
-        )
-        package = _package(started.user_message)
-        provider = _Provider()
-        generation = DurableGroundedGenerationService(
-            ChatGenerationService(ChatService(chats), provider),
+        (
+            chats,
+            chat_id,
+            operation_id,
+            fingerprint,
             coordinator,
-        )
+            started,
+            package,
+            provider,
+            generation,
+        ) = _prepared_generation(database)
 
         def fail_before_provider() -> None:
             raise RuntimeError("hook failure")
@@ -197,5 +225,85 @@ def test_provider_hook_failure_does_not_claim_irreversible_boundary(tmp_path) ->
             chat_id=chat_id,
             fingerprint=fingerprint,
         ).state is GroundedRecoveryState.FINALIZATION_REQUIRED
+        assert [item.content for item in chats.load_chat(chat_id).messages] == [
+            "hello",
+            "answer",
+        ]
+    finally:
+        database.stop()
+
+
+def test_receipt_builder_failure_journals_provider_answer_for_recovery(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        (
+            chats,
+            chat_id,
+            operation_id,
+            fingerprint,
+            coordinator,
+            started,
+            package,
+            provider,
+            generation,
+        ) = _prepared_generation(database)
+        processing_run_id = uuid.uuid4()
+
+        def broken_receipt_builder(
+            content: str,
+            provider_id: str,
+            model_id: str,
+        ) -> str:
+            del content, provider_id, model_id
+            raise RuntimeError("receipt exploded")
+
+        with pytest.raises(
+            DurableGroundedGenerationError,
+            match="answer was journaled for recovery",
+        ):
+            generation.send_context_package(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                user_message=started.user_message,
+                context_package=package,
+                processing_run_id=processing_run_id,
+                fingerprint=fingerprint,
+                receipt_payload_builder=broken_receipt_builder,
+            )
+
+        assert provider.calls == 1
+        status = coordinator.recover(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        )
+        assert status.state is GroundedRecoveryState.RESULT_AVAILABLE
+        assert status.provider_result is not None
+        assert status.provider_result.assistant_content == "answer"
+        assert status.provider_result.processing_run_id == processing_run_id
+        assert json.loads(status.provider_result.receipt_payload_json) == {
+            "assistant_text": "answer",
+            "model_id": "primary",
+            "provider_id": "lm_studio",
+            "recovery_receipt": True,
+        }
+        assert [item.content for item in chats.load_chat(chat_id).messages] == ["hello"]
+
+        receipt = coordinator.finalize_recorded_result(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        )
+        assert receipt.processing_run_id == processing_run_id
+        assert coordinator.recover(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        ).state is GroundedRecoveryState.COMPLETE
+        assert [item.content for item in chats.load_chat(chat_id).messages] == [
+            "hello",
+            "answer",
+        ]
     finally:
         database.stop()
