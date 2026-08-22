@@ -5,7 +5,12 @@ import uuid
 import pytest
 
 from athena.chat.grounded_reconciliation import GroundedReconciliationState
-from athena.chat.grounded_send import GroundedSendCoordinator, GroundedSendStateError
+from athena.chat.grounded_recovery import GroundedRecoveryState
+from athena.chat.grounded_send import (
+    GroundedProviderBoundaryError,
+    GroundedSendCoordinator,
+    GroundedSendStateError,
+)
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
 from athena.storage.database import SQLiteDatabase
@@ -77,35 +82,62 @@ def test_crash_boundaries_reconcile_without_reexecution(tmp_path) -> None:
             fingerprint=fingerprint,
         )
 
-    coordinator.commit_assistant(
-        operation_id=operation_id,
-        chat_id=chat_id,
-        actor_id=model,
-        content="answer",
-    )
-    assert coordinator.reconcile(
+    assert coordinator.recover(
         operation_id=operation_id,
         chat_id=chat_id,
         fingerprint=fingerprint,
-    ).state is GroundedReconciliationState.INCOMPLETE
+    ).state is GroundedRecoveryState.RESUMABLE
+    attempt = coordinator.begin_provider_attempt(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        fingerprint=fingerprint,
+    )
+    assert attempt.operation_id == operation_id
+    assert coordinator.recover(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        fingerprint=fingerprint,
+    ).state is GroundedRecoveryState.AMBIGUOUS
+    with pytest.raises(GroundedProviderBoundaryError) as exc_info:
+        coordinator.begin_provider_attempt(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        )
+    assert exc_info.value.status.state is GroundedRecoveryState.AMBIGUOUS
+
+    run_id = uuid.uuid4()
+    result = coordinator.record_provider_result(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        fingerprint=fingerprint,
+        processing_run_id=run_id,
+        assistant_content="answer",
+        receipt_payload_json='{"assistant_text":"answer","evidence":["CTX-001"]}',
+    )
+    assert coordinator.recover(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        fingerprint=fingerprint,
+    ).state is GroundedRecoveryState.RESULT_AVAILABLE
 
     database.stop()
     database = SQLiteDatabase(path)
     database.start()
     coordinator = GroundedSendCoordinator(database)
-    assert coordinator.reconcile(
+    assert coordinator.recover(
         operation_id=operation_id,
         chat_id=chat_id,
         fingerprint=fingerprint,
-    ).state is GroundedReconciliationState.INCOMPLETE
+    ).state is GroundedRecoveryState.RESULT_AVAILABLE
 
-    run_id = uuid.uuid4()
-    receipt = coordinator.complete(
+    receipt = coordinator.finalize_recorded_result(
         operation_id=operation_id,
         chat_id=chat_id,
-        processing_run_id=run_id,
-        payload_json='{"assistant_text":"answer","evidence":["CTX-001"]}',
+        actor_id=model,
+        fingerprint=fingerprint,
     )
+    assert receipt.payload_json == result.receipt_payload_json
     complete = coordinator.reconcile(
         operation_id=operation_id,
         chat_id=chat_id,
