@@ -11,6 +11,7 @@ from athena.chat.grounded_send import GroundedSendCoordinator
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
 from athena.chat.send_operation import ChatSendOperationRepository
+from athena.chat.unified_durable import build_unified_grounded_receipt
 from athena.chat.unified_replay import build_unified_replay_projection
 from athena.chat.unified_replay_input import (
     UnifiedReplayInputConflictError,
@@ -205,6 +206,54 @@ def test_unified_replay_checkpoint_is_idempotent_and_restart_safe(tmp_path: Path
         assert loaded == first
         assert loaded is not None
         assert loaded.projection.primary_model.backend_model_id == "primary"
+    finally:
+        database.stop()
+
+
+def test_unified_replay_checkpoint_requires_exact_receipt_projection(tmp_path: Path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        operation_id, chat_id, run_id, package, projection = _fixture(database)
+        repository = UnifiedReplayInputRepository(database)
+        stored = repository.store(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            processing_run_id=run_id,
+            projection=projection,
+        )
+        receipt = build_unified_grounded_receipt(
+            assistant_text="answer",
+            provider_id="lm_studio",
+            model_id="primary",
+            operation_id=operation_id,
+            processing_run_id=run_id,
+            context_package_request_id=package.request_id,
+            embedding_model_id=None,
+            replay_projection=projection,
+        )
+        assert repository.require_receipt_match(
+            operation_id,
+            receipt_payload_json=receipt,
+        ) == stored
+
+        changed = json.loads(receipt)
+        changed_projection = changed["unified_replay_projection"]
+        assert isinstance(changed_projection, dict)
+        changed_projection["primary_model"]["display_name"] = "different"
+        with pytest.raises(UnifiedReplayInputConflictError):
+            repository.require_receipt_match(
+                operation_id,
+                receipt_payload_json=json.dumps(changed),
+            )
+
+        changed = json.loads(receipt)
+        changed["processing_run_id"] = str(uuid.uuid4())
+        with pytest.raises(UnifiedReplayInputConflictError):
+            repository.require_receipt_match(
+                operation_id,
+                receipt_payload_json=json.dumps(changed),
+            )
     finally:
         database.stop()
 
