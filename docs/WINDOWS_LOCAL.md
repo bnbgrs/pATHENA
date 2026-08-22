@@ -10,7 +10,7 @@ Open PowerShell in the pATHENA repository and run:
 .\scripts\bootstrap_windows.ps1
 ```
 
-The bootstrap repairs the required `uv 0.11.21` version when `uv` is missing or a different version is active, installs Python 3.12 through `uv`, synchronizes the locked desktop environment, validates the installed package/configuration, runs the local doctor, and runs a disposable Core/API restart smoke test.
+The bootstrap repairs the required `uv 0.11.21` version when `uv` is missing or a different version is active, installs Python 3.12 through `uv`, resolves the effective local runtime root, creates it when needed, proves that it is writable with a temporary write probe, synchronizes the locked desktop environment, validates the installed package/configuration, runs the local doctor, and runs a disposable Core/API restart smoke test.
 
 A custom operational root can be selected explicitly:
 
@@ -36,6 +36,20 @@ Without overrides pATHENA uses:
 
 ```text
 %LOCALAPPDATA%\ATHENA
+```
+
+The bootstrap, readiness check, and desktop launcher all use the same resolver for this default. If `ATHENA_LOCAL_ROOT` is set, that absolute path becomes the effective root instead. Before Core/database work begins, the Windows scripts create the effective root if necessary and verify that a temporary file can be written and removed there.
+
+If that check fails, pATHENA stops early with an error beginning with:
+
+```text
+pATHENA runtime root is not writable:
+```
+
+Choose a writable root, for example:
+
+```powershell
+.\scripts\bootstrap_windows.ps1 -LocalRoot "D:\pATHENA-data"
 ```
 
 Important subpaths are derived from that root:
@@ -72,7 +86,7 @@ After bootstrap, the normal Windows diagnostic is:
 .\scripts\check_windows.ps1
 ```
 
-It synchronizes the locked desktop runtime, runs the full pATHENA doctor including Core startup/shutdown, and then proves model-independent Core/API persistence across a clean process restart in a disposable runtime root.
+It verifies that the effective runtime root is writable, synchronizes the locked desktop runtime, runs the full pATHENA doctor including Core startup/shutdown, and then proves model-independent Core/API persistence across a clean process restart in a disposable runtime root.
 
 To require a loaded LM Studio LLM as part of the check:
 
@@ -110,7 +124,7 @@ LM Studio being offline is reported separately and does not prevent the Core its
 .\scripts\start_windows.ps1
 ```
 
-The launcher loads `.pathena.windows.ps1` when present, applies any explicit command-line overrides, synchronizes the locked runtime, runs a fast model-independent runtime/database preflight, and only then launches `athena-desktop`.
+The launcher loads `.pathena.windows.ps1` when present, applies any explicit command-line overrides, proves the effective runtime root is writable, synchronizes the locked runtime, runs a fast model-independent runtime/database preflight, and only then launches `athena-desktop`.
 
 For a previously synchronized environment:
 
@@ -202,7 +216,13 @@ uv run --locked --extra desktop athena-recover --help
 
 ## 8. Development checks
 
-Targeted tests:
+Targeted Windows-contract test:
+
+```powershell
+uv run --locked --extra dev --extra desktop pytest tests/unit/test_windows_runtime_root_contract.py -q
+```
+
+Targeted doctor tests:
 
 ```powershell
 uv run --locked --extra dev --extra desktop pytest tests/unit/test_pathena_doctor.py -q
@@ -214,4 +234,4 @@ Full repository quality command:
 uv run --locked --extra dev --extra desktop python scripts/quality.py
 ```
 
-A failing GitHub Actions run is useful engineering evidence, but local Windows runtime correctness is also validated through the bootstrap, doctor, disposable restart test and actual desktop/Core startup path.
+A failing GitHub Actions run is useful engineering evidence, but local Windows runtime correctness is also validated through the bootstrap, root-writability fence, doctor, disposable restart test and actual desktop/Core startup path.
