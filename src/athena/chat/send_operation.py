@@ -257,6 +257,62 @@ class ChatSendOperationRepository:
             raise RuntimeError("Stored chat send operation disappeared after commit.")
         return operation
 
+    def bind_grounded_processing_run(
+        self,
+        *,
+        operation_id: uuid.UUID,
+        chat_id: uuid.UUID,
+        processing_run_id: uuid.UUID,
+    ) -> ChatSendOperation:
+        """Pin the unique Grounded ProcessingRun before provider execution."""
+        with self.database.write_transaction() as connection:
+            existing = self._load_in_transaction(connection, operation_id)
+            if existing is None:
+                raise ChatSendOperationNotFoundError(str(operation_id))
+            if existing.chat_id != chat_id:
+                raise ChatSendOperationConflictError(
+                    "Grounded processing-run binding belongs to another chat."
+                )
+            if existing.mode is not ChatSendOperationMode.GROUNDED:
+                raise ChatSendOperationConflictError(
+                    "Only Grounded operations may pin a Grounded ProcessingRun."
+                )
+            if existing.state is not ChatSendOperationState.USER_COMMITTED:
+                raise ChatSendOperationConflictError(
+                    "Grounded ProcessingRun must be pinned before assistant commit."
+                )
+            if existing.receipt_payload_sha256 is not None:
+                raise ChatSendOperationConflictError(
+                    "Incomplete Grounded operation cannot already own a receipt."
+                )
+            run_id = self._merge_run_id(
+                existing.processing_run_id,
+                processing_run_id,
+            )
+            if run_id != processing_run_id:
+                raise ChatSendOperationConflictError(
+                    "Grounded processing-run identity could not be pinned."
+                )
+            if existing.processing_run_id is None:
+                now = max(utc_now_us(), existing.updated_at_us)
+                connection.execute(
+                    """
+                    UPDATE chat_send_operations
+                    SET processing_run_id = ?, updated_at_us = ?
+                    WHERE operation_id = ?
+                    """,
+                    (
+                        uuid_to_blob(processing_run_id),
+                        now,
+                        uuid_to_blob(operation_id),
+                    ),
+                )
+
+        operation = self.load(operation_id)
+        if operation is None:
+            raise RuntimeError("Grounded processing-run binding disappeared after commit.")
+        return operation
+
     def advance(
         self,
         operation_id: uuid.UUID,
@@ -377,16 +433,15 @@ class ChatSendOperationRepository:
         current: ChatSendOperationState,
         target: ChatSendOperationState,
     ) -> None:
+        if mode is ChatSendOperationMode.GROUNDED:
+            raise ChatSendOperationConflictError(
+                "Grounded lifecycle transitions must use the atomic Grounded repositories."
+            )
         if target is current:
             return
         if _STATE_RANK[target] < _STATE_RANK[current]:
             raise ChatSendOperationConflictError(
                 "Chat send operation lifecycle cannot move backwards."
-            )
-
-        if mode is ChatSendOperationMode.GROUNDED:
-            raise ChatSendOperationConflictError(
-                "Grounded lifecycle transitions must use the atomic Grounded repositories."
             )
 
         allowed_direct = {
@@ -483,9 +538,9 @@ class ChatSendOperationRepository:
             ChatSendOperationState.USER_COMMITTED,
             ChatSendOperationState.ASSISTANT_COMMITTED,
         }:
-            if operation.processing_run_id is not None or receipt_sha is not None:
+            if receipt_sha is not None:
                 raise ChatSendOperationSchemaError(
-                    "Persisted incomplete Grounded operation contains completion identity."
+                    "Persisted incomplete Grounded operation contains receipt identity."
                 )
         elif operation.processing_run_id is None or receipt_sha is None:
             raise ChatSendOperationSchemaError(
