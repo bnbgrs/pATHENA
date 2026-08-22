@@ -42,11 +42,24 @@ def _schedule_initial_core_refreshes(controller: DesktopApiController) -> None:
         QTimer.singleShot(delay_ms, controller.refresh)
 
 
-def _start_core_refresh_heartbeat(controller: DesktopApiController) -> QTimer:
-    """Keep Core status self-healing after the finite startup retry window."""
+def _start_core_refresh_heartbeat(
+    controller: DesktopApiController,
+    supervisor: DesktopCoreSupervisor | None = None,
+) -> QTimer:
+    """Keep Core status and the owned child process self-healing after startup."""
     timer = QTimer(controller)
     timer.setInterval(_CORE_REFRESH_HEARTBEAT_MS)
-    timer.timeout.connect(controller.refresh)
+
+    if supervisor is None:
+        timer.timeout.connect(controller.refresh)
+    else:
+
+        def recover_and_refresh() -> None:
+            supervisor.ensure_running()
+            controller.refresh()
+
+        timer.timeout.connect(recover_and_refresh)
+
     timer.start()
     return timer
 
@@ -60,7 +73,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     controller = DesktopApiController(client)
     window = AthenaMainWindow(api_controller=controller)
     _schedule_initial_core_refreshes(controller)
-    heartbeat = _start_core_refresh_heartbeat(controller)
+    heartbeat = _start_core_refresh_heartbeat(controller, supervisor)
     window.show()
     exit_code = app.exec()
     heartbeat.stop()
