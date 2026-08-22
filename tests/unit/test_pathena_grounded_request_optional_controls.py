@@ -24,6 +24,7 @@ def _package(
     operation_id: uuid.UUID,
     *,
     generation_parameters_json: str,
+    context_configuration_json: str = '{"context_package_version":1}',
 ):
     signature = ModelSignature(
         model_signature_id=uuid.uuid4(),
@@ -32,7 +33,7 @@ def _package(
         model_revision=None,
         quantization="Q4_K_M",
         generation_parameters_json=generation_parameters_json,
-        context_configuration_json='{"context_package_version":1}',
+        context_configuration_json=context_configuration_json,
         signature_hash=b"s" * 32,
         created_at_us=1,
     )
@@ -88,13 +89,14 @@ def _fingerprint(
     *,
     temperature: float | None,
     reasoning_mode: str | None,
+    requested_embedding_model_id: str | None = None,
 ):
     return build_chat_request_fingerprint(
         mode=ChatSendMode.GROUNDED,
         chat_id=chat_id,
         content="hello",
         requested_model_id="primary",
-        requested_embedding_model_id=None,
+        requested_embedding_model_id=requested_embedding_model_id,
         effective_context_limit=4096,
         max_output_tokens=1000,
         temperature=temperature,
@@ -154,5 +156,49 @@ def test_matching_none_optional_controls_remain_valid() -> None:
             uuid.uuid4(),
             temperature=None,
             reasoning_mode=None,
+        ),
+    )
+
+
+def test_explicit_embedding_model_must_match_context_configuration() -> None:
+    with pytest.raises(
+        GroundedRequestContextBindingError,
+        match="embedding model conflicts",
+    ):
+        validate_grounded_request_context_binding(
+            package=_package(
+                uuid.uuid4(),
+                generation_parameters_json=(
+                    '{"max_output_tokens":1000,"reasoning_mode":"off"}'
+                ),
+                context_configuration_json=(
+                    '{"context_package_version":1,"embedding_model_id":"embed-b"}'
+                ),
+            ),
+            fingerprint=_fingerprint(
+                uuid.uuid4(),
+                temperature=None,
+                reasoning_mode="off",
+                requested_embedding_model_id="embed-a",
+            ),
+        )
+
+
+def test_explicit_embedding_model_matches_pinned_context_configuration() -> None:
+    validate_grounded_request_context_binding(
+        package=_package(
+            uuid.uuid4(),
+            generation_parameters_json=(
+                '{"max_output_tokens":1000,"reasoning_mode":"off"}'
+            ),
+            context_configuration_json=(
+                '{"context_package_version":1,"embedding_model_id":"embed-a"}'
+            ),
+        ),
+        fingerprint=_fingerprint(
+            uuid.uuid4(),
+            temperature=None,
+            reasoning_mode="off",
+            requested_embedding_model_id="embed-a",
         ),
     )
