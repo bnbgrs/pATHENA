@@ -157,6 +157,10 @@ class DurableGroundedGenerationService:
             raise DurableGroundedGenerationError(
                 "Grounded generation user message must equal the operation identity."
             )
+        if user_message.actor_id is None:
+            raise DurableGroundedGenerationError(
+                "Grounded generation user message is missing trigger-actor provenance."
+            )
         recovery = self.coordinator.recover(
             operation_id=operation_id,
             chat_id=chat_id,
@@ -180,6 +184,7 @@ class DurableGroundedGenerationService:
                 self.coordinator.database,
                 processing_run_id=processing_run_id,
                 package=context_package,
+                trigger_actor_id=user_message.actor_id,
             )
         except GroundedProcessingRunError as exc:
             raise DurableGroundedGenerationError(
