@@ -132,17 +132,12 @@ class DurableGroundedGenerationService:
             interactive_demand=self.generation.interactive_demand,
         )
 
-        provider_claimed = False
-
         def before_provider() -> None:
-            nonlocal provider_claimed
-            if not provider_claimed:
-                self.coordinator.begin_provider_attempt(
-                    operation_id=operation_id,
-                    chat_id=chat_id,
-                    fingerprint=fingerprint,
-                )
-                provider_claimed = True
+            self.coordinator.begin_provider_attempt(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                fingerprint=fingerprint,
+            )
             if on_before_provider_call is not None:
                 on_before_provider_call()
 
