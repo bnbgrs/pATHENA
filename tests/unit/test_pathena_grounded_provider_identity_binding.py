@@ -13,7 +13,8 @@ from athena.chat.grounded_send import (
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
 from athena.common.ids import uuid_to_blob
-from athena.model.provenance import ModelSignature
+from athena.model.domain import ModelInfo
+from athena.model.provenance import ModelRunRepository, ModelSignature
 from athena.retrieval.context_package import (
     ContextIncludedRef,
     ContextPackageBudget,
@@ -40,18 +41,48 @@ def _fingerprint(chat_id: uuid.UUID):
     )
 
 
-def _package(operation_id: uuid.UUID, revision_id: uuid.UUID):
-    signature = ModelSignature(
-        model_signature_id=uuid.uuid4(),
-        provider="lm_studio",
-        model_identifier="primary",
-        model_revision=None,
-        quantization="Q4_K_M",
-        generation_parameters_json='{"max_output_tokens":1000,"reasoning_mode":"off"}',
-        context_configuration_json='{"context_package_version":1}',
-        signature_hash=b"s" * 32,
-        created_at_us=1,
+def _user_commit_seq(database: SQLiteDatabase, revision_id: uuid.UUID) -> int:
+    row = database.connection.execute(
+        """
+        SELECT c.commit_seq
+        FROM revisions AS r
+        JOIN commit_records AS c ON c.commit_id = r.commit_id
+        WHERE r.revision_id = ?
+        """,
+        (uuid_to_blob(revision_id),),
+    ).fetchone()
+    assert row is not None
+    return int(row["commit_seq"])
+
+
+def _signature(database: SQLiteDatabase) -> ModelSignature:
+    return ModelRunRepository(database).get_or_create_signature(
+        model=ModelInfo(
+            provider="lm_studio",
+            backend_model_id="primary",
+            display_name="primary",
+            model_type="llm",
+            context_capacity=32768,
+            quantization="Q4_K_M",
+            loaded=True,
+            vision=False,
+            trained_for_tool_use=False,
+            loaded_context_length=4096,
+        ),
+        generation_parameters={
+            "max_output_tokens": 1000,
+            "reasoning_mode": "off",
+        },
+        context_configuration={"context_package_version": 1},
     )
+
+
+def _package(
+    database: SQLiteDatabase,
+    operation_id: uuid.UUID,
+    revision_id: uuid.UUID,
+):
+    signature = _signature(database)
     return ContextPackageService.build_from_sections(
         model_signature=signature,
         budget=ContextPackageBudget(
@@ -95,7 +126,7 @@ def _package(operation_id: uuid.UUID, revision_id: uuid.UUID):
             estimated_input_tokens=10,
             estimated_total_tokens=1210,
         ),
-        snapshot_commit_seq=1,
+        snapshot_commit_seq=_user_commit_seq(database, revision_id),
     )
 
 
@@ -113,24 +144,27 @@ def _started_coordinator(database: SQLiteDatabase):
         content="hello",
         fingerprint=fingerprint,
     )
+    package = _package(database, operation_id, started.user_message.revision_id)
     coordinator.store_context_package(
         operation_id=operation_id,
         chat_id=chat_id,
-        package=_package(operation_id, started.user_message.revision_id),
+        package=package,
     )
     coordinator.begin_provider_attempt(
         operation_id=operation_id,
         chat_id=chat_id,
         fingerprint=fingerprint,
     )
-    return coordinator, chat_id, operation_id, fingerprint
+    return coordinator, user, chat_id, operation_id, fingerprint, package
 
 
 def test_provider_result_identity_must_match_pinned_context_model(tmp_path) -> None:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
     try:
-        coordinator, chat_id, operation_id, fingerprint = _started_coordinator(database)
+        coordinator, _user, chat_id, operation_id, fingerprint, _package_record = (
+            _started_coordinator(database)
+        )
 
         with pytest.raises(
             GroundedProviderIdentityError,
@@ -157,7 +191,9 @@ def test_low_level_provider_result_cannot_bypass_pinned_context_model(tmp_path) 
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
     try:
-        coordinator, chat_id, operation_id, _ = _started_coordinator(database)
+        coordinator, _user, chat_id, operation_id, _, _package_record = (
+            _started_coordinator(database)
+        )
 
         with pytest.raises(
             GroundedProviderAttemptConflictError,
@@ -183,7 +219,9 @@ def test_low_level_provider_result_requires_identity_when_context_pins_model(tmp
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
     try:
-        coordinator, chat_id, operation_id, _ = _started_coordinator(database)
+        coordinator, _user, chat_id, operation_id, _, _package_record = (
+            _started_coordinator(database)
+        )
 
         with pytest.raises(
             GroundedProviderAttemptConflictError,
@@ -207,12 +245,24 @@ def test_recovery_rejects_provider_identity_tampered_after_persistence(tmp_path)
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
     try:
-        coordinator, chat_id, operation_id, fingerprint = _started_coordinator(database)
+        coordinator, user, chat_id, operation_id, fingerprint, package = (
+            _started_coordinator(database)
+        )
+        run = ModelRunRepository(database).start_run(
+            run_type="chat.unified_local_context_package",
+            trigger_actor_id=user,
+            pipeline_version="provider-identity-binding-test-v1",
+            input_snapshot=package.run_snapshot(),
+            configuration={"context_package_version": 1},
+            model_signature_id=package.model_signature.model_signature_id,
+            prompt_template_id="provider-identity-binding-test",
+            prompt_template_version="1",
+        )
         coordinator.record_provider_result(
             operation_id=operation_id,
             chat_id=chat_id,
             fingerprint=fingerprint,
-            processing_run_id=uuid.uuid4(),
+            processing_run_id=run.processing_run_id,
             assistant_content="answer",
             receipt_payload_json='{"assistant_text":"answer"}',
             provider_id="lm_studio",
