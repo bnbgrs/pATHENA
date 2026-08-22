@@ -48,6 +48,7 @@ from athena.chat.unified_replay_input import (
     UnifiedReplayInputRepository,
     UnifiedReplayInputSchemaError,
 )
+from athena.chat.unified_send_plan import UnifiedSendPlanRepository
 from athena.common.ids import new_uuid7
 from athena.memory.models import MemoryScopeKind
 from athena.model.adapters.lm_studio_embeddings import LMStudioEmbeddingProvider
@@ -58,7 +59,7 @@ from athena.model.provenance import (
     ProcessingRun,
 )
 from athena.retrieval.context import ContextBuilderError, ContextBuilderService, ContextBundle
-from athena.retrieval.context_package import ContextPackage
+from athena.retrieval.context_package import ContextPackage, ContextPackageService
 from athena.retrieval.evidence import MemoryEvidencePolicy, MemoryEvidenceSelection
 from athena.retrieval.hybrid import HybridSearchResult
 from athena.retrieval.source_context import SourceContextBuilderService, SourceContextBundle
@@ -82,6 +83,8 @@ class _UnifiedDurableCallState:
     fingerprint: ChatRequestFingerprint
     user_actor_id: uuid.UUID
     retrieval_query_override: str | None
+    retrieval_snapshot_commit_seq: int | None = None
+    model_signature_id: uuid.UUID | None = None
     processing_run_id: uuid.UUID | None = None
     context_configuration: dict[str, Any] | None = None
     primary_model: ModelInfo | None = None
@@ -177,6 +180,37 @@ class _CapturingSourceContextBuilder:
         return rebased
 
 
+class _CapturingContextPackageService(ContextPackageService):
+    def __init__(
+        self,
+        base: ContextPackageService,
+        state: _UnifiedDurableCallState,
+    ) -> None:
+        super().__init__(base.database)
+        self._base = base
+        self._state = state
+
+    def current_commit_seq(self) -> int:
+        commit_seq = self._base.current_commit_seq()
+        pinned = self._state.retrieval_snapshot_commit_seq
+        if pinned is not None and pinned != commit_seq:
+            raise RuntimeError(
+                "Unified retrieval attempted to repin a different canonical snapshot."
+            )
+        self._state.retrieval_snapshot_commit_seq = commit_seq
+        return commit_seq
+
+    def assert_snapshot_current(self, expected_commit_seq: int, *, phase: str) -> None:
+        self._base.assert_snapshot_current(expected_commit_seq, phase=phase)
+
+    def assert_user_commit_follows(
+        self,
+        previous_commit_seq: int,
+        user_message: ChatMessage,
+    ) -> int:
+        return self._base.assert_user_commit_follows(previous_commit_seq, user_message)
+
+
 class _DurableUnifiedUserChatService(ChatService):
     def __init__(
         self,
@@ -188,6 +222,51 @@ class _DurableUnifiedUserChatService(ChatService):
         super().__init__(base.repository)
         self._coordinator = coordinator
         self._state = state
+
+    def _persist_pre_user_plan(self) -> None:
+        state = self._state
+        if state.retrieval_snapshot_commit_seq is None:
+            raise UnifiedReplayProjectionError(
+                "Unified user persistence reached the durable boundary without a retrieval snapshot."
+            )
+        if state.model_signature_id is None:
+            raise UnifiedReplayProjectionError(
+                "Unified user persistence reached the durable boundary without a ModelSignature."
+            )
+        if state.primary_model is None:
+            raise UnifiedReplayProjectionError(
+                "Unified pre-user plan is missing its primary model."
+            )
+        if not state.embedding_model_captured:
+            raise UnifiedReplayProjectionError(
+                "Unified pre-user plan is missing embedding resolution."
+            )
+        if state.memory_context is None:
+            raise UnifiedReplayProjectionError(
+                "Unified pre-user plan is missing Memory/Knowledge context."
+            )
+        if state.source_context is None:
+            raise UnifiedReplayProjectionError(
+                "Unified pre-user plan is missing Raw Archive context."
+            )
+        if state.evidence_selection is None:
+            raise UnifiedReplayProjectionError(
+                "Unified pre-user plan is missing evidence classification."
+            )
+        UnifiedSendPlanRepository(self._coordinator.database).store(
+            operation_id=state.operation_id,
+            chat_id=state.chat_id,
+            fingerprint=state.fingerprint,
+            user_actor_id=state.user_actor_id,
+            retrieval_snapshot_commit_seq=state.retrieval_snapshot_commit_seq,
+            model_signature_id=state.model_signature_id,
+            retrieval_query_override=state.retrieval_query_override,
+            primary_model=state.primary_model,
+            embedding_model=state.embedding_model,
+            memory_context=state.memory_context,
+            source_context=state.source_context,
+            evidence_selection=state.evidence_selection,
+        )
 
     def add_user_message(
         self,
@@ -202,6 +281,7 @@ class _DurableUnifiedUserChatService(ChatService):
             raise RuntimeError(
                 "Unified durable user persistence escaped its operation identity."
             )
+        self._persist_pre_user_plan()
         started = self._coordinator.start(
             operation_id=self._state.operation_id,
             chat_id=chat_id,
@@ -228,19 +308,28 @@ class _DurableUnifiedModelRunRepository(ModelRunRepository):
     def get_or_create_signature(
         self,
         *,
-        model: Any,
+        model: ModelInfo,
         generation_parameters: Mapping[str, Any],
         context_configuration: Mapping[str, Any] | None = None,
     ) -> ModelSignature:
         augmented = dict(context_configuration or {})
-        if augmented.get("mode") == "unified_local_chat":
+        is_unified = augmented.get("mode") == "unified_local_chat"
+        if is_unified:
             augmented["retrieval_query_override"] = self._state.retrieval_query_override
             self._state.context_configuration = augmented
-        return self._base.get_or_create_signature(
+        signature = self._base.get_or_create_signature(
             model=model,
             generation_parameters=generation_parameters,
             context_configuration=augmented if context_configuration is not None else None,
         )
+        if is_unified:
+            pinned = self._state.model_signature_id
+            if pinned is not None and pinned != signature.model_signature_id:
+                raise RuntimeError(
+                    "Unified retrieval attempted to repin a different ModelSignature."
+                )
+            self._state.model_signature_id = signature.model_signature_id
+        return signature
 
     def start_run(
         self,
@@ -866,7 +955,7 @@ class UnifiedLocalChatService(_LegacyUnifiedLocalChatService):
                 SourceContextBuilderService,
                 _CapturingSourceContextBuilder(self.source_context_builder, state),
             ),
-            context_packages=self.context_packages,
+            context_packages=_CapturingContextPackageService(self.context_packages, state),
             model_runs=durable_model_runs,
         )
         delegated.send_message(
