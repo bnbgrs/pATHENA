@@ -10,10 +10,10 @@ from athena.chat.generation import ChatGenerationResult, ChatGenerationService
 from athena.chat.grounding import GroundingContract
 from athena.chat.grounded_processing_run import (
     GroundedProcessingRunError,
+    bind_grounded_processing_run,
     cancel_grounded_processing_run,
     complete_grounded_processing_run,
     fail_grounded_processing_run,
-    validate_grounded_processing_run,
 )
 from athena.chat.grounded_provider_result_contract import validate_provider_result_contract
 from athena.chat.grounded_recovery import GroundedRecoveryState
@@ -257,8 +257,10 @@ class DurableGroundedGenerationService:
             message="Grounded ContextPackage no longer owns the current canonical snapshot.",
         )
         try:
-            validate_grounded_processing_run(
+            bind_grounded_processing_run(
                 self.coordinator.database,
+                operation_id=operation_id,
+                chat_id=chat_id,
                 processing_run_id=processing_run_id,
                 package=context_package,
                 trigger_actor_id=user_message.actor_id,
