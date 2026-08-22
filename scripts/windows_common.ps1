@@ -20,6 +20,26 @@ function Resolve-PathenaDefaultLocalRoot {
     throw "Windows local application-data directory could not be resolved. Pass -LocalRoot explicitly."
 }
 
+function Resolve-PathenaEffectiveLocalRoot {
+    if ($env:ATHENA_LOCAL_ROOT -and $env:ATHENA_LOCAL_ROOT.Trim()) {
+        return [System.IO.Path]::GetFullPath($env:ATHENA_LOCAL_ROOT.Trim())
+    }
+    return Resolve-PathenaDefaultLocalRoot
+}
+
+function Assert-PathenaLocalRootReady {
+    $root = Resolve-PathenaEffectiveLocalRoot
+    try {
+        [System.IO.Directory]::CreateDirectory($root) | Out-Null
+        $probe = Join-Path $root (".pathena-write-probe-" + [Guid]::NewGuid().ToString("N") + ".tmp")
+        [System.IO.File]::WriteAllText($probe, "pATHENA write probe", [System.Text.UTF8Encoding]::new($false))
+        Remove-Item -LiteralPath $probe -Force
+    } catch {
+        throw "pATHENA runtime root is not writable: $root. Choose a writable -LocalRoot. $($_.Exception.Message)"
+    }
+    return $root
+}
+
 function Get-PathenaUvVersion {
     $command = Get-Command uv -ErrorAction SilentlyContinue
     if ($null -eq $command) {
