@@ -360,6 +360,7 @@ def test_controller_grounded_send_keeps_operation_and_new_chat_identity_stable()
     assert spy.count() == 1
     assert gateway.sent_operation_id is not None
     operation_id = uuid.UUID(gateway.sent_operation_id)
+    assert operation_id.version == 7
     expected_chat_id = str(chat_id_for_operation(operation_id))
     assert gateway.created_chat_id == expected_chat_id
     assert gateway.sent_chat_id == expected_chat_id
