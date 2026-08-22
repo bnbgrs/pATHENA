@@ -257,6 +257,32 @@ class GroundedProviderAttemptRepository:
         operation_id: uuid.UUID,
         chat_id: uuid.UUID,
     ) -> GroundedProviderAttempt:
+        return self._mark_started(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            allow_existing=True,
+        )
+
+    def claim_started(
+        self,
+        *,
+        operation_id: uuid.UUID,
+        chat_id: uuid.UUID,
+    ) -> GroundedProviderAttempt:
+        """Claim exclusive ownership of the irreversible provider boundary."""
+        return self._mark_started(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            allow_existing=False,
+        )
+
+    def _mark_started(
+        self,
+        *,
+        operation_id: uuid.UUID,
+        chat_id: uuid.UUID,
+        allow_existing: bool,
+    ) -> GroundedProviderAttempt:
         with self.database.write_transaction() as connection:
             operation = self._require_grounded_operation(connection, operation_id, chat_id)
             existing = connection.execute(
@@ -276,9 +302,11 @@ class GroundedProviderAttemptRepository:
                     raise GroundedProviderAttemptConflictError(
                         "Provider attempt marker belongs to another chat."
                     )
-                raise GroundedProviderAttemptConflictError(
-                    "Provider attempt marker has already been claimed."
-                )
+                if not allow_existing:
+                    raise GroundedProviderAttemptConflictError(
+                        "Provider attempt marker has already been claimed."
+                    )
+                return attempt
             if str(operation["state"]) != ChatSendOperationState.USER_COMMITTED.value:
                 raise GroundedProviderAttemptConflictError(
                     "Provider attempt may start only from user_committed state."

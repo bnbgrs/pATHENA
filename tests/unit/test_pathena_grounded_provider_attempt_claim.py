@@ -44,12 +44,12 @@ def _started_operation(database: SQLiteDatabase):
     return coordinator, operation_id, chat_id, fingerprint
 
 
-def test_provider_attempt_marker_is_single_owner_claim(tmp_path) -> None:
+def test_provider_attempt_claim_is_single_owner(tmp_path) -> None:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
     try:
         coordinator, operation_id, chat_id, _ = _started_operation(database)
-        first = coordinator.provider_attempts.mark_started(
+        first = coordinator.provider_attempts.claim_started(
             operation_id=operation_id,
             chat_id=chat_id,
         )
@@ -58,12 +58,15 @@ def test_provider_attempt_marker_is_single_owner_claim(tmp_path) -> None:
             GroundedProviderAttemptConflictError,
             match="already been claimed",
         ):
-            coordinator.provider_attempts.mark_started(
+            coordinator.provider_attempts.claim_started(
                 operation_id=operation_id,
                 chat_id=chat_id,
             )
 
-        assert coordinator.provider_attempts.load(operation_id) == first
+        assert coordinator.provider_attempts.mark_started(
+            operation_id=operation_id,
+            chat_id=chat_id,
+        ) == first
     finally:
         database.stop()
 

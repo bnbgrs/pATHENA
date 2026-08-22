@@ -149,7 +149,7 @@ class GroundedSendCoordinator:
         if before.state is not GroundedRecoveryState.RESUMABLE:
             raise GroundedProviderBoundaryError(before)
         try:
-            attempt = self.provider_attempts.mark_started(
+            attempt = self.provider_attempts.claim_started(
                 operation_id=operation_id,
                 chat_id=chat_id,
             )
