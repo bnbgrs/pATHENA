@@ -16,6 +16,7 @@ from athena.desktop.theme import APP_STYLESHEET
 from athena.desktop.window import AthenaMainWindow
 
 _INITIAL_CORE_REFRESH_DELAYS_MS = (250, 750, 1_500, 3_000, 5_000, 10_000, 20_000)
+_CORE_REFRESH_HEARTBEAT_MS = 30_000
 
 
 def create_application(argv: Sequence[str] | None = None) -> QApplication:
@@ -41,6 +42,15 @@ def _schedule_initial_core_refreshes(controller: DesktopApiController) -> None:
         QTimer.singleShot(delay_ms, controller.refresh)
 
 
+def _start_core_refresh_heartbeat(controller: DesktopApiController) -> QTimer:
+    """Keep Core status self-healing after the finite startup retry window."""
+    timer = QTimer(controller)
+    timer.setInterval(_CORE_REFRESH_HEARTBEAT_MS)
+    timer.timeout.connect(controller.refresh)
+    timer.start()
+    return timer
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     app = create_application(argv)
     client = CoreApiClient.from_environment()
@@ -50,8 +60,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     controller = DesktopApiController(client)
     window = AthenaMainWindow(api_controller=controller)
     _schedule_initial_core_refreshes(controller)
+    heartbeat = _start_core_refresh_heartbeat(controller)
     window.show()
-    return app.exec()
+    exit_code = app.exec()
+    heartbeat.stop()
+    return exit_code
 
 
 if __name__ == "__main__":
