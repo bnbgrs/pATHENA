@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from pathlib import Path
 
 import pytest
 
@@ -14,7 +15,9 @@ from athena.chat.send_operation import ChatSendOperationMode, ChatSendOperationR
 from athena.storage.database import SQLiteDatabase
 
 
-def _repository(tmp_path):
+def _repository(
+    tmp_path: Path,
+) -> tuple[SQLiteDatabase, GroundedProviderAttemptRepository, uuid.UUID, uuid.UUID]:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
     chats = ChatRepository(database)
@@ -44,7 +47,7 @@ def _repository(tmp_path):
     return database, repository, chat_id, operation_id
 
 
-def test_provider_result_identity_is_atomic_and_immutable(tmp_path) -> None:
+def test_provider_result_identity_is_atomic_and_immutable(tmp_path: Path) -> None:
     database, repository, chat_id, operation_id = _repository(tmp_path)
     run_id = uuid.uuid4()
     result = repository.store_result(
@@ -85,7 +88,7 @@ def test_provider_result_identity_is_atomic_and_immutable(tmp_path) -> None:
     database.stop()
 
 
-def test_legacy_provider_result_cannot_gain_identity_on_replay(tmp_path) -> None:
+def test_legacy_provider_result_cannot_gain_identity_on_replay(tmp_path: Path) -> None:
     database, repository, chat_id, operation_id = _repository(tmp_path)
     run_id = uuid.uuid4()
     result = repository.store_result(
