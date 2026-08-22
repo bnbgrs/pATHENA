@@ -4,12 +4,14 @@ import uuid
 
 import pytest
 
+from athena.chat.grounded_assistant_turn import GroundedAssistantTurnRepository
 from athena.chat.grounded_context_package import GroundedContextPackageRepository
 from athena.chat.grounded_provider_attempt import GroundedProviderAttemptRepository
 from athena.chat.grounded_send import GroundedAssistantCommitError, GroundedSendCoordinator
 from athena.chat.grounded_turn import GroundedUserTurnRepository
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
+from athena.chat.send_operation import ChatSendOperationConflictError
 from athena.common.ids import uuid_to_blob
 from athena.model.provenance import ModelSignature
 from athena.retrieval.context_package import (
@@ -103,48 +105,78 @@ def _package(operation_id: uuid.UUID, revision_id: uuid.UUID):
     )
 
 
+def _prepared_result(database: SQLiteDatabase):
+    chats = ChatRepository(database)
+    user = chats.create_actor(actor_type="user")
+    chat_id = chats.create_chat(actor_id=user)
+    operation_id = uuid.uuid4()
+    message = GroundedUserTurnRepository(database).commit(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        actor_id=user,
+        content="hello",
+        fingerprint=_fingerprint(chat_id),
+    )
+    GroundedContextPackageRepository(database).store(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        package=_package(operation_id, message.revision_id),
+    )
+    provider = GroundedProviderAttemptRepository(database)
+    provider.claim_started(operation_id=operation_id, chat_id=chat_id)
+    provider.store_result(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        processing_run_id=uuid.uuid4(),
+        assistant_content="answer",
+        receipt_payload_json='{"assistant_text":"answer"}',
+        provider_id="lm_studio",
+        model_id="primary",
+    )
+    with database.write_transaction() as connection:
+        connection.execute(
+            "DELETE FROM grounded_provider_result_identities WHERE operation_id = ?",
+            (uuid_to_blob(operation_id),),
+        )
+    return chats, user, chat_id, operation_id
+
+
 def test_assistant_commit_rejects_missing_identity_for_pinned_context(tmp_path) -> None:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
     try:
-        chats = ChatRepository(database)
-        user = chats.create_actor(actor_type="user")
-        chat_id = chats.create_chat(actor_id=user)
-        operation_id = uuid.uuid4()
-        message = GroundedUserTurnRepository(database).commit(
-            operation_id=operation_id,
-            chat_id=chat_id,
-            actor_id=user,
-            content="hello",
-            fingerprint=_fingerprint(chat_id),
-        )
-        GroundedContextPackageRepository(database).store(
-            operation_id=operation_id,
-            chat_id=chat_id,
-            package=_package(operation_id, message.revision_id),
-        )
-        provider = GroundedProviderAttemptRepository(database)
-        provider.claim_started(operation_id=operation_id, chat_id=chat_id)
-        provider.store_result(
-            operation_id=operation_id,
-            chat_id=chat_id,
-            processing_run_id=uuid.uuid4(),
-            assistant_content="answer",
-            receipt_payload_json='{"assistant_text":"answer"}',
-            provider_id="lm_studio",
-            model_id="primary",
-        )
-        with database.write_transaction() as connection:
-            connection.execute(
-                "DELETE FROM grounded_provider_result_identities WHERE operation_id = ?",
-                (uuid_to_blob(operation_id),),
-            )
+        chats, user, chat_id, operation_id = _prepared_result(database)
 
         with pytest.raises(
             GroundedAssistantCommitError,
             match="requires durable provider identity",
         ):
             GroundedSendCoordinator(database).commit_assistant(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                actor_id=user,
+                content="answer",
+            )
+
+        thread = chats.load_chat(chat_id)
+        assert [item.content for item in thread.messages] == ["hello"]
+    finally:
+        database.stop()
+
+
+def test_low_level_assistant_commit_rejects_missing_pinned_result_identity(
+    tmp_path,
+) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        chats, user, chat_id, operation_id = _prepared_result(database)
+
+        with pytest.raises(
+            ChatSendOperationConflictError,
+            match="requires durable provider result identity",
+        ):
+            GroundedAssistantTurnRepository(database).commit(
                 operation_id=operation_id,
                 chat_id=chat_id,
                 actor_id=user,
