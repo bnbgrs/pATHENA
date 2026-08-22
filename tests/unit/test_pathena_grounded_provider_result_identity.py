@@ -1,0 +1,80 @@
+from __future__ import annotations
+
+import uuid
+
+import pytest
+
+from athena.chat.grounded_provider_attempt import (
+    GroundedProviderAttemptConflictError,
+    GroundedProviderAttemptRepository,
+)
+from athena.chat.repository import ChatRepository
+from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
+from athena.chat.send_operation import ChatSendOperationMode, ChatSendOperationRepository
+from athena.storage.database import SQLiteDatabase
+
+
+def test_provider_result_identity_is_atomic_and_immutable(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    chats = ChatRepository(database)
+    user = chats.create_actor(actor_type="user")
+    chat_id = chats.create_chat(actor_id=user)
+    operation_id = uuid.uuid4()
+    fingerprint = build_chat_request_fingerprint(
+        mode=ChatSendMode.GROUNDED,
+        chat_id=chat_id,
+        content="hello",
+        requested_model_id="model",
+        requested_embedding_model_id="embed",
+        effective_context_limit=4096,
+        max_output_tokens=1024,
+        temperature=0.3,
+        reasoning_mode="off",
+        retrieval_configuration={"max_items": 4},
+    )
+    ChatSendOperationRepository(database).store_user_committed(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        mode=ChatSendOperationMode.GROUNDED,
+        fingerprint=fingerprint,
+    )
+    repository = GroundedProviderAttemptRepository(database)
+    repository.mark_started(operation_id=operation_id, chat_id=chat_id)
+    run_id = uuid.uuid4()
+    result = repository.store_result(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        processing_run_id=run_id,
+        assistant_content="answer",
+        receipt_payload_json='{"assistant_text":"answer"}',
+        provider_id="lm_studio",
+        model_id="primary",
+    )
+    assert repository.load_result(operation_id) == result
+    identity = repository.load_result_identity(operation_id)
+    assert identity is not None
+    assert identity.provider_id == "lm_studio"
+    assert identity.model_id == "primary"
+
+    assert repository.store_result(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        processing_run_id=run_id,
+        assistant_content="answer",
+        receipt_payload_json='{"assistant_text":"answer"}',
+        provider_id="lm_studio",
+        model_id="primary",
+    ) == result
+
+    with pytest.raises(GroundedProviderAttemptConflictError):
+        repository.store_result(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            processing_run_id=run_id,
+            assistant_content="answer",
+            receipt_payload_json='{"assistant_text":"answer"}',
+            provider_id="other",
+            model_id="primary",
+        )
+    database.stop()
