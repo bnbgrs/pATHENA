@@ -187,6 +187,35 @@ def test_grounded_processing_run_rejects_finished_run(tmp_path: Path) -> None:
         database.stop()
 
 
+def test_grounded_processing_run_rejects_other_run_type(tmp_path: Path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        model_runs, signature, run, package = _provenance(database)
+        foreign_run = model_runs.start_run(
+            run_type="knowledge.extraction",
+            trigger_actor_id=run.trigger_actor_id,
+            pipeline_version="test-v1",
+            input_snapshot=package.run_snapshot(),
+            configuration={"context_package_version": 1},
+            model_signature_id=signature.model_signature_id,
+            prompt_template_id="grounded-test",
+            prompt_template_version="1",
+        )
+        with pytest.raises(
+            GroundedProcessingRunError,
+            match="type conflicts",
+        ):
+            validate_grounded_processing_run(
+                database,
+                processing_run_id=foreign_run.processing_run_id,
+                package=package,
+                trigger_actor_id=run.trigger_actor_id,
+            )
+    finally:
+        database.stop()
+
+
 def test_grounded_processing_run_rejects_other_trigger_actor(
     tmp_path: Path,
 ) -> None:
