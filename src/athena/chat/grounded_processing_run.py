@@ -32,13 +32,13 @@ def validate_grounded_processing_run(
         raise GroundedProcessingRunError(
             "Grounded generation requires a running ProcessingRun."
         )
-    if run.model_signature_id != package.model_signature.model_signature_id:
-        raise GroundedProcessingRunError(
-            "ProcessingRun ModelSignature conflicts with the Grounded ContextPackage."
-        )
     if run.model_signature_id is None:
         raise GroundedProcessingRunError(
             "Grounded generation ProcessingRun is missing ModelSignature provenance."
+        )
+    if run.model_signature_id != package.model_signature.model_signature_id:
+        raise GroundedProcessingRunError(
+            "ProcessingRun ModelSignature conflicts with the Grounded ContextPackage."
         )
 
     try:
