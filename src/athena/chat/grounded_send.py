@@ -34,6 +34,7 @@ from athena.chat.grounded_recovery import (
 from athena.chat.grounded_turn import GroundedUserTurnRepository
 from athena.chat.models import ChatMessage
 from athena.chat.request_fingerprint import ChatRequestFingerprint
+from athena.common.ids import uuid_to_blob
 from athena.retrieval.context_package import ContextPackage
 from athena.storage.database import SQLiteDatabase
 
@@ -77,10 +78,19 @@ class GroundedProviderResultError(RuntimeError):
         )
 
 
+class GroundedAssistantCommitError(RuntimeError):
+    """An assistant turn conflicts with the recorded durable provider result."""
+
+
+class GroundedCompletionCommitError(RuntimeError):
+    """Completion conflicts with the recorded durable provider result."""
+
+
 class GroundedSendCoordinator:
     """Coordinate crash-safe start, assistant commit, completion and replay."""
 
     def __init__(self, database: SQLiteDatabase) -> None:
+        self.database = database
         self.reconciler = GroundedSendReconciler(database)
         self.context_packages = GroundedContextPackageRepository(database)
         self.recovery = GroundedSendRecovery(database)
@@ -271,6 +281,34 @@ class GroundedSendCoordinator:
         actor_id: uuid.UUID,
         content: str,
     ) -> ChatMessage:
+        result = self.provider_attempts.load_result(operation_id)
+        if (
+            result is None
+            or result.chat_id != chat_id
+            or result.assistant_content != content
+        ):
+            raise GroundedAssistantCommitError(
+                "Grounded assistant commit requires the matching durable provider result."
+            )
+        identity = self.provider_attempts.load_result_identity(operation_id)
+        if identity is not None:
+            actor = self.database.connection.execute(
+                """
+                SELECT actor_type, display_name
+                FROM actors
+                WHERE actor_id = ?
+                """,
+                (uuid_to_blob(actor_id),),
+            ).fetchone()
+            if (
+                actor is None
+                or str(actor["actor_type"]) != "primary_model"
+                or str(actor["display_name"])
+                != f"{identity.provider_id}:{identity.model_id}"
+            ):
+                raise GroundedAssistantCommitError(
+                    "Grounded assistant actor conflicts with durable provider identity."
+                )
         return self.assistant_turns.commit(
             operation_id=operation_id,
             chat_id=chat_id,
@@ -286,6 +324,16 @@ class GroundedSendCoordinator:
         processing_run_id: uuid.UUID,
         payload_json: str,
     ) -> GroundedSendReceipt:
+        result = self.provider_attempts.load_result(operation_id)
+        if (
+            result is None
+            or result.chat_id != chat_id
+            or result.processing_run_id != processing_run_id
+            or result.receipt_payload_json != payload_json
+        ):
+            raise GroundedCompletionCommitError(
+                "Grounded completion requires the exact durable provider result."
+            )
         return self.completions.complete(
             operation_id=operation_id,
             chat_id=chat_id,
