@@ -143,6 +143,10 @@ class GroundedAssistantTurnRepository:
             if context_record is not None:
                 signature = context_record.package.model_signature
                 pinned_identity = (signature.provider, signature.model_identifier)
+                if provider_identity is None:
+                    raise ChatSendOperationConflictError(
+                        "Pinned ContextPackage requires durable provider result identity before assistant commit."
+                    )
 
             expected_actor_identity: tuple[str, str] | None = pinned_identity
             if provider_identity is not None:
