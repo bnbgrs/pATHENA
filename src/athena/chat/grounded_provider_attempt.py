@@ -9,6 +9,7 @@ import uuid
 from dataclasses import dataclass
 from typing import cast
 
+from athena.chat.grounded_provider_result_contract import validate_provider_result_contract
 from athena.chat.send_operation import ChatSendOperationRepository, ChatSendOperationState
 from athena.common.ids import uuid_from_blob, uuid_to_blob
 from athena.common.time import utc_now_us
@@ -341,8 +342,10 @@ class GroundedProviderAttemptRepository:
         provider_id: str | None = None,
         model_id: str | None = None,
     ) -> GroundedProviderResult:
-        if not assistant_content.strip():
-            raise ValueError("Provider result assistant content must not be blank.")
+        validate_provider_result_contract(
+            assistant_content=assistant_content,
+            receipt_payload_json=receipt_payload_json,
+        )
         if (provider_id is None) != (model_id is None):
             raise ValueError(
                 "Provider result identity requires both provider_id and model_id."
