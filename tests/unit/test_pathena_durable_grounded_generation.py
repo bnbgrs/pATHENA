@@ -6,7 +6,7 @@ from collections.abc import Iterator, Sequence
 
 from athena.chat.durable_grounded_generation import DurableGroundedGenerationService
 from athena.chat.generation import ChatGenerationService
-from athena.chat.grounded_recovery import GroundedRecoveryState
+from athena.chat.grounded_recovery import GroundedRecoveryState, GroundedSendRecovery
 from athena.chat.grounded_send import GroundedSendCoordinator
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
@@ -106,8 +106,9 @@ def _package(user_message, *, snapshot_commit_seq: int):
     )
 
 
-def test_provider_result_is_journaled_before_durable_assistant_commit(tmp_path) -> None:
-    database = SQLiteDatabase(tmp_path / "athena.db")
+def test_provider_result_survives_restart_and_finalizes_without_replay(tmp_path) -> None:
+    path = tmp_path / "athena.db"
+    database = SQLiteDatabase(path)
     database.start()
     try:
         chats = ChatRepository(database)
@@ -170,5 +171,48 @@ def test_provider_result_is_journaled_before_durable_assistant_commit(tmp_path) 
             fingerprint=fingerprint,
         ).state is GroundedRecoveryState.FINALIZATION_REQUIRED
         assert len(chats.load_chat(chat_id).messages) == 2
+
+        database.stop()
+        database = SQLiteDatabase(path)
+        database.start()
+        recovery = GroundedSendRecovery(database)
+        pending = recovery.inspect(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        )
+        assert pending.state is GroundedRecoveryState.FINALIZATION_REQUIRED
+        assert pending.provider_result is not None
+        assert pending.provider_result.assistant_content == "durable answer"
+        assert pending.provider_identity is not None
+        assert pending.provider_identity.provider_id == "lm_studio"
+        assert pending.provider_identity.model_id == "primary"
+
+        receipt = recovery.finalize_recorded_result(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        )
+        assert provider.calls == 1
+        complete = recovery.inspect(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        )
+        assert complete.state is GroundedRecoveryState.COMPLETE
+        assert complete.receipt == receipt
+        assert len(ChatRepository(database).load_chat(chat_id).messages) == 2
+
+        database.stop()
+        database = SQLiteDatabase(path)
+        database.start()
+        restarted_complete = GroundedSendRecovery(database).inspect(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        )
+        assert restarted_complete.state is GroundedRecoveryState.COMPLETE
+        assert restarted_complete.receipt == receipt
+        assert provider.calls == 1
     finally:
         database.stop()
