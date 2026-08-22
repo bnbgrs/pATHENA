@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 
 from athena.chat.grounded_completion import GroundedSendCompletionRepository
+from athena.chat.grounded_provider_attempt import GroundedProviderAttemptRepository
 from athena.chat.grounded_reconciliation import (
     GroundedReconciliationState,
     GroundedSendReconciler,
@@ -35,10 +36,23 @@ def _chat(database: SQLiteDatabase) -> uuid.UUID:
     return chats.create_chat(actor_id=actor)
 
 
-def _force_assistant_committed(
+def _journal_and_force_assistant(
     database: SQLiteDatabase,
+    *,
+    chat_id: uuid.UUID,
     operation_id: uuid.UUID,
+    processing_run_id: uuid.UUID,
+    payload_json: str,
 ) -> None:
+    provider = GroundedProviderAttemptRepository(database)
+    provider.mark_started(operation_id=operation_id, chat_id=chat_id)
+    provider.store_result(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        processing_run_id=processing_run_id,
+        assistant_content="answer",
+        receipt_payload_json=payload_json,
+    )
     database.connection.execute(
         "UPDATE chat_send_operations SET state = 'assistant_committed' WHERE operation_id = ?",
         (uuid_to_blob(operation_id),),
@@ -79,13 +93,20 @@ def test_reconciliation_projects_absent_incomplete_complete_and_conflict(tmp_pat
     )
     assert conflict.state is GroundedReconciliationState.CONFLICT
 
-    _force_assistant_committed(database, operation_id)
     run_id = uuid.uuid4()
+    payload = '{"assistant_text":"answer","evidence":[]}'
+    _journal_and_force_assistant(
+        database,
+        chat_id=chat_id,
+        operation_id=operation_id,
+        processing_run_id=run_id,
+        payload_json=payload,
+    )
     completed = GroundedSendCompletionRepository(database).complete(
         operation_id=operation_id,
         chat_id=chat_id,
         processing_run_id=run_id,
-        payload_json='{"assistant_text":"answer","evidence":[]}',
+        payload_json=payload,
     )
     status = reconciler.inspect(
         operation_id=operation_id,
@@ -111,12 +132,20 @@ def test_reconciliation_survives_restart_and_returns_exact_receipt(tmp_path) -> 
         mode=ChatSendOperationMode.GROUNDED,
         fingerprint=fingerprint,
     )
-    _force_assistant_committed(database, operation_id)
+    run_id = uuid.uuid4()
+    payload = '{"assistant_text":"replay","evidence":["CTX-001"]}'
+    _journal_and_force_assistant(
+        database,
+        chat_id=chat_id,
+        operation_id=operation_id,
+        processing_run_id=run_id,
+        payload_json=payload,
+    )
     GroundedSendCompletionRepository(database).complete(
         operation_id=operation_id,
         chat_id=chat_id,
-        processing_run_id=uuid.uuid4(),
-        payload_json='{"assistant_text":"replay","evidence":["CTX-001"]}',
+        processing_run_id=run_id,
+        payload_json=payload,
     )
     database.stop()
 
@@ -129,9 +158,7 @@ def test_reconciliation_survives_restart_and_returns_exact_receipt(tmp_path) -> 
     )
     assert status.state is GroundedReconciliationState.COMPLETE
     assert status.receipt is not None
-    assert status.receipt.payload_json == (
-        '{"assistant_text":"replay","evidence":["CTX-001"]}'
-    )
+    assert status.receipt.payload_json == payload
     database.stop()
 
 
@@ -148,13 +175,21 @@ def test_reconciliation_fails_closed_when_complete_operation_loses_receipt(tmp_p
         mode=ChatSendOperationMode.GROUNDED,
         fingerprint=fingerprint,
     )
-    _force_assistant_committed(database, operation_id)
+    run_id = uuid.uuid4()
+    payload = '{"assistant_text":"answer"}'
+    _journal_and_force_assistant(
+        database,
+        chat_id=chat_id,
+        operation_id=operation_id,
+        processing_run_id=run_id,
+        payload_json=payload,
+    )
     completion = GroundedSendCompletionRepository(database)
     completion.complete(
         operation_id=operation_id,
         chat_id=chat_id,
-        processing_run_id=uuid.uuid4(),
-        payload_json='{"assistant_text":"answer"}',
+        processing_run_id=run_id,
+        payload_json=payload,
     )
     database.connection.execute(
         "DELETE FROM grounded_send_receipts WHERE operation_id = ?",
