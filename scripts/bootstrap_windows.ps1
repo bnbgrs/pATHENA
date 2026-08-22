@@ -42,6 +42,40 @@ function Resolve-DefaultLocalRoot {
     throw "Windows local application-data directory could not be resolved. Pass -LocalRoot explicitly."
 }
 
+function Resolve-UvVersion {
+    $command = Get-Command uv -ErrorAction SilentlyContinue
+    if ($null -eq $command) {
+        return $null
+    }
+
+    $output = (& uv --version).Trim()
+    if ($LASTEXITCODE -ne 0) {
+        return $null
+    }
+    return $output
+}
+
+function Install-PinnedUv {
+    param([Parameter(Mandatory = $true)][string]$Version)
+
+    Write-Host "Installing pinned uv $Version from astral.sh..."
+    $installer = Invoke-RestMethod "https://astral.sh/uv/$Version/install.ps1"
+    Invoke-Expression $installer
+
+    $candidateBins = @()
+    if ($HOME) {
+        $candidateBins += (Join-Path $HOME ".local\bin")
+    }
+    if ($env:USERPROFILE) {
+        $candidateBins += (Join-Path $env:USERPROFILE ".local\bin")
+    }
+    foreach ($candidate in ($candidateBins | Select-Object -Unique)) {
+        if ((Test-Path $candidate) -and -not (($env:PATH -split ';') -contains $candidate)) {
+            $env:PATH = "$candidate;$env:PATH"
+        }
+    }
+}
+
 if ($env:OS -ne "Windows_NT") {
     throw "This bootstrap script is intended for Windows."
 }
@@ -50,34 +84,20 @@ Set-Location $RepoRoot
 Write-Host "pATHENA repository: $RepoRoot"
 
 Write-Step "Resolve uv $ExpectedUvVersion"
-$uvCommand = Get-Command uv -ErrorAction SilentlyContinue
-if ($null -eq $uvCommand) {
-    Write-Host "uv is not installed. Installing the pinned version from astral.sh..."
-    $installer = Invoke-RestMethod "https://astral.sh/uv/$ExpectedUvVersion/install.ps1"
-    Invoke-Expression $installer
-
-    $candidateBins = @(
-        (Join-Path $HOME ".local\bin"),
-        (Join-Path $env:USERPROFILE ".local\bin")
-    ) | Select-Object -Unique
-    foreach ($candidate in $candidateBins) {
-        if ((Test-Path $candidate) -and -not (($env:PATH -split ';') -contains $candidate)) {
-            $env:PATH = "$candidate;$env:PATH"
-        }
-    }
-    $uvCommand = Get-Command uv -ErrorAction SilentlyContinue
-}
-
-if ($null -eq $uvCommand) {
-    throw "uv installation completed but 'uv' is still not available on PATH. Restart PowerShell and rerun this script."
-}
-
-$uvVersionOutput = (& uv --version).Trim()
-if ($LASTEXITCODE -ne 0) {
-    throw "Unable to read uv version."
-}
+$uvVersionOutput = Resolve-UvVersion
 if ($uvVersionOutput -ne "uv $ExpectedUvVersion") {
-    throw "pATHENA requires uv $ExpectedUvVersion, but found '$uvVersionOutput'."
+    if ($null -eq $uvVersionOutput) {
+        Write-Host "uv is not installed or cannot be executed."
+    } else {
+        Write-Host "Found $uvVersionOutput; pATHENA requires uv $ExpectedUvVersion."
+    }
+    Install-PinnedUv -Version $ExpectedUvVersion
+    $uvVersionOutput = Resolve-UvVersion
+}
+
+if ($uvVersionOutput -ne "uv $ExpectedUvVersion") {
+    $found = if ($null -eq $uvVersionOutput) { "not available" } else { $uvVersionOutput }
+    throw "Unable to activate uv $ExpectedUvVersion (found: $found). Restart PowerShell and rerun this script."
 }
 Write-Host "Using $uvVersionOutput"
 
