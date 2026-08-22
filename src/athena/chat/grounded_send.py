@@ -16,6 +16,7 @@ from athena.chat.grounded_completion import (
 )
 from athena.chat.grounded_processing_run import (
     GroundedProcessingRunError,
+    complete_grounded_processing_run,
     validate_grounded_processing_run,
 )
 from athena.chat.grounded_provider_attempt import (
@@ -343,12 +344,63 @@ class GroundedSendCoordinator:
         fingerprint: ChatRequestFingerprint,
         actor_id: uuid.UUID | None = None,
     ) -> GroundedSendReceipt:
-        return self.recovery.finalize_recorded_result(
+        receipt = self.recovery.finalize_recorded_result(
             operation_id=operation_id,
             chat_id=chat_id,
             actor_id=actor_id,
             fingerprint=fingerprint,
         )
+        self._complete_recorded_processing_run_if_present(
+            operation_id=operation_id,
+            chat_id=chat_id,
+        )
+        return receipt
+
+    def _complete_recorded_processing_run_if_present(
+        self,
+        *,
+        operation_id: uuid.UUID,
+        chat_id: uuid.UUID,
+    ) -> None:
+        context_record = self.context_packages.load(operation_id)
+        result = self.provider_attempts.load_result(operation_id)
+        if context_record is None or result is None:
+            return
+        run_row = self.database.connection.execute(
+            "SELECT 1 FROM processing_runs WHERE processing_run_id = ?",
+            (uuid_to_blob(result.processing_run_id),),
+        ).fetchone()
+        if run_row is None:
+            return
+        user = self.database.connection.execute(
+            """
+            SELECT chat_id, actor_id, message_type
+            FROM chat_messages
+            WHERE message_id = ?
+            """,
+            (uuid_to_blob(operation_id),),
+        ).fetchone()
+        if (
+            context_record.chat_id != chat_id
+            or result.chat_id != chat_id
+            or user is None
+            or uuid_from_blob(bytes(user["chat_id"])) != chat_id
+            or str(user["message_type"]) != "user"
+        ):
+            raise GroundedProviderRunError(
+                "Grounded recovery cannot bind its ProcessingRun to the durable user."
+            )
+        try:
+            complete_grounded_processing_run(
+                self.database,
+                processing_run_id=result.processing_run_id,
+                package=context_record.package,
+                trigger_actor_id=uuid_from_blob(bytes(user["actor_id"])),
+            )
+        except GroundedProcessingRunError as exc:
+            raise GroundedProviderRunError(
+                "Grounded recovery found conflicting ProcessingRun provenance."
+            ) from exc
 
     def start(
         self,
