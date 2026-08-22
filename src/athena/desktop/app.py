@@ -5,6 +5,7 @@ from __future__ import annotations
 import sys
 from collections.abc import Sequence
 
+from PySide6.QtCore import QTimer
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QApplication
 
@@ -13,6 +14,8 @@ from athena.desktop.api_controller import DesktopApiController
 from athena.desktop.supervisor import DesktopCoreSupervisor
 from athena.desktop.theme import APP_STYLESHEET
 from athena.desktop.window import AthenaMainWindow
+
+_INITIAL_CORE_REFRESH_DELAYS_MS = (250, 750, 1_500)
 
 
 def create_application(argv: Sequence[str] | None = None) -> QApplication:
@@ -32,6 +35,12 @@ def create_application(argv: Sequence[str] | None = None) -> QApplication:
     return app
 
 
+def _schedule_initial_core_refreshes(controller: DesktopApiController) -> None:
+    """Bridge the normal child-Core discovery race with safe read-only refreshes."""
+    for delay_ms in _INITIAL_CORE_REFRESH_DELAYS_MS:
+        QTimer.singleShot(delay_ms, controller.refresh)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     app = create_application(argv)
     client = CoreApiClient.from_environment()
@@ -40,6 +49,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     supervisor.start()
     controller = DesktopApiController(client)
     window = AthenaMainWindow(api_controller=controller)
+    _schedule_initial_core_refreshes(controller)
     window.show()
     return app.exec()
 
