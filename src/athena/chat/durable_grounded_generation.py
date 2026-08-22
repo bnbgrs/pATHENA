@@ -66,6 +66,8 @@ class _DurableAssistantChatService(ChatService):
             processing_run_id=self._processing_run_id,
             assistant_content=content,
             receipt_payload_json=payload_json,
+            provider_id=provider_id,
+            model_id=model_id,
         )
         actor_id = self.ensure_primary_model(
             provider_id=provider_id,
