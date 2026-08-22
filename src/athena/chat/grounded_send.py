@@ -6,6 +6,10 @@ import uuid
 from dataclasses import dataclass
 
 from athena.chat.grounded_assistant_turn import GroundedAssistantTurnRepository
+from athena.chat.grounded_context_package import (
+    GroundedContextPackageRecord,
+    GroundedContextPackageRepository,
+)
 from athena.chat.grounded_completion import (
     GroundedSendCompletionRepository,
     GroundedSendReceipt,
@@ -28,6 +32,7 @@ from athena.chat.grounded_recovery import (
 from athena.chat.grounded_turn import GroundedUserTurnRepository
 from athena.chat.models import ChatMessage
 from athena.chat.request_fingerprint import ChatRequestFingerprint
+from athena.retrieval.context_package import ContextPackage
 from athena.storage.database import SQLiteDatabase
 
 
@@ -75,6 +80,7 @@ class GroundedSendCoordinator:
 
     def __init__(self, database: SQLiteDatabase) -> None:
         self.reconciler = GroundedSendReconciler(database)
+        self.context_packages = GroundedContextPackageRepository(database)
         self.recovery = GroundedSendRecovery(database)
         self.provider_attempts = GroundedProviderAttemptRepository(database)
         self.user_turns = GroundedUserTurnRepository(database)
@@ -106,6 +112,25 @@ class GroundedSendCoordinator:
             chat_id=chat_id,
             fingerprint=fingerprint,
         )
+
+    def store_context_package(
+        self,
+        *,
+        operation_id: uuid.UUID,
+        chat_id: uuid.UUID,
+        package: ContextPackage,
+    ) -> GroundedContextPackageRecord:
+        return self.context_packages.store(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            package=package,
+        )
+
+    def load_context_package(
+        self,
+        operation_id: uuid.UUID,
+    ) -> GroundedContextPackageRecord | None:
+        return self.context_packages.load(operation_id)
 
     def begin_provider_attempt(
         self,
