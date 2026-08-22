@@ -11,7 +11,7 @@ from athena.chat.grounded_completion import (
     GroundedSendCompletionCorruptionError,
     GroundedSendCompletionRepository,
 )
-from athena.chat.grounded_send import GroundedSendCoordinator
+from athena.chat.grounded_send import GroundedProviderRunError, GroundedSendCoordinator
 from athena.chat.models import ChatMessage
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
@@ -275,5 +275,45 @@ def test_low_level_receipt_load_rejects_nonterminal_pinned_processing_run(
             match="requires a succeeded ProcessingRun",
         ):
             completions.load(operation_id)
+    finally:
+        database.stop()
+
+
+def test_coordinator_completion_rejects_missing_pinned_processing_run(
+    tmp_path: Path,
+) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        coordinator, operation_id, chat_id, processing_run_id, payload = (
+            _prepare_assistant_committed(database)
+        )
+        foreign_run_id = uuid.uuid4()
+        assert foreign_run_id != processing_run_id
+        with database.write_transaction() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE grounded_provider_results
+                SET processing_run_id = ?
+                WHERE operation_id = ?
+                """,
+                (uuid_to_blob(foreign_run_id), uuid_to_blob(operation_id)),
+            )
+            assert cursor.rowcount == 1
+
+        with pytest.raises(
+            GroundedProviderRunError,
+            match="missing its durable ProcessingRun",
+        ):
+            coordinator.complete(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                processing_run_id=foreign_run_id,
+                payload_json=payload,
+            )
+        assert coordinator.completions.load(operation_id) is None
+        original = ModelRunRepository(database).load_run(processing_run_id)
+        assert original.status == "running"
+        assert original.finished_at_us is None
     finally:
         database.stop()
