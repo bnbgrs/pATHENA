@@ -9,6 +9,7 @@ from athena.chat.grounded_recovery import GroundedRecoveryState, GroundedSendRec
 from athena.chat.grounded_turn import GroundedUserTurnRepository
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
+from athena.common.ids import uuid_to_blob
 from athena.storage.database import SQLiteDatabase
 
 
@@ -154,6 +155,9 @@ def test_recovery_distinguishes_provider_crash_boundaries_and_exact_replay(tmp_p
     )
     assert complete.state is GroundedRecoveryState.COMPLETE
     assert complete.receipt == receipt
+    assert complete.provider_result == result
+    assert complete.provider_identity is not None
+    assert complete.provider_identity.model_id == "primary"
     assert receipt.processing_run_id == run_id
     assert receipt.payload_json == result.receipt_payload_json
 
@@ -279,4 +283,68 @@ def test_recovery_inspect_fails_closed_when_assistant_model_conflicts(tmp_path) 
         fingerprint=fingerprint,
     )
     assert status.state is GroundedRecoveryState.CONFLICT
+    database.stop()
+
+
+def test_recovery_complete_fails_closed_when_provider_result_is_lost(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    chats = ChatRepository(database)
+    user = chats.create_actor(actor_type="user")
+    chat_id = chats.create_chat(actor_id=user)
+    operation_id = uuid.uuid4()
+    run_id = uuid.uuid4()
+    fingerprint = _fingerprint(chat_id)
+    GroundedUserTurnRepository(database).commit(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        actor_id=user,
+        content="hello",
+        fingerprint=fingerprint,
+    )
+    provider = GroundedProviderAttemptRepository(database)
+    provider.mark_started(operation_id=operation_id, chat_id=chat_id)
+    result = provider.store_result(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        processing_run_id=run_id,
+        assistant_content="answer",
+        receipt_payload_json='{"assistant_text":"answer","evidence":[]}',
+        provider_id="lm_studio",
+        model_id="primary",
+    )
+    recovery = GroundedSendRecovery(database)
+    model = recovery.chat.ensure_primary_model(
+        provider_id="lm_studio",
+        model_id="primary",
+    )
+    GroundedAssistantTurnRepository(database).commit(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        actor_id=model,
+        content=result.assistant_content,
+    )
+    GroundedSendCompletionRepository(database).complete(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        processing_run_id=run_id,
+        payload_json=result.receipt_payload_json,
+    )
+    assert recovery.inspect(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        fingerprint=fingerprint,
+    ).state is GroundedRecoveryState.COMPLETE
+
+    database.connection.execute(
+        "DELETE FROM grounded_provider_results WHERE operation_id = ?",
+        (uuid_to_blob(operation_id),),
+    )
+    status = recovery.inspect(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        fingerprint=fingerprint,
+    )
+    assert status.state is GroundedRecoveryState.CONFLICT
+    assert status.receipt is None
     database.stop()
