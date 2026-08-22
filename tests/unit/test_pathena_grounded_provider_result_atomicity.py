@@ -31,23 +31,30 @@ def _fingerprint(chat_id: uuid.UUID):
     )
 
 
+def _prepare_grounded_attempt(
+    database: SQLiteDatabase,
+) -> tuple[uuid.UUID, uuid.UUID, GroundedProviderAttemptRepository]:
+    chats = ChatRepository(database)
+    user = chats.create_actor(actor_type="user")
+    chat_id = chats.create_chat(actor_id=user)
+    operation_id = uuid.uuid4()
+    GroundedUserTurnRepository(database).commit(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        actor_id=user,
+        content="hello",
+        fingerprint=_fingerprint(chat_id),
+    )
+    provider = GroundedProviderAttemptRepository(database)
+    provider.mark_started(operation_id=operation_id, chat_id=chat_id)
+    return operation_id, chat_id, provider
+
+
 def test_provider_result_run_conflict_rolls_back_before_persistence(tmp_path) -> None:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
     try:
-        chats = ChatRepository(database)
-        user = chats.create_actor(actor_type="user")
-        chat_id = chats.create_chat(actor_id=user)
-        operation_id = uuid.uuid4()
-        fingerprint = _fingerprint(chat_id)
-        GroundedUserTurnRepository(database).commit(
-            operation_id=operation_id,
-            chat_id=chat_id,
-            actor_id=user,
-            content="hello",
-            fingerprint=fingerprint,
-        )
-
+        operation_id, chat_id, provider = _prepare_grounded_attempt(database)
         pinned_run_id = uuid.uuid4()
         result_run_id = uuid.uuid4()
         ChatSendOperationRepository(database).bind_grounded_processing_run(
@@ -55,8 +62,6 @@ def test_provider_result_run_conflict_rolls_back_before_persistence(tmp_path) ->
             chat_id=chat_id,
             processing_run_id=pinned_run_id,
         )
-        provider = GroundedProviderAttemptRepository(database)
-        provider.mark_started(operation_id=operation_id, chat_id=chat_id)
 
         with pytest.raises(
             GroundedProviderAttemptConflictError,
@@ -78,5 +83,44 @@ def test_provider_result_run_conflict_rolls_back_before_persistence(tmp_path) ->
         ).fetchone()
         assert row is None
         assert provider.load_result(operation_id) is None
+    finally:
+        database.stop()
+
+
+def test_existing_provider_result_replay_rejects_later_run_conflict(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        operation_id, chat_id, provider = _prepare_grounded_attempt(database)
+        result_run_id = uuid.uuid4()
+        provider.store_result(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            processing_run_id=result_run_id,
+            assistant_content="answer",
+            receipt_payload_json='{"assistant_text":"answer","evidence":[]}',
+            provider_id="lm_studio",
+            model_id="primary",
+        )
+
+        ChatSendOperationRepository(database).bind_grounded_processing_run(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            processing_run_id=uuid.uuid4(),
+        )
+
+        with pytest.raises(
+            GroundedProviderAttemptConflictError,
+            match="pinned Grounded ProcessingRun",
+        ):
+            provider.store_result(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                processing_run_id=result_run_id,
+                assistant_content="answer",
+                receipt_payload_json='{"assistant_text":"answer","evidence":[]}',
+                provider_id="lm_studio",
+                model_id="primary",
+            )
     finally:
         database.stop()
