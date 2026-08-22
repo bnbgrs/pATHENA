@@ -1,6 +1,8 @@
 param(
     [string]$LocalRoot = "",
-    [switch]$SkipSmokeTest
+    [string]$LmStudioBaseUrl = "",
+    [switch]$SkipSmokeTest,
+    [switch]$NoPersistSettings
 )
 
 Set-StrictMode -Version Latest
@@ -10,6 +12,11 @@ $ExpectedUvVersion = "0.11.21"
 $ExpectedPython = "3.12"
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = Split-Path -Parent $ScriptDir
+$CommonScript = Join-Path $ScriptDir "windows_common.ps1"
+if (-not (Test-Path -LiteralPath $CommonScript -PathType Leaf)) {
+    throw "Missing Windows helper: $CommonScript"
+}
+. $CommonScript
 
 function Write-Step([string]$Message) {
     Write-Host ""
@@ -83,6 +90,11 @@ if ($env:OS -ne "Windows_NT") {
 Set-Location $RepoRoot
 Write-Host "pATHENA repository: $RepoRoot"
 
+$loadedSettings = Import-PathenaWindowsSettings -RepoRoot $RepoRoot
+if ($loadedSettings) {
+    Write-Host "Loaded local Windows settings from .pathena.windows.ps1"
+}
+
 Write-Step "Resolve uv $ExpectedUvVersion"
 $uvVersionOutput = Resolve-UvVersion
 if ($uvVersionOutput -ne "uv $ExpectedUvVersion") {
@@ -104,16 +116,33 @@ Write-Host "Using $uvVersionOutput"
 Write-Step "Install Python $ExpectedPython"
 Invoke-Checked uv python install $ExpectedPython
 
-Write-Step "Configure local runtime root"
+Write-Step "Configure local runtime"
 if ($LocalRoot.Trim()) {
-    $resolvedLocalRoot = [System.IO.Path]::GetFullPath($LocalRoot)
-    $env:ATHENA_LOCAL_ROOT = $resolvedLocalRoot
-    Write-Host "ATHENA_LOCAL_ROOT=$resolvedLocalRoot"
-} elseif ($env:ATHENA_LOCAL_ROOT) {
+    $env:ATHENA_LOCAL_ROOT = [System.IO.Path]::GetFullPath($LocalRoot)
+}
+if ($LmStudioBaseUrl.Trim()) {
+    $env:ATHENA_LMSTUDIO_BASE_URL = $LmStudioBaseUrl.Trim()
+}
+
+if ($env:ATHENA_LOCAL_ROOT) {
     Write-Host "ATHENA_LOCAL_ROOT=$env:ATHENA_LOCAL_ROOT"
 } else {
     $defaultRoot = Resolve-DefaultLocalRoot
     Write-Host "ATHENA_LOCAL_ROOT is not overridden. pATHENA will use: $defaultRoot"
+}
+if ($env:ATHENA_LMSTUDIO_BASE_URL) {
+    Write-Host "ATHENA_LMSTUDIO_BASE_URL=$env:ATHENA_LMSTUDIO_BASE_URL"
+} else {
+    Write-Host "ATHENA_LMSTUDIO_BASE_URL=http://127.0.0.1:1234"
+}
+
+$hasExplicitSettings = $LocalRoot.Trim() -or $LmStudioBaseUrl.Trim()
+if ($hasExplicitSettings -and -not $NoPersistSettings) {
+    Save-PathenaWindowsSettings `
+        -RepoRoot $RepoRoot `
+        -LocalRoot $env:ATHENA_LOCAL_ROOT `
+        -LmStudioBaseUrl $env:ATHENA_LMSTUDIO_BASE_URL
+    Write-Host "Saved local launcher settings to .pathena.windows.ps1"
 }
 
 Write-Step "Synchronize locked pATHENA runtime"
