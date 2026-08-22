@@ -7,7 +7,7 @@ from athena.chat.grounded_completion import GroundedSendCompletionRepository
 from athena.chat.grounded_provider_attempt import GroundedProviderAttemptRepository
 from athena.chat.grounded_recovery import GroundedRecoveryState, GroundedSendRecovery
 from athena.chat.grounded_turn import GroundedUserTurnRepository
-from athena.chat.repository import ChatRepository
+from athena.chat.repository import ChatRepository, _message_payload_hash
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
 from athena.common.ids import uuid_to_blob
 from athena.storage.database import SQLiteDatabase
@@ -224,11 +224,22 @@ def test_recovery_inspect_fails_closed_when_assistant_content_conflicts(tmp_path
         provider_id="lm_studio",
         model_id="primary",
     )
-    GroundedAssistantTurnRepository(database).commit(
+    assistant = GroundedAssistantTurnRepository(database).commit(
         operation_id=operation_id,
         chat_id=chat_id,
         actor_id=model,
-        content="different answer",
+        content="recorded answer",
+    )
+    database.connection.execute(
+        "UPDATE chat_message_revisions SET content = ? WHERE revision_id = ?",
+        ("different answer", uuid_to_blob(assistant.revision_id)),
+    )
+    database.connection.execute(
+        "UPDATE revisions SET payload_hash = ? WHERE revision_id = ?",
+        (
+            _message_payload_hash("different answer", "text/plain"),
+            uuid_to_blob(assistant.revision_id),
+        ),
     )
 
     status = GroundedSendRecovery(database).inspect(
@@ -245,6 +256,10 @@ def test_recovery_inspect_fails_closed_when_assistant_model_conflicts(tmp_path) 
     database.start()
     chats = ChatRepository(database)
     user = chats.create_actor(actor_type="user")
+    model = chats.create_actor(
+        actor_type="primary_model",
+        display_name="lm_studio:primary",
+    )
     wrong_model = chats.create_actor(
         actor_type="primary_model",
         display_name="lm_studio:other",
@@ -270,11 +285,15 @@ def test_recovery_inspect_fails_closed_when_assistant_model_conflicts(tmp_path) 
         provider_id="lm_studio",
         model_id="primary",
     )
-    GroundedAssistantTurnRepository(database).commit(
+    assistant = GroundedAssistantTurnRepository(database).commit(
         operation_id=operation_id,
         chat_id=chat_id,
-        actor_id=wrong_model,
+        actor_id=model,
         content="answer",
+    )
+    database.connection.execute(
+        "UPDATE chat_messages SET actor_id = ? WHERE message_id = ?",
+        (uuid_to_blob(wrong_model), uuid_to_blob(assistant.message_id)),
     )
 
     status = GroundedSendRecovery(database).inspect(
