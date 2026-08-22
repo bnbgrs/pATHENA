@@ -16,6 +16,7 @@ from athena.chat.grounded_provider_result_contract import (
     GroundedProviderResultContractError,
     validate_provider_result_contract,
 )
+from athena.chat.send_identity import assistant_message_id_for_operation
 from athena.chat.send_operation import ChatSendOperationState
 from athena.common.ids import uuid_from_blob, uuid_to_blob
 from athena.common.time import utc_now_us
@@ -214,6 +215,13 @@ class GroundedSendCompletionRepository:
             operation_id=operation_id,
             corruption=True,
         )
+        self._validate_assistant_chain(
+            self.database.connection,
+            operation_id=operation_id,
+            chat_id=receipt.chat_id,
+            assistant_content=str(row["provider_assistant_content"]),
+            corruption=True,
+        )
         return receipt
 
     def complete(
@@ -294,6 +302,13 @@ class GroundedSendCompletionRepository:
             self._validate_pinned_provider_identity(
                 connection,
                 operation_id=operation_id,
+                corruption=False,
+            )
+            self._validate_assistant_chain(
+                connection,
+                operation_id=operation_id,
+                chat_id=chat_id,
+                assistant_content=str(provider_result["assistant_content"]),
                 corruption=False,
             )
 
@@ -411,6 +426,86 @@ class GroundedSendCompletionRepository:
             )
         raise GroundedSendCompletionConflictError(
             "Grounded completion provider identity conflicts with pinned ContextPackage model."
+        )
+
+    @staticmethod
+    def _validate_assistant_chain(
+        connection: sqlite3.Connection,
+        *,
+        operation_id: uuid.UUID,
+        chat_id: uuid.UUID,
+        assistant_content: str,
+        corruption: bool,
+    ) -> None:
+        user = connection.execute(
+            """
+            SELECT chat_id, sequence_no, message_type
+            FROM chat_messages
+            WHERE message_id = ?
+            """,
+            (uuid_to_blob(operation_id),),
+        ).fetchone()
+        assistant = connection.execute(
+            """
+            SELECT m.chat_id, m.sequence_no, m.message_type, m.actor_id,
+                   r.content
+            FROM chat_messages AS m
+            JOIN entity_heads AS h ON h.entity_id = m.message_id
+            JOIN chat_message_revisions AS r ON r.revision_id = h.current_revision_id
+            WHERE m.message_id = ?
+            """,
+            (uuid_to_blob(assistant_message_id_for_operation(operation_id)),),
+        ).fetchone()
+        valid = (
+            user is not None
+            and assistant is not None
+            and uuid_from_blob(bytes(user["chat_id"])) == chat_id
+            and str(user["message_type"]) == "user"
+            and uuid_from_blob(bytes(assistant["chat_id"])) == chat_id
+            and str(assistant["message_type"]) == "assistant"
+            and int(assistant["sequence_no"]) == int(user["sequence_no"]) + 1
+            and str(assistant["content"]) == assistant_content
+        )
+        if not valid:
+            if corruption:
+                raise GroundedSendCompletionCorruptionError(
+                    "Persisted completion assistant turn conflicts with provider result."
+                )
+            raise GroundedSendCompletionConflictError(
+                "Grounded completion assistant turn conflicts with provider result."
+            )
+
+        identity = connection.execute(
+            """
+            SELECT provider_id, model_id
+            FROM grounded_provider_result_identities
+            WHERE operation_id = ?
+            """,
+            (uuid_to_blob(operation_id),),
+        ).fetchone()
+        if identity is None:
+            return
+        actor = connection.execute(
+            """
+            SELECT actor_type, display_name
+            FROM actors
+            WHERE actor_id = ?
+            """,
+            (assistant["actor_id"],),
+        ).fetchone()
+        expected_display_name = f"{identity['provider_id']}:{identity['model_id']}"
+        if (
+            actor is not None
+            and str(actor["actor_type"]) == "primary_model"
+            and str(actor["display_name"]) == expected_display_name
+        ):
+            return
+        if corruption:
+            raise GroundedSendCompletionCorruptionError(
+                "Persisted completion assistant actor conflicts with provider identity."
+            )
+        raise GroundedSendCompletionConflictError(
+            "Grounded completion assistant actor conflicts with provider identity."
         )
 
     def _load_in_transaction(
