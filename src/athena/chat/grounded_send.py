@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import uuid
 from dataclasses import dataclass
 
@@ -35,7 +36,7 @@ from athena.chat.grounded_turn import GroundedUserTurnRepository
 from athena.chat.models import ChatMessage
 from athena.chat.request_fingerprint import ChatRequestFingerprint
 from athena.common.ids import uuid_to_blob
-from athena.retrieval.context_package import ContextPackage
+from athena.retrieval.context_package import ContextPackage, ContextPackageError
 from athena.storage.database import SQLiteDatabase
 
 
@@ -68,7 +69,7 @@ class GroundedProviderBoundaryError(RuntimeError):
 
 
 class GroundedProviderContextError(RuntimeError):
-    """The provider boundary is missing its durable exact ContextPackage."""
+    """The provider boundary is missing or conflicts with its exact ContextPackage."""
 
 
 class GroundedProviderResultError(RuntimeError):
@@ -92,6 +93,72 @@ class GroundedAssistantCommitError(RuntimeError):
 
 class GroundedCompletionCommitError(RuntimeError):
     """Completion conflicts with the recorded durable provider result."""
+
+
+def _require_context_matches_request(
+    package: ContextPackage,
+    fingerprint: ChatRequestFingerprint,
+) -> None:
+    try:
+        payload = json.loads(fingerprint.payload_json)
+    except json.JSONDecodeError as exc:
+        raise GroundedProviderContextError(
+            "Grounded request fingerprint is not valid JSON."
+        ) from exc
+    if not isinstance(payload, dict):
+        raise GroundedProviderContextError(
+            "Grounded request fingerprint must contain a JSON object."
+        )
+
+    try:
+        package_max_output_tokens, package_reasoning_mode = package.generation_controls()
+        package_temperature = package.generation_temperature()
+    except ContextPackageError as exc:
+        raise GroundedProviderContextError(
+            "Grounded ContextPackage generation controls are invalid."
+        ) from exc
+
+    requested_model_id = payload.get("requested_model_id")
+    if (
+        requested_model_id is not None
+        and requested_model_id != package.model_signature.model_identifier
+    ):
+        raise GroundedProviderContextError(
+            "Grounded ContextPackage model conflicts with the durable request fingerprint."
+        )
+
+    effective_context_limit = payload.get("effective_context_limit")
+    if (
+        effective_context_limit is not None
+        and effective_context_limit != package.budget.effective_context_limit
+    ):
+        raise GroundedProviderContextError(
+            "Grounded ContextPackage context limit conflicts with the durable request fingerprint."
+        )
+
+    requested_max_output_tokens = payload.get("max_output_tokens")
+    if (
+        requested_max_output_tokens is not None
+        and requested_max_output_tokens != package_max_output_tokens
+    ):
+        raise GroundedProviderContextError(
+            "Grounded ContextPackage output limit conflicts with the durable request fingerprint."
+        )
+
+    requested_temperature = payload.get("temperature")
+    if requested_temperature is not None and requested_temperature != package_temperature:
+        raise GroundedProviderContextError(
+            "Grounded ContextPackage temperature conflicts with the durable request fingerprint."
+        )
+
+    requested_reasoning_mode = payload.get("reasoning_mode")
+    if (
+        requested_reasoning_mode is not None
+        and requested_reasoning_mode != package_reasoning_mode
+    ):
+        raise GroundedProviderContextError(
+            "Grounded ContextPackage reasoning mode conflicts with the durable request fingerprint."
+        )
 
 
 class GroundedSendCoordinator:
@@ -171,6 +238,7 @@ class GroundedSendCoordinator:
         )
         if before.state is not GroundedRecoveryState.RESUMABLE:
             raise GroundedProviderBoundaryError(before)
+        _require_context_matches_request(context_package.package, fingerprint)
         try:
             attempt = self.provider_attempts.claim_started(
                 operation_id=operation_id,
