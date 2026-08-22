@@ -16,6 +16,23 @@ class GroundedRequestContextBindingError(ValueError):
     """A durable request fingerprint conflicts with its provider-facing package."""
 
 
+def _context_configuration(package: ContextPackage) -> dict[str, object] | None:
+    configuration_json = package.model_signature.context_configuration_json
+    if configuration_json is None:
+        return None
+    try:
+        raw = json.loads(configuration_json)
+    except json.JSONDecodeError as exc:
+        raise GroundedRequestContextBindingError(
+            "Grounded ContextPackage context configuration is invalid JSON."
+        ) from exc
+    if not isinstance(raw, dict):
+        raise GroundedRequestContextBindingError(
+            "Grounded ContextPackage context configuration must be a JSON object."
+        )
+    return raw
+
+
 def validate_grounded_request_context_binding(
     *,
     package: ContextPackage,
@@ -66,6 +83,17 @@ def validate_grounded_request_context_binding(
         raise GroundedRequestContextBindingError(
             "Grounded ContextPackage model conflicts with the durable request fingerprint."
         )
+
+    requested_embedding_model_id = payload.get("requested_embedding_model_id")
+    if requested_embedding_model_id is not None:
+        configuration = _context_configuration(package)
+        if (
+            configuration is None
+            or configuration.get("embedding_model_id") != requested_embedding_model_id
+        ):
+            raise GroundedRequestContextBindingError(
+                "Grounded ContextPackage embedding model conflicts with the durable request fingerprint."
+            )
 
     effective_context_limit = payload.get("effective_context_limit")
     if (
