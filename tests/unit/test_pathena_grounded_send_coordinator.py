@@ -11,14 +11,17 @@ from athena.chat.grounded_send import (
     GroundedCompletionCommitError,
     GroundedProviderBoundaryError,
     GroundedProviderContextError,
+    GroundedProviderRunError,
     GroundedSendCoordinator,
     GroundedSendStateError,
 )
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
-from athena.model.provenance import ModelSignature
+from athena.model.domain import ModelInfo
+from athena.model.provenance import ModelRunRepository, ModelSignature
 from athena.retrieval.context_package import (
     ContextIncludedRef,
+    ContextPackage,
     ContextPackageBudget,
     ContextPackageService,
     ContextSection,
@@ -46,23 +49,34 @@ def _fingerprint(chat_id: uuid.UUID, content: str = "hello"):
 def _setup(database: SQLiteDatabase):
     chats = ChatRepository(database)
     user = chats.create_actor(actor_type="user")
-    model = chats.create_actor(actor_type="primary_model", display_name="local:model")
+    model = chats.create_actor(
+        actor_type="primary_model",
+        display_name="lm_studio:model",
+    )
     chat_id = chats.create_chat(actor_id=user)
     return chats, user, model, chat_id
 
 
-def _context_package(operation_id: uuid.UUID, revision_id: uuid.UUID):
-    signature = ModelSignature(
-        model_signature_id=uuid.uuid4(),
+def _model_info() -> ModelInfo:
+    return ModelInfo(
         provider="lm_studio",
-        model_identifier="model",
-        model_revision=None,
+        backend_model_id="model",
+        display_name="model",
+        model_type="llm",
+        context_capacity=32768,
         quantization=None,
-        generation_parameters_json='{"max_output_tokens":1024,"reasoning_mode":"off"}',
-        context_configuration_json='{"mode":"grounded"}',
-        signature_hash=b"s" * 32,
-        created_at_us=1,
+        loaded=True,
+        vision=False,
+        trained_for_tool_use=False,
+        loaded_context_length=4096,
     )
+
+
+def _context_package(
+    signature: ModelSignature,
+    operation_id: uuid.UUID,
+    revision_id: uuid.UUID,
+) -> ContextPackage:
     return ContextPackageService.build_from_sections(
         model_signature=signature,
         budget=ContextPackageBudget(
@@ -110,12 +124,41 @@ def _context_package(operation_id: uuid.UUID, revision_id: uuid.UUID):
     )
 
 
-def _store_context(coordinator: GroundedSendCoordinator, *, operation_id: uuid.UUID, chat_id: uuid.UUID, revision_id: uuid.UUID) -> None:
+def _store_context_and_run(
+    coordinator: GroundedSendCoordinator,
+    *,
+    operation_id: uuid.UUID,
+    chat_id: uuid.UUID,
+    revision_id: uuid.UUID,
+    trigger_actor_id: uuid.UUID,
+) -> uuid.UUID:
+    model_runs = ModelRunRepository(coordinator.database)
+    signature = model_runs.get_or_create_signature(
+        model=_model_info(),
+        generation_parameters={
+            "max_output_tokens": 1024,
+            "reasoning_mode": "off",
+            "temperature": 0.3,
+        },
+        context_configuration={"mode": "grounded"},
+    )
+    package = _context_package(signature, operation_id, revision_id)
     coordinator.store_context_package(
         operation_id=operation_id,
         chat_id=chat_id,
-        package=_context_package(operation_id, revision_id),
+        package=package,
     )
+    run = model_runs.start_run(
+        run_type="chat.unified_local_context_package",
+        trigger_actor_id=trigger_actor_id,
+        pipeline_version="test-v1",
+        input_snapshot=package.run_snapshot(),
+        configuration={"mode": "grounded"},
+        model_signature_id=signature.model_signature_id,
+        prompt_template_id="grounded-test",
+        prompt_template_version="1",
+    )
+    return run.processing_run_id
 
 
 def test_crash_boundaries_reconcile_without_reexecution(tmp_path) -> None:
@@ -142,11 +185,12 @@ def test_crash_boundaries_reconcile_without_reexecution(tmp_path) -> None:
     )
     assert started.status.state is GroundedReconciliationState.INCOMPLETE
     assert len(chats.load_chat(chat_id).messages) == 1
-    _store_context(
+    run_id = _store_context_and_run(
         coordinator,
         operation_id=operation_id,
         chat_id=chat_id,
         revision_id=started.user_message.revision_id,
+        trigger_actor_id=user,
     )
 
     database.stop()
@@ -191,7 +235,6 @@ def test_crash_boundaries_reconcile_without_reexecution(tmp_path) -> None:
         )
     assert exc_info.value.status.state is GroundedRecoveryState.AMBIGUOUS
 
-    run_id = uuid.uuid4()
     result = coordinator.record_provider_result(
         operation_id=operation_id,
         chat_id=chat_id,
@@ -199,6 +242,8 @@ def test_crash_boundaries_reconcile_without_reexecution(tmp_path) -> None:
         processing_run_id=run_id,
         assistant_content="answer",
         receipt_payload_json='{"assistant_text":"answer","evidence":["CTX-001"]}',
+        provider_id="lm_studio",
+        model_id="model",
     )
     assert coordinator.recover(
         operation_id=operation_id,
@@ -292,11 +337,12 @@ def test_provider_result_rejects_receipt_assistant_text_mismatch(tmp_path) -> No
             content="hello",
             fingerprint=fingerprint,
         )
-        _store_context(
+        run_id = _store_context_and_run(
             coordinator,
             operation_id=operation_id,
             chat_id=chat_id,
             revision_id=started.user_message.revision_id,
+            trigger_actor_id=user,
         )
         coordinator.begin_provider_attempt(
             operation_id=operation_id,
@@ -309,9 +355,61 @@ def test_provider_result_rejects_receipt_assistant_text_mismatch(tmp_path) -> No
                 operation_id=operation_id,
                 chat_id=chat_id,
                 fingerprint=fingerprint,
-                processing_run_id=uuid.uuid4(),
+                processing_run_id=run_id,
                 assistant_content="answer",
                 receipt_payload_json='{"assistant_text":"different"}',
+                provider_id="lm_studio",
+                model_id="model",
+            )
+
+        assert coordinator.provider_attempts.load_result(operation_id) is None
+        assert coordinator.recover(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        ).state is GroundedRecoveryState.AMBIGUOUS
+    finally:
+        database.stop()
+
+
+def test_provider_result_rejects_unknown_processing_run(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        _, user, _, chat_id = _setup(database)
+        operation_id = uuid.uuid4()
+        fingerprint = _fingerprint(chat_id)
+        coordinator = GroundedSendCoordinator(database)
+        started = coordinator.start(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            actor_id=user,
+            content="hello",
+            fingerprint=fingerprint,
+        )
+        _store_context_and_run(
+            coordinator,
+            operation_id=operation_id,
+            chat_id=chat_id,
+            revision_id=started.user_message.revision_id,
+            trigger_actor_id=user,
+        )
+        coordinator.begin_provider_attempt(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        )
+
+        with pytest.raises(GroundedProviderRunError, match="ProcessingRun"):
+            coordinator.record_provider_result(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                fingerprint=fingerprint,
+                processing_run_id=uuid.uuid4(),
+                assistant_content="answer",
+                receipt_payload_json='{"assistant_text":"answer"}',
+                provider_id="lm_studio",
+                model_id="model",
             )
 
         assert coordinator.provider_attempts.load_result(operation_id) is None
@@ -386,7 +484,6 @@ def test_completion_requires_exact_recorded_provider_result(tmp_path) -> None:
     database.start()
     _, user, model, chat_id = _setup(database)
     operation_id = uuid.uuid4()
-    run_id = uuid.uuid4()
     fingerprint = _fingerprint(chat_id)
     coordinator = GroundedSendCoordinator(database)
     started = coordinator.start(
@@ -396,11 +493,12 @@ def test_completion_requires_exact_recorded_provider_result(tmp_path) -> None:
         content="hello",
         fingerprint=fingerprint,
     )
-    _store_context(
+    run_id = _store_context_and_run(
         coordinator,
         operation_id=operation_id,
         chat_id=chat_id,
         revision_id=started.user_message.revision_id,
+        trigger_actor_id=user,
     )
     coordinator.begin_provider_attempt(
         operation_id=operation_id,
@@ -414,6 +512,8 @@ def test_completion_requires_exact_recorded_provider_result(tmp_path) -> None:
         processing_run_id=run_id,
         assistant_content="answer",
         receipt_payload_json='{"assistant_text":"answer","evidence":[]}',
+        provider_id="lm_studio",
+        model_id="model",
     )
     coordinator.commit_assistant(
         operation_id=operation_id,
