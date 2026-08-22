@@ -45,11 +45,10 @@ def _expected_configuration_hash(package: ContextPackage) -> bytes:
     return hashlib.sha256(configuration_json.encode("utf-8")).digest()
 
 
-def _load_bound_run(
+def _load_run_identity(
     database: SQLiteDatabase,
     *,
     processing_run_id: uuid.UUID,
-    package: ContextPackage,
     trigger_actor_id: uuid.UUID,
 ) -> tuple[ModelRunRepository, ProcessingRun]:
     repository = ModelRunRepository(database)
@@ -76,6 +75,40 @@ def _load_bound_run(
         raise GroundedProcessingRunError(
             "ProcessingRun trigger actor conflicts with the Grounded user actor."
         )
+    return repository, run
+
+
+def validate_early_grounded_processing_run_binding(
+    database: SQLiteDatabase,
+    *,
+    processing_run_id: uuid.UUID,
+    trigger_actor_id: uuid.UUID,
+) -> ProcessingRun:
+    """Validate an operation-pinned run before a ContextPackage is durable."""
+    _repository, run = _load_run_identity(
+        database,
+        processing_run_id=processing_run_id,
+        trigger_actor_id=trigger_actor_id,
+    )
+    if run.status != "running" or run.finished_at_us is not None:
+        raise GroundedProcessingRunError(
+            "Early Grounded ProcessingRun binding must remain live and unfinished."
+        )
+    return run
+
+
+def _load_bound_run(
+    database: SQLiteDatabase,
+    *,
+    processing_run_id: uuid.UUID,
+    package: ContextPackage,
+    trigger_actor_id: uuid.UUID,
+) -> tuple[ModelRunRepository, ProcessingRun]:
+    repository, run = _load_run_identity(
+        database,
+        processing_run_id=processing_run_id,
+        trigger_actor_id=trigger_actor_id,
+    )
     if run.model_signature_id is None:
         raise GroundedProcessingRunError(
             "Grounded generation ProcessingRun is missing ModelSignature provenance."
