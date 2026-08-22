@@ -52,6 +52,21 @@ class _Provider:
         yield "must not run"
 
 
+def _fingerprint(chat_id: uuid.UUID, *, content: str, model_id: str = "primary"):
+    return build_chat_request_fingerprint(
+        mode=ChatSendMode.GROUNDED,
+        chat_id=chat_id,
+        content=content,
+        requested_model_id=model_id,
+        requested_embedding_model_id=None,
+        effective_context_limit=4096,
+        max_output_tokens=1000,
+        temperature=None,
+        reasoning_mode="off",
+        retrieval_configuration={},
+    )
+
+
 def _package(user_message):
     context = ContextBuilderService().build_from_ranked(
         query=user_message.content or "request",
@@ -95,6 +110,23 @@ def _package(user_message):
     )
 
 
+def _generation(chats: ChatRepository, provider: _Provider, coordinator):
+    return DurableGroundedGenerationService(
+        ChatGenerationService(ChatService(chats), provider),
+        coordinator,
+    )
+
+
+def _receipt(content: str, provider_id: str, model_id: str) -> str:
+    return json.dumps(
+        {
+            "assistant_text": content,
+            "provider_id": provider_id,
+            "model_id": model_id,
+        }
+    )
+
+
 def test_model_request_drift_is_fenced_before_package_or_provider_commit(tmp_path) -> None:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
@@ -103,17 +135,10 @@ def test_model_request_drift_is_fenced_before_package_or_provider_commit(tmp_pat
         user = chats.create_actor(actor_type="user")
         chat_id = chats.create_chat(actor_id=user)
         operation_id = uuid.uuid4()
-        fingerprint = build_chat_request_fingerprint(
-            mode=ChatSendMode.GROUNDED,
-            chat_id=chat_id,
+        fingerprint = _fingerprint(
+            chat_id,
             content="hello",
-            requested_model_id="requested-other-model",
-            requested_embedding_model_id=None,
-            effective_context_limit=4096,
-            max_output_tokens=1000,
-            temperature=None,
-            reasoning_mode="off",
-            retrieval_configuration={},
+            model_id="requested-other-model",
         )
         coordinator = GroundedSendCoordinator(database)
         started = coordinator.start(
@@ -124,29 +149,19 @@ def test_model_request_drift_is_fenced_before_package_or_provider_commit(tmp_pat
             fingerprint=fingerprint,
         )
         provider = _Provider()
-        generation = DurableGroundedGenerationService(
-            ChatGenerationService(ChatService(chats), provider),
-            coordinator,
-        )
 
         with pytest.raises(
             DurableGroundedGenerationError,
             match="conflicts with the durable request fingerprint",
         ):
-            generation.send_context_package(
+            _generation(chats, provider, coordinator).send_context_package(
                 operation_id=operation_id,
                 chat_id=chat_id,
                 user_message=started.user_message,
                 context_package=_package(started.user_message),
                 processing_run_id=uuid.uuid4(),
                 fingerprint=fingerprint,
-                receipt_payload_builder=lambda content, provider_id, model_id: json.dumps(
-                    {
-                        "assistant_text": content,
-                        "provider_id": provider_id,
-                        "model_id": model_id,
-                    }
-                ),
+                receipt_payload_builder=_receipt,
             )
 
         assert provider.calls == 0
@@ -156,6 +171,53 @@ def test_model_request_drift_is_fenced_before_package_or_provider_commit(tmp_pat
             operation_id=operation_id,
             chat_id=chat_id,
             fingerprint=fingerprint,
+        ).state is GroundedRecoveryState.RESUMABLE
+        assert [message.content for message in chats.load_chat(chat_id).messages] == ["hello"]
+    finally:
+        database.stop()
+
+
+def test_retry_fingerprint_conflict_is_fenced_before_context_persistence(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        chats = ChatRepository(database)
+        user = chats.create_actor(actor_type="user")
+        chat_id = chats.create_chat(actor_id=user)
+        operation_id = uuid.uuid4()
+        durable_fingerprint = _fingerprint(chat_id, content="hello")
+        conflicting_fingerprint = _fingerprint(chat_id, content="different retry content")
+        coordinator = GroundedSendCoordinator(database)
+        started = coordinator.start(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            actor_id=user,
+            content="hello",
+            fingerprint=durable_fingerprint,
+        )
+        provider = _Provider()
+
+        with pytest.raises(
+            DurableGroundedGenerationError,
+            match="request identity is not safely resumable",
+        ):
+            _generation(chats, provider, coordinator).send_context_package(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                user_message=started.user_message,
+                context_package=_package(started.user_message),
+                processing_run_id=uuid.uuid4(),
+                fingerprint=conflicting_fingerprint,
+                receipt_payload_builder=_receipt,
+            )
+
+        assert provider.calls == 0
+        assert coordinator.load_context_package(operation_id) is None
+        assert coordinator.provider_attempts.load(operation_id) is None
+        assert coordinator.recover(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=durable_fingerprint,
         ).state is GroundedRecoveryState.RESUMABLE
         assert [message.content for message in chats.load_chat(chat_id).messages] == ["hello"]
     finally:
