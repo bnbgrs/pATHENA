@@ -105,10 +105,13 @@ Invoke-Checked uv run --locked --extra desktop python -c "import sys; import ath
 if (-not $SkipSmokeTest) {
     Write-Step "Run pATHENA local doctor"
     Invoke-Checked uv run --locked --extra desktop athena-doctor
+
+    Write-Step "Run disposable Core/API restart smoke test"
+    Invoke-Checked uv run --locked --extra desktop athena-local-smoke
 }
 
 Write-Step "Bootstrap complete"
-Write-Host "Core/runtime bootstrap succeeded. LM Studio may still be offline; athena-doctor reports that separately."
+Write-Host "Core/runtime bootstrap and restart checks succeeded. LM Studio may still be offline; athena-doctor reports that separately."
 Write-Host ""
 Write-Host "Start the desktop UI with:"
 Write-Host "  .\scripts\start_windows.ps1"
