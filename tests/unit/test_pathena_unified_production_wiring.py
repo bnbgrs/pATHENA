@@ -1,7 +1,11 @@
 from __future__ import annotations
 
-from athena.chat.unified import UnifiedLocalChatService as DurableUnifiedLocalChatService
-from athena.chat.unified_resumable import UnifiedLocalChatService as ResumableUnifiedLocalChatService
+from athena.chat.unified import (
+    UnifiedLocalChatService as DurableUnifiedLocalChatService,
+)
+from athena.chat.unified_resumable import (
+    UnifiedLocalChatService as ResumableUnifiedLocalChatService,
+)
 from athena.core import application
 
 
