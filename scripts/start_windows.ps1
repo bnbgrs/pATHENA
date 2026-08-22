@@ -59,12 +59,7 @@ Write-Host "Starting pATHENA desktop..."
 if ($env:ATHENA_LOCAL_ROOT) {
     Write-Host "Runtime root: $env:ATHENA_LOCAL_ROOT"
 } else {
-    $defaultRoot = [Environment]::GetFolderPath("LocalApplicationData")
-    if ($defaultRoot) {
-        Write-Host "Runtime root: $defaultRoot\ATHENA"
-    } else {
-        Write-Host "Runtime root: Windows local application-data default"
-    }
+    Write-Host "Runtime root: $(Resolve-PathenaDefaultLocalRoot)"
 }
 if ($env:ATHENA_LMSTUDIO_BASE_URL) {
     Write-Host "LM Studio: $env:ATHENA_LMSTUDIO_BASE_URL"
