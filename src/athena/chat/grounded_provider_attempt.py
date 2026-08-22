@@ -485,6 +485,14 @@ class GroundedProviderAttemptRepository:
                 raise GroundedProviderAttemptConflictError(
                     "Provider result requires the matching durable attempt marker."
                 )
+            if (
+                operation["processing_run_id"] is not None
+                and uuid_from_blob(bytes(operation["processing_run_id"]))
+                != processing_run_id
+            ):
+                raise GroundedProviderAttemptConflictError(
+                    "Provider result conflicts with the pinned Grounded ProcessingRun."
+                )
             existing = connection.execute(
                 """
                 SELECT operation_id, chat_id, processing_run_id,
@@ -517,14 +525,6 @@ class GroundedProviderAttemptRepository:
             if str(operation["state"]) != ChatSendOperationState.USER_COMMITTED.value:
                 raise GroundedProviderAttemptConflictError(
                     "A new provider result may be recorded only before assistant commit."
-                )
-            if (
-                operation["processing_run_id"] is not None
-                and uuid_from_blob(bytes(operation["processing_run_id"]))
-                != processing_run_id
-            ):
-                raise GroundedProviderAttemptConflictError(
-                    "Provider result conflicts with the pinned Grounded ProcessingRun."
                 )
             if context_record is not None:
                 if operation["processing_run_id"] is None:
