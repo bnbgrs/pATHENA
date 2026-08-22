@@ -127,13 +127,13 @@ class DurableGroundedGenerationService:
         )
 
         def before_provider() -> None:
-            if on_before_provider_call is not None:
-                on_before_provider_call()
             self.coordinator.begin_provider_attempt(
                 operation_id=operation_id,
                 chat_id=chat_id,
                 fingerprint=fingerprint,
             )
+            if on_before_provider_call is not None:
+                on_before_provider_call()
 
         result = delegated.send_context_package(
             chat_id=chat_id,
