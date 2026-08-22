@@ -4,8 +4,12 @@ import uuid
 from types import SimpleNamespace
 from typing import Any, cast
 
+import pytest
+
 from athena.chat import durable_grounded_generation as durable_module
 from athena.chat.durable_grounded_generation import DurableGroundedGenerationService
+from athena.chat.grounded_recovery import GroundedRecoveryState
+from athena.chat.grounded_send import GroundedProviderBoundaryError
 
 
 class _Coordinator:
@@ -13,6 +17,17 @@ class _Coordinator:
         self.calls: list[tuple[uuid.UUID, uuid.UUID, object]] = []
         self.context_packages: list[tuple[uuid.UUID, uuid.UUID, object]] = []
         self.events: list[str] = []
+        self.state = GroundedRecoveryState.RESUMABLE
+
+    def recover(
+        self,
+        *,
+        operation_id: uuid.UUID,
+        chat_id: uuid.UUID,
+        fingerprint: object,
+    ) -> object:
+        del chat_id, fingerprint
+        return SimpleNamespace(operation_id=operation_id, state=self.state)
 
     def store_context_package(
         self,
@@ -34,6 +49,7 @@ class _Coordinator:
     ) -> object:
         self.events.append("guard")
         self.calls.append((operation_id, chat_id, fingerprint))
+        self.state = GroundedRecoveryState.AMBIGUOUS
         return object()
 
 
@@ -70,6 +86,11 @@ def _service(monkeypatch, delegated_type: type[_DelegatedGeneration]):
         "ChatGenerationService",
         delegated_type,
     )
+    monkeypatch.setattr(
+        durable_module,
+        "validate_grounded_request_context_binding",
+        lambda **kwargs: None,
+    )
     return (
         DurableGroundedGenerationService(
             cast(Any, base_generation),
@@ -79,7 +100,7 @@ def _service(monkeypatch, delegated_type: type[_DelegatedGeneration]):
     )
 
 
-def test_durable_generation_persists_exact_package_before_recovery_guard(
+def test_durable_generation_persists_exact_package_before_provider_guard(
     monkeypatch,
 ) -> None:
     operation_id = uuid.uuid4()
@@ -104,7 +125,7 @@ def test_durable_generation_persists_exact_package_before_recovery_guard(
     assert coordinator.events == ["package", "guard"]
 
 
-def test_recovery_guard_precedes_external_provider_hook(monkeypatch) -> None:
+def test_external_provider_hook_precedes_irreversible_guard(monkeypatch) -> None:
     operation_id = uuid.uuid4()
     chat_id = uuid.uuid4()
     fingerprint = object()
@@ -122,35 +143,27 @@ def test_recovery_guard_precedes_external_provider_hook(monkeypatch) -> None:
     )
 
     assert result is _RESULT
-    assert coordinator.events == ["package", "guard", "hook"]
+    assert coordinator.events == ["package", "hook", "guard"]
 
 
-def test_internal_grounding_retry_reenters_exclusive_provider_guard(monkeypatch) -> None:
+def test_internal_grounding_retry_is_fenced_before_second_hook(monkeypatch) -> None:
     operation_id = uuid.uuid4()
     chat_id = uuid.uuid4()
     fingerprint = object()
     service, coordinator = _service(monkeypatch, _RetryingDelegatedGeneration)
 
-    result = service.send_context_package(
-        operation_id=operation_id,
-        chat_id=chat_id,
-        user_message=cast(Any, SimpleNamespace(message_id=operation_id)),
-        context_package=cast(Any, object()),
-        processing_run_id=uuid.uuid4(),
-        fingerprint=cast(Any, fingerprint),
-        receipt_payload_builder=lambda content, provider_id, model_id: "{}",
-        on_before_provider_call=lambda: coordinator.events.append("hook"),
-    )
+    with pytest.raises(GroundedProviderBoundaryError) as exc_info:
+        service.send_context_package(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            user_message=cast(Any, SimpleNamespace(message_id=operation_id)),
+            context_package=cast(Any, object()),
+            processing_run_id=uuid.uuid4(),
+            fingerprint=cast(Any, fingerprint),
+            receipt_payload_builder=lambda content, provider_id, model_id: "{}",
+            on_before_provider_call=lambda: coordinator.events.append("hook"),
+        )
 
-    assert result is _RESULT
-    assert coordinator.calls == [
-        (operation_id, chat_id, fingerprint),
-        (operation_id, chat_id, fingerprint),
-    ]
-    assert coordinator.events == [
-        "package",
-        "guard",
-        "hook",
-        "guard",
-        "hook",
-    ]
+    assert exc_info.value.status.state is GroundedRecoveryState.AMBIGUOUS
+    assert coordinator.calls == [(operation_id, chat_id, fingerprint)]
+    assert coordinator.events == ["package", "hook", "guard"]
