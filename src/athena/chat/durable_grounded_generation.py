@@ -7,6 +7,10 @@ from collections.abc import Callable
 
 from athena.chat.generation import ChatGenerationResult, ChatGenerationService
 from athena.chat.grounding import GroundingContract
+from athena.chat.grounded_request_context import (
+    GroundedRequestContextBindingError,
+    validate_grounded_request_context_binding,
+)
 from athena.chat.grounded_send import GroundedSendCoordinator
 from athena.chat.models import ChatMessage
 from athena.chat.request_fingerprint import ChatRequestFingerprint
@@ -110,6 +114,15 @@ class DurableGroundedGenerationService:
             raise DurableGroundedGenerationError(
                 "Grounded generation user message must equal the operation identity."
             )
+        try:
+            validate_grounded_request_context_binding(
+                package=context_package,
+                fingerprint=fingerprint,
+            )
+        except GroundedRequestContextBindingError as exc:
+            raise DurableGroundedGenerationError(
+                "Grounded ContextPackage conflicts with the durable request fingerprint."
+            ) from exc
 
         self.coordinator.store_context_package(
             operation_id=operation_id,
