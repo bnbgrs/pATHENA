@@ -236,8 +236,6 @@ def _validate_projection_bindings(
                 "Unified replay source context item conflicts with ContextPackage refs."
             )
 
-    if set(memory_context.items_item.context_id for memory_context.items_item in ()):
-        raise AssertionError("unreachable")
     context_ids = tuple(item.context_id for item in memory_context.items) + tuple(
         item.context_id for item in source_context.items
     )
