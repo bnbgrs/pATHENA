@@ -9,7 +9,7 @@ from dataclasses import replace
 from athena.chat.generation import ChatGenerationResult
 from athena.chat.grounding import GroundingContract
 from athena.chat.models import ChatMessage, ChatThread, MessageType
-from athena.chat.unified import UnifiedLocalChatService
+from athena.chat.unified_legacy import UnifiedLocalChatService
 from athena.knowledge.models import EpistemicStatus
 from athena.model.adapters.lm_studio import ModelProviderError
 from athena.model.domain import ModelInfo
@@ -532,7 +532,7 @@ def test_unified_local_chat_composes_memory_and_source_evidence_once() -> None:
 
     result = service.send_message(
         chat_id=uuid.uuid4(),
-        content="Was wei\\u00df ATHENA lokal \\u00fcber Berlin?",
+        content="Was wei\u00df ATHENA lokal \u00fcber Berlin?",
         requested_model_id="primary",
         requested_embedding_model_id="embed-model",
         max_memory_context_tokens=500,
@@ -622,7 +622,6 @@ def test_unified_local_chat_composes_memory_and_source_evidence_once() -> None:
         "post-unified-local-context-build",
         "immediately-before-primary-model-call",
     ]
-
 
 
 def test_unified_retrieval_override_preserves_current_user_semantics() -> None:
@@ -726,7 +725,7 @@ def test_unified_canonical_merge_preserves_contradictions_and_deduplicates() -> 
         revision_id=uuid.uuid4(),
         entity_type=SearchEntityType.KNOWLEDGE,
         title="Hauptstadt von Deutschland",
-        text="M\\u00fcnchen ist die Hauptstadt von Deutschland.",
+        text="M\u00fcnchen ist die Hauptstadt von Deutschland.",
         score=0.97,
         lexical_score=0.88,
         semantic_score=0.98,
@@ -750,7 +749,7 @@ def test_unified_canonical_merge_preserves_contradictions_and_deduplicates() -> 
 
     assert set(by_text) == {
         "Berlin ist die Hauptstadt von Deutschland.",
-        "M\\u00fcnchen ist die Hauptstadt von Deutschland.",
+        "M\u00fcnchen ist die Hauptstadt von Deutschland.",
     }
 
     berlin = by_text[
