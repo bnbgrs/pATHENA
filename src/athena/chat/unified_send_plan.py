@@ -425,7 +425,12 @@ class UnifiedSendPlanRepository:
                     and str(existing["payload_json"]) == payload_json
                     and str(existing["payload_sha256"]) == payload_sha256
                 ):
-                    return self.load(operation_id, fingerprint=fingerprint)  # type: ignore[return-value]
+                    loaded = self.load(operation_id, fingerprint=fingerprint)
+                    if loaded is None:
+                        raise UnifiedSendPlanSchemaError(
+                            "Unified send plan disappeared during idempotent reload."
+                        )
+                    return loaded
                 raise UnifiedSendPlanConflictError(
                     "Unified operation already owns a different pre-user send plan."
                 )
