@@ -125,7 +125,7 @@ def test_recovery_guard_precedes_external_provider_hook(monkeypatch) -> None:
     assert coordinator.events == ["package", "guard", "hook"]
 
 
-def test_internal_grounding_retry_reuses_one_exclusive_provider_claim(monkeypatch) -> None:
+def test_internal_grounding_retry_reenters_exclusive_provider_guard(monkeypatch) -> None:
     operation_id = uuid.uuid4()
     chat_id = uuid.uuid4()
     fingerprint = object()
@@ -143,5 +143,14 @@ def test_internal_grounding_retry_reuses_one_exclusive_provider_claim(monkeypatc
     )
 
     assert result is _RESULT
-    assert coordinator.calls == [(operation_id, chat_id, fingerprint)]
-    assert coordinator.events == ["package", "guard", "hook", "hook"]
+    assert coordinator.calls == [
+        (operation_id, chat_id, fingerprint),
+        (operation_id, chat_id, fingerprint),
+    ]
+    assert coordinator.events == [
+        "package",
+        "guard",
+        "hook",
+        "guard",
+        "hook",
+    ]
