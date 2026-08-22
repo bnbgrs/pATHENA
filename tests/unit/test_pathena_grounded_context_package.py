@@ -7,11 +7,13 @@ import pytest
 from athena.chat.grounded_context_package import (
     GroundedContextPackageConflictError,
     GroundedContextPackageRepository,
+    GroundedContextPackageSchemaError,
 )
 from athena.chat.grounded_provider_attempt import GroundedProviderAttemptRepository
 from athena.chat.grounded_turn import GroundedUserTurnRepository
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
+from athena.common.ids import uuid_to_blob
 from athena.model.provenance import ModelSignature
 from athena.retrieval.context_package import (
     ContextIncludedRef,
@@ -164,6 +166,71 @@ def test_grounded_context_package_rejects_other_current_user(tmp_path) -> None:
             package=_package(uuid.uuid4(), uuid.uuid4()),
         )
     database.stop()
+
+
+def test_context_package_rejects_wrong_current_user_revision(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        chats = ChatRepository(database)
+        user = chats.create_actor(actor_type="user")
+        chat_id = chats.create_chat(actor_id=user)
+        operation_id = uuid.uuid4()
+        GroundedUserTurnRepository(database).commit(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            actor_id=user,
+            content="hello",
+            fingerprint=_fingerprint(chat_id),
+        )
+
+        with pytest.raises(
+            GroundedContextPackageConflictError,
+            match="model-input contract",
+        ):
+            GroundedContextPackageRepository(database).store(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                package=_package(operation_id, uuid.uuid4()),
+            )
+    finally:
+        database.stop()
+
+
+def test_context_package_load_rejects_tampered_user_content(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        chats = ChatRepository(database)
+        user = chats.create_actor(actor_type="user")
+        chat_id = chats.create_chat(actor_id=user)
+        operation_id = uuid.uuid4()
+        message = GroundedUserTurnRepository(database).commit(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            actor_id=user,
+            content="hello",
+            fingerprint=_fingerprint(chat_id),
+        )
+        repository = GroundedContextPackageRepository(database)
+        repository.store(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            package=_package(operation_id, message.revision_id),
+        )
+        with database.write_transaction() as connection:
+            connection.execute(
+                "UPDATE chat_message_revisions SET content = ? WHERE revision_id = ?",
+                ("tampered", uuid_to_blob(message.revision_id)),
+            )
+
+        with pytest.raises(
+            GroundedContextPackageSchemaError,
+            match="model-input contract",
+        ):
+            repository.load(operation_id)
+    finally:
+        database.stop()
 
 
 def test_context_package_cannot_be_backfilled_after_provider_start(tmp_path) -> None:
