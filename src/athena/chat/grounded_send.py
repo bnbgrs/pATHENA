@@ -67,6 +67,10 @@ class GroundedProviderBoundaryError(RuntimeError):
         )
 
 
+class GroundedProviderContextError(RuntimeError):
+    """The provider boundary is missing its durable exact ContextPackage."""
+
+
 class GroundedProviderResultError(RuntimeError):
     """A provider result cannot be journaled from the current recovery state."""
 
@@ -151,6 +155,11 @@ class GroundedSendCoordinator:
         chat_id: uuid.UUID,
         fingerprint: ChatRequestFingerprint,
     ) -> GroundedProviderAttempt:
+        context_package = self.context_packages.load(operation_id)
+        if context_package is None or context_package.chat_id != chat_id:
+            raise GroundedProviderContextError(
+                "Grounded provider attempt requires the exact durable ContextPackage."
+            )
         before = self.recover(
             operation_id=operation_id,
             chat_id=chat_id,
