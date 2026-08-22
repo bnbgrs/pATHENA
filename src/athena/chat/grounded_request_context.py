@@ -74,6 +74,7 @@ def validate_grounded_request_context_binding(
         raise GroundedRequestContextBindingError(
             "Grounded ContextPackage generation controls are invalid."
         ) from exc
+    configuration = _context_configuration(package)
 
     requested_model_id = payload.get("requested_model_id")
     if (
@@ -85,15 +86,13 @@ def validate_grounded_request_context_binding(
         )
 
     requested_embedding_model_id = payload.get("requested_embedding_model_id")
-    if requested_embedding_model_id is not None:
-        configuration = _context_configuration(package)
-        if (
-            configuration is None
-            or configuration.get("embedding_model_id") != requested_embedding_model_id
-        ):
-            raise GroundedRequestContextBindingError(
-                "Grounded ContextPackage embedding model conflicts with the durable request fingerprint."
-            )
+    if requested_embedding_model_id is not None and (
+        configuration is None
+        or configuration.get("embedding_model_id") != requested_embedding_model_id
+    ):
+        raise GroundedRequestContextBindingError(
+            "Grounded ContextPackage embedding model conflicts with the durable request fingerprint."
+        )
 
     effective_context_limit = payload.get("effective_context_limit")
     if (
