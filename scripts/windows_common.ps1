@@ -6,6 +6,30 @@ function Get-PathenaWindowsSettingsPath {
     return (Join-Path $RepoRoot ".pathena.windows.ps1")
 }
 
+function Get-PathenaUvVersion {
+    $command = Get-Command uv -ErrorAction SilentlyContinue
+    if ($null -eq $command) {
+        return $null
+    }
+
+    try {
+        $output = @(& uv --version 2>$null)
+        $exitCode = $LASTEXITCODE
+    } catch {
+        return $null
+    }
+
+    if ($exitCode -ne 0 -or $output.Count -eq 0) {
+        return $null
+    }
+
+    $version = ($output -join [Environment]::NewLine).Trim()
+    if (-not $version) {
+        return $null
+    }
+    return $version
+}
+
 function ConvertFrom-PathenaSettingsLiteral {
     param(
         [Parameter(Mandatory = $true)][string]$Literal,
