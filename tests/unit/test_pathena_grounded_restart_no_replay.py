@@ -363,3 +363,91 @@ def test_restart_inspect_rejects_corrupted_provider_processing_run(
         assert run.status == "succeeded"
     finally:
         database.stop()
+
+
+@pytest.mark.parametrize("corrupt_status", ("failed", "cancelled", "running"))
+def test_restart_complete_rejects_non_succeeded_processing_run(
+    tmp_path: Path,
+    corrupt_status: str,
+) -> None:
+    path = tmp_path / f"athena-{corrupt_status}.db"
+    database = SQLiteDatabase(path)
+    database.start()
+    provider = _Provider()
+    operation_id = uuid.uuid4()
+    try:
+        chats = ChatRepository(database)
+        user = chats.create_actor(actor_type="user")
+        chat_id = chats.create_chat(actor_id=user)
+        fingerprint = _fingerprint(chat_id)
+        coordinator = GroundedSendCoordinator(database)
+        started = coordinator.start(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            actor_id=user,
+            content="hello",
+            fingerprint=fingerprint,
+        )
+        package, processing_run_id = _package_and_run(database, started.user_message)
+        generation = DurableGroundedGenerationService(
+            ChatGenerationService(ChatService(chats), provider),
+            coordinator,
+        )
+        generation.send_context_package(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            user_message=started.user_message,
+            context_package=package,
+            processing_run_id=processing_run_id,
+            fingerprint=fingerprint,
+            receipt_payload_builder=_receipt_payload,
+        )
+        recovery = GroundedSendRecovery(database)
+        receipt = recovery.finalize_recorded_result(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        )
+        assert receipt.processing_run_id == processing_run_id
+        assert recovery.inspect(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        ).state is GroundedRecoveryState.COMPLETE
+        assert provider.calls == 1
+
+        with database.write_transaction() as connection:
+            if corrupt_status == "running":
+                cursor = connection.execute(
+                    """
+                    UPDATE processing_runs
+                    SET status = 'running', finished_at_us = NULL, error_detail = NULL
+                    WHERE processing_run_id = ?
+                    """,
+                    (uuid_to_blob(processing_run_id),),
+                )
+            else:
+                cursor = connection.execute(
+                    """
+                    UPDATE processing_runs
+                    SET status = ?
+                    WHERE processing_run_id = ?
+                    """,
+                    (corrupt_status, uuid_to_blob(processing_run_id)),
+                )
+            assert cursor.rowcount == 1
+
+        database.stop()
+        database = SQLiteDatabase(path)
+        database.start()
+        restarted = GroundedSendRecovery(database)
+        status = restarted.inspect(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        )
+        assert status.state is GroundedRecoveryState.CONFLICT
+        assert provider.calls == 1
+        assert len(ChatRepository(database).load_chat(chat_id).messages) == 2
+    finally:
+        database.stop()
