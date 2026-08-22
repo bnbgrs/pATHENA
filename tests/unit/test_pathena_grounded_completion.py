@@ -5,6 +5,7 @@ import uuid
 
 import pytest
 
+from athena.chat.grounded_assistant_turn import GroundedAssistantTurnRepository
 from athena.chat.grounded_completion import (
     GroundedSendCompletionConflictError,
     GroundedSendCompletionCorruptionError,
@@ -15,7 +16,7 @@ from athena.chat.grounded_turn import GroundedUserTurnRepository
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
 from athena.chat.send_operation import ChatSendOperationRepository, ChatSendOperationState
-from athena.common.ids import uuid_to_blob
+from athena.common.ids import uuid_from_blob, uuid_to_blob
 from athena.storage.database import SQLiteDatabase
 
 
@@ -66,13 +67,24 @@ def _journal_result(
     )
 
 
-def _force_assistant_committed(
+def _commit_assistant(
     database: SQLiteDatabase,
     operation_id: uuid.UUID,
 ) -> None:
-    database.connection.execute(
-        "UPDATE chat_send_operations SET state = 'assistant_committed' WHERE operation_id = ?",
+    user = database.connection.execute(
+        """
+        SELECT chat_id, actor_id
+        FROM chat_messages
+        WHERE message_id = ?
+        """,
         (uuid_to_blob(operation_id),),
+    ).fetchone()
+    assert user is not None
+    GroundedAssistantTurnRepository(database).commit(
+        operation_id=operation_id,
+        chat_id=uuid_from_blob(bytes(user["chat_id"])),
+        actor_id=uuid_from_blob(bytes(user["actor_id"])),
+        content="answer",
     )
 
 
@@ -90,7 +102,7 @@ def test_completion_is_atomic_exact_and_idempotent(tmp_path) -> None:
         processing_run_id=run_id,
         payload_json=payload,
     )
-    _force_assistant_committed(database, operation_id)
+    _commit_assistant(database, operation_id)
 
     first = completions.complete(
         operation_id=operation_id,
@@ -135,7 +147,7 @@ def test_completion_refuses_before_assistant_commit(tmp_path) -> None:
     completions = GroundedSendCompletionRepository(database)
     with pytest.raises(
         GroundedSendCompletionConflictError,
-        match="assistant_committed",
+        match="assistant turn|assistant_committed",
     ):
         completions.complete(
             operation_id=operation_id,
@@ -161,7 +173,7 @@ def test_completion_conflict_preserves_original_receipt(tmp_path) -> None:
         processing_run_id=run_id,
         payload_json=payload,
     )
-    _force_assistant_committed(database, operation_id)
+    _commit_assistant(database, operation_id)
     original = completions.complete(
         operation_id=operation_id,
         chat_id=chat_id,
@@ -192,7 +204,7 @@ def test_completion_rejects_run_or_payload_different_from_provider_result(tmp_pa
         processing_run_id=run_id,
         payload_json=payload,
     )
-    _force_assistant_committed(database, operation_id)
+    _commit_assistant(database, operation_id)
     completions = GroundedSendCompletionRepository(database)
 
     with pytest.raises(
@@ -236,7 +248,7 @@ def test_failed_operation_update_rolls_back_receipt_insert(tmp_path) -> None:
         processing_run_id=run_id,
         payload_json=payload,
     )
-    _force_assistant_committed(database, operation_id)
+    _commit_assistant(database, operation_id)
     completions = GroundedSendCompletionRepository(database)
     database.connection.execute(
         """
@@ -276,7 +288,7 @@ def test_exact_receipt_survives_restart(tmp_path) -> None:
         processing_run_id=run_id,
         payload_json=payload,
     )
-    _force_assistant_committed(database, operation_id)
+    _commit_assistant(database, operation_id)
     completions = GroundedSendCompletionRepository(database)
     stored = completions.complete(
         operation_id=operation_id,
@@ -308,7 +320,7 @@ def test_completion_load_rejects_operation_chain_corruption(tmp_path) -> None:
             processing_run_id=run_id,
             payload_json=payload,
         )
-        _force_assistant_committed(database, operation_id)
+        _commit_assistant(database, operation_id)
         completions = GroundedSendCompletionRepository(database)
         completions.complete(
             operation_id=operation_id,
@@ -345,7 +357,7 @@ def test_completion_load_rejects_missing_provider_result(tmp_path) -> None:
             processing_run_id=run_id,
             payload_json=payload,
         )
-        _force_assistant_committed(database, operation_id)
+        _commit_assistant(database, operation_id)
         completions = GroundedSendCompletionRepository(database)
         completions.complete(
             operation_id=operation_id,
@@ -385,7 +397,7 @@ def test_completion_rejects_corrupted_provider_attempt_identity(tmp_path) -> Non
             processing_run_id=run_id,
             payload_json=payload,
         )
-        _force_assistant_committed(database, operation_id)
+        _commit_assistant(database, operation_id)
         with database.write_transaction() as connection:
             connection.execute(
                 "UPDATE grounded_provider_attempts SET chat_id = ? WHERE operation_id = ?",
