@@ -87,11 +87,56 @@ class GroundedSendRecovery:
         if base.state is GroundedReconciliationState.CONFLICT:
             return self._status(operation_id, chat_id, GroundedRecoveryState.CONFLICT)
         if base.state is GroundedReconciliationState.COMPLETE:
+            receipt = base.receipt
+            if receipt is None:
+                return self._status(
+                    operation_id,
+                    chat_id,
+                    GroundedRecoveryState.CONFLICT,
+                )
+            result = self.provider_attempts.load_result(operation_id)
+            if (
+                result is None
+                or result.chat_id != chat_id
+                or result.processing_run_id != receipt.processing_run_id
+                or result.receipt_payload_json != receipt.payload_json
+                or result.receipt_payload_sha256 != receipt.payload_sha256
+            ):
+                return self._status(
+                    operation_id,
+                    chat_id,
+                    GroundedRecoveryState.CONFLICT,
+                )
+            try:
+                validate_provider_result_contract(
+                    assistant_content=result.assistant_content,
+                    receipt_payload_json=result.receipt_payload_json,
+                )
+            except GroundedProviderResultContractError:
+                return self._status(
+                    operation_id,
+                    chat_id,
+                    GroundedRecoveryState.CONFLICT,
+                )
+            identity = self.provider_attempts.load_result_identity(operation_id)
+            if not self._assistant_matches_result(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                result=result,
+                identity=identity,
+            ):
+                return self._status(
+                    operation_id,
+                    chat_id,
+                    GroundedRecoveryState.CONFLICT,
+                )
             return GroundedRecoveryStatus(
                 operation_id=operation_id,
                 chat_id=chat_id,
                 state=GroundedRecoveryState.COMPLETE,
-                receipt=base.receipt,
+                receipt=receipt,
+                provider_result=result,
+                provider_identity=identity,
             )
 
         operation = self.operations.load(operation_id)
