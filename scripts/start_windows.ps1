@@ -9,10 +9,21 @@ $ErrorActionPreference = "Stop"
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = Split-Path -Parent $ScriptDir
+$CommonScript = Join-Path $ScriptDir "windows_common.ps1"
+if (-not (Test-Path -LiteralPath $CommonScript -PathType Leaf)) {
+    throw "Missing Windows helper: $CommonScript"
+}
+. $CommonScript
+
 Set-Location $RepoRoot
 
 if ($env:OS -ne "Windows_NT") {
     throw "This launcher is intended for Windows."
+}
+
+$loadedSettings = Import-PathenaWindowsSettings -RepoRoot $RepoRoot
+if ($loadedSettings) {
+    Write-Host "Loaded local Windows settings from .pathena.windows.ps1"
 }
 
 $uvCommand = Get-Command uv -ErrorAction SilentlyContinue
