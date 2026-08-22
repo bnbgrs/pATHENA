@@ -199,7 +199,10 @@ class GroundedSendRecovery:
                 provider_result=result,
                 provider_identity=identity,
             )
-        attempt = self.provider_attempts.load(operation_id)
+        try:
+            attempt = self.provider_attempts.load(operation_id)
+        except GroundedProviderAttemptSchemaError:
+            return self._status(operation_id, chat_id, GroundedRecoveryState.CONFLICT)
         state = (
             GroundedRecoveryState.RESUMABLE
             if attempt is None
