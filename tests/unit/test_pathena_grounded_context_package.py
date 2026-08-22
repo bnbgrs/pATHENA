@@ -28,7 +28,25 @@ from athena.retrieval.context_package import (
 from athena.storage.database import SQLiteDatabase
 
 
-def _package(operation_id: uuid.UUID, revision_id: uuid.UUID):
+def _commit_seq(database: SQLiteDatabase, revision_id: uuid.UUID) -> int:
+    row = database.connection.execute(
+        """
+        SELECT c.commit_seq
+        FROM revisions AS r
+        JOIN commit_records AS c ON c.commit_id = r.commit_id
+        WHERE r.revision_id = ?
+        """,
+        (uuid_to_blob(revision_id),),
+    ).fetchone()
+    assert row is not None
+    return int(row["commit_seq"])
+
+
+def _package(
+    database: SQLiteDatabase,
+    operation_id: uuid.UUID,
+    revision_id: uuid.UUID,
+):
     signature = ModelSignature(
         model_signature_id=uuid.uuid4(),
         provider="lm_studio",
@@ -89,7 +107,7 @@ def _package(operation_id: uuid.UUID, revision_id: uuid.UUID):
             estimated_input_tokens=20,
             estimated_total_tokens=1220,
         ),
-        snapshot_commit_seq=1,
+        snapshot_commit_seq=_commit_seq(database, revision_id),
     )
 
 
@@ -123,7 +141,7 @@ def test_exact_grounded_context_package_survives_restart(tmp_path) -> None:
         content="hello",
         fingerprint=_fingerprint(chat_id),
     )
-    package = _package(operation_id, message.revision_id)
+    package = _package(database, operation_id, message.revision_id)
     repository = GroundedContextPackageRepository(database)
     stored = repository.store(
         operation_id=operation_id,
@@ -165,7 +183,7 @@ def test_grounded_context_package_rejects_other_current_user(tmp_path) -> None:
         GroundedContextPackageRepository(database).store(
             operation_id=operation_id,
             chat_id=chat_id,
-            package=_package(uuid.uuid4(), uuid.uuid4()),
+            package=_package(database, uuid.uuid4(), uuid.uuid4()),
         )
     database.stop()
 
@@ -193,7 +211,7 @@ def test_context_package_rejects_wrong_current_user_revision(tmp_path) -> None:
             GroundedContextPackageRepository(database).store(
                 operation_id=operation_id,
                 chat_id=chat_id,
-                package=_package(operation_id, uuid.uuid4()),
+                package=_package(database, operation_id, uuid.uuid4()),
             )
     finally:
         database.stop()
@@ -218,7 +236,7 @@ def test_context_package_load_rejects_tampered_user_content(tmp_path) -> None:
         repository.store(
             operation_id=operation_id,
             chat_id=chat_id,
-            package=_package(operation_id, message.revision_id),
+            package=_package(database, operation_id, message.revision_id),
         )
         with database.write_transaction() as connection:
             connection.execute(
@@ -263,7 +281,7 @@ def test_context_package_cannot_be_backfilled_after_provider_start(tmp_path) -> 
             repository.store(
                 operation_id=operation_id,
                 chat_id=chat_id,
-                package=_package(operation_id, message.revision_id),
+                package=_package(database, operation_id, message.revision_id),
             )
 
         assert repository.load(operation_id) is None
@@ -290,7 +308,7 @@ def test_recovery_rejects_result_missing_identity_when_context_is_pinned(tmp_pat
         GroundedContextPackageRepository(database).store(
             operation_id=operation_id,
             chat_id=chat_id,
-            package=_package(operation_id, message.revision_id),
+            package=_package(database, operation_id, message.revision_id),
         )
         provider = GroundedProviderAttemptRepository(database)
         provider.mark_started(operation_id=operation_id, chat_id=chat_id)
@@ -352,7 +370,7 @@ def test_provider_boundary_rejects_context_model_mismatch_with_request(tmp_path)
         coordinator.store_context_package(
             operation_id=operation_id,
             chat_id=chat_id,
-            package=_package(operation_id, started.user_message.revision_id),
+            package=_package(database, operation_id, started.user_message.revision_id),
         )
 
         with pytest.raises(GroundedProviderBoundaryError) as exc_info:
