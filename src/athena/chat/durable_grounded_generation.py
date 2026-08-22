@@ -143,6 +143,22 @@ class DurableGroundedGenerationService:
         self.generation = generation
         self.coordinator = coordinator
 
+    def _require_current_snapshot(
+        self,
+        *,
+        context_package: ContextPackage,
+        operation_id: uuid.UUID,
+        message: str,
+    ) -> None:
+        try:
+            validate_grounded_snapshot_current(
+                self.coordinator.database,
+                package=context_package,
+                operation_id=operation_id,
+            )
+        except GroundedSnapshotBindingError as exc:
+            raise DurableGroundedGenerationError(message) from exc
+
     def send_context_package(
         self,
         *,
@@ -183,16 +199,11 @@ class DurableGroundedGenerationService:
             raise DurableGroundedGenerationError(
                 "Grounded ContextPackage conflicts with the durable request fingerprint."
             ) from exc
-        try:
-            validate_grounded_snapshot_current(
-                self.coordinator.database,
-                package=context_package,
-                operation_id=operation_id,
-            )
-        except GroundedSnapshotBindingError as exc:
-            raise DurableGroundedGenerationError(
-                "Grounded ContextPackage no longer owns the current canonical snapshot."
-            ) from exc
+        self._require_current_snapshot(
+            context_package=context_package,
+            operation_id=operation_id,
+            message="Grounded ContextPackage no longer owns the current canonical snapshot.",
+        )
         try:
             validate_grounded_processing_run(
                 self.coordinator.database,
@@ -234,16 +245,11 @@ class DurableGroundedGenerationService:
             )
             if before.state is not GroundedRecoveryState.RESUMABLE:
                 raise GroundedProviderBoundaryError(before)
-            try:
-                validate_grounded_snapshot_current(
-                    self.coordinator.database,
-                    package=context_package,
-                    operation_id=operation_id,
-                )
-            except GroundedSnapshotBindingError as exc:
-                raise DurableGroundedGenerationError(
-                    "Canonical state changed before the Grounded provider boundary."
-                ) from exc
+            self._require_current_snapshot(
+                context_package=context_package,
+                operation_id=operation_id,
+                message="Canonical state changed before the Grounded provider boundary.",
+            )
             self.coordinator.begin_provider_attempt(
                 operation_id=operation_id,
                 chat_id=chat_id,
@@ -251,6 +257,11 @@ class DurableGroundedGenerationService:
             )
             if on_before_provider_call is not None:
                 on_before_provider_call()
+            self._require_current_snapshot(
+                context_package=context_package,
+                operation_id=operation_id,
+                message="Canonical state changed inside the Grounded provider boundary.",
+            )
 
         result = delegated.send_context_package(
             chat_id=chat_id,
