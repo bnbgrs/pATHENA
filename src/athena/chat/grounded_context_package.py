@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import sqlite3
 import uuid
 from dataclasses import dataclass
 from typing import Any, cast
@@ -358,6 +359,52 @@ def _validate_loaded_package(package: ContextPackage) -> None:
             )
 
 
+def _validate_current_user_binding(
+    connection: sqlite3.Connection,
+    *,
+    package: ContextPackage,
+    operation_id: uuid.UUID,
+    chat_id: uuid.UUID,
+) -> None:
+    current_ref = package.current_user_ref()
+    if current_ref.entity_type != "chat_message" or current_ref.revision_id is None:
+        raise ContextPackageError(
+            "ContextPackage CURRENT-USER must reference a concrete chat-message revision."
+        )
+    current_sections = tuple(
+        section
+        for section in package.sections
+        if current_ref.ref_id in section.included_ref_ids
+    )
+    if len(current_sections) != 1 or current_sections[0].role != "user":
+        raise ContextPackageError(
+            "ContextPackage CURRENT-USER must bind exactly one user section."
+        )
+    user_row = connection.execute(
+        """
+        SELECT m.chat_id, m.message_type, r.revision_id, cr.content
+        FROM chat_messages AS m
+        JOIN revisions AS r ON r.entity_id = m.message_id
+        JOIN chat_message_revisions AS cr ON cr.revision_id = r.revision_id
+        WHERE m.message_id = ? AND r.revision_id = ?
+        """,
+        (
+            uuid_to_blob(operation_id),
+            uuid_to_blob(current_ref.revision_id),
+        ),
+    ).fetchone()
+    if (
+        current_ref.entity_id != operation_id
+        or user_row is None
+        or uuid_from_blob(bytes(user_row["chat_id"])) != chat_id
+        or str(user_row["message_type"]) != "user"
+        or str(user_row["content"]) != current_sections[0].content
+    ):
+        raise ContextPackageError(
+            "ContextPackage CURRENT-USER no longer matches the durable Grounded user turn."
+        )
+
+
 class GroundedContextPackageRepository:
     """Persist and reload the exact provider-facing package for one operation."""
 
@@ -405,11 +452,21 @@ class GroundedContextPackageRepository:
             raise GroundedContextPackageConflictError(
                 "ContextPackage requires the matching Grounded send operation."
             )
-        current_ref = package.current_user_ref()
-        if current_ref.entity_id != operation_id:
-            raise GroundedContextPackageConflictError(
-                "ContextPackage CURRENT-USER identity must equal operation_id."
+        try:
+            _validate_loaded_package(package)
+            _validate_current_user_binding(
+                self.database.connection,
+                package=package,
+                operation_id=operation_id,
+                chat_id=chat_id,
             )
+            package.generation_controls()
+            package.generation_temperature()
+            package.structured_schema()
+        except ContextPackageError as exc:
+            raise GroundedContextPackageConflictError(
+                "ContextPackage violates the durable Grounded model-input contract."
+            ) from exc
         payload_json, payload_sha256 = _encode_package(package)
         with self.database.write_transaction() as connection:
             existing = connection.execute(
@@ -493,7 +550,12 @@ class GroundedContextPackageRepository:
         chat_id = uuid_from_blob(bytes(row["chat_id"]))
         try:
             _validate_loaded_package(package)
-            current_ref = package.current_user_ref()
+            _validate_current_user_binding(
+                self.database.connection,
+                package=package,
+                operation_id=operation_id,
+                chat_id=chat_id,
+            )
             package.generation_controls()
             package.generation_temperature()
             package.structured_schema()
@@ -505,7 +567,6 @@ class GroundedContextPackageRepository:
             operation is None
             or operation.chat_id != chat_id
             or operation.mode is not ChatSendOperationMode.GROUNDED
-            or current_ref.entity_id != operation_id
         ):
             raise GroundedContextPackageSchemaError(
                 "Persisted ContextPackage no longer matches its Grounded operation."
