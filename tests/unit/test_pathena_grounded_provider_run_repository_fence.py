@@ -14,6 +14,7 @@ from athena.chat.request_fingerprint import (
     ChatSendMode,
     build_chat_request_fingerprint,
 )
+from athena.common.ids import uuid_to_blob
 from athena.model.domain import ModelInfo
 from athena.model.provenance import ModelRunRepository
 from athena.retrieval.context_package import (
@@ -57,6 +58,20 @@ def _model_info() -> ModelInfo:
     )
 
 
+def _commit_seq(database: SQLiteDatabase, revision_id: uuid.UUID) -> int:
+    row = database.connection.execute(
+        """
+        SELECT c.commit_seq
+        FROM revisions AS r
+        JOIN commit_records AS c ON c.commit_id = r.commit_id
+        WHERE r.revision_id = ?
+        """,
+        (uuid_to_blob(revision_id),),
+    ).fetchone()
+    assert row is not None
+    return int(row["commit_seq"])
+
+
 def _ready_operation(
     tmp_path: Path,
 ) -> tuple[
@@ -84,6 +99,10 @@ def _ready_operation(
     )
 
     model_runs = ModelRunRepository(database)
+    context_configuration = {
+        "mode": "grounded",
+        "embedding_model_id": "embed",
+    }
     signature = model_runs.get_or_create_signature(
         model=_model_info(),
         generation_parameters={
@@ -91,7 +110,7 @@ def _ready_operation(
             "reasoning_mode": "off",
             "temperature": 0.3,
         },
-        context_configuration={"mode": "grounded"},
+        context_configuration=context_configuration,
     )
     package = ContextPackageService.build_from_sections(
         model_signature=signature,
@@ -136,7 +155,7 @@ def _ready_operation(
             estimated_input_tokens=10,
             estimated_total_tokens=1034,
         ),
-        snapshot_commit_seq=1,
+        snapshot_commit_seq=_commit_seq(database, started.user_message.revision_id),
     )
     coordinator.store_context_package(
         operation_id=operation_id,
@@ -148,7 +167,7 @@ def _ready_operation(
         trigger_actor_id=user_id,
         pipeline_version="test-v1",
         input_snapshot=package.run_snapshot(),
-        configuration={"mode": "grounded"},
+        configuration=context_configuration,
         model_signature_id=signature.model_signature_id,
         prompt_template_id="grounded-test",
         prompt_template_version="1",
