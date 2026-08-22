@@ -49,19 +49,6 @@ function Resolve-DefaultLocalRoot {
     throw "Windows local application-data directory could not be resolved. Pass -LocalRoot explicitly."
 }
 
-function Resolve-UvVersion {
-    $command = Get-Command uv -ErrorAction SilentlyContinue
-    if ($null -eq $command) {
-        return $null
-    }
-
-    $output = (& uv --version).Trim()
-    if ($LASTEXITCODE -ne 0) {
-        return $null
-    }
-    return $output
-}
-
 function Install-PinnedUv {
     param([Parameter(Mandatory = $true)][string]$Version)
 
@@ -96,7 +83,7 @@ if ($loadedSettings) {
 }
 
 Write-Step "Resolve uv $ExpectedUvVersion"
-$uvVersionOutput = Resolve-UvVersion
+$uvVersionOutput = Get-PathenaUvVersion
 if ($uvVersionOutput -ne "uv $ExpectedUvVersion") {
     if ($null -eq $uvVersionOutput) {
         Write-Host "uv is not installed or cannot be executed."
@@ -104,7 +91,7 @@ if ($uvVersionOutput -ne "uv $ExpectedUvVersion") {
         Write-Host "Found $uvVersionOutput; pATHENA requires uv $ExpectedUvVersion."
     }
     Install-PinnedUv -Version $ExpectedUvVersion
-    $uvVersionOutput = Resolve-UvVersion
+    $uvVersionOutput = Get-PathenaUvVersion
 }
 
 if ($uvVersionOutput -ne "uv $ExpectedUvVersion") {
