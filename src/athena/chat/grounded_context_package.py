@@ -306,6 +306,58 @@ def _decode_package(payload_json: str, expected_sha256: str) -> ContextPackage:
     )
 
 
+def _validate_loaded_package(package: ContextPackage) -> None:
+    if package.snapshot_commit_seq < 0:
+        raise ContextPackageError("snapshot_commit_seq must not be negative.")
+    if not package.sections:
+        raise ContextPackageError("ContextPackage must contain at least one section.")
+    if any(not section.content.strip() for section in package.sections):
+        raise ContextPackageError("ContextPackage sections must not be blank.")
+    if package.token_estimates.estimated_total_tokens > package.budget.effective_context_limit:
+        raise ContextPackageError(
+            "ContextPackage token estimate exceeds the effective context limit."
+        )
+    if package.budget.output_reserve < 1 or package.budget.safety_margin < 0:
+        raise ContextPackageError("ContextPackage budget controls are invalid.")
+
+    ref_ids = tuple(item.ref_id for item in package.included_refs)
+    if len(set(ref_ids)) != len(ref_ids):
+        raise ContextPackageError("ContextPackage reference IDs must be unique.")
+    known_refs = set(ref_ids)
+    for section in package.sections:
+        if any(ref_id not in known_refs for ref_id in section.included_ref_ids):
+            raise ContextPackageError(
+                "ContextPackage section references an unknown included ref."
+            )
+
+    counters = (
+        (
+            package.excluded_candidate_summary.retrieval_candidate_count,
+            package.excluded_candidate_summary.retrieval_included_count,
+            package.excluded_candidate_summary.retrieval_excluded_count,
+        ),
+        (
+            package.excluded_candidate_summary.memory_candidate_count,
+            package.excluded_candidate_summary.memory_included_count,
+            package.excluded_candidate_summary.memory_excluded_count,
+        ),
+        (
+            package.excluded_candidate_summary.conversation_candidate_count,
+            package.excluded_candidate_summary.conversation_included_count,
+            package.excluded_candidate_summary.conversation_excluded_count,
+        ),
+    )
+    for candidate_count, included_count, excluded_count in counters:
+        if min(candidate_count, included_count, excluded_count) < 0:
+            raise ContextPackageError(
+                "ContextPackage candidate counts must not be negative."
+            )
+        if included_count + excluded_count != candidate_count:
+            raise ContextPackageError(
+                "ContextPackage candidate counts are internally inconsistent."
+            )
+
+
 class GroundedContextPackageRepository:
     """Persist and reload the exact provider-facing package for one operation."""
 
@@ -432,6 +484,7 @@ class GroundedContextPackageRepository:
         operation = self.operations.load(operation_id)
         chat_id = uuid_from_blob(bytes(row["chat_id"]))
         try:
+            _validate_loaded_package(package)
             current_ref = package.current_user_ref()
             package.generation_controls()
             package.generation_temperature()
