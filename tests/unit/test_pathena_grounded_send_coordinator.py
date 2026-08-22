@@ -10,11 +10,21 @@ from athena.chat.grounded_send import (
     GroundedAssistantCommitError,
     GroundedCompletionCommitError,
     GroundedProviderBoundaryError,
+    GroundedProviderContextError,
     GroundedSendCoordinator,
     GroundedSendStateError,
 )
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
+from athena.model.provenance import ModelSignature
+from athena.retrieval.context_package import (
+    ContextIncludedRef,
+    ContextPackageBudget,
+    ContextPackageService,
+    ContextSection,
+    ContextTokenEstimates,
+    ExcludedCandidateSummary,
+)
 from athena.storage.database import SQLiteDatabase
 
 
@@ -41,6 +51,73 @@ def _setup(database: SQLiteDatabase):
     return chats, user, model, chat_id
 
 
+def _context_package(operation_id: uuid.UUID, revision_id: uuid.UUID):
+    signature = ModelSignature(
+        model_signature_id=uuid.uuid4(),
+        provider="lm_studio",
+        model_identifier="model",
+        model_revision=None,
+        quantization=None,
+        generation_parameters_json='{"max_output_tokens":1024,"reasoning_mode":"off"}',
+        context_configuration_json='{"mode":"grounded"}',
+        signature_hash=b"s" * 32,
+        created_at_us=1,
+    )
+    return ContextPackageService.build_from_sections(
+        model_signature=signature,
+        budget=ContextPackageBudget(
+            effective_context_limit=4096,
+            context_budget=2872,
+            output_reserve=1024,
+            safety_margin=200,
+        ),
+        sections=(
+            ContextSection(
+                name="current_user",
+                role="user",
+                content="hello",
+                included_ref_ids=("CURRENT-USER",),
+            ),
+        ),
+        included_refs=(
+            ContextIncludedRef(
+                ref_id="CURRENT-USER",
+                entity_type="chat_message",
+                entity_id=operation_id,
+                revision_id=revision_id,
+            ),
+        ),
+        excluded_candidate_summary=ExcludedCandidateSummary(
+            retrieval_candidate_count=0,
+            retrieval_included_count=0,
+            retrieval_excluded_count=0,
+            memory_candidate_count=0,
+            memory_included_count=0,
+            memory_excluded_count=0,
+            conversation_candidate_count=0,
+            conversation_included_count=0,
+            conversation_excluded_count=0,
+        ),
+        token_estimates=ContextTokenEstimates(
+            conversation_tokens=0,
+            current_user_tokens=10,
+            system_tokens=0,
+            context_tokens=0,
+            estimated_input_tokens=10,
+            estimated_total_tokens=1034,
+        ),
+        snapshot_commit_seq=1,
+    )
+
+
+def _store_context(coordinator: GroundedSendCoordinator, *, operation_id: uuid.UUID, chat_id: uuid.UUID, revision_id: uuid.UUID) -> None:
+    coordinator.store_context_package(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        package=_context_package(operation_id, revision_id),
+    )
+
+
 def test_crash_boundaries_reconcile_without_reexecution(tmp_path) -> None:
     path = tmp_path / "athena.db"
     database = SQLiteDatabase(path)
@@ -65,6 +142,12 @@ def test_crash_boundaries_reconcile_without_reexecution(tmp_path) -> None:
     )
     assert started.status.state is GroundedReconciliationState.INCOMPLETE
     assert len(chats.load_chat(chat_id).messages) == 1
+    _store_context(
+        coordinator,
+        operation_id=operation_id,
+        chat_id=chat_id,
+        revision_id=started.user_message.revision_id,
+    )
 
     database.stop()
     database = SQLiteDatabase(path)
@@ -163,6 +246,37 @@ def test_crash_boundaries_reconcile_without_reexecution(tmp_path) -> None:
     database.stop()
 
 
+def test_provider_attempt_requires_durable_context_package(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    _, user, _, chat_id = _setup(database)
+    operation_id = uuid.uuid4()
+    fingerprint = _fingerprint(chat_id)
+    coordinator = GroundedSendCoordinator(database)
+    coordinator.start(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        actor_id=user,
+        content="hello",
+        fingerprint=fingerprint,
+    )
+
+    with pytest.raises(GroundedProviderContextError, match="durable ContextPackage"):
+        coordinator.begin_provider_attempt(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        )
+
+    assert coordinator.provider_attempts.load(operation_id) is None
+    assert coordinator.recover(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        fingerprint=fingerprint,
+    ).state is GroundedRecoveryState.RESUMABLE
+    database.stop()
+
+
 def test_provider_result_rejects_receipt_assistant_text_mismatch(tmp_path) -> None:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
@@ -171,12 +285,18 @@ def test_provider_result_rejects_receipt_assistant_text_mismatch(tmp_path) -> No
         operation_id = uuid.uuid4()
         fingerprint = _fingerprint(chat_id)
         coordinator = GroundedSendCoordinator(database)
-        coordinator.start(
+        started = coordinator.start(
             operation_id=operation_id,
             chat_id=chat_id,
             actor_id=user,
             content="hello",
             fingerprint=fingerprint,
+        )
+        _store_context(
+            coordinator,
+            operation_id=operation_id,
+            chat_id=chat_id,
+            revision_id=started.user_message.revision_id,
         )
         coordinator.begin_provider_attempt(
             operation_id=operation_id,
@@ -269,12 +389,18 @@ def test_completion_requires_exact_recorded_provider_result(tmp_path) -> None:
     run_id = uuid.uuid4()
     fingerprint = _fingerprint(chat_id)
     coordinator = GroundedSendCoordinator(database)
-    coordinator.start(
+    started = coordinator.start(
         operation_id=operation_id,
         chat_id=chat_id,
         actor_id=user,
         content="hello",
         fingerprint=fingerprint,
+    )
+    _store_context(
+        coordinator,
+        operation_id=operation_id,
+        chat_id=chat_id,
+        revision_id=started.user_message.revision_id,
     )
     coordinator.begin_provider_attempt(
         operation_id=operation_id,
