@@ -82,6 +82,10 @@ class GroundedProviderResultError(RuntimeError):
         )
 
 
+class GroundedProviderIdentityError(RuntimeError):
+    """Provider result identity conflicts with the pinned ContextPackage model."""
+
+
 class GroundedAssistantCommitError(RuntimeError):
     """An assistant turn conflicts with the recorded durable provider result."""
 
@@ -208,6 +212,20 @@ class GroundedSendCoordinator:
             assistant_content=assistant_content,
             receipt_payload_json=receipt_payload_json,
         )
+        context_record = self.context_packages.load(operation_id)
+        if context_record is None or context_record.chat_id != chat_id:
+            raise GroundedProviderContextError(
+                "Grounded provider result requires the exact durable ContextPackage."
+            )
+        if provider_id is not None and model_id is not None:
+            signature = context_record.package.model_signature
+            if (
+                provider_id != signature.provider
+                or model_id != signature.model_identifier
+            ):
+                raise GroundedProviderIdentityError(
+                    "Provider result identity conflicts with the pinned ContextPackage model."
+                )
         before = self.recover(
             operation_id=operation_id,
             chat_id=chat_id,
