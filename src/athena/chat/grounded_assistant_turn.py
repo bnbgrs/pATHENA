@@ -152,6 +152,11 @@ class GroundedAssistantTurnRepository:
                 ) from exc
             pinned_identity: tuple[str, str] | None = None
             if context_record is not None:
+                if operation_run_blob is None:
+                    raise ChatSendOperationConflictError(
+                        "Pinned ContextPackage requires operation-pinned ProcessingRun "
+                        "before assistant commit."
+                    )
                 signature = context_record.package.model_signature
                 pinned_identity = (signature.provider, signature.model_identifier)
                 if provider_identity is None:
