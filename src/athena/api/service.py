@@ -169,6 +169,7 @@ class UnifiedLocalChatSender(Protocol):
         content: str,
         requested_model_id: str | None = None,
         requested_embedding_model_id: str | None = None,
+        operation_id: uuid.UUID | None = None,
         effective_context_limit: int | None = None,
         output_reserve: int = 2048,
         temperature: float | None = None,
@@ -481,6 +482,7 @@ class CoreApiFacade:
         content: str,
         requested_model_id: str | None = None,
         requested_embedding_model_id: str | None = None,
+        operation_id: str | None = None,
         effective_context_limit: int | None = None,
         max_output_tokens: int | None = None,
         temperature: float | None = None,
@@ -491,7 +493,50 @@ class CoreApiFacade:
                 "Unified Local chat is unavailable in this Core process."
             )
         parsed_chat_id = uuid.UUID(chat_id)
-        if (
+        parsed_operation_id = (
+            None
+            if operation_id is None
+            else uuid.UUID(operation_id)
+        )
+        if parsed_operation_id is None:
+            if (
+                effective_context_limit is None
+                and max_output_tokens is None
+                and temperature is None
+                and thinking_enabled is None
+            ):
+                result = self._unified_local_chat.send_message(
+                    chat_id=parsed_chat_id,
+                    content=content,
+                    requested_model_id=requested_model_id,
+                    requested_embedding_model_id=requested_embedding_model_id,
+                )
+            elif (
+                max_output_tokens is None
+                and temperature is None
+                and thinking_enabled is None
+            ):
+                result = self._unified_local_chat.send_message(
+                    chat_id=parsed_chat_id,
+                    content=content,
+                    requested_model_id=requested_model_id,
+                    requested_embedding_model_id=requested_embedding_model_id,
+                    effective_context_limit=effective_context_limit,
+                )
+            else:
+                result = self._unified_local_chat.send_message(
+                    chat_id=parsed_chat_id,
+                    content=content,
+                    requested_model_id=requested_model_id,
+                    requested_embedding_model_id=requested_embedding_model_id,
+                    effective_context_limit=effective_context_limit,
+                    output_reserve=(
+                        2048 if max_output_tokens is None else max_output_tokens
+                    ),
+                    temperature=temperature,
+                    reasoning_mode=(None if thinking_enabled is True else "off"),
+                )
+        elif (
             effective_context_limit is None
             and max_output_tokens is None
             and temperature is None
@@ -502,6 +547,7 @@ class CoreApiFacade:
                 content=content,
                 requested_model_id=requested_model_id,
                 requested_embedding_model_id=requested_embedding_model_id,
+                operation_id=parsed_operation_id,
             )
         elif (
             max_output_tokens is None
@@ -513,6 +559,7 @@ class CoreApiFacade:
                 content=content,
                 requested_model_id=requested_model_id,
                 requested_embedding_model_id=requested_embedding_model_id,
+                operation_id=parsed_operation_id,
                 effective_context_limit=effective_context_limit,
             )
         else:
@@ -521,6 +568,7 @@ class CoreApiFacade:
                 content=content,
                 requested_model_id=requested_model_id,
                 requested_embedding_model_id=requested_embedding_model_id,
+                operation_id=parsed_operation_id,
                 effective_context_limit=effective_context_limit,
                 output_reserve=(
                     2048 if max_output_tokens is None else max_output_tokens
