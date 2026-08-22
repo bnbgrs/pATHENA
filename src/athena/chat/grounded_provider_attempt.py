@@ -202,14 +202,25 @@ class GroundedProviderAttemptRepository:
     def load(self, operation_id: uuid.UUID) -> GroundedProviderAttempt | None:
         row = self.database.connection.execute(
             """
-            SELECT operation_id, chat_id, started_at_us
-            FROM grounded_provider_attempts
-            WHERE operation_id = ?
+            SELECT a.operation_id, a.chat_id, a.started_at_us,
+                   o.chat_id AS operation_chat_id, o.mode AS operation_mode
+            FROM grounded_provider_attempts AS a
+            LEFT JOIN chat_send_operations AS o ON o.operation_id = a.operation_id
+            WHERE a.operation_id = ?
             """,
             (uuid_to_blob(operation_id),),
         ).fetchone()
         if row is None:
             return None
+        if (
+            row["operation_chat_id"] is None
+            or uuid_from_blob(bytes(row["chat_id"]))
+            != uuid_from_blob(bytes(row["operation_chat_id"]))
+            or str(row["operation_mode"]) != "grounded"
+        ):
+            raise GroundedProviderAttemptSchemaError(
+                "Persisted provider attempt no longer matches its Grounded operation."
+            )
         return GroundedProviderAttempt(
             operation_id=uuid_from_blob(bytes(row["operation_id"])),
             chat_id=uuid_from_blob(bytes(row["chat_id"])),
@@ -219,15 +230,33 @@ class GroundedProviderAttemptRepository:
     def load_result(self, operation_id: uuid.UUID) -> GroundedProviderResult | None:
         row = self.database.connection.execute(
             """
-            SELECT operation_id, chat_id, processing_run_id,
-                   assistant_content, receipt_payload_json,
-                   receipt_payload_sha256, created_at_us
-            FROM grounded_provider_results
-            WHERE operation_id = ?
+            SELECT r.operation_id, r.chat_id, r.processing_run_id,
+                   r.assistant_content, r.receipt_payload_json,
+                   r.receipt_payload_sha256, r.created_at_us,
+                   a.chat_id AS attempt_chat_id,
+                   o.chat_id AS operation_chat_id, o.mode AS operation_mode
+            FROM grounded_provider_results AS r
+            LEFT JOIN grounded_provider_attempts AS a ON a.operation_id = r.operation_id
+            LEFT JOIN chat_send_operations AS o ON o.operation_id = r.operation_id
+            WHERE r.operation_id = ?
             """,
             (uuid_to_blob(operation_id),),
         ).fetchone()
-        return None if row is None else self._result_from_row(row)
+        if row is None:
+            return None
+        if (
+            row["attempt_chat_id"] is None
+            or row["operation_chat_id"] is None
+            or uuid_from_blob(bytes(row["chat_id"]))
+            != uuid_from_blob(bytes(row["attempt_chat_id"]))
+            or uuid_from_blob(bytes(row["chat_id"]))
+            != uuid_from_blob(bytes(row["operation_chat_id"]))
+            or str(row["operation_mode"]) != "grounded"
+        ):
+            raise GroundedProviderAttemptSchemaError(
+                "Persisted provider result no longer matches its Grounded operation."
+            )
+        return self._result_from_row(row)
 
     def load_result_identity(
         self,
