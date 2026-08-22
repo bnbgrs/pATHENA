@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from pathlib import Path
 
-from athena.chat.grounded_recovery import GroundedRecoveryState
+from athena.chat.grounded_recovery import GroundedRecoveryState, GroundedSendRecovery
 from athena.chat.grounded_send import GroundedSendCoordinator
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
@@ -163,14 +163,15 @@ def test_recovery_finalizes_running_processing_run_after_recorded_result(
             provider_id="lm_studio",
             model_id="primary",
         )
-        assert coordinator.recover(
+        recovery = GroundedSendRecovery(database)
+        assert recovery.inspect(
             operation_id=operation_id,
             chat_id=chat_id,
             fingerprint=fingerprint,
         ).state is GroundedRecoveryState.RESULT_AVAILABLE
         assert model_runs.load_run(run.processing_run_id).status == "running"
 
-        first = coordinator.finalize_recorded_result(
+        first = recovery.finalize_recorded_result(
             operation_id=operation_id,
             chat_id=chat_id,
             fingerprint=fingerprint,
@@ -178,13 +179,13 @@ def test_recovery_finalizes_running_processing_run_after_recorded_result(
         completed_run = model_runs.load_run(run.processing_run_id)
         assert completed_run.status == "succeeded"
         assert completed_run.finished_at_us is not None
-        assert coordinator.recover(
+        assert recovery.inspect(
             operation_id=operation_id,
             chat_id=chat_id,
             fingerprint=fingerprint,
         ).state is GroundedRecoveryState.COMPLETE
 
-        second = coordinator.finalize_recorded_result(
+        second = recovery.finalize_recorded_result(
             operation_id=operation_id,
             chat_id=chat_id,
             fingerprint=fingerprint,
