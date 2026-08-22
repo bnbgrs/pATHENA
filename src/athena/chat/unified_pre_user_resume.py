@@ -16,7 +16,6 @@ from athena.chat.grounding import GroundingContract, render_grounding_instructio
 from athena.chat.models import ChatMessage
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatRequestFingerprint
-from athena.chat.unified_legacy import UnifiedLocalChatService as _LegacyUnifiedLocalChatService
 from athena.chat.unified_legacy import (
     _EPISTEMIC_GROUNDING_VERSION,
     _EPISTEMIC_INTERPRETATION,
@@ -24,6 +23,7 @@ from athena.chat.unified_legacy import (
     _RESPONSE_LANGUAGE_POLICY_VERSION,
     _render_epistemic_context,
 )
+from athena.chat.unified_legacy import UnifiedLocalChatService as _LegacyUnifiedLocalChatService
 from athena.chat.unified_pre_user_recovery import (
     UnifiedPreUserRecoveryInspector,
     UnifiedPreUserRecoveryState,
