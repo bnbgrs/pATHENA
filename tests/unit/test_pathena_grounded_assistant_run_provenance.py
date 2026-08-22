@@ -345,3 +345,37 @@ def test_restart_after_run_completion_finishes_receipt_without_duplicate(
         assert ModelRunRepository(database).load_run(run_id).status == "succeeded"
     finally:
         database.stop()
+
+
+def test_assistant_commit_rejects_failed_processing_run(
+    tmp_path: Path,
+) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        chat_id, operation_id, model, run_id, _ = _prepare_recorded_result(database)
+        ModelRunRepository(database).finish_run(
+            run_id,
+            status="failed",
+            error_detail="synthetic failure after provider result",
+        )
+        chats = ChatRepository(database)
+        before = chats.load_chat(chat_id)
+
+        with pytest.raises(
+            ChatSendOperationConflictError,
+            match="invalid ProcessingRun provenance",
+        ):
+            GroundedAssistantTurnRepository(database).commit(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                actor_id=model,
+                content="answer",
+            )
+
+        assert chats.load_chat(chat_id) == before
+        operation = ChatSendOperationRepository(database).load(operation_id)
+        assert operation is not None
+        assert operation.state is ChatSendOperationState.USER_COMMITTED
+    finally:
+        database.stop()
