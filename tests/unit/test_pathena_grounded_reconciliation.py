@@ -9,11 +9,7 @@ from athena.chat.grounded_reconciliation import (
 )
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
-from athena.chat.send_operation import (
-    ChatSendOperationMode,
-    ChatSendOperationRepository,
-    ChatSendOperationState,
-)
+from athena.chat.send_operation import ChatSendOperationMode, ChatSendOperationRepository
 from athena.common.ids import uuid_to_blob
 from athena.storage.database import SQLiteDatabase
 
@@ -37,6 +33,16 @@ def _chat(database: SQLiteDatabase) -> uuid.UUID:
     chats = ChatRepository(database)
     actor = chats.create_actor(actor_type="user")
     return chats.create_chat(actor_id=actor)
+
+
+def _force_assistant_committed(
+    database: SQLiteDatabase,
+    operation_id: uuid.UUID,
+) -> None:
+    database.connection.execute(
+        "UPDATE chat_send_operations SET state = 'assistant_committed' WHERE operation_id = ?",
+        (uuid_to_blob(operation_id),),
+    )
 
 
 def test_reconciliation_projects_absent_incomplete_complete_and_conflict(tmp_path) -> None:
@@ -73,7 +79,7 @@ def test_reconciliation_projects_absent_incomplete_complete_and_conflict(tmp_pat
     )
     assert conflict.state is GroundedReconciliationState.CONFLICT
 
-    operations.advance(operation_id, ChatSendOperationState.ASSISTANT_COMMITTED)
+    _force_assistant_committed(database, operation_id)
     run_id = uuid.uuid4()
     completed = GroundedSendCompletionRepository(database).complete(
         operation_id=operation_id,
@@ -105,7 +111,7 @@ def test_reconciliation_survives_restart_and_returns_exact_receipt(tmp_path) -> 
         mode=ChatSendOperationMode.GROUNDED,
         fingerprint=fingerprint,
     )
-    operations.advance(operation_id, ChatSendOperationState.ASSISTANT_COMMITTED)
+    _force_assistant_committed(database, operation_id)
     GroundedSendCompletionRepository(database).complete(
         operation_id=operation_id,
         chat_id=chat_id,
@@ -142,7 +148,7 @@ def test_reconciliation_fails_closed_when_complete_operation_loses_receipt(tmp_p
         mode=ChatSendOperationMode.GROUNDED,
         fingerprint=fingerprint,
     )
-    operations.advance(operation_id, ChatSendOperationState.ASSISTANT_COMMITTED)
+    _force_assistant_committed(database, operation_id)
     completion = GroundedSendCompletionRepository(database)
     completion.complete(
         operation_id=operation_id,
