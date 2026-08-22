@@ -214,6 +214,10 @@ class ChatSendOperationRepository:
         fingerprint: ChatRequestFingerprint,
     ) -> ChatSendOperation:
         self._validate_fingerprint(fingerprint)
+        if mode is ChatSendOperationMode.GROUNDED:
+            raise ChatSendOperationConflictError(
+                "Grounded operation start must use the atomic Grounded user-turn repository."
+            )
         with self.database.write_transaction() as connection:
             existing = self._load_in_transaction(connection, operation_id)
             if existing is not None:
