@@ -82,7 +82,7 @@ def test_completion_is_atomic_exact_and_idempotent(tmp_path) -> None:
     chat_id, operation_id, operations = _setup(database)
     completions = GroundedSendCompletionRepository(database)
     run_id = uuid.uuid4()
-    payload = json.dumps({"text": "Äthena", "evidence": [2, 1]})
+    payload = json.dumps({"assistant_text": "answer", "label": "Äthena", "evidence": [2, 1]})
     _journal_result(
         database,
         chat_id=chat_id,
@@ -106,7 +106,11 @@ def test_completion_is_atomic_exact_and_idempotent(tmp_path) -> None:
     )
 
     assert first == second
-    assert json.loads(first.payload_json) == {"evidence": [2, 1], "text": "Äthena"}
+    assert json.loads(first.payload_json) == {
+        "assistant_text": "answer",
+        "evidence": [2, 1],
+        "label": "Äthena",
+    }
     operation = operations.load(operation_id)
     assert operation is not None
     assert operation.state is ChatSendOperationState.COMPLETE
@@ -120,7 +124,7 @@ def test_completion_refuses_before_assistant_commit(tmp_path) -> None:
     database.start()
     chat_id, operation_id, _ = _setup(database)
     run_id = uuid.uuid4()
-    payload = '{"text":"no"}'
+    payload = '{"assistant_text":"answer","label":"no"}'
     _journal_result(
         database,
         chat_id=chat_id,
@@ -149,7 +153,7 @@ def test_completion_conflict_preserves_original_receipt(tmp_path) -> None:
     chat_id, operation_id, _ = _setup(database)
     completions = GroundedSendCompletionRepository(database)
     run_id = uuid.uuid4()
-    payload = '{"text":"first"}'
+    payload = '{"assistant_text":"answer","label":"first"}'
     _journal_result(
         database,
         chat_id=chat_id,
@@ -169,7 +173,7 @@ def test_completion_conflict_preserves_original_receipt(tmp_path) -> None:
             operation_id=operation_id,
             chat_id=chat_id,
             processing_run_id=run_id,
-            payload_json='{"text":"different"}',
+            payload_json='{"assistant_text":"answer","label":"different"}',
         )
     assert completions.load(operation_id) == original
     database.stop()
@@ -180,7 +184,7 @@ def test_completion_rejects_run_or_payload_different_from_provider_result(tmp_pa
     database.start()
     chat_id, operation_id, operations = _setup(database)
     run_id = uuid.uuid4()
-    payload = '{"text":"recorded"}'
+    payload = '{"assistant_text":"answer","label":"recorded"}'
     _journal_result(
         database,
         chat_id=chat_id,
@@ -209,7 +213,7 @@ def test_completion_rejects_run_or_payload_different_from_provider_result(tmp_pa
             operation_id=operation_id,
             chat_id=chat_id,
             processing_run_id=run_id,
-            payload_json='{"text":"different"}',
+            payload_json='{"assistant_text":"answer","label":"different"}',
         )
 
     operation = operations.load(operation_id)
@@ -224,7 +228,7 @@ def test_failed_operation_update_rolls_back_receipt_insert(tmp_path) -> None:
     database.start()
     chat_id, operation_id, operations = _setup(database)
     run_id = uuid.uuid4()
-    payload = '{"text":"rollback"}'
+    payload = '{"assistant_text":"answer","label":"rollback"}'
     _journal_result(
         database,
         chat_id=chat_id,
@@ -264,7 +268,7 @@ def test_exact_receipt_survives_restart(tmp_path) -> None:
     database.start()
     chat_id, operation_id, _ = _setup(database)
     run_id = uuid.uuid4()
-    payload = '{"text":"restart"}'
+    payload = '{"assistant_text":"answer","label":"restart"}'
     _journal_result(
         database,
         chat_id=chat_id,
@@ -288,6 +292,123 @@ def test_exact_receipt_survives_restart(tmp_path) -> None:
     recovered = GroundedSendCompletionRepository(database).load(operation_id)
     assert recovered == stored
     database.stop()
+
+
+def test_completion_load_rejects_operation_chain_corruption(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        chat_id, operation_id, _ = _setup(database)
+        run_id = uuid.uuid4()
+        payload = '{"assistant_text":"answer","label":"operation-chain"}'
+        _journal_result(
+            database,
+            chat_id=chat_id,
+            operation_id=operation_id,
+            processing_run_id=run_id,
+            payload_json=payload,
+        )
+        _force_assistant_committed(database, operation_id)
+        completions = GroundedSendCompletionRepository(database)
+        completions.complete(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            processing_run_id=run_id,
+            payload_json=payload,
+        )
+        with database.write_transaction() as connection:
+            connection.execute(
+                "UPDATE chat_send_operations SET state = 'assistant_committed' WHERE operation_id = ?",
+                (uuid_to_blob(operation_id),),
+            )
+
+        with pytest.raises(
+            GroundedSendCompletionCorruptionError,
+            match="durable operation chain",
+        ):
+            completions.load(operation_id)
+    finally:
+        database.stop()
+
+
+def test_completion_load_rejects_missing_provider_result(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        chat_id, operation_id, _ = _setup(database)
+        run_id = uuid.uuid4()
+        payload = '{"assistant_text":"answer","label":"provider-chain"}'
+        _journal_result(
+            database,
+            chat_id=chat_id,
+            operation_id=operation_id,
+            processing_run_id=run_id,
+            payload_json=payload,
+        )
+        _force_assistant_committed(database, operation_id)
+        completions = GroundedSendCompletionRepository(database)
+        completions.complete(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            processing_run_id=run_id,
+            payload_json=payload,
+        )
+        with database.write_transaction() as connection:
+            connection.execute(
+                "DELETE FROM grounded_provider_results WHERE operation_id = ?",
+                (uuid_to_blob(operation_id),),
+            )
+
+        with pytest.raises(
+            GroundedSendCompletionCorruptionError,
+            match="durable operation chain",
+        ):
+            completions.load(operation_id)
+    finally:
+        database.stop()
+
+
+def test_completion_rejects_corrupted_provider_attempt_identity(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        chat_id, operation_id, operations = _setup(database)
+        chats = ChatRepository(database)
+        actor = chats.create_actor(actor_type="user")
+        other_chat_id = chats.create_chat(actor_id=actor)
+        run_id = uuid.uuid4()
+        payload = '{"assistant_text":"answer","label":"attempt-chain"}'
+        _journal_result(
+            database,
+            chat_id=chat_id,
+            operation_id=operation_id,
+            processing_run_id=run_id,
+            payload_json=payload,
+        )
+        _force_assistant_committed(database, operation_id)
+        with database.write_transaction() as connection:
+            connection.execute(
+                "UPDATE grounded_provider_attempts SET chat_id = ? WHERE operation_id = ?",
+                (uuid_to_blob(other_chat_id), uuid_to_blob(operation_id)),
+            )
+
+        completions = GroundedSendCompletionRepository(database)
+        with pytest.raises(
+            GroundedSendCompletionConflictError,
+            match="durable provider result",
+        ):
+            completions.complete(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                processing_run_id=run_id,
+                payload_json=payload,
+            )
+        operation = operations.load(operation_id)
+        assert operation is not None
+        assert operation.state is ChatSendOperationState.ASSISTANT_COMMITTED
+        assert completions.load(operation_id) is None
+    finally:
+        database.stop()
 
 
 def test_same_named_but_weakened_receipt_definition_fails_closed(tmp_path) -> None:
