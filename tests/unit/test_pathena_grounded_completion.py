@@ -10,6 +10,7 @@ from athena.chat.grounded_completion import (
     GroundedSendCompletionCorruptionError,
     GroundedSendCompletionRepository,
 )
+from athena.chat.grounded_provider_attempt import GroundedProviderAttemptRepository
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
 from athena.chat.send_operation import (
@@ -48,6 +49,25 @@ def _setup(database: SQLiteDatabase):
     return chat_id, operation_id, operations
 
 
+def _journal_result(
+    database: SQLiteDatabase,
+    *,
+    chat_id: uuid.UUID,
+    operation_id: uuid.UUID,
+    processing_run_id: uuid.UUID,
+    payload_json: str,
+) -> None:
+    provider = GroundedProviderAttemptRepository(database)
+    provider.mark_started(operation_id=operation_id, chat_id=chat_id)
+    provider.store_result(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        processing_run_id=processing_run_id,
+        assistant_content="answer",
+        receipt_payload_json=payload_json,
+    )
+
+
 def _force_assistant_committed(
     database: SQLiteDatabase,
     operation_id: uuid.UUID,
@@ -62,10 +82,17 @@ def test_completion_is_atomic_exact_and_idempotent(tmp_path) -> None:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
     chat_id, operation_id, operations = _setup(database)
-    _force_assistant_committed(database, operation_id)
     completions = GroundedSendCompletionRepository(database)
     run_id = uuid.uuid4()
     payload = json.dumps({"text": "Äthena", "evidence": [2, 1]})
+    _journal_result(
+        database,
+        chat_id=chat_id,
+        operation_id=operation_id,
+        processing_run_id=run_id,
+        payload_json=payload,
+    )
+    _force_assistant_committed(database, operation_id)
 
     first = completions.complete(
         operation_id=operation_id,
@@ -94,6 +121,15 @@ def test_completion_refuses_before_assistant_commit(tmp_path) -> None:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
     chat_id, operation_id, _ = _setup(database)
+    run_id = uuid.uuid4()
+    payload = '{"text":"no"}'
+    _journal_result(
+        database,
+        chat_id=chat_id,
+        operation_id=operation_id,
+        processing_run_id=run_id,
+        payload_json=payload,
+    )
     completions = GroundedSendCompletionRepository(database)
     with pytest.raises(
         GroundedSendCompletionConflictError,
@@ -102,8 +138,8 @@ def test_completion_refuses_before_assistant_commit(tmp_path) -> None:
         completions.complete(
             operation_id=operation_id,
             chat_id=chat_id,
-            processing_run_id=uuid.uuid4(),
-            payload_json='{"text":"no"}',
+            processing_run_id=run_id,
+            payload_json=payload,
         )
     assert completions.load(operation_id) is None
     database.stop()
@@ -112,15 +148,23 @@ def test_completion_refuses_before_assistant_commit(tmp_path) -> None:
 def test_completion_conflict_preserves_original_receipt(tmp_path) -> None:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
-    chat_id, operation_id, operations = _setup(database)
-    _force_assistant_committed(database, operation_id)
+    chat_id, operation_id, _ = _setup(database)
     completions = GroundedSendCompletionRepository(database)
     run_id = uuid.uuid4()
+    payload = '{"text":"first"}'
+    _journal_result(
+        database,
+        chat_id=chat_id,
+        operation_id=operation_id,
+        processing_run_id=run_id,
+        payload_json=payload,
+    )
+    _force_assistant_committed(database, operation_id)
     original = completions.complete(
         operation_id=operation_id,
         chat_id=chat_id,
         processing_run_id=run_id,
-        payload_json='{"text":"first"}',
+        payload_json=payload,
     )
     with pytest.raises(GroundedSendCompletionConflictError):
         completions.complete(
@@ -133,10 +177,63 @@ def test_completion_conflict_preserves_original_receipt(tmp_path) -> None:
     database.stop()
 
 
+def test_completion_rejects_run_or_payload_different_from_provider_result(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    chat_id, operation_id, operations = _setup(database)
+    run_id = uuid.uuid4()
+    payload = '{"text":"recorded"}'
+    _journal_result(
+        database,
+        chat_id=chat_id,
+        operation_id=operation_id,
+        processing_run_id=run_id,
+        payload_json=payload,
+    )
+    _force_assistant_committed(database, operation_id)
+    completions = GroundedSendCompletionRepository(database)
+
+    with pytest.raises(
+        GroundedSendCompletionConflictError,
+        match="durable provider result",
+    ):
+        completions.complete(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            processing_run_id=uuid.uuid4(),
+            payload_json=payload,
+        )
+    with pytest.raises(
+        GroundedSendCompletionConflictError,
+        match="durable provider result",
+    ):
+        completions.complete(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            processing_run_id=run_id,
+            payload_json='{"text":"different"}',
+        )
+
+    operation = operations.load(operation_id)
+    assert operation is not None
+    assert operation.state is ChatSendOperationState.ASSISTANT_COMMITTED
+    assert completions.load(operation_id) is None
+    database.stop()
+
+
 def test_failed_operation_update_rolls_back_receipt_insert(tmp_path) -> None:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
     chat_id, operation_id, operations = _setup(database)
+    run_id = uuid.uuid4()
+    payload = '{"text":"rollback"}'
+    _journal_result(
+        database,
+        chat_id=chat_id,
+        operation_id=operation_id,
+        processing_run_id=run_id,
+        payload_json=payload,
+    )
     _force_assistant_committed(database, operation_id)
     completions = GroundedSendCompletionRepository(database)
     database.connection.execute(
@@ -153,8 +250,8 @@ def test_failed_operation_update_rolls_back_receipt_insert(tmp_path) -> None:
         completions.complete(
             operation_id=operation_id,
             chat_id=chat_id,
-            processing_run_id=uuid.uuid4(),
-            payload_json='{"text":"rollback"}',
+            processing_run_id=run_id,
+            payload_json=payload,
         )
     assert completions.load(operation_id) is None
     operation = operations.load(operation_id)
@@ -167,15 +264,23 @@ def test_exact_receipt_survives_restart(tmp_path) -> None:
     path = tmp_path / "athena.db"
     database = SQLiteDatabase(path)
     database.start()
-    chat_id, operation_id, operations = _setup(database)
+    chat_id, operation_id, _ = _setup(database)
+    run_id = uuid.uuid4()
+    payload = '{"text":"restart"}'
+    _journal_result(
+        database,
+        chat_id=chat_id,
+        operation_id=operation_id,
+        processing_run_id=run_id,
+        payload_json=payload,
+    )
     _force_assistant_committed(database, operation_id)
     completions = GroundedSendCompletionRepository(database)
-    run_id = uuid.uuid4()
     stored = completions.complete(
         operation_id=operation_id,
         chat_id=chat_id,
         processing_run_id=run_id,
-        payload_json='{"text":"restart"}',
+        payload_json=payload,
     )
     database.stop()
 
