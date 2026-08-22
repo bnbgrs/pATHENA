@@ -518,14 +518,18 @@ class GroundedProviderAttemptRepository:
                 raise GroundedProviderAttemptConflictError(
                     "A new provider result may be recorded only before assistant commit."
                 )
+            if (
+                operation["processing_run_id"] is not None
+                and uuid_from_blob(bytes(operation["processing_run_id"]))
+                != processing_run_id
+            ):
+                raise GroundedProviderAttemptConflictError(
+                    "Provider result conflicts with the pinned Grounded ProcessingRun."
+                )
             if context_record is not None:
-                if (
-                    operation["processing_run_id"] is None
-                    or uuid_from_blob(bytes(operation["processing_run_id"]))
-                    != processing_run_id
-                ):
+                if operation["processing_run_id"] is None:
                     raise GroundedProviderAttemptConflictError(
-                        "Provider result conflicts with the pinned Grounded ProcessingRun."
+                        "Provider result requires the pinned Grounded ProcessingRun."
                     )
                 current_context = connection.execute(
                     """
