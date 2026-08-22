@@ -276,7 +276,9 @@ class GroundedProviderAttemptRepository:
                     raise GroundedProviderAttemptConflictError(
                         "Provider attempt marker belongs to another chat."
                     )
-                return attempt
+                raise GroundedProviderAttemptConflictError(
+                    "Provider attempt marker has already been claimed."
+                )
             if str(operation["state"]) != ChatSendOperationState.USER_COMMITTED.value:
                 raise GroundedProviderAttemptConflictError(
                     "Provider attempt may start only from user_committed state."

@@ -16,6 +16,7 @@ from athena.chat.grounded_completion import (
 )
 from athena.chat.grounded_provider_attempt import (
     GroundedProviderAttempt,
+    GroundedProviderAttemptConflictError,
     GroundedProviderAttemptRepository,
     GroundedProviderResult,
 )
@@ -147,10 +148,20 @@ class GroundedSendCoordinator:
         )
         if before.state is not GroundedRecoveryState.RESUMABLE:
             raise GroundedProviderBoundaryError(before)
-        attempt = self.provider_attempts.mark_started(
-            operation_id=operation_id,
-            chat_id=chat_id,
-        )
+        try:
+            attempt = self.provider_attempts.mark_started(
+                operation_id=operation_id,
+                chat_id=chat_id,
+            )
+        except GroundedProviderAttemptConflictError as exc:
+            after_conflict = self.recover(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                fingerprint=fingerprint,
+            )
+            if after_conflict.state is not GroundedRecoveryState.RESUMABLE:
+                raise GroundedProviderBoundaryError(after_conflict) from exc
+            raise
         after = self.recover(
             operation_id=operation_id,
             chat_id=chat_id,
