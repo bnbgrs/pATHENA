@@ -8,6 +8,7 @@ from collections.abc import Callable
 from athena.chat.grounded_recovery import GroundedRecoveryState
 from athena.chat.grounded_send import GroundedSendCoordinator
 from athena.chat.request_fingerprint import ChatRequestFingerprint
+from athena.chat.send_identity import SendOperationStateError
 from athena.chat.unified import (
     UnifiedGroundedRecoveryRequiredError,
     UnifiedLocalChatResult,
@@ -32,18 +33,21 @@ from athena.memory.models import MemoryScopeKind
 from athena.retrieval.context import ContextBuilderError
 
 
-class UnifiedPreUserRecoveryRequiredError(RuntimeError):
+class UnifiedPreUserRecoveryRequiredError(SendOperationStateError):
     """A frozen pre-user operation cannot safely enter a new retrieval cycle."""
 
     def __init__(self, status: UnifiedPreUserRecoveryStatus) -> None:
-        self.status = status
-        super().__init__(
-            status.reason
-            or (
-                f"Unified pre-user operation {status.operation_id} is "
-                f"{status.state.value}."
-            )
-        )
+        self.recovery_status = status
+        super().__init__(status)
+        if status.reason is not None:
+            self.args = (status.reason,)
+
+
+class UnifiedGroundedTransportRecoveryRequiredError(
+    UnifiedGroundedRecoveryRequiredError,
+    SendOperationStateError,
+):
+    """Expose post-user Unified recovery through the durable API state boundary."""
 
 
 class UnifiedLocalChatService(_DurableUnifiedLocalChatService):
@@ -148,7 +152,7 @@ class UnifiedLocalChatService(_DurableUnifiedLocalChatService):
             fingerprint=fingerprint,
         )
         if complete.state is not GroundedRecoveryState.COMPLETE:
-            raise UnifiedGroundedRecoveryRequiredError(complete)
+            raise UnifiedGroundedTransportRecoveryRequiredError(complete)
         return self._replay_complete(status=complete)
 
     def send_message(
@@ -229,26 +233,29 @@ class UnifiedLocalChatService(_DurableUnifiedLocalChatService):
         if pre_user.state is UnifiedPreUserRecoveryState.CONFLICT:
             raise UnifiedPreUserRecoveryRequiredError(pre_user)
 
-        return super().send_message(
-            chat_id=chat_id,
-            content=content,
-            retrieval_query=normalized_retrieval_query,
-            requested_model_id=requested_model_id,
-            requested_embedding_model_id=requested_embedding_model_id,
-            max_memory_context_tokens=max_memory_context_tokens,
-            max_memory_context_items=max_memory_context_items,
-            max_memory_items=max_memory_items,
-            max_source_context_tokens=max_source_context_tokens,
-            max_source_context_items=max_source_context_items,
-            max_recent_conversation_turns=max_recent_conversation_turns,
-            memory_scope_kind=memory_scope_kind,
-            memory_scope_entity_id=memory_scope_entity_id,
-            effective_context_limit=effective_context_limit,
-            output_reserve=output_reserve,
-            safety_margin=safety_margin,
-            temperature=temperature,
-            reasoning_mode=reasoning_mode,
-            allow_model_prior=allow_model_prior,
-            on_delta=on_delta,
-            operation_id=resolved_operation_id,
-        )
+        try:
+            return super().send_message(
+                chat_id=chat_id,
+                content=content,
+                retrieval_query=normalized_retrieval_query,
+                requested_model_id=requested_model_id,
+                requested_embedding_model_id=requested_embedding_model_id,
+                max_memory_context_tokens=max_memory_context_tokens,
+                max_memory_context_items=max_memory_context_items,
+                max_memory_items=max_memory_items,
+                max_source_context_tokens=max_source_context_tokens,
+                max_source_context_items=max_source_context_items,
+                max_recent_conversation_turns=max_recent_conversation_turns,
+                memory_scope_kind=memory_scope_kind,
+                memory_scope_entity_id=memory_scope_entity_id,
+                effective_context_limit=effective_context_limit,
+                output_reserve=output_reserve,
+                safety_margin=safety_margin,
+                temperature=temperature,
+                reasoning_mode=reasoning_mode,
+                allow_model_prior=allow_model_prior,
+                on_delta=on_delta,
+                operation_id=resolved_operation_id,
+            )
+        except UnifiedGroundedRecoveryRequiredError as exc:
+            raise UnifiedGroundedTransportRecoveryRequiredError(exc.status) from exc
