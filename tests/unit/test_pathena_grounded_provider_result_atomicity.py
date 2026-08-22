@@ -4,6 +4,7 @@ import uuid
 
 import pytest
 
+from athena.chat.grounded_assistant_turn import GroundedAssistantTurnRepository
 from athena.chat.grounded_provider_attempt import (
     GroundedProviderAttemptConflictError,
     GroundedProviderAttemptRepository,
@@ -11,10 +12,12 @@ from athena.chat.grounded_provider_attempt import (
 from athena.chat.grounded_turn import GroundedUserTurnRepository
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
+from athena.chat.send_identity import assistant_message_id_for_operation
 from athena.chat.send_operation import (
     ChatSendOperationConflictError,
     ChatSendOperationRepository,
 )
+from athena.chat.service import ChatService
 from athena.common.ids import uuid_to_blob
 from athena.storage.database import SQLiteDatabase
 
@@ -177,5 +180,62 @@ def test_run_binding_rejects_recorded_provider_result_conflict(tmp_path) -> None
         stored = provider.load_result(operation_id)
         assert stored is not None
         assert stored.processing_run_id == result_run_id
+    finally:
+        database.stop()
+
+
+def test_assistant_commit_rejects_legacy_provider_result_run_conflict(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        operation_id, chat_id, provider = _prepare_grounded_attempt(database)
+        result_run_id = uuid.uuid4()
+        provider.store_result(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            processing_run_id=result_run_id,
+            assistant_content="answer",
+            receipt_payload_json='{"assistant_text":"answer","evidence":[]}',
+            provider_id="lm_studio",
+            model_id="primary",
+        )
+        conflicting_run_id = uuid.uuid4()
+        with database.write_transaction() as connection:
+            connection.execute(
+                """
+                UPDATE chat_send_operations
+                SET processing_run_id = ?
+                WHERE operation_id = ?
+                """,
+                (
+                    uuid_to_blob(conflicting_run_id),
+                    uuid_to_blob(operation_id),
+                ),
+            )
+
+        actor_id = ChatService(ChatRepository(database)).ensure_primary_model(
+            provider_id="lm_studio",
+            model_id="primary",
+        )
+        with pytest.raises(
+            ChatSendOperationConflictError,
+            match="operation-pinned ProcessingRun",
+        ):
+            GroundedAssistantTurnRepository(database).commit(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                actor_id=actor_id,
+                content="answer",
+            )
+
+        assistant_id = assistant_message_id_for_operation(operation_id)
+        assistant = database.connection.execute(
+            "SELECT 1 FROM chat_messages WHERE message_id = ?",
+            (uuid_to_blob(assistant_id),),
+        ).fetchone()
+        assert assistant is None
+        operation = ChatSendOperationRepository(database).load(operation_id)
+        assert operation is not None
+        assert operation.state.value == "user_committed"
     finally:
         database.stop()
