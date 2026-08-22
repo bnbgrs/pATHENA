@@ -61,7 +61,7 @@ class GroundedAssistantTurnRepository:
             self.chat._require_standard_chat(connection, chat_id)
             operation = connection.execute(
                 """
-                SELECT chat_id, mode, state, updated_at_us
+                SELECT chat_id, mode, state, processing_run_id, updated_at_us
                 FROM chat_send_operations
                 WHERE operation_id = ?
                 """,
@@ -85,8 +85,8 @@ class GroundedAssistantTurnRepository:
                 )
             provider_result = connection.execute(
                 """
-                SELECT r.chat_id, r.assistant_content, r.receipt_payload_json,
-                       r.receipt_payload_sha256,
+                SELECT r.chat_id, r.processing_run_id, r.assistant_content,
+                       r.receipt_payload_json, r.receipt_payload_sha256,
                        a.chat_id AS attempt_chat_id
                 FROM grounded_provider_results AS r
                 LEFT JOIN grounded_provider_attempts AS a ON a.operation_id = r.operation_id
@@ -104,6 +104,17 @@ class GroundedAssistantTurnRepository:
                 raise ChatSendOperationConflictError(
                     "Grounded assistant turn requires the matching durable provider result."
                 )
+            operation_run_blob = operation["processing_run_id"]
+            if operation_run_blob is not None:
+                provider_run_id = uuid_from_blob(
+                    bytes(provider_result["processing_run_id"])
+                )
+                operation_run_id = uuid_from_blob(bytes(operation_run_blob))
+                if provider_run_id != operation_run_id:
+                    raise ChatSendOperationConflictError(
+                        "Grounded assistant turn provider result conflicts with the "
+                        "operation-pinned ProcessingRun."
+                    )
             try:
                 receipt_payload_json = str(provider_result["receipt_payload_json"])
                 canonical_receipt, receipt_digest = _canonical_receipt_payload(
