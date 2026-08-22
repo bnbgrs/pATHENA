@@ -9,9 +9,9 @@ from athena.chat.grounded_provider_attempt import (
     GroundedProviderAttemptConflictError,
     GroundedProviderAttemptRepository,
 )
+from athena.chat.grounded_turn import GroundedUserTurnRepository
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
-from athena.chat.send_operation import ChatSendOperationMode, ChatSendOperationRepository
 from athena.storage.database import SQLiteDatabase
 
 
@@ -36,10 +36,11 @@ def _repository(
         reasoning_mode="off",
         retrieval_configuration={"max_items": 4},
     )
-    ChatSendOperationRepository(database).store_user_committed(
+    GroundedUserTurnRepository(database).commit(
         operation_id=operation_id,
         chat_id=chat_id,
-        mode=ChatSendOperationMode.GROUNDED,
+        actor_id=user,
+        content="hello",
         fingerprint=fingerprint,
     )
     repository = GroundedProviderAttemptRepository(database)
