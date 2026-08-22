@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import uuid
 from pathlib import Path
 
@@ -8,11 +9,13 @@ import pytest
 from athena.chat.grounded_provider_attempt import (
     GroundedProviderAttemptConflictError,
     GroundedProviderAttemptRepository,
+    GroundedProviderAttemptSchemaError,
 )
 from athena.chat.grounded_provider_result_contract import GroundedProviderResultContractError
 from athena.chat.grounded_turn import GroundedUserTurnRepository
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
+from athena.common.ids import uuid_to_blob
 from athena.storage.database import SQLiteDatabase
 
 
@@ -144,5 +147,36 @@ def test_provider_result_repository_rejects_receipt_content_mismatch(
 
         assert repository.load_result(operation_id) is None
         assert repository.load_result_identity(operation_id) is None
+    finally:
+        database.stop()
+
+
+def test_provider_result_load_rejects_semantic_receipt_corruption(tmp_path: Path) -> None:
+    database, repository, chat_id, operation_id = _repository(tmp_path)
+    try:
+        repository.store_result(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            processing_run_id=uuid.uuid4(),
+            assistant_content="answer",
+            receipt_payload_json='{"assistant_text":"answer"}',
+        )
+        corrupted_payload = '{"assistant_text":"different"}'
+        corrupted_sha256 = hashlib.sha256(corrupted_payload.encode("utf-8")).hexdigest()
+        with database.write_transaction() as connection:
+            connection.execute(
+                """
+                UPDATE grounded_provider_results
+                SET receipt_payload_json = ?, receipt_payload_sha256 = ?
+                WHERE operation_id = ?
+                """,
+                (corrupted_payload, corrupted_sha256, uuid_to_blob(operation_id)),
+            )
+
+        with pytest.raises(
+            GroundedProviderAttemptSchemaError,
+            match="violates its durable receipt contract",
+        ):
+            repository.load_result(operation_id)
     finally:
         database.stop()
