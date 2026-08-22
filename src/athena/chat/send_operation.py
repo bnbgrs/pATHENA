@@ -247,10 +247,7 @@ class ChatSendOperationRepository:
             existing = self._load_in_transaction(connection, operation_id)
             if existing is None:
                 raise ChatSendOperationNotFoundError(str(operation_id))
-            if _STATE_RANK[state] < _STATE_RANK[existing.state]:
-                raise ChatSendOperationConflictError(
-                    "Chat send operation lifecycle cannot move backwards."
-                )
+            self._validate_transition(existing.mode, existing.state, state)
 
             run_id = self._merge_run_id(existing.processing_run_id, processing_run_id)
             receipt_sha = self._merge_receipt_sha(
@@ -354,6 +351,44 @@ class ChatSendOperationRepository:
                 "Chat send operation receipt identity conflict."
             )
         return existing if existing is not None else incoming
+
+    @staticmethod
+    def _validate_transition(
+        mode: ChatSendOperationMode,
+        current: ChatSendOperationState,
+        target: ChatSendOperationState,
+    ) -> None:
+        if target is current:
+            return
+        if _STATE_RANK[target] < _STATE_RANK[current]:
+            raise ChatSendOperationConflictError(
+                "Chat send operation lifecycle cannot move backwards."
+            )
+
+        if mode is ChatSendOperationMode.GROUNDED:
+            if (
+                current is ChatSendOperationState.USER_COMMITTED
+                and target is ChatSendOperationState.ASSISTANT_COMMITTED
+            ):
+                return
+            raise ChatSendOperationConflictError(
+                "Grounded receipt and completion transitions must use the "
+                "atomic Grounded completion repositories."
+            )
+
+        allowed_direct = {
+            ChatSendOperationState.USER_COMMITTED: (
+                ChatSendOperationState.ASSISTANT_COMMITTED
+            ),
+            ChatSendOperationState.ASSISTANT_COMMITTED: (
+                ChatSendOperationState.COMPLETE
+            ),
+        }
+        if allowed_direct.get(current) is target:
+            return
+        raise ChatSendOperationConflictError(
+            "Chat send operation lifecycle cannot skip states."
+        )
 
     @staticmethod
     def _validate_target(

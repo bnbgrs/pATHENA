@@ -89,7 +89,7 @@ def test_same_operation_id_with_different_request_conflicts(tmp_path) -> None:
     database.stop()
 
 
-def test_lifecycle_is_monotonic_and_grounded_completion_is_bound(tmp_path) -> None:
+def test_grounded_lifecycle_cannot_manufacture_receipt_or_completion(tmp_path) -> None:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
     chat = _chat(database)
@@ -102,23 +102,31 @@ def test_lifecycle_is_monotonic_and_grounded_completion_is_bound(tmp_path) -> No
         fingerprint=_fingerprint(chat),
     )
     repository.advance(operation_id, ChatSendOperationState.ASSISTANT_COMMITTED)
-    run_id = uuid.uuid4()
-    receipt_sha = "a" * 64
-    repository.advance(
-        operation_id,
+
+    for target in (
         ChatSendOperationState.RECEIPT_COMMITTED,
-        processing_run_id=run_id,
-        receipt_payload_sha256=receipt_sha,
-    )
-    complete = repository.advance(operation_id, ChatSendOperationState.COMPLETE)
-    assert complete.processing_run_id == run_id
-    assert complete.receipt_payload_sha256 == receipt_sha
-    with pytest.raises(ChatSendOperationConflictError):
-        repository.advance(operation_id, ChatSendOperationState.ASSISTANT_COMMITTED)
+        ChatSendOperationState.COMPLETE,
+    ):
+        with pytest.raises(
+            ChatSendOperationConflictError,
+            match="atomic Grounded completion repositories",
+        ):
+            repository.advance(
+                operation_id,
+                target,
+                processing_run_id=uuid.uuid4(),
+                receipt_payload_sha256="a" * 64,
+            )
+
+    operation = repository.load(operation_id)
+    assert operation is not None
+    assert operation.state is ChatSendOperationState.ASSISTANT_COMMITTED
+    assert operation.processing_run_id is None
+    assert operation.receipt_payload_sha256 is None
     database.stop()
 
 
-def test_grounded_completion_requires_receipt_identity(tmp_path) -> None:
+def test_grounded_lifecycle_cannot_skip_assistant_commit(tmp_path) -> None:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
     chat = _chat(database)
@@ -130,8 +138,16 @@ def test_grounded_completion_requires_receipt_identity(tmp_path) -> None:
         mode=ChatSendOperationMode.GROUNDED,
         fingerprint=_fingerprint(chat),
     )
-    with pytest.raises(ValueError, match="require run and receipt"):
-        repository.advance(operation_id, ChatSendOperationState.COMPLETE)
+    with pytest.raises(
+        ChatSendOperationConflictError,
+        match="atomic Grounded completion repositories",
+    ):
+        repository.advance(
+            operation_id,
+            ChatSendOperationState.COMPLETE,
+            processing_run_id=uuid.uuid4(),
+            receipt_payload_sha256="a" * 64,
+        )
     database.stop()
 
 
