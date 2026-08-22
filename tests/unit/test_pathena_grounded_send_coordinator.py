@@ -161,6 +161,47 @@ def test_crash_boundaries_reconcile_without_reexecution(tmp_path) -> None:
     database.stop()
 
 
+def test_provider_result_rejects_receipt_assistant_text_mismatch(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        _, user, _, chat_id = _setup(database)
+        operation_id = uuid.uuid4()
+        fingerprint = _fingerprint(chat_id)
+        coordinator = GroundedSendCoordinator(database)
+        coordinator.start(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            actor_id=user,
+            content="hello",
+            fingerprint=fingerprint,
+        )
+        coordinator.begin_provider_attempt(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        )
+
+        with pytest.raises(ValueError, match="must match assistant content exactly"):
+            coordinator.record_provider_result(
+                operation_id=operation_id,
+                chat_id=chat_id,
+                fingerprint=fingerprint,
+                processing_run_id=uuid.uuid4(),
+                assistant_content="answer",
+                receipt_payload_json='{"assistant_text":"different"}',
+            )
+
+        assert coordinator.provider_attempts.load_result(operation_id) is None
+        assert coordinator.recover(
+            operation_id=operation_id,
+            chat_id=chat_id,
+            fingerprint=fingerprint,
+        ).state is GroundedRecoveryState.AMBIGUOUS
+    finally:
+        database.stop()
+
+
 def test_same_operation_different_request_is_conflict(tmp_path) -> None:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
