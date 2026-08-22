@@ -47,16 +47,18 @@ class _DelegatedGeneration:
         return _RESULT
 
 
+class _RetryingDelegatedGeneration(_DelegatedGeneration):
+    def send_context_package(self, **kwargs: Any) -> object:
+        before_provider = kwargs["on_before_provider_call"]
+        before_provider()
+        before_provider()
+        return _RESULT
+
+
 _RESULT = object()
 
 
-def test_durable_generation_persists_exact_package_before_recovery_guard(
-    monkeypatch,
-) -> None:
-    operation_id = uuid.uuid4()
-    chat_id = uuid.uuid4()
-    fingerprint = object()
-    context_package = object()
+def _service(monkeypatch, delegated_type: type[_DelegatedGeneration]):
     coordinator = _Coordinator()
     base_generation = SimpleNamespace(
         chat=object(),
@@ -66,12 +68,25 @@ def test_durable_generation_persists_exact_package_before_recovery_guard(
     monkeypatch.setattr(
         durable_module,
         "ChatGenerationService",
-        _DelegatedGeneration,
+        delegated_type,
     )
-    service = DurableGroundedGenerationService(
-        cast(Any, base_generation),
-        cast(Any, coordinator),
+    return (
+        DurableGroundedGenerationService(
+            cast(Any, base_generation),
+            cast(Any, coordinator),
+        ),
+        coordinator,
     )
+
+
+def test_durable_generation_persists_exact_package_before_recovery_guard(
+    monkeypatch,
+) -> None:
+    operation_id = uuid.uuid4()
+    chat_id = uuid.uuid4()
+    fingerprint = object()
+    context_package = object()
+    service, coordinator = _service(monkeypatch, _DelegatedGeneration)
 
     result = service.send_context_package(
         operation_id=operation_id,
@@ -93,21 +108,7 @@ def test_recovery_guard_precedes_external_provider_hook(monkeypatch) -> None:
     operation_id = uuid.uuid4()
     chat_id = uuid.uuid4()
     fingerprint = object()
-    coordinator = _Coordinator()
-    base_generation = SimpleNamespace(
-        chat=object(),
-        provider=object(),
-        interactive_demand=None,
-    )
-    monkeypatch.setattr(
-        durable_module,
-        "ChatGenerationService",
-        _DelegatedGeneration,
-    )
-    service = DurableGroundedGenerationService(
-        cast(Any, base_generation),
-        cast(Any, coordinator),
-    )
+    service, coordinator = _service(monkeypatch, _DelegatedGeneration)
 
     result = service.send_context_package(
         operation_id=operation_id,
@@ -122,3 +123,25 @@ def test_recovery_guard_precedes_external_provider_hook(monkeypatch) -> None:
 
     assert result is _RESULT
     assert coordinator.events == ["package", "guard", "hook"]
+
+
+def test_internal_grounding_retry_reuses_one_exclusive_provider_claim(monkeypatch) -> None:
+    operation_id = uuid.uuid4()
+    chat_id = uuid.uuid4()
+    fingerprint = object()
+    service, coordinator = _service(monkeypatch, _RetryingDelegatedGeneration)
+
+    result = service.send_context_package(
+        operation_id=operation_id,
+        chat_id=chat_id,
+        user_message=cast(Any, SimpleNamespace(message_id=operation_id)),
+        context_package=cast(Any, object()),
+        processing_run_id=uuid.uuid4(),
+        fingerprint=cast(Any, fingerprint),
+        receipt_payload_builder=lambda content, provider_id, model_id: "{}",
+        on_before_provider_call=lambda: coordinator.events.append("hook"),
+    )
+
+    assert result is _RESULT
+    assert coordinator.calls == [(operation_id, chat_id, fingerprint)]
+    assert coordinator.events == ["package", "guard", "hook", "hook"]
