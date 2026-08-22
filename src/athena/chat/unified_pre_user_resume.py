@@ -17,12 +17,12 @@ from athena.chat.models import ChatMessage
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatRequestFingerprint
 from athena.chat.unified_legacy import (
+    UnifiedLocalChatService as _LegacyUnifiedLocalChatService,
     _EPISTEMIC_GROUNDING_VERSION,
     _EPISTEMIC_INTERPRETATION,
+    _render_epistemic_context,
     _RESPONSE_LANGUAGE_INSTRUCTION,
     _RESPONSE_LANGUAGE_POLICY_VERSION,
-    UnifiedLocalChatService as _LegacyUnifiedLocalChatService,
-    _render_epistemic_context,
 )
 from athena.chat.unified_pre_user_recovery import (
     UnifiedPreUserRecoveryInspector,
