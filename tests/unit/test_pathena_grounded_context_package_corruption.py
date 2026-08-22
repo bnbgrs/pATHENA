@@ -177,3 +177,49 @@ def test_context_package_load_normalizes_generation_contract_corruption(tmp_path
             repository.load(operation_id)
     finally:
         database.stop()
+
+
+def test_context_package_load_rejects_rehashed_budget_invariant_corruption(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        repository, operation_id = _stored_package(database)
+        _tamper_payload(
+            database,
+            operation_id,
+            lambda payload: payload["token_estimates"].__setitem__(
+                "estimated_total_tokens",
+                9000,
+            ),
+        )
+        with pytest.raises(
+            GroundedContextPackageSchemaError,
+            match="model-input contract",
+        ):
+            repository.load(operation_id)
+    finally:
+        database.stop()
+
+
+def test_context_package_load_rejects_rehashed_reference_invariant_corruption(
+    tmp_path,
+) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        repository, operation_id = _stored_package(database)
+        _tamper_payload(
+            database,
+            operation_id,
+            lambda payload: payload["sections"][0].__setitem__(
+                "included_ref_ids",
+                ["CURRENT-USER", "MISSING"],
+            ),
+        )
+        with pytest.raises(
+            GroundedContextPackageSchemaError,
+            match="model-input contract",
+        ):
+            repository.load(operation_id)
+    finally:
+        database.stop()
