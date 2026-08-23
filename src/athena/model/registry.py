@@ -44,6 +44,14 @@ class ModelRoleEligibility(str, Enum):
     INELIGIBLE = "ineligible"
 
 
+class ModelLoadOwnership(str, Enum):
+    """Who owns one currently loaded model instance."""
+
+    LOADED_BY_ATHENA = "loaded_by_athena"
+    LOADED_EXTERNALLY = "loaded_externally"
+    UNKNOWN = "unknown"
+
+
 @dataclass(frozen=True, slots=True)
 class ModelResourceProfile:
     """Measured performance metadata; absent values remain unknown."""
@@ -87,6 +95,7 @@ class ModelRegistryEntry:
     user_alias: str | None = None
     active_primary: bool = False
     resources: ModelResourceProfile = ModelResourceProfile()
+    load_ownership: ModelLoadOwnership = ModelLoadOwnership.UNKNOWN
 
     def __post_init__(self) -> None:
         if not isinstance(self.model, ModelInfo):
@@ -102,12 +111,20 @@ class ModelRegistryEntry:
             raise TypeError("Registry active_primary must be bool.")
         if not isinstance(self.resources, ModelResourceProfile):
             raise TypeError("Registry resources must be ModelResourceProfile.")
+        if not isinstance(self.load_ownership, ModelLoadOwnership):
+            raise TypeError("Registry load_ownership must be ModelLoadOwnership.")
         if self.active_primary and self.eligibility is not ModelRoleEligibility.PRIMARY:
             raise ModelRegistryError("An ineligible model cannot be the active primary model.")
+        if not self.model.loaded and self.load_ownership is not ModelLoadOwnership.UNKNOWN:
+            raise ModelRegistryError("An unloaded model cannot retain load ownership.")
 
     @property
     def identity(self) -> tuple[str, str]:
         return self.model.provider, self.model.backend_model_id
+
+    @property
+    def automatic_unload_allowed(self) -> bool:
+        return self.load_ownership is ModelLoadOwnership.LOADED_BY_ATHENA
 
 
 class ModelRegistry:
@@ -116,7 +133,9 @@ class ModelRegistry:
     Discovery refreshes technical model facts while preserving operator-owned
     alias/resource metadata. Infrastructure model types are never primary
     candidates. Unknown capability support fails closed for required workflow
-    capabilities rather than being treated as supported.
+    capabilities rather than being treated as supported. Load ownership is also
+    fail-closed: only a model explicitly recorded as loaded by ATHENA may be
+    automatically unloaded.
     """
 
     def __init__(self) -> None:
@@ -152,12 +171,16 @@ class ModelRegistry:
             prior = self._entries.get(key)
             eligibility = _eligibility(model, required)
             active = key == self._active_identity and eligibility is ModelRoleEligibility.PRIMARY
+            ownership = ModelLoadOwnership.UNKNOWN
+            if model.loaded and prior is not None:
+                ownership = prior.load_ownership
             refreshed[key] = ModelRegistryEntry(
                 model=model,
                 eligibility=eligibility,
                 user_alias=None if prior is None else prior.user_alias,
                 active_primary=active,
                 resources=ModelResourceProfile() if prior is None else prior.resources,
+                load_ownership=ownership,
             )
 
         self._entries = refreshed
@@ -198,6 +221,26 @@ class ModelRegistry:
         updated = replace(self.get(provider=provider, model_id=model_id), resources=resources)
         self._entries[key] = updated
         return updated
+
+    def record_load_ownership(
+        self,
+        *,
+        provider: str,
+        model_id: str,
+        ownership: ModelLoadOwnership,
+    ) -> ModelRegistryEntry:
+        if not isinstance(ownership, ModelLoadOwnership):
+            raise TypeError("ownership must be ModelLoadOwnership.")
+        key = _identity(provider, model_id)
+        current = self.get(provider=provider, model_id=model_id)
+        if not current.model.loaded and ownership is not ModelLoadOwnership.UNKNOWN:
+            raise ModelRegistryError("Load ownership can only be assigned to a loaded model.")
+        updated = replace(current, load_ownership=ownership)
+        self._entries[key] = updated
+        return updated
+
+    def automatic_unload_allowed(self, *, provider: str, model_id: str) -> bool:
+        return self.get(provider=provider, model_id=model_id).automatic_unload_allowed
 
     def activate_primary(self, *, provider: str, model_id: str) -> ModelRegistryEntry:
         key = _identity(provider, model_id)
