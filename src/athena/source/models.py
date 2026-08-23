@@ -107,6 +107,21 @@ def _require_text(value: object, label: str) -> None:
         raise ValueError(f"{label} must not be empty.")
 
 
+def _require_optional_uuid(value: object | None, label: str) -> None:
+    if value is not None:
+        _require_uuid(value, label)
+
+
+def _require_optional_text(value: object | None, label: str) -> None:
+    if value is not None and not isinstance(value, str):
+        raise TypeError(f"{label} must be text or None.")
+
+
+def _require_optional_int(value: object | None, label: str, *, minimum: int = 0) -> None:
+    if value is not None:
+        _require_int(value, label, minimum=minimum)
+
+
 @dataclass(frozen=True, slots=True)
 class BlobRecord:
     blob_id: uuid.UUID
@@ -122,8 +137,7 @@ class BlobRecord:
     def __post_init__(self) -> None:
         _require_uuid(self.blob_id, "BlobRecord blob_id")
         _require_int(self.byte_length, "BlobRecord byte_length")
-        if self.media_type is not None and not isinstance(self.media_type, str):
-            raise TypeError("BlobRecord media_type must be text or None.")
+        _require_optional_text(self.media_type, "BlobRecord media_type")
         if not isinstance(self.storage_area, BlobStorageArea):
             raise TypeError("BlobRecord storage_area must be a BlobStorageArea.")
         _require_text(self.storage_locator, "BlobRecord storage_locator")
@@ -152,12 +166,50 @@ class SourceRecord:
     protection_scope_id: uuid.UUID | None = None
     protected_metadata_payload_id: uuid.UUID | None = None
 
+    def __post_init__(self) -> None:
+        _require_uuid(self.source_id, "SourceRecord source_id")
+        _require_uuid(self.blob_id, "SourceRecord blob_id")
+        _require_uuid(self.provenance_id, "SourceRecord provenance_id")
+        _require_optional_uuid(self.protection_scope_id, "SourceRecord protection_scope_id")
+        _require_optional_uuid(
+            self.protected_metadata_payload_id,
+            "SourceRecord protected_metadata_payload_id",
+        )
+        if not isinstance(self.source_type, SourceType):
+            raise TypeError("SourceRecord source_type must be a SourceType.")
+        if not isinstance(self.lifecycle_state, SourceLifecycleState):
+            raise TypeError(
+                "SourceRecord lifecycle_state must be a SourceLifecycleState."
+            )
+        _require_int(self.created_at_us, "SourceRecord created_at_us")
+        _require_int(self.acquired_at_us, "SourceRecord acquired_at_us")
+        _require_optional_int(
+            self.original_modified_at_us,
+            "SourceRecord original_modified_at_us",
+        )
+        _require_optional_text(self.original_name, "SourceRecord original_name")
+        _require_optional_text(self.mime_type, "SourceRecord mime_type")
+        _require_optional_text(self.source_uri, "SourceRecord source_uri")
+        _require_sha256(self.content_sha256, "SourceRecord content_sha256")
+
 
 @dataclass(frozen=True, slots=True)
 class SourceCaptureResult:
     source: SourceRecord
     blob: BlobRecord
     reused_blob: bool
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.source, SourceRecord):
+            raise TypeError("SourceCaptureResult source must be a SourceRecord.")
+        if not isinstance(self.blob, BlobRecord):
+            raise TypeError("SourceCaptureResult blob must be a BlobRecord.")
+        if not isinstance(self.reused_blob, bool):
+            raise TypeError("SourceCaptureResult reused_blob must be boolean.")
+        if self.source.blob_id != self.blob.blob_id:
+            raise ValueError("SourceCaptureResult source/blob identity mismatch.")
+        if self.source.content_sha256 != self.blob.integrity_sha256:
+            raise ValueError("SourceCaptureResult source/blob hash mismatch.")
 
 
 @dataclass(frozen=True, slots=True)
@@ -175,6 +227,30 @@ class SourceRepresentationRecord:
     options_json: str
     created_at_us: int
     provenance_id: uuid.UUID
+
+    def __post_init__(self) -> None:
+        for value, label in (
+            (self.representation_id, "Source representation representation_id"),
+            (self.source_id, "Source representation source_id"),
+            (self.blob_id, "Source representation blob_id"),
+            (self.processing_run_id, "Source representation processing_run_id"),
+            (self.provenance_id, "Source representation provenance_id"),
+        ):
+            _require_uuid(value, label)
+        if not isinstance(self.representation_type, SourceRepresentationType):
+            raise TypeError(
+                "Source representation representation_type must be a SourceRepresentationType."
+            )
+        if not isinstance(self.retention_state, RepresentationRetentionState):
+            raise TypeError(
+                "Source representation retention_state must be a RepresentationRetentionState."
+            )
+        _require_sha256(self.content_hash, "Source representation content_hash")
+        _require_text(self.media_type, "Source representation media_type")
+        _require_text(self.parser_id, "Source representation parser_id")
+        _require_text(self.parser_version, "Source representation parser_version")
+        _require_text(self.options_json, "Source representation options_json")
+        _require_int(self.created_at_us, "Source representation created_at_us")
 
 
 @dataclass(frozen=True, slots=True)
@@ -210,16 +286,19 @@ class SourceRepresentationStructureRecord:
 
     def __post_init__(self) -> None:
         _require_uuid(self.structure_id, "Source representation structure_id")
-        _require_uuid(self.representation_id, "Source representation structure representation_id")
-        if self.parent_structure_id is not None:
-            _require_uuid(
-                self.parent_structure_id,
-                "Source representation structure parent_structure_id",
-            )
+        _require_uuid(
+            self.representation_id,
+            "Source representation structure representation_id",
+        )
+        _require_optional_uuid(
+            self.parent_structure_id,
+            "Source representation structure parent_structure_id",
+        )
         _require_int(self.structure_index, "Source representation structure_index")
         if not isinstance(self.structure_type, SourceRepresentationStructureType):
             raise TypeError(
-                "Source representation structure_type must be a SourceRepresentationStructureType."
+                "Source representation structure_type must be a "
+                "SourceRepresentationStructureType."
             )
         _require_text(self.path, "Source representation structure path")
         _require_int(self.start_offset, "Source representation structure start_offset")
@@ -235,6 +314,20 @@ class TextRepresentationResult:
     representation: SourceRepresentationRecord
     blob: BlobRecord
     reused_blob: bool
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.representation, SourceRepresentationRecord):
+            raise TypeError(
+                "TextRepresentationResult representation must be a SourceRepresentationRecord."
+            )
+        if not isinstance(self.blob, BlobRecord):
+            raise TypeError("TextRepresentationResult blob must be a BlobRecord.")
+        if not isinstance(self.reused_blob, bool):
+            raise TypeError("TextRepresentationResult reused_blob must be boolean.")
+        if self.representation.blob_id != self.blob.blob_id:
+            raise ValueError("TextRepresentationResult representation/blob identity mismatch.")
+        if self.representation.content_hash != self.blob.integrity_sha256:
+            raise ValueError("TextRepresentationResult representation/blob hash mismatch.")
 
 
 @dataclass(frozen=True, slots=True)
@@ -252,3 +345,52 @@ class SourceAnchorRecord:
     geometry_json: str | None
     quoted_hash: bytes | None
     created_at_us: int
+
+    def __post_init__(self) -> None:
+        _require_uuid(self.anchor_id, "SourceAnchorRecord anchor_id")
+        _require_uuid(self.source_id, "SourceAnchorRecord source_id")
+        _require_optional_uuid(
+            self.representation_id,
+            "SourceAnchorRecord representation_id",
+        )
+        if not isinstance(self.anchor_type, SourceAnchorType):
+            raise TypeError("SourceAnchorRecord anchor_type must be a SourceAnchorType.")
+        self._validate_pair(
+            self.start_offset,
+            self.end_offset,
+            label="SourceAnchorRecord offset range",
+            minimum=0,
+        )
+        self._validate_pair(
+            self.page_start,
+            self.page_end,
+            label="SourceAnchorRecord page range",
+            minimum=1,
+        )
+        self._validate_pair(
+            self.start_time_ms,
+            self.end_time_ms,
+            label="SourceAnchorRecord time range",
+            minimum=0,
+        )
+        _require_optional_text(self.geometry_json, "SourceAnchorRecord geometry_json")
+        if self.quoted_hash is not None:
+            _require_sha256(self.quoted_hash, "SourceAnchorRecord quoted_hash")
+        _require_int(self.created_at_us, "SourceAnchorRecord created_at_us")
+
+    @staticmethod
+    def _validate_pair(
+        start: int | None,
+        end: int | None,
+        *,
+        label: str,
+        minimum: int,
+    ) -> None:
+        if (start is None) != (end is None):
+            raise ValueError(f"{label} must provide both endpoints or neither.")
+        if start is None or end is None:
+            return
+        _require_int(start, f"{label} start", minimum=minimum)
+        _require_int(end, f"{label} end", minimum=minimum)
+        if end < start:
+            raise ValueError(f"{label} end precedes start.")
