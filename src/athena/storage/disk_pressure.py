@@ -29,6 +29,10 @@ class DiskPressureState(IntEnum):
     EMERGENCY = 3
 
 
+class DiskPressureWriteBlockedError(RuntimeError):
+    """Raised when a noncritical write is forbidden by disk-pressure policy."""
+
+
 def _nonnegative_int(value: object, label: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
         raise ValueError(f"{label} must be a non-negative integer.")
@@ -226,6 +230,14 @@ class DiskPressureController:
         except OSError as exc:
             raise RuntimeError("Disk pressure volume usage could not be determined.") from exc
         return assess_disk_pressure(total_bytes=total, free_bytes=free)
+
+    def assert_noncritical_write_allowed(self) -> None:
+        """Callable gate for transaction boundaries that must stop at EMERGENCY."""
+        assessment = self._assessment()
+        if not assessment.allow_noncritical_writes:
+            raise DiskPressureWriteBlockedError(
+                "ATHENA noncritical writes are blocked while disk pressure is EMERGENCY."
+            )
 
     def ensure_reserve_if_safe(
         self,
