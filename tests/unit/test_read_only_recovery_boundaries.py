@@ -4,7 +4,11 @@ from pathlib import Path
 
 import pytest
 
-from athena.core.recovery import RecoveryDatabaseStatus, RecoveryReport, ReadOnlyRecoveryCore
+from athena.core.recovery import (
+    ReadOnlyRecoveryCore,
+    RecoveryDatabaseStatus,
+    RecoveryReport,
+)
 
 
 def _healthy(tmp_path: Path) -> RecoveryReport:
