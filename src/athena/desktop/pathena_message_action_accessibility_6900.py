@@ -47,6 +47,8 @@ QPushButton[pathenaMessageActionKeyboard="true"]:focus {
 }
 """
 
+_DIRECT_FOCUS_STYLE = "QPushButton:focus { border: 1px solid #4A4A4A; }"
+
 
 class MessageActionAccessibilityController(QObject):
     """Keep dynamically rendered message actions reachable from the keyboard."""
@@ -82,6 +84,10 @@ class MessageActionAccessibilityController(QObject):
         button.setProperty("pathenaMessageActionKeyboard", True)
         button.setProperty("pathenaMessageActionPurpose", spec.label.casefold())
         button.setProperty("pathenaMessageActionExistingCallback", True)
+        if _DIRECT_FOCUS_STYLE not in button.styleSheet():
+            button.setStyleSheet(
+                f"{button.styleSheet()}\n{_DIRECT_FOCUS_STYLE}".strip()
+            )
         if spec.description not in button.toolTip():
             current = button.toolTip().strip()
             button.setToolTip(f"{current}\n{spec.description}".strip())
