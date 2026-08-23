@@ -8,22 +8,13 @@ from athena.desktop.pathena_layout_refinement_2200 import (
     UI_REFINEMENT_TASKS_2101_2200,
     apply_ui_refinements_2101_2200,
 )
-from athena.desktop.pathena_ui_refinement_100 import UI_REFINEMENT_TASKS, apply_ui_refinements
-from athena.desktop.pathena_ui_refinement_1000 import (
-    UI_REFINEMENT_TASKS_901_1000,
-    apply_ui_refinements_901_1000,
-)
-from athena.desktop.pathena_ui_refinement_1100 import (
-    UI_REFINEMENT_TASKS_1001_1100,
-    apply_ui_refinements_1001_1100,
+from athena.desktop.pathena_ui_refinement_100 import (
+    UI_REFINEMENT_TASKS,
+    apply_ui_refinements,
 )
 from athena.desktop.pathena_ui_refinement_200 import (
     UI_REFINEMENT_TASKS_101_200,
     apply_ui_refinements_101_200,
-)
-from athena.desktop.pathena_ui_refinement_2100 import (
-    UI_REFINEMENT_TASKS_1101_2100,
-    apply_ui_refinements_1101_2100,
 )
 from athena.desktop.pathena_ui_refinement_300 import (
     UI_REFINEMENT_TASKS_201_300,
@@ -53,6 +44,18 @@ from athena.desktop.pathena_ui_refinement_800 import (
 from athena.desktop.pathena_ui_refinement_900 import (
     UI_REFINEMENT_TASKS_801_900,
     apply_ui_refinements_801_900,
+)
+from athena.desktop.pathena_ui_refinement_1000 import (
+    UI_REFINEMENT_TASKS_901_1000,
+    apply_ui_refinements_901_1000,
+)
+from athena.desktop.pathena_ui_refinement_1100 import (
+    UI_REFINEMENT_TASKS_1001_1100,
+    apply_ui_refinements_1001_1100,
+)
+from athena.desktop.pathena_ui_refinement_2100 import (
+    UI_REFINEMENT_TASKS_1101_2100,
+    apply_ui_refinements_1101_2100,
 )
 
 
