@@ -73,7 +73,10 @@ class AccessibleStateSyncController(QObject):
         super().__init__(window)
         self.window = window
         self._labels: dict[QWidget, str] = {}
-        self._last_signature: dict[QWidget, tuple[str, str, str, str, str]] = {}
+        self._last_signature: dict[
+            QWidget,
+            tuple[str, str, str, str, str, str],
+        ] = {}
         self._timer = QTimer(self)
         self._timer.setInterval(250)
         self._timer.timeout.connect(self.sync)
@@ -99,6 +102,7 @@ class AccessibleStateSyncController(QObject):
                 b"pathenaDenseListAccessibleScope",
                 b"pathenaCancellationPhase",
                 b"pathenaCancellationSelectedState",
+                b"pathenaSelectionDisappeared",
             }:
                 self._schedule_sync()
         return super().eventFilter(watched, event)
@@ -117,18 +121,30 @@ class AccessibleStateSyncController(QObject):
         detail = self._visible_detail(widget)
         list_scope = self._list_scope(widget)
         cancellation = self._list_cancellation(widget)
-        signature = (state, identity, detail, list_scope, cancellation)
+        disappeared = self._selection_disappeared(widget)
+        signature = (state, identity, detail, list_scope, cancellation, disappeared)
         if self._last_signature.get(widget) == signature:
             return
         self._last_signature[widget] = signature
 
         state_word = _STATE_WORDS.get(state, state.replace("_", " "))
         name = f"{label} — {state_word}"
-        if identity:
+        if disappeared:
+            name = f"{name} — previous selection no longer listed"
+        elif identity:
             name = f"{name} — selected {identity}"
         widget.setAccessibleName(name)
 
-        if list_scope:
+        parts: list[str]
+        if disappeared:
+            vanished_label = self._short_identity(disappeared)
+            parts = [
+                f"Previously selected item {vanished_label} is no longer listed after refresh."
+            ]
+            if list_scope:
+                parts.append(list_scope)
+            parts.append(f"State: {state_word}.")
+        elif list_scope:
             parts = [list_scope, f"State: {state_word}."]
         else:
             parts = [f"{label} is {state_word}."]
@@ -142,6 +158,7 @@ class AccessibleStateSyncController(QObject):
 
         widget.setProperty("pathenaAccessibleUiState", state)
         widget.setProperty("pathenaAccessibleSelectionIdentity", identity)
+        widget.setProperty("pathenaAccessibleSelectionDisappeared", disappeared)
         widget.setProperty("pathenaAccessibleStateSynchronized", True)
         count = int(widget.property("pathenaAccessibleSyncCount") or 0) + 1
         widget.setProperty("pathenaAccessibleSyncCount", count)
@@ -173,6 +190,18 @@ class AccessibleStateSyncController(QObject):
         if state:
             return f"phase {phase}, selected job state {state}"
         return f"phase {phase}"
+
+    @staticmethod
+    def _selection_disappeared(widget: QWidget) -> str:
+        if not isinstance(widget, QListWidget):
+            return ""
+        value = widget.property("pathenaSelectionDisappeared")
+        return str(value).strip() if value else ""
+
+    @staticmethod
+    def _short_identity(identity: str) -> str:
+        normalized = " ".join(identity.split())
+        return normalized[:8].upper() if len(normalized) >= 8 else normalized.upper()
 
     @staticmethod
     def _selection_identity(widget: QWidget) -> str:
