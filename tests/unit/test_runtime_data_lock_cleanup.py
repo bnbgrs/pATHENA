@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 
 import pytest
 
@@ -18,51 +18,30 @@ class _Handle:
         self.closed = True
 
 
-@dataclass
-class _LockPath:
-    handle: _Handle
-
-    def open(self, mode: str) -> _Handle:
-        assert mode == "a+b"
-        return self.handle
-
-
-@dataclass
-class _Root:
-    handle: _Handle
-    key: str = "/state"
-
-    def expanduser(self) -> _Root:
-        return self
-
-    def mkdir(self, *, parents: bool, exist_ok: bool) -> None:
-        assert parents is True
-        assert exist_ok is True
-
-    def is_symlink(self) -> bool:
-        return False
-
-    def is_dir(self) -> bool:
-        return True
-
-    def resolve(self) -> Path:
-        return Path(self.key)
-
-    def __truediv__(self, name: str) -> _LockPath:
-        assert name == ".athena-runtime-data.lock"
-        return _LockPath(self.handle)
-
-
 def _clear_thread_state() -> None:
     runtime_lock._THREAD_STATE.depths.clear()
 
 
+def _fake_open(
+    monkeypatch: pytest.MonkeyPatch,
+    handle: _Handle,
+) -> None:
+    def open_handle(path: Path, mode: str, *args: Any, **kwargs: Any) -> _Handle:
+        del args, kwargs
+        assert path.name == ".athena-runtime-data.lock"
+        assert mode == "a+b"
+        return handle
+
+    monkeypatch.setattr(Path, "open", open_handle)
+
+
 def test_runtime_lock_acquire_failure_closes_handle_and_clears_depth(
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     _clear_thread_state()
     handle = _Handle()
-    root = _Root(handle)
+    _fake_open(monkeypatch, handle)
     unlock_calls = 0
 
     def fail_lock(_: Any) -> None:
@@ -76,7 +55,7 @@ def test_runtime_lock_acquire_failure_closes_handle_and_clears_depth(
     monkeypatch.setattr(runtime_lock, "_unlock_platform", record_unlock)
 
     with pytest.raises(RuntimeDataLockError, match="cannot be acquired"):
-        with runtime_data_lock(cast(Any, root)):
+        with runtime_data_lock(tmp_path):
             raise AssertionError("unreachable")
 
     assert handle.closed is True
@@ -86,10 +65,11 @@ def test_runtime_lock_acquire_failure_closes_handle_and_clears_depth(
 
 def test_runtime_lock_unlock_failure_still_closes_handle_and_clears_depth(
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     _clear_thread_state()
     handle = _Handle()
-    root = _Root(handle)
+    _fake_open(monkeypatch, handle)
     monkeypatch.setattr(runtime_lock, "_lock_platform", lambda _: None)
 
     def fail_unlock(_: Any) -> None:
@@ -98,7 +78,7 @@ def test_runtime_lock_unlock_failure_still_closes_handle_and_clears_depth(
     monkeypatch.setattr(runtime_lock, "_unlock_platform", fail_unlock)
 
     with pytest.raises(RuntimeDataLockError, match="released cleanly"):
-        with runtime_data_lock(cast(Any, root)):
+        with runtime_data_lock(tmp_path):
             pass
 
     assert handle.closed is True
@@ -107,10 +87,11 @@ def test_runtime_lock_unlock_failure_still_closes_handle_and_clears_depth(
 
 def test_runtime_lock_body_failure_unlocks_closes_and_clears_depth(
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     _clear_thread_state()
     handle = _Handle()
-    root = _Root(handle)
+    _fake_open(monkeypatch, handle)
     unlock_calls = 0
     monkeypatch.setattr(runtime_lock, "_lock_platform", lambda _: None)
 
@@ -121,7 +102,7 @@ def test_runtime_lock_body_failure_unlocks_closes_and_clears_depth(
     monkeypatch.setattr(runtime_lock, "_unlock_platform", record_unlock)
 
     with pytest.raises(RuntimeError, match="body failed"):
-        with runtime_data_lock(cast(Any, root)):
+        with runtime_data_lock(tmp_path):
             raise RuntimeError("body failed")
 
     assert unlock_calls == 1
@@ -131,10 +112,11 @@ def test_runtime_lock_body_failure_unlocks_closes_and_clears_depth(
 
 def test_runtime_lock_nested_scope_reuses_outer_lock(
     monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
 ) -> None:
     _clear_thread_state()
     handle = _Handle()
-    root = _Root(handle)
+    _fake_open(monkeypatch, handle)
     lock_calls = 0
     unlock_calls = 0
 
@@ -149,13 +131,23 @@ def test_runtime_lock_nested_scope_reuses_outer_lock(
     monkeypatch.setattr(runtime_lock, "_lock_platform", record_lock)
     monkeypatch.setattr(runtime_lock, "_unlock_platform", record_unlock)
 
-    with runtime_data_lock(cast(Any, root)):
+    with runtime_data_lock(tmp_path):
         assert len(runtime_lock._THREAD_STATE.depths) == 1
-        with runtime_data_lock(cast(Any, root)):
+        with runtime_data_lock(tmp_path):
             assert list(runtime_lock._THREAD_STATE.depths.values()) == [2]
         assert list(runtime_lock._THREAD_STATE.depths.values()) == [1]
 
     assert lock_calls == 1
     assert unlock_calls == 1
     assert handle.closed is True
+    assert runtime_lock._THREAD_STATE.depths == {}
+
+
+def test_runtime_lock_rejects_non_path_before_filesystem() -> None:
+    _clear_thread_state()
+
+    with pytest.raises(TypeError, match="pathlib.Path"):
+        with runtime_data_lock("/tmp/state"):  # type: ignore[arg-type]
+            pass
+
     assert runtime_lock._THREAD_STATE.depths == {}
