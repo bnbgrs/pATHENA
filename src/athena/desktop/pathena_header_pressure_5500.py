@@ -54,9 +54,9 @@ class HeaderPressureController(QObject):
     def __init__(self, window: QWidget) -> None:
         super().__init__(window)
         self.window = window
-        self._actions = self._resolve_actions()
-        self.chat_selector = getattr(window, "chat_selector", None)
-        self.model_selector = getattr(window, "model_selector", None)
+        self._actions: tuple[QPushButton, ...] = self._resolve_actions()
+        self.chat_selector: object = getattr(window, "chat_selector", None)
+        self.model_selector: object = getattr(window, "model_selector", None)
         window.installEventFilter(self)
         self.sync()
 
@@ -80,8 +80,18 @@ class HeaderPressureController(QObject):
                 style.polish(button)
                 button.update()
 
-        self._tune_selector(self.chat_selector, compact, compact_width=180, regular=220)
-        self._tune_selector(self.model_selector, compact, compact_width=160, regular=190)
+        self._tune_selector(
+            self.chat_selector,
+            compact,
+            compact_width=180,
+            regular=220,
+        )
+        self._tune_selector(
+            self.model_selector,
+            compact,
+            compact_width=160,
+            regular=190,
+        )
         self.window.setProperty(
             "pathenaHeaderPressureMode",
             "compact" if compact else "regular",
