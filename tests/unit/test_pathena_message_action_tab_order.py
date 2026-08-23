@@ -9,7 +9,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 pytest.importorskip("PySide6")
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QLineEdit, QPushButton, QWidget
+from PySide6.QtWidgets import QApplication, QLineEdit, QPushButton, QVBoxLayout, QWidget
 
 from athena.desktop.pathena_message_action_tab_order import (
     MessageActionTabOrderController,
@@ -119,3 +119,25 @@ def test_new_message_is_included_after_resync() -> None:
     controller.sync()
 
     assert window.property("pathenaMessageTabOrderCount") == 6
+
+
+def test_visual_flow_includes_operation_failure_copy_between_messages() -> None:
+    window, document, composer = _surface()
+    layout = QVBoxLayout(document)
+    first, _first_buttons = _message(document, 1)
+    failure = QWidget(document)
+    failure.setObjectName("chatOperationFailure")
+    failure_copy = _button(failure, "copyMessageButton", 1)
+    second, _second_buttons = _message(document, 2)
+    layout.addWidget(first)
+    layout.addWidget(failure)
+    layout.addWidget(second)
+
+    controller = MessageActionTabOrderController(window)
+    groups = controller._message_groups()
+
+    assert len(groups) == 3
+    assert groups[1] == [failure_copy]
+    assert failure_copy.property("pathenaMessageTabContainerRole") == "operation-failure"
+    assert window.property("pathenaOperationFailureTabOrderCount") == 1
+    assert composer.property("pathenaMessageTabReturnTarget") is True
