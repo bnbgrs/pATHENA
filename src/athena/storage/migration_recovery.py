@@ -172,28 +172,31 @@ def assess_migration_recovery(
             rollback_present=rollback_present,
         )
 
-    if journal.phase in {
-        MigrationPhase.PREPARING,
-        MigrationPhase.CLONING,
-        MigrationPhase.MIGRATING,
-        MigrationPhase.VERIFYING,
+    # Branch on persisted string values rather than exhaustively on the enum so
+    # an unexpected future phase remains a reachable fail-closed path at runtime.
+    phase = journal.phase.value
+    if phase in {
+        MigrationPhase.PREPARING.value,
+        MigrationPhase.CLONING.value,
+        MigrationPhase.MIGRATING.value,
+        MigrationPhase.VERIFYING.value,
     }:
         state = (
             MigrationRecoveryState.INCOMPLETE
             if source_present and not rollback_present
             else MigrationRecoveryState.INCONSISTENT
         )
-    elif journal.phase is MigrationPhase.READY_TO_ACTIVATE:
+    elif phase == MigrationPhase.READY_TO_ACTIVATE.value:
         state = (
             MigrationRecoveryState.READY_TO_ACTIVATE
             if source_present and candidate_present and not rollback_present
             else MigrationRecoveryState.INCONSISTENT
         )
-    elif journal.phase is MigrationPhase.ACTIVATING:
+    elif phase == MigrationPhase.ACTIVATING.value:
         # A crash may occur between source->rollback and candidate->source, so
         # file presence alone cannot prove which database is authoritative.
         state = MigrationRecoveryState.ACTIVATION_AMBIGUOUS
-    elif journal.phase is MigrationPhase.ACTIVATED:
+    elif phase == MigrationPhase.ACTIVATED.value:
         state = (
             MigrationRecoveryState.ACTIVATED
             if source_present and rollback_present and not candidate_present
