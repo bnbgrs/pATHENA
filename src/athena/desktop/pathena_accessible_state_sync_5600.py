@@ -73,7 +73,7 @@ class AccessibleStateSyncController(QObject):
         super().__init__(window)
         self.window = window
         self._labels: dict[QWidget, str] = {}
-        self._last_signature: dict[QWidget, tuple[str, str, str]] = {}
+        self._last_signature: dict[QWidget, tuple[str, str, str, str]] = {}
         self._timer = QTimer(self)
         self._timer.setInterval(250)
         self._timer.timeout.connect(self.sync)
@@ -87,13 +87,18 @@ class AccessibleStateSyncController(QObject):
         self._sync_one(widget)
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
-        if (
-            isinstance(watched, QWidget)
-            and isinstance(event, QDynamicPropertyChangeEvent)
-            and bytes(event.propertyName().data())
-            in {b"pathenaUiState", b"pathenaSelectedDetailIdentity"}
+        if isinstance(watched, QWidget) and isinstance(
+            event, QDynamicPropertyChangeEvent
         ):
-            self._schedule_sync()
+            property_name = bytes(event.propertyName().data())
+            if property_name in {
+                b"pathenaUiState",
+                b"pathenaSelectedDetailIdentity",
+                b"pathenaResultScopeText",
+                b"pathenaBackupListScope",
+                b"pathenaDenseListAccessibleScope",
+            }:
+                self._schedule_sync()
         return super().eventFilter(watched, event)
 
     def _schedule_sync(self, *_args: object) -> None:
@@ -108,7 +113,8 @@ class AccessibleStateSyncController(QObject):
         state = str(widget.property("pathenaUiState") or "idle")
         identity = self._selection_identity(widget)
         detail = self._visible_detail(widget)
-        signature = (state, identity, detail)
+        list_scope = self._list_scope(widget)
+        signature = (state, identity, detail, list_scope)
         if self._last_signature.get(widget) == signature:
             return
         self._last_signature[widget] = signature
@@ -119,9 +125,12 @@ class AccessibleStateSyncController(QObject):
             name = f"{name} — selected {identity}"
         widget.setAccessibleName(name)
 
-        parts = [f"{label} is {state_word}."]
-        if identity:
-            parts.append(f"Selected item: {identity}.")
+        if list_scope:
+            parts = [list_scope, f"State: {state_word}."]
+        else:
+            parts = [f"{label} is {state_word}."]
+            if identity:
+                parts.append(f"Selected item: {identity}.")
         if detail:
             parts.append(f"Visible detail: {detail}.")
         widget.setAccessibleDescription(" ".join(parts))
@@ -131,6 +140,20 @@ class AccessibleStateSyncController(QObject):
         widget.setProperty("pathenaAccessibleStateSynchronized", True)
         count = int(widget.property("pathenaAccessibleSyncCount") or 0) + 1
         widget.setProperty("pathenaAccessibleSyncCount", count)
+
+    @staticmethod
+    def _list_scope(widget: QWidget) -> str:
+        if not isinstance(widget, QListWidget):
+            return ""
+        for property_name in (
+            "pathenaBackupListScope",
+            "pathenaResultScopeText",
+            "pathenaDenseListAccessibleScope",
+        ):
+            value = widget.property(property_name)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        return ""
 
     @staticmethod
     def _selection_identity(widget: QWidget) -> str:
