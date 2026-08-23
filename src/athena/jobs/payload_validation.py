@@ -333,82 +333,90 @@ def _validate_research_exhaustive(
     _require_exact_keys(
         scope,
         {
+            "mode",
             "query",
-            "coverage_threshold",
-            "time_limit_seconds",
-            "source_domains",
-            "source_ids",
+            "domains",
+            "project_ids",
             "source_types",
-            "retrieval_limit",
-            "candidate_limit",
+            "explicit_source_ids",
+            "time_start_us",
+            "time_end_us",
+            "internet_scope",
+            "coverage_target",
         },
         label=f"{label} requested_scope",
     )
     assert scope is not None
+    _equal_text(scope, "mode", "local_exhaustive", label=label)
     _text(scope, "query", label=label)
-    coverage = scope.get("coverage_threshold")
-    if isinstance(coverage, bool) or not isinstance(coverage, float):
-        raise BuiltinJobPayloadValidationError(
-            "research.exhaustive field 'coverage_threshold' must be a canonical float."
-        )
-    if not math.isfinite(coverage) or not 0.0 < coverage <= 1.0:
-        raise BuiltinJobPayloadValidationError(
-            "research.exhaustive coverage_threshold must be finite and in (0, 1]."
-        )
-
-    time_limit = scope.get("time_limit_seconds")
-    if time_limit is not None and (
-        isinstance(time_limit, bool)
-        or not isinstance(time_limit, int)
-        or time_limit < 1
-    ):
-        raise BuiltinJobPayloadValidationError(
-            "research.exhaustive time_limit_seconds must be null or an integer >= 1."
-        )
-    _canonical_text_list(scope, "source_domains", lowercase=True, label=label)
-    _canonical_uuid_list(scope, "source_ids", label=label)
-    source_types = _canonical_text_list(
-        scope,
-        "source_types",
-        lowercase=True,
-        label=label,
-    )
+    _canonical_sorted_text_list(scope, "domains", label=label)
+    _canonical_uuid_list(scope, "project_ids", label=label)
+    source_types = _canonical_sorted_text_list(scope, "source_types", label=label)
     if any(item not in _RESEARCH_SOURCE_TYPES for item in source_types):
         raise BuiltinJobPayloadValidationError(
             "research.exhaustive source_types contains an unsupported source type."
         )
-    _integer(scope, "retrieval_limit", minimum=1, label=label)
-    _integer(scope, "candidate_limit", minimum=1, label=label)
+    _canonical_uuid_list(scope, "explicit_source_ids", label=label)
+    start = _optional_integer(scope, "time_start_us", minimum=0, label=label)
+    end = _optional_integer(scope, "time_end_us", minimum=0, label=label)
+    if start is not None and end is not None and end < start:
+        raise BuiltinJobPayloadValidationError(
+            "research.exhaustive time_end_us must be >= time_start_us."
+        )
+    if scope.get("internet_scope") is not None:
+        raise BuiltinJobPayloadValidationError(
+            "research.exhaustive local mode requires internet_scope to be null."
+        )
+    coverage = scope.get("coverage_target")
+    if isinstance(coverage, bool) or not isinstance(coverage, float):
+        raise BuiltinJobPayloadValidationError(
+            "research.exhaustive field 'coverage_target' must be a canonical float."
+        )
+    if not math.isfinite(coverage) or not 0.0 < coverage <= 1.0:
+        raise BuiltinJobPayloadValidationError(
+            "research.exhaustive coverage_target must be finite and in (0, 1]."
+        )
 
     _require_exact_keys(
         config,
         {
             "pipeline_version",
-            "model_id",
-            "model_signature_id",
-            "model_signature_sha256",
-            "effective_context_limit",
+            "snapshot_commit_seq",
+            "coverage_formula_id",
+            "candidate_dedup_id",
+            "requested_model_id",
+            "context_limit",
             "output_reserve",
             "safety_margin",
-            "token_estimator",
             "max_hierarchy_depth",
         },
         label=f"{label} pinned_configuration",
     )
     assert config is not None
-    _equal_text(config, "pipeline_version", "research-exhaustive-v1", label=label)
-    _text(config, "model_id", label=label)
-    _uuid_text(config, "model_signature_id", label=label)
-    _sha256_text(config, "model_signature_sha256", label=label)
-    effective = _integer(config, "effective_context_limit", minimum=64, label=label)
-    reserve = _integer(config, "output_reserve", minimum=1, label=label)
-    margin = _integer(config, "safety_margin", minimum=0, label=label)
+    _equal_text(
+        config,
+        "pipeline_version",
+        "exhaustive-research-orchestration-v2",
+        label=label,
+    )
+    _integer(config, "snapshot_commit_seq", minimum=0, label=label)
+    _equal_text(
+        config,
+        "coverage_formula_id",
+        "eligible-success-or-irrelevant-v1",
+        label=label,
+    )
+    _equal_text(
+        config,
+        "candidate_dedup_id",
+        "source-content-sha256-v1",
+        label=label,
+    )
+    _optional_text(config, "requested_model_id", label=label)
+    _optional_integer(config, "context_limit", minimum=1, label=label)
+    _optional_integer(config, "output_reserve", minimum=1, label=label)
+    _optional_integer(config, "safety_margin", minimum=0, label=label)
     _integer(config, "max_hierarchy_depth", minimum=1, label=label)
-    if reserve + margin >= effective:
-        raise BuiltinJobPayloadValidationError(
-            "research.exhaustive context budget leaves no positive input budget."
-        )
-    _equal_text(config, "token_estimator", "utf8-bytes-div3-v1", label=label)
 
 
 def _validate_backup_create(
@@ -499,11 +507,22 @@ def _text(value: Mapping[str, Any], field: str, *, label: str) -> str:
     return item
 
 
-def _canonical_text_list(
+def _optional_text(
     value: Mapping[str, Any],
     field: str,
     *,
-    lowercase: bool,
+    label: str,
+) -> str | None:
+    item = value.get(field)
+    if item is None:
+        return None
+    return _text(value, field, label=label)
+
+
+def _canonical_sorted_text_list(
+    value: Mapping[str, Any],
+    field: str,
+    *,
     label: str,
 ) -> list[str]:
     raw = value.get(field)
@@ -513,16 +532,15 @@ def _canonical_text_list(
         )
     result: list[str] = []
     for item in raw:
-        if not isinstance(item, str) or not item:
+        if not isinstance(item, str) or not item or item != item.strip():
             raise BuiltinJobPayloadValidationError(
-                f"{label} field {field!r} must contain non-empty text."
-            )
-        canonical = item.strip().lower() if lowercase else item.strip()
-        if item != canonical:
-            raise BuiltinJobPayloadValidationError(
-                f"{label} field {field!r} must contain canonical text."
+                f"{label} field {field!r} must contain canonical non-empty text."
             )
         result.append(item)
+    if result != sorted(set(result)):
+        raise BuiltinJobPayloadValidationError(
+            f"{label} field {field!r} must be sorted and unique."
+        )
     return result
 
 
@@ -537,21 +555,28 @@ def _canonical_uuid_list(
         raise BuiltinJobPayloadValidationError(
             f"{label} field {field!r} must be a list."
         )
+    parsed: list[uuid.UUID] = []
     for item in raw:
         if not isinstance(item, str) or not item:
             raise BuiltinJobPayloadValidationError(
                 f"{label} field {field!r} must contain UUID strings."
             )
         try:
-            parsed = uuid.UUID(item)
+            parsed_item = uuid.UUID(item)
         except ValueError as exc:
             raise BuiltinJobPayloadValidationError(
                 f"{label} field {field!r} must contain UUID strings."
             ) from exc
-        if str(parsed) != item.lower():
+        if str(parsed_item) != item:
             raise BuiltinJobPayloadValidationError(
                 f"{label} field {field!r} must contain canonical UUID text."
             )
+        parsed.append(parsed_item)
+    canonical = [str(item) for item in sorted(set(parsed), key=lambda item: item.bytes)]
+    if raw != canonical:
+        raise BuiltinJobPayloadValidationError(
+            f"{label} field {field!r} must be sorted and unique."
+        )
 
 
 def _equal_text(
@@ -614,6 +639,19 @@ def _integer(
             f"{label} field {field!r} must be an integer >= {minimum}."
         )
     return item
+
+
+def _optional_integer(
+    value: Mapping[str, Any],
+    field: str,
+    *,
+    minimum: int,
+    label: str,
+) -> int | None:
+    item = value.get(field)
+    if item is None:
+        return None
+    return _integer(value, field, minimum=minimum, label=label)
 
 
 def _number(value: Mapping[str, Any], field: str, *, label: str) -> float:
