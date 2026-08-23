@@ -362,8 +362,31 @@ class BackupWorkspace(QWidget):
         snapshot_id = None if current is None else current.data(Qt.ItemDataRole.UserRole)
         self._selected_snapshot_id = str(snapshot_id) if snapshot_id else None
         self._set_controls(not self._busy())
-        if current is not None:
-            self.details.setPlainText(current.toolTip())
+        if current is None:
+            return
+
+        if self._busy() and self._operation != "list" and not self._operation_owns_details():
+            owner_label = self._snapshot_label(self._operation_snapshot_id)
+            selected_label = self._snapshot_label(self._selected_snapshot_id)
+            owner_text = (
+                f"{self._operation.upper()} for snapshot {owner_label}"
+                if owner_label
+                else self._operation.upper()
+            )
+            self.details.setPlainText(
+                f"BACKGROUND · {owner_text} is still running.\n"
+                f"CURRENT · Snapshot {selected_label} remains selected; background output "
+                "will not be written into this pane.\n\n"
+                f"{current.toolTip()}"
+            )
+            self.details.setProperty(
+                "pathenaBackgroundOperationOwner",
+                self._operation_snapshot_id or self._operation,
+            )
+            return
+
+        self.details.setProperty("pathenaBackgroundOperationOwner", "")
+        self.details.setPlainText(current.toolTip())
 
     @Slot(QProcess.ProcessError)
     def _process_error(self, error: QProcess.ProcessError) -> None:
