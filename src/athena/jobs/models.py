@@ -6,6 +6,7 @@ import json
 import uuid
 from dataclasses import dataclass
 from enum import Enum, IntEnum
+from typing import Any
 
 
 class JobPriority(IntEnum):
@@ -85,15 +86,32 @@ def _require_optional_text(value: object | None, label: str) -> None:
     _require_text(value, label)
 
 
+def _reject_json_constant(value: str) -> None:
+    raise ValueError(f"Non-standard JSON constant {value!r} is not permitted.")
+
+
+def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"Duplicate JSON object key {key!r} is not permitted.")
+        result[key] = value
+    return result
+
+
 def _require_optional_json(value: object | None, label: str) -> None:
     if value is None:
         return
     if not isinstance(value, str):
         raise TypeError(f"{label} must be JSON text or None.")
     try:
-        json.loads(value)
-    except json.JSONDecodeError as exc:
-        raise ValueError(f"{label} must contain valid JSON.") from exc
+        json.loads(
+            value,
+            parse_constant=_reject_json_constant,
+            object_pairs_hook=_unique_json_object,
+        )
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise ValueError(f"{label} must contain strict JSON.") from exc
 
 
 @dataclass(frozen=True, slots=True)
