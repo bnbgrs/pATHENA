@@ -40,19 +40,19 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 
 ### UI-005 — PALLAS prominence/responsiveness audit
 - **Priority:** P2
-- **Status:** IN_PROGRESS
-- **Evidence:** PALLAS should remain characteristic but subordinate to the central workspace, especially at compact widths.
+- **Status:** DONE
+- **Evidence:** The PALLAS miniature now preserves its declared 9:16 format, stays visible, and reduces from 112×199 to 96×171 in compact layout while remaining secondary to workspace content.
 - **Views/components:** Left rail / PALLAS placeholder.
 - **Dependencies:** Existing compact-layout state only.
-- **Last verification:** 2026-08-23; selected after dense-list slice completion.
+- **Last verification:** 2026-08-23 after `95a6b580c39b41c3a8ea9a4279271e87683f6333`; focused geometry tests added but not executed in connector runtime.
 
 ### UI-006 — Settings comprehension and model-state affordance
 - **Priority:** P2
-- **Status:** READY
+- **Status:** IN_PROGRESS
 - **Evidence:** Context/output/thinking controls expose real behavior but can communicate disabled/unavailable states more clearly.
 - **Views/components:** Settings page, model selector.
 - **Dependencies:** Existing model snapshot only.
-- **Last verification:** 2026-08-23.
+- **Last verification:** 2026-08-23; selected after PALLAS responsiveness completion.
 
 ### UI-007 — Targeted UI tests for semantic state transitions
 - **Priority:** P2
