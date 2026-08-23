@@ -88,6 +88,9 @@ INVALID_CALLS: tuple[tuple[str, Callable[[DurableJobService], object]], ...] = (
     ("fail-reason-padded", lambda service: service.fail(JOB_ID, lease_token=TOKEN, blocked_reason=" failure ")),
     ("fail-now-negative", lambda service: service.fail(JOB_ID, lease_token=TOKEN, blocked_reason="failure", now_us=-1)),
     ("wait-token-short", lambda service: service.wait(JOB_ID, lease_token=b"x", reason=WaitingReason.RESOURCE)),
+    ("wait-reason-string", lambda service: service.wait(JOB_ID, lease_token=TOKEN, reason="waiting_resource")),  # type: ignore[arg-type]
+    ("wait-reason-none", lambda service: service.wait(JOB_ID, lease_token=TOKEN, reason=None)),  # type: ignore[arg-type]
+    ("wait-reason-bool", lambda service: service.wait(JOB_ID, lease_token=TOKEN, reason=True)),  # type: ignore[arg-type]
     ("wait-next-negative", lambda service: service.wait(JOB_ID, lease_token=TOKEN, reason=WaitingReason.RESOURCE, next_run_at_us=-1)),
     ("wait-now-negative", lambda service: service.wait(JOB_ID, lease_token=TOKEN, reason=WaitingReason.RESOURCE, now_us=-1)),
     ("complete-token-short", lambda service: service.complete(JOB_ID, lease_token=b"x")),
@@ -143,6 +146,24 @@ def test_valid_lease_boundary_converts_seconds_to_microseconds() -> None:
     assert kwargs["now_us"] == 0
     assert isinstance(kwargs["lease_token"], bytes)
     assert len(kwargs["lease_token"]) == 32
+
+
+def test_valid_waiting_reason_reaches_repository_unchanged() -> None:
+    service, repository, _chat = _service()
+
+    service.wait(
+        JOB_ID,
+        lease_token=TOKEN,
+        reason=WaitingReason.DEPENDENCY,
+        next_run_at_us=0,
+        now_us=0,
+    )
+
+    name, _args, kwargs = repository.calls[0]
+    assert name == "wait"
+    assert kwargs["reason"] is WaitingReason.DEPENDENCY
+    assert kwargs["next_run_at_us"] == 0
+    assert kwargs["now_us"] == 0
 
 
 def test_valid_queue_type_filter_reaches_repository_unchanged() -> None:
