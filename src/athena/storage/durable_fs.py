@@ -8,18 +8,40 @@ from pathlib import Path
 
 _MOVEFILE_REPLACE_EXISTING = 0x00000001
 _MOVEFILE_WRITE_THROUGH = 0x00000008
+_FILE_ATTRIBUTE_REPARSE_POINT = 0x00000400
+
+
+def _is_link_boundary(path: Path) -> bool:
+    """Return whether *path* can redirect filesystem traversal."""
+    if path.is_symlink():
+        return True
+
+    is_junction = getattr(path, "is_junction", None)
+    if callable(is_junction) and is_junction():
+        return True
+
+    if os.name != "nt":
+        return False
+
+    try:
+        stat_result = os.lstat(path)
+    except OSError:
+        return False
+
+    attributes = int(getattr(stat_result, "st_file_attributes", 0))
+    return bool(attributes & _FILE_ATTRIBUTE_REPARSE_POINT)
 
 
 def _assert_real_directory(path: Path, *, label: str) -> None:
-    """Reject missing, non-directory, or symlink-backed directory boundaries."""
-    if path.is_symlink() or not path.is_dir():
+    """Reject missing, non-directory, or link-backed directory boundaries."""
+    if _is_link_boundary(path) or not path.is_dir():
         raise NotADirectoryError(f"{label} is unsafe: {path}")
 
     cursor = path.parent
     while True:
-        if cursor.is_symlink():
+        if _is_link_boundary(cursor):
             raise NotADirectoryError(
-                f"{label} has a symlink ancestor: {cursor}"
+                f"{label} has a symlink ancestor or reparse-point ancestor: {cursor}"
             )
         if cursor.exists() and not cursor.is_dir():
             raise NotADirectoryError(
@@ -41,10 +63,14 @@ def durable_replace(source: Path, destination: Path) -> None:
     _assert_real_directory(source_parent, label="Durable replace source parent")
     _assert_real_directory(destination_parent, label="Durable replace destination parent")
 
-    if source_path.is_symlink():
-        raise OSError(f"Durable replace source is a symlink: {source_path}")
-    if destination_path.is_symlink():
-        raise OSError(f"Durable replace destination is a symlink: {destination_path}")
+    if _is_link_boundary(source_path):
+        raise OSError(
+            f"Durable replace source is a symlink or reparse point: {source_path}"
+        )
+    if _is_link_boundary(destination_path):
+        raise OSError(
+            f"Durable replace destination is a symlink or reparse point: {destination_path}"
+        )
 
     if _is_windows():
         _windows_replace_write_through(source_path, destination_path)
@@ -59,8 +85,10 @@ def durable_replace(source: Path, destination: Path) -> None:
 def durable_mkdir(path: Path, *, parents: bool = False, exist_ok: bool = False) -> None:
     """Create a directory and durably publish every newly created entry."""
     directory = Path(path)
-    if directory.is_symlink():
-        raise FileExistsError(f"Durable directory path is a symlink: {directory}")
+    if _is_link_boundary(directory):
+        raise FileExistsError(
+            f"Durable directory path is a symlink or reparse point: {directory}"
+        )
     if directory.exists():
         if not directory.is_dir():
             raise FileExistsError(f"Durable directory path is not a directory: {directory}")
@@ -75,8 +103,10 @@ def durable_mkdir(path: Path, *, parents: bool = False, exist_ok: bool = False) 
     missing: list[Path] = []
     cursor = directory
     while not cursor.exists():
-        if cursor.is_symlink():
-            raise FileExistsError(f"Durable directory ancestor is a symlink: {cursor}")
+        if _is_link_boundary(cursor):
+            raise FileExistsError(
+                f"Durable directory ancestor is a symlink or reparse point: {cursor}"
+            )
         missing.append(cursor)
         parent = cursor.parent
         if parent == cursor:
@@ -96,7 +126,7 @@ def _durable_create_one_directory(directory: Path, *, exist_ok: bool) -> None:
     try:
         directory.mkdir(parents=False, exist_ok=False)
     except FileExistsError:
-        if exist_ok and directory.is_dir() and not directory.is_symlink():
+        if exist_ok and directory.is_dir() and not _is_link_boundary(directory):
             _assert_real_directory(directory, label="Durable directory")
             return
         raise
@@ -110,7 +140,7 @@ def _windows_durable_create_directory(directory: Path, *, exist_ok: bool) -> Non
         try:
             _windows_replace_write_through(staging, directory)
         except OSError:
-            if exist_ok and directory.is_dir() and not directory.is_symlink():
+            if exist_ok and directory.is_dir() and not _is_link_boundary(directory):
                 _assert_real_directory(directory, label="Durable directory")
                 return
             raise
