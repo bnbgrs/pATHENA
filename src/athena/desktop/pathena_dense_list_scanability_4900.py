@@ -129,6 +129,8 @@ class DenseListScanabilityController(QObject):
         label = self._accessibility_labels[widget]
         for index in range(widget.count()):
             item = widget.item(index)
+            if item is None:
+                continue
             summary = item.text().strip()
             identity = self._identity(item)
             item.setData(Qt.ItemDataRole.AccessibleTextRole, summary)
