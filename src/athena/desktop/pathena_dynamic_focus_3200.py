@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from PySide6.QtCore import QEvent, QObject, QTimer, Qt
-from PySide6.QtWidgets import QApplication, QAbstractButton, QWidget
+from PySide6.QtWidgets import QAbstractButton, QApplication, QWidget
 
 
 @dataclass(frozen=True)
