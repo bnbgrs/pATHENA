@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -32,6 +33,47 @@ _MAX_RECENT_CONVERSATION_TURNS = 100
 _DEFAULT_OUTPUT_RESERVE = 2048
 _DEFAULT_SAFETY_MARGIN = 256
 _MESSAGE_WRAPPER_ESTIMATE = 6
+
+
+def _positive_int(value: object, label: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ContextBuilderError(f"{label} must be an integer.")
+    if value < 1:
+        raise ContextBuilderError(f"{label} must be positive.")
+    return value
+
+
+def _nonnegative_int(value: object, label: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ContextBuilderError(f"{label} must be an integer.")
+    if value < 0:
+        raise ContextBuilderError(f"{label} must not be negative.")
+    return value
+
+
+def _bounded_positive_int(value: object, *, label: str, maximum: int) -> int:
+    validated = _positive_int(value, label)
+    if validated > maximum:
+        raise ContextBuilderError(f"{label} must be between 1 and {maximum}.")
+    return validated
+
+
+def _optional_temperature(value: object | None) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ContextBuilderError("Temperature must be numeric when provided.")
+    try:
+        normalized = float(value)
+    except OverflowError as exc:
+        raise ContextBuilderError("Temperature must be finite.") from exc
+    if not math.isfinite(normalized):
+        raise ContextBuilderError("Temperature must be finite.")
+    if not 0.0 <= normalized <= 2.0:
+        raise ContextBuilderError(
+            "Temperature must be between 0.0 and 2.0."
+        )
+    return normalized
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,18 +112,20 @@ class DirectChatService:
         reasoning_mode: str | None = "off",
         on_delta: Callable[[str], None] | None = None,
     ) -> DirectChatGenerationResult:
-        if not 1 <= max_recent_conversation_turns <= _MAX_RECENT_CONVERSATION_TURNS:
-            raise ContextBuilderError(
-                "Recent conversation turns must be between 1 and 100."
-            )
-        if output_reserve < 1:
-            raise ContextBuilderError("Output reserve must be positive.")
-        if safety_margin < 0:
-            raise ContextBuilderError("Safety margin must not be negative.")
-        if temperature is not None and not 0.0 <= temperature <= 2.0:
-            raise ContextBuilderError(
-                "Temperature must be between 0.0 and 2.0."
-            )
+        validated_turns = _bounded_positive_int(
+            max_recent_conversation_turns,
+            label="Recent conversation turns",
+            maximum=_MAX_RECENT_CONVERSATION_TURNS,
+        )
+        validated_output_reserve = _positive_int(
+            output_reserve,
+            "Output reserve",
+        )
+        validated_safety_margin = _nonnegative_int(
+            safety_margin,
+            "Safety margin",
+        )
+        validated_temperature = _optional_temperature(temperature)
         if reasoning_mode not in {None, "off"}:
             raise ContextBuilderError(
                 "Reasoning mode must be None or 'off'."
@@ -108,14 +152,16 @@ class DirectChatService:
         thread = self.chat_generation.chat.load_chat(chat_id)
         recent_messages = _select_recent_conversation_window(
             thread.messages,
-            max_turns=max_recent_conversation_turns,
+            max_turns=validated_turns,
         )
         prior_sections, prior_refs = _prior_chat_sections(recent_messages)
         conversation_tokens = _estimate_persisted_messages(recent_messages)
         current_user_tokens = estimate_tokens(content) + _MESSAGE_WRAPPER_ESTIMATE
         estimated_input_tokens = conversation_tokens + current_user_tokens
         estimated_total_tokens = (
-            estimated_input_tokens + output_reserve + safety_margin
+            estimated_input_tokens
+            + validated_output_reserve
+            + validated_safety_margin
         )
         if estimated_total_tokens > context_limit:
             raise ContextBuilderError(
@@ -132,15 +178,15 @@ class DirectChatService:
             "context_package_version": 1,
             "mode": "direct_chat",
             "effective_context_limit": context_limit,
-            "max_recent_conversation_turns": max_recent_conversation_turns,
-            "safety_margin": safety_margin,
+            "max_recent_conversation_turns": validated_turns,
+            "safety_margin": validated_safety_margin,
         }
         generation_parameters: dict[str, object] = {
-            "max_output_tokens": output_reserve,
+            "max_output_tokens": validated_output_reserve,
             "reasoning_mode": reasoning_mode,
         }
-        if temperature is not None:
-            generation_parameters["temperature"] = temperature
+        if validated_temperature is not None:
+            generation_parameters["temperature"] = validated_temperature
         signature = self.model_runs.get_or_create_signature(
             model=model,
             generation_parameters=generation_parameters,
@@ -197,8 +243,8 @@ class DirectChatService:
             budget=ContextPackageBudget(
                 effective_context_limit=context_limit,
                 context_budget=0,
-                output_reserve=output_reserve,
-                safety_margin=safety_margin,
+                output_reserve=validated_output_reserve,
+                safety_margin=validated_safety_margin,
             ),
             sections=sections,
             included_refs=included_refs,
@@ -256,6 +302,7 @@ class DirectChatService:
             processing_run=processing_run,
         )
 
+
 def _select_recent_conversation_window(
     messages: tuple[ChatMessage, ...],
     *,
@@ -271,10 +318,11 @@ def _select_recent_conversation_window(
     Historical User turns remain available for conversational continuity.
     """
 
-    if not 1 <= max_turns <= _MAX_RECENT_CONVERSATION_TURNS:
-        raise ContextBuilderError(
-            "Recent conversation turns must be between 1 and 100."
-        )
+    validated_turns = _bounded_positive_int(
+        max_turns,
+        label="Recent conversation turns",
+        maximum=_MAX_RECENT_CONVERSATION_TURNS,
+    )
 
     if not messages:
         return ()
@@ -290,7 +338,7 @@ def _select_recent_conversation_window(
 
             user_turns += 1
 
-            if user_turns >= max_turns:
+            if user_turns >= validated_turns:
                 break
 
             continue
@@ -382,18 +430,20 @@ def _resolve_context_limit(
                 "explicit effective context limit instead of assuming the model maximum."
             )
         return reported_effective
-    if requested_limit < 1:
-        raise ContextBuilderError("Effective context limit must be positive.")
-    if model.context_capacity is not None and requested_limit > model.context_capacity:
+    validated_limit = _positive_int(
+        requested_limit,
+        "Effective context limit",
+    )
+    if model.context_capacity is not None and validated_limit > model.context_capacity:
         raise ContextBuilderError(
             "Requested effective context limit exceeds the model maximum capacity."
         )
     if (
         model.loaded_context_length is not None
-        and requested_limit > model.loaded_context_length
+        and validated_limit > model.loaded_context_length
     ):
         raise ContextBuilderError(
             "Requested effective context limit exceeds the currently loaded "
             "LM Studio context."
         )
-    return requested_limit
+    return validated_limit
