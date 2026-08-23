@@ -8,48 +8,81 @@ import pytest
 import athena.storage.durable_fs as durable_fs
 
 
-def test_posix_replace_syncs_both_changed_parent_directories(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_posix_replace_syncs_both_changed_parent_directories(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     source_parent = tmp_path / "source"
     destination_parent = tmp_path / "destination"
-    source_parent.mkdir(); destination_parent.mkdir()
-    source = source_parent / "payload.partial"; destination = destination_parent / "payload.bin"
+    source_parent.mkdir()
+    destination_parent.mkdir()
+    source = source_parent / "payload.partial"
+    destination = destination_parent / "payload.bin"
     source.write_bytes(b"durable payload")
     events: list[tuple[str, Path]] = []
     real_replace = os.replace
-    def tracked_replace(old: str | bytes | os.PathLike[str] | os.PathLike[bytes], new: str | bytes | os.PathLike[str] | os.PathLike[bytes]) -> None:
-        events.append(("replace", Path(old))); real_replace(old, new)
+
+    def tracked_replace(
+        old: str | bytes | os.PathLike[str] | os.PathLike[bytes],
+        new: str | bytes | os.PathLike[str] | os.PathLike[bytes],
+    ) -> None:
+        events.append(("replace", Path(old)))
+        real_replace(old, new)
+
     monkeypatch.setattr(durable_fs, "_is_windows", lambda: False)
     monkeypatch.setattr(durable_fs.os, "replace", tracked_replace)
-    monkeypatch.setattr(durable_fs, "fsync_directory", lambda path: events.append(("fsync", Path(path))))
+    monkeypatch.setattr(
+        durable_fs,
+        "fsync_directory",
+        lambda path: events.append(("fsync", Path(path))),
+    )
     durable_fs.durable_replace(source, destination)
     assert destination.read_bytes() == b"durable payload"
     assert not source.exists()
-    assert events == [("replace", source), ("fsync", destination_parent), ("fsync", source_parent)]
+    assert events == [
+        ("replace", source),
+        ("fsync", destination_parent),
+        ("fsync", source_parent),
+    ]
 
 
-def test_posix_same_directory_replace_syncs_parent_once(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    source = tmp_path / "payload.partial"; destination = tmp_path / "payload.bin"
-    source.write_bytes(b"new"); destination.write_bytes(b"old")
+def test_posix_same_directory_replace_syncs_parent_once(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "payload.partial"
+    destination = tmp_path / "payload.bin"
+    source.write_bytes(b"new")
+    destination.write_bytes(b"old")
     synced: list[Path] = []
     monkeypatch.setattr(durable_fs, "_is_windows", lambda: False)
-    monkeypatch.setattr(durable_fs, "fsync_directory", lambda path: synced.append(Path(path)))
+    monkeypatch.setattr(
+        durable_fs,
+        "fsync_directory",
+        lambda path: synced.append(Path(path)),
+    )
     durable_fs.durable_replace(source, destination)
     assert destination.read_bytes() == b"new"
     assert synced == [tmp_path]
 
 
 def test_replace_rejects_symlink_source(tmp_path: Path) -> None:
-    target = tmp_path / "real"; target.write_bytes(b"data")
-    source = tmp_path / "source"; source.symlink_to(target)
+    target = tmp_path / "real"
+    target.write_bytes(b"data")
+    source = tmp_path / "source"
+    source.symlink_to(target)
     with pytest.raises(OSError, match="source is a symlink"):
         durable_fs.durable_replace(source, tmp_path / "destination")
     assert target.read_bytes() == b"data"
 
 
 def test_replace_rejects_symlink_destination(tmp_path: Path) -> None:
-    source = tmp_path / "source"; source.write_bytes(b"new")
-    target = tmp_path / "real"; target.write_bytes(b"old")
-    destination = tmp_path / "destination"; destination.symlink_to(target)
+    source = tmp_path / "source"
+    source.write_bytes(b"new")
+    target = tmp_path / "real"
+    target.write_bytes(b"old")
+    destination = tmp_path / "destination"
+    destination.symlink_to(target)
     with pytest.raises(OSError, match="destination is a symlink"):
         durable_fs.durable_replace(source, destination)
     assert source.read_bytes() == b"new"
@@ -57,45 +90,71 @@ def test_replace_rejects_symlink_destination(tmp_path: Path) -> None:
 
 
 def test_fsync_directory_rejects_symlink(tmp_path: Path) -> None:
-    real = tmp_path / "real"; real.mkdir()
-    link = tmp_path / "link"; link.symlink_to(real, target_is_directory=True)
+    real = tmp_path / "real"
+    real.mkdir()
+    link = tmp_path / "link"
+    link.symlink_to(real, target_is_directory=True)
     with pytest.raises(NotADirectoryError, match="unsafe"):
         durable_fs.fsync_directory(link)
 
 
 def test_durable_mkdir_rejects_existing_non_directory(tmp_path: Path) -> None:
-    target = tmp_path / "not-a-directory"; target.write_text("file", encoding="utf-8")
+    target = tmp_path / "not-a-directory"
+    target.write_text("file", encoding="utf-8")
     with pytest.raises(FileExistsError):
         durable_fs.durable_mkdir(target, parents=True, exist_ok=True)
 
 
-def test_posix_durable_mkdir_syncs_each_new_parent_entry(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    target = tmp_path / "one" / "two" / "three"; synced: list[Path] = []
+def test_posix_durable_mkdir_syncs_each_new_parent_entry(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    target = tmp_path / "one" / "two" / "three"
+    synced: list[Path] = []
     monkeypatch.setattr(durable_fs, "_is_windows", lambda: False)
-    monkeypatch.setattr(durable_fs, "fsync_directory", lambda path: synced.append(Path(path)))
+    monkeypatch.setattr(
+        durable_fs,
+        "fsync_directory",
+        lambda path: synced.append(Path(path)),
+    )
     durable_fs.durable_mkdir(target, parents=True, exist_ok=True)
     assert target.is_dir()
     assert synced == [tmp_path, tmp_path / "one", tmp_path / "one" / "two"]
 
 
-def test_windows_route_uses_write_through_primitive(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    source = tmp_path / "source.partial"; destination = tmp_path / "destination.bin"; source.write_bytes(b"x")
+def test_windows_route_uses_write_through_primitive(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "source.partial"
+    destination = tmp_path / "destination.bin"
+    source.write_bytes(b"x")
     called: list[tuple[Path, Path]] = []
     monkeypatch.setattr(durable_fs, "_is_windows", lambda: True)
-    monkeypatch.setattr(durable_fs, "_windows_replace_write_through", lambda old, new: called.append((Path(old), Path(new))))
+    monkeypatch.setattr(
+        durable_fs,
+        "_windows_replace_write_through",
+        lambda old, new: called.append((Path(old), Path(new))),
+    )
     durable_fs.durable_replace(source, destination)
     assert called == [(source, destination)]
 
 
 @pytest.mark.skipif(os.name != "nt", reason="Windows MoveFileExW behavior")
 def test_windows_write_through_replaces_existing_file(tmp_path: Path) -> None:
-    source = tmp_path / "source.partial"; destination = tmp_path / "destination.bin"
-    source.write_bytes(b"replacement"); destination.write_bytes(b"old")
+    source = tmp_path / "source.partial"
+    destination = tmp_path / "destination.bin"
+    source.write_bytes(b"replacement")
+    destination.write_bytes(b"old")
     durable_fs.durable_replace(source, destination)
-    assert not source.exists(); assert destination.read_bytes() == b"replacement"
+    assert not source.exists()
+    assert destination.read_bytes() == b"replacement"
 
 
-@pytest.mark.skipif(os.name != "nt", reason="Windows MoveFileExW durable directory creation")
+@pytest.mark.skipif(
+    os.name != "nt",
+    reason="Windows MoveFileExW durable directory creation",
+)
 def test_windows_durable_mkdir_creates_nested_tree(tmp_path: Path) -> None:
     target = tmp_path / "first" / "second" / "third"
     durable_fs.durable_mkdir(target, parents=True, exist_ok=True)
