@@ -155,6 +155,24 @@ QPushButton#contextToggle:checked {
     border-color: #344041;
 }
 
+QPushButton#newChatButton,
+QPushButton#deleteChatButton {
+    min-height: 28px;
+    padding: 0 8px;
+    color: #8d979e;
+    background: transparent;
+    border: 1px solid transparent;
+    font-size: 10px;
+    font-weight: 500;
+}
+
+QPushButton#newChatButton:hover,
+QPushButton#deleteChatButton:hover {
+    color: #e4e7e9;
+    background: #1a1e21;
+    border-color: #2a3035;
+}
+
 QPushButton#sendButton,
 QPushButton[role="primary"] {
     color: #151719;
@@ -180,6 +198,20 @@ QDoubleSpinBox {
     min-height: 32px;
     padding: 0 10px;
     selection-background-color: #4c5b5d;
+}
+
+QComboBox#chatSelector,
+QComboBox#modelSelector {
+    min-height: 30px;
+    background: #15191c;
+    border-color: #252b30;
+    color: #c9cfd3;
+}
+
+QComboBox#chatSelector:hover,
+QComboBox#modelSelector:hover {
+    border-color: #353c42;
+    background: #181c1f;
 }
 
 QLineEdit:hover,
