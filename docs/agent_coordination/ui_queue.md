@@ -78,21 +78,22 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 | UI-069 | P2 | DONE | Accessible state composition now retains existing Research/Jobs cancellation phase and selected job state alongside current result scope and semantic state. Commits `89f6c912974115db110c1f22e8db2a637b9b2e0e` and `dc40125b4e8ec61c7872b915e922572da7641f36`; targeted tests NOT EXECUTABLE. |
 | UI-070 | P1 | DONE | `pathenaSelectionDisappeared` is now an authoritative assistive state composed with current scope/state/cancellation, preventing general state sync from erasing a vanished-selection announcement. Commits `61368723c4ffb2e16c399120fc798201fd3496d8` and `cc43b6f0441db631bea1a689dc693119b87a8087`; targeted tests NOT EXECUTABLE. |
 | UI-071 | P1 | DONE | A new manual Knowledge/Claim/Decision selection now clears stale disappearance markers immediately while `current=None` during refresh keeps the handoff marker intact. Commits `75e6a4e4c421c09fe3cebc710818679168b299a3` and `a16420fe7cc6eed3f08067673ccbd7dfd6686351`; targeted tests NOT EXECUTABLE. |
+| UI-072 | P2 | DONE | Cross-workspace reselection now clears stale disappearance markers and exact stale handoff copy for Sources, durable Jobs, Research and Backup; Research proposal handoff marker clears with the new run. Commits `3bb186b85d64d8e410a0637735befd1b8610d9a9`, `1538028de4143f468de7185ff83229d28d958b17`, `8d6ecde012f4b103c74a2aea881e6d21555cb62a`, `378bae7d997bc6fc9bef452ae87079bad0215d52`; targeted execution NOT EXECUTABLE because checkout DNS failed. |
 
 ## Active queue
 
 ### UI-047 — Post-slice targeted execution handoff
 - **Priority:** P2
 - **Status:** BLOCKED
-- **Evidence:** Connector runtime cannot provide a checked-out repository process; local clone again failed on 2026-08-23 because `github.com` DNS resolution was unavailable before pytest could start.
+- **Evidence:** Connector runtime cannot provide a checked-out repository process; local clone again failed on 2026-08-24 because `github.com` DNS resolution was unavailable before pytest could start.
 - **Views/components:** Recent UI modules and tests.
 - **Dependencies:** Runtime with repository checkout or Quality-bot execution.
-- **Last verification:** 2026-08-23.
+- **Last verification:** 2026-08-24.
 
-### UI-072 — Cross-workspace disappearance recovery audit
+### UI-073 — Navigation context accessibility
 - **Priority:** P2
-- **Status:** READY
-- **Evidence:** Knowledge required explicit clearing of stale `pathenaSelectionDisappeared` on direct reselection. Audit Files, durable Jobs, Research and Backup for the same no-refresh reselection path so vanished-selection announcements cannot outlive a newer intentional selection.
-- **Views/components:** Sources, durable Jobs, Research jobs, Backup snapshots.
-- **Dependencies:** UI-050, UI-052, UI-066, UI-070, UI-071.
-- **Last verification:** 2026-08-23.
+- **Status:** IN_PROGRESS
+- **Evidence:** pATHENA visually mirrors the selected workspace into `pageTitle`, but the navigation list and title do not currently expose an explicit accessible current-workspace relationship or deterministic current-page description for keyboard/screenreader users.
+- **Views/components:** Main navigation list, page title, stacked workspace selection.
+- **Dependencies:** Existing native QListWidget/QStackedWidget navigation only; no backend dependency.
+- **Last verification:** 2026-08-24.
