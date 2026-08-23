@@ -128,14 +128,23 @@ def runtime_data_lock(
         yield
         return
 
-    requested = (
-        state_root.expanduser()
-    )
+    if not isinstance(state_root, Path):
+        raise TypeError(
+            "ATHENA state root must be a pathlib.Path or None."
+        )
 
-    requested.mkdir(
-        parents=True,
-        exist_ok=True,
-    )
+    requested = state_root.expanduser()
+
+    try:
+        requested.mkdir(
+            parents=True,
+            exist_ok=True,
+        )
+    except OSError as exc:
+        raise RuntimeDataLockError(
+            "ATHENA state root cannot be prepared "
+            "for runtime mutation locking."
+        ) from exc
 
     if (
         requested.is_symlink()
@@ -146,7 +155,13 @@ def runtime_data_lock(
             "for runtime mutation locking."
         )
 
-    root = requested.resolve()
+    try:
+        root = requested.resolve(strict=True)
+    except OSError as exc:
+        raise RuntimeDataLockError(
+            "ATHENA state root cannot be resolved "
+            "for runtime mutation locking."
+        ) from exc
 
     key = os.path.normcase(
         str(
