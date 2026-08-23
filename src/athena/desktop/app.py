@@ -72,6 +72,9 @@ from athena.desktop.pathena_research_result_presentation import (
     apply_research_result_presentation,
 )
 from athena.desktop.pathena_result_scope_clarity import apply_result_scope_clarity
+from athena.desktop.pathena_selection_disappearance_handoff import (
+    install_selection_disappearance_handoff,
+)
 from athena.desktop.pathena_shell_density import apply_shell_density
 from athena.desktop.pathena_startup_experience_2900 import install_startup_experience
 from athena.desktop.pathena_theme import PATHENA_STYLESHEET
@@ -229,11 +232,19 @@ def main(argv: Sequence[str] | None = None) -> int:
         system_backup.backup,
         research_results_extension,
     )
+    selection_disappearance_handoff = install_selection_disappearance_handoff(
+        files_workspace,
+        jobs_workspace,
+        research_workspace,
+        system_backup.backup,
+        research_results_extension,
+    )
     _schedule_initial_core_refreshes(controller, supervisor, scheduler_supervisor)
     heartbeat = _start_core_refresh_heartbeat(controller, supervisor, scheduler_supervisor)
     window.show()
     exit_code = app.exec()
     heartbeat.stop()
+    selection_disappearance_handoff.deleteLater()
     background_completion_accessibility.deleteLater()
     research_knowledge_transition.deleteLater()
     research_proposal_clarity.deleteLater()
