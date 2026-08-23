@@ -57,10 +57,10 @@ Last refresh: 2026-08-23.
 ### FG-013 — Reconcile migration engine with Beta 03 architecture
 - **Source:** Beta 03 section 3 and sections 193–209.
 - **Ownership / Priority / Status:** BACKEND · P1 · PARTIAL
-- **Current state:** The normal `SQLiteDatabase.start()` path still performs legacy live `initialize_schema()` migration. A complete library-neutral safety stack now exists outside startup: read-only migration planning, versioned descriptors and exact free-space preflight, SQLite Online Backup candidate creation, durable external phase journal, exclusive cross-process migration lock, candidate-only schema execution, full WAL checkpoint + DELETE-mode normalization, integrity/FK/version verification, rollback-preserving activation, orphan/journal recovery boundaries and Windows symlink/junction/reparse protection. Quality-reported reparse handling in the new clone path was fixed with targeted regressions.
-- **Desired state:** route preflight-detected legacy schemas through this coordinator before opening active SQLite for mutation. Separately decide Alembic-vs-custom revision execution as an explicit architecture/spec decision.
-- **Dependencies:** BE-028 IN_PROGRESS; BE-029 reserve bootstrap integration required so migration preflight accounts for the real physical reserve; BE-031/BE-032 DONE.
-- **Verification:** 2026-08-23; targeted tests added, not executed because isolated runtime cannot resolve `github.com`.
+- **Current state:** Safe startup routing is now implemented: `StorageBootstrapService` performs read-only preflight and migration planning, provisions the emergency reserve, routes legacy schemas through clone migration before writable database startup, preserves rollback/recovery boundaries, and only then starts `SQLiteDatabase`. The previous integration gap is therefore closed. The remaining divergence is architectural: schema revision execution still uses the custom/library-neutral migration stack rather than the Beta-specified SQLAlchemy 2.x + Alembic toolchain.
+- **Desired state:** make the Alembic-vs-custom revision engine an explicit architecture/spec decision. If the custom engine is retained, document the intentional Beta override and the equivalent migration-safety invariants; otherwise migrate revision execution to Alembic without weakening the clone/activation/recovery safety stack.
+- **Dependencies:** storage bootstrap integration is present; no longer blocked on routing legacy startup through the coordinator.
+- **Verification:** 2026-08-23; inspected current `src/athena/storage/bootstrap.py`, migration stack, and current branch diff. Product tests were not executed by the Scout.
 
 ### FG-014 — Reject network-backed active state roots before SQLite open
 - **Ownership / Priority / Status:** BACKEND · P1 · IMPLEMENTED
@@ -69,16 +69,16 @@ Last refresh: 2026-08-23.
 ### FG-015 — Physical Emergency Reserve and disk-pressure policy
 - **Source:** Beta 03 emergency reserve/disk-pressure sections and Emergency Reserve Test 270.
 - **Ownership / Priority / Status:** BACKEND · P1 · IN_PROGRESS
-- **Current state:** `EmergencyReserveStore` and lifecycle service implement non-sparse physical allocation at `state_root/reserve/emergency.reserve`, exact default sizing `max(256 MiB, min(1 GiB, 1% volume))`, durable persistence, path/reparse safety, explicit release and normal-shutdown retention. `DiskPressureController` implements integer-only WARNING/CRITICAL/EMERGENCY thresholds, releases only the reserve at EMERGENCY, immediately reassesses pressure, and never deletes canonical data.
-- **Desired state:** integrate Core bootstrap ordering `RuntimeLayout -> EmergencyReserve -> migration/database`; then connect the pressure decision to actual write gating/read-only safe mode. Do not make existing test suites physically allocate >=256 MiB per application start; establish dependency injection first.
-- **Dependencies:** BE-029/BE-030/BE-033.
-- **Verification:** 2026-08-23; targeted tests added, not executed.
+- **Current state:** `EmergencyReserveStore` and lifecycle policy implement non-sparse physical allocation at `state_root/reserve/emergency.reserve`, exact default sizing `max(256 MiB, min(1 GiB, 1% volume))`, durable persistence, path/reparse safety, explicit release and normal-shutdown retention. `DiskPressureController` implements integer-only WARNING/CRITICAL/EMERGENCY thresholds, releases only the reserve at EMERGENCY, immediately reassesses pressure, exposes `assert_noncritical_write_allowed()`, and never deletes canonical data. Bootstrap ordering is now real: `RuntimeLayout -> migration-root/preflight -> reserve provisioning -> clone migration if required -> SQLite start`; EMERGENCY refuses writable startup. The remaining integration gap is runtime write gating: `SQLiteDatabase.write_transaction()` does not yet invoke the disk-pressure gate, so an already-running process has no centralized transaction-boundary enforcement when free space later falls into EMERGENCY.
+- **Desired state:** inject the pressure gate at canonical write-transaction boundaries (or an equivalent single authoritative write path), enter/readily expose read-only safe mode when EMERGENCY is reached after startup, and preserve critical recovery operations without permitting ordinary writes. Avoid per-start test allocation of >=256 MiB through dependency injection/fakes.
+- **Dependencies:** bootstrap/reserve ordering is implemented; remaining work belongs at runtime write arbitration/safe-mode integration.
+- **Verification:** 2026-08-23; inspected current `storage/bootstrap.py`, `storage/disk_pressure.py`, and `storage/database.py`. `DiskPressureController.assert_noncritical_write_allowed()` exists but has no call in `SQLiteDatabase.write_transaction()`.
 
 ## Handoff notes
 - Re-read current HEAD and affected files before every mutation.
 - Preserve `unknown` versus `unsupported`; never invent provider facts.
 - Shared provider/generation files remain ownership-sensitive.
 - FG-012 must never route protected cleartext into ordinary indexes/logs/run snapshots/unprotected assistant persistence.
-- FG-013 clone/journal safety is independent of the Alembic-vs-custom architecture decision.
+- FG-013 clone/journal/startup routing is implemented; only the Alembic-vs-custom architecture/spec decision remains.
 - FG-014 applies only to active state/database roots.
-- FG-015 reserve release is an emergency recovery measure; normal shutdown must retain it.
+- FG-015 reserve release is an emergency recovery measure; normal shutdown must retain it. Runtime noncritical writes still need centralized pressure gating after startup.
