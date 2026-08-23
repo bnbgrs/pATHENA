@@ -135,13 +135,12 @@ class GuidanceCompositionController(QObject):
         overlays = self._overlays(widget)
         accessible_parts = [self._accessible_base.get(widget, "")]
         accessible_parts.extend(text for _name, text in overlays)
-        accessible = self._deduplicated_join(accessible_parts, separator=" ")
-        widget.setAccessibleDescription(accessible)
-
-        tooltip_parts = [self._tooltip_base.get(widget, "")]
-        tooltip_parts.extend(f"{name}: {text}" for name, text in overlays[:2])
-        tooltip = self._deduplicated_join(tooltip_parts, separator="\n")
-        widget.setToolTip(tooltip)
+        widget.setAccessibleDescription(
+            self._deduplicated_join(accessible_parts, separator=" ")
+        )
+        widget.setToolTip(
+            self._compose_tooltip(self._tooltip_base.get(widget, ""), overlays)
+        )
 
         widget.setProperty("pathenaGuidanceOverlayCount", len(overlays))
         widget.setProperty("pathenaGuidanceTooltipOverlayCount", min(2, len(overlays)))
@@ -184,13 +183,22 @@ class GuidanceCompositionController(QObject):
         if not phase or phase == "no-selection":
             return ""
         if phase == "requesting":
-            return "A cancellation request is being persisted; terminal cancellation has not occurred yet."
+            return (
+                "A cancellation request is being persisted; terminal cancellation "
+                "has not occurred yet."
+            )
         if phase == "requested":
-            return "Cancellation is requested and persisted; terminal cancellation is still pending."
+            return (
+                "Cancellation is requested and persisted; terminal cancellation "
+                "is still pending."
+            )
         if phase == "cancelled":
             return "The selected job is terminally cancelled."
         if phase == "terminal-other":
-            return f"The selected job is terminal with state {state}; cancellation is not pending."
+            return (
+                f"The selected job is terminal with state {state}; cancellation "
+                "is not pending."
+            )
         if phase == "requestable":
             return f"The selected job is {state}; cancelling would persist a request first."
         return ""
@@ -216,6 +224,14 @@ class GuidanceCompositionController(QObject):
             if normalized == other or normalized in other or other in normalized:
                 return True
         return False
+
+    @staticmethod
+    def _compose_tooltip(base: str, overlays: list[tuple[str, str]]) -> str:
+        parts: list[str] = []
+        if base.strip():
+            parts.append(base.strip())
+        parts.extend(f"{name}: {text}" for name, text in overlays[:2])
+        return "\n".join(parts)
 
     @staticmethod
     def _deduplicated_join(parts: list[str], *, separator: str) -> str:
