@@ -126,49 +126,17 @@ def _resolve_merge(app: AthenaApplication, *, review_id: uuid.UUID, decision: st
 def _claim_relation_row(app: AthenaApplication, claim_id: uuid.UUID) -> tuple[str, ...]:
     rows: list[str] = []
     for evidence in app.claim_repository.list_evidence(claim_id):
-        target_id = evidence.evidence_entity_id
-        target_revision = evidence.evidence_revision_id
-        if target_id is not None:
-            try:
-                target = app.claim_repository.load_current(target_id)
-            except ClaimNotFoundError:
-                rows.append(
-                    "\t".join(
-                        (
-                            evidence.evidence_role.value,
-                            str(target_id),
-                            str(target_revision or "-"),
-                            "entity",
-                            "-",
-                            "-",
-                            "<non-Claim semantic target>",
-                        )
-                    )
-                )
-            else:
-                payload = target.revision.payload
-                rows.append(
-                    "\t".join(
-                        (
-                            evidence.evidence_role.value,
-                            str(target.claim_id),
-                            str(target.revision.revision_id),
-                            "claim",
-                            payload.claim_kind.value,
-                            payload.epistemic_status.value,
-                            _safe(_compact(payload.statement)),
-                        )
-                    )
-                )
-            continue
-
+        # Preserve the most specific provenance identity first. Chat-origin evidence
+        # also carries the message entity in evidence_entity_id, but presenting that
+        # generic entity before message_id would make ORIGINATES look like an unknown
+        # semantic relation instead of an exact source-message reference.
         if evidence.message_id is not None:
             rows.append(
                 "\t".join(
                     (
                         evidence.evidence_role.value,
                         str(evidence.message_id),
-                        "-",
+                        str(evidence.evidence_revision_id or "-"),
                         "message",
                         "-",
                         "-",
@@ -184,11 +152,48 @@ def _claim_relation_row(app: AthenaApplication, claim_id: uuid.UUID) -> tuple[st
                     (
                         evidence.evidence_role.value,
                         str(evidence.anchor_id),
-                        "-",
+                        str(evidence.evidence_revision_id or "-"),
                         "anchor",
                         "-",
                         "-",
                         "Source anchor evidence",
+                    )
+                )
+            )
+            continue
+
+        target_id = evidence.evidence_entity_id
+        target_revision = evidence.evidence_revision_id
+        if target_id is None:
+            continue
+        try:
+            target = app.claim_repository.load_current(target_id)
+        except ClaimNotFoundError:
+            rows.append(
+                "\t".join(
+                    (
+                        evidence.evidence_role.value,
+                        str(target_id),
+                        str(target_revision or "-"),
+                        "entity",
+                        "-",
+                        "-",
+                        "<non-Claim semantic target>",
+                    )
+                )
+            )
+        else:
+            payload = target.revision.payload
+            rows.append(
+                "\t".join(
+                    (
+                        evidence.evidence_role.value,
+                        str(target.claim_id),
+                        str(target.revision.revision_id),
+                        "claim",
+                        payload.claim_kind.value,
+                        payload.epistemic_status.value,
+                        _safe(_compact(payload.statement)),
                     )
                 )
             )
