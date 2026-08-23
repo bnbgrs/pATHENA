@@ -28,6 +28,7 @@ from athena.desktop.pathena_layout_refinement_2200 import install_layout_refinem
 from athena.desktop.pathena_progressive_workspace_2300 import (
     install_progressive_workspace_refinement,
 )
+from athena.desktop.pathena_quiet_success_decay_6400 import apply_quiet_success_decay
 from athena.desktop.pathena_research_experience_2500 import install_research_experience
 from athena.desktop.pathena_research_knowledge_transition_2700 import (
     install_research_knowledge_transition,
@@ -154,6 +155,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     apply_complete_ui_refinements(window)
     apply_ui_refinements_6101_6200(window)
     detail_provenance = apply_detail_provenance(window)
+    success_decay = apply_quiet_success_decay(window)
     interaction_refinement = install_interaction_refinement(window)
     layout_refinement = install_layout_refinement(window)
     progressive_workspace_refinement = install_progressive_workspace_refinement(window)
@@ -181,6 +183,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     progressive_workspace_refinement.deleteLater()
     layout_refinement.deleteLater()
     interaction_refinement.deleteLater()
+    success_decay.deleteLater()
     detail_provenance.deleteLater()
     startup_experience.deleteLater()
     jobs_experience.deleteLater()
