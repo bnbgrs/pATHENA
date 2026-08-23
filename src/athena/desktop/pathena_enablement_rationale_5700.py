@@ -9,7 +9,6 @@ calls setEnabled(), starts work, changes selection or invents a backend capabili
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable
 
 from PySide6.QtCore import QEvent, QObject, QTimer
 from PySide6.QtWidgets import QWidget
@@ -116,19 +115,23 @@ class EnablementRationaleController(QObject):
 
         available = widget.isEnabled()
         reason_text = "Available now." if available else reason
-        restore_text = "No prerequisite is currently blocking this control." if available else restore
+        restore_text = (
+            "No prerequisite is currently blocking this control."
+            if available
+            else restore
+        )
+        detail = f"{reason_text} {restore_text}"
 
         widget.setProperty("pathenaEnablementAvailable", available)
         widget.setProperty("pathenaEnablementReason", reason_text)
         widget.setProperty("pathenaEnablementRestoreCondition", restore_text)
         widget.setProperty("pathenaEnablementRationaleSynchronized", True)
 
-        availability = f"Availability: {reason_text} {restore_text}"
         widget.setAccessibleDescription(
-            self._with_suffix(widget.accessibleDescription(), " Availability: ", availability)
+            self._with_suffix(widget.accessibleDescription(), " Availability: ", detail)
         )
-        widget.setToolTip(self._with_suffix(widget.toolTip(), "\nAvailability: ", availability))
-        widget.setStatusTip(availability)
+        widget.setToolTip(self._with_suffix(widget.toolTip(), "\nAvailability: ", detail))
+        widget.setStatusTip(f"Availability: {detail}")
 
     def _rationale(
         self,
@@ -174,7 +177,7 @@ class EnablementRationaleController(QObject):
             )
         if kind == "chat-model" and hasattr(widget, "count"):
             count = getattr(widget, "count")
-            if isinstance(count, Callable) and count() == 0:
+            if callable(count) and count() == 0:
                 return (
                     "No local model is currently listed.",
                     "The selector becomes available when model discovery returns a model.",
@@ -302,7 +305,7 @@ class EnablementRationaleController(QObject):
     def _with_suffix(current: str, marker: str, suffix: str) -> str:
         base = current.split(marker, 1)[0].rstrip()
         if not base:
-            return suffix
+            return f"Availability: {suffix}"
         return f"{base}{marker}{suffix}"
 
 
