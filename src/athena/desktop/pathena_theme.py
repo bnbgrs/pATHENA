@@ -249,6 +249,76 @@ QLineEdit#promptInput {
     border-radius: 10px;
 }
 
+QDialog#commandPalette,
+QDialog#helpDialog {
+    color: #e9ecee;
+    background: #15181b;
+    border: 1px solid #30363b;
+}
+
+QLabel#commandPaletteTitle,
+QLabel#helpDialogTitle {
+    color: #f1f3f4;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+QLabel#commandPaletteHint,
+QLabel#commandPaletteFooter {
+    color: #727c83;
+    font-size: 10px;
+    font-weight: 500;
+}
+
+QLabel#helpDialogIntro {
+    color: #929ca3;
+    font-size: 11px;
+}
+
+QLineEdit#commandPaletteQuery {
+    min-height: 38px;
+    padding: 0 12px;
+    background: #111416;
+    border: 1px solid #30363b;
+    border-radius: 8px;
+    font-size: 13px;
+}
+
+QListWidget#commandPaletteResults {
+    color: #c9cfd3;
+    background: transparent;
+    border: none;
+    outline: none;
+    padding: 2px 0;
+}
+
+QListWidget#commandPaletteResults::item {
+    min-height: 32px;
+    padding: 5px 10px;
+    margin: 1px 0;
+    border: none;
+    border-radius: 7px;
+}
+
+QListWidget#commandPaletteResults::item:hover {
+    color: #f1f3f4;
+    background: #1d2226;
+}
+
+QListWidget#commandPaletteResults::item:selected {
+    color: #f5f6f7;
+    background: #252b30;
+}
+
+QPlainTextEdit#helpText {
+    color: #bec5ca;
+    background: #111416;
+    border: 1px solid #252b30;
+    border-radius: 8px;
+    padding: 12px;
+    selection-background-color: #293235;
+}
+
 QScrollArea,
 QWidget#chatMessages,
 QWidget#pageChat,
