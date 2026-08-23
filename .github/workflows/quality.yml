@@ -2,18 +2,16 @@ name: ATHENA Quality Gate
 
 on:
   push:
-    paths-ignore:
-      - "docs/**"
+    branches:
+      - main
   pull_request:
-    paths-ignore:
-      - "docs/**"
 
 permissions:
   contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   quality:
