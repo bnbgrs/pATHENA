@@ -5,6 +5,7 @@ from __future__ import annotations
 from PySide6.QtCore import QSize
 from PySide6.QtWidgets import QFrame, QLabel
 
+from athena.desktop.api_controller import DesktopApiController
 from athena.desktop.window import AthenaMainWindow, MetricRow
 
 _DISPLAY_NAVIGATION = (
@@ -26,8 +27,8 @@ class PathenaMainWindow(AthenaMainWindow):
     future functional work can continue independently of the presentation layer.
     """
 
-    def __init__(self, *args: object, **kwargs: object) -> None:
-        super().__init__(*args, **kwargs)
+    def __init__(self, api_controller: DesktopApiController | None = None) -> None:
+        super().__init__(api_controller=api_controller)
         self._apply_quiet_cognitive_workspace()
 
     def _apply_quiet_cognitive_workspace(self) -> None:
