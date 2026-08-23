@@ -14,6 +14,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from athena.core.application import AthenaApplication
+from athena.jobs.models import JobRecord
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -143,10 +144,8 @@ def _print_show(app: AthenaApplication, job_id: uuid.UUID) -> None:
             print(f"  RESUME {checkpoint.resume_metadata_json}")
 
 
-def _print_transition(label: str, job: object) -> None:
-    job_id = getattr(job, "job_id")
-    state = getattr(job, "state").value
-    print(f"{label} {job_id} {state}")
+def _print_transition(label: str, job: JobRecord) -> None:
+    print(f"{label} {job.job_id} {job.state.value}")
 
 
 def _run(app: AthenaApplication, args: argparse.Namespace) -> int:
