@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from athena.desktop.pathena_ui_refinement_2100 import (
-    UI_REFINEMENT_TASKS_1101_2100,
     _REFINEMENTS,
     _SLICES,
     _STYLESHEET,
+    UI_REFINEMENT_TASKS_1101_2100,
 )
 
 
