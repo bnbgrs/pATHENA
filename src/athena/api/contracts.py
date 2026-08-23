@@ -273,6 +273,69 @@ class KnowledgeMergeReviewResponse(ApiContract):
 
 
 @dataclass(frozen=True, slots=True)
+class CanonicalClaimRevisionResponse(ApiContract):
+    claim_id: str
+    revision_id: str
+    revision_no: int
+    created_at_us: int
+    created_by_actor_id: str
+    provenance_id: str
+    claim_kind: str
+    statement: str
+    epistemic_status: str
+    subject_entity_id: str | None
+    predicate: str | None
+    object_entity_id: str | None
+    attributed_to_entity_id: str | None
+    valid_from_us: int | None
+    valid_to_us: int | None
+
+
+@dataclass(frozen=True, slots=True)
+class ClaimProvenanceInputResponse(ApiContract):
+    provenance_id: str
+    input_entity_id: str
+    input_revision_id: str | None
+    input_role: str
+    ordinal: int
+
+
+@dataclass(frozen=True, slots=True)
+class ClaimEvidenceResponse(ApiContract):
+    evidence_role: str
+    provenance_id: str
+    anchor_id: str | None
+    message_id: str | None
+    evidence_entity_id: str | None
+    evidence_revision_id: str | None
+
+
+@dataclass(frozen=True, slots=True)
+class CanonicalClaimResponse(ApiContract):
+    claim_id: str
+    lifecycle_state: str
+    revision: CanonicalClaimRevisionResponse
+    provenance_inputs: tuple[ClaimProvenanceInputResponse, ...]
+    evidence: tuple[ClaimEvidenceResponse, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class ContradictionReviewResponse(ApiContract):
+    review_id: str
+    status: str
+    created_at_us: int
+    resolved_at_us: int | None
+    processing_run_id: str
+    model_signature_id: str
+    confidence: float
+    reason: str
+    left_revision: CanonicalClaimRevisionResponse
+    right_revision: CanonicalClaimRevisionResponse
+    decision_actor_id: str | None
+    decision_reason: str | None
+
+
+@dataclass(frozen=True, slots=True)
 class DeletionDependencyResponse(ApiContract):
     relation: str
     count: int
