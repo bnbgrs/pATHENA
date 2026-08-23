@@ -68,3 +68,45 @@ def test_publish_rejects_symlink_runtime_root(tmp_path: Path) -> None:
         runtime.publish(port=1234)
 
     assert not (real_root / "core-api.token").exists()
+
+
+def test_publish_rejects_symlink_runtime_ancestor(tmp_path: Path) -> None:
+    real_root = tmp_path / "real"
+    real_root.mkdir()
+    link_root = tmp_path / "link"
+    try:
+        link_root.symlink_to(real_root, target_is_directory=True)
+    except OSError:
+        pytest.skip("symlink creation unavailable")
+
+    runtime = LocalApiRuntime(link_root / "api")
+
+    with pytest.raises(ApiRuntimeError, match="symlink ancestor"):
+        runtime.publish(port=1234)
+
+    assert not (real_root / "api" / "core-api.token").exists()
+
+
+def test_clear_rejects_runtime_root_replaced_by_symlink(tmp_path: Path) -> None:
+    runtime_root = tmp_path / "api"
+    runtime = LocalApiRuntime(runtime_root)
+    runtime.publish(port=1234)
+    runtime.clear()
+    runtime_root.rmdir()
+
+    foreign = tmp_path / "foreign"
+    foreign.mkdir()
+    foreign_discovery = foreign / "core-api.json"
+    foreign_token = foreign / "core-api.token"
+    foreign_discovery.write_text("foreign", encoding="utf-8")
+    foreign_token.write_text("foreign", encoding="utf-8")
+    try:
+        runtime_root.symlink_to(foreign, target_is_directory=True)
+    except OSError:
+        pytest.skip("symlink creation unavailable")
+
+    with pytest.raises(ApiRuntimeError, match="must not be a symlink"):
+        runtime.clear()
+
+    assert foreign_discovery.read_text(encoding="utf-8") == "foreign"
+    assert foreign_token.read_text(encoding="utf-8") == "foreign"
