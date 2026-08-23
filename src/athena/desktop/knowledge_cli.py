@@ -194,26 +194,26 @@ def _print_claim_show(app: AthenaApplication, claim_id: uuid.UUID) -> None:
 
     provenance = app.claim_repository.list_provenance_inputs(revision.provenance_id)
     print(f"PROVENANCE_INPUTS {len(provenance)}")
-    for item in provenance:
+    for provenance_ref in provenance:
         print(
             "PROVENANCE "
-            f"{item.ordinal} "
-            f"role={item.input_role} "
-            f"entity={item.input_entity_id} "
-            f"revision={item.input_revision_id or '-'}"
+            f"{provenance_ref.ordinal} "
+            f"role={provenance_ref.input_role} "
+            f"entity={provenance_ref.input_entity_id} "
+            f"revision={provenance_ref.input_revision_id or '-'}"
         )
 
     evidence = app.claim_repository.list_evidence(claim_id)
     print(f"EVIDENCE {len(evidence)}")
-    for item in evidence:
+    for evidence_ref in evidence:
         print(
             "EVIDENCE_REF "
-            f"role={item.evidence_role.value} "
-            f"anchor={item.anchor_id or '-'} "
-            f"message={item.message_id or '-'} "
-            f"entity={item.evidence_entity_id or '-'} "
-            f"revision={item.evidence_revision_id or '-'} "
-            f"provenance={item.provenance_id}"
+            f"role={evidence_ref.evidence_role.value} "
+            f"anchor={evidence_ref.anchor_id or '-'} "
+            f"message={evidence_ref.message_id or '-'} "
+            f"entity={evidence_ref.evidence_entity_id or '-'} "
+            f"revision={evidence_ref.evidence_revision_id or '-'} "
+            f"provenance={evidence_ref.provenance_id}"
         )
 
 
