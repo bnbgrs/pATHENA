@@ -4,17 +4,19 @@ from __future__ import annotations
 
 import os
 import shutil
+import stat
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from athena.storage.durable_fs import fsync_directory, is_link_boundary
+from athena.storage.durable_fs import durable_mkdir, fsync_directory, is_link_boundary
 
 _MIB = 1024 * 1024
 _GIB = 1024 * _MIB
 _MIN_RESERVE_BYTES = 256 * _MIB
 _MAX_RESERVE_BYTES = 1 * _GIB
 _DEFAULT_WRITE_CHUNK_BYTES = 4 * _MIB
+_RESERVE_FILENAME = "emergency.reserve"
 
 
 class EmergencyReserveError(RuntimeError):
@@ -65,6 +67,13 @@ def _assert_safe_parent(path: Path) -> None:
         cursor = parent
 
 
+def _allocated_bytes_from_stat(stat_result: os.stat_result) -> int | None:
+    blocks = getattr(stat_result, "st_blocks", None)
+    if isinstance(blocks, int) and blocks >= 0:
+        return blocks * 512
+    return None
+
+
 def _allocated_bytes(path: Path) -> int | None:
     """Return observable physical allocation when the platform reports it."""
     try:
@@ -73,10 +82,48 @@ def _allocated_bytes(path: Path) -> int | None:
         raise EmergencyReserveError(
             "Emergency reserve allocation metadata could not be read."
         ) from exc
-    blocks = getattr(stat_result, "st_blocks", None)
-    if isinstance(blocks, int) and blocks >= 0:
-        return blocks * 512
-    return None
+    return _allocated_bytes_from_stat(stat_result)
+
+
+def _open_posix_directory(path: Path) -> int:
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(path, flags)
+    except OSError as exc:
+        raise EmergencyReserveError(
+            "Emergency reserve directory could not be opened safely."
+        ) from exc
+    try:
+        handle_stat = os.fstat(descriptor)
+        path_stat = os.stat(path, follow_symlinks=False)
+        if not stat.S_ISDIR(handle_stat.st_mode) or not os.path.samestat(
+            handle_stat,
+            path_stat,
+        ):
+            raise EmergencyReserveError(
+                "Emergency reserve directory identity changed while opening."
+            )
+    except BaseException:
+        os.close(descriptor)
+        raise
+    return descriptor
+
+
+def _assert_posix_directory_current(path: Path, descriptor: int) -> None:
+    try:
+        handle_stat = os.fstat(descriptor)
+        path_stat = os.stat(path, follow_symlinks=False)
+    except OSError as exc:
+        raise EmergencyReserveError(
+            "Emergency reserve directory identity could not be verified."
+        ) from exc
+    if is_link_boundary(path) or not stat.S_ISDIR(path_stat.st_mode) or not os.path.samestat(
+        handle_stat,
+        path_stat,
+    ):
+        raise EmergencyReserveError(
+            "Emergency reserve directory changed during filesystem mutation."
+        )
 
 
 def _write_allocated_bytes(
@@ -92,10 +139,6 @@ def _write_allocated_bytes(
             posix_fallocate(descriptor, 0, size_bytes)
             return
         except OSError:
-            # Some filesystems/platform shims expose posix_fallocate but do not
-            # support it. Fall back to explicit writes, which are non-sparse for
-            # a newly created ordinary file unless the filesystem violates its
-            # normal allocation semantics.
             pass
 
     remaining = size_bytes
@@ -157,7 +200,147 @@ class EmergencyReserveStore:
             raise ValueError("Emergency reserve state_root must be absolute.")
         self.state_root = root
         self.reserve_root = root / "reserve"
-        self.path = self.reserve_root / "emergency.reserve"
+        self.path = self.reserve_root / _RESERVE_FILENAME
+
+    def _prepare_root(self) -> None:
+        _assert_safe_parent(self.path)
+        if is_link_boundary(self.state_root) or not self.state_root.is_dir():
+            raise EmergencyReserveError(
+                "Emergency reserve state_root must be a real existing directory."
+            )
+        if self.reserve_root.exists():
+            if is_link_boundary(self.reserve_root) or not self.reserve_root.is_dir():
+                raise EmergencyReserveError(
+                    "Emergency reserve directory is not a safe real directory."
+                )
+        else:
+            try:
+                durable_mkdir(self.reserve_root, parents=False, exist_ok=False)
+            except OSError as exc:
+                raise EmergencyReserveError(
+                    "Emergency reserve directory could not be created durably."
+                ) from exc
+        _assert_safe_parent(self.path)
+        if is_link_boundary(self.path):
+            raise EmergencyReserveError(
+                "Emergency reserve file must not be a symlink, junction, or reparse point."
+            )
+
+    def _status_from_stat(
+        self,
+        *,
+        required: int,
+        stat_result: os.stat_result,
+    ) -> EmergencyReserveStatus:
+        try:
+            return EmergencyReserveStatus(
+                path=self.path,
+                required_bytes=required,
+                file_size_bytes=stat_result.st_size,
+                allocated_bytes=_allocated_bytes_from_stat(stat_result),
+            )
+        except ValueError as exc:
+            raise EmergencyReserveError(str(exc)) from exc
+
+    def _inspect_posix_with_root_fd(
+        self,
+        *,
+        root_fd: int,
+        required: int,
+    ) -> EmergencyReserveStatus:
+        flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+        try:
+            descriptor = os.open(_RESERVE_FILENAME, flags, dir_fd=root_fd)
+        except FileNotFoundError as exc:
+            raise EmergencyReserveError(
+                "Emergency reserve file is missing or unsafe."
+            ) from exc
+        except OSError as exc:
+            raise EmergencyReserveError(
+                "Emergency reserve file could not be opened safely."
+            ) from exc
+        try:
+            file_stat = os.fstat(descriptor)
+            if not stat.S_ISREG(file_stat.st_mode):
+                raise EmergencyReserveError(
+                    "Emergency reserve path is not a regular file."
+                )
+            status = self._status_from_stat(required=required, stat_result=file_stat)
+        finally:
+            os.close(descriptor)
+        _assert_posix_directory_current(self.reserve_root, root_fd)
+        return status
+
+    def _ensure_posix(
+        self,
+        *,
+        required: int,
+        chunk_bytes: int,
+    ) -> EmergencyReserveStatus:
+        root_fd = _open_posix_directory(self.reserve_root)
+        created = False
+        descriptor = -1
+        try:
+            _assert_posix_directory_current(self.reserve_root, root_fd)
+            flags = os.O_RDWR | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+            try:
+                descriptor = os.open(
+                    _RESERVE_FILENAME,
+                    flags,
+                    0o600,
+                    dir_fd=root_fd,
+                )
+                created = True
+            except FileExistsError:
+                return self._inspect_posix_with_root_fd(
+                    root_fd=root_fd,
+                    required=required,
+                )
+            except (NotImplementedError, TypeError) as exc:
+                raise EmergencyReserveError(
+                    "Identity-bound emergency reserve creation is unsupported."
+                ) from exc
+            except OSError as exc:
+                raise EmergencyReserveError(
+                    "Emergency reserve could not be opened for allocation."
+                ) from exc
+
+            os.fchmod(descriptor, 0o600)
+            _write_allocated_bytes(
+                descriptor,
+                size_bytes=required,
+                chunk_bytes=chunk_bytes,
+            )
+            os.fsync(descriptor)
+            file_stat = os.fstat(descriptor)
+            if not stat.S_ISREG(file_stat.st_mode):
+                raise EmergencyReserveError(
+                    "Emergency reserve allocation target is not a regular file."
+                )
+            status = self._status_from_stat(required=required, stat_result=file_stat)
+            os.close(descriptor)
+            descriptor = -1
+            os.fsync(root_fd)
+            _assert_posix_directory_current(self.reserve_root, root_fd)
+            return status
+        except BaseException:
+            if descriptor >= 0:
+                try:
+                    os.close(descriptor)
+                except OSError:
+                    pass
+                descriptor = -1
+            if created:
+                try:
+                    os.unlink(_RESERVE_FILENAME, dir_fd=root_fd)
+                    os.fsync(root_fd)
+                except OSError:
+                    pass
+            raise
+        finally:
+            if descriptor >= 0:
+                os.close(descriptor)
+            os.close(root_fd)
 
     def ensure(
         self,
@@ -171,30 +354,10 @@ class EmergencyReserveStore:
             write_chunk_bytes,
             "Emergency reserve write_chunk_bytes",
         )
-        _assert_safe_parent(self.path)
-        if is_link_boundary(self.state_root) or not self.state_root.is_dir():
-            raise EmergencyReserveError(
-                "Emergency reserve state_root must be a real existing directory."
-            )
-        if self.reserve_root.exists():
-            if is_link_boundary(self.reserve_root) or not self.reserve_root.is_dir():
-                raise EmergencyReserveError(
-                    "Emergency reserve directory is not a safe real directory."
-                )
-        else:
-            try:
-                self.reserve_root.mkdir(mode=0o700, parents=False, exist_ok=False)
-                fsync_directory(self.state_root)
-            except OSError as exc:
-                raise EmergencyReserveError(
-                    "Emergency reserve directory could not be created durably."
-                ) from exc
+        self._prepare_root()
 
-        _assert_safe_parent(self.path)
-        if is_link_boundary(self.path):
-            raise EmergencyReserveError(
-                "Emergency reserve file must not be a symlink, junction, or reparse point."
-            )
+        if os.name == "posix":
+            return self._ensure_posix(required=required, chunk_bytes=chunk_bytes)
 
         if self.path.exists():
             status = self.inspect(required_bytes=required)
@@ -221,8 +384,6 @@ class EmergencyReserveStore:
                 raise EmergencyReserveError(
                     "Emergency reserve pathname changed during creation."
                 )
-            if os.name == "posix":
-                os.fchmod(descriptor, 0o600)
             _write_allocated_bytes(
                 descriptor,
                 size_bytes=required,
@@ -257,7 +418,17 @@ class EmergencyReserveStore:
 
     def inspect(self, *, required_bytes: int) -> EmergencyReserveStatus:
         required = _positive_int(required_bytes, "Emergency reserve required_bytes")
-        _assert_safe_parent(self.path)
+        self._prepare_root()
+        if os.name == "posix":
+            root_fd = _open_posix_directory(self.reserve_root)
+            try:
+                return self._inspect_posix_with_root_fd(
+                    root_fd=root_fd,
+                    required=required,
+                )
+            finally:
+                os.close(root_fd)
+
         if is_link_boundary(self.path) or not self.path.is_file():
             raise EmergencyReserveError(
                 "Emergency reserve file is missing or unsafe."
@@ -281,7 +452,47 @@ class EmergencyReserveStore:
 
     def release(self) -> int:
         """Delete only the reserve file, returning the logical bytes released."""
-        _assert_safe_parent(self.path)
+        self._prepare_root()
+        if os.name == "posix":
+            root_fd = _open_posix_directory(self.reserve_root)
+            descriptor = -1
+            try:
+                _assert_posix_directory_current(self.reserve_root, root_fd)
+                flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+                try:
+                    descriptor = os.open(_RESERVE_FILENAME, flags, dir_fd=root_fd)
+                except FileNotFoundError:
+                    return 0
+                except (NotImplementedError, TypeError) as exc:
+                    raise EmergencyReserveError(
+                        "Identity-bound emergency reserve release is unsupported."
+                    ) from exc
+                except OSError as exc:
+                    raise EmergencyReserveError(
+                        "Emergency reserve file could not be opened safely for release."
+                    ) from exc
+                file_stat = os.fstat(descriptor)
+                if not stat.S_ISREG(file_stat.st_mode):
+                    raise EmergencyReserveError(
+                        "Emergency reserve path is not a regular file."
+                    )
+                size = file_stat.st_size
+                os.close(descriptor)
+                descriptor = -1
+                _assert_posix_directory_current(self.reserve_root, root_fd)
+                os.unlink(_RESERVE_FILENAME, dir_fd=root_fd)
+                os.fsync(root_fd)
+                _assert_posix_directory_current(self.reserve_root, root_fd)
+                return size
+            except OSError as exc:
+                raise EmergencyReserveError(
+                    "Emergency reserve could not be released durably."
+                ) from exc
+            finally:
+                if descriptor >= 0:
+                    os.close(descriptor)
+                os.close(root_fd)
+
         if is_link_boundary(self.path):
             raise EmergencyReserveError(
                 "Emergency reserve file path is unsafe and cannot be released automatically."
@@ -362,5 +573,4 @@ class EmergencyReserveService:
         )
 
     def stop(self) -> None:
-        # Deliberately persistent: normal shutdown must not consume the reserve.
         return
