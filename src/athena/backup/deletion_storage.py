@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import stat
 import uuid
 from pathlib import Path
 
@@ -12,7 +13,58 @@ from athena.backup.errors import BackupRestoreError
 from athena.backup.json_codec import _canonical_json
 from athena.common.ids import new_uuid7
 from athena.lifecycle.deletion import DeletionLedgerRecord
-from athena.storage.durable_fs import durable_mkdir, durable_replace
+from athena.storage.durable_fs import durable_mkdir, durable_replace, is_link_boundary
+
+_MAX_DELETION_LEDGER_HEAD_BYTES = 64 * 1024
+_MAX_DELETION_LEDGER_RECORD_BYTES = 64 * 1024
+_MAX_DELETION_LEDGER_RECORD_COUNT = 250_000
+_MAX_DELETION_LEDGER_AGGREGATE_BYTES = 128 * 1024 * 1024
+
+
+def _read_bounded_regular_file(
+    path: Path,
+    *,
+    max_bytes: int,
+    label: str,
+) -> bytes:
+    """Read one target-controlled file only after handle-level size validation."""
+    if is_link_boundary(path):
+        raise BackupRestoreError(f"{label} is unsafe.")
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(path, flags)
+    except OSError as exc:
+        raise BackupRestoreError(f"{label} cannot be opened safely.") from exc
+    try:
+        try:
+            path_stat = path.stat(follow_symlinks=False)
+            handle_stat = os.fstat(descriptor)
+        except OSError as exc:
+            raise BackupRestoreError(f"{label} identity cannot be verified.") from exc
+        if (
+            is_link_boundary(path)
+            or not stat.S_ISREG(handle_stat.st_mode)
+            or not os.path.samestat(path_stat, handle_stat)
+        ):
+            raise BackupRestoreError(f"{label} is not a stable regular file.")
+        if handle_stat.st_size < 0 or handle_stat.st_size > max_bytes:
+            raise BackupRestoreError(f"{label} exceeds its supported byte limit.")
+        try:
+            handle = os.fdopen(descriptor, "rb", closefd=True)
+        except OSError as exc:
+            raise BackupRestoreError(f"{label} handle cannot be created.") from exc
+        descriptor = -1
+        with handle:
+            try:
+                payload = handle.read(max_bytes + 1)
+            except OSError as exc:
+                raise BackupRestoreError(f"{label} cannot be read.") from exc
+        if len(payload) > max_bytes:
+            raise BackupRestoreError(f"{label} exceeds its supported byte limit.")
+        return payload
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
 
 
 class DeletionLedgerStorageMixin(DeletionLedgerCodecMixin):
@@ -44,7 +96,7 @@ class DeletionLedgerStorageMixin(DeletionLedgerCodecMixin):
             return ()
 
         if (
-            ledger_root.is_symlink()
+            is_link_boundary(ledger_root)
             or not ledger_root.is_dir()
         ):
             raise BackupRestoreError(
@@ -56,17 +108,12 @@ class DeletionLedgerStorageMixin(DeletionLedgerCodecMixin):
             self.DELETION_LEDGER_HEAD_NAME,
         }
 
-        unexpected = tuple(
-            item
-            for item in ledger_root.iterdir()
-            if item.name not in allowed_names
-        )
-
-        if unexpected:
-            raise BackupRestoreError(
-                "Backup target deletion-ledger root "
-                "contains unexpected entries."
-            )
+        for item in ledger_root.iterdir():
+            if item.name not in allowed_names:
+                raise BackupRestoreError(
+                    "Backup target deletion-ledger root "
+                    "contains unexpected entries."
+                )
 
         head_path = (
             ledger_root
@@ -74,7 +121,7 @@ class DeletionLedgerStorageMixin(DeletionLedgerCodecMixin):
         )
 
         if (
-            head_path.is_symlink()
+            is_link_boundary(head_path)
             or not head_path.is_file()
         ):
             raise BackupRestoreError(
@@ -90,10 +137,11 @@ class DeletionLedgerStorageMixin(DeletionLedgerCodecMixin):
         records: list[
             DeletionLedgerRecord
         ] = []
+        aggregate_bytes = 0
 
         if records_root.exists():
             if (
-                records_root.is_symlink()
+                is_link_boundary(records_root)
                 or not records_root.is_dir()
             ):
                 raise BackupRestoreError(
@@ -101,12 +149,17 @@ class DeletionLedgerStorageMixin(DeletionLedgerCodecMixin):
                     "directory is unsafe."
                 )
 
-            for path in sorted(
-                records_root.iterdir(),
-                key=lambda item: item.name,
-            ):
+            record_paths: list[Path] = []
+            for path in records_root.iterdir():
+                if len(record_paths) >= _MAX_DELETION_LEDGER_RECORD_COUNT:
+                    raise BackupRestoreError(
+                        "Backup deletion ledger exceeds its supported record-count limit."
+                    )
+                record_paths.append(path)
+
+            for path in sorted(record_paths, key=lambda item: item.name):
                 if (
-                    path.is_symlink()
+                    is_link_boundary(path)
                     or not path.is_file()
                 ):
                     raise BackupRestoreError(
@@ -115,7 +168,16 @@ class DeletionLedgerStorageMixin(DeletionLedgerCodecMixin):
                     )
 
                 try:
-                    raw = path.read_bytes()
+                    raw = _read_bounded_regular_file(
+                        path,
+                        max_bytes=_MAX_DELETION_LEDGER_RECORD_BYTES,
+                        label="Backup deletion-ledger record",
+                    )
+                    aggregate_bytes += len(raw)
+                    if aggregate_bytes > _MAX_DELETION_LEDGER_AGGREGATE_BYTES:
+                        raise BackupRestoreError(
+                            "Backup deletion ledger exceeds its supported aggregate byte limit."
+                        )
                     payload = json.loads(
                         raw.decode(
                             "utf-8"
@@ -207,6 +269,10 @@ class DeletionLedgerStorageMixin(DeletionLedgerCodecMixin):
             ...,
         ],
     ) -> None:
+        if len(records) > _MAX_DELETION_LEDGER_RECORD_COUNT:
+            raise BackupRestoreError(
+                "Backup deletion ledger exceeds its supported record-count limit."
+            )
         descriptor_id = (
             self._read_target_descriptor(
                 target
@@ -231,7 +297,7 @@ class DeletionLedgerStorageMixin(DeletionLedgerCodecMixin):
         )
 
         if (
-            ledger_root.is_symlink()
+            is_link_boundary(ledger_root)
             or not ledger_root.is_dir()
         ):
             raise BackupRestoreError(
@@ -250,6 +316,10 @@ class DeletionLedgerStorageMixin(DeletionLedgerCodecMixin):
         ).encode(
             "utf-8"
         )
+        if len(encoded) > _MAX_DELETION_LEDGER_HEAD_BYTES:
+            raise BackupRestoreError(
+                "Backup deletion-ledger integrity head exceeds its supported byte limit."
+            )
 
         destination = (
             ledger_root
@@ -286,9 +356,13 @@ class DeletionLedgerStorageMixin(DeletionLedgerCodecMixin):
             )
 
         if (
-            destination.is_symlink()
+            is_link_boundary(destination)
             or not destination.is_file()
-            or destination.read_bytes()
+            or _read_bounded_regular_file(
+                destination,
+                max_bytes=_MAX_DELETION_LEDGER_HEAD_BYTES,
+                label="Deletion-ledger integrity head",
+            )
             != encoded
         ):
             raise BackupRestoreError(
@@ -316,7 +390,11 @@ class DeletionLedgerStorageMixin(DeletionLedgerCodecMixin):
         )
 
         try:
-            raw = head_path.read_bytes()
+            raw = _read_bounded_regular_file(
+                head_path,
+                max_bytes=_MAX_DELETION_LEDGER_HEAD_BYTES,
+                label="Backup deletion-ledger integrity head",
+            )
             payload = json.loads(
                 raw.decode(
                     "utf-8"
@@ -412,6 +490,7 @@ class DeletionLedgerStorageMixin(DeletionLedgerCodecMixin):
                 bool,
             )
             or record_count < 0
+            or record_count > _MAX_DELETION_LEDGER_RECORD_COUNT
         ):
             raise BackupRestoreError(
                 "Backup deletion-ledger head "
@@ -522,7 +601,7 @@ class DeletionLedgerStorageMixin(DeletionLedgerCodecMixin):
         )
 
         if (
-            records_root.is_symlink()
+            is_link_boundary(records_root)
             or not records_root.is_dir()
         ):
             raise BackupRestoreError(
@@ -542,6 +621,10 @@ class DeletionLedgerStorageMixin(DeletionLedgerCodecMixin):
                 "utf-8"
             )
         )
+        if len(encoded) > _MAX_DELETION_LEDGER_RECORD_BYTES:
+            raise BackupRestoreError(
+                "Backup deletion-ledger record exceeds its supported byte limit."
+            )
 
         destination = (
             records_root
@@ -552,14 +635,18 @@ class DeletionLedgerStorageMixin(DeletionLedgerCodecMixin):
 
         if destination.exists():
             if (
-                destination.is_symlink()
+                is_link_boundary(destination)
                 or not destination.is_file()
             ):
                 raise BackupRestoreError(
                     "Existing deletion-ledger record is unsafe."
                 )
 
-            if destination.read_bytes() != encoded:
+            if _read_bounded_regular_file(
+                destination,
+                max_bytes=_MAX_DELETION_LEDGER_RECORD_BYTES,
+                label="Existing deletion-ledger record",
+            ) != encoded:
                 raise BackupRestoreError(
                     "Existing deletion-ledger record "
                     "disagrees with the durable ledger."
@@ -596,7 +683,11 @@ class DeletionLedgerStorageMixin(DeletionLedgerCodecMixin):
                 missing_ok=True
             )
 
-        if destination.read_bytes() != encoded:
+        if _read_bounded_regular_file(
+            destination,
+            max_bytes=_MAX_DELETION_LEDGER_RECORD_BYTES,
+            label="Deletion-ledger record",
+        ) != encoded:
             raise BackupRestoreError(
                 "Deletion-ledger record failed "
                 "post-publication verification."
