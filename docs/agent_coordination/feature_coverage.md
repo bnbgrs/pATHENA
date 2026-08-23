@@ -4,7 +4,7 @@ Purpose: prevent repetitive rescans and drive systematic Alpha/Beta-to-code cove
 
 Coverage states: `UNCHECKED` · `PARTIAL` · `COVERED` · `CHANGED_NEEDS_RECHECK`
 
-Last matrix baseline: `agent/pathena` @ `528e901d7b0bd00f437aac87cd902e386df67f66`
+Last matrix baseline: `agent/pathena` @ `41b6d1510526fce21cba38c565993650b2bc9015`
 
 A `COVERED` row may be rescanned only when its specification or mapped implementation paths changed after the recorded commit. `PARTIAL` means useful code tracing was completed but the full chapter/cross-layer path was not yet exhausted.
 
@@ -24,7 +24,7 @@ A `COVERED` row may be rescanned only when its specification or mapped implement
 | A10 | Internet / anonymization / external sources | UNCHECKED | — | — |
 | A11 | News / events | UNCHECKED | — | — |
 | A12 | Background services / scheduler / tasks | UNCHECKED | — | — |
-| A13 | Storage / synchronization / portability | PARTIAL | 528e901 | B02/B03 foundation trace confirmed RFC-9562 UUIDv7 primitives and a local SQLite/storage subsystem. FG-013 records the unresolved Beta migration-toolchain divergence. Full Alpha storage/portability trace pending. |
+| A13 | Storage / synchronization / portability | PARTIAL | 41b6d15 | B02/B03 foundation trace confirmed RFC-9562 UUIDv7 primitives and a local SQLite/storage subsystem. FG-013 records the unresolved migration-toolchain divergence and FG-014 the missing active-state-root network safety guard. Full Alpha storage/portability trace pending. |
 | A14 | Security / privacy / trust | PARTIAL | 6c11221 | ProtectedContentService lock/unlock and fail-closed decryption traced while checking B09 protection-aware context integration. FG-012 identified. Full Alpha security chapter scan pending. |
 | A15 | Backup / restore / disaster recovery | UNCHECKED | — | — |
 | A16 | Desktop application / UI | PARTIAL | 6c11221 | Current model selector/settings path traced for B08. It exposes discovery/loaded state and generation controls but not the complete Beta Model Manager/switch/load/signature flow; see FG-011. Full desktop chapter scan pending. |
@@ -48,7 +48,7 @@ A `COVERED` row may be rescanned only when its specification or mapped implement
 |---|---|---|---|---|
 | B01 | System architecture / technical basis | PARTIAL | 528e901 | First architecture trace completed. `src/athena/api/server.py` implements a loopback-only Core API listener on `127.0.0.1`, and the API surface uses `/api/v1/...` routes, matching B01 local-binding/versioning requirements. The repository is already split into Core/API/UI/model/knowledge/jobs/config/external/etc. modules rather than microservices. Full trace still required for isolated worker failure boundaries, resource manager integration, authoritative-write routing and long-running checkpoint semantics. No new gap opened from this partial trace. |
 | B02 | Persistent data model / IDs | PARTIAL | 528e901 | Initial identity trace completed. Beta requires stable UUIDv7 identities independent of path/content; `src/athena/common/ids.py` implements RFC-9562 UUIDv7 generation plus canonical 16-byte conversion. This confirms the ID primitive rather than merely documenting it. Full cross-domain entity/revision/provenance/durable-state invariant scan remains. |
-| B03 | Storage / databases / migrations | PARTIAL | 528e901 | Storage trace confirms direct stdlib `sqlite3` lifecycle with explicit `BEGIN IMMEDIATE`, snapshot fences, custom schema/evolution/verification/recovery modules, and a substantial local storage package. Beta 03 section 3 explicitly selects SQLAlchemy 2.x + Alembic, while current `pyproject.toml` has neither dependency and repository search found no superseding architecture decision. See FG-013 READY. Full B03 scan must still verify roots, network-path refusal, WAL/PRAGMAs, derived-state separation, disk-full/corruption behavior, backup/restore and migration rollback invariants. |
+| B03 | Storage / databases / migrations | PARTIAL | 41b6d15 | Storage trace confirms direct stdlib `sqlite3` lifecycle with explicit `BEGIN IMMEDIATE`, snapshot fences, custom schema/evolution/verification/recovery modules, and distinct runtime state/spool/derived paths. Two independent gaps are now recorded: FG-013 for the unresolved SQLAlchemy/Alembic specification divergence, and FG-014 because bootstrap accepts any absolute `local_root` without the Beta-required fail-closed rejection of network/UNC-backed active SQLite state. Full B03 scan must still verify WAL/PRAGMAs, disk-full/corruption behavior, backup/restore, long-term replication semantics and migration rollback invariants. |
 | B04 | Sources / raw archive / import pipeline | UNCHECKED | — | — |
 | B05 | Knowledge units / claims / graph | UNCHECKED | — | — |
 | B06 | Personal memory | UNCHECKED | — | — |
@@ -68,7 +68,7 @@ A `COVERED` row may be rescanned only when its specification or mapped implement
 | B20 | Obsidian / external editing | UNCHECKED | 22b5f19 | B27 places Obsidian in a later vertical slice; implementation remains explicitly deferred by current product instructions. Do not open current feature gaps unless required for architectural consistency. |
 | B21 | Backup / restore | UNCHECKED | — | — |
 | B22 | Recovery mode / diagnostics | UNCHECKED | — | — |
-| B23 | Updates / migrations / compatibility | PARTIAL | 528e901 | B03 migration-toolchain divergence cross-links here through FG-013. Full update/migration/compatibility chapter scan remains. |
+| B23 | Updates / migrations / compatibility | PARTIAL | 41b6d15 | B03 migration-toolchain divergence cross-links here through FG-013; active-state path compatibility/safety also cross-links through FG-014. Full update/migration/compatibility chapter scan remains. |
 | B24 | Logging / monitoring / observability | UNCHECKED | — | — |
 | B25 | Repository / code structure | UNCHECKED | — | — |
 | B26 | Test strategy | UNCHECKED | — | — |
@@ -76,7 +76,7 @@ A `COVERED` row may be rescanned only when its specification or mapped implement
 
 ## Next scan order
 
-1. Continue B03 beyond the migration-engine divergence: roots/path safety, WAL/PRAGMAs, derived-state separation, disk-full/corruption handling and migration rollback guarantees; reclassify FG-013 if a later explicit architecture override is found.
+1. Continue B03 with WAL/PRAGMAs, disk-full/corruption handling, migration rollback and long-term replication semantics; reclassify FG-013/014 if later explicit overrides or guards are found.
 2. Finish B09 task-specific builder/test coverage and correlate modern regressions to normative tests 60–68; do not reopen already-implemented source diversity or Research map/reduce.
 3. Continue B01 into process isolation/resource management/authoritative-write/checkpoint boundaries and cross-link B12/B13.
 4. Deep-scan B16 provider bridge/generated-content persistence/relock invalidation/logging boundaries for FG-012.
