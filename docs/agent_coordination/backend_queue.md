@@ -205,3 +205,11 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 - Components: `src/athena/backup/target_lock.py`, `tests/unit/test_backup_target_lock_boundaries.py`.
 - Dependencies: none.
 - Last verification: 2026-08-23; simulated POSIX replacement-race regression added but not executed.
+
+### BE-026 — Reject network-backed active SQLite state roots
+- Priority: P1
+- Status: DONE
+- Evidence: Feature-gap FG-014. Active state locality is now checked before RuntimeLayout creates/probes state and before `inspect_database_read_only()` can open SQLite. Windows UNC and mapped remote drives are refused; unverifiable Windows drive types fail closed. Linux mountinfo rejects known network filesystems using the longest matching mount point, without banning archive/backup/projection targets.
+- Components: `src/athena/storage/locality.py`, `src/athena/storage/runtime.py`, `src/athena/storage/recovery.py`, targeted locality/preflight tests.
+- Dependencies: none.
+- Last verification: 2026-08-23; targeted tests added. Local execution attempted but blocked because the isolated runtime could not resolve `github.com`; no test pass claimed.
