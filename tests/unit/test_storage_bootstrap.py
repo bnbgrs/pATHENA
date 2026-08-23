@@ -149,6 +149,36 @@ def test_bootstrap_emergency_refuses_writable_database_start(tmp_path: Path) -> 
     assert not paths.database_path.exists()
 
 
+def test_bootstrap_rechecks_pressure_before_live_writer_start(tmp_path: Path) -> None:
+    paths = _paths(tmp_path)
+    _create_current_database(paths)
+    reserve = _ReserveStub(released_bytes=1 * _GIB)
+    free_values = iter((20 * _GIB, 1 * _GIB, 3 * _GIB))
+
+    def usage(_path: Path) -> tuple[int, int]:
+        return 100 * _GIB, next(free_values)
+
+    controller = DiskPressureController(
+        paths.state_root,
+        reserve_store=reserve,  # type: ignore[arg-type]
+        disk_usage_provider=usage,
+    )
+    database = _RecordingDatabase(paths.database_path)
+    service = StorageBootstrapService(
+        paths=paths,
+        database=database,
+        disk_pressure=controller,
+    )
+
+    with pytest.raises(StorageBootstrapReadOnlyRequiredError, match="EMERGENCY"):
+        service.start()
+
+    assert reserve.ensure_calls == 1
+    assert reserve.release_calls == 1
+    assert controller.read_only_safe_mode is True
+    assert database.start_calls == 0
+
+
 def test_bootstrap_recovery_blocks_before_reserve_or_database(tmp_path: Path) -> None:
     paths = _paths(tmp_path)
     _create_current_database(paths)
