@@ -24,37 +24,37 @@ if TYPE_CHECKING:
 
 _WORKSPACE_HELP: tuple[tuple[str, str], ...] = (
     (
-        "CHAT",
-        "Persistent local conversations, model selection, grounded responses, "
-        "message-to-knowledge review and explicit memory actions.",
+        "Chat",
+        "Persistent local conversations, model selection, source-grounded responses, "
+        "knowledge review and explicit memory actions.",
     ),
     (
-        "KNOWLEDGE",
-        "Inspect canonical KnowledgeUnits, revisions, provenance and review proposed "
+        "Knowledge",
+        "Inspect durable knowledge, revisions and provenance, and review proposed "
         "knowledge before accepting it.",
     ),
     (
-        "RESEARCH",
-        "Create and inspect durable exhaustive-research runs and their persisted results.",
+        "Research",
+        "Create and inspect durable research runs and their persisted results.",
     ),
     (
-        "JOBS",
-        "Inspect durable background work and control supported pause, resume, cancel "
-        "and wake transitions.",
+        "Jobs",
+        "Inspect persistent background work and control supported pause, resume, "
+        "cancel and wake actions.",
     ),
     (
-        "FILES",
+        "Files",
         "Import local sources into the Raw Archive, inspect retrieval readiness and "
-        "queue or retry deterministic processing.",
+        "process or retry supported files.",
     ),
     (
-        "SYSTEM",
-        "Inspect local Core, provider and runtime health without leaving the desktop.",
+        "System",
+        "Inspect local Core, model service and runtime health without leaving pATHENA.",
     ),
     (
-        "SETTINGS",
-        "Adjust the selected local model context, output, temperature and reasoning "
-        "settings exposed by the desktop.",
+        "Settings",
+        "Adjust context, output, temperature and reasoning settings for the selected "
+        "local model.",
     ),
 )
 
@@ -78,14 +78,14 @@ class CommandPaletteController(QObject):
         self.window = window
         self.dialog = QDialog(window)
         self.dialog.setObjectName("commandPalette")
-        self.dialog.setWindowTitle("ATHENA Command")
+        self.dialog.setWindowTitle("pATHENA Commands")
         self.dialog.setModal(False)
         self.dialog.setWindowFlag(Qt.WindowType.FramelessWindowHint, True)
         self.dialog.setMinimumWidth(560)
 
         self.query = QLineEdit(self.dialog)
         self.query.setObjectName("commandPaletteQuery")
-        self.query.setPlaceholderText("Type a command or workspace…")
+        self.query.setPlaceholderText("Search commands or workspaces…")
 
         self.results = QListWidget(self.dialog)
         self.results.setObjectName("commandPaletteResults")
@@ -136,10 +136,10 @@ class CommandPaletteController(QObject):
         layout.setSpacing(10)
 
         header = QHBoxLayout()
-        title = QLabel("COMMAND")
-        title.setObjectName("speaker")
-        hint = QLabel("CTRL+K")
-        hint.setProperty("role", "dim")
+        title = QLabel("Commands")
+        title.setObjectName("commandPaletteTitle")
+        hint = QLabel("Ctrl K")
+        hint.setObjectName("commandPaletteHint")
         header.addWidget(title)
         header.addStretch(1)
         header.addWidget(hint)
@@ -147,8 +147,8 @@ class CommandPaletteController(QObject):
         layout.addWidget(self.query)
         layout.addWidget(self.results)
 
-        footer = QLabel("ENTER  RUN     ESC  CLOSE     ↑↓  SELECT     F1  HELP")
-        footer.setProperty("role", "dim")
+        footer = QLabel("Enter to run  ·  Esc to close  ·  ↑↓ to move  ·  F1 for help")
+        footer.setObjectName("commandPaletteFooter")
         layout.addWidget(footer)
 
     def _build_help_dialog(self) -> None:
@@ -157,26 +157,26 @@ class CommandPaletteController(QObject):
         layout.setSpacing(12)
 
         header = QHBoxLayout()
-        title = QLabel("HELP / CAPABILITIES")
-        title.setObjectName("speaker")
+        title = QLabel("Help & capabilities")
+        title.setObjectName("helpDialogTitle")
         hint = QLabel("F1")
-        hint.setProperty("role", "dim")
+        hint.setObjectName("commandPaletteHint")
         header.addWidget(title)
         header.addStretch(1)
         header.addWidget(hint)
         layout.addLayout(header)
 
         intro = QLabel(
-            "This view is generated from the desktop's current command surface so newly "
-            "registered commands are automatically included."
+            "A concise guide to the workspaces, shortcuts and commands available in "
+            "the current desktop."
         )
+        intro.setObjectName("helpDialogIntro")
         intro.setWordWrap(True)
-        intro.setProperty("role", "muted")
         layout.addWidget(intro)
         layout.addWidget(self.help_text, 1)
 
-        footer = QLabel("ESC  CLOSE     CTRL+K  COMMAND")
-        footer.setProperty("role", "dim")
+        footer = QLabel("Esc to close  ·  Ctrl K for commands")
+        footer.setObjectName("commandPaletteFooter")
         layout.addWidget(footer)
 
     def _workspace_action(self, row: int) -> Callable[[], None]:
@@ -190,7 +190,7 @@ class CommandPaletteController(QObject):
         for row, (name, _description) in enumerate(_WORKSPACE_HELP):
             commands.append(
                 _Command(
-                    label=f"Go to {name.title()}",
+                    label=f"Open {name}",
                     keywords=("workspace", "navigate", name),
                     action=self._workspace_action(row),
                 )
@@ -199,27 +199,27 @@ class CommandPaletteController(QObject):
         commands.extend(
             (
                 _Command(
-                    label="New chat",
+                    label="New conversation",
                     keywords=("chat", "conversation", "create"),
                     action=self.window.new_chat_button.click,
                 ),
                 _Command(
-                    label="Focus prompt",
+                    label="Focus message field",
                     keywords=("chat", "compose", "message", "input"),
                     action=self._focus_prompt,
                 ),
                 _Command(
-                    label="Ground next response",
-                    keywords=("chat", "research", "sources", "evidence"),
+                    label="Use sources for next response",
+                    keywords=("chat", "research", "ground", "sources", "evidence"),
                     action=self._ground_prompt,
                 ),
                 _Command(
-                    label="Open current model settings",
+                    label="Open model settings",
                     keywords=("model", "context", "temperature", "thinking"),
                     action=lambda: self.window.navigation.setCurrentRow(6),
                 ),
                 _Command(
-                    label="Open help & capabilities",
+                    label="Open help",
                     keywords=("help", "capabilities", "features", "shortcuts", "f1"),
                     action=self.open_help,
                 ),
@@ -228,36 +228,36 @@ class CommandPaletteController(QObject):
         return tuple(commands)
 
     def _render_help_text(self) -> str:
-        lines = [
-            "pATHENA — LOCAL-FIRST WORKSPACE",
-            "",
-            "WORKSPACES",
-        ]
+        lines = ["Workspaces", ""]
         for name, description in _WORKSPACE_HELP:
-            lines.extend((f"  {name}", f"    {description}", ""))
+            lines.extend((name, f"  {description}", ""))
 
         lines.extend(
             (
-                "KEYBOARD",
-                "  Ctrl+K   Open command palette",
-                "  F1       Open this help",
-                "  Esc      Close command/help surfaces",
+                "Keyboard",
                 "",
-                "AVAILABLE COMMANDS",
+                "Ctrl K       Commands",
+                "Ctrl+Enter   Send message",
+                "F1           Help",
+                "Esc          Close commands or help",
+                "",
+                "Available commands",
+                "",
             )
         )
-        lines.extend(f"  {command.label}" for command in self._commands)
+        lines.extend(command.label for command in self._commands)
         lines.extend(
             (
                 "",
-                "OPERATING MODEL",
-                "  pATHENA is local-first. Core data, chat history, knowledge and source "
-                "state are persisted locally. LM Studio is the local model provider; the "
-                "desktop remains usable when it is offline and exposes provider readiness "
-                "separately from Core readiness.",
+                "Availability",
                 "",
-                "  Imported files are preserved in the Raw Archive before derived source "
-                "representations or retrieval chunks are produced.",
+                "Commands reflect the controls currently available in the desktop. "
+                "Actions that depend on a local service or selection remain governed "
+                "by the same readiness and safety checks as their visible controls.",
+                "",
+                "pATHENA keeps chat history, knowledge and captured source state local. "
+                "Imported files enter the Raw Archive before derived representations or "
+                "retrieval chunks are produced.",
             )
         )
         return "\n".join(lines)
