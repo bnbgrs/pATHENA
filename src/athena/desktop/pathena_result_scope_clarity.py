@@ -5,7 +5,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from PySide6.QtCore import QObject, Qt, QTimer
-from PySide6.QtWidgets import QLabel, QLineEdit, QListWidget, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QLabel,
+    QLineEdit,
+    QListWidget,
+    QListWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
 
 
 @dataclass(frozen=True)
@@ -72,8 +79,7 @@ class ResultScopeController(QObject):
             for row in range(total)
             if not list_widget.item(row).isHidden()
         )
-        current = list_widget.currentItem()
-        selected = ResultScopeController._selected_identity(current)
+        selected = ResultScopeController._selected_identity(list_widget.currentItem())
 
         if total == 0:
             text = f"{label} · 0 items · none selected"
@@ -90,8 +96,8 @@ class ResultScopeController(QObject):
         scope_label.setProperty("pathenaSelectedIdentity", selected)
 
     @staticmethod
-    def _selected_identity(item: object) -> str:
-        if item is None or not hasattr(item, "data"):
+    def _selected_identity(item: QListWidgetItem | None) -> str:
+        if item is None:
             return "none selected"
         value = item.data(Qt.ItemDataRole.UserRole)
         if isinstance(value, str) and value:
