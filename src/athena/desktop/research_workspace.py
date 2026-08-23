@@ -169,7 +169,7 @@ class ResearchWorkspace(QWidget):
         self.cancel_button.setEnabled(enabled and bool(self._selected_job_id))
 
     def _drain_output(self) -> None:
-        chunk = bytes(self._process.readAllStandardOutput()).decode(
+        chunk = bytes(self._process.readAllStandardOutput().data()).decode(
             "utf-8", errors="replace"
         )
         if not chunk:
