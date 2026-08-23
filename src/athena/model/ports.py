@@ -10,6 +10,10 @@ from athena.model.domain import ModelChatMessage, ModelInfo, ProviderHealth
 CONTROLLED_STRUCTURED_CONTRACT_VERSION = "athena.controlled_structured_json/1"
 
 
+class ProviderOperationUnsupportedError(RuntimeError):
+    """Raised when a provider explicitly cannot perform a Core operation."""
+
+
 def controlled_structured_contract_prefix(schema_id: str) -> str:
     """Return the exact fixed prompt wrapper used before a supplied JSON Schema."""
     if (
@@ -45,6 +49,35 @@ class ModelDiscoveryProvider(Protocol):
 
     def discover_models(self) -> tuple[ModelInfo, ...]:
         """Return normalized models or raise a provider error."""
+        ...
+
+
+class ManagedModelProvider(ModelDiscoveryProvider, Protocol):
+    """Explicit model lifecycle/control operations exposed to the Core."""
+
+    def get_model_info(self, model_id: str) -> ModelInfo:
+        """Return one discovered model or raise when its identity is unavailable."""
+        ...
+
+    def load_model(
+        self,
+        model_id: str,
+        *,
+        context_length: int | None = None,
+    ) -> ModelInfo:
+        """Load a model and return the resulting normalized model state."""
+        ...
+
+    def unload_model(self, model_id: str) -> None:
+        """Unload a model selected by its stable backend identity."""
+        ...
+
+    def estimate_context_capacity(self, model_id: str) -> int | None:
+        """Return a provider-observed context limit, or None when unknown."""
+        ...
+
+    def cancel_generation(self, request_id: str) -> None:
+        """Cancel a generation or fail explicitly when cancellation is unsupported."""
         ...
 
 
