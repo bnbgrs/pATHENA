@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+import athena.storage.migration_clone as migration_clone_module
 from athena.storage.migration_clone import MigrationCloneError, create_migration_clone
 
 
@@ -120,10 +121,72 @@ def test_migration_clone_refuses_symlink_candidate_parent(tmp_path: Path) -> Non
 
     candidate = (linked_parent / "athena.migrating.db").absolute()
 
-    with pytest.raises(MigrationCloneError, match="symbolic link"):
+    with pytest.raises(MigrationCloneError, match="symlink|junction|reparse"):
         create_migration_clone(source_db=source, candidate_db=candidate)
 
     assert not (real_parent / "athena.migrating.db").exists()
+
+
+def test_migration_clone_refuses_shared_junction_boundary_before_sqlite_open(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    source = (tmp_path / "athena.db").absolute()
+    migration_root = (tmp_path / "migration").absolute()
+    migration_root.mkdir()
+    candidate = migration_root / "athena.migrating.db"
+    _create_source(source)
+
+    original = migration_clone_module.is_link_boundary
+
+    def simulate_junction(path: Path) -> bool:
+        return path == migration_root or original(path)
+
+    sqlite_opened = False
+
+    def fail_connect(*args: object, **kwargs: object) -> object:
+        nonlocal sqlite_opened
+        sqlite_opened = True
+        raise AssertionError("sqlite must not be opened through a junction")
+
+    monkeypatch.setattr(migration_clone_module, "is_link_boundary", simulate_junction)
+    monkeypatch.setattr(migration_clone_module.sqlite3, "connect", fail_connect)
+
+    with pytest.raises(MigrationCloneError, match="junction|reparse"):
+        create_migration_clone(source_db=source, candidate_db=candidate)
+
+    assert sqlite_opened is False
+    assert not candidate.exists()
+
+
+def test_migration_clone_refuses_shared_source_reparse_boundary_before_sqlite_open(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    source = (tmp_path / "athena.db").absolute()
+    candidate = (tmp_path / "athena.migrating.db").absolute()
+    _create_source(source)
+
+    original = migration_clone_module.is_link_boundary
+
+    def simulate_reparse(path: Path) -> bool:
+        return path == source.parent or original(path)
+
+    sqlite_opened = False
+
+    def fail_connect(*args: object, **kwargs: object) -> object:
+        nonlocal sqlite_opened
+        sqlite_opened = True
+        raise AssertionError("sqlite must not be opened through a reparse boundary")
+
+    monkeypatch.setattr(migration_clone_module, "is_link_boundary", simulate_reparse)
+    monkeypatch.setattr(migration_clone_module.sqlite3, "connect", fail_connect)
+
+    with pytest.raises(MigrationCloneError, match="junction|reparse"):
+        create_migration_clone(source_db=source, candidate_db=candidate)
+
+    assert sqlite_opened is False
+    assert not candidate.exists()
 
 
 def test_migration_clone_refuses_same_source_and_candidate(tmp_path: Path) -> None:
