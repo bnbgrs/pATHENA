@@ -6,12 +6,12 @@ Repository: `bnbgrs/pATHENA`
 Branch: `agent/pathena`
 Affected file: `src/athena/desktop/files_workspace.py`
 
-## Failing CI
+## First failing CI
 
 Workflow: `ATHENA Quality Gate`
 Run: `32626619203`
 Job: `97162823916`
-Head before fix: `798e9b51b63c3dec8167f544b458e431bda37c2e`
+Head before first fix: `798e9b51b63c3dec8167f544b458e431bda37c2e`
 
 The gate reached and passed both the specification validator and Ruff:
 
@@ -33,33 +33,41 @@ Found 1 error in 1 file (checked 238 source files)
 
 ## Root cause
 
-`QProcess.readAllStandardOutput()` returns `PySide6.QtCore.QByteArray`. Runtime conversion through `bytes(...)` works, but the PySide6 typing surface does not expose `QByteArray` as satisfying the accepted `bytes()` overloads, so strict mypy rejects it.
+`QProcess.readAllStandardOutput()` returns `PySide6.QtCore.QByteArray`. Runtime conversion through `bytes(QByteArray)` works, but the PySide6 typing surface does not expose `QByteArray` as satisfying the accepted `bytes()` overloads, so strict mypy rejects it.
 
-`QByteArray.data()` exposes the contained bytes directly and is the type-safe API for decoding process output.
+The first correction used `QByteArray.data()` directly. CI run `32626686373`, job `97162983201`, then exposed the precise PySide6 stub type for `.data()`:
 
-## Fix
-
-Changed only the output conversion from:
-
-```python
-bytes(self._process.readAllStandardOutput()).decode("utf-8", errors="replace")
+```text
+src/athena/desktop/files_workspace.py:118: error: Item "memoryview[int]" of
+"bytes | bytearray | memoryview[int]" has no attribute "decode"  [union-attr]
+    chunk = self._process.readAllStandardOutput().data().decode(
+            ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Found 1 error in 1 file (checked 238 source files)
+[FAIL] mypy returned 1.
 ```
 
-to:
+So `.data()` is the correct extraction boundary, but its declared return type is the union `bytes | bytearray | memoryview[int]`; only part of that union exposes `.decode()` directly.
+
+## Final fix
+
+Normalize the typed buffer union to `bytes` before decoding:
 
 ```python
-self._process.readAllStandardOutput().data().decode("utf-8", errors="replace")
+bytes(self._process.readAllStandardOutput().data()).decode(
+    "utf-8", errors="replace"
+)
 ```
 
-This preserves the existing UTF-8 decoding and replacement behavior and does not alter process control or UI semantics.
+This is accepted by the `bytes()` overloads because each member of the `.data()` union is byte-buffer compatible. It preserves the original UTF-8 replacement behavior and changes no process, persistence, or UI semantics.
 
-Fix commit: `4d5a433aeb9a505bdad9efc56a4689f3d2e59572`
+Initial fix commit: `4d5a433aeb9a505bdad9efc56a4689f3d2e59572`
+Final fix commit: `d2505fadebe7d9d05397da6122e0394451b9c0d3`
 
 ## Verification strategy
 
-The authoritative verification is the next pull-request-triggered `ATHENA Quality Gate` for `agent/pathena`. Expected progression:
+The authoritative verification is the next pull-request-triggered `ATHENA Quality Gate` for `agent/pathena`:
 
 1. Specification validator remains green.
 2. Ruff remains green.
-3. mypy passes the previous `QByteArray` conversion site.
+3. mypy passes the `QByteArray` conversion site.
 4. pytest runs or exposes the next genuine blocker.
