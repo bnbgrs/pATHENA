@@ -173,3 +173,25 @@ def test_disabled_action_focus_return_preserves_newer_user_focus(
     assert workspace.refresh_button.hasFocus()
     controller.deleteLater()
     workspace.close()
+
+
+def test_snapshot_row_exposes_state_and_verification_accessibly(
+    qt_app: QApplication,
+) -> None:
+    workspace = BackupWorkspace()
+    controller = install_backup_action_truth(workspace)
+    snapshot_id = "99999999-9999-9999-9999-999999999999"
+    _select(workspace, snapshot_id, "complete", "verified_light")
+    qt_app.processEvents()
+
+    item = workspace.snapshots.currentItem()
+    assert item is not None
+    accessible_text = str(item.data(Qt.ItemDataRole.AccessibleTextRole))
+    accessible_description = str(
+        item.data(Qt.ItemDataRole.AccessibleDescriptionRole)
+    )
+    assert "99999999" in accessible_text
+    assert "state complete" in accessible_text
+    assert "verification verified_light" in accessible_text
+    assert "Completed verified restore point" in accessible_description
+    controller.deleteLater()
