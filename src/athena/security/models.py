@@ -32,6 +32,15 @@ def _required_exact_int(value: object, name: str) -> int:
     return value
 
 
+# v1 is deliberately bounded before any persisted work factors can reach the
+# Argon2id implementation. These ceilings leave substantial headroom above the
+# current 3-iteration / 4-lane / 64-MiB production profile while preventing a
+# corrupted key-slot record from requesting unbounded CPU or memory.
+_ARGON2ID_V1_MAX_ITERATIONS = 10
+_ARGON2ID_V1_MAX_LANES = 16
+_ARGON2ID_V1_MAX_MEMORY_COST_KIB = 256 * 1024
+
+
 @dataclass(frozen=True, slots=True)
 class Argon2idParameters:
     """Versioned Argon2id profile persisted with a password key slot."""
@@ -59,15 +68,30 @@ class Argon2idParameters:
                 "Argon2id iterations must be positive."
             )
 
+        if iterations > _ARGON2ID_V1_MAX_ITERATIONS:
+            raise ValueError(
+                "Argon2id iterations exceed the v1 resource ceiling."
+            )
+
         if lanes < 1:
             raise ValueError(
                 "Argon2id lanes must be positive."
+            )
+
+        if lanes > _ARGON2ID_V1_MAX_LANES:
+            raise ValueError(
+                "Argon2id lanes exceed the v1 resource ceiling."
             )
 
         if memory_cost_kib < 8 * lanes:
             raise ValueError(
                 "Argon2id memory_cost_kib is too small "
                 "for the lane count."
+            )
+
+        if memory_cost_kib > _ARGON2ID_V1_MAX_MEMORY_COST_KIB:
+            raise ValueError(
+                "Argon2id memory_cost_kib exceeds the v1 resource ceiling."
             )
 
         if length != 32:
