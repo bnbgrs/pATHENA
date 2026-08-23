@@ -119,6 +119,13 @@ def reconcile_jobs_after_restore(
             (CANCELLED_AFTER_RESTORE, now_us),
         )
 
+        # Validate driver/cursor contracts while rollback is still possible.
+        # Committing first and discovering an invalid rowcount afterwards would
+        # report failure even though the restore reconciliation had become
+        # durable, leaving callers unable to distinguish committed state.
+        paused_count = _require_rowcount(getattr(paused, "rowcount", None))
+        cancelled_count = _require_rowcount(getattr(cancelled, "rowcount", None))
+
         db.execute("COMMIT")
         transaction_started = False
     except BaseException:
@@ -131,8 +138,6 @@ def reconcile_jobs_after_restore(
                 pass
         raise
 
-    paused_count = _require_rowcount(getattr(paused, "rowcount", None))
-    cancelled_count = _require_rowcount(getattr(cancelled, "rowcount", None))
     return RestoredJobRecoverySummary(
         paused_running=paused_count,
         cancelled_requested=cancelled_count,
