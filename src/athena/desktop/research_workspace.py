@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 from athena.desktop.pathena_ui_refinement_600 import set_pathena_ui_state
 
 _JOB_QUEUED_RE = re.compile(r"^JOB_QUEUED\s+([0-9a-fA-F-]{36})$", re.MULTILINE)
+_TERMINAL_STATES = frozenset({"cancelled", "failed", "completed"})
 
 
 class ResearchWorkspace(QWidget):
@@ -34,6 +35,7 @@ class ResearchWorkspace(QWidget):
         self._operation = ""
         self._buffer = ""
         self._selected_job_id: str | None = None
+        self._selected_job_state: str | None = None
 
         self.query_input = QLineEdit()
         self.query_input.setPlaceholderText("Research question across local Sources…")
@@ -132,8 +134,9 @@ class ResearchWorkspace(QWidget):
         self._start("list", ["list", "--limit", "100"], "Refreshing research jobs")
 
     def cancel_selected(self) -> None:
-        if self._busy() or not self._selected_job_id:
+        if self._busy() or not self._cancel_available():
             return
+        assert self._selected_job_id is not None
         self._start(
             "cancel",
             ["cancel", self._selected_job_id],
@@ -146,8 +149,10 @@ class ResearchWorkspace(QWidget):
         _previous: QListWidgetItem | None,
     ) -> None:
         job_id = None if current is None else current.data(Qt.ItemDataRole.UserRole)
+        state = None if current is None else current.data(Qt.ItemDataRole.UserRole + 1)
         self._selected_job_id = str(job_id) if job_id else None
-        self.cancel_button.setEnabled(bool(self._selected_job_id) and not self._busy())
+        self._selected_job_state = str(state) if state else None
+        self._sync_cancel_button()
         if self._selected_job_id and not self._busy():
             set_pathena_ui_state(self.details, "busy")
             self._start(
@@ -158,6 +163,36 @@ class ResearchWorkspace(QWidget):
 
     def _busy(self) -> bool:
         return self._process.state() != QProcess.ProcessState.NotRunning
+
+    def _cancel_available(self) -> bool:
+        return (
+            bool(self._selected_job_id)
+            and self._selected_job_state is not None
+            and self._selected_job_state not in _TERMINAL_STATES
+            and self._selected_job_state != "cancel_requested"
+        )
+
+    def _sync_cancel_button(self) -> None:
+        enabled = not self._busy() and self._cancel_available()
+        self.cancel_button.setEnabled(enabled)
+        job_label = (
+            self._selected_job_id[:8].upper() if self._selected_job_id is not None else "none"
+        )
+        state = self._selected_job_state or "none"
+        if enabled:
+            reason = f"Request cancellation for research run {job_label} ({state})."
+        elif self._selected_job_id is None:
+            reason = "Select a research run before requesting cancellation."
+        elif state == "cancel_requested":
+            reason = f"Research run {job_label} already has cancellation requested."
+        elif state in _TERMINAL_STATES:
+            reason = f"Research run {job_label} is already terminal ({state})."
+        else:
+            reason = f"Research run {job_label} cannot be cancelled in state {state}."
+        self.cancel_button.setToolTip(reason)
+        self.cancel_button.setAccessibleDescription(reason)
+        self.cancel_button.setProperty("pathenaResearchJobState", state)
+        self.cancel_button.setProperty("pathenaResearchCancelAvailable", enabled)
 
     def _start(self, operation: str, arguments: list[str], label: str) -> None:
         self._operation = operation
@@ -174,7 +209,10 @@ class ResearchWorkspace(QWidget):
         self.query_input.setEnabled(enabled)
         self.start_button.setEnabled(enabled)
         self.refresh_button.setEnabled(enabled)
-        self.cancel_button.setEnabled(enabled and bool(self._selected_job_id))
+        if enabled:
+            self._sync_cancel_button()
+        else:
+            self.cancel_button.setEnabled(False)
 
     def _drain_output(self) -> None:
         chunk = bytes(self._process.readAllStandardOutput().data()).decode(
@@ -212,6 +250,7 @@ class ResearchWorkspace(QWidget):
             match = _JOB_QUEUED_RE.search(output)
             if match is not None:
                 self._selected_job_id = match.group(1)
+                self._selected_job_state = "queued"
             self.query_input.clear()
             self.status.setText("Research job queued.")
             set_pathena_ui_state(self.status, "success")
@@ -220,6 +259,8 @@ class ResearchWorkspace(QWidget):
             return
 
         if operation == "cancel":
+            self._selected_job_state = "cancel_requested"
+            self._sync_cancel_button()
             self.status.setText("Cancellation request persisted.")
             set_pathena_ui_state(self.status, "success")
             set_pathena_ui_state(self.details, "success")
@@ -246,8 +287,11 @@ class ResearchWorkspace(QWidget):
             item = QListWidgetItem(
                 f"{state.upper():<16} {coverage_label:>7}  {query or '<no query>'}"
             )
-            item.setToolTip(f"{job_id}\nstage={stage}\ncoverage={coverage_label}")
+            item.setToolTip(
+                f"{job_id}\nstate={state}\nstage={stage}\ncoverage={coverage_label}"
+            )
             item.setData(Qt.ItemDataRole.UserRole, job_id)
+            item.setData(Qt.ItemDataRole.UserRole + 1, state)
             self.jobs.addItem(item)
             if selected == job_id:
                 item_to_select = item
@@ -262,7 +306,8 @@ class ResearchWorkspace(QWidget):
         elif self.jobs.count() > 0 and selected is not None:
             set_pathena_ui_state(self.jobs, "success")
             self._selected_job_id = None
-            self.cancel_button.setEnabled(False)
+            self._selected_job_state = None
+            self._sync_cancel_button()
             self.jobs.setCurrentRow(-1)
             job_label = selected[:8].upper()
             message = (
@@ -280,7 +325,8 @@ class ResearchWorkspace(QWidget):
             self.jobs.setCurrentRow(0)
         else:
             self._selected_job_id = None
-            self.cancel_button.setEnabled(False)
+            self._selected_job_state = None
+            self._sync_cancel_button()
             self.details.setPlainText(
                 "No exhaustive research jobs yet. Enter a question above to create one."
             )
