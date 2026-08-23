@@ -15,6 +15,9 @@ from athena.storage.paths import RuntimePaths
 from athena.storage.recovery import inspect_database_read_only
 from athena.storage.schema import SCHEMA_VERSION
 
+_DEFAULT_RESTART_CYCLES = 2
+_MAX_RESTART_CYCLES = 10
+
 
 @dataclass(frozen=True, slots=True)
 class LocalSmokeReport:
@@ -25,6 +28,7 @@ class LocalSmokeReport:
     persisted_chat_count: int
     database_schema_version: int
     api_runtime_clean: bool
+    restart_cycles: int
 
 
 def _settings(local_root: Path) -> AthenaSettings:
@@ -92,8 +96,32 @@ def _verify_database_schema(settings: AthenaSettings) -> int:
     return SCHEMA_VERSION
 
 
-def run_local_smoke(local_root: Path) -> LocalSmokeReport:
-    """Prove Core/API persistence across a clean process restart without a model."""
+def _validate_restart_cycles(restart_cycles: int) -> int:
+    if isinstance(restart_cycles, bool) or not 1 <= restart_cycles <= _MAX_RESTART_CYCLES:
+        raise ValueError(
+            f"Local smoke restart cycles must be between 1 and {_MAX_RESTART_CYCLES}."
+        )
+    return restart_cycles
+
+
+def _restart_cycles_argument(value: str) -> int:
+    try:
+        restart_cycles = int(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("restart cycles must be an integer") from exc
+    try:
+        return _validate_restart_cycles(restart_cycles)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(str(exc)) from exc
+
+
+def run_local_smoke(
+    local_root: Path,
+    *,
+    restart_cycles: int = _DEFAULT_RESTART_CYCLES,
+) -> LocalSmokeReport:
+    """Prove Core/API persistence across repeated clean restarts without a model."""
+    restart_cycles = _validate_restart_cycles(restart_cycles)
     settings = _settings(local_root)
 
     first = CoreApiProcess(settings=settings)
@@ -109,23 +137,31 @@ def run_local_smoke(local_root: Path) -> LocalSmokeReport:
         first.stop()
     _assert_api_runtime_cleared(first)
 
-    restarted = CoreApiProcess(settings=settings)
-    restarted.start()
-    try:
-        restarted_client = _client(restarted)
-        restarted_health = restarted_client.health()
-        chats = restarted_client.list_chats(limit=50)
-        matching = tuple(chat for chat in chats if chat.chat_id == chat_id)
-        if len(matching) != 1:
-            raise RuntimeError(
-                "Local smoke could not recover exactly one persisted chat after restart."
-            )
-        loaded = restarted_client.load_chat(chat_id)
-        if loaded.chat_id != chat_id:
-            raise RuntimeError("Local smoke reloaded a different chat after restart.")
-    finally:
-        restarted.stop()
-    _assert_api_runtime_cleared(restarted)
+    restarted_core_status = ""
+    chats = ()
+    for cycle in range(1, restart_cycles + 1):
+        restarted = CoreApiProcess(settings=settings)
+        restarted.start()
+        try:
+            restarted_client = _client(restarted)
+            restarted_health = restarted_client.health()
+            restarted_core_status = restarted_health.core_status
+            chats = restarted_client.list_chats(limit=50)
+            matching = tuple(chat for chat in chats if chat.chat_id == chat_id)
+            if len(matching) != 1:
+                raise RuntimeError(
+                    "Local smoke could not recover exactly one persisted chat "
+                    f"after restart cycle {cycle}."
+                )
+            loaded = restarted_client.load_chat(chat_id)
+            if loaded.chat_id != chat_id:
+                raise RuntimeError(
+                    "Local smoke reloaded a different chat after restart "
+                    f"cycle {cycle}."
+                )
+        finally:
+            restarted.stop()
+        _assert_api_runtime_cleared(restarted)
 
     database_schema_version = _verify_database_schema(settings)
 
@@ -133,10 +169,11 @@ def run_local_smoke(local_root: Path) -> LocalSmokeReport:
         local_root=settings.local_root,
         chat_id=chat_id,
         first_core_status=first_health.core_status,
-        restarted_core_status=restarted_health.core_status,
+        restarted_core_status=restarted_core_status,
         persisted_chat_count=len(chats),
         database_schema_version=database_schema_version,
         api_runtime_clean=True,
+        restart_cycles=restart_cycles,
     )
 
 
@@ -156,6 +193,15 @@ def _build_parser() -> argparse.ArgumentParser:
             "The directory is pATHENA test data, not the normal runtime root."
         ),
     )
+    parser.add_argument(
+        "--restart-cycles",
+        type=_restart_cycles_argument,
+        default=_DEFAULT_RESTART_CYCLES,
+        help=(
+            "Number of full stop/start verification cycles after the initial "
+            f"chat creation (default: {_DEFAULT_RESTART_CYCLES}, max: {_MAX_RESTART_CYCLES})."
+        ),
+    )
     return parser
 
 
@@ -173,16 +219,20 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"athena-local-smoke: {exc}")
             return 2
         root.mkdir(parents=True, exist_ok=True)
-        report = run_local_smoke(root)
+        report = run_local_smoke(root, restart_cycles=args.restart_cycles)
     else:
         with tempfile.TemporaryDirectory(prefix="pathena-local-smoke-") as directory:
-            report = run_local_smoke(Path(directory))
+            report = run_local_smoke(
+                Path(directory),
+                restart_cycles=args.restart_cycles,
+            )
 
     print("pATHENA local smoke: PASS")
     print(f"Root: {report.local_root}")
     print(f"Chat: {report.chat_id}")
     print(f"First Core: {report.first_core_status}")
     print(f"Restarted Core: {report.restarted_core_status}")
+    print(f"Restart cycles: {report.restart_cycles}")
     print(f"Persisted chats: {report.persisted_chat_count}")
     print(f"Database schema: {report.database_schema_version}")
     print(f"API bootstrap cleanup: {'PASS' if report.api_runtime_clean else 'FAIL'}")
