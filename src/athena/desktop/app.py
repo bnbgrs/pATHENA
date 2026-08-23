@@ -11,6 +11,7 @@ from PySide6.QtWidgets import QApplication
 
 from athena.api.client import CoreApiClient
 from athena.desktop.api_controller import DesktopApiController
+from athena.desktop.command_palette import install_command_palette
 from athena.desktop.supervisor import DesktopCoreSupervisor
 from athena.desktop.theme import APP_STYLESHEET
 from athena.desktop.window import AthenaMainWindow
@@ -88,11 +89,13 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     controller = DesktopApiController(client)
     window = AthenaMainWindow(api_controller=controller)
+    command_palette = install_command_palette(window)
     _schedule_initial_core_refreshes(controller, supervisor)
     heartbeat = _start_core_refresh_heartbeat(controller, supervisor)
     window.show()
     exit_code = app.exec()
     heartbeat.stop()
+    command_palette.deleteLater()
     return exit_code
 
 
