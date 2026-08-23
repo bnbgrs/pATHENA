@@ -18,6 +18,8 @@ def test_command_palette_uses_quiet_product_copy_without_losing_commands() -> No
     try:
         assert controller.dialog.windowTitle() == "pATHENA Commands"
         assert controller.query.placeholderText() == "Search commands or workspaces…"
+        assert controller.query.accessibleName() == "Command search"
+        assert "Results update as you type" in controller.query.accessibleDescription()
 
         titles = {
             label.text()
@@ -63,6 +65,9 @@ def test_help_surface_is_readable_and_documents_current_shortcuts() -> None:
     controller = CommandPaletteController(window)
     try:
         assert controller.help_dialog.windowTitle() == "pATHENA Help"
+        assert controller.help_text.isReadOnly()
+        assert controller.help_text.accessibleName() == "pATHENA help content"
+        assert "Read-only guide" in controller.help_text.accessibleDescription()
         help_text = controller._render_help_text()
 
         assert help_text.startswith("Workspaces\n")
