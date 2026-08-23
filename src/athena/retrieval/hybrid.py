@@ -28,6 +28,19 @@ _DIVERSITY_THRESHOLD = 0.82
 _DIVERSITY_PENALTY_FRACTION = 0.14
 
 
+def _positive_int(value: object, label: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise ValueError(f"{label} must be a positive integer.")
+    return value
+
+
+def _search_limit(value: object) -> int:
+    validated = _positive_int(value, "Hybrid search limit")
+    if validated > 200:
+        raise ValueError("Hybrid search limit must be between 1 and 200.")
+    return validated
+
+
 @dataclass(frozen=True, slots=True)
 class HybridSearchResult:
     entity_id: uuid.UUID
@@ -66,16 +79,13 @@ class HybridRetrievalService:
         *,
         rrf_k: int = DEFAULT_RRF_K,
     ) -> None:
-        if rrf_k <= 0:
-            raise ValueError("RRF k must be positive.")
         self.lexical = lexical
         self.semantic = semantic
-        self.rrf_k = rrf_k
+        self.rrf_k = _positive_int(rrf_k, "RRF k")
 
     @staticmethod
     def _validate_limit(limit: int) -> None:
-        if not 1 <= limit <= 200:
-            raise ValueError("Hybrid search limit must be between 1 and 200.")
+        _search_limit(limit)
 
     def _lexical_results(
         self,
@@ -243,6 +253,7 @@ class HybridRetrievalService:
             scored,
             limit=limit,
         )
+
 
 def _score(candidate: _Candidate) -> HybridSearchResult:
     authority = _TYPE_AUTHORITY[candidate.entity_type]
