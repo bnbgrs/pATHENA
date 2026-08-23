@@ -13,6 +13,7 @@ from PySide6.QtWidgets import QApplication, QListWidget, QListWidgetItem, QWidge
 
 from athena.desktop.pathena_dense_list_scanability_4900 import (
     DenseListScanabilityController,
+    apply_ui_refinements_4801_4900,
 )
 
 
@@ -57,3 +58,26 @@ def test_empty_selection_clears_identity_without_changing_rows() -> None:
     assert listing.property("pathenaSelectedEntityIdentity") == ""
     assert listing.property("pathenaSelectedEntityPresent") is False
     assert listing.statusTip() == "No research job selected."
+
+
+def test_research_proposals_receive_accessibility_parity_from_shared_layer() -> None:
+    app = _app()
+    window = QWidget()
+    listing = QListWidget(window)
+    listing.setObjectName("researchProposalList")
+    proposal = QListWidgetItem("01  CLAIM          PENDING     Evidence-backed statement")
+    proposal.setData(Qt.ItemDataRole.UserRole, "proposal-123")
+    proposal.setData(Qt.ItemDataRole.UserRole + 1, "pending")
+    proposal.setData(Qt.ItemDataRole.UserRole + 2, "claim")
+    listing.addItem(proposal)
+    listing.setCurrentItem(proposal)
+
+    apply_ui_refinements_4801_4900(window)
+    app.processEvents()
+
+    assert listing.property("pathenaDenseListAccessibility") is True
+    assert proposal.data(Qt.ItemDataRole.AccessibleTextRole) == proposal.text()
+    description = str(proposal.data(Qt.ItemDataRole.AccessibleDescriptionRole))
+    assert "Research proposal row" in description
+    assert "proposal-123" in description
+    assert "Selected identity: proposal-123" in listing.accessibleDescription()
