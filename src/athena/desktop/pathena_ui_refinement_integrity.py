@@ -32,9 +32,17 @@ from athena.desktop.pathena_jobs_experience_2800 import (
     UI_REFINEMENT_TASKS_2701_2800,
     apply_ui_refinements_2701_2800,
 )
+from athena.desktop.pathena_keyboard_discovery_4200 import (
+    UI_REFINEMENT_TASKS_4101_4200,
+    apply_ui_refinements_4101_4200,
+)
 from athena.desktop.pathena_layout_refinement_2200 import (
     UI_REFINEMENT_TASKS_2101_2200,
     apply_ui_refinements_2101_2200,
+)
+from athena.desktop.pathena_layout_resilience_4000 import (
+    UI_REFINEMENT_TASKS_3901_4000,
+    apply_ui_refinements_3901_4000,
 )
 from athena.desktop.pathena_microinteraction_3900 import (
     UI_REFINEMENT_TASKS_3801_3900,
@@ -51,6 +59,10 @@ from athena.desktop.pathena_progress_phase_3700 import (
 from athena.desktop.pathena_progressive_workspace_2300 import (
     UI_REFINEMENT_TASKS_2201_2300,
     apply_ui_refinements_2201_2300,
+)
+from athena.desktop.pathena_readability_4100 import (
+    UI_REFINEMENT_TASKS_4001_4100,
+    apply_ui_refinements_4001_4100,
 )
 from athena.desktop.pathena_research_experience_2500 import (
     UI_REFINEMENT_TASKS_2401_2500,
@@ -192,6 +204,9 @@ def apply_complete_ui_refinements(window: QWidget) -> tuple[int, ...]:
         apply_ui_refinements_3601_3700,
         apply_ui_refinements_3701_3800,
         apply_ui_refinements_3801_3900,
+        apply_ui_refinements_3901_4000,
+        apply_ui_refinements_4001_4100,
+        apply_ui_refinements_4101_4200,
     )
     for refinement_pass in passes:
         applied.extend(refinement_pass(window))
@@ -228,6 +243,9 @@ def apply_complete_ui_refinements(window: QWidget) -> tuple[int, ...]:
         UI_REFINEMENT_TASKS_3601_3700,
         UI_REFINEMENT_TASKS_3701_3800,
         UI_REFINEMENT_TASKS_3801_3900,
+        UI_REFINEMENT_TASKS_3901_4000,
+        UI_REFINEMENT_TASKS_4001_4100,
+        UI_REFINEMENT_TASKS_4101_4200,
     )
     window.setProperty("pathenaUiRefinementAppliedCount", len(normalized))
     window.setProperty("pathenaUiRefinementTaskCount", sum(map(len, task_sets)))
