@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import re
 
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
     QFrame,
     QLabel,
@@ -162,6 +162,89 @@ _SYSTEM_VALUE_REPLACEMENTS = {
 
 _RUNTIME_PATTERN = re.compile(r"^CORE\s+(?P<state>\S+)\s+/\s+CHATS\s+(?P<count>\d+)$")
 _SOURCE_PATTERN = re.compile(r"^SOURCE CHAT\s+\S+\s+/\s+MESSAGE\s+\S+$")
+_PRESENTATION_ROLE = Qt.ItemDataRole.UserRole + 64
+
+
+def _human_label(value: str) -> str:
+    return value.replace("_", " ").strip().title()
+
+
+def _columns(value: str) -> tuple[str, ...]:
+    return tuple(part.strip() for part in re.split(r"\s{2,}", value.strip()) if part.strip())
+
+
+def _humanize_item(widget_name: str, text: str) -> str | None:
+    columns = _columns(text)
+
+    if widget_name in {"persistentKnowledgeList", "persistentClaimList"}:
+        if len(columns) < 4:
+            return None
+        kind, revision, status = columns[:3]
+        summary = "  ".join(columns[3:])
+        return f"{_human_label(kind)} · {_human_label(status)} · {revision} · {summary}"
+
+    if widget_name == "semanticReviewList":
+        if len(columns) < 3 or not columns[0].endswith("%"):
+            return None
+        confidence, review_type = columns[:2]
+        reason = "  ".join(columns[2:])
+        return f"{_human_label(review_type)} · {confidence} · {reason}"
+
+    if widget_name == "researchJobList":
+        if len(columns) < 3:
+            return None
+        state, coverage = columns[:2]
+        query = "  ".join(columns[2:])
+        return f"{_human_label(state)} · {coverage} · {query}"
+
+    if widget_name == "durableJobList":
+        if len(columns) < 5:
+            return None
+        state, priority, job_type, stage = columns[:4]
+        summary = "  ".join(columns[4:])
+        priority_label = (
+            f"Priority {priority[1:]}" if priority.startswith("P") else priority
+        )
+        return (
+            f"{_human_label(state)} · {priority_label} · {_human_label(job_type)} · "
+            f"{_human_label(stage)} · {summary}"
+        )
+
+    if widget_name == "sourceList":
+        if len(columns) < 3:
+            return None
+        readiness, size = columns[:2]
+        name = "  ".join(columns[2:])
+        return f"{_human_label(readiness)} · {size} · {name}"
+
+    if widget_name == "backupSnapshotList":
+        if len(columns) < 2:
+            return None
+        objects = re.search(r"objects=(\d+)", text)
+        if objects is None:
+            return None
+        state, verify = columns[:2]
+        count = int(objects.group(1))
+        noun = "object" if count == 1 else "objects"
+        return f"{_human_label(state)} · {_human_label(verify)} · {count} {noun}"
+
+    return None
+
+
+def _sync_list_presentation(window: QWidget) -> None:
+    for object_name in _LIST_MINIMUM_WIDTHS:
+        widget = window.findChild(QListWidget, object_name)
+        if widget is None:
+            continue
+        for index in range(widget.count()):
+            item = widget.item(index)
+            if item.data(_PRESENTATION_ROLE) is True:
+                continue
+            humanized = _humanize_item(object_name, item.text())
+            if humanized is None:
+                continue
+            item.setText(humanized)
+            item.setData(_PRESENTATION_ROLE, True)
 
 
 def _sync_knowledge_copy(window: QWidget) -> None:
@@ -270,6 +353,7 @@ def _sync_dynamic_workspace_copy(window: QWidget) -> None:
     _sync_jobs_presentation(window)
     _sync_files_presentation(window)
     _sync_system_presentation(window)
+    _sync_list_presentation(window)
 
 
 def _install_dynamic_copy_sync(window: QWidget) -> None:
