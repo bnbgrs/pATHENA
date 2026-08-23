@@ -77,23 +77,23 @@ def _print_merge_target(app: AthenaApplication, details: MergeReviewDetails) -> 
     print(f"TARGET_ENTITY {details.existing_entity_id}")
     print(f"TARGET_REVISION {details.existing_revision_id}")
     if details.proposal_type is ProposalEntityType.KNOWLEDGE:
-        snapshot = app.knowledge.load(details.existing_entity_id)
-        payload = snapshot.revision.payload
+        knowledge_snapshot = app.knowledge.load(details.existing_entity_id)
+        knowledge_payload = knowledge_snapshot.revision.payload
         print("TARGET_TYPE knowledge")
-        print(f"TARGET_KIND {payload.knowledge_kind.value}")
-        print(f"TARGET_STATUS {payload.epistemic_status.value}")
-        print(f"TARGET_TITLE {_safe(payload.title)}")
+        print(f"TARGET_KIND {knowledge_payload.knowledge_kind.value}")
+        print(f"TARGET_STATUS {knowledge_payload.epistemic_status.value}")
+        print(f"TARGET_TITLE {_safe(knowledge_payload.title)}")
         print("TARGET_TEXT")
-        print(payload.body)
+        print(knowledge_payload.body)
         return
 
-    snapshot = app.claim_repository.load_current(details.existing_entity_id)
-    payload = snapshot.revision.payload
+    claim_snapshot = app.claim_repository.load_current(details.existing_entity_id)
+    claim_payload = claim_snapshot.revision.payload
     print("TARGET_TYPE claim")
-    print(f"TARGET_KIND {payload.claim_kind.value}")
-    print(f"TARGET_STATUS {payload.epistemic_status.value}")
+    print(f"TARGET_KIND {claim_payload.claim_kind.value}")
+    print(f"TARGET_STATUS {claim_payload.epistemic_status.value}")
     print("TARGET_TEXT")
-    print(payload.statement)
+    print(claim_payload.statement)
 
 
 def _print_merge_show(app: AthenaApplication, review_id: uuid.UUID) -> None:
