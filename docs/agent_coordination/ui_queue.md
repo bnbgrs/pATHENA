@@ -83,6 +83,7 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 | UI-074 | P2 | DONE | Existing model-settings guidance now gives distinct AccessibleName values to CTX/output sliders and exact fields, temperature, thinking, and selected model. Commits `f2fbd51775dc729aef70f30860f2072addfbc8e7`, `7f11fb7226fb52aacdb22c0835d156f3aa79e5b6`; targeted execution NOT EXECUTABLE because checkout DNS failed. |
 | UI-075 | P2 | DONE | Existing visible CTX/MAX OUTPUT/TEMPERATURE/THINKING labels are bound to their exact input controls via QLabel buddies without adding mnemonics, shortcuts, values or controls. Commits `45a4a90705ceb13a67d28948f2d89fd44594568c`, `70aef5f2671c6038b02131072bb97470a8e983ad`; targeted execution NOT EXECUTABLE because checkout DNS failed. |
 | UI-076 | P2 | DONE | Chat prompt, Knowledge filter, Research question and Research-run filter now expose stable assistive names and truthful purpose/keyboard context without changing text, enablement or signal behavior. Commits `b6bec1e1aead5bbe3266ec9a90ae5e8de613dc23`, `10109169ff213d87d70a43a8bab53fd0bcd17ca5`, `c44054aa23a5ebac58cd7db4d0b1cb1179598a73`; targeted execution NOT EXECUTABLE because checkout DNS failed. |
+| UI-077 | P2 | DONE | `researchProposalList` now participates in existing dense-list accessibility parity using its real Proposal ID in UserRole and unchanged visible row text. Commits `46ace4ff9d8384486195a95c989ee254e65005bc`, `eee9d1f121771e0932efc28568a352724b00d262`; targeted execution NOT EXECUTABLE because checkout DNS failed. |
 
 ## Active queue
 
@@ -94,10 +95,10 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 - **Dependencies:** Runtime with repository checkout or Quality-bot execution.
 - **Last verification:** 2026-08-24.
 
-### UI-077 — Research proposal list accessibility parity
+### UI-078 — Claim relation list accessibility parity
 - **Priority:** P2
 - **Status:** IN_PROGRESS
-- **Evidence:** `researchProposalList` contains stable proposal identity, type/state and visible payload but is not included in the existing dense-list accessibility parity targets.
-- **Views/components:** Research Result proposal list and existing DenseListScanabilityController.
-- **Dependencies:** UI-035, UI-064; existing proposal UserRole metadata only.
+- **Evidence:** `claimRelationList` rows already carry related Claim identity in UserRole and visible relation/type text, but are not included in the shared dense-list accessibility parity layer.
+- **Views/components:** Claim relation list and existing DenseListScanabilityController.
+- **Dependencies:** Canonical memory relation UI, UI-064/UI-077 parity pattern; no backend dependency.
 - **Last verification:** 2026-08-24.
