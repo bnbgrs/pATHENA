@@ -157,8 +157,10 @@ class ModelInfo:
         _require_text(self.display_name, "ModelInfo display_name")
         _require_canonical_text(self.model_type, "ModelInfo model_type")
         _require_optional_positive_int(self.context_capacity, "ModelInfo context_capacity")
-        if self.quantization is not None and not isinstance(self.quantization, str):
-            raise TypeError("ModelInfo quantization must be text or None.")
+        _require_optional_canonical_text(
+            self.quantization,
+            "ModelInfo quantization",
+        )
         if not isinstance(self.loaded, bool):
             raise TypeError("ModelInfo loaded must be bool.")
         _require_optional_bool(self.vision, "ModelInfo vision")
