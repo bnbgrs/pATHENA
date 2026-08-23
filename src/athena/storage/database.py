@@ -14,6 +14,7 @@ from athena.storage.recovery import inspect_database_read_only
 from athena.storage.schema import initialize_schema
 
 _ReadResultT = TypeVar("_ReadResultT")
+_WriteGate = Callable[[], None]
 
 
 class DatabaseNotStartedError(RuntimeError):
@@ -59,12 +60,23 @@ class SQLiteDatabase:
             raise TypeError("SQLiteDatabase path must be a pathlib.Path.")
         self.path = path
         self._connection: sqlite3.Connection | None = None
+        self._noncritical_write_gate: _WriteGate | None = None
 
     @property
     def connection(self) -> sqlite3.Connection:
         if self._connection is None:
             raise DatabaseNotStartedError("ATHENA database service is not started.")
         return self._connection
+
+    def configure_noncritical_write_gate(self, gate: _WriteGate | None) -> None:
+        """Bind the runtime gate checked before every canonical write transaction."""
+        if gate is not None and not callable(gate):
+            raise TypeError("SQLiteDatabase noncritical write gate must be callable or None.")
+        if self._connection is not None:
+            raise RuntimeError(
+                "SQLiteDatabase noncritical write gate must be configured before startup."
+            )
+        self._noncritical_write_gate = gate
 
     def start(self) -> None:
         if self._connection is not None:
@@ -230,9 +242,13 @@ class SQLiteDatabase:
 
     @contextmanager
     def write_transaction(self) -> Iterator[sqlite3.Connection]:
-        """Yield one explicit immediate transaction with rollback on failure."""
+        """Yield one gated immediate transaction with rollback on failure."""
         connection = self.connection
         self._ensure_no_active_transaction(connection)
+
+        gate = self._noncritical_write_gate
+        if gate is not None:
+            gate()
 
         connection.execute("BEGIN IMMEDIATE")
         try:
