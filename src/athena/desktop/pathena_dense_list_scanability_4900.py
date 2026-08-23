@@ -148,7 +148,7 @@ class DenseListScanabilityController(QObject):
             if current is not None and identity
             else " No row is selected."
         )
-        description = f"{count} {noun} listed.{selection}"
+        description = f"{count} total {noun} in the list model.{selection}"
         widget.setAccessibleDescription(description)
         widget.setProperty("pathenaDenseListAccessibleScope", description)
 
