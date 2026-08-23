@@ -158,14 +158,31 @@ class ResearchResultsExtension(QObject):
         self._selected_proposal_id = None
         self.proposal_list.clear()
         if self._busy() and self._operation_job_id != self._selected_job_id():
+            owner_label = self._job_label(self._operation_job_id)
+            selected_label = self._job_label(self._selected_job_id())
             self.proposal_status.setText(
-                f"Research run {self._job_label(self._operation_job_id)} is still completing "
-                "in the background. This selection will not receive that run's output."
+                f"Research run {owner_label} is still completing in the background. "
+                "This selection will not receive that run's result output."
+            )
+            current_details = self.workspace.details.toPlainText().strip()
+            banner = (
+                f"BACKGROUND · {self._operation.upper()} for Research run {owner_label} "
+                "is still running.\n"
+                f"CURRENT · Research run {selected_label} remains selected; background "
+                "result output will not be written into this pane."
+            )
+            self.workspace.details.setPlainText(
+                f"{banner}\n\n{current_details}" if current_details else banner
+            )
+            self.workspace.details.setProperty(
+                "pathenaBackgroundOperationOwner",
+                self._operation_job_id or "",
             )
         else:
             self.proposal_status.setText(
                 "Load proposals for the selected completed Research run."
             )
+            self.workspace.details.setProperty("pathenaBackgroundOperationOwner", "")
         self._sync_job_actions()
 
     def _sync_job_actions(self) -> None:
@@ -245,6 +262,7 @@ class ResearchResultsExtension(QObject):
         self._buffer = ""
         if clear_details:
             self.workspace.details.clear()
+        self.workspace.details.setProperty("pathenaBackgroundOperationOwner", "")
         self._set_extension_controls(False)
         job_label = self._job_label(job_id)
         self.proposal_status.setText(
@@ -318,6 +336,7 @@ class ResearchResultsExtension(QObject):
             )
             return
 
+        self.workspace.details.setProperty("pathenaBackgroundOperationOwner", "")
         if operation == "result":
             self.proposal_status.setText(
                 f"ResearchResult {job_label} and evidence loaded."
