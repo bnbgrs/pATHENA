@@ -17,6 +17,9 @@ from athena.desktop.files_workspace import install_files_workspace
 from athena.desktop.jobs_workspace import install_jobs_workspace
 from athena.desktop.knowledge_acceptance import install_knowledge_acceptance
 from athena.desktop.knowledge_workspace import install_knowledge_workspace
+from athena.desktop.pathena_research_result_presentation import (
+    apply_research_result_presentation,
+)
 from athena.desktop.pathena_shell_density import apply_shell_density
 from athena.desktop.pathena_theme import PATHENA_STYLESHEET
 from athena.desktop.pathena_window import PathenaMainWindow
@@ -125,6 +128,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     research_workspace = install_research_workspace(window)
     research_results_extension = install_research_results_extension(research_workspace)
+    apply_research_result_presentation(research_results_extension)
     # Result/proposal review is a deliberate user decision surface. Keep the
     # selected immutable result stable until the user explicitly refreshes jobs.
     research_results_extension.refresh_timer.stop()
