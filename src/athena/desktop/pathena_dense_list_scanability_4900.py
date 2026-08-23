@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from PySide6.QtCore import QObject, Qt
+from PySide6.QtCore import QObject, Qt, QTimer
 from PySide6.QtWidgets import QAbstractItemView, QListWidget, QListWidgetItem, QWidget
 
 
@@ -25,6 +25,15 @@ _TARGETS: tuple[DenseListTarget, ...] = (
     DenseListTarget("durableJobList", "durable job"),
     DenseListTarget("sourceList", "source"),
     DenseListTarget("backupSnapshotList", "backup snapshot"),
+)
+
+_ACCESSIBILITY_PARITY_TARGETS: tuple[DenseListTarget, ...] = (
+    DenseListTarget("persistentKnowledgeList", "Knowledge item"),
+    DenseListTarget("persistentClaimList", "Claim"),
+    DenseListTarget("semanticReviewList", "contradiction decision"),
+    DenseListTarget("researchJobList", "research job"),
+    DenseListTarget("durableJobList", "durable job"),
+    DenseListTarget("sourceList", "source"),
 )
 
 _DENSE_LIST_STYLESHEET = """
@@ -47,6 +56,7 @@ class DenseListScanabilityController(QObject):
         super().__init__(window)
         self.window = window
         self._labels: dict[QListWidget, str] = {}
+        self._accessibility_labels: dict[QListWidget, str] = {}
 
     def register(self, widget: QListWidget, label: str) -> None:
         self._labels[widget] = label
@@ -63,6 +73,35 @@ class DenseListScanabilityController(QObject):
             )
         )
         self._selection_changed(widget, widget.currentItem())
+
+    def register_accessibility(self, widget: QListWidget, label: str) -> None:
+        if widget in self._accessibility_labels:
+            return
+        self._accessibility_labels[widget] = label
+        widget.currentItemChanged.connect(
+            lambda _current, _previous, source=widget: self._sync_accessibility(source)
+        )
+        model = widget.model()
+        model.rowsInserted.connect(
+            lambda *_args, source=widget: QTimer.singleShot(
+                0,
+                lambda: self._sync_accessibility(source),
+            )
+        )
+        model.rowsRemoved.connect(
+            lambda *_args, source=widget: QTimer.singleShot(
+                0,
+                lambda: self._sync_accessibility(source),
+            )
+        )
+        model.modelReset.connect(
+            lambda source=widget: QTimer.singleShot(
+                0,
+                lambda: self._sync_accessibility(source),
+            )
+        )
+        widget.setProperty("pathenaDenseListAccessibility", True)
+        self._sync_accessibility(widget)
 
     def _selection_changed(
         self,
@@ -86,6 +125,31 @@ class DenseListScanabilityController(QObject):
             f"{label.capitalize()} list. Selected row: {summary}."
         )
 
+    def _sync_accessibility(self, widget: QListWidget) -> None:
+        label = self._accessibility_labels[widget]
+        for index in range(widget.count()):
+            item = widget.item(index)
+            summary = item.text().strip()
+            identity = self._identity(item)
+            item.setData(Qt.ItemDataRole.AccessibleTextRole, summary)
+            description = f"{label.capitalize()} row."
+            if identity and identity != summary:
+                description += f" Stable identity: {identity}."
+            item.setData(Qt.ItemDataRole.AccessibleDescriptionRole, description)
+
+        count = widget.count()
+        current = widget.currentItem()
+        identity = self._identity(current)
+        noun = label if count == 1 else f"{label}s"
+        selection = (
+            f" Selected identity: {identity}."
+            if current is not None and identity
+            else " No row is selected."
+        )
+        description = f"{count} {noun} listed.{selection}"
+        widget.setAccessibleDescription(description)
+        widget.setProperty("pathenaDenseListAccessibleScope", description)
+
     @staticmethod
     def _identity(item: QListWidgetItem | None) -> str:
         if item is None:
@@ -107,9 +171,18 @@ def apply_ui_refinements_4801_4900(window: QWidget) -> tuple[int, ...]:
         start = 4801 + index * 20
         applied.extend(range(start, start + 20))
 
+    parity_count = 0
+    for target in _ACCESSIBILITY_PARITY_TARGETS:
+        widget = window.findChild(QListWidget, target.object_name)
+        if widget is None:
+            continue
+        controller.register_accessibility(widget, target.label)
+        parity_count += 1
+
     if _DENSE_LIST_STYLESHEET not in window.styleSheet():
         window.setStyleSheet(f"{window.styleSheet()}\n{_DENSE_LIST_STYLESHEET}")
 
     window.setProperty("pathenaDenseListScanabilityController", controller)
     window.setProperty("pathenaDenseListScanabilityManaged", True)
+    window.setProperty("pathenaDenseListAccessibilityParityCount", parity_count)
     return tuple(applied)
