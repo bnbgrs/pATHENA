@@ -147,6 +147,10 @@ class JobsWorkspace(QWidget):
         self._sync_action_buttons()
         QTimer.singleShot(0, self.refresh)
 
+    @staticmethod
+    def _job_label(job_id: str | None) -> str:
+        return job_id[:8].upper() if job_id else ""
+
     def refresh(self) -> None:
         if self._busy():
             return
@@ -232,6 +236,9 @@ class JobsWorkspace(QWidget):
         self._operation = operation
         self._operation_job_id = job_id
         self._buffer = ""
+        job_label = self._job_label(job_id)
+        if job_label and operation != "list":
+            label = f"{label} · {job_label}"
         self.status.setText(label + " …")
         set_pathena_ui_state(self.status, "busy")
         self._sync_action_buttons(force_disabled=True)
@@ -275,14 +282,20 @@ class JobsWorkspace(QWidget):
     def _process_finished(self, exit_code: int, _exit_status: QProcess.ExitStatus) -> None:
         self._drain_output()
         operation = self._operation
+        operation_job_id = self._operation_job_id
         owns_details = self._operation_owns_details()
         output = self._buffer
         self._operation = ""
         self._operation_job_id = None
         self._sync_action_buttons()
+        job_label = self._job_label(operation_job_id)
 
         if exit_code != 0:
-            self.status.setText(f"Jobs command failed (exit {exit_code}).")
+            subject = f" for job {job_label}" if job_label else ""
+            location = " in the background" if subject and not owns_details else ""
+            self.status.setText(
+                f"Jobs command{subject} failed{location} (exit {exit_code})."
+            )
             set_pathena_ui_state(self.status, "error")
             if owns_details:
                 set_pathena_ui_state(self.details, "error")
@@ -297,13 +310,15 @@ class JobsWorkspace(QWidget):
             return
 
         if operation == "show":
-            self.status.setText("Durable job details loaded.")
+            self.status.setText(f"Durable job {job_label} details loaded.")
             set_pathena_ui_state(self.status, "success")
             if owns_details:
                 set_pathena_ui_state(self.details, "success")
             return
 
-        self.status.setText(f"{operation.upper()} transition persisted.")
+        self.status.setText(
+            f"{operation.upper()} transition for job {job_label} persisted."
+        )
         set_pathena_ui_state(self.status, "success")
         if owns_details:
             set_pathena_ui_state(self.details, "success")
@@ -360,14 +375,17 @@ class JobsWorkspace(QWidget):
             set_pathena_ui_state(self.details, "empty")
 
     def _process_error(self, error: QProcess.ProcessError) -> None:
+        job_id = self._operation_job_id
         owns_details = self._operation_owns_details()
         self._operation = ""
         self._operation_job_id = None
         self._sync_action_buttons()
+        job_label = self._job_label(job_id)
+        subject = f" for job {job_label}" if job_label else ""
         if error == QProcess.ProcessError.FailedToStart:
-            self.status.setText("Unable to start the local pATHENA jobs command.")
+            self.status.setText(f"Unable to start the local jobs command{subject}.")
         else:
-            self.status.setText(f"Jobs command error: {error.name}")
+            self.status.setText(f"Jobs command{subject} error: {error.name}")
         set_pathena_ui_state(self.status, "error")
         if owns_details:
             set_pathena_ui_state(self.details, "error")
