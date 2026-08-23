@@ -57,23 +57,31 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 ### BE-007 — Enforce model load ownership before automatic unload
 - Priority: P1
 - Status: DONE
-- Evidence: Feature-gap FG-007; runtime now distinguishes ATHENA-owned, externally owned and unknown loads; only explicit ATHENA ownership permits automatic unload and ownership clears on unload.
+- Evidence: Feature-gap FG-007; runtime distinguishes ATHENA-owned, externally owned and unknown loads. Only explicit ATHENA ownership permits automatic unload, and generic discovery refresh resets ownership to unknown because it cannot prove backend-instance continuity.
 - Components: `src/athena/model/registry.py`, `tests/unit/test_model_load_ownership.py`.
 - Dependencies: BE-006 complete; provider adapter may consume decision later.
-- Last verification: 2026-08-23; six targeted tests added, not executed in connector runtime.
+- Last verification: 2026-08-23; six targeted tests added/updated, not executed in connector runtime.
 
 ### BE-008 — Persist/audit active primary model switch semantics
 - Priority: P2
-- Status: IN_PROGRESS
-- Evidence: Beta 08 section 66 requires a visible/auditable switch while existing Knowledge remains unchanged.
+- Status: BLOCKED
+- Evidence: Beta 08 section 66 requires an auditable switch. Current Core tree has no dedicated audit-event persistence module; implementing a durable switch audit now would require an unreviewed schema/audit-contract decision.
 - Components: model runtime/application audit integration.
-- Dependencies: BE-006.
-- Last verification: 2026-08-23; selected after BE-007 completion.
+- Dependencies: explicit durable audit storage contract/schema ownership decision.
+- Last verification: 2026-08-23 against current Core tree; no ad-hoc side channel was introduced.
 
 ### BE-009 — Provider request cancellation/discard contract
 - Priority: P2
 - Status: READY
-- Evidence: Beta 08 sections 50-51 require backend cancel when supported and discard of late response otherwise.
+- Evidence: Beta 08 sections 50-51 require backend cancel when supported and discard of late response otherwise. Current chat generation already avoids assistant persistence on interrupted provider streams, but provider-side cancellation/request identity remains to be traced.
 - Components: generation service/provider runtime.
-- Dependencies: BE-002.
-- Last verification: 2026-08-23 from Beta contract.
+- Dependencies: provider cancellation capability may remain explicitly unsupported.
+- Last verification: 2026-08-23 against current `src/athena/chat/generation.py`.
+
+### BE-010 — Generation numeric/control boundary hardening
+- Priority: P2
+- Status: READY
+- Evidence: Current `ChatGenerationService._generate_and_persist` uses comparison-only validation for `max_output_tokens`/`temperature`; strict bool/non-finite contracts should be traced against ContextPackage/provider boundaries before mutation.
+- Components: chat generation, context package/provider controls, targeted tests.
+- Dependencies: none.
+- Last verification: 2026-08-23 against current generation code; selected as fallback if BE-009 depends on blocked adapter work.
