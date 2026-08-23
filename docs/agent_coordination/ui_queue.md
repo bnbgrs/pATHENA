@@ -41,21 +41,14 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 | UI-031 | P2 | DONE | Knowledge/Research/Jobs/Sources/Backup now expose shown/total/selected scope in a separate quiet status row; four focused tests added, not executed. |
 | UI-032 | P2 | DONE | Dynamic message actions now use stable Copy→Remember→Add ordering by message sequence and return to the composer; disabled Remember state is preserved; four tests added, not executed. |
 | UI-033 | P2 | STALE | Current HEAD already suppresses the static Evidence Rail as non-truthful decoration; chainState is shrink-safe, wrapped and selectable via UI-025, so extra compact styling would be redundant. |
+| UI-035 | P2 | DONE | Research promotion keeps deterministic order while a quiet scope row exposes pending/resolved counts, selected proposal identity/state and evidence hint; four tests added, not executed. |
 
 ## Active queue
 
 ### UI-034 — Backup target-selection comprehension
 - **Priority:** P3
-- **Status:** READY
+- **Status:** IN_PROGRESS
 - **Evidence:** Backup snapshot action context is explicit; target registration/listing still deserves a read-only clarity audit around selected filesystem scope.
 - **Views/components:** Backup TARGETS / REGISTER TARGET / CREATE dialogs and status.
 - **Dependencies:** Existing BackupService CLI only.
-- **Last verification:** 2026-08-23.
-
-### UI-035 — Research result proposal density audit
-- **Priority:** P2
-- **Status:** IN_PROGRESS
-- **Evidence:** Promotion proposals are explicit but can become dense; audit proposal grouping, evidence visibility and decision scanability without changing promotion semantics.
-- **Views/components:** Research result/promotion extension.
-- **Dependencies:** Existing immutable ResearchResult and proposal decisions only.
 - **Last verification:** 2026-08-23.
