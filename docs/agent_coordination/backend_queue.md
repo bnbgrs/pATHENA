@@ -1,255 +1,101 @@
 # pATHENA Backend Queue
 
 Persistent prioritized backend work queue for `agent/pathena`.
+Status: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`.
+Last queue refresh: 2026-08-23.
 
-Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
+## Active / ready work
 
-## Queue
-
-### BE-001 — Complete normative provider health states
-- Priority: P1
-- Status: DONE
-- Evidence: FG-003 six-state provider health domain implemented.
-- Components: model domain/tests.
-- Dependencies: none.
-- Last verification: 2026-08-23; tests added, not executed in connector runtime.
-
-### BE-002 — Complete provider lifecycle/control contract
-- Priority: P1
-- Status: BLOCKED
-- Evidence: Core management port exists; LM Studio adapter remains a shared active file. SEC-003 also requires loopback transport to ignore ambient proxies.
-- Components: model ports, LM Studio adapter/tests.
-- Dependencies: safe adapter ownership window.
-- Last verification: 2026-08-23.
-
-### BE-003 — Add normalized provider capability representation
-- Priority: P1
-- Status: DONE
-- Evidence: FG-004 supported/unsupported/unknown capability contract implemented.
-- Components: model domain/tests.
-- Dependencies: none.
-- Last verification: 2026-08-23; tests added, not executed.
-
-### BE-004 — Add context-builder source diversity constraint
-- Priority: P1
-- Status: DONE
-- Evidence: FG-005 rank-1 preservation, near-duplicate deferral, deterministic ordering and contradiction protection implemented.
-- Components: retrieval context/tests.
-- Dependencies: none.
-- Last verification: 2026-08-23; tests added, not executed.
-
-### BE-005 — Provider-aware dynamic token accounting
-- Priority: P1
-- Status: STALE
-- Evidence: Current MemoryAugmentedChatService already budgets from provider capacity and converges rendered input.
-- Components: chat memory/context package.
-- Dependencies: none.
-- Last verification: 2026-08-23.
-
-### BE-006 — Add active primary model registry/runtime layer
-- Priority: P1
-- Status: DONE
-- Evidence: FG-002 ModelRegistry implements provider-scoped identity, eligibility, infrastructure exclusion and one active primary.
-- Components: model registry/tests.
-- Dependencies: BE-003.
-- Last verification: 2026-08-23; tests not executed due environment DNS.
-
-### BE-007 — Enforce model load ownership before automatic unload
-- Priority: P1
-- Status: DONE
-- Evidence: FG-007 distinguishes loaded_by_athena / loaded_externally / unknown; only ATHENA-owned loads auto-unload.
-- Components: model registry/tests.
-- Dependencies: BE-006.
-- Last verification: 2026-08-23; tests added, not executed.
-
-### BE-008 — Persist/audit active primary model switch semantics
-- Priority: P2
-- Status: BLOCKED
-- Evidence: Beta 08 requires auditable switching; no dedicated durable audit contract exists.
-- Components: model runtime/application audit.
-- Dependencies: durable audit storage contract decision.
-- Last verification: 2026-08-23.
-
-### BE-009 — Provider request cancellation/discard contract
-- Priority: P2
-- Status: BLOCKED
-- Evidence: ModelSession has request identity/cancellation/late-result discard, but provider stream port cannot bind the exact backend request yet.
-- Components: model session/provider orchestration.
-- Dependencies: safe request-ID plumbing and adapter ownership window.
-- Last verification: 2026-08-23.
-
-### BE-010 — Generation numeric/control boundary hardening
-- Priority: P2
-- Status: IN_PROGRESS
-- Evidence: direct persistent chat controls hardened before persistence; remaining grounded/provider-private boundaries need re-trace.
-- Components: chat/direct, ContextPackage/provider controls/tests.
-- Dependencies: avoid collision on chat/generation.py.
-- Last verification: 2026-08-23; BE-021 remains open.
-
-### BE-011 — Confine BlobStore writes against symlink/junction ancestors
-- Priority: P1
-- Status: DONE
-- Evidence: durable filesystem trust boundary rejects symlinks and Windows junction/reparse points.
-- Components: durable_fs/BlobStore tests.
-- Dependencies: none.
-- Last verification: 2026-08-23; test execution blocked by DNS.
-
-### BE-012 — Preserve provider-observed model revision in ModelSignature
-- Priority: P1
-- Status: DONE
-- Evidence: FG-008 optional exact provider revision participates in signature identity and ContextPackage propagation without inference.
-- Components: model domain/provenance/tests.
-- Dependencies: none.
-- Last verification: 2026-08-23.
-
-### BE-013 — Complete first-class ModelSession binding
-- Priority: P1
-- Status: BLOCKED
-- Evidence: FG-009 Core ModelSession exists; exact provider request binding remains absent.
-- Components: model session/ports/chat orchestration/provider adapter.
-- Dependencies: safe adapter ownership window.
-- Last verification: 2026-08-23.
-
-### BE-014 — Carry ModelSignature revision through ContextPackage and drift checks
+### BE-028 — Clone/journal migration before live schema mutation
 - Priority: P1
 - Status: IN_PROGRESS
-- Evidence: ContextPackage preserves revision and reusable runtime drift guard exists; ChatGenerationService integration remains.
-- Components: ContextPackage/signature_guard/chat generation/tests.
-- Dependencies: safe mutation window for shared chat/generation.py.
-- Last verification: 2026-08-23.
+- Evidence: clone-first stack is implemented: migration metadata/free-space preflight, SQLite Online Backup clone, durable phase journal, exclusive migration lock, full integrity/FK/version verification, rollback-preserving activation, orphan/journal recovery boundaries and Windows junction/reparse hardening. Read-only startup migration planning and a candidate-only schema executor now also exist. Normal `SQLiteDatabase.start()` still invokes legacy live `initialize_schema()`.
+- Components: `migration_safety.py`, `migration_clone.py`, `migration_journal.py`, `migration_lock.py`, `migration_activation.py`, `migration_coordinator.py`, `migration_executor.py`, `migration_plan.py`, database/application startup integration and tests.
+- Dependencies: BE-027 DONE; BE-029 reserve must be integrated before startup migration accounts for the real physical reserve. Alembic-vs-custom executor remains an architecture decision.
+- Last verification: 2026-08-23; targeted tests added, not executed because isolated runtime cannot resolve `github.com`. Quality-reported reparse boundary in this new path was fixed.
 
-### BE-015 — Normalize Core provider failure taxonomy
-- Priority: P1
-- Status: BLOCKED
-- Evidence: FG-010 Core taxonomy/retry classes exist; adapter mapping remains.
-- Components: model/failures, LM Studio adapter, consumers/tests.
-- Dependencies: safe adapter ownership window.
-- Last verification: 2026-08-23.
-
-### BE-016 — Protection-aware retrieval/context bridge
+### BE-029 — Physically allocated Emergency Reserve
 - Priority: P1
 - Status: IN_PROGRESS
-- Evidence: FG-012 ephemeral protected retrieval and execution guard exist; end-to-end generation/persistence policy remains.
-- Components: protected_source/protected_execution/orchestration/tests.
-- Dependencies: explicit protected output persistence policy.
-- Last verification: 2026-08-23.
+- Evidence: `EmergencyReserveStore` and `EmergencyReserveService` implement Beta sizing `max(256 MiB, min(1 GiB, 1% volume))`, non-sparse allocation, durable persistence, path/reparse safety, explicit emergency release and test-only sizing injection. Normal shutdown retains the reserve.
+- Components: `storage/emergency_reserve.py`, Core bootstrap ordering/tests.
+- Dependencies: RuntimeLayout must create `state_root`; reserve must start before DatabaseService.
+- Blocker: naive Core integration would cause every existing application-start test to physically reserve >=256 MiB. A production/test dependency-injection seam must be established before wiring the large shared `core/application.py`.
+- Last verification: 2026-08-23; store/service tests added, not executed.
 
-### BE-017 — Enforce ModelSession constructor cancellation invariants
-- Priority: P2
+### BE-030 — Disk-pressure state controller
+- Priority: P1
+- Status: IN_PROGRESS
+- Evidence: integer-only Beta thresholds implemented: WARNING `< max(10 GiB,5%)`, CRITICAL `< max(5 GiB,2%)`, EMERGENCY `< max(2 GiB,1%)`. `DiskPressureController` releases only the emergency reserve at EMERGENCY and immediately reassesses; it never deletes canonical data.
+- Components: `storage/disk_pressure.py`, write-gating/diagnostics integration/tests.
+- Dependencies: BE-029 reserve primitive.
+- Last verification: 2026-08-23; policy and side-effect controller tests added, not executed.
+
+### BE-031 — Candidate-only schema executor
+- Priority: P1
 - Status: DONE
-- Evidence: impossible direct lifecycle combinations rejected.
-- Components: model/session tests.
-- Dependencies: none.
-- Last verification: 2026-08-23.
+- Evidence: `migrate_schema_candidate()` runs the existing schema engine only against the clone candidate, requires current `SCHEMA_VERSION`, requires a complete WAL checkpoint, restores DELETE journal mode and fails if WAL/SHM sidecars remain.
+- Components: `storage/migration_executor.py`, targeted tests.
+- Dependencies: BE-028 standalone coordinator.
+- Last verification: 2026-08-23; executor and incomplete-checkpoint regressions added, not executed.
 
-### BE-018 — Fail closed on out-of-range UUIDv7 system clock
-- Priority: P2
+### BE-032 — Read-only startup migration planner
+- Priority: P1
 - Status: DONE
-- Evidence: UUIDv7 timestamp no longer silently wraps outside RFC range.
-- Components: common/ids tests.
-- Dependencies: none.
-- Last verification: 2026-08-23.
+- Evidence: `plan_database_migration()` converts the preflight report into no-op for missing/current DB or an exact clone-required legacy-to-current descriptor; unsupported versions fail closed.
+- Components: `storage/migration_plan.py`, targeted tests.
+- Dependencies: BE-027.
+- Last verification: 2026-08-23; tests added, not executed.
 
-### BE-019 — Canonicalize provider-observed model identity metadata
-- Priority: P2
-- Status: BLOCKED
-- Evidence: domain-only normalization breaks provider error taxonomy; change must be atomic with adapter parsing.
-- Components: LM Studio parsing/ModelInfo/tests.
-- Dependencies: safe adapter ownership window.
-- Last verification: 2026-08-23.
-
-### BE-020 — Integrate runtime ModelSignature drift guard into generation
+### BE-033 — Integrate safe storage bootstrap ordering
 - Priority: P1
 - Status: READY
-- Evidence: reusable guard exists; ChatGenerationService still uses older inline comparison.
-- Components: chat/generation.py, signature_guard/tests.
+- Evidence: required order is read-only preflight/planning -> RuntimeLayout -> EmergencyReserve -> clone migration when needed -> DatabaseService. Current `AthenaApplication` bootstrap tuple is RuntimeLayout -> Database -> protected services.
+- Components: `core/application.py`, database startup, storage bootstrap tests.
+- Dependencies: testable reserve-service injection seam; BE-029/BE-031/BE-032.
+- Last verification: 2026-08-23 against current `core/application.py`.
+
+### BE-020 — Runtime ModelSignature drift guard in generation
+- Priority: P1
+- Status: READY
+- Evidence: reusable revision-aware guard exists; shared `chat/generation.py` still uses older inline comparison.
+- Components: chat generation/signature guard/tests.
 - Dependencies: safe mutation window for shared generation file.
-- Last verification: 2026-08-23.
 
-### BE-021 — Harden ContextPackage generation-temperature conversion
+### BE-021 — ContextPackage temperature conversion overflow
 - Priority: P2
 - Status: READY
-- Evidence: extreme JSON integer can OverflowError during float conversion outside ContextPackage error contract.
+- Evidence: extreme JSON integer can escape the ContextPackage error contract via `float()` OverflowError.
 - Components: retrieval/context_package.py/tests.
 - Dependencies: safe mutation window for shared ContextPackage file.
-- Last verification: 2026-08-23.
 
-### BE-022 — Fail closed on invalid persistent wall-clock range
-- Priority: P1
-- Status: DONE
-- Evidence: utc_now_us rejects negative/out-of-SQLite-int64 timestamps.
-- Components: common/time tests.
-- Dependencies: none.
-- Last verification: 2026-08-23.
+## Blocked / in-progress older slices
 
-### BE-023 — Reject Unicode line controls in structured schema IDs
-- Priority: P2
-- Status: DONE
-- Evidence: Unicode line/paragraph controls are rejected from single-line schema IDs.
-- Components: model/ports tests.
-- Dependencies: none.
-- Last verification: 2026-08-23.
+- BE-002 · P1 · BLOCKED — provider lifecycle/control adapter completion; shared LM Studio adapter ownership window required.
+- BE-008 · P2 · BLOCKED — auditable primary-model switch needs durable audit contract.
+- BE-009 · P2 · BLOCKED — provider request cancellation needs exact backend request-ID plumbing.
+- BE-010 · P2 · IN_PROGRESS — generation numeric/control boundaries; shared generation path remains.
+- BE-013 · P1 · BLOCKED — ModelSession exact provider binding remains.
+- BE-014 · P1 · IN_PROGRESS — revision-aware ContextPackage/drift guard; generation integration remains.
+- BE-015 · P1 · BLOCKED — provider failure taxonomy mapping needs adapter ownership.
+- BE-016 · P1 · IN_PROGRESS — protected retrieval execution exists; explicit protected generation/persistence policy remains.
+- BE-019 · P2 · BLOCKED — provider identity canonicalization must be atomic with adapter parsing.
 
-### BE-024 — Harden runtime mutation lock identity and permissions
-- Priority: P1
-- Status: DONE
-- Evidence: owner-only POSIX mode plus path/handle identity checks before/after lock.
-- Components: lifecycle/runtime_lock tests.
-- Dependencies: none.
-- Last verification: 2026-08-23.
+## Completed / stale reference
 
-### BE-025 — Harden backup target lock identity against pathname replacement
-- Priority: P1
-- Status: DONE
-- Evidence: backup lock validates path/handle identity after open/acquisition.
-- Components: backup/target_lock tests.
-- Dependencies: none.
-- Last verification: 2026-08-23.
-
-### BE-026 — Reject network-backed active SQLite state roots
-- Priority: P1
-- Status: DONE
-- Evidence: FG-014 refuses Windows UNC/mapped network and known Linux network filesystems before RuntimeLayout mutation and SQLite preflight.
-- Components: storage/locality, runtime, recovery/tests.
-- Dependencies: none.
-- Last verification: 2026-08-23; tests added, no pass claimed.
-
-### BE-027 — Establish clone-migration safety metadata and free-space contract
-- Priority: P1
-- Status: DONE
-- Evidence: FG-013 exact migration metadata and DB + 25% + 512 MiB + emergency reserve preflight implemented with integer-only arithmetic.
-- Components: migration_safety/tests/reconciliation note.
-- Dependencies: none.
-- Last verification: 2026-08-23; tests added, not executed.
-
-### BE-028 — Implement clone/journal migration coordinator before live schema mutation
-- Priority: P1
-- Status: IN_PROGRESS
-- Evidence: Standalone clone-first migration stack now exists: versioned descriptor/preflight, SQLite Online Backup candidate, durable external phase journal, exclusive cross-process lock, full integrity/FK/version verification, rollback-preserving activation, orphan/journal fail-closed recovery boundaries and crash-phase tests. Quality-reported Windows junction/reparse issue in the new clone path was fixed via the shared durable-fs trust-boundary predicate and regressions were added. Normal SQLiteDatabase.start() is not yet wired to this coordinator and still performs legacy live initialize_schema migration.
-- Components: migration_safety, migration_clone, migration_journal, migration_lock, migration_activation, migration_coordinator, database startup integration/tests.
-- Dependencies: BE-027 DONE; BE-029 reserve lifecycle must be production-integrated before startup migration uses a real reserve size. Alembic-vs-custom executor remains a separate architecture decision.
-- Last verification: 2026-08-23; targeted tests added but not executed because isolated runtime cannot resolve github.com.
-
-### BE-029 — Provision physically allocated Emergency Reserve
-- Priority: P1
-- Status: IN_PROGRESS
-- Evidence: Beta 03 requires state_root/reserve/emergency.reserve, physically allocated and non-sparse, default max(256 MiB, min(1 GiB, 1% volume)). EmergencyReserveStore and EmergencyReserveService implement exact sizing, physical allocation, path/reparse safety, durable persistence, explicit release and a test override that avoids large allocations. Application bootstrap integration remains outstanding.
-- Components: storage/emergency_reserve.py, RuntimeLayout/Application startup, targeted tests.
-- Dependencies: RuntimeLayout must create state_root before reserve provisioning; DatabaseService must start only after reserve provisioning.
-- Last verification: 2026-08-23; store/service and targeted tests added, not executed.
-
-### BE-030 — Implement deterministic disk-pressure state controller
-- Priority: P1
-- Status: IN_PROGRESS
-- Evidence: Beta 03 thresholds are encoded as pure integer policy: WARNING free < max(10 GiB, 5%), CRITICAL free < max(5 GiB, 2%), EMERGENCY free < max(2 GiB, 1%). Assessment exposes reserve-release/noncritical-write/read-only-safe-mode decisions; side-effect controller integration remains outstanding.
-- Components: storage/disk_pressure.py, reserve release controller, diagnostics/jobs/tests.
-- Dependencies: BE-029 reserve primitive available.
-- Last verification: 2026-08-23; pure policy and boundary tests added, not executed.
-
-### BE-031 — Wire candidate-only schema executor into clone migration
-- Priority: P1
-- Status: READY
-- Evidence: BE-028 coordinator intentionally accepts an executor but current initialize_schema configures WAL on its connection. Candidate execution needs a dedicated wrapper that migrates only candidate.db, checkpoints/normalizes journal mode and leaves no WAL/SHM before verification/activation.
-- Components: schema executor, schema.py/database integration/tests.
-- Dependencies: BE-028 standalone coordinator.
-- Last verification: 2026-08-23 against current schema/database path.
+- BE-001 DONE — normative provider health states.
+- BE-003 DONE — normalized provider capabilities.
+- BE-004 DONE — Context Builder source diversity.
+- BE-005 STALE — provider-aware dynamic token accounting already present.
+- BE-006 DONE — active primary ModelRegistry.
+- BE-007 DONE — model load ownership.
+- BE-011 DONE — BlobStore/durable FS symlink+junction confinement.
+- BE-012 DONE — provider-observed model revision in signatures.
+- BE-017 DONE — ModelSession cancellation invariants.
+- BE-018 DONE — UUIDv7 clock-range guard.
+- BE-022 DONE — persistent wall-clock int64 guard.
+- BE-023 DONE — Unicode line-control rejection in schema IDs.
+- BE-024 DONE — runtime mutation lock identity/permissions.
+- BE-025 DONE — backup target lock identity.
+- BE-026 DONE — reject network-backed active SQLite state.
+- BE-027 DONE — clone-migration metadata/free-space contract.
