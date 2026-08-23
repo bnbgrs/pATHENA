@@ -7,7 +7,7 @@ No API, persistence, scheduler, canonical-memory, research or job behavior chang
 
 from __future__ import annotations
 
-from PySide6.QtWidgets import QAbstractItemView, QPlainTextEdit, QWidget
+from PySide6.QtWidgets import QAbstractItemView, QListView, QPlainTextEdit, QWidget
 
 _REFINEMENTS = (
     "reduce permanent visual weight",
@@ -75,6 +75,7 @@ def apply_ui_refinements_1101_2100(window: QWidget) -> tuple[int, ...]:
             widget.setProperty("pathenaProgramRole", _role_for(key))
             if isinstance(widget, QAbstractItemView):
                 widget.setAlternatingRowColors(False)
+            if isinstance(widget, QListView):
                 widget.setUniformItemSizes(True)
             if isinstance(widget, QPlainTextEdit):
                 widget.document().setDocumentMargin(10.0)
