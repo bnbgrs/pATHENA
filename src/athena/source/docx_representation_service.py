@@ -190,6 +190,16 @@ class SourceDocxRepresentationService:
                 processing_run=self.runs.load_run(run.processing_run_id),
                 structures=structures,
             )
+        except KeyboardInterrupt:
+            if prepared is not None:
+                self.representation_store.discard(prepared)
+            current = self.runs.load_run(run.processing_run_id)
+            if current.status == "running":
+                self.runs.finish_run(
+                    run.processing_run_id,
+                    status="cancelled",
+                )
+            raise
         except Exception as exc:
             if prepared is not None:
                 self.representation_store.discard(prepared)
