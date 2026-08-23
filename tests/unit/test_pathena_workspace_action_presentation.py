@@ -1,6 +1,12 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QApplication, QLineEdit, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QApplication,
+    QLineEdit,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 
 from athena.desktop.app import create_application
 from athena.desktop.pathena_workspace_presentation import (
@@ -64,7 +70,9 @@ def test_research_and_jobs_only_show_contextual_actions() -> None:
 
         assert research_query.objectName() == "researchQueryInput"
         assert research_query.placeholderText() == "What do you want to investigate?"
+        assert research_query.minimumHeight() == 40
         assert research_start.objectName() == "researchStartButton"
+        assert research_start.property("role") == "primary"
         assert research_refresh.objectName() == "researchRefreshButton"
         assert research_cancel.objectName() == "researchCancelButton"
         assert research_cancel.isHidden()
