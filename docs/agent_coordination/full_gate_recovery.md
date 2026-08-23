@@ -109,9 +109,17 @@ Status values: `OPEN`, `ASSIGNED`, `IN_PROGRESS`, `FIXED_PENDING_VERIFY`, `VERIF
 
 - Priority: P1
 - Root-cause class: platform difference / race / TOCTOU.
-- Ownership: BACKEND + SECURITY.
+- Ownership: MIXED.
+- Primary implementation owner: BACKEND.
+- Secondary reviewers: SECURITY.
+- Verification owner: QUALITY.
 - Components: Windows durable filesystem publication used by migration journal.
 - Required fix invariant: mutation/publication must be bound to or revalidate the intended parent directory identity across the operation, rather than trusting only path-based prechecks before `MoveFileExW` publication.
+- Security review evidence: current Windows `durable_write_bytes()` creates the temporary by pathname and current Windows `durable_replace()` publishes through pathname-based `MoveFileExW`; unlike the POSIX implementation, no opened parent-directory identity is held across creation/publication. Static symlink/junction/reparse checks alone therefore do not close concurrent parent replacement.
+- Sub-slices:
+  - `FGATE-008-BE` — Owner: BACKEND — implement Windows HANDLE-backed or equivalently identity-bound create/publication semantics without weakening durability or reparse protection. Status: ASSIGNED.
+  - `FGATE-008-SEC` — Owner: SECURITY — define/review the security invariant and adversarial parent-replacement, junction/reparse and fail-closed regression cases; do not implement Backend product I/O. Status: IN_PROGRESS.
+  - `FGATE-008-QA` — Owner: QUALITY — execute deterministic native-Windows regressions and the required integrative storage/full-gate verification on the relevant HEAD. Status: ASSIGNED.
 - Status: ASSIGNED.
 - Targeted verification: deterministic Windows parent-replacement/reparse regression plus native Windows storage lane.
 
