@@ -206,6 +206,9 @@ class DiskPressureController:
     The controller never deletes canonical data. It releases only the physical
     reserve at EMERGENCY and refuses to recreate that reserve while the volume
     remains in EMERGENCY, preserving the space gained for controlled recovery.
+    Once runtime EMERGENCY is observed, noncritical writes remain latched off for
+    the lifetime of this controller. A controlled restart performs a fresh
+    bootstrap assessment before writable operation can resume.
     """
 
     def __init__(
@@ -223,6 +226,12 @@ class DiskPressureController:
         self.state_root = root
         self.reserve_store = reserve_store or EmergencyReserveStore(root)
         self._disk_usage_provider = disk_usage_provider or _default_disk_usage
+        self._read_only_safe_mode = False
+
+    @property
+    def read_only_safe_mode(self) -> bool:
+        """Whether runtime EMERGENCY has latched noncritical writes off."""
+        return self._read_only_safe_mode
 
     def _assessment(self) -> DiskPressureAssessment:
         try:
@@ -232,9 +241,14 @@ class DiskPressureController:
         return assess_disk_pressure(total_bytes=total, free_bytes=free)
 
     def assert_noncritical_write_allowed(self) -> None:
-        """Callable gate for transaction boundaries that must stop at EMERGENCY."""
-        assessment = self._assessment()
-        if not assessment.allow_noncritical_writes:
+        """Gate canonical writes and latch safe mode on the first EMERGENCY."""
+        if self._read_only_safe_mode:
+            raise DiskPressureWriteBlockedError(
+                "ATHENA noncritical writes are blocked by latched read-only safe mode."
+            )
+
+        self.check()
+        if self._read_only_safe_mode:
             raise DiskPressureWriteBlockedError(
                 "ATHENA noncritical writes are blocked while disk pressure is EMERGENCY."
             )
@@ -269,8 +283,10 @@ class DiskPressureController:
         )
 
     def check(self) -> DiskPressureCheckResult:
-        """Assess pressure and release only the reserve when EMERGENCY is reached."""
+        """Assess pressure, latch safe mode, and release only the emergency reserve."""
         before = self._assessment()
+        if before.state is DiskPressureState.EMERGENCY:
+            self._read_only_safe_mode = True
         if not before.release_emergency_reserve:
             return DiskPressureCheckResult(
                 before_release=before,
