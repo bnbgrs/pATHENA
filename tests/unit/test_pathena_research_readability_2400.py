@@ -4,8 +4,8 @@ from athena.desktop.pathena_research_readability_2400 import (
     _REFINEMENTS,
     _STYLESHEET,
     _TARGETS,
-    _readable_result,
     UI_REFINEMENT_TASKS_2301_2400,
+    _readable_result,
 )
 
 
