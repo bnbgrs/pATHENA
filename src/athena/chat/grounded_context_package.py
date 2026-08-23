@@ -82,6 +82,7 @@ def _encode_package(package: ContextPackage) -> tuple[str, str]:
             "model_signature_id": str(package.model_signature.model_signature_id),
             "provider": package.model_signature.provider,
             "model_identifier": package.model_signature.model_identifier,
+            "model_revision": package.model_signature.model_revision,
             "quantization": package.model_signature.quantization,
             "generation_parameters_json": package.model_signature.generation_parameters_json,
             "context_configuration_json": package.model_signature.context_configuration_json,
@@ -263,6 +264,7 @@ def _decode_package(payload_json: str, expected_sha256: str) -> ContextPackage:
             ),
             provider=_required_str(signature, "provider"),
             model_identifier=_required_str(signature, "model_identifier"),
+            model_revision=_optional_str(signature, "model_revision"),
             quantization=_optional_str(signature, "quantization"),
             generation_parameters_json=_required_str(
                 signature,
@@ -497,7 +499,7 @@ class GroundedContextPackageRepository:
                 SELECT 1
                 FROM sqlite_master
                 WHERE type = 'table' AND name = 'grounded_provider_attempts'
-                """
+                """,
             ).fetchone()
             if provider_attempt_table is not None:
                 provider_attempt = connection.execute(
