@@ -29,7 +29,7 @@ def test_claim_promotion_rejects_non_integer_sequence_before_chat_load(
         service.promote_chat_message(
             chat_id=uuid.uuid4(),
             sequence_no=sequence_no,  # type: ignore[arg-type]
-            claim_kind=ClaimKind.FACT,
+            claim_kind=ClaimKind.FACTUAL_ASSERTION,
         )
 
     assert chat.load_calls == 0
