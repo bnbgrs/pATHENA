@@ -93,3 +93,23 @@ def test_verified_complete_snapshot_can_restore(
     assert workspace.restore_button.property("pathenaRestoreEligibility") is True
     assert "33333333" in workspace.restore_button.accessibleDescription()
     controller.deleteLater()
+
+
+def test_base_reenable_cannot_expose_ineligible_snapshot_actions(
+    qt_app: QApplication,
+) -> None:
+    workspace = BackupWorkspace()
+    controller = install_backup_action_truth(workspace)
+    _select(
+        workspace,
+        "44444444-4444-4444-4444-444444444444",
+        "creating",
+        "unverified",
+    )
+
+    workspace._set_controls(True)
+
+    assert not workspace.verify_button.isEnabled()
+    assert not workspace.deep_verify_button.isEnabled()
+    assert not workspace.restore_button.isEnabled()
+    controller.deleteLater()
