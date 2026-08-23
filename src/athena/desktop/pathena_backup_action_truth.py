@@ -131,6 +131,12 @@ class BackupActionTruth(QObject):
             "pathenaRestoreEligibilityBasis",
             "listed-state-and-verification",
         )
+        self._describe_snapshot_list(
+            snapshot_id=snapshot_id,
+            state=state,
+            verification=verification,
+            restore_ready=restore_ready,
+        )
 
     def _describe_snapshot_rows(self) -> None:
         for index in range(self.workspace.snapshots.count()):
@@ -141,9 +147,10 @@ class BackupActionTruth(QObject):
             label = snapshot_id[:8].upper() if snapshot_id else "unknown"
             complete = bool(snapshot_id) and state == "complete"
             restore_ready = complete and verification in _RESTORE_VERIFIED
+            readable_verification = verification.replace("_", " ")
 
             accessible_text = (
-                f"Snapshot {label}, state {state}, verification {verification}."
+                f"Snapshot {label}, state {state}, verification {readable_verification}."
             )
             if restore_ready:
                 accessible_description = (
@@ -165,6 +172,31 @@ class BackupActionTruth(QObject):
                 accessible_description,
             )
             item.setData(Qt.ItemDataRole.StatusTipRole, accessible_description)
+
+    def _describe_snapshot_list(
+        self,
+        *,
+        snapshot_id: str,
+        state: str,
+        verification: str,
+        restore_ready: bool,
+    ) -> None:
+        count = self.workspace.snapshots.count()
+        noun = "snapshot" if count == 1 else "snapshots"
+        if not snapshot_id:
+            selection = "No snapshot selected."
+        else:
+            label = snapshot_id[:8].upper()
+            readable_verification = (verification or "unknown").replace("_", " ")
+            restore_state = "restore available" if restore_ready else "restore unavailable"
+            selection = (
+                f"Selected {label}: state {state or 'unknown'}, verification "
+                f"{readable_verification}, {restore_state}."
+            )
+        description = f"{count} backup {noun} listed. {selection}"
+        self.workspace.snapshots.setAccessibleDescription(description)
+        self.workspace.snapshots.setStatusTip(description)
+        self.workspace.snapshots.setProperty("pathenaBackupListScope", description)
 
     def _focused_action_becoming_disabled(
         self,
