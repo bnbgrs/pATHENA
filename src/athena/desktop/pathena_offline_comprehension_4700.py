@@ -8,7 +8,9 @@ or invent capabilities.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
+from typing import cast
 
 from PySide6.QtCore import QObject, QTimer
 from PySide6.QtWidgets import QComboBox, QLabel, QLineEdit, QPushButton, QWidget
@@ -125,10 +127,11 @@ class OfflineComprehensionController(QObject):
         )
 
     def _selected_model(self) -> object | None:
-        selected = getattr(self.window, "_selected_model", None)
-        if callable(selected):
-            return selected()
-        return None
+        candidate = getattr(self.window, "_selected_model", None)
+        if not callable(candidate):
+            return None
+        selector = cast(Callable[[], object | None], candidate)
+        return selector()
 
     def _managed_widgets(self) -> tuple[QWidget, ...]:
         return tuple(
