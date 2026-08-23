@@ -31,6 +31,26 @@ def test_authenticate_rejects_non_string_token_without_exception(tmp_path: Path)
     assert runtime.authenticate(1234) is False  # type: ignore[arg-type]
 
 
+def test_publish_fails_closed_when_identity_bound_writer_rejects_parent(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime = LocalApiRuntime(tmp_path / "api")
+
+    def reject_write(path: Path, data: bytes, *, mode: int = 0o600) -> None:
+        del path, data, mode
+        raise OSError("runtime parent identity changed")
+
+    monkeypatch.setattr(api_runtime, "durable_write_bytes", reject_write)
+
+    with pytest.raises(ApiRuntimeError, match="Cannot publish ATHENA API runtime file"):
+        runtime.publish(port=1234)
+
+    assert not runtime.discovery_path.exists()
+    assert not runtime.token_path.exists()
+    assert runtime.authenticate("anything") is False
+
+
 def test_clear_attempts_token_removal_even_when_discovery_unlink_fails(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
