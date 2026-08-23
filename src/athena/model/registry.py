@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, replace
 from enum import Enum
 from numbers import Real
@@ -69,8 +70,13 @@ class ModelResourceProfile:
                 continue
             if isinstance(value, bool) or not isinstance(value, Real):
                 raise ModelRegistryError(f"{label} must be a non-negative number or None.")
-            normalized = float(value)
-            if not 0.0 <= normalized < float("inf"):
+            try:
+                normalized = float(value)
+            except OverflowError as exc:
+                raise ModelRegistryError(
+                    f"{label} must be finite and non-negative."
+                ) from exc
+            if not math.isfinite(normalized) or normalized < 0.0:
                 raise ModelRegistryError(f"{label} must be finite and non-negative.")
 
 
@@ -155,7 +161,11 @@ class ModelRegistry:
             )
 
         self._entries = refreshed
-        if self._active_identity not in refreshed or not refreshed[self._active_identity].active_primary:
+        active_identity = self._active_identity
+        if active_identity is None:
+            return self.entries()
+        active_entry = refreshed.get(active_identity)
+        if active_entry is None or not active_entry.active_primary:
             self._active_identity = None
         return self.entries()
 
@@ -195,24 +205,27 @@ class ModelRegistry:
         if requested.eligibility is not ModelRoleEligibility.PRIMARY:
             raise ModelRegistryError("Model is not eligible for the active primary role.")
 
-        if self._active_identity is not None and self._active_identity in self._entries:
-            prior = self._entries[self._active_identity]
-            self._entries[self._active_identity] = replace(prior, active_primary=False)
+        active_identity = self._active_identity
+        if active_identity is not None and active_identity in self._entries:
+            prior = self._entries[active_identity]
+            self._entries[active_identity] = replace(prior, active_primary=False)
         activated = replace(requested, active_primary=True)
         self._entries[key] = activated
         self._active_identity = key
         return activated
 
     def deactivate_primary(self) -> None:
-        if self._active_identity is not None and self._active_identity in self._entries:
-            current = self._entries[self._active_identity]
-            self._entries[self._active_identity] = replace(current, active_primary=False)
+        active_identity = self._active_identity
+        if active_identity is not None and active_identity in self._entries:
+            current = self._entries[active_identity]
+            self._entries[active_identity] = replace(current, active_primary=False)
         self._active_identity = None
 
     def active_primary(self) -> ModelRegistryEntry | None:
-        if self._active_identity is None:
+        active_identity = self._active_identity
+        if active_identity is None:
             return None
-        return self._entries.get(self._active_identity)
+        return self._entries.get(active_identity)
 
 
 def _identity(provider: object, model_id: object) -> tuple[str, str]:
