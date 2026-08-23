@@ -101,14 +101,10 @@ def _artifact_counts(
     source_id: uuid.UUID,
 ) -> tuple[int, int]:
     representations = app.source_text.list_for_source(source_id, limit=100)
-    chunk_count = 0
-    for representation, _blob in representations:
-        chunk_count += len(
-            app.source_chunks.list_for_representation(
-                representation.representation_id,
-                limit=5000,
-            )
-        )
+    chunk_count = sum(
+        app.source_chunks.count_for_representation(representation.representation_id)
+        for representation, _blob in representations
+    )
     return len(representations), chunk_count
 
 
