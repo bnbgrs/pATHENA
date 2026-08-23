@@ -93,3 +93,18 @@ def test_settings_distinguish_auto_capacity_and_loaded_model() -> None:
     assert window.context_spin.property("pathenaSettingsContextMode") == "exact"
     assert "32,768" in window.context_spin.toolTip()
     assert "available but not loaded" in window.settings_model_value.accessibleDescription()
+
+
+def test_settings_controls_have_distinct_assistive_names() -> None:
+    _app()
+    window = _Window()
+
+    SettingsComprehensionController(window)
+
+    assert window.context_slider.accessibleName() == "Context size slider"
+    assert window.context_spin.accessibleName() == "Context size exact value"
+    assert window.max_output_slider.accessibleName() == "Maximum output slider"
+    assert window.max_output_spin.accessibleName() == "Maximum output exact value"
+    assert window.temperature_spin.accessibleName() == "Sampling temperature"
+    assert window.thinking_checkbox.accessibleName() == "Thinking and reasoning"
+    assert window.settings_model_value.accessibleName() == "Selected local model"
