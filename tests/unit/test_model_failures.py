@@ -13,7 +13,10 @@ from athena.model.failures import (
     "kind,retry_class",
     [
         (ProviderFailureKind.TIMEOUT, ProviderFailureRetryClass.RETRYABLE),
-        (ProviderFailureKind.RESOURCE_EXHAUSTED, ProviderFailureRetryClass.RETRYABLE),
+        (
+            ProviderFailureKind.RESOURCE_EXHAUSTED,
+            ProviderFailureRetryClass.REQUEST_CHANGE_REQUIRED,
+        ),
         (ProviderFailureKind.UNAVAILABLE, ProviderFailureRetryClass.RETRYABLE),
         (ProviderFailureKind.BACKEND_CRASH, ProviderFailureRetryClass.RETRYABLE),
         (ProviderFailureKind.INVALID_RESPONSE, ProviderFailureRetryClass.TERMINAL),
