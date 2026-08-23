@@ -206,6 +206,19 @@ def test_source_replacement_after_open_fails_identity_classification(
 ) -> None:
     source, root, _candidate, _rollback = _paths(tmp_path)
     source.write_bytes(b"trusted")
+
+    if recovery_module.os.name == "nt":
+        # Windows intentionally denies renaming an open file under the sharing mode
+        # used by os.open(), so a literal replacement race cannot reach samestat.
+        # Exercise the same post-open identity-fence outcome deterministically.
+        monkeypatch.setattr(recovery_module.os.path, "samestat", lambda _left, _right: False)
+
+        with pytest.raises(MigrationRecoveryError, match="changed while recovery state"):
+            assess_migration_recovery(source_db=source, migration_root=root)
+
+        assert source.read_bytes() == b"trusted"
+        return
+
     displaced = tmp_path / "displaced.db"
     real_assert = recovery_module._assert_safe_path
     source_checks = 0
