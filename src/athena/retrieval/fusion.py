@@ -15,4 +15,11 @@ def reciprocal_rank_contribution(rank: int, *, k: int = DEFAULT_RRF_K) -> float:
     """Return one Reciprocal Rank Fusion contribution for a 1-based rank."""
     validated_rank = _positive_int(rank, "RRF rank")
     validated_k = _positive_int(k, "RRF k")
-    return 1.0 / (validated_k + validated_rank)
+    denominator = validated_k + validated_rank
+    try:
+        return 1.0 / denominator
+    except OverflowError:
+        # Python must convert very large integers to float for true division.
+        # Once that conversion overflows, the mathematically positive RRF
+        # contribution is below the representable range relevant to ranking.
+        return 0.0
