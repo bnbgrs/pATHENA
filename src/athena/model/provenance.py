@@ -148,7 +148,7 @@ class ModelRunRepository:
         normalized = {
             "provider": model.provider,
             "model_identifier": model.backend_model_id,
-            "model_revision": None,
+            "model_revision": model.model_revision,
             "quantization": model.quantization,
             "generation_parameters": json.loads(generation_json),
             "context_configuration": (
@@ -183,12 +183,13 @@ class ModelRunRepository:
                     context_configuration_json,
                     signature_hash,
                     created_at_us
-                ) VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     uuid_to_blob(model_signature_id),
                     model.provider,
                     model.backend_model_id,
+                    model.model_revision,
                     model.quantization,
                     generation_json,
                     context_json,
@@ -201,7 +202,7 @@ class ModelRunRepository:
             model_signature_id=model_signature_id,
             provider=model.provider,
             model_identifier=model.backend_model_id,
-            model_revision=None,
+            model_revision=model.model_revision,
             quantization=model.quantization,
             generation_parameters_json=generation_json,
             context_configuration_json=context_json,
