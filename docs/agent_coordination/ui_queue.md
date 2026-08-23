@@ -60,37 +60,40 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 | UI-051 | P2 | DONE | Background completion/accessibility layer mirrors operation owner vs current selection into accessible status descriptions; three tests added 2026-08-23, not executed. |
 | UI-052 | P2 | DONE | Disappeared selections expose the transition on list accessibility and clear stale ResearchResult proposals; two tests added 2026-08-23, not executed. |
 | UI-053 | P2 | DONE | Operational continuity now restores stable UserRole identity only; a vanished identity never falls back to an unrelated old row. Three tests added 2026-08-23, not executed. |
+| UI-054 | P1 | DONE | Canonical Knowledge/Claim/Decision refreshes preserve identity and explicitly clear vanished selections; four targeted tests added 2026-08-23, not executed. |
+| UI-055 | P1 | DONE | Knowledge/Claim/Decision show/history/review output is bound to the identity that started it; newer review selection survives owner completion. Three tests added 2026-08-23, not executed. |
+| UI-056 | P2 | DONE | Reverified 2026-08-23: existing Knowledge result-scope layer explicitly marks a hidden active selection as `selected <ID> (filtered)` in visible and accessible scope copy. |
 
 ## Active queue
 
 ### UI-047 — Post-slice targeted execution handoff
 - **Priority:** P2
 - **Status:** BLOCKED
-- **Evidence:** Connector runtime can read/write GitHub but does not provide a checked-out repository process for pytest/Ruff/Mypy execution in this run.
+- **Evidence:** Connector runtime cannot provide a checked-out repository process; a local clone attempt on 2026-08-23 also failed transiently on DNS resolution to github.com.
 - **Views/components:** Recent UI modules and tests.
 - **Dependencies:** Runtime with repository checkout or Quality-bot execution.
 - **Last verification:** 2026-08-23.
 
-### UI-054 — Knowledge disappeared-selection semantics
+### UI-057 — Backup restore eligibility truth
 - **Priority:** P1
 - **Status:** IN_PROGRESS
-- **Evidence:** `KnowledgeWorkspace._restore_or_select_first()` still selects row 0 whenever the previous Knowledge/Claim/Contradiction identity disappears, which can make unrelated provenance or review context look user-selected.
-- **Views/components:** Canonical Knowledge, Claims, Contradiction Decisions and detail panes.
-- **Dependencies:** UI-050/UI-053 semantics.
+- **Evidence:** Backup list stores snapshot state and verification status, but `_set_controls()` currently enables RESTORE ISOLATED for any selected snapshot. Audit against actual BackupService/CLI verification states and restrict only if the existing backend contract requires verified/completed input.
+- **Views/components:** Backup snapshot list and Verify/Deep Verify/Restore action row.
+- **Dependencies:** Read-only inspection of existing backup contract; no backend change.
 - **Last verification:** 2026-08-23.
 
-### UI-055 — Knowledge detail operation ownership
-- **Priority:** P1
-- **Status:** READY
-- **Evidence:** Knowledge/Claim/Review detail commands stream into shared detail panes; audit whether changing selection during an in-flight show/history/review command can misattribute output like the fixed Source/Jobs/Research paths.
-- **Views/components:** KnowledgeWorkspace detail panes and history/review actions.
-- **Dependencies:** Existing knowledge CLI only.
-- **Last verification:** 2026-08-23.
-
-### UI-056 — Knowledge filter selection truth
+### UI-058 — Backup verification action semantics
 - **Priority:** P2
 - **Status:** READY
-- **Evidence:** Search filtering hides list rows after refresh; audit whether a selected row becoming hidden remains clearly identified as filtered rather than visually absent while details stay active.
-- **Views/components:** Knowledge/Claims/Decisions search filter and detail panes.
-- **Dependencies:** Existing filter behavior.
+- **Evidence:** VERIFY, DEEP VERIFY and RESTORE share one generic selection enablement gate. Audit whether terminal/incomplete/corrupt snapshots should expose different action availability based only on already-listed state/verify fields.
+- **Views/components:** Backup action row, snapshot status metadata.
+- **Dependencies:** UI-057 contract audit.
+- **Last verification:** 2026-08-23.
+
+### UI-059 — Backup selection metadata accessibility
+- **Priority:** P2
+- **Status:** READY
+- **Evidence:** Snapshot state and verification metadata are visible in row text/tooltips; verify that action blockers and accessible descriptions name the selected snapshot and the reason an action is unavailable.
+- **Views/components:** Backup snapshot list, Verify/Deep Verify/Restore buttons.
+- **Dependencies:** UI-057/UI-058.
 - **Last verification:** 2026-08-23.
