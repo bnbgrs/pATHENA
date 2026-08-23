@@ -264,5 +264,4 @@ def install_claims_panel(knowledge_workspace: QWidget) -> CanonicalClaimsPanel:
     panel = CanonicalClaimsPanel()
     tabs.addTab(panel, "CLAIMS / EVIDENCE")
     root.insertWidget(browser_index, tabs, 1)
-    setattr(knowledge_workspace, "claims_panel", panel)
     return panel
