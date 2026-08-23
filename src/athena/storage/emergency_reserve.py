@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+import shutil
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -227,7 +229,7 @@ class EmergencyReserveStore:
                 chunk_bytes=chunk_bytes,
             )
             os.fsync(descriptor)
-        except BaseException:
+        except BaseException as exc:
             if descriptor >= 0:
                 try:
                     os.close(descriptor)
@@ -239,6 +241,12 @@ class EmergencyReserveStore:
                 fsync_directory(self.reserve_root)
             except OSError:
                 pass
+            if isinstance(exc, EmergencyReserveError):
+                raise
+            if isinstance(exc, OSError):
+                raise EmergencyReserveError(
+                    "Emergency reserve could not be physically allocated."
+                ) from exc
             raise
         finally:
             if descriptor >= 0:
@@ -293,3 +301,66 @@ class EmergencyReserveStore:
                 "Emergency reserve could not be released durably."
             ) from exc
         return size
+
+
+VolumeSizeProvider = Callable[[Path], int]
+
+
+def _default_volume_size(path: Path) -> int:
+    try:
+        return int(shutil.disk_usage(path).total)
+    except OSError as exc:
+        raise EmergencyReserveError(
+            "Emergency reserve volume size could not be determined."
+        ) from exc
+
+
+class EmergencyReserveService:
+    """Lifecycle service that provisions the Beta-03 reserve before DB startup.
+
+    The service never removes the reserve during normal shutdown. Recovery and
+    disk-pressure control own explicit release semantics.
+    """
+
+    name = "emergency-reserve"
+
+    def __init__(
+        self,
+        state_root: Path,
+        *,
+        volume_size_provider: VolumeSizeProvider | None = None,
+        required_bytes_override: int | None = None,
+        write_chunk_bytes: int = _DEFAULT_WRITE_CHUNK_BYTES,
+    ) -> None:
+        self.store = EmergencyReserveStore(state_root)
+        self._volume_size_provider = volume_size_provider or _default_volume_size
+        self._required_bytes_override = (
+            None
+            if required_bytes_override is None
+            else _positive_int(
+                required_bytes_override,
+                "Emergency reserve required_bytes_override",
+            )
+        )
+        self._write_chunk_bytes = _positive_int(
+            write_chunk_bytes,
+            "Emergency reserve write_chunk_bytes",
+        )
+        self.status: EmergencyReserveStatus | None = None
+
+    def required_bytes(self) -> int:
+        if self._required_bytes_override is not None:
+            return self._required_bytes_override
+        volume_size = self._volume_size_provider(self.store.state_root)
+        return emergency_reserve_size_bytes(volume_size)
+
+    def start(self) -> None:
+        required = self.required_bytes()
+        self.status = self.store.ensure(
+            required_bytes=required,
+            write_chunk_bytes=self._write_chunk_bytes,
+        )
+
+    def stop(self) -> None:
+        # Deliberately persistent: normal shutdown must not consume the reserve.
+        return
