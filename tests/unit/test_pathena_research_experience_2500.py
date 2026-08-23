@@ -6,8 +6,8 @@ from athena.desktop.pathena_research_experience_2500 import (
     _RESEARCH_REFINEMENTS,
     _RESEARCH_STYLESHEET,
     _RESEARCH_TARGETS,
-    PathenaResearchExperience,
     UI_REFINEMENT_TASKS_2401_2500,
+    PathenaResearchExperience,
 )
 
 
