@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QPushButton, QWidget
 
+from athena.desktop.pathena_accessibility_flow_3000 import (
+    UI_REFINEMENT_TASKS_2901_3000,
+    apply_ui_refinements_2901_3000,
+)
 from athena.desktop.pathena_jobs_experience_2800 import (
     UI_REFINEMENT_TASKS_2701_2800,
     apply_ui_refinements_2701_2800,
@@ -141,6 +145,7 @@ def apply_complete_ui_refinements(window: QWidget) -> tuple[int, ...]:
     applied.extend(apply_ui_refinements_2601_2700(window))
     applied.extend(apply_ui_refinements_2701_2800(window))
     applied.extend(apply_ui_refinements_2801_2900(window))
+    applied.extend(apply_ui_refinements_2901_3000(window))
     normalized = tuple(sorted(set(applied)))
     total_tasks = sum(
         map(
@@ -166,6 +171,7 @@ def apply_complete_ui_refinements(window: QWidget) -> tuple[int, ...]:
                 UI_REFINEMENT_TASKS_2601_2700,
                 UI_REFINEMENT_TASKS_2701_2800,
                 UI_REFINEMENT_TASKS_2801_2900,
+                UI_REFINEMENT_TASKS_2901_3000,
             ),
         )
     )
