@@ -127,3 +127,54 @@ def test_posix_durable_write_bytes_replaces_existing_file(tmp_path: Path) -> Non
     durable_fs.durable_write_bytes(destination, b"new")
 
     assert destination.read_bytes() == b"new"
+
+
+def test_posix_durable_mkdir_does_not_create_inside_replaced_parent(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    if os.name != "posix":
+        pytest.skip("POSIX dir_fd identity regression")
+
+    parent = tmp_path / "parent"
+    parent.mkdir()
+    destination = parent / "trusted-child"
+    displaced = tmp_path / "displaced"
+
+    real_mkdir = os.mkdir
+    replaced_parent = False
+
+    def racing_mkdir(
+        path: str | bytes | os.PathLike[str] | os.PathLike[bytes],
+        mode: int = 0o777,
+        *,
+        dir_fd: int | None = None,
+    ) -> None:
+        nonlocal replaced_parent
+        if dir_fd is not None and not replaced_parent:
+            replaced_parent = True
+            parent.rename(displaced)
+            parent.mkdir()
+        if dir_fd is None:
+            real_mkdir(path, mode)
+        else:
+            real_mkdir(path, mode, dir_fd=dir_fd)
+
+    monkeypatch.setattr(durable_fs.os, "mkdir", racing_mkdir)
+
+    with pytest.raises(OSError, match="changed during durable filesystem mutation"):
+        durable_fs.durable_mkdir(destination)
+
+    assert not (parent / "trusted-child").exists()
+    assert (displaced / "trusted-child").is_dir()
+
+
+def test_posix_durable_mkdir_preserves_nested_creation(tmp_path: Path) -> None:
+    if os.name != "posix":
+        pytest.skip("POSIX dir_fd identity regression")
+
+    destination = tmp_path / "one" / "two" / "three"
+
+    durable_fs.durable_mkdir(destination, parents=True)
+
+    assert destination.is_dir()
