@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from datetime import datetime
+
 from PySide6.QtCore import QSize
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QVBoxLayout
 
-from athena.desktop.api_controller import DesktopApiController
+from athena.desktop.api_controller import DesktopApiController, DesktopApiSnapshot
 from athena.desktop.window import AthenaMainWindow, MetricRow
 
 _DISPLAY_NAVIGATION = (
@@ -17,6 +19,13 @@ _DISPLAY_NAVIGATION = (
     "System",
     "Settings",
 )
+
+
+def _conversation_label(started_at_us: int, message_count: int) -> str:
+    """Render a durable chat identity as quiet human-facing session metadata."""
+    started = datetime.fromtimestamp(started_at_us / 1_000_000)
+    message_word = "message" if message_count == 1 else "messages"
+    return f"{started:%d %b, %H:%M} · {message_count} {message_word}"
 
 
 class PathenaMainWindow(AthenaMainWindow):
@@ -55,6 +64,15 @@ class PathenaMainWindow(AthenaMainWindow):
             for metric in rail.findChildren(MetricRow):
                 metric.hide()
 
+            # The inherited network copy is a static placeholder rather than a
+            # live network-control surface. Do not present it as current state.
+            network_state = rail.findChild(QLabel, "networkState")
+            if network_state is not None:
+                network_state.hide()
+            rail_rules = rail.findChildren(QFrame, "rule")
+            for rule in rail_rules[-2:]:
+                rule.hide()
+
         center = self.findChild(QFrame, "conversation")
         if center is not None:
             center_layout = center.layout()
@@ -74,13 +92,6 @@ class PathenaMainWindow(AthenaMainWindow):
             keyboard_hint.setText("Ctrl K")
             keyboard_hint.setToolTip("Open command palette")
 
-        network_state = self.findChild(QLabel, "networkState")
-        if network_state is not None:
-            network_state.setText("Internet   Online\nTor        Off")
-            network_state.setToolTip(
-                "Network state. Detailed controls remain in the System workspace."
-            )
-
         for index, label in enumerate(_DISPLAY_NAVIGATION):
             if index >= self.navigation.count():
                 break
@@ -95,6 +106,12 @@ class PathenaMainWindow(AthenaMainWindow):
             "PALLAS — local reactive view of the current workspace context"
         )
 
+        self.chat_selector.setMinimumWidth(250)
+        self.chat_selector.setToolTip("Choose a conversation")
+        self.model_selector.setMinimumWidth(210)
+        self.model_selector.setMaximumWidth(320)
+        self.model_selector.setToolTip("Choose a local model")
+
         self.prompt_input.setObjectName("promptInput")
         self.prompt_input.setPlaceholderText("Ask, explore, or work with your knowledge…")
 
@@ -107,9 +124,9 @@ class PathenaMainWindow(AthenaMainWindow):
         self.send_button.setToolTip("Send message (Ctrl+Enter)")
 
         self.new_chat_button.setText("New")
-        self.new_chat_button.setToolTip("Start a new chat")
+        self.new_chat_button.setToolTip("Start a new conversation")
         self.delete_chat_button.setText("Delete")
-        self.delete_chat_button.setToolTip("Delete the selected chat")
+        self.delete_chat_button.setToolTip("Delete the selected conversation")
 
         self._replace_visible_copy()
         self._hide_nonfunctional_placeholders()
@@ -170,6 +187,8 @@ class PathenaMainWindow(AthenaMainWindow):
                 "Connect to the local core to load a conversation."
             ),
             "ATHENA  >  ": "pATHENA  /",
+            "CHAT": "Conversation",
+            "MODEL": "Model",
             "INSPECTOR": "DETAILS",
             "PROVENANCE": "SOURCES & KNOWLEDGE",
             "KNOWLEDGE REVIEW": "KNOWLEDGE FROM THIS CHAT",
@@ -196,6 +215,56 @@ class PathenaMainWindow(AthenaMainWindow):
         for label in self.findChildren(QLabel):
             if label.text() in hidden_copy:
                 label.hide()
+
+    def _apply_control_snapshot(self, snapshot: DesktopApiSnapshot) -> None:
+        """Keep controller identities intact while presenting readable selectors."""
+        super()._apply_control_snapshot(snapshot)
+
+        models = {
+            model.backend_model_id: model
+            for model in snapshot.models
+            if model.model_type == "llm"
+        }
+        for index in range(self.model_selector.count()):
+            model_id = self.model_selector.itemData(index)
+            if not isinstance(model_id, str):
+                continue
+            model = models.get(model_id)
+            if model is not None:
+                self.model_selector.setItemText(index, model.display_name)
+
+        chats = {chat.chat_id: chat for chat in snapshot.chats}
+        for index in range(self.chat_selector.count()):
+            chat_id = self.chat_selector.itemData(index)
+            if chat_id is None:
+                self.chat_selector.setItemText(index, "New conversation")
+                continue
+            if not isinstance(chat_id, str):
+                continue
+            chat = chats.get(chat_id)
+            if chat is not None:
+                self.chat_selector.setItemText(
+                    index,
+                    _conversation_label(chat.started_at_us, chat.message_count),
+                )
+            elif chat_id == self.pending_chat_id:
+                self.chat_selector.setItemText(index, "Loading conversation…")
+            else:
+                self.chat_selector.setItemText(index, "Current conversation")
+
+    def _update_ready_state(self) -> None:
+        """Translate machine-oriented readiness copy into quiet product status."""
+        super()._update_ready_state()
+        replacements = {
+            "LOCAL / READY": "Ready",
+            "LOCAL / MODEL ERROR": "Model error",
+            "LOCAL / PROVIDER UNAVAILABLE": "Model service unavailable",
+            "LOCAL / MODEL REQUIRED": "Choose a model",
+            "LOCAL / MODEL NOT LOADED": "Model not loaded",
+        }
+        replacement = replacements.get(self.status_text.text())
+        if replacement is not None:
+            self.status_text.setText(replacement)
 
     def _select_page(self, index: int) -> None:
         """Keep functional routing but present human-readable page titles."""
