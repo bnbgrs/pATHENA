@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from athena.desktop.pathena_progressive_workspace_2300 import (
-    UI_REFINEMENT_TASKS_2201_2300,
     _PROGRESSIVE_REFINEMENTS,
     _PROGRESSIVE_STYLESHEET,
     _PROGRESSIVE_TARGETS,
     _WORKSPACE_TITLE_COPY,
+    UI_REFINEMENT_TASKS_2201_2300,
 )
 
 
