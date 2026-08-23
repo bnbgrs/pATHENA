@@ -2,8 +2,34 @@
 
 from __future__ import annotations
 
+import io
+import os
 import sys
 from collections.abc import Callable, Sequence
+
+
+def _restore_standard_streams() -> None:
+    """Reconnect PyInstaller windowed helpers to QProcess-owned stdout/stderr pipes."""
+    if sys.stdout is None:
+        try:
+            sys.stdout = io.TextIOWrapper(
+                os.fdopen(1, "wb", closefd=False),
+                encoding="utf-8",
+                errors="replace",
+                write_through=True,
+            )
+        except OSError:
+            sys.stdout = open(os.devnull, "w", encoding="utf-8")  # noqa: SIM115
+    if sys.stderr is None:
+        try:
+            sys.stderr = io.TextIOWrapper(
+                os.fdopen(2, "wb", closefd=False),
+                encoding="utf-8",
+                errors="replace",
+                write_through=True,
+            )
+        except OSError:
+            sys.stderr = open(os.devnull, "w", encoding="utf-8")  # noqa: SIM115
 
 
 def _dispatch(module_name: str) -> Callable[[Sequence[str] | None], int] | None:
@@ -27,6 +53,7 @@ def _dispatch(module_name: str) -> Callable[[Sequence[str] | None], int] | None:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    _restore_standard_streams()
     arguments = list(sys.argv[1:] if argv is None else argv)
     if len(arguments) < 2 or arguments[0] != "-m":
         print("pATHENA helper requires a supported '-m <module>' invocation.", file=sys.stderr)
