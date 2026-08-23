@@ -30,11 +30,15 @@ def new_uuid7() -> uuid.UUID:
 
 def uuid_to_blob(value: uuid.UUID) -> bytes:
     """Return the canonical 16-byte big-endian UUID representation."""
+    if not isinstance(value, uuid.UUID):
+        raise TypeError("ATHENA UUID values must be uuid.UUID instances.")
     return value.bytes
 
 
 def uuid_from_blob(value: bytes) -> uuid.UUID:
     """Create a UUID from its 16-byte database representation."""
+    if not isinstance(value, bytes):
+        raise TypeError("ATHENA UUID blobs must be bytes.")
     if len(value) != 16:
         raise ValueError(f"ATHENA UUID blobs must contain 16 bytes, got {len(value)}.")
     return uuid.UUID(bytes=value)
