@@ -64,11 +64,18 @@ def _absolute_path(value: object, label: str) -> Path:
     return expanded
 
 
+def _assert_safe_path(path: Path, *, label: str) -> None:
+    for candidate in (path, *path.parents):
+        if is_link_boundary(candidate):
+            raise MigrationRecoveryError(
+                f"{label} contains a symlink, junction, or reparse-point boundary."
+            )
+        if candidate != path and candidate.exists() and not candidate.is_dir():
+            raise MigrationRecoveryError(f"{label} contains a non-directory ancestor.")
+
+
 def _safe_regular_presence(path: Path, *, label: str) -> bool:
-    if is_link_boundary(path):
-        raise MigrationRecoveryError(
-            f"{label} must not be a symlink, junction, or reparse point."
-        )
+    _assert_safe_path(path, label=label)
     if not path.exists():
         return False
     if not path.is_file():
@@ -84,13 +91,9 @@ def assess_migration_recovery(
     """Classify migration artifacts without mutating or deleting any of them."""
     source = _absolute_path(source_db, "Migration recovery source_db")
     root = _absolute_path(migration_root, "Migration recovery migration_root")
-    if is_link_boundary(root) or not root.is_dir():
+    _assert_safe_path(root, label="Migration recovery root")
+    if not root.is_dir():
         raise MigrationRecoveryError("Migration recovery root must be a real directory.")
-    for parent in root.parents:
-        if is_link_boundary(parent):
-            raise MigrationRecoveryError(
-                "Migration recovery root has an unsafe path ancestor."
-            )
 
     journal_store = MigrationJournalStore((root / "migration_state.json").absolute())
     journal = journal_store.load()
