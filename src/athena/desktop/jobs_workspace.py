@@ -18,6 +18,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from athena.desktop.scheduler_supervisor import DesktopJobSchedulerSupervisor
+
 _TERMINAL_STATES = frozenset({"cancelled", "failed", "completed"})
 _PAUSABLE_STATES = frozenset({"queued", "waiting"})
 _RESUMABLE_STATES = frozenset({"paused"})
@@ -27,9 +29,13 @@ _WAKEABLE_STATES = frozenset({"waiting"})
 class JobsWorkspace(QWidget):
     """Observe and control the canonical durable job queue without blocking Qt."""
 
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        scheduler_supervisor: DesktopJobSchedulerSupervisor | None = None,
+    ) -> None:
         super().__init__()
         self.setObjectName("jobsWorkspace")
+        self._scheduler_supervisor = scheduler_supervisor
         self._operation = ""
         self._buffer = ""
         self._selected_job_id: str | None = None
@@ -54,6 +60,12 @@ class JobsWorkspace(QWidget):
         self.cancel_button = QPushButton("CANCEL")
         self.cancel_button.setObjectName("newChatButton")
         self.cancel_button.clicked.connect(self.cancel_selected)
+
+        self.scheduler_status = QLabel()
+        self.scheduler_status.setObjectName("settingsHelp")
+        self.scheduler_status.setAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
 
         self.status = QLabel("Ready.")
         self.status.setObjectName("settingsHelp")
@@ -86,6 +98,11 @@ class JobsWorkspace(QWidget):
         self._refresh_timer.timeout.connect(self._refresh_if_visible)
         self._refresh_timer.start()
 
+        self._scheduler_status_timer = QTimer(self)
+        self._scheduler_status_timer.setInterval(1_000)
+        self._scheduler_status_timer.timeout.connect(self._refresh_scheduler_status)
+        self._scheduler_status_timer.start()
+
         layout = QVBoxLayout(self)
         layout.setContentsMargins(8, 0, 18, 28)
         layout.setSpacing(14)
@@ -94,6 +111,7 @@ class JobsWorkspace(QWidget):
         title = QLabel("DURABLE JOB CONTROL")
         title.setObjectName("speaker")
         header.addWidget(title)
+        header.addWidget(self.scheduler_status)
         header.addStretch(1)
         header.addWidget(self.refresh_button)
         header.addWidget(self.pause_button)
@@ -119,6 +137,7 @@ class JobsWorkspace(QWidget):
         splitter.setStretchFactor(1, 2)
         layout.addWidget(splitter, 1)
 
+        self._refresh_scheduler_status()
         self._sync_action_buttons()
         QTimer.singleShot(0, self.refresh)
 
@@ -169,6 +188,18 @@ class JobsWorkspace(QWidget):
     def _refresh_if_visible(self) -> None:
         if self.isVisible() and not self._busy():
             self.refresh()
+
+    def _refresh_scheduler_status(self) -> None:
+        supervisor = self._scheduler_supervisor
+        if supervisor is None:
+            self.scheduler_status.setText("SCHEDULER · EXTERNAL")
+            return
+        if supervisor.stopping:
+            self.scheduler_status.setText("SCHEDULER · STOPPING")
+        elif supervisor.child_active:
+            self.scheduler_status.setText("SCHEDULER · ACTIVE")
+        else:
+            self.scheduler_status.setText("SCHEDULER · RECOVERY PENDING")
 
     def _busy(self) -> bool:
         return self._process.state() != QProcess.ProcessState.NotRunning
@@ -301,14 +332,17 @@ class JobsWorkspace(QWidget):
             self.status.setText(f"Jobs command error: {error.name}")
 
 
-def install_jobs_workspace(window: object) -> JobsWorkspace:
+def install_jobs_workspace(
+    window: object,
+    scheduler_supervisor: DesktopJobSchedulerSupervisor | None = None,
+) -> JobsWorkspace:
     """Replace the JOBS shell placeholder without widening window.py."""
     pages = getattr(window, "pages", None)
     if pages is None or pages.count() <= 3:
         raise RuntimeError("pATHENA desktop JOBS page is unavailable")
 
     placeholder = pages.widget(3)
-    workspace = JobsWorkspace()
+    workspace = JobsWorkspace(scheduler_supervisor=scheduler_supervisor)
     pages.removeWidget(placeholder)
     pages.insertWidget(3, workspace)
     placeholder.deleteLater()
