@@ -122,13 +122,13 @@ class JobRecord:
     def __post_init__(self) -> None:
         _require_uuid(self.job_id, "JobRecord job_id")
         _require_uuid(self.created_by_actor_id, "JobRecord created_by_actor_id")
-        for value, label in (
+        for uuid_value, label in (
             (self.processing_run_id, "JobRecord processing_run_id"),
             (self.last_checkpoint_id, "JobRecord last_checkpoint_id"),
             (self.protection_scope_id, "JobRecord protection_scope_id"),
             (self.protected_payload_id, "JobRecord protected_payload_id"),
         ):
-            _require_optional_uuid(value, label)
+            _require_optional_uuid(uuid_value, label)
         _require_text(self.job_type, "JobRecord job_type")
         if not isinstance(self.priority, JobPriority):
             raise TypeError("JobRecord priority must be a JobPriority.")
@@ -139,25 +139,25 @@ class JobRecord:
             self.pinned_configuration_json,
             "JobRecord pinned_configuration_json",
         )
-        for value, label in (
+        for text_value, label in (
             (self.current_stage, "JobRecord current_stage"),
             (self.blocked_reason, "JobRecord blocked_reason"),
             (self.worker_id, "JobRecord worker_id"),
         ):
-            _require_optional_text(value, label)
+            _require_optional_text(text_value, label)
         _require_int(self.created_at_us, "JobRecord created_at_us")
         _require_int(self.updated_at_us, "JobRecord updated_at_us")
         if self.updated_at_us < self.created_at_us:
             raise ValueError("JobRecord updated_at_us precedes created_at_us.")
         _require_int(self.retry_count, "JobRecord retry_count")
         _require_int(self.fencing_sequence, "JobRecord fencing_sequence")
-        for value, label in (
+        for int_value, label in (
             (self.next_run_at_us, "JobRecord next_run_at_us"),
             (self.lease_acquired_at_us, "JobRecord lease_acquired_at_us"),
             (self.lease_expires_at_us, "JobRecord lease_expires_at_us"),
             (self.heartbeat_at_us, "JobRecord heartbeat_at_us"),
         ):
-            _require_optional_int(value, label)
+            _require_optional_int(int_value, label)
         if self.lease_token is not None:
             if not isinstance(self.lease_token, bytes):
                 raise TypeError("JobRecord lease_token must be bytes or None.")
@@ -193,22 +193,22 @@ class CheckpointRecord:
     def __post_init__(self) -> None:
         _require_uuid(self.checkpoint_id, "CheckpointRecord checkpoint_id")
         _require_uuid(self.job_id, "CheckpointRecord job_id")
-        for value, label in (
+        for uuid_value, label in (
             (self.processing_stage_id, "CheckpointRecord processing_stage_id"),
             (self.commit_id, "CheckpointRecord commit_id"),
             (self.protection_scope_id, "CheckpointRecord protection_scope_id"),
             (self.protected_payload_id, "CheckpointRecord protected_payload_id"),
         ):
-            _require_optional_uuid(value, label)
+            _require_optional_uuid(uuid_value, label)
         _require_int(self.created_at_us, "CheckpointRecord created_at_us")
         _require_int(self.fencing_sequence, "CheckpointRecord fencing_sequence")
-        for value, label in (
+        for json_value, label in (
             (self.progress_state_json, "CheckpointRecord progress_state_json"),
             (self.last_confirmed_input_json, "CheckpointRecord last_confirmed_input_json"),
             (self.last_confirmed_output_json, "CheckpointRecord last_confirmed_output_json"),
             (self.resume_metadata_json, "CheckpointRecord resume_metadata_json"),
         ):
-            _require_optional_json(value, label)
+            _require_optional_json(json_value, label)
 
     @property
     def uri(self) -> str:
