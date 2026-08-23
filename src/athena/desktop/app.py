@@ -108,7 +108,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     window = AthenaMainWindow(api_controller=controller)
     knowledge_workspace = install_knowledge_workspace(window, controller)
     research_workspace = install_research_workspace(window)
-    jobs_workspace = install_jobs_workspace(window)
+    jobs_workspace = install_jobs_workspace(window, scheduler_supervisor)
     files_workspace = install_files_workspace(window)
     system_workspace = install_system_workspace(window, controller)
     command_palette = install_command_palette(window)
