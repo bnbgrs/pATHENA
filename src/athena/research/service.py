@@ -68,17 +68,36 @@ class ResearchService:
         safety_margin: int | None = None,
         max_hierarchy_depth: int = DEFAULT_MAX_HIERARCHY_DEPTH,
     ) -> JobRecord:
+        if not isinstance(query, str):
+            raise ResearchConfigurationError("Research query must be text.")
         normalized_query = query.strip()
         if not normalized_query:
             raise ResearchConfigurationError("Research query must not be empty.")
-        if not 0.0 < coverage_target <= 1.0:
+        if (
+            isinstance(coverage_target, bool)
+            or not isinstance(coverage_target, (int, float))
+            or not 0.0 < float(coverage_target) <= 1.0
+        ):
             raise ResearchConfigurationError(
-                "Research coverage_target must be in the interval (0, 1]."
+                "Research coverage_target must be numeric in the interval (0, 1]."
             )
-        if time_start_us is not None and time_start_us < 0:
-            raise ResearchConfigurationError("time_start_us must not be negative.")
-        if time_end_us is not None and time_end_us < 0:
-            raise ResearchConfigurationError("time_end_us must not be negative.")
+        normalized_coverage_target = float(coverage_target)
+        if time_start_us is not None and (
+            isinstance(time_start_us, bool)
+            or not isinstance(time_start_us, int)
+            or time_start_us < 0
+        ):
+            raise ResearchConfigurationError(
+                "time_start_us must be null or a non-negative integer."
+            )
+        if time_end_us is not None and (
+            isinstance(time_end_us, bool)
+            or not isinstance(time_end_us, int)
+            or time_end_us < 0
+        ):
+            raise ResearchConfigurationError(
+                "time_end_us must be null or a non-negative integer."
+            )
         if (
             time_start_us is not None
             and time_end_us is not None
@@ -87,22 +106,57 @@ class ResearchService:
             raise ResearchConfigurationError(
                 "Research time_end_us must be >= time_start_us."
             )
-        if context_limit is not None and context_limit < 1:
-            raise ResearchConfigurationError("context_limit must be positive.")
-        if output_reserve is not None and output_reserve < 1:
-            raise ResearchConfigurationError("output_reserve must be positive.")
-        if safety_margin is not None and safety_margin < 0:
-            raise ResearchConfigurationError("safety_margin must not be negative.")
-        if max_hierarchy_depth < 1:
-            raise ResearchConfigurationError("max_hierarchy_depth must be positive.")
+        if context_limit is not None and (
+            isinstance(context_limit, bool)
+            or not isinstance(context_limit, int)
+            or context_limit < 1
+        ):
+            raise ResearchConfigurationError(
+                "context_limit must be null or a positive integer."
+            )
+        if output_reserve is not None and (
+            isinstance(output_reserve, bool)
+            or not isinstance(output_reserve, int)
+            or output_reserve < 1
+        ):
+            raise ResearchConfigurationError(
+                "output_reserve must be null or a positive integer."
+            )
+        if safety_margin is not None and (
+            isinstance(safety_margin, bool)
+            or not isinstance(safety_margin, int)
+            or safety_margin < 0
+        ):
+            raise ResearchConfigurationError(
+                "safety_margin must be null or a non-negative integer."
+            )
+        if (
+            isinstance(max_hierarchy_depth, bool)
+            or not isinstance(max_hierarchy_depth, int)
+            or max_hierarchy_depth < 1
+        ):
+            raise ResearchConfigurationError(
+                "max_hierarchy_depth must be a positive integer."
+            )
+        if requested_model_id is not None and (
+            not isinstance(requested_model_id, str)
+            or not requested_model_id.strip()
+        ):
+            raise ResearchConfigurationError(
+                "requested_model_id must be null or non-empty text."
+            )
 
         normalized_domains = _stable_strings(domains, field="domains")
         normalized_projects = _stable_uuids(project_ids)
+        if any(not isinstance(item, SourceType) for item in source_types):
+            raise ResearchConfigurationError(
+                "source_types must contain SourceType values only."
+            )
         normalized_source_types = tuple(sorted({item.value for item in source_types}))
         normalized_sources = _stable_uuids(explicit_source_ids)
         normalized_model = (
             requested_model_id.strip()
-            if requested_model_id is not None and requested_model_id.strip()
+            if requested_model_id is not None
             else None
         )
 
@@ -123,7 +177,7 @@ class ResearchService:
                 "time_start_us": time_start_us,
                 "time_end_us": time_end_us,
                 "internet_scope": None,
-                "coverage_target": coverage_target,
+                "coverage_target": normalized_coverage_target,
             },
             pinned_configuration={
                 "pipeline_version": PIPELINE_VERSION,
@@ -386,8 +440,12 @@ def _analysis_config_from_scope(
 
 
 def _stable_strings(values: Sequence[str], *, field: str) -> tuple[str, ...]:
-    normalized = []
+    normalized: list[str] = []
     for value in values:
+        if not isinstance(value, str):
+            raise ResearchConfigurationError(
+                f"{field} must contain text values only."
+            )
         item = value.strip()
         if not item:
             raise ResearchConfigurationError(f"{field} must not contain blank values.")
@@ -396,6 +454,8 @@ def _stable_strings(values: Sequence[str], *, field: str) -> tuple[str, ...]:
 
 
 def _stable_uuids(values: Sequence[uuid.UUID]) -> tuple[uuid.UUID, ...]:
+    if any(not isinstance(item, uuid.UUID) for item in values):
+        raise ResearchConfigurationError("Research UUID filters must contain UUID values only.")
     return tuple(sorted(set(values), key=lambda item: item.bytes))
 
 
