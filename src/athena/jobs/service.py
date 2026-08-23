@@ -120,11 +120,12 @@ class DurableJobService:
         lease_seconds: int = 60,
         now_us: int | None = None,
     ) -> JobRecord:
+        normalized_job_id = _uuid_value(job_id, "job_id")
         _canonical_text(worker_id, "worker_id")
         _positive_int(lease_seconds, "lease_seconds")
         _optional_nonnegative_int(now_us, "now_us")
         return self.repository.acquire_lease(
-            job_id=job_id,
+            job_id=normalized_job_id,
             worker_id=worker_id,
             lease_token=secrets.token_bytes(32),
             lease_duration_us=lease_seconds * 1_000_000,
@@ -139,11 +140,12 @@ class DurableJobService:
         extend_seconds: int = 60,
         now_us: int | None = None,
     ) -> JobRecord:
+        normalized_job_id = _uuid_value(job_id, "job_id")
         _lease_token(lease_token)
         _positive_int(extend_seconds, "extend_seconds")
         _optional_nonnegative_int(now_us, "now_us")
         return self.repository.heartbeat(
-            job_id=job_id,
+            job_id=normalized_job_id,
             lease_token=lease_token,
             extend_by_us=extend_seconds * 1_000_000,
             now_us=now_us,
@@ -156,12 +158,13 @@ class DurableJobService:
         lease_token: bytes,
     ) -> Callable[[sqlite3.Connection], None]:
         """Return a lease fence for one canonical write transaction."""
+        normalized_job_id = _uuid_value(job_id, "job_id")
         _lease_token(lease_token)
 
         def fence(connection: sqlite3.Connection) -> None:
             self.repository.require_live_write_fence(
                 connection,
-                job_id=job_id,
+                job_id=normalized_job_id,
                 lease_token=lease_token,
             )
 
@@ -181,18 +184,24 @@ class DurableJobService:
         commit_id: uuid.UUID | None = None,
         now_us: int | None = None,
     ) -> CheckpointRecord:
+        normalized_job_id = _uuid_value(job_id, "job_id")
+        normalized_processing_stage_id = _optional_uuid_value(
+            processing_stage_id,
+            "processing_stage_id",
+        )
+        normalized_commit_id = _optional_uuid_value(commit_id, "commit_id")
         _lease_token(lease_token)
         _optional_canonical_text(current_stage, "current_stage")
         _optional_nonnegative_int(now_us, "now_us")
         return self.repository.add_checkpoint(
-            job_id=job_id,
+            job_id=normalized_job_id,
             lease_token=lease_token,
-            processing_stage_id=processing_stage_id,
+            processing_stage_id=normalized_processing_stage_id,
             progress_state_json=_canonical_json(progress_state),
             last_confirmed_input_json=_canonical_json(last_confirmed_input),
             last_confirmed_output_json=_canonical_json(last_confirmed_output),
             resume_metadata_json=_canonical_json(resume_metadata),
-            commit_id=commit_id,
+            commit_id=normalized_commit_id,
             current_stage=current_stage,
             now_us=now_us,
         )
@@ -203,7 +212,7 @@ class DurableJobService:
         return self.repository.recover_expired_leases(now_us=now_us)
 
     def get(self, job_id: uuid.UUID) -> JobRecord:
-        return self.repository.get(job_id)
+        return self.repository.get(_uuid_value(job_id, "job_id"))
 
     def list(self, *, limit: int = 100) -> tuple[JobRecord, ...]:
         _positive_int(limit, "limit")
@@ -245,11 +254,12 @@ class DurableJobService:
         max_retries: int,
         now_us: int | None = None,
     ) -> JobRecord:
+        normalized_job_id = _uuid_value(job_id, "job_id")
         _nonnegative_int(next_run_at_us, "next_run_at_us")
         _nonnegative_int(max_retries, "max_retries")
         _optional_nonnegative_int(now_us, "now_us")
         return self.repository.schedule_retry(
-            job_id,
+            normalized_job_id,
             next_run_at_us=next_run_at_us,
             max_retries=max_retries,
             now_us=now_us,
@@ -263,21 +273,22 @@ class DurableJobService:
         next_run_at_us: int | None = None,
         now_us: int | None = None,
     ) -> JobRecord:
+        normalized_job_id = _uuid_value(job_id, "job_id")
         _lease_token(lease_token)
         _optional_nonnegative_int(next_run_at_us, "next_run_at_us")
         _optional_nonnegative_int(now_us, "now_us")
         return self.repository.yield_job(
-            job_id=job_id,
+            job_id=normalized_job_id,
             lease_token=lease_token,
             next_run_at_us=next_run_at_us,
             now_us=now_us,
         )
 
     def checkpoints(self, job_id: uuid.UUID) -> tuple[CheckpointRecord, ...]:
-        return self.repository.list_checkpoints(job_id)
+        return self.repository.list_checkpoints(_uuid_value(job_id, "job_id"))
 
     def get_checkpoint(self, checkpoint_id: uuid.UUID) -> CheckpointRecord:
-        return self.repository.get_checkpoint(checkpoint_id)
+        return self.repository.get_checkpoint(_uuid_value(checkpoint_id, "checkpoint_id"))
 
     def fail(
         self,
@@ -287,11 +298,12 @@ class DurableJobService:
         blocked_reason: str,
         now_us: int | None = None,
     ) -> JobRecord:
+        normalized_job_id = _uuid_value(job_id, "job_id")
         _lease_token(lease_token)
         _canonical_text(blocked_reason, "blocked_reason")
         _optional_nonnegative_int(now_us, "now_us")
         return self.repository.fail(
-            job_id=job_id,
+            job_id=normalized_job_id,
             lease_token=lease_token,
             blocked_reason=blocked_reason,
             now_us=now_us,
@@ -306,12 +318,13 @@ class DurableJobService:
         next_run_at_us: int | None = None,
         now_us: int | None = None,
     ) -> JobRecord:
+        normalized_job_id = _uuid_value(job_id, "job_id")
         _lease_token(lease_token)
         _waiting_reason(reason)
         _optional_nonnegative_int(next_run_at_us, "next_run_at_us")
         _optional_nonnegative_int(now_us, "now_us")
         return self.repository.wait(
-            job_id=job_id,
+            job_id=normalized_job_id,
             lease_token=lease_token,
             reason=reason,
             next_run_at_us=next_run_at_us,
@@ -319,16 +332,16 @@ class DurableJobService:
         )
 
     def wake(self, job_id: uuid.UUID) -> JobRecord:
-        return self.repository.wake(job_id)
+        return self.repository.wake(_uuid_value(job_id, "job_id"))
 
     def request_cancel(self, job_id: uuid.UUID) -> JobRecord:
-        return self.repository.request_cancel(job_id)
+        return self.repository.request_cancel(_uuid_value(job_id, "job_id"))
 
     def pause(self, job_id: uuid.UUID) -> JobRecord:
-        return self.repository.pause(job_id)
+        return self.repository.pause(_uuid_value(job_id, "job_id"))
 
     def resume(self, job_id: uuid.UUID) -> JobRecord:
-        return self.repository.resume(job_id)
+        return self.repository.resume(_uuid_value(job_id, "job_id"))
 
     def complete(
         self,
@@ -337,10 +350,11 @@ class DurableJobService:
         lease_token: bytes,
         now_us: int | None = None,
     ) -> JobRecord:
+        normalized_job_id = _uuid_value(job_id, "job_id")
         _lease_token(lease_token)
         _optional_nonnegative_int(now_us, "now_us")
         return self.repository.complete(
-            job_id=job_id,
+            job_id=normalized_job_id,
             lease_token=lease_token,
             now_us=now_us,
         )
@@ -352,10 +366,11 @@ class DurableJobService:
         lease_token: bytes,
         now_us: int | None = None,
     ) -> JobRecord:
+        normalized_job_id = _uuid_value(job_id, "job_id")
         _lease_token(lease_token)
         _optional_nonnegative_int(now_us, "now_us")
         return self.repository.acknowledge_cancel(
-            job_id=job_id,
+            job_id=normalized_job_id,
             lease_token=lease_token,
             now_us=now_us,
         )
@@ -397,6 +412,18 @@ def _canonical_json(value: Mapping[str, Any] | None) -> str | None:
         )
     except (TypeError, ValueError) as exc:
         raise InvalidJobPayloadError("Job payload must be finite canonical JSON.") from exc
+
+
+def _uuid_value(value: object, label: str) -> uuid.UUID:
+    if not isinstance(value, uuid.UUID):
+        raise InvalidJobPayloadError(f"{label} must be a UUID value.")
+    return value
+
+
+def _optional_uuid_value(value: object | None, label: str) -> uuid.UUID | None:
+    if value is None:
+        return None
+    return _uuid_value(value, label)
 
 
 def _job_priority(value: object) -> JobPriority:
