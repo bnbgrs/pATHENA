@@ -2,7 +2,7 @@
 
 This is the working security model for `agent/pathena`. It records concrete trust boundaries and verified invariants so security work follows real code paths instead of hypothetical features.
 
-Last reviewed baseline: `c147a2a31ddff822a63e91c56ef7851006d34892` (2026-08-23).
+Last reviewed baseline: `6f5da98cc8a48029773f2a54f9bed92b7fd946e9` (2026-08-23).
 
 ## Security goals
 
@@ -29,8 +29,9 @@ Last reviewed baseline: `c147a2a31ddff822a63e91c56ef7851006d34892` (2026-08-23).
 - `CoreApiAsgiApp` rejects requests carrying an `Origin` header by default and requires bearer authentication.
 - `LocalApiRuntime.authenticate()` uses `hmac.compare_digest`.
 - Runtime token publication uses exclusive staging, symlink-ancestor checks and durable replacement.
+- Windows bootstrap defaults `ATHENA_LOCAL_ROOT` beneath per-user LocalApplicationData and rejects repository-local runtime roots, but its preflight currently verifies writability rather than DACL confidentiality.
 
-**Open risk:** `SEC-001` — POSIX `0600` is not equivalent to a private Windows DACL; the confidentiality invariant of the bearer-token file must be proven on Windows.
+**Open risk:** `SEC-001` — POSIX `0600` is not equivalent to a private Windows DACL; the confidentiality invariant of the bearer-token file must be proven on Windows, including explicitly overridden local roots.
 
 ### Core -> Internet / clearnet
 
@@ -59,7 +60,7 @@ Last reviewed baseline: `c147a2a31ddff822a63e91c56ef7851006d34892` (2026-08-23).
 - per-request SOCKS credentials provide stream isolation;
 - Tor-preferred behavior fails closed rather than silently falling back to direct networking when Tor is unavailable.
 
-**Required invariant:** no alternate network adapter may bypass the selected Tor policy. Each newly discovered HTTP/WebSocket/provider path must be traced back to the network policy before being considered covered.
+**Required invariant:** no alternate network adapter may bypass the selected Tor policy. Each newly discovered HTTP/WebSocket/provider path must be traced back to the network policy before being considered covered. `SEC-003` tracks the current LM Studio ambient-proxy exception to the local-only provider boundary.
 
 ### External source / imported file -> parsers and persistence
 
@@ -68,10 +69,13 @@ Last reviewed baseline: `c147a2a31ddff822a63e91c56ef7851006d34892` (2026-08-23).
 **Verified controls so far:**
 - Native DOCX parsing uses `zipfile` only as a container reader and does not extract ZIP members to filesystem paths.
 - Native DOCX reads only required OOXML parts and enforces uncompressed-size limits plus a compression-ratio ceiling before reading the main document/styles parts.
+- Native HTML parsing caps input bytes, tree depth, node count and attribute length, treats script/style/template/iframe-like elements as excluded data, and performs no browser execution.
+- Native PDF parsing is supervised in a disposable Python child launched as an argument vector with `-I` and no shell. Input bytes, pages, output bytes, process memory and wall-clock time are bounded; Windows uses a Job Object memory limit and POSIX applies an address-space limit in the worker.
+- PDF child IPC is framed and independently range-checked by the parent before the result is accepted.
 
-**Threats to continue scanning:** SSRF through nested URLs, parser bombs/DOM amplification, excessive response/import size, filename/path injection, unsafe temporary files, subprocess invocation, template/code execution, and equivalent boundaries in PDF/HTML/other parsers.
+**Threats to continue scanning:** SSRF through nested URLs, parser bombs/DOM amplification inside accepted limits, filename/path injection, unsafe temporary files, and equivalent boundaries in remaining parsers/importers.
 
-**Current status:** partially reviewed only; no blanket safety claim.
+**Current status:** DOCX/HTML/PDF native parser boundaries have been statically traced; this is not a blanket claim about every import path or parser dependency vulnerability.
 
 ### Protected Content metadata -> KDF / encryption
 
@@ -91,15 +95,22 @@ Last reviewed baseline: `c147a2a31ddff822a63e91c56ef7851006d34892` (2026-08-23).
 
 **Threats to continue scanning:** plaintext config, accidental logging, weak Windows ACLs, backup inclusion, crash-dump exposure, stale temp files, unsafe migration/rotation.
 
-**Current status:** local API token path reviewed; provider/keyring and encryption-at-rest paths remain to be traced.
+**Current status:** local API token path reviewed. Current bootstrap settings expose no provider API-key field; broader provider/keyring and future credential-storage paths must be re-traced when introduced.
 
 ### Repository / dependencies -> build and runtime
 
 **Assets:** executable code and packaged application.
 
-**Threats to continue scanning:** dependency vulnerabilities, unpinned or mutable download sources, artifact integrity, release signing, unsafe installer/update behavior, CI secret exposure.
+**Verified controls:**
+- `pyproject.toml` exactly pins build/runtime/dev package versions and the required `uv` resolver version.
+- `uv.lock` records artifact hashes and CI validates the lock then invokes `uv run --locked`.
+- Workflow `permissions` are reduced to `contents: read` in the reviewed workflows.
 
-**Current status:** dependency manifest exists (`pyproject.toml` includes `cryptography`, `httpx[socks]`, `keyring`, PySide6 and related runtime dependencies); supply-chain and release verification remains open.
+**Open risk:** `SEC-005` — executable GitHub Actions are referenced by mutable major-version tags instead of immutable reviewed commit SHAs.
+
+**Current direct runtime dependencies reviewed in `pyproject.toml`:** `cryptography`, `pypdf`, `numpy`, `usearch`, and `tzdata`; desktop adds `PySide6-Essentials`. Earlier references to `httpx[socks]`/`keyring` are no longer part of the current manifest and must not be treated as current attack surface without code/dependency evidence.
+
+**Threats to continue scanning:** known dependency vulnerabilities, release/artifact signing and origin, installer/update behavior, CI secret exposure, and immutable Action pinning.
 
 ## Adversaries considered
 
