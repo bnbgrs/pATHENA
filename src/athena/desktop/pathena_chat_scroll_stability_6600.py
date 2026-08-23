@@ -10,7 +10,7 @@ message rendering and domain state remain owned by the existing chat window.
 from __future__ import annotations
 
 from PySide6.QtCore import QObject, QTimer
-from PySide6.QtWidgets import QScrollArea, QWidget
+from PySide6.QtWidgets import QScrollArea, QScrollBar, QWidget
 
 
 class ChatScrollStabilityController(QObject):
@@ -77,7 +77,8 @@ class ChatScrollStabilityController(QObject):
             bar.setValue(target)
         finally:
             self._restoring = False
-        self.scroll.setProperty("pathenaChatScrollAnchorRestored", True)
+        if self.scroll is not None:
+            self.scroll.setProperty("pathenaChatScrollAnchorRestored", True)
         self._sync_metadata()
 
     def _sync_metadata(self) -> None:
@@ -98,7 +99,7 @@ class ChatScrollStabilityController(QObject):
             "the bottom; deliberate reading position is preserved after scrolling up."
         )
 
-    def _bar(self):
+    def _bar(self) -> QScrollBar | None:
         return self.scroll.verticalScrollBar() if self.scroll is not None else None
 
     def _follow_tail(self) -> bool:
