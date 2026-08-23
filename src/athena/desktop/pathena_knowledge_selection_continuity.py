@@ -19,6 +19,16 @@ class KnowledgeSelectionContinuity(QObject):
         self.workspace = workspace
         self._original: Callable[..., None] = workspace._restore_or_select_first
         setattr(workspace, "_restore_or_select_first", self._restore_or_select_first)
+        for widget in (
+            workspace.knowledge_list,
+            workspace.claim_list,
+            workspace.review_list,
+        ):
+            widget.currentItemChanged.connect(
+                lambda current, _previous, source=widget: (
+                    self._clear_disappearance_on_new_selection(source, current)
+                )
+            )
 
     def _restore_or_select_first(
         self,
@@ -49,6 +59,22 @@ class KnowledgeSelectionContinuity(QObject):
         details.setAccessibleDescription(message)
         widget.setStatusTip(message)
         set_pathena_ui_state(details, "empty")
+
+    def _clear_disappearance_on_new_selection(
+        self,
+        widget: QListWidget,
+        current: QListWidgetItem | None,
+    ) -> None:
+        if current is None:
+            return
+        _previous_id, details, _noun = self._selection_context(widget)
+        if not widget.property("pathenaSelectionDisappeared") and not details.property(
+            "pathenaSelectionDisappeared"
+        ):
+            return
+        widget.setProperty("pathenaSelectionDisappeared", "")
+        details.setProperty("pathenaSelectionDisappeared", "")
+        widget.setStatusTip("")
 
     def _selection_context(
         self,
