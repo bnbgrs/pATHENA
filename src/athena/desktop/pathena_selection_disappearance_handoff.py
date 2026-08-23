@@ -20,6 +20,15 @@ class _SelectionTarget:
     details: QPlainTextEdit
 
 
+def _authoritative_list_description(selection: QListWidget, fallback: str) -> str:
+    """Return the newest semantic list scope owned by later UI layers."""
+    for property_name in ("pathenaBackupListScope", "pathenaResultScopeText"):
+        value = selection.property(property_name)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return fallback
+
+
 class SelectionDisappearanceHandoff(QObject):
     """Keep keyboard/accessibility context truthful after a selected row vanishes."""
 
@@ -80,17 +89,12 @@ class SelectionDisappearanceHandoff(QObject):
             )
             return
 
-        base = self._current_base_description(target.selection)
-        target.selection.setAccessibleDescription(base)
+        fallback = self._base_descriptions.get(target.selection, "")
+        target.selection.setAccessibleDescription(
+            _authoritative_list_description(target.selection, fallback)
+        )
         target.selection.setProperty("pathenaSelectionHandoffAnnouncement", "")
         target.selection.setProperty("pathenaSelectionFocusRetained", False)
-
-    def _current_base_description(self, selection: QListWidget) -> str:
-        for property_name in ("pathenaBackupListScope", "pathenaResultScopeText"):
-            value = selection.property(property_name)
-            if isinstance(value, str) and value.strip():
-                return value.strip()
-        return self._base_descriptions.get(selection, "")
 
     def _schedule_research_sync(self, *_args: object) -> None:
         QTimer.singleShot(0, self._sync_research_results)
