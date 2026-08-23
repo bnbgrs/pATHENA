@@ -17,6 +17,7 @@ from athena.desktop.files_workspace import install_files_workspace
 from athena.desktop.jobs_workspace import install_jobs_workspace
 from athena.desktop.knowledge_acceptance import install_knowledge_acceptance
 from athena.desktop.knowledge_workspace import install_knowledge_workspace
+from athena.desktop.pathena_interaction_refinement import install_interaction_refinement
 from athena.desktop.pathena_knowledge_acceptance_presentation import (
     apply_knowledge_acceptance_presentation,
 )
@@ -145,6 +146,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     apply_workspace_presentation(window)
     command_palette = install_command_palette(window)
     apply_complete_ui_refinements(window)
+    interaction_refinement = install_interaction_refinement(window)
     _schedule_initial_core_refreshes(
         controller,
         supervisor,
@@ -158,6 +160,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     window.show()
     exit_code = app.exec()
     heartbeat.stop()
+    interaction_refinement.deleteLater()
     canonical_memory_extensions.deleteLater()
     knowledge_acceptance.deleteLater()
     knowledge_workspace.deleteLater()
