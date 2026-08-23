@@ -2,6 +2,13 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QApplication, QFrame, QLabel
 
+from athena.api.contracts import (
+    ChatSummaryResponse,
+    HealthResponse,
+    ModelResponse,
+    ProviderHealthResponse,
+)
+from athena.desktop.api_controller import DesktopApiSnapshot
 from athena.desktop.app import create_application
 from athena.desktop.pathena_theme import PATHENA_STYLESHEET
 from athena.desktop.pathena_window import PathenaMainWindow
@@ -97,6 +104,78 @@ def test_pathena_hides_unwired_attach_placeholder_and_humanizes_context_copy() -
         assert window.send_button.text() == "Working…"
         window.apply_chat_busy(False)
         assert window.send_button.text() == "Send"
+    finally:
+        window.close()
+        app.processEvents()
+
+
+def test_pathena_session_controls_hide_machine_metadata() -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    chat_id = "01912345-6789-7abc-8def-0123456789ab"
+    model_id = "local/model/backend-identifier"
+    snapshot = DesktopApiSnapshot(
+        health=HealthResponse(
+            api_version="v1",
+            core_status="ready",
+            detail=None,
+        ),
+        provider=ProviderHealthResponse(
+            provider="LM Studio",
+            status="ready",
+            detail=None,
+        ),
+        models=(
+            ModelResponse(
+                provider="LM Studio",
+                backend_model_id=model_id,
+                display_name="Qwen Local",
+                model_type="llm",
+                context_capacity=32_768,
+                quantization="Q4",
+                loaded=True,
+                vision=False,
+                trained_for_tool_use=False,
+                loaded_context_length=16_384,
+            ),
+        ),
+        chats=(
+            ChatSummaryResponse(
+                chat_id=chat_id,
+                started_at_us=1_700_000_000_000_000,
+                ended_at_us=None,
+                archive_mode="standard",
+                lifecycle_state="active",
+                message_count=3,
+            ),
+        ),
+    )
+
+    try:
+        window._apply_control_snapshot(snapshot)
+        app.processEvents()
+
+        assert window.chat_selector.itemText(0) == "New conversation"
+        chat_index = window.chat_selector.findData(chat_id)
+        assert chat_index >= 0
+        chat_label = window.chat_selector.itemText(chat_index)
+        assert "3 messages" in chat_label
+        assert chat_id[:8].upper() not in chat_label
+
+        model_index = window.model_selector.findData(model_id)
+        assert model_index >= 0
+        assert window.model_selector.itemText(model_index) == "Qwen Local"
+        assert "LOADED" not in window.model_selector.itemText(model_index)
+
+        network_state = window.findChild(QLabel, "networkState")
+        assert network_state is not None
+        assert network_state.isHidden()
+
+        window._core_transport_ready = True
+        window._provider_ready = True
+        window._last_model_error = None
+        window._update_ready_state()
+        assert window.status_text.text() == "Ready"
     finally:
         window.close()
         app.processEvents()
