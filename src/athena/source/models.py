@@ -81,6 +81,32 @@ class RepresentationRetentionState(str, Enum):
     DISPOSABLE = "disposable"
 
 
+def _require_uuid(value: object, label: str) -> None:
+    if not isinstance(value, uuid.UUID):
+        raise TypeError(f"{label} must be a UUID.")
+
+
+def _require_int(value: object, label: str, *, minimum: int = 0) -> None:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError(f"{label} must be an integer.")
+    if value < minimum:
+        raise ValueError(f"{label} must be >= {minimum}.")
+
+
+def _require_sha256(value: object, label: str) -> None:
+    if not isinstance(value, bytes):
+        raise TypeError(f"{label} must be bytes.")
+    if len(value) != 32:
+        raise ValueError(f"{label} must be a 32-byte SHA-256 digest.")
+
+
+def _require_text(value: object, label: str) -> None:
+    if not isinstance(value, str):
+        raise TypeError(f"{label} must be text.")
+    if not value.strip():
+        raise ValueError(f"{label} must not be empty.")
+
+
 @dataclass(frozen=True, slots=True)
 class BlobRecord:
     blob_id: uuid.UUID
@@ -92,6 +118,21 @@ class BlobRecord:
     encryption_state: str
     created_at_us: int
     verified_at_us: int
+
+    def __post_init__(self) -> None:
+        _require_uuid(self.blob_id, "BlobRecord blob_id")
+        _require_int(self.byte_length, "BlobRecord byte_length")
+        if self.media_type is not None and not isinstance(self.media_type, str):
+            raise TypeError("BlobRecord media_type must be text or None.")
+        if not isinstance(self.storage_area, BlobStorageArea):
+            raise TypeError("BlobRecord storage_area must be a BlobStorageArea.")
+        _require_text(self.storage_locator, "BlobRecord storage_locator")
+        _require_sha256(self.integrity_sha256, "BlobRecord integrity_sha256")
+        _require_text(self.encryption_state, "BlobRecord encryption_state")
+        _require_int(self.created_at_us, "BlobRecord created_at_us")
+        _require_int(self.verified_at_us, "BlobRecord verified_at_us")
+        if self.verified_at_us < self.created_at_us:
+            raise ValueError("BlobRecord verified_at_us precedes created_at_us.")
 
 
 @dataclass(frozen=True, slots=True)
@@ -144,6 +185,15 @@ class SourceRepresentationPageRecord:
     end_offset: int
     content_hash: bytes
 
+    def __post_init__(self) -> None:
+        _require_uuid(self.representation_id, "Source representation page representation_id")
+        _require_int(self.page_number, "Source representation page page_number", minimum=1)
+        _require_int(self.start_offset, "Source representation page start_offset")
+        _require_int(self.end_offset, "Source representation page end_offset")
+        if self.end_offset < self.start_offset:
+            raise ValueError("Source representation page end_offset precedes start_offset.")
+        _require_sha256(self.content_hash, "Source representation page content_hash")
+
 
 @dataclass(frozen=True, slots=True)
 class SourceRepresentationStructureRecord:
@@ -157,6 +207,27 @@ class SourceRepresentationStructureRecord:
     end_offset: int
     content_hash: bytes
     metadata_json: str
+
+    def __post_init__(self) -> None:
+        _require_uuid(self.structure_id, "Source representation structure_id")
+        _require_uuid(self.representation_id, "Source representation structure representation_id")
+        if self.parent_structure_id is not None:
+            _require_uuid(
+                self.parent_structure_id,
+                "Source representation structure parent_structure_id",
+            )
+        _require_int(self.structure_index, "Source representation structure_index")
+        if not isinstance(self.structure_type, SourceRepresentationStructureType):
+            raise TypeError(
+                "Source representation structure_type must be a SourceRepresentationStructureType."
+            )
+        _require_text(self.path, "Source representation structure path")
+        _require_int(self.start_offset, "Source representation structure start_offset")
+        _require_int(self.end_offset, "Source representation structure end_offset")
+        if self.end_offset < self.start_offset:
+            raise ValueError("Source representation structure end_offset precedes start_offset.")
+        _require_sha256(self.content_hash, "Source representation structure content_hash")
+        _require_text(self.metadata_json, "Source representation structure metadata_json")
 
 
 @dataclass(frozen=True, slots=True)
