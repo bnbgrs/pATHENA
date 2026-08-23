@@ -25,9 +25,11 @@ Last reviewed baseline: current remote `agent/pathena` on 2026-08-23.
 
 **Boundary:** HTTP listener bound to `127.0.0.1` plus random bearer token in the runtime directory.
 
-**Verified controls:** non-loopback bind refusal, bounded/strict request framing, `Origin` rejection, bearer authentication with constant-time comparison, exclusive staged runtime publication and static symlink/reparse checks.
+**Verified controls:** non-loopback bind refusal, bounded/strict request framing, `Origin` rejection, bearer authentication with constant-time comparison, exclusive staged runtime publication, and static symlink/junction/reparse checks through the shared storage boundary predicate after SEC-011.
 
-**Open risk:** `SEC-001` — POSIX `0600` is not equivalent to a proven private Windows DACL. The token/discovery directory must be demonstrated to exclude other interactive users on Windows, including overridden runtime roots.
+**Open risks:** `SEC-001` — POSIX `0600` is not equivalent to a proven private Windows DACL. The token/discovery directory must be demonstrated to exclude other interactive users on Windows, including overridden runtime roots. `SEC-012` — token/discovery staging is still created by pathname after a parent validation, so a hostile concurrent parent replacement can redirect the write before the later safety re-check; private bytes must not be written until directory identity is pinned.
+
+**Recent hardening:** `SEC-011` replaced symlink-only runtime-root/ancestor checks with `is_link_boundary()`, covering Windows junctions/reparse points. It remains FIXED rather than VERIFIED until targeted Windows execution is observed.
 
 ### Core -> Internet / clearnet
 
@@ -71,7 +73,7 @@ Last reviewed baseline: current remote `agent/pathena` on 2026-08-23.
 
 **Verified controls:** source/candidate/rollback path separation; static symlink/junction/reparse rejection; SQLite clone uses the Online Backup API; candidate integrity/foreign-key/version checks; journal reads use no-follow where available plus handle/path identity comparison; activation preserves rollback and refuses WAL/SHM sidecars.
 
-**Residual confinement risk — `SEC-009`:** clone creation and activation still cross a check/use boundary. `migration_clone.py` validates `candidate.parent` and then opens the candidate through `sqlite3.connect(candidate)` by pathname. `migration_activation.py` validates files/parents and then uses path-based `durable_replace()` for source->rollback and candidate->source. `durable_replace()` itself validates parents before `os.replace()`/`MoveFileExW` but does not retain parent identity across the operation. A hostile local process able to replace an already validated migration ancestor can therefore race those operations. The fix belongs inside BE-028 and must use identity-bound OS primitives or equivalent handle-based verification, including Windows reparse/junction semantics.
+**Residual confinement risk — `SEC-009`:** clone creation, journal publication, cleanup and activation still cross check/use boundaries. `migration_clone.py` validates `candidate.parent` and then opens the candidate through `sqlite3.connect(candidate)` by pathname. `migration_journal.py` validates the parent and later creates a temporary journal by pathname. `migration_activation.py` validates files/parents and then uses path-based `durable_replace()` for source->rollback and candidate->source. `durable_replace()` itself validates parents before `os.replace()`/`MoveFileExW` but does not retain parent identity across the operation. A hostile local process able to replace an already validated migration ancestor can therefore race those operations. The fix belongs inside BE-028 and must use identity-bound OS primitives or equivalent handle-based verification, including Windows reparse/junction semantics.
 
 **Residual resource risk — `SEC-010`:** `MigrationJournalStore.load()` verifies the journal file identity but then reads the whole file before parsing. The journal contract is tiny, so startup/recovery should reject an oversized journal using a conservative versioned byte ceiling checked from the already-open handle before full read.
 
@@ -89,7 +91,7 @@ Last reviewed baseline: current remote `agent/pathena` on 2026-08-23.
 
 **Verified controls:** pyca/cryptography AES-256-GCM and Argon2id; strict/versioned metadata; invalid metadata converted to integrity errors; v1 Argon2id bounded at 10 iterations, 16 lanes and 256 MiB while production defaults remain 3/4/64 MiB.
 
-**Verification state:** `SEC-004` is FIXED by commits `be5a7f06d2f71f011aae7f30a02671ff9a5ebd18` and `fd700b85dcf8e4cbe7bc6289e7af31203c2fd0b9`; do not promote to VERIFIED without observed green targeted/CI execution.
+**Verification state:** `SEC-004` is FIXED by commits `be5a7f06d2f71f011aae4656400bc701cd3b924` and `fd700b85dcf8e4cbe7bc6289e7af31203c2fd0b9`; do not promote to VERIFIED without observed green targeted/CI execution.
 
 ### Configuration / credentials -> filesystem and OS secret store
 
