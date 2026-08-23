@@ -145,7 +145,7 @@ class AsciiPanel(QPlainTextEdit):
         if self._pallas_target is not None:
             return
         app = QApplication.instance()
-        if app is None:
+        if not isinstance(app, QApplication):
             return
         for widget in app.allWidgets():
             if widget.objectName() != "pallasVisualPlaceholder":
