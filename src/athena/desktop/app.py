@@ -38,6 +38,7 @@ from athena.desktop.pathena_research_result_presentation import (
     apply_research_result_presentation,
 )
 from athena.desktop.pathena_shell_density import apply_shell_density
+from athena.desktop.pathena_startup_experience_2900 import install_startup_experience
 from athena.desktop.pathena_theme import PATHENA_STYLESHEET
 from athena.desktop.pathena_ui_refinement_integrity import apply_complete_ui_refinements
 from athena.desktop.pathena_window import PathenaMainWindow
@@ -147,6 +148,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     apply_workspace_presentation(window)
     command_palette = install_command_palette(window)
     jobs_experience = install_jobs_experience(jobs_workspace)
+    startup_experience = install_startup_experience(window)
     apply_complete_ui_refinements(window)
     interaction_refinement = install_interaction_refinement(window)
     layout_refinement = install_layout_refinement(window)
@@ -175,6 +177,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     progressive_workspace_refinement.deleteLater()
     layout_refinement.deleteLater()
     interaction_refinement.deleteLater()
+    startup_experience.deleteLater()
     jobs_experience.deleteLater()
     canonical_memory_extensions.deleteLater()
     knowledge_acceptance.deleteLater()
