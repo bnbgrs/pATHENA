@@ -11,7 +11,6 @@ from PySide6.QtWidgets import QApplication
 
 from athena.api.client import CoreApiClient
 from athena.desktop.api_controller import DesktopApiController
-from athena.desktop.claims_panel import install_claims_panel
 from athena.desktop.command_palette import install_command_palette
 from athena.desktop.files_workspace import install_files_workspace
 from athena.desktop.jobs_workspace import install_jobs_workspace
@@ -112,11 +111,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     controller = DesktopApiController(client)
     window = PathenaMainWindow(api_controller=controller)
     knowledge_workspace = install_knowledge_workspace(window, controller)
-    claims_panel = install_claims_panel(knowledge_workspace)
     knowledge_acceptance = install_knowledge_acceptance(
         knowledge_workspace,
         controller,
-        claims_panel=claims_panel,
     )
     research_workspace = install_research_workspace(window)
     jobs_workspace = install_jobs_workspace(window, scheduler_supervisor)
