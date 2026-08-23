@@ -11,8 +11,12 @@ def blocking_operation_lease_seconds(
     base_extend_seconds: int,
 ) -> int:
     """Return enough lease time for one bounded blocking operation."""
-    if base_extend_seconds < 1:
-        raise ValueError("base_extend_seconds must be positive.")
+    if (
+        isinstance(base_extend_seconds, bool)
+        or not isinstance(base_extend_seconds, int)
+        or base_extend_seconds < 1
+    ):
+        raise ValueError("base_extend_seconds must be an integer >= 1.")
 
     if (
         isinstance(timeout_seconds, bool)
