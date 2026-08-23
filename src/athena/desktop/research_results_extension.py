@@ -157,13 +157,13 @@ class ResearchResultsExtension(QObject):
 
     def _sync_job_actions(self) -> None:
         has_job = bool(self._selected_job_id())
-        terminal_success = self._selected_job_state() == "succeeded"
+        terminal_success = self._selected_job_state() == "completed"
         enabled = has_job and terminal_success and not self._busy()
         self.result_button.setEnabled(enabled)
         self.propose_button.setEnabled(enabled)
         self.refresh_proposals_button.setEnabled(enabled)
 
-        terminal = self._selected_job_state() in {"succeeded", "failed", "cancelled", "canceled"}
+        terminal = self._selected_job_state() in {"completed", "failed", "cancelled"}
         if terminal:
             self.workspace.cancel_button.setEnabled(False)
 
