@@ -7,7 +7,7 @@ import random
 
 from PySide6.QtCore import QEvent, QObject, Qt, QTimer
 from PySide6.QtGui import QColor, QFont, QPainter, QPen, QTextCharFormat, QTextCursor
-from PySide6.QtWidgets import QApplication, QLabel, QLineEdit, QPlainTextEdit, QWidget
+from PySide6.QtWidgets import QLabel, QLineEdit, QPlainTextEdit, QWidget
 
 from athena.desktop.theme import ORANGE
 
@@ -124,10 +124,10 @@ class AsciiPanel(QPlainTextEdit):
     """Drive the live local PALLAS field from visible workspace semantics.
 
     The shell retains a lightweight 9:16 canvas widget in ``window.py``. This
-    controller binds to that canvas before the first event-loop paint whenever
-    possible, then keeps it animated and semantically synchronized without a
-    model call or network dependency. The periodic bind remains as recovery for
-    unusual widget construction order or future shell refactors.
+    controller binds only to the PALLAS canvas owned by its own top-level window,
+    then keeps it animated and semantically synchronized without a model call or
+    network dependency. The local lookup also serves as recovery for unusual widget
+    construction order without ever crossing into another window's Qt lifecycle.
     """
 
     def __init__(self) -> None:
@@ -203,13 +203,9 @@ class AsciiPanel(QPlainTextEdit):
         self._grid = _seed_grid(self._semantic_seed_context())
 
     def _semantic_snapshot(self) -> str:
-        app = QApplication.instance()
-        if not isinstance(app, QApplication):
+        root = self.window()
+        if root is self:
             return self._context
-
-        root = app.activeWindow()
-        if root is None:
-            root = self.window()
 
         items: list[str] = []
         total_chars = 0
@@ -245,29 +241,35 @@ class AsciiPanel(QPlainTextEdit):
         return " | ".join(items)
 
     def _bind_pallas_target(self) -> None:
-        if self._pallas_target is not None:
+        root = self.window()
+        if root is self:
             return
-        app = QApplication.instance()
-        if not isinstance(app, QApplication):
+
+        current = self._pallas_target
+        if current is not None:
+            if current.window() is root:
+                return
+            current.removeEventFilter(self)
+            self._pallas_target = None
+
+        target = root.findChild(QWidget, "pallasVisualPlaceholder")
+        if target is None or target.window() is not root:
             return
-        for widget in app.allWidgets():
-            if widget.objectName() != "pallasVisualPlaceholder":
-                continue
-            self._pallas_target = widget
-            widget.installEventFilter(self)
-            widget.setToolTip(
-                "PALLAS — live local semantic field; reacts to visible workspace content"
-            )
-            widget.destroyed.connect(self._pallas_destroyed)
-            widget.update()
-            return
+
+        self._pallas_target = target
+        target.installEventFilter(self)
+        target.setToolTip(
+            "PALLAS — live local semantic field; reacts to visible workspace content"
+        )
+        target.destroyed.connect(self._pallas_destroyed)
+        target.update()
 
     def _pallas_destroyed(self, _object: QObject | None = None) -> None:
         self._pallas_target = None
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
         if watched is self._pallas_target and event.type() == QEvent.Type.Paint:
-            if isinstance(watched, QWidget):
+            if isinstance(watched, QWidget) and watched.window() is self.window():
                 self._paint_pallas(watched)
                 return True
         return super().eventFilter(watched, event)
