@@ -106,6 +106,31 @@ QWidget#chatMessage QLabel#userMeta {
     letter-spacing: 0.2px;
 }
 
+QWidget#chatMessage {
+    background: transparent;
+}
+
+QWidget#chatMessage QFrame#rule,
+QWidget#chatMessage QFrame[role="rule"] {
+    background: transparent;
+}
+
+QWidget#chatMessage QLabel#message {
+    color: #d2d7da;
+    font-size: 13px;
+}
+
+QWidget#chatMessage QLabel#userMessage {
+    color: #e5e8ea;
+    font-size: 13px;
+}
+
+QLabel#emptyChatState {
+    color: #7f8990;
+    font-size: 12px;
+    padding: 18px 0;
+}
+
 QLabel#message,
 QLabel#settingsHelp {
     color: #b5bcc1;
@@ -167,12 +192,12 @@ QPushButton#newChatButton,
 QPushButton#deleteChatButton,
 QPushButton#rememberMessageButton,
 QPushButton#addKnowledgeButton {
-    min-height: 24px;
-    padding: 0 7px;
-    color: #7f8990;
+    min-height: 22px;
+    padding: 0 6px;
+    color: #707a81;
     background: transparent;
     border: 1px solid transparent;
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 500;
 }
 
@@ -180,9 +205,34 @@ QPushButton#newChatButton:hover,
 QPushButton#deleteChatButton:hover,
 QPushButton#rememberMessageButton:hover,
 QPushButton#addKnowledgeButton:hover {
-    color: #e4e7e9;
+    color: #dfe3e5;
     background: #1a1e21;
     border-color: #2a3035;
+}
+
+QPushButton#rememberMessageButton:disabled,
+QPushButton#addKnowledgeButton:disabled {
+    color: #4f575c;
+    background: transparent;
+    border-color: transparent;
+}
+
+QPushButton#groundButton {
+    color: #8c969d;
+    background: transparent;
+    border: 1px solid transparent;
+}
+
+QPushButton#groundButton:hover {
+    color: #dce1e4;
+    background: #191d20;
+    border-color: #2a3035;
+}
+
+QPushButton#groundButton:checked {
+    color: #e8eceb;
+    background: #202829;
+    border-color: #344143;
 }
 
 QPushButton#sendButton,
@@ -240,6 +290,14 @@ QDoubleSpinBox:focus {
     border-color: #64767a;
 }
 
+QLabel#promptMarker {
+    min-width: 0;
+    max-width: 0;
+    color: transparent;
+    padding: 0;
+    margin: 0;
+}
+
 QLineEdit#promptInput {
     min-height: 42px;
     padding: 0 14px;
@@ -247,6 +305,11 @@ QLineEdit#promptInput {
     background: #171b1e;
     border: 1px solid #30363b;
     border-radius: 10px;
+}
+
+QLineEdit#promptInput:focus {
+    background: #191d20;
+    border-color: #566268;
 }
 
 QDialog#commandPalette,
