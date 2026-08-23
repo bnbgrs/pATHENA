@@ -11,6 +11,7 @@ from PySide6.QtWidgets import QApplication
 
 from athena.api.client import CoreApiClient
 from athena.desktop.api_controller import DesktopApiController
+from athena.desktop.canonical_memory_extensions import install_canonical_memory_extensions
 from athena.desktop.command_palette import install_command_palette
 from athena.desktop.files_workspace import install_files_workspace
 from athena.desktop.jobs_workspace import install_jobs_workspace
@@ -19,9 +20,11 @@ from athena.desktop.knowledge_workspace import install_knowledge_workspace
 from athena.desktop.pathena_theme import PATHENA_STYLESHEET
 from athena.desktop.pathena_window import PathenaMainWindow
 from athena.desktop.pathena_workspace_presentation import apply_workspace_presentation
+from athena.desktop.research_results_extension import install_research_results_extension
 from athena.desktop.research_workspace import install_research_workspace
 from athena.desktop.scheduler_supervisor import DesktopJobSchedulerSupervisor
 from athena.desktop.supervisor import DesktopCoreSupervisor
+from athena.desktop.system_backup import install_system_backup
 from athena.desktop.system_workspace import install_system_workspace
 
 _INITIAL_CORE_REFRESH_DELAYS_MS = (250, 750, 1_500, 3_000, 5_000, 10_000, 20_000)
@@ -116,10 +119,15 @@ def main(argv: Sequence[str] | None = None) -> int:
         knowledge_workspace,
         controller,
     )
+    canonical_memory_extensions = install_canonical_memory_extensions(
+        knowledge_workspace
+    )
     research_workspace = install_research_workspace(window)
+    research_results_extension = install_research_results_extension(research_workspace)
     jobs_workspace = install_jobs_workspace(window, scheduler_supervisor)
     files_workspace = install_files_workspace(window)
     system_workspace = install_system_workspace(window, controller)
+    system_backup = install_system_backup(window, system_workspace)
     apply_workspace_presentation(window)
     command_palette = install_command_palette(window)
     _schedule_initial_core_refreshes(
@@ -135,11 +143,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     window.show()
     exit_code = app.exec()
     heartbeat.stop()
+    canonical_memory_extensions.deleteLater()
     knowledge_acceptance.deleteLater()
     knowledge_workspace.deleteLater()
+    research_results_extension.deleteLater()
     research_workspace.deleteLater()
     jobs_workspace.deleteLater()
     files_workspace.deleteLater()
+    system_backup.deleteLater()
     system_workspace.deleteLater()
     command_palette.deleteLater()
     return exit_code
