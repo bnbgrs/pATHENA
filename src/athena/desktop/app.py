@@ -19,6 +19,9 @@ from athena.desktop.knowledge_acceptance import install_knowledge_acceptance
 from athena.desktop.knowledge_workspace import install_knowledge_workspace
 from athena.desktop.pathena_async_focus_integrity_6200 import apply_ui_refinements_6101_6200
 from athena.desktop.pathena_backup_action_context_6800 import install_backup_action_context
+from athena.desktop.pathena_backup_details_provenance import (
+    install_backup_details_provenance,
+)
 from athena.desktop.pathena_backup_target_context import install_backup_target_context
 from athena.desktop.pathena_chat_scroll_stability_6600 import install_chat_scroll_stability
 from athena.desktop.pathena_command_palette_truth_6500 import install_command_palette_truth
@@ -169,6 +172,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     system_workspace = install_system_workspace(window, controller)
     system_backup = install_system_backup(window, system_workspace)
     backup_target_context = install_backup_target_context(system_backup.backup)
+    backup_details_provenance = install_backup_details_provenance(system_backup.backup)
     apply_shell_density(window)
     apply_workspace_presentation(window)
     command_palette = install_command_palette(window)
@@ -224,6 +228,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     message_action_tab_order.deleteLater()
     message_action_accessibility.deleteLater()
     backup_action_context.deleteLater()
+    backup_details_provenance.deleteLater()
     backup_target_context.deleteLater()
     chat_scroll_stability.deleteLater()
     success_decay.deleteLater()
