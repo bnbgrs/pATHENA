@@ -24,11 +24,24 @@ class DatabaseSnapshotChangedError(RuntimeError):
     """A stable read snapshot is stale before a guarded write."""
 
 
+def _nonnegative_int(value: object, field_name: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError(f"{field_name} must be an integer.")
+    if value < 0:
+        raise ValueError(f"{field_name} must not be negative.")
+    return value
+
+
 @dataclass(frozen=True, slots=True)
 class DatabaseReadSnapshot:
     data_version: int
     schema_version: int
     total_changes: int
+
+    def __post_init__(self) -> None:
+        _nonnegative_int(self.data_version, "Database snapshot data_version")
+        _nonnegative_int(self.schema_version, "Database snapshot schema_version")
+        _nonnegative_int(self.total_changes, "Database snapshot total_changes")
 
 
 class SQLiteDatabase:
@@ -42,6 +55,8 @@ class SQLiteDatabase:
     name = "sqlite-database"
 
     def __init__(self, path: Path) -> None:
+        if not isinstance(path, Path):
+            raise TypeError("SQLiteDatabase path must be a pathlib.Path.")
         self.path = path
         self._connection: sqlite3.Connection | None = None
 
@@ -81,18 +96,24 @@ class SQLiteDatabase:
     @staticmethod
     def _ensure_no_active_transaction(connection: sqlite3.Connection) -> None:
         """Reject nested ATHENA write transactions."""
+        if not isinstance(connection, sqlite3.Connection):
+            raise TypeError("connection must be a sqlite3.Connection.")
         if connection.in_transaction:
             raise RuntimeError("Nested ATHENA write transactions are not supported.")
 
     @staticmethod
     def _rollback_if_active(connection: sqlite3.Connection) -> None:
         """Rollback only while SQLite still reports an active transaction."""
+        if not isinstance(connection, sqlite3.Connection):
+            raise TypeError("connection must be a sqlite3.Connection.")
         if connection.in_transaction:
             connection.execute("ROLLBACK")
 
     @staticmethod
     def _commit_active_transaction(connection: sqlite3.Connection) -> None:
         """Commit the transaction or fail if it ended unexpectedly."""
+        if not isinstance(connection, sqlite3.Connection):
+            raise TypeError("connection must be a sqlite3.Connection.")
         if not connection.in_transaction:
             raise RuntimeError(
                 "ATHENA write transaction ended unexpectedly before commit."
@@ -103,17 +124,13 @@ class SQLiteDatabase:
     def _read_snapshot_marker(
         connection: sqlite3.Connection,
     ) -> DatabaseReadSnapshot:
-        data_version = connection.execute(
-            "PRAGMA data_version"
-        ).fetchone()
-        schema_version = connection.execute(
-            "PRAGMA schema_version"
-        ).fetchone()
+        if not isinstance(connection, sqlite3.Connection):
+            raise TypeError("connection must be a sqlite3.Connection.")
+        data_version = connection.execute("PRAGMA data_version").fetchone()
+        schema_version = connection.execute("PRAGMA schema_version").fetchone()
 
         if data_version is None or schema_version is None:
-            raise RuntimeError(
-                "ATHENA could not read the SQLite snapshot marker."
-            )
+            raise RuntimeError("ATHENA could not read the SQLite snapshot marker.")
 
         return DatabaseReadSnapshot(
             data_version=int(data_version[0]),
@@ -123,22 +140,18 @@ class SQLiteDatabase:
 
     def stable_read(
         self,
-        reader: Callable[
-            [sqlite3.Connection],
-            _ReadResultT,
-        ],
+        reader: Callable[[sqlite3.Connection], _ReadResultT],
         *,
         max_attempts: int = 3,
-    ) -> tuple[
-        _ReadResultT,
-        DatabaseReadSnapshot,
-    ]:
+    ) -> tuple[_ReadResultT, DatabaseReadSnapshot]:
         """Run a multi-query read on one stable WAL snapshot.
 
         The callback is forced read-only with ``PRAGMA query_only``. If
         another connection commits while the read snapshot is open, retry
         rather than returning a result assembled from a stale boundary.
         """
+        if not callable(reader):
+            raise TypeError("Stable database read requires a callable reader.")
         if (
             isinstance(max_attempts, bool)
             or not isinstance(max_attempts, int)
@@ -151,52 +164,36 @@ class SQLiteDatabase:
         connection = self.connection
         self._ensure_no_active_transaction(connection)
 
-        query_only_row = connection.execute(
-            "PRAGMA query_only"
-        ).fetchone()
+        query_only_row = connection.execute("PRAGMA query_only").fetchone()
         if query_only_row is None:
-            raise RuntimeError(
-                "ATHENA could not read SQLite query_only state."
-            )
+            raise RuntimeError("ATHENA could not read SQLite query_only state.")
         previous_query_only = int(query_only_row[0])
 
         connection.execute("PRAGMA query_only = ON")
         try:
             for _attempt in range(max_attempts):
-                self._ensure_no_active_transaction(
-                    connection
-                )
-                before = self._read_snapshot_marker(
-                    connection
-                )
+                self._ensure_no_active_transaction(connection)
+                before = self._read_snapshot_marker(connection)
 
                 connection.execute("BEGIN")
                 try:
                     result = reader(connection)
                 except BaseException:
-                    self._rollback_if_active(
-                        connection
-                    )
+                    self._rollback_if_active(connection)
                     raise
 
                 if not connection.in_transaction:
                     raise RuntimeError(
-                        "ATHENA stable read transaction ended "
-                        "unexpectedly before commit."
+                        "ATHENA stable read transaction ended unexpectedly before commit."
                     )
 
                 try:
                     connection.execute("COMMIT")
                 except BaseException:
-                    self._rollback_if_active(
-                        connection
-                    )
+                    self._rollback_if_active(connection)
                     raise
 
-                after = self._read_snapshot_marker(
-                    connection
-                )
-
+                after = self._read_snapshot_marker(connection)
                 if before == after:
                     return result, after
 
@@ -204,10 +201,7 @@ class SQLiteDatabase:
                 "ATHENA database changed repeatedly during stable read."
             )
         finally:
-            connection.execute(
-                "PRAGMA query_only = "
-                + str(previous_query_only)
-            )
+            connection.execute("PRAGMA query_only = " + str(previous_query_only))
 
     def assert_snapshot_current(
         self,
@@ -215,6 +209,10 @@ class SQLiteDatabase:
         snapshot: DatabaseReadSnapshot,
     ) -> None:
         """Fence a stable read immediately after BEGIN IMMEDIATE."""
+        if not isinstance(connection, sqlite3.Connection):
+            raise TypeError("connection must be a sqlite3.Connection.")
+        if not isinstance(snapshot, DatabaseReadSnapshot):
+            raise TypeError("snapshot must be a DatabaseReadSnapshot.")
         if connection is not self.connection:
             raise RuntimeError(
                 "Database snapshot fence used with another connection."
@@ -224,9 +222,7 @@ class SQLiteDatabase:
                 "Database snapshot fence requires an active transaction."
             )
 
-        current = self._read_snapshot_marker(
-            connection
-        )
+        current = self._read_snapshot_marker(connection)
         if current != snapshot:
             raise DatabaseSnapshotChangedError(
                 "ATHENA database changed after stable dependency scan."
