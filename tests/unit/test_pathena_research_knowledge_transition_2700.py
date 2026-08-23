@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from athena.desktop.pathena_research_knowledge_transition_2700 import (
-    UI_REFINEMENT_TASKS_2601_2700,
     _REFINEMENTS,
     _STYLESHEET,
     _TARGETS,
+    UI_REFINEMENT_TASKS_2601_2700,
     _accepted_identity,
     _short_id,
 )
