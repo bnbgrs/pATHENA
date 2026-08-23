@@ -4,14 +4,18 @@ import uuid
 
 import pytest
 
-from athena.knowledge.inspection_service import KnowledgeInspectionService
+from athena.knowledge.inspection_service import (
+    ContradictionDecision,
+    KnowledgeInspectionService,
+)
 
 
 class _ClaimsStub:
     def __init__(self) -> None:
         self.list_calls = 0
 
-    def list(self, *, limit: int = 50) -> tuple[()]:
+    def list(self, *, limit: int = 50) -> tuple[object, ...]:
+        del limit
         self.list_calls += 1
         return ()
 
@@ -23,7 +27,12 @@ class _ReviewsStub:
         self.accept_calls = 0
         self.reject_calls = 0
 
-    def list_pending(self, *, review_type: str | None = None, limit: int = 100) -> tuple[()]:
+    def list_pending(
+        self,
+        *,
+        review_type: str | None = None,
+        limit: int = 100,
+    ) -> tuple[object, ...]:
         del review_type, limit
         self.list_calls += 1
         return ()
@@ -108,10 +117,7 @@ def test_resolution_rejects_non_uuid_identity_before_review_load(field: str) -> 
         service.resolve_contradiction_review(
             values["review_id"],  # type: ignore[arg-type]
             actor_id=values["actor_id"],  # type: ignore[arg-type]
-            decision=__import__(
-                "athena.knowledge.inspection_service",
-                fromlist=["ContradictionDecision"],
-            ).ContradictionDecision.CONFIRM,
+            decision=ContradictionDecision.CONFIRM,
         )
 
     assert reviews.get_calls == 0
