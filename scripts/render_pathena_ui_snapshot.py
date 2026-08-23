@@ -3,8 +3,6 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import QApplication
 
@@ -35,6 +33,8 @@ from athena.desktop.research_results_extension import install_research_results_e
 from athena.desktop.research_workspace import install_research_workspace
 from athena.desktop.system_backup import install_system_backup
 from athena.desktop.system_workspace import install_system_workspace
+
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 
 def build_window() -> PathenaMainWindow:
