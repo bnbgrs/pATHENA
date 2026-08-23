@@ -20,6 +20,7 @@ from athena.desktop.knowledge_workspace import install_knowledge_workspace
 from athena.desktop.pathena_knowledge_acceptance_presentation import (
     apply_knowledge_acceptance_presentation,
 )
+from athena.desktop.pathena_quiet_workspace import apply_quiet_workspace_refinement
 from athena.desktop.pathena_research_result_presentation import (
     apply_research_result_presentation,
 )
@@ -142,6 +143,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     system_backup = install_system_backup(window, system_workspace)
     apply_shell_density(window)
     apply_workspace_presentation(window)
+    apply_quiet_workspace_refinement(window)
     command_palette = install_command_palette(window)
     _schedule_initial_core_refreshes(
         controller,
