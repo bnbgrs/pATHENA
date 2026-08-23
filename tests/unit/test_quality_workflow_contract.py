@@ -54,8 +54,16 @@ def test_quality_workflow_has_targeted_windows_path_safety_lane() -> None:
     assert "name: Run deterministic Windows locality regressions" in workflow
     assert "tests/unit/test_storage_locality.py -k windows" in workflow
     assert "name: Run Windows storage path regressions" in workflow
-    assert "tests/unit/test_database_preflight_locality.py" in workflow
-    assert "tests/unit/test_runtime_paths.py" in workflow
-    assert "tests/unit/test_migration_clone.py" in workflow
-    assert "tests/unit/test_migration_journal.py" in workflow
-    assert "tests/unit/test_emergency_reserve.py" in workflow
+    for test_path in (
+        "tests/unit/test_database_preflight_locality.py",
+        "tests/unit/test_runtime_paths.py",
+        "tests/unit/test_migration_clone.py",
+        "tests/unit/test_migration_journal.py",
+        "tests/unit/test_migration_activation.py",
+        "tests/unit/test_migration_lock.py",
+        "tests/unit/test_migration_executor.py",
+        "tests/unit/test_migration_recovery.py",
+        "tests/unit/test_emergency_reserve.py",
+        "tests/unit/test_disk_pressure.py",
+    ):
+        assert test_path in workflow
