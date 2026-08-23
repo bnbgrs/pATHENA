@@ -20,7 +20,7 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 - **Evidence:** Existing Inspector/Evidence toggles and Knowledge Review now expose one open/closed semantic vocabulary on both control and surface; existing visibility behavior remains authoritative.
 - **Views/components:** Chat evidence/details toggles, inspector, Knowledge review/details.
 - **Dependencies:** None.
-- **Last verification:** 2026-08-23 at `agent/pathena` after `fb29af4a92f97c2bcd5d7a54e3be24058c1dc7cd`; focused UI tests added but not executed in connector runtime.
+- **Last verification:** 2026-08-23 after `fb29af4a92f97c2bcd5d7a54e3be24058c1dc7cd`; focused UI tests added but not executed in connector runtime.
 
 ### UI-003 — Offline/provider-unavailable comprehension
 - **Priority:** P1
@@ -28,23 +28,23 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 - **Evidence:** Real Core/provider/model readiness is now mirrored consistently into status, model selector and composer guidance without adding reconnect/model-load behavior.
 - **Views/components:** Chat header, model selector, composer, System-facing guidance.
 - **Dependencies:** Existing provider/model snapshot only.
-- **Last verification:** 2026-08-23 at `agent/pathena` after `dd81c2e38197128906aa31a54afc296c704abe56`; focused UI tests added but not executed in connector runtime.
+- **Last verification:** 2026-08-23 after `dd81c2e38197128906aa31a54afc296c704abe56`; focused UI tests added but not executed in connector runtime.
 
 ### UI-004 — Dense-list scanability and selection identity
 - **Priority:** P2
-- **Status:** IN_PROGRESS
-- **Evidence:** Research, Jobs, Sources and Backup lists are dense and benefit from stronger selected-row identity and metadata hierarchy without changing data.
+- **Status:** DONE
+- **Evidence:** Research, Jobs, Sources and Backup lists now use stable compact spacing, per-pixel scrolling, right-edge elision, quiet selected-row emphasis and explicit UserRole-based selected identity without changing canonical row text.
 - **Views/components:** Research Jobs, Durable Jobs, Sources, Backup snapshots.
 - **Dependencies:** None.
-- **Last verification:** 2026-08-23; selected after completion of P1 UI queue.
+- **Last verification:** 2026-08-23 after `2d974af4efc0f9e153dbfc7a9ac3321b93923281`; focused UI tests added but not executed in connector runtime.
 
 ### UI-005 — PALLAS prominence/responsiveness audit
 - **Priority:** P2
-- **Status:** READY
+- **Status:** IN_PROGRESS
 - **Evidence:** PALLAS should remain characteristic but subordinate to the central workspace, especially at compact widths.
 - **Views/components:** Left rail / PALLAS placeholder.
-- **Dependencies:** None.
-- **Last verification:** 2026-08-23.
+- **Dependencies:** Existing compact-layout state only.
+- **Last verification:** 2026-08-23; selected after dense-list slice completion.
 
 ### UI-006 — Settings comprehension and model-state affordance
 - **Priority:** P2
