@@ -63,6 +63,11 @@ class DurableJobService:
             raise UnsupportedJobTypeError(
                 f"Unregistered ATHENA job type {job_type!r}."
             )
+        _validate_builtin_payload(
+            job_type,
+            requested_scope=requested_scope,
+            pinned_configuration=pinned_configuration,
+        )
         actor_id = self.chat.ensure_local_user()
         return self.repository.create(
             job_type=job_type,
@@ -72,7 +77,6 @@ class DurableJobService:
             pinned_configuration_json=_canonical_json(pinned_configuration),
             next_run_at_us=next_run_at_us,
         )
-
 
     def active_for_type(
         self,
@@ -303,6 +307,138 @@ class DurableJobService:
             lease_token=lease_token,
             now_us=now_us,
         )
+
+
+def _validate_builtin_payload(
+    job_type: str,
+    *,
+    requested_scope: Mapping[str, Any] | None,
+    pinned_configuration: Mapping[str, Any] | None,
+) -> None:
+    if job_type == "source.analyze":
+        _validate_source_analysis_payload(
+            requested_scope=requested_scope,
+            pinned_configuration=pinned_configuration,
+        )
+
+
+def _validate_source_analysis_payload(
+    *,
+    requested_scope: Mapping[str, Any] | None,
+    pinned_configuration: Mapping[str, Any] | None,
+) -> None:
+    if requested_scope is None:
+        raise InvalidJobPayloadError("source.analyze requested_scope is required.")
+    required_scope = {"source_id", "representation_id", "question"}
+    optional_scope = {"research_work_item_id"}
+    scope_keys = set(requested_scope)
+    if not required_scope <= scope_keys or scope_keys - required_scope - optional_scope:
+        raise InvalidJobPayloadError(
+            "source.analyze requested_scope has unexpected or missing fields."
+        )
+    _payload_uuid(requested_scope, "source_id")
+    _payload_uuid(requested_scope, "representation_id")
+    if "research_work_item_id" in requested_scope:
+        _payload_uuid(requested_scope, "research_work_item_id")
+    _payload_text(requested_scope, "question")
+
+    if pinned_configuration is None:
+        raise InvalidJobPayloadError("source.analyze pinned_configuration is required.")
+    expected_config = {
+        "pipeline_version",
+        "model_id",
+        "model_signature_id",
+        "model_signature_sha256",
+        "effective_context_limit",
+        "output_reserve",
+        "safety_margin",
+        "token_estimator",
+        "max_hierarchy_depth",
+        "prompt_template_id",
+        "prompt_template_version",
+    }
+    if set(pinned_configuration) != expected_config:
+        raise InvalidJobPayloadError(
+            "source.analyze pinned_configuration has unexpected or missing fields."
+        )
+    if _payload_text(pinned_configuration, "pipeline_version") != "source-analysis-v1":
+        raise InvalidJobPayloadError("source.analyze pipeline_version is unsupported.")
+    _payload_text(pinned_configuration, "model_id")
+    _payload_uuid(pinned_configuration, "model_signature_id")
+    signature_hash = _payload_text(pinned_configuration, "model_signature_sha256")
+    try:
+        signature_bytes = bytes.fromhex(signature_hash)
+    except ValueError as exc:
+        raise InvalidJobPayloadError(
+            "source.analyze model_signature_sha256 must be hexadecimal."
+        ) from exc
+    if len(signature_bytes) != 32:
+        raise InvalidJobPayloadError(
+            "source.analyze model_signature_sha256 must encode SHA-256."
+        )
+    effective = _payload_int(
+        pinned_configuration,
+        "effective_context_limit",
+        minimum=64,
+    )
+    reserve = _payload_int(
+        pinned_configuration,
+        "output_reserve",
+        minimum=1,
+    )
+    margin = _payload_int(
+        pinned_configuration,
+        "safety_margin",
+        minimum=0,
+    )
+    _payload_int(
+        pinned_configuration,
+        "max_hierarchy_depth",
+        minimum=1,
+    )
+    if reserve + margin >= effective:
+        raise InvalidJobPayloadError(
+            "source.analyze context budget leaves no positive input budget."
+        )
+    if _payload_text(pinned_configuration, "token_estimator") != "utf8-bytes-div3-v1":
+        raise InvalidJobPayloadError("source.analyze token_estimator is unsupported.")
+    if _payload_text(pinned_configuration, "prompt_template_id") != "athena.source_analysis":
+        raise InvalidJobPayloadError("source.analyze prompt_template_id is unsupported.")
+    if _payload_text(pinned_configuration, "prompt_template_version") != "1":
+        raise InvalidJobPayloadError("source.analyze prompt_template_version is unsupported.")
+
+
+def _payload_text(value: Mapping[str, Any], field: str) -> str:
+    item = value.get(field)
+    if not isinstance(item, str) or not item.strip():
+        raise InvalidJobPayloadError(
+            f"source.analyze field {field!r} must be non-empty text."
+        )
+    return item.strip()
+
+
+def _payload_uuid(value: Mapping[str, Any], field: str) -> uuid.UUID:
+    raw = _payload_text(value, field)
+    try:
+        return uuid.UUID(raw)
+    except ValueError as exc:
+        raise InvalidJobPayloadError(
+            f"source.analyze field {field!r} must be a UUID string."
+        ) from exc
+
+
+def _payload_int(
+    value: Mapping[str, Any],
+    field: str,
+    *,
+    minimum: int,
+) -> int:
+    item = value.get(field)
+    if isinstance(item, bool) or not isinstance(item, int) or item < minimum:
+        raise InvalidJobPayloadError(
+            f"source.analyze field {field!r} must be an integer >= {minimum}."
+        )
+    return item
 
 
 def _canonical_json(value: Mapping[str, Any] | None) -> str | None:
