@@ -17,10 +17,10 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 ### BE-002 — Complete provider lifecycle/control contract
 - Priority: P1
 - Status: IN_PROGRESS
-- Evidence: Feature-gap FG-001.
-- Components: model ports, LM Studio adapter, provider tests.
+- Evidence: Feature-gap FG-001; Core management port added, LM Studio adapter implementation remains pending because the large adapter is concurrently active and whole-file replacement would be unsafe.
+- Components: `src/athena/model/ports.py`, LM Studio adapter, provider tests.
 - Dependencies: provider capability semantics.
-- Last verification: 2026-08-23; selected after BE-004 completion.
+- Last verification: 2026-08-23 against current remote.
 
 ### BE-003 — Add normalized provider capability representation
 - Priority: P1
@@ -40,16 +40,16 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 
 ### BE-005 — Provider-aware dynamic token accounting
 - Priority: P1
-- Status: READY
-- Evidence: Feature-gap FG-006.
-- Components: context builder, context package, provider capacity/token accounting.
-- Dependencies: BE-002/BE-003.
-- Last verification: 2026-08-23 from feature-gap backlog.
+- Status: STALE
+- Evidence: Current `src/athena/chat/memory.py` already resolves active model context capacity, subtracts conversation/current-user/output-reserve/safety-margin tokens before retrieval, converges the Context Builder budget against the full rendered system context, and fails closed on overflow.
+- Components: chat memory orchestration, context builder, context package.
+- Dependencies: none outstanding for the reported gap.
+- Last verification: 2026-08-23 against remote blob `e15924f7660a0accfc33e88180f3b52d522c72e7`; existing targeted test coverage not yet verified in connector runtime.
 
 ### BE-006 — Add active primary model registry/runtime layer
 - Priority: P1
-- Status: READY
+- Status: IN_PROGRESS
 - Evidence: Feature-gap FG-002.
-- Components: model registry/runtime service and persistence decision.
-- Dependencies: BE-002/BE-003.
-- Last verification: 2026-08-23 from feature-gap backlog.
+- Components: model registry/runtime service and targeted tests.
+- Dependencies: BE-003 complete; BE-002 adapter management can follow independently.
+- Last verification: 2026-08-23; selected after BE-005 was proven stale.
