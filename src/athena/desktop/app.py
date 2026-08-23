@@ -18,6 +18,7 @@ from athena.desktop.jobs_workspace import install_jobs_workspace
 from athena.desktop.knowledge_acceptance import install_knowledge_acceptance
 from athena.desktop.knowledge_workspace import install_knowledge_workspace
 from athena.desktop.pathena_interaction_refinement import install_interaction_refinement
+from athena.desktop.pathena_jobs_experience_2800 import install_jobs_experience
 from athena.desktop.pathena_knowledge_acceptance_presentation import (
     apply_knowledge_acceptance_presentation,
 )
@@ -161,11 +162,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         window,
         research_results_extension,
     )
+    jobs_experience = install_jobs_experience(jobs_workspace)
     _schedule_initial_core_refreshes(controller, supervisor, scheduler_supervisor)
     heartbeat = _start_core_refresh_heartbeat(controller, supervisor, scheduler_supervisor)
     window.show()
     exit_code = app.exec()
     heartbeat.stop()
+    jobs_experience.deleteLater()
     research_knowledge_transition.deleteLater()
     research_proposal_clarity.deleteLater()
     research_experience.deleteLater()
