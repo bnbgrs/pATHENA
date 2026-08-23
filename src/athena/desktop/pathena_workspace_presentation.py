@@ -7,7 +7,13 @@ so those workspaces can evolve independently of the pATHENA design language.
 
 from __future__ import annotations
 
-from PySide6.QtWidgets import QLabel, QListWidget, QPlainTextEdit, QPushButton, QWidget
+from PySide6.QtWidgets import (
+    QLabel,
+    QListWidget,
+    QPlainTextEdit,
+    QPushButton,
+    QWidget,
+)
 
 _WORKSPACE_TITLES = frozenset(
     {
@@ -67,9 +73,13 @@ _INTRO_REPLACEMENTS = {
 
 _INTRO_PREFIXES = {
     "knowledgeWorkspace": "Browse canonical Knowledge across restarts",
-    "researchWorkspace": "Durable research runs against pATHENA's frozen local Source snapshot.",
+    "researchWorkspace": (
+        "Durable research runs against pATHENA's frozen local Source snapshot."
+    ),
     "jobsWorkspace": "Canonical pATHENA background work.",
-    "filesWorkspace": "Import keeps the original bytes in pATHENA's immutable Raw Archive",
+    "filesWorkspace": (
+        "Import keeps the original bytes in pATHENA's immutable Raw Archive"
+    ),
     "systemWorkspace": "Live operational state from pATHENA Core",
 }
 
