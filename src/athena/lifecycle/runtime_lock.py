@@ -58,6 +58,14 @@ def _open_lock_file(path: Path) -> BinaryIO:
         raise RuntimeDataLockError(
             "ATHENA runtime mutation lock file became a symbolic link while opening."
         )
+    if os.name == "posix":
+        try:
+            os.fchmod(handle.fileno(), 0o600)
+        except OSError as exc:
+            handle.close()
+            raise RuntimeDataLockError(
+                "ATHENA runtime mutation lock file permissions cannot be secured."
+            ) from exc
     return handle
 
 
