@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QListWidget,
     QListWidgetItem,
+    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -21,18 +22,10 @@ class ScopeTarget:
     list_attribute: str
     status_attribute: str
     label: str
-    filter_attribute: str | None = None
     filter_object_name: str | None = None
 
 
 _TARGETS: tuple[ScopeTarget, ...] = (
-    ScopeTarget(
-        "knowledgeWorkspace",
-        "knowledge_list",
-        "browser_status",
-        "Knowledge",
-        filter_attribute="search_input",
-    ),
     ScopeTarget(
         "researchWorkspace",
         "jobs",
@@ -62,15 +55,19 @@ class ResultScopeController(QObject):
         filter_input: QLineEdit | None,
     ) -> None:
         self._entries.append((list_widget, scope_label, label))
-        model = list_widget.model()
-        model.rowsInserted.connect(self.schedule_sync)
-        model.rowsRemoved.connect(self.schedule_sync)
-        model.modelReset.connect(self.schedule_sync)
-        list_widget.currentItemChanged.connect(self.schedule_sync)
+        self._connect_list(list_widget, self.schedule_sync)
         if filter_input is not None:
             filter_input.textChanged.connect(self.schedule_sync)
             scope_label.setProperty("pathenaResultScopeFilterBound", filter_input.objectName())
         self._sync_one(list_widget, scope_label, label)
+
+    @staticmethod
+    def _connect_list(list_widget: QListWidget, callback: object) -> None:
+        model = list_widget.model()
+        model.rowsInserted.connect(callback)  # type: ignore[arg-type]
+        model.rowsRemoved.connect(callback)  # type: ignore[arg-type]
+        model.modelReset.connect(callback)  # type: ignore[arg-type]
+        list_widget.currentItemChanged.connect(callback)  # type: ignore[arg-type]
 
     def schedule_sync(self, *_args: object) -> None:
         QTimer.singleShot(0, self.sync)
@@ -102,15 +99,73 @@ class ResultScopeController(QObject):
         scope_label.setProperty("pathenaResultTotal", total)
         scope_label.setProperty("pathenaResultVisible", visible)
         scope_label.setProperty("pathenaSelectedIdentity", selected)
+        scope_label.setProperty("pathenaResultScopeMode", "list")
 
     @staticmethod
     def _selected_identity(item: QListWidgetItem | None) -> str:
         if item is None:
             return "none selected"
         value = item.data(Qt.ItemDataRole.UserRole)
-        if isinstance(value, str) and value:
-            return f"selected {value[:8].upper()}"
-        return "selection active"
+        identity = (
+            f"selected {value[:8].upper()}"
+            if isinstance(value, str) and value
+            else "selection active"
+        )
+        return f"{identity} (filtered)" if item.isHidden() else identity
+
+
+class KnowledgeTabbedScopeController(QObject):
+    """Bind the shared Knowledge scope row to the currently visible canonical tab."""
+
+    def __init__(self, workspace: QWidget, scope_label: QLabel) -> None:
+        super().__init__(workspace)
+        self.workspace = workspace
+        self.scope_label = scope_label
+        self.tabs = getattr(workspace, "browser_tabs", None)
+        self.search = getattr(workspace, "search_input", None)
+        self._lists: dict[int, tuple[QListWidget, str]] = {}
+
+        for index, attribute, label in (
+            (0, "knowledge_list", "Knowledge"),
+            (1, "claim_list", "Claims"),
+            (2, "review_list", "Decisions"),
+        ):
+            candidate = getattr(workspace, attribute, None)
+            if isinstance(candidate, QListWidget):
+                self._lists[index] = (candidate, label)
+                ResultScopeController._connect_list(candidate, self.schedule_sync)
+
+        if isinstance(self.tabs, QTabWidget):
+            self.tabs.currentChanged.connect(self.schedule_sync)
+        if isinstance(self.search, QLineEdit):
+            self.search.textChanged.connect(self.schedule_sync)
+            scope_label.setProperty(
+                "pathenaResultScopeFilterBound",
+                self.search.objectName(),
+            )
+        self.sync()
+
+    def schedule_sync(self, *_args: object) -> None:
+        QTimer.singleShot(0, self.sync)
+
+    def sync(self) -> None:
+        index = self.tabs.currentIndex() if isinstance(self.tabs, QTabWidget) else 0
+        active = self._lists.get(index)
+        if active is not None:
+            list_widget, label = active
+            ResultScopeController._sync_one(list_widget, self.scope_label, label)
+            self.scope_label.setProperty("pathenaKnowledgeScopeTab", index)
+            return
+
+        text = "Session review · scope is shown inside the review panel"
+        self.scope_label.setText(text)
+        self.scope_label.setAccessibleName("Session review scope")
+        self.scope_label.setAccessibleDescription(text)
+        self.scope_label.setProperty("pathenaResultTotal", None)
+        self.scope_label.setProperty("pathenaResultVisible", None)
+        self.scope_label.setProperty("pathenaSelectedIdentity", "session review")
+        self.scope_label.setProperty("pathenaResultScopeMode", "session-review")
+        self.scope_label.setProperty("pathenaKnowledgeScopeTab", index)
 
 
 def _install_scope_label(
@@ -136,20 +191,35 @@ def _install_scope_label(
 
 
 def _resolve_filter(workspace: QWidget, target: ScopeTarget) -> QLineEdit | None:
-    candidate: object | None = None
-    if target.filter_attribute is not None:
-        candidate = getattr(workspace, target.filter_attribute, None)
-    elif target.filter_object_name is not None:
-        candidate = workspace.findChild(QLineEdit, target.filter_object_name)
-    return candidate if isinstance(candidate, QLineEdit) else None
+    if target.filter_object_name is None:
+        return None
+    return workspace.findChild(QLineEdit, target.filter_object_name)
+
+
+def _install_knowledge_scope(window: QWidget) -> KnowledgeTabbedScopeController | None:
+    workspace = window.findChild(QWidget, "knowledgeWorkspace")
+    if workspace is None:
+        return None
+    status = getattr(workspace, "browser_status", None)
+    if not isinstance(status, QWidget):
+        return None
+    scope_label = _install_scope_label(
+        workspace,
+        status,
+        "pathenaResultScopeknowledgeWorkspace",
+    )
+    if scope_label is None:
+        return None
+    return KnowledgeTabbedScopeController(workspace, scope_label)
 
 
 def apply_result_scope_clarity(window: QWidget) -> tuple[int, ...]:
     """Install truthful list-scope summaries for existing dense workspaces."""
     controller = ResultScopeController(window)
-    applied: list[int] = []
+    knowledge_controller = _install_knowledge_scope(window)
+    applied: list[int] = [6101] if knowledge_controller is not None else []
 
-    for offset, target in enumerate(_TARGETS):
+    for offset, target in enumerate(_TARGETS, start=1):
         workspace = window.findChild(QWidget, target.workspace_name)
         if workspace is None:
             continue
@@ -170,5 +240,6 @@ def apply_result_scope_clarity(window: QWidget) -> tuple[int, ...]:
         applied.append(6101 + offset)
 
     window.setProperty("pathenaResultScopeController", controller)
+    window.setProperty("pathenaKnowledgeResultScopeController", knowledge_controller)
     window.setProperty("pathenaResultScopeTargetCount", len(applied))
     return tuple(applied)
