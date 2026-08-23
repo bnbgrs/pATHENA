@@ -165,6 +165,7 @@ class OperationalContinuityController(QObject):
                 if index.data(Qt.ItemDataRole.UserRole) == identity:
                     widget.setCurrentIndex(index)
                     return
+            return
 
         row = cls._int(snapshot, "row", -1)
         if 0 <= row < model.rowCount():
