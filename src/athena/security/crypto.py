@@ -45,6 +45,12 @@ class AeadEnvelope:
     ciphertext: bytes
 
 
+def _require_bytes(value: object, label: str) -> bytes:
+    if not isinstance(value, bytes):
+        raise ValueError(f"{label} must be bytes.")
+    return value
+
+
 class CryptoProvider:
     """Thin adapter over Argon2id and AES-256-GCM."""
 
@@ -70,13 +76,25 @@ class CryptoProvider:
         salt: bytes,
         parameters: Argon2idParameters,
     ) -> bytes:
-        if not password:
+        validated_password = _require_bytes(
+            password,
+            "Protected-Content password",
+        )
+        validated_salt = _require_bytes(
+            salt,
+            "Argon2id salt",
+        )
+        if not isinstance(parameters, Argon2idParameters):
+            raise ValueError(
+                "Argon2id parameters must be an Argon2idParameters value."
+            )
+        if not validated_password:
             raise ValueError(
                 "Protected-Content password "
                 "must not be empty."
             )
 
-        if len(salt) < SALT_BYTES:
+        if len(validated_salt) < SALT_BYTES:
             raise ValueError(
                 "Argon2id salt must contain "
                 "at least 16 bytes."
@@ -84,7 +102,7 @@ class CryptoProvider:
 
         try:
             kdf = Argon2id(
-                salt=salt,
+                salt=validated_salt,
                 length=parameters.length,
                 iterations=(
                     parameters.iterations
@@ -96,7 +114,7 @@ class CryptoProvider:
             )
 
             return kdf.derive(
-                password
+                validated_password
             )
 
         except UnsupportedAlgorithm as exc:
@@ -133,25 +151,37 @@ class CryptoProvider:
         nonce: bytes,
         aad: bytes,
     ) -> AeadEnvelope:
-        self._require_aes256_key(
+        validated_key = self._require_aes256_key(
             key
         )
+        validated_plaintext = _require_bytes(
+            plaintext,
+            "AES-256-GCM plaintext",
+        )
+        validated_nonce = _require_bytes(
+            nonce,
+            "AES-256-GCM nonce",
+        )
+        validated_aad = _require_bytes(
+            aad,
+            "AES-256-GCM AAD",
+        )
 
-        if len(nonce) != NONCE_BYTES:
+        if len(validated_nonce) != NONCE_BYTES:
             raise ValueError(
                 "AES-256-GCM nonces must contain exactly 12 bytes."
             )
 
         ciphertext = AESGCM(
-            key
+            validated_key
         ).encrypt(
-            nonce,
-            plaintext,
-            aad,
+            validated_nonce,
+            validated_plaintext,
+            validated_aad,
         )
 
         return AeadEnvelope(
-            nonce=nonce,
+            nonce=validated_nonce,
             ciphertext=ciphertext,
         )
 
@@ -163,25 +193,29 @@ class CryptoProvider:
         ciphertext: bytes,
         aad: bytes,
     ) -> bytes:
-        self._require_aes256_key(
+        validated_key = self._require_aes256_key(
             key
         )
-
-        if len(nonce) != NONCE_BYTES:
+        if (
+            not isinstance(nonce, bytes)
+            or len(nonce) != NONCE_BYTES
+            or not isinstance(ciphertext, bytes)
+            or not isinstance(aad, bytes)
+        ):
             raise CryptoAuthenticationError(
                 "Protected-Content authentication failed."
             )
 
         try:
             return AESGCM(
-                key
+                validated_key
             ).decrypt(
                 nonce,
                 ciphertext,
                 aad,
             )
 
-        except InvalidTag as exc:
+        except (InvalidTag, ValueError, TypeError) as exc:
             raise CryptoAuthenticationError(
                 "Protected-Content authentication failed."
             ) from exc
@@ -190,16 +224,25 @@ class CryptoProvider:
     def ciphertext_hash(
         ciphertext: bytes,
     ) -> bytes:
+        validated = _require_bytes(
+            ciphertext,
+            "Ciphertext",
+        )
         return hashlib.sha256(
-            ciphertext
+            validated
         ).digest()
 
     @staticmethod
     def _require_aes256_key(
         key: bytes,
-    ) -> None:
-        if len(key) != KEY_BYTES:
+    ) -> bytes:
+        validated = _require_bytes(
+            key,
+            "AES-256-GCM key",
+        )
+        if len(validated) != KEY_BYTES:
             raise ValueError(
                 "AES-256-GCM keys must contain "
                 "exactly 32 bytes."
             )
+        return validated
