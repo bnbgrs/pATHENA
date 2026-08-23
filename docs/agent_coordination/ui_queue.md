@@ -4,212 +4,75 @@ Owner: UI/UX bot. Scope: `bnbgrs/pATHENA` branch `agent/pathena` only.
 
 Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 
-## Queue
+## Completed / resolved
 
-### UI-001 — Prevent stale error/busy state across selection and recovery
+| ID | Priority | Status | Evidence / last verification |
+| --- | --- | --- | --- |
+| UI-001 | P1 | DONE | Selection-scoped stale state protection; targeted tests added 2026-08-23, not executed in connector runtime. |
+| UI-002 | P1 | DONE | Progressive disclosure vocabulary aligned; targeted tests added 2026-08-23, not executed. |
+| UI-003 | P1 | DONE | Offline/provider/model comprehension mirrors real readiness; targeted tests added 2026-08-23, not executed. |
+| UI-004 | P2 | DONE | Dense Research/Jobs/Sources/Backup list scanability and UserRole identity; tests added 2026-08-23, not executed. |
+| UI-005 | P2 | DONE | PALLAS responsive 9:16 secondary prominence; geometry tests added 2026-08-23, not executed. |
+| UI-006 | P2 | DONE | Settings/model-state comprehension without changing values or enablement; tests added 2026-08-23, not executed. |
+| UI-007 | P2 | DONE | Semantic state-transition tests added 2026-08-23, not executed. |
+| UI-008 | P3 | DONE | Help/capability copy checked against implemented behavior and feature-gap backlog 2026-08-23. |
+| UI-009 | P1 | STALE | Workspace switching does not rebuild/refresh pages; automatic focus movement would degrade navigation. |
+| UI-010 | P1 | DONE | Inspector adapts 300/340/388 px while Details remains visibility owner; tests added 2026-08-23, not executed. |
+| UI-011 | P2 | DONE | Primary/secondary status hierarchy and duplicate detection; verified in UI source 2026-08-23. |
+| UI-012 | P2 | DONE | Selection-to-detail loading affordance integrated; verified in UI source 2026-08-23. |
+| UI-013 | P2 | DONE | Compact header/action pressure reduction integrated; verified in UI source 2026-08-23. |
+| UI-014 | P2 | DONE | Accessible names/descriptions synchronize with semantic state; focused tests added, not executed. |
+| UI-015 | P1 | DONE | Disabled actions expose observed blocker and restore condition without owning enablement; tests added, not executed. |
+| UI-016 | P2 | DONE | Read-only/mutating boundaries exposed without changing action behavior; tests added, not executed. |
+| UI-017 | P2 | DONE | Research/Jobs cancellation states distinguish request/persisted/terminal states; tests added, not executed. |
+| UI-018 | P2 | DONE | Chat readiness blocker hierarchy integrated; targeted tests added, not executed. |
+| UI-019 | P1 | DONE | `pathena_guidance_composition_6100.py` composes readiness/enablement/boundary/cancellation guidance; four tests present, not executed. |
+| UI-020 | P2 | DONE | `pathena_async_focus_integrity_6200.py` preserves newer focus across async completion; four offscreen tests added, not executed. |
+| UI-021 | P2 | DONE | `pathena_detail_provenance_6300.py` distinguishes CURRENT/LOADING/RETAINED detail identity; four tests added, not executed. |
+| UI-022 | P3 | DONE | `pathena_quiet_success_decay_6400.py` decays only success emphasis after 3.5 s while preserving semantic success; four tests added, not executed. |
+| UI-023 | P1 | DONE | Command palette now exposes existing action blockers and refuses only palette invocation while the real target is disabled; four targeted tests added, not executed. |
+| UI-024 | P2 | DONE | Non-tail chat reading position is anchored across range/wrap changes while existing tail-follow and slider ownership remain intact; four tests added, not executed. |
+| UI-025 | P2 | DONE | Inspector/evidence labels yield to responsive width, wrap, remain selectable and preserve full provenance text; four tests added, not executed. |
+| UI-026 | P2 | DONE | Backup action row mirrors selected snapshot ID/state/verify metadata without changing Backup enablement or restore behavior; three tests added, not executed. |
+
+## Active queue
+
+### UI-027 — Message-action keyboard access
 - **Priority:** P1
-- **Status:** DONE
-- **Evidence:** Selection-scoped terminal states clear on real selection change while busy and externally owned states are preserved.
-- **Views/components:** Knowledge, Research, Jobs, Files/Sources, Backup list/detail pairs.
-- **Dependencies:** Existing semantic state controllers only.
-- **Last verification:** 2026-08-23; targeted tests added, not executed in connector runtime.
+- **Status:** IN_PROGRESS
+- **Evidence:** Chat message Copy, Remember and Add to Knowledge buttons are real actions but currently use `Qt.FocusPolicy.NoFocus`, excluding them from keyboard traversal.
+- **Views/components:** Chat message header actions and transient chat-error Copy action.
+- **Dependencies:** Existing message action callbacks and enablement only; no new action.
+- **Last verification:** 2026-08-23 against current `window.py`.
 
-### UI-002 — Progressive disclosure consistency audit
-- **Priority:** P1
-- **Status:** DONE
-- **Evidence:** Inspector/Evidence toggles and Knowledge Review expose a consistent open/closed vocabulary while existing visibility remains authoritative.
-- **Views/components:** Chat evidence/details toggles, inspector, Knowledge review/details.
-- **Dependencies:** None.
-- **Last verification:** 2026-08-23; targeted tests added, not executed in connector runtime.
-
-### UI-003 — Offline/provider-unavailable comprehension
-- **Priority:** P1
-- **Status:** DONE
-- **Evidence:** Real Core/provider/model readiness is mirrored consistently without adding reconnect/model-load behavior.
-- **Views/components:** Chat header, model selector, composer, System-facing guidance.
-- **Dependencies:** Existing provider/model snapshot only.
-- **Last verification:** 2026-08-23; targeted tests added, not executed in connector runtime.
-
-### UI-004 — Dense-list scanability and selection identity
+### UI-028 — Message-action quiet progressive disclosure
 - **Priority:** P2
-- **Status:** DONE
-- **Evidence:** Research, Jobs, Sources and Backup lists use stable compact spacing, per-pixel scrolling, elision and UserRole-based identity.
-- **Views/components:** Research Jobs, Durable Jobs, Sources, Backup snapshots.
-- **Dependencies:** None.
-- **Last verification:** 2026-08-23; targeted tests added, not executed in connector runtime.
+- **Status:** READY
+- **Evidence:** Every message exposes Remember/Add to Knowledge/Copy machinery permanently; reduce visual emphasis while keeping layout and keyboard accessibility stable.
+- **Views/components:** Chat message action row.
+- **Dependencies:** UI-027 focusability; existing message actions only.
+- **Last verification:** 2026-08-23.
 
-### UI-005 — PALLAS prominence/responsiveness audit
+### UI-029 — Empty-search/no-results comprehension
 - **Priority:** P2
-- **Status:** DONE
-- **Evidence:** PALLAS preserves 9:16, stays visible and reduces in compact layout while remaining secondary to workspace content.
-- **Views/components:** Left rail / PALLAS placeholder.
-- **Dependencies:** Existing compact-layout state only.
-- **Last verification:** 2026-08-23; targeted geometry tests added, not executed in connector runtime.
+- **Status:** READY
+- **Evidence:** Command palette and canonical-memory filtering should distinguish an empty dataset from a filter with zero matches without adding search behavior.
+- **Views/components:** Command palette results, Knowledge filter/list surfaces.
+- **Dependencies:** Existing filtering/results only.
+- **Last verification:** 2026-08-23.
 
-### UI-006 — Settings comprehension and model-state affordance
+### UI-030 — Modal/non-modal surface focus return
 - **Priority:** P2
-- **Status:** DONE
-- **Evidence:** CTX/MAX OUTPUT/temperature/thinking explain scope and loaded state without changing values or enablement.
-- **Views/components:** Settings page, model selector.
-- **Dependencies:** Existing model snapshot only.
-- **Last verification:** 2026-08-23; targeted tests added, not executed in connector runtime.
+- **Status:** READY
+- **Evidence:** Command palette/help and native file/folder dialogs should return focus to the invoking context predictably after close/cancel.
+- **Views/components:** Command palette, help, import/backup target dialogs.
+- **Dependencies:** Existing dialogs only.
+- **Last verification:** 2026-08-23.
 
-### UI-007 — Targeted UI tests for semantic state transitions
-- **Priority:** P2
-- **Status:** DONE
-- **Evidence:** Focused tests cover terminal-state clearing, busy preservation and external-state preservation.
-- **Views/components:** `tests/unit/test_pathena_state_transition_integrity.py`.
-- **Dependencies:** UI-001.
-- **Last verification:** 2026-08-23; tests added, not executed in connector runtime.
-
-### UI-008 — Help/capability copy staleness audit
+### UI-031 — Selection count and result scope clarity
 - **Priority:** P3
-- **Status:** DONE
-- **Evidence:** Help does not promise model-load control or unsupported provider behavior; PALLAS remains explicitly a renderer placeholder.
-- **Views/components:** Context-help properties/tooltips across workspaces.
-- **Dependencies:** Feature-gap backlog awareness.
-- **Last verification:** 2026-08-23 against feature-gap backlog; no UI-owned READY gaps.
-
-### UI-009 — Workspace-switch context and focus preservation
-- **Priority:** P1
-- **Status:** STALE
-- **Evidence:** `_select_page()` does not rebuild/refresh pages; automatic focus movement would degrade predictable sequential navigation.
-- **Views/components:** Left navigation and page stack.
-- **Dependencies:** Existing navigation/page stack only.
-- **Last verification:** 2026-08-23; no patch justified.
-
-### UI-010 — Inspector width and central-workspace protection
-- **Priority:** P1
-- **Status:** DONE
-- **Evidence:** Inspector width adapts 300/340/388 px while existing Details disclosure remains visibility owner.
-- **Views/components:** Inspector, central workspace, details toggle, compact layout.
-- **Dependencies:** Existing details disclosure/layout mode.
-- **Last verification:** 2026-08-23; targeted tests added, not executed in connector runtime.
-
-### UI-011 — Status hierarchy and duplicate-message audit
-- **Priority:** P2
-- **Status:** DONE
-- **Evidence:** Primary/secondary status surfaces are classified; exact duplicate secondary text is marked redundant and quieted without hiding detail.
-- **Views/components:** Knowledge, Research, Jobs, Files, System, Backup.
-- **Dependencies:** Existing semantic state controllers only.
-- **Last verification:** 2026-08-23 against `pathena_status_hierarchy_5300.py` and focused tests.
-
-### UI-012 — Selection-to-detail loading affordance
-- **Priority:** P2
-- **Status:** DONE
-- **Evidence:** List/detail pairs mirror real detail busy/success/error while preserving selection identity.
-- **Views/components:** Knowledge, Claims, Research Jobs, Durable Jobs, Sources, Backup.
-- **Dependencies:** Existing list/detail and progress-state controllers.
-- **Last verification:** 2026-08-23; integrated in complete refinement pass.
-
-### UI-013 — Compact-width header/action pressure audit
-- **Priority:** P2
-- **Status:** DONE
-- **Evidence:** Compact mode reduces action padding and selector minimum widths without hiding/reordering actions; slice is integrated.
-- **Views/components:** Chat, Research, Jobs, Files, Backup headers.
-- **Dependencies:** Existing compact-layout mode.
-- **Last verification:** 2026-08-23; integrated in complete refinement pass.
-
-### UI-014 — Screenreader state announcement consistency
-- **Priority:** P2
-- **Status:** DONE
-- **Evidence:** Accessible names/descriptions synchronize with real semantic state and selected identity without fabricated progress.
-- **Views/components:** Status labels, list/detail pairs, readiness/recovery surfaces.
-- **Dependencies:** Existing semantic state layers.
-- **Last verification:** 2026-08-23; `pathena_accessible_state_sync_5600.py` and focused tests added/integrated; tests not executed.
-
-### UI-015 — Action enablement rationale consistency
-- **Priority:** P1
-- **Status:** DONE
-- **Evidence:** Disabled Chat/Research/Jobs/Files/Backup controls expose the actual observed blocker and existing restore condition without owning `setEnabled()`.
-- **Views/components:** Chat composer/actions, Research, Jobs, Files, Backup.
-- **Dependencies:** Existing enablement logic only.
-- **Last verification:** 2026-08-23; `pathena_enablement_rationale_5700.py` and focused tests added/integrated; tests not executed.
-
-### UI-016 — Read-only versus mutating surface clarity
-- **Priority:** P2
-- **Status:** DONE
-- **Evidence:** Inspection panes, history actions and mutating decisions expose explicit interaction boundaries while retaining existing read-only/enabled/action-role behavior.
-- **Views/components:** Inspector, Knowledge/Claims, Research/Jobs/Files/System/Backup details and mutation actions.
-- **Dependencies:** Existing action hierarchy metadata.
-- **Last verification:** 2026-08-23; `pathena_mutation_boundary_5800.py` and focused tests added/integrated; tests not executed.
-
-### UI-017 — Long-operation cancellation comprehension
-- **Priority:** P2
-- **Status:** DONE
-- **Evidence:** Research/Jobs cancellation distinguishes requesting, persisted `cancel_requested`, terminal `cancelled`, other terminal states and requestable states.
-- **Views/components:** Research and Jobs status/list/detail/action surfaces.
-- **Dependencies:** Existing durable job state only.
-- **Last verification:** 2026-08-23; `pathena_cancellation_comprehension_5900.py` and focused tests added/integrated; tests not executed.
-
-### UI-018 — Chat composer readiness hierarchy
-- **Priority:** P2
-- **Status:** DONE
-- **Evidence:** One deterministic blocker is selected in priority order: controller, Core transport, model error, provider, model availability/load, pending conversation, chat busy, ready.
-- **Views/components:** Chat prompt, Ground, Send, selectors, local status, connection/model state.
-- **Dependencies:** Existing readiness flags only.
-- **Last verification:** 2026-08-23; `pathena_composer_readiness_6000.py` and focused tests added/integrated; initial multi-registration defect fixed before integration; tests not executed.
-
-### UI-019 — Dynamic guidance composition integrity
-- **Priority:** P1
-- **Status:** DONE
-- **Evidence:** `pathena_guidance_composition_6100.py` recomposes readiness, enablement, boundary and cancellation guidance from semantic properties so later updates do not erase sibling guidance; tooltips remain bounded and assistive copy remains complete.
-- **Views/components:** Dynamic Chat, Research, Jobs, Files, Backup and accessibility surfaces.
-- **Dependencies:** UI-014 through UI-018 properties; no backend change.
-- **Last verification:** 2026-08-23; four targeted tests present in `test_pathena_guidance_composition.py`; tests not executed in connector runtime.
-
-### UI-020 — Focus-visible consistency after async completion
-- **Priority:** P2
-- **Status:** DONE
-- **Evidence:** Async focus arbitration preserves a newer valid focus acquired during long-running work and reasserts it after stale completion callbacks, without changing actions or enablement.
-- **Views/components:** Knowledge, Research, Jobs, Files/Sources, Backup.
-- **Dependencies:** Existing focus/continuity controllers.
-- **Last verification:** 2026-08-23; `pathena_async_focus_integrity_6200.py` plus four targeted offscreen tests added and app integration completed; tests not executed in connector runtime.
-
-### UI-021 — Detail-pane stale content provenance
-- **Priority:** P2
-- **Status:** DONE
-- **Evidence:** Existing list/detail panes now receive a quiet provenance line that distinguishes CURRENT, LOADING, RETAINED and retained-load-error states using the selected and previously rendered identities without editing detail content.
-- **Views/components:** Knowledge, Claims, Contradictions, Research, Jobs, Sources, Backup.
-- **Dependencies:** Existing selection-loading metadata and list UserRole identities.
-- **Last verification:** 2026-08-23; `pathena_detail_provenance_6300.py` plus four targeted tests added and app integration completed; tests not executed in connector runtime.
-
-### UI-022 — Quiet status decay after successful transient operations
-- **Priority:** P3
-- **Status:** DONE
-- **Evidence:** Success remains `pathenaUiState=success`, but a separate visual-emphasis property decays from fresh to quiet after 3.5 seconds; error/busy/idle states are never rewritten.
-- **Views/components:** Knowledge review, Research, Jobs, Scheduler, Sources, Backup, System status surfaces.
-- **Dependencies:** Existing state-feedback/status hierarchy only.
-- **Last verification:** 2026-08-23; `pathena_quiet_success_decay_6400.py` plus four targeted tests added and app integration completed; tests not executed in connector runtime.
-
-### UI-023 — Command palette truth and scope audit
-- **Priority:** P1
 - **Status:** READY
-- **Evidence:** Command palette is installed as a central navigation/action surface; verify that every command maps to an existing UI/controller path, that disabled actions explain prerequisites, and that search labels remain concise.
-- **Views/components:** Command palette, navigation, existing workspace actions.
-- **Dependencies:** Existing command-palette command registry only; no new command without a real path.
-- **Last verification:** 2026-08-23; queued after UI-022.
-
-### UI-024 — Chat scroll-anchor and long-answer stability
-- **Priority:** P2
-- **Status:** READY
-- **Evidence:** Chat already tracks follow-tail and user scroll intent; audit long-answer rendering, selection/copy behavior and whether asynchronous insertions preserve deliberate reading position.
-- **Views/components:** Chat scroll, message document, evidence/review insertions.
-- **Dependencies:** Existing chat scroll state and render callbacks only.
-- **Last verification:** 2026-08-23; queued after UI-022.
-
-### UI-025 — Inspector/evidence overflow and provenance scanability
-- **Priority:** P2
-- **Status:** READY
-- **Evidence:** Inspector width is responsive and provenance is selectable; audit long provenance/claim/source identities for truncation, wrapping and clear relation hierarchy at compact width.
-- **Views/components:** Inspector, Evidence Chain/Rail, provenance text, compact layout.
-- **Dependencies:** Existing inspector/evidence disclosure only.
-- **Last verification:** 2026-08-23; queued after UI-022.
-
-### UI-026 — Backup verification-state action clarity
-- **Priority:** P2
-- **Status:** READY
-- **Evidence:** Backup exposes create, verify, deep-verify and isolated restore; audit whether selected snapshot verification state and restore prerequisites are visible before mutation without adding backend behavior.
-- **Views/components:** Backup snapshot list, status, details, verify/deep-verify/restore actions.
-- **Dependencies:** Existing BackupService/QProcess output only.
-- **Last verification:** 2026-08-23; queued after UI-022.
+- **Evidence:** Dense list workspaces show items but do not consistently expose filtered/visible count versus selected identity in the quiet status hierarchy.
+- **Views/components:** Knowledge, Research, Jobs, Sources, Backup lists.
+- **Dependencies:** Existing list models and status surfaces only.
+- **Last verification:** 2026-08-23.
