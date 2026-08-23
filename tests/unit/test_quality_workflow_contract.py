@@ -51,7 +51,9 @@ def test_quality_workflow_has_targeted_windows_path_safety_lane() -> None:
     assert "runs-on: windows-latest" in workflow
     assert "name: Probe native active-state locality" in workflow
     assert "assert_active_state_root_local(Path.cwd())" in workflow
-    assert "tests/unit/test_storage_locality.py" in workflow
+    assert "name: Run deterministic Windows locality regressions" in workflow
+    assert "tests/unit/test_storage_locality.py -k windows" in workflow
+    assert "name: Run Windows storage path regressions" in workflow
     assert "tests/unit/test_database_preflight_locality.py" in workflow
     assert "tests/unit/test_runtime_paths.py" in workflow
     assert "tests/unit/test_migration_clone.py" in workflow
