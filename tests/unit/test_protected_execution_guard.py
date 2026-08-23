@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import uuid
+from dataclasses import replace
 
 import pytest
 
@@ -123,4 +124,53 @@ def test_guard_rejects_untyped_bundle() -> None:
         ProtectedRuntimeExecutionGuard(
             verifier=_Verifier(),
             bundle=object(),  # type: ignore[arg-type]
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("omitted_count", True),
+        ("omitted_count", -1),
+        ("estimated_tokens", False),
+        ("estimated_tokens", -1),
+        ("max_estimated_tokens", True),
+        ("max_estimated_tokens", 0),
+    ],
+)
+def test_guard_rejects_invalid_bundle_counters(field: str, value: object) -> None:
+    bundle = replace(_bundle(), **{field: value})
+
+    with pytest.raises((TypeError, ValueError)):
+        ProtectedRuntimeExecutionGuard(verifier=_Verifier(), bundle=bundle)
+
+
+def test_guard_rejects_bundle_that_exceeds_its_token_budget() -> None:
+    bundle = replace(
+        _bundle(),
+        estimated_tokens=129,
+        max_estimated_tokens=128,
+    )
+
+    with pytest.raises(ValueError, match="must not exceed"):
+        ProtectedRuntimeExecutionGuard(verifier=_Verifier(), bundle=bundle)
+
+
+def test_guard_rejects_unsupported_mode() -> None:
+    bundle = replace(_bundle(), mode="hybrid")  # type: ignore[arg-type]
+
+    with pytest.raises(ValueError, match="mode is unsupported"):
+        ProtectedRuntimeExecutionGuard(verifier=_Verifier(), bundle=bundle)
+
+
+def test_guard_rejects_blank_query_and_rendered_context() -> None:
+    with pytest.raises(ValueError, match="query must be non-empty"):
+        ProtectedRuntimeExecutionGuard(
+            verifier=_Verifier(),
+            bundle=replace(_bundle(), query=" "),
+        )
+    with pytest.raises(ValueError, match="rendered context must be non-empty"):
+        ProtectedRuntimeExecutionGuard(
+            verifier=_Verifier(),
+            bundle=replace(_bundle(), rendered_text=""),
         )
