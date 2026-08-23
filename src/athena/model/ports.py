@@ -16,10 +16,11 @@ def controlled_structured_contract_prefix(schema_id: str) -> str:
         not isinstance(schema_id, str)
         or not schema_id
         or schema_id != schema_id.strip()
-        or "\n" in schema_id
-        or "\r" in schema_id
+        or any(ord(character) < 32 or ord(character) == 127 for character in schema_id)
     ):
-        raise ValueError("Structured schema_id must be canonical single-line text.")
+        raise ValueError(
+            "Structured schema_id must be canonical single-line text without control characters."
+        )
     return (
         f"\n\nATHENA_STRUCTURED_CONTRACT_VERSION: {CONTROLLED_STRUCTURED_CONTRACT_VERSION}\n"
         f"ATHENA_SCHEMA_ID: {schema_id}\n"
