@@ -109,6 +109,33 @@ def test_pathena_hides_unwired_attach_placeholder_and_humanizes_context_copy() -
         app.processEvents()
 
 
+def test_pathena_removes_redundant_shell_chrome() -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    try:
+        breadcrumb = window.findChild(QLabel, "breadcrumb")
+        assert breadcrumb is not None
+        assert breadcrumb.isHidden()
+        assert window.page_title.text() == "Chat"
+
+        rail = window.findChild(QFrame, "rail")
+        assert rail is not None
+        pallas_labels = [
+            label for label in rail.findChildren(QLabel) if label.text() == "PALLAS"
+        ]
+        assert pallas_labels
+        assert all(label.isHidden() for label in pallas_labels)
+
+        session_labels = {
+            label.text()
+            for label in window.findChildren(QLabel, "sessionLabel")
+        }
+        assert session_labels == {"Conversation", "Model"}
+    finally:
+        window.close()
+        app.processEvents()
+
+
 def test_pathena_session_controls_hide_machine_metadata() -> None:
     app = _app()
     window = PathenaMainWindow(api_controller=None)
