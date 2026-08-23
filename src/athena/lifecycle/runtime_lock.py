@@ -94,6 +94,30 @@ def _unlock_posix(
     )
 
 
+def _lock_platform(handle: BinaryIO) -> None:
+    if os.name == "nt":
+        _lock_windows(handle)
+        return
+    if os.name == "posix":
+        _lock_posix(handle)
+        return
+    raise RuntimeDataLockError(
+        f"ATHENA runtime mutation locking is unsupported on platform {os.name!r}."
+    )
+
+
+def _unlock_platform(handle: BinaryIO) -> None:
+    if os.name == "nt":
+        _unlock_windows(handle)
+        return
+    if os.name == "posix":
+        _unlock_posix(handle)
+        return
+    raise RuntimeDataLockError(
+        f"ATHENA runtime mutation unlocking is unsupported on platform {os.name!r}."
+    )
+
+
 @contextmanager
 def runtime_data_lock(
     state_root: Path | None,
@@ -185,15 +209,7 @@ def runtime_data_lock(
 
         try:
             try:
-                if os.name == "nt":
-                    _lock_windows(
-                        handle
-                    )
-                else:
-                    _lock_posix(
-                        handle
-                    )
-
+                _lock_platform(handle)
             except OSError as exc:
                 raise RuntimeDataLockError(
                     "ATHENA runtime mutation lock "
@@ -214,21 +230,14 @@ def runtime_data_lock(
                 None,
             )
 
-            if locked:
-                try:
-                    if os.name == "nt":
-                        _unlock_windows(
-                            handle
-                        )
-                    else:
-                        _unlock_posix(
-                            handle
-                        )
-
-                except OSError as exc:
-                    raise RuntimeDataLockError(
-                        "ATHENA runtime mutation lock "
-                        "could not be released cleanly."
-                    ) from exc
-
-            handle.close()
+            try:
+                if locked:
+                    try:
+                        _unlock_platform(handle)
+                    except OSError as exc:
+                        raise RuntimeDataLockError(
+                            "ATHENA runtime mutation lock "
+                            "could not be released cleanly."
+                        ) from exc
+            finally:
+                handle.close()
