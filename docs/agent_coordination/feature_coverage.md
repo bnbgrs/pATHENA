@@ -4,7 +4,7 @@ Purpose: prevent repetitive rescans and drive systematic Alpha/Beta-to-code cove
 
 Coverage states: `UNCHECKED` · `PARTIAL` · `COVERED` · `CHANGED_NEEDS_RECHECK`
 
-Last matrix baseline: `agent/pathena` @ `c2f4b5164929707b6ee7f362ead0d7624765b80c`
+Last matrix baseline: `agent/pathena` @ `4fec947c4de2d4f899fdaf33e07af7fc2205da57`
 
 A `COVERED` row may be rescanned only when its specification or mapped implementation paths changed after the recorded commit. `PARTIAL` means useful code tracing was completed but the full chapter/cross-layer path was not yet exhausted.
 
@@ -18,7 +18,7 @@ A `COVERED` row may be rescanned only when its specification or mapped implement
 | A04 | Knowledge system | UNCHECKED | — | — |
 | A05 | Raw archive / sources | UNCHECKED | — | — |
 | A06 | Knowledge extraction / graph | UNCHECKED | — | — |
-| A07 | Primary / infrastructure models | PARTIAL | d7a6342 | Cross-checked through Beta 08 provider scan; FG-001, FG-002. Full Alpha chapter trace still required. |
+| A07 | Primary / infrastructure models | PARTIAL | 10e58e3 | Cross-checked through B08 provider scan; FG-001..FG-004. Full Alpha chapter trace still required. |
 | A08 | Personal memory | UNCHECKED | — | — |
 | A09 | Search / retrieval | UNCHECKED | — | — |
 | A10 | Internet / anonymization / external sources | UNCHECKED | — | — |
@@ -33,7 +33,7 @@ A `COVERED` row may be rescanned only when its specification or mapped implement
 | A19 | Audit / provenance / traceability | UNCHECKED | — | — |
 | A20 | Data lifecycle / retention / deletion | UNCHECKED | — | — |
 | A21 | Model freedom / content neutrality | UNCHECKED | — | — |
-| A22 | Context management / conversations / continuity | PARTIAL | d7a6342 | Existing retrieval/chat ContextPackage path located; full cross-layer trace pending. |
+| A22 | Context management / conversations / continuity | PARTIAL | 10e58e3 | ContextBuilderService, ContextPackage and durable package journal traced; FG-005/FG-006 found through B09. Full Alpha chapter trace pending. |
 | A23 | Knowledge quality / consistency / self-maintenance | UNCHECKED | — | — |
 | A24 | Performance / scaling / resources | UNCHECKED | — | — |
 | A25 | Data formats / Obsidian / long-term readability | UNCHECKED | — | Obsidian implementation explicitly deferred; only consistency scan when reached. |
@@ -53,8 +53,8 @@ A `COVERED` row may be rescanned only when its specification or mapped implement
 | B05 | Knowledge units / claims / graph | UNCHECKED | — | — |
 | B06 | Personal memory | UNCHECKED | — | — |
 | B07 | Provenance / audit / versioning | UNCHECKED | — | — |
-| B08 | Primary model / provider system | PARTIAL | d7a6342 | Provider interface + model tree traced. FG-001 lifecycle/control contract; FG-002 ModelRegistry. Continue capability reporting, ModelSignature and failure/refusal sections next. |
-| B09 | Context Builder / token budget | PARTIAL | d7a6342 | Spec read; `src/athena/retrieval/context_package.py` and durable `src/athena/chat/grounded_context_package.py` located. No gap declared before full builder/retrieval/call-site trace. |
+| B08 | Primary model / provider system | PARTIAL | 10e58e3 | Interface, domain health/capability representation, model tree and LM Studio adapter traced. FG-001 lifecycle/control; FG-002 ModelRegistry; FG-003 health states; FG-004 explicit capabilities. Continue ModelSignature, refusal/failure and provider-session semantics. |
+| B09 | Context Builder / token budget | PARTIAL | 10e58e3 | ContextBuilderService + ContextPackage + durable package path traced. Existing memory isolation, snapshot drift, output/safety budget recording and semantic truncation preserved. FG-005 source diversity and FG-006 provider-aware dynamic token accounting confirmed. Continue call sites, protected-content behavior, task-specific builders, hierarchical processing and tests 60–68. |
 | B10 | Retrieval / search | UNCHECKED | — | — |
 | B11 | Exhaustive Research | UNCHECKED | — | — |
 | B12 | Job system / queue / scheduler | UNCHECKED | — | — |
@@ -76,7 +76,7 @@ A `COVERED` row may be rescanned only when its specification or mapped implement
 
 ## Next scan order
 
-1. Finish B08: capability reporting, ModelSignature, refusal/failure, session/load semantics.
-2. Finish B09 cross-layer Context Builder trace before declaring additional gaps.
-3. Read B27 and A28 to classify intended v1 implementation phase boundaries, preventing false-positive gaps.
+1. Read B27 and A28 now to classify intended v1 implementation boundaries before widening the backlog.
+2. Finish B08 ModelSignature/refusal/session semantics.
+3. Finish B09 call-site, protected-content, hierarchical and test coverage.
 4. Then prioritize B01–B03 foundation and B15–B16 security/network invariants before breadth scanning UI-only features.
