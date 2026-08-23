@@ -25,26 +25,167 @@ class ActionTarget:
 
 
 _TARGETS: tuple[ActionTarget, ...] = (
-    ActionTarget(None, None, "sendButton", "send message", "primary", "Sends the current message."),
-    ActionTarget(None, None, "newChatButton", "new conversation", "secondary", "Starts a new empty conversation."),
-    ActionTarget(None, None, "deleteChatButton", "delete conversation", "destructive", "Deletes the selected persistent conversation after the existing preview and confirmation."),
-    ActionTarget("knowledgeWorkspace", "refresh_knowledge_button", None, "refresh knowledge", "secondary", "Reloads canonical memory without changing it."),
-    ActionTarget("knowledgeWorkspace", "open_chat_button", None, "open source chat", "secondary", "Navigates to the source conversation."),
-    ActionTarget("knowledgeWorkspace", "review_accept_button", None, "accept contradiction", "caution", "Commits the reviewed contradiction decision."),
-    ActionTarget("knowledgeWorkspace", "review_reject_button", None, "reject contradiction", "caution", "Rejects the selected pending contradiction decision."),
-    ActionTarget("knowledgeWorkspace", None, "knowledgeAcceptanceButton", "add reviewed items", "primary", "Commits exactly the reviewed canonical preflight."),
-    ActionTarget("researchWorkspace", "start_button", None, "start research", "primary", "Queues a durable local research run."),
-    ActionTarget("researchWorkspace", "refresh_button", None, "refresh research", "secondary", "Reloads durable research state."),
-    ActionTarget("researchWorkspace", "cancel_button", None, "cancel research", "destructive", "Persists a cancellation request for the selected research run."),
-    ActionTarget("jobsWorkspace", "refresh_button", None, "refresh jobs", "secondary", "Reloads the durable job queue."),
-    ActionTarget("jobsWorkspace", "pause_button", None, "pause job", "caution", "Pauses an eligible durable job."),
-    ActionTarget("jobsWorkspace", "resume_button", None, "resume job", "primary", "Resumes the selected paused durable job."),
-    ActionTarget("jobsWorkspace", "cancel_button", None, "cancel job", "destructive", "Persists cancellation for the selected durable job."),
-    ActionTarget("filesWorkspace", "import_button", None, "import file", "primary", "Captures a local file and queues supported retrieval processing."),
-    ActionTarget("filesWorkspace", "process_button", None, "process source", "primary", "Queues processing or retry for the selected Source."),
-    ActionTarget("systemWorkspace", "refresh_button", None, "refresh system", "secondary", "Refreshes local runtime status."),
-    ActionTarget("backupWorkspace", "create_button", None, "create backup", "primary", "Creates a verified backup using the existing BackupService."),
-    ActionTarget("backupWorkspace", "restore_button", None, "restore isolated", "caution", "Restores the selected verified snapshot only into a new isolated root."),
+    ActionTarget(
+        None,
+        None,
+        "sendButton",
+        "send message",
+        "primary",
+        "Sends the current message.",
+    ),
+    ActionTarget(
+        None,
+        None,
+        "newChatButton",
+        "new conversation",
+        "secondary",
+        "Starts a new empty conversation.",
+    ),
+    ActionTarget(
+        None,
+        None,
+        "deleteChatButton",
+        "delete conversation",
+        "destructive",
+        "Deletes the selected persistent conversation after the existing preview and "
+        "confirmation.",
+    ),
+    ActionTarget(
+        "knowledgeWorkspace",
+        "refresh_knowledge_button",
+        None,
+        "refresh knowledge",
+        "secondary",
+        "Reloads canonical memory without changing it.",
+    ),
+    ActionTarget(
+        "knowledgeWorkspace",
+        "open_chat_button",
+        None,
+        "open source chat",
+        "secondary",
+        "Navigates to the source conversation.",
+    ),
+    ActionTarget(
+        "knowledgeWorkspace",
+        "review_accept_button",
+        None,
+        "accept contradiction",
+        "caution",
+        "Commits the reviewed contradiction decision.",
+    ),
+    ActionTarget(
+        "knowledgeWorkspace",
+        "review_reject_button",
+        None,
+        "reject contradiction",
+        "caution",
+        "Rejects the selected pending contradiction decision.",
+    ),
+    ActionTarget(
+        "knowledgeWorkspace",
+        None,
+        "knowledgeAcceptanceButton",
+        "add reviewed items",
+        "primary",
+        "Commits exactly the reviewed canonical preflight.",
+    ),
+    ActionTarget(
+        "researchWorkspace",
+        "start_button",
+        None,
+        "start research",
+        "primary",
+        "Queues a durable local research run.",
+    ),
+    ActionTarget(
+        "researchWorkspace",
+        "refresh_button",
+        None,
+        "refresh research",
+        "secondary",
+        "Reloads durable research state.",
+    ),
+    ActionTarget(
+        "researchWorkspace",
+        "cancel_button",
+        None,
+        "cancel research",
+        "destructive",
+        "Persists a cancellation request for the selected research run.",
+    ),
+    ActionTarget(
+        "jobsWorkspace",
+        "refresh_button",
+        None,
+        "refresh jobs",
+        "secondary",
+        "Reloads the durable job queue.",
+    ),
+    ActionTarget(
+        "jobsWorkspace",
+        "pause_button",
+        None,
+        "pause job",
+        "caution",
+        "Pauses an eligible durable job.",
+    ),
+    ActionTarget(
+        "jobsWorkspace",
+        "resume_button",
+        None,
+        "resume job",
+        "primary",
+        "Resumes the selected paused durable job.",
+    ),
+    ActionTarget(
+        "jobsWorkspace",
+        "cancel_button",
+        None,
+        "cancel job",
+        "destructive",
+        "Persists cancellation for the selected durable job.",
+    ),
+    ActionTarget(
+        "filesWorkspace",
+        "import_button",
+        None,
+        "import file",
+        "primary",
+        "Captures a local file and queues supported retrieval processing.",
+    ),
+    ActionTarget(
+        "filesWorkspace",
+        "process_button",
+        None,
+        "process source",
+        "primary",
+        "Queues processing or retry for the selected Source.",
+    ),
+    ActionTarget(
+        "systemWorkspace",
+        "refresh_button",
+        None,
+        "refresh system",
+        "secondary",
+        "Refreshes local runtime status.",
+    ),
+    ActionTarget(
+        "backupWorkspace",
+        "create_button",
+        None,
+        "create backup",
+        "primary",
+        "Creates a verified backup using the existing BackupService.",
+    ),
+    ActionTarget(
+        "backupWorkspace",
+        "restore_button",
+        None,
+        "restore isolated",
+        "caution",
+        "Restores the selected verified snapshot only into a new isolated root.",
+    ),
 )
 
 _DIMENSIONS: tuple[str, ...] = (
@@ -108,7 +249,10 @@ def _resolve_target(window: QWidget, target: ActionTarget) -> QAbstractButton | 
 
 def _apply_keyboard_safety(button: QAbstractButton, role: str) -> None:
     button.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-    button.setProperty("pathenaExplicitActivation", role in {"caution", "destructive"})
+    button.setProperty(
+        "pathenaExplicitActivation",
+        role in {"caution", "destructive"},
+    )
     if isinstance(button, QPushButton):
         button.setAutoDefault(False)
         if role in {"caution", "destructive"}:
@@ -133,10 +277,14 @@ def apply_ui_refinements_3401_3500(window: QWidget) -> tuple[int, ...]:
         applied.append(start + 1)
 
         button.setProperty("pathenaRiskCue", target.risk_copy)
-        button.setProperty(
-            "pathenaRiskLevel",
-            "high" if target.role == "destructive" else "medium" if target.role == "caution" else "normal",
+        risk_level = (
+            "high"
+            if target.role == "destructive"
+            else "medium"
+            if target.role == "caution"
+            else "normal"
         )
+        button.setProperty("pathenaRiskLevel", risk_level)
         applied.append(start + 2)
 
         _apply_keyboard_safety(button, target.role)
@@ -161,6 +309,9 @@ def apply_ui_refinements_3401_3500(window: QWidget) -> tuple[int, ...]:
     if _ACTION_STYLESHEET not in window.styleSheet():
         window.setStyleSheet(f"{window.styleSheet()}\n{_ACTION_STYLESHEET}")
 
-    window.setProperty("pathenaActionHierarchyTargetCount", len(applied) // len(_DIMENSIONS))
+    window.setProperty(
+        "pathenaActionHierarchyTargetCount",
+        len(applied) // len(_DIMENSIONS),
+    )
     window.setProperty("pathenaActionHierarchyTaskCount", len(applied))
     return tuple(applied)
