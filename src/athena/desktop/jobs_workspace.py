@@ -38,6 +38,7 @@ class JobsWorkspace(QWidget):
         self.setObjectName("jobsWorkspace")
         self._scheduler_supervisor = scheduler_supervisor
         self._operation = ""
+        self._operation_job_id: str | None = None
         self._buffer = ""
         self._selected_job_id: str | None = None
         self._selected_state: str | None = None
@@ -164,10 +165,11 @@ class JobsWorkspace(QWidget):
         self._transition("cancel", "Persisting cancellation request")
 
     def _transition(self, operation: str, label: str) -> None:
-        if self._busy() or not self._selected_job_id:
+        job_id = self._selected_job_id
+        if self._busy() or not job_id:
             return
         set_pathena_ui_state(self.details, "busy")
-        self._start(operation, [operation, self._selected_job_id], label)
+        self._start(operation, [operation, job_id], label, job_id=job_id)
 
     def _selection_changed(
         self,
@@ -180,12 +182,20 @@ class JobsWorkspace(QWidget):
         self._selected_state = str(state) if state else None
         self._sync_action_buttons()
 
-        if self._selected_job_id and not self._busy():
+        if self._busy():
+            if current is not None and not self._operation_owns_details():
+                self.details.setPlainText(current.toolTip())
+                set_pathena_ui_state(self.details, "idle")
+            return
+
+        if self._selected_job_id:
+            selected_job_id = self._selected_job_id
             set_pathena_ui_state(self.details, "busy")
             self._start(
                 "show",
-                ["show", self._selected_job_id],
+                ["show", selected_job_id],
                 "Loading durable job details",
+                job_id=selected_job_id,
             )
 
     def _refresh_if_visible(self) -> None:
@@ -211,8 +221,16 @@ class JobsWorkspace(QWidget):
     def _busy(self) -> bool:
         return self._process.state() != QProcess.ProcessState.NotRunning
 
-    def _start(self, operation: str, arguments: list[str], label: str) -> None:
+    def _start(
+        self,
+        operation: str,
+        arguments: list[str],
+        label: str,
+        *,
+        job_id: str | None = None,
+    ) -> None:
         self._operation = operation
+        self._operation_job_id = job_id
         self._buffer = ""
         self.status.setText(label + " …")
         set_pathena_ui_state(self.status, "busy")
@@ -239,28 +257,35 @@ class JobsWorkspace(QWidget):
             and state != "cancel_requested"
         )
 
+    def _operation_owns_details(self) -> bool:
+        return self._operation_job_id == self._selected_job_id
+
     def _drain_output(self) -> None:
         chunk = bytes(self._process.readAllStandardOutput().data()).decode(
-            "utf-8", errors="replace"
+            "utf-8",
+            errors="replace",
         )
         if not chunk:
             return
         self._buffer += chunk
-        if self._operation != "list":
+        if self._operation != "list" and self._operation_owns_details():
             self.details.moveCursor(QTextCursor.MoveOperation.End)
             self.details.insertPlainText(chunk)
 
     def _process_finished(self, exit_code: int, _exit_status: QProcess.ExitStatus) -> None:
         self._drain_output()
         operation = self._operation
+        owns_details = self._operation_owns_details()
         output = self._buffer
         self._operation = ""
+        self._operation_job_id = None
         self._sync_action_buttons()
 
         if exit_code != 0:
             self.status.setText(f"Jobs command failed (exit {exit_code}).")
             set_pathena_ui_state(self.status, "error")
-            set_pathena_ui_state(self.details, "error")
+            if owns_details:
+                set_pathena_ui_state(self.details, "error")
             if operation == "list":
                 self.details.setPlainText(output)
             return
@@ -274,12 +299,14 @@ class JobsWorkspace(QWidget):
         if operation == "show":
             self.status.setText("Durable job details loaded.")
             set_pathena_ui_state(self.status, "success")
-            set_pathena_ui_state(self.details, "success")
+            if owns_details:
+                set_pathena_ui_state(self.details, "success")
             return
 
         self.status.setText(f"{operation.upper()} transition persisted.")
         set_pathena_ui_state(self.status, "success")
-        set_pathena_ui_state(self.details, "success")
+        if owns_details:
+            set_pathena_ui_state(self.details, "success")
         QTimer.singleShot(120, self.refresh)
 
     def _render_job_list(self, output: str) -> None:
@@ -292,7 +319,16 @@ class JobsWorkspace(QWidget):
             parts = raw_line.split("\t", 7)
             if len(parts) != 8:
                 continue
-            job_id, state, priority, job_type, stage, retries, _updated_at_us, summary = parts
+            (
+                job_id,
+                state,
+                priority,
+                job_type,
+                stage,
+                retries,
+                _updated_at_us,
+                summary,
+            ) = parts
             item = QListWidgetItem(
                 f"{state.upper():<18} P{priority}  {job_type:<24}  {stage:<18}  {summary}"
             )
@@ -324,14 +360,17 @@ class JobsWorkspace(QWidget):
             set_pathena_ui_state(self.details, "empty")
 
     def _process_error(self, error: QProcess.ProcessError) -> None:
+        owns_details = self._operation_owns_details()
         self._operation = ""
+        self._operation_job_id = None
         self._sync_action_buttons()
         if error == QProcess.ProcessError.FailedToStart:
             self.status.setText("Unable to start the local pATHENA jobs command.")
         else:
             self.status.setText(f"Jobs command error: {error.name}")
         set_pathena_ui_state(self.status, "error")
-        set_pathena_ui_state(self.details, "error")
+        if owns_details:
+            set_pathena_ui_state(self.details, "error")
 
 
 def install_jobs_workspace(
