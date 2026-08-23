@@ -88,32 +88,64 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 
 ### UI-011 — Status hierarchy and duplicate-message audit
 - **Priority:** P2
-- **Status:** IN_PROGRESS
-- **Evidence:** Multiple workspace status labels, detail panes and recovery metadata can repeat the same operational message; a quiet workspace should prioritize one primary status source per view.
+- **Status:** DONE
+- **Evidence:** Primary and secondary workspace status surfaces are explicitly classified; exact duplicate secondary text is marked as redundant and visually quieted without hiding potentially useful runtime detail.
 - **Views/components:** Knowledge, Research, Jobs, Files, System, Backup.
 - **Dependencies:** Existing semantic state controllers only.
-- **Last verification:** 2026-08-23; selected after Inspector responsiveness completion.
+- **Last verification:** 2026-08-23 against `pathena_status_hierarchy_5300.py` and focused tests; tests not executed in connector runtime.
 
 ### UI-012 — Selection-to-detail loading affordance
 - **Priority:** P2
-- **Status:** READY
-- **Evidence:** Selecting a canonical row can start local detail loading; the selected row should remain clearly anchored while its detail pane transitions busy→success/error.
+- **Status:** DONE
+- **Evidence:** List/detail pairs mirror real detail busy/success/error state back to the owning list while preserving UserRole identity and current selection.
 - **Views/components:** Knowledge, Claims, Research Jobs, Durable Jobs, Sources, Backup.
 - **Dependencies:** Existing list/detail and progress-state controllers.
-- **Last verification:** 2026-08-23.
+- **Last verification:** 2026-08-23 against `pathena_selection_loading_5400.py`; integrated in the complete refinement pass.
 
 ### UI-013 — Compact-width header/action pressure audit
 - **Priority:** P2
-- **Status:** READY
-- **Evidence:** Header action rows can become dense near the 1320 px minimum width and should degrade without truncating primary task context.
+- **Status:** DONE
+- **Evidence:** Compact mode reduces action padding and selector minimum widths without hiding, renaming or reordering actions; the previously unregistered slice is now included in the complete refinement pass.
 - **Views/components:** Chat session controls, Research, Jobs, Files, Backup headers.
 - **Dependencies:** Existing compact-layout mode.
-- **Last verification:** 2026-08-23.
+- **Last verification:** 2026-08-23 against `pathena_header_pressure_5500.py`; integrated in the complete refinement pass.
 
 ### UI-014 — Screenreader state announcement consistency
 - **Priority:** P2
-- **Status:** READY
-- **Evidence:** Semantic states are widely tagged, but accessible descriptions should remain synchronized after busy/error/success transitions and selection changes.
+- **Status:** DONE
+- **Evidence:** Accessible names/descriptions now synchronize with real semantic state and selected UserRole identity across status and list/detail surfaces. No fabricated progress or unverified QAccessible event mechanism is introduced.
 - **Views/components:** Status labels, list/detail pairs, readiness and recovery surfaces.
 - **Dependencies:** Existing semantic state layers.
+- **Last verification:** 2026-08-23; `pathena_accessible_state_sync_5600.py` plus focused offscreen tests added and integrated; tests not executed in connector runtime.
+
+### UI-015 — Action enablement rationale consistency
+- **Priority:** P1
+- **Status:** READY
+- **Evidence:** Several buttons become disabled during busy/no-selection/offline states, but disabled controls do not always expose why they are unavailable or what condition restores them.
+- **Views/components:** Research, Jobs, Files, Backup, Knowledge review actions, Chat composer/actions.
+- **Dependencies:** Existing enabled-state logic only; no backend changes.
+- **Last verification:** 2026-08-23; selected as next slice.
+
+### UI-016 — Read-only versus mutating surface clarity
+- **Priority:** P2
+- **Status:** READY
+- **Evidence:** Detail panes, history views and status surfaces are visually similar to action-bearing review panels; mutation boundaries should be clearer without adding controls.
+- **Views/components:** Knowledge/Claims history, Research/Jobs/Files details, Backup verification/restore.
+- **Dependencies:** Existing action hierarchy metadata.
+- **Last verification:** 2026-08-23.
+
+### UI-017 — Long-operation cancellation comprehension
+- **Priority:** P2
+- **Status:** READY
+- **Evidence:** Cancel actions exist for durable research/jobs but the distinction between request, acknowledgement and terminal cancellation should remain clear during long operations.
+- **Views/components:** Research and Jobs status/detail/action rows.
+- **Dependencies:** Existing durable job state only.
+- **Last verification:** 2026-08-23.
+
+### UI-018 — Chat composer readiness hierarchy
+- **Priority:** P2
+- **Status:** READY
+- **Evidence:** Core/provider/model/chat-busy conditions all affect the composer; the highest-priority blocking reason should be deterministic and concise.
+- **Views/components:** Chat prompt, Ground, Send, model selector, local status.
+- **Dependencies:** Existing readiness flags only.
 - **Last verification:** 2026-08-23.
