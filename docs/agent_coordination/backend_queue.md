@@ -72,11 +72,11 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 
 ### BE-009 — Provider request cancellation/discard contract
 - Priority: P2
-- Status: READY
-- Evidence: Beta 08 sections 50-51 require backend cancel when supported and discard of late response otherwise. Current chat generation already avoids assistant persistence on interrupted provider streams, but provider-side cancellation/request identity remains to be traced.
-- Components: generation service/provider runtime.
-- Dependencies: provider cancellation capability may remain explicitly unsupported.
-- Last verification: 2026-08-23 against current `src/athena/chat/generation.py`.
+- Status: BLOCKED
+- Evidence: Core `ModelSession` now supplies request identity, cancellation state and fail-closed late-delta/late-completion discard semantics. The provider stream port still cannot bind that request ID to the exact backend generation, so calling `cancel_generation(request_id)` cannot yet be proven to target active work.
+- Components: `src/athena/model/session.py`, generation service/provider runtime.
+- Dependencies: safe provider request-ID plumbing and adapter ownership window.
+- Last verification: 2026-08-23; ModelSession lifecycle tests added, provider port re-read and still lacks request-id binding.
 
 ### BE-010 — Generation numeric/control boundary hardening
 - Priority: P2
@@ -102,3 +102,35 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 - Components: `src/athena/model/domain.py`, `src/athena/model/provenance.py`, `tests/unit/test_model_provenance.py`.
 - Dependencies: none; providers that expose no reliable revision continue to supply `None`.
 - Last verification: 2026-08-23; targeted known/unknown/changed revision tests added but not executed in connector runtime.
+
+### BE-013 — Complete first-class ModelSession binding
+- Priority: P1
+- Status: BLOCKED
+- Evidence: Feature-gap FG-009 is PARTIAL. Core session lifecycle exists with stable request UUID, ModelSignature/ProcessingRun identity, context/output budgets, cancellation and streaming state. Exact provider request binding remains absent.
+- Components: `src/athena/model/session.py`, `src/athena/model/ports.py`, chat/model orchestration, provider adapter.
+- Dependencies: safe adapter ownership window or backwards-compatible request-bound provider capability.
+- Last verification: 2026-08-23; session tests added but not executed in connector runtime.
+
+### BE-014 — Carry ModelSignature revision through ContextPackage and drift checks
+- Priority: P1
+- Status: READY
+- Evidence: Follow-up to FG-008. Persisted `ModelSignature` now has model revision, but `ContextModelSignature` and ContextPackage run snapshot omit it, and chat generation compares provider/model/quantization without revision. A known revision could therefore be lost between signature persistence and execution-time drift validation.
+- Components: `src/athena/retrieval/context_package.py`, chat generation drift validation, targeted ContextPackage tests.
+- Dependencies: BE-012 complete; avoid whole-file conflict if chat generation is concurrently active.
+- Last verification: 2026-08-23 against current ContextPackage and chat generation.
+
+### BE-015 — Normalize Core provider failure taxonomy
+- Priority: P1
+- Status: READY
+- Evidence: Feature-gap FG-010 remains READY; Core lacks a stable failure-kind/retryability contract independent of provider-specific exception classes.
+- Components: model failure domain, provider adapter mapping, job/chat diagnostics and targeted tests.
+- Dependencies: Core taxonomy can be implemented independently; LM Studio mapping waits for safe adapter ownership.
+- Last verification: 2026-08-23 feature-gap trace.
+
+### BE-016 — Protection-aware retrieval/context bridge
+- Priority: P1
+- Status: READY
+- Evidence: Feature-gap FG-012; ordinary unprotected retrieval is fail-closed but authorized unlocked protected content lacks an explicit protection-aware candidate/context contract.
+- Components: protected content service, retrieval candidates, context assembly/cache and targeted lock/relock tests.
+- Dependencies: preserve zero protected-cleartext leakage into unprotected index/log paths.
+- Last verification: 2026-08-23 feature-gap trace.
