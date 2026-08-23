@@ -113,3 +113,63 @@ def test_base_reenable_cannot_expose_ineligible_snapshot_actions(
     assert not workspace.deep_verify_button.isEnabled()
     assert not workspace.restore_button.isEnabled()
     controller.deleteLater()
+
+
+def test_disabled_focused_restore_returns_to_snapshot_list_when_focus_is_unowned(
+    qt_app: QApplication,
+) -> None:
+    workspace = BackupWorkspace()
+    workspace.show()
+    controller = install_backup_action_truth(workspace)
+    _select(
+        workspace,
+        "55555555-5555-5555-5555-555555555555",
+        "complete",
+        "verified_light",
+    )
+    workspace.restore_button.setFocus()
+    assert workspace.restore_button.hasFocus()
+
+    _select(
+        workspace,
+        "66666666-6666-6666-6666-666666666666",
+        "complete",
+        "unverified",
+    )
+    focus = QApplication.focusWidget()
+    if focus is not None:
+        focus.clearFocus()
+    qt_app.processEvents()
+
+    assert workspace.snapshots.hasFocus()
+    controller.deleteLater()
+    workspace.close()
+
+
+def test_disabled_action_focus_return_preserves_newer_user_focus(
+    qt_app: QApplication,
+) -> None:
+    workspace = BackupWorkspace()
+    workspace.show()
+    controller = install_backup_action_truth(workspace)
+    _select(
+        workspace,
+        "77777777-7777-7777-7777-777777777777",
+        "complete",
+        "verified_deep",
+    )
+    workspace.restore_button.setFocus()
+    assert workspace.restore_button.hasFocus()
+
+    _select(
+        workspace,
+        "88888888-8888-8888-8888-888888888888",
+        "complete",
+        "unverified",
+    )
+    workspace.refresh_button.setFocus()
+    qt_app.processEvents()
+
+    assert workspace.refresh_button.hasFocus()
+    controller.deleteLater()
+    workspace.close()
