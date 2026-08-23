@@ -94,3 +94,11 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 - Dependencies: coordinate with Security; preserve exclusive temp creation, content hash verification and durable publication semantics.
 - Required invariant: every blob write remains beneath the resolved configured storage root even with hostile symlink/junction/reparse-point ancestors; fail closed rather than following them.
 - Last verification: 2026-08-23 static trace by Security; no exploit execution claimed.
+
+### BE-012 — Preserve provider-observed model revision in ModelSignature
+- Priority: P1
+- Status: DONE
+- Evidence: Feature-gap FG-008; normalized `ModelInfo` now carries optional exact provider-observed revision and `ModelRunRepository` includes it in signature hashing, persistence and reconstruction without inference.
+- Components: `src/athena/model/domain.py`, `src/athena/model/provenance.py`, `tests/unit/test_model_provenance.py`.
+- Dependencies: none; providers that expose no reliable revision continue to supply `None`.
+- Last verification: 2026-08-23; targeted known/unknown/changed revision tests added but not executed in connector runtime.
