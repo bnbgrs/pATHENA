@@ -16,11 +16,16 @@ from athena.jobs.models import (
     JobRecord,
     WaitingReason,
 )
+from athena.jobs.news_payload_validation import (
+    NewsJobPayloadValidationError,
+    validate_news_job_payload,
+)
 from athena.jobs.payload_validation import (
     BuiltinJobPayloadValidationError,
     validate_builtin_job_payload,
 )
 from athena.jobs.repository import JobRepository
+from athena.news.models import NEWS_JOB_TYPE, NEWS_PERIOD_JOB_TYPE
 
 
 class UnsupportedJobTypeError(ValueError):
@@ -47,6 +52,8 @@ class DurableJobService:
             "embedding.rebuild",
             "integrity.sweep",
             "research.exhaustive",
+            NEWS_JOB_TYPE,
+            NEWS_PERIOD_JOB_TYPE,
         }
     )
 
@@ -70,12 +77,19 @@ class DurableJobService:
         _job_priority(priority)
         _optional_nonnegative_int(next_run_at_us, "next_run_at_us")
         try:
-            validate_builtin_job_payload(
-                job_type,
-                requested_scope=requested_scope,
-                pinned_configuration=pinned_configuration,
-            )
-        except BuiltinJobPayloadValidationError as exc:
+            if job_type in {NEWS_JOB_TYPE, NEWS_PERIOD_JOB_TYPE}:
+                validate_news_job_payload(
+                    job_type,
+                    requested_scope=requested_scope,
+                    pinned_configuration=pinned_configuration,
+                )
+            else:
+                validate_builtin_job_payload(
+                    job_type,
+                    requested_scope=requested_scope,
+                    pinned_configuration=pinned_configuration,
+                )
+        except (BuiltinJobPayloadValidationError, NewsJobPayloadValidationError) as exc:
             raise InvalidJobPayloadError(str(exc)) from exc
         actor_id = self.chat.ensure_local_user()
         return self.repository.create(
