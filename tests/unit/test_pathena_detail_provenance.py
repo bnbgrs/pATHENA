@@ -9,7 +9,14 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 pytest.importorskip("PySide6")
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QListWidget, QListWidgetItem, QPlainTextEdit, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QApplication,
+    QListWidget,
+    QListWidgetItem,
+    QPlainTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
 
 from athena.desktop.pathena_detail_provenance_6300 import DetailProvenanceController
 
