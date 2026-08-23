@@ -1,4 +1,4 @@
-# Quality Gate incident: runs 1864-1874
+# Quality Gate incident: runs 1864-1896
 
 Date: 2026-08-23
 Repository: `bnbgrs/pATHENA`
@@ -52,13 +52,31 @@ Observed merge head: `9a96197d2c25aa9a3964f7c48907ebbb8706e2e1` for branch head 
 
 The branch then advanced and at least the microinteraction import file changed by one line, consistent with an import-only correction. A second stale write attempt was rejected by GitHub because the file had changed concurrently; no force update was used.
 
+## Run 1896
+
+Observed merge head: `e7aa2321af97bb681426572ae5e429c43f686e82` for branch head `934dd0a2335a2c70063291a03461cfbffb011991`.
+
+- Specification validator: PASS (`63/63`).
+- Ruff: FAIL with exactly one `F401`.
+- mypy: not reached.
+- pytest: not reached.
+
+### Primary cause
+
+`tests/unit/test_service_manager_interrupt_boundaries.py` imported `dataclasses.field` but never used it. The test only needs `dataclass` for the `_Service` fixture. This is a deterministic dead-import regression in a newly added boundary-test file, not a production-code failure.
+
+### Fix
+
+Commit `5482fbd898432d682baddfea409407080690cb1f` removes only the unused `field` import and leaves all three interrupt/shutdown tests unchanged.
+
 ## Safety / concurrency result
 
 - All reads used `agent/pathena` or the exact observed run head.
-- Mutations attempted with blob-SHA preconditions were rejected when stale (`409`) rather than overwriting parallel work.
+- Mutations used current blob SHAs where an existing file was replaced.
+- Stale writes were rejected (`409`) instead of overwriting parallel work.
 - No force-push or history rewrite was used.
 - `bnbgrs/ATHENA` remained untouched.
 
 ## Next gate slice
 
-Re-evaluate the newest `agent/pathena` CI run. Required sequence: specification validator -> Ruff -> mypy -> pytest. Treat newly added parallel files as fresh potential primaries; do not attribute downstream failures to the already-resolved 1864/1874 causes without a new reproducing run.
+Re-evaluate the newest `agent/pathena` CI run. Required sequence: specification validator -> Ruff -> mypy -> pytest. Treat newly added parallel files as fresh potential primaries; do not attribute downstream failures to the already-resolved 1864/1874/1896 causes without a new reproducing run.
