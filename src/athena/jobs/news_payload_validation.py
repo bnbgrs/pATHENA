@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import uuid
 from collections.abc import Mapping
-from datetime import date
+from datetime import date, timedelta
 from typing import Any
 
+from athena.news.common import _default_profile_id
 from athena.news.models import NEWS_JOB_TYPE, NEWS_PERIOD_JOB_TYPE, NEWS_PIPELINE_VERSION
 from athena.news.schema import NEWS_SCHEMA_ID
 
@@ -42,7 +43,7 @@ def _validate_daily(
         label=f"{label} requested_scope",
     )
     assert scope is not None
-    _uuid_text(scope, "profile_id", label=label)
+    _default_profile(scope, label=label)
     _date_text(scope, "target_date", label=label)
     _validate_config(config, label=label)
 
@@ -58,7 +59,7 @@ def _validate_period(
         label=f"{label} requested_scope",
     )
     assert scope is not None
-    _uuid_text(scope, "profile_id", label=label)
+    _default_profile(scope, label=label)
     kind = _text(scope, "period_kind", label=label)
     if kind not in {"weekly", "monthly"}:
         raise NewsJobPayloadValidationError(
@@ -66,10 +67,16 @@ def _validate_period(
         )
     start = _date_text(scope, "period_start", label=label)
     end = _date_text(scope, "period_end", label=label)
-    if end < start:
-        raise NewsJobPayloadValidationError(
-            "news.period period_end must be >= period_start."
-        )
+    if kind == "weekly":
+        if start.weekday() != 0 or end != start + timedelta(days=6):
+            raise NewsJobPayloadValidationError(
+                "news.period weekly windows must be a closed Monday-Sunday week."
+            )
+    else:
+        if start.day != 1 or end != _month_end(start):
+            raise NewsJobPayloadValidationError(
+                "news.period monthly windows must cover one closed calendar month."
+            )
     _validate_config(config, label=label)
 
 
@@ -128,6 +135,15 @@ def _uuid_text(value: Mapping[str, Any], field: str, *, label: str) -> uuid.UUID
     return parsed
 
 
+def _default_profile(value: Mapping[str, Any], *, label: str) -> uuid.UUID:
+    parsed = _uuid_text(value, "profile_id", label=label)
+    if parsed != _default_profile_id():
+        raise NewsJobPayloadValidationError(
+            f"{label} profile_id must reference the default durable News profile."
+        )
+    return parsed
+
+
 def _date_text(value: Mapping[str, Any], field: str, *, label: str) -> date:
     raw = _text(value, field, label=label)
     try:
@@ -141,3 +157,11 @@ def _date_text(value: Mapping[str, Any], field: str, *, label: str) -> date:
             f"{label} field {field!r} must use canonical ISO date text."
         )
     return parsed
+
+
+def _month_end(start: date) -> date:
+    if start.month == 12:
+        next_month = date(start.year + 1, 1, 1)
+    else:
+        next_month = date(start.year, start.month + 1, 1)
+    return next_month - timedelta(days=1)
