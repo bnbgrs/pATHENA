@@ -59,9 +59,15 @@ UI_REFINEMENT_TASKS_3201_3300: tuple[str, ...] = tuple(
 
 _STATE_COPY: dict[str, tuple[str, str]] = {
     "idle": ("ready", "Ready for interaction."),
-    "busy": ("working", "Work is in progress. Related actions may be temporarily unavailable."),
+    "busy": (
+        "working",
+        "Work is in progress. Related actions may be temporarily unavailable.",
+    ),
     "success": ("complete", "The latest operation completed successfully."),
-    "error": ("attention", "The latest operation needs attention. Review the visible detail."),
+    "error": (
+        "attention",
+        "The latest operation needs attention. Review the visible detail.",
+    ),
     "empty": ("empty", "No content is available for this view yet."),
 }
 
@@ -156,6 +162,9 @@ def apply_ui_refinements_3201_3300(window: QWidget) -> tuple[int, ...]:
         window.setStyleSheet(f"{window.styleSheet()}\n{_FEEDBACK_STYLESHEET}")
 
     window.setProperty("pathenaStateFeedbackController", controller)
-    window.setProperty("pathenaStateFeedbackTargetCount", len(applied) // len(_DIMENSIONS))
+    window.setProperty(
+        "pathenaStateFeedbackTargetCount",
+        len(applied) // len(_DIMENSIONS),
+    )
     window.setProperty("pathenaStateFeedbackTaskCount", len(applied))
     return tuple(applied)
