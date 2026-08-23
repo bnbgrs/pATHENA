@@ -253,10 +253,28 @@ class ResearchWorkspace(QWidget):
                 item_to_select = item
 
         self.jobs.blockSignals(False)
+        self.jobs.setProperty("pathenaSelectionDisappeared", "")
+        self.details.setProperty("pathenaSelectionDisappeared", "")
         if item_to_select is not None:
             set_pathena_ui_state(self.jobs, "success")
             self.jobs.setCurrentItem(item_to_select)
             self._selection_changed(item_to_select, None)
+        elif self.jobs.count() > 0 and selected is not None:
+            set_pathena_ui_state(self.jobs, "success")
+            self._selected_job_id = None
+            self.cancel_button.setEnabled(False)
+            self.jobs.setCurrentRow(-1)
+            job_label = selected[:8].upper()
+            message = (
+                f"SELECTION CHANGED · Research run {job_label} is no longer listed after "
+                "refresh. Select another research run to inspect its current state."
+            )
+            self.details.setPlainText(message)
+            self.jobs.setProperty("pathenaSelectionDisappeared", selected)
+            self.details.setProperty("pathenaSelectionDisappeared", selected)
+            self.details.setAccessibleDescription(message)
+            self.jobs.setStatusTip(message)
+            set_pathena_ui_state(self.details, "empty")
         elif self.jobs.count() > 0:
             set_pathena_ui_state(self.jobs, "success")
             self.jobs.setCurrentRow(0)
