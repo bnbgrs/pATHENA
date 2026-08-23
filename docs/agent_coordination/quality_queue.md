@@ -12,6 +12,7 @@ Status values: `READY`, `IN_PROGRESS`, `BLOCKED`, `DONE`, `STALE`.
 | QG-2097-MYPY-RESEARCH-IDEMPOTENCY | P0 | Resolve three mypy unreachable errors in `research/idempotency.py` | #2771 reconfirmed unreachable checks for typed `Sequence` vs str/bytes/bytearray | BACKEND | BLOCKED | 2026-08-23; executed FAIL in #2771 |
 | QG-2097-MYPY-SEMANTIC | P0 | Resolve two `_persisted_int()` mypy errors | #2771 reconfirmed `int(object)` overload plus `no-any-return` | BACKEND | BLOCKED | 2026-08-23; executed FAIL in #2771 |
 | QG-2771-QUALITY-WORKFLOW-I001 | P1 | Remove Quality-owned Ruff I001 from workflow-contract test | #2771 Ruff reported I001 at `tests/unit/test_quality_workflow_contract.py:1`; import-to-module spacing corrected in Quality commit `008647cf4e20617c70ff8f9918b3d53632c99b62` | QUALITY/GATE | IN_PROGRESS | 2026-08-23; fix landed, executed rerun pending |
+| QG-DURABLE-FS-IDENTITY-LANE | P1 | Execute new durable filesystem identity regressions independently of UI full-suite crash | Post-#2771 Backend changes added identity-bound `durable_write_bytes()`, switched `MigrationJournalStore.publish()` to it, and added POSIX parent-replacement tests in `test_durable_fs_parent_identity.py`. Quality commits `4b447d64...` + `e473cbd6...` add `test_durable_fs.py` and `test_durable_fs_parent_identity.py` to the focused Linux storage lane and protect coverage in the workflow contract. | QUALITY/GATE + BACKEND/VERIFY | IN_PROGRESS | 2026-08-23; coverage landed, first executed focused run pending |
 | QG-2677-MYPY-MODEL-REGISTRY | P1 | Resolve ModelResourceProfile mypy narrowing errors | #2771 reconfirmed assignment conflict plus `Real`/`int` unreachable diagnostics | BACKEND | BLOCKED | 2026-08-23; executed FAIL |
 | QG-2677-MYPY-MIGRATION-RECOVERY | P1 | Remove/reshape unreachable exhaustive recovery branch | #2771 reconfirmed unreachable final branch in `migration_recovery.py` | BACKEND | BLOCKED | 2026-08-23; executed FAIL |
 | QG-2677-MYPY-GROUNDED-CONTEXT | P1 | Propagate model revision while reconstructing context signature | #2771 reconfirmed missing `model_revision` in `ContextModelSignature` construction | BACKEND | BLOCKED | 2026-08-23; executed FAIL |
@@ -21,22 +22,22 @@ Status values: `READY`, `IN_PROGRESS`, `BLOCKED`, `DONE`, `STALE`.
 | QG-FG-015-RESERVE-HEADROOM | P1 | Prevent reserve provisioning from creating EMERGENCY pressure | 100 GiB / 2.5 GiB free can provision 1 GiB and project ~1.5 GiB free below 2 GiB EMERGENCY threshold; current `ensure_reserve_if_safe()` still does not project post-allocation pressure; log `docs/quality-gate/2026-08-23-disk-pressure-reserve-provisioning-headroom.md` | BACKEND | BLOCKED | 2026-08-23; static defect reconfirmed |
 | QG-WIN-2677-RESERVE-TEST-CONTRACT | P1 | Reconcile wrong-size reserve test with current error contract | Corrected tests are included in #2771 Windows storage suite | BACKEND/TEST + QUALITY/VERIFY | DONE | 2026-08-23; #2771 Windows storage 109 PASS |
 | QG-STORAGE-BOOTSTRAP-PREFLIGHT-ORDER | P1 | Restore read-only preflight before mutating runtime layout | Current `StorageBootstrapService.start()` still calls `layout.start()` and creates migration root before `inspect_database_read_only()`; log `docs/quality-gate/2026-08-23-storage-bootstrap-preflight-order.md` | BACKEND | BLOCKED | 2026-08-23; current code re-read |
-| QG-MIGRATION-JOURNAL-ANCESTOR-BOUNDARY | P1 | Verify Backend journal ancestor fix | #2771 Linux focused storage 157 PASS and Windows storage 109 PASS include migration journal | BACKEND + QUALITY/VERIFY | DONE | 2026-08-23; executed PASS Linux + Windows |
+| QG-MIGRATION-JOURNAL-ANCESTOR-BOUNDARY | P1 | Verify Backend journal ancestor fix | #2771 Linux focused storage 157 PASS and Windows storage 109 PASS include migration journal | BACKEND + QUALITY/VERIFY | DONE | 2026-08-23; executed PASS Linux + Windows on pre-durable-write refactor head |
 | QG-MIGRATION-CLONE-REPARSE-BOUNDARY | P1 | Verify clone reparse-boundary fix independently | #2771 Linux focused storage 157 PASS and Windows storage 109 PASS include migration clone after O_RDWR fsync fix | BACKEND + QUALITY/VERIFY | DONE | 2026-08-23; executed PASS Linux + Windows |
 | QG-CI-SUPERSEDED-RUNS | P1 | Preserve useful active CI under continuous branch writes | `cancel-in-progress: false`; #2677 and #2771 demonstrate active runs survive newer pending heads | QUALITY/GATE | DONE | 2026-08-23 |
 | QG-CI-FAILFAST-COVERAGE | P1 | Prove keep-going reaches later checks after earlier failures | #2677 and #2771: Ruff FAIL -> mypy executed -> pytest executed | QUALITY/GATE | DONE | 2026-08-23 |
 | QG-WIN-LOCALITY-SELECTION | P1 | Keep Linux mountinfo-only cases out of native Windows lane | #2771 native Windows `test_storage_locality.py -k windows`: 5 PASS, 3 deselected | QUALITY/GATE | DONE | 2026-08-23; executed PASS |
-| QG-STORAGE-FOCUSED-LINUX-LANE | P1 | Decouple storage diagnostics from UI-native crashes | #2771 focused Linux storage regressions 157 PASS; separate API runtime boundaries 12 PASS | QUALITY/GATE | DONE | 2026-08-23; first executed lane PASS |
-| QG-QUALITY-HARNESS-REGRESSION | P1 | Protect keep-going, concurrency, smoke and focused lanes | #2771 proves focused Linux/Windows and Local-smoke lanes run independently and that keep-going reaches mypy/pytest; one Quality-owned workflow-contract Ruff I001 fixed, rerun pending | QUALITY/GATE | IN_PROGRESS | 2026-08-23; executed behavior verified, post-fix Ruff pending |
+| QG-STORAGE-FOCUSED-LINUX-LANE | P1 | Decouple storage diagnostics from UI-native crashes | #2771 focused Linux storage regressions 157 PASS; separate API runtime boundaries 12 PASS | QUALITY/GATE | DONE | 2026-08-23; original lane executed PASS; post-#2771 durable-FS expansion tracked separately |
+| QG-QUALITY-HARNESS-REGRESSION | P1 | Protect keep-going, concurrency, smoke and focused lanes | #2771 proves focused Linux/Windows and Local-smoke lanes run independently and keep-going reaches mypy/pytest; workflow contract now also protects durable-FS identity coverage | QUALITY/GATE | IN_PROGRESS | 2026-08-23; post-change execution pending |
 | QG-FG-002-REGRESSION | P1 | Verify ModelRegistry / active-primary-model layer | Runtime tests passed before #2771 crash; typing slice remains separately blocked | QUALITY/READ-ONLY | IN_PROGRESS | 2026-08-23 |
 | QG-FG-004-REGRESSION | P1 | Verify capability UNKNOWN vs UNSUPPORTED semantics | Relevant capability tests passed before #2771 crash | QUALITY/READ-ONLY | IN_PROGRESS | 2026-08-23 |
 | QG-FG-005-REGRESSION | P1 | Verify Context Builder source diversity | `test_context_builder_diversity.py` PASS in #2771 before crash | QUALITY/READ-ONLY | DONE | 2026-08-23 |
 | QG-FG-007-REGRESSION | P1 | Verify model-load ownership before auto-unload | `test_model_load_ownership.py` PASS in #2771 before crash | QUALITY/READ-ONLY | DONE | 2026-08-23 |
 | QG-FG-012-EXECUTION-GUARD | P1 | Verify protected-runtime execution guard | Static guard/test audit complete | QUALITY/READ-ONLY | IN_PROGRESS | 2026-08-23; targeted runtime evidence pending |
-| QG-FG-013-MIGRATION-SAFETY | P1 | Regression-watch clone-first migration stack | #2771 Linux focused storage 157 PASS and Windows storage 109 PASS, closing prior executor/fsync regressions; architectural Alembic-vs-custom decision remains outside gate verification | QUALITY/READ-ONLY + GATE | IN_PROGRESS | 2026-08-23; executed storage stack PASS |
+| QG-FG-013-MIGRATION-SAFETY | P1 | Regression-watch clone-first migration stack | #2771 Linux/Windows migration suites PASS on pre-durable-write-refactor head; current journal publication changed afterward and is now covered by QG-DURABLE-FS-IDENTITY-LANE | QUALITY/READ-ONLY + GATE | IN_PROGRESS | 2026-08-23; post-refactor execution pending |
 | QG-FG-014-REGRESSION | P1 | Verify active SQLite root locality | #2771 Linux locality/preflight PASS; native Windows locality probe PASS and Windows storage suite PASS; separate DB-preflight reparse-boundary defect remains tracked | QUALITY/READ-ONLY + GATE | IN_PROGRESS | 2026-08-23 |
 | QG-FG-015-REGRESSION | P1 | Regression-watch reserve/disk-pressure/write-gating/safe-mode policy | #2771 Linux focused storage and Windows storage suites PASS; projected reserve-headroom P1 remains separate open product defect | QUALITY/READ-ONLY + GATE | IN_PROGRESS | 2026-08-23 |
-| QG-RECENT-REGRESSION-SCAN | P1 | Risk-based scan of newest Backend/UI/Feature commits | #2771 surfaced productive extraction wiring regression; newest storage identity-bound durable-publication work reviewed read-only | QUALITY/READ-ONLY | IN_PROGRESS | 2026-08-23 |
+| QG-RECENT-REGRESSION-SCAN | P1 | Risk-based scan of newest Backend/UI/Feature commits | #2771 surfaced productive extraction wiring regression; post-#2771 durable filesystem identity changes audited and focused coverage expanded | QUALITY/READ-ONLY | IN_PROGRESS | 2026-08-23 |
 | QG-WINDOWS-GATE-PARITY | P2 | Native Windows platform-specific storage coverage | #2771 native locality probe PASS; locality selection 5 PASS; storage regressions 109 PASS; API runtime boundaries 12 PASS | QUALITY/GATE | DONE | 2026-08-23; executed on Windows Server 2025 |
 | QG-PACKAGING-START-PATH | P2 | Verify install/start/restart/persistence path | #2771 harness successfully built/installed package but productive Core construction failed due missing extraction `chat` dependency | QUALITY/GATE + BACKEND/BLOCKER | IN_PROGRESS | 2026-08-23; executed FAIL due QG-2771-LOCAL-SMOKE-EXTRACTION-WIRING |
 | QG-CI-TIMEOUT-HEADROOM | P2 | Verify 10-minute keep-going gate headroom | #2771 full quality terminated by native UI SIGSEGV at ~65% after about 1m52s; ordinary full-suite completion still unavailable | QUALITY/GATE | READY | 2026-08-23; cannot close while pytest crashes |
@@ -45,7 +46,7 @@ Status values: `READY`, `IN_PROGRESS`, `BLOCKED`, `DONE`, `STALE`.
 
 ## Current execution baseline
 
-Run #2771 (`32665417827`) on branch head `a683577c5e69b85308588b0b6b7b1675faae91ee` is the newest fully decoded multi-job baseline:
+Run #2771 (`32665417827`) on branch head `a683577c5e69b85308588b0b6b7b1675faae91ee` remains the newest fully decoded multi-job baseline, but later storage durability code has changed and must not inherit its PASS blindly:
 
 - Specification validator: **PASS — 63/63**.
 - Ruff: **FAIL — 14 diagnostics**; 13 UI-owned, one Quality-owned I001 subsequently fixed in `008647cf...`.
@@ -59,6 +60,12 @@ Run #2771 (`32665417827`) on branch head `a683577c5e69b85308588b0b6b7b1675faae91
 - Windows selected storage regressions: **PASS — 109 tests**.
 - Windows API runtime path-boundary regressions: **PASS — 12 tests**.
 - Local install smoke: **FAIL** before Core start with missing `chat` dependency in productive application composition.
+
+Post-#2771 Quality coverage changes:
+
+- `4b447d6402a75bf31a432b677335b281b86a7149`: focused Linux storage lane now executes `test_durable_fs.py` + `test_durable_fs_parent_identity.py`.
+- `e473cbd63f2446f6c332eb3cb191320b931a70ea`: workflow contract protects those new paths.
+- Execution of this expanded lane: **pending**.
 
 Permanent logs include:
 
@@ -74,7 +81,7 @@ Permanent logs include:
 ## Ready slices
 
 1. `QG-2771-LOCAL-SMOKE-EXTRACTION-WIRING` — re-read application wiring after Backend fix; verify targeted construction/extraction tests and Local smoke.
-2. `QG-2771-QUALITY-WORKFLOW-I001` — inspect first post-`008647cf...` Ruff execution and close only on PASS.
-3. `QG-CI-TIMEOUT-HEADROOM` — evaluate only after pytest reaches ordinary completion rather than SIGSEGV.
-4. Continue `QG-RECENT-REGRESSION-SCAN` on storage durable-publication/identity-hardening changes without mutating Backend product code.
+2. `QG-DURABLE-FS-IDENTITY-LANE` — inspect first completed focused Linux storage run after `4b447d64...`/`e473cbd6...`; close only if both new durability test files execute cleanly.
+3. `QG-2771-QUALITY-WORKFLOW-I001` — inspect first post-`008647cf...` Ruff execution and close only on PASS.
+4. `QG-CI-TIMEOUT-HEADROOM` — evaluate only after pytest reaches ordinary completion rather than SIGSEGV.
 5. Keep `QG-DB-PREFLIGHT-REPARSE-ANCESTOR`, `QG-FG-015-RESERVE-HEADROOM`, and `QG-STORAGE-BOOTSTRAP-PREFLIGHT-ORDER` blocked on Backend ownership while switching immediately to independent verification work.
