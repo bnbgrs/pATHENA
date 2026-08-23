@@ -49,7 +49,7 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 ### UI-006 — Settings comprehension and model-state affordance
 - **Priority:** P2
 - **Status:** DONE
-- **Evidence:** Existing CTX/MAX OUTPUT/temperature/thinking controls now explain per-model scope, AUTO capacity, safety-reserve bounding and loaded/not-loaded state without changing values or enabled state.
+- **Evidence:** Existing CTX/MAX OUTPUT/temperature/thinking controls explain per-model scope, AUTO capacity, safety-reserve bounding and loaded/not-loaded state without changing values or enabled state.
 - **Views/components:** Settings page, model selector.
 - **Dependencies:** Existing model snapshot only.
 - **Last verification:** 2026-08-23; focused settings tests added, not executed in connector runtime.
@@ -72,27 +72,27 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 
 ### UI-009 — Workspace-switch context and focus preservation
 - **Priority:** P1
-- **Status:** READY
-- **Evidence:** Workspace navigation should preserve the user's task context and return keyboard focus predictably without re-triggering domain work.
-- **Views/components:** Left navigation, page stack, chat composer, Knowledge/Research/Jobs/Files lists.
+- **Status:** STALE
+- **Evidence:** Current `_select_page()` only changes the stacked-page index, page title and ASCII context. It does not rebuild pages, refresh data or trigger domain operations; keeping keyboard focus on navigation while navigating is predictable. Additional automatic focus movement would degrade sequential keyboard navigation.
+- **Views/components:** Left navigation and page stack.
 - **Dependencies:** Existing navigation/page stack only.
-- **Last verification:** 2026-08-23; requires current `_select_page` audit before mutation.
+- **Last verification:** 2026-08-23 against current `window.py`; no patch justified.
 
 ### UI-010 — Inspector width and central-workspace protection
 - **Priority:** P1
-- **Status:** READY
-- **Evidence:** Inspector is secondary context and should not consume disproportionate width at the minimum supported desktop size; existing disclosure control must remain authoritative.
+- **Status:** DONE
+- **Evidence:** Inspector width now adapts 300/340/388 px across compact/comfortable/wide windows while its existing Details disclosure remains the sole visibility owner.
 - **Views/components:** Inspector, central workspace, details toggle, compact layout.
 - **Dependencies:** Existing details disclosure and layout mode only.
-- **Last verification:** 2026-08-23; requires current geometry audit.
+- **Last verification:** 2026-08-23; focused geometry/visibility tests added, not executed in connector runtime.
 
 ### UI-011 — Status hierarchy and duplicate-message audit
 - **Priority:** P2
-- **Status:** READY
+- **Status:** IN_PROGRESS
 - **Evidence:** Multiple workspace status labels, detail panes and recovery metadata can repeat the same operational message; a quiet workspace should prioritize one primary status source per view.
 - **Views/components:** Knowledge, Research, Jobs, Files, System, Backup.
 - **Dependencies:** Existing semantic state controllers only.
-- **Last verification:** 2026-08-23.
+- **Last verification:** 2026-08-23; selected after Inspector responsiveness completion.
 
 ### UI-012 — Selection-to-detail loading affordance
 - **Priority:** P2
