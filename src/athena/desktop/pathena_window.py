@@ -5,7 +5,14 @@ from __future__ import annotations
 from datetime import datetime
 
 from PySide6.QtCore import QSize
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QPushButton, QVBoxLayout
+from PySide6.QtWidgets import (
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 
 from athena.desktop.api_controller import DesktopApiController, DesktopApiSnapshot
 from athena.desktop.window import AthenaMainWindow, MetricRow
@@ -26,6 +33,13 @@ def _conversation_label(started_at_us: int, message_count: int) -> str:
     started = datetime.fromtimestamp(started_at_us / 1_000_000)
     message_word = "message" if message_count == 1 else "messages"
     return f"{started:%d %b, %H:%M} · {message_count} {message_word}"
+
+
+def _message_time(created_at_us: int) -> str:
+    try:
+        return datetime.fromtimestamp(created_at_us / 1_000_000).strftime("%H:%M")
+    except (OverflowError, OSError, ValueError):
+        return "—"
 
 
 class PathenaMainWindow(AthenaMainWindow):
@@ -268,6 +282,48 @@ class PathenaMainWindow(AthenaMainWindow):
                 self.chat_selector.setItemText(index, "Loading conversation…")
             else:
                 self.chat_selector.setItemText(index, "Current conversation")
+
+    def _message_widget(
+        self,
+        *,
+        role: str,
+        content: str | None,
+        created_at_us: int,
+        sequence_no: int,
+        message_id: str,
+        revision_id: str,
+    ) -> QWidget:
+        """Render the mature message actions with quieter pATHENA presentation."""
+        container = super()._message_widget(
+            role=role,
+            content=content,
+            created_at_us=created_at_us,
+            sequence_no=sequence_no,
+            message_id=message_id,
+            revision_id=revision_id,
+        )
+
+        meta_name = "userMeta" if role == "user" else "speaker"
+        meta = container.findChild(QLabel, meta_name)
+        if meta is not None:
+            display_role = (
+                "You"
+                if role == "user"
+                else "pATHENA"
+                if role == "assistant"
+                else role.replace("_", " ").title()
+            )
+            meta.setText(f"{display_role} · {_message_time(created_at_us)}")
+
+        remember_button = container.findChild(QPushButton, "rememberMessageButton")
+        if remember_button is not None:
+            remember_button.setText("Remember")
+
+        knowledge_button = container.findChild(QPushButton, "addKnowledgeButton")
+        if knowledge_button is not None:
+            knowledge_button.setText("Add to knowledge")
+
+        return container
 
     def _update_ready_state(self) -> None:
         """Translate machine-oriented readiness copy into quiet product status."""
