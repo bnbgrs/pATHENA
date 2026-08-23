@@ -11,7 +11,10 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Protocol
 
-from athena.retrieval.protected_source import ProtectedRuntimeContextBundle
+from athena.retrieval.protected_source import (
+    ProtectedRuntimeContextBundle,
+    ProtectedRuntimeContextItem,
+)
 
 
 class ProtectedRuntimeBundleVerifier(Protocol):
@@ -19,6 +22,49 @@ class ProtectedRuntimeBundleVerifier(Protocol):
 
     def verify_bundle(self, bundle: ProtectedRuntimeContextBundle) -> None:
         ...
+
+
+def _nonnegative_int(value: object, label: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError(f"{label} must be an integer.")
+    if value < 0:
+        raise ValueError(f"{label} must not be negative.")
+    return value
+
+
+def _validate_bundle_shape(bundle: ProtectedRuntimeContextBundle) -> None:
+    if not isinstance(bundle.query, str) or not bundle.query.strip():
+        raise ValueError("Protected execution query must be non-empty text.")
+    if bundle.mode != "protected_runtime_lexical":
+        raise ValueError("Protected execution mode is unsupported.")
+    if not isinstance(bundle.items, tuple) or not all(
+        isinstance(item, ProtectedRuntimeContextItem) for item in bundle.items
+    ):
+        raise TypeError(
+            "Protected execution items must be a tuple of ProtectedRuntimeContextItem values."
+        )
+    omitted = _nonnegative_int(
+        bundle.omitted_count,
+        "Protected execution omitted_count",
+    )
+    estimated = _nonnegative_int(
+        bundle.estimated_tokens,
+        "Protected execution estimated_tokens",
+    )
+    maximum = _nonnegative_int(
+        bundle.max_estimated_tokens,
+        "Protected execution max_estimated_tokens",
+    )
+    if maximum < 1:
+        raise ValueError("Protected execution max_estimated_tokens must be positive.")
+    if estimated > maximum:
+        raise ValueError(
+            "Protected execution estimated_tokens must not exceed its token budget."
+        )
+    if not isinstance(bundle.rendered_text, str) or not bundle.rendered_text:
+        raise ValueError("Protected execution rendered context must be non-empty text.")
+    if omitted < 0:  # pragma: no cover - documented by _nonnegative_int
+        raise AssertionError("unreachable")
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,6 +90,7 @@ class ProtectedRuntimeExecutionGuard:
             raise TypeError(
                 "Protected execution bundle must be a ProtectedRuntimeContextBundle."
             )
+        _validate_bundle_shape(self.bundle)
         verify_bundle(self.bundle)
 
     @property
@@ -58,6 +105,7 @@ class ProtectedRuntimeExecutionGuard:
 
     def verify_now(self) -> None:
         """Re-verify current unlock state and protected-byte integrity."""
+        _validate_bundle_shape(self.bundle)
         self.verifier.verify_bundle(self.bundle)
 
     def durable_metadata(self) -> Mapping[str, object]:
