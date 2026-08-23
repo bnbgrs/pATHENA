@@ -18,6 +18,7 @@ from athena.desktop.jobs_workspace import install_jobs_workspace
 from athena.desktop.knowledge_acceptance import install_knowledge_acceptance
 from athena.desktop.knowledge_workspace import install_knowledge_workspace
 from athena.desktop.pathena_async_focus_integrity_6200 import apply_ui_refinements_6101_6200
+from athena.desktop.pathena_detail_provenance_6300 import apply_detail_provenance
 from athena.desktop.pathena_interaction_refinement import install_interaction_refinement
 from athena.desktop.pathena_jobs_experience_2800 import install_jobs_experience
 from athena.desktop.pathena_knowledge_acceptance_presentation import (
@@ -152,6 +153,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     startup_experience = install_startup_experience(window)
     apply_complete_ui_refinements(window)
     apply_ui_refinements_6101_6200(window)
+    detail_provenance = apply_detail_provenance(window)
     interaction_refinement = install_interaction_refinement(window)
     layout_refinement = install_layout_refinement(window)
     progressive_workspace_refinement = install_progressive_workspace_refinement(window)
@@ -179,6 +181,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     progressive_workspace_refinement.deleteLater()
     layout_refinement.deleteLater()
     interaction_refinement.deleteLater()
+    detail_provenance.deleteLater()
     startup_experience.deleteLater()
     jobs_experience.deleteLater()
     canonical_memory_extensions.deleteLater()
