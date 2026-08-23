@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid
-from bisect import bisect_right
 from dataclasses import dataclass
 
 from athena.chat.service import ChatService
@@ -801,7 +800,7 @@ def _document_structure_units(
     split_points = [0, *structural_boundaries, len(text)]
     units = tuple(
         (start, end)
-        for start, end in zip(split_points, split_points[1:])
+        for start, end in zip(split_points, split_points[1:], strict=False)
         if start < end
     )
     if not units and text:
