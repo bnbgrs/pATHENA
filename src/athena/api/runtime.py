@@ -22,6 +22,23 @@ class ApiRuntimeError(RuntimeError):
     """Raised when local API bootstrap state cannot be published safely."""
 
 
+def _reject_symlink_ancestors(path: Path) -> None:
+    cursor = path.parent
+    while True:
+        if cursor.is_symlink():
+            raise ApiRuntimeError(
+                f"ATHENA API runtime path has a symlink ancestor: {str(cursor)!r}."
+            )
+        if cursor.exists() and not cursor.is_dir():
+            raise ApiRuntimeError(
+                f"ATHENA API runtime path ancestor is not a directory: {str(cursor)!r}."
+            )
+        parent = cursor.parent
+        if parent == cursor:
+            return
+        cursor = parent
+
+
 @dataclass(frozen=True, slots=True)
 class ApiDiscovery:
     """Non-secret endpoint metadata read by a local ATHENA client."""
@@ -99,6 +116,17 @@ class LocalApiRuntime:
     def clear(self) -> None:
         """Remove ephemeral client bootstrap state and forget the token."""
         self._token = None
+        root = self.runtime_root
+        _reject_symlink_ancestors(root)
+        if root.is_symlink():
+            raise ApiRuntimeError(
+                f"ATHENA API runtime root must not be a symlink: {str(root)!r}."
+            )
+        if root.exists() and not root.is_dir():
+            raise ApiRuntimeError(
+                f"ATHENA API runtime root is not a safe directory: {str(root)!r}."
+            )
+
         failures: list[tuple[Path, OSError]] = []
         for path in (self.discovery_path, self.token_path):
             try:
@@ -113,6 +141,7 @@ class LocalApiRuntime:
 
     def _validate_runtime_root(self) -> None:
         root = self.runtime_root
+        _reject_symlink_ancestors(root)
         if root.is_symlink():
             raise ApiRuntimeError(
                 f"ATHENA API runtime root must not be a symlink: {str(root)!r}."
@@ -123,6 +152,7 @@ class LocalApiRuntime:
             raise ApiRuntimeError(
                 f"Cannot create ATHENA API runtime root {str(root)!r}."
             ) from exc
+        _reject_symlink_ancestors(root)
         if root.is_symlink() or not root.is_dir():
             raise ApiRuntimeError(
                 f"ATHENA API runtime root is not a safe directory: {str(root)!r}."
@@ -130,13 +160,19 @@ class LocalApiRuntime:
 
 
 def _write_private_text(path: Path, content: str) -> None:
+    _reject_symlink_ancestors(path)
+    if path.parent.is_symlink() or not path.parent.is_dir():
+        raise ApiRuntimeError(
+            f"ATHENA API runtime file parent is not a safe directory: {str(path.parent)!r}."
+        )
+
     staging = path.with_name(f".{path.name}.{secrets.token_hex(8)}.partial")
     encoded = content.encode("utf-8")
 
     try:
         descriptor = os.open(
             staging,
-            os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
             _PRIVATE_MODE,
         )
         try:
@@ -152,12 +188,17 @@ def _write_private_text(path: Path, content: str) -> None:
             raise
 
         try:
-            os.chmod(staging, _PRIVATE_MODE)
-        except OSError as exc:
+            os.chmod(staging, _PRIVATE_MODE, follow_symlinks=False)
+        except (NotImplementedError, OSError) as exc:
             raise ApiRuntimeError(
                 f"Cannot restrict ATHENA API runtime file {str(path)!r}."
             ) from exc
 
+        _reject_symlink_ancestors(path)
+        if path.parent.is_symlink() or not path.parent.is_dir():
+            raise ApiRuntimeError(
+                f"ATHENA API runtime file parent became unsafe: {str(path.parent)!r}."
+            )
         durable_replace(staging, path)
     except OSError as exc:
         raise ApiRuntimeError(
