@@ -57,6 +57,9 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 | UI-048 | P1 | DONE | Source, durable-job, ResearchResult and Backup busy/success/failure copy now identifies the originating object; off-selection failures remain failures. Commits `58cf536923b828090e3118cd6765856eb62f1fc8`, `5e46b9513de885672f23940cfbd70975f2b0ded0`, `d28b58dd602bc6a1ddc1e723165e01f3e3da99ed`, `20d931c1b4795f9102482db58062f46a7b929b66`. |
 | UI-049 | P2 | DONE | Reverified 2026-08-23: Sources, Jobs, Backup and ResearchResult shared panes explicitly distinguish BACKGROUND operation ownership from CURRENT selection and suppress foreign output. |
 | UI-050 | P2 | DONE | Vanished Source/Job/Research/Snapshot selections now clear explicitly instead of silently selecting row 0; initial-load auto-selection remains. Five targeted tests added 2026-08-23, not executed. |
+| UI-051 | P2 | DONE | Background completion/accessibility layer mirrors operation owner vs current selection into accessible status descriptions; three tests added 2026-08-23, not executed. |
+| UI-052 | P2 | DONE | Disappeared selections expose the transition on list accessibility and clear stale ResearchResult proposals; two tests added 2026-08-23, not executed. |
+| UI-053 | P2 | DONE | Operational continuity now restores stable UserRole identity only; a vanished identity never falls back to an unrelated old row. Three tests added 2026-08-23, not executed. |
 
 ## Active queue
 
@@ -68,26 +71,26 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 - **Dependencies:** Runtime with repository checkout or Quality-bot execution.
 - **Last verification:** 2026-08-23.
 
-### UI-051 — Background completion accessibility announcement
-- **Priority:** P2
+### UI-054 — Knowledge disappeared-selection semantics
+- **Priority:** P1
 - **Status:** IN_PROGRESS
-- **Evidence:** Ownership fixes prevent visual misattribution, but accessible status text should also distinguish completion for an off-selection object from completion of the currently selected object.
-- **Views/components:** Shared status labels for Sources, Jobs, Backup and ResearchResult.
-- **Dependencies:** UI-048.
+- **Evidence:** `KnowledgeWorkspace._restore_or_select_first()` still selects row 0 whenever the previous Knowledge/Claim/Contradiction identity disappears, which can make unrelated provenance or review context look user-selected.
+- **Views/components:** Canonical Knowledge, Claims, Contradiction Decisions and detail panes.
+- **Dependencies:** UI-050/UI-053 semantics.
 - **Last verification:** 2026-08-23.
 
-### UI-052 — Selection disappearance accessibility handoff
-- **Priority:** P2
+### UI-055 — Knowledge detail operation ownership
+- **Priority:** P1
 - **Status:** READY
-- **Evidence:** UI-050 makes vanished selections visually explicit; verify focus and accessible-name behavior so screen-reader/keyboard users are not left on a stale removed item.
-- **Views/components:** Sources, Jobs, Backup, Research lists/details.
-- **Dependencies:** UI-050.
+- **Evidence:** Knowledge/Claim/Review detail commands stream into shared detail panes; audit whether changing selection during an in-flight show/history/review command can misattribute output like the fixed Source/Jobs/Research paths.
+- **Views/components:** KnowledgeWorkspace detail panes and history/review actions.
+- **Dependencies:** Existing knowledge CLI only.
 - **Last verification:** 2026-08-23.
 
-### UI-053 — Refresh focus retention after stable identity rebuild
+### UI-056 — Knowledge filter selection truth
 - **Priority:** P2
 - **Status:** READY
-- **Evidence:** Identity-preserving refresh restores the selected object, but list rebuilds may still disturb keyboard focus/current-index semantics even when the identity remains present.
-- **Views/components:** Sources, Jobs, Backup, Research lists.
-- **Dependencies:** UI-050.
+- **Evidence:** Search filtering hides list rows after refresh; audit whether a selected row becoming hidden remains clearly identified as filtered rather than visually absent while details stay active.
+- **Views/components:** Knowledge/Claims/Decisions search filter and detail panes.
+- **Dependencies:** Existing filter behavior.
 - **Last verification:** 2026-08-23.
