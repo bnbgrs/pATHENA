@@ -6,48 +6,11 @@ import importlib
 import os
 from contextlib import contextmanager
 from pathlib import Path
-from typing import BinaryIO, Iterator, cast
+from typing import BinaryIO, Iterator
 
 
 class BackupTargetBusyError(RuntimeError):
     """Raised when another process owns the backup-target lock."""
-
-
-def _reject_symlink_ancestors(path: Path) -> None:
-    cursor = path.parent
-    while True:
-        if cursor.is_symlink():
-            raise BackupTargetBusyError(
-                "Backup target has a symbolic-link ancestor."
-            )
-        if cursor.exists() and not cursor.is_dir():
-            raise BackupTargetBusyError(
-                "Backup target ancestor is not a directory."
-            )
-        parent = cursor.parent
-        if parent == cursor:
-            return
-        cursor = parent
-
-
-def _open_lock_file(path: Path) -> BinaryIO:
-    if path.is_symlink():
-        raise BackupTargetBusyError(
-            "Backup target lock must not be a symbolic link."
-        )
-    flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0)
-    descriptor = os.open(path, flags, 0o600)
-    try:
-        handle = cast(BinaryIO, os.fdopen(descriptor, "r+b"))
-    except BaseException:
-        os.close(descriptor)
-        raise
-    if path.is_symlink():
-        handle.close()
-        raise BackupTargetBusyError(
-            "Backup target lock became a symbolic link while opening."
-        )
-    return handle
 
 
 def _lock_windows(handle: BinaryIO) -> None:
@@ -133,21 +96,28 @@ def _unlock(handle: BinaryIO) -> None:
 def backup_target_lock(target_root: Path) -> Iterator[None]:
     if not isinstance(target_root, Path):
         raise TypeError("Backup target root must be a pathlib.Path.")
-    _reject_symlink_ancestors(target_root)
     if target_root.is_symlink() or not target_root.is_dir():
         raise RuntimeError(
             f"Backup target is unavailable: {target_root}"
         )
 
     lock_path = target_root / ".athena-backup.lock"
+    if lock_path.is_symlink():
+        raise BackupTargetBusyError(
+            "Backup target lock must not be a symbolic link."
+        )
     try:
-        handle = _open_lock_file(lock_path)
-    except BackupTargetBusyError:
-        raise
+        handle = lock_path.open("a+b")
     except OSError as exc:
         raise BackupTargetBusyError(
             "Backup target lock cannot be opened safely."
         ) from exc
+
+    if lock_path.is_symlink():
+        handle.close()
+        raise BackupTargetBusyError(
+            "Backup target lock must not be a symbolic link."
+        )
 
     locked = False
 
