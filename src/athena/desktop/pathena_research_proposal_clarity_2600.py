@@ -11,7 +11,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from PySide6.QtCore import QObject, Qt, QTimer
 from PySide6.QtWidgets import (
@@ -257,7 +257,7 @@ class PathenaResearchProposalClarity(QObject):
         for index in range(self.list.count()):
             _render_item(self.list.item(index))
 
-        current = self.list.currentItem()
+        current = cast(QListWidgetItem | None, self.list.currentItem())
         if current is None:
             self.context.setVisible(False)
             self.extension.accept_button.setProperty("pathenaProposalRisk", "")
