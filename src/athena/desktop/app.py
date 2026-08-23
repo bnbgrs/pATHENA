@@ -36,10 +36,21 @@ def create_application(argv: Sequence[str] | None = None) -> QApplication:
     return app
 
 
-def _schedule_initial_core_refreshes(controller: DesktopApiController) -> None:
-    """Bridge slow child-Core readiness with bounded, non-blocking refreshes."""
+def _schedule_initial_core_refreshes(
+    controller: DesktopApiController,
+    supervisor: DesktopCoreSupervisor | None = None,
+) -> None:
+    """Bridge slow or failed child-Core startup with bounded recovery refreshes."""
     for delay_ms in _INITIAL_CORE_REFRESH_DELAYS_MS:
-        QTimer.singleShot(delay_ms, controller.refresh)
+        if supervisor is None:
+            QTimer.singleShot(delay_ms, controller.refresh)
+            continue
+
+        def recover_and_refresh() -> None:
+            supervisor.ensure_running()
+            controller.refresh()
+
+        QTimer.singleShot(delay_ms, recover_and_refresh)
 
 
 def _start_core_refresh_heartbeat(
@@ -69,10 +80,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     client = CoreApiClient.from_environment()
     supervisor = DesktopCoreSupervisor(client=client, parent=app)
     app.aboutToQuit.connect(supervisor.stop)
-    supervisor.start()
+
+    # Startup is deliberately fail-soft. A transient child launch failure must not
+    # kill the user-facing desktop; the bounded startup retries and heartbeat use
+    # the same supervisor recovery path until Core becomes available.
+    supervisor.ensure_running()
+
     controller = DesktopApiController(client)
     window = AthenaMainWindow(api_controller=controller)
-    _schedule_initial_core_refreshes(controller)
+    _schedule_initial_core_refreshes(controller, supervisor)
     heartbeat = _start_core_refresh_heartbeat(controller, supervisor)
     window.show()
     exit_code = app.exec()
