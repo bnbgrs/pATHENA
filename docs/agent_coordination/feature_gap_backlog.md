@@ -56,12 +56,10 @@ Status vocabulary: `FOUND` · `PARTIAL` · `READY` · `BLOCKED` · `IN_PROGRESS`
 
 ### FG-009 — Introduce a first-class ModelSession / generation execution context
 - **Source:** Beta 08 sections 27–30 and 50–52.
-- **Ownership / Priority / Status:** BACKEND · P1 · READY
-- **Evidence / code paths:** `src/athena/model/ports.py` exposes stateless generation and a separate `cancel_generation(request_id)`, but generation calls do not accept or establish a request ID, cancellation token, context budget, streaming state or ModelSession object. `src/athena/model/provenance.py` provides durable ModelSignature/ProcessingRun records but no ephemeral generation-session contract.
-- **Current state:** Provider calls are appropriately stateless with respect to conversation memory, but the Beta-required per-generation execution identity/state is not represented as one Core-owned object or bound request contract.
-- **Desired state:** Introduce a temporary Core-owned ModelSession (or equivalent explicit request execution context) binding ModelSignature, request ID, context budget, cancellation state/token, streaming state and optional ProcessingRun, without turning provider/backend state into memory or source of truth.
-- **Dependencies:** model ports/orchestration; cancellation plumbing; context-budget call sites; ProcessingRun linkage; targeted lifecycle/cancel/partial-stream tests.
-- **Verification:** Re-read 2026-08-23 against `ports.py` blob `b9d1895d682aaf43b7cf125cfb4c805b9d3e318d` and `provenance.py` before FG-008 implementation.
+- **Ownership / Priority / Status:** BACKEND · P1 · PARTIAL
+- **Current state:** Core now owns an explicit ephemeral `ModelSession` with UUID request identity, ModelSignature binding, context/output budget, optional ProcessingRun identity, streaming state, cancellation request state, emitted-delta accounting and fail-closed late-delta/late-completion discard semantics. It remains intentionally separate from conversation memory and canonical provider state. The remaining gap is binding this request identity into the provider generation port/orchestrator so `cancel_generation(request_id)` targets the exact active backend request when supported.
+- **Dependencies:** request-ID plumbing through `ChatModelProvider.stream_chat`/orchestration and provider adapter ownership window; ContextPackage request identity can then seed ModelSession consistently.
+- **Verification:** Implemented 2026-08-23 in `src/athena/model/session.py` with `tests/unit/test_model_session.py`; targeted tests added but not executed in connector runtime. Current provider generation port was re-read before implementation and still has no request-id parameter.
 
 ### FG-010 — Normalize provider backend failure taxonomy
 - **Source:** Beta 08 sections 45–49 and 52.
