@@ -5,7 +5,7 @@
 - Repository: `bnbgrs/pATHENA`
 - Branch: `agent/pathena`
 - Ownership: QUALITY/GATE
-- Status: MITIGATED, verification pending
+- Status: MITIGATED, supersession verified; newest-run execution still pending
 - Detection date: 2026-08-23
 
 ## Evidence
@@ -34,13 +34,17 @@ The group is event-scoped deliberately. It cancels superseded PR runs against th
 
 No product code, Backend tests, UI code, or UI tests were changed.
 
-## Verification required
+## Observed verification
 
-1. Observe a newer `agent/pathena` PR quality run after the mitigation commit.
-2. Confirm older queued/in-progress PR runs for the same PR become cancelled/superseded rather than continuing to consume the queue.
-3. Confirm the newest PR run proceeds to execution.
-4. Once complete, inspect Specification/Ruff/mypy/pytest results and update `QG-CI-SUPERSEDED-RUNS` to DONE only with observed CI evidence.
+- PR quality run #2490 for commit `a162164cfcbe182a5d1a399ed433b3e93290cfbe` completed with conclusion `cancelled` after the later PR run was created.
+- PR quality run #2492 for commit `9f0e2717f282b6ea7c724545832e04575af806de` became the surviving newest run and was observed `pending` with its quality job still `queued`.
+- This proves the new concurrency group supersedes newer-workflow PR runs as designed.
+- Older runs such as #2477 were created before the workflow contained the concurrency group and remained queued; the new rule cannot retroactively assign those historical runs to a concurrency group.
 
-## Current verification
+## Remaining verification
 
-Implementation commit exists, but CI behavior has not yet been observed conclusively. Status remains `IN_PROGRESS` / verification pending.
+1. Confirm the surviving newest PR run proceeds to execution once historical queue pressure clears.
+2. Inspect its Specification/Ruff/mypy/pytest results.
+3. Mark `QG-CI-SUPERSEDED-RUNS` DONE once both supersession and successful newest-run scheduling are observed.
+
+The mitigation itself is verified. End-to-end queue recovery remains `IN_PROGRESS` because #2492 had not yet started its job at the last observation.
