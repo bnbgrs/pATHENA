@@ -24,6 +24,7 @@ class LocalSmokeReport:
     restarted_core_status: str
     persisted_chat_count: int
     database_schema_version: int
+    api_runtime_clean: bool
 
 
 def _settings(local_root: Path) -> AthenaSettings:
@@ -61,6 +62,23 @@ def _assert_safe_keep_root(root: Path) -> Path:
     return resolved
 
 
+def _assert_api_runtime_cleared(process: CoreApiProcess) -> None:
+    stale = tuple(
+        path
+        for path in (
+            process.server.runtime.discovery_path,
+            process.server.runtime.token_path,
+        )
+        if path.exists()
+    )
+    if stale:
+        joined = ", ".join(str(path) for path in stale)
+        raise RuntimeError(
+            "Local smoke found stale Core API bootstrap files after shutdown: "
+            f"{joined}."
+        )
+
+
 def _verify_database_schema(settings: AthenaSettings) -> int:
     paths = RuntimePaths.from_settings(settings)
     report = inspect_database_read_only(paths.database_path)
@@ -89,6 +107,7 @@ def run_local_smoke(local_root: Path) -> LocalSmokeReport:
             raise RuntimeError("Local smoke created a chat without durable identity.")
     finally:
         first.stop()
+    _assert_api_runtime_cleared(first)
 
     restarted = CoreApiProcess(settings=settings)
     restarted.start()
@@ -106,6 +125,7 @@ def run_local_smoke(local_root: Path) -> LocalSmokeReport:
             raise RuntimeError("Local smoke reloaded a different chat after restart.")
     finally:
         restarted.stop()
+    _assert_api_runtime_cleared(restarted)
 
     database_schema_version = _verify_database_schema(settings)
 
@@ -116,6 +136,7 @@ def run_local_smoke(local_root: Path) -> LocalSmokeReport:
         restarted_core_status=restarted_health.core_status,
         persisted_chat_count=len(chats),
         database_schema_version=database_schema_version,
+        api_runtime_clean=True,
     )
 
 
@@ -164,6 +185,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(f"Restarted Core: {report.restarted_core_status}")
     print(f"Persisted chats: {report.persisted_chat_count}")
     print(f"Database schema: {report.database_schema_version}")
+    print(f"API bootstrap cleanup: {'PASS' if report.api_runtime_clean else 'FAIL'}")
     return 0
 
 
