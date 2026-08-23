@@ -1,13 +1,13 @@
 from __future__ import annotations
 
 from athena.desktop.pathena_research_proposal_clarity_2600 import (
-    UI_REFINEMENT_TASKS_2501_2600,
     _REFINEMENTS,
     _TARGETS,
     _evidence_from_tooltip,
     _parse_payload_text,
     _shorten,
     _summary,
+    UI_REFINEMENT_TASKS_2501_2600,
 )
 
 
