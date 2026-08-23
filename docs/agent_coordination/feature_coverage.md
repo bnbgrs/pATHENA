@@ -4,7 +4,7 @@ Purpose: prevent repetitive rescans and drive systematic Alpha/Beta-to-code cove
 
 Coverage states: `UNCHECKED` · `PARTIAL` · `COVERED` · `CHANGED_NEEDS_RECHECK`
 
-Last matrix baseline: `agent/pathena` @ `4fec947c4de2d4f899fdaf33e07af7fc2205da57`
+Last matrix baseline: `agent/pathena` @ `22b5f19ff9eea556f691d3d24f62b12ccdb6055d`
 
 A `COVERED` row may be rescanned only when its specification or mapped implementation paths changed after the recorded commit. `PARTIAL` means useful code tracing was completed but the full chapter/cross-layer path was not yet exhausted.
 
@@ -18,7 +18,7 @@ A `COVERED` row may be rescanned only when its specification or mapped implement
 | A04 | Knowledge system | UNCHECKED | — | — |
 | A05 | Raw archive / sources | UNCHECKED | — | — |
 | A06 | Knowledge extraction / graph | UNCHECKED | — | — |
-| A07 | Primary / infrastructure models | PARTIAL | 10e58e3 | Cross-checked through B08 provider scan; FG-001..FG-004. Full Alpha chapter trace still required. |
+| A07 | Primary / infrastructure models | PARTIAL | 22b5f19 | Revalidated through B08 current provider/model/provenance code. FG-001..FG-004 and FG-007..FG-010 cover lifecycle, registry, health/capabilities, load ownership, revision provenance, ModelSession and failure taxonomy. Full Alpha chapter trace still required. |
 | A08 | Personal memory | UNCHECKED | — | — |
 | A09 | Search / retrieval | UNCHECKED | — | — |
 | A10 | Internet / anonymization / external sources | UNCHECKED | — | — |
@@ -37,9 +37,9 @@ A `COVERED` row may be rescanned only when its specification or mapped implement
 | A23 | Knowledge quality / consistency / self-maintenance | UNCHECKED | — | — |
 | A24 | Performance / scaling / resources | UNCHECKED | — | — |
 | A25 | Data formats / Obsidian / long-term readability | UNCHECKED | — | Obsidian implementation explicitly deferred; only consistency scan when reached. |
-| A26 | Mobile future / multi-device | UNCHECKED | — | Future scope; classify against v1 roadmap before any implementation gap. |
+| A26 | Mobile future / multi-device | UNCHECKED | 22b5f19 | B27 confirms mobile remote and v1 shared-write/CRDT work are intentionally later; do not open implementation gaps from those deferred requirements. Full Alpha chapter consistency scan remains. |
 | A27 | Recovery mode / diagnostics / errors | UNCHECKED | — | — |
-| A28 | Roadmap / development boundaries / Beta transition | UNCHECKED | — | High value for STALE-vs-gap decisions. |
+| A28 | Roadmap / development boundaries / Beta transition | COVERED | 22b5f19 | Alpha explicitly permits incremental first-version implementation and delegates concrete technical decisions to Beta. Missing long-term capabilities are not automatically current defects. |
 | A29 | Immutable-rule summary | UNCHECKED | — | Non-normative summary; use as consistency check after normative chapters. |
 
 ## Beta Specification v0.1
@@ -53,7 +53,7 @@ A `COVERED` row may be rescanned only when its specification or mapped implement
 | B05 | Knowledge units / claims / graph | UNCHECKED | — | — |
 | B06 | Personal memory | UNCHECKED | — | — |
 | B07 | Provenance / audit / versioning | UNCHECKED | — | — |
-| B08 | Primary model / provider system | PARTIAL | 10e58e3 | Interface, domain health/capability representation, model tree and LM Studio adapter traced. FG-001 lifecycle/control; FG-002 ModelRegistry; FG-003 health states; FG-004 explicit capabilities. Continue ModelSignature, refusal/failure and provider-session semantics. |
+| B08 | Primary model / provider system | PARTIAL | 22b5f19 | Revalidated current domain, ports, ModelRegistry, ModelSignature/ProcessingRun and LM Studio adapter. Existing ModelSignature and explicit refusal handling preserved. New READY gaps: FG-008 provider-observed revision, FG-009 first-class ModelSession/request context, FG-010 backend failure taxonomy. FG-001 remains blocked lifecycle adapter work. Continue load timeout/auto-load/manual UI, resource arbitration, Model Manager/switch/signature UI and provider tests. |
 | B09 | Context Builder / token budget | PARTIAL | 10e58e3 | ContextBuilderService + ContextPackage + durable package path traced. Existing memory isolation, snapshot drift, output/safety budget recording and semantic truncation preserved. FG-005 source diversity and FG-006 provider-aware dynamic token accounting confirmed. Continue call sites, protected-content behavior, task-specific builders, hierarchical processing and tests 60–68. |
 | B10 | Retrieval / search | UNCHECKED | — | — |
 | B11 | Exhaustive Research | UNCHECKED | — | — |
@@ -62,21 +62,21 @@ A `COVERED` row may be rescanned only when its specification or mapped implement
 | B14 | News / events | UNCHECKED | — | — |
 | B15 | External Access Gateway / network | UNCHECKED | — | — |
 | B16 | Security architecture / protected content | UNCHECKED | — | — |
-| B17 | Plugin system / permissions | UNCHECKED | — | Deferred unless required for consistency. |
+| B17 | Plugin system / permissions | UNCHECKED | 22b5f19 | B27 places Plugins in a later vertical slice; current product instructions additionally defer plugin work. Scan only for security/architecture consistency until reprioritized. |
 | B18 | Desktop application / tray | UNCHECKED | — | — |
 | B19 | Core API / future clients | UNCHECKED | — | — |
-| B20 | Obsidian / external editing | UNCHECKED | — | Implementation explicitly deferred; classify roadmap status before any FG. |
+| B20 | Obsidian / external editing | UNCHECKED | 22b5f19 | B27 places Obsidian in a later vertical slice; implementation remains explicitly deferred by current product instructions. Do not open current feature gaps unless required for architectural consistency. |
 | B21 | Backup / restore | UNCHECKED | — | — |
 | B22 | Recovery mode / diagnostics | UNCHECKED | — | — |
 | B23 | Updates / migrations / compatibility | UNCHECKED | — | — |
 | B24 | Logging / monitoring / observability | UNCHECKED | — | — |
 | B25 | Repository / code structure | UNCHECKED | — | — |
 | B26 | Test strategy | UNCHECKED | — | — |
-| B27 | Development phases / vertical slices | UNCHECKED | — | High value for intentional deferral / STALE classification. |
+| B27 | Development phases / vertical slices | COVERED | 22b5f19 | Full roadmap classified. Explicitly later: mobile remote client, multi-device shared write/CRDT, cloud sync, alternative DB, advanced graph DB and persistent encrypted protected vector index. Vertical-slice DoD requires tests, observability, security, docs and migrations where applicable. |
 
 ## Next scan order
 
-1. Read B27 and A28 now to classify intended v1 implementation boundaries before widening the backlog.
-2. Finish B08 ModelSignature/refusal/session semantics.
-3. Finish B09 call-site, protected-content, hierarchical and test coverage.
-4. Then prioritize B01–B03 foundation and B15–B16 security/network invariants before breadth scanning UI-only features.
+1. Finish B08: manual/automatic load paths, idle/load timeout, resource arbitration, Model Manager/switch/signature UI and provider contract tests.
+2. Finish B09 call-site, protected-content, hierarchical and tests 60–68 coverage.
+3. Scan B01–B03 foundation against current Core/storage/migrations.
+4. Scan B15–B16 external-access/security invariants before breadth-scanning UI-only features.
