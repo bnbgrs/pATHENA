@@ -11,6 +11,7 @@ from athena.storage.disk_pressure import (
     assess_disk_pressure,
     disk_pressure_thresholds,
 )
+from athena.storage.emergency_reserve import EmergencyReserveStatus
 
 _GIB = 1024 * 1024 * 1024
 
@@ -18,11 +19,26 @@ _GIB = 1024 * 1024 * 1024
 @dataclass
 class _ReserveStub:
     released_bytes: int
-    calls: int = 0
+    release_calls: int = 0
+    ensure_calls: int = 0
 
     def release(self) -> int:
-        self.calls += 1
+        self.release_calls += 1
         return self.released_bytes
+
+    def ensure(
+        self,
+        *,
+        required_bytes: int,
+        write_chunk_bytes: int,
+    ) -> EmergencyReserveStatus:
+        self.ensure_calls += 1
+        return EmergencyReserveStatus(
+            path=Path("/tmp/emergency.reserve"),
+            required_bytes=required_bytes,
+            file_size_bytes=required_bytes,
+            allocated_bytes=required_bytes,
+        )
 
 
 def test_small_volume_uses_absolute_beta_threshold_floors() -> None:
@@ -136,7 +152,7 @@ def test_controller_does_not_release_reserve_before_emergency(tmp_path: Path) ->
     assert result.before_release.state is DiskPressureState.CRITICAL
     assert result.after_release is result.before_release
     assert result.released_reserve_bytes == 0
-    assert reserve.calls == 0
+    assert reserve.release_calls == 0
 
 
 def test_controller_releases_reserve_once_at_emergency_and_reassesses(tmp_path: Path) -> None:
@@ -160,7 +176,7 @@ def test_controller_releases_reserve_once_at_emergency_and_reassesses(tmp_path: 
     assert result.before_release.state is DiskPressureState.EMERGENCY
     assert result.released_reserve_bytes == 1 * _GIB
     assert result.after_release.state is DiskPressureState.CRITICAL
-    assert reserve.calls == 1
+    assert reserve.release_calls == 1
 
 
 def test_controller_does_not_fake_space_recovery_when_reserve_is_absent(tmp_path: Path) -> None:
@@ -186,4 +202,43 @@ def test_controller_does_not_fake_space_recovery_when_reserve_is_absent(tmp_path
     assert result.after_release is result.before_release
     assert result.released_reserve_bytes == 0
     assert usage_calls == 1
-    assert reserve.calls == 1
+    assert reserve.release_calls == 1
+
+
+def test_controller_refuses_reserve_reprovision_while_emergency(tmp_path: Path) -> None:
+    state_root = (tmp_path / "state").absolute()
+    state_root.mkdir()
+    reserve = _ReserveStub(released_bytes=0)
+    controller = DiskPressureController(
+        state_root,
+        reserve_store=reserve,  # type: ignore[arg-type]
+        disk_usage_provider=lambda _path: (100 * _GIB, 1 * _GIB),
+    )
+
+    result = controller.ensure_reserve_if_safe(write_chunk_bytes=1024)
+
+    assert result.assessment.state is DiskPressureState.EMERGENCY
+    assert result.provisioned is False
+    assert result.status is None
+    assert result.required_bytes == 1 * _GIB
+    assert reserve.ensure_calls == 0
+
+
+def test_controller_provisions_reserve_outside_emergency(tmp_path: Path) -> None:
+    state_root = (tmp_path / "state").absolute()
+    state_root.mkdir()
+    reserve = _ReserveStub(released_bytes=0)
+    controller = DiskPressureController(
+        state_root,
+        reserve_store=reserve,  # type: ignore[arg-type]
+        disk_usage_provider=lambda _path: (100 * _GIB, 20 * _GIB),
+    )
+
+    result = controller.ensure_reserve_if_safe(write_chunk_bytes=1024)
+
+    assert result.assessment.state is DiskPressureState.NORMAL
+    assert result.provisioned is True
+    assert result.status is not None
+    assert result.required_bytes == 1 * _GIB
+    assert result.status.required_bytes == 1 * _GIB
+    assert reserve.ensure_calls == 1
