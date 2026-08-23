@@ -16,11 +16,11 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 
 ### BE-002 — Complete provider lifecycle/control contract
 - Priority: P1
-- Status: READY
+- Status: IN_PROGRESS
 - Evidence: Feature-gap FG-001.
 - Components: model ports, LM Studio adapter, provider tests.
 - Dependencies: provider capability semantics.
-- Last verification: 2026-08-23 from feature-gap backlog.
+- Last verification: 2026-08-23; selected after BE-004 completion.
 
 ### BE-003 — Add normalized provider capability representation
 - Priority: P1
@@ -32,11 +32,11 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 
 ### BE-004 — Add context-builder source diversity constraint
 - Priority: P1
-- Status: IN_PROGRESS
-- Evidence: Feature-gap FG-005.
-- Components: retrieval context builder and targeted tests.
+- Status: DONE
+- Evidence: Feature-gap FG-005; deterministic diversity ordering keeps the highest-ranked source, defers near duplicates behind diverse evidence, and exempts contradiction-bearing Claims.
+- Components: `src/athena/retrieval/context.py`, `tests/unit/test_context_builder_diversity.py`.
 - Dependencies: retrieval result provenance metadata.
-- Last verification: 2026-08-23; selected after BE-003 completion.
+- Last verification: 2026-08-23; targeted tests added but not executed in connector runtime.
 
 ### BE-005 — Provider-aware dynamic token accounting
 - Priority: P1
