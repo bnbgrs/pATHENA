@@ -22,7 +22,12 @@ from athena.model.domain import ModelInfo
 def _positive_finite_timeout(value: object) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise ValueError("Embedding generation timeout must be a finite number > 0.")
-    parsed = float(value)
+    try:
+        parsed = float(value)
+    except OverflowError as exc:
+        raise ValueError(
+            "Embedding generation timeout must be a finite number > 0."
+        ) from exc
     if not math.isfinite(parsed) or parsed <= 0:
         raise ValueError("Embedding generation timeout must be a finite number > 0.")
     return parsed
@@ -207,7 +212,12 @@ class LMStudioEmbeddingProvider:
                 raise ProviderProtocolError(
                     "LM Studio embedding vector contains a non-number."
                 )
-            number = float(component)
+            try:
+                number = float(component)
+            except OverflowError as exc:
+                raise ProviderProtocolError(
+                    "LM Studio embedding vector contains a non-finite number."
+                ) from exc
             if not math.isfinite(number):
                 raise ProviderProtocolError(
                     "LM Studio embedding vector contains a non-finite number."
