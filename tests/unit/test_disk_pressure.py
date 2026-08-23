@@ -67,17 +67,50 @@ def test_percentage_thresholds_round_up_without_float_conversion() -> None:
 def test_exact_threshold_equality_stays_in_less_severe_state() -> None:
     total = 100 * _GIB
     thresholds = disk_pressure_thresholds(total)
-    assert assess_disk_pressure(total_bytes=total, free_bytes=thresholds.warning_free_bytes).state is DiskPressureState.NORMAL
-    assert assess_disk_pressure(total_bytes=total, free_bytes=thresholds.critical_free_bytes).state is DiskPressureState.WARNING
-    assert assess_disk_pressure(total_bytes=total, free_bytes=thresholds.emergency_free_bytes).state is DiskPressureState.CRITICAL
+    assert (
+        assess_disk_pressure(
+            total_bytes=total,
+            free_bytes=thresholds.warning_free_bytes,
+        ).state
+        is DiskPressureState.NORMAL
+    )
+    assert (
+        assess_disk_pressure(
+            total_bytes=total,
+            free_bytes=thresholds.critical_free_bytes,
+        ).state
+        is DiskPressureState.WARNING
+    )
+    assert (
+        assess_disk_pressure(
+            total_bytes=total,
+            free_bytes=thresholds.emergency_free_bytes,
+        ).state
+        is DiskPressureState.CRITICAL
+    )
 
 
 def test_one_byte_below_each_threshold_enters_next_state() -> None:
     total = 100 * _GIB
     thresholds = disk_pressure_thresholds(total)
-    assert assess_disk_pressure(total_bytes=total, free_bytes=thresholds.warning_free_bytes - 1).state is DiskPressureState.WARNING
-    assert assess_disk_pressure(total_bytes=total, free_bytes=thresholds.critical_free_bytes - 1).state is DiskPressureState.CRITICAL
-    emergency = assess_disk_pressure(total_bytes=total, free_bytes=thresholds.emergency_free_bytes - 1)
+    assert (
+        assess_disk_pressure(
+            total_bytes=total,
+            free_bytes=thresholds.warning_free_bytes - 1,
+        ).state
+        is DiskPressureState.WARNING
+    )
+    assert (
+        assess_disk_pressure(
+            total_bytes=total,
+            free_bytes=thresholds.critical_free_bytes - 1,
+        ).state
+        is DiskPressureState.CRITICAL
+    )
+    emergency = assess_disk_pressure(
+        total_bytes=total,
+        free_bytes=thresholds.emergency_free_bytes - 1,
+    )
     assert emergency.state is DiskPressureState.EMERGENCY
     assert emergency.release_emergency_reserve is True
     assert emergency.allow_noncritical_writes is False
@@ -117,12 +150,17 @@ def test_controller_does_not_release_reserve_before_emergency(tmp_path: Path) ->
     state_root = (tmp_path / "state").absolute()
     state_root.mkdir()
     reserve = _ReserveStub(released_bytes=4096)
-    controller = DiskPressureController(state_root, reserve_store=reserve, disk_usage_provider=lambda _path: (100 * _GIB, 4 * _GIB))  # type: ignore[arg-type]
+    controller = DiskPressureController(
+        state_root,
+        reserve_store=reserve,  # type: ignore[arg-type]
+        disk_usage_provider=lambda _path: (100 * _GIB, 4 * _GIB),
+    )
     result = controller.check()
     assert result.before_release.state is DiskPressureState.CRITICAL
     assert result.after_release is result.before_release
     assert result.released_reserve_bytes == 0
     assert reserve.release_calls == 0
+    assert controller.read_only_safe_mode is False
 
 
 def test_controller_releases_reserve_once_at_emergency_and_reassesses(tmp_path: Path) -> None:
@@ -130,12 +168,17 @@ def test_controller_releases_reserve_once_at_emergency_and_reassesses(tmp_path: 
     state_root.mkdir()
     reserve = _ReserveStub(released_bytes=1 * _GIB)
     readings = iter([(100 * _GIB, 1 * _GIB), (100 * _GIB, 2 * _GIB)])
-    controller = DiskPressureController(state_root, reserve_store=reserve, disk_usage_provider=lambda _path: next(readings))  # type: ignore[arg-type]
+    controller = DiskPressureController(
+        state_root,
+        reserve_store=reserve,  # type: ignore[arg-type]
+        disk_usage_provider=lambda _path: next(readings),
+    )
     result = controller.check()
     assert result.before_release.state is DiskPressureState.EMERGENCY
     assert result.released_reserve_bytes == 1 * _GIB
     assert result.after_release.state is DiskPressureState.CRITICAL
     assert reserve.release_calls == 1
+    assert controller.read_only_safe_mode is True
 
 
 def test_controller_does_not_fake_space_recovery_when_reserve_is_absent(tmp_path: Path) -> None:
@@ -149,20 +192,29 @@ def test_controller_does_not_fake_space_recovery_when_reserve_is_absent(tmp_path
         usage_calls += 1
         return 100 * _GIB, 1 * _GIB
 
-    controller = DiskPressureController(state_root, reserve_store=reserve, disk_usage_provider=usage)  # type: ignore[arg-type]
+    controller = DiskPressureController(
+        state_root,
+        reserve_store=reserve,  # type: ignore[arg-type]
+        disk_usage_provider=usage,
+    )
     result = controller.check()
     assert result.before_release.state is DiskPressureState.EMERGENCY
     assert result.after_release is result.before_release
     assert result.released_reserve_bytes == 0
     assert usage_calls == 1
     assert reserve.release_calls == 1
+    assert controller.read_only_safe_mode is True
 
 
 def test_controller_refuses_reserve_reprovision_while_emergency(tmp_path: Path) -> None:
     state_root = (tmp_path / "state").absolute()
     state_root.mkdir()
     reserve = _ReserveStub(released_bytes=0)
-    controller = DiskPressureController(state_root, reserve_store=reserve, disk_usage_provider=lambda _path: (100 * _GIB, 1 * _GIB))  # type: ignore[arg-type]
+    controller = DiskPressureController(
+        state_root,
+        reserve_store=reserve,  # type: ignore[arg-type]
+        disk_usage_provider=lambda _path: (100 * _GIB, 1 * _GIB),
+    )
     result = controller.ensure_reserve_if_safe(write_chunk_bytes=1024)
     assert result.assessment.state is DiskPressureState.EMERGENCY
     assert result.provisioned is False
@@ -175,7 +227,11 @@ def test_controller_provisions_reserve_outside_emergency(tmp_path: Path) -> None
     state_root = (tmp_path / "state").absolute()
     state_root.mkdir()
     reserve = _ReserveStub(released_bytes=0)
-    controller = DiskPressureController(state_root, reserve_store=reserve, disk_usage_provider=lambda _path: (100 * _GIB, 20 * _GIB))  # type: ignore[arg-type]
+    controller = DiskPressureController(
+        state_root,
+        reserve_store=reserve,  # type: ignore[arg-type]
+        disk_usage_provider=lambda _path: (100 * _GIB, 20 * _GIB),
+    )
     result = controller.ensure_reserve_if_safe(write_chunk_bytes=1024)
     assert result.assessment.state is DiskPressureState.NORMAL
     assert result.provisioned is True
@@ -193,14 +249,44 @@ def test_write_gate_allows_non_emergency_state(tmp_path: Path) -> None:
         disk_usage_provider=lambda _path: (100 * _GIB, 4 * _GIB),
     )
     controller.assert_noncritical_write_allowed()
+    assert controller.read_only_safe_mode is False
 
 
-def test_write_gate_blocks_emergency_state(tmp_path: Path) -> None:
+def test_write_gate_releases_reserve_and_blocks_emergency_state(tmp_path: Path) -> None:
     state_root = (tmp_path / "state").absolute()
     state_root.mkdir()
+    reserve = _ReserveStub(released_bytes=1 * _GIB)
+    readings = iter([(100 * _GIB, 1 * _GIB), (100 * _GIB, 2 * _GIB)])
     controller = DiskPressureController(
         state_root,
-        disk_usage_provider=lambda _path: (100 * _GIB, 1 * _GIB),
+        reserve_store=reserve,  # type: ignore[arg-type]
+        disk_usage_provider=lambda _path: next(readings),
     )
+
     with pytest.raises(DiskPressureWriteBlockedError, match="EMERGENCY"):
         controller.assert_noncritical_write_allowed()
+
+    assert reserve.release_calls == 1
+    assert controller.read_only_safe_mode is True
+
+
+def test_write_gate_stays_blocked_after_reserve_release_improves_space(
+    tmp_path: Path,
+) -> None:
+    state_root = (tmp_path / "state").absolute()
+    state_root.mkdir()
+    reserve = _ReserveStub(released_bytes=1 * _GIB)
+    readings = iter([(100 * _GIB, 1 * _GIB), (100 * _GIB, 4 * _GIB)])
+    controller = DiskPressureController(
+        state_root,
+        reserve_store=reserve,  # type: ignore[arg-type]
+        disk_usage_provider=lambda _path: next(readings),
+    )
+
+    with pytest.raises(DiskPressureWriteBlockedError):
+        controller.assert_noncritical_write_allowed()
+    with pytest.raises(DiskPressureWriteBlockedError, match="latched read-only"):
+        controller.assert_noncritical_write_allowed()
+
+    assert reserve.release_calls == 1
+    assert controller.read_only_safe_mode is True
