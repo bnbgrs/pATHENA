@@ -134,7 +134,6 @@ class ResearchCoverage:
     coverage_ratio: float
 
 
-
 class ResearchSynthesisStage(str, Enum):
     REDUCE = "reduce"
     FINAL = "final"
