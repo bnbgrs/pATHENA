@@ -124,7 +124,7 @@ def test_pathena_hides_unwired_attach_placeholder_and_humanizes_context_copy() -
         app.processEvents()
 
 
-def test_pathena_removes_redundant_shell_chrome() -> None:
+def test_pathena_removes_redundant_shell_chrome_and_fake_status_marker() -> None:
     app = _app()
     window = PathenaMainWindow(api_controller=None)
     try:
@@ -132,9 +132,14 @@ def test_pathena_removes_redundant_shell_chrome() -> None:
         assert breadcrumb is not None
         assert breadcrumb.isHidden()
         assert window.page_title.text() == "Chat"
+        assert window.status_text.text() == "Connecting…"
 
         rail = window.findChild(QFrame, "rail")
         assert rail is not None
+        status_square = rail.findChild(QLabel, "statusSquare")
+        assert status_square is not None
+        assert status_square.isHidden()
+
         pallas_labels = [
             label for label in rail.findChildren(QLabel) if label.text() == "PALLAS"
         ]
@@ -185,8 +190,30 @@ def test_pathena_review_headings_keep_meaning_without_machine_copy() -> None:
     assert _humanize_review_heading("C03 / OBSERVATION / 81%") == (
         "Claim 3 · Observation · 81%"
     )
+    assert _humanize_review_heading(
+        "K02 / POSSIBLE CANONICAL DUPLICATE / 89%"
+    ) == "Knowledge 2 · Possible duplicate · 89%"
     assert _humanize_review_heading("RELATIONS") == "Relationships"
     assert _humanize_review_heading("CANONICAL PREFLIGHT") == "Deduplication"
+
+
+def test_pathena_review_states_use_product_language() -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    try:
+        window.knowledge_review_state.setText("EXTRACTING / SELECTED MESSAGE")
+        window._humanize_knowledge_review_panel()
+        assert window.knowledge_review_state.text() == "Extracting…"
+
+        window.knowledge_review_state.setText("SAVING MERGE DECISION")
+        window._humanize_knowledge_review_panel()
+        assert window.knowledge_review_state.text() == "Saving…"
+
+        window.apply_api_failure("offline")
+        assert window.status_text.text() == "Core unavailable"
+    finally:
+        window.close()
+        app.processEvents()
 
 
 def test_pathena_message_header_and_actions_stay_humanized_after_state_sync() -> None:
