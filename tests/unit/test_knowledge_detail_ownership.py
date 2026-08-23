@@ -80,8 +80,10 @@ def test_review_completion_preserves_newer_visual_selection(qt_app: QApplication
     controller._owner_id = owner
     item = QListWidgetItem("newer decision")
     item.setData(Qt.ItemDataRole.UserRole, newer)
+    workspace.review_list.blockSignals(True)
     workspace.review_list.addItem(item)
     workspace.review_list.setCurrentItem(item)
+    workspace.review_list.blockSignals(False)
     workspace._selected_review_id = None
 
     controller._after_finished(0, QProcess.ExitStatus.NormalExit)
