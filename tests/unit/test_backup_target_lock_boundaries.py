@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+import stat
 from pathlib import Path
 
 import pytest
@@ -54,3 +56,18 @@ def test_backup_target_lock_rejects_symlink_lock_file(tmp_path: Path) -> None:
             raise AssertionError("unreachable")
 
     assert target.read_bytes() == b"unchanged"
+
+
+def test_backup_target_lock_file_has_owner_only_permissions_on_posix(
+    tmp_path: Path,
+) -> None:
+    if os.name != "posix":
+        pytest.skip("POSIX file-mode assertion")
+
+    target_root = tmp_path / "backup"
+    target_root.mkdir()
+    lock_path = target_root / ".athena-backup.lock"
+
+    with backup_target_lock(target_root):
+        assert lock_path.exists()
+        assert stat.S_IMODE(lock_path.stat().st_mode) == 0o600
