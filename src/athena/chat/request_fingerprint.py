@@ -24,7 +24,12 @@ class ChatSendMode(str, Enum):
 
 @dataclass(frozen=True, slots=True)
 class ChatRequestFingerprint:
-    """Canonical immutable identity for one complete chat-send request."""
+    """Canonical immutable identity for one complete chat-send request.
+
+    Semantic checksum validation remains at the persistence boundary so corrupted
+    durable rows are classified as ChatSendOperationSchemaError rather than leaking
+    a lower-level value-object exception during reconstruction.
+    """
 
     payload_json: str
     payload_sha256: str
@@ -35,37 +40,8 @@ class ChatRequestFingerprint:
             raise TypeError("Chat request fingerprint payload_json must be text.")
         if not isinstance(self.payload_sha256, str):
             raise TypeError("Chat request fingerprint payload_sha256 must be text.")
-        if (
-            len(self.payload_sha256) != 64
-            or any(character not in "0123456789abcdef" for character in self.payload_sha256)
-        ):
-            raise ValueError(
-                "Chat request fingerprint payload_sha256 must be canonical lowercase SHA-256."
-            )
-        if (
-            isinstance(self.format_version, bool)
-            or not isinstance(self.format_version, int)
-            or self.format_version != CHAT_REQUEST_FINGERPRINT_FORMAT_VERSION
-        ):
-            raise ValueError("Chat request fingerprint format_version is unsupported.")
-        try:
-            payload = json.loads(self.payload_json)
-        except json.JSONDecodeError as exc:
-            raise ValueError("Chat request fingerprint payload_json must be valid JSON.") from exc
-        if not isinstance(payload, dict):
-            raise ValueError("Chat request fingerprint payload_json must be a JSON object.")
-        canonical = json.dumps(
-            payload,
-            ensure_ascii=False,
-            allow_nan=False,
-            sort_keys=True,
-            separators=(",", ":"),
-        )
-        if canonical != self.payload_json:
-            raise ValueError("Chat request fingerprint payload_json must be canonical JSON.")
-        digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
-        if digest != self.payload_sha256:
-            raise ValueError("Chat request fingerprint checksum does not match payload_json.")
+        if isinstance(self.format_version, bool) or not isinstance(self.format_version, int):
+            raise TypeError("Chat request fingerprint format_version must be an integer.")
 
 
 def _json_safe(value: object) -> JsonValue:
