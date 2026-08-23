@@ -22,7 +22,7 @@ def test_backup_target_lock_rejects_symlink_target_root(tmp_path: Path) -> None:
     link = tmp_path / "link"
     _symlink_directory(link, real)
 
-    with pytest.raises(RuntimeError, match="unavailable"):
+    with pytest.raises(BackupTargetBusyError, match="symbolic-link ancestor"):
         with backup_target_lock(link):
             raise AssertionError("unreachable")
 
