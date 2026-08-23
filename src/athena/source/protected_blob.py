@@ -222,26 +222,27 @@ class ProtectedBlobStore:
         blob_id = new_uuid7()
         nonce_prefix = secrets.token_bytes(8)
         dek = bytearray(self.protected_content.crypto.random_key())
-        envelope = self.protected_content.wrap_blob_dek(
-            protection_scope_id,
-            blob_id=blob_id,
-            dek=bytes(dek),
-            nonce_prefix=nonce_prefix,
-            chunk_size=PROTECTED_BLOB_CHUNK_SIZE,
-            format_version=PROTECTED_BLOB_FORMAT_VERSION,
-        )
-
-        staging_dir = self.blob_store.paths.spool_root / "imports"
-        staging_dir.mkdir(parents=True, exist_ok=True)
-        staging_path = staging_dir / (
-            "protected-" + secrets.token_hex(16) + ".partial"
-        )
-        digest = hashlib.sha256()
-        ciphertext_length = 0
-        plaintext_length = 0
-        chunk_index = 0
-
+        staging_path: Path | None = None
         try:
+            envelope = self.protected_content.wrap_blob_dek(
+                protection_scope_id,
+                blob_id=blob_id,
+                dek=bytes(dek),
+                nonce_prefix=nonce_prefix,
+                chunk_size=PROTECTED_BLOB_CHUNK_SIZE,
+                format_version=PROTECTED_BLOB_FORMAT_VERSION,
+            )
+
+            staging_dir = self.blob_store.paths.spool_root / "imports"
+            staging_dir.mkdir(parents=True, exist_ok=True)
+            staging_path = staging_dir / (
+                "protected-" + secrets.token_hex(16) + ".partial"
+            )
+            digest = hashlib.sha256()
+            ciphertext_length = 0
+            plaintext_length = 0
+            chunk_index = 0
+
             try:
                 with source_path.open("rb") as source, staging_path.open("xb") as target:
                     target.write(_MAGIC)
@@ -330,7 +331,8 @@ class ProtectedBlobStore:
             )
         finally:
             _wipe(dek)
-            staging_path.unlink(missing_ok=True)
+            if staging_path is not None:
+                staging_path.unlink(missing_ok=True)
 
     def read_bytes(
         self,
