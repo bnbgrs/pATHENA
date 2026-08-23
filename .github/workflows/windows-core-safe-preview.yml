@@ -1,0 +1,261 @@
+name: Windows pATHENA one-core safe preview
+
+on:
+  push:
+    branches:
+      - build/windows-core-safe-20260823
+  pull_request:
+    branches:
+      - agent/pathena
+
+permissions:
+  contents: read
+
+jobs:
+  build-core-safe-preview:
+    runs-on: windows-latest
+    timeout-minutes: 50
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install runtime and packager
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ".[desktop]" "pyinstaller>=6.15,<7"
+
+      - name: Build packaged Core
+        shell: pwsh
+        run: |
+          python -m PyInstaller `
+            --noconfirm `
+            --clean `
+            --onedir `
+            --windowed `
+            --contents-directory runtime `
+            --name pATHENA-Core `
+            --paths src `
+            --collect-submodules athena `
+            --collect-all usearch `
+            --collect-all cryptography `
+            --collect-all pypdf `
+            src/athena/desktop/packaged_core.py
+
+      - name: Build packaged Helper
+        shell: pwsh
+        run: |
+          python -m PyInstaller `
+            --noconfirm `
+            --clean `
+            --onedir `
+            --windowed `
+            --contents-directory runtime `
+            --name pATHENA-Helper `
+            --paths src `
+            --collect-submodules athena `
+            --collect-all usearch `
+            --collect-all cryptography `
+            --collect-all pypdf `
+            src/athena/desktop/packaged_helper.py
+
+      - name: Build packaged Desktop
+        shell: pwsh
+        run: |
+          python -m PyInstaller `
+            --noconfirm `
+            --clean `
+            --onedir `
+            --windowed `
+            --contents-directory runtime `
+            --name pATHENA `
+            --paths src `
+            --collect-submodules athena `
+            --collect-all usearch `
+            --collect-all cryptography `
+            --collect-all pypdf `
+            src/athena/desktop/packaged_core_safe_app.py
+
+      - name: Assemble shared-runtime preview
+        shell: pwsh
+        run: |
+          $out = Join-Path $PWD "portable\pATHENA-Windows-Core-Safe"
+          $runtime = Join-Path $out "runtime"
+          New-Item -ItemType Directory -Force -Path $runtime | Out-Null
+
+          Copy-Item .\dist\pATHENA\pATHENA.exe $out
+          Copy-Item .\dist\pATHENA-Core\pATHENA-Core.exe $out
+          Copy-Item .\dist\pATHENA-Helper\pATHENA-Helper.exe $out
+
+          Copy-Item .\dist\pATHENA\runtime\* $runtime -Recurse -Force
+          Copy-Item .\dist\pATHENA-Core\runtime\* $runtime -Recurse -Force
+          Copy-Item .\dist\pATHENA-Helper\runtime\* $runtime -Recurse -Force
+
+          @'
+          pATHENA Windows Core Safe Preview
+          ================================
+
+          Start only:
+            pATHENA.exe
+
+          Safety architecture:
+            - exactly one Desktop process
+            - exactly one Core process
+            - zero Scheduler processes
+            - no automatic Core respawn loop
+            - Jobs / Research / Files / Backup commands use pATHENA-Helper.exe
+            - helper commands never relaunch pATHENA.exe
+            - onedir/shared runtime; no onefile extraction storm
+            - Qt software rendering requested
+
+          Keep together:
+            pATHENA.exe
+            pATHENA-Core.exe
+            pATHENA-Helper.exe
+            runtime\
+
+          Persistent user data remains at:
+            %LOCALAPPDATA%\ATHENA
+          '@ | Set-Content -Encoding UTF8 (Join-Path $out "START_HERE.txt")
+
+      - name: Smoke-test Helper routing
+        shell: pwsh
+        run: |
+          $root = Join-Path $PWD "portable\pATHENA-Windows-Core-Safe"
+          $helper = Join-Path $root "pATHENA-Helper.exe"
+
+          $tests = @(
+            @('-m','athena.desktop.jobs_cli','list','--limit','1'),
+            @('-m','athena.desktop.research_cli','list','--limit','1'),
+            @('-m','athena.desktop.sources_cli','list','--limit','1'),
+            @('-m','athena','backup','list','--limit','1')
+          )
+
+          $index = 0
+          foreach ($arguments in $tests) {
+            $stdout = Join-Path $PWD "helper-$index.out"
+            $stderr = Join-Path $PWD "helper-$index.err"
+            $proc = Start-Process `
+              -FilePath $helper `
+              -ArgumentList $arguments `
+              -RedirectStandardOutput $stdout `
+              -RedirectStandardError $stderr `
+              -Wait `
+              -PassThru
+            if ($proc.ExitCode -ne 0) {
+              Write-Host "STDOUT:"
+              Get-Content $stdout -ErrorAction SilentlyContinue
+              Write-Host "STDERR:"
+              Get-Content $stderr -ErrorAction SilentlyContinue
+              throw "Helper routing test $index failed with exit code $($proc.ExitCode)"
+            }
+            $index++
+          }
+
+      - name: 60-second Desktop process-tree and stack-overflow test
+        shell: pwsh
+        run: |
+          $root = Join-Path $PWD "portable\pATHENA-Windows-Core-Safe"
+          $env:QT_QPA_PLATFORM = "offscreen"
+
+          Get-Process -Name "pATHENA" -ErrorAction SilentlyContinue | Stop-Process -Force
+          Get-Process -Name "pATHENA-Core" -ErrorAction SilentlyContinue | Stop-Process -Force
+          Get-Process -Name "pATHENA-Helper" -ErrorAction SilentlyContinue | Stop-Process -Force
+          Get-Process -Name "pATHENA-Scheduler" -ErrorAction SilentlyContinue | Stop-Process -Force
+          Start-Sleep -Seconds 1
+
+          $startedAt = Get-Date
+          $desktop = Start-Process -FilePath (Join-Path $root "pATHENA.exe") -PassThru
+          $failure = $null
+          $maxHelpers = 0
+
+          try {
+            for ($i = 0; $i -lt 120; $i++) {
+              Start-Sleep -Milliseconds 500
+
+              if ($desktop.HasExited) {
+                $failure = "pATHENA.exe exited during 60-second stability test with exit code $($desktop.ExitCode)"
+                break
+              }
+
+              $desktops = @(Get-Process -Name "pATHENA" -ErrorAction SilentlyContinue)
+              $cores = @(Get-Process -Name "pATHENA-Core" -ErrorAction SilentlyContinue)
+              $helpers = @(Get-Process -Name "pATHENA-Helper" -ErrorAction SilentlyContinue)
+              $schedulers = @(Get-Process -Name "pATHENA-Scheduler" -ErrorAction SilentlyContinue)
+
+              if ($helpers.Count -gt $maxHelpers) { $maxHelpers = $helpers.Count }
+
+              if ($desktops.Count -ne 1) {
+                $failure = "Expected exactly one Desktop process; observed $($desktops.Count)"
+                break
+              }
+              if ($cores.Count -gt 1) {
+                $failure = "Observed more than one Core process: $($cores.Count)"
+                break
+              }
+              if ($i -ge 10 -and $cores.Count -ne 1) {
+                $failure = "Expected exactly one Core process after startup; observed $($cores.Count)"
+                break
+              }
+              if ($schedulers.Count -ne 0) {
+                $failure = "Scheduler process unexpectedly started: $($schedulers.Count)"
+                break
+              }
+              if ($helpers.Count -gt 6) {
+                $failure = "Helper process fan-out exceeded safety cap: $($helpers.Count)"
+                break
+              }
+            }
+
+            Write-Host "Maximum concurrent helpers observed: $maxHelpers"
+
+            $crashes = @(
+              Get-WinEvent -FilterHashtable @{
+                LogName = 'Application'
+                StartTime = $startedAt
+              } -ErrorAction SilentlyContinue |
+              Where-Object {
+                $_.ProviderName -eq 'Application Error' -and
+                $_.Message -match 'pATHENA' -and
+                $_.Message -match '0xc00000fd'
+              }
+            )
+            if (-not $failure -and $crashes.Count -gt 0) {
+              $crashes | Select-Object TimeCreated, ProviderName, Id, Message | Format-List
+              $failure = "Detected pATHENA STATUS_STACK_OVERFLOW (0xc00000fd) during test"
+            }
+          }
+          finally {
+            if ($desktop -and -not $desktop.HasExited) {
+              Stop-Process -Id $desktop.Id -Force -ErrorAction SilentlyContinue
+            }
+            Get-Process -Name "pATHENA-Core" -ErrorAction SilentlyContinue | Stop-Process -Force
+            Get-Process -Name "pATHENA-Helper" -ErrorAction SilentlyContinue | Stop-Process -Force
+            Get-Process -Name "pATHENA-Scheduler" -ErrorAction SilentlyContinue | Stop-Process -Force
+          }
+
+          if ($failure) { throw $failure }
+
+      - name: Create transport ZIP
+        shell: pwsh
+        run: |
+          Compress-Archive `
+            -Path .\portable\pATHENA-Windows-Core-Safe\* `
+            -DestinationPath .\portable\pATHENA-Windows-Core-Safe.zip `
+            -CompressionLevel Optimal
+
+      - name: Upload Windows preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: pATHENA-Windows-Core-Safe-Transport
+          path: portable/pATHENA-Windows-Core-Safe.zip
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
