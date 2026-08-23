@@ -6,6 +6,7 @@ import os
 import secrets
 from pathlib import Path
 
+from athena.storage.locality import ActiveStateLocalityError, assert_active_state_root_local
 from athena.storage.paths import RuntimePaths
 
 
@@ -53,6 +54,11 @@ class RuntimeLayoutService:
         self.paths = paths
 
     def start(self) -> None:
+        try:
+            assert_active_state_root_local(self.paths.state_root)
+        except ActiveStateLocalityError as exc:
+            raise RuntimePathError(str(exc)) from exc
+
         for directory in self.paths.required_local_directories:
             self._ensure_directory(directory)
 
