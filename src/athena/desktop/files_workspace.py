@@ -11,6 +11,7 @@ import sys
 from pathlib import Path
 
 from PySide6.QtCore import QProcess, QTimer, Qt
+from PySide6.QtGui import QTextCursor
 from PySide6.QtWidgets import (
     QFileDialog,
     QHBoxLayout,
@@ -118,7 +119,7 @@ class FilesWorkspace(QWidget):
             "utf-8", errors="replace"
         )
         if chunk:
-            self.output.moveCursor(self.output.textCursor().MoveOperation.End)
+            self.output.moveCursor(QTextCursor.MoveOperation.End)
             self.output.insertPlainText(chunk)
 
     def _process_finished(self, exit_code: int, _exit_status: QProcess.ExitStatus) -> None:
