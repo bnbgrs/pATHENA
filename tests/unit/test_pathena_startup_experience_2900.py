@@ -7,7 +7,6 @@ from athena.desktop.pathena_startup_experience_2900 import (
     _STARTUP_TARGETS,
 )
 
-
 def test_first_run_refinement_contract_is_exactly_one_hundred_tasks() -> None:
     assert len(_STARTUP_TARGETS) == 20
     assert len(_STARTUP_REFINEMENTS) == 5
