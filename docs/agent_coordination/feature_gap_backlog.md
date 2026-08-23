@@ -50,12 +50,9 @@ Status vocabulary: `FOUND` · `PARTIAL` · `READY` · `BLOCKED` · `IN_PROGRESS`
 
 ### FG-008 — Preserve provider-observed model revision in ModelSignature
 - **Source:** Beta 08 sections 15 and 31–35.
-- **Ownership / Priority / Status:** BACKEND · P1 · READY
-- **Evidence / code paths:** `src/athena/model/domain.py` `ModelInfo` has no `known_revision`/`model_revision` field. `src/athena/model/provenance.py::ModelRunRepository.get_or_create_signature()` normalizes `model_revision` to `None` and inserts SQL `NULL` unconditionally.
-- **Current state:** Even if a provider can reliably report an exact model revision, the normalized model domain cannot carry it into the reproducibility signature.
-- **Desired state:** Add an optional provider-observed revision to normalized model metadata and flow it into ModelSignature normalization, hashing and persistence. Unknown revisions must remain `None`; no revision may be inferred.
-- **Dependencies:** model domain; provider metadata parsing; model provenance/signature persistence; targeted known/unknown revision tests.
-- **Verification:** Re-read 2026-08-23 against `domain.py` blob `b50c830b7dacdb66bbc7054fe445b54998949078` and `provenance.py` blob `0abb9fe82aa2d1ec3d83b1009fd0ec5e1a66a329`.
+- **Ownership / Priority / Status:** BACKEND · P1 · IMPLEMENTED
+- **Current state:** `ModelInfo` carries an optional provider-observed `model_revision`. `ModelRunRepository.get_or_create_signature()` includes that revision in canonical signature normalization/hash identity, persists it in `model_signatures`, and reconstructs it on load. Unknown revisions remain `None`; ATHENA does not infer a revision.
+- **Verification:** Implemented 2026-08-23 in `src/athena/model/domain.py` and `src/athena/model/provenance.py`; `tests/unit/test_model_provenance.py` covers known/unknown/changed revisions and non-canonical revision values. Tests added but not executed in connector runtime.
 
 ### FG-009 — Introduce a first-class ModelSession / generation execution context
 - **Source:** Beta 08 sections 27–30 and 50–52.
@@ -64,7 +61,7 @@ Status vocabulary: `FOUND` · `PARTIAL` · `READY` · `BLOCKED` · `IN_PROGRESS`
 - **Current state:** Provider calls are appropriately stateless with respect to conversation memory, but the Beta-required per-generation execution identity/state is not represented as one Core-owned object or bound request contract.
 - **Desired state:** Introduce a temporary Core-owned ModelSession (or equivalent explicit request execution context) binding ModelSignature, request ID, context budget, cancellation state/token, streaming state and optional ProcessingRun, without turning provider/backend state into memory or source of truth.
 - **Dependencies:** model ports/orchestration; cancellation plumbing; context-budget call sites; ProcessingRun linkage; targeted lifecycle/cancel/partial-stream tests.
-- **Verification:** Re-read 2026-08-23 against `ports.py` blob `b9d1895d682aaf43b7cf125cfb4c805b9d3e318d` and `provenance.py` blob `0abb9fe82aa2d1ec3d83b1009fd0ec5e1a66a329`.
+- **Verification:** Re-read 2026-08-23 against `ports.py` blob `b9d1895d682aaf43b7cf125cfb4c805b9d3e318d` and `provenance.py` before FG-008 implementation.
 
 ### FG-010 — Normalize provider backend failure taxonomy
 - **Source:** Beta 08 sections 45–49 and 52.
