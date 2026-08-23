@@ -73,7 +73,7 @@ class AccessibleStateSyncController(QObject):
         super().__init__(window)
         self.window = window
         self._labels: dict[QWidget, str] = {}
-        self._last_signature: dict[QWidget, tuple[str, str, str, str]] = {}
+        self._last_signature: dict[QWidget, tuple[str, str, str, str, str]] = {}
         self._timer = QTimer(self)
         self._timer.setInterval(250)
         self._timer.timeout.connect(self.sync)
@@ -97,6 +97,8 @@ class AccessibleStateSyncController(QObject):
                 b"pathenaResultScopeText",
                 b"pathenaBackupListScope",
                 b"pathenaDenseListAccessibleScope",
+                b"pathenaCancellationPhase",
+                b"pathenaCancellationSelectedState",
             }:
                 self._schedule_sync()
         return super().eventFilter(watched, event)
@@ -114,7 +116,8 @@ class AccessibleStateSyncController(QObject):
         identity = self._selection_identity(widget)
         detail = self._visible_detail(widget)
         list_scope = self._list_scope(widget)
-        signature = (state, identity, detail, list_scope)
+        cancellation = self._list_cancellation(widget)
+        signature = (state, identity, detail, list_scope, cancellation)
         if self._last_signature.get(widget) == signature:
             return
         self._last_signature[widget] = signature
@@ -131,6 +134,8 @@ class AccessibleStateSyncController(QObject):
             parts = [f"{label} is {state_word}."]
             if identity:
                 parts.append(f"Selected item: {identity}.")
+        if cancellation:
+            parts.append(f"Cancellation: {cancellation}.")
         if detail:
             parts.append(f"Visible detail: {detail}.")
         widget.setAccessibleDescription(" ".join(parts))
@@ -154,6 +159,20 @@ class AccessibleStateSyncController(QObject):
             if isinstance(value, str) and value.strip():
                 return value.strip()
         return ""
+
+    @staticmethod
+    def _list_cancellation(widget: QWidget) -> str:
+        if not isinstance(widget, QListWidget):
+            return ""
+        phase_value = widget.property("pathenaCancellationPhase")
+        phase = str(phase_value).strip() if phase_value else ""
+        if not phase or phase == "no-selection":
+            return ""
+        state_value = widget.property("pathenaCancellationSelectedState")
+        state = str(state_value).strip() if state_value else ""
+        if state:
+            return f"phase {phase}, selected job state {state}"
+        return f"phase {phase}"
 
     @staticmethod
     def _selection_identity(widget: QWidget) -> str:
