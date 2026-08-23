@@ -9,7 +9,7 @@ changed.
 
 from __future__ import annotations
 
-from PySide6.QtCore import QEvent, QObject, QTimer
+from PySide6.QtCore import QEvent, QObject, QTimer, Qt
 from PySide6.QtWidgets import (
     QApplication,
     QGraphicsOpacityEffect,
@@ -72,7 +72,7 @@ class MessageActionQuietController(QObject):
             self._effects[button] = effect
             self._containers.setdefault(container, []).append(button)
             if len(self._containers[container]) == 1:
-                container.setAttribute(container.WidgetAttribute.WA_Hover, True)
+                container.setAttribute(Qt.WidgetAttribute.WA_Hover, True)
                 container.installEventFilter(self)
                 container.setProperty("pathenaMessageActionsProgressive", True)
             self._refresh(container)
@@ -81,7 +81,14 @@ class MessageActionQuietController(QObject):
         buttons = self._containers.get(container, [])
         active = container.underMouse() or self._container_has_focus(container)
         for button in buttons:
-            opacity = 1.0 if active else 0.38 if button.isEnabled() else 0.24
+            if active and button.isEnabled():
+                opacity = 1.0
+            elif active:
+                opacity = 0.55
+            elif button.isEnabled():
+                opacity = 0.38
+            else:
+                opacity = 0.24
             effect = self._effects.get(button)
             if effect is not None:
                 effect.setOpacity(opacity)
