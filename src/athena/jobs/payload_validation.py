@@ -299,30 +299,36 @@ def _validate_embedding_rebuild(
     config: Mapping[str, Any] | None,
 ) -> None:
     label = "embedding.rebuild"
-    _require_exact_keys(scope, {"model_id"}, label=f"{label} requested_scope")
+    _require_exact_keys(scope, {"index_kind"}, label=f"{label} requested_scope")
     assert scope is not None
-    model_id = _text(scope, "model_id", label=label)
+    _equal_text(scope, "index_kind", "archive_source_chunks", label=label)
 
     _require_exact_keys(
         config,
         {
-            "pipeline_version",
+            "batch_size",
+            "index_kind",
             "model_id",
-            "model_signature_id",
-            "model_signature_sha256",
-            "corpus",
+            "pipeline_version",
+            "target_chunk_generation",
         },
         label=f"{label} pinned_configuration",
     )
     assert config is not None
-    _equal_text(config, "pipeline_version", "embedding-rebuild-v1", label=label)
-    if _text(config, "model_id", label=label) != model_id:
+    batch_size = _integer(config, "batch_size", minimum=1, label=label)
+    if batch_size > 256:
         raise BuiltinJobPayloadValidationError(
-            "embedding.rebuild model_id must match requested_scope."
+            "embedding.rebuild batch_size must be between 1 and 256."
         )
-    _uuid_text(config, "model_signature_id", label=label)
-    _sha256_text(config, "model_signature_sha256", label=label)
-    _equal_text(config, "corpus", "active-semantic-chunks", label=label)
+    _equal_text(config, "index_kind", "archive_source_chunks", label=label)
+    _text(config, "model_id", label=label)
+    _equal_text(
+        config,
+        "pipeline_version",
+        "archive-embedding-rebuild-v1",
+        label=label,
+    )
+    _integer(config, "target_chunk_generation", minimum=0, label=label)
 
 
 def _validate_research_exhaustive(
