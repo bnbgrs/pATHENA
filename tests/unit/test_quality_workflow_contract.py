@@ -39,6 +39,8 @@ def test_quality_workflow_has_focused_linux_storage_lane() -> None:
     assert "name: Linux storage regressions" in workflow
     assert "name: Run focused storage regressions" in workflow
     for test_path in (
+        "tests/unit/test_durable_fs.py",
+        "tests/unit/test_durable_fs_parent_identity.py",
         "tests/unit/test_migration_safety.py",
         "tests/unit/test_migration_clone.py",
         "tests/unit/test_migration_journal.py",
