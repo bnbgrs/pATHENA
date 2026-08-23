@@ -60,6 +60,9 @@ from athena.desktop.pathena_message_action_tab_order import (
 from athena.desktop.pathena_navigation_context_accessibility import (
     install_navigation_context_accessibility,
 )
+from athena.desktop.pathena_primary_input_accessibility import (
+    install_primary_input_accessibility,
+)
 from athena.desktop.pathena_progressive_workspace_2300 import (
     install_progressive_workspace_refinement,
 )
@@ -254,6 +257,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         research_workspace,
         system_backup.backup,
         research_results_extension,
+    )
+    install_primary_input_accessibility(
+        window,
+        chat_prompt=window.prompt_input,
+        knowledge_filter=knowledge_workspace.search_input,
+        research_query=research_workspace.query_input,
+        research_filter=research_results_extension.job_filter,
     )
     _schedule_initial_core_refreshes(controller, supervisor, scheduler_supervisor)
     heartbeat = _start_core_refresh_heartbeat(controller, supervisor, scheduler_supervisor)
