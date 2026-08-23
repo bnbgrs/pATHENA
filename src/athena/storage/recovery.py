@@ -7,6 +7,7 @@ import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 
+from athena.storage.locality import ActiveStateLocalityError, assert_active_state_root_local
 from athena.storage.schema import (
     ATHENA_APPLICATION_ID,
     SCHEMA_VERSION,
@@ -84,6 +85,14 @@ class DatabasePreflightReport:
 def inspect_database_read_only(path: Path) -> DatabasePreflightReport:
     """Validate an existing ATHENA database before any normal writer connection."""
     requested = _require_path(path).expanduser().absolute()
+    try:
+        assert_active_state_root_local(requested.parent)
+    except ActiveStateLocalityError as exc:
+        raise DatabaseRecoveryRequiredError(
+            "ATHENA refuses to open its active SQLite state on a network-backed root: "
+            f"{exc}"
+        ) from exc
+
     _reject_symlink_ancestors(requested)
     wal_path = requested.with_name(f"{requested.name}-wal")
     shm_path = requested.with_name(f"{requested.name}-shm")
