@@ -38,6 +38,15 @@ def _require_text(value: object, label: str, *, allow_empty: bool = False) -> No
         raise ValueError(f"{label} must not be empty.")
 
 
+def _require_optional_canonical_text(value: object, label: str) -> None:
+    if value is None:
+        return
+    _require_text(value, label)
+    assert isinstance(value, str)
+    if value != value.strip():
+        raise ValueError(f"{label} must use canonical trimmed text.")
+
+
 def _require_optional_positive_int(value: object, label: str) -> None:
     if value is None:
         return
@@ -136,6 +145,7 @@ class ModelInfo:
     trained_for_tool_use: bool | None
     loaded_context_length: int | None = None
     capabilities: ModelCapabilities = field(default_factory=ModelCapabilities)
+    model_revision: str | None = None
 
     def __post_init__(self) -> None:
         _require_text(self.provider, "ModelInfo provider")
@@ -155,6 +165,10 @@ class ModelInfo:
         )
         if not isinstance(self.capabilities, ModelCapabilities):
             raise TypeError("ModelInfo capabilities must be a ModelCapabilities value.")
+        _require_optional_canonical_text(
+            self.model_revision,
+            "ModelInfo model_revision",
+        )
         if (
             self.context_capacity is not None
             and self.loaded_context_length is not None
