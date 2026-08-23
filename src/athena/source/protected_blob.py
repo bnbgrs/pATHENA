@@ -34,6 +34,18 @@ _FRAME_HEADER_BYTES = 4
 _GCM_TAG_BYTES = 16
 
 
+def _metadata_integrity_error() -> ProtectedContentIntegrityError:
+    return ProtectedContentIntegrityError(
+        "Protected Source metadata values are invalid."
+    )
+
+
+def _nonnegative_exact_int(value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise _metadata_integrity_error()
+    return value
+
+
 @dataclass(frozen=True, slots=True)
 class ProtectedSourceMetadata:
     source_type: SourceType
@@ -42,6 +54,19 @@ class ProtectedSourceMetadata:
     original_modified_at_us: int | None
     mime_type: str | None
     plaintext_byte_length: int
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.source_type, SourceType):
+            raise _metadata_integrity_error()
+        if not isinstance(self.original_name, str) or not self.original_name:
+            raise _metadata_integrity_error()
+        if not isinstance(self.source_uri, str) or not self.source_uri:
+            raise _metadata_integrity_error()
+        if self.mime_type is not None and not isinstance(self.mime_type, str):
+            raise _metadata_integrity_error()
+        if self.original_modified_at_us is not None:
+            _nonnegative_exact_int(self.original_modified_at_us)
+        _nonnegative_exact_int(self.plaintext_byte_length)
 
     def to_payload(self) -> bytes:
         return json.dumps(
@@ -61,6 +86,10 @@ class ProtectedSourceMetadata:
 
     @classmethod
     def from_payload(cls, payload: bytes) -> "ProtectedSourceMetadata":
+        if not isinstance(payload, bytes):
+            raise ProtectedContentIntegrityError(
+                "Protected Source metadata payload is invalid."
+            )
         try:
             raw: object = json.loads(payload.decode("ascii"))
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -82,7 +111,13 @@ class ProtectedSourceMetadata:
             "source_type",
             "source_uri",
         }
-        if set(data) != expected_keys or data["format_version"] != 1:
+        format_version = data.get("format_version")
+        if (
+            set(data) != expected_keys
+            or isinstance(format_version, bool)
+            or not isinstance(format_version, int)
+            or format_version != 1
+        ):
             raise ProtectedContentIntegrityError(
                 "Protected Source metadata schema is invalid."
             )
@@ -102,16 +137,18 @@ class ProtectedSourceMetadata:
             or (mime_type is not None and not isinstance(mime_type, str))
             or (
                 modified is not None
-                and (isinstance(modified, bool) or not isinstance(modified, int))
+                and (
+                    isinstance(modified, bool)
+                    or not isinstance(modified, int)
+                    or modified < 0
+                )
             )
             or isinstance(plaintext_length, bool)
             or not isinstance(plaintext_length, int)
             or plaintext_length < 0
             or not isinstance(source_type_raw, str)
         ):
-            raise ProtectedContentIntegrityError(
-                "Protected Source metadata values are invalid."
-            )
+            raise _metadata_integrity_error()
 
         try:
             source_type = SourceType(source_type_raw)
@@ -157,6 +194,14 @@ class ProtectedBlobStore:
         protection_scope_id: uuid.UUID,
         source_type: SourceType = SourceType.FILE,
     ) -> PreparedProtectedBlob:
+        if not isinstance(path, Path):
+            raise SourceFileNotReadableError(
+                "Protected Source path must be a pathlib.Path value."
+            )
+        if not isinstance(protection_scope_id, uuid.UUID):
+            raise ValueError("Protected Source protection_scope_id must be a UUID value.")
+        if not isinstance(source_type, SourceType):
+            raise ValueError("Protected Source source_type must be a SourceType value.")
         requested_path = path.expanduser()
         if requested_path.is_symlink():
             raise SourceFileNotReadableError(
@@ -292,12 +337,20 @@ class ProtectedBlobStore:
         blob: BlobRecord,
         envelope: ProtectedBlobEnvelopeRecord,
     ) -> bytes:
+        if not isinstance(blob, BlobRecord) or not isinstance(
+            envelope,
+            ProtectedBlobEnvelopeRecord,
+        ):
+            raise ProtectedContentIntegrityError(
+                "Protected Blob storage metadata is inconsistent."
+            )
         if (
             blob.encryption_state != PROTECTED_BLOB_ENCRYPTION_STATE
             or envelope.blob_id != blob.blob_id
             or envelope.cipher_suite != "AES-256-GCM"
             or envelope.format_version != PROTECTED_BLOB_FORMAT_VERSION
             or envelope.chunk_size != PROTECTED_BLOB_CHUNK_SIZE
+            or not isinstance(envelope.nonce_prefix, bytes)
             or len(envelope.nonce_prefix) != 8
         ):
             raise ProtectedContentIntegrityError(
@@ -378,6 +431,24 @@ def _chunk_aad(
     chunk_index: int,
     plaintext_length: int,
 ) -> bytes:
+    if not isinstance(blob_id, uuid.UUID) or not isinstance(
+        protection_scope_id,
+        uuid.UUID,
+    ):
+        raise ValueError("Protected Blob AAD identities must be UUID values.")
+    if (
+        isinstance(chunk_index, bool)
+        or not isinstance(chunk_index, int)
+        or not 0 <= chunk_index <= 0xFFFFFFFF
+    ):
+        raise ValueError("Protected Blob chunk_index is invalid.")
+    if (
+        isinstance(plaintext_length, bool)
+        or not isinstance(plaintext_length, int)
+        or plaintext_length < 1
+        or plaintext_length > PROTECTED_BLOB_CHUNK_SIZE
+    ):
+        raise ValueError("Protected Blob plaintext_length is invalid.")
     return (
         b"ATHENA\x00PROTECTED_BLOB_CHUNK\x00"
         + PROTECTED_BLOB_FORMAT_VERSION.to_bytes(4, "big")
@@ -389,5 +460,7 @@ def _chunk_aad(
 
 
 def _wipe(value: bytearray) -> None:
+    if not isinstance(value, bytearray):
+        raise TypeError("Protected Blob wipe target must be a bytearray.")
     for index in range(len(value)):
         value[index] = 0
