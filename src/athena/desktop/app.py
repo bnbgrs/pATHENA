@@ -57,6 +57,9 @@ from athena.desktop.pathena_message_action_quiet_7000 import install_message_act
 from athena.desktop.pathena_message_action_tab_order import (
     install_message_action_tab_order,
 )
+from athena.desktop.pathena_navigation_context_accessibility import (
+    install_navigation_context_accessibility,
+)
 from athena.desktop.pathena_progressive_workspace_2300 import (
     install_progressive_workspace_refinement,
 )
@@ -200,6 +203,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     backup_details_provenance = install_backup_details_provenance(system_backup.backup)
     apply_shell_density(window)
     apply_workspace_presentation(window)
+    install_navigation_context_accessibility(window)
     command_palette = install_command_palette(window)
     command_palette_truth = install_command_palette_truth(command_palette)
     empty_search_comprehension = install_empty_search_comprehension(
