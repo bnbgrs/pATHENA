@@ -91,7 +91,7 @@ Last reviewed baseline: current remote `agent/pathena` on 2026-08-23.
 
 **Verified controls:** pyca/cryptography AES-256-GCM and Argon2id; strict/versioned metadata; invalid metadata converted to integrity errors; v1 Argon2id bounded at 10 iterations, 16 lanes and 256 MiB while production defaults remain 3/4/64 MiB.
 
-**Verification state:** `SEC-004` is FIXED by commits `be5a7f06d2f71f011aae4656400bc701cd3b924` and `fd700b85dcf8e4cbe7bc6289e7af31203c2fd0b9`; do not promote to VERIFIED without observed green targeted/CI execution.
+**Verification state:** `SEC-004` is FIXED by commits `be5a7f06d2f71f011aae7f30a02671ff9a5ebd18` and `fd700b85dcf8e4cbe7bc6289e7af31203c2fd0b9`; do not promote to VERIFIED without observed green targeted/CI execution.
 
 ### Configuration / credentials -> filesystem and OS secret store
 
