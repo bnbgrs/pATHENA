@@ -11,6 +11,7 @@ import re
 
 from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import (
+    QFrame,
     QLabel,
     QLineEdit,
     QListWidget,
@@ -131,6 +132,23 @@ _KNOWLEDGE_STATE_REPLACEMENTS = {
     "DECISION REQUIRED": "Decision required",
 }
 
+_SYSTEM_LABEL_REPLACEMENTS = {
+    "CORE": "Core",
+    "PROVIDER": "Model service",
+    "MODELS": "Models",
+    "LOADED": "Loaded",
+    "CHATS": "Conversations",
+    "API": "API",
+}
+
+_SYSTEM_VALUE_REPLACEMENTS = {
+    "READY": "Ready",
+    "OK": "Ready",
+    "RUNNING": "Running",
+    "UNAVAILABLE": "Unavailable",
+    "DISCONNECTED": "Disconnected",
+}
+
 _RUNTIME_PATTERN = re.compile(r"^CORE\s+(?P<state>\S+)\s+/\s+CHATS\s+(?P<count>\d+)$")
 _SOURCE_PATTERN = re.compile(r"^SOURCE CHAT\s+\S+\s+/\s+MESSAGE\s+\S+$")
 
@@ -204,11 +222,32 @@ def _sync_jobs_presentation(window: QWidget) -> None:
             label.setText("Scheduler reconnecting…")
 
 
+def _sync_files_presentation(window: QWidget) -> None:
+    files = window.findChild(QWidget, "filesWorkspace")
+    if files is None:
+        return
+    process = files.findChild(QPushButton, "fileProcessButton")
+    if process is not None:
+        process.setVisible(process.isEnabled())
+
+
+def _sync_system_presentation(window: QWidget) -> None:
+    system = window.findChild(QWidget, "systemWorkspace")
+    if system is None:
+        return
+    for label in system.findChildren(QLabel, "settingsValue"):
+        replacement = _SYSTEM_VALUE_REPLACEMENTS.get(label.text())
+        if replacement is not None:
+            label.setText(replacement)
+
+
 def _sync_dynamic_workspace_copy(window: QWidget) -> None:
     """Normalize dynamic metadata and disclose only actionable controls."""
     _sync_knowledge_copy(window)
     _sync_research_presentation(window)
     _sync_jobs_presentation(window)
+    _sync_files_presentation(window)
+    _sync_system_presentation(window)
 
 
 def _install_dynamic_copy_sync(window: QWidget) -> None:
@@ -234,10 +273,12 @@ def _configure_research_presentation(window: QWidget) -> None:
         query = query_inputs[0]
         query.setObjectName("researchQueryInput")
         query.setPlaceholderText("What do you want to investigate?")
+        query.setMinimumHeight(40)
 
     for button in research.findChildren(QPushButton):
         if button.text() == "Start research":
             button.setObjectName("researchStartButton")
+            button.setProperty("role", "primary")
         elif button.text() == "Cancel":
             button.setObjectName("researchCancelButton")
         elif button.text() == "Refresh":
@@ -260,6 +301,35 @@ def _configure_jobs_presentation(window: QWidget) -> None:
         object_name = object_names.get(button.text())
         if object_name is not None:
             button.setObjectName(object_name)
+
+
+def _configure_files_presentation(window: QWidget) -> None:
+    files = window.findChild(QWidget, "filesWorkspace")
+    if files is None:
+        return
+
+    for button in files.findChildren(QPushButton):
+        if button.text() == "Import file":
+            button.setObjectName("fileImportButton")
+            button.setProperty("role", "primary")
+        elif button.text() == "Process / retry":
+            button.setObjectName("fileProcessButton")
+        elif button.text() == "Refresh":
+            button.setObjectName("fileRefreshButton")
+
+
+def _configure_system_presentation(window: QWidget) -> None:
+    system = window.findChild(QWidget, "systemWorkspace")
+    if system is None:
+        return
+
+    for frame in system.findChildren(QFrame, "systemMetric"):
+        frame.setObjectName("systemMetricQuiet")
+
+    for label in system.findChildren(QLabel):
+        replacement = _SYSTEM_LABEL_REPLACEMENTS.get(label.text())
+        if replacement is not None:
+            label.setText(replacement)
 
 
 def apply_workspace_presentation(window: QWidget) -> None:
@@ -311,4 +381,6 @@ def apply_workspace_presentation(window: QWidget) -> None:
 
     _configure_research_presentation(window)
     _configure_jobs_presentation(window)
+    _configure_files_presentation(window)
+    _configure_system_presentation(window)
     _install_dynamic_copy_sync(window)
