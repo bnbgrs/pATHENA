@@ -4,9 +4,17 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass
+from typing import Protocol, cast
 
 RECOVERY_REQUIRED_AFTER_RESTORE = "recovery_required_after_restore"
 CANCELLED_AFTER_RESTORE = "recovered_cancel_after_restore"
+
+
+class _RecoveryConnection(Protocol):
+    in_transaction: bool
+
+    def execute(self, sql: str, parameters: object = ()) -> object:
+        ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,24 +55,29 @@ def reconcile_jobs_after_restore(
     and fencing sequence are deliberately preserved. Worker identity and lease
     material are always removed.
     """
-    if not isinstance(connection, sqlite3.Connection):
-        raise TypeError("Restore reconciliation requires a sqlite3.Connection.")
+    if not hasattr(connection, "execute") or not hasattr(connection, "in_transaction"):
+        raise TypeError(
+            "Restore reconciliation requires a SQLite-compatible connection."
+        )
+    db = cast(_RecoveryConnection, connection)
+    if not isinstance(db.in_transaction, bool):
+        raise TypeError("Restore reconciliation connection state must be bool.")
     if isinstance(now_us, bool) or not isinstance(now_us, int) or now_us < 0:
         raise ValueError(
             "Restore reconciliation timestamp must be a non-negative integer."
         )
 
-    if connection.in_transaction:
+    if db.in_transaction:
         raise RuntimeError(
             "Restore job reconciliation requires transaction ownership."
         )
 
     transaction_started = False
     try:
-        connection.execute("BEGIN IMMEDIATE")
+        db.execute("BEGIN IMMEDIATE")
         transaction_started = True
 
-        paused = connection.execute(
+        paused = db.execute(
             """
             UPDATE jobs
             SET state = 'paused',
@@ -81,7 +94,7 @@ def reconcile_jobs_after_restore(
             (RECOVERY_REQUIRED_AFTER_RESTORE, now_us),
         )
 
-        cancelled = connection.execute(
+        cancelled = db.execute(
             """
             UPDATE jobs
             SET state = 'cancelled',
@@ -98,22 +111,25 @@ def reconcile_jobs_after_restore(
             (CANCELLED_AFTER_RESTORE, now_us),
         )
 
-        connection.execute("COMMIT")
+        db.execute("COMMIT")
         transaction_started = False
     except BaseException:
         if transaction_started:
             try:
-                connection.execute("ROLLBACK")
+                db.execute("ROLLBACK")
             except Exception:
                 # Preserve the operation failure that triggered rollback. A
                 # rollback failure is secondary and must not mask the cause.
                 pass
         raise
 
-    paused_count = paused.rowcount
-    cancelled_count = cancelled.rowcount
-    if paused_count < 0 or cancelled_count < 0:
-        raise RuntimeError("Restore reconciliation returned an invalid SQLite row count.")
+    paused_count = getattr(paused, "rowcount", None)
+    cancelled_count = getattr(cancelled, "rowcount", None)
+    for value in (paused_count, cancelled_count):
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            raise RuntimeError(
+                "Restore reconciliation returned an invalid SQLite row count."
+            )
     return RestoredJobRecoverySummary(
         paused_running=paused_count,
         cancelled_requested=cancelled_count,
