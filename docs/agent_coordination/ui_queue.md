@@ -70,6 +70,10 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 | UI-061 | P2 | DONE | Eligibility changes return focus to the snapshot list only when disabling the focused action would otherwise leave focus unowned; newer intentional focus is preserved. Commits `7abe89e9d3738fb8db5b7bbe9568ab77e618286e` and `6219484dcbc15b0915f281c630a03bc16c421314`; tests not executable in current checkout runtime. |
 | UI-062 | P3 | DONE | Backup rows expose state/verification through Qt AccessibleTextRole/AccessibleDescriptionRole/StatusTipRole using existing metadata, with humanized verification labels. Commits `86d34a6b9a3392da38fb6b6b11f309a949366fd9` and `dd1774aa0c30a32f5a34110855865beb0ec74266`; tests not executable in current checkout runtime. |
 | UI-063 | P2 | DONE | Backup list accessible description now exposes listed count, selected snapshot identity/state/verification and restore availability without additional visible chrome. Commits `ca91819fb7b29f976887079f8833503533e31ba3` and `de1c3026bf939455d5dafffdc00074b9026ccd94`; tests not executable in current checkout runtime. |
+| UI-064 | P2 | DONE | Knowledge/Claims/Decisions, Research jobs, durable Jobs and Sources now expose row AccessibleText/AccessibleDescription and stable UserRole identity through the shared dense-list layer without extending historical refinement IDs. Commits `a09462a04e2ce7e8568e6225d40e99f9b9063b36`, `0fa0cc26edf8309322dbc68bf6cf2643995c3fb7`, `a99b0bdea2e2a552042a84e7475fccff1bc8c71e`, `38b81262000ac8d16883358d6ddcd09c6aaa978f`; targeted tests NOT EXECUTABLE. |
+| UI-065 | P2 | DONE | Existing filter-aware `shown / total / selected` result scope is mirrored onto the focusable list itself for screenreaders; hidden active selection remains marked `(filtered)`. Commits `09d48a35a42bcbb1cb3515bc1336ee747cacd58a` and `0ab4cb2fb3883122571634e64fbdf66e4cf8b5e2`; tests NOT EXECUTABLE. |
+| UI-066 | P2 | DONE | Selection-disappearance handoff now restores current authoritative Backup/Result scope instead of stale install-time accessibility copy and resyncs when those scope properties change. Commits `0143ef78af253852ba27ea8875e8a2e0fa60d3b6` and `a5c37a9eef3a5b401069ba3b390d4ea292e52751`; tests NOT EXECUTABLE. |
+| UI-067 | P1 | DONE | Global semantic AccessibleState sync now composes state with dynamic Backup/Result/Dense-list scope instead of overwriting it on later busy/error/success transitions. Commits `c49b448b146cdfcef74aa785eb13cf32b392b90b` and `8aca567a0874e665e3529118debf06386a2b8b9b`; tests NOT EXECUTABLE. |
 
 ## Active queue
 
@@ -81,10 +85,10 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 - **Dependencies:** Runtime with repository checkout or Quality-bot execution.
 - **Last verification:** 2026-08-23.
 
-### UI-064 — Cross-workspace dense-list accessibility parity
+### UI-068 — Accessible scope/state arbitration audit
 - **Priority:** P2
 - **Status:** READY
-- **Evidence:** Backup now exposes semantic row/list accessibility from existing item metadata. Audit Knowledge, Research, Jobs and Sources for comparable dense-list state/identity gaps without inventing data or controls.
-- **Views/components:** Knowledge/Claims/Decisions, Research jobs, durable Jobs, Sources.
-- **Dependencies:** Existing result-scope and selection-ownership layers.
+- **Evidence:** UI-064 through UI-067 establish layered row scope, result scope, disappearance handoff and semantic state composition. Audit remaining later-installed accessibility/guidance layers for direct list `accessibleDescription()` replacement that can still erase authoritative scope.
+- **Views/components:** Knowledge/Claims/Decisions, Research jobs, durable Jobs, Sources, Backup snapshots.
+- **Dependencies:** UI-064 through UI-067.
 - **Last verification:** 2026-08-23.
