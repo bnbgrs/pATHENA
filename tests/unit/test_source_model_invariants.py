@@ -19,7 +19,6 @@ from athena.source.models import (
     TextRepresentationResult,
 )
 
-
 _DIGEST = b"d" * 32
 _OTHER_DIGEST = b"e" * 32
 
