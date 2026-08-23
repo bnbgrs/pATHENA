@@ -7,13 +7,16 @@ import random
 
 from PySide6.QtCore import QEvent, QObject, Qt, QTimer
 from PySide6.QtGui import QColor, QFont, QPainter, QPen, QTextCharFormat, QTextCursor
-from PySide6.QtWidgets import QApplication, QPlainTextEdit, QWidget
+from PySide6.QtWidgets import QApplication, QLabel, QLineEdit, QPlainTextEdit, QWidget
 
 from athena.desktop.theme import ORANGE
 
 _COLS = 25
 _ROWS = 42
 _TICK_MS = 220
+_SEMANTIC_SAMPLE_TICKS = 5
+_MAX_SEMANTIC_ITEMS = 20
+_MAX_SEMANTIC_CHARS = 2_400
 _GLYPHS = ("·", ":", "+", "o", "O", "░", "▒", "▓", "█")
 
 
@@ -95,13 +98,18 @@ def ascii_scene(context: str) -> tuple[str, ...]:
     return tuple(_grid_text(_seed_grid(context)).splitlines())
 
 
+def _normalized_semantic_text(value: str) -> str:
+    return " ".join(value.casefold().split())
+
+
 class AsciiPanel(QPlainTextEdit):
     """Drive the live PALLAS field and remain usable as a compact text surface.
 
     The current desktop shell still owns a legacy ``PallasVisualPlaceholder`` in
-    ``window.py``.  This controller deliberately binds to that widget at runtime
-    and replaces its paint event, allowing the renderer to become functional
-    without coupling the cellular model to the large window module.
+    ``window.py``. This controller binds to that widget at runtime and replaces
+    its paint event. The cellular field is local-only and samples visible desktop
+    text so PALLAS reacts to the active conversation, knowledge and research
+    material without requiring a model call or network access.
     """
 
     def __init__(self) -> None:
@@ -114,6 +122,8 @@ class AsciiPanel(QPlainTextEdit):
         self.setFixedHeight(134)
 
         self._context = "idle"
+        self._semantic_signature = ""
+        self._semantic_sample = ""
         self._generation = 0
         self._grid = _seed_grid(self._context)
         self._pallas_target: QWidget | None = None
@@ -128,23 +138,99 @@ class AsciiPanel(QPlainTextEdit):
         normalized = context.casefold().strip() or "idle"
         if normalized != self._context:
             self._context = normalized
+            self._semantic_signature = ""
+            self._semantic_sample = ""
             self._generation = 0
             self._grid = _seed_grid(normalized)
         self._refresh_text_surface()
         self._bind_pallas_target()
+        self._sync_semantic_context(force=True)
         if self._pallas_target is not None:
             self._pallas_target.update()
 
     def _tick(self) -> None:
         self._bind_pallas_target()
+        if self._generation % _SEMANTIC_SAMPLE_TICKS == 0:
+            self._sync_semantic_context()
         next_grid = _step_grid(self._grid)
         if not any(any(row) for row in next_grid):
-            next_grid = _seed_grid(f"{self._context}:{self._generation // 24}")
+            seed_context = self._semantic_seed_context()
+            next_grid = _seed_grid(f"{seed_context}:{self._generation // 24}")
         self._grid = next_grid
         self._generation += 1
         self._refresh_text_surface()
         if self._pallas_target is not None:
             self._pallas_target.update()
+
+    def _semantic_seed_context(self) -> str:
+        if not self._semantic_sample:
+            return self._context
+        return f"{self._context}|{self._semantic_sample}"
+
+    def _sync_semantic_context(self, *, force: bool = False) -> None:
+        sample = self._semantic_snapshot()
+        signature = hashlib.blake2b(sample.encode("utf-8"), digest_size=8).hexdigest()
+        if not force and signature == self._semantic_signature:
+            return
+
+        previous_signature = self._semantic_signature
+        self._semantic_signature = signature
+        self._semantic_sample = sample
+        if force and not previous_signature:
+            return
+
+        # Visible content changed: evolve from a deterministic representation of
+        # the current workspace + content instead of restarting from random noise.
+        self._generation = 0
+        self._grid = _seed_grid(self._semantic_seed_context())
+
+    def _semantic_snapshot(self) -> str:
+        app = QApplication.instance()
+        if not isinstance(app, QApplication):
+            return self._context
+
+        root = app.activeWindow()
+        if root is None:
+            root = self.window()
+        if not isinstance(root, QWidget):
+            return self._context
+
+        items: list[str] = []
+        total_chars = 0
+
+        def append(value: str) -> None:
+            nonlocal total_chars
+            normalized = _normalized_semantic_text(value)
+            if not normalized or normalized in items:
+                return
+            remaining = _MAX_SEMANTIC_CHARS - total_chars
+            if remaining <= 0:
+                return
+            clipped = normalized[:remaining]
+            items.append(clipped)
+            total_chars += len(clipped)
+
+        # Prompt text is intentionally included so the field begins responding
+        # while the user is composing, before a message is sent.
+        for line_edit in root.findChildren(QLineEdit):
+            if len(items) >= _MAX_SEMANTIC_ITEMS:
+                break
+            if line_edit is self or not line_edit.isVisible():
+                continue
+            append(line_edit.text())
+
+        # Chat messages, selected knowledge/research metadata and inspector text
+        # are labels in the current desktop shell. Hidden pages are excluded.
+        for label in root.findChildren(QLabel):
+            if len(items) >= _MAX_SEMANTIC_ITEMS or total_chars >= _MAX_SEMANTIC_CHARS:
+                break
+            if not label.isVisible():
+                continue
+            append(label.text())
+
+        if not items:
+            return self._context
+        return " | ".join(items)
 
     def _bind_pallas_target(self) -> None:
         if self._pallas_target is not None:
@@ -158,7 +244,7 @@ class AsciiPanel(QPlainTextEdit):
             self._pallas_target = widget
             widget.installEventFilter(self)
             widget.setToolTip(
-                "PALLAS — live local semantic cellular field; reacts to workspace context"
+                "PALLAS — live local semantic cellular field; reacts to visible workspace content"
             )
             widget.destroyed.connect(self._pallas_destroyed)
             widget.update()
@@ -219,7 +305,8 @@ class AsciiPanel(QPlainTextEdit):
                 painter.drawText(x, y, glyph)
 
         painter.setPen(QColor("#50504C"))
-        generation = f"GEN {self._generation:04d} / LIVE LOCAL"
+        semantic_state = "SEMANTIC" if self._semantic_sample != self._context else "LOCAL"
+        generation = f"GEN {self._generation:04d} / {semantic_state}"
         painter.drawText(13, height - 11, generation)
         painter.end()
 
