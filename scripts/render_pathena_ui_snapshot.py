@@ -4,7 +4,6 @@ import os
 from pathlib import Path
 
 from PySide6.QtCore import QTimer
-from PySide6.QtWidgets import QApplication
 
 from athena.api.client import CoreApiClient
 from athena.desktop.api_controller import DesktopApiController
