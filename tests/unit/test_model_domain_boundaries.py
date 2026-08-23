@@ -80,3 +80,18 @@ def test_model_chat_message_requires_text_role_and_content() -> None:
         ModelChatMessage(role=" ", content="hello")
     with pytest.raises(TypeError, match="content must be text"):
         ModelChatMessage(role="user", content=1)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize(
+    "role",
+    [" user", "user ", "tool", "developer", "system\nuser", "USER"],
+)
+def test_model_chat_message_rejects_noncanonical_or_unsupported_roles(role: str) -> None:
+    with pytest.raises(ValueError, match="system, user, assistant"):
+        ModelChatMessage(role=role, content="hello")
+
+
+@pytest.mark.parametrize("role", ["system", "user", "assistant"])
+def test_model_chat_message_accepts_supported_roles(role: str) -> None:
+    message = ModelChatMessage(role=role, content="hello")
+    assert message.role == role
