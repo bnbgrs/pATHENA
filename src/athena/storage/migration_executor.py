@@ -28,6 +28,10 @@ def migrate_schema_candidate(candidate_db: Path, *, created_at_us: int) -> None:
     connection: sqlite3.Connection | None = None
     try:
         connection = sqlite3.connect(candidate_db, timeout=5.0, autocommit=True)
+        # Schema migrations share the same mapping-row contract as the live
+        # SQLite service. Historical migration verifiers address columns by
+        # name, so a raw tuple row factory would fail mid-upgrade.
+        connection.row_factory = sqlite3.Row
         initialize_schema(connection, created_at_us=created_at_us)
         row = connection.execute("PRAGMA user_version").fetchone()
         if row is None or int(row[0]) != SCHEMA_VERSION:
