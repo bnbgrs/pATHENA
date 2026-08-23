@@ -9,10 +9,14 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import QObject, QTimer
+from PySide6.QtGui import QTextCursor
 from PySide6.QtWidgets import QLabel, QListWidget, QPlainTextEdit, QPushButton, QWidget
+
+if TYPE_CHECKING:
+    from athena.desktop.research_results_extension import ResearchResultsExtension
 
 
 @dataclass(frozen=True)
@@ -73,9 +77,7 @@ QListWidget#researchProposalList::item:selected {
     background: #15100C;
     border-left: 2px solid #F26A21;
 }
-QLabel[pathenaResearchReadability="secondary"] {
-    color: #8F8F8F;
-}
+QLabel[pathenaResearchReadability="secondary"] { color: #8F8F8F; }
 """
 
 
@@ -98,7 +100,12 @@ def _format_mapping(data: dict[str, Any], *, depth: int = 0) -> list[str]:
         "evidence", "sources", "claims", "findings", "status",
     )
     keys = list(data)
-    keys.sort(key=lambda key: (next((i for i, name in enumerate(priority) if name in key.casefold()), 99), key))
+    keys.sort(
+        key=lambda key: (
+            next((i for i, name in enumerate(priority) if name in key.casefold()), 99),
+            key,
+        )
+    )
     indent = "  " * depth
     for key in keys:
         value = data[key]
@@ -128,42 +135,38 @@ def _readable_result(raw: str) -> str | None:
     return "\n".join(_format_mapping(payload)).strip()
 
 
+def apply_ui_refinements_2301_2400(window: QWidget) -> tuple[int, ...]:
+    applied: list[int] = []
+    for index, target in enumerate(_TARGETS):
+        widget = window.findChild(QWidget, target.key)
+        if widget is None:
+            continue
+        widget.setProperty("pathenaResearchReadable", True)
+        start = 2301 + index * len(_REFINEMENTS)
+        applied.extend(range(start, start + len(_REFINEMENTS)))
+    if _STYLESHEET not in window.styleSheet():
+        window.setStyleSheet(f"{window.styleSheet()}\n{_STYLESHEET}")
+    return tuple(applied)
+
+
 class PathenaResearchReadability(QObject):
     """Render existing immutable ResearchResult JSON as a readable outline."""
 
-    def __init__(self, window: QWidget) -> None:
+    def __init__(self, window: QWidget, extension: ResearchResultsExtension) -> None:
         super().__init__(window)
         self.window = window
+        self.extension = extension
         self.details = window.findChild(QPlainTextEdit, "researchDetails")
         self.proposals = window.findChild(QListWidget, "researchProposalList")
-        self._tag_targets()
-        self._connect_result_process()
+        apply_ui_refinements_2301_2400(window)
+        extension.process.finished.connect(self._schedule_format)
         self._quiet_status_labels()
         if self.details is not None:
             self.details.document().setDocumentMargin(12.0)
-        if _STYLESHEET not in window.styleSheet():
-            window.setStyleSheet(f"{window.styleSheet()}\n{_STYLESHEET}")
-
-    def _tag_targets(self) -> None:
-        for target in _TARGETS:
-            widget = self.window.findChild(QWidget, target.key)
-            if widget is not None:
-                widget.setProperty("pathenaResearchReadable", True)
-
-    def _connect_result_process(self) -> None:
-        panel = self.window.findChild(QWidget, "researchResultPanel")
-        if panel is None:
-            return
-        # ResearchResultsExtension is the QObject parent owner of the panel's controls.
-        for child in panel.children():
-            process = getattr(child, "finished", None)
-            if process is not None and hasattr(process, "connect"):
-                try:
-                    process.connect(self._schedule_format)
-                except (RuntimeError, TypeError):
-                    continue
 
     def _schedule_format(self, *_args: object) -> None:
+        if getattr(self.extension, "_operation", "") not in {"", "result"}:
+            return
         QTimer.singleShot(0, self._format_loaded_result)
 
     def _format_loaded_result(self) -> None:
@@ -177,14 +180,13 @@ class PathenaResearchReadability(QObject):
             return
         self.details.setProperty("pathenaRawResearchResult", raw)
         self.details.setPlainText(readable)
-        self.details.moveCursor(self.details.textCursor().MoveOperation.Start)
+        self.details.moveCursor(QTextCursor.MoveOperation.Start)
 
     def _quiet_status_labels(self) -> None:
         for label in self.window.findChildren(QLabel):
             text = label.text().casefold()
             if "proposal" in text or "research" in text or "evidence" in text:
                 label.setProperty("pathenaResearchReadability", "secondary")
-
         for name in (
             "researchProposalRefreshButton",
             "researchProposalSeparateButton",
@@ -195,6 +197,9 @@ class PathenaResearchReadability(QObject):
                 button.setProperty("role", "secondary")
 
 
-def install_research_readability(window: QWidget) -> PathenaResearchReadability:
+def install_research_readability(
+    window: QWidget,
+    extension: ResearchResultsExtension,
+) -> PathenaResearchReadability:
     """Install human-readable presentation for immutable Research results."""
-    return PathenaResearchReadability(window)
+    return PathenaResearchReadability(window, extension)
