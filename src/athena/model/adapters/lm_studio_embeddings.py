@@ -58,6 +58,8 @@ class LMStudioEmbeddingProvider:
     generation_timeout_seconds: float = 300.0
 
     def __post_init__(self) -> None:
+        if not isinstance(self.model_provider, LMStudioProvider):
+            raise TypeError("Embedding model_provider must be an LMStudioProvider.")
         object.__setattr__(
             self,
             "generation_timeout_seconds",
