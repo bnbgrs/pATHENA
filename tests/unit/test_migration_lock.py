@@ -13,7 +13,7 @@ from athena.storage.migration_lock import MigrationBusyError, migration_lock
 def test_migration_lock_acquires_and_releases(tmp_path: Path) -> None:
     root = (tmp_path / "migration").absolute()
     root.mkdir()
-    lock_path = root / ".athena-migration.lock"
+    lock_path = root.parent / ".athena-migration.lock"
 
     with migration_lock(root):
         assert lock_path.is_file()
@@ -72,7 +72,7 @@ def test_migration_lock_rejects_symlink_lock_file(tmp_path: Path) -> None:
     root.mkdir()
     target = tmp_path / "target.lock"
     target.write_bytes(b"unchanged")
-    lock_path = root / ".athena-migration.lock"
+    lock_path = root.parent / ".athena-migration.lock"
     try:
         lock_path.symlink_to(target)
     except (NotImplementedError, OSError) as exc:
@@ -114,6 +114,24 @@ def test_migration_lock_rejects_path_replacement_after_lock(
 
     assert entered is False
     assert calls == 2
+
+
+def test_root_replacement_cannot_create_second_logical_lock(tmp_path: Path) -> None:
+    root = (tmp_path / "migration").absolute()
+    root.mkdir()
+    displaced = tmp_path / "migration-old"
+
+    with pytest.raises(MigrationBusyError, match="root identity changed"):
+        with migration_lock(root):
+            root.rename(displaced)
+            root.mkdir()
+
+            with pytest.raises(MigrationBusyError, match="owns the migration lock"):
+                with migration_lock(root):
+                    raise AssertionError("second logical migration must not enter")
+
+    assert displaced.is_dir()
+    assert root.is_dir()
 
 
 def test_migration_lock_rejects_missing_root(tmp_path: Path) -> None:
