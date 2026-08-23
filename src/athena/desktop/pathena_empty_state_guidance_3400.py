@@ -237,7 +237,7 @@ class EmptyStateGuidanceController(QObject):
         elif (
             isinstance(watched, QWidget)
             and isinstance(event, QDynamicPropertyChangeEvent)
-            and bytes(event.propertyName()) == b"pathenaUiState"
+            and event.propertyName().data() == b"pathenaUiState"
         ):
             self.schedule_sync()
         return super().eventFilter(watched, event)
