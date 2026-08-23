@@ -9,223 +9,247 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 ### BE-001 — Complete normative provider health states
 - Priority: P1
 - Status: DONE
-- Evidence: Feature-gap FG-003; complete six-state domain enum implemented with targeted regression coverage.
-- Components: model domain and provider-health tests.
+- Evidence: FG-003 six-state provider health domain implemented.
+- Components: model domain/tests.
 - Dependencies: none.
-- Last verification: 2026-08-23; tests added but not executed in connector runtime.
+- Last verification: 2026-08-23; tests added, not executed in connector runtime.
 
 ### BE-002 — Complete provider lifecycle/control contract
 - Priority: P1
 - Status: BLOCKED
-- Evidence: Feature-gap FG-001; Core management protocol exists, while LM Studio adapter completion remains in a shared active file. Security SEC-003 additionally requires loopback transport to ignore ambient HTTP(S) proxies when that ownership window opens.
-- Components: model ports, LM Studio adapter, provider tests.
-- Dependencies: safe ownership window for LM Studio adapter.
-- Last verification: 2026-08-23 against current remote.
+- Evidence: Core management port exists; LM Studio adapter remains a shared active file. SEC-003 also requires loopback transport to ignore ambient proxies.
+- Components: model ports, LM Studio adapter/tests.
+- Dependencies: safe adapter ownership window.
+- Last verification: 2026-08-23.
 
 ### BE-003 — Add normalized provider capability representation
 - Priority: P1
 - Status: DONE
-- Evidence: Feature-gap FG-004; support/unsupported/unknown capability contract implemented without inventing missing provider facts.
-- Components: model domain and capability tests.
+- Evidence: FG-004 supported/unsupported/unknown capability contract implemented.
+- Components: model domain/tests.
 - Dependencies: none.
-- Last verification: 2026-08-23; tests added but not executed in connector runtime.
+- Last verification: 2026-08-23; tests added, not executed.
 
 ### BE-004 — Add context-builder source diversity constraint
 - Priority: P1
 - Status: DONE
-- Evidence: Feature-gap FG-005; rank-1 preservation, near-duplicate deferral, deterministic ordering, and contradiction protection implemented.
-- Components: retrieval context builder and diversity tests.
+- Evidence: FG-005 rank-1 preservation, near-duplicate deferral, deterministic ordering and contradiction protection implemented.
+- Components: retrieval context/tests.
 - Dependencies: none.
-- Last verification: 2026-08-23; tests added but not executed in connector runtime.
+- Last verification: 2026-08-23; tests added, not executed.
 
 ### BE-005 — Provider-aware dynamic token accounting
 - Priority: P1
 - Status: STALE
-- Evidence: Current `MemoryAugmentedChatService` already performs provider-capacity-aware budgeting, reserve/margin subtraction and convergence against rendered input.
-- Components: chat memory orchestration, context builder, context package.
-- Dependencies: none outstanding for the reported gap.
-- Last verification: 2026-08-23 against current memory-chat path.
+- Evidence: Current MemoryAugmentedChatService already budgets from provider capacity and converges rendered input.
+- Components: chat memory/context package.
+- Dependencies: none.
+- Last verification: 2026-08-23.
 
 ### BE-006 — Add active primary model registry/runtime layer
 - Priority: P1
 - Status: DONE
-- Evidence: Feature-gap FG-002; Core-owned `ModelRegistry` provides provider-scoped identity, workflow capability eligibility, infrastructure exclusion, one active primary, alias/resource metadata preservation and disappearance handling.
-- Components: model registry and targeted tests.
-- Dependencies: BE-003 complete.
-- Last verification: 2026-08-23; isolated execution blocked by DNS, tests not claimed passing.
+- Evidence: FG-002 ModelRegistry implements provider-scoped identity, eligibility, infrastructure exclusion and one active primary.
+- Components: model registry/tests.
+- Dependencies: BE-003.
+- Last verification: 2026-08-23; tests not executed due environment DNS.
 
 ### BE-007 — Enforce model load ownership before automatic unload
 - Priority: P1
 - Status: DONE
-- Evidence: Feature-gap FG-007; runtime distinguishes `loaded_by_athena`, `loaded_externally`, and `unknown`. Only explicit ATHENA ownership permits automatic unload.
-- Components: model registry and load-ownership tests.
-- Dependencies: BE-006 complete.
-- Last verification: 2026-08-23; targeted tests added/updated but not executed in connector runtime.
+- Evidence: FG-007 distinguishes loaded_by_athena / loaded_externally / unknown; only ATHENA-owned loads auto-unload.
+- Components: model registry/tests.
+- Dependencies: BE-006.
+- Last verification: 2026-08-23; tests added, not executed.
 
 ### BE-008 — Persist/audit active primary model switch semantics
 - Priority: P2
 - Status: BLOCKED
-- Evidence: Beta 08 section 66 requires an auditable switch; no dedicated durable audit-event contract exists yet.
-- Components: model runtime/application audit integration.
-- Dependencies: explicit durable audit storage contract/schema ownership decision.
-- Last verification: 2026-08-23; no ad-hoc side channel introduced.
+- Evidence: Beta 08 requires auditable switching; no dedicated durable audit contract exists.
+- Components: model runtime/application audit.
+- Dependencies: durable audit storage contract decision.
+- Last verification: 2026-08-23.
 
 ### BE-009 — Provider request cancellation/discard contract
 - Priority: P2
 - Status: BLOCKED
-- Evidence: Core `ModelSession` supplies request identity, cancellation state and fail-closed late-delta/late-completion discard semantics. Provider stream port still cannot bind that request ID to the exact backend generation.
-- Components: model session, generation service/provider runtime.
-- Dependencies: safe provider request-ID plumbing and adapter ownership window.
-- Last verification: 2026-08-23; ModelSession lifecycle tests added, provider port still lacks request-id binding.
+- Evidence: ModelSession has request identity/cancellation/late-result discard, but provider stream port cannot bind the exact backend request yet.
+- Components: model session/provider orchestration.
+- Dependencies: safe request-ID plumbing and adapter ownership window.
+- Last verification: 2026-08-23.
 
 ### BE-010 — Generation numeric/control boundary hardening
 - Priority: P2
 - Status: IN_PROGRESS
-- Evidence: Direct persistent chat previously accepted bool/non-integer controls through comparison-only validation and could persist the user message before downstream rejection. Direct-chat controls, temperature finiteness and explicit effective context limit are now strictly validated before any collaborator/persistence path. Legacy grounded/provider-private boundaries still require re-trace before this slice can close.
-- Components: `src/athena/chat/direct.py`, ContextPackage/provider controls, remaining grounded paths, targeted tests.
-- Dependencies: avoid whole-file collision on `chat/generation.py`.
-- Last verification: 2026-08-23; ContextPackage `generation_temperature()` still has a huge-integer float-conversion overflow boundary tracked as BE-021.
+- Evidence: direct persistent chat controls hardened before persistence; remaining grounded/provider-private boundaries need re-trace.
+- Components: chat/direct, ContextPackage/provider controls/tests.
+- Dependencies: avoid collision on chat/generation.py.
+- Last verification: 2026-08-23; BE-021 remains open.
 
 ### BE-011 — Confine BlobStore writes against symlink/junction ancestors
 - Priority: P1
 - Status: DONE
-- Evidence: BlobStore publication already routes through durable filesystem primitives. Ordinary symlinks were already rejected; Windows junction/reparse-point boundaries are now rejected as well.
-- Components: durable filesystem primitives and targeted filesystem tests.
+- Evidence: durable filesystem trust boundary rejects symlinks and Windows junction/reparse points.
+- Components: durable_fs/BlobStore tests.
 - Dependencies: none.
-- Last verification: 2026-08-23; test execution attempted but blocked by DNS, no pass claimed.
+- Last verification: 2026-08-23; test execution blocked by DNS.
 
 ### BE-012 — Preserve provider-observed model revision in ModelSignature
 - Priority: P1
 - Status: DONE
-- Evidence: Feature-gap FG-008; normalized ModelInfo carries optional exact provider-observed revision and ModelRunRepository includes it in signature hashing, persistence and reconstruction without inference.
-- Components: model domain/provenance and targeted tests.
-- Dependencies: none; providers that expose no reliable revision continue to supply `None`.
-- Last verification: 2026-08-23. Current LM Studio v1 model-list contract exposes no revision/commit-hash field, so leaving revision unknown is correct.
+- Evidence: FG-008 optional exact provider revision participates in signature identity and ContextPackage propagation without inference.
+- Components: model domain/provenance/tests.
+- Dependencies: none.
+- Last verification: 2026-08-23.
 
 ### BE-013 — Complete first-class ModelSession binding
 - Priority: P1
 - Status: BLOCKED
-- Evidence: Feature-gap FG-009 is PARTIAL. Core session lifecycle exists with stable request UUID, ModelSignature/ProcessingRun identity, context/output budgets, cancellation and streaming state. Exact provider request binding remains absent.
-- Components: model session, model ports, chat/model orchestration, provider adapter.
-- Dependencies: safe adapter ownership window or backwards-compatible request-bound provider capability.
-- Last verification: 2026-08-23; session tests added but not executed in connector runtime.
+- Evidence: FG-009 Core ModelSession exists; exact provider request binding remains absent.
+- Components: model session/ports/chat orchestration/provider adapter.
+- Dependencies: safe adapter ownership window.
+- Last verification: 2026-08-23.
 
 ### BE-014 — Carry ModelSignature revision through ContextPackage and drift checks
 - Priority: P1
 - Status: IN_PROGRESS
-- Evidence: ContextModelSignature and ContextPackage run snapshots preserve `model_revision`. A Core `assert_runtime_model_matches_signature()` guard now rejects provider/model/quantization drift and changed or unverifiable known revisions while preserving originally unknown revision semantics. `ChatGenerationService` integration remains outstanding.
-- Components: ContextPackage, `src/athena/model/signature_guard.py`, chat generation integration, targeted tests.
-- Dependencies: safe ownership window for large shared `chat/generation.py` or a patch-capable writer.
-- Last verification: 2026-08-23; drift guard and targeted tests added, not executed in connector runtime.
+- Evidence: ContextPackage preserves revision and reusable runtime drift guard exists; ChatGenerationService integration remains.
+- Components: ContextPackage/signature_guard/chat generation/tests.
+- Dependencies: safe mutation window for shared chat/generation.py.
+- Last verification: 2026-08-23.
 
 ### BE-015 — Normalize Core provider failure taxonomy
 - Priority: P1
 - Status: BLOCKED
-- Evidence: Feature-gap FG-010 is PARTIAL. Core now defines stable provider failure kinds, retry classes and sanitized durable codes; LM Studio exception-to-taxonomy mapping remains outstanding.
-- Components: `src/athena/model/failures.py`, adapter mapping, job/chat diagnostics and targeted tests.
-- Dependencies: safe LM Studio adapter ownership window.
-- Last verification: 2026-08-23; taxonomy tests added but not executed in connector runtime.
+- Evidence: FG-010 Core taxonomy/retry classes exist; adapter mapping remains.
+- Components: model/failures, LM Studio adapter, consumers/tests.
+- Dependencies: safe adapter ownership window.
+- Last verification: 2026-08-23.
 
 ### BE-016 — Protection-aware retrieval/context bridge
 - Priority: P1
 - Status: IN_PROGRESS
-- Evidence: Feature-gap FG-012. Protected runtime search/context already enforces unlocked scope identity and ephemeral plaintext handling. `ProtectedRuntimeExecutionGuard` verifies bundle shape/integrity at construction and immediately before provider execution, and exposes only persistence-safe identifiers/counts with no plaintext or plaintext hashes. End-to-end generation/persistence policy remains open.
-- Components: `src/athena/retrieval/protected_source.py`, `src/athena/retrieval/protected_execution.py`, protected generation orchestration and targeted lock/relock tests.
-- Dependencies: explicit protected output persistence policy; preserve zero protected-cleartext leakage into unprotected index/log/run-snapshot/assistant-message paths.
-- Last verification: 2026-08-23; guard tests cover relock propagation, metadata non-leakage and malformed budget/mode boundaries, not executed in connector runtime.
+- Evidence: FG-012 ephemeral protected retrieval and execution guard exist; end-to-end generation/persistence policy remains.
+- Components: protected_source/protected_execution/orchestration/tests.
+- Dependencies: explicit protected output persistence policy.
+- Last verification: 2026-08-23.
 
 ### BE-017 — Enforce ModelSession constructor cancellation invariants
 - Priority: P2
 - Status: DONE
-- Evidence: Direct dataclass construction previously allowed impossible lifecycle combinations such as CREATED+cancel_requested, CANCELLED without cancel_requested, or COMPLETED/FAILED with retained cancellation. Constructor invariants now match the runtime transition graph.
-- Components: `src/athena/model/session.py`, `tests/unit/test_model_session.py`.
+- Evidence: impossible direct lifecycle combinations rejected.
+- Components: model/session tests.
 - Dependencies: none.
-- Last verification: 2026-08-23; targeted regression tests added but not executed in connector runtime.
+- Last verification: 2026-08-23.
 
 ### BE-018 — Fail closed on out-of-range UUIDv7 system clock
 - Priority: P2
 - Status: DONE
-- Evidence: `new_uuid7()` previously masked the Unix-millisecond timestamp into 48 bits, silently wrapping negative or out-of-range system clocks into false durable identities. It now rejects values outside the RFC 9562 timestamp field range.
-- Components: `src/athena/common/ids.py`, `tests/unit/test_ids.py`.
+- Evidence: UUIDv7 timestamp no longer silently wraps outside RFC range.
+- Components: common/ids tests.
 - Dependencies: none.
-- Last verification: 2026-08-23; timestamp-preservation and lower/upper boundary regression tests added but not executed.
+- Last verification: 2026-08-23.
 
 ### BE-019 — Canonicalize provider-observed model identity metadata
 - Priority: P2
 - Status: BLOCKED
-- Evidence: Model identity/quantization whitespace can create divergent signature keys, but enforcing canonical text solely inside `ModelInfo` causes malformed LM Studio metadata to escape as raw `ValueError` instead of `ProviderProtocolError`; the attempted domain-only hardening was therefore reverted completely.
-- Components: LM Studio `_required_string` / `_parse_quantization`, ModelInfo domain contract, provider tests.
-- Dependencies: safe ownership window for shared LM Studio adapter so normalization/error classification can be changed atomically.
-- Last verification: 2026-08-23; adapter parse path re-read after the attempted hardening and domain/test files restored to their prior blobs.
+- Evidence: domain-only normalization breaks provider error taxonomy; change must be atomic with adapter parsing.
+- Components: LM Studio parsing/ModelInfo/tests.
+- Dependencies: safe adapter ownership window.
+- Last verification: 2026-08-23.
 
 ### BE-020 — Integrate runtime ModelSignature drift guard into generation
 - Priority: P1
 - Status: READY
-- Evidence: The reusable guard is implemented and tested independently; `ChatGenerationService.send_context_package()` still contains its older inline provider/model/quantization comparison and does not call the revision-aware guard.
-- Components: `src/athena/chat/generation.py`, model signature guard, generation tests.
-- Dependencies: safe mutation mechanism/ownership window for large shared generation file.
-- Last verification: 2026-08-23 against current remote `chat/generation.py`.
+- Evidence: reusable guard exists; ChatGenerationService still uses older inline comparison.
+- Components: chat/generation.py, signature_guard/tests.
+- Dependencies: safe mutation window for shared generation file.
+- Last verification: 2026-08-23.
 
 ### BE-021 — Harden ContextPackage generation-temperature conversion
 - Priority: P2
 - Status: READY
-- Evidence: `ContextPackage.generation_temperature()` accepts Python integers and calls `float(value)` without catching `OverflowError`; an extreme but valid JSON integer can escape the ContextPackage error contract before provider execution.
-- Components: `src/athena/retrieval/context_package.py`, ContextPackage generation-control tests.
-- Dependencies: safe mutation mechanism/ownership window for the large shared ContextPackage file.
-- Last verification: 2026-08-23 against current remote `context_package.py`.
+- Evidence: extreme JSON integer can OverflowError during float conversion outside ContextPackage error contract.
+- Components: retrieval/context_package.py/tests.
+- Dependencies: safe mutation window for shared ContextPackage file.
+- Last verification: 2026-08-23.
 
 ### BE-022 — Fail closed on invalid persistent wall-clock range
 - Priority: P1
 - Status: DONE
-- Evidence: `utc_now_us()` feeds durable SQLite timestamps globally and previously returned negative/out-of-int64 values directly. It now rejects timestamps outside the non-negative signed SQLite int64 range before persistence code receives them.
-- Components: `src/athena/common/time.py`, `tests/unit/test_time.py`.
+- Evidence: utc_now_us rejects negative/out-of-SQLite-int64 timestamps.
+- Components: common/time tests.
 - Dependencies: none.
-- Last verification: 2026-08-23; exact microsecond preservation and range-boundary tests added but not executed.
+- Last verification: 2026-08-23.
 
 ### BE-023 — Reject Unicode line controls in structured schema IDs
 - Priority: P2
 - Status: DONE
-- Evidence: The controlled structured prompt contract claimed single-line schema IDs but only rejected ASCII C0/DEL controls, allowing Unicode NEL/LINE SEPARATOR/PARAGRAPH SEPARATOR to create additional logical lines. Unicode control/line/paragraph categories are now rejected while ordinary Unicode identifiers remain allowed.
-- Components: `src/athena/model/ports.py`, `tests/unit/test_model_port_schema_id_boundaries.py`.
+- Evidence: Unicode line/paragraph controls are rejected from single-line schema IDs.
+- Components: model/ports tests.
 - Dependencies: none.
-- Last verification: 2026-08-23; targeted tests added but not executed.
+- Last verification: 2026-08-23.
 
 ### BE-024 — Harden runtime mutation lock identity and permissions
 - Priority: P1
 - Status: DONE
-- Evidence: Existing lock creation mode did not repair permissive pre-existing POSIX modes and symlink checks did not detect regular-file pathname replacement after open. The lock now enforces owner-only POSIX mode and verifies path/handle identity both after open and after lock acquisition.
-- Components: `src/athena/lifecycle/runtime_lock.py`, `tests/unit/test_runtime_data_lock_permissions.py`.
+- Evidence: owner-only POSIX mode plus path/handle identity checks before/after lock.
+- Components: lifecycle/runtime_lock tests.
 - Dependencies: none.
-- Last verification: 2026-08-23; permission and simulated pathname-replacement tests added but not executed.
+- Last verification: 2026-08-23.
 
 ### BE-025 — Harden backup target lock identity against pathname replacement
 - Priority: P1
 - Status: DONE
-- Evidence: Backup target locking already rejected symlinks and enforced POSIX permissions, but a regular lock file could be replaced after opening, causing processes to serialize on different inodes. Path/handle identity is now verified after open and after lock acquisition.
-- Components: `src/athena/backup/target_lock.py`, `tests/unit/test_backup_target_lock_boundaries.py`.
+- Evidence: backup lock validates path/handle identity after open/acquisition.
+- Components: backup/target_lock tests.
 - Dependencies: none.
-- Last verification: 2026-08-23; simulated POSIX replacement-race regression added but not executed.
+- Last verification: 2026-08-23.
 
 ### BE-026 — Reject network-backed active SQLite state roots
 - Priority: P1
 - Status: DONE
-- Evidence: Feature-gap FG-014. Active state locality is now checked before RuntimeLayout creates/probes state and before `inspect_database_read_only()` can open SQLite. Windows UNC and mapped remote drives are refused; unverifiable Windows drive types fail closed. Linux mountinfo rejects known network filesystems using the longest matching mount point, without banning archive/backup/projection targets.
-- Components: `src/athena/storage/locality.py`, `src/athena/storage/runtime.py`, `src/athena/storage/recovery.py`, targeted locality/preflight tests.
+- Evidence: FG-014 refuses Windows UNC/mapped network and known Linux network filesystems before RuntimeLayout mutation and SQLite preflight.
+- Components: storage/locality, runtime, recovery/tests.
 - Dependencies: none.
-- Last verification: 2026-08-23; targeted tests added. Local execution attempted but blocked because the isolated runtime could not resolve `github.com`; no test pass claimed.
+- Last verification: 2026-08-23; tests added, no pass claimed.
 
 ### BE-027 — Establish clone-migration safety metadata and free-space contract
 - Priority: P1
 - Status: DONE
-- Evidence: FG-013 audit confirmed that Beta 03 requires explicit migration metadata plus DB size + 25% + 512 MiB + emergency-reserve free-space preflight. Library-neutral contracts now encode these invariants with integer-only arithmetic and fail-closed validation.
-- Components: `src/athena/storage/migration_safety.py`, `tests/unit/test_migration_safety.py`, migration reconciliation note.
+- Evidence: FG-013 exact migration metadata and DB + 25% + 512 MiB + emergency reserve preflight implemented with integer-only arithmetic.
+- Components: migration_safety/tests/reconciliation note.
 - Dependencies: none.
-- Last verification: 2026-08-23; targeted tests added but not executed because the isolated runtime cannot resolve `github.com`.
+- Last verification: 2026-08-23; tests added, not executed.
 
 ### BE-028 — Implement clone/journal migration coordinator before live schema mutation
 - Priority: P1
+- Status: IN_PROGRESS
+- Evidence: Standalone clone-first migration stack now exists: versioned descriptor/preflight, SQLite Online Backup candidate, durable external phase journal, exclusive cross-process lock, full integrity/FK/version verification, rollback-preserving activation, orphan/journal fail-closed recovery boundaries and crash-phase tests. Quality-reported Windows junction/reparse issue in the new clone path was fixed via the shared durable-fs trust-boundary predicate and regressions were added. Normal SQLiteDatabase.start() is not yet wired to this coordinator and still performs legacy live initialize_schema migration.
+- Components: migration_safety, migration_clone, migration_journal, migration_lock, migration_activation, migration_coordinator, database startup integration/tests.
+- Dependencies: BE-027 DONE; BE-029 reserve lifecycle must be production-integrated before startup migration uses a real reserve size. Alembic-vs-custom executor remains a separate architecture decision.
+- Last verification: 2026-08-23; targeted tests added but not executed because isolated runtime cannot resolve github.com.
+
+### BE-029 — Provision physically allocated Emergency Reserve
+- Priority: P1
+- Status: IN_PROGRESS
+- Evidence: Beta 03 requires state_root/reserve/emergency.reserve, physically allocated and non-sparse, default max(256 MiB, min(1 GiB, 1% volume)). EmergencyReserveStore and EmergencyReserveService implement exact sizing, physical allocation, path/reparse safety, durable persistence, explicit release and a test override that avoids large allocations. Application bootstrap integration remains outstanding.
+- Components: storage/emergency_reserve.py, RuntimeLayout/Application startup, targeted tests.
+- Dependencies: RuntimeLayout must create state_root before reserve provisioning; DatabaseService must start only after reserve provisioning.
+- Last verification: 2026-08-23; store/service and targeted tests added, not executed.
+
+### BE-030 — Implement deterministic disk-pressure state controller
+- Priority: P1
+- Status: IN_PROGRESS
+- Evidence: Beta 03 thresholds are encoded as pure integer policy: WARNING free < max(10 GiB, 5%), CRITICAL free < max(5 GiB, 2%), EMERGENCY free < max(2 GiB, 1%). Assessment exposes reserve-release/noncritical-write/read-only-safe-mode decisions; side-effect controller integration remains outstanding.
+- Components: storage/disk_pressure.py, reserve release controller, diagnostics/jobs/tests.
+- Dependencies: BE-029 reserve primitive available.
+- Last verification: 2026-08-23; pure policy and boundary tests added, not executed.
+
+### BE-031 — Wire candidate-only schema executor into clone migration
+- Priority: P1
 - Status: READY
-- Evidence: FG-013 audit shows `SQLiteDatabase.start()` opens the live database and `initialize_schema()` advances historical schemas on that live connection, while Beta 03 requires clone-first migration, migration journal, exclusive lock, integrity verification, durable activation and rollback retention.
-- Components: storage migration coordinator, SQLite Online Backup clone path, migration journal/lock, database startup integration, targeted crash/recovery tests.
-- Dependencies: BE-027 complete. The safety coordinator can be implemented independently of the later Alembic-vs-custom-executor architecture decision.
-- Last verification: 2026-08-23 against current `database.py`, `schema.py` and Beta 03 sections 193–209.
+- Evidence: BE-028 coordinator intentionally accepts an executor but current initialize_schema configures WAL on its connection. Candidate execution needs a dedicated wrapper that migrates only candidate.db, checkpoints/normalizes journal mode and leaves no WAL/SHM before verification/activation.
+- Components: schema executor, schema.py/database integration/tests.
+- Dependencies: BE-028 standalone coordinator.
+- Last verification: 2026-08-23 against current schema/database path.
