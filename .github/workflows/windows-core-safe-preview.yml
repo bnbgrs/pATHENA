@@ -11,6 +11,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: windows-core-safe-preview
+  cancel-in-progress: true
+
 jobs:
   build-core-safe-preview:
     runs-on: windows-2022
