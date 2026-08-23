@@ -1,7 +1,14 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QProcess, Qt
-from PySide6.QtWidgets import QApplication, QLabel, QListWidget, QListWidgetItem, QPlainTextEdit, QWidget
+from PySide6.QtWidgets import (
+    QApplication,
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QPlainTextEdit,
+    QWidget,
+)
 
 from athena.desktop.app import create_application
 from athena.desktop.pathena_selection_disappearance_handoff import (
@@ -42,7 +49,10 @@ def test_direct_reselection_clears_vanished_selection_announcement() -> None:
     try:
         results.workspace.jobs.setProperty("pathenaSelectionDisappeared", "old-job-id")
         details.setProperty("pathenaSelectionDisappeared", "old-job-id")
-        details.setPlainText("The previously selected research run disappeared.")
+        message = "The previously selected research run disappeared."
+        details.setPlainText(message)
+        details.setAccessibleDescription(message)
+        results.workspace.jobs.setStatusTip(message)
         controller._sync_target(target)
         assert results.workspace.jobs.property("pathenaSelectionHandoffAnnouncement")
 
@@ -55,6 +65,8 @@ def test_direct_reselection_clears_vanished_selection_announcement() -> None:
         assert results.workspace.jobs.property("pathenaSelectionDisappeared") == ""
         assert details.property("pathenaSelectionDisappeared") == ""
         assert results.workspace.jobs.property("pathenaSelectionHandoffAnnouncement") == ""
+        assert results.workspace.jobs.statusTip() == ""
+        assert details.accessibleDescription() == ""
     finally:
         controller.deleteLater()
         results.workspace.deleteLater()
