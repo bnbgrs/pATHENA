@@ -48,7 +48,7 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 
 ### UI-036 — Research filter/result-scope synchronization
 - **Priority:** P1
-- **Status:** READY
+- **Status:** IN_PROGRESS
 - **Evidence:** UI-031 counts hidden rows, but Research job filtering lives in the ResearchResultsExtension and does not currently trigger the generic scope controller; shown/total can become stale immediately after filter text changes.
 - **Views/components:** Research job filter, research job list, result-scope label.
 - **Dependencies:** UI-031 and existing ResearchResultsExtension filter only.
