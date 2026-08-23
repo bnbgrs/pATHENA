@@ -9,18 +9,20 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import BinaryIO, cast
 
+from athena.storage.durable_fs import is_link_boundary
+
 
 class MigrationBusyError(RuntimeError):
     """Raised when migration ownership cannot be established safely."""
 
 
-def _assert_no_symlink_ancestor(path: Path) -> None:
+def _assert_safe_migration_root(path: Path) -> None:
     for candidate in (path, *path.parents):
-        if candidate.is_symlink():
+        if is_link_boundary(candidate):
             raise MigrationBusyError(
-                "Migration lock path contains a symbolic-link ancestor."
+                "Migration lock path contains a symlink, junction, or reparse-point ancestor."
             )
-        if candidate.exists() and not candidate.is_dir() and candidate != path:
+        if candidate.exists() and not candidate.is_dir():
             raise MigrationBusyError(
                 "Migration lock path contains a non-directory ancestor."
             )
@@ -32,13 +34,15 @@ def _assert_handle_matches_path(lock_path: Path, handle: BinaryIO) -> None:
         handle_stat = os.fstat(handle.fileno())
     except OSError as exc:
         raise MigrationBusyError("Migration lock identity cannot be verified.") from exc
-    if lock_path.is_symlink() or not os.path.samestat(path_stat, handle_stat):
+    if is_link_boundary(lock_path) or not os.path.samestat(path_stat, handle_stat):
         raise MigrationBusyError("Migration lock pathname changed during acquisition.")
 
 
 def _open_lock_file(lock_path: Path) -> BinaryIO:
-    if lock_path.is_symlink():
-        raise MigrationBusyError("Migration lock must not be a symbolic link.")
+    if is_link_boundary(lock_path):
+        raise MigrationBusyError(
+            "Migration lock must not be a symlink, junction, or reparse point."
+        )
     flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0)
     try:
         descriptor = os.open(lock_path, flags, 0o600)
@@ -124,7 +128,7 @@ def migration_lock(migration_root: Path) -> Iterator[None]:
     """Acquire the exclusive lock required for one blocking migration."""
     if not isinstance(migration_root, Path):
         raise TypeError("Migration root must be a pathlib.Path.")
-    _assert_no_symlink_ancestor(migration_root)
+    _assert_safe_migration_root(migration_root)
     if not migration_root.is_dir():
         raise MigrationBusyError("Migration root must be an existing directory.")
 
