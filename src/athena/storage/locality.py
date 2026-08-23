@@ -6,6 +6,8 @@ import os
 from pathlib import Path, PureWindowsPath
 from typing import Callable
 
+_UNKNOWN_WINDOWS_DRIVE = 0
+_NO_ROOT_WINDOWS_DRIVE = 1
 _REMOTE_WINDOWS_DRIVE = 4
 _REMOTE_POSIX_FILESYSTEMS = frozenset(
     {
@@ -26,7 +28,7 @@ _REMOTE_POSIX_FILESYSTEMS = frozenset(
 
 
 class ActiveStateLocalityError(RuntimeError):
-    """Raised when the live database state root is detectably network-backed."""
+    """Raised when the live database state root is not proven local enough."""
 
 
 def _windows_unc_root(path: Path) -> bool:
@@ -109,7 +111,9 @@ def assert_active_state_root_local(
             )
         root = _windows_drive_root(path)
         if root is None:
-            return
+            raise ActiveStateLocalityError(
+                "ATHENA could not establish a local Windows drive for active state."
+            )
         drive_type_fn = _windows_drive_type_fn or _windows_drive_type
         try:
             drive_type = drive_type_fn(root)
@@ -120,6 +124,10 @@ def assert_active_state_root_local(
         if drive_type == _REMOTE_WINDOWS_DRIVE:
             raise ActiveStateLocalityError(
                 "ATHENA active state root must not use a mapped network drive."
+            )
+        if drive_type in {_UNKNOWN_WINDOWS_DRIVE, _NO_ROOT_WINDOWS_DRIVE}:
+            raise ActiveStateLocalityError(
+                "ATHENA could not verify that the active state drive is local."
             )
         return
 
