@@ -344,7 +344,7 @@ class PathenaResearchExperience(QObject):
             self.workspace.refresh_button,
             self.workspace.cancel_button,
         )
-        for first, second in zip(focus_order, focus_order[1:]):
+        for first, second in zip(focus_order, focus_order[1:], strict=False):
             QWidget.setTabOrder(first, second)
 
         self._add_shortcut("Ctrl+Enter", self._start_if_available)
