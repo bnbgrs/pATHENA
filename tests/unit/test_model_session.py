@@ -34,6 +34,17 @@ def test_model_session_streams_and_completes() -> None:
     assert session.request_key == str(session.request_id)
 
 
+def test_model_session_accepts_zero_context_budget_for_direct_chat() -> None:
+    session = ModelSession(
+        request_id=uuid.uuid4(),
+        model_signature_id=uuid.uuid4(),
+        context_budget=0,
+        output_reserve=64,
+    )
+
+    assert session.context_budget == 0
+
+
 def test_cancel_before_streaming_never_requires_provider_cancel() -> None:
     session = _session()
 
@@ -104,22 +115,26 @@ def test_model_session_requires_uuid_identity(field: str) -> None:
         ModelSession(**values)  # type: ignore[arg-type]
 
 
-@pytest.mark.parametrize("field", ["context_budget", "output_reserve"])
-@pytest.mark.parametrize("value", [True, False, 0, -1, 1.5, "10", None])
-def test_model_session_rejects_invalid_positive_budget(
-    field: str,
-    value: object,
-) -> None:
-    values: dict[str, object] = {
-        "request_id": uuid.uuid4(),
-        "model_signature_id": uuid.uuid4(),
-        "context_budget": 100,
-        "output_reserve": 10,
-    }
-    values[field] = value
-
+@pytest.mark.parametrize("value", [True, False, -1, 1.5, "10", None])
+def test_model_session_rejects_invalid_context_budget(value: object) -> None:
     with pytest.raises((TypeError, ValueError)):
-        ModelSession(**values)  # type: ignore[arg-type]
+        ModelSession(
+            request_id=uuid.uuid4(),
+            model_signature_id=uuid.uuid4(),
+            context_budget=value,  # type: ignore[arg-type]
+            output_reserve=10,
+        )
+
+
+@pytest.mark.parametrize("value", [True, False, 0, -1, 1.5, "10", None])
+def test_model_session_rejects_invalid_output_reserve(value: object) -> None:
+    with pytest.raises((TypeError, ValueError)):
+        ModelSession(
+            request_id=uuid.uuid4(),
+            model_signature_id=uuid.uuid4(),
+            context_budget=100,
+            output_reserve=value,  # type: ignore[arg-type]
+        )
 
 
 def test_model_session_rejects_delta_before_streaming() -> None:
