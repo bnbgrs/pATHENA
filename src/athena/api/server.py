@@ -142,12 +142,26 @@ class _AthenaRequestHandler(BaseHTTPRequestHandler):
                         raise CoreApiServerError("ASGI response started more than once.")
                     status = message.get("status")
                     headers_value = message.get("headers", [])
-                    if not isinstance(status, int):
+                    if (
+                        isinstance(status, bool)
+                        or not isinstance(status, int)
+                        or not 100 <= status <= 599
+                    ):
                         raise CoreApiServerError("ASGI response status is invalid.")
                     if not isinstance(headers_value, list):
                         raise CoreApiServerError("ASGI response headers are invalid.")
+                    validated_headers: list[tuple[bytes, bytes]] = []
+                    for item in headers_value:
+                        if (
+                            not isinstance(item, tuple)
+                            or len(item) != 2
+                            or not isinstance(item[0], bytes)
+                            or not isinstance(item[1], bytes)
+                        ):
+                            raise CoreApiServerError("ASGI response headers are invalid.")
+                        validated_headers.append((item[0], item[1]))
                     response_status = status
-                    response_headers = cast(list[tuple[bytes, bytes]], headers_value)
+                    response_headers = validated_headers
                     return
                 if message_type == "http.response.body":
                     body = message.get("body", b"")
@@ -202,15 +216,15 @@ class _AthenaRequestHandler(BaseHTTPRequestHandler):
         if transfer_encoding is not None:
             raise ValueError("Chunked request bodies are not supported by this local API.")
 
-        raw_length = self.headers.get("Content-Length")
-        if raw_length is None:
+        length_values = self.headers.get_all("Content-Length", failobj=[])
+        if len(length_values) > 1:
+            raise ValueError("Multiple Content-Length headers are not supported.")
+        if not length_values:
             return b""
-        try:
-            content_length = int(raw_length)
-        except ValueError as exc:
-            raise ValueError("Content-Length must be an integer.") from exc
-        if content_length < 0:
-            raise ValueError("Content-Length must not be negative.")
+        raw_length = length_values[0]
+        if not raw_length.isascii() or not raw_length.isdecimal():
+            raise ValueError("Content-Length must be a canonical non-negative integer.")
+        content_length = int(raw_length)
         if content_length > _MAX_REQUEST_BODY_BYTES:
             raise ValueError("ATHENA Core API request body is too large.")
         if content_length == 0:
@@ -254,8 +268,10 @@ class CoreApiServer:
     ) -> None:
         if host != _LOOPBACK_HOST:
             raise ValueError("ATHENA Core API may bind only to IPv4 loopback in v1.")
-        if not 0 <= port <= 65535:
-            raise ValueError("ATHENA Core API port must be between 0 and 65535.")
+        if isinstance(port, bool) or not isinstance(port, int) or not 0 <= port <= 65535:
+            raise ValueError(
+                "ATHENA Core API port must be an integer between 0 and 65535."
+            )
         self._host = host
         self._configured_port = port
         self.runtime = LocalApiRuntime(runtime_root)
@@ -309,15 +325,24 @@ class CoreApiServer:
             thread.start()
             thread_started = True
             discovery = self.runtime.publish(port=actual_port)
-        except Exception:
+        except BaseException:
             if thread_started:
-                server.shutdown()
-            server.server_close()
+                try:
+                    server.shutdown()
+                except BaseException:
+                    logger.exception("Failed to shut down ATHENA Core API after startup error")
+            try:
+                server.server_close()
+            except BaseException:
+                logger.exception("Failed to close ATHENA Core API after startup error")
             if thread_started:
-                thread.join(timeout=_THREAD_JOIN_TIMEOUT_SECONDS)
+                try:
+                    thread.join(timeout=_THREAD_JOIN_TIMEOUT_SECONDS)
+                except BaseException:
+                    logger.exception("Failed to join ATHENA Core API thread after startup error")
             try:
                 self.runtime.clear()
-            except Exception:
+            except BaseException:
                 logger.exception("Failed to clear ATHENA Core API runtime after startup error")
             raise
 
@@ -335,29 +360,36 @@ class CoreApiServer:
         self._server = None
         self._thread = None
         self._discovery = None
-        failures: list[Exception] = []
+        failures: list[BaseException] = []
 
         try:
             self.runtime.clear()
-        except Exception as exc:
+        except BaseException as exc:
             failures.append(exc)
 
         if server is not None:
             try:
                 server.shutdown()
-            except Exception as exc:
+            except BaseException as exc:
                 failures.append(exc)
             try:
                 server.server_close()
-            except Exception as exc:
+            except BaseException as exc:
                 failures.append(exc)
 
         if thread is not None:
-            thread.join(timeout=_THREAD_JOIN_TIMEOUT_SECONDS)
-            if thread.is_alive():
-                failures.append(CoreApiServerError("ATHENA Core API thread did not stop."))
+            try:
+                thread.join(timeout=_THREAD_JOIN_TIMEOUT_SECONDS)
+            except BaseException as exc:
+                failures.append(exc)
+            else:
+                if thread.is_alive():
+                    failures.append(CoreApiServerError("ATHENA Core API thread did not stop."))
 
         if failures:
+            for failure in failures:
+                if not isinstance(failure, Exception):
+                    raise failure
             raise CoreApiServerError("ATHENA Core API did not stop cleanly.") from failures[0]
 
         logger.info("ATHENA Core API stopped", extra={"event": "core_api.stopped"})
