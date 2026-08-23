@@ -1,6 +1,5 @@
 import pytest
 
-
 VALID = {
     "deleted_at_us": 123456789,
     "deleted_by_actor_id": "00000000-0000-7000-8000-000000000201",
