@@ -16,15 +16,26 @@ from athena.desktop.knowledge_acceptance import install_knowledge_acceptance
 from athena.desktop.knowledge_workspace import install_knowledge_workspace
 from athena.desktop.pathena_interaction_refinement import install_interaction_refinement
 from athena.desktop.pathena_jobs_experience_2800 import install_jobs_experience
-from athena.desktop.pathena_knowledge_acceptance_presentation import apply_knowledge_acceptance_presentation
+from athena.desktop.pathena_knowledge_acceptance_presentation import (
+    apply_knowledge_acceptance_presentation,
+)
 from athena.desktop.pathena_layout_refinement_2200 import install_layout_refinement
-from athena.desktop.pathena_progressive_workspace_2300 import install_progressive_workspace_refinement
+from athena.desktop.pathena_progressive_workspace_2300 import (
+    install_progressive_workspace_refinement,
+)
 from athena.desktop.pathena_research_experience_2500 import install_research_experience
-from athena.desktop.pathena_research_knowledge_transition_2700 import install_research_knowledge_transition
-from athena.desktop.pathena_research_proposal_clarity_2600 import install_research_proposal_clarity
+from athena.desktop.pathena_research_knowledge_transition_2700 import (
+    install_research_knowledge_transition,
+)
+from athena.desktop.pathena_research_proposal_clarity_2600 import (
+    install_research_proposal_clarity,
+)
 from athena.desktop.pathena_research_readability_2400 import install_research_readability
-from athena.desktop.pathena_research_result_presentation import apply_research_result_presentation
+from athena.desktop.pathena_research_result_presentation import (
+    apply_research_result_presentation,
+)
 from athena.desktop.pathena_shell_density import apply_shell_density
+from athena.desktop.pathena_startup_experience_2900 import install_startup_experience
 from athena.desktop.pathena_ui_refinement_integrity import apply_complete_ui_refinements
 from athena.desktop.pathena_window import PathenaMainWindow
 from athena.desktop.pathena_workspace_presentation import apply_workspace_presentation
@@ -61,6 +72,7 @@ def build_window() -> PathenaMainWindow:
     install_command_palette(window)
 
     jobs_experience = install_jobs_experience(jobs_workspace)
+    startup_experience = install_startup_experience(window)
     apply_complete_ui_refinements(window)
     install_interaction_refinement(window)
     install_layout_refinement(window)
@@ -79,6 +91,7 @@ def build_window() -> PathenaMainWindow:
         research_results_extension,
         jobs_workspace,
         jobs_experience,
+        startup_experience,
         files_workspace,
         system_workspace,
     )
@@ -91,7 +104,9 @@ def main() -> int:
     window.resize(1480, 900)
     window.show()
 
-    destination = Path(os.environ.get("PATHENA_UI_SNAPSHOT", "artifacts/pathena-ui.png"))
+    destination = Path(
+        os.environ.get("PATHENA_UI_SNAPSHOT", "artifacts/pathena-ui.png")
+    )
     destination.parent.mkdir(parents=True, exist_ok=True)
 
     def capture() -> None:
