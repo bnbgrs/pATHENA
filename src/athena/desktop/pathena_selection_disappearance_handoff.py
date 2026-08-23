@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from PySide6.QtCore import QDynamicPropertyChangeEvent, QEvent, QObject, QTimer
-from PySide6.QtWidgets import QListWidget, QPlainTextEdit
+from PySide6.QtWidgets import QListWidget, QListWidgetItem, QPlainTextEdit
 
 from athena.desktop.files_workspace import FilesWorkspace
 from athena.desktop.jobs_workspace import JobsWorkspace
@@ -47,7 +47,10 @@ class SelectionDisappearanceHandoff(QObject):
         for target in targets:
             target.selection.installEventFilter(self)
             target.selection.currentItemChanged.connect(
-                lambda _current, _previous, current=target: self._sync_target(current)
+                lambda current, _previous, current_target=target: self._selection_changed(
+                    current_target,
+                    current,
+                )
             )
             self._sync_target(target)
 
@@ -70,6 +73,21 @@ class SelectionDisappearanceHandoff(QObject):
                 if target is not None:
                     QTimer.singleShot(0, lambda current=target: self._sync_target(current))
         return super().eventFilter(watched, event)
+
+    def _selection_changed(
+        self,
+        target: _SelectionTarget,
+        current: QListWidgetItem | None,
+    ) -> None:
+        if current is not None:
+            target.selection.setProperty("pathenaSelectionDisappeared", "")
+            target.details.setProperty("pathenaSelectionDisappeared", "")
+            if target.selection is self._research_results.workspace.jobs:
+                self._research_results.proposal_status.setProperty(
+                    "pathenaSelectionDisappeared",
+                    "",
+                )
+        self._sync_target(target)
 
     def _sync_target(self, target: _SelectionTarget) -> None:
         missing_value = target.selection.property("pathenaSelectionDisappeared")
