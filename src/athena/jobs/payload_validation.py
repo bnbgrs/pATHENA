@@ -8,6 +8,7 @@ from entering durable state in the first place.
 
 from __future__ import annotations
 
+import math
 import uuid
 from collections.abc import Mapping
 from typing import Any
@@ -27,6 +28,8 @@ def validate_builtin_job_payload(
         _validate_source_process(requested_scope, pinned_configuration)
     elif job_type == "source.analyze":
         _validate_source_analyze(requested_scope, pinned_configuration)
+    elif job_type == "source.extract":
+        _validate_source_extract(requested_scope, pinned_configuration)
     elif job_type == "backup.create":
         _validate_backup_create(requested_scope, pinned_configuration)
     elif job_type == "archive.replicate":
@@ -123,6 +126,138 @@ def _validate_source_analyze(
     _equal_text(config, "token_estimator", "utf8-bytes-div3-v1", label=label)
     _equal_text(config, "prompt_template_id", "athena.source_analysis", label=label)
     _equal_text(config, "prompt_template_version", "1", label=label)
+
+
+def _validate_source_extract(
+    scope: Mapping[str, Any] | None,
+    config: Mapping[str, Any] | None,
+) -> None:
+    label = "source.extract"
+    _require_exact_keys(
+        scope,
+        {"analysis_id", "final_artifact_id"},
+        label=f"{label} requested_scope",
+    )
+    assert scope is not None
+    _uuid_text(scope, "analysis_id", label=label)
+    _uuid_text(scope, "final_artifact_id", label=label)
+
+    expected = {
+        "pipeline_version",
+        "model_id",
+        "model_signature_id",
+        "model_signature_sha256",
+        "model",
+        "effective_context_limit",
+        "provider_context_length",
+        "output_reserve",
+        "safety_margin",
+        "token_estimator",
+        "max_hierarchy_depth",
+        "prompt_template_id",
+        "prompt_template_version",
+        "source_extraction_schema_id",
+        "merge_schema_id",
+        "pair_audit_schema_id",
+        "provider_transport",
+        "reasoning_mode",
+        "temperature",
+        "top_p",
+        "top_k",
+        "min_p",
+        "repeat_penalty",
+        "store",
+        "structured_contract_version",
+        "structured_validation",
+        "provider_instance_policy",
+    }
+    _require_exact_keys(config, expected, label=f"{label} pinned_configuration")
+    assert config is not None
+    _equal_text(
+        config,
+        "pipeline_version",
+        "source-analysis-knowledge-extraction/3",
+        label=label,
+    )
+    _text(config, "model_id", label=label)
+    _uuid_text(config, "model_signature_id", label=label)
+    _sha256_text(config, "model_signature_sha256", label=label)
+    model = config.get("model")
+    if not isinstance(model, Mapping) or not model:
+        raise BuiltinJobPayloadValidationError(
+            "source.extract field 'model' must be a non-empty object snapshot."
+        )
+
+    effective = _integer(config, "effective_context_limit", minimum=64, label=label)
+    provider_context = _integer(config, "provider_context_length", minimum=64, label=label)
+    if provider_context != effective:
+        raise BuiltinJobPayloadValidationError(
+            "source.extract provider context must equal the pinned effective context."
+        )
+    reserve = _integer(config, "output_reserve", minimum=1, label=label)
+    margin = _integer(config, "safety_margin", minimum=0, label=label)
+    _integer(config, "max_hierarchy_depth", minimum=1, label=label)
+    if reserve + margin >= effective:
+        raise BuiltinJobPayloadValidationError(
+            "source.extract context budget leaves no positive input budget."
+        )
+    _equal_text(config, "token_estimator", "utf8-bytes-div3-v1", label=label)
+    _equal_text(
+        config,
+        "prompt_template_id",
+        "athena.source_analysis_knowledge_extraction_hierarchical",
+        label=label,
+    )
+    _equal_text(config, "prompt_template_version", "6", label=label)
+    _equal_text(
+        config,
+        "source_extraction_schema_id",
+        "athena_source_analysis_knowledge_extraction_v1",
+        label=label,
+    )
+    _equal_text(
+        config,
+        "merge_schema_id",
+        "athena_source_extraction_semantic_dedup_v3",
+        label=label,
+    )
+    _equal_text(
+        config,
+        "pair_audit_schema_id",
+        "athena_source_extraction_pair_batch_audit_v1",
+        label=label,
+    )
+    _text(config, "provider_transport", label=label)
+    _equal_text(config, "reasoning_mode", "off", label=label)
+    if _number(config, "temperature", label=label) != 0.0:
+        raise BuiltinJobPayloadValidationError("source.extract temperature must be 0.0.")
+    if _number(config, "top_p", label=label) != 0.95:
+        raise BuiltinJobPayloadValidationError("source.extract top_p must be 0.95.")
+    if _integer(config, "top_k", minimum=0, label=label) != 40:
+        raise BuiltinJobPayloadValidationError("source.extract top_k must be 40.")
+    if _number(config, "min_p", label=label) != 0.05:
+        raise BuiltinJobPayloadValidationError("source.extract min_p must be 0.05.")
+    if _number(config, "repeat_penalty", label=label) != 1.1:
+        raise BuiltinJobPayloadValidationError("source.extract repeat_penalty must be 1.1.")
+    _exact_bool(config, "store", False, label=label)
+    _equal_text(
+        config,
+        "structured_contract_version",
+        "athena.controlled_structured_json/1",
+        label=label,
+    )
+    _equal_text(
+        config,
+        "structured_validation",
+        "athena_stage_parser_v1",
+        label=label,
+    )
+    _equal_text(
+        config,
+        "provider_instance_policy",
+        "initial_context_then_runtime_instance_reuse_v1",
+        label=label,
+    )
 
 
 def _validate_backup_create(
@@ -273,3 +408,31 @@ def _integer(
             f"{label} field {field!r} must be an integer >= {minimum}."
         )
     return item
+
+
+def _number(value: Mapping[str, Any], field: str, *, label: str) -> float:
+    item = value.get(field)
+    if isinstance(item, bool) or not isinstance(item, (int, float)):
+        raise BuiltinJobPayloadValidationError(
+            f"{label} field {field!r} must be a finite number."
+        )
+    result = float(item)
+    if not math.isfinite(result):
+        raise BuiltinJobPayloadValidationError(
+            f"{label} field {field!r} must be a finite number."
+        )
+    return result
+
+
+def _exact_bool(
+    value: Mapping[str, Any],
+    field: str,
+    expected: bool,
+    *,
+    label: str,
+) -> None:
+    item = value.get(field)
+    if not isinstance(item, bool) or item is not expected:
+        raise BuiltinJobPayloadValidationError(
+            f"{label} field {field!r} must be {expected!r}."
+        )
