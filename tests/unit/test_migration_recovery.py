@@ -4,12 +4,14 @@ from pathlib import Path
 
 import pytest
 
+import athena.storage.migration_recovery as recovery_module
 from athena.storage.migration_journal import (
     MigrationJournalState,
     MigrationJournalStore,
     MigrationPhase,
 )
 from athena.storage.migration_recovery import (
+    MigrationRecoveryError,
     MigrationRecoveryState,
     assess_migration_recovery,
 )
@@ -178,3 +180,21 @@ def test_journal_path_mismatch_is_inconsistent(tmp_path: Path) -> None:
     assessment = assess_migration_recovery(source_db=source, migration_root=root)
 
     assert assessment.state is MigrationRecoveryState.INCONSISTENT
+
+
+def test_source_reparse_ancestor_is_rejected_before_artifact_classification(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    source, root, _candidate, _rollback = _paths(tmp_path)
+    source.write_bytes(b"active")
+    source_parent = source.parent
+    original = recovery_module.is_link_boundary
+
+    def simulate_reparse(path: Path) -> bool:
+        return path == source_parent or original(path)
+
+    monkeypatch.setattr(recovery_module, "is_link_boundary", simulate_reparse)
+
+    with pytest.raises(MigrationRecoveryError, match="reparse-point boundary"):
+        assess_migration_recovery(source_db=source, migration_root=root)
