@@ -26,6 +26,9 @@ from athena.desktop.pathena_progressive_workspace_2300 import (
     install_progressive_workspace_refinement,
 )
 from athena.desktop.pathena_research_experience_2500 import install_research_experience
+from athena.desktop.pathena_research_knowledge_transition_2700 import (
+    install_research_knowledge_transition,
+)
 from athena.desktop.pathena_research_proposal_clarity_2600 import (
     install_research_proposal_clarity,
 )
@@ -154,11 +157,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     research_proposal_clarity = install_research_proposal_clarity(
         research_results_extension
     )
+    research_knowledge_transition = install_research_knowledge_transition(
+        window,
+        research_results_extension,
+    )
     _schedule_initial_core_refreshes(controller, supervisor, scheduler_supervisor)
     heartbeat = _start_core_refresh_heartbeat(controller, supervisor, scheduler_supervisor)
     window.show()
     exit_code = app.exec()
     heartbeat.stop()
+    research_knowledge_transition.deleteLater()
     research_proposal_clarity.deleteLater()
     research_experience.deleteLater()
     research_readability.deleteLater()
