@@ -57,7 +57,7 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 ### BE-007 — Enforce model load ownership before automatic unload
 - Priority: P1
 - Status: DONE
-- Evidence: Feature-gap FG-007; runtime distinguishes ATHENA-owned, externally owned and unknown loads. Only explicit ATHENA ownership permits automatic unload.
+- Evidence: Feature-gap FG-007; runtime distinguishes `loaded_by_athena`, `loaded_externally`, and `unknown`. Only explicit ATHENA ownership permits automatic unload.
 - Components: model registry and load-ownership tests.
 - Dependencies: BE-006 complete.
 - Last verification: 2026-08-23; targeted tests added/updated but not executed in connector runtime.
@@ -84,7 +84,7 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 - Evidence: Direct persistent chat previously accepted bool/non-integer controls through comparison-only validation and could persist the user message before downstream rejection. Direct-chat controls, temperature finiteness and explicit effective context limit are now strictly validated before any collaborator/persistence path. Legacy grounded/provider-private boundaries still require re-trace before this slice can close.
 - Components: `src/athena/chat/direct.py`, ContextPackage/provider controls, remaining grounded paths, targeted tests.
 - Dependencies: avoid whole-file collision on `chat/generation.py`.
-- Last verification: 2026-08-23; `tests/unit/test_direct_chat_control_boundaries.py` added but not executed in connector runtime.
+- Last verification: 2026-08-23; ContextPackage `generation_temperature()` still has a huge-integer float-conversion overflow boundary tracked as BE-021.
 
 ### BE-011 — Confine BlobStore writes against symlink/junction ancestors
 - Priority: P1
@@ -129,10 +129,10 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 ### BE-016 — Protection-aware retrieval/context bridge
 - Priority: P1
 - Status: IN_PROGRESS
-- Evidence: Feature-gap FG-012. Protected runtime search/context already enforces unlocked scope identity and ephemeral plaintext handling. `ProtectedRuntimeExecutionGuard` now verifies the bundle at construction, re-verifies immediately before provider execution, and exposes only persistence-safe identifiers/counts with no plaintext or plaintext hashes. End-to-end generation/persistence policy remains open.
+- Evidence: Feature-gap FG-012. Protected runtime search/context already enforces unlocked scope identity and ephemeral plaintext handling. `ProtectedRuntimeExecutionGuard` verifies bundle shape/integrity at construction and immediately before provider execution, and exposes only persistence-safe identifiers/counts with no plaintext or plaintext hashes. End-to-end generation/persistence policy remains open.
 - Components: `src/athena/retrieval/protected_source.py`, `src/athena/retrieval/protected_execution.py`, protected generation orchestration and targeted lock/relock tests.
 - Dependencies: explicit protected output persistence policy; preserve zero protected-cleartext leakage into unprotected index/log/run-snapshot/assistant-message paths.
-- Last verification: 2026-08-23; execution guard and targeted tests added but not executed in connector runtime.
+- Last verification: 2026-08-23; guard tests cover relock propagation, metadata non-leakage and malformed budget/mode boundaries, not executed in connector runtime.
 
 ### BE-017 — Enforce ModelSession constructor cancellation invariants
 - Priority: P2
@@ -150,13 +150,13 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 - Dependencies: none.
 - Last verification: 2026-08-23; timestamp-preservation and lower/upper boundary regression tests added but not executed.
 
-### BE-019 — Require canonical model identity text
+### BE-019 — Canonicalize provider-observed model identity metadata
 - Priority: P2
-- Status: DONE
-- Evidence: `ModelInfo` previously accepted leading/trailing whitespace in provider, backend model ID and model type, allowing semantically identical runtime identities to diverge in registry/signature keys. Identity fields now require canonical trimmed text.
-- Components: `src/athena/model/domain.py`, `tests/unit/test_model_domain_boundaries.py`.
-- Dependencies: none.
-- Last verification: 2026-08-23; targeted whitespace-boundary tests added but not executed.
+- Status: BLOCKED
+- Evidence: Model identity/quantization whitespace can create divergent signature keys, but enforcing canonical text solely inside `ModelInfo` causes malformed LM Studio metadata to escape as raw `ValueError` instead of `ProviderProtocolError`; the attempted domain-only hardening was therefore reverted completely.
+- Components: LM Studio `_required_string` / `_parse_quantization`, ModelInfo domain contract, provider tests.
+- Dependencies: safe ownership window for shared LM Studio adapter so normalization/error classification can be changed atomically.
+- Last verification: 2026-08-23; adapter parse path re-read after the attempted hardening and domain/test files restored to their prior blobs.
 
 ### BE-020 — Integrate runtime ModelSignature drift guard into generation
 - Priority: P1
@@ -165,3 +165,43 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 - Components: `src/athena/chat/generation.py`, model signature guard, generation tests.
 - Dependencies: safe mutation mechanism/ownership window for large shared generation file.
 - Last verification: 2026-08-23 against current remote `chat/generation.py`.
+
+### BE-021 — Harden ContextPackage generation-temperature conversion
+- Priority: P2
+- Status: READY
+- Evidence: `ContextPackage.generation_temperature()` accepts Python integers and calls `float(value)` without catching `OverflowError`; an extreme but valid JSON integer can escape the ContextPackage error contract before provider execution.
+- Components: `src/athena/retrieval/context_package.py`, ContextPackage generation-control tests.
+- Dependencies: safe mutation mechanism/ownership window for the large shared ContextPackage file.
+- Last verification: 2026-08-23 against current remote `context_package.py`.
+
+### BE-022 — Fail closed on invalid persistent wall-clock range
+- Priority: P1
+- Status: DONE
+- Evidence: `utc_now_us()` feeds durable SQLite timestamps globally and previously returned negative/out-of-int64 values directly. It now rejects timestamps outside the non-negative signed SQLite int64 range before persistence code receives them.
+- Components: `src/athena/common/time.py`, `tests/unit/test_time.py`.
+- Dependencies: none.
+- Last verification: 2026-08-23; exact microsecond preservation and range-boundary tests added but not executed.
+
+### BE-023 — Reject Unicode line controls in structured schema IDs
+- Priority: P2
+- Status: DONE
+- Evidence: The controlled structured prompt contract claimed single-line schema IDs but only rejected ASCII C0/DEL controls, allowing Unicode NEL/LINE SEPARATOR/PARAGRAPH SEPARATOR to create additional logical lines. Unicode control/line/paragraph categories are now rejected while ordinary Unicode identifiers remain allowed.
+- Components: `src/athena/model/ports.py`, `tests/unit/test_model_port_schema_id_boundaries.py`.
+- Dependencies: none.
+- Last verification: 2026-08-23; targeted tests added but not executed.
+
+### BE-024 — Harden runtime mutation lock identity and permissions
+- Priority: P1
+- Status: DONE
+- Evidence: Existing lock creation mode did not repair permissive pre-existing POSIX modes and symlink checks did not detect regular-file pathname replacement after open. The lock now enforces owner-only POSIX mode and verifies path/handle identity both after open and after lock acquisition.
+- Components: `src/athena/lifecycle/runtime_lock.py`, `tests/unit/test_runtime_data_lock_permissions.py`.
+- Dependencies: none.
+- Last verification: 2026-08-23; permission and simulated pathname-replacement tests added but not executed.
+
+### BE-025 — Harden backup target lock identity against pathname replacement
+- Priority: P1
+- Status: DONE
+- Evidence: Backup target locking already rejected symlinks and enforced POSIX permissions, but a regular lock file could be replaced after opening, causing processes to serialize on different inodes. Path/handle identity is now verified after open and after lock acquisition.
+- Components: `src/athena/backup/target_lock.py`, `tests/unit/test_backup_target_lock_boundaries.py`.
+- Dependencies: none.
+- Last verification: 2026-08-23; simulated POSIX replacement-race regression added but not executed.
