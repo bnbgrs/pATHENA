@@ -3,11 +3,11 @@ from __future__ import annotations
 import inspect
 
 from athena.desktop.pathena_research_experience_2500 import (
-    UI_REFINEMENT_TASKS_2401_2500,
-    PathenaResearchExperience,
     _RESEARCH_REFINEMENTS,
     _RESEARCH_STYLESHEET,
     _RESEARCH_TARGETS,
+    PathenaResearchExperience,
+    UI_REFINEMENT_TASKS_2401_2500,
 )
 
 
