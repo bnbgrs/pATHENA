@@ -44,18 +44,55 @@ from athena.desktop.pathena_startup_experience_2900 import (
     UI_REFINEMENT_TASKS_2801_2900,
     apply_ui_refinements_2801_2900,
 )
-from athena.desktop.pathena_ui_refinement_100 import UI_REFINEMENT_TASKS, apply_ui_refinements
-from athena.desktop.pathena_ui_refinement_200 import UI_REFINEMENT_TASKS_101_200, apply_ui_refinements_101_200
-from athena.desktop.pathena_ui_refinement_300 import UI_REFINEMENT_TASKS_201_300, apply_ui_refinement_target_repairs, apply_ui_refinements_207_300
-from athena.desktop.pathena_ui_refinement_400 import UI_REFINEMENT_TASKS_301_400, apply_ui_refinements_301_400
-from athena.desktop.pathena_ui_refinement_500 import UI_REFINEMENT_TASKS_401_500, apply_ui_refinements_401_500
-from athena.desktop.pathena_ui_refinement_600 import UI_REFINEMENT_TASKS_501_600, apply_ui_refinements_501_600
-from athena.desktop.pathena_ui_refinement_700 import UI_REFINEMENT_TASKS_601_700, apply_ui_refinements_601_700
-from athena.desktop.pathena_ui_refinement_800 import UI_REFINEMENT_TASKS_701_800, apply_ui_refinements_701_800
-from athena.desktop.pathena_ui_refinement_900 import UI_REFINEMENT_TASKS_801_900, apply_ui_refinements_801_900
-from athena.desktop.pathena_ui_refinement_1000 import UI_REFINEMENT_TASKS_901_1000, apply_ui_refinements_901_1000
-from athena.desktop.pathena_ui_refinement_1100 import UI_REFINEMENT_TASKS_1001_1100, apply_ui_refinements_1001_1100
-from athena.desktop.pathena_ui_refinement_2100 import UI_REFINEMENT_TASKS_1101_2100, apply_ui_refinements_1101_2100
+from athena.desktop.pathena_ui_refinement_100 import (
+    UI_REFINEMENT_TASKS,
+    apply_ui_refinements,
+)
+from athena.desktop.pathena_ui_refinement_1000 import (
+    UI_REFINEMENT_TASKS_901_1000,
+    apply_ui_refinements_901_1000,
+)
+from athena.desktop.pathena_ui_refinement_1100 import (
+    UI_REFINEMENT_TASKS_1001_1100,
+    apply_ui_refinements_1001_1100,
+)
+from athena.desktop.pathena_ui_refinement_200 import (
+    UI_REFINEMENT_TASKS_101_200,
+    apply_ui_refinements_101_200,
+)
+from athena.desktop.pathena_ui_refinement_2100 import (
+    UI_REFINEMENT_TASKS_1101_2100,
+    apply_ui_refinements_1101_2100,
+)
+from athena.desktop.pathena_ui_refinement_300 import (
+    UI_REFINEMENT_TASKS_201_300,
+    apply_ui_refinement_target_repairs,
+    apply_ui_refinements_207_300,
+)
+from athena.desktop.pathena_ui_refinement_400 import (
+    UI_REFINEMENT_TASKS_301_400,
+    apply_ui_refinements_301_400,
+)
+from athena.desktop.pathena_ui_refinement_500 import (
+    UI_REFINEMENT_TASKS_401_500,
+    apply_ui_refinements_401_500,
+)
+from athena.desktop.pathena_ui_refinement_600 import (
+    UI_REFINEMENT_TASKS_501_600,
+    apply_ui_refinements_501_600,
+)
+from athena.desktop.pathena_ui_refinement_700 import (
+    UI_REFINEMENT_TASKS_601_700,
+    apply_ui_refinements_601_700,
+)
+from athena.desktop.pathena_ui_refinement_800 import (
+    UI_REFINEMENT_TASKS_701_800,
+    apply_ui_refinements_701_800,
+)
+from athena.desktop.pathena_ui_refinement_900 import (
+    UI_REFINEMENT_TASKS_801_900,
+    apply_ui_refinements_801_900,
+)
 
 
 def apply_complete_ui_refinements(window: QWidget) -> tuple[int, ...]:
