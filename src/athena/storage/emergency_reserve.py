@@ -323,7 +323,7 @@ class EmergencyReserveStore:
             os.fsync(root_fd)
             _assert_posix_directory_current(self.reserve_root, root_fd)
             return status
-        except BaseException:
+        except BaseException as exc:
             if descriptor >= 0:
                 try:
                     os.close(descriptor)
@@ -336,6 +336,12 @@ class EmergencyReserveStore:
                     os.fsync(root_fd)
                 except OSError:
                     pass
+            if isinstance(exc, EmergencyReserveError):
+                raise
+            if isinstance(exc, OSError):
+                raise EmergencyReserveError(
+                    "Emergency reserve could not be physically allocated."
+                ) from exc
             raise
         finally:
             if descriptor >= 0:
