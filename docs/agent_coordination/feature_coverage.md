@@ -4,7 +4,7 @@ Purpose: prevent repetitive rescans and drive systematic Alpha/Beta-to-code cove
 
 Coverage states: `UNCHECKED` · `PARTIAL` · `COVERED` · `CHANGED_NEEDS_RECHECK`
 
-Last matrix baseline: `agent/pathena` @ `41b6d1510526fce21cba38c565993650b2bc9015`
+Last matrix baseline: `agent/pathena` @ `ab412d59149f8d292d6f09236a18ed61194ff9d9`
 
 A `COVERED` row may be rescanned only when its specification or mapped implementation paths changed after the recorded commit. `PARTIAL` means useful code tracing was completed but the full chapter/cross-layer path was not yet exhausted.
 
@@ -24,7 +24,7 @@ A `COVERED` row may be rescanned only when its specification or mapped implement
 | A10 | Internet / anonymization / external sources | UNCHECKED | — | — |
 | A11 | News / events | UNCHECKED | — | — |
 | A12 | Background services / scheduler / tasks | UNCHECKED | — | — |
-| A13 | Storage / synchronization / portability | PARTIAL | 41b6d15 | B02/B03 foundation trace confirmed RFC-9562 UUIDv7 primitives and a local SQLite/storage subsystem. FG-013 records the unresolved migration-toolchain divergence and FG-014 the missing active-state-root network safety guard. Full Alpha storage/portability trace pending. |
+| A13 | Storage / synchronization / portability | PARTIAL | ab412d5 | Storage bootstrap now enforces local-state safety, provisions the emergency reserve before migration/database startup, routes legacy schemas through clone migration, and preserves rollback/recovery boundaries. FG-014 is implemented. FG-013 is narrowed to the explicit Alembic-vs-custom revision-engine architecture decision; long-term sync/replication/portability remains unscanned. |
 | A14 | Security / privacy / trust | PARTIAL | 6c11221 | ProtectedContentService lock/unlock and fail-closed decryption traced while checking B09 protection-aware context integration. FG-012 identified. Full Alpha security chapter scan pending. |
 | A15 | Backup / restore / disaster recovery | UNCHECKED | — | — |
 | A16 | Desktop application / UI | PARTIAL | 6c11221 | Current model selector/settings path traced for B08. It exposes discovery/loaded state and generation controls but not the complete Beta Model Manager/switch/load/signature flow; see FG-011. Full desktop chapter scan pending. |
@@ -35,10 +35,10 @@ A `COVERED` row may be rescanned only when its specification or mapped implement
 | A21 | Model freedom / content neutrality | UNCHECKED | — | — |
 | A22 | Context management / conversations / continuity | PARTIAL | 528e901 | ContextBuilderService plus async retrieval ContextBuilder, ContextPackage, Research synthesis map/reduce, protected-content boundary and durable package concerns traced. FG-005 is implemented; FG-006 is stale after dynamic chat budgeting revalidation; FG-012 remains in progress for protected generation orchestration. Full Alpha chapter trace pending. |
 | A23 | Knowledge quality / consistency / self-maintenance | UNCHECKED | — | — |
-| A24 | Performance / scaling / resources | UNCHECKED | — | — |
+| A24 | Performance / scaling / resources | PARTIAL | ab412d5 | Resource/storage pressure path traced. `DiskPressureController` implements deterministic WARNING/CRITICAL/EMERGENCY thresholds, physical emergency-reserve allocation/release and a noncritical-write gate. Startup refuses writable mode at EMERGENCY. FG-015 tracks the remaining runtime transaction-boundary integration after startup; broader CPU/GPU/model resource arbitration remains unscanned. |
 | A25 | Data formats / Obsidian / long-term readability | UNCHECKED | — | Obsidian implementation explicitly deferred; only consistency scan when reached. |
 | A26 | Mobile future / multi-device | UNCHECKED | 22b5f19 | B27 confirms mobile remote and v1 shared-write/CRDT work are intentionally later; do not open implementation gaps from those deferred requirements. Full Alpha chapter consistency scan remains. |
-| A27 | Recovery mode / diagnostics / errors | UNCHECKED | — | — |
+| A27 | Recovery mode / diagnostics / errors | PARTIAL | ab412d5 | Storage startup now detects migration recovery artifacts, refuses unsafe writable continuation, distinguishes explicit recovery-required from disk-pressure read-only-required startup, and preserves reserve space for controlled recovery. Full recovery-mode UX/diagnostics/error-surface scan remains. |
 | A28 | Roadmap / development boundaries / Beta transition | COVERED | 22b5f19 | Alpha explicitly permits incremental first-version implementation and delegates concrete technical decisions to Beta. Missing long-term capabilities are not automatically current defects. |
 | A29 | Immutable-rule summary | UNCHECKED | — | Non-normative summary; use as consistency check after normative chapters. |
 
@@ -48,7 +48,7 @@ A `COVERED` row may be rescanned only when its specification or mapped implement
 |---|---|---|---|---|
 | B01 | System architecture / technical basis | PARTIAL | 528e901 | First architecture trace completed. `src/athena/api/server.py` implements a loopback-only Core API listener on `127.0.0.1`, and the API surface uses `/api/v1/...` routes, matching B01 local-binding/versioning requirements. The repository is already split into Core/API/UI/model/knowledge/jobs/config/external/etc. modules rather than microservices. Full trace still required for isolated worker failure boundaries, resource manager integration, authoritative-write routing and long-running checkpoint semantics. No new gap opened from this partial trace. |
 | B02 | Persistent data model / IDs | PARTIAL | 528e901 | Initial identity trace completed. Beta requires stable UUIDv7 identities independent of path/content; `src/athena/common/ids.py` implements RFC-9562 UUIDv7 generation plus canonical 16-byte conversion. This confirms the ID primitive rather than merely documenting it. Full cross-domain entity/revision/provenance/durable-state invariant scan remains. |
-| B03 | Storage / databases / migrations | PARTIAL | 41b6d15 | Storage trace confirms direct stdlib `sqlite3` lifecycle with explicit `BEGIN IMMEDIATE`, snapshot fences, custom schema/evolution/verification/recovery modules, and distinct runtime state/spool/derived paths. Two independent gaps are now recorded: FG-013 for the unresolved SQLAlchemy/Alembic specification divergence, and FG-014 because bootstrap accepts any absolute `local_root` without the Beta-required fail-closed rejection of network/UNC-backed active SQLite state. Full B03 scan must still verify WAL/PRAGMAs, disk-full/corruption behavior, backup/restore, long-term replication semantics and migration rollback invariants. |
+| B03 | Storage / databases / migrations | PARTIAL | ab412d5 | Revalidated after major storage work. Current startup performs read-only DB preflight, migration planning and recovery assessment, provisions the physical emergency reserve, clone-migrates legacy schemas before live DB startup, and refuses unsafe recovery/EMERGENCY writable startup. Locality guards are implemented (FG-014). Clone/journal/lock/activation safety and rollback-preserving migration infrastructure exist. FG-013 is now narrowed to the remaining Beta SQLAlchemy/Alembic versus custom revision-engine architecture decision. FG-015 tracks runtime pressure gating after startup. Remaining B03 scan: exact WAL/PRAGMA policy, disk-full/corruption behavior during live operation, backup/restore interaction, and long-term replication semantics. |
 | B04 | Sources / raw archive / import pipeline | UNCHECKED | — | — |
 | B05 | Knowledge units / claims / graph | UNCHECKED | — | — |
 | B06 | Personal memory | UNCHECKED | — | — |
@@ -58,7 +58,7 @@ A `COVERED` row may be rescanned only when its specification or mapped implement
 | B10 | Retrieval / search | PARTIAL | 6c11221 | Unprotected SearchResult → RankedSearchResult → HybridSearchResult chain inspected while tracing FG-012; protected payloads are explicitly excluded from this projection and no protection-scope field crosses these contracts. Full retrieval chapter scan pending. |
 | B11 | Exhaustive Research | PARTIAL | 528e901 | While tracing B09 hierarchical processing, `research/synthesis_service.py` was confirmed to execute per-query research units and reduce their representative results into a final synthesis context. This establishes real map/reduce-style behavior and provenance-carrying intermediate aggregation. Full B11 exhaustive-research requirements remain unscanned. |
 | B12 | Job system / queue / scheduler | UNCHECKED | — | — |
-| B13 | Resource management | UNCHECKED | — | — |
+| B13 | Resource management | PARTIAL | ab412d5 | Storage-resource slice traced: deterministic disk-pressure thresholds, physical reserve ownership/lifecycle, EMERGENCY release/reassessment and startup refusal are implemented. `assert_noncritical_write_allowed()` exists as a canonical policy gate but is not yet wired into `SQLiteDatabase.write_transaction()` or an equivalent central live-write arbiter; see FG-015. GPU/model/process resource arbitration remains unscanned. |
 | B14 | News / events | UNCHECKED | — | — |
 | B15 | External Access Gateway / network | UNCHECKED | — | — |
 | B16 | Security architecture / protected content | PARTIAL | 6c11221 | Runtime protection service traced: unlocked scopes are in-memory only; lock wipes keys; load_payload requires unlocked matching scope. Dedicated protected runtime retrieval and execution-guard boundaries now exist; FG-012 is IN_PROGRESS for an actual model-call orchestration path plus deliberate persistence policy. Full B16 scan pending. |
@@ -67,8 +67,8 @@ A `COVERED` row may be rescanned only when its specification or mapped implement
 | B19 | Core API / future clients | PARTIAL | 528e901 | B01 trace confirmed a real local Core API implementation with loopback-only listener and versioned `/api/v1` routes. Full B19 contract/versioning/authentication/future-client scan remains. |
 | B20 | Obsidian / external editing | UNCHECKED | 22b5f19 | B27 places Obsidian in a later vertical slice; implementation remains explicitly deferred by current product instructions. Do not open current feature gaps unless required for architectural consistency. |
 | B21 | Backup / restore | UNCHECKED | — | — |
-| B22 | Recovery mode / diagnostics | UNCHECKED | — | — |
-| B23 | Updates / migrations / compatibility | PARTIAL | 41b6d15 | B03 migration-toolchain divergence cross-links here through FG-013; active-state path compatibility/safety also cross-links through FG-014. Full update/migration/compatibility chapter scan remains. |
+| B22 | Recovery mode / diagnostics | PARTIAL | ab412d5 | Storage bootstrap recovery boundary traced. Migration artifacts requiring manual review fail closed before writable startup; EMERGENCY pressure yields a distinct read-only-required condition and preserves released reserve space for recovery. Full recovery-mode command/UI/diagnostic flow remains unscanned. |
+| B23 | Updates / migrations / compatibility | PARTIAL | ab412d5 | Migration compatibility path now includes read-only preflight, versioned migration planning, clone execution, external durable phase journal, exclusive lock, candidate verification, rollback-preserving activation and recovery assessment. FG-013 no longer represents missing startup integration; it is limited to the explicit Alembic-vs-custom architecture decision. Full software-update/version compatibility chapter remains pending. |
 | B24 | Logging / monitoring / observability | UNCHECKED | — | — |
 | B25 | Repository / code structure | UNCHECKED | — | — |
 | B26 | Test strategy | UNCHECKED | — | — |
@@ -76,8 +76,9 @@ A `COVERED` row may be rescanned only when its specification or mapped implement
 
 ## Next scan order
 
-1. Continue B03 with WAL/PRAGMAs, disk-full/corruption handling, migration rollback and long-term replication semantics; reclassify FG-013/014 if later explicit overrides or guards are found.
-2. Finish B09 task-specific builder/test coverage and correlate modern regressions to normative tests 60–68; do not reopen already-implemented source diversity or Research map/reduce.
-3. Continue B01 into process isolation/resource management/authoritative-write/checkpoint boundaries and cross-link B12/B13.
+1. Finish B03 live-runtime semantics: exact WAL/PRAGMAs, disk-full/corruption behavior after startup, backup/restore interaction and long-term replication semantics. Do not reopen already-implemented locality/bootstrap/clone-migration work.
+2. Follow FG-015 from `DiskPressureController.assert_noncritical_write_allowed()` to all authoritative write-transaction entry points and classify the minimal BACKEND handoff for runtime read-only safe mode.
+3. Finish B09 task-specific builder/test coverage and correlate modern regressions to normative tests 60–68; do not reopen already-implemented source diversity or Research map/reduce.
 4. Deep-scan B16 provider bridge/generated-content persistence/relock invalidation/logging boundaries for FG-012.
-5. Continue B02 cross-domain entity/revision/provenance and durable-state invariants.
+5. Continue B01 into process isolation/resource management/authoritative-write/checkpoint boundaries and cross-link B12/B13.
+6. Continue B02 cross-domain entity/revision/provenance and durable-state invariants.
