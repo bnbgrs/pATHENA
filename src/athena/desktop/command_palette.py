@@ -96,6 +96,12 @@ class CommandPaletteController(QObject):
         footer.setProperty("role", "dim")
         layout.addWidget(footer)
 
+    def _workspace_action(self, row: int) -> Callable[[], None]:
+        def action() -> None:
+            self.window.navigation.setCurrentRow(row)
+
+        return action
+
     def _build_commands(self) -> tuple[_Command, ...]:
         commands: list[_Command] = []
         workspace_names = (
@@ -112,7 +118,7 @@ class CommandPaletteController(QObject):
                 _Command(
                     label=f"Go to {name.title()}",
                     keywords=("workspace", "navigate", name),
-                    action=lambda row=row: self.window.navigation.setCurrentRow(row),
+                    action=self._workspace_action(row),
                 )
             )
 
