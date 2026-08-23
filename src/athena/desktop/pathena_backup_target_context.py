@@ -87,21 +87,28 @@ class BackupTargetContextController(QObject):
     def sync(self) -> None:
         operation = getattr(self.workspace, "_operation", "")
         if operation == "targets":
-            text = "TARGET SCOPE · registered target roots are loading into Backup details"
+            visual = "TARGETS · loading registered roots"
+            detail = "Registered target roots are loading into Backup details."
         elif operation == "register-target":
-            text = "TARGET SCOPE · registering the folder chosen in the system folder picker"
+            visual = "TARGETS · registering chosen folder"
+            detail = "Registering the folder chosen in the system folder picker."
         elif operation == "create":
-            text = "TARGET SCOPE · creating in the folder chosen in the system folder picker"
+            visual = "TARGETS · using chosen backup folder"
+            detail = "Creating the new snapshot in the folder chosen in the system folder picker."
         else:
-            text = (
-                "TARGET SCOPE · none preselected · Create and Register choose a folder "
-                "explicitly; Targets only lists registered roots"
+            visual = "TARGETS · none preselected"
+            detail = (
+                "No backup target is preselected. Create and Register choose a folder "
+                "explicitly; Targets only lists registered roots."
             )
         if self.context_label is not None:
-            self.context_label.setText(text)
-            self.context_label.setAccessibleDescription(text)
+            self.context_label.setText(visual)
+            self.context_label.setToolTip(detail)
+            self.context_label.setAccessibleDescription(detail)
             self.context_label.setProperty("pathenaBackupTargetOperation", operation or "idle")
-        self.workspace.setProperty("pathenaBackupTargetScope", text)
+            self.context_label.setProperty("pathenaBackupTargetDetail", detail)
+        self.workspace.setProperty("pathenaBackupTargetScope", visual)
+        self.workspace.setProperty("pathenaBackupTargetScopeDetail", detail)
         self.workspace.setProperty("pathenaBackupTargetScopeManaged", True)
 
 
