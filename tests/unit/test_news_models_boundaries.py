@@ -36,6 +36,11 @@ def test_news_run_view_rejects_invalid_counts(field: str, value: object) -> None
         _run(**{field: value})
 
 
-def test_news_run_view_rejects_completed_counts_above_discovery() -> None:
-    with pytest.raises(ValueError, match="exceed discovered_count"):
-        _run(discovered_count=1, captured_count=1, failed_count=1)
+def test_news_run_view_rejects_captured_count_above_discovery() -> None:
+    with pytest.raises(ValueError, match="captured_count exceeds discovered_count"):
+        _run(discovered_count=1, captured_count=2, failed_count=0)
+
+
+def test_news_run_view_allows_feed_failures_above_discovery_count() -> None:
+    run = _run(discovered_count=0, captured_count=0, failed_count=3)
+    assert run.failed_count == 3
