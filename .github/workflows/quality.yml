@@ -39,4 +39,4 @@ jobs:
         run: uv lock --check
 
       - name: Run ATHENA quality gate
-        run: uv run --locked --extra dev --extra desktop python scripts/quality.py
+        run: uv run --locked --extra dev --extra desktop python scripts/quality.py --keep-going
