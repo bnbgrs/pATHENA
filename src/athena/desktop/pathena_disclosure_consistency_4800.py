@@ -45,7 +45,10 @@ class DisclosureConsistencyController(QObject):
         self.window = window
         self._bindings: list[tuple[QAbstractButton, QWidget, str]] = []
         self._review_panel = window.findChild(QWidget, "knowledgeReviewPanel")
-        self._review_close = window.findChild(QAbstractButton, "knowledgeReviewCloseButton")
+        self._review_close = window.findChild(
+            QAbstractButton,
+            "knowledgeReviewCloseButton",
+        )
 
     def register(self, control: QAbstractButton, surface: QWidget, label: str) -> None:
         self._bindings.append((control, surface, label))
@@ -83,7 +86,11 @@ class DisclosureConsistencyController(QObject):
                 return
 
     @staticmethod
-    def _sync_binding(control: QAbstractButton, surface: QWidget, label: str) -> None:
+    def _sync_binding(
+        control: QAbstractButton,
+        surface: QWidget,
+        label: str,
+    ) -> None:
         state = "open" if control.isChecked() else "closed"
         next_action = "Hide" if state == "open" else "Show"
         control.setProperty("pathenaDisclosureState", state)
@@ -92,7 +99,9 @@ class DisclosureConsistencyController(QObject):
         control.setAccessibleDescription(
             f"{label} disclosure is {state}. Activate to {next_action.lower()} it."
         )
-        surface.setAccessibleDescription(f"{label} disclosure surface; currently {state}.")
+        surface.setAccessibleDescription(
+            f"{label} disclosure surface; currently {state}."
+        )
 
     def _sync_review_panel(self) -> None:
         panel = self._review_panel
@@ -104,7 +113,8 @@ class DisclosureConsistencyController(QObject):
             self._review_close.setProperty("pathenaDisclosureState", state)
             self._review_close.setToolTip("Close Knowledge review")
             self._review_close.setAccessibleDescription(
-                f"Knowledge review is {state}. Close the review without changing decisions."
+                f"Knowledge review is {state}. Close the review without "
+                "changing decisions."
             )
 
 
