@@ -6,7 +6,7 @@ from pathlib import Path
 from athena.config.settings import AthenaSettings
 from athena.core.application import AthenaApplication
 from athena.desktop.knowledge_cli import _run
-from athena.knowledge.models import EpistemicStatus, KnowledgeKind
+from athena.knowledge.models import ClaimKind, EpistemicStatus, KnowledgeKind
 
 
 def _app(root: Path) -> AthenaApplication:
@@ -72,5 +72,69 @@ def test_desktop_knowledge_list_show_and_history_survive_restart(
         assert "REVISION 2 " in history
         assert "Persistent desktop knowledge marker." in history
         assert "Persistent desktop knowledge marker, revised." in history
+    finally:
+        second.stop()
+
+
+def test_desktop_claim_list_show_and_history_survive_restart(
+    tmp_path: Path,
+    capsys,
+) -> None:
+    root = tmp_path / "runtime"
+    first = _app(root)
+    try:
+        chat_id = first.chat.create_chat()
+        message = first.chat.add_user_message(
+            chat_id=chat_id,
+            content="The observatory opens at dawn.",
+        )
+        created = first.claims.promote_chat_message(
+            chat_id=chat_id,
+            sequence_no=message.sequence_no,
+            claim_kind=ClaimKind.FACT,
+        )
+        revised = first.claims.revise(
+            claim_id=created.claim_id,
+            statement="The observatory opens shortly before dawn.",
+            epistemic_status=EpistemicStatus.SUPPORTED,
+        )
+        assert revised.revision_no == 2
+        claim_id = created.claim_id
+        source_message_id = message.message_id
+    finally:
+        first.stop()
+
+    second = _app(root)
+    try:
+        assert _run(second, argparse.Namespace(command="claims-list", limit=20)) == 0
+        listing = capsys.readouterr().out
+        assert str(claim_id) in listing
+        assert "\t2\tfact\tsupported\t" in listing
+        assert "The observatory opens shortly before dawn." in listing
+
+        assert _run(
+            second,
+            argparse.Namespace(command="claim-show", claim_id=claim_id),
+        ) == 0
+        shown = capsys.readouterr().out
+        assert f"CLAIM {claim_id}" in shown
+        assert "REVISION 2 " in shown
+        assert "STATUS supported" in shown
+        assert "The observatory opens shortly before dawn." in shown
+        assert "PROVENANCE_INPUTS" in shown
+        assert "EVIDENCE 1" in shown
+        assert f"message={source_message_id}" in shown
+        assert "role=originates" in shown
+
+        assert _run(
+            second,
+            argparse.Namespace(command="claim-history", claim_id=claim_id),
+        ) == 0
+        history = capsys.readouterr().out
+        assert "HISTORY 2" in history
+        assert "REVISION 1 " in history
+        assert "REVISION 2 " in history
+        assert "The observatory opens at dawn." in history
+        assert "The observatory opens shortly before dawn." in history
     finally:
         second.stop()
