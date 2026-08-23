@@ -73,13 +73,16 @@ def _require_optional_int(value: object | None, label: str, *, minimum: int = 0)
 def _require_text(value: object, label: str) -> None:
     if not isinstance(value, str):
         raise TypeError(f"{label} must be text.")
-    if not value.strip():
+    if not value:
         raise ValueError(f"{label} must not be empty.")
+    if value != value.strip():
+        raise ValueError(f"{label} must use canonical trimmed text.")
 
 
 def _require_optional_text(value: object | None, label: str) -> None:
-    if value is not None and not isinstance(value, str):
-        raise TypeError(f"{label} must be text or None.")
+    if value is None:
+        return
+    _require_text(value, label)
 
 
 def _require_optional_json(value: object | None, label: str) -> None:
