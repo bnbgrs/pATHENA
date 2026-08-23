@@ -8,7 +8,11 @@ from dataclasses import dataclass
 from enum import IntEnum
 from pathlib import Path
 
-from athena.storage.emergency_reserve import EmergencyReserveStore
+from athena.storage.emergency_reserve import (
+    EmergencyReserveStatus,
+    EmergencyReserveStore,
+    emergency_reserve_size_bytes,
+)
 
 _MIB = 1024 * 1024
 _GIB = 1024 * _MIB
@@ -28,6 +32,12 @@ class DiskPressureState(IntEnum):
 def _nonnegative_int(value: object, label: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
         raise ValueError(f"{label} must be a non-negative integer.")
+    return value
+
+
+def _positive_int(value: object, label: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise ValueError(f"{label} must be a positive integer.")
     return value
 
 
@@ -114,6 +124,29 @@ class DiskPressureCheckResult:
             )
 
 
+@dataclass(frozen=True, slots=True)
+class EmergencyReserveProvisionResult:
+    assessment: DiskPressureAssessment
+    required_bytes: int
+    status: EmergencyReserveStatus | None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.assessment, DiskPressureAssessment):
+            raise TypeError("Reserve provision assessment must be DiskPressureAssessment.")
+        _positive_int(self.required_bytes, "Reserve provision required_bytes")
+        if self.status is not None and not isinstance(self.status, EmergencyReserveStatus):
+            raise TypeError("Reserve provision status must be EmergencyReserveStatus or None.")
+        if self.assessment.state is DiskPressureState.EMERGENCY:
+            if self.status is not None:
+                raise ValueError("Emergency disk pressure must not provision a reserve.")
+        elif self.status is None:
+            raise ValueError("Non-emergency reserve provisioning must return reserve status.")
+
+    @property
+    def provisioned(self) -> bool:
+        return self.status is not None
+
+
 def disk_pressure_thresholds(total_bytes: int) -> DiskPressureThresholds:
     """Return Beta-03 thresholds using conservative integer percentage ceilings."""
     total = _nonnegative_int(total_bytes, "Disk pressure total_bytes")
@@ -164,11 +197,11 @@ def _default_disk_usage(path: Path) -> tuple[int, int]:
 
 
 class DiskPressureController:
-    """Release the physical reserve only when the active volume is EMERGENCY.
+    """Control reserve allocation/release around Beta disk-pressure boundaries.
 
-    This controller deliberately does not delete canonical data and does not
-    recreate the reserve. Provisioning belongs to EmergencyReserveService when
-    the system is safely out of the emergency path.
+    The controller never deletes canonical data. It releases only the physical
+    reserve at EMERGENCY and refuses to recreate that reserve while the volume
+    remains in EMERGENCY, preserving the space gained for controlled recovery.
     """
 
     def __init__(
@@ -193,6 +226,35 @@ class DiskPressureController:
         except OSError as exc:
             raise RuntimeError("Disk pressure volume usage could not be determined.") from exc
         return assess_disk_pressure(total_bytes=total, free_bytes=free)
+
+    def ensure_reserve_if_safe(
+        self,
+        *,
+        write_chunk_bytes: int = 4 * _MIB,
+    ) -> EmergencyReserveProvisionResult:
+        """Provision the Beta reserve unless the volume is already EMERGENCY."""
+        chunk_bytes = _positive_int(
+            write_chunk_bytes,
+            "Reserve provision write_chunk_bytes",
+        )
+        assessment = self._assessment()
+        required = emergency_reserve_size_bytes(assessment.total_bytes)
+        if assessment.state is DiskPressureState.EMERGENCY:
+            return EmergencyReserveProvisionResult(
+                assessment=assessment,
+                required_bytes=required,
+                status=None,
+            )
+
+        status = self.reserve_store.ensure(
+            required_bytes=required,
+            write_chunk_bytes=chunk_bytes,
+        )
+        return EmergencyReserveProvisionResult(
+            assessment=assessment,
+            required_bytes=required,
+            status=status,
+        )
 
     def check(self) -> DiskPressureCheckResult:
         """Assess pressure and release only the reserve when EMERGENCY is reached."""
