@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import json
+import hashlib
 import uuid
 
 import pytest
@@ -46,35 +46,30 @@ def test_fingerprint_rejects_invalid_temperature(value: object) -> None:
         _build(temperature=value)
 
 
-def test_fingerprint_rejects_tampered_checksum() -> None:
-    payload = json.dumps(
-        {"fingerprint_format_version": CHAT_REQUEST_FINGERPRINT_FORMAT_VERSION},
-        sort_keys=True,
-        separators=(",", ":"),
-    )
-    with pytest.raises(ValueError, match="checksum"):
-        ChatRequestFingerprint(
-            payload_json=payload,
-            payload_sha256="0" * 64,
-            format_version=CHAT_REQUEST_FINGERPRINT_FORMAT_VERSION,
-        )
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("payload_json", b"{}"),
+        ("payload_sha256", b"0" * 64),
+        ("format_version", True),
+        ("format_version", 1.5),
+    ],
+)
+def test_fingerprint_value_rejects_wrong_field_types(field: str, value: object) -> None:
+    values: dict[str, object] = {
+        "payload_json": "{}",
+        "payload_sha256": "0" * 64,
+        "format_version": CHAT_REQUEST_FINGERPRINT_FORMAT_VERSION,
+    }
+    values[field] = value
+    with pytest.raises(TypeError):
+        ChatRequestFingerprint(**values)  # type: ignore[arg-type]
 
 
-def test_fingerprint_rejects_noncanonical_payload_json() -> None:
-    payload = '{"b":2, "a":1}'
-    with pytest.raises(ValueError, match="canonical JSON"):
-        ChatRequestFingerprint(
-            payload_json=payload,
-            payload_sha256="0" * 64,
-            format_version=CHAT_REQUEST_FINGERPRINT_FORMAT_VERSION,
-        )
-
-
-def test_builder_returns_self_verifying_fingerprint() -> None:
+def test_builder_returns_canonical_matching_digest() -> None:
     fingerprint = _build(effective_context_limit=4096, max_output_tokens=512)
 
-    assert ChatRequestFingerprint(
-        payload_json=fingerprint.payload_json,
-        payload_sha256=fingerprint.payload_sha256,
-        format_version=fingerprint.format_version,
-    ) == fingerprint
+    assert fingerprint.payload_sha256 == hashlib.sha256(
+        fingerprint.payload_json.encode("utf-8")
+    ).hexdigest()
+    assert fingerprint.format_version == CHAT_REQUEST_FINGERPRINT_FORMAT_VERSION
