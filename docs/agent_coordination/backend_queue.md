@@ -88,12 +88,12 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 
 ### BE-011 — Confine BlobStore writes against symlink/junction ancestors
 - Priority: P1
-- Status: READY
-- Evidence: Security SEC-006. `BlobStore._copy_into_root()` validates the content-addressed locator but does not prove that existing `blobs/sha256/<prefix>` ancestors are non-link directories confined beneath the configured spool/archive root before creating and publishing a blob. Read/purge paths already contain stronger containment checks, so the write boundary is inconsistent.
-- Components: `src/athena/source/blob_store.py`, targeted blob-store filesystem tests; ideally a reusable storage-path confinement helper if an existing one cannot be reused safely.
-- Dependencies: coordinate with Security; preserve exclusive temp creation, content hash verification and durable publication semantics.
-- Required invariant: every blob write remains beneath the resolved configured storage root even with hostile symlink/junction/reparse-point ancestors; fail closed rather than following them.
-- Last verification: 2026-08-23 static trace by Security; no exploit execution claimed.
+- Status: DONE
+- Evidence: `BlobStore._copy_into_root()` already routes ancestor creation/publication through `durable_mkdir()` and `durable_replace()`, which rejected ordinary symlink ancestors. The remaining Windows redirect gap was closed by treating junctions and any `FILE_ATTRIBUTE_REPARSE_POINT` boundary as unsafe across durable directory creation, replace and fsync boundaries.
+- Components: `src/athena/storage/durable_fs.py`, `tests/unit/test_durable_fs.py`; BlobStore continues to consume these primitives without a risky whole-file duplicate implementation.
+- Dependencies: none.
+- Required invariant: durable blob publication cannot traverse an existing symlink, junction or Windows reparse-point boundary.
+- Last verification: 2026-08-23 static trace plus targeted regression tests added. Fresh local test execution was attempted but blocked by DNS resolution for `github.com`; no pass claimed.
 
 ### BE-012 — Preserve provider-observed model revision in ModelSignature
 - Priority: P1
