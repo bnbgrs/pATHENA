@@ -22,10 +22,7 @@ class BackupRetentionPolicy:
             ("monthly", self.monthly),
             ("yearly", self.yearly),
         ):
-            if isinstance(value, bool) or not isinstance(value, int) or value < 0:
-                raise ValueError(
-                    f"Backup retention {name} must be a non-negative integer."
-                )
+            _nonnegative_int(value, f"Backup retention {name}")
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,11 +38,40 @@ class BackupTargetRecord:
     deletion_ledger_watermark: int = 0
     deletion_sync_pending: bool = False
 
+    def __post_init__(self) -> None:
+        _uuid_value(self.target_id, "Backup target target_id")
+        if not isinstance(self.root_path, Path):
+            raise ValueError("Backup target root_path must be a Path value.")
+        if not isinstance(self.status, str) or not self.status.strip():
+            raise ValueError("Backup target status must be non-empty text.")
+        _retention_policy(self.policy)
+        if not isinstance(self.identity_initialized, bool):
+            raise ValueError("Backup target identity_initialized must be boolean.")
+        _nonnegative_int(self.created_at_us, "Backup target created_at_us")
+        _optional_nonnegative_int(
+            self.last_successful_backup_at_us,
+            "Backup target last_successful_backup_at_us",
+        )
+        _optional_nonnegative_int(
+            self.last_verified_at_us,
+            "Backup target last_verified_at_us",
+        )
+        _nonnegative_int(
+            self.deletion_ledger_watermark,
+            "Backup target deletion_ledger_watermark",
+        )
+        if not isinstance(self.deletion_sync_pending, bool):
+            raise ValueError("Backup target deletion_sync_pending must be boolean.")
+
 
 @dataclass(frozen=True, slots=True)
 class RetentionCandidate:
     snapshot_id: uuid.UUID
     completed_at_us: int
+
+    def __post_init__(self) -> None:
+        _uuid_value(self.snapshot_id, "Backup retention snapshot_id")
+        _nonnegative_int(self.completed_at_us, "Backup retention completed_at_us")
 
 
 @dataclass(frozen=True, slots=True)
@@ -54,12 +80,41 @@ class BackupRetentionPlan:
     keep_snapshot_ids: tuple[uuid.UUID, ...]
     prune_snapshot_ids: tuple[uuid.UUID, ...]
 
+    def __post_init__(self) -> None:
+        _uuid_value(self.target_id, "Backup retention plan target_id")
+        keep = _uuid_tuple(
+            self.keep_snapshot_ids,
+            "Backup retention plan keep_snapshot_ids",
+        )
+        prune = _uuid_tuple(
+            self.prune_snapshot_ids,
+            "Backup retention plan prune_snapshot_ids",
+        )
+        if set(keep) & set(prune):
+            raise ValueError("Backup retention plan keep/prune identities must not overlap.")
+
 
 @dataclass(frozen=True, slots=True)
 class BackupRetentionResult:
     plan: BackupRetentionPlan
     pruned_snapshot_ids: tuple[uuid.UUID, ...]
     deleted_object_count: int
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.plan, BackupRetentionPlan):
+            raise ValueError("Backup retention result plan must be a BackupRetentionPlan.")
+        pruned = _uuid_tuple(
+            self.pruned_snapshot_ids,
+            "Backup retention result pruned_snapshot_ids",
+        )
+        if not set(pruned).issubset(self.plan.prune_snapshot_ids):
+            raise ValueError(
+                "Backup retention result cannot report snapshots outside the prune plan."
+            )
+        _nonnegative_int(
+            self.deleted_object_count,
+            "Backup retention result deleted_object_count",
+        )
 
 
 def plan_retention(
@@ -199,6 +254,24 @@ def _retention_candidates(value: object) -> tuple[RetentionCandidate, ...]:
         )
 
     return tuple(validated)
+
+
+def _uuid_tuple(value: object, label: str) -> tuple[uuid.UUID, ...]:
+    if not isinstance(value, tuple):
+        raise ValueError(f"{label} must be a tuple of UUID values.")
+    seen: set[uuid.UUID] = set()
+    for item in value:
+        identifier = _uuid_value(item, label)
+        if identifier in seen:
+            raise ValueError(f"{label} must not contain duplicate UUID values.")
+        seen.add(identifier)
+    return value
+
+
+def _optional_nonnegative_int(value: object | None, label: str) -> int | None:
+    if value is None:
+        return None
+    return _nonnegative_int(value, label)
 
 
 def _nonnegative_int(value: object, label: str) -> int:
