@@ -9,28 +9,64 @@ Last queue refresh: 2026-08-23.
 ### BE-028 — Clone/journal migration before live schema mutation
 - Priority: P1
 - Status: IN_PROGRESS
-- Evidence: clone-first stack is implemented: migration metadata/free-space preflight, SQLite Online Backup clone, durable phase journal, exclusive migration lock, full integrity/FK/version verification, rollback-preserving activation, orphan/journal recovery boundaries and Windows junction/reparse hardening. Read-only startup migration planning and a candidate-only schema executor now also exist. Normal `SQLiteDatabase.start()` still invokes legacy live `initialize_schema()`.
-- Components: `migration_safety.py`, `migration_clone.py`, `migration_journal.py`, `migration_lock.py`, `migration_activation.py`, `migration_coordinator.py`, `migration_executor.py`, `migration_plan.py`, database/application startup integration and tests.
-- Dependencies: BE-027 DONE; BE-029 reserve must be integrated before startup migration accounts for the real physical reserve. Alembic-vs-custom executor remains an architecture decision.
-- Security handoff: SEC-009 P1 requires clone/journal creation, cleanup and activation to bind filesystem decisions to directory/object identity across sensitive operations rather than relying only on pre-operation pathname/reparse checks; add deterministic parent-replacement race coverage including Windows reparse/junction behavior. SEC-010 P2 requires a conservative byte ceiling for `migration_state.json`, checked with `fstat()` before full read/JSON decode while preserving current no-follow and handle/path identity checks. SEC-013 P1 requires migration-lock ownership to remain bound to the same migration-root identity for the full critical section; root rename/replacement must not permit a second logical migration to acquire an independent lock at the same pathname.
-- Last verification: 2026-08-23; targeted tests added, not executed because isolated runtime cannot resolve `github.com`. Quality-reported reparse boundary in this new path was fixed; Security static trace found residual TOCTOU/resource/lock-lifetime gaps tracked as SEC-009/010/013.
+- Evidence: clone-first stack is implemented: migration metadata/free-space preflight, SQLite Online Backup clone, durable phase journal, exclusive migration lock, full integrity/FK/version verification, rollback-preserving activation, orphan/journal recovery boundaries and Windows junction/reparse hardening. Read-only startup planning, candidate-only schema execution, emergency reserve provisioning and ordered `StorageBootstrapService` routing are implemented. Remaining work is the security hardening tracked as BE-034/035/036 plus the Alembic-vs-custom architecture decision.
+- Components: `migration_safety.py`, `migration_clone.py`, `migration_journal.py`, `migration_lock.py`, `migration_activation.py`, `migration_coordinator.py`, `migration_executor.py`, `migration_plan.py`, `bootstrap.py` and tests.
+- Dependencies: BE-027/029/031/032/033 DONE.
+- Last verification: 2026-08-23; product routing is present on current remote. Targeted tests exist but were not executed in this automation runtime because `github.com` DNS resolution failed from the isolated container.
+
+### BE-034 — Bound migration journal reads before JSON decode
+- Priority: P2
+- Status: READY
+- Evidence: Security SEC-010 requires a conservative byte ceiling for `migration_state.json`, enforced with `fstat()` before full read/JSON decode while preserving no-follow and handle/path identity checks.
+- Components: `storage/migration_journal.py`, targeted corruption/oversize tests.
+- Dependencies: BE-028 migration journal.
+- Last verification: 2026-08-23 security handoff in BE-028.
+
+### BE-035 — Bind migration lock to migration-root identity
+- Priority: P1
+- Status: READY
+- Evidence: Security SEC-013 requires migration-lock ownership to remain bound to the same migration-root identity for the full critical section; root rename/replacement must not permit a second logical migration at the same pathname.
+- Components: `storage/migration_lock.py`, deterministic replacement-race tests including Windows reparse behavior where available.
+- Dependencies: BE-028 migration lock.
+- Last verification: 2026-08-23 security handoff in BE-028.
+
+### BE-036 — Close migration parent-replacement TOCTOU
+- Priority: P1
+- Status: READY
+- Evidence: Security SEC-009 requires clone/journal creation, cleanup and activation to bind filesystem decisions to directory/object identity across sensitive operations rather than relying only on pre-operation pathname/reparse checks.
+- Components: migration clone/journal/activation filesystem boundaries and deterministic parent-replacement race tests.
+- Dependencies: BE-028; coordinate carefully with BE-035 because both touch migration-root identity.
+- Last verification: 2026-08-23 security handoff in BE-028.
+
+### BE-020 — Runtime ModelSignature drift guard in generation
+- Priority: P1
+- Status: READY
+- Evidence: reusable revision-aware guard exists; shared `chat/generation.py` still uses older inline comparison.
+- Components: chat generation/signature guard/tests.
+- Dependencies: safe mutation window for shared generation file.
+
+### BE-021 — ContextPackage temperature conversion overflow
+- Priority: P2
+- Status: READY
+- Evidence: extreme JSON integer can escape the ContextPackage error contract via `float()` OverflowError.
+- Components: retrieval/context_package.py/tests.
+- Dependencies: safe mutation window for shared ContextPackage file.
+
+## Recently completed storage slices
 
 ### BE-029 — Physically allocated Emergency Reserve
 - Priority: P1
-- Status: IN_PROGRESS
-- Evidence: `EmergencyReserveStore` and `EmergencyReserveService` implement Beta sizing `max(256 MiB, min(1 GiB, 1% volume))`, non-sparse allocation, durable persistence, path/reparse safety, explicit emergency release and test-only sizing injection. Normal shutdown retains the reserve.
-- Components: `storage/emergency_reserve.py`, Core bootstrap ordering/tests.
-- Dependencies: RuntimeLayout must create `state_root`; reserve must start before DatabaseService.
-- Blocker: naive Core integration would cause every existing application-start test to physically reserve >=256 MiB. A production/test dependency-injection seam must be established before wiring the large shared `core/application.py`.
-- Last verification: 2026-08-23; store/service tests added, not executed.
+- Status: DONE
+- Evidence: `EmergencyReserveStore` plus bootstrap integration implement Beta sizing `max(256 MiB, min(1 GiB, 1% volume))`, non-sparse allocation, durable persistence, path/reparse safety, explicit emergency release and test injection. Normal shutdown retains the reserve.
+- Components: `storage/emergency_reserve.py`, `storage/bootstrap.py`, tests.
+- Last verification: 2026-08-23 current remote; tests present, not executed in isolated runtime.
 
-### BE-030 — Disk-pressure state controller
+### BE-030 — Disk-pressure state controller and runtime write gate
 - Priority: P1
-- Status: IN_PROGRESS
-- Evidence: integer-only Beta thresholds implemented: WARNING `< max(10 GiB,5%)`, CRITICAL `< max(5 GiB,2%)`, EMERGENCY `< max(2 GiB,1%)`. `DiskPressureController` releases only the emergency reserve at EMERGENCY and immediately reassesses; it never deletes canonical data.
-- Components: `storage/disk_pressure.py`, write-gating/diagnostics integration/tests.
-- Dependencies: BE-029 reserve primitive.
-- Last verification: 2026-08-23; policy and side-effect controller tests added, not executed.
+- Status: DONE
+- Evidence: integer-only Beta thresholds are implemented; runtime canonical `SQLiteDatabase.write_transaction()` now invokes the controller gate before `BEGIN IMMEDIATE`. First runtime EMERGENCY releases only the reserve, latches read-only safe mode for the controller lifetime, blocks the current and subsequent noncritical writes, and leaves restart/bootstrap to re-evaluate recovery.
+- Components: `storage/disk_pressure.py`, `storage/database.py`, `storage/bootstrap.py`, targeted tests.
+- Last verification: 2026-08-23 current remote. Static integration complete; targeted tests were added but not executed because isolated runtime could not resolve `github.com`.
 
 ### BE-031 — Candidate-only schema executor
 - Priority: P1
@@ -50,25 +86,11 @@ Last queue refresh: 2026-08-23.
 
 ### BE-033 — Integrate safe storage bootstrap ordering
 - Priority: P1
-- Status: READY
-- Evidence: required order is read-only preflight/planning -> RuntimeLayout -> EmergencyReserve -> clone migration when needed -> DatabaseService. Current `AthenaApplication` bootstrap tuple is RuntimeLayout -> Database -> protected services.
-- Components: `core/application.py`, database startup, storage bootstrap tests.
-- Dependencies: testable reserve-service injection seam; BE-029/BE-031/BE-032.
-- Last verification: 2026-08-23 against current `core/application.py`.
-
-### BE-020 — Runtime ModelSignature drift guard in generation
-- Priority: P1
-- Status: READY
-- Evidence: reusable revision-aware guard exists; shared `chat/generation.py` still uses older inline comparison.
-- Components: chat generation/signature guard/tests.
-- Dependencies: safe mutation window for shared generation file.
-
-### BE-021 — ContextPackage temperature conversion overflow
-- Priority: P2
-- Status: READY
-- Evidence: extreme JSON integer can escape the ContextPackage error contract via `float()` OverflowError.
-- Components: retrieval/context_package.py/tests.
-- Dependencies: safe mutation window for shared ContextPackage file.
+- Status: DONE
+- Evidence: `StorageBootstrapService` now owns RuntimeLayout -> migration-root/preflight/recovery -> EmergencyReserve -> clone migration if required -> database startup, and binds runtime disk-pressure write arbitration to the database before startup.
+- Components: `storage/bootstrap.py`, `storage/database.py`, bootstrap tests.
+- Dependencies: BE-029/031/032 DONE.
+- Last verification: 2026-08-23 current remote; integration regression added, not executed in isolated runtime.
 
 ## Blocked / in-progress older slices
 
