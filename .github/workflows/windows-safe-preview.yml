@@ -103,40 +103,63 @@ jobs:
           Background scheduler jobs are intentionally unavailable in this Safe Preview.
           '@ | Set-Content -Encoding UTF8 (Join-Path $out "START_HERE.txt")
 
-      - name: Smoke-test Core process
+      - name: Smoke-test Core executable contract
         shell: pwsh
         run: |
           $root = Join-Path $PWD "portable\pATHENA-Windows-Safe"
-          $core = Start-Process -FilePath (Join-Path $root "pATHENA-Core.exe") -ArgumentList '-m','athena.api.process' -PassThru
-          Start-Sleep -Seconds 6
-          if ($core.HasExited) {
-            throw "pATHENA-Core.exe exited during startup smoke test with exit code $($core.ExitCode)"
+          $core = Start-Process `
+            -FilePath (Join-Path $root "pATHENA-Core.exe") `
+            -ArgumentList '-m','athena.api.process','--help' `
+            -Wait `
+            -PassThru
+          if ($core.ExitCode -ne 0) {
+            throw "pATHENA-Core.exe --help failed with exit code $($core.ExitCode)"
           }
-          Stop-Process -Id $core.Id -Force
+          Get-Process -Name "pATHENA-Core" -ErrorAction SilentlyContinue | Stop-Process -Force
+          Start-Sleep -Seconds 1
 
       - name: Smoke-test Desktop without scheduler fan-out
         shell: pwsh
         run: |
           $root = Join-Path $PWD "portable\pATHENA-Windows-Safe"
           $env:QT_QPA_PLATFORM = "offscreen"
-          $desktop = Start-Process -FilePath (Join-Path $root "pATHENA.exe") -PassThru
-          Start-Sleep -Seconds 10
-          if ($desktop.HasExited) {
-            throw "pATHENA.exe exited during startup smoke test with exit code $($desktop.ExitCode)"
-          }
-
-          $scheduler = Get-Process -Name "pATHENA-Scheduler" -ErrorAction SilentlyContinue
-          if ($scheduler) {
-            throw "Safe Preview unexpectedly started pATHENA-Scheduler.exe"
-          }
-
-          $cores = @(Get-Process -Name "pATHENA-Core" -ErrorAction SilentlyContinue)
-          if ($cores.Count -gt 1) {
-            throw "Safe Preview started more than one Core process"
-          }
-
-          Stop-Process -Id $desktop.Id -Force
           Get-Process -Name "pATHENA-Core" -ErrorAction SilentlyContinue | Stop-Process -Force
+          Get-Process -Name "pATHENA-Scheduler" -ErrorAction SilentlyContinue | Stop-Process -Force
+          Start-Sleep -Seconds 1
+
+          $failure = $null
+          $desktop = $null
+          try {
+            $desktop = Start-Process -FilePath (Join-Path $root "pATHENA.exe") -PassThru
+            Start-Sleep -Seconds 10
+
+            if ($desktop.HasExited) {
+              $failure = "pATHENA.exe exited during startup smoke test with exit code $($desktop.ExitCode)"
+            }
+
+            $scheduler = @(Get-Process -Name "pATHENA-Scheduler" -ErrorAction SilentlyContinue)
+            $cores = @(Get-Process -Name "pATHENA-Core" -ErrorAction SilentlyContinue)
+            Write-Host "Observed scheduler processes: $($scheduler.Count)"
+            Write-Host "Observed core processes: $($cores.Count)"
+
+            if (-not $failure -and $scheduler.Count -ne 0) {
+              $failure = "Safe Preview unexpectedly started a scheduler process"
+            }
+            if (-not $failure -and $cores.Count -ne 1) {
+              $failure = "Safe Preview expected exactly one Core process, observed $($cores.Count)"
+            }
+          }
+          finally {
+            if ($desktop -and -not $desktop.HasExited) {
+              Stop-Process -Id $desktop.Id -Force -ErrorAction SilentlyContinue
+            }
+            Get-Process -Name "pATHENA-Core" -ErrorAction SilentlyContinue | Stop-Process -Force
+            Get-Process -Name "pATHENA-Scheduler" -ErrorAction SilentlyContinue | Stop-Process -Force
+          }
+
+          if ($failure) {
+            throw $failure
+          }
 
       - name: Upload safe Windows preview
         uses: actions/upload-artifact@v4
