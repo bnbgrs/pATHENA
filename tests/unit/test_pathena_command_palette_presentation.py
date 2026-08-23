@@ -17,17 +17,21 @@ def test_command_palette_uses_quiet_product_copy_without_losing_commands() -> No
     controller = CommandPaletteController(window)
     try:
         assert controller.dialog.windowTitle() == "pATHENA Commands"
+        assert controller.dialog.accessibleName() == "pATHENA commands"
+        assert "Search and run commands" in controller.dialog.accessibleDescription()
         assert controller.query.placeholderText() == "Search commands or workspaces…"
         assert controller.query.accessibleName() == "Command search"
         assert "Results update as you type" in controller.query.accessibleDescription()
         assert controller.results.accessibleName() == "Command results"
 
-        titles = {
-            label.text()
+        title_labels = [
+            label
             for label in controller.dialog.findChildren(QLabel)
             if label.objectName() == "commandPaletteTitle"
-        }
-        assert titles == {"Commands"}
+        ]
+        assert {label.text() for label in title_labels} == {"Commands"}
+        assert len(title_labels) == 1
+        assert title_labels[0].buddy() is controller.query
 
         labels = {command.label for command in controller._commands}
         assert {
@@ -71,11 +75,20 @@ def test_help_surface_is_readable_and_documents_current_shortcuts() -> None:
     controller = CommandPaletteController(window)
     try:
         assert controller.help_dialog.windowTitle() == "pATHENA Help"
+        assert controller.help_dialog.accessibleName() == "pATHENA help"
+        assert "Read-only guide" in controller.help_dialog.accessibleDescription()
         assert controller.help_text.isReadOnly()
         assert controller.help_text.accessibleName() == "pATHENA help content"
         assert "Read-only guide" in controller.help_text.accessibleDescription()
-        help_text = controller._render_help_text()
 
+        help_title = controller.help_dialog.findChild(QLabel, "helpDialogTitle")
+        help_intro = controller.help_dialog.findChild(QLabel, "helpDialogIntro")
+        assert help_title is not None
+        assert help_intro is not None
+        assert help_title.buddy() is controller.help_text
+        assert help_intro.buddy() is controller.help_text
+
+        help_text = controller._render_help_text()
         assert help_text.startswith("Workspaces\n")
         assert "Ctrl K       Commands" in help_text
         assert "Ctrl+Enter   Send message" in help_text
