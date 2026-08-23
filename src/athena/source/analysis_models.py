@@ -98,3 +98,26 @@ class SourceAnalysisWorkInput:
     input_kind: AnalysisInputKind
     source_anchor_id: uuid.UUID | None
     artifact_id: uuid.UUID | None
+
+    def __post_init__(self) -> None:
+        """Keep the tagged input reference structurally unambiguous."""
+        if isinstance(self.ordinal, bool) or not isinstance(self.ordinal, int):
+            raise TypeError("Source analysis input ordinal must be an integer.")
+        if self.ordinal < 0:
+            raise ValueError("Source analysis input ordinal must not be negative.")
+
+        if self.input_kind is AnalysisInputKind.SOURCE_ANCHOR:
+            if self.source_anchor_id is None or self.artifact_id is not None:
+                raise ValueError(
+                    "Source-anchor analysis input must reference exactly one source_anchor_id."
+                )
+            return
+
+        if self.input_kind is AnalysisInputKind.ARTIFACT:
+            if self.artifact_id is None or self.source_anchor_id is not None:
+                raise ValueError(
+                    "Artifact analysis input must reference exactly one artifact_id."
+                )
+            return
+
+        raise TypeError("Source analysis input_kind must be an AnalysisInputKind.")
