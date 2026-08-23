@@ -1,3 +1,5 @@
+import inspect
+
 from athena.desktop import pathena_ui_refinement_700 as refinement
 
 
@@ -39,6 +41,9 @@ def test_operational_styles_are_restrained_and_semantic() -> None:
 
 
 def test_operational_lists_use_live_row_styling_contract() -> None:
-    assert "researchJobList" in refinement.apply_ui_refinements_601_700.__code__.co_consts
-    assert "durableJobList" in refinement.apply_ui_refinements_601_700.__code__.co_consts
-    assert "sourceList" in refinement.apply_ui_refinements_601_700.__code__.co_consts
+    source = inspect.getsource(refinement.apply_ui_refinements_601_700)
+
+    assert "researchJobList" in source
+    assert "durableJobList" in source
+    assert "sourceList" in source
+    assert "_install_live_row_styling" in source
