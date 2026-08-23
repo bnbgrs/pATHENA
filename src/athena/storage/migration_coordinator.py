@@ -8,6 +8,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
+from athena.storage.durable_fs import is_link_boundary
 from athena.storage.migration_activation import (
     MigrationActivationReport,
     activate_migration_candidate,
@@ -70,6 +71,19 @@ def _nonnegative_int(value: object, label: str) -> int:
     return value
 
 
+def _assert_safe_path(path: Path, *, label: str) -> None:
+    cursor = path
+    while True:
+        if is_link_boundary(cursor):
+            raise MigrationCoordinatorError(
+                f"{label} contains a symlink, junction, or reparse-point boundary."
+            )
+        parent = cursor.parent
+        if parent == cursor:
+            return
+        cursor = parent
+
+
 def _sqlite_sidecars(path: Path) -> tuple[Path, Path]:
     return (
         path.with_name(f"{path.name}-wal"),
@@ -78,7 +92,10 @@ def _sqlite_sidecars(path: Path) -> tuple[Path, Path]:
 
 
 def _assert_no_sqlite_sidecars(path: Path, *, label: str) -> None:
-    if any(sidecar.exists() or sidecar.is_symlink() for sidecar in _sqlite_sidecars(path)):
+    if any(
+        sidecar.exists() or is_link_boundary(sidecar)
+        for sidecar in _sqlite_sidecars(path)
+    ):
         raise MigrationCoordinatorError(
             f"{label} has SQLite WAL/SHM sidecars; recovery review is required."
         )
@@ -89,6 +106,7 @@ def _verify_migrated_candidate(
     *,
     expected_schema_version: int,
 ) -> None:
+    _assert_safe_path(candidate, label="Migration candidate")
     _assert_no_sqlite_sidecars(candidate, label="Migration candidate")
     try:
         connection = sqlite3.connect(
@@ -129,6 +147,7 @@ def _verify_migrated_candidate(
         ) from exc
     finally:
         connection.close()
+    _assert_safe_path(candidate, label="Verified migration candidate")
     _assert_no_sqlite_sidecars(candidate, label="Verified migration candidate")
 
 
@@ -162,9 +181,12 @@ def run_clone_migration(
     started = _nonnegative_int(started_at_us, "Migration started_at_us")
     if not callable(executor):
         raise TypeError("Migration executor must be callable.")
-    if not source.is_file() or source.is_symlink():
+
+    _assert_safe_path(source, label="Migration source")
+    _assert_safe_path(root, label="Migration root")
+    if not source.is_file():
         raise MigrationCoordinatorError("Migration source must be a real database file.")
-    if not root.is_dir() or root.is_symlink():
+    if not root.is_dir():
         raise MigrationCoordinatorError("Migration root must be a real directory.")
     _assert_no_sqlite_sidecars(source, label="Migration source")
 
@@ -193,7 +215,12 @@ def run_clone_migration(
             raise MigrationCoordinatorError(
                 "Existing migration journal requires recovery before a new migration."
             )
-        if candidate.exists() or rollback.exists():
+        if (
+            candidate.exists()
+            or rollback.exists()
+            or is_link_boundary(candidate)
+            or is_link_boundary(rollback)
+        ):
             raise MigrationCoordinatorError(
                 "Orphan migration candidate/rollback requires recovery before retry."
             )
