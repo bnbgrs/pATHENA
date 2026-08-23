@@ -8,9 +8,7 @@ from athena.desktop.pathena_accessibility_flow_3000 import (
     UI_REFINEMENT_TASKS_2901_3000,
     apply_ui_refinements_2901_3000,
 )
-from athena.desktop.pathena_accessible_state_sync_5600 import (
-    apply_ui_refinements_5501_5600,
-)
+from athena.desktop.pathena_accessible_state_sync_5600 import apply_ui_refinements_5501_5600
 from athena.desktop.pathena_action_hierarchy_3500 import (
     UI_REFINEMENT_TASKS_3401_3500,
     apply_ui_refinements_3401_3500,
@@ -68,6 +66,7 @@ from athena.desktop.pathena_microinteraction_3900 import (
     UI_REFINEMENT_TASKS_3801_3900,
     apply_ui_refinements_3801_3900,
 )
+from athena.desktop.pathena_mutation_boundary_5800 import apply_ui_refinements_5701_5800
 from athena.desktop.pathena_offline_comprehension_4700 import apply_ui_refinements_4601_4700
 from athena.desktop.pathena_operational_continuity_3800 import (
     UI_REFINEMENT_TASKS_3701_3800,
@@ -245,6 +244,7 @@ def apply_complete_ui_refinements(window: QWidget) -> tuple[int, ...]:
         apply_ui_refinements_5401_5500,
         apply_ui_refinements_5501_5600,
         apply_ui_refinements_5601_5700,
+        apply_ui_refinements_5701_5800,
     )
     for refinement_pass in passes:
         applied.extend(refinement_pass(window))
@@ -289,5 +289,5 @@ def apply_complete_ui_refinements(window: QWidget) -> tuple[int, ...]:
         UI_REFINEMENT_TASKS_4401_4500,
     )
     window.setProperty("pathenaUiRefinementAppliedCount", len(normalized))
-    window.setProperty("pathenaUiRefinementTaskCount", sum(map(len, task_sets)) + 1133)
+    window.setProperty("pathenaUiRefinementTaskCount", sum(map(len, task_sets)) + 1233)
     return normalized
