@@ -39,20 +39,13 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 | UI-029 | P2 | DONE | Command palette and Knowledge filter now distinguish no-match from empty data; three focused tests added, not executed. |
 | UI-030 | P2 | DONE | Dialog focus return preserves newer intentional focus and otherwise restores the pre-dialog control; four tests added, not executed. |
 | UI-031 | P2 | DONE | Knowledge/Research/Jobs/Sources/Backup now expose shown/total/selected scope in a separate quiet status row; four focused tests added, not executed. |
+| UI-032 | P2 | DONE | Dynamic message actions now use stable Copy→Remember→Add ordering by message sequence and return to the composer; disabled Remember state is preserved; four tests added, not executed. |
 
 ## Active queue
 
-### UI-032 — Message action tab-order audit
-- **Priority:** P2
-- **Status:** IN_PROGRESS
-- **Evidence:** Message actions are now focusable; verify per-message tab order remains predictable across long threads and disabled Remember states.
-- **Views/components:** Chat message rows, composer transition.
-- **Dependencies:** UI-027/UI-028.
-- **Last verification:** 2026-08-23.
-
 ### UI-033 — Evidence-chain compact hierarchy
 - **Priority:** P2
-- **Status:** READY
+- **Status:** IN_PROGRESS
 - **Evidence:** Inspector text overflow is hardened; audit Evidence Rail/Chain semantic hierarchy at compact width without increasing visual prominence.
 - **Views/components:** Evidence rail, chain summary, grounded Inspector.
 - **Dependencies:** UI-025 and existing grounded response data.
