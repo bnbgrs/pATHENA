@@ -131,6 +131,14 @@ def test_invalid_model_timeout_environment_is_rejected(tmp_path, monkeypatch) ->
         AthenaSettings.from_environment()
 
 
+def test_huge_integer_model_timeout_is_rejected_as_configuration_error(tmp_path) -> None:
+    with pytest.raises(ConfigurationError, match="finite number greater than zero"):
+        AthenaSettings(
+            local_root=tmp_path,
+            model_request_timeout_seconds=10**400,
+        )
+
+
 def test_model_generation_timeout_environment(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("ATHENA_LOCAL_ROOT", str(tmp_path))
     monkeypatch.setenv("ATHENA_MODEL_GENERATION_TIMEOUT_SECONDS", "45")
@@ -146,3 +154,15 @@ def test_invalid_model_generation_timeout_is_rejected(tmp_path, monkeypatch) -> 
 
     with pytest.raises(ConfigurationError, match="greater than zero"):
         AthenaSettings.from_environment()
+
+
+@pytest.mark.parametrize("value", [float("nan"), float("inf"), float("-inf"), True, False])
+def test_direct_model_timeouts_reject_nonfinite_or_boolean_values(
+    tmp_path,
+    value,
+) -> None:
+    with pytest.raises(ConfigurationError, match="finite number greater than zero"):
+        AthenaSettings(
+            local_root=tmp_path,
+            model_generation_timeout_seconds=value,
+        )
