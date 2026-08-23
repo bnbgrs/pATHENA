@@ -46,6 +46,12 @@ def _normalized_model_id(value: object) -> str:
     return normalized
 
 
+def _real_float(value: object, label: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, Real):
+        raise HnswIndexError(f"{label} must be numeric.")
+    return float(value)
+
+
 def _validate_vector(
     vector: Sequence[float],
     *,
@@ -55,9 +61,8 @@ def _validate_vector(
     if len(vector) != dimensions:
         raise HnswIndexError(f"{label} dimensions differ from the index.")
     for component in vector:
-        if isinstance(component, bool) or not isinstance(component, Real):
-            raise HnswIndexError(f"{label} contains a non-numeric component.")
-        if not math.isfinite(float(component)):
+        normalized_component = _real_float(component, f"{label} component")
+        if not math.isfinite(normalized_component):
             raise HnswIndexError(f"{label} contains a non-finite component.")
 
 
@@ -69,9 +74,11 @@ class HnswMatch:
     def __post_init__(self) -> None:
         if not isinstance(self.reference, bytes) or not self.reference:
             raise HnswIndexError("HNSW match reference must be non-empty bytes.")
-        if isinstance(self.similarity, bool) or not isinstance(self.similarity, Real):
-            raise HnswIndexError("HNSW match similarity must be numeric.")
-        if not math.isfinite(float(self.similarity)) or not -1.0 <= float(self.similarity) <= 1.0:
+        normalized_similarity = _real_float(
+            self.similarity,
+            "HNSW match similarity",
+        )
+        if not math.isfinite(normalized_similarity) or not -1.0 <= normalized_similarity <= 1.0:
             raise HnswIndexError("HNSW match similarity must be finite and between -1 and 1.")
 
 
@@ -282,9 +289,10 @@ class HnswIndexStore:
                     raise HnswIndexError("HNSW returned a non-integer reference key.")
                 if not 1 <= key <= validated_document_count:
                     raise HnswIndexError("HNSW returned an out-of-range reference key.")
-                if isinstance(distance, bool) or not isinstance(distance, Real):
-                    raise HnswIndexError("HNSW returned a non-numeric distance.")
-                normalized_distance = float(distance)
+                normalized_distance = _real_float(
+                    distance,
+                    "HNSW distance",
+                )
                 if not math.isfinite(normalized_distance):
                     raise HnswIndexError("HNSW returned a non-finite distance.")
                 references.seek((key - 1) * self.reference_size)
