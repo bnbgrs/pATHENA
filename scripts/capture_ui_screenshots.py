@@ -14,9 +14,14 @@ import time
 from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+if os.name == "nt":
+    os.environ.setdefault(
+        "QT_QPA_FONTDIR",
+        str(Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts"),
+    )
 
 from PySide6.QtCore import QPoint
-from PySide6.QtGui import QPainter, QPixmap
+from PySide6.QtGui import QFont, QFontDatabase, QPainter, QPixmap
 
 from athena.api.client import CoreApiClient
 from athena.desktop.api_controller import DesktopApiController
@@ -51,6 +56,34 @@ def _pump(app: object, seconds: float) -> None:
         app.processEvents()
         time.sleep(0.04)
     app.processEvents()
+
+
+def _install_windows_ui_fonts(app: object) -> None:
+    if os.name != "nt":
+        return
+    font_dir = Path(os.environ.get("WINDIR", r"C:\Windows")) / "Fonts"
+    loaded: list[str] = []
+    for filename in (
+        "segoeui.ttf",
+        "segoeuib.ttf",
+        "seguisb.ttf",
+        "segoeuil.ttf",
+    ):
+        path = font_dir / filename
+        if not path.is_file():
+            continue
+        font_id = QFontDatabase.addApplicationFont(str(path))
+        if font_id < 0:
+            continue
+        loaded.extend(QFontDatabase.applicationFontFamilies(font_id))
+    families = set(QFontDatabase.families())
+    print("QT FONTDIR", font_dir)
+    print("LOADED FONT FAMILIES", sorted(set(loaded)))
+    print("SEGOE UI AVAILABLE", "Segoe UI" in families)
+    if "Segoe UI" in families:
+        app.setFont(QFont("Segoe UI", 10))
+    elif "Arial" in families:
+        app.setFont(QFont("Arial", 10))
 
 
 def _save_window(window: PathenaMainWindow, output: Path, filename: str) -> None:
@@ -107,6 +140,7 @@ def main() -> int:
     output.mkdir(parents=True, exist_ok=True)
 
     app = create_application(["pATHENA-screenshot-capture"])
+    _install_windows_ui_fonts(app)
     client = CoreApiClient.from_environment()
     supervisor = DesktopCoreSupervisor(client=client, parent=app)
     scheduler_supervisor = DesktopJobSchedulerSupervisor(parent=app)
