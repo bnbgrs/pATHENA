@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import asdict, dataclass
 from typing import cast
 
@@ -22,7 +23,11 @@ class ApiContract:
 
 
 def _json_safe(value: object) -> JsonValue:
-    if value is None or isinstance(value, (str, int, float, bool)):
+    if value is None or isinstance(value, (str, bool, int)):
+        return value
+    if isinstance(value, float):
+        if not math.isfinite(value):
+            raise TypeError("API contract floats must be finite.")
         return value
     if isinstance(value, list):
         return [_json_safe(item) for item in value]
