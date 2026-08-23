@@ -12,11 +12,17 @@ from athena.desktop.pathena_ui_refinement_200 import (
     UI_REFINEMENT_TASKS_101_200,
     apply_ui_refinements_101_200,
 )
+from athena.desktop.pathena_ui_refinement_300 import (
+    UI_REFINEMENT_TASKS_201_300,
+    apply_ui_refinement_target_repairs,
+    apply_ui_refinements_207_300,
+)
 
 
 def apply_complete_ui_refinements(window: QWidget) -> tuple[int, ...]:
     """Apply all presentation refinements without changing domain behavior."""
-    applied = list(apply_ui_refinements(window))
+    applied = list(apply_ui_refinement_target_repairs(window))
+    applied.extend(apply_ui_refinements(window))
     knowledge = window.findChild(QWidget, "knowledgeWorkspace")
 
     if knowledge is not None:
@@ -52,8 +58,13 @@ def apply_complete_ui_refinements(window: QWidget) -> tuple[int, ...]:
             applied.append(49)
 
     applied.extend(apply_ui_refinements_101_200(window))
+    applied.extend(apply_ui_refinements_207_300(window))
     normalized = tuple(sorted(set(applied)))
-    total_tasks = len(UI_REFINEMENT_TASKS) + len(UI_REFINEMENT_TASKS_101_200)
+    total_tasks = (
+        len(UI_REFINEMENT_TASKS)
+        + len(UI_REFINEMENT_TASKS_101_200)
+        + len(UI_REFINEMENT_TASKS_201_300)
+    )
     window.setProperty("pathenaUiRefinementAppliedCount", len(normalized))
     window.setProperty("pathenaUiRefinementTaskCount", total_tasks)
     return normalized
