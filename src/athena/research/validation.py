@@ -190,4 +190,11 @@ def _json_string_array(raw: str, field: str) -> tuple[str, ...]:
         raise ResearchStateError(f"{field} contains invalid JSON.") from exc
     if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
         raise ResearchStateError(f"{field} must be a JSON string array.")
-    return tuple(value)
+    normalized = tuple(item.strip() for item in value)
+    if any(not item for item in normalized):
+        raise ResearchStateError(f"{field} must not contain blank strings.")
+    if normalized != tuple(value):
+        raise ResearchStateError(f"{field} strings must use canonical trimmed text.")
+    if len(set(normalized)) != len(normalized):
+        raise ResearchStateError(f"{field} must not contain duplicate strings.")
+    return normalized
