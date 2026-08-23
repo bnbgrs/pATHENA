@@ -135,7 +135,9 @@ class ModelRegistry:
     candidates. Unknown capability support fails closed for required workflow
     capabilities rather than being treated as supported. Load ownership is also
     fail-closed: only a model explicitly recorded as loaded by ATHENA may be
-    automatically unloaded.
+    automatically unloaded. A generic discovery refresh clears ownership because
+    discovery does not prove that a loaded backend instance is the same instance
+    ATHENA previously created.
     """
 
     def __init__(self) -> None:
@@ -171,16 +173,13 @@ class ModelRegistry:
             prior = self._entries.get(key)
             eligibility = _eligibility(model, required)
             active = key == self._active_identity and eligibility is ModelRoleEligibility.PRIMARY
-            ownership = ModelLoadOwnership.UNKNOWN
-            if model.loaded and prior is not None:
-                ownership = prior.load_ownership
             refreshed[key] = ModelRegistryEntry(
                 model=model,
                 eligibility=eligibility,
                 user_alias=None if prior is None else prior.user_alias,
                 active_primary=active,
                 resources=ModelResourceProfile() if prior is None else prior.resources,
-                load_ownership=ownership,
+                load_ownership=ModelLoadOwnership.UNKNOWN,
             )
 
         self._entries = refreshed
