@@ -87,10 +87,19 @@ def _read_journal_file(path: Path) -> bytes:
             raise MigrationJournalError(
                 "Migration journal pathname changed while it was being opened."
             )
-        with os.fdopen(descriptor, "rb", closefd=True) as handle:
-            payload = handle.read()
+        try:
+            handle = os.fdopen(descriptor, "rb", closefd=True)
+        except OSError as exc:
+            raise MigrationJournalError(
+                "Migration journal file handle could not be created."
+            ) from exc
         descriptor = -1
-        return payload
+        try:
+            return handle.read()
+        except OSError as exc:
+            raise MigrationJournalError("Migration journal could not be read.") from exc
+        finally:
+            handle.close()
     finally:
         if descriptor >= 0:
             os.close(descriptor)
@@ -272,11 +281,15 @@ class MigrationJournalStore:
             descriptor = os.open(temporary, flags, 0o600)
             try:
                 data = encode_migration_journal(state)
-                with os.fdopen(descriptor, "wb", closefd=True) as handle:
+                try:
+                    handle = os.fdopen(descriptor, "wb", closefd=True)
+                except OSError:
+                    raise
+                descriptor = -1
+                with handle:
                     handle.write(data)
                     handle.flush()
                     os.fsync(handle.fileno())
-                descriptor = -1
             finally:
                 if descriptor >= 0:
                     os.close(descriptor)
