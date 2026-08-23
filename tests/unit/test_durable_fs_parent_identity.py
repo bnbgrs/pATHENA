@@ -71,3 +71,59 @@ def test_posix_durable_replace_preserves_normal_atomic_publication(tmp_path: Pat
 
     assert not source.exists()
     assert destination.read_bytes() == b"new"
+
+
+def test_posix_durable_write_bytes_does_not_publish_into_replaced_parent(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    if os.name != "posix":
+        pytest.skip("POSIX dir_fd identity regression")
+
+    parent = tmp_path / "parent"
+    parent.mkdir()
+    destination = parent / "state.json"
+    destination.write_bytes(b"old")
+    displaced = tmp_path / "displaced"
+
+    real_open = os.open
+    replaced_parent = False
+
+    def racing_open(
+        path: str | bytes | os.PathLike[str] | os.PathLike[bytes],
+        flags: int,
+        mode: int = 0o777,
+        *,
+        dir_fd: int | None = None,
+    ) -> int:
+        nonlocal replaced_parent
+        if dir_fd is not None and not replaced_parent:
+            replaced_parent = True
+            parent.rename(displaced)
+            parent.mkdir()
+            (parent / "state.json").write_bytes(b"attacker")
+        if dir_fd is None:
+            return real_open(path, flags, mode)
+        return real_open(path, flags, mode, dir_fd=dir_fd)
+
+    monkeypatch.setattr(durable_fs.os, "open", racing_open)
+
+    with pytest.raises(OSError, match="changed during durable filesystem mutation"):
+        durable_fs.durable_write_bytes(destination, b"trusted")
+
+    assert (parent / "state.json").read_bytes() == b"attacker"
+    assert (displaced / "state.json").read_bytes() == b"trusted"
+
+
+def test_posix_durable_write_bytes_replaces_existing_file(tmp_path: Path) -> None:
+    if os.name != "posix":
+        pytest.skip("POSIX dir_fd identity regression")
+
+    parent = tmp_path / "parent"
+    parent.mkdir()
+    destination = parent / "state.json"
+    destination.write_bytes(b"old")
+
+    durable_fs.durable_write_bytes(destination, b"new")
+
+    assert destination.read_bytes() == b"new"
