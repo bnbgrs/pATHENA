@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import math
 import re
 import unicodedata
 import uuid
 from dataclasses import dataclass
+from numbers import Real
 
 from athena.model.adapters.lm_studio import ModelProviderError
 from athena.retrieval.degradation import SemanticRetrievalUnavailableError
@@ -34,6 +36,28 @@ def _positive_int(value: object, label: str) -> int:
     return value
 
 
+def _nonnegative_int(value: object, label: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError(f"{label} must be an integer.")
+    if value < 0:
+        raise ValueError(f"{label} must not be negative.")
+    return value
+
+
+def _finite_number(value: object, label: str, *, minimum: float | None = None) -> float:
+    if isinstance(value, bool) or not isinstance(value, Real):
+        raise TypeError(f"{label} must be numeric.")
+    try:
+        normalized = float(value)
+    except OverflowError as exc:
+        raise ValueError(f"{label} must be finite.") from exc
+    if not math.isfinite(normalized):
+        raise ValueError(f"{label} must be finite.")
+    if minimum is not None and normalized < minimum:
+        raise ValueError(f"{label} must be >= {minimum}.")
+    return normalized
+
+
 def _search_limit(value: object) -> int:
     validated = _positive_int(value, "Hybrid search limit")
     if validated > 200:
@@ -54,6 +78,36 @@ class HybridSearchResult:
     authority_score: float
     contradiction_count: int
     duplicate_count: int
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.entity_id, uuid.UUID):
+            raise TypeError("Hybrid result entity_id must be a UUID.")
+        if not isinstance(self.revision_id, uuid.UUID):
+            raise TypeError("Hybrid result revision_id must be a UUID.")
+        if not isinstance(self.entity_type, SearchEntityType):
+            raise TypeError("Hybrid result entity_type must be a SearchEntityType.")
+        if self.title is not None and not isinstance(self.title, str):
+            raise TypeError("Hybrid result title must be text or None.")
+        if not isinstance(self.text, str):
+            raise TypeError("Hybrid result text must be text.")
+        _finite_number(self.score, "Hybrid result score", minimum=0.0)
+        _finite_number(self.lexical_score, "Hybrid result lexical_score", minimum=0.0)
+        _finite_number(self.semantic_score, "Hybrid result semantic_score", minimum=0.0)
+        authority = _finite_number(
+            self.authority_score,
+            "Hybrid result authority_score",
+            minimum=0.0,
+        )
+        if authority > 1.0:
+            raise ValueError("Hybrid result authority_score must be <= 1.0.")
+        _nonnegative_int(
+            self.contradiction_count,
+            "Hybrid result contradiction_count",
+        )
+        _nonnegative_int(
+            self.duplicate_count,
+            "Hybrid result duplicate_count",
+        )
 
 
 @dataclass(slots=True)
