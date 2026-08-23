@@ -6,7 +6,6 @@ change domain state, controller wiring, persistence, scheduling, or API behavior
 
 from PySide6.QtWidgets import QWidget
 
-
 UI_REFINEMENT_TASKS_101_200: tuple[str, ...] = tuple(
     task
     for label in (
