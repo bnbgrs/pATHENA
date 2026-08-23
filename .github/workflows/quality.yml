@@ -14,7 +14,6 @@ jobs:
     timeout-minutes: 10
     env:
       QT_QPA_PLATFORM: offscreen
-      PATHENA_UI_SNAPSHOT: artifacts/pathena-ui.png
 
     steps:
       - name: Check out repository
@@ -38,17 +37,6 @@ jobs:
 
       - name: Validate dependency lock
         run: uv lock --check
-
-      - name: Render exact pATHENA UI snapshot
-        run: uv run --locked --extra desktop python scripts/render_pathena_ui_snapshot.py
-
-      - name: Upload exact pATHENA UI snapshot
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: pathena-ui-snapshot
-          path: artifacts/pathena-ui.png
-          if-no-files-found: error
 
       - name: Run ATHENA quality gate
         run: uv run --locked --extra dev --extra desktop python scripts/quality.py
