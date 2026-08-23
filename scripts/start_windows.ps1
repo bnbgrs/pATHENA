@@ -40,7 +40,7 @@ if ($LmStudioBaseUrl.Trim()) {
     $env:ATHENA_LMSTUDIO_BASE_URL = $LmStudioBaseUrl.Trim()
 }
 
-$runtimeRoot = Assert-PathenaLocalRootReady
+$runtimeRoot = Assert-PathenaLocalRootReady -RepoRoot $RepoRoot
 Write-Host "Runtime root ready: $runtimeRoot"
 
 if (-not $NoSync) {
