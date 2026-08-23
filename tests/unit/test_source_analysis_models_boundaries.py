@@ -74,7 +74,7 @@ def test_work_input_rejects_non_integer_ordinal(ordinal: object) -> None:
 
 
 def test_work_input_rejects_negative_ordinal() -> None:
-    with pytest.raises(ValueError, match="must not be negative"):
+    with pytest.raises(ValueError, match="must be >= 0"):
         SourceAnalysisWorkInput(
             work_item_id=_uuid(),
             ordinal=-1,
