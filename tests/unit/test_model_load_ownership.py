@@ -87,15 +87,16 @@ def test_refresh_clears_ownership_after_model_becomes_unloaded() -> None:
     assert entry.automatic_unload_allowed is False
 
 
-def test_refresh_preserves_known_ownership_while_instance_stays_loaded() -> None:
+def test_refresh_clears_ownership_even_when_model_is_still_reported_loaded() -> None:
     registry = ModelRegistry()
     registry.refresh((_model(loaded=True),))
     registry.record_load_ownership(
         provider="provider",
         model_id="model",
-        ownership=ModelLoadOwnership.LOADED_EXTERNALLY,
+        ownership=ModelLoadOwnership.LOADED_BY_ATHENA,
     )
 
     (entry,) = registry.refresh((_model(loaded=True),))
 
-    assert entry.load_ownership is ModelLoadOwnership.LOADED_EXTERNALLY
+    assert entry.load_ownership is ModelLoadOwnership.UNKNOWN
+    assert entry.automatic_unload_allowed is False
