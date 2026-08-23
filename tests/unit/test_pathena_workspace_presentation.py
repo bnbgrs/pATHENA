@@ -3,9 +3,11 @@ from __future__ import annotations
 from PySide6.QtWidgets import (
     QApplication,
     QLabel,
+    QLineEdit,
     QListWidget,
     QPlainTextEdit,
     QPushButton,
+    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -28,38 +30,125 @@ def test_workspace_presentation_changes_copy_without_replacing_controls() -> Non
     workspace_layout = QVBoxLayout(workspace)
 
     title = QLabel("KNOWLEDGE / CANONICAL MEMORY", workspace)
-    section = QLabel("CURRENT CANONICAL KNOWLEDGE", workspace)
+    knowledge_heading = QLabel("CURRENT CANONICAL KNOWLEDGE", workspace)
+    knowledge_detail_heading = QLabel("SELECTED KNOWLEDGE / PROVENANCE", workspace)
+    claim_heading = QLabel("CURRENT CANONICAL CLAIMS", workspace)
+    claim_detail_heading = QLabel("SELECTED CLAIM / EVIDENCE / PROVENANCE", workspace)
+    decision_heading = QLabel("PENDING CONTRADICTION DECISIONS", workspace)
+    decision_detail_heading = QLabel("DECISION / BOTH CLAIMS", workspace)
     intro = QLabel(
         "Browse canonical Knowledge across restarts and inspect exact revision provenance.",
         workspace,
     )
+
     refresh = QPushButton("REFRESH KNOWLEDGE", workspace)
-    details = QPlainTextEdit(workspace)
-    details.setObjectName("persistentKnowledgeDetails")
+    confirm = QPushButton("ACCEPT CONTRADICTION", workspace)
+    reject = QPushButton("REJECT", workspace)
+
+    search = QLineEdit(workspace)
+    search.setObjectName("knowledgeSearchInput")
+
+    knowledge_details = QPlainTextEdit(workspace)
+    knowledge_details.setObjectName("persistentKnowledgeDetails")
+    claim_details = QPlainTextEdit(workspace)
+    claim_details.setObjectName("persistentClaimDetails")
+    decision_details = QPlainTextEdit(workspace)
+    decision_details.setObjectName("semanticReviewDetails")
+
     knowledge_list = QListWidget(workspace)
     knowledge_list.setObjectName("persistentKnowledgeList")
+    claim_list = QListWidget(workspace)
+    claim_list.setObjectName("persistentClaimList")
+    decision_list = QListWidget(workspace)
+    decision_list.setObjectName("semanticReviewList")
 
-    for widget in (title, section, intro, refresh, details, knowledge_list):
+    tabs = QTabWidget(workspace)
+    tabs.setObjectName("canonicalMemoryTabs")
+    for title_text in ("Knowledge", "Claims", "Decisions", "Session review"):
+        tabs.addTab(QWidget(), title_text)
+
+    for widget in (
+        title,
+        knowledge_heading,
+        knowledge_detail_heading,
+        claim_heading,
+        claim_detail_heading,
+        decision_heading,
+        decision_detail_heading,
+        intro,
+        refresh,
+        confirm,
+        reject,
+        search,
+        knowledge_details,
+        claim_details,
+        decision_details,
+        knowledge_list,
+        claim_list,
+        decision_list,
+        tabs,
+    ):
         workspace_layout.addWidget(widget)
     layout.addWidget(workspace)
 
-    original_refresh = refresh
-    original_details = details
-    original_list = knowledge_list
+    original_controls = {
+        "refresh": refresh,
+        "confirm": confirm,
+        "reject": reject,
+        "search": search,
+        "knowledge_details": knowledge_details,
+        "claim_details": claim_details,
+        "decision_details": decision_details,
+        "knowledge_list": knowledge_list,
+        "claim_list": claim_list,
+        "decision_list": decision_list,
+        "tabs": tabs,
+    }
 
     try:
         apply_workspace_presentation(window)
         app.processEvents()
 
         assert title.isHidden()
-        assert section.text() == "Canonical knowledge"
-        assert intro.text().startswith("Browse durable knowledge")
-        assert refresh is original_refresh
+        assert knowledge_heading.text() == "Canonical knowledge"
+        assert knowledge_detail_heading.text() == "Details & provenance"
+        assert claim_heading.text() == "Canonical claims"
+        assert claim_detail_heading.text() == "Evidence & provenance"
+        assert decision_heading.text() == "Contradiction decisions"
+        assert decision_detail_heading.text() == "Compare claims"
+        assert intro.text().startswith("Browse durable knowledge, claims, evidence")
+
+        assert refresh is original_controls["refresh"]
         assert refresh.text() == "Refresh"
-        assert details is original_details
-        assert details.placeholderText().startswith("Select a knowledge item")
-        assert knowledge_list is original_list
-        assert knowledge_list.minimumWidth() == 320
+        assert confirm is original_controls["confirm"]
+        assert confirm.text() == "Confirm contradiction"
+        assert reject is original_controls["reject"]
+        assert reject.text() == "Reject"
+
+        assert search is original_controls["search"]
+        assert search.placeholderText() == "Search knowledge, claims, or decisions…"
+
+        assert knowledge_details is original_controls["knowledge_details"]
+        assert knowledge_details.placeholderText().startswith("Select a knowledge item")
+        assert claim_details is original_controls["claim_details"]
+        assert claim_details.placeholderText().startswith("Select a claim")
+        assert decision_details is original_controls["decision_details"]
+        assert decision_details.placeholderText().startswith("Select a pending decision")
+
+        assert knowledge_list is original_controls["knowledge_list"]
+        assert claim_list is original_controls["claim_list"]
+        assert decision_list is original_controls["decision_list"]
+        assert knowledge_list.minimumWidth() == 310
+        assert claim_list.minimumWidth() == 310
+        assert decision_list.minimumWidth() == 310
+
+        assert tabs is original_controls["tabs"]
+        assert [tabs.tabText(index) for index in range(tabs.count())] == [
+            "Knowledge",
+            "Claims",
+            "Decisions",
+            "From chat",
+        ]
     finally:
         window.close()
         app.processEvents()
