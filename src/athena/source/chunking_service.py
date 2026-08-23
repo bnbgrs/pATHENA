@@ -450,7 +450,7 @@ class SourceChunkingService:
         )
         try:
             published_count = self.store.publish_staged_build(
-                build_signature,
+                build_signature=build_signature,
                 processing_run_id=run.processing_run_id,
                 created_at_us=utc_now_us(),
             )
