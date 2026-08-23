@@ -1,16 +1,10 @@
-"""Safe packaged Windows entry point for pATHENA desktop preview."""
+"""UI-only packaged Windows entry point for the pATHENA Safe Preview."""
 
 from __future__ import annotations
 
-import os
 import sys
 from collections.abc import Sequence
-from pathlib import Path
 
-os.environ.setdefault("QT_OPENGL", "software")
-os.environ.setdefault("QT_QUICK_BACKEND", "software")
-
-from PySide6.QtCore import QTimer
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QApplication
 
@@ -35,12 +29,8 @@ from athena.desktop.pathena_window import PathenaMainWindow
 from athena.desktop.pathena_workspace_presentation import apply_workspace_presentation
 from athena.desktop.research_results_extension import install_research_results_extension
 from athena.desktop.research_workspace import install_research_workspace
-from athena.desktop.supervisor import DesktopCoreSupervisor
 from athena.desktop.system_backup import install_system_backup
 from athena.desktop.system_workspace import install_system_workspace
-
-_INITIAL_CORE_REFRESH_DELAYS_MS = (250, 750, 1_500, 3_000, 5_000, 10_000, 20_000)
-_CORE_REFRESH_HEARTBEAT_MS = 30_000
 
 
 def create_application(argv: Sequence[str] | None = None) -> QApplication:
@@ -54,57 +44,21 @@ def create_application(argv: Sequence[str] | None = None) -> QApplication:
     app = QApplication(arguments)
     app.setApplicationName("ATHENA")
     app.setOrganizationName("ATHENA")
-    app.setApplicationDisplayName("pATHENA Safe Preview")
+    app.setApplicationDisplayName("pATHENA UI Safe Preview")
     app.setFont(QFont("Segoe UI", 10))
     app.setStyleSheet(PATHENA_STYLESHEET)
     return app
 
 
-def _sibling_executable(name: str) -> str:
-    return str(Path(sys.executable).resolve().with_name(name))
-
-
-def _schedule_core_refreshes(
-    controller: DesktopApiController,
-    supervisor: DesktopCoreSupervisor,
-) -> None:
-    for delay_ms in _INITIAL_CORE_REFRESH_DELAYS_MS:
-        def recover_and_refresh() -> None:
-            supervisor.ensure_running()
-            controller.refresh()
-
-        QTimer.singleShot(delay_ms, recover_and_refresh)
-
-
-def _start_core_heartbeat(
-    controller: DesktopApiController,
-    supervisor: DesktopCoreSupervisor,
-) -> QTimer:
-    timer = QTimer(controller)
-    timer.setInterval(_CORE_REFRESH_HEARTBEAT_MS)
-
-    def recover_and_refresh() -> None:
-        supervisor.ensure_running()
-        controller.refresh()
-
-    timer.timeout.connect(recover_and_refresh)
-    timer.start()
-    return timer
-
-
 def main(argv: Sequence[str] | None = None) -> int:
     app = create_application(argv)
-    client = CoreApiClient.from_environment()
-    supervisor = DesktopCoreSupervisor(
-        client=client,
-        executable=_sibling_executable("pATHENA-Core.exe"),
-        parent=app,
-    )
-    app.aboutToQuit.connect(supervisor.stop)
-    supervisor.ensure_running()
 
+    # UI-only safety mode: construct the normal API controller for presentation
+    # wiring, but deliberately start no Core, scheduler, worker, or child process.
+    client = CoreApiClient.from_environment()
     controller = DesktopApiController(client)
     window = PathenaMainWindow(api_controller=controller)
+
     knowledge_workspace = install_knowledge_workspace(window, controller)
     knowledge_acceptance = install_knowledge_acceptance(knowledge_workspace, controller)
     apply_knowledge_acceptance_presentation(knowledge_acceptance)
@@ -122,12 +76,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     apply_quiet_workspace_refinement(window)
     command_palette = install_command_palette(window)
 
-    _schedule_core_refreshes(controller, supervisor)
-    heartbeat = _start_core_heartbeat(controller, supervisor)
-
     window.show()
     exit_code = app.exec()
-    heartbeat.stop()
+
     canonical_memory_extensions.deleteLater()
     knowledge_acceptance.deleteLater()
     knowledge_workspace.deleteLater()
