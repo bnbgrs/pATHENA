@@ -93,6 +93,15 @@ Status vocabulary: `FOUND` · `PARTIAL` · `READY` · `BLOCKED` · `IN_PROGRESS`
 - **Dependencies:** B03 full migration invariant trace; current schema-evolution/recovery tests; packaging/dependency implications if the normative toolchain is retained.
 - **Verification:** Static re-read 2026-08-23 of Beta 03, `pyproject.toml` blob `aeec5e26423dce0284cda39c519e098c57573ddf`, `src/athena/storage/database.py` blob `12b944efbeacb6a9b99953a51e7586964a1c4556`, and current storage module layout. No runtime test result is claimed.
 
+### FG-014 — Reject network-backed active state roots before opening SQLite
+- **Source:** Beta 03 section 7 (no live `athena.db` on SMB/NFS/UNC/network filesystems; normal write operation must be refused for network-backed `state_root`).
+- **Ownership / Priority / Status:** BACKEND · P1 · READY
+- **Evidence / code paths:** `AthenaSettings.__post_init__()` validates `local_root` only for `Path` type and absolute form. `RuntimePaths.from_settings()` derives `state_root` and `database_path` directly beneath that root. The inspected configuration/storage path contains no UNC/network-filesystem refusal, and repository search found no separate state-root network-path guard.
+- **Current state:** A user-supplied absolute network/UNC `ATHENA_LOCAL_ROOT` can pass bootstrap validation far enough to become the active SQLite path, contrary to the Beta v1 storage safety rule.
+- **Desired state:** Add a fail-closed platform-aware active-state-root locality guard before database startup. On Windows, reject UNC/network-backed roots and other detectable remote-drive cases; on supported POSIX paths, reject known remote mounts where detection is reliable. The check should protect the active state/database root without forbidding archive/backup/optional long-term targets that are explicitly allowed to be remote.
+- **Dependencies:** storage-path/bootstrap ownership, Windows path/mount detection strategy, deterministic unit tests that do not require a real network share, and recovery messaging explaining the refusal.
+- **Verification:** Static re-read 2026-08-23 of Beta 03 section 7, `src/athena/config/settings.py` blob `534d237b08d58f9f89cd327e314204f3f1b93077`, and `src/athena/storage/paths.py` blob `4068c612d40e3d648c8899f7bc65265ef940f7a0`. No runtime test result is claimed.
+
 ## Handoff notes
 - Re-read current HEAD and affected files before every mutation.
 - Preserve `unknown` versus `unsupported`; never invent provider facts.
@@ -100,4 +109,5 @@ Status vocabulary: `FOUND` · `PARTIAL` · `READY` · `BLOCKED` · `IN_PROGRESS`
 - FG-011 is deliberately blocked until the backend lifecycle/switch contract is stable; do not let UI invent load semantics.
 - FG-012 is not a claim of a present protected-content leak: both ordinary search exclusion and the dedicated unlocked runtime retrieval path are fail-closed. Remaining work is an explicit protected generation path with a deliberate persistence policy; do not reuse ordinary durable grounding blindly.
 - FG-013 is a specification/implementation divergence, not evidence that the current custom migration code is unsafe. Preserve current storage safety invariants while deciding whether Beta 03 or implementation should be reconciled.
+- FG-014 applies only to the active state/database root. Do not over-correct by banning explicitly supported remote archive/backup/long-term storage targets.
 - B27/A28 roadmap scan confirms that mobile remote client, multi-device shared write, cloud sync, alternative databases, advanced graph databases and a persistent encrypted protected vector index are intentionally later work and must not be opened as current feature gaps.
