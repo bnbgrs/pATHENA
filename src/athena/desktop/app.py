@@ -36,6 +36,9 @@ from athena.desktop.pathena_jobs_experience_2800 import install_jobs_experience
 from athena.desktop.pathena_knowledge_acceptance_presentation import (
     apply_knowledge_acceptance_presentation,
 )
+from athena.desktop.pathena_knowledge_tab_refresh_handoff import (
+    install_knowledge_tab_refresh_handoff,
+)
 from athena.desktop.pathena_layout_refinement_2200 import install_layout_refinement
 from athena.desktop.pathena_message_action_accessibility_6900 import (
     install_message_action_accessibility,
@@ -162,6 +165,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     controller = DesktopApiController(client)
     window = PathenaMainWindow(api_controller=controller)
     knowledge_workspace = install_knowledge_workspace(window, controller)
+    knowledge_tab_refresh_handoff = install_knowledge_tab_refresh_handoff(knowledge_workspace)
     knowledge_acceptance = install_knowledge_acceptance(knowledge_workspace, controller)
     apply_knowledge_acceptance_presentation(knowledge_acceptance)
     canonical_memory_extensions = install_canonical_memory_extensions(knowledge_workspace)
@@ -243,6 +247,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     empty_search_comprehension.deleteLater()
     canonical_memory_extensions.deleteLater()
     knowledge_acceptance.deleteLater()
+    knowledge_tab_refresh_handoff.deleteLater()
     knowledge_workspace.deleteLater()
     research_proposal_focus.deleteLater()
     research_proposal_density.deleteLater()
