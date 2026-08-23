@@ -52,6 +52,31 @@ def _require_optional_bool(value: object, label: str) -> None:
         raise TypeError(f"{label} must be bool or None.")
 
 
+def _support_from_optional_bool(value: bool | None) -> ModelCapabilitySupport:
+    if value is True:
+        return ModelCapabilitySupport.SUPPORTED
+    if value is False:
+        return ModelCapabilitySupport.UNSUPPORTED
+    return ModelCapabilitySupport.UNKNOWN
+
+
+def _merge_observed_capability(
+    *,
+    declared: ModelCapabilitySupport,
+    observed: ModelCapabilitySupport,
+    label: str,
+) -> ModelCapabilitySupport:
+    if observed is ModelCapabilitySupport.UNKNOWN:
+        return declared
+    if declared is ModelCapabilitySupport.UNKNOWN:
+        return observed
+    if declared is not observed:
+        raise ValueError(
+            f"ModelInfo {label} capability contradicts normalized provider metadata."
+        )
+    return declared
+
+
 @dataclass(frozen=True, slots=True)
 class ProviderHealth:
     """Health snapshot without backend-specific exception leakage."""
@@ -138,6 +163,34 @@ class ModelInfo:
             raise ValueError(
                 "ModelInfo loaded_context_length must not exceed context_capacity."
             )
+
+        normalized_capabilities = ModelCapabilities(
+            chat=self.capabilities.chat,
+            structured_output=self.capabilities.structured_output,
+            tool_calls=_merge_observed_capability(
+                declared=self.capabilities.tool_calls,
+                observed=_support_from_optional_bool(self.trained_for_tool_use),
+                label="tool_calls",
+            ),
+            vision=_merge_observed_capability(
+                declared=self.capabilities.vision,
+                observed=_support_from_optional_bool(self.vision),
+                label="vision",
+            ),
+            audio=self.capabilities.audio,
+            context_length=_merge_observed_capability(
+                declared=self.capabilities.context_length,
+                observed=(
+                    ModelCapabilitySupport.SUPPORTED
+                    if self.context_capacity is not None
+                    else ModelCapabilitySupport.UNKNOWN
+                ),
+                label="context_length",
+            ),
+            streaming=self.capabilities.streaming,
+            model_load_control=self.capabilities.model_load_control,
+        )
+        object.__setattr__(self, "capabilities", normalized_capabilities)
 
 
 @dataclass(frozen=True, slots=True)
