@@ -536,6 +536,7 @@ class AthenaApplication:
             self.database, self.model_runs
         )
         self.extraction = ChatKnowledgeExtractionService(
+            chat=self.chat,
             chat_generation=self.chat_generation,
             provider=self.model_provider,
             runs=self.model_runs,
