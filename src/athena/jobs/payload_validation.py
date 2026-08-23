@@ -18,6 +18,32 @@ class BuiltinJobPayloadValidationError(ValueError):
     """Raised when a built-in durable job payload is not persistence-safe."""
 
 
+_NON_EXECUTABLE_BUILTIN_JOB_TYPES = frozenset(
+    {
+        "source.represent",
+        "source.chunk",
+        "search.rebuild",
+        "integrity.sweep",
+    }
+)
+
+_RESEARCH_SOURCE_TYPES = frozenset(
+    {
+        "file",
+        "web_snapshot",
+        "email",
+        "text",
+        "image",
+        "audio",
+        "video",
+        "document",
+        "api_capture",
+        "chat_export",
+        "other",
+    }
+)
+
+
 def validate_builtin_job_payload(
     job_type: str,
     *,
@@ -30,10 +56,18 @@ def validate_builtin_job_payload(
         _validate_source_analyze(requested_scope, pinned_configuration)
     elif job_type == "source.extract":
         _validate_source_extract(requested_scope, pinned_configuration)
+    elif job_type == "embedding.rebuild":
+        _validate_embedding_rebuild(requested_scope, pinned_configuration)
+    elif job_type == "research.exhaustive":
+        _validate_research_exhaustive(requested_scope, pinned_configuration)
     elif job_type == "backup.create":
         _validate_backup_create(requested_scope, pinned_configuration)
     elif job_type == "archive.replicate":
         _validate_archive_replicate(requested_scope, pinned_configuration)
+    elif job_type in _NON_EXECUTABLE_BUILTIN_JOB_TYPES:
+        raise BuiltinJobPayloadValidationError(
+            f"{job_type} has no executable durable worker and cannot be persisted."
+        )
 
 
 def _validate_source_process(
@@ -260,6 +294,123 @@ def _validate_source_extract(
     )
 
 
+def _validate_embedding_rebuild(
+    scope: Mapping[str, Any] | None,
+    config: Mapping[str, Any] | None,
+) -> None:
+    label = "embedding.rebuild"
+    _require_exact_keys(scope, {"model_id"}, label=f"{label} requested_scope")
+    assert scope is not None
+    model_id = _text(scope, "model_id", label=label)
+
+    _require_exact_keys(
+        config,
+        {
+            "pipeline_version",
+            "model_id",
+            "model_signature_id",
+            "model_signature_sha256",
+            "corpus",
+        },
+        label=f"{label} pinned_configuration",
+    )
+    assert config is not None
+    _equal_text(config, "pipeline_version", "embedding-rebuild-v1", label=label)
+    if _text(config, "model_id", label=label) != model_id:
+        raise BuiltinJobPayloadValidationError(
+            "embedding.rebuild model_id must match requested_scope."
+        )
+    _uuid_text(config, "model_signature_id", label=label)
+    _sha256_text(config, "model_signature_sha256", label=label)
+    _equal_text(config, "corpus", "active-semantic-chunks", label=label)
+
+
+def _validate_research_exhaustive(
+    scope: Mapping[str, Any] | None,
+    config: Mapping[str, Any] | None,
+) -> None:
+    label = "research.exhaustive"
+    _require_exact_keys(
+        scope,
+        {
+            "query",
+            "coverage_threshold",
+            "time_limit_seconds",
+            "source_domains",
+            "source_ids",
+            "source_types",
+            "retrieval_limit",
+            "candidate_limit",
+        },
+        label=f"{label} requested_scope",
+    )
+    assert scope is not None
+    _text(scope, "query", label=label)
+    coverage = scope.get("coverage_threshold")
+    if isinstance(coverage, bool) or not isinstance(coverage, float):
+        raise BuiltinJobPayloadValidationError(
+            "research.exhaustive field 'coverage_threshold' must be a canonical float."
+        )
+    if not math.isfinite(coverage) or not 0.0 < coverage <= 1.0:
+        raise BuiltinJobPayloadValidationError(
+            "research.exhaustive coverage_threshold must be finite and in (0, 1]."
+        )
+
+    time_limit = scope.get("time_limit_seconds")
+    if time_limit is not None and (
+        isinstance(time_limit, bool)
+        or not isinstance(time_limit, int)
+        or time_limit < 1
+    ):
+        raise BuiltinJobPayloadValidationError(
+            "research.exhaustive time_limit_seconds must be null or an integer >= 1."
+        )
+    _canonical_text_list(scope, "source_domains", lowercase=True, label=label)
+    _canonical_uuid_list(scope, "source_ids", label=label)
+    source_types = _canonical_text_list(
+        scope,
+        "source_types",
+        lowercase=True,
+        label=label,
+    )
+    if any(item not in _RESEARCH_SOURCE_TYPES for item in source_types):
+        raise BuiltinJobPayloadValidationError(
+            "research.exhaustive source_types contains an unsupported source type."
+        )
+    _integer(scope, "retrieval_limit", minimum=1, label=label)
+    _integer(scope, "candidate_limit", minimum=1, label=label)
+
+    _require_exact_keys(
+        config,
+        {
+            "pipeline_version",
+            "model_id",
+            "model_signature_id",
+            "model_signature_sha256",
+            "effective_context_limit",
+            "output_reserve",
+            "safety_margin",
+            "token_estimator",
+            "max_hierarchy_depth",
+        },
+        label=f"{label} pinned_configuration",
+    )
+    assert config is not None
+    _equal_text(config, "pipeline_version", "research-exhaustive-v1", label=label)
+    _text(config, "model_id", label=label)
+    _uuid_text(config, "model_signature_id", label=label)
+    _sha256_text(config, "model_signature_sha256", label=label)
+    effective = _integer(config, "effective_context_limit", minimum=64, label=label)
+    reserve = _integer(config, "output_reserve", minimum=1, label=label)
+    margin = _integer(config, "safety_margin", minimum=0, label=label)
+    _integer(config, "max_hierarchy_depth", minimum=1, label=label)
+    if reserve + margin >= effective:
+        raise BuiltinJobPayloadValidationError(
+            "research.exhaustive context budget leaves no positive input budget."
+        )
+    _equal_text(config, "token_estimator", "utf8-bytes-div3-v1", label=label)
+
+
 def _validate_backup_create(
     scope: Mapping[str, Any] | None,
     config: Mapping[str, Any] | None,
@@ -346,6 +497,61 @@ def _text(value: Mapping[str, Any], field: str, *, label: str) -> str:
             f"{label} field {field!r} must already be canonical text."
         )
     return item
+
+
+def _canonical_text_list(
+    value: Mapping[str, Any],
+    field: str,
+    *,
+    lowercase: bool,
+    label: str,
+) -> list[str]:
+    raw = value.get(field)
+    if not isinstance(raw, list):
+        raise BuiltinJobPayloadValidationError(
+            f"{label} field {field!r} must be a list."
+        )
+    result: list[str] = []
+    for item in raw:
+        if not isinstance(item, str) or not item:
+            raise BuiltinJobPayloadValidationError(
+                f"{label} field {field!r} must contain non-empty text."
+            )
+        canonical = item.strip().lower() if lowercase else item.strip()
+        if item != canonical:
+            raise BuiltinJobPayloadValidationError(
+                f"{label} field {field!r} must contain canonical text."
+            )
+        result.append(item)
+    return result
+
+
+def _canonical_uuid_list(
+    value: Mapping[str, Any],
+    field: str,
+    *,
+    label: str,
+) -> None:
+    raw = value.get(field)
+    if not isinstance(raw, list):
+        raise BuiltinJobPayloadValidationError(
+            f"{label} field {field!r} must be a list."
+        )
+    for item in raw:
+        if not isinstance(item, str) or not item:
+            raise BuiltinJobPayloadValidationError(
+                f"{label} field {field!r} must contain UUID strings."
+            )
+        try:
+            parsed = uuid.UUID(item)
+        except ValueError as exc:
+            raise BuiltinJobPayloadValidationError(
+                f"{label} field {field!r} must contain UUID strings."
+            ) from exc
+        if str(parsed) != item.lower():
+            raise BuiltinJobPayloadValidationError(
+                f"{label} field {field!r} must contain canonical UUID text."
+            )
 
 
 def _equal_text(
