@@ -22,6 +22,7 @@ from athena.desktop.pathena_backup_action_context_6800 import install_backup_act
 from athena.desktop.pathena_chat_scroll_stability_6600 import install_chat_scroll_stability
 from athena.desktop.pathena_command_palette_truth_6500 import install_command_palette_truth
 from athena.desktop.pathena_detail_provenance_6300 import apply_detail_provenance
+from athena.desktop.pathena_dialog_focus_return_7200 import install_dialog_focus_return
 from athena.desktop.pathena_empty_search_comprehension_7100 import (
     install_empty_search_comprehension,
 )
@@ -168,6 +169,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         command_palette_truth,
         canonical_memory_extensions,
     )
+    dialog_focus_return = install_dialog_focus_return(window)
     jobs_experience = install_jobs_experience(jobs_workspace)
     startup_experience = install_startup_experience(window)
     apply_complete_ui_refinements(window)
@@ -214,6 +216,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     detail_provenance.deleteLater()
     startup_experience.deleteLater()
     jobs_experience.deleteLater()
+    dialog_focus_return.deleteLater()
     empty_search_comprehension.deleteLater()
     canonical_memory_extensions.deleteLater()
     knowledge_acceptance.deleteLater()
