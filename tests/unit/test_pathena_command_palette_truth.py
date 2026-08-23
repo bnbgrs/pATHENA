@@ -129,7 +129,7 @@ def test_command_rows_expose_availability_and_current_scope_to_accessibility() -
     assert "Command unavailable" in description
     assert "chat operation is still running" in description
     assert palette.results.accessibleName() == "Command results"
-    assert "1 commands shown" in palette.results.accessibleDescription()
+    assert "1 command shown" in palette.results.accessibleDescription()
     assert "Current command: New conversation, unavailable" in (
         palette.results.accessibleDescription()
     )
