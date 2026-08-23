@@ -28,6 +28,29 @@ def _assert_safe_migration_root(path: Path) -> None:
             )
 
 
+def _capture_root_identity(path: Path) -> os.stat_result:
+    try:
+        root_stat = path.stat(follow_symlinks=False)
+    except OSError as exc:
+        raise MigrationBusyError("Migration root identity cannot be established.") from exc
+    if is_link_boundary(path) or not path.is_dir():
+        raise MigrationBusyError("Migration root is not a safe directory.")
+    return root_stat
+
+
+def _assert_root_identity(path: Path, expected: os.stat_result) -> None:
+    try:
+        current = path.stat(follow_symlinks=False)
+    except OSError as exc:
+        raise MigrationBusyError("Migration root identity changed during lock ownership.") from exc
+    if (
+        is_link_boundary(path)
+        or not path.is_dir()
+        or not os.path.samestat(current, expected)
+    ):
+        raise MigrationBusyError("Migration root identity changed during lock ownership.")
+
+
 def _assert_handle_matches_path(lock_path: Path, handle: BinaryIO) -> None:
     try:
         path_stat = lock_path.stat(follow_symlinks=False)
@@ -125,21 +148,37 @@ def _unlock(handle: BinaryIO) -> None:
 
 @contextmanager
 def migration_lock(migration_root: Path) -> Iterator[None]:
-    """Acquire the exclusive lock required for one blocking migration."""
+    """Acquire one path-stable exclusive lock for a blocking migration.
+
+    The lock file deliberately lives in the migration root's parent. Replacing
+    or renaming the root therefore cannot create a second independent lock at
+    the same logical migration pathname while the first owner is still active.
+    The root's own filesystem identity is fenced before entry and after a
+    successful critical section.
+    """
     if not isinstance(migration_root, Path):
         raise TypeError("Migration root must be a pathlib.Path.")
     _assert_safe_migration_root(migration_root)
     if not migration_root.is_dir():
         raise MigrationBusyError("Migration root must be an existing directory.")
 
-    lock_path = migration_root / ".athena-migration.lock"
+    root_identity = _capture_root_identity(migration_root)
+    lock_path = migration_root.parent / ".athena-migration.lock"
     handle = _open_lock_file(lock_path)
     locked = False
+    body_failed = False
     try:
         _lock(handle)
         _assert_handle_matches_path(lock_path, handle)
+        _assert_root_identity(migration_root, root_identity)
         locked = True
-        yield
+        try:
+            yield
+        except BaseException:
+            body_failed = True
+            raise
+        if not body_failed:
+            _assert_root_identity(migration_root, root_identity)
     finally:
         try:
             if locked:
