@@ -11,7 +11,10 @@ from athena.api.contracts import (
 from athena.desktop.api_controller import DesktopApiSnapshot
 from athena.desktop.app import create_application
 from athena.desktop.pathena_theme import PATHENA_STYLESHEET
-from athena.desktop.pathena_window import PathenaMainWindow
+from athena.desktop.pathena_window import (
+    PathenaMainWindow,
+    _humanize_review_heading,
+)
 
 
 def _app() -> QApplication:
@@ -176,7 +179,17 @@ def test_pathena_model_settings_hide_inference_jargon() -> None:
         app.processEvents()
 
 
-def test_pathena_message_header_hides_internal_sequence_metadata() -> None:
+def test_pathena_review_headings_keep_meaning_without_machine_copy() -> None:
+    assert _humanize_review_heading("RUN ABCDEF12 / MODEL qwen") == "Extraction summary"
+    assert _humanize_review_heading("K01 / FACT / 92%") == "Knowledge 1 · Fact · 92%"
+    assert _humanize_review_heading("C03 / OBSERVATION / 81%") == (
+        "Claim 3 · Observation · 81%"
+    )
+    assert _humanize_review_heading("RELATIONS") == "Relationships"
+    assert _humanize_review_heading("CANONICAL PREFLIGHT") == "Deduplication"
+
+
+def test_pathena_message_header_and_actions_stay_humanized_after_state_sync() -> None:
     app = _app()
     window = PathenaMainWindow(api_controller=None)
     try:
@@ -188,6 +201,7 @@ def test_pathena_message_header_hides_internal_sequence_metadata() -> None:
             message_id="message-42",
             revision_id="revision-42",
         )
+        window.chat_messages_layout.insertWidget(0, message)
 
         meta = message.findChild(QLabel, "speaker")
         assert meta is not None
@@ -199,8 +213,14 @@ def test_pathena_message_header_hides_internal_sequence_metadata() -> None:
         knowledge = message.findChild(QPushButton, "addKnowledgeButton")
         assert remember is not None
         assert knowledge is not None
+
+        window._sync_message_action_buttons()
         assert remember.text() == "Remember"
         assert knowledge.text() == "Add to knowledge"
+
+        window._remembered_message_revisions.add(("message-42", "revision-42"))
+        window._sync_message_action_buttons()
+        assert remember.text() == "Remembered"
     finally:
         window.close()
         app.processEvents()
