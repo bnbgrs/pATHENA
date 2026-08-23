@@ -73,6 +73,12 @@ class PathenaMainWindow(AthenaMainWindow):
             for rule in rail_rules[-2:]:
                 rule.hide()
 
+            # The live PALLAS canvas already identifies itself. A second heading
+            # directly above it adds noise without adding navigation information.
+            for label in rail.findChildren(QLabel):
+                if label.text() == "PALLAS":
+                    label.hide()
+
         center = self.findChild(QFrame, "conversation")
         if center is not None:
             center_layout = center.layout()
@@ -83,9 +89,11 @@ class PathenaMainWindow(AthenaMainWindow):
         if wordmark is not None:
             wordmark.setText("pATHENA")
 
+        # The product name is already anchored in the navigation rail. Keep the
+        # content header focused on the current workspace instead of repeating it.
         breadcrumb = self.findChild(QLabel, "breadcrumb")
         if breadcrumb is not None:
-            breadcrumb.setText("pATHENA  /")
+            breadcrumb.hide()
 
         keyboard_hint = self.findChild(QLabel, "keyboardHint")
         if keyboard_hint is not None:
@@ -99,7 +107,11 @@ class PathenaMainWindow(AthenaMainWindow):
             item.setText(label)
             item.setSizeHint(QSize(176, 36))
 
-        # PALLAS already has a live semantic ASCII controller. Reduce its visual
+        current_page = self.navigation.currentRow()
+        if 0 <= current_page < len(_DISPLAY_NAVIGATION):
+            self.page_title.setText(_DISPLAY_NAVIGATION[current_page])
+
+        # PALLAS has a live semantic ASCII controller. Reduce its visual
         # dominance while preserving the intended 9:16 reactive surface.
         self.pallas_visual.setFixedSize(126, 224)
         self.pallas_visual.setToolTip(
@@ -186,9 +198,6 @@ class PathenaMainWindow(AthenaMainWindow):
             "Connect to ATHENA Core to load a conversation.": (
                 "Connect to the local core to load a conversation."
             ),
-            "ATHENA  >  ": "pATHENA  /",
-            "CHAT": "Conversation",
-            "MODEL": "Model",
             "INSPECTOR": "DETAILS",
             "PROVENANCE": "SOURCES & KNOWLEDGE",
             "KNOWLEDGE REVIEW": "KNOWLEDGE FROM THIS CHAT",
@@ -204,6 +213,14 @@ class PathenaMainWindow(AthenaMainWindow):
             replacement = replacements.get(label.text())
             if replacement is not None:
                 label.setText(replacement)
+
+        # Only humanize the compact Chat toolbar labels. Do not rewrite workspace
+        # titles or technical labels inside Settings/System by matching text alone.
+        for label in self.findChildren(QLabel, "sessionLabel"):
+            if label.text() == "CHAT":
+                label.setText("Conversation")
+            elif label.text() == "MODEL":
+                label.setText("Model")
 
     def _hide_nonfunctional_placeholders(self) -> None:
         """Do not advertise affordances that are not wired to an action yet."""
