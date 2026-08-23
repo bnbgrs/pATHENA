@@ -40,22 +40,36 @@ No production module was reported by Ruff in this run.
 
 Classification: **test-source import formatting / import-block boundary formatting**, introduced incrementally by parallel job-validation test additions.
 
-The first and third files use an otherwise ordered import block followed by two blank lines before module-level fixture constants. This repository has already observed the same Ruff I001 boundary behavior in Quality Gate #1087: Ruff's import organizer expects a single blank line when an import block is followed directly by a module assignment.
+The first and third files used an otherwise ordered import block followed by two blank lines before module-level fixture constants. This repository had already observed the same Ruff I001 boundary behavior in Quality Gate #1087: Ruff's import organizer expects a single blank line when an import block is followed directly by a module assignment.
 
-`test_job_service_scalar_validation.py` has the same two-blank-line import-to-constant boundary and also contains a long multi-name `from athena.jobs.service import ...` statement that must be normalized to Ruff's canonical form rather than manually guessed.
+`test_job_service_scalar_validation.py` had the same two-blank-line import-to-constant boundary and also required the long multi-name `from athena.jobs.service import ...` statement to be normalized to Ruff's canonical parenthesized multiline form.
+
+## Fixes
+
+The corrections were deliberately minimal and test-source-only:
+
+- `afd3effcee520e82a3864130e59202910d34c787` — normalized `test_job_service_scalar_validation.py` imports.
+- `dac5a7a61487395ab15c868181c0126286cec28c` — normalized `test_job_source_extract_payload_validation.py` import boundary.
+- `8781b2d6af4b8bcbea9252075cb7df89fb08a483` — normalized `test_job_builtin_payload_validation.py` import boundary.
+
+A first attempted scalar-test write was rejected with HTTP 409 because a parallel agent advanced the branch after the fresh read. The head and file were re-read before retrying; no force update was used and no parallel edit was overwritten.
+
+## Verification
+
+Quality Gate run #1154 (`32636007056`) at commit `afd3eff...` stopped reporting the scalar-test I001 while still reporting the other two unfixed files. This isolates and verifies the scalar import correction.
+
+Quality Gate run #1164 (`32636066264`) at commit `8781b2d...` reported:
+
+- dependency lock: **PASS**;
+- specification validator: **PASS** (`63/63`);
+- Ruff: **PASS** (`All checks passed!`);
+- mypy: **FAIL** on a new, independent four-error slice documented separately in `2026-08-23-run-1164-mypy-research-llm-payload-validation.md`;
+- pytest: **NOT EXECUTED** because mypy failed first.
+
+Therefore all three run-#1143 I001 failures are **FIXED AND CI-VERIFIED**. The subsequent mypy failures are independent and must not be attributed to these Ruff corrections.
 
 ## Safety / concurrency
 
 The branch is being updated by parallel agents. Any correction must re-read the current remote head and each affected file immediately before mutation, retain unrelated concurrent edits, and use normal non-force commits only.
 
-`bnbgrs/ATHENA` is outside scope and must remain untouched.
-
-## Verification state
-
-- Dependency lock: **PASS** (`uv lock --check`).
-- Specification validator: **PASS** (`63/63`).
-- Ruff: **FAIL** (three I001 diagnostics above).
-- mypy: **NOT EXECUTED** because Ruff failed first.
-- pytest: **NOT EXECUTED** because Ruff failed first.
-
-A follow-up Quality Gate after canonicalizing the three affected test import blocks is required to prove the fixes and expose the next independent gate result.
+`bnbgrs/ATHENA` is outside scope and remains untouched.
