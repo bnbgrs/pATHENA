@@ -84,10 +84,20 @@ Status vocabulary: `FOUND` · `PARTIAL` · `READY` · `BLOCKED` · `IN_PROGRESS`
 - **Dependencies:** protected runtime context service, explicit protected generation/persistence policy, orchestration integration and relock invalidation coverage; never route protected cleartext into ordinary FTS/semantic indexes, durable logs, run snapshots, or unprotected assistant-message persistence.
 - **Verification:** Implemented execution-guard boundary 2026-08-23 in `src/athena/retrieval/protected_execution.py` with targeted guard tests. Tests added but not executed in connector runtime; end-to-end provider bridge remains open.
 
+### FG-013 — Reconcile the v1 migration engine with Beta 03's SQLAlchemy/Alembic contract
+- **Source:** Beta 03 section 3 (v1 storage decision: `SQLAlchemy 2.x + Alembic` with additional ATHENA safety logic).
+- **Ownership / Priority / Status:** BACKEND · P1 · READY
+- **Evidence / code paths:** `pyproject.toml` contains neither SQLAlchemy nor Alembic. `src/athena/storage/database.py` opens SQLite directly through stdlib `sqlite3`, while schema creation/evolution is implemented by ATHENA-owned `schema.py`, `schema_evolution.py`, `schema_verification.py`, and related helpers. Repository search found no explicit architectural-decision document superseding the Beta 03 migration-tool choice.
+- **Current state:** The custom storage layer may provide strong safety properties, but the implementation demonstrably diverges from the normative Beta v1 migration technology decision and there is no recorded waiver/reconciliation in the inspected branch.
+- **Desired state:** Backend owner should make the discrepancy explicit: either (a) integrate SQLAlchemy 2.x/Alembic while preserving ATHENA's existing safety, verification, rollback and recovery semantics, or (b) document and approve a specification-level architecture change showing why the custom migration engine replaces the Beta 03 decision and prove equivalent migration invariants. Do not blindly bolt Alembic onto the current schema engine without first mapping invariants and migration ownership.
+- **Dependencies:** B03 full migration invariant trace; current schema-evolution/recovery tests; packaging/dependency implications if the normative toolchain is retained.
+- **Verification:** Static re-read 2026-08-23 of Beta 03, `pyproject.toml` blob `aeec5e26423dce0284cda39c519e098c57573ddf`, `src/athena/storage/database.py` blob `12b944efbeacb6a9b99953a51e7586964a1c4556`, and current storage module layout. No runtime test result is claimed.
+
 ## Handoff notes
 - Re-read current HEAD and affected files before every mutation.
 - Preserve `unknown` versus `unsupported`; never invent provider facts.
 - Provider lifecycle adapter work remains separate while the LM Studio adapter is concurrently active.
 - FG-011 is deliberately blocked until the backend lifecycle/switch contract is stable; do not let UI invent load semantics.
 - FG-012 is not a claim of a present protected-content leak: both ordinary search exclusion and the dedicated unlocked runtime retrieval path are fail-closed. Remaining work is an explicit protected generation path with a deliberate persistence policy; do not reuse ordinary durable grounding blindly.
+- FG-013 is a specification/implementation divergence, not evidence that the current custom migration code is unsafe. Preserve current storage safety invariants while deciding whether Beta 03 or implementation should be reconciled.
 - B27/A28 roadmap scan confirms that mobile remote client, multi-device shared write, cloud sync, alternative databases, advanced graph databases and a persistent encrypted protected vector index are intentionally later work and must not be opened as current feature gaps.
