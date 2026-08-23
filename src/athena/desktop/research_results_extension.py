@@ -27,6 +27,7 @@ class ResearchResultsExtension(QObject):
         super().__init__(workspace)
         self.workspace = workspace
         self._operation = ""
+        self._operation_job_id: str | None = None
         self._buffer = ""
         self._selected_proposal_id: str | None = None
 
@@ -152,7 +153,15 @@ class ResearchResultsExtension(QObject):
     ) -> None:
         self._selected_proposal_id = None
         self.proposal_list.clear()
-        self.proposal_status.setText("Load proposals for the selected completed Research run.")
+        if self._busy() and self._operation_job_id != self._selected_job_id():
+            self.proposal_status.setText(
+                "Another Research run is still completing its result operation. "
+                "This selection will not receive that run's output."
+            )
+        else:
+            self.proposal_status.setText(
+                "Load proposals for the selected completed Research run."
+            )
         self._sync_job_actions()
 
     def _sync_job_actions(self) -> None:
@@ -179,7 +188,6 @@ class ResearchResultsExtension(QObject):
             pending = item.data(Qt.ItemDataRole.UserRole + 1) == "pending"
             proposal_type = str(item.data(Qt.ItemDataRole.UserRole + 2) or "")
         enabled = pending and not self._busy()
-        # Contradiction proposals are review-only and cannot be silently canonicalized.
         can_accept = enabled and proposal_type != "contradiction"
         self.accept_button.setEnabled(can_accept)
         self.accept_separate_button.setEnabled(can_accept)
@@ -189,19 +197,19 @@ class ResearchResultsExtension(QObject):
     def load_result(self) -> None:
         job_id = self._selected_job_id()
         if job_id:
-            self._start("result", ["result", job_id], clear_details=True)
+            self._start("result", ["result", job_id], clear_details=True, job_id=job_id)
 
     @Slot()
     def create_proposals(self) -> None:
         job_id = self._selected_job_id()
         if job_id:
-            self._start("propose", ["propose", job_id])
+            self._start("propose", ["propose", job_id], job_id=job_id)
 
     @Slot()
     def load_proposals(self) -> None:
         job_id = self._selected_job_id()
         if job_id:
-            self._start("proposals", ["proposals", job_id])
+            self._start("proposals", ["proposals", job_id], job_id=job_id)
 
     def accept_selected(self, keep_separate: bool) -> None:
         proposal_id = self._selected_proposal_id
@@ -210,13 +218,13 @@ class ResearchResultsExtension(QObject):
         arguments = ["accept", proposal_id]
         if keep_separate:
             arguments.append("--keep-separate-near-duplicates")
-        self._start("accept", arguments)
+        self._start("accept", arguments, job_id=self._selected_job_id())
 
     @Slot()
     def reject_selected(self) -> None:
         proposal_id = self._selected_proposal_id
         if proposal_id:
-            self._start("reject", ["reject", proposal_id])
+            self._start("reject", ["reject", proposal_id], job_id=self._selected_job_id())
 
     def _start(
         self,
@@ -224,10 +232,12 @@ class ResearchResultsExtension(QObject):
         arguments: list[str],
         *,
         clear_details: bool = False,
+        job_id: str | None = None,
     ) -> None:
         if self._busy():
             return
         self._operation = operation
+        self._operation_job_id = job_id
         self._buffer = ""
         if clear_details:
             self.workspace.details.clear()
@@ -260,6 +270,10 @@ class ResearchResultsExtension(QObject):
             return
         self._sync_job_actions()
 
+    def _operation_owns_selection(self) -> bool:
+        job_id = self._operation_job_id
+        return job_id is None or job_id == self._selected_job_id()
+
     @Slot()
     def _drain_output(self) -> None:
         chunk = bytes(self.process.readAllStandardOutput().data()).decode(
@@ -268,16 +282,26 @@ class ResearchResultsExtension(QObject):
         if not chunk:
             return
         self._buffer += chunk
-        if self._operation == "result":
+        if self._operation == "result" and self._operation_owns_selection():
             self.workspace.details.insertPlainText(chunk)
 
     @Slot(int, QProcess.ExitStatus)
     def _finished(self, exit_code: int, _status: QProcess.ExitStatus) -> None:
         self._drain_output()
         operation = self._operation
+        operation_job_id = self._operation_job_id
         output = self._buffer
+        owns_selection = self._operation_owns_selection()
         self._operation = ""
+        self._operation_job_id = None
         self._set_extension_controls(True)
+
+        if not owns_selection:
+            self.proposal_status.setText(
+                "The previous Research run finished in the background. "
+                "Load result or proposals for the currently selected run."
+            )
+            return
 
         if exit_code != 0:
             self.proposal_status.setText(f"Research result command failed (exit {exit_code}).")
@@ -295,10 +319,12 @@ class ResearchResultsExtension(QObject):
             )
         elif operation == "accept":
             self.proposal_status.setText("Research proposal accepted into canonical memory.")
-            QTimer.singleShot(120, self.load_proposals)
+            if operation_job_id == self._selected_job_id():
+                QTimer.singleShot(120, self.load_proposals)
         elif operation == "reject":
             self.proposal_status.setText("Research proposal rejected/acknowledged.")
-            QTimer.singleShot(120, self.load_proposals)
+            if operation_job_id == self._selected_job_id():
+                QTimer.singleShot(120, self.load_proposals)
 
     def _render_proposals(self, output: str) -> None:
         selected = self._selected_proposal_id
@@ -356,6 +382,7 @@ class ResearchResultsExtension(QObject):
     @Slot(QProcess.ProcessError)
     def _process_error(self, error: QProcess.ProcessError) -> None:
         self._operation = ""
+        self._operation_job_id = None
         self._set_extension_controls(True)
         self.proposal_status.setText(
             "Unable to start ResearchResult command."
