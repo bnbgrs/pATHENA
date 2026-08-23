@@ -57,7 +57,7 @@ UI_REFINEMENT_TASKS_3901_4000: tuple[str, ...] = tuple(
     for dimension in _DIMENSIONS
 )
 
-_COMPACT_THRESHOLD = 1180
+_COMPACT_THRESHOLD = 1460
 
 _COMPACT_STYLESHEET = """
 /* pATHENA layout resilience 4000 */
@@ -138,6 +138,9 @@ def apply_ui_refinements_3901_4000(window: QWidget) -> tuple[int, ...]:
         window.setStyleSheet(f"{window.styleSheet()}\n{_COMPACT_STYLESHEET}")
 
     window.setProperty("pathenaLayoutResilienceController", controller)
-    window.setProperty("pathenaLayoutResilienceTargetCount", len(applied) // len(_DIMENSIONS))
+    window.setProperty(
+        "pathenaLayoutResilienceTargetCount",
+        len(applied) // len(_DIMENSIONS),
+    )
     window.setProperty("pathenaLayoutResilienceTaskCount", len(applied))
     return tuple(applied)
