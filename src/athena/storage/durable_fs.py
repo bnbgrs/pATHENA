@@ -11,9 +11,24 @@ _MOVEFILE_WRITE_THROUGH = 0x00000008
 
 
 def _assert_real_directory(path: Path, *, label: str) -> None:
-    """Reject missing, non-directory, or symlink directory boundaries."""
+    """Reject missing, non-directory, or symlink-backed directory boundaries."""
     if path.is_symlink() or not path.is_dir():
         raise NotADirectoryError(f"{label} is unsafe: {path}")
+
+    cursor = path.parent
+    while True:
+        if cursor.is_symlink():
+            raise NotADirectoryError(
+                f"{label} has a symlink ancestor: {cursor}"
+            )
+        if cursor.exists() and not cursor.is_dir():
+            raise NotADirectoryError(
+                f"{label} has a non-directory ancestor: {cursor}"
+            )
+        parent = cursor.parent
+        if parent == cursor:
+            return
+        cursor = parent
 
 
 def durable_replace(source: Path, destination: Path) -> None:
@@ -49,6 +64,7 @@ def durable_mkdir(path: Path, *, parents: bool = False, exist_ok: bool = False) 
     if directory.exists():
         if not directory.is_dir():
             raise FileExistsError(f"Durable directory path is not a directory: {directory}")
+        _assert_real_directory(directory, label="Durable directory")
         if exist_ok:
             return
         raise FileExistsError(f"Durable directory already exists: {directory}")
@@ -81,6 +97,7 @@ def _durable_create_one_directory(directory: Path, *, exist_ok: bool) -> None:
         directory.mkdir(parents=False, exist_ok=False)
     except FileExistsError:
         if exist_ok and directory.is_dir() and not directory.is_symlink():
+            _assert_real_directory(directory, label="Durable directory")
             return
         raise
     fsync_directory(parent)
@@ -94,6 +111,7 @@ def _windows_durable_create_directory(directory: Path, *, exist_ok: bool) -> Non
             _windows_replace_write_through(staging, directory)
         except OSError:
             if exist_ok and directory.is_dir() and not directory.is_symlink():
+                _assert_real_directory(directory, label="Durable directory")
                 return
             raise
     finally:
