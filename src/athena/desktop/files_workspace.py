@@ -115,7 +115,7 @@ class FilesWorkspace(QWidget):
         self._process.start(sys.executable, ["-m", "athena", *arguments])
 
     def _drain_output(self) -> None:
-        chunk = bytes(self._process.readAllStandardOutput()).decode(
+        chunk = self._process.readAllStandardOutput().data().decode(
             "utf-8", errors="replace"
         )
         if chunk:
