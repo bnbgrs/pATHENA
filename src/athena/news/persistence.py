@@ -84,20 +84,18 @@ class NewsPersistenceMixin(NewsMixinContext):
         ).fetchone()
         if existing is not None:
             return None
-        actor_id = self.app.chat.ensure_local_user()
-        scope_json = _canonical_json(
-            {"profile_id": str(_default_profile_id()), "target_date": target_date}
-        )
-        pinned_json = _canonical_json(
-            {"pipeline_version": NEWS_PIPELINE_VERSION, "news_schema": NEWS_SCHEMA_ID}
-        )
         try:
-            job = self.app.job_repository.create(
+            job = self.app.jobs.create(
                 job_type=NEWS_JOB_TYPE,
-                actor_id=actor_id,
                 priority=JobPriority.BACKGROUND,
-                requested_scope_json=scope_json,
-                pinned_configuration_json=pinned_json,
+                requested_scope={
+                    "profile_id": str(_default_profile_id()),
+                    "target_date": target_date,
+                },
+                pinned_configuration={
+                    "pipeline_version": NEWS_PIPELINE_VERSION,
+                    "news_schema": NEWS_SCHEMA_ID,
+                },
             )
         except sqlite3.IntegrityError:
             row = self.database.connection.execute(
