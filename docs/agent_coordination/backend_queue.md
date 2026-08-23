@@ -50,25 +50,25 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 - Priority: P1
 - Status: DONE
 - Evidence: Feature-gap FG-002; Core-owned `ModelRegistry` now provides provider-scoped identity, workflow capability eligibility, infrastructure exclusion, one active primary, alias/resource metadata preservation and disappearance handling.
-- Components: `src/athena/model/registry.py`, `tests/unit/test_model_registry.py`.
+- Components: model registry and targeted tests.
 - Dependencies: BE-003 complete.
 - Last verification: 2026-08-23; isolated execution blocked by DNS, tests not claimed passing.
 
 ### BE-007 — Enforce model load ownership before automatic unload
 - Priority: P1
-- Status: IN_PROGRESS
-- Evidence: Beta 08 section 21 / load-ownership test: externally loaded or unknown-ownership models must not be automatically unloaded. Repository search found no `loaded_by_athena` ownership representation.
-- Components: model runtime registry/ownership contract and targeted tests.
-- Dependencies: BE-006 runtime registry; BE-002 adapter integration can consume it later.
-- Last verification: 2026-08-23 against current remote search.
+- Status: DONE
+- Evidence: Feature-gap FG-007; runtime now distinguishes ATHENA-owned, externally owned and unknown loads; only explicit ATHENA ownership permits automatic unload and ownership clears on unload.
+- Components: `src/athena/model/registry.py`, `tests/unit/test_model_load_ownership.py`.
+- Dependencies: BE-006 complete; provider adapter may consume decision later.
+- Last verification: 2026-08-23; six targeted tests added, not executed in connector runtime.
 
 ### BE-008 — Persist/audit active primary model switch semantics
 - Priority: P2
-- Status: READY
+- Status: IN_PROGRESS
 - Evidence: Beta 08 section 66 requires a visible/auditable switch while existing Knowledge remains unchanged.
 - Components: model runtime/application audit integration.
 - Dependencies: BE-006.
-- Last verification: 2026-08-23 from Beta contract; implementation location still requires trace.
+- Last verification: 2026-08-23; selected after BE-007 completion.
 
 ### BE-009 — Provider request cancellation/discard contract
 - Priority: P2
