@@ -24,11 +24,11 @@ Last queue refresh: 2026-08-23.
 
 ### BE-035 — Bind migration lock to migration-root identity
 - Priority: P1
-- Status: READY
+- Status: IN_PROGRESS
 - Evidence: Security SEC-013 requires migration-lock ownership to remain bound to the same migration-root identity for the full critical section; root rename/replacement must not permit a second logical migration at the same pathname.
 - Components: `storage/migration_lock.py`, deterministic replacement-race tests including Windows reparse behavior where available.
 - Dependencies: BE-028 migration lock.
-- Last verification: 2026-08-23 security handoff in BE-028.
+- Last verification: 2026-08-23 current remote confirms the lock file still lives inside the replaceable migration root.
 
 ### BE-036 — Close migration parent-replacement TOCTOU
 - Priority: P1
