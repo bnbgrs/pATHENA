@@ -20,6 +20,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from athena.desktop.contradiction_reviews_panel import ContradictionReviewsPanel
+
 
 class CanonicalClaimsPanel(QWidget):
     """Browse durable canonical Claims, evidence, and immutable revision history."""
@@ -30,6 +32,7 @@ class CanonicalClaimsPanel(QWidget):
         self._selected_claim_id: str | None = None
         self._operation = ""
         self._buffer = ""
+        self._reviews_panel: ContradictionReviewsPanel | None = None
 
         self.status = QLabel("Loading canonical Claims …")
         self.status.setObjectName("settingsHelp")
@@ -110,6 +113,13 @@ class CanonicalClaimsPanel(QWidget):
         self._refresh_timer.timeout.connect(self._refresh_if_visible)
         self._refresh_timer.start()
         QTimer.singleShot(0, self.refresh_claims)
+
+    def attach_reviews_panel(self, panel: ContradictionReviewsPanel) -> None:
+        self._reviews_panel = panel
+
+    def refresh_reviews(self) -> None:
+        if self._reviews_panel is not None:
+            self._reviews_panel.refresh_reviews()
 
     def refresh_claims(self) -> None:
         if self._busy():
@@ -246,7 +256,7 @@ class CanonicalClaimsPanel(QWidget):
 
 
 def install_claims_panel(knowledge_workspace: QWidget) -> CanonicalClaimsPanel:
-    """Add Claims as a second canonical view without expanding primary navigation."""
+    """Add canonical Claims and review views without expanding primary navigation."""
     root = knowledge_workspace.layout()
     if not isinstance(root, QBoxLayout) or root.count() < 1:
         raise RuntimeError("Knowledge workspace layout is unavailable")
@@ -261,7 +271,13 @@ def install_claims_panel(knowledge_workspace: QWidget) -> CanonicalClaimsPanel:
     tabs.setObjectName("canonicalKnowledgeTabs")
     root.removeWidget(browser)
     tabs.addTab(browser, "KNOWLEDGE")
-    panel = CanonicalClaimsPanel()
-    tabs.addTab(panel, "CLAIMS / EVIDENCE")
+
+    claims_panel = CanonicalClaimsPanel()
+    tabs.addTab(claims_panel, "CLAIMS / EVIDENCE")
+
+    reviews_panel = ContradictionReviewsPanel()
+    claims_panel.attach_reviews_panel(reviews_panel)
+    tabs.addTab(reviews_panel, "CONTRADICTION REVIEWS")
+
     root.insertWidget(browser_index, tabs, 1)
-    return panel
+    return claims_panel
