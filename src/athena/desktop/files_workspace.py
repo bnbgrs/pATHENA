@@ -394,10 +394,30 @@ class FilesWorkspace(QWidget):
                 item_to_select = item
 
         self.sources.blockSignals(False)
+        self.sources.setProperty("pathenaSelectionDisappeared", "")
+        self.details.setProperty("pathenaSelectionDisappeared", "")
         if item_to_select is not None:
             set_pathena_ui_state(self.sources, "success")
             self.sources.setCurrentItem(item_to_select)
             self._selection_changed(item_to_select, None)
+        elif self.sources.count() > 0 and selected is not None:
+            set_pathena_ui_state(self.sources, "success")
+            self._selected_source_id = None
+            self._selected_readiness = None
+            self._selected_processable = False
+            self._sync_controls()
+            self.sources.setCurrentRow(-1)
+            source_label = self._source_label(selected)
+            message = (
+                f"SELECTION CHANGED · Source {source_label} is no longer listed after "
+                "refresh. Select another Source to inspect its current state."
+            )
+            self.details.setPlainText(message)
+            self.sources.setProperty("pathenaSelectionDisappeared", selected)
+            self.details.setProperty("pathenaSelectionDisappeared", selected)
+            self.details.setAccessibleDescription(message)
+            self.sources.setStatusTip(message)
+            set_pathena_ui_state(self.details, "empty")
         elif self.sources.count() > 0:
             set_pathena_ui_state(self.sources, "success")
             self.sources.setCurrentRow(0)
