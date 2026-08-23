@@ -150,6 +150,9 @@ class KnowledgeAcceptanceController(QObject):
             refresh_claims = getattr(self.claims_panel, "refresh_claims", None)
             if callable(refresh_claims):
                 refresh_claims()
+            refresh_reviews = getattr(self.claims_panel, "refresh_reviews", None)
+            if callable(refresh_reviews):
+                refresh_reviews()
         if self.controller is not None:
             self.controller.refresh()
 
