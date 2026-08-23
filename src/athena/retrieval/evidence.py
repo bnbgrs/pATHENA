@@ -264,16 +264,31 @@ class MemoryEvidencePolicy:
 
         row = self.database.connection.execute(
             """
-            SELECT message_type
-            FROM chat_messages
-            WHERE message_id = ?
+            SELECT m.message_type
+            FROM chat_messages AS m
+            JOIN chats AS ch
+              ON ch.chat_id = m.chat_id
+            JOIN entity_registry AS e
+              ON e.entity_id = m.message_id
+            JOIN entity_heads AS h
+              ON h.entity_id = m.message_id
+            JOIN chat_message_revisions AS mr
+              ON mr.revision_id = h.current_revision_id
+            WHERE m.message_id = ?
+              AND h.current_revision_id = ?
+              AND e.lifecycle_state = 'active'
+              AND ch.lifecycle_state = 'active'
+              AND ch.archive_mode = 'standard'
             """,
-            (uuid_to_blob(result.entity_id),),
+            (
+                uuid_to_blob(result.entity_id),
+                uuid_to_blob(result.revision_id),
+            ),
         ).fetchone()
         if row is None:
             raise MemoryEvidencePolicyError(
-                "Retrieved chat message is missing from canonical chat storage: "
-                f"{result.entity_id}"
+                "Retrieved chat evidence is not the active current searchable revision: "
+                f"{result.entity_id}:{result.revision_id}"
             )
 
         message_type = str(row["message_type"])
