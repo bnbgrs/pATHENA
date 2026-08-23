@@ -68,8 +68,12 @@ def plan_retention(
     snapshots: tuple[RetentionCandidate, ...],
     policy: BackupRetentionPolicy,
 ) -> BackupRetentionPlan:
+    validated_target_id = _uuid_value(target_id, "Backup retention target_id")
+    validated_policy = _retention_policy(policy)
+    validated_snapshots = _retention_candidates(snapshots)
+
     ordered = sorted(
-        snapshots,
+        validated_snapshots,
         key=lambda item: (
             item.completed_at_us,
             item.snapshot_id.int,
@@ -79,7 +83,7 @@ def plan_retention(
 
     if not ordered:
         return BackupRetentionPlan(
-            target_id=target_id,
+            target_id=validated_target_id,
             keep_snapshot_ids=(),
             prune_snapshot_ids=(),
         )
@@ -88,7 +92,12 @@ def plan_retention(
 
     def stamp(item: RetentionCandidate) -> datetime:
         seconds = item.completed_at_us // 1_000_000
-        return datetime.fromtimestamp(seconds, tz=UTC)
+        try:
+            return datetime.fromtimestamp(seconds, tz=UTC)
+        except (OverflowError, OSError, ValueError) as exc:
+            raise ValueError(
+                "Backup retention completed_at_us is outside the supported datetime range."
+            ) from exc
 
     def retain_slots(limit: int, kind: str) -> None:
         if limit <= 0:
@@ -130,10 +139,10 @@ def plan_retention(
             seen.add(bucket)
             keep.add(item.snapshot_id)
 
-    retain_slots(policy.daily, "daily")
-    retain_slots(policy.weekly, "weekly")
-    retain_slots(policy.monthly, "monthly")
-    retain_slots(policy.yearly, "yearly")
+    retain_slots(validated_policy.daily, "daily")
+    retain_slots(validated_policy.weekly, "weekly")
+    retain_slots(validated_policy.monthly, "monthly")
+    retain_slots(validated_policy.yearly, "yearly")
 
     keep_ordered = tuple(
         item.snapshot_id
@@ -147,7 +156,58 @@ def plan_retention(
     )
 
     return BackupRetentionPlan(
-        target_id=target_id,
+        target_id=validated_target_id,
         keep_snapshot_ids=keep_ordered,
         prune_snapshot_ids=prune_ordered,
     )
+
+
+def _retention_policy(value: object) -> BackupRetentionPolicy:
+    if not isinstance(value, BackupRetentionPolicy):
+        raise ValueError("Backup retention policy must be a BackupRetentionPolicy value.")
+    return value
+
+
+def _retention_candidates(value: object) -> tuple[RetentionCandidate, ...]:
+    if not isinstance(value, tuple):
+        raise ValueError("Backup retention snapshots must be a tuple of RetentionCandidate values.")
+
+    seen: set[uuid.UUID] = set()
+    validated: list[RetentionCandidate] = []
+
+    for item in value:
+        if not isinstance(item, RetentionCandidate):
+            raise ValueError(
+                "Backup retention snapshots must contain RetentionCandidate values only."
+            )
+        snapshot_id = _uuid_value(
+            item.snapshot_id,
+            "Backup retention snapshot_id",
+        )
+        completed_at_us = _nonnegative_int(
+            item.completed_at_us,
+            "Backup retention completed_at_us",
+        )
+        if snapshot_id in seen:
+            raise ValueError("Backup retention snapshots must have unique snapshot identities.")
+        seen.add(snapshot_id)
+        validated.append(
+            RetentionCandidate(
+                snapshot_id=snapshot_id,
+                completed_at_us=completed_at_us,
+            )
+        )
+
+    return tuple(validated)
+
+
+def _nonnegative_int(value: object, label: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ValueError(f"{label} must be a non-negative integer.")
+    return value
+
+
+def _uuid_value(value: object, label: str) -> uuid.UUID:
+    if not isinstance(value, uuid.UUID):
+        raise ValueError(f"{label} must be a UUID value.")
+    return value
