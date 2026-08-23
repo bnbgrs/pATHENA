@@ -12,7 +12,7 @@ from PySide6.QtWidgets import QWidget
 
 _STATE_SURFACES: tuple[tuple[str, str], ...] = (
     ("knowledgeReviewState", "knowledge review state"),
-    ("knowledgeBrowserStatus", "canonical memory status"),
+    ("canonicalMemoryTabs", "canonical memory tabs"),
     ("persistentKnowledgeList", "canonical Knowledge list"),
     ("persistentKnowledgeDetails", "canonical Knowledge details"),
     ("persistentClaimList", "canonical Claim list"),
