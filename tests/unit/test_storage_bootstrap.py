@@ -13,7 +13,10 @@ from athena.storage.bootstrap import (
     StorageBootstrapService,
 )
 from athena.storage.database import SQLiteDatabase
-from athena.storage.disk_pressure import DiskPressureController
+from athena.storage.disk_pressure import (
+    DiskPressureController,
+    DiskPressureWriteBlockedError,
+)
 from athena.storage.emergency_reserve import EmergencyReserveStatus
 from athena.storage.migration_coordinator import MigrationCoordinatorResult
 from athena.storage.migration_journal import (
@@ -30,6 +33,8 @@ _GIB = 1024 * 1024 * 1024
 @dataclass
 class _ReserveStub:
     ensure_calls: int = 0
+    release_calls: int = 0
+    released_bytes: int = 0
 
     def ensure(
         self,
@@ -46,7 +51,8 @@ class _ReserveStub:
         )
 
     def release(self) -> int:
-        return 0
+        self.release_calls += 1
+        return self.released_bytes
 
 
 class _RecordingDatabase(SQLiteDatabase):
@@ -220,3 +226,38 @@ def test_bootstrap_legacy_database_passes_real_reserve_requirement_to_runner(
     assert observed["emergency_reserve_bytes"] == 1 * _GIB
     assert callable(observed["executor"])
     assert database.start_calls == 1
+
+
+def test_bootstrap_binds_runtime_disk_pressure_gate_to_real_database(
+    tmp_path: Path,
+) -> None:
+    paths = _paths(tmp_path)
+    _create_current_database(paths)
+    reserve = _ReserveStub(released_bytes=1 * _GIB)
+    free_bytes = 20 * _GIB
+
+    def usage(_path: Path) -> tuple[int, int]:
+        return 100 * _GIB, free_bytes
+
+    controller = DiskPressureController(
+        paths.state_root,
+        reserve_store=reserve,  # type: ignore[arg-type]
+        disk_usage_provider=usage,
+    )
+    database = SQLiteDatabase(paths.database_path)
+    service = StorageBootstrapService(
+        paths=paths,
+        database=database,
+        disk_pressure=controller,
+    )
+    service.start()
+
+    free_bytes = 1 * _GIB
+    with pytest.raises(DiskPressureWriteBlockedError, match="EMERGENCY"):
+        with database.write_transaction():
+            raise AssertionError("runtime write must be blocked before BEGIN IMMEDIATE")
+
+    assert database.connection.in_transaction is False
+    assert reserve.release_calls == 1
+    assert controller.read_only_safe_mode is True
+    service.stop()
