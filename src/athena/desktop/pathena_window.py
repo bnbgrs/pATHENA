@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from PySide6.QtCore import QSize
+from PySide6.QtCore import QSize, Slot
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from athena.api.contracts import ChatThreadResponse, GroundedChatResponse
 from athena.desktop.api_controller import DesktopApiController, DesktopApiSnapshot
 from athena.desktop.window import AthenaMainWindow, MetricRow
 
@@ -189,9 +190,10 @@ class PathenaMainWindow(AthenaMainWindow):
         self.context_button.setObjectName("contextToggle")
         self.context_button.setCheckable(True)
         self.context_button.setToolTip(
-            "Show source and evidence context for this conversation"
+            "Show source and evidence context for the latest grounded response"
         )
         self.context_button.setMaximumWidth(90)
+        self.context_button.hide()
         self.evidence_chain.hide()
         self.context_button.toggled.connect(self.evidence_chain.setVisible)
 
@@ -202,6 +204,15 @@ class PathenaMainWindow(AthenaMainWindow):
                 evidence_index = chat_layout.indexOf(self.evidence_chain)
                 if evidence_index >= 0:
                     chat_layout.insertWidget(evidence_index, self.context_button)
+
+    def _set_context_available(self, available: bool) -> None:
+        button = getattr(self, "context_button", None)
+        if not isinstance(button, QPushButton):
+            return
+        button.setVisible(available)
+        if not available:
+            button.setChecked(False)
+            self.evidence_chain.hide()
 
     def _sync_progressive_chat_actions(self, _index: int | None = None) -> None:
         """Reveal destructive chat controls only when they are actionable."""
@@ -347,6 +358,43 @@ class PathenaMainWindow(AthenaMainWindow):
     def _on_thinking_changed(self, checked: bool) -> None:
         super()._on_thinking_changed(checked)
         self._humanize_model_settings_state()
+
+    def _enter_new_chat_state(
+        self,
+        *,
+        clear_transient: bool,
+        message: str = "New persistent conversation. Type below to send the first message.",
+    ) -> None:
+        super()._enter_new_chat_state(
+            clear_transient=clear_transient,
+            message=message,
+        )
+        self._set_context_available(False)
+
+    @Slot(object)
+    def apply_chat_loaded(self, thread: object) -> None:
+        super().apply_chat_loaded(thread)
+        if (
+            isinstance(thread, ChatThreadResponse)
+            and self.current_chat_id == thread.chat_id
+            and self.pending_chat_id is None
+        ):
+            self._set_context_available(False)
+
+    @Slot(object)
+    def apply_chat_sent(self, thread: object) -> None:
+        super().apply_chat_sent(thread)
+        if isinstance(thread, ChatThreadResponse) and self.current_chat_id == thread.chat_id:
+            self._set_context_available(False)
+
+    @Slot(object)
+    def apply_grounded_chat_sent(self, response: object) -> None:
+        super().apply_grounded_chat_sent(response)
+        if (
+            isinstance(response, GroundedChatResponse)
+            and self.current_chat_id == response.thread.chat_id
+        ):
+            self._set_context_available(True)
 
     def _message_widget(
         self,
