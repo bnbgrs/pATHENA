@@ -5,46 +5,73 @@
 - Repository: `bnbgrs/pATHENA`
 - Branch: `agent/pathena`
 - Ownership: QUALITY/GATE
-- Status: MITIGATED, supersession verified; newest-run execution still pending
+- Status: MITIGATED, final scheduling behavior under verification
 - Detection date: 2026-08-23
 
 ## Evidence
 
 At branch HEAD `025ca1ab6657e08748cbe96c148f021c97b0c3d2`, the pull-request-triggered ATHENA Quality Gate run #2477 was still `queued`. Its immediate parent `25e3573975247752376f6a4c74463630e6113a7e` also had pull-request run #2475 still `queued`.
 
-The quality workflow at that point triggered on both `push` and `pull_request` and had no `concurrency` block. The branch is under high parallel write activity, so obsolete workflow runs can accumulate faster than they finish and delay evidence for the newest HEAD.
+The quality workflow originally triggered on both `push` and `pull_request` and had no `concurrency` block. The branch is under high parallel write activity, so obsolete workflow runs could accumulate faster than they finished and delay evidence for the newest HEAD.
 
 This is a Quality/CI infrastructure defect: it does not prove a product failure, but it makes current-head gate verification stale and increases runner consumption.
 
-## Root cause
+## Root cause and refinement
 
-`.github/workflows/quality.yml` lacked GitHub Actions concurrency cancellation. Every new commit could enqueue another quality run even when an older run for the same event/ref had become obsolete.
+The first mitigation, commit `03e373d49d5832a2aac6fbfa6eb04a3bbca88326`, introduced an event-scoped concurrency group with `cancel-in-progress: true`. This successfully collapsed superseded PR runs: runs #2490, #2492, #2494, #2498, #2514, #2526, #2543 and later runs were observed cancelled after newer commits arrived.
 
-## Mitigation
+That observation also exposed a second-order problem specific to this continuously written branch: with `cancel-in-progress: true`, a gate can be cancelled before producing any baseline whenever commits arrive faster than runner scheduling. The long-lived CI carrier PR also means `pull_request.paths` evaluates the accumulated PR diff, so path filtering cannot reliably classify the newest commit as documentation-only.
 
-Commit `03e373d49d5832a2aac6fbfa6eb04a3bbca88326` adds:
+A temporary documentation-specific workflow/path split was therefore tested and then removed before finalizing because it would add another PR workflow on this cumulative-diff PR without eliminating the PR full-gate trigger.
+
+The final Quality-owned scheduling policy is implemented by commits `dd23cb21983b5f3c4028676c5b9ec47bfa4f8dff`, `b0701feadcbe1d4456fabe12f61828ac5c090a10`, and `00b30eed918de6b6d04a4493d233877cf76f8f2b`:
 
 ```yaml
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 ```
 
-The group is event-scoped deliberately. It cancels superseded PR runs against the same PR and superseded push runs against the same ref, while preserving the newest PR run for connector-based verification rather than allowing a push event to cancel it.
+Rationale:
 
-No product code, Backend tests, UI code, or UI tests were changed.
+- `agent/pathena` already has the persistent PR carrier, so feature-branch pushes no longer create a second full-gate copy for the same commit.
+- `main` push coverage is retained for future merged state.
+- The PR workflow remains connector-visible and continues to validate every branch update.
+- GitHub concurrency retains at most one running and one pending member of a group. With `cancel-in-progress: false`, an active gate is allowed to finish while newer pending work converges toward the latest branch state instead of repeatedly terminating the active baseline.
+- The workflow still runs `scripts/quality.py --keep-going`, so one completed gate exposes Specification, Ruff, mypy, and pytest evidence even when an earlier check is red.
+
+No product code, Backend tests, UI code, or UI tests were changed by these CI mitigations.
+
+## Regression coverage
+
+`tests/unit/test_quality_workflow_contract.py` now locks the intended scheduling contract:
+
+- event/ref-scoped concurrency exists;
+- `cancel-in-progress` stays false;
+- feature-branch push duplication is avoided by limiting push-triggered full gates to `main`;
+- CI continues to invoke `scripts/quality.py --keep-going`.
+
+The regression test has not yet executed because GitHub runner scheduling is still pending and local execution is unavailable in the connector runtime.
 
 ## Observed verification
 
-- PR quality run #2490 for commit `a162164cfcbe182a5d1a399ed433b3e93290cfbe` completed with conclusion `cancelled` after the later PR run was created.
-- PR quality run #2492 for commit `9f0e2717f282b6ea7c724545832e04575af806de` became the surviving newest run and was observed `pending` with its quality job still `queued`.
-- This proves the new concurrency group supersedes newer-workflow PR runs as designed.
-- Older runs such as #2477 were created before the workflow contained the concurrency group and remained queued; the new rule cannot retroactively assign those historical runs to a concurrency group.
+- The initial concurrency implementation demonstrably cancelled superseded PR runs as designed.
+- The final scheduling implementation is present on `agent/pathena`.
+- A PR quality run was created for commit `00b30eed918de6b6d04a4493d233877cf76f8f2b` as run #2572 and was observed `pending` immediately after creation.
+- Further commits landed before a completed final-policy run was available, so end-to-end evidence that an active run now survives subsequent commits remains pending.
+- Older pre-concurrency runs cannot be retroactively assigned to the new concurrency group.
 
 ## Remaining verification
 
-1. Confirm the surviving newest PR run proceeds to execution once historical queue pressure clears.
-2. Inspect its Specification/Ruff/mypy/pytest results.
-3. Mark `QG-CI-SUPERSEDED-RUNS` DONE once both supersession and successful newest-run scheduling are observed.
+1. Observe the first final-policy PR gate reach `in_progress`.
+2. After at least one newer commit lands, verify that the active gate is not cancelled.
+3. Inspect the completed gate's Specification/Ruff/mypy/pytest results.
+4. Update `QG-CI-SUPERSEDED-RUNS` and `QG-CI-FAILFAST-COVERAGE` from executed evidence only.
 
-The mitigation itself is verified. End-to-end queue recovery remains `IN_PROGRESS` because #2492 had not yet started its job at the last observation.
+The infrastructure defect has a concrete mitigation and regression contract. End-to-end scheduling recovery remains `IN_PROGRESS` until a final-policy gate actually starts and completes.
