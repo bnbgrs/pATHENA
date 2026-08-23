@@ -154,8 +154,9 @@ class DynamicWorkspaceFocusController(QObject):
             for order, widget in enumerate(active, start=1):
                 widget.setProperty("pathenaDynamicTabOrder", order)
                 widget.setProperty("pathenaDynamicWorkspace", workspace_name)
-            for previous, current in zip(active, active[1:]):
-                QWidget.setTabOrder(previous, current)
+            for previous, current in zip(active, active[1:], strict=False):
+                if previous.window() is current.window():
+                    QWidget.setTabOrder(previous, current)
 
     @staticmethod
     def _candidate(widget: QWidget) -> bool:
