@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QObject, Qt, QTimer
+from PySide6.QtCore import QEvent, QObject, Qt, QTimer
 from PySide6.QtWidgets import QAbstractButton, QListWidgetItem
 
 from athena.desktop.system_backup import BackupWorkspace
@@ -16,10 +16,31 @@ class BackupActionTruth(QObject):
     def __init__(self, workspace: BackupWorkspace) -> None:
         super().__init__(workspace)
         self.workspace = workspace
+        self._syncing = False
         workspace.snapshots.currentItemChanged.connect(self._selection_changed)
         workspace.process.finished.connect(self._schedule_sync)
         workspace.process.errorOccurred.connect(self._schedule_sync)
+        for button in (
+            workspace.verify_button,
+            workspace.deep_verify_button,
+            workspace.restore_button,
+        ):
+            button.installEventFilter(self)
         self.sync()
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
+        if (
+            not self._syncing
+            and event.type() == QEvent.Type.EnabledChange
+            and watched
+            in {
+                self.workspace.verify_button,
+                self.workspace.deep_verify_button,
+                self.workspace.restore_button,
+            }
+        ):
+            self.sync()
+        return super().eventFilter(watched, event)
 
     def _selection_changed(
         self,
@@ -33,7 +54,7 @@ class BackupActionTruth(QObject):
 
     def sync(self) -> None:
         workspace = self.workspace
-        if workspace._busy():
+        if workspace._busy() or self._syncing:
             return
 
         item = workspace.snapshots.currentItem()
@@ -43,9 +64,13 @@ class BackupActionTruth(QObject):
         complete = bool(snapshot_id) and state == "complete"
         restore_ready = complete and verification in _RESTORE_VERIFIED
 
-        workspace.verify_button.setEnabled(complete)
-        workspace.deep_verify_button.setEnabled(complete)
-        workspace.restore_button.setEnabled(restore_ready)
+        self._syncing = True
+        try:
+            workspace.verify_button.setEnabled(complete)
+            workspace.deep_verify_button.setEnabled(complete)
+            workspace.restore_button.setEnabled(restore_ready)
+        finally:
+            self._syncing = False
 
         label = snapshot_id[:8].upper() if snapshot_id else "none"
         if not snapshot_id:
