@@ -192,10 +192,28 @@ class FilesWorkspace(QWidget):
 
         if self._busy():
             if current is not None and not self._operation_owns_details():
-                self.details.setPlainText(current.toolTip())
+                selected_label = self._source_label(self._selected_source_id)
+                if self._operation == "import":
+                    background = "A file import is still running in the background."
+                    owner = "import"
+                else:
+                    owner_label = self._source_label(self._operation_source_id)
+                    background = (
+                        f"{self._operation.upper()} for Source {owner_label} is still "
+                        "running in the background."
+                    )
+                    owner = self._operation_source_id or ""
+                self.details.setPlainText(
+                    f"BACKGROUND · {background}\n"
+                    f"CURRENT · Source {selected_label} remains selected; background "
+                    "output will not be written into this pane.\n\n"
+                    f"{current.toolTip()}"
+                )
+                self.details.setProperty("pathenaBackgroundOperationOwner", owner)
                 set_pathena_ui_state(self.details, "idle")
             return
 
+        self.details.setProperty("pathenaBackgroundOperationOwner", "")
         if self._selected_source_id:
             selected_source_id = self._selected_source_id
             self.details.clear()
