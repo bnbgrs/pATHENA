@@ -20,6 +20,7 @@ def test_command_palette_uses_quiet_product_copy_without_losing_commands() -> No
         assert controller.query.placeholderText() == "Search commands or workspaces…"
         assert controller.query.accessibleName() == "Command search"
         assert "Results update as you type" in controller.query.accessibleDescription()
+        assert controller.results.accessibleName() == "Command results"
 
         titles = {
             label.text()
@@ -46,6 +47,11 @@ def test_command_palette_uses_quiet_product_copy_without_losing_commands() -> No
         controller._refresh_results("ground")
         assert controller.results.count() == 1
         assert controller.results.item(0).text() == "Use sources for next response"
+        assert controller.results.accessibleDescription().startswith("1 matching command.")
+
+        controller._refresh_results("no-command-can-match-this")
+        assert controller.results.count() == 0
+        assert controller.results.accessibleDescription().startswith("0 matching commands.")
 
         controller._refresh_results("conversation")
         result_labels = {
