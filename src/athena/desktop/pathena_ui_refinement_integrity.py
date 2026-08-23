@@ -16,6 +16,10 @@ from athena.desktop.pathena_research_experience_2500 import (
     UI_REFINEMENT_TASKS_2401_2500,
     apply_ui_refinements_2401_2500,
 )
+from athena.desktop.pathena_research_knowledge_transition_2700 import (
+    UI_REFINEMENT_TASKS_2601_2700,
+    apply_ui_refinements_2601_2700,
+)
 from athena.desktop.pathena_research_proposal_clarity_2600 import (
     UI_REFINEMENT_TASKS_2501_2600,
     apply_ui_refinements_2501_2600,
@@ -126,6 +130,7 @@ def apply_complete_ui_refinements(window: QWidget) -> tuple[int, ...]:
     applied.extend(apply_ui_refinements_2301_2400(window))
     applied.extend(apply_ui_refinements_2401_2500(window))
     applied.extend(apply_ui_refinements_2501_2600(window))
+    applied.extend(apply_ui_refinements_2601_2700(window))
     normalized = tuple(sorted(set(applied)))
     total_tasks = sum(
         map(
@@ -148,6 +153,7 @@ def apply_complete_ui_refinements(window: QWidget) -> tuple[int, ...]:
                 UI_REFINEMENT_TASKS_2301_2400,
                 UI_REFINEMENT_TASKS_2401_2500,
                 UI_REFINEMENT_TASKS_2501_2600,
+                UI_REFINEMENT_TASKS_2601_2700,
             ),
         )
     )
