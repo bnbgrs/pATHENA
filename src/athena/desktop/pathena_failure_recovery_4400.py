@@ -260,6 +260,7 @@ class FailureRecoveryController(QObject):
         self.window = window
         self._targets: dict[QWidget, FailureTarget] = {}
         self._actions: dict[QWidget, QAbstractButton | None] = {}
+        self._action_members: dict[QAbstractButton, set[QWidget]] = {}
         self._baseline: dict[QWidget, tuple[str, str]] = {}
 
     def register(
@@ -271,6 +272,8 @@ class FailureRecoveryController(QObject):
         self._targets[widget] = target
         self._actions[widget] = action
         self._baseline[widget] = (widget.statusTip(), widget.accessibleDescription())
+        if action is not None:
+            self._action_members.setdefault(action, set()).add(widget)
         widget.installEventFilter(self)
         self._sync(widget)
 
@@ -309,14 +312,27 @@ class FailureRecoveryController(QObject):
 
         action = self._actions.get(widget)
         if action is not None:
-            action_changed = bool(action.property("pathenaRecoveryAction")) != active
-            action.setProperty("pathenaRecoveryAction", active)
-            action.setProperty("pathenaRecoveryFor", widget.objectName())
-            if action_changed:
-                self._repolish(action)
+            self._sync_action(action)
 
         if previous != active:
             self._repolish(widget)
+
+    def _sync_action(self, action: QAbstractButton) -> None:
+        members = self._action_members.get(action, set())
+        active_members = tuple(
+            widget
+            for widget in members
+            if bool(widget.property("pathenaFailureActive"))
+        )
+        active = bool(active_members)
+        changed = bool(action.property("pathenaRecoveryAction")) != active
+        action.setProperty("pathenaRecoveryAction", active)
+        action.setProperty(
+            "pathenaRecoveryFor",
+            ";".join(sorted(widget.objectName() for widget in active_members)),
+        )
+        if changed:
+            self._repolish(action)
 
     @staticmethod
     def _repolish(widget: QWidget) -> None:
