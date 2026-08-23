@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from athena.api.contracts import API_VERSION
-from athena.storage.durable_fs import durable_replace
+from athena.storage.durable_fs import durable_replace, is_link_boundary
 
 _LOOPBACK_HOST = "127.0.0.1"
 _DISCOVERY_FILE = "core-api.json"
@@ -25,9 +25,10 @@ class ApiRuntimeError(RuntimeError):
 def _reject_symlink_ancestors(path: Path) -> None:
     cursor = path.parent
     while True:
-        if cursor.is_symlink():
+        if is_link_boundary(cursor):
             raise ApiRuntimeError(
-                f"ATHENA API runtime path has a symlink ancestor: {str(cursor)!r}."
+                "ATHENA API runtime path has a symlink ancestor, junction, "
+                f"or reparse-point ancestor: {str(cursor)!r}."
             )
         if cursor.exists() and not cursor.is_dir():
             raise ApiRuntimeError(
@@ -118,9 +119,10 @@ class LocalApiRuntime:
         self._token = None
         root = self.runtime_root
         _reject_symlink_ancestors(root)
-        if root.is_symlink():
+        if is_link_boundary(root):
             raise ApiRuntimeError(
-                f"ATHENA API runtime root must not be a symlink: {str(root)!r}."
+                "ATHENA API runtime root must not be a symlink, junction, "
+                f"or reparse point: {str(root)!r}."
             )
         if root.exists() and not root.is_dir():
             raise ApiRuntimeError(
@@ -142,9 +144,10 @@ class LocalApiRuntime:
     def _validate_runtime_root(self) -> None:
         root = self.runtime_root
         _reject_symlink_ancestors(root)
-        if root.is_symlink():
+        if is_link_boundary(root):
             raise ApiRuntimeError(
-                f"ATHENA API runtime root must not be a symlink: {str(root)!r}."
+                "ATHENA API runtime root must not be a symlink, junction, "
+                f"or reparse point: {str(root)!r}."
             )
         try:
             root.mkdir(parents=True, exist_ok=True)
@@ -153,7 +156,7 @@ class LocalApiRuntime:
                 f"Cannot create ATHENA API runtime root {str(root)!r}."
             ) from exc
         _reject_symlink_ancestors(root)
-        if root.is_symlink() or not root.is_dir():
+        if is_link_boundary(root) or not root.is_dir():
             raise ApiRuntimeError(
                 f"ATHENA API runtime root is not a safe directory: {str(root)!r}."
             )
@@ -161,7 +164,7 @@ class LocalApiRuntime:
 
 def _write_private_text(path: Path, content: str) -> None:
     _reject_symlink_ancestors(path)
-    if path.parent.is_symlink() or not path.parent.is_dir():
+    if is_link_boundary(path.parent) or not path.parent.is_dir():
         raise ApiRuntimeError(
             f"ATHENA API runtime file parent is not a safe directory: {str(path.parent)!r}."
         )
@@ -197,7 +200,7 @@ def _write_private_text(path: Path, content: str) -> None:
             ) from exc
 
         _reject_symlink_ancestors(path)
-        if path.parent.is_symlink() or not path.parent.is_dir():
+        if is_link_boundary(path.parent) or not path.parent.is_dir():
             raise ApiRuntimeError(
                 f"ATHENA API runtime file parent became unsafe: {str(path.parent)!r}."
             )
