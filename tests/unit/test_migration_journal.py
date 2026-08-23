@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+import athena.storage.migration_journal as migration_journal_module
 from athena.storage.migration_journal import (
     MigrationJournalError,
     MigrationJournalState,
@@ -152,10 +153,72 @@ def test_store_rejects_symlink_journal(tmp_path: Path) -> None:
 
     store = MigrationJournalStore(link.absolute())
 
-    with pytest.raises(MigrationJournalError, match="symbolic link"):
+    with pytest.raises(MigrationJournalError, match="symlink|junction|reparse"):
         store.load()
-    with pytest.raises(MigrationJournalError, match="symbolic link"):
+    with pytest.raises(MigrationJournalError, match="symlink|junction|reparse"):
         store.publish(_state(tmp_path))
+
+
+def test_store_rejects_reparse_ancestor_before_read(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    migration_root = (tmp_path / "migration").absolute()
+    migration_root.mkdir()
+    path = migration_root / "migration_state.json"
+    path.write_bytes(encode_migration_journal(_state(tmp_path)))
+    store = MigrationJournalStore(path)
+    original = migration_journal_module.is_link_boundary
+
+    def simulate_reparse(candidate: Path) -> bool:
+        return candidate == migration_root or original(candidate)
+
+    read_attempted = False
+    original_open = migration_journal_module.os.open
+
+    def track_open(*args: object, **kwargs: object) -> int:
+        nonlocal read_attempted
+        read_attempted = True
+        return original_open(*args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(migration_journal_module, "is_link_boundary", simulate_reparse)
+    monkeypatch.setattr(migration_journal_module.os, "open", track_open)
+
+    with pytest.raises(MigrationJournalError, match="reparse-point ancestor"):
+        store.load()
+
+    assert read_attempted is False
+
+
+def test_store_rejects_reparse_ancestor_before_publish(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    migration_root = (tmp_path / "migration").absolute()
+    migration_root.mkdir()
+    path = migration_root / "migration_state.json"
+    store = MigrationJournalStore(path)
+    original = migration_journal_module.is_link_boundary
+
+    def simulate_reparse(candidate: Path) -> bool:
+        return candidate == migration_root or original(candidate)
+
+    write_attempted = False
+    original_open = migration_journal_module.os.open
+
+    def track_open(*args: object, **kwargs: object) -> int:
+        nonlocal write_attempted
+        write_attempted = True
+        return original_open(*args, **kwargs)  # type: ignore[arg-type]
+
+    monkeypatch.setattr(migration_journal_module, "is_link_boundary", simulate_reparse)
+    monkeypatch.setattr(migration_journal_module.os, "open", track_open)
+
+    with pytest.raises(MigrationJournalError, match="reparse-point ancestor"):
+        store.publish(_state(tmp_path))
+
+    assert write_attempted is False
+    assert not path.exists()
 
 
 def test_state_rejects_same_source_and_candidate(tmp_path: Path) -> None:
