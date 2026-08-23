@@ -35,6 +35,22 @@ class ContextBuilderError(ValueError):
     """Raised when a context bundle request violates a hard builder contract."""
 
 
+def _bounded_int(
+    value: object,
+    *,
+    label: str,
+    minimum: int,
+    maximum: int,
+) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ContextBuilderError(f"{label} must be an integer.")
+    if not minimum <= value <= maximum:
+        raise ContextBuilderError(
+            f"{label} must be between {minimum} and {maximum}."
+        )
+    return value
+
+
 @dataclass(frozen=True, slots=True)
 class MemoryContextItem:
     context_id: str
@@ -168,24 +184,35 @@ class ContextBuilderService:
         max_items: int,
         max_memory_items: int,
     ) -> ContextBundle:
+        if not isinstance(query, str):
+            raise ContextBuilderError("Context query must be text.")
         normalized_query = query.strip()
         if not normalized_query:
             raise ContextBuilderError("Context query must not be empty.")
-        if not _MIN_BUDGET <= max_estimated_tokens <= _MAX_BUDGET:
-            raise ContextBuilderError(
-                f"Context token budget must be between {_MIN_BUDGET} and {_MAX_BUDGET}."
-            )
-        if not _MIN_ITEMS <= max_items <= _MAX_ITEMS:
-            raise ContextBuilderError(
-                f"Context max-items must be between {_MIN_ITEMS} and {_MAX_ITEMS}."
-            )
-        if not 0 <= max_memory_items <= _MAX_MEMORY_ITEMS:
-            raise ContextBuilderError(
-                f"Context max-memory-items must be between 0 and {_MAX_MEMORY_ITEMS}."
-            )
+        if mode not in {"lexical", "hybrid"}:
+            raise ContextBuilderError("Context mode must be lexical or hybrid.")
+
+        validated_budget = _bounded_int(
+            max_estimated_tokens,
+            label="Context token budget",
+            minimum=_MIN_BUDGET,
+            maximum=_MAX_BUDGET,
+        )
+        validated_max_items = _bounded_int(
+            max_items,
+            label="Context max-items",
+            minimum=_MIN_ITEMS,
+            maximum=_MAX_ITEMS,
+        )
+        validated_max_memory_items = _bounded_int(
+            max_memory_items,
+            label="Context max-memory-items",
+            minimum=0,
+            maximum=_MAX_MEMORY_ITEMS,
+        )
 
         memory_items: list[MemoryContextItem] = []
-        considered_memory = personal_memory[:max_memory_items]
+        considered_memory = personal_memory[:validated_max_memory_items]
         omitted_memory_count = max(0, len(personal_memory) - len(considered_memory))
         for snapshot in considered_memory:
             if snapshot.lifecycle_state != "active":
@@ -206,14 +233,14 @@ class ContextBuilderService:
                 mode=mode,
                 memory_items=tuple([*memory_items, memory_candidate]),
                 items=(),
-                budget=max_estimated_tokens,
+                budget=validated_budget,
             ):
                 memory_items.append(memory_candidate)
             else:
                 omitted_memory_count += 1
 
         selected: list[ContextItem] = []
-        considered = sources[:max_items]
+        considered = sources[:validated_max_items]
         omitted_count = max(0, len(sources) - len(considered))
 
         for source_index, source in enumerate(considered):
@@ -230,7 +257,7 @@ class ContextBuilderService:
                 mode=mode,
                 memory_items=tuple(memory_items),
                 items=trial,
-                budget=max_estimated_tokens,
+                budget=validated_budget,
             ):
                 selected.append(candidate)
                 continue
@@ -244,7 +271,7 @@ class ContextBuilderService:
                     memory_items=tuple(memory_items),
                     source=source,
                     context_id=context_id,
-                    budget=max_estimated_tokens,
+                    budget=validated_budget,
                 )
                 if truncated is not None:
                     selected.append(truncated)
@@ -264,7 +291,7 @@ class ContextBuilderService:
             items=items,
         )
         estimated = estimate_tokens(rendered)
-        if estimated > max_estimated_tokens:
+        if estimated > validated_budget:
             raise RuntimeError("Context Builder exceeded its own deterministic budget.")
 
         return ContextBundle(
@@ -275,7 +302,7 @@ class ContextBuilderService:
             omitted_memory_count=omitted_memory_count,
             omitted_count=omitted_count,
             estimated_tokens=estimated,
-            max_estimated_tokens=max_estimated_tokens,
+            max_estimated_tokens=validated_budget,
             rendered_text=rendered,
         )
 
@@ -485,6 +512,8 @@ def estimate_tokens(text: str) -> int:
     numbers and punctuation are counted separately and padded by 50% to reduce
     underestimation on mixed-language and structured JSON text.
     """
+    if not isinstance(text, str):
+        raise TypeError("Context token estimation requires text.")
     pieces = re.findall(r"\w+|[^\w\s]", text, flags=re.UNICODE)
     if not pieces:
         return 0
