@@ -43,7 +43,7 @@ def _validate_bundle_shape(bundle: ProtectedRuntimeContextBundle) -> None:
         raise TypeError(
             "Protected execution items must be a tuple of ProtectedRuntimeContextItem values."
         )
-    omitted = _nonnegative_int(
+    _nonnegative_int(
         bundle.omitted_count,
         "Protected execution omitted_count",
     )
@@ -63,8 +63,6 @@ def _validate_bundle_shape(bundle: ProtectedRuntimeContextBundle) -> None:
         )
     if not isinstance(bundle.rendered_text, str) or not bundle.rendered_text:
         raise ValueError("Protected execution rendered context must be non-empty text.")
-    if omitted < 0:  # pragma: no cover - documented by _nonnegative_int
-        raise AssertionError("unreachable")
 
 
 @dataclass(frozen=True, slots=True)
