@@ -71,20 +71,25 @@ class DurableJobService:
         next_run_at_us: int | None = None,
     ) -> JobRecord:
         normalized_job_type = self._registered_job_type(job_type)
+        normalized_scope = _optional_mapping(requested_scope, "requested_scope")
+        normalized_configuration = _optional_mapping(
+            pinned_configuration,
+            "pinned_configuration",
+        )
         _job_priority(priority)
         _optional_nonnegative_int(next_run_at_us, "next_run_at_us")
         try:
             if normalized_job_type in {NEWS_JOB_TYPE, NEWS_PERIOD_JOB_TYPE}:
                 validate_news_job_payload(
                     normalized_job_type,
-                    requested_scope=requested_scope,
-                    pinned_configuration=pinned_configuration,
+                    requested_scope=normalized_scope,
+                    pinned_configuration=normalized_configuration,
                 )
             else:
                 validate_builtin_job_payload(
                     normalized_job_type,
-                    requested_scope=requested_scope,
-                    pinned_configuration=pinned_configuration,
+                    requested_scope=normalized_scope,
+                    pinned_configuration=normalized_configuration,
                 )
         except (BuiltinJobPayloadValidationError, NewsJobPayloadValidationError) as exc:
             raise InvalidJobPayloadError(str(exc)) from exc
@@ -93,8 +98,8 @@ class DurableJobService:
             job_type=normalized_job_type,
             actor_id=actor_id,
             priority=priority,
-            requested_scope_json=_canonical_json(requested_scope),
-            pinned_configuration_json=_canonical_json(pinned_configuration),
+            requested_scope_json=_canonical_json(normalized_scope),
+            pinned_configuration_json=_canonical_json(normalized_configuration),
             next_run_at_us=next_run_at_us,
         )
 
@@ -190,6 +195,16 @@ class DurableJobService:
             "processing_stage_id",
         )
         normalized_commit_id = _optional_uuid_value(commit_id, "commit_id")
+        normalized_progress = _optional_mapping(progress_state, "progress_state")
+        normalized_input = _optional_mapping(
+            last_confirmed_input,
+            "last_confirmed_input",
+        )
+        normalized_output = _optional_mapping(
+            last_confirmed_output,
+            "last_confirmed_output",
+        )
+        normalized_resume = _optional_mapping(resume_metadata, "resume_metadata")
         _lease_token(lease_token)
         _optional_canonical_text(current_stage, "current_stage")
         _optional_nonnegative_int(now_us, "now_us")
@@ -197,10 +212,10 @@ class DurableJobService:
             job_id=normalized_job_id,
             lease_token=lease_token,
             processing_stage_id=normalized_processing_stage_id,
-            progress_state_json=_canonical_json(progress_state),
-            last_confirmed_input_json=_canonical_json(last_confirmed_input),
-            last_confirmed_output_json=_canonical_json(last_confirmed_output),
-            resume_metadata_json=_canonical_json(resume_metadata),
+            progress_state_json=_canonical_json(normalized_progress),
+            last_confirmed_input_json=_canonical_json(normalized_input),
+            last_confirmed_output_json=_canonical_json(normalized_output),
+            resume_metadata_json=_canonical_json(normalized_resume),
             commit_id=normalized_commit_id,
             current_stage=current_stage,
             now_us=now_us,
@@ -397,6 +412,17 @@ class DurableJobService:
         for item in value:
             normalized.add(self._registered_job_type(item))
         return normalized
+
+
+def _optional_mapping(
+    value: object | None,
+    label: str,
+) -> Mapping[str, Any] | None:
+    if value is None:
+        return None
+    if not isinstance(value, Mapping):
+        raise InvalidJobPayloadError(f"{label} must be a JSON object mapping.")
+    return value
 
 
 def _canonical_json(value: Mapping[str, Any] | None) -> str | None:
