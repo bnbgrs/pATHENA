@@ -38,17 +38,13 @@ def _require_text(value: object, label: str, *, allow_empty: bool = False) -> No
         raise ValueError(f"{label} must not be empty.")
 
 
-def _require_canonical_text(value: object, label: str) -> None:
+def _require_optional_canonical_text(value: object, label: str) -> None:
+    if value is None:
+        return
     _require_text(value, label)
     assert isinstance(value, str)
     if value != value.strip():
         raise ValueError(f"{label} must use canonical trimmed text.")
-
-
-def _require_optional_canonical_text(value: object, label: str) -> None:
-    if value is None:
-        return
-    _require_canonical_text(value, label)
 
 
 def _require_optional_positive_int(value: object, label: str) -> None:
@@ -152,15 +148,13 @@ class ModelInfo:
     model_revision: str | None = None
 
     def __post_init__(self) -> None:
-        _require_canonical_text(self.provider, "ModelInfo provider")
-        _require_canonical_text(self.backend_model_id, "ModelInfo backend_model_id")
+        _require_text(self.provider, "ModelInfo provider")
+        _require_text(self.backend_model_id, "ModelInfo backend_model_id")
         _require_text(self.display_name, "ModelInfo display_name")
-        _require_canonical_text(self.model_type, "ModelInfo model_type")
+        _require_text(self.model_type, "ModelInfo model_type")
         _require_optional_positive_int(self.context_capacity, "ModelInfo context_capacity")
-        _require_optional_canonical_text(
-            self.quantization,
-            "ModelInfo quantization",
-        )
+        if self.quantization is not None and not isinstance(self.quantization, str):
+            raise TypeError("ModelInfo quantization must be text or None.")
         if not isinstance(self.loaded, bool):
             raise TypeError("ModelInfo loaded must be bool.")
         _require_optional_bool(self.vision, "ModelInfo vision")
