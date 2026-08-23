@@ -183,6 +183,76 @@ def durable_replace(source: Path, destination: Path) -> None:
     _posix_durable_replace(source_path, destination_path)
 
 
+def durable_write_bytes(path: Path, data: bytes, *, mode: int = 0o600) -> None:
+    """Durably replace one file with bytes without following a replaced POSIX parent."""
+    destination = Path(path)
+    if not isinstance(data, bytes):
+        raise TypeError("Durable file payload must be bytes.")
+    if isinstance(mode, bool) or not isinstance(mode, int) or not 0 <= mode <= 0o777:
+        raise ValueError("Durable file mode must be an integer between 0 and 0o777.")
+    parent = destination.parent
+    _assert_real_directory(parent, label="Durable file parent")
+    if is_link_boundary(destination):
+        raise OSError(f"Durable file destination is a symlink or reparse point: {destination}")
+
+    temporary_name = f".{destination.name}.{os.getpid()}-{secrets.token_hex(8)}.partial"
+    if _is_windows():
+        temporary = parent / temporary_name
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+        descriptor = os.open(temporary, flags, mode)
+        try:
+            with os.fdopen(descriptor, "wb", closefd=True) as handle:
+                descriptor = -1
+                handle.write(data)
+                handle.flush()
+                os.fsync(handle.fileno())
+            durable_replace(temporary, destination)
+        finally:
+            if descriptor >= 0:
+                os.close(descriptor)
+            temporary.unlink(missing_ok=True)
+        return
+
+    parent_fd = _open_directory_fd(parent, label="Durable file parent")
+    descriptor = -1
+    try:
+        _assert_directory_fd_current(parent, parent_fd, label="Durable file parent")
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+        try:
+            descriptor = os.open(temporary_name, flags, mode, dir_fd=parent_fd)
+        except (NotImplementedError, TypeError) as exc:
+            raise OSError(
+                "Identity-bound durable file creation is unsupported on this POSIX runtime."
+            ) from exc
+        with os.fdopen(descriptor, "wb", closefd=True) as handle:
+            descriptor = -1
+            handle.write(data)
+            handle.flush()
+            os.fsync(handle.fileno())
+        try:
+            os.replace(
+                temporary_name,
+                destination.name,
+                src_dir_fd=parent_fd,
+                dst_dir_fd=parent_fd,
+            )
+        except (NotImplementedError, TypeError) as exc:
+            raise OSError(
+                "Identity-bound durable file publication is unsupported on this POSIX runtime."
+            ) from exc
+        os.fsync(parent_fd)
+        _assert_directory_fd_current(parent, parent_fd, label="Durable file parent")
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+        try:
+            os.unlink(temporary_name, dir_fd=parent_fd)
+        except FileNotFoundError:
+            pass
+        finally:
+            os.close(parent_fd)
+
+
 def durable_mkdir(path: Path, *, parents: bool = False, exist_ok: bool = False) -> None:
     """Create a directory and durably publish every newly created entry."""
     directory = Path(path)
