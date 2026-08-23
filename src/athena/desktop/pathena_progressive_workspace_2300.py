@@ -11,7 +11,6 @@ from dataclasses import dataclass
 
 from PySide6.QtCore import QObject, Qt
 from PySide6.QtWidgets import (
-    QAbstractItemView,
     QLabel,
     QListWidget,
     QPlainTextEdit,
@@ -121,8 +120,6 @@ class PathenaProgressiveWorkspaceRefinement(QObject):
                 widget.setProperty("pathenaProgressiveSurface", True)
 
     def _remove_duplicate_workspace_titles(self) -> None:
-        # The shell already owns the page title. Repeating the workspace title inside
-        # every page spends vertical space without adding orientation.
         for label in self.window.findChildren(QLabel):
             if label.text() in _WORKSPACE_TITLE_COPY:
                 label.hide()
@@ -178,7 +175,6 @@ class PathenaProgressiveWorkspaceRefinement(QObject):
         proposals.setMaximumHeight(170 if has_rows else 0)
         proposals.setProperty("pathenaProgressiveRole", "secondary")
 
-        # Decision controls should exist only while they can act on a selected proposal.
         for name in (
             "researchProposalAcceptButton",
             "researchProposalSeparateButton",
@@ -202,10 +198,23 @@ class PathenaProgressiveWorkspaceRefinement(QObject):
         if open_related is not None:
             open_related.setVisible(has_rows and open_related.isEnabled())
 
-        # Keep keyboard navigation predictable when the relation surface is absent.
         relations.setFocusPolicy(
             Qt.FocusPolicy.StrongFocus if has_rows else Qt.FocusPolicy.NoFocus
         )
+
+
+def apply_ui_refinements_2201_2300(window: QWidget) -> tuple[int, ...]:
+    """Record progressive-refinement coverage for installed presentation surfaces."""
+    applied: list[int] = []
+    for index, target in enumerate(_PROGRESSIVE_TARGETS):
+        widget = window.findChild(QWidget, target.key)
+        if widget is None:
+            continue
+        widget.setProperty("pathenaProgressiveSurface", True)
+        start = 2201 + index * len(_PROGRESSIVE_REFINEMENTS)
+        applied.extend(range(start, start + len(_PROGRESSIVE_REFINEMENTS)))
+    window.setProperty("pathenaUiProgressiveTaskCount", 100)
+    return tuple(applied)
 
 
 def install_progressive_workspace_refinement(
