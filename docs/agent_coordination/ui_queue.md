@@ -63,37 +63,33 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 | UI-054 | P1 | DONE | Canonical Knowledge/Claim/Decision refreshes preserve identity and explicitly clear vanished selections; four targeted tests added 2026-08-23, not executed. |
 | UI-055 | P1 | DONE | Knowledge/Claim/Decision show/history/review output is bound to the identity that started it; newer review selection survives owner completion. Three tests added 2026-08-23, not executed. |
 | UI-056 | P2 | DONE | Reverified 2026-08-23: existing Knowledge result-scope layer explicitly marks a hidden active selection as `selected <ID> (filtered)` in visible and accessible scope copy. |
+| UI-057 | P1 | DONE | BackupService restore contract requires `state=complete` and `verification_status` `verified_light`/`verified_deep`; installed BackupActionTruth mirrors that contract. Targeted tests exist, execution blocked by runtime DNS. |
+| UI-058 | P2 | DONE | Backup VERIFY/DEEP VERIFY require a complete listed snapshot; RESTORE additionally requires verified_light/deep. Existing truth-layer tests cover incomplete, complete-unverified and verified-complete states. |
+| UI-059 | P2 | DONE | Backup action accessible descriptions/tooltips include selected snapshot ID, state, verification and blocker/recovery reason. Existing targeted tests verify ID/reason copy. |
+| UI-060 | P1 | DONE | BackupActionTruth now intercepts snapshot-action EnabledChange so base `_set_controls(True)` cannot transiently expose ineligible verify/restore actions after busy completion. Commit `0a79a0b98aa70afcd0a2e3ac029f2105fe9b73d3`; targeted regression test added in `e7c99f9da7e103d937e0b3f41f7561a0c664df91`; execution NOT EXECUTABLE because checkout DNS failed. |
 
 ## Active queue
 
 ### UI-047 — Post-slice targeted execution handoff
 - **Priority:** P2
 - **Status:** BLOCKED
-- **Evidence:** Connector runtime cannot provide a checked-out repository process; a local clone attempt on 2026-08-23 also failed transiently on DNS resolution to github.com.
+- **Evidence:** Connector runtime cannot provide a checked-out repository process; local clone again failed on 2026-08-23 because `github.com` DNS resolution was unavailable before pytest could start.
 - **Views/components:** Recent UI modules and tests.
 - **Dependencies:** Runtime with repository checkout or Quality-bot execution.
 - **Last verification:** 2026-08-23.
 
-### UI-057 — Backup restore eligibility truth
-- **Priority:** P1
-- **Status:** IN_PROGRESS
-- **Evidence:** Backup list stores snapshot state and verification status, but `_set_controls()` currently enables RESTORE ISOLATED for any selected snapshot. Audit against actual BackupService/CLI verification states and restrict only if the existing backend contract requires verified/completed input.
+### UI-061 — Backup keyboard/focus semantics under eligibility changes
+- **Priority:** P2
+- **Status:** READY
+- **Evidence:** Snapshot eligibility can disable the currently focused VERIFY/DEEP VERIFY/RESTORE action when selection changes. Audit whether focus remains on a now-disabled control and return it to the snapshot list only when necessary, without stealing newer user focus.
 - **Views/components:** Backup snapshot list and Verify/Deep Verify/Restore action row.
-- **Dependencies:** Read-only inspection of existing backup contract; no backend change.
+- **Dependencies:** UI-057 through UI-060.
 - **Last verification:** 2026-08-23.
 
-### UI-058 — Backup verification action semantics
-- **Priority:** P2
+### UI-062 — Backup row-state scanability
+- **Priority:** P3
 - **Status:** READY
-- **Evidence:** VERIFY, DEEP VERIFY and RESTORE share one generic selection enablement gate. Audit whether terminal/incomplete/corrupt snapshots should expose different action availability based only on already-listed state/verify fields.
-- **Views/components:** Backup action row, snapshot status metadata.
-- **Dependencies:** UI-057 contract audit.
-- **Last verification:** 2026-08-23.
-
-### UI-059 — Backup selection metadata accessibility
-- **Priority:** P2
-- **Status:** READY
-- **Evidence:** Snapshot state and verification metadata are visible in row text/tooltips; verify that action blockers and accessible descriptions name the selected snapshot and the reason an action is unavailable.
-- **Views/components:** Backup snapshot list, Verify/Deep Verify/Restore buttons.
-- **Dependencies:** UI-057/UI-058.
+- **Evidence:** Snapshot rows currently encode state/verification as aligned uppercase text. Audit whether semantic item metadata can improve accessible/visual scanning without adding controls or duplicating status chrome.
+- **Views/components:** Backup snapshot list.
+- **Dependencies:** UI-057/UI-059.
 - **Last verification:** 2026-08-23.
