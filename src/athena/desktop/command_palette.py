@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QPlainTextEdit,
+    QTabWidget,
     QVBoxLayout,
 )
 
@@ -30,8 +31,9 @@ _WORKSPACE_HELP: tuple[tuple[str, str], ...] = (
     ),
     (
         "Knowledge",
-        "Inspect durable knowledge, revisions and provenance, and review proposed "
-        "knowledge before accepting it.",
+        "Browse canonical KnowledgeUnits and Claims with immutable revision history, "
+        "evidence and provenance; resolve pending contradiction decisions; review "
+        "session proposals before explicit acceptance.",
     ),
     (
         "Research",
@@ -214,6 +216,37 @@ class CommandPaletteController(QObject):
                     action=self._ground_prompt,
                 ),
                 _Command(
+                    label="Browse canonical Knowledge",
+                    keywords=("knowledge", "canonical", "memory", "units"),
+                    action=lambda: self._open_knowledge_tab(0),
+                ),
+                _Command(
+                    label="Browse canonical Claims",
+                    keywords=("knowledge", "claims", "canonical", "facts", "evidence"),
+                    action=lambda: self._open_knowledge_tab(1),
+                ),
+                _Command(
+                    label="Review contradiction decisions",
+                    keywords=(
+                        "knowledge",
+                        "claims",
+                        "contradiction",
+                        "decisions",
+                        "review",
+                    ),
+                    action=lambda: self._open_knowledge_tab(2),
+                ),
+                _Command(
+                    label="Open current knowledge review",
+                    keywords=("knowledge", "session", "proposal", "preflight", "accept"),
+                    action=lambda: self._open_knowledge_tab(3),
+                ),
+                _Command(
+                    label="Filter canonical memory",
+                    keywords=("knowledge", "claims", "search", "filter", "find"),
+                    action=self._focus_knowledge_filter,
+                ),
+                _Command(
                     label="Open model settings",
                     keywords=("model", "context", "temperature", "thinking"),
                     action=lambda: self.window.navigation.setCurrentRow(6),
@@ -234,6 +267,13 @@ class CommandPaletteController(QObject):
 
         lines.extend(
             (
+                "Canonical memory",
+                "",
+                "Knowledge       Durable KnowledgeUnits and immutable revision history",
+                "Claims          Canonical statements with evidence and provenance",
+                "Decisions       Pending contradiction reviews requiring explicit choice",
+                "Session review  Extracted proposals before canonical acceptance",
+                "",
                 "Keyboard",
                 "",
                 "Ctrl K       Commands",
@@ -258,6 +298,9 @@ class CommandPaletteController(QObject):
                 "pATHENA keeps chat history, knowledge and captured source state local. "
                 "Imported files enter the Raw Archive before derived representations or "
                 "retrieval chunks are produced.",
+                "",
+                "Model-reported contradictions are not canonicalized automatically. "
+                "They remain pending decisions until explicitly accepted or rejected.",
             )
         )
         return "\n".join(lines)
@@ -342,6 +385,19 @@ class CommandPaletteController(QObject):
         self.window.navigation.setCurrentRow(0)
         self.window.ground_button.click()
         self.window.prompt_input.setFocus(Qt.FocusReason.ShortcutFocusReason)
+
+    def _open_knowledge_tab(self, index: int) -> None:
+        self.window.navigation.setCurrentRow(1)
+        tabs = self.window.findChild(QTabWidget, "canonicalMemoryTabs")
+        if tabs is not None and 0 <= index < tabs.count():
+            tabs.setCurrentIndex(index)
+
+    def _focus_knowledge_filter(self) -> None:
+        self.window.navigation.setCurrentRow(1)
+        search = self.window.findChild(QLineEdit, "knowledgeSearchInput")
+        if search is not None:
+            search.setFocus(Qt.FocusReason.ShortcutFocusReason)
+            search.selectAll()
 
 
 def install_command_palette(window: AthenaMainWindow) -> CommandPaletteController:
