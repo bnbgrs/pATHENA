@@ -58,7 +58,8 @@ class ModelSession:
 
     The session contains execution control only. It is not conversation memory
     and does not make provider/backend state canonical. Durable provenance stays
-    in ModelSignature/ProcessingRun records.
+    in ModelSignature/ProcessingRun records. ``context_budget`` is the optional
+    retrieval/context allocation and may be zero for direct chat.
     """
 
     request_id: uuid.UUID
@@ -76,7 +77,7 @@ class ModelSession:
             self.model_signature_id,
             "ModelSession model_signature_id",
         )
-        _require_positive_int(
+        _require_nonnegative_int(
             self.context_budget,
             "ModelSession context_budget",
         )
