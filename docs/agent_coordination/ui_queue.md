@@ -43,7 +43,7 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 
 ### UI-031 — Selection count and result scope clarity
 - **Priority:** P2
-- **Status:** READY
+- **Status:** IN_PROGRESS
 - **Evidence:** Dense list workspaces do not consistently expose total/visible count and selected identity in the quiet status hierarchy.
 - **Views/components:** Knowledge, Research, Jobs, Sources, Backup lists.
 - **Dependencies:** Existing list models and status surfaces only.
