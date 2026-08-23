@@ -9,9 +9,11 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import (
     QLabel,
+    QLineEdit,
     QListWidget,
     QPlainTextEdit,
     QPushButton,
+    QTabWidget,
     QWidget,
 )
 
@@ -28,15 +30,22 @@ _WORKSPACE_TITLES = frozenset(
 _LABEL_REPLACEMENTS = {
     "CURRENT CANONICAL KNOWLEDGE": "Canonical knowledge",
     "SELECTED KNOWLEDGE / PROVENANCE": "Details & provenance",
+    "CURRENT CANONICAL CLAIMS": "Canonical claims",
+    "SELECTED CLAIM / EVIDENCE / PROVENANCE": "Evidence & provenance",
+    "PENDING CONTRADICTION DECISIONS": "Contradiction decisions",
+    "DECISION / BOTH CLAIMS": "Compare claims",
     "REVIEW INBOX / CURRENT SESSION": "Review inbox",
     "DETAIL": "Status detail",
 }
 
 _BUTTON_REPLACEMENTS = {
-    "OPEN SOURCE CHAT": "Open source chat",
+    "OPEN SOURCE CHAT": "Open chat",
     "REFRESH CORE": "Refresh status",
     "REFRESH KNOWLEDGE": "Refresh",
+    "REFRESH VIEW": "Refresh",
     "HISTORY": "History",
+    "ACCEPT CONTRADICTION": "Confirm contradiction",
+    "REJECT": "Reject",
     "START RESEARCH": "Start research",
     "REFRESH": "Refresh",
     "CANCEL SELECTED": "Cancel",
@@ -51,8 +60,8 @@ _BUTTON_REPLACEMENTS = {
 
 _INTRO_REPLACEMENTS = {
     "knowledgeWorkspace": (
-        "Browse durable knowledge and review what is promoted from conversations. "
-        "Revisions and provenance remain inspectable."
+        "Browse durable knowledge, claims, evidence and decisions. Items promoted "
+        "from conversations stay reviewable with their provenance."
     ),
     "researchWorkspace": (
         "Run durable local research across captured sources. Research continues in "
@@ -87,13 +96,21 @@ _PLACEHOLDERS = {
     "persistentKnowledgeDetails": (
         "Select a knowledge item to inspect its current revision and provenance."
     ),
+    "persistentClaimDetails": (
+        "Select a claim to inspect its statement, evidence and provenance."
+    ),
+    "semanticReviewDetails": (
+        "Select a pending decision to compare the two claims and their evidence."
+    ),
     "researchDetails": "Select a research run to inspect its scope and progress.",
     "jobDetails": "Select a job to inspect its current state and checkpoints.",
     "sourceDetails": "Select a file source to inspect import and processing status.",
 }
 
 _LIST_MINIMUM_WIDTHS = {
-    "persistentKnowledgeList": 320,
+    "persistentKnowledgeList": 310,
+    "persistentClaimList": 310,
+    "semanticReviewList": 310,
     "researchJobList": 300,
     "durableJobList": 320,
     "sourceList": 320,
@@ -135,3 +152,14 @@ def apply_workspace_presentation(window: QWidget) -> None:
         item_list = window.findChild(QListWidget, object_name)
         if item_list is not None:
             item_list.setMinimumWidth(width)
+
+    knowledge_search = window.findChild(QLineEdit, "knowledgeSearchInput")
+    if knowledge_search is not None:
+        knowledge_search.setPlaceholderText("Search knowledge, claims, or decisions…")
+
+    canonical_tabs = window.findChild(QTabWidget, "canonicalMemoryTabs")
+    if canonical_tabs is not None and canonical_tabs.count() >= 4:
+        canonical_tabs.setTabText(0, "Knowledge")
+        canonical_tabs.setTabText(1, "Claims")
+        canonical_tabs.setTabText(2, "Decisions")
+        canonical_tabs.setTabText(3, "From chat")
