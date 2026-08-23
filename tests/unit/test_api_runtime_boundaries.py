@@ -5,6 +5,7 @@ from typing import Any
 
 import pytest
 
+import athena.api.runtime as api_runtime
 from athena.api.runtime import ApiRuntimeError, LocalApiRuntime
 
 
@@ -85,6 +86,29 @@ def test_publish_rejects_symlink_runtime_ancestor(tmp_path: Path) -> None:
         runtime.publish(port=1234)
 
     assert not (real_root / "api" / "core-api.token").exists()
+
+
+def test_publish_rejects_runtime_root_reported_as_reparse_boundary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime_root = tmp_path / "api"
+    runtime_root.mkdir()
+    runtime = LocalApiRuntime(runtime_root)
+    original_is_link_boundary = api_runtime.is_link_boundary
+
+    def fake_is_link_boundary(path: Path) -> bool:
+        if path == runtime_root:
+            return True
+        return original_is_link_boundary(path)
+
+    monkeypatch.setattr(api_runtime, "is_link_boundary", fake_is_link_boundary)
+
+    with pytest.raises(ApiRuntimeError, match="reparse point"):
+        runtime.publish(port=1234)
+
+    assert not runtime.discovery_path.exists()
+    assert not runtime.token_path.exists()
 
 
 def test_clear_rejects_runtime_root_replaced_by_symlink(tmp_path: Path) -> None:
