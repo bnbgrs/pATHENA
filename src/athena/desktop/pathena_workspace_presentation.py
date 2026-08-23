@@ -40,6 +40,7 @@ _LABEL_REPLACEMENTS = {
     "PENDING CONTRADICTION DECISIONS": "Contradiction decisions",
     "DECISION / BOTH CLAIMS": "Compare claims",
     "REVIEW INBOX / CURRENT SESSION": "Review inbox",
+    "RELATIONS / EVIDENCE LINKS": "Related claims & evidence",
     "DETAIL": "Status detail",
 }
 
@@ -51,6 +52,12 @@ _BUTTON_REPLACEMENTS = {
     "HISTORY": "History",
     "ACCEPT CONTRADICTION": "Confirm contradiction",
     "REJECT": "Reject",
+    "MERGE": "Merge",
+    "KEEP SEPARATE": "Keep separate",
+    "OPEN RELATED CLAIM": "Open related claim",
+    "CLEAR": "Clear",
+    "COPY ID": "Copy ID",
+    "COPY DETAILS": "Copy details",
     "START RESEARCH": "Start research",
     "REFRESH": "Refresh",
     "CANCEL SELECTED": "Cancel",
@@ -67,6 +74,14 @@ _BUTTON_REPLACEMENTS = {
     "RESTORE ISOLATED…": "Restore…",
     "TARGETS": "Targets",
     "REGISTER TARGET…": "Add target…",
+}
+
+_DYNAMIC_KNOWLEDGE_BUTTON_COPY = {
+    "ACCEPT CONTRADICTION": "Confirm contradiction",
+    "REJECT": "Reject",
+    "MERGE": "Merge",
+    "KEEP SEPARATE": "Keep separate",
+    "OPEN RELATED CLAIM": "Open related claim",
 }
 
 _INTRO_REPLACEMENTS = {
@@ -125,6 +140,7 @@ _LIST_MINIMUM_WIDTHS = {
     "persistentKnowledgeList": 310,
     "persistentClaimList": 310,
     "semanticReviewList": 310,
+    "claimRelationList": 0,
     "researchJobList": 300,
     "durableJobList": 320,
     "sourceList": 320,
@@ -186,9 +202,27 @@ def _humanize_item(widget_name: str, text: str) -> str | None:
     if widget_name == "semanticReviewList":
         if len(columns) < 3 or not columns[0].endswith("%"):
             return None
-        confidence, review_type = columns[:2]
+        confidence = columns[0]
+        if len(columns) >= 4:
+            proposal_type, kind = columns[1:3]
+            text_body = "  ".join(columns[3:])
+            return (
+                f"{_human_label(proposal_type)} · {_human_label(kind)} · "
+                f"{confidence} · {text_body}"
+            )
+        review_type = columns[1]
         reason = "  ".join(columns[2:])
         return f"{_human_label(review_type)} · {confidence} · {reason}"
+
+    if widget_name == "claimRelationList":
+        if len(columns) < 4:
+            return None
+        role, target_type, kind = columns[:3]
+        text_body = "  ".join(columns[3:])
+        return (
+            f"{_human_label(role)} · {_human_label(target_type)} · "
+            f"{_human_label(kind)} · {text_body}"
+        )
 
     if widget_name == "researchJobList":
         if len(columns) < 3:
@@ -279,6 +313,13 @@ def _sync_knowledge_copy(window: QWidget) -> None:
             label.setToolTip(text)
             label.setText("From conversation · selected message")
 
+    for button in knowledge.findChildren(QPushButton):
+        replacement = _DYNAMIC_KNOWLEDGE_BUTTON_COPY.get(button.text())
+        if replacement is not None:
+            button.setText(replacement)
+        if button.objectName() == "openRelatedClaimButton":
+            button.setVisible(button.isEnabled())
+
 
 def _sync_research_presentation(window: QWidget) -> None:
     research = window.findChild(QWidget, "researchWorkspace")
@@ -367,6 +408,16 @@ def _install_dynamic_copy_sync(window: QWidget) -> None:
     timer.timeout.connect(lambda: _sync_dynamic_workspace_copy(window))
     timer.start()
     _sync_dynamic_workspace_copy(window)
+
+
+def _configure_knowledge_presentation(window: QWidget) -> None:
+    knowledge = window.findChild(QWidget, "knowledgeWorkspace")
+    if knowledge is None:
+        return
+    for button in knowledge.findChildren(QPushButton):
+        if button.text() == "Open related claim":
+            button.setObjectName("openRelatedClaimButton")
+            button.setVisible(button.isEnabled())
 
 
 def _configure_research_presentation(window: QWidget) -> None:
@@ -504,6 +555,7 @@ def apply_workspace_presentation(window: QWidget) -> None:
         canonical_tabs.setTabText(2, "Decisions")
         canonical_tabs.setTabText(3, "From chat")
 
+    _configure_knowledge_presentation(window)
     _configure_research_presentation(window)
     _configure_jobs_presentation(window)
     _configure_files_presentation(window)
