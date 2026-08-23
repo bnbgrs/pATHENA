@@ -32,15 +32,32 @@ class SchedulerLaneProcessLock:
         *,
         lane_name: str,
     ) -> SchedulerLaneProcessLock:
+        if not isinstance(path, Path):
+            raise ValueError("Scheduler lane lock path must be a pathlib.Path value.")
         if not isinstance(lane_name, str):
             raise ValueError("Scheduler lane name must be text.")
         normalized_lane = lane_name.strip()
         if not normalized_lane:
             raise ValueError("Scheduler lane name must not be empty.")
+        if os.name not in {"nt", "posix"}:
+            raise SchedulerLaneOwnershipError(
+                f"Scheduler {normalized_lane} lane locking is unsupported "
+                f"on platform {os.name!r}."
+            )
+        if path.is_symlink():
+            raise SchedulerLaneOwnershipError(
+                f"Scheduler {normalized_lane} lane lock must not be a symlink."
+            )
 
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
+            if path.is_symlink():
+                raise SchedulerLaneOwnershipError(
+                    f"Scheduler {normalized_lane} lane lock must not be a symlink."
+                )
             handle = path.open("a+b")
+        except SchedulerLaneOwnershipError:
+            raise
         except OSError as exc:
             raise SchedulerLaneOwnershipError(
                 f"Scheduler {normalized_lane} lane lock cannot be opened."
