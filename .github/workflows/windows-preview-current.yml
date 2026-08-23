@@ -1,3 +1,4 @@
+# Temporary packaging workflow for the current pATHENA Windows preview.
 name: Windows pATHENA current preview
 
 on:
