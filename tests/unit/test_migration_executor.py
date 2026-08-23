@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -97,3 +98,40 @@ def test_candidate_executor_reports_schema_failure_without_deleting_candidate(
         migrate_schema_candidate(candidate, created_at_us=123)
 
     assert candidate.is_file()
+
+
+def test_candidate_executor_rejects_incomplete_wal_checkpoint(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    candidate = (tmp_path / "candidate.db").absolute()
+    candidate.write_bytes(b"placeholder")
+
+    class _Cursor:
+        def __init__(self, row: tuple[Any, ...]) -> None:
+            self._row = row
+
+        def fetchone(self) -> tuple[Any, ...]:
+            return self._row
+
+    class _Connection:
+        def execute(self, sql: str) -> _Cursor:
+            if sql == "PRAGMA user_version":
+                return _Cursor((SCHEMA_VERSION,))
+            if sql == "PRAGMA wal_checkpoint(TRUNCATE)":
+                return _Cursor((1, 1, 0))
+            raise AssertionError(sql)
+
+        def close(self) -> None:
+            return
+
+    fake = _Connection()
+    monkeypatch.setattr(executor_module.sqlite3, "connect", lambda *a, **k: fake)
+    monkeypatch.setattr(
+        executor_module,
+        "initialize_schema",
+        lambda _connection, *, created_at_us: None,
+    )
+
+    with pytest.raises(MigrationExecutorError, match="checkpoint did not fully complete"):
+        migrate_schema_candidate(candidate, created_at_us=123)
