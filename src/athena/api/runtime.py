@@ -188,8 +188,10 @@ def _write_private_text(path: Path, content: str) -> None:
             raise
 
         try:
-            os.chmod(staging, _PRIVATE_MODE, follow_symlinks=False)
-        except (NotImplementedError, OSError) as exc:
+            # The staging file was created exclusively in this call, so a plain
+            # chmod is both portable and sufficient after the O_EXCL/O_NOFOLLOW open.
+            os.chmod(staging, _PRIVATE_MODE)
+        except OSError as exc:
             raise ApiRuntimeError(
                 f"Cannot restrict ATHENA API runtime file {str(path)!r}."
             ) from exc
