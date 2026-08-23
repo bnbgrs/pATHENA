@@ -33,6 +33,7 @@ from athena.desktop.pathena_empty_state_guidance_3400 import (
     UI_REFINEMENT_TASKS_3301_3400,
     apply_ui_refinements_3301_3400,
 )
+from athena.desktop.pathena_enablement_rationale_5700 import apply_ui_refinements_5601_5700
 from athena.desktop.pathena_error_state_coverage_4500 import (
     UI_REFINEMENT_TASKS_4401_4500,
     apply_ui_refinements_4401_4500,
@@ -243,6 +244,7 @@ def apply_complete_ui_refinements(window: QWidget) -> tuple[int, ...]:
         apply_ui_refinements_5301_5400,
         apply_ui_refinements_5401_5500,
         apply_ui_refinements_5501_5600,
+        apply_ui_refinements_5601_5700,
     )
     for refinement_pass in passes:
         applied.extend(refinement_pass(window))
@@ -287,5 +289,5 @@ def apply_complete_ui_refinements(window: QWidget) -> tuple[int, ...]:
         UI_REFINEMENT_TASKS_4401_4500,
     )
     window.setProperty("pathenaUiRefinementAppliedCount", len(normalized))
-    window.setProperty("pathenaUiRefinementTaskCount", sum(map(len, task_sets)) + 1033)
+    window.setProperty("pathenaUiRefinementTaskCount", sum(map(len, task_sets)) + 1133)
     return normalized
