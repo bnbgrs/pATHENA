@@ -8,6 +8,9 @@ from athena.desktop.pathena_accessibility_flow_3000 import (
     UI_REFINEMENT_TASKS_2901_3000,
     apply_ui_refinements_2901_3000,
 )
+from athena.desktop.pathena_accessible_state_sync_5600 import (
+    apply_ui_refinements_5501_5600,
+)
 from athena.desktop.pathena_action_hierarchy_3500 import (
     UI_REFINEMENT_TASKS_3401_3500,
     apply_ui_refinements_3401_3500,
@@ -20,12 +23,8 @@ from athena.desktop.pathena_decision_context_3600 import (
     UI_REFINEMENT_TASKS_3501_3600,
     apply_ui_refinements_3501_3600,
 )
-from athena.desktop.pathena_dense_list_scanability_4900 import (
-    apply_ui_refinements_4801_4900,
-)
-from athena.desktop.pathena_disclosure_consistency_4800 import (
-    apply_ui_refinements_4701_4800,
-)
+from athena.desktop.pathena_dense_list_scanability_4900 import apply_ui_refinements_4801_4900
+from athena.desktop.pathena_disclosure_consistency_4800 import apply_ui_refinements_4701_4800
 from athena.desktop.pathena_dynamic_focus_3200 import (
     UI_REFINEMENT_TASKS_3101_3200,
     apply_ui_refinements_3101_3200,
@@ -46,9 +45,8 @@ from athena.desktop.pathena_focus_interaction_3100 import (
     UI_REFINEMENT_TASKS_3001_3100,
     apply_ui_refinements_3001_3100,
 )
-from athena.desktop.pathena_inspector_responsiveness_5200 import (
-    apply_ui_refinements_5101_5200,
-)
+from athena.desktop.pathena_header_pressure_5500 import apply_ui_refinements_5401_5500
+from athena.desktop.pathena_inspector_responsiveness_5200 import apply_ui_refinements_5101_5200
 from athena.desktop.pathena_jobs_experience_2800 import (
     UI_REFINEMENT_TASKS_2701_2800,
     apply_ui_refinements_2701_2800,
@@ -69,16 +67,12 @@ from athena.desktop.pathena_microinteraction_3900 import (
     UI_REFINEMENT_TASKS_3801_3900,
     apply_ui_refinements_3801_3900,
 )
-from athena.desktop.pathena_offline_comprehension_4700 import (
-    apply_ui_refinements_4601_4700,
-)
+from athena.desktop.pathena_offline_comprehension_4700 import apply_ui_refinements_4601_4700
 from athena.desktop.pathena_operational_continuity_3800 import (
     UI_REFINEMENT_TASKS_3701_3800,
     apply_ui_refinements_3701_3800,
 )
-from athena.desktop.pathena_pallas_responsiveness_5000 import (
-    apply_ui_refinements_4901_5000,
-)
+from athena.desktop.pathena_pallas_responsiveness_5000 import apply_ui_refinements_4901_5000
 from athena.desktop.pathena_progress_phase_3700 import (
     UI_REFINEMENT_TASKS_3601_3700,
     apply_ui_refinements_3601_3700,
@@ -107,12 +101,8 @@ from athena.desktop.pathena_research_readability_2400 import (
     UI_REFINEMENT_TASKS_2301_2400,
     apply_ui_refinements_2301_2400,
 )
-from athena.desktop.pathena_selection_loading_5400 import (
-    apply_ui_refinements_5301_5400,
-)
-from athena.desktop.pathena_settings_comprehension_5100 import (
-    apply_ui_refinements_5001_5100,
-)
+from athena.desktop.pathena_selection_loading_5400 import apply_ui_refinements_5301_5400
+from athena.desktop.pathena_settings_comprehension_5100 import apply_ui_refinements_5001_5100
 from athena.desktop.pathena_startup_experience_2900 import (
     UI_REFINEMENT_TASKS_2801_2900,
     apply_ui_refinements_2801_2900,
@@ -121,16 +111,9 @@ from athena.desktop.pathena_state_feedback_3300 import (
     UI_REFINEMENT_TASKS_3201_3300,
     apply_ui_refinements_3201_3300,
 )
-from athena.desktop.pathena_state_transition_integrity_4600 import (
-    apply_ui_refinements_4501_4600,
-)
-from athena.desktop.pathena_status_hierarchy_5300 import (
-    apply_ui_refinements_5201_5300,
-)
-from athena.desktop.pathena_ui_refinement_100 import (
-    UI_REFINEMENT_TASKS,
-    apply_ui_refinements,
-)
+from athena.desktop.pathena_state_transition_integrity_4600 import apply_ui_refinements_4501_4600
+from athena.desktop.pathena_status_hierarchy_5300 import apply_ui_refinements_5201_5300
+from athena.desktop.pathena_ui_refinement_100 import UI_REFINEMENT_TASKS, apply_ui_refinements
 from athena.desktop.pathena_ui_refinement_200 import (
     UI_REFINEMENT_TASKS_101_200,
     apply_ui_refinements_101_200,
@@ -258,6 +241,8 @@ def apply_complete_ui_refinements(window: QWidget) -> tuple[int, ...]:
         apply_ui_refinements_5101_5200,
         apply_ui_refinements_5201_5300,
         apply_ui_refinements_5301_5400,
+        apply_ui_refinements_5401_5500,
+        apply_ui_refinements_5501_5600,
     )
     for refinement_pass in passes:
         applied.extend(refinement_pass(window))
@@ -302,5 +287,5 @@ def apply_complete_ui_refinements(window: QWidget) -> tuple[int, ...]:
         UI_REFINEMENT_TASKS_4401_4500,
     )
     window.setProperty("pathenaUiRefinementAppliedCount", len(normalized))
-    window.setProperty("pathenaUiRefinementTaskCount", sum(map(len, task_sets)) + 833)
+    window.setProperty("pathenaUiRefinementTaskCount", sum(map(len, task_sets)) + 1033)
     return normalized
