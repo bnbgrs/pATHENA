@@ -16,13 +16,11 @@ from PySide6.QtWidgets import (
     QComboBox,
     QHBoxLayout,
     QLabel,
-    QLineEdit,
     QListWidget,
     QListWidgetItem,
     QPlainTextEdit,
     QPushButton,
     QVBoxLayout,
-    QWidget,
 )
 
 from athena.desktop.knowledge_workspace import KnowledgeWorkspace
