@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QObject, Qt, QTimer
-from PySide6.QtWidgets import QListWidgetItem
+from PySide6.QtWidgets import QAbstractButton, QListWidgetItem
 
 from athena.desktop.system_backup import BackupWorkspace
 
@@ -71,7 +71,13 @@ class BackupActionTruth(QObject):
                 f"Restore verified snapshot {label} into a new isolated runtime root."
             )
 
-        self._describe(workspace.verify_button, verify_reason, snapshot_id, state, verification)
+        self._describe(
+            workspace.verify_button,
+            verify_reason,
+            snapshot_id,
+            state,
+            verification,
+        )
         self._describe(
             workspace.deep_verify_button,
             verify_reason.replace("Verify", "Deep-verify", 1),
@@ -101,24 +107,18 @@ class BackupActionTruth(QObject):
 
     @staticmethod
     def _describe(
-        button: object,
+        button: QAbstractButton,
         reason: str,
         snapshot_id: str,
         state: str,
         verification: str,
     ) -> None:
-        setter = getattr(button, "setToolTip", None)
-        if callable(setter):
-            setter(reason)
-        accessible = getattr(button, "setAccessibleDescription", None)
-        if callable(accessible):
-            accessible(reason)
-        property_setter = getattr(button, "setProperty", None)
-        if callable(property_setter):
-            property_setter("pathenaBackupSnapshotId", snapshot_id)
-            property_setter("pathenaBackupSnapshotState", state)
-            property_setter("pathenaBackupVerificationStatus", verification)
-            property_setter("pathenaBackupActionReason", reason)
+        button.setToolTip(reason)
+        button.setAccessibleDescription(reason)
+        button.setProperty("pathenaBackupSnapshotId", snapshot_id)
+        button.setProperty("pathenaBackupSnapshotState", state)
+        button.setProperty("pathenaBackupVerificationStatus", verification)
+        button.setProperty("pathenaBackupActionReason", reason)
 
 
 def install_backup_action_truth(workspace: BackupWorkspace) -> BackupActionTruth:
