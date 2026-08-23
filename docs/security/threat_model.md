@@ -2,7 +2,7 @@
 
 This is the working security model for `agent/pathena`. It records concrete trust boundaries and verified invariants so security work follows real code paths instead of hypothetical features.
 
-Last reviewed baseline: `a9a9c44464b29b0dd9962a1d5d77b7104cecdc07` (2026-08-23).
+Last reviewed baseline: `c147a2a31ddff822a63e91c56ef7851006d34892` (2026-08-23).
 
 ## Security goals
 
@@ -13,6 +13,7 @@ Last reviewed baseline: `a9a9c44464b29b0dd9962a1d5d77b7104cecdc07` (2026-08-23).
 5. Secrets, private knowledge, prompts, source content and credentials must not be exposed through logs, provenance metadata, temporary files or weak filesystem permissions.
 6. Cryptography must use established libraries/primitives with authenticated encryption and explicit key-management semantics; no custom cryptography.
 7. Updates, dependencies and downloaded artifacts must preserve origin/integrity guarantees appropriate to their privilege.
+8. Persisted cryptographic work factors must be resource-bounded before invoking expensive primitives so corrupted metadata cannot create avoidable local denial of service.
 
 ## Trust boundaries
 
@@ -64,9 +65,25 @@ Last reviewed baseline: `a9a9c44464b29b0dd9962a1d5d77b7104cecdc07` (2026-08-23).
 
 **Assets:** local filesystem, database integrity, execution environment, durable knowledge.
 
-**Threats to continue scanning:** SSRF through nested URLs, archive/path traversal, unsafe deserialization, parser bombs, excessive response/import size, filename/path injection, unsafe temporary files, subprocess invocation, template/code execution.
+**Verified controls so far:**
+- Native DOCX parsing uses `zipfile` only as a container reader and does not extract ZIP members to filesystem paths.
+- Native DOCX reads only required OOXML parts and enforces uncompressed-size limits plus a compression-ratio ceiling before reading the main document/styles parts.
+
+**Threats to continue scanning:** SSRF through nested URLs, parser bombs/DOM amplification, excessive response/import size, filename/path injection, unsafe temporary files, subprocess invocation, template/code execution, and equivalent boundaries in PDF/HTML/other parsers.
 
 **Current status:** partially reviewed only; no blanket safety claim.
+
+### Protected Content metadata -> KDF / encryption
+
+**Assets:** availability of unlock/recovery, Root Key confidentiality, protected payload integrity.
+
+**Verified controls:**
+- AES-256-GCM and Argon2id come from pyca/cryptography; there are no custom cryptographic primitives in the reviewed path.
+- Password-slot Argon2id metadata is strict/versioned JSON and invalid metadata is converted by the repository to a security integrity error.
+- v1 Argon2id parameters are bounded before KDF construction: maximum 10 iterations, 16 lanes and 256 MiB memory, while the production default remains 3 / 4 / 64 MiB.
+- Boundary tests exercise ceilings and pathological JSON without allocating the pathological work factors.
+
+**Verification state:** `SEC-004` is FIXED in commits `be5a7f06d2f71f011aae7f30a02671ff9a5ebd18` and `fd700b85dcf8e4cbe7bc6289e7af31203c2fd0b9`; promote to VERIFIED only after targeted/CI execution succeeds.
 
 ### Configuration / credentials -> filesystem and OS secret store
 
