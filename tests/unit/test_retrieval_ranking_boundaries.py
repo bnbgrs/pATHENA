@@ -12,7 +12,7 @@ class _SearchStub:
     database: object
     calls: int = 0
 
-    def search(self, *args: object, **kwargs: object) -> tuple[()]:
+    def search(self, *args: object, **kwargs: object) -> tuple[object, ...]:
         self.calls += 1
         return ()
 
