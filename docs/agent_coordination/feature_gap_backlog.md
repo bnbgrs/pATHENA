@@ -43,8 +43,8 @@ Last scout baseline: `agent/pathena` @ `10e58e31a9083c18a312ffa3cdae5f69a5923788
 - **Dependencies:** Provider discovery/runtime semantics; tests for health normalization.
 - **Ownership:** BACKEND
 - **Priority:** P2
-- **Status:** READY
-- **Verification:** Direct static comparison of Beta 08 section 11 with `src/athena/model/domain.py` through `10e58e3`.
+- **Status:** IN_PROGRESS
+- **Verification:** Re-verified 2026-08-23 against current `agent/pathena`: domain enum still lacks `starting` and `busy`; LM Studio health exposes only states it can actually observe.
 
 ### FG-004 — Add explicit provider capability discovery / unsupported-capability representation
 
