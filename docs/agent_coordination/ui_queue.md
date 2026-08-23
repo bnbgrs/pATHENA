@@ -16,27 +16,27 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 
 ### UI-002 — Progressive disclosure consistency audit
 - **Priority:** P1
-- **Status:** READY
-- **Evidence:** Chat, evidence, inspector, Knowledge review and details use multiple disclosure patterns; consistency can be improved without new controls.
+- **Status:** DONE
+- **Evidence:** Existing Inspector/Evidence toggles and Knowledge Review now expose one open/closed semantic vocabulary on both control and surface; existing visibility behavior remains authoritative.
 - **Views/components:** Chat evidence/details toggles, inspector, Knowledge review/details.
 - **Dependencies:** None.
-- **Last verification:** 2026-08-23.
+- **Last verification:** 2026-08-23 at `agent/pathena` after `fb29af4a92f97c2bcd5d7a54e3be24058c1dc7cd`; focused UI tests added but not executed in connector runtime.
 
 ### UI-003 — Offline/provider-unavailable comprehension
 - **Priority:** P1
-- **Status:** IN_PROGRESS
-- **Evidence:** Local Core/model/provider states are real but spread across status text, selector state and composer enablement.
-- **Views/components:** Chat header, model selector, composer, System.
+- **Status:** DONE
+- **Evidence:** Real Core/provider/model readiness is now mirrored consistently into status, model selector and composer guidance without adding reconnect/model-load behavior.
+- **Views/components:** Chat header, model selector, composer, System-facing guidance.
 - **Dependencies:** Existing provider/model snapshot only.
-- **Last verification:** 2026-08-23 after UI-001 completion; selected as next independent P1 slice.
+- **Last verification:** 2026-08-23 at `agent/pathena` after `dd81c2e38197128906aa31a54afc296c704abe56`; focused UI tests added but not executed in connector runtime.
 
 ### UI-004 — Dense-list scanability and selection identity
 - **Priority:** P2
-- **Status:** READY
+- **Status:** IN_PROGRESS
 - **Evidence:** Research, Jobs, Sources and Backup lists are dense and benefit from stronger selected-row identity and metadata hierarchy without changing data.
 - **Views/components:** Research Jobs, Durable Jobs, Sources, Backup snapshots.
 - **Dependencies:** None.
-- **Last verification:** 2026-08-23.
+- **Last verification:** 2026-08-23; selected after completion of P1 UI queue.
 
 ### UI-005 — PALLAS prominence/responsiveness audit
 - **Priority:** P2
