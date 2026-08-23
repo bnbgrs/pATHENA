@@ -28,22 +28,26 @@ def test_pathena_application_uses_quiet_workspace_theme() -> None:
     assert app.applicationDisplayName() == "pATHENA"
 
 
-def test_pathena_shell_progressively_discloses_destructive_chat_action() -> None:
+def test_pathena_shell_progressively_discloses_chat_actions() -> None:
     app = _app()
     window = PathenaMainWindow(api_controller=None)
     try:
         assert window.windowTitle() == "pATHENA"
         assert window.delete_chat_button.isHidden()
+        assert window.details_button.isHidden()
 
+        window.chat_selector.clear()
         window.chat_selector.addItem("Existing chat", "chat-1")
         window.chat_selector.setCurrentIndex(0)
         app.processEvents()
         assert window.delete_chat_button.isHidden() is False
+        assert window.details_button.isHidden() is False
 
         window.chat_selector.clear()
         window.chat_selector.addItem("New chat", None)
         app.processEvents()
         assert window.delete_chat_button.isHidden()
+        assert window.details_button.isHidden()
     finally:
         window.close()
         app.processEvents()
@@ -59,6 +63,7 @@ def test_pathena_secondary_context_is_grounded_only_and_user_controlled() -> Non
         assert inspector.width() == 340
         assert window.details_button.text() == "Details"
         assert window.details_button.isChecked() is False
+        assert window.details_button.isHidden()
 
         assert window.context_button.text() == "Context"
         assert window.context_button.isHidden()
@@ -78,6 +83,12 @@ def test_pathena_secondary_context_is_grounded_only_and_user_controlled() -> Non
         assert window.context_button.isHidden()
         assert window.context_button.isChecked() is False
         assert window.evidence_chain.isHidden()
+
+        window.chat_selector.clear()
+        window.chat_selector.addItem("Existing chat", "chat-1")
+        window.chat_selector.setCurrentIndex(0)
+        app.processEvents()
+        assert window.details_button.isHidden() is False
 
         window.details_button.click()
         app.processEvents()
@@ -151,6 +162,8 @@ def test_pathena_removes_redundant_shell_chrome_and_fake_status_marker() -> None
             for label in window.findChildren(QLabel, "sessionLabel")
         }
         assert session_labels == {"Conversation", "Model"}
+        assert "QLabel#promptMarker" in PATHENA_STYLESHEET
+        assert "max-width: 0" in PATHENA_STYLESHEET
     finally:
         window.close()
         app.processEvents()
