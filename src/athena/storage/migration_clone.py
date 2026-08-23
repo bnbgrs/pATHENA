@@ -52,7 +52,10 @@ def _remove_candidate_files(candidate: Path) -> None:
 
 
 def _fsync_file(path: Path) -> None:
-    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    # Windows requires a writable CRT descriptor for fsync(); O_RDONLY works
+    # on POSIX but can fail with EBADF on Windows. The migration candidate is a
+    # private writable clone, so O_RDWR preserves semantics cross-platform.
+    flags = os.O_RDWR | getattr(os, "O_NOFOLLOW", 0)
     descriptor = os.open(path, flags)
     try:
         os.fsync(descriptor)
