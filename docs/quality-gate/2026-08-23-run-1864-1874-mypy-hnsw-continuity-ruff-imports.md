@@ -1,4 +1,4 @@
-# Quality Gate incident: runs 1864-1896 and proactive pytest boundary fixes
+# Quality Gate incident: runs 1864-2043 and proactive pytest boundary fixes
 
 Date: 2026-08-23
 Repository: `bnbgrs/pATHENA`
@@ -69,6 +69,38 @@ Observed merge head: `e7aa2321af97bb681426572ae5e429c43f686e82` for branch head 
 
 Commit `5482fbd898432d682baddfea409407080690cb1f` removes only the unused `field` import and leaves all three interrupt/shutdown tests unchanged.
 
+## Run 2043
+
+Observed PR merge head: `8846dbd7992c6fb14951aae5ec2f20f8e2e0f91b` for branch head `23f4aa42baff32dcbb898a8cf05fe9b77703a63f`.
+
+- Specification validator: PASS (`63/63`).
+- Ruff: PASS.
+- mypy: FAIL with exactly two errors in one file.
+- pytest: not reached because the gate is fail-fast.
+
+### Primary cause
+
+`src/athena/retrieval/semantic.py`, helper `_persisted_int()`:
+
+- line 60: `int(value)` receives a statically typed `object`, so mypy reports `call-overload` because arbitrary `object` is not guaranteed to satisfy an `int()` overload;
+- line 68: the resulting variable is treated as `Any`, so returning it from a function declared `-> int` triggers `no-any-return`.
+
+The current branch file was re-read after the failed CI run and still contains this implementation unchanged. Runtime exception handling does not provide the static narrowing mypy requires.
+
+### Ownership
+
+**BACKEND-OWNED.** This is production retrieval code, not CI/harness/configuration. The Quality-Gate bot must not modify it in parallel.
+
+### Precise fix recommendation
+
+Narrow the persisted SQLite value before conversion with an explicit supported-type boundary, or use a small `object -> int` parser whose branches return a statically known `int`. Preserve the current rejection semantics for booleans, invalid strings/objects, overflow and the `positive`/non-negative range checks. After the backend fix, run at minimum:
+
+1. `python -m mypy src/athena/retrieval/semantic.py` or the repository's equivalent targeted mypy invocation;
+2. semantic retrieval unit/boundary tests touching persisted embedding state;
+3. full `scripts/quality.py` gate to expose the next fail-fast stage.
+
+No production mutation was made by the Quality-Gate bot.
+
 ## Proactive stale pytest contract: backup target symlink root
 
 `backup_target_lock()` first rejects symbolic-link ancestors. Therefore a symlink supplied as the target root raises `BackupTargetBusyError` with `symbolic-link ancestor` before the later unavailable-directory branch can run. `tests/unit/test_backup_target_lock_boundaries.py` still expected `RuntimeError` matching `unavailable`.
@@ -95,4 +127,4 @@ Commit `5482fbd898432d682baddfea409407080690cb1f` removes only the unused `field
 
 ## Next gate slice
 
-Re-evaluate the newest `agent/pathena` CI run. Required sequence: specification validator -> Ruff -> mypy -> pytest. Treat newly added parallel files as fresh potential primaries; do not attribute downstream failures to the already-resolved causes without a new reproducing run.
+Wait for or detect the backend-owned `_persisted_int()` narrowing fix on a new `agent/pathena` head. Re-evaluate the newest CI run in fail-fast order: specification validator -> Ruff -> mypy -> pytest. If run 2043's semantic mypy error disappears, classify it FIXED/STALE and continue with the first newly exposed primary failure. Implement only GATE-OWNED causes; document and route BACKEND-OWNED or UI-OWNED causes without changing their product code.
