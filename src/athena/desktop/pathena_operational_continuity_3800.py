@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from PySide6.QtCore import QObject, QProcess, QTimer
+from PySide6.QtCore import QObject, QProcess, QTimer, Qt
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QPlainTextEdit,
@@ -93,7 +93,10 @@ class OperationalContinuityController(QObject):
                     self._snapshots[widget] = self._snapshot(widget)
                     widget.setProperty("pathenaBusyContextSnapshotted", True)
             elif previous and not busy:
-                QTimer.singleShot(0, lambda ws=workspace: self._restore_workspace(ws))
+                QTimer.singleShot(
+                    0,
+                    lambda ws=workspace: self._restore_workspace(ws),
+                )
             self._busy[workspace] = busy
 
     def _restore_workspace(self, workspace: QWidget) -> None:
@@ -106,12 +109,13 @@ class OperationalContinuityController(QObject):
 
     @staticmethod
     def _snapshot(widget: QWidget) -> dict[str, object]:
-        snapshot: dict[str, object] = {
-            "had_focus": widget.hasFocus(),
-        }
+        snapshot: dict[str, object] = {"had_focus": widget.hasFocus()}
         if isinstance(widget, QAbstractItemView):
             index = widget.currentIndex()
             snapshot["row"] = index.row() if index.isValid() else -1
+            snapshot["identity"] = (
+                index.data(Qt.ItemDataRole.UserRole) if index.isValid() else None
+            )
             snapshot["vscroll"] = widget.verticalScrollBar().value()
             snapshot["hscroll"] = widget.horizontalScrollBar().value()
         elif isinstance(widget, QPlainTextEdit):
@@ -123,27 +127,53 @@ class OperationalContinuityController(QObject):
             snapshot["hscroll"] = widget.horizontalScrollBar().value()
         return snapshot
 
-    @staticmethod
-    def _restore(widget: QWidget, snapshot: dict[str, object]) -> None:
+    @classmethod
+    def _restore(cls, widget: QWidget, snapshot: dict[str, object]) -> None:
         if isinstance(widget, QAbstractItemView):
-            row = int(snapshot.get("row", -1))
-            if 0 <= row < widget.model().rowCount():
-                widget.setCurrentIndex(widget.model().index(row, 0))
-            widget.verticalScrollBar().setValue(int(snapshot.get("vscroll", 0)))
-            widget.horizontalScrollBar().setValue(int(snapshot.get("hscroll", 0)))
+            cls._restore_item_selection(widget, snapshot)
+            widget.verticalScrollBar().setValue(cls._int(snapshot, "vscroll", 0))
+            widget.horizontalScrollBar().setValue(cls._int(snapshot, "hscroll", 0))
         elif isinstance(widget, QPlainTextEdit):
-            widget.verticalScrollBar().setValue(int(snapshot.get("vscroll", 0)))
-            widget.horizontalScrollBar().setValue(int(snapshot.get("hscroll", 0)))
+            widget.verticalScrollBar().setValue(cls._int(snapshot, "vscroll", 0))
+            widget.horizontalScrollBar().setValue(cls._int(snapshot, "hscroll", 0))
             cursor = widget.textCursor()
-            position = min(int(snapshot.get("cursor", 0)), len(widget.toPlainText()))
+            position = min(cls._int(snapshot, "cursor", 0), len(widget.toPlainText()))
             cursor.setPosition(position)
             widget.setTextCursor(cursor)
         elif isinstance(widget, QScrollArea):
-            widget.verticalScrollBar().setValue(int(snapshot.get("vscroll", 0)))
-            widget.horizontalScrollBar().setValue(int(snapshot.get("hscroll", 0)))
+            widget.verticalScrollBar().setValue(cls._int(snapshot, "vscroll", 0))
+            widget.horizontalScrollBar().setValue(cls._int(snapshot, "hscroll", 0))
 
-        if bool(snapshot.get("had_focus")) and widget.isVisibleTo(widget.window()) and widget.isEnabled():
+        if (
+            bool(snapshot.get("had_focus"))
+            and widget.isVisibleTo(widget.window())
+            and widget.isEnabled()
+        ):
             widget.setFocus()
+
+    @classmethod
+    def _restore_item_selection(
+        cls,
+        widget: QAbstractItemView,
+        snapshot: dict[str, object],
+    ) -> None:
+        model = widget.model()
+        identity = snapshot.get("identity")
+        if identity is not None:
+            for row in range(model.rowCount()):
+                index = model.index(row, 0)
+                if index.data(Qt.ItemDataRole.UserRole) == identity:
+                    widget.setCurrentIndex(index)
+                    return
+
+        row = cls._int(snapshot, "row", -1)
+        if 0 <= row < model.rowCount():
+            widget.setCurrentIndex(model.index(row, 0))
+
+    @staticmethod
+    def _int(snapshot: dict[str, object], key: str, default: int) -> int:
+        value = snapshot.get(key)
+        return value if isinstance(value, int) else default
 
     @staticmethod
     def _process_for(workspace: QWidget) -> QProcess | None:
@@ -176,6 +206,9 @@ def apply_ui_refinements_3701_3800(window: QWidget) -> tuple[int, ...]:
         applied.extend(range(start, start + len(_DIMENSIONS)))
 
     window.setProperty("pathenaOperationalContinuityController", controller)
-    window.setProperty("pathenaOperationalContinuityTargetCount", len(applied) // len(_DIMENSIONS))
+    window.setProperty(
+        "pathenaOperationalContinuityTargetCount",
+        len(applied) // len(_DIMENSIONS),
+    )
     window.setProperty("pathenaOperationalContinuityTaskCount", len(applied))
     return tuple(applied)
