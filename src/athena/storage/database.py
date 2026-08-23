@@ -10,6 +10,11 @@ from pathlib import Path
 from typing import TypeVar
 
 from athena.common.time import utc_now_us
+from athena.storage.connection_policy import (
+    DEFAULT_BUSY_TIMEOUT_MS,
+    apply_and_verify_connection_policy,
+    validated_busy_timeout_ms,
+)
 from athena.storage.recovery import inspect_database_read_only
 from athena.storage.schema import initialize_schema
 
@@ -55,10 +60,16 @@ class SQLiteDatabase:
 
     name = "sqlite-database"
 
-    def __init__(self, path: Path) -> None:
+    def __init__(
+        self,
+        path: Path,
+        *,
+        busy_timeout_ms: int = DEFAULT_BUSY_TIMEOUT_MS,
+    ) -> None:
         if not isinstance(path, Path):
             raise TypeError("SQLiteDatabase path must be a pathlib.Path.")
         self.path = path
+        self.busy_timeout_ms = validated_busy_timeout_ms(busy_timeout_ms)
         self._connection: sqlite3.Connection | None = None
         self._noncritical_write_gate: _WriteGate | None = None
 
@@ -86,13 +97,17 @@ class SQLiteDatabase:
 
         connection = sqlite3.connect(
             self.path,
-            timeout=5.0,
+            timeout=self.busy_timeout_ms / 1_000.0,
             autocommit=True,
         )
         connection.row_factory = sqlite3.Row
 
         try:
             initialize_schema(connection, created_at_us=utc_now_us())
+            apply_and_verify_connection_policy(
+                connection,
+                busy_timeout_ms=self.busy_timeout_ms,
+            )
         except Exception:
             connection.close()
             raise
