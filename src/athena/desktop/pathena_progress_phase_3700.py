@@ -24,26 +24,146 @@ class ProgressTarget:
 
 
 _TARGETS: tuple[ProgressTarget, ...] = (
-    ProgressTarget("knowledgeWorkspace", "state", None, "knowledge state", "session review or canonical memory"),
-    ProgressTarget("knowledgeWorkspace", "browser_status", None, "knowledge browser status", "selected canonical tab"),
-    ProgressTarget("knowledgeWorkspace", "knowledge_details", None, "knowledge details", "knowledge details"),
-    ProgressTarget("knowledgeWorkspace", "claim_details", None, "claim details", "claim details"),
-    ProgressTarget("knowledgeWorkspace", "review_details", None, "decision details", "decision details"),
-    ProgressTarget("researchWorkspace", "status", None, "research status", "research job list"),
-    ProgressTarget("researchWorkspace", "jobs", None, "research jobs", "research job list"),
-    ProgressTarget("researchWorkspace", "details", None, "research details", "research details"),
-    ProgressTarget("researchWorkspace", "start_button", None, "research start", "research job list"),
-    ProgressTarget("jobsWorkspace", "status", None, "jobs status", "durable job list"),
-    ProgressTarget("jobsWorkspace", "scheduler_status", None, "scheduler status", "durable job list"),
-    ProgressTarget("jobsWorkspace", "jobs", None, "durable jobs", "durable job list"),
-    ProgressTarget("jobsWorkspace", "details", None, "job details", "job details"),
-    ProgressTarget("filesWorkspace", "status", None, "source status", "source list"),
-    ProgressTarget("filesWorkspace", "sources", None, "source list", "source list"),
-    ProgressTarget("filesWorkspace", "details", None, "source details", "source details"),
-    ProgressTarget("filesWorkspace", "process_button", None, "source processing", "source details"),
-    ProgressTarget("backupWorkspace", "status", None, "backup status", "backup snapshot list"),
-    ProgressTarget("backupWorkspace", "snapshots", None, "backup snapshots", "backup snapshot list"),
-    ProgressTarget("backupWorkspace", "details", None, "backup details", "backup details"),
+    ProgressTarget(
+        "knowledgeWorkspace",
+        "state",
+        None,
+        "knowledge state",
+        "session review or canonical memory",
+    ),
+    ProgressTarget(
+        "knowledgeWorkspace",
+        "browser_status",
+        None,
+        "knowledge browser status",
+        "selected canonical tab",
+    ),
+    ProgressTarget(
+        "knowledgeWorkspace",
+        "knowledge_details",
+        None,
+        "knowledge details",
+        "knowledge details",
+    ),
+    ProgressTarget(
+        "knowledgeWorkspace",
+        "claim_details",
+        None,
+        "claim details",
+        "claim details",
+    ),
+    ProgressTarget(
+        "knowledgeWorkspace",
+        "review_details",
+        None,
+        "decision details",
+        "decision details",
+    ),
+    ProgressTarget(
+        "researchWorkspace",
+        "status",
+        None,
+        "research status",
+        "research job list",
+    ),
+    ProgressTarget(
+        "researchWorkspace",
+        "jobs",
+        None,
+        "research jobs",
+        "research job list",
+    ),
+    ProgressTarget(
+        "researchWorkspace",
+        "details",
+        None,
+        "research details",
+        "research details",
+    ),
+    ProgressTarget(
+        "researchWorkspace",
+        "start_button",
+        None,
+        "research start",
+        "research job list",
+    ),
+    ProgressTarget(
+        "jobsWorkspace",
+        "status",
+        None,
+        "jobs status",
+        "durable job list",
+    ),
+    ProgressTarget(
+        "jobsWorkspace",
+        "scheduler_status",
+        None,
+        "scheduler status",
+        "durable job list",
+    ),
+    ProgressTarget(
+        "jobsWorkspace",
+        "jobs",
+        None,
+        "durable jobs",
+        "durable job list",
+    ),
+    ProgressTarget(
+        "jobsWorkspace",
+        "details",
+        None,
+        "job details",
+        "job details",
+    ),
+    ProgressTarget(
+        "filesWorkspace",
+        "status",
+        None,
+        "source status",
+        "source list",
+    ),
+    ProgressTarget(
+        "filesWorkspace",
+        "sources",
+        None,
+        "source list",
+        "source list",
+    ),
+    ProgressTarget(
+        "filesWorkspace",
+        "details",
+        None,
+        "source details",
+        "source details",
+    ),
+    ProgressTarget(
+        "filesWorkspace",
+        "process_button",
+        None,
+        "source processing",
+        "source details",
+    ),
+    ProgressTarget(
+        "backupWorkspace",
+        "status",
+        None,
+        "backup status",
+        "backup snapshot list",
+    ),
+    ProgressTarget(
+        "backupWorkspace",
+        "snapshots",
+        None,
+        "backup snapshots",
+        "backup snapshot list",
+    ),
+    ProgressTarget(
+        "backupWorkspace",
+        "details",
+        None,
+        "backup details",
+        "backup details",
+    ),
 )
 
 _DIMENSIONS: tuple[str, ...] = (
@@ -69,12 +189,18 @@ class ProgressPhaseController(QObject):
         self.window = window
         self._targets: list[tuple[QWidget, QWidget, ProgressTarget]] = []
         self._previous_busy: dict[QWidget, bool] = {}
+        self._active_operation: dict[QWidget, str] = {}
         self._timer = QTimer(self)
         self._timer.setInterval(250)
         self._timer.timeout.connect(self.sync)
         self._timer.start()
 
-    def register(self, workspace: QWidget, widget: QWidget, target: ProgressTarget) -> None:
+    def register(
+        self,
+        workspace: QWidget,
+        widget: QWidget,
+        target: ProgressTarget,
+    ) -> None:
         self._targets.append((workspace, widget, target))
         self._previous_busy.setdefault(widget, False)
         self._sync_one(workspace, widget, target)
@@ -83,11 +209,19 @@ class ProgressPhaseController(QObject):
         for workspace, widget, target in self._targets:
             self._sync_one(workspace, widget, target)
 
-    def _sync_one(self, workspace: QWidget, widget: QWidget, target: ProgressTarget) -> None:
+    def _sync_one(
+        self,
+        workspace: QWidget,
+        widget: QWidget,
+        target: ProgressTarget,
+    ) -> None:
         process = self._process_for(workspace)
         busy = process is not None and process.state() != QProcess.ProcessState.NotRunning
         operation = self._operation_for(workspace)
         previous = self._previous_busy.get(widget, False)
+
+        if busy and operation:
+            self._active_operation[widget] = operation
 
         widget.setProperty("pathenaOperationPhase", operation if busy else "idle")
         widget.setProperty("pathenaProgressMode", "indeterminate" if busy else "none")
@@ -98,7 +232,10 @@ class ProgressPhaseController(QObject):
         if previous and not busy:
             count = int(widget.property("pathenaOperationCompletionCount") or 0) + 1
             widget.setProperty("pathenaOperationCompletionCount", count)
-            widget.setProperty("pathenaLastCompletedOperation", operation or "operation")
+            widget.setProperty(
+                "pathenaLastCompletedOperation",
+                self._active_operation.pop(widget, "operation"),
+            )
         self._previous_busy[widget] = busy
 
         if busy:
@@ -124,7 +261,10 @@ class ProgressPhaseController(QObject):
         return ""
 
 
-def _resolve(window: QWidget, target: ProgressTarget) -> tuple[QWidget, QWidget] | None:
+def _resolve(
+    window: QWidget,
+    target: ProgressTarget,
+) -> tuple[QWidget, QWidget] | None:
     workspace = window.findChild(QWidget, target.workspace_name)
     if workspace is None:
         return None
@@ -154,6 +294,9 @@ def apply_ui_refinements_3601_3700(window: QWidget) -> tuple[int, ...]:
         applied.extend(range(start, start + len(_DIMENSIONS)))
 
     window.setProperty("pathenaProgressPhaseController", controller)
-    window.setProperty("pathenaProgressPhaseTargetCount", len(applied) // len(_DIMENSIONS))
+    window.setProperty(
+        "pathenaProgressPhaseTargetCount",
+        len(applied) // len(_DIMENSIONS),
+    )
     window.setProperty("pathenaProgressPhaseTaskCount", len(applied))
     return tuple(applied)
