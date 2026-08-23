@@ -167,7 +167,10 @@ class PathenaProgressiveWorkspaceRefinement(QObject):
             relations.currentItemChanged.connect(self._sync_claim_relations)
 
     def _sync_research_proposals(self, *_args: object) -> None:
-        proposals = self.window.findChild(QListWidget, "researchProposalList")
+        try:
+            proposals = self.window.findChild(QListWidget, "researchProposalList")
+        except RuntimeError:
+            return
         if proposals is None:
             return
         has_rows = proposals.count() > 0
@@ -180,13 +183,19 @@ class PathenaProgressiveWorkspaceRefinement(QObject):
             "researchProposalSeparateButton",
             "researchProposalRejectButton",
         ):
-            button = self.window.findChild(QPushButton, name)
+            try:
+                button = self.window.findChild(QPushButton, name)
+            except RuntimeError:
+                return
             if button is not None:
                 button.setVisible(button.isEnabled())
                 button.setProperty("pathenaProgressiveRole", "decision")
 
     def _sync_claim_relations(self, *_args: object) -> None:
-        relations = self.window.findChild(QListWidget, "claimRelationList")
+        try:
+            relations = self.window.findChild(QListWidget, "claimRelationList")
+        except RuntimeError:
+            return
         if relations is None:
             return
         has_rows = relations.count() > 0
@@ -194,7 +203,10 @@ class PathenaProgressiveWorkspaceRefinement(QObject):
         relations.setMaximumHeight(150 if has_rows else 0)
         relations.setProperty("pathenaProgressiveRole", "secondary")
 
-        open_related = self.window.findChild(QPushButton, "openRelatedClaimButton")
+        try:
+            open_related = self.window.findChild(QPushButton, "openRelatedClaimButton")
+        except RuntimeError:
+            return
         if open_related is not None:
             open_related.setVisible(has_rows and open_related.isEnabled())
 
