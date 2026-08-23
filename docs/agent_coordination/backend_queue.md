@@ -113,10 +113,10 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 ### BE-014 — Carry ModelSignature revision through ContextPackage and drift checks
 - Priority: P1
 - Status: IN_PROGRESS
-- Evidence: ContextModelSignature and ContextPackage run snapshots now preserve `model_revision` in both package build paths, with dedicated tests. Execution-time `ChatGenerationService` still compares provider/model/quantization without revision, so known-revision drift must still be rejected there.
-- Components: ContextPackage complete; chat generation drift validation remaining.
-- Dependencies: avoid whole-file conflict if chat generation is concurrently active.
-- Last verification: 2026-08-23; current `chat/generation.py` re-read. Safe mutation deferred because the available writer requires whole-file replacement for this large shared path.
+- Evidence: ContextModelSignature and ContextPackage run snapshots preserve `model_revision`. A Core `assert_runtime_model_matches_signature()` guard now rejects provider/model/quantization drift and changed or unverifiable known revisions while preserving originally unknown revision semantics. `ChatGenerationService` integration remains outstanding.
+- Components: ContextPackage, `src/athena/model/signature_guard.py`, chat generation integration, targeted tests.
+- Dependencies: safe ownership window for large shared `chat/generation.py` or a patch-capable writer.
+- Last verification: 2026-08-23; drift guard and targeted tests added, not executed in connector runtime.
 
 ### BE-015 — Normalize Core provider failure taxonomy
 - Priority: P1
@@ -128,11 +128,11 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 
 ### BE-016 — Protection-aware retrieval/context bridge
 - Priority: P1
-- Status: READY
-- Evidence: Feature-gap FG-012 was corrected to PARTIAL after re-audit. Dedicated protected runtime search/context already enforces unlocked scope identity, re-verification and ephemeral plaintext handling. Missing work is the model-call bridge that re-verifies authorization immediately before execution and persists no protected plaintext.
-- Components: protected runtime context, ContextPackage/grounding orchestration, targeted lock/relock tests.
-- Dependencies: preserve zero protected-cleartext leakage into unprotected index/log/run-snapshot paths.
-- Last verification: 2026-08-23 against current `src/athena/retrieval/protected_source.py`; bridge design remains security-sensitive and must not be approximated through the legacy durable-grounding path.
+- Status: IN_PROGRESS
+- Evidence: Feature-gap FG-012. Protected runtime search/context already enforces unlocked scope identity and ephemeral plaintext handling. `ProtectedRuntimeExecutionGuard` now verifies the bundle at construction, re-verifies immediately before provider execution, and exposes only persistence-safe identifiers/counts with no plaintext or plaintext hashes. End-to-end generation/persistence policy remains open.
+- Components: `src/athena/retrieval/protected_source.py`, `src/athena/retrieval/protected_execution.py`, protected generation orchestration and targeted lock/relock tests.
+- Dependencies: explicit protected output persistence policy; preserve zero protected-cleartext leakage into unprotected index/log/run-snapshot/assistant-message paths.
+- Last verification: 2026-08-23; execution guard and targeted tests added but not executed in connector runtime.
 
 ### BE-017 — Enforce ModelSession constructor cancellation invariants
 - Priority: P2
@@ -141,3 +141,27 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 - Components: `src/athena/model/session.py`, `tests/unit/test_model_session.py`.
 - Dependencies: none.
 - Last verification: 2026-08-23; targeted regression tests added but not executed in connector runtime.
+
+### BE-018 — Fail closed on out-of-range UUIDv7 system clock
+- Priority: P2
+- Status: DONE
+- Evidence: `new_uuid7()` previously masked the Unix-millisecond timestamp into 48 bits, silently wrapping negative or out-of-range system clocks into false durable identities. It now rejects values outside the RFC 9562 timestamp field range.
+- Components: `src/athena/common/ids.py`, `tests/unit/test_ids.py`.
+- Dependencies: none.
+- Last verification: 2026-08-23; timestamp-preservation and lower/upper boundary regression tests added but not executed.
+
+### BE-019 — Require canonical model identity text
+- Priority: P2
+- Status: DONE
+- Evidence: `ModelInfo` previously accepted leading/trailing whitespace in provider, backend model ID and model type, allowing semantically identical runtime identities to diverge in registry/signature keys. Identity fields now require canonical trimmed text.
+- Components: `src/athena/model/domain.py`, `tests/unit/test_model_domain_boundaries.py`.
+- Dependencies: none.
+- Last verification: 2026-08-23; targeted whitespace-boundary tests added but not executed.
+
+### BE-020 — Integrate runtime ModelSignature drift guard into generation
+- Priority: P1
+- Status: READY
+- Evidence: The reusable guard is implemented and tested independently; `ChatGenerationService.send_context_package()` still contains its older inline provider/model/quantization comparison and does not call the revision-aware guard.
+- Components: `src/athena/chat/generation.py`, model signature guard, generation tests.
+- Dependencies: safe mutation mechanism/ownership window for large shared generation file.
+- Last verification: 2026-08-23 against current remote `chat/generation.py`.
