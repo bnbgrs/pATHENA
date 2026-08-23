@@ -4,6 +4,7 @@ import argparse
 import uuid
 from pathlib import Path
 from types import SimpleNamespace
+from typing import Any, cast
 
 from athena.config.settings import AthenaSettings
 from athena.core.application import AthenaApplication
@@ -60,6 +61,8 @@ def test_claim_relations_show_reciprocal_canonical_contradiction(
         output = capsys.readouterr().out
         assert f"CLAIM {left.claim_id}" in output
         assert "RELATION_COUNT" in output
+        assert f"RELATION\toriginates\t{left_message.message_id}" in output
+        assert "\tmessage\t-\t-\tChat-message provenance source" in output
         assert "RELATION\tcontradicts\t" in output
         assert str(right.claim_id) in output
         assert "The archive is closed on Sundays." in output
@@ -154,20 +157,24 @@ def test_merge_list_and_explicit_decisions_use_review_service(capsys) -> None:
         reviews=reviews,
         chat=SimpleNamespace(ensure_local_user=lambda: actor_id),
     )
+    typed_app = cast(Any, app)
 
-    assert _run(app, argparse.Namespace(command="merge-list", limit=20)) == 0
+    assert _run(typed_app, argparse.Namespace(command="merge-list", limit=20)) == 0
     listing = capsys.readouterr().out
     assert str(reviews.review_id) in listing
     assert "knowledge\t2\t0.910000" in listing
     assert "Candidate semantic text" in listing
 
-    assert _run(app, argparse.Namespace(command="merge", review_id=reviews.review_id)) == 0
+    assert _run(
+        typed_app,
+        argparse.Namespace(command="merge", review_id=reviews.review_id),
+    ) == 0
     merged = capsys.readouterr().out
     assert "MERGE_REVIEW_RESOLVED" in merged
     assert reviews.decisions == ["merge"]
 
     assert _run(
-        app,
+        typed_app,
         argparse.Namespace(command="keep-separate", review_id=reviews.review_id),
     ) == 0
     separated = capsys.readouterr().out
