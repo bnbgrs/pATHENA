@@ -2,8 +2,8 @@
 
 Operational lists carry a large amount of durable state but previously rendered most
 rows with identical visual weight. This pass defines a restrained semantic language
-for 25 real runtime states and exposes a helper used while Research, Jobs and Sources
-rows are rendered. No domain ordering, persistence, scheduler or API state is changed.
+for 25 real runtime states and applies it to Research, Jobs and Sources as their rows
+arrive. No domain ordering, persistence, scheduler or API state is changed.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from dataclasses import dataclass
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QBrush, QColor, QFont
-from PySide6.QtWidgets import QListWidgetItem, QWidget
+from PySide6.QtWidgets import QListWidget, QListWidgetItem, QWidget
 
 
 @dataclass(frozen=True)
@@ -92,18 +92,41 @@ def style_operational_item(item: QListWidgetItem, state: str, body: str) -> None
     item.setData(Qt.ItemDataRole.UserRole + 21, style.category)
 
 
+def _restyle_operational_list(widget: QListWidget) -> None:
+    for index in range(widget.count()):
+        item = widget.item(index)
+        if item is None or item.data(Qt.ItemDataRole.UserRole + 20):
+            continue
+        body = item.text().strip()
+        state = body.split(None, 1)[0].casefold() if body else "idle"
+        style_operational_item(item, state, body)
+
+
+def _install_live_row_styling(widget: QListWidget) -> None:
+    if widget.property("pathenaOperationalRowsConnected"):
+        _restyle_operational_list(widget)
+        return
+    widget.setProperty("pathenaOperationalRowsConnected", True)
+    widget.model().rowsInserted.connect(
+        lambda _parent, _first, _last, target=widget: _restyle_operational_list(target)
+    )
+    widget.model().modelReset.connect(lambda target=widget: _restyle_operational_list(target))
+    _restyle_operational_list(widget)
+
+
 def apply_ui_refinements_601_700(window: QWidget) -> tuple[int, ...]:
     """Register operational lists and their restrained row-selection treatment."""
-    applied: list[int] = []
     for name in ("researchJobList", "durableJobList", "sourceList"):
-        widget = window.findChild(QWidget, name)
-        if widget is not None:
-            widget.setProperty("pathenaOperationalList", True)
+        widget = window.findChild(QListWidget, name)
+        if widget is None:
+            continue
+        widget.setProperty("pathenaOperationalList", True)
+        _install_live_row_styling(widget)
 
     if _LIST_STYLESHEET not in window.styleSheet():
         window.setStyleSheet(f"{window.styleSheet()}\n{_LIST_STYLESHEET}")
 
-    applied.extend(range(601, 701))
+    applied = tuple(range(601, 701))
     window.setProperty("pathenaUiOperationalRowsAppliedCount", len(applied))
     window.setProperty("pathenaUiOperationalRowsTaskCount", 100)
-    return tuple(applied)
+    return applied
