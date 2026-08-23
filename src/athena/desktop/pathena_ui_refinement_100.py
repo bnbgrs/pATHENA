@@ -7,7 +7,7 @@ It runs only after the real workspaces and command palette have been installed.
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TypeVar
+from typing import TypeVar, cast
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
@@ -156,12 +156,49 @@ def _apply(
     applied.append(task_id)
 
 
-def _named_child(root: QWidget, widget_type: type[TWidget], name: str) -> TWidget | None:
-    return root.findChild(widget_type, name)
+def _named_child(
+    root: QWidget,
+    widget_type: type[TWidget],
+    name: str,
+) -> TWidget | None:
+    return cast(TWidget | None, root.findChild(widget_type, name))
 
 
-def _button_with_text(root: QWidget, text: str) -> QPushButton | None:
-    return next((button for button in root.findChildren(QPushButton) if button.text() == text), None)
+def _widget_attr(root: QWidget, name: str, widget_type: type[TWidget]) -> TWidget | None:
+    value = getattr(root, name, None)
+    return value if isinstance(value, widget_type) else None
+
+
+def _button_with_text(root: QWidget | None, text: str) -> QPushButton | None:
+    if root is None:
+        return None
+    return next(
+        (button for button in root.findChildren(QPushButton) if button.text() == text),
+        None,
+    )
+
+
+def _label_starting_with(root: QWidget | None, prefix: str) -> QLabel | None:
+    if root is None:
+        return None
+    return next(
+        (label for label in root.findChildren(QLabel) if label.text().startswith(prefix)),
+        None,
+    )
+
+
+def _runtime_detail(root: QWidget | None) -> QLabel | None:
+    if root is None:
+        return None
+    labels = root.findChildren(QLabel, "settingsHelp")
+    return next(
+        (
+            label
+            for label in labels
+            if label.text().startswith("Awaiting local Core snapshot")
+        ),
+        labels[-1] if labels else None,
+    )
 
 
 def _configure_list(widget: QListWidget) -> None:
@@ -178,81 +215,170 @@ def apply_ui_refinements(window: QWidget) -> tuple[int, ...]:
     applied: list[int] = []
 
     navigation = _named_child(window, QListWidget, "navigation")
-    pages = getattr(window, "pages", None)
-    pages_widget = pages if isinstance(pages, QStackedWidget) else None
-    chat_selector = getattr(window, "chat_selector", None)
-    chat_combo = chat_selector if isinstance(chat_selector, QComboBox) else None
-    model_selector = getattr(window, "model_selector", None)
-    model_combo = model_selector if isinstance(model_selector, QComboBox) else None
+    pages = _widget_attr(window, "pages", QStackedWidget)
+    chat_combo = _widget_attr(window, "chat_selector", QComboBox)
+    model_combo = _widget_attr(window, "model_selector", QComboBox)
     chat_scroll = _named_child(window, QScrollArea, "chatScroll")
     chat_messages = _named_child(window, QWidget, "chatMessages")
-    status_text = getattr(window, "status_text", None)
-    status_label = status_text if isinstance(status_text, QLabel) else None
+    status_label = _widget_attr(window, "status_text", QLabel)
 
     _apply(applied, 1, navigation, _accessible("Workspace navigation"))
-    _apply(applied, 2, navigation, _accessible("Workspace navigation", "Switch between Chat, Knowledge, Research, Jobs, Files, System and Settings."))
-    _apply(applied, 3, pages_widget, _accessible("Current workspace"))
+    _apply(
+        applied,
+        2,
+        navigation,
+        _accessible(
+            "Workspace navigation",
+            "Switch between Chat, Knowledge, Research, Jobs, Files, System and Settings.",
+        ),
+    )
+    _apply(applied, 3, pages, _accessible("Current workspace"))
     _apply(applied, 4, chat_combo, _accessible("Conversation"))
-    _apply(applied, 5, chat_combo, _accessible("Conversation", "Choose a persisted local conversation or start a new one."))
+    _apply(
+        applied,
+        5,
+        chat_combo,
+        _accessible(
+            "Conversation",
+            "Choose a persisted local conversation or start a new one.",
+        ),
+    )
     _apply(applied, 6, model_combo, _accessible("Local model"))
-    _apply(applied, 7, model_combo, _accessible("Local model", "Choose the local language model used for this conversation."))
+    _apply(
+        applied,
+        7,
+        model_combo,
+        _accessible(
+            "Local model",
+            "Choose the local language model used for this conversation.",
+        ),
+    )
     _apply(applied, 8, chat_scroll, _accessible("Conversation messages"))
     _apply(applied, 9, chat_messages, _accessible("Message history"))
     _apply(applied, 10, status_label, _accessible("Local connection status"))
 
-    prompt = getattr(window, "prompt_input", None)
-    prompt_input = prompt if isinstance(prompt, QLineEdit) else None
-    ground = getattr(window, "ground_button", None)
-    ground_button = ground if isinstance(ground, QPushButton) else None
-    send = getattr(window, "send_button", None)
-    send_button = send if isinstance(send, QPushButton) else None
-    details_button = _named_child(window, QPushButton, "detailsToggle")
-    context_button = _named_child(window, QPushButton, "contextToggle")
-    new_chat = getattr(window, "new_chat_button", None)
-    new_button = new_chat if isinstance(new_chat, QPushButton) else None
-    delete_chat = getattr(window, "delete_chat_button", None)
-    delete_button = delete_chat if isinstance(delete_chat, QPushButton) else None
+    prompt = _widget_attr(window, "prompt_input", QLineEdit)
+    ground = _widget_attr(window, "ground_button", QPushButton)
+    send = _widget_attr(window, "send_button", QPushButton)
+    details = _named_child(window, QPushButton, "detailsToggle")
+    context = _named_child(window, QPushButton, "contextToggle")
+    new_chat = _widget_attr(window, "new_chat_button", QPushButton)
+    delete_chat = _widget_attr(window, "delete_chat_button", QPushButton)
 
-    _apply(applied, 11, prompt_input, _accessible("Message"))
-    _apply(applied, 12, prompt_input, _accessible("Message", "Ask pATHENA, explore local knowledge, or continue the selected conversation."))
-    _apply(applied, 13, ground_button, _accessible("Use sources"))
-    _apply(applied, 14, ground_button, _accessible("Use sources", "Ground the next response in available local sources and evidence."))
-    _apply(applied, 15, send_button, _accessible("Send message"))
-    _apply(applied, 16, send_button, _accessible("Send message", "Send the current message. Keyboard shortcut: Ctrl+Enter."))
-    _apply(applied, 17, details_button, _accessible("Conversation details"))
-    _apply(applied, 18, details_button, _accessible("Conversation details", "Show or hide conversation metadata and provenance."))
-    _apply(applied, 19, context_button, _accessible("Source context"))
-    _apply(applied, 20, context_button, _accessible("Source context", "Show or hide evidence from the latest grounded response."))
-    _apply(applied, 21, new_button, _accessible("New conversation"))
-    _apply(applied, 22, new_button, _accessible("New conversation", "Start a new persisted conversation."))
-    _apply(applied, 23, delete_button, _accessible("Delete conversation"))
-    _apply(applied, 24, delete_button, _accessible("Delete conversation", "Delete the currently selected persisted conversation."))
+    _apply(applied, 11, prompt, _accessible("Message"))
+    _apply(
+        applied,
+        12,
+        prompt,
+        _accessible(
+            "Message",
+            "Ask pATHENA, explore local knowledge, or continue the selected conversation.",
+        ),
+    )
+    _apply(applied, 13, ground, _accessible("Use sources"))
+    _apply(
+        applied,
+        14,
+        ground,
+        _accessible(
+            "Use sources",
+            "Ground the next response in available local sources and evidence.",
+        ),
+    )
+    _apply(applied, 15, send, _accessible("Send message"))
+    _apply(
+        applied,
+        16,
+        send,
+        _accessible(
+            "Send message",
+            "Send the current message. Keyboard shortcut: Ctrl+Enter.",
+        ),
+    )
+    _apply(applied, 17, details, _accessible("Conversation details"))
+    _apply(
+        applied,
+        18,
+        details,
+        _accessible(
+            "Conversation details",
+            "Show or hide conversation metadata and provenance.",
+        ),
+    )
+    _apply(applied, 19, context, _accessible("Source context"))
+    _apply(
+        applied,
+        20,
+        context,
+        _accessible(
+            "Source context",
+            "Show or hide evidence from the latest grounded response.",
+        ),
+    )
+    _apply(applied, 21, new_chat, _accessible("New conversation"))
+    _apply(
+        applied,
+        22,
+        new_chat,
+        _accessible("New conversation", "Start a new persisted conversation."),
+    )
+    _apply(applied, 23, delete_chat, _accessible("Delete conversation"))
+    _apply(
+        applied,
+        24,
+        delete_chat,
+        _accessible(
+            "Delete conversation",
+            "Delete the currently selected persisted conversation.",
+        ),
+    )
 
-    context_slider = getattr(window, "context_slider", None)
-    context_slider_widget = context_slider if isinstance(context_slider, QSlider) else None
-    context_spin = getattr(window, "context_spin", None)
-    context_spin_widget = context_spin if isinstance(context_spin, QSpinBox) else None
-    output_slider = getattr(window, "max_output_slider", None)
-    output_slider_widget = output_slider if isinstance(output_slider, QSlider) else None
-    output_spin = getattr(window, "max_output_spin", None)
-    output_spin_widget = output_spin if isinstance(output_spin, QSpinBox) else None
-    temperature = getattr(window, "temperature_spin", None)
-    temperature_widget = temperature if isinstance(temperature, QDoubleSpinBox) else None
-    thinking = getattr(window, "thinking_checkbox", None)
-    thinking_widget = thinking if isinstance(thinking, QCheckBox) else None
-
-    _apply(applied, 25, context_slider_widget, _accessible("Context window"))
-    _apply(applied, 26, context_spin_widget, _accessible("Context window in tokens"))
-    _apply(applied, 27, output_slider_widget, _accessible("Maximum response length"))
-    _apply(applied, 28, output_spin_widget, _accessible("Maximum response tokens"))
-    _apply(applied, 29, temperature_widget, _accessible("Temperature"))
-    _apply(applied, 30, thinking_widget, _accessible("Reasoning"))
+    _apply(
+        applied,
+        25,
+        _widget_attr(window, "context_slider", QSlider),
+        _accessible("Context window"),
+    )
+    _apply(
+        applied,
+        26,
+        _widget_attr(window, "context_spin", QSpinBox),
+        _accessible("Context window in tokens"),
+    )
+    _apply(
+        applied,
+        27,
+        _widget_attr(window, "max_output_slider", QSlider),
+        _accessible("Maximum response length"),
+    )
+    _apply(
+        applied,
+        28,
+        _widget_attr(window, "max_output_spin", QSpinBox),
+        _accessible("Maximum response tokens"),
+    )
+    _apply(
+        applied,
+        29,
+        _widget_attr(window, "temperature_spin", QDoubleSpinBox),
+        _accessible("Temperature"),
+    )
+    _apply(
+        applied,
+        30,
+        _widget_attr(window, "thinking_checkbox", QCheckBox),
+        _accessible("Reasoning"),
+    )
 
     knowledge = _named_child(window, QWidget, "knowledgeWorkspace")
     knowledge_tabs = _named_child(window, QTabWidget, "canonicalMemoryTabs")
     knowledge_search = _named_child(window, QLineEdit, "knowledgeSearchInput")
     knowledge_list = _named_child(window, QListWidget, "persistentKnowledgeList")
-    knowledge_details = _named_child(window, QPlainTextEdit, "persistentKnowledgeDetails")
+    knowledge_details = _named_child(
+        window,
+        QPlainTextEdit,
+        "persistentKnowledgeDetails",
+    )
     claim_list = _named_child(window, QListWidget, "persistentClaimList")
     claim_details = _named_child(window, QPlainTextEdit, "persistentClaimDetails")
     decision_list = _named_child(window, QListWidget, "semanticReviewList")
@@ -261,143 +387,314 @@ def apply_ui_refinements(window: QWidget) -> tuple[int, ...]:
 
     _apply(applied, 31, knowledge_tabs, _accessible("Canonical memory views"))
     _apply(applied, 32, knowledge_search, _accessible("Search canonical memory"))
-    _apply(applied, 33, knowledge_search, lambda widget: widget.setClearButtonEnabled(True))
+    _apply(
+        applied,
+        33,
+        knowledge_search,
+        lambda widget: widget.setClearButtonEnabled(True),
+    )
     _apply(applied, 34, knowledge_list, _accessible("Canonical knowledge"))
-    _apply(applied, 35, knowledge_details, _accessible("Knowledge details and provenance"))
+    _apply(
+        applied,
+        35,
+        knowledge_details,
+        _accessible("Knowledge details and provenance"),
+    )
     _apply(applied, 36, claim_list, _accessible("Canonical claims"))
-    _apply(applied, 37, claim_details, _accessible("Claim evidence and provenance"))
+    _apply(
+        applied,
+        37,
+        claim_details,
+        _accessible("Claim evidence and provenance"),
+    )
     _apply(applied, 38, decision_list, _accessible("Canonical memory decisions"))
     _apply(applied, 39, decision_details, _accessible("Decision comparison"))
     _apply(applied, 40, relation_list, _accessible("Related claims and evidence"))
 
-    knowledge_refresh = _button_with_text(knowledge, "Refresh") if knowledge is not None else None
-    decision_mode = _named_child(window, QComboBox, "semanticDecisionMode")
-    open_related = _named_child(window, QPushButton, "openRelatedClaimButton")
-    acceptance = _named_child(window, QPushButton, "knowledgeAcceptanceButton")
-    history = _button_with_text(knowledge, "History") if knowledge is not None else None
-    confirm_contradiction = _button_with_text(knowledge, "Confirm contradiction") if knowledge is not None else None
-    reject_decision = _button_with_text(knowledge, "Reject") if knowledge is not None else None
-    merge = _button_with_text(knowledge, "Merge") if knowledge is not None else None
-    keep_separate = _button_with_text(knowledge, "Keep separate") if knowledge is not None else None
-    copy_details = _button_with_text(knowledge, "Copy details") if knowledge is not None else None
+    _apply(
+        applied,
+        41,
+        _button_with_text(knowledge, "Refresh"),
+        _accessible("Refresh canonical memory"),
+    )
+    _apply(
+        applied,
+        42,
+        _named_child(window, QComboBox, "semanticDecisionMode"),
+        _accessible("Decision type"),
+    )
+    _apply(
+        applied,
+        43,
+        _named_child(window, QPushButton, "openRelatedClaimButton"),
+        _accessible("Open related claim"),
+    )
+    _apply(
+        applied,
+        44,
+        _named_child(window, QPushButton, "knowledgeAcceptanceButton"),
+        _accessible("Add reviewed items to canonical memory"),
+    )
+    _apply(
+        applied,
+        45,
+        _button_with_text(knowledge, "History"),
+        _accessible("Show immutable revision history"),
+    )
+    _apply(
+        applied,
+        46,
+        _button_with_text(knowledge, "Confirm contradiction"),
+        _accessible("Confirm contradiction"),
+    )
+    _apply(
+        applied,
+        47,
+        _button_with_text(knowledge, "Reject"),
+        _accessible("Reject decision"),
+    )
+    _apply(
+        applied,
+        48,
+        _button_with_text(knowledge, "Merge"),
+        _accessible("Merge with canonical entity"),
+    )
+    _apply(
+        applied,
+        49,
+        _button_with_text(knowledge, "Keep separate"),
+        _accessible("Keep entities separate"),
+    )
+    _apply(
+        applied,
+        50,
+        _button_with_text(knowledge, "Copy details"),
+        _accessible("Copy canonical details"),
+    )
 
-    _apply(applied, 41, knowledge_refresh, _accessible("Refresh canonical memory"))
-    _apply(applied, 42, decision_mode, _accessible("Decision type"))
-    _apply(applied, 43, open_related, _accessible("Open related claim"))
-    _apply(applied, 44, acceptance, _accessible("Add reviewed items to canonical memory"))
-    _apply(applied, 45, history, _accessible("Show immutable revision history"))
-    _apply(applied, 46, confirm_contradiction, _accessible("Confirm contradiction"))
-    _apply(applied, 47, reject_decision, _accessible("Reject decision"))
-    _apply(applied, 48, merge, _accessible("Merge with canonical entity"))
-    _apply(applied, 49, keep_separate, _accessible("Keep entities separate"))
-    _apply(applied, 50, copy_details, _accessible("Copy canonical details"))
-
-    research = _named_child(window, QWidget, "researchWorkspace")
     research_query = _named_child(window, QLineEdit, "researchQueryInput")
     research_filter = _named_child(window, QLineEdit, "researchJobFilter")
     research_jobs = _named_child(window, QListWidget, "researchJobList")
     research_details = _named_child(window, QPlainTextEdit, "researchDetails")
-    research_start = _named_child(window, QPushButton, "researchStartButton")
-    research_refresh = _named_child(window, QPushButton, "researchRefreshButton")
-    research_cancel = _named_child(window, QPushButton, "researchCancelButton")
     result_panel = _named_child(window, QWidget, "researchResultPanel")
-    result_button = _named_child(window, QPushButton, "researchResultButton")
-    propose_button = _named_child(window, QPushButton, "researchProposeButton")
-    proposal_refresh = _named_child(window, QPushButton, "researchProposalRefreshButton")
     proposal_list = _named_child(window, QListWidget, "researchProposalList")
-    proposal_accept = _named_child(window, QPushButton, "researchProposalAcceptButton")
-    proposal_separate = _named_child(window, QPushButton, "researchProposalSeparateButton")
-    proposal_reject = _named_child(window, QPushButton, "researchProposalRejectButton")
 
     _apply(applied, 51, research_query, _accessible("Research question"))
-    _apply(applied, 52, research_query, _accessible("Research question", "Create a durable research run across captured local sources."))
+    _apply(
+        applied,
+        52,
+        research_query,
+        _accessible(
+            "Research question",
+            "Create a durable research run across captured local sources.",
+        ),
+    )
     _apply(applied, 53, research_filter, _accessible("Filter research runs"))
-    _apply(applied, 54, research_filter, lambda widget: widget.setClearButtonEnabled(True))
+    _apply(
+        applied,
+        54,
+        research_filter,
+        lambda widget: widget.setClearButtonEnabled(True),
+    )
     _apply(applied, 55, research_jobs, _accessible("Research runs"))
-    _apply(applied, 56, research_details, _accessible("Research result and run details"))
-    _apply(applied, 57, research_start, _accessible("Start research"))
-    _apply(applied, 58, research_refresh, _accessible("Refresh research runs"))
-    _apply(applied, 59, research_cancel, _accessible("Cancel selected research run"))
-    _apply(applied, 60, result_panel, _accessible("Research result and canonical memory review"))
-    _apply(applied, 61, result_button, _accessible("View research result"))
-    _apply(applied, 62, propose_button, _accessible("Create canonical memory proposals"))
-    _apply(applied, 63, proposal_refresh, _accessible("Review research proposals"))
+    _apply(
+        applied,
+        56,
+        research_details,
+        _accessible("Research result and run details"),
+    )
+    _apply(
+        applied,
+        57,
+        _named_child(window, QPushButton, "researchStartButton"),
+        _accessible("Start research"),
+    )
+    _apply(
+        applied,
+        58,
+        _named_child(window, QPushButton, "researchRefreshButton"),
+        _accessible("Refresh research runs"),
+    )
+    _apply(
+        applied,
+        59,
+        _named_child(window, QPushButton, "researchCancelButton"),
+        _accessible("Cancel selected research run"),
+    )
+    _apply(
+        applied,
+        60,
+        result_panel,
+        _accessible("Research result and canonical memory review"),
+    )
+    _apply(
+        applied,
+        61,
+        _named_child(window, QPushButton, "researchResultButton"),
+        _accessible("View research result"),
+    )
+    _apply(
+        applied,
+        62,
+        _named_child(window, QPushButton, "researchProposeButton"),
+        _accessible("Create canonical memory proposals"),
+    )
+    _apply(
+        applied,
+        63,
+        _named_child(window, QPushButton, "researchProposalRefreshButton"),
+        _accessible("Review research proposals"),
+    )
     _apply(applied, 64, proposal_list, _accessible("Research proposals"))
-    _apply(applied, 65, proposal_accept, _accessible("Accept proposal"))
-    _apply(applied, 66, proposal_separate, _accessible("Accept proposal as separate"))
-    _apply(applied, 67, proposal_reject, _accessible("Reject proposal"))
+    _apply(
+        applied,
+        65,
+        _named_child(window, QPushButton, "researchProposalAcceptButton"),
+        _accessible("Accept proposal"),
+    )
+    _apply(
+        applied,
+        66,
+        _named_child(window, QPushButton, "researchProposalSeparateButton"),
+        _accessible("Accept proposal as separate"),
+    )
+    _apply(
+        applied,
+        67,
+        _named_child(window, QPushButton, "researchProposalRejectButton"),
+        _accessible("Reject proposal"),
+    )
 
     jobs = _named_child(window, QWidget, "jobsWorkspace")
     durable_jobs = _named_child(window, QListWidget, "durableJobList")
     job_details = _named_child(window, QPlainTextEdit, "jobDetails")
-    scheduler_status = next((label for label in jobs.findChildren(QLabel) if label.text().startswith("Scheduler")), None) if jobs is not None else None
-    job_refresh = _named_child(window, QPushButton, "jobRefreshButton")
-    job_pause = _named_child(window, QPushButton, "jobPauseButton")
-    job_resume = _named_child(window, QPushButton, "jobResumeButton")
-    job_wake = _named_child(window, QPushButton, "jobWakeButton")
-    job_cancel = _named_child(window, QPushButton, "jobCancelButton")
 
     _apply(applied, 68, durable_jobs, _accessible("Durable background jobs"))
-    _apply(applied, 69, job_details, _accessible("Background job details and checkpoints"))
-    _apply(applied, 70, scheduler_status, _accessible("Scheduler status"))
-    _apply(applied, 71, job_refresh, _accessible("Refresh background jobs"))
-    _apply(applied, 72, job_pause, _accessible("Pause selected job"))
-    _apply(applied, 73, job_resume, _accessible("Resume selected job"))
-    _apply(applied, 74, job_wake, _accessible("Wake selected job"))
-    _apply(applied, 75, job_cancel, _accessible("Cancel selected job"))
+    _apply(
+        applied,
+        69,
+        job_details,
+        _accessible("Background job details and checkpoints"),
+    )
+    _apply(
+        applied,
+        70,
+        _label_starting_with(jobs, "Scheduler"),
+        _accessible("Scheduler status"),
+    )
+    for task_id, object_name, label in (
+        (71, "jobRefreshButton", "Refresh background jobs"),
+        (72, "jobPauseButton", "Pause selected job"),
+        (73, "jobResumeButton", "Resume selected job"),
+        (74, "jobWakeButton", "Wake selected job"),
+        (75, "jobCancelButton", "Cancel selected job"),
+    ):
+        _apply(
+            applied,
+            task_id,
+            _named_child(window, QPushButton, object_name),
+            _accessible(label),
+        )
 
-    files = _named_child(window, QWidget, "filesWorkspace")
     sources = _named_child(window, QListWidget, "sourceList")
     source_details = _named_child(window, QPlainTextEdit, "sourceDetails")
-    file_import = _named_child(window, QPushButton, "fileImportButton")
-    file_process = _named_child(window, QPushButton, "fileProcessButton")
-    file_refresh = _named_child(window, QPushButton, "fileRefreshButton")
-
     _apply(applied, 76, sources, _accessible("Imported local sources"))
-    _apply(applied, 77, source_details, _accessible("Source capture and retrieval details"))
-    _apply(applied, 78, file_import, _accessible("Import local file"))
-    _apply(applied, 79, file_process, _accessible("Process or retry selected source"))
-    _apply(applied, 80, file_refresh, _accessible("Refresh imported sources"))
+    _apply(
+        applied,
+        77,
+        source_details,
+        _accessible("Source capture and retrieval details"),
+    )
+    for task_id, object_name, label in (
+        (78, "fileImportButton", "Import local file"),
+        (79, "fileProcessButton", "Process or retry selected source"),
+        (80, "fileRefreshButton", "Refresh imported sources"),
+    ):
+        _apply(
+            applied,
+            task_id,
+            _named_child(window, QPushButton, object_name),
+            _accessible(label),
+        )
 
-    system_tabs = _named_child(window, QTabWidget, "systemOperationsTabs")
     system = _named_child(window, QWidget, "systemWorkspace")
-    system_refresh = _button_with_text(system, "Refresh") if system is not None else None
-    system_detail = next((label for label in system.findChildren(QLabel, "settingsHelp") if label.isWordWrap()), None) if system is not None else None
-    backup = _named_child(window, QWidget, "backupWorkspace")
-    backup_list = _named_child(window, QListWidget, "backupSnapshotList")
-    backup_details = _named_child(window, QPlainTextEdit, "backupDetails")
-    backup_create = _named_child(window, QPushButton, "backupCreateButton")
-    backup_verify = _named_child(window, QPushButton, "backupVerifyButton")
-    backup_deep = _named_child(window, QPushButton, "backupDeepVerifyButton")
-    backup_restore = _named_child(window, QPushButton, "backupRestoreButton")
-    backup_targets = _named_child(window, QPushButton, "backupTargetsButton")
-    backup_add_target = _named_child(window, QPushButton, "backupAddTargetButton")
-
-    _apply(applied, 81, system_tabs, _accessible("System operations"))
+    _apply(
+        applied,
+        81,
+        _named_child(window, QTabWidget, "systemOperationsTabs"),
+        _accessible("System operations"),
+    )
     _apply(applied, 82, system, _accessible("Local runtime status"))
-    _apply(applied, 83, system_refresh, _accessible("Refresh runtime status"))
-    _apply(applied, 84, system_detail, _accessible("Runtime status detail"))
-    _apply(applied, 85, backup_list, _accessible("Backup snapshots"))
-    _apply(applied, 86, backup_details, _accessible("Backup verification and restore details"))
-    _apply(applied, 87, backup_create, _accessible("Create verified backup"))
-    _apply(applied, 88, backup_verify, _accessible("Verify selected backup"))
-    _apply(applied, 89, backup_deep, _accessible("Deep verify selected backup"))
-    _apply(applied, 90, backup_restore, _accessible("Restore selected backup to isolated location"))
-    _apply(applied, 91, backup_targets, _accessible("Show backup targets"))
-    _apply(applied, 92, backup_add_target, _accessible("Add backup target"))
+    _apply(
+        applied,
+        83,
+        _button_with_text(system, "Refresh"),
+        _accessible("Refresh runtime status"),
+    )
+    _apply(applied, 84, _runtime_detail(system), _accessible("Runtime status detail"))
+    _apply(
+        applied,
+        85,
+        _named_child(window, QListWidget, "backupSnapshotList"),
+        _accessible("Backup snapshots"),
+    )
+    _apply(
+        applied,
+        86,
+        _named_child(window, QPlainTextEdit, "backupDetails"),
+        _accessible("Backup verification and restore details"),
+    )
+    for task_id, object_name, label in (
+        (87, "backupCreateButton", "Create verified backup"),
+        (88, "backupVerifyButton", "Verify selected backup"),
+        (89, "backupDeepVerifyButton", "Deep verify selected backup"),
+        (90, "backupRestoreButton", "Restore selected backup to isolated location"),
+        (91, "backupTargetsButton", "Show backup targets"),
+        (92, "backupAddTargetButton", "Add backup target"),
+    ):
+        _apply(
+            applied,
+            task_id,
+            _named_child(window, QPushButton, object_name),
+            _accessible(label),
+        )
 
     pallas = _named_child(window, QWidget, "pallasVisualPlaceholder")
-    command_query = _named_child(window, QLineEdit, "commandPaletteQuery")
+    _apply(
+        applied,
+        93,
+        pallas,
+        _accessible(
+            "PALLAS semantic field",
+            "A local reactive visualization of the visible workspace context.",
+        ),
+    )
+    _apply(
+        applied,
+        94,
+        pallas,
+        lambda widget: widget.setFocusPolicy(Qt.FocusPolicy.NoFocus),
+    )
+    _apply(
+        applied,
+        95,
+        _named_child(window, QLineEdit, "commandPaletteQuery"),
+        _accessible("Search commands"),
+    )
     command_results = _named_child(window, QListWidget, "commandPaletteResults")
-    help_text = _named_child(window, QPlainTextEdit, "helpText")
-    help_dialog = _named_child(window, QDialog, "helpDialog")
-
-    _apply(applied, 93, pallas, _accessible("PALLAS semantic field", "A local reactive visualization of the visible workspace context."))
-    _apply(applied, 94, pallas, lambda widget: widget.setFocusPolicy(Qt.FocusPolicy.NoFocus))
-    _apply(applied, 95, command_query, _accessible("Search commands"))
     _apply(applied, 96, command_results, _accessible("Available commands"))
-    _apply(applied, 97, help_text, _accessible("pATHENA capabilities and keyboard help"))
-    _apply(applied, 98, help_dialog, _accessible("pATHENA help"))
+    _apply(
+        applied,
+        97,
+        _named_child(window, QPlainTextEdit, "helpText"),
+        _accessible("pATHENA capabilities and keyboard help"),
+    )
+    _apply(
+        applied,
+        98,
+        _named_child(window, QDialog, "helpDialog"),
+        _accessible("pATHENA help"),
+    )
 
     primary_lists = tuple(
         widget
@@ -411,7 +708,7 @@ def apply_ui_refinements(window: QWidget) -> tuple[int, ...]:
             proposal_list,
             durable_jobs,
             sources,
-            backup_list,
+            _named_child(window, QListWidget, "backupSnapshotList"),
             command_results,
         )
         if isinstance(widget, QListWidget)
