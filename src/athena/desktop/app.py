@@ -25,6 +25,7 @@ from athena.desktop.pathena_layout_refinement_2200 import install_layout_refinem
 from athena.desktop.pathena_progressive_workspace_2300 import (
     install_progressive_workspace_refinement,
 )
+from athena.desktop.pathena_research_readability_2400 import install_research_readability
 from athena.desktop.pathena_research_result_presentation import (
     apply_research_result_presentation,
 )
@@ -141,11 +142,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     interaction_refinement = install_interaction_refinement(window)
     layout_refinement = install_layout_refinement(window)
     progressive_workspace_refinement = install_progressive_workspace_refinement(window)
+    research_readability = install_research_readability(window, research_results_extension)
     _schedule_initial_core_refreshes(controller, supervisor, scheduler_supervisor)
     heartbeat = _start_core_refresh_heartbeat(controller, supervisor, scheduler_supervisor)
     window.show()
     exit_code = app.exec()
     heartbeat.stop()
+    research_readability.deleteLater()
     progressive_workspace_refinement.deleteLater()
     layout_refinement.deleteLater()
     interaction_refinement.deleteLater()
