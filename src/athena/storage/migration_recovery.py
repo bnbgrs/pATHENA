@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+import stat
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
@@ -75,12 +77,47 @@ def _assert_safe_path(path: Path, *, label: str) -> None:
 
 
 def _safe_regular_presence(path: Path, *, label: str) -> bool:
+    """Classify one artifact through a no-follow opened-file identity."""
     _assert_safe_path(path, label=label)
-    if not path.exists():
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(path, flags)
+    except FileNotFoundError:
         return False
-    if not path.is_file():
-        raise MigrationRecoveryError(f"{label} is not a regular file.")
-    return True
+    except OSError as exc:
+        raise MigrationRecoveryError(f"{label} could not be opened safely.") from exc
+
+    try:
+        handle_stat = os.fstat(descriptor)
+        if not stat.S_ISREG(handle_stat.st_mode):
+            raise MigrationRecoveryError(f"{label} is not a regular file.")
+
+        # Re-check path boundaries after acquiring the handle, then prove the
+        # pathname still denotes that same opened regular file. A concurrent
+        # rename/replacement is therefore an integrity error, not a presence
+        # classification based on mixed filesystem snapshots.
+        _assert_safe_path(path, label=label)
+        try:
+            path_stat = os.lstat(path)
+        except FileNotFoundError as exc:
+            raise MigrationRecoveryError(
+                f"{label} changed while recovery state was being classified."
+            ) from exc
+        except OSError as exc:
+            raise MigrationRecoveryError(
+                f"{label} identity could not be verified."
+            ) from exc
+
+        if not stat.S_ISREG(path_stat.st_mode) or not os.path.samestat(
+            handle_stat,
+            path_stat,
+        ):
+            raise MigrationRecoveryError(
+                f"{label} changed while recovery state was being classified."
+            )
+        return True
+    finally:
+        os.close(descriptor)
 
 
 def assess_migration_recovery(
