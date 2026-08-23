@@ -59,7 +59,7 @@ Status vocabulary: `FOUND` · `PARTIAL` · `READY` · `BLOCKED` · `IN_PROGRESS`
 - **Ownership / Priority / Status:** BACKEND · P1 · PARTIAL
 - **Current state:** Core now owns an explicit ephemeral `ModelSession` with UUID request identity, ModelSignature binding, context/output budget, optional ProcessingRun identity, streaming state, cancellation request state, emitted-delta accounting and fail-closed late-delta/late-completion discard semantics. It remains intentionally separate from conversation memory and canonical provider state. The remaining gap is binding this request identity into the provider generation port/orchestrator so `cancel_generation(request_id)` targets the exact active backend request when supported.
 - **Dependencies:** request-ID plumbing through `ChatModelProvider.stream_chat`/orchestration and provider adapter ownership window; ContextPackage request identity can then seed ModelSession consistently.
-- **Verification:** Implemented 2026-08-23 in `src/athena/model/session.py` with `tests/unit/test_model_session.py`; targeted tests added but not executed in connector runtime. Current provider generation port was re-read before implementation and still has no request-id parameter.
+- **Verification:** Implemented 2026-08-23 in `src/athena/model/session.py` with `tests/unit/test_model_session.py`; targeted tests added but not executed in connector runtime. Constructor invariants were additionally hardened so impossible cancellation-state combinations cannot be materialized directly.
 
 ### FG-010 — Normalize provider backend failure taxonomy
 - **Source:** Beta 08 sections 45–49 and 52.
@@ -79,15 +79,15 @@ Status vocabulary: `FOUND` · `PARTIAL` · `READY` · `BLOCKED` · `IN_PROGRESS`
 
 ### FG-012 — Carry and enforce Protection Scope through retrieval-to-context assembly
 - **Source:** Beta 09 sections 24, 49–51 and test 65; security semantics cross-reference Beta 16.
-- **Ownership / Priority / Status:** BACKEND · P1 · PARTIAL
-- **Current state:** Ordinary unprotected search excludes protected payloads. Separately, `ProtectedRuntimeSourceSearchService` and `ProtectedRuntimeSourceContextBuilderService` already provide request-local protected retrieval with explicit `protection_scope_id`, authorization against currently unlocked scopes, unlock re-checks before/after protected-byte reads, result/document hashes, bundle re-verification and no persistent plaintext index/cache. The missing piece is a model-call bridge that carries this verified ephemeral bundle into a ContextPackage/grounding call while re-verifying unlock state immediately before provider execution and persisting only reconstructible non-plaintext metadata.
-- **Dependencies:** protected runtime context service, ContextPackage/grounding orchestration, relock invalidation tests; never route protected cleartext into ordinary FTS/semantic indexes or durable logs.
-- **Verification:** Re-read 2026-08-23 against `src/athena/retrieval/protected_source.py` current remote. Existing runtime builder already satisfies much of the prior gap, so status corrected from READY to PARTIAL.
+- **Ownership / Priority / Status:** BACKEND · P1 · IN_PROGRESS
+- **Current state:** Ordinary unprotected search excludes protected payloads. `ProtectedRuntimeSourceSearchService` and `ProtectedRuntimeSourceContextBuilderService` provide request-local protected retrieval with explicit scope authorization, unlock re-checks and no persistent plaintext index/cache. A new `ProtectedRuntimeExecutionGuard` now verifies an ephemeral bundle at construction, exposes an immediate pre-provider re-verification callback, and emits only persistence-safe identifiers/counts—never plaintext, rendered context, document hashes or quoted-text hashes. Remaining work is wiring this guard into an actual model-call orchestration path that also prevents protected generated content from entering ordinary durable chat/run paths unintentionally.
+- **Dependencies:** protected runtime context service, explicit protected generation/persistence policy, orchestration integration and relock invalidation coverage; never route protected cleartext into ordinary FTS/semantic indexes, durable logs, run snapshots, or unprotected assistant-message persistence.
+- **Verification:** Implemented execution-guard boundary 2026-08-23 in `src/athena/retrieval/protected_execution.py` with targeted guard tests. Tests added but not executed in connector runtime; end-to-end provider bridge remains open.
 
 ## Handoff notes
 - Re-read current HEAD and affected files before every mutation.
 - Preserve `unknown` versus `unsupported`; never invent provider facts.
 - Provider lifecycle adapter work remains separate while the LM Studio adapter is concurrently active.
 - FG-011 is deliberately blocked until the backend lifecycle/switch contract is stable; do not let UI invent load semantics.
-- FG-012 is not a claim of a present protected-content leak: both ordinary search exclusion and the dedicated unlocked runtime retrieval path are fail-closed. Remaining work is the explicit protected model-call bridge.
+- FG-012 is not a claim of a present protected-content leak: both ordinary search exclusion and the dedicated unlocked runtime retrieval path are fail-closed. Remaining work is an explicit protected generation path with a deliberate persistence policy; do not reuse ordinary durable grounding blindly.
 - B27/A28 roadmap scan confirms that mobile remote client, multi-device shared write, cloud sync, alternative databases, advanced graph databases and a persistent encrypted protected vector index are intentionally later work and must not be opened as current feature gaps.
