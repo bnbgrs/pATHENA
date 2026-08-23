@@ -46,6 +46,6 @@ class NewsRunner:
         while max_ticks is None or ticks < max_ticks:
             status = self.tick()
             ticks += 1
-            if status == "idle":
+            if status == "idle" and (max_ticks is None or ticks < max_ticks):
                 time.sleep(idle_sleep_seconds)
         return ticks
