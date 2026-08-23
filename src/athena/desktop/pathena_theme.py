@@ -98,6 +98,14 @@ QLabel#settingsLabel {
     letter-spacing: 0.5px;
 }
 
+QWidget#chatMessage QLabel#speaker,
+QWidget#chatMessage QLabel#userMeta {
+    color: #7f8990;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.2px;
+}
+
 QLabel#message,
 QLabel#settingsHelp {
     color: #b5bcc1;
@@ -156,10 +164,12 @@ QPushButton#contextToggle:checked {
 }
 
 QPushButton#newChatButton,
-QPushButton#deleteChatButton {
-    min-height: 28px;
-    padding: 0 8px;
-    color: #8d979e;
+QPushButton#deleteChatButton,
+QPushButton#rememberMessageButton,
+QPushButton#addKnowledgeButton {
+    min-height: 24px;
+    padding: 0 7px;
+    color: #7f8990;
     background: transparent;
     border: 1px solid transparent;
     font-size: 10px;
@@ -167,7 +177,9 @@ QPushButton#deleteChatButton {
 }
 
 QPushButton#newChatButton:hover,
-QPushButton#deleteChatButton:hover {
+QPushButton#deleteChatButton:hover,
+QPushButton#rememberMessageButton:hover,
+QPushButton#addKnowledgeButton:hover {
     color: #e4e7e9;
     background: #1a1e21;
     border-color: #2a3035;
