@@ -22,6 +22,7 @@ class ScopeTarget:
     status_attribute: str
     label: str
     filter_attribute: str | None = None
+    filter_object_name: str | None = None
 
 
 _TARGETS: tuple[ScopeTarget, ...] = (
@@ -30,9 +31,15 @@ _TARGETS: tuple[ScopeTarget, ...] = (
         "knowledge_list",
         "browser_status",
         "Knowledge",
-        "search_input",
+        filter_attribute="search_input",
     ),
-    ScopeTarget("researchWorkspace", "jobs", "status", "Research jobs"),
+    ScopeTarget(
+        "researchWorkspace",
+        "jobs",
+        "status",
+        "Research jobs",
+        filter_object_name="researchJobFilter",
+    ),
     ScopeTarget("jobsWorkspace", "jobs", "status", "Durable jobs"),
     ScopeTarget("filesWorkspace", "sources", "status", "Sources"),
     ScopeTarget("backupWorkspace", "snapshots", "status", "Backup snapshots"),
@@ -62,6 +69,7 @@ class ResultScopeController(QObject):
         list_widget.currentItemChanged.connect(self.schedule_sync)
         if filter_input is not None:
             filter_input.textChanged.connect(self.schedule_sync)
+            scope_label.setProperty("pathenaResultScopeFilterBound", filter_input.objectName())
         self._sync_one(list_widget, scope_label, label)
 
     def schedule_sync(self, *_args: object) -> None:
@@ -127,6 +135,15 @@ def _install_scope_label(
     return label
 
 
+def _resolve_filter(workspace: QWidget, target: ScopeTarget) -> QLineEdit | None:
+    candidate: object | None = None
+    if target.filter_attribute is not None:
+        candidate = getattr(workspace, target.filter_attribute, None)
+    elif target.filter_object_name is not None:
+        candidate = workspace.findChild(QLineEdit, target.filter_object_name)
+    return candidate if isinstance(candidate, QLineEdit) else None
+
+
 def apply_result_scope_clarity(window: QWidget) -> tuple[int, ...]:
     """Install truthful list-scope summaries for existing dense workspaces."""
     controller = ResultScopeController(window)
@@ -140,13 +157,7 @@ def apply_result_scope_clarity(window: QWidget) -> tuple[int, ...]:
         status = getattr(workspace, target.status_attribute, None)
         if not isinstance(list_widget, QListWidget) or not isinstance(status, QWidget):
             continue
-        filter_input = (
-            getattr(workspace, target.filter_attribute, None)
-            if target.filter_attribute is not None
-            else None
-        )
-        if filter_input is not None and not isinstance(filter_input, QLineEdit):
-            filter_input = None
+        filter_input = _resolve_filter(workspace, target)
 
         scope_label = _install_scope_label(
             workspace,
