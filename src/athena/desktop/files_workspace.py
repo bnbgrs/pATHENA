@@ -38,6 +38,7 @@ class FilesWorkspace(QWidget):
         super().__init__()
         self.setObjectName("filesWorkspace")
         self._operation = ""
+        self._operation_source_id: str | None = None
         self._buffer = ""
         self._selected_source_id: str | None = None
         self._selected_readiness: str | None = None
@@ -45,7 +46,9 @@ class FilesWorkspace(QWidget):
 
         self.import_button = QPushButton("IMPORT FILE")
         self.import_button.setObjectName("newChatButton")
-        self.import_button.setToolTip("Capture a local file and automatically queue retrieval processing")
+        self.import_button.setToolTip(
+            "Capture a local file and automatically queue retrieval processing"
+        )
         self.import_button.clicked.connect(self._choose_file)
 
         self.refresh_button = QPushButton("REFRESH")
@@ -134,11 +137,17 @@ class FilesWorkspace(QWidget):
         self._start("list", ["list", "--limit", "150"], "Refreshing Sources")
 
     def process_selected(self) -> None:
-        if self._busy() or not self._selected_source_id:
+        source_id = self._selected_source_id
+        if self._busy() or not source_id:
             return
         self.details.clear()
         set_pathena_ui_state(self.details, "busy")
-        self._start("process", ["process", self._selected_source_id], "Queueing Source processing")
+        self._start(
+            "process",
+            ["process", source_id],
+            "Queueing Source processing",
+            source_id=source_id,
+        )
 
     def _choose_file(self) -> None:
         if self._busy():
@@ -157,6 +166,7 @@ class FilesWorkspace(QWidget):
             "import",
             ["import", selected],
             "Capturing Source and queueing retrieval processing",
+            source_id=self._selected_source_id,
         )
 
     def _selection_changed(
@@ -166,16 +176,32 @@ class FilesWorkspace(QWidget):
     ) -> None:
         source_id = None if current is None else current.data(Qt.ItemDataRole.UserRole)
         readiness = None if current is None else current.data(Qt.ItemDataRole.UserRole + 1)
-        processable = False if current is None else bool(current.data(Qt.ItemDataRole.UserRole + 2))
+        processable = (
+            False
+            if current is None
+            else bool(current.data(Qt.ItemDataRole.UserRole + 2))
+        )
         self._selected_source_id = str(source_id) if source_id else None
         self._selected_readiness = str(readiness) if readiness else None
         self._selected_processable = processable
         self._sync_controls()
 
-        if self._selected_source_id and not self._busy():
+        if self._busy():
+            if current is not None and not self._operation_owns_details():
+                self.details.setPlainText(current.toolTip())
+                set_pathena_ui_state(self.details, "idle")
+            return
+
+        if self._selected_source_id:
+            selected_source_id = self._selected_source_id
             self.details.clear()
             set_pathena_ui_state(self.details, "busy")
-            self._start("show", ["show", self._selected_source_id], "Loading Source details")
+            self._start(
+                "show",
+                ["show", selected_source_id],
+                "Loading Source details",
+                source_id=selected_source_id,
+            )
 
     def _refresh_if_visible(self) -> None:
         if self.isVisible() and not self._busy():
@@ -184,8 +210,16 @@ class FilesWorkspace(QWidget):
     def _busy(self) -> bool:
         return self._process.state() != QProcess.ProcessState.NotRunning
 
-    def _start(self, operation: str, arguments: list[str], label: str) -> None:
+    def _start(
+        self,
+        operation: str,
+        arguments: list[str],
+        label: str,
+        *,
+        source_id: str | None = None,
+    ) -> None:
         self._operation = operation
+        self._operation_source_id = source_id
         self._buffer = ""
         self.status.setText(label + " …")
         set_pathena_ui_state(self.status, "busy")
@@ -209,26 +243,36 @@ class FilesWorkspace(QWidget):
             and readiness not in _ACTIVE_READINESS
         )
 
+    def _operation_owns_details(self) -> bool:
+        return self._operation_source_id == self._selected_source_id
+
     def _drain_output(self) -> None:
-        chunk = bytes(self._process.readAllStandardOutput().data()).decode("utf-8", errors="replace")
+        chunk = bytes(self._process.readAllStandardOutput().data()).decode(
+            "utf-8",
+            errors="replace",
+        )
         if not chunk:
             return
         self._buffer += chunk
-        if self._operation != "list":
+        if self._operation != "list" and self._operation_owns_details():
             self.details.moveCursor(QTextCursor.MoveOperation.End)
             self.details.insertPlainText(chunk)
 
     def _process_finished(self, exit_code: int, _exit_status: QProcess.ExitStatus) -> None:
         self._drain_output()
         operation = self._operation
+        operation_source_id = self._operation_source_id
         output = self._buffer
+        owns_details = self._operation_owns_details()
         self._operation = ""
+        self._operation_source_id = None
         self._sync_controls()
 
         if exit_code != 0:
             self.status.setText(f"Source command failed (exit {exit_code}).")
             set_pathena_ui_state(self.status, "error")
-            set_pathena_ui_state(self.details, "error")
+            if owns_details:
+                set_pathena_ui_state(self.details, "error")
             if operation == "list":
                 self.details.setPlainText(output)
             return
@@ -242,12 +286,13 @@ class FilesWorkspace(QWidget):
         if operation == "show":
             self.status.setText("Source details loaded.")
             set_pathena_ui_state(self.status, "success")
-            set_pathena_ui_state(self.details, "success")
+            if owns_details:
+                set_pathena_ui_state(self.details, "success")
             return
 
         if operation == "import":
             match = _SOURCE_CAPTURED_RE.search(output)
-            if match is not None:
+            if match is not None and owns_details:
                 self._selected_source_id = match.group(1)
             if "PROCESS_QUEUED" in output:
                 self.status.setText("Source captured; retrieval processing queued.")
@@ -258,7 +303,8 @@ class FilesWorkspace(QWidget):
             else:
                 self.status.setText("Source captured.")
             set_pathena_ui_state(self.status, "success")
-            set_pathena_ui_state(self.details, "success")
+            if owns_details:
+                set_pathena_ui_state(self.details, "success")
             QTimer.singleShot(150, self.refresh)
             return
 
@@ -268,7 +314,8 @@ class FilesWorkspace(QWidget):
             else:
                 self.status.setText("Source processing queued.")
             set_pathena_ui_state(self.status, "success")
-            set_pathena_ui_state(self.details, "success")
+            if owns_details and operation_source_id == self._selected_source_id:
+                set_pathena_ui_state(self.details, "success")
             QTimer.singleShot(150, self.refresh)
 
     def _render_source_list(self, output: str) -> None:
@@ -281,7 +328,18 @@ class FilesWorkspace(QWidget):
             parts = raw_line.split("\t", 9)
             if len(parts) != 10:
                 continue
-            source_id, readiness, job_state, capture_state, name, mime_type, byte_length, processable, representations, chunks = parts
+            (
+                source_id,
+                readiness,
+                job_state,
+                capture_state,
+                name,
+                mime_type,
+                byte_length,
+                processable,
+                representations,
+                chunks,
+            ) = parts
             try:
                 size_label = _format_bytes(int(byte_length))
             except ValueError:
@@ -319,14 +377,17 @@ class FilesWorkspace(QWidget):
             set_pathena_ui_state(self.details, "empty")
 
     def _process_error(self, error: QProcess.ProcessError) -> None:
+        owns_details = self._operation_owns_details()
         self._operation = ""
+        self._operation_source_id = None
         self._sync_controls()
         if error == QProcess.ProcessError.FailedToStart:
             self.status.setText("Unable to start the local pATHENA Source command.")
         else:
             self.status.setText(f"Source command error: {error.name}")
         set_pathena_ui_state(self.status, "error")
-        set_pathena_ui_state(self.details, "error")
+        if owns_details:
+            set_pathena_ui_state(self.details, "error")
 
 
 def _format_bytes(value: int) -> str:
