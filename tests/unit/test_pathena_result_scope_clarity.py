@@ -9,7 +9,14 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 pytest.importorskip("PySide6")
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QLabel, QListWidget, QListWidgetItem
+from PySide6.QtWidgets import (
+    QApplication,
+    QLabel,
+    QLineEdit,
+    QListWidget,
+    QListWidgetItem,
+    QWidget,
+)
 
 from athena.desktop.pathena_result_scope_clarity import ResultScopeController
 
@@ -82,3 +89,26 @@ def test_scope_keeps_non_identity_selection_truthful() -> None:
     ResultScopeController._sync_one(items, scope, "Backup snapshots")
 
     assert scope.text() == "Backup snapshots · 1 shown · selection active"
+
+
+def test_filter_signal_resynchronizes_hidden_research_rows() -> None:
+    app = _app()
+    owner = QWidget()
+    items = QListWidget(owner)
+    scope = QLabel(owner)
+    filter_input = QLineEdit(owner)
+    filter_input.setObjectName("researchJobFilter")
+    first = _item("alpha", "12345678-aaaa")
+    second = _item("beta", "abcdef12-bbbb")
+    items.addItem(first)
+    items.addItem(second)
+    items.setCurrentItem(second)
+    filter_input.textChanged.connect(lambda text: first.setHidden(bool(text)))
+    controller = ResultScopeController(owner)
+    controller.register(items, scope, "Research jobs", filter_input)
+
+    filter_input.setText("beta")
+    app.processEvents()
+
+    assert scope.text() == "Research jobs · 1 shown / 2 total · selected ABCDEF12"
+    assert scope.property("pathenaResultScopeFilterBound") == "researchJobFilter"
