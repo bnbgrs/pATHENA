@@ -36,8 +36,22 @@ class DoctorReport:
 
 
 def _check_runtime_write(root: Path) -> DoctorCheck:
+    if not isinstance(root, Path):
+        return DoctorCheck("runtime-write", "FAIL", "runtime root is not a Path")
+    if root.is_symlink():
+        return DoctorCheck(
+            "runtime-write",
+            "FAIL",
+            f"runtime root is a symbolic link: {root}",
+        )
     try:
         root.mkdir(parents=True, exist_ok=True)
+        if root.is_symlink() or not root.is_dir():
+            return DoctorCheck(
+                "runtime-write",
+                "FAIL",
+                f"runtime root is not a safe directory: {root}",
+            )
         with tempfile.NamedTemporaryFile(
             mode="wb",
             prefix="athena-doctor-",
@@ -159,6 +173,11 @@ def run_doctor(
     *,
     startup_smoke: bool = True,
 ) -> DoctorReport:
+    if not isinstance(settings, AthenaSettings):
+        raise ValueError("Doctor settings must be an AthenaSettings value.")
+    if not isinstance(startup_smoke, bool):
+        raise ValueError("Doctor startup_smoke must be a boolean.")
+
     checks: list[DoctorCheck] = []
 
     python_ok = sys.version_info[:2] == (3, 12)
