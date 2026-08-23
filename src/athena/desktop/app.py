@@ -21,6 +21,7 @@ from athena.desktop.pathena_interaction_refinement import install_interaction_re
 from athena.desktop.pathena_knowledge_acceptance_presentation import (
     apply_knowledge_acceptance_presentation,
 )
+from athena.desktop.pathena_layout_refinement_2200 import install_layout_refinement
 from athena.desktop.pathena_research_result_presentation import (
     apply_research_result_presentation,
 )
@@ -50,8 +51,6 @@ def create_application(argv: Sequence[str] | None = None) -> QApplication:
 
     arguments = list(argv) if argv is not None else list(sys.argv)
     app = QApplication(arguments)
-    # Keep the internal application/organization identity stable for compatibility
-    # with existing local paths and settings while presenting the pATHENA product.
     app.setApplicationName("ATHENA")
     app.setOrganizationName("ATHENA")
     app.setApplicationDisplayName("pATHENA")
@@ -115,28 +114,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     app.aboutToQuit.connect(scheduler_supervisor.stop)
     app.aboutToQuit.connect(supervisor.stop)
 
-    # Startup is deliberately fail-soft. Transient child launch failures must not
-    # kill the user-facing desktop; bounded retries and the heartbeat keep both
-    # Core and durable scheduler supervision self-healing.
     supervisor.ensure_running()
     scheduler_supervisor.ensure_running()
 
     controller = DesktopApiController(client)
     window = PathenaMainWindow(api_controller=controller)
     knowledge_workspace = install_knowledge_workspace(window, controller)
-    knowledge_acceptance = install_knowledge_acceptance(
-        knowledge_workspace,
-        controller,
-    )
+    knowledge_acceptance = install_knowledge_acceptance(knowledge_workspace, controller)
     apply_knowledge_acceptance_presentation(knowledge_acceptance)
-    canonical_memory_extensions = install_canonical_memory_extensions(
-        knowledge_workspace
-    )
+    canonical_memory_extensions = install_canonical_memory_extensions(knowledge_workspace)
     research_workspace = install_research_workspace(window)
     research_results_extension = install_research_results_extension(research_workspace)
     apply_research_result_presentation(research_results_extension)
-    # Result/proposal review is a deliberate user decision surface. Keep the
-    # selected immutable result stable until the user explicitly refreshes jobs.
     research_results_extension.refresh_timer.stop()
     jobs_workspace = install_jobs_workspace(window, scheduler_supervisor)
     files_workspace = install_files_workspace(window)
@@ -147,19 +136,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     command_palette = install_command_palette(window)
     apply_complete_ui_refinements(window)
     interaction_refinement = install_interaction_refinement(window)
-    _schedule_initial_core_refreshes(
-        controller,
-        supervisor,
-        scheduler_supervisor,
-    )
-    heartbeat = _start_core_refresh_heartbeat(
-        controller,
-        supervisor,
-        scheduler_supervisor,
-    )
+    layout_refinement = install_layout_refinement(window)
+    _schedule_initial_core_refreshes(controller, supervisor, scheduler_supervisor)
+    heartbeat = _start_core_refresh_heartbeat(controller, supervisor, scheduler_supervisor)
     window.show()
     exit_code = app.exec()
     heartbeat.stop()
+    layout_refinement.deleteLater()
     interaction_refinement.deleteLater()
     canonical_memory_extensions.deleteLater()
     knowledge_acceptance.deleteLater()
