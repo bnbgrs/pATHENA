@@ -245,4 +245,8 @@ class SQLiteDatabase:
             self._rollback_if_active(connection)
             raise
         else:
-            self._commit_active_transaction(connection)
+            try:
+                self._commit_active_transaction(connection)
+            except BaseException:
+                self._rollback_if_active(connection)
+                raise
