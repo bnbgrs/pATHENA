@@ -7,7 +7,7 @@ import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 
-from athena.storage.durable_fs import fsync_directory
+from athena.storage.durable_fs import fsync_directory, is_link_boundary
 
 
 class MigrationCloneError(RuntimeError):
@@ -23,11 +23,13 @@ def _absolute_path(value: object, label: str) -> Path:
     return expanded
 
 
-def _reject_symlink_path(path: Path, *, label: str) -> None:
+def _reject_link_boundary_path(path: Path, *, label: str) -> None:
     cursor = path
     while True:
-        if cursor.is_symlink():
-            raise MigrationCloneError(f"{label} must not contain a symbolic link.")
+        if is_link_boundary(cursor):
+            raise MigrationCloneError(
+                f"{label} must not contain a symlink, junction, or reparse point."
+            )
         parent = cursor.parent
         if parent == cursor:
             return
@@ -102,16 +104,19 @@ def create_migration_clone(
     if source == candidate:
         raise MigrationCloneError("Migration clone source and candidate must differ.")
 
-    _reject_symlink_path(source, label="Migration clone source")
-    _reject_symlink_path(candidate.parent, label="Migration clone candidate parent")
+    _reject_link_boundary_path(source, label="Migration clone source")
+    _reject_link_boundary_path(
+        candidate.parent,
+        label="Migration clone candidate parent",
+    )
 
     if not source.is_file():
         raise MigrationCloneError("Migration clone source must be an existing regular file.")
     if not candidate.parent.is_dir():
         raise MigrationCloneError("Migration clone candidate parent must be a directory.")
-    if candidate.exists() or candidate.is_symlink():
+    if candidate.exists() or is_link_boundary(candidate):
         raise MigrationCloneError("Migration clone candidate must not already exist.")
-    if any(path.exists() or path.is_symlink() for path in _sidecars(candidate)):
+    if any(path.exists() or is_link_boundary(path) for path in _sidecars(candidate)):
         raise MigrationCloneError("Migration clone candidate has stale SQLite sidecars.")
 
     source_connection: sqlite3.Connection | None = None
@@ -120,6 +125,13 @@ def create_migration_clone(
     schema_version: int | None = None
     failure: BaseException | None = None
     try:
+        # Re-check redirecting path boundaries immediately before either SQLite
+        # open so an earlier validation is not the only traversal guard.
+        _reject_link_boundary_path(source, label="Migration clone source")
+        _reject_link_boundary_path(
+            candidate.parent,
+            label="Migration clone candidate parent",
+        )
         source_connection = sqlite3.connect(
             f"{source.resolve(strict=True).as_uri()}?mode=ro",
             uri=True,
@@ -183,7 +195,11 @@ def create_migration_clone(
         raise MigrationCloneError("Migration clone schema version was not established.")
 
     try:
-        if not candidate.is_file() or candidate.is_symlink():
+        _reject_link_boundary_path(
+            candidate.parent,
+            label="Migration clone candidate parent",
+        )
+        if not candidate.is_file() or is_link_boundary(candidate):
             raise MigrationCloneError("Migration clone candidate is not a regular file.")
         if os.name == "posix":
             os.chmod(candidate, 0o600)
