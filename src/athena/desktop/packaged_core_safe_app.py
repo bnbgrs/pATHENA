@@ -6,7 +6,6 @@ import os
 import sys
 from collections.abc import Sequence
 from pathlib import Path
-from types import SimpleNamespace
 
 os.environ.setdefault("QT_OPENGL", "software")
 os.environ.setdefault("QT_QUICK_BACKEND", "software")
@@ -20,8 +19,8 @@ from athena.api.client import CoreApiClient
 from athena.desktop.api_controller import DesktopApiController
 from athena.desktop.canonical_memory_extensions import install_canonical_memory_extensions
 from athena.desktop.command_palette import install_command_palette
-import athena.desktop.files_workspace as files_workspace_module
-import athena.desktop.jobs_workspace as jobs_workspace_module
+from athena.desktop.files_workspace import install_files_workspace
+from athena.desktop.jobs_workspace import install_jobs_workspace
 from athena.desktop.knowledge_acceptance import install_knowledge_acceptance
 from athena.desktop.knowledge_workspace import install_knowledge_workspace
 from athena.desktop.pathena_interaction_refinement import install_interaction_refinement
@@ -50,26 +49,33 @@ from athena.desktop.pathena_ui_refinement_integrity import apply_complete_ui_ref
 from athena.desktop.pathena_window import PathenaMainWindow
 from athena.desktop.pathena_workspace_presentation import apply_workspace_presentation
 from athena.desktop.research_results_extension import install_research_results_extension
-import athena.desktop.research_workspace as research_workspace_module
+from athena.desktop.research_workspace import install_research_workspace
 from athena.desktop.supervisor import DesktopCoreSupervisor
-import athena.desktop.system_backup as system_backup_module
+from athena.desktop.system_backup import install_system_backup
 from athena.desktop.system_workspace import install_system_workspace
 
 _INITIAL_CORE_REFRESH_DELAYS_MS = (350, 900, 1_800, 3_500, 6_000, 10_000)
 _CORE_REFRESH_HEARTBEAT_MS = 30_000
 
 
-def _sibling_executable(name: str) -> str:
-    return str(Path(sys.executable).resolve().with_name(name))
+def _package_directory() -> Path:
+    return Path(sys.executable).resolve().parent
 
 
-def _install_helper_routing() -> str:
-    helper = _sibling_executable("pATHENA-Helper.exe")
-    helper_sys = SimpleNamespace(executable=helper)
-    jobs_workspace_module.sys = helper_sys
-    files_workspace_module.sys = helper_sys
-    research_workspace_module.sys = helper_sys
-    system_backup_module.sys = helper_sys
+def _sibling_executable(package_directory: Path, name: str) -> str:
+    return str(package_directory / name)
+
+
+def _install_helper_routing(package_directory: Path) -> str:
+    """Route every Python-style desktop subprocess to the dedicated helper executable.
+
+    Desktop workspaces import the real ``sys`` module and launch ``sys.executable -m ...``.
+    In a frozen application that executable would otherwise be pATHENA.exe itself, causing
+    recursive desktop startup.  Rebinding the global interpreter path after QApplication
+    creation makes all existing and future workspace subprocesses use the packaged helper.
+    """
+    helper = _sibling_executable(package_directory, "pATHENA-Helper.exe")
+    sys.executable = helper
     return helper
 
 
@@ -104,13 +110,14 @@ def _start_refresh_heartbeat(controller: DesktopApiController) -> QTimer:
 
 
 def main(argv: Sequence[str] | None = None) -> int:
+    package_directory = _package_directory()
     app = create_application(argv)
-    _install_helper_routing()
+    _install_helper_routing(package_directory)
 
     client = CoreApiClient.from_environment()
     supervisor = DesktopCoreSupervisor(
         client=client,
-        executable=_sibling_executable("pATHENA-Core.exe"),
+        executable=_sibling_executable(package_directory, "pATHENA-Core.exe"),
         parent=app,
     )
     app.aboutToQuit.connect(supervisor.stop)
@@ -129,15 +136,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     apply_knowledge_acceptance_presentation(knowledge_acceptance)
     canonical_memory_extensions = install_canonical_memory_extensions(knowledge_workspace)
 
-    research_workspace = research_workspace_module.install_research_workspace(window)
+    research_workspace = install_research_workspace(window)
     research_results_extension = install_research_results_extension(research_workspace)
     apply_research_result_presentation(research_results_extension)
     research_results_extension.refresh_timer.stop()
 
-    jobs_workspace = jobs_workspace_module.install_jobs_workspace(window, None)
-    files_workspace = files_workspace_module.install_files_workspace(window)
+    jobs_workspace = install_jobs_workspace(window, None)
+    files_workspace = install_files_workspace(window)
     system_workspace = install_system_workspace(window, controller)
-    system_backup = system_backup_module.install_system_backup(window, system_workspace)
+    system_backup = install_system_backup(window, system_workspace)
 
     apply_shell_density(window)
     apply_workspace_presentation(window)
