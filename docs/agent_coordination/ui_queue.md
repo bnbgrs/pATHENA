@@ -56,6 +56,7 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 | UI-046 | P1 | DONE | Jobs show/pause/resume/wake/cancel detail output is job-owned; later selection remains authoritative. Commit `7019e3ebf614c405db586437072611fe0e2c4c3d`; tests not executed. |
 | UI-048 | P1 | DONE | Source, durable-job, ResearchResult and Backup busy/success/failure copy now identifies the originating object; off-selection failures remain failures. Commits `58cf536923b828090e3118cd6765856eb62f1fc8`, `5e46b9513de885672f23940cfbd70975f2b0ded0`, `d28b58dd602bc6a1ddc1e723165e01f3e3da99ed`, `20d931c1b4795f9102482db58062f46a7b929b66`. |
 | UI-049 | P2 | DONE | Reverified 2026-08-23: Sources, Jobs, Backup and ResearchResult shared panes explicitly distinguish BACKGROUND operation ownership from CURRENT selection and suppress foreign output. |
+| UI-050 | P2 | DONE | Vanished Source/Job/Research/Snapshot selections now clear explicitly instead of silently selecting row 0; initial-load auto-selection remains. Five targeted tests added 2026-08-23, not executed. |
 
 ## Active queue
 
@@ -67,18 +68,26 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 - **Dependencies:** Runtime with repository checkout or Quality-bot execution.
 - **Last verification:** 2026-08-23.
 
-### UI-050 — Disappeared-selection refresh semantics
-- **Priority:** P2
-- **Status:** IN_PROGRESS
-- **Evidence:** Dynamic list refreshes preserve UserRole identity when present, but when the selected Source/Job/Snapshot disappears the fallback to row 0 can look like a deliberate user selection. Audit and expose the fallback transition without inventing new controls.
-- **Views/components:** Sources, Jobs, Backup, Research lists.
-- **Dependencies:** Existing list refresh code only.
-- **Last verification:** 2026-08-23.
-
 ### UI-051 — Background completion accessibility announcement
 - **Priority:** P2
-- **Status:** READY
+- **Status:** IN_PROGRESS
 - **Evidence:** Ownership fixes prevent visual misattribution, but accessible status text should also distinguish completion for an off-selection object from completion of the currently selected object.
 - **Views/components:** Shared status labels for Sources, Jobs, Backup and ResearchResult.
 - **Dependencies:** UI-048.
+- **Last verification:** 2026-08-23.
+
+### UI-052 — Selection disappearance accessibility handoff
+- **Priority:** P2
+- **Status:** READY
+- **Evidence:** UI-050 makes vanished selections visually explicit; verify focus and accessible-name behavior so screen-reader/keyboard users are not left on a stale removed item.
+- **Views/components:** Sources, Jobs, Backup, Research lists/details.
+- **Dependencies:** UI-050.
+- **Last verification:** 2026-08-23.
+
+### UI-053 — Refresh focus retention after stable identity rebuild
+- **Priority:** P2
+- **Status:** READY
+- **Evidence:** Identity-preserving refresh restores the selected object, but list rebuilds may still disturb keyboard focus/current-index semantics even when the identity remains present.
+- **Views/components:** Sources, Jobs, Backup, Research lists.
+- **Dependencies:** UI-050.
 - **Last verification:** 2026-08-23.
