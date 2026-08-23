@@ -13,6 +13,7 @@ Status values: `READY`, `IN_PROGRESS`, `BLOCKED`, `DONE`, `STALE`.
 | QG-2097-MYPY-SEMANTIC | P0 | Resolve two `_persisted_int()` mypy errors | #2771 reconfirmed `int(object)` overload plus `no-any-return` | BACKEND | BLOCKED | 2026-08-23; executed FAIL in #2771 |
 | QG-2771-QUALITY-WORKFLOW-I001 | P1 | Remove Quality-owned Ruff I001 from workflow-contract test | #2771 Ruff reported I001 at `tests/unit/test_quality_workflow_contract.py:1`; import-to-module spacing corrected in Quality commit `008647cf4e20617c70ff8f9918b3d53632c99b62` | QUALITY/GATE | IN_PROGRESS | 2026-08-23; fix landed, executed rerun pending |
 | QG-DURABLE-FS-IDENTITY-LANE | P1 | Execute new durable filesystem identity regressions independently of UI full-suite crash | Post-#2771 Backend changes added identity-bound `durable_write_bytes()`, switched `MigrationJournalStore.publish()` to it, and added POSIX parent-replacement tests in `test_durable_fs_parent_identity.py`. Quality commits `4b447d64...` + `e473cbd6...` add `test_durable_fs.py` and `test_durable_fs_parent_identity.py` to the focused Linux storage lane and protect coverage in the workflow contract. | QUALITY/GATE + BACKEND/VERIFY | IN_PROGRESS | 2026-08-23; coverage landed, first executed focused run pending |
+| QG-WINDOWS-DURABLE-WRITE-PARENT-IDENTITY | P1 | Close Windows parent-replacement TOCTOU in durable byte publication | Current `durable_write_bytes()` validates the Windows parent path, then creates the temporary by pathname and publishes via path-based `MoveFileExW`; unlike POSIX, no parent handle identity is held/revalidated across mutation. `MigrationJournalStore.publish()` now uses this primitive. Log: `docs/quality-gate/2026-08-23-windows-durable-write-parent-identity-race.md` | BACKEND + SECURITY | BLOCKED | 2026-08-23; static current-code gap confirmed on HEAD `40d3feb4...` |
 | QG-2677-MYPY-MODEL-REGISTRY | P1 | Resolve ModelResourceProfile mypy narrowing errors | #2771 reconfirmed assignment conflict plus `Real`/`int` unreachable diagnostics | BACKEND | BLOCKED | 2026-08-23; executed FAIL |
 | QG-2677-MYPY-MIGRATION-RECOVERY | P1 | Remove/reshape unreachable exhaustive recovery branch | #2771 reconfirmed unreachable final branch in `migration_recovery.py` | BACKEND | BLOCKED | 2026-08-23; executed FAIL |
 | QG-2677-MYPY-GROUNDED-CONTEXT | P1 | Propagate model revision while reconstructing context signature | #2771 reconfirmed missing `model_revision` in `ContextModelSignature` construction | BACKEND | BLOCKED | 2026-08-23; executed FAIL |
@@ -37,7 +38,7 @@ Status values: `READY`, `IN_PROGRESS`, `BLOCKED`, `DONE`, `STALE`.
 | QG-FG-013-MIGRATION-SAFETY | P1 | Regression-watch clone-first migration stack | #2771 Linux/Windows migration suites PASS on pre-durable-write-refactor head; current journal publication changed afterward and is now covered by QG-DURABLE-FS-IDENTITY-LANE | QUALITY/READ-ONLY + GATE | IN_PROGRESS | 2026-08-23; post-refactor execution pending |
 | QG-FG-014-REGRESSION | P1 | Verify active SQLite root locality | #2771 Linux locality/preflight PASS; native Windows locality probe PASS and Windows storage suite PASS; separate DB-preflight reparse-boundary defect remains tracked | QUALITY/READ-ONLY + GATE | IN_PROGRESS | 2026-08-23 |
 | QG-FG-015-REGRESSION | P1 | Regression-watch reserve/disk-pressure/write-gating/safe-mode policy | #2771 Linux focused storage and Windows storage suites PASS; projected reserve-headroom P1 remains separate open product defect | QUALITY/READ-ONLY + GATE | IN_PROGRESS | 2026-08-23 |
-| QG-RECENT-REGRESSION-SCAN | P1 | Risk-based scan of newest Backend/UI/Feature commits | #2771 surfaced productive extraction wiring regression; post-#2771 durable filesystem identity changes audited and focused coverage expanded | QUALITY/READ-ONLY | IN_PROGRESS | 2026-08-23 |
+| QG-RECENT-REGRESSION-SCAN | P1 | Risk-based scan of newest Backend/UI/Feature commits | #2771 surfaced productive extraction wiring regression; post-#2771 durable filesystem identity changes audited, focused coverage expanded, and Windows parent-identity P1 found | QUALITY/READ-ONLY | IN_PROGRESS | 2026-08-23 |
 | QG-WINDOWS-GATE-PARITY | P2 | Native Windows platform-specific storage coverage | #2771 native locality probe PASS; locality selection 5 PASS; storage regressions 109 PASS; API runtime boundaries 12 PASS | QUALITY/GATE | DONE | 2026-08-23; executed on Windows Server 2025 |
 | QG-PACKAGING-START-PATH | P2 | Verify install/start/restart/persistence path | #2771 harness successfully built/installed package but productive Core construction failed due missing extraction `chat` dependency | QUALITY/GATE + BACKEND/BLOCKER | IN_PROGRESS | 2026-08-23; executed FAIL due QG-2771-LOCAL-SMOKE-EXTRACTION-WIRING |
 | QG-CI-TIMEOUT-HEADROOM | P2 | Verify 10-minute keep-going gate headroom | #2771 full quality terminated by native UI SIGSEGV at ~65% after about 1m52s; ordinary full-suite completion still unavailable | QUALITY/GATE | READY | 2026-08-23; cannot close while pytest crashes |
@@ -77,11 +78,12 @@ Permanent logs include:
 - `docs/quality-gate/2026-08-23-database-preflight-windows-reparse-ancestor.md`
 - `docs/quality-gate/2026-08-23-run-2771-local-smoke-extraction-chat-integration.md`
 - `docs/quality-gate/2026-08-23-run-2771-linux-full-gate.md`
+- `docs/quality-gate/2026-08-23-windows-durable-write-parent-identity-race.md`
 
 ## Ready slices
 
 1. `QG-2771-LOCAL-SMOKE-EXTRACTION-WIRING` — re-read application wiring after Backend fix; verify targeted construction/extraction tests and Local smoke.
 2. `QG-DURABLE-FS-IDENTITY-LANE` — inspect first completed focused Linux storage run after `4b447d64...`/`e473cbd6...`; close only if both new durability test files execute cleanly.
-3. `QG-2771-QUALITY-WORKFLOW-I001` — inspect first post-`008647cf...` Ruff execution and close only on PASS.
-4. `QG-CI-TIMEOUT-HEADROOM` — evaluate only after pytest reaches ordinary completion rather than SIGSEGV.
-5. Keep `QG-DB-PREFLIGHT-REPARSE-ANCESTOR`, `QG-FG-015-RESERVE-HEADROOM`, and `QG-STORAGE-BOOTSTRAP-PREFLIGHT-ORDER` blocked on Backend ownership while switching immediately to independent verification work.
+3. `QG-WINDOWS-DURABLE-WRITE-PARENT-IDENTITY` — watch Backend/Security ownership; after a fix, require deterministic native Windows parent-replacement verification plus journal publication regression.
+4. `QG-2771-QUALITY-WORKFLOW-I001` — inspect first post-`008647cf...` Ruff execution and close only on PASS.
+5. `QG-CI-TIMEOUT-HEADROOM` — evaluate only after pytest reaches ordinary completion rather than SIGSEGV.
