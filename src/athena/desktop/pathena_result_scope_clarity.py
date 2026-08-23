@@ -101,6 +101,13 @@ class ResultScopeController(QObject):
         scope_label.setProperty("pathenaSelectedIdentity", selected)
         scope_label.setProperty("pathenaResultScopeMode", "list")
 
+        list_widget.setAccessibleName(label)
+        list_widget.setAccessibleDescription(text)
+        list_widget.setProperty("pathenaResultScopeText", text)
+        list_widget.setProperty("pathenaResultTotal", total)
+        list_widget.setProperty("pathenaResultVisible", visible)
+        list_widget.setProperty("pathenaSelectedIdentity", selected)
+
     @staticmethod
     def _selected_identity(item: QListWidgetItem | None) -> str:
         if item is None:
