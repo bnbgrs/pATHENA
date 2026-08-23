@@ -13,3 +13,4 @@ def test_local_smoke_initializes_and_reopens_current_schema(tmp_path: Path) -> N
     assert report.restarted_core_status == "running"
     assert report.persisted_chat_count >= 1
     assert report.database_schema_version == SCHEMA_VERSION
+    assert report.api_runtime_clean is True
