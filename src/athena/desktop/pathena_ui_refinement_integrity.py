@@ -46,6 +46,7 @@ from athena.desktop.pathena_focus_interaction_3100 import (
     UI_REFINEMENT_TASKS_3001_3100,
     apply_ui_refinements_3001_3100,
 )
+from athena.desktop.pathena_guidance_composition_6100 import apply_ui_refinements_6001_6100
 from athena.desktop.pathena_header_pressure_5500 import apply_ui_refinements_5401_5500
 from athena.desktop.pathena_inspector_responsiveness_5200 import apply_ui_refinements_5101_5200
 from athena.desktop.pathena_jobs_experience_2800 import (
@@ -249,6 +250,7 @@ def apply_complete_ui_refinements(window: QWidget) -> tuple[int, ...]:
         apply_ui_refinements_5701_5800,
         apply_ui_refinements_5801_5900,
         apply_ui_refinements_5901_6000,
+        apply_ui_refinements_6001_6100,
     )
     for refinement_pass in passes:
         applied.extend(refinement_pass(window))
@@ -293,5 +295,5 @@ def apply_complete_ui_refinements(window: QWidget) -> tuple[int, ...]:
         UI_REFINEMENT_TASKS_4401_4500,
     )
     window.setProperty("pathenaUiRefinementAppliedCount", len(normalized))
-    window.setProperty("pathenaUiRefinementTaskCount", sum(map(len, task_sets)) + 1433)
+    window.setProperty("pathenaUiRefinementTaskCount", sum(map(len, task_sets)) + 1533)
     return normalized
