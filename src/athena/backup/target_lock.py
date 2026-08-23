@@ -92,11 +92,20 @@ def _unlock(handle: BinaryIO) -> None:
     )
 
 
+def _assert_no_symlink_ancestor(path: Path) -> None:
+    for candidate in (path, *path.parents):
+        if candidate.is_symlink():
+            raise BackupTargetBusyError(
+                "Backup target path contains a symbolic-link ancestor."
+            )
+
+
 @contextmanager
 def backup_target_lock(target_root: Path) -> Iterator[None]:
     if not isinstance(target_root, Path):
         raise TypeError("Backup target root must be a pathlib.Path.")
-    if target_root.is_symlink() or not target_root.is_dir():
+    _assert_no_symlink_ancestor(target_root)
+    if not target_root.is_dir():
         raise RuntimeError(
             f"Backup target is unavailable: {target_root}"
         )
@@ -118,6 +127,15 @@ def backup_target_lock(target_root: Path) -> Iterator[None]:
         raise BackupTargetBusyError(
             "Backup target lock must not be a symbolic link."
         )
+
+    if os.name == "posix":
+        try:
+            os.fchmod(handle.fileno(), 0o600)
+        except OSError as exc:
+            handle.close()
+            raise BackupTargetBusyError(
+                "Backup target lock permissions cannot be secured."
+            ) from exc
 
     locked = False
 
