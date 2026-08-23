@@ -54,18 +54,14 @@ def _nonnegative_int(value: object, label: str) -> int:
 
 
 def _persisted_int(value: object, label: str, *, positive: bool = False) -> int:
-    if isinstance(value, bool):
+    if isinstance(value, bool) or not isinstance(value, int):
         raise SemanticSearchError(f"Persisted {label} is invalid.")
-    try:
-        normalized = int(value)
-    except (TypeError, ValueError, OverflowError) as exc:
-        raise SemanticSearchError(f"Persisted {label} is invalid.") from exc
     if positive:
-        if normalized < 1:
+        if value < 1:
             raise SemanticSearchError(f"Persisted {label} is invalid.")
-    elif normalized < 0:
+    elif value < 0:
         raise SemanticSearchError(f"Persisted {label} is invalid.")
-    return normalized
+    return value
 
 
 def _finite_component(value: object) -> float:
