@@ -98,15 +98,29 @@ class ModelSession:
             self.emitted_delta_count,
             "ModelSession emitted_delta_count",
         )
-        if self.state is ModelSessionState.CREATED and self.emitted_delta_count:
-            raise ValueError(
-                "A created ModelSession must not report emitted deltas."
-            )
-        if self.state in _TERMINAL_STATES and self.cancel_requested:
-            if self.state is not ModelSessionState.CANCELLED:
+        if self.state is ModelSessionState.CREATED:
+            if self.emitted_delta_count:
                 raise ValueError(
-                    "Only a cancelled terminal ModelSession may retain a cancel request."
+                    "A created ModelSession must not report emitted deltas."
                 )
+            if self.cancel_requested:
+                raise ValueError(
+                    "A created ModelSession must not carry a pending cancel request."
+                )
+        if self.state is ModelSessionState.CANCELLED and not self.cancel_requested:
+            raise ValueError(
+                "A cancelled ModelSession must retain its cancel request."
+            )
+        if (
+            self.state in {
+                ModelSessionState.COMPLETED,
+                ModelSessionState.FAILED,
+            }
+            and self.cancel_requested
+        ):
+            raise ValueError(
+                "Completed or failed ModelSession must not retain a cancel request."
+            )
 
     @property
     def request_key(self) -> str:
