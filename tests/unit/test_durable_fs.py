@@ -27,31 +27,38 @@ def test_posix_replace_syncs_both_changed_parent_directories(
     source = source_parent / "payload.partial"
     destination = destination_parent / "payload.bin"
     source.write_bytes(b"durable payload")
-    events: list[tuple[str, Path]] = []
+    events: list[str] = []
     real_replace = os.replace
+    real_fsync = os.fsync
 
     def tracked_replace(
         old: str | bytes | os.PathLike[str] | os.PathLike[bytes],
         new: str | bytes | os.PathLike[str] | os.PathLike[bytes],
+        *,
+        src_dir_fd: int | None = None,
+        dst_dir_fd: int | None = None,
     ) -> None:
-        events.append(("replace", Path(old)))
-        real_replace(old, new)
+        events.append("replace")
+        real_replace(
+            old,
+            new,
+            src_dir_fd=src_dir_fd,
+            dst_dir_fd=dst_dir_fd,
+        )
+
+    def tracked_fsync(descriptor: int) -> None:
+        events.append("fsync")
+        real_fsync(descriptor)
 
     monkeypatch.setattr(durable_fs, "_is_windows", lambda: False)
     monkeypatch.setattr(durable_fs.os, "replace", tracked_replace)
-    monkeypatch.setattr(
-        durable_fs,
-        "fsync_directory",
-        lambda path: events.append(("fsync", Path(path))),
-    )
+    monkeypatch.setattr(durable_fs.os, "fsync", tracked_fsync)
+
     durable_fs.durable_replace(source, destination)
+
     assert destination.read_bytes() == b"durable payload"
     assert not source.exists()
-    assert events == [
-        ("replace", source),
-        ("fsync", destination_parent),
-        ("fsync", source_parent),
-    ]
+    assert events == ["replace", "fsync", "fsync"]
 
 
 def test_posix_same_directory_replace_syncs_parent_once(
@@ -62,16 +69,21 @@ def test_posix_same_directory_replace_syncs_parent_once(
     destination = tmp_path / "payload.bin"
     source.write_bytes(b"new")
     destination.write_bytes(b"old")
-    synced: list[Path] = []
+    real_fsync = os.fsync
+    sync_count = 0
+
+    def tracked_fsync(descriptor: int) -> None:
+        nonlocal sync_count
+        sync_count += 1
+        real_fsync(descriptor)
+
     monkeypatch.setattr(durable_fs, "_is_windows", lambda: False)
-    monkeypatch.setattr(
-        durable_fs,
-        "fsync_directory",
-        lambda path: synced.append(Path(path)),
-    )
+    monkeypatch.setattr(durable_fs.os, "fsync", tracked_fsync)
+
     durable_fs.durable_replace(source, destination)
+
     assert destination.read_bytes() == b"new"
-    assert synced == [tmp_path]
+    assert sync_count == 1
 
 
 def test_replace_rejects_symlink_source(tmp_path: Path) -> None:
@@ -142,14 +154,14 @@ def test_replace_rejects_reparse_destination_boundary(
     source = tmp_path / "source"
     source.write_bytes(b"new")
     destination = tmp_path / "destination"
-    real_boundary = durable_fs._is_link_boundary
+    real_boundary = durable_fs.is_link_boundary
 
-    def is_link_boundary(path: Path) -> bool:
+    def simulated_boundary(path: Path) -> bool:
         if Path(path) == destination:
             return True
         return real_boundary(Path(path))
 
-    monkeypatch.setattr(durable_fs, "_is_link_boundary", is_link_boundary)
+    monkeypatch.setattr(durable_fs, "is_link_boundary", simulated_boundary)
 
     with pytest.raises(OSError, match="destination is a symlink or reparse point"):
         durable_fs.durable_replace(source, destination)
@@ -205,16 +217,21 @@ def test_posix_durable_mkdir_syncs_each_new_parent_entry(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     target = tmp_path / "one" / "two" / "three"
-    synced: list[Path] = []
+    real_fsync = os.fsync
+    sync_count = 0
+
+    def tracked_fsync(descriptor: int) -> None:
+        nonlocal sync_count
+        sync_count += 1
+        real_fsync(descriptor)
+
     monkeypatch.setattr(durable_fs, "_is_windows", lambda: False)
-    monkeypatch.setattr(
-        durable_fs,
-        "fsync_directory",
-        lambda path: synced.append(Path(path)),
-    )
+    monkeypatch.setattr(durable_fs.os, "fsync", tracked_fsync)
+
     durable_fs.durable_mkdir(target, parents=True, exist_ok=True)
+
     assert target.is_dir()
-    assert synced == [tmp_path, tmp_path / "one", tmp_path / "one" / "two"]
+    assert sync_count == 3
 
 
 def test_windows_route_uses_write_through_primitive(
