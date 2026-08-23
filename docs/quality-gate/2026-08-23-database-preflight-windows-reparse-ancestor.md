@@ -1,4 +1,4 @@
-# Quality Gate Incident — Active database preflight accepts Windows reparse-point ancestors
+# Quality Gate Incident — Active database preflight accepts Windows reparse boundaries
 
 Date: 2026-08-23
 
@@ -12,18 +12,24 @@ Date: 2026-08-23
 
 ## Observed HEAD
 
-Revalidated on `agent/pathena` at HEAD `d6b90f16332b89dc4248b8946f01cd7cc29b845f`.
+Revalidated on `agent/pathena` at HEAD `9534c9ae41fc24c16e6383d7ba1b01ad76f1f8ff`.
 
 Affected component:
 
 - `src/athena/storage/recovery.py`
 - `_reject_symlink_ancestors()`
 - `inspect_database_read_only()`
-- downstream `SQLiteDatabase` and `ReadOnlySQLiteDatabase` startup
+- downstream `SQLiteDatabase`, `ReadOnlySQLiteDatabase`, and safe-mode startup
 
 ## Primary defect
 
-The database preflight trust boundary rejects ancestors with `Path.is_symlink()` only:
+The database preflight trust boundary uses `Path.is_symlink()` instead of the repository's shared `is_link_boundary()` predicate at three security-sensitive boundaries:
+
+1. database-path ancestors in `_reject_symlink_ancestors()`;
+2. the canonical database path itself;
+3. existing SQLite WAL/SHM sidecars.
+
+The ancestor path currently contains:
 
 ```python
 cursor = path.parent
@@ -32,27 +38,39 @@ while True:
         raise DatabaseRecoveryRequiredError(...)
 ```
 
-The rest of the hardened storage stack uses the shared `is_link_boundary()` predicate because Windows junctions and other reparse points are not reliably represented by `Path.is_symlink()`.
+The canonical DB and sidecar paths are likewise checked with `requested.is_symlink()` and `sidecar.is_symlink()`.
 
-As a result, a local Windows junction/reparse ancestor can pass `_reject_symlink_ancestors()` and subsequently be traversed by `exists()`, `is_file()`, `resolve()` and SQLite open operations. `assert_active_state_root_local()` addresses network-backed roots, not the separate local reparse/junction trust-boundary problem.
+By contrast, `src/athena/storage/durable_fs.py::is_link_boundary()` is the established storage trust-boundary primitive. It rejects ordinary symlinks, `Path.is_junction()` where available, and Windows objects carrying `FILE_ATTRIBUTE_REPARSE_POINT`.
 
-The newly added `ReadOnlySQLiteDatabase` and `StorageSafeModeService` both inherit this preflight, increasing the importance of a consistent active-state path boundary.
+As a result, a local Windows junction or other reparse point can evade the preflight's symlink-only checks. Depending on where the boundary is placed, subsequent `exists()`, `is_dir()`, `is_file()`, `resolve()`, `os.path.lexists()` or SQLite URI-open operations can traverse the redirected object. `assert_active_state_root_local()` addresses network-backed active roots; it does not substitute for reparse/junction confinement on local storage.
+
+The scope is therefore broader than the originally recorded ancestor-only defect: the canonical DB object and WAL/SHM sidecars must use the same reparse-aware boundary semantics as their ancestors.
 
 ## Existing test gap
 
-`tests/unit/test_database_recovery_preflight.py` covers missing DBs, orphaned sidecars, healthy/corrupt/foreign/newer-schema databases and WAL recovery, but currently has no deterministic reparse/junction ancestor regression.
+`tests/unit/test_database_recovery_preflight.py` covers missing DBs, orphaned sidecars, healthy/corrupt/foreign/newer-schema databases and WAL recovery, but the current Quality audit has not found deterministic coverage for all three reparse placements:
 
-The Windows Quality lane already exists and can execute a targeted preflight regression once Backend adds it.
+- reparse/junction ancestor;
+- canonical DB object reported as a reparse boundary;
+- WAL/SHM object reported as a reparse boundary.
+
+The focused Windows Quality lane already executes database-preflight/storage-path regressions and can verify Backend coverage once it lands.
 
 ## Recommended Backend fix
 
-Use the repository's established `is_link_boundary()` semantics for the database path, every relevant ancestor, and SQLite sidecars before pathname traversal/open. Preserve the existing locality check and fail-before-SQLite-open behavior.
+Use `athena.storage.durable_fs.is_link_boundary()` consistently for:
 
-Add regression coverage proving that a simulated Windows reparse/junction ancestor is rejected before `sqlite3.connect()` is called. Where practical, also exercise the real Windows path semantics in the focused Windows lane.
+- every relevant database-path ancestor before traversal;
+- the canonical database path before existence/type/resolve/open operations;
+- WAL/SHM paths before existence/type handling.
+
+Preserve the existing active-state locality check and fail-before-`sqlite3.connect()` behavior. Avoid resolving through an object before its trust boundary has been established.
+
+Add deterministic regressions by monkeypatching the shared boundary predicate so Windows semantics are testable on all CI hosts, plus native Windows execution where practical.
 
 ## Required verification
 
-1. targeted database-preflight test proving reparse ancestor rejection before SQLite open;
+1. targeted preflight tests proving ancestor, DB-object, and sidecar reparse boundaries fail closed before SQLite open/traversal that matters;
 2. `tests/unit/test_read_only_database.py` and `tests/unit/test_storage_safe_mode.py` PASS;
 3. focused Linux storage lane PASS for the fixed slice;
 4. focused Windows storage lane PASS for native/path-boundary behavior;
