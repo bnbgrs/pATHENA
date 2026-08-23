@@ -18,6 +18,9 @@ from athena.desktop.jobs_workspace import install_jobs_workspace
 from athena.desktop.knowledge_acceptance import install_knowledge_acceptance
 from athena.desktop.knowledge_workspace import install_knowledge_workspace
 from athena.desktop.pathena_async_focus_integrity_6200 import apply_ui_refinements_6101_6200
+from athena.desktop.pathena_background_completion_accessibility import (
+    install_background_completion_accessibility,
+)
 from athena.desktop.pathena_backup_action_context_6800 import install_backup_action_context
 from athena.desktop.pathena_backup_details_provenance import (
     install_backup_details_provenance,
@@ -220,11 +223,18 @@ def main(argv: Sequence[str] | None = None) -> int:
         window,
         research_results_extension,
     )
+    background_completion_accessibility = install_background_completion_accessibility(
+        files_workspace,
+        jobs_workspace,
+        system_backup.backup,
+        research_results_extension,
+    )
     _schedule_initial_core_refreshes(controller, supervisor, scheduler_supervisor)
     heartbeat = _start_core_refresh_heartbeat(controller, supervisor, scheduler_supervisor)
     window.show()
     exit_code = app.exec()
     heartbeat.stop()
+    background_completion_accessibility.deleteLater()
     research_knowledge_transition.deleteLater()
     research_proposal_clarity.deleteLater()
     research_experience.deleteLater()
