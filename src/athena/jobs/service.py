@@ -94,13 +94,16 @@ class DurableJobService:
                 )
         except (BuiltinJobPayloadValidationError, NewsJobPayloadValidationError) as exc:
             raise InvalidJobPayloadError(str(exc)) from exc
+
+        requested_scope_json = _canonical_json(normalized_scope)
+        pinned_configuration_json = _canonical_json(normalized_configuration)
         actor_id = self.chat.ensure_local_user()
         return self.repository.create(
             job_type=normalized_job_type,
             actor_id=actor_id,
             priority=priority,
-            requested_scope_json=_canonical_json(normalized_scope),
-            pinned_configuration_json=_canonical_json(normalized_configuration),
+            requested_scope_json=requested_scope_json,
+            pinned_configuration_json=pinned_configuration_json,
             next_run_at_us=next_run_at_us,
         )
 
