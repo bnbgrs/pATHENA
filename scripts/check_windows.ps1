@@ -2,7 +2,8 @@ param(
     [switch]$RequireModel,
     [switch]$SkipRestartSmoke,
     [switch]$NoSync,
-    [string]$SmokeRoot = ""
+    [string]$SmokeRoot = "",
+    [ValidateRange(1, 10)][int]$RestartCycles = 2
 )
 
 Set-StrictMode -Version Latest
@@ -56,7 +57,8 @@ if ($LASTEXITCODE -ne 0) {
 
 if (-not $SkipRestartSmoke) {
     $smokeArgs = @(
-        "run", "--locked", "--extra", "desktop", "--no-sync", "athena-local-smoke"
+        "run", "--locked", "--extra", "desktop", "--no-sync", "athena-local-smoke",
+        "--restart-cycles", [string]$RestartCycles
     )
     if ($SmokeRoot.Trim()) {
         $resolvedSmokeRoot = [System.IO.Path]::GetFullPath($SmokeRoot.Trim())
@@ -65,6 +67,7 @@ if (-not $SkipRestartSmoke) {
     } else {
         Write-Host "Running disposable Core/API restart smoke test..."
     }
+    Write-Host "Restart verification cycles: $RestartCycles"
     & uv @smokeArgs
     if ($LASTEXITCODE -ne 0) {
         throw "pATHENA local restart smoke test failed with exit code $LASTEXITCODE."
