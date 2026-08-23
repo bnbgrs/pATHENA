@@ -4,13 +4,12 @@ from __future__ import annotations
 
 import json
 import os
-import secrets
 import stat
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
-from athena.storage.durable_fs import durable_replace, is_link_boundary
+from athena.storage.durable_fs import durable_write_bytes, is_link_boundary
 
 _MAX_MIGRATION_JOURNAL_BYTES = 64 * 1024
 
@@ -291,31 +290,7 @@ class MigrationJournalStore:
             raise MigrationJournalError(
                 "Migration journal path must not be a symlink, junction, or reparse point."
             )
-
-        temporary = parent / (
-            f".{self.path.name}.{os.getpid()}-{secrets.token_hex(8)}.partial"
-        )
         try:
-            flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
-            descriptor = os.open(temporary, flags, 0o600)
-            try:
-                try:
-                    handle = os.fdopen(descriptor, "wb", closefd=True)
-                except OSError:
-                    raise
-                descriptor = -1
-                with handle:
-                    handle.write(data)
-                    handle.flush()
-                    os.fsync(handle.fileno())
-            finally:
-                if descriptor >= 0:
-                    os.close(descriptor)
-            durable_replace(temporary, self.path)
+            durable_write_bytes(self.path, data, mode=0o600)
         except (OSError, TypeError, ValueError) as exc:
             raise MigrationJournalError("Migration journal could not be published durably.") from exc
-        finally:
-            try:
-                temporary.unlink(missing_ok=True)
-            except OSError:
-                pass
