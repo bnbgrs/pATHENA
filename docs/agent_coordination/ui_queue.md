@@ -43,28 +43,14 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 | UI-033 | P2 | STALE | Current HEAD already suppresses the static Evidence Rail as non-truthful decoration; chainState is shrink-safe, wrapped and selectable via UI-025, so extra compact styling would be redundant. |
 | UI-034 | P3 | DONE | Backup target scope now states that no target is preselected; TARGETS is read-only listing while CREATE/REGISTER use explicit folder pickers; four tests added, not executed. |
 | UI-035 | P2 | DONE | Research promotion keeps deterministic order while a quiet scope row exposes pending/resolved counts, selected proposal identity/state and evidence hint; four tests added, not executed. |
+| UI-036 | P1 | DONE | Research job filter now triggers result-scope resync; hidden rows immediately update shown/total, with a focused signal-path test added and not executed. |
+| UI-037 | P2 | DONE | Operation-failure Copy actions now join the real visual chat tab flow without synthetic message IDs; focused regression test added, not executed. |
 
 ## Active queue
 
-### UI-036 — Research filter/result-scope synchronization
-- **Priority:** P1
-- **Status:** IN_PROGRESS
-- **Evidence:** UI-031 counts hidden rows, but Research job filtering lives in the ResearchResultsExtension and does not currently trigger the generic scope controller; shown/total can become stale immediately after filter text changes.
-- **Views/components:** Research job filter, research job list, result-scope label.
-- **Dependencies:** UI-031 and existing ResearchResultsExtension filter only.
-- **Last verification:** 2026-08-23.
-
-### UI-037 — Operation-failure message keyboard flow
-- **Priority:** P2
-- **Status:** READY
-- **Evidence:** Chat operation-failure rows expose a keyboard-focusable Copy action through UI-027, but UI-032 intentionally orders only normal `chatMessage` rows; audit a predictable failure-row → next message/composer flow.
-- **Views/components:** `chatOperationFailure`, Copy action, composer.
-- **Dependencies:** UI-027/UI-032.
-- **Last verification:** 2026-08-23.
-
 ### UI-038 — Backup details mode provenance
 - **Priority:** P2
-- **Status:** READY
+- **Status:** IN_PROGRESS
 - **Evidence:** The same Backup details pane can show snapshot metadata, target-list output, verification/restore logs, or errors; users need a quiet indication of which mode produced the current content.
 - **Views/components:** Backup details/status, TARGETS, verify/deep verify/restore/create.
 - **Dependencies:** UI-026/UI-034; existing CLI output only.
