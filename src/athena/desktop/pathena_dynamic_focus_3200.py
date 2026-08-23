@@ -25,20 +25,41 @@ class DynamicFocusTarget:
 _TARGETS: tuple[DynamicFocusTarget, ...] = (
     DynamicFocusTarget("knowledgeWorkspace", "search_input", None, "knowledge search"),
     DynamicFocusTarget("knowledgeWorkspace", "browser_tabs", None, "knowledge tabs"),
-    DynamicFocusTarget("knowledgeWorkspace", "knowledge_list", None, "knowledge list"),
+    DynamicFocusTarget(
+        "knowledgeWorkspace", "knowledge_list", None, "knowledge list"
+    ),
     DynamicFocusTarget("knowledgeWorkspace", "claim_list", None, "claim list"),
     DynamicFocusTarget("knowledgeWorkspace", "review_list", None, "decision list"),
-    DynamicFocusTarget("knowledgeWorkspace", "review_accept_button", None, "accept contradiction"),
-    DynamicFocusTarget("knowledgeWorkspace", "review_reject_button", None, "reject contradiction"),
-    DynamicFocusTarget("knowledgeWorkspace", None, "knowledgeAcceptanceButton", "add reviewed items"),
+    DynamicFocusTarget(
+        "knowledgeWorkspace",
+        "review_accept_button",
+        None,
+        "accept contradiction",
+    ),
+    DynamicFocusTarget(
+        "knowledgeWorkspace",
+        "review_reject_button",
+        None,
+        "reject contradiction",
+    ),
+    DynamicFocusTarget(
+        "knowledgeWorkspace",
+        None,
+        "knowledgeAcceptanceButton",
+        "add reviewed items",
+    ),
     DynamicFocusTarget("researchWorkspace", "query_input", None, "research query"),
     DynamicFocusTarget("researchWorkspace", "start_button", None, "start research"),
     DynamicFocusTarget("researchWorkspace", "jobs", None, "research jobs"),
-    DynamicFocusTarget("researchWorkspace", "cancel_button", None, "cancel research"),
+    DynamicFocusTarget(
+        "researchWorkspace", "cancel_button", None, "cancel research"
+    ),
     DynamicFocusTarget("jobsWorkspace", "jobs", None, "durable jobs"),
     DynamicFocusTarget("jobsWorkspace", "pause_button", None, "pause job"),
     DynamicFocusTarget("jobsWorkspace", "resume_button", None, "resume job"),
-    DynamicFocusTarget("jobsWorkspace", "cancel_button", None, "cancel durable job"),
+    DynamicFocusTarget(
+        "jobsWorkspace", "cancel_button", None, "cancel durable job"
+    ),
     DynamicFocusTarget("filesWorkspace", "sources", None, "source list"),
     DynamicFocusTarget("filesWorkspace", "import_button", None, "import source"),
     DynamicFocusTarget("filesWorkspace", "process_button", None, "process source"),
@@ -67,19 +88,17 @@ class DynamicWorkspaceFocusController(QObject):
         super().__init__(window)
         self.window = window
         self._workspace_widgets: dict[str, list[QWidget]] = {}
-        self._fallbacks: dict[str, QWidget] = {}
         self._refresh_pending = False
 
     def register(self, workspace_name: str, widget: QWidget) -> None:
         widgets = self._workspace_widgets.setdefault(workspace_name, [])
         widgets.append(widget)
-        self._fallbacks.setdefault(workspace_name, widget)
         widget.installEventFilter(self)
         if isinstance(widget, QAbstractButton):
             widget.clicked.connect(
-                lambda _checked=False, source=widget, workspace=workspace_name: self._action_invoked(
-                    workspace, source
-                )
+                lambda _checked=False,
+                source=widget,
+                workspace=workspace_name: self._action_invoked(workspace, source)
             )
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
@@ -111,7 +130,7 @@ class DynamicWorkspaceFocusController(QObject):
                 return
 
     def _focus_named_fallback(self, workspace_name: str, *, exclude: QWidget) -> None:
-        for widget in self._workspace_widgets.get(workspace_name, ()): 
+        for widget in self._workspace_widgets.get(workspace_name, ()):
             if widget is exclude or not self._candidate(widget):
                 continue
             widget.setFocus(Qt.FocusReason.OtherFocusReason)
@@ -191,5 +210,7 @@ def apply_ui_refinements_3101_3200(window: QWidget) -> tuple[int, ...]:
     controller.refresh_tab_order()
     window.setProperty("pathenaDynamicWorkspaceFocusController", controller)
     window.setProperty("pathenaDynamicFocusTaskCount", len(applied))
-    window.setProperty("pathenaDynamicFocusTargetCount", len(applied) // len(_DIMENSIONS))
+    window.setProperty(
+        "pathenaDynamicFocusTargetCount", len(applied) // len(_DIMENSIONS)
+    )
     return tuple(applied)
