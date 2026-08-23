@@ -46,6 +46,7 @@ def test_pathena_secondary_context_starts_collapsed_and_is_user_controlled() -> 
         inspector = window.findChild(QFrame, "inspector")
         assert inspector is not None
         assert inspector.isHidden()
+        assert inspector.width() == 340
         assert window.details_button.text() == "Details"
         assert window.details_button.isChecked() is False
 
@@ -59,6 +60,12 @@ def test_pathena_secondary_context_starts_collapsed_and_is_user_controlled() -> 
 
         assert inspector.isHidden() is False
         assert window.evidence_chain.isHidden() is False
+
+        window.navigation.setCurrentRow(1)
+        app.processEvents()
+        assert window.details_button.isHidden()
+        assert window.details_button.isChecked() is False
+        assert inspector.isHidden()
     finally:
         window.close()
         app.processEvents()
@@ -68,11 +75,18 @@ def test_pathena_hides_unwired_attach_placeholder_and_humanizes_context_copy() -
     app = _app()
     window = PathenaMainWindow(api_controller=None)
     try:
-        attach_labels = [
-            label for label in window.findChildren(QLabel) if label.text() == "ATTACH"
-        ]
-        assert attach_labels
-        assert all(label.isHidden() for label in attach_labels)
+        hidden_labels = {
+            label.text(): label
+            for label in window.findChildren(QLabel)
+            if label.text()
+            in {
+                "ATTACH",
+                "BACKGROUND WORK",
+                "Open Jobs for background work status and controls.",
+            }
+        }
+        assert "ATTACH" in hidden_labels
+        assert all(label.isHidden() for label in hidden_labels.values())
 
         visible_copy = {label.text() for label in window.findChildren(QLabel)}
         assert "KNOWLEDGE FROM THIS CHAT" in visible_copy
