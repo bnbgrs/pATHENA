@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import json
 import math
 import uuid
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
 
 class SourceAnalysisState(str, Enum):
@@ -64,6 +66,34 @@ def _require_sha256(value: object, label: str) -> None:
         raise TypeError(f"{label} must be bytes.")
     if len(value) != 32:
         raise ValueError(f"{label} must be a 32-byte SHA-256 digest.")
+
+
+def _reject_json_constant(value: str) -> None:
+    raise ValueError(f"Non-standard JSON constant {value!r} is not permitted.")
+
+
+def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"Duplicate JSON object key {key!r} is not permitted.")
+        result[key] = value
+    return result
+
+
+def _require_json_object(value: object, label: str) -> None:
+    if not isinstance(value, str):
+        raise TypeError(f"{label} must be JSON text.")
+    try:
+        parsed = json.loads(
+            value,
+            parse_constant=_reject_json_constant,
+            object_pairs_hook=_unique_json_object,
+        )
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise ValueError(f"{label} must contain strict JSON.") from exc
+    if not isinstance(parsed, dict):
+        raise ValueError(f"{label} must contain a JSON object.")
 
 
 def _require_unit_interval(value: object, label: str) -> float:
@@ -195,6 +225,7 @@ class SourceAnalysisArtifact:
         _require_int(self.level, "Source analysis artifact level")
         _require_int(self.ordinal, "Source analysis artifact ordinal")
         _require_nonempty_text(self.content_json, "Source analysis artifact content_json")
+        _require_json_object(self.content_json, "Source analysis artifact content_json")
         _require_sha256(self.content_hash, "Source analysis artifact content_hash")
         _require_int(self.created_at_us, "Source analysis artifact created_at_us")
 
