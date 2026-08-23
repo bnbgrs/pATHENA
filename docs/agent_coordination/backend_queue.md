@@ -213,3 +213,19 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 - Components: `src/athena/storage/locality.py`, `src/athena/storage/runtime.py`, `src/athena/storage/recovery.py`, targeted locality/preflight tests.
 - Dependencies: none.
 - Last verification: 2026-08-23; targeted tests added. Local execution attempted but blocked because the isolated runtime could not resolve `github.com`; no test pass claimed.
+
+### BE-027 — Establish clone-migration safety metadata and free-space contract
+- Priority: P1
+- Status: DONE
+- Evidence: FG-013 audit confirmed that Beta 03 requires explicit migration metadata plus DB size + 25% + 512 MiB + emergency-reserve free-space preflight. Library-neutral contracts now encode these invariants with integer-only arithmetic and fail-closed validation.
+- Components: `src/athena/storage/migration_safety.py`, `tests/unit/test_migration_safety.py`, migration reconciliation note.
+- Dependencies: none.
+- Last verification: 2026-08-23; targeted tests added but not executed because the isolated runtime cannot resolve `github.com`.
+
+### BE-028 — Implement clone/journal migration coordinator before live schema mutation
+- Priority: P1
+- Status: READY
+- Evidence: FG-013 audit shows `SQLiteDatabase.start()` opens the live database and `initialize_schema()` advances historical schemas on that live connection, while Beta 03 requires clone-first migration, migration journal, exclusive lock, integrity verification, durable activation and rollback retention.
+- Components: storage migration coordinator, SQLite Online Backup clone path, migration journal/lock, database startup integration, targeted crash/recovery tests.
+- Dependencies: BE-027 complete. The safety coordinator can be implemented independently of the later Alembic-vs-custom-executor architecture decision.
+- Last verification: 2026-08-23 against current `database.py`, `schema.py` and Beta 03 sections 193–209.
