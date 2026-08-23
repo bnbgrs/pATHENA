@@ -68,7 +68,12 @@ def _positive_finite_number(value: object, *, setting_name: str) -> float:
         raise ConfigurationError(
             f"{setting_name} must be a finite number greater than zero."
         )
-    parsed = float(value)
+    try:
+        parsed = float(value)
+    except OverflowError as exc:
+        raise ConfigurationError(
+            f"{setting_name} must be a finite number greater than zero."
+        ) from exc
     if not math.isfinite(parsed) or parsed <= 0:
         raise ConfigurationError(
             f"{setting_name} must be a finite number greater than zero."
@@ -82,7 +87,7 @@ def _parse_positive_float(raw_value: str | None, *, setting_name: str, default: 
         return _positive_finite_number(default, setting_name=setting_name)
     try:
         parsed = float(value)
-    except ValueError as exc:
+    except (OverflowError, ValueError) as exc:
         raise ConfigurationError(
             f"{setting_name} must be a finite number greater than zero, got {value!r}."
         ) from exc
