@@ -70,22 +70,19 @@ class DurableJobService:
         pinned_configuration: Mapping[str, Any] | None = None,
         next_run_at_us: int | None = None,
     ) -> JobRecord:
-        if job_type not in self.BUILTIN_JOB_TYPES:
-            raise UnsupportedJobTypeError(
-                f"Unregistered ATHENA job type {job_type!r}."
-            )
+        normalized_job_type = self._registered_job_type(job_type)
         _job_priority(priority)
         _optional_nonnegative_int(next_run_at_us, "next_run_at_us")
         try:
-            if job_type in {NEWS_JOB_TYPE, NEWS_PERIOD_JOB_TYPE}:
+            if normalized_job_type in {NEWS_JOB_TYPE, NEWS_PERIOD_JOB_TYPE}:
                 validate_news_job_payload(
-                    job_type,
+                    normalized_job_type,
                     requested_scope=requested_scope,
                     pinned_configuration=pinned_configuration,
                 )
             else:
                 validate_builtin_job_payload(
-                    job_type,
+                    normalized_job_type,
                     requested_scope=requested_scope,
                     pinned_configuration=pinned_configuration,
                 )
@@ -93,7 +90,7 @@ class DurableJobService:
             raise InvalidJobPayloadError(str(exc)) from exc
         actor_id = self.chat.ensure_local_user()
         return self.repository.create(
-            job_type=job_type,
+            job_type=normalized_job_type,
             actor_id=actor_id,
             priority=priority,
             requested_scope_json=_canonical_json(requested_scope),
@@ -108,13 +105,10 @@ class DurableJobService:
         limit: int = 16,
     ) -> tuple[JobRecord, ...]:
         """Return nonterminal jobs for one registered durable job type."""
-        if job_type not in self.BUILTIN_JOB_TYPES:
-            raise UnsupportedJobTypeError(
-                f"Unregistered ATHENA job type {job_type!r}."
-            )
+        normalized_job_type = self._registered_job_type(job_type)
         _positive_int(limit, "limit")
         return self.repository.list_nonterminal_by_type(
-            job_type=job_type,
+            job_type=normalized_job_type,
             limit=limit,
         )
 
@@ -224,15 +218,10 @@ class DurableJobService:
     ) -> tuple[JobRecord, ...]:
         _nonnegative_int(now_us, "now_us")
         _positive_int(limit, "limit")
-        if job_types is not None:
-            unknown = set(job_types) - self.BUILTIN_JOB_TYPES
-            if unknown:
-                raise UnsupportedJobTypeError(
-                    "Unregistered ATHENA job type(s): " + ", ".join(sorted(unknown))
-                )
+        normalized_job_types = self._registered_job_type_filter(job_types)
         return self.repository.list_eligible_queued(
             now_us=now_us,
-            job_types=job_types,
+            job_types=normalized_job_types,
             limit=limit,
         )
 
@@ -370,6 +359,29 @@ class DurableJobService:
             lease_token=lease_token,
             now_us=now_us,
         )
+
+    def _registered_job_type(self, value: object) -> str:
+        job_type = _canonical_text(value, "job_type")
+        if job_type not in self.BUILTIN_JOB_TYPES:
+            raise UnsupportedJobTypeError(
+                f"Unregistered ATHENA job type {job_type!r}."
+            )
+        return job_type
+
+    def _registered_job_type_filter(
+        self,
+        value: object,
+    ) -> set[str] | frozenset[str] | None:
+        if value is None:
+            return None
+        if not isinstance(value, (set, frozenset)):
+            raise InvalidJobPayloadError(
+                "job_types must be a set or frozenset of registered job type strings."
+            )
+        normalized: set[str] = set()
+        for item in value:
+            normalized.add(self._registered_job_type(item))
+        return normalized
 
 
 def _canonical_json(value: Mapping[str, Any] | None) -> str | None:
