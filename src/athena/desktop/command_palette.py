@@ -84,6 +84,10 @@ class CommandPaletteController(QObject):
         self.dialog = QDialog(window)
         self.dialog.setObjectName("commandPalette")
         self.dialog.setWindowTitle("pATHENA Commands")
+        self.dialog.setAccessibleName("pATHENA commands")
+        self.dialog.setAccessibleDescription(
+            "Search and run commands already available in the current pATHENA desktop."
+        )
         self.dialog.setModal(False)
         self.dialog.setWindowFlag(Qt.WindowType.FramelessWindowHint, True)
         self.dialog.setMinimumWidth(560)
@@ -111,6 +115,10 @@ class CommandPaletteController(QObject):
         self.help_dialog = QDialog(window)
         self.help_dialog.setObjectName("helpDialog")
         self.help_dialog.setWindowTitle("pATHENA Help")
+        self.help_dialog.setAccessibleName("pATHENA help")
+        self.help_dialog.setAccessibleDescription(
+            "Read-only guide to current pATHENA capabilities and keyboard shortcuts."
+        )
         self.help_dialog.setModal(False)
         self.help_dialog.resize(820, 680)
         self.help_text = QPlainTextEdit(self.help_dialog)
@@ -157,6 +165,7 @@ class CommandPaletteController(QObject):
         header = QHBoxLayout()
         title = QLabel("Commands")
         title.setObjectName("commandPaletteTitle")
+        title.setBuddy(self.query)
         hint = QLabel("Ctrl K")
         hint.setObjectName("commandPaletteHint")
         header.addWidget(title)
@@ -178,6 +187,7 @@ class CommandPaletteController(QObject):
         header = QHBoxLayout()
         title = QLabel("Help & capabilities")
         title.setObjectName("helpDialogTitle")
+        title.setBuddy(self.help_text)
         hint = QLabel("F1")
         hint.setObjectName("commandPaletteHint")
         header.addWidget(title)
@@ -191,6 +201,7 @@ class CommandPaletteController(QObject):
         )
         intro.setObjectName("helpDialogIntro")
         intro.setWordWrap(True)
+        intro.setBuddy(self.help_text)
         layout.addWidget(intro)
         layout.addWidget(self.help_text, 1)
 
