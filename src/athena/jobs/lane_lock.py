@@ -30,6 +30,26 @@ def _reject_symlink_ancestors(path: Path, *, lane_name: str) -> None:
         cursor = parent
 
 
+def _assert_handle_matches_path(
+    path: Path,
+    handle: BinaryIO,
+    *,
+    lane_name: str,
+) -> None:
+    """Fail closed if the pathname was swapped after the lock file was opened."""
+    try:
+        path_stat = path.stat(follow_symlinks=False)
+        handle_stat = os.fstat(handle.fileno())
+    except OSError as exc:
+        raise SchedulerLaneOwnershipError(
+            f"Scheduler {lane_name} lane lock identity cannot be verified."
+        ) from exc
+    if path.is_symlink() or not os.path.samestat(path_stat, handle_stat):
+        raise SchedulerLaneOwnershipError(
+            f"Scheduler {lane_name} lane lock pathname changed during acquisition."
+        )
+
+
 class SchedulerLaneProcessLock:
     """Hold one OS-released advisory lock for a scheduler process lifetime."""
 
@@ -88,14 +108,18 @@ class SchedulerLaneProcessLock:
             ) from exc
 
         try:
-            if path.is_symlink():
-                raise SchedulerLaneOwnershipError(
-                    f"Scheduler {normalized_lane} lane lock became a symlink while opening."
-                )
+            _assert_handle_matches_path(
+                path,
+                handle,
+                lane_name=normalized_lane,
+            )
             handle.seek(0, os.SEEK_END)
             if handle.tell() == 0:
                 handle.write(b"\0")
                 handle.flush()
+                os.fsync(handle.fileno())
+            if os.name == "posix":
+                os.fchmod(handle.fileno(), 0o600)
             handle.seek(0)
         except SchedulerLaneOwnershipError:
             handle.close()
@@ -108,6 +132,14 @@ class SchedulerLaneProcessLock:
 
         try:
             _lock_nonblocking(handle)
+            _assert_handle_matches_path(
+                path,
+                handle,
+                lane_name=normalized_lane,
+            )
+        except SchedulerLaneOwnershipError:
+            handle.close()
+            raise
         except OSError as exc:
             handle.close()
             raise SchedulerLaneOwnershipError(
