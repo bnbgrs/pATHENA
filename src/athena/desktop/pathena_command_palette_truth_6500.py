@@ -98,7 +98,8 @@ class CommandPaletteTruthController(QObject):
             item = self.palette.results.item(index)
             if item is not None and item.data(256) is True:
                 available_count += 1
-        description = f"{count} commands shown. {available_count} available."
+        noun = "command" if count == 1 else "commands"
+        description = f"{count} {noun} shown. {available_count} available."
         if 0 <= row < len(self.palette._filtered_commands):
             command = self.palette._filtered_commands[row]
             available, _explanation = self._availability(command.label)
