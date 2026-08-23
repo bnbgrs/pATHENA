@@ -9,6 +9,22 @@ from athena.model.domain import (
 )
 
 
+def _model_info(**overrides: object) -> ModelInfo:
+    values: dict[str, object] = {
+        "provider": "provider",
+        "backend_model_id": "model",
+        "display_name": "Model",
+        "model_type": "llm",
+        "context_capacity": None,
+        "quantization": None,
+        "loaded": False,
+        "vision": None,
+        "trained_for_tool_use": None,
+    }
+    values.update(overrides)
+    return ModelInfo(**values)  # type: ignore[arg-type]
+
+
 def test_model_capabilities_default_to_unknown_without_provider_evidence() -> None:
     capabilities = ModelCapabilities()
 
@@ -37,19 +53,45 @@ def test_model_capabilities_preserve_supported_unsupported_and_unknown() -> None
 
 
 def test_model_info_defaults_to_unknown_capabilities_for_legacy_callers() -> None:
-    info = ModelInfo(
-        provider="provider",
-        backend_model_id="model",
-        display_name="Model",
-        model_type="llm",
-        context_capacity=None,
-        quantization=None,
-        loaded=False,
-        vision=None,
-        trained_for_tool_use=None,
+    assert _model_info().capabilities == ModelCapabilities()
+
+
+def test_model_info_normalizes_observed_discovery_capabilities() -> None:
+    info = _model_info(
+        context_capacity=8192,
+        vision=False,
+        trained_for_tool_use=True,
     )
 
-    assert info.capabilities == ModelCapabilities()
+    assert info.capabilities.context_length is ModelCapabilitySupport.SUPPORTED
+    assert info.capabilities.vision is ModelCapabilitySupport.UNSUPPORTED
+    assert info.capabilities.tool_calls is ModelCapabilitySupport.SUPPORTED
+    assert info.capabilities.audio is ModelCapabilitySupport.UNKNOWN
+
+
+def test_model_info_preserves_unrelated_explicit_capabilities() -> None:
+    info = _model_info(
+        capabilities=ModelCapabilities(
+            chat=ModelCapabilitySupport.SUPPORTED,
+            streaming=ModelCapabilitySupport.SUPPORTED,
+            audio=ModelCapabilitySupport.UNSUPPORTED,
+        )
+    )
+
+    assert info.capabilities.chat is ModelCapabilitySupport.SUPPORTED
+    assert info.capabilities.streaming is ModelCapabilitySupport.SUPPORTED
+    assert info.capabilities.audio is ModelCapabilitySupport.UNSUPPORTED
+    assert info.capabilities.vision is ModelCapabilitySupport.UNKNOWN
+
+
+def test_model_info_rejects_capability_that_contradicts_provider_metadata() -> None:
+    with pytest.raises(ValueError, match="vision capability contradicts"):
+        _model_info(
+            vision=False,
+            capabilities=ModelCapabilities(
+                vision=ModelCapabilitySupport.SUPPORTED,
+            ),
+        )
 
 
 @pytest.mark.parametrize(
