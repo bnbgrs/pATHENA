@@ -70,10 +70,32 @@ def _canonical_json(value: object) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"), allow_nan=False)
 
 
+def _reject_json_constant(value: str) -> None:
+    raise ValueError(f"Non-standard JSON constant {value!r} is not permitted.")
+
+
+def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"Duplicate JSON object key {key!r} is not permitted.")
+        result[key] = value
+    return result
+
+
 def _json_object(value: str | None) -> dict[str, Any]:
     if value is None:
         return {}
-    parsed = json.loads(value)
+    if not isinstance(value, str):
+        raise NewsError("Expected durable JSON text.")
+    try:
+        parsed = json.loads(
+            value,
+            parse_constant=_reject_json_constant,
+            object_pairs_hook=_unique_json_object,
+        )
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise NewsError("Expected strict durable JSON object.") from exc
     if not isinstance(parsed, dict):
         raise NewsError("Expected durable JSON object.")
     return parsed
