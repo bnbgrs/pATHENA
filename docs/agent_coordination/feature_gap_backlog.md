@@ -1,117 +1,84 @@
 # pATHENA Feature-Gap Backlog
 
 Central hand-off between the Feature-Gap Scout and BACKEND, UI, and QUALITY owners.
-
-Status vocabulary: `FOUND` · `PARTIAL` · `READY` · `BLOCKED` · `IN_PROGRESS` · `IMPLEMENTED` · `VERIFIED` · `STALE`
+Status vocabulary: `FOUND` · `PARTIAL` · `READY` · `BLOCKED` · `IN_PROGRESS` · `IMPLEMENTED` · `VERIFIED` · `STALE`.
+Last refresh: 2026-08-23.
 
 ## Findings
 
-### FG-001 — Complete the PrimaryModelProvider lifecycle/control contract
-- **Source:** Beta 08 sections 6, 8–11.
+### FG-001 — Complete PrimaryModelProvider lifecycle/control contract
 - **Ownership / Priority / Status:** BACKEND · P1 · BLOCKED
-- **Current state:** Core management protocol exists; LM Studio adapter completion remains pending in a shared active file.
-- **Verification:** Re-read 2026-08-23.
+- Core management protocol exists; LM Studio adapter completion remains in a shared active file.
 
-### FG-002 — Add the Beta ModelRegistry / active-primary-model runtime layer
-- **Source:** Beta 08 sections 17–20.
+### FG-002 — Beta ModelRegistry / active-primary-model runtime
 - **Ownership / Priority / Status:** BACKEND · P1 · IMPLEMENTED
-- **Current state:** Core ModelRegistry provides provider-scoped identity, capability eligibility, infrastructure exclusion and exactly one active primary.
-- **Verification:** Implemented 2026-08-23; tests added, no pass claimed.
+- Core ModelRegistry provides provider-scoped identity, capability eligibility, infrastructure exclusion and exactly one active primary.
 
-### FG-003 — Represent all normative provider health states
-- **Source:** Beta 08 section 11.
+### FG-003 — Normative provider health states
 - **Ownership / Priority / Status:** BACKEND · P2 · IMPLEMENTED
-- **Current state:** unavailable, starting, ready, busy, degraded and error are represented.
-- **Verification:** 2026-08-23.
+- unavailable, starting, ready, busy, degraded and error are represented.
 
 ### FG-004 — Explicit provider capability representation
-- **Source:** Beta 08 sections 10, 15, 18–20.
 - **Ownership / Priority / Status:** BACKEND · P1 · IMPLEMENTED
-- **Current state:** supported, unsupported and unknown remain distinct across provider capabilities.
-- **Verification:** 2026-08-23.
+- supported / unsupported / unknown remain distinct.
 
-### FG-005 — Enforce source diversity during Context Builder selection
-- **Source:** Beta 09 section 25 and test 67.
+### FG-005 — Context Builder source diversity
 - **Ownership / Priority / Status:** BACKEND · P1 · IMPLEMENTED
-- **Current state:** rank 1 preserved, near duplicates deferred, contradiction-bearing Claims exempt.
-- **Verification:** 2026-08-23.
+- rank 1 preserved, near duplicates deferred, contradiction-bearing Claims exempt.
 
 ### FG-006 — Provider-aware dynamic token accounting
-- **Source:** Beta 09 sections 5–9 and tests 60–61.
 - **Ownership / Priority / Status:** BACKEND · P1 · STALE
-- **Current state:** MemoryAugmentedChatService already performs capacity-aware budgeting and rendered-input convergence.
-- **Verification:** 2026-08-23.
+- MemoryAugmentedChatService already performs provider-capacity-aware budgeting and rendered-input convergence.
 
-### FG-007 — Enforce model load ownership before automatic unload
-- **Source:** Beta 08 section 21 and test 73.
+### FG-007 — Model load ownership before automatic unload
 - **Ownership / Priority / Status:** BACKEND · P1 · IMPLEMENTED
-- **Current state:** only explicitly ATHENA-owned loads may auto-unload; external/unknown ownership is preserved.
-- **Verification:** 2026-08-23.
+- only explicitly ATHENA-owned loads may auto-unload; external/unknown ownership is preserved.
 
-### FG-008 — Preserve provider-observed model revision in ModelSignature
-- **Source:** Beta 08 sections 15 and 31–35.
+### FG-008 — Provider-observed model revision in ModelSignature
 - **Ownership / Priority / Status:** BACKEND · P1 · IMPLEMENTED
-- **Current state:** optional exact provider revision participates in signature identity and ContextPackage propagation; unknown is never inferred.
-- **Verification:** 2026-08-23.
+- exact optional provider revision participates in signature identity and ContextPackage propagation without inference.
 
-### FG-009 — Introduce a first-class ModelSession / generation execution context
-- **Source:** Beta 08 sections 27–30 and 50–52.
+### FG-009 — First-class ModelSession / generation execution context
 - **Ownership / Priority / Status:** BACKEND · P1 · PARTIAL
-- **Current state:** Core ModelSession owns request identity, signature/budget binding, cancellation and late-result discard. Provider request binding remains.
-- **Dependencies:** provider request-ID plumbing and safe adapter ownership window.
-- **Verification:** 2026-08-23.
+- Core ModelSession owns request identity, signature/budget binding, cancellation and late-result discard. Exact provider request binding remains.
 
-### FG-010 — Normalize provider backend failure taxonomy
-- **Source:** Beta 08 sections 45–49 and 52.
+### FG-010 — Normalized provider failure taxonomy
 - **Ownership / Priority / Status:** BACKEND · P1 · PARTIAL
-- **Current state:** Core failure kinds/retry classes exist; LM Studio mapping remains.
-- **Dependencies:** safe adapter ownership window.
-- **Verification:** 2026-08-23.
+- Core failure kinds/retry classes exist; LM Studio mapping remains blocked by shared adapter ownership.
 
-### FG-011 — Complete the Beta model-management surface and real switch/load flow
-- **Source:** Beta 08 model management requirements.
+### FG-011 — Complete model-management surface and real switch/load flow
 - **Ownership / Priority / Status:** MIXED · P1 · BLOCKED
-- **Current state:** desktop discovery/selection exists but full Core-owned load/unload/switch orchestration is incomplete.
-- **Dependencies:** FG-001, FG-008, FG-009 and later UI wiring.
-- **Verification:** 2026-08-23.
+- Backend load/unload/switch orchestration remains incomplete; UI must not invent lifecycle semantics.
 
-### FG-012 — Carry and enforce Protection Scope through retrieval-to-context assembly
-- **Source:** Beta 09 sections 24, 49–51 and test 65.
+### FG-012 — Protection Scope through retrieval-to-context assembly
 - **Ownership / Priority / Status:** BACKEND · P1 · IN_PROGRESS
-- **Current state:** protected runtime retrieval/context and pre-provider execution guard exist; explicit protected generation/persistence policy remains.
-- **Dependencies:** orchestration integration without protected plaintext leakage to unprotected persistence.
-- **Verification:** 2026-08-23.
+- protected runtime retrieval/context and pre-provider execution guard exist; explicit protected generation/persistence policy remains.
 
-### FG-013 — Reconcile the v1 migration engine with Beta 03's SQLAlchemy/Alembic contract
+### FG-013 — Reconcile migration engine with Beta 03 architecture
 - **Source:** Beta 03 section 3 and sections 193–209.
 - **Ownership / Priority / Status:** BACKEND · P1 · PARTIAL
-- **Evidence / code paths:** `SQLiteDatabase.start()` still invokes legacy live `initialize_schema()` migration. `docs/agent_coordination/migration_engine_reconciliation.md` records the architecture divergence.
-- **Current state:** A library-neutral clone-first safety stack is now implemented independently of startup: explicit MigrationDescriptor/free-space preflight, SQLite Online Backup clone, durable external phase journal, exclusive cross-process migration lock, full integrity/FK/version verification, rollback-preserving activation and crash/recovery boundaries. Quality-reported Windows junction/reparse handling in the new migration path was fixed using the shared storage trust-boundary predicate. Normal DB startup is not yet routed through the coordinator. Alembic-vs-custom revision execution remains an explicit architecture decision rather than a hidden maintenance change.
-- **Desired state:** integrate a candidate-only schema executor and route preflight-detected legacy schemas through the clone coordinator before opening the active DB for mutation; retain rollback candidate and recovery journal semantics. Separately resolve Alembic-vs-custom executor at architecture/spec level.
-- **Dependencies:** BE-027 DONE; BE-028 IN_PROGRESS; BE-029 reserve lifecycle production integration required before migration preflight can account for the real physical reserve.
-- **Verification:** 2026-08-23; targeted migration safety/clone/journal/lock/activation/coordinator tests added but not executed because the isolated runtime cannot resolve github.com.
+- **Current state:** The normal `SQLiteDatabase.start()` path still performs legacy live `initialize_schema()` migration. A complete library-neutral safety stack now exists outside startup: read-only migration planning, versioned descriptors and exact free-space preflight, SQLite Online Backup candidate creation, durable external phase journal, exclusive cross-process migration lock, candidate-only schema execution, full WAL checkpoint + DELETE-mode normalization, integrity/FK/version verification, rollback-preserving activation, orphan/journal recovery boundaries and Windows symlink/junction/reparse protection. Quality-reported reparse handling in the new clone path was fixed with targeted regressions.
+- **Desired state:** route preflight-detected legacy schemas through this coordinator before opening active SQLite for mutation. Separately decide Alembic-vs-custom revision execution as an explicit architecture/spec decision.
+- **Dependencies:** BE-028 IN_PROGRESS; BE-029 reserve bootstrap integration required so migration preflight accounts for the real physical reserve; BE-031/BE-032 DONE.
+- **Verification:** 2026-08-23; targeted tests added, not executed because isolated runtime cannot resolve `github.com`.
 
-### FG-014 — Reject network-backed active state roots before opening SQLite
-- **Source:** Beta 03 section 7.
+### FG-014 — Reject network-backed active state roots before SQLite open
 - **Ownership / Priority / Status:** BACKEND · P1 · IMPLEMENTED
-- **Current state:** Windows UNC/mapped remote roots and known Linux network filesystems are refused before RuntimeLayout mutation and SQLite preflight; backup/archive/projection roots remain allowed separately.
-- **Verification:** 2026-08-23; targeted tests added, no pass claimed.
+- Windows UNC/mapped remote roots and known Linux network filesystems are refused before RuntimeLayout mutation and SQLite preflight. Remote backup/archive/projection remain separate supported targets.
 
-### FG-015 — Provision physical Emergency Reserve and disk-pressure policy
+### FG-015 — Physical Emergency Reserve and disk-pressure policy
 - **Source:** Beta 03 emergency reserve/disk-pressure sections and Emergency Reserve Test 270.
 - **Ownership / Priority / Status:** BACKEND · P1 · IN_PROGRESS
-- **Evidence / code paths:** `src/athena/storage/emergency_reserve.py` implements non-sparse physical allocation at `state_root/reserve/emergency.reserve`, exact default sizing `max(256 MiB, min(1 GiB, 1% volume))`, durable persistence, explicit release and a lifecycle service. `src/athena/storage/disk_pressure.py` implements WARNING/CRITICAL/EMERGENCY thresholds with integer-only arithmetic and exposes reserve-release/noncritical-write/read-only-safe-mode decisions.
-- **Current state:** storage primitives and targeted tests exist. Application bootstrap does not yet provision the reserve before DatabaseService, and there is no side-effect controller that releases it only at EMERGENCY and gates noncritical writes.
-- **Desired state:** RuntimeLayout -> EmergencyReserveService -> migration/database startup ordering; then connect disk-pressure assessment to reserve release and write gating without deleting canonical data.
-- **Dependencies:** BE-029/BE-030.
-- **Verification:** 2026-08-23; targeted tests added, not executed in connector runtime.
+- **Current state:** `EmergencyReserveStore` and lifecycle service implement non-sparse physical allocation at `state_root/reserve/emergency.reserve`, exact default sizing `max(256 MiB, min(1 GiB, 1% volume))`, durable persistence, path/reparse safety, explicit release and normal-shutdown retention. `DiskPressureController` implements integer-only WARNING/CRITICAL/EMERGENCY thresholds, releases only the reserve at EMERGENCY, immediately reassesses pressure, and never deletes canonical data.
+- **Desired state:** integrate Core bootstrap ordering `RuntimeLayout -> EmergencyReserve -> migration/database`; then connect the pressure decision to actual write gating/read-only safe mode. Do not make existing test suites physically allocate >=256 MiB per application start; establish dependency injection first.
+- **Dependencies:** BE-029/BE-030/BE-033.
+- **Verification:** 2026-08-23; targeted tests added, not executed.
 
 ## Handoff notes
 - Re-read current HEAD and affected files before every mutation.
 - Preserve `unknown` versus `unsupported`; never invent provider facts.
-- Provider lifecycle adapter work remains separate while the LM Studio adapter is concurrently active.
-- FG-011 remains blocked until backend lifecycle/switch semantics stabilize; UI must not invent load semantics.
-- FG-012 requires explicit protected generation persistence policy; never route protected cleartext into ordinary indexes/logs/run snapshots/unprotected assistant persistence.
-- FG-013 clone/journal safety can proceed independently, but Alembic-vs-custom executor requires an explicit architecture decision.
-- FG-014 applies only to active state/database roots; remote archive/backup targets remain supported.
-- FG-015 reserve release is only an emergency recovery measure; normal shutdown must retain the reserve.
+- Shared provider/generation files remain ownership-sensitive.
+- FG-012 must never route protected cleartext into ordinary indexes/logs/run snapshots/unprotected assistant persistence.
+- FG-013 clone/journal safety is independent of the Alembic-vs-custom architecture decision.
+- FG-014 applies only to active state/database roots.
+- FG-015 reserve release is an emergency recovery measure; normal shutdown must retain it.
