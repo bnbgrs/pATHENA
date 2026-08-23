@@ -38,8 +38,10 @@ def reconcile_jobs_after_restore(
     material are always removed.
     """
 
-    if now_us < 0:
-        raise ValueError("Restore reconciliation timestamp must not be negative.")
+    if isinstance(now_us, bool) or not isinstance(now_us, int) or now_us < 0:
+        raise ValueError(
+            "Restore reconciliation timestamp must be a non-negative integer."
+        )
 
     if connection.in_transaction:
         raise RuntimeError(
