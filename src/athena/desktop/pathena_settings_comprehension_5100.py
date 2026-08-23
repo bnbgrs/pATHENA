@@ -14,6 +14,7 @@ from typing import cast
 from PySide6.QtCore import QObject, QTimer
 from PySide6.QtWidgets import (
     QAbstractButton,
+    QLabel,
     QSlider,
     QSpinBox,
     QWidget,
@@ -28,6 +29,13 @@ _ACCESSIBLE_NAMES = {
     "thinking_checkbox": "Thinking and reasoning",
 }
 
+_LABEL_BUDDIES = {
+    "CTX": "context_spin",
+    "MAX OUTPUT TOKENS": "max_output_spin",
+    "TEMPERATURE": "temperature_spin",
+    "THINKING": "thinking_checkbox",
+}
+
 
 class SettingsComprehensionController(QObject):
     """Mirror selected-model facts into concise, truthful settings guidance."""
@@ -36,6 +44,7 @@ class SettingsComprehensionController(QObject):
         super().__init__(window)
         self.window = window
         self._last_signature: tuple[object, ...] | None = None
+        self._bind_visible_labels()
         self._timer = QTimer(self)
         self._timer.setInterval(250)
         self._timer.timeout.connect(self.sync)
@@ -93,6 +102,20 @@ class SettingsComprehensionController(QObject):
             settings_value.setAccessibleDescription(
                 self._model_description(model, model_state, capacity)
             )
+
+    def _bind_visible_labels(self) -> None:
+        settings_page = self.window.findChild(QWidget, "pageSettings")
+        if settings_page is None:
+            return
+        for label in settings_page.findChildren(QLabel):
+            attribute_name = _LABEL_BUDDIES.get(label.text().strip())
+            if attribute_name is None:
+                continue
+            control = getattr(self.window, attribute_name, None)
+            if not isinstance(control, QWidget):
+                continue
+            label.setBuddy(control)
+            label.setProperty("pathenaSettingsBuddyControl", attribute_name)
 
     def _selected_model(self) -> object | None:
         candidate = getattr(self.window, "_selected_model", None)
