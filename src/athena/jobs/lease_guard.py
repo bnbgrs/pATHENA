@@ -18,9 +18,19 @@ def blocking_operation_lease_seconds(
     ):
         raise ValueError("base_extend_seconds must be an integer >= 1.")
 
+    if isinstance(timeout_seconds, bool):
+        return base_extend_seconds
+
+    if isinstance(timeout_seconds, int):
+        if timeout_seconds <= 0:
+            return base_extend_seconds
+        return max(
+            base_extend_seconds,
+            timeout_seconds + base_extend_seconds,
+        )
+
     if (
-        isinstance(timeout_seconds, bool)
-        or not isinstance(timeout_seconds, (int, float))
+        not isinstance(timeout_seconds, float)
         or not math.isfinite(timeout_seconds)
         or timeout_seconds <= 0
     ):
