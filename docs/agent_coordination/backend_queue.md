@@ -9,9 +9,9 @@ Last queue refresh: 2026-08-23.
 ### BE-028 — Clone/journal migration before live schema mutation
 - Priority: P1
 - Status: IN_PROGRESS
-- Evidence: clone-first stack is implemented: migration metadata/free-space preflight, SQLite Online Backup clone, durable phase journal, exclusive migration lock, full integrity/FK/version verification, rollback-preserving activation, orphan/journal recovery boundaries and Windows junction/reparse hardening. Read-only startup planning, candidate-only schema execution, emergency reserve provisioning and ordered `StorageBootstrapService` routing are implemented. Remaining work is the security hardening tracked as BE-034/035/036 plus the Alembic-vs-custom architecture decision.
+- Evidence: clone-first stack is implemented: migration metadata/free-space preflight, SQLite Online Backup clone, durable phase journal, exclusive migration lock, full integrity/FK/version verification, rollback-preserving activation, orphan/journal recovery boundaries and Windows junction/reparse hardening. Read-only startup planning, candidate-only schema execution, emergency reserve provisioning and ordered `StorageBootstrapService` routing are implemented. Remaining work is the security hardening tracked as BE-034/036 plus the Alembic-vs-custom architecture decision.
 - Components: `migration_safety.py`, `migration_clone.py`, `migration_journal.py`, `migration_lock.py`, `migration_activation.py`, `migration_coordinator.py`, `migration_executor.py`, `migration_plan.py`, `bootstrap.py` and tests.
-- Dependencies: BE-027/029/031/032/033 DONE.
+- Dependencies: BE-027/029/031/032/033/035 DONE.
 - Last verification: 2026-08-23; product routing is present on current remote. Targeted tests exist but were not executed in this automation runtime because `github.com` DNS resolution failed from the isolated container.
 
 ### BE-034 — Bound migration journal reads before JSON decode
@@ -24,19 +24,19 @@ Last queue refresh: 2026-08-23.
 
 ### BE-035 — Bind migration lock to migration-root identity
 - Priority: P1
-- Status: IN_PROGRESS
-- Evidence: Security SEC-013 requires migration-lock ownership to remain bound to the same migration-root identity for the full critical section; root rename/replacement must not permit a second logical migration at the same pathname.
-- Components: `storage/migration_lock.py`, deterministic replacement-race tests including Windows reparse behavior where available.
+- Status: DONE
+- Evidence: the cross-process lock now lives in the migration root's parent so renaming/replacing the root cannot create an independent second lock at the same logical path. The original root filesystem identity is fenced before entry and after a successful critical section; deterministic replacement regression added.
+- Components: `storage/migration_lock.py`, `tests/unit/test_migration_lock.py`.
 - Dependencies: BE-028 migration lock.
-- Last verification: 2026-08-23 current remote confirms the lock file still lives inside the replaceable migration root.
+- Last verification: 2026-08-23 current remote; targeted tests added but not executed in the isolated runtime.
 
 ### BE-036 — Close migration parent-replacement TOCTOU
 - Priority: P1
-- Status: READY
+- Status: IN_PROGRESS
 - Evidence: Security SEC-009 requires clone/journal creation, cleanup and activation to bind filesystem decisions to directory/object identity across sensitive operations rather than relying only on pre-operation pathname/reparse checks.
 - Components: migration clone/journal/activation filesystem boundaries and deterministic parent-replacement race tests.
-- Dependencies: BE-028; coordinate carefully with BE-035 because both touch migration-root identity.
-- Last verification: 2026-08-23 security handoff in BE-028.
+- Dependencies: BE-028; BE-035 root-lock identity DONE.
+- Last verification: 2026-08-23 security handoff in BE-028; beginning current-HEAD trace after lock hardening.
 
 ### BE-020 — Runtime ModelSignature drift guard in generation
 - Priority: P1
