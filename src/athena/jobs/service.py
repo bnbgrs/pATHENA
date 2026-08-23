@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import math
 import secrets
 import sqlite3
 import uuid
@@ -428,6 +429,7 @@ def _optional_mapping(
 def _canonical_json(value: Mapping[str, Any] | None) -> str | None:
     if value is None:
         return None
+    _require_json_value(value, path="$", top_level=True)
     try:
         return json.dumps(
             value,
@@ -438,6 +440,41 @@ def _canonical_json(value: Mapping[str, Any] | None) -> str | None:
         )
     except (TypeError, ValueError) as exc:
         raise InvalidJobPayloadError("Job payload must be finite canonical JSON.") from exc
+
+
+def _require_json_value(
+    value: object,
+    *,
+    path: str,
+    top_level: bool = False,
+) -> None:
+    if value is None or isinstance(value, (str, bool, int)):
+        if top_level:
+            raise InvalidJobPayloadError("Durable JSON payload must be an object mapping.")
+        return
+    if isinstance(value, float):
+        if top_level:
+            raise InvalidJobPayloadError("Durable JSON payload must be an object mapping.")
+        if not math.isfinite(value):
+            raise InvalidJobPayloadError(f"Job payload value at {path} must be finite.")
+        return
+    if isinstance(value, list):
+        if top_level:
+            raise InvalidJobPayloadError("Durable JSON payload must be an object mapping.")
+        for index, item in enumerate(value):
+            _require_json_value(item, path=f"{path}[{index}]")
+        return
+    if isinstance(value, Mapping):
+        for key, item in value.items():
+            if not isinstance(key, str):
+                raise InvalidJobPayloadError(
+                    f"Job payload object key at {path} must be text."
+                )
+            _require_json_value(item, path=f"{path}.{key}")
+        return
+    raise InvalidJobPayloadError(
+        f"Job payload value at {path} has unsupported type {type(value).__name__!r}."
+    )
 
 
 def _uuid_value(value: object, label: str) -> uuid.UUID:
