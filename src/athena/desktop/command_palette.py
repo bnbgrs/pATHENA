@@ -91,6 +91,10 @@ class CommandPaletteController(QObject):
         self.query = QLineEdit(self.dialog)
         self.query.setObjectName("commandPaletteQuery")
         self.query.setPlaceholderText("Search commands or workspaces…")
+        self.query.setAccessibleName("Command search")
+        self.query.setAccessibleDescription(
+            "Search available pATHENA commands and workspaces. Results update as you type."
+        )
 
         self.results = QListWidget(self.dialog)
         self.results.setObjectName("commandPaletteResults")
@@ -108,6 +112,11 @@ class CommandPaletteController(QObject):
         self.help_text.setObjectName("helpText")
         self.help_text.setReadOnly(True)
         self.help_text.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
+        self.help_text.setAccessibleName("pATHENA help content")
+        self.help_text.setAccessibleDescription(
+            "Read-only guide to current pATHENA workspaces, commands, shortcuts, and "
+            "capabilities."
+        )
 
         self._commands = self._build_commands()
         self._filtered_commands: list[_Command] = []
