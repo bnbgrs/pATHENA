@@ -42,6 +42,10 @@ class RuntimeLayoutService:
 
     @staticmethod
     def _ensure_directory(path: Path) -> None:
+        if path.is_symlink():
+            raise RuntimePathError(
+                f"ATHENA runtime directory must not be a symlink: {str(path)!r}."
+            )
         try:
             path.mkdir(parents=True, exist_ok=True)
         except OSError as exc:
@@ -49,13 +53,17 @@ class RuntimeLayoutService:
                 f"Cannot create ATHENA runtime directory {str(path)!r}."
             ) from exc
 
-        if not path.is_dir():
+        if path.is_symlink() or not path.is_dir():
             raise RuntimePathError(
-                f"ATHENA runtime path is not a directory: {str(path)!r}."
+                f"ATHENA runtime path is not a safe directory: {str(path)!r}."
             )
 
     @staticmethod
     def _verify_writable(path: Path) -> None:
+        if path.is_symlink() or not path.is_dir():
+            raise RuntimePathError(
+                f"ATHENA runtime path is not a safe directory: {str(path)!r}."
+            )
         probe = path / f".athena-write-probe-{os.getpid()}-{secrets.token_hex(4)}"
 
         try:
