@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import pytest
 
-from athena.backup import service
-
 
 VALID = {
     "deleted_at_us": 123456789,
@@ -15,6 +13,12 @@ VALID = {
     "format_version": 1,
     "ledger_seq": 1,
 }
+
+
+def _backup_service():
+    from athena.backup import service
+
+    return service
 
 
 @pytest.mark.parametrize(
@@ -68,6 +72,7 @@ def test_deletion_record_decoder_rejects_noncanonical_identity_fields(
 ) -> None:
     payload = VALID.copy()
     payload[field] = value
+    service = _backup_service()
 
     with pytest.raises(service.BackupRestoreError):
         service.BackupService._deletion_record_from_payload(payload)
@@ -91,12 +96,14 @@ def test_deletion_record_decoder_keeps_integer_fields_bool_safe(
 ) -> None:
     payload = VALID.copy()
     payload[field] = value
+    service = _backup_service()
 
     with pytest.raises(service.BackupRestoreError):
         service.BackupService._deletion_record_from_payload(payload)
 
 
 def test_deletion_record_decoder_roundtrips_canonical_payload() -> None:
+    service = _backup_service()
     record = service.BackupService._deletion_record_from_payload(VALID.copy())
 
     assert service.BackupService._deletion_record_payload(record) == VALID
