@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 
 _MODEL_CHAT_ROLES = frozenset({"system", "user", "assistant"})
@@ -17,6 +17,18 @@ class ProviderHealthStatus(str, Enum):
     BUSY = "busy"
     DEGRADED = "degraded"
     ERROR = "error"
+
+
+class ModelCapabilitySupport(str, Enum):
+    """Observed support state for one model/provider capability.
+
+    UNKNOWN is intentionally distinct from UNSUPPORTED: provider metadata may
+    omit a capability without proving that the model cannot perform it.
+    """
+
+    SUPPORTED = "supported"
+    UNSUPPORTED = "unsupported"
+    UNKNOWN = "unknown"
 
 
 def _require_text(value: object, label: str, *, allow_empty: bool = False) -> None:
@@ -55,6 +67,36 @@ class ProviderHealth:
 
 
 @dataclass(frozen=True, slots=True)
+class ModelCapabilities:
+    """Normalized, evidence-preserving model/provider capabilities."""
+
+    chat: ModelCapabilitySupport = ModelCapabilitySupport.UNKNOWN
+    structured_output: ModelCapabilitySupport = ModelCapabilitySupport.UNKNOWN
+    tool_calls: ModelCapabilitySupport = ModelCapabilitySupport.UNKNOWN
+    vision: ModelCapabilitySupport = ModelCapabilitySupport.UNKNOWN
+    audio: ModelCapabilitySupport = ModelCapabilitySupport.UNKNOWN
+    context_length: ModelCapabilitySupport = ModelCapabilitySupport.UNKNOWN
+    streaming: ModelCapabilitySupport = ModelCapabilitySupport.UNKNOWN
+    model_load_control: ModelCapabilitySupport = ModelCapabilitySupport.UNKNOWN
+
+    def __post_init__(self) -> None:
+        for name, value in (
+            ("chat", self.chat),
+            ("structured_output", self.structured_output),
+            ("tool_calls", self.tool_calls),
+            ("vision", self.vision),
+            ("audio", self.audio),
+            ("context_length", self.context_length),
+            ("streaming", self.streaming),
+            ("model_load_control", self.model_load_control),
+        ):
+            if not isinstance(value, ModelCapabilitySupport):
+                raise TypeError(
+                    f"ModelCapabilities {name} must be a ModelCapabilitySupport."
+                )
+
+
+@dataclass(frozen=True, slots=True)
 class ModelInfo:
     """Backend model metadata normalized for ATHENA."""
 
@@ -68,6 +110,7 @@ class ModelInfo:
     vision: bool | None
     trained_for_tool_use: bool | None
     loaded_context_length: int | None = None
+    capabilities: ModelCapabilities = field(default_factory=ModelCapabilities)
 
     def __post_init__(self) -> None:
         _require_text(self.provider, "ModelInfo provider")
@@ -85,6 +128,8 @@ class ModelInfo:
             self.loaded_context_length,
             "ModelInfo loaded_context_length",
         )
+        if not isinstance(self.capabilities, ModelCapabilities):
+            raise TypeError("ModelInfo capabilities must be a ModelCapabilities value.")
         if (
             self.context_capacity is not None
             and self.loaded_context_length is not None
