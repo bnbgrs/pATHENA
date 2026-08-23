@@ -19,12 +19,10 @@ class KnowledgeAcceptanceController(QObject):
         *,
         workspace: QWidget,
         controller: DesktopApiController | None,
-        claims_panel: QWidget | None = None,
     ) -> None:
         super().__init__(workspace)
         self.workspace = workspace
         self.controller = controller
-        self.claims_panel = claims_panel
         self.processing_run_id: str | None = None
         self.preflight_digest: str | None = None
         self._buffer = ""
@@ -146,13 +144,6 @@ class KnowledgeAcceptanceController(QObject):
         refresh_knowledge = getattr(self.workspace, "refresh_knowledge", None)
         if callable(refresh_knowledge):
             refresh_knowledge()
-        if self.claims_panel is not None:
-            refresh_claims = getattr(self.claims_panel, "refresh_claims", None)
-            if callable(refresh_claims):
-                refresh_claims()
-            refresh_reviews = getattr(self.claims_panel, "refresh_reviews", None)
-            if callable(refresh_reviews):
-                refresh_reviews()
         if self.controller is not None:
             self.controller.refresh()
 
@@ -174,11 +165,6 @@ class KnowledgeAcceptanceController(QObject):
 def install_knowledge_acceptance(
     workspace: QWidget,
     controller: DesktopApiController | None,
-    claims_panel: QWidget | None = None,
 ) -> KnowledgeAcceptanceController:
     """Attach explicit acceptance to the existing Knowledge workspace header."""
-    return KnowledgeAcceptanceController(
-        workspace=workspace,
-        controller=controller,
-        claims_panel=claims_panel,
-    )
+    return KnowledgeAcceptanceController(workspace=workspace, controller=controller)
