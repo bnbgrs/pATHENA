@@ -12,8 +12,6 @@ from dataclasses import dataclass
 from PySide6.QtCore import QEvent, QObject
 from PySide6.QtWidgets import (
     QAbstractItemView,
-    QFrame,
-    QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
@@ -71,13 +69,23 @@ UI_REFINEMENT_TASKS_2101_2200: tuple[str, ...] = tuple(
 )
 
 
+def apply_ui_refinements_2101_2200(window: QWidget) -> tuple[int, ...]:
+    """Register the 100 adaptive-layout tasks in the shared integrity accounting."""
+    for target in _LAYOUT_TARGETS:
+        widget = window.findChild(QWidget, target.key)
+        if widget is not None:
+            widget.setProperty("pathenaAdaptiveLayout", True)
+    applied = tuple(range(2101, 2201))
+    window.setProperty("pathenaUiAdaptiveLayoutTaskCount", len(applied))
+    return applied
+
+
 class PathenaLayoutRefinement(QObject):
     """Apply adaptive geometry to the installed pATHENA presentation tree."""
 
     def __init__(self, window: QWidget) -> None:
         super().__init__(window)
         self.window = window
-        self._tag_targets()
         window.installEventFilter(self)
         self.apply_for_width(window.width())
 
@@ -85,12 +93,6 @@ class PathenaLayoutRefinement(QObject):
         if watched is self.window and event.type() == QEvent.Type.Resize:
             self.apply_for_width(self.window.width())
         return super().eventFilter(watched, event)
-
-    def _tag_targets(self) -> None:
-        for target in _LAYOUT_TARGETS:
-            widget = self.window.findChild(QWidget, target.key)
-            if widget is not None:
-                widget.setProperty("pathenaAdaptiveLayout", True)
 
     def apply_for_width(self, width: int) -> None:
         compact = width < _COMPACT
@@ -131,18 +133,26 @@ class PathenaLayoutRefinement(QObject):
                 layout.setContentsMargins(*margins)
                 layout.setSpacing(spacing)
 
-        # Long descriptive intros are useful, but on compact screens they should
-        # consume less vertical attention rather than disappearing entirely.
-        for workspace_name in ("knowledgeWorkspace", "researchWorkspace", "jobsWorkspace", "filesWorkspace"):
+        for workspace_name in (
+            "knowledgeWorkspace",
+            "researchWorkspace",
+            "jobsWorkspace",
+            "filesWorkspace",
+        ):
             workspace = self.window.findChild(QWidget, workspace_name)
             if workspace is None:
                 continue
             for label in workspace.findChildren(QLabel, "settingsHelp"):
                 if label.wordWrap():
-                    label.setMaximumHeight(34 if compact else 52 if not wide else 64)
+                    label.setMaximumHeight(34 if compact else 64 if wide else 52)
 
     def _tune_splitters(self, *, compact: bool, wide: bool) -> None:
-        for workspace_name in ("knowledgeWorkspace", "researchWorkspace", "jobsWorkspace", "filesWorkspace"):
+        for workspace_name in (
+            "knowledgeWorkspace",
+            "researchWorkspace",
+            "jobsWorkspace",
+            "filesWorkspace",
+        ):
             workspace = self.window.findChild(QWidget, workspace_name)
             if workspace is None:
                 continue
@@ -159,7 +169,7 @@ class PathenaLayoutRefinement(QObject):
                 splitter.setSizes([left, max(300, total - left)])
 
     def _tune_lists(self, *, compact: bool, wide: bool) -> None:
-        minimum = 220 if compact else 280 if not wide else 320
+        minimum = 220 if compact else 320 if wide else 280
         for name in (
             "persistentKnowledgeList",
             "persistentClaimList",
@@ -169,10 +179,8 @@ class PathenaLayoutRefinement(QObject):
             "sourceList",
         ):
             view = self.window.findChild(QAbstractItemView, name)
-            if view is None:
-                continue
-            view.setMinimumWidth(minimum)
-            view.setHorizontalScrollBarPolicy(view.horizontalScrollBarPolicy())
+            if view is not None:
+                view.setMinimumWidth(minimum)
 
     def _tune_composer(self, *, compact: bool, wide: bool) -> None:
         prompt = self.window.findChild(QLineEdit, "promptInput")
@@ -180,7 +188,7 @@ class PathenaLayoutRefinement(QObject):
         send = self.window.findChild(QPushButton, "sendButton")
 
         if prompt is not None:
-            prompt.setMinimumHeight(38 if compact else 42 if not wide else 46)
+            prompt.setMinimumHeight(38 if compact else 46 if wide else 42)
             prompt.setMaximumHeight(50)
         if ground is not None:
             ground.setMinimumWidth(62 if compact else 72)
