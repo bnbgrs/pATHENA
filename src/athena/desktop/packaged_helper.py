@@ -45,6 +45,18 @@ def _dispatch(module_name: str) -> Callable[[Sequence[str] | None], int] | None:
         from athena.desktop.research_cli import main
 
         return main
+    if module_name == "athena.desktop.research_results_cli":
+        from athena.desktop.research_results_cli import main
+
+        return main
+    if module_name == "athena.desktop.knowledge_cli":
+        from athena.desktop.knowledge_cli import main
+
+        return main
+    if module_name == "athena.desktop.canonical_memory_cli":
+        from athena.desktop.canonical_memory_cli import main
+
+        return main
     if module_name == "athena":
         from athena.__main__ import main
 
