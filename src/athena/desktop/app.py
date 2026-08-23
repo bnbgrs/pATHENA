@@ -115,7 +115,6 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     controller = DesktopApiController(client)
     window = PathenaMainWindow(api_controller=controller)
-    apply_shell_density(window)
     knowledge_workspace = install_knowledge_workspace(window, controller)
     knowledge_acceptance = install_knowledge_acceptance(
         knowledge_workspace,
@@ -133,6 +132,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     files_workspace = install_files_workspace(window)
     system_workspace = install_system_workspace(window, controller)
     system_backup = install_system_backup(window, system_workspace)
+    apply_shell_density(window)
     apply_workspace_presentation(window)
     command_palette = install_command_palette(window)
     _schedule_initial_core_refreshes(
