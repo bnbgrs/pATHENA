@@ -8,11 +8,11 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 
 ### BE-001 — Complete normative provider health states
 - Priority: P1
-- Status: IN_PROGRESS
-- Evidence: Feature-gap FG-003; `ProviderHealthStatus` lacks `starting` and `busy`.
-- Components: `src/athena/model/domain.py`, provider-domain tests.
+- Status: DONE
+- Evidence: Feature-gap FG-003; complete six-state domain enum implemented with targeted regression coverage.
+- Components: `src/athena/model/domain.py`, `tests/unit/test_provider_health_states.py`.
 - Dependencies: none.
-- Last verification: 2026-08-23 against current `agent/pathena` file content.
+- Last verification: 2026-08-23 at branch HEAD `6ee614b1842139e91466d32b10080c2bb264f9c7`; targeted tests added but not executed in connector runtime.
 
 ### BE-002 — Complete provider lifecycle/control contract
 - Priority: P1
@@ -24,11 +24,11 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 
 ### BE-003 — Add normalized provider capability representation
 - Priority: P1
-- Status: READY
+- Status: IN_PROGRESS
 - Evidence: Feature-gap FG-004.
 - Components: model domain, discovery parser, provider tests.
 - Dependencies: model/provider contracts.
-- Last verification: 2026-08-23 from feature-gap backlog.
+- Last verification: 2026-08-23 against current feature-gap backlog; selected as next independent P1 slice.
 
 ### BE-004 — Add context-builder source diversity constraint
 - Priority: P1
