@@ -89,9 +89,9 @@ class PathenaMainWindow(AthenaMainWindow):
 
             # The live PALLAS canvas already identifies itself. A second heading
             # directly above it adds noise without adding navigation information.
-            for label in rail.findChildren(QLabel):
-                if label.text() == "PALLAS":
-                    label.hide()
+            for child_label in rail.findChildren(QLabel):
+                if child_label.text() == "PALLAS":
+                    child_label.hide()
 
         center = self.findChild(QFrame, "conversation")
         if center is not None:
@@ -114,11 +114,11 @@ class PathenaMainWindow(AthenaMainWindow):
             keyboard_hint.setText("Ctrl K")
             keyboard_hint.setToolTip("Open command palette")
 
-        for index, label in enumerate(_DISPLAY_NAVIGATION):
+        for index, navigation_label in enumerate(_DISPLAY_NAVIGATION):
             if index >= self.navigation.count():
                 break
             item = self.navigation.item(index)
-            item.setText(label)
+            item.setText(navigation_label)
             item.setSizeHint(QSize(176, 36))
 
         current_page = self.navigation.currentRow()
