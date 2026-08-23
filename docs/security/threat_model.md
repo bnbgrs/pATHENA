@@ -13,8 +13,8 @@ Last reviewed baseline: current remote `agent/pathena` on 2026-08-23.
 5. Secrets, private knowledge, prompts, source content and credentials must not leak through logs, provenance, temp files or weak filesystem permissions.
 6. Cryptography must use established libraries/primitives with authenticated encryption and explicit key-management semantics; no custom cryptography.
 7. Updates, dependencies and downloaded artifacts must preserve origin/integrity guarantees appropriate to their privilege.
-8. Persisted cryptographic work factors must be bounded before expensive primitives execute.
-9. Durable spool/archive/backup writes and destructive operations must remain confined beneath configured roots even when hostile symlink/junction/reparse-point ancestors can be introduced concurrently.
+8. Persisted cryptographic work factors and security/recovery metadata must be resource-bounded before expensive allocation/parsing executes.
+9. Durable spool/archive/backup/migration writes and destructive operations must remain confined beneath configured roots even when hostile symlink/junction/reparse-point ancestors can be introduced concurrently.
 10. Filesystem confinement checks must bind security decisions to directory/object identity across the sensitive operation; pathname pre-checks alone are not sufficient against check/use replacement races.
 
 ## Trust boundaries
@@ -65,13 +65,23 @@ Last reviewed baseline: current remote `agent/pathena` on 2026-08-23.
 
 **Implementation direction:** use established identity-safe OS mechanisms. On POSIX prefer dirfd/openat-style no-follow semantics where feasible; on Windows use handle/reparse-safe APIs. Add deterministic race-simulation tests and real Windows junction/reparse tests where executable. Do not treat static symlink tests as proof against TOCTOU replacement.
 
+### Storage migration -> clone / journal / activation
+
+**Assets:** live SQLite database, clone candidate, rollback copy, migration recovery state and filesystem confinement.
+
+**Verified controls:** source/candidate/rollback path separation; static symlink/junction/reparse rejection; SQLite clone uses the Online Backup API; candidate integrity/foreign-key/version checks; journal reads use no-follow where available plus handle/path identity comparison; activation preserves rollback and refuses WAL/SHM sidecars.
+
+**Residual confinement risk — `SEC-009`:** clone creation and activation still cross a check/use boundary. `migration_clone.py` validates `candidate.parent` and then opens the candidate through `sqlite3.connect(candidate)` by pathname. `migration_activation.py` validates files/parents and then uses path-based `durable_replace()` for source->rollback and candidate->source. `durable_replace()` itself validates parents before `os.replace()`/`MoveFileExW` but does not retain parent identity across the operation. A hostile local process able to replace an already validated migration ancestor can therefore race those operations. The fix belongs inside BE-028 and must use identity-bound OS primitives or equivalent handle-based verification, including Windows reparse/junction semantics.
+
+**Residual resource risk — `SEC-010`:** `MigrationJournalStore.load()` verifies the journal file identity but then reads the whole file before parsing. The journal contract is tiny, so startup/recovery should reject an oversized journal using a conservative versioned byte ceiling checked from the already-open handle before full read.
+
 ### Backup target -> isolated restore root
 
 **Assets:** restored database, Raw Source replicas, runtime isolation and destination filesystem.
 
 **Verified controls:** absolute non-overlapping restore destination, absent destination requirement, manifest/completion-marker validation, canonical object paths, content hashes, SQLite integrity/FK/schema validation and atomic publication.
 
-**Threats to continue scanning:** ancestor replacement races on destination/target paths, Windows reparse behavior, resource amplification and retention/GC deletion confinement. Findings SEC-006/007 establish that path-based pre-checks elsewhere are not sufficient evidence for concurrent filesystem mutation safety.
+**Threats to continue scanning:** ancestor replacement races on destination/target paths, Windows reparse behavior, resource amplification and retention/GC deletion confinement. Findings SEC-006/007/009 establish that path-based pre-checks elsewhere are not sufficient evidence for concurrent filesystem mutation safety. SEC-008 separately tracks unbounded deletion-ledger reads.
 
 ### Protected Content metadata -> KDF / encryption
 
