@@ -2,7 +2,7 @@
 
 Central hand-off between the Feature-Gap Scout and BACKEND, UI, and QUALITY owners.
 Status vocabulary: `FOUND` · `PARTIAL` · `READY` · `BLOCKED` · `IN_PROGRESS` · `IMPLEMENTED` · `VERIFIED` · `STALE`.
-Last refresh: 2026-08-23.
+Last refresh: 2026-08-24.
 
 ## Findings
 
@@ -80,6 +80,15 @@ Last refresh: 2026-08-23.
 - **Tests:** focused regressions cover invalid/valid timeout boundaries, direct policy application/readback and real `SQLiteDatabase.start()` with a non-default timeout.
 - **Verification:** 2026-08-23 current remote after `525936a`, `80bbb3e`, `4fe780f`; associated gate was cancelled, so no test pass is claimed.
 
+### FG-017 — Runtime WAL-size monitoring and controlled checkpoint orchestration
+- **Source:** Beta 03 sections 27 and 39–41.
+- **Ownership / Priority / Status:** BACKEND · P1 · READY
+- **Evidence:** Beta requires bounded/paginated long readers so checkpointing is not indefinitely blocked, `wal_autocheckpoint=1000` as a baseline, active observation of `athena.db-wal`, diagnosis/escalation of abnormal growth, background `PASSIVE` checkpoints, optional idle `TRUNCATE` checkpoints, and a clean checkpoint before controlled offline copies/migrations. Current `SQLiteDatabase` starts one live connection, applies the connection policy and explicit transactions, but exposes no WAL-size observer, checkpoint scheduler/orchestrator, blocked-checkpoint diagnosis, or checkpoint API. Repository search on the active branch found no `wal_checkpoint` implementation.
+- **Current state:** WAL mode and autocheckpoint baseline exist; runtime WAL health/maintenance semantics do not.
+- **Desired state:** add a bounded, non-destructive WAL maintenance service/API in BACKEND scope. It must never delete `-wal` manually; use SQLite checkpoint primitives, avoid indefinite reader interference, expose observable state, and keep aggressive/TRUNCATE behavior restricted to safe idle/offline boundaries. Integrate controlled pre-copy/pre-migration checkpointing only where the existing backup/migration snapshot contracts make it safe.
+- **Dependencies:** coordinate with existing storage bootstrap/migration/backup ownership and Full-Gate Recovery; do not broaden mutation while current P0 gate recovery is active.
+- **Verification:** read-only scout trace on 2026-08-24. No implementation or test PASS is claimed.
+
 ## Handoff notes
 - Re-read current HEAD and affected files before every mutation.
 - Preserve `unknown` versus `unsupported`; never invent provider facts.
@@ -89,3 +98,4 @@ Last refresh: 2026-08-23.
 - FG-014 applies only to active state/database roots.
 - FG-015 includes a last-moment pre-writer pressure fence; promote only after green relevant validation.
 - FG-016 is implemented in the live database service; promote only after green relevant validation.
+- FG-017 is a BACKEND handoff only while Full-Gate Recovery is P0; do not let WAL-maintenance work displace active recovery blockers or introduce broad storage churn.
