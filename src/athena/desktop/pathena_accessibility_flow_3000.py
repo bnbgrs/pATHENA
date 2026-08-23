@@ -233,7 +233,7 @@ def apply_ui_refinements_2901_3000(window: QWidget) -> tuple[int, ...]:
         applied.append(start + 4)
         focus_widgets.append(widget)
 
-    for previous, current in zip(focus_widgets, focus_widgets[1:]):
+    for previous, current in zip(focus_widgets, focus_widgets[1:], strict=False):
         QWidget.setTabOrder(previous, current)
 
     window.setProperty("pathenaAccessibilityTargetCount", len(focus_widgets))
