@@ -100,6 +100,20 @@ def _assert_no_symlink_ancestor(path: Path) -> None:
             )
 
 
+def _assert_handle_matches_path(lock_path: Path, handle: BinaryIO) -> None:
+    try:
+        path_stat = lock_path.stat(follow_symlinks=False)
+        handle_stat = os.fstat(handle.fileno())
+    except OSError as exc:
+        raise BackupTargetBusyError(
+            "Backup target lock identity cannot be verified."
+        ) from exc
+    if lock_path.is_symlink() or not os.path.samestat(path_stat, handle_stat):
+        raise BackupTargetBusyError(
+            "Backup target lock pathname changed during acquisition."
+        )
+
+
 def _open_lock_file(lock_path: Path) -> BinaryIO:
     if lock_path.is_symlink():
         raise BackupTargetBusyError(
@@ -119,11 +133,11 @@ def _open_lock_file(lock_path: Path) -> BinaryIO:
         os.close(descriptor)
         raise
 
-    if lock_path.is_symlink():
+    try:
+        _assert_handle_matches_path(lock_path, handle)
+    except BackupTargetBusyError:
         handle.close()
-        raise BackupTargetBusyError(
-            "Backup target lock became a symbolic link while opening."
-        )
+        raise
 
     if os.name == "posix":
         try:
@@ -152,6 +166,7 @@ def backup_target_lock(target_root: Path) -> Iterator[None]:
 
     try:
         _lock(handle)
+        _assert_handle_matches_path(lock_path, handle)
         locked = True
         yield
     finally:
