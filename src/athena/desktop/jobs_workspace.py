@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from athena.desktop.pathena_ui_refinement_600 import set_pathena_ui_state
 from athena.desktop.scheduler_supervisor import DesktopJobSchedulerSupervisor
 
 _TERMINAL_STATES = frozenset({"cancelled", "failed", "completed"})
@@ -62,22 +63,25 @@ class JobsWorkspace(QWidget):
         self.cancel_button.clicked.connect(self.cancel_selected)
 
         self.scheduler_status = QLabel()
-        self.scheduler_status.setObjectName("settingsHelp")
+        self.scheduler_status.setObjectName("schedulerStatus")
         self.scheduler_status.setAlignment(
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
         )
+        set_pathena_ui_state(self.scheduler_status, "idle")
 
         self.status = QLabel("Ready.")
-        self.status.setObjectName("settingsHelp")
+        self.status.setObjectName("jobsStatus")
         self.status.setTextInteractionFlags(
             Qt.TextInteractionFlag.TextSelectableByMouse
             | Qt.TextInteractionFlag.TextSelectableByKeyboard
         )
+        set_pathena_ui_state(self.status, "idle")
 
         self.jobs = QListWidget()
         self.jobs.setObjectName("durableJobList")
         self.jobs.setMinimumWidth(430)
         self.jobs.currentItemChanged.connect(self._selection_changed)
+        set_pathena_ui_state(self.jobs, "idle")
 
         self.details = QPlainTextEdit()
         self.details.setObjectName("jobDetails")
@@ -86,6 +90,7 @@ class JobsWorkspace(QWidget):
         self.details.setPlaceholderText(
             "Select a durable job to inspect checkpoints, leases and pinned state."
         )
+        set_pathena_ui_state(self.details, "empty")
 
         self._process = QProcess(self)
         self._process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
@@ -161,6 +166,7 @@ class JobsWorkspace(QWidget):
     def _transition(self, operation: str, label: str) -> None:
         if self._busy() or not self._selected_job_id:
             return
+        set_pathena_ui_state(self.details, "busy")
         self._start(operation, [operation, self._selected_job_id], label)
 
     def _selection_changed(
@@ -169,16 +175,13 @@ class JobsWorkspace(QWidget):
         _previous: QListWidgetItem | None,
     ) -> None:
         job_id = None if current is None else current.data(Qt.ItemDataRole.UserRole)
-        state = (
-            None
-            if current is None
-            else current.data(Qt.ItemDataRole.UserRole + 1)
-        )
+        state = None if current is None else current.data(Qt.ItemDataRole.UserRole + 1)
         self._selected_job_id = str(job_id) if job_id else None
         self._selected_state = str(state) if state else None
         self._sync_action_buttons()
 
         if self._selected_job_id and not self._busy():
+            set_pathena_ui_state(self.details, "busy")
             self._start(
                 "show",
                 ["show", self._selected_job_id],
@@ -193,13 +196,17 @@ class JobsWorkspace(QWidget):
         supervisor = self._scheduler_supervisor
         if supervisor is None:
             self.scheduler_status.setText("SCHEDULER · EXTERNAL")
+            set_pathena_ui_state(self.scheduler_status, "idle")
             return
         if supervisor.stopping:
             self.scheduler_status.setText("SCHEDULER · STOPPING")
+            set_pathena_ui_state(self.scheduler_status, "busy")
         elif supervisor.child_active:
             self.scheduler_status.setText("SCHEDULER · ACTIVE")
+            set_pathena_ui_state(self.scheduler_status, "success")
         else:
             self.scheduler_status.setText("SCHEDULER · RECOVERY PENDING")
+            set_pathena_ui_state(self.scheduler_status, "busy")
 
     def _busy(self) -> bool:
         return self._process.state() != QProcess.ProcessState.NotRunning
@@ -208,11 +215,9 @@ class JobsWorkspace(QWidget):
         self._operation = operation
         self._buffer = ""
         self.status.setText(label + " …")
+        set_pathena_ui_state(self.status, "busy")
         self._sync_action_buttons(force_disabled=True)
-        self._process.start(
-            sys.executable,
-            ["-m", "athena.desktop.jobs_cli", *arguments],
-        )
+        self._process.start(sys.executable, ["-m", "athena.desktop.jobs_cli", *arguments])
 
     def _sync_action_buttons(self, *, force_disabled: bool = False) -> None:
         if force_disabled or self._busy():
@@ -245,11 +250,7 @@ class JobsWorkspace(QWidget):
             self.details.moveCursor(QTextCursor.MoveOperation.End)
             self.details.insertPlainText(chunk)
 
-    def _process_finished(
-        self,
-        exit_code: int,
-        _exit_status: QProcess.ExitStatus,
-    ) -> None:
+    def _process_finished(self, exit_code: int, _exit_status: QProcess.ExitStatus) -> None:
         self._drain_output()
         operation = self._operation
         output = self._buffer
@@ -258,6 +259,8 @@ class JobsWorkspace(QWidget):
 
         if exit_code != 0:
             self.status.setText(f"Jobs command failed (exit {exit_code}).")
+            set_pathena_ui_state(self.status, "error")
+            set_pathena_ui_state(self.details, "error")
             if operation == "list":
                 self.details.setPlainText(output)
             return
@@ -265,13 +268,18 @@ class JobsWorkspace(QWidget):
         if operation == "list":
             self._render_job_list(output)
             self.status.setText(f"Durable jobs refreshed: {self.jobs.count()} shown.")
+            set_pathena_ui_state(self.status, "success")
             return
 
         if operation == "show":
             self.status.setText("Durable job details loaded.")
+            set_pathena_ui_state(self.status, "success")
+            set_pathena_ui_state(self.details, "success")
             return
 
         self.status.setText(f"{operation.upper()} transition persisted.")
+        set_pathena_ui_state(self.status, "success")
+        set_pathena_ui_state(self.details, "success")
         QTimer.singleShot(120, self.refresh)
 
     def _render_job_list(self, output: str) -> None:
@@ -284,23 +292,11 @@ class JobsWorkspace(QWidget):
             parts = raw_line.split("\t", 7)
             if len(parts) != 8:
                 continue
-            (
-                job_id,
-                state,
-                priority,
-                job_type,
-                stage,
-                retries,
-                _updated_at_us,
-                summary,
-            ) = parts
+            job_id, state, priority, job_type, stage, retries, _updated_at_us, summary = parts
             item = QListWidgetItem(
-                f"{state.upper():<18} P{priority}  {job_type:<24}  "
-                f"{stage:<18}  {summary}"
+                f"{state.upper():<18} P{priority}  {job_type:<24}  {stage:<18}  {summary}"
             )
-            item.setToolTip(
-                f"{job_id}\nstate={state}\nstage={stage}\nretries={retries}"
-            )
+            item.setToolTip(f"{job_id}\nstate={state}\nstage={stage}\nretries={retries}")
             item.setData(Qt.ItemDataRole.UserRole, job_id)
             item.setData(Qt.ItemDataRole.UserRole + 1, state)
             self.jobs.addItem(item)
@@ -310,18 +306,22 @@ class JobsWorkspace(QWidget):
         self.jobs.blockSignals(False)
 
         if item_to_select is not None:
+            set_pathena_ui_state(self.jobs, "success")
             self.jobs.setCurrentItem(item_to_select)
             self._selection_changed(item_to_select, None)
         elif self.jobs.count() > 0:
+            set_pathena_ui_state(self.jobs, "success")
             self.jobs.setCurrentRow(0)
         else:
             self._selected_job_id = None
             self._selected_state = None
             self._sync_action_buttons()
             self.details.setPlainText(
-                "No durable jobs have been persisted yet. Research and Source "
-                "operations will appear here as soon as they are queued."
+                "No durable jobs have been persisted yet. Research and Source operations "
+                "will appear here as soon as they are queued."
             )
+            set_pathena_ui_state(self.jobs, "empty")
+            set_pathena_ui_state(self.details, "empty")
 
     def _process_error(self, error: QProcess.ProcessError) -> None:
         self._operation = ""
@@ -330,6 +330,8 @@ class JobsWorkspace(QWidget):
             self.status.setText("Unable to start the local pATHENA jobs command.")
         else:
             self.status.setText(f"Jobs command error: {error.name}")
+        set_pathena_ui_state(self.status, "error")
+        set_pathena_ui_state(self.details, "error")
 
 
 def install_jobs_workspace(
