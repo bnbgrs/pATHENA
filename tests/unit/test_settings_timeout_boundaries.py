@@ -41,24 +41,24 @@ def test_direct_settings_reject_invalid_timeout_scalars(
 
 
 @pytest.mark.parametrize(
-    "request,generation",
+    "request_timeout,generation",
     [
         pytest.param(1, 2, id="integers"),
         pytest.param(0.25, 300.5, id="floats"),
     ],
 )
 def test_direct_settings_canonicalize_valid_timeout_numbers(
-    request: object,
+    request_timeout: object,
     generation: object,
     tmp_path: Path,
 ) -> None:
     settings = AthenaSettings(
         local_root=tmp_path,
-        model_request_timeout_seconds=cast(Any, request),
+        model_request_timeout_seconds=cast(Any, request_timeout),
         model_generation_timeout_seconds=cast(Any, generation),
     )
 
-    assert settings.model_request_timeout_seconds == float(cast(Any, request))
+    assert settings.model_request_timeout_seconds == float(cast(Any, request_timeout))
     assert settings.model_generation_timeout_seconds == float(cast(Any, generation))
     assert isinstance(settings.model_request_timeout_seconds, float)
     assert isinstance(settings.model_generation_timeout_seconds, float)
