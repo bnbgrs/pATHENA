@@ -39,6 +39,7 @@ class BackupWorkspace(QWidget):
         super().__init__()
         self.setObjectName("backupWorkspace")
         self._operation = ""
+        self._operation_snapshot_id: str | None = None
         self._buffer = ""
         self._selected_snapshot_id: str | None = None
 
@@ -161,7 +162,12 @@ class BackupWorkspace(QWidget):
         arguments = ["backup", "verify", snapshot_id]
         if deep:
             arguments.append("--deep")
-        self._start("verify-deep" if deep else "verify", arguments, clear_details=True)
+        self._start(
+            "verify-deep" if deep else "verify",
+            arguments,
+            clear_details=True,
+            snapshot_id=snapshot_id,
+        )
 
     @Slot()
     def restore_selected(self) -> None:
@@ -179,6 +185,7 @@ class BackupWorkspace(QWidget):
             "restore",
             ["backup", "restore", snapshot_id, str(destination)],
             clear_details=True,
+            snapshot_id=snapshot_id,
         )
 
     @Slot()
@@ -207,10 +214,12 @@ class BackupWorkspace(QWidget):
         arguments: list[str],
         *,
         clear_details: bool = False,
+        snapshot_id: str | None = None,
     ) -> None:
         if self._busy():
             return
         self._operation = operation
+        self._operation_snapshot_id = snapshot_id
         self._buffer = ""
         if clear_details:
             self.details.clear()
@@ -241,6 +250,10 @@ class BackupWorkspace(QWidget):
         self.deep_verify_button.setEnabled(selected)
         self.restore_button.setEnabled(selected)
 
+    def _operation_owns_details(self) -> bool:
+        snapshot_id = self._operation_snapshot_id
+        return snapshot_id is None or snapshot_id == self._selected_snapshot_id
+
     @Slot()
     def _drain_output(self) -> None:
         chunk = bytes(self.process.readAllStandardOutput().data()).decode(
@@ -249,20 +262,26 @@ class BackupWorkspace(QWidget):
         if not chunk:
             return
         self._buffer += chunk
-        if self._operation != "list":
+        if self._operation != "list" and self._operation_owns_details():
             self.details.insertPlainText(chunk)
 
     @Slot(int, QProcess.ExitStatus)
     def _finished(self, exit_code: int, _status: QProcess.ExitStatus) -> None:
         self._drain_output()
         operation = self._operation
+        operation_snapshot_id = self._operation_snapshot_id
         output = self._buffer
         self._operation = ""
+        self._operation_snapshot_id = None
         self._set_controls(True)
 
         if exit_code != 0:
             self.status.setText(f"Backup operation failed (exit {exit_code}).")
-            if output and not self.details.toPlainText():
+            if (
+                output
+                and operation_snapshot_id == self._selected_snapshot_id
+                and not self.details.toPlainText()
+            ):
                 self.details.setPlainText(output)
             return
 
@@ -336,6 +355,7 @@ class BackupWorkspace(QWidget):
     @Slot(QProcess.ProcessError)
     def _process_error(self, error: QProcess.ProcessError) -> None:
         self._operation = ""
+        self._operation_snapshot_id = None
         self._set_controls(True)
         self.status.setText(
             "Unable to start local backup command."
