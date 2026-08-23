@@ -9,49 +9,33 @@ Last queue refresh: 2026-08-23.
 ### BE-028 — Clone/journal migration before live schema mutation
 - Priority: P1
 - Status: IN_PROGRESS
-- Evidence: clone-first stack is implemented: migration metadata/free-space preflight, SQLite Online Backup clone, durable phase journal, exclusive migration lock, full integrity/FK/version verification, rollback-preserving activation, orphan/journal recovery boundaries and Windows junction/reparse hardening. Read-only startup planning, candidate-only schema execution, emergency reserve provisioning and `StorageBootstrapService` are wired into the real `AthenaApplication` lifecycle before protected/database-dependent services. POSIX journal publication and durable replace are now directory-FD bound; remaining work is the Windows HANDLE equivalent plus candidate SQLite pathname binding and the Alembic-vs-custom architecture decision.
-- Components: `migration_safety.py`, `migration_clone.py`, `migration_journal.py`, `migration_lock.py`, `migration_activation.py`, `migration_coordinator.py`, `migration_executor.py`, `migration_plan.py`, `bootstrap.py`, `core/application.py` and tests.
-- Dependencies: BE-027/029/031/032/033/034/035 DONE; BE-036/038/039 active.
-- Last verification: 2026-08-23 current remote; latest branch workflow for the new identity regression commit was cancelled before useful validation, so no green gate is claimed.
-
-### BE-034 — Bound migration journal reads before JSON decode
-- Priority: P2
-- Status: DONE
-- Evidence: `migration_state.json` is capped at 64 KiB. Store reads verify opened-handle identity, regular-file type and `fstat().st_size` before `fdopen()` or JSON parsing; reads are additionally bounded to ceiling+1. Direct decode and encoded publication enforce the same ceiling, preventing ATHENA from producing a journal it cannot later recover.
-- Components: `storage/migration_journal.py`, `tests/unit/test_migration_journal_resource_bounds.py`.
-- Dependencies: BE-028 migration journal.
-- Last verification: 2026-08-23 current remote; targeted oversize tests added; latest full gate still pending.
-
-### BE-035 — Bind migration lock to migration-root identity
-- Priority: P1
-- Status: DONE
-- Evidence: the cross-process lock lives in the migration root's parent so renaming/replacing the root cannot create an independent second lock at the same logical path. The original root filesystem identity is fenced before entry and after a successful critical section; deterministic replacement regression added.
-- Components: `storage/migration_lock.py`, `tests/unit/test_migration_lock.py`.
-- Dependencies: BE-028 migration lock.
-- Last verification: 2026-08-23 current remote; targeted tests added; latest full gate pending.
+- Evidence: clone-first stack is implemented: migration metadata/free-space preflight, SQLite Online Backup clone, durable phase journal, exclusive migration lock, full integrity/FK/version verification, rollback-preserving activation, orphan/journal recovery boundaries and Windows junction/reparse hardening. Read-only startup planning, candidate-only schema execution, emergency reserve provisioning and `StorageBootstrapService` are wired before protected/database-dependent services. POSIX durable replace, durable byte publication and durable mkdir are now parent-directory-FD bound. Remaining work is Windows HANDLE-equivalent publication, candidate SQLite pathname binding and the Alembic-vs-custom architecture decision.
+- Components: migration storage stack, `storage/durable_fs.py`, `core/application.py`, targeted tests.
+- Dependencies: BE-027/029/031/032/033/034/035/040 DONE; BE-036/038/039 active.
+- Last verification: 2026-08-23 current remote; new workflow evidence remains pending/cancelled, so no green gate is claimed.
 
 ### BE-036 — Close migration parent-replacement TOCTOU
 - Priority: P1
 - Status: IN_PROGRESS
-- Evidence: POSIX `durable_replace()` now opens real parent directories with `O_DIRECTORY|O_NOFOLLOW`, performs `os.replace(..., src_dir_fd=..., dst_dir_fd=...)`, fsyncs those same directory handles and fails closed if the pathname no longer names the opened directory. `durable_write_bytes()` similarly binds temp creation and publication to one parent FD, and `MigrationJournalStore.publish()` now uses it. Deterministic tests replace the parent during the actual `os.replace`/`os.open` call and verify attacker replacement paths are not mutated. Cross-platform closure still requires Windows HANDLE-based mutation and SQLite clone destination binding.
-- Components: `storage/durable_fs.py`, `storage/migration_journal.py`, migration activation via shared `durable_replace`, `tests/unit/test_durable_fs_parent_identity.py`.
-- Dependencies: BE-028; BE-035 root-lock identity DONE.
-- Last verification: 2026-08-23 current remote after commits `3832063`, `cf063a7`, `055327f`, `217bfea`; local checkout unavailable because the execution sandbox cannot resolve github.com; latest workflow for `217bfea` was cancelled, so targeted tests are added but not claimed executed.
+- Evidence: POSIX `durable_replace()` is directory-FD bound; `durable_write_bytes()` binds temp creation/publication to one parent FD; `MigrationJournalStore.publish()` uses it; and POSIX `durable_mkdir()` now creates children relative to an opened parent FD and detects parent replacement before successful return. Deterministic tests replace parents during `os.replace`, `os.open`, and `os.mkdir` and verify attacker replacement paths are not mutated. Cross-platform closure still requires BE-038 and BE-039.
+- Components: `storage/durable_fs.py`, `storage/migration_journal.py`, migration activation, `tests/unit/test_durable_fs_parent_identity.py`.
+- Dependencies: BE-028; BE-035 DONE.
+- Last verification: 2026-08-23 current remote after commit `c894c4f`; its quality-gate run is pending, no pass claimed.
 
 ### BE-038 — Windows HANDLE-bound durable filesystem publication
 - Priority: P1
 - Status: READY
-- Evidence: Windows still uses pathname-based `MoveFileExW` after static reparse checks. To close SEC-009 cross-platform, directory/file handles must be opened with reparse-point-safe flags and identity must remain bound through replacement/publication; a mere post-check is insufficient.
+- Evidence: Windows still uses pathname-based `MoveFileExW` after static reparse checks. A race-closing solution needs source/destination directory/file HANDLE identity bound through the mutation, not only post-checks.
 - Components: `storage/durable_fs.py`, Windows-only deterministic race tests, migration journal/activation consumers.
-- Dependencies: BE-036 POSIX primitive implemented.
-- Last verification: 2026-08-23 current remote; Windows path intentionally left fail-safe but not race-closed.
+- Dependencies: BE-036 POSIX primitives implemented.
+- Last verification: 2026-08-23 current remote.
 
 ### BE-039 — Bind migration SQLite clone destination to parent identity
 - Priority: P1
 - Status: READY
-- Evidence: `create_migration_clone()` still calls `sqlite3.connect(candidate_path)` after pathname/reparse checks. Parent replacement between the final check and SQLite open can redirect candidate creation. This needs an SQLite-compatible identity-bound destination strategy or an explicit platform primitive; repeated path checks do not close the race.
+- Evidence: `create_migration_clone()` still calls `sqlite3.connect(candidate_path)` after pathname/reparse checks. Parent replacement between check and SQLite open can redirect candidate creation. No false fix via repeated checks: requires an SQLite-compatible identity-bound strategy or explicit platform primitive.
 - Components: `storage/migration_clone.py`, migration coordinator, deterministic parent-replacement tests.
-- Dependencies: BE-036 shared identity primitives; may be platform-specific.
+- Dependencies: BE-036 shared identity primitives; platform-specific solution may be required.
 - Last verification: 2026-08-23 current remote trace of `migration_clone.py`.
 
 ### BE-020 — Runtime ModelSignature drift guard in generation
@@ -59,66 +43,80 @@ Last queue refresh: 2026-08-23.
 - Status: READY
 - Evidence: reusable revision-aware guard exists; shared `chat/generation.py` still uses older inline comparison.
 - Components: chat generation/signature guard/tests.
-- Dependencies: safe mutation window for shared generation file; current remote file remains large/shared, so no blind replacement.
+- Dependencies: safe mutation window for shared generation file; do not blind-replace.
 
 ### BE-021 — ContextPackage temperature conversion overflow
 - Priority: P2
 - Status: READY
 - Evidence: extreme JSON integer can escape the ContextPackage error contract via `float()` OverflowError.
-- Components: retrieval/context_package.py/tests.
-- Dependencies: safe mutation window for shared ContextPackage file; current connector snapshot is partial for this large shared file, so no blind replacement.
+- Components: `retrieval/context_package.py`, tests.
+- Dependencies: safe mutation window for shared ContextPackage file; do not blind-replace.
 
-## Recently completed storage slices
+## Recently completed backend/storage slices
+
+### BE-041 — Verify SQLite runtime connection policy
+- Priority: P1
+- Status: DONE
+- Evidence: new `storage/connection_policy.py` validates a bounded 5,000–120,000 ms busy timeout, applies `foreign_keys=ON`, configured `busy_timeout`, and `trusted_schema=OFF`, then fails closed unless readback exactly confirms all three. `SQLiteDatabase` accepts the bounded timeout, uses it for `sqlite3.connect()` and reapplies/verifies the policy after schema initialization. Focused unit tests cover limits and the real database-start path.
+- Components: `storage/connection_policy.py`, `storage/database.py`, `tests/unit/test_sqlite_connection_policy.py`.
+- Dependencies: none.
+- Last verification: 2026-08-23 current remote after `4fe780f`; associated quality-gate run was cancelled, so tests are added but not claimed executed.
+
+### BE-040 — Bind POSIX durable mkdir to parent identity
+- Priority: P1
+- Status: DONE
+- Evidence: POSIX directory creation now uses `os.mkdir(..., dir_fd=opened_parent_fd)`, fsyncs the same parent handle and fails closed if the logical parent pathname no longer names that handle. `exist_ok` inspects the child relative to the bound parent without following links. Race and nested-creation regressions added.
+- Components: `storage/durable_fs.py`, `tests/unit/test_durable_fs_parent_identity.py`.
+- Dependencies: BE-036.
+- Last verification: 2026-08-23 current remote after `c894c4f`; quality-gate run pending, no pass claimed.
+
+### BE-034 — Bound migration journal reads before JSON decode
+- Priority: P2
+- Status: DONE
+- Evidence: journal reads/writes are capped at 64 KiB and use opened-handle identity/regular-file verification with bounded reads.
+- Components: `storage/migration_journal.py`, resource-bound tests.
+- Last verification: 2026-08-23 current remote; no new green gate claimed.
+
+### BE-035 — Bind migration lock to migration-root identity
+- Priority: P1
+- Status: DONE
+- Evidence: lock lives in the migration root parent and fences original root filesystem identity before/after the critical section; deterministic replacement regression exists.
+- Components: `storage/migration_lock.py`, tests.
+- Last verification: 2026-08-23 current remote.
 
 ### BE-029 — Physically allocated Emergency Reserve
 - Priority: P1
 - Status: DONE
-- Evidence: `EmergencyReserveStore` plus bootstrap integration implement Beta sizing `max(256 MiB, min(1 GiB, 1% volume))`, non-sparse allocation, durable persistence, path/reparse safety, explicit emergency release and test injection. Normal shutdown retains the reserve.
-- Components: `storage/emergency_reserve.py`, `storage/bootstrap.py`, tests.
-- Last verification: 2026-08-23; Windows stale test expectation corrected after GitHub Actions evidence.
+- Evidence: physical non-sparse reserve sizing, durable persistence, explicit release and normal-shutdown retention implemented.
 
 ### BE-030 — Disk-pressure state controller and runtime write gate
 - Priority: P1
 - Status: DONE
-- Evidence: integer-only Beta thresholds are implemented; runtime canonical `SQLiteDatabase.write_transaction()` invokes the controller gate before `BEGIN IMMEDIATE`. First runtime EMERGENCY releases only the reserve, latches read-only safe mode for the controller lifetime, blocks current/subsequent noncritical writes, and the real application startup now binds this gate through `StorageBootstrapService`.
-- Components: `storage/disk_pressure.py`, `storage/database.py`, `storage/bootstrap.py`, `core/application.py`, targeted tests.
-- Last verification: 2026-08-23; Linux/Windows workflow evidence exposed only stale row/stub assertions around this path, now corrected. New gate pending.
+- Evidence: runtime canonical writes are gated before `BEGIN IMMEDIATE`; EMERGENCY releases only reserve then latches read-only safe mode.
 
 ### BE-031 — Candidate-only schema executor
 - Priority: P1
 - Status: DONE
-- Evidence: `migrate_schema_candidate()` runs the existing schema engine only against the clone candidate, requires current `SCHEMA_VERSION`, complete WAL checkpoint, DELETE journal mode and no sidecars. GitHub Actions exposed that historical schema verifiers require mapping rows; the executor now sets `sqlite3.Row` before `initialize_schema()`.
-- Components: `storage/migration_executor.py`, targeted tests.
-- Dependencies: BE-028 standalone coordinator.
-- Last verification: 2026-08-23; regression observed in GitHub Actions and product fix committed; rerun pending.
+- Evidence: schema engine runs only against clone candidate with current-version, checkpoint, DELETE-journal and no-sidecar requirements.
 
 ### BE-032 — Read-only startup migration planner
 - Priority: P1
 - Status: DONE
-- Evidence: `plan_database_migration()` converts the preflight report into no-op for missing/current DB or an exact clone-required legacy-to-current descriptor; unsupported versions fail closed.
-- Components: `storage/migration_plan.py`, targeted tests.
-- Dependencies: BE-027.
-- Last verification: 2026-08-23 current remote.
+- Evidence: preflight maps missing/current DB to no-op and legacy schema to exact clone-required descriptor; unsupported versions fail closed.
 
 ### BE-033 — Integrate safe storage bootstrap ordering
 - Priority: P1
 - Status: DONE
-- Evidence: `StorageBootstrapService` owns RuntimeLayout -> migration-root/preflight/recovery -> EmergencyReserve -> clone migration if required -> database startup, binds runtime disk-pressure write arbitration, and is now the first actual `AthenaApplication` lifecycle service instead of the previous direct RuntimeLayout + SQLite startup.
-- Components: `storage/bootstrap.py`, `storage/database.py`, `core/application.py`, bootstrap tests.
-- Dependencies: BE-029/031/032 DONE.
-- Last verification: 2026-08-23 current remote; product runtime wiring confirmed after re-reading full `AthenaApplication`; new CI gate pending.
+- Evidence: RuntimeLayout -> preflight/recovery -> EmergencyReserve -> clone migration -> live DB startup is wired as the first application lifecycle service.
 
 ### BE-037 — Bound backup deletion-ledger resource usage
 - Priority: P2
 - Status: DONE
-- Evidence: target-controlled deletion-ledger records and head are read through no-follow handle-verified bounded reads. Record count, per-record bytes, head bytes and aggregate record bytes are capped; publication enforces corresponding write-side limits so ATHENA cannot create unrecoverable ledger state.
-- Components: `backup/deletion_storage.py`, `tests/unit/test_backup_deletion_storage_resource_bounds.py`.
-- Dependencies: existing deletion-ledger codec/storage contract.
-- Last verification: 2026-08-23 current remote; targeted resource-bound regressions added; new gate pending.
+- Evidence: no-follow bounded record/head reads plus record-count, per-record, head and aggregate byte ceilings; publication enforces matching limits.
 
 ## Blocked / in-progress older slices
 
-- BE-002 · P1 · BLOCKED — provider lifecycle/control adapter completion; shared LM Studio adapter ownership window required. Security SEC-003 also requires this adapter's loopback transport to ignore ambient HTTP(S) proxies.
+- BE-002 · P1 · BLOCKED — provider lifecycle/control adapter completion; shared LM Studio adapter ownership window required.
 - BE-008 · P2 · BLOCKED — auditable primary-model switch needs durable audit contract.
 - BE-009 · P2 · BLOCKED — provider request cancellation needs exact backend request-ID plumbing.
 - BE-010 · P2 · IN_PROGRESS — generation numeric/control boundaries; shared generation path remains.
@@ -136,7 +134,7 @@ Last queue refresh: 2026-08-23.
 - BE-005 STALE — provider-aware dynamic token accounting already present.
 - BE-006 DONE — active primary ModelRegistry.
 - BE-007 DONE — model load ownership.
-- BE-011 DONE — BlobStore/durable FS symlink+junction confinement; Security SEC-006/007 track residual concurrent parent-replacement races not closed by static boundary checks.
+- BE-011 DONE — BlobStore/durable FS symlink+junction confinement.
 - BE-012 DONE — provider-observed model revision in signatures.
 - BE-017 DONE — ModelSession cancellation invariants.
 - BE-018 DONE — UUIDv7 clock-range guard.
