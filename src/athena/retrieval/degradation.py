@@ -21,6 +21,15 @@ EMBEDDING_MODEL_NOT_LOADED_WARNING = (
 )
 
 
+def _canonical_text(value: object, label: str) -> str:
+    if not isinstance(value, str):
+        raise ValueError(f"{label} must be text.")
+    normalized = value.strip()
+    if not normalized:
+        raise ValueError(f"{label} must not be empty.")
+    return normalized
+
+
 class SemanticRetrievalUnavailableError(
     RuntimeError
 ):
@@ -30,21 +39,12 @@ class SemanticRetrievalUnavailableError(
         self,
         reason_code: str,
     ) -> None:
-        normalized = (
-            reason_code.strip()
+        normalized = _canonical_text(
+            reason_code,
+            "Semantic retrieval fallback reason code",
         )
-
-        if not normalized:
-            raise ValueError(
-                "Semantic retrieval fallback "
-                "reason code must not be empty."
-            )
-
         self.reason_code = normalized
-
-        super().__init__(
-            normalized
-        )
+        super().__init__(normalized)
 
 
 @dataclass(
@@ -65,19 +65,19 @@ def resolve_embedding_model_for_retrieval(
 ) -> EmbeddingRetrievalResolution:
     """Resolve embeddings without making them a chat hard dependency."""
 
-    if (
-        requested_model_id
-        is not None
-        and not requested_model_id.strip()
-    ):
+    if not isinstance(provider, LMStudioEmbeddingProvider):
         raise ValueError(
-            "Embedding model id "
-            "must not be empty."
+            "Embedding retrieval provider must be an LMStudioEmbeddingProvider value."
         )
+    normalized_model_id = (
+        None
+        if requested_model_id is None
+        else _canonical_text(requested_model_id, "Embedding model id")
+    )
 
     try:
         model = provider.resolve_model(
-            requested_model_id
+            normalized_model_id
         )
     except ModelProviderError:
         return EmbeddingRetrievalResolution(
