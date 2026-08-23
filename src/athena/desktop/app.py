@@ -22,6 +22,9 @@ from athena.desktop.pathena_backup_action_context_6800 import install_backup_act
 from athena.desktop.pathena_chat_scroll_stability_6600 import install_chat_scroll_stability
 from athena.desktop.pathena_command_palette_truth_6500 import install_command_palette_truth
 from athena.desktop.pathena_detail_provenance_6300 import apply_detail_provenance
+from athena.desktop.pathena_empty_search_comprehension_7100 import (
+    install_empty_search_comprehension,
+)
 from athena.desktop.pathena_inspector_scanability_6700 import apply_inspector_scanability
 from athena.desktop.pathena_interaction_refinement import install_interaction_refinement
 from athena.desktop.pathena_jobs_experience_2800 import install_jobs_experience
@@ -159,6 +162,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     apply_workspace_presentation(window)
     command_palette = install_command_palette(window)
     command_palette_truth = install_command_palette_truth(command_palette)
+    empty_search_comprehension = install_empty_search_comprehension(
+        window,
+        command_palette,
+        command_palette_truth,
+        canonical_memory_extensions,
+    )
     jobs_experience = install_jobs_experience(jobs_workspace)
     startup_experience = install_startup_experience(window)
     apply_complete_ui_refinements(window)
@@ -205,6 +214,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     detail_provenance.deleteLater()
     startup_experience.deleteLater()
     jobs_experience.deleteLater()
+    empty_search_comprehension.deleteLater()
     canonical_memory_extensions.deleteLater()
     knowledge_acceptance.deleteLater()
     knowledge_workspace.deleteLater()
