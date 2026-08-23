@@ -16,7 +16,6 @@ from typing import TYPE_CHECKING, Any
 from PySide6.QtCore import QObject, Qt, QTimer
 from PySide6.QtWidgets import (
     QLabel,
-    QListWidget,
     QListWidgetItem,
     QVBoxLayout,
     QWidget,
