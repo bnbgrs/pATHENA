@@ -1,4 +1,4 @@
-"""Short-lived process boundary for persistent desktop Knowledge browsing."""
+"""Short-lived process boundary for persistent desktop Knowledge operations."""
 
 from __future__ import annotations
 
@@ -7,6 +7,7 @@ import sys
 import uuid
 from collections.abc import Sequence
 
+from athena.api.service import _dedup_plan_digest
 from athena.core.application import AthenaApplication
 from athena.knowledge.models import KnowledgeUnitRevision, KnowledgeUnitSnapshot
 
@@ -23,6 +24,10 @@ def _parser() -> argparse.ArgumentParser:
 
     history = commands.add_parser("history")
     history.add_argument("knowledge_id", type=uuid.UUID)
+
+    accept = commands.add_parser("accept")
+    accept.add_argument("processing_run_id", type=uuid.UUID)
+    accept.add_argument("preflight_digest")
     return parser
 
 
@@ -103,6 +108,46 @@ def _print_history(app: AthenaApplication, knowledge_id: uuid.UUID) -> None:
         _print_revision(revision)
 
 
+def _accept_review(
+    app: AthenaApplication,
+    *,
+    processing_run_id: uuid.UUID,
+    preflight_digest: str,
+) -> None:
+    try:
+        digest_bytes = bytes.fromhex(preflight_digest)
+    except ValueError as exc:
+        raise ValueError("preflight_digest must be valid SHA-256 hexadecimal") from exc
+    if len(preflight_digest) != 64 or len(digest_bytes) != 32:
+        raise ValueError("preflight_digest must be a SHA-256 hexadecimal digest")
+
+    result = app.extraction_snapshots.load(processing_run_id)
+    if result.processing_run.processing_run_id != processing_run_id:
+        raise RuntimeError("Frozen extraction returned another ProcessingRun")
+    if result.proposals.merge_candidates:
+        raise ValueError("Extractor merge candidates must be resolved before acceptance")
+
+    plan = app.proposal_acceptance.preflight(result)
+    if plan.merge_candidates:
+        raise ValueError("Canonical merge candidates must be resolved before acceptance")
+
+    current_digest = _dedup_plan_digest(plan)
+    if current_digest != preflight_digest:
+        raise ValueError(
+            "Knowledge preflight is stale; review the proposals again before acceptance"
+        )
+
+    accepted = app.proposal_acceptance.accept_all(result, expected_plan=plan)
+    print(f"ACCEPTED {accepted.processing_run_id} {accepted.commit_id}")
+    print(f"KNOWLEDGE_TOTAL {len(accepted.knowledge_ids)}")
+    print(f"KNOWLEDGE_CREATED {len(accepted.knowledge_created_ids)}")
+    print(f"KNOWLEDGE_REUSED {len(accepted.knowledge_reused_ids)}")
+    print(f"CLAIMS_TOTAL {len(accepted.claim_ids)}")
+    print(f"CLAIMS_CREATED {len(accepted.claim_created_ids)}")
+    print(f"CLAIMS_REUSED {len(accepted.claim_reused_ids)}")
+    print(f"CONTRADICTION_REVIEWS {len(accepted.contradiction_review_ids)}")
+
+
 def _run(app: AthenaApplication, args: argparse.Namespace) -> int:
     if args.command == "list":
         _print_list(app, limit=args.limit)
@@ -112,6 +157,13 @@ def _run(app: AthenaApplication, args: argparse.Namespace) -> int:
         return 0
     if args.command == "history":
         _print_history(app, args.knowledge_id)
+        return 0
+    if args.command == "accept":
+        _accept_review(
+            app,
+            processing_run_id=args.processing_run_id,
+            preflight_digest=args.preflight_digest,
+        )
         return 0
     raise RuntimeError(f"Unsupported knowledge desktop command: {args.command!r}")
 
