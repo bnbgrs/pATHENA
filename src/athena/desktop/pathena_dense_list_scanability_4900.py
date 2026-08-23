@@ -31,6 +31,7 @@ _ACCESSIBILITY_PARITY_TARGETS: tuple[DenseListTarget, ...] = (
     DenseListTarget("persistentKnowledgeList", "Knowledge item"),
     DenseListTarget("persistentClaimList", "Claim"),
     DenseListTarget("semanticReviewList", "contradiction decision"),
+    DenseListTarget("claimRelationList", "claim relation"),
     DenseListTarget("researchJobList", "research job"),
     DenseListTarget("researchProposalList", "research proposal"),
     DenseListTarget("durableJobList", "durable job"),
