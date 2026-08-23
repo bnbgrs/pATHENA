@@ -8,6 +8,7 @@ import pytest
 import athena.storage.emergency_reserve as reserve_module
 from athena.storage.emergency_reserve import (
     EmergencyReserveError,
+    EmergencyReserveService,
     EmergencyReserveStore,
     emergency_reserve_size_bytes,
 )
@@ -174,7 +175,7 @@ def test_store_cleans_partial_file_when_allocation_fails(
 
     monkeypatch.setattr(reserve_module, "_write_allocated_bytes", fail_allocation)
 
-    with pytest.raises(OSError, match="simulated disk full"):
+    with pytest.raises(EmergencyReserveError, match="physically allocated"):
         store.ensure(required_bytes=4096, write_chunk_bytes=1024)
 
     assert not store.path.exists()
@@ -196,3 +197,67 @@ def test_store_inspect_detects_underallocated_file_when_platform_reports_blocks(
 
     with pytest.raises(EmergencyReserveError, match="sparse or under-allocated"):
         store.inspect(required_bytes=4096)
+
+
+def test_service_uses_beta_volume_sizing_and_persists_on_stop(tmp_path: Path) -> None:
+    state_root = (tmp_path / "state").absolute()
+    state_root.mkdir()
+    volume_size = 50 * _GIB
+    service = EmergencyReserveService(
+        state_root,
+        volume_size_provider=lambda path: volume_size if path == state_root else 0,
+        required_bytes_override=4096,
+        write_chunk_bytes=1024,
+    )
+
+    assert service.required_bytes() == 4096
+    service.start()
+    assert service.status is not None
+    assert service.status.required_bytes == 4096
+    reserve_path = service.status.path
+
+    service.stop()
+
+    assert reserve_path.is_file()
+
+
+def test_service_derives_required_bytes_from_volume_provider(tmp_path: Path) -> None:
+    state_root = (tmp_path / "state").absolute()
+    state_root.mkdir()
+    observed: list[Path] = []
+
+    def volume_size(path: Path) -> int:
+        observed.append(path)
+        return 50 * _GIB
+
+    service = EmergencyReserveService(
+        state_root,
+        volume_size_provider=volume_size,
+    )
+
+    assert service.required_bytes() == emergency_reserve_size_bytes(50 * _GIB)
+    assert observed == [state_root]
+
+
+def test_service_override_avoids_volume_probe_for_targeted_tests(tmp_path: Path) -> None:
+    state_root = (tmp_path / "state").absolute()
+    state_root.mkdir()
+    probed = False
+
+    def fail_probe(_path: Path) -> int:
+        nonlocal probed
+        probed = True
+        raise AssertionError("volume probe must not run when override is explicit")
+
+    service = EmergencyReserveService(
+        state_root,
+        volume_size_provider=fail_probe,
+        required_bytes_override=4096,
+        write_chunk_bytes=1024,
+    )
+
+    service.start()
+
+    assert probed is False
+    assert service.status is not None
+    assert service.status.required_bytes == 4096
