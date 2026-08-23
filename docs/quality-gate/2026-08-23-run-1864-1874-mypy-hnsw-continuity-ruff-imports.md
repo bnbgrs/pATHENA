@@ -1,4 +1,4 @@
-# Quality Gate incident: runs 1864-1896
+# Quality Gate incident: runs 1864-1896 and proactive pytest boundary fixes
 
 Date: 2026-08-23
 Repository: `bnbgrs/pATHENA`
@@ -6,7 +6,7 @@ Branch: `agent/pathena`
 
 ## Scope
 
-This log records the primary gate failures observed while the branch was changing concurrently. `bnbgrs/ATHENA` was not modified.
+This log records the primary gate failures observed while the branch was changing concurrently, plus stale test contracts identified proactively before pytest reached them. `bnbgrs/ATHENA` was not modified.
 
 ## Run 1864
 
@@ -69,6 +69,22 @@ Observed merge head: `e7aa2321af97bb681426572ae5e429c43f686e82` for branch head 
 
 Commit `5482fbd898432d682baddfea409407080690cb1f` removes only the unused `field` import and leaves all three interrupt/shutdown tests unchanged.
 
+## Proactive stale pytest contract: backup target symlink root
+
+`backup_target_lock()` first rejects symbolic-link ancestors. Therefore a symlink supplied as the target root raises `BackupTargetBusyError` with `symbolic-link ancestor` before the later unavailable-directory branch can run. `tests/unit/test_backup_target_lock_boundaries.py` still expected `RuntimeError` matching `unavailable`.
+
+- Classification: stale test expectation after security hardening; production behavior is the safer behavior.
+- Fix: commit `b65763eccba5004f089991aaf72f5e727f272599` changes only the expected exception/message to the current fail-closed contract.
+- Targeted local execution: NOT EXECUTABLE in this automation runtime because the isolated container cannot resolve `github.com`; verification is delegated to the repository CI gate.
+
+## Proactive stale pytest contract: source-analysis negative ordinal
+
+`SourceAnalysisWorkInput` delegates ordinal validation to `_require_int(..., minimum=0)`, whose stable message is `must be >= 0`. `tests/unit/test_source_analysis_models_boundaries.py` expected the obsolete phrase `must not be negative`.
+
+- Classification: stale assertion text; no production defect.
+- Fix: commit `7219da59f8cc3881740ed31b48f631d059cbd90d` changes only the regex expectation to `must be >= 0`.
+- Targeted local execution: NOT EXECUTABLE for the same container network limitation; verification is delegated to CI.
+
 ## Safety / concurrency result
 
 - All reads used `agent/pathena` or the exact observed run head.
@@ -79,4 +95,4 @@ Commit `5482fbd898432d682baddfea409407080690cb1f` removes only the unused `field
 
 ## Next gate slice
 
-Re-evaluate the newest `agent/pathena` CI run. Required sequence: specification validator -> Ruff -> mypy -> pytest. Treat newly added parallel files as fresh potential primaries; do not attribute downstream failures to the already-resolved 1864/1874/1896 causes without a new reproducing run.
+Re-evaluate the newest `agent/pathena` CI run. Required sequence: specification validator -> Ruff -> mypy -> pytest. Treat newly added parallel files as fresh potential primaries; do not attribute downstream failures to the already-resolved causes without a new reproducing run.
