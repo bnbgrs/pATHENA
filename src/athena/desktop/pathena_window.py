@@ -155,6 +155,7 @@ class PathenaMainWindow(AthenaMainWindow):
         self.delete_chat_button.setToolTip("Delete the selected conversation")
 
         self._replace_visible_copy()
+        self._apply_settings_presentation()
         self._hide_nonfunctional_placeholders()
 
     def _install_progressive_disclosure(self) -> None:
@@ -236,6 +237,60 @@ class PathenaMainWindow(AthenaMainWindow):
             elif label.text() == "MODEL":
                 label.setText("Model")
 
+    def _apply_settings_presentation(self) -> None:
+        """Translate inference terminology without changing model-control semantics."""
+        settings_page = self.pages.widget(6)
+        if settings_page is None:
+            return
+
+        label_replacements = {
+            "MODEL": "Model",
+            "CTX": "Context window",
+            "MAX OUTPUT TOKENS": "Maximum response",
+            "TEMPERATURE": "Temperature",
+            "THINKING": "Reasoning",
+        }
+        for label in settings_page.findChildren(QLabel):
+            if label.text() == "LOCAL MODEL / INFERENCE SETTINGS":
+                label.hide()
+                continue
+            if label.text().startswith("Per-model session controls."):
+                label.setText(
+                    "Tune how the selected local model uses context and generates "
+                    "responses. Settings are kept per model for this session."
+                )
+                continue
+            if label.text().startswith("THINKING OFF sends reasoning_effort=none."):
+                label.setText(
+                    "Reasoning is used only when enabled and supported by the selected "
+                    "model. Maximum response stays within the current context budget."
+                )
+                continue
+            replacement = label_replacements.get(label.text())
+            if replacement is not None:
+                label.setText(replacement)
+
+        self.context_slider.setToolTip("Adjust the request context window")
+        self.context_spin.setToolTip("Enter the exact context window in tokens")
+        self.max_output_slider.setToolTip("Adjust the maximum response length")
+        self.max_output_spin.setToolTip("Enter the maximum response length in tokens")
+        self.temperature_spin.setToolTip("Adjust sampling temperature")
+        self.thinking_checkbox.setToolTip(
+            "Allow model reasoning when the selected model supports it"
+        )
+        self._humanize_model_settings_state()
+
+    def _humanize_model_settings_state(self) -> None:
+        model = self._selected_model()
+        if model is None:
+            self.settings_model_value.setText("—")
+        else:
+            state = "Loaded" if model.loaded else "Not loaded"
+            self.settings_model_value.setText(f"{model.display_name} · {state}")
+        self.thinking_checkbox.setText(
+            "On" if self.thinking_checkbox.isChecked() else "Off"
+        )
+
     def _hide_nonfunctional_placeholders(self) -> None:
         """Do not advertise affordances that are not wired to an action yet."""
         hidden_copy = {
@@ -282,6 +337,16 @@ class PathenaMainWindow(AthenaMainWindow):
                 self.chat_selector.setItemText(index, "Loading conversation…")
             else:
                 self.chat_selector.setItemText(index, "Current conversation")
+
+        self._humanize_model_settings_state()
+
+    def _configure_context_for_selected_model(self) -> None:
+        super()._configure_context_for_selected_model()
+        self._humanize_model_settings_state()
+
+    def _on_thinking_changed(self, checked: bool) -> None:
+        super()._on_thinking_changed(checked)
+        self._humanize_model_settings_state()
 
     def _message_widget(
         self,
