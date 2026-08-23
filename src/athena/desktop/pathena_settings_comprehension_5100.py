@@ -12,7 +12,12 @@ from collections.abc import Callable
 from typing import cast
 
 from PySide6.QtCore import QObject, QTimer
-from PySide6.QtWidgets import QWidget
+from PySide6.QtWidgets import (
+    QAbstractButton,
+    QSlider,
+    QSpinBox,
+    QWidget,
+)
 
 
 class SettingsComprehensionController(QObject):
@@ -40,13 +45,12 @@ class SettingsComprehensionController(QObject):
             return
         self._last_signature = signature
 
-        model_state = (
-            "no-model"
-            if model is None
-            else "loaded"
-            if loaded
-            else "available-not-loaded"
-        )
+        if model is None:
+            model_state = "no-model"
+        elif loaded:
+            model_state = "loaded"
+        else:
+            model_state = "available-not-loaded"
         context_mode = "auto" if model is not None and capacity is None else "exact"
 
         for widget in self._controls():
@@ -54,22 +58,14 @@ class SettingsComprehensionController(QObject):
             widget.setProperty("pathenaSettingsContextMode", context_mode)
             widget.setProperty("pathenaSettingsPerModel", True)
 
-        self._set_tip(
-            "context_slider",
-            self._context_tip(model_state, capacity),
-        )
-        self._set_tip(
-            "context_spin",
-            self._context_tip(model_state, capacity),
-        )
-        self._set_tip(
-            "max_output_slider",
-            self._output_tip(model_state, context_value),
-        )
-        self._set_tip(
-            "max_output_spin",
-            self._output_tip(model_state, context_value),
-        )
+        context_tip = self._context_tip(model_state, capacity)
+        self._set_tip("context_slider", context_tip)
+        self._set_tip("context_spin", context_tip)
+
+        output_tip = self._output_tip(model_state, context_value)
+        self._set_tip("max_output_slider", output_tip)
+        self._set_tip("max_output_spin", output_tip)
+
         self._set_tip(
             "temperature_spin",
             "Sampling temperature for the selected model. This value is remembered "
@@ -106,19 +102,15 @@ class SettingsComprehensionController(QObject):
 
     def _value(self, attribute_name: str) -> int | None:
         widget = getattr(self.window, attribute_name, None)
-        value_method = getattr(widget, "value", None)
-        if not callable(value_method):
-            return None
-        result = value_method()
-        return result if isinstance(result, int) else None
+        if isinstance(widget, (QSlider, QSpinBox)):
+            return widget.value()
+        return None
 
     def _checked(self, attribute_name: str) -> bool | None:
         widget = getattr(self.window, attribute_name, None)
-        checked = getattr(widget, "isChecked", None)
-        if not callable(checked):
-            return None
-        result = checked()
-        return result if isinstance(result, bool) else None
+        if isinstance(widget, QAbstractButton):
+            return widget.isChecked()
+        return None
 
     def _controls(self) -> tuple[QWidget, ...]:
         names = (
@@ -129,11 +121,12 @@ class SettingsComprehensionController(QObject):
             "temperature_spin",
             "thinking_checkbox",
         )
-        return tuple(
-            widget
-            for name in names
-            if isinstance((widget := getattr(self.window, name, None)), QWidget)
-        )
+        controls: list[QWidget] = []
+        for name in names:
+            widget = getattr(self.window, name, None)
+            if isinstance(widget, QWidget):
+                controls.append(widget)
+        return tuple(controls)
 
     def _set_tip(self, attribute_name: str, text: str) -> None:
         widget = getattr(self.window, attribute_name, None)
@@ -146,25 +139,34 @@ class SettingsComprehensionController(QObject):
     @staticmethod
     def _context_tip(model_state: str, capacity: int | None) -> str:
         if model_state == "no-model":
-            return "CTX is per model. Choose a local model before a model-specific context can apply."
+            return (
+                "CTX is per model. Choose a local model before a model-specific "
+                "context can apply."
+            )
         if capacity is None:
             return (
                 "CTX capacity is not reported separately by the provider, so pATHENA "
                 "shows AUTO rather than inventing an exact model ceiling."
             )
         return (
-            f"Total request context for the selected model. Current discovered ceiling: "
+            "Total request context for the selected model. Current discovered ceiling: "
             f"{capacity:,} tokens."
         )
 
     @staticmethod
     def _output_tip(model_state: str, context_value: int | None) -> str:
         if model_state == "no-model":
-            return "MAX OUTPUT is per model and becomes meaningful after selecting a model."
+            return (
+                "MAX OUTPUT is per model and becomes meaningful after selecting "
+                "a model."
+            )
         if context_value is None:
-            return "MAX OUTPUT is bounded by the effective context and pATHENA safety reserve."
+            return (
+                "MAX OUTPUT is bounded by the effective context and pATHENA "
+                "safety reserve."
+            )
         return (
-            f"Maximum response budget for the selected model. It remains bounded by "
+            "Maximum response budget for the selected model. It remains bounded by "
             f"CTX {context_value:,} minus pATHENA's safety reserve."
         )
 
@@ -177,7 +179,11 @@ class SettingsComprehensionController(QObject):
         if model is None:
             return "No local model selected. Per-model inference settings are not active."
         display_name = str(getattr(model, "display_name", "selected local model"))
-        state = "loaded and ready for requests" if model_state == "loaded" else "available but not loaded"
+        state = (
+            "loaded and ready for requests"
+            if model_state == "loaded"
+            else "available but not loaded"
+        )
         capacity_text = (
             f" Discovered context capacity: {capacity:,} tokens."
             if capacity is not None
