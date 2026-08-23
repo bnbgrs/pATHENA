@@ -400,11 +400,48 @@ QWidget#systemWorkspace {
     border: none;
 }
 
+QTabWidget#canonicalMemoryTabs::pane {
+    background: transparent;
+    border: none;
+    border-top: 1px solid #252a2e;
+    top: -1px;
+}
+
+QTabWidget#canonicalMemoryTabs QTabBar::tab {
+    color: #7e888f;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    min-height: 30px;
+    padding: 0 11px;
+    margin-right: 5px;
+    font-size: 10px;
+    font-weight: 500;
+}
+
+QTabWidget#canonicalMemoryTabs QTabBar::tab:hover {
+    color: #cbd1d5;
+}
+
+QTabWidget#canonicalMemoryTabs QTabBar::tab:selected {
+    color: #eef1f2;
+    border-bottom-color: #707d81;
+}
+
+QLineEdit#knowledgeSearchInput {
+    background: #14181b;
+    border-color: #252b30;
+}
+
 QListWidget#persistentKnowledgeList,
+QListWidget#persistentClaimList,
+QListWidget#semanticReviewList,
 QListWidget#researchJobList,
 QListWidget#durableJobList,
 QListWidget#sourceList,
 QPlainTextEdit#persistentKnowledgeDetails,
+QPlainTextEdit#persistentClaimDetails,
+QPlainTextEdit#semanticReviewDetails,
 QPlainTextEdit#researchDetails,
 QPlainTextEdit#jobDetails,
 QPlainTextEdit#sourceDetails {
@@ -418,6 +455,8 @@ QPlainTextEdit#sourceDetails {
 }
 
 QListWidget#persistentKnowledgeList::item,
+QListWidget#persistentClaimList::item,
+QListWidget#semanticReviewList::item,
 QListWidget#researchJobList::item,
 QListWidget#durableJobList::item,
 QListWidget#sourceList::item {
@@ -429,6 +468,8 @@ QListWidget#sourceList::item {
 }
 
 QListWidget#persistentKnowledgeList::item:hover,
+QListWidget#persistentClaimList::item:hover,
+QListWidget#semanticReviewList::item:hover,
 QListWidget#researchJobList::item:hover,
 QListWidget#durableJobList::item:hover,
 QListWidget#sourceList::item:hover {
@@ -437,6 +478,8 @@ QListWidget#sourceList::item:hover {
 }
 
 QListWidget#persistentKnowledgeList::item:selected,
+QListWidget#persistentClaimList::item:selected,
+QListWidget#semanticReviewList::item:selected,
 QListWidget#researchJobList::item:selected,
 QListWidget#durableJobList::item:selected,
 QListWidget#sourceList::item:selected {
