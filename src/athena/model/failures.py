@@ -31,7 +31,9 @@ class ProviderFailureRetryClass(str, Enum):
 
 _RETRY_CLASS_BY_KIND = {
     ProviderFailureKind.TIMEOUT: ProviderFailureRetryClass.RETRYABLE,
-    ProviderFailureKind.RESOURCE_EXHAUSTED: ProviderFailureRetryClass.RETRYABLE,
+    ProviderFailureKind.RESOURCE_EXHAUSTED: (
+        ProviderFailureRetryClass.REQUEST_CHANGE_REQUIRED
+    ),
     ProviderFailureKind.UNAVAILABLE: ProviderFailureRetryClass.RETRYABLE,
     ProviderFailureKind.INVALID_RESPONSE: ProviderFailureRetryClass.TERMINAL,
     ProviderFailureKind.BACKEND_CRASH: ProviderFailureRetryClass.RETRYABLE,
