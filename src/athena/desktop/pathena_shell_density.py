@@ -1,17 +1,47 @@
 """Small presentation-only density pass for the final pATHENA shell.
 
 The functional window owns controls and signals. This pass only removes redundant
-visible labels after those controls exist, while keeping their accessible names,
-tooltips and object identities intact.
+visible labels and aligns final top-level navigation after all workspaces exist,
+while keeping accessible names, tooltips and object identities intact.
 """
 
 from __future__ import annotations
 
-from PySide6.QtWidgets import QLabel, QWidget
+from PySide6.QtWidgets import QLabel, QTabWidget, QWidget
+
+_SYSTEM_TABS_STYLESHEET = r"""
+QTabWidget#systemOperationsTabs::pane {
+    background: transparent;
+    border: none;
+    border-top: 1px solid #252a2e;
+    top: -1px;
+}
+
+QTabWidget#systemOperationsTabs QTabBar::tab {
+    color: #7e888f;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    min-height: 30px;
+    padding: 0 11px;
+    margin-right: 5px;
+    font-size: 10px;
+    font-weight: 500;
+}
+
+QTabWidget#systemOperationsTabs QTabBar::tab:hover {
+    color: #cbd1d5;
+}
+
+QTabWidget#systemOperationsTabs QTabBar::tab:selected {
+    color: #eef1f2;
+    border-bottom-color: #707d81;
+}
+"""
 
 
 def apply_shell_density(window: QWidget) -> None:
-    """Reduce permanent chat-toolbar chrome without obscuring control purpose."""
+    """Reduce permanent shell chrome without obscuring control purpose."""
     for label in window.findChildren(QLabel, "sessionLabel"):
         label.hide()
 
@@ -36,3 +66,9 @@ def apply_shell_density(window: QWidget) -> None:
     delete_chat_button = getattr(window, "delete_chat_button", None)
     if delete_chat_button is not None:
         delete_chat_button.setAccessibleName("Delete conversation")
+
+    system_tabs = window.findChild(QTabWidget, "systemOperationsTabs")
+    if system_tabs is not None:
+        system_tabs.setDocumentMode(True)
+        system_tabs.setUsesScrollButtons(False)
+        system_tabs.setStyleSheet(_SYSTEM_TABS_STYLESHEET)
