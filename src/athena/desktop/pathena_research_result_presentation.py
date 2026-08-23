@@ -6,7 +6,7 @@ import re
 from typing import TYPE_CHECKING
 
 from PySide6.QtCore import Qt, QTimer
-from PySide6.QtWidgets import QLabel, QListWidgetItem, QPushButton, QWidget
+from PySide6.QtWidgets import QLabel, QListWidgetItem, QWidget
 
 if TYPE_CHECKING:
     from athena.desktop.research_results_extension import ResearchResultsExtension
