@@ -198,3 +198,30 @@ def test_source_reparse_ancestor_is_rejected_before_artifact_classification(
 
     with pytest.raises(MigrationRecoveryError, match="reparse-point boundary"):
         assess_migration_recovery(source_db=source, migration_root=root)
+
+
+def test_source_replacement_after_open_fails_identity_classification(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    source, root, _candidate, _rollback = _paths(tmp_path)
+    source.write_bytes(b"trusted")
+    displaced = tmp_path / "displaced.db"
+    real_lstat = recovery_module.os.lstat
+    replaced = False
+
+    def racing_lstat(path: Path) -> object:
+        nonlocal replaced
+        if Path(path) == source and not replaced:
+            replaced = True
+            source.rename(displaced)
+            source.write_bytes(b"replacement")
+        return real_lstat(path)
+
+    monkeypatch.setattr(recovery_module.os, "lstat", racing_lstat)
+
+    with pytest.raises(MigrationRecoveryError, match="changed while recovery state"):
+        assess_migration_recovery(source_db=source, migration_root=root)
+
+    assert displaced.read_bytes() == b"trusted"
+    assert source.read_bytes() == b"replacement"
