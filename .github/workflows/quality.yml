@@ -40,3 +40,143 @@ jobs:
 
       - name: Run ATHENA quality gate
         run: uv run --locked --extra dev --extra desktop python scripts/quality.py
+
+  windows-preview:
+    name: Windows pATHENA preview
+    if: github.ref_name == 'build/windows-preview-current-20260823' || github.head_ref == 'build/windows-preview-current-20260823'
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install runtime and packager
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ".[desktop]" "pyinstaller>=6.15,<7"
+
+      - name: Build pATHENA Core
+        shell: pwsh
+        run: |
+          python -m PyInstaller `
+            --noconfirm `
+            --clean `
+            --onefile `
+            --console `
+            --name pATHENA-Core `
+            --paths src `
+            --collect-submodules athena `
+            --collect-all usearch `
+            --collect-all cryptography `
+            --collect-all pypdf `
+            src/athena/desktop/packaged_core.py
+
+      - name: Build pATHENA Scheduler
+        shell: pwsh
+        run: |
+          python -m PyInstaller `
+            --noconfirm `
+            --clean `
+            --onefile `
+            --console `
+            --name pATHENA-Scheduler `
+            --paths src `
+            --collect-submodules athena `
+            --collect-all usearch `
+            --collect-all cryptography `
+            --collect-all pypdf `
+            src/athena/desktop/packaged_scheduler.py
+
+      - name: Build pATHENA Desktop
+        shell: pwsh
+        run: |
+          python -m PyInstaller `
+            --noconfirm `
+            --clean `
+            --onefile `
+            --windowed `
+            --name pATHENA `
+            --paths src `
+            --collect-submodules athena `
+            --collect-all usearch `
+            --collect-all cryptography `
+            --collect-all pypdf `
+            src/athena/desktop/packaged_app.py
+
+      - name: Smoke-test packaged child launchers
+        shell: pwsh
+        run: |
+          & .\dist\pATHENA-Core.exe -m athena.api.process --help
+          if ($LASTEXITCODE -ne 0) {
+            throw "pATHENA-Core.exe supervisor-compatible smoke test failed with exit code $LASTEXITCODE"
+          }
+
+          & .\dist\pATHENA-Scheduler.exe -m athena job scheduler-run --help
+          if ($LASTEXITCODE -ne 0) {
+            throw "pATHENA-Scheduler.exe supervisor-compatible smoke test failed with exit code $LASTEXITCODE"
+          }
+
+      - name: Smoke-test desktop executable
+        shell: pwsh
+        run: |
+          $env:QT_QPA_PLATFORM = "offscreen"
+          $desktop = Start-Process -FilePath .\dist\pATHENA.exe -PassThru
+          Start-Sleep -Seconds 8
+          if ($desktop.HasExited) {
+            throw "pATHENA.exe exited during startup smoke test with exit code $($desktop.ExitCode)"
+          }
+          Stop-Process -Id $desktop.Id -Force
+          Get-Process -Name "pATHENA-Core" -ErrorAction SilentlyContinue | Stop-Process -Force
+          Get-Process -Name "pATHENA-Scheduler" -ErrorAction SilentlyContinue | Stop-Process -Force
+
+      - name: Prepare portable preview folder
+        shell: pwsh
+        run: |
+          $out = Join-Path $PWD "portable\pATHENA-Windows-Current"
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          Copy-Item .\dist\pATHENA.exe $out
+          Copy-Item .\dist\pATHENA-Core.exe $out
+          Copy-Item .\dist\pATHENA-Scheduler.exe $out
+          @'
+          pATHENA Windows Current Preview
+          ===============================
+
+          Start:
+            Double-click pATHENA.exe
+
+          Keep together:
+            pATHENA.exe
+            pATHENA-Core.exe
+            pATHENA-Scheduler.exe
+
+          Data:
+            Current compatibility default remains %LOCALAPPDATA%\ATHENA
+
+          Important:
+            - This is an unsigned development preview. Windows SmartScreen may warn on first launch.
+            - Keep all three EXE files in the same directory.
+            - Close pATHENA normally so managed child processes can shut down cleanly.
+
+          Build source:
+            bnbgrs/pATHENA
+            base: agent/pathena-ui-quiet-workspace
+            base commit: e927de2477db1742886fb5c4476a74b31d8b8044
+            packaging branch: build/windows-preview-current-20260823
+          '@ | Set-Content -Encoding UTF8 (Join-Path $out "START_HERE.txt")
+
+      - name: Upload Windows preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: pATHENA-Windows-Current
+          path: portable/pATHENA-Windows-Current/
+          if-no-files-found: error
+          compression-level: 6
+          retention-days: 7
