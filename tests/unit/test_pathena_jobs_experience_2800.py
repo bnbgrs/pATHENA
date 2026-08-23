@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from athena.desktop.pathena_jobs_experience_2800 import (
-    UI_REFINEMENT_TASKS_2701_2800,
     _DETAIL_LABELS,
     _REFINEMENTS,
     _STYLESHEET,
     _TARGETS,
+    UI_REFINEMENT_TASKS_2701_2800,
     _humanize_detail_text,
 )
 
