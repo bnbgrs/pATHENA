@@ -107,6 +107,9 @@ from athena.desktop.pathena_research_readability_2400 import (
     UI_REFINEMENT_TASKS_2301_2400,
     apply_ui_refinements_2301_2400,
 )
+from athena.desktop.pathena_selection_loading_5400 import (
+    apply_ui_refinements_5301_5400,
+)
 from athena.desktop.pathena_settings_comprehension_5100 import (
     apply_ui_refinements_5001_5100,
 )
@@ -254,6 +257,7 @@ def apply_complete_ui_refinements(window: QWidget) -> tuple[int, ...]:
         apply_ui_refinements_5001_5100,
         apply_ui_refinements_5101_5200,
         apply_ui_refinements_5201_5300,
+        apply_ui_refinements_5301_5400,
     )
     for refinement_pass in passes:
         applied.extend(refinement_pass(window))
@@ -298,5 +302,5 @@ def apply_complete_ui_refinements(window: QWidget) -> tuple[int, ...]:
         UI_REFINEMENT_TASKS_4401_4500,
     )
     window.setProperty("pathenaUiRefinementAppliedCount", len(normalized))
-    window.setProperty("pathenaUiRefinementTaskCount", sum(map(len, task_sets)) + 735)
+    window.setProperty("pathenaUiRefinementTaskCount", sum(map(len, task_sets)) + 833)
     return normalized
