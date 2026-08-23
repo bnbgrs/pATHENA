@@ -48,7 +48,12 @@ class SelectionDisappearanceHandoff(QObject):
         if isinstance(watched, QListWidget) and isinstance(
             event, QDynamicPropertyChangeEvent
         ):
-            if bytes(event.propertyName()) == b"pathenaSelectionDisappeared":
+            property_name = bytes(event.propertyName())
+            if property_name in {
+                b"pathenaSelectionDisappeared",
+                b"pathenaResultScopeText",
+                b"pathenaBackupListScope",
+            }:
                 target = next(
                     (item for item in self._targets if item.selection is watched),
                     None,
@@ -75,10 +80,17 @@ class SelectionDisappearanceHandoff(QObject):
             )
             return
 
-        base = self._base_descriptions.get(target.selection, "")
+        base = self._current_base_description(target.selection)
         target.selection.setAccessibleDescription(base)
         target.selection.setProperty("pathenaSelectionHandoffAnnouncement", "")
         target.selection.setProperty("pathenaSelectionFocusRetained", False)
+
+    def _current_base_description(self, selection: QListWidget) -> str:
+        for property_name in ("pathenaBackupListScope", "pathenaResultScopeText"):
+            value = selection.property(property_name)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+        return self._base_descriptions.get(selection, "")
 
     def _schedule_research_sync(self, *_args: object) -> None:
         QTimer.singleShot(0, self._sync_research_results)
