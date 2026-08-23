@@ -80,8 +80,10 @@ class CoreApiProcess:
     """Own ATHENA Core, its loopback API server, and single-process ownership."""
 
     def __init__(self, *, settings: AthenaSettings, port: int = 0) -> None:
-        if not 0 <= port <= 65535:
-            raise ValueError("ATHENA Core API port must be between 0 and 65535.")
+        if isinstance(port, bool) or not isinstance(port, int) or not 0 <= port <= 65535:
+            raise ValueError(
+                "ATHENA Core API port must be an integer between 0 and 65535."
+            )
         self.settings = settings
         self.port = port
         self.app = AthenaApplication(settings=settings)
@@ -187,7 +189,12 @@ class CoreApiProcess:
         ownership = self._ownership
         self._ownership = None
         if ownership is not None:
-            ownership.close()
+            try:
+                ownership.close()
+            except Exception:
+                # Rollback must never replace the startup failure that caused
+                # the rollback. The process is already failing closed.
+                pass
 
 
 def _ownership_lock_path(local_root: Path) -> Path:
@@ -268,9 +275,18 @@ def main(argv: Sequence[str] | None = None) -> int:
             raise CoreApiProcessError("ATHENA Core API started without a published port.")
         print(f"ATHENA Core API ready on 127.0.0.1:{port}", flush=True)
         print(f"Discovery: {process.server.runtime.discovery_path}", flush=True)
-        return process.wait()
-    finally:
+        exit_code = process.wait()
+    except CoreApiProcessError as exc:
+        print(f"ATHENA Core API error: {exc}", file=sys.stderr)
+        exit_code = 2
+
+    try:
         process.stop()
+    except CoreApiProcessError as exc:
+        print(f"ATHENA Core API error: {exc}", file=sys.stderr)
+        return 2
+
+    return exit_code
 
 
 if __name__ == "__main__":
