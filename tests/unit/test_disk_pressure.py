@@ -35,7 +35,7 @@ class _ReserveStub:
     ) -> EmergencyReserveStatus:
         self.ensure_calls += 1
         return EmergencyReserveStatus(
-            path=Path("/tmp/emergency.reserve"),
+            path=(Path.cwd() / "emergency.reserve").absolute(),
             required_bytes=required_bytes,
             file_size_bytes=required_bytes,
             allocated_bytes=required_bytes,
