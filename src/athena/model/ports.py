@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import unicodedata
 from collections.abc import Iterator, Mapping, Sequence
 from typing import Any, Protocol
 
@@ -14,13 +15,18 @@ class ProviderOperationUnsupportedError(RuntimeError):
     """Raised when a provider explicitly cannot perform a Core operation."""
 
 
+def _forbidden_schema_id_character(character: str) -> bool:
+    category = unicodedata.category(character)
+    return category in {"Cc", "Zl", "Zp"}
+
+
 def controlled_structured_contract_prefix(schema_id: str) -> str:
     """Return the exact fixed prompt wrapper used before a supplied JSON Schema."""
     if (
         not isinstance(schema_id, str)
         or not schema_id
         or schema_id != schema_id.strip()
-        or any(ord(character) < 32 or ord(character) == 127 for character in schema_id)
+        or any(_forbidden_schema_id_character(character) for character in schema_id)
     ):
         raise ValueError(
             "Structured schema_id must be canonical single-line text without control characters."
