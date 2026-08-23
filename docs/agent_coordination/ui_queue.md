@@ -45,15 +45,16 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 | UI-035 | P2 | DONE | Research promotion preserves deterministic order while scope exposes pending/resolved counts, selected proposal and evidence hint. |
 | UI-036 | P1 | DONE | Research job filter triggers result-scope resync; hidden rows immediately update shown/total. |
 | UI-037 | P2 | DONE | Operation-failure Copy actions join the real visual chat tab flow without synthetic message IDs. |
-| UI-038 | P2 | DONE | Backup details now identify snapshot metadata vs target/create/verify/restore output and partial/error provenance; four tests added, not executed. |
-| UI-039 | P2 | DONE | Research proposal decisions restore focus only after the follow-up proposal refresh and preserve newer user focus; four tests added, not executed. |
-| UI-040 | P3 | DONE | Status coexistence audit found Backup as the only noisy stack; target scope is now visually compact with full explanation in tooltip/accessibility. |
-| UI-041 | P0 | DONE | Knowledge result scope is tab-truthful for Knowledge/Claims/Decisions, avoids fake Session-review counts and marks filtered selections; regression tests added, not executed. |
+| UI-038 | P2 | DONE | Backup details identify snapshot metadata vs target/create/verify/restore output and partial/error provenance; four tests added, not executed. |
+| UI-039 | P2 | DONE | Research proposal decisions restore focus only after follow-up proposal refresh and preserve newer user focus; four tests added, not executed. |
+| UI-040 | P3 | DONE | Status coexistence audit found Backup as the only noisy stack; target scope is compact with full explanation in tooltip/accessibility. |
+| UI-041 | P0 | DONE | Knowledge result scope is tab-truthful for Knowledge/Claims/Decisions, avoids fake Session-review counts and marks filtered selections; tests added, not executed. |
 | UI-042 | P1 | DONE | Knowledge tab changes during an in-flight command queue exactly the latest visible-tab refresh for completion; four tests added, not executed. |
-| UI-043 | P0 | DONE | Backup verify/deep-verify/restore output is bound to the snapshot that started the operation; current remote reverified 2026-08-23. |
-| UI-044 | P0 | DONE | ResearchResult result/proposal operations retain originating research-job ownership across later selection changes; current remote reverified 2026-08-23. |
-| UI-045 | P1 | DONE | Files process/show/import detail output is selection-owned; later source selection is not overwritten or misattributed. Commit `8ea97c605c39f2571b7c70990f732a613de51519`; tests not executed in connector runtime. |
-| UI-046 | P1 | DONE | Jobs show/pause/resume/wake/cancel detail output is job-owned; later selection remains authoritative. Commit `7019e3ebf614c405db586437072611fe0e2c4c3d`; tests not executed in connector runtime. |
+| UI-043 | P0 | DONE | Backup verify/deep-verify/restore output is bound to the snapshot that started the operation; reverified 2026-08-23. |
+| UI-044 | P0 | DONE | ResearchResult result/proposal operations retain originating research-job ownership across later selection changes; reverified 2026-08-23. |
+| UI-045 | P1 | DONE | Files process/show/import detail output is selection-owned; later source selection is not overwritten or misattributed. Commit `8ea97c605c39f2571b7c70990f732a613de51519`; tests not executed. |
+| UI-046 | P1 | DONE | Jobs show/pause/resume/wake/cancel detail output is job-owned; later selection remains authoritative. Commit `7019e3ebf614c405db586437072611fe0e2c4c3d`; tests not executed. |
+| UI-048 | P1 | DONE | Source, durable-job, ResearchResult and Backup busy/success/failure copy now identifies the originating object; off-selection failures remain failures. Commits `58cf536923b828090e3118cd6765856eb62f1fc8`, `5e46b9513de885672f23940cfbd70975f2b0ded0`, `d28b58dd602bc6a1ddc1e723165e01f3e3da99ed`, `20d931c1b4795f9102482db58062f46a7b929b66`. |
 
 ## Active queue
 
@@ -65,20 +66,12 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 - **Dependencies:** Runtime with repository checkout or Quality-bot execution.
 - **Last verification:** 2026-08-23.
 
-### UI-048 — Background-operation attribution in status copy
-- **Priority:** P1
-- **Status:** READY
-- **Evidence:** Source, durable-job, research-result and backup operations can finish after selection moved elsewhere; details are now protected, but global success/failure copy should identify the originating object so completion is not read as belonging to the current selection.
-- **Views/components:** Sources status, Jobs status, ResearchResult status, Backup status.
-- **Dependencies:** Existing operation-owner IDs from UI-043 through UI-046 only.
-- **Last verification:** 2026-08-23.
-
 ### UI-049 — Busy selection context in shared detail panes
 - **Priority:** P2
-- **Status:** READY
-- **Evidence:** Selecting another Source/Job/Snapshot while background work continues correctly protects output, but the newly selected pane should state that background work belongs to another object instead of presenting metadata without ownership context.
+- **Status:** IN_PROGRESS
+- **Evidence:** Selecting another Source/Job/Snapshot while background work continues protects output, but the newly selected pane should explicitly state that background work belongs to another object instead of presenting metadata without ownership context.
 - **Views/components:** Sources details, Jobs details, Backup details, ResearchResult details.
-- **Dependencies:** UI-043 through UI-046.
+- **Dependencies:** UI-043 through UI-048.
 - **Last verification:** 2026-08-23.
 
 ### UI-050 — Disappeared-selection refresh semantics
@@ -94,5 +87,5 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 - **Status:** READY
 - **Evidence:** Ownership fixes prevent visual misattribution, but accessible status text should also distinguish completion for an off-selection object from completion of the currently selected object.
 - **Views/components:** Shared status labels for Sources, Jobs, Backup and ResearchResult.
-- **Dependencies:** UI-048 preferred first.
+- **Dependencies:** UI-048.
 - **Last verification:** 2026-08-23.
