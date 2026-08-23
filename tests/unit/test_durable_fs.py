@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -113,6 +114,50 @@ def test_replace_rejects_symlink_destination_ancestor(tmp_path: Path) -> None:
     assert not (child / "destination").exists()
 
 
+def test_windows_reparse_attribute_is_link_boundary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    candidate = tmp_path / "candidate"
+    candidate.mkdir()
+    monkeypatch.setattr(durable_fs.os, "name", "nt")
+    monkeypatch.setattr(Path, "is_symlink", lambda _self: False)
+    if hasattr(Path, "is_junction"):
+        monkeypatch.setattr(Path, "is_junction", lambda _self: False)
+    monkeypatch.setattr(
+        durable_fs.os,
+        "lstat",
+        lambda _path: SimpleNamespace(
+            st_file_attributes=durable_fs._FILE_ATTRIBUTE_REPARSE_POINT
+        ),
+    )
+
+    assert durable_fs._is_link_boundary(candidate)
+
+
+def test_replace_rejects_reparse_destination_boundary(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "source"
+    source.write_bytes(b"new")
+    destination = tmp_path / "destination"
+    real_boundary = durable_fs._is_link_boundary
+
+    def is_link_boundary(path: Path) -> bool:
+        if Path(path) == destination:
+            return True
+        return real_boundary(Path(path))
+
+    monkeypatch.setattr(durable_fs, "_is_link_boundary", is_link_boundary)
+
+    with pytest.raises(OSError, match="destination is a symlink or reparse point"):
+        durable_fs.durable_replace(source, destination)
+
+    assert source.read_bytes() == b"new"
+    assert not destination.exists()
+
+
 def test_fsync_directory_rejects_symlink(tmp_path: Path) -> None:
     real = tmp_path / "real"
     real.mkdir()
@@ -130,7 +175,7 @@ def test_fsync_directory_rejects_symlink_ancestor(tmp_path: Path) -> None:
     link = tmp_path / "link"
     _directory_symlink(link, real)
 
-    with pytest.raises(NotADirectoryError, match="symlink ancestor"):
+    with pytest.raises(NotADDirectoryError, match="symlink ancestor"):
         durable_fs.fsync_directory(link / "child")
 
 
@@ -151,7 +196,7 @@ def test_durable_mkdir_rejects_existing_directory_beneath_symlink_ancestor(
     link = tmp_path / "link"
     _directory_symlink(link, real)
 
-    with pytest.raises(NotADirectoryError, match="symlink ancestor"):
+    with pytest.raises(NotADDirectoryError, match="symlink ancestor"):
         durable_fs.durable_mkdir(link / "child", parents=True, exist_ok=True)
 
 
