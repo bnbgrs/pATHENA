@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 )
 
 from athena.desktop.api_controller import DesktopApiController, DesktopApiSnapshot
+from athena.desktop.pathena_ui_refinement_600 import set_pathena_ui_state
 
 
 class _SystemMetric(QFrame):
@@ -57,12 +58,14 @@ class SystemWorkspace(QWidget):
         self.chats = _SystemMetric("CHATS")
         self.api = _SystemMetric("API")
         self.detail = QLabel("Awaiting local Core snapshot.")
-        self.detail.setObjectName("settingsHelp")
+        self.detail.setObjectName("systemDetail")
         self.detail.setWordWrap(True)
         self.detail.setTextInteractionFlags(
             Qt.TextInteractionFlag.TextSelectableByMouse
             | Qt.TextInteractionFlag.TextSelectableByKeyboard
         )
+        set_pathena_ui_state(self.detail, "busy")
+
         self.refresh_button = QPushButton("REFRESH NOW")
         self.refresh_button.setObjectName("newChatButton")
         self.refresh_button.setToolTip("Refresh local Core, model and chat status")
@@ -116,7 +119,9 @@ class SystemWorkspace(QWidget):
         if not isinstance(payload, DesktopApiSnapshot):
             return
 
-        provider_status = payload.provider.status if payload.provider is not None else "unavailable"
+        provider_status = (
+            payload.provider.status if payload.provider is not None else "unavailable"
+        )
         loaded = tuple(model for model in payload.models if model.loaded)
         self.core.set_value(payload.health.core_status.upper())
         self.provider.set_value(provider_status.upper())
@@ -138,6 +143,11 @@ class SystemWorkspace(QWidget):
             detail_parts.append("Core snapshot is healthy. Local runtime data is current.")
         self.detail.setText("\n".join(detail_parts))
 
+        if payload.model_error or payload.chat_error:
+            set_pathena_ui_state(self.detail, "error")
+        else:
+            set_pathena_ui_state(self.detail, "success")
+
     def apply_failure(self, message: str) -> None:
         self.core.set_value("DISCONNECTED")
         self.provider.set_value("UNAVAILABLE")
@@ -146,6 +156,7 @@ class SystemWorkspace(QWidget):
         self.loaded_models.set_value("—")
         self.chats.set_value("—")
         self.detail.setText(message)
+        set_pathena_ui_state(self.detail, "error")
 
 
 def install_system_workspace(
