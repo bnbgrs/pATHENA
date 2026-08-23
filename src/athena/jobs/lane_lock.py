@@ -32,6 +32,8 @@ class SchedulerLaneProcessLock:
         *,
         lane_name: str,
     ) -> SchedulerLaneProcessLock:
+        if not isinstance(lane_name, str):
+            raise ValueError("Scheduler lane name must be text.")
         normalized_lane = lane_name.strip()
         if not normalized_lane:
             raise ValueError("Scheduler lane name must not be empty.")
