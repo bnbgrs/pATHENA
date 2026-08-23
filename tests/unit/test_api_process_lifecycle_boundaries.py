@@ -36,6 +36,33 @@ class _FailingOwnership:
         raise RuntimeError("close failed")
 
 
+class _InterruptingStop:
+    def __init__(self, events: list[str], name: str) -> None:
+        self.events = events
+        self.name = name
+
+    def stop(self) -> None:
+        self.events.append(self.name)
+        raise KeyboardInterrupt()
+
+
+class _TrackingStop:
+    def __init__(self, events: list[str], name: str) -> None:
+        self.events = events
+        self.name = name
+
+    def stop(self) -> None:
+        self.events.append(self.name)
+
+
+class _TrackingOwnership:
+    def __init__(self, events: list[str]) -> None:
+        self.events = events
+
+    def close(self) -> None:
+        self.events.append("ownership")
+
+
 def test_startup_rollback_never_masks_original_failure() -> None:
     process = CoreApiProcess.__new__(CoreApiProcess)
     process.server = _FailingStop()  # type: ignore[assignment]
@@ -44,6 +71,33 @@ def test_startup_rollback_never_masks_original_failure() -> None:
 
     process._rollback_startup()
 
+    assert process._ownership is None
+
+
+def test_startup_rollback_contains_interrupts_and_completes_cleanup() -> None:
+    events: list[str] = []
+    process = CoreApiProcess.__new__(CoreApiProcess)
+    process.server = _InterruptingStop(events, "server")  # type: ignore[assignment]
+    process.executor = _TrackingStop(events, "executor")  # type: ignore[assignment]
+    process._ownership = _TrackingOwnership(events)  # type: ignore[assignment]
+
+    process._rollback_startup()
+
+    assert events == ["server", "executor", "ownership"]
+    assert process._ownership is None
+
+
+def test_stop_attempts_all_cleanup_before_reraising_interrupt() -> None:
+    events: list[str] = []
+    process = CoreApiProcess.__new__(CoreApiProcess)
+    process.server = _InterruptingStop(events, "server")  # type: ignore[assignment]
+    process.executor = _TrackingStop(events, "executor")  # type: ignore[assignment]
+    process._ownership = _TrackingOwnership(events)  # type: ignore[assignment]
+
+    with pytest.raises(KeyboardInterrupt):
+        process.stop()
+
+    assert events == ["server", "executor", "ownership"]
     assert process._ownership is None
 
 
