@@ -130,6 +130,31 @@ QPushButton:checked {
     border-color: #40504f;
 }
 
+QPushButton#detailsToggle,
+QPushButton#contextToggle {
+    min-height: 26px;
+    padding: 0 8px;
+    color: #879198;
+    background: transparent;
+    border: 1px solid transparent;
+    font-size: 10px;
+    font-weight: 500;
+}
+
+QPushButton#detailsToggle:hover,
+QPushButton#contextToggle:hover {
+    color: #dce1e4;
+    background: #1a1e21;
+    border-color: #2a3035;
+}
+
+QPushButton#detailsToggle:checked,
+QPushButton#contextToggle:checked {
+    color: #e9eeee;
+    background: #202728;
+    border-color: #344041;
+}
+
 QPushButton#sendButton,
 QPushButton[role="primary"] {
     color: #151719;
