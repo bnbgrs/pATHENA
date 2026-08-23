@@ -130,19 +130,25 @@ class KnowledgeWorkspace(QWidget):
         )
         self._clear_items()
 
-        for proposal in payload.knowledge_units:
-            title = proposal.title.strip() if proposal.title else ""
-            body = proposal.body if not title else f"{title}\n{proposal.body}"
+        for knowledge_proposal in payload.knowledge_units:
+            title = knowledge_proposal.title.strip() if knowledge_proposal.title else ""
+            body = (
+                knowledge_proposal.body
+                if not title
+                else f"{title}\n{knowledge_proposal.body}"
+            )
             self._add_item(
-                f"K{proposal.proposal_index:02d} / {proposal.knowledge_kind.upper()} / "
-                f"{proposal.confidence:.0%}",
+                f"K{knowledge_proposal.proposal_index:02d} / "
+                f"{knowledge_proposal.knowledge_kind.upper()} / "
+                f"{knowledge_proposal.confidence:.0%}",
                 body,
             )
-        for proposal in payload.claims:
+        for claim_proposal in payload.claims:
             self._add_item(
-                f"C{proposal.proposal_index:02d} / {proposal.claim_kind.upper()} / "
-                f"{proposal.confidence:.0%}",
-                proposal.statement,
+                f"C{claim_proposal.proposal_index:02d} / "
+                f"{claim_proposal.claim_kind.upper()} / "
+                f"{claim_proposal.confidence:.0%}",
+                claim_proposal.statement,
             )
         if payload.relations:
             self._add_item(
