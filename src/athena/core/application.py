@@ -121,13 +121,13 @@ from athena.source.representation_repository import SourceRepresentationReposito
 from athena.source.representation_service import SourceTextRepresentationService
 from athena.source.representation_store import TextRepresentationStore
 from athena.source.service import SourceCaptureService
+from athena.storage.bootstrap import StorageBootstrapService
 from athena.storage.database import SQLiteDatabase
 from athena.storage.paths import RuntimePaths
 from athena.storage.recovery import (
     DatabaseRecoveryRequiredError,
     inspect_database_read_only,
 )
-from athena.storage.runtime import RuntimeLayoutService
 
 logger = logging.getLogger(__name__)
 
@@ -173,6 +173,10 @@ class AthenaApplication:
         self.state = ApplicationState.STOPPED
         self.health = HealthService()
         self.database = SQLiteDatabase(self.paths.database_path)
+        self.storage_bootstrap = StorageBootstrapService(
+            paths=self.paths,
+            database=self.database,
+        )
         self.crypto_provider = CryptoProvider()
         self.protection_repository = ProtectionRepository(
             self.database
@@ -532,7 +536,6 @@ class AthenaApplication:
             self.database, self.model_runs
         )
         self.extraction = ChatKnowledgeExtractionService(
-            chat=self.chat,
             chat_generation=self.chat_generation,
             provider=self.model_provider,
             runs=self.model_runs,
@@ -610,8 +613,7 @@ class AthenaApplication:
         )
 
         bootstrap_services: tuple[LifecycleService, ...] = (
-            RuntimeLayoutService(self.paths),
-            self.database,
+            self.storage_bootstrap,
             self.protected_content,
             self.source_protection,
         )
@@ -637,8 +639,8 @@ class AthenaApplication:
         logger.info("ATHENA Core starting", extra={"event": "core.starting"})
 
         try:
-            # Canonical integrity is established before RuntimeLayoutService
-            # can perform even temporary filesystem write probes.
+            # Canonical integrity is established before storage bootstrap can
+            # perform even temporary filesystem write probes or migration work.
             inspect_database_read_only(self.paths.database_path)
             self.services.start_all()
             self.news.start()
