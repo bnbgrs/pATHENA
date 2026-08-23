@@ -73,6 +73,9 @@ from athena.desktop.pathena_operational_continuity_3800 import (
     UI_REFINEMENT_TASKS_3701_3800,
     apply_ui_refinements_3701_3800,
 )
+from athena.desktop.pathena_pallas_responsiveness_5000 import (
+    apply_ui_refinements_4901_5000,
+)
 from athena.desktop.pathena_progress_phase_3700 import (
     UI_REFINEMENT_TASKS_3601_3700,
     apply_ui_refinements_3601_3700,
@@ -238,6 +241,7 @@ def apply_complete_ui_refinements(window: QWidget) -> tuple[int, ...]:
         apply_ui_refinements_4601_4700,
         apply_ui_refinements_4701_4800,
         apply_ui_refinements_4801_4900,
+        apply_ui_refinements_4901_5000,
     )
     for refinement_pass in passes:
         applied.extend(refinement_pass(window))
@@ -282,5 +286,5 @@ def apply_complete_ui_refinements(window: QWidget) -> tuple[int, ...]:
         UI_REFINEMENT_TASKS_4401_4500,
     )
     window.setProperty("pathenaUiRefinementAppliedCount", len(normalized))
-    window.setProperty("pathenaUiRefinementTaskCount", sum(map(len, task_sets)) + 345)
+    window.setProperty("pathenaUiRefinementTaskCount", sum(map(len, task_sets)) + 445)
     return normalized
