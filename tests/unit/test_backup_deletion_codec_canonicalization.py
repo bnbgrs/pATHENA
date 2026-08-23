@@ -4,8 +4,7 @@ import copy
 
 import pytest
 
-from athena.backup.errors import BackupRestoreError
-from athena.backup.service import BackupService
+from athena.backup.service import BackupRestoreError, BackupService
 
 
 VALID = {
