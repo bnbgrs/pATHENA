@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Callable
 from PySide6.QtCore import QObject, Qt
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
+    QComboBox,
     QDialog,
     QHBoxLayout,
     QLabel,
@@ -32,12 +33,13 @@ _WORKSPACE_HELP: tuple[tuple[str, str], ...] = (
     (
         "Knowledge",
         "Browse canonical KnowledgeUnits and Claims with immutable revision history, "
-        "evidence and provenance; resolve pending contradiction decisions; review "
-        "session proposals before explicit acceptance.",
+        "evidence and provenance; traverse Claim relations; resolve contradiction and "
+        "near-duplicate merge decisions; review session proposals before acceptance.",
     ),
     (
         "Research",
-        "Create and inspect durable research runs and their persisted results.",
+        "Create and inspect durable research runs, load immutable ResearchResults and "
+        "explicitly promote evidence-backed result proposals into canonical memory.",
     ),
     (
         "Jobs",
@@ -51,7 +53,8 @@ _WORKSPACE_HELP: tuple[tuple[str, str], ...] = (
     ),
     (
         "System",
-        "Inspect local Core, model service and runtime health without leaving pATHENA.",
+        "Inspect local Core/model health and create, verify or restore backups into "
+        "isolated runtime roots.",
     ),
     (
         "Settings",
@@ -227,14 +230,18 @@ class CommandPaletteController(QObject):
                 ),
                 _Command(
                     label="Review contradiction decisions",
-                    keywords=(
-                        "knowledge",
-                        "claims",
-                        "contradiction",
-                        "decisions",
-                        "review",
-                    ),
-                    action=lambda: self._open_knowledge_tab(2),
+                    keywords=("knowledge", "claims", "contradiction", "decisions", "review"),
+                    action=lambda: self._open_decision_mode("contradiction"),
+                ),
+                _Command(
+                    label="Review canonical merge candidates",
+                    keywords=("knowledge", "merge", "duplicate", "dedup", "decisions"),
+                    action=lambda: self._open_decision_mode("merge_candidate"),
+                ),
+                _Command(
+                    label="Browse selected Claim relations",
+                    keywords=("knowledge", "claim", "relations", "evidence", "contradiction"),
+                    action=self._focus_claim_relations,
                 ),
                 _Command(
                     label="Open current knowledge review",
@@ -245,6 +252,16 @@ class CommandPaletteController(QObject):
                     label="Filter canonical memory",
                     keywords=("knowledge", "claims", "search", "filter", "find"),
                     action=self._focus_knowledge_filter,
+                ),
+                _Command(
+                    label="Open Research result & promotion",
+                    keywords=("research", "result", "proposals", "promotion", "evidence"),
+                    action=self._open_research_promotion,
+                ),
+                _Command(
+                    label="Open Backup & Recovery",
+                    keywords=("system", "backup", "restore", "verify", "recovery"),
+                    action=self._open_backup,
                 ),
                 _Command(
                     label="Open model settings",
@@ -270,14 +287,28 @@ class CommandPaletteController(QObject):
                 "Canonical memory",
                 "",
                 "Knowledge       Durable KnowledgeUnits and immutable revision history",
-                "Claims          Canonical statements with evidence and provenance",
-                "Decisions       Pending contradiction reviews requiring explicit choice",
+                "Claims          Canonical statements with evidence, relations and provenance",
+                "Decisions       Contradiction reviews and near-duplicate merge decisions",
                 "Session review  Extracted proposals before canonical acceptance",
+                "",
+                "Research completion",
+                "",
+                "ResearchResult  Immutable result plus evidence/provenance view",
+                "Proposals       Frozen Knowledge/Claim promotion candidates",
+                "Accept/Reject   Explicit per-proposal canonicalization decision",
+                "",
+                "Backup & recovery",
+                "",
+                "Create          Verified snapshot to an explicitly selected target",
+                "Verify          Light verification of a completed snapshot",
+                "Deep verify     Object hashing plus isolated restore smoke",
+                "Restore         Always into a new isolated runtime root; never overwrite live data",
                 "",
                 "Keyboard",
                 "",
                 "Ctrl K       Commands",
                 "Ctrl+Enter   Send message",
+                "Ctrl+F       Filter canonical memory while Knowledge is active",
                 "F1           Help",
                 "Esc          Close commands or help",
                 "",
@@ -291,16 +322,16 @@ class CommandPaletteController(QObject):
                 "",
                 "Availability",
                 "",
-                "Commands reflect the controls currently available in the desktop. "
-                "Actions that depend on a local service or selection remain governed "
-                "by the same readiness and safety checks as their visible controls.",
+                "Commands reflect controls currently available in the desktop. Actions that "
+                "depend on local services or a selected entity remain governed by the same "
+                "readiness and safety checks as their visible controls.",
                 "",
-                "pATHENA keeps chat history, knowledge and captured source state local. "
-                "Imported files enter the Raw Archive before derived representations or "
-                "retrieval chunks are produced.",
+                "pATHENA keeps chat history, canonical memory and captured source state local. "
+                "Imported files enter the Raw Archive before derived representations or retrieval "
+                "chunks are produced.",
                 "",
-                "Model-reported contradictions are not canonicalized automatically. "
-                "They remain pending decisions until explicitly accepted or rejected.",
+                "Model-reported contradictions and near-duplicate merges are not canonicalized "
+                "automatically. They remain review decisions until the user explicitly acts.",
             )
         )
         return "\n".join(lines)
@@ -392,12 +423,40 @@ class CommandPaletteController(QObject):
         if tabs is not None and 0 <= index < tabs.count():
             tabs.setCurrentIndex(index)
 
+    def _open_decision_mode(self, mode: str) -> None:
+        self._open_knowledge_tab(2)
+        selector = self.window.findChild(QComboBox, "semanticDecisionMode")
+        if selector is None:
+            return
+        index = selector.findData(mode)
+        if index >= 0:
+            selector.setCurrentIndex(index)
+            selector.setFocus(Qt.FocusReason.ShortcutFocusReason)
+
+    def _focus_claim_relations(self) -> None:
+        self._open_knowledge_tab(1)
+        relations = self.window.findChild(QListWidget, "claimRelationList")
+        if relations is not None:
+            relations.setFocus(Qt.FocusReason.ShortcutFocusReason)
+
     def _focus_knowledge_filter(self) -> None:
         self.window.navigation.setCurrentRow(1)
         search = self.window.findChild(QLineEdit, "knowledgeSearchInput")
         if search is not None:
             search.setFocus(Qt.FocusReason.ShortcutFocusReason)
             search.selectAll()
+
+    def _open_research_promotion(self) -> None:
+        self.window.navigation.setCurrentRow(2)
+        proposals = self.window.findChild(QListWidget, "researchProposalList")
+        if proposals is not None:
+            proposals.setFocus(Qt.FocusReason.ShortcutFocusReason)
+
+    def _open_backup(self) -> None:
+        self.window.navigation.setCurrentRow(5)
+        tabs = self.window.findChild(QTabWidget, "systemOperationsTabs")
+        if tabs is not None and tabs.count() > 1:
+            tabs.setCurrentIndex(1)
 
 
 def install_command_palette(window: AthenaMainWindow) -> CommandPaletteController:
