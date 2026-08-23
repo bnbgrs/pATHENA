@@ -18,6 +18,7 @@ from athena.desktop.jobs_workspace import install_jobs_workspace
 from athena.desktop.knowledge_acceptance import install_knowledge_acceptance
 from athena.desktop.knowledge_workspace import install_knowledge_workspace
 from athena.desktop.pathena_async_focus_integrity_6200 import apply_ui_refinements_6101_6200
+from athena.desktop.pathena_chat_scroll_stability_6600 import install_chat_scroll_stability
 from athena.desktop.pathena_command_palette_truth_6500 import install_command_palette_truth
 from athena.desktop.pathena_detail_provenance_6300 import apply_detail_provenance
 from athena.desktop.pathena_interaction_refinement import install_interaction_refinement
@@ -158,6 +159,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     apply_ui_refinements_6101_6200(window)
     detail_provenance = apply_detail_provenance(window)
     success_decay = apply_quiet_success_decay(window)
+    chat_scroll_stability = install_chat_scroll_stability(window)
     interaction_refinement = install_interaction_refinement(window)
     layout_refinement = install_layout_refinement(window)
     progressive_workspace_refinement = install_progressive_workspace_refinement(window)
@@ -185,6 +187,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     progressive_workspace_refinement.deleteLater()
     layout_refinement.deleteLater()
     interaction_refinement.deleteLater()
+    chat_scroll_stability.deleteLater()
     success_decay.deleteLater()
     detail_provenance.deleteLater()
     startup_experience.deleteLater()
