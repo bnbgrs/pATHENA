@@ -47,13 +47,14 @@ def _workspace() -> QWidget:
     return workspace
 
 
-def test_default_scope_states_that_no_target_is_preselected() -> None:
+def test_default_scope_is_visually_compact_but_keeps_full_explanation() -> None:
     workspace = _workspace()
     controller = BackupTargetContextController(workspace)
 
     assert controller.context_label is not None
-    assert "none preselected" in controller.context_label.text()
-    assert "Targets only lists registered roots" in controller.context_label.text()
+    assert controller.context_label.text() == "TARGETS · none preselected"
+    assert "Targets only lists registered roots" in controller.context_label.toolTip()
+    assert "Create and Register choose a folder" in controller.context_label.toolTip()
 
 
 def test_targets_action_is_read_only_scope_guidance() -> None:
@@ -83,5 +84,6 @@ def test_operation_context_tracks_existing_backup_operation() -> None:
     controller.sync()
 
     assert controller.context_label is not None
-    assert "registering the folder chosen" in controller.context_label.text()
+    assert controller.context_label.text() == "TARGETS · registering chosen folder"
+    assert "Registering the folder chosen" in controller.context_label.toolTip()
     assert controller.context_label.property("pathenaBackupTargetOperation") == "register-target"
