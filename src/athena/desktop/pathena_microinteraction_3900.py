@@ -11,7 +11,12 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from PySide6.QtCore import QEasingCurve, QEvent, QObject, QPropertyAnimation
-from PySide6.QtWidgets import QAbstractButton, QGraphicsOpacityEffect, QWidget
+from PySide6.QtWidgets import (
+    QApplication,
+    QAbstractButton,
+    QGraphicsOpacityEffect,
+    QWidget,
+)
 
 
 @dataclass(frozen=True)
@@ -28,10 +33,30 @@ _TARGETS: tuple[MotionTarget, ...] = (
     MotionTarget(None, None, "deleteChatButton", "delete conversation"),
     MotionTarget(None, None, "groundButton", "sources toggle"),
     MotionTarget(None, None, "detailsToggle", "details toggle"),
-    MotionTarget("knowledgeWorkspace", "refresh_knowledge_button", None, "refresh knowledge"),
-    MotionTarget("knowledgeWorkspace", "review_accept_button", None, "accept contradiction"),
-    MotionTarget("knowledgeWorkspace", "review_reject_button", None, "reject contradiction"),
-    MotionTarget("knowledgeWorkspace", None, "knowledgeAcceptanceButton", "add reviewed items"),
+    MotionTarget(
+        "knowledgeWorkspace",
+        "refresh_knowledge_button",
+        None,
+        "refresh knowledge",
+    ),
+    MotionTarget(
+        "knowledgeWorkspace",
+        "review_accept_button",
+        None,
+        "accept contradiction",
+    ),
+    MotionTarget(
+        "knowledgeWorkspace",
+        "review_reject_button",
+        None,
+        "reject contradiction",
+    ),
+    MotionTarget(
+        "knowledgeWorkspace",
+        None,
+        "knowledgeAcceptanceButton",
+        "add reviewed items",
+    ),
     MotionTarget("researchWorkspace", "start_button", None, "start research"),
     MotionTarget("researchWorkspace", "refresh_button", None, "refresh research"),
     MotionTarget("researchWorkspace", "cancel_button", None, "cancel research"),
@@ -77,6 +102,7 @@ class MicrointeractionController(QObject):
         button.setGraphicsEffect(effect)
         button.installEventFilter(self)
         self._effects[button] = effect
+
         animation = QPropertyAnimation(effect, b"opacity", button)
         animation.setDuration(_DURATION_MS)
         animation.setEasingCurve(QEasingCurve.Type.OutCubic)
@@ -105,22 +131,28 @@ class MicrointeractionController(QObject):
             self._effects[watched].setOpacity(1.0)
         return super().eventFilter(watched, event)
 
-    def _animate(self, button: QAbstractButton, start: float, end: float) -> None:
+    def _animate(
+        self,
+        button: QAbstractButton,
+        start: float,
+        end: float,
+    ) -> None:
         animation = self._animations[button]
         effect = self._effects[button]
         if self._reduce_motion():
             animation.stop()
             effect.setOpacity(end)
             return
+
         animation.stop()
         animation.setStartValue(start)
         animation.setEndValue(end)
         animation.start()
 
     def _reduce_motion(self) -> bool:
-        application = self.window.window().property("pathenaReduceMotion")
-        local = self.window.property("pathenaReduceMotion")
-        return bool(application) or bool(local)
+        app = QApplication.instance()
+        app_reduce_motion = bool(app.property("pathenaReduceMotion")) if app else False
+        return app_reduce_motion or bool(self.window.property("pathenaReduceMotion"))
 
 
 def _resolve(window: QWidget, target: MotionTarget) -> QAbstractButton | None:
@@ -157,6 +189,9 @@ def apply_ui_refinements_3801_3900(window: QWidget) -> tuple[int, ...]:
         applied.extend(range(start, start + len(_DIMENSIONS)))
 
     window.setProperty("pathenaMicrointeractionController", controller)
-    window.setProperty("pathenaMicrointeractionTargetCount", len(applied) // len(_DIMENSIONS))
+    window.setProperty(
+        "pathenaMicrointeractionTargetCount",
+        len(applied) // len(_DIMENSIONS),
+    )
     window.setProperty("pathenaMicrointeractionTaskCount", len(applied))
     return tuple(applied)
