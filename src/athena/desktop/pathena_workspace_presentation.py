@@ -28,6 +28,7 @@ _WORKSPACE_TITLES = frozenset(
         "DURABLE JOB CONTROL",
         "LOCAL SOURCES / FILES",
         "LOCAL RUNTIME / SYSTEM",
+        "BACKUP / RECOVERY",
     }
 )
 
@@ -60,6 +61,12 @@ _BUTTON_REPLACEMENTS = {
     "IMPORT FILE": "Import file",
     "PROCESS / RETRY": "Process / retry",
     "REFRESH NOW": "Refresh",
+    "CREATE BACKUP…": "Create backup",
+    "VERIFY": "Verify",
+    "DEEP VERIFY": "Deep verify",
+    "RESTORE ISOLATED…": "Restore…",
+    "TARGETS": "Targets",
+    "REGISTER TARGET…": "Add target…",
 }
 
 _INTRO_REPLACEMENTS = {
@@ -109,6 +116,9 @@ _PLACEHOLDERS = {
     "researchDetails": "Select a research run to inspect its scope and progress.",
     "jobDetails": "Select a job to inspect its current state and checkpoints.",
     "sourceDetails": "Select a file source to inspect import and processing status.",
+    "backupDetails": (
+        "Select a backup to verify it or restore it into a new isolated location."
+    ),
 }
 
 _LIST_MINIMUM_WIDTHS = {
@@ -118,6 +128,7 @@ _LIST_MINIMUM_WIDTHS = {
     "researchJobList": 300,
     "durableJobList": 320,
     "sourceList": 320,
+    "backupSnapshotList": 320,
 }
 
 _KNOWLEDGE_STATE_REPLACEMENTS = {
@@ -233,12 +244,23 @@ def _sync_files_presentation(window: QWidget) -> None:
 
 def _sync_system_presentation(window: QWidget) -> None:
     system = window.findChild(QWidget, "systemWorkspace")
-    if system is None:
+    if system is not None:
+        for label in system.findChildren(QLabel, "settingsValue"):
+            replacement = _SYSTEM_VALUE_REPLACEMENTS.get(label.text())
+            if replacement is not None:
+                label.setText(replacement)
+
+    backup = window.findChild(QWidget, "backupWorkspace")
+    if backup is None:
         return
-    for label in system.findChildren(QLabel, "settingsValue"):
-        replacement = _SYSTEM_VALUE_REPLACEMENTS.get(label.text())
-        if replacement is not None:
-            label.setText(replacement)
+    for object_name in (
+        "backupVerifyButton",
+        "backupDeepVerifyButton",
+        "backupRestoreButton",
+    ):
+        button = backup.findChild(QPushButton, object_name)
+        if button is not None:
+            button.setVisible(button.isEnabled())
 
 
 def _sync_dynamic_workspace_copy(window: QWidget) -> None:
@@ -320,16 +342,35 @@ def _configure_files_presentation(window: QWidget) -> None:
 
 def _configure_system_presentation(window: QWidget) -> None:
     system = window.findChild(QWidget, "systemWorkspace")
-    if system is None:
+    if system is not None:
+        for frame in system.findChildren(QFrame, "systemMetric"):
+            frame.setObjectName("systemMetricQuiet")
+
+        for label in system.findChildren(QLabel):
+            replacement = _SYSTEM_LABEL_REPLACEMENTS.get(label.text())
+            if replacement is not None:
+                label.setText(replacement)
+
+    backup = window.findChild(QWidget, "backupWorkspace")
+    if backup is None:
         return
 
-    for frame in system.findChildren(QFrame, "systemMetric"):
-        frame.setObjectName("systemMetricQuiet")
-
-    for label in system.findChildren(QLabel):
-        replacement = _SYSTEM_LABEL_REPLACEMENTS.get(label.text())
-        if replacement is not None:
-            label.setText(replacement)
+    object_names = {
+        "Refresh": "backupRefreshButton",
+        "Create backup": "backupCreateButton",
+        "Verify": "backupVerifyButton",
+        "Deep verify": "backupDeepVerifyButton",
+        "Restore…": "backupRestoreButton",
+        "Targets": "backupTargetsButton",
+        "Add target…": "backupAddTargetButton",
+    }
+    for button in backup.findChildren(QPushButton):
+        object_name = object_names.get(button.text())
+        if object_name is None:
+            continue
+        button.setObjectName(object_name)
+        if object_name == "backupCreateButton":
+            button.setProperty("role", "primary")
 
 
 def apply_workspace_presentation(window: QWidget) -> None:
