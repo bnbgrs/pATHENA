@@ -1,4 +1,4 @@
-"""Integrity wrapper for the 100-task pATHENA presentation pass."""
+"""Integrity wrapper for the complete pATHENA presentation refinement passes."""
 
 from __future__ import annotations
 
@@ -8,10 +8,14 @@ from athena.desktop.pathena_ui_refinement_100 import (
     UI_REFINEMENT_TASKS,
     apply_ui_refinements,
 )
+from athena.desktop.pathena_ui_refinement_200 import (
+    UI_REFINEMENT_TASKS_101_200,
+    apply_ui_refinements_101_200,
+)
 
 
 def apply_complete_ui_refinements(window: QWidget) -> tuple[int, ...]:
-    """Apply all refinements, including alternate states of dual-purpose controls."""
+    """Apply all presentation refinements without changing domain behavior."""
     applied = list(apply_ui_refinements(window))
     knowledge = window.findChild(QWidget, "knowledgeWorkspace")
 
@@ -47,7 +51,9 @@ def apply_complete_ui_refinements(window: QWidget) -> tuple[int, ...]:
             )
             applied.append(49)
 
+    applied.extend(apply_ui_refinements_101_200(window))
     normalized = tuple(sorted(set(applied)))
+    total_tasks = len(UI_REFINEMENT_TASKS) + len(UI_REFINEMENT_TASKS_101_200)
     window.setProperty("pathenaUiRefinementAppliedCount", len(normalized))
-    window.setProperty("pathenaUiRefinementTaskCount", len(UI_REFINEMENT_TASKS))
+    window.setProperty("pathenaUiRefinementTaskCount", total_tasks)
     return normalized
