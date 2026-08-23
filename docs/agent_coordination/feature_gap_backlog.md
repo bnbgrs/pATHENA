@@ -51,8 +51,8 @@ Status vocabulary: `FOUND` · `PARTIAL` · `READY` · `BLOCKED` · `IN_PROGRESS`
 ### FG-008 — Preserve provider-observed model revision in ModelSignature
 - **Source:** Beta 08 sections 15 and 31–35.
 - **Ownership / Priority / Status:** BACKEND · P1 · IMPLEMENTED
-- **Current state:** `ModelInfo` carries an optional provider-observed `model_revision`. `ModelRunRepository.get_or_create_signature()` includes that revision in canonical signature normalization/hash identity, persists it in `model_signatures`, and reconstructs it on load. Unknown revisions remain `None`; ATHENA does not infer a revision.
-- **Verification:** Implemented 2026-08-23 in `src/athena/model/domain.py` and `src/athena/model/provenance.py`; `tests/unit/test_model_provenance.py` covers known/unknown/changed revisions and non-canonical revision values. Tests added but not executed in connector runtime.
+- **Current state:** `ModelInfo` carries an optional provider-observed `model_revision`. `ModelRunRepository.get_or_create_signature()` includes that revision in canonical signature normalization/hash identity, persists it in `model_signatures`, and reconstructs it on load. ContextPackage now preserves the same revision in its pinned signature and run snapshot. Unknown revisions remain `None`; ATHENA does not infer a revision.
+- **Verification:** Implemented 2026-08-23 in model domain/provenance and ContextPackage with targeted tests. Current LM Studio v1 `/api/v1/models` documentation was re-checked and exposes no exact model revision/commit-hash field, so the LM Studio adapter correctly leaves this value unknown rather than inventing one. Execution-time generation drift comparison is tracked separately as BE-014.
 
 ### FG-009 — Introduce a first-class ModelSession / generation execution context
 - **Source:** Beta 08 sections 27–30 and 50–52.
@@ -63,12 +63,10 @@ Status vocabulary: `FOUND` · `PARTIAL` · `READY` · `BLOCKED` · `IN_PROGRESS`
 
 ### FG-010 — Normalize provider backend failure taxonomy
 - **Source:** Beta 08 sections 45–49 and 52.
-- **Ownership / Priority / Status:** BACKEND · P1 · READY
-- **Evidence / code paths:** `src/athena/model/adapters/lm_studio.py` already distinguishes refusal, invalid protocol responses, context limits and output limits, but transport timeout/connection/OSError collapse into `ProviderUnavailableError`; generic HTTP failures collapse into `ModelProviderError`; OOM and backend-crash categories are not represented distinctly.
-- **Current state:** Refusal handling exists and must be preserved, but the Core cannot reliably distinguish the full normative failure classes needed for retryability, diagnostics and user-visible failure semantics.
-- **Desired state:** Provide a normalized Core-facing failure classification at least for timeout, OOM/resource exhaustion, connection/unavailable, invalid response/protocol and backend crash, with refusal remaining separate and durable details kept safe. Define retryability/terminal mapping without deleting or rewriting Source/Knowledge data.
-- **Dependencies:** LM Studio adapter/error normalization; Core error mapping; job/retry semantics; diagnostics; targeted failure-class tests.
-- **Verification:** Re-read 2026-08-23 against `lm_studio.py` blob `73108f4e3eea6aff05eb489c3d77507cecdc46bc`.
+- **Ownership / Priority / Status:** BACKEND · P1 · PARTIAL
+- **Current state:** Core now has provider-independent failure kinds for timeout, resource exhaustion, unavailable, invalid response, backend crash, refusal, context limit, output limit and unknown, with explicit retryable/terminal/request-change-required semantics and sanitized durable codes. Existing LM Studio exceptions have not yet been mapped into this taxonomy because that adapter remains a shared active file.
+- **Dependencies:** LM Studio adapter mapping; Core/job/chat consumers can then use the normalized retry class instead of provider-specific exception names.
+- **Verification:** Implemented 2026-08-23 in `src/athena/model/failures.py` with `tests/unit/test_model_failures.py`; tests added but not executed in connector runtime. Adapter error classes re-read against current remote before defining the Core taxonomy.
 
 ### FG-011 — Complete the Beta model-management surface and real switch/load flow
 - **Source:** Beta 08 manual load/unload, primary-model switching, Model Manager and model-signature UI requirements.
@@ -81,17 +79,15 @@ Status vocabulary: `FOUND` · `PARTIAL` · `READY` · `BLOCKED` · `IN_PROGRESS`
 
 ### FG-012 — Carry and enforce Protection Scope through retrieval-to-context assembly
 - **Source:** Beta 09 sections 24, 49–51 and test 65; security semantics cross-reference Beta 16.
-- **Ownership / Priority / Status:** BACKEND · P1 · READY
-- **Evidence / code paths:** `src/athena/retrieval/search.py` intentionally excludes protected payloads from the unprotected FTS path. `RankedSearchResult`, `HybridSearchResult`, and `ContextBuilderService` candidates do not carry `protection_scope_id` or lock state. `ProtectedContentService` correctly maintains runtime-only unlocked scopes and refuses decryption when locked, but no inspected retrieval/context contract bridges that SecurityContext into Context Builder inclusion.
-- **Current state:** The ordinary retrieval path is fail-closed by excluding protected payloads, so no current locked-content leak is asserted. However, unlocked protected content cannot participate in the same explicit protection-aware candidate/context contract required by Beta, and the Context Builder itself cannot prove test 65 from candidate metadata.
-- **Desired state:** Add a protection-aware retrieval/context path that carries scope identity, requires current authorization/unlocked state at inclusion time, rejects or omits locked candidates fail-closed, incorporates protection state into any context cache key, clears protected cleartext cache on lock, and keeps protected refs reconstructible without leaking protected text into unprotected indexes/logs.
-- **Dependencies:** ProtectedContentService/SecurityContext; protected retrieval projection or bounded unlocked search path; Context Builder candidate contract; ContextPackage/cache; tests for locked omission, unlocked inclusion and relock invalidation.
-- **Verification:** Re-read 2026-08-23 against `search.py` blob `7760e78d67bd13a694b4042cd5199dc322a5a45c`, `ranking.py` blob `863db6d07fd006feabb3398f815fbf7915394fe3`, `hybrid.py` blob `f743512727ce6ca698e872559322c9076fbcfeef`, `security/service.py` blob `8ef5196d2910ac5ba6d2a02300139185bc880383`, and current `retrieval/context.py`.
+- **Ownership / Priority / Status:** BACKEND · P1 · PARTIAL
+- **Current state:** Ordinary unprotected search excludes protected payloads. Separately, `ProtectedRuntimeSourceSearchService` and `ProtectedRuntimeSourceContextBuilderService` already provide request-local protected retrieval with explicit `protection_scope_id`, authorization against currently unlocked scopes, unlock re-checks before/after protected-byte reads, result/document hashes, bundle re-verification and no persistent plaintext index/cache. The missing piece is a model-call bridge that carries this verified ephemeral bundle into a ContextPackage/grounding call while re-verifying unlock state immediately before provider execution and persisting only reconstructible non-plaintext metadata.
+- **Dependencies:** protected runtime context service, ContextPackage/grounding orchestration, relock invalidation tests; never route protected cleartext into ordinary FTS/semantic indexes or durable logs.
+- **Verification:** Re-read 2026-08-23 against `src/athena/retrieval/protected_source.py` current remote. Existing runtime builder already satisfies much of the prior gap, so status corrected from READY to PARTIAL.
 
 ## Handoff notes
 - Re-read current HEAD and affected files before every mutation.
 - Preserve `unknown` versus `unsupported`; never invent provider facts.
 - Provider lifecycle adapter work remains separate while the LM Studio adapter is concurrently active.
 - FG-011 is deliberately blocked until the backend lifecycle/switch contract is stable; do not let UI invent load semantics.
-- FG-012 is not a claim of a present protected-content leak: the current unprotected search explicitly excludes protected payloads. It is the missing authorized/unlocked protected retrieval-to-context integration required by Beta.
+- FG-012 is not a claim of a present protected-content leak: both ordinary search exclusion and the dedicated unlocked runtime retrieval path are fail-closed. Remaining work is the explicit protected model-call bridge.
 - B27/A28 roadmap scan confirms that mobile remote client, multi-device shared write, cloud sync, alternative databases, advanced graph databases and a persistent encrypted protected vector index are intentionally later work and must not be opened as current feature gaps.
