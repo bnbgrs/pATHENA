@@ -131,6 +131,10 @@ class FilesWorkspace(QWidget):
         self._sync_controls()
         QTimer.singleShot(0, self.refresh)
 
+    @staticmethod
+    def _source_label(source_id: str | None) -> str:
+        return source_id[:8].upper() if source_id else ""
+
     def refresh(self) -> None:
         if self._busy():
             return
@@ -221,6 +225,9 @@ class FilesWorkspace(QWidget):
         self._operation = operation
         self._operation_source_id = source_id
         self._buffer = ""
+        source_label = self._source_label(source_id)
+        if source_label and operation in {"show", "process"}:
+            label = f"{label} · {source_label}"
         self.status.setText(label + " …")
         set_pathena_ui_state(self.status, "busy")
         self._sync_controls(force_disabled=True)
@@ -267,9 +274,18 @@ class FilesWorkspace(QWidget):
         self._operation = ""
         self._operation_source_id = None
         self._sync_controls()
+        source_label = self._source_label(operation_source_id)
 
         if exit_code != 0:
-            self.status.setText(f"Source command failed (exit {exit_code}).")
+            subject = (
+                f" for Source {source_label}"
+                if source_label and operation in {"show", "process"}
+                else ""
+            )
+            location = " in the background" if subject and not owns_details else ""
+            self.status.setText(
+                f"Source command{subject} failed{location} (exit {exit_code})."
+            )
             set_pathena_ui_state(self.status, "error")
             if owns_details:
                 set_pathena_ui_state(self.details, "error")
@@ -284,7 +300,7 @@ class FilesWorkspace(QWidget):
             return
 
         if operation == "show":
-            self.status.setText("Source details loaded.")
+            self.status.setText(f"Source {source_label} details loaded.")
             set_pathena_ui_state(self.status, "success")
             if owns_details:
                 set_pathena_ui_state(self.details, "success")
@@ -292,16 +308,19 @@ class FilesWorkspace(QWidget):
 
         if operation == "import":
             match = _SOURCE_CAPTURED_RE.search(output)
-            if match is not None and owns_details:
-                self._selected_source_id = match.group(1)
+            captured_source_id = match.group(1) if match is not None else None
+            captured_label = self._source_label(captured_source_id)
+            if captured_source_id is not None and owns_details:
+                self._selected_source_id = captured_source_id
+            prefix = f"Source {captured_label} captured" if captured_label else "Source captured"
             if "PROCESS_QUEUED" in output:
-                self.status.setText("Source captured; retrieval processing queued.")
+                self.status.setText(f"{prefix}; retrieval processing queued.")
             elif "unsupported_format" in output:
                 self.status.setText(
-                    "Source captured; this format has no deterministic text processing path."
+                    f"{prefix}; this format has no deterministic text processing path."
                 )
             else:
-                self.status.setText("Source captured.")
+                self.status.setText(f"{prefix}.")
             set_pathena_ui_state(self.status, "success")
             if owns_details:
                 set_pathena_ui_state(self.details, "success")
@@ -310,9 +329,9 @@ class FilesWorkspace(QWidget):
 
         if operation == "process":
             if "already_ready" in output:
-                self.status.setText("Source is already retrieval-ready.")
+                self.status.setText(f"Source {source_label} is already retrieval-ready.")
             else:
-                self.status.setText("Source processing queued.")
+                self.status.setText(f"Source {source_label} processing queued.")
             set_pathena_ui_state(self.status, "success")
             if owns_details and operation_source_id == self._selected_source_id:
                 set_pathena_ui_state(self.details, "success")
@@ -377,14 +396,22 @@ class FilesWorkspace(QWidget):
             set_pathena_ui_state(self.details, "empty")
 
     def _process_error(self, error: QProcess.ProcessError) -> None:
+        operation = self._operation
+        source_id = self._operation_source_id
         owns_details = self._operation_owns_details()
         self._operation = ""
         self._operation_source_id = None
         self._sync_controls()
+        source_label = self._source_label(source_id)
+        subject = (
+            f" for Source {source_label}"
+            if source_label and operation in {"show", "process"}
+            else ""
+        )
         if error == QProcess.ProcessError.FailedToStart:
-            self.status.setText("Unable to start the local pATHENA Source command.")
+            self.status.setText(f"Unable to start the local Source command{subject}.")
         else:
-            self.status.setText(f"Source command error: {error.name}")
+            self.status.setText(f"Source command{subject} error: {error.name}")
         set_pathena_ui_state(self.status, "error")
         if owns_details:
             set_pathena_ui_state(self.details, "error")
