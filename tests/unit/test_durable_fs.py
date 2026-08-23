@@ -8,6 +8,13 @@ import pytest
 import athena.storage.durable_fs as durable_fs
 
 
+def _directory_symlink(link: Path, target: Path) -> None:
+    try:
+        link.symlink_to(target, target_is_directory=True)
+    except (NotImplementedError, OSError) as exc:
+        pytest.skip(f"directory symlink unavailable: {exc}")
+
+
 def test_posix_replace_syncs_both_changed_parent_directories(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -89,13 +96,42 @@ def test_replace_rejects_symlink_destination(tmp_path: Path) -> None:
     assert target.read_bytes() == b"old"
 
 
+def test_replace_rejects_symlink_destination_ancestor(tmp_path: Path) -> None:
+    source = tmp_path / "source"
+    source.write_bytes(b"new")
+    real = tmp_path / "real"
+    real.mkdir()
+    child = real / "child"
+    child.mkdir()
+    link = tmp_path / "link"
+    _directory_symlink(link, real)
+
+    with pytest.raises(NotADirectoryError, match="symlink ancestor"):
+        durable_fs.durable_replace(source, link / "child" / "destination")
+
+    assert source.read_bytes() == b"new"
+    assert not (child / "destination").exists()
+
+
 def test_fsync_directory_rejects_symlink(tmp_path: Path) -> None:
     real = tmp_path / "real"
     real.mkdir()
     link = tmp_path / "link"
-    link.symlink_to(real, target_is_directory=True)
+    _directory_symlink(link, real)
     with pytest.raises(NotADirectoryError, match="unsafe"):
         durable_fs.fsync_directory(link)
+
+
+def test_fsync_directory_rejects_symlink_ancestor(tmp_path: Path) -> None:
+    real = tmp_path / "real"
+    real.mkdir()
+    child = real / "child"
+    child.mkdir()
+    link = tmp_path / "link"
+    _directory_symlink(link, real)
+
+    with pytest.raises(NotADirectoryError, match="symlink ancestor"):
+        durable_fs.fsync_directory(link / "child")
 
 
 def test_durable_mkdir_rejects_existing_non_directory(tmp_path: Path) -> None:
@@ -103,6 +139,20 @@ def test_durable_mkdir_rejects_existing_non_directory(tmp_path: Path) -> None:
     target.write_text("file", encoding="utf-8")
     with pytest.raises(FileExistsError):
         durable_fs.durable_mkdir(target, parents=True, exist_ok=True)
+
+
+def test_durable_mkdir_rejects_existing_directory_beneath_symlink_ancestor(
+    tmp_path: Path,
+) -> None:
+    real = tmp_path / "real"
+    real.mkdir()
+    child = real / "child"
+    child.mkdir()
+    link = tmp_path / "link"
+    _directory_symlink(link, real)
+
+    with pytest.raises(NotADirectoryError, match="symlink ancestor"):
+        durable_fs.durable_mkdir(link / "child", parents=True, exist_ok=True)
 
 
 def test_posix_durable_mkdir_syncs_each_new_parent_entry(
