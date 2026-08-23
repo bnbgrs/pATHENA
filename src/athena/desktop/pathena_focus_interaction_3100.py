@@ -165,7 +165,7 @@ def apply_ui_refinements_3001_3100(window: QWidget) -> tuple[int, ...]:
         if _is_focus_candidate(widget):
             focus_widgets.append(widget)
 
-    for previous, current in zip(focus_widgets, focus_widgets[1:]):
+    for previous, current in zip(focus_widgets, focus_widgets[1:], strict=False):
         QWidget.setTabOrder(previous, current)
 
     inspector = window.findChild(QFrame, "inspector")
