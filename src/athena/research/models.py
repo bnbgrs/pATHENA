@@ -59,17 +59,19 @@ def _optional_uuid(value: object | None, label: str) -> None:
         _uuid_value(value, label)
 
 
-def _nonnegative_int(value: object, label: str) -> None:
+def _nonnegative_int(value: object, label: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int):
         raise TypeError(f"{label} must be an integer.")
     if value < 0:
         raise ValueError(f"{label} must not be negative.")
+    return value
 
 
-def _positive_int(value: object, label: str) -> None:
-    _nonnegative_int(value, label)
-    if value < 1:
+def _positive_int(value: object, label: str) -> int:
+    normalized = _nonnegative_int(value, label)
+    if normalized < 1:
         raise ValueError(f"{label} must be positive.")
+    return normalized
 
 
 def _optional_nonnegative_int(value: object | None, label: str) -> None:
@@ -188,13 +190,13 @@ class ResearchScopeRecord:
         if not isinstance(self.state, ResearchScopeState):
             raise TypeError("Research scope state must be a ResearchScopeState.")
         _text(self.query_text, "Research scope query_text")
-        for value, label in (
+        for json_value, json_label in (
             (self.domains_json, "Research scope domains_json"),
             (self.project_ids_json, "Research scope project_ids_json"),
             (self.source_types_json, "Research scope source_types_json"),
             (self.explicit_source_ids_json, "Research scope explicit_source_ids_json"),
         ):
-            _strict_json(value, label)
+            _strict_json(json_value, json_label)
         if self.internet_scope_json is not None:
             _strict_json(
                 self.internet_scope_json,
@@ -236,7 +238,7 @@ class ResearchScopeRecord:
             and self.output_reserve + self.safety_margin >= self.effective_context_limit
         ):
             raise ValueError("Research scope context budget leaves no input capacity.")
-        for value, label in (
+        for count_value, count_label in (
             (self.candidate_total, "Research scope candidate_total"),
             (self.processed_count, "Research scope processed_count"),
             (self.successful_count, "Research scope successful_count"),
@@ -247,7 +249,7 @@ class ResearchScopeRecord:
             (self.created_at_us, "Research scope created_at_us"),
             (self.updated_at_us, "Research scope updated_at_us"),
         ):
-            _nonnegative_int(value, label)
+            _nonnegative_int(count_value, count_label)
         if self.updated_at_us < self.created_at_us:
             raise ValueError("Research scope updated_at_us precedes created_at_us.")
         if self.processed_count > self.candidate_total:
@@ -271,14 +273,14 @@ class ResearchCandidateSetRecord:
         _uuid_value(self.scope_id, "Research candidate set scope_id")
         if not isinstance(self.state, ResearchCandidateSetState):
             raise TypeError("Research candidate set state must be a ResearchCandidateSetState.")
-        for value, label in (
+        for count_value, count_label in (
             (self.snapshot_commit_seq, "Research candidate set snapshot_commit_seq"),
             (self.candidate_total, "Research candidate set candidate_total"),
             (self.eligible_count, "Research candidate set eligible_count"),
             (self.excluded_count, "Research candidate set excluded_count"),
             (self.created_at_us, "Research candidate set created_at_us"),
         ):
-            _nonnegative_int(value, label)
+            _nonnegative_int(count_value, count_label)
         _optional_nonnegative_int(self.frozen_at_us, "Research candidate set frozen_at_us")
         if self.eligible_count + self.excluded_count != self.candidate_total:
             raise ValueError("Research candidate set counts are internally inconsistent.")
@@ -369,7 +371,7 @@ class ResearchCoverage:
     coverage_ratio: float
 
     def __post_init__(self) -> None:
-        for value, label in (
+        for count_value, count_label in (
             (self.candidate_total, "Research coverage candidate_total"),
             (self.processed_count, "Research coverage processed_count"),
             (self.successful_count, "Research coverage successful_count"),
@@ -379,7 +381,7 @@ class ResearchCoverage:
             (self.excluded_count, "Research coverage excluded_count"),
             (self.eligible_count, "Research coverage eligible_count"),
         ):
-            _nonnegative_int(value, label)
+            _nonnegative_int(count_value, count_label)
         _unit_interval(self.coverage_ratio, "Research coverage coverage_ratio")
         if self.eligible_count + self.excluded_count != self.candidate_total:
             raise ValueError("Research coverage candidate counts are inconsistent.")
@@ -572,7 +574,7 @@ class ResearchResultRecord:
             self.synthesis_pipeline_version,
             "Research result synthesis_pipeline_version",
         )
-        for value, label in (
+        for count_value, count_label in (
             (self.candidate_total, "Research result candidate_total"),
             (self.processed_count, "Research result processed_count"),
             (self.successful_count, "Research result successful_count"),
@@ -582,7 +584,7 @@ class ResearchResultRecord:
             (self.excluded_count, "Research result excluded_count"),
             (self.created_at_us, "Research result created_at_us"),
         ):
-            _nonnegative_int(value, label)
+            _nonnegative_int(count_value, count_label)
         _unit_interval(self.coverage_ratio, "Research result coverage_ratio")
         _strict_json(self.problem_sources_json, "Research result problem_sources_json")
         if self.processed_count > self.candidate_total:
