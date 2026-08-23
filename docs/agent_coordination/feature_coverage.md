@@ -33,7 +33,7 @@ A `COVERED` row may be rescanned only when its specification or mapped implement
 | A19 | Audit / provenance / traceability | UNCHECKED | — | — |
 | A20 | Data lifecycle / retention / deletion | UNCHECKED | — | — |
 | A21 | Model freedom / content neutrality | UNCHECKED | — | — |
-| A22 | Context management / conversations / continuity | PARTIAL | 6c11221 | ContextBuilderService, retrieval candidate contracts, protected-content boundary and durable package concerns traced. FG-005/FG-006 plus FG-012. Full Alpha chapter trace pending. |
+| A22 | Context management / conversations / continuity | PARTIAL | current-ref | ContextBuilderService plus async retrieval ContextBuilder, ContextPackage, Research synthesis map/reduce, protected-content boundary and durable package concerns traced. FG-005 is implemented; FG-006 is stale after dynamic chat budgeting revalidation; FG-012 remains in progress for protected generation orchestration. Full Alpha chapter trace pending. |
 | A23 | Knowledge quality / consistency / self-maintenance | UNCHECKED | — | — |
 | A24 | Performance / scaling / resources | UNCHECKED | — | — |
 | A25 | Data formats / Obsidian / long-term readability | UNCHECKED | — | Obsidian implementation explicitly deferred; only consistency scan when reached. |
@@ -46,25 +46,25 @@ A `COVERED` row may be rescanned only when its specification or mapped implement
 
 | Chapter | Area | Status | Last checked commit | Findings / note |
 |---|---|---|---|---|
-| B01 | System architecture / technical basis | UNCHECKED | — | — |
+| B01 | System architecture / technical basis | PARTIAL | current-ref | First architecture trace completed. `src/athena/api/server.py` implements a loopback-only Core API listener on `127.0.0.1`, and the API surface uses `/api/v1/...` routes, matching B01 local-binding/versioning requirements. The repository is already split into Core/API/UI/model/knowledge/jobs/config/external/etc. modules rather than microservices. Full trace still required for isolated worker failure boundaries, resource manager integration, authoritative-write routing and long-running checkpoint semantics. No new gap opened from this partial trace. |
 | B02 | Persistent data model / IDs | UNCHECKED | — | — |
 | B03 | Storage / databases / migrations | UNCHECKED | — | — |
 | B04 | Sources / raw archive / import pipeline | UNCHECKED | — | — |
 | B05 | Knowledge units / claims / graph | UNCHECKED | — | — |
 | B06 | Personal memory | UNCHECKED | — | — |
 | B07 | Provenance / audit / versioning | UNCHECKED | — | — |
-| B08 | Primary model / provider system | PARTIAL | 6c11221 | Revalidated current domain, ports, ModelRegistry, ModelSignature/ProcessingRun, LM Studio adapter and desktop model controls. READY: FG-008 revision provenance, FG-009 ModelSession, FG-010 failure taxonomy. FG-011 records the MIXED/BLOCKED Model Manager/load/switch/signature UI gap; FG-001 lifecycle remains blocker. Continue exact load timeout/auto-load/resource-arbitration orchestration and provider contract tests. |
-| B09 | Context Builder / token budget | PARTIAL | 6c11221 | ContextBuilderService and retrieval candidate contracts traced against protected-content requirements. Ordinary FTS explicitly excludes protected payloads; ProtectedContentService enforces runtime lock/decryption, but protection scope is not carried into Ranked/Hybrid/Context candidates. FG-012 READY for authorized unlocked protected retrieval-to-context integration. Existing diversity and dynamic budgeting findings retained. Continue hierarchical processing, task-specific builders, ContextPackage/cache and tests 60–68. |
+| B08 | Primary model / provider system | PARTIAL | 6c11221 | Revalidated current domain, ports, ModelRegistry, ModelSignature/ProcessingRun, LM Studio adapter and desktop model controls. FG-002/003/004/005/007/008 are implemented or later reclassified as appropriate; FG-001 is blocked on adapter ownership, FG-009/010 remain partial, and FG-011 records the MIXED/BLOCKED Model Manager/load/switch/signature UI gap. Continue exact load timeout/auto-load/resource-arbitration orchestration and provider contract tests. |
+| B09 | Context Builder / token budget | PARTIAL | current-ref | Deeper trace completed. `ContextPackage` already carries request ID, pinned ModelSignature, purpose, separated context sections, included refs, excluded summary, token estimates, explicit budget and optional snapshot commit sequence; audit serialization omits cleartext. Current ContextBuilder paths implement source-diversity ordering and semantic shrink/truncation. Research `SynthesisService` performs per-query map work followed by reduce synthesis, so hierarchical processing is behaviorally present rather than absent. FG-005 is IMPLEMENTED, not a READY gap; its visible legacy unit file does not itself provide an explicit source-diversity regression, so VERIFIED is not claimed here. Caching is optional in the spec and its absence alone is not a defect. Remaining scan: task-specific builder coverage, protected generation boundary, and tests 60–68 / equivalent modern regressions. |
 | B10 | Retrieval / search | PARTIAL | 6c11221 | Unprotected SearchResult → RankedSearchResult → HybridSearchResult chain inspected while tracing FG-012; protected payloads are explicitly excluded from this projection and no protection-scope field crosses these contracts. Full retrieval chapter scan pending. |
-| B11 | Exhaustive Research | UNCHECKED | — | — |
+| B11 | Exhaustive Research | PARTIAL | current-ref | While tracing B09 hierarchical processing, `research/synthesis_service.py` was confirmed to execute per-query research units and reduce their representative results into a final synthesis context. This establishes real map/reduce-style behavior and provenance-carrying intermediate aggregation. Full B11 exhaustive-research requirements remain unscanned. |
 | B12 | Job system / queue / scheduler | UNCHECKED | — | — |
 | B13 | Resource management | UNCHECKED | — | — |
 | B14 | News / events | UNCHECKED | — | — |
 | B15 | External Access Gateway / network | UNCHECKED | — | — |
-| B16 | Security architecture / protected content | PARTIAL | 6c11221 | Runtime protection service traced: unlocked scopes are in-memory only; lock wipes keys; load_payload requires unlocked matching scope. Cross-layer protected retrieval/context integration remains absent in inspected contracts; see FG-012. Full B16 scan pending. |
+| B16 | Security architecture / protected content | PARTIAL | 6c11221 | Runtime protection service traced: unlocked scopes are in-memory only; lock wipes keys; load_payload requires unlocked matching scope. Dedicated protected runtime retrieval and execution-guard boundaries now exist; FG-012 is IN_PROGRESS for an actual model-call orchestration path plus deliberate persistence policy. Full B16 scan pending. |
 | B17 | Plugin system / permissions | UNCHECKED | 22b5f19 | B27 places Plugins in a later vertical slice; current product instructions additionally defer plugin work. Scan only for security/architecture consistency until reprioritized. |
 | B18 | Desktop application / tray | PARTIAL | 6c11221 | Model-control portion inspected for B08; current selector/settings represent availability/loaded state, but complete Model Manager lifecycle UI is not connected. Full B18 scan pending. |
-| B19 | Core API / future clients | UNCHECKED | — | — |
+| B19 | Core API / future clients | PARTIAL | current-ref | B01 trace confirmed a real local Core API implementation with loopback-only listener and versioned `/api/v1` routes. Full B19 contract/versioning/authentication/future-client scan remains. |
 | B20 | Obsidian / external editing | UNCHECKED | 22b5f19 | B27 places Obsidian in a later vertical slice; implementation remains explicitly deferred by current product instructions. Do not open current feature gaps unless required for architectural consistency. |
 | B21 | Backup / restore | UNCHECKED | — | — |
 | B22 | Recovery mode / diagnostics | UNCHECKED | — | — |
@@ -76,7 +76,7 @@ A `COVERED` row may be rescanned only when its specification or mapped implement
 
 ## Next scan order
 
-1. Finish B09: hierarchical Map/Reduce, task-specific builders, ContextPackage/cache behavior and tests 60–68.
-2. Finish B08 backend load timeout/auto-load/resource-arbitration orchestration and provider contract tests; leave FG-011 UI blocked until lifecycle contract stabilizes.
-3. Deep-scan B16 protected-content architecture around unlocked retrieval, cache invalidation and logging boundaries to refine FG-012.
-4. Scan B01–B03 foundation against current Core/storage/migrations.
+1. Finish B09 task-specific builder/test coverage and correlate modern regressions to normative tests 60–68; do not reopen already-implemented source diversity or Research map/reduce.
+2. Continue B01 foundation trace into process isolation, resource management, authoritative-write boundaries and durable checkpoint semantics; cross-link B12/B13 where responsibility moves there.
+3. Deep-scan B16 protected-content architecture around the actual provider bridge, generated-content persistence policy, relock invalidation and logging boundaries to refine FG-012.
+4. Scan B02–B03 persistent IDs/storage/migrations against the current schema/repository/migration layer.
