@@ -41,14 +41,47 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 | UI-031 | P2 | DONE | Knowledge/Research/Jobs/Sources/Backup now expose shown/total/selected scope in a separate quiet status row; four focused tests added, not executed. |
 | UI-032 | P2 | DONE | Dynamic message actions now use stable Copy→Remember→Add ordering by message sequence and return to the composer; disabled Remember state is preserved; four tests added, not executed. |
 | UI-033 | P2 | STALE | Current HEAD already suppresses the static Evidence Rail as non-truthful decoration; chainState is shrink-safe, wrapped and selectable via UI-025, so extra compact styling would be redundant. |
+| UI-034 | P3 | DONE | Backup target scope now states that no target is preselected; TARGETS is read-only listing while CREATE/REGISTER use explicit folder pickers; four tests added, not executed. |
 | UI-035 | P2 | DONE | Research promotion keeps deterministic order while a quiet scope row exposes pending/resolved counts, selected proposal identity/state and evidence hint; four tests added, not executed. |
 
 ## Active queue
 
-### UI-034 — Backup target-selection comprehension
+### UI-036 — Research filter/result-scope synchronization
+- **Priority:** P1
+- **Status:** READY
+- **Evidence:** UI-031 counts hidden rows, but Research job filtering lives in the ResearchResultsExtension and does not currently trigger the generic scope controller; shown/total can become stale immediately after filter text changes.
+- **Views/components:** Research job filter, research job list, result-scope label.
+- **Dependencies:** UI-031 and existing ResearchResultsExtension filter only.
+- **Last verification:** 2026-08-23.
+
+### UI-037 — Operation-failure message keyboard flow
+- **Priority:** P2
+- **Status:** READY
+- **Evidence:** Chat operation-failure rows expose a keyboard-focusable Copy action through UI-027, but UI-032 intentionally orders only normal `chatMessage` rows; audit a predictable failure-row → next message/composer flow.
+- **Views/components:** `chatOperationFailure`, Copy action, composer.
+- **Dependencies:** UI-027/UI-032.
+- **Last verification:** 2026-08-23.
+
+### UI-038 — Backup details mode provenance
+- **Priority:** P2
+- **Status:** READY
+- **Evidence:** The same Backup details pane can show snapshot metadata, target-list output, verification/restore logs, or errors; users need a quiet indication of which mode produced the current content.
+- **Views/components:** Backup details/status, TARGETS, verify/deep verify/restore/create.
+- **Dependencies:** UI-026/UI-034; existing CLI output only.
+- **Last verification:** 2026-08-23.
+
+### UI-039 — Research proposal decision focus continuity
+- **Priority:** P2
+- **Status:** READY
+- **Evidence:** Proposal density is now clearer; after Accept/Keep separate/Reject triggers a refresh, verify focus returns to the next relevant proposal or proposal list rather than disappearing into the panel.
+- **Views/components:** Research proposal list and decision buttons.
+- **Dependencies:** UI-020/UI-035.
+- **Last verification:** 2026-08-23.
+
+### UI-040 — Dense status-row coexistence audit
 - **Priority:** P3
-- **Status:** IN_PROGRESS
-- **Evidence:** Backup snapshot action context is explicit; target registration/listing still deserves a read-only clarity audit around selected filesystem scope.
-- **Views/components:** Backup TARGETS / REGISTER TARGET / CREATE dialogs and status.
-- **Dependencies:** Existing BackupService CLI only.
+- **Status:** READY
+- **Evidence:** Result scope, status, recovery and provenance layers now coexist on several workspaces; audit whether redundant quiet rows appear during busy/error transitions and consolidate presentation without losing semantics.
+- **Views/components:** Knowledge, Research, Jobs, Sources, Backup status stacks.
+- **Dependencies:** UI-021/UI-031/UI-034.
 - **Last verification:** 2026-08-23.
