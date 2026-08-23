@@ -342,8 +342,23 @@ class BackupWorkspace(QWidget):
             if snapshot_id == selected:
                 selected_item = item
         self.snapshots.blockSignals(False)
+        self.snapshots.setProperty("pathenaSelectionDisappeared", "")
+        self.details.setProperty("pathenaSelectionDisappeared", "")
         if selected_item is not None:
             self.snapshots.setCurrentItem(selected_item)
+        elif self.snapshots.count() > 0 and selected is not None:
+            self._selected_snapshot_id = None
+            self.snapshots.setCurrentRow(-1)
+            snapshot_label = self._snapshot_label(selected)
+            message = (
+                f"SELECTION CHANGED · Snapshot {snapshot_label} is no longer listed after "
+                "refresh. Select another backup snapshot to inspect or verify it."
+            )
+            self.details.setPlainText(message)
+            self.snapshots.setProperty("pathenaSelectionDisappeared", selected)
+            self.details.setProperty("pathenaSelectionDisappeared", selected)
+            self.details.setAccessibleDescription(message)
+            self.snapshots.setStatusTip(message)
         elif self.snapshots.count() > 0:
             self.snapshots.setCurrentRow(0)
         else:
