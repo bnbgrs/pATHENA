@@ -12,6 +12,10 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from athena.desktop.pathena_backup_selection_ownership import (
+    install_backup_selection_ownership,
+)
+
 
 _MODE_LABELS = {
     "create": "backup creation log",
@@ -160,4 +164,5 @@ def install_backup_details_provenance(
     workspace: QWidget,
 ) -> BackupDetailsProvenanceController:
     """Install current-content provenance for the existing Backup details pane."""
+    install_backup_selection_ownership(workspace)
     return BackupDetailsProvenanceController(workspace)
