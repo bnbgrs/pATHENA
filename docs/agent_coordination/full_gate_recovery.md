@@ -39,10 +39,12 @@ Status values: `OPEN`, `ASSIGNED`, `IN_PROGRESS`, `FIXED_PENDING_VERIFY`, `VERIF
 - Ownership: UI.
 - Components: PALLAS ASCII panel target binding, desktop page-selection integration, related presentation tests.
 - Required fix invariant: target binding/page selection must not re-enter or access invalid Qt object state; full pytest must complete normally without process signal termination. Tests must not be skipped or weakened.
-- Status: IN_PROGRESS.
-- UI owner note: 2026-08-24 automation run claimed this slice after fresh reads of this recovery document, `ascii_panel.py`, `pathena_window.py`, and the historical command-palette presentation test. Local targeted execution is currently NOT EXECUTABLE because the runtime cannot resolve `github.com` for a checkout; no PASS is claimed.
-- Targeted verification: focused PALLAS/page-selection presentation tests under Qt offscreen, followed by full pytest.
-- Last full-gate status: historical FAIL; current-head run #2869 pending.
+- Status: FIXED_PENDING_VERIFY.
+- UI fix: commit `6de4746c978b68eeea700f4c441d6bc2cfc54d52` removes application-global `QApplication.allWidgets()` target binding and scopes both PALLAS canvas lookup and semantic sampling to the owning top-level window. Cross-window target binding is rejected explicitly before paint interception.
+- Regression coverage: commit `be9da30da3f3f874a985d8fdc999a641e2c746dd` adds two-window ownership coverage, repeated page/context switching, and semantic-sampling isolation.
+- Targeted verification observed in this automation environment: **NOT EXECUTABLE** because a local checkout could not be obtained (`Could not resolve host: github.com`). No pytest/Ruff/mypy PASS is claimed. The separate Full Gate Recovery bot must execute focused Qt-offscreen coverage and the full pytest lane.
+- Targeted verification: `tests/unit/test_pathena_pallas_target_lifecycle.py`, historical `tests/unit/test_pathena_command_palette_presentation.py`, then full pytest under Qt offscreen.
+- Last full-gate status: historical FAIL; current-head verification pending.
 
 ### FGATE-003 — Research model typing failures
 
@@ -124,5 +126,6 @@ Status values: `OPEN`, `ASSIGNED`, `IN_PROGRESS`, `FIXED_PENDING_VERIFY`, `VERIF
 1. Wait for/start from the first current-head-equivalent run that actually obtains runners; decode every required job and step.
 2. If a newer agent commit supersedes the pending run, move the baseline to the new remote HEAD and never claim the older run as current green evidence.
 3. Close `FGATE-001` only after current-code targeted construction/Local smoke PASS.
-4. For the first current red job, classify the primary failure before consequences, update the stable FGATE entry, and hand off by ownership; Quality-owned harness/workflow/fixture defects may be fixed here.
-5. Full recovery is complete only when all required jobs for the relevant development HEAD are successful and no required check is skipped.
+4. Verify `FGATE-002` with focused Qt-offscreen PALLAS lifecycle tests and the full pytest lane; close only after the native process exits normally.
+5. For the first current red job, classify the primary failure before consequences, update the stable FGATE entry, and hand off by ownership; Quality-owned harness/workflow/fixture defects may be fixed here.
+6. Full recovery is complete only when all required jobs for the relevant development HEAD are successful and no required check is skipped.
