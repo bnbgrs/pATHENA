@@ -27,8 +27,31 @@ function Resolve-PathenaEffectiveLocalRoot {
     return Resolve-PathenaDefaultLocalRoot
 }
 
+function Assert-PathenaRuntimeRootOutsideRepository {
+    param(
+        [Parameter(Mandatory = $true)][string]$RepoRoot,
+        [Parameter(Mandatory = $true)][string]$RuntimeRoot
+    )
+
+    $trimChars = [char[]]@('\', '/')
+    $repo = [System.IO.Path]::GetFullPath($RepoRoot).TrimEnd($trimChars)
+    $runtime = [System.IO.Path]::GetFullPath($RuntimeRoot).TrimEnd($trimChars)
+    $comparison = [System.StringComparison]::OrdinalIgnoreCase
+    $repoPrefix = $repo + [System.IO.Path]::DirectorySeparatorChar
+
+    if ($runtime.Equals($repo, $comparison) -or $runtime.StartsWith($repoPrefix, $comparison)) {
+        throw "pATHENA runtime root must be outside the repository: $runtime. Choose -LocalRoot in AppData or a separate data directory."
+    }
+    return $runtime
+}
+
 function Assert-PathenaLocalRootReady {
+    param([string]$RepoRoot = "")
+
     $root = Resolve-PathenaEffectiveLocalRoot
+    if ($RepoRoot.Trim()) {
+        $root = Assert-PathenaRuntimeRootOutsideRepository -RepoRoot $RepoRoot -RuntimeRoot $root
+    }
     try {
         [System.IO.Directory]::CreateDirectory($root) | Out-Null
         $probe = Join-Path $root (".pathena-write-probe-" + [Guid]::NewGuid().ToString("N") + ".tmp")
