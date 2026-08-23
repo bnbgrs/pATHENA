@@ -128,5 +128,5 @@ jobs:
           name: pATHENA-Windows-UI-Safe
           path: portable/pATHENA-Windows-UI-Safe/
           if-no-files-found: error
-          compression-level: 6
+          compression-level: 0
           retention-days: 7
