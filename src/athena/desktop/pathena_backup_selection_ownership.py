@@ -103,4 +103,6 @@ def install_backup_selection_ownership(
     workspace: QWidget,
 ) -> BackupSelectionOwnershipController:
     """Install snapshot selection ownership around existing verify/restore operations."""
-    return BackupSelectionOwnershipController(workspace)
+    controller = BackupSelectionOwnershipController(workspace)
+    workspace.setProperty("pathenaBackupSelectionOwnershipController", controller)
+    return controller
