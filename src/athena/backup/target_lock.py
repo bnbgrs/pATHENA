@@ -94,13 +94,20 @@ def _unlock(handle: BinaryIO) -> None:
 
 @contextmanager
 def backup_target_lock(target_root: Path) -> Iterator[None]:
+    if not isinstance(target_root, Path):
+        raise TypeError("Backup target root must be a pathlib.Path.")
     if not target_root.is_dir():
         raise RuntimeError(
             f"Backup target is unavailable: {target_root}"
         )
 
     lock_path = target_root / ".athena-backup.lock"
-    handle = lock_path.open("a+b")
+    try:
+        handle = lock_path.open("a+b")
+    except OSError as exc:
+        raise BackupTargetBusyError(
+            "Backup target lock cannot be opened safely."
+        ) from exc
 
     locked = False
 
