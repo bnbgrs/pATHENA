@@ -10,9 +10,19 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 pytest.importorskip("PySide6")
 
 from PySide6.QtCore import QObject
-from PySide6.QtWidgets import QApplication, QDialog, QLineEdit, QListWidget, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QApplication,
+    QDialog,
+    QLineEdit,
+    QListWidget,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 
-from athena.desktop.pathena_command_palette_truth_6500 import CommandPaletteTruthController
+from athena.desktop.pathena_command_palette_truth_6500 import (
+    CommandPaletteTruthController,
+)
 
 
 @dataclass
@@ -45,7 +55,9 @@ def _app() -> QApplication:
     return QApplication([])
 
 
-def _surface(enabled: bool) -> tuple[QWidget, _FakePalette, CommandPaletteTruthController]:
+def _surface(
+    enabled: bool,
+) -> tuple[QWidget, _FakePalette, CommandPaletteTruthController]:
     _app()
     window = QWidget()
     button = QPushButton("New", window)
@@ -77,7 +89,10 @@ def test_disabled_palette_command_is_not_invoked() -> None:
     controller._run_row(0)
 
     assert palette.calls == []
-    assert controller.status.isVisible() is False or "Unavailable" in controller.status.text()
+    assert (
+        controller.status.isVisible() is False
+        or "Unavailable" in controller.status.text()
+    )
 
 
 def test_enabled_palette_command_delegates_to_original_action() -> None:
