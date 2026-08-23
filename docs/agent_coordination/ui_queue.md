@@ -71,7 +71,7 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 | UI-062 | P3 | DONE | Backup rows expose state/verification through Qt AccessibleTextRole/AccessibleDescriptionRole/StatusTipRole using existing metadata, with humanized verification labels. Commits `86d34a6b9a3392da38fb6b6b11f309a949366fd9` and `dd1774aa0c30a32f5a34110855865beb0ec74266`; tests not executable in current checkout runtime. |
 | UI-063 | P2 | DONE | Backup list accessible description now exposes listed count, selected snapshot identity/state/verification and restore availability without additional visible chrome. Commits `ca91819fb7b29f976887079f8833503533e31ba3` and `de1c3026bf939455d5dafffdc00074b9026ccd94`; tests not executable in current checkout runtime. |
 | UI-064 | P2 | DONE | Knowledge/Claims/Decisions, Research jobs, durable Jobs and Sources now expose row AccessibleText/AccessibleDescription and stable UserRole identity through the shared dense-list layer without extending historical refinement IDs. Commits `a09462a04e2ce7e8568e6225d40e99f9b9063b36`, `0fa0cc26edf8309322dbc68bf6cf2643995c3fb7`, `a99b0bdea2e2a552042a84e7475fccff1bc8c71e`, `38b81262000ac8d16883358d6ddcd09c6aaa978f`; targeted tests NOT EXECUTABLE. |
-| UI-065 | P2 | DONE | Existing filter-aware `shown / total / selected` result scope is mirrored onto the focusable list itself for screenreaders; hidden active selection remains marked `(filtered)`. Commits `09d48a35a42bcbb1cb3515bc1336ee747cacd58a` and `0ab4cb2fb3883122571634e64fbdf66e4cf8b5e2`; targeted tests NOT EXECUTABLE. |
+| UI-065 | P2 | DONE | Existing filter-aware `shown / total / selected` result scope is mirrored onto the focusable list itself for screenreaders; hidden active selection remains marked `(filtered)`. Commits `09d48a35a42bcbb1cb3515bc1336ee747cacd58a` and `0ab4cb2fb3883122571634e64fbdf66e4cf8b5e2`; tests NOT EXECUTABLE. |
 | UI-066 | P2 | DONE | Selection-disappearance handoff restores current authoritative Backup/Result scope instead of stale install-time accessibility copy and resyncs on those scope changes. Commits `0143ef78af253852ba27ea8875e8a2e0fa60d3b6` and `a5c37a9eef3a5b401069ba3b390d4ea292e52751`; tests NOT EXECUTABLE. |
 | UI-067 | P1 | DONE | Global semantic AccessibleState sync composes state with dynamic Backup/Result/Dense-list scope instead of overwriting it on later busy/error/success transitions. Commits `c49b448b146cdfcef74aa785eb13cf32b392b90b` and `8aca567a0874e665e3529118debf06386a2b8b9b`; tests NOT EXECUTABLE. |
 | UI-068 | P2 | DONE | Audited post-5500 refinement and post-refinement install order: no remaining later list-scope owner erases authoritative scope after UI-064–067; enablement/mutation/composer layers target controls/details, background completion targets status labels, and selection/result/backup owners are now explicitly arbitred. Audit completed 2026-08-23. |
@@ -85,6 +85,7 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 | UI-076 | P2 | DONE | Chat prompt, Knowledge filter, Research question and Research-run filter now expose stable assistive names and truthful purpose/keyboard context without changing text, enablement or signal behavior. Commits `b6bec1e1aead5bbe3266ec9a90ae5e8de613dc23`, `10109169ff213d87d70a43a8bab53fd0bcd17ca5`, `c44054aa23a5ebac58cd7db4d0b1cb1179598a73`; targeted execution NOT EXECUTABLE because checkout DNS failed. |
 | UI-077 | P2 | DONE | `researchProposalList` now participates in existing dense-list accessibility parity using its real Proposal ID in UserRole and unchanged visible row text. Commits `46ace4ff9d8384486195a95c989ee254e65005bc`, `eee9d1f121771e0932efc28568a352724b00d262`; targeted execution NOT EXECUTABLE because checkout DNS failed. |
 | UI-078 | P2 | DONE | `claimRelationList` now participates in shared dense-list accessibility parity using the existing related Claim ID in UserRole and unchanged relation text. Commits `367405c67019239ddddfe3af39c780333f92f2ee`, `fc9cd4950566a66b846a2470ef66b2e94b9f7ba1`; targeted execution NOT EXECUTABLE because checkout DNS failed. |
+| UI-079 | P2 | DONE | Command Palette result rows now expose label, availability/blocker and current result scope through Qt accessibility roles without changing commands or invocation. Commits `d5c8a71d91a649aa8295bae20fa741164a32737d`, `d9ff9fb1c61dc2315c1d5a1512a3b896b8a80d6e`, `ee80757befda019ddb82ad8ae35f1994c0d060f6`, `f47c940f2ae588a8acc60318fa24d75a182ec67d`; targeted execution NOT EXECUTABLE because checkout DNS failed. |
 
 ## Active queue
 
@@ -96,10 +97,10 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 - **Dependencies:** Runtime with repository checkout or Quality-bot execution.
 - **Last verification:** 2026-08-24.
 
-### UI-079 — Command Palette result accessibility parity
+### UI-080 — Command Palette semantic labels
 - **Priority:** P2
 - **Status:** IN_PROGRESS
-- **Evidence:** Command Palette rows expose visible availability and tooltips, but do not mirror command label/availability/blocker through per-row AccessibleTextRole/AccessibleDescriptionRole or list-level current-result scope.
-- **Views/components:** CommandPaletteController results list and CommandPaletteTruthController.
-- **Dependencies:** UI-023 command availability truth, UI-029 zero-result comprehension; no backend dependency.
+- **Evidence:** Command Palette query and Help text are visually identified by surrounding headings/placeholders but have no stable AccessibleName/AccessibleDescription of their own.
+- **Views/components:** `commandPaletteQuery`, `helpText`, existing CommandPaletteController only.
+- **Dependencies:** UI-023/UI-079; no backend dependency.
 - **Last verification:** 2026-08-24.
