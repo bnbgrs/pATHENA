@@ -29,7 +29,7 @@ _STATE_SURFACES: tuple[tuple[str, str], ...] = (
     ("sourceStatus", "source status"),
     ("sourceList", "source list"),
     ("sourceDetails", "source details"),
-    ("systemOperationsTabs", "system operations"),
+    ("systemDetail", "system runtime detail"),
     ("backupSnapshotList", "backup snapshot list"),
 )
 
