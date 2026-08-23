@@ -22,6 +22,9 @@ from athena.desktop.pathena_knowledge_acceptance_presentation import (
     apply_knowledge_acceptance_presentation,
 )
 from athena.desktop.pathena_layout_refinement_2200 import install_layout_refinement
+from athena.desktop.pathena_progressive_workspace_2300 import (
+    install_progressive_workspace_refinement,
+)
 from athena.desktop.pathena_research_result_presentation import (
     apply_research_result_presentation,
 )
@@ -137,11 +140,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     apply_complete_ui_refinements(window)
     interaction_refinement = install_interaction_refinement(window)
     layout_refinement = install_layout_refinement(window)
+    progressive_workspace_refinement = install_progressive_workspace_refinement(window)
     _schedule_initial_core_refreshes(controller, supervisor, scheduler_supervisor)
     heartbeat = _start_core_refresh_heartbeat(controller, supervisor, scheduler_supervisor)
     window.show()
     exit_code = app.exec()
     heartbeat.stop()
+    progressive_workspace_refinement.deleteLater()
     layout_refinement.deleteLater()
     interaction_refinement.deleteLater()
     canonical_memory_extensions.deleteLater()
