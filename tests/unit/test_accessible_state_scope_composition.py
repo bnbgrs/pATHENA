@@ -79,3 +79,26 @@ def test_backup_scope_has_priority_when_state_sync_runs(qt_app: QApplication) ->
     assert description.startswith("2 backup snapshots listed.")
     assert "restore available" in description
     assert "State: complete." in description
+
+
+def test_result_scope_retains_existing_cancellation_phase(qt_app: QApplication) -> None:
+    window = QWidget()
+    widget = _selected_list()
+    widget.setParent(window)
+    controller = AccessibleStateSyncController(window)
+    controller.register(widget, "Durable jobs")
+    widget.setProperty(
+        "pathenaResultScopeText",
+        "Durable jobs · 1 shown · selected 12345678",
+    )
+    widget.setProperty("pathenaCancellationPhase", "requested")
+    widget.setProperty("pathenaCancellationSelectedState", "cancel_requested")
+    widget.setProperty("pathenaUiState", "idle")
+
+    controller._sync_one(widget)
+
+    description = widget.accessibleDescription()
+    assert "Durable jobs · 1 shown · selected 12345678" in description
+    assert "State: ready." in description
+    assert "Cancellation: phase requested" in description
+    assert "selected job state cancel_requested" in description
