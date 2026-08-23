@@ -63,3 +63,46 @@ def test_argon2_json_roundtrip_preserves_current_profile() -> None:
     restored = Argon2idParameters.from_json(current.to_json())
 
     assert restored == current
+
+
+def test_argon2_v1_accepts_resource_ceiling_without_running_kdf() -> None:
+    parameters = Argon2idParameters(
+        iterations=10,
+        lanes=16,
+        memory_cost_kib=256 * 1024,
+    )
+
+    assert parameters.iterations == 10
+    assert parameters.lanes == 16
+    assert parameters.memory_cost_kib == 256 * 1024
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [
+        ("iterations", 11),
+        ("lanes", 17),
+        ("memory_cost_kib", 256 * 1024 + 1),
+    ],
+)
+def test_argon2_v1_rejects_work_factors_above_resource_ceiling(
+    field: str,
+    value: int,
+) -> None:
+    kwargs: dict[str, object] = {field: value}
+
+    with pytest.raises(ValueError, match="resource ceiling"):
+        Argon2idParameters(**kwargs)  # type: ignore[arg-type]
+
+
+def test_argon2_json_rejects_pathological_work_factors_before_kdf() -> None:
+    payload = {
+        "format_version": 1,
+        "iterations": 1_000_000,
+        "lanes": 4,
+        "length": 32,
+        "memory_cost_kib": 64 * 1024,
+    }
+
+    with pytest.raises(ValueError, match="resource ceiling"):
+        Argon2idParameters.from_json(json.dumps(payload))
