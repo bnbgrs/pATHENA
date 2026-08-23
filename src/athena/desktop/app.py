@@ -17,6 +17,7 @@ from athena.desktop.files_workspace import install_files_workspace
 from athena.desktop.jobs_workspace import install_jobs_workspace
 from athena.desktop.knowledge_acceptance import install_knowledge_acceptance
 from athena.desktop.knowledge_workspace import install_knowledge_workspace
+from athena.desktop.pathena_shell_density import apply_shell_density
 from athena.desktop.pathena_theme import PATHENA_STYLESHEET
 from athena.desktop.pathena_window import PathenaMainWindow
 from athena.desktop.pathena_workspace_presentation import apply_workspace_presentation
@@ -114,6 +115,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     controller = DesktopApiController(client)
     window = PathenaMainWindow(api_controller=controller)
+    apply_shell_density(window)
     knowledge_workspace = install_knowledge_workspace(window, controller)
     knowledge_acceptance = install_knowledge_acceptance(
         knowledge_workspace,
