@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QObject, Qt
 from PySide6.QtWidgets import QAbstractItemView, QListWidget, QListWidgetItem, QWidget
 
 
@@ -40,10 +40,11 @@ QListWidget[pathenaDenseList="true"]::item:selected {
 """
 
 
-class DenseListScanabilityController:
+class DenseListScanabilityController(QObject):
     """Keep selected-row identity explicit while preserving canonical row text."""
 
     def __init__(self, window: QWidget) -> None:
+        super().__init__(window)
         self.window = window
         self._labels: dict[QListWidget, str] = {}
 
