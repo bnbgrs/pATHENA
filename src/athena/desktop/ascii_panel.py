@@ -47,7 +47,6 @@ def _seed_grid(context: str) -> list[list[int]]:
             if rng.random() < density:
                 grid[row][col] = rng.randint(1, 4)
 
-    # Give every context a stable semantic nucleus instead of pure visual noise.
     center_row = _ROWS // 2
     center_col = _COLS // 2
     for delta_row, delta_col in (
@@ -153,9 +152,6 @@ class AsciiPanel(QPlainTextEdit):
         self._timer.start()
         self._refresh_text_surface()
 
-        # Window construction creates the canvas immediately after this controller.
-        # Queueing a zero-delay bind means the event filter is normally installed
-        # before the first user-visible paint instead of waiting for the 220 ms tick.
         QTimer.singleShot(0, self._bind_pallas_target)
 
     def set_context(self, context: str) -> None:
@@ -203,8 +199,6 @@ class AsciiPanel(QPlainTextEdit):
         if force and not previous_signature:
             return
 
-        # Visible content changed: evolve from a deterministic representation of
-        # the current workspace + content instead of restarting from random noise.
         self._generation = 0
         self._grid = _seed_grid(self._semantic_seed_context())
 
@@ -232,8 +226,6 @@ class AsciiPanel(QPlainTextEdit):
             items.append(clipped)
             total_chars += len(clipped)
 
-        # Prompt text is intentionally included so the field begins responding
-        # while the user is composing, before a message is sent.
         for line_edit in root.findChildren(QLineEdit):
             if len(items) >= _MAX_SEMANTIC_ITEMS:
                 break
@@ -241,8 +233,6 @@ class AsciiPanel(QPlainTextEdit):
                 continue
             append(line_edit.text())
 
-        # Chat messages, selected knowledge/research metadata and inspector text
-        # are labels in the current desktop shell. Hidden pages are excluded.
         for label in root.findChildren(QLabel):
             if len(items) >= _MAX_SEMANTIC_ITEMS or total_chars >= _MAX_SEMANTIC_CHARS:
                 break
@@ -266,7 +256,7 @@ class AsciiPanel(QPlainTextEdit):
             self._pallas_target = widget
             widget.installEventFilter(self)
             widget.setToolTip(
-                "PALLAS — live local semantic cellular field; reacts to visible workspace content"
+                "PALLAS — live local semantic field; reacts to visible workspace content"
             )
             widget.destroyed.connect(self._pallas_destroyed)
             widget.update()
@@ -300,14 +290,14 @@ class AsciiPanel(QPlainTextEdit):
         painter.setPen(QColor("#F2F1ED"))
         painter.drawText(13, 21, "PALLAS")
         painter.setPen(QColor("#6F6F6B"))
-        context_label = self._context.upper()[:12]
+        context_label = self._context.title()[:12]
         metrics = painter.fontMetrics()
         painter.drawText(width - 13 - metrics.horizontalAdvance(context_label), 21, context_label)
 
         left = 14
         top = 37
         usable_width = max(1, width - 28)
-        usable_height = max(1, height - top - 30)
+        usable_height = max(1, height - top - 14)
         visible_rows = _sample_indices(
             _ROWS,
             float(usable_height),
@@ -338,10 +328,6 @@ class AsciiPanel(QPlainTextEdit):
                 y = int(top + (visible_row + 1) * cell_height)
                 painter.drawText(x, y, glyph)
 
-        painter.setPen(QColor("#50504C"))
-        semantic_state = "SEMANTIC" if self._semantic_sample != self._context else "LOCAL"
-        generation = f"GEN {self._generation:04d} / {semantic_state}"
-        painter.drawText(13, height - 11, generation)
         painter.end()
 
     def _refresh_text_surface(self) -> None:
