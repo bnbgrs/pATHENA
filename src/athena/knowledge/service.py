@@ -26,6 +26,14 @@ class UnsupportedKnowledgeSourceError(ValueError):
     """Raised when a source message cannot safely become canonical Knowledge."""
 
 
+def _knowledge_list_limit(value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError("Knowledge list limit must be an integer between 1 and 500.")
+    if not 1 <= value <= 500:
+        raise ValueError("Knowledge list limit must be an integer between 1 and 500.")
+    return value
+
+
 class KnowledgeService:
     """Explicit user-driven Knowledge creation and revision use cases."""
 
@@ -129,7 +137,7 @@ class KnowledgeService:
         return self.repository.load_current(knowledge_id)
 
     def list(self, *, limit: int = 50) -> tuple[KnowledgeUnitSnapshot, ...]:
-        return self.repository.list_current(limit=limit)
+        return self.repository.list_current(limit=_knowledge_list_limit(limit))
 
     def history(self, knowledge_id: uuid.UUID) -> tuple[KnowledgeUnitRevision, ...]:
         return self.repository.list_revisions(knowledge_id)
