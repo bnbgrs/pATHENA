@@ -39,7 +39,8 @@ Status values: `OPEN`, `ASSIGNED`, `IN_PROGRESS`, `FIXED_PENDING_VERIFY`, `VERIF
 - Ownership: UI.
 - Components: PALLAS ASCII panel target binding, desktop page-selection integration, related presentation tests.
 - Required fix invariant: target binding/page selection must not re-enter or access invalid Qt object state; full pytest must complete normally without process signal termination. Tests must not be skipped or weakened.
-- Status: ASSIGNED.
+- Status: IN_PROGRESS.
+- UI owner note: 2026-08-24 automation run claimed this slice after fresh reads of this recovery document, `ascii_panel.py`, `pathena_window.py`, and the historical command-palette presentation test. Local targeted execution is currently NOT EXECUTABLE because the runtime cannot resolve `github.com` for a checkout; no PASS is claimed.
 - Targeted verification: focused PALLAS/page-selection presentation tests under Qt offscreen, followed by full pytest.
 - Last full-gate status: historical FAIL; current-head run #2869 pending.
 
