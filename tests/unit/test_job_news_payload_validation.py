@@ -17,7 +17,7 @@ from athena.jobs.service import DurableJobService, InvalidJobPayloadError
 from athena.news.models import NEWS_JOB_TYPE, NEWS_PERIOD_JOB_TYPE, NEWS_PIPELINE_VERSION
 from athena.news.schema import NEWS_SCHEMA_ID
 
-PROFILE_ID = str(uuid.UUID("aaaaaaaa-1111-4111-8111-111111111111"))
+PROFILE_ID = str(uuid.UUID("ae32de76-7d28-442c-9bae-2a0c3c558a88"))
 
 
 def _daily() -> tuple[dict[str, Any], dict[str, Any]]:
