@@ -117,6 +117,8 @@ def create_migration_clone(
     source_connection: sqlite3.Connection | None = None
     candidate_connection: sqlite3.Connection | None = None
     created_candidate = False
+    schema_version: int | None = None
+    failure: BaseException | None = None
     try:
         source_connection = sqlite3.connect(
             f"{source.resolve(strict=True).as_uri()}?mode=ro",
@@ -158,15 +160,27 @@ def create_migration_clone(
         schema_version = int(schema_row[0])
         if schema_version < 0:
             raise MigrationCloneError("Migration clone schema version must not be negative.")
-    except MigrationCloneError:
-        raise
-    except (OSError, sqlite3.Error, TypeError, ValueError, IndexError) as exc:
-        raise MigrationCloneError("Migration clone could not be created safely.") from exc
+    except BaseException as exc:
+        failure = exc
     finally:
         if candidate_connection is not None:
             candidate_connection.close()
         if source_connection is not None:
             source_connection.close()
+
+    if failure is not None:
+        if created_candidate:
+            _remove_candidate_files(candidate)
+        if isinstance(failure, MigrationCloneError):
+            raise failure
+        if isinstance(failure, (OSError, sqlite3.Error, TypeError, ValueError, IndexError)):
+            raise MigrationCloneError("Migration clone could not be created safely.") from failure
+        raise failure
+
+    if schema_version is None:
+        if created_candidate:
+            _remove_candidate_files(candidate)
+        raise MigrationCloneError("Migration clone schema version was not established.")
 
     try:
         if not candidate.is_file() or candidate.is_symlink():
