@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ctypes
 import json
+import math
 import os
 import shutil
 import uuid
@@ -235,6 +236,10 @@ class ResourceManager:
             if now_us is None
             else _nonnegative_int(now_us, "Interactive demand timestamp")
         )
+        if now < validated_lease.acquired_at_us:
+            raise ValueError(
+                "Interactive demand renewal timestamp must not predate acquisition."
+            )
         duration_us = validated_lease.lease_seconds * 1_000_000
 
         # Renewal is intentionally throttled. ChatGenerationService may call
@@ -464,8 +469,14 @@ class ResourceManager:
         return self.policy()
 
     def snapshot(self, *, include_model: bool = True) -> ResourceSnapshot:
+        validated_include_model = _exact_bool(
+            include_model,
+            "Resource snapshot include_model",
+        )
         try:
-            sampled = self.probe.sample(self.paths)
+            sampled = _resource_probe_snapshot(
+                self.probe.sample(self.paths)
+            )
         except Exception as exc:
             sampled = ResourceSnapshot(
                 snapshot_id=new_uuid7(),
@@ -483,7 +494,7 @@ class ResourceManager:
         degraded = list(sampled.degraded_metrics)
         model_loaded = sampled.model_loaded
         if model_loaded is None:
-            if include_model:
+            if validated_include_model:
                 try:
                     models = self.model_provider.discover_models()
                 except Exception:
@@ -622,6 +633,67 @@ class ResourceManager:
             )
 
 
+def _resource_probe_snapshot(value: object) -> ResourceSnapshot:
+    if not isinstance(value, ResourceSnapshot):
+        raise ValueError("Resource probe must return a ResourceSnapshot value.")
+
+    ram_total = _optional_positive_int(
+        value.ram_total_bytes,
+        "Resource snapshot ram_total_bytes",
+    )
+    ram_available = _optional_nonnegative_int(
+        value.ram_available_bytes,
+        "Resource snapshot ram_available_bytes",
+    )
+    if ram_total is not None and ram_available is not None and ram_available > ram_total:
+        raise ValueError(
+            "Resource snapshot ram_available_bytes must not exceed ram_total_bytes."
+        )
+
+    vram_total = _optional_positive_int(
+        value.vram_total_bytes,
+        "Resource snapshot vram_total_bytes",
+    )
+    vram_available = _optional_nonnegative_int(
+        value.vram_available_bytes,
+        "Resource snapshot vram_available_bytes",
+    )
+    if vram_total is not None and vram_available is not None and vram_available > vram_total:
+        raise ValueError(
+            "Resource snapshot vram_available_bytes must not exceed vram_total_bytes."
+        )
+
+    if value.model_loaded is not None and not isinstance(value.model_loaded, bool):
+        raise ValueError("Resource snapshot model_loaded must be null or boolean.")
+    if not isinstance(value.degraded_metrics, tuple):
+        raise ValueError("Resource snapshot degraded_metrics must be a tuple of text values.")
+    degraded_metrics = tuple(
+        _canonical_text(item, "Resource snapshot degraded metric")
+        for item in value.degraded_metrics
+    )
+
+    return replace(
+        value,
+        ram_total_bytes=ram_total,
+        ram_available_bytes=ram_available,
+        disk_free_bytes=_nonnegative_int(
+            value.disk_free_bytes,
+            "Resource snapshot disk_free_bytes",
+        ),
+        cpu_load_fraction=_optional_fraction(
+            value.cpu_load_fraction,
+            "Resource snapshot cpu_load_fraction",
+        ),
+        gpu_utilization_fraction=_optional_fraction(
+            value.gpu_utilization_fraction,
+            "Resource snapshot gpu_utilization_fraction",
+        ),
+        vram_total_bytes=vram_total,
+        vram_available_bytes=vram_available,
+        degraded_metrics=degraded_metrics,
+    )
+
+
 def _interactive_demand_lease(value: object) -> InteractiveDemandLease:
     if not isinstance(value, InteractiveDemandLease):
         raise ValueError("Interactive demand lease must be an InteractiveDemandLease value.")
@@ -652,6 +724,12 @@ def _positive_int(value: object, label: str) -> int:
     return value
 
 
+def _optional_positive_int(value: object | None, label: str) -> int | None:
+    if value is None:
+        return None
+    return _positive_int(value, label)
+
+
 def _nonnegative_int(value: object, label: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
         raise ValueError(f"{label} must be an integer >= 0.")
@@ -662,6 +740,17 @@ def _optional_nonnegative_int(value: object | None, label: str) -> int | None:
     if value is None:
         return None
     return _nonnegative_int(value, label)
+
+
+def _optional_fraction(value: object | None, label: str) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{label} must be null or a finite number in [0, 1].")
+    result = float(value)
+    if not math.isfinite(result) or not 0.0 <= result <= 1.0:
+        raise ValueError(f"{label} must be null or a finite number in [0, 1].")
+    return result
 
 
 def _canonical_text(value: object, label: str) -> str:
