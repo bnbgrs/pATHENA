@@ -80,8 +80,19 @@ class SelectionDisappearanceHandoff(QObject):
         current: QListWidgetItem | None,
     ) -> None:
         if current is not None:
+            announcement_value = target.selection.property(
+                "pathenaSelectionHandoffAnnouncement"
+            )
+            announcement = (
+                str(announcement_value).strip() if announcement_value else ""
+            )
             target.selection.setProperty("pathenaSelectionDisappeared", "")
             target.details.setProperty("pathenaSelectionDisappeared", "")
+            if announcement:
+                if target.selection.statusTip() == announcement:
+                    target.selection.setStatusTip("")
+                if target.details.accessibleDescription() == announcement:
+                    target.details.setAccessibleDescription("")
             if target.selection is self._research_results.workspace.jobs:
                 self._research_results.proposal_status.setProperty(
                     "pathenaSelectionDisappeared",
