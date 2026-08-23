@@ -90,6 +90,11 @@ def _grid_text(grid: list[list[int]]) -> str:
     )
 
 
+def ascii_scene(context: str) -> tuple[str, ...]:
+    """Return the deterministic initial scene for a semantic context label."""
+    return tuple(_grid_text(_seed_grid(context)).splitlines())
+
+
 class AsciiPanel(QPlainTextEdit):
     """Drive the live PALLAS field and remain usable as a compact text surface.
 
