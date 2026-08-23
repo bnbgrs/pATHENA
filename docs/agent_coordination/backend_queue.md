@@ -9,10 +9,10 @@ Last queue refresh: 2026-08-23.
 ### BE-028 — Clone/journal migration before live schema mutation
 - Priority: P1
 - Status: IN_PROGRESS
-- Evidence: clone-first stack is implemented: migration metadata/free-space preflight, SQLite Online Backup clone, durable phase journal, exclusive migration lock, full integrity/FK/version verification, rollback-preserving activation, orphan/journal recovery boundaries and Windows junction/reparse hardening. Read-only startup planning, candidate-only schema execution, emergency reserve provisioning and `StorageBootstrapService` are now wired into the real `AthenaApplication` lifecycle before protected/database-dependent services. Remaining work is the identity-bound filesystem hardening tracked as BE-036 plus the Alembic-vs-custom architecture decision.
+- Evidence: clone-first stack is implemented: migration metadata/free-space preflight, SQLite Online Backup clone, durable phase journal, exclusive migration lock, full integrity/FK/version verification, rollback-preserving activation, orphan/journal recovery boundaries and Windows junction/reparse hardening. Read-only startup planning, candidate-only schema execution, emergency reserve provisioning and `StorageBootstrapService` are wired into the real `AthenaApplication` lifecycle before protected/database-dependent services. POSIX journal publication and durable replace are now directory-FD bound; remaining work is the Windows HANDLE equivalent plus candidate SQLite pathname binding and the Alembic-vs-custom architecture decision.
 - Components: `migration_safety.py`, `migration_clone.py`, `migration_journal.py`, `migration_lock.py`, `migration_activation.py`, `migration_coordinator.py`, `migration_executor.py`, `migration_plan.py`, `bootstrap.py`, `core/application.py` and tests.
-- Dependencies: BE-027/029/031/032/033/034/035 DONE.
-- Last verification: 2026-08-23 current remote; GitHub Actions on the earlier milestone exposed Windows clone-fsync and candidate-row-factory regressions, both fixed in subsequent backend commits. New gate run is pending.
+- Dependencies: BE-027/029/031/032/033/034/035 DONE; BE-036/038/039 active.
+- Last verification: 2026-08-23 current remote; latest branch workflow for the new identity regression commit was cancelled before useful validation, so no green gate is claimed.
 
 ### BE-034 — Bound migration journal reads before JSON decode
 - Priority: P2
@@ -25,7 +25,7 @@ Last queue refresh: 2026-08-23.
 ### BE-035 — Bind migration lock to migration-root identity
 - Priority: P1
 - Status: DONE
-- Evidence: the cross-process lock now lives in the migration root's parent so renaming/replacing the root cannot create an independent second lock at the same logical path. The original root filesystem identity is fenced before entry and after a successful critical section; deterministic replacement regression added.
+- Evidence: the cross-process lock lives in the migration root's parent so renaming/replacing the root cannot create an independent second lock at the same logical path. The original root filesystem identity is fenced before entry and after a successful critical section; deterministic replacement regression added.
 - Components: `storage/migration_lock.py`, `tests/unit/test_migration_lock.py`.
 - Dependencies: BE-028 migration lock.
 - Last verification: 2026-08-23 current remote; targeted tests added; latest full gate pending.
@@ -33,17 +33,33 @@ Last queue refresh: 2026-08-23.
 ### BE-036 — Close migration parent-replacement TOCTOU
 - Priority: P1
 - Status: IN_PROGRESS
-- Evidence: Security SEC-009 requires clone/journal creation, cleanup and activation to bind filesystem decisions to directory/object identity across sensitive operations rather than relying only on pre-operation pathname/reparse checks. BE-035 prevents a second migration owner after root replacement, but individual pathname create/write/replace operations still need an identity-safe cross-platform primitive.
-- Components: migration clone/journal/activation filesystem boundaries and deterministic parent-replacement race tests; likely shared `durable_fs` directory-identity primitive.
+- Evidence: POSIX `durable_replace()` now opens real parent directories with `O_DIRECTORY|O_NOFOLLOW`, performs `os.replace(..., src_dir_fd=..., dst_dir_fd=...)`, fsyncs those same directory handles and fails closed if the pathname no longer names the opened directory. `durable_write_bytes()` similarly binds temp creation and publication to one parent FD, and `MigrationJournalStore.publish()` now uses it. Deterministic tests replace the parent during the actual `os.replace`/`os.open` call and verify attacker replacement paths are not mutated. Cross-platform closure still requires Windows HANDLE-based mutation and SQLite clone destination binding.
+- Components: `storage/durable_fs.py`, `storage/migration_journal.py`, migration activation via shared `durable_replace`, `tests/unit/test_durable_fs_parent_identity.py`.
 - Dependencies: BE-028; BE-035 root-lock identity DONE.
-- Last verification: 2026-08-23 current-HEAD trace across clone/journal/activation/durable_fs; no incomplete path-based fix is being marked complete.
+- Last verification: 2026-08-23 current remote after commits `3832063`, `cf063a7`, `055327f`, `217bfea`; local checkout unavailable because the execution sandbox cannot resolve github.com; latest workflow for `217bfea` was cancelled, so targeted tests are added but not claimed executed.
+
+### BE-038 — Windows HANDLE-bound durable filesystem publication
+- Priority: P1
+- Status: READY
+- Evidence: Windows still uses pathname-based `MoveFileExW` after static reparse checks. To close SEC-009 cross-platform, directory/file handles must be opened with reparse-point-safe flags and identity must remain bound through replacement/publication; a mere post-check is insufficient.
+- Components: `storage/durable_fs.py`, Windows-only deterministic race tests, migration journal/activation consumers.
+- Dependencies: BE-036 POSIX primitive implemented.
+- Last verification: 2026-08-23 current remote; Windows path intentionally left fail-safe but not race-closed.
+
+### BE-039 — Bind migration SQLite clone destination to parent identity
+- Priority: P1
+- Status: READY
+- Evidence: `create_migration_clone()` still calls `sqlite3.connect(candidate_path)` after pathname/reparse checks. Parent replacement between the final check and SQLite open can redirect candidate creation. This needs an SQLite-compatible identity-bound destination strategy or an explicit platform primitive; repeated path checks do not close the race.
+- Components: `storage/migration_clone.py`, migration coordinator, deterministic parent-replacement tests.
+- Dependencies: BE-036 shared identity primitives; may be platform-specific.
+- Last verification: 2026-08-23 current remote trace of `migration_clone.py`.
 
 ### BE-020 — Runtime ModelSignature drift guard in generation
 - Priority: P1
 - Status: READY
 - Evidence: reusable revision-aware guard exists; shared `chat/generation.py` still uses older inline comparison.
 - Components: chat generation/signature guard/tests.
-- Dependencies: safe mutation window for shared generation file.
+- Dependencies: safe mutation window for shared generation file; current remote file remains large/shared, so no blind replacement.
 
 ### BE-021 — ContextPackage temperature conversion overflow
 - Priority: P2
@@ -95,7 +111,7 @@ Last queue refresh: 2026-08-23.
 ### BE-037 — Bound backup deletion-ledger resource usage
 - Priority: P2
 - Status: DONE
-- Evidence: target-controlled deletion-ledger records and head are now read through no-follow handle-verified bounded reads. Record count, per-record bytes, head bytes and aggregate record bytes are capped; publication enforces corresponding write-side limits so ATHENA cannot create unrecoverable ledger state.
+- Evidence: target-controlled deletion-ledger records and head are read through no-follow handle-verified bounded reads. Record count, per-record bytes, head bytes and aggregate record bytes are capped; publication enforces corresponding write-side limits so ATHENA cannot create unrecoverable ledger state.
 - Components: `backup/deletion_storage.py`, `tests/unit/test_backup_deletion_storage_resource_bounds.py`.
 - Dependencies: existing deletion-ledger codec/storage contract.
 - Last verification: 2026-08-23 current remote; targeted resource-bound regressions added; new gate pending.
