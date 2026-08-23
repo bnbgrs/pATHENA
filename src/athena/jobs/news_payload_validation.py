@@ -68,7 +68,7 @@ def _validate_period(
     start = _date_text(scope, "period_start", label=label)
     end = _date_text(scope, "period_end", label=label)
     if kind == "weekly":
-        if start.weekday() != 0 or end != start + timedelta(days=6):
+        if start.weekday() != 0 or end != _weekly_end(start):
             raise NewsJobPayloadValidationError(
                 "news.period weekly windows must be a closed Monday-Sunday week."
             )
@@ -159,6 +159,15 @@ def _date_text(value: Mapping[str, Any], field: str, *, label: str) -> date:
             f"{label} field {field!r} must use canonical ISO date text."
         )
     return parsed
+
+
+def _weekly_end(start: date) -> date:
+    try:
+        return start + timedelta(days=6)
+    except OverflowError as exc:
+        raise NewsJobPayloadValidationError(
+            "news.period weekly window exceeds the supported calendar range."
+        ) from exc
 
 
 def _month_end(start: date) -> date:
