@@ -9,6 +9,8 @@ from athena.backup.errors import BackupRestoreError
 from athena.backup.json_codec import _canonical_json
 from athena.lifecycle.deletion import DeletionLedgerRecord
 
+_SQLITE_SIGNED_INT64_MAX = (1 << 63) - 1
+
 
 class DeletionLedgerCodecMixin:
     """Stateless deletion-ledger codec inherited by BackupService."""
@@ -212,6 +214,7 @@ class DeletionLedgerCodecMixin:
                     bool,
                 )
                 or value < minimum
+                or value > _SQLITE_SIGNED_INT64_MAX
             ):
                 raise BackupRestoreError(
                     f"Backup deletion-ledger field "
