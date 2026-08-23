@@ -313,7 +313,7 @@ def _posix_durable_create_directory(directory: Path, *, exist_ok: bool) -> None:
             if not stat.S_ISDIR(existing.st_mode):
                 raise FileExistsError(
                     f"Durable directory path is not a directory: {directory}"
-                )
+                ) from None
             _assert_directory_fd_current(
                 parent,
                 parent_fd,
