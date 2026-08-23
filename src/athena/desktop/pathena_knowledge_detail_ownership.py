@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from PySide6.QtCore import QObject, QProcess
+from PySide6.QtCore import QObject, QProcess, Qt
 from PySide6.QtGui import QTextCursor
-from PySide6.QtWidgets import QListWidgetItem, QPlainTextEdit
+from PySide6.QtWidgets import QListWidget, QListWidgetItem, QPlainTextEdit
 
 from athena.desktop.knowledge_workspace import KnowledgeWorkspace
 from athena.desktop.pathena_ui_refinement_600 import set_pathena_ui_state
@@ -76,10 +76,19 @@ class KnowledgeDetailOwnership(QObject):
     ) -> None:
         if not self.workspace._knowledge_busy() or self._operation not in _DETAIL_OPERATIONS:
             return
-        if self._operation_owns_current():
-            return
         target = self._detail_target(self._operation)
         if target is None:
+            return
+
+        if self._operation_owns_current():
+            background_owner = target.property("pathenaBackgroundOperationOwner")
+            if background_owner:
+                target.setPlainText(self.workspace._knowledge_buffer)
+                target.setProperty("pathenaBackgroundOperationOwner", "")
+                target.setAccessibleDescription(
+                    "Output belongs to the currently selected canonical-memory item."
+                )
+                set_pathena_ui_state(target, "busy")
             return
 
         owner_label = self._label(self._owner_id)
@@ -179,11 +188,11 @@ class KnowledgeDetailOwnership(QObject):
         return self.workspace._detail_target_for_operation(operation)
 
     @staticmethod
-    def _current_item_id(widget: object) -> str | None:
-        current_item = getattr(widget, "currentItem", lambda: None)()
+    def _current_item_id(widget: QListWidget) -> str | None:
+        current_item = widget.currentItem()
         if current_item is None:
             return None
-        value = current_item.data(256)
+        value = current_item.data(Qt.ItemDataRole.UserRole)
         return str(value) if value else None
 
     @staticmethod
