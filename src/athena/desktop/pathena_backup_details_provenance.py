@@ -3,7 +3,14 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QObject, QProcess, QTimer, Qt
-from PySide6.QtWidgets import QLabel, QListWidget, QPlainTextEdit, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QLabel,
+    QListWidget,
+    QPlainTextEdit,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 
 
 _MODE_LABELS = {
@@ -77,8 +84,9 @@ class BackupDetailsProvenanceController(QObject):
         if operation == "list":
             return
         self._active_operation = operation
+        label = _MODE_LABELS.get(operation, operation.replace("-", " "))
         self._apply(
-            f"DETAILS · {_MODE_LABELS.get(operation, operation.replace('-', ' '))} · running",
+            f"DETAILS · {label} · running",
             mode=operation,
             state="running",
         )
@@ -89,8 +97,9 @@ class BackupDetailsProvenanceController(QObject):
             self._show_snapshot_or_idle()
             return
         state = "completed" if exit_code == 0 else f"failed / exit {exit_code}"
+        label = _MODE_LABELS.get(operation, operation.replace("-", " "))
         self._apply(
-            f"DETAILS · {_MODE_LABELS.get(operation, operation.replace('-', ' '))} · {state}",
+            f"DETAILS · {label} · {state}",
             mode=operation,
             state="success" if exit_code == 0 else "error",
         )
@@ -107,12 +116,19 @@ class BackupDetailsProvenanceController(QObject):
         self._active_operation = ""
 
     def _selection_changed(self, *_args: object) -> None:
-        if isinstance(self.process, QProcess) and self.process.state() != QProcess.ProcessState.NotRunning:
+        if (
+            isinstance(self.process, QProcess)
+            and self.process.state() != QProcess.ProcessState.NotRunning
+        ):
             return
         self._show_snapshot_or_idle()
 
     def _show_snapshot_or_idle(self) -> None:
-        item = self.snapshots.currentItem() if isinstance(self.snapshots, QListWidget) else None
+        item = (
+            self.snapshots.currentItem()
+            if isinstance(self.snapshots, QListWidget)
+            else None
+        )
         if item is None:
             self._apply("DETAILS · no snapshot content selected", mode="idle", state="idle")
             return
