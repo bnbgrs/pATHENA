@@ -288,20 +288,59 @@ def durable_mkdir(path: Path, *, parents: bool = False, exist_ok: bool = False) 
         _durable_create_one_directory(item, exist_ok=(exist_ok if item == directory else True))
 
 
+def _posix_durable_create_directory(directory: Path, *, exist_ok: bool) -> None:
+    """Create one child relative to an opened parent directory identity."""
+    parent = directory.parent
+    parent_fd = _open_directory_fd(parent, label="Durable directory parent")
+    try:
+        _assert_directory_fd_current(parent, parent_fd, label="Durable directory parent")
+        try:
+            os.mkdir(directory.name, mode=0o777, dir_fd=parent_fd)
+        except FileExistsError:
+            if not exist_ok:
+                raise
+            try:
+                existing = os.stat(
+                    directory.name,
+                    dir_fd=parent_fd,
+                    follow_symlinks=False,
+                )
+            except (NotImplementedError, TypeError) as exc:
+                raise OSError(
+                    "Identity-bound durable directory inspection is unsupported "
+                    "on this POSIX runtime."
+                ) from exc
+            if not stat.S_ISDIR(existing.st_mode):
+                raise FileExistsError(
+                    f"Durable directory path is not a directory: {directory}"
+                )
+            _assert_directory_fd_current(
+                parent,
+                parent_fd,
+                label="Durable directory parent",
+            )
+            _assert_real_directory(directory, label="Durable directory")
+            return
+        except (NotImplementedError, TypeError) as exc:
+            raise OSError(
+                "Identity-bound durable directory creation is unsupported "
+                "on this POSIX runtime."
+            ) from exc
+
+        os.fsync(parent_fd)
+        _assert_directory_fd_current(parent, parent_fd, label="Durable directory parent")
+        _assert_real_directory(directory, label="Durable directory")
+    finally:
+        os.close(parent_fd)
+
+
 def _durable_create_one_directory(directory: Path, *, exist_ok: bool) -> None:
     parent = directory.parent
     _assert_real_directory(parent, label="Durable directory parent")
     if _is_windows():
         _windows_durable_create_directory(directory, exist_ok=exist_ok)
         return
-    try:
-        directory.mkdir(parents=False, exist_ok=False)
-    except FileExistsError:
-        if exist_ok and directory.is_dir() and not is_link_boundary(directory):
-            _assert_real_directory(directory, label="Durable directory")
-            return
-        raise
-    fsync_directory(parent)
+    _posix_durable_create_directory(directory, exist_ok=exist_ok)
 
 
 def _windows_durable_create_directory(directory: Path, *, exist_ok: bool) -> None:
