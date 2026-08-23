@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QCoreApplication, QEvent
-from PySide6.QtWidgets import QApplication, QAbstractItemView, QListWidget
+from PySide6.QtWidgets import QAbstractItemView, QApplication, QListWidget
 
 from athena.desktop.app import create_application
 from athena.desktop.canonical_memory_extensions import install_canonical_memory_extensions
