@@ -152,32 +152,64 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 
 ### UI-019 — Dynamic guidance composition integrity
 - **Priority:** P1
-- **Status:** IN_PROGRESS
-- **Evidence:** Accessibility/readiness/enablement/boundary/cancellation layers all update tooltip or accessible copy dynamically; independent suffix replacement can discard guidance owned by another layer after later state changes.
+- **Status:** DONE
+- **Evidence:** `pathena_guidance_composition_6100.py` recomposes readiness, enablement, boundary and cancellation guidance from semantic properties so later updates do not erase sibling guidance; tooltips remain bounded and assistive copy remains complete.
 - **Views/components:** Dynamic Chat, Research, Jobs, Files, Backup and accessibility surfaces.
 - **Dependencies:** UI-014 through UI-018 properties; no backend change.
-- **Last verification:** 2026-08-23; selected immediately after UI-018 integration.
+- **Last verification:** 2026-08-23; four targeted tests present in `test_pathena_guidance_composition.py`; tests not executed in connector runtime.
 
 ### UI-020 — Focus-visible consistency after async completion
 - **Priority:** P2
-- **Status:** READY
-- **Evidence:** Multiple controllers restore focus after async work; visible focus should remain predictable when the originating control becomes disabled or selection changes.
-- **Views/components:** Research, Jobs, Files, Backup, Knowledge review, Chat.
+- **Status:** DONE
+- **Evidence:** Async focus arbitration preserves a newer valid focus acquired during long-running work and reasserts it after stale completion callbacks, without changing actions or enablement.
+- **Views/components:** Knowledge, Research, Jobs, Files/Sources, Backup.
 - **Dependencies:** Existing focus/continuity controllers.
-- **Last verification:** 2026-08-23.
+- **Last verification:** 2026-08-23; `pathena_async_focus_integrity_6200.py` plus four targeted offscreen tests added and app integration completed; tests not executed in connector runtime.
 
 ### UI-021 — Detail-pane stale content provenance
 - **Priority:** P2
-- **Status:** READY
-- **Evidence:** Detail panes can retain prior content while a new selection is loading; identity is anchored, but visible provenance should explicitly distinguish retained versus current detail.
-- **Views/components:** Knowledge, Claims, Research, Jobs, Sources, Backup.
-- **Dependencies:** Existing selection-loading metadata.
-- **Last verification:** 2026-08-23.
+- **Status:** DONE
+- **Evidence:** Existing list/detail panes now receive a quiet provenance line that distinguishes CURRENT, LOADING, RETAINED and retained-load-error states using the selected and previously rendered identities without editing detail content.
+- **Views/components:** Knowledge, Claims, Contradictions, Research, Jobs, Sources, Backup.
+- **Dependencies:** Existing selection-loading metadata and list UserRole identities.
+- **Last verification:** 2026-08-23; `pathena_detail_provenance_6300.py` plus four targeted tests added and app integration completed; tests not executed in connector runtime.
 
 ### UI-022 — Quiet status decay after successful transient operations
 - **Priority:** P3
-- **Status:** READY
-- **Evidence:** Success labels can remain visually prominent after short operations; quiet-workspace hierarchy should preserve truth while reducing stale visual emphasis.
-- **Views/components:** Research, Jobs, Files, Backup, Knowledge status surfaces.
+- **Status:** DONE
+- **Evidence:** Success remains `pathenaUiState=success`, but a separate visual-emphasis property decays from fresh to quiet after 3.5 seconds; error/busy/idle states are never rewritten.
+- **Views/components:** Knowledge review, Research, Jobs, Scheduler, Sources, Backup, System status surfaces.
 - **Dependencies:** Existing state-feedback/status hierarchy only.
-- **Last verification:** 2026-08-23.
+- **Last verification:** 2026-08-23; `pathena_quiet_success_decay_6400.py` plus four targeted tests added and app integration completed; tests not executed in connector runtime.
+
+### UI-023 — Command palette truth and scope audit
+- **Priority:** P1
+- **Status:** READY
+- **Evidence:** Command palette is installed as a central navigation/action surface; verify that every command maps to an existing UI/controller path, that disabled actions explain prerequisites, and that search labels remain concise.
+- **Views/components:** Command palette, navigation, existing workspace actions.
+- **Dependencies:** Existing command-palette command registry only; no new command without a real path.
+- **Last verification:** 2026-08-23; queued after UI-022.
+
+### UI-024 — Chat scroll-anchor and long-answer stability
+- **Priority:** P2
+- **Status:** READY
+- **Evidence:** Chat already tracks follow-tail and user scroll intent; audit long-answer rendering, selection/copy behavior and whether asynchronous insertions preserve deliberate reading position.
+- **Views/components:** Chat scroll, message document, evidence/review insertions.
+- **Dependencies:** Existing chat scroll state and render callbacks only.
+- **Last verification:** 2026-08-23; queued after UI-022.
+
+### UI-025 — Inspector/evidence overflow and provenance scanability
+- **Priority:** P2
+- **Status:** READY
+- **Evidence:** Inspector width is responsive and provenance is selectable; audit long provenance/claim/source identities for truncation, wrapping and clear relation hierarchy at compact width.
+- **Views/components:** Inspector, Evidence Chain/Rail, provenance text, compact layout.
+- **Dependencies:** Existing inspector/evidence disclosure only.
+- **Last verification:** 2026-08-23; queued after UI-022.
+
+### UI-026 — Backup verification-state action clarity
+- **Priority:** P2
+- **Status:** READY
+- **Evidence:** Backup exposes create, verify, deep-verify and isolated restore; audit whether selected snapshot verification state and restore prerequisites are visible before mutation without adding backend behavior.
+- **Views/components:** Backup snapshot list, status, details, verify/deep-verify/restore actions.
+- **Dependencies:** Existing BackupService/QProcess output only.
+- **Last verification:** 2026-08-23; queued after UI-022.
