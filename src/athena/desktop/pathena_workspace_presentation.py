@@ -135,8 +135,7 @@ _RUNTIME_PATTERN = re.compile(r"^CORE\s+(?P<state>\S+)\s+/\s+CHATS\s+(?P<count>\
 _SOURCE_PATTERN = re.compile(r"^SOURCE CHAT\s+\S+\s+/\s+MESSAGE\s+\S+$")
 
 
-def _sync_dynamic_workspace_copy(window: QWidget) -> None:
-    """Normalize dynamic workspace metadata without touching its source state."""
+def _sync_knowledge_copy(window: QWidget) -> None:
     knowledge = window.findChild(QWidget, "knowledgeWorkspace")
     if knowledge is None:
         return
@@ -169,6 +168,49 @@ def _sync_dynamic_workspace_copy(window: QWidget) -> None:
             label.setText("From conversation · selected message")
 
 
+def _sync_research_presentation(window: QWidget) -> None:
+    research = window.findChild(QWidget, "researchWorkspace")
+    if research is None:
+        return
+    cancel = research.findChild(QPushButton, "researchCancelButton")
+    if cancel is not None:
+        cancel.setVisible(cancel.isEnabled())
+
+
+def _sync_jobs_presentation(window: QWidget) -> None:
+    jobs = window.findChild(QWidget, "jobsWorkspace")
+    if jobs is None:
+        return
+
+    for object_name in (
+        "jobPauseButton",
+        "jobResumeButton",
+        "jobWakeButton",
+        "jobCancelButton",
+    ):
+        button = jobs.findChild(QPushButton, object_name)
+        if button is not None:
+            button.setVisible(button.isEnabled())
+
+    for label in jobs.findChildren(QLabel):
+        text = label.text()
+        if text == "SCHEDULER · EXTERNAL":
+            label.setText("Scheduler external")
+        elif text == "SCHEDULER · STOPPING":
+            label.setText("Scheduler stopping…")
+        elif text == "SCHEDULER · ACTIVE":
+            label.setText("Scheduler active")
+        elif text == "SCHEDULER · RECOVERY PENDING":
+            label.setText("Scheduler reconnecting…")
+
+
+def _sync_dynamic_workspace_copy(window: QWidget) -> None:
+    """Normalize dynamic metadata and disclose only actionable controls."""
+    _sync_knowledge_copy(window)
+    _sync_research_presentation(window)
+    _sync_jobs_presentation(window)
+
+
 def _install_dynamic_copy_sync(window: QWidget) -> None:
     if window.property("pathenaWorkspaceCopySyncInstalled") is True:
         return
@@ -180,6 +222,44 @@ def _install_dynamic_copy_sync(window: QWidget) -> None:
     timer.timeout.connect(lambda: _sync_dynamic_workspace_copy(window))
     timer.start()
     _sync_dynamic_workspace_copy(window)
+
+
+def _configure_research_presentation(window: QWidget) -> None:
+    research = window.findChild(QWidget, "researchWorkspace")
+    if research is None:
+        return
+
+    query_inputs = research.findChildren(QLineEdit)
+    if query_inputs:
+        query = query_inputs[0]
+        query.setObjectName("researchQueryInput")
+        query.setPlaceholderText("What do you want to investigate?")
+
+    for button in research.findChildren(QPushButton):
+        if button.text() == "Start research":
+            button.setObjectName("researchStartButton")
+        elif button.text() == "Cancel":
+            button.setObjectName("researchCancelButton")
+        elif button.text() == "Refresh":
+            button.setObjectName("researchRefreshButton")
+
+
+def _configure_jobs_presentation(window: QWidget) -> None:
+    jobs = window.findChild(QWidget, "jobsWorkspace")
+    if jobs is None:
+        return
+
+    object_names = {
+        "Refresh": "jobRefreshButton",
+        "Pause": "jobPauseButton",
+        "Resume": "jobResumeButton",
+        "Wake": "jobWakeButton",
+        "Cancel": "jobCancelButton",
+    }
+    for button in jobs.findChildren(QPushButton):
+        object_name = object_names.get(button.text())
+        if object_name is not None:
+            button.setObjectName(object_name)
 
 
 def apply_workspace_presentation(window: QWidget) -> None:
@@ -229,4 +309,6 @@ def apply_workspace_presentation(window: QWidget) -> None:
         canonical_tabs.setTabText(2, "Decisions")
         canonical_tabs.setTabText(3, "From chat")
 
+    _configure_research_presentation(window)
+    _configure_jobs_presentation(window)
     _install_dynamic_copy_sync(window)
