@@ -8,7 +8,7 @@ No canonical-memory data, API contract, persistence or decision behavior is chan
 
 from __future__ import annotations
 
-from PySide6.QtWidgets import QAbstractItemView, QPlainTextEdit, QWidget
+from PySide6.QtWidgets import QListWidget, QPlainTextEdit, QPushButton, QWidget
 
 _KNOWLEDGE_SURFACES: tuple[tuple[str, str, str], ...] = (
     ("knowledgeWorkspace", "knowledge workspace", "workspace"),
@@ -119,13 +119,20 @@ def _find(window: QWidget, key: str) -> QWidget | None:
     if direct is not None:
         return direct
 
-    # A few extension controls historically received generic object names. Resolve
-    # them conservatively by visible copy, then assign stable presentation identities.
     text_aliases = {
         "openRelatedClaimButton": {"OPEN RELATED CLAIM", "Open related claim"},
-        "knowledgeAcceptanceButton": {"ADD TO KNOWLEDGE", "Add to knowledge", "Accept"},
+        "knowledgeAcceptanceButton": {
+            "ADD TO KNOWLEDGE",
+            "Add to knowledge",
+            "Accept",
+        },
         "knowledgeReviewCloseButton": {"CLOSE", "Close"},
-        "knowledgeMergeButton": {"MERGE", "Merge", "KEEP SEPARATE", "Keep separate"},
+        "knowledgeMergeButton": {
+            "MERGE",
+            "Merge",
+            "KEEP SEPARATE",
+            "Keep separate",
+        },
         "claimHistoryButton": {"HISTORY", "History"},
         "knowledgeHistoryButton": {"HISTORY", "History"},
     }
@@ -133,16 +140,15 @@ def _find(window: QWidget, key: str) -> QWidget | None:
     if not aliases:
         return None
 
-    from PySide6.QtWidgets import QPushButton
-
-    candidates = [button for button in window.findChildren(QPushButton) if button.text() in aliases]
+    candidates = [
+        button
+        for button in window.findChildren(QPushButton)
+        if button.text() in aliases
+    ]
     if not candidates:
         return None
 
-    if key == "claimHistoryButton" and len(candidates) > 1:
-        widget = candidates[-1]
-    else:
-        widget = candidates[0]
+    widget = candidates[-1] if key == "claimHistoryButton" else candidates[0]
     widget.setObjectName(key)
     return widget
 
@@ -157,7 +163,7 @@ def apply_ui_refinements_1001_1100(window: QWidget) -> tuple[int, ...]:
             continue
         widget.setProperty("pathenaKnowledgeRole", role)
 
-        if isinstance(widget, QAbstractItemView):
+        if isinstance(widget, QListWidget):
             widget.setAlternatingRowColors(False)
             widget.setUniformItemSizes(True)
         if isinstance(widget, QPlainTextEdit):
