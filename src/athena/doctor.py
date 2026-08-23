@@ -36,8 +36,6 @@ class DoctorReport:
 
 
 def _check_runtime_write(root: Path) -> DoctorCheck:
-    if not isinstance(root, Path):
-        return DoctorCheck("runtime-write", "FAIL", "runtime root is not a Path")
     if root.is_symlink():
         return DoctorCheck(
             "runtime-write",
