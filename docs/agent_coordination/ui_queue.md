@@ -50,45 +50,49 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 | UI-040 | P3 | DONE | Status coexistence audit found Backup as the only noisy stack; target scope is now visually compact with full explanation in tooltip/accessibility. |
 | UI-041 | P0 | DONE | Knowledge result scope is tab-truthful for Knowledge/Claims/Decisions, avoids fake Session-review counts and marks filtered selections; regression tests added, not executed. |
 | UI-042 | P1 | DONE | Knowledge tab changes during an in-flight command queue exactly the latest visible-tab refresh for completion; four tests added, not executed. |
+| UI-043 | P0 | DONE | Backup verify/deep-verify/restore output is bound to the snapshot that started the operation; current remote reverified 2026-08-23. |
+| UI-044 | P0 | DONE | ResearchResult result/proposal operations retain originating research-job ownership across later selection changes; current remote reverified 2026-08-23. |
+| UI-045 | P1 | DONE | Files process/show/import detail output is selection-owned; later source selection is not overwritten or misattributed. Commit `8ea97c605c39f2571b7c70990f732a613de51519`; tests not executed in connector runtime. |
+| UI-046 | P1 | DONE | Jobs show/pause/resume/wake/cancel detail output is job-owned; later selection remains authoritative. Commit `7019e3ebf614c405db586437072611fe0e2c4c3d`; tests not executed in connector runtime. |
 
 ## Active queue
-
-### UI-043 — Backup snapshot selection ownership during operations
-- **Priority:** P0
-- **Status:** IN_PROGRESS
-- **Evidence:** Backup snapshot list stays selectable during verify/deep-verify/restore. Selecting snapshot B while an operation for snapshot A is streaming can replace details with B metadata and then append A output into the same pane.
-- **Views/components:** Backup snapshot list, details, verify/deep verify/restore operations.
-- **Dependencies:** Existing BackupWorkspace QProcess only; UI-026/UI-038.
-- **Last verification:** 2026-08-23.
-
-### UI-044 — ResearchResult job-selection ownership
-- **Priority:** P0
-- **Status:** READY
-- **Evidence:** ResearchResult commands are launched for the selected job, but the Research job list remains selectable while the extension process runs; old-job result/proposal output can be rendered after selection moves to another job.
-- **Views/components:** Research jobs, ResearchResult details/proposals, result extension QProcess.
-- **Dependencies:** Existing ResearchResultsExtension only.
-- **Last verification:** 2026-08-23.
-
-### UI-045 — Source processing selection ownership
-- **Priority:** P1
-- **Status:** READY
-- **Evidence:** Audit whether Files source selection remains mutable while process/retry output targets the shared details pane, and prevent cross-source attribution if confirmed.
-- **Views/components:** Sources list/details/process action.
-- **Dependencies:** Existing FilesWorkspace QProcess only.
-- **Last verification:** 2026-08-23.
-
-### UI-046 — Durable-job selection ownership during mutations
-- **Priority:** P1
-- **Status:** READY
-- **Evidence:** Audit pause/resume/wake/cancel and detail refresh for selected-job changes during QProcess work; preserve latest selection without attributing old operation state to it.
-- **Views/components:** Jobs list/details/action row.
-- **Dependencies:** Existing JobsWorkspace QProcess only.
-- **Last verification:** 2026-08-23.
 
 ### UI-047 — Post-slice targeted execution handoff
 - **Priority:** P2
 - **Status:** BLOCKED
-- **Evidence:** Connector runtime can read/write GitHub but local container cannot resolve github.com, so fresh branch checkout and pytest/Ruff/Mypy execution are unavailable in this run.
+- **Evidence:** Connector runtime can read/write GitHub but does not provide a checked-out repository process for pytest/Ruff/Mypy execution in this run.
 - **Views/components:** Recent UI modules and tests.
-- **Dependencies:** Runtime with repository checkout/network or Quality-bot execution.
+- **Dependencies:** Runtime with repository checkout or Quality-bot execution.
+- **Last verification:** 2026-08-23.
+
+### UI-048 — Background-operation attribution in status copy
+- **Priority:** P1
+- **Status:** READY
+- **Evidence:** Source, durable-job, research-result and backup operations can finish after selection moved elsewhere; details are now protected, but global success/failure copy should identify the originating object so completion is not read as belonging to the current selection.
+- **Views/components:** Sources status, Jobs status, ResearchResult status, Backup status.
+- **Dependencies:** Existing operation-owner IDs from UI-043 through UI-046 only.
+- **Last verification:** 2026-08-23.
+
+### UI-049 — Busy selection context in shared detail panes
+- **Priority:** P2
+- **Status:** READY
+- **Evidence:** Selecting another Source/Job/Snapshot while background work continues correctly protects output, but the newly selected pane should state that background work belongs to another object instead of presenting metadata without ownership context.
+- **Views/components:** Sources details, Jobs details, Backup details, ResearchResult details.
+- **Dependencies:** UI-043 through UI-046.
+- **Last verification:** 2026-08-23.
+
+### UI-050 — Disappeared-selection refresh semantics
+- **Priority:** P2
+- **Status:** READY
+- **Evidence:** Dynamic list refreshes preserve UserRole identity when present, but when the selected Source/Job/Snapshot disappears the fallback to row 0 can look like a deliberate user selection. Audit and expose the fallback transition without inventing new controls.
+- **Views/components:** Sources, Jobs, Backup, Research lists.
+- **Dependencies:** Existing list refresh code only.
+- **Last verification:** 2026-08-23.
+
+### UI-051 — Background completion accessibility announcement
+- **Priority:** P2
+- **Status:** READY
+- **Evidence:** Ownership fixes prevent visual misattribution, but accessible status text should also distinguish completion for an off-selection object from completion of the currently selected object.
+- **Views/components:** Shared status labels for Sources, Jobs, Backup and ResearchResult.
+- **Dependencies:** UI-048 preferred first.
 - **Last verification:** 2026-08-23.
