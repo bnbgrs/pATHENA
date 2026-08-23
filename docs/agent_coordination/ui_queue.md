@@ -79,6 +79,9 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 | UI-070 | P1 | DONE | `pathenaSelectionDisappeared` is now an authoritative assistive state composed with current scope/state/cancellation, preventing general state sync from erasing a vanished-selection announcement. Commits `61368723c4ffb2e16c399120fc798201fd3496d8` and `cc43b6f0441db631bea1a689dc693119b87a8087`; targeted tests NOT EXECUTABLE. |
 | UI-071 | P1 | DONE | A new manual Knowledge/Claim/Decision selection now clears stale disappearance markers immediately while `current=None` during refresh keeps the handoff marker intact. Commits `75e6a4e4c421c09fe3cebc710818679168b299a3` and `a16420fe7cc6eed3f08067673ccbd7dfd6686351`; targeted tests NOT EXECUTABLE. |
 | UI-072 | P2 | DONE | Cross-workspace reselection now clears stale disappearance markers and exact stale handoff copy for Sources, durable Jobs, Research and Backup; Research proposal handoff marker clears with the new run. Commits `3bb186b85d64d8e410a0637735befd1b8610d9a9`, `1538028de4143f468de7185ff83229d28d958b17`, `8d6ecde012f4b103c74a2aea881e6d21555cb62a`, `378bae7d997bc6fc9bef452ae87079bad0215d52`; targeted execution NOT EXECUTABLE because checkout DNS failed. |
+| UI-073 | P2 | DONE | Navigation and page title expose the same current workspace to screenreaders without moving focus or altering page selection. Commits `44eab570565cc3ee87eb3a926732d64e6314f5e5`, `02d8eeb15d33dd3cc5c59660d061518a167a60f7`, `8141a5e745e32d495b359a6b8abec84eec9f829c`; targeted execution NOT EXECUTABLE because checkout DNS failed. |
+| UI-074 | P2 | DONE | Existing model-settings guidance now gives distinct AccessibleName values to CTX/output sliders and exact fields, temperature, thinking, and selected model. Commits `f2fbd51775dc729aef70f30860f2072addfbc8e7`, `7f11fb7226fb52aacdb22c0835d156f3aa79e5b6`; targeted execution NOT EXECUTABLE because checkout DNS failed. |
+| UI-075 | P2 | DONE | Existing visible CTX/MAX OUTPUT/TEMPERATURE/THINKING labels are bound to their exact input controls via QLabel buddies without adding mnemonics, shortcuts, values or controls. Commits `45a4a90705ceb13a67d28948f2d89fd44594568c`, `70aef5f2671c6038b02131072bb97470a8e983ad`; targeted execution NOT EXECUTABLE because checkout DNS failed. |
 
 ## Active queue
 
@@ -90,10 +93,10 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 - **Dependencies:** Runtime with repository checkout or Quality-bot execution.
 - **Last verification:** 2026-08-24.
 
-### UI-073 — Navigation context accessibility
+### UI-076 — Primary workspace input accessibility audit
 - **Priority:** P2
 - **Status:** IN_PROGRESS
-- **Evidence:** pATHENA visually mirrors the selected workspace into `pageTitle`, but the navigation list and title do not currently expose an explicit accessible current-workspace relationship or deterministic current-page description for keyboard/screenreader users.
-- **Views/components:** Main navigation list, page title, stacked workspace selection.
-- **Dependencies:** Existing native QListWidget/QStackedWidget navigation only; no backend dependency.
+- **Evidence:** Chat prompt, Knowledge search, Research query and Research job filter rely heavily on placeholders/tooltips for purpose. Audit and add stable accessible names/descriptions only where missing, preserving existing keyboard behavior and input semantics.
+- **Views/components:** Chat composer input, Knowledge search, Research query, Research job filter.
+- **Dependencies:** Existing controls only; no backend dependency.
 - **Last verification:** 2026-08-24.
