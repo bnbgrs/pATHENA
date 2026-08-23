@@ -139,9 +139,13 @@ class SQLiteDatabase:
         another connection commits while the read snapshot is open, retry
         rather than returning a result assembled from a stale boundary.
         """
-        if max_attempts < 1:
+        if (
+            isinstance(max_attempts, bool)
+            or not isinstance(max_attempts, int)
+            or max_attempts < 1
+        ):
             raise ValueError(
-                "Stable database read requires at least one attempt."
+                "Stable database read requires max_attempts to be an integer >= 1."
             )
 
         connection = self.connection
