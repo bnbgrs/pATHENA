@@ -9,7 +9,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 pytest.importorskip("PySide6")
 
-from PySide6.QtCore import QObject
+from PySide6.QtCore import QObject, Qt
 from PySide6.QtWidgets import (
     QApplication,
     QDialog,
@@ -112,3 +112,24 @@ def test_refresh_marks_unavailable_command_without_removing_it() -> None:
     assert item is not None
     assert item.text() == "New conversation · unavailable"
     assert palette.results.count() == 1
+
+
+def test_command_rows_expose_availability_and_current_scope_to_accessibility() -> None:
+    _window, palette, controller = _surface(enabled=False)
+    palette.results.setCurrentRow(0)
+
+    controller.refresh()
+
+    item = palette.results.item(0)
+    assert item is not None
+    assert item.data(Qt.ItemDataRole.AccessibleTextRole) == (
+        "New conversation · unavailable"
+    )
+    description = str(item.data(Qt.ItemDataRole.AccessibleDescriptionRole))
+    assert "Command unavailable" in description
+    assert "chat operation is still running" in description
+    assert palette.results.accessibleName() == "Command results"
+    assert "1 commands shown" in palette.results.accessibleDescription()
+    assert "Current command: New conversation, unavailable" in (
+        palette.results.accessibleDescription()
+    )
