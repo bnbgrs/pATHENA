@@ -111,7 +111,7 @@ def reconcile_jobs_after_restore(
         if transaction_started:
             try:
                 connection.execute("ROLLBACK")
-            except BaseException:
+            except Exception:
                 # Preserve the operation failure that triggered rollback. A
                 # rollback failure is secondary and must not mask the cause.
                 pass
