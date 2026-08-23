@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
-from athena.storage.durable_fs import durable_replace
+from athena.storage.durable_fs import durable_replace, is_link_boundary
 
 
 class MigrationJournalError(RuntimeError):
@@ -50,6 +50,50 @@ def _nonnegative_int(value: object, label: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
         raise ValueError(f"{label} must be a non-negative integer.")
     return value
+
+
+def _assert_safe_parent(path: Path) -> None:
+    cursor = path.parent
+    while True:
+        if is_link_boundary(cursor):
+            raise MigrationJournalError(
+                "Migration journal path contains a symlink, junction, or reparse-point ancestor."
+            )
+        if cursor.exists() and not cursor.is_dir():
+            raise MigrationJournalError(
+                "Migration journal path contains a non-directory ancestor."
+            )
+        parent = cursor.parent
+        if parent == cursor:
+            return
+        cursor = parent
+
+
+def _read_journal_file(path: Path) -> bytes:
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(path, flags)
+    except OSError as exc:
+        raise MigrationJournalError("Migration journal could not be opened safely.") from exc
+    try:
+        try:
+            path_stat = path.stat(follow_symlinks=False)
+            handle_stat = os.fstat(descriptor)
+        except OSError as exc:
+            raise MigrationJournalError(
+                "Migration journal file identity could not be verified."
+            ) from exc
+        if is_link_boundary(path) or not os.path.samestat(path_stat, handle_stat):
+            raise MigrationJournalError(
+                "Migration journal pathname changed while it was being opened."
+            )
+        with os.fdopen(descriptor, "rb", closefd=True) as handle:
+            payload = handle.read()
+        descriptor = -1
+        return payload
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
 
 
 @dataclass(frozen=True, slots=True)
@@ -196,26 +240,29 @@ class MigrationJournalStore:
         self.path = _absolute_path(path, "Migration journal path")
 
     def load(self) -> MigrationJournalState | None:
-        if self.path.is_symlink():
-            raise MigrationJournalError("Migration journal path must not be a symbolic link.")
+        _assert_safe_parent(self.path)
+        if is_link_boundary(self.path):
+            raise MigrationJournalError(
+                "Migration journal path must not be a symlink, junction, or reparse point."
+            )
         if not self.path.exists():
             return None
         if not self.path.is_file():
             raise MigrationJournalError("Migration journal path is not a regular file.")
-        try:
-            payload = self.path.read_bytes()
-        except OSError as exc:
-            raise MigrationJournalError("Migration journal could not be read.") from exc
+        payload = _read_journal_file(self.path)
         return decode_migration_journal(payload)
 
     def publish(self, state: MigrationJournalState) -> None:
         if not isinstance(state, MigrationJournalState):
             raise TypeError("state must be MigrationJournalState.")
+        _assert_safe_parent(self.path)
         parent = self.path.parent
-        if not parent.is_dir() or parent.is_symlink():
+        if not parent.is_dir() or is_link_boundary(parent):
             raise MigrationJournalError("Migration journal parent must be a real directory.")
-        if self.path.is_symlink():
-            raise MigrationJournalError("Migration journal path must not be a symbolic link.")
+        if is_link_boundary(self.path):
+            raise MigrationJournalError(
+                "Migration journal path must not be a symlink, junction, or reparse point."
+            )
 
         temporary = parent / (
             f".{self.path.name}.{os.getpid()}-{secrets.token_hex(8)}.partial"
