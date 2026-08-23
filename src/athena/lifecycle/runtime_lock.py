@@ -41,6 +41,20 @@ def _reject_symlink_ancestors(path: Path) -> None:
         cursor = parent
 
 
+def _assert_handle_matches_path(path: Path, handle: BinaryIO) -> None:
+    try:
+        path_stat = path.stat(follow_symlinks=False)
+        handle_stat = os.fstat(handle.fileno())
+    except OSError as exc:
+        raise RuntimeDataLockError(
+            "ATHENA runtime mutation lock identity cannot be verified."
+        ) from exc
+    if path.is_symlink() or not os.path.samestat(path_stat, handle_stat):
+        raise RuntimeDataLockError(
+            "ATHENA runtime mutation lock pathname changed during acquisition."
+        )
+
+
 def _open_lock_file(path: Path) -> BinaryIO:
     if path.is_symlink():
         raise RuntimeDataLockError(
@@ -53,11 +67,11 @@ def _open_lock_file(path: Path) -> BinaryIO:
     except BaseException:
         os.close(descriptor)
         raise
-    if path.is_symlink():
+    try:
+        _assert_handle_matches_path(path, handle)
+    except RuntimeDataLockError:
         handle.close()
-        raise RuntimeDataLockError(
-            "ATHENA runtime mutation lock file became a symbolic link while opening."
-        )
+        raise
     if os.name == "posix":
         try:
             os.fchmod(handle.fileno(), 0o600)
@@ -188,6 +202,9 @@ def runtime_data_lock(
         try:
             try:
                 _lock_platform(handle)
+                _assert_handle_matches_path(lock_path, handle)
+            except RuntimeDataLockError:
+                raise
             except OSError as exc:
                 raise RuntimeDataLockError(
                     "ATHENA runtime mutation lock cannot be acquired."
