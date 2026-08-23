@@ -81,3 +81,25 @@ def test_research_proposals_receive_accessibility_parity_from_shared_layer() -> 
     assert "Research proposal row" in description
     assert "proposal-123" in description
     assert "Selected identity: proposal-123" in listing.accessibleDescription()
+
+
+def test_claim_relations_receive_accessibility_parity_from_shared_layer() -> None:
+    app = _app()
+    window = QWidget()
+    listing = QListWidget(window)
+    listing.setObjectName("claimRelationList")
+    relation = QListWidgetItem("SUPPORTED BY   CLAIM    FACT          Related statement")
+    relation.setData(Qt.ItemDataRole.UserRole, "claim-related-123")
+    relation.setData(Qt.ItemDataRole.UserRole + 1, "claim")
+    listing.addItem(relation)
+    listing.setCurrentItem(relation)
+
+    apply_ui_refinements_4801_4900(window)
+    app.processEvents()
+
+    assert listing.property("pathenaDenseListAccessibility") is True
+    assert relation.data(Qt.ItemDataRole.AccessibleTextRole) == relation.text()
+    description = str(relation.data(Qt.ItemDataRole.AccessibleDescriptionRole))
+    assert "Claim relation row" in description
+    assert "claim-related-123" in description
+    assert "Selected identity: claim-related-123" in listing.accessibleDescription()
