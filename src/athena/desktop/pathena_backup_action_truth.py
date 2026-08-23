@@ -18,6 +18,8 @@ class BackupActionTruth(QObject):
         self.workspace = workspace
         self._syncing = False
         workspace.snapshots.currentItemChanged.connect(self._selection_changed)
+        workspace.snapshots.model().rowsInserted.connect(self._schedule_sync)
+        workspace.snapshots.model().modelReset.connect(self._schedule_sync)
         workspace.process.finished.connect(self._schedule_sync)
         workspace.process.errorOccurred.connect(self._schedule_sync)
         for button in (
@@ -57,6 +59,7 @@ class BackupActionTruth(QObject):
         if workspace._busy() or self._syncing:
             return
 
+        self._describe_snapshot_rows()
         item = workspace.snapshots.currentItem()
         snapshot_id = self._value(item, Qt.ItemDataRole.UserRole)
         state = self._value(item, Qt.ItemDataRole.UserRole + 1)
@@ -128,6 +131,40 @@ class BackupActionTruth(QObject):
             "pathenaRestoreEligibilityBasis",
             "listed-state-and-verification",
         )
+
+    def _describe_snapshot_rows(self) -> None:
+        for index in range(self.workspace.snapshots.count()):
+            item = self.workspace.snapshots.item(index)
+            snapshot_id = self._value(item, Qt.ItemDataRole.UserRole)
+            state = self._value(item, Qt.ItemDataRole.UserRole + 1) or "unknown"
+            verification = self._value(item, Qt.ItemDataRole.UserRole + 2) or "unknown"
+            label = snapshot_id[:8].upper() if snapshot_id else "unknown"
+            complete = bool(snapshot_id) and state == "complete"
+            restore_ready = complete and verification in _RESTORE_VERIFIED
+
+            accessible_text = (
+                f"Snapshot {label}, state {state}, verification {verification}."
+            )
+            if restore_ready:
+                accessible_description = (
+                    "Completed verified restore point. Verify again or restore into an "
+                    "isolated runtime root."
+                )
+            elif complete:
+                accessible_description = (
+                    "Completed snapshot. Verification is available; restore remains "
+                    "blocked until verification succeeds."
+                )
+            else:
+                accessible_description = (
+                    "Snapshot is not complete. Verification and restore are unavailable."
+                )
+            item.setData(Qt.ItemDataRole.AccessibleTextRole, accessible_text)
+            item.setData(
+                Qt.ItemDataRole.AccessibleDescriptionRole,
+                accessible_description,
+            )
+            item.setData(Qt.ItemDataRole.StatusTipRole, accessible_description)
 
     def _focused_action_becoming_disabled(
         self,
