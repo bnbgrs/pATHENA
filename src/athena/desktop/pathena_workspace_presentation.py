@@ -7,6 +7,9 @@ so those workspaces can evolve independently of the pATHENA design language.
 
 from __future__ import annotations
 
+import re
+
+from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
@@ -116,6 +119,68 @@ _LIST_MINIMUM_WIDTHS = {
     "sourceList": 320,
 }
 
+_KNOWLEDGE_STATE_REPLACEMENTS = {
+    "IDLE": "Idle",
+    "CORE UNAVAILABLE": "Core unavailable",
+    "PREFLIGHT / PENDING": "Checking…",
+    "REVIEW COMPLETE / READY": "Ready to add",
+    "DECISION REQUIRED / CANONICAL MERGE": "Decision required",
+    "BLOCKED / EXTRACTOR MERGE": "Needs review",
+    "BLOCKED / REVIEW REQUIRED": "Needs review",
+    "MERGE DECISION SAVED": "Saved",
+    "DECISION REQUIRED": "Decision required",
+}
+
+_RUNTIME_PATTERN = re.compile(r"^CORE\s+(?P<state>\S+)\s+/\s+CHATS\s+(?P<count>\d+)$")
+_SOURCE_PATTERN = re.compile(r"^SOURCE CHAT\s+\S+\s+/\s+MESSAGE\s+\S+$")
+
+
+def _sync_dynamic_workspace_copy(window: QWidget) -> None:
+    """Normalize dynamic workspace metadata without touching its source state."""
+    knowledge = window.findChild(QWidget, "knowledgeWorkspace")
+    if knowledge is None:
+        return
+
+    state = knowledge.findChild(QLabel, "knowledgeReviewState")
+    if state is not None:
+        replacement = _KNOWLEDGE_STATE_REPLACEMENTS.get(state.text())
+        if replacement is not None:
+            state.setText(replacement)
+
+    for label in knowledge.findChildren(QLabel):
+        text = label.text()
+        runtime_match = _RUNTIME_PATTERN.fullmatch(text)
+        if runtime_match is not None:
+            raw = text
+            status = runtime_match.group("state").replace("_", " ").lower()
+            count = int(runtime_match.group("count"))
+            noun = "conversation" if count == 1 else "conversations"
+            label.setToolTip(raw)
+            label.setText(f"Core {status} · {count} {noun}")
+            continue
+
+        if text == "CORE  DISCONNECTED  /  CHATS  —":
+            label.setToolTip(text)
+            label.setText("Core unavailable")
+            continue
+
+        if _SOURCE_PATTERN.fullmatch(text) is not None:
+            label.setToolTip(text)
+            label.setText("From conversation · selected message")
+
+
+def _install_dynamic_copy_sync(window: QWidget) -> None:
+    if window.property("pathenaWorkspaceCopySyncInstalled") is True:
+        return
+    window.setProperty("pathenaWorkspaceCopySyncInstalled", True)
+
+    timer = QTimer(window)
+    timer.setObjectName("pathenaWorkspaceCopySync")
+    timer.setInterval(250)
+    timer.timeout.connect(lambda: _sync_dynamic_workspace_copy(window))
+    timer.start()
+    _sync_dynamic_workspace_copy(window)
+
 
 def apply_workspace_presentation(window: QWidget) -> None:
     """Apply pATHENA's quiet presentation to already-installed real workspaces."""
@@ -163,3 +228,5 @@ def apply_workspace_presentation(window: QWidget) -> None:
         canonical_tabs.setTabText(1, "Claims")
         canonical_tabs.setTabText(2, "Decisions")
         canonical_tabs.setTabText(3, "From chat")
+
+    _install_dynamic_copy_sync(window)
