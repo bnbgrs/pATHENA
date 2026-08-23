@@ -65,6 +65,20 @@ class ContradictionReviewConflictError(ClaimInspectionError):
     """Raised when a review cannot be resolved from its current durable state."""
 
 
+def _bounded_limit(value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError("limit must be an integer between 1 and 500")
+    if not 1 <= value <= 500:
+        raise ValueError("limit must be between 1 and 500")
+    return value
+
+
+def _require_uuid(value: object, label: str) -> uuid.UUID:
+    if not isinstance(value, uuid.UUID):
+        raise TypeError(f"{label} must be a UUID.")
+    return value
+
+
 @dataclass(frozen=True, slots=True)
 class ClaimDetails:
     """One current Claim plus its durable provenance and evidence graph edges."""
@@ -102,34 +116,33 @@ class KnowledgeInspectionService:
         self._reviews = reviews
 
     def list_claims(self, *, limit: int = 100) -> tuple[ClaimSnapshot, ...]:
-        if not 1 <= limit <= 500:
-            raise ValueError("limit must be between 1 and 500")
-        return self._claims.list(limit=limit)
+        validated_limit = _bounded_limit(limit)
+        return self._claims.list(limit=validated_limit)
 
     def load_claim(self, claim_id: uuid.UUID) -> ClaimDetails:
-        snapshot = self._claims.load(claim_id)
+        validated_claim_id = _require_uuid(claim_id, "claim_id")
+        snapshot = self._claims.load(validated_claim_id)
         return ClaimDetails(
             snapshot=snapshot,
             provenance_inputs=self._claims.provenance_inputs(
                 snapshot.revision.provenance_id
             ),
-            evidence=self._claims.evidence(claim_id),
+            evidence=self._claims.evidence(validated_claim_id),
         )
 
     def claim_history(self, claim_id: uuid.UUID) -> tuple[ClaimRevision, ...]:
-        return self._claims.history(claim_id)
+        return self._claims.history(_require_uuid(claim_id, "claim_id"))
 
     def list_pending_contradictions(
         self,
         *,
         limit: int = 100,
     ) -> tuple[ContradictionReviewDetails, ...]:
-        if not 1 <= limit <= 500:
-            raise ValueError("limit must be between 1 and 500")
+        validated_limit = _bounded_limit(limit)
         try:
             items = self._reviews.list_pending(
                 review_type="contradiction",
-                limit=limit,
+                limit=validated_limit,
             )
         except ReviewError as exc:
             raise ClaimInspectionError(str(exc)) from exc
@@ -139,8 +152,9 @@ class KnowledgeInspectionService:
         self,
         review_id: uuid.UUID,
     ) -> ContradictionReviewDetails:
+        validated_review_id = _require_uuid(review_id, "review_id")
         try:
-            item = self._reviews.get(review_id)
+            item = self._reviews.get(validated_review_id)
         except ReviewError as exc:
             raise ClaimInspectionError(str(exc)) from exc
         return self._contradiction_details(item)
@@ -153,31 +167,36 @@ class KnowledgeInspectionService:
         decision: ContradictionDecision,
     ) -> ContradictionReviewDetails:
         """Resolve a review idempotently while preserving stale-review safety."""
-        current = self.load_contradiction_review(review_id).review
+        validated_review_id = _require_uuid(review_id, "review_id")
+        validated_actor_id = _require_uuid(actor_id, "actor_id")
+        if not isinstance(decision, ContradictionDecision):
+            raise TypeError("decision must be a ContradictionDecision.")
+
+        current = self.load_contradiction_review(validated_review_id).review
         if decision is ContradictionDecision.CONFIRM:
             if current.status is ReviewStatus.ACCEPTED:
-                return self.load_contradiction_review(review_id)
+                return self.load_contradiction_review(validated_review_id)
             if current.status is not ReviewStatus.PENDING:
                 raise ContradictionReviewConflictError(
                     "Contradiction review is already resolved with another decision."
                 )
             try:
-                self._reviews.accept(review_id, actor_id=actor_id)
+                self._reviews.accept(validated_review_id, actor_id=validated_actor_id)
             except ReviewError as exc:
                 raise ContradictionReviewConflictError(str(exc)) from exc
-            return self.load_contradiction_review(review_id)
+            return self.load_contradiction_review(validated_review_id)
 
         if current.status is ReviewStatus.REJECTED:
-            return self.load_contradiction_review(review_id)
+            return self.load_contradiction_review(validated_review_id)
         if current.status is not ReviewStatus.PENDING:
             raise ContradictionReviewConflictError(
                 "Contradiction review is already resolved with another decision."
             )
         try:
-            self._reviews.reject(review_id, actor_id=actor_id)
+            self._reviews.reject(validated_review_id, actor_id=validated_actor_id)
         except ReviewError as exc:
             raise ContradictionReviewConflictError(str(exc)) from exc
-        return self.load_contradiction_review(review_id)
+        return self.load_contradiction_review(validated_review_id)
 
     def _contradiction_details(
         self,
