@@ -234,8 +234,16 @@ class PathenaMainWindow(AthenaMainWindow):
             self.evidence_chain.hide()
 
     def _sync_progressive_chat_actions(self, _index: int | None = None) -> None:
+        """Expose secondary chat chrome only for an actual persisted conversation."""
         has_selected_chat = self.chat_selector.currentData() is not None
+        is_chat_page = self.navigation.currentRow() == 0
         self.delete_chat_button.setVisible(has_selected_chat)
+
+        details_button = getattr(self, "details_button", None)
+        if isinstance(details_button, QPushButton):
+            details_button.setVisible(has_selected_chat and is_chat_page)
+            if not has_selected_chat or not is_chat_page:
+                details_button.setChecked(False)
 
     def _replace_visible_copy(self) -> None:
         replacements = {
@@ -405,6 +413,7 @@ class PathenaMainWindow(AthenaMainWindow):
                 self.chat_selector.setItemText(index, "Current conversation")
 
         self._humanize_model_settings_state()
+        self._sync_progressive_chat_actions()
 
     def _configure_context_for_selected_model(self) -> None:
         super()._configure_context_for_selected_model()
@@ -425,6 +434,7 @@ class PathenaMainWindow(AthenaMainWindow):
             message=message,
         )
         self._set_context_available(False)
+        self._sync_progressive_chat_actions()
 
     def _extract_message_knowledge(self, message_id: str, revision_id: str) -> None:
         super()._extract_message_knowledge(message_id, revision_id)
@@ -443,12 +453,14 @@ class PathenaMainWindow(AthenaMainWindow):
             and self.pending_chat_id is None
         ):
             self._set_context_available(False)
+        self._sync_progressive_chat_actions()
 
     @Slot(object)
     def apply_chat_sent(self, thread: object) -> None:
         super().apply_chat_sent(thread)
         if isinstance(thread, ChatThreadResponse) and self.current_chat_id == thread.chat_id:
             self._set_context_available(False)
+        self._sync_progressive_chat_actions()
 
     @Slot(object)
     def apply_grounded_chat_sent(self, response: object) -> None:
@@ -458,6 +470,7 @@ class PathenaMainWindow(AthenaMainWindow):
             and self.current_chat_id == response.thread.chat_id
         ):
             self._set_context_available(True)
+        self._sync_progressive_chat_actions()
 
     @Slot(object)
     def apply_knowledge_merge_review_ready(self, response: object) -> None:
@@ -553,13 +566,7 @@ class PathenaMainWindow(AthenaMainWindow):
         super()._select_page(index)
         if 0 <= index < len(_DISPLAY_NAVIGATION):
             self.page_title.setText(_DISPLAY_NAVIGATION[index])
-
-        details_button = getattr(self, "details_button", None)
-        if isinstance(details_button, QPushButton):
-            is_chat = index == 0
-            details_button.setVisible(is_chat)
-            if not is_chat:
-                details_button.setChecked(False)
+        self._sync_progressive_chat_actions()
 
     def apply_chat_busy(self, busy: bool) -> None:
         super().apply_chat_busy(busy)
