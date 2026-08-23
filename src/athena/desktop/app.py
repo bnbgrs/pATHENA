@@ -52,6 +52,7 @@ from athena.desktop.pathena_research_readability_2400 import install_research_re
 from athena.desktop.pathena_research_result_presentation import (
     apply_research_result_presentation,
 )
+from athena.desktop.pathena_result_scope_clarity import apply_result_scope_clarity
 from athena.desktop.pathena_shell_density import apply_shell_density
 from athena.desktop.pathena_startup_experience_2900 import install_startup_experience
 from athena.desktop.pathena_theme import PATHENA_STYLESHEET
@@ -174,6 +175,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     startup_experience = install_startup_experience(window)
     apply_complete_ui_refinements(window)
     apply_ui_refinements_6101_6200(window)
+    apply_result_scope_clarity(window)
     detail_provenance = apply_detail_provenance(window)
     success_decay = apply_quiet_success_decay(window)
     chat_scroll_stability = install_chat_scroll_stability(window)
