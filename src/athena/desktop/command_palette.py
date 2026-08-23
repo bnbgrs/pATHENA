@@ -64,6 +64,13 @@ class CommandPaletteController(QObject):
         self.shortcut.setContext(Qt.ShortcutContext.WindowShortcut)
         self.shortcut.activated.connect(self.open)
 
+        self._down_shortcut = QShortcut(QKeySequence("Down"), self.dialog)
+        self._down_shortcut.activated.connect(lambda: self._move_selection(1))
+        self._up_shortcut = QShortcut(QKeySequence("Up"), self.dialog)
+        self._up_shortcut.activated.connect(lambda: self._move_selection(-1))
+        self._escape_shortcut = QShortcut(QKeySequence("Esc"), self.dialog)
+        self._escape_shortcut.activated.connect(self.dialog.hide)
+
         self.query.textChanged.connect(self._refresh_results)
         self.query.returnPressed.connect(self._activate_current)
         self.results.itemActivated.connect(self._activate_item)
@@ -166,6 +173,15 @@ class CommandPaletteController(QObject):
 
         if self.results.count() > 0:
             self.results.setCurrentRow(0)
+
+    def _move_selection(self, delta: int) -> None:
+        count = self.results.count()
+        if count <= 0:
+            return
+        current = self.results.currentRow()
+        if current < 0:
+            current = 0
+        self.results.setCurrentRow((current + delta) % count)
 
     def _activate_current(self) -> None:
         row = self.results.currentRow()
