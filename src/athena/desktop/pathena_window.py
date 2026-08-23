@@ -61,19 +61,19 @@ def _humanize_review_heading(text: str) -> str:
         index = code[1:]
         if prefix in {"K", "C"} and index.isdigit():
             noun = "Knowledge" if prefix == "K" else "Claim"
-            kind = parts[1].replace("_", " ").title()
+            raw_kind = parts[1].replace("_", " ")
+            kind = (
+                "Possible duplicate"
+                if raw_kind == "POSSIBLE CANONICAL DUPLICATE"
+                else raw_kind.title()
+            )
             confidence = parts[2]
             return f"{noun} {int(index)} · {kind} · {confidence}"
     return text
 
 
 class PathenaMainWindow(AthenaMainWindow):
-    """Apply pATHENA's quiet shell without changing ATHENA-derived behaviour.
-
-    The base window remains the functional implementation. This subclass only
-    changes visible labels, spacing, sizing and progressive disclosure so that
-    future functional work can continue independently of the presentation layer.
-    """
+    """Apply pATHENA's quiet shell without changing ATHENA-derived behaviour."""
 
     def __init__(self, api_controller: DesktopApiController | None = None) -> None:
         super().__init__(api_controller=api_controller)
@@ -100,6 +100,10 @@ class PathenaMainWindow(AthenaMainWindow):
             for metric in rail.findChildren(MetricRow):
                 metric.hide()
 
+            status_square = rail.findChild(QLabel, "statusSquare")
+            if status_square is not None:
+                status_square.hide()
+
             network_state = rail.findChild(QLabel, "networkState")
             if network_state is not None:
                 network_state.hide()
@@ -110,6 +114,9 @@ class PathenaMainWindow(AthenaMainWindow):
             for child_label in rail.findChildren(QLabel):
                 if child_label.text() == "PALLAS":
                     child_label.hide()
+
+        if self.status_text.text() == "LOCAL / CORE DISCONNECTED":
+            self.status_text.setText("Connecting…")
 
         center = self.findChild(QFrame, "conversation")
         if center is not None:
@@ -174,7 +181,6 @@ class PathenaMainWindow(AthenaMainWindow):
         self._humanize_knowledge_review_panel()
 
     def _install_progressive_disclosure(self) -> None:
-        """Keep secondary evidence machinery out of the default reading flow."""
         self.details_button = QPushButton("Details")
         self.details_button.setObjectName("detailsToggle")
         self.details_button.setCheckable(True)
@@ -312,11 +318,11 @@ class PathenaMainWindow(AthenaMainWindow):
         )
 
     def _humanize_knowledge_review_panel(self) -> None:
-        """Keep review semantics visible while removing machine-oriented copy."""
         self.knowledge_review_close_button.setText("Close")
 
         state_replacements = {
             "IDLE": "Idle",
+            "EXTRACTING / SELECTED MESSAGE": "Extracting…",
             "PREFLIGHT / PENDING": "Checking for duplicates…",
             "REVIEW COMPLETE / READY": "Ready to add",
             "DECISION REQUIRED / CANONICAL MERGE": "Decision required",
@@ -420,6 +426,14 @@ class PathenaMainWindow(AthenaMainWindow):
         )
         self._set_context_available(False)
 
+    def _extract_message_knowledge(self, message_id: str, revision_id: str) -> None:
+        super()._extract_message_knowledge(message_id, revision_id)
+        self._humanize_knowledge_review_panel()
+
+    def _resolve_knowledge_merge(self, review_id: str, decision: str) -> None:
+        super()._resolve_knowledge_merge(review_id, decision)
+        self._humanize_knowledge_review_panel()
+
     @Slot(object)
     def apply_chat_loaded(self, thread: object) -> None:
         super().apply_chat_loaded(thread)
@@ -448,6 +462,17 @@ class PathenaMainWindow(AthenaMainWindow):
     @Slot(object)
     def apply_knowledge_merge_review_ready(self, response: object) -> None:
         super().apply_knowledge_merge_review_ready(response)
+        self._humanize_knowledge_review_panel()
+
+    @Slot(str)
+    def apply_api_failure(self, message: str) -> None:
+        super().apply_api_failure(message)
+        self.status_text.setText("Core unavailable")
+
+    @Slot(str, str)
+    def apply_chat_operation_failure(self, operation: str, message: str) -> None:
+        super().apply_chat_operation_failure(operation, message)
+        self.status_text.setText("Chat error")
         self._humanize_knowledge_review_panel()
 
     def _render_knowledge_review_panel(self) -> None:
