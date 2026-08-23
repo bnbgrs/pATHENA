@@ -138,7 +138,7 @@ def run_local_smoke(
     _assert_api_runtime_cleared(first)
 
     restarted_core_status = ""
-    chats = ()
+    persisted_chat_count = 0
     for cycle in range(1, restart_cycles + 1):
         restarted = CoreApiProcess(settings=settings)
         restarted.start()
@@ -147,6 +147,7 @@ def run_local_smoke(
             restarted_health = restarted_client.health()
             restarted_core_status = restarted_health.core_status
             chats = restarted_client.list_chats(limit=50)
+            persisted_chat_count = len(chats)
             matching = tuple(chat for chat in chats if chat.chat_id == chat_id)
             if len(matching) != 1:
                 raise RuntimeError(
@@ -170,7 +171,7 @@ def run_local_smoke(
         chat_id=chat_id,
         first_core_status=first_health.core_status,
         restarted_core_status=restarted_core_status,
-        persisted_chat_count=len(chats),
+        persisted_chat_count=persisted_chat_count,
         database_schema_version=database_schema_version,
         api_runtime_clean=True,
         restart_cycles=restart_cycles,
