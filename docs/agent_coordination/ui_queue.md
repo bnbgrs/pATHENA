@@ -55,6 +55,7 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 | UI-045 | P1 | DONE | Files process/show/import detail output is selection-owned; later source selection is not overwritten or misattributed. Commit `8ea97c605c39f2571b7c70990f732a613de51519`; tests not executed. |
 | UI-046 | P1 | DONE | Jobs show/pause/resume/wake/cancel detail output is job-owned; later selection remains authoritative. Commit `7019e3ebf614c405db586437072611fe0e2c4c3d`; tests not executed. |
 | UI-048 | P1 | DONE | Source, durable-job, ResearchResult and Backup busy/success/failure copy now identifies the originating object; off-selection failures remain failures. Commits `58cf536923b828090e3118cd6765856eb62f1fc8`, `5e46b9513de885672f23940cfbd70975f2b0ded0`, `d28b58dd602bc6a1ddc1e723165e01f3e3da99ed`, `20d931c1b4795f9102482db58062f46a7b929b66`. |
+| UI-049 | P2 | DONE | Reverified 2026-08-23: Sources, Jobs, Backup and ResearchResult shared panes explicitly distinguish BACKGROUND operation ownership from CURRENT selection and suppress foreign output. |
 
 ## Active queue
 
@@ -66,17 +67,9 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 - **Dependencies:** Runtime with repository checkout or Quality-bot execution.
 - **Last verification:** 2026-08-23.
 
-### UI-049 — Busy selection context in shared detail panes
-- **Priority:** P2
-- **Status:** IN_PROGRESS
-- **Evidence:** Selecting another Source/Job/Snapshot while background work continues protects output, but the newly selected pane should explicitly state that background work belongs to another object instead of presenting metadata without ownership context.
-- **Views/components:** Sources details, Jobs details, Backup details, ResearchResult details.
-- **Dependencies:** UI-043 through UI-048.
-- **Last verification:** 2026-08-23.
-
 ### UI-050 — Disappeared-selection refresh semantics
 - **Priority:** P2
-- **Status:** READY
+- **Status:** IN_PROGRESS
 - **Evidence:** Dynamic list refreshes preserve UserRole identity when present, but when the selected Source/Job/Snapshot disappears the fallback to row 0 can look like a deliberate user selection. Audit and expose the fallback transition without inventing new controls.
 - **Views/components:** Sources, Jobs, Backup, Research lists.
 - **Dependencies:** Existing list refresh code only.
