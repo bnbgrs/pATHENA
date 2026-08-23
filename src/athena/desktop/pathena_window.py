@@ -75,9 +75,9 @@ class PathenaMainWindow(AthenaMainWindow):
             )
 
         for index, label in enumerate(_DISPLAY_NAVIGATION):
+            if index >= self.navigation.count():
+                break
             item = self.navigation.item(index)
-            if item is None:
-                continue
             item.setText(label)
             item.setSizeHint(QSize(176, 36))
 
