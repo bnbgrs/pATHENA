@@ -43,15 +43,15 @@ class ServiceFailure:
     """A service plus the exception raised by a lifecycle operation."""
 
     service_name: str
-    error: Exception
+    error: BaseException
 
     def __post_init__(self) -> None:
         if not isinstance(self.service_name, str) or not self.service_name.strip():
             raise ValueError("ServiceFailure service_name must be non-empty text.")
         if self.service_name != self.service_name.strip():
             raise ValueError("ServiceFailure service_name must be canonical trimmed text.")
-        if not isinstance(self.error, Exception):
-            raise TypeError("ServiceFailure error must be an Exception.")
+        if not isinstance(self.error, BaseException):
+            raise TypeError("ServiceFailure error must be a BaseException.")
 
 
 class ServiceManager:
@@ -86,8 +86,10 @@ class ServiceManager:
         for service, service_name in zip(self._services, self._service_names, strict=True):
             try:
                 service.start()
-            except Exception as exc:
+            except BaseException as exc:
                 rollback_failures = self._stop_started_best_effort()
+                if not isinstance(exc, Exception):
+                    raise
                 suffix = ""
                 if rollback_failures:
                     failed_names = ", ".join(
@@ -101,13 +103,19 @@ class ServiceManager:
 
     def stop_all(self) -> None:
         failures = self._stop_started_best_effort()
-        if failures:
-            failed_names = ", ".join(
-                failure.service_name for failure in failures
-            )
-            raise ShutdownError(
-                f"Failed to stop one or more services: {failed_names}."
-            )
+        if not failures:
+            return
+
+        for failure in failures:
+            if not isinstance(failure.error, Exception):
+                raise failure.error
+
+        failed_names = ", ".join(
+            failure.service_name for failure in failures
+        )
+        raise ShutdownError(
+            f"Failed to stop one or more services: {failed_names}."
+        )
 
     def _stop_started_best_effort(self) -> tuple[ServiceFailure, ...]:
         failures: list[ServiceFailure] = []
@@ -116,7 +124,7 @@ class ServiceManager:
             service, service_name = self._started.pop()
             try:
                 service.stop()
-            except Exception as exc:
+            except BaseException as exc:
                 failures.append(
                     ServiceFailure(service_name=service_name, error=exc)
                 )
