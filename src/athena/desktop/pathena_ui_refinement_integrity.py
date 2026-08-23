@@ -29,6 +29,10 @@ from athena.desktop.pathena_ui_refinement_600 import (
     UI_REFINEMENT_TASKS_501_600,
     apply_ui_refinements_501_600,
 )
+from athena.desktop.pathena_ui_refinement_700 import (
+    UI_REFINEMENT_TASKS_601_700,
+    apply_ui_refinements_601_700,
+)
 
 
 def apply_complete_ui_refinements(window: QWidget) -> tuple[int, ...]:
@@ -74,6 +78,7 @@ def apply_complete_ui_refinements(window: QWidget) -> tuple[int, ...]:
     applied.extend(apply_ui_refinements_301_400(window))
     applied.extend(apply_ui_refinements_401_500(window))
     applied.extend(apply_ui_refinements_501_600(window))
+    applied.extend(apply_ui_refinements_601_700(window))
     normalized = tuple(sorted(set(applied)))
     total_tasks = (
         len(UI_REFINEMENT_TASKS)
@@ -82,6 +87,7 @@ def apply_complete_ui_refinements(window: QWidget) -> tuple[int, ...]:
         + len(UI_REFINEMENT_TASKS_301_400)
         + len(UI_REFINEMENT_TASKS_401_500)
         + len(UI_REFINEMENT_TASKS_501_600)
+        + len(UI_REFINEMENT_TASKS_601_700)
     )
     window.setProperty("pathenaUiRefinementAppliedCount", len(normalized))
     window.setProperty("pathenaUiRefinementTaskCount", total_tasks)
