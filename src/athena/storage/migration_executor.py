@@ -32,7 +32,18 @@ def migrate_schema_candidate(candidate_db: Path, *, created_at_us: int) -> None:
         row = connection.execute("PRAGMA user_version").fetchone()
         if row is None or int(row[0]) != SCHEMA_VERSION:
             raise MigrationExecutorError("Migration candidate did not reach current schema.")
-        connection.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
+
+        checkpoint = connection.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
+        if checkpoint is None or len(checkpoint) < 3:
+            raise MigrationExecutorError("Migration candidate WAL checkpoint returned no status.")
+        busy = int(checkpoint[0])
+        log_frames = int(checkpoint[1])
+        checkpointed_frames = int(checkpoint[2])
+        if busy != 0 or log_frames != checkpointed_frames:
+            raise MigrationExecutorError(
+                "Migration candidate WAL checkpoint did not fully complete."
+            )
+
         mode = connection.execute("PRAGMA journal_mode = DELETE").fetchone()
         if mode is None or str(mode[0]).casefold() != "delete":
             raise MigrationExecutorError("Migration candidate could not leave WAL mode.")
