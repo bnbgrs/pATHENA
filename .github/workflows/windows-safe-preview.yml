@@ -1,0 +1,148 @@
+name: Windows pATHENA safe preview
+
+on:
+  push:
+    branches:
+      - build/windows-safe-preview-20260823
+  pull_request:
+    branches:
+      - agent/pathena-ui-quiet-workspace
+
+permissions:
+  contents: read
+
+jobs:
+  build-safe-preview:
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install runtime and packager
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ".[desktop]" "pyinstaller>=6.15,<7"
+
+      - name: Build Core as onedir windowed app
+        shell: pwsh
+        run: |
+          python -m PyInstaller `
+            --noconfirm `
+            --clean `
+            --onedir `
+            --windowed `
+            --contents-directory core_runtime `
+            --name pATHENA-Core `
+            --paths src `
+            --collect-submodules athena `
+            --collect-all usearch `
+            --collect-all cryptography `
+            --collect-all pypdf `
+            src/athena/desktop/packaged_core.py
+
+      - name: Build Desktop as onedir windowed app
+        shell: pwsh
+        run: |
+          python -m PyInstaller `
+            --noconfirm `
+            --clean `
+            --onedir `
+            --windowed `
+            --contents-directory app_runtime `
+            --name pATHENA `
+            --paths src `
+            --collect-submodules athena `
+            --collect-all usearch `
+            --collect-all cryptography `
+            --collect-all pypdf `
+            src/athena/desktop/packaged_safe_app.py
+
+      - name: Assemble safe preview
+        shell: pwsh
+        run: |
+          $out = Join-Path $PWD "portable\pATHENA-Windows-Safe"
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+
+          Copy-Item .\dist\pATHENA\pATHENA.exe $out
+          Copy-Item .\dist\pATHENA\app_runtime (Join-Path $out "app_runtime") -Recurse
+          Copy-Item .\dist\pATHENA-Core\pATHENA-Core.exe $out
+          Copy-Item .\dist\pATHENA-Core\core_runtime (Join-Path $out "core_runtime") -Recurse
+
+          @'
+          pATHENA Windows Safe Preview
+          ============================
+
+          Start only:
+            pATHENA.exe
+
+          Safety changes in this preview:
+            - automatic durable scheduler supervisor disabled
+            - no scheduler child-process fan-out
+            - desktop and Core use onedir packaging (no onefile self-extraction burst)
+            - Core has no console window
+            - Qt software rendering requested
+
+          Keep these together:
+            pATHENA.exe
+            pATHENA-Core.exe
+            app_runtime\
+            core_runtime\
+
+          Data remains at:
+            %LOCALAPPDATA%\ATHENA
+
+          Background scheduler jobs are intentionally unavailable in this Safe Preview.
+          '@ | Set-Content -Encoding UTF8 (Join-Path $out "START_HERE.txt")
+
+      - name: Smoke-test Core process
+        shell: pwsh
+        run: |
+          $root = Join-Path $PWD "portable\pATHENA-Windows-Safe"
+          $core = Start-Process -FilePath (Join-Path $root "pATHENA-Core.exe") -ArgumentList '-m','athena.api.process' -PassThru
+          Start-Sleep -Seconds 6
+          if ($core.HasExited) {
+            throw "pATHENA-Core.exe exited during startup smoke test with exit code $($core.ExitCode)"
+          }
+          Stop-Process -Id $core.Id -Force
+
+      - name: Smoke-test Desktop without scheduler fan-out
+        shell: pwsh
+        run: |
+          $root = Join-Path $PWD "portable\pATHENA-Windows-Safe"
+          $env:QT_QPA_PLATFORM = "offscreen"
+          $desktop = Start-Process -FilePath (Join-Path $root "pATHENA.exe") -PassThru
+          Start-Sleep -Seconds 10
+          if ($desktop.HasExited) {
+            throw "pATHENA.exe exited during startup smoke test with exit code $($desktop.ExitCode)"
+          }
+
+          $scheduler = Get-Process -Name "pATHENA-Scheduler" -ErrorAction SilentlyContinue
+          if ($scheduler) {
+            throw "Safe Preview unexpectedly started pATHENA-Scheduler.exe"
+          }
+
+          $cores = @(Get-Process -Name "pATHENA-Core" -ErrorAction SilentlyContinue)
+          if ($cores.Count -gt 1) {
+            throw "Safe Preview started more than one Core process"
+          }
+
+          Stop-Process -Id $desktop.Id -Force
+          Get-Process -Name "pATHENA-Core" -ErrorAction SilentlyContinue | Stop-Process -Force
+
+      - name: Upload safe Windows preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: pATHENA-Windows-Safe
+          path: portable/pATHENA-Windows-Safe/
+          if-no-files-found: error
+          compression-level: 6
+          retention-days: 7
