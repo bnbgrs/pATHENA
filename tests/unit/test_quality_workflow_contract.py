@@ -55,3 +55,5 @@ def test_quality_workflow_has_targeted_windows_path_safety_lane() -> None:
     assert "tests/unit/test_database_preflight_locality.py" in workflow
     assert "tests/unit/test_runtime_paths.py" in workflow
     assert "tests/unit/test_migration_clone.py" in workflow
+    assert "tests/unit/test_migration_journal.py" in workflow
+    assert "tests/unit/test_emergency_reserve.py" in workflow
