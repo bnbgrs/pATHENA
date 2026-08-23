@@ -13,6 +13,23 @@ class SchedulerLaneOwnershipError(RuntimeError):
     """Raised when a long-lived scheduler lane already has a process owner."""
 
 
+def _reject_symlink_ancestors(path: Path, *, lane_name: str) -> None:
+    cursor = path.parent
+    while True:
+        if cursor.is_symlink():
+            raise SchedulerLaneOwnershipError(
+                f"Scheduler {lane_name} lane lock has a symlink ancestor."
+            )
+        if cursor.exists() and not cursor.is_dir():
+            raise SchedulerLaneOwnershipError(
+                f"Scheduler {lane_name} lane lock ancestor is not a directory."
+            )
+        parent = cursor.parent
+        if parent == cursor:
+            return
+        cursor = parent
+
+
 class SchedulerLaneProcessLock:
     """Hold one OS-released advisory lock for a scheduler process lifetime."""
 
@@ -22,6 +39,10 @@ class SchedulerLaneProcessLock:
         path: Path,
         handle: BinaryIO,
     ) -> None:
+        if not isinstance(path, Path):
+            raise TypeError("Scheduler lane lock path must be a pathlib.Path value.")
+        if not hasattr(handle, "fileno") or not hasattr(handle, "close"):
+            raise TypeError("Scheduler lane lock handle must be a binary file handle.")
         self.path = path
         self._handle: BinaryIO | None = handle
 
@@ -44,6 +65,8 @@ class SchedulerLaneProcessLock:
                 f"Scheduler {normalized_lane} lane locking is unsupported "
                 f"on platform {os.name!r}."
             )
+
+        _reject_symlink_ancestors(path, lane_name=normalized_lane)
         if path.is_symlink():
             raise SchedulerLaneOwnershipError(
                 f"Scheduler {normalized_lane} lane lock must not be a symlink."
@@ -51,11 +74,12 @@ class SchedulerLaneProcessLock:
 
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
+            _reject_symlink_ancestors(path, lane_name=normalized_lane)
             if path.is_symlink():
                 raise SchedulerLaneOwnershipError(
                     f"Scheduler {normalized_lane} lane lock must not be a symlink."
                 )
-            handle = path.open("a+b")
+            handle = _open_lock_file(path)
         except SchedulerLaneOwnershipError:
             raise
         except OSError as exc:
@@ -64,11 +88,18 @@ class SchedulerLaneProcessLock:
             ) from exc
 
         try:
+            if path.is_symlink():
+                raise SchedulerLaneOwnershipError(
+                    f"Scheduler {normalized_lane} lane lock became a symlink while opening."
+                )
             handle.seek(0, os.SEEK_END)
             if handle.tell() == 0:
                 handle.write(b"\0")
                 handle.flush()
             handle.seek(0)
+        except SchedulerLaneOwnershipError:
+            handle.close()
+            raise
         except OSError as exc:
             handle.close()
             raise SchedulerLaneOwnershipError(
@@ -83,10 +114,7 @@ class SchedulerLaneProcessLock:
                 f"Scheduler {normalized_lane} lane already has a live process owner."
             ) from exc
 
-        return cls(
-            path=path,
-            handle=handle,
-        )
+        return cls(path=path, handle=handle)
 
     def close(self) -> None:
         """Release process ownership by closing the locked file handle."""
@@ -95,6 +123,17 @@ class SchedulerLaneProcessLock:
             return
         self._handle = None
         handle.close()
+
+
+def _open_lock_file(path: Path) -> BinaryIO:
+    flags = os.O_RDWR | os.O_CREAT
+    nofollow = getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(path, flags | nofollow, 0o600)
+    try:
+        return cast(BinaryIO, os.fdopen(descriptor, "r+b"))
+    except BaseException:
+        os.close(descriptor)
+        raise
 
 
 def _lock_nonblocking(handle: BinaryIO) -> None:
