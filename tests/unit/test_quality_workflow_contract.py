@@ -33,3 +33,15 @@ def test_quality_workflow_avoids_duplicate_feature_branch_push_runs() -> None:
 
     assert "push:\n    branches:\n      - main" in workflow
     assert "pull_request:" in workflow
+
+
+def test_quality_workflow_has_targeted_windows_path_safety_lane() -> None:
+    workflow = _workflow_text()
+
+    assert "windows-path-safety:" in workflow
+    assert "runs-on: windows-latest" in workflow
+    assert "name: Probe native active-state locality" in workflow
+    assert "assert_active_state_root_local(Path.cwd())" in workflow
+    assert "tests/unit/test_storage_locality.py" in workflow
+    assert "tests/unit/test_database_preflight_locality.py" in workflow
+    assert "tests/unit/test_runtime_paths.py" in workflow
