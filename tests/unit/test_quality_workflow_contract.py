@@ -94,3 +94,10 @@ def test_quality_workflow_has_targeted_windows_path_safety_lane() -> None:
         "tests/unit/test_storage_safe_mode.py",
     ):
         assert test_path in workflow
+
+
+def test_quality_workflow_verifies_api_runtime_boundaries_on_linux_and_windows() -> None:
+    workflow = _workflow_text()
+
+    assert workflow.count("name: Run API runtime path-boundary regressions") == 2
+    assert workflow.count("pytest -q tests/unit/test_api_runtime_boundaries.py") == 2
