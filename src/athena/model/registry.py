@@ -5,7 +5,6 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass, replace
 from enum import Enum
-from numbers import Real
 
 from athena.model.domain import ModelCapabilitySupport, ModelInfo
 
@@ -52,6 +51,26 @@ class ModelLoadOwnership(str, Enum):
     UNKNOWN = "unknown"
 
 
+def _optional_nonnegative_int(value: object, label: str) -> None:
+    if value is None:
+        return
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ModelRegistryError(f"{label} must be a non-negative integer or None.")
+
+
+def _optional_nonnegative_float(value: object, label: str) -> None:
+    if value is None:
+        return
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ModelRegistryError(f"{label} must be a non-negative number or None.")
+    try:
+        normalized = float(value)
+    except OverflowError as exc:
+        raise ModelRegistryError(f"{label} must be finite and non-negative.") from exc
+    if not math.isfinite(normalized) or normalized < 0.0:
+        raise ModelRegistryError(f"{label} must be finite and non-negative.")
+
+
 @dataclass(frozen=True, slots=True)
 class ModelResourceProfile:
     """Measured performance metadata; absent values remain unknown."""
@@ -62,30 +81,10 @@ class ModelResourceProfile:
     tokens_per_second: float | None = None
 
     def __post_init__(self) -> None:
-        for label, value in (
-            ("vram_peak_bytes", self.vram_peak_bytes),
-            ("ram_peak_bytes", self.ram_peak_bytes),
-        ):
-            if value is not None and (
-                isinstance(value, bool) or not isinstance(value, int) or value < 0
-            ):
-                raise ModelRegistryError(f"{label} must be a non-negative integer or None.")
-        for label, value in (
-            ("load_time_seconds", self.load_time_seconds),
-            ("tokens_per_second", self.tokens_per_second),
-        ):
-            if value is None:
-                continue
-            if isinstance(value, bool) or not isinstance(value, Real):
-                raise ModelRegistryError(f"{label} must be a non-negative number or None.")
-            try:
-                normalized = float(value)
-            except OverflowError as exc:
-                raise ModelRegistryError(
-                    f"{label} must be finite and non-negative."
-                ) from exc
-            if not math.isfinite(normalized) or normalized < 0.0:
-                raise ModelRegistryError(f"{label} must be finite and non-negative.")
+        _optional_nonnegative_int(self.vram_peak_bytes, "vram_peak_bytes")
+        _optional_nonnegative_int(self.ram_peak_bytes, "ram_peak_bytes")
+        _optional_nonnegative_float(self.load_time_seconds, "load_time_seconds")
+        _optional_nonnegative_float(self.tokens_per_second, "tokens_per_second")
 
 
 @dataclass(frozen=True, slots=True)
