@@ -6,50 +6,45 @@ Status values: `READY`, `IN_PROGRESS`, `BLOCKED`, `DONE`, `STALE`.
 
 | ID | Priority | Slice | Evidence | Ownership | Status | Last verification |
 | --- | --- | --- | --- | --- | --- | --- |
-| QG-2097-MYPY-RESEARCH-MODELS | P0 | Resolve/verify two mypy errors in `src/athena/research/models.py` | Historical CI #2097; helper `_nonnegative_int()` still returns `None` while callers rely on post-validation arithmetic/narrowing | BACKEND | BLOCKED | 2026-08-23; current file re-read on active branch, static pattern still present; no newer completed mypy run |
-| QG-2097-MYPY-RESEARCH-IDEMPOTENCY | P0 | Resolve/verify three mypy unreachable errors in `src/athena/research/idempotency.py` | Historical CI #2097; typed `Sequence[tuple[...]]` is still combined with runtime guards that mypy can consider unreachable | BACKEND | BLOCKED | 2026-08-23; current file re-read; executed re-verification pending |
-| QG-2097-MYPY-SEMANTIC | P0 | Resolve/verify two mypy errors in `_persisted_int()` | Historical CI #2097; `_persisted_int(value: object)` still performs direct `int(value)` conversion | BACKEND | BLOCKED | 2026-08-23; current file re-read; executed re-verification pending |
-| QG-MIGRATION-JOURNAL-ANCESTOR-BOUNDARY | P1 | Verify Backend fix for unsafe migration-journal ancestors | Current code now validates ancestors before read/write, uses `is_link_boundary`, `O_NOFOLLOW`, and handle/path identity checks; targeted tests prove no `os.open` before rejection. Error log updated. | BACKEND + QUALITY/VERIFY | IN_PROGRESS | 2026-08-23; static fix verified through HEAD `07fe4000...`; Windows lane now includes `test_migration_journal.py`; executed PASS pending |
-| QG-MIGRATION-CLONE-REPARSE-BOUNDARY | P1 | Verify Backend fix for Windows junction/reparse migration clone boundaries | Shared `is_link_boundary` and repeated source/candidate boundary checks are present; Windows lane includes `test_migration_clone.py` | BACKEND + QUALITY/VERIFY | IN_PROGRESS | 2026-08-23; static fix verified; executed Windows/Linux PASS pending |
-| QG-CI-SUPERSEDED-RUNS | P1 | Keep CI useful under continuous branch writes | Workflow uses one PR concurrency group with `cancel-in-progress: false`; pending runs continue to be superseded by rapid branch churn | QUALITY/GATE | IN_PROGRESS | 2026-08-23; runs #2656/#2657 cancelled while newer heads arrived; latest observed runs remain subject to pending supersession |
-| QG-CI-FAILFAST-COVERAGE | P1 | Prove `--keep-going` exposes pytest after earlier failures | Workflow invokes `scripts/quality.py --keep-going`; completed final-policy run log still required | QUALITY/GATE | IN_PROGRESS | 2026-08-23; no completed current-head Linux gate available yet |
-| QG-QUALITY-HARNESS-REGRESSION | P1 | Protect fail-fast/keep-going, concurrency, local-smoke and Windows coverage | Contract tests cover workflow policy; Windows contract now additionally requires migration journal and emergency reserve tests | QUALITY/GATE | IN_PROGRESS | 2026-08-23; quality commits `835a0058...` and `eb78b643...`; execution pending |
-| QG-FG-002-REGRESSION | P1 | Verify ModelRegistry / active-primary-model layer | Static implementation/test audit covers canonical IDs, duplicate/unknown rejection and active-model validation | QUALITY/READ-ONLY | IN_PROGRESS | 2026-08-23; executed PASS pending |
-| QG-FG-004-REGRESSION | P1 | Verify capability UNKNOWN vs UNSUPPORTED semantics | Static domain/test audit preserves SUPPORTED/UNSUPPORTED/UNKNOWN distinctions | QUALITY/READ-ONLY | IN_PROGRESS | 2026-08-23; executed PASS pending |
-| QG-FG-005-REGRESSION | P1 | Verify Context Builder source diversity | Static tests cover rank-1 preservation, duplicate deferral and contradiction exemption | QUALITY/READ-ONLY | IN_PROGRESS | 2026-08-23; executed PASS pending |
-| QG-FG-007-REGRESSION | P1 | Verify model-load ownership before auto-unload | Tests statically cover unknown/external fail-closed and ATHENA-owned unload permission | QUALITY/READ-ONLY | IN_PROGRESS | 2026-08-23; executed PASS pending |
-| QG-FG-012-EXECUTION-GUARD | P1 | Verify protected-runtime execution guard | Static guard/tests cover pre-provider recheck and metadata leakage boundaries | QUALITY/READ-ONLY | IN_PROGRESS | 2026-08-23; runtime verification pending |
-| QG-FG-013-MIGRATION-SAFETY | P1 | Regression-watch clone-first migration stack | Free-space contracts clean; clone and journal trust-boundary fixes now statically present; new migration-plan layer is under active Backend development | QUALITY/READ-ONLY | IN_PROGRESS | 2026-08-23; `migration_plan.py` and tests statically reviewed; full execution pending |
-| QG-FG-014-REGRESSION | P1 | Verify active SQLite root locality | Static tests cover UNC/mapped drives/Linux network FS and pre-SQLite rejection; Windows lane probes native locality | QUALITY/READ-ONLY + GATE | IN_PROGRESS | 2026-08-23; executed Windows PASS pending |
-| QG-FG-015-REGRESSION | P1 | Regression-watch emergency reserve and disk-pressure policy | `emergency_reserve.py` and `disk_pressure.py` statically audited; tests cover exact sizing, non-sparse allocation, persistent normal shutdown, EMERGENCY-only release and reassessment. Windows lane now executes emergency-reserve tests. | QUALITY/READ-ONLY + GATE | IN_PROGRESS | 2026-08-23; new slice accepted from Feature-Gap backlog; no product mutation; executed PASS pending |
-| QG-RECENT-REGRESSION-SCAN | P1 | Risk-based scan of recent Backend/UI/Feature commits | Current scan covered migration journal, migration plan, emergency reserve/disk pressure and recent backup-details UI changes read-only | QUALITY/READ-ONLY | IN_PROGRESS | 2026-08-23; no foreign product code mutated |
-| QG-WINDOWS-GATE-PARITY | P2 | Focus Windows execution on platform-specific storage boundaries | Windows lane covers locality, preflight, runtime paths, migration clone, migration journal and emergency reserve | QUALITY/GATE | IN_PROGRESS | 2026-08-23; extended at `835a0058...`, contract at `eb78b643...`; execution pending |
-| QG-PACKAGING-START-PATH | P2 | Execute published `athena-local-smoke` start/restart/persistence path | Dedicated 5-minute Linux job runs `athena-local-smoke --restart-cycles 1` | QUALITY/GATE | IN_PROGRESS | 2026-08-23; completed-run evidence pending |
-| QG-CI-TIMEOUT-HEADROOM | P2 | Verify 10-minute keep-going gate headroom | Linux full gate 10m; local-smoke and Windows lanes 5m; no timeout evidence yet | QUALITY/GATE | READY | 2026-08-23; do not increase timeout speculatively |
-| QG-FG-003-REGRESSION | P2 | Verify all normative provider health states | Static domain/tests include unavailable/starting/ready/busy/degraded/error | QUALITY/READ-ONLY | IN_PROGRESS | 2026-08-23; executed PASS pending |
+| QG-2097-MYPY-RESEARCH-MODELS | P0 | Resolve/verify historical mypy errors in `research/models.py` | Historical run #2097; current helper pattern still warrants executed recheck | BACKEND | BLOCKED | 2026-08-23; current code re-read, newer Linux result pending |
+| QG-2097-MYPY-RESEARCH-IDEMPOTENCY | P0 | Resolve/verify historical mypy unreachable errors in `research/idempotency.py` | Historical run #2097; current typed-sequence/runtime-guard pattern still present | BACKEND | BLOCKED | 2026-08-23; newer Linux result pending |
+| QG-2097-MYPY-SEMANTIC | P0 | Resolve/verify historical `_persisted_int()` mypy errors | Historical run #2097; direct `int(object)` pattern remains | BACKEND | BLOCKED | 2026-08-23; newer Linux result pending |
+| QG-WIN-2677-MIGRATION-CLONE-FSYNC | P1 | Fix Windows migration-clone durable file flush | Run #2677: `_fsync_file()` -> `os.fsync()` on `O_RDONLY` descriptor fails with `OSError [Errno 9] Bad file descriptor`; permanent log `docs/quality-gate/2026-08-23-run-2677-windows-path-safety.md` | BACKEND | BLOCKED | 2026-08-23; executed failure on Windows Server 2025, job `97251316567` |
+| QG-FG-015-RESERVE-HEADROOM | P1 | Prevent reserve provisioning from creating EMERGENCY pressure | At 100 GiB total / 2.5 GiB free, current CRITICAL state permits 1 GiB allocation, projecting 1.5 GiB free below 2 GiB EMERGENCY threshold. Log: `docs/quality-gate/2026-08-23-disk-pressure-reserve-provisioning-headroom.md` | BACKEND | BLOCKED | 2026-08-23, defect statically revalidated at HEAD `67e15f78...` |
+| QG-WIN-2677-RESERVE-TEST-CONTRACT | P1 | Reconcile wrong-size reserve test with current error contract | Run #2677: expected `does not match`, actual `file size must exactly match required bytes`; current Backend test still contains stale regex | BACKEND/TEST | BLOCKED | 2026-08-23; executed Windows failure, current test re-read |
+| QG-MIGRATION-JOURNAL-ANCESTOR-BOUNDARY | P1 | Verify Backend journal ancestor fix | Current code validates ancestors before I/O, uses `is_link_boundary`, `O_NOFOLLOW`, and handle/path identity checks | BACKEND + QUALITY/VERIFY | IN_PROGRESS | 2026-08-23; #2677 selected journal suite produced no journal failure; Linux/full rerun still pending |
+| QG-MIGRATION-CLONE-REPARSE-BOUNDARY | P1 | Verify reparse-boundary fix independently of new Windows fsync defect | Reparse tests are in Windows lane; #2677 failed clone's ordinary snapshot path at fsync rather than reparse rejection | BACKEND + QUALITY/VERIFY | IN_PROGRESS | 2026-08-23; Windows clone overall FAIL due separate fsync defect |
+| QG-CI-SUPERSEDED-RUNS | P1 | Keep CI useful under continuous branch writes | `cancel-in-progress: false`; run #2677 reached active execution despite rapid pending supersession | QUALITY/GATE | IN_PROGRESS | 2026-08-23; active-run survival now evidenced, completion of Linux job pending |
+| QG-CI-FAILFAST-COVERAGE | P1 | Prove `--keep-going` exposes pytest after earlier failures | Linux quality job #2677 is currently executing `scripts/quality.py --keep-going` | QUALITY/GATE | IN_PROGRESS | 2026-08-23; final Linux log pending |
+| QG-WIN-LOCALITY-SELECTION | P1 | Keep Linux mountinfo-only tests out of real Windows lane | #2677 exposed two false Windows failures from Linux mountinfo tests; workflow now splits `test_storage_locality.py -k windows` from remaining Windows storage tests; contract updated | QUALITY/GATE | IN_PROGRESS | 2026-08-23; fixed by `0ffbcf0e...` + `e9630faa...`, re-run pending |
+| QG-QUALITY-HARNESS-REGRESSION | P1 | Protect keep-going, concurrency, local smoke and Windows lane contracts | Contract includes Windows-only locality selection plus migration journal/emergency reserve coverage | QUALITY/GATE | IN_PROGRESS | 2026-08-23; local-smoke execution PASS in #2677; Windows re-run pending |
+| QG-FG-002-REGRESSION | P1 | Verify ModelRegistry / active-primary-model layer | Static audit complete | QUALITY/READ-ONLY | IN_PROGRESS | 2026-08-23; execution pending |
+| QG-FG-004-REGRESSION | P1 | Verify capability UNKNOWN vs UNSUPPORTED semantics | Static audit complete | QUALITY/READ-ONLY | IN_PROGRESS | 2026-08-23; execution pending |
+| QG-FG-005-REGRESSION | P1 | Verify Context Builder source diversity | Static audit complete | QUALITY/READ-ONLY | IN_PROGRESS | 2026-08-23; execution pending |
+| QG-FG-007-REGRESSION | P1 | Verify model-load ownership before auto-unload | Static audit complete | QUALITY/READ-ONLY | IN_PROGRESS | 2026-08-23; execution pending |
+| QG-FG-012-EXECUTION-GUARD | P1 | Verify protected-runtime execution guard | Static guard/test audit complete | QUALITY/READ-ONLY | IN_PROGRESS | 2026-08-23; runtime verification pending |
+| QG-FG-013-MIGRATION-SAFETY | P1 | Regression-watch clone-first migration stack | Journal and recovery ancestor issues were fixed in parallel; #2677 exposed a distinct Windows clone fsync defect | QUALITY/READ-ONLY | IN_PROGRESS | 2026-08-23; Windows execution now provides concrete failure evidence |
+| QG-FG-014-REGRESSION | P1 | Verify active SQLite root locality | #2677 native Windows locality probe PASS; deterministic Windows cases retained in focused lane | QUALITY/READ-ONLY + GATE | IN_PROGRESS | 2026-08-23; native probe PASS, lane rerun pending after selection fix |
+| QG-FG-015-REGRESSION | P1 | Regression-watch emergency reserve/disk-pressure policy | #2677 exposed one stale reserve-test expectation; independent static audit found projected-pressure provisioning defect | QUALITY/READ-ONLY + GATE | IN_PROGRESS | 2026-08-23; two explicit child slices now tracked |
+| QG-RECENT-REGRESSION-SCAN | P1 | Risk-based scan of newest commits | Migration recovery ancestor issue was found then fixed in parallel; reserve headroom P1 found and logged | QUALITY/READ-ONLY | IN_PROGRESS | 2026-08-23; no foreign product code mutated |
+| QG-WINDOWS-GATE-PARITY | P2 | Focus Windows execution on platform-specific storage boundaries | Run #2677 executed on Windows Server 2025: native locality PASS, regression suite FAIL with 4 classified issues | QUALITY/GATE | IN_PROGRESS | 2026-08-23; concrete Windows baseline now established |
+| QG-PACKAGING-START-PATH | P2 | Verify `athena-local-smoke` install/start/restart/persistence path | Run #2677 `Local install smoke` completed successfully including dependency lock and disposable Core/API restart smoke | QUALITY/GATE | DONE | 2026-08-23; run #2677 job `97251316671` PASS |
+| QG-CI-TIMEOUT-HEADROOM | P2 | Verify 10-minute keep-going gate headroom | Linux quality job #2677 remains in progress; no timeout evidence yet | QUALITY/GATE | READY | 2026-08-23; await completed timing evidence |
+| QG-FG-003-REGRESSION | P2 | Verify normative provider health states | Static audit complete | QUALITY/READ-ONLY | IN_PROGRESS | 2026-08-23; execution pending |
 
-## Current primary failure baseline
+## Current execution baseline
 
-The latest fully classified execution baseline remains historical run #2097:
+Run #2677 is the first current multi-job run to provide durable new evidence:
 
-- Specification validator: PASS (63/63)
-- Ruff: PASS
-- mypy: FAIL (7 errors / 3 Backend-owned files)
-- pytest: NOT REACHED in that historical fail-fast run
+- Local install smoke: **PASS**.
+- Windows native active-state locality probe: **PASS**.
+- Windows selected regressions: **FAIL — 4 failed, 50 passed, 2 warnings**.
+- Linux keep-going full quality: **IN PROGRESS** at last verification.
 
-The three P0 source patterns were re-read during the current run and remain statically present, but a newer completed keep-going run is required before claiming they still fail on the current HEAD.
+The Windows failures are classified in `docs/quality-gate/2026-08-23-run-2677-windows-path-safety.md`. Two Linux-only locality failures were a Quality-owned lane-selection error and have been fixed in the workflow. The remaining executed failures are Backend-owned: Windows migration-clone fsync and a stale emergency-reserve test expectation.
 
-## Current safety/coverage state
+## Ready slices
 
-- Migration journal ancestor defect: **statically fixed, execution pending**; incident log updated.
-- Migration clone reparse defect: **statically fixed, execution pending**.
-- FG-015 reserve/disk-pressure primitives: **static regression audit completed, execution pending**.
-- Windows path-safety lane: now covers locality, runtime paths, migration clone, migration journal and emergency reserve.
-- Local install smoke: configured, completed-run evidence pending.
-- Rapid branch churn continues to supersede pending PR runs; no PASS/FAIL is inferred from cancelled runs.
-
-## Ready slices if CI remains unavailable
-
-1. `QG-CI-TIMEOUT-HEADROOM` — inspect first completed keep-going timing before any timeout change.
-2. Continue `QG-RECENT-REGRESSION-SCAN` on newest FG-013/FG-015 Backend commits without mutating Backend ownership.
-3. Review Windows-only storage boundary gaps and add only evidence-driven targeted tests to the Windows lane.
+1. `QG-CI-TIMEOUT-HEADROOM` — classify real duration after #2677 Linux completes.
+2. Continue `QG-RECENT-REGRESSION-SCAN` on newly landed FG-013/FG-015 storage changes.
+3. Re-run/inspect the Windows lane after Quality selection fix; do not mask Backend failures.
