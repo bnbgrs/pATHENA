@@ -2,8 +2,13 @@
 
 from __future__ import annotations
 
+import shutil
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import IntEnum
+from pathlib import Path
+
+from athena.storage.emergency_reserve import EmergencyReserveStore
 
 _MIB = 1024 * 1024
 _GIB = 1024 * _MIB
@@ -86,6 +91,29 @@ class DiskPressureAssessment:
         return self.state is DiskPressureState.EMERGENCY
 
 
+@dataclass(frozen=True, slots=True)
+class DiskPressureCheckResult:
+    before_release: DiskPressureAssessment
+    released_reserve_bytes: int
+    after_release: DiskPressureAssessment
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.before_release, DiskPressureAssessment):
+            raise TypeError("Disk pressure before_release must be DiskPressureAssessment.")
+        released = _nonnegative_int(
+            self.released_reserve_bytes,
+            "Disk pressure released_reserve_bytes",
+        )
+        if not isinstance(self.after_release, DiskPressureAssessment):
+            raise TypeError("Disk pressure after_release must be DiskPressureAssessment.")
+        if self.after_release.total_bytes != self.before_release.total_bytes:
+            raise ValueError("Disk pressure volume size changed during one check.")
+        if released == 0 and self.after_release != self.before_release:
+            raise ValueError(
+                "Disk pressure state cannot change without a reserve release in one check."
+            )
+
+
 def disk_pressure_thresholds(total_bytes: int) -> DiskPressureThresholds:
     """Return Beta-03 thresholds using conservative integer percentage ceilings."""
     total = _nonnegative_int(total_bytes, "Disk pressure total_bytes")
@@ -125,3 +153,68 @@ def assess_disk_pressure(
         state=state,
         thresholds=thresholds,
     )
+
+
+DiskUsageProvider = Callable[[Path], tuple[int, int]]
+
+
+def _default_disk_usage(path: Path) -> tuple[int, int]:
+    usage = shutil.disk_usage(path)
+    return int(usage.total), int(usage.free)
+
+
+class DiskPressureController:
+    """Release the physical reserve only when the active volume is EMERGENCY.
+
+    This controller deliberately does not delete canonical data and does not
+    recreate the reserve. Provisioning belongs to EmergencyReserveService when
+    the system is safely out of the emergency path.
+    """
+
+    def __init__(
+        self,
+        state_root: Path,
+        *,
+        reserve_store: EmergencyReserveStore | None = None,
+        disk_usage_provider: DiskUsageProvider | None = None,
+    ) -> None:
+        if not isinstance(state_root, Path):
+            raise TypeError("Disk pressure state_root must be a pathlib.Path.")
+        root = state_root.expanduser()
+        if not root.is_absolute():
+            raise ValueError("Disk pressure state_root must be absolute.")
+        self.state_root = root
+        self.reserve_store = reserve_store or EmergencyReserveStore(root)
+        self._disk_usage_provider = disk_usage_provider or _default_disk_usage
+
+    def _assessment(self) -> DiskPressureAssessment:
+        try:
+            total, free = self._disk_usage_provider(self.state_root)
+        except OSError as exc:
+            raise RuntimeError("Disk pressure volume usage could not be determined.") from exc
+        return assess_disk_pressure(total_bytes=total, free_bytes=free)
+
+    def check(self) -> DiskPressureCheckResult:
+        """Assess pressure and release only the reserve when EMERGENCY is reached."""
+        before = self._assessment()
+        if not before.release_emergency_reserve:
+            return DiskPressureCheckResult(
+                before_release=before,
+                released_reserve_bytes=0,
+                after_release=before,
+            )
+
+        released = self.reserve_store.release()
+        if released == 0:
+            return DiskPressureCheckResult(
+                before_release=before,
+                released_reserve_bytes=0,
+                after_release=before,
+            )
+
+        after = self._assessment()
+        return DiskPressureCheckResult(
+            before_release=before,
+            released_reserve_bytes=released,
+            after_release=after,
+        )
