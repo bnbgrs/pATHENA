@@ -38,20 +38,13 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 | UI-028 | P2 | DONE | Message actions remain in layout but use quiet opacity until message hover/focus; four tests added, not executed. |
 | UI-029 | P2 | DONE | Command palette and Knowledge filter now distinguish no-match from empty data; three focused tests added, not executed. |
 | UI-030 | P2 | DONE | Dialog focus return preserves newer intentional focus and otherwise restores the pre-dialog control; four tests added, not executed. |
+| UI-031 | P2 | DONE | Knowledge/Research/Jobs/Sources/Backup now expose shown/total/selected scope in a separate quiet status row; four focused tests added, not executed. |
 
 ## Active queue
 
-### UI-031 — Selection count and result scope clarity
-- **Priority:** P2
-- **Status:** IN_PROGRESS
-- **Evidence:** Dense list workspaces do not consistently expose total/visible count and selected identity in the quiet status hierarchy.
-- **Views/components:** Knowledge, Research, Jobs, Sources, Backup lists.
-- **Dependencies:** Existing list models and status surfaces only.
-- **Last verification:** 2026-08-23.
-
 ### UI-032 — Message action tab-order audit
 - **Priority:** P2
-- **Status:** READY
+- **Status:** IN_PROGRESS
 - **Evidence:** Message actions are now focusable; verify per-message tab order remains predictable across long threads and disabled Remember states.
 - **Views/components:** Chat message rows, composer transition.
 - **Dependencies:** UI-027/UI-028.
