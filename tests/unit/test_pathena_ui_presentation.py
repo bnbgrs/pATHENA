@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QApplication, QFrame, QLabel
+from PySide6.QtWidgets import QApplication, QFrame, QLabel, QPushButton
 
 from athena.api.contracts import (
     ChatSummaryResponse,
@@ -131,6 +131,36 @@ def test_pathena_removes_redundant_shell_chrome() -> None:
             for label in window.findChildren(QLabel, "sessionLabel")
         }
         assert session_labels == {"Conversation", "Model"}
+    finally:
+        window.close()
+        app.processEvents()
+
+
+def test_pathena_message_header_hides_internal_sequence_metadata() -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    try:
+        message = window._message_widget(
+            role="assistant",
+            content="A persisted answer.",
+            created_at_us=1_700_000_000_000_000,
+            sequence_no=42,
+            message_id="message-42",
+            revision_id="revision-42",
+        )
+
+        meta = message.findChild(QLabel, "speaker")
+        assert meta is not None
+        assert meta.text().startswith("pATHENA · ")
+        assert "0042" not in meta.text()
+        assert " / " not in meta.text()
+
+        remember = message.findChild(QPushButton, "rememberMessageButton")
+        knowledge = message.findChild(QPushButton, "addKnowledgeButton")
+        assert remember is not None
+        assert knowledge is not None
+        assert remember.text() == "Remember"
+        assert knowledge.text() == "Add to knowledge"
     finally:
         window.close()
         app.processEvents()
