@@ -583,7 +583,6 @@ class CanonicalMemoryExtension(QObject):
 
     @Slot()
     def _focus_filter(self) -> None:
-        self.workspace.navigation = getattr(self.workspace, "navigation", None)
         self.workspace.search_input.setFocus(Qt.FocusReason.ShortcutFocusReason)
         self.workspace.search_input.selectAll()
 
