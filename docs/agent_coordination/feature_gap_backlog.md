@@ -2,7 +2,7 @@
 
 Central hand-off between the Feature-Gap Scout and the BACKEND, UI, and QUALITY owners.
 
-Last scout baseline: `agent/pathena` @ `d7dd7c1decdad4a12258a87939f703533a86e42f`
+Last scout baseline: `agent/pathena` @ `10e58e31a9083c18a312ffa3cdae5f69a5923788`
 
 ## Status vocabulary
 
@@ -20,31 +20,31 @@ Last scout baseline: `agent/pathena` @ `d7dd7c1decdad4a12258a87939f703533a86e42f
 - **Ownership:** BACKEND
 - **Priority:** P1
 - **Status:** READY
-- **Verification:** Static branch trace through `d7dd7c1`: Beta 08 interface compared against `src/athena/model/ports.py` and `src/athena/model/adapters/lm_studio.py`. No implementation mutation performed by Feature Scout.
+- **Verification:** Static branch trace through `10e58e3`: Beta 08 interface compared against `src/athena/model/ports.py` and `src/athena/model/adapters/lm_studio.py`.
 
 ### FG-002 — Add the Beta ModelRegistry / active-primary-model runtime layer
 
-- **Source:** `docs/beta/08_Primaermodell_und_Provider-System.md`, sections 17–20, plus section 2 (exactly one active primary model).
+- **Source:** `docs/beta/08_Primaermodell_und_Provider-System.md`, sections 17–20, plus section 2.
 - **Evidence:** Beta requires a `ModelRegistry` containing provider/model identity, role eligibility, technical capabilities, measured resource metadata where reliable, user alias, and active state; only eligible models may become the active primary model. The current `src/athena/model/` branch tree contains `domain.py`, `ports.py`, `provenance.py`, and adapters but no registry module. Repository symbol search for `ModelRegistry`/primary-model registry produced no implementation result.
 - **Current state:** Discovery normalizes model information, but no dedicated registry/runtime ownership layer matching the Beta contract was found.
 - **Target state:** Introduce a Core-owned registry/runtime service that records discovered models without inventing metadata, enforces exactly one active primary role, validates primary eligibility against capabilities, and keeps infrastructure-model registries separate.
-- **Dependencies:** FG-001 and FG-004; configuration persistence decision; existing model provenance/signature semantics; UI selection should consume the registry later rather than inventing model names.
+- **Dependencies:** FG-001 and FG-004; configuration persistence decision; existing model provenance/signature semantics.
 - **Ownership:** BACKEND
 - **Priority:** P1
 - **Status:** READY
-- **Verification:** Static branch trace through `d7dd7c1`: Beta 08 registry requirements compared against the visible `src/athena/model/` tree and repository symbol search. No implementation mutation performed by Feature Scout.
+- **Verification:** Static branch trace through `10e58e3` against the visible `src/athena/model/` tree and repository symbol search.
 
 ### FG-003 — Represent all normative provider health states
 
 - **Source:** `docs/beta/08_Primaermodell_und_Provider-System.md`, section 11.
-- **Evidence:** Beta defines normalized health states `unavailable`, `starting`, `ready`, `busy`, `degraded`, `error`. `src/athena/model/domain.py::ProviderHealthStatus` currently defines only `UNAVAILABLE`, `READY`, `DEGRADED`, and `ERROR`; `STARTING` and `BUSY` are absent.
+- **Evidence:** Beta defines `unavailable`, `starting`, `ready`, `busy`, `degraded`, `error`. `src/athena/model/domain.py::ProviderHealthStatus` defines only `UNAVAILABLE`, `READY`, `DEGRADED`, and `ERROR`; `STARTING` and `BUSY` are absent.
 - **Current state:** Health normalization cannot represent two normative runtime states without collapsing them into another state or leaking backend detail.
 - **Target state:** Extend normalized health state and adapter mapping so startup/loading and active-busy conditions are represented explicitly where observable, with deterministic fallback where the backend does not expose them.
-- **Dependencies:** Provider discovery/runtime semantics; tests for health normalization. Can be implemented independently of FG-002.
+- **Dependencies:** Provider discovery/runtime semantics; tests for health normalization.
 - **Ownership:** BACKEND
 - **Priority:** P2
 - **Status:** READY
-- **Verification:** Direct static comparison of Beta 08 section 11 with `src/athena/model/domain.py` at `d7dd7c1`.
+- **Verification:** Direct static comparison of Beta 08 section 11 with `src/athena/model/domain.py` through `10e58e3`.
 
 ### FG-004 — Add explicit provider capability discovery / unsupported-capability representation
 
@@ -56,12 +56,37 @@ Last scout baseline: `agent/pathena` @ `d7dd7c1decdad4a12258a87939f703533a86e42f
 - **Ownership:** BACKEND
 - **Priority:** P1
 - **Status:** READY
-- **Verification:** Beta capability contract compared directly with `src/athena/model/domain.py`, `ports.py`, and LM Studio discovery path through `d7dd7c1`.
+- **Verification:** Beta capability contract compared with `src/athena/model/domain.py`, `ports.py`, and LM Studio discovery path through `10e58e3`.
+
+### FG-005 — Enforce source diversity during Context Builder selection
+
+- **Source:** `docs/beta/09_Context_Builder_und_Token-Budget.md`, section 25 and test 67.
+- **Evidence:** Beta requires the builder to prevent many near-duplicate chunks from monopolizing the budget when multiple relevant sources exist. `src/athena/retrieval/context.py::ContextBuilderService` currently consumes already-ranked sources in order, records `duplicate_count`, but selection itself does not use source identity/diversity or duplicate metadata to diversify the included set; it greedily appends ranked items until the budget is exhausted.
+- **Current state:** Provenance and duplicate counts are preserved, but diversity is not enforced by the context selection algorithm.
+- **Target state:** Add deterministic diversity-aware inclusion that still respects relevance, provenance, contradiction preservation, and budget constraints; cover the Beta source-diversity test with targeted unit/integration tests.
+- **Dependencies:** Retrieval result source identity/metadata; ranking semantics; ContextBuilder tests.
+- **Ownership:** BACKEND
+- **Priority:** P1
+- **Status:** READY
+- **Verification:** B09 sections 24–25/67 traced against `src/athena/retrieval/context.py` through `10e58e3`; no diversity decision is present in `_build` despite `duplicate_count` being carried into `ContextItem`.
+
+### FG-006 — Integrate provider-aware dynamic token accounting into Context Builder budgets
+
+- **Source:** `docs/beta/09_Context_Builder_und_Token-Budget.md`, sections 5–9 and tests 60–61.
+- **Evidence:** Beta requires token counts to be estimated or exactly counted for the active provider/tokenizer where available and reserves output/safety budget before calls. `src/athena/retrieval/context.py` explicitly implements a tokenizer-independent heuristic `estimate_tokens()` and `ContextBuilderService` accepts an isolated retrieval-context budget. `ContextPackageBudget` later records effective limit/output reserve/safety margin, but the builder path inspected does not itself consume a provider tokenizer/counting capability or derive its inclusion budget from the active model capacity.
+- **Current state:** Deterministic conservative estimation exists and package-level overflow validation exists; provider-aware dynamic accounting is not wired into the builder surface traced so far.
+- **Target state:** Introduce an explicit token-accounting abstraction tied to active model/provider capability when available, with deterministic fallback; derive retrieval inclusion budget from context capacity minus hard sections/output reserve/safety margin rather than relying on a manually supplied isolated estimate budget.
+- **Dependencies:** FG-001/FG-004 context-capacity capability; ContextPackage call sites; regression tests for output reserve and overflow.
+- **Ownership:** BACKEND
+- **Priority:** P1
+- **Status:** READY
+- **Verification:** B09 sections 5–9/60–61 compared with `src/athena/retrieval/context.py` and `src/athena/retrieval/context_package.py` through `10e58e3`. Existing package checks are retained as partial coverage, not treated as absent.
 
 ## Handoff notes
 
 - BACKEND should re-read current HEAD before taking a READY item and mark the chosen item `IN_PROGRESS` before mutation.
 - FG-003 is intentionally split from FG-001 so it can land as a small independent contract slice.
 - FG-004 should preserve the semantic distinction between `unknown` and `unsupported`; Beta explicitly forbids inventing model facts.
-- FG-002 should not grow a UI surface in the backend slice. Any missing UI connection discovered during implementation should become a separate UI-owned FG entry.
-- Feature Scout will continue Beta 09 Context Builder coverage next; existing `src/athena/retrieval/context_package.py` and durable `src/athena/chat/grounded_context_package.py` mean no Context Builder gap is declared until that existing path is fully traced.
+- FG-005 must not replace relevance ranking with naive round-robin; diversity is a bounded selection constraint, not a new retrieval engine.
+- FG-006 should preserve the current deterministic fallback for providers without tokenizer support.
+- No FEATURE-owned implementation was performed in this scout run because all confirmed gaps land in backend-owned contracts/algorithms.
