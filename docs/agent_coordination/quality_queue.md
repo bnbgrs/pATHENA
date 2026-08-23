@@ -15,6 +15,7 @@ Status values: `READY`, `IN_PROGRESS`, `BLOCKED`, `DONE`, `STALE`.
 | QG-2677-MYPY-GROUNDED-CONTEXT | P1 | Propagate required model revision while reconstructing context signature | Run #2677: missing `model_revision` argument in `ContextModelSignature` construction | BACKEND | BLOCKED | 2026-08-23; executed FAIL and current constructor re-read |
 | QG-WIN-2677-MIGRATION-CLONE-FSYNC | P1 | Fix Windows migration-clone durable file flush | Run #2677 Windows: `_fsync_file()` on `O_RDONLY` descriptor -> `OSError [Errno 9] Bad file descriptor`; log `docs/quality-gate/2026-08-23-run-2677-windows-path-safety.md` | BACKEND | BLOCKED | 2026-08-23; executed FAIL on Windows Server 2025 |
 | QG-DB-PREFLIGHT-REPARSE-ANCESTOR | P1 | Reject Windows junction/reparse ancestors before active DB preflight/open | `recovery.py::_reject_symlink_ancestors()` uses `Path.is_symlink()` only while hardened storage primitives use `is_link_boundary()`; affects writer/read-only/safe-mode startup. Log: `docs/quality-gate/2026-08-23-database-preflight-windows-reparse-ancestor.md` | BACKEND | BLOCKED | 2026-08-23; static defect confirmed on HEAD `d6b90f16...` |
+| QG-SEC-011-API-RUNTIME-REPARSE | P1 | Verify Core API runtime rejects Windows junction/reparse boundaries | Security fix `124fe5d0...` replaced symlink-only runtime-root/ancestor checks with shared `is_link_boundary()`; test `f1f7e60d...` adds deterministic reparse-boundary simulation. Security queue SEC-011 remains FIXED, not VERIFIED. | SECURITY + QUALITY/VERIFY | READY | 2026-08-23; static post-fix review only, no executed test claimed |
 | QG-FG-015-RESERVE-HEADROOM | P1 | Prevent reserve provisioning from creating EMERGENCY pressure | 100 GiB / 2.5 GiB free permits 1 GiB reserve allocation and projects ~1.5 GiB free below 2 GiB EMERGENCY threshold; log `docs/quality-gate/2026-08-23-disk-pressure-reserve-provisioning-headroom.md` | BACKEND | BLOCKED | 2026-08-23; current implementation re-read and defect remains |
 | QG-WIN-2677-RESERVE-TEST-CONTRACT | P1 | Reconcile wrong-size reserve test with current error contract | Run #2677: expected `does not match`, actual exact-size invariant message | BACKEND/TEST | BLOCKED | 2026-08-23; executed Windows failure |
 | QG-STORAGE-BOOTSTRAP-PREFLIGHT-ORDER | P1 | Restore read-only preflight before mutating runtime layout | `StorageBootstrapService.start()` runs `layout.start()` and creates migration root before `inspect_database_read_only()`; log `docs/quality-gate/2026-08-23-storage-bootstrap-preflight-order.md` | BACKEND | BLOCKED | 2026-08-23; current code statically verified |
@@ -63,7 +64,8 @@ Permanent logs:
 
 ## Ready slices
 
-1. `QG-CI-TIMEOUT-HEADROOM` — evaluate only after a full pytest run reaches normal completion.
-2. `QG-STORAGE-FOCUSED-LINUX-LANE` — inspect first completed focused-storage job for migration/reserve/pressure/safe-mode failures without UI-crash interference.
-3. `QG-WIN-LOCALITY-SELECTION` / `QG-WINDOWS-GATE-PARITY` — inspect first completed Windows rerun after lane split; do not mask Backend fsync failures.
-4. Continue `QG-RECENT-REGRESSION-SCAN` as FG-013/FG-015 storage code lands.
+1. `QG-SEC-011-API-RUNTIME-REPARSE` — run focused `test_api_runtime_boundaries.py` on Linux and native Windows; confirm junction/reparse behavior before SEC-011 moves to VERIFIED.
+2. `QG-CI-TIMEOUT-HEADROOM` — evaluate only after a full pytest run reaches normal completion.
+3. `QG-STORAGE-FOCUSED-LINUX-LANE` — inspect first completed focused-storage job for migration/reserve/pressure/safe-mode failures without UI-crash interference.
+4. `QG-WIN-LOCALITY-SELECTION` / `QG-WINDOWS-GATE-PARITY` — inspect first completed Windows rerun after lane split; do not mask Backend fsync failures.
+5. Continue `QG-RECENT-REGRESSION-SCAN` as FG-013/FG-015 storage code lands.
