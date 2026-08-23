@@ -11,10 +11,16 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
-from typing import Any, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from PySide6.QtCore import QObject, Qt, QTimer
-from PySide6.QtWidgets import QLabel, QListWidget, QListWidgetItem, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
 
 if TYPE_CHECKING:
     from athena.desktop.research_results_extension import ResearchResultsExtension
@@ -46,7 +52,10 @@ _TARGETS: tuple[ProposalClarityTarget, ...] = (
     ProposalClarityTarget("researchWorkspace", "Research workspace"),
     ProposalClarityTarget("researchPrimarySplitter", "Research splitter"),
     ProposalClarityTarget("researchDecisionFlow", "Proposal decision flow"),
-    ProposalClarityTarget("researchProposalDecisionContext", "Selected proposal context"),
+    ProposalClarityTarget(
+        "researchProposalDecisionContext",
+        "Selected proposal context",
+    ),
 )
 
 _REFINEMENTS: tuple[str, ...] = (
@@ -90,7 +99,11 @@ def _parse_payload_text(text: str) -> tuple[str, str, dict[str, Any]] | None:
     if len(parts) == 3:
         proposal_type, state, payload_text = parts
     else:
-        columns = tuple(part.strip() for part in re.split(r"\s{2,}", text.strip()) if part.strip())
+        columns = tuple(
+            part.strip()
+            for part in re.split(r"\s{2,}", text.strip())
+            if part.strip()
+        )
         if len(columns) < 4 or not columns[0].isdigit():
             return None
         _ordinal, proposal_type, state = columns[:3]
@@ -102,7 +115,11 @@ def _parse_payload_text(text: str) -> tuple[str, str, dict[str, Any]] | None:
         return None
     if not isinstance(payload, dict):
         return None
-    return proposal_type.casefold().replace(" ", "_"), state.casefold().replace(" ", "_"), payload
+    return (
+        proposal_type.casefold().replace(" ", "_"),
+        state.casefold().replace(" ", "_"),
+        payload,
+    )
 
 
 def _summary(proposal_type: str, payload: dict[str, Any]) -> str:
@@ -113,13 +130,19 @@ def _summary(proposal_type: str, payload: dict[str, Any]) -> str:
     if proposal_type == "claim":
         return str(payload.get("statement") or "Claim").strip()
     if proposal_type == "contradiction":
-        return str(payload.get("text") or "Contradiction requires review").strip()
-    return str(payload.get("summary") or payload.get("text") or "Proposal").strip()
+        return str(
+            payload.get("text") or "Contradiction requires review"
+        ).strip()
+    return str(
+        payload.get("summary") or payload.get("text") or "Proposal"
+    ).strip()
 
 
 def _shorten(text: str, limit: int = 150) -> str:
     collapsed = " ".join(text.split())
-    return collapsed if len(collapsed) <= limit else collapsed[: limit - 1].rstrip() + "…"
+    if len(collapsed) <= limit:
+        return collapsed
+    return collapsed[: limit - 1].rstrip() + "…"
 
 
 def _evidence_from_tooltip(tooltip: str) -> str:
@@ -127,13 +150,14 @@ def _evidence_from_tooltip(tooltip: str) -> str:
     if match is None:
         return "Evidence linked"
     kind, ordinal = match.groups()
+    human_kind = kind.replace("_", " ").title()
     if ordinal == "-":
-        return f"Evidence · {kind.replace('_', ' ').title()}"
+        return f"Evidence · {human_kind}"
     try:
-        human_ordinal = int(ordinal) + 1
+        human_ordinal: int | str = int(ordinal) + 1
     except ValueError:
         human_ordinal = ordinal
-    return f"Evidence · {kind.replace('_', ' ').title()} {human_ordinal}"
+    return f"Evidence · {human_kind} {human_ordinal}"
 
 
 def _human_state(state: str) -> str:
@@ -154,8 +178,14 @@ def _render_item(item: QListWidgetItem) -> None:
     item.setData(_RAW_TEXT_ROLE, item.text())
     meaning = _shorten(_summary(proposal_type, payload))
     evidence = _evidence_from_tooltip(item.toolTip())
-    state_copy = "Review only" if proposal_type == "contradiction" and state == "pending" else _human_state(state)
-    item.setText(f"{meaning}\n{_human_type(proposal_type)} · {state_copy} · {evidence}")
+    state_copy = (
+        "Review only"
+        if proposal_type == "contradiction" and state == "pending"
+        else _human_state(state)
+    )
+    item.setText(
+        f"{meaning}\n{_human_type(proposal_type)} · {state_copy} · {evidence}"
+    )
     item.setData(_CLARITY_ROLE, True)
 
 
@@ -177,26 +207,42 @@ class PathenaResearchProposalClarity(QObject):
         self._connect_updates()
         self.sync()
         if _STYLESHEET not in self.workspace.styleSheet():
-            self.workspace.setStyleSheet(f"{self.workspace.styleSheet()}\n{_STYLESHEET}")
+            self.workspace.setStyleSheet(
+                f"{self.workspace.styleSheet()}\n{_STYLESHEET}"
+            )
 
     def _install_context_label(self) -> QLabel:
-        existing = self.workspace.findChild(QLabel, "researchProposalDecisionContext")
+        existing = self.workspace.findChild(
+            QLabel,
+            "researchProposalDecisionContext",
+        )
         if existing is not None:
             return existing
-        label = QLabel("Select a proposal to inspect its evidence and allowed decision.")
+        label = QLabel(
+            "Select a proposal to inspect its evidence and allowed decision."
+        )
         label.setObjectName("researchProposalDecisionContext")
         label.setWordWrap(True)
         panel = self.workspace.findChild(QWidget, "researchResultPanel")
         layout = None if panel is None else panel.layout()
         if isinstance(layout, QVBoxLayout):
             index = layout.indexOf(self.list)
-            layout.insertWidget(index + 1 if index >= 0 else layout.count(), label)
+            layout.insertWidget(
+                index + 1 if index >= 0 else layout.count(),
+                label,
+            )
         return label
 
     def _configure_actions(self) -> None:
         self.extension.accept_button.setProperty("pathenaProposalRole", "primary")
-        self.extension.accept_separate_button.setProperty("pathenaProposalRole", "secondary")
-        self.extension.reject_button.setProperty("pathenaProposalRole", "secondary")
+        self.extension.accept_separate_button.setProperty(
+            "pathenaProposalRole",
+            "secondary",
+        )
+        self.extension.reject_button.setProperty(
+            "pathenaProposalRole",
+            "secondary",
+        )
 
     def _connect_updates(self) -> None:
         model = self.list.model()
@@ -216,10 +262,16 @@ class PathenaResearchProposalClarity(QObject):
         if current is None:
             self.context.setVisible(False)
             self.extension.accept_button.setProperty("pathenaProposalRisk", "")
+            self.extension.accept_separate_button.setProperty(
+                "pathenaProposalRisk",
+                "",
+            )
             return
 
         self.context.setVisible(True)
-        proposal_type = str(current.data(Qt.ItemDataRole.UserRole + 2) or "").casefold()
+        proposal_type = str(
+            current.data(Qt.ItemDataRole.UserRole + 2) or ""
+        ).casefold()
         state = str(current.data(Qt.ItemDataRole.UserRole + 1) or "").casefold()
         evidence = _evidence_from_tooltip(current.toolTip())
         identity = _technical_identity(current)
@@ -227,27 +279,39 @@ class PathenaResearchProposalClarity(QObject):
         if proposal_type == "contradiction":
             self.context.setText(
                 f"Contradiction · {evidence} · Review only · ID {identity}. "
-                "ATHENA does not allow silent canonical acceptance; acknowledge with Reject."
+                "ATHENA does not allow silent canonical acceptance; "
+                "acknowledge with Reject."
             )
-            self.extension.accept_button.setProperty("pathenaProposalRisk", "review-only")
-            self.extension.accept_separate_button.setProperty("pathenaProposalRisk", "review-only")
+            self.extension.accept_button.setProperty(
+                "pathenaProposalRisk",
+                "review-only",
+            )
+            self.extension.accept_separate_button.setProperty(
+                "pathenaProposalRisk",
+                "review-only",
+            )
         else:
             state_copy = _human_state(state) if state else "Unknown state"
             self.context.setText(
-                f"{_human_type(proposal_type or 'proposal')} · {state_copy} · {evidence} · ID {identity}."
+                f"{_human_type(proposal_type or 'proposal')} · {state_copy} · "
+                f"{evidence} · ID {identity}."
             )
             self.extension.accept_button.setProperty("pathenaProposalRisk", "")
-            self.extension.accept_separate_button.setProperty("pathenaProposalRisk", "")
+            self.extension.accept_separate_button.setProperty(
+                "pathenaProposalRisk",
+                "",
+            )
 
 
 def apply_ui_refinements_2501_2600(window: QWidget) -> tuple[int, ...]:
     """Register the 100 proposal-clarity tasks on existing presentation surfaces."""
     applied: list[int] = []
+    aliases = {
+        "researchDecisionFlow": "researchWorkspace",
+        "researchProposalDecisionContext": "researchResultPanel",
+    }
     for index, target in enumerate(_TARGETS):
-        if target.key == "researchDecisionFlow":
-            widget = window.findChild(QWidget, "researchWorkspace")
-        else:
-            widget = window.findChild(QWidget, target.key)
+        widget = window.findChild(QWidget, aliases.get(target.key, target.key))
         if widget is None:
             continue
         widget.setProperty("pathenaResearch2600", True)
