@@ -1,0 +1,106 @@
+name: Windows pATHENA preview
+
+on:
+  push:
+    branches:
+      - build/windows-preview-20260823
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-windows-preview:
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install runtime and packager
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ".[desktop]" "pyinstaller>=6.15,<7"
+
+      - name: Build pATHENA Core
+        shell: pwsh
+        run: |
+          python -m PyInstaller `
+            --noconfirm `
+            --clean `
+            --onefile `
+            --console `
+            --name pATHENA-Core `
+            --paths src `
+            --collect-submodules athena `
+            --collect-all usearch `
+            --collect-all cryptography `
+            --collect-all pypdf `
+            src/athena/api/process.py
+
+      - name: Build pATHENA Desktop
+        shell: pwsh
+        run: |
+          python -m PyInstaller `
+            --noconfirm `
+            --clean `
+            --onefile `
+            --windowed `
+            --name pATHENA `
+            --paths src `
+            --collect-submodules athena `
+            --collect-all usearch `
+            --collect-all cryptography `
+            --collect-all pypdf `
+            src/athena/desktop/packaged_app.py
+
+      - name: Smoke-test Core executable
+        shell: pwsh
+        run: |
+          & .\dist\pATHENA-Core.exe --help
+          if ($LASTEXITCODE -ne 0) {
+            throw "pATHENA-Core.exe smoke test failed with exit code $LASTEXITCODE"
+          }
+
+      - name: Prepare portable preview folder
+        shell: pwsh
+        run: |
+          $out = Join-Path $PWD "portable\pATHENA-Windows-Preview"
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          Copy-Item .\dist\pATHENA.exe $out
+          Copy-Item .\dist\pATHENA-Core.exe $out
+          @'
+          pATHENA Windows Preview
+          =======================
+
+          Start:
+            Double-click pATHENA.exe
+
+          Important:
+            - Keep pATHENA.exe and pATHENA-Core.exe in the same folder.
+            - This is an unsigned development preview. Windows SmartScreen may warn on first launch.
+            - The application is local-first and creates its runtime/data directories according to the current pATHENA/ATHENA settings defaults.
+            - Close pATHENA normally so its managed Core process can shut down cleanly.
+
+          Build source:
+            bnbgrs/pATHENA
+            branch: build/windows-preview-20260823
+            base: agent/pathena-local-ready
+          '@ | Set-Content -Encoding UTF8 (Join-Path $out "START_HERE.txt")
+
+      - name: Upload Windows preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: pATHENA-Windows-Preview
+          path: portable/pATHENA-Windows-Preview/
+          if-no-files-found: error
+          compression-level: 6
+          retention-days: 7
