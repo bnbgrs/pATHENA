@@ -36,6 +36,7 @@ def test_sixth_refinement_covers_runtime_workspaces() -> None:
     assert {"researchStatus", "researchJobList", "researchDetails"} <= keys
     assert {"jobsStatus", "schedulerStatus", "durableJobList", "jobDetails"} <= keys
     assert {"sourceStatus", "sourceList", "sourceDetails"} <= keys
+    assert "systemDetail" in keys
     assert {
         "knowledgeReviewState",
         "canonicalMemoryTabs",
