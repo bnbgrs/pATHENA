@@ -1,14 +1,28 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+from pathlib import Path
+
 import pytest
 
 from athena.storage.disk_pressure import (
+    DiskPressureController,
     DiskPressureState,
     assess_disk_pressure,
     disk_pressure_thresholds,
 )
 
 _GIB = 1024 * 1024 * 1024
+
+
+@dataclass
+class _ReserveStub:
+    released_bytes: int
+    calls: int = 0
+
+    def release(self) -> int:
+        self.calls += 1
+        return self.released_bytes
 
 
 def test_small_volume_uses_absolute_beta_threshold_floors() -> None:
@@ -105,3 +119,71 @@ def test_disk_pressure_handles_huge_integer_volume_without_float_conversion() ->
     assert thresholds.warning_free_bytes == (total * 5 + 99) // 100
     assert thresholds.critical_free_bytes == (total * 2 + 99) // 100
     assert thresholds.emergency_free_bytes == (total + 99) // 100
+
+
+def test_controller_does_not_release_reserve_before_emergency(tmp_path: Path) -> None:
+    state_root = (tmp_path / "state").absolute()
+    state_root.mkdir()
+    reserve = _ReserveStub(released_bytes=4096)
+    controller = DiskPressureController(
+        state_root,
+        reserve_store=reserve,  # type: ignore[arg-type]
+        disk_usage_provider=lambda _path: (100 * _GIB, 4 * _GIB),
+    )
+
+    result = controller.check()
+
+    assert result.before_release.state is DiskPressureState.CRITICAL
+    assert result.after_release is result.before_release
+    assert result.released_reserve_bytes == 0
+    assert reserve.calls == 0
+
+
+def test_controller_releases_reserve_once_at_emergency_and_reassesses(tmp_path: Path) -> None:
+    state_root = (tmp_path / "state").absolute()
+    state_root.mkdir()
+    reserve = _ReserveStub(released_bytes=1 * _GIB)
+    readings = iter(
+        [
+            (100 * _GIB, 1 * _GIB),
+            (100 * _GIB, 2 * _GIB),
+        ]
+    )
+    controller = DiskPressureController(
+        state_root,
+        reserve_store=reserve,  # type: ignore[arg-type]
+        disk_usage_provider=lambda _path: next(readings),
+    )
+
+    result = controller.check()
+
+    assert result.before_release.state is DiskPressureState.EMERGENCY
+    assert result.released_reserve_bytes == 1 * _GIB
+    assert result.after_release.state is DiskPressureState.CRITICAL
+    assert reserve.calls == 1
+
+
+def test_controller_does_not_fake_space_recovery_when_reserve_is_absent(tmp_path: Path) -> None:
+    state_root = (tmp_path / "state").absolute()
+    state_root.mkdir()
+    reserve = _ReserveStub(released_bytes=0)
+    usage_calls = 0
+
+    def usage(_path: Path) -> tuple[int, int]:
+        nonlocal usage_calls
+        usage_calls += 1
+        return 100 * _GIB, 1 * _GIB
+
+    controller = DiskPressureController(
+        state_root,
+        reserve_store=reserve,  # type: ignore[arg-type]
+        disk_usage_provider=usage,
+    )
+
+    result = controller.check()
+
+    assert result.before_release.state is DiskPressureState.EMERGENCY
+    assert result.after_release is result.before_release
+    assert result.released_reserve_bytes == 0
+    assert usage_calls == 1
+    assert reserve.calls == 1
