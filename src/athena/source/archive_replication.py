@@ -1,4 +1,3 @@
-
 """Durable verified replication from local spool to the Raw Archive root."""
 
 from __future__ import annotations
@@ -66,13 +65,35 @@ class ArchiveSyncResult:
     status: ArchiveReplicationStatus
 
 
+def _require_int(
+    value: object,
+    label: str,
+    *,
+    minimum: int,
+    maximum: int | None = None,
+) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError(f"{label} must be an integer.")
+    if value < minimum or (maximum is not None and value > maximum):
+        if maximum is None:
+            raise ValueError(f"{label} must be >= {minimum}.")
+        raise ValueError(f"{label} must be between {minimum} and {maximum}.")
+    return value
+
+
+def _require_text(value: object, label: str, *, allow_empty: bool = False) -> str:
+    if not isinstance(value, str):
+        raise TypeError(f"{label} must be text.")
+    normalized = value.strip()
+    if not allow_empty and not normalized:
+        raise ValueError(f"{label} must not be empty.")
+    return normalized
+
+
 class ArchiveReplicationRepository:
     """Persist Outbox attempts and atomically confirm replication watermarks."""
 
-    def __init__(
-        self,
-        database: SQLiteDatabase,
-    ) -> None:
+    def __init__(self, database: SQLiteDatabase) -> None:
         self.database = database
 
     def list_pending(
@@ -80,8 +101,7 @@ class ArchiveReplicationRepository:
         *,
         limit: int = 100,
     ) -> tuple[ArchiveReplicationRecord, ...]:
-        self._validate_limit(limit)
-
+        validated_limit = self._validate_limit(limit)
         rows = self.database.connection.execute(
             self._record_query()
             + """
@@ -89,21 +109,16 @@ class ArchiveReplicationRepository:
             ORDER BY o.outbox_seq
             LIMIT ?
             """,
-            (limit,),
+            (validated_limit,),
         ).fetchall()
-
-        return tuple(
-            self._record_from_row(row)
-            for row in rows
-        )
+        return tuple(self._record_from_row(row) for row in rows)
 
     def list_verified(
         self,
         *,
         limit: int = 500,
     ) -> tuple[ArchiveReplicationRecord, ...]:
-        self._validate_limit(limit)
-
+        validated_limit = self._validate_limit(limit)
         rows = self.database.connection.execute(
             self._record_query()
             + """
@@ -111,31 +126,23 @@ class ArchiveReplicationRepository:
             ORDER BY o.outbox_seq DESC
             LIMIT ?
             """,
-            (limit,),
+            (validated_limit,),
         ).fetchall()
+        return tuple(self._record_from_row(row) for row in rows)
 
-        return tuple(
-            self._record_from_row(row)
-            for row in rows
-        )
-
-    def get(
-        self,
-        outbox_seq: int,
-    ) -> ArchiveReplicationRecord:
+    def get(self, outbox_seq: int) -> ArchiveReplicationRecord:
+        sequence = self._validate_outbox_seq(outbox_seq)
         row = self.database.connection.execute(
             self._record_query()
             + """
             WHERE o.outbox_seq = ?
             """,
-            (outbox_seq,),
+            (sequence,),
         ).fetchone()
-
         if row is None:
             raise LookupError(
-                f"Archive replication outbox row {outbox_seq} does not exist."
+                f"Archive replication outbox row {sequence} does not exist."
             )
-
         return self._record_from_row(row)
 
     def mark_attempt(
@@ -144,12 +151,8 @@ class ArchiveReplicationRepository:
         *,
         now_us: int | None = None,
     ) -> ArchiveReplicationRecord:
-        now = (
-            utc_now_us()
-            if now_us is None
-            else now_us
-        )
-
+        sequence = self._validate_outbox_seq(outbox_seq)
+        now = utc_now_us() if now_us is None else self._validate_timestamp(now_us)
         with self.database.write_transaction() as connection:
             cursor = connection.execute(
                 """
@@ -161,21 +164,13 @@ class ArchiveReplicationRepository:
                 WHERE outbox_seq = ?
                   AND state = 'pending'
                 """,
-                (
-                    now,
-                    outbox_seq,
-                ),
+                (now, sequence),
             )
-
             if cursor.rowcount != 1:
                 raise ArchiveReplicationInvariantError(
-                    "Archive replication attempt requires "
-                    "one pending Outbox row."
+                    "Archive replication attempt requires one pending Outbox row."
                 )
-
-        return self.get(
-            outbox_seq
-        )
+        return self.get(sequence)
 
     def record_failure(
         self,
@@ -184,14 +179,16 @@ class ArchiveReplicationRepository:
         error_code: str,
         error_detail: str,
     ) -> ArchiveReplicationRecord:
-        normalized_code = error_code.strip()
-        normalized_detail = error_detail.strip()
-
-        if not normalized_code:
-            raise ValueError(
-                "Archive replication error_code must not be empty."
-            )
-
+        sequence = self._validate_outbox_seq(outbox_seq)
+        normalized_code = _require_text(
+            error_code,
+            "Archive replication error_code",
+        )
+        normalized_detail = _require_text(
+            error_detail,
+            "Archive replication error_detail",
+            allow_empty=True,
+        )
         with self.database.write_transaction() as connection:
             cursor = connection.execute(
                 """
@@ -204,19 +201,14 @@ class ArchiveReplicationRepository:
                 (
                     normalized_code[:200],
                     normalized_detail[:2000],
-                    outbox_seq,
+                    sequence,
                 ),
             )
-
             if cursor.rowcount != 1:
                 raise ArchiveReplicationInvariantError(
-                    "Archive replication failure requires "
-                    "one pending Outbox row."
+                    "Archive replication failure requires one pending Outbox row."
                 )
-
-        return self.get(
-            outbox_seq
-        )
+        return self.get(sequence)
 
     def confirm_verified(
         self,
@@ -225,12 +217,8 @@ class ArchiveReplicationRepository:
         now_us: int | None = None,
     ) -> ArchiveReplicationRecord:
         """Atomically promote BlobRecord and advance contiguous watermark."""
-        now = (
-            utc_now_us()
-            if now_us is None
-            else now_us
-        )
-
+        sequence = self._validate_outbox_seq(outbox_seq)
+        now = utc_now_us() if now_us is None else self._validate_timestamp(now_us)
         with self.database.write_transaction() as connection:
             row = connection.execute(
                 """
@@ -243,38 +231,22 @@ class ArchiveReplicationRepository:
                   ON b.blob_id = o.blob_id
                 WHERE o.outbox_seq = ?
                 """,
-                (outbox_seq,),
+                (sequence,),
             ).fetchone()
-
             if row is None:
                 raise ArchiveReplicationInvariantError(
                     "Archive replication Outbox row disappeared."
                 )
-
-            state = ArchiveReplicationState(
-                str(row["state"])
-            )
-
+            state = ArchiveReplicationState(str(row["state"]))
             if state is ArchiveReplicationState.VERIFIED:
-                self._advance_watermark(
-                    connection,
-                    now_us=now,
-                )
+                self._advance_watermark(connection, now_us=now)
             else:
-                storage_area = BlobStorageArea(
-                    str(row["storage_area"])
-                )
-
+                storage_area = BlobStorageArea(str(row["storage_area"]))
                 if storage_area is not BlobStorageArea.SPOOL:
                     raise ArchiveReplicationInvariantError(
-                        "Pending Archive replication does not "
-                        "reference a spool BlobRecord."
+                        "Pending Archive replication does not reference a spool BlobRecord."
                     )
-
-                blob_id = uuid_from_blob(
-                    bytes(row["blob_id"])
-                )
-
+                blob_id = uuid_from_blob(bytes(row["blob_id"]))
                 blob_cursor = connection.execute(
                     """
                     UPDATE blob_records
@@ -283,18 +255,12 @@ class ArchiveReplicationRepository:
                     WHERE blob_id = ?
                       AND storage_area = 'spool'
                     """,
-                    (
-                        now,
-                        uuid_to_blob(blob_id),
-                    ),
+                    (now, uuid_to_blob(blob_id)),
                 )
-
                 if blob_cursor.rowcount != 1:
                     raise ArchiveReplicationInvariantError(
-                        "BlobRecord storage promotion lost its "
-                        "expected spool state."
+                        "BlobRecord storage promotion lost its expected spool state."
                     )
-
                 outbox_cursor = connection.execute(
                     """
                     UPDATE archive_replication_outbox
@@ -305,30 +271,16 @@ class ArchiveReplicationRepository:
                     WHERE outbox_seq = ?
                       AND state = 'pending'
                     """,
-                    (
-                        now,
-                        outbox_seq,
-                    ),
+                    (now, sequence),
                 )
-
                 if outbox_cursor.rowcount != 1:
                     raise ArchiveReplicationInvariantError(
-                        "Archive replication Outbox confirmation "
-                        "lost its pending state."
+                        "Archive replication Outbox confirmation lost its pending state."
                     )
+                self._advance_watermark(connection, now_us=now)
+        return self.get(sequence)
 
-                self._advance_watermark(
-                    connection,
-                    now_us=now,
-                )
-
-        return self.get(
-            outbox_seq
-        )
-
-    def status(
-        self,
-    ) -> ArchiveReplicationStatus:
+    def status(self) -> ArchiveReplicationStatus:
         counts = self.database.connection.execute(
             """
             SELECT
@@ -344,7 +296,6 @@ class ArchiveReplicationRepository:
             FROM archive_replication_outbox
             """
         ).fetchone()
-
         watermark = self.database.connection.execute(
             """
             SELECT contiguous_verified_seq
@@ -352,25 +303,15 @@ class ArchiveReplicationRepository:
             WHERE singleton_id = 1
             """
         ).fetchone()
-
         if counts is None or watermark is None:
             raise ArchiveReplicationInvariantError(
                 "Archive replication status is incomplete."
             )
-
         return ArchiveReplicationStatus(
-            pending_count=int(
-                counts["pending_count"]
-            ),
-            verified_count=int(
-                counts["verified_count"]
-            ),
-            contiguous_verified_seq=int(
-                watermark["contiguous_verified_seq"]
-            ),
-            max_outbox_seq=int(
-                counts["max_outbox_seq"]
-            ),
+            pending_count=int(counts["pending_count"]),
+            verified_count=int(counts["verified_count"]),
+            contiguous_verified_seq=int(watermark["contiguous_verified_seq"]),
+            max_outbox_seq=int(counts["max_outbox_seq"]),
         )
 
     @staticmethod
@@ -386,14 +327,12 @@ class ArchiveReplicationRepository:
             WHERE state = 'pending'
             """
         ).fetchone()
-
         maximum = connection.execute(
             """
             SELECT COALESCE(MAX(outbox_seq), 0) AS maximum
             FROM archive_replication_outbox
             """
         ).fetchone()
-
         current = connection.execute(
             """
             SELECT contiguous_verified_seq
@@ -401,33 +340,21 @@ class ArchiveReplicationRepository:
             WHERE singleton_id = 1
             """
         ).fetchone()
-
-        if (
-            pending is None
-            or maximum is None
-            or current is None
-        ):
+        if pending is None or maximum is None or current is None:
             raise ArchiveReplicationInvariantError(
                 "Archive replication watermark state is incomplete."
             )
-
         first_pending = pending["first_pending"]
-
         candidate = (
             int(maximum["maximum"])
             if first_pending is None
             else int(first_pending) - 1
         )
-
-        previous = int(
-            current["contiguous_verified_seq"]
-        )
-
+        previous = int(current["contiguous_verified_seq"])
         if candidate < previous:
             raise ArchiveReplicationInvariantError(
                 "Archive replication watermark attempted to move backwards."
             )
-
         connection.execute(
             """
             UPDATE archive_replication_watermark
@@ -435,20 +362,33 @@ class ArchiveReplicationRepository:
                 updated_at_us = ?
             WHERE singleton_id = 1
             """,
-            (
-                candidate,
-                now_us,
-            ),
+            (candidate, now_us),
         )
 
     @staticmethod
-    def _validate_limit(
-        limit: int,
-    ) -> None:
-        if not 1 <= limit <= 1000:
-            raise ValueError(
-                "Archive replication limit must be between 1 and 1000."
-            )
+    def _validate_limit(limit: int) -> int:
+        return _require_int(
+            limit,
+            "Archive replication limit",
+            minimum=1,
+            maximum=1000,
+        )
+
+    @staticmethod
+    def _validate_outbox_seq(outbox_seq: int) -> int:
+        return _require_int(
+            outbox_seq,
+            "Archive replication outbox_seq",
+            minimum=1,
+        )
+
+    @staticmethod
+    def _validate_timestamp(now_us: int) -> int:
+        return _require_int(
+            now_us,
+            "Archive replication timestamp",
+            minimum=0,
+        )
 
     @staticmethod
     def _record_query() -> str:
@@ -478,58 +418,29 @@ class ArchiveReplicationRepository:
         """
 
     @staticmethod
-    def _record_from_row(
-        row: sqlite3.Row,
-    ) -> ArchiveReplicationRecord:
+    def _record_from_row(row: sqlite3.Row) -> ArchiveReplicationRecord:
         blob = BlobRecord(
-            blob_id=uuid_from_blob(
-                bytes(row["blob_id"])
-            ),
-            byte_length=int(
-                row["byte_length"]
-            ),
+            blob_id=uuid_from_blob(bytes(row["blob_id"])),
+            byte_length=int(row["byte_length"]),
             media_type=(
                 str(row["blob_media_type"])
                 if row["blob_media_type"] is not None
                 else None
             ),
-            storage_area=BlobStorageArea(
-                str(row["storage_area"])
-            ),
-            storage_locator=str(
-                row["storage_locator"]
-            ),
-            integrity_sha256=bytes(
-                row["integrity_sha256"]
-            ),
-            encryption_state=str(
-                row["encryption_state"]
-            ),
-            created_at_us=int(
-                row["blob_created_at_us"]
-            ),
-            verified_at_us=int(
-                row["blob_verified_at_us"]
-            ),
+            storage_area=BlobStorageArea(str(row["storage_area"])),
+            storage_locator=str(row["storage_locator"]),
+            integrity_sha256=bytes(row["integrity_sha256"]),
+            encryption_state=str(row["encryption_state"]),
+            created_at_us=int(row["blob_created_at_us"]),
+            verified_at_us=int(row["blob_verified_at_us"]),
         )
-
         return ArchiveReplicationRecord(
-            outbox_seq=int(
-                row["outbox_seq"]
-            ),
+            outbox_seq=int(row["outbox_seq"]),
             blob=blob,
-            target_role=str(
-                row["target_role"]
-            ),
-            state=ArchiveReplicationState(
-                str(row["state"])
-            ),
-            attempt_count=int(
-                row["attempt_count"]
-            ),
-            created_at_us=int(
-                row["created_at_us"]
-            ),
+            target_role=str(row["target_role"]),
+            state=ArchiveReplicationState(str(row["state"])),
+            attempt_count=int(row["attempt_count"]),
+            created_at_us=int(row["created_at_us"]),
             last_attempt_at_us=(
                 int(row["last_attempt_at_us"])
                 if row["last_attempt_at_us"] is not None
@@ -567,9 +478,7 @@ class ArchiveReplicationService:
         self.blob_store = blob_store
         self.runtime_lock_root = runtime_lock_root
 
-    def status(
-        self,
-    ) -> ArchiveReplicationStatus:
+    def status(self) -> ArchiveReplicationStatus:
         return self.repository.status()
 
     def sync_pending(
@@ -577,16 +486,9 @@ class ArchiveReplicationService:
         *,
         limit: int = 100,
     ) -> ArchiveSyncResult:
+        validated_limit = self.repository._validate_limit(limit)
         with runtime_data_lock(self.runtime_lock_root):
-            if not 1 <= limit <= 1000:
-                raise ValueError(
-                    "Archive sync limit must be between 1 and 1000."
-                )
-
-            archive_root = (
-                self.blob_store.paths.archive_root
-            )
-
+            archive_root = self.blob_store.paths.archive_root
             if archive_root is None:
                 return ArchiveSyncResult(
                     attempted=0,
@@ -597,8 +499,7 @@ class ArchiveReplicationService:
                     blocked_reason="archive_root_unconfigured",
                     status=self.repository.status(),
                 )
-
-            if not archive_root.is_dir():
+            if archive_root.is_symlink() or not archive_root.is_dir():
                 return ArchiveSyncResult(
                     attempted=0,
                     verified=0,
@@ -608,27 +509,16 @@ class ArchiveReplicationService:
                     blocked_reason="archive_root_unavailable",
                     status=self.repository.status(),
                 )
-
-            cleaned, cleanup_failures = (
-                self.cleanup_verified_spool_duplicates(
-                    limit=limit
-                )
+            cleaned, cleanup_failures = self.cleanup_verified_spool_duplicates(
+                limit=validated_limit
             )
-
             attempted = 0
             verified = 0
             failed = 0
             blocked_reason: str | None = None
-
-            for record in self.repository.list_pending(
-                limit=limit
-            ):
+            for record in self.repository.list_pending(limit=validated_limit):
                 attempted += 1
-
-                record = self.repository.mark_attempt(
-                    record.outbox_seq
-                )
-
+                record = self.repository.mark_attempt(record.outbox_seq)
                 try:
                     self.blob_store.replicate_spool_blob_to_archive(
                         storage_locator=record.blob.storage_locator,
@@ -652,25 +542,17 @@ class ArchiveReplicationService:
                     )
                     failed += 1
                     continue
-
-                confirmed = self.repository.confirm_verified(
-                    record.outbox_seq
-                )
-
+                confirmed = self.repository.confirm_verified(record.outbox_seq)
                 verified += 1
-
                 try:
-                    was_cleaned = (
-                        self._cleanup_verified_spool_replica_if_unpinned(
-                            confirmed
-                        )
+                    was_cleaned = self._cleanup_verified_spool_replica_if_unpinned(
+                        confirmed
                     )
                 except BlobStoreError:
                     cleanup_failures += 1
                 else:
                     if was_cleaned:
                         cleaned += 1
-
             return ArchiveSyncResult(
                 attempted=attempted,
                 verified=verified,
@@ -686,9 +568,6 @@ class ArchiveReplicationService:
         record: ArchiveReplicationRecord,
     ) -> bool:
         """Delete a verified spool duplicate only while no backup pin can race in."""
-        # BEGIN IMMEDIATE serializes this check with BackupService's
-        # backup_snapshot_pins insertion transaction. Once a pin is committed,
-        # physical cleanup cannot pass this point until that pin is released.
         with self.repository.database.write_transaction() as connection:
             pinned = connection.execute(
                 """
@@ -697,29 +576,14 @@ class ArchiveReplicationService:
                 WHERE blob_id = ?
                 LIMIT 1
                 """,
-                (
-                    uuid_to_blob(
-                        record.blob.blob_id
-                    ),
-                ),
+                (uuid_to_blob(record.blob.blob_id),),
             ).fetchone()
-
             if pinned is not None:
                 return False
-
-            return (
-                self.blob_store
-                .cleanup_verified_spool_replica(
-                    storage_locator=(
-                        record.blob.storage_locator
-                    ),
-                    expected_sha256=(
-                        record.blob.integrity_sha256
-                    ),
-                    expected_length=(
-                        record.blob.byte_length
-                    ),
-                )
+            return self.blob_store.cleanup_verified_spool_replica(
+                storage_locator=record.blob.storage_locator,
+                expected_sha256=record.blob.integrity_sha256,
+                expected_length=record.blob.byte_length,
             )
 
     def cleanup_verified_spool_duplicates(
@@ -728,23 +592,18 @@ class ArchiveReplicationService:
         limit: int = 500,
     ) -> tuple[int, int]:
         """Reconcile crashes after DB confirmation but before spool deletion."""
+        validated_limit = self.repository._validate_limit(limit)
         with runtime_data_lock(self.runtime_lock_root):
             cleaned = 0
             failures = 0
-
-            for record in self.repository.list_verified(
-                limit=limit
-            ):
+            for record in self.repository.list_verified(limit=validated_limit):
                 try:
-                    was_cleaned = (
-                        self._cleanup_verified_spool_replica_if_unpinned(
-                            record
-                        )
+                    was_cleaned = self._cleanup_verified_spool_replica_if_unpinned(
+                        record
                     )
                 except BlobStoreError:
                     failures += 1
                 else:
                     if was_cleaned:
                         cleaned += 1
-
             return cleaned, failures
