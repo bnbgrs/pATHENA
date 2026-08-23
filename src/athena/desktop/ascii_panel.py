@@ -103,13 +103,13 @@ def _normalized_semantic_text(value: str) -> str:
 
 
 class AsciiPanel(QPlainTextEdit):
-    """Drive the live PALLAS field and remain usable as a compact text surface.
+    """Drive the live local PALLAS field from visible workspace semantics.
 
-    The current desktop shell still owns a legacy ``PallasVisualPlaceholder`` in
-    ``window.py``. This controller binds to that widget at runtime and replaces
-    its paint event. The cellular field is local-only and samples visible desktop
-    text so PALLAS reacts to the active conversation, knowledge and research
-    material without requiring a model call or network access.
+    The shell retains a lightweight 9:16 canvas widget in ``window.py``. This
+    controller binds to that canvas before the first event-loop paint whenever
+    possible, then keeps it animated and semantically synchronized without a
+    model call or network dependency. The periodic bind remains as recovery for
+    unusual widget construction order or future shell refactors.
     """
 
     def __init__(self) -> None:
@@ -133,6 +133,11 @@ class AsciiPanel(QPlainTextEdit):
         self._timer.timeout.connect(self._tick)
         self._timer.start()
         self._refresh_text_surface()
+
+        # Window construction creates the canvas immediately after this controller.
+        # Queueing a zero-delay bind means the event filter is normally installed
+        # before the first user-visible paint instead of waiting for the 220 ms tick.
+        QTimer.singleShot(0, self._bind_pallas_target)
 
     def set_context(self, context: str) -> None:
         normalized = context.casefold().strip() or "idle"
