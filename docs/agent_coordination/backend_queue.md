@@ -9,10 +9,10 @@ Last queue refresh: 2026-08-23.
 ### BE-028 — Clone/journal migration before live schema mutation
 - Priority: P1
 - Status: IN_PROGRESS
-- Evidence: clone-first stack is implemented: migration metadata/free-space preflight, SQLite Online Backup clone, durable phase journal, exclusive migration lock, full integrity/FK/version verification, rollback-preserving activation, orphan/journal recovery boundaries and Windows junction/reparse hardening. Read-only startup planning, candidate-only schema execution, emergency reserve provisioning and ordered `StorageBootstrapService` routing are implemented. Remaining work is the identity-bound filesystem hardening tracked as BE-036 plus the Alembic-vs-custom architecture decision.
-- Components: `migration_safety.py`, `migration_clone.py`, `migration_journal.py`, `migration_lock.py`, `migration_activation.py`, `migration_coordinator.py`, `migration_executor.py`, `migration_plan.py`, `bootstrap.py` and tests.
+- Evidence: clone-first stack is implemented: migration metadata/free-space preflight, SQLite Online Backup clone, durable phase journal, exclusive migration lock, full integrity/FK/version verification, rollback-preserving activation, orphan/journal recovery boundaries and Windows junction/reparse hardening. Read-only startup planning, candidate-only schema execution, emergency reserve provisioning and `StorageBootstrapService` are now wired into the real `AthenaApplication` lifecycle before protected/database-dependent services. Remaining work is the identity-bound filesystem hardening tracked as BE-036 plus the Alembic-vs-custom architecture decision.
+- Components: `migration_safety.py`, `migration_clone.py`, `migration_journal.py`, `migration_lock.py`, `migration_activation.py`, `migration_coordinator.py`, `migration_executor.py`, `migration_plan.py`, `bootstrap.py`, `core/application.py` and tests.
 - Dependencies: BE-027/029/031/032/033/034/035 DONE.
-- Last verification: 2026-08-23; product routing is present on current remote. Targeted tests exist but were not executed in this automation runtime because `github.com` DNS resolution failed from the isolated container.
+- Last verification: 2026-08-23 current remote; GitHub Actions on the earlier milestone exposed Windows clone-fsync and candidate-row-factory regressions, both fixed in subsequent backend commits. New gate run is pending.
 
 ### BE-034 — Bound migration journal reads before JSON decode
 - Priority: P2
@@ -20,7 +20,7 @@ Last queue refresh: 2026-08-23.
 - Evidence: `migration_state.json` is capped at 64 KiB. Store reads verify opened-handle identity, regular-file type and `fstat().st_size` before `fdopen()` or JSON parsing; reads are additionally bounded to ceiling+1. Direct decode and encoded publication enforce the same ceiling, preventing ATHENA from producing a journal it cannot later recover.
 - Components: `storage/migration_journal.py`, `tests/unit/test_migration_journal_resource_bounds.py`.
 - Dependencies: BE-028 migration journal.
-- Last verification: 2026-08-23 current remote; targeted oversize tests added but not executed in the isolated runtime.
+- Last verification: 2026-08-23 current remote; targeted oversize tests added; latest full gate still pending.
 
 ### BE-035 — Bind migration lock to migration-root identity
 - Priority: P1
@@ -28,7 +28,7 @@ Last queue refresh: 2026-08-23.
 - Evidence: the cross-process lock now lives in the migration root's parent so renaming/replacing the root cannot create an independent second lock at the same logical path. The original root filesystem identity is fenced before entry and after a successful critical section; deterministic replacement regression added.
 - Components: `storage/migration_lock.py`, `tests/unit/test_migration_lock.py`.
 - Dependencies: BE-028 migration lock.
-- Last verification: 2026-08-23 current remote; targeted tests added but not executed in the isolated runtime.
+- Last verification: 2026-08-23 current remote; targeted tests added; latest full gate pending.
 
 ### BE-036 — Close migration parent-replacement TOCTOU
 - Priority: P1
@@ -59,22 +59,22 @@ Last queue refresh: 2026-08-23.
 - Status: DONE
 - Evidence: `EmergencyReserveStore` plus bootstrap integration implement Beta sizing `max(256 MiB, min(1 GiB, 1% volume))`, non-sparse allocation, durable persistence, path/reparse safety, explicit emergency release and test injection. Normal shutdown retains the reserve.
 - Components: `storage/emergency_reserve.py`, `storage/bootstrap.py`, tests.
-- Last verification: 2026-08-23 current remote; tests present, not executed in isolated runtime.
+- Last verification: 2026-08-23; Windows stale test expectation corrected after GitHub Actions evidence.
 
 ### BE-030 — Disk-pressure state controller and runtime write gate
 - Priority: P1
 - Status: DONE
-- Evidence: integer-only Beta thresholds are implemented; runtime canonical `SQLiteDatabase.write_transaction()` now invokes the controller gate before `BEGIN IMMEDIATE`. First runtime EMERGENCY releases only the reserve, latches read-only safe mode for the controller lifetime, blocks the current and subsequent noncritical writes, and leaves restart/bootstrap to re-evaluate recovery.
-- Components: `storage/disk_pressure.py`, `storage/database.py`, `storage/bootstrap.py`, targeted tests.
-- Last verification: 2026-08-23 current remote. Static integration complete; targeted tests were added but not executed because isolated runtime could not resolve `github.com`.
+- Evidence: integer-only Beta thresholds are implemented; runtime canonical `SQLiteDatabase.write_transaction()` invokes the controller gate before `BEGIN IMMEDIATE`. First runtime EMERGENCY releases only the reserve, latches read-only safe mode for the controller lifetime, blocks current/subsequent noncritical writes, and the real application startup now binds this gate through `StorageBootstrapService`.
+- Components: `storage/disk_pressure.py`, `storage/database.py`, `storage/bootstrap.py`, `core/application.py`, targeted tests.
+- Last verification: 2026-08-23; Linux/Windows workflow evidence exposed only stale row/stub assertions around this path, now corrected. New gate pending.
 
 ### BE-031 — Candidate-only schema executor
 - Priority: P1
 - Status: DONE
-- Evidence: `migrate_schema_candidate()` runs the existing schema engine only against the clone candidate, requires current `SCHEMA_VERSION`, requires a complete WAL checkpoint, restores DELETE journal mode and fails if WAL/SHM sidecars remain.
+- Evidence: `migrate_schema_candidate()` runs the existing schema engine only against the clone candidate, requires current `SCHEMA_VERSION`, complete WAL checkpoint, DELETE journal mode and no sidecars. GitHub Actions exposed that historical schema verifiers require mapping rows; the executor now sets `sqlite3.Row` before `initialize_schema()`.
 - Components: `storage/migration_executor.py`, targeted tests.
 - Dependencies: BE-028 standalone coordinator.
-- Last verification: 2026-08-23; executor and incomplete-checkpoint regressions added, not executed.
+- Last verification: 2026-08-23; regression observed in GitHub Actions and product fix committed; rerun pending.
 
 ### BE-032 — Read-only startup migration planner
 - Priority: P1
@@ -82,15 +82,23 @@ Last queue refresh: 2026-08-23.
 - Evidence: `plan_database_migration()` converts the preflight report into no-op for missing/current DB or an exact clone-required legacy-to-current descriptor; unsupported versions fail closed.
 - Components: `storage/migration_plan.py`, targeted tests.
 - Dependencies: BE-027.
-- Last verification: 2026-08-23; tests added, not executed.
+- Last verification: 2026-08-23 current remote.
 
 ### BE-033 — Integrate safe storage bootstrap ordering
 - Priority: P1
 - Status: DONE
-- Evidence: `StorageBootstrapService` now owns RuntimeLayout -> migration-root/preflight/recovery -> EmergencyReserve -> clone migration if required -> database startup, and binds runtime disk-pressure write arbitration to the database before startup.
-- Components: `storage/bootstrap.py`, `storage/database.py`, bootstrap tests.
+- Evidence: `StorageBootstrapService` owns RuntimeLayout -> migration-root/preflight/recovery -> EmergencyReserve -> clone migration if required -> database startup, binds runtime disk-pressure write arbitration, and is now the first actual `AthenaApplication` lifecycle service instead of the previous direct RuntimeLayout + SQLite startup.
+- Components: `storage/bootstrap.py`, `storage/database.py`, `core/application.py`, bootstrap tests.
 - Dependencies: BE-029/031/032 DONE.
-- Last verification: 2026-08-23 current remote; integration regression added, not executed in isolated runtime.
+- Last verification: 2026-08-23 current remote; product runtime wiring confirmed after re-reading full `AthenaApplication`; new CI gate pending.
+
+### BE-037 — Bound backup deletion-ledger resource usage
+- Priority: P2
+- Status: DONE
+- Evidence: target-controlled deletion-ledger records and head are now read through no-follow handle-verified bounded reads. Record count, per-record bytes, head bytes and aggregate record bytes are capped; publication enforces corresponding write-side limits so ATHENA cannot create unrecoverable ledger state.
+- Components: `backup/deletion_storage.py`, `tests/unit/test_backup_deletion_storage_resource_bounds.py`.
+- Dependencies: existing deletion-ledger codec/storage contract.
+- Last verification: 2026-08-23 current remote; targeted resource-bound regressions added; new gate pending.
 
 ## Blocked / in-progress older slices
 
