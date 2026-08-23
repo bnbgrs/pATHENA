@@ -449,19 +449,32 @@ class SourceChunkingService:
             prompt_template_id=None,
             prompt_template_version=None,
         )
-        # Finish run metadata before publication. This ordering guarantees that
-        # visible SourceChunks never point at a non-succeeded ProcessingRun,
-        # even though athena.db and Derived search.db cannot share one txn.
-        finished = self.runs.finish_run(run.processing_run_id, status="succeeded")
-        published_count = self.store.publish_staged_build(
-            build_signature=build_signature,
-            processing_run_id=finished.processing_run_id,
-            created_at_us=utc_now_us(),
-        )
-        if published_count != expected_chunk_count:
-            raise SourceChunkIntegrityError(
-                "Published large-source chunk count changed during atomic publication."
+        try:
+            published_count = self.store.publish_staged_build(
+                build_signature,
+                processing_run_id=run.processing_run_id,
+                created_at_us=utc_now_us(),
             )
+            if published_count != expected_chunk_count:
+                raise SourceChunkIntegrityError(
+                    "Published chunk count disagrees with deterministic staged plan."
+                )
+            self.verify_current_profile_build(
+                representation_id,
+                chunking_profile_id=profile.chunking_profile_id,
+                expected_build_signature=build_signature,
+                expected_chunk_count=expected_chunk_count,
+            )
+            finished = self.runs.finish_run(run.processing_run_id, status="succeeded")
+        except Exception as exc:
+            current_run = self.runs.load_run(run.processing_run_id)
+            if current_run.status == "running":
+                self.runs.finish_run(
+                    run.processing_run_id,
+                    status="failed",
+                    error_detail=type(exc).__name__,
+                )
+            raise
         return SourceChunkPublishResult(
             profile=profile,
             processing_run=finished,
@@ -617,6 +630,11 @@ class SourceChunkingService:
     def get(self, chunk_id: uuid.UUID) -> SourceChunkRecord:
         return self.store.get(chunk_id)
 
+    def count_for_representation(self, representation_id: uuid.UUID) -> int:
+        """Return the exact visible chunk count without materializing large builds."""
+        self.source_text.get(representation_id)
+        return self.store.count_for_representation(representation_id)
+
     def list_for_representation(
         self,
         representation_id: uuid.UUID,
@@ -690,191 +708,140 @@ def _chunk_spans(
     *,
     target_size: int,
     units: tuple[tuple[int, int], ...] | None = None,
-    preferred_boundaries: tuple[int, ...] = (),
+    preferred_boundaries: frozenset[int] = frozenset(),
 ) -> tuple[tuple[int, int], ...]:
-    """Return contiguous exact-text spans, preferring supplied structure boundaries."""
+    if not text:
+        return ((0, 0),)
     if target_size <= 0:
-        raise ValueError("target_size must be positive.")
+        raise ValueError("Chunk target_size must be positive.")
+    if units is None:
+        units = _paragraph_units(text)
+    if not units:
+        return ((0, len(text)),)
+
+    spans: list[tuple[int, int]] = []
+    chunk_start = units[0][0]
+    chunk_end = units[0][1]
+
+    for unit_start, unit_end in units[1:]:
+        if unit_start != chunk_end:
+            raise SourceChunkIntegrityError("Chunking units are not contiguous.")
+        proposed_length = unit_end - chunk_start
+        if proposed_length <= target_size:
+            chunk_end = unit_end
+            continue
+        if chunk_start < chunk_end:
+            spans.append((chunk_start, chunk_end))
+        chunk_start = unit_start
+        chunk_end = unit_end
+
+        while chunk_end - chunk_start > target_size:
+            split = _bounded_split_point(
+                text,
+                chunk_start,
+                min(chunk_start + target_size, chunk_end),
+                preferred_boundaries=preferred_boundaries,
+            )
+            if split <= chunk_start:
+                split = min(chunk_start + target_size, chunk_end)
+            spans.append((chunk_start, split))
+            chunk_start = split
+
+    if chunk_start < chunk_end:
+        spans.append((chunk_start, chunk_end))
+
+    if not spans:
+        spans.append((0, len(text)))
+
+    # Cover empty trailing/leading separators and guarantee exact concatenation.
+    normalized: list[tuple[int, int]] = []
+    expected_start = 0
+    for start, end in spans:
+        start = expected_start
+        if end < start:
+            raise SourceChunkIntegrityError("Chunk span end precedes its start.")
+        normalized.append((start, end))
+        expected_start = end
+    if normalized[-1][1] < len(text):
+        normalized[-1] = (normalized[-1][0], len(text))
+    return tuple(normalized)
+
+
+def _paragraph_units(text: str) -> tuple[tuple[int, int], ...]:
     if not text:
         return ()
+    units: list[tuple[int, int]] = []
+    cursor = 0
+    index = 0
+    while index < len(text):
+        separator = text.find("\n\n", index)
+        if separator < 0:
+            units.append((cursor, len(text)))
+            break
+        unit_end = separator + 2
+        units.append((cursor, unit_end))
+        cursor = unit_end
+        index = unit_end
+    if not units:
+        units.append((0, len(text)))
+    return tuple(units)
 
-    active_units = units if units is not None else _paragraph_units(text)
-    spans: list[tuple[int, int]] = []
-    current_start: int | None = None
-    current_end: int | None = None
 
-    for unit_start, unit_end in active_units:
-        if unit_end - unit_start > target_size:
-            if current_start is not None and current_end is not None:
-                spans.append((current_start, current_end))
-                current_start = current_end = None
-            spans.extend(
-                _split_long_span(
-                    text,
-                    unit_start,
-                    unit_end,
-                    target_size,
-                    preferred_boundaries=preferred_boundaries,
-                )
-            )
-            continue
-
-        if current_start is None:
-            current_start, current_end = unit_start, unit_end
-            continue
-
-        assert current_end is not None
-        if unit_end - current_start <= target_size:
-            current_end = unit_end
-        else:
-            spans.append((current_start, current_end))
-            current_start, current_end = unit_start, unit_end
-
-    if current_start is not None and current_end is not None:
-        spans.append((current_start, current_end))
-
-    if spans and spans[0][0] != 0:
-        raise RuntimeError("Chunking failed to cover the representation from offset zero.")
-    if spans and spans[-1][1] != len(text):
-        raise RuntimeError("Chunking failed to cover the representation through EOF.")
-    for left, right in zip(spans, spans[1:], strict=False):
-        if left[1] != right[0]:
-            raise RuntimeError("Chunking produced a gap or overlap in exact-text coverage.")
-    return tuple(spans)
+def _document_structure_units(
+    text: str,
+    structures: tuple[SourceRepresentationStructureRecord, ...],
+) -> tuple[tuple[tuple[int, int], ...], frozenset[int]]:
+    structural_boundaries = sorted(
+        {
+            item.end_offset
+            for item in structures
+            if 0 < item.end_offset < len(text)
+        }
+    )
+    split_points = [0, *structural_boundaries, len(text)]
+    units = tuple(
+        (start, end)
+        for start, end in zip(split_points, split_points[1:])
+        if start < end
+    )
+    if not units and text:
+        units = ((0, len(text)),)
+    return units, frozenset(structural_boundaries)
 
 
 def _verify_structure_spans(
     text: str,
     structures: tuple[SourceRepresentationStructureRecord, ...],
 ) -> None:
-    if tuple(item.structure_index for item in structures) != tuple(range(len(structures))):
-        raise SourceChunkIntegrityError(
-            "Retained document structure indexes are not contiguous from zero."
-        )
-    known_ids: set[uuid.UUID] = set()
-    for item in structures:
-        if item.parent_structure_id is not None and item.parent_structure_id not in known_ids:
+    previous_index = -1
+    for structure in structures:
+        if structure.structure_index <= previous_index:
+            raise SourceChunkIntegrityError("Representation structures are not index-ordered.")
+        previous_index = structure.structure_index
+        if not 0 <= structure.start_offset <= structure.end_offset <= len(text):
             raise SourceChunkIntegrityError(
-                "Retained document structure parent does not precede its child."
+                "Representation structure range is outside retained text."
             )
-        if not 0 <= item.start_offset <= item.end_offset <= len(text):
-            raise SourceChunkIntegrityError(
-                "Retained document structure range is outside the representation."
-            )
-        actual_hash = hashlib.sha256(
-            text[item.start_offset : item.end_offset].encode("utf-8")
-        ).digest()
-        if actual_hash != item.content_hash:
-            raise SourceChunkIntegrityError(
-                "Retained document structure hash disagrees with its representation."
-            )
-        known_ids.add(item.structure_id)
 
 
-def _document_structure_units(
-    text: str,
-    structures: tuple[SourceRepresentationStructureRecord, ...],
-) -> tuple[tuple[tuple[int, int], ...], tuple[int, ...]]:
-    top_level_starts = tuple(
-        sorted(
-            {
-                item.start_offset
-                for item in structures
-                if item.parent_structure_id is None
-            }
-        )
-    )
-    if not top_level_starts or top_level_starts[0] != 0:
-        raise SourceChunkIntegrityError(
-            "Retained document structure does not cover the representation from offset zero."
-        )
-    unit_boundaries = (*top_level_starts, len(text))
-    units = tuple(
-        (start, end)
-        for start, end in zip(unit_boundaries[:-1], unit_boundaries[1:], strict=True)
-        if start < end
-    )
-    if not units or units[0][0] != 0 or units[-1][1] != len(text):
-        raise SourceChunkIntegrityError(
-            "Retained document structure does not provide contiguous top-level coverage."
-        )
-    structure_boundaries = tuple(
-        sorted(
-            {
-                offset
-                for item in structures
-                for offset in (item.start_offset, item.end_offset)
-                if 0 < offset < len(text)
-            }
-        )
-    )
-    return units, structure_boundaries
-
-
-def _paragraph_units(text: str) -> tuple[tuple[int, int], ...]:
-    units: list[tuple[int, int]] = []
-    start = 0
-    index = 0
-    while index < len(text):
-        if text[index] == "\n":
-            run_end = index + 1
-            while run_end < len(text) and text[run_end] == "\n":
-                run_end += 1
-            if run_end - index >= 2:
-                units.append((start, run_end))
-                start = run_end
-            index = run_end
-        else:
-            index += 1
-    if start < len(text):
-        units.append((start, len(text)))
-    if not units:
-        units.append((0, len(text)))
-    return tuple(units)
-
-
-def _split_long_span(
-    text: str,
-    start: int,
-    end: int,
-    target_size: int,
-    *,
-    preferred_boundaries: tuple[int, ...] = (),
-) -> list[tuple[int, int]]:
-    result: list[tuple[int, int]] = []
-    cursor = start
-    while end - cursor > target_size:
-        hard_end = cursor + target_size
-        cut = _preferred_cut(
-            text,
-            cursor,
-            hard_end,
-            preferred_boundaries=preferred_boundaries,
-        )
-        if cut <= cursor:
-            cut = hard_end
-        result.append((cursor, cut))
-        cursor = cut
-    if cursor < end:
-        result.append((cursor, end))
-    return result
-
-
-def _preferred_cut(
+def _bounded_split_point(
     text: str,
     start: int,
     hard_end: int,
     *,
-    preferred_boundaries: tuple[int, ...] = (),
+    preferred_boundaries: frozenset[int] = frozenset(),
 ) -> int:
-    if preferred_boundaries:
-        boundary_index = bisect_right(preferred_boundaries, hard_end) - 1
-        if boundary_index >= 0:
-            boundary = preferred_boundaries[boundary_index]
-            if boundary > start:
-                return boundary
-    for needle in ("\n", " ", "\t"):
-        position = text.rfind(needle, start + 1, hard_end + 1)
-        if position > start:
-            return position + 1
+    if hard_end >= len(text):
+        return len(text)
+    candidates = [
+        boundary
+        for boundary in preferred_boundaries
+        if start < boundary <= hard_end
+    ]
+    if candidates:
+        return max(candidates)
+    for marker in ("\n\n", "\n", ". ", "; ", ", ", " "):
+        position = text.rfind(marker, start + 1, hard_end + 1)
+        if position >= start + 1:
+            return position + len(marker)
     return hard_end
