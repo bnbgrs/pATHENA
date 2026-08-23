@@ -12,7 +12,9 @@ class ProviderHealthStatus(str, Enum):
     """Normalized provider health states used by the Core."""
 
     UNAVAILABLE = "unavailable"
+    STARTING = "starting"
     READY = "ready"
+    BUSY = "busy"
     DEGRADED = "degraded"
     ERROR = "error"
 
