@@ -14,6 +14,7 @@ from athena.desktop.api_controller import DesktopApiController
 from athena.desktop.command_palette import install_command_palette
 from athena.desktop.files_workspace import install_files_workspace
 from athena.desktop.knowledge_workspace import install_knowledge_workspace
+from athena.desktop.research_workspace import install_research_workspace
 from athena.desktop.supervisor import DesktopCoreSupervisor
 from athena.desktop.system_workspace import install_system_workspace
 from athena.desktop.theme import APP_STYLESHEET
@@ -93,6 +94,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     controller = DesktopApiController(client)
     window = AthenaMainWindow(api_controller=controller)
     knowledge_workspace = install_knowledge_workspace(window, controller)
+    research_workspace = install_research_workspace(window)
     files_workspace = install_files_workspace(window)
     system_workspace = install_system_workspace(window, controller)
     command_palette = install_command_palette(window)
@@ -102,6 +104,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     exit_code = app.exec()
     heartbeat.stop()
     knowledge_workspace.deleteLater()
+    research_workspace.deleteLater()
     files_workspace.deleteLater()
     system_workspace.deleteLater()
     command_palette.deleteLater()
