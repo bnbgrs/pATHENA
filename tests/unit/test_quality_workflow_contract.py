@@ -35,6 +35,15 @@ def test_quality_workflow_avoids_duplicate_feature_branch_push_runs() -> None:
     assert "pull_request:" in workflow
 
 
+def test_quality_workflow_has_disposable_local_smoke_lane() -> None:
+    workflow = _workflow_text()
+
+    assert "local-smoke:" in workflow
+    assert "name: Local install smoke" in workflow
+    assert "name: Run disposable Core/API restart smoke" in workflow
+    assert "athena-local-smoke --restart-cycles 1" in workflow
+
+
 def test_quality_workflow_has_targeted_windows_path_safety_lane() -> None:
     workflow = _workflow_text()
 
