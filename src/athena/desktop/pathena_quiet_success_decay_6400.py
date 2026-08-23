@@ -61,9 +61,11 @@ class QuietSuccessDecayController(QObject):
         self._sync(widget)
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
+        labels = getattr(self, "_labels", None)
         if (
-            isinstance(watched, QWidget)
-            and watched in self._labels
+            isinstance(labels, dict)
+            and isinstance(watched, QWidget)
+            and watched in labels
             and isinstance(event, QDynamicPropertyChangeEvent)
             and bytes(event.propertyName().data()) == b"pathenaUiState"
         ):
