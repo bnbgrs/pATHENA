@@ -19,6 +19,15 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+_ACCESSIBLE_NAMES = {
+    "context_slider": "Context size slider",
+    "context_spin": "Context size exact value",
+    "max_output_slider": "Maximum output slider",
+    "max_output_spin": "Maximum output exact value",
+    "temperature_spin": "Sampling temperature",
+    "thinking_checkbox": "Thinking and reasoning",
+}
+
 
 class SettingsComprehensionController(QObject):
     """Mirror selected-model facts into concise, truthful settings guidance."""
@@ -79,6 +88,7 @@ class SettingsComprehensionController(QObject):
 
         settings_value = getattr(self.window, "settings_model_value", None)
         if isinstance(settings_value, QWidget):
+            settings_value.setAccessibleName("Selected local model")
             settings_value.setProperty("pathenaSettingsModelState", model_state)
             settings_value.setAccessibleDescription(
                 self._model_description(model, model_state, capacity)
@@ -132,6 +142,9 @@ class SettingsComprehensionController(QObject):
         widget = getattr(self.window, attribute_name, None)
         if not isinstance(widget, QWidget):
             return
+        accessible_name = _ACCESSIBLE_NAMES.get(attribute_name)
+        if accessible_name is not None:
+            widget.setAccessibleName(accessible_name)
         widget.setToolTip(text)
         widget.setStatusTip(text)
         widget.setAccessibleDescription(text)
