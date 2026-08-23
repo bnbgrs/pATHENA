@@ -99,5 +99,8 @@ jobs:
       - name: Probe native active-state locality
         run: uv run --locked --extra dev python -c "from pathlib import Path; from athena.storage.locality import assert_active_state_root_local; assert_active_state_root_local(Path.cwd())"
 
-      - name: Run Windows path-safety regressions
-        run: uv run --locked --extra dev pytest -q tests/unit/test_storage_locality.py tests/unit/test_database_preflight_locality.py tests/unit/test_runtime_paths.py tests/unit/test_migration_clone.py tests/unit/test_migration_journal.py tests/unit/test_emergency_reserve.py
+      - name: Run deterministic Windows locality regressions
+        run: uv run --locked --extra dev pytest -q tests/unit/test_storage_locality.py -k windows
+
+      - name: Run Windows storage path regressions
+        run: uv run --locked --extra dev pytest -q tests/unit/test_database_preflight_locality.py tests/unit/test_runtime_paths.py tests/unit/test_migration_clone.py tests/unit/test_migration_journal.py tests/unit/test_emergency_reserve.py
