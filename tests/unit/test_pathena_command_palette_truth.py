@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QDialog,
     QLineEdit,
     QListWidget,
+    QPlainTextEdit,
     QPushButton,
     QVBoxLayout,
     QWidget,
@@ -38,6 +39,7 @@ class _FakePalette(QObject):
         self.dialog.setLayout(QVBoxLayout())
         self.query = QLineEdit(self.dialog)
         self.results = QListWidget(self.dialog)
+        self.help_text = QPlainTextEdit(self.dialog)
         self.dialog.layout().addWidget(self.query)
         self.dialog.layout().addWidget(self.results)
         self._filtered_commands = [_FakeCommand("New conversation")]
@@ -133,3 +135,12 @@ def test_command_rows_expose_availability_and_current_scope_to_accessibility() -
     assert "Current command: New conversation, unavailable" in (
         palette.results.accessibleDescription()
     )
+
+
+def test_command_search_and_help_have_stable_assistive_semantics() -> None:
+    _window, palette, _controller = _surface(enabled=True)
+
+    assert palette.query.accessibleName() == "Command search"
+    assert "existing pATHENA commands" in palette.query.accessibleDescription()
+    assert palette.help_text.accessibleName() == "Help and capabilities"
+    assert "Read-only guide" in palette.help_text.accessibleDescription()
