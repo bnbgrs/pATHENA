@@ -2,7 +2,7 @@
 
 This is the working security model for `agent/pathena`. It records concrete trust boundaries and verified invariants so security work follows real code paths instead of hypothetical features.
 
-Last reviewed baseline: `6f5da98cc8a48029773f2a54f9bed92b7fd946e9` (2026-08-23).
+Last reviewed baseline: current `agent/pathena` after security coordination commits on 2026-08-23.
 
 ## Security goals
 
@@ -14,6 +14,7 @@ Last reviewed baseline: `6f5da98cc8a48029773f2a54f9bed92b7fd946e9` (2026-08-23).
 6. Cryptography must use established libraries/primitives with authenticated encryption and explicit key-management semantics; no custom cryptography.
 7. Updates, dependencies and downloaded artifacts must preserve origin/integrity guarantees appropriate to their privilege.
 8. Persisted cryptographic work factors must be resource-bounded before invoking expensive primitives so corrupted metadata cannot create avoidable local denial of service.
+9. Durable spool/archive/backup writes must remain confined beneath their configured storage roots even if hostile symlink/junction/reparse-point ancestors are present.
 
 ## Trust boundaries
 
@@ -77,6 +78,31 @@ Last reviewed baseline: `6f5da98cc8a48029773f2a54f9bed92b7fd946e9` (2026-08-23).
 
 **Current status:** DOCX/HTML/PDF native parser boundaries have been statically traced; this is not a blanket claim about every import path or parser dependency vulnerability.
 
+### Raw Source bytes -> Durable Spool / Archive Root
+
+**Assets:** source bytes, filesystem confinement, integrity of content-addressed storage.
+
+**Verified controls:**
+- imported source paths reject a symlink at the requested leaf and are copied through exclusive random staging files while SHA-256 and byte length are computed;
+- capture detects size/mtime changes during the copy;
+- content-addressed blobs are hash-verified before durable publication;
+- read/purge enumeration paths contain root-containment and symlink checks.
+
+**Open risk:** `SEC-006` — the blob write path `_copy_into_root()` does not currently prove that existing hash-prefix ancestors are non-link directories confined beneath the configured root. A hostile local filesystem mutation can therefore redirect a later write through a symlink/junction/reparse-point ancestor. Required invariant: resolve/validate the destination parent under the configured root immediately before temp creation and again before publication, with Windows reparse-point coverage where executable.
+
+### Backup target -> isolated restore root
+
+**Assets:** restored database, Raw Source replicas, live runtime isolation, destination filesystem.
+
+**Verified controls:**
+- restore requires an absolute destination that does not overlap live roots or the backup target and requires the destination to be absent;
+- backup manifest hash and completion marker are verified before restore;
+- manifest object paths are canonicalized through `_safe_relative()` and content-addressed object paths must match their declared digest;
+- `_safe_existing_file()` resolves backup object sources beneath the backup target and rejects leaf symlinks;
+- copied database/blob content is hash-checked and the restored SQLite database undergoes integrity, foreign-key and schema checks before atomic publication.
+
+**Threats to continue scanning:** ancestor-link races on destination/target paths, Windows reparse-point behavior, manifest/resource amplification, and retention/GC deletion confinement.
+
 ### Protected Content metadata -> KDF / encryption
 
 **Assets:** availability of unlock/recovery, Root Key confidentiality, protected payload integrity.
@@ -117,7 +143,7 @@ Last reviewed baseline: `6f5da98cc8a48029773f2a54f9bed92b7fd946e9` (2026-08-23).
 - Malicious or compromised external website/source.
 - Untrusted document/file imported by the user.
 - Network attacker on a clearnet path.
-- Local unprivileged process or another local user able to inspect incorrectly protected runtime files.
+- Local unprivileged process or another local user able to inspect or mutate incorrectly protected runtime/storage files.
 - Malicious dependency/update artifact.
 - Accidental application behavior that bypasses offline/Tor/network policy.
 
