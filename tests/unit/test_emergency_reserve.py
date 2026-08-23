@@ -84,7 +84,7 @@ def test_store_rejects_wrong_sized_existing_reserve(tmp_path: Path) -> None:
     path.write_bytes(b"x" * 128)
     store = EmergencyReserveStore(state_root)
 
-    with pytest.raises(EmergencyReserveError, match="does not match"):
+    with pytest.raises(EmergencyReserveError, match="exactly match"):
         store.ensure(required_bytes=4096, write_chunk_bytes=1024)
 
     assert path.stat().st_size == 128
