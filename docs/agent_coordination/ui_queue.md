@@ -66,7 +66,10 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 | UI-057 | P1 | DONE | BackupService restore contract requires `state=complete` and `verification_status` `verified_light`/`verified_deep`; installed BackupActionTruth mirrors that contract. Targeted tests exist, execution blocked by runtime DNS. |
 | UI-058 | P2 | DONE | Backup VERIFY/DEEP VERIFY require a complete listed snapshot; RESTORE additionally requires verified_light/deep. Existing truth-layer tests cover incomplete, complete-unverified and verified-complete states. |
 | UI-059 | P2 | DONE | Backup action accessible descriptions/tooltips include selected snapshot ID, state, verification and blocker/recovery reason. Existing targeted tests verify ID/reason copy. |
-| UI-060 | P1 | DONE | BackupActionTruth now intercepts snapshot-action EnabledChange so base `_set_controls(True)` cannot transiently expose ineligible verify/restore actions after busy completion. Commit `0a79a0b98aa70afcd0a2e3ac029f2105fe9b73d3`; targeted regression test added in `e7c99f9da7e103d937e0b3f41f7561a0c664df91`; execution NOT EXECUTABLE because checkout DNS failed. |
+| UI-060 | P1 | DONE | BackupActionTruth intercepts snapshot-action EnabledChange so base `_set_controls(True)` cannot transiently expose ineligible verify/restore actions after busy completion. Commits `0a79a0b98aa70afcd0a2e3ac029f2105fe9b73d3` and `e7c99f9da7e103d937e0b3f41f7561a0c664df91`; targeted execution NOT EXECUTABLE because checkout DNS failed. |
+| UI-061 | P2 | DONE | Eligibility changes return focus to the snapshot list only when disabling the focused action would otherwise leave focus unowned; newer intentional focus is preserved. Commits `7abe89e9d3738fb8db5b7bbe9568ab77e618286e` and `6219484dcbc15b0915f281c630a03bc16c421314`; tests not executable in current checkout runtime. |
+| UI-062 | P3 | DONE | Backup rows expose state/verification through Qt AccessibleTextRole/AccessibleDescriptionRole/StatusTipRole using existing metadata, with humanized verification labels. Commits `86d34a6b9a3392da38fb6b6b11f309a949366fd9` and `dd1774aa0c30a32f5a34110855865beb0ec74266`; tests not executable in current checkout runtime. |
+| UI-063 | P2 | DONE | Backup list accessible description now exposes listed count, selected snapshot identity/state/verification and restore availability without additional visible chrome. Commits `ca91819fb7b29f976887079f8833503533e31ba3` and `de1c3026bf939455d5dafffdc00074b9026ccd94`; tests not executable in current checkout runtime. |
 
 ## Active queue
 
@@ -78,18 +81,10 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 - **Dependencies:** Runtime with repository checkout or Quality-bot execution.
 - **Last verification:** 2026-08-23.
 
-### UI-061 — Backup keyboard/focus semantics under eligibility changes
+### UI-064 — Cross-workspace dense-list accessibility parity
 - **Priority:** P2
 - **Status:** READY
-- **Evidence:** Snapshot eligibility can disable the currently focused VERIFY/DEEP VERIFY/RESTORE action when selection changes. Audit whether focus remains on a now-disabled control and return it to the snapshot list only when necessary, without stealing newer user focus.
-- **Views/components:** Backup snapshot list and Verify/Deep Verify/Restore action row.
-- **Dependencies:** UI-057 through UI-060.
-- **Last verification:** 2026-08-23.
-
-### UI-062 — Backup row-state scanability
-- **Priority:** P3
-- **Status:** READY
-- **Evidence:** Snapshot rows currently encode state/verification as aligned uppercase text. Audit whether semantic item metadata can improve accessible/visual scanning without adding controls or duplicating status chrome.
-- **Views/components:** Backup snapshot list.
-- **Dependencies:** UI-057/UI-059.
+- **Evidence:** Backup now exposes semantic row/list accessibility from existing item metadata. Audit Knowledge, Research, Jobs and Sources for comparable dense-list state/identity gaps without inventing data or controls.
+- **Views/components:** Knowledge/Claims/Decisions, Research jobs, durable Jobs, Sources.
+- **Dependencies:** Existing result-scope and selection-ownership layers.
 - **Last verification:** 2026-08-23.
