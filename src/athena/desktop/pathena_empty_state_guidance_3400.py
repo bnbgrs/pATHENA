@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from PySide6.QtCore import QEvent, QObject, QTimer
+from PySide6.QtCore import QDynamicPropertyChangeEvent, QEvent, QObject, QTimer
 from PySide6.QtWidgets import (
     QAbstractButton,
     QComboBox,
@@ -187,6 +187,13 @@ UI_REFINEMENT_TASKS_3301_3400: tuple[str, ...] = tuple(
     for dimension in _DIMENSIONS
 )
 
+_EMPTY_STATE_STYLESHEET = """
+/* pATHENA empty-state guidance 3400 */
+QPushButton[pathenaEmptyStatePrimary="true"] {
+    border-color: #F26A21;
+}
+"""
+
 
 class EmptyStateGuidanceController(QObject):
     """Keep empty views concise and point them at one existing next step."""
@@ -211,6 +218,13 @@ class EmptyStateGuidanceController(QObject):
             model.rowsInserted.connect(self.schedule_sync)
             model.rowsRemoved.connect(self.schedule_sync)
             model.modelReset.connect(self.schedule_sync)
+        elif isinstance(widget, QComboBox):
+            model = widget.model()
+            model.rowsInserted.connect(self.schedule_sync)
+            model.rowsRemoved.connect(self.schedule_sync)
+            model.modelReset.connect(self.schedule_sync)
+        elif isinstance(widget, (QPlainTextEdit, QLineEdit)):
+            widget.textChanged.connect(self.schedule_sync)
         self._apply_static_guidance(widget, target, action)
         self.sync_widget(widget)
 
@@ -218,8 +232,13 @@ class EmptyStateGuidanceController(QObject):
         if isinstance(watched, QWidget) and event.type() in {
             QEvent.Type.Show,
             QEvent.Type.EnabledChange,
-            QEvent.Type.DynamicPropertyChange,
         }:
+            self.schedule_sync()
+        elif (
+            isinstance(watched, QWidget)
+            and isinstance(event, QDynamicPropertyChangeEvent)
+            and bytes(event.propertyName()) == b"pathenaUiState"
+        ):
             self.schedule_sync()
         return super().eventFilter(watched, event)
 
@@ -239,8 +258,14 @@ class EmptyStateGuidanceController(QObject):
 
         action = self._actions.get(widget)
         if action is not None:
+            changed = bool(action.property("pathenaEmptyStatePrimary")) != empty
             action.setProperty("pathenaEmptyStatePrimary", empty)
             action.setProperty("pathenaEmptyStateFor", widget.objectName())
+            if changed:
+                style = action.style()
+                style.unpolish(action)
+                style.polish(action)
+                action.update()
 
         if isinstance(widget, QPlainTextEdit) and empty:
             widget.setPlaceholderText(target.empty_copy)
@@ -283,7 +308,11 @@ class EmptyStateGuidanceController(QObject):
         return False
 
 
-def _workspace_action(window: QWidget, object_name: str, label: str) -> QAbstractButton | None:
+def _workspace_action(
+    window: QWidget,
+    object_name: str,
+    label: str,
+) -> QAbstractButton | None:
     if object_name == "chatSelector":
         return window.findChild(QAbstractButton, "newChatButton")
 
@@ -320,6 +349,9 @@ def apply_ui_refinements_3301_3400(window: QWidget) -> tuple[int, ...]:
         controller.register(widget, target, action)
         start = 3301 + index * len(_DIMENSIONS)
         applied.extend(range(start, start + len(_DIMENSIONS)))
+
+    if _EMPTY_STATE_STYLESHEET not in window.styleSheet():
+        window.setStyleSheet(f"{window.styleSheet()}\n{_EMPTY_STATE_STYLESHEET}")
 
     window.setProperty("pathenaEmptyStateGuidanceController", controller)
     window.setProperty("pathenaEmptyStateTargetCount", len(applied) // len(_DIMENSIONS))
