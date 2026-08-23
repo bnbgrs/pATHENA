@@ -175,7 +175,7 @@ def test_fsync_directory_rejects_symlink_ancestor(tmp_path: Path) -> None:
     link = tmp_path / "link"
     _directory_symlink(link, real)
 
-    with pytest.raises(NotADDirectoryError, match="symlink ancestor"):
+    with pytest.raises(NotADirectoryError, match="symlink ancestor"):
         durable_fs.fsync_directory(link / "child")
 
 
@@ -196,7 +196,7 @@ def test_durable_mkdir_rejects_existing_directory_beneath_symlink_ancestor(
     link = tmp_path / "link"
     _directory_symlink(link, real)
 
-    with pytest.raises(NotADDirectoryError, match="symlink ancestor"):
+    with pytest.raises(NotADirectoryError, match="symlink ancestor"):
         durable_fs.durable_mkdir(link / "child", parents=True, exist_ok=True)
 
 
