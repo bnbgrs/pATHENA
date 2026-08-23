@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
 _QUALITY_WORKFLOW = _REPOSITORY_ROOT / ".github" / "workflows" / "quality.yml"
 
