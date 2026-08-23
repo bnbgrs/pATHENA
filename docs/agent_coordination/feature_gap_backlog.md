@@ -89,6 +89,15 @@ Last refresh: 2026-08-24.
 - **Dependencies:** coordinate with existing storage bootstrap/migration/backup ownership and Full-Gate Recovery; do not broaden mutation while current P0 gate recovery is active.
 - **Verification:** read-only scout trace on 2026-08-24. No implementation or test PASS is claimed.
 
+### FG-018 — Make the normative daily backup quiet time runtime-configurable
+- **Source:** Beta 21 sections 9–13, especially section 10 (daily backup in a configurable quiet time / at next opportunity).
+- **Ownership / Priority / Status:** BACKEND · P2 · FOUND
+- **Evidence:** `DurableBackupWorker` implements deterministic daily slots, missed-slot catch-up, per-target overlap prevention, idempotent slot deduplication and storage/backoff waiting. It accepts `quiet_hour_utc`, but `AthenaApplication` constructs it without passing configuration, so production uses the internal 03:00 UTC default. `AthenaSettings` exposes roots and model timeouts but no backup quiet-time setting. The scheduler therefore satisfies automatic daily/catch-up semantics but not the normative configurability requirement.
+- **Current state:** daily scheduling works, but its quiet hour is effectively fixed in production composition.
+- **Desired state:** expose a bounded persisted or bootstrap-visible backup quiet-time setting and wire it into `DurableBackupWorker` without changing the existing catch-up/overlap/idempotency semantics. If local-time semantics are intended rather than UTC, define DST behavior explicitly before implementation.
+- **Dependencies:** BACKEND/settings + job-scheduler composition; no mutation while Full-Gate Recovery is P0 unless explicitly promoted.
+- **Verification:** read-only B21 trace on current `agent/pathena` in the 2026-08-24 scout run. No implementation or test PASS is claimed.
+
 ## Handoff notes
 - Re-read current HEAD and affected files before every mutation.
 - Preserve `unknown` versus `unsupported`; never invent provider facts.
@@ -99,3 +108,4 @@ Last refresh: 2026-08-24.
 - FG-015 includes a last-moment pre-writer pressure fence; promote only after green relevant validation.
 - FG-016 is implemented in the live database service; promote only after green relevant validation.
 - FG-017 is a BACKEND handoff only while Full-Gate Recovery is P0; do not let WAL-maintenance work displace active recovery blockers or introduce broad storage churn.
+- FG-018 is a B21 configurability handoff only; the daily/catch-up/overlap scheduler itself already exists and must not be reimplemented.
