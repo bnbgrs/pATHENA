@@ -1,6 +1,12 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QApplication, QLabel, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QApplication,
+    QLabel,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 
 from athena.desktop.app import create_application
 from athena.desktop.pathena_workspace_presentation import (
