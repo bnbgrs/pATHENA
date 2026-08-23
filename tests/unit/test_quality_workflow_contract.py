@@ -33,6 +33,29 @@ def test_quality_workflow_avoids_duplicate_feature_branch_push_runs() -> None:
     assert "pull_request:" in workflow
 
 
+def test_quality_workflow_has_focused_linux_storage_lane() -> None:
+    workflow = _workflow_text()
+
+    assert "storage-regressions:" in workflow
+    assert "name: Linux storage regressions" in workflow
+    assert "name: Run focused storage regressions" in workflow
+    for test_path in (
+        "tests/unit/test_migration_safety.py",
+        "tests/unit/test_migration_clone.py",
+        "tests/unit/test_migration_journal.py",
+        "tests/unit/test_migration_activation.py",
+        "tests/unit/test_migration_lock.py",
+        "tests/unit/test_migration_executor.py",
+        "tests/unit/test_migration_plan.py",
+        "tests/unit/test_migration_recovery.py",
+        "tests/unit/test_migration_coordinator.py",
+        "tests/unit/test_emergency_reserve.py",
+        "tests/unit/test_disk_pressure.py",
+        "tests/unit/test_storage_bootstrap.py",
+    ):
+        assert test_path in workflow
+
+
 def test_quality_workflow_has_disposable_local_smoke_lane() -> None:
     workflow = _workflow_text()
 
