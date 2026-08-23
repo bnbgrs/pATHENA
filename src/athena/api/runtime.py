@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from athena.api.contracts import API_VERSION
-from athena.storage.durable_fs import durable_replace, is_link_boundary
+from athena.storage.durable_fs import durable_write_bytes, is_link_boundary
 
 _LOOPBACK_HOST = "127.0.0.1"
 _DISCOVERY_FILE = "core-api.json"
@@ -169,48 +169,9 @@ def _write_private_text(path: Path, content: str) -> None:
             f"ATHENA API runtime file parent is not a safe directory: {str(path.parent)!r}."
         )
 
-    staging = path.with_name(f".{path.name}.{secrets.token_hex(8)}.partial")
-    encoded = content.encode("utf-8")
-
     try:
-        descriptor = os.open(
-            staging,
-            os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0),
-            _PRIVATE_MODE,
-        )
-        try:
-            with os.fdopen(descriptor, "wb", closefd=True) as handle:
-                handle.write(encoded)
-                handle.flush()
-                os.fsync(handle.fileno())
-        except Exception:
-            try:
-                os.close(descriptor)
-            except OSError:
-                pass
-            raise
-
-        try:
-            # The staging file was created exclusively in this call, so a plain
-            # chmod is both portable and sufficient after the O_EXCL/O_NOFOLLOW open.
-            os.chmod(staging, _PRIVATE_MODE)
-        except OSError as exc:
-            raise ApiRuntimeError(
-                f"Cannot restrict ATHENA API runtime file {str(path)!r}."
-            ) from exc
-
-        _reject_symlink_ancestors(path)
-        if is_link_boundary(path.parent) or not path.parent.is_dir():
-            raise ApiRuntimeError(
-                f"ATHENA API runtime file parent became unsafe: {str(path.parent)!r}."
-            )
-        durable_replace(staging, path)
+        durable_write_bytes(path, content.encode("utf-8"), mode=_PRIVATE_MODE)
     except OSError as exc:
         raise ApiRuntimeError(
             f"Cannot publish ATHENA API runtime file {str(path)!r}."
         ) from exc
-    finally:
-        try:
-            staging.unlink(missing_ok=True)
-        except OSError:
-            pass
