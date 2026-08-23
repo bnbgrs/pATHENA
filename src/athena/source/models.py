@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import json
 import uuid
 from dataclasses import dataclass
 from enum import Enum
+from typing import Any
 
 
 class SourceType(str, Enum):
@@ -120,6 +122,34 @@ def _require_optional_text(value: object | None, label: str) -> None:
 def _require_optional_int(value: object | None, label: str, *, minimum: int = 0) -> None:
     if value is not None:
         _require_int(value, label, minimum=minimum)
+
+
+def _reject_json_constant(value: str) -> None:
+    raise ValueError(f"Non-standard JSON constant {value!r} is not permitted.")
+
+
+def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"Duplicate JSON object key {key!r} is not permitted.")
+        result[key] = value
+    return result
+
+
+def _require_json_object(value: object, label: str) -> None:
+    if not isinstance(value, str):
+        raise TypeError(f"{label} must be JSON text.")
+    try:
+        parsed = json.loads(
+            value,
+            parse_constant=_reject_json_constant,
+            object_pairs_hook=_unique_json_object,
+        )
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise ValueError(f"{label} must contain strict JSON.") from exc
+    if not isinstance(parsed, dict):
+        raise ValueError(f"{label} must contain a JSON object.")
 
 
 @dataclass(frozen=True, slots=True)
@@ -250,6 +280,7 @@ class SourceRepresentationRecord:
         _require_text(self.parser_id, "Source representation parser_id")
         _require_text(self.parser_version, "Source representation parser_version")
         _require_text(self.options_json, "Source representation options_json")
+        _require_json_object(self.options_json, "Source representation options_json")
         _require_int(self.created_at_us, "Source representation created_at_us")
 
 
@@ -307,6 +338,7 @@ class SourceRepresentationStructureRecord:
             raise ValueError("Source representation structure end_offset precedes start_offset.")
         _require_sha256(self.content_hash, "Source representation structure content_hash")
         _require_text(self.metadata_json, "Source representation structure metadata_json")
+        _require_json_object(self.metadata_json, "Source representation structure metadata_json")
 
 
 @dataclass(frozen=True, slots=True)
