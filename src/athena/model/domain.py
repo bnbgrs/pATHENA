@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
+_MODEL_CHAT_ROLES = frozenset({"system", "user", "assistant"})
+
 
 class ProviderHealthStatus(str, Enum):
     """Normalized provider health states used by the Core."""
@@ -100,5 +102,9 @@ class ModelChatMessage:
 
     def __post_init__(self) -> None:
         _require_text(self.role, "ModelChatMessage role")
+        if self.role != self.role.strip() or self.role not in _MODEL_CHAT_ROLES:
+            raise ValueError(
+                "ModelChatMessage role must be one of: system, user, assistant."
+            )
         if not isinstance(self.content, str):
             raise TypeError("ModelChatMessage content must be text.")
