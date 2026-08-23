@@ -32,6 +32,10 @@ from athena.desktop.pathena_research_readability_2400 import (
     UI_REFINEMENT_TASKS_2301_2400,
     apply_ui_refinements_2301_2400,
 )
+from athena.desktop.pathena_startup_experience_2900 import (
+    UI_REFINEMENT_TASKS_2801_2900,
+    apply_ui_refinements_2801_2900,
+)
 from athena.desktop.pathena_ui_refinement_100 import (
     UI_REFINEMENT_TASKS,
     apply_ui_refinements,
@@ -136,6 +140,7 @@ def apply_complete_ui_refinements(window: QWidget) -> tuple[int, ...]:
     applied.extend(apply_ui_refinements_2501_2600(window))
     applied.extend(apply_ui_refinements_2601_2700(window))
     applied.extend(apply_ui_refinements_2701_2800(window))
+    applied.extend(apply_ui_refinements_2801_2900(window))
     normalized = tuple(sorted(set(applied)))
     total_tasks = sum(
         map(
@@ -160,6 +165,7 @@ def apply_complete_ui_refinements(window: QWidget) -> tuple[int, ...]:
                 UI_REFINEMENT_TASKS_2501_2600,
                 UI_REFINEMENT_TASKS_2601_2700,
                 UI_REFINEMENT_TASKS_2701_2800,
+                UI_REFINEMENT_TASKS_2801_2900,
             ),
         )
     )
