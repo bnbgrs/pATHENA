@@ -4,7 +4,7 @@ import copy
 
 import pytest
 
-import athena.backup.service as backup_module
+from athena.backup import service as backup_module
 
 
 VALID = {
