@@ -8,8 +8,6 @@ from athena.storage.schema_error_sanitization import (
 
 
 def test_error_code_at_total_length_boundary_is_preserved() -> None:
-    value = "E" * _MAX_PERSISTED_ERROR_CODE_LENGTH
-
     # One segment is independently capped at 128, so construct two segments.
     value = "E" * 128 + ":" + "S" * 127
     assert len(value) == _MAX_PERSISTED_ERROR_CODE_LENGTH
