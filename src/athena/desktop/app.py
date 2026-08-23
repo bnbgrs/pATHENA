@@ -51,6 +51,9 @@ from athena.desktop.pathena_research_knowledge_transition_2700 import (
 from athena.desktop.pathena_research_proposal_clarity_2600 import (
     install_research_proposal_clarity,
 )
+from athena.desktop.pathena_research_proposal_density import (
+    install_research_proposal_density,
+)
 from athena.desktop.pathena_research_readability_2400 import install_research_readability
 from athena.desktop.pathena_research_result_presentation import (
     apply_research_result_presentation,
@@ -158,6 +161,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     research_workspace = install_research_workspace(window)
     research_results_extension = install_research_results_extension(research_workspace)
     apply_research_result_presentation(research_results_extension)
+    research_proposal_density = install_research_proposal_density(research_results_extension)
     research_results_extension.refresh_timer.stop()
     jobs_workspace = install_jobs_workspace(window, scheduler_supervisor)
     files_workspace = install_files_workspace(window)
@@ -228,6 +232,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     canonical_memory_extensions.deleteLater()
     knowledge_acceptance.deleteLater()
     knowledge_workspace.deleteLater()
+    research_proposal_density.deleteLater()
     research_results_extension.deleteLater()
     research_workspace.deleteLater()
     jobs_workspace.deleteLater()
