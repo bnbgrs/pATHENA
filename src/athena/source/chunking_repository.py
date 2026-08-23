@@ -97,6 +97,14 @@ class ChunkingProfileRepository:
             overlap_size,
             "Chunking overlap_size",
         )
+        if (
+            normalized_target_size is not None
+            and normalized_overlap_size is not None
+            and normalized_overlap_size >= normalized_target_size
+        ):
+            raise ValueError(
+                "Chunking overlap_size must be smaller than target_size."
+            )
         normalized_profile_version = _positive_int(
             profile_version,
             "Chunking profile_version",
