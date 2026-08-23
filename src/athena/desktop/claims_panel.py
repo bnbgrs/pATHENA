@@ -7,6 +7,7 @@ import sys
 from PySide6.QtCore import QProcess, Qt, QTimer
 from PySide6.QtGui import QTextCursor
 from PySide6.QtWidgets import (
+    QBoxLayout,
     QHBoxLayout,
     QLabel,
     QListWidget,
@@ -14,6 +15,7 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
     QPushButton,
     QSplitter,
+    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -223,6 +225,7 @@ class CanonicalClaimsPanel(QWidget):
         self.claim_list.blockSignals(False)
         if item_to_select is not None:
             self.claim_list.setCurrentItem(item_to_select)
+            self._selection_changed(item_to_select, None)
         elif self.claim_list.count():
             self.claim_list.setCurrentRow(0)
         else:
@@ -233,9 +236,33 @@ class CanonicalClaimsPanel(QWidget):
             )
 
     def _process_error(self, error: QProcess.ProcessError) -> None:
-        if error != QProcess.ProcessError.FailedToStart:
-            return
         self._operation = ""
-        self.status.setText("Unable to start the local Claim reader.")
         self.refresh_button.setEnabled(True)
         self.history_button.setEnabled(bool(self._selected_claim_id))
+        if error == QProcess.ProcessError.FailedToStart:
+            self.status.setText("Unable to start the local Claim reader.")
+        else:
+            self.status.setText(f"Claim command error: {error.name}")
+
+
+def install_claims_panel(knowledge_workspace: QWidget) -> CanonicalClaimsPanel:
+    """Add Claims as a second canonical view without expanding primary navigation."""
+    root = knowledge_workspace.layout()
+    if not isinstance(root, QBoxLayout) or root.count() < 1:
+        raise RuntimeError("Knowledge workspace layout is unavailable")
+
+    browser_index = root.count() - 1
+    browser_item = root.itemAt(browser_index)
+    browser = None if browser_item is None else browser_item.widget()
+    if browser is None:
+        raise RuntimeError("Knowledge canonical browser is unavailable")
+
+    tabs = QTabWidget(knowledge_workspace)
+    tabs.setObjectName("canonicalKnowledgeTabs")
+    root.removeWidget(browser)
+    tabs.addTab(browser, "KNOWLEDGE")
+    panel = CanonicalClaimsPanel()
+    tabs.addTab(panel, "CLAIMS / EVIDENCE")
+    root.insertWidget(browser_index, tabs, 1)
+    setattr(knowledge_workspace, "claims_panel", panel)
+    return panel
