@@ -188,10 +188,23 @@ class JobsWorkspace(QWidget):
 
         if self._busy():
             if current is not None and not self._operation_owns_details():
-                self.details.setPlainText(current.toolTip())
+                owner_label = self._job_label(self._operation_job_id)
+                selected_label = self._job_label(self._selected_job_id)
+                self.details.setPlainText(
+                    f"BACKGROUND · {self._operation.upper()} for job {owner_label} is still "
+                    "running.\n"
+                    f"CURRENT · Job {selected_label} remains selected; background output "
+                    "will not be written into this pane.\n\n"
+                    f"{current.toolTip()}"
+                )
+                self.details.setProperty(
+                    "pathenaBackgroundOperationOwner",
+                    self._operation_job_id or "",
+                )
                 set_pathena_ui_state(self.details, "idle")
             return
 
+        self.details.setProperty("pathenaBackgroundOperationOwner", "")
         if self._selected_job_id:
             selected_job_id = self._selected_job_id
             set_pathena_ui_state(self.details, "busy")
