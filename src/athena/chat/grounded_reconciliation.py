@@ -36,6 +36,26 @@ class GroundedReconciliationStatus:
     state: GroundedReconciliationState
     receipt: GroundedSendReceipt | None
 
+    def __post_init__(self) -> None:
+        if not isinstance(self.operation_id, uuid.UUID):
+            raise TypeError("Grounded reconciliation operation_id must be a UUID.")
+        if not isinstance(self.chat_id, uuid.UUID):
+            raise TypeError("Grounded reconciliation chat_id must be a UUID.")
+        if not isinstance(self.state, GroundedReconciliationState):
+            raise TypeError("Grounded reconciliation state must be a GroundedReconciliationState.")
+        if self.receipt is not None and not isinstance(self.receipt, GroundedSendReceipt):
+            raise TypeError("Grounded reconciliation receipt must be a GroundedSendReceipt or None.")
+        if self.state is GroundedReconciliationState.COMPLETE:
+            if self.receipt is None:
+                raise ValueError("Complete Grounded reconciliation requires a durable receipt.")
+            if self.receipt.operation_id != self.operation_id:
+                raise ValueError("Grounded reconciliation receipt belongs to another operation.")
+            if self.receipt.chat_id != self.chat_id:
+                raise ValueError("Grounded reconciliation receipt belongs to another chat.")
+            return
+        if self.receipt is not None:
+            raise ValueError("Non-complete Grounded reconciliation must not expose a receipt.")
+
 
 class GroundedSendReconciler:
     """Project durable operation/receipt state without performing generation."""
@@ -51,6 +71,12 @@ class GroundedSendReconciler:
         chat_id: uuid.UUID,
         fingerprint: ChatRequestFingerprint,
     ) -> GroundedReconciliationStatus:
+        if not isinstance(operation_id, uuid.UUID):
+            raise TypeError("operation_id must be a UUID.")
+        if not isinstance(chat_id, uuid.UUID):
+            raise TypeError("chat_id must be a UUID.")
+        if not isinstance(fingerprint, ChatRequestFingerprint):
+            raise TypeError("fingerprint must be a ChatRequestFingerprint.")
         try:
             match = self.operations.match_request(
                 operation_id=operation_id,
