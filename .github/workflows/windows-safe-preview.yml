@@ -1,0 +1,147 @@
+name: Windows pATHENA safe preview
+
+on:
+  push:
+    branches:
+      - build/windows-safe-preview-20260823
+  pull_request:
+    branches:
+      - agent/pathena-ui-quiet-workspace
+
+permissions:
+  contents: read
+
+jobs:
+  build-safe-preview:
+    runs-on: windows-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install runtime and packager
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ".[desktop]" "pyinstaller>=6.15,<7"
+
+      - name: Build UI-only Desktop as onedir windowed app
+        shell: pwsh
+        run: |
+          python -m PyInstaller `
+            --noconfirm `
+            --clean `
+            --onedir `
+            --windowed `
+            --contents-directory app_runtime `
+            --name pATHENA `
+            --paths src `
+            --collect-submodules athena `
+            --collect-all usearch `
+            --collect-all cryptography `
+            --collect-all pypdf `
+            src/athena/desktop/packaged_safe_app.py
+
+      - name: Assemble UI-only safe preview
+        shell: pwsh
+        run: |
+          $out = Join-Path $PWD "portable\pATHENA-Windows-UI-Safe"
+          New-Item -ItemType Directory -Force -Path $out | Out-Null
+          Copy-Item .\dist\pATHENA\pATHENA.exe $out
+          Copy-Item .\dist\pATHENA\app_runtime (Join-Path $out "app_runtime") -Recurse
+
+          @'
+          pATHENA Windows UI Safe Preview
+          ===============================
+
+          Start:
+            pATHENA.exe
+
+          This diagnostic preview starts NO background child processes:
+            - no Core
+            - no Scheduler
+            - no workers
+
+          It is intended only to verify that the pATHENA/Qt desktop UI itself is
+          stable on the target Windows PC after the previous packaged build caused
+          flashing windows and a hard system shutdown/reboot.
+
+          Chat and other Core-backed functions are intentionally offline here.
+
+          Keep together:
+            pATHENA.exe
+            app_runtime\
+          '@ | Set-Content -Encoding UTF8 (Join-Path $out "START_HERE.txt")
+
+      - name: Smoke-test UI-only Desktop and process isolation
+        shell: pwsh
+        run: |
+          $root = Join-Path $PWD "portable\pATHENA-Windows-UI-Safe"
+          $env:QT_QPA_PLATFORM = "offscreen"
+          Get-Process -Name "pATHENA-Core" -ErrorAction SilentlyContinue | Stop-Process -Force
+          Get-Process -Name "pATHENA-Scheduler" -ErrorAction SilentlyContinue | Stop-Process -Force
+
+          $failure = $null
+          $desktop = $null
+          try {
+            $desktop = Start-Process -FilePath (Join-Path $root "pATHENA.exe") -PassThru
+            Start-Sleep -Seconds 12
+
+            if ($desktop.HasExited) {
+              $failure = "pATHENA.exe exited during UI-only startup smoke test with exit code $($desktop.ExitCode)"
+            }
+
+            $scheduler = @(Get-Process -Name "pATHENA-Scheduler" -ErrorAction SilentlyContinue)
+            $cores = @(Get-Process -Name "pATHENA-Core" -ErrorAction SilentlyContinue)
+            Write-Host "Observed scheduler processes: $($scheduler.Count)"
+            Write-Host "Observed core processes: $($cores.Count)"
+
+            if (-not $failure -and $scheduler.Count -ne 0) {
+              $failure = "UI-only preview unexpectedly started a scheduler process"
+            }
+            if (-not $failure -and $cores.Count -ne 0) {
+              $failure = "UI-only preview unexpectedly started a Core process"
+            }
+          }
+          finally {
+            if ($desktop -and -not $desktop.HasExited) {
+              Stop-Process -Id $desktop.Id -Force -ErrorAction SilentlyContinue
+            }
+            Get-Process -Name "pATHENA-Core" -ErrorAction SilentlyContinue | Stop-Process -Force
+            Get-Process -Name "pATHENA-Scheduler" -ErrorAction SilentlyContinue | Stop-Process -Force
+          }
+
+          if ($failure) {
+            throw $failure
+          }
+
+      - name: Create transport ZIP
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $source = Join-Path $PWD "portable\pATHENA-Windows-UI-Safe"
+          $zip = Join-Path $PWD "portable\pATHENA-Windows-UI-Safe.zip"
+          if (Test-Path $zip) { Remove-Item $zip -Force }
+          [System.IO.Compression.ZipFile]::CreateFromDirectory(
+            $source,
+            $zip,
+            [System.IO.Compression.CompressionLevel]::NoCompression,
+            $false
+          )
+          Get-Item $zip | Select-Object FullName, Length
+
+      - name: Upload UI-only safe Windows preview
+        uses: actions/upload-artifact@v4
+        with:
+          name: pATHENA-Windows-UI-Safe-Transport
+          path: portable/pATHENA-Windows-UI-Safe.zip
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
