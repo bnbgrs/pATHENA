@@ -93,7 +93,13 @@ def style_operational_item(item: QListWidgetItem, state: str, body: str) -> None
 
 
 def _restyle_operational_list(widget: QListWidget) -> None:
-    for index in range(widget.count()):
+    try:
+        count = widget.count()
+    except RuntimeError:
+        # Qt can emit a final model signal while the wrapped C++ list is being
+        # destroyed. Teardown must not turn a presentation callback into an error.
+        return
+    for index in range(count):
         item = widget.item(index)
         if item is None or item.data(Qt.ItemDataRole.UserRole + 20):
             continue
