@@ -124,6 +124,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     research_workspace = install_research_workspace(window)
     research_results_extension = install_research_results_extension(research_workspace)
+    # Result/proposal review is a deliberate user decision surface. Keep the
+    # selected immutable result stable until the user explicitly refreshes jobs.
+    research_results_extension.refresh_timer.stop()
     jobs_workspace = install_jobs_workspace(window, scheduler_supervisor)
     files_workspace = install_files_workspace(window)
     system_workspace = install_system_workspace(window, controller)
