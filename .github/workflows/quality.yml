@@ -71,7 +71,7 @@ jobs:
         run: uv lock --check
 
       - name: Run focused storage regressions
-        run: uv run --locked --extra dev pytest -q tests/unit/test_storage_locality.py tests/unit/test_database_preflight_locality.py tests/unit/test_runtime_paths.py tests/unit/test_migration_safety.py tests/unit/test_migration_clone.py tests/unit/test_migration_journal.py tests/unit/test_migration_activation.py tests/unit/test_migration_lock.py tests/unit/test_migration_executor.py tests/unit/test_migration_plan.py tests/unit/test_migration_recovery.py tests/unit/test_migration_coordinator.py tests/unit/test_emergency_reserve.py tests/unit/test_disk_pressure.py tests/unit/test_pressure_database.py tests/unit/test_read_only_database.py tests/unit/test_storage_safe_mode.py tests/unit/test_storage_bootstrap.py
+        run: uv run --locked --extra dev pytest -q tests/unit/test_storage_locality.py tests/unit/test_database_preflight_locality.py tests/unit/test_runtime_paths.py tests/unit/test_durable_fs.py tests/unit/test_durable_fs_parent_identity.py tests/unit/test_migration_safety.py tests/unit/test_migration_clone.py tests/unit/test_migration_journal.py tests/unit/test_migration_activation.py tests/unit/test_migration_lock.py tests/unit/test_migration_executor.py tests/unit/test_migration_plan.py tests/unit/test_migration_recovery.py tests/unit/test_migration_coordinator.py tests/unit/test_emergency_reserve.py tests/unit/test_disk_pressure.py tests/unit/test_pressure_database.py tests/unit/test_read_only_database.py tests/unit/test_storage_safe_mode.py tests/unit/test_storage_bootstrap.py
 
       - name: Run API runtime path-boundary regressions
         run: uv run --locked --extra dev pytest -q tests/unit/test_api_runtime_boundaries.py
