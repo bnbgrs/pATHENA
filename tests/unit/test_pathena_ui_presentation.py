@@ -46,7 +46,7 @@ def test_pathena_shell_progressively_discloses_destructive_chat_action() -> None
         app.processEvents()
 
 
-def test_pathena_secondary_context_starts_collapsed_and_is_user_controlled() -> None:
+def test_pathena_secondary_context_is_grounded_only_and_user_controlled() -> None:
     app = _app()
     window = PathenaMainWindow(api_controller=None)
     try:
@@ -57,16 +57,28 @@ def test_pathena_secondary_context_starts_collapsed_and_is_user_controlled() -> 
         assert window.details_button.text() == "Details"
         assert window.details_button.isChecked() is False
 
-        assert window.evidence_chain.isHidden()
         assert window.context_button.text() == "Context"
+        assert window.context_button.isHidden()
+        assert window.evidence_chain.isHidden()
+
+        window._set_context_available(True)
+        app.processEvents()
+        assert window.context_button.isHidden() is False
         assert window.context_button.isChecked() is False
 
-        window.details_button.click()
         window.context_button.click()
         app.processEvents()
-
-        assert inspector.isHidden() is False
         assert window.evidence_chain.isHidden() is False
+
+        window._set_context_available(False)
+        app.processEvents()
+        assert window.context_button.isHidden()
+        assert window.context_button.isChecked() is False
+        assert window.evidence_chain.isHidden()
+
+        window.details_button.click()
+        app.processEvents()
+        assert inspector.isHidden() is False
 
         window.navigation.setCurrentRow(1)
         app.processEvents()
