@@ -12,8 +12,8 @@ from dataclasses import dataclass
 
 from PySide6.QtCore import QEasingCurve, QEvent, QObject, QPropertyAnimation
 from PySide6.QtWidgets import (
-    QApplication,
     QAbstractButton,
+    QApplication,
     QGraphicsOpacityEffect,
     QWidget,
 )
