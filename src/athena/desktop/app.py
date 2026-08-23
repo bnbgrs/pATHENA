@@ -21,6 +21,7 @@ from athena.desktop.pathena_async_focus_integrity_6200 import apply_ui_refinemen
 from athena.desktop.pathena_chat_scroll_stability_6600 import install_chat_scroll_stability
 from athena.desktop.pathena_command_palette_truth_6500 import install_command_palette_truth
 from athena.desktop.pathena_detail_provenance_6300 import apply_detail_provenance
+from athena.desktop.pathena_inspector_scanability_6700 import apply_inspector_scanability
 from athena.desktop.pathena_interaction_refinement import install_interaction_refinement
 from athena.desktop.pathena_jobs_experience_2800 import install_jobs_experience
 from athena.desktop.pathena_knowledge_acceptance_presentation import (
@@ -160,6 +161,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     detail_provenance = apply_detail_provenance(window)
     success_decay = apply_quiet_success_decay(window)
     chat_scroll_stability = install_chat_scroll_stability(window)
+    apply_inspector_scanability(window)
     interaction_refinement = install_interaction_refinement(window)
     layout_refinement = install_layout_refinement(window)
     progressive_workspace_refinement = install_progressive_workspace_refinement(window)
