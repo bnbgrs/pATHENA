@@ -30,6 +30,43 @@ class ChatRequestFingerprint:
     payload_sha256: str
     format_version: int
 
+    def __post_init__(self) -> None:
+        if not isinstance(self.payload_json, str):
+            raise TypeError("Chat request fingerprint payload_json must be text.")
+        if not isinstance(self.payload_sha256, str):
+            raise TypeError("Chat request fingerprint payload_sha256 must be text.")
+        if (
+            len(self.payload_sha256) != 64
+            or any(character not in "0123456789abcdef" for character in self.payload_sha256)
+        ):
+            raise ValueError(
+                "Chat request fingerprint payload_sha256 must be canonical lowercase SHA-256."
+            )
+        if (
+            isinstance(self.format_version, bool)
+            or not isinstance(self.format_version, int)
+            or self.format_version != CHAT_REQUEST_FINGERPRINT_FORMAT_VERSION
+        ):
+            raise ValueError("Chat request fingerprint format_version is unsupported.")
+        try:
+            payload = json.loads(self.payload_json)
+        except json.JSONDecodeError as exc:
+            raise ValueError("Chat request fingerprint payload_json must be valid JSON.") from exc
+        if not isinstance(payload, dict):
+            raise ValueError("Chat request fingerprint payload_json must be a JSON object.")
+        canonical = json.dumps(
+            payload,
+            ensure_ascii=False,
+            allow_nan=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        if canonical != self.payload_json:
+            raise ValueError("Chat request fingerprint payload_json must be canonical JSON.")
+        digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        if digest != self.payload_sha256:
+            raise ValueError("Chat request fingerprint checksum does not match payload_json.")
+
 
 def _json_safe(value: object) -> JsonValue:
     """Convert supported nested values into a strict JSON representation."""
@@ -78,6 +115,22 @@ def _json_safe(value: object) -> JsonValue:
     )
 
 
+def _require_optional_text(value: object, label: str) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise TypeError(f"{label} must be text or None.")
+    return value
+
+
+def _require_optional_positive_int(value: object, label: str) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise ValueError(f"{label} must be a positive integer or None.")
+    return value
+
+
 def build_chat_request_fingerprint(
     *,
     mode: ChatSendMode,
@@ -92,6 +145,42 @@ def build_chat_request_fingerprint(
     retrieval_configuration: dict[str, object] | None = None,
 ) -> ChatRequestFingerprint:
     """Build one stable SHA-256 identity from all persistence-relevant inputs."""
+    if not isinstance(mode, ChatSendMode):
+        raise TypeError("Chat request fingerprint mode must be a ChatSendMode.")
+    if not isinstance(chat_id, uuid.UUID):
+        raise TypeError("Chat request fingerprint chat_id must be a UUID.")
+    if not isinstance(content, str):
+        raise TypeError("Chat request fingerprint content must be text.")
+    validated_model_id = _require_optional_text(
+        requested_model_id,
+        "Chat request fingerprint requested_model_id",
+    )
+    validated_embedding_model_id = _require_optional_text(
+        requested_embedding_model_id,
+        "Chat request fingerprint requested_embedding_model_id",
+    )
+    validated_context_limit = _require_optional_positive_int(
+        effective_context_limit,
+        "Chat request fingerprint effective_context_limit",
+    )
+    validated_output_tokens = _require_optional_positive_int(
+        max_output_tokens,
+        "Chat request fingerprint max_output_tokens",
+    )
+    if temperature is not None:
+        if isinstance(temperature, bool) or not isinstance(temperature, (int, float)):
+            raise TypeError("Chat request fingerprint temperature must be numeric or None.")
+        if not math.isfinite(float(temperature)):
+            raise ValueError("Chat request fingerprint temperature must be finite.")
+    validated_reasoning_mode = _require_optional_text(
+        reasoning_mode,
+        "Chat request fingerprint reasoning_mode",
+    )
+    if retrieval_configuration is not None and not isinstance(
+        retrieval_configuration,
+        dict,
+    ):
+        raise TypeError("Chat request fingerprint retrieval_configuration must be a dict or None.")
 
     retrieval = (
         {}
@@ -106,14 +195,14 @@ def build_chat_request_fingerprint(
         "mode": mode.value,
         "chat_id": str(chat_id),
         "content": content,
-        "requested_model_id": requested_model_id,
+        "requested_model_id": validated_model_id,
         "requested_embedding_model_id": (
-            requested_embedding_model_id
+            validated_embedding_model_id
         ),
-        "effective_context_limit": effective_context_limit,
-        "max_output_tokens": max_output_tokens,
+        "effective_context_limit": validated_context_limit,
+        "max_output_tokens": validated_output_tokens,
         "temperature": temperature,
-        "reasoning_mode": reasoning_mode,
+        "reasoning_mode": validated_reasoning_mode,
         "retrieval_configuration": _json_safe(retrieval),
     }
 
