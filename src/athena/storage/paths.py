@@ -34,7 +34,7 @@ class RuntimePaths:
     projection_root: Path | None
 
     def __post_init__(self) -> None:
-        for value, field_name in (
+        for required_value, field_name in (
             (self.local_root, "local_root"),
             (self.state_root, "state_root"),
             (self.database_path, "database_path"),
@@ -43,13 +43,13 @@ class RuntimePaths:
             (self.log_root, "log_root"),
             (self.temp_root, "temp_root"),
         ):
-            _require_path(value, field_name)
-        for value, field_name in (
+            _require_path(required_value, field_name)
+        for optional_value, field_name in (
             (self.archive_root, "archive_root"),
             (self.backup_root, "backup_root"),
             (self.projection_root, "projection_root"),
         ):
-            _require_optional_path(value, field_name)
+            _require_optional_path(optional_value, field_name)
 
     @classmethod
     def from_settings(cls, settings: AthenaSettings) -> "RuntimePaths":
