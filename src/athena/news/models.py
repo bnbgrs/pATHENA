@@ -72,8 +72,12 @@ class NewsRunView:
             (self.failed_count, "News run failed_count"),
         ):
             _nonnegative_int(value, label)
-        if self.captured_count + self.failed_count > self.discovered_count:
-            raise ValueError("News run captured/failed counts exceed discovered_count.")
+        # failed_count intentionally includes both feed-level failures and
+        # per-discovery article-capture failures, so it is not bounded by
+        # discovered_count. captured_count, however, can only come from a
+        # durable discovery and therefore must not exceed it.
+        if self.captured_count > self.discovered_count:
+            raise ValueError("News run captured_count exceeds discovered_count.")
         _optional_uuid(self.research_job_id, "News run research_job_id")
         _optional_uuid(self.research_result_id, "News run research_result_id")
         _optional_uuid(self.digest_id, "News run digest_id")
