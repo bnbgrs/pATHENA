@@ -39,6 +39,14 @@ class RestoredJobRecoverySummary:
         return self.paused_running + self.cancelled_requested
 
 
+def _require_rowcount(value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise RuntimeError(
+            "Restore reconciliation returned an invalid SQLite row count."
+        )
+    return value
+
+
 def reconcile_jobs_after_restore(
     connection: sqlite3.Connection,
     *,
@@ -123,13 +131,8 @@ def reconcile_jobs_after_restore(
                 pass
         raise
 
-    paused_count = getattr(paused, "rowcount", None)
-    cancelled_count = getattr(cancelled, "rowcount", None)
-    for value in (paused_count, cancelled_count):
-        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
-            raise RuntimeError(
-                "Restore reconciliation returned an invalid SQLite row count."
-            )
+    paused_count = _require_rowcount(getattr(paused, "rowcount", None))
+    cancelled_count = _require_rowcount(getattr(cancelled, "rowcount", None))
     return RestoredJobRecoverySummary(
         paused_running=paused_count,
         cancelled_requested=cancelled_count,
