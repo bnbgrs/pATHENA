@@ -124,6 +124,7 @@ class PathenaMainWindow(AthenaMainWindow):
 
         inspector = self.findChild(QFrame, "inspector")
         if inspector is not None:
+            inspector.setFixedWidth(340)
             inspector.hide()
             self.details_button.toggled.connect(inspector.setVisible)
 
@@ -187,8 +188,13 @@ class PathenaMainWindow(AthenaMainWindow):
 
     def _hide_nonfunctional_placeholders(self) -> None:
         """Do not advertise affordances that are not wired to an action yet."""
+        hidden_copy = {
+            "ATTACH",
+            "BACKGROUND WORK",
+            "Open Jobs for background work status and controls.",
+        }
         for label in self.findChildren(QLabel):
-            if label.text() == "ATTACH":
+            if label.text() in hidden_copy:
                 label.hide()
 
     def _select_page(self, index: int) -> None:
@@ -196,6 +202,15 @@ class PathenaMainWindow(AthenaMainWindow):
         super()._select_page(index)
         if 0 <= index < len(_DISPLAY_NAVIGATION):
             self.page_title.setText(_DISPLAY_NAVIGATION[index])
+
+        # The legacy inspector is chat-specific. Never leave stale chat metadata
+        # open beside Knowledge, Research, Jobs, Files, System, or Settings.
+        details_button = getattr(self, "details_button", None)
+        if isinstance(details_button, QPushButton):
+            is_chat = index == 0
+            details_button.setVisible(is_chat)
+            if not is_chat:
+                details_button.setChecked(False)
 
     def apply_chat_busy(self, busy: bool) -> None:
         """Preserve the quiet pATHENA copy when base chat state changes."""
