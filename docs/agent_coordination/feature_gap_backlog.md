@@ -38,13 +38,13 @@ Last scout baseline: `agent/pathena` @ `10e58e31a9083c18a312ffa3cdae5f69a5923788
 
 - **Source:** `docs/beta/08_Primaermodell_und_Provider-System.md`, section 11.
 - **Evidence:** Beta defines `unavailable`, `starting`, `ready`, `busy`, `degraded`, `error`. `src/athena/model/domain.py::ProviderHealthStatus` defines only `UNAVAILABLE`, `READY`, `DEGRADED`, and `ERROR`; `STARTING` and `BUSY` are absent.
-- **Current state:** Health normalization cannot represent two normative runtime states without collapsing them into another state or leaking backend detail.
+- **Current state:** The normalized domain now exposes all six normative states. LM Studio health continues to report only states it can actually observe rather than inventing startup/busy telemetry.
 - **Target state:** Extend normalized health state and adapter mapping so startup/loading and active-busy conditions are represented explicitly where observable, with deterministic fallback where the backend does not expose them.
 - **Dependencies:** Provider discovery/runtime semantics; tests for health normalization.
 - **Ownership:** BACKEND
 - **Priority:** P2
-- **Status:** IN_PROGRESS
-- **Verification:** Re-verified 2026-08-23 against current `agent/pathena`: domain enum still lacks `starting` and `busy`; LM Studio health exposes only states it can actually observe.
+- **Status:** IMPLEMENTED
+- **Verification:** Implemented 2026-08-23 in `src/athena/model/domain.py` with `tests/unit/test_provider_health_states.py`; branch HEAD was verified at `6ee614b1842139e91466d32b10080c2bb264f9c7`. Tests were added but not executed in connector runtime.
 
 ### FG-004 — Add explicit provider capability discovery / unsupported-capability representation
 
@@ -55,8 +55,8 @@ Last scout baseline: `agent/pathena` @ `10e58e31a9083c18a312ffa3cdae5f69a5923788
 - **Dependencies:** `ModelInfo`/domain contract; LM Studio discovery parser; FG-001/FG-002 consumers.
 - **Ownership:** BACKEND
 - **Priority:** P1
-- **Status:** READY
-- **Verification:** Beta capability contract compared with `src/athena/model/domain.py`, `ports.py`, and LM Studio discovery path through `10e58e3`.
+- **Status:** IN_PROGRESS
+- **Verification:** Re-selected 2026-08-23 after FG-003 implementation; current domain/discovery contracts will be re-read before mutation.
 
 ### FG-005 — Enforce source diversity during Context Builder selection
 
