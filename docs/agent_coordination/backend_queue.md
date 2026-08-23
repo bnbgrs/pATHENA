@@ -116,7 +116,7 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 - Evidence: ContextModelSignature and ContextPackage run snapshots now preserve `model_revision` in both package build paths, with dedicated tests. Execution-time `ChatGenerationService` still compares provider/model/quantization without revision, so known-revision drift must still be rejected there.
 - Components: ContextPackage complete; chat generation drift validation remaining.
 - Dependencies: avoid whole-file conflict if chat generation is concurrently active.
-- Last verification: 2026-08-23; `tests/unit/test_context_package_model_revision.py` added but not executed.
+- Last verification: 2026-08-23; current `chat/generation.py` re-read. Safe mutation deferred because the available writer requires whole-file replacement for this large shared path.
 
 ### BE-015 — Normalize Core provider failure taxonomy
 - Priority: P1
@@ -132,4 +132,12 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 - Evidence: Feature-gap FG-012 was corrected to PARTIAL after re-audit. Dedicated protected runtime search/context already enforces unlocked scope identity, re-verification and ephemeral plaintext handling. Missing work is the model-call bridge that re-verifies authorization immediately before execution and persists no protected plaintext.
 - Components: protected runtime context, ContextPackage/grounding orchestration, targeted lock/relock tests.
 - Dependencies: preserve zero protected-cleartext leakage into unprotected index/log/run-snapshot paths.
-- Last verification: 2026-08-23 against current `src/athena/retrieval/protected_source.py`.
+- Last verification: 2026-08-23 against current `src/athena/retrieval/protected_source.py`; bridge design remains security-sensitive and must not be approximated through the legacy durable-grounding path.
+
+### BE-017 — Enforce ModelSession constructor cancellation invariants
+- Priority: P2
+- Status: DONE
+- Evidence: Direct dataclass construction previously allowed impossible lifecycle combinations such as CREATED+cancel_requested, CANCELLED without cancel_requested, or COMPLETED/FAILED with retained cancellation. Constructor invariants now match the runtime transition graph.
+- Components: `src/athena/model/session.py`, `tests/unit/test_model_session.py`.
+- Dependencies: none.
+- Last verification: 2026-08-23; targeted regression tests added but not executed in connector runtime.
