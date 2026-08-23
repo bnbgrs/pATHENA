@@ -43,6 +43,30 @@ def _message_time(created_at_us: int) -> str:
         return "—"
 
 
+def _humanize_review_heading(text: str) -> str:
+    """Translate proposal codes into compact readable review headings."""
+    if text.startswith("RUN "):
+        return "Extraction summary"
+    if text == "RELATIONS":
+        return "Relationships"
+    if text == "EXTRACTOR MERGE CANDIDATES / BLOCKING":
+        return "Possible duplicates"
+    if text == "CANONICAL PREFLIGHT":
+        return "Deduplication"
+
+    parts = [part.strip() for part in text.split("/")]
+    if len(parts) >= 3 and len(parts[0]) >= 2:
+        code = parts[0]
+        prefix = code[0]
+        index = code[1:]
+        if prefix in {"K", "C"} and index.isdigit():
+            noun = "Knowledge" if prefix == "K" else "Claim"
+            kind = parts[1].replace("_", " ").title()
+            confidence = parts[2]
+            return f"{noun} {int(index)} · {kind} · {confidence}"
+    return text
+
+
 class PathenaMainWindow(AthenaMainWindow):
     """Apply pATHENA's quiet shell without changing ATHENA-derived behaviour.
 
@@ -73,14 +97,9 @@ class PathenaMainWindow(AthenaMainWindow):
                 rail_layout.setContentsMargins(18, 20, 16, 18)
                 rail_layout.setSpacing(11)
 
-            # Runtime metrics remain available in System/Details. Keeping them
-            # permanently visible in the primary rail makes the application read
-            # like a monitoring dashboard instead of a cognitive workspace.
             for metric in rail.findChildren(MetricRow):
                 metric.hide()
 
-            # The inherited network copy is a static placeholder rather than a
-            # live network-control surface. Do not present it as current state.
             network_state = rail.findChild(QLabel, "networkState")
             if network_state is not None:
                 network_state.hide()
@@ -88,8 +107,6 @@ class PathenaMainWindow(AthenaMainWindow):
             for rule in rail_rules[-2:]:
                 rule.hide()
 
-            # The live PALLAS canvas already identifies itself. A second heading
-            # directly above it adds noise without adding navigation information.
             for child_label in rail.findChildren(QLabel):
                 if child_label.text() == "PALLAS":
                     child_label.hide()
@@ -104,8 +121,6 @@ class PathenaMainWindow(AthenaMainWindow):
         if wordmark is not None:
             wordmark.setText("pATHENA")
 
-        # The product name is already anchored in the navigation rail. Keep the
-        # content header focused on the current workspace instead of repeating it.
         breadcrumb = self.findChild(QLabel, "breadcrumb")
         if breadcrumb is not None:
             breadcrumb.hide()
@@ -126,8 +141,6 @@ class PathenaMainWindow(AthenaMainWindow):
         if 0 <= current_page < len(_DISPLAY_NAVIGATION):
             self.page_title.setText(_DISPLAY_NAVIGATION[current_page])
 
-        # PALLAS has a live semantic ASCII controller. Reduce its visual
-        # dominance while preserving the intended 9:16 reactive surface.
         self.pallas_visual.setFixedSize(126, 224)
         self.pallas_visual.setToolTip(
             "PALLAS — local reactive view of the current workspace context"
@@ -158,6 +171,7 @@ class PathenaMainWindow(AthenaMainWindow):
         self._replace_visible_copy()
         self._apply_settings_presentation()
         self._hide_nonfunctional_placeholders()
+        self._humanize_knowledge_review_panel()
 
     def _install_progressive_disclosure(self) -> None:
         """Keep secondary evidence machinery out of the default reading flow."""
@@ -180,7 +194,6 @@ class PathenaMainWindow(AthenaMainWindow):
                 header_item = center_layout.itemAt(0)
                 header_layout = header_item.layout() if header_item is not None else None
                 if isinstance(header_layout, QHBoxLayout):
-                    # Insert immediately before the keyboard shortcut hint.
                     header_layout.insertWidget(
                         max(0, header_layout.count() - 1),
                         self.details_button,
@@ -215,7 +228,6 @@ class PathenaMainWindow(AthenaMainWindow):
             self.evidence_chain.hide()
 
     def _sync_progressive_chat_actions(self, _index: int | None = None) -> None:
-        """Reveal destructive chat controls only when they are actionable."""
         has_selected_chat = self.chat_selector.currentData() is not None
         self.delete_chat_button.setVisible(has_selected_chat)
 
@@ -240,8 +252,6 @@ class PathenaMainWindow(AthenaMainWindow):
             if replacement is not None:
                 label.setText(replacement)
 
-        # Only humanize the compact Chat toolbar labels. Do not rewrite workspace
-        # titles or technical labels inside Settings/System by matching text alone.
         for label in self.findChildren(QLabel, "sessionLabel"):
             if label.text() == "CHAT":
                 label.setText("Conversation")
@@ -249,7 +259,6 @@ class PathenaMainWindow(AthenaMainWindow):
                 label.setText("Model")
 
     def _apply_settings_presentation(self) -> None:
-        """Translate inference terminology without changing model-control semantics."""
         settings_page = self.pages.widget(6)
         if settings_page is None:
             return
@@ -302,8 +311,49 @@ class PathenaMainWindow(AthenaMainWindow):
             "On" if self.thinking_checkbox.isChecked() else "Off"
         )
 
+    def _humanize_knowledge_review_panel(self) -> None:
+        """Keep review semantics visible while removing machine-oriented copy."""
+        self.knowledge_review_close_button.setText("Close")
+
+        state_replacements = {
+            "IDLE": "Idle",
+            "PREFLIGHT / PENDING": "Checking for duplicates…",
+            "REVIEW COMPLETE / READY": "Ready to add",
+            "DECISION REQUIRED / CANONICAL MERGE": "Decision required",
+            "BLOCKED / EXTRACTOR MERGE": "Needs review",
+            "BLOCKED / REVIEW REQUIRED": "Needs review",
+            "SAVING MERGE DECISION": "Saving…",
+            "MERGE DECISION SAVED / REFRESHING PREFLIGHT": "Checking again…",
+        }
+        state = self.knowledge_review_state.text()
+        if state.startswith("ERROR /"):
+            self.knowledge_review_state.setText("Review failed")
+        else:
+            replacement = state_replacements.get(state)
+            if replacement is not None:
+                self.knowledge_review_state.setText(replacement)
+
+        for label in self.knowledge_review_panel.findChildren(
+            QLabel,
+            "knowledgeReviewItemTitle",
+        ):
+            original = label.text()
+            humanized = _humanize_review_heading(original)
+            if humanized != original:
+                label.setToolTip(original)
+                label.setText(humanized)
+
+        for button in self.knowledge_review_panel.findChildren(
+            QPushButton,
+            "knowledgeMergeButton",
+        ):
+            decision = button.property("decision")
+            if decision == "merge":
+                button.setText("Merge")
+            elif decision == "keep_separate":
+                button.setText("Keep separate")
+
     def _hide_nonfunctional_placeholders(self) -> None:
-        """Do not advertise affordances that are not wired to an action yet."""
         hidden_copy = {
             "ATTACH",
             "BACKGROUND WORK",
@@ -314,7 +364,6 @@ class PathenaMainWindow(AthenaMainWindow):
                 label.hide()
 
     def _apply_control_snapshot(self, snapshot: DesktopApiSnapshot) -> None:
-        """Keep controller identities intact while presenting readable selectors."""
         super()._apply_control_snapshot(snapshot)
 
         models = {
@@ -396,6 +445,15 @@ class PathenaMainWindow(AthenaMainWindow):
         ):
             self._set_context_available(True)
 
+    @Slot(object)
+    def apply_knowledge_merge_review_ready(self, response: object) -> None:
+        super().apply_knowledge_merge_review_ready(response)
+        self._humanize_knowledge_review_panel()
+
+    def _render_knowledge_review_panel(self) -> None:
+        super()._render_knowledge_review_panel()
+        self._humanize_knowledge_review_panel()
+
     def _message_widget(
         self,
         *,
@@ -406,7 +464,6 @@ class PathenaMainWindow(AthenaMainWindow):
         message_id: str,
         revision_id: str,
     ) -> QWidget:
-        """Render the mature message actions with quieter pATHENA presentation."""
         container = super()._message_widget(
             role=role,
             content=content,
@@ -438,8 +495,23 @@ class PathenaMainWindow(AthenaMainWindow):
 
         return container
 
+    def _sync_message_action_buttons(self) -> None:
+        super()._sync_message_action_buttons()
+        for button in self.chat_messages_widget.findChildren(
+            QPushButton,
+            "rememberMessageButton",
+        ):
+            button.setText(
+                "Remembered" if button.text() == "REMEMBERED" else "Remember"
+            )
+        for button in self.chat_messages_widget.findChildren(
+            QPushButton,
+            "addKnowledgeButton",
+        ):
+            button.setText("Add to knowledge")
+        self._humanize_knowledge_review_panel()
+
     def _update_ready_state(self) -> None:
-        """Translate machine-oriented readiness copy into quiet product status."""
         super()._update_ready_state()
         replacements = {
             "LOCAL / READY": "Ready",
@@ -453,13 +525,10 @@ class PathenaMainWindow(AthenaMainWindow):
             self.status_text.setText(replacement)
 
     def _select_page(self, index: int) -> None:
-        """Keep functional routing but present human-readable page titles."""
         super()._select_page(index)
         if 0 <= index < len(_DISPLAY_NAVIGATION):
             self.page_title.setText(_DISPLAY_NAVIGATION[index])
 
-        # The legacy inspector is chat-specific. Never leave stale chat metadata
-        # open beside Knowledge, Research, Jobs, Files, System, or Settings.
         details_button = getattr(self, "details_button", None)
         if isinstance(details_button, QPushButton):
             is_chat = index == 0
@@ -468,6 +537,5 @@ class PathenaMainWindow(AthenaMainWindow):
                 details_button.setChecked(False)
 
     def apply_chat_busy(self, busy: bool) -> None:
-        """Preserve the quiet pATHENA copy when base chat state changes."""
         super().apply_chat_busy(busy)
         self.send_button.setText("Working…" if busy else "Send")
