@@ -102,3 +102,32 @@ def test_result_scope_retains_existing_cancellation_phase(qt_app: QApplication) 
     assert "State: ready." in description
     assert "Cancellation: phase requested" in description
     assert "selected job state cancel_requested" in description
+
+
+def test_vanished_selection_remains_authoritative_after_scope_and_state_sync(
+    qt_app: QApplication,
+) -> None:
+    window = QWidget()
+    widget = _selected_list()
+    widget.setParent(window)
+    controller = AccessibleStateSyncController(window)
+    controller.register(widget, "Sources")
+    widget.clear()
+    widget.setProperty(
+        "pathenaResultScopeText",
+        "Sources · 0 shown / 1 total · none selected",
+    )
+    widget.setProperty("pathenaSelectionDisappeared", "abcdef12-vanished")
+    widget.setProperty("pathenaUiState", "idle")
+
+    controller._sync_one(widget)
+
+    description = widget.accessibleDescription()
+    assert description.startswith(
+        "Previously selected item ABCDEF12 is no longer listed after refresh."
+    )
+    assert "Sources · 0 shown / 1 total · none selected" in description
+    assert "State: ready." in description
+    assert widget.property("pathenaAccessibleSelectionDisappeared") == (
+        "abcdef12-vanished"
+    )
