@@ -20,6 +20,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from athena.desktop.pathena_ui_refinement_600 import set_pathena_ui_state
+
 _JOB_QUEUED_RE = re.compile(r"^JOB_QUEUED\s+([0-9a-fA-F-]{36})$", re.MULTILINE)
 
 
@@ -51,16 +53,18 @@ class ResearchWorkspace(QWidget):
         self.cancel_button.clicked.connect(self.cancel_selected)
 
         self.status = QLabel("Ready.")
-        self.status.setObjectName("settingsHelp")
+        self.status.setObjectName("researchStatus")
         self.status.setTextInteractionFlags(
             Qt.TextInteractionFlag.TextSelectableByMouse
             | Qt.TextInteractionFlag.TextSelectableByKeyboard
         )
+        set_pathena_ui_state(self.status, "idle")
 
         self.jobs = QListWidget()
         self.jobs.setObjectName("researchJobList")
         self.jobs.setMinimumWidth(320)
         self.jobs.currentItemChanged.connect(self._selection_changed)
+        set_pathena_ui_state(self.jobs, "idle")
 
         self.details = QPlainTextEdit()
         self.details.setObjectName("researchDetails")
@@ -69,6 +73,7 @@ class ResearchWorkspace(QWidget):
         self.details.setPlaceholderText(
             "Select a research job to inspect scope, coverage and work items."
         )
+        set_pathena_ui_state(self.details, "empty")
 
         self._process = QProcess(self)
         self._process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
@@ -118,6 +123,7 @@ class ResearchWorkspace(QWidget):
         if not query or self._busy():
             return
         self.details.clear()
+        set_pathena_ui_state(self.details, "busy")
         self._start("enqueue", ["enqueue", query], "Queueing durable research")
 
     def refresh(self) -> None:
@@ -143,6 +149,7 @@ class ResearchWorkspace(QWidget):
         self._selected_job_id = str(job_id) if job_id else None
         self.cancel_button.setEnabled(bool(self._selected_job_id) and not self._busy())
         if self._selected_job_id and not self._busy():
+            set_pathena_ui_state(self.details, "busy")
             self._start(
                 "show",
                 ["show", self._selected_job_id],
@@ -156,6 +163,7 @@ class ResearchWorkspace(QWidget):
         self._operation = operation
         self._buffer = ""
         self.status.setText(label + " …")
+        set_pathena_ui_state(self.status, "busy")
         self._set_controls_enabled(False)
         self._process.start(
             sys.executable,
@@ -188,6 +196,8 @@ class ResearchWorkspace(QWidget):
 
         if exit_code != 0:
             self.status.setText(f"Research command failed (exit {exit_code}).")
+            set_pathena_ui_state(self.status, "error")
+            set_pathena_ui_state(self.details, "error")
             if operation == "list":
                 self.details.setPlainText(output)
             return
@@ -195,6 +205,7 @@ class ResearchWorkspace(QWidget):
         if operation == "list":
             self._render_job_list(output)
             self.status.setText(f"Research jobs refreshed: {self.jobs.count()} shown.")
+            set_pathena_ui_state(self.status, "success")
             return
 
         if operation == "enqueue":
@@ -203,16 +214,22 @@ class ResearchWorkspace(QWidget):
                 self._selected_job_id = match.group(1)
             self.query_input.clear()
             self.status.setText("Research job queued.")
+            set_pathena_ui_state(self.status, "success")
+            set_pathena_ui_state(self.details, "success")
             QTimer.singleShot(120, self.refresh)
             return
 
         if operation == "cancel":
             self.status.setText("Cancellation request persisted.")
+            set_pathena_ui_state(self.status, "success")
+            set_pathena_ui_state(self.details, "success")
             QTimer.singleShot(120, self.refresh)
             return
 
         if operation == "show":
             self.status.setText("Research details loaded.")
+            set_pathena_ui_state(self.status, "success")
+            set_pathena_ui_state(self.details, "success")
 
     def _render_job_list(self, output: str) -> None:
         selected = self._selected_job_id
@@ -237,9 +254,11 @@ class ResearchWorkspace(QWidget):
 
         self.jobs.blockSignals(False)
         if item_to_select is not None:
+            set_pathena_ui_state(self.jobs, "success")
             self.jobs.setCurrentItem(item_to_select)
             self._selection_changed(item_to_select, None)
         elif self.jobs.count() > 0:
+            set_pathena_ui_state(self.jobs, "success")
             self.jobs.setCurrentRow(0)
         else:
             self._selected_job_id = None
@@ -247,6 +266,8 @@ class ResearchWorkspace(QWidget):
             self.details.setPlainText(
                 "No exhaustive research jobs yet. Enter a question above to create one."
             )
+            set_pathena_ui_state(self.jobs, "empty")
+            set_pathena_ui_state(self.details, "empty")
 
     def _process_error(self, error: QProcess.ProcessError) -> None:
         self._set_controls_enabled(True)
@@ -254,6 +275,8 @@ class ResearchWorkspace(QWidget):
             self.status.setText("Unable to start the local pATHENA research command.")
         else:
             self.status.setText(f"Research command error: {error.name}")
+        set_pathena_ui_state(self.status, "error")
+        set_pathena_ui_state(self.details, "error")
 
 
 def install_research_workspace(window: object) -> ResearchWorkspace:
