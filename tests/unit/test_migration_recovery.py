@@ -207,18 +207,19 @@ def test_source_replacement_after_open_fails_identity_classification(
     source, root, _candidate, _rollback = _paths(tmp_path)
     source.write_bytes(b"trusted")
     displaced = tmp_path / "displaced.db"
-    real_lstat = recovery_module.os.lstat
-    replaced = False
+    real_assert = recovery_module._assert_safe_path
+    source_checks = 0
 
-    def racing_lstat(path: Path) -> object:
-        nonlocal replaced
-        if Path(path) == source and not replaced:
-            replaced = True
-            source.rename(displaced)
-            source.write_bytes(b"replacement")
-        return real_lstat(path)
+    def racing_assert(path: Path, *, label: str) -> None:
+        nonlocal source_checks
+        if path == source:
+            source_checks += 1
+            if source_checks == 2:
+                source.rename(displaced)
+                source.write_bytes(b"replacement")
+        real_assert(path, label=label)
 
-    monkeypatch.setattr(recovery_module.os, "lstat", racing_lstat)
+    monkeypatch.setattr(recovery_module, "_assert_safe_path", racing_assert)
 
     with pytest.raises(MigrationRecoveryError, match="changed while recovery state"):
         assess_migration_recovery(source_db=source, migration_root=root)
