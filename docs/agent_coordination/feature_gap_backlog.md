@@ -57,10 +57,10 @@ Last refresh: 2026-08-23.
 ### FG-013 — Reconcile migration engine with Beta 03 architecture
 - **Source:** Beta 03 section 3 and sections 193–209.
 - **Ownership / Priority / Status:** BACKEND · P1 · PARTIAL
-- **Current state:** Safe startup routing is now implemented: `StorageBootstrapService` performs read-only preflight and migration planning, provisions the emergency reserve, routes legacy schemas through clone migration before writable database startup, preserves rollback/recovery boundaries, and only then starts `SQLiteDatabase`. The previous integration gap is therefore closed. The remaining divergence is architectural: schema revision execution still uses the custom/library-neutral migration stack rather than the Beta-specified SQLAlchemy 2.x + Alembic toolchain.
+- **Current state:** Safe startup routing is now implemented end-to-end in the productive Core lifecycle: `AthenaApplication` registers `StorageBootstrapService` as its first storage lifecycle service instead of starting `RuntimeLayoutService` and `SQLiteDatabase` independently. The bootstrap performs read-only preflight and migration planning, provisions the emergency reserve, routes legacy schemas through clone migration before writable database startup, preserves rollback/recovery boundaries, and only then starts `SQLiteDatabase`. The remaining divergence is architectural: schema revision execution still uses the custom/library-neutral migration stack rather than the Beta-specified SQLAlchemy 2.x + Alembic toolchain.
 - **Desired state:** make the Alembic-vs-custom revision engine an explicit architecture/spec decision. If the custom engine is retained, document the intentional Beta override and the equivalent migration-safety invariants; otherwise migrate revision execution to Alembic without weakening the clone/activation/recovery safety stack.
-- **Dependencies:** storage bootstrap integration is present; no longer blocked on routing legacy startup through the coordinator.
-- **Verification:** 2026-08-23; inspected current `src/athena/storage/bootstrap.py`, migration stack, and current branch diff. Product tests were not executed by the Scout.
+- **Dependencies:** storage bootstrap runtime integration is present; no longer blocked on routing legacy startup through the coordinator.
+- **Verification:** 2026-08-23; full current `src/athena/core/application.py` was re-read and updated to use `StorageBootstrapService`. Earlier GitHub Actions identified candidate migration mapping-row and Windows clone-fsync regressions; both were fixed. A new Quality Gate run is pending, so this remains PARTIAL rather than VERIFIED.
 
 ### FG-014 — Reject network-backed active state roots before SQLite open
 - **Ownership / Priority / Status:** BACKEND · P1 · IMPLEMENTED
@@ -69,15 +69,15 @@ Last refresh: 2026-08-23.
 ### FG-015 — Physical Emergency Reserve and disk-pressure policy
 - **Source:** Beta 03 emergency reserve/disk-pressure sections and Emergency Reserve Test 270.
 - **Ownership / Priority / Status:** BACKEND · P1 · IMPLEMENTED
-- **Current state:** `EmergencyReserveStore` implements non-sparse physical allocation at `state_root/reserve/emergency.reserve`, exact default sizing `max(256 MiB, min(1 GiB, 1% volume))`, durable persistence, path/reparse safety, explicit release and normal-shutdown retention. `StorageBootstrapService` owns reserve-before-database ordering and refuses writable startup when the volume is already EMERGENCY. Runtime `SQLiteDatabase.write_transaction()` now checks the configured `DiskPressureController` before `BEGIN IMMEDIATE`. On the first runtime EMERGENCY, the controller releases only the emergency reserve, immediately reassesses, latches read-only safe mode for its lifetime, blocks that transaction and blocks later noncritical writes even if the reserve release temporarily improves free space. No canonical data is deleted.
+- **Current state:** `EmergencyReserveStore` implements non-sparse physical allocation at `state_root/reserve/emergency.reserve`, exact default sizing `max(256 MiB, min(1 GiB, 1% volume))`, durable persistence, path/reparse safety, explicit release and normal-shutdown retention. `StorageBootstrapService` owns reserve-before-database ordering, is now wired into the real `AthenaApplication` lifecycle, and refuses writable startup when the volume is already EMERGENCY. Runtime `SQLiteDatabase.write_transaction()` checks the configured `DiskPressureController` before `BEGIN IMMEDIATE`. On first runtime EMERGENCY, the controller releases only the emergency reserve, immediately reassesses, latches read-only safe mode for its lifetime, blocks that transaction and blocks later noncritical writes even if reserve release temporarily improves free space. No canonical data is deleted.
 - **Recovery contract:** read-only safe mode is deliberately cleared only by a controlled process restart, which re-runs bootstrap pressure assessment before writable service can resume. Clone migration/recovery paths remain outside ordinary runtime `write_transaction()` arbitration and therefore retain the released reserve headroom for recovery.
-- **Verification:** 2026-08-23; targeted database, controller and bootstrap integration regressions added. They were not executed in the isolated automation runtime because its `github.com` DNS lookup failed, so status is IMPLEMENTED rather than VERIFIED.
+- **Verification:** 2026-08-23; Linux/Windows storage jobs on an earlier milestone exposed one stale reserve-error assertion, one Windows-only stub-path issue and two row-factory assertion mismatches around this area; those tests were corrected. Product runtime wiring is now present. A new Quality Gate run is pending, so status remains IMPLEMENTED rather than VERIFIED.
 
 ## Handoff notes
 - Re-read current HEAD and affected files before every mutation.
 - Preserve `unknown` versus `unsupported`; never invent provider facts.
 - Shared provider/generation files remain ownership-sensitive.
 - FG-012 must never route protected cleartext into ordinary indexes/logs/run snapshots/unprotected assistant persistence.
-- FG-013 clone/journal/startup routing is implemented; only the Alembic-vs-custom architecture/spec decision remains.
+- FG-013 clone/journal/startup routing is implemented; only the Alembic-vs-custom architecture/spec decision remains plus BE-036 filesystem-identity hardening.
 - FG-014 applies only to active state/database roots.
-- FG-015 runtime write arbitration is implemented; future verification should execute the targeted storage tests on a runner with repository access before promoting to VERIFIED.
+- FG-015 runtime write arbitration is implemented and wired into application startup; promote to VERIFIED only after a green relevant gate.
