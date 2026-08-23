@@ -112,10 +112,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     controller = DesktopApiController(client)
     window = PathenaMainWindow(api_controller=controller)
     knowledge_workspace = install_knowledge_workspace(window, controller)
-    install_claims_panel(knowledge_workspace)
+    claims_panel = install_claims_panel(knowledge_workspace)
     knowledge_acceptance = install_knowledge_acceptance(
         knowledge_workspace,
         controller,
+        claims_panel=claims_panel,
     )
     research_workspace = install_research_workspace(window)
     jobs_workspace = install_jobs_workspace(window, scheduler_supervisor)
