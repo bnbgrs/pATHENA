@@ -67,6 +67,7 @@ class DurableJobService:
             raise UnsupportedJobTypeError(
                 f"Unregistered ATHENA job type {job_type!r}."
             )
+        _job_priority(priority)
         _optional_nonnegative_int(next_run_at_us, "next_run_at_us")
         try:
             validate_builtin_job_payload(
@@ -369,6 +370,12 @@ def _canonical_json(value: Mapping[str, Any] | None) -> str | None:
         )
     except (TypeError, ValueError) as exc:
         raise InvalidJobPayloadError("Job payload must be finite canonical JSON.") from exc
+
+
+def _job_priority(value: object) -> JobPriority:
+    if not isinstance(value, JobPriority):
+        raise InvalidJobPayloadError("priority must be a JobPriority value.")
+    return value
 
 
 def _positive_int(value: object, label: str) -> int:
