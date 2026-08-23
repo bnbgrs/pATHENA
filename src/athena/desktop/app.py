@@ -25,6 +25,7 @@ from athena.desktop.pathena_research_result_presentation import (
 )
 from athena.desktop.pathena_shell_density import apply_shell_density
 from athena.desktop.pathena_theme import PATHENA_STYLESHEET
+from athena.desktop.pathena_ui_refinement_100 import apply_ui_refinements
 from athena.desktop.pathena_window import PathenaMainWindow
 from athena.desktop.pathena_workspace_presentation import apply_workspace_presentation
 from athena.desktop.research_results_extension import install_research_results_extension
@@ -143,6 +144,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     apply_shell_density(window)
     apply_workspace_presentation(window)
     command_palette = install_command_palette(window)
+    apply_ui_refinements(window)
     _schedule_initial_core_refreshes(
         controller,
         supervisor,
