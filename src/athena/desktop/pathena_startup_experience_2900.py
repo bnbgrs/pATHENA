@@ -11,10 +11,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from PySide6.QtCore import QEvent, QObject, Qt, QTimer
+from PySide6.QtCore import QEvent, QObject, QSize, Qt, QTimer
 from PySide6.QtWidgets import (
     QFrame,
-    QHBoxLayout,
     QLabel,
     QListWidget,
     QPushButton,
@@ -134,7 +133,6 @@ def apply_ui_refinements_2801_2900(window: QWidget) -> tuple[int, ...]:
     for index, target in enumerate(_STARTUP_TARGETS):
         widget = window.findChild(QWidget, target.key)
         if target.key in {"emptyChatState", "emptyStatePanel"} and widget is None:
-            # These surfaces are generated dynamically by the empty-chat renderer.
             widget = window.findChild(QWidget, "chatScroll")
         if widget is None:
             continue
@@ -195,7 +193,7 @@ class PathenaStartupExperience(QObject):
         if navigation is not None:
             navigation.setFixedHeight(224)
             for index in range(navigation.count()):
-                navigation.item(index).setSizeHint(navigation.item(index).sizeHint().boundedTo(navigation.size()))
+                navigation.item(index).setSizeHint(QSize(164, 32))
 
         pallas = self.window.findChild(QWidget, "pallasVisualPlaceholder")
         if pallas is not None:
@@ -259,7 +257,10 @@ class PathenaStartupExperience(QObject):
         panel = QFrame(messages)
         panel.setObjectName("emptyStatePanel")
         panel.setMaximumWidth(560)
-        panel.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Preferred)
+        panel.setSizePolicy(
+            QSizePolicy.Policy.Preferred,
+            QSizePolicy.Policy.Preferred,
+        )
         panel_layout = QVBoxLayout(panel)
         panel_layout.setContentsMargins(24, 24, 24, 24)
         panel_layout.setSpacing(9)
@@ -283,8 +284,8 @@ class PathenaStartupExperience(QObject):
         if not core_ready:
             title.setText("Waiting for the local core")
             body.setText(
-                "pATHENA reconnects automatically. Chat, knowledge, research and files "
-                "remain local while the workspace comes online."
+                "pATHENA reconnects automatically. Chat, knowledge, research and "
+                "files remain local while the workspace comes online."
             )
         elif raw_text.startswith("Conversation deleted"):
             title.setText("Conversation deleted")
@@ -305,3 +306,8 @@ class PathenaStartupExperience(QObject):
             return
         layout.insertStretch(0, 1)
         layout.insertWidget(1, panel, 0, Qt.AlignmentFlag.AlignHCenter)
+
+
+def install_startup_experience(window: QWidget) -> PathenaStartupExperience:
+    """Install the exact-render-driven first-run presentation controller."""
+    return PathenaStartupExperience(window)
