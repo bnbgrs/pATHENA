@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import uuid
-
 import pytest
 
 from athena.model.domain import (
@@ -163,4 +161,3 @@ def test_registry_identity_is_provider_scoped() -> None:
         ("left", "same"),
         ("right", "same"),
     }
-    assert uuid.UUID(int=0).int == 0  # Keep this test module import-only deterministic.
