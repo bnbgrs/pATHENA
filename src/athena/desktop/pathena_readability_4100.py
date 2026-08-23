@@ -24,14 +24,44 @@ class ReadabilityTarget:
 _TARGETS: tuple[ReadabilityTarget, ...] = (
     ReadabilityTarget("knowledgeWorkspace", "state", "knowledge state", "status"),
     ReadabilityTarget("knowledgeWorkspace", "summary", "knowledge summary", "prose"),
-    ReadabilityTarget("knowledgeWorkspace", "browser_status", "knowledge browser status", "status"),
-    ReadabilityTarget("knowledgeWorkspace", "knowledge_details", "knowledge details", "detail"),
-    ReadabilityTarget("knowledgeWorkspace", "claim_details", "claim details", "detail"),
-    ReadabilityTarget("knowledgeWorkspace", "review_details", "decision details", "detail"),
+    ReadabilityTarget(
+        "knowledgeWorkspace",
+        "browser_status",
+        "knowledge browser status",
+        "status",
+    ),
+    ReadabilityTarget(
+        "knowledgeWorkspace",
+        "knowledge_details",
+        "knowledge details",
+        "detail",
+    ),
+    ReadabilityTarget(
+        "knowledgeWorkspace",
+        "claim_details",
+        "claim details",
+        "detail",
+    ),
+    ReadabilityTarget(
+        "knowledgeWorkspace",
+        "review_details",
+        "decision details",
+        "detail",
+    ),
     ReadabilityTarget("researchWorkspace", "status", "research status", "status"),
     ReadabilityTarget("researchWorkspace", "jobs", "research jobs", "list"),
-    ReadabilityTarget("researchWorkspace", "details", "research details", "technical"),
-    ReadabilityTarget("jobsWorkspace", "scheduler_status", "scheduler status", "status"),
+    ReadabilityTarget(
+        "researchWorkspace",
+        "details",
+        "research details",
+        "technical",
+    ),
+    ReadabilityTarget(
+        "jobsWorkspace",
+        "scheduler_status",
+        "scheduler status",
+        "status",
+    ),
     ReadabilityTarget("jobsWorkspace", "status", "jobs status", "status"),
     ReadabilityTarget("jobsWorkspace", "jobs", "durable jobs", "list"),
     ReadabilityTarget("jobsWorkspace", "details", "job details", "technical"),
@@ -61,7 +91,7 @@ UI_REFINEMENT_TASKS_4001_4100: tuple[str, ...] = tuple(
 _READABILITY_STYLESHEET = """
 /* pATHENA readability 4100 */
 QLabel[pathenaReadingRole="status"] {
-    letter-spacing: 0.2px;
+    padding: 1px 0;
 }
 QPlainTextEdit[pathenaReadingRole="detail"],
 QPlainTextEdit[pathenaReadingRole="technical"] {
@@ -85,7 +115,8 @@ def _apply_surface(widget: QWidget, target: ReadabilityTarget) -> None:
         if target.reading_role == "prose":
             widget.setWordWrap(True)
         widget.setProperty("pathenaTextSelectable", True)
-        widget.setProperty("pathenaWrapStrategy", "word-wrap" if widget.wordWrap() else "single-line")
+        wrap_strategy = "word-wrap" if widget.wordWrap() else "single-line"
+        widget.setProperty("pathenaWrapStrategy", wrap_strategy)
         widget.setProperty("pathenaContentSpacing", "label-native")
     elif isinstance(widget, QPlainTextEdit):
         widget.document().setDocumentMargin(8.0)
@@ -133,6 +164,9 @@ def apply_ui_refinements_4001_4100(window: QWidget) -> tuple[int, ...]:
     if _READABILITY_STYLESHEET not in window.styleSheet():
         window.setStyleSheet(f"{window.styleSheet()}\n{_READABILITY_STYLESHEET}")
 
-    window.setProperty("pathenaReadabilityTargetCount", len(applied) // len(_DIMENSIONS))
+    window.setProperty(
+        "pathenaReadabilityTargetCount",
+        len(applied) // len(_DIMENSIONS),
+    )
     window.setProperty("pathenaReadabilityTaskCount", len(applied))
     return tuple(applied)
