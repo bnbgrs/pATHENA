@@ -16,6 +16,16 @@ class RestoredJobRecoverySummary:
     paused_running: int
     cancelled_requested: int
 
+    def __post_init__(self) -> None:
+        for value, label in (
+            (self.paused_running, "paused_running"),
+            (self.cancelled_requested, "cancelled_requested"),
+        ):
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise TypeError(f"Restore recovery {label} must be an integer.")
+            if value < 0:
+                raise ValueError(f"Restore recovery {label} must not be negative.")
+
     @property
     def total(self) -> int:
         return self.paused_running + self.cancelled_requested
@@ -99,7 +109,12 @@ def reconcile_jobs_after_restore(
 
     except BaseException:
         if transaction_started:
-            connection.execute("ROLLBACK")
+            try:
+                connection.execute("ROLLBACK")
+            except BaseException:
+                # Preserve the operation failure that triggered rollback. A
+                # rollback failure is secondary and must not mask the cause.
+                pass
         raise
 
     return RestoredJobRecoverySummary(
