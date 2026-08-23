@@ -5,90 +5,67 @@ Date: 2026-08-23
 ## Status
 
 - Severity / priority: P1 safety and durability boundary
-- Ownership: BACKEND
-- Quality status: BLOCKED on Backend owner
+- Ownership: BACKEND; verification: QUALITY
+- Quality status: IN_PROGRESS — Backend fix is statically present; executed verification pending
 - Product mutation by Quality: none
-- Execution status: static reproduction confirmed; runtime reproduction NOT EXECUTABLE in the isolated Quality runtime because `github.com` DNS resolution is unavailable
+- Execution status: static fix verification completed; current CI execution still pending/superseded under branch churn
 
-## Observed HEAD
+## Original observed defect
 
-The defect was re-read on `agent/pathena` at HEAD `1d5ce904c80a1122ec3204499326363b1050b767` in `src/athena/storage/migration_journal.py` blob `8cdcdceb443d3206b8982aebe39ba48c242d38dd`.
+The defect was originally re-read on `agent/pathena` at HEAD `1d5ce904c80a1122ec3204499326363b1050b767` in `src/athena/storage/migration_journal.py` blob `8cdcdceb443d3206b8982aebe39ba48c242d38dd`.
 
-## Affected component
+Affected component:
 
 - `src/athena/storage/migration_journal.py`
 - `MigrationJournalStore.load()`
 - `MigrationJournalStore.publish()`
 - Related hardened primitive: `src/athena/storage/durable_fs.py::durable_replace()`
 
-## Primary defect
+The original implementation rejected a symlink only at the journal file itself. It did not reject symlink/junction/reparse-point ancestors before pathname traversal during reads, and `publish()` could create/fsync a temporary file before the stronger `durable_replace()` ancestor validation.
 
-`MigrationJournalStore.load()` rejects a symlink only when the journal file itself is a symlink. It does not reject a symlink/junction/reparse-point ancestor before `exists()`, `is_file()`, or `read_bytes()` traverses the path.
+This was a primary trust-boundary defect, not a consequence of another CI failure.
 
-`MigrationJournalStore.publish()` checks only that the immediate parent is a directory and not itself a symlink, then creates and fsyncs a temporary journal inside that parent. `durable_replace()` performs the stronger ancestor/reparse-point validation, but only **after** the temporary file has already been created and written. Therefore an ancestor redirection can cause a read or a transient write outside the intended migration-journal root before the later publication guard rejects the final replace.
+## Backend fix now present
 
-This is a primary trust-boundary defect, not a consequence of an existing CI failure.
+Static re-verification on 2026-08-23 through HEAD `07fe4000e4278b79edc153d97db1c42e05a5746f` confirms that the Backend implementation now:
 
-## Evidence
+1. calls `_assert_safe_parent(self.path)` before `load()` performs file existence/type/read operations;
+2. calls `_assert_safe_parent(self.path)` before `publish()` creates any temporary file;
+3. rejects symlink, junction, and reparse-point boundaries using the shared `is_link_boundary()` predicate;
+4. opens journal reads with `O_NOFOLLOW` where available;
+5. compares `path.stat(follow_symlinks=False)` with `os.fstat(descriptor)` using `os.path.samestat()` before reading, preventing pathname/handle identity substitution at the journal file boundary;
+6. preserves `durable_replace()` as the final durable publication boundary.
 
-Current load path:
+The targeted Backend regression tests now include:
 
-```python
-if self.path.is_symlink():
-    raise MigrationJournalError(...)
-if not self.path.exists():
-    return None
-if not self.path.is_file():
-    raise MigrationJournalError(...)
-payload = self.path.read_bytes()
-```
+- `test_store_rejects_reparse_ancestor_before_read`
+- `test_store_rejects_reparse_ancestor_before_publish`
 
-Current publish ordering:
+Both tests instrument `os.open` and assert that unsafe ancestor detection happens before read/write file opening.
 
-```python
-parent = self.path.parent
-if not parent.is_dir() or parent.is_symlink():
-    raise MigrationJournalError(...)
-...
-descriptor = os.open(temporary, flags, 0o600)
-...
-durable_replace(temporary, self.path)
-```
+## Quality-owned verification coverage added
 
-`durable_replace()` already has the stronger `_assert_real_directory()` logic that walks ancestors and also detects Windows junction/reparse points. The migration journal does not establish the same boundary before reading or before creating its temporary file.
+The focused `windows-latest` path-safety lane was extended by Quality to execute:
 
-## Missing regression coverage
+- `tests/unit/test_migration_journal.py`
+- `tests/unit/test_emergency_reserve.py`
 
-`tests/unit/test_migration_journal.py` covers a symlink at `migration_state.json` itself, but it does not cover:
+in addition to the existing locality/runtime-path/migration-clone regressions. `tests/unit/test_quality_workflow_contract.py` now asserts that these files remain part of the Windows lane.
 
-- a symlink ancestor above the journal parent,
-- a Windows junction/reparse-point ancestor,
-- proving that `publish()` creates no temporary file before rejecting an unsafe ancestor,
-- proving that `load()` performs no external read through an unsafe ancestor.
+Quality commits:
 
-Backend owns these tests under the repository ownership rules.
+- `835a00583671f05f156fbfcf3a6e690ea3c1b048` — extend Windows storage boundary coverage
+- `eb78b6434f0b888d99aeacd3790f710695224bc7` — protect the Windows coverage in the workflow contract test
 
-## Recommended Backend fix
+## Required remaining verification
 
-Before either load or publish performs filesystem I/O, establish a reusable journal-directory trust boundary equivalent to `durable_fs._assert_real_directory()` semantics:
+The incident must not be marked DONE until executed evidence exists for the fixed code. Required evidence:
 
-1. reject the immediate journal parent if missing, non-directory, symlink, junction, or reparse point;
-2. walk every existing ancestor and reject symlink/junction/reparse-point boundaries;
-3. perform that validation **before** `read_bytes()` and before `os.open(temporary, ...)`;
-4. preserve the existing destination-file symlink/reparse checks and `durable_replace()` final publication validation;
-5. add deterministic POSIX ancestor-symlink tests plus Windows reparse/junction coverage where practical.
-
-Avoid importing a private helper across modules unless the durable filesystem boundary is intentionally promoted to a shared public/internal primitive.
-
-## Required verification
-
-After Backend fixes the component:
-
-1. targeted tests for `tests/unit/test_migration_journal.py`, including ancestor-redirection negative cases;
-2. targeted Ruff/mypy on the migration journal and tests;
-3. full Linux keep-going Quality gate;
-4. relevant Windows path-safety execution if the shared ancestor primitive changes Windows behavior.
+1. targeted `tests/unit/test_migration_journal.py` PASS;
+2. Ruff/mypy remain green for the migration-journal slice;
+3. full Linux keep-going Quality gate reaches and reports pytest;
+4. focused Windows path-safety lane passes the migration-journal regression file.
 
 ## CI context
 
-The latest branch runs around discovery were repeatedly pending/superseded under high branch churn; no CI result is claimed for this defect. The finding is based on direct current-code inspection and ordering of observable filesystem operations.
+Runs on the rapidly changing feature branch continue to be frequently superseded while pending. No PASS is claimed until an actual completed job log exists. The product defect is therefore classified as **statically fixed, execution pending**, not VERIFIED/DONE.
