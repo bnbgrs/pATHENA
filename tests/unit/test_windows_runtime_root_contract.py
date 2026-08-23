@@ -14,12 +14,14 @@ def test_windows_common_defines_single_effective_runtime_root_contract() -> None
 
     assert "function Resolve-PathenaDefaultLocalRoot" in source
     assert "function Resolve-PathenaEffectiveLocalRoot" in source
+    assert "function Assert-PathenaRuntimeRootOutsideRepository" in source
     assert "function Assert-PathenaLocalRootReady" in source
     assert ".pathena-write-probe-" in source
     assert "pATHENA runtime root is not writable" in source
+    assert "runtime root must be outside the repository" in source
 
 
 def test_all_windows_entrypoints_preflight_runtime_root() -> None:
     for path in ENTRYPOINTS:
         source = path.read_text(encoding="utf-8")
-        assert "Assert-PathenaLocalRootReady" in source, path
+        assert "Assert-PathenaLocalRootReady -RepoRoot $RepoRoot" in source, path
