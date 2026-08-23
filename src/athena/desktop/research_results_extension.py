@@ -146,6 +146,10 @@ class ResearchResultsExtension(QObject):
         text = self.workspace.jobs.item(row).text().strip()
         return text.split(None, 1)[0].casefold() if text else ""
 
+    @staticmethod
+    def _job_label(job_id: str | None) -> str:
+        return job_id[:8].upper() if job_id else "UNKNOWN"
+
     def _job_selection_changed(
         self,
         _current: QListWidgetItem | None,
@@ -155,8 +159,8 @@ class ResearchResultsExtension(QObject):
         self.proposal_list.clear()
         if self._busy() and self._operation_job_id != self._selected_job_id():
             self.proposal_status.setText(
-                "Another Research run is still completing its result operation. "
-                "This selection will not receive that run's output."
+                f"Research run {self._job_label(self._operation_job_id)} is still completing "
+                "in the background. This selection will not receive that run's output."
             )
         else:
             self.proposal_status.setText(
@@ -242,14 +246,15 @@ class ResearchResultsExtension(QObject):
         if clear_details:
             self.workspace.details.clear()
         self._set_extension_controls(False)
+        job_label = self._job_label(job_id)
         self.proposal_status.setText(
             {
-                "result": "Loading immutable ResearchResult and evidence …",
-                "propose": "Freezing deterministic Research proposals …",
-                "proposals": "Loading frozen Research proposals …",
-                "accept": "Accepting selected Research proposal …",
-                "reject": "Rejecting selected Research proposal …",
-            }.get(operation, "Updating Research result …")
+                "result": f"Loading ResearchResult {job_label} and evidence …",
+                "propose": f"Freezing Research proposals for run {job_label} …",
+                "proposals": f"Loading frozen proposals for run {job_label} …",
+                "accept": f"Accepting proposal from Research run {job_label} …",
+                "reject": f"Rejecting proposal from Research run {job_label} …",
+            }.get(operation, f"Updating Research run {job_label} …")
         )
         self.process.start(
             sys.executable,
@@ -295,34 +300,45 @@ class ResearchResultsExtension(QObject):
         self._operation = ""
         self._operation_job_id = None
         self._set_extension_controls(True)
-
-        if not owns_selection:
-            self.proposal_status.setText(
-                "The previous Research run finished in the background. "
-                "Load result or proposals for the currently selected run."
-            )
-            return
+        job_label = self._job_label(operation_job_id)
 
         if exit_code != 0:
-            self.proposal_status.setText(f"Research result command failed (exit {exit_code}).")
-            if output and operation != "result":
+            location = " in the background" if not owns_selection else ""
+            self.proposal_status.setText(
+                f"Research run {job_label} command failed{location} (exit {exit_code})."
+            )
+            if owns_selection and output and operation != "result":
                 self.workspace.details.setPlainText(output)
             return
 
+        if not owns_selection:
+            self.proposal_status.setText(
+                f"Research run {job_label} finished {operation or 'work'} in the background. "
+                "The current selection was not changed."
+            )
+            return
+
         if operation == "result":
-            self.proposal_status.setText("Immutable ResearchResult and evidence loaded.")
+            self.proposal_status.setText(
+                f"ResearchResult {job_label} and evidence loaded."
+            )
         elif operation in {"propose", "proposals"}:
             self._render_proposals(output)
             verb = "created" if operation == "propose" else "loaded"
             self.proposal_status.setText(
-                f"Research proposals {verb}: {self.proposal_list.count()} shown."
+                f"Research run {job_label} proposals {verb}: "
+                f"{self.proposal_list.count()} shown."
             )
         elif operation == "accept":
-            self.proposal_status.setText("Research proposal accepted into canonical memory.")
+            self.proposal_status.setText(
+                f"Research run {job_label} proposal accepted into canonical memory."
+            )
             if operation_job_id == self._selected_job_id():
                 QTimer.singleShot(120, self.load_proposals)
         elif operation == "reject":
-            self.proposal_status.setText("Research proposal rejected/acknowledged.")
+            self.proposal_status.setText(
+                f"Research run {job_label} proposal rejected/acknowledged."
+            )
             if operation_job_id == self._selected_job_id():
                 QTimer.singleShot(120, self.load_proposals)
 
@@ -381,13 +397,15 @@ class ResearchResultsExtension(QObject):
 
     @Slot(QProcess.ProcessError)
     def _process_error(self, error: QProcess.ProcessError) -> None:
+        operation_job_id = self._operation_job_id
         self._operation = ""
         self._operation_job_id = None
         self._set_extension_controls(True)
+        job_label = self._job_label(operation_job_id)
         self.proposal_status.setText(
-            "Unable to start ResearchResult command."
+            f"Unable to start ResearchResult command for run {job_label}."
             if error == QProcess.ProcessError.FailedToStart
-            else f"ResearchResult command error: {error.name}"
+            else f"ResearchResult command for run {job_label} failed: {error.name}"
         )
 
     def _apply_job_filter(self, text: str) -> None:
