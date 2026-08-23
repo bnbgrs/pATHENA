@@ -1,11 +1,10 @@
-from __future__ import annotations
-
 from athena.desktop.pathena_startup_experience_2900 import (
     UI_REFINEMENT_TASKS_2801_2900,
     _STARTUP_REFINEMENTS,
     _STARTUP_STYLESHEET,
     _STARTUP_TARGETS,
 )
+
 
 def test_first_run_refinement_contract_is_exactly_one_hundred_tasks() -> None:
     assert len(_STARTUP_TARGETS) == 20
