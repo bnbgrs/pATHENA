@@ -77,7 +77,10 @@ class ComposerReadinessController(QObject):
     def register(self, widget: QWidget, label: str) -> None:
         self._widgets.append((widget, label))
         widget.setProperty("pathenaComposerReadinessObservedOnly", True)
-        self.sync()
+        snapshot = self._snapshot()
+        self._apply(widget, label, snapshot)
+        self._publish_window_state(snapshot)
+        self._last = snapshot
 
     def sync(self) -> None:
         snapshot = self._snapshot()
@@ -86,6 +89,9 @@ class ComposerReadinessController(QObject):
         self._last = snapshot
         for widget, label in self._widgets:
             self._apply(widget, label, snapshot)
+        self._publish_window_state(snapshot)
+
+    def _publish_window_state(self, snapshot: ReadinessSnapshot) -> None:
         self.window.setProperty("pathenaComposerReadinessState", snapshot.state)
         self.window.setProperty("pathenaComposerReadinessPriority", snapshot.priority)
         self.window.setProperty("pathenaComposerBlockingReason", snapshot.reason)
