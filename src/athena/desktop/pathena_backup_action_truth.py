@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QEvent, QObject, Qt, QTimer
-from PySide6.QtWidgets import QAbstractButton, QListWidgetItem
+from PySide6.QtWidgets import QApplication, QAbstractButton, QListWidgetItem
 
 from athena.desktop.system_backup import BackupWorkspace
 
@@ -64,6 +64,10 @@ class BackupActionTruth(QObject):
         complete = bool(snapshot_id) and state == "complete"
         restore_ready = complete and verification in _RESTORE_VERIFIED
 
+        focus_return = self._focused_action_becoming_disabled(
+            verify_enabled=complete,
+            restore_enabled=restore_ready,
+        )
         self._syncing = True
         try:
             workspace.verify_button.setEnabled(complete)
@@ -71,6 +75,8 @@ class BackupActionTruth(QObject):
             workspace.restore_button.setEnabled(restore_ready)
         finally:
             self._syncing = False
+        if focus_return:
+            QTimer.singleShot(0, self._restore_snapshot_focus_if_unowned)
 
         label = snapshot_id[:8].upper() if snapshot_id else "none"
         if not snapshot_id:
@@ -122,6 +128,27 @@ class BackupActionTruth(QObject):
             "pathenaRestoreEligibilityBasis",
             "listed-state-and-verification",
         )
+
+    def _focused_action_becoming_disabled(
+        self,
+        *,
+        verify_enabled: bool,
+        restore_enabled: bool,
+    ) -> bool:
+        workspace = self.workspace
+        return (
+            (workspace.verify_button.hasFocus() and not verify_enabled)
+            or (workspace.deep_verify_button.hasFocus() and not verify_enabled)
+            or (workspace.restore_button.hasFocus() and not restore_enabled)
+        )
+
+    def _restore_snapshot_focus_if_unowned(self) -> None:
+        focus = QApplication.focusWidget()
+        if focus is not None:
+            return
+        snapshots = self.workspace.snapshots
+        if snapshots.isVisibleTo(self.workspace) and snapshots.isEnabled():
+            snapshots.setFocus(Qt.FocusReason.OtherFocusReason)
 
     @staticmethod
     def _value(item: QListWidgetItem | None, role: int) -> str:
