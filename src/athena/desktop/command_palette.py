@@ -98,6 +98,11 @@ class CommandPaletteController(QObject):
 
         self.results = QListWidget(self.dialog)
         self.results.setObjectName("commandPaletteResults")
+        self.results.setAccessibleName("Command results")
+        self.results.setAccessibleDescription(
+            "Available pATHENA commands matching the current search. Use Up and Down to move, "
+            "then Enter to run the selected command."
+        )
         self.results.setHorizontalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
@@ -389,8 +394,16 @@ class CommandPaletteController(QObject):
             item = QListWidgetItem(command.label)
             self.results.addItem(item)
 
-        if self.results.count() > 0:
+        count = self.results.count()
+        if count > 0:
             self.results.setCurrentRow(0)
+        if terms:
+            scope = f"{count} matching command{'s' if count != 1 else ''}."
+        else:
+            scope = f"{count} available command{'s' if count != 1 else ''}."
+        self.results.setAccessibleDescription(
+            f"{scope} Use Up and Down to move, then Enter to run the selected command."
+        )
 
     def _move_selection(self, delta: int) -> None:
         count = self.results.count()
