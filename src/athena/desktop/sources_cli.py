@@ -119,7 +119,7 @@ def _readiness(
         return "captured"
     if latest_job.state is JobState.COMPLETED:
         return "repair_required"
-    return latest_job.state.value
+    return str(latest_job.state.value)
 
 
 def _safe_field(value: str | None, *, fallback: str = "-") -> str:
