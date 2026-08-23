@@ -318,6 +318,7 @@ class DurableJobService:
         now_us: int | None = None,
     ) -> JobRecord:
         _lease_token(lease_token)
+        _waiting_reason(reason)
         _optional_nonnegative_int(next_run_at_us, "next_run_at_us")
         _optional_nonnegative_int(now_us, "now_us")
         return self.repository.wait(
@@ -389,6 +390,12 @@ def _canonical_json(value: Mapping[str, Any] | None) -> str | None:
 def _job_priority(value: object) -> JobPriority:
     if not isinstance(value, JobPriority):
         raise InvalidJobPayloadError("priority must be a JobPriority value.")
+    return value
+
+
+def _waiting_reason(value: object) -> WaitingReason:
+    if not isinstance(value, WaitingReason):
+        raise InvalidJobPayloadError("reason must be a WaitingReason value.")
     return value
 
 
