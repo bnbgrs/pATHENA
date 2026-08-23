@@ -29,6 +29,9 @@ from athena.desktop.pathena_knowledge_acceptance_presentation import (
     apply_knowledge_acceptance_presentation,
 )
 from athena.desktop.pathena_layout_refinement_2200 import install_layout_refinement
+from athena.desktop.pathena_message_action_accessibility_6900 import (
+    install_message_action_accessibility,
+)
 from athena.desktop.pathena_progressive_workspace_2300 import (
     install_progressive_workspace_refinement,
 )
@@ -164,6 +167,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     chat_scroll_stability = install_chat_scroll_stability(window)
     apply_inspector_scanability(window)
     backup_action_context = install_backup_action_context(window)
+    message_action_accessibility = install_message_action_accessibility(window)
     interaction_refinement = install_interaction_refinement(window)
     layout_refinement = install_layout_refinement(window)
     progressive_workspace_refinement = install_progressive_workspace_refinement(window)
@@ -191,6 +195,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     progressive_workspace_refinement.deleteLater()
     layout_refinement.deleteLater()
     interaction_refinement.deleteLater()
+    message_action_accessibility.deleteLater()
     backup_action_context.deleteLater()
     chat_scroll_stability.deleteLater()
     success_decay.deleteLater()
