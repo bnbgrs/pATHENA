@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QEvent, QObject, QTimer
-from PySide6.QtWidgets import QLineEdit, QPushButton, QWidget
+from PySide6.QtWidgets import QLineEdit, QPushButton, QVBoxLayout, QWidget
 
 _ACTION_ORDER = {
     "copyMessageButton": 0,
     "rememberMessageButton": 1,
     "addKnowledgeButton": 2,
 }
+_CONTAINER_NAMES = {"chatMessage", "chatOperationFailure"}
 
 
 class MessageActionTabOrderController(QObject):
@@ -56,24 +57,64 @@ class MessageActionTabOrderController(QObject):
             self.composer.setProperty("pathenaMessageTabReturnTarget", True)
 
         self.window.setProperty("pathenaMessageTabOrderCount", len(ordered))
+        self.window.setProperty(
+            "pathenaOperationFailureTabOrderCount",
+            sum(
+                1
+                for button in ordered
+                if button.property("pathenaMessageTabContainerRole") == "operation-failure"
+            ),
+        )
 
     def _message_groups(self) -> list[list[QPushButton]]:
         assert isinstance(self.document, QWidget)
+        visual = self._visual_groups()
+        if visual:
+            return visual
+
         containers = self.document.findChildren(QWidget, "chatMessage")
         keyed: list[tuple[int, int, list[QPushButton]]] = []
         for insertion_index, container in enumerate(containers):
-            buttons = [
-                button
-                for button in container.findChildren(QPushButton)
-                if button.objectName() in _ACTION_ORDER
-            ]
+            buttons = self._buttons_for(container)
             if not buttons:
                 continue
-            buttons.sort(key=lambda button: _ACTION_ORDER[button.objectName()])
             sequence = self._sequence(buttons)
             keyed.append((sequence, insertion_index, buttons))
         keyed.sort(key=lambda entry: (entry[0], entry[1]))
         return [buttons for _sequence, _index, buttons in keyed]
+
+    def _visual_groups(self) -> list[list[QPushButton]]:
+        assert isinstance(self.document, QWidget)
+        layout = self.document.layout()
+        if not isinstance(layout, QVBoxLayout):
+            return []
+        groups: list[list[QPushButton]] = []
+        for index in range(layout.count()):
+            container = layout.itemAt(index).widget()
+            if container is None or container.objectName() not in _CONTAINER_NAMES:
+                continue
+            buttons = self._buttons_for(container)
+            if not buttons:
+                continue
+            role = (
+                "operation-failure"
+                if container.objectName() == "chatOperationFailure"
+                else "message"
+            )
+            for button in buttons:
+                button.setProperty("pathenaMessageTabContainerRole", role)
+            groups.append(buttons)
+        return groups
+
+    @staticmethod
+    def _buttons_for(container: QWidget) -> list[QPushButton]:
+        buttons = [
+            button
+            for button in container.findChildren(QPushButton)
+            if button.objectName() in _ACTION_ORDER
+        ]
+        buttons.sort(key=lambda button: _ACTION_ORDER[button.objectName()])
+        return buttons
 
     @staticmethod
     def _sequence(buttons: list[QPushButton]) -> int:
