@@ -16,7 +16,7 @@ Status vocabulary: `FOUND` · `PARTIAL` · `READY` · `BLOCKED` · `IN_PROGRESS`
 - **Source:** Beta 08 sections 17–20.
 - **Ownership / Priority / Status:** BACKEND · P1 · IMPLEMENTED
 - **Current state:** Core-owned `ModelRegistry` provides provider-scoped identity, workflow capability eligibility, infrastructure-model exclusion, exactly one active primary, optional alias, measured resource metadata and safe refresh behavior without inventing unknown facts.
-- **Verification:** Implemented 2026-08-23 in `src/athena/model/registry.py` with `tests/unit/test_model_registry.py`. Targeted execution was attempted but blocked by environment DNS; no pass is claimed.
+- **Verification:** Implemented 2026-08-23 in `src/athena/model/registry.py` with targeted tests. Execution was attempted but blocked by environment DNS; no pass is claimed.
 
 ### FG-003 — Represent all normative provider health states
 - **Source:** Beta 08 section 11.
@@ -44,10 +44,9 @@ Status vocabulary: `FOUND` · `PARTIAL` · `READY` · `BLOCKED` · `IN_PROGRESS`
 
 ### FG-007 — Enforce model load ownership before automatic unload
 - **Source:** Beta 08 section 21 and test 73.
-- **Ownership / Priority / Status:** BACKEND · P1 · IN_PROGRESS
-- **Evidence:** Beta distinguishes `loaded_by_athena`, `loaded_externally`, and `unknown`; only ATHENA-owned loads may be automatically unloaded unless the backend contract proves broader safety. Current repository search found no load-ownership representation.
-- **Target:** Core runtime records ownership explicitly and exposes a fail-closed automatic-unload decision. Provider adapter integration follows when its ownership window is safe.
-- **Verification:** Gap confirmed 2026-08-23 against current remote search and Beta contract.
+- **Ownership / Priority / Status:** BACKEND · P1 · IMPLEMENTED
+- **Current state:** Runtime distinguishes `loaded_by_athena`, `loaded_externally`, and `unknown`; only explicit ATHENA ownership permits automatic unload. Generic discovery refresh resets ownership to `unknown` because it cannot prove backend-instance continuity.
+- **Verification:** Implemented 2026-08-23 in `src/athena/model/registry.py` with `tests/unit/test_model_load_ownership.py`; tests added/updated but not executed in connector runtime.
 
 ## Handoff notes
 - Re-read current HEAD and affected files before every mutation.
