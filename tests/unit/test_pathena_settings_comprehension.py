@@ -108,3 +108,22 @@ def test_settings_controls_have_distinct_assistive_names() -> None:
     assert window.temperature_spin.accessibleName() == "Sampling temperature"
     assert window.thinking_checkbox.accessibleName() == "Thinking and reasoning"
     assert window.settings_model_value.accessibleName() == "Selected local model"
+
+
+def test_settings_visible_labels_point_to_exact_controls() -> None:
+    _app()
+    window = _Window()
+    page = QWidget(window)
+    page.setObjectName("pageSettings")
+    labels = {
+        text: QLabel(text, page)
+        for text in ("CTX", "MAX OUTPUT TOKENS", "TEMPERATURE", "THINKING")
+    }
+
+    SettingsComprehensionController(window)
+
+    assert labels["CTX"].buddy() is window.context_spin
+    assert labels["MAX OUTPUT TOKENS"].buddy() is window.max_output_spin
+    assert labels["TEMPERATURE"].buddy() is window.temperature_spin
+    assert labels["THINKING"].buddy() is window.thinking_checkbox
+    assert labels["CTX"].property("pathenaSettingsBuddyControl") == "context_spin"
