@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from PySide6.QtCore import QCoreApplication, QEvent
 from PySide6.QtWidgets import QApplication, QAbstractItemView, QListWidget
 
 from athena.desktop.app import create_application
@@ -16,10 +17,8 @@ from athena.desktop.pathena_research_result_presentation import (
     apply_research_result_presentation,
 )
 from athena.desktop.pathena_shell_density import apply_shell_density
-from athena.desktop.pathena_ui_refinement_100 import (
-    UI_REFINEMENT_TASKS,
-    apply_ui_refinements,
-)
+from athena.desktop.pathena_ui_refinement_100 import UI_REFINEMENT_TASKS
+from athena.desktop.pathena_ui_refinement_integrity import apply_complete_ui_refinements
 from athena.desktop.pathena_window import PathenaMainWindow
 from athena.desktop.pathena_workspace_presentation import apply_workspace_presentation
 from athena.desktop.research_results_extension import install_research_results_extension
@@ -33,7 +32,7 @@ def _app() -> QApplication:
 
 
 def test_all_100_refinements_target_real_installed_desktop_controls() -> None:
-    app = _app()
+    _app()
     window = PathenaMainWindow(api_controller=None)
 
     knowledge = install_knowledge_workspace(window, None)
@@ -64,7 +63,7 @@ def test_all_100_refinements_target_real_installed_desktop_controls() -> None:
         assert len(UI_REFINEMENT_TASKS) == 100
         assert len(set(UI_REFINEMENT_TASKS)) == 100
 
-        applied = apply_ui_refinements(window)
+        applied = apply_complete_ui_refinements(window)
 
         assert applied == tuple(range(1, 101))
         assert window.property("pathenaUiRefinementAppliedCount") == 100
@@ -107,4 +106,5 @@ def test_all_100_refinements_target_real_installed_desktop_controls() -> None:
         commands.deleteLater()
         knowledge.deleteLater()
         window.close()
-        app.processEvents()
+        window.deleteLater()
+        QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
