@@ -5,11 +5,14 @@ from __future__ import annotations
 import json
 import os
 import secrets
+import stat
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
 from athena.storage.durable_fs import durable_replace, is_link_boundary
+
+_MAX_MIGRATION_JOURNAL_BYTES = 64 * 1024
 
 
 class MigrationJournalError(RuntimeError):
@@ -69,6 +72,13 @@ def _assert_safe_parent(path: Path) -> None:
         cursor = parent
 
 
+def _validate_journal_size(size: int) -> None:
+    if size < 0 or size > _MAX_MIGRATION_JOURNAL_BYTES:
+        raise MigrationJournalError(
+            "Migration journal exceeds the maximum supported byte size."
+        )
+
+
 def _read_journal_file(path: Path) -> bytes:
     flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
     try:
@@ -87,6 +97,9 @@ def _read_journal_file(path: Path) -> bytes:
             raise MigrationJournalError(
                 "Migration journal pathname changed while it was being opened."
             )
+        if not stat.S_ISREG(handle_stat.st_mode):
+            raise MigrationJournalError("Migration journal path is not a regular file.")
+        _validate_journal_size(int(handle_stat.st_size))
         try:
             handle = os.fdopen(descriptor, "rb", closefd=True)
         except OSError as exc:
@@ -95,11 +108,13 @@ def _read_journal_file(path: Path) -> bytes:
             ) from exc
         descriptor = -1
         try:
-            return handle.read()
+            payload = handle.read(_MAX_MIGRATION_JOURNAL_BYTES + 1)
         except OSError as exc:
             raise MigrationJournalError("Migration journal could not be read.") from exc
         finally:
             handle.close()
+        _validate_journal_size(len(payload))
+        return payload
     finally:
         if descriptor >= 0:
             os.close(descriptor)
@@ -185,7 +200,7 @@ def encode_migration_journal(state: MigrationJournalState) -> bytes:
         "source_db": str(state.source_db),
         "started_at_us": state.started_at_us,
     }
-    return (
+    encoded = (
         json.dumps(
             payload,
             ensure_ascii=False,
@@ -195,11 +210,14 @@ def encode_migration_journal(state: MigrationJournalState) -> bytes:
         )
         + "\n"
     ).encode("utf-8")
+    _validate_journal_size(len(encoded))
+    return encoded
 
 
 def decode_migration_journal(payload: bytes) -> MigrationJournalState:
     if not isinstance(payload, bytes):
         raise TypeError("Migration journal payload must be bytes.")
+    _validate_journal_size(len(payload))
     try:
         value = json.loads(
             payload.decode("utf-8"),
@@ -264,6 +282,7 @@ class MigrationJournalStore:
     def publish(self, state: MigrationJournalState) -> None:
         if not isinstance(state, MigrationJournalState):
             raise TypeError("state must be MigrationJournalState.")
+        data = encode_migration_journal(state)
         _assert_safe_parent(self.path)
         parent = self.path.parent
         if not parent.is_dir() or is_link_boundary(parent):
@@ -280,7 +299,6 @@ class MigrationJournalStore:
             flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
             descriptor = os.open(temporary, flags, 0o600)
             try:
-                data = encode_migration_journal(state)
                 try:
                     handle = os.fdopen(descriptor, "wb", closefd=True)
                 except OSError:
