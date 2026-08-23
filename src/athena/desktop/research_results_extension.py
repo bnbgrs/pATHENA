@@ -139,10 +139,10 @@ class ResearchResultsExtension(QObject):
         return self.workspace._selected_job_id
 
     def _selected_job_state(self) -> str:
-        item = self.workspace.jobs.currentItem()
-        if item is None:
+        row = self.workspace.jobs.currentRow()
+        if row < 0:
             return ""
-        text = item.text().strip()
+        text = self.workspace.jobs.item(row).text().strip()
         return text.split(None, 1)[0].casefold() if text else ""
 
     def _job_selection_changed(
@@ -170,11 +170,12 @@ class ResearchResultsExtension(QObject):
         self._sync_proposal_actions()
 
     def _sync_proposal_actions(self) -> None:
-        item = self.proposal_list.currentItem()
-        if item is None:
+        row = self.proposal_list.currentRow()
+        if row < 0:
             pending = False
             proposal_type = ""
         else:
+            item = self.proposal_list.item(row)
             pending = item.data(Qt.ItemDataRole.UserRole + 1) == "pending"
             proposal_type = str(item.data(Qt.ItemDataRole.UserRole + 2) or "")
         enabled = pending and not self._busy()
