@@ -29,26 +29,246 @@ class DecisionTarget:
 
 
 _TARGETS: tuple[DecisionTarget, ...] = (
-    DecisionTarget(None, None, "deleteChatButton", None, "chatSelector", "delete conversation", "preview then confirm", "selected persistent conversation and owned messages", "canonical deletion is committed only after the existing preview and confirmation", "Cancel or Escape keeps the conversation"),
-    DecisionTarget(None, None, "newChatButton", None, "chatSelector", "new conversation", "navigate", "current conversation view", "opens a new empty conversation state without deleting the current conversation", "return to the existing conversation from the selector"),
-    DecisionTarget(None, None, "sendButton", None, "promptInput", "send message", "commit request", "current composer text and selected model", "submits the current message to the selected local model", "edit the composer before activation"),
-    DecisionTarget("knowledgeWorkspace", "review_accept_button", None, "review_list", None, "accept contradiction", "review decision", "selected pending contradiction", "creates the reviewed contradiction evidence through the existing knowledge command", "leave the decision pending by not activating"),
-    DecisionTarget("knowledgeWorkspace", "review_reject_button", None, "review_list", None, "reject contradiction", "review decision", "selected pending contradiction", "rejects the selected contradiction without creating semantic evidence", "leave the decision pending by not activating"),
-    DecisionTarget("knowledgeWorkspace", None, "knowledgeAcceptanceButton", "browser_tabs", None, "add reviewed items", "canonical commit", "exact reviewed preflight", "commits only the reviewed Knowledge and Claim preflight after revalidation", "close or continue review before activating"),
-    DecisionTarget("researchWorkspace", "start_button", None, "query_input", None, "start research", "queue", "current research question", "queues a durable local research run", "edit the question before activation"),
-    DecisionTarget("researchWorkspace", "cancel_button", None, "jobs", None, "cancel research", "cancel request", "selected durable research run", "persists a cancellation request for the selected research run", "leave the run active by not activating"),
-    DecisionTarget("jobsWorkspace", "pause_button", None, "jobs", None, "pause job", "state transition", "selected eligible durable job", "moves the selected job into its existing paused transition", "leave the job in its current state"),
-    DecisionTarget("jobsWorkspace", "resume_button", None, "jobs", None, "resume job", "state transition", "selected paused durable job", "resumes the selected job through the existing durable job service", "leave the job paused"),
-    DecisionTarget("jobsWorkspace", "wake_button", None, "jobs", None, "wake job", "state transition", "selected waiting durable job", "requests the existing wake transition for the selected waiting job", "leave the job waiting"),
-    DecisionTarget("jobsWorkspace", "cancel_button", None, "jobs", None, "cancel durable job", "cancel request", "selected non-terminal durable job", "persists cancellation for the selected durable job", "leave the job active by not activating"),
-    DecisionTarget("filesWorkspace", "import_button", None, "sources", None, "import file", "choose then capture", "file selected in the existing file dialog", "captures selected bytes and queues supported retrieval processing", "cancel the file dialog to make no change"),
-    DecisionTarget("filesWorkspace", "process_button", None, "sources", None, "process source", "queue processing", "selected processable Source", "queues canonical representation and chunking or retry", "leave the Source unchanged by not activating"),
-    DecisionTarget("backupWorkspace", "create_button", None, "snapshots", None, "create backup", "choose target then create", "backup target selected in the existing folder dialog", "creates and verifies a new backup without modifying the live runtime", "cancel the folder dialog to make no change"),
-    DecisionTarget("backupWorkspace", "verify_button", None, "snapshots", None, "verify backup", "verify", "selected backup snapshot", "runs the existing light verification for the selected snapshot", "leave verification state unchanged by not activating"),
-    DecisionTarget("backupWorkspace", "deep_verify_button", None, "snapshots", None, "deep verify backup", "verify plus restore smoke", "selected backup snapshot", "hashes backup objects and performs the existing isolated restore smoke", "leave verification state unchanged by not activating"),
-    DecisionTarget("backupWorkspace", "restore_button", None, "snapshots", None, "restore isolated", "choose destination then restore", "selected verified snapshot and newly chosen parent folder", "restores only into a new isolated child root and does not overwrite the live runtime", "cancel the folder dialog to make no change"),
-    DecisionTarget("backupWorkspace", "register_target_button", None, "snapshots", None, "register backup target", "choose then register", "folder selected in the existing folder dialog", "registers the selected folder as a backup target", "cancel the folder dialog to make no change"),
-    DecisionTarget("systemWorkspace", "refresh_button", None, None, "systemDetail", "refresh system", "refresh", "local runtime status", "requests a fresh Core, model and chat status snapshot", "no persistent state is changed"),
+    DecisionTarget(
+        None,
+        None,
+        "deleteChatButton",
+        None,
+        "chatSelector",
+        "delete conversation",
+        "preview then confirm",
+        "selected persistent conversation and owned messages",
+        "canonical deletion is committed only after the existing preview and confirmation",
+        "Cancel or Escape keeps the conversation",
+    ),
+    DecisionTarget(
+        None,
+        None,
+        "newChatButton",
+        None,
+        "chatSelector",
+        "new conversation",
+        "navigate",
+        "current conversation view",
+        "opens a new empty conversation state without deleting the current conversation",
+        "return to the existing conversation from the selector",
+    ),
+    DecisionTarget(
+        None,
+        None,
+        "sendButton",
+        None,
+        "promptInput",
+        "send message",
+        "commit request",
+        "current composer text and selected model",
+        "submits the current message to the selected local model",
+        "edit the composer before activation",
+    ),
+    DecisionTarget(
+        "knowledgeWorkspace",
+        "review_accept_button",
+        None,
+        "review_list",
+        None,
+        "accept contradiction",
+        "review decision",
+        "selected pending contradiction",
+        "creates the reviewed contradiction evidence through the existing knowledge command",
+        "leave the decision pending by not activating",
+    ),
+    DecisionTarget(
+        "knowledgeWorkspace",
+        "review_reject_button",
+        None,
+        "review_list",
+        None,
+        "reject contradiction",
+        "review decision",
+        "selected pending contradiction",
+        "rejects the selected contradiction without creating semantic evidence",
+        "leave the decision pending by not activating",
+    ),
+    DecisionTarget(
+        "knowledgeWorkspace",
+        None,
+        "knowledgeAcceptanceButton",
+        "browser_tabs",
+        None,
+        "add reviewed items",
+        "canonical commit",
+        "exact reviewed preflight",
+        "commits only the reviewed Knowledge and Claim preflight after revalidation",
+        "close or continue review before activating",
+    ),
+    DecisionTarget(
+        "researchWorkspace",
+        "start_button",
+        None,
+        "query_input",
+        None,
+        "start research",
+        "queue",
+        "current research question",
+        "queues a durable local research run",
+        "edit the question before activation",
+    ),
+    DecisionTarget(
+        "researchWorkspace",
+        "cancel_button",
+        None,
+        "jobs",
+        None,
+        "cancel research",
+        "cancel request",
+        "selected durable research run",
+        "persists a cancellation request for the selected research run",
+        "leave the run active by not activating",
+    ),
+    DecisionTarget(
+        "jobsWorkspace",
+        "pause_button",
+        None,
+        "jobs",
+        None,
+        "pause job",
+        "state transition",
+        "selected eligible durable job",
+        "moves the selected job into its existing paused transition",
+        "leave the job in its current state",
+    ),
+    DecisionTarget(
+        "jobsWorkspace",
+        "resume_button",
+        None,
+        "jobs",
+        None,
+        "resume job",
+        "state transition",
+        "selected paused durable job",
+        "resumes the selected job through the existing durable job service",
+        "leave the job paused",
+    ),
+    DecisionTarget(
+        "jobsWorkspace",
+        "wake_button",
+        None,
+        "jobs",
+        None,
+        "wake job",
+        "state transition",
+        "selected waiting durable job",
+        "requests the existing wake transition for the selected waiting job",
+        "leave the job waiting",
+    ),
+    DecisionTarget(
+        "jobsWorkspace",
+        "cancel_button",
+        None,
+        "jobs",
+        None,
+        "cancel durable job",
+        "cancel request",
+        "selected non-terminal durable job",
+        "persists cancellation for the selected durable job",
+        "leave the job active by not activating",
+    ),
+    DecisionTarget(
+        "filesWorkspace",
+        "import_button",
+        None,
+        "sources",
+        None,
+        "import file",
+        "choose then capture",
+        "file selected in the existing file dialog",
+        "captures selected bytes and queues supported retrieval processing",
+        "cancel the file dialog to make no change",
+    ),
+    DecisionTarget(
+        "filesWorkspace",
+        "process_button",
+        None,
+        "sources",
+        None,
+        "process source",
+        "queue processing",
+        "selected processable Source",
+        "queues canonical representation and chunking or retry",
+        "leave the Source unchanged by not activating",
+    ),
+    DecisionTarget(
+        "backupWorkspace",
+        "create_button",
+        None,
+        "snapshots",
+        None,
+        "create backup",
+        "choose target then create",
+        "backup target selected in the existing folder dialog",
+        "creates and verifies a new backup without modifying the live runtime",
+        "cancel the folder dialog to make no change",
+    ),
+    DecisionTarget(
+        "backupWorkspace",
+        "verify_button",
+        None,
+        "snapshots",
+        None,
+        "verify backup",
+        "verify",
+        "selected backup snapshot",
+        "runs the existing light verification for the selected snapshot",
+        "leave verification state unchanged by not activating",
+    ),
+    DecisionTarget(
+        "backupWorkspace",
+        "deep_verify_button",
+        None,
+        "snapshots",
+        None,
+        "deep verify backup",
+        "verify plus restore smoke",
+        "selected backup snapshot",
+        "hashes backup objects and performs the existing isolated restore smoke",
+        "leave verification state unchanged by not activating",
+    ),
+    DecisionTarget(
+        "backupWorkspace",
+        "restore_button",
+        None,
+        "snapshots",
+        None,
+        "restore isolated",
+        "choose destination then restore",
+        "selected verified snapshot and newly chosen parent folder",
+        "restores only into a new isolated child root and does not overwrite the live runtime",
+        "cancel the folder dialog to make no change",
+    ),
+    DecisionTarget(
+        "backupWorkspace",
+        "register_target_button",
+        None,
+        "snapshots",
+        None,
+        "register backup target",
+        "choose then register",
+        "folder selected in the existing folder dialog",
+        "registers the selected folder as a backup target",
+        "cancel the folder dialog to make no change",
+    ),
+    DecisionTarget(
+        "systemWorkspace",
+        "refresh_button",
+        None,
+        None,
+        "systemDetail",
+        "refresh system",
+        "refresh",
+        "local runtime status",
+        "requests a fresh Core, model and chat status snapshot",
+        "no persistent state is changed",
+    ),
 )
 
 _DIMENSIONS: tuple[str, ...] = (
@@ -78,7 +298,8 @@ class DecisionContextController(QObject):
         self._anchors[button] = anchor
         button.clicked.connect(
             lambda _checked=False, source=button: QTimer.singleShot(
-                0, lambda: self._restore_context_if_needed(source)
+                0,
+                lambda: self._restore_context_if_needed(source),
             )
         )
 
@@ -86,7 +307,11 @@ class DecisionContextController(QObject):
         if source.isVisible() and source.isEnabled():
             return
         anchor = self._anchors.get(source)
-        if anchor is None or not anchor.isVisibleTo(anchor.window()) or not anchor.isEnabled():
+        if (
+            anchor is None
+            or not anchor.isVisibleTo(anchor.window())
+            or not anchor.isEnabled()
+        ):
             return
         if anchor.focusPolicy() == Qt.FocusPolicy.NoFocus:
             anchor.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
@@ -146,11 +371,15 @@ def apply_ui_refinements_3501_3600(window: QWidget) -> tuple[int, ...]:
 
         candidate.setProperty("pathenaDecisionConsequence", target.consequence)
         candidate.setToolTip(
-            f"{target.stage.capitalize()} · Scope: {target.scope}. {target.consequence.capitalize()}."
+            f"{target.stage.capitalize()} · Scope: {target.scope}. "
+            f"{target.consequence.capitalize()}."
         )
         applied.append(start + 2)
 
-        candidate.setProperty("pathenaDecisionFocusAnchor", anchor.objectName() if anchor else "")
+        candidate.setProperty(
+            "pathenaDecisionFocusAnchor",
+            anchor.objectName() if anchor else "",
+        )
         controller.register(candidate, anchor)
         applied.append(start + 3)
 
@@ -163,6 +392,9 @@ def apply_ui_refinements_3501_3600(window: QWidget) -> tuple[int, ...]:
         applied.append(start + 4)
 
     window.setProperty("pathenaDecisionContextController", controller)
-    window.setProperty("pathenaDecisionContextTargetCount", len(applied) // len(_DIMENSIONS))
+    window.setProperty(
+        "pathenaDecisionContextTargetCount",
+        len(applied) // len(_DIMENSIONS),
+    )
     window.setProperty("pathenaDecisionContextTaskCount", len(applied))
     return tuple(applied)
