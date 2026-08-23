@@ -8,11 +8,11 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 
 ### UI-001 — Prevent stale error/busy state across selection and recovery
 - **Priority:** P1
-- **Status:** IN_PROGRESS
-- **Evidence:** Existing semantic state coverage/recovery layers can leave presentation metadata attached to a surface after selection changes or a successful follow-up operation unless ownership and clearing are explicit.
-- **Views/components:** Knowledge, Research, Jobs, Files/Sources, System, Backup status/detail surfaces.
+- **Status:** DONE
+- **Evidence:** Selection-scoped coverage-owned terminal states are now bound to entity identity and cleared on real selection change while busy and externally owned states are preserved.
+- **Views/components:** Knowledge, Research, Jobs, Files/Sources and Backup list/detail pairs.
 - **Dependencies:** Existing `pathenaUiState` / error-coverage controllers only; no backend change.
-- **Last verification:** 2026-08-23 against current `agent/pathena`; 37 intervening commits since prior UI baseline touched no desktop UI files.
+- **Last verification:** 2026-08-23 at `agent/pathena` commit `af0fc325fa994a53d3f30eb1339143fe19de65be`; targeted UI tests added in `tests/unit/test_pathena_state_transition_integrity.py` but not executed in connector runtime.
 
 ### UI-002 — Progressive disclosure consistency audit
 - **Priority:** P1
@@ -24,11 +24,11 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 
 ### UI-003 — Offline/provider-unavailable comprehension
 - **Priority:** P1
-- **Status:** READY
+- **Status:** IN_PROGRESS
 - **Evidence:** Local Core/model/provider states are real but spread across status text, selector state and composer enablement.
 - **Views/components:** Chat header, model selector, composer, System.
 - **Dependencies:** Existing provider/model snapshot only.
-- **Last verification:** 2026-08-23.
+- **Last verification:** 2026-08-23 after UI-001 completion; selected as next independent P1 slice.
 
 ### UI-004 — Dense-list scanability and selection identity
 - **Priority:** P2
@@ -56,11 +56,11 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 
 ### UI-007 — Targeted UI tests for semantic state transitions
 - **Priority:** P2
-- **Status:** READY
-- **Evidence:** Recent presentation controllers add deterministic state logic that should have focused UI tests independent of full Quality Gate.
-- **Views/components:** Desktop UI tests for error/busy/success clearing and selection transitions.
+- **Status:** DONE
+- **Evidence:** Focused tests cover selection-scoped terminal-state clearing, busy preservation and external-state preservation.
+- **Views/components:** `tests/unit/test_pathena_state_transition_integrity.py`.
 - **Dependencies:** UI-001.
-- **Last verification:** 2026-08-23.
+- **Last verification:** 2026-08-23 at `af0fc325fa994a53d3f30eb1339143fe19de65be`; tests added but not executed in connector runtime.
 
 ### UI-008 — Help/capability copy staleness audit
 - **Priority:** P3
