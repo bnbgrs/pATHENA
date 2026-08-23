@@ -16,7 +16,11 @@ def new_uuid7() -> uuid.UUID:
     standardized layout directly: 48-bit Unix-millisecond timestamp, version
     7, RFC variant 10, and 74 pseudorandom bits.
     """
-    timestamp_ms = (time.time_ns() // 1_000_000) & _UUID_TIMESTAMP_MASK
+    timestamp_ms = time.time_ns() // 1_000_000
+    if not 0 <= timestamp_ms <= _UUID_TIMESTAMP_MASK:
+        raise RuntimeError(
+            "System clock is outside the RFC 9562 UUIDv7 timestamp range."
+        )
     rand_a = secrets.randbits(12)
     rand_b = secrets.randbits(62)
 
