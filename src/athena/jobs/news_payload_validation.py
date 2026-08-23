@@ -105,7 +105,9 @@ def _require_exact_keys(
     *,
     label: str,
 ) -> None:
-    if value is None or set(value) != expected:
+    if not isinstance(value, Mapping):
+        raise NewsJobPayloadValidationError(f"{label} must be an object.")
+    if set(value) != expected or not all(isinstance(key, str) for key in value):
         raise NewsJobPayloadValidationError(
             f"{label} has unexpected or missing fields."
         )
@@ -161,7 +163,6 @@ def _date_text(value: Mapping[str, Any], field: str, *, label: str) -> date:
 
 def _month_end(start: date) -> date:
     if start.month == 12:
-        next_month = date(start.year + 1, 1, 1)
-    else:
-        next_month = date(start.year, start.month + 1, 1)
+        return date(start.year, 12, 31)
+    next_month = date(start.year, start.month + 1, 1)
     return next_month - timedelta(days=1)
