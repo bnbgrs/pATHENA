@@ -3,9 +3,11 @@ from __future__ import annotations
 import os
 import stat
 from pathlib import Path
+from typing import BinaryIO
 
 import pytest
 
+from athena.backup import target_lock as target_lock_module
 from athena.backup.target_lock import BackupTargetBusyError, backup_target_lock
 
 
@@ -71,3 +73,26 @@ def test_backup_target_lock_file_has_owner_only_permissions_on_posix(
     with backup_target_lock(target_root):
         assert lock_path.exists()
         assert stat.S_IMODE(lock_path.stat().st_mode) == 0o600
+
+
+def test_backup_target_lock_rejects_path_replacement_during_acquisition(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    if os.name != "posix":
+        pytest.skip("POSIX pathname replacement assertion")
+
+    target_root = tmp_path / "backup"
+    target_root.mkdir()
+    lock_path = target_root / ".athena-backup.lock"
+    displaced_path = target_root / ".athena-backup.displaced"
+
+    def replace_path(_handle: BinaryIO) -> None:
+        lock_path.rename(displaced_path)
+        lock_path.write_bytes(b"replacement")
+
+    monkeypatch.setattr(target_lock_module, "_lock", replace_path)
+
+    with pytest.raises(BackupTargetBusyError, match="pathname changed"):
+        with backup_target_lock(target_root):
+            raise AssertionError("unreachable")
