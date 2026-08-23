@@ -257,9 +257,73 @@ QWidget#pageResearch,
 QWidget#pageJobs,
 QWidget#pageFiles,
 QWidget#pageSystem,
-QWidget#pageSettings {
+QWidget#pageSettings,
+QWidget#knowledgeWorkspace,
+QWidget#researchWorkspace,
+QWidget#jobsWorkspace,
+QWidget#filesWorkspace,
+QWidget#systemWorkspace {
     background: #111315;
     border: none;
+}
+
+QListWidget#persistentKnowledgeList,
+QListWidget#researchJobList,
+QListWidget#durableJobList,
+QListWidget#sourceList,
+QPlainTextEdit#persistentKnowledgeDetails,
+QPlainTextEdit#researchDetails,
+QPlainTextEdit#jobDetails,
+QPlainTextEdit#sourceDetails {
+    color: #c5cbd0;
+    background: #14171a;
+    border: 1px solid #252b30;
+    border-radius: 8px;
+    padding: 6px;
+    selection-background-color: #293235;
+    selection-color: #f0f2f3;
+}
+
+QListWidget#persistentKnowledgeList::item,
+QListWidget#researchJobList::item,
+QListWidget#durableJobList::item,
+QListWidget#sourceList::item {
+    color: #aeb6bc;
+    background: transparent;
+    border: none;
+    border-bottom: 1px solid #202529;
+    padding: 9px 10px;
+}
+
+QListWidget#persistentKnowledgeList::item:hover,
+QListWidget#researchJobList::item:hover,
+QListWidget#durableJobList::item:hover,
+QListWidget#sourceList::item:hover {
+    color: #e3e6e8;
+    background: #191d20;
+}
+
+QListWidget#persistentKnowledgeList::item:selected,
+QListWidget#researchJobList::item:selected,
+QListWidget#durableJobList::item:selected,
+QListWidget#sourceList::item:selected {
+    color: #f2f4f5;
+    background: #22282c;
+}
+
+QFrame#systemMetric {
+    background: #14171a;
+    border: 1px solid #252b30;
+    border-radius: 8px;
+}
+
+QSplitter::handle {
+    background: #202529;
+}
+
+QSplitter::handle:horizontal {
+    width: 1px;
+    margin: 0 8px;
 }
 
 QFrame#sessionControls,
