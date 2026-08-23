@@ -37,9 +37,10 @@ def test_pressure_database_allows_noncritical_write_outside_emergency(
             connection.execute("CREATE TEMP TABLE pressure_test (value INTEGER)")
             connection.execute("INSERT INTO pressure_test VALUES (1)")
 
-        assert database.connection.execute(
+        rows = database.connection.execute(
             "SELECT value FROM pressure_test"
-        ).fetchall() == [(1,)]
+        ).fetchall()
+        assert [int(row["value"]) for row in rows] == [1]
     finally:
         database.stop()
 
@@ -67,8 +68,9 @@ def test_pressure_database_allows_explicit_critical_recovery_write_in_emergency(
             connection.execute("CREATE TEMP TABLE recovery_test (value INTEGER)")
             connection.execute("INSERT INTO recovery_test VALUES (7)")
 
-        assert database.connection.execute(
+        rows = database.connection.execute(
             "SELECT value FROM recovery_test"
-        ).fetchall() == [(7,)]
+        ).fetchall()
+        assert [int(row["value"]) for row in rows] == [7]
     finally:
         database.stop()
