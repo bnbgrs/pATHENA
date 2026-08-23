@@ -75,7 +75,7 @@ Invoke-Checked uv python install $ExpectedPython
 Write-Step "Configure local runtime"
 if ($LocalRoot.Trim()) { $env:ATHENA_LOCAL_ROOT = [System.IO.Path]::GetFullPath($LocalRoot) }
 if ($LmStudioBaseUrl.Trim()) { $env:ATHENA_LMSTUDIO_BASE_URL = $LmStudioBaseUrl.Trim() }
-$runtimeRoot = Assert-PathenaLocalRootReady
+$runtimeRoot = Assert-PathenaLocalRootReady -RepoRoot $RepoRoot
 Write-Host "Runtime root ready: $runtimeRoot"
 if ($env:ATHENA_LMSTUDIO_BASE_URL) { Write-Host "ATHENA_LMSTUDIO_BASE_URL=$env:ATHENA_LMSTUDIO_BASE_URL" }
 else { Write-Host "ATHENA_LMSTUDIO_BASE_URL=http://127.0.0.1:1234" }
