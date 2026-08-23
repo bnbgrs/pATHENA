@@ -139,6 +139,10 @@ class BackupWorkspace(QWidget):
     def _busy(self) -> bool:
         return self.process.state() != QProcess.ProcessState.NotRunning
 
+    @staticmethod
+    def _snapshot_label(snapshot_id: str | None) -> str:
+        return snapshot_id[:8].upper() if snapshot_id else ""
+
     @Slot()
     def refresh(self) -> None:
         self._start("list", ["backup", "list", "--limit", "100"])
@@ -224,13 +228,14 @@ class BackupWorkspace(QWidget):
         if clear_details:
             self.details.clear()
         self._set_controls(False)
+        snapshot_label = self._snapshot_label(snapshot_id)
         self.status.setText(
             {
                 "list": "Loading backup snapshots …",
                 "create": "Creating and verifying backup …",
-                "verify": "Verifying backup …",
-                "verify-deep": "Deep-verifying backup and isolated restore smoke …",
-                "restore": "Restoring snapshot into a new isolated runtime root …",
+                "verify": f"Verifying snapshot {snapshot_label} …",
+                "verify-deep": f"Deep-verifying snapshot {snapshot_label} …",
+                "restore": f"Restoring snapshot {snapshot_label} into an isolated root …",
                 "targets": "Loading registered backup targets …",
                 "register-target": "Registering backup target …",
             }.get(operation, "Running backup operation …")
@@ -271,17 +276,19 @@ class BackupWorkspace(QWidget):
         operation = self._operation
         operation_snapshot_id = self._operation_snapshot_id
         output = self._buffer
+        owns_details = self._operation_owns_details()
         self._operation = ""
         self._operation_snapshot_id = None
         self._set_controls(True)
+        snapshot_label = self._snapshot_label(operation_snapshot_id)
+        subject = f" snapshot {snapshot_label}" if snapshot_label else ""
 
         if exit_code != 0:
-            self.status.setText(f"Backup operation failed (exit {exit_code}).")
-            if (
-                output
-                and operation_snapshot_id == self._selected_snapshot_id
-                and not self.details.toPlainText()
-            ):
+            location = " in the background" if not owns_details else ""
+            self.status.setText(
+                f"Backup{subject} operation failed{location} (exit {exit_code})."
+            )
+            if output and owns_details and not self.details.toPlainText():
                 self.details.setPlainText(output)
             return
 
@@ -292,13 +299,19 @@ class BackupWorkspace(QWidget):
             self.status.setText("Backup created and light verification completed.")
             QTimer.singleShot(120, self.refresh)
         elif operation == "verify":
-            self.status.setText("Backup light verification completed.")
+            self.status.setText(
+                f"Snapshot {snapshot_label} light verification completed."
+            )
             QTimer.singleShot(120, self.refresh)
         elif operation == "verify-deep":
-            self.status.setText("Backup deep verification and restore smoke completed.")
+            self.status.setText(
+                f"Snapshot {snapshot_label} deep verification and restore smoke completed."
+            )
             QTimer.singleShot(120, self.refresh)
         elif operation == "restore":
-            self.status.setText("Snapshot restored into an isolated runtime root.")
+            self.status.setText(
+                f"Snapshot {snapshot_label} restored into an isolated runtime root."
+            )
         elif operation == "targets":
             self.status.setText("Registered backup targets loaded.")
         elif operation == "register-target":
@@ -354,13 +367,16 @@ class BackupWorkspace(QWidget):
 
     @Slot(QProcess.ProcessError)
     def _process_error(self, error: QProcess.ProcessError) -> None:
+        snapshot_id = self._operation_snapshot_id
         self._operation = ""
         self._operation_snapshot_id = None
         self._set_controls(True)
+        snapshot_label = self._snapshot_label(snapshot_id)
+        subject = f" for snapshot {snapshot_label}" if snapshot_label else ""
         self.status.setText(
-            "Unable to start local backup command."
+            f"Unable to start local backup command{subject}."
             if error == QProcess.ProcessError.FailedToStart
-            else f"Backup command error: {error.name}"
+            else f"Backup command{subject} error: {error.name}"
         )
 
 
