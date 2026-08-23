@@ -23,6 +23,14 @@ class GroundedResponseReceiptCorruptionError(RuntimeError):
     """Raised when persisted receipt bytes fail their immutable checksum."""
 
 
+def _require_nonnegative_int(value: object, label: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError(f"{label} must be an integer.")
+    if value < 0:
+        raise ValueError(f"{label} must not be negative.")
+    return value
+
+
 @dataclass(frozen=True, slots=True)
 class GroundedResponseReceipt:
     """One immutable exact-replay projection for a completed Grounded send."""
@@ -35,37 +43,69 @@ class GroundedResponseReceipt:
     format_version: int
     created_at_us: int
 
+    def __post_init__(self) -> None:
+        for value, label in (
+            (self.operation_id, "Grounded response receipt operation_id"),
+            (self.chat_id, "Grounded response receipt chat_id"),
+            (self.processing_run_id, "Grounded response receipt processing_run_id"),
+        ):
+            if not isinstance(value, uuid.UUID):
+                raise TypeError(f"{label} must be a UUID.")
+        if not isinstance(self.payload_json, str):
+            raise TypeError("Grounded response receipt payload_json must be text.")
+        if not isinstance(self.payload_sha256, str):
+            raise TypeError("Grounded response receipt payload_sha256 must be text.")
+        if (
+            len(self.payload_sha256) != 64
+            or any(character not in "0123456789abcdef" for character in self.payload_sha256)
+        ):
+            raise ValueError(
+                "Grounded response receipt payload_sha256 must be canonical lowercase SHA-256."
+            )
+        if (
+            isinstance(self.format_version, bool)
+            or not isinstance(self.format_version, int)
+            or self.format_version < 1
+        ):
+            raise ValueError("Grounded response receipt format_version must be a positive integer.")
+        _require_nonnegative_int(
+            self.created_at_us,
+            "Grounded response receipt created_at_us",
+        )
+
 
 def _canonical_payload(
     payload_json: str,
 ) -> tuple[str, str]:
+    if not isinstance(payload_json, str):
+        raise ValueError("Grounded response receipt payload must be JSON text.")
     try:
-        payload = json.loads(
-            payload_json
-        )
+        payload = json.loads(payload_json)
     except json.JSONDecodeError as exc:
         raise ValueError(
             "Grounded response receipt payload must be valid JSON."
         ) from exc
 
-    if not isinstance(
-        payload,
-        dict,
-    ):
+    if not isinstance(payload, dict):
         raise ValueError(
             "Grounded response receipt payload must be a JSON object."
         )
 
-    canonical = json.dumps(
-        payload,
-        ensure_ascii=False,
-        allow_nan=False,
-        sort_keys=True,
-        separators=(
-            ",",
-            ":",
-        ),
-    )
+    try:
+        canonical = json.dumps(
+            payload,
+            ensure_ascii=False,
+            allow_nan=False,
+            sort_keys=True,
+            separators=(
+                ",",
+                ":",
+            ),
+        )
+    except (TypeError, ValueError) as exc:
+        raise ValueError(
+            "Grounded response receipt payload is not canonical JSON data."
+        ) from exc
 
     digest = hashlib.sha256(
         canonical.encode(
@@ -82,29 +122,20 @@ def _canonical_payload(
 def _receipt_from_row(
     row: sqlite3.Row,
 ) -> GroundedResponseReceipt:
-    receipt = GroundedResponseReceipt(
-        operation_id=uuid_from_blob(
-            bytes(row[0])
-        ),
-        chat_id=uuid_from_blob(
-            bytes(row[1])
-        ),
-        processing_run_id=uuid_from_blob(
-            bytes(row[2])
-        ),
-        payload_json=str(
-            row[3]
-        ),
-        payload_sha256=str(
-            row[4]
-        ),
-        format_version=int(
-            row[5]
-        ),
-        created_at_us=int(
-            row[6]
-        ),
-    )
+    try:
+        receipt = GroundedResponseReceipt(
+            operation_id=uuid_from_blob(bytes(row[0])),
+            chat_id=uuid_from_blob(bytes(row[1])),
+            processing_run_id=uuid_from_blob(bytes(row[2])),
+            payload_json=str(row[3]),
+            payload_sha256=str(row[4]),
+            format_version=int(row[5]),
+            created_at_us=int(row[6]),
+        )
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise GroundedResponseReceiptCorruptionError(
+            "Grounded response receipt contains invalid persisted fields."
+        ) from exc
 
     if (
         receipt.format_version
