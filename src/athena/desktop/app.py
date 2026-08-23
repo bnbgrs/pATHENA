@@ -18,6 +18,7 @@ from athena.desktop.knowledge_acceptance import install_knowledge_acceptance
 from athena.desktop.knowledge_workspace import install_knowledge_workspace
 from athena.desktop.pathena_theme import PATHENA_STYLESHEET
 from athena.desktop.pathena_window import PathenaMainWindow
+from athena.desktop.pathena_workspace_presentation import apply_workspace_presentation
 from athena.desktop.research_workspace import install_research_workspace
 from athena.desktop.scheduler_supervisor import DesktopJobSchedulerSupervisor
 from athena.desktop.supervisor import DesktopCoreSupervisor
@@ -119,6 +120,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     jobs_workspace = install_jobs_workspace(window, scheduler_supervisor)
     files_workspace = install_files_workspace(window)
     system_workspace = install_system_workspace(window, controller)
+    apply_workspace_presentation(window)
     command_palette = install_command_palette(window)
     _schedule_initial_core_refreshes(
         controller,
