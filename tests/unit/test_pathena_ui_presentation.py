@@ -136,6 +136,34 @@ def test_pathena_removes_redundant_shell_chrome() -> None:
         app.processEvents()
 
 
+def test_pathena_model_settings_hide_inference_jargon() -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    try:
+        settings_page = window.pages.widget(6)
+        assert settings_page is not None
+        visible_labels = {
+            label.text()
+            for label in settings_page.findChildren(QLabel)
+            if not label.isHidden()
+        }
+        assert {
+            "Model",
+            "Context window",
+            "Maximum response",
+            "Temperature",
+            "Reasoning",
+        }.issubset(visible_labels)
+        assert "CTX" not in visible_labels
+        assert "MAX OUTPUT TOKENS" not in visible_labels
+        assert "THINKING" not in visible_labels
+        assert all("reasoning_effort" not in text for text in visible_labels)
+        assert window.thinking_checkbox.text() == "Off"
+    finally:
+        window.close()
+        app.processEvents()
+
+
 def test_pathena_message_header_hides_internal_sequence_metadata() -> None:
     app = _app()
     window = PathenaMainWindow(api_controller=None)
@@ -223,6 +251,14 @@ def test_pathena_session_controls_hide_machine_metadata() -> None:
         assert model_index >= 0
         assert window.model_selector.itemText(model_index) == "Qwen Local"
         assert "LOADED" not in window.model_selector.itemText(model_index)
+        assert window.settings_model_value.text() == "Qwen Local · Loaded"
+
+        window.thinking_checkbox.setChecked(True)
+        app.processEvents()
+        assert window.thinking_checkbox.text() == "On"
+        window.thinking_checkbox.setChecked(False)
+        app.processEvents()
+        assert window.thinking_checkbox.text() == "Off"
 
         network_state = window.findChild(QLabel, "networkState")
         assert network_state is not None
