@@ -149,3 +149,45 @@ def test_completed_session_ignores_new_cancel_request() -> None:
 
     assert not session.request_cancel()
     assert session.state is ModelSessionState.COMPLETED
+
+
+def test_created_session_cannot_be_constructed_with_pending_cancel() -> None:
+    with pytest.raises(ValueError, match="created ModelSession.*cancel"):
+        ModelSession(
+            request_id=uuid.uuid4(),
+            model_signature_id=uuid.uuid4(),
+            context_budget=100,
+            output_reserve=10,
+            state=ModelSessionState.CREATED,
+            cancel_requested=True,
+        )
+
+
+def test_cancelled_session_requires_retained_cancel_request() -> None:
+    with pytest.raises(ValueError, match="cancelled ModelSession.*cancel request"):
+        ModelSession(
+            request_id=uuid.uuid4(),
+            model_signature_id=uuid.uuid4(),
+            context_budget=100,
+            output_reserve=10,
+            state=ModelSessionState.CANCELLED,
+            cancel_requested=False,
+        )
+
+
+@pytest.mark.parametrize(
+    "state",
+    [ModelSessionState.COMPLETED, ModelSessionState.FAILED],
+)
+def test_non_cancel_terminal_session_rejects_retained_cancel_request(
+    state: ModelSessionState,
+) -> None:
+    with pytest.raises(ValueError, match="Completed or failed.*cancel request"):
+        ModelSession(
+            request_id=uuid.uuid4(),
+            model_signature_id=uuid.uuid4(),
+            context_budget=100,
+            output_reserve=10,
+            state=state,
+            cancel_requested=True,
+        )
