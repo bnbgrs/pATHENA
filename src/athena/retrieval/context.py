@@ -23,6 +23,7 @@ _MAX_BUDGET = 64_000
 _MIN_ITEMS = 1
 _MAX_ITEMS = 100
 _MAX_MEMORY_ITEMS = 100
+_DIVERSITY_SIMILARITY_THRESHOLD = 0.82
 
 _POLICY = (
     "Current user message overrides USER PREFERENCE. USER PREFERENCE is preference "
@@ -96,9 +97,12 @@ class ContextBuilderService:
     Personal Memory is kept in its own USER PREFERENCE section and selected before
     retrieved evidence. Stored preferences are never truncated because doing so may
     alter their meaning; an over-budget preference is omitted instead. Whole ranked
-    evidence items are preferred, and only the highest-ranked evidence item may be
-    reduced when no complete evidence item fits. Reduction prefers paragraph, sentence,
-    then word boundaries and therefore avoids arbitrary mid-token cuts.
+    evidence items are preferred. Near-duplicate evidence may be deferred behind the
+    first later diverse source, while the highest-ranked source always remains first
+    and contradiction-bearing Claims are never deferred as duplicates. Only the first
+    selected evidence item may be reduced when no complete evidence item fits.
+    Reduction prefers paragraph, sentence, then word boundaries and therefore avoids
+    arbitrary mid-token cuts.
     """
 
     def build_from_ranked(
@@ -240,7 +244,8 @@ class ContextBuilderService:
                 omitted_memory_count += 1
 
         selected: list[ContextItem] = []
-        considered = sources[:validated_max_items]
+        diverse_sources = _diversity_order(sources)
+        considered = diverse_sources[:validated_max_items]
         omitted_count = max(0, len(sources) - len(considered))
 
         for source_index, source in enumerate(considered):
@@ -262,8 +267,9 @@ class ContextBuilderService:
                 selected.append(candidate)
                 continue
 
-            # Preserve rank order. Only the highest-ranked evidence item may be
-            # reduced if otherwise no evidence would fit after Personal Memory.
+            # The diversity order always preserves the original highest-ranked
+            # source as position zero. Only that first source may be reduced if
+            # otherwise no evidence fits after Personal Memory.
             if not selected and source_index == 0:
                 truncated = self._truncate_first_item_to_fit(
                     query=normalized_query,
@@ -398,6 +404,65 @@ class _Source:
     score: float
     contradiction_count: int
     duplicate_count: int
+
+
+def _diversity_order(sources: tuple[_Source, ...]) -> tuple[_Source, ...]:
+    """Defer redundant sources while preserving rank wherever no conflict exists."""
+    if len(sources) < 2:
+        return sources
+
+    remaining = list(sources)
+    ordered: list[_Source] = [remaining.pop(0)]
+
+    while remaining:
+        chosen_index = 0
+        if _source_redundant_with_selected(remaining[0], ordered):
+            for index, candidate in enumerate(remaining[1:], start=1):
+                if not _source_redundant_with_selected(candidate, ordered):
+                    chosen_index = index
+                    break
+        ordered.append(remaining.pop(chosen_index))
+
+    return tuple(ordered)
+
+
+def _source_redundant_with_selected(
+    candidate: _Source,
+    selected: list[_Source],
+) -> bool:
+    # Contradiction-bearing Claims must remain visible even when lexical form is
+    # similar; diversity is not allowed to erase conflicting evidence.
+    if (
+        candidate.entity_type is SearchEntityType.CLAIM
+        and candidate.contradiction_count > 0
+    ):
+        return False
+
+    candidate_tokens = _diversity_tokens(candidate.text)
+    if not candidate_tokens:
+        return False
+
+    for prior in selected:
+        if prior.entity_type is SearchEntityType.CLAIM and prior.contradiction_count > 0:
+            continue
+        similarity = _jaccard(candidate_tokens, _diversity_tokens(prior.text))
+        if similarity >= _DIVERSITY_SIMILARITY_THRESHOLD:
+            return True
+    return False
+
+
+def _diversity_tokens(value: str) -> frozenset[str]:
+    normalized = " ".join(value.casefold().split())
+    return frozenset(re.findall(r"\w+", normalized, flags=re.UNICODE))
+
+
+def _jaccard(left: frozenset[str], right: frozenset[str]) -> float:
+    if not left or not right:
+        return 0.0
+    union = left | right
+    if not union:
+        return 0.0
+    return len(left & right) / len(union)
 
 
 def _model_facing_retrieval_text(
