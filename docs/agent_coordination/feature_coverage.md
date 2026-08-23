@@ -4,7 +4,7 @@ Purpose: prevent repetitive rescans and drive systematic Alpha/Beta-to-code cove
 
 Coverage states: `UNCHECKED` · `PARTIAL` · `COVERED` · `CHANGED_NEEDS_RECHECK`
 
-Last matrix baseline: `agent/pathena` @ `a82254ff1decda8082925329d8f3ec9077d7c612`
+Last matrix baseline: `agent/pathena` @ `401062543fe84443e67d08a0e457dc307502a198`
 
 A `COVERED` row may be rescanned only when its specification or mapped implementation paths changed after the recorded commit. `PARTIAL` means useful code tracing was completed but the full chapter/cross-layer path was not yet exhausted.
 
@@ -24,7 +24,7 @@ A `COVERED` row may be rescanned only when its specification or mapped implement
 | A10 | Internet / anonymization / external sources | UNCHECKED | — | — |
 | A11 | News / events | UNCHECKED | — | — |
 | A12 | Background services / scheduler / tasks | UNCHECKED | — | — |
-| A13 | Storage / synchronization / portability | PARTIAL | a82254f | Storage bootstrap enforces local-state safety, provisions the emergency reserve before migration/database startup, routes legacy schemas through clone migration, and preserves rollback/recovery boundaries. FG-014 and FG-015 are implemented. B03 connection-policy revalidation identified FG-016; long-term sync/replication/portability remains unscanned. |
+| A13 | Storage / synchronization / portability | PARTIAL | 4010625 | Storage bootstrap/locality/emergency-reserve and live SQLite transaction paths traced. FG-014/015/016 are implemented. Beta 03 WAL maintenance is not wired into the live database path; FG-017 is READY. Long-term sync/replication/portability remains unscanned. |
 | A14 | Security / privacy / trust | PARTIAL | 6c11221 | ProtectedContentService lock/unlock and fail-closed decryption traced while checking B09 protection-aware context integration. FG-012 identified. Full Alpha security chapter scan pending. |
 | A15 | Backup / restore / disaster recovery | UNCHECKED | — | — |
 | A16 | Desktop application / UI | PARTIAL | 6c11221 | Current model selector/settings path traced for B08. It exposes discovery/loaded state and generation controls but not the complete Beta Model Manager/switch/load/signature flow; see FG-011. Full desktop chapter scan pending. |
@@ -35,7 +35,7 @@ A `COVERED` row may be rescanned only when its specification or mapped implement
 | A21 | Model freedom / content neutrality | UNCHECKED | — | — |
 | A22 | Context management / conversations / continuity | PARTIAL | 528e901 | ContextBuilderService plus async retrieval ContextBuilder, ContextPackage, Research synthesis map/reduce, protected-content boundary and durable package concerns traced. FG-005 is implemented; FG-006 is stale after dynamic chat budgeting revalidation; FG-012 remains in progress for protected generation orchestration. Full Alpha chapter trace pending. |
 | A23 | Knowledge quality / consistency / self-maintenance | UNCHECKED | — | — |
-| A24 | Performance / scaling / resources | PARTIAL | a82254f | Disk-pressure runtime path was revalidated end-to-end: bootstrap binds the pressure controller into `SQLiteDatabase`, and every canonical `write_transaction()` evaluates the gate before `BEGIN IMMEDIATE`; dedicated pressure regressions cover ordinary-write blocking plus explicit recovery writes. FG-015 is IMPLEMENTED. Broader CPU/GPU/model resource arbitration remains unscanned. |
+| A24 | Performance / scaling / resources | PARTIAL | 4010625 | Disk-pressure runtime write arbitration is implemented. Beta 03 additionally requires active WAL-size observation and controlled checkpoint behavior; current `SQLiteDatabase` has no WAL maintenance/orchestration API, captured as FG-017. Broader CPU/GPU/model resource arbitration remains unscanned. |
 | A25 | Data formats / Obsidian / long-term readability | UNCHECKED | — | Obsidian implementation explicitly deferred; only consistency scan when reached. |
 | A26 | Mobile future / multi-device | UNCHECKED | 22b5f19 | B27 confirms mobile remote and v1 shared-write/CRDT work are intentionally later; do not open implementation gaps from those deferred requirements. Full Alpha chapter consistency scan remains. |
 | A27 | Recovery mode / diagnostics / errors | PARTIAL | ab412d5 | Storage startup detects migration recovery artifacts, refuses unsafe writable continuation, distinguishes explicit recovery-required from disk-pressure read-only-required startup, and preserves reserve space for controlled recovery. Full recovery-mode UX/diagnostics/error-surface scan remains. |
@@ -48,7 +48,7 @@ A `COVERED` row may be rescanned only when its specification or mapped implement
 |---|---|---|---|---|
 | B01 | System architecture / technical basis | PARTIAL | 528e901 | First architecture trace completed. `src/athena/api/server.py` implements a loopback-only Core API listener on `127.0.0.1`, and the API surface uses `/api/v1/...` routes, matching B01 local-binding/versioning requirements. The repository is already split into Core/API/UI/model/knowledge/jobs/config/external/etc. modules rather than microservices. Full trace still required for isolated worker failure boundaries, resource manager integration, authoritative-write routing and long-running checkpoint semantics. No new gap opened from this partial trace. |
 | B02 | Persistent data model / IDs | PARTIAL | 528e901 | Initial identity trace completed. Beta requires stable UUIDv7 identities independent of path/content; `src/athena/common/ids.py` implements RFC-9562 UUIDv7 generation plus canonical 16-byte conversion. This confirms the ID primitive rather than merely documenting it. Full cross-domain entity/revision/provenance/durable-state invariant scan remains. |
-| B03 | Storage / databases / migrations | PARTIAL | a82254f | Live-runtime storage semantics were advanced. Product startup configures the disk-pressure gate before SQLite starts; canonical writes invoke it before `BEGIN IMMEDIATE`, so FG-015 is IMPLEMENTED rather than an open integration gap. `_configure_connection()` matches the Beta values for WAL, `foreign_keys`, `synchronous=FULL`, `busy_timeout=5000`, `secure_delete`, `read_uncommitted`, `wal_autocheckpoint=1000` and `trusted_schema=OFF`, and it explicitly verifies WAL mode. Beta 03 nevertheless requires readback of `foreign_keys` and `trusted_schema`; the current path does not verify those values, and busy_timeout is fixed rather than configurable. FG-016 records this narrow BACKEND handoff. FG-013 remains the Alembic-vs-custom architecture decision. Remaining B03 scan: WAL-size monitoring/checkpoint policy, incremental-vacuum policy, live corruption/disk-full behavior, backup/restore interaction and long-term replication semantics. |
+| B03 | Storage / databases / migrations | PARTIAL | 4010625 | Revalidated live SQLite runtime during active Full-Gate Recovery without product mutation. WAL mode and `wal_autocheckpoint=1000` baseline exist, and FG-016 covers verified safety PRAGMAs. Beta sections 27 and 39–41 additionally require bounded readers, observation of actual `athena.db-wal` growth, background PASSIVE checkpoints, safe idle TRUNCATE checkpoints and clean checkpointing before controlled offline copy/migration. Current `SQLiteDatabase` exposes none of that maintenance/orchestration surface, and active-branch repository search found no `wal_checkpoint`; FG-017 is BACKEND/P1/READY. Beta also specifies bounded `PRAGMA incremental_vacuum(...)` maintenance rather than uncontrolled full VACUUM; no `auto_vacuum`/incremental-vacuum path was found in the current schema/runtime trace, but no separate P2 mutation slice is being promoted while Full-Gate Recovery remains P0. Remaining B03 scan: live corruption/disk-full after startup, backup/restore interaction and long-term replication semantics. |
 | B04 | Sources / raw archive / import pipeline | UNCHECKED | — | — |
 | B05 | Knowledge units / claims / graph | UNCHECKED | — | — |
 | B06 | Personal memory | UNCHECKED | — | — |
@@ -76,9 +76,9 @@ A `COVERED` row may be rescanned only when its specification or mapped implement
 
 ## Next scan order
 
-1. Continue B03 with WAL-size monitoring/checkpoint policy and incremental-vacuum policy; FG-015 is closed to IMPLEMENTED and must not be rescanned unless relevant code changes.
-2. Deep-scan B16 provider bridge/generated-content persistence/relock invalidation/logging boundaries for FG-012.
-3. Finish B09 task-specific builder/test coverage and correlate modern regressions to normative tests 60–68; do not reopen already-implemented source diversity or Research map/reduce.
-4. Scan B21 backup/restore and cross-link B03 corruption/restore invariants.
-5. Continue B01 into process isolation/resource management/authoritative-write/checkpoint boundaries and cross-link B12/B13.
-6. Continue B02 cross-domain entity/revision/provenance and durable-state invariants.
+1. While Full-Gate Recovery is P0, re-read `full_gate_recovery.md` first and take any FEATURE-owned P0/P1 before normal coverage.
+2. If no FEATURE-owned FGATE exists, continue B03 read-only with live corruption/disk-full behavior and cross-link FG-017 to B21/B24 without implementing broad WAL maintenance during recovery.
+3. Deep-scan B16 provider bridge/generated-content persistence/relock invalidation/logging boundaries for FG-012.
+4. Finish B09 task-specific builder/test coverage and correlate modern regressions to normative tests 60–68; do not reopen already-implemented source diversity or Research map/reduce.
+5. Scan B21 backup/restore and cross-link B03 corruption/restore/checkpoint invariants.
+6. Continue B01 into process isolation/resource management/authoritative-write/checkpoint boundaries and cross-link B12/B13.
