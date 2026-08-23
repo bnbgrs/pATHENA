@@ -75,7 +75,25 @@ def _check_optional_storage_root(
         return DoctorCheck(name, "WARN", f"configured root is a symbolic link: {root}")
     if not root.is_dir():
         return DoctorCheck(name, "WARN", f"configured root is unavailable: {root}")
-    return DoctorCheck(name, "PASS", str(root))
+
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="wb",
+            prefix=f"athena-doctor-{name}-",
+            suffix=".tmp",
+            dir=root,
+            delete=True,
+        ) as handle:
+            handle.write(b"athena-doctor-storage-root")
+            handle.flush()
+    except OSError as exc:
+        return DoctorCheck(
+            name,
+            "WARN",
+            f"configured root is not writable: {root}: {exc}",
+        )
+
+    return DoctorCheck(name, "PASS", f"writable: {root}")
 
 
 def _check_database(paths: RuntimePaths) -> DoctorCheck:
