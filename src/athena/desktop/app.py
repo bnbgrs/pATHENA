@@ -22,6 +22,7 @@ from athena.desktop.pathena_background_completion_accessibility import (
     install_background_completion_accessibility,
 )
 from athena.desktop.pathena_backup_action_context_6800 import install_backup_action_context
+from athena.desktop.pathena_backup_action_truth import install_backup_action_truth
 from athena.desktop.pathena_backup_details_provenance import (
     install_backup_details_provenance,
 )
@@ -218,6 +219,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     chat_scroll_stability = install_chat_scroll_stability(window)
     apply_inspector_scanability(window)
     backup_action_context = install_backup_action_context(window)
+    backup_action_truth = install_backup_action_truth(system_backup.backup)
     message_action_accessibility = install_message_action_accessibility(window)
     message_action_tab_order = install_message_action_tab_order(window)
     message_action_quiet = install_message_action_quiet(window)
@@ -266,6 +268,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     message_action_quiet.deleteLater()
     message_action_tab_order.deleteLater()
     message_action_accessibility.deleteLater()
+    backup_action_truth.deleteLater()
     backup_action_context.deleteLater()
     backup_details_provenance.deleteLater()
     backup_target_context.deleteLater()
