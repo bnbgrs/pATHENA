@@ -30,6 +30,10 @@ class PathenaMainWindow(AthenaMainWindow):
     def __init__(self, api_controller: DesktopApiController | None = None) -> None:
         super().__init__(api_controller=api_controller)
         self._apply_quiet_cognitive_workspace()
+        self.chat_selector.currentIndexChanged.connect(
+            self._sync_progressive_chat_actions
+        )
+        self._sync_progressive_chat_actions()
 
     def _apply_quiet_cognitive_workspace(self) -> None:
         self.setWindowTitle("pATHENA")
@@ -101,6 +105,11 @@ class PathenaMainWindow(AthenaMainWindow):
         self.delete_chat_button.setToolTip("Delete the selected chat")
 
         self._replace_visible_copy()
+
+    def _sync_progressive_chat_actions(self, _index: int | None = None) -> None:
+        """Reveal destructive chat controls only when they are actionable."""
+        has_selected_chat = self.chat_selector.currentData() is not None
+        self.delete_chat_button.setVisible(has_selected_chat)
 
     def _replace_visible_copy(self) -> None:
         replacements = {
