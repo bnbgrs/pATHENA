@@ -68,6 +68,30 @@ def _unlock_posix(handle: BinaryIO) -> None:
     )
 
 
+def _lock(handle: BinaryIO) -> None:
+    if os.name == "nt":
+        _lock_windows(handle)
+        return
+    if os.name == "posix":
+        _lock_posix(handle)
+        return
+    raise BackupTargetBusyError(
+        f"Backup target locking is unsupported on platform {os.name!r}."
+    )
+
+
+def _unlock(handle: BinaryIO) -> None:
+    if os.name == "nt":
+        _unlock_windows(handle)
+        return
+    if os.name == "posix":
+        _unlock_posix(handle)
+        return
+    raise BackupTargetBusyError(
+        f"Backup target unlocking is unsupported on platform {os.name!r}."
+    )
+
+
 @contextmanager
 def backup_target_lock(target_root: Path) -> Iterator[None]:
     if not target_root.is_dir():
@@ -81,19 +105,12 @@ def backup_target_lock(target_root: Path) -> Iterator[None]:
     locked = False
 
     try:
-        if os.name == "nt":
-            _lock_windows(handle)
-        else:
-            _lock_posix(handle)
-
+        _lock(handle)
         locked = True
         yield
-
     finally:
-        if locked:
-            if os.name == "nt":
-                _unlock_windows(handle)
-            else:
-                _unlock_posix(handle)
-
-        handle.close()
+        try:
+            if locked:
+                _unlock(handle)
+        finally:
+            handle.close()
