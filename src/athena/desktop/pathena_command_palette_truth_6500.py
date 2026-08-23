@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from PySide6.QtCore import QObject, QTimer
+from PySide6.QtCore import QObject, QTimer, Qt
 from PySide6.QtWidgets import QBoxLayout, QLabel, QWidget
 
 from athena.desktop.command_palette import CommandPaletteController
@@ -40,6 +40,7 @@ class CommandPaletteTruthController(QObject):
         self.status.setProperty("role", "muted")
         self._install_status_surface()
 
+        palette.results.setAccessibleName("Command results")
         palette.__dict__["_run_row"] = self._run_row
         palette.query.textChanged.connect(self._schedule_refresh)
         palette.results.currentRowChanged.connect(self._selection_changed)
@@ -61,12 +62,20 @@ class CommandPaletteTruthController(QObject):
             if item is None:
                 continue
             available, explanation = self._availability(command.label)
-            item.setText(command.label if available else f"{command.label} · unavailable")
+            visible_text = command.label if available else f"{command.label} · unavailable"
+            item.setText(visible_text)
             item.setToolTip(explanation)
             item.setData(256, available)
+            item.setData(Qt.ItemDataRole.AccessibleTextRole, visible_text)
+            availability = "available" if available else "unavailable"
+            item.setData(
+                Qt.ItemDataRole.AccessibleDescriptionRole,
+                f"Command {availability}. {explanation}",
+            )
         self._selection_changed(self.palette.results.currentRow())
 
     def _selection_changed(self, row: int) -> None:
+        self._sync_results_accessibility(row)
         if not 0 <= row < len(self.palette._filtered_commands):
             self.status.clear()
             self.status.hide()
@@ -81,6 +90,24 @@ class CommandPaletteTruthController(QObject):
         self.status.setAccessibleName(f"{command.label} unavailable")
         self.status.setAccessibleDescription(explanation)
         self.status.show()
+
+    def _sync_results_accessibility(self, row: int) -> None:
+        count = self.palette.results.count()
+        available_count = 0
+        for index in range(count):
+            item = self.palette.results.item(index)
+            if item is not None and item.data(256) is True:
+                available_count += 1
+        description = f"{count} commands shown. {available_count} available."
+        if 0 <= row < len(self.palette._filtered_commands):
+            command = self.palette._filtered_commands[row]
+            available, _explanation = self._availability(command.label)
+            state = "available" if available else "unavailable"
+            description += f" Current command: {command.label}, {state}."
+        else:
+            description += " No command selected."
+        self.palette.results.setAccessibleDescription(description)
+        self.palette.results.setProperty("pathenaCommandResultScope", description)
 
     def _run_row(self, row: int) -> None:
         if not 0 <= row < len(self.palette._filtered_commands):
