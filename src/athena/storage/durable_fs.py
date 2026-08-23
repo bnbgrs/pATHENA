@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import secrets
+import stat
 from pathlib import Path
 
 _MOVEFILE_REPLACE_EXISTING = 0x00000001
@@ -65,6 +66,97 @@ def _assert_real_directory(path: Path, *, label: str) -> None:
         cursor = parent
 
 
+def _open_directory_fd(path: Path, *, label: str) -> int:
+    """Open one real POSIX directory and bind the pathname to that handle."""
+    _assert_real_directory(path, label=label)
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(path, flags)
+    try:
+        handle_stat = os.fstat(descriptor)
+        path_stat = os.stat(path, follow_symlinks=False)
+        if not stat.S_ISDIR(handle_stat.st_mode):
+            raise NotADirectoryError(f"{label} handle is not a directory: {path}")
+        if not os.path.samestat(handle_stat, path_stat):
+            raise OSError(f"{label} changed while it was being opened: {path}")
+    except BaseException:
+        os.close(descriptor)
+        raise
+    return descriptor
+
+
+def _assert_directory_fd_current(path: Path, descriptor: int, *, label: str) -> None:
+    """Fail closed if a directory pathname no longer names the opened directory."""
+    if is_link_boundary(path):
+        raise OSError(f"{label} became a symlink or reparse point: {path}")
+    try:
+        path_stat = os.stat(path, follow_symlinks=False)
+        handle_stat = os.fstat(descriptor)
+    except OSError as exc:
+        raise OSError(f"{label} identity could not be verified: {path}") from exc
+    if not stat.S_ISDIR(path_stat.st_mode) or not os.path.samestat(path_stat, handle_stat):
+        raise OSError(f"{label} changed during durable filesystem mutation: {path}")
+
+
+def _posix_durable_replace(source: Path, destination: Path) -> None:
+    """Rename relative to opened parent FDs so pathname replacement cannot redirect it."""
+    source_parent = source.parent
+    destination_parent = destination.parent
+    source_fd = _open_directory_fd(
+        source_parent,
+        label="Durable replace source parent",
+    )
+    destination_fd = source_fd
+    owns_destination_fd = False
+    try:
+        if source_parent != destination_parent:
+            destination_fd = _open_directory_fd(
+                destination_parent,
+                label="Durable replace destination parent",
+            )
+            owns_destination_fd = True
+
+        _assert_directory_fd_current(
+            source_parent,
+            source_fd,
+            label="Durable replace source parent",
+        )
+        _assert_directory_fd_current(
+            destination_parent,
+            destination_fd,
+            label="Durable replace destination parent",
+        )
+        try:
+            os.replace(
+                source.name,
+                destination.name,
+                src_dir_fd=source_fd,
+                dst_dir_fd=destination_fd,
+            )
+        except (NotImplementedError, TypeError) as exc:
+            raise OSError(
+                "Identity-bound durable replace is unsupported on this POSIX runtime."
+            ) from exc
+
+        os.fsync(destination_fd)
+        if source_fd != destination_fd:
+            os.fsync(source_fd)
+
+        _assert_directory_fd_current(
+            source_parent,
+            source_fd,
+            label="Durable replace source parent",
+        )
+        _assert_directory_fd_current(
+            destination_parent,
+            destination_fd,
+            label="Durable replace destination parent",
+        )
+    finally:
+        if owns_destination_fd:
+            os.close(destination_fd)
+        os.close(source_fd)
+
+
 def durable_replace(source: Path, destination: Path) -> None:
     """Atomically publish *source* and flush every changed directory entry."""
     source_path = Path(source)
@@ -88,10 +180,7 @@ def durable_replace(source: Path, destination: Path) -> None:
         _windows_replace_write_through(source_path, destination_path)
         return
 
-    os.replace(source_path, destination_path)
-    fsync_directory(destination_parent)
-    if source_parent != destination_parent:
-        fsync_directory(source_parent)
+    _posix_durable_replace(source_path, destination_path)
 
 
 def durable_mkdir(path: Path, *, parents: bool = False, exist_ok: bool = False) -> None:
@@ -169,12 +258,10 @@ def fsync_directory(path: Path) -> None:
     _assert_real_directory(directory, label="fsync directory")
     if _is_windows():
         return
-    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
-    nofollow = getattr(os, "O_NOFOLLOW", 0)
-    flags |= nofollow
-    descriptor = os.open(directory, flags)
+    descriptor = _open_directory_fd(directory, label="fsync directory")
     try:
         os.fsync(descriptor)
+        _assert_directory_fd_current(directory, descriptor, label="fsync directory")
     finally:
         os.close(descriptor)
 
@@ -212,4 +299,8 @@ def _windows_replace_write_through(source: Path, destination: Path) -> None:
     if succeeded:
         return
     error = get_last_error()
-    raise OSError(error, f"MoveFileExW durable publication failed with Windows error {error}.", str(destination))
+    raise OSError(
+        error,
+        f"MoveFileExW durable publication failed with Windows error {error}.",
+        str(destination),
+    )
