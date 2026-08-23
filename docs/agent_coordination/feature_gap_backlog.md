@@ -95,12 +95,12 @@ Status vocabulary: `FOUND` · `PARTIAL` · `READY` · `BLOCKED` · `IN_PROGRESS`
 
 ### FG-014 — Reject network-backed active state roots before opening SQLite
 - **Source:** Beta 03 section 7 (no live `athena.db` on SMB/NFS/UNC/network filesystems; normal write operation must be refused for network-backed `state_root`).
-- **Ownership / Priority / Status:** BACKEND · P1 · READY
-- **Evidence / code paths:** `AthenaSettings.__post_init__()` validates `local_root` only for `Path` type and absolute form. `RuntimePaths.from_settings()` derives `state_root` and `database_path` directly beneath that root. The inspected configuration/storage path contains no UNC/network-filesystem refusal, and repository search found no separate state-root network-path guard.
-- **Current state:** A user-supplied absolute network/UNC `ATHENA_LOCAL_ROOT` can pass bootstrap validation far enough to become the active SQLite path, contrary to the Beta v1 storage safety rule.
-- **Desired state:** Add a fail-closed platform-aware active-state-root locality guard before database startup. On Windows, reject UNC/network-backed roots and other detectable remote-drive cases; on supported POSIX paths, reject known remote mounts where detection is reliable. The check should protect the active state/database root without forbidding archive/backup/optional long-term targets that are explicitly allowed to be remote.
-- **Dependencies:** storage-path/bootstrap ownership, Windows path/mount detection strategy, deterministic unit tests that do not require a real network share, and recovery messaging explaining the refusal.
-- **Verification:** Static re-read 2026-08-23 of Beta 03 section 7, `src/athena/config/settings.py` blob `534d237b08d58f9f89cd327e314204f3f1b93077`, and `src/athena/storage/paths.py` blob `4068c612d40e3d648c8899f7bc65265ef940f7a0`. No runtime test result is claimed.
+- **Ownership / Priority / Status:** BACKEND · P1 · IMPLEMENTED
+- **Evidence / code paths:** `src/athena/storage/locality.py` now classifies active state locality. `RuntimeLayoutService.start()` refuses a remote state root before creating/probing runtime paths, and `inspect_database_read_only()` performs the same guard before any SQLite connection attempt.
+- **Current state:** Windows UNC paths and mapped remote drives are refused; unknown/no-root Windows drive types fail closed. On Linux, `/proc/self/mountinfo` is matched by longest mount point and known network filesystems such as NFS/CIFS/SSHFS are refused. Archive, backup and projection roots are intentionally outside this guard.
+- **Desired state:** Implemented. Runtime verification on a real Windows mapped share and representative Linux network mount remains desirable before promotion to VERIFIED.
+- **Dependencies:** none.
+- **Verification:** Implemented 2026-08-23 with `tests/unit/test_storage_locality.py` and `tests/unit/test_database_preflight_locality.py`. Local test execution was attempted but the isolated environment could not resolve `github.com`; no pass is claimed.
 
 ## Handoff notes
 - Re-read current HEAD and affected files before every mutation.
