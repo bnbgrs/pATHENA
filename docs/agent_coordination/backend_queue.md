@@ -17,10 +17,10 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 ### BE-002 — Complete provider lifecycle/control contract
 - Priority: P1
 - Status: BLOCKED
-- Evidence: Feature-gap FG-001; Core management port added. LM Studio adapter implementation requires editing a large concurrently active adapter through a whole-file connector write, which would risk overwriting another bot.
+- Evidence: Feature-gap FG-001; Core management port added. LM Studio adapter implementation requires editing a large concurrently active adapter through a whole-file connector write, which would risk overwriting another bot. Security SEC-003 additionally requires this adapter's loopback transport to ignore ambient HTTP(S) proxies when the ownership window opens.
 - Components: model ports, LM Studio adapter, provider tests.
 - Dependencies: safe ownership window for LM Studio adapter.
-- Last verification: 2026-08-23 against current remote.
+- Last verification: 2026-08-23 against current remote; SEC-003 re-traced by Security.
 
 ### BE-003 — Add normalized provider capability representation
 - Priority: P1
@@ -85,3 +85,12 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 - Components: chat generation, context package/provider controls, targeted tests.
 - Dependencies: none.
 - Last verification: 2026-08-23 against current generation code; selected as fallback if BE-009 depends on blocked adapter work.
+
+### BE-011 — Confine BlobStore writes against symlink/junction ancestors
+- Priority: P1
+- Status: READY
+- Evidence: Security SEC-006. `BlobStore._copy_into_root()` validates the content-addressed locator but does not prove that existing `blobs/sha256/<prefix>` ancestors are non-link directories confined beneath the configured spool/archive root before creating and publishing a blob. Read/purge paths already contain stronger containment checks, so the write boundary is inconsistent.
+- Components: `src/athena/source/blob_store.py`, targeted blob-store filesystem tests; ideally a reusable storage-path confinement helper if an existing one cannot be reused safely.
+- Dependencies: coordinate with Security; preserve exclusive temp creation, content hash verification and durable publication semantics.
+- Required invariant: every blob write remains beneath the resolved configured storage root even with hostile symlink/junction/reparse-point ancestors; fail closed rather than following them.
+- Last verification: 2026-08-23 static trace by Security; no exploit execution claimed.
