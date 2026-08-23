@@ -193,10 +193,99 @@ def test_store_inspect_detects_underallocated_file_when_platform_reports_blocks(
     path.write_bytes(b"x" * 4096)
     store = EmergencyReserveStore(state_root)
 
-    monkeypatch.setattr(reserve_module, "_allocated_bytes", lambda _path: 1024)
+    if os.name == "posix":
+        monkeypatch.setattr(
+            reserve_module,
+            "_allocated_bytes_from_stat",
+            lambda _stat: 1024,
+        )
+    else:
+        monkeypatch.setattr(reserve_module, "_allocated_bytes", lambda _path: 1024)
 
     with pytest.raises(EmergencyReserveError, match="sparse or under-allocated"):
         store.inspect(required_bytes=4096)
+
+
+def test_posix_store_creation_does_not_publish_into_replaced_reserve_root(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    if os.name != "posix":
+        pytest.skip("POSIX dir_fd identity regression")
+
+    state_root = (tmp_path / "state").absolute()
+    state_root.mkdir()
+    reserve_root = state_root / "reserve"
+    reserve_root.mkdir()
+    displaced = state_root / "reserve-displaced"
+    store = EmergencyReserveStore(state_root)
+    real_open = os.open
+    replaced = False
+
+    def racing_open(
+        path: str | bytes | os.PathLike[str] | os.PathLike[bytes],
+        flags: int,
+        mode: int = 0o777,
+        *,
+        dir_fd: int | None = None,
+    ) -> int:
+        nonlocal replaced
+        if dir_fd is not None and not replaced:
+            replaced = True
+            reserve_root.rename(displaced)
+            reserve_root.mkdir()
+        if dir_fd is None:
+            return real_open(path, flags, mode)
+        return real_open(path, flags, mode, dir_fd=dir_fd)
+
+    monkeypatch.setattr(reserve_module.os, "open", racing_open)
+
+    with pytest.raises(EmergencyReserveError, match="directory changed"):
+        store.ensure(required_bytes=4096, write_chunk_bytes=1024)
+
+    assert not (reserve_root / "emergency.reserve").exists()
+    assert not (displaced / "emergency.reserve").exists()
+
+
+def test_posix_store_release_does_not_unlink_replacement_root_file(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    if os.name != "posix":
+        pytest.skip("POSIX dir_fd identity regression")
+
+    state_root = (tmp_path / "state").absolute()
+    state_root.mkdir()
+    store = EmergencyReserveStore(state_root)
+    store.ensure(required_bytes=4096, write_chunk_bytes=1024)
+    reserve_root = store.reserve_root
+    displaced = state_root / "reserve-displaced"
+    real_unlink = os.unlink
+    replaced = False
+
+    def racing_unlink(
+        path: str | bytes | os.PathLike[str] | os.PathLike[bytes],
+        *,
+        dir_fd: int | None = None,
+    ) -> None:
+        nonlocal replaced
+        if dir_fd is not None and not replaced:
+            replaced = True
+            reserve_root.rename(displaced)
+            reserve_root.mkdir()
+            (reserve_root / "emergency.reserve").write_bytes(b"attacker")
+        if dir_fd is None:
+            real_unlink(path)
+        else:
+            real_unlink(path, dir_fd=dir_fd)
+
+    monkeypatch.setattr(reserve_module.os, "unlink", racing_unlink)
+
+    with pytest.raises(EmergencyReserveError, match="directory changed"):
+        store.release()
+
+    assert (reserve_root / "emergency.reserve").read_bytes() == b"attacker"
+    assert not (displaced / "emergency.reserve").exists()
 
 
 def test_service_uses_beta_volume_sizing_and_persists_on_stop(tmp_path: Path) -> None:
