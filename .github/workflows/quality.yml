@@ -103,4 +103,4 @@ jobs:
         run: uv run --locked --extra dev pytest -q tests/unit/test_storage_locality.py -k windows
 
       - name: Run Windows storage path regressions
-        run: uv run --locked --extra dev pytest -q tests/unit/test_database_preflight_locality.py tests/unit/test_runtime_paths.py tests/unit/test_migration_clone.py tests/unit/test_migration_journal.py tests/unit/test_emergency_reserve.py
+        run: uv run --locked --extra dev pytest -q tests/unit/test_database_preflight_locality.py tests/unit/test_runtime_paths.py tests/unit/test_migration_clone.py tests/unit/test_migration_journal.py tests/unit/test_migration_activation.py tests/unit/test_migration_lock.py tests/unit/test_migration_executor.py tests/unit/test_migration_recovery.py tests/unit/test_emergency_reserve.py tests/unit/test_disk_pressure.py
