@@ -223,6 +223,12 @@ class PathenaStartupExperience(QObject):
             send.setMinimumWidth(66)
             send.setMaximumWidth(78)
 
+        chat_page = self.window.findChild(QWidget, "pageChat")
+        if chat_page is not None:
+            for rule in chat_page.findChildren(QFrame, "rule"):
+                if rule.parentWidget() is chat_page:
+                    rule.hide()
+
     def sync(self) -> None:
         core_ready = bool(getattr(self.window, "_core_transport_ready", False))
         session_controls = self.window.findChild(QFrame, "sessionControls")
@@ -256,29 +262,33 @@ class PathenaStartupExperience(QObject):
 
         panel = QFrame(messages)
         panel.setObjectName("emptyStatePanel")
-        panel.setMaximumWidth(560)
+        panel.setFixedWidth(560)
+        panel.setMinimumHeight(174)
         panel.setSizePolicy(
-            QSizePolicy.Policy.Preferred,
-            QSizePolicy.Policy.Preferred,
+            QSizePolicy.Policy.Fixed,
+            QSizePolicy.Policy.Minimum,
         )
         panel_layout = QVBoxLayout(panel)
-        panel_layout.setContentsMargins(24, 24, 24, 24)
-        panel_layout.setSpacing(9)
+        panel_layout.setContentsMargins(28, 26, 28, 26)
+        panel_layout.setSpacing(10)
 
         eyebrow = QLabel("LOCAL-FIRST WORKSPACE", panel)
         eyebrow.setObjectName("emptyStateEyebrow")
         eyebrow.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+        eyebrow.setMinimumHeight(16)
 
         title = QLabel(panel)
         title.setObjectName("emptyStateTitle")
         title.setAlignment(Qt.AlignmentFlag.AlignHCenter)
-        title.setWordWrap(True)
+        title.setMinimumHeight(34)
+        title.setWordWrap(False)
 
         body = QLabel(panel)
         body.setObjectName("emptyStateBody")
         body.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
         body.setWordWrap(True)
-        body.setMaximumWidth(500)
+        body.setFixedWidth(500)
+        body.setMinimumHeight(50)
 
         raw_text = raw.text().strip()
         if not core_ready:
@@ -299,7 +309,7 @@ class PathenaStartupExperience(QObject):
 
         panel_layout.addWidget(eyebrow)
         panel_layout.addWidget(title)
-        panel_layout.addWidget(body)
+        panel_layout.addWidget(body, 0, Qt.AlignmentFlag.AlignHCenter)
 
         layout = messages.layout()
         if not isinstance(layout, QVBoxLayout):
