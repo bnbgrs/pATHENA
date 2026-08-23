@@ -28,7 +28,7 @@ class UnsupportedJobTypeError(ValueError):
 
 
 class InvalidJobPayloadError(ValueError):
-    """Raised when durable job JSON cannot be canonicalized safely."""
+    """Raised when durable job JSON or orchestration scalars are unsafe."""
 
 
 class DurableJobService:
@@ -67,6 +67,7 @@ class DurableJobService:
             raise UnsupportedJobTypeError(
                 f"Unregistered ATHENA job type {job_type!r}."
             )
+        _optional_nonnegative_int(next_run_at_us, "next_run_at_us")
         try:
             validate_builtin_job_payload(
                 job_type,
@@ -96,6 +97,7 @@ class DurableJobService:
             raise UnsupportedJobTypeError(
                 f"Unregistered ATHENA job type {job_type!r}."
             )
+        _positive_int(limit, "limit")
         return self.repository.list_nonterminal_by_type(
             job_type=job_type,
             limit=limit,
@@ -109,6 +111,9 @@ class DurableJobService:
         lease_seconds: int = 60,
         now_us: int | None = None,
     ) -> JobRecord:
+        _canonical_text(worker_id, "worker_id")
+        _positive_int(lease_seconds, "lease_seconds")
+        _optional_nonnegative_int(now_us, "now_us")
         return self.repository.acquire_lease(
             job_id=job_id,
             worker_id=worker_id,
@@ -125,6 +130,9 @@ class DurableJobService:
         extend_seconds: int = 60,
         now_us: int | None = None,
     ) -> JobRecord:
+        _lease_token(lease_token)
+        _positive_int(extend_seconds, "extend_seconds")
+        _optional_nonnegative_int(now_us, "now_us")
         return self.repository.heartbeat(
             job_id=job_id,
             lease_token=lease_token,
@@ -139,6 +147,7 @@ class DurableJobService:
         lease_token: bytes,
     ) -> Callable[[sqlite3.Connection], None]:
         """Return a lease fence for one canonical write transaction."""
+        _lease_token(lease_token)
 
         def fence(connection: sqlite3.Connection) -> None:
             self.repository.require_live_write_fence(
@@ -163,6 +172,9 @@ class DurableJobService:
         commit_id: uuid.UUID | None = None,
         now_us: int | None = None,
     ) -> CheckpointRecord:
+        _lease_token(lease_token)
+        _optional_canonical_text(current_stage, "current_stage")
+        _optional_nonnegative_int(now_us, "now_us")
         return self.repository.add_checkpoint(
             job_id=job_id,
             lease_token=lease_token,
@@ -178,12 +190,14 @@ class DurableJobService:
 
     def recover_startup(self, *, now_us: int | None = None) -> tuple[JobRecord, ...]:
         """Recover only expired leases; live worker leases are never stolen."""
+        _optional_nonnegative_int(now_us, "now_us")
         return self.repository.recover_expired_leases(now_us=now_us)
 
     def get(self, job_id: uuid.UUID) -> JobRecord:
         return self.repository.get(job_id)
 
     def list(self, *, limit: int = 100) -> tuple[JobRecord, ...]:
+        _positive_int(limit, "limit")
         return self.repository.list(limit=limit)
 
     def eligible_queued(
@@ -193,6 +207,14 @@ class DurableJobService:
         job_types: set[str] | frozenset[str] | None = None,
         limit: int = 128,
     ) -> tuple[JobRecord, ...]:
+        _nonnegative_int(now_us, "now_us")
+        _positive_int(limit, "limit")
+        if job_types is not None:
+            unknown = set(job_types) - self.BUILTIN_JOB_TYPES
+            if unknown:
+                raise UnsupportedJobTypeError(
+                    "Unregistered ATHENA job type(s): " + ", ".join(sorted(unknown))
+                )
         return self.repository.list_eligible_queued(
             now_us=now_us,
             job_types=job_types,
@@ -200,6 +222,7 @@ class DurableJobService:
         )
 
     def waiting(self, *, limit: int = 128) -> tuple[JobRecord, ...]:
+        _positive_int(limit, "limit")
         return self.repository.list_waiting(limit=limit)
 
     def wake_due_waiting(
@@ -207,6 +230,7 @@ class DurableJobService:
         *,
         now_us: int | None = None,
     ) -> tuple[JobRecord, ...]:
+        _optional_nonnegative_int(now_us, "now_us")
         return self.repository.wake_due_waiting(now_us=now_us)
 
     def schedule_retry(
@@ -217,6 +241,9 @@ class DurableJobService:
         max_retries: int,
         now_us: int | None = None,
     ) -> JobRecord:
+        _nonnegative_int(next_run_at_us, "next_run_at_us")
+        _nonnegative_int(max_retries, "max_retries")
+        _optional_nonnegative_int(now_us, "now_us")
         return self.repository.schedule_retry(
             job_id,
             next_run_at_us=next_run_at_us,
@@ -232,6 +259,9 @@ class DurableJobService:
         next_run_at_us: int | None = None,
         now_us: int | None = None,
     ) -> JobRecord:
+        _lease_token(lease_token)
+        _optional_nonnegative_int(next_run_at_us, "next_run_at_us")
+        _optional_nonnegative_int(now_us, "now_us")
         return self.repository.yield_job(
             job_id=job_id,
             lease_token=lease_token,
@@ -253,6 +283,9 @@ class DurableJobService:
         blocked_reason: str,
         now_us: int | None = None,
     ) -> JobRecord:
+        _lease_token(lease_token)
+        _canonical_text(blocked_reason, "blocked_reason")
+        _optional_nonnegative_int(now_us, "now_us")
         return self.repository.fail(
             job_id=job_id,
             lease_token=lease_token,
@@ -269,6 +302,9 @@ class DurableJobService:
         next_run_at_us: int | None = None,
         now_us: int | None = None,
     ) -> JobRecord:
+        _lease_token(lease_token)
+        _optional_nonnegative_int(next_run_at_us, "next_run_at_us")
+        _optional_nonnegative_int(now_us, "now_us")
         return self.repository.wait(
             job_id=job_id,
             lease_token=lease_token,
@@ -296,6 +332,8 @@ class DurableJobService:
         lease_token: bytes,
         now_us: int | None = None,
     ) -> JobRecord:
+        _lease_token(lease_token)
+        _optional_nonnegative_int(now_us, "now_us")
         return self.repository.complete(
             job_id=job_id,
             lease_token=lease_token,
@@ -309,6 +347,8 @@ class DurableJobService:
         lease_token: bytes,
         now_us: int | None = None,
     ) -> JobRecord:
+        _lease_token(lease_token)
+        _optional_nonnegative_int(now_us, "now_us")
         return self.repository.acknowledge_cancel(
             job_id=job_id,
             lease_token=lease_token,
@@ -329,3 +369,39 @@ def _canonical_json(value: Mapping[str, Any] | None) -> str | None:
         )
     except (TypeError, ValueError) as exc:
         raise InvalidJobPayloadError("Job payload must be finite canonical JSON.") from exc
+
+
+def _positive_int(value: object, label: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise InvalidJobPayloadError(f"{label} must be an integer >= 1.")
+    return value
+
+
+def _nonnegative_int(value: object, label: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise InvalidJobPayloadError(f"{label} must be an integer >= 0.")
+    return value
+
+
+def _optional_nonnegative_int(value: object | None, label: str) -> int | None:
+    if value is None:
+        return None
+    return _nonnegative_int(value, label)
+
+
+def _canonical_text(value: object, label: str) -> str:
+    if not isinstance(value, str) or not value or value != value.strip():
+        raise InvalidJobPayloadError(f"{label} must be non-empty canonical text.")
+    return value
+
+
+def _optional_canonical_text(value: object | None, label: str) -> str | None:
+    if value is None:
+        return None
+    return _canonical_text(value, label)
+
+
+def _lease_token(value: object) -> bytes:
+    if not isinstance(value, bytes) or len(value) != 32:
+        raise InvalidJobPayloadError("lease_token must contain exactly 32 bytes.")
+    return value
