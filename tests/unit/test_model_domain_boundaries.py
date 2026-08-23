@@ -61,6 +61,16 @@ def test_model_info_rejects_noncanonical_identity_text(field: str, value: str) -
         _model(**{field: value})
 
 
+@pytest.mark.parametrize("value", ["", "   ", " Q4", "Q4 ", "\tQ4"])
+def test_model_info_rejects_noncanonical_quantization(value: str) -> None:
+    with pytest.raises(ValueError, match="quantization"):
+        _model(quantization=value)
+
+
+def test_model_info_accepts_unknown_quantization() -> None:
+    assert _model(quantization=None).quantization is None
+
+
 @pytest.mark.parametrize("field", ["vision", "trained_for_tool_use"])
 def test_model_info_rejects_non_boolean_capability_flags(field: str) -> None:
     with pytest.raises(TypeError, match="bool or None"):
