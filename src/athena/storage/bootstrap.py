@@ -157,6 +157,9 @@ class StorageBootstrapService:
                 executor=self._executor,
             )
 
+        self.database.configure_noncritical_write_gate(
+            self.disk_pressure.assert_noncritical_write_allowed
+        )
         self.database.start()
         self.preflight = preflight
         self.migration_plan = plan
