@@ -107,7 +107,7 @@ class StateFeedbackController(QObject):
         if (
             isinstance(watched, QWidget)
             and isinstance(event, QDynamicPropertyChangeEvent)
-            and bytes(event.propertyName()) == b"pathenaUiState"
+            and bytes(event.propertyName().data()) == b"pathenaUiState"
         ):
             self._sync(watched)
         return super().eventFilter(watched, event)
