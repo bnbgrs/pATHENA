@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import math
 import os
 from dataclasses import dataclass
 from pathlib import Path
@@ -62,21 +63,35 @@ def _parse_absolute_path(
     return path
 
 
+def _positive_finite_number(value: object, *, setting_name: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ConfigurationError(
+            f"{setting_name} must be a finite number greater than zero."
+        )
+    parsed = float(value)
+    if not math.isfinite(parsed) or parsed <= 0:
+        raise ConfigurationError(
+            f"{setting_name} must be a finite number greater than zero."
+        )
+    return parsed
+
+
 def _parse_positive_float(raw_value: str | None, *, setting_name: str, default: float) -> float:
     value = raw_value.strip() if raw_value is not None else ""
     if not value:
-        return default
+        return _positive_finite_number(default, setting_name=setting_name)
     try:
         parsed = float(value)
     except ValueError as exc:
         raise ConfigurationError(
-            f"{setting_name} must be a number greater than zero, got {value!r}."
+            f"{setting_name} must be a finite number greater than zero, got {value!r}."
         ) from exc
-    if parsed <= 0:
+    try:
+        return _positive_finite_number(parsed, setting_name=setting_name)
+    except ConfigurationError as exc:
         raise ConfigurationError(
-            f"{setting_name} must be greater than zero, got {value!r}."
-        )
-    return parsed
+            f"{setting_name} must be a finite number greater than zero, got {value!r}."
+        ) from exc
 
 
 @dataclass(frozen=True, slots=True)
@@ -144,14 +159,24 @@ class AthenaSettings:
             )
         object.__setattr__(self, "lm_studio_base_url", normalized_base_url)
 
-        if self.model_request_timeout_seconds <= 0:
-            raise ConfigurationError(
-                "ATHENA model request timeout must be greater than zero."
-            )
-        if self.model_generation_timeout_seconds <= 0:
-            raise ConfigurationError(
-                "ATHENA model generation timeout must be greater than zero."
-            )
+        request_timeout = _positive_finite_number(
+            self.model_request_timeout_seconds,
+            setting_name="ATHENA model request timeout",
+        )
+        generation_timeout = _positive_finite_number(
+            self.model_generation_timeout_seconds,
+            setting_name="ATHENA model generation timeout",
+        )
+        object.__setattr__(
+            self,
+            "model_request_timeout_seconds",
+            request_timeout,
+        )
+        object.__setattr__(
+            self,
+            "model_generation_timeout_seconds",
+            generation_timeout,
+        )
 
     @property
     def numeric_log_level(self) -> int:
