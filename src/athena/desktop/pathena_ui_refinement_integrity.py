@@ -8,6 +8,10 @@ from athena.desktop.pathena_accessibility_flow_3000 import (
     UI_REFINEMENT_TASKS_2901_3000,
     apply_ui_refinements_2901_3000,
 )
+from athena.desktop.pathena_dynamic_focus_3200 import (
+    UI_REFINEMENT_TASKS_3101_3200,
+    apply_ui_refinements_3101_3200,
+)
 from athena.desktop.pathena_focus_interaction_3100 import (
     UI_REFINEMENT_TASKS_3001_3100,
     apply_ui_refinements_3001_3100,
@@ -101,44 +105,87 @@ def apply_complete_ui_refinements(window: QWidget) -> tuple[int, ...]:
     applied.extend(apply_ui_refinements(window))
     knowledge = window.findChild(QWidget, "knowledgeWorkspace")
     if knowledge is not None:
-        primary = next((button for button in knowledge.findChildren(QPushButton) if button.text() in {"Confirm contradiction", "Merge"}), None)
-        secondary = next((button for button in knowledge.findChildren(QPushButton) if button.text() in {"Reject", "Keep separate"}), None)
+        primary = next(
+            (
+                button
+                for button in knowledge.findChildren(QPushButton)
+                if button.text() in {"Confirm contradiction", "Merge"}
+            ),
+            None,
+        )
+        secondary = next(
+            (
+                button
+                for button in knowledge.findChildren(QPushButton)
+                if button.text() in {"Reject", "Keep separate"}
+            ),
+            None,
+        )
         if 48 not in applied and primary is not None:
-            primary.setAccessibleDescription("In merge-candidate mode this same reviewed decision control merges the proposal with the selected canonical entity.")
+            primary.setAccessibleDescription(
+                "In merge-candidate mode this same reviewed decision control merges "
+                "the proposal with the selected canonical entity."
+            )
             applied.append(48)
         if 49 not in applied and secondary is not None:
-            secondary.setAccessibleDescription("In merge-candidate mode this same reviewed decision control keeps the proposal and canonical entity separate.")
+            secondary.setAccessibleDescription(
+                "In merge-candidate mode this same reviewed decision control keeps "
+                "the proposal and canonical entity separate."
+            )
             applied.append(49)
 
     passes = (
-        apply_ui_refinements_101_200, apply_ui_refinements_207_300,
-        apply_ui_refinements_301_400, apply_ui_refinements_401_500,
-        apply_ui_refinements_501_600, apply_ui_refinements_601_700,
-        apply_ui_refinements_701_800, apply_ui_refinements_801_900,
-        apply_ui_refinements_901_1000, apply_ui_refinements_1001_1100,
-        apply_ui_refinements_1101_2100, apply_ui_refinements_2101_2200,
-        apply_ui_refinements_2201_2300, apply_ui_refinements_2301_2400,
-        apply_ui_refinements_2401_2500, apply_ui_refinements_2501_2600,
-        apply_ui_refinements_2601_2700, apply_ui_refinements_2701_2800,
-        apply_ui_refinements_2801_2900, apply_ui_refinements_2901_3000,
+        apply_ui_refinements_101_200,
+        apply_ui_refinements_207_300,
+        apply_ui_refinements_301_400,
+        apply_ui_refinements_401_500,
+        apply_ui_refinements_501_600,
+        apply_ui_refinements_601_700,
+        apply_ui_refinements_701_800,
+        apply_ui_refinements_801_900,
+        apply_ui_refinements_901_1000,
+        apply_ui_refinements_1001_1100,
+        apply_ui_refinements_1101_2100,
+        apply_ui_refinements_2101_2200,
+        apply_ui_refinements_2201_2300,
+        apply_ui_refinements_2301_2400,
+        apply_ui_refinements_2401_2500,
+        apply_ui_refinements_2501_2600,
+        apply_ui_refinements_2601_2700,
+        apply_ui_refinements_2701_2800,
+        apply_ui_refinements_2801_2900,
+        apply_ui_refinements_2901_3000,
         apply_ui_refinements_3001_3100,
+        apply_ui_refinements_3101_3200,
     )
     for refinement_pass in passes:
         applied.extend(refinement_pass(window))
 
     normalized = tuple(sorted(set(applied)))
     task_sets = (
-        UI_REFINEMENT_TASKS, UI_REFINEMENT_TASKS_101_200,
-        UI_REFINEMENT_TASKS_201_300, UI_REFINEMENT_TASKS_301_400,
-        UI_REFINEMENT_TASKS_401_500, UI_REFINEMENT_TASKS_501_600,
-        UI_REFINEMENT_TASKS_601_700, UI_REFINEMENT_TASKS_701_800,
-        UI_REFINEMENT_TASKS_801_900, UI_REFINEMENT_TASKS_901_1000,
-        UI_REFINEMENT_TASKS_1001_1100, UI_REFINEMENT_TASKS_1101_2100,
-        UI_REFINEMENT_TASKS_2101_2200, UI_REFINEMENT_TASKS_2201_2300,
-        UI_REFINEMENT_TASKS_2301_2400, UI_REFINEMENT_TASKS_2401_2500,
-        UI_REFINEMENT_TASKS_2501_2600, UI_REFINEMENT_TASKS_2601_2700,
-        UI_REFINEMENT_TASKS_2701_2800, UI_REFINEMENT_TASKS_2801_2900,
-        UI_REFINEMENT_TASKS_2901_3000, UI_REFINEMENT_TASKS_3001_3100,
+        UI_REFINEMENT_TASKS,
+        UI_REFINEMENT_TASKS_101_200,
+        UI_REFINEMENT_TASKS_201_300,
+        UI_REFINEMENT_TASKS_301_400,
+        UI_REFINEMENT_TASKS_401_500,
+        UI_REFINEMENT_TASKS_501_600,
+        UI_REFINEMENT_TASKS_601_700,
+        UI_REFINEMENT_TASKS_701_800,
+        UI_REFINEMENT_TASKS_801_900,
+        UI_REFINEMENT_TASKS_901_1000,
+        UI_REFINEMENT_TASKS_1001_1100,
+        UI_REFINEMENT_TASKS_1101_2100,
+        UI_REFINEMENT_TASKS_2101_2200,
+        UI_REFINEMENT_TASKS_2201_2300,
+        UI_REFINEMENT_TASKS_2301_2400,
+        UI_REFINEMENT_TASKS_2401_2500,
+        UI_REFINEMENT_TASKS_2501_2600,
+        UI_REFINEMENT_TASKS_2601_2700,
+        UI_REFINEMENT_TASKS_2701_2800,
+        UI_REFINEMENT_TASKS_2801_2900,
+        UI_REFINEMENT_TASKS_2901_3000,
+        UI_REFINEMENT_TASKS_3001_3100,
+        UI_REFINEMENT_TASKS_3101_3200,
     )
     window.setProperty("pathenaUiRefinementAppliedCount", len(normalized))
     window.setProperty("pathenaUiRefinementTaskCount", sum(map(len, task_sets)))
