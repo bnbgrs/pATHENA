@@ -286,11 +286,20 @@ class PathenaJobsExperience(QObject):
             self.workspace.refresh_button.click()
 
     def _apply_current_filter(self, *_args: object) -> None:
-        self._apply_filter(self.filter_input.text())
+        try:
+            text = self.filter_input.text()
+        except RuntimeError:
+            return
+        self._apply_filter(text)
 
     def _apply_filter(self, text: str) -> None:
         terms = tuple(part for part in text.casefold().split() if part)
-        for index in range(self.workspace.jobs.count()):
+        try:
+            count = self.workspace.jobs.count()
+        except RuntimeError:
+            # A queued model signal may arrive during QObject teardown.
+            return
+        for index in range(count):
             item = self.workspace.jobs.item(index)
             haystack = f"{item.text()} {item.toolTip()}".casefold()
             item.setHidden(bool(terms) and not all(term in haystack for term in terms))
