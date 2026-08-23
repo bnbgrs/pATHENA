@@ -4,6 +4,10 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QPushButton, QWidget
 
+from athena.desktop.pathena_layout_refinement_2200 import (
+    UI_REFINEMENT_TASKS_2101_2200,
+    apply_ui_refinements_2101_2200,
+)
 from athena.desktop.pathena_ui_refinement_100 import UI_REFINEMENT_TASKS, apply_ui_refinements
 from athena.desktop.pathena_ui_refinement_1000 import (
     UI_REFINEMENT_TASKS_901_1000,
@@ -58,13 +62,33 @@ def apply_complete_ui_refinements(window: QWidget) -> tuple[int, ...]:
     applied.extend(apply_ui_refinements(window))
     knowledge = window.findChild(QWidget, "knowledgeWorkspace")
     if knowledge is not None:
-        primary = next((button for button in knowledge.findChildren(QPushButton) if button.text() in {"Confirm contradiction", "Merge"}), None)
-        secondary = next((button for button in knowledge.findChildren(QPushButton) if button.text() in {"Reject", "Keep separate"}), None)
+        primary = next(
+            (
+                button
+                for button in knowledge.findChildren(QPushButton)
+                if button.text() in {"Confirm contradiction", "Merge"}
+            ),
+            None,
+        )
+        secondary = next(
+            (
+                button
+                for button in knowledge.findChildren(QPushButton)
+                if button.text() in {"Reject", "Keep separate"}
+            ),
+            None,
+        )
         if 48 not in applied and primary is not None:
-            primary.setAccessibleDescription("In merge-candidate mode this same reviewed decision control merges the proposal with the selected canonical entity.")
+            primary.setAccessibleDescription(
+                "In merge-candidate mode this same reviewed decision control merges "
+                "the proposal with the selected canonical entity."
+            )
             applied.append(48)
         if 49 not in applied and secondary is not None:
-            secondary.setAccessibleDescription("In merge-candidate mode this same reviewed decision control keeps the proposal and canonical entity separate.")
+            secondary.setAccessibleDescription(
+                "In merge-candidate mode this same reviewed decision control keeps "
+                "the proposal and canonical entity separate."
+            )
             applied.append(49)
 
     applied.extend(apply_ui_refinements_101_200(window))
@@ -78,13 +102,28 @@ def apply_complete_ui_refinements(window: QWidget) -> tuple[int, ...]:
     applied.extend(apply_ui_refinements_901_1000(window))
     applied.extend(apply_ui_refinements_1001_1100(window))
     applied.extend(apply_ui_refinements_1101_2100(window))
+    applied.extend(apply_ui_refinements_2101_2200(window))
     normalized = tuple(sorted(set(applied)))
-    total_tasks = sum(map(len, (
-        UI_REFINEMENT_TASKS, UI_REFINEMENT_TASKS_101_200, UI_REFINEMENT_TASKS_201_300,
-        UI_REFINEMENT_TASKS_301_400, UI_REFINEMENT_TASKS_401_500, UI_REFINEMENT_TASKS_501_600,
-        UI_REFINEMENT_TASKS_601_700, UI_REFINEMENT_TASKS_701_800, UI_REFINEMENT_TASKS_801_900,
-        UI_REFINEMENT_TASKS_901_1000, UI_REFINEMENT_TASKS_1001_1100, UI_REFINEMENT_TASKS_1101_2100,
-    )))
+    total_tasks = sum(
+        map(
+            len,
+            (
+                UI_REFINEMENT_TASKS,
+                UI_REFINEMENT_TASKS_101_200,
+                UI_REFINEMENT_TASKS_201_300,
+                UI_REFINEMENT_TASKS_301_400,
+                UI_REFINEMENT_TASKS_401_500,
+                UI_REFINEMENT_TASKS_501_600,
+                UI_REFINEMENT_TASKS_601_700,
+                UI_REFINEMENT_TASKS_701_800,
+                UI_REFINEMENT_TASKS_801_900,
+                UI_REFINEMENT_TASKS_901_1000,
+                UI_REFINEMENT_TASKS_1001_1100,
+                UI_REFINEMENT_TASKS_1101_2100,
+                UI_REFINEMENT_TASKS_2101_2200,
+            ),
+        )
+    )
     window.setProperty("pathenaUiRefinementAppliedCount", len(normalized))
     window.setProperty("pathenaUiRefinementTaskCount", total_tasks)
     return normalized
