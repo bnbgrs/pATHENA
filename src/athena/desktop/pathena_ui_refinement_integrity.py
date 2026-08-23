@@ -13,9 +13,8 @@ from athena.desktop.pathena_action_hierarchy_3500 import (
     UI_REFINEMENT_TASKS_3401_3500,
     apply_ui_refinements_3401_3500,
 )
-from athena.desktop.pathena_cancellation_comprehension_5900 import (
-    apply_ui_refinements_5801_5900,
-)
+from athena.desktop.pathena_cancellation_comprehension_5900 import apply_ui_refinements_5801_5900
+from athena.desktop.pathena_composer_readiness_6000 import apply_ui_refinements_5901_6000
 from athena.desktop.pathena_context_help_4300 import (
     UI_REFINEMENT_TASKS_4201_4300,
     apply_ui_refinements_4201_4300,
@@ -249,6 +248,7 @@ def apply_complete_ui_refinements(window: QWidget) -> tuple[int, ...]:
         apply_ui_refinements_5601_5700,
         apply_ui_refinements_5701_5800,
         apply_ui_refinements_5801_5900,
+        apply_ui_refinements_5901_6000,
     )
     for refinement_pass in passes:
         applied.extend(refinement_pass(window))
@@ -293,5 +293,5 @@ def apply_complete_ui_refinements(window: QWidget) -> tuple[int, ...]:
         UI_REFINEMENT_TASKS_4401_4500,
     )
     window.setProperty("pathenaUiRefinementAppliedCount", len(normalized))
-    window.setProperty("pathenaUiRefinementTaskCount", sum(map(len, task_sets)) + 1333)
+    window.setProperty("pathenaUiRefinementTaskCount", sum(map(len, task_sets)) + 1433)
     return normalized
