@@ -66,6 +66,18 @@ def _require_sha256(value: object, label: str) -> None:
         raise ValueError(f"{label} must be a 32-byte SHA-256 digest.")
 
 
+def _require_unit_interval(value: object, label: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise TypeError(f"{label} must be a finite number.")
+    try:
+        normalized = float(value)
+    except OverflowError as exc:
+        raise ValueError(f"{label} must be between 0.0 and 1.0.") from exc
+    if not math.isfinite(normalized) or not 0.0 <= normalized <= 1.0:
+        raise ValueError(f"{label} must be between 0.0 and 1.0.")
+    return normalized
+
+
 @dataclass(frozen=True, slots=True)
 class SourceAnalysisRecord:
     analysis_id: uuid.UUID
@@ -120,11 +132,7 @@ class SourceAnalysisRecord:
         _require_int(self.failed_map_units, "Source analysis failed_map_units")
         if self.completed_map_units + self.failed_map_units > self.total_map_units:
             raise ValueError("Source analysis completed/failed map units exceed total_map_units.")
-        if isinstance(self.coverage, bool) or not isinstance(self.coverage, (int, float)):
-            raise TypeError("Source analysis coverage must be a finite number.")
-        coverage = float(self.coverage)
-        if not math.isfinite(coverage) or not 0.0 <= coverage <= 1.0:
-            raise ValueError("Source analysis coverage must be between 0.0 and 1.0.")
+        _require_unit_interval(self.coverage, "Source analysis coverage")
         _require_int(self.created_at_us, "Source analysis created_at_us")
         _require_int(self.updated_at_us, "Source analysis updated_at_us")
         if self.updated_at_us < self.created_at_us:
