@@ -8,8 +8,11 @@ from typing import Any
 import pytest
 
 from athena.jobs.models import WaitingReason
-from athena.jobs.service import DurableJobService, InvalidJobPayloadError, UnsupportedJobTypeError
-
+from athena.jobs.service import (
+    DurableJobService,
+    InvalidJobPayloadError,
+    UnsupportedJobTypeError,
+)
 
 JOB_ID = uuid.UUID("11111111-1111-4111-8111-111111111111")
 TOKEN = b"x" * 32
