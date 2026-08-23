@@ -39,12 +39,27 @@ class CommandPaletteTruthController(QObject):
         self.status.setVisible(False)
         self.status.setProperty("role", "muted")
         self._install_status_surface()
+        self._apply_semantic_labels()
 
         palette.results.setAccessibleName("Command results")
         palette.__dict__["_run_row"] = self._run_row
         palette.query.textChanged.connect(self._schedule_refresh)
         palette.results.currentRowChanged.connect(self._selection_changed)
         self._schedule_refresh()
+
+    def _apply_semantic_labels(self) -> None:
+        self.palette.query.setAccessibleName("Command search")
+        self.palette.query.setAccessibleDescription(
+            "Filter the existing pATHENA commands and workspace navigation entries. "
+            "Use Up and Down to move through results and Enter to run the selected command."
+        )
+        help_text = getattr(self.palette, "help_text", None)
+        if isinstance(help_text, QWidget):
+            help_text.setAccessibleName("Help and capabilities")
+            help_text.setAccessibleDescription(
+                "Read-only guide to the workspaces, keyboard shortcuts and capabilities "
+                "implemented by the current pATHENA desktop."
+            )
 
     def _install_status_surface(self) -> None:
         layout = self.palette.dialog.layout()
