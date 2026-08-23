@@ -10,7 +10,13 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 pytest.importorskip("PySide6")
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QListWidget, QListWidgetItem, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QApplication,
+    QListWidget,
+    QListWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
 
 from athena.desktop.pathena_dense_list_scanability_4900 import (
     apply_ui_refinements_4801_4900,
@@ -78,6 +84,28 @@ def test_knowledge_claim_and_decision_rows_expose_accessible_identity(
         assert identity in description
         assert identity in widget.accessibleDescription()
         assert widget.property("pathenaDenseListAccessibility") is True
+
+
+def test_accessibility_scope_does_not_claim_hidden_rows_are_shown(
+    qt_app: QApplication,
+) -> None:
+    window = QWidget()
+    knowledge = _list(
+        window,
+        "persistentKnowledgeList",
+        "Visible knowledge",
+        "knowledge-visible",
+    )
+    hidden = QListWidgetItem("Filtered knowledge")
+    hidden.setData(Qt.ItemDataRole.UserRole, "knowledge-hidden")
+    knowledge.addItem(hidden)
+    hidden.setHidden(True)
+
+    apply_ui_refinements_4801_4900(window)
+
+    description = knowledge.accessibleDescription()
+    assert "2 total Knowledge items in the list model" in description
+    assert "2 shown" not in description
 
 
 def test_accessibility_parity_does_not_extend_existing_refinement_ids(
