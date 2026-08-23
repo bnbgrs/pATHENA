@@ -31,21 +31,37 @@ class BackupJobError(RuntimeError):
     """Raised when a durable scheduled backup cannot continue safely."""
 
 
+def _bounded_hour(value: object, *, label: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 23:
+        raise ValueError(f"{label} must be an integer between 0 and 23.")
+    return value
+
+
+def _positive_seconds(value: object, *, label: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise ValueError(f"{label} must be an integer >= 1.")
+    return value
+
+
+def _nonnegative_timestamp(value: object, *, label: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ValueError(f"{label} must be a non-negative integer.")
+    return value
+
+
 def daily_backup_slot_us(
     now_us: int,
     *,
     quiet_hour_utc: int = _DEFAULT_QUIET_HOUR_UTC,
 ) -> int:
     """Return the most recent deterministic daily UTC backup slot."""
-    if isinstance(now_us, bool) or not isinstance(now_us, int):
-        raise TypeError("now_us must be an integer.")
-    if not 0 <= quiet_hour_utc <= 23:
-        raise ValueError("quiet_hour_utc must be between 0 and 23.")
+    now = _nonnegative_timestamp(now_us, label="now_us")
+    quiet_hour = _bounded_hour(quiet_hour_utc, label="quiet_hour_utc")
 
-    day_start_us = (now_us // _DAY_US) * _DAY_US
-    slot_us = day_start_us + quiet_hour_utc * _HOUR_US
+    day_start_us = (now // _DAY_US) * _DAY_US
+    slot_us = day_start_us + quiet_hour * _HOUR_US
 
-    if slot_us > now_us:
+    if slot_us > now:
         slot_us -= _DAY_US
 
     return slot_us
@@ -63,24 +79,21 @@ class DurableBackupWorker:
         retry_seconds: int = _DEFAULT_RETRY_SECONDS,
         lease_extension_seconds: int = _DEFAULT_LEASE_EXTENSION_SECONDS,
     ) -> None:
-        if not 0 <= quiet_hour_utc <= 23:
-            raise ValueError(
-                "Backup quiet_hour_utc must be between 0 and 23."
-            )
-        if retry_seconds <= 0:
-            raise ValueError(
-                "Backup retry_seconds must be positive."
-            )
-        if lease_extension_seconds <= 0:
-            raise ValueError(
-                "Backup lease_extension_seconds must be positive."
-            )
+        self.quiet_hour_utc = _bounded_hour(
+            quiet_hour_utc,
+            label="Backup quiet_hour_utc",
+        )
+        self.retry_seconds = _positive_seconds(
+            retry_seconds,
+            label="Backup retry_seconds",
+        )
+        self.lease_extension_seconds = _positive_seconds(
+            lease_extension_seconds,
+            label="Backup lease_extension_seconds",
+        )
 
         self.jobs = jobs
         self.backup = backup
-        self.quiet_hour_utc = quiet_hour_utc
-        self.retry_seconds = retry_seconds
-        self.lease_extension_seconds = lease_extension_seconds
 
     def schedule_due(
         self,
@@ -88,7 +101,11 @@ class DurableBackupWorker:
         now_us: int | None = None,
     ) -> tuple[JobRecord, ...]:
         """Persist catch-up work for every due and currently available target."""
-        now = utc_now_us() if now_us is None else now_us
+        now = (
+            utc_now_us()
+            if now_us is None
+            else _nonnegative_timestamp(now_us, label="now_us")
+        )
         scheduled: list[JobRecord] = []
 
         rows = self.backup.database.connection.execute(
