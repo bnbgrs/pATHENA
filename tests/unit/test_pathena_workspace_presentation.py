@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from PySide6.QtCore import QTimer
 from PySide6.QtWidgets import (
     QApplication,
     QLabel,
@@ -13,7 +14,10 @@ from PySide6.QtWidgets import (
 )
 
 from athena.desktop.app import create_application
-from athena.desktop.pathena_workspace_presentation import apply_workspace_presentation
+from athena.desktop.pathena_workspace_presentation import (
+    _sync_dynamic_workspace_copy,
+    apply_workspace_presentation,
+)
 
 
 def _app() -> QApplication:
@@ -149,6 +153,43 @@ def test_workspace_presentation_changes_copy_without_replacing_controls() -> Non
             "Decisions",
             "From chat",
         ]
+    finally:
+        window.close()
+        app.processEvents()
+
+
+def test_dynamic_workspace_copy_stays_humanized_without_duplicate_sync_timers() -> None:
+    app = _app()
+    window = QWidget()
+    workspace = QWidget(window)
+    workspace.setObjectName("knowledgeWorkspace")
+
+    state = QLabel("PREFLIGHT / PENDING", workspace)
+    state.setObjectName("knowledgeReviewState")
+    runtime = QLabel("CORE  READY  /  CHATS  4", workspace)
+    source = QLabel("SOURCE CHAT  ABCDEF12  /  MESSAGE  12345678", workspace)
+
+    try:
+        apply_workspace_presentation(window)
+        apply_workspace_presentation(window)
+        _sync_dynamic_workspace_copy(window)
+        app.processEvents()
+
+        assert state.text() == "Checking…"
+        assert runtime.text() == "Core ready · 4 conversations"
+        assert runtime.toolTip() == "CORE  READY  /  CHATS  4"
+        assert source.text() == "From conversation · selected message"
+        assert source.toolTip() == "SOURCE CHAT  ABCDEF12  /  MESSAGE  12345678"
+
+        timers = window.findChildren(QTimer, "pathenaWorkspaceCopySync")
+        assert len(timers) == 1
+        assert timers[0].isActive()
+
+        state.setText("REVIEW COMPLETE / READY")
+        runtime.setText("CORE  DISCONNECTED  /  CHATS  —")
+        _sync_dynamic_workspace_copy(window)
+        assert state.text() == "Ready to add"
+        assert runtime.text() == "Core unavailable"
     finally:
         window.close()
         app.processEvents()
