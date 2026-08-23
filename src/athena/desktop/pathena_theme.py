@@ -397,10 +397,63 @@ QSplitter::handle:horizontal {
 }
 
 QFrame#sessionControls,
-QFrame#knowledgeReviewPanel,
 QFrame#evidenceChain {
     background: transparent;
     border: none;
+}
+
+QFrame#knowledgeReviewPanel {
+    background: #14171a;
+    border: 1px solid #252b30;
+    border-radius: 9px;
+}
+
+QLabel#knowledgeReviewTitle {
+    color: #d9dee1;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+QLabel#knowledgeReviewState {
+    color: #7f8b91;
+    font-size: 10px;
+    font-weight: 500;
+}
+
+QFrame#knowledgeReviewItem {
+    background: #111416;
+    border: 1px solid #202529;
+    border-radius: 7px;
+}
+
+QLabel#knowledgeReviewItemTitle {
+    color: #cdd3d7;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+QLabel#knowledgeReviewItemBody {
+    color: #aeb6bc;
+    font-size: 11px;
+}
+
+QPushButton#knowledgeReviewCloseButton,
+QPushButton#knowledgeMergeButton {
+    min-height: 24px;
+    padding: 0 7px;
+    color: #89939a;
+    background: transparent;
+    border: 1px solid #293036;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 500;
+}
+
+QPushButton#knowledgeReviewCloseButton:hover,
+QPushButton#knowledgeMergeButton:hover {
+    color: #eef0f1;
+    background: #1c2125;
+    border-color: #394148;
 }
 
 QFrame#inspector,
