@@ -17,6 +17,9 @@ _TICK_MS = 220
 _SEMANTIC_SAMPLE_TICKS = 5
 _MAX_SEMANTIC_ITEMS = 20
 _MAX_SEMANTIC_CHARS = 2_400
+_PALLAS_FONT_PX = 8
+_MIN_RENDER_CELL_WIDTH = 5.0
+_MIN_RENDER_CELL_HEIGHT = 7.0
 _GLYPHS = ("·", ":", "+", "o", "O", "░", "▒", "▓", "█")
 
 
@@ -96,6 +99,22 @@ def _grid_text(grid: list[list[int]]) -> str:
 def ascii_scene(context: str) -> tuple[str, ...]:
     """Return the deterministic initial scene for a semantic context label."""
     return tuple(_grid_text(_seed_grid(context)).splitlines())
+
+
+def _sample_indices(total: int, available: float, minimum_cell: float) -> tuple[int, ...]:
+    """Choose a centered subset when a compact canvas cannot show every grid cell."""
+    capacity = max(1, int(available // minimum_cell))
+    if capacity >= total:
+        return tuple(range(total))
+
+    stride = max(1, (total + capacity - 1) // capacity)
+    indices = list(range(0, total, stride))
+    center = total // 2
+    if center not in indices:
+        nearest = min(range(len(indices)), key=lambda index: abs(indices[index] - center))
+        indices[nearest] = center
+        indices = sorted(set(indices))
+    return tuple(indices)
 
 
 def _normalized_semantic_text(value: str) -> str:
@@ -274,7 +293,7 @@ class AsciiPanel(QPlainTextEdit):
         painter.drawRect(0, 0, width - 1, height - 1)
 
         font = QFont("Cascadia Mono")
-        font.setPixelSize(9)
+        font.setPixelSize(_PALLAS_FONT_PX)
         font.setStyleHint(QFont.StyleHint.Monospace)
         painter.setFont(font)
 
@@ -289,11 +308,23 @@ class AsciiPanel(QPlainTextEdit):
         top = 37
         usable_width = max(1, width - 28)
         usable_height = max(1, height - top - 30)
-        cell_width = usable_width / _COLS
-        cell_height = usable_height / _ROWS
+        visible_rows = _sample_indices(
+            _ROWS,
+            float(usable_height),
+            _MIN_RENDER_CELL_HEIGHT,
+        )
+        visible_cols = _sample_indices(
+            _COLS,
+            float(usable_width),
+            _MIN_RENDER_CELL_WIDTH,
+        )
+        cell_width = usable_width / max(1, len(visible_cols))
+        cell_height = usable_height / max(1, len(visible_rows))
 
-        for row_index, row in enumerate(self._grid):
-            for col_index, age in enumerate(row):
+        for visible_row, row_index in enumerate(visible_rows):
+            row = self._grid[row_index]
+            for visible_col, col_index in enumerate(visible_cols):
+                age = row[col_index]
                 if age <= 0:
                     continue
                 glyph = _GLYPHS[min(age, len(_GLYPHS)) - 1]
@@ -303,8 +334,8 @@ class AsciiPanel(QPlainTextEdit):
                     painter.setPen(QColor("#B7B6B0"))
                 else:
                     painter.setPen(QColor("#62625E"))
-                x = int(left + col_index * cell_width)
-                y = int(top + (row_index + 1) * cell_height)
+                x = int(left + visible_col * cell_width)
+                y = int(top + (visible_row + 1) * cell_height)
                 painter.drawText(x, y, glyph)
 
         painter.setPen(QColor("#50504C"))
