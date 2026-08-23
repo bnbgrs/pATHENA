@@ -1,4 +1,4 @@
-"""Executable entry point for the native ATHENA desktop shell."""
+"""Executable entry point for the native pATHENA desktop shell."""
 
 from __future__ import annotations
 
@@ -16,31 +16,34 @@ from athena.desktop.files_workspace import install_files_workspace
 from athena.desktop.jobs_workspace import install_jobs_workspace
 from athena.desktop.knowledge_acceptance import install_knowledge_acceptance
 from athena.desktop.knowledge_workspace import install_knowledge_workspace
+from athena.desktop.pathena_theme import PATHENA_STYLESHEET
+from athena.desktop.pathena_window import PathenaMainWindow
 from athena.desktop.research_workspace import install_research_workspace
 from athena.desktop.scheduler_supervisor import DesktopJobSchedulerSupervisor
 from athena.desktop.supervisor import DesktopCoreSupervisor
 from athena.desktop.system_workspace import install_system_workspace
-from athena.desktop.theme import APP_STYLESHEET
-from athena.desktop.window import AthenaMainWindow
 
 _INITIAL_CORE_REFRESH_DELAYS_MS = (250, 750, 1_500, 3_000, 5_000, 10_000, 20_000)
 _CORE_REFRESH_HEARTBEAT_MS = 30_000
 
 
 def create_application(argv: Sequence[str] | None = None) -> QApplication:
-    """Create or reuse the Qt application and apply ATHENA's visual system."""
+    """Create or reuse the Qt application and apply pATHENA's visual system."""
     existing = QApplication.instance()
     if isinstance(existing, QApplication):
         return existing
     if existing is not None:
-        raise RuntimeError("ATHENA desktop requires QApplication ownership.")
+        raise RuntimeError("pATHENA desktop requires QApplication ownership.")
 
     arguments = list(argv) if argv is not None else list(sys.argv)
     app = QApplication(arguments)
+    # Keep the internal application/organization identity stable for compatibility
+    # with existing local paths and settings while presenting the pATHENA product.
     app.setApplicationName("ATHENA")
     app.setOrganizationName("ATHENA")
+    app.setApplicationDisplayName("pATHENA")
     app.setFont(QFont("Segoe UI", 10))
-    app.setStyleSheet(APP_STYLESHEET)
+    app.setStyleSheet(PATHENA_STYLESHEET)
     return app
 
 
@@ -106,7 +109,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     scheduler_supervisor.ensure_running()
 
     controller = DesktopApiController(client)
-    window = AthenaMainWindow(api_controller=controller)
+    window = PathenaMainWindow(api_controller=controller)
     knowledge_workspace = install_knowledge_workspace(window, controller)
     knowledge_acceptance = install_knowledge_acceptance(
         knowledge_workspace,
