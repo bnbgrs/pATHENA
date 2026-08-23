@@ -34,3 +34,11 @@ def test_windows_check_can_preserve_restart_smoke_artifacts() -> None:
     assert '[string]$SmokeRoot = ""' in source
     assert '$smokeArgs += @("--keep-root", $resolvedSmokeRoot)' in source
     assert "persistent Core/API restart smoke test" in source
+
+
+def test_windows_check_can_stress_multiple_restart_cycles() -> None:
+    source = CHECK_WINDOWS.read_text(encoding="utf-8")
+
+    assert "[ValidateRange(1, 10)][int]$RestartCycles = 2" in source
+    assert '"--restart-cycles", [string]$RestartCycles' in source
+    assert "Restart verification cycles: $RestartCycles" in source
