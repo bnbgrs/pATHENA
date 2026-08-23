@@ -102,11 +102,20 @@ def test_guard_durable_metadata_excludes_plaintext_and_plaintext_hashes() -> Non
     assert metadata["item_count"] == 2
     assert metadata["omitted_count"] == 3
     assert metadata["context_ids"] == ("CTX-001", "CTX-002")
-    assert "text" not in serialized
-    assert "hash" not in serialized
-    assert "secret" not in serialized
-    assert "source_name" not in metadata
-    assert "source_uri" not in metadata
+    forbidden_keys = {
+        "text",
+        "rendered_text",
+        "document_hash",
+        "quoted_hash",
+        "source_name",
+        "source_uri",
+        "query",
+    }
+    assert forbidden_keys.isdisjoint(metadata)
+    assert "protected secret" not in serialized
+    assert "protected rendered secret" not in serialized
+    assert "secret-one" not in serialized
+    assert "secret-two" not in serialized
 
 
 def test_guard_rejects_untyped_bundle() -> None:
