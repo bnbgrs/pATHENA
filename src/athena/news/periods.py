@@ -61,24 +61,20 @@ class NewsPeriodMixin(NewsMixinContext):
         ).fetchone()
         if existing is not None:
             return None
-        actor_id = self.app.chat.ensure_local_user()
-        requested = _canonical_json(
-            {
-                "profile_id": str(_default_profile_id()),
-                "period_kind": period_kind,
-                "period_start": period_start,
-                "period_end": period_end,
-            }
-        )
         try:
-            job = self.app.job_repository.create(
+            job = self.app.jobs.create(
                 job_type=NEWS_PERIOD_JOB_TYPE,
-                actor_id=actor_id,
                 priority=JobPriority.BACKGROUND,
-                requested_scope_json=requested,
-                pinned_configuration_json=_canonical_json(
-                    {"pipeline_version": NEWS_PIPELINE_VERSION, "news_schema": NEWS_SCHEMA_ID}
-                ),
+                requested_scope={
+                    "profile_id": str(_default_profile_id()),
+                    "period_kind": period_kind,
+                    "period_start": period_start,
+                    "period_end": period_end,
+                },
+                pinned_configuration={
+                    "pipeline_version": NEWS_PIPELINE_VERSION,
+                    "news_schema": NEWS_SCHEMA_ID,
+                },
             )
         except sqlite3.IntegrityError:
             return None
