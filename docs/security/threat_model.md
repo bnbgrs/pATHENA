@@ -25,11 +25,11 @@ Last reviewed baseline: current remote `agent/pathena` on 2026-08-23.
 
 **Boundary:** HTTP listener bound to `127.0.0.1` plus random bearer token in the runtime directory.
 
-**Verified controls:** non-loopback bind refusal, bounded/strict request framing, `Origin` rejection, bearer authentication with constant-time comparison, exclusive staged runtime publication, and static symlink/junction/reparse checks through the shared storage boundary predicate after SEC-011.
+**Verified controls:** non-loopback bind refusal, bounded/strict request framing, `Origin` rejection, bearer authentication with constant-time comparison, static symlink/junction/reparse checks through the shared storage boundary predicate, and private runtime publication through the shared durable writer.
 
-**Open risks:** `SEC-001` — POSIX `0600` is not equivalent to a proven private Windows DACL. The token/discovery directory must be demonstrated to exclude other interactive users on Windows, including overridden runtime roots. `SEC-012` — token/discovery staging is still created by pathname after a parent validation, so a hostile concurrent parent replacement can redirect the write before the later safety re-check; private bytes must not be written until directory identity is pinned.
+**Open risks:** `SEC-001` — POSIX `0600` is not equivalent to a proven private Windows DACL. The token/discovery directory must be demonstrated to exclude other interactive users on Windows, including overridden runtime roots. `SEC-012` — the API layer now delegates token/discovery writes to `durable_write_bytes()`. On POSIX that primitive binds create/write/publish to an opened parent directory FD and verifies parent identity, closing the secret-write parent-replacement race for that platform. The Windows branch of the shared primitive still creates the temporary file by pathname after static parent validation, so Windows remains open until equivalent handle/reparse-safe semantics are implemented.
 
-**Recent hardening:** `SEC-011` replaced symlink-only runtime-root/ancestor checks with `is_link_boundary()`, covering Windows junctions/reparse points. It remains FIXED rather than VERIFIED until targeted Windows execution is observed.
+**Recent hardening:** `SEC-011` replaced symlink-only runtime-root/ancestor checks with `is_link_boundary()`, covering Windows junctions/reparse points. Security commits `39c7b1aee5407b7537ea808070631e53ae2f5e67` and `ba05a63a7cf1002d111d2f2f28ecc90310e600cc` moved local API private publication onto `durable_write_bytes()` and added fail-closed API regression coverage for a rejected parent identity. Do not claim Windows closure until the shared Windows writer is identity-bound and executed there.
 
 ### Core -> Internet / clearnet
 
@@ -45,7 +45,7 @@ Last reviewed baseline: current remote `agent/pathena` on 2026-08-23.
 
 **Verified controls:** SOCKS proxy constrained to loopback by default, hostname resolution delegated to SOCKS, per-request isolation credentials and fail-closed behavior rather than silent direct fallback.
 
-**Open risk:** `SEC-003` — LM Studio remains a separate local-only network adapter using ambient `urllib` proxy behavior. Local provider traffic must not be influenced by process/OS HTTP(S) proxy configuration.
+**Open risk:** `SEC-003` — LM Studio remains a separate local-only network adapter using ambient `urllib` proxy behavior. Current `LMStudioProvider` still calls the default `urlopen()` path for local discovery/chat/structured requests. Local provider traffic must not be influenced by process/OS HTTP(S) proxy configuration.
 
 ### External source / imported file -> parsers and persistence
 
@@ -59,33 +59,35 @@ Last reviewed baseline: current remote `agent/pathena` on 2026-08-23.
 
 **Assets:** source bytes, filesystem confinement and content-addressed storage integrity.
 
-**Verified controls:** source-leaf symlink rejection, exclusive random capture staging, SHA-256/length verification, change detection during capture, static symlink/junction/reparse checks in durable filesystem primitives, content-addressed hash validation, and static root-containment checks in read/enumeration paths.
+**Verified controls:** source-leaf symlink rejection, exclusive random capture staging, SHA-256/length verification, change detection during capture, static symlink/junction/reparse checks in durable filesystem primitives, content-addressed hash validation, root-containment checks, and POSIX identity-bound publication in `durable_replace()`.
 
-**Residual write/publication risk — `SEC-006`:** static link/reparse hardening does not close a concurrent path-replacement race. `_copy_into_root()` validates/creates the parent through `durable_mkdir()` and later opens `temp_path` by pathname with `"xb"`. A hostile local actor able to mutate the storage-tree ancestor can swap a validated directory for a symlink/junction after the check but before `open()`. `durable_replace()` re-validates later, but sensitive bytes may already have been written outside the configured root. Required invariant: creation/publication must remain bound to verified parent identity across the operation, not merely re-check the pathname before and after it.
+**Residual write/publication risk — `SEC-006`:** `_copy_into_root()` still creates/writes its temporary blob by pathname before the later identity-bound publication step. A hostile local actor able to mutate the storage-tree ancestor can therefore race the temp-file creation. Required invariant: temp creation itself must be bound to verified parent identity before any source bytes are written. Current POSIX durable replace is a useful partial mitigation but occurs too late to close this risk.
 
-**Residual destructive-operation risk — `SEC-007`:** cleanup/purge/orphan-reconciliation similarly verify by pathname and later hash/unlink by pathname. The ATHENA runtime mutation lock does not exclude an out-of-band filesystem actor. Required invariant: deletion must prove target identity and root confinement at destructive use without traversing attacker-replaceable parent components.
+**Residual destructive-operation risk — `SEC-007`:** cleanup/purge/orphan-reconciliation verify by pathname and later hash/unlink by pathname. The ATHENA runtime mutation lock does not exclude an out-of-band filesystem actor. Required invariant: deletion must prove target identity and root confinement at destructive use without traversing attacker-replaceable parent components.
 
-**Implementation direction:** use established identity-safe OS mechanisms. On POSIX prefer dirfd/openat-style no-follow semantics where feasible; on Windows use handle/reparse-safe APIs. Add deterministic race-simulation tests and real Windows junction/reparse tests where executable. Do not treat static symlink tests as proof against TOCTOU replacement.
+**Implementation direction:** use established identity-safe OS mechanisms. On POSIX prefer dirfd/openat-style no-follow semantics; on Windows use directory/file handles with explicit reparse-safe flags and identity verification. Add deterministic race-simulation tests and real Windows junction/reparse tests where executable. Do not treat static symlink tests as proof against TOCTOU replacement.
 
 ### Storage migration -> clone / journal / activation / lock
 
 **Assets:** live SQLite database, clone candidate, rollback copy, migration recovery state, filesystem confinement and one-owner migration semantics.
 
-**Verified controls:** source/candidate/rollback path separation; static symlink/junction/reparse rejection; SQLite clone uses the Online Backup API; candidate integrity/foreign-key/version checks; journal reads use no-follow where available plus handle/path identity comparison; activation preserves rollback and refuses WAL/SHM sidecars; the migration lock verifies its opened lock-file handle against the pathname at acquisition and uses native process locks.
+**Verified controls:** source/candidate/rollback path separation; static symlink/junction/reparse rejection; SQLite clone uses the Online Backup API; candidate integrity/foreign-key/version checks; migration-journal reads use no-follow where available plus handle/path identity comparison; migration-journal writes now use `durable_write_bytes()`; the journal is capped at 64 KiB before full decode; POSIX durable replacement uses opened parent FDs; activation preserves rollback and refuses WAL/SHM sidecars; the migration lock uses native process locks with file-identity checks.
 
-**Residual confinement risk — `SEC-009`:** clone creation, journal publication, cleanup and activation still cross check/use boundaries. `migration_clone.py` validates `candidate.parent` and then opens the candidate through `sqlite3.connect(candidate)` by pathname. `migration_journal.py` validates the parent and later creates a temporary journal by pathname. `migration_activation.py` validates files/parents and then uses path-based `durable_replace()` for source->rollback and candidate->source. `durable_replace()` itself validates parents before `os.replace()`/`MoveFileExW` but does not retain parent identity across the operation. A hostile local process able to replace an already validated migration ancestor can therefore race those operations. The fix belongs inside BE-028 and must use identity-bound OS primitives or equivalent handle-based verification, including Windows reparse/junction semantics.
+**Residual confinement risk — `SEC-009`:** the migration stack is partially hardened but still has pathname-addressed surfaces, notably SQLite candidate creation, cleanup, Windows publication, and activation/lock interactions. BE-028 must complete identity-bound creation/cleanup/activation across relevant platforms instead of treating the POSIX writer/replace improvements as full closure.
 
-**Residual resource risk — `SEC-010`:** `MigrationJournalStore.load()` verifies the journal file identity but then reads the whole file before parsing. The journal contract is tiny, so startup/recovery should reject an oversized journal using a conservative versioned byte ceiling checked from the already-open handle before full read.
+**Resource-bound status — `SEC-010`:** the migration journal now has `_MAX_MIGRATION_JOURNAL_BYTES = 64 * 1024`; the opened handle is checked for regular-file type, identity and size before reading, and at most max+1 bytes are consumed before a second length check. This is `FIXED` statically and awaits observed green targeted/CI execution before `VERIFIED`.
 
-**Residual lock-lifetime risk — `SEC-013`:** the lock-file handle is identity-checked only against the path at acquisition. The migration-root directory itself is not pinned for the lifetime of the `with migration_lock(root)` critical section. If an out-of-band actor renames/replaces that root, a second process can address a different `.athena-migration.lock` at the same logical pathname and may acquire an independent OS lock while process A still owns the old file. The one-owner invariant therefore needs a stable root identity or a lock anchored in a location that cannot be replaced under the threat model.
+**Residual lock-lifetime risk — `SEC-013`:** lock-file acquisition checks alone must not allow migration-root replacement to create a second independently lockable logical root. Preserve one-owner semantics for the entire critical section with a stable root identity or a lock anchored in a location outside the replaceable subtree.
 
 ### Backup target -> isolated restore root
 
 **Assets:** restored database, Raw Source replicas, runtime isolation and destination filesystem.
 
-**Verified controls:** absolute non-overlapping restore destination, absent destination requirement, manifest/completion-marker validation, canonical object paths, content hashes, SQLite integrity/FK/schema validation and atomic publication.
+**Verified controls:** absolute non-overlapping restore destination, absent destination requirement, manifest/completion-marker validation, canonical object paths, content hashes, SQLite integrity/FK/schema validation and atomic publication. Deletion-ledger reads now bound the head and each record to 64 KiB, record count to 250,000, aggregate record bytes to 128 MiB, and validate regular-file handle/path identity before bounded reads.
 
-**Threats to continue scanning:** ancestor replacement races on destination/target paths, Windows reparse behavior, resource amplification and retention/GC deletion confinement. Findings SEC-006/007/009 establish that path-based pre-checks elsewhere are not sufficient evidence for concurrent filesystem mutation safety. SEC-008 separately tracks unbounded deletion-ledger reads.
+**Resource-bound status — `SEC-008`:** current deletion-ledger resource limits close the previously unbounded read/materialization path statically. Keep `FIXED` until the dedicated regression tests are observed green.
+
+**Threats to continue scanning:** ancestor replacement races on destination/target paths, Windows reparse behavior, retention/GC deletion confinement and any write-side temp-file creation that still occurs after only pathname validation.
 
 ### Protected Content metadata -> KDF / encryption
 
@@ -107,7 +109,7 @@ Last reviewed baseline: current remote `agent/pathena` on 2026-08-23.
 
 **Verified controls:** exact Python dependency pins, artifact-hashed `uv.lock`, locked CI resolution and reduced workflow permissions.
 
-**Open risk:** `SEC-005` — external GitHub Actions are referenced by mutable major tags rather than reviewed immutable SHAs.
+**Open risk:** `SEC-005` — current quality workflows still reference `actions/checkout@v6` and `actions/setup-python@v6` by mutable major tags rather than reviewed immutable commit SHAs.
 
 **Threats to continue scanning:** known dependency vulnerabilities, installer/update origin/signing, CI secret exposure and release artifact integrity.
 
