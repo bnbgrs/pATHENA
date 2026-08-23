@@ -11,6 +11,9 @@ from pathlib import Path
 from athena.api.client import CoreApiClient
 from athena.api.process import CoreApiProcess
 from athena.config.settings import AthenaSettings, ConfigurationError
+from athena.storage.paths import RuntimePaths
+from athena.storage.recovery import inspect_database_read_only
+from athena.storage.schema import SCHEMA_VERSION
 
 
 @dataclass(frozen=True, slots=True)
@@ -20,6 +23,7 @@ class LocalSmokeReport:
     first_core_status: str
     restarted_core_status: str
     persisted_chat_count: int
+    database_schema_version: int
 
 
 def _settings(local_root: Path) -> AthenaSettings:
@@ -57,6 +61,19 @@ def _assert_safe_keep_root(root: Path) -> Path:
     return resolved
 
 
+def _verify_database_schema(settings: AthenaSettings) -> int:
+    paths = RuntimePaths.from_settings(settings)
+    report = inspect_database_read_only(paths.database_path)
+    if not report.exists:
+        raise RuntimeError("Local smoke database disappeared after Core restart.")
+    if report.schema_version != SCHEMA_VERSION:
+        raise RuntimeError(
+            "Local smoke database schema mismatch after restart: "
+            f"expected {SCHEMA_VERSION}, found {report.schema_version}."
+        )
+    return SCHEMA_VERSION
+
+
 def run_local_smoke(local_root: Path) -> LocalSmokeReport:
     """Prove Core/API persistence across a clean process restart without a model."""
     settings = _settings(local_root)
@@ -90,12 +107,15 @@ def run_local_smoke(local_root: Path) -> LocalSmokeReport:
     finally:
         restarted.stop()
 
+    database_schema_version = _verify_database_schema(settings)
+
     return LocalSmokeReport(
         local_root=settings.local_root,
         chat_id=chat_id,
         first_core_status=first_health.core_status,
         restarted_core_status=restarted_health.core_status,
         persisted_chat_count=len(chats),
+        database_schema_version=database_schema_version,
     )
 
 
@@ -143,6 +163,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(f"First Core: {report.first_core_status}")
     print(f"Restarted Core: {report.restarted_core_status}")
     print(f"Persisted chats: {report.persisted_chat_count}")
+    print(f"Database schema: {report.database_schema_version}")
     return 0
 
 
