@@ -53,6 +53,7 @@ def test_quality_workflow_has_focused_linux_storage_lane() -> None:
         "tests/unit/test_disk_pressure.py",
         "tests/unit/test_pressure_database.py",
         "tests/unit/test_read_only_database.py",
+        "tests/unit/test_storage_safe_mode.py",
         "tests/unit/test_storage_bootstrap.py",
     ):
         assert test_path in workflow
@@ -90,5 +91,6 @@ def test_quality_workflow_has_targeted_windows_path_safety_lane() -> None:
         "tests/unit/test_disk_pressure.py",
         "tests/unit/test_pressure_database.py",
         "tests/unit/test_read_only_database.py",
+        "tests/unit/test_storage_safe_mode.py",
     ):
         assert test_path in workflow
