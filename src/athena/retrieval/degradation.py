@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Protocol, cast
 
 from athena.model.adapters.lm_studio import ModelProviderError
 from athena.model.adapters.lm_studio_embeddings import (
@@ -28,6 +29,11 @@ def _canonical_text(value: object, label: str) -> str:
     if not normalized:
         raise ValueError(f"{label} must not be empty.")
     return normalized
+
+
+class _EmbeddingResolver(Protocol):
+    def resolve_model(self, requested_model_id: str | None = None) -> ModelInfo:
+        ...
 
 
 class SemanticRetrievalUnavailableError(
@@ -65,10 +71,12 @@ def resolve_embedding_model_for_retrieval(
 ) -> EmbeddingRetrievalResolution:
     """Resolve embeddings without making them a chat hard dependency."""
 
-    if not isinstance(provider, LMStudioEmbeddingProvider):
+    resolver = getattr(provider, "resolve_model", None)
+    if not callable(resolver):
         raise ValueError(
-            "Embedding retrieval provider must be an LMStudioEmbeddingProvider value."
+            "Embedding retrieval provider must expose resolve_model()."
         )
+    validated_provider = cast(_EmbeddingResolver, provider)
     normalized_model_id = (
         None
         if requested_model_id is None
@@ -76,7 +84,7 @@ def resolve_embedding_model_for_retrieval(
     )
 
     try:
-        model = provider.resolve_model(
+        model = validated_provider.resolve_model(
             normalized_model_id
         )
     except ModelProviderError:
