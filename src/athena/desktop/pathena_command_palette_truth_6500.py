@@ -40,7 +40,7 @@ class CommandPaletteTruthController(QObject):
         self.status.setProperty("role", "muted")
         self._install_status_surface()
 
-        setattr(palette, "_run_row", self._run_row)
+        palette.__dict__["_run_row"] = self._run_row
         palette.query.textChanged.connect(self._schedule_refresh)
         palette.results.currentRowChanged.connect(self._selection_changed)
         self._schedule_refresh()
