@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from pathlib import Path
 from typing import cast
 
 import pytest
@@ -25,7 +26,7 @@ class _ProtectedContent:
 
 
 def test_capture_wipes_dek_when_wrap_fails(
-    tmp_path: pytest.TempPathFactory,
+    tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     source_path = tmp_path / "source.bin"
