@@ -122,11 +122,26 @@ jobs:
             throw $failure
           }
 
+      - name: Create transport ZIP
+        shell: pwsh
+        run: |
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $source = Join-Path $PWD "portable\pATHENA-Windows-UI-Safe"
+          $zip = Join-Path $PWD "portable\pATHENA-Windows-UI-Safe.zip"
+          if (Test-Path $zip) { Remove-Item $zip -Force }
+          [System.IO.Compression.ZipFile]::CreateFromDirectory(
+            $source,
+            $zip,
+            [System.IO.Compression.CompressionLevel]::NoCompression,
+            $false
+          )
+          Get-Item $zip | Select-Object FullName, Length
+
       - name: Upload UI-only safe Windows preview
         uses: actions/upload-artifact@v4
         with:
-          name: pATHENA-Windows-UI-Safe
-          path: portable/pATHENA-Windows-UI-Safe/
+          name: pATHENA-Windows-UI-Safe-Transport
+          path: portable/pATHENA-Windows-UI-Safe.zip
           if-no-files-found: error
           compression-level: 0
           retention-days: 7
