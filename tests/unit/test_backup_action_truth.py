@@ -192,6 +192,28 @@ def test_snapshot_row_exposes_state_and_verification_accessibly(
     )
     assert "99999999" in accessible_text
     assert "state complete" in accessible_text
-    assert "verification verified_light" in accessible_text
+    assert "verification verified light" in accessible_text
     assert "Completed verified restore point" in accessible_description
+    controller.deleteLater()
+
+
+def test_snapshot_list_exposes_count_selection_and_restore_scope(
+    qt_app: QApplication,
+) -> None:
+    workspace = BackupWorkspace()
+    controller = install_backup_action_truth(workspace)
+    _select(
+        workspace,
+        "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        "complete",
+        "verified_deep",
+    )
+    qt_app.processEvents()
+
+    description = workspace.snapshots.accessibleDescription()
+    assert "1 backup snapshot listed" in description
+    assert "Selected AAAAAAAA" in description
+    assert "verification verified deep" in description
+    assert "restore available" in description
+    assert workspace.snapshots.property("pathenaBackupListScope") == description
     controller.deleteLater()
