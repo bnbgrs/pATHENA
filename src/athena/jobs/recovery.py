@@ -47,7 +47,8 @@ def reconcile_jobs_after_restore(
     and fencing sequence are deliberately preserved. Worker identity and lease
     material are always removed.
     """
-
+    if not isinstance(connection, sqlite3.Connection):
+        raise TypeError("Restore reconciliation requires a sqlite3.Connection.")
     if isinstance(now_us, bool) or not isinstance(now_us, int) or now_us < 0:
         raise ValueError(
             "Restore reconciliation timestamp must be a non-negative integer."
@@ -58,8 +59,7 @@ def reconcile_jobs_after_restore(
             "Restore job reconciliation requires transaction ownership."
         )
 
-    transaction_started: bool = False
-
+    transaction_started = False
     try:
         connection.execute("BEGIN IMMEDIATE")
         transaction_started = True
@@ -78,10 +78,7 @@ def reconcile_jobs_after_restore(
                 updated_at_us = MAX(updated_at_us, ?)
             WHERE state = 'running'
             """,
-            (
-                RECOVERY_REQUIRED_AFTER_RESTORE,
-                now_us,
-            ),
+            (RECOVERY_REQUIRED_AFTER_RESTORE, now_us),
         )
 
         cancelled = connection.execute(
@@ -98,15 +95,11 @@ def reconcile_jobs_after_restore(
                 updated_at_us = MAX(updated_at_us, ?)
             WHERE state = 'cancel_requested'
             """,
-            (
-                CANCELLED_AFTER_RESTORE,
-                now_us,
-            ),
+            (CANCELLED_AFTER_RESTORE, now_us),
         )
 
         connection.execute("COMMIT")
         transaction_started = False
-
     except BaseException:
         if transaction_started:
             try:
@@ -117,7 +110,11 @@ def reconcile_jobs_after_restore(
                 pass
         raise
 
+    paused_count = paused.rowcount
+    cancelled_count = cancelled.rowcount
+    if paused_count < 0 or cancelled_count < 0:
+        raise RuntimeError("Restore reconciliation returned an invalid SQLite row count.")
     return RestoredJobRecoverySummary(
-        paused_running=paused.rowcount,
-        cancelled_requested=cancelled.rowcount,
+        paused_running=paused_count,
+        cancelled_requested=cancelled_count,
     )
