@@ -16,6 +16,7 @@ from athena.desktop.files_workspace import install_files_workspace
 from athena.desktop.jobs_workspace import install_jobs_workspace
 from athena.desktop.knowledge_workspace import install_knowledge_workspace
 from athena.desktop.research_workspace import install_research_workspace
+from athena.desktop.scheduler_supervisor import DesktopJobSchedulerSupervisor
 from athena.desktop.supervisor import DesktopCoreSupervisor
 from athena.desktop.system_workspace import install_system_workspace
 from athena.desktop.theme import APP_STYLESHEET
@@ -45,15 +46,19 @@ def create_application(argv: Sequence[str] | None = None) -> QApplication:
 def _schedule_initial_core_refreshes(
     controller: DesktopApiController,
     supervisor: DesktopCoreSupervisor | None = None,
+    scheduler_supervisor: DesktopJobSchedulerSupervisor | None = None,
 ) -> None:
-    """Bridge slow or failed child-Core startup with bounded recovery refreshes."""
+    """Bridge slow or failed child-process startup with bounded recovery refreshes."""
     for delay_ms in _INITIAL_CORE_REFRESH_DELAYS_MS:
-        if supervisor is None:
+        if supervisor is None and scheduler_supervisor is None:
             QTimer.singleShot(delay_ms, controller.refresh)
             continue
 
         def recover_and_refresh() -> None:
-            supervisor.ensure_running()
+            if supervisor is not None:
+                supervisor.ensure_running()
+            if scheduler_supervisor is not None:
+                scheduler_supervisor.ensure_running()
             controller.refresh()
 
         QTimer.singleShot(delay_ms, recover_and_refresh)
@@ -62,17 +67,21 @@ def _schedule_initial_core_refreshes(
 def _start_core_refresh_heartbeat(
     controller: DesktopApiController,
     supervisor: DesktopCoreSupervisor | None = None,
+    scheduler_supervisor: DesktopJobSchedulerSupervisor | None = None,
 ) -> QTimer:
-    """Keep Core status and the owned child process self-healing after startup."""
+    """Keep Core status and owned background processes self-healing."""
     timer = QTimer(controller)
     timer.setInterval(_CORE_REFRESH_HEARTBEAT_MS)
 
-    if supervisor is None:
+    if supervisor is None and scheduler_supervisor is None:
         timer.timeout.connect(controller.refresh)
     else:
 
         def recover_and_refresh() -> None:
-            supervisor.ensure_running()
+            if supervisor is not None:
+                supervisor.ensure_running()
+            if scheduler_supervisor is not None:
+                scheduler_supervisor.ensure_running()
             controller.refresh()
 
         timer.timeout.connect(recover_and_refresh)
@@ -85,12 +94,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     app = create_application(argv)
     client = CoreApiClient.from_environment()
     supervisor = DesktopCoreSupervisor(client=client, parent=app)
+    scheduler_supervisor = DesktopJobSchedulerSupervisor(parent=app)
+    app.aboutToQuit.connect(scheduler_supervisor.stop)
     app.aboutToQuit.connect(supervisor.stop)
 
-    # Startup is deliberately fail-soft. A transient child launch failure must not
-    # kill the user-facing desktop; the bounded startup retries and heartbeat use
-    # the same supervisor recovery path until Core becomes available.
+    # Startup is deliberately fail-soft. Transient child launch failures must not
+    # kill the user-facing desktop; bounded retries and the heartbeat keep both
+    # Core and durable scheduler supervision self-healing.
     supervisor.ensure_running()
+    scheduler_supervisor.ensure_running()
 
     controller = DesktopApiController(client)
     window = AthenaMainWindow(api_controller=controller)
@@ -100,8 +112,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     files_workspace = install_files_workspace(window)
     system_workspace = install_system_workspace(window, controller)
     command_palette = install_command_palette(window)
-    _schedule_initial_core_refreshes(controller, supervisor)
-    heartbeat = _start_core_refresh_heartbeat(controller, supervisor)
+    _schedule_initial_core_refreshes(
+        controller,
+        supervisor,
+        scheduler_supervisor,
+    )
+    heartbeat = _start_core_refresh_heartbeat(
+        controller,
+        supervisor,
+        scheduler_supervisor,
+    )
     window.show()
     exit_code = app.exec()
     heartbeat.stop()
