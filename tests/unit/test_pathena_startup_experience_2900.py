@@ -1,8 +1,8 @@
 from athena.desktop.pathena_startup_experience_2900 import (
-    UI_REFINEMENT_TASKS_2801_2900,
     _STARTUP_REFINEMENTS,
     _STARTUP_STYLESHEET,
     _STARTUP_TARGETS,
+    UI_REFINEMENT_TASKS_2801_2900,
 )
 
 
