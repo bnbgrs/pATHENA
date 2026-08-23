@@ -192,8 +192,6 @@ class AsciiPanel(QPlainTextEdit):
         root = app.activeWindow()
         if root is None:
             root = self.window()
-        if not isinstance(root, QWidget):
-            return self._context
 
         items: list[str] = []
         total_chars = 0
@@ -215,7 +213,7 @@ class AsciiPanel(QPlainTextEdit):
         for line_edit in root.findChildren(QLineEdit):
             if len(items) >= _MAX_SEMANTIC_ITEMS:
                 break
-            if line_edit is self or not line_edit.isVisible():
+            if not line_edit.isVisible():
                 continue
             append(line_edit.text())
 
