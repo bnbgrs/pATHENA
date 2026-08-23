@@ -10,7 +10,7 @@ from pathlib import Path
 
 from athena.api.client import CoreApiClient
 from athena.api.process import CoreApiProcess
-from athena.config.settings import AthenaSettings
+from athena.config.settings import AthenaSettings, ConfigurationError
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,6 +36,25 @@ def _client(process: CoreApiProcess) -> CoreApiClient:
         timeout_seconds=2.0,
         generation_timeout_seconds=2.0,
     )
+
+
+def _assert_safe_keep_root(root: Path) -> Path:
+    """Reject the configured live data root before a smoke test can mutate it."""
+    resolved = root.resolve(strict=False)
+    try:
+        live_root = AthenaSettings.from_environment().local_root.resolve(strict=False)
+    except ConfigurationError as exc:
+        raise RuntimeError(
+            "Cannot establish the configured pATHENA runtime root safely. "
+            "Fix the local configuration before using --keep-root."
+        ) from exc
+
+    if resolved == live_root:
+        raise RuntimeError(
+            "athena-local-smoke refuses to use the configured live pATHENA "
+            "runtime root as test data. Choose a separate --keep-root directory."
+        )
+    return resolved
 
 
 def run_local_smoke(local_root: Path) -> LocalSmokeReport:
@@ -106,6 +125,11 @@ def main(argv: Sequence[str] | None = None) -> int:
         root = args.keep_root.expanduser()
         if not root.is_absolute():
             print("athena-local-smoke: --keep-root must be an absolute path")
+            return 2
+        try:
+            root = _assert_safe_keep_root(root)
+        except RuntimeError as exc:
+            print(f"athena-local-smoke: {exc}")
             return 2
         root.mkdir(parents=True, exist_ok=True)
         report = run_local_smoke(root)
