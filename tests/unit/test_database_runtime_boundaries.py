@@ -33,6 +33,69 @@ def test_stable_read_rejects_non_callable_before_connection_access(tmp_path: Pat
         database.stable_read(None)  # type: ignore[arg-type]
 
 
+def test_stable_read_rejects_invalid_attempt_count(tmp_path: Path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        with pytest.raises(ValueError, match="max_attempts"):
+            database.stable_read(lambda _connection: None, max_attempts=True)
+        with pytest.raises(ValueError, match="max_attempts"):
+            database.stable_read(lambda _connection: None, max_attempts=0)
+    finally:
+        database.stop()
+
+
+def test_stable_read_rejects_nested_transaction(tmp_path: Path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        connection = database.connection
+        connection.execute("BEGIN")
+        try:
+            with pytest.raises(RuntimeError, match="Nested ATHENA write transactions"):
+                database.stable_read(lambda _connection: None)
+        finally:
+            connection.execute("ROLLBACK")
+    finally:
+        database.stop()
+
+
+def test_stable_read_rolls_back_reader_exception_and_restores_query_only(
+    tmp_path: Path,
+) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        connection = database.connection
+        before = int(connection.execute("PRAGMA query_only").fetchone()[0])
+
+        def fail(_connection: object) -> None:
+            raise LookupError("reader failed")
+
+        with pytest.raises(LookupError, match="reader failed"):
+            database.stable_read(fail)  # type: ignore[arg-type]
+
+        assert not connection.in_transaction
+        assert int(connection.execute("PRAGMA query_only").fetchone()[0]) == before
+    finally:
+        database.stop()
+
+
+def test_stable_read_returns_result_and_current_snapshot(tmp_path: Path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    try:
+        result, snapshot = database.stable_read(
+            lambda connection: int(connection.execute("SELECT 7").fetchone()[0])
+        )
+        assert result == 7
+        assert isinstance(snapshot, DatabaseReadSnapshot)
+        with database.write_transaction() as connection:
+            database.assert_snapshot_current(connection, snapshot)
+    finally:
+        database.stop()
+
+
 def test_assert_snapshot_rejects_wrong_snapshot_type(tmp_path: Path) -> None:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
