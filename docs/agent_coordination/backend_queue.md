@@ -12,7 +12,8 @@ Last queue refresh: 2026-08-23.
 - Evidence: clone-first stack is implemented: migration metadata/free-space preflight, SQLite Online Backup clone, durable phase journal, exclusive migration lock, full integrity/FK/version verification, rollback-preserving activation, orphan/journal recovery boundaries and Windows junction/reparse hardening. Read-only startup migration planning and a candidate-only schema executor now also exist. Normal `SQLiteDatabase.start()` still invokes legacy live `initialize_schema()`.
 - Components: `migration_safety.py`, `migration_clone.py`, `migration_journal.py`, `migration_lock.py`, `migration_activation.py`, `migration_coordinator.py`, `migration_executor.py`, `migration_plan.py`, database/application startup integration and tests.
 - Dependencies: BE-027 DONE; BE-029 reserve must be integrated before startup migration accounts for the real physical reserve. Alembic-vs-custom executor remains an architecture decision.
-- Last verification: 2026-08-23; targeted tests added, not executed because isolated runtime cannot resolve `github.com`. Quality-reported reparse boundary in this new path was fixed.
+- Security handoff: SEC-009 P1 requires clone creation/cleanup and activation to bind filesystem decisions to directory/object identity across sensitive operations rather than relying only on pre-operation pathname/reparse checks; add deterministic parent-replacement race coverage including Windows reparse/junction behavior. SEC-010 P2 requires a conservative byte ceiling for `migration_state.json`, checked with `fstat()` before full read/JSON decode while preserving the current no-follow and handle/path identity checks.
+- Last verification: 2026-08-23; targeted tests added, not executed because isolated runtime cannot resolve `github.com`. Quality-reported reparse boundary in this new path was fixed; Security static trace found residual TOCTOU/resource-bound gaps tracked as SEC-009/010.
 
 ### BE-029 — Physically allocated Emergency Reserve
 - Priority: P1
@@ -71,7 +72,7 @@ Last queue refresh: 2026-08-23.
 
 ## Blocked / in-progress older slices
 
-- BE-002 · P1 · BLOCKED — provider lifecycle/control adapter completion; shared LM Studio adapter ownership window required.
+- BE-002 · P1 · BLOCKED — provider lifecycle/control adapter completion; shared LM Studio adapter ownership window required. Security SEC-003 also requires this adapter's loopback transport to ignore ambient HTTP(S) proxies.
 - BE-008 · P2 · BLOCKED — auditable primary-model switch needs durable audit contract.
 - BE-009 · P2 · BLOCKED — provider request cancellation needs exact backend request-ID plumbing.
 - BE-010 · P2 · IN_PROGRESS — generation numeric/control boundaries; shared generation path remains.
@@ -89,7 +90,7 @@ Last queue refresh: 2026-08-23.
 - BE-005 STALE — provider-aware dynamic token accounting already present.
 - BE-006 DONE — active primary ModelRegistry.
 - BE-007 DONE — model load ownership.
-- BE-011 DONE — BlobStore/durable FS symlink+junction confinement.
+- BE-011 DONE — BlobStore/durable FS symlink+junction confinement; Security SEC-006/007 track residual concurrent parent-replacement races not closed by static boundary checks.
 - BE-012 DONE — provider-observed model revision in signatures.
 - BE-017 DONE — ModelSession cancellation invariants.
 - BE-018 DONE — UUIDv7 clock-range guard.
