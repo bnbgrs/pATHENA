@@ -172,7 +172,12 @@ class ContextPackage:
             raise ContextPackageError(
                 "ContextPackage temperature must be numeric when provided."
             )
-        temperature = float(value)
+        try:
+            temperature = float(value)
+        except OverflowError as exc:
+            raise ContextPackageError(
+                "ContextPackage temperature must be finite and between 0.0 and 2.0."
+            ) from exc
         if not 0.0 <= temperature <= 2.0:
             raise ContextPackageError(
                 "ContextPackage temperature must be between 0.0 and 2.0."
