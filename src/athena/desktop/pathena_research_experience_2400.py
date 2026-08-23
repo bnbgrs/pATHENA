@@ -8,22 +8,13 @@ existing ResearchWorkspace or ResearchResultsExtension method/button.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QObject, Qt
 from PySide6.QtGui import QKeySequence, QShortcut
-from PySide6.QtWidgets import (
-    QAbstractItemView,
-    QFrame,
-    QLabel,
-    QLineEdit,
-    QListWidget,
-    QPlainTextEdit,
-    QPushButton,
-    QSplitter,
-    QWidget,
-)
+from PySide6.QtWidgets import QAbstractItemView, QPlainTextEdit, QSplitter, QWidget
 
 if TYPE_CHECKING:
     from athena.desktop.research_results_extension import ResearchResultsExtension
@@ -191,7 +182,10 @@ class PathenaResearchExperience(QObject):
             self.workspace.details,
             object_name="researchDetails",
             accessible_name="Research details and result",
-            description="Scope, coverage, work items, immutable result and evidence for the selected run.",
+            description=(
+                "Scope, coverage, work items, immutable result and evidence for the "
+                "selected run."
+            ),
             role="detail",
         )
 
@@ -201,23 +195,64 @@ class PathenaResearchExperience(QObject):
                 result_panel,
                 object_name="researchResultPanel",
                 accessible_name="Research result review",
-                description="Inspect an immutable result and review evidence-backed knowledge proposals.",
+                description=(
+                    "Inspect an immutable result and review evidence-backed knowledge "
+                    "proposals."
+                ),
                 role="surface",
             )
             splitter = result_panel.parentWidget()
             if isinstance(splitter, QSplitter):
                 splitter.setObjectName("researchPrimarySplitter")
                 splitter.setAccessibleName("Research run and result splitter")
-                splitter.setAccessibleDescription("Resize the research run browser and result detail areas.")
+                splitter.setAccessibleDescription(
+                    "Resize the research run browser and result detail areas."
+                )
                 splitter.setProperty("pathenaResearchRole", "surface")
 
         control_specs = (
-            (self.extension.result_button, "researchResultButton", "View result", "Load the immutable result and evidence for the selected completed run.", "action"),
-            (self.extension.propose_button, "researchProposeButton", "Create proposals", "Create deterministic knowledge proposals from the selected completed result.", "action"),
-            (self.extension.refresh_proposals_button, "researchProposalRefreshButton", "Review proposals", "Load frozen proposals for the selected completed research run.", "action"),
-            (self.extension.accept_button, "researchProposalAcceptButton", "Accept proposal", "Accept the selected evidence-backed proposal into canonical memory.", "decision"),
-            (self.extension.accept_separate_button, "researchProposalSeparateButton", "Keep proposal separate", "Accept the selected proposal while explicitly keeping a surfaced near-duplicate separate.", "decision"),
-            (self.extension.reject_button, "researchProposalRejectButton", "Reject proposal", "Reject the selected proposal without adding it to canonical memory.", "decision"),
+            (
+                self.extension.result_button,
+                "researchResultButton",
+                "View result",
+                "Load the immutable result and evidence for the selected completed run.",
+                "action",
+            ),
+            (
+                self.extension.propose_button,
+                "researchProposeButton",
+                "Create proposals",
+                "Create deterministic knowledge proposals from the selected completed result.",
+                "action",
+            ),
+            (
+                self.extension.refresh_proposals_button,
+                "researchProposalRefreshButton",
+                "Review proposals",
+                "Load frozen proposals for the selected completed research run.",
+                "action",
+            ),
+            (
+                self.extension.accept_button,
+                "researchProposalAcceptButton",
+                "Accept proposal",
+                "Accept the selected evidence-backed proposal into canonical memory.",
+                "decision",
+            ),
+            (
+                self.extension.accept_separate_button,
+                "researchProposalSeparateButton",
+                "Keep proposal separate",
+                "Accept the proposal while keeping a surfaced near-duplicate separate.",
+                "decision",
+            ),
+            (
+                self.extension.reject_button,
+                "researchProposalRejectButton",
+                "Reject proposal",
+                "Reject the selected proposal without adding it to canonical memory.",
+                "decision",
+            ),
         )
         for button, name, accessible, description, role in control_specs:
             _set_identity(
@@ -239,7 +274,10 @@ class PathenaResearchExperience(QObject):
             self.extension.proposal_list,
             object_name="researchProposalList",
             accessible_name="Research knowledge proposals",
-            description="Evidence-backed proposals generated from the selected immutable research result.",
+            description=(
+                "Evidence-backed proposals generated from the selected immutable "
+                "research result."
+            ),
             role="browser",
         )
         self.workspace.setProperty("pathenaResearchDecisionFlow", True)
@@ -250,7 +288,9 @@ class PathenaResearchExperience(QObject):
         self.workspace.details.setLineWrapMode(QPlainTextEdit.LineWrapMode.WidgetWidth)
         self.workspace.details.document().setDocumentMargin(14.0)
         self.workspace.jobs.setAlternatingRowColors(False)
-        self.workspace.jobs.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.workspace.jobs.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
         self.extension.proposal_list.setAlternatingRowColors(False)
         self.extension.proposal_list.setHorizontalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
@@ -261,7 +301,9 @@ class PathenaResearchExperience(QObject):
         self.extension.proposal_list.setMinimumHeight(96)
         self.extension.proposal_list.setMaximumHeight(168)
         self.workspace.query_input.setClearButtonEnabled(True)
-        self.workspace.query_input.setToolTip("Enter a question · Enter or Ctrl+Enter to queue")
+        self.workspace.query_input.setToolTip(
+            "Enter a question · Enter or Ctrl+Enter to queue"
+        )
         self.extension.job_filter.setToolTip("Filter runs · Ctrl+F")
 
         if _RESEARCH_STYLESHEET not in self.workspace.styleSheet():
@@ -309,14 +351,17 @@ class PathenaResearchExperience(QObject):
         self._add_shortcut("Ctrl+F", self.extension.job_filter.setFocus)
         self._add_shortcut("F5", self._refresh_if_available)
 
-    def _add_shortcut(self, keys: str, callback: object) -> None:
+    def _add_shortcut(self, keys: str, callback: Callable[[], None]) -> None:
         shortcut = QShortcut(QKeySequence(keys), self.workspace)
         shortcut.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
-        shortcut.activated.connect(callback)  # type: ignore[arg-type]
+        shortcut.activated.connect(callback)
         self._shortcuts.append(shortcut)
 
     def _start_if_available(self) -> None:
-        if self.workspace.start_button.isEnabled() and self.workspace.query_input.text().strip():
+        if (
+            self.workspace.start_button.isEnabled()
+            and self.workspace.query_input.text().strip()
+        ):
             self.workspace.start_button.click()
 
     def _refresh_if_available(self) -> None:
@@ -369,10 +414,7 @@ class PathenaResearchExperience(QObject):
             self.workspace.details.setPlaceholderText(
                 "Select a research run to inspect scope, coverage, evidence and result."
             )
-        if not has_proposals:
-            self.extension.proposal_list.setMaximumHeight(0)
-        else:
-            self.extension.proposal_list.setMaximumHeight(168)
+        self.extension.proposal_list.setMaximumHeight(168 if has_proposals else 0)
 
 
 def apply_ui_refinements_2301_2400(window: QWidget) -> tuple[int, ...]:
