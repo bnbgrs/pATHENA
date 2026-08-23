@@ -15,7 +15,7 @@ Last reviewed baseline: current remote `agent/pathena` on 2026-08-23.
 7. Updates, dependencies and downloaded artifacts must preserve origin/integrity guarantees appropriate to their privilege.
 8. Persisted cryptographic work factors and security/recovery metadata must be resource-bounded before expensive allocation/parsing executes.
 9. Durable spool/archive/backup/migration writes and destructive operations must remain confined beneath configured roots even when hostile symlink/junction/reparse-point ancestors can be introduced concurrently.
-10. Filesystem confinement checks must bind security decisions to directory/object identity across the sensitive operation; pathname pre-checks alone are not sufficient against check/use replacement races.
+10. Filesystem confinement and lock decisions must bind to stable directory/object identity across the full sensitive operation; pathname pre-checks alone are not sufficient against check/use replacement races.
 
 ## Trust boundaries
 
@@ -67,15 +67,17 @@ Last reviewed baseline: current remote `agent/pathena` on 2026-08-23.
 
 **Implementation direction:** use established identity-safe OS mechanisms. On POSIX prefer dirfd/openat-style no-follow semantics where feasible; on Windows use handle/reparse-safe APIs. Add deterministic race-simulation tests and real Windows junction/reparse tests where executable. Do not treat static symlink tests as proof against TOCTOU replacement.
 
-### Storage migration -> clone / journal / activation
+### Storage migration -> clone / journal / activation / lock
 
-**Assets:** live SQLite database, clone candidate, rollback copy, migration recovery state and filesystem confinement.
+**Assets:** live SQLite database, clone candidate, rollback copy, migration recovery state, filesystem confinement and one-owner migration semantics.
 
-**Verified controls:** source/candidate/rollback path separation; static symlink/junction/reparse rejection; SQLite clone uses the Online Backup API; candidate integrity/foreign-key/version checks; journal reads use no-follow where available plus handle/path identity comparison; activation preserves rollback and refuses WAL/SHM sidecars.
+**Verified controls:** source/candidate/rollback path separation; static symlink/junction/reparse rejection; SQLite clone uses the Online Backup API; candidate integrity/foreign-key/version checks; journal reads use no-follow where available plus handle/path identity comparison; activation preserves rollback and refuses WAL/SHM sidecars; the migration lock verifies its opened lock-file handle against the pathname at acquisition and uses native process locks.
 
 **Residual confinement risk — `SEC-009`:** clone creation, journal publication, cleanup and activation still cross check/use boundaries. `migration_clone.py` validates `candidate.parent` and then opens the candidate through `sqlite3.connect(candidate)` by pathname. `migration_journal.py` validates the parent and later creates a temporary journal by pathname. `migration_activation.py` validates files/parents and then uses path-based `durable_replace()` for source->rollback and candidate->source. `durable_replace()` itself validates parents before `os.replace()`/`MoveFileExW` but does not retain parent identity across the operation. A hostile local process able to replace an already validated migration ancestor can therefore race those operations. The fix belongs inside BE-028 and must use identity-bound OS primitives or equivalent handle-based verification, including Windows reparse/junction semantics.
 
 **Residual resource risk — `SEC-010`:** `MigrationJournalStore.load()` verifies the journal file identity but then reads the whole file before parsing. The journal contract is tiny, so startup/recovery should reject an oversized journal using a conservative versioned byte ceiling checked from the already-open handle before full read.
+
+**Residual lock-lifetime risk — `SEC-013`:** the lock-file handle is identity-checked only against the path at acquisition. The migration-root directory itself is not pinned for the lifetime of the `with migration_lock(root)` critical section. If an out-of-band actor renames/replaces that root, a second process can address a different `.athena-migration.lock` at the same logical pathname and may acquire an independent OS lock while process A still owns the old file. The one-owner invariant therefore needs a stable root identity or a lock anchored in a location that cannot be replaced under the threat model.
 
 ### Backup target -> isolated restore root
 
