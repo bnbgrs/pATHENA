@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from PySide6.QtGui import QTextCursor
 from PySide6.QtWidgets import QApplication, QLabel
 
 from athena.desktop.app import create_application
@@ -111,7 +112,7 @@ def test_help_open_lands_focus_at_start_of_read_only_content() -> None:
         window.show()
         app.processEvents()
 
-        controller.help_text.moveCursor(controller.help_text.textCursor().MoveOperation.End)
+        controller.help_text.moveCursor(QTextCursor.MoveOperation.End)
         controller.open_help()
         app.processEvents()
 
