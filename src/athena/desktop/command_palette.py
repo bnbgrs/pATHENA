@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Callable
 
 from PySide6.QtCore import QObject, Qt
-from PySide6.QtGui import QKeySequence, QShortcut
+from PySide6.QtGui import QKeySequence, QShortcut, QTextCursor
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
@@ -383,6 +383,7 @@ class CommandPaletteController(QObject):
     def open_help(self) -> None:
         """Open the current in-app capability guide without blocking the desktop."""
         self.help_text.setPlainText(self._render_help_text())
+        self.help_text.moveCursor(QTextCursor.MoveOperation.Start)
         parent_rect = self.window.geometry()
         size = self.help_dialog.size()
         x = parent_rect.x() + max(0, (parent_rect.width() - size.width()) // 2)
@@ -391,6 +392,7 @@ class CommandPaletteController(QObject):
         self.help_dialog.show()
         self.help_dialog.raise_()
         self.help_dialog.activateWindow()
+        self.help_text.setFocus(Qt.FocusReason.ShortcutFocusReason)
 
     def _refresh_results(self, text: str) -> None:
         terms = tuple(part for part in text.casefold().split() if part)
