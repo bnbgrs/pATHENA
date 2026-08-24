@@ -2,108 +2,48 @@
 
 Single source of truth for recovery of the complete required quality/CI gate on `agent/pathena`.
 
+Canonical Ownership values: `QUALITY`, `BACKEND`, `UI`, `SECURITY`, `FEATURE`, `MIXED`, `EXTERNAL`.
 Status values: `OPEN`, `ASSIGNED`, `IN_PROGRESS`, `FIXED_PENDING_VERIFY`, `VERIFIED`, `STALE`, `BLOCKED`.
 
 ## Current recovery baseline
 
-- Observed remote HEAD before this document mutation: `0ab4cb2fb3883122571634e64fbdf66e4cf8b5e2`.
-- Current-head GitHub Actions run: `#2869` / `32668547243`, status `pending` at observation time; no jobs had started, so no current-head PASS/FAIL is claimed.
-- Newest fully decoded multi-job baseline remains run `#2771` on historical head `a683577c5e69b85308588b0b6b7b1675faae91ee`: specification PASS 63/63; Ruff FAIL 14 diagnostics; mypy FAIL 25 errors/16 files; pytest native SIGSEGV/-11 around 65%; focused Linux storage PASS 157; Linux API runtime boundaries PASS 12; Windows locality PASS; Windows selected storage PASS 109; Windows API runtime boundaries PASS 12; local install smoke FAIL before Core start.
-- Historical PASS values do not transfer to the current HEAD.
-- Recovery state: **P0 ACTIVE / NOT GREEN** until every required current-head job completes successfully.
+- Candidate HEAD: `31b580609527f828b87854207bd1c33c3a4bfec6`.
+- Required GitHub Actions run: `#2936` / `32684297152` on that exact SHA.
+- Run conclusion: **FAILURE**. Recovery state therefore remains **P0 ACTIVE / NOT GREEN**.
+- Same-SHA required jobs:
+  - `Python 3.12 quality` / job `97306396000`: **FAIL** at step `Run ATHENA quality gate`.
+  - `Linux storage regressions`: **PASS**.
+  - `Windows path safety`: **PASS**.
+  - `Local install smoke`: **PASS**.
+- Historical PASS values are not transferred to this SHA. Only the three same-SHA job successes above are accepted as current evidence.
+- The GitHub connector exposes the central job/failed step, but decoded log text for job `97306396000` was not retrievable in this run. The central failure is therefore tracked separately as unclassified rather than guessed.
 
 ## Active blockers
-
-### FGATE-001 — Productive Core extraction composition
-
-- Priority: P0
-- Current evidence: run #2771 Local install smoke; historical mypy from the same run.
-- Exact failure: `TypeError: ChatKnowledgeExtractionService.__init__() missing 1 required keyword-only argument: 'chat'`.
-- Reproduction: Local install smoke / productive `AthenaApplication` construction.
-- Root-cause class: product code composition error.
-- Ownership: BACKEND.
-- Components: `src/athena/core/application.py`, chat knowledge extraction composition.
-- Required fix invariant: productive construction must pass the same live `ChatService` dependency required by `ChatKnowledgeExtractionService`; no test bypass.
-- Status: FIXED_PENDING_VERIFY.
-- Latest static evidence: current `application.py` now constructs `ChatKnowledgeExtractionService(chat=self.chat, chat_generation=..., provider=..., runs=..., snapshots=...)`; the historical missing dependency is therefore statically fixed, but no current-head Local install smoke has completed yet.
-- Targeted verification: application construction/extraction composition tests, then `athena-local-smoke --restart-cycles 1`.
-- Last full-gate status: historical FAIL; current-head run #2869 pending.
 
 ### FGATE-002 — Native Qt/PySide PALLAS crash
 
 - Priority: P0
-- Current evidence: runs #2677 and #2771.
-- Exact failure: pytest process terminates with native SIGSEGV / exit `-11` in the PALLAS target-binding path (`ascii_panel._bind_pallas_target()` / page selection), previously reached from `test_pathena_command_palette_presentation.py`.
-- Reproduction: Linux full pytest under the Quality workflow; independently reproduced in two historical runs.
+- Evidence: historical runs #2677 and #2771 terminated pytest with native SIGSEGV / exit `-11` in the PALLAS target-binding/page-selection path.
+- Candidate-SHA evidence: current UI fix/coverage is present, but run #2936 central Quality job is red and its decoded sub-check log was unavailable; no same-SHA full-pytest PASS is claimed.
 - Root-cause class: product code / native UI lifecycle or re-entrancy crash.
 - Ownership: UI.
-- Components: PALLAS ASCII panel target binding, desktop page-selection integration, related presentation tests.
-- Required fix invariant: target binding/page selection must not re-enter or access invalid Qt object state; full pytest must complete normally without process signal termination. Tests must not be skipped or weakened.
+- Components: PALLAS ASCII target binding, desktop page-selection integration, presentation/lifecycle tests.
+- Required fix invariant: target binding/page selection must not re-enter or access invalid Qt object state; full pytest must exit normally; tests must not be skipped or weakened.
 - Status: FIXED_PENDING_VERIFY.
-- UI fix: commit `6de4746c978b68eeea700f4c441d6bc2cfc54d52` removes application-global `QApplication.allWidgets()` target binding and scopes both PALLAS canvas lookup and semantic sampling to the owning top-level window. Cross-window target binding is rejected explicitly before paint interception.
-- Regression coverage: commit `be9da30da3f3f874a985d8fdc999a641e2c746dd` adds two-window ownership coverage, repeated page/context switching, and semantic-sampling isolation.
-- Targeted verification observed in this automation environment: **NOT EXECUTABLE** because a local checkout could not be obtained (`Could not resolve host: github.com`). No pytest/Ruff/mypy PASS is claimed. The separate Full Gate Recovery bot must execute focused Qt-offscreen coverage and the full pytest lane.
-- Targeted verification: `tests/unit/test_pathena_pallas_target_lifecycle.py`, historical `tests/unit/test_pathena_command_palette_presentation.py`, then full pytest under Qt offscreen.
-- Last full-gate status: historical FAIL; current-head verification pending.
+- Targeted verification: `tests/unit/test_pathena_pallas_target_lifecycle.py`, `tests/unit/test_pathena_command_palette_presentation.py`, then full pytest under Qt offscreen.
+- Last gate status: run #2936 central Quality job FAIL; exact pytest outcome not decoded.
 
 ### FGATE-003 — Research model typing failures
 
 - Priority: P0
-- Current evidence: run #2771 reconfirmed two mypy diagnostics in `src/athena/research/models.py`.
+- Evidence: run #2771 reported two mypy diagnostics in `src/athena/research/models.py`; Backend queue `BE-048` remains READY on the candidate generation.
 - Root-cause class: lint/typecheck.
 - Ownership: BACKEND.
 - Components: `src/athena/research/models.py`.
-- Required fix invariant: narrow persisted/untyped values before comparison/conversion and remove loop-variable type conflict without changing runtime validation semantics.
+- Required fix invariant: keep runtime validation semantics while making scalar narrowing and validation-loop locals type-stable.
 - Status: ASSIGNED.
-- Targeted verification: mypy on the module plus its boundary/model tests.
-- Last full-gate status: historical mypy FAIL; current-head run #2869 pending.
-
-### FGATE-004 — Research idempotency typing failures
-
-- Priority: P0
-- Current evidence: run #2771 reconfirmed three mypy unreachable diagnostics in `src/athena/research/idempotency.py`.
-- Root-cause class: lint/typecheck.
-- Ownership: BACKEND.
-- Components: `src/athena/research/idempotency.py`.
-- Required fix invariant: align annotations and runtime rejection of string/bytes-like values so mypy and runtime contract agree; do not remove validation merely to satisfy typing.
-- Status: ASSIGNED.
-- Targeted verification: mypy on the module plus idempotency boundary tests.
-- Last full-gate status: historical mypy FAIL; current-head run #2869 pending.
-
-### FGATE-005 — Semantic persisted-integer typing failures
-
-- Priority: P0
-- Current evidence: run #2771 reconfirmed `_persisted_int()` `int(object)` overload and `no-any-return` diagnostics.
-- Root-cause class: lint/typecheck.
-- Ownership: BACKEND.
-- Components: `src/athena/retrieval/semantic.py`.
-- Required fix invariant: explicit supported-type narrowing/parser returning a statically known `int`, while continuing to reject bool/invalid objects and preserving nonnegative/positive range rules.
-- Status: ASSIGNED.
-- Targeted verification: mypy on semantic retrieval plus persisted-state numeric boundary tests.
-- Last full-gate status: historical mypy FAIL; current-head run #2869 pending.
-
-## Secondary recovery items
-
-### FGATE-006 — Quality workflow import ordering
-
-- Priority: P1
-- Root-cause class: lint/typecheck.
-- Ownership: QUALITY.
-- Component: `tests/unit/test_quality_workflow_contract.py`.
-- Required fix invariant: Ruff-clean canonical imports without weakening workflow-contract coverage.
-- Status: FIXED_PENDING_VERIFY.
-- Last known fix: Quality commit `008647cf4e20617c70ff8f9918b3d53632c99b62`.
-- Targeted verification: Ruff on the file / workflow-contract test; current-head full gate still required.
-
-### FGATE-007 — Post-refactor durable filesystem identity lane
-
-- Priority: P1
-- Root-cause class: regression verification / platform boundary.
-- Ownership: QUALITY verification; BACKEND for any product failure.
-- Components: `tests/unit/test_durable_fs.py`, `tests/unit/test_durable_fs_parent_identity.py`, focused Linux storage job.
-- Required fix invariant: parent-identity protections remain deterministic and pass independently of UI full-suite state.
-- Status: IN_PROGRESS.
-- Targeted verification: focused Linux storage job on current code.
+- Targeted verification: mypy on the module plus Research model boundary tests.
+- Last gate status: run #2936 central Quality job FAIL; exact mypy outcome not decoded.
 
 ### FGATE-008 — Windows durable-write parent identity
 
@@ -113,27 +53,87 @@ Status values: `OPEN`, `ASSIGNED`, `IN_PROGRESS`, `FIXED_PENDING_VERIFY`, `VERIF
 - Primary implementation owner: BACKEND.
 - Secondary reviewers: SECURITY.
 - Verification owner: QUALITY.
-- Components: Windows durable filesystem publication used by migration journal.
-- Required fix invariant: mutation/publication must be bound to or revalidate the intended parent directory identity across the operation, rather than trusting only path-based prechecks before `MoveFileExW` publication.
-- Security review evidence: current Windows `durable_write_bytes()` creates the temporary by pathname and current Windows `durable_replace()` publishes through pathname-based `MoveFileExW`; unlike the POSIX implementation, no opened parent-directory identity is held across creation/publication. Static symlink/junction/reparse checks alone therefore do not close concurrent parent replacement.
+- Components: Windows durable filesystem publication used by migration journal and API secret publication.
+- Required fix invariant: mutation/publication must be bound to or revalidate the intended parent directory identity across the operation rather than trusting pathname-only prechecks before publication.
+- Related conflict: `CONFLICT-001`.
 - Sub-slices:
-  - `FGATE-008-BE` — Owner: BACKEND — implement Windows HANDLE-backed or equivalently identity-bound create/publication semantics without weakening durability or reparse protection. Status: ASSIGNED.
-  - `FGATE-008-SEC` — Owner: SECURITY — define/review the security invariant and adversarial parent-replacement, junction/reparse and fail-closed regression cases; do not implement Backend product I/O. Status: IN_PROGRESS.
-  - `FGATE-008-QA` — Owner: QUALITY — execute deterministic native-Windows regressions and the required integrative storage/full-gate verification on the relevant HEAD. Status: ASSIGNED.
+  - `FGATE-008-BE` — Owner: BACKEND — implement Windows HANDLE-backed or equivalently identity-bound create/publication semantics. Status: ASSIGNED.
+  - `FGATE-008-SEC` — Owner: SECURITY — define/review adversarial parent-replacement, junction/reparse and fail-closed invariants. Status: IN_PROGRESS.
+  - `FGATE-008-QA` — Owner: QUALITY — execute deterministic native-Windows regressions and integrative storage/full-gate verification after implementation. Status: ASSIGNED.
 - Status: ASSIGNED.
-- Targeted verification: deterministic Windows parent-replacement/reparse regression plus native Windows storage lane.
+- Targeted verification: deterministic native-Windows parent-replacement/reparse regression plus Windows storage lane.
 
-## Verified historical infrastructure properties
+### FGATE-009 — Candidate-SHA central Quality job failure
 
-- Keep-going gate behavior is verified by historical runs #2677 and #2771: later mypy/pytest checks executed despite earlier Ruff failures.
-- Focused Linux storage, Local install smoke, and native Windows jobs execute independently of the Linux full-suite process.
-- Historical infrastructure verification is not a substitute for current-head green status.
+- Priority: P0
+- SHA/run/job/step: `31b580609527f828b87854207bd1c33c3a4bfec6` / #2936 / `97306396000` / `Run ATHENA quality gate`.
+- Evidence: required job conclusion is FAILURE while the three independent required jobs on the same SHA are PASS.
+- Error excerpt: decoded job log unavailable through the connector in this run; no Ruff/mypy/pytest primary error is invented.
+- Reproduction: `uv run --locked --extra dev --extra desktop python scripts/quality.py --keep-going` with `QT_QPA_PLATFORM=offscreen` on Ubuntu/Python 3.12.
+- Root-cause class: unclassified central gate failure pending decoded Ruff/mypy/pytest evidence.
+- Ownership: QUALITY.
+- Fix invariant: isolate the first real failing sub-check/diagnostic, then reassign any product failure to its canonical owner; no check may be skipped or weakened.
+- Status: IN_PROGRESS.
+- Targeted verification: retrieve/decode #2936 central log or reproduce the exact command; then run the affected targeted check followed by the complete required gate.
+- Last gate status: **FAIL**.
+
+## Verified on candidate SHA
+
+### FGATE-001 — Productive Core extraction composition
+
+- Priority: P0
+- Historical failure: missing required `chat` dependency when constructing `ChatKnowledgeExtractionService`.
+- Ownership: BACKEND.
+- Fix invariant: productive `AthenaApplication` must pass its live `ChatService`; no test bypass.
+- Status: VERIFIED.
+- Same-SHA verification: run #2936 `Local install smoke` **PASS** on `31b580609527f828b87854207bd1c33c3a4bfec6` using `athena-local-smoke --restart-cycles 1`.
+
+### FGATE-007 — Post-refactor durable filesystem identity lane
+
+- Priority: P1
+- Ownership: QUALITY.
+- Fix invariant: durable-filesystem identity regressions execute independently of the UI/full-suite path.
+- Status: VERIFIED.
+- Same-SHA verification: run #2936 `Linux storage regressions` **PASS**. The workflow for this SHA explicitly includes `tests/unit/test_durable_fs.py` and `tests/unit/test_durable_fs_parent_identity.py` in that required job.
+
+## Fixed pending exact sub-check verification
+
+### FGATE-004 — Research idempotency typing failures
+
+- Priority: P0
+- Ownership: BACKEND.
+- Current code evidence: `_research_input_sequence(value: object)` explicitly rejects text-like sequences and narrows to `Sequence`; Backend `BE-049` is DONE.
+- Status: FIXED_PENDING_VERIFY.
+- Targeted verification: mypy on `src/athena/research/idempotency.py` plus idempotency boundary tests.
+
+### FGATE-005 — Semantic persisted-integer typing failures
+
+- Priority: P0
+- Ownership: BACKEND.
+- Current code evidence: `_persisted_int(value: object, ...)` now rejects bool/non-int values, applies range checks, and returns a statically narrowed `int`; Backend `BE-047` is DONE.
+- Status: FIXED_PENDING_VERIFY.
+- Targeted verification: mypy on semantic retrieval plus persisted-state numeric boundary tests.
+
+### FGATE-006 — Quality workflow import ordering
+
+- Priority: P1
+- Ownership: QUALITY.
+- Last known fix: `008647cf4e20617c70ff8f9918b3d53632c99b62`.
+- Status: FIXED_PENDING_VERIFY.
+- Targeted verification: Ruff on `tests/unit/test_quality_workflow_contract.py`; central #2936 log must be decoded before promotion.
+
+## Coordination rules currently applied
+
+- Product implementation remains with BACKEND/UI/SECURITY/FEATURE owners; QUALITY performs integrative verification.
+- `MIXED` slices use explicit primary/secondary/verification roles and stable owner-specific sub-slices.
+- `docs/agent_coordination/coordination_conflicts.md` is the conflict SSOT.
+- `CONFLICT-002` is an escalated product-policy decision but is not currently a Full-Gate blocker.
+- No historical error log is rewritten merely to normalize legacy ownership labels.
 
 ## Recovery next action
 
-1. Wait for/start from the first current-head-equivalent run that actually obtains runners; decode every required job and step.
-2. If a newer agent commit supersedes the pending run, move the baseline to the new remote HEAD and never claim the older run as current green evidence.
-3. Close `FGATE-001` only after current-code targeted construction/Local smoke PASS.
-4. Verify `FGATE-002` with focused Qt-offscreen PALLAS lifecycle tests and the full pytest lane; close only after the native process exits normally.
-5. For the first current red job, classify the primary failure before consequences, update the stable FGATE entry, and hand off by ownership; Quality-owned harness/workflow/fixture defects may be fixed here.
-6. Full recovery is complete only when all required jobs for the relevant development HEAD are successful and no required check is skipped.
+1. Preserve candidate SHA `31b580609527f828b87854207bd1c33c3a4bfec6` as the last fully job-classified integration point until a newer integrated HEAD is selected.
+2. Decode or reproduce the central #2936 Quality failure and split `FGATE-009` into the first real Ruff/mypy/pytest primary blocker.
+3. If the primary blocker is QUALITY-owned, fix it here; otherwise assign the stable FGATE slice to the relevant product owner and remain read-only on product code.
+4. Re-run targeted verification, then all required jobs on one exact SHA.
+5. Declare GREEN only when every required job on that same SHA succeeds.
