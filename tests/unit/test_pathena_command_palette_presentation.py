@@ -101,3 +101,26 @@ def test_help_surface_is_readable_and_documents_current_shortcuts() -> None:
         controller.deleteLater()
         window.close()
         app.processEvents()
+
+
+def test_help_open_lands_focus_at_start_of_read_only_content() -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    controller = CommandPaletteController(window)
+    try:
+        window.show()
+        app.processEvents()
+
+        controller.help_text.moveCursor(controller.help_text.textCursor().MoveOperation.End)
+        controller.open_help()
+        app.processEvents()
+
+        assert controller.help_dialog.isVisible()
+        assert controller.help_text.hasFocus()
+        assert controller.help_text.textCursor().position() == 0
+        assert controller.help_text.toPlainText().startswith("Workspaces\n")
+    finally:
+        controller.help_dialog.hide()
+        controller.deleteLater()
+        window.close()
+        app.processEvents()
