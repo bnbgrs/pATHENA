@@ -2,7 +2,7 @@
 
 Working security model for `agent/pathena`. It records concrete trust boundaries and verified invariants so security work follows real code paths instead of hypothetical features.
 
-Last reviewed baseline: current remote `agent/pathena` on 2026-08-23.
+Last reviewed baseline: current remote `agent/pathena` on 2026-08-24, observed HEAD `2ffe48ff1b5e230fcbe7c447d8960330b7e2b91c`.
 
 ## Security goals
 
@@ -27,9 +27,9 @@ Last reviewed baseline: current remote `agent/pathena` on 2026-08-23.
 
 **Verified controls:** non-loopback bind refusal, bounded/strict request framing, `Origin` rejection, bearer authentication with constant-time comparison, static symlink/junction/reparse checks through the shared storage boundary predicate, and private runtime publication through the shared durable writer.
 
-**Open risks:** `SEC-001` — POSIX `0600` is not equivalent to a proven private Windows DACL. The token/discovery directory must be demonstrated to exclude other interactive users on Windows, including overridden runtime roots. `SEC-012` — the API layer now delegates token/discovery writes to `durable_write_bytes()`. On POSIX that primitive binds create/write/publish to an opened parent directory FD and verifies parent identity, closing the secret-write parent-replacement race for that platform. The Windows branch of the shared primitive still creates the temporary file by pathname after static parent validation, so Windows remains open until equivalent handle/reparse-safe semantics are implemented.
+**Open risks:** `SEC-001` — `LocalApiRuntime` requests mode `0600`, but the current project has no Windows ACL dependency or explicit DACL verification in the runtime publication path. On Windows, successful API publication must therefore not be treated as proof that `core-api.token` is private to the intended user. Required invariant: before API startup is considered successful, the runtime directory and token file must have a verifiably private DACL for the intended user/security principal (plus only narrowly required system identities); permissive inherited ACEs must be removed or rejected, and inability to establish or verify the invariant must fail closed. Native Windows regression coverage must include a permissive inherited parent, a custom runtime root, and simulated ACL-hardening failure. `SEC-012` — the API layer delegates token/discovery writes to `durable_write_bytes()`. On POSIX that primitive binds create/write/publish to an opened parent directory FD and verifies parent identity. The Windows branch still requires equivalent HANDLE-bound parent identity.
 
-**Recent hardening:** `SEC-011` replaced symlink-only runtime-root/ancestor checks with `is_link_boundary()`, covering Windows junctions/reparse points. Security commits `39c7b1aee5407b7537ea808070631e53ae2f5e67` and `ba05a63a7cf1002d111d2f2f28ecc90310e600cc` moved local API private publication onto `durable_write_bytes()` and added fail-closed API regression coverage for a rejected parent identity. Do not claim Windows closure until the shared Windows writer is identity-bound and executed there.
+**Recent hardening:** `SEC-011` replaced symlink-only runtime-root/ancestor checks with `is_link_boundary()`, covering Windows junctions/reparse points. Security commits `39c7b1aee5407b7537ea808070631e53ae2f5e67` and `ba05a63a7cf1002d111d2f2f28ecc90310e600cc` moved local API private publication onto `durable_write_bytes()` and added fail-closed API regression coverage for a rejected parent identity. Do not claim Windows closure until both the shared Windows writer is identity-bound and the Windows DACL invariant is implemented and executed natively.
 
 ### Core -> Internet / clearnet
 
@@ -45,7 +45,7 @@ Last reviewed baseline: current remote `agent/pathena` on 2026-08-23.
 
 **Verified controls:** SOCKS proxy constrained to loopback by default, hostname resolution delegated to SOCKS, per-request isolation credentials and fail-closed behavior rather than silent direct fallback.
 
-**Open risk:** `SEC-003` — LM Studio remains a separate local-only network adapter using ambient `urllib` proxy behavior. Current `LMStudioProvider` still calls the default `urlopen()` path for local discovery/chat/structured requests. Local provider traffic must not be influenced by process/OS HTTP(S) proxy configuration.
+**Local-provider isolation status — `SEC-003`:** current `LMStudioProvider` routes reviewed discovery/chat/structured requests through the shared local-only transport. That transport requires loopback HTTP(S), installs `ProxyHandler({})`, rejects redirects and validates finite positive timeouts, so the previously identified ambient-proxy code path is statically closed. Keep `SEC-003` at FIXED rather than VERIFIED until hostile `HTTP_PROXY`/`HTTPS_PROXY` plus redirect/loopback regressions are observed green for the complete provider path.
 
 ### External source / imported file -> parsers and persistence
 
