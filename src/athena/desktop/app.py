@@ -60,6 +60,7 @@ from athena.desktop.pathena_message_action_tab_order import (
 from athena.desktop.pathena_navigation_context_accessibility import (
     install_navigation_context_accessibility,
 )
+from athena.desktop.pathena_pallas_field import install_pallas_grounded_field
 from athena.desktop.pathena_primary_input_accessibility import (
     install_primary_input_accessibility,
 )
@@ -88,6 +89,7 @@ from athena.desktop.pathena_result_scope_clarity import apply_result_scope_clari
 from athena.desktop.pathena_selection_disappearance_handoff import (
     install_selection_disappearance_handoff,
 )
+from athena.desktop.pathena_settings_runtime import install_settings_runtime
 from athena.desktop.pathena_shell_density import apply_shell_density
 from athena.desktop.pathena_startup_experience_2900 import install_startup_experience
 from athena.desktop.pathena_theme import PATHENA_STYLESHEET
@@ -186,6 +188,8 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     controller = DesktopApiController(client)
     window = PathenaMainWindow(api_controller=controller)
+    settings_runtime = install_settings_runtime(window, controller)
+    pallas_grounded_field = install_pallas_grounded_field(window, controller)
     knowledge_workspace = install_knowledge_workspace(window, controller)
     knowledge_selection_continuity = install_knowledge_selection_continuity(
         knowledge_workspace
@@ -314,6 +318,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     command_palette_truth.deleteLater()
     transient_dialog_shortcuts.deleteLater()
     command_palette.deleteLater()
+    pallas_grounded_field.deleteLater()
+    settings_runtime.deleteLater()
     return exit_code
 
 

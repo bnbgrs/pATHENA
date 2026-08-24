@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from athena.desktop.pathena_shared_components import PATHENA_FOUNDATION_STYLESHEET
 from athena.desktop.theme import APP_STYLESHEET as ATHENA_BASE_STYLESHEET
 
 # Keep the mature ATHENA widget coverage, then override the shell with pATHENA's
@@ -605,4 +606,4 @@ QScrollBar::sub-page:vertical {
     background: transparent;
     height: 0;
 }
-"""
+""" + PATHENA_FOUNDATION_STYLESHEET
