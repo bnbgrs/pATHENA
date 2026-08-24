@@ -102,7 +102,7 @@ class WalRuntimeStatus:
 @dataclass(frozen=True, slots=True)
 class WalCheckpointResult:
     mode: CheckpointMode
-    busy_frames: int
+    busy: bool
     log_frames: int
     checkpointed_frames: int
     wal_size_after_bytes: int
@@ -110,7 +110,8 @@ class WalCheckpointResult:
     def __post_init__(self) -> None:
         if self.mode not in {"PASSIVE", "TRUNCATE"}:
             raise ValueError("WAL checkpoint mode is invalid.")
-        _nonnegative_int(self.busy_frames, "WAL checkpoint busy_frames")
+        if not isinstance(self.busy, bool):
+            raise TypeError("WAL checkpoint busy must be boolean.")
         _nonnegative_int(self.log_frames, "WAL checkpoint log_frames")
         checkpointed = _nonnegative_int(
             self.checkpointed_frames,
@@ -127,11 +128,11 @@ class WalCheckpointResult:
 
     @property
     def blocked(self) -> bool:
-        return self.busy_frames != 0
+        return self.busy
 
     @property
     def complete(self) -> bool:
-        return not self.blocked and self.checkpointed_frames == self.log_frames
+        return not self.busy and self.checkpointed_frames == self.log_frames
 
 
 class WalMaintenanceService:
@@ -187,7 +188,9 @@ class WalMaintenanceService:
         row = connection.execute(f"PRAGMA wal_checkpoint({mode})").fetchone()
         if row is None or len(row) != 3:
             raise WalMaintenanceError("SQLite returned an invalid WAL checkpoint result.")
-        busy = _nonnegative_int(row[0], "SQLite checkpoint busy count")
+        busy_value = _nonnegative_int(row[0], "SQLite checkpoint busy result")
+        if busy_value not in {0, 1}:
+            raise WalMaintenanceError("SQLite checkpoint busy result must be 0 or 1.")
         log_frames = _nonnegative_int(row[1], "SQLite checkpoint log frame count")
         checkpointed_frames = _nonnegative_int(
             row[2],
@@ -196,7 +199,7 @@ class WalMaintenanceService:
         _present, wal_size = _bounded_wal_size(_wal_path(self.database.path))
         return WalCheckpointResult(
             mode=mode,
-            busy_frames=busy,
+            busy=bool(busy_value),
             log_frames=log_frames,
             checkpointed_frames=checkpointed_frames,
             wal_size_after_bytes=wal_size,
