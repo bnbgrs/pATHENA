@@ -1,102 +1,93 @@
 # pATHENA Redesign Coordination
 
 Last updated: 2026-08-25
-Lead source: `agent/pathena`
-Accepted source SHA: `fbbf44dc8c8175499528f07be079061b644d1604`
-Candidate branch: `bot/pathena-candidate`
-Candidate base SHA before this coordination commit: `fbbf44dc8c8175499528f07be079061b644d1604`
 
-## Promotion policy
+- Accepted `agent/pathena`: `fbbf44dc8c8175499528f07be079061b644d1604`
+- Candidate product head before this coordination update: `2560dfbae78ddf696307dd69367d8f349b3c98db`
+- Promotion: **BLOCKED** — no exact-candidate Cloud-Windows GREEN and one targeted PALLAS fallback failure
+- `main`, ATHENA, and foreign user branches remain read-only; no force-push
 
-- `main`, ATHENA, and user branches are read-only.
-- Global legacy Quality red is recorded but does not block redesign work.
-- A targeted slice failure remains RED.
-- Promotion from candidate to `agent/pathena` requires a GREEN Cloud-Windows report bound to the exact candidate SHA.
-- No current candidate has that report; promotion is blocked.
+## Ownership
 
-## Exclusive ownership
-
-| Owner branch | Exclusive product scope | Must not edit |
+| Branch | Exclusive scope | Shared-file rule |
 | --- | --- | --- |
-| `bot/pathena-design-system` | design tokens, `pathena_theme.py`, shared shell/layout in `pathena_window.py`, shared components, focus/hover/disabled states, reduced motion | screen-specific controllers and workspace behavior |
-| `bot/pathena-screens-core` | Chat, Knowledge, Research, PALLAS adapters/views/actions; use extension modules or workspace modules | `pathena_theme.py`, shared shell/layout, Jobs/Files/System/Settings/Help/ComfyUI |
-| `bot/pathena-screens-ops` | Jobs, Files/Sources, System, Settings, Help, ComfyUI and command palette behavior/views | shared theme/shell and Chat/Knowledge/Research/PALLAS |
-| `bot/pathena-cloud-windows` | Windows candidate workflow, process-tree harness, packaging entry points and packaging-specific runtime fixes | screen design and shared visual system |
-| `bot/pathena-candidate` | Lead-only integration and `docs/automation/**` | direct feature development |
+| `bot/pathena-design-system` | tokens, theme, shell, navigation, shared Inspector/components, focus/motion | owns `pathena_theme.py` and `pathena_window.py` shared presentation |
+| `bot/pathena-screens-core` | Chat, Knowledge, Research, PALLAS data/renderer/actions | no theme/shell edits; request hooks |
+| `bot/pathena-screens-ops` | Jobs, Sources/Files, System, Settings, Help, ComfyUI, palette | no theme/shell or Core-screen edits |
+| `bot/pathena-cloud-windows` | Windows/runtime/packaging harness and packaging-only fixes | no product-screen edits |
+| `bot/pathena-candidate` | Lead-only integration, `app.py`, `docs/automation/**` | no independent feature development |
 
-Ownership arbitration:
+No integrated worker slices overlap files. `app.py` remains Lead-arbitrated.
 
-- `pathena_window.py` is Design-System-owned. Core/Ops request hooks through a handoff and prefer extension/workspace modules.
-- The PALLAS container's shared geometry is Design-System-owned; its semantic adapter, renderer, simulation state and interactions are Core-owned.
-- `app.py` integration edits require Lead arbitration because all workspaces install there. A worker must provide an exact minimal handoff instead of editing it concurrently.
-- Cloud-Windows may edit packaging-only entry points but not the normal desktop interaction model.
+## Integrated slices
+
+| Slice | Source SHA | Candidate commit | Status | Evidence |
+| --- | --- | --- | --- | --- |
+| DS-001 foundation | `99d46061a98e0cea009cf03e6fa4a25ba3fd2deb` | `2560dfbae78ddf696307dd69367d8f349b3c98db` | INTEGRATED | 21 worker tests, Ruff, 1480×900 offscreen render |
+| OPS-001 Settings runtime | `339bc8c13f403745ae128c0da7ce5956d9f42ace` | `2560dfbae78ddf696307dd69367d8f349b3c98db` | INTEGRATED | persisted real request controls and snapshot-backed runtime truth |
+| CORE-001 PALLAS grounded field | `261246d0088d2b4c19736b74396918333f8eec95` | `2560dfbae78ddf696307dd69367d8f349b3c98db` | INTEGRATED | 16 worker tests, deterministic real-data graph, selectable offscreen render |
+| Lead install hooks | n/a | `2560dfbae78ddf696307dd69367d8f349b3c98db` | INTEGRATED | `install_settings_runtime` and `install_pallas_grounded_field` only |
+
+Combined candidate verification: 38 targeted tests PASS; targeted Ruff PASS; strict Mypy PASS; integrated 1480×900 Chat/PALLAS and Settings renders PASS.
 
 ## Eleven-screen matrix
 
-| Reference image | Target area | Owner | Status | First acceptance slice |
-| --- | --- | --- | --- | --- |
-| ComfyUI-Integration im pATHENA Studio.png | ComfyUI | Operations | ASSIGNED | Real endpoint/workflow state; no simulated Ready/Run success |
-| PALLAS – Lebendes semantisches Wissensfeld.png | PALLAS | Core | ASSIGNED | Deterministic real-data semantic adapter plus selectable nodes; no invented knowledge |
-| pATHENA Einstellungen für lokale KI.png | Settings | Operations | ASSIGNED | Existing model/context/output/thinking values persist and expose honest provider/network state |
-| pATHENA Hilfe: Fähigkeiten im Überblick.png | Help | Operations | ASSIGNED | Capability-derived help only; unavailable features remain explicit |
-| pATHENA im eleganten Dunkelmodus.png | shared dark shell | Design System | ASSIGNED | Tokens, typography, rail, workspace and inspector foundation without signal/controller changes |
-| pATHENA Jobs: Prüfung der Speicher-Richtlinie.png | Jobs | Operations | QUEUED | Real job selection, progress, pause/resume/cancel and logs |
-| pATHENA Such- und Befehlspalette.png | universal search/palette | Operations | QUEUED | Existing actions, blockers and navigation remain truthful and keyboard-safe |
-| pATHENA Systemübersicht für lokale KI.png | System | Operations | QUEUED | Real Core/provider/storage/network/runtime status and recovery links |
-| pATHENA – Dunkles Studio für Wissensforschung.png | Research workspace | Core | QUEUED | Real research phases, evidence and proposal ownership |
-| pATHENA: Intelligenzstudio für lokales Wissen.png | Chat/workspace shell | Core + Design handoff | QUEUED | Real chat/source/provenance flow in shared shell; no bubble rewrite |
-| pATHENA: Lokales Gedächtnis neu gedacht.png | Knowledge/memory | Core | QUEUED | Real Knowledge/Claim/Decision selection, provenance and actions |
-
-All eleven Library files were resolved and visually inspected in this Lead cycle.
-
-## Current status
-
-| Slice | Branch | Status | Evidence / blocker |
+| Reference | Owner | Status | Next acceptance boundary |
 | --- | --- | --- | --- |
-| Branch bootstrap | all four worker branches + candidate | READY | All created from exact SHA `fbbf44dc8c8175499528f07be079061b644d1604` |
-| Design foundation | Design System | ASSIGNED | Await targeted tests and offscreen render |
-| Core/PALLAS adapter | Core Screens | ASSIGNED | Await real-data adapter tests and render |
-| Settings provider-state slice | Operations Screens | ASSIGNED | Await persistence/controller tests and render |
-| Windows safety harness | Cloud Windows | ASSIGNED / P0 | Exact candidate has no full Windows acceptance report |
-| Candidate promotion | Lead | BLOCKED | Requires exact-SHA Cloud-Windows GREEN |
+| `pATHENA im eleganten Dunkelmodus.png` | Design System | INTEGRATED / DS-001 | refine only through shared tokens/components |
+| `PALLAS – Lebendes semantisches Wissensfeld.png` | Core | INTEGRATED / CORE-001; REPAIR ASSIGNED | restore legacy fallback ownership, then mini/full shared state |
+| `pATHENA Einstellungen für lokale KI.png` | Operations | INTEGRATED / OPS-001 | provider-backed controls remain truthful |
+| `pATHENA Hilfe: Fähigkeiten im Überblick.png` | Operations | ASSIGNED / OPS-002 | derive Help from live registered capabilities |
+| `pATHENA – Dunkles Studio für Wissensforschung.png` | Core | QUEUED | real phases, evidence and proposal ownership |
+| `pATHENA: Intelligenzstudio für lokales Wissen.png` | Core + Design | QUEUED | real chat/source/provenance flow in shared shell |
+| `pATHENA: Lokales Gedächtnis neu gedacht.png` | Core | QUEUED | real Knowledge/Claim/Decision selection and provenance |
+| `pATHENA Jobs: Prüfung der Speicher-Richtlinie.png` | Operations | QUEUED | real progress, pause/resume/cancel and logs |
+| `pATHENA Such- und Befehlspalette.png` | Operations | QUEUED | truthful actions/blockers and keyboard flow |
+| `pATHENA Systemübersicht für lokale KI.png` | Operations | QUEUED | real Core/provider/storage/runtime state |
+| `ComfyUI-Integration im pATHENA Studio.png` | Operations | QUEUED | real endpoint/workflow/VRAM/error path only |
 
-## Windows status
+All eleven named references remain the exclusive visual source.
 
-Current candidate: **NOT_EXECUTABLE for promotion**.
+## Targeted blocker
 
-No SHA-bound full desktop/packaging Windows report exists for the current candidate. Historical PR #9 run `32634986477` is not transferable: the runner reported shutdown/cancel during cleanup and its log terminated 608 orphan processes named `pATHENA`. A smoke step that only counted `pATHENA-Core` and `pATHENA-Scheduler` is insufficient.
+`tests/unit/test_pathena_pallas_target_lifecycle.py` reproduces two failures in the candidate and accepted base:
 
-Cloud-Windows acceptance must capture the complete descendant/product process tree, reject growth or recursion, verify zero product orphans after controlled exit, and withhold distributable artifacts on RED.
+- `AsciiPanel._pallas_target` remains `None`, so the legacy fallback is not bound to its own window.
+- semantic sampling returns only the page context and does not see the owning window's prompt.
 
-## Assigned next slices
+This is not treated as generic Quality red. It is a candidate PALLAS/fallback blocker. CORE-001 remains integrated because its new renderer tests pass and it does not edit the legacy controller; promotion and Windows acceptance wait for the focused repair.
 
-### Design System — DS-001
+## New assignments
 
-- Files: `pathena_theme.py`; new design-token/component modules and focused tests. `pathena_window.py` only for shared shell geometry.
-- Acceptance: #060606–#090909 foundations, warm white hierarchy, #F26A21 semantic accent, consistent focus/hover/disabled states, no glow/CRT/glass, reduced-motion path.
-- Verification: focused unit tests plus a real offscreen 1480x900 shell render.
-- Handoff: stable component and object-name contract for both screen bots.
+### CORE-002 — explicit legacy PALLAS owner contract
 
-### Core Screens — CORE-001
+- Owner files: `src/athena/desktop/ascii_panel.py` plus focused Core tests only.
+- Deliverable: an explicit, lifecycle-safe semantic-root binding API; no global widget lookup, cross-window sampling, random data, or shell edit.
+- Acceptance: both existing target-lifecycle tests PASS; destroyed/recreated windows do not leak targets; fallback still paints when the new field is absent.
+- Dependency: DS-002 consumes the new binding API; mark READY with exact SHA and tests.
 
-- Files: new PALLAS semantic adapter/view modules and tests; no shared theme/shell edits.
-- Acceptance: stable IDs from real Sources/Claims/Knowledge/Research/Memory/Jobs; deterministic layout input; selection/focus/inspector contract; honest empty/error/loading states.
-- Verification: adapter tests, deterministic render-state test, offscreen PALLAS slice render.
-- Handoff: exact shared-container geometry/hook request to Design System or Lead if needed.
+### DS-002 — shared-shell fallback binding and Inspector hook
 
-### Operations Screens — OPS-001
+- Owner files: `src/athena/desktop/pathena_window.py` and shared component tests only.
+- Deliverable: bind each window's legacy PALLAS controller through CORE-002's API and expose a stable shared Context Inspector slot for `PallasSelection` without duplicating Core renderer code.
+- Acceptance: no controller/signal regression; fallback target is window-local; selection can reach Inspector; offscreen shell render PASS.
+- Dependency: CORE-002 must land first.
 
-- Files: Settings/System extension modules and focused tests; no shared theme/shell edits.
-- Acceptance: real model selection, context/output/thinking persistence and provider/network readiness; no invented status; unchanged backend contracts.
-- Verification: persistence/controller tests and offscreen Settings render.
-- Handoff: reusable field/status component requirements to Design System.
+### OPS-002 — live capability Help
 
-### Cloud Windows — WIN-001
+- Owner files: new capability-catalog/Help extension modules and focused tests; no shared files.
+- Deliverable: Help content generated from actual registered commands and target availability; unavailable/context-required features remain explicit.
+- Acceptance: catalog drift visible, no unsupported capability claim, offscreen Help render PASS, exact install handoff to Lead.
 
-- Files: Windows candidate workflow, process-tree harness, packaging-specific entry points and tests only.
-- Acceptance: exact candidate SHA; native Windows; install/import/start; process-tree sampling; bounded descendants; zero orphans; controlled exit; database reopen; artifact only on GREEN.
-- Verification: runner/job/log/artifact all bound to one SHA. RED/NOT_EXECUTABLE is never promoted.
+### WIN-001 — publish harness, then test repaired candidate
 
-## Next Lead integration step
+- Current remote `bot/pathena-cloud-windows`: `fbbf44dc8c8175499528f07be079061b644d1604` (no published harness/report).
+- Do not run the current blocked candidate or repeat unsafe `bf54714d23a0b3da27fcac5d8215b55c2715ce48`.
+- After CORE-002 + DS-002 integration, test that exact new candidate SHA with complete process-tree sampling, zero-orphan shutdown, install/import/start, DB reopen, navigation, PALLAS, Settings and packaging checks.
+- GREEN only for fully executed checks; otherwise RED or NOT_EXECUTABLE. No distributable artifact on RED.
 
-Read worker handoffs next cycle, verify branch SHAs and exclusive file ownership, integrate at most the smallest coherent READY foundation/vertical slice into `bot/pathena-candidate`, then request a new exact-SHA Windows acceptance. Do not promote to `agent/pathena` before GREEN.
+## Windows and promotion
+
+Windows status: **NOT_EXECUTABLE** for the current candidate. No exact-SHA report exists. Historical run `32634986477` ended with runner shutdown/cancel and cleanup of 608 orphan `pATHENA` processes, so it supplies no transferable PASS.
+
+Next Lead step: integrate READY CORE-002, then DS-002, rerun the combined targeted candidate suite, integrate OPS-002 if independently READY, publish a new candidate SHA, and only then request one SHA-bound Windows acceptance. Promote to `agent/pathena` only after exact-candidate GREEN.
