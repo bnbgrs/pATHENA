@@ -49,30 +49,30 @@ Canonical Ownership values: `QUALITY`, `BACKEND`, `UI`, `SECURITY`, `FEATURE`, `
 ## CONFLICT-004 — Full-gate UI evidence references non-existent repository paths
 
 - Type: Evidence / ownership-assignment conflict.
-- Evidence: `full_gate_recovery.md` assigns UI-owned P0 slices `FGATE-010` and `FGATE-013` from run #2940 to `src/athena/ui/rich_chat.py`, `main_window.py`, `assistant_shell.py`, `persistence.py`, `settings_panel.py`, and `thumbnail_grid.py`. Fresh repository reads show that `src/athena/ui/` does not exist on `agent/pathena` HEAD `ee3d606d7a03a46c112e021e26cec0a2b6ce73e9`, the #2940 head `c59778dcd90b11dd8ee2176b381db0af06848725`, PR #5 base `7dd3b5598b323af11aeb36e1f553c413bd2620b5`, PR #2 base `3e57e70ee2e1bab1d3bb3cf667f22c445c0d1675`, or PR #5 merge commit `f173ceaf719ca33a441a237619592be149884d56`. The productive UI tree on `agent/pathena` is `src/athena/desktop/`.
-- Affected IDs/files: `FGATE-010`, `FGATE-013`, `docs/agent_coordination/full_gate_recovery.md`, run #2940 / job `97317379431`, PR #5 gate carrier.
-- Side A: QUALITY recovery SSOT assigns two P0 product fixes to UI with exact stack/module paths and asks UI to implement them first.
-- Side B: UI can neither reproduce nor patch those paths from any cited repository ref without inventing a second UI architecture or mutating unrelated desktop code.
-- Risk: fabricated product files, fixes against the wrong UI architecture, false P0 closure, or unnecessary churn in the real `src/athena/desktop/` implementation.
-- Proposed resolution: QUALITY must attach the decoded #2940 diagnostic/stack artifact with its actual checkout/merge SHA or correct `FGATE-010`/`FGATE-013` to repository paths that exist on the cited candidate. Until then UI treats those two slices as evidence-blocked and does not fabricate a product fix. If the evidence came from a stale/unrelated checkout, reclassify the entries `STALE`; if corrected evidence identifies real `src/athena/desktop/` paths, UI resumes the P0 immediately.
-- Required owner/arbitrator: QUALITY for evidence correction/reclassification; UI resumes implementation only after a reproducible UI path is supplied.
-- Status: OPEN.
-- Last check: 2026-08-24 on `agent/pathena` HEAD `ee3d606d7a03a46c112e021e26cec0a2b6ce73e9`; exact-head gate #2941 is completed `failure`, so CI Quiet Mode is not active.
-- Full-Gate link: `FGATE-010` / `FGATE-013` ↔ `CONFLICT-004`.
+- Evidence: QUALITY rebaselined `full_gate_recovery.md` to candidate SHA `197a4aee545808b8e6c0d31894aa201c79bab2f1` / run #2972 and explicitly reclassified the historic #2940 UI assignments `FGATE-002`, `FGATE-010` and `FGATE-013` as `STALE`. The productive UI tree remains `src/athena/desktop/`; the prior `src/athena/ui/*` evidence is no longer an active recovery assignment.
+- Affected IDs/files: `FGATE-002`, `FGATE-010`, `FGATE-013`, `docs/agent_coordination/full_gate_recovery.md`, historic run #2940 evidence.
+- Side A: Historic QUALITY evidence assigned UI work against paths that do not exist in the cited/current repository tree.
+- Side B: Current QUALITY recovery SSOT no longer asks UI to implement those stale assignments and requires any new UI blocker to be recreated from exact current evidence against real `src/athena/desktop/*` paths.
+- Risk: resolved; remaining risk is only reusing stale #2940 evidence in a future assignment.
+- Proposed resolution: keep historic #2940 UI entries stale and require exact-SHA current diagnostics before creating any replacement UI recovery slice.
+- Required owner/arbitrator: QUALITY owns future exact-SHA evidence classification; UI acts only on reproducible real-path assignments.
+- Status: RESOLVED.
+- Last check: 2026-08-24 against current recovery SSOT candidate `197a4aee545808b8e6c0d31894aa201c79bab2f1` / run #2972; branch HEAD itself is not SHA-resolvable through the current connector session.
+- Full-Gate link: stale `FGATE-010` / `FGATE-013` ↔ `CONFLICT-004`; current unresolved central failure is `FGATE-014` (QUALITY).
 
 ## CONFLICT-005 — Full-gate BACKEND evidence does not match cited source tree
 
 - Type: Evidence / ownership-assignment conflict.
-- Evidence: `full_gate_recovery.md` still assigns BACKEND P0/P1 slices from run #2940 to diagnostics that cannot be reproduced against the cited/current repository tree. Exact-head revalidation on `agent/pathena` SHA `f5f4327ea03dac717c94c860d424bcbdbb9b7d35` binds mandatory Quality Gate run #2967 (`32713093520`) to that SHA: `Windows path safety`, `Linux storage regressions`, and `Local install smoke` all PASS; `Python 3.12 quality` FAILS. The central gate has advanced materially beyond #2940: Ruff and pytest are green while mypy remains red. Fresh current-source reads also show that historical details in FGATE-004/005 no longer map directly to the described implementations; in particular `src/athena/research/idempotency.py` no longer contains the historical ignore/conversion shape described by the recovery summary. The available connector exposes the failing job/step but not the raw current mypy diagnostics, so a line-accurate product fix cannot be inferred safely.
-- Affected IDs/files: `FGATE-003`, `FGATE-004`, `FGATE-005`, `FGATE-011`, `FGATE-012`, `docs/agent_coordination/full_gate_recovery.md`, exact-head run #2967 / job `97388519768`.
-- Side A: QUALITY recovery SSOT still marks #2940-derived BACKEND slices P0/P1 and requires exact reproduction/root-cause fixes.
-- Side B: BACKEND has exact newer same-SHA gate evidence proving the old Ruff/pytest state stale, but current mypy failure details are not available through the connector and several historical diagnostic shapes no longer exist in current source.
-- Risk: fixing the wrong implementation, recreating stale code shapes, false P0 closure, or regressing already-reworked Backend code to satisfy diagnostics from an older checkout.
-- Proposed resolution: QUALITY should rebaseline `full_gate_recovery.md` to exact SHA `f5f4327ea03dac717c94c860d424bcbdbb9b7d35` / run #2967 and publish the raw current mypy diagnostics (or line/file summary with checkout provenance). Historical Ruff/pytest blockers that are green on #2967 should be reclassified stale/verified as appropriate. Until current mypy diagnostics are reproducible, BACKEND treats only the affected mypy recovery slices as evidence-blocked and does not speculate in product code.
-- Required owner/arbitrator: QUALITY for recovery rebaseline/current mypy evidence; BACKEND resumes the affected recovery slice immediately once exact reproducible diagnostics are supplied.
-- Status: OPEN.
-- Last check: 2026-08-24 on exact `agent/pathena` HEAD `f5f4327ea03dac717c94c860d424bcbdbb9b7d35`; mandatory run #2967 is `completed/failure`, not queued/in-progress, so `CI state: INACTIVE` for this SHA.
-- Full-Gate link: `FGATE-003` / `FGATE-004` / `FGATE-005` / `FGATE-011` / `FGATE-012` ↔ `CONFLICT-005`.
+- Evidence: QUALITY rebaselined `full_gate_recovery.md` to candidate SHA `197a4aee545808b8e6c0d31894aa201c79bab2f1` / run #2972 and explicitly reclassified historic #2940 Backend assignments `FGATE-003`, `FGATE-004`, `FGATE-005`, `FGATE-011` and `FGATE-012` as `STALE`. The current central quality failure is represented only by `FGATE-014` with `Ownership: QUALITY` until exact current diagnostics identify a product owner.
+- Affected IDs/files: stale `FGATE-003`, `FGATE-004`, `FGATE-005`, `FGATE-011`, `FGATE-012`, current `FGATE-014`, `docs/agent_coordination/full_gate_recovery.md`.
+- Side A: Historic #2940 diagnostics previously created active BACKEND assignments whose source shapes no longer matched current code.
+- Side B: Current QUALITY recovery SSOT now forbids transferring those diagnostics to #2972 and requires exact-SHA current diagnostic provenance before assigning Backend product work.
+- Risk: resolved; remaining risk is speculative Backend mutation before `FGATE-014` produces current diagnostics.
+- Proposed resolution: keep historic Backend assignments stale. BACKEND does not patch product code for #2972 until QUALITY supplies exact current diagnostics and creates a canonical BACKEND or MIXED/Backend-owned sub-slice.
+- Required owner/arbitrator: QUALITY for current failure classification; BACKEND resumes immediately on a reproducible canonical assignment.
+- Status: RESOLVED.
+- Last check: 2026-08-24 against current recovery SSOT candidate `197a4aee545808b8e6c0d31894aa201c79bab2f1` / run #2972; branch HEAD itself is not SHA-resolvable through the current connector session.
+- Full-Gate link: stale Backend FGATE entries ↔ `CONFLICT-005`; current unresolved central failure is `FGATE-014` (QUALITY).
 
 ## Bot configuration recommendations
 
