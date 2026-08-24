@@ -379,6 +379,8 @@ class CommandPaletteController(QObject):
         self.dialog.raise_()
         self.dialog.activateWindow()
         self.query.setFocus(Qt.FocusReason.ShortcutFocusReason)
+        if self.help_dialog.isVisible():
+            self.help_dialog.hide()
 
     def open_help(self) -> None:
         """Open the current in-app capability guide without blocking the desktop."""
@@ -393,6 +395,8 @@ class CommandPaletteController(QObject):
         self.help_dialog.raise_()
         self.help_dialog.activateWindow()
         self.help_text.setFocus(Qt.FocusReason.ShortcutFocusReason)
+        if self.dialog.isVisible():
+            self.dialog.hide()
 
     def _refresh_results(self, text: str) -> None:
         terms = tuple(part for part in text.casefold().split() if part)
