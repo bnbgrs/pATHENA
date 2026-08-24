@@ -91,6 +91,9 @@ from athena.desktop.pathena_selection_disappearance_handoff import (
 from athena.desktop.pathena_shell_density import apply_shell_density
 from athena.desktop.pathena_startup_experience_2900 import install_startup_experience
 from athena.desktop.pathena_theme import PATHENA_STYLESHEET
+from athena.desktop.pathena_transient_dialog_shortcuts import (
+    install_transient_dialog_shortcut_continuity,
+)
 from athena.desktop.pathena_ui_refinement_integrity import apply_complete_ui_refinements
 from athena.desktop.pathena_window import PathenaMainWindow
 from athena.desktop.pathena_workspace_presentation import apply_workspace_presentation
@@ -208,6 +211,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     apply_workspace_presentation(window)
     install_navigation_context_accessibility(window)
     command_palette = install_command_palette(window)
+    transient_dialog_shortcuts = install_transient_dialog_shortcut_continuity(command_palette)
     command_palette_truth = install_command_palette_truth(command_palette)
     empty_search_comprehension = install_empty_search_comprehension(
         window,
@@ -308,6 +312,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     system_backup.deleteLater()
     system_workspace.deleteLater()
     command_palette_truth.deleteLater()
+    transient_dialog_shortcuts.deleteLater()
     command_palette.deleteLater()
     return exit_code
 
