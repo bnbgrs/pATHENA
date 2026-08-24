@@ -57,6 +57,9 @@ class QuietSuccessDecayController(QObject):
         self._labels[widget] = label
         self._generation.setdefault(widget, 0)
         widget.installEventFilter(self)
+        widget.destroyed.connect(
+            lambda _object=None, target=widget: self._forget(target)
+        )
         widget.setProperty("pathenaSuccessDecayManaged", True)
         self._sync(widget)
 
@@ -73,18 +76,34 @@ class QuietSuccessDecayController(QObject):
         return super().eventFilter(watched, event)
 
     def _sync(self, widget: QWidget) -> None:
-        state = str(widget.property("pathenaUiState") or "idle")
+        try:
+            state = str(widget.property("pathenaUiState") or "idle")
+        except RuntimeError:
+            self._forget(widget)
+            return
+
         generation = self._generation.get(widget, 0) + 1
         self._generation[widget] = generation
 
         if state != "success":
-            self._set_emphasis(widget, "none")
-            widget.setProperty("pathenaSuccessDecayPending", False)
+            if not self._set_emphasis(widget, "none"):
+                self._forget(widget)
+                return
+            try:
+                widget.setProperty("pathenaSuccessDecayPending", False)
+            except RuntimeError:
+                self._forget(widget)
             return
 
-        self._set_emphasis(widget, "fresh")
-        widget.setProperty("pathenaSuccessDecayPending", True)
-        widget.setProperty("pathenaSuccessDecayDelayMs", _SUCCESS_DECAY_MS)
+        if not self._set_emphasis(widget, "fresh"):
+            self._forget(widget)
+            return
+        try:
+            widget.setProperty("pathenaSuccessDecayPending", True)
+            widget.setProperty("pathenaSuccessDecayDelayMs", _SUCCESS_DECAY_MS)
+        except RuntimeError:
+            self._forget(widget)
+            return
         QTimer.singleShot(
             _SUCCESS_DECAY_MS,
             lambda target=widget, token=generation: self._decay(target, token),
@@ -93,21 +112,39 @@ class QuietSuccessDecayController(QObject):
     def _decay(self, widget: QWidget, generation: int) -> None:
         if self._generation.get(widget) != generation:
             return
-        if str(widget.property("pathenaUiState") or "idle") != "success":
+        try:
+            state = str(widget.property("pathenaUiState") or "idle")
+        except RuntimeError:
+            self._forget(widget)
             return
-        self._set_emphasis(widget, "quiet")
-        widget.setProperty("pathenaSuccessDecayPending", False)
-        widget.setProperty("pathenaSuccessSemanticsPreserved", True)
+        if state != "success":
+            return
+        if not self._set_emphasis(widget, "quiet"):
+            self._forget(widget)
+            return
+        try:
+            widget.setProperty("pathenaSuccessDecayPending", False)
+            widget.setProperty("pathenaSuccessSemanticsPreserved", True)
+        except RuntimeError:
+            self._forget(widget)
+
+    def _forget(self, widget: QWidget) -> None:
+        self._labels.pop(widget, None)
+        self._generation.pop(widget, None)
 
     @staticmethod
-    def _set_emphasis(widget: QWidget, emphasis: str) -> None:
-        if str(widget.property("pathenaSuccessEmphasis") or "") == emphasis:
-            return
-        widget.setProperty("pathenaSuccessEmphasis", emphasis)
-        style = widget.style()
-        style.unpolish(widget)
-        style.polish(widget)
-        widget.update()
+    def _set_emphasis(widget: QWidget, emphasis: str) -> bool:
+        try:
+            if str(widget.property("pathenaSuccessEmphasis") or "") == emphasis:
+                return True
+            widget.setProperty("pathenaSuccessEmphasis", emphasis)
+            style = widget.style()
+            style.unpolish(widget)
+            style.polish(widget)
+            widget.update()
+        except RuntimeError:
+            return False
+        return True
 
 
 def apply_quiet_success_decay(window: QWidget) -> QuietSuccessDecayController:
