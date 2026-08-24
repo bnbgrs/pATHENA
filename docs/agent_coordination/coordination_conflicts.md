@@ -60,6 +60,20 @@ Canonical Ownership values: `QUALITY`, `BACKEND`, `UI`, `SECURITY`, `FEATURE`, `
 - Last check: 2026-08-24 on `agent/pathena` HEAD `ee3d606d7a03a46c112e021e26cec0a2b6ce73e9`; exact-head gate #2941 is completed `failure`, so CI Quiet Mode is not active.
 - Full-Gate link: `FGATE-010` / `FGATE-013` ↔ `CONFLICT-004`.
 
+## CONFLICT-005 — Full-gate BACKEND evidence does not match cited source tree
+
+- Type: Evidence / ownership-assignment conflict.
+- Evidence: `full_gate_recovery.md` assigns BACKEND P0/P1 slices from run #2940 to diagnostics that cannot be reproduced against the cited branch/source. `FGATE-012` names `src/athena/research/assistant.py`, `src/athena/analysis/capabilities.py`, and `src/athena/restart_scenarios.py`, but fresh reads on current `agent/pathena` return no such files. `FGATE-004`/`FGATE-005` describe strict-typing failures in code that is not present in the corresponding current/cited blobs; for example `research/idempotency.py` and `retrieval/semantic.py` already contain materially different guarded implementations. Backend therefore cannot safely infer the intended patch from the recovery summary alone.
+- Affected IDs/files: `FGATE-003`, `FGATE-004`, `FGATE-005`, `FGATE-011`, `FGATE-012`, `docs/agent_coordination/full_gate_recovery.md`, run #2940 / job `97317379431`.
+- Side A: QUALITY recovery SSOT marks these BACKEND slices P0/P1 and requires exact reproduction/root-cause fixes.
+- Side B: BACKEND cannot map several diagnostics to the cited/current repository tree without fabricating missing modules or altering unrelated replacement code.
+- Risk: fixing the wrong implementation, recreating stale files, false P0 closure, or regressing already-reworked Backend code to satisfy diagnostics from another checkout.
+- Proposed resolution: QUALITY must publish the raw Ruff/mypy diagnostics with the exact checkout/merge SHA and tree provenance used by #2940, then either correct the affected paths/line references or reclassify stale entries. Until reproducible evidence exists, BACKEND treats only these affected recovery slices as evidence-blocked and continues independent BACKEND P1 work.
+- Required owner/arbitrator: QUALITY for evidence correction/reclassification; BACKEND resumes the affected recovery slice immediately once exact reproducible source evidence is supplied.
+- Status: OPEN.
+- Last check: 2026-08-24 on `agent/pathena` HEAD `b91ca55be92763a7a7a931347eab8241a5861d61`; no exact-head QUEUED/IN_PROGRESS Pflicht-Gate was evidenced through the available connector surface.
+- Full-Gate link: `FGATE-003` / `FGATE-004` / `FGATE-005` / `FGATE-011` / `FGATE-012` ↔ `CONFLICT-005`.
+
 ## Bot configuration recommendations
 
 No automation prompt was changed by another bot in this file. Evidence-backed recommendations, when any arise, must be reported as `BOT-CONFIG-CHANGE-RECOMMENDED` rather than applied automatically.
