@@ -87,8 +87,8 @@ Last refresh: 2026-08-24.
 - **Current state:** `storage/wal_maintenance.py` now provides an explicit non-destructive WAL maintenance API. It observes the live `page_size` and `wal_autocheckpoint` policy, reads WAL presence/size through a no-follow regular-file handle with pathname/handle identity fencing, runs SQLite `PASSIVE` checkpoints outside active ATHENA transactions, reports busy/log/checkpointed state and post-checkpoint WAL size, and exposes `TRUNCATE` only behind an explicit caller-confirmed idle boundary. It never deletes `-wal` manually. `tests/unit/test_wal_maintenance.py` covers live-policy observation, PASSIVE operation, active-transaction refusal, idle-gated TRUNCATE and fail-closed disabled-autocheckpoint behavior.
 - **Remaining state:** no background scheduler/orchestrator or abnormal-growth escalation is composed yet, and no checkpoint has been inserted into backup/migration paths pending explicit proof of a safe boundary. Long-reader pagination remains a separate integration concern.
 - **Desired state:** compose bounded monitoring/maintenance around this API, diagnose repeated blocked checkpoints/abnormal growth, and integrate clean checkpoints only at existing safe idle/offline snapshot boundaries without weakening SQLite backup semantics.
-- **Dependencies:** coordinate with existing storage bootstrap/migration/backup ownership and Full-Gate Recovery; active BACKEND P0 recovery entries remain evidence-blocked under `CONFLICT-005` rather than being displaced.
-- **Verification:** 2026-08-24 remote static re-read through `d61435cdcc84f3184c9c9bc8dd0f2524ed55b41e`. Tests were added but are NOT EXECUTABLE in this automation environment because no repository checkout could be obtained; no PASS is claimed.
+- **Dependencies:** coordinate with existing storage bootstrap/migration/backup ownership and Full-Gate Recovery; active BACKEND P0 recovery entries remain evidence-blocked rather than being displaced.
+- **Verification:** 2026-08-24 remote static re-read through `d61435cdcc84f3184c9c9bc8dd0f2524ed55b41e`. Tests were added but are NOT EXECUTABLE in this automation environment; no PASS is claimed.
 
 ### FG-018 — Make the normative daily backup quiet time runtime-configurable
 - **Source:** Beta 21 sections 9–13, especially section 10 (daily backup in a configurable quiet time / at next opportunity).
@@ -108,6 +108,31 @@ Last refresh: 2026-08-24.
 - **Dependencies:** coordinate with backup target locking, scheduler control-lane ownership, existing `BackupService.verify_deep()` and B21 audit semantics. This is a READY handoff during active Full-Gate Recovery, not a Scout product-code mutation.
 - **Verification:** read-only trace on `agent/pathena` @ `8553fe2655b8789130f6be58a985f716ff252c95` on 2026-08-24. No implementation or test PASS is claimed.
 
+### FG-020 — Complete normative backup preflight before snapshot mutation
+- **Source:** Beta 21 backup preflight requirements.
+- **Ownership / Priority / Status:** BACKEND · P1 · STALE
+- **Current state:** current `BackupService` already performs the relevant target-online/manifest/free-space/database-health/migration/disk-pressure checks before snapshot mutation; the earlier candidate was based on an incomplete cross-layer trace.
+- **Desired state:** preserve the existing fail-closed preflight and do not create a duplicate backup preflight layer.
+- **Verification:** 2026-08-24 static re-evaluation on current `agent/pathena`; no new test PASS claimed.
+
+### FG-021 — Persist explicit job dependencies / parent-child policy and bounded priority inheritance
+- **Source:** Beta 12 Job-System / Queue / Scheduler — parent-child jobs, dependency policies and priority inheritance.
+- **Ownership / Priority / Status:** BACKEND · P1 · READY
+- **Evidence:** the durable `JobRecord` models job identity, type, priority, state, retry/schedule timestamp, protection scope, lease/fencing and checkpoint linkage, but has no parent ID, dependency relation, dependency completion policy or child cancellation policy. `DurableJobService.create()` likewise accepts no parent/dependency contract. The scheduler's `_rank_key()` derives effective priority only from the job's base priority and fairness aging; it has no dependency-driven temporary inheritance. `WaitingReason.DEPENDENCY` exists, but the generic durable model does not represent the dependency that caused it.
+- **Current state:** leases, fencing, retries, waiting states, fairness aging, resource admission and safe-boundary yielding are real and must not be reimplemented. Some domain-specific workflows reconcile their own dependencies, but there is no generic persistent B12 dependency graph / parent-child contract.
+- **Desired state:** add explicit durable parent/dependency records with deterministic completion/cancellation semantics; make scheduler eligibility dependency-aware; add bounded priority inheritance when a higher-priority runnable job is blocked on a lower-priority dependency, without allowing inheritance to bypass P0 data-safety, resource, security or protection-scope gates.
+- **Dependencies:** BACKEND job schema/repository/service/scheduler; migration required for new durable fields/tables; preserve existing fencing/idempotency and domain-specific workflow behavior during convergence.
+- **Verification:** 2026-08-24 static B12 cross-layer trace on exact remote HEAD `e6c86094c2d52119ea8629e112fe69020de4d96d`; no targeted tests executed by the Scout.
+
+### FG-022 — Generic persistent ScheduleDefinition with missed-run and timezone/DST semantics
+- **Source:** Beta 12 Job-System / Queue / Scheduler — persistent ScheduleDefinition, per-occurrence jobs, missed-run policies and IANA timezone handling.
+- **Ownership / Priority / Status:** BACKEND · P1 · READY
+- **Evidence:** `DurableJobService` persists individual jobs with optional `next_run_at_us`; the generic `JobRecord` has no schedule-definition identity or occurrence identity. Repository/code search found no `ScheduleDefinition`, `backfill_bounded` or equivalent generic missed-run policy contract. Backup and News implement useful domain-specific scheduling/catch-up behavior, but that is not a reusable persistent B12 schedule-definition layer.
+- **Current state:** per-job delayed execution, retry timestamps and domain-specific schedulers exist. They should be preserved rather than replaced wholesale.
+- **Desired state:** persist schedule definitions separately from generated job occurrences; create stable occurrence identity/deduplication; implement `skip`, `run_once`, `backfill_all` and bounded backfill semantics; store IANA timezone identity and define deterministic DST gap/fold behavior. Existing Backup/News scheduling should converge incrementally only where the shared contract is proven equivalent.
+- **Dependencies:** BACKEND job schema/repository/service/scheduler plus careful migration; coordinate with FG-018 backup quiet-time semantics so DST/timezone behavior is defined once rather than inconsistently per subsystem.
+- **Verification:** 2026-08-24 static B12 cross-layer trace on exact remote HEAD `e6c86094c2d52119ea8629e112fe69020de4d96d`; no targeted tests executed by the Scout.
+
 ## Handoff notes
 - Re-read current HEAD and affected files before every mutation.
 - Preserve `unknown` versus `unsupported`; never invent provider facts.
@@ -120,3 +145,6 @@ Last refresh: 2026-08-24.
 - FG-017 is now IN_PROGRESS with an isolated WAL API; do not mark implemented until runtime orchestration/diagnosis and safe-boundary integration are complete and validated.
 - FG-018 is a B21 configurability handoff only; the daily/catch-up/overlap scheduler itself already exists and must not be reimplemented.
 - FG-019 must reuse the existing deep-verify/restore-smoke primitives; BACKEND should add durable scheduling/audit orchestration rather than a parallel validation engine.
+- FG-020 is STALE after the complete B21 preflight was found on the current branch; do not duplicate it.
+- FG-021 is a generic dependency/parent-child/inheritance handoff; preserve existing lease/fencing/resource controls and domain-specific dependency behavior.
+- FG-022 is a generic schedule-definition handoff; do not replace working Backup/News catch-up logic until equivalence is proven.
