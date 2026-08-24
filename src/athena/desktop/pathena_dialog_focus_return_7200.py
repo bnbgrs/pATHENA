@@ -94,13 +94,18 @@ class DialogFocusReturnController(QObject):
 
     @staticmethod
     def _usable(widget: QWidget) -> bool:
-        top_level = widget.window()
-        return (
-            top_level.isVisible()
-            and widget.isVisibleTo(top_level)
-            and widget.isEnabled()
-            and widget.focusPolicy() != Qt.FocusPolicy.NoFocus
-        )
+        try:
+            top_level = widget.window()
+            return (
+                top_level.isVisible()
+                and widget.isVisibleTo(top_level)
+                and widget.isEnabled()
+                and widget.focusPolicy() != Qt.FocusPolicy.NoFocus
+            )
+        except RuntimeError:
+            # PySide wrappers can outlive their C++ widget after deleteLater().
+            # A closed dialog must never restore focus through such a stale wrapper.
+            return False
 
 
 def install_dialog_focus_return(window: QWidget) -> DialogFocusReturnController:

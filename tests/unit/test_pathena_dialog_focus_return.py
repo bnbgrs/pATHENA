@@ -8,7 +8,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 pytest.importorskip("PySide6")
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QCoreApplication, QEvent, Qt
 from PySide6.QtWidgets import QApplication, QDialog, QLineEdit, QPushButton, QWidget
 
 from athena.desktop.pathena_dialog_focus_return_7200 import DialogFocusReturnController
@@ -79,5 +79,24 @@ def test_no_focus_restore_to_nofocus_widget() -> None:
     app.processEvents()
 
     controller._restore_if_unclaimed(previous)
+
+    assert QApplication.focusWidget() is newer
+
+
+def test_deleted_previous_widget_is_ignored_safely() -> None:
+    app, window, previous, newer, dialog = _surface()
+    controller = DialogFocusReturnController(window)
+    previous.setFocus()
+    app.processEvents()
+    controller._capture(dialog)
+    assert controller._previous[dialog] is previous
+
+    newer.setFocus()
+    previous.deleteLater()
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    app.processEvents()
+
+    controller._restore_if_unclaimed(previous)
+    app.processEvents()
 
     assert QApplication.focusWidget() is newer
