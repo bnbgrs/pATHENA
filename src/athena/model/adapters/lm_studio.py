@@ -9,8 +9,9 @@ from threading import Lock
 from time import monotonic
 from typing import Any, cast
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.request import Request
 
+from athena.model.adapters.local_http import open_local_request
 from athena.model.domain import ModelChatMessage, ModelInfo, ProviderHealth, ProviderHealthStatus
 from athena.model.ports import controlled_structured_contract_prefix
 
@@ -118,6 +119,7 @@ class LMStudioProvider:
             normalized = tuple(models)
             self._model_discovery_cache[:] = [(monotonic(), normalized)]
             return normalized
+
     def stream_chat(
         self,
         *,
@@ -166,7 +168,10 @@ class LMStudioProvider:
         )
 
         try:
-            with urlopen(request, timeout=self.generation_timeout_seconds) as response:
+            with open_local_request(
+                request,
+                timeout=self.generation_timeout_seconds,
+            ) as response:
                 saw_done = False
                 for raw_line in response:
                     try:
@@ -209,6 +214,7 @@ class LMStudioProvider:
             raise ProviderUnavailableError(
                 f"LM Studio chat generation failed at {self.base_url}."
             ) from exc
+
     def generate_structured(
         self,
         *,
@@ -264,7 +270,10 @@ class LMStudioProvider:
         )
 
         try:
-            with urlopen(request, timeout=self.generation_timeout_seconds) as response:
+            with open_local_request(
+                request,
+                timeout=self.generation_timeout_seconds,
+            ) as response:
                 raw = response.read()
         except HTTPError as exc:
             detail = self._http_error_detail(exc)
@@ -358,7 +367,6 @@ class LMStudioProvider:
             )
         return cast(Mapping[str, Any], structured)
 
-
     def generate_controlled_structured(
         self,
         *,
@@ -441,7 +449,10 @@ class LMStudioProvider:
         )
 
         try:
-            with urlopen(request, timeout=self.generation_timeout_seconds) as response:
+            with open_local_request(
+                request,
+                timeout=self.generation_timeout_seconds,
+            ) as response:
                 raw = response.read()
         except HTTPError as exc:
             detail = self._http_error_detail(exc)
@@ -458,14 +469,8 @@ class LMStudioProvider:
                 )
 
                 if current is False:
-                    if (
-                        self._controlled_instance_ids.get(instance_key)
-                        == pinned_instance_id
-                    ):
-                        self._controlled_instance_ids.pop(
-                            instance_key,
-                            None,
-                        )
+                    if self._controlled_instance_ids.get(instance_key) == pinned_instance_id:
+                        self._controlled_instance_ids.pop(instance_key, None)
 
                     return self.generate_controlled_structured(
                         model_id=model_id,
@@ -560,7 +565,6 @@ class LMStudioProvider:
             )
         return cast(Mapping[str, Any], structured)
 
-
     def _cached_controlled_instance_is_current(
         self,
         *,
@@ -570,19 +574,14 @@ class LMStudioProvider:
     ) -> bool | None:
         """Best-effort reconciliation of one cached LM Studio runtime instance."""
         try:
-            payload = self._get_json(
-                self.models_url
-            )
+            payload = self._get_json(self.models_url)
             models = payload.get("models")
 
             if not isinstance(models, list):
                 return None
 
             for raw_model in models:
-                if not isinstance(
-                    raw_model,
-                    Mapping,
-                ):
+                if not isinstance(raw_model, Mapping):
                     return None
 
                 key = raw_model.get("key")
@@ -593,61 +592,36 @@ class LMStudioProvider:
                 if key != model_id:
                     continue
 
-                loaded_instances = raw_model.get(
-                    "loaded_instances"
-                )
+                loaded_instances = raw_model.get("loaded_instances")
 
-                if not isinstance(
-                    loaded_instances,
-                    list,
-                ):
+                if not isinstance(loaded_instances, list):
                     return None
 
                 for raw_instance in loaded_instances:
-                    if not isinstance(
-                        raw_instance,
-                        Mapping,
-                    ):
+                    if not isinstance(raw_instance, Mapping):
                         return None
 
-                    candidate_id = raw_instance.get(
-                        "id"
-                    )
+                    candidate_id = raw_instance.get("id")
 
-                    if not isinstance(
-                        candidate_id,
-                        str,
-                    ):
+                    if not isinstance(candidate_id, str):
                         return None
 
                     if candidate_id != instance_id:
                         continue
 
-                    config = raw_instance.get(
-                        "config"
-                    )
+                    config = raw_instance.get("config")
 
-                    if not isinstance(
-                        config,
-                        Mapping,
-                    ):
+                    if not isinstance(config, Mapping):
                         return None
 
-                    reported_context = (
-                        self._optional_positive_int(
-                            config.get(
-                                "context_length"
-                            )
-                        )
+                    reported_context = self._optional_positive_int(
+                        config.get("context_length")
                     )
 
                     if reported_context is None:
                         return None
 
-                    return (
-                        reported_context
-                        == context_length
-                    )
+                    return reported_context == context_length
 
                 return False
 
@@ -661,7 +635,7 @@ class LMStudioProvider:
     def _get_json(self, url: str) -> Mapping[str, Any]:
         request = Request(url, headers={"Accept": "application/json"})
         try:
-            with urlopen(request, timeout=self.timeout_seconds) as response:
+            with open_local_request(request, timeout=self.timeout_seconds) as response:
                 raw = response.read()
         except HTTPError as exc:
             raise ModelProviderError(
