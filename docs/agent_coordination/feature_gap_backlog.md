@@ -57,10 +57,10 @@ Last refresh: 2026-08-24.
 ### FG-013 — Reconcile migration engine with Beta 03 architecture
 - **Source:** Beta 03 section 3 and sections 193–209.
 - **Ownership / Priority / Status:** BACKEND · P1 · PARTIAL
-- **Current state:** Safe startup routing is implemented end-to-end. POSIX filesystem-identity hardening covers durable replacement, durable byte publication and durable directory creation through opened parent-directory FDs, and recovery artifact presence classification now opens no-follow regular-file handles and compares pathname/handle identity before accepting a snapshot. Deterministic replacement regressions cover `os.replace`, `os.open`, `os.mkdir`, and recovery file replacement. Remaining safety work is the Windows HANDLE equivalent and identity-binding of the SQLite clone destination. The remaining architecture divergence is the custom/library-neutral revision engine versus Beta-specified SQLAlchemy 2.x + Alembic.
-- **Desired state:** finish BE-036/038/039 without weakening crash durability, then make the Alembic-vs-custom revision engine an explicit architecture/spec decision.
-- **Dependencies:** storage bootstrap runtime integration is present; POSIX durable publication identity is substantially closed; Windows HANDLE and SQLite clone destination binding remain.
-- **Verification:** 2026-08-23 focused storage gate ran 172 passed / 4 failed / 2 skipped; the four failures were stale tests instrumenting pathname-based durability and were corrected in `11811fd` without reverting product hardening. A green rerun is not yet claimed. Status remains PARTIAL.
+- **Current state:** Safe startup routing is implemented end-to-end. POSIX filesystem-identity hardening covers durable replacement, durable byte publication and durable directory creation through opened parent-directory FDs, and recovery artifact presence classification now opens no-follow regular-file handles and compares pathname/handle identity before accepting a snapshot. Deterministic replacement regressions cover `os.replace`, `os.open`, `os.mkdir`, and recovery file replacement. POSIX SQLite clone creation is now parent-FD bound via a reserved candidate and `/proc/self/fd` or `/dev/fd` child path. Remaining safety work is primarily the Windows HANDLE equivalent. The remaining architecture divergence is the custom/library-neutral revision engine versus Beta-specified SQLAlchemy 2.x + Alembic.
+- **Desired state:** finish BE-036/038 without weakening crash durability, then make the Alembic-vs-custom revision engine an explicit architecture/spec decision.
+- **Dependencies:** storage bootstrap runtime integration is present; POSIX durable publication and clone-destination identity are substantially closed; Windows HANDLE publication remains.
+- **Verification:** 2026-08-24 current remote static re-trace; prior focused storage gate ran 172 passed / 4 failed / 2 skipped and the four stale pathname-instrumentation tests were subsequently corrected. A green rerun is not yet claimed. Status remains PARTIAL.
 
 ### FG-014 — Reject network-backed active state roots before SQLite open
 - **Ownership / Priority / Status:** BACKEND · P1 · IMPLEMENTED
@@ -82,12 +82,13 @@ Last refresh: 2026-08-24.
 
 ### FG-017 — Runtime WAL-size monitoring and controlled checkpoint orchestration
 - **Source:** Beta 03 sections 27 and 39–41.
-- **Ownership / Priority / Status:** BACKEND · P1 · READY
-- **Evidence:** Beta requires bounded/paginated long readers so checkpointing is not indefinitely blocked, `wal_autocheckpoint=1000` as a baseline, active observation of `athena.db-wal`, diagnosis/escalation of abnormal growth, background `PASSIVE` checkpoints, optional idle `TRUNCATE` checkpoints, and a clean checkpoint before controlled offline copies/migrations. Current `SQLiteDatabase` starts one live connection, applies the connection policy and explicit transactions, but exposes no WAL-size observer, checkpoint scheduler/orchestrator, blocked-checkpoint diagnosis, or checkpoint API. Repository search on the active branch found no `wal_checkpoint` implementation.
-- **Current state:** WAL mode and autocheckpoint baseline exist; runtime WAL health/maintenance semantics do not.
-- **Desired state:** add a bounded, non-destructive WAL maintenance service/API in BACKEND scope. It must never delete `-wal` manually; use SQLite checkpoint primitives, avoid indefinite reader interference, expose observable state, and keep aggressive/TRUNCATE behavior restricted to safe idle/offline boundaries. Integrate controlled pre-copy/pre-migration checkpointing only where the existing backup/migration snapshot contracts make it safe.
-- **Dependencies:** coordinate with existing storage bootstrap/migration/backup ownership and Full-Gate Recovery; do not broaden mutation while current P0 gate recovery is active.
-- **Verification:** read-only scout trace on 2026-08-24. No implementation or test PASS is claimed.
+- **Ownership / Priority / Status:** BACKEND · P1 · IN_PROGRESS
+- **Evidence:** Beta requires bounded/paginated long readers so checkpointing is not indefinitely blocked, `wal_autocheckpoint=1000` as a baseline, active observation of `athena.db-wal`, diagnosis/escalation of abnormal growth, background `PASSIVE` checkpoints, optional idle `TRUNCATE` checkpoints, and a clean checkpoint before controlled offline copies/migrations.
+- **Current state:** `storage/wal_maintenance.py` now provides an explicit non-destructive WAL maintenance API. It observes the live `page_size` and `wal_autocheckpoint` policy, reads WAL presence/size through a no-follow regular-file handle with pathname/handle identity fencing, runs SQLite `PASSIVE` checkpoints outside active ATHENA transactions, reports busy/log/checkpointed state and post-checkpoint WAL size, and exposes `TRUNCATE` only behind an explicit caller-confirmed idle boundary. It never deletes `-wal` manually. `tests/unit/test_wal_maintenance.py` covers live-policy observation, PASSIVE operation, active-transaction refusal, idle-gated TRUNCATE and fail-closed disabled-autocheckpoint behavior.
+- **Remaining state:** no background scheduler/orchestrator or abnormal-growth escalation is composed yet, and no checkpoint has been inserted into backup/migration paths pending explicit proof of a safe boundary. Long-reader pagination remains a separate integration concern.
+- **Desired state:** compose bounded monitoring/maintenance around this API, diagnose repeated blocked checkpoints/abnormal growth, and integrate clean checkpoints only at existing safe idle/offline snapshot boundaries without weakening SQLite backup semantics.
+- **Dependencies:** coordinate with existing storage bootstrap/migration/backup ownership and Full-Gate Recovery; active BACKEND P0 recovery entries remain evidence-blocked under `CONFLICT-005` rather than being displaced.
+- **Verification:** 2026-08-24 remote static re-read through `d61435cdcc84f3184c9c9bc8dd0f2524ed55b41e`. Tests were added but are NOT EXECUTABLE in this automation environment because no repository checkout could be obtained; no PASS is claimed.
 
 ### FG-018 — Make the normative daily backup quiet time runtime-configurable
 - **Source:** Beta 21 sections 9–13, especially section 10 (daily backup in a configurable quiet time / at next opportunity).
@@ -112,10 +113,10 @@ Last refresh: 2026-08-24.
 - Preserve `unknown` versus `unsupported`; never invent provider facts.
 - Shared provider/generation files remain ownership-sensitive.
 - FG-012 must never route protected cleartext into ordinary indexes/logs/run snapshots/unprotected assistant persistence.
-- FG-013: BE-036 POSIX publication/recovery identity is substantially closed; BE-038 Windows HANDLE publication and BE-039 SQLite clone destination binding remain READY. Alembic-vs-custom remains an explicit architecture decision.
+- FG-013: POSIX publication/recovery and SQLite clone-destination identity are substantially closed; BE-038 Windows HANDLE publication remains READY. Alembic-vs-custom remains an explicit architecture decision.
 - FG-014 applies only to active state/database roots.
 - FG-015 includes a last-moment pre-writer pressure fence; promote only after green relevant validation.
 - FG-016 is implemented in the live database service; promote only after green relevant validation.
-- FG-017 is a BACKEND handoff only while Full-Gate Recovery is P0; do not let WAL-maintenance work displace active recovery blockers or introduce broad storage churn.
+- FG-017 is now IN_PROGRESS with an isolated WAL API; do not mark implemented until runtime orchestration/diagnosis and safe-boundary integration are complete and validated.
 - FG-018 is a B21 configurability handoff only; the daily/catch-up/overlap scheduler itself already exists and must not be reimplemented.
 - FG-019 must reuse the existing deep-verify/restore-smoke primitives; BACKEND should add durable scheduling/audit orchestration rather than a parallel validation engine.
