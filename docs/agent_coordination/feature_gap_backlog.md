@@ -98,6 +98,15 @@ Last refresh: 2026-08-24.
 - **Dependencies:** BACKEND/settings + job-scheduler composition; no mutation while Full-Gate Recovery is P0 unless explicitly promoted.
 - **Verification:** read-only B21 trace on current `agent/pathena` in the 2026-08-24 scout run. No implementation or test PASS is claimed.
 
+### FG-019 — Schedule periodic deep backup verification and isolated restore tests
+- **Source:** Beta 21 sections 33–40, especially periodic Deep Verify and Scheduled Restore Test.
+- **Ownership / Priority / Status:** BACKEND · P1 · READY
+- **Evidence:** `BackupService.verify_deep()` already owns the deep-verification primitive and isolated restore-smoke boundary, while `DurableBackupWorker` defines and executes only `backup.create`. The daily worker schedules creation slots, catch-up, overlap prevention and retries but exposes no durable periodic deep-verification/restore-test job type. `AthenaApplication` composes that create-only worker directly. The missing feature is therefore orchestration, not another backup or restore engine.
+- **Current state:** each completed snapshot receives light verification and deep verification can be invoked explicitly, but Beta's periodic deep verification and regular staged restore-test requirement is not durably scheduled.
+- **Desired state:** add a durable BACKEND-owned maintenance job that periodically selects eligible complete snapshots, invokes the existing deep verification / isolated staging restore primitives, records auditable outcome/checkpoint state, prevents target overlap, retries safely, and never touches production roots. Preserve `verified_light`/`verified_deep` semantics and do not duplicate `BackupService` validation logic.
+- **Dependencies:** coordinate with backup target locking, scheduler control-lane ownership, existing `BackupService.verify_deep()` and B21 audit semantics. This is a READY handoff during active Full-Gate Recovery, not a Scout product-code mutation.
+- **Verification:** read-only trace on `agent/pathena` @ `8553fe2655b8789130f6be58a985f716ff252c95` on 2026-08-24. No implementation or test PASS is claimed.
+
 ## Handoff notes
 - Re-read current HEAD and affected files before every mutation.
 - Preserve `unknown` versus `unsupported`; never invent provider facts.
@@ -109,3 +118,4 @@ Last refresh: 2026-08-24.
 - FG-016 is implemented in the live database service; promote only after green relevant validation.
 - FG-017 is a BACKEND handoff only while Full-Gate Recovery is P0; do not let WAL-maintenance work displace active recovery blockers or introduce broad storage churn.
 - FG-018 is a B21 configurability handoff only; the daily/catch-up/overlap scheduler itself already exists and must not be reimplemented.
+- FG-019 must reuse the existing deep-verify/restore-smoke primitives; BACKEND should add durable scheduling/audit orchestration rather than a parallel validation engine.
