@@ -135,6 +135,31 @@ Last refresh: 2026-08-24.
 - **Dependencies:** BACKEND job schema/repository/service/scheduler plus careful migration; coordinate with FG-018 backup quiet-time semantics so DST/timezone behavior is defined once rather than inconsistently per subsystem.
 - **Verification:** 2026-08-24 static B12 cross-layer trace on exact remote HEAD `e6c86094c2d52119ea8629e112fe69020de4d96d`; Security review on `a86c3b6fa05ec2d291a78d9fb78e1af6695cc197`; no targeted Security tests executed.
 
+### FG-029 — Durable ImportRequest identity and pre-capture Source lifecycle
+- **Source:** Beta 04 sections 5, 7, 8 and 17 (atomic capture, persistable ImportRequest/job scope, preflight, early stable `source_id`).
+- **Ownership / Priority / Status:** BACKEND · P1 · READY
+- **Evidence:** `SourceCaptureService.capture_file()` directly stages and captures one path. `BlobStore.capture_file()` correctly streams into local staging, computes SHA-256, fsyncs and rejects a source that changes during intake. However `SourceRepository.capture_file()` allocates `source_id = new_uuid7()` only after physical blob preparation, inside the final Source transaction. `SourceLifecycleState` begins at `captured` and has no `discovered` or `staging` state. Repository/code search found no durable `ImportRequest` contract in the current source layer.
+- **Current state:** single-file capture is durable and atomic once the blob is prepared, but there is no persistent intake identity that survives copy retry/offline-spool/preflight work, and the Source identity is not allocated early enough to remain stable across an interrupted/retried logical import attempt.
+- **Desired state:** introduce a bounded persistable import/intake scope with stable import/request identity and early reserved Source identity (or an equivalently strong explicit identity contract), recording protection scope, options, recursion/symlink policy, temporary/do-not-store flags and preflight state. Retries must resume/reconcile the same logical attempt without silently creating duplicate Source identities. Preserve existing original-first blob durability and final Source+Blob atomic commit.
+- **Dependencies:** BACKEND source/job/schema migration work; coordinate with disk-pressure/preflight controls and existing blob orphan reconciliation. Do not weaken current symlink, hash, fsync, source-change or protected-content guarantees.
+- **Verification:** 2026-08-24 static B04 trace on current observable `agent/pathena` tree; tests NOT EXECUTABLE in this Scout run, no PASS claimed.
+
+### FG-030 — Complete the v1 unified import entry surfaces around one backend intake contract
+- **Source:** Beta 04 sections 3 and 7–13 (single/multiple files, folders, Core API submissions, text paste, chat attachments, deterministic directory intake; Desktop drag-and-drop).
+- **Ownership / Priority / Status:** MIXED · P1 · READY
+- **Primary implementation owner:** BACKEND
+- **Secondary reviewers:** UI
+- **Verification owner:** QUALITY
+- **Sub-slices:**
+  - **Owner: BACKEND** — define the single durable import/intake API used by file, multi-file, folder and text-paste inputs; expose Core API import operations; preserve per-file Source identity, deterministic folder enumeration, recursion/symlink policy and bounded preflight/reporting.
+  - **Owner: UI** — only after the backend contract is stable, route Desktop file/folder selection, multi-file and drag-and-drop into that contract without duplicating import semantics.
+  - **Owner: QUALITY** — verify all v1 entry surfaces converge on the same original-first capture semantics, including retry/idempotency and failure reporting.
+- **Evidence:** the current `SourceCaptureService` exposes `capture_file()`, `capture_protected_file()` and `capture_external_snapshot()` but no generic multi-file/folder/text-paste import orchestration. `CoreApiSurface` exposes health/capabilities/chat/knowledge/model operations and no Source/import operation; the ASGI route table likewise contains no `/api/v1/sources` or equivalent import resource. The source tree has rich capture/representation/chunking primitives, so this is an integration/surface gap rather than a missing Raw Archive engine.
+- **Current state:** low-level Source capture, protected capture, external snapshot capture, representations and chunking exist, but the normative v1 input classes do not yet converge through one durable public intake contract.
+- **Desired state:** establish one backend-owned import contract and reuse it from Core API and Desktop surfaces; do not invent separate UI-only ingestion logic. Unknown formats must remain capturable even when processing is unavailable.
+- **Dependencies:** FG-029 for durable import identity/lifecycle; BACKEND API/source ownership first, UI wiring second; preserve SECURITY ownership of filesystem/protection trust boundaries.
+- **Verification:** 2026-08-24 static B04 cross-layer trace; no runtime/test execution claimed.
+
 ## Handoff notes
 - Re-read current HEAD and affected files before every mutation.
 - Preserve `unknown` versus `unsupported`; never invent provider facts.
@@ -150,3 +175,4 @@ Last refresh: 2026-08-24.
 - FG-020 is STALE after the complete B21 preflight was found on the current branch; do not duplicate it.
 - FG-021 is a generic dependency/parent-child/inheritance handoff; preserve existing lease/fencing/resource controls and domain-specific dependency behavior; Security review requires bounded graph work and forbids inherited-priority gate bypass.
 - FG-022 is a generic schedule-definition handoff; do not replace working Backup/News catch-up logic until equivalence is proven; Security review requires bounded backfill/lookback and restart-safe deduplication before job materialization.
+- FG-029 and FG-030 are B04 intake handoffs. Keep the existing durable Raw Archive primitives; build orchestration/surfaces around them rather than replacing blob/source persistence. IDs FG-023 through FG-028 remain reserved for previously reported Scout candidates pending SSOT revalidation, so they are not reused here.
