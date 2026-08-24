@@ -2,10 +2,13 @@ from __future__ import annotations
 
 import json
 from unittest.mock import patch
-from urllib.request import HTTPRedirectHandler, ProxyHandler
+from urllib.request import HTTPRedirectHandler, ProxyHandler, Request
+
+import pytest
 
 from athena.model.adapters.lm_studio import LMStudioProvider
 from athena.model.adapters.lm_studio_embeddings import LMStudioEmbeddingProvider
+from athena.model.adapters.local_http import open_local_request
 
 
 class _Response:
@@ -88,3 +91,32 @@ def test_embedding_transport_ignores_ambient_proxy_settings_and_redirects(
     ]
     assert len(redirect_handlers) == 1
     assert type(redirect_handlers[0]).__name__ == "_RejectRedirects"
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://example.com/v1/models",
+        "https://192.0.2.10/v1/models",
+        "file:///tmp/models",
+    ],
+)
+def test_local_transport_rejects_non_loopback_targets_before_open(url: str) -> None:
+    with patch("athena.model.adapters.local_http.build_opener") as build_opener:
+        with pytest.raises(ValueError, match="Local model transport"):
+            open_local_request(Request(url), timeout=1.0)
+
+    build_opener.assert_not_called()
+
+
+@pytest.mark.parametrize("url", ["http://localhost:1234/", "http://127.0.0.1:1234/", "http://[::1]:1234/"])
+def test_local_transport_accepts_loopback_hosts(url: str) -> None:
+    opener = _Opener(_Response({"ok": True}))
+    with patch(
+        "athena.model.adapters.local_http.build_opener",
+        return_value=opener,
+    ):
+        with open_local_request(Request(url), timeout=1.25) as response:
+            assert response.read()
+
+    assert opener.timeouts == [1.25]
