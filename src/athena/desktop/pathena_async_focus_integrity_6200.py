@@ -103,16 +103,18 @@ class AsyncFocusIntegrityController(QObject):
     def _focus_changed(self, _old: QWidget | None, now: QWidget | None) -> None:
         if self._reasserting or now is None or not self._candidate(now):
             return
-        if now.window() is not self.window.window():
+        if not self._belongs_to_window(now):
             return
         for workspace, busy in self._busy.items():
-            if not busy:
+            if not busy or not self._alive(workspace):
                 continue
             self._preferred_focus[workspace] = now
             workspace.setProperty("pathenaAsyncFocusPreferredObject", now.objectName())
 
     def _settle_completion(self, workspace: QWidget) -> None:
         preferred = self._preferred_focus.pop(workspace, None)
+        if not self._alive(workspace):
+            return
         if preferred is None:
             workspace.setProperty("pathenaAsyncFocusCompletion", "no-newer-focus")
             return
@@ -128,26 +130,52 @@ class AsyncFocusIntegrityController(QObject):
         self._reasserting = True
         try:
             preferred.setFocus(Qt.FocusReason.OtherFocusReason)
+        except RuntimeError:
+            workspace.setProperty("pathenaAsyncFocusCompletion", "preferred-unavailable")
+            return
         finally:
             self._reasserting = False
         preferred.setProperty("pathenaAsyncFocusPreserved", True)
         workspace.setProperty("pathenaAsyncFocusCompletion", "newer-focus-restored")
 
+    def _belongs_to_window(self, widget: QWidget) -> bool:
+        try:
+            return widget.window() is self.window.window()
+        except RuntimeError:
+            return False
+
+    @staticmethod
+    def _alive(widget: QWidget) -> bool:
+        try:
+            widget.objectName()
+        except RuntimeError:
+            return False
+        return True
+
     @staticmethod
     def _candidate(widget: QWidget) -> bool:
-        return (
-            widget.isVisibleTo(widget.window())
-            and widget.isEnabled()
-            and widget.focusPolicy() != Qt.FocusPolicy.NoFocus
-        )
+        try:
+            top_level = widget.window()
+            return (
+                widget.isVisibleTo(top_level)
+                and widget.isEnabled()
+                and widget.focusPolicy() != Qt.FocusPolicy.NoFocus
+            )
+        except RuntimeError:
+            # A PySide wrapper can survive deleteLater() after its C++ widget is gone.
+            # Deferred async focus arbitration must treat that target as unavailable.
+            return False
 
     @staticmethod
     def _is_busy(workspace: QWidget) -> bool:
-        for attribute_name in ("_knowledge_process", "_process", "process"):
-            process = getattr(workspace, attribute_name, None)
-            if isinstance(process, QProcess):
-                return process.state() != QProcess.ProcessState.NotRunning
-        busy = getattr(workspace, "_busy", None)
+        try:
+            for attribute_name in ("_knowledge_process", "_process", "process"):
+                process = getattr(workspace, attribute_name, None)
+                if isinstance(process, QProcess):
+                    return process.state() != QProcess.ProcessState.NotRunning
+            busy = getattr(workspace, "_busy", None)
+        except RuntimeError:
+            return False
         return bool(busy()) if callable(busy) else False
 
 
