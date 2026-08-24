@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+import athena.storage.recovery as recovery_module
 from athena.storage.recovery import (
     DatabasePreflightReport,
     DatabaseRecoveryRequiredError,
@@ -31,6 +32,27 @@ def test_preflight_rejects_symlink_ancestor(tmp_path: Path) -> None:
 
     with pytest.raises(DatabaseRecoveryRequiredError, match="symbolic-link ancestor"):
         inspect_database_read_only(link / "athena.db")
+
+
+def test_preflight_rejects_shared_reparse_boundary_ancestor(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    boundary = tmp_path / "boundary"
+    boundary.mkdir()
+    original = recovery_module.is_link_boundary
+
+    def classified_boundary(path: Path) -> bool:
+        return path == boundary or original(path)
+
+    monkeypatch.setattr(
+        recovery_module,
+        "is_link_boundary",
+        classified_boundary,
+    )
+
+    with pytest.raises(DatabaseRecoveryRequiredError, match="reparse-point ancestor"):
+        inspect_database_read_only(boundary / "athena.db")
 
 
 def test_missing_database_report_has_no_schema_metadata(tmp_path: Path) -> None:

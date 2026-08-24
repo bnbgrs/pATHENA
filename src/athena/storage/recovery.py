@@ -7,6 +7,7 @@ import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
 
+from athena.storage.durable_fs import is_link_boundary
 from athena.storage.locality import ActiveStateLocalityError, assert_active_state_root_local
 from athena.storage.schema import (
     ATHENA_APPLICATION_ID,
@@ -28,9 +29,10 @@ def _require_path(value: object) -> Path:
 def _reject_symlink_ancestors(path: Path) -> None:
     cursor = path.parent
     while True:
-        if cursor.is_symlink():
+        if is_link_boundary(cursor):
             raise DatabaseRecoveryRequiredError(
-                "ATHENA database path has a symbolic-link ancestor; recovery review is required."
+                "ATHENA database path has a symbolic-link ancestor or reparse-point ancestor; "
+                "recovery review is required."
             )
         if cursor.exists() and not cursor.is_dir():
             raise DatabaseRecoveryRequiredError(
@@ -97,9 +99,10 @@ def inspect_database_read_only(path: Path) -> DatabasePreflightReport:
     wal_path = requested.with_name(f"{requested.name}-wal")
     shm_path = requested.with_name(f"{requested.name}-shm")
 
-    if requested.is_symlink():
+    if is_link_boundary(requested):
         raise DatabaseRecoveryRequiredError(
-            "ATHENA database path is a symbolic link; recovery review is required."
+            "ATHENA database path is a symbolic link or reparse point; "
+            "recovery review is required."
         )
 
     if not requested.exists():
@@ -127,9 +130,10 @@ def inspect_database_read_only(path: Path) -> DatabasePreflightReport:
         )
 
     for sidecar in (wal_path, shm_path):
-        if sidecar.is_symlink():
+        if is_link_boundary(sidecar):
             raise DatabaseRecoveryRequiredError(
-                "SQLite WAL/SHM sidecar is a symbolic link; recovery review is required."
+                "SQLite WAL/SHM sidecar is a symbolic link or reparse point; "
+                "recovery review is required."
             )
         if os.path.lexists(sidecar) and not sidecar.is_file():
             raise DatabaseRecoveryRequiredError(
