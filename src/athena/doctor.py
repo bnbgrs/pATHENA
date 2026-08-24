@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import shutil
 import sys
 import tempfile
@@ -293,24 +294,67 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Return a failing exit code unless LM Studio has a loaded local LLM.",
     )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Emit the doctor report as one machine-readable JSON object.",
+    )
     return parser
+
+
+def _report_payload(report: DoctorReport) -> dict[str, object]:
+    return {
+        "version": __version__,
+        "checks": [
+            {
+                "name": check.name,
+                "status": check.status,
+                "detail": check.detail,
+            }
+            for check in report.checks
+        ],
+        "core_ready": report.core_ready,
+        "model_ready": report.model_ready,
+    }
+
+
+def _configuration_failure_payload(detail: str) -> dict[str, object]:
+    return {
+        "version": __version__,
+        "checks": [
+            {
+                "name": "configuration",
+                "status": "FAIL",
+                "detail": detail,
+            }
+        ],
+        "core_ready": False,
+        "model_ready": False,
+    }
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
-    print(f"pATHENA doctor {__version__}")
+    if not args.json:
+        print(f"pATHENA doctor {__version__}")
     try:
         settings = AthenaSettings.from_environment()
     except ConfigurationError as exc:
-        print(f"[FAIL] configuration: {exc}")
+        if args.json:
+            print(json.dumps(_configuration_failure_payload(str(exc)), sort_keys=True))
+        else:
+            print(f"[FAIL] configuration: {exc}")
         return 2
 
     report = run_doctor(settings, startup_smoke=not args.no_startup_smoke)
-    for check in report.checks:
-        print(f"[{check.status}] {check.name}: {check.detail}")
+    if args.json:
+        print(json.dumps(_report_payload(report), sort_keys=True))
+    else:
+        for check in report.checks:
+            print(f"[{check.status}] {check.name}: {check.detail}")
 
-    print(f"Core ready: {'YES' if report.core_ready else 'NO'}")
-    print(f"Local chat model ready: {'YES' if report.model_ready else 'NO'}")
+        print(f"Core ready: {'YES' if report.core_ready else 'NO'}")
+        print(f"Local chat model ready: {'YES' if report.model_ready else 'NO'}")
 
     if not report.core_ready:
         return 2
