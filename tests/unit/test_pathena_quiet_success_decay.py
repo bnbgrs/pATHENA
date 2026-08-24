@@ -8,6 +8,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 pytest.importorskip("PySide6")
 
+from PySide6.QtCore import QCoreApplication, QEvent
 from PySide6.QtWidgets import QApplication, QLabel, QWidget
 
 from athena.desktop.pathena_quiet_success_decay_6400 import QuietSuccessDecayController
@@ -78,3 +79,21 @@ def test_non_success_state_never_gets_success_emphasis() -> None:
 
     assert label.property("pathenaSuccessEmphasis") == "none"
     assert label.property("pathenaSuccessDecayPending") is False
+
+
+def test_destroyed_success_target_is_safe_for_deferred_decay() -> None:
+    _app()
+    window = QWidget()
+    label = QLabel(window)
+    label.setProperty("pathenaUiState", "success")
+    controller = QuietSuccessDecayController(window)
+    controller.register(label, "Status")
+    generation = controller._generation[label]
+
+    label.deleteLater()
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+
+    controller._decay(label, generation)
+
+    assert label not in controller._labels
+    assert label not in controller._generation
