@@ -46,14 +46,6 @@ Last queue refresh: 2026-08-24.
 - Dependencies: BE-036/038; preserve physical non-sparse allocation and exact release accounting.
 - Last verification: 2026-08-24 current remote static trace.
 
-### BE-051 — Make LM Studio local transport explicitly proxy-free and loopback-bound
-- Priority: P1
-- Status: IN_PROGRESS
-- Evidence: Security handoff SEC-003 identified ambient proxy leakage risk in LM Studio adapters. A shared `model/adapters/local_http.py` transport now rejects non-loopback HTTP(S), ignores ambient proxies with `ProxyHandler({})`, and rejects redirects. `lm_studio_embeddings.py` uses it and hostile-proxy/loopback tests exist. The large `lm_studio.py` discovery/chat/structured adapter still imports plain `urllib.request.urlopen` and remains the final sub-slice.
-- Components: `model/adapters/local_http.py`, `model/adapters/lm_studio_embeddings.py`, `model/adapters/lm_studio.py`, provider tests.
-- Dependencies: SEC-003; safe mutation path for the large shared LM Studio adapter.
-- Last verification: 2026-08-24 current remote through `d158c5f`; tests added but not executed in this environment.
-
 ### BE-052 — Bind preflight database identity through live writer startup
 - Priority: P1
 - Status: READY
@@ -94,6 +86,14 @@ Last queue refresh: 2026-08-24.
 - Last verification: 2026-08-24 current remote trace.
 
 ## Recently completed backend/storage slices
+
+### BE-051 — Make LM Studio local transport explicitly proxy-free and loopback-bound
+- Priority: P1
+- Status: DONE
+- Evidence: current `model/adapters/lm_studio.py` imports `Request` but no direct `urlopen`; discovery, streamed chat, structured generation and controlled structured generation all route through shared `open_local_request()`. `model/adapters/local_http.py` revalidates loopback-only HTTP(S), disables ambient proxies via `ProxyHandler({})`, rejects redirects and validates finite positive timeouts. This closes the code-path described by SEC-003 without another provider mutation.
+- Components: `model/adapters/local_http.py`, `model/adapters/lm_studio_embeddings.py`, `model/adapters/lm_studio.py`, provider tests.
+- Dependencies: SEC-003.
+- Last verification: 2026-08-24 fresh current-remote static trace under CI state UNKNOWN; tests not executed in this run, so DONE denotes implementation state rather than VERIFIED test evidence.
 
 ### BE-047 — Require exact integers in persisted semantic index state
 - Priority: P2
