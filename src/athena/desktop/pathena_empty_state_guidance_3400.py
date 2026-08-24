@@ -246,8 +246,11 @@ class EmptyStateGuidanceController(QObject):
         QTimer.singleShot(0, self.sync)
 
     def sync(self) -> None:
-        for widget in self._targets:
-            self.sync_widget(widget)
+        for widget in tuple(self._targets):
+            try:
+                self.sync_widget(widget)
+            except RuntimeError:
+                self._drop_stale_widget(widget)
 
     def sync_widget(self, widget: QWidget) -> None:
         target = self._targets[widget]
@@ -258,14 +261,17 @@ class EmptyStateGuidanceController(QObject):
 
         action = self._actions.get(widget)
         if action is not None:
-            changed = bool(action.property("pathenaEmptyStatePrimary")) != empty
-            action.setProperty("pathenaEmptyStatePrimary", empty)
-            action.setProperty("pathenaEmptyStateFor", widget.objectName())
-            if changed:
-                style = action.style()
-                style.unpolish(action)
-                style.polish(action)
-                action.update()
+            try:
+                changed = bool(action.property("pathenaEmptyStatePrimary")) != empty
+                action.setProperty("pathenaEmptyStatePrimary", empty)
+                action.setProperty("pathenaEmptyStateFor", widget.objectName())
+                if changed:
+                    style = action.style()
+                    style.unpolish(action)
+                    style.polish(action)
+                    action.update()
+            except RuntimeError:
+                self._actions[widget] = None
 
         if isinstance(widget, QPlainTextEdit) and empty:
             widget.setPlaceholderText(target.empty_copy)
@@ -274,6 +280,10 @@ class EmptyStateGuidanceController(QObject):
 
         state = "empty" if empty else "populated"
         widget.setProperty("pathenaContentState", state)
+
+    def _drop_stale_widget(self, widget: QWidget) -> None:
+        self._targets.pop(widget, None)
+        self._actions.pop(widget, None)
 
     @staticmethod
     def _apply_static_guidance(
