@@ -160,6 +160,15 @@ Last refresh: 2026-08-24.
 - **Dependencies:** FG-029 for durable import identity/lifecycle; BACKEND API/source ownership first, UI wiring second; preserve SECURITY ownership of filesystem/protection trust boundaries.
 - **Verification:** 2026-08-24 static B04 cross-layer trace; no runtime/test execution claimed.
 
+### FG-031 — Add OCR and Speech-to-Text provider-backed representation paths
+- **Source:** Beta 04 sections 22 and 29–35 (representation profiles, OCRProvider, OCR fallback/confidence, SpeechToTextProvider, timestamped segments, audio/video fallback semantics).
+- **Ownership / Priority / Status:** BACKEND · P1 · READY
+- **Evidence:** the current source package has concrete retained representation paths for native text, PDF, DOCX and HTML plus shared immutable representation/provenance stores. `SourceRepresentationType` currently contains only `normalized_text` and `extracted_text`. Repository code search on the exact current branch found no `OCRProvider` or `SpeechToTextProvider` contract and no audio/video transcript representation path. Beta 04 requires OCR and STT to be provider interfaces rather than hard-coded model implementations and requires Source capture to remain valid when those infrastructure models are unavailable.
+- **Current state:** retained text/document representations are real and provenance-aware, and PDF parsing is isolated/bounded, but image OCR and audio/video transcription are not integrated through the normative provider contracts. The Raw Archive itself must not be replaced or coupled to any particular OCR/STT model.
+- **Desired state:** add narrow infrastructure-provider contracts for OCR and speech-to-text; create immutable retained representation records with provider/parser identity, version/options, ProcessingRun and content hash; support timestamped transcript anchors; use native-text-first/OCR-fallback for image-based PDFs; when providers are unavailable leave the Source captured and the representation job retryable/waiting/failed without losing original bytes. Do not let OCR/STT output directly create canonical Knowledge or Personal Memory.
+- **Dependencies:** BACKEND source/model-infrastructure/job composition; preserve existing `SourceRepresentationRepository`, ProcessingRun provenance, protected-source boundaries and resource admission. UI is not required until backend representation capabilities are stable.
+- **Verification:** 2026-08-24 static exact-HEAD trace on `285cc8271cd611eefe6dcb20a610dd7253d61ff5`; repository searches for `OCRProvider` and `SpeechToTextProvider` returned no implementation. Tests NOT EXECUTABLE; no PASS claimed.
+
 ## Handoff notes
 - Re-read current HEAD and affected files before every mutation.
 - Preserve `unknown` versus `unsupported`; never invent provider facts.
@@ -175,4 +184,5 @@ Last refresh: 2026-08-24.
 - FG-020 is STALE after the complete B21 preflight was found on the current branch; do not duplicate it.
 - FG-021 is a generic dependency/parent-child/inheritance handoff; preserve existing lease/fencing/resource controls and domain-specific dependency behavior; Security review requires bounded graph work and forbids inherited-priority gate bypass.
 - FG-022 is a generic schedule-definition handoff; do not replace working Backup/News catch-up logic until equivalence is proven; Security review requires bounded backfill/lookback and restart-safe deduplication before job materialization.
-- FG-029 and FG-030 are B04 intake handoffs. Keep the existing durable Raw Archive primitives; build orchestration/surfaces around them rather than replacing blob/source persistence. IDs FG-023 through FG-028 remain reserved for previously reported Scout candidates pending SSOT revalidation, so they are not reused here.
+- FG-029 and FG-030 are B04 intake handoffs. Keep the existing durable Raw Archive primitives; build orchestration/surfaces around them rather than replacing blob/source persistence.
+- FG-031 is a B04 representation-provider handoff. Reuse the existing immutable SourceRepresentation/ProcessingRun machinery; do not couple the import core to a particular OCR/STT model and do not let infrastructure representations make canonical semantic decisions. IDs FG-023 through FG-028 remain reserved for previously reported Scout candidates pending SSOT revalidation, so they are not reused here.
