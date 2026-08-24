@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
+import stat
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -43,7 +44,25 @@ def _sidecars(path: Path) -> tuple[Path, Path]:
     )
 
 
-def _remove_candidate_files(candidate: Path) -> None:
+def _remove_candidate_files(candidate: Path, *, parent_fd: int | None = None) -> None:
+    if parent_fd is not None:
+        for name in (
+            candidate.name,
+            f"{candidate.name}-wal",
+            f"{candidate.name}-shm",
+        ):
+            try:
+                os.unlink(name, dir_fd=parent_fd)
+            except FileNotFoundError:
+                pass
+            except OSError:
+                pass
+        try:
+            os.fsync(parent_fd)
+        except OSError:
+            pass
+        return
+
     for path in (candidate, *_sidecars(candidate)):
         try:
             path.unlink(missing_ok=True)
@@ -59,6 +78,113 @@ def _fsync_file(path: Path) -> None:
     descriptor = os.open(path, flags)
     try:
         os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def _open_posix_directory(path: Path) -> int:
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(path, flags)
+    except OSError as exc:
+        raise MigrationCloneError(
+            "Migration clone candidate parent could not be opened safely."
+        ) from exc
+    try:
+        handle_stat = os.fstat(descriptor)
+        path_stat = os.stat(path, follow_symlinks=False)
+        if not stat.S_ISDIR(handle_stat.st_mode) or not os.path.samestat(
+            handle_stat,
+            path_stat,
+        ):
+            raise MigrationCloneError(
+                "Migration clone candidate parent identity changed while opening."
+            )
+    except BaseException:
+        os.close(descriptor)
+        raise
+    return descriptor
+
+
+def _assert_posix_directory_current(path: Path, descriptor: int) -> None:
+    try:
+        handle_stat = os.fstat(descriptor)
+        path_stat = os.stat(path, follow_symlinks=False)
+    except OSError as exc:
+        raise MigrationCloneError(
+            "Migration clone candidate parent identity could not be verified."
+        ) from exc
+    if (
+        is_link_boundary(path)
+        or not stat.S_ISDIR(path_stat.st_mode)
+        or not os.path.samestat(handle_stat, path_stat)
+    ):
+        raise MigrationCloneError(
+            "Migration clone candidate parent changed during clone creation."
+        )
+
+
+def _posix_dirfd_path(parent_fd: int, filename: str) -> Path:
+    """Return an SQLite-usable child path rooted at an already-open directory FD."""
+    for fd_root in (Path("/proc/self/fd"), Path("/dev/fd")):
+        descriptor_path = fd_root / str(parent_fd)
+        if descriptor_path.exists():
+            return descriptor_path / filename
+    raise MigrationCloneError(
+        "Identity-bound SQLite clone creation is unsupported on this POSIX platform."
+    )
+
+
+def _reserve_posix_candidate(candidate: Path, parent_fd: int) -> None:
+    flags = os.O_RDWR | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(
+            candidate.name,
+            flags,
+            0o600,
+            dir_fd=parent_fd,
+        )
+    except FileExistsError as exc:
+        raise MigrationCloneError(
+            "Migration clone candidate must not already exist."
+        ) from exc
+    except (NotImplementedError, TypeError) as exc:
+        raise MigrationCloneError(
+            "Identity-bound SQLite clone reservation is unsupported."
+        ) from exc
+    except OSError as exc:
+        raise MigrationCloneError(
+            "Migration clone candidate could not be reserved safely."
+        ) from exc
+    try:
+        handle_stat = os.fstat(descriptor)
+        if not stat.S_ISREG(handle_stat.st_mode):
+            raise MigrationCloneError(
+                "Migration clone candidate reservation is not a regular file."
+            )
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+    os.fsync(parent_fd)
+
+
+def _inspect_posix_candidate(candidate: Path, parent_fd: int) -> os.stat_result:
+    flags = os.O_RDWR | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(candidate.name, flags, dir_fd=parent_fd)
+    except OSError as exc:
+        raise MigrationCloneError(
+            "Migration clone candidate could not be reopened safely."
+        ) from exc
+    try:
+        file_stat = os.fstat(descriptor)
+        if not stat.S_ISREG(file_stat.st_mode):
+            raise MigrationCloneError(
+                "Migration clone candidate is not a regular file."
+            )
+        os.fchmod(descriptor, 0o600)
+        os.fsync(descriptor)
+        return file_stat
     finally:
         os.close(descriptor)
 
@@ -100,7 +226,9 @@ def create_migration_clone(
 
     The source is opened read-only. The destination must not already exist, so
     recovery can distinguish an old candidate from the one created by the current
-    migration attempt. The clone is fsynced before the function returns.
+    migration attempt. On POSIX, creation and cleanup stay rooted at an opened
+    candidate-parent directory descriptor so replacing that pathname cannot redirect
+    clone bytes into another directory. The clone is fsynced before return.
     """
     source = _absolute_path(source_db, "Migration clone source_db")
     candidate = _absolute_path(candidate_db, "Migration clone candidate_db")
@@ -124,6 +252,7 @@ def create_migration_clone(
 
     source_connection: sqlite3.Connection | None = None
     candidate_connection: sqlite3.Connection | None = None
+    candidate_parent_fd: int | None = None
     created_candidate = False
     schema_version: int | None = None
     failure: BaseException | None = None
@@ -143,12 +272,21 @@ def create_migration_clone(
         )
         source_connection.execute("PRAGMA query_only = ON")
 
+        candidate_target: Path = candidate
+        if os.name == "posix":
+            candidate_parent_fd = _open_posix_directory(candidate.parent)
+            _assert_posix_directory_current(candidate.parent, candidate_parent_fd)
+            _reserve_posix_candidate(candidate, candidate_parent_fd)
+            created_candidate = True
+            candidate_target = _posix_dirfd_path(candidate_parent_fd, candidate.name)
+
         candidate_connection = sqlite3.connect(
-            candidate,
+            candidate_target,
             timeout=5.0,
             autocommit=True,
         )
-        created_candidate = True
+        if os.name != "posix":
+            created_candidate = True
         source_connection.backup(candidate_connection)
 
         quick_check = tuple(
@@ -185,7 +323,9 @@ def create_migration_clone(
 
     if failure is not None:
         if created_candidate:
-            _remove_candidate_files(candidate)
+            _remove_candidate_files(candidate, parent_fd=candidate_parent_fd)
+        if candidate_parent_fd is not None:
+            os.close(candidate_parent_fd)
         if isinstance(failure, MigrationCloneError):
             raise failure
         if isinstance(failure, (OSError, sqlite3.Error, TypeError, ValueError, IndexError)):
@@ -194,27 +334,37 @@ def create_migration_clone(
 
     if schema_version is None:
         if created_candidate:
-            _remove_candidate_files(candidate)
+            _remove_candidate_files(candidate, parent_fd=candidate_parent_fd)
+        if candidate_parent_fd is not None:
+            os.close(candidate_parent_fd)
         raise MigrationCloneError("Migration clone schema version was not established.")
 
     try:
-        _reject_link_boundary_path(
-            candidate.parent,
-            label="Migration clone candidate parent",
-        )
-        if not candidate.is_file() or is_link_boundary(candidate):
-            raise MigrationCloneError("Migration clone candidate is not a regular file.")
-        if os.name == "posix":
-            os.chmod(candidate, 0o600)
-        _fsync_file(candidate)
-        fsync_directory(candidate.parent)
-        database_size = candidate.stat().st_size
+        if candidate_parent_fd is not None:
+            _assert_posix_directory_current(candidate.parent, candidate_parent_fd)
+            candidate_stat = _inspect_posix_candidate(candidate, candidate_parent_fd)
+            os.fsync(candidate_parent_fd)
+            _assert_posix_directory_current(candidate.parent, candidate_parent_fd)
+            database_size = candidate_stat.st_size
+        else:
+            _reject_link_boundary_path(
+                candidate.parent,
+                label="Migration clone candidate parent",
+            )
+            if not candidate.is_file() or is_link_boundary(candidate):
+                raise MigrationCloneError("Migration clone candidate is not a regular file.")
+            _fsync_file(candidate)
+            fsync_directory(candidate.parent)
+            database_size = candidate.stat().st_size
     except (OSError, MigrationCloneError) as exc:
         if created_candidate:
-            _remove_candidate_files(candidate)
+            _remove_candidate_files(candidate, parent_fd=candidate_parent_fd)
         if isinstance(exc, MigrationCloneError):
             raise
         raise MigrationCloneError("Migration clone could not be durably published.") from exc
+    finally:
+        if candidate_parent_fd is not None:
+            os.close(candidate_parent_fd)
 
     return MigrationCloneReport(
         source_db=source,
