@@ -304,19 +304,26 @@ class DecisionContextController(QObject):
         )
 
     def _restore_context_if_needed(self, source: QAbstractButton) -> None:
-        if source.isVisible() and source.isEnabled():
+        try:
+            if source.isVisible() and source.isEnabled():
+                return
+        except RuntimeError:
+            self._anchors.pop(source, None)
             return
+
         anchor = self._anchors.get(source)
-        if (
-            anchor is None
-            or not anchor.isVisibleTo(anchor.window())
-            or not anchor.isEnabled()
-        ):
+        if anchor is None:
             return
-        if anchor.focusPolicy() == Qt.FocusPolicy.NoFocus:
-            anchor.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
-        anchor.setFocus(Qt.FocusReason.OtherFocusReason)
-        anchor.setProperty("pathenaDecisionFocusReturned", True)
+
+        try:
+            if not anchor.isVisibleTo(anchor.window()) or not anchor.isEnabled():
+                return
+            if anchor.focusPolicy() == Qt.FocusPolicy.NoFocus:
+                anchor.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+            anchor.setFocus(Qt.FocusReason.OtherFocusReason)
+            anchor.setProperty("pathenaDecisionFocusReturned", True)
+        except RuntimeError:
+            self._anchors.pop(source, None)
 
 
 def _workspace(window: QWidget, name: str | None) -> QWidget:
