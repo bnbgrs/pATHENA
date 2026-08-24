@@ -10,9 +10,15 @@ from __future__ import annotations
 from PySide6.QtCore import QEasingCurve, QEvent, QObject, QPropertyAnimation
 from PySide6.QtWidgets import QFrame, QPushButton, QVBoxLayout, QWidget
 
-_ANIMATION_MS = 140
+from athena.desktop.pathena_design_tokens import MOTION, motion_duration
+
+_ANIMATION_MS = MOTION.standard_ms
 _COMPACT_WIDTH = 1260
 _COMFORTABLE_WIDTH = 1500
+
+
+def _resolved_animation_duration() -> int:
+    return motion_duration(_ANIMATION_MS)
 
 
 class PathenaInteractionRefinement(QObject):
@@ -28,6 +34,7 @@ class PathenaInteractionRefinement(QObject):
         self.rail = window.findChild(QFrame, "rail")
         self.conversation = window.findChild(QFrame, "conversation")
         self.pallas = getattr(window, "pallas_visual", None)
+        self._animation_ms = _resolved_animation_duration()
         self._inspector_animation: QPropertyAnimation | None = None
         self._evidence_animation: QPropertyAnimation | None = None
 
@@ -100,6 +107,11 @@ class PathenaInteractionRefinement(QObject):
         if self.inspector is None:
             return
         target = int(self.inspector.property("pathenaResponsiveWidth") or 320)
+        if self._animation_ms == 0:
+            self.inspector.setMaximumWidth(target if visible else 0)
+            self.inspector.setVisible(visible)
+            self._inspector_animation = None
+            return
         if visible:
             self.inspector.show()
             self.inspector.setMaximumWidth(0)
@@ -125,6 +137,11 @@ class PathenaInteractionRefinement(QObject):
         if self.evidence is None:
             return
         target = max(120, min(260, self.evidence.sizeHint().height() or 180))
+        if self._animation_ms == 0:
+            self.evidence.setMaximumHeight(target if visible else 0)
+            self.evidence.setVisible(visible)
+            self._evidence_animation = None
+            return
         if visible:
             self.evidence.show()
             self.evidence.setMaximumHeight(0)
@@ -154,7 +171,7 @@ class PathenaInteractionRefinement(QObject):
         end: int,
     ) -> QPropertyAnimation:
         animation = QPropertyAnimation(target, property_name, self)
-        animation.setDuration(_ANIMATION_MS)
+        animation.setDuration(self._animation_ms)
         animation.setStartValue(start)
         animation.setEndValue(end)
         animation.setEasingCurve(QEasingCurve.Type.OutCubic)
