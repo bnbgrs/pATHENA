@@ -86,6 +86,7 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 | UI-077 | P2 | DONE | `researchProposalList` now participates in existing dense-list accessibility parity using its real Proposal ID in UserRole and unchanged visible row text. Commits `46ace4ff9d8384486195a95c989ee254e65005bc`, `eee9d1f121771e0932efc28568a352724b00d262`; targeted execution NOT EXECUTABLE because checkout DNS failed. |
 | UI-078 | P2 | DONE | `claimRelationList` now participates in shared dense-list accessibility parity using the existing related Claim ID in UserRole and unchanged relation text. Commits `367405c67019239ddddfe3af39c780333f92f2ee`, `fc9cd4950566a66b846a2470ef66b2e94b9f7ba1`; targeted execution NOT EXECUTABLE because checkout DNS failed. |
 | UI-079 | P2 | DONE | Command Palette result rows now expose label, availability/blocker and current result scope through Qt accessibility roles without changing commands or invocation. Commits `d5c8a71d91a649aa8295bae20fa741164a32737d`, `d9ff9fb1c61dc2315c1d5a1512a3b896b8a80d6e`, `ee80757befda019ddb82ad8ae35f1994c0d060f6`, `f47c940f2ae588a8acc60318fa24d75a182ec67d`; targeted execution NOT EXECUTABLE because checkout DNS failed. |
+| UI-080 | P2 | DONE | Reverified 2026-08-24: `commandPaletteQuery`, `commandPaletteResults`, `helpDialog` and `helpText` have stable AccessibleName/AccessibleDescription; result scope is dynamically announced and visible labels are bound with `setBuddy()`. No product mutation required. |
 
 ## Active queue
 
@@ -95,12 +96,4 @@ Status vocabulary: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`
 - **Evidence:** Connector runtime cannot provide a checked-out repository process; local clone again failed on 2026-08-24 because `github.com` DNS resolution was unavailable before pytest could start.
 - **Views/components:** Recent UI modules and tests.
 - **Dependencies:** Runtime with repository checkout or Quality-bot execution.
-- **Last verification:** 2026-08-24.
-
-### UI-080 — Command Palette semantic labels
-- **Priority:** P2
-- **Status:** IN_PROGRESS
-- **Evidence:** Command Palette query and Help text are visually identified by surrounding headings/placeholders but have no stable AccessibleName/AccessibleDescription of their own.
-- **Views/components:** `commandPaletteQuery`, `helpText`, existing CommandPaletteController only.
-- **Dependencies:** UI-023/UI-079; no backend dependency.
 - **Last verification:** 2026-08-24.
