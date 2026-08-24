@@ -8,7 +8,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, cast
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.request import Request
 
 from athena.model.adapters.lm_studio import (
     LMStudioProvider,
@@ -16,6 +16,7 @@ from athena.model.adapters.lm_studio import (
     ProviderProtocolError,
     ProviderUnavailableError,
 )
+from athena.model.adapters.local_http import open_local_request as urlopen
 from athena.model.domain import ModelInfo
 
 
