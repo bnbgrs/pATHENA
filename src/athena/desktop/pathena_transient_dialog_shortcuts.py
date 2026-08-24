@@ -1,15 +1,16 @@
-"""Keep advertised command/help shortcuts active inside modeless transient dialogs."""
+"""Keep command/help shortcuts and focus contained inside transient dialogs."""
 
 from __future__ import annotations
 
-from PySide6.QtCore import QObject, Qt
-from PySide6.QtGui import QKeySequence, QShortcut
+from PySide6.QtCore import QEvent, QObject, Qt
+from PySide6.QtGui import QKeyEvent, QKeySequence, QShortcut
+from PySide6.QtWidgets import QWidget
 
 from athena.desktop.command_palette import CommandPaletteController
 
 
 class TransientDialogShortcutContinuity(QObject):
-    """Bridge existing F1/Ctrl+K shortcuts across active top-level dialogs."""
+    """Bridge existing shortcuts and keep keyboard traversal inside transient surfaces."""
 
     def __init__(self, controller: CommandPaletteController) -> None:
         super().__init__(controller)
@@ -23,9 +24,47 @@ class TransientDialogShortcutContinuity(QObject):
         self.commands_from_help.setContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
         self.commands_from_help.activated.connect(controller.open)
 
+        for widget in (controller.query, controller.results, controller.help_text):
+            widget.installEventFilter(self)
+            widget.setProperty("pathenaTransientFocusContained", True)
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
+        if not isinstance(watched, QWidget) or not isinstance(event, QKeyEvent):
+            return super().eventFilter(watched, event)
+        if event.type() != QEvent.Type.KeyPress or event.key() != Qt.Key.Key_Tab:
+            return super().eventFilter(watched, event)
+
+        modifiers = event.modifiers()
+        disallowed = (
+            Qt.KeyboardModifier.ControlModifier
+            | Qt.KeyboardModifier.AltModifier
+            | Qt.KeyboardModifier.MetaModifier
+        )
+        if modifiers & disallowed:
+            return super().eventFilter(watched, event)
+
+        backward = bool(modifiers & Qt.KeyboardModifier.ShiftModifier)
+        if watched is self.controller.help_text:
+            self.controller.help_text.setFocus(
+                Qt.FocusReason.BacktabFocusReason if backward else Qt.FocusReason.TabFocusReason
+            )
+            return True
+
+        if watched is self.controller.query:
+            target = self.controller.results
+        elif watched is self.controller.results:
+            target = self.controller.query
+        else:
+            return super().eventFilter(watched, event)
+
+        target.setFocus(
+            Qt.FocusReason.BacktabFocusReason if backward else Qt.FocusReason.TabFocusReason
+        )
+        return True
+
 
 def install_transient_dialog_shortcut_continuity(
     controller: CommandPaletteController,
 ) -> TransientDialogShortcutContinuity:
-    """Keep the already-advertised transient-surface shortcuts locally reachable."""
+    """Keep advertised shortcuts reachable and transient keyboard focus contained."""
     return TransientDialogShortcutContinuity(controller)
