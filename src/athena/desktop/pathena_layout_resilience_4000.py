@@ -104,19 +104,33 @@ class LayoutResilienceController(QObject):
         return super().eventFilter(watched, event)
 
     def sync(self) -> None:
-        compact = self.window.width() < _COMPACT_THRESHOLD
+        try:
+            compact = self.window.width() < _COMPACT_THRESHOLD
+        except RuntimeError:
+            return
+
         mode = "compact" if compact else "regular"
-        for widget in self._widgets:
-            changed = bool(widget.property("pathenaCompactLayout")) != compact
-            widget.setProperty("pathenaCompactLayout", compact)
-            widget.setProperty("pathenaLayoutMode", mode)
-            widget.setProperty("pathenaCompactThreshold", _COMPACT_THRESHOLD)
-            if changed:
-                style = widget.style()
-                style.unpolish(widget)
-                style.polish(widget)
-                widget.update()
-        self.window.setProperty("pathenaLayoutMode", mode)
+        live_widgets: list[QWidget] = []
+        for widget in tuple(self._widgets):
+            try:
+                changed = bool(widget.property("pathenaCompactLayout")) != compact
+                widget.setProperty("pathenaCompactLayout", compact)
+                widget.setProperty("pathenaLayoutMode", mode)
+                widget.setProperty("pathenaCompactThreshold", _COMPACT_THRESHOLD)
+                if changed:
+                    style = widget.style()
+                    style.unpolish(widget)
+                    style.polish(widget)
+                    widget.update()
+            except RuntimeError:
+                continue
+            live_widgets.append(widget)
+
+        self._widgets = live_widgets
+        try:
+            self.window.setProperty("pathenaLayoutMode", mode)
+        except RuntimeError:
+            return
 
 
 def apply_ui_refinements_3901_4000(window: QWidget) -> tuple[int, ...]:
