@@ -44,7 +44,7 @@ def test_passive_checkpoint_reports_sqlite_result(tmp_path: Path) -> None:
         database.stop()
 
     assert result.mode == "PASSIVE"
-    assert result.busy_frames >= 0
+    assert isinstance(result.busy, bool)
     assert result.log_frames >= 0
     assert 0 <= result.checkpointed_frames <= result.log_frames
     assert result.wal_size_after_bytes >= 0
@@ -73,7 +73,7 @@ def test_truncate_checkpoint_requires_explicit_idle_confirmation(tmp_path: Path)
         database.stop()
 
     assert result.mode == "TRUNCATE"
-    assert result.busy_frames >= 0
+    assert isinstance(result.busy, bool)
     assert result.wal_size_after_bytes >= 0
 
 
