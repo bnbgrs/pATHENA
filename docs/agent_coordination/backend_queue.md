@@ -9,18 +9,18 @@ Last queue refresh: 2026-08-24.
 ### BE-028 — Clone/journal migration before live schema mutation
 - Priority: P1
 - Status: IN_PROGRESS
-- Evidence: clone-first startup, reserve, candidate migration, journal, lock, activation and recovery stack are implemented. POSIX durable replace/byte publication/directory creation are parent-FD bound; recovery artifact presence classification uses no-follow file handles plus pathname/handle identity fencing. Remaining work is Windows HANDLE publication, SQLite clone destination binding and the Alembic-vs-custom decision.
+- Evidence: clone-first startup, reserve, candidate migration, journal, lock, activation and recovery stack are implemented. POSIX durable replace/byte publication/directory creation are parent-FD bound; recovery artifact presence classification uses no-follow file handles plus pathname/handle identity fencing. POSIX SQLite clone creation is also parent-FD bound. Remaining work is Windows HANDLE publication and the Alembic-vs-custom decision.
 - Components: migration storage stack, `storage/durable_fs.py`, `storage/migration_recovery.py`, `core/application.py`, tests.
-- Dependencies: BE-027/029/031/032/033/034/035/040/042/043 DONE; BE-036/038/039 active.
-- Last verification: 2026-08-23 current remote; focused storage run on the earlier durable-mkdir commit produced 172 passed / 4 stale-test failures / 2 skipped. Stale tests and the resulting own Ruff/mypy findings were subsequently corrected; no green rerun claimed yet.
+- Dependencies: BE-027/029/031/032/033/034/035/040/042/043 DONE; BE-036/038 active; BE-039 STALE after current POSIX re-trace.
+- Last verification: 2026-08-24 current remote static re-trace; prior focused storage run produced 172 passed / 4 stale-test failures / 2 skipped. Stale tests and resulting own Ruff/mypy findings were subsequently corrected; no green rerun claimed yet.
 
 ### BE-036 — Close migration parent-replacement TOCTOU
 - Priority: P1
 - Status: IN_PROGRESS
-- Evidence: POSIX replace/write/mkdir mutations are bound to opened parent directory FDs and fail closed on parent identity drift. Recovery regular-file classification is handle-bound. Deterministic race tests cover replace/open/mkdir plus recovery file replacement. Cross-platform closure still requires BE-038, BE-039 and reserve publication follow-up BE-046.
+- Evidence: POSIX replace/write/mkdir mutations are bound to opened parent directory FDs and fail closed on parent identity drift. Recovery regular-file classification and POSIX clone candidate creation are handle/parent-FD bound. Cross-platform closure still requires BE-038 and reserve publication follow-up BE-046.
 - Components: `storage/durable_fs.py`, `storage/migration_journal.py`, `storage/migration_recovery.py`, activation/recovery tests.
-- Dependencies: BE-028; BE-035 DONE.
-- Last verification: 2026-08-23; old pathname-instrumentation tests aligned in `11811fd`; Ruff B904 from the new mkdir branch corrected in `187af1f`; recovery enum mypy fallback corrected in `9abca48`.
+- Dependencies: BE-028; BE-035 DONE; BE-039 STALE for the previously described POSIX clone gap.
+- Last verification: 2026-08-24 current remote static re-trace; no new green gate claimed.
 
 ### BE-038 — Windows HANDLE-bound durable filesystem publication
 - Priority: P1
@@ -36,15 +36,15 @@ Last queue refresh: 2026-08-24.
 - Evidence: current `create_migration_clone()` already opens the candidate parent directory on POSIX, reserves the candidate with `dir_fd`, and passes an SQLite-visible `/proc/self/fd` or `/dev/fd` child path to `sqlite3.connect()`. The prior evidence that it connected directly to `candidate_path` is no longer true on POSIX. Windows remains covered by BE-028/BE-038 rather than this stale POSIX slice.
 - Components: `storage/migration_clone.py`, coordinator, deterministic race tests.
 - Dependencies: BE-036.
-- Last verification: 2026-08-24 current remote HEAD before SEC-003 transport work; static source trace only, no test pass claimed.
+- Last verification: 2026-08-24 current remote static source trace; no test pass claimed.
 
 ### BE-046 — Bind Emergency Reserve publication/release to directory identity
 - Priority: P1
 - Status: READY
-- Evidence: `EmergencyReserveStore` still creates the reserve file and releases it through pathname-based open/unlink after boundary checks. A parent replacement can redirect reserve allocation or deletion. Fix must preserve physical non-sparse allocation, fsync durability, Windows support and exact release accounting.
-- Components: `storage/emergency_reserve.py`, `storage/durable_fs.py` shared primitives if appropriate, disk-pressure tests.
-- Dependencies: BE-036 parent-identity primitives; avoid partial check-then-open fixes.
-- Last verification: 2026-08-23 current remote audit.
+- Evidence: POSIX reserve creation/release is now parent-FD bound, while non-POSIX creation and cleanup still use pathname identity checks. Remaining work should be coordinated with BE-038 rather than duplicating Windows filesystem primitives.
+- Components: `storage/emergency_reserve.py`, `storage/durable_fs.py`, disk-pressure tests.
+- Dependencies: BE-036/038; preserve physical non-sparse allocation and exact release accounting.
+- Last verification: 2026-08-24 current remote static trace.
 
 ### BE-051 — Make LM Studio local transport explicitly proxy-free and loopback-bound
 - Priority: P1
@@ -61,6 +61,15 @@ Last queue refresh: 2026-08-24.
 - Components: `storage/recovery.py`, `storage/database.py`, `storage/bootstrap.py`, deterministic startup race tests.
 - Dependencies: SEC-014; cross-platform SQLite identity design.
 - Last verification: 2026-08-24 current remote static cross-layer trace; no exploit or test execution claimed.
+
+### BE-053 — Runtime WAL monitoring and controlled checkpoint API
+- Priority: P1
+- Status: IN_PROGRESS
+- Evidence: Feature handoff FG-017 requires active WAL observation and SQLite-owned maintenance. `storage/wal_maintenance.py` now observes `athena.db-wal` through a no-follow identity-checked handle, reports live page/autocheckpoint policy, runs non-blocking `PASSIVE` checkpoints outside active ATHENA transactions, and gates `TRUNCATE` behind an explicit idle confirmation. It never deletes `-wal` manually. Targeted tests exercise status, PASSIVE, active-transaction refusal, idle-gated TRUNCATE and disabled-autocheckpoint failure.
+- Components: `storage/wal_maintenance.py`, `tests/unit/test_wal_maintenance.py`, later scheduler/storage integration.
+- Dependencies: FG-017; preserve SQLite Online Backup/migration semantics and avoid aggressive checkpoints during active readers.
+- Remaining: background orchestration, abnormal-growth/blocked-checkpoint diagnosis, long-reader coordination and integration at proven safe snapshot/offline boundaries only.
+- Last verification: 2026-08-24 remote static re-read through `d61435cdcc84f3184c9c9bc8dd0f2524ed55b41e`; tests NOT EXECUTABLE locally in this automation environment, no PASS claimed.
 
 ### BE-020 — Runtime ModelSignature drift guard in generation
 - Priority: P1
@@ -79,10 +88,10 @@ Last queue refresh: 2026-08-24.
 ### BE-048 — Make Research domain scalar validation type-stable
 - Priority: P2
 - Status: READY
-- Evidence: current quality evidence reports `research/models.py` strict-mypy failures in `_positive_int` and a reused loop variable. Runtime validation is mostly sound, but helpers should return validated ints and validation loops should use type-stable local names so strict typing proves the intended contracts.
+- Evidence: historical quality evidence reports `research/models.py` strict-mypy failures, but current P0 diagnostics are evidence-blocked under CONFLICT-005 until QUALITY provides exact source provenance. Do not mutate central Research models to chase stale line-level evidence.
 - Components: `research/models.py`, targeted model boundary tests.
-- Dependencies: safe mutation window for the central Research model file.
-- Last verification: 2026-08-23 quality log from focused branch run.
+- Dependencies: corrected/reproducible quality evidence or an independently demonstrated current defect.
+- Last verification: 2026-08-24 current remote trace.
 
 ## Recently completed backend/storage slices
 
