@@ -133,11 +133,12 @@ class WalCheckpointResult:
 
     @property
     def blocked(self) -> bool:
-        return self.busy
+        """Return whether SQLite could not checkpoint the complete WAL snapshot."""
+        return self.busy or self.checkpointed_frames < self.log_frames
 
     @property
     def complete(self) -> bool:
-        return not self.busy and self.checkpointed_frames == self.log_frames
+        return not self.blocked
 
 
 @dataclass(frozen=True, slots=True)
