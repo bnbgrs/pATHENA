@@ -125,3 +125,38 @@ def test_help_open_lands_focus_at_start_of_read_only_content() -> None:
         controller.deleteLater()
         window.close()
         app.processEvents()
+
+
+def test_help_and_command_palette_are_mutually_exclusive() -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    controller = CommandPaletteController(window)
+    try:
+        window.show()
+        app.processEvents()
+
+        controller.open()
+        app.processEvents()
+        assert controller.dialog.isVisible()
+        assert controller.query.hasFocus()
+
+        controller.open_help()
+        app.processEvents()
+        assert controller.help_dialog.isVisible()
+        assert not controller.dialog.isVisible()
+        assert controller.help_text.hasFocus()
+        assert controller.help_text.textCursor().position() == 0
+
+        controller.query.setText("research")
+        controller.open()
+        app.processEvents()
+        assert controller.dialog.isVisible()
+        assert not controller.help_dialog.isVisible()
+        assert controller.query.hasFocus()
+        assert controller.query.text() == ""
+    finally:
+        controller.dialog.hide()
+        controller.help_dialog.hide()
+        controller.deleteLater()
+        window.close()
+        app.processEvents()
