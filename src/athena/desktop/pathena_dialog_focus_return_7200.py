@@ -42,11 +42,20 @@ class DialogFocusReturnController(QObject):
         focused = QApplication.focusWidget()
         if focused is None or self._is_descendant(focused, dialog):
             return
-        if not self._usable(focused):
+
+        previous = focused
+        owning_dialog = self._tracked_dialog_for(focused)
+        if owning_dialog is not None:
+            inherited = self._previous.get(owning_dialog)
+            if inherited is not None:
+                previous = inherited
+
+        if not self._usable(previous):
             return
-        self._previous[dialog] = focused
-        dialog.setProperty("pathenaFocusReturnObject", focused.objectName())
+        self._previous[dialog] = previous
+        dialog.setProperty("pathenaFocusReturnObject", previous.objectName())
         dialog.setProperty("pathenaFocusReturnCaptured", True)
+        dialog.setProperty("pathenaFocusReturnInherited", owning_dialog is not None)
 
     def _restore_if_unclaimed(self, previous: QWidget) -> None:
         if not self._usable(previous):
@@ -57,6 +66,14 @@ class DialogFocusReturnController(QObject):
             return
         previous.setFocus(Qt.FocusReason.OtherFocusReason)
         previous.setProperty("pathenaDialogFocusReturn", "restored")
+
+    def _tracked_dialog_for(self, widget: QWidget) -> QDialog | None:
+        current: QWidget | None = widget
+        while current is not None:
+            if isinstance(current, QDialog) and current in self._previous:
+                return current
+            current = current.parentWidget()
+        return None
 
     def _belongs_to_window(self, dialog: QDialog) -> bool:
         parent = dialog.parentWidget()
@@ -77,8 +94,10 @@ class DialogFocusReturnController(QObject):
 
     @staticmethod
     def _usable(widget: QWidget) -> bool:
+        top_level = widget.window()
         return (
-            widget.isVisibleTo(widget.window())
+            top_level.isVisible()
+            and widget.isVisibleTo(top_level)
             and widget.isEnabled()
             and widget.focusPolicy() != Qt.FocusPolicy.NoFocus
         )
