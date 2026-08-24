@@ -84,14 +84,24 @@ class OperationalContinuityController(QObject):
         widget.setProperty("pathenaContinuityManaged", True)
 
     def sync(self) -> None:
-        for workspace, widgets in self._workspace_targets.items():
-            process = self._process_for(workspace)
-            busy = process is not None and process.state() != QProcess.ProcessState.NotRunning
+        for workspace, widgets in tuple(self._workspace_targets.items()):
+            if not self._is_live(workspace):
+                self._busy.pop(workspace, None)
+                continue
+
+            busy = self._is_process_busy(self._process_for(workspace))
             previous = self._busy.get(workspace, False)
             if busy and not previous:
                 for widget in widgets:
-                    self._snapshots[widget] = self._snapshot(widget)
-                    widget.setProperty("pathenaBusyContextSnapshotted", True)
+                    snapshot = self._snapshot(widget)
+                    if snapshot is None:
+                        continue
+                    self._snapshots[widget] = snapshot
+                    self._set_property_safe(
+                        widget,
+                        "pathenaBusyContextSnapshotted",
+                        True,
+                    )
             elif previous and not busy:
                 QTimer.singleShot(
                     0,
@@ -100,56 +110,75 @@ class OperationalContinuityController(QObject):
             self._busy[workspace] = busy
 
     def _restore_workspace(self, workspace: QWidget) -> None:
+        if not self._is_live(workspace):
+            return
         for widget in self._workspace_targets.get(workspace, ()):
             snapshot = self._snapshots.get(widget)
-            if snapshot is None:
+            if snapshot is None or not self._restore(widget, snapshot):
                 continue
-            self._restore(widget, snapshot)
-            widget.setProperty("pathenaCompletionContextRestored", True)
-
-    @staticmethod
-    def _snapshot(widget: QWidget) -> dict[str, object]:
-        snapshot: dict[str, object] = {"had_focus": widget.hasFocus()}
-        if isinstance(widget, QAbstractItemView):
-            index = widget.currentIndex()
-            snapshot["row"] = index.row() if index.isValid() else -1
-            snapshot["identity"] = (
-                index.data(Qt.ItemDataRole.UserRole) if index.isValid() else None
+            self._set_property_safe(
+                widget,
+                "pathenaCompletionContextRestored",
+                True,
             )
-            snapshot["vscroll"] = widget.verticalScrollBar().value()
-            snapshot["hscroll"] = widget.horizontalScrollBar().value()
-        elif isinstance(widget, QPlainTextEdit):
-            snapshot["vscroll"] = widget.verticalScrollBar().value()
-            snapshot["hscroll"] = widget.horizontalScrollBar().value()
-            snapshot["cursor"] = widget.textCursor().position()
-        elif isinstance(widget, QScrollArea):
-            snapshot["vscroll"] = widget.verticalScrollBar().value()
-            snapshot["hscroll"] = widget.horizontalScrollBar().value()
-        return snapshot
 
     @classmethod
-    def _restore(cls, widget: QWidget, snapshot: dict[str, object]) -> None:
-        if isinstance(widget, QAbstractItemView):
-            cls._restore_item_selection(widget, snapshot)
-            widget.verticalScrollBar().setValue(cls._int(snapshot, "vscroll", 0))
-            widget.horizontalScrollBar().setValue(cls._int(snapshot, "hscroll", 0))
-        elif isinstance(widget, QPlainTextEdit):
-            widget.verticalScrollBar().setValue(cls._int(snapshot, "vscroll", 0))
-            widget.horizontalScrollBar().setValue(cls._int(snapshot, "hscroll", 0))
-            cursor = widget.textCursor()
-            position = min(cls._int(snapshot, "cursor", 0), len(widget.toPlainText()))
-            cursor.setPosition(position)
-            widget.setTextCursor(cursor)
-        elif isinstance(widget, QScrollArea):
-            widget.verticalScrollBar().setValue(cls._int(snapshot, "vscroll", 0))
-            widget.horizontalScrollBar().setValue(cls._int(snapshot, "hscroll", 0))
+    def _snapshot(cls, widget: QWidget) -> dict[str, object] | None:
+        if not cls._is_live(widget):
+            return None
+        try:
+            snapshot: dict[str, object] = {"had_focus": widget.hasFocus()}
+            if isinstance(widget, QAbstractItemView):
+                index = widget.currentIndex()
+                snapshot["row"] = index.row() if index.isValid() else -1
+                snapshot["identity"] = (
+                    index.data(Qt.ItemDataRole.UserRole) if index.isValid() else None
+                )
+                snapshot["vscroll"] = widget.verticalScrollBar().value()
+                snapshot["hscroll"] = widget.horizontalScrollBar().value()
+            elif isinstance(widget, QPlainTextEdit):
+                snapshot["vscroll"] = widget.verticalScrollBar().value()
+                snapshot["hscroll"] = widget.horizontalScrollBar().value()
+                snapshot["cursor"] = widget.textCursor().position()
+            elif isinstance(widget, QScrollArea):
+                snapshot["vscroll"] = widget.verticalScrollBar().value()
+                snapshot["hscroll"] = widget.horizontalScrollBar().value()
+            return snapshot
+        except RuntimeError:
+            return None
 
-        if (
-            bool(snapshot.get("had_focus"))
-            and widget.isVisibleTo(widget.window())
-            and widget.isEnabled()
-        ):
-            widget.setFocus()
+    @classmethod
+    def _restore(cls, widget: QWidget, snapshot: dict[str, object]) -> bool:
+        if not cls._is_live(widget):
+            return False
+        try:
+            if isinstance(widget, QAbstractItemView):
+                cls._restore_item_selection(widget, snapshot)
+                widget.verticalScrollBar().setValue(cls._int(snapshot, "vscroll", 0))
+                widget.horizontalScrollBar().setValue(cls._int(snapshot, "hscroll", 0))
+            elif isinstance(widget, QPlainTextEdit):
+                widget.verticalScrollBar().setValue(cls._int(snapshot, "vscroll", 0))
+                widget.horizontalScrollBar().setValue(cls._int(snapshot, "hscroll", 0))
+                cursor = widget.textCursor()
+                position = min(
+                    cls._int(snapshot, "cursor", 0),
+                    len(widget.toPlainText()),
+                )
+                cursor.setPosition(position)
+                widget.setTextCursor(cursor)
+            elif isinstance(widget, QScrollArea):
+                widget.verticalScrollBar().setValue(cls._int(snapshot, "vscroll", 0))
+                widget.horizontalScrollBar().setValue(cls._int(snapshot, "hscroll", 0))
+
+            if (
+                bool(snapshot.get("had_focus"))
+                and widget.isVisibleTo(widget.window())
+                and widget.isEnabled()
+            ):
+                widget.setFocus()
+            return True
+        except RuntimeError:
+            return False
 
     @classmethod
     def _restore_item_selection(
@@ -177,12 +206,39 @@ class OperationalContinuityController(QObject):
         return value if isinstance(value, int) else default
 
     @staticmethod
+    def _is_live(widget: QWidget) -> bool:
+        try:
+            widget.objectName()
+        except RuntimeError:
+            return False
+        return True
+
+    @staticmethod
+    def _set_property_safe(widget: QWidget, name: str, value: object) -> None:
+        try:
+            widget.setProperty(name, value)
+        except RuntimeError:
+            return
+
+    @staticmethod
     def _process_for(workspace: QWidget) -> QProcess | None:
-        for attribute_name in ("_knowledge_process", "_process", "process"):
-            candidate = getattr(workspace, attribute_name, None)
-            if isinstance(candidate, QProcess):
-                return candidate
+        try:
+            for attribute_name in ("_knowledge_process", "_process", "process"):
+                candidate = getattr(workspace, attribute_name, None)
+                if isinstance(candidate, QProcess):
+                    return candidate
+        except RuntimeError:
+            return None
         return None
+
+    @staticmethod
+    def _is_process_busy(process: QProcess | None) -> bool:
+        if process is None:
+            return False
+        try:
+            return process.state() != QProcess.ProcessState.NotRunning
+        except RuntimeError:
+            return False
 
 
 def apply_ui_refinements_3701_3800(window: QWidget) -> tuple[int, ...]:
