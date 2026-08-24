@@ -17,6 +17,7 @@ from athena.chat.models import ChatMessage
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
 from athena.chat.service import ChatService
+from athena.common.ids import uuid_to_blob
 from athena.model.domain import ModelChatMessage, ModelInfo
 from athena.model.provenance import ModelRunRepository, ModelSignature
 from athena.retrieval.context import ContextBuilderService
@@ -72,6 +73,20 @@ def _signature(database: SQLiteDatabase) -> ModelSignature:
         },
         context_configuration={"context_package_version": 1},
     )
+
+
+def _user_commit_seq(database: SQLiteDatabase, user_message: ChatMessage) -> int:
+    row = database.connection.execute(
+        """
+        SELECT c.commit_seq
+        FROM revisions AS r
+        JOIN commit_records AS c ON c.commit_id = r.commit_id
+        WHERE r.revision_id = ?
+        """,
+        (uuid_to_blob(user_message.revision_id),),
+    ).fetchone()
+    assert row is not None
+    return int(row["commit_seq"])
 
 
 def _package(
@@ -147,15 +162,16 @@ def test_foreign_processing_run_snapshot_is_fenced_before_provider(
         )
 
         signature = _signature(database)
+        snapshot_commit_seq = _user_commit_seq(database, started.user_message)
         package = _package(
             signature=signature,
             user_message=started.user_message,
-            snapshot_commit_seq=1,
+            snapshot_commit_seq=snapshot_commit_seq,
         )
         foreign_package = _package(
             signature=signature,
             user_message=started.user_message,
-            snapshot_commit_seq=1,
+            snapshot_commit_seq=snapshot_commit_seq,
         )
         assert foreign_package.model_signature == package.model_signature
         assert foreign_package.run_snapshot() != package.run_snapshot()

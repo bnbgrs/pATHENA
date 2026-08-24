@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pytest
 from PySide6.QtCore import QProcess, QProcessEnvironment
 
 from athena.api.client import CoreApiClientError
@@ -27,7 +28,14 @@ class _Client:
 
 
 class _Process:
-    def __init__(self, *, process_id: int = 4242, waits: tuple[bool, ...] = ()) -> None:
+    def __init__(
+        self,
+        *,
+        process_id: int = 4242,
+        waits: tuple[bool, ...] = (),
+        start_ok: bool = True,
+        startup_error: str = "",
+    ) -> None:
         self.program = ""
         self.arguments: list[str] = []
         self.environment: QProcessEnvironment | None = None
@@ -35,6 +43,9 @@ class _Process:
         self.process_id = process_id
         self.process_state = QProcess.ProcessState.NotRunning
         self.waits = list(waits)
+        self.start_ok = start_ok
+        self.startup_error = startup_error
+        self.start_wait_timeouts: list[int] = []
         self.wait_timeouts: list[int] = []
         self.terminate_calls = 0
         self.kill_calls = 0
@@ -55,7 +66,18 @@ class _Process:
         self.channel_mode = mode
 
     def start(self) -> None:
-        self.process_state = QProcess.ProcessState.Running
+        self.process_state = QProcess.ProcessState.Starting
+
+    def waitForStarted(self, msecs: int = 30_000) -> bool:  # noqa: N802
+        self.start_wait_timeouts.append(msecs)
+        if self.start_ok:
+            self.process_state = QProcess.ProcessState.Running
+            return True
+        self.process_state = QProcess.ProcessState.NotRunning
+        return False
+
+    def errorString(self) -> str:  # noqa: N802
+        return self.startup_error
 
     def processId(self) -> int:  # noqa: N802
         return self.process_id
@@ -113,7 +135,29 @@ def test_supervisor_launches_direct_runtime_without_uv() -> None:
     )
     assert "uv" not in " ".join(core_process_command()).casefold()
     assert process.channel_mode is QProcess.ProcessChannelMode.ForwardedChannels
+    assert process.start_wait_timeouts == [5_000]
     assert supervisor.child_active is True
+
+
+def test_supervisor_surfaces_child_start_failure() -> None:
+    process = _Process(
+        start_ok=False,
+        startup_error="The system cannot find the file specified.",
+    )
+    supervisor = DesktopCoreSupervisor(
+        client=_Client(),
+        process=process,
+        executable="missing-python",
+    )
+
+    with pytest.raises(
+        RuntimeError,
+        match="ATHENA Core process failed to start: The system cannot find the file specified",
+    ):
+        supervisor.start()
+
+    assert process.start_wait_timeouts == [5_000]
+    assert supervisor.child_active is False
 
 
 def test_explicit_supervisor_executable_is_not_rewritten() -> None:
@@ -131,6 +175,42 @@ def test_explicit_supervisor_executable_is_not_rewritten() -> None:
     assert process.environment.value("__PYVENV_LAUNCHER__") == ""
 
 
+def test_supervisor_restarts_unexpectedly_stopped_child() -> None:
+    process = _Process()
+    supervisor = DesktopCoreSupervisor(client=_Client(), process=process)
+    supervisor.start()
+    process.process_state = QProcess.ProcessState.NotRunning
+
+    supervisor.ensure_running()
+
+    assert process.start_wait_timeouts == [5_000, 5_000]
+    assert supervisor.child_active is True
+    assert supervisor.stopping is False
+
+
+def test_supervisor_does_not_restart_during_intentional_shutdown() -> None:
+    process = _Process()
+    supervisor = DesktopCoreSupervisor(client=_Client(), process=process)
+
+    supervisor.stop()
+    supervisor.ensure_running()
+
+    assert process.start_wait_timeouts == []
+    assert supervisor.child_active is False
+    assert supervisor.stopping is True
+
+
+def test_supervisor_recovery_tolerates_transient_start_failure() -> None:
+    process = _Process(start_ok=False, startup_error="transient launch failure")
+    supervisor = DesktopCoreSupervisor(client=_Client(), process=process)
+
+    supervisor.ensure_running()
+
+    assert process.start_wait_timeouts == [5_000]
+    assert supervisor.child_active is False
+    assert supervisor.stopping is False
+
+
 def test_supervisor_gracefully_stops_matching_child() -> None:
     client = _Client(process_id=4242)
     process = _Process(process_id=4242, waits=(True,))
@@ -143,6 +223,7 @@ def test_supervisor_gracefully_stops_matching_child() -> None:
     assert process.terminate_calls == 0
     assert process.kill_calls == 0
     assert supervisor.child_active is False
+    assert supervisor.stopping is True
 
 
 def test_supervisor_never_shutdowns_discovery_owned_by_another_process() -> None:

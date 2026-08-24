@@ -68,18 +68,31 @@ class JsonFormatter(logging.Formatter):
         )
 
 
+def _validated_log_level(level: object) -> int:
+    if isinstance(level, bool):
+        raise ValueError("ATHENA logging level must not be a boolean.")
+    if isinstance(level, str):
+        normalized = level.strip().upper()
+        if not normalized:
+            raise ValueError("ATHENA logging level must not be empty.")
+        numeric = logging.getLevelNamesMapping().get(normalized)
+        if not isinstance(numeric, int):
+            raise ValueError(f"Unknown ATHENA logging level {level!r}.")
+        return numeric
+    if isinstance(level, int):
+        if level < 0:
+            raise ValueError("ATHENA logging level must be non-negative.")
+        return level
+    raise ValueError("ATHENA logging level must be an integer or level name.")
+
+
 def configure_logging(level: int | str = logging.INFO) -> None:
     """Configure exactly one ATHENA-owned console handler.
 
     Repeated calls update the handler and root log level without creating
     duplicate log lines.
     """
-    if isinstance(level, str):
-        numeric_level = logging.getLevelNamesMapping().get(
-            level.strip().upper(), logging.INFO
-        )
-    else:
-        numeric_level = level
+    numeric_level = _validated_log_level(level)
 
     root_logger = logging.getLogger()
     root_logger.setLevel(numeric_level)

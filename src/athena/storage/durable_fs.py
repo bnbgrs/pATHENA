@@ -1,223 +1,391 @@
-"""Crash-durable filesystem publication primitives.
-
-Canonical and recovery-critical ATHENA files are written and fsynced before
-publication. Publication itself must also reach stable filesystem metadata
-before the caller is allowed to treat the path as durable.
-
-POSIX uses rename/replace followed by fsync of every directory whose entries
-changed. Windows uses MoveFileExW with MOVEFILE_WRITE_THROUGH because Python's
-os.replace() does not expose that durability flag.
-"""
+"""Crash-durable filesystem publication primitives."""
 
 from __future__ import annotations
 
 import os
 import secrets
+import stat
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
+from typing import BinaryIO
 
 _MOVEFILE_REPLACE_EXISTING = 0x00000001
 _MOVEFILE_WRITE_THROUGH = 0x00000008
+_FILE_ATTRIBUTE_REPARSE_POINT = 0x00000400
 
 
-def durable_replace(
-    source: Path,
-    destination: Path,
-) -> None:
-    """Atomically publish *source* at *destination* and flush rename metadata.
+def is_link_boundary(path: Path) -> bool:
+    """Return whether *path* can redirect filesystem traversal.
 
-    The source and destination must be on the same filesystem, matching the
-    atomic-replace contract already required by ATHENA's publication paths.
-
-    On POSIX both directory entries are fsynced when a move crosses directory
-    boundaries. On Windows MoveFileExW WRITE_THROUGH provides the publication
-    barrier directly.
-
-    Directory callers must publish to an absent destination. ATHENA's backup
-    and restore paths already enforce that invariant before calling here.
+    This is the shared storage trust-boundary predicate for symlinks, Windows
+    junctions, and other Windows reparse points. Callers performing durable or
+    security-sensitive path traversal should use this instead of ``is_symlink``.
     """
+    if not isinstance(path, Path):
+        raise TypeError("Filesystem boundary path must be a pathlib.Path.")
+    if path.is_symlink():
+        return True
 
+    is_junction = getattr(path, "is_junction", None)
+    if callable(is_junction) and is_junction():
+        return True
+
+    if os.name != "nt":
+        return False
+
+    try:
+        stat_result = os.lstat(path)
+    except OSError:
+        return False
+
+    attributes = int(getattr(stat_result, "st_file_attributes", 0))
+    return bool(attributes & _FILE_ATTRIBUTE_REPARSE_POINT)
+
+
+def _is_link_boundary(path: Path) -> bool:
+    """Backward-compatible private alias for the shared boundary predicate."""
+    return is_link_boundary(path)
+
+
+def _assert_real_directory(path: Path, *, label: str) -> None:
+    """Reject missing, non-directory, or link-backed directory boundaries."""
+    if is_link_boundary(path) or not path.is_dir():
+        raise NotADirectoryError(f"{label} is unsafe: {path}")
+
+    cursor = path.parent
+    while True:
+        if is_link_boundary(cursor):
+            raise NotADirectoryError(
+                f"{label} has a symlink ancestor or reparse-point ancestor: {cursor}"
+            )
+        if cursor.exists() and not cursor.is_dir():
+            raise NotADirectoryError(
+                f"{label} has a non-directory ancestor: {cursor}"
+            )
+        parent = cursor.parent
+        if parent == cursor:
+            return
+        cursor = parent
+
+
+def _open_directory_fd(path: Path, *, label: str) -> int:
+    """Open one real POSIX directory and bind the pathname to that handle."""
+    _assert_real_directory(path, label=label)
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(path, flags)
+    try:
+        handle_stat = os.fstat(descriptor)
+        path_stat = os.stat(path, follow_symlinks=False)
+        if not stat.S_ISDIR(handle_stat.st_mode):
+            raise NotADirectoryError(f"{label} handle is not a directory: {path}")
+        if not os.path.samestat(handle_stat, path_stat):
+            raise OSError(f"{label} changed while it was being opened: {path}")
+    except BaseException:
+        os.close(descriptor)
+        raise
+    return descriptor
+
+
+def _assert_directory_fd_current(path: Path, descriptor: int, *, label: str) -> None:
+    """Fail closed if a directory pathname no longer names the opened directory."""
+    if is_link_boundary(path):
+        raise OSError(f"{label} became a symlink or reparse point: {path}")
+    try:
+        path_stat = os.stat(path, follow_symlinks=False)
+        handle_stat = os.fstat(descriptor)
+    except OSError as exc:
+        raise OSError(f"{label} identity could not be verified: {path}") from exc
+    if not stat.S_ISDIR(path_stat.st_mode) or not os.path.samestat(path_stat, handle_stat):
+        raise OSError(f"{label} changed during durable filesystem mutation: {path}")
+
+
+def _posix_durable_replace(source: Path, destination: Path) -> None:
+    """Rename relative to opened parent FDs so pathname replacement cannot redirect it."""
+    source_parent = source.parent
+    destination_parent = destination.parent
+    source_fd = _open_directory_fd(
+        source_parent,
+        label="Durable replace source parent",
+    )
+    destination_fd = source_fd
+    owns_destination_fd = False
+    try:
+        if source_parent != destination_parent:
+            destination_fd = _open_directory_fd(
+                destination_parent,
+                label="Durable replace destination parent",
+            )
+            owns_destination_fd = True
+
+        _assert_directory_fd_current(
+            source_parent,
+            source_fd,
+            label="Durable replace source parent",
+        )
+        _assert_directory_fd_current(
+            destination_parent,
+            destination_fd,
+            label="Durable replace destination parent",
+        )
+        try:
+            os.replace(
+                source.name,
+                destination.name,
+                src_dir_fd=source_fd,
+                dst_dir_fd=destination_fd,
+            )
+        except (NotImplementedError, TypeError) as exc:
+            raise OSError(
+                "Identity-bound durable replace is unsupported on this POSIX runtime."
+            ) from exc
+
+        os.fsync(destination_fd)
+        if source_fd != destination_fd:
+            os.fsync(source_fd)
+
+        _assert_directory_fd_current(
+            source_parent,
+            source_fd,
+            label="Durable replace source parent",
+        )
+        _assert_directory_fd_current(
+            destination_parent,
+            destination_fd,
+            label="Durable replace destination parent",
+        )
+    finally:
+        if owns_destination_fd:
+            os.close(destination_fd)
+        os.close(source_fd)
+
+
+def durable_replace(source: Path, destination: Path) -> None:
+    """Atomically publish *source* and flush every changed directory entry."""
     source_path = Path(source)
     destination_path = Path(destination)
-
     source_parent = source_path.parent
     destination_parent = destination_path.parent
 
-    if _is_windows():
-        _windows_replace_write_through(
-            source_path,
-            destination_path,
+    _assert_real_directory(source_parent, label="Durable replace source parent")
+    _assert_real_directory(destination_parent, label="Durable replace destination parent")
+
+    if is_link_boundary(source_path):
+        raise OSError(
+            f"Durable replace source is a symlink or reparse point: {source_path}"
         )
+    if is_link_boundary(destination_path):
+        raise OSError(
+            f"Durable replace destination is a symlink or reparse point: {destination_path}"
+        )
+
+    if _is_windows():
+        _windows_replace_write_through(source_path, destination_path)
         return
 
-    os.replace(
-        source_path,
-        destination_path,
-    )
-
-    # The destination name must survive power loss.
-    fsync_directory(
-        destination_parent
-    )
-
-    # A cross-directory rename also removes the source name from another
-    # directory. Persist that metadata change as well.
-    if source_parent != destination_parent:
-        fsync_directory(
-            source_parent
-        )
+    _posix_durable_replace(source_path, destination_path)
 
 
+def _validated_file_mode(mode: object) -> int:
+    if isinstance(mode, bool) or not isinstance(mode, int) or not 0 <= mode <= 0o777:
+        raise ValueError("Durable file mode must be an integer between 0 and 0o777.")
+    return mode
 
-def durable_mkdir(
-    path: Path,
-    *,
-    parents: bool = False,
-    exist_ok: bool = False,
-) -> None:
-    """Create a directory and durably publish every newly created entry.
 
-    Existing real directories are accepted only when exist_ok permits them.
-    Symlinks are never treated as an acceptable directory boundary.
+@contextmanager
+def durable_atomic_writer(path: Path, *, mode: int = 0o600) -> Iterator[BinaryIO]:
+    """Yield a private temp writer and publish only after a durable successful write.
 
-    With parents=True, missing components are created from the nearest
-    existing ancestor outward so that every child is published into an
-    already-existing parent.
+    On POSIX, temp creation, payload write and publication remain relative to one
+    opened parent directory identity. The parent pathname is re-checked after
+    temp creation and before yielding the handle, so a replacement raced into
+    the create boundary receives no caller payload. Windows keeps the existing
+    path-based publication semantics until BE-038 supplies HANDLE-relative IO.
     """
+    destination = Path(path)
+    validated_mode = _validated_file_mode(mode)
+    parent = destination.parent
+    _assert_real_directory(parent, label="Durable file parent")
+    if is_link_boundary(destination):
+        raise OSError(f"Durable file destination is a symlink or reparse point: {destination}")
 
+    temporary_name = f".{destination.name}.{os.getpid()}-{secrets.token_hex(8)}.partial"
+    if _is_windows():
+        temporary = parent / temporary_name
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+        descriptor = os.open(temporary, flags, validated_mode)
+        try:
+            with os.fdopen(descriptor, "wb", closefd=True) as handle:
+                descriptor = -1
+                yield handle
+                handle.flush()
+                os.fsync(handle.fileno())
+            durable_replace(temporary, destination)
+        finally:
+            if descriptor >= 0:
+                os.close(descriptor)
+            temporary.unlink(missing_ok=True)
+        return
+
+    parent_fd = _open_directory_fd(parent, label="Durable file parent")
+    descriptor = -1
+    try:
+        _assert_directory_fd_current(parent, parent_fd, label="Durable file parent")
+        flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+        try:
+            descriptor = os.open(
+                temporary_name,
+                flags,
+                validated_mode,
+                dir_fd=parent_fd,
+            )
+        except (NotImplementedError, TypeError) as exc:
+            raise OSError(
+                "Identity-bound durable file creation is unsupported on this POSIX runtime."
+            ) from exc
+
+        # Critical pre-payload fence: if the pathname was replaced while the
+        # temp inode was being created relative to the trusted directory FD,
+        # abort before caller-controlled bytes can be written into that inode.
+        _assert_directory_fd_current(parent, parent_fd, label="Durable file parent")
+        with os.fdopen(descriptor, "wb", closefd=True) as handle:
+            descriptor = -1
+            yield handle
+            handle.flush()
+            os.fsync(handle.fileno())
+
+        _assert_directory_fd_current(parent, parent_fd, label="Durable file parent")
+        try:
+            os.replace(
+                temporary_name,
+                destination.name,
+                src_dir_fd=parent_fd,
+                dst_dir_fd=parent_fd,
+            )
+        except (NotImplementedError, TypeError) as exc:
+            raise OSError(
+                "Identity-bound durable file publication is unsupported on this POSIX runtime."
+            ) from exc
+        os.fsync(parent_fd)
+        _assert_directory_fd_current(parent, parent_fd, label="Durable file parent")
+    finally:
+        if descriptor >= 0:
+            os.close(descriptor)
+        try:
+            os.unlink(temporary_name, dir_fd=parent_fd)
+        except FileNotFoundError:
+            pass
+        finally:
+            os.close(parent_fd)
+
+
+def durable_write_bytes(path: Path, data: bytes, *, mode: int = 0o600) -> None:
+    """Durably replace one file without exposing payload before publication."""
+    if not isinstance(data, bytes):
+        raise TypeError("Durable file payload must be bytes.")
+    with durable_atomic_writer(path, mode=mode) as handle:
+        handle.write(data)
+
+
+def durable_mkdir(path: Path, *, parents: bool = False, exist_ok: bool = False) -> None:
+    """Create a directory and durably publish every newly created entry."""
     directory = Path(path)
-
-    if directory.is_symlink():
+    if is_link_boundary(directory):
         raise FileExistsError(
-            f"Durable directory path is a symlink: {directory}"
+            f"Durable directory path is a symlink or reparse point: {directory}"
         )
-
     if directory.exists():
         if not directory.is_dir():
-            raise FileExistsError(
-                f"Durable directory path is not a directory: {directory}"
-            )
-
+            raise FileExistsError(f"Durable directory path is not a directory: {directory}")
+        _assert_real_directory(directory, label="Durable directory")
         if exist_ok:
             return
-
-        raise FileExistsError(
-            f"Durable directory already exists: {directory}"
-        )
-
+        raise FileExistsError(f"Durable directory already exists: {directory}")
     if not parents:
-        _durable_create_one_directory(
-            directory,
-            exist_ok=exist_ok,
-        )
+        _durable_create_one_directory(directory, exist_ok=exist_ok)
         return
 
     missing: list[Path] = []
     cursor = directory
-
     while not cursor.exists():
-        if cursor.is_symlink():
+        if is_link_boundary(cursor):
             raise FileExistsError(
-                f"Durable directory ancestor is a symlink: {cursor}"
+                f"Durable directory ancestor is a symlink or reparse point: {cursor}"
             )
-
         missing.append(cursor)
-
         parent = cursor.parent
-
         if parent == cursor:
-            raise FileNotFoundError(
-                f"No existing ancestor for durable directory: {directory}"
-            )
-
+            raise FileNotFoundError(f"No existing ancestor for durable directory: {directory}")
         cursor = parent
-
-    if cursor.is_symlink() or not cursor.is_dir():
-        raise NotADirectoryError(
-            f"Durable directory ancestor is unsafe: {cursor}"
-        )
-
+    _assert_real_directory(cursor, label="Durable directory ancestor")
     for item in reversed(missing):
-        _durable_create_one_directory(
-            item,
-            exist_ok=(
-                exist_ok
-                if item == directory
-                else True
-            ),
-        )
+        _durable_create_one_directory(item, exist_ok=(exist_ok if item == directory else True))
 
 
-def _durable_create_one_directory(
-    directory: Path,
-    *,
-    exist_ok: bool,
-) -> None:
+def _posix_durable_create_directory(directory: Path, *, exist_ok: bool) -> None:
+    """Create one child relative to an opened parent directory identity."""
     parent = directory.parent
-
-    if not parent.is_dir() or parent.is_symlink():
-        raise NotADirectoryError(
-            f"Durable directory parent is unsafe: {parent}"
-        )
-
-    if _is_windows():
-        _windows_durable_create_directory(
-            directory,
-            exist_ok=exist_ok,
-        )
-        return
-
+    parent_fd = _open_directory_fd(parent, label="Durable directory parent")
     try:
-        directory.mkdir(
-            parents=False,
-            exist_ok=False,
-        )
-    except FileExistsError:
-        if (
-            exist_ok
-            and directory.is_dir()
-            and not directory.is_symlink()
-        ):
+        _assert_directory_fd_current(parent, parent_fd, label="Durable directory parent")
+        try:
+            os.mkdir(directory.name, mode=0o777, dir_fd=parent_fd)
+        except FileExistsError:
+            if not exist_ok:
+                raise
+            try:
+                existing = os.stat(
+                    directory.name,
+                    dir_fd=parent_fd,
+                    follow_symlinks=False,
+                )
+            except (NotImplementedError, TypeError) as exc:
+                raise OSError(
+                    "Identity-bound durable directory inspection is unsupported "
+                    "on this POSIX runtime."
+                ) from exc
+            if not stat.S_ISDIR(existing.st_mode):
+                raise FileExistsError(
+                    f"Durable directory path is not a directory: {directory}"
+                ) from None
+            _assert_directory_fd_current(
+                parent,
+                parent_fd,
+                label="Durable directory parent",
+            )
+            _assert_real_directory(directory, label="Durable directory")
             return
-        raise
+        except (NotImplementedError, TypeError) as exc:
+            raise OSError(
+                "Identity-bound durable directory creation is unsupported "
+                "on this POSIX runtime."
+            ) from exc
 
-    # mkdir creates an entry in the parent directory. Persist that
-    # entry before allowing callers to publish data below it.
-    fsync_directory(
-        parent
-    )
+        os.fsync(parent_fd)
+        _assert_directory_fd_current(parent, parent_fd, label="Durable directory parent")
+        _assert_real_directory(directory, label="Durable directory")
+    finally:
+        os.close(parent_fd)
 
 
-def _windows_durable_create_directory(
-    directory: Path,
-    *,
-    exist_ok: bool,
-) -> None:
-    """Publish one new Windows directory using a write-through move."""
+def _durable_create_one_directory(directory: Path, *, exist_ok: bool) -> None:
+    parent = directory.parent
+    _assert_real_directory(parent, label="Durable directory parent")
+    if _is_windows():
+        _windows_durable_create_directory(directory, exist_ok=exist_ok)
+        return
+    _posix_durable_create_directory(directory, exist_ok=exist_ok)
 
-    staging = directory.with_name(
-        f".{directory.name}."
-        f"{secrets.token_hex(8)}.mkdir-partial"
-    )
 
-    staging.mkdir(
-        parents=False,
-        exist_ok=False,
-    )
-
+def _windows_durable_create_directory(directory: Path, *, exist_ok: bool) -> None:
+    staging = directory.with_name(f".{directory.name}.{secrets.token_hex(8)}.mkdir-partial")
+    staging.mkdir(parents=False, exist_ok=False)
     try:
         try:
-            # Directory sources intentionally omit
-            # MOVEFILE_REPLACE_EXISTING.
-            _windows_replace_write_through(
-                staging,
-                directory,
-            )
+            _windows_replace_write_through(staging, directory)
         except OSError:
-            if (
-                exist_ok
-                and directory.is_dir()
-                and not directory.is_symlink()
-            ):
+            if exist_ok and directory.is_dir() and not is_link_boundary(directory):
+                _assert_real_directory(directory, label="Durable directory")
                 return
             raise
     finally:
@@ -226,36 +394,19 @@ def _windows_durable_create_directory(
         except FileNotFoundError:
             pass
 
+
 def fsync_directory(path: Path) -> None:
-    """Synchronize one directory entry set on POSIX.
-
-    Windows publication uses MoveFileExW WRITE_THROUGH instead. Python does
-    not expose a portable directory-fsync contract there.
-    """
-
+    """Synchronize one real directory entry set on POSIX."""
+    directory = Path(path)
+    _assert_real_directory(directory, label="fsync directory")
     if _is_windows():
         return
-
-    flags = os.O_RDONLY
-    directory_flag = getattr(
-        os,
-        "O_DIRECTORY",
-        0,
-    )
-    flags |= directory_flag
-
-    descriptor = os.open(
-        path,
-        flags,
-    )
+    descriptor = _open_directory_fd(directory, label="fsync directory")
     try:
-        os.fsync(
-            descriptor
-        )
+        os.fsync(descriptor)
+        _assert_directory_fd_current(directory, descriptor, label="fsync directory")
     finally:
-        os.close(
-            descriptor
-        )
+        os.close(descriptor)
 
 
 def _is_windows() -> bool:
@@ -263,74 +414,36 @@ def _is_windows() -> bool:
 
 
 def _windows_api_path(path: Path) -> str:
-    """Return an absolute Win32 extended-length path without resolving links."""
-
     value = str(path.absolute())
-
     if value.startswith("\\\\?\\"):
         return value
-
     if value.startswith("\\\\"):
         return "\\\\?\\UNC\\" + value[2:]
-
     return "\\\\?\\" + value
 
 
-def _windows_replace_write_through(
-    source: Path,
-    destination: Path,
-) -> None:
-    """Publish with the Win32 write-through rename primitive."""
-
+def _windows_replace_write_through(source: Path, destination: Path) -> None:
     import ctypes
     from ctypes import wintypes
 
-    # These ctypes symbols exist only on Windows. Resolve them dynamically so
-    # non-Windows type checking does not require Windows-only ctypes stubs.
     win_dll = vars(ctypes)["WinDLL"]
     get_last_error = vars(ctypes)["get_last_error"]
-
-    # MOVEFILE_REPLACE_EXISTING cannot replace an existing directory.
-    # ATHENA directory publications already require an absent destination.
     source_is_directory = source.is_dir()
-
     if source_is_directory and destination.exists():
-        raise FileExistsError(
-            f"Durable directory destination already exists: {destination}"
-        )
-
-    kernel32 = win_dll(
-        "kernel32",
-        use_last_error=True,
-    )
-
+        raise FileExistsError(f"Durable directory destination already exists: {destination}")
+    kernel32 = win_dll("kernel32", use_last_error=True)
     move_file_ex = kernel32.MoveFileExW
-    move_file_ex.argtypes = (
-        wintypes.LPCWSTR,
-        wintypes.LPCWSTR,
-        wintypes.DWORD,
-    )
+    move_file_ex.argtypes = (wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.DWORD)
     move_file_ex.restype = wintypes.BOOL
-
     flags = _MOVEFILE_WRITE_THROUGH
-
     if not source_is_directory:
         flags |= _MOVEFILE_REPLACE_EXISTING
-
-    succeeded = move_file_ex(
-        _windows_api_path(source),
-        _windows_api_path(destination),
-        flags,
-    )
-
+    succeeded = move_file_ex(_windows_api_path(source), _windows_api_path(destination), flags)
     if succeeded:
         return
-
     error = get_last_error()
-
     raise OSError(
         error,
-        f"MoveFileExW durable publication failed "
-        f"with Windows error {error}.",
+        f"MoveFileExW durable publication failed with Windows error {error}.",
         str(destination),
     )

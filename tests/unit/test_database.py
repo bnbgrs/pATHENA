@@ -51,3 +51,45 @@ def test_database_refuses_unrelated_nonempty_sqlite_file(tmp_path) -> None:
 
     with pytest.raises(DatabaseCompatibilityError, match="Refusing to adopt"):
         database.start()
+
+
+def test_database_write_transaction_checks_configured_gate_before_begin(tmp_path) -> None:
+    calls: list[str] = []
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.configure_noncritical_write_gate(lambda: calls.append("gate"))
+    database.start()
+
+    with database.write_transaction() as connection:
+        calls.append("transaction")
+        assert connection.in_transaction is True
+
+    assert calls == ["gate", "transaction"]
+    assert database.connection.in_transaction is False
+    database.stop()
+
+
+def test_database_write_gate_blocks_before_sqlite_transaction_begins(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+
+    def block() -> None:
+        raise RuntimeError("blocked")
+
+    database.configure_noncritical_write_gate(block)
+    database.start()
+
+    with pytest.raises(RuntimeError, match="blocked"):
+        with database.write_transaction():
+            raise AssertionError("write transaction must not start")
+
+    assert database.connection.in_transaction is False
+    database.stop()
+
+
+def test_database_write_gate_cannot_change_after_startup(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+
+    with pytest.raises(RuntimeError, match="before startup"):
+        database.configure_noncritical_write_gate(lambda: None)
+
+    database.stop()

@@ -8,6 +8,16 @@ from pathlib import Path
 from athena.config.settings import AthenaSettings
 
 
+def _require_path(value: object, field_name: str) -> None:
+    if not isinstance(value, Path):
+        raise TypeError(f"RuntimePaths {field_name} must be a pathlib.Path.")
+
+
+def _require_optional_path(value: object, field_name: str) -> None:
+    if value is not None:
+        _require_path(value, field_name)
+
+
 @dataclass(frozen=True, slots=True)
 class RuntimePaths:
     """Physical local paths grouped by persistence semantics."""
@@ -23,8 +33,28 @@ class RuntimePaths:
     backup_root: Path | None
     projection_root: Path | None
 
+    def __post_init__(self) -> None:
+        for required_value, field_name in (
+            (self.local_root, "local_root"),
+            (self.state_root, "state_root"),
+            (self.database_path, "database_path"),
+            (self.spool_root, "spool_root"),
+            (self.derived_root, "derived_root"),
+            (self.log_root, "log_root"),
+            (self.temp_root, "temp_root"),
+        ):
+            _require_path(required_value, field_name)
+        for optional_value, field_name in (
+            (self.archive_root, "archive_root"),
+            (self.backup_root, "backup_root"),
+            (self.projection_root, "projection_root"),
+        ):
+            _require_optional_path(optional_value, field_name)
+
     @classmethod
     def from_settings(cls, settings: AthenaSettings) -> "RuntimePaths":
+        if not isinstance(settings, AthenaSettings):
+            raise TypeError("settings must be an AthenaSettings instance.")
         local = settings.local_root
         state = local / "state"
 

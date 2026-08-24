@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import json
 import uuid
 from dataclasses import dataclass
 from enum import Enum, IntEnum
+from typing import Any
 
 
 class JobPriority(IntEnum):
@@ -47,6 +49,71 @@ class WaitingReason(str, Enum):
     BACKOFF = "waiting_backoff"
 
 
+def _require_uuid(value: object, label: str) -> None:
+    if not isinstance(value, uuid.UUID):
+        raise TypeError(f"{label} must be a UUID.")
+
+
+def _require_optional_uuid(value: object | None, label: str) -> None:
+    if value is not None:
+        _require_uuid(value, label)
+
+
+def _require_int(value: object, label: str, *, minimum: int = 0) -> None:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError(f"{label} must be an integer.")
+    if value < minimum:
+        raise ValueError(f"{label} must be >= {minimum}.")
+
+
+def _require_optional_int(value: object | None, label: str, *, minimum: int = 0) -> None:
+    if value is not None:
+        _require_int(value, label, minimum=minimum)
+
+
+def _require_text(value: object, label: str) -> None:
+    if not isinstance(value, str):
+        raise TypeError(f"{label} must be text.")
+    if not value:
+        raise ValueError(f"{label} must not be empty.")
+    if value != value.strip():
+        raise ValueError(f"{label} must use canonical trimmed text.")
+
+
+def _require_optional_text(value: object | None, label: str) -> None:
+    if value is None:
+        return
+    _require_text(value, label)
+
+
+def _reject_json_constant(value: str) -> None:
+    raise ValueError(f"Non-standard JSON constant {value!r} is not permitted.")
+
+
+def _unique_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"Duplicate JSON object key {key!r} is not permitted.")
+        result[key] = value
+    return result
+
+
+def _require_optional_json(value: object | None, label: str) -> None:
+    if value is None:
+        return
+    if not isinstance(value, str):
+        raise TypeError(f"{label} must be JSON text or None.")
+    try:
+        json.loads(
+            value,
+            parse_constant=_reject_json_constant,
+            object_pairs_hook=_unique_json_object,
+        )
+    except (json.JSONDecodeError, ValueError) as exc:
+        raise ValueError(f"{label} must contain strict JSON.") from exc
+
+
 @dataclass(frozen=True, slots=True)
 class JobRecord:
     job_id: uuid.UUID
@@ -73,6 +140,57 @@ class JobRecord:
     fencing_sequence: int
     updated_at_us: int
 
+    def __post_init__(self) -> None:
+        _require_uuid(self.job_id, "JobRecord job_id")
+        _require_uuid(self.created_by_actor_id, "JobRecord created_by_actor_id")
+        for uuid_value, label in (
+            (self.processing_run_id, "JobRecord processing_run_id"),
+            (self.last_checkpoint_id, "JobRecord last_checkpoint_id"),
+            (self.protection_scope_id, "JobRecord protection_scope_id"),
+            (self.protected_payload_id, "JobRecord protected_payload_id"),
+        ):
+            _require_optional_uuid(uuid_value, label)
+        _require_text(self.job_type, "JobRecord job_type")
+        if not isinstance(self.priority, JobPriority):
+            raise TypeError("JobRecord priority must be a JobPriority.")
+        if not isinstance(self.state, JobState):
+            raise TypeError("JobRecord state must be a JobState.")
+        _require_optional_json(self.requested_scope_json, "JobRecord requested_scope_json")
+        _require_optional_json(
+            self.pinned_configuration_json,
+            "JobRecord pinned_configuration_json",
+        )
+        for text_value, label in (
+            (self.current_stage, "JobRecord current_stage"),
+            (self.blocked_reason, "JobRecord blocked_reason"),
+            (self.worker_id, "JobRecord worker_id"),
+        ):
+            _require_optional_text(text_value, label)
+        _require_int(self.created_at_us, "JobRecord created_at_us")
+        _require_int(self.updated_at_us, "JobRecord updated_at_us")
+        if self.updated_at_us < self.created_at_us:
+            raise ValueError("JobRecord updated_at_us precedes created_at_us.")
+        _require_int(self.retry_count, "JobRecord retry_count")
+        _require_int(self.fencing_sequence, "JobRecord fencing_sequence")
+        for int_value, label in (
+            (self.next_run_at_us, "JobRecord next_run_at_us"),
+            (self.lease_acquired_at_us, "JobRecord lease_acquired_at_us"),
+            (self.lease_expires_at_us, "JobRecord lease_expires_at_us"),
+            (self.heartbeat_at_us, "JobRecord heartbeat_at_us"),
+        ):
+            _require_optional_int(int_value, label)
+        if self.lease_token is not None:
+            if not isinstance(self.lease_token, bytes):
+                raise TypeError("JobRecord lease_token must be bytes or None.")
+            if not self.lease_token:
+                raise ValueError("JobRecord lease_token must not be empty.")
+        if (
+            self.lease_acquired_at_us is not None
+            and self.lease_expires_at_us is not None
+            and self.lease_expires_at_us < self.lease_acquired_at_us
+        ):
+            raise ValueError("JobRecord lease_expires_at_us precedes lease_acquired_at_us.")
+
     @property
     def uri(self) -> str:
         return f"operational://job/{self.job_id}"
@@ -92,6 +210,26 @@ class CheckpointRecord:
     protection_scope_id: uuid.UUID | None
     protected_payload_id: uuid.UUID | None
     fencing_sequence: int
+
+    def __post_init__(self) -> None:
+        _require_uuid(self.checkpoint_id, "CheckpointRecord checkpoint_id")
+        _require_uuid(self.job_id, "CheckpointRecord job_id")
+        for uuid_value, label in (
+            (self.processing_stage_id, "CheckpointRecord processing_stage_id"),
+            (self.commit_id, "CheckpointRecord commit_id"),
+            (self.protection_scope_id, "CheckpointRecord protection_scope_id"),
+            (self.protected_payload_id, "CheckpointRecord protected_payload_id"),
+        ):
+            _require_optional_uuid(uuid_value, label)
+        _require_int(self.created_at_us, "CheckpointRecord created_at_us")
+        _require_int(self.fencing_sequence, "CheckpointRecord fencing_sequence")
+        for json_value, label in (
+            (self.progress_state_json, "CheckpointRecord progress_state_json"),
+            (self.last_confirmed_input_json, "CheckpointRecord last_confirmed_input_json"),
+            (self.last_confirmed_output_json, "CheckpointRecord last_confirmed_output_json"),
+            (self.resume_metadata_json, "CheckpointRecord resume_metadata_json"),
+        ):
+            _require_optional_json(json_value, label)
 
     @property
     def uri(self) -> str:

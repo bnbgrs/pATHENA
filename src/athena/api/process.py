@@ -35,6 +35,58 @@ class CoreApiProcessOwnershipError(CoreApiProcessError):
     """Raised when another process already owns the desktop Core lifecycle."""
 
 
+def _reject_lock_symlink_ancestors(path: Path) -> None:
+    cursor = path.parent
+    while True:
+        if cursor.is_symlink():
+            raise CoreApiProcessOwnershipError(
+                "ATHENA desktop Core ownership lock has a symlink ancestor."
+            )
+        if cursor.exists() and not cursor.is_dir():
+            raise CoreApiProcessOwnershipError(
+                "ATHENA desktop Core ownership lock ancestor is not a directory."
+            )
+        parent = cursor.parent
+        if parent == cursor:
+            return
+        cursor = parent
+
+
+def _open_ownership_lock(path: Path) -> BinaryIO:
+    if path.is_symlink():
+        raise CoreApiProcessOwnershipError(
+            "ATHENA desktop Core ownership lock must not be a symlink."
+        )
+    flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(path, flags, 0o600)
+    try:
+        handle = cast(BinaryIO, os.fdopen(descriptor, "r+b"))
+    except BaseException:
+        os.close(descriptor)
+        raise
+    if os.name == "posix":
+        try:
+            os.fchmod(handle.fileno(), 0o600)
+        except OSError:
+            handle.close()
+            raise
+    return handle
+
+
+def _assert_lock_identity(path: Path, handle: BinaryIO) -> None:
+    try:
+        path_stat = path.stat(follow_symlinks=False)
+        handle_stat = os.fstat(handle.fileno())
+    except OSError as exc:
+        raise CoreApiProcessOwnershipError(
+            "ATHENA desktop Core ownership lock identity cannot be verified."
+        ) from exc
+    if path.is_symlink() or not os.path.samestat(path_stat, handle_stat):
+        raise CoreApiProcessOwnershipError(
+            "ATHENA desktop Core ownership lock pathname changed during acquisition."
+        )
+
+
 class _CoreApiProcessLock:
     """Hold one OS-released advisory lock for a desktop Core process lifetime."""
 
@@ -45,21 +97,39 @@ class _CoreApiProcessLock:
     @classmethod
     def acquire(cls, local_root: Path) -> _CoreApiProcessLock:
         path = _ownership_lock_path(local_root)
+        _reject_lock_symlink_ancestors(path)
+        if path.is_symlink():
+            raise CoreApiProcessOwnershipError(
+                "ATHENA desktop Core ownership lock must not be a symlink."
+            )
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
-            handle = path.open("a+b")
+            _reject_lock_symlink_ancestors(path)
+            if path.parent.is_symlink() or not path.parent.is_dir():
+                raise CoreApiProcessOwnershipError(
+                    "ATHENA desktop Core ownership lock directory is unsafe."
+                )
+            handle = _open_ownership_lock(path)
+        except CoreApiProcessOwnershipError:
+            raise
         except OSError as exc:
             raise CoreApiProcessOwnershipError(
                 "ATHENA desktop Core ownership lock cannot be opened."
             ) from exc
 
         try:
+            _assert_lock_identity(path, handle)
             handle.seek(0, os.SEEK_END)
             if handle.tell() == 0:
                 handle.write(b"\0")
                 handle.flush()
+                os.fsync(handle.fileno())
             handle.seek(0)
             _lock_nonblocking(handle)
+            _assert_lock_identity(path, handle)
+        except CoreApiProcessOwnershipError:
+            handle.close()
+            raise
         except OSError as exc:
             handle.close()
             raise CoreApiProcessOwnershipError(
@@ -80,8 +150,10 @@ class CoreApiProcess:
     """Own ATHENA Core, its loopback API server, and single-process ownership."""
 
     def __init__(self, *, settings: AthenaSettings, port: int = 0) -> None:
-        if not 0 <= port <= 65535:
-            raise ValueError("ATHENA Core API port must be between 0 and 65535.")
+        if isinstance(port, bool) or not isinstance(port, int) or not 0 <= port <= 65535:
+            raise ValueError(
+                "ATHENA Core API port must be an integer between 0 and 65535."
+            )
         self.settings = settings
         self.port = port
         self.app = AthenaApplication(settings=settings)
@@ -121,21 +193,21 @@ class CoreApiProcess:
         try:
             self.executor.start()
             self.server.start()
-        except Exception:
+        except BaseException:
             self._rollback_startup()
             raise
 
     def stop(self) -> None:
-        failures: list[Exception] = []
+        failures: list[BaseException] = []
 
         try:
             self.server.stop()
-        except Exception as exc:
+        except BaseException as exc:
             failures.append(exc)
 
         try:
             self.executor.stop()
-        except Exception as exc:
+        except BaseException as exc:
             failures.append(exc)
 
         ownership = self._ownership
@@ -143,13 +215,17 @@ class CoreApiProcess:
         if ownership is not None:
             try:
                 ownership.close()
-            except Exception as exc:
+            except BaseException as exc:
                 failures.append(exc)
 
-        if failures:
-            raise CoreApiProcessError(
-                "ATHENA desktop Core did not stop cleanly."
-            ) from failures[0]
+        if not failures:
+            return
+        for failure in failures:
+            if not isinstance(failure, Exception):
+                raise failure
+        raise CoreApiProcessError(
+            "ATHENA desktop Core did not stop cleanly."
+        ) from failures[0]
 
     def request_shutdown(self) -> None:
         """Request an orderly stop from the authenticated local control API."""
@@ -176,21 +252,28 @@ class CoreApiProcess:
     def _rollback_startup(self) -> None:
         try:
             self.server.stop()
-        except Exception:
+        except BaseException:
             pass
 
         try:
             self.executor.stop()
-        except Exception:
+        except BaseException:
             pass
 
         ownership = self._ownership
         self._ownership = None
         if ownership is not None:
-            ownership.close()
+            try:
+                ownership.close()
+            except BaseException:
+                # Rollback must never replace the startup failure that caused
+                # the rollback. The process is already failing closed.
+                pass
 
 
 def _ownership_lock_path(local_root: Path) -> Path:
+    if not isinstance(local_root, Path):
+        raise TypeError("ATHENA local root must be a pathlib.Path.")
     normalized_root = os.path.normcase(str(local_root.resolve(strict=False)))
     digest = hashlib.sha256(normalized_root.encode("utf-8")).hexdigest()[:24]
     return Path(tempfile.gettempdir()) / _LOCK_DIRECTORY_NAME / f"{digest}.lock"
@@ -268,9 +351,18 @@ def main(argv: Sequence[str] | None = None) -> int:
             raise CoreApiProcessError("ATHENA Core API started without a published port.")
         print(f"ATHENA Core API ready on 127.0.0.1:{port}", flush=True)
         print(f"Discovery: {process.server.runtime.discovery_path}", flush=True)
-        return process.wait()
-    finally:
+        exit_code = process.wait()
+    except CoreApiProcessError as exc:
+        print(f"ATHENA Core API error: {exc}", file=sys.stderr)
+        exit_code = 2
+
+    try:
         process.stop()
+    except CoreApiProcessError as exc:
+        print(f"ATHENA Core API error: {exc}", file=sys.stderr)
+        return 2
+
+    return exit_code
 
 
 if __name__ == "__main__":

@@ -13,6 +13,8 @@ CONTROL_LANE_JOB_TYPES = frozenset(
 )
 
 
-def requires_provider_isolation(job_type: str) -> bool:
+def requires_provider_isolation(job_type: object) -> bool:
     """Return True unless a durable job is explicitly classified control-safe."""
+    if not isinstance(job_type, str) or not job_type or job_type != job_type.strip():
+        return True
     return job_type not in CONTROL_LANE_JOB_TYPES

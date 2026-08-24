@@ -4,9 +4,17 @@ from __future__ import annotations
 
 import sqlite3
 from dataclasses import dataclass
+from typing import Protocol, cast
 
 RECOVERY_REQUIRED_AFTER_RESTORE = "recovery_required_after_restore"
 CANCELLED_AFTER_RESTORE = "recovered_cancel_after_restore"
+
+
+class _RecoveryConnection(Protocol):
+    in_transaction: bool
+
+    def execute(self, sql: str, parameters: object = ()) -> object:
+        ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -16,9 +24,27 @@ class RestoredJobRecoverySummary:
     paused_running: int
     cancelled_requested: int
 
+    def __post_init__(self) -> None:
+        for value, label in (
+            (self.paused_running, "paused_running"),
+            (self.cancelled_requested, "cancelled_requested"),
+        ):
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise TypeError(f"Restore recovery {label} must be an integer.")
+            if value < 0:
+                raise ValueError(f"Restore recovery {label} must not be negative.")
+
     @property
     def total(self) -> int:
         return self.paused_running + self.cancelled_requested
+
+
+def _require_rowcount(value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise RuntimeError(
+            "Restore reconciliation returned an invalid SQLite row count."
+        )
+    return value
 
 
 def reconcile_jobs_after_restore(
@@ -37,22 +63,29 @@ def reconcile_jobs_after_restore(
     and fencing sequence are deliberately preserved. Worker identity and lease
     material are always removed.
     """
+    if not hasattr(connection, "execute") or not hasattr(connection, "in_transaction"):
+        raise TypeError(
+            "Restore reconciliation requires a SQLite-compatible connection."
+        )
+    db = cast(_RecoveryConnection, connection)
+    if not isinstance(db.in_transaction, bool):
+        raise TypeError("Restore reconciliation connection state must be bool.")
+    if isinstance(now_us, bool) or not isinstance(now_us, int) or now_us < 0:
+        raise ValueError(
+            "Restore reconciliation timestamp must be a non-negative integer."
+        )
 
-    if now_us < 0:
-        raise ValueError("Restore reconciliation timestamp must not be negative.")
-
-    if connection.in_transaction:
+    if db.in_transaction:
         raise RuntimeError(
             "Restore job reconciliation requires transaction ownership."
         )
 
-    transaction_started: bool = False
-
+    transaction_started = False
     try:
-        connection.execute("BEGIN IMMEDIATE")
+        db.execute("BEGIN IMMEDIATE")
         transaction_started = True
 
-        paused = connection.execute(
+        paused = db.execute(
             """
             UPDATE jobs
             SET state = 'paused',
@@ -66,13 +99,10 @@ def reconcile_jobs_after_restore(
                 updated_at_us = MAX(updated_at_us, ?)
             WHERE state = 'running'
             """,
-            (
-                RECOVERY_REQUIRED_AFTER_RESTORE,
-                now_us,
-            ),
+            (RECOVERY_REQUIRED_AFTER_RESTORE, now_us),
         )
 
-        cancelled = connection.execute(
+        cancelled = db.execute(
             """
             UPDATE jobs
             SET state = 'cancelled',
@@ -86,21 +116,30 @@ def reconcile_jobs_after_restore(
                 updated_at_us = MAX(updated_at_us, ?)
             WHERE state = 'cancel_requested'
             """,
-            (
-                CANCELLED_AFTER_RESTORE,
-                now_us,
-            ),
+            (CANCELLED_AFTER_RESTORE, now_us),
         )
 
-        connection.execute("COMMIT")
-        transaction_started = False
+        # Validate driver/cursor contracts while rollback is still possible.
+        # Committing first and discovering an invalid rowcount afterwards would
+        # report failure even though the restore reconciliation had become
+        # durable, leaving callers unable to distinguish committed state.
+        paused_count = _require_rowcount(getattr(paused, "rowcount", None))
+        cancelled_count = _require_rowcount(getattr(cancelled, "rowcount", None))
 
+        db.execute("COMMIT")
+        transaction_started = False
     except BaseException:
         if transaction_started:
-            connection.execute("ROLLBACK")
+            try:
+                db.execute("ROLLBACK")
+            except BaseException:
+                # Preserve the operation failure that triggered rollback. A
+                # rollback failure is secondary and must never mask the cause,
+                # including process-level interruption during recovery cleanup.
+                pass
         raise
 
     return RestoredJobRecoverySummary(
-        paused_running=paused.rowcount,
-        cancelled_requested=cancelled.rowcount,
+        paused_running=paused_count,
+        cancelled_requested=cancelled_count,
     )

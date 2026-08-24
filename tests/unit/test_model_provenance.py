@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from athena.chat.repository import ChatRepository
 from athena.chat.service import ChatService
 from athena.model.domain import ModelInfo
@@ -7,7 +9,7 @@ from athena.model.provenance import ModelRunRepository
 from athena.storage.database import SQLiteDatabase
 
 
-def _model() -> ModelInfo:
+def _model(*, revision: str | None = None) -> ModelInfo:
     return ModelInfo(
         provider="lm_studio",
         backend_model_id="example/model",
@@ -18,6 +20,7 @@ def _model() -> ModelInfo:
         loaded=True,
         vision=False,
         trained_for_tool_use=False,
+        model_revision=revision,
     )
 
 
@@ -40,7 +43,60 @@ def test_model_signature_is_reused_for_identical_configuration(tmp_path) -> None
     assert first.model_signature_id == second.model_signature_id
     assert first.signature_hash == second.signature_hash
     assert first.quantization == "Q4_K_M"
+    assert first.model_revision is None
     database.stop()
+
+
+def test_model_signature_persists_provider_observed_revision(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    repository = ModelRunRepository(database)
+
+    signature = repository.get_or_create_signature(
+        model=_model(revision="build-2026-08-23.1"),
+        generation_parameters={"temperature": 0.0},
+    )
+    loaded = repository.load_signature(signature.model_signature_id)
+
+    assert signature.model_revision == "build-2026-08-23.1"
+    assert loaded.model_revision == "build-2026-08-23.1"
+    assert loaded.signature_hash == signature.signature_hash
+    database.stop()
+
+
+def test_model_revision_changes_signature_identity(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    repository = ModelRunRepository(database)
+
+    unknown = repository.get_or_create_signature(
+        model=_model(),
+        generation_parameters={"temperature": 0.0},
+    )
+    known = repository.get_or_create_signature(
+        model=_model(revision="build-1"),
+        generation_parameters={"temperature": 0.0},
+    )
+    changed = repository.get_or_create_signature(
+        model=_model(revision="build-2"),
+        generation_parameters={"temperature": 0.0},
+    )
+
+    assert len(
+        {
+            unknown.model_signature_id,
+            known.model_signature_id,
+            changed.model_signature_id,
+        }
+    ) == 3
+    assert len({unknown.signature_hash, known.signature_hash, changed.signature_hash}) == 3
+    database.stop()
+
+
+@pytest.mark.parametrize("revision", ["", " ", " build-1", "build-1 "])
+def test_model_info_rejects_noncanonical_observed_revision(revision: str) -> None:
+    with pytest.raises(ValueError, match="model_revision"):
+        _model(revision=revision)
 
 
 def test_processing_run_records_snapshot_and_final_status(tmp_path) -> None:

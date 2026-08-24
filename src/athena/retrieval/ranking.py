@@ -27,6 +27,12 @@ _DIVERSITY_SIMILARITY_THRESHOLD = 0.82
 _DIVERSITY_PENALTY = 0.16
 
 
+def _search_limit(value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or not 1 <= value <= 200:
+        raise ValueError("Retrieval ranking limit must be an integer between 1 and 200.")
+    return value
+
+
 @dataclass(frozen=True, slots=True)
 class RankedSearchResult:
     entity_id: uuid.UUID
@@ -64,7 +70,8 @@ class RetrievalRankingService:
         limit: int = 20,
         entity_type: SearchEntityType | None = None,
     ) -> tuple[RankedSearchResult, ...]:
-        candidate_limit = min(200, max(50, limit * 8))
+        validated_limit = _search_limit(limit)
+        candidate_limit = min(200, max(50, validated_limit * 8))
         raw = self.search_service.search(
             query,
             limit=candidate_limit,
@@ -75,7 +82,7 @@ class RetrievalRankingService:
 
         consolidated = self._consolidate_exact_duplicates(raw)
         scored = self._base_scores(consolidated)
-        return self._diversify(scored, limit=limit)
+        return self._diversify(scored, limit=validated_limit)
 
     def _consolidate_exact_duplicates(
         self,

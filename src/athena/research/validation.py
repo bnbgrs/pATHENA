@@ -11,10 +11,19 @@ from athena.research.errors import ResearchStateError
 
 
 def _required_text(value: str, field: str) -> str:
+    if not isinstance(value, str):
+        raise ResearchStateError(f"{field} must be text.")
     normalized = value.strip()
     if not normalized:
         raise ResearchStateError(f"{field} must not be empty.")
     return normalized
+
+
+def _nonnegative_int(value: object, field: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ResearchStateError(f"{field} must be a non-negative integer.")
+    return value
+
 
 def _canonical_json_value(value: Any) -> str:
     try:
@@ -30,8 +39,10 @@ def _canonical_json_value(value: Any) -> str:
             "Research synthesis state must be finite canonical JSON."
         ) from exc
 
+
 def _canonical_json_object(value: Mapping[str, Any]) -> str:
     return _canonical_json_value(dict(value))
+
 
 def _validated_synthesis_source_evidence(
     content: Mapping[str, Any],
@@ -53,16 +64,17 @@ def _validated_synthesis_source_evidence(
     normalized: set[tuple[str, int, uuid.UUID]] = set()
 
     for kind, output_ordinal, source_artifact_id in evidence:
-        if kind not in outputs:
+        if not isinstance(kind, str) or kind not in outputs:
             raise ResearchStateError(
                 f"Unsupported Research synthesis source-evidence "
                 f"output kind {kind!r}."
             )
 
-        if (
-            output_ordinal < 0
-            or output_ordinal >= len(outputs[kind])
-        ):
+        validated_output_ordinal = _nonnegative_int(
+            output_ordinal,
+            "Research synthesis source-evidence output ordinal",
+        )
+        if validated_output_ordinal >= len(outputs[kind]):
             raise ResearchStateError(
                 "Research synthesis source-evidence output ordinal "
                 "is out of range."
@@ -77,7 +89,7 @@ def _validated_synthesis_source_evidence(
         normalized.add(
             (
                 kind,
-                output_ordinal,
+                validated_output_ordinal,
                 source_artifact_id,
             )
         )
@@ -110,6 +122,7 @@ def _validated_synthesis_source_evidence(
         )
     )
 
+
 def _validated_synthesis_evidence(
     content: Mapping[str, Any],
     evidence: Sequence[tuple[str, int, int]],
@@ -128,19 +141,23 @@ def _validated_synthesis_evidence(
 
     normalized: set[tuple[str, int, int]] = set()
     for kind, output_ordinal, input_ordinal in evidence:
-        if kind not in outputs:
+        if not isinstance(kind, str) or kind not in outputs:
             raise ResearchStateError(
                 f"Unsupported Research synthesis evidence output kind {kind!r}."
             )
-        if output_ordinal < 0 or output_ordinal >= len(outputs[kind]):
+        validated_output_ordinal = _nonnegative_int(
+            output_ordinal,
+            "Research synthesis evidence output ordinal",
+        )
+        if validated_output_ordinal >= len(outputs[kind]):
             raise ResearchStateError(
                 "Research synthesis evidence output ordinal is out of range."
             )
-        if input_ordinal < 0:
-            raise ResearchStateError(
-                "Research synthesis evidence input ordinal must not be negative."
-            )
-        normalized.add((kind, output_ordinal, input_ordinal))
+        validated_input_ordinal = _nonnegative_int(
+            input_ordinal,
+            "Research synthesis evidence input ordinal",
+        )
+        normalized.add((kind, validated_output_ordinal, validated_input_ordinal))
 
     expected_outputs = {
         (kind, output_ordinal)
@@ -163,11 +180,21 @@ def _validated_synthesis_evidence(
         )
     )
 
+
 def _json_string_array(raw: str, field: str) -> tuple[str, ...]:
+    if not isinstance(raw, str):
+        raise ResearchStateError(f"{field} must contain JSON text.")
     try:
         value = json.loads(raw)
     except json.JSONDecodeError as exc:
         raise ResearchStateError(f"{field} contains invalid JSON.") from exc
     if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
         raise ResearchStateError(f"{field} must be a JSON string array.")
-    return tuple(value)
+    normalized = tuple(item.strip() for item in value)
+    if any(not item for item in normalized):
+        raise ResearchStateError(f"{field} must not contain blank strings.")
+    if normalized != tuple(value):
+        raise ResearchStateError(f"{field} strings must use canonical trimmed text.")
+    if len(set(normalized)) != len(normalized):
+        raise ResearchStateError(f"{field} must not contain duplicate strings.")
+    return normalized

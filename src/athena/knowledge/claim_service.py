@@ -46,8 +46,14 @@ class ClaimService:
         grounding annotations are removed deterministically while the original
         chat revision remains the stable provenance and evidence source.
         """
-        if sequence_no < 1:
-            raise ChatMessageSequenceError("Chat message sequence must be at least 1.")
+        if (
+            isinstance(sequence_no, bool)
+            or not isinstance(sequence_no, int)
+            or sequence_no < 1
+        ):
+            raise ChatMessageSequenceError(
+                "Chat message sequence must be an integer of at least 1."
+            )
 
         thread = self.chat.load_chat(chat_id)
         message = next(

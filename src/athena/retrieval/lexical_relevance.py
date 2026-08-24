@@ -18,10 +18,13 @@ def required_term_matches(
     Longer probes require a two-thirds majority.
     """
 
-    if term_count < 1:
+    if (
+        isinstance(term_count, bool)
+        or not isinstance(term_count, int)
+        or term_count < 1
+    ):
         raise ValueError(
-            "Informative term count "
-            "must be positive."
+            "Informative term count must be a positive integer."
         )
 
     if term_count <= 3:

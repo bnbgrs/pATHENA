@@ -38,6 +38,7 @@ class ContextModelSignature:
     model_signature_id: uuid.UUID
     provider: str
     model_identifier: str
+    model_revision: str | None
     quantization: str | None
     generation_parameters_json: str
     context_configuration_json: str | None
@@ -171,7 +172,12 @@ class ContextPackage:
             raise ContextPackageError(
                 "ContextPackage temperature must be numeric when provided."
             )
-        temperature = float(value)
+        try:
+            temperature = float(value)
+        except OverflowError as exc:
+            raise ContextPackageError(
+                "ContextPackage temperature must be finite and between 0.0 and 2.0."
+            ) from exc
         if not 0.0 <= temperature <= 2.0:
             raise ContextPackageError(
                 "ContextPackage temperature must be between 0.0 and 2.0."
@@ -206,6 +212,7 @@ class ContextPackage:
                 "model_signature_id": str(self.model_signature.model_signature_id),
                 "provider": self.model_signature.provider,
                 "model_identifier": self.model_signature.model_identifier,
+                "model_revision": self.model_signature.model_revision,
                 "quantization": self.model_signature.quantization,
                 "generation_parameters_json": (
                     self.model_signature.generation_parameters_json
@@ -441,6 +448,7 @@ class ContextPackageService:
             model_signature_id=model_signature.model_signature_id,
             provider=model_signature.provider,
             model_identifier=model_signature.model_identifier,
+            model_revision=model_signature.model_revision,
             quantization=model_signature.quantization,
             generation_parameters_json=model_signature.generation_parameters_json,
             context_configuration_json=model_signature.context_configuration_json,
@@ -578,6 +586,7 @@ class ContextPackageService:
             model_signature_id=model_signature.model_signature_id,
             provider=model_signature.provider,
             model_identifier=model_signature.model_identifier,
+            model_revision=model_signature.model_revision,
             quantization=model_signature.quantization,
             generation_parameters_json=model_signature.generation_parameters_json,
             context_configuration_json=model_signature.context_configuration_json,

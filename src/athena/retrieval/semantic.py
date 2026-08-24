@@ -7,7 +7,9 @@ import math
 import struct
 import uuid
 from dataclasses import dataclass
+from numbers import Real
 from pathlib import Path
+from typing import Sequence
 
 from athena.common.ids import uuid_to_blob
 from athena.common.time import utc_now_us
@@ -25,8 +27,53 @@ _SEMANTIC_TYPE_PRIORITY = {
     SearchEntityType.CHAT_MESSAGE: 2,
 }
 
+
 class SemanticSearchError(RuntimeError):
     """Raised when the semantic derived index cannot be used safely."""
+
+
+def _canonical_model_id(value: object) -> str:
+    if not isinstance(value, str):
+        raise SemanticSearchError("Embedding model id must be text.")
+    normalized = value.strip()
+    if not normalized:
+        raise SemanticSearchError("Embedding model id must not be empty.")
+    return normalized
+
+
+def _positive_int(value: object, label: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise SemanticSearchError(f"{label} must be a positive integer.")
+    return value
+
+
+def _nonnegative_int(value: object, label: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise SemanticSearchError(f"{label} must be a non-negative integer.")
+    return value
+
+
+def _persisted_int(value: object, label: str, *, positive: bool = False) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise SemanticSearchError(f"Persisted {label} is invalid.")
+    if positive:
+        if value < 1:
+            raise SemanticSearchError(f"Persisted {label} is invalid.")
+    elif value < 0:
+        raise SemanticSearchError(f"Persisted {label} is invalid.")
+    return value
+
+
+def _finite_component(value: object) -> float:
+    if isinstance(value, bool) or not isinstance(value, Real):
+        raise SemanticSearchError("Embedding vector contains a non-numeric component.")
+    try:
+        normalized = float(value)
+    except OverflowError as exc:
+        raise SemanticSearchError("Embedding vector contains a non-finite component.") from exc
+    if not math.isfinite(normalized):
+        raise SemanticSearchError("Embedding vector contains a non-finite component.")
+    return normalized
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,6 +85,16 @@ class EmbeddingIndexStatus:
     document_count: int
     rebuilt_at_us: int
     hnsw_ready: bool
+
+    def __post_init__(self) -> None:
+        _canonical_model_id(self.model_id)
+        _nonnegative_int(self.indexed_commit_seq, "indexed_commit_seq")
+        _nonnegative_int(self.current_commit_seq, "current_commit_seq")
+        _positive_int(self.dimensions, "dimensions")
+        _nonnegative_int(self.document_count, "document_count")
+        _nonnegative_int(self.rebuilt_at_us, "rebuilt_at_us")
+        if not isinstance(self.hnsw_ready, bool):
+            raise SemanticSearchError("hnsw_ready must be boolean.")
 
     @property
     def current(self) -> bool:
@@ -54,6 +111,22 @@ class SemanticSearchResult:
     similarity: float
     contradiction_count: int
 
+    def __post_init__(self) -> None:
+        if not isinstance(self.entity_id, uuid.UUID):
+            raise TypeError("Semantic result entity_id must be a UUID.")
+        if not isinstance(self.revision_id, uuid.UUID):
+            raise TypeError("Semantic result revision_id must be a UUID.")
+        if not isinstance(self.entity_type, SearchEntityType):
+            raise TypeError("Semantic result entity_type must be a SearchEntityType.")
+        if self.title is not None and not isinstance(self.title, str):
+            raise TypeError("Semantic result title must be text or None.")
+        if not isinstance(self.text, str):
+            raise TypeError("Semantic result text must be text.")
+        similarity = _finite_component(self.similarity)
+        if not -1.0 <= similarity <= 1.0:
+            raise SemanticSearchError("Semantic result similarity must be between -1 and 1.")
+        _nonnegative_int(self.contradiction_count, "contradiction_count")
+
 
 class LocalSemanticSearchService:
     """Maintain and query model-scoped semantic vectors as Derived State."""
@@ -66,11 +139,16 @@ class LocalSemanticSearchService:
         batch_size: int = 32,
         hnsw_root: Path | None = None,
     ) -> None:
-        if batch_size <= 0:
-            raise ValueError("batch_size must be positive.")
+        if not isinstance(database, SQLiteDatabase):
+            raise TypeError("database must be a SQLiteDatabase.")
+        if not isinstance(provider, LMStudioEmbeddingProvider):
+            raise TypeError("provider must be an LMStudioEmbeddingProvider.")
+        validated_batch_size = _positive_int(batch_size, "batch_size")
+        if hnsw_root is not None and not isinstance(hnsw_root, Path):
+            raise TypeError("hnsw_root must be a pathlib.Path or None.")
         self.database = database
         self.provider = provider
-        self.batch_size = batch_size
+        self.batch_size = validated_batch_size
         self.hnsw = HnswIndexStore(
             hnsw_root or (self.database.path.parent / "hnsw"),
             namespace="knowledge",
@@ -78,9 +156,7 @@ class LocalSemanticSearchService:
         )
 
     def status(self, model_id: str) -> EmbeddingIndexStatus | None:
-        normalized_model_id = model_id.strip()
-        if not normalized_model_id:
-            raise SemanticSearchError("Embedding model id must not be empty.")
+        normalized_model_id = _canonical_model_id(model_id)
         storage_model_id = _storage_model_id(normalized_model_id)
         row = self.database.connection.execute(
             """
@@ -96,16 +172,21 @@ class LocalSemanticSearchService:
         ).fetchone()
         if row is None:
             return None
-        indexed_commit_seq = int(row["indexed_commit_seq"])
-        dimensions = int(row["dimensions"])
-        document_count = int(row["document_count"])
+        indexed_commit_seq = _persisted_int(row["indexed_commit_seq"], "indexed_commit_seq")
+        dimensions = _persisted_int(row["dimensions"], "dimensions", positive=True)
+        document_count = _persisted_int(row["document_count"], "document_count")
+        rebuilt_at_us = _persisted_int(row["rebuilt_at_us"], "rebuilt_at_us")
+        current_commit_seq = _nonnegative_int(
+            current_search_projection_commit_seq(self.database.connection),
+            "current_commit_seq",
+        )
         return EmbeddingIndexStatus(
             model_id=normalized_model_id,
             indexed_commit_seq=indexed_commit_seq,
-            current_commit_seq=current_search_projection_commit_seq(self.database.connection),
+            current_commit_seq=current_commit_seq,
             dimensions=dimensions,
             document_count=document_count,
-            rebuilt_at_us=int(row["rebuilt_at_us"]),
+            rebuilt_at_us=rebuilt_at_us,
             hnsw_ready=self.hnsw.ready(
                 model_id=storage_model_id,
                 snapshot=indexed_commit_seq,
@@ -115,24 +196,16 @@ class LocalSemanticSearchService:
         )
 
     def rebuild(self, model_id: str) -> EmbeddingIndexStatus:
-        normalized_model_id = model_id.strip()
-        if not normalized_model_id:
-            raise SemanticSearchError("Embedding model id must not be empty.")
+        normalized_model_id = _canonical_model_id(model_id)
         storage_model_id = _storage_model_id(normalized_model_id)
 
-        # Make FTS current first because it defines the allowed current,
-        # unprotected document set for both lexical and semantic retrieval.
-        #
-        # The external embedding call must never be allowed to publish vectors
-        # for an older FTS snapshot under a newer canonical commit watermark.
-        # Acquire a short writer lock after the normal FTS freshness check and
-        # capture the FTS rows plus canonical watermark atomically. If another
-        # canonical writer won the race between _ensure_fts_current() and this
-        # lock, repeat until both watermarks describe the same snapshot.
         while True:
             self._ensure_fts_current()
             with self.database.write_transaction() as connection:
-                current_commit_seq = current_search_projection_commit_seq(connection)
+                current_commit_seq = _nonnegative_int(
+                    current_search_projection_commit_seq(connection),
+                    "current_commit_seq",
+                )
                 state = connection.execute(
                     """
                     SELECT indexed_commit_seq
@@ -142,8 +215,16 @@ class LocalSemanticSearchService:
                 ).fetchone()
                 if state is None:
                     raise SemanticSearchError("Search index state is missing.")
-                if int(state["indexed_commit_seq"]) < current_commit_seq:
+                search_index_seq = _persisted_int(
+                    state["indexed_commit_seq"],
+                    "search indexed_commit_seq",
+                )
+                if search_index_seq < current_commit_seq:
                     continue
+                if search_index_seq > current_commit_seq:
+                    raise SemanticSearchError(
+                        "Search index watermark is ahead of canonical searchable state."
+                    )
                 source_rows = connection.execute(
                     """
                     SELECT entity_type, entity_id, revision_id, title, body
@@ -153,16 +234,19 @@ class LocalSemanticSearchService:
                 ).fetchall()
             break
 
-        documents = [
-            (
-                SearchEntityType(str(row["entity_type"])),
-                _uuid_from_hex(str(row["entity_id"])),
-                _uuid_from_hex(str(row["revision_id"])),
-                None if row["title"] in {None, ""} else str(row["title"]),
-                str(row["body"]),
-            )
-            for row in source_rows
-        ]
+        try:
+            documents = [
+                (
+                    SearchEntityType(str(row["entity_type"])),
+                    _uuid_from_hex(str(row["entity_id"])),
+                    _uuid_from_hex(str(row["revision_id"])),
+                    None if row["title"] in {None, ""} else str(row["title"]),
+                    str(row["body"]),
+                )
+                for row in source_rows
+            ]
+        except ValueError as exc:
+            raise SemanticSearchError("FTS index contains an invalid entity type.") from exc
 
         vectors: list[tuple[float, ...]] = []
         for start in range(0, len(documents), self.batch_size):
@@ -174,6 +258,10 @@ class LocalSemanticSearchService:
                     for document in batch
                 ],
             )
+            if len(batch_vectors) != len(batch):
+                raise SemanticSearchError(
+                    "Embedding provider returned an unexpected vector count."
+                )
             vectors.extend(batch_vectors)
 
         dimensions = 1
@@ -189,8 +277,6 @@ class LocalSemanticSearchService:
         normalized_vectors = [_normalize_vector(vector) for vector in vectors]
 
         with self.database.write_transaction() as connection:
-            # Fail closed if canonical state changed while external embedding
-            # generation was running.
             if current_search_projection_commit_seq(connection) != current_commit_seq:
                 raise SemanticSearchError(
                     "Canonical state changed during embedding rebuild; retry required."
@@ -271,11 +357,18 @@ class LocalSemanticSearchService:
         return status
 
     def ensure_current(self, model_id: str) -> EmbeddingIndexStatus:
-        normalized_model_id = model_id.strip()
+        normalized_model_id = _canonical_model_id(model_id)
         status = self.status(normalized_model_id)
-        current_commit_seq = current_search_projection_commit_seq(self.database.connection)
+        current_commit_seq = _nonnegative_int(
+            current_search_projection_commit_seq(self.database.connection),
+            "current_commit_seq",
+        )
         if status is None or status.indexed_commit_seq < current_commit_seq:
             return self.rebuild(normalized_model_id)
+        if status.indexed_commit_seq > current_commit_seq:
+            raise SemanticSearchError(
+                "Semantic index watermark is ahead of canonical searchable state."
+            )
         if not status.hnsw_ready:
             try:
                 self._rebuild_hnsw_from_persisted(
@@ -298,33 +391,36 @@ class LocalSemanticSearchService:
         model_id: str,
         limit: int = 50,
     ) -> tuple[SemanticSearchResult, ...]:
+        if not isinstance(query, str):
+            raise SemanticSearchError("Semantic query must be text.")
         normalized_query = query.strip()
         if not normalized_query:
             raise SemanticSearchError("Semantic query must not be empty.")
-        if not 1 <= limit <= 500:
+        normalized_model_id = _canonical_model_id(model_id)
+        validated_limit = _positive_int(limit, "Semantic search limit")
+        if validated_limit > 500:
             raise SemanticSearchError("Semantic search limit must be between 1 and 500.")
 
-        status = self.status(model_id)
+        status = self.status(normalized_model_id)
         if status is None:
             raise SemanticSearchError(
                 "Semantic index is absent; explicit rebuild required."
             )
-        if status.indexed_commit_seq < status.current_commit_seq:
+        if status.indexed_commit_seq != status.current_commit_seq:
             raise SemanticSearchError(
-                "Semantic index is stale; explicit rebuild required."
+                "Semantic index is stale or ahead; explicit rebuild/recovery required."
             )
         if not status.hnsw_ready:
             raise SemanticSearchError(
-                "Semantic HNSW sidecar is unavailable; "
-                "explicit maintenance required."
+                "Semantic HNSW sidecar is unavailable; explicit maintenance required."
             )
         if status.document_count == 0:
             return ()
 
-        storage_model_id = _storage_model_id(model_id)
+        storage_model_id = _storage_model_id(normalized_model_id)
         query_vectors = self.provider.embed(
-            model_id=model_id,
-            texts=[_prepare_query_text(model_id, normalized_query)],
+            model_id=normalized_model_id,
+            texts=[_prepare_query_text(normalized_model_id, normalized_query)],
         )
         if len(query_vectors) != 1:
             raise SemanticSearchError("Embedding provider did not return one query vector.")
@@ -334,7 +430,10 @@ class LocalSemanticSearchService:
                 "Query embedding dimensions differ from the persisted index."
             )
 
-        candidate_limit = min(status.document_count, max(limit, min(500, limit * 4)))
+        candidate_limit = min(
+            status.document_count,
+            max(validated_limit, min(500, validated_limit * 4)),
+        )
         try:
             matches = self.hnsw.search(
                 query_vector,
@@ -390,6 +489,8 @@ class LocalSemanticSearchService:
             similarity = math.fsum(
                 left * right for left, right in zip(query_vector, vector, strict=True)
             )
+            if not math.isfinite(similarity):
+                raise SemanticSearchError("Persisted embedding produced invalid similarity.")
             results.append(
                 SemanticSearchResult(
                     entity_id=entity_id,
@@ -398,7 +499,10 @@ class LocalSemanticSearchService:
                     title=None if row["title"] is None else str(row["title"]),
                     text=str(row["body"]),
                     similarity=max(-1.0, min(1.0, similarity)),
-                    contradiction_count=int(row["contradiction_count"]),
+                    contradiction_count=_persisted_int(
+                        row["contradiction_count"],
+                        "contradiction_count",
+                    ),
                 )
             )
 
@@ -409,7 +513,7 @@ class LocalSemanticSearchService:
                 item.entity_id.hex,
             )
         )
-        return tuple(results[:limit])
+        return tuple(results[:validated_limit])
 
     def _rebuild_hnsw_from_persisted(
         self,
@@ -419,7 +523,11 @@ class LocalSemanticSearchService:
         dimensions: int,
         document_count: int,
     ) -> None:
-        storage_model_id = _storage_model_id(model_id)
+        normalized_model_id = _canonical_model_id(model_id)
+        validated_snapshot = _nonnegative_int(snapshot, "snapshot")
+        validated_dimensions = _positive_int(dimensions, "dimensions")
+        validated_document_count = _nonnegative_int(document_count, "document_count")
+        storage_model_id = _storage_model_id(normalized_model_id)
         rows = self.database.connection.execute(
             """
             SELECT entity_type, entity_id, revision_id, vector_blob
@@ -429,34 +537,38 @@ class LocalSemanticSearchService:
             """,
             (storage_model_id,),
         ).fetchall()
-        if len(rows) != document_count:
+        if len(rows) != validated_document_count:
             raise SemanticSearchError(
                 "Persisted embedding count disagrees with semantic index state."
             )
-        entries = tuple(
-            (
-                _encode_reference(
-                    SearchEntityType(str(row["entity_type"])),
-                    uuid.UUID(bytes=bytes(row["entity_id"])),
-                    uuid.UUID(bytes=bytes(row["revision_id"])),
-                ),
-                _unpack_vector(bytes(row["vector_blob"]), dimensions),
+        entries_list: list[tuple[bytes, tuple[float, ...]]] = []
+        for row in rows:
+            try:
+                entity_type = SearchEntityType(str(row["entity_type"]))
+                entity_id = uuid.UUID(bytes=bytes(row["entity_id"]))
+                revision_id = uuid.UUID(bytes=bytes(row["revision_id"]))
+            except (TypeError, ValueError) as exc:
+                raise SemanticSearchError(
+                    "Persisted semantic reference identity is invalid."
+                ) from exc
+            entries_list.append(
+                (
+                    _encode_reference(entity_type, entity_id, revision_id),
+                    _unpack_vector(bytes(row["vector_blob"]), validated_dimensions),
+                )
             )
-            for row in rows
-        )
         self.hnsw.build(
             model_id=storage_model_id,
-            snapshot=snapshot,
-            dimensions=dimensions,
-            entries=entries,
+            snapshot=validated_snapshot,
+            dimensions=validated_dimensions,
+            entries=tuple(entries_list),
         )
 
     def _ensure_fts_current(self) -> None:
-        # Reuse the same commit watermark contract without duplicating the FTS
-        # implementation. Import locally to avoid a construction cycle.
         from athena.retrieval.search import LocalSearchService
 
         LocalSearchService(self.database)._ensure_current()
+
 
 _REFERENCE_TYPE_CODE = {
     SearchEntityType.KNOWLEDGE: 1,
@@ -471,10 +583,16 @@ def _encode_reference(
     entity_id: uuid.UUID,
     revision_id: uuid.UUID,
 ) -> bytes:
+    if not isinstance(entity_type, SearchEntityType):
+        raise SemanticSearchError("Semantic reference entity type is invalid.")
+    if not isinstance(entity_id, uuid.UUID) or not isinstance(revision_id, uuid.UUID):
+        raise SemanticSearchError("Semantic reference identities must be UUIDs.")
     return bytes((_REFERENCE_TYPE_CODE[entity_type],)) + entity_id.bytes + revision_id.bytes
 
 
 def _decode_reference(value: bytes) -> tuple[SearchEntityType, uuid.UUID, uuid.UUID]:
+    if not isinstance(value, bytes):
+        raise SemanticSearchError("HNSW semantic reference must be bytes.")
     if len(value) != 33:
         raise SemanticSearchError("HNSW semantic reference has an invalid length.")
     try:
@@ -485,50 +603,77 @@ def _decode_reference(value: bytes) -> tuple[SearchEntityType, uuid.UUID, uuid.U
 
 
 def _embedding_profile(model_id: str) -> str:
-    normalized = model_id.casefold()
+    normalized = _canonical_model_id(model_id).casefold()
     if "nomic-embed-text" in normalized:
         return "nomic-rag-v1"
     return "raw-rag-v1"
 
 
 def _storage_model_id(model_id: str) -> str:
-    normalized = model_id.strip()
-    if not normalized:
-        raise SemanticSearchError("Embedding model id must not be empty.")
+    normalized = _canonical_model_id(model_id)
     return f"{normalized}::athena-profile={_embedding_profile(normalized)}"
 
 
 def _prepare_document_text(model_id: str, text: str) -> str:
+    if not isinstance(text, str):
+        raise SemanticSearchError("Semantic document text must be text.")
     if _embedding_profile(model_id) == "nomic-rag-v1":
         return f"search_document: {text}"
     return text
 
 
 def _prepare_query_text(model_id: str, text: str) -> str:
+    if not isinstance(text, str):
+        raise SemanticSearchError("Semantic query text must be text.")
     if _embedding_profile(model_id) == "nomic-rag-v1":
         return f"search_query: {text}"
     return text
 
 
-def _normalize_vector(vector: tuple[float, ...]) -> tuple[float, ...]:
-    norm = math.sqrt(math.fsum(component * component for component in vector))
+def _normalize_vector(vector: Sequence[float]) -> tuple[float, ...]:
+    if isinstance(vector, (str, bytes, bytearray)):
+        raise SemanticSearchError("Embedding vector must be a numeric sequence.")
+    try:
+        components = tuple(_finite_component(component) for component in vector)
+    except TypeError as exc:
+        raise SemanticSearchError("Embedding vector must be a numeric sequence.") from exc
+    if not components:
+        raise SemanticSearchError("Embedding vectors must not be empty.")
+    norm = math.hypot(*components)
     if not math.isfinite(norm) or norm <= 0.0:
         raise SemanticSearchError("Embedding vector has zero or invalid magnitude.")
-    return tuple(component / norm for component in vector)
+    return tuple(component / norm for component in components)
 
 
-def _pack_vector(vector: tuple[float, ...]) -> bytes:
-    return struct.pack(f"<{len(vector)}f", *vector)
+def _pack_vector(vector: Sequence[float]) -> bytes:
+    normalized = tuple(_finite_component(component) for component in vector)
+    if not normalized:
+        raise SemanticSearchError("Embedding vectors must not be empty.")
+    try:
+        return struct.pack(f"<{len(normalized)}f", *normalized)
+    except (OverflowError, struct.error) as exc:
+        raise SemanticSearchError("Embedding vector cannot be persisted as float32.") from exc
 
 
 def _unpack_vector(blob: bytes, dimensions: int) -> tuple[float, ...]:
-    expected = dimensions * 4
+    if not isinstance(blob, bytes):
+        raise SemanticSearchError("Persisted embedding vector must be bytes.")
+    validated_dimensions = _positive_int(dimensions, "dimensions")
+    expected = validated_dimensions * 4
     if len(blob) != expected:
         raise SemanticSearchError("Persisted embedding vector has invalid length.")
-    return tuple(struct.unpack(f"<{dimensions}f", blob))
+    try:
+        vector = tuple(struct.unpack(f"<{validated_dimensions}f", blob))
+    except struct.error as exc:
+        raise SemanticSearchError("Persisted embedding vector cannot be decoded.") from exc
+    if any(not math.isfinite(component) for component in vector):
+        raise SemanticSearchError("Persisted embedding vector contains non-finite values.")
+    return vector
 
 
 def _uuid_from_hex(value: str) -> uuid.UUID:
+    if not isinstance(value, str):
+        raise SemanticSearchError("FTS index UUID must be text.")
     try:
         return uuid.UUID(hex=value)
     except ValueError as exc:

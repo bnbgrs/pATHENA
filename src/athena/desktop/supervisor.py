@@ -11,6 +11,7 @@ from PySide6.QtCore import QObject, QProcess, QProcessEnvironment, Slot
 
 from athena.api.client import CoreApiClient, CoreApiClientError
 
+_START_TIMEOUT_MS = 5_000
 _GRACEFUL_SHUTDOWN_TIMEOUT_MS = 3_000
 _TERMINATE_TIMEOUT_MS = 1_000
 _KILL_TIMEOUT_MS = 1_000
@@ -49,6 +50,10 @@ class ManagedProcess(Protocol):
     def setProcessChannelMode(self, mode: QProcess.ProcessChannelMode) -> None: ...  # noqa: N802
 
     def start(self) -> None: ...
+
+    def waitForStarted(self, msecs: int = ...) -> bool: ...  # noqa: N802
+
+    def errorString(self) -> str: ...  # noqa: N802
 
     def processId(self) -> int: ...  # noqa: N802
 
@@ -94,7 +99,7 @@ def core_process_launch_spec(
 
 
 class DesktopCoreSupervisor(QObject):
-    """Start one child Core and stop only the process this desktop owns."""
+    """Start one child Core, self-heal crashes, and stop only the owned process."""
 
     def __init__(
         self,
@@ -109,6 +114,7 @@ class DesktopCoreSupervisor(QObject):
             client or CoreApiClient.from_environment(timeout_seconds=0.75)
         )
         self.process = cast(ManagedProcess, process or QProcess(self))
+        self._stopping = False
 
         if executable is None:
             self.launch_spec = core_process_launch_spec()
@@ -122,12 +128,18 @@ class DesktopCoreSupervisor(QObject):
     def child_active(self) -> bool:
         return self.process.state() is not QProcess.ProcessState.NotRunning
 
+    @property
+    def stopping(self) -> bool:
+        """Return whether an intentional desktop shutdown is in progress."""
+        return self._stopping
+
     @Slot()
     def start(self) -> None:
-        """Launch the dedicated Core without invoking uv or shell tooling."""
+        """Launch the dedicated Core and require OS-level process acknowledgement."""
         if self.child_active:
             return
 
+        self._stopping = False
         environment = QProcessEnvironment.systemEnvironment()
         environment.remove(_VENV_LAUNCHER_ENV)
         if self.launch_spec.venv_launcher is not None:
@@ -138,10 +150,27 @@ class DesktopCoreSupervisor(QObject):
         self.process.setProcessEnvironment(environment)
         self.process.setProcessChannelMode(QProcess.ProcessChannelMode.ForwardedChannels)
         self.process.start()
+        if not self.process.waitForStarted(_START_TIMEOUT_MS):
+            detail = self.process.errorString().strip() or "unknown QProcess startup error"
+            raise RuntimeError(f"ATHENA Core process failed to start: {detail}")
+
+    @Slot()
+    def ensure_running(self) -> None:
+        """Restart an unexpectedly stopped owned Core without fighting app shutdown."""
+        if self._stopping or self.child_active:
+            return
+
+        try:
+            self.start()
+        except RuntimeError:
+            # The desktop/API readiness surface reports the disconnected state. Keep
+            # the heartbeat alive so a transient launch failure can heal later.
+            return
 
     @Slot()
     def stop(self) -> None:
         """Gracefully stop only a Core whose discovery PID matches our child."""
+        self._stopping = True
         if not self.child_active:
             return
 

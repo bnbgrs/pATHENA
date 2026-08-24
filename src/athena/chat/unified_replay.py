@@ -193,43 +193,43 @@ def _validate_projection_bindings(
         )
 
     refs = {item.ref_id: item for item in context_package.included_refs}
-    for item in memory_context.memory_items:
-        ref = refs.get(item.context_id)
+    for personal_item in memory_context.memory_items:
+        ref = refs.get(personal_item.context_id)
         if (
             ref is None
             or ref.entity_type != "personal_memory"
-            or ref.entity_id != item.memory_id
-            or ref.revision_id != item.revision_id
+            or ref.entity_id != personal_item.memory_id
+            or ref.revision_id != personal_item.revision_id
         ):
             raise UnifiedReplayProjectionError(
                 "Unified replay Personal Memory item conflicts with ContextPackage refs."
             )
-    for item in memory_context.items:
-        ref = refs.get(item.context_id)
+    for canonical_item in memory_context.items:
+        ref = refs.get(canonical_item.context_id)
         if (
             ref is None
-            or ref.entity_type != item.entity_type.value
-            or ref.entity_id != item.entity_id
-            or ref.revision_id != item.revision_id
+            or ref.entity_type != canonical_item.entity_type.value
+            or ref.entity_id != canonical_item.entity_id
+            or ref.revision_id != canonical_item.revision_id
         ):
             raise UnifiedReplayProjectionError(
                 "Unified replay canonical context item conflicts with ContextPackage refs."
             )
         classification = evidence_selection.classification_for(
-            entity_type=item.entity_type,
-            entity_id=item.entity_id,
-            revision_id=item.revision_id,
+            entity_type=canonical_item.entity_type,
+            entity_id=canonical_item.entity_id,
+            revision_id=canonical_item.revision_id,
         )
         if classification.evidence_class is not EvidenceClass.CANONICAL:
             raise UnifiedReplayProjectionError(
                 "Unified replay canonical context lost canonical evidence classification."
             )
-    for item in source_context.items:
-        ref = refs.get(item.context_id)
+    for source_item in source_context.items:
+        ref = refs.get(source_item.context_id)
         if (
             ref is None
             or ref.entity_type != "source_anchor"
-            or ref.entity_id != item.anchor_id
+            or ref.entity_id != source_item.anchor_id
             or ref.revision_id is not None
         ):
             raise UnifiedReplayProjectionError(

@@ -26,6 +26,21 @@ class KeyStatus(str, Enum):
     RETIRED = "retired"
 
 
+def _required_exact_int(value: object, name: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"Argon2id parameter {name!r} must be an integer.")
+    return value
+
+
+# v1 is deliberately bounded before any persisted work factors can reach the
+# Argon2id implementation. These ceilings leave substantial headroom above the
+# current 3-iteration / 4-lane / 64-MiB production profile while preventing a
+# corrupted key-slot record from requesting unbounded CPU or memory.
+_ARGON2ID_V1_MAX_ITERATIONS = 10
+_ARGON2ID_V1_MAX_LANES = 16
+_ARGON2ID_V1_MAX_MEMORY_COST_KIB = 256 * 1024
+
+
 @dataclass(frozen=True, slots=True)
 class Argon2idParameters:
     """Versioned Argon2id profile persisted with a password key slot."""
@@ -37,31 +52,49 @@ class Argon2idParameters:
     length: int = 32
 
     def __post_init__(self) -> None:
-        if self.format_version != 1:
+        format_version = _required_exact_int(self.format_version, "format_version")
+        iterations = _required_exact_int(self.iterations, "iterations")
+        lanes = _required_exact_int(self.lanes, "lanes")
+        memory_cost_kib = _required_exact_int(self.memory_cost_kib, "memory_cost_kib")
+        length = _required_exact_int(self.length, "length")
+
+        if format_version != 1:
             raise ValueError(
                 "Unsupported Argon2id parameter format."
             )
 
-        if self.iterations < 1:
+        if iterations < 1:
             raise ValueError(
                 "Argon2id iterations must be positive."
             )
 
-        if self.lanes < 1:
+        if iterations > _ARGON2ID_V1_MAX_ITERATIONS:
+            raise ValueError(
+                "Argon2id iterations exceed the v1 resource ceiling."
+            )
+
+        if lanes < 1:
             raise ValueError(
                 "Argon2id lanes must be positive."
             )
 
-        if (
-            self.memory_cost_kib
-            < 8 * self.lanes
-        ):
+        if lanes > _ARGON2ID_V1_MAX_LANES:
+            raise ValueError(
+                "Argon2id lanes exceed the v1 resource ceiling."
+            )
+
+        if memory_cost_kib < 8 * lanes:
             raise ValueError(
                 "Argon2id memory_cost_kib is too small "
                 "for the lane count."
             )
 
-        if self.length != 32:
+        if memory_cost_kib > _ARGON2ID_V1_MAX_MEMORY_COST_KIB:
+            raise ValueError(
+                "Argon2id memory_cost_kib exceeds the v1 resource ceiling."
+            )
+
+        if length != 32:
             raise ValueError(
                 "ATHENA password KEKs must be "
                 "exactly 32 bytes."
@@ -89,6 +122,10 @@ class Argon2idParameters:
         cls,
         value: str,
     ) -> Self:
+        if not isinstance(value, str):
+            raise ValueError(
+                "Argon2id parameter JSON must be text."
+            )
         try:
             parsed: object = json.loads(
                 value
@@ -111,40 +148,38 @@ class Argon2idParameters:
             dict[str, object],
             parsed,
         )
-
-        def required_int(
-            name: str,
-        ) -> int:
-            raw = data.get(
-                name
+        expected_keys = {
+            "format_version",
+            "iterations",
+            "lanes",
+            "length",
+            "memory_cost_kib",
+        }
+        if set(data) != expected_keys:
+            raise ValueError(
+                "Argon2id parameter JSON has unexpected or missing fields."
             )
 
-            if (
-                isinstance(raw, bool)
-                or not isinstance(raw, int)
-            ):
-                raise ValueError(
-                    "Argon2id parameter "
-                    f"{name!r} must be an integer."
-                )
-
-            return raw
-
         return cls(
-            format_version=required_int(
-                "format_version"
+            format_version=_required_exact_int(
+                data["format_version"],
+                "format_version",
             ),
-            iterations=required_int(
-                "iterations"
+            iterations=_required_exact_int(
+                data["iterations"],
+                "iterations",
             ),
-            lanes=required_int(
-                "lanes"
+            lanes=_required_exact_int(
+                data["lanes"],
+                "lanes",
             ),
-            memory_cost_kib=required_int(
-                "memory_cost_kib"
+            memory_cost_kib=_required_exact_int(
+                data["memory_cost_kib"],
+                "memory_cost_kib",
             ),
-            length=required_int(
-                "length"
+            length=_required_exact_int(
+                data["length"],
+                "length",
             ),
         )
 

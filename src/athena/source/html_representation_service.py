@@ -118,10 +118,7 @@ class SourceHtmlRepresentationService:
     ) -> HtmlRepresentationBuildResult:
         source, source_blob = self.sources.get(source_id)
         _require_supported_html_source(source)
-        primary_article = (
-            source.source_type
-            is SourceType.WEB_SNAPSHOT
-        )
+        primary_article = source.source_type is SourceType.WEB_SNAPSHOT
         actor_id = self.chat.ensure_local_user()
         run = self.runs.start_run(
             run_type="source_html_native_text_representation",
@@ -136,11 +133,7 @@ class SourceHtmlRepresentationService:
                 "original_name": source.original_name,
                 "source_uri": source.source_uri,
                 "source_type": source.source_type.value,
-                "extraction_mode": (
-                    "primary_article"
-                    if primary_article
-                    else "full_document"
-                ),
+                "extraction_mode": "primary_article" if primary_article else "full_document",
             },
             configuration={
                 "representation_type": SourceRepresentationType.NORMALIZED_TEXT.value,
@@ -148,11 +141,7 @@ class SourceHtmlRepresentationService:
                 "parser_id": _PARSER_ID,
                 "parser_version": _PARSER_VERSION,
                 "options": _HTML_OPTIONS,
-                "extraction_mode": (
-                    "primary_article"
-                    if primary_article
-                    else "full_document"
-                ),
+                "extraction_mode": "primary_article" if primary_article else "full_document",
             },
             model_signature_id=None,
             prompt_template_id=None,
@@ -223,6 +212,16 @@ class SourceHtmlRepresentationService:
                 processing_run=self.runs.load_run(run.processing_run_id),
                 structures=structures,
             )
+        except KeyboardInterrupt:
+            if prepared is not None:
+                self.representation_store.discard(prepared)
+            current = self.runs.load_run(run.processing_run_id)
+            if current.status == "running":
+                self.runs.finish_run(
+                    run.processing_run_id,
+                    status="cancelled",
+                )
+            raise
         except Exception as exc:
             if prepared is not None:
                 self.representation_store.discard(prepared)

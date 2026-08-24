@@ -16,7 +16,11 @@ def new_uuid7() -> uuid.UUID:
     standardized layout directly: 48-bit Unix-millisecond timestamp, version
     7, RFC variant 10, and 74 pseudorandom bits.
     """
-    timestamp_ms = (time.time_ns() // 1_000_000) & _UUID_TIMESTAMP_MASK
+    timestamp_ms = time.time_ns() // 1_000_000
+    if not 0 <= timestamp_ms <= _UUID_TIMESTAMP_MASK:
+        raise RuntimeError(
+            "System clock is outside the RFC 9562 UUIDv7 timestamp range."
+        )
     rand_a = secrets.randbits(12)
     rand_b = secrets.randbits(62)
 
@@ -30,11 +34,15 @@ def new_uuid7() -> uuid.UUID:
 
 def uuid_to_blob(value: uuid.UUID) -> bytes:
     """Return the canonical 16-byte big-endian UUID representation."""
+    if not isinstance(value, uuid.UUID):
+        raise TypeError("ATHENA UUID values must be uuid.UUID instances.")
     return value.bytes
 
 
 def uuid_from_blob(value: bytes) -> uuid.UUID:
     """Create a UUID from its 16-byte database representation."""
+    if not isinstance(value, bytes):
+        raise TypeError("ATHENA UUID blobs must be bytes.")
     if len(value) != 16:
         raise ValueError(f"ATHENA UUID blobs must contain 16 bytes, got {len(value)}.")
     return uuid.UUID(bytes=value)

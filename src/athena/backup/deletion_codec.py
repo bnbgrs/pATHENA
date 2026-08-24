@@ -9,6 +9,8 @@ from athena.backup.errors import BackupRestoreError
 from athena.backup.json_codec import _canonical_json
 from athena.lifecycle.deletion import DeletionLedgerRecord
 
+_SQLITE_SIGNED_INT64_MAX = (1 << 63) - 1
+
 
 class DeletionLedgerCodecMixin:
     """Stateless deletion-ledger codec inherited by BackupService."""
@@ -212,6 +214,7 @@ class DeletionLedgerCodecMixin:
                     bool,
                 )
                 or value < minimum
+                or value > _SQLITE_SIGNED_INT64_MAX
             ):
                 raise BackupRestoreError(
                     f"Backup deletion-ledger field "
@@ -219,6 +222,24 @@ class DeletionLedgerCodecMixin:
                 )
 
             return value
+
+        def canonical_uuid(key: str) -> uuid.UUID:
+            value = payload[key]
+            if not isinstance(value, str) or not value or value != value.strip():
+                raise BackupRestoreError(
+                    f"Backup deletion-ledger field {key!r} must be a canonical UUID string."
+                )
+            try:
+                parsed = uuid.UUID(value)
+            except ValueError as exc:
+                raise BackupRestoreError(
+                    f"Backup deletion-ledger field {key!r} contains an invalid UUID."
+                ) from exc
+            if str(parsed) != value:
+                raise BackupRestoreError(
+                    f"Backup deletion-ledger field {key!r} must use canonical UUID text."
+                )
+            return parsed
 
         entity_type = payload[
             "entity_type"
@@ -229,54 +250,34 @@ class DeletionLedgerCodecMixin:
                 entity_type,
                 str,
             )
-            or not entity_type.strip()
+            or not entity_type
+            or entity_type != entity_type.strip()
         ):
             raise BackupRestoreError(
-                "Backup deletion-ledger entity_type is invalid."
+                "Backup deletion-ledger entity_type must be canonical non-empty text."
             )
 
-        try:
-            return DeletionLedgerRecord(
-                ledger_seq=integer(
-                    "ledger_seq",
-                    minimum=1,
-                ),
-                deletion_id=uuid.UUID(
-                    str(
-                        payload[
-                            "deletion_id"
-                        ]
-                    )
-                ),
-                entity_id=uuid.UUID(
-                    str(
-                        payload[
-                            "entity_id"
-                        ]
-                    )
-                ),
-                entity_type=entity_type,
-                deleted_at_us=integer(
-                    "deleted_at_us",
-                    minimum=0,
-                ),
-                deletion_commit_seq=integer(
-                    "deletion_commit_seq",
-                    minimum=1,
-                ),
-                deleted_by_actor_id=uuid.UUID(
-                    str(
-                        payload[
-                            "deleted_by_actor_id"
-                        ]
-                    )
-                ),
-            )
-
-        except (
-            ValueError,
-            AttributeError,
-        ) as exc:
-            raise BackupRestoreError(
-                "Backup deletion-ledger UUID is invalid."
-            ) from exc
+        return DeletionLedgerRecord(
+            ledger_seq=integer(
+                "ledger_seq",
+                minimum=1,
+            ),
+            deletion_id=canonical_uuid(
+                "deletion_id"
+            ),
+            entity_id=canonical_uuid(
+                "entity_id"
+            ),
+            entity_type=entity_type,
+            deleted_at_us=integer(
+                "deleted_at_us",
+                minimum=0,
+            ),
+            deletion_commit_seq=integer(
+                "deletion_commit_seq",
+                minimum=1,
+            ),
+            deleted_by_actor_id=canonical_uuid(
+                "deleted_by_actor_id"
+            ),
+        )

@@ -20,6 +20,28 @@ class ProcessingRunNotFoundError(LookupError):
     """Raised when a requested processing run does not exist."""
 
 
+def _require_uuid(value: object, field_name: str) -> uuid.UUID:
+    if not isinstance(value, uuid.UUID):
+        raise TypeError(f"{field_name} must be a UUID.")
+    return value
+
+
+def _require_nonnegative_int(value: object, field_name: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError(f"{field_name} must be an integer.")
+    if value < 0:
+        raise ValueError(f"{field_name} must be non-negative.")
+    return value
+
+
+def _require_sha256(value: object, field_name: str) -> bytes:
+    if not isinstance(value, bytes):
+        raise TypeError(f"{field_name} must be bytes.")
+    if len(value) != 32:
+        raise ValueError(f"{field_name} must be a 32-byte SHA-256 digest.")
+    return value
+
+
 @dataclass(frozen=True, slots=True)
 class ModelSignature:
     model_signature_id: uuid.UUID
@@ -31,6 +53,24 @@ class ModelSignature:
     context_configuration_json: str | None
     signature_hash: bytes
     created_at_us: int
+
+    def __post_init__(self) -> None:
+        _require_uuid(self.model_signature_id, "ModelSignature model_signature_id")
+        _required_text(self.provider, "ModelSignature provider")
+        _required_text(self.model_identifier, "ModelSignature model_identifier")
+        _optional_text(self.model_revision)
+        _optional_text(self.quantization)
+        _required_text(
+            self.generation_parameters_json,
+            "ModelSignature generation_parameters_json",
+        )
+        if self.context_configuration_json is not None:
+            _required_text(
+                self.context_configuration_json,
+                "ModelSignature context_configuration_json",
+            )
+        _require_sha256(self.signature_hash, "ModelSignature signature_hash")
+        _require_nonnegative_int(self.created_at_us, "ModelSignature created_at_us")
 
 
 @dataclass(frozen=True, slots=True)
@@ -49,6 +89,33 @@ class ProcessingRun:
     prompt_template_version: str | None
     error_detail: str | None
 
+    def __post_init__(self) -> None:
+        _require_uuid(self.processing_run_id, "ProcessingRun processing_run_id")
+        _require_uuid(self.trigger_actor_id, "ProcessingRun trigger_actor_id")
+        if self.model_signature_id is not None:
+            _require_uuid(self.model_signature_id, "ProcessingRun model_signature_id")
+        _required_text(self.run_type, "ProcessingRun run_type")
+        _required_text(self.pipeline_version, "ProcessingRun pipeline_version")
+        _required_text(self.input_snapshot_json, "ProcessingRun input_snapshot_json")
+        _require_sha256(self.configuration_hash, "ProcessingRun configuration_hash")
+        started = _require_nonnegative_int(self.started_at_us, "ProcessingRun started_at_us")
+        if self.finished_at_us is not None:
+            finished = _require_nonnegative_int(
+                self.finished_at_us,
+                "ProcessingRun finished_at_us",
+            )
+            if finished < started:
+                raise ValueError("ProcessingRun finished_at_us precedes started_at_us.")
+        if self.status not in {"running", "succeeded", "failed", "cancelled"}:
+            raise ValueError("ProcessingRun status is invalid.")
+        if self.status == "running" and self.finished_at_us is not None:
+            raise ValueError("Running ProcessingRun must not have finished_at_us.")
+        if self.status != "running" and self.finished_at_us is None:
+            raise ValueError("Finished ProcessingRun requires finished_at_us.")
+        _optional_text(self.prompt_template_id)
+        _optional_text(self.prompt_template_version)
+        _optional_text(self.error_detail)
+
 
 class ModelRunRepository:
     """Store reproducibility metadata for semantic model work."""
@@ -63,6 +130,15 @@ class ModelRunRepository:
         generation_parameters: Mapping[str, Any],
         context_configuration: Mapping[str, Any] | None = None,
     ) -> ModelSignature:
+        if not isinstance(model, ModelInfo):
+            raise TypeError("model must be a ModelInfo.")
+        if not isinstance(generation_parameters, Mapping):
+            raise TypeError("generation_parameters must be a mapping.")
+        if context_configuration is not None and not isinstance(
+            context_configuration,
+            Mapping,
+        ):
+            raise TypeError("context_configuration must be a mapping or None.")
         generation_json = _canonical_json(generation_parameters)
         context_json = (
             _canonical_json(context_configuration)
@@ -72,7 +148,7 @@ class ModelRunRepository:
         normalized = {
             "provider": model.provider,
             "model_identifier": model.backend_model_id,
-            "model_revision": None,
+            "model_revision": model.model_revision,
             "quantization": model.quantization,
             "generation_parameters": json.loads(generation_json),
             "context_configuration": (
@@ -107,12 +183,13 @@ class ModelRunRepository:
                     context_configuration_json,
                     signature_hash,
                     created_at_us
-                ) VALUES (?, ?, ?, NULL, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     uuid_to_blob(model_signature_id),
                     model.provider,
                     model.backend_model_id,
+                    model.model_revision,
                     model.quantization,
                     generation_json,
                     context_json,
@@ -125,7 +202,7 @@ class ModelRunRepository:
             model_signature_id=model_signature_id,
             provider=model.provider,
             model_identifier=model.backend_model_id,
-            model_revision=None,
+            model_revision=model.model_revision,
             quantization=model.quantization,
             generation_parameters_json=generation_json,
             context_configuration_json=context_json,
@@ -145,6 +222,24 @@ class ModelRunRepository:
         prompt_template_id: str | None,
         prompt_template_version: str | None,
     ) -> ProcessingRun:
+        actor_id = _require_uuid(trigger_actor_id, "trigger_actor_id")
+        signature_id = (
+            _require_uuid(model_signature_id, "model_signature_id")
+            if model_signature_id is not None
+            else None
+        )
+        normalized_run_type = _required_text(run_type, "run_type")
+        normalized_pipeline_version = _required_text(
+            pipeline_version,
+            "pipeline_version",
+        )
+        if not isinstance(input_snapshot, Mapping):
+            raise TypeError("input_snapshot must be a mapping.")
+        if not isinstance(configuration, Mapping):
+            raise TypeError("configuration must be a mapping.")
+        normalized_prompt_template_id = _optional_text(prompt_template_id)
+        normalized_prompt_template_version = _optional_text(prompt_template_version)
+
         processing_run_id = new_uuid7()
         started_at_us = utc_now_us()
         input_snapshot_json = _canonical_json(input_snapshot)
@@ -155,14 +250,14 @@ class ModelRunRepository:
         with self.database.write_transaction() as connection:
             actor = connection.execute(
                 "SELECT active FROM actors WHERE actor_id = ?",
-                (uuid_to_blob(trigger_actor_id),),
+                (uuid_to_blob(actor_id),),
             ).fetchone()
             if actor is None or int(actor["active"]) != 1:
                 raise ValueError("ProcessingRun trigger actor is missing or inactive.")
-            if model_signature_id is not None:
+            if signature_id is not None:
                 signature = connection.execute(
                     "SELECT 1 FROM model_signatures WHERE model_signature_id = ?",
-                    (uuid_to_blob(model_signature_id),),
+                    (uuid_to_blob(signature_id),),
                 ).fetchone()
                 if signature is None:
                     raise ValueError("ProcessingRun references an unknown ModelSignature.")
@@ -187,33 +282,31 @@ class ModelRunRepository:
                 """,
                 (
                     uuid_to_blob(processing_run_id),
-                    _required_text(run_type, "run_type"),
+                    normalized_run_type,
                     started_at_us,
-                    uuid_to_blob(trigger_actor_id),
-                    _required_text(pipeline_version, "pipeline_version"),
+                    uuid_to_blob(actor_id),
+                    normalized_pipeline_version,
                     input_snapshot_json,
                     configuration_hash,
-                    uuid_to_blob(model_signature_id)
-                    if model_signature_id is not None
-                    else None,
-                    _optional_text(prompt_template_id),
-                    _optional_text(prompt_template_version),
+                    uuid_to_blob(signature_id) if signature_id is not None else None,
+                    normalized_prompt_template_id,
+                    normalized_prompt_template_version,
                 ),
             )
 
         return ProcessingRun(
             processing_run_id=processing_run_id,
-            run_type=run_type.strip(),
+            run_type=normalized_run_type,
             started_at_us=started_at_us,
             finished_at_us=None,
             status="running",
-            trigger_actor_id=trigger_actor_id,
-            pipeline_version=pipeline_version.strip(),
+            trigger_actor_id=actor_id,
+            pipeline_version=normalized_pipeline_version,
             input_snapshot_json=input_snapshot_json,
             configuration_hash=configuration_hash,
-            model_signature_id=model_signature_id,
-            prompt_template_id=_optional_text(prompt_template_id),
-            prompt_template_version=_optional_text(prompt_template_version),
+            model_signature_id=signature_id,
+            prompt_template_id=normalized_prompt_template_id,
+            prompt_template_version=normalized_prompt_template_version,
             error_detail=None,
         )
 
@@ -224,7 +317,8 @@ class ModelRunRepository:
         status: str,
         error_detail: str | None = None,
     ) -> ProcessingRun:
-        if status not in {"succeeded", "failed", "cancelled"}:
+        run_id = _require_uuid(processing_run_id, "processing_run_id")
+        if not isinstance(status, str) or status not in {"succeeded", "failed", "cancelled"}:
             raise ValueError("ProcessingRun final status is invalid.")
         finished_at_us = utc_now_us()
         normalized_error = _persisted_error_detail(error_detail)
@@ -240,7 +334,7 @@ class ModelRunRepository:
                     finished_at_us,
                     status,
                     normalized_error,
-                    uuid_to_blob(processing_run_id),
+                    uuid_to_blob(run_id),
                 ),
             )
             if cursor.rowcount != 1:
@@ -248,24 +342,26 @@ class ModelRunRepository:
                     "ProcessingRun does not exist or is already finished."
                 )
 
-        return self.load_run(processing_run_id)
+        return self.load_run(run_id)
 
     def load_run(self, processing_run_id: uuid.UUID) -> ProcessingRun:
+        run_id = _require_uuid(processing_run_id, "processing_run_id")
         row = self.database.connection.execute(
             "SELECT * FROM processing_runs WHERE processing_run_id = ?",
-            (uuid_to_blob(processing_run_id),),
+            (uuid_to_blob(run_id),),
         ).fetchone()
         if row is None:
-            raise ProcessingRunNotFoundError(f"ProcessingRun {processing_run_id} not found.")
+            raise ProcessingRunNotFoundError(f"ProcessingRun {run_id} not found.")
         return _run_from_row(row)
 
     def load_signature(self, model_signature_id: uuid.UUID) -> ModelSignature:
+        signature_id = _require_uuid(model_signature_id, "model_signature_id")
         row = self.database.connection.execute(
             "SELECT * FROM model_signatures WHERE model_signature_id = ?",
-            (uuid_to_blob(model_signature_id),),
+            (uuid_to_blob(signature_id),),
         ).fetchone()
         if row is None:
-            raise LookupError(f"ModelSignature {model_signature_id} not found.")
+            raise LookupError(f"ModelSignature {signature_id} not found.")
         return _signature_from_row(row)
 
 
@@ -310,16 +406,20 @@ def _canonical_json(value: Mapping[str, Any]) -> str:
     )
 
 
-def _required_text(value: str, field_name: str) -> str:
+def _required_text(value: object, field_name: str) -> str:
+    if not isinstance(value, str):
+        raise TypeError(f"{field_name} must be text.")
     normalized = value.strip()
     if not normalized:
         raise ValueError(f"{field_name} must not be empty.")
     return normalized
 
 
-def _optional_text(value: str | None) -> str | None:
+def _optional_text(value: object | None) -> str | None:
     if value is None:
         return None
+    if not isinstance(value, str):
+        raise TypeError("Optional text value must be text or None.")
     normalized = value.strip()
     return normalized or None
 

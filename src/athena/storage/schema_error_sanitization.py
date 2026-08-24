@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import re
 
+_MAX_PERSISTED_ERROR_CODE_LENGTH = 256
 _PERSISTED_ERROR_CODE_RE = re.compile(
     r"[A-Za-z_][A-Za-z0-9_.-]{0,127}"
     r"(?::[A-Za-z_][A-Za-z0-9_.-]{0,127})*\Z",
@@ -23,6 +24,13 @@ _PERSISTED_ERROR_SCALAR_FIELDS = (
 )
 
 
+def _is_persistable_error_code(value: str) -> bool:
+    return (
+        len(value) <= _MAX_PERSISTED_ERROR_CODE_LENGTH
+        and _PERSISTED_ERROR_CODE_RE.fullmatch(value) is not None
+    )
+
+
 def _sanitize_persisted_error_value(
     value: str,
 ) -> str | None:
@@ -31,7 +39,7 @@ def _sanitize_persisted_error_value(
     if not normalized:
         return None
 
-    if _PERSISTED_ERROR_CODE_RE.fullmatch(normalized) is not None:
+    if _is_persistable_error_code(normalized):
         return normalized
 
     prefix, separator, _suffix = normalized.partition(":")
@@ -39,12 +47,7 @@ def _sanitize_persisted_error_value(
     if separator:
         normalized_prefix = prefix.strip()
 
-        if (
-            _PERSISTED_ERROR_CODE_RE.fullmatch(
-                normalized_prefix
-            )
-            is not None
-        ):
+        if _is_persistable_error_code(normalized_prefix):
             return normalized_prefix
 
     return "OperationalError"

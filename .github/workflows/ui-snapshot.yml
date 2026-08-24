@@ -1,0 +1,58 @@
+name: pATHENA UI Snapshot
+
+on:
+  push:
+    branches:
+      - agent/pathena
+    paths:
+      - ".github/workflows/ui-snapshot.yml"
+      - "scripts/render_pathena_ui_snapshot.py"
+      - "src/athena/desktop/**"
+      - "pyproject.toml"
+      - "uv.lock"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  render:
+    name: Render pATHENA desktop
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      QT_QPA_PLATFORM: offscreen
+      PATHENA_UI_SNAPSHOT: artifacts/pathena-ui.png
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install pinned resolver
+        run: |
+          python -m pip install --disable-pip-version-check "pip==26.1.2"
+          python -m pip install --disable-pip-version-check "uv==0.11.21"
+
+      - name: Install Qt runtime libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y libegl1
+
+      - name: Validate dependency lock
+        run: uv lock --check
+
+      - name: Render current pATHENA UI
+        run: uv run --locked --extra desktop python scripts/render_pathena_ui_snapshot.py
+
+      - name: Upload exact UI snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: pathena-ui-snapshot
+          path: artifacts/pathena-ui.png
+          if-no-files-found: error

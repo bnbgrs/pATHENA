@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ctypes
 import json
+import math
 import os
 import shutil
 import uuid
@@ -131,6 +132,7 @@ class ResourceManager:
         "research.exhaustive": 1024 * 1024 * 1024,
         "embedding.rebuild": 512 * 1024 * 1024,
     }
+
     def __init__(
         self,
         *,
@@ -141,16 +143,16 @@ class ResourceManager:
         probe: ResourceProbe | None = None,
         interactive_lease_seconds: int = 360,
     ) -> None:
-        if interactive_lease_seconds <= 0:
-            raise ValueError(
-                "Interactive demand lease duration must be positive."
-            )
+        validated_lease_seconds = _positive_int(
+            interactive_lease_seconds,
+            "Interactive demand lease duration",
+        )
         self.database = database
         self.paths = paths
         self.chat = chat
         self.model_provider = model_provider
         self.probe = probe or PortableResourceProbe()
-        self.interactive_lease_seconds = interactive_lease_seconds
+        self.interactive_lease_seconds = validated_lease_seconds
 
     @property
     def _interactive_lease_root(self) -> Path:
@@ -163,21 +165,23 @@ class ResourceManager:
         lease_seconds: int | None = None,
         now_us: int | None = None,
     ) -> InteractiveDemandLease:
-        normalized_purpose = purpose.strip()
-        if not normalized_purpose:
-            raise ValueError("Interactive demand purpose must not be empty.")
-
+        normalized_purpose = _canonical_text(
+            purpose,
+            "Interactive demand purpose",
+        )
         duration = (
             self.interactive_lease_seconds
             if lease_seconds is None
-            else lease_seconds
-        )
-        if duration <= 0:
-            raise ValueError(
-                "Interactive demand lease duration must be positive."
+            else _positive_int(
+                lease_seconds,
+                "Interactive demand lease duration",
             )
-
-        now = utc_now_us() if now_us is None else now_us
+        )
+        now = (
+            utc_now_us()
+            if now_us is None
+            else _nonnegative_int(now_us, "Interactive demand timestamp")
+        )
         expires_at_us = now + duration * 1_000_000
         lease_id = new_uuid7()
 
@@ -225,27 +229,32 @@ class ResourceManager:
         now_us: int | None = None,
         force: bool = False,
     ) -> InteractiveDemandLease:
-        if lease.lease_seconds <= 0:
+        validated_lease = _interactive_demand_lease(lease)
+        validated_force = _exact_bool(force, "Interactive demand renewal force")
+        now = (
+            utc_now_us()
+            if now_us is None
+            else _nonnegative_int(now_us, "Interactive demand timestamp")
+        )
+        if now < validated_lease.acquired_at_us:
             raise ValueError(
-                "Interactive demand lease duration must be positive."
+                "Interactive demand renewal timestamp must not predate acquisition."
             )
-
-        now = utc_now_us() if now_us is None else now_us
-        duration_us = lease.lease_seconds * 1_000_000
+        duration_us = validated_lease.lease_seconds * 1_000_000
 
         # Renewal is intentionally throttled. ChatGenerationService may call
         # this for every streamed token, but the durable lease file is only
         # rewritten after half of the current lease lifetime has elapsed.
         renew_at_us = (
-            lease.expires_at_us
+            validated_lease.expires_at_us
             - max(1, duration_us // 2)
         )
 
-        if not force and now < renew_at_us:
-            return lease
+        if not validated_force and now < renew_at_us:
+            return validated_lease
 
         renewed = replace(
-            lease,
+            validated_lease,
             expires_at_us=now + duration_us,
         )
 
@@ -257,12 +266,12 @@ class ResourceManager:
 
         final_path = (
             root
-            / f"{lease.lease_id}.json"
+            / f"{validated_lease.lease_id}.json"
         )
 
         staging_path = (
             root
-            / f".{lease.lease_id}.partial"
+            / f".{validated_lease.lease_id}.partial"
         )
 
         payload = json.dumps(
@@ -323,9 +332,13 @@ class ResourceManager:
         self,
         lease_id: uuid.UUID,
     ) -> None:
+        validated_lease_id = _uuid_value(
+            lease_id,
+            "Interactive demand lease_id",
+        )
         root = self._interactive_lease_root
-        path = root / f"{lease_id}.json"
-        partial = root / f".{lease_id}.partial"
+        path = root / f"{validated_lease_id}.json"
+        partial = root / f".{validated_lease_id}.partial"
         path.unlink(missing_ok=True)
         partial.unlink(missing_ok=True)
 
@@ -346,7 +359,11 @@ class ResourceManager:
         *,
         now_us: int | None = None,
     ) -> bool:
-        now = utc_now_us() if now_us is None else now_us
+        now = (
+            utc_now_us()
+            if now_us is None
+            else _nonnegative_int(now_us, "Interactive demand timestamp")
+        )
         self._cleanup_expired_interactive_leases(now_us=now)
         root = self._interactive_lease_root
         if not root.is_dir():
@@ -359,17 +376,25 @@ class ResourceManager:
         *,
         now_us: int | None = None,
     ) -> bool:
+        validated_now = _optional_nonnegative_int(
+            now_us,
+            "Interactive demand timestamp",
+        )
         if job.priority <= JobPriority.INTERACTIVE:
             return False
         if not requires_provider_isolation(job.job_type):
             return False
-        return self.interactive_demand_active(now_us=now_us)
+        return self.interactive_demand_active(now_us=validated_now)
 
     def _cleanup_expired_interactive_leases(
         self,
         *,
         now_us: int,
     ) -> None:
+        validated_now = _nonnegative_int(
+            now_us,
+            "Interactive demand timestamp",
+        )
         root = self._interactive_lease_root
         if not root.is_dir():
             return
@@ -380,14 +405,18 @@ class ResourceManager:
             expired = False
             try:
                 payload = json.loads(path.read_text(encoding="utf-8"))
-                expires_at_us = int(payload["expires_at_us"])
-                expired = expires_at_us <= now_us
+                raw_expires = payload["expires_at_us"]
+                expires_at_us = _nonnegative_int(
+                    raw_expires,
+                    "Interactive demand persisted expiry",
+                )
+                expired = expires_at_us <= validated_now
             except (KeyError, OSError, TypeError, ValueError):
                 try:
                     modified_at_us = path.stat().st_mtime_ns // 1_000
                 except OSError:
                     continue
-                expired = modified_at_us + fallback_ttl_us <= now_us
+                expired = modified_at_us + fallback_ttl_us <= validated_now
 
             if expired:
                 path.unlink(missing_ok=True)
@@ -440,8 +469,14 @@ class ResourceManager:
         return self.policy()
 
     def snapshot(self, *, include_model: bool = True) -> ResourceSnapshot:
+        validated_include_model = _exact_bool(
+            include_model,
+            "Resource snapshot include_model",
+        )
         try:
-            sampled = self.probe.sample(self.paths)
+            sampled = _resource_probe_snapshot(
+                self.probe.sample(self.paths)
+            )
         except Exception as exc:
             sampled = ResourceSnapshot(
                 snapshot_id=new_uuid7(),
@@ -459,7 +494,7 @@ class ResourceManager:
         degraded = list(sampled.degraded_metrics)
         model_loaded = sampled.model_loaded
         if model_loaded is None:
-            if include_model:
+            if validated_include_model:
                 try:
                     models = self.model_provider.discover_models()
                 except Exception:
@@ -596,6 +631,144 @@ class ResourceManager:
                 )
                 """
             )
+
+
+def _resource_probe_snapshot(value: object) -> ResourceSnapshot:
+    if not isinstance(value, ResourceSnapshot):
+        raise ValueError("Resource probe must return a ResourceSnapshot value.")
+
+    ram_total = _optional_positive_int(
+        value.ram_total_bytes,
+        "Resource snapshot ram_total_bytes",
+    )
+    ram_available = _optional_nonnegative_int(
+        value.ram_available_bytes,
+        "Resource snapshot ram_available_bytes",
+    )
+    if ram_total is not None and ram_available is not None and ram_available > ram_total:
+        raise ValueError(
+            "Resource snapshot ram_available_bytes must not exceed ram_total_bytes."
+        )
+
+    vram_total = _optional_positive_int(
+        value.vram_total_bytes,
+        "Resource snapshot vram_total_bytes",
+    )
+    vram_available = _optional_nonnegative_int(
+        value.vram_available_bytes,
+        "Resource snapshot vram_available_bytes",
+    )
+    if vram_total is not None and vram_available is not None and vram_available > vram_total:
+        raise ValueError(
+            "Resource snapshot vram_available_bytes must not exceed vram_total_bytes."
+        )
+
+    if value.model_loaded is not None and not isinstance(value.model_loaded, bool):
+        raise ValueError("Resource snapshot model_loaded must be null or boolean.")
+    if not isinstance(value.degraded_metrics, tuple):
+        raise ValueError("Resource snapshot degraded_metrics must be a tuple of text values.")
+    degraded_metrics = tuple(
+        _canonical_text(item, "Resource snapshot degraded metric")
+        for item in value.degraded_metrics
+    )
+
+    return replace(
+        value,
+        ram_total_bytes=ram_total,
+        ram_available_bytes=ram_available,
+        disk_free_bytes=_nonnegative_int(
+            value.disk_free_bytes,
+            "Resource snapshot disk_free_bytes",
+        ),
+        cpu_load_fraction=_optional_fraction(
+            value.cpu_load_fraction,
+            "Resource snapshot cpu_load_fraction",
+        ),
+        gpu_utilization_fraction=_optional_fraction(
+            value.gpu_utilization_fraction,
+            "Resource snapshot gpu_utilization_fraction",
+        ),
+        vram_total_bytes=vram_total,
+        vram_available_bytes=vram_available,
+        degraded_metrics=degraded_metrics,
+    )
+
+
+def _interactive_demand_lease(value: object) -> InteractiveDemandLease:
+    if not isinstance(value, InteractiveDemandLease):
+        raise ValueError("Interactive demand lease must be an InteractiveDemandLease value.")
+    _uuid_value(value.lease_id, "Interactive demand lease_id")
+    _canonical_text(value.purpose, "Interactive demand purpose")
+    acquired_at_us = _nonnegative_int(
+        value.acquired_at_us,
+        "Interactive demand acquired_at_us",
+    )
+    expires_at_us = _nonnegative_int(
+        value.expires_at_us,
+        "Interactive demand expires_at_us",
+    )
+    _positive_int(
+        value.lease_seconds,
+        "Interactive demand lease duration",
+    )
+    if expires_at_us <= acquired_at_us:
+        raise ValueError(
+            "Interactive demand expires_at_us must be greater than acquired_at_us."
+        )
+    return value
+
+
+def _positive_int(value: object, label: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise ValueError(f"{label} must be an integer >= 1.")
+    return value
+
+
+def _optional_positive_int(value: object | None, label: str) -> int | None:
+    if value is None:
+        return None
+    return _positive_int(value, label)
+
+
+def _nonnegative_int(value: object, label: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ValueError(f"{label} must be an integer >= 0.")
+    return value
+
+
+def _optional_nonnegative_int(value: object | None, label: str) -> int | None:
+    if value is None:
+        return None
+    return _nonnegative_int(value, label)
+
+
+def _optional_fraction(value: object | None, label: str) -> float | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{label} must be null or a finite number in [0, 1].")
+    result = float(value)
+    if not math.isfinite(result) or not 0.0 <= result <= 1.0:
+        raise ValueError(f"{label} must be null or a finite number in [0, 1].")
+    return result
+
+
+def _canonical_text(value: object, label: str) -> str:
+    if not isinstance(value, str) or not value or value != value.strip():
+        raise ValueError(f"{label} must be canonical non-empty text.")
+    return value
+
+
+def _exact_bool(value: object, label: str) -> bool:
+    if not isinstance(value, bool):
+        raise ValueError(f"{label} must be a boolean.")
+    return value
+
+
+def _uuid_value(value: object, label: str) -> uuid.UUID:
+    if not isinstance(value, uuid.UUID):
+        raise ValueError(f"{label} must be a UUID value.")
+    return value
 
 
 def _memory_status() -> tuple[int | None, int | None]:

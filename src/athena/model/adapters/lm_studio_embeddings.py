@@ -8,7 +8,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any, cast
 from urllib.error import HTTPError, URLError
-from urllib.request import Request, urlopen
+from urllib.request import Request
 
 from athena.model.adapters.lm_studio import (
     LMStudioProvider,
@@ -16,7 +16,44 @@ from athena.model.adapters.lm_studio import (
     ProviderProtocolError,
     ProviderUnavailableError,
 )
+from athena.model.adapters.local_http import open_local_request as urlopen
 from athena.model.domain import ModelInfo
+
+
+def _positive_finite_timeout(value: object) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError("Embedding generation timeout must be a finite number > 0.")
+    try:
+        parsed = float(value)
+    except OverflowError as exc:
+        raise ValueError(
+            "Embedding generation timeout must be a finite number > 0."
+        ) from exc
+    if not math.isfinite(parsed) or parsed <= 0:
+        raise ValueError("Embedding generation timeout must be a finite number > 0.")
+    return parsed
+
+
+def _model_id(value: object) -> str:
+    if not isinstance(value, str):
+        raise ValueError("Embedding model id must be text.")
+    normalized = value.strip()
+    if not normalized:
+        raise ValueError("Embedding model id must not be empty.")
+    return normalized
+
+
+def _embedding_texts(value: object) -> tuple[str, ...]:
+    if isinstance(value, (str, bytes, bytearray)) or not isinstance(value, Sequence):
+        raise ValueError("Embedding texts must be a sequence of text values.")
+    normalized: list[str] = []
+    for item in value:
+        if not isinstance(item, str):
+            raise ValueError("Embedding texts must contain text values only.")
+        if not item.strip():
+            raise ValueError("Embedding texts must not be empty.")
+        normalized.append(item)
+    return tuple(normalized)
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,6 +62,15 @@ class LMStudioEmbeddingProvider:
 
     model_provider: LMStudioProvider
     generation_timeout_seconds: float = 300.0
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.model_provider, LMStudioProvider):
+            raise TypeError("Embedding model_provider must be an LMStudioProvider.")
+        object.__setattr__(
+            self,
+            "generation_timeout_seconds",
+            _positive_finite_timeout(self.generation_timeout_seconds),
+        )
 
     @property
     def embeddings_url(self) -> str:
@@ -41,9 +87,10 @@ class LMStudioEmbeddingProvider:
     def resolve_model(self, requested_model_id: str | None = None) -> ModelInfo:
         models = self.discover_embedding_models()
         if requested_model_id is not None:
-            normalized = requested_model_id.strip()
-            if not normalized:
-                raise ModelProviderError("Embedding model id must not be empty.")
+            try:
+                normalized = _model_id(requested_model_id)
+            except ValueError as exc:
+                raise ModelProviderError(str(exc)) from exc
             matches = [
                 model for model in models if model.backend_model_id == normalized
             ]
@@ -73,16 +120,14 @@ class LMStudioEmbeddingProvider:
         model_id: str,
         texts: Sequence[str],
     ) -> tuple[tuple[float, ...], ...]:
-        if not model_id.strip():
-            raise ValueError("model_id must not be empty.")
-        if not texts:
+        normalized_model_id = _model_id(model_id)
+        normalized_texts = _embedding_texts(texts)
+        if not normalized_texts:
             return ()
-        if any(not text.strip() for text in texts):
-            raise ValueError("Embedding texts must not be empty.")
 
         request_payload = {
-            "model": model_id,
-            "input": list(texts),
+            "model": normalized_model_id,
+            "input": list(normalized_texts),
         }
         request = Request(
             self.embeddings_url,
@@ -118,7 +163,7 @@ class LMStudioEmbeddingProvider:
             )
 
         raw_data = payload.get("data")
-        if not isinstance(raw_data, list) or len(raw_data) != len(texts):
+        if not isinstance(raw_data, list) or len(raw_data) != len(normalized_texts):
             raise ProviderProtocolError(
                 "LM Studio embeddings response has an unexpected data length."
             )
@@ -143,7 +188,7 @@ class LMStudioEmbeddingProvider:
             indexed[index] = vector
 
         try:
-            ordered = tuple(indexed[index] for index in range(len(texts)))
+            ordered = tuple(indexed[index] for index in range(len(normalized_texts)))
         except KeyError as exc:
             raise ProviderProtocolError(
                 "LM Studio embeddings response is missing an input index."
@@ -168,7 +213,12 @@ class LMStudioEmbeddingProvider:
                 raise ProviderProtocolError(
                     "LM Studio embedding vector contains a non-number."
                 )
-            number = float(component)
+            try:
+                number = float(component)
+            except OverflowError as exc:
+                raise ProviderProtocolError(
+                    "LM Studio embedding vector contains a non-finite number."
+                ) from exc
             if not math.isfinite(number):
                 raise ProviderProtocolError(
                     "LM Studio embedding vector contains a non-finite number."

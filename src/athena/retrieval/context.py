@@ -23,6 +23,7 @@ _MAX_BUDGET = 64_000
 _MIN_ITEMS = 1
 _MAX_ITEMS = 100
 _MAX_MEMORY_ITEMS = 100
+_DIVERSITY_SIMILARITY_THRESHOLD = 0.82
 
 _POLICY = (
     "Current user message overrides USER PREFERENCE. USER PREFERENCE is preference "
@@ -33,6 +34,22 @@ _POLICY = (
 
 class ContextBuilderError(ValueError):
     """Raised when a context bundle request violates a hard builder contract."""
+
+
+def _bounded_int(
+    value: object,
+    *,
+    label: str,
+    minimum: int,
+    maximum: int,
+) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ContextBuilderError(f"{label} must be an integer.")
+    if not minimum <= value <= maximum:
+        raise ContextBuilderError(
+            f"{label} must be between {minimum} and {maximum}."
+        )
+    return value
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,9 +97,12 @@ class ContextBuilderService:
     Personal Memory is kept in its own USER PREFERENCE section and selected before
     retrieved evidence. Stored preferences are never truncated because doing so may
     alter their meaning; an over-budget preference is omitted instead. Whole ranked
-    evidence items are preferred, and only the highest-ranked evidence item may be
-    reduced when no complete evidence item fits. Reduction prefers paragraph, sentence,
-    then word boundaries and therefore avoids arbitrary mid-token cuts.
+    evidence items are preferred. Near-duplicate evidence may be deferred behind the
+    first later diverse source, while the highest-ranked source always remains first
+    and contradiction-bearing Claims are never deferred as duplicates. Only the first
+    selected evidence item may be reduced when no complete evidence item fits.
+    Reduction prefers paragraph, sentence, then word boundaries and therefore avoids
+    arbitrary mid-token cuts.
     """
 
     def build_from_ranked(
@@ -168,24 +188,35 @@ class ContextBuilderService:
         max_items: int,
         max_memory_items: int,
     ) -> ContextBundle:
+        if not isinstance(query, str):
+            raise ContextBuilderError("Context query must be text.")
         normalized_query = query.strip()
         if not normalized_query:
             raise ContextBuilderError("Context query must not be empty.")
-        if not _MIN_BUDGET <= max_estimated_tokens <= _MAX_BUDGET:
-            raise ContextBuilderError(
-                f"Context token budget must be between {_MIN_BUDGET} and {_MAX_BUDGET}."
-            )
-        if not _MIN_ITEMS <= max_items <= _MAX_ITEMS:
-            raise ContextBuilderError(
-                f"Context max-items must be between {_MIN_ITEMS} and {_MAX_ITEMS}."
-            )
-        if not 0 <= max_memory_items <= _MAX_MEMORY_ITEMS:
-            raise ContextBuilderError(
-                f"Context max-memory-items must be between 0 and {_MAX_MEMORY_ITEMS}."
-            )
+        if mode not in {"lexical", "hybrid"}:
+            raise ContextBuilderError("Context mode must be lexical or hybrid.")
+
+        validated_budget = _bounded_int(
+            max_estimated_tokens,
+            label="Context token budget",
+            minimum=_MIN_BUDGET,
+            maximum=_MAX_BUDGET,
+        )
+        validated_max_items = _bounded_int(
+            max_items,
+            label="Context max-items",
+            minimum=_MIN_ITEMS,
+            maximum=_MAX_ITEMS,
+        )
+        validated_max_memory_items = _bounded_int(
+            max_memory_items,
+            label="Context max-memory-items",
+            minimum=0,
+            maximum=_MAX_MEMORY_ITEMS,
+        )
 
         memory_items: list[MemoryContextItem] = []
-        considered_memory = personal_memory[:max_memory_items]
+        considered_memory = personal_memory[:validated_max_memory_items]
         omitted_memory_count = max(0, len(personal_memory) - len(considered_memory))
         for snapshot in considered_memory:
             if snapshot.lifecycle_state != "active":
@@ -206,14 +237,15 @@ class ContextBuilderService:
                 mode=mode,
                 memory_items=tuple([*memory_items, memory_candidate]),
                 items=(),
-                budget=max_estimated_tokens,
+                budget=validated_budget,
             ):
                 memory_items.append(memory_candidate)
             else:
                 omitted_memory_count += 1
 
         selected: list[ContextItem] = []
-        considered = sources[:max_items]
+        diverse_sources = _diversity_order(sources)
+        considered = diverse_sources[:validated_max_items]
         omitted_count = max(0, len(sources) - len(considered))
 
         for source_index, source in enumerate(considered):
@@ -230,13 +262,14 @@ class ContextBuilderService:
                 mode=mode,
                 memory_items=tuple(memory_items),
                 items=trial,
-                budget=max_estimated_tokens,
+                budget=validated_budget,
             ):
                 selected.append(candidate)
                 continue
 
-            # Preserve rank order. Only the highest-ranked evidence item may be
-            # reduced if otherwise no evidence would fit after Personal Memory.
+            # The diversity order always preserves the original highest-ranked
+            # source as position zero. Only that first source may be reduced if
+            # otherwise no evidence fits after Personal Memory.
             if not selected and source_index == 0:
                 truncated = self._truncate_first_item_to_fit(
                     query=normalized_query,
@@ -244,7 +277,7 @@ class ContextBuilderService:
                     memory_items=tuple(memory_items),
                     source=source,
                     context_id=context_id,
-                    budget=max_estimated_tokens,
+                    budget=validated_budget,
                 )
                 if truncated is not None:
                     selected.append(truncated)
@@ -264,7 +297,7 @@ class ContextBuilderService:
             items=items,
         )
         estimated = estimate_tokens(rendered)
-        if estimated > max_estimated_tokens:
+        if estimated > validated_budget:
             raise RuntimeError("Context Builder exceeded its own deterministic budget.")
 
         return ContextBundle(
@@ -275,7 +308,7 @@ class ContextBuilderService:
             omitted_memory_count=omitted_memory_count,
             omitted_count=omitted_count,
             estimated_tokens=estimated,
-            max_estimated_tokens=max_estimated_tokens,
+            max_estimated_tokens=validated_budget,
             rendered_text=rendered,
         )
 
@@ -371,6 +404,65 @@ class _Source:
     score: float
     contradiction_count: int
     duplicate_count: int
+
+
+def _diversity_order(sources: tuple[_Source, ...]) -> tuple[_Source, ...]:
+    """Defer redundant sources while preserving rank wherever no conflict exists."""
+    if len(sources) < 2:
+        return sources
+
+    remaining = list(sources)
+    ordered: list[_Source] = [remaining.pop(0)]
+
+    while remaining:
+        chosen_index = 0
+        if _source_redundant_with_selected(remaining[0], ordered):
+            for index, candidate in enumerate(remaining[1:], start=1):
+                if not _source_redundant_with_selected(candidate, ordered):
+                    chosen_index = index
+                    break
+        ordered.append(remaining.pop(chosen_index))
+
+    return tuple(ordered)
+
+
+def _source_redundant_with_selected(
+    candidate: _Source,
+    selected: list[_Source],
+) -> bool:
+    # Contradiction-bearing Claims must remain visible even when lexical form is
+    # similar; diversity is not allowed to erase conflicting evidence.
+    if (
+        candidate.entity_type is SearchEntityType.CLAIM
+        and candidate.contradiction_count > 0
+    ):
+        return False
+
+    candidate_tokens = _diversity_tokens(candidate.text)
+    if not candidate_tokens:
+        return False
+
+    for prior in selected:
+        if prior.entity_type is SearchEntityType.CLAIM and prior.contradiction_count > 0:
+            continue
+        similarity = _jaccard(candidate_tokens, _diversity_tokens(prior.text))
+        if similarity >= _DIVERSITY_SIMILARITY_THRESHOLD:
+            return True
+    return False
+
+
+def _diversity_tokens(value: str) -> frozenset[str]:
+    normalized = " ".join(value.casefold().split())
+    return frozenset(re.findall(r"\w+", normalized, flags=re.UNICODE))
+
+
+def _jaccard(left: frozenset[str], right: frozenset[str]) -> float:
+    if not left or not right:
+        return 0.0
+    union = left | right
+    if not union:
+        return 0.0
+    return len(left & right) / len(union)
 
 
 def _model_facing_retrieval_text(
@@ -485,6 +577,8 @@ def estimate_tokens(text: str) -> int:
     numbers and punctuation are counted separately and padded by 50% to reduce
     underestimation on mixed-language and structured JSON text.
     """
+    if not isinstance(text, str):
+        raise TypeError("Context token estimation requires text.")
     pieces = re.findall(r"\w+|[^\w\s]", text, flags=re.UNICODE)
     if not pieces:
         return 0

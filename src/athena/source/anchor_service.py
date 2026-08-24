@@ -63,9 +63,14 @@ class SourceAnchorService:
         start_offset: int,
         end_offset: int,
     ) -> SourceAnchorRecord:
+        _require_offset(start_offset, "SourceAnchor start_offset")
+        _require_offset(end_offset, "SourceAnchor end_offset")
+        if end_offset <= start_offset:
+            raise ValueError("SourceAnchor range must satisfy start_offset < end_offset.")
+
         representation, _ = self.source_text.get(representation_id)
         text = self.source_text.read_text(representation_id)
-        if not 0 <= start_offset < end_offset <= len(text):
+        if end_offset > len(text):
             raise ValueError("SourceAnchor range is outside the retained representation.")
         quoted_hash = hashlib.sha256(text[start_offset:end_offset].encode("utf-8")).digest()
         page_range = self.source_text.page_range_for_text_range(
@@ -188,3 +193,11 @@ class SourceAnchorService:
 
     def list_for_source(self, source_id: uuid.UUID, *, limit: int = 500) -> tuple[SourceAnchorRecord, ...]:
         return self.repository.list_for_source(source_id, limit=limit)
+
+
+def _require_offset(value: object, label: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise TypeError(f"{label} must be an integer.")
+    if value < 0:
+        raise ValueError(f"{label} must not be negative.")
+    return value
