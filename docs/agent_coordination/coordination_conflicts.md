@@ -46,6 +46,20 @@ Canonical Ownership values: `QUALITY`, `BACKEND`, `UI`, `SECURITY`, `FEATURE`, `
 - Last check: 2026-08-24 on candidate SHA `31b580609527f828b87854207bd1c33c3a4bfec6`.
 - Full-Gate link: none yet; promote/cross-link only if this becomes a required-gate blocker.
 
+## CONFLICT-004 — Full-gate UI evidence references non-existent repository paths
+
+- Type: Evidence / ownership-assignment conflict.
+- Evidence: `full_gate_recovery.md` assigns UI-owned P0 slices `FGATE-010` and `FGATE-013` from run #2940 to `src/athena/ui/rich_chat.py`, `main_window.py`, `assistant_shell.py`, `persistence.py`, `settings_panel.py`, and `thumbnail_grid.py`. Fresh repository reads show that `src/athena/ui/` does not exist on `agent/pathena` HEAD `ee3d606d7a03a46c112e021e26cec0a2b6ce73e9`, the #2940 head `c59778dcd90b11dd8ee2176b381db0af06848725`, PR #5 base `7dd3b5598b323af11aeb36e1f553c413bd2620b5`, PR #2 base `3e57e70ee2e1bab1d3bb3cf667f22c445c0d1675`, or PR #5 merge commit `f173ceaf719ca33a441a237619592be149884d56`. The productive UI tree on `agent/pathena` is `src/athena/desktop/`.
+- Affected IDs/files: `FGATE-010`, `FGATE-013`, `docs/agent_coordination/full_gate_recovery.md`, run #2940 / job `97317379431`, PR #5 gate carrier.
+- Side A: QUALITY recovery SSOT assigns two P0 product fixes to UI with exact stack/module paths and asks UI to implement them first.
+- Side B: UI can neither reproduce nor patch those paths from any cited repository ref without inventing a second UI architecture or mutating unrelated desktop code.
+- Risk: fabricated product files, fixes against the wrong UI architecture, false P0 closure, or unnecessary churn in the real `src/athena/desktop/` implementation.
+- Proposed resolution: QUALITY must attach the decoded #2940 diagnostic/stack artifact with its actual checkout/merge SHA or correct `FGATE-010`/`FGATE-013` to repository paths that exist on the cited candidate. Until then UI treats those two slices as evidence-blocked and does not fabricate a product fix. If the evidence came from a stale/unrelated checkout, reclassify the entries `STALE`; if corrected evidence identifies real `src/athena/desktop/` paths, UI resumes the P0 immediately.
+- Required owner/arbitrator: QUALITY for evidence correction/reclassification; UI resumes implementation only after a reproducible UI path is supplied.
+- Status: OPEN.
+- Last check: 2026-08-24 on `agent/pathena` HEAD `ee3d606d7a03a46c112e021e26cec0a2b6ce73e9`; exact-head gate #2941 is completed `failure`, so CI Quiet Mode is not active.
+- Full-Gate link: `FGATE-010` / `FGATE-013` ↔ `CONFLICT-004`.
+
 ## Bot configuration recommendations
 
 No automation prompt was changed by another bot in this file. Evidence-backed recommendations, when any arise, must be reported as `BOT-CONFIG-CHANGE-RECOMMENDED` rather than applied automatically.
