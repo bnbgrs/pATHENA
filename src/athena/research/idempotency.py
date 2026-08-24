@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import uuid
 from collections.abc import Mapping, Sequence
-from typing import Any
 
 from athena.research.models import (
     ResearchSynthesisInputKind,
@@ -36,6 +35,15 @@ def _canonical_text(value: object, label: str) -> str:
     return value
 
 
+def _research_input_sequence(value: object) -> Sequence[object]:
+    """Narrow synthesis inputs while explicitly rejecting text-like sequences."""
+    if isinstance(value, (str, bytes, bytearray)):
+        raise TypeError("Research synthesis inputs must be a sequence.")
+    if not isinstance(value, Sequence):
+        raise TypeError("Research synthesis inputs must be a sequence.")
+    return value
+
+
 def _synthesis_work_idempotency_key(
     *,
     scope_id: uuid.UUID,
@@ -53,10 +61,9 @@ def _synthesis_work_idempotency_key(
         raise TypeError("Research synthesis stage must be a ResearchSynthesisStage.")
     validated_level = _nonnegative_int(level, "Research synthesis level")
     validated_ordinal = _nonnegative_int(ordinal, "Research synthesis ordinal")
-    if not isinstance(inputs, Sequence) or isinstance(inputs, (str, bytes, bytearray)):
-        raise TypeError("Research synthesis inputs must be a sequence.")
+    validated_inputs = _research_input_sequence(inputs)
     normalized_inputs: list[tuple[ResearchSynthesisInputKind, uuid.UUID]] = []
-    for item in inputs:
+    for item in validated_inputs:
         if not isinstance(item, tuple) or len(item) != 2:
             raise TypeError("Research synthesis inputs must contain (kind, UUID) tuples.")
         kind, ref_id = item
