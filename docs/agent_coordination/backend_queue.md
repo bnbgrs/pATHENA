@@ -2,7 +2,7 @@
 
 Persistent prioritized backend work queue for `agent/pathena`.
 Status: `READY` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `STALE`.
-Last queue refresh: 2026-08-23.
+Last queue refresh: 2026-08-24.
 
 ## Active / ready work
 
@@ -32,11 +32,11 @@ Last queue refresh: 2026-08-23.
 
 ### BE-039 — Bind migration SQLite clone destination to parent identity
 - Priority: P1
-- Status: READY
-- Evidence: `create_migration_clone()` still calls `sqlite3.connect(candidate_path)` after pathname/reparse checks. Repeated checks do not close parent replacement between validation and SQLite open.
+- Status: STALE
+- Evidence: current `create_migration_clone()` already opens the candidate parent directory on POSIX, reserves the candidate with `dir_fd`, and passes an SQLite-visible `/proc/self/fd` or `/dev/fd` child path to `sqlite3.connect()`. The prior evidence that it connected directly to `candidate_path` is no longer true on POSIX. Windows remains covered by BE-028/BE-038 rather than this stale POSIX slice.
 - Components: `storage/migration_clone.py`, coordinator, deterministic race tests.
-- Dependencies: BE-036; platform-specific SQLite-compatible strategy required.
-- Last verification: 2026-08-23 current remote.
+- Dependencies: BE-036.
+- Last verification: 2026-08-24 current remote HEAD before SEC-003 transport work; static source trace only, no test pass claimed.
 
 ### BE-046 — Bind Emergency Reserve publication/release to directory identity
 - Priority: P1
@@ -45,6 +45,22 @@ Last queue refresh: 2026-08-23.
 - Components: `storage/emergency_reserve.py`, `storage/durable_fs.py` shared primitives if appropriate, disk-pressure tests.
 - Dependencies: BE-036 parent-identity primitives; avoid partial check-then-open fixes.
 - Last verification: 2026-08-23 current remote audit.
+
+### BE-051 — Make LM Studio local transport explicitly proxy-free and loopback-bound
+- Priority: P1
+- Status: IN_PROGRESS
+- Evidence: Security handoff SEC-003 identified ambient proxy leakage risk in LM Studio adapters. A shared `model/adapters/local_http.py` transport now rejects non-loopback HTTP(S), ignores ambient proxies with `ProxyHandler({})`, and rejects redirects. `lm_studio_embeddings.py` uses it and hostile-proxy/loopback tests exist. The large `lm_studio.py` discovery/chat/structured adapter still imports plain `urllib.request.urlopen` and remains the final sub-slice.
+- Components: `model/adapters/local_http.py`, `model/adapters/lm_studio_embeddings.py`, `model/adapters/lm_studio.py`, provider tests.
+- Dependencies: SEC-003; safe mutation path for the large shared LM Studio adapter.
+- Last verification: 2026-08-24 current remote through `d158c5f`; tests added but not executed in this environment.
+
+### BE-052 — Bind preflight database identity through live writer startup
+- Priority: P1
+- Status: READY
+- Evidence: Security handoff SEC-014 remains valid. `StorageBootstrapService` performs read-only preflight, but `SQLiteDatabase.start()` later opens the configured path independently. A second identical-content preflight would not prove that the writable SQLite handle targets the same filesystem object, so a real handle/identity strategy is required rather than repeated pathname checks.
+- Components: `storage/recovery.py`, `storage/database.py`, `storage/bootstrap.py`, deterministic startup race tests.
+- Dependencies: SEC-014; cross-platform SQLite identity design.
+- Last verification: 2026-08-24 current remote static cross-layer trace; no exploit or test execution claimed.
 
 ### BE-020 — Runtime ModelSignature drift guard in generation
 - Priority: P1
