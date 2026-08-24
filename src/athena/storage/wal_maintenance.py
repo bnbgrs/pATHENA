@@ -98,6 +98,11 @@ class WalRuntimeStatus:
         if not self.present and self.size_bytes != 0:
             raise ValueError("Absent WAL status must report zero size.")
 
+    @property
+    def checkpoint_due(self) -> bool:
+        """Return whether WAL bytes have reached the live autocheckpoint baseline."""
+        return self.present and self.size_bytes >= self.autocheckpoint_bytes
+
 
 @dataclass(frozen=True, slots=True)
 class WalCheckpointResult:
@@ -135,6 +140,38 @@ class WalCheckpointResult:
         return not self.busy and self.checkpointed_frames == self.log_frames
 
 
+@dataclass(frozen=True, slots=True)
+class WalMaintenanceCycle:
+    """One bounded observation and optional PASSIVE checkpoint attempt."""
+
+    status_before: WalRuntimeStatus
+    checkpoint: WalCheckpointResult | None
+    status_after: WalRuntimeStatus
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.status_before, WalRuntimeStatus):
+            raise TypeError("WAL maintenance status_before must be WalRuntimeStatus.")
+        if self.checkpoint is not None and not isinstance(
+            self.checkpoint,
+            WalCheckpointResult,
+        ):
+            raise TypeError("WAL maintenance checkpoint must be WalCheckpointResult or None.")
+        if not isinstance(self.status_after, WalRuntimeStatus):
+            raise TypeError("WAL maintenance status_after must be WalRuntimeStatus.")
+        if self.checkpoint is None and self.status_before != self.status_after:
+            raise ValueError(
+                "WAL maintenance without a checkpoint must preserve its observation snapshot."
+            )
+
+    @property
+    def attempted_checkpoint(self) -> bool:
+        return self.checkpoint is not None
+
+    @property
+    def blocked(self) -> bool:
+        return self.checkpoint is not None and self.checkpoint.blocked
+
+
 class WalMaintenanceService:
     """Observe WAL growth and invoke only SQLite-owned checkpoint primitives."""
 
@@ -165,6 +202,23 @@ class WalMaintenanceService:
             page_size_bytes=page_size,
             autocheckpoint_pages=autocheckpoint_pages,
             autocheckpoint_bytes=page_size * autocheckpoint_pages,
+        )
+
+    def maintain_once(self) -> WalMaintenanceCycle:
+        """Observe once and run PASSIVE only at the live autocheckpoint baseline."""
+        before = self.status()
+        if not before.checkpoint_due:
+            return WalMaintenanceCycle(
+                status_before=before,
+                checkpoint=None,
+                status_after=before,
+            )
+
+        checkpoint = self.checkpoint_passive()
+        return WalMaintenanceCycle(
+            status_before=before,
+            checkpoint=checkpoint,
+            status_after=self.status(),
         )
 
     def checkpoint_passive(self) -> WalCheckpointResult:
