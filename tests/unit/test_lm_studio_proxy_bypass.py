@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import json
-from urllib.request import ProxyHandler
 from unittest.mock import patch
+from urllib.request import HTTPRedirectHandler, ProxyHandler
 
 from athena.model.adapters.lm_studio import LMStudioProvider
 from athena.model.adapters.lm_studio_embeddings import LMStudioEmbeddingProvider
@@ -34,7 +34,9 @@ class _Opener:
         return self.response
 
 
-def test_embedding_transport_ignores_ambient_proxy_settings(monkeypatch) -> None:
+def test_embedding_transport_ignores_ambient_proxy_settings_and_redirects(
+    monkeypatch,
+) -> None:
     monkeypatch.setenv("HTTP_PROXY", "http://127.0.0.1:9")
     monkeypatch.setenv("HTTPS_PROXY", "http://127.0.0.1:9")
     monkeypatch.setenv("ALL_PROXY", "socks5://127.0.0.1:9")
@@ -78,3 +80,11 @@ def test_embedding_transport_ignores_ambient_proxy_settings(monkeypatch) -> None
     ]
     assert len(proxy_handlers) == 1
     assert proxy_handlers[0].proxies == {}
+
+    redirect_handlers = [
+        handler
+        for handler in captured_handlers
+        if isinstance(handler, HTTPRedirectHandler)
+    ]
+    assert len(redirect_handlers) == 1
+    assert type(redirect_handlers[0]).__name__ == "_RejectRedirects"
