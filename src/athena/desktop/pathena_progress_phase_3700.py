@@ -206,8 +206,14 @@ class ProgressPhaseController(QObject):
         self._sync_one(workspace, widget, target)
 
     def sync(self) -> None:
-        for workspace, widget, target in self._targets:
+        live_targets: list[tuple[QWidget, QWidget, ProgressTarget]] = []
+        for workspace, widget, target in tuple(self._targets):
+            if not self._alive(workspace) or not self._alive(widget):
+                self._forget_widget(widget)
+                continue
+            live_targets.append((workspace, widget, target))
             self._sync_one(workspace, widget, target)
+        self._targets = live_targets
 
     def _sync_one(
         self,
@@ -215,47 +221,85 @@ class ProgressPhaseController(QObject):
         widget: QWidget,
         target: ProgressTarget,
     ) -> None:
+        if not self._alive(workspace) or not self._alive(widget):
+            self._forget_widget(widget)
+            return
+
         process = self._process_for(workspace)
-        busy = process is not None and process.state() != QProcess.ProcessState.NotRunning
+        busy = self._process_busy(process)
         operation = self._operation_for(workspace)
         previous = self._previous_busy.get(widget, False)
 
         if busy and operation:
             self._active_operation[widget] = operation
 
-        widget.setProperty("pathenaOperationPhase", operation if busy else "idle")
-        widget.setProperty("pathenaProgressMode", "indeterminate" if busy else "none")
-        widget.setProperty("pathenaBusyOwner", workspace.objectName() if busy else "")
-        widget.setProperty("pathenaProgressResultSurface", target.result_surface)
-        widget.setProperty("pathenaLongRunningWork", busy)
+        try:
+            widget.setProperty("pathenaOperationPhase", operation if busy else "idle")
+            widget.setProperty("pathenaProgressMode", "indeterminate" if busy else "none")
+            widget.setProperty("pathenaBusyOwner", workspace.objectName() if busy else "")
+            widget.setProperty("pathenaProgressResultSurface", target.result_surface)
+            widget.setProperty("pathenaLongRunningWork", busy)
 
-        if previous and not busy:
-            count = int(widget.property("pathenaOperationCompletionCount") or 0) + 1
-            widget.setProperty("pathenaOperationCompletionCount", count)
-            widget.setProperty(
-                "pathenaLastCompletedOperation",
-                self._active_operation.pop(widget, "operation"),
-            )
-        self._previous_busy[widget] = busy
+            if previous and not busy:
+                count = int(widget.property("pathenaOperationCompletionCount") or 0) + 1
+                widget.setProperty("pathenaOperationCompletionCount", count)
+                widget.setProperty(
+                    "pathenaLastCompletedOperation",
+                    self._active_operation.pop(widget, "operation"),
+                )
+            self._previous_busy[widget] = busy
 
-        if busy:
-            widget.setStatusTip(
-                f"Working: {operation or 'local operation'}. "
-                f"Result appears in {target.result_surface}."
-            )
+            if busy:
+                widget.setStatusTip(
+                    f"Working: {operation or 'local operation'}. "
+                    f"Result appears in {target.result_surface}."
+                )
+        except RuntimeError:
+            self._forget_widget(widget)
+
+    def _forget_widget(self, widget: QWidget) -> None:
+        self._previous_busy.pop(widget, None)
+        self._active_operation.pop(widget, None)
+
+    @staticmethod
+    def _alive(widget: QWidget) -> bool:
+        try:
+            widget.objectName()
+        except RuntimeError:
+            return False
+        return True
+
+    @staticmethod
+    def _process_busy(process: QProcess | None) -> bool:
+        if process is None:
+            return False
+        try:
+            return process.state() != QProcess.ProcessState.NotRunning
+        except RuntimeError:
+            return False
 
     @staticmethod
     def _process_for(workspace: QWidget) -> QProcess | None:
+        if not ProgressPhaseController._alive(workspace):
+            return None
         for attribute_name in ("_knowledge_process", "_process", "process"):
-            candidate = getattr(workspace, attribute_name, None)
+            try:
+                candidate = getattr(workspace, attribute_name, None)
+            except RuntimeError:
+                return None
             if isinstance(candidate, QProcess):
                 return candidate
         return None
 
     @staticmethod
     def _operation_for(workspace: QWidget) -> str:
+        if not ProgressPhaseController._alive(workspace):
+            return ""
         for attribute_name in ("_knowledge_operation", "_operation"):
-            value = getattr(workspace, attribute_name, "")
+            try:
+                value = getattr(workspace, attribute_name, "")
+            except RuntimeError:
+                return ""
             if isinstance(value, str) and value:
                 return value.replace("-", " ")
         return ""
