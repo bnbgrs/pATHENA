@@ -5,7 +5,10 @@ from __future__ import annotations
 import os
 import secrets
 import stat
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
+from typing import BinaryIO
 
 _MOVEFILE_REPLACE_EXISTING = 0x00000001
 _MOVEFILE_WRITE_THROUGH = 0x00000008
@@ -183,13 +186,24 @@ def durable_replace(source: Path, destination: Path) -> None:
     _posix_durable_replace(source_path, destination_path)
 
 
-def durable_write_bytes(path: Path, data: bytes, *, mode: int = 0o600) -> None:
-    """Durably replace one file with bytes without following a replaced POSIX parent."""
-    destination = Path(path)
-    if not isinstance(data, bytes):
-        raise TypeError("Durable file payload must be bytes.")
+def _validated_file_mode(mode: object) -> int:
     if isinstance(mode, bool) or not isinstance(mode, int) or not 0 <= mode <= 0o777:
         raise ValueError("Durable file mode must be an integer between 0 and 0o777.")
+    return mode
+
+
+@contextmanager
+def durable_atomic_writer(path: Path, *, mode: int = 0o600) -> Iterator[BinaryIO]:
+    """Yield a private temp writer and publish only after a durable successful write.
+
+    On POSIX, temp creation, payload write and publication remain relative to one
+    opened parent directory identity. The parent pathname is re-checked after
+    temp creation and before yielding the handle, so a replacement raced into
+    the create boundary receives no caller payload. Windows keeps the existing
+    path-based publication semantics until BE-038 supplies HANDLE-relative IO.
+    """
+    destination = Path(path)
+    validated_mode = _validated_file_mode(mode)
     parent = destination.parent
     _assert_real_directory(parent, label="Durable file parent")
     if is_link_boundary(destination):
@@ -199,11 +213,11 @@ def durable_write_bytes(path: Path, data: bytes, *, mode: int = 0o600) -> None:
     if _is_windows():
         temporary = parent / temporary_name
         flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
-        descriptor = os.open(temporary, flags, mode)
+        descriptor = os.open(temporary, flags, validated_mode)
         try:
             with os.fdopen(descriptor, "wb", closefd=True) as handle:
                 descriptor = -1
-                handle.write(data)
+                yield handle
                 handle.flush()
                 os.fsync(handle.fileno())
             durable_replace(temporary, destination)
@@ -219,16 +233,28 @@ def durable_write_bytes(path: Path, data: bytes, *, mode: int = 0o600) -> None:
         _assert_directory_fd_current(parent, parent_fd, label="Durable file parent")
         flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
         try:
-            descriptor = os.open(temporary_name, flags, mode, dir_fd=parent_fd)
+            descriptor = os.open(
+                temporary_name,
+                flags,
+                validated_mode,
+                dir_fd=parent_fd,
+            )
         except (NotImplementedError, TypeError) as exc:
             raise OSError(
                 "Identity-bound durable file creation is unsupported on this POSIX runtime."
             ) from exc
+
+        # Critical pre-payload fence: if the pathname was replaced while the
+        # temp inode was being created relative to the trusted directory FD,
+        # abort before caller-controlled bytes can be written into that inode.
+        _assert_directory_fd_current(parent, parent_fd, label="Durable file parent")
         with os.fdopen(descriptor, "wb", closefd=True) as handle:
             descriptor = -1
-            handle.write(data)
+            yield handle
             handle.flush()
             os.fsync(handle.fileno())
+
+        _assert_directory_fd_current(parent, parent_fd, label="Durable file parent")
         try:
             os.replace(
                 temporary_name,
@@ -251,6 +277,14 @@ def durable_write_bytes(path: Path, data: bytes, *, mode: int = 0o600) -> None:
             pass
         finally:
             os.close(parent_fd)
+
+
+def durable_write_bytes(path: Path, data: bytes, *, mode: int = 0o600) -> None:
+    """Durably replace one file without exposing payload before publication."""
+    if not isinstance(data, bytes):
+        raise TypeError("Durable file payload must be bytes.")
+    with durable_atomic_writer(path, mode=mode) as handle:
+        handle.write(data)
 
 
 def durable_mkdir(path: Path, *, parents: bool = False, exist_ok: bool = False) -> None:

@@ -73,7 +73,7 @@ def test_posix_durable_replace_preserves_normal_atomic_publication(tmp_path: Pat
     assert destination.read_bytes() == b"new"
 
 
-def test_posix_durable_write_bytes_does_not_publish_into_replaced_parent(
+def test_posix_durable_write_bytes_does_not_write_payload_after_parent_replacement(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -112,7 +112,9 @@ def test_posix_durable_write_bytes_does_not_publish_into_replaced_parent(
         durable_fs.durable_write_bytes(destination, b"trusted")
 
     assert (parent / "state.json").read_bytes() == b"attacker"
-    assert (displaced / "state.json").read_bytes() == b"trusted"
+    assert (displaced / "state.json").read_bytes() == b"old"
+    assert not tuple(displaced.glob("*.partial"))
+    assert not tuple(displaced.glob(".*.partial"))
 
 
 def test_posix_durable_write_bytes_replaces_existing_file(tmp_path: Path) -> None:
