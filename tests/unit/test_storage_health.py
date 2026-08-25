@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 import athena.storage.health as health_module
 from athena.storage.database import SQLiteDatabase
 from athena.storage.health import StorageHealthService
@@ -42,7 +44,7 @@ def test_storage_health_reports_measured_available_state(tmp_path: Path) -> None
 
 def test_storage_health_reports_safe_error_without_invented_sizes(
     tmp_path: Path,
-    monkeypatch,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     database = SQLiteDatabase(tmp_path / "athena.sqlite3")
     database.start()
