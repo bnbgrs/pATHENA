@@ -34,7 +34,7 @@ QWidget#chatMessage QFrame[role="rule"] {{
 
 QWidget#chatMessage QLabel#speaker,
 QWidget#chatMessage QLabel#userMeta {{
-    color: {PALETTE.text_quiet};
+    color: {PALETTE.text_subtle};
     font-family: {TYPE.metadata_family};
     font-size: {TYPE.metadata_px}px;
 }}
@@ -51,7 +51,7 @@ QWidget#chatMessage QLabel#userMessage {{
 
 QLabel#emptyChatState,
 QLabel#settingsHelp {{
-    color: {PALETTE.text_quiet};
+    color: {PALETTE.text_subtle};
 }}
 
 QPushButton:checked {{
@@ -84,7 +84,7 @@ QPushButton#rememberMessageButton,
 QPushButton#addKnowledgeButton {{
     min-height: 22px;
     padding: 0 {SPACE.xs}px;
-    color: {PALETTE.text_quiet};
+    color: {PALETTE.text_subtle};
     font-size: 10px;
 }}
 
@@ -161,7 +161,7 @@ QLabel#helpDialogTitle {{
 QLabel#commandPaletteHint,
 QLabel#commandPaletteFooter,
 QLabel#helpDialogIntro {{
-    color: {PALETTE.text_quiet};
+    color: {PALETTE.text_subtle};
     font-family: {TYPE.metadata_family};
 }}
 
@@ -208,7 +208,7 @@ QTabWidget#canonicalMemoryTabs::pane {{
 }}
 
 QTabWidget#canonicalMemoryTabs QTabBar::tab {{
-    color: {PALETTE.text_quiet};
+    color: {PALETTE.text_subtle};
     background: transparent;
     border: none;
     border-bottom: 2px solid transparent;
@@ -308,7 +308,7 @@ QLabel#knowledgeReviewItemTitle {{
 }}
 
 QLabel#knowledgeReviewState {{
-    color: {PALETTE.text_quiet};
+    color: {PALETTE.text_subtle};
 }}
 
 QLabel#knowledgeReviewItemBody {{
@@ -319,7 +319,7 @@ QPushButton#knowledgeReviewCloseButton,
 QPushButton#knowledgeMergeButton {{
     min-height: 24px;
     padding: 0 {SPACE.xs}px;
-    color: {PALETTE.text_quiet};
+    color: {PALETTE.text_subtle};
     background: transparent;
     border: 1px solid {PALETTE.border};
     border-radius: {RADII.control}px;
