@@ -192,7 +192,7 @@ class SerializedCoreApiSurface:
         surface: CoreDomainSurface,
         executor: CoreDomainExecutor,
         *,
-        storage_health: Callable[[], StorageHealthResponse],
+        storage_health: Callable[[], StorageHealthResponse] | None = None,
     ) -> None:
         self._surface = surface
         self._executor = executor
@@ -202,7 +202,12 @@ class SerializedCoreApiSurface:
         return self._executor.call(self._surface.health)
 
     def storage_health(self) -> StorageHealthResponse:
-        return self._executor.call(self._storage_health)
+        callback = self._storage_health
+        if callback is None:
+            raise CoreDomainExecutorError(
+                "ATHENA Core storage health telemetry is not configured."
+            )
+        return self._executor.call(callback)
 
     def capabilities(self) -> CapabilitiesResponse:
         return self._executor.call(self._surface.capabilities)
@@ -214,31 +219,16 @@ class SerializedCoreApiSurface:
         offset: int = 0,
     ) -> tuple[ChatSummaryResponse, ...]:
         return self._executor.call(
-            lambda: self._surface.list_chats(
-                limit=limit,
-                offset=offset,
-            )
+            lambda: self._surface.list_chats(limit=limit, offset=offset)
         )
 
-    def create_chat(
-        self,
-        chat_id: str | None = None,
-    ) -> ChatThreadResponse:
+    def create_chat(self, chat_id: str | None = None) -> ChatThreadResponse:
         if chat_id is None:
-            return self._executor.call(
-                self._surface.create_chat
-            )
-
-        return self._executor.call(
-            lambda: self._surface.create_chat(
-                chat_id
-            )
-        )
+            return self._executor.call(self._surface.create_chat)
+        return self._executor.call(lambda: self._surface.create_chat(chat_id))
 
     def load_chat(self, chat_id: str) -> ChatThreadResponse:
-        return self._executor.call(
-            lambda: self._surface.load_chat(chat_id)
-        )
+        return self._executor.call(lambda: self._surface.load_chat(chat_id))
 
     def provider_health(self) -> ProviderHealthResponse:
         return self._executor.call(self._surface.provider_health)
@@ -279,10 +269,7 @@ class SerializedCoreApiSurface:
             )
         )
 
-    def prepare_knowledge_review(
-        self,
-        processing_run_id: str,
-    ) -> KnowledgeReviewResponse:
+    def prepare_knowledge_review(self, processing_run_id: str) -> KnowledgeReviewResponse:
         return self._executor.call(
             lambda: self._surface.prepare_knowledge_review(processing_run_id)
         )
@@ -309,9 +296,7 @@ class SerializedCoreApiSurface:
         )
 
     def preview_chat_deletion(self, chat_id: str) -> DeletionPreviewResponse:
-        return self._executor.call(
-            lambda: self._surface.preview_chat_deletion(chat_id)
-        )
+        return self._executor.call(lambda: self._surface.preview_chat_deletion(chat_id))
 
     def delete_chat(
         self,
@@ -355,7 +340,6 @@ class SerializedCoreApiSurface:
                         requested_model_id=requested_model_id,
                     )
                 )
-
             if (
                 max_output_tokens is None
                 and temperature is None
@@ -369,7 +353,6 @@ class SerializedCoreApiSurface:
                         effective_context_limit=effective_context_limit,
                     )
                 )
-
             return self._executor.call(
                 lambda: self._surface.send_chat_message(
                     chat_id,
@@ -381,7 +364,6 @@ class SerializedCoreApiSurface:
                     thinking_enabled=thinking_enabled,
                 )
             )
-
         if (
             effective_context_limit is None
             and max_output_tokens is None
@@ -396,12 +378,7 @@ class SerializedCoreApiSurface:
                     operation_id=operation_id,
                 )
             )
-
-        if (
-            max_output_tokens is None
-            and temperature is None
-            and thinking_enabled is None
-        ):
+        if max_output_tokens is None and temperature is None and thinking_enabled is None:
             return self._executor.call(
                 lambda: self._surface.send_chat_message(
                     chat_id,
@@ -411,7 +388,6 @@ class SerializedCoreApiSurface:
                     effective_context_limit=effective_context_limit,
                 )
             )
-
         return self._executor.call(
             lambda: self._surface.send_chat_message(
                 chat_id,
@@ -453,11 +429,7 @@ class SerializedCoreApiSurface:
                         requested_embedding_model_id=requested_embedding_model_id,
                     )
                 )
-            if (
-                max_output_tokens is None
-                and temperature is None
-                and thinking_enabled is None
-            ):
+            if max_output_tokens is None and temperature is None and thinking_enabled is None:
                 return self._executor.call(
                     lambda: self._surface.send_unified_local_chat_message(
                         chat_id,
@@ -479,7 +451,6 @@ class SerializedCoreApiSurface:
                     thinking_enabled=thinking_enabled,
                 )
             )
-
         if (
             effective_context_limit is None
             and max_output_tokens is None
@@ -495,11 +466,7 @@ class SerializedCoreApiSurface:
                     operation_id=operation_id,
                 )
             )
-        if (
-            max_output_tokens is None
-            and temperature is None
-            and thinking_enabled is None
-        ):
+        if max_output_tokens is None and temperature is None and thinking_enabled is None:
             return self._executor.call(
                 lambda: self._surface.send_unified_local_chat_message(
                     chat_id,
