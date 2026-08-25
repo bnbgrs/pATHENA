@@ -88,6 +88,11 @@ def dispatch_worker(argv: Sequence[str] | None = None) -> int:
 
         return hardware_acceptance_main(invocation.arguments)
 
+    if invocation.target is PackagedTarget.RECOVERY:
+        from athena.recovery_cli import main as recovery_main
+
+        return recovery_main(invocation.arguments)
+
     raise RuntimeError(f"Unsupported packaged worker target: {invocation.target!r}")
 
 
