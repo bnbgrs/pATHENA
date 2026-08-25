@@ -26,6 +26,14 @@ from athena.desktop.system_runtime_overview import (
 )
 
 
+def _presentation_state(state: str) -> str:
+    """Map truthful runtime vocabulary onto the shared UI-state vocabulary."""
+    return {
+        "stale": "busy",
+        "unavailable": "empty",
+    }.get(state, state)
+
+
 class _SystemMetric(QFrame):
     """One compact read-only runtime metric."""
 
@@ -151,16 +159,12 @@ class SystemWorkspace(QWidget):
         ):
             self._apply_fact(widget, fact)
         self.detail.setText(overview.detail)
-        set_pathena_ui_state(self.detail, overview.state)
+        set_pathena_ui_state(self.detail, _presentation_state(overview.state))
 
     @staticmethod
     def _apply_fact(widget: _SystemMetric, fact: RuntimeFact) -> None:
         widget.set_value(fact.value)
-        presentation_state = {
-            "stale": "busy",
-            "unavailable": "empty",
-        }.get(fact.state, fact.state)
-        set_pathena_ui_state(widget.value, presentation_state)
+        set_pathena_ui_state(widget.value, _presentation_state(fact.state))
 
 
 def install_system_workspace(
