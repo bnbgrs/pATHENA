@@ -15,7 +15,7 @@ jobs:
   exact-pallas-contract:
     name: Exact candidate PALLAS keyboard contract on Windows Server 2025
     runs-on: windows-2025
-    timeout-minutes: 20
+    timeout-minutes: 25
     env:
       QT_QPA_PLATFORM: offscreen
       PYTHONUTF8: "1"
@@ -82,3 +82,26 @@ jobs:
             uv run --locked --extra dev --extra desktop --no-sync pytest -q tests/unit/test_pathena_pallas_field.py tests/unit/test_pathena_pallas_full_view.py tests/unit/test_pathena_pallas_synchronized_workspace.py
             if ($LASTEXITCODE -ne 0) { throw 'PALLAS keyboard pytest contract failed.' }
           } finally { Pop-Location }
+      - name: Render all eleven real Qt reference surfaces
+        shell: pwsh
+        run: |
+          $runtimeRoot = Join-Path $env:RUNNER_TEMP "pallas-runtime-$env:CANDIDATE_SHA"
+          $screenshotRoot = Join-Path $env:RUNNER_TEMP "pallas-screens-$env:CANDIDATE_SHA"
+          & harness\scripts\windows_candidate_process_tree.ps1 `
+            -CandidateRoot (Resolve-Path candidate) `
+            -WorkingDirectory (Resolve-Path candidate) `
+            -FilePath (Resolve-Path candidate\.venv\Scripts\python.exe) `
+            -ArgumentList @(
+              (Resolve-Path harness\scripts\windows_candidate_desktop_driver.py),
+              "--runtime-root", $runtimeRoot,
+              "--screenshot-directory", $screenshotRoot,
+              "--initial-delay-seconds", "7"
+            ) `
+            -Label "pallas-reference-render" `
+            -ReportDirectory $env:RUNNER_TEMP `
+            -TimeoutSeconds 120 `
+            -MaximumRelevantProcesses 20 `
+            -PostExitSeconds 10
+          if ($LASTEXITCODE -ne 0) { throw 'PALLAS reference render failed.' }
+          $screens = @(Get-ChildItem $screenshotRoot -Filter '*.png' -File)
+          if ($screens.Count -ne 11) { throw "Expected 11 Qt reference surfaces, found $($screens.Count)." }
