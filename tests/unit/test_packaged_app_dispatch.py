@@ -56,6 +56,25 @@ def test_jobs_workspace_helper_routes_to_jobs_cli() -> None:
     assert invocation.arguments == ("list", "--limit", "150")
 
 
+def test_hardware_acceptance_routes_only_to_worker_role() -> None:
+    invocation = route_packaged_argv(
+        (
+            "-m",
+            "athena.hardware_acceptance",
+            "--json",
+            "--output",
+            "hardware-acceptance.json",
+        )
+    )
+
+    assert invocation.target is PackagedTarget.HARDWARE_ACCEPTANCE
+    assert invocation.arguments == (
+        "--json",
+        "--output",
+        "hardware-acceptance.json",
+    )
+
+
 def test_frozen_desktop_binds_sys_executable_to_sibling_worker(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
