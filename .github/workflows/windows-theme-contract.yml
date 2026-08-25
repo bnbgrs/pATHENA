@@ -14,7 +14,6 @@ permissions:
 jobs:
   exact-theme-contract:
     name: Exact candidate theme contract on Windows Server 2025
-    if: startsWith(github.event.head_commit.message, 'test(windows): request exact candidate') || contains(github.event.head_commit.message, 'theme contract')
     runs-on: windows-2025
     timeout-minutes: 15
     steps:
