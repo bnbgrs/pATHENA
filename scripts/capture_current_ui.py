@@ -1,8 +1,8 @@
 """Temporary screenshot harness for the current pATHENA Qt UI.
 
-The current desktop shell is really instantiated and rendered by Qt.  Core,
-Scheduler, workers and model generation are deliberately not started, so this is
-safe presentation capture rather than a background-processing run.
+The current desktop shell is really instantiated and rendered by Qt. Core,
+Scheduler, workers and model generation are deliberately not started. A broken
+nonvisual accessibility hook is isolated so it cannot prevent static UI capture.
 """
 
 from __future__ import annotations
@@ -25,6 +25,7 @@ from athena.desktop.pathena_window import PathenaMainWindow
 
 OUT = Path(os.environ.get("PATHENA_SCREENSHOT_DIR", "screenshots-current"))
 OUT.mkdir(parents=True, exist_ok=True)
+SKIPPED_HOOKS: list[str] = []
 
 
 def _flush(app: QApplication) -> None:
@@ -48,6 +49,15 @@ def _delete_later(obj: object) -> None:
         method()
 
 
+def _optional_hook(label: str, factory):
+    try:
+        return factory()
+    except Exception as exc:  # capture must survive nonvisual hook regressions
+        SKIPPED_HOOKS.append(f"{label}: {type(exc).__name__}: {exc}")
+        print(f"SKIPPED HOOK {label}: {type(exc).__name__}: {exc}")
+        return None
+
+
 def main() -> int:
     app = desktop_app.create_application(["pATHENA-screenshot-capture"])
     client = CoreApiClient.from_environment()
@@ -55,8 +65,8 @@ def main() -> int:
     window = PathenaMainWindow(api_controller=controller)
     installed: list[object] = []
 
-    # Mirror athena.desktop.app.main in its current order, minus the Core and
-    # scheduler supervisors and minus any automatic API refresh heartbeat.
+    # Mirror athena.desktop.app.main in current order, except supervisors and
+    # automatic API refreshes, which are intentionally not started.
     knowledge_workspace = desktop_app.install_knowledge_workspace(window, controller)
     installed.append(knowledge_workspace)
     installed.append(desktop_app.install_knowledge_selection_continuity(knowledge_workspace))
@@ -127,29 +137,44 @@ def main() -> int:
     installed.append(desktop_app.install_research_experience(research_workspace, research_results_extension))
     installed.append(desktop_app.install_research_proposal_clarity(research_results_extension))
     installed.append(desktop_app.install_research_knowledge_transition(window, research_results_extension))
-    installed.append(
-        desktop_app.install_background_completion_accessibility(
+
+    # This current hook crashes before window.show() because it assumes QLabel
+    # exposes textChanged. It has no static visual role, so isolate it and record
+    # the exact failure rather than altering pATHENA's product source.
+    optional = _optional_hook(
+        "background_completion_accessibility",
+        lambda: desktop_app.install_background_completion_accessibility(
             files_workspace,
             jobs_workspace,
             system_backup.backup,
             research_results_extension,
-        )
+        ),
     )
-    installed.append(
-        desktop_app.install_selection_disappearance_handoff(
+    if optional is not None:
+        installed.append(optional)
+
+    optional = _optional_hook(
+        "selection_disappearance_handoff",
+        lambda: desktop_app.install_selection_disappearance_handoff(
             files_workspace,
             jobs_workspace,
             research_workspace,
             system_backup.backup,
             research_results_extension,
-        )
+        ),
     )
-    desktop_app.install_primary_input_accessibility(
-        window,
-        chat_prompt=window.prompt_input,
-        knowledge_filter=knowledge_workspace.search_input,
-        research_query=research_workspace.query_input,
-        research_filter=research_results_extension.job_filter,
+    if optional is not None:
+        installed.append(optional)
+
+    _optional_hook(
+        "primary_input_accessibility",
+        lambda: desktop_app.install_primary_input_accessibility(
+            window,
+            chat_prompt=window.prompt_input,
+            knowledge_filter=knowledge_workspace.search_input,
+            research_query=research_workspace.query_input,
+            research_filter=research_results_extension.job_filter,
+        ),
     )
 
     # Never let screenshot capture start background network/API refreshes.
@@ -167,10 +192,9 @@ def main() -> int:
         window.navigation.setCurrentRow(index)
         _save(window, app, f"01-page-{index+1:02d}-{name}")
 
-    # Capture the actual Settings page in several representative widget states.
+    # Capture actual Settings widgets in multiple representative states.
     window.navigation.setCurrentRow(6)
     _flush(app)
-
     settings_states = [
         ("02-settings-default-offline", None, None, None, None),
         ("03-settings-compact-direct", 16384, 2048, 0.10, False),
@@ -190,7 +214,6 @@ def main() -> int:
             window.thinking_checkbox.setChecked(thinking)
         _save(window, app, name)
 
-    # Capture progressive chat details using the real inspector widget.
     window.navigation.setCurrentRow(0)
     _flush(app)
     details = getattr(window, "details_button", None)
@@ -200,8 +223,6 @@ def main() -> int:
         _save(window, app, "08-chat-details-open")
         details.setChecked(False)
 
-    # Capture the installed command palette when its implementation exposes a
-    # callable opener.  If not, the rest of the capture remains valid.
     palette_opened = False
     for candidate in (command_palette, getattr(command_palette, "palette", None)):
         if candidate is None:
@@ -226,6 +247,7 @@ def main() -> int:
         "capture_branch": "capture/current-ui-run-20260825",
         "platform": "Windows GitHub Actions / Qt offscreen software renderer",
         "background_processes_started": False,
+        "skipped_hooks": SKIPPED_HOOKS,
         "pages": page_names,
         "note": "Real current Qt UI render; Core/Scheduler/workers intentionally not started.",
         "files": sorted(path.name for path in OUT.glob("*.png")),
