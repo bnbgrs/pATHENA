@@ -86,7 +86,8 @@ jobs:
           try {
             uv run --locked --extra dev --no-sync ruff check `
               src/athena/plugins `
-              tests/unit/test_plugin_capability_boundary.py
+              tests/unit/test_plugin_capability_boundary.py `
+              tests/unit/test_plugin_publisher_identity.py
             if ($LASTEXITCODE -ne 0) { throw 'Plugin Ruff contract failed.' }
           } finally {
             Pop-Location
@@ -109,8 +110,9 @@ jobs:
           Push-Location candidate
           try {
             uv run --locked --extra dev --no-sync pytest -q `
-              tests/unit/test_plugin_capability_boundary.py
-            if ($LASTEXITCODE -ne 0) { throw 'Plugin capability tests failed.' }
+              tests/unit/test_plugin_capability_boundary.py `
+              tests/unit/test_plugin_publisher_identity.py
+            if ($LASTEXITCODE -ne 0) { throw 'Plugin capability/identity tests failed.' }
           } finally {
             Pop-Location
           }
