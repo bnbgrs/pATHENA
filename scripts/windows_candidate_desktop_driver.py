@@ -7,8 +7,10 @@ import json
 import os
 import re
 import sys
+import threading
 import time
 from collections.abc import Sequence
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 
@@ -25,6 +27,49 @@ def _build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+class _DiagnosticComfyHandler(BaseHTTPRequestHandler):
+    posted_prompts: list[dict[str, object]] = []
+
+    def log_message(self, _format: str, *_args: object) -> None:
+        return
+
+    def do_GET(self) -> None:  # noqa: N802
+        if self.path != "/system_stats":
+            self.send_error(404)
+            return
+        body = json.dumps(
+            {
+                "system": {"comfyui_version": "windows-diagnostic-local"},
+                "devices": [{"name": "diagnostic-device"}],
+            }
+        ).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_POST(self) -> None:  # noqa: N802
+        if self.path != "/prompt":
+            self.send_error(404)
+            return
+        size = int(self.headers.get("Content-Length", "0"))
+        payload = json.loads(self.rfile.read(size).decode("utf-8"))
+        type(self).posted_prompts.append(payload)
+        body = json.dumps(
+            {
+                "prompt_id": "windows-diagnostic-prompt",
+                "number": 1,
+                "node_errors": {},
+            }
+        ).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = _build_parser().parse_args(argv)
     if os.name != "nt":
@@ -38,6 +83,26 @@ def main(argv: Sequence[str] | None = None) -> int:
     screenshot_directory.mkdir(parents=True, exist_ok=True)
     os.environ["ATHENA_LOCAL_ROOT"] = str(runtime_root)
     os.environ["QT_QPA_PLATFORM"] = "offscreen"
+
+    _DiagnosticComfyHandler.posted_prompts.clear()
+    comfy_server = ThreadingHTTPServer(("127.0.0.1", 0), _DiagnosticComfyHandler)
+    comfy_thread = threading.Thread(target=comfy_server.serve_forever, daemon=True)
+    comfy_thread.start()
+    os.environ["PATHENA_COMFYUI_URL"] = (
+        f"http://127.0.0.1:{comfy_server.server_port}"
+    )
+    comfy_workflow = runtime_root / "diagnostic-comfyui-api-workflow.json"
+    comfy_workflow.write_text(
+        json.dumps(
+            {
+                "1": {
+                    "class_type": "DiagnosticNode",
+                    "inputs": {"value": 1},
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
 
     from PySide6.QtCore import QTimer
     from PySide6.QtWidgets import QMainWindow, QWidget
@@ -104,7 +169,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             save_widget(window, ordinal=row + 1, label=label, kind="workspace")
             captures[-1]["row"] = row
             captures[-1]["page_index"] = pages.currentIndex()
-        except Exception as exc:  # noqa: BLE001 - callback must preserve evidence
+        except Exception as exc:  # noqa: BLE001
             errors.append(f"workspace row {row}: {type(exc).__name__}: {exc}")
 
     def diagnostic_pallas_snapshot() -> PallasGraphSnapshot:
@@ -187,7 +252,6 @@ def main(argv: Sequence[str] | None = None) -> int:
             if not isinstance(grounded, PallasGroundedFieldController):
                 raise RuntimeError("Real PALLAS grounded controller is unavailable.")
             grounded.apply_snapshot(diagnostic_pallas_snapshot())
-
             full_view = getattr(window, "_pathena_pallas_full_view_controller", None)
             if full_view is None or not callable(getattr(full_view, "open_workspace", None)):
                 raise RuntimeError("Real PALLAS full-view controller is unavailable.")
@@ -206,7 +270,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             save_widget(dialog, ordinal=8, label="PALLAS", kind="full-pallas")
             captures[-1]["fixture"] = "diagnostic semantic graph; presentation only"
             dialog.hide()
-        except Exception as exc:  # noqa: BLE001 - callback must preserve evidence
+        except Exception as exc:  # noqa: BLE001
             errors.append(f"PALLAS: {type(exc).__name__}: {exc}")
 
     def palette_controller() -> CommandPaletteController:
@@ -230,10 +294,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             app.processEvents()
             if not controller.dialog.isVisible():
                 raise RuntimeError("Command Palette did not become visible.")
-            if controller.results.count() < 10:
-                raise RuntimeError(
-                    f"Command Palette exposed only {controller.results.count()} live commands."
-                )
+            labels = {command.label for command in controller._commands}
+            if "Open ComfyUI" not in labels:
+                raise RuntimeError("Command Palette does not expose the ComfyUI integration.")
             save_widget(
                 controller.dialog,
                 ordinal=9,
@@ -242,7 +305,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             captures[-1]["result_count"] = controller.results.count()
             controller.dialog.hide()
-        except Exception as exc:  # noqa: BLE001 - callback must preserve evidence
+        except Exception as exc:  # noqa: BLE001
             errors.append(f"Command Palette: {type(exc).__name__}: {exc}")
 
     def capture_help() -> None:
@@ -253,8 +316,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             if not controller.help_dialog.isVisible():
                 raise RuntimeError("Help surface did not become visible.")
             help_text = controller.help_text.toPlainText()
-            if "pATHENA capabilities" not in help_text or "Keyboard" not in help_text:
-                raise RuntimeError("Help did not render the live capability guide.")
+            if "pATHENA capabilities" not in help_text or "Open ComfyUI" not in help_text:
+                raise RuntimeError("Help did not render the live ComfyUI capability.")
             save_widget(controller.help_dialog, ordinal=10, label="Help", kind="help")
             captures[-1]["catalog_version"] = str(
                 controller.help_text.property("pathenaCapabilityCatalogVersion") or ""
@@ -263,8 +326,48 @@ def main(argv: Sequence[str] | None = None) -> int:
                 controller.help_text.property("pathenaCapabilityCatalogDrift")
             )
             controller.help_dialog.hide()
-        except Exception as exc:  # noqa: BLE001 - callback must preserve evidence
+        except Exception as exc:  # noqa: BLE001
             errors.append(f"Help: {type(exc).__name__}: {exc}")
+
+    def capture_comfyui() -> None:
+        try:
+            palette = palette_controller()
+            controller = getattr(palette, "_pathena_comfyui_controller", None)
+            if controller is None:
+                raise RuntimeError("Real ComfyUI controller is unavailable.")
+            controller.load_workflow(comfy_workflow)
+            if not controller.check_connection():
+                raise RuntimeError("ComfyUI local diagnostic endpoint did not become ready.")
+            if not controller.queue_selected_workflow():
+                raise RuntimeError("ComfyUI diagnostic workflow did not queue.")
+            controller.open()
+            app.processEvents()
+            dialog = getattr(controller, "dialog", None)
+            if not isinstance(dialog, QWidget) or not dialog.isVisible():
+                raise RuntimeError("ComfyUI dialog did not become visible.")
+            if dialog.property("pathenaComfyUiLocalOnly") is not True:
+                raise RuntimeError("ComfyUI surface lost its local-only contract.")
+            prompt_id = controller.receipt.property("pathenaComfyUiPromptId")
+            if prompt_id != "windows-diagnostic-prompt":
+                raise RuntimeError("ComfyUI queue receipt did not preserve prompt identity.")
+            if _DiagnosticComfyHandler.posted_prompts != [
+                {
+                    "prompt": {
+                        "1": {
+                            "class_type": "DiagnosticNode",
+                            "inputs": {"value": 1},
+                        }
+                    }
+                }
+            ]:
+                raise RuntimeError("ComfyUI local server did not receive the exact API workflow.")
+            save_widget(dialog, ordinal=11, label="ComfyUI", kind="comfyui")
+            captures[-1]["endpoint"] = controller.endpoint.text()
+            captures[-1]["prompt_id"] = prompt_id
+            captures[-1]["transport"] = "loopback HTTP; proxy bypassed"
+            dialog.hide()
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"ComfyUI: {type(exc).__name__}: {exc}")
 
     interval_ms = 500
     first_capture_ms = args.initial_delay_seconds * 1_000
@@ -278,11 +381,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     QTimer.singleShot(after_workspaces_ms, capture_pallas)
     QTimer.singleShot(after_workspaces_ms + 1_000, capture_commands)
     QTimer.singleShot(after_workspaces_ms + 2_000, capture_help)
-    QTimer.singleShot(after_workspaces_ms + 3_000, app.quit)
+    QTimer.singleShot(after_workspaces_ms + 3_000, capture_comfyui)
+    QTimer.singleShot(after_workspaces_ms + 4_000, app.quit)
 
-    exit_code = desktop_main(["pathena-windows-candidate-acceptance"])
+    try:
+        exit_code = desktop_main(["pathena-windows-candidate-acceptance"])
+    finally:
+        comfy_server.shutdown()
+        comfy_server.server_close()
+        comfy_thread.join(timeout=2)
+
     duration_seconds = time.monotonic() - started
-    expected_capture_count = 10
+    expected_capture_count = 11
     manifest = {
         "candidate_sha": os.environ.get("CANDIDATE_SHA", ""),
         "platform": sys.platform,
@@ -306,8 +416,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "interactive PALLAS",
                 "standalone search/command palette reference state",
                 "Help",
+                "ComfyUI",
             ],
-            "not_implemented_as_target_screens": ["ComfyUI"],
+            "not_implemented_as_target_screens": [],
             "captured_reference_count": expected_capture_count,
             "assigned_reference_count": 11,
         },
