@@ -1,0 +1,130 @@
+name: pATHENA packaged hardware acceptance contract
+
+on:
+  push:
+    branches:
+      - bot/pathena-cloud-windows
+    paths:
+      - .github/workflows/windows-hardware-contract.yml
+      - .github/windows-candidate-request.txt
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pathena-windows-hardware-contract-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  exact-candidate-hardware-contract:
+    name: Exact candidate hardware contract on Windows Server 2025
+    runs-on: windows-2025
+    timeout-minutes: 25
+    env:
+      PYTHONUTF8: "1"
+
+    steps:
+      - name: Checkout harness
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          path: harness
+          persist-credentials: false
+
+      - name: Resolve exact candidate
+        shell: pwsh
+        run: |
+          $candidate = (Get-Content "harness\.github\windows-candidate-request.txt" -Raw).Trim().ToLowerInvariant()
+          if ($candidate -notmatch "^[0-9a-f]{40}$") {
+            throw "candidate request must contain one exact 40-character SHA."
+          }
+          "CANDIDATE_SHA=$candidate" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Checkout exact candidate SHA
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          path: candidate
+          persist-credentials: false
+
+      - name: Prove immutable candidate identity
+        shell: pwsh
+        run: |
+          $checkedOut = (git -C candidate rev-parse HEAD).Trim().ToLowerInvariant()
+          if ($LASTEXITCODE -ne 0 -or $checkedOut -ne $env:CANDIDATE_SHA) {
+            throw "Checked out $checkedOut instead of exact candidate $env:CANDIDATE_SHA."
+          }
+          $remote = git ls-remote https://github.com/bnbgrs/pATHENA.git refs/heads/bot/pathena-candidate
+          if ($LASTEXITCODE -ne 0 -or -not $remote) {
+            throw "Could not resolve live bot/pathena-candidate."
+          }
+          $live = ($remote -split "\s+")[0].ToLowerInvariant()
+          if ($live -ne $env:CANDIDATE_SHA) {
+            throw "Candidate moved before hardware-contract execution: expected $env:CANDIDATE_SHA, found $live."
+          }
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+          check-latest: false
+
+      - name: Install locked environment
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check "uv==0.11.21"
+          if ($LASTEXITCODE -ne 0) { throw "uv installation failed." }
+          Push-Location candidate
+          try {
+            uv lock --check
+            if ($LASTEXITCODE -ne 0) { throw "uv.lock is not current." }
+            uv sync --locked --extra dev --extra desktop
+            if ($LASTEXITCODE -ne 0) { throw "locked dependency sync failed." }
+          } finally {
+            Pop-Location
+          }
+
+      - name: Test hardware acceptance logic and packaged routing
+        shell: pwsh
+        run: |
+          Push-Location candidate
+          try {
+            uv run --locked --extra dev --extra desktop --no-sync pytest -q `
+              tests/unit/test_hardware_acceptance.py `
+              tests/unit/test_packaged_app_dispatch.py
+            if ($LASTEXITCODE -ne 0) { throw "hardware acceptance contract tests failed." }
+          } finally {
+            Pop-Location
+          }
+
+      - name: Build supported Windows package
+        shell: pwsh
+        run: |
+          $output = Join-Path $env:RUNNER_TEMP "pathena-hardware-package"
+          & candidate\scripts\build_windows_portable.ps1 -OutputRoot $output
+          if ($LASTEXITCODE -ne 0) { throw "supported Windows package build failed." }
+          "PACKAGE_ROOT=$(Join-Path $output 'pATHENA')" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Verify packaged hardware entry point without claiming target hardware
+        shell: pwsh
+        run: |
+          $worker = Join-Path $env:PACKAGE_ROOT "pATHENA-Worker.exe"
+          $launcher = Join-Path $env:PACKAGE_ROOT "CHECK_HARDWARE.cmd"
+          if (-not (Test-Path -LiteralPath $worker -PathType Leaf)) {
+            throw "pATHENA-Worker.exe is missing from the package."
+          }
+          if (-not (Test-Path -LiteralPath $launcher -PathType Leaf)) {
+            throw "CHECK_HARDWARE.cmd is missing from the package."
+          }
+          $launcherText = Get-Content -LiteralPath $launcher -Raw
+          if ($launcherText -notmatch "athena\.hardware_acceptance") {
+            throw "CHECK_HARDWARE.cmd does not dispatch the hardware acceptance module."
+          }
+          $help = & $worker -m athena.hardware_acceptance --help 2>&1 | Out-String
+          if ($LASTEXITCODE -ne 0) {
+            throw "Packaged hardware acceptance --help failed with exit $LASTEXITCODE."
+          }
+          if ($help -notmatch "real LM Studio inference" -and $help -notmatch "actual Windows GPU") {
+            throw "Packaged hardware acceptance help output is unexpected."
+          }
+          Write-Output "Packaged hardware acceptance contract is available."
+          Write-Output "The GitHub runner is NOT treated as target RX-7900-XTX hardware."
