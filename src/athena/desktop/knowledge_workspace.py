@@ -28,6 +28,11 @@ from athena.api.contracts import (
     MessageKnowledgeExtractionResponse,
 )
 from athena.desktop.api_controller import DesktopApiController, DesktopApiSnapshot
+from athena.desktop.knowledge_review import (
+    KnowledgeReviewError,
+    parse_knowledge_entity_review,
+    render_knowledge_entity_review,
+)
 
 
 class KnowledgeWorkspace(QWidget):
@@ -632,6 +637,22 @@ class KnowledgeWorkspace(QWidget):
             if target is not None and output and not target.toPlainText():
                 target.setPlainText(output)
             return
+
+        if operation in {"show", "claim-show"}:
+            target = self._detail_target_for_operation(operation)
+            if target is not None:
+                try:
+                    review = parse_knowledge_entity_review(output)
+                except KnowledgeReviewError as exc:
+                    target.setProperty("pathenaKnowledgeReviewState", "error")
+                    target.setPlainText(
+                        f"PERSISTED DETAIL UNAVAILABLE\n{exc}\n\nRaw command output:\n{output}"
+                    )
+                    self.browser_status.setText("Persisted detail could not be verified.")
+                    return
+                target.setPlainText(render_knowledge_entity_review(review))
+                target.setProperty("pathenaKnowledgeReviewState", "ready")
+                target.setProperty("pathenaKnowledgeEntityId", review.entity_id)
 
         if operation == "list":
             self._render_knowledge_list(output)
