@@ -719,8 +719,8 @@ class ExternalAccessGateway:
             raise ExternalAuthorizationError("External authorization origin is invalid.")
 
         parsed = urlsplit(url)
-        if parsed.scheme not in {"http", "https"}:
-            raise ExternalDestinationError("Only HTTP(S) external URLs are permitted.")
+        if parsed.scheme != "https":
+            raise ExternalDestinationError("Only HTTPS external URLs are permitted.")
         if parsed.username is not None or parsed.password is not None:
             raise ExternalDestinationError("Credentials in external URLs are prohibited.")
         if parsed.fragment:
@@ -738,7 +738,7 @@ class ExternalAccessGateway:
         port = parsed.port or _default_port(parsed.scheme)
         if port != _default_port(parsed.scheme):
             raise ExternalDestinationError(
-                "ATHENA v1 external access permits only the default HTTP/HTTPS ports."
+                "ATHENA v1 external access permits only the default HTTPS port."
             )
         return authorization
 
