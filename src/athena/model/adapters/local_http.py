@@ -112,6 +112,7 @@ def _bound_http_error_body(exc: HTTPError) -> None:
             max_bytes=MAX_LOCAL_RESPONSE_BYTES,
         )
         exc.fp = bounded_fp
+        setattr(exc, "file", bounded_fp)
 
 
 def open_local_request(request: Request, *, timeout: float) -> Any:
