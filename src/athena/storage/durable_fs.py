@@ -256,6 +256,9 @@ def durable_atomic_writer(path: Path, *, mode: int = 0o600) -> Iterator[BinaryIO
                 "Identity-bound durable file creation is unsupported on this POSIX runtime."
             ) from exc
 
+        # Critical pre-payload fence: if the pathname was replaced while the
+        # temp inode was being created relative to the trusted directory FD,
+        # abort before caller-controlled bytes can be written into that inode.
         _assert_directory_fd_current(parent, parent_fd, label="Durable file parent")
         with os.fdopen(descriptor, "wb", closefd=True) as handle:
             descriptor = -1
@@ -529,7 +532,6 @@ def _windows_open_bound_handle(
         get_final_path.argtypes = (
             wintypes.HANDLE,
             wintypes.LPWSTR,
-            wintypes.DWORD,
             wintypes.DWORD,
             wintypes.DWORD,
         )
