@@ -2,7 +2,7 @@
   "schema_version": 1,
   "coordination_branch": "bot/pathena-coordination",
   "candidate_branch": "bot/pathena-candidate",
-  "last_known_candidate_sha": "d13a793357f27c90d0e4ae32db4236eb87006820",
+  "last_known_candidate_sha": "de1affbd6afc8f914902119efdddfbbf6ebd555e",
   "claim_timeout_minutes": 90,
   "priority_order": [
     "P0_DEFECT",
@@ -20,32 +20,7 @@
     "PATHENA-SECURITY": {"scope": ["local-first", "network", "tor", "secrets", "encryption", "process-boundaries", "privacy", "logging"]},
     "PATHENA-QA-SCOUT": {"scope": ["regressions", "windows", "packaging", "tests", "feature-gaps", "reproduction"]}
   },
-  "claims": [
-    {
-      "task_id": "TASK-0001",
-      "title": "Expose existing recovery diagnostics as a safe desktop SYSTEM workflow",
-      "priority": "P1_CORE",
-      "owner": "PATHENA-LEAD",
-      "status": "CLAIMED",
-      "base_candidate_sha": "d13a793357f27c90d0e4ae32db4236eb87006820",
-      "paths": [
-        "src/athena/desktop/system_recovery.py",
-        "src/athena/desktop/system_workspace.py",
-        "src/athena/desktop/packaged_app.py",
-        "src/athena/desktop/packaged_worker.py",
-        "tests/unit/test_system_recovery.py",
-        "tests/unit/test_packaged_app_dispatch.py"
-      ],
-      "semantic_scope": ["recovery-diagnostics", "safe-mode-entry", "packaged-worker-routing"],
-      "started_at": "2026-08-25T09:39:00Z",
-      "heartbeat_at": "2026-08-25T09:39:00Z",
-      "verification_plan": [
-        "unit recovery UI projection and async process contract",
-        "packaged dispatcher remains fail-closed except explicit recovery target",
-        "native Windows exact-SHA acceptance including 11/11 render and package cold-start"
-      ]
-    }
-  ],
+  "claims": [],
   "backlog": [
     {
       "task_id": "TASK-0002",
@@ -62,7 +37,37 @@
       "preferred_owner": "PATHENA-SECURITY"
     }
   ],
-  "completed": [],
+  "completed": [
+    {
+      "task_id": "TASK-0001",
+      "title": "Expose existing recovery diagnostics as a safe desktop SYSTEM workflow",
+      "priority": "P1_CORE",
+      "owner": "PATHENA-LEAD",
+      "status": "COMPLETED",
+      "base_candidate_sha": "d13a793357f27c90d0e4ae32db4236eb87006820",
+      "result_candidate_sha": "de1affbd6afc8f914902119efdddfbbf6ebd555e",
+      "completed_at": "2026-08-25T09:51:00Z",
+      "paths": [
+        "src/athena/desktop/system_recovery.py",
+        "src/athena/desktop/system_workspace.py",
+        "src/athena/desktop/packaged_app.py",
+        "src/athena/desktop/packaged_worker.py",
+        "tests/unit/test_system_recovery.py",
+        "tests/unit/test_packaged_app_dispatch.py"
+      ],
+      "result": "SYSTEM now exposes asynchronous payload-free read-only Recovery diagnosis. Healthy, derived-rebuild-needed and recovery-required states are projected truthfully. Restore remains isolated CLI-only; no repair action is exposed in the desktop. Packaged worker routing remains explicit and fail-closed.",
+      "verification": [
+        "Recovery contract run 32833754446: SUCCESS",
+        "Full exact-SHA Windows acceptance run 32833754312: SUCCESS",
+        "Hardware packaging regression run 32833754397: SUCCESS",
+        "11/11 reference surfaces rendered successfully",
+        "supported Windows package build, worker dispatch and packaged desktop cold-start succeeded"
+      ],
+      "remaining_risks": [
+        "Real RX-7900-XTX, driver and LM Studio inference remain LOCAL_HARDWARE_PENDING."
+      ]
+    }
+  ],
   "events": [
     {
       "type": "LEDGER_CREATED",
@@ -78,6 +83,14 @@
       "at": "2026-08-25T09:39:00Z",
       "candidate_sha": "d13a793357f27c90d0e4ae32db4236eb87006820",
       "detail": "Claimed recovery desktop entry after confirming backend recovery CLI already exists and no active claims overlap."
+    },
+    {
+      "type": "COMPLETE",
+      "agent": "PATHENA-LEAD",
+      "task_id": "TASK-0001",
+      "at": "2026-08-25T09:51:00Z",
+      "candidate_sha": "de1affbd6afc8f914902119efdddfbbf6ebd555e",
+      "detail": "Recovery desktop diagnosis integrated and verified on exact native Windows. Claim released; Obsidian and plugin-boundary assessments remain free for specialized bots."
     }
   ]
 }
