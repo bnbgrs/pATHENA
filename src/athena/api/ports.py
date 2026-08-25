@@ -18,12 +18,11 @@ from athena.api.contracts import (
     ModelResponse,
     ProviderHealthResponse,
     RememberedChatMessageResponse,
-    StorageHealthResponse,
 )
 
 
-class CoreDomainSurface(Protocol):
-    """Stable domain operations dispatched onto the Core owner thread."""
+class CoreApiSurface(Protocol):
+    """Stable API operations that may be dispatched onto the Core owner thread."""
 
     def health(self) -> HealthResponse: ...
 
@@ -118,9 +117,3 @@ class CoreDomainSurface(Protocol):
         temperature: float | None = None,
         thinking_enabled: bool | None = None,
     ) -> GroundedChatResponse: ...
-
-
-class CoreApiSurface(CoreDomainSurface, Protocol):
-    """Complete local transport surface, including read-only runtime telemetry."""
-
-    def storage_health(self) -> StorageHealthResponse: ...
