@@ -17,6 +17,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from athena.desktop.research_review import (
+    ResearchReviewError,
+    parse_research_result_review,
+    render_research_result_review,
+)
 from athena.desktop.research_workspace import ResearchWorkspace
 
 
@@ -262,6 +267,10 @@ class ResearchResultsExtension(QObject):
         self._buffer = ""
         if clear_details:
             self.workspace.details.clear()
+        if operation == "result":
+            self.workspace.details.setProperty(
+                "pathenaResearchResultReviewState", "loading"
+            )
         self.workspace.details.setProperty("pathenaBackgroundOperationOwner", "")
         self._set_extension_controls(False)
         job_label = self._job_label(job_id)
@@ -338,6 +347,25 @@ class ResearchResultsExtension(QObject):
 
         self.workspace.details.setProperty("pathenaBackgroundOperationOwner", "")
         if operation == "result":
+            try:
+                review = parse_research_result_review(output)
+            except ResearchReviewError as exc:
+                self.workspace.details.setProperty(
+                    "pathenaResearchResultReviewState", "error"
+                )
+                self.workspace.details.setPlainText(
+                    f"RESULT REVIEW UNAVAILABLE\n{exc}\n\nRaw command output:\n{output}"
+                )
+                self.proposal_status.setText(
+                    f"Research run {job_label} returned an unreadable result."
+                )
+                return
+            self.workspace.details.setPlainText(render_research_result_review(review))
+            self.workspace.details.setProperty(
+                "pathenaResearchResultReviewState", "ready"
+            )
+            self.workspace.details.setProperty("pathenaResearchResultId", review.result_id)
+            self.workspace.details.setProperty("pathenaResearchJobId", review.job_id)
             self.proposal_status.setText(
                 f"ResearchResult {job_label} and evidence loaded."
             )
