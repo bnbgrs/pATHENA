@@ -122,7 +122,7 @@ function Get-RelevantProcesses {
 
 function Write-ProcessSample {
     param(
-        [Parameter(Mandatory = $true)][object[]]$Processes,
+        [Parameter(Mandatory = $true)][AllowEmptyCollection()][object[]]$Processes,
         [Parameter(Mandatory = $true)][string]$Phase
     )
 
