@@ -54,6 +54,14 @@ QLabel#settingsHelp {{
     color: {PALETTE.text_subtle};
 }}
 
+/* Meaning-bearing metadata inherited from the legacy base theme must not
+   remain on its low-contrast TEXT_DIM tier. Decorative arrows and disabled
+   controls intentionally keep their quieter inherited/foundation styling. */
+QLabel#commandMeta,
+QLabel#chainState {{
+    color: {PALETTE.text_subtle};
+}}
+
 QPushButton:checked {{
     color: {PALETTE.text};
     background: {PALETTE.accent_soft};
