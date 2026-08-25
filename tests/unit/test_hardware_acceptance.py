@@ -1,8 +1,13 @@
 from __future__ import annotations
 
 from collections.abc import Iterator, Sequence
+from pathlib import Path
 
 from athena.config.settings import AthenaSettings
+from athena.desktop.system_hardware_acceptance import (
+    hardware_acceptance_launch_spec,
+    project_hardware_acceptance_payload,
+)
 from athena.hardware_acceptance import (
     DEFAULT_EXPECTED_GPU,
     INFERENCE_MARKER,
@@ -161,3 +166,59 @@ def test_inference_without_marker_fails_even_when_transport_completed() -> None:
     assert report.overall_ready is False
     assert report.checks[-1].name == "live-inference"
     assert report.checks[-1].status == "FAIL"
+
+
+def test_system_ui_uses_the_same_hardware_acceptance_worker_contract(tmp_path: Path) -> None:
+    report_path = tmp_path / "hardware-acceptance.json"
+
+    program, arguments = hardware_acceptance_launch_spec(
+        r"C:\pATHENA\pATHENA-Worker.exe",
+        report_path,
+    )
+
+    assert program == r"C:\pATHENA\pATHENA-Worker.exe"
+    assert arguments == (
+        "-m",
+        "athena.hardware_acceptance",
+        "--output",
+        str(report_path),
+        "--json",
+    )
+
+
+def test_system_ui_projects_successful_machine_report_without_inventing_evidence() -> None:
+    presentation = project_hardware_acceptance_payload(
+        {
+            "overall_ready": True,
+            "detected_gpus": [DEFAULT_EXPECTED_GPU],
+            "selected_model_id": "local-model",
+            "checks": [],
+        }
+    )
+
+    assert presentation.status == "PASS"
+    assert presentation.state == "success"
+    assert DEFAULT_EXPECTED_GPU in presentation.detail
+    assert "local-model" in presentation.detail
+    assert "live inference passed" in presentation.detail
+
+
+def test_system_ui_surfaces_real_failure_detail() -> None:
+    presentation = project_hardware_acceptance_payload(
+        {
+            "overall_ready": False,
+            "detected_gpus": ["Microsoft Basic Display Adapter"],
+            "selected_model_id": None,
+            "checks": [
+                {
+                    "name": "target-gpu",
+                    "status": "FAIL",
+                    "detail": "expected AMD Radeon RX 7900 XTX; detected Microsoft Basic Display Adapter",
+                }
+            ],
+        }
+    )
+
+    assert presentation.status == "FAIL"
+    assert presentation.state == "error"
+    assert presentation.detail.startswith("expected AMD Radeon RX 7900 XTX")
