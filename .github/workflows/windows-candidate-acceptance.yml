@@ -171,6 +171,8 @@ jobs:
               tests/unit/test_pathena_pallas_target_lifecycle.py `
               tests/unit/test_pathena_pallas_responsiveness.py `
               tests/unit/test_pathena_pallas_context_inspector.py `
+              tests/unit/test_pathena_pallas_synchronized_workspace.py `
+              tests/unit/test_pathena_pallas_full_view.py `
               tests/unit/test_emergency_reserve.py `
               tests/unit/test_emergency_reserve_concurrency.py `
               2>&1 | Tee-Object (Join-Path $env:DIAGNOSTIC_ROOT "targeted-tests.log")
