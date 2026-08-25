@@ -30,8 +30,8 @@ jobs:
       - name: Validate packaged process routing
         shell: pwsh
         run: |
-          uv sync --locked --extra desktop
-          uv run --extra desktop pytest tests/unit/test_packaged_app_dispatch.py tests/unit/test_packaged_process_launch.py -q
+          uv sync --locked --extra desktop --extra dev
+          uv run --extra desktop --extra dev pytest tests/unit/test_packaged_app_dispatch.py tests/unit/test_packaged_process_launch.py -q
 
       - name: Build supported Windows portable package
         shell: pwsh
