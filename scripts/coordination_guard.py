@@ -55,6 +55,12 @@ def _mapping(value: object, label: str) -> Mapping[str, Any]:
     return value
 
 
+def _mapping_list(value: object, label: str) -> tuple[Mapping[str, Any], ...]:
+    if not isinstance(value, list):
+        raise ValueError(f"{label} must be a JSON array")
+    return tuple(_mapping(item, f"{label}[]") for item in value)
+
+
 def _string(value: object, label: str) -> str:
     if not isinstance(value, str) or not value:
         raise ValueError(f"{label} must be a non-empty string")
@@ -141,18 +147,12 @@ def inspect_coordination_coverage(
             "ledger already names candidate SHA but supplied diff still contains commits"
         )
 
-    raw_claims = ledger.get("claims", [])
-    active_claims = [
-        _mapping(item, "ledger.claims[]")
-        for item in raw_claims
-        if isinstance(raw_claims, list)
-    ]
-    raw_completed = ledger.get("completed", [])
-    completed = [
-        _mapping(item, "ledger.completed[]")
-        for item in raw_completed
-        if isinstance(raw_completed, list)
-    ]
+    active_claims = tuple(
+        entry
+        for entry in _mapping_list(ledger.get("claims", []), "ledger.claims")
+        if entry.get("status") == "CLAIMED"
+    )
+    completed = _mapping_list(ledger.get("completed", []), "ledger.completed")
 
     for commit in diff.commits:
         if commit.classification == "COORDINATION_METADATA":
