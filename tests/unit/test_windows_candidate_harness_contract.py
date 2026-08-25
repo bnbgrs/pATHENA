@@ -83,15 +83,24 @@ def test_packaged_smoke_requires_worker_roles_and_rejects_desktop_recursion() ->
     assert "Packaged processes remained after controlled tree shutdown" in smoke
 
 
-def test_python_diagnostics_compile_and_describe_incomplete_target_coverage() -> None:
+def test_python_diagnostics_compile_and_cover_ten_reference_surfaces() -> None:
     for path in (DESKTOP_DRIVER, PROVIDER_PROBE):
         ast.parse(_read(path), filename=str(path))
 
     desktop = _read(DESKTOP_DRIVER)
     assert "app.quit" in desktop
     assert "navigation.count() != 7" in desktop
-    assert "not_implemented_as_target_screens" in desktop
+    assert "captured_reference_surfaces" in desktop
+    assert "captured_reference_count" in desktop
+    assert "assigned_reference_count" in desktop
+    assert "expected_capture_count = 10" in desktop
     assert '"interactive PALLAS"' in desktop
+    assert '"standalone search/command palette reference state"' in desktop
+    assert '"Help"' in desktop
+    assert '"not_implemented_as_target_screens": ["ComfyUI"]' in desktop
+    assert "diagnostic semantic graph; presentation only" in desktop
+    assert "CommandPaletteController" in desktop
+    assert "PallasGroundedFieldController" in desktop
 
     provider = _read(PROVIDER_PROBE)
     assert "ThreadingHTTPServer" in provider
