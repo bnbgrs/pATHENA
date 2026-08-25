@@ -1,11 +1,4 @@
-"""Truthful command-palette availability for existing pATHENA actions.
-
-The command palette intentionally reuses visible desktop actions. Some of those actions
-can be disabled by real readiness/selection state, so presenting every command as
-immediately runnable is misleading. This presentation-only controller resolves the
-same versioned capability catalogue as Help, marks commands whose real target is
-unavailable, and blocks palette invocation until that target becomes runnable.
-"""
+"""Truthful command-palette availability for existing pATHENA actions."""
 
 from __future__ import annotations
 
@@ -21,6 +14,7 @@ from athena.desktop.pathena_capability_catalog import (
     ResolvedCapability,
     resolve_capability_catalog,
 )
+from athena.desktop.pathena_comfyui import install_comfyui_integration
 
 
 class CommandPaletteTruthController(QObject):
@@ -77,6 +71,8 @@ class CommandPaletteTruthController(QObject):
         self.palette.dialog.setProperty("pathenaCapabilityCatalogDrift", has_drift)
         for row, command in enumerate(self.palette._filtered_commands):
             item = self.palette.results.item(row)
+            if item is None:
+                continue
             capability = capability_by_label[command.label]
             available = capability.availability is CapabilityAvailability.AVAILABLE
             state = capability.availability.value
@@ -175,7 +171,8 @@ class CommandPaletteTruthController(QObject):
 def install_command_palette_truth(
     palette: CommandPaletteController,
 ) -> CommandPaletteTruthController:
-    """Install truthful availability guidance on the existing command palette."""
+    """Install truthful availability guidance and the local ComfyUI command."""
+    install_comfyui_integration(palette)
     controller = CommandPaletteTruthController(palette)
     palette.window.setProperty("pathenaCommandPaletteTruthController", controller)
     palette.window.setProperty("pathenaCommandPaletteTruthManaged", True)

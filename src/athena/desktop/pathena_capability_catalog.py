@@ -1,8 +1,8 @@
 """Versioned capability metadata resolved against real desktop commands and surfaces.
 
-The command palette remains the executable source of truth.  This catalogue adds
+The command palette remains the executable source of truth. This catalogue adds
 versioned human-facing metadata only for commands that are actually registered by
-that palette, then resolves availability from the same live target widgets.  A
+that palette, then resolves availability from the same live target widgets. A
 catalogue drift is explicit and never turns a missing action into a capability claim.
 """
 
@@ -205,6 +205,14 @@ _CAPABILITIES: Final = (
 )
 
 CAPABILITY_METADATA: Final = {item.label: item for item in _CAPABILITIES}
+EXTENSION_CAPABILITY_METADATA: Final = {
+    "Open ComfyUI": CapabilityMetadata(
+        "Open ComfyUI",
+        "ComfyUI",
+        "Open the local-only ComfyUI bridge for endpoint checks and explicit API-workflow queueing.",
+        target_object_name="comfyUiDialog",
+    )
+}
 
 
 def _property_text(widget: QWidget, name: str) -> str:
@@ -279,7 +287,7 @@ def resolve_capability_catalog(
     resolved: list[ResolvedCapability] = []
     undocumented: list[str] = []
     for label in live_labels:
-        metadata = CAPABILITY_METADATA.get(label)
+        metadata = CAPABILITY_METADATA.get(label) or EXTENSION_CAPABILITY_METADATA.get(label)
         if metadata is None:
             undocumented.append(label)
             resolved.append(

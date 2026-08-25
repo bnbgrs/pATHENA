@@ -1,0 +1,364 @@
+"""Local-only ComfyUI bridge and compact desktop surface."""
+
+from __future__ import annotations
+
+import ipaddress
+import json
+import os
+import urllib.error
+import urllib.parse
+import urllib.request
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
+
+from PySide6.QtCore import QObject, Qt
+from PySide6.QtWidgets import (
+    QDialog,
+    QFileDialog,
+    QFormLayout,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QVBoxLayout,
+)
+
+from athena.desktop.command_palette import CommandPaletteController, _Command
+
+DEFAULT_COMFYUI_URL = "http://127.0.0.1:8188"
+COMFYUI_URL_ENV = "PATHENA_COMFYUI_URL"
+
+
+class ComfyUiError(RuntimeError):
+    """Raised when the local ComfyUI contract cannot be used truthfully."""
+
+
+@dataclass(frozen=True, slots=True)
+class ComfyUiHealth:
+    endpoint: str
+    version: str | None
+    device_count: int
+
+
+@dataclass(frozen=True, slots=True)
+class ComfyUiQueueReceipt:
+    prompt_id: str
+    number: float | int | None
+    node_errors: dict[str, Any]
+
+
+def _loopback_endpoint(value: str) -> str:
+    raw = value.strip()
+    if not raw:
+        raise ComfyUiError("ComfyUI endpoint must not be empty.")
+    parsed = urllib.parse.urlsplit(raw)
+    if parsed.scheme != "http":
+        raise ComfyUiError("ComfyUI must use local HTTP.")
+    if parsed.username is not None or parsed.password is not None:
+        raise ComfyUiError("ComfyUI endpoint must not contain user information.")
+    if parsed.query or parsed.fragment:
+        raise ComfyUiError("ComfyUI endpoint must not contain a query or fragment.")
+    if parsed.path not in ("", "/"):
+        raise ComfyUiError("ComfyUI endpoint must point to the local server root.")
+    hostname = parsed.hostname
+    if hostname is None:
+        raise ComfyUiError("ComfyUI endpoint has no host.")
+    normalized_host = hostname.casefold()
+    if normalized_host == "localhost":
+        pass
+    else:
+        try:
+            address = ipaddress.ip_address(hostname)
+        except ValueError as exc:
+            raise ComfyUiError("ComfyUI endpoint must use localhost or a loopback IP.") from exc
+        if not address.is_loopback:
+            raise ComfyUiError("ComfyUI endpoint must use a loopback IP.")
+    port = parsed.port
+    netloc = f"[{hostname}]" if ":" in hostname else hostname
+    if port is not None:
+        netloc = f"{netloc}:{port}"
+    return urllib.parse.urlunsplit(("http", netloc, "", "", ""))
+
+
+def load_api_workflow(path: str | Path) -> dict[str, Any]:
+    workflow_path = Path(path)
+    try:
+        data = json.loads(workflow_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise ComfyUiError(f"Could not read ComfyUI API workflow: {exc}") from exc
+    if not isinstance(data, dict) or not data:
+        raise ComfyUiError("ComfyUI API workflow must be a non-empty JSON object.")
+    if "nodes" in data and "links" in data:
+        raise ComfyUiError(
+            "This looks like a UI workflow. Export the workflow in ComfyUI API format."
+        )
+    for node_id, node in data.items():
+        if not isinstance(node_id, str) or not isinstance(node, dict):
+            raise ComfyUiError("ComfyUI API workflow nodes must be object entries.")
+        if "class_type" not in node or not isinstance(node.get("inputs"), dict):
+            raise ComfyUiError(
+                "ComfyUI API workflow nodes require class_type and inputs."
+            )
+    return data
+
+
+class ComfyUiClient:
+    """Small proxy-free HTTP client restricted to a loopback ComfyUI server."""
+
+    def __init__(self, endpoint: str | None = None, *, timeout: float = 3.0) -> None:
+        candidate = endpoint or os.environ.get(COMFYUI_URL_ENV, DEFAULT_COMFYUI_URL)
+        self.endpoint = _loopback_endpoint(candidate)
+        self.timeout = timeout
+        self._opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+    def _request(
+        self,
+        method: str,
+        path: str,
+        payload: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        body = None
+        headers = {"Accept": "application/json"}
+        if payload is not None:
+            body = json.dumps(payload, separators=(",", ":")).encode("utf-8")
+            headers["Content-Type"] = "application/json"
+        request = urllib.request.Request(
+            self.endpoint + path,
+            data=body,
+            headers=headers,
+            method=method,
+        )
+        try:
+            with self._opener.open(request, timeout=self.timeout) as response:
+                raw = response.read()
+        except (urllib.error.URLError, TimeoutError, OSError) as exc:
+            raise ComfyUiError(f"Local ComfyUI request failed: {exc}") from exc
+        try:
+            decoded = json.loads(raw.decode("utf-8"))
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ComfyUiError("Local ComfyUI returned invalid JSON.") from exc
+        if not isinstance(decoded, dict):
+            raise ComfyUiError("Local ComfyUI returned an unexpected response.")
+        return decoded
+
+    def health(self) -> ComfyUiHealth:
+        payload = self._request("GET", "/system_stats")
+        system = payload.get("system")
+        devices = payload.get("devices")
+        if not isinstance(system, dict) or not isinstance(devices, list):
+            raise ComfyUiError("Local ComfyUI system_stats response is incomplete.")
+        version = system.get("comfyui_version")
+        return ComfyUiHealth(
+            endpoint=self.endpoint,
+            version=str(version) if version else None,
+            device_count=len(devices),
+        )
+
+    def queue_workflow(self, workflow: dict[str, Any]) -> ComfyUiQueueReceipt:
+        if not isinstance(workflow, dict) or not workflow:
+            raise ComfyUiError("ComfyUI API workflow must be a non-empty JSON object.")
+        payload = self._request("POST", "/prompt", {"prompt": workflow})
+        prompt_id = payload.get("prompt_id")
+        if not isinstance(prompt_id, str) or not prompt_id.strip():
+            error = payload.get("error")
+            raise ComfyUiError(
+                "ComfyUI did not queue the workflow"
+                + (f": {error}" if error else ".")
+            )
+        node_errors = payload.get("node_errors", {})
+        if not isinstance(node_errors, dict):
+            node_errors = {}
+        if node_errors:
+            raise ComfyUiError("ComfyUI reported node validation errors.")
+        number = payload.get("number")
+        return ComfyUiQueueReceipt(prompt_id, number, node_errors)
+
+
+class ComfyUiController(QObject):
+    """One truthful modeless surface for local ComfyUI health and workflow queueing."""
+
+    def __init__(
+        self,
+        palette: CommandPaletteController,
+        client: ComfyUiClient | None = None,
+    ) -> None:
+        super().__init__(palette)
+        self.palette = palette
+        self.window = palette.window
+        self.client = client or ComfyUiClient()
+        self.workflow: dict[str, Any] | None = None
+        self.workflow_path: Path | None = None
+
+        self.dialog = QDialog(self.window)
+        self.dialog.setObjectName("comfyUiDialog")
+        self.dialog.setWindowTitle("ComfyUI")
+        self.dialog.setModal(False)
+        self.dialog.resize(760, 430)
+        self.dialog.setAccessibleName("ComfyUI local workflow bridge")
+        self.dialog.setAccessibleDescription(
+            "Connect to local ComfyUI, load an API-format workflow, and queue it explicitly."
+        )
+
+        outer = QVBoxLayout(self.dialog)
+        outer.setContentsMargins(24, 22, 24, 22)
+        outer.setSpacing(14)
+
+        title = QLabel("ComfyUI")
+        title.setObjectName("comfyUiTitle")
+        outer.addWidget(title)
+
+        intro = QLabel(
+            "Local-only bridge · pATHENA never sends this workflow to a remote ComfyUI host."
+        )
+        intro.setWordWrap(True)
+        intro.setProperty("role", "muted")
+        outer.addWidget(intro)
+
+        form = QFormLayout()
+        form.setSpacing(10)
+        self.endpoint = QLineEdit(self.client.endpoint)
+        self.endpoint.setObjectName("comfyUiEndpoint")
+        self.endpoint.setReadOnly(True)
+        self.endpoint.setAccessibleName("ComfyUI local endpoint")
+        form.addRow("Endpoint", self.endpoint)
+
+        self.workflow_field = QLineEdit()
+        self.workflow_field.setObjectName("comfyUiWorkflowPath")
+        self.workflow_field.setReadOnly(True)
+        self.workflow_field.setPlaceholderText("No API workflow selected")
+        self.workflow_field.setAccessibleName("ComfyUI API workflow")
+        browse = QPushButton("Choose workflow…")
+        browse.setObjectName("comfyUiBrowseWorkflow")
+        browse.clicked.connect(self.choose_workflow)
+        workflow_row = QHBoxLayout()
+        workflow_row.addWidget(self.workflow_field, 1)
+        workflow_row.addWidget(browse)
+        form.addRow("Workflow", workflow_row)
+        outer.addLayout(form)
+
+        actions = QHBoxLayout()
+        self.check_button = QPushButton("Check connection")
+        self.check_button.setObjectName("comfyUiCheckConnection")
+        self.check_button.clicked.connect(self.check_connection)
+        self.queue_button = QPushButton("Queue workflow")
+        self.queue_button.setObjectName("comfyUiQueueWorkflow")
+        self.queue_button.setEnabled(False)
+        self.queue_button.clicked.connect(self.queue_selected_workflow)
+        actions.addWidget(self.check_button)
+        actions.addWidget(self.queue_button)
+        actions.addStretch(1)
+        outer.addLayout(actions)
+
+        self.status = QLabel("Not checked · select a ComfyUI API workflow to begin.")
+        self.status.setObjectName("comfyUiStatus")
+        self.status.setWordWrap(True)
+        self.status.setProperty("pathenaUiState", "empty")
+        self.status.setAccessibleName("ComfyUI status")
+        outer.addWidget(self.status)
+
+        self.receipt = QLabel("")
+        self.receipt.setObjectName("comfyUiQueueReceipt")
+        self.receipt.setWordWrap(True)
+        self.receipt.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        self.receipt.setAccessibleName("ComfyUI queue receipt")
+        outer.addWidget(self.receipt)
+
+        self.dialog.setProperty("pathenaComfyUiEndpoint", self.client.endpoint)
+        self.dialog.setProperty("pathenaComfyUiLocalOnly", True)
+        self.window.setProperty("pathenaComfyUiController", self)
+        self.window.setProperty("pathenaComfyUiInstalled", True)
+
+    def open(self) -> None:
+        self.dialog.show()
+        self.dialog.raise_()
+        self.dialog.activateWindow()
+        self.check_button.setFocus(Qt.FocusReason.OtherFocusReason)
+
+    def choose_workflow(self) -> None:
+        filename, _selected_filter = QFileDialog.getOpenFileName(
+            self.dialog,
+            "Choose ComfyUI API workflow",
+            "",
+            "JSON workflow (*.json)",
+        )
+        if filename:
+            self.load_workflow(filename)
+
+    def load_workflow(self, path: str | Path) -> None:
+        try:
+            workflow = load_api_workflow(path)
+        except ComfyUiError as exc:
+            self.workflow = None
+            self.workflow_path = None
+            self.workflow_field.clear()
+            self.queue_button.setEnabled(False)
+            self._set_status("error", str(exc))
+            return
+        self.workflow = workflow
+        self.workflow_path = Path(path)
+        self.workflow_field.setText(str(self.workflow_path))
+        self.queue_button.setEnabled(True)
+        self.receipt.clear()
+        self._set_status(
+            "ready",
+            f"Workflow ready · {len(workflow)} nodes · connection not required until queueing.",
+        )
+
+    def check_connection(self) -> bool:
+        try:
+            health = self.client.health()
+        except ComfyUiError as exc:
+            self._set_status("error", str(exc))
+            return False
+        version = f" · ComfyUI {health.version}" if health.version else ""
+        self._set_status(
+            "success",
+            f"Connected{version} · {health.device_count} device"
+            f"{'s' if health.device_count != 1 else ''}.",
+        )
+        return True
+
+    def queue_selected_workflow(self) -> bool:
+        if self.workflow is None:
+            self._set_status("error", "Select a valid ComfyUI API workflow first.")
+            return False
+        try:
+            receipt = self.client.queue_workflow(self.workflow)
+        except ComfyUiError as exc:
+            self._set_status("error", str(exc))
+            return False
+        self._set_status("success", "Workflow queued in local ComfyUI.")
+        self.receipt.setText(f"Prompt ID · {receipt.prompt_id}")
+        self.receipt.setProperty("pathenaComfyUiPromptId", receipt.prompt_id)
+        return True
+
+    def _set_status(self, state: str, text: str) -> None:
+        self.status.setText(text)
+        self.status.setProperty("pathenaUiState", state)
+        self.status.setAccessibleDescription(text)
+        self.dialog.setProperty("pathenaUiState", state)
+
+
+def install_comfyui_integration(
+    palette: CommandPaletteController,
+    *,
+    client: ComfyUiClient | None = None,
+) -> ComfyUiController:
+    """Install one ComfyUI controller and register its real command before catalog binding."""
+    existing = getattr(palette, "_pathena_comfyui_controller", None)
+    if isinstance(existing, ComfyUiController):
+        return existing
+    controller = ComfyUiController(palette, client=client)
+    labels = {command.label for command in palette._commands}
+    if "Open ComfyUI" not in labels:
+        palette._commands = (
+            *palette._commands,
+            _Command(
+                label="Open ComfyUI",
+                keywords=("comfyui", "image", "video", "workflow", "local"),
+                action=controller.open,
+            ),
+        )
+    palette.__dict__["_pathena_comfyui_controller"] = controller
+    return controller
