@@ -76,7 +76,7 @@ QLabel#breadcrumb,
 QLabel#speaker,
 QLabel#sessionLabel,
 QLabel#settingsLabel {{
-    color: {PALETTE.text_quiet};
+    color: {PALETTE.text_subtle};
     font-family: {TYPE.metadata_family};
     font-size: {TYPE.metadata_px}px;
 }}
