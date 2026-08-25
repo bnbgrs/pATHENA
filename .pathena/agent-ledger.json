@@ -20,13 +20,33 @@
     "PATHENA-SECURITY": {"scope": ["local-first", "network", "tor", "secrets", "encryption", "process-boundaries", "privacy", "logging"]},
     "PATHENA-QA-SCOUT": {"scope": ["regressions", "windows", "packaging", "tests", "feature-gaps", "reproduction"]}
   },
-  "claims": [],
+  "claims": [
+    {
+      "task_id": "TASK-0002",
+      "owner": "PATHENA-BACKEND",
+      "priority": "FEATURE_GAP",
+      "status": "CLAIMED",
+      "base_candidate_sha": "de440f49671f4aeb35626085dc333d1ebe6032e7",
+      "scope": "Add a deterministic, read-only Obsidian Markdown projection for canonical Knowledge snapshots without changing canonical storage or desktop UI.",
+      "paths": [
+        "src/athena/knowledge/obsidian_projection.py",
+        "tests/unit/test_obsidian_projection.py"
+      ],
+      "started_at": "2026-08-25T10:08:00Z",
+      "heartbeat_at": "2026-08-25T10:08:00Z",
+      "verification": [
+        "pytest tests/unit/test_obsidian_projection.py",
+        "ruff check src/athena/knowledge/obsidian_projection.py tests/unit/test_obsidian_projection.py",
+        "mypy src/athena/knowledge/obsidian_projection.py"
+      ]
+    }
+  ],
   "backlog": [
     {
       "task_id": "TASK-0002",
       "title": "Assess Obsidian projection gap after Recovery gate",
       "priority": "FEATURE_GAP",
-      "status": "READY",
+      "status": "CLAIMED",
       "preferred_owner": "PATHENA-BACKEND"
     }
   ],
@@ -142,6 +162,14 @@
       "at": "2026-08-25T10:05:00Z",
       "candidate_sha": "de440f49671f4aeb35626085dc333d1ebe6032e7",
       "detail": "Fail-closed plugin manifest/capability foundation completed and fully verified on exact Windows. No executable plugin loader was introduced. Claim released after diff review and full regression success."
+    },
+    {
+      "type": "CLAIM",
+      "agent": "PATHENA-BACKEND",
+      "task_id": "TASK-0002",
+      "at": "2026-08-25T10:08:00Z",
+      "candidate_sha": "de440f49671f4aeb35626085dc333d1ebe6032e7",
+      "detail": "Claimed isolated Knowledge-only Obsidian projection slice: deterministic read-only Markdown projection; no canonical storage or desktop changes."
     }
   ]
 }
