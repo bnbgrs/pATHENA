@@ -37,7 +37,7 @@ def project_knowledge_snapshot(snapshot: KnowledgeUnitSnapshot) -> ObsidianNote:
     stem = _safe_stem(title)
     relative_path = f"Knowledge/{stem}--{snapshot.knowledge_id}.md"
 
-    frontmatter = {
+    frontmatter: dict[str, str | int] = {
         "athena_knowledge_id": str(snapshot.knowledge_id),
         "athena_revision_id": str(revision.revision_id),
         "athena_revision_no": revision.revision_no,
