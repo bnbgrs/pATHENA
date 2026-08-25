@@ -74,7 +74,7 @@ def test_projection_uses_body_for_missing_title_without_writing_anything() -> No
 def test_projection_keeps_multiline_title_on_one_markdown_heading() -> None:
     note = project_knowledge_snapshot(_snapshot(title="Alpha\nBeta\tGamma"))
 
-    assert note.relative_path.startswith("Knowledge/Alpha-Beta Gamma--")
+    assert note.relative_path.startswith("Knowledge/Alpha-Beta-Gamma--")
     assert "\n# Alpha Beta Gamma\n\n" in note.markdown
     assert "\n# Alpha\nBeta" not in note.markdown
 
