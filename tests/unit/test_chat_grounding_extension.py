@@ -65,17 +65,35 @@ def _response(
     *,
     chat_id: str = "chat-1",
     run_id: str = "run-1",
+    user_text: str | None = None,
 ) -> GroundedChatResponse:
-    assistant = ChatMessageResponse(
-        message_id="assistant-1",
-        chat_id=chat_id,
-        sequence_no=2,
-        message_type="assistant",
-        actor_id="athena",
-        created_at_us=2,
-        revision_id="message-revision-1",
-        content="Grounded answer",
-        content_format="text/plain",
+    messages: list[ChatMessageResponse] = []
+    if user_text is not None:
+        messages.append(
+            ChatMessageResponse(
+                message_id="user-1",
+                chat_id=chat_id,
+                sequence_no=1,
+                message_type="user",
+                actor_id="user",
+                created_at_us=1,
+                revision_id="message-revision-user",
+                content=user_text,
+                content_format="text/plain",
+            )
+        )
+    messages.append(
+        ChatMessageResponse(
+            message_id="assistant-1",
+            chat_id=chat_id,
+            sequence_no=2,
+            message_type="assistant",
+            actor_id="athena",
+            created_at_us=2,
+            revision_id="message-revision-1",
+            content="Grounded answer",
+            content_format="text/plain",
+        )
     )
     return GroundedChatResponse(
         thread=ChatThreadResponse(
@@ -84,7 +102,7 @@ def _response(
             ended_at_us=None,
             archive_mode="durable",
             lifecycle_state="active",
-            messages=(assistant,),
+            messages=tuple(messages),
         ),
         assistant_text="Grounded answer",
         evidence=evidence,
@@ -126,6 +144,14 @@ def _window(chat_id: str = "chat-1") -> tuple[QWidget, QWidget]:
     message_layout.addWidget(QLabel("Grounded answer", message))
     message_layout.addWidget(QWidget(message))
     document_layout.addWidget(message)
+
+    inspector_title = QLabel("INSPECTOR", window)
+    inspector_title.setObjectName("inspectorTitle")
+    inspector_content = QWidget(window)
+    inspector_content.setObjectName("inspectorScrollContent")
+    inspector_layout = QVBoxLayout(inspector_content)
+    inspector_layout.addWidget(QLabel("Existing provenance", inspector_content))
+    inspector_layout.addStretch(1)
     return window, message
 
 
@@ -180,6 +206,58 @@ def test_grounded_panel_separates_title_from_compact_provenance_metadata(
         qapp.processEvents()
 
 
+def test_grounded_response_mirrors_real_evidence_and_activity_into_inspector(
+    qapp: QApplication,
+) -> None:
+    window, _message = _window()
+    controller = ChatGroundingController(window, None)
+    try:
+        controller.apply_grounded_response(_response((_evidence(context_id="ctx-1"),)))
+        qapp.processEvents()
+
+        inspector_title = window.findChild(QLabel, "inspectorTitle")
+        panel = window.findChild(QWidget, "groundedInspectorPanel")
+        assert inspector_title is not None
+        assert inspector_title.text() == "Evidence & Activity"
+        assert panel is not None
+        evidence_title = panel.findChild(QLabel, "inspectorEvidenceTitle")
+        evidence_meta = panel.findChild(QLabel, "inspectorEvidenceMeta")
+        activity = panel.findChild(QLabel, "inspectorActivityItem")
+        assert evidence_title is not None
+        assert evidence_title.text() == "Durable source"
+        assert evidence_title.toolTip() == "Persisted evidence text."
+        assert evidence_meta is not None
+        assert evidence_meta.text().startswith("CITED · SOURCE · source-1")
+        assert activity is not None
+        assert activity.text() == "Latest grounded response · 1 cited · 1 evidence"
+        assert activity.property("groundedRunId") == "run-1"
+    finally:
+        window.deleteLater()
+        qapp.processEvents()
+
+
+def test_repeated_grounding_replaces_inspector_projection_instead_of_stacking(
+    qapp: QApplication,
+) -> None:
+    window, _message = _window()
+    controller = ChatGroundingController(window, None)
+    try:
+        controller.apply_grounded_response(_response((_evidence(context_id="ctx-1"),)))
+        controller.apply_grounded_response(
+            _response((_evidence(context_id="ctx-2", entity_id="source-2"),), run_id="run-2")
+        )
+        qapp.processEvents()
+
+        panels = window.findChildren(QWidget, "groundedInspectorPanel")
+        assert len(panels) == 1
+        activity = panels[0].findChild(QLabel, "inspectorActivityItem")
+        assert activity is not None
+        assert activity.property("groundedRunId") == "run-2"
+    finally:
+        window.deleteLater()
+        qapp.processEvents()
+
+
 def test_empty_grounded_response_is_honest_and_non_mutating(qapp: QApplication) -> None:
     window, message = _window()
     controller = ChatGroundingController(window, None)
@@ -194,6 +272,9 @@ def test_empty_grounded_response_is_honest_and_non_mutating(qapp: QApplication) 
         assert empty is not None
         assert empty.text() == "No evidence entities were returned for this grounded run."
         assert panel.findChildren(QPushButton) == []
+        inspector_empty = window.findChild(QLabel, "inspectorEvidenceEmpty")
+        assert inspector_empty is not None
+        assert inspector_empty.text() == "No evidence returned for this grounded response."
     finally:
         window.deleteLater()
         qapp.processEvents()
@@ -212,6 +293,7 @@ def test_stale_grounded_response_does_not_attach_to_current_chat(
 
         assert controller.last_state == "stale"
         assert message.findChild(QWidget, "groundedEvidenceSummary") is None
+        assert window.findChild(QWidget, "groundedInspectorPanel") is None
         assert message.property("pathenaGroundedRunId") is None
     finally:
         window.deleteLater()
