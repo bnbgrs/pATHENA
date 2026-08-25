@@ -1,0 +1,138 @@
+name: pATHENA packaged Recovery diagnostics contract
+
+on:
+  push:
+    branches:
+      - bot/pathena-cloud-windows
+    paths:
+      - .github/windows-candidate-request.txt
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pathena-windows-recovery-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  exact-candidate-recovery-contract:
+    name: Exact candidate Recovery contract on Windows Server 2025
+    runs-on: windows-2025
+    timeout-minutes: 30
+    env:
+      PYTHONUTF8: "1"
+      QT_QPA_PLATFORM: offscreen
+
+    steps:
+      - name: Checkout harness
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Resolve exact candidate
+        shell: pwsh
+        run: |
+          $candidate = (Get-Content ".github\windows-candidate-request.txt" -Raw).Trim().ToLowerInvariant()
+          if ($candidate -notmatch "^[0-9a-f]{40}$") {
+            throw "candidate SHA must be exactly 40 lowercase hexadecimal characters"
+          }
+          "CANDIDATE_SHA=$candidate" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Checkout exact candidate SHA
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          path: candidate
+          persist-credentials: false
+
+      - name: Prove immutable candidate identity
+        shell: pwsh
+        run: |
+          $checked = (git -C candidate rev-parse HEAD).Trim().ToLowerInvariant()
+          if ($checked -ne $env:CANDIDATE_SHA) {
+            throw "checked out $checked instead of $env:CANDIDATE_SHA"
+          }
+          $remote = git ls-remote https://github.com/bnbgrs/pATHENA.git refs/heads/bot/pathena-candidate
+          if ($LASTEXITCODE -ne 0 -or -not $remote) {
+            throw "could not resolve live candidate"
+          }
+          $live = ($remote -split "\s+")[0].ToLowerInvariant()
+          if ($live -ne $env:CANDIDATE_SHA) {
+            throw "candidate moved before Recovery contract: expected $env:CANDIDATE_SHA, found $live"
+          }
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+          check-latest: false
+
+      - name: Install locked environment
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check "uv==0.11.21"
+          if ($LASTEXITCODE -ne 0) { throw "uv installation failed" }
+          Push-Location candidate
+          try {
+            uv lock --check
+            if ($LASTEXITCODE -ne 0) { throw "uv.lock is not current" }
+            uv sync --locked --extra dev --extra desktop
+            if ($LASTEXITCODE -ne 0) { throw "locked dependency sync failed" }
+          } finally {
+            Pop-Location
+          }
+
+      - name: Test Recovery UI and worker routing
+        shell: pwsh
+        run: |
+          Push-Location candidate
+          try {
+            uv run --locked --extra dev --extra desktop --no-sync pytest -q `
+              tests/unit/test_system_recovery.py `
+              tests/unit/test_packaged_app_dispatch.py
+            if ($LASTEXITCODE -ne 0) { throw "Recovery contract tests failed" }
+          } finally {
+            Pop-Location
+          }
+
+      - name: Build supported Windows package
+        shell: pwsh
+        run: |
+          $output = Join-Path $env:RUNNER_TEMP "pathena-recovery-package"
+          & candidate\scripts\build_windows_portable.ps1 -OutputRoot $output
+          if ($LASTEXITCODE -ne 0) { throw "supported Windows package build failed" }
+          "PACKAGE_ROOT=$(Join-Path $output 'pATHENA')" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Verify packaged read-only Recovery diagnosis
+        shell: pwsh
+        run: |
+          $worker = Join-Path $env:PACKAGE_ROOT "pATHENA-Worker.exe"
+          if (-not (Test-Path -LiteralPath $worker -PathType Leaf)) {
+            throw "pATHENA-Worker.exe is missing from the package"
+          }
+          $runtime = Join-Path $env:RUNNER_TEMP "pathena-recovery-empty-runtime"
+          New-Item -ItemType Directory -Path $runtime -Force | Out-Null
+          $env:ATHENA_LOCAL_ROOT = $runtime
+          $stdout = Join-Path $env:RUNNER_TEMP "recovery-diagnose.jsonl"
+          $stderr = Join-Path $env:RUNNER_TEMP "recovery-diagnose.err"
+          $process = Start-Process `
+            -FilePath $worker `
+            -ArgumentList @("-m", "athena.recovery_cli", "diagnose") `
+            -WorkingDirectory $env:PACKAGE_ROOT `
+            -RedirectStandardOutput $stdout `
+            -RedirectStandardError $stderr `
+            -Wait `
+            -PassThru
+          if ($process.ExitCode -ne 4) {
+            throw "fresh isolated Recovery diagnosis should return recovery-required exit 4, got $($process.ExitCode)"
+          }
+          $rendered = (Get-Content $stdout -Raw).Trim()
+          if (-not $rendered) { throw "Recovery diagnosis returned no JSON" }
+          $payload = $rendered | ConvertFrom-Json
+          if ($payload.status -ne "recovery-required") {
+            throw "fresh isolated runtime did not classify as recovery-required"
+          }
+          if ($payload.normal_core_start_allowed -ne $false) {
+            throw "Recovery diagnosis incorrectly allowed normal Core start"
+          }
+          Write-Output "Packaged Recovery diagnosis contract passed without starting repair or normal Core."
