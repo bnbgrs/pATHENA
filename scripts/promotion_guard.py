@@ -4,7 +4,6 @@ import argparse
 import dataclasses
 import pathlib
 
-
 CANDIDATE_REF = "refs/heads/bot/pathena-candidate"
 REQUIRED_PATHS = (pathlib.Path(".github/workflows/quality.yml"),)
 FORBIDDEN_PATHS = (
