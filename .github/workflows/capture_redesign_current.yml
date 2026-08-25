@@ -63,9 +63,55 @@ jobs:
       - name: Start current pATHENA and capture eleven redesign surfaces
         shell: pwsh
         run: |
+          $wrapperPath = Join-Path $env:RUNNER_TEMP "pathena_capture_with_native_fonts.py"
+          @'
+          from __future__ import annotations
+          import importlib.util
+          import sys
+          from pathlib import Path
+
+          import athena.desktop.app as app_module
+          from PySide6.QtGui import QFont, QFontDatabase
+
+          original_create_application = app_module.create_application
+
+          def create_application_with_native_fonts(argv):
+              app = original_create_application(argv)
+              font_paths = [
+                  Path(r"C:\Windows\Fonts\segoeui.ttf"),
+                  Path(r"C:\Windows\Fonts\segoeuib.ttf"),
+                  Path(r"C:\Windows\Fonts\seguisb.ttf"),
+                  Path(r"C:\Windows\Fonts\segoeuil.ttf"),
+                  Path(r"C:\Windows\Fonts\arial.ttf"),
+                  Path(r"C:\Windows\Fonts\consola.ttf"),
+              ]
+              loaded_families = []
+              for font_path in font_paths:
+                  if not font_path.exists():
+                      continue
+                  font_id = QFontDatabase.addApplicationFont(str(font_path))
+                  if font_id >= 0:
+                      loaded_families.extend(QFontDatabase.applicationFontFamilies(font_id))
+              if "Segoe UI" not in QFontDatabase.families():
+                  raise RuntimeError(f"Segoe UI unavailable after native font registration: {loaded_families}")
+              app.setFont(QFont("Segoe UI", 10))
+              print("Native capture fonts registered:", sorted(set(loaded_families)))
+              return app
+
+          app_module.create_application = create_application_with_native_fonts
+
+          capture_path = Path.cwd() / "scripts" / "render_pathena_ui_snapshot.py"
+          spec = importlib.util.spec_from_file_location("pathena_exact_capture", capture_path)
+          if spec is None or spec.loader is None:
+              raise RuntimeError("Could not load exact-candidate capture harness.")
+          capture = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(capture)
+          raise SystemExit(capture.main(sys.argv[1:]))
+          '@ | Set-Content -Path $wrapperPath -Encoding utf8
+
           $runtimeRoot = Join-Path $env:RUNNER_TEMP "pathena-redesign-runtime"
           $actualRoot = Join-Path (Get-Location) "artifacts\redesign-current"
-          uv run --locked --extra desktop --no-sync python scripts/render_pathena_ui_snapshot.py `
+          uv run --locked --extra desktop --no-sync python $wrapperPath `
             --runtime-root $runtimeRoot `
             --screenshot-directory $actualRoot `
             --initial-delay-seconds 7
@@ -75,7 +121,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: pATHENA-redesign-current-2c337e61eba7e1862d25d164d8ed17a5dc0d1a7c
+          name: pATHENA-redesign-current-readable-2c337e61eba7e1862d25d164d8ed17a5dc0d1a7c
           path: artifacts/redesign-current/**
           if-no-files-found: error
           retention-days: 7
