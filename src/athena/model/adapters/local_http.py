@@ -5,6 +5,7 @@ from __future__ import annotations
 import ipaddress
 import math
 from numbers import Real
+from time import monotonic
 from typing import Any, cast
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
@@ -14,7 +15,7 @@ MAX_LOCAL_RESPONSE_BYTES = 32 * 1024 * 1024
 
 
 class LocalResponseTooLargeError(OSError):
-    """Raised when a non-streaming local provider response exceeds its byte cap."""
+    """Raised when a local provider response unit exceeds its byte cap."""
 
 
 class _RejectRedirects(HTTPRedirectHandler):
@@ -34,11 +35,22 @@ class _RejectRedirects(HTTPRedirectHandler):
 
 
 class _BoundedLocalResponse:
-    """Delegate one local HTTP response while bounding whole-body reads."""
+    """Delegate one local HTTP response with bounded buffering and streaming lifetime."""
 
-    def __init__(self, response: Any, *, max_bytes: int) -> None:
+    def __init__(
+        self,
+        response: Any,
+        *,
+        max_bytes: int,
+        total_timeout_seconds: float | None = None,
+    ) -> None:
         self._response = response
         self._max_bytes = max_bytes
+        self._deadline = (
+            monotonic() + total_timeout_seconds
+            if total_timeout_seconds is not None
+            else None
+        )
 
     def __enter__(self) -> _BoundedLocalResponse:
         enter = getattr(self._response, "__enter__", None)
@@ -56,10 +68,33 @@ class _BoundedLocalResponse:
         return None
 
     def __iter__(self) -> Any:
-        return iter(self._response)
+        while True:
+            self._assert_before_deadline()
+            raw_line = self.readline()
+            self._assert_before_deadline()
+            if not raw_line:
+                return
+            yield raw_line
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self._response, name)
+
+    def _assert_before_deadline(self) -> None:
+        if self._deadline is not None and monotonic() >= self._deadline:
+            raise TimeoutError(
+                "Local model streaming response exceeded the configured total timeout."
+            )
+
+    def readline(self) -> bytes:
+        readline = getattr(self._response, "readline", None)
+        if readline is None:
+            raise OSError("Local model streaming response does not support bounded lines.")
+        raw = cast(bytes, readline(self._max_bytes + 1))
+        if len(raw) > self._max_bytes:
+            raise LocalResponseTooLargeError(
+                "Local model streaming response line exceeded the configured byte limit."
+            )
+        return raw
 
     def read(self, amt: int | None = None) -> bytes:
         if amt is not None and amt >= 0:
@@ -127,8 +162,10 @@ def open_local_request(request: Request, *, timeout: float) -> Any:
 
     Whole-body ``read()`` calls are capped independently of Content-Length so a
     faulty or compromised loopback service cannot make callers buffer an
-    arbitrarily large non-streaming response. Iteration remains unchanged for
-    explicitly streaming protocols such as SSE.
+    arbitrarily large non-streaming response. Streaming iteration uses bounded
+    ``readline()`` calls and a monotonic total deadline in addition to the socket
+    inactivity timeout, preventing giant SSE lines and indefinitely active local
+    streams from bypassing the configured generation timeout.
     """
     if not isinstance(request, Request):
         raise TypeError("Local model transport requires urllib.request.Request.")
@@ -143,4 +180,5 @@ def open_local_request(request: Request, *, timeout: float) -> Any:
     return _BoundedLocalResponse(
         response,
         max_bytes=MAX_LOCAL_RESPONSE_BYTES,
+        total_timeout_seconds=validated_timeout,
     )
