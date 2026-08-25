@@ -128,7 +128,7 @@ def _save_diff(diff: PixelArray, destination: Path) -> None:
         QImage.Format.Format_RGBA8888,
     ).copy()
     destination.parent.mkdir(parents=True, exist_ok=True)
-    if not image.save(str(destination), "PNG"):
+    if not image.save(str(destination), b"PNG"):
         raise RuntimeError(f"Unable to save visual diff: {destination}")
 
 
