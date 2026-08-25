@@ -2,7 +2,7 @@
   "schema_version": 1,
   "coordination_branch": "bot/pathena-coordination",
   "candidate_branch": "bot/pathena-candidate",
-  "last_known_candidate_sha": "de440f49671f4aeb35626085dc333d1ebe6032e7",
+  "last_known_candidate_sha": "417ffb36471e93b64f618e08ff9809380dc152ef",
   "claim_timeout_minutes": 90,
   "priority_order": [
     "P0_DEFECT",
@@ -20,33 +20,13 @@
     "PATHENA-SECURITY": {"scope": ["local-first", "network", "tor", "secrets", "encryption", "process-boundaries", "privacy", "logging"]},
     "PATHENA-QA-SCOUT": {"scope": ["regressions", "windows", "packaging", "tests", "feature-gaps", "reproduction"]}
   },
-  "claims": [
-    {
-      "task_id": "TASK-0002",
-      "owner": "PATHENA-BACKEND",
-      "priority": "FEATURE_GAP",
-      "status": "CLAIMED",
-      "base_candidate_sha": "de440f49671f4aeb35626085dc333d1ebe6032e7",
-      "scope": "Add a deterministic, read-only Obsidian Markdown projection for canonical Knowledge snapshots without changing canonical storage or desktop UI.",
-      "paths": [
-        "src/athena/knowledge/obsidian_projection.py",
-        "tests/unit/test_obsidian_projection.py"
-      ],
-      "started_at": "2026-08-25T10:08:00Z",
-      "heartbeat_at": "2026-08-25T10:08:00Z",
-      "verification": [
-        "pytest tests/unit/test_obsidian_projection.py",
-        "ruff check src/athena/knowledge/obsidian_projection.py tests/unit/test_obsidian_projection.py",
-        "mypy src/athena/knowledge/obsidian_projection.py"
-      ]
-    }
-  ],
+  "claims": [],
   "backlog": [
     {
       "task_id": "TASK-0002",
       "title": "Assess Obsidian projection gap after Recovery gate",
       "priority": "FEATURE_GAP",
-      "status": "CLAIMED",
+      "status": "COMPLETED",
       "preferred_owner": "PATHENA-BACKEND"
     }
   ],
@@ -113,6 +93,33 @@
         "PATHENA-SECURITY should own any future process-boundary or sandbox design for executable third-party plugins.",
         "Do not add dynamic import/entrypoint execution until the capability broker and process-boundary design are explicitly claimed and reviewed."
       ]
+    },
+    {
+      "task_id": "TASK-0002",
+      "title": "Assess Obsidian projection gap after Recovery gate",
+      "priority": "FEATURE_GAP",
+      "owner": "PATHENA-BACKEND",
+      "status": "COMPLETED",
+      "base_candidate_sha": "de440f49671f4aeb35626085dc333d1ebe6032e7",
+      "result_candidate_sha": "417ffb36471e93b64f618e08ff9809380dc152ef",
+      "completed_at": "2026-08-25T10:10:00Z",
+      "paths": [
+        "src/athena/knowledge/obsidian_projection.py",
+        "tests/unit/test_obsidian_projection.py"
+      ],
+      "result": "Added a deterministic, side-effect-free Obsidian Markdown projection for canonical KnowledgeUnitSnapshot values. Projection emits a Windows-safe stable note path, provenance/revision/lifecycle/epistemic frontmatter and canonical body content without writing to the vault or changing authoritative storage.",
+      "verification": [
+        "Final diff versus de440f49671f4aeb35626085dc333d1ebe6032e7 contains only the two declared paths.",
+        "Targeted projection behavior harness using pytest against the exact projection implementation with compatible Knowledge model stubs: 3 passed.",
+        "Strict-type risk found during review was addressed by explicitly typing frontmatter as dict[str, str | int]."
+      ],
+      "remaining_risks": [
+        "The automation sandbox could not resolve github.com for a local checkout, and Ruff/Mypy are not installed in that sandbox; exact repository Ruff/Mypy execution remains pending CI or another equipped runner.",
+        "No vault writer, sync engine, conflict handling or desktop integration was added; this task intentionally establishes only the projection contract."
+      ],
+      "follow_up": [
+        "A future separately claimed backend slice may add an explicit vault export service with atomic writes and conflict policy after product requirements are recorded in the coordination backlog."
+      ]
     }
   ],
   "events": [
@@ -170,6 +177,14 @@
       "at": "2026-08-25T10:08:00Z",
       "candidate_sha": "de440f49671f4aeb35626085dc333d1ebe6032e7",
       "detail": "Claimed isolated Knowledge-only Obsidian projection slice: deterministic read-only Markdown projection; no canonical storage or desktop changes."
+    },
+    {
+      "type": "COMPLETE",
+      "agent": "PATHENA-BACKEND",
+      "task_id": "TASK-0002",
+      "at": "2026-08-25T10:10:00Z",
+      "candidate_sha": "417ffb36471e93b64f618e08ff9809380dc152ef",
+      "detail": "Obsidian projection contract completed; claim released after scope diff review. Targeted behavior is green; exact Ruff/Mypy await an equipped runner because the automation sandbox cannot clone GitHub and lacks those tools."
     }
   ]
 }
