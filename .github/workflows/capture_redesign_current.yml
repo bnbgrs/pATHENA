@@ -1,0 +1,81 @@
+name: Temporary exact-candidate redesign capture
+
+on:
+  push:
+    branches:
+      - capture/redesign-current-20260825-2103
+    paths:
+      - ".github/workflows/capture_redesign_current.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    name: Capture latest pATHENA redesign on Windows
+    runs-on: windows-2025
+    timeout-minutes: 20
+    env:
+      PYTHONUTF8: "1"
+      QT_QPA_PLATFORM: offscreen
+      CANDIDATE_SHA: "2c337e61eba7e1862d25d164d8ed17a5dc0d1a7c"
+
+    steps:
+      - name: Prove candidate is still latest
+        shell: pwsh
+        run: |
+          $remote = git ls-remote https://github.com/bnbgrs/pATHENA.git refs/heads/bot/pathena-candidate
+          if ($LASTEXITCODE -ne 0 -or -not $remote) { throw "Could not resolve live candidate." }
+          $live = ($remote -split "\s+")[0].Trim().ToLowerInvariant()
+          if ($live -ne $env:CANDIDATE_SHA) {
+            throw "Candidate moved: expected $env:CANDIDATE_SHA, live candidate is $live. Refusing stale screenshots."
+          }
+
+      - name: Check out exact latest redesign candidate
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          persist-credentials: false
+
+      - name: Verify checked-out product identity
+        shell: pwsh
+        run: |
+          $head = (git rev-parse HEAD).Trim().ToLowerInvariant()
+          if ($LASTEXITCODE -ne 0 -or $head -ne $env:CANDIDATE_SHA) {
+            throw "Checked out $head instead of exact candidate $env:CANDIDATE_SHA."
+          }
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+          check-latest: false
+
+      - name: Install locked desktop runtime
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check "uv==0.11.21"
+          uv lock --check
+          if ($LASTEXITCODE -ne 0) { throw "uv.lock is not current." }
+          uv sync --locked --extra desktop
+          if ($LASTEXITCODE -ne 0) { throw "Locked desktop sync failed." }
+
+      - name: Start current pATHENA and capture eleven redesign surfaces
+        shell: pwsh
+        run: |
+          $runtimeRoot = Join-Path $env:RUNNER_TEMP "pathena-redesign-runtime"
+          $actualRoot = Join-Path (Get-Location) "artifacts\redesign-current"
+          uv run --locked --extra desktop --no-sync python scripts/render_pathena_ui_snapshot.py `
+            --runtime-root $runtimeRoot `
+            --screenshot-directory $actualRoot `
+            --initial-delay-seconds 7
+          if ($LASTEXITCODE -ne 0) { throw "Exact-candidate redesign capture failed." }
+
+      - name: Upload exact-candidate screenshots
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: pATHENA-redesign-current-2c337e61eba7e1862d25d164d8ed17a5dc0d1a7c
+          path: artifacts/redesign-current/**
+          if-no-files-found: error
+          retention-days: 7
