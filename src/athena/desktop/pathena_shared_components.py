@@ -192,10 +192,6 @@ QLineEdit#promptInput:focus {{
     border: none;
 }}
 
-QFrame#composer:focus-within {{
-    border-color: {PALETTE.accent};
-}}
-
 QPushButton#groundButton {{
     color: {PALETTE.text_muted};
     background: transparent;
