@@ -5,7 +5,7 @@ from __future__ import annotations
 import ipaddress
 import math
 from numbers import Real
-from typing import Any
+from typing import Any, cast
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
@@ -63,8 +63,8 @@ class _BoundedLocalResponse:
 
     def read(self, amt: int | None = None) -> bytes:
         if amt is not None and amt >= 0:
-            return self._response.read(amt)
-        raw = self._response.read(self._max_bytes + 1)
+            return cast(bytes, self._response.read(amt))
+        raw = cast(bytes, self._response.read(self._max_bytes + 1))
         if len(raw) > self._max_bytes:
             raise LocalResponseTooLargeError(
                 "Local model response exceeded the configured byte limit."
@@ -107,10 +107,11 @@ def _validated_timeout(value: object) -> float:
 
 def _bound_http_error_body(exc: HTTPError) -> None:
     if exc.fp is not None:
-        exc.fp = _BoundedLocalResponse(
+        bounded_fp: Any = _BoundedLocalResponse(
             exc.fp,
             max_bytes=MAX_LOCAL_RESPONSE_BYTES,
         )
+        exc.fp = bounded_fp
 
 
 def open_local_request(request: Request, *, timeout: float) -> Any:
