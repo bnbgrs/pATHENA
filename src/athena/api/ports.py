@@ -18,6 +18,7 @@ from athena.api.contracts import (
     ModelResponse,
     ProviderHealthResponse,
     RememberedChatMessageResponse,
+    StorageHealthResponse,
 )
 
 
@@ -25,6 +26,8 @@ class CoreApiSurface(Protocol):
     """Stable API operations that may be dispatched onto the Core owner thread."""
 
     def health(self) -> HealthResponse: ...
+
+    def storage_health(self) -> StorageHealthResponse: ...
 
     def capabilities(self) -> CapabilitiesResponse: ...
 
@@ -79,7 +82,6 @@ class CoreApiSurface(Protocol):
     ) -> KnowledgeMergeReviewResponse: ...
 
     def provider_health(self) -> ProviderHealthResponse: ...
-
 
     def preview_chat_deletion(self, chat_id: str) -> DeletionPreviewResponse: ...
 
