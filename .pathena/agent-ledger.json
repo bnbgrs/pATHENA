@@ -20,35 +20,7 @@
     "PATHENA-SECURITY": {"scope": ["local-first", "network", "tor", "secrets", "encryption", "process-boundaries", "privacy", "logging"]},
     "PATHENA-QA-SCOUT": {"scope": ["regressions", "windows", "packaging", "tests", "feature-gaps", "reproduction"]}
   },
-  "claims": [
-    {
-      "task_id": "TASK-0003",
-      "title": "Assess plugin host and capability boundary gap after Recovery gate",
-      "priority": "SECURITY",
-      "owner": "PATHENA-LEAD",
-      "status": "CLAIMED",
-      "base_candidate_sha": "de1affbd6afc8f914902119efdddfbbf6ebd555e",
-      "paths": [
-        "src/athena/plugins/",
-        "src/athena/desktop/pathena_capability_catalog.py",
-        "tests/unit/test_plugin_*.py"
-      ],
-      "semantic_scope": [
-        "plugin-host",
-        "capability-boundary",
-        "extension-security",
-        "local-first-plugin-policy"
-      ],
-      "started_at": "2026-08-25T09:53:00Z",
-      "heartbeat_at": "2026-08-25T10:04:00Z",
-      "verification_plan": [
-        "inventory existing extension/plugin execution surfaces",
-        "define fail-closed capability model before any executable plugin loading",
-        "add tests for manifest validation and denied-by-default capabilities",
-        "run exact Windows regression if candidate code changes"
-      ]
-    }
-  ],
+  "claims": [],
   "backlog": [
     {
       "task_id": "TASK-0002",
@@ -86,6 +58,40 @@
       ],
       "remaining_risks": [
         "Real RX-7900-XTX, driver and LM Studio inference remain LOCAL_HARDWARE_PENDING."
+      ]
+    },
+    {
+      "task_id": "TASK-0003",
+      "title": "Assess plugin host and capability boundary gap after Recovery gate",
+      "priority": "SECURITY",
+      "owner": "PATHENA-LEAD",
+      "status": "COMPLETED",
+      "base_candidate_sha": "de1affbd6afc8f914902119efdddfbbf6ebd555e",
+      "result_candidate_sha": "de440f49671f4aeb35626085dc333d1ebe6032e7",
+      "completed_at": "2026-08-25T10:05:00Z",
+      "paths": [
+        "src/athena/plugins/__init__.py",
+        "src/athena/plugins/capabilities.py",
+        "src/athena/plugins/manifest.py",
+        "tests/unit/test_plugin_capability_boundary.py"
+      ],
+      "result": "Established a fail-closed plugin foundation without introducing executable plugin loading. Manifest parsing validates schema, API compatibility, permissions, capabilities and scopes before any entrypoint could be loaded. Official capability access now requires declaration, coarse permission, explicit grant and exact scope where applicable. Unknown permissions/capabilities and malformed manifests are rejected.",
+      "verification": [
+        "Exact Windows plugin contract run 32835107393: SUCCESS",
+        "Ruff plugin boundary: SUCCESS",
+        "Mypy plugin boundary: SUCCESS",
+        "Pytest plugin capability boundary: SUCCESS",
+        "Full exact-SHA Windows diagnostics run 32834904531: SUCCESS",
+        "Targeted Windows tests, LM Studio loopback, DB reopen, 11/11 reference surfaces, portable package build, worker dispatch and packaged desktop cold-start all succeeded"
+      ],
+      "remaining_risks": [
+        "No executable third-party plugin host exists yet; this task intentionally establishes policy and validation before loading code.",
+        "A future out-of-process plugin host is process isolation, not a hostile-code sandbox; OS-level sandboxing remains a separate security design decision.",
+        "Real RX-7900-XTX, driver and LM Studio inference remain LOCAL_HARDWARE_PENDING."
+      ],
+      "follow_up": [
+        "PATHENA-SECURITY should own any future process-boundary or sandbox design for executable third-party plugins.",
+        "Do not add dynamic import/entrypoint execution until the capability broker and process-boundary design are explicitly claimed and reviewed."
       ]
     }
   ],
@@ -128,6 +134,14 @@
       "at": "2026-08-25T10:04:00Z",
       "candidate_sha": "de440f49671f4aeb35626085dc333d1ebe6032e7",
       "detail": "Plugin slice remains isolated to declared paths. Exact Windows plugin contract is green; full Windows regression has passed targeted tests, LM Studio loopback, DB reopen, 11/11 surfaces, package build, worker dispatch and packaged cold-start; awaiting workflow finalization/upload only."
+    },
+    {
+      "type": "COMPLETE",
+      "agent": "PATHENA-LEAD",
+      "task_id": "TASK-0003",
+      "at": "2026-08-25T10:05:00Z",
+      "candidate_sha": "de440f49671f4aeb35626085dc333d1ebe6032e7",
+      "detail": "Fail-closed plugin manifest/capability foundation completed and fully verified on exact Windows. No executable plugin loader was introduced. Claim released after diff review and full regression success."
     }
   ]
 }
