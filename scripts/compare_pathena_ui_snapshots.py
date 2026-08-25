@@ -52,7 +52,7 @@ def _load_rgba(path: Path) -> PixelArray:
 
 
 def _load_rgba_bytes(payload: bytes) -> PixelArray:
-    image = QImage.fromData(payload, b"PNG")
+    image = QImage.fromData(payload)
     if image.isNull():
         raise ValueError("Unable to decode baseline PNG payload")
     image = image.convertToFormat(QImage.Format.Format_RGBA8888)
