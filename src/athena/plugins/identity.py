@@ -8,6 +8,7 @@ treated as authenticated identity. No plugin code is imported or executed here.
 from __future__ import annotations
 
 import base64
+import binascii
 import hashlib
 import json
 import re
@@ -69,7 +70,9 @@ def canonical_plugin_identity_payload(
         raise TypeError("Plugin identity payload requires a validated PluginManifest.")
     normalized_digest = package_sha256.strip().lower()
     if not _SHA256_RE.fullmatch(normalized_digest):
-        raise PluginPublisherIdentityError("Plugin package_sha256 must be 64 lowercase hex digits.")
+        raise PluginPublisherIdentityError(
+            "Plugin package_sha256 must be 64 lowercase hex digits."
+        )
 
     payload = {
         "signature_version": PLUGIN_PUBLISHER_SIGNATURE_VERSION,
@@ -113,15 +116,21 @@ def verify_plugin_publisher_identity(
     if trusted is None:
         raise PluginPublisherIdentityError("Plugin signer is not trusted.")
     if trusted.key_id != signer_key_id:
-        raise PluginPublisherIdentityError("Plugin trust root key_id does not match its map key.")
+        raise PluginPublisherIdentityError(
+            "Plugin trust root key_id does not match its map key."
+        )
     if not isinstance(signature_b64, str) or not signature_b64:
         raise PluginPublisherIdentityError("Plugin publisher signature is missing.")
     try:
         signature = base64.b64decode(signature_b64, validate=True)
-    except (ValueError, binascii.Error) as exc:  # type: ignore[name-defined]
-        raise PluginPublisherIdentityError("Plugin publisher signature is not valid base64.") from exc
+    except (ValueError, binascii.Error) as exc:
+        raise PluginPublisherIdentityError(
+            "Plugin publisher signature is not valid base64."
+        ) from exc
     if len(signature) != 64:
-        raise PluginPublisherIdentityError("Ed25519 plugin publisher signature must be 64 bytes.")
+        raise PluginPublisherIdentityError(
+            "Ed25519 plugin publisher signature must be 64 bytes."
+        )
 
     package_sha256 = hashlib.sha256(package_bytes).hexdigest()
     payload = canonical_plugin_identity_payload(
@@ -131,7 +140,9 @@ def verify_plugin_publisher_identity(
     try:
         Ed25519PublicKey.from_public_bytes(trusted.public_key).verify(signature, payload)
     except (InvalidSignature, ValueError) as exc:
-        raise PluginPublisherIdentityError("Plugin publisher signature verification failed.") from exc
+        raise PluginPublisherIdentityError(
+            "Plugin publisher signature verification failed."
+        ) from exc
 
     return VerifiedPluginPublisherIdentity(
         key_id=signer_key_id,
