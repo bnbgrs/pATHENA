@@ -4,187 +4,46 @@
   "candidate_branch": "bot/pathena-candidate",
   "last_known_candidate_sha": "417ffb36471e93b64f618e08ff9809380dc152ef",
   "claim_timeout_minutes": 90,
-  "priority_order": [
-    "P0_DEFECT",
-    "P1_CORE",
-    "REGRESSION",
-    "SECURITY",
-    "UX_GAP",
-    "FEATURE_GAP",
-    "CLEANUP"
-  ],
+  "priority_order": ["P0_DEFECT","P1_CORE","REGRESSION","SECURITY","UX_GAP","FEATURE_GAP","CLEANUP"],
   "agents": {
-    "PATHENA-LEAD": {"scope": ["coordination", "integration", "architecture", "prioritization"]},
-    "PATHENA-BACKEND": {"scope": ["core", "storage", "knowledge", "research", "jobs", "api", "persistence"]},
-    "PATHENA-UI": {"scope": ["desktop", "ux", "design-system", "pallas", "accessibility", "interactions"]},
-    "PATHENA-SECURITY": {"scope": ["local-first", "network", "tor", "secrets", "encryption", "process-boundaries", "privacy", "logging"]},
-    "PATHENA-QA-SCOUT": {"scope": ["regressions", "windows", "packaging", "tests", "feature-gaps", "reproduction"]}
+    "PATHENA-LEAD": {"scope": ["coordination","integration","architecture","prioritization"]},
+    "PATHENA-BACKEND": {"scope": ["core","storage","knowledge","research","jobs","api","persistence"]},
+    "PATHENA-UI": {"scope": ["desktop","ux","design-system","pallas","accessibility","interactions"]},
+    "PATHENA-SECURITY": {"scope": ["local-first","network","tor","secrets","encryption","process-boundaries","privacy","logging"]},
+    "PATHENA-QA-SCOUT": {"scope": ["regressions","windows","packaging","tests","feature-gaps","reproduction"]}
   },
-  "claims": [],
-  "backlog": [
+  "claims": [
     {
-      "task_id": "TASK-0002",
-      "title": "Assess Obsidian projection gap after Recovery gate",
-      "priority": "FEATURE_GAP",
-      "status": "COMPLETED",
-      "preferred_owner": "PATHENA-BACKEND"
+      "task_id": "TASK-0004",
+      "title": "Harden plugin manifest metadata against log/UI control-sequence injection",
+      "priority": "SECURITY",
+      "owner": "PATHENA-SECURITY",
+      "status": "CLAIMED",
+      "base_candidate_sha": "417ffb36471e93b64f618e08ff9809380dc152ef",
+      "threat_model": "A malicious or compromised plugin can place CR/LF, C0/C1 controls or Unicode bidi/format controls in publisher metadata so future logs, diagnostics or UI surfaces visually spoof trusted metadata, inject lines, or conceal text direction.",
+      "scope": "Fail closed on unsafe plugin publisher metadata and display-facing manifest strings without adding plugin execution or remote surfaces.",
+      "paths": ["src/athena/plugins/manifest.py","tests/unit/test_plugin_capability_boundary.py"],
+      "semantic_scope": ["plugin-manifest-security","metadata-redaction","log-injection-prevention","safe-defaults"],
+      "started_at": "2026-08-25T10:31:00Z",
+      "heartbeat_at": "2026-08-25T10:31:00Z",
+      "verification_plan": ["add regression tests for CR/LF/control and Unicode bidi/format controls","run targeted pytest plugin boundary","run Ruff on changed paths","run Mypy on plugin package","run exact Windows plugin contract if candidate changes","review final diff against two claimed paths"]
     }
   ],
+  "backlog": [{"task_id":"TASK-0002","title":"Assess Obsidian projection gap after Recovery gate","priority":"FEATURE_GAP","status":"COMPLETED","preferred_owner":"PATHENA-BACKEND"}],
   "completed": [
-    {
-      "task_id": "TASK-0001",
-      "title": "Expose existing recovery diagnostics as a safe desktop SYSTEM workflow",
-      "priority": "P1_CORE",
-      "owner": "PATHENA-LEAD",
-      "status": "COMPLETED",
-      "base_candidate_sha": "d13a793357f27c90d0e4ae32db4236eb87006820",
-      "result_candidate_sha": "de1affbd6afc8f914902119efdddfbbf6ebd555e",
-      "completed_at": "2026-08-25T09:51:00Z",
-      "paths": [
-        "src/athena/desktop/system_recovery.py",
-        "src/athena/desktop/system_workspace.py",
-        "src/athena/desktop/packaged_app.py",
-        "src/athena/desktop/packaged_worker.py",
-        "tests/unit/test_system_recovery.py",
-        "tests/unit/test_packaged_app_dispatch.py"
-      ],
-      "result": "SYSTEM now exposes asynchronous payload-free read-only Recovery diagnosis. Healthy, derived-rebuild-needed and recovery-required states are projected truthfully. Restore remains isolated CLI-only; no repair action is exposed in the desktop. Packaged worker routing remains explicit and fail-closed.",
-      "verification": [
-        "Recovery contract run 32833754446: SUCCESS",
-        "Full exact-SHA Windows acceptance run 32833754312: SUCCESS",
-        "Hardware packaging regression run 32833754397: SUCCESS",
-        "11/11 reference surfaces rendered successfully",
-        "supported Windows package build, worker dispatch and packaged desktop cold-start succeeded"
-      ],
-      "remaining_risks": [
-        "Real RX-7900-XTX, driver and LM Studio inference remain LOCAL_HARDWARE_PENDING."
-      ]
-    },
-    {
-      "task_id": "TASK-0003",
-      "title": "Assess plugin host and capability boundary gap after Recovery gate",
-      "priority": "SECURITY",
-      "owner": "PATHENA-LEAD",
-      "status": "COMPLETED",
-      "base_candidate_sha": "de1affbd6afc8f914902119efdddfbbf6ebd555e",
-      "result_candidate_sha": "de440f49671f4aeb35626085dc333d1ebe6032e7",
-      "completed_at": "2026-08-25T10:05:00Z",
-      "paths": [
-        "src/athena/plugins/__init__.py",
-        "src/athena/plugins/capabilities.py",
-        "src/athena/plugins/manifest.py",
-        "tests/unit/test_plugin_capability_boundary.py"
-      ],
-      "result": "Established a fail-closed plugin foundation without introducing executable plugin loading. Manifest parsing validates schema, API compatibility, permissions, capabilities and scopes before any entrypoint could be loaded. Official capability access now requires declaration, coarse permission, explicit grant and exact scope where applicable. Unknown permissions/capabilities and malformed manifests are rejected.",
-      "verification": [
-        "Exact Windows plugin contract run 32835107393: SUCCESS",
-        "Ruff plugin boundary: SUCCESS",
-        "Mypy plugin boundary: SUCCESS",
-        "Pytest plugin capability boundary: SUCCESS",
-        "Full exact-SHA Windows diagnostics run 32834904531: SUCCESS",
-        "Targeted Windows tests, LM Studio loopback, DB reopen, 11/11 reference surfaces, portable package build, worker dispatch and packaged desktop cold-start all succeeded"
-      ],
-      "remaining_risks": [
-        "No executable third-party plugin host exists yet; this task intentionally establishes policy and validation before loading code.",
-        "A future out-of-process plugin host is process isolation, not a hostile-code sandbox; OS-level sandboxing remains a separate security design decision.",
-        "Real RX-7900-XTX, driver and LM Studio inference remain LOCAL_HARDWARE_PENDING."
-      ],
-      "follow_up": [
-        "PATHENA-SECURITY should own any future process-boundary or sandbox design for executable third-party plugins.",
-        "Do not add dynamic import/entrypoint execution until the capability broker and process-boundary design are explicitly claimed and reviewed."
-      ]
-    },
-    {
-      "task_id": "TASK-0002",
-      "title": "Assess Obsidian projection gap after Recovery gate",
-      "priority": "FEATURE_GAP",
-      "owner": "PATHENA-BACKEND",
-      "status": "COMPLETED",
-      "base_candidate_sha": "de440f49671f4aeb35626085dc333d1ebe6032e7",
-      "result_candidate_sha": "417ffb36471e93b64f618e08ff9809380dc152ef",
-      "completed_at": "2026-08-25T10:10:00Z",
-      "paths": [
-        "src/athena/knowledge/obsidian_projection.py",
-        "tests/unit/test_obsidian_projection.py"
-      ],
-      "result": "Added a deterministic, side-effect-free Obsidian Markdown projection for canonical KnowledgeUnitSnapshot values. Projection emits a Windows-safe stable note path, provenance/revision/lifecycle/epistemic frontmatter and canonical body content without writing to the vault or changing authoritative storage.",
-      "verification": [
-        "Final diff versus de440f49671f4aeb35626085dc333d1ebe6032e7 contains only the two declared paths.",
-        "Targeted projection behavior harness using pytest against the exact projection implementation with compatible Knowledge model stubs: 3 passed.",
-        "Strict-type risk found during review was addressed by explicitly typing frontmatter as dict[str, str | int]."
-      ],
-      "remaining_risks": [
-        "The automation sandbox could not resolve github.com for a local checkout, and Ruff/Mypy are not installed in that sandbox; exact repository Ruff/Mypy execution remains pending CI or another equipped runner.",
-        "No vault writer, sync engine, conflict handling or desktop integration was added; this task intentionally establishes only the projection contract."
-      ],
-      "follow_up": [
-        "A future separately claimed backend slice may add an explicit vault export service with atomic writes and conflict policy after product requirements are recorded in the coordination backlog."
-      ]
-    }
+    {"task_id":"TASK-0001","title":"Expose existing recovery diagnostics as a safe desktop SYSTEM workflow","priority":"P1_CORE","owner":"PATHENA-LEAD","status":"COMPLETED","base_candidate_sha":"d13a793357f27c90d0e4ae32db4236eb87006820","result_candidate_sha":"de1affbd6afc8f914902119efdddfbbf6ebd555e","completed_at":"2026-08-25T09:51:00Z","paths":["src/athena/desktop/system_recovery.py","src/athena/desktop/system_workspace.py","src/athena/desktop/packaged_app.py","src/athena/desktop/packaged_worker.py","tests/unit/test_system_recovery.py","tests/unit/test_packaged_app_dispatch.py"],"result":"SYSTEM now exposes asynchronous payload-free read-only Recovery diagnosis. Healthy, derived-rebuild-needed and recovery-required states are projected truthfully. Restore remains isolated CLI-only; no repair action is exposed in the desktop. Packaged worker routing remains explicit and fail-closed.","verification":["Recovery contract run 32833754446: SUCCESS","Full exact-SHA Windows acceptance run 32833754312: SUCCESS","Hardware packaging regression run 32833754397: SUCCESS","11/11 reference surfaces rendered successfully","supported Windows package build, worker dispatch and packaged desktop cold-start succeeded"],"remaining_risks":["Real RX-7900-XTX, driver and LM Studio inference remain LOCAL_HARDWARE_PENDING."]},
+    {"task_id":"TASK-0003","title":"Assess plugin host and capability boundary gap after Recovery gate","priority":"SECURITY","owner":"PATHENA-LEAD","status":"COMPLETED","base_candidate_sha":"de1affbd6afc8f914902119efdddfbbf6ebd555e","result_candidate_sha":"de440f49671f4aeb35626085dc333d1ebe6032e7","completed_at":"2026-08-25T10:05:00Z","paths":["src/athena/plugins/__init__.py","src/athena/plugins/capabilities.py","src/athena/plugins/manifest.py","tests/unit/test_plugin_capability_boundary.py"],"result":"Established a fail-closed plugin foundation without introducing executable plugin loading. Manifest parsing validates schema, API compatibility, permissions, capabilities and scopes before any entrypoint could be loaded. Official capability access now requires declaration, coarse permission, explicit grant and exact scope where applicable. Unknown permissions/capabilities and malformed manifests are rejected.","verification":["Exact Windows plugin contract run 32835107393: SUCCESS","Ruff plugin boundary: SUCCESS","Mypy plugin boundary: SUCCESS","Pytest plugin capability boundary: SUCCESS","Full exact-SHA Windows diagnostics run 32834904531: SUCCESS"],"remaining_risks":["No executable third-party plugin host exists yet.","A future out-of-process plugin host is process isolation, not a hostile-code sandbox.","Real RX-7900-XTX, driver and LM Studio inference remain LOCAL_HARDWARE_PENDING."],"follow_up":["PATHENA-SECURITY should own any future process-boundary or sandbox design for executable third-party plugins.","Do not add dynamic import/entrypoint execution until the capability broker and process-boundary design are explicitly claimed and reviewed."]},
+    {"task_id":"TASK-0002","title":"Assess Obsidian projection gap after Recovery gate","priority":"FEATURE_GAP","owner":"PATHENA-BACKEND","status":"COMPLETED","base_candidate_sha":"de440f49671f4aeb35626085dc333d1ebe6032e7","result_candidate_sha":"417ffb36471e93b64f618e08ff9809380dc152ef","completed_at":"2026-08-25T10:10:00Z","paths":["src/athena/knowledge/obsidian_projection.py","tests/unit/test_obsidian_projection.py"],"result":"Added a deterministic, side-effect-free Obsidian Markdown projection for canonical KnowledgeUnitSnapshot values.","verification":["Final diff versus de440f49671f4aeb35626085dc333d1ebe6032e7 contains only the two declared paths.","Targeted projection behavior harness: 3 passed."],"remaining_risks":["Exact Ruff/Mypy execution remains pending CI or another equipped runner."],"follow_up":["A future separately claimed backend slice may add an explicit vault export service with atomic writes and conflict policy."]}
   ],
   "events": [
-    {
-      "type": "LEDGER_CREATED",
-      "agent": "PATHENA-LEAD",
-      "at": "2026-08-25T09:35:00Z",
-      "candidate_sha": "d13a793357f27c90d0e4ae32db4236eb87006820",
-      "detail": "Initialized shared optimistic-locking coordination ledger before first scheduled five-bot cycle."
-    },
-    {
-      "type": "CLAIM",
-      "agent": "PATHENA-LEAD",
-      "task_id": "TASK-0001",
-      "at": "2026-08-25T09:39:00Z",
-      "candidate_sha": "d13a793357f27c90d0e4ae32db4236eb87006820",
-      "detail": "Claimed recovery desktop entry after confirming backend recovery CLI already exists and no active claims overlap."
-    },
-    {
-      "type": "COMPLETE",
-      "agent": "PATHENA-LEAD",
-      "task_id": "TASK-0001",
-      "at": "2026-08-25T09:51:00Z",
-      "candidate_sha": "de1affbd6afc8f914902119efdddfbbf6ebd555e",
-      "detail": "Recovery desktop diagnosis integrated and verified on exact native Windows. Claim released; Obsidian and plugin-boundary assessments remain free for specialized bots."
-    },
-    {
-      "type": "CLAIM",
-      "agent": "PATHENA-LEAD",
-      "task_id": "TASK-0003",
-      "at": "2026-08-25T09:53:00Z",
-      "candidate_sha": "de1affbd6afc8f914902119efdddfbbf6ebd555e",
-      "detail": "Claimed highest-priority free SECURITY task: inventory plugin execution surfaces and establish a fail-closed capability boundary before executable plugins are introduced."
-    },
-    {
-      "type": "HEARTBEAT",
-      "agent": "PATHENA-LEAD",
-      "task_id": "TASK-0003",
-      "at": "2026-08-25T10:04:00Z",
-      "candidate_sha": "de440f49671f4aeb35626085dc333d1ebe6032e7",
-      "detail": "Plugin slice remains isolated to declared paths. Exact Windows plugin contract is green; full Windows regression has passed targeted tests, LM Studio loopback, DB reopen, 11/11 surfaces, package build, worker dispatch and packaged cold-start; awaiting workflow finalization/upload only."
-    },
-    {
-      "type": "COMPLETE",
-      "agent": "PATHENA-LEAD",
-      "task_id": "TASK-0003",
-      "at": "2026-08-25T10:05:00Z",
-      "candidate_sha": "de440f49671f4aeb35626085dc333d1ebe6032e7",
-      "detail": "Fail-closed plugin manifest/capability foundation completed and fully verified on exact Windows. No executable plugin loader was introduced. Claim released after diff review and full regression success."
-    },
-    {
-      "type": "CLAIM",
-      "agent": "PATHENA-BACKEND",
-      "task_id": "TASK-0002",
-      "at": "2026-08-25T10:08:00Z",
-      "candidate_sha": "de440f49671f4aeb35626085dc333d1ebe6032e7",
-      "detail": "Claimed isolated Knowledge-only Obsidian projection slice: deterministic read-only Markdown projection; no canonical storage or desktop changes."
-    },
-    {
-      "type": "COMPLETE",
-      "agent": "PATHENA-BACKEND",
-      "task_id": "TASK-0002",
-      "at": "2026-08-25T10:10:00Z",
-      "candidate_sha": "417ffb36471e93b64f618e08ff9809380dc152ef",
-      "detail": "Obsidian projection contract completed; claim released after scope diff review. Targeted behavior is green; exact Ruff/Mypy await an equipped runner because the automation sandbox cannot clone GitHub and lacks those tools."
-    }
+    {"type":"LEDGER_CREATED","agent":"PATHENA-LEAD","at":"2026-08-25T09:35:00Z","candidate_sha":"d13a793357f27c90d0e4ae32db4236eb87006820","detail":"Initialized shared optimistic-locking coordination ledger before first scheduled five-bot cycle."},
+    {"type":"CLAIM","agent":"PATHENA-LEAD","task_id":"TASK-0001","at":"2026-08-25T09:39:00Z","candidate_sha":"d13a793357f27c90d0e4ae32db4236eb87006820","detail":"Claimed recovery desktop entry."},
+    {"type":"COMPLETE","agent":"PATHENA-LEAD","task_id":"TASK-0001","at":"2026-08-25T09:51:00Z","candidate_sha":"de1affbd6afc8f914902119efdddfbbf6ebd555e","detail":"Recovery desktop diagnosis integrated and verified on exact native Windows."},
+    {"type":"CLAIM","agent":"PATHENA-LEAD","task_id":"TASK-0003","at":"2026-08-25T09:53:00Z","candidate_sha":"de1affbd6afc8f914902119efdddfbbf6ebd555e","detail":"Claimed highest-priority free SECURITY task."},
+    {"type":"HEARTBEAT","agent":"PATHENA-LEAD","task_id":"TASK-0003","at":"2026-08-25T10:04:00Z","candidate_sha":"de440f49671f4aeb35626085dc333d1ebe6032e7","detail":"Plugin slice remains isolated to declared paths."},
+    {"type":"COMPLETE","agent":"PATHENA-LEAD","task_id":"TASK-0003","at":"2026-08-25T10:05:00Z","candidate_sha":"de440f49671f4aeb35626085dc333d1ebe6032e7","detail":"Fail-closed plugin manifest/capability foundation completed."},
+    {"type":"CLAIM","agent":"PATHENA-BACKEND","task_id":"TASK-0002","at":"2026-08-25T10:08:00Z","candidate_sha":"de440f49671f4aeb35626085dc333d1ebe6032e7","detail":"Claimed isolated Knowledge-only Obsidian projection slice."},
+    {"type":"COMPLETE","agent":"PATHENA-BACKEND","task_id":"TASK-0002","at":"2026-08-25T10:10:00Z","candidate_sha":"417ffb36471e93b64f618e08ff9809380dc152ef","detail":"Obsidian projection contract completed."},
+    {"type":"CLAIM","agent":"PATHENA-SECURITY","task_id":"TASK-0004","at":"2026-08-25T10:31:00Z","candidate_sha":"417ffb36471e93b64f618e08ff9809380dc152ef","detail":"Claimed plugin metadata control-sequence injection hardening after live candidate/ledger review; no active claims overlap."}
   ]
 }
