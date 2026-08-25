@@ -245,17 +245,23 @@ class ChatGroundingController(QObject):
         current_row = getattr(navigation, "currentRow", None)
         if not callable(current_row) or current_row() != 0:
             return
-        user_message = next(
-            (
-                message.content.strip()
-                for message in response.thread.messages
-                if message.message_type == "user" and message.content.strip()
-            ),
-            None,
-        )
+
+        user_message: str | None = None
+        for message in response.thread.messages:
+            if message.message_type != "user" or message.content is None:
+                continue
+            candidate = message.content.strip()
+            if candidate:
+                user_message = candidate
+                break
         if user_message is None:
             return
-        title = user_message if len(user_message) <= 96 else f"{user_message[:93].rstrip()}…"
+
+        title = (
+            user_message
+            if len(user_message) <= 96
+            else f"{user_message[:93].rstrip()}…"
+        )
         page_title.setText(title)
         page_title.setToolTip(user_message)
         page_title.setAccessibleName(user_message)
