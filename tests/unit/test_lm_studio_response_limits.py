@@ -17,11 +17,20 @@ from athena.model.domain import ModelChatMessage
 
 
 class _FakeResponse:
-    def __init__(self, payload: bytes, *, lines: tuple[bytes, ...] = ()) -> None:
+    def __init__(
+        self,
+        payload: bytes,
+        *,
+        lines: tuple[bytes, ...] = (),
+        content_length: str | None = None,
+    ) -> None:
         self._stream = BytesIO(payload)
         self._lines = lines
         self.read_sizes: list[int] = []
         self.closed = False
+        self.headers = (
+            {} if content_length is None else {"Content-Length": content_length}
+        )
 
     def read(self, amount: int = -1) -> bytes:
         self.read_sizes.append(amount)
@@ -92,6 +101,22 @@ def test_whole_body_read_rejects_max_plus_one_without_leaking_body(
     assert raw.read_sizes == [9]
 
 
+def test_misleading_small_content_length_cannot_bypass_real_byte_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    raw = _FakeResponse(b"123456789", content_length="1")
+    _install_response(monkeypatch, raw)
+
+    with local_http.open_local_request(
+        Request("http://127.0.0.1:1234/api/v1/models"),
+        timeout=1.0,
+    ) as response:
+        with pytest.raises(local_http.LocalResponseTooLargeError):
+            response.read()
+
+    assert raw.read_sizes == [9]
+
+
 def test_stream_iteration_is_not_converted_into_a_whole_body_read(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -152,6 +177,32 @@ def test_structured_generation_fails_closed_on_oversize_local_body(
             messages=(ModelChatMessage(role="user", content="return json"),),
             schema_id="example",
             json_schema={"type": "object"},
+        )
+
+
+def test_controlled_structured_generation_fails_closed_on_oversize_local_body(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _install_response(monkeypatch, _FakeResponse(b"123456789"))
+    provider = LMStudioProvider(base_url="http://127.0.0.1:1234")
+
+    with pytest.raises(ProviderUnavailableError):
+        provider.generate_controlled_structured(
+            model_id="local-model",
+            messages=(
+                ModelChatMessage(role="system", content="return valid json"),
+                ModelChatMessage(role="user", content="do it"),
+            ),
+            schema_id="example",
+            json_schema={"type": "object"},
+            reasoning_mode="off",
+            context_length=4096,
+            max_output_tokens=128,
+            temperature=0.0,
+            top_p=1.0,
+            top_k=40,
+            min_p=0.0,
+            repeat_penalty=1.0,
         )
 
 
