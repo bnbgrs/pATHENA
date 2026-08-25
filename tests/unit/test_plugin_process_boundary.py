@@ -36,12 +36,13 @@ def _request(
     *,
     capability: str = "read_selected_sources",
     scope: str | None = "source:123",
+    request_id: str = "req-1",
 ) -> bytes:
     return json.dumps(
         {
             "version": 1,
             "type": "capability_request",
-            "request_id": "req-1",
+            "request_id": request_id,
             "capability": capability,
             "scope": scope,
         },
@@ -83,6 +84,36 @@ def test_oversized_message_is_rejected_before_json_parse() -> None:
 
     with pytest.raises(PluginProtocolError, match="maximum size"):
         decode_plugin_capability_request(payload)
+
+
+@pytest.mark.parametrize(
+    "request_id",
+    [
+        "req\nforged",
+        "req\u0085forged",
+        "req\u202eforged",
+        "req\u2066forged",
+        "req\u2028forged",
+    ],
+)
+def test_request_id_rejects_log_and_display_spoofing_controls(request_id: str) -> None:
+    with pytest.raises(PluginProtocolError, match="request_id"):
+        decode_plugin_capability_request(_request(request_id=request_id))
+
+
+@pytest.mark.parametrize(
+    "scope",
+    [
+        "source:123\rforged",
+        "source:123\u009bforged",
+        "source:123\u202dforged",
+        "source:123\u2069forged",
+        "source:123\u2029forged",
+    ],
+)
+def test_scope_rejects_log_and_display_spoofing_controls(scope: str) -> None:
+    with pytest.raises(PluginProtocolError, match="scope"):
+        decode_plugin_capability_request(_request(scope=scope))
 
 
 def test_broker_denies_manifest_declared_but_ungranted_capability() -> None:
