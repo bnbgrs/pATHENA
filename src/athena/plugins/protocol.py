@@ -7,6 +7,7 @@ entrypoint, open a socket, or make process isolation claims stronger than warran
 from __future__ import annotations
 
 import json
+import unicodedata
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
@@ -18,6 +19,7 @@ PLUGIN_IPC_MAX_MESSAGE_BYTES = 16 * 1024
 PLUGIN_IPC_MAX_REQUEST_ID_LENGTH = 128
 PLUGIN_IPC_MAX_SCOPE_LENGTH = 512
 _ALLOWED_KEYS = frozenset({"version", "type", "request_id", "capability", "scope"})
+_UNSAFE_TEXT_CATEGORIES = frozenset({"Cc", "Cf", "Zl", "Zp"})
 
 
 class PluginProtocolError(ValueError):
@@ -40,6 +42,12 @@ def _unique_json_object(pairs: Sequence[tuple[str, Any]]) -> dict[str, Any]:
             raise PluginProtocolError("Plugin IPC message contains duplicate fields.")
         result[key] = value
     return result
+
+
+def _contains_unsafe_text(value: str) -> bool:
+    """Reject controls/formatting that can spoof logs, diagnostics, or UI text."""
+
+    return any(unicodedata.category(char) in _UNSAFE_TEXT_CATEGORIES for char in value)
 
 
 def decode_plugin_capability_request(payload: bytes) -> PluginCapabilityRequest:
@@ -82,7 +90,7 @@ def decode_plugin_capability_request(payload: bytes) -> PluginCapabilityRequest:
         not isinstance(request_id, str)
         or not request_id
         or len(request_id) > PLUGIN_IPC_MAX_REQUEST_ID_LENGTH
-        or any(ord(char) < 0x20 or ord(char) == 0x7F for char in request_id)
+        or _contains_unsafe_text(request_id)
     ):
         raise PluginProtocolError("Plugin IPC request_id is invalid.")
 
@@ -100,7 +108,7 @@ def decode_plugin_capability_request(payload: bytes) -> PluginCapabilityRequest:
             not isinstance(scope, str)
             or not scope.strip()
             or len(scope) > PLUGIN_IPC_MAX_SCOPE_LENGTH
-            or any(ord(char) < 0x20 or ord(char) == 0x7F for char in scope)
+            or _contains_unsafe_text(scope)
         ):
             raise PluginProtocolError("Plugin IPC scope is invalid.")
 
