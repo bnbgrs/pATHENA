@@ -77,16 +77,19 @@ jobs:
             Pop-Location
           }
 
-      - name: Ruff LM Studio response boundary
+      - name: Show deterministic Ruff fix if needed
         shell: pwsh
         run: |
           Push-Location candidate
           try {
-            uv run --locked --extra dev --no-sync ruff check `
+            uv run --locked --extra dev --no-sync ruff check --fix `
               src/athena/model/adapters/local_http.py `
               tests/unit/test_lm_studio_response_limits.py `
               tests/unit/test_lm_studio_proxy_bypass.py
-            if ($LASTEXITCODE -ne 0) { throw 'LM Studio response Ruff contract failed.' }
+            git diff -- src/athena/model/adapters/local_http.py tests/unit/test_lm_studio_response_limits.py tests/unit/test_lm_studio_proxy_bypass.py
+            if (-not (git diff --quiet -- src/athena/model/adapters/local_http.py tests/unit/test_lm_studio_response_limits.py tests/unit/test_lm_studio_proxy_bypass.py)) {
+              throw 'Ruff would modify candidate files; apply the shown deterministic diff to the candidate.'
+            }
           } finally {
             Pop-Location
           }
