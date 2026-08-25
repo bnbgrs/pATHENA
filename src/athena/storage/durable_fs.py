@@ -256,9 +256,6 @@ def durable_atomic_writer(path: Path, *, mode: int = 0o600) -> Iterator[BinaryIO
                 "Identity-bound durable file creation is unsupported on this POSIX runtime."
             ) from exc
 
-        # Critical pre-payload fence: if the pathname was replaced while the
-        # temp inode was being created relative to the trusted directory FD,
-        # abort before caller-controlled bytes can be written into that inode.
         _assert_directory_fd_current(parent, parent_fd, label="Durable file parent")
         with os.fdopen(descriptor, "wb", closefd=True) as handle:
             descriptor = -1
@@ -534,6 +531,7 @@ def _windows_open_bound_handle(
             wintypes.LPWSTR,
             wintypes.DWORD,
             wintypes.DWORD,
+            wintypes.DWORD,
         )
         get_final_path.restype = wintypes.DWORD
         buffer = ctypes.create_unicode_buffer(32768)
@@ -571,7 +569,7 @@ def _windows_rename_relative(
     *,
     replace_existing: bool,
 ) -> None:
-    """Rename an already-open source relative to an already-open destination parent."""
+    """Rename an open source relative to a bound destination parent HANDLE."""
     import ctypes
     from ctypes import wintypes
 
@@ -584,20 +582,29 @@ def _windows_rename_relative(
     ):
         raise ValueError("Windows durable rename destination must be one plain leaf name.")
 
-    class _FileRenameInfo(ctypes.Structure):
+    class _FileRenameInformation(ctypes.Structure):
         _fields_ = [
-            ("ReplaceIfExists", wintypes.BOOL),
+            ("ReplaceIfExists", ctypes.c_ubyte),
             ("RootDirectory", wintypes.HANDLE),
             ("FileNameLength", wintypes.DWORD),
             ("FileName", wintypes.WCHAR * 1),
         ]
 
+    class _IoStatusBlock(ctypes.Structure):
+        _fields_ = [
+            ("StatusOrPointer", ctypes.c_void_p),
+            ("Information", ctypes.c_size_t),
+        ]
+
     encoded_name = destination_name.encode("utf-16-le")
-    filename_offset = _FileRenameInfo.FileName.offset
-    buffer_size = filename_offset + len(encoded_name)
+    filename_offset = _FileRenameInformation.FileName.offset
+    buffer_size = max(
+        ctypes.sizeof(_FileRenameInformation),
+        filename_offset + len(encoded_name),
+    )
     buffer = ctypes.create_string_buffer(buffer_size)
-    information = _FileRenameInfo.from_buffer(buffer)
-    information.ReplaceIfExists = bool(replace_existing)
+    information = _FileRenameInformation.from_buffer(buffer)
+    information.ReplaceIfExists = int(replace_existing)
     information.RootDirectory = destination_parent_handle
     information.FileNameLength = len(encoded_name)
     ctypes.memmove(
@@ -606,30 +613,39 @@ def _windows_rename_relative(
         len(encoded_name),
     )
 
-    win_dll = vars(ctypes)["WinDLL"]
-    get_last_error = vars(ctypes)["get_last_error"]
-    kernel32 = win_dll("kernel32", use_last_error=True)
-    set_information = kernel32.SetFileInformationByHandle
-    set_information.argtypes = (
+    ntdll = vars(ctypes)["WinDLL"]("ntdll")
+    nt_set_information = ntdll.NtSetInformationFile
+    nt_set_information.argtypes = (
         wintypes.HANDLE,
-        ctypes.c_int,
+        ctypes.POINTER(_IoStatusBlock),
         wintypes.LPVOID,
-        wintypes.DWORD,
+        wintypes.ULONG,
+        ctypes.c_int,
     )
-    set_information.restype = wintypes.BOOL
-    if set_information(
-        source_handle,
-        _FILE_RENAME_INFO_CLASS,
-        ctypes.byref(buffer),
-        buffer_size,
-    ):
+    nt_set_information.restype = wintypes.LONG
+    io_status = _IoStatusBlock()
+    status = int(
+        nt_set_information(
+            source_handle,
+            ctypes.byref(io_status),
+            ctypes.byref(buffer),
+            buffer_size,
+            10,  # FileRenameInformation
+        )
+    )
+    if status == 0:
         return
-    error = get_last_error()
+
+    rtl_nt_status_to_dos_error = ntdll.RtlNtStatusToDosError
+    rtl_nt_status_to_dos_error.argtypes = (wintypes.LONG,)
+    rtl_nt_status_to_dos_error.restype = wintypes.ULONG
+    error = int(rtl_nt_status_to_dos_error(status))
     if not replace_existing and error in {_ERROR_ALREADY_EXISTS, _ERROR_FILE_EXISTS}:
         raise FileExistsError(error, "Durable directory destination already exists.")
     raise OSError(
         error,
-        f"SetFileInformationByHandle durable publication failed with Windows error {error}.",
+        "NtSetInformationFile durable publication failed "
+        f"with NTSTATUS 0x{status & 0xFFFFFFFF:08x} (Windows error {error}).",
     )
 
 
