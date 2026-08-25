@@ -20,8 +20,48 @@
     "PATHENA-SECURITY": {"scope": ["local-first", "network", "tor", "secrets", "encryption", "process-boundaries", "privacy", "logging"]},
     "PATHENA-QA-SCOUT": {"scope": ["regressions", "windows", "packaging", "tests", "feature-gaps", "reproduction"]}
   },
-  "claims": [],
-  "backlog": [],
+  "claims": [
+    {
+      "task_id": "TASK-0001",
+      "title": "Expose existing recovery diagnostics as a safe desktop SYSTEM workflow",
+      "priority": "P1_CORE",
+      "owner": "PATHENA-LEAD",
+      "status": "CLAIMED",
+      "base_candidate_sha": "d13a793357f27c90d0e4ae32db4236eb87006820",
+      "paths": [
+        "src/athena/desktop/system_recovery.py",
+        "src/athena/desktop/system_workspace.py",
+        "src/athena/desktop/packaged_app.py",
+        "src/athena/desktop/packaged_worker.py",
+        "tests/unit/test_system_recovery.py",
+        "tests/unit/test_packaged_app_dispatch.py"
+      ],
+      "semantic_scope": ["recovery-diagnostics", "safe-mode-entry", "packaged-worker-routing"],
+      "started_at": "2026-08-25T09:39:00Z",
+      "heartbeat_at": "2026-08-25T09:39:00Z",
+      "verification_plan": [
+        "unit recovery UI projection and async process contract",
+        "packaged dispatcher remains fail-closed except explicit recovery target",
+        "native Windows exact-SHA acceptance including 11/11 render and package cold-start"
+      ]
+    }
+  ],
+  "backlog": [
+    {
+      "task_id": "TASK-0002",
+      "title": "Assess Obsidian projection gap after Recovery gate",
+      "priority": "FEATURE_GAP",
+      "status": "READY",
+      "preferred_owner": "PATHENA-BACKEND"
+    },
+    {
+      "task_id": "TASK-0003",
+      "title": "Assess plugin host and capability boundary gap after Recovery gate",
+      "priority": "SECURITY",
+      "status": "READY",
+      "preferred_owner": "PATHENA-SECURITY"
+    }
+  ],
   "completed": [],
   "events": [
     {
@@ -30,6 +70,14 @@
       "at": "2026-08-25T09:35:00Z",
       "candidate_sha": "d13a793357f27c90d0e4ae32db4236eb87006820",
       "detail": "Initialized shared optimistic-locking coordination ledger before first scheduled five-bot cycle."
+    },
+    {
+      "type": "CLAIM",
+      "agent": "PATHENA-LEAD",
+      "task_id": "TASK-0001",
+      "at": "2026-08-25T09:39:00Z",
+      "candidate_sha": "d13a793357f27c90d0e4ae32db4236eb87006820",
+      "detail": "Claimed recovery desktop entry after confirming backend recovery CLI already exists and no active claims overlap."
     }
   ]
 }
