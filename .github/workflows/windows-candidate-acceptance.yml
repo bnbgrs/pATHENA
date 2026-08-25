@@ -7,6 +7,7 @@ on:
     paths:
       - .github/workflows/windows-candidate-acceptance.yml
       - scripts/windows_candidate_process_tree.ps1
+      - scripts/windows_candidate_packaged_smoke.ps1
       - scripts/windows_candidate_desktop_driver.py
       - scripts/windows_candidate_provider_probe.py
       - tests/unit/test_windows_candidate_harness_contract.py
@@ -53,7 +54,7 @@ jobs:
       (github.event_name == 'push' &&
       startsWith(github.event.head_commit.message, 'test(windows): request exact candidate'))
     runs-on: windows-2025
-    timeout-minutes: 35
+    timeout-minutes: 45
     env:
       KNOWN_UNSAFE_SHA: bf54714d23a0b3da27fcac5d8215b55c2715ce48
       PYTHONUTF8: "1"
@@ -165,6 +166,8 @@ jobs:
               tests/unit/test_lm_studio_proxy_bypass.py `
               tests/unit/test_desktop_core_supervisor.py `
               tests/unit/test_desktop_app_startup_refresh.py `
+              tests/unit/test_packaged_app_dispatch.py `
+              tests/unit/test_packaged_process_launch.py `
               tests/unit/test_pathena_local_smoke.py `
               tests/unit/test_pathena_settings_comprehension.py `
               tests/unit/test_pathena_jobs_experience_2800.py `
@@ -236,6 +239,79 @@ jobs:
             -MaximumRelevantProcesses 20 `
             -PostExitSeconds 10
 
+      - name: Build supported Windows portable package
+        id: package_build
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $output = Join-Path $env:RUNNER_TEMP "pathena-package-$env:CANDIDATE_SHA"
+          & candidate\scripts\build_windows_portable.ps1 -OutputRoot $output `
+            2>&1 | Tee-Object (Join-Path $env:DIAGNOSTIC_ROOT "package-build.log")
+          if ($LASTEXITCODE -ne 0) { throw "Supported Windows package build failed." }
+          $packageRoot = Join-Path $output "pATHENA"
+          if (-not (Test-Path (Join-Path $packageRoot "pATHENA.exe"))) {
+            throw "Package build did not produce pATHENA.exe."
+          }
+          if (-not (Test-Path (Join-Path $packageRoot "pATHENA-Worker.exe"))) {
+            throw "Package build did not produce pATHENA-Worker.exe."
+          }
+          "PACKAGE_ROOT=$packageRoot" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Verify packaged worker dispatch and redirected output
+        id: package_worker
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          if (-not $env:PACKAGE_ROOT) { throw "PACKAGE_ROOT was not published by the build." }
+          $worker = Join-Path $env:PACKAGE_ROOT "pATHENA-Worker.exe"
+          $runtimeRoot = Join-Path $env:DIAGNOSTIC_ROOT "package-worker-runtime"
+          New-Item -ItemType Directory -Path $runtimeRoot -Force | Out-Null
+          $env:ATHENA_LOCAL_ROOT = $runtimeRoot
+          $stdout = Join-Path $env:DIAGNOSTIC_ROOT "package-worker-stdout.log"
+          $stderr = Join-Path $env:DIAGNOSTIC_ROOT "package-worker-stderr.log"
+          $process = Start-Process `
+            -FilePath $worker `
+            -ArgumentList @("-m", "athena") `
+            -WorkingDirectory $env:PACKAGE_ROOT `
+            -RedirectStandardOutput $stdout `
+            -RedirectStandardError $stderr `
+            -Wait `
+            -PassThru
+          if ($process.ExitCode -ne 0) {
+            throw "Packaged worker ATHENA CLI dispatch exited with $($process.ExitCode)."
+          }
+          $output = Get-Content $stdout -Raw -ErrorAction SilentlyContinue
+          if ($output -notmatch "ATHENA") {
+            throw "Packaged worker did not preserve redirected stdout."
+          }
+
+          $rejectOut = Join-Path $env:DIAGNOSTIC_ROOT "package-worker-reject-stdout.log"
+          $rejectErr = Join-Path $env:DIAGNOSTIC_ROOT "package-worker-reject-stderr.log"
+          $rejected = Start-Process `
+            -FilePath $worker `
+            -ArgumentList @("-m", "athena.desktop.app") `
+            -WorkingDirectory $env:PACKAGE_ROOT `
+            -RedirectStandardOutput $rejectOut `
+            -RedirectStandardError $rejectErr `
+            -Wait `
+            -PassThru
+          if ($rejected.ExitCode -ne 2) {
+            throw "Packaged worker did not fail closed for an unsupported module dispatch."
+          }
+
+      - name: Cold-start packaged desktop with bounded internal process tree
+        id: package_desktop
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          if (-not $env:PACKAGE_ROOT) { throw "PACKAGE_ROOT was not published by the build." }
+          & harness\scripts\windows_candidate_packaged_smoke.ps1 `
+            -PackageRoot $env:PACKAGE_ROOT `
+            -ReportDirectory $env:DIAGNOSTIC_ROOT `
+            -ObserveSeconds 16 `
+            -SampleSeconds 2 `
+            -MaximumProcesses 12
+
       - name: Classify diagnostic results without claiming promotion GREEN
         id: verdict
         shell: pwsh
@@ -245,13 +321,15 @@ jobs:
             provider_loopback = "${{ steps.provider.outcome }}"
             database_reopen = "${{ steps.persistence.outcome }}"
             desktop_process_tree = "${{ steps.desktop.outcome }}"
+            package_build = "${{ steps.package_build.outcome }}"
+            package_worker_dispatch = "${{ steps.package_worker.outcome }}"
+            package_cold_start = "${{ steps.package_desktop.outcome }}"
           }
           $failed = @($checks.GetEnumerator() | Where-Object Value -ne "success")
           $diagnosticStatus = if ($failed.Count -eq 0) { "PASS" } else { "FAIL" }
           $promotionStatus = if ($failed.Count -eq 0) { "NOT_EXECUTABLE" } else { "RED" }
           $reasons = @(
             "Candidate does not contain the assigned redesign slices for all eleven references.",
-            "Candidate has no supported Windows package/EXE configuration to build and cold-start.",
             "Real RX-7900-XTX, driver, and LM Studio inference remain LOCAL_HARDWARE_PENDING."
           )
           [ordered]@{
@@ -260,12 +338,13 @@ jobs:
             promotion_status = $promotionStatus
             checks = $checks
             not_executable_reasons = $reasons
+            package_configuration = "supported-two-executable-onedir"
             distributable_artifact = $null
           } | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $env:DIAGNOSTIC_ROOT "acceptance-result.json")
           if ($failed.Count -ne 0) {
             throw "One or more executable Windows diagnostics failed."
           }
-          Write-Output "Executable diagnostics passed; promotion remains NOT_EXECUTABLE."
+          Write-Output "Executable diagnostics and package cold-start passed; promotion remains NOT_EXECUTABLE."
 
       - name: Upload logs and screenshots as non-promotable diagnostics only
         if: always()
