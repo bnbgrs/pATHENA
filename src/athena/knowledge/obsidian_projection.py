@@ -52,7 +52,11 @@ def project_knowledge_snapshot(snapshot: KnowledgeUnitSnapshot) -> ObsidianNote:
     if payload.valid_to_us is not None:
         frontmatter["athena_valid_to_us"] = payload.valid_to_us
 
-    markdown = _render_markdown(title=title, body=payload.body, frontmatter=frontmatter)
+    markdown = _render_markdown(
+        title=_single_line_title(title),
+        body=payload.body,
+        frontmatter=frontmatter,
+    )
     return ObsidianNote(relative_path=relative_path, markdown=markdown)
 
 
@@ -73,6 +77,10 @@ def _fallback_title(body: str) -> str:
     if not first_line:
         return "Untitled knowledge"
     return first_line[:_MAX_STEM_LENGTH]
+
+
+def _single_line_title(title: str) -> str:
+    return _WHITESPACE.sub(" ", title.strip())
 
 
 def _safe_stem(title: str) -> str:
