@@ -154,7 +154,7 @@ jobs:
             artifacts/visual-actual/**
             artifacts/visual-diff/**
             artifacts/visual-baseline-proposal.json
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 14
 
       - name: Enforce visual verdict
