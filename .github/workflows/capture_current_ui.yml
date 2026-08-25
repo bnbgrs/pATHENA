@@ -1,0 +1,49 @@
+name: Capture current pATHENA UI
+
+on:
+  push:
+    branches:
+      - capture/current-ui-20260825
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: windows-latest
+    timeout-minutes: 25
+    env:
+      QT_QPA_PLATFORM: offscreen
+      QT_QUICK_BACKEND: software
+      QT_OPENGL: software
+      PATHENA_SCREENSHOT_DIR: screenshots-current
+    steps:
+      - name: Checkout current capture branch
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+
+      - name: Install current desktop runtime
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install ".[desktop]"
+
+      - name: Start pATHENA UI and capture screens
+        shell: pwsh
+        run: |
+          python .\scripts\capture_current_ui.py
+          Get-ChildItem .\screenshots-current -File | Select-Object Name,Length
+
+      - name: Upload screenshots
+        uses: actions/upload-artifact@v4
+        with:
+          name: pATHENA-current-UI-screenshots-20260825
+          path: screenshots-current/
+          if-no-files-found: error
+          retention-days: 7
