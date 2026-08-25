@@ -77,6 +77,9 @@ class PathenaMainWindow(AthenaMainWindow):
 
     def __init__(self, api_controller: DesktopApiController | None = None) -> None:
         super().__init__(api_controller=api_controller)
+        bind_semantic_root = getattr(self.ascii_panel, "bind_semantic_root", None)
+        if callable(bind_semantic_root):
+            bind_semantic_root(self)
         self._apply_quiet_cognitive_workspace()
         self._install_progressive_disclosure()
         self.chat_selector.currentIndexChanged.connect(
