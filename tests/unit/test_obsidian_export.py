@@ -101,10 +101,29 @@ def test_export_rejects_parent_traversal_before_writing(tmp_path: Path) -> None:
     exporter = ObsidianVaultExporter(tmp_path)
     malicious = ObsidianNote(relative_path="../escape.md", markdown="escape")
 
-    with pytest.raises(ValueError, match="strictly inside"):
+    with pytest.raises(ValueError, match="portable relative segments"):
         exporter.export_note(malicious)
 
     assert not (tmp_path.parent / "escape.md").exists()
+
+
+@pytest.mark.parametrize(
+    "relative_path",
+    (
+        "Knowledge/./escape.md",
+        "Knowledge//escape.md",
+        "C:/escape.md",
+        "Knowledge/C:/escape.md",
+    ),
+)
+def test_export_rejects_nonportable_raw_segments(
+    tmp_path: Path,
+    relative_path: str,
+) -> None:
+    exporter = ObsidianVaultExporter(tmp_path)
+
+    with pytest.raises(ValueError, match="portable relative segments"):
+        exporter.export_note(ObsidianNote(relative_path=relative_path, markdown="escape"))
 
 
 def test_export_rejects_backslash_path_alias(tmp_path: Path) -> None:
