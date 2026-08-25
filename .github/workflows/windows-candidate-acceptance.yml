@@ -10,6 +10,7 @@ on:
       - scripts/windows_candidate_desktop_driver.py
       - scripts/windows_candidate_provider_probe.py
       - tests/unit/test_windows_candidate_harness_contract.py
+      - .github/windows-candidate-request.txt
   workflow_dispatch:
     inputs:
       candidate_sha:
@@ -47,7 +48,10 @@ jobs:
 
   exact-candidate-source-diagnostics:
     name: Exact candidate source diagnostics on Windows Server 2025
-    if: github.event_name == 'workflow_dispatch'
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' &&
+      startsWith(github.event.head_commit.message, 'test(windows): request exact candidate'))
     runs-on: windows-2025
     timeout-minutes: 35
     env:
@@ -56,10 +60,20 @@ jobs:
       QT_QPA_PLATFORM: offscreen
 
     steps:
+      - name: Checkout diagnostic harness
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          path: harness
+          persist-credentials: false
+
       - name: Resolve immutable candidate identity
         shell: pwsh
         run: |
-          $candidate = "${{ inputs.candidate_sha }}"
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $candidate = "${{ inputs.candidate_sha }}"
+          } else {
+            $candidate = Get-Content "harness\.github\windows-candidate-request.txt" -Raw
+          }
           $candidate = $candidate.Trim().ToLowerInvariant()
           if ($candidate -notmatch "^[0-9a-f]{40}$") {
             throw "candidate_sha must be exactly 40 lowercase hexadecimal characters."
@@ -71,12 +85,6 @@ jobs:
           $diagnosticRoot = Join-Path $env:RUNNER_TEMP "pathena-$candidate"
           New-Item -ItemType Directory -Path $diagnosticRoot -Force | Out-Null
           "DIAGNOSTIC_ROOT=$diagnosticRoot" | Out-File -FilePath $env:GITHUB_ENV -Append
-
-      - name: Checkout diagnostic harness
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
-        with:
-          path: harness
-          persist-credentials: false
 
       - name: Checkout exact candidate SHA
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0

@@ -5,6 +5,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW = ROOT / ".github" / "workflows" / "windows-candidate-acceptance.yml"
+REQUEST = ROOT / ".github" / "windows-candidate-request.txt"
 PROCESS_HARNESS = ROOT / "scripts" / "windows_candidate_process_tree.ps1"
 DESKTOP_DRIVER = ROOT / "scripts" / "windows_candidate_desktop_driver.py"
 PROVIDER_PROBE = ROOT / "scripts" / "windows_candidate_provider_probe.py"
@@ -25,8 +26,11 @@ def test_workflow_is_sha_bound_native_windows_and_cache_free() -> None:
     assert "refs/heads/bot/pathena-candidate" in workflow
     assert "timeout-minutes: 35" in workflow
     assert "cache:" not in workflow
-    assert "if: github.event_name == 'workflow_dispatch'" in workflow
+    assert "github.event_name == 'workflow_dispatch' ||" in workflow
     assert "if: github.event_name == 'push'" in workflow
+    assert "startsWith(github.event.head_commit.message" in workflow
+    assert "windows-candidate-request.txt" in workflow
+    assert len(_read(REQUEST).strip()) == 40
     assert "ref: ${{ env.CANDIDATE_SHA }}" in workflow
     assert "DEFAULT_CANDIDATE_SHA" not in workflow
 
