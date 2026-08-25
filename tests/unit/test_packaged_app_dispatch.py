@@ -75,6 +75,15 @@ def test_hardware_acceptance_routes_only_to_worker_role() -> None:
     )
 
 
+def test_recovery_diagnostics_route_only_to_explicit_worker_role() -> None:
+    invocation = route_packaged_argv(
+        ("-m", "athena.recovery_cli", "diagnose")
+    )
+
+    assert invocation.target is PackagedTarget.RECOVERY
+    assert invocation.arguments == ("diagnose",)
+
+
 def test_frozen_desktop_binds_sys_executable_to_sibling_worker(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
