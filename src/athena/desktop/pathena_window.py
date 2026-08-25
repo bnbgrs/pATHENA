@@ -227,6 +227,14 @@ class PathenaMainWindow(AthenaMainWindow):
                 if evidence_index >= 0:
                     chat_layout.insertWidget(evidence_index, self.context_button)
 
+    def bind_pallas_context_inspector(self, selection_source: object) -> object:
+        """Bind Core's selection signal to the one shared Context Inspector."""
+        from athena.desktop.pathena_pallas_inspector import (
+            install_pallas_context_inspector,
+        )
+
+        return install_pallas_context_inspector(self, selection_source)
+
     def _set_context_available(self, available: bool) -> None:
         button = getattr(self, "context_button", None)
         if not isinstance(button, QPushButton):
