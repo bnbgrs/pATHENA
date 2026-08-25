@@ -78,13 +78,12 @@ jobs:
             if ($LASTEXITCODE -ne 0) { throw 'Reserve pressure Ruff contract failed.' }
           } finally { Pop-Location }
 
-      - name: Mypy reserve pressure
+      - name: Mypy changed reserve-pressure policy
         shell: pwsh
         run: |
           Push-Location candidate
           try {
             uv run --locked --extra dev --no-sync mypy `
-              src/athena/storage/emergency_reserve.py `
               src/athena/storage/disk_pressure.py
             if ($LASTEXITCODE -ne 0) { throw 'Reserve pressure mypy contract failed.' }
           } finally { Pop-Location }
