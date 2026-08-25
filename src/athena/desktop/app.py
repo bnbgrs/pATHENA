@@ -12,6 +12,7 @@ from PySide6.QtWidgets import QApplication
 from athena.api.client import CoreApiClient
 from athena.desktop.api_controller import DesktopApiController
 from athena.desktop.canonical_memory_extensions import install_canonical_memory_extensions
+from athena.desktop.chat_grounding_extension import install_chat_grounding_extension
 from athena.desktop.command_palette import install_command_palette
 from athena.desktop.files_workspace import install_files_workspace
 from athena.desktop.jobs_workspace import install_jobs_workspace
@@ -191,6 +192,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     window = PathenaMainWindow(api_controller=controller)
     settings_runtime = install_settings_runtime(window, controller)
     pallas_grounded_field = install_pallas_grounded_field(window, controller)
+    chat_grounding = install_chat_grounding_extension(window, controller)
     knowledge_workspace = install_knowledge_workspace(window, controller)
     knowledge_selection_continuity = install_knowledge_selection_continuity(
         knowledge_workspace
@@ -321,6 +323,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     command_palette_truth.deleteLater()
     transient_dialog_shortcuts.deleteLater()
     command_palette.deleteLater()
+    chat_grounding.deleteLater()
     pallas_grounded_field.deleteLater()
     settings_runtime.deleteLater()
     return exit_code
