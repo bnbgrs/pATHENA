@@ -12,7 +12,26 @@
     "PATHENA-SECURITY": {"scope": ["local-first","network","tor","secrets","encryption","process-boundaries","privacy","logging"]},
     "PATHENA-QA-SCOUT": {"scope": ["regressions","windows","packaging","tests","feature-gaps","reproduction"]}
   },
-  "claims": [],
+  "claims": [
+    {
+      "task_id": "TASK-0007",
+      "title": "Audit current candidate release and promotion readiness without product churn",
+      "priority": "REGRESSION",
+      "owner": "PATHENA-LEAD",
+      "status": "CLAIMED",
+      "base_candidate_sha": "abb636304be229db1b82781d4de38dfbf8531bfc",
+      "paths": [],
+      "semantic_scope": ["release-readiness","promotion-readiness","candidate-integrity","integration-evidence"],
+      "started_at": "2026-08-25T10:58:00Z",
+      "heartbeat_at": "2026-08-25T10:58:00Z",
+      "verification_plan": [
+        "compare the exact candidate against the repository default branch and review changed-file scope",
+        "inspect current pull-request, release and branch state for an existing promotion path",
+        "verify exact-SHA Windows/runtime evidence remains bound to the live candidate",
+        "record concrete blockers or ready follow-up tasks without modifying product code"
+      ]
+    }
+  ],
   "backlog": [{"task_id":"TASK-0002","title":"Assess Obsidian projection gap after Recovery gate","priority":"FEATURE_GAP","status":"COMPLETED","preferred_owner":"PATHENA-BACKEND"}],
   "completed": [
     {"task_id":"TASK-0001","title":"Expose existing recovery diagnostics as a safe desktop SYSTEM workflow","priority":"P1_CORE","owner":"PATHENA-LEAD","status":"COMPLETED","base_candidate_sha":"d13a793357f27c90d0e4ae32db4236eb87006820","result_candidate_sha":"de1affbd6afc8f914902119efdddfbbf6ebd555e","completed_at":"2026-08-25T09:51:00Z","paths":["src/athena/desktop/system_recovery.py","src/athena/desktop/system_workspace.py","src/athena/desktop/packaged_app.py","src/athena/desktop/packaged_worker.py","tests/unit/test_system_recovery.py","tests/unit/test_packaged_app_dispatch.py"],"result":"SYSTEM now exposes asynchronous payload-free read-only Recovery diagnosis. Healthy, derived-rebuild-needed and recovery-required states are projected truthfully. Restore remains isolated CLI-only; no repair action is exposed in the desktop. Packaged worker routing remains explicit and fail-closed.","verification":["Recovery contract run 32833754446: SUCCESS","Full exact-SHA Windows acceptance run 32833754312: SUCCESS","Hardware packaging regression run 32833754397: SUCCESS","11/11 reference surfaces rendered successfully","supported Windows package build, worker dispatch and packaged desktop cold-start succeeded"],"remaining_risks":["Real RX-7900-XTX, driver and LM Studio inference remain LOCAL_HARDWARE_PENDING."]},
@@ -36,6 +55,7 @@
     {"type":"CLAIM","agent":"PATHENA-QA-SCOUT","task_id":"TASK-0005","at":"2026-08-25T10:39:42Z","candidate_sha":"ddf76c67ccb924699b36a145039292c699c29871","detail":"Claimed isolated Obsidian projection regression audit to close missing static-test evidence and reproduce multiline-title/filename edge cases."},
     {"type":"COMPLETE","agent":"PATHENA-QA-SCOUT","task_id":"TASK-0005","at":"2026-08-25T10:47:00Z","candidate_sha":"abb636304be229db1b82781d4de38dfbf8531bfc","detail":"Multiline canonical titles can no longer split the projected Obsidian H1. Exact Windows Ruff/Mypy/Pytest contract is green; final product diff remains restricted to the two claimed paths. Claim released without asserting general full-runtime GREEN."},
     {"type":"CLAIM","agent":"PATHENA-QA-SCOUT","task_id":"TASK-0006","at":"2026-08-25T10:48:00Z","candidate_sha":"abb636304be229db1b82781d4de38dfbf8531bfc","detail":"Claimed evidence-only closure of full exact Windows diagnostics run 32838813014 for the current candidate; no product paths reserved and no code edit planned unless a reproducible failure emerges."},
-    {"type":"COMPLETE","agent":"PATHENA-QA-SCOUT","task_id":"TASK-0006","at":"2026-08-25T10:51:00Z","candidate_sha":"abb636304be229db1b82781d4de38dfbf8531bfc","detail":"Full exact Windows diagnostics completed successfully through artifact upload. Evidence-only claim released with no product changes and without claiming real target-hardware acceptance or promotion readiness."}
+    {"type":"COMPLETE","agent":"PATHENA-QA-SCOUT","task_id":"TASK-0006","at":"2026-08-25T10:51:00Z","candidate_sha":"abb636304be229db1b82781d4de38dfbf8531bfc","detail":"Full exact Windows diagnostics completed successfully through artifact upload. Evidence-only claim released with no product changes and without claiming real target-hardware acceptance or promotion readiness."},
+    {"type":"CLAIM","agent":"PATHENA-LEAD","task_id":"TASK-0007","at":"2026-08-25T10:58:00Z","candidate_sha":"abb636304be229db1b82781d4de38dfbf8531bfc","detail":"Claimed evidence-only release/promotion readiness audit after confirming no active claims and current exact Windows evidence is green."}
   ]
 }
