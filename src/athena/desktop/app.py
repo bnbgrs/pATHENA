@@ -63,6 +63,7 @@ from athena.desktop.pathena_navigation_context_accessibility import (
     install_navigation_context_accessibility,
 )
 from athena.desktop.pathena_pallas_field import install_pallas_grounded_field
+from athena.desktop.pathena_pallas_inspector import install_pallas_context_inspector
 from athena.desktop.pathena_primary_input_accessibility import (
     install_primary_input_accessibility,
 )
@@ -192,6 +193,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     window = PathenaMainWindow(api_controller=controller)
     settings_runtime = install_settings_runtime(window, controller)
     pallas_grounded_field = install_pallas_grounded_field(window, controller)
+    pallas_context_inspector = install_pallas_context_inspector(
+        window,
+        pallas_grounded_field,
+    )
     chat_grounding = install_chat_grounding_extension(window, controller)
     knowledge_workspace = install_knowledge_workspace(window, controller)
     knowledge_selection_continuity = install_knowledge_selection_continuity(
@@ -324,6 +329,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     transient_dialog_shortcuts.deleteLater()
     command_palette.deleteLater()
     chat_grounding.deleteLater()
+    pallas_context_inspector.deleteLater()
     pallas_grounded_field.deleteLater()
     settings_runtime.deleteLater()
     return exit_code
