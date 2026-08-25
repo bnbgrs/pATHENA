@@ -55,6 +55,7 @@ def test_process_harness_enforces_full_tree_and_orphan_boundaries() -> None:
     assert "ParentProcessId" in harness
     assert "CommandLine" in harness
     assert "Update-KnownDescendants" in harness
+    assert "[AllowEmptyCollection()][object[]]$Processes" in harness
     assert "-ge $MaximumRelevantProcesses" in harness
     assert "[int]$MaximumRelevantProcesses = 20" in harness
     assert "[int]$PostExitSeconds = 10" in harness
