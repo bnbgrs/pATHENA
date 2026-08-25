@@ -26,6 +26,10 @@ function Invoke-PathenaPyInstaller {
         [Parameter(Mandatory = $true)][string]$SpecPath
     )
 
+    foreach ($path in @($DistPath, $WorkPath, $SpecPath)) {
+        New-Item -ItemType Directory -Path $path -Force | Out-Null
+    }
+
     & $script:python -m PyInstaller `
         --noconfirm `
         --clean `
