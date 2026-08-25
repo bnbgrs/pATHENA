@@ -22,6 +22,8 @@ from athena.desktop.pathena_comfyui import (
     load_api_workflow,
 )
 
+_GIB = 1024**3
+
 
 class _Handler(BaseHTTPRequestHandler):
     posted: list[dict[str, object]] = []
@@ -29,6 +31,16 @@ class _Handler(BaseHTTPRequestHandler):
     queue_running: list[list[object]] = []
     queue_pending: list[list[object]] = []
     history: dict[str, object] = {}
+    system_stats: dict[str, object] = {
+        "system": {"comfyui_version": "test-local"},
+        "devices": [
+            {
+                "name": "diagnostic-gpu",
+                "vram_total": 24 * _GIB,
+                "vram_free": 18 * _GIB,
+            }
+        ],
+    }
 
     def log_message(self, _format: str, *_args: object) -> None:
         return
@@ -43,12 +55,7 @@ class _Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802
         if self.path == "/system_stats":
-            self._json(
-                {
-                    "system": {"comfyui_version": "test-local"},
-                    "devices": [{"name": "diagnostic-gpu"}],
-                }
-            )
+            self._json(type(self).system_stats)
             return
         if self.path == "/queue":
             self._json(
@@ -94,6 +101,16 @@ def local_comfyui():
     _Handler.queue_running = []
     _Handler.queue_pending = []
     _Handler.history = {}
+    _Handler.system_stats = {
+        "system": {"comfyui_version": "test-local"},
+        "devices": [
+            {
+                "name": "diagnostic-gpu",
+                "vram_total": 24 * _GIB,
+                "vram_free": 18 * _GIB,
+            }
+        ],
+    }
     server = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -125,6 +142,13 @@ def _app() -> QApplication:
     return QApplication([])
 
 
+class _Palette(QObject):
+    def __init__(self, window: QWidget) -> None:
+        super().__init__(window)
+        self.window = window
+        self._commands = ()
+
+
 @pytest.mark.parametrize(
     "endpoint",
     [
@@ -152,6 +176,23 @@ def test_proxy_environment_cannot_capture_loopback_health(
 
     assert health.version == "test-local"
     assert health.device_count == 1
+    assert health.vram_total_bytes == 24 * _GIB
+    assert health.vram_free_bytes == 18 * _GIB
+
+
+def test_health_keeps_vram_truthfully_unavailable_when_stats_omit_it(
+    local_comfyui: str,
+) -> None:
+    _Handler.system_stats = {
+        "system": {"comfyui_version": "test-local"},
+        "devices": [{"name": "diagnostic-gpu"}],
+    }
+
+    health = ComfyUiClient(local_comfyui).health()
+
+    assert health.device_count == 1
+    assert health.vram_total_bytes is None
+    assert health.vram_free_bytes is None
 
 
 def test_queue_uses_real_prompt_contract(local_comfyui: str) -> None:
@@ -193,20 +234,69 @@ def test_api_workflow_validation_rejects_ui_graph(tmp_path: Path) -> None:
         load_api_workflow(path)
 
 
+def test_dialog_projects_measured_vram_and_reference_hierarchy(
+    local_comfyui: str,
+) -> None:
+    _app()
+    window = QWidget()
+    palette = _Palette(window)
+    controller = install_comfyui_integration(  # type: ignore[arg-type]
+        palette,
+        client=ComfyUiClient(local_comfyui),
+    )
+
+    assert controller.check_connection() is True
+    assert controller.dialog.property("pathenaComfyUiVramAvailable") is True
+    assert controller.dialog.property("pathenaComfyUiVramTotalBytes") == 24 * _GIB
+    assert controller.dialog.property("pathenaComfyUiVramFreeBytes") == 18 * _GIB
+    assert "6.0 GiB used" in controller.resource_status.text()
+    assert controller.check_button.text() == "Check again"
+    assert controller.dialog.findChild(QLabel, "comfyUiSectionLabel") is not None
+
+
+def test_dialog_shows_unavailable_vram_without_inventing_metrics(
+    local_comfyui: str,
+) -> None:
+    _Handler.system_stats = {
+        "system": {"comfyui_version": "test-local"},
+        "devices": [{"name": "diagnostic-gpu"}],
+    }
+    _app()
+    window = QWidget()
+    palette = _Palette(window)
+    controller = install_comfyui_integration(  # type: ignore[arg-type]
+        palette,
+        client=ComfyUiClient(local_comfyui),
+    )
+
+    assert controller.check_connection() is True
+    assert controller.dialog.property("pathenaComfyUiVramAvailable") is False
+    assert "unavailable" in controller.resource_status.text().lower()
+
+
+def test_dialog_exposes_retry_state_when_local_endpoint_is_unreachable() -> None:
+    _app()
+    window = QWidget()
+    palette = _Palette(window)
+    controller = install_comfyui_integration(  # type: ignore[arg-type]
+        palette,
+        client=ComfyUiClient("http://127.0.0.1:9", timeout=0.05),
+    )
+
+    assert controller.check_connection() is False
+    assert controller.check_button.text() == "Retry connection"
+    assert controller.dialog.property("pathenaUiState") == "error"
+    assert controller.dialog.property("pathenaComfyUiVramAvailable") is False
+    assert "disconnected" in controller.resource_status.text().lower()
+
+
 def test_dialog_loads_checks_queues_tracks_and_releases_local_resources(
     local_comfyui: str,
     tmp_path: Path,
 ) -> None:
     _app()
     window = QWidget()
-
-    class _Palette(QObject):
-        def __init__(self) -> None:
-            super().__init__(window)
-            self.window = window
-            self._commands = ()
-
-    palette = _Palette()
+    palette = _Palette(window)
     controller = install_comfyui_integration(  # type: ignore[arg-type]
         palette,
         client=ComfyUiClient(local_comfyui),
@@ -226,6 +316,7 @@ def test_dialog_loads_checks_queues_tracks_and_releases_local_resources(
 
     assert controller.release_vram() is True
     assert controller.dialog.property("pathenaComfyUiVramReleaseRequested") is True
+    assert "check the local endpoint again" in controller.resource_status.text()
 
     assert controller.dialog.objectName() == "comfyUiDialog"
     assert controller.dialog.property("pathenaComfyUiLocalOnly") is True
