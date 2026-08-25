@@ -16,6 +16,12 @@ from PySide6.QtWidgets import (
 
 from athena.desktop.api_controller import DesktopApiController, DesktopApiSnapshot
 from athena.desktop.pathena_ui_refinement_600 import set_pathena_ui_state
+from athena.desktop.system_runtime_overview import (
+    RuntimeFact,
+    SystemRuntimeOverview,
+    disconnected_system_runtime,
+    project_system_runtime,
+)
 
 
 class _SystemMetric(QFrame):
@@ -57,6 +63,8 @@ class SystemWorkspace(QWidget):
         self.loaded_models = _SystemMetric("LOADED")
         self.chats = _SystemMetric("CHATS")
         self.api = _SystemMetric("API")
+        self.storage = _SystemMetric("STORAGE TELEMETRY")
+        self.network = _SystemMetric("LOCAL CONNECTIVITY")
         self.detail = QLabel("Awaiting local Core snapshot.")
         self.detail.setObjectName("systemDetail")
         self.detail.setWordWrap(True)
@@ -103,6 +111,7 @@ class SystemWorkspace(QWidget):
             (
                 (self.core, self.provider, self.api),
                 (self.models, self.loaded_models, self.chats),
+                (self.storage, self.network),
             )
         ):
             for column, widget in enumerate(widgets):
@@ -118,45 +127,34 @@ class SystemWorkspace(QWidget):
     def apply_snapshot(self, payload: object) -> None:
         if not isinstance(payload, DesktopApiSnapshot):
             return
-
-        provider_status = (
-            payload.provider.status if payload.provider is not None else "unavailable"
-        )
-        loaded = tuple(model for model in payload.models if model.loaded)
-        self.core.set_value(payload.health.core_status.upper())
-        self.provider.set_value(provider_status.upper())
-        self.api.set_value(payload.health.api_version.upper())
-        self.models.set_value(str(len(payload.models)))
-        self.loaded_models.set_value(str(len(loaded)))
-        self.chats.set_value(str(len(payload.chats)))
-
-        detail_parts: list[str] = []
-        if payload.health.detail:
-            detail_parts.append(payload.health.detail)
-        if payload.provider is not None and payload.provider.detail:
-            detail_parts.append(payload.provider.detail)
-        if payload.model_error:
-            detail_parts.append("Model discovery: " + payload.model_error)
-        if payload.chat_error:
-            detail_parts.append("Chat discovery: " + payload.chat_error)
-        if not detail_parts:
-            detail_parts.append("Core snapshot is healthy. Local runtime data is current.")
-        self.detail.setText("\n".join(detail_parts))
-
-        if payload.model_error or payload.chat_error:
-            set_pathena_ui_state(self.detail, "error")
-        else:
-            set_pathena_ui_state(self.detail, "success")
+        self._apply_overview(project_system_runtime(payload))
 
     def apply_failure(self, message: str) -> None:
-        self.core.set_value("DISCONNECTED")
-        self.provider.set_value("UNAVAILABLE")
-        self.api.set_value("—")
-        self.models.set_value("—")
-        self.loaded_models.set_value("—")
-        self.chats.set_value("—")
-        self.detail.setText(message)
-        set_pathena_ui_state(self.detail, "error")
+        self._apply_overview(disconnected_system_runtime(message))
+
+    def _apply_overview(self, overview: SystemRuntimeOverview) -> None:
+        for widget, fact in (
+            (self.core, overview.core),
+            (self.provider, overview.provider),
+            (self.api, overview.api),
+            (self.models, overview.models),
+            (self.loaded_models, overview.loaded_models),
+            (self.chats, overview.chats),
+            (self.storage, overview.storage),
+            (self.network, overview.network),
+        ):
+            self._apply_fact(widget, fact)
+        self.detail.setText(overview.detail)
+        set_pathena_ui_state(self.detail, overview.state)
+
+    @staticmethod
+    def _apply_fact(widget: _SystemMetric, fact: RuntimeFact) -> None:
+        widget.set_value(fact.value)
+        presentation_state = {
+            "stale": "busy",
+            "unavailable": "empty",
+        }.get(fact.state, fact.state)
+        set_pathena_ui_state(widget.value, presentation_state)
 
 
 def install_system_workspace(
