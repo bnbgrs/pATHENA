@@ -83,6 +83,11 @@ def dispatch_worker(argv: Sequence[str] | None = None) -> int:
 
         return jobs_main(invocation.arguments)
 
+    if invocation.target is PackagedTarget.HARDWARE_ACCEPTANCE:
+        from athena.hardware_acceptance import main as hardware_acceptance_main
+
+        return hardware_acceptance_main(invocation.arguments)
+
     raise RuntimeError(f"Unsupported packaged worker target: {invocation.target!r}")
 
 
