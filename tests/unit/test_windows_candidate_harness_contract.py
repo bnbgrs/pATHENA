@@ -36,7 +36,7 @@ def test_workflow_is_sha_bound_native_windows_and_cache_free() -> None:
     assert "DEFAULT_CANDIDATE_SHA" not in workflow
 
 
-def test_workflow_pins_actions_and_package_remains_nonpromotable() -> None:
+def test_workflow_pins_actions_package_and_comfyui_acceptance() -> None:
     workflow = _read(WORKFLOW)
 
     assert "actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803" in workflow
@@ -46,9 +46,14 @@ def test_workflow_pins_actions_and_package_remains_nonpromotable() -> None:
     assert "build_windows_portable.ps1" in workflow
     assert "windows_candidate_packaged_smoke.ps1" in workflow
     assert "pATHENA-Worker.exe" in workflow
+    assert "tests/unit/test_pathena_comfyui.py" in workflow
+    assert "render all eleven reference surfaces" in workflow
+    assert 'reference_surfaces = "11/11 rendered"' in workflow
     assert "package_configuration = \"supported-two-executable-onedir\"" in workflow
     assert "distributable_artifact = $null" in workflow
     assert "Candidate has no supported Windows package/EXE" not in workflow
+    assert "Candidate does not contain the assigned redesign slices" not in workflow
+    assert "LOCAL_HARDWARE_PENDING" in workflow
 
 
 def test_process_harness_enforces_full_tree_and_orphan_boundaries() -> None:
@@ -103,6 +108,7 @@ def test_python_diagnostics_compile_and_cover_all_eleven_reference_surfaces() ->
     assert "PATHENA_COMFYUI_URL" in desktop
     assert "windows-diagnostic-prompt" in desktop
     assert "ThreadingHTTPServer" in desktop
+    assert "loopback HTTP; proxy bypassed" in desktop
     assert "CommandPaletteController" in desktop
     assert "PallasGroundedFieldController" in desktop
 
