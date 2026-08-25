@@ -1,0 +1,78 @@
+name: pATHENA desktop theme contract
+
+on:
+  push:
+    branches:
+      - bot/pathena-cloud-windows
+    paths:
+      - .github/workflows/windows-theme-contract.yml
+      - .github/windows-candidate-request.txt
+
+permissions:
+  contents: read
+
+jobs:
+  exact-theme-contract:
+    name: Exact candidate theme contract on Windows Server 2025
+    if: startsWith(github.event.head_commit.message, 'test(windows): request exact candidate') || contains(github.event.head_commit.message, 'theme contract')
+    runs-on: windows-2025
+    timeout-minutes: 15
+    steps:
+      - name: Checkout harness
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          path: harness
+          persist-credentials: false
+      - name: Resolve exact candidate
+        shell: pwsh
+        run: |
+          $candidate = (Get-Content 'harness\.github\windows-candidate-request.txt' -Raw).Trim().ToLowerInvariant()
+          if ($candidate -notmatch '^[0-9a-f]{40}$') { throw 'Candidate request must be an exact lowercase SHA.' }
+          "CANDIDATE_SHA=$candidate" | Out-File -FilePath $env:GITHUB_ENV -Append
+      - name: Checkout exact candidate SHA
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          path: candidate
+          persist-credentials: false
+      - name: Prove immutable candidate identity
+        shell: pwsh
+        run: |
+          $checkedOut = (git -C candidate rev-parse HEAD).Trim().ToLowerInvariant()
+          $remote = git ls-remote https://github.com/bnbgrs/pATHENA.git refs/heads/bot/pathena-candidate
+          $live = ($remote -split '\s+')[0].ToLowerInvariant()
+          if ($checkedOut -ne $env:CANDIDATE_SHA -or $live -ne $env:CANDIDATE_SHA) {
+            throw "Candidate identity mismatch: requested=$env:CANDIDATE_SHA checkout=$checkedOut live=$live"
+          }
+      - name: Set up Python 3.12
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.12'
+          check-latest: false
+      - name: Install locked desktop development environment
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check 'uv==0.11.21'
+          Push-Location candidate
+          try {
+            uv lock --check
+            if ($LASTEXITCODE -ne 0) { throw 'uv.lock is not current.' }
+            uv sync --locked --extra dev --extra desktop
+            if ($LASTEXITCODE -ne 0) { throw 'Locked desktop sync failed.' }
+          } finally { Pop-Location }
+      - name: Ruff claimed theme paths
+        shell: pwsh
+        run: |
+          Push-Location candidate
+          try {
+            uv run --locked --extra dev --extra desktop --no-sync ruff check src/athena/desktop/pathena_theme.py tests/unit/test_pathena_theme.py
+            if ($LASTEXITCODE -ne 0) { throw 'Theme Ruff contract failed.' }
+          } finally { Pop-Location }
+      - name: Pytest canonical theme contract
+        shell: pwsh
+        run: |
+          Push-Location candidate
+          try {
+            uv run --locked --extra dev --extra desktop --no-sync pytest -q tests/unit/test_pathena_theme.py
+            if ($LASTEXITCODE -ne 0) { throw 'Theme pytest contract failed.' }
+          } finally { Pop-Location }
