@@ -42,11 +42,8 @@ jobs:
       - name: Run fail-closed promotion guard
         run: python scripts/promotion_guard.py --actual-ref "$GITHUB_REF"
 
-      - name: Show Ruff import normalization
-        run: uv run --locked --extra dev --no-sync ruff check --select I --diff scripts/promotion_guard.py
-
-      - name: Ruff promotion guard tests
-        run: uv run --locked --extra dev --no-sync ruff check tests/unit/test_promotion_guard.py
+      - name: Ruff promotion guard
+        run: uv run --locked --extra dev --no-sync ruff check scripts/promotion_guard.py tests/unit/test_promotion_guard.py
 
       - name: Mypy promotion guard
         run: uv run --locked --extra dev --no-sync mypy scripts/promotion_guard.py
