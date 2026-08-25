@@ -1,0 +1,107 @@
+name: pATHENA Command Palette reference contract
+
+on:
+  push:
+    branches:
+      - bot/pathena-cloud-windows
+    paths:
+      - .github/workflows/windows-palette-contract.yml
+      - .github/windows-palette-candidate-request.txt
+
+permissions:
+  contents: read
+
+jobs:
+  exact-palette-contract:
+    name: Exact candidate Command Palette contract on Windows Server 2025
+    runs-on: windows-2025
+    timeout-minutes: 25
+    env:
+      QT_QPA_PLATFORM: offscreen
+      PYTHONUTF8: "1"
+    steps:
+      - name: Checkout harness
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          path: harness
+          persist-credentials: false
+      - name: Resolve exact candidate
+        shell: pwsh
+        run: |
+          $candidate = (Get-Content 'harness\.github\windows-palette-candidate-request.txt' -Raw).Trim().ToLowerInvariant()
+          if ($candidate -notmatch '^[0-9a-f]{40}$') { throw 'Palette candidate request must be an exact lowercase SHA.' }
+          "CANDIDATE_SHA=$candidate" | Out-File -FilePath $env:GITHUB_ENV -Append
+      - name: Checkout exact candidate SHA
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          path: candidate
+          persist-credentials: false
+      - name: Prove immutable checkout identity
+        shell: pwsh
+        run: |
+          $checkedOut = (git -C candidate rev-parse HEAD).Trim().ToLowerInvariant()
+          if ($checkedOut -ne $env:CANDIDATE_SHA) { throw "Checked out $checkedOut instead of $env:CANDIDATE_SHA." }
+      - name: Set up Python 3.12
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: '3.12'
+          check-latest: false
+      - name: Install locked desktop development environment
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check 'uv==0.11.21'
+          Push-Location candidate
+          try {
+            uv lock --check
+            if ($LASTEXITCODE -ne 0) { throw 'uv.lock is not current.' }
+            uv sync --locked --extra dev --extra desktop
+            if ($LASTEXITCODE -ne 0) { throw 'Locked desktop sync failed.' }
+          } finally { Pop-Location }
+      - name: Ruff Command Palette slice
+        shell: pwsh
+        run: |
+          Push-Location candidate
+          try {
+            uv run --locked --extra dev --extra desktop --no-sync ruff check src/athena/desktop/pathena_command_palette_truth_6500.py tests/unit/test_pathena_command_palette_truth_6500.py
+            if ($LASTEXITCODE -ne 0) { throw 'Palette Ruff contract failed.' }
+          } finally { Pop-Location }
+      - name: Mypy Command Palette slice
+        shell: pwsh
+        run: |
+          Push-Location candidate
+          try {
+            uv run --locked --extra dev --extra desktop --no-sync mypy src/athena/desktop/pathena_command_palette_truth_6500.py
+            if ($LASTEXITCODE -ne 0) { throw 'Palette mypy contract failed.' }
+          } finally { Pop-Location }
+      - name: Pytest Command Palette semantics
+        shell: pwsh
+        run: |
+          Push-Location candidate
+          try {
+            uv run --locked --extra dev --extra desktop --no-sync pytest -q tests/unit/test_pathena_command_palette_truth_6500.py
+            if ($LASTEXITCODE -ne 0) { throw 'Palette pytest contract failed.' }
+          } finally { Pop-Location }
+      - name: Render all eleven real Qt reference surfaces
+        shell: pwsh
+        run: |
+          $runtimeRoot = Join-Path $env:RUNNER_TEMP "palette-runtime-$env:CANDIDATE_SHA"
+          $screenshotRoot = Join-Path $env:RUNNER_TEMP "palette-screens-$env:CANDIDATE_SHA"
+          & harness\scripts\windows_candidate_process_tree.ps1 `
+            -CandidateRoot (Resolve-Path candidate) `
+            -WorkingDirectory (Resolve-Path candidate) `
+            -FilePath (Resolve-Path candidate\.venv\Scripts\python.exe) `
+            -ArgumentList @(
+              (Resolve-Path harness\scripts\windows_candidate_desktop_driver.py),
+              "--runtime-root", $runtimeRoot,
+              "--screenshot-directory", $screenshotRoot,
+              "--initial-delay-seconds", "7"
+            ) `
+            -Label "palette-reference-render" `
+            -ReportDirectory $env:RUNNER_TEMP `
+            -TimeoutSeconds 120 `
+            -MaximumRelevantProcesses 20 `
+            -PostExitSeconds 10
+          $screens = @(Get-ChildItem $screenshotRoot -Filter '*.png' -File)
+          if ($screens.Count -ne 11) { throw "Expected 11 Qt reference surfaces, found $($screens.Count)." }
+          Write-Host "Rendered exactly $($screens.Count) Qt reference surfaces for $env:CANDIDATE_SHA."
