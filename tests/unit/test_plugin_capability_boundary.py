@@ -83,6 +83,32 @@ def test_manifest_rejects_unsafe_identity_or_entrypoint_syntax(
         PluginManifest.from_mapping(payload)
 
 
+@pytest.mark.parametrize(
+    ("target", "unsafe_text"),
+    (
+        ("name", "Trusted\nInjected"),
+        ("name", "Trusted\u202eexe.txt"),
+        ("publisher_key", "na\rme"),
+        ("publisher_value", "Trusted\u2066spoof\u2069"),
+        ("publisher_value", "Trusted\u2028Injected"),
+    ),
+)
+def test_manifest_rejects_display_control_injection(
+    target: str,
+    unsafe_text: str,
+) -> None:
+    payload = _manifest_payload()
+    if target == "name":
+        payload["name"] = unsafe_text
+    elif target == "publisher_key":
+        payload["publisher"] = {unsafe_text: "Example"}
+    else:
+        payload["publisher"] = {"name": unsafe_text}
+
+    with pytest.raises(PluginManifestError, match="unsafe control or format"):
+        PluginManifest.from_mapping(payload)
+
+
 def test_manifest_rejects_unknown_fields_permissions_and_capabilities() -> None:
     payload = _manifest_payload()
     payload["shell_command"] = "calc.exe"
