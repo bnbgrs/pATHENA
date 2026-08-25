@@ -2,7 +2,7 @@
   "schema_version": 1,
   "coordination_branch": "bot/pathena-coordination",
   "candidate_branch": "bot/pathena-candidate",
-  "last_known_candidate_sha": "de1affbd6afc8f914902119efdddfbbf6ebd555e",
+  "last_known_candidate_sha": "de440f49671f4aeb35626085dc333d1ebe6032e7",
   "claim_timeout_minutes": 90,
   "priority_order": [
     "P0_DEFECT",
@@ -40,7 +40,7 @@
         "local-first-plugin-policy"
       ],
       "started_at": "2026-08-25T09:53:00Z",
-      "heartbeat_at": "2026-08-25T09:53:00Z",
+      "heartbeat_at": "2026-08-25T10:04:00Z",
       "verification_plan": [
         "inventory existing extension/plugin execution surfaces",
         "define fail-closed capability model before any executable plugin loading",
@@ -120,6 +120,14 @@
       "at": "2026-08-25T09:53:00Z",
       "candidate_sha": "de1affbd6afc8f914902119efdddfbbf6ebd555e",
       "detail": "Claimed highest-priority free SECURITY task: inventory plugin execution surfaces and establish a fail-closed capability boundary before executable plugins are introduced."
+    },
+    {
+      "type": "HEARTBEAT",
+      "agent": "PATHENA-LEAD",
+      "task_id": "TASK-0003",
+      "at": "2026-08-25T10:04:00Z",
+      "candidate_sha": "de440f49671f4aeb35626085dc333d1ebe6032e7",
+      "detail": "Plugin slice remains isolated to declared paths. Exact Windows plugin contract is green; full Windows regression has passed targeted tests, LM Studio loopback, DB reopen, 11/11 surfaces, package build, worker dispatch and packaged cold-start; awaiting workflow finalization/upload only."
     }
   ]
 }
