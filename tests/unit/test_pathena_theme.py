@@ -36,6 +36,28 @@ def test_meaningful_small_metadata_uses_accessible_subtle_token() -> None:
     assert "QLabel#knowledgeReviewState" in PATHENA_SPECIALIZED_STYLESHEET
 
 
+def test_legacy_meaningful_metadata_is_overridden_after_base_theme() -> None:
+    meaningful_block = PATHENA_SPECIALIZED_STYLESHEET.split(
+        "QLabel#commandMeta,", maxsplit=1
+    )[1].split("QPushButton:checked", maxsplit=1)[0]
+    assert "QLabel#chainState" in meaningful_block
+    assert f"color: {PALETTE.text_subtle};" in meaningful_block
+
+    command_base_index = PATHENA_STYLESHEET.index("QLabel#commandMeta { color:")
+    command_override_index = PATHENA_STYLESHEET.index("QLabel#commandMeta,", command_base_index)
+    chain_base_index = PATHENA_STYLESHEET.index("QLabel#chainState {", command_base_index)
+    chain_override_index = PATHENA_STYLESHEET.index("QLabel#chainState {", chain_base_index + 1)
+
+    assert command_override_index > command_base_index
+    assert chain_override_index > chain_base_index
+
+
+def test_decorative_and_disabled_legacy_dim_states_are_not_blanket_promoted() -> None:
+    assert "QLabel#chainArrow" not in PATHENA_SPECIALIZED_STYLESHEET
+    assert "QLineEdit#promptInput:disabled" not in PATHENA_SPECIALIZED_STYLESHEET
+    assert "QPushButton#sendButton:disabled" not in PATHENA_SPECIALIZED_STYLESHEET
+
+
 def test_disabled_actions_keep_deliberately_quiet_token() -> None:
     disabled_block = PATHENA_SPECIALIZED_STYLESHEET.split(
         "QPushButton#rememberMessageButton:disabled,", maxsplit=1
