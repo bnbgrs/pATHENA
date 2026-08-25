@@ -1,0 +1,145 @@
+name: Windows current pATHENA package
+
+on:
+  push:
+    branches:
+      - build/windows-current-20260825-2215
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-current-windows-package:
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout exact build branch
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install pinned uv
+        shell: pwsh
+        run: python -m pip install "uv==0.11.21"
+
+      - name: Validate packaged process routing
+        shell: pwsh
+        run: |
+          uv sync --locked --extra desktop
+          uv run --extra desktop pytest tests/unit/test_packaged_app_dispatch.py tests/unit/test_packaged_process_launch.py -q
+
+      - name: Build supported Windows portable package
+        shell: pwsh
+        run: |
+          $out = Join-Path $env:RUNNER_TEMP "pathena-current-dist"
+          .\scripts\build_windows_portable.ps1 -OutputRoot $out
+          $package = Join-Path $out "pATHENA"
+          if (-not (Test-Path (Join-Path $package "pATHENA.exe"))) { throw "pATHENA.exe missing" }
+          if (-not (Test-Path (Join-Path $package "pATHENA-Worker.exe"))) { throw "pATHENA-Worker.exe missing" }
+          "PATHENA_PACKAGE=$package" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Guarded Windows startup smoke test
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          $package = $env:PATHENA_PACKAGE
+          $desktopExe = Join-Path $package "pATHENA.exe"
+          $env:QT_QPA_PLATFORM = "offscreen"
+          $env:ATHENA_HOME = Join-Path $env:RUNNER_TEMP "pathena-smoke-home"
+          New-Item -ItemType Directory -Force -Path $env:ATHENA_HOME | Out-Null
+
+          Get-Process -Name "pATHENA","pATHENA-Worker" -ErrorAction SilentlyContinue | Stop-Process -Force
+          $desktop = $null
+          $failure = $null
+          $observedCore = $false
+          $observedScheduler = $false
+          $maxWorkers = 0
+
+          try {
+            $desktop = Start-Process -FilePath $desktopExe -WorkingDirectory $package -PassThru
+
+            for ($i = 0; $i -lt 10; $i++) {
+              Start-Sleep -Seconds 2
+              $desktop.Refresh()
+              if ($desktop.HasExited) {
+                $failure = "pATHENA.exe exited during startup smoke test with exit code $($desktop.ExitCode)"
+                break
+              }
+
+              $desktops = @(Get-CimInstance Win32_Process | Where-Object { $_.Name -eq "pATHENA.exe" })
+              $workers = @(Get-CimInstance Win32_Process | Where-Object { $_.Name -eq "pATHENA-Worker.exe" })
+              $maxWorkers = [Math]::Max($maxWorkers, $workers.Count)
+
+              if ($desktops.Count -gt 1) {
+                $failure = "Detected recursive desktop fan-out: $($desktops.Count) pATHENA.exe processes"
+                break
+              }
+              if ($workers.Count -gt 8) {
+                $failure = "Detected unsafe worker fan-out: $($workers.Count) pATHENA-Worker.exe processes"
+                break
+              }
+
+              foreach ($worker in $workers) {
+                $cmd = [string]$worker.CommandLine
+                if ($cmd -match "-m\s+athena\.api\.process") { $observedCore = $true }
+                if ($cmd -match "-m\s+athena\s+job\s+scheduler-run") { $observedScheduler = $true }
+              }
+            }
+
+            Write-Host "Maximum worker count observed: $maxWorkers"
+            $snapshot = @(Get-CimInstance Win32_Process | Where-Object { $_.Name -in @("pATHENA.exe", "pATHENA-Worker.exe") })
+            $snapshot | Select-Object ProcessId, ParentProcessId, Name, CommandLine | Format-List | Out-String | Write-Host
+
+            if (-not $failure -and -not $observedCore) {
+              $failure = "Packaged Core role was not observed"
+            }
+            if (-not $failure -and -not $observedScheduler) {
+              $failure = "Packaged scheduler role was not observed"
+            }
+          }
+          finally {
+            if ($desktop -and -not $desktop.HasExited) {
+              taskkill /PID $desktop.Id /T /F | Out-Null
+            }
+            Get-Process -Name "pATHENA","pATHENA-Worker" -ErrorAction SilentlyContinue | Stop-Process -Force
+          }
+
+          if ($failure) { throw $failure }
+
+      - name: Add build identity
+        shell: pwsh
+        run: |
+          $package = $env:PATHENA_PACKAGE
+          @"
+          pATHENA CURRENT WINDOWS BUILD
+          =============================
+          Product candidate: ca497ea89f7f52c41011d8f8c0ceadfe9f444244
+          Built from: bot/pathena-candidate snapshot
+          Build branch: build/windows-current-20260825-2215
+
+          Start pATHENA.exe. Keep pATHENA-Worker.exe and app_runtime\ beside it.
+          "@ | Set-Content -Encoding UTF8 (Join-Path $package "BUILD_ID.txt")
+
+      - name: Create transport ZIP
+        shell: pwsh
+        run: |
+          $package = $env:PATHENA_PACKAGE
+          $zip = Join-Path $env:RUNNER_TEMP "pATHENA-Windows-Current-ca497ea.zip"
+          if (Test-Path $zip) { Remove-Item $zip -Force }
+          Compress-Archive -Path (Join-Path $package "*") -DestinationPath $zip -CompressionLevel Fastest
+          Get-Item $zip | Select-Object FullName, Length
+          "PATHENA_ZIP=$zip" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Upload current Windows package
+        uses: actions/upload-artifact@v4
+        with:
+          name: pATHENA-Windows-Current-ca497ea
+          path: ${{ env.PATHENA_ZIP }}
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 14
