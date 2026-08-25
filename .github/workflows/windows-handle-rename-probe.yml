@@ -1,0 +1,92 @@
+name: pATHENA Windows handle-relative rename probe
+
+on:
+  push:
+    branches:
+      - bot/pathena-cloud-windows
+    paths:
+      - .github/workflows/windows-handle-rename-probe.yml
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: windows-2025
+    timeout-minutes: 10
+    steps:
+      - name: Probe Win32 and Native relative directory rename
+        shell: pwsh
+        run: |
+          @'
+          import ctypes
+          import os
+          import tempfile
+          from ctypes import wintypes
+          from pathlib import Path
+
+          DELETE=0x00010000
+          FILE_READ_ATTRIBUTES=0x80
+          SHARE=1|2|4
+          OPEN_EXISTING=3
+          BACKUP=0x02000000
+          OPEN_REPARSE=0x00200000
+          INVALID=ctypes.c_void_p(-1).value
+          k32=ctypes.WinDLL('kernel32', use_last_error=True)
+          ntdll=ctypes.WinDLL('ntdll')
+
+          def open_handle(path, directory=False):
+              fn=k32.CreateFileW
+              fn.argtypes=(wintypes.LPCWSTR,wintypes.DWORD,wintypes.DWORD,wintypes.LPVOID,wintypes.DWORD,wintypes.DWORD,wintypes.HANDLE)
+              fn.restype=wintypes.HANDLE
+              flags=OPEN_REPARSE | (BACKUP if directory else 0)
+              h=fn(str(path), DELETE|FILE_READ_ATTRIBUTES, SHARE, None, OPEN_EXISTING, flags, None)
+              if h in (None, INVALID): raise OSError(ctypes.get_last_error())
+              return int(h)
+
+          def close(h): k32.CloseHandle(wintypes.HANDLE(h))
+
+          class FRI(ctypes.Structure):
+              _fields_=[('ReplaceIfExists', ctypes.c_ubyte),('RootDirectory',wintypes.HANDLE),('FileNameLength',wintypes.DWORD),('FileName',wintypes.WCHAR*1)]
+          class IOSB(ctypes.Structure):
+              _fields_=[('StatusOrPointer',ctypes.c_void_p),('Information',ctypes.c_size_t)]
+
+          def info(name, root):
+              raw=name.encode('utf-16-le')
+              offset=FRI.FileName.offset
+              size=max(ctypes.sizeof(FRI),offset+len(raw))
+              buf=ctypes.create_string_buffer(size)
+              x=FRI.from_buffer(buf)
+              x.ReplaceIfExists=0
+              x.RootDirectory=root
+              x.FileNameLength=len(raw)
+              ctypes.memmove(ctypes.addressof(buf)+offset,raw,len(raw))
+              return buf,size
+
+          root=Path(tempfile.mkdtemp(prefix='pathena-rename-probe-'))
+          parent=root/'parent'; parent.mkdir()
+          src=root/'srcdir'; src.mkdir()
+          sh=open_handle(src, True); ph=open_handle(parent, True)
+          try:
+              buf,size=info('renamed',ph)
+              win=k32.SetFileInformationByHandle
+              win.argtypes=(wintypes.HANDLE,ctypes.c_int,wintypes.LPVOID,wintypes.DWORD); win.restype=wintypes.BOOL
+              ok=win(sh,3,ctypes.byref(buf),size)
+              print('WIN32_OK',bool(ok),'ERR',ctypes.get_last_error())
+          finally:
+              close(sh); close(ph)
+
+          src2=root/'srcdir2'; src2.mkdir()
+          sh=open_handle(src2, True); ph=open_handle(parent, True)
+          try:
+              buf,size=info('renamed-native',ph)
+              iosb=IOSB()
+              nt=ntdll.NtSetInformationFile
+              nt.argtypes=(wintypes.HANDLE,ctypes.POINTER(IOSB),wintypes.LPVOID,wintypes.ULONG,ctypes.c_int)
+              nt.restype=wintypes.LONG
+              status=int(nt(sh,ctypes.byref(iosb),ctypes.byref(buf),size,10))
+              print('NTSTATUS',hex(status & 0xffffffff),'NATIVE_EXISTS',(parent/'renamed-native').is_dir())
+              if status != 0: raise SystemExit(2)
+          finally:
+              close(sh); close(ph)
+          '@ | python -
