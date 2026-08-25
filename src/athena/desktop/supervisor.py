@@ -69,11 +69,26 @@ def core_process_launch_spec(
     executable: str | None = None,
     base_executable: str | None = None,
     platform: str | None = None,
+    frozen: bool | None = None,
 ) -> CoreProcessLaunchSpec:
-    """Resolve a direct Core runtime process without the Windows venv redirector."""
+    """Resolve the Core process for source and frozen Windows runtimes.
+
+    A frozen pATHENA executable deliberately acts as a strict dispatcher for the
+    supported ``-m`` process roles. It must therefore launch itself directly and must
+    never substitute ``sys._base_executable`` as the Windows venv path logic does for
+    a normal Python virtual environment.
+    """
 
     runtime_executable = executable or sys.executable
     runtime_platform = platform or sys.platform
+    runtime_frozen = bool(getattr(sys, "frozen", False)) if frozen is None else frozen
+
+    if runtime_frozen:
+        return CoreProcessLaunchSpec(
+            program=runtime_executable,
+            arguments=_CORE_ARGUMENTS,
+        )
+
     runtime_base = (
         base_executable
         if base_executable is not None
