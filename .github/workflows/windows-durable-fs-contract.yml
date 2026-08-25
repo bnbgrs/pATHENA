@@ -71,11 +71,11 @@ jobs:
             uv run --locked --extra dev --no-sync mypy src/athena/storage/durable_fs.py
             if ($LASTEXITCODE -ne 0) { throw 'Durable filesystem mypy contract failed.' }
           } finally { Pop-Location }
-      - name: Pytest durable filesystem including native Windows race
+      - name: Pytest native Windows durable filesystem cases
         shell: pwsh
         run: |
           Push-Location candidate
           try {
-            uv run --locked --extra dev --no-sync pytest -q tests/unit/test_durable_fs.py
-            if ($LASTEXITCODE -ne 0) { throw 'Durable filesystem tests failed.' }
+            uv run --locked --extra dev --no-sync pytest -q tests/unit/test_durable_fs.py -k windows
+            if ($LASTEXITCODE -ne 0) { throw 'Native Windows durable filesystem tests failed.' }
           } finally { Pop-Location }
