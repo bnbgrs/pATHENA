@@ -6,7 +6,7 @@ import pytest
 
 import athena.storage.health as health_module
 from athena.storage.database import SQLiteDatabase
-from athena.storage.health import StorageHealthService
+from athena.storage.health import StorageHealthService, StorageHealthSnapshot
 
 
 def test_storage_health_reports_unavailable_before_database_start(tmp_path: Path) -> None:
@@ -65,3 +65,64 @@ def test_storage_health_reports_safe_error_without_invented_sizes(
     assert snapshot.wal_size_bytes is None
     assert snapshot.detail == "Storage telemetry read failed: PermissionError."
     assert "secret filesystem detail" not in snapshot.detail
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "message"),
+    [
+        (
+            {
+                "status": "available",
+                "database_open": False,
+                "database_path": "athena.sqlite3",
+                "database_size_bytes": 1,
+                "wal_size_bytes": 0,
+                "observed_at_us": 1,
+                "detail": None,
+            },
+            "open database",
+        ),
+        (
+            {
+                "status": "unavailable",
+                "database_open": False,
+                "database_path": "athena.sqlite3",
+                "database_size_bytes": 1,
+                "wal_size_bytes": None,
+                "observed_at_us": 1,
+                "detail": "not started",
+            },
+            "partial measured sizes",
+        ),
+        (
+            {
+                "status": "error",
+                "database_open": False,
+                "database_path": "athena.sqlite3",
+                "database_size_bytes": None,
+                "wal_size_bytes": None,
+                "observed_at_us": 1,
+                "detail": "probe failed",
+            },
+            "live database boundary",
+        ),
+        (
+            {
+                "status": "available",
+                "database_open": True,
+                "database_path": "athena.sqlite3",
+                "database_size_bytes": -1,
+                "wal_size_bytes": 0,
+                "observed_at_us": 1,
+                "detail": None,
+            },
+            "cannot be negative",
+        ),
+    ],
+)
+def test_storage_health_snapshot_rejects_contradictory_or_invented_facts(
+    kwargs: dict[str, object],
+    message: str,
+) -> None:
+    with pytest.raises(ValueError, match=message):
+        StorageHealthSnapshot(**kwargs)  # type: ignore[arg-type]
