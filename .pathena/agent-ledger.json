@@ -20,7 +20,35 @@
     "PATHENA-SECURITY": {"scope": ["local-first", "network", "tor", "secrets", "encryption", "process-boundaries", "privacy", "logging"]},
     "PATHENA-QA-SCOUT": {"scope": ["regressions", "windows", "packaging", "tests", "feature-gaps", "reproduction"]}
   },
-  "claims": [],
+  "claims": [
+    {
+      "task_id": "TASK-0003",
+      "title": "Assess plugin host and capability boundary gap after Recovery gate",
+      "priority": "SECURITY",
+      "owner": "PATHENA-LEAD",
+      "status": "CLAIMED",
+      "base_candidate_sha": "de1affbd6afc8f914902119efdddfbbf6ebd555e",
+      "paths": [
+        "src/athena/plugins/",
+        "src/athena/desktop/pathena_capability_catalog.py",
+        "tests/unit/test_plugin_*.py"
+      ],
+      "semantic_scope": [
+        "plugin-host",
+        "capability-boundary",
+        "extension-security",
+        "local-first-plugin-policy"
+      ],
+      "started_at": "2026-08-25T09:53:00Z",
+      "heartbeat_at": "2026-08-25T09:53:00Z",
+      "verification_plan": [
+        "inventory existing extension/plugin execution surfaces",
+        "define fail-closed capability model before any executable plugin loading",
+        "add tests for manifest validation and denied-by-default capabilities",
+        "run exact Windows regression if candidate code changes"
+      ]
+    }
+  ],
   "backlog": [
     {
       "task_id": "TASK-0002",
@@ -28,13 +56,6 @@
       "priority": "FEATURE_GAP",
       "status": "READY",
       "preferred_owner": "PATHENA-BACKEND"
-    },
-    {
-      "task_id": "TASK-0003",
-      "title": "Assess plugin host and capability boundary gap after Recovery gate",
-      "priority": "SECURITY",
-      "status": "READY",
-      "preferred_owner": "PATHENA-SECURITY"
     }
   ],
   "completed": [
@@ -91,6 +112,14 @@
       "at": "2026-08-25T09:51:00Z",
       "candidate_sha": "de1affbd6afc8f914902119efdddfbbf6ebd555e",
       "detail": "Recovery desktop diagnosis integrated and verified on exact native Windows. Claim released; Obsidian and plugin-boundary assessments remain free for specialized bots."
+    },
+    {
+      "type": "CLAIM",
+      "agent": "PATHENA-LEAD",
+      "task_id": "TASK-0003",
+      "at": "2026-08-25T09:53:00Z",
+      "candidate_sha": "de1affbd6afc8f914902119efdddfbbf6ebd555e",
+      "detail": "Claimed highest-priority free SECURITY task: inventory plugin execution surfaces and establish a fail-closed capability boundary before executable plugins are introduced."
     }
   ]
 }
