@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - capture/current-ui-20260825
+  pull_request:
+    branches:
+      - capture/current-ui-20260825
   workflow_dispatch:
 
 permissions:
