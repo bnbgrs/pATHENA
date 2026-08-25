@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from athena.desktop.pathena_design_tokens import PALETTE, RADII, SPACE, TYPE
+from athena.desktop.pathena_design_tokens import PALETTE, RADII, SHELL, SPACE, TYPE
 from athena.desktop.pathena_shared_components import PATHENA_FOUNDATION_STYLESHEET
 from athena.desktop.theme import APP_STYLESHEET as ATHENA_BASE_STYLESHEET
 
@@ -11,6 +11,120 @@ def _build_specialized_stylesheet() -> str:
     """Style pATHENA-specific surfaces without creating a second palette."""
     return f"""
 /* pATHENA specialized surfaces: presentation only, canonical tokens only. */
+QWidget#referenceShell {{
+    background: {PALETTE.canvas};
+    color: {PALETTE.text};
+}}
+
+QFrame#topBar {{
+    min-height: {SHELL.top_bar_height}px;
+    max-height: {SHELL.top_bar_height}px;
+    background: {PALETTE.surface};
+    border: none;
+    border-bottom: 1px solid {PALETTE.border};
+}}
+
+QLabel#topWordmark {{
+    color: {PALETTE.text};
+    font-family: {TYPE.content_family};
+    font-size: 18px;
+    font-weight: 650;
+    padding: 0 {SPACE.sm}px 0 0;
+}}
+
+QPushButton#topNavButton,
+QPushButton#topUtilityButton {{
+    min-height: 38px;
+    color: {PALETTE.text_subtle};
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    border-radius: 0;
+    padding: 0 {SPACE.sm}px;
+    font-family: {TYPE.content_family};
+    font-size: 12px;
+    font-weight: 600;
+}}
+
+QPushButton#topNavButton:hover,
+QPushButton#topUtilityButton:hover {{
+    color: {PALETTE.text};
+    background: transparent;
+}}
+
+QPushButton#topNavButton:checked {{
+    color: {PALETTE.accent};
+    background: transparent;
+    border-bottom: 2px solid {PALETTE.accent};
+}}
+
+QLabel#localPrivateDot {{
+    color: {PALETTE.success};
+    font-size: 10px;
+}}
+
+QLabel#localPrivateStatus {{
+    color: {PALETTE.text_muted};
+    font-size: 12px;
+    padding-left: {SPACE.xxs}px;
+}}
+
+QFrame#rail {{
+    min-width: {SHELL.icon_rail_width}px;
+    max-width: {SHELL.icon_rail_width}px;
+    background: {PALETTE.surface};
+    border: none;
+    border-right: 1px solid {PALETTE.border};
+}}
+
+QListWidget#navigation {{
+    background: transparent;
+    border: none;
+    outline: none;
+    padding: 0;
+}}
+
+QListWidget#navigation::item {{
+    color: {PALETTE.text_subtle};
+    background: transparent;
+    border: none;
+    border-left: 2px solid transparent;
+    padding: {SPACE.sm}px 0;
+    margin: 2px {SPACE.xs}px;
+}}
+
+QListWidget#navigation::item:hover {{
+    color: {PALETTE.text};
+    background: {PALETTE.surface_hover};
+}}
+
+QListWidget#navigation::item:selected {{
+    color: {PALETTE.accent};
+    background: {PALETTE.accent_soft};
+    border-left: 2px solid {PALETTE.accent};
+}}
+
+QFrame#conversation {{
+    background: {PALETTE.canvas};
+    border: none;
+}}
+
+QFrame#inspector {{
+    min-width: {SHELL.inspector_width}px;
+    max-width: {SHELL.inspector_width}px;
+    background: {PALETTE.surface};
+    border: none;
+    border-left: 1px solid {PALETTE.border};
+}}
+
+QLabel#pageTitle {{
+    color: {PALETTE.text};
+    font-family: {TYPE.display_family};
+    font-size: {TYPE.title_px}px;
+    font-weight: 500;
+    padding: {SPACE.xs}px 0 {SPACE.sm}px 0;
+}}
+
 QLabel#wordmark {{
     color: {PALETTE.text};
     font-size: 17px;
@@ -54,9 +168,6 @@ QLabel#settingsHelp {{
     color: {PALETTE.text_subtle};
 }}
 
-/* Meaning-bearing metadata inherited from the legacy base theme must not
-   remain on its low-contrast TEXT_DIM tier. Decorative arrows and disabled
-   controls intentionally keep their quieter inherited/foundation styling. */
 QLabel#commandMeta,
 QLabel#chainState {{
     color: {PALETTE.text_subtle};
@@ -124,17 +235,41 @@ QPushButton#addKnowledgeButton:disabled {{
 }}
 
 QLineEdit#promptInput {{
-    min-height: 42px;
-    padding: 0 {SPACE.sm}px;
+    min-height: {SHELL.composer_min_height}px;
+    padding: 0 {SPACE.lg}px;
     font-size: {TYPE.body_px}px;
     background: {PALETTE.surface_raised};
     border: 1px solid {PALETTE.border_strong};
-    border-radius: {RADII.prominent}px;
+    border-radius: {RADII.composer}px;
 }}
 
 QLineEdit#promptInput:focus {{
     background: {PALETTE.surface_raised};
     border-color: {PALETTE.accent};
+}}
+
+QPushButton#sendButton {{
+    min-width: 48px;
+    max-width: 48px;
+    min-height: 48px;
+    max-height: 48px;
+    padding: 0;
+    color: {PALETTE.text};
+    background: {PALETTE.accent};
+    border: 1px solid {PALETTE.accent};
+    border-radius: 24px;
+    font-size: 20px;
+    font-weight: 600;
+}}
+
+QPushButton#sendButton:hover {{
+    background: {PALETTE.accent_hover};
+    border-color: {PALETTE.accent_hover};
+}}
+
+QPushButton#sendButton:pressed {{
+    background: {PALETTE.accent_pressed};
+    border-color: {PALETTE.accent_pressed};
 }}
 
 QLabel#promptMarker {{
