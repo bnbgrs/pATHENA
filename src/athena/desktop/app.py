@@ -27,6 +27,7 @@ from athena.desktop.pathena_backup_details_provenance import (
     install_backup_details_provenance,
 )
 from athena.desktop.pathena_backup_target_context import install_backup_target_context
+from athena.desktop.pathena_capability_help import install_capability_help
 from athena.desktop.pathena_chat_scroll_stability_6600 import install_chat_scroll_stability
 from athena.desktop.pathena_command_palette_truth_6500 import install_command_palette_truth
 from athena.desktop.pathena_detail_provenance_6300 import apply_detail_provenance
@@ -217,6 +218,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     command_palette = install_command_palette(window)
     transient_dialog_shortcuts = install_transient_dialog_shortcut_continuity(command_palette)
     command_palette_truth = install_command_palette_truth(command_palette)
+    capability_help = install_capability_help(command_palette)
     empty_search_comprehension = install_empty_search_comprehension(
         window,
         command_palette,
@@ -315,6 +317,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     files_workspace.deleteLater()
     system_backup.deleteLater()
     system_workspace.deleteLater()
+    capability_help.deleteLater()
     command_palette_truth.deleteLater()
     transient_dialog_shortcuts.deleteLater()
     command_palette.deleteLater()
