@@ -1,22 +1,21 @@
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass
-from pathlib import Path
-from typing import Sequence
+import dataclasses
+import pathlib
 
 
 CANDIDATE_REF = "refs/heads/bot/pathena-candidate"
-REQUIRED_PATHS = (Path(".github/workflows/quality.yml"),)
+REQUIRED_PATHS = (pathlib.Path(".github/workflows/quality.yml"),)
 FORBIDDEN_PATHS = (
-    Path(".github/workflows/pathena-bootstrap.yml"),
-    Path(".github/workflows/pathena-slice-gate.yml"),
-    Path(".pathena-bootstrap"),
+    pathlib.Path(".github/workflows/pathena-bootstrap.yml"),
+    pathlib.Path(".github/workflows/pathena-slice-gate.yml"),
+    pathlib.Path(".pathena-bootstrap"),
 )
-FORBIDDEN_TREES = (Path(".pathena/bootstrap"),)
+FORBIDDEN_TREES = (pathlib.Path(".pathena/bootstrap"),)
 
 
-@dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True)
 class PromotionGuardResult:
     errors: tuple[str, ...]
 
@@ -26,7 +25,7 @@ class PromotionGuardResult:
 
 
 def inspect_promotion_tree(
-    root: Path,
+    root: pathlib.Path,
     *,
     actual_ref: str | None = None,
     expected_ref: str = CANDIDATE_REF,
@@ -62,13 +61,13 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Fail closed if candidate promotion could revive legacy bootstrap state."
     )
-    parser.add_argument("--root", type=Path, default=Path.cwd())
+    parser.add_argument("--root", type=pathlib.Path, default=pathlib.Path.cwd())
     parser.add_argument("--actual-ref")
     parser.add_argument("--expected-ref", default=CANDIDATE_REF)
     return parser
 
 
-def main(argv: Sequence[str] | None = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     args = _parser().parse_args(argv)
     result = inspect_promotion_tree(
         args.root,
