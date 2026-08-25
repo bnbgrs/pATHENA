@@ -10,7 +10,16 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from PySide6.QtCore import QObject, QPointF, QRectF, Qt, Signal, Slot
-from PySide6.QtGui import QBrush, QColor, QFont, QPainter, QPen, QResizeEvent, QWheelEvent
+from PySide6.QtGui import (
+    QBrush,
+    QColor,
+    QFont,
+    QKeyEvent,
+    QPainter,
+    QPen,
+    QResizeEvent,
+    QWheelEvent,
+)
 from PySide6.QtWidgets import (
     QAbstractButton,
     QGraphicsEllipseItem,
@@ -69,6 +78,7 @@ class _PallasCanvas(QGraphicsView):
         self.setResizeAnchor(QGraphicsView.ViewportAnchor.AnchorViewCenter)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
 
     def reset_view(self, bounds: QRectF) -> None:
         self.resetTransform()
@@ -97,6 +107,28 @@ class _PallasCanvas(QGraphicsView):
             self._zoom = candidate
             self._auto_fit = False
         event.accept()
+
+    def keyPressEvent(self, event: QKeyEvent) -> None:  # noqa: N802
+        field = self.parentWidget()
+        key = event.key()
+        if isinstance(field, PallasSemanticField):
+            if key in (Qt.Key.Key_Left, Qt.Key.Key_Up):
+                field._move_keyboard_focus(-1)
+                event.accept()
+                return
+            if key in (Qt.Key.Key_Right, Qt.Key.Key_Down):
+                field._move_keyboard_focus(1)
+                event.accept()
+                return
+            if key in (Qt.Key.Key_Return, Qt.Key.Key_Enter, Qt.Key.Key_Space):
+                if field._select_keyboard_focus():
+                    event.accept()
+                    return
+            if key == Qt.Key.Key_Escape:
+                field.clear_selection()
+                event.accept()
+                return
+        super().keyPressEvent(event)
 
 
 class _PallasNodeItem(QGraphicsEllipseItem):
@@ -139,11 +171,24 @@ class _PallasNodeItem(QGraphicsEllipseItem):
         value: object,
     ) -> object:
         result = super().itemChange(change, value)
-        if change is QGraphicsItem.GraphicsItemChange.ItemSelectedHasChanged:
-            selected = bool(value)
-            self.setPen(QPen(_ACCENT if selected else _node_color(self.node), 2.0 if selected else 1.4))
-            self.setZValue(2.0 if selected else 1.0)
+        if change in (
+            QGraphicsItem.GraphicsItemChange.ItemSelectedHasChanged,
+            QGraphicsItem.GraphicsItemChange.ItemFocusHasChanged,
+        ):
+            self._refresh_outline()
         return result
+
+    def _refresh_outline(self) -> None:
+        if self.isSelected():
+            self.setPen(QPen(_ACCENT, 2.0))
+            self.setZValue(2.0)
+            return
+        if self.hasFocus():
+            self.setPen(QPen(_ACCENT, 1.7))
+            self.setZValue(1.5)
+            return
+        self.setPen(QPen(_node_color(self.node), 1.4))
+        self.setZValue(1.0)
 
 
 class PallasSemanticField(QWidget):
@@ -244,6 +289,10 @@ class PallasSemanticField(QWidget):
         bounds = self.scene.itemsBoundingRect().adjusted(-24, -24, 24, 24)
         self.scene.setSceneRect(bounds)
         self.canvas.reset_view(bounds)
+        self.canvas.setAccessibleName("PALLAS semantic graph")
+        self.canvas.setAccessibleDescription(
+            f"{snapshot.status_detail} Use arrow keys to move focus, Enter or Space to select, and Escape to clear selection."
+        )
         self.setAccessibleDescription(snapshot.status_detail)
         if snapshot.focus_id is not None:
             self.focus_node(snapshot.focus_id)
@@ -271,6 +320,49 @@ class PallasSemanticField(QWidget):
         finally:
             self.scene.blockSignals(False)
         self._publish_selection()
+
+    def _keyboard_node_ids(self) -> tuple[str, ...]:
+        snapshot = self._snapshot
+        if snapshot is None:
+            return ()
+        return tuple(node.node_id for node in snapshot.nodes if node.node_id in self._items)
+
+    def _focused_item(self) -> _PallasNodeItem | None:
+        focused = self.scene.focusItem()
+        return focused if isinstance(focused, _PallasNodeItem) else None
+
+    def _move_keyboard_focus(self, direction: int) -> bool:
+        node_ids = self._keyboard_node_ids()
+        if not node_ids:
+            return False
+        focused = self._focused_item()
+        if focused is None:
+            target_index = 0 if direction >= 0 else len(node_ids) - 1
+        else:
+            current_index = node_ids.index(focused.node.node_id)
+            target_index = max(0, min(len(node_ids) - 1, current_index + direction))
+        target = self._items[node_ids[target_index]]
+        target.setFocus()
+        self.canvas.centerOn(target)
+        self.setAccessibleDescription(_node_tooltip(target.node))
+        return True
+
+    def _select_keyboard_focus(self) -> bool:
+        focused = self._focused_item()
+        if focused is None:
+            if not self._move_keyboard_focus(1):
+                return False
+            focused = self._focused_item()
+        if focused is None:
+            return False
+        self.scene.blockSignals(True)
+        try:
+            self.scene.clearSelection()
+            focused.setSelected(True)
+        finally:
+            self.scene.blockSignals(False)
+        self._publish_selection()
+        return True
 
     @Slot()
     def _publish_selection(self) -> None:
