@@ -75,8 +75,6 @@ class CommandPaletteTruthController(QObject):
         self.palette.dialog.setProperty("pathenaCapabilityCatalogDrift", has_drift)
         for row, command in enumerate(self.palette._filtered_commands):
             item = self.palette.results.item(row)
-            if item is None:
-                continue
             capability = capability_by_label[command.label]
             available = capability.availability is CapabilityAvailability.AVAILABLE
             state = capability.availability.value
@@ -128,7 +126,7 @@ class CommandPaletteTruthController(QObject):
         available_count = 0
         for index in range(count):
             item = self.palette.results.item(index)
-            if item is not None and item.data(256) is True:
+            if item.data(256) is True:
                 available_count += 1
         noun = "command" if count == 1 else "commands"
         description = f"{count} {noun} shown. {available_count} available."
