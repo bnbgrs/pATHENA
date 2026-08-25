@@ -7,6 +7,7 @@ entrypoint, open a socket, or make process isolation claims stronger than warran
 from __future__ import annotations
 
 import json
+from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -32,6 +33,15 @@ class PluginCapabilityRequest:
     scope: str | None
 
 
+def _unique_json_object(pairs: Sequence[tuple[str, Any]]) -> dict[str, Any]:
+    result: dict[str, Any] = {}
+    for key, value in pairs:
+        if key in result:
+            raise PluginProtocolError("Plugin IPC message contains duplicate fields.")
+        result[key] = value
+    return result
+
+
 def decode_plugin_capability_request(payload: bytes) -> PluginCapabilityRequest:
     """Decode one complete UTF-8 JSON request with strict bounds and schema.
 
@@ -51,7 +61,9 @@ def decode_plugin_capability_request(payload: bytes) -> PluginCapabilityRequest:
     except UnicodeDecodeError as exc:
         raise PluginProtocolError("Plugin IPC message is not valid UTF-8.") from exc
     try:
-        raw: Any = json.loads(text)
+        raw: Any = json.loads(text, object_pairs_hook=_unique_json_object)
+    except PluginProtocolError:
+        raise
     except (json.JSONDecodeError, RecursionError) as exc:
         raise PluginProtocolError("Plugin IPC message is not valid JSON.") from exc
     if not isinstance(raw, dict):
@@ -59,7 +71,8 @@ def decode_plugin_capability_request(payload: bytes) -> PluginCapabilityRequest:
     unknown = set(raw) - _ALLOWED_KEYS
     if unknown:
         raise PluginProtocolError("Plugin IPC message contains unknown fields.")
-    if raw.get("version") != PLUGIN_IPC_PROTOCOL_VERSION:
+    version = raw.get("version")
+    if type(version) is not int or version != PLUGIN_IPC_PROTOCOL_VERSION:
         raise PluginProtocolError("Plugin IPC protocol version is unsupported.")
     if raw.get("type") != "capability_request":
         raise PluginProtocolError("Plugin IPC operation type is unsupported.")
