@@ -3,7 +3,6 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-
 from scripts.promotion_guard import CANDIDATE_REF, inspect_promotion_tree
 
 
