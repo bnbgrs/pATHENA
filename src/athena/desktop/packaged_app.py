@@ -1,18 +1,19 @@
-"""Frozen Windows entry point that safely multiplexes pATHENA child processes.
+"""Windowed entry point for the supported pATHENA Windows package.
 
-A PyInstaller build changes ``sys.executable`` from Python to ``pATHENA.exe``. The
-normal desktop intentionally starts its Core, scheduler, and short-lived JOBS helper
-through ``sys.executable -m ...``. Without a dispatcher those child launches recurse
-back into the desktop entry point. This module recognizes only the module invocations
-that pATHENA itself owns and fails closed for every other ``-m`` request.
+The desktop executable is deliberately separate from ``pATHENA-Worker.exe``. Before
+constructing the real desktop, a frozen build redirects ``sys.executable`` to that
+sibling worker so every existing ``sys.executable -m ...`` child launch reaches the
+strict internal dispatcher rather than recursively opening another desktop window.
 """
 
 from __future__ import annotations
 
+import os
 import sys
 from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
+from pathlib import Path
 
 
 class PackagedTarget(StrEnum):
@@ -23,7 +24,7 @@ class PackagedTarget(StrEnum):
 
 
 class PackagedInvocationError(ValueError):
-    """Raised when a frozen executable receives an unsupported module dispatch."""
+    """Raised when a packaged executable receives an unsupported module dispatch."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,9 +39,12 @@ _MODULE_TARGETS = {
     "athena.desktop.jobs_cli": PackagedTarget.JOBS_CLI,
 }
 
+_WORKER_NAME = "pATHENA-Worker.exe"
+_PACKAGED_DESKTOP_ENV = "PATHENA_PACKAGED_DESKTOP_EXECUTABLE"
+
 
 def route_packaged_argv(argv: Sequence[str]) -> PackagedInvocation:
-    """Resolve one frozen invocation without ever falling through an unknown ``-m``."""
+    """Resolve a desktop/internal invocation and fail closed for unknown modules."""
     arguments = tuple(argv)
     if not arguments or arguments[0] != "-m":
         return PackagedInvocation(PackagedTarget.DESKTOP, arguments)
@@ -56,33 +60,50 @@ def route_packaged_argv(argv: Sequence[str]) -> PackagedInvocation:
     return PackagedInvocation(target, arguments[2:])
 
 
+def packaged_worker_path(executable: str) -> Path:
+    """Return the required sibling worker without depending on the current directory."""
+    return Path(executable).resolve(strict=False).with_name(_WORKER_NAME)
+
+
+def prepare_frozen_desktop_runtime(
+    *,
+    executable: str | None = None,
+    frozen: bool | None = None,
+) -> Path | None:
+    """Bind child launches to the sibling worker or fail before opening the desktop."""
+    runtime_frozen = bool(getattr(sys, "frozen", False)) if frozen is None else frozen
+    if not runtime_frozen:
+        return None
+
+    desktop_executable = str(Path(executable or sys.executable).resolve(strict=False))
+    worker = packaged_worker_path(desktop_executable)
+    if not worker.is_file():
+        raise PackagedInvocationError(
+            f"Supported Windows package is incomplete: missing {worker.name}."
+        )
+
+    os.environ[_PACKAGED_DESKTOP_ENV] = desktop_executable
+    sys.executable = str(worker)
+    return worker
+
+
 def dispatch(argv: Sequence[str] | None = None) -> int:
-    """Dispatch the desktop or one explicitly supported internal process role."""
+    """Start only the desktop; internal module roles belong to the worker executable."""
     raw_arguments = tuple(sys.argv[1:] if argv is None else argv)
     try:
         invocation = route_packaged_argv(raw_arguments)
-    except PackagedInvocationError as exc:
-        print(f"pATHENA packaged runtime error: {exc}", file=sys.stderr)
+        if invocation.target is not PackagedTarget.DESKTOP:
+            raise PackagedInvocationError(
+                "Internal module dispatch is allowed only through pATHENA-Worker.exe."
+            )
+        prepare_frozen_desktop_runtime()
+    except PackagedInvocationError:
+        # ``--windowed`` builds intentionally have no reliable stderr stream.
         return 2
-
-    if invocation.target is PackagedTarget.CORE:
-        from athena.api.process import main as core_main
-
-        return core_main(invocation.arguments)
-
-    if invocation.target is PackagedTarget.ATHENA_CLI:
-        from athena.__main__ import main as athena_main
-
-        return athena_main(invocation.arguments)
-
-    if invocation.target is PackagedTarget.JOBS_CLI:
-        from athena.desktop.jobs_cli import main as jobs_main
-
-        return jobs_main(invocation.arguments)
 
     from athena.desktop.app import main as desktop_main
 
-    # QApplication expects argv[0] to remain the executable identity.
+    # QApplication expects argv[0] to remain the user-facing desktop identity.
     return desktop_main((sys.argv[0], *invocation.arguments))
 
 
