@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QGraphicsScene,
     QGraphicsSimpleTextItem,
     QGraphicsView,
+    QHBoxLayout,
     QLabel,
     QVBoxLayout,
     QWidget,
@@ -251,11 +252,25 @@ class PallasSemanticField(QWidget):
         item = self._items.get(node_id)
         if item is None:
             return False
-        self.scene.clearSelection()
-        item.setSelected(True)
+        self.scene.blockSignals(True)
+        try:
+            self.scene.clearSelection()
+            item.setSelected(True)
+        finally:
+            self.scene.blockSignals(False)
         item.setFocus()
         self.canvas.centerOn(item)
+        self._publish_selection()
         return True
+
+    def clear_selection(self) -> None:
+        """Clear the semantic focus once and publish the resulting empty selection."""
+        self.scene.blockSignals(True)
+        try:
+            self.scene.clearSelection()
+        finally:
+            self.scene.blockSignals(False)
+        self._publish_selection()
 
     @Slot()
     def _publish_selection(self) -> None:
@@ -297,6 +312,48 @@ class PallasSemanticField(QWidget):
         self.setAccessibleDescription(detail)
 
 
+class PallasWorkspace(QWidget):
+    """Full PALLAS surface sharing one real graph and selection state."""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setObjectName("pallasWorkspace")
+        self.setProperty("pathenaUiState", "empty")
+        self.setAccessibleName("PALLAS semantic workspace")
+
+        self.breadcrumb = QLabel("PALLAS / NO GROUNDED CONTEXT")
+        self.breadcrumb.setObjectName("pallasBreadcrumb")
+        self.breadcrumb.setProperty("role", "dim")
+        self.breadcrumb.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+
+        self.field = PallasSemanticField(self)
+        self.field.set_compact_mode(False)
+
+        header = QHBoxLayout()
+        header.setContentsMargins(0, 0, 0, 0)
+        header.addWidget(self.breadcrumb, 1)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(18, 16, 18, 18)
+        layout.setSpacing(12)
+        layout.addLayout(header)
+        layout.addWidget(self.field, 1)
+
+    def set_selection(self, selection: PallasSelection | None) -> None:
+        if selection is None:
+            snapshot = self.field.snapshot
+            graph_id = snapshot.graph_id if snapshot is not None else "NO GROUNDED CONTEXT"
+            self.breadcrumb.setText(f"PALLAS / {graph_id}")
+            return
+        self.breadcrumb.setText(
+            f"PALLAS / {selection.graph_id} / "
+            f"{selection.node.kind.value.upper()} / {selection.node.title}"
+        )
+
+    def set_state(self, state: str) -> None:
+        self.setProperty("pathenaUiState", state)
+
+
 class PallasGroundedFieldController(QObject):
     """Bind the semantic field to the existing real desktop controller signals."""
 
@@ -316,6 +373,13 @@ class PallasGroundedFieldController(QObject):
         self.target = target
         self.field = PallasSemanticField(target)
         self.field.set_compact_mode(True)
+        self._fields: list[PallasSemanticField] = [self.field]
+        self._workspaces: list[PallasWorkspace] = []
+        self._snapshot: PallasGraphSnapshot | None = None
+        self._state = "empty"
+        self._state_detail = "Connect the local Core to receive grounded context."
+        self._selection: PallasSelection | None = None
+        self._synchronizing = False
 
         existing_layout = target.layout()
         if existing_layout is None:
@@ -330,7 +394,9 @@ class PallasGroundedFieldController(QObject):
         target.setToolTip(
             "PALLAS — interactive field built only from grounded Core evidence and memory"
         )
-        self.field.selection_changed.connect(self._forward_selection)
+        self.field.selection_changed.connect(
+            lambda selection: self._receive_selection(self.field, selection)
+        )
 
         if api_controller is None:
             self.field.set_empty("Connect the local Core to receive grounded context.")
@@ -342,30 +408,143 @@ class PallasGroundedFieldController(QObject):
     @Slot(object)
     def apply_grounded_response(self, response: object) -> None:
         if not isinstance(response, GroundedChatResponse):
-            self.field.set_error("Core returned an unsupported grounded response.")
-            self.target.setProperty("pathenaUiState", "error")
+            self._set_state("error", "Core returned an unsupported grounded response.")
             return
-        snapshot = graph_from_grounded_response(response)
-        self.field.set_snapshot(snapshot)
+        self.apply_snapshot(graph_from_grounded_response(response))
+
+    def apply_snapshot(self, snapshot: PallasGraphSnapshot) -> None:
+        """Synchronize one renderer-neutral snapshot across every mounted view."""
+        self._snapshot = snapshot
+        self._state = snapshot.status
+        self._state_detail = snapshot.status_detail
+        self._synchronizing = True
+        try:
+            for field in self._live_fields():
+                field.set_snapshot(snapshot)
+        finally:
+            self._synchronizing = False
         self.target.setProperty("pathenaUiState", snapshot.status)
+        for workspace in self._live_workspaces():
+            workspace.set_state(snapshot.status)
+        self._publish_current_selection(snapshot.focus_id)
 
     @Slot(str, str)
     def apply_chat_operation_failure(self, operation: str, message: str) -> None:
         if operation != "send_grounded":
             return
-        self.field.set_error(message)
-        self.target.setProperty("pathenaUiState", "error")
+        self._set_state("error", message)
 
     @Slot(bool)
     def apply_chat_busy(self, busy: bool) -> None:
         ground_button = getattr(self.window, "ground_button", None)
         if busy and isinstance(ground_button, QAbstractButton) and ground_button.isChecked():
-            self.field.set_loading("Core is resolving evidence and personal memory.")
-            self.target.setProperty("pathenaUiState", "loading")
+            self._set_state(
+                "loading", "Core is resolving evidence and personal memory."
+            )
 
-    @Slot(object)
-    def _forward_selection(self, selection: object) -> None:
-        self.selection_changed.emit(selection)
+    def create_workspace(self, parent: QWidget | None = None) -> PallasWorkspace:
+        """Create a full view synchronized with the compact field and Inspector."""
+        workspace = PallasWorkspace(parent)
+        self._fields.append(workspace.field)
+        self._workspaces.append(workspace)
+        workspace.field.selection_changed.connect(
+            lambda selection: self._receive_selection(workspace.field, selection)
+        )
+        workspace.destroyed.connect(
+            lambda _object=None, current=workspace, field=workspace.field: (
+                self._remove_workspace(current, field)
+            )
+        )
+        self._synchronizing = True
+        try:
+            if self._snapshot is not None:
+                workspace.field.set_snapshot(self._snapshot)
+                if self._selection is not None:
+                    workspace.field.focus_node(self._selection.node.node_id)
+            else:
+                self._apply_state_to_field(workspace.field)
+        finally:
+            self._synchronizing = False
+        workspace.set_state(self._state)
+        workspace.set_selection(self._selection)
+        return workspace
+
+    def _receive_selection(
+        self,
+        source: PallasSemanticField,
+        selection: object,
+    ) -> None:
+        if self._synchronizing:
+            return
+        resolved = selection if isinstance(selection, PallasSelection) else None
+        self._selection = resolved
+        self._synchronizing = True
+        try:
+            for field in self._live_fields():
+                if field is source:
+                    continue
+                if resolved is None:
+                    field.clear_selection()
+                else:
+                    field.focus_node(resolved.node.node_id)
+        finally:
+            self._synchronizing = False
+        for workspace in self._live_workspaces():
+            workspace.set_selection(resolved)
+        self.selection_changed.emit(resolved)
+
+    def _publish_current_selection(self, node_id: str | None) -> None:
+        snapshot = self._snapshot
+        node = snapshot.node(node_id) if snapshot is not None and node_id else None
+        self._selection = (
+            PallasSelection(snapshot.graph_id, node)
+            if snapshot is not None and node is not None
+            else None
+        )
+        for workspace in self._live_workspaces():
+            workspace.set_selection(self._selection)
+        self.selection_changed.emit(self._selection)
+
+    def _set_state(self, state: str, detail: str) -> None:
+        self._snapshot = None
+        self._selection = None
+        self._state = state
+        self._state_detail = detail
+        self._synchronizing = True
+        try:
+            for field in self._live_fields():
+                self._apply_state_to_field(field)
+        finally:
+            self._synchronizing = False
+        self.target.setProperty("pathenaUiState", state)
+        for workspace in self._live_workspaces():
+            workspace.set_state(state)
+            workspace.set_selection(None)
+        self.selection_changed.emit(None)
+
+    def _apply_state_to_field(self, field: PallasSemanticField) -> None:
+        if self._state == "loading":
+            field.set_loading(self._state_detail)
+        elif self._state == "error":
+            field.set_error(self._state_detail)
+        else:
+            field.set_empty(self._state_detail)
+
+    def _live_fields(self) -> tuple[PallasSemanticField, ...]:
+        return tuple(field for field in self._fields if field.parent() is not None)
+
+    def _live_workspaces(self) -> tuple[PallasWorkspace, ...]:
+        return tuple(self._workspaces)
+
+    def _remove_workspace(
+        self,
+        workspace: PallasWorkspace,
+        field: PallasSemanticField,
+    ) -> None:
+        if workspace in self._workspaces:
+            self._workspaces.remove(workspace)
+        if field in self._fields:
+            self._fields.remove(field)
 
 
 def install_pallas_grounded_field(
