@@ -11,7 +11,7 @@ import tempfile
 import threading
 from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import BinaryIO, cast
+from typing import TYPE_CHECKING, BinaryIO, cast
 
 from athena.api.contracts import API_VERSION, StorageHealthResponse
 from athena.api.executor import (
@@ -22,7 +22,9 @@ from athena.api.executor import (
 from athena.api.server import CoreApiServer, CoreApiServerError
 from athena.config.settings import AthenaSettings, ConfigurationError
 from athena.core.application import ApplicationState, AthenaApplication
-from athena.storage.health import StorageHealthService, StorageHealthSnapshot
+
+if TYPE_CHECKING:
+    from athena.storage.health import StorageHealthSnapshot
 
 _POLL_INTERVAL_SECONDS = 0.25
 _RUNTIME_DIRECTORY_NAME = "core-api"
@@ -169,6 +171,8 @@ class CoreApiProcess:
             raise ValueError(
                 "ATHENA Core API port must be an integer between 0 and 65535."
             )
+        from athena.storage.health import StorageHealthService
+
         self.settings = settings
         self.port = port
         self.app = AthenaApplication(settings=settings)
