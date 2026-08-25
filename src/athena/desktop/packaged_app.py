@@ -21,6 +21,7 @@ class PackagedTarget(StrEnum):
     CORE = "core"
     ATHENA_CLI = "athena-cli"
     JOBS_CLI = "jobs-cli"
+    HARDWARE_ACCEPTANCE = "hardware-acceptance"
 
 
 class PackagedInvocationError(ValueError):
@@ -37,6 +38,7 @@ _MODULE_TARGETS = {
     "athena.api.process": PackagedTarget.CORE,
     "athena": PackagedTarget.ATHENA_CLI,
     "athena.desktop.jobs_cli": PackagedTarget.JOBS_CLI,
+    "athena.hardware_acceptance": PackagedTarget.HARDWARE_ACCEPTANCE,
 }
 
 _WORKER_NAME = "pATHENA-Worker.exe"
