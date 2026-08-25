@@ -3,7 +3,7 @@
 Last updated: 2026-08-25
 
 - Accepted `agent/pathena`: `fbbf44dc8c8175499528f07be079061b644d1604`
-- Candidate product head before this coordination update: `1fa833904b280917459f611032425c6b88c237ed`
+- Candidate integration commit: `b978b3c948c4482d0bb0549d2a8e83d288860264`
 - Promotion: **BLOCKED** — no exact-candidate Cloud-Windows GREEN; the targeted dialog-focus failure remains
 - `main`, ATHENA, and foreign user branches remain read-only; no force-push
 
@@ -29,9 +29,9 @@ No integrated worker slices overlap files. `app.py` remains Lead-arbitrated.
 | Lead install hooks | n/a | `2560dfbae78ddf696307dd69367d8f349b3c98db` | INTEGRATED | `install_settings_runtime` and `install_pallas_grounded_field` only |
 | OPS-002 live capability Help | `c9764b4318cdef30fbb09ec844f944cf1dd66f55` | `8d3f0ed36fc658362f6c6e23055ce85b16b669c4` | INTEGRATED | 21 worker tests; live command/target catalogue; 820×680 Help render |
 | CORE-003 Research result review | `73eec8784c9d7a7ac5b06c835ae2f0755ed73cc0` | `de8a028b61ee6f5d149a9f82e295fd305f6c079f` | INTEGRATED | persisted result summary, coverage, evidence and provenance; honest loading/error states; 1480×900 worker render |
-| CORE-002 + DS-002 PALLAS owner repair | `11d618a5373b1abafb4761b60a882e740c6bf522` + `0049d7fcdd5c0e71e5e73517af6ec7a92abe949a` | `842a6464c587a39a87d0b0b193a3a561102db190` | INTEGRATED | 12 combined owner/target/shell tests PASS; window-local weak binding; no lifecycle leak |
-| CORE-004 Knowledge provenance review | `9bbd34e3321f47021c65fda4728370bf4abf6ade` | `d47c3ed30388757e3ca5171be75bb0405e9250ef` | INTEGRATED | persisted Knowledge/Claim detail, evidence and provenance; truthful parse failures |
-| OPS-003 Jobs lifecycle | `5c0fedafdc0f202a205180c90b9ce73372420535` | `1fa833904b280917459f611032425c6b88c237ed` | INTEGRATED | state-bound pause/resume/wake/cancel availability and exact transition receipts |
+| CORE-002 + DS-002 PALLAS owner repair | `11d618a5373b1abafb4761b60a882e740c6bf522` + `0049d7fcdd5c0e71e5e73517af6ec7a92abe949a` | `b978b3c948c4482d0bb0549d2a8e83d288860264` | INTEGRATED | 12 combined owner/target/shell tests PASS; window-local weak binding; no lifecycle leak |
+| CORE-004 Knowledge provenance review | `9bbd34e3321f47021c65fda4728370bf4abf6ade` | `b978b3c948c4482d0bb0549d2a8e83d288860264` | INTEGRATED | persisted Knowledge/Claim detail, evidence and provenance; truthful parse failures |
+| OPS-003 Jobs lifecycle | `5c0fedafdc0f202a205180c90b9ce73372420535` | `b978b3c948c4482d0bb0549d2a8e83d288860264` | INTEGRATED | state-bound pause/resume/wake/cancel availability and exact transition receipts |
 
 Current integration verification: 25 targeted tests PASS and the single DS-003 focus test remains RED; targeted Ruff PASS; strict Mypy PASS. The PALLAS lifecycle blockers are closed.
 
@@ -65,7 +65,7 @@ The remaining focus failure is not generic Quality red. It blocks Windows accept
 
 ### CORE-002 — explicit legacy PALLAS owner contract
 
-- Status: **INTEGRATED** with DS-002 as candidate commit `842a6464c587a39a87d0b0b193a3a561102db190`.
+- Status: **INTEGRATED** with DS-002 as candidate commit `b978b3c948c4482d0bb0549d2a8e83d288860264`.
 - Owner files: `src/athena/desktop/ascii_panel.py` plus focused Core tests only.
 - Deliverable: an explicit, lifecycle-safe semantic-root binding API; no global widget lookup, cross-window sampling, random data, or shell edit.
 - Acceptance after pairing: both existing target-lifecycle tests PASS; destroyed/recreated windows do not leak targets; fallback still paints when the new field is absent.
