@@ -48,6 +48,18 @@ class ComfyUiQueueReceipt:
     node_errors: dict[str, Any]
 
 
+@dataclass(frozen=True, slots=True)
+class ComfyUiQueueSnapshot:
+    running_prompt_ids: tuple[str, ...]
+    pending_prompt_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class ComfyUiPromptState:
+    prompt_id: str
+    state: str
+
+
 def _loopback_endpoint(value: str) -> str:
     raw = value.strip()
     if not raw:
@@ -103,6 +115,20 @@ def load_api_workflow(path: str | Path) -> dict[str, Any]:
     return data
 
 
+def _queue_prompt_ids(items: object) -> tuple[str, ...]:
+    if not isinstance(items, list):
+        raise ComfyUiError("Local ComfyUI queue response is incomplete.")
+    prompt_ids: list[str] = []
+    for item in items:
+        if not isinstance(item, (list, tuple)) or len(item) < 2:
+            raise ComfyUiError("Local ComfyUI queue item is malformed.")
+        prompt_id = item[1]
+        if not isinstance(prompt_id, str) or not prompt_id.strip():
+            raise ComfyUiError("Local ComfyUI queue item has no prompt id.")
+        prompt_ids.append(prompt_id)
+    return tuple(prompt_ids)
+
+
 class ComfyUiClient:
     """Small proxy-free HTTP client restricted to a loopback ComfyUI server."""
 
@@ -134,6 +160,8 @@ class ComfyUiClient:
                 raw = response.read()
         except (urllib.error.URLError, TimeoutError, OSError) as exc:
             raise ComfyUiError(f"Local ComfyUI request failed: {exc}") from exc
+        if not raw:
+            return {}
         try:
             decoded = json.loads(raw.decode("utf-8"))
         except (UnicodeDecodeError, json.JSONDecodeError) as exc:
@@ -174,9 +202,39 @@ class ComfyUiClient:
         number = payload.get("number")
         return ComfyUiQueueReceipt(prompt_id, number, node_errors)
 
+    def queue_snapshot(self) -> ComfyUiQueueSnapshot:
+        payload = self._request("GET", "/queue")
+        return ComfyUiQueueSnapshot(
+            running_prompt_ids=_queue_prompt_ids(payload.get("queue_running")),
+            pending_prompt_ids=_queue_prompt_ids(payload.get("queue_pending")),
+        )
+
+    def prompt_state(self, prompt_id: str) -> ComfyUiPromptState:
+        normalized = prompt_id.strip()
+        if not normalized:
+            raise ComfyUiError("ComfyUI prompt id must not be empty.")
+        queue = self.queue_snapshot()
+        if normalized in queue.running_prompt_ids:
+            return ComfyUiPromptState(normalized, "running")
+        if normalized in queue.pending_prompt_ids:
+            return ComfyUiPromptState(normalized, "pending")
+
+        encoded = urllib.parse.quote(normalized, safe="")
+        history = self._request("GET", f"/history/{encoded}")
+        if normalized in history:
+            return ComfyUiPromptState(normalized, "completed")
+        return ComfyUiPromptState(normalized, "unknown")
+
+    def release_vram(self) -> None:
+        self._request(
+            "POST",
+            "/free",
+            {"unload_models": True, "free_memory": True},
+        )
+
 
 class ComfyUiController(QObject):
-    """One truthful modeless surface for local ComfyUI health and workflow queueing."""
+    """Truthful modeless surface for local ComfyUI workflow and resource operations."""
 
     def __init__(
         self,
@@ -189,15 +247,17 @@ class ComfyUiController(QObject):
         self.client = client or ComfyUiClient()
         self.workflow: dict[str, Any] | None = None
         self.workflow_path: Path | None = None
+        self.last_prompt_id: str | None = None
 
         self.dialog = QDialog(self.window)
         self.dialog.setObjectName("comfyUiDialog")
         self.dialog.setWindowTitle("ComfyUI")
         self.dialog.setModal(False)
-        self.dialog.resize(760, 430)
+        self.dialog.resize(760, 500)
         self.dialog.setAccessibleName("ComfyUI local workflow bridge")
         self.dialog.setAccessibleDescription(
-            "Connect to local ComfyUI, load an API-format workflow, and queue it explicitly."
+            "Connect to local ComfyUI, queue an API workflow, inspect its state, "
+            "and explicitly request model and VRAM release."
         )
 
         outer = QVBoxLayout(self.dialog)
@@ -264,8 +324,29 @@ class ComfyUiController(QObject):
         self.receipt.setAccessibleName("ComfyUI queue receipt")
         outer.addWidget(self.receipt)
 
+        operations = QHBoxLayout()
+        self.refresh_job_button = QPushButton("Refresh job")
+        self.refresh_job_button.setObjectName("comfyUiRefreshJob")
+        self.refresh_job_button.setEnabled(False)
+        self.refresh_job_button.clicked.connect(self.refresh_prompt_status)
+        self.release_vram_button = QPushButton("Release VRAM")
+        self.release_vram_button.setObjectName("comfyUiReleaseVram")
+        self.release_vram_button.clicked.connect(self.release_vram)
+        operations.addWidget(self.refresh_job_button)
+        operations.addWidget(self.release_vram_button)
+        operations.addStretch(1)
+        outer.addLayout(operations)
+
+        self.job_status = QLabel("No ComfyUI job tracked in this session.")
+        self.job_status.setObjectName("comfyUiJobStatus")
+        self.job_status.setWordWrap(True)
+        self.job_status.setProperty("pathenaUiState", "empty")
+        self.job_status.setAccessibleName("ComfyUI job status")
+        outer.addWidget(self.job_status)
+
         self.dialog.setProperty("pathenaComfyUiEndpoint", self.client.endpoint)
         self.dialog.setProperty("pathenaComfyUiLocalOnly", True)
+        self.dialog.setProperty("pathenaComfyUiGlobalInterruptAvailable", False)
         self.window.setProperty("pathenaComfyUiController", self)
         self.window.setProperty("pathenaComfyUiInstalled", True)
 
@@ -328,10 +409,50 @@ class ComfyUiController(QObject):
         except ComfyUiError as exc:
             self._set_status("error", str(exc))
             return False
+        self.last_prompt_id = receipt.prompt_id
+        self.refresh_job_button.setEnabled(True)
         self._set_status("success", "Workflow queued in local ComfyUI.")
         self.receipt.setText(f"Prompt ID · {receipt.prompt_id}")
         self.receipt.setProperty("pathenaComfyUiPromptId", receipt.prompt_id)
+        self._set_job_status("pending", "Queued · refresh to read the live ComfyUI state.")
         return True
+
+    def refresh_prompt_status(self) -> bool:
+        if self.last_prompt_id is None:
+            self._set_job_status("empty", "No ComfyUI job tracked in this session.")
+            return False
+        try:
+            state = self.client.prompt_state(self.last_prompt_id)
+        except ComfyUiError as exc:
+            self._set_job_status("error", str(exc))
+            return False
+        labels = {
+            "pending": "Pending in ComfyUI queue.",
+            "running": "Running in ComfyUI.",
+            "completed": "Completed in ComfyUI history.",
+            "unknown": "Not present in current ComfyUI queue or history.",
+        }
+        self._set_job_status(state.state, labels[state.state])
+        return True
+
+    def release_vram(self) -> bool:
+        try:
+            self.client.release_vram()
+        except ComfyUiError as exc:
+            self._set_status("error", str(exc))
+            return False
+        self._set_status(
+            "success",
+            "VRAM release requested · ComfyUI will unload models and free memory when safe.",
+        )
+        self.dialog.setProperty("pathenaComfyUiVramReleaseRequested", True)
+        return True
+
+    def _set_job_status(self, state: str, text: str) -> None:
+        self.job_status.setText(text)
+        self.job_status.setProperty("pathenaUiState", state)
+        self.job_status.setAccessibleDescription(text)
+        self.dialog.setProperty("pathenaComfyUiPromptState", state)
 
     def _set_status(self, state: str, text: str) -> None:
         self.status.setText(text)
@@ -356,7 +477,7 @@ def install_comfyui_integration(
             *palette._commands,
             _Command(
                 label="Open ComfyUI",
-                keywords=("comfyui", "image", "video", "workflow", "local"),
+                keywords=("comfyui", "image", "video", "workflow", "local", "vram"),
                 action=controller.open,
             ),
         )
