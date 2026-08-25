@@ -170,6 +170,8 @@ jobs:
               tests/unit/test_pathena_jobs_experience_2800.py `
               tests/unit/test_pathena_pallas_target_lifecycle.py `
               tests/unit/test_pathena_pallas_responsiveness.py `
+              tests/unit/test_emergency_reserve.py `
+              tests/unit/test_emergency_reserve_concurrency.py `
               2>&1 | Tee-Object (Join-Path $env:DIAGNOSTIC_ROOT "targeted-tests.log")
             if ($LASTEXITCODE -ne 0) { throw "Targeted candidate tests failed." }
           } finally {
