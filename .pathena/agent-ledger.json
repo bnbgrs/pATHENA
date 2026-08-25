@@ -1,21 +1,41 @@
 {
-  "schema_version":1,
-  "coordination_branch":"bot/pathena-coordination",
-  "candidate_branch":"bot/pathena-candidate",
-  "last_known_candidate_sha":"07e9c85b82c48ef2df5d87549ebc9ffefd2af1ce",
-  "claim_timeout_minutes":90,
-  "priority_order":["P0_DEFECT","P1_CORE","REGRESSION","SECURITY","UX_GAP","FEATURE_GAP","CLEANUP"],
-  "agents":{"PATHENA-LEAD":{"scope":["coordination","integration","architecture","prioritization"]},"PATHENA-BACKEND":{"scope":["core","storage","knowledge","research","jobs","api","persistence"]},"PATHENA-UI":{"scope":["desktop","ux","design-system","pallas","accessibility","interactions"]},"PATHENA-SECURITY":{"scope":["local-first","network","tor","secrets","encryption","process-boundaries","privacy","logging"]},"PATHENA-QA-SCOUT":{"scope":["regressions","windows","packaging","tests","feature-gaps","reproduction"]}},
-  "claims":[],
-  "backlog":[
+  "schema_version": 1,
+  "coordination_branch": "bot/pathena-coordination",
+  "candidate_branch": "bot/pathena-candidate",
+  "last_known_candidate_sha": "07e9c85b82c48ef2df5d87549ebc9ffefd2af1ce",
+  "claim_timeout_minutes": 90,
+  "priority_order": ["P0_DEFECT","P1_CORE","REGRESSION","SECURITY","UX_GAP","FEATURE_GAP","CLEANUP"],
+  "agents": {
+    "PATHENA-LEAD": {"scope":["coordination","integration","architecture","prioritization"]},
+    "PATHENA-BACKEND": {"scope":["core","storage","knowledge","research","jobs","api","persistence"]},
+    "PATHENA-UI": {"scope":["desktop","ux","design-system","pallas","accessibility","interactions"]},
+    "PATHENA-SECURITY": {"scope":["local-first","network","tor","secrets","encryption","process-boundaries","privacy","logging"]},
+    "PATHENA-QA-SCOUT": {"scope":["regressions","windows","packaging","tests","feature-gaps","reproduction"]}
+  },
+  "claims": [
+    {
+      "task_id":"TASK-0008",
+      "title":"Design and verify candidate-to-main promotion path without reviving legacy bootstrap workflows",
+      "priority":"P1_CORE",
+      "owner":"PATHENA-LEAD",
+      "status":"CLAIMED",
+      "base_candidate_sha":"07e9c85b82c48ef2df5d87549ebc9ffefd2af1ce",
+      "paths":[".github/workflows/",".pathena/","promotion/release metadata"],
+      "semantic_scope":["candidate-to-main promotion","legacy workflow exclusion","release readiness"],
+      "started_at":"2026-08-25T12:02:00Z",
+      "heartbeat_at":"2026-08-25T12:02:00Z",
+      "verification_plan":["compare candidate and main divergence","classify main-only commits and legacy workflow risk","inventory current candidate quality/release workflows","define non-destructive promotion sequence and explicit blockers","create evidence-backed follow-up tasks where implementation belongs to specialized bots"]
+    }
+  ],
+  "backlog": [
     {"task_id":"TASK-0002","title":"Assess Obsidian projection gap after Recovery gate","priority":"FEATURE_GAP","status":"COMPLETED","preferred_owner":"PATHENA-BACKEND"},
-    {"task_id":"TASK-0008","title":"Design and verify candidate-to-main promotion path without reviving legacy bootstrap workflows","priority":"P1_CORE","status":"READY","preferred_owner":"PATHENA-LEAD"},
+    {"task_id":"TASK-0008","title":"Design and verify candidate-to-main promotion path without reviving legacy bootstrap workflows","priority":"P1_CORE","status":"CLAIMED","preferred_owner":"PATHENA-LEAD"},
     {"task_id":"TASK-0010","title":"Audit quiet-text contrast on canonical pATHENA dark surfaces","priority":"UX_GAP","status":"READY","preferred_owner":"PATHENA-UI","evidence":"Canonical text_quiet #706B65 is below 4.5:1 on canonical dark surfaces for small meaningful metadata."},
     {"task_id":"TASK-0012","title":"Add explicit Obsidian vault export service with atomic writes and conflict policy","priority":"FEATURE_GAP","status":"READY","preferred_owner":"PATHENA-BACKEND","evidence":"Current candidate contains deterministic Obsidian Markdown projection only; no vault export/write/atomic/conflict implementation found.","acceptance_criteria":["explicit local vault target","atomic writes","path traversal rejection","deterministic conflict policy","canonical data remains source of truth"],"verification_plan":["unit atomic/conflict tests","path safety tests","Ruff/Mypy","targeted Windows filesystem test"]},
     {"task_id":"TASK-0013","title":"Define cryptographic plugin publisher identity before publisher metadata becomes a trust signal","priority":"SECURITY","status":"READY","preferred_owner":"PATHENA-SECURITY","evidence":"Publisher metadata is descriptive only; no cryptographic publisher identity/signature verification implementation found.","acceptance_criteria":["display publisher text never equals authenticated identity","versioned signature/trust-root policy","invalid signatures fail closed before executable loading","canonical identity comparison resists display spoofing"],"verification_plan":["valid/invalid signature fixtures","tamper tests","unknown/untrusted signer tests","Ruff/Mypy/security targeted tests"]},
     {"task_id":"TASK-0015","title":"Implement candidate-bound 11-surface visual regression harness","priority":"REGRESSION","status":"READY","preferred_owner":"PATHENA-QA-SCOUT","evidence":"Current .github/workflows/ui-snapshot.yml triggers pushes only on legacy agent/pathena, runs Ubuntu/offscreen, and uploads one pathena-ui.png. scripts/render_pathena_ui_snapshot.py captures one 1480x900 window after 750 ms with no canonical state enumeration, baseline mapping or comparator. Existing exact Windows diagnostics render 11 surfaces but only prove renderability/upload, not objective visual equivalence.","scope":[".github/workflows/ui-snapshot.yml","scripts/render_pathena_ui_snapshot.py","tests/qa visual comparator fixtures","candidate-bound exact-SHA QA harness"],"acceptance_criteria":["canonical capture enumerates exactly 11 named surfaces/states deterministically","workflow targets current candidate/explicit dispatch rather than legacy agent/pathena only","baseline set is versioned and updates require explicit review","comparison tolerates bounded antialiasing noise but fails meaningful geometry/color/content drift","missing or extra surface fails closed","failure uploads actual/baseline/diff per failing surface","harness does not make network calls or mutate user data"],"verification_plan":["identical-image self-test PASS","known geometry/color delta fixture FAIL","missing/extra surface FAIL","Ruff/Mypy on helper code","exact Windows run for capture/comparison because font and Qt rendering are platform-sensitive","full Windows not automatically required unless product/runtime paths change"]}
   ],
-  "completed":[
+  "completed": [
     {"task_id":"TASK-0001","status":"COMPLETED","owner":"PATHENA-LEAD","result_candidate_sha":"de1affbd6afc8f914902119efdddfbbf6ebd555e"},
     {"task_id":"TASK-0003","status":"COMPLETED","owner":"PATHENA-LEAD","result_candidate_sha":"de440f49671f4aeb35626085dc333d1ebe6032e7"},
     {"task_id":"TASK-0002","status":"COMPLETED","owner":"PATHENA-BACKEND","result_candidate_sha":"417ffb36471e93b64f618e08ff9809380dc152ef"},
@@ -27,10 +47,11 @@
     {"task_id":"TASK-0011","title":"Scout current candidate for evidence-backed QA and feature gaps","priority":"REGRESSION","owner":"PATHENA-QA-SCOUT","status":"COMPLETED","base_candidate_sha":"07e9c85b82c48ef2df5d87549ebc9ffefd2af1ce","result_candidate_sha":"07e9c85b82c48ef2df5d87549ebc9ffefd2af1ce","completed_at":"2026-08-25T11:42:00Z","result":"Confirmed three evidence-backed gaps and created TASK-0012/0013/0014."},
     {"task_id":"TASK-0014","title":"Audit deterministic visual-regression feasibility for canonical desktop capture","priority":"REGRESSION","owner":"PATHENA-QA-SCOUT","status":"COMPLETED","base_candidate_sha":"07e9c85b82c48ef2df5d87549ebc9ffefd2af1ce","result_candidate_sha":"07e9c85b82c48ef2df5d87549ebc9ffefd2af1ce","completed_at":"2026-08-25T11:46:00Z","paths":[],"result":"Feasibility audit found the repository UI snapshot path is stale and insufficient for objective regression: it is legacy-branch/Ubuntu/single-image capture, while 11-surface Windows diagnostics remain comparison-free. No product changes were made; implementation work is narrowed into TASK-0015.","verification":[".github/workflows/ui-snapshot.yml push trigger is agent/pathena only and uploads one artifacts/pathena-ui.png.","scripts/render_pathena_ui_snapshot.py builds one window, resizes to 1480x900, waits 750 ms and grabs a single PNG.","No visual-diff/baseline comparator implementation was found by repository search.","quality.yml runs on main push or pull_request, so the current candidate has no automatic product-branch UI snapshot gate in this workflow.","Live candidate remained 07e9c85b82c48ef2df5d87549ebc9ffefd2af1ce; no Full-Windows rerun was warranted."]}
   ],
-  "events":[
+  "events": [
     {"type":"COMPLETE","agent":"PATHENA-QA-SCOUT","task_id":"TASK-0011","at":"2026-08-25T11:42:00Z","candidate_sha":"07e9c85b82c48ef2df5d87549ebc9ffefd2af1ce","detail":"Scout packet completed with three evidence-backed tasks and no product changes."},
     {"type":"CLAIM","agent":"PATHENA-QA-SCOUT","task_id":"TASK-0014","at":"2026-08-25T11:43:00Z","candidate_sha":"07e9c85b82c48ef2df5d87549ebc9ffefd2af1ce","detail":"Claimed visual-regression feasibility audit; no product paths reserved."},
     {"type":"DISCOVER","agent":"PATHENA-QA-SCOUT","task_id":"TASK-0015","at":"2026-08-25T11:46:00Z","candidate_sha":"07e9c85b82c48ef2df5d87549ebc9ffefd2af1ce","detail":"Narrowed visual-regression implementation: legacy branch/single Ubuntu snapshot must become candidate-bound deterministic 11-surface Windows comparison with explicit baselines and diff artifacts."},
-    {"type":"COMPLETE","agent":"PATHENA-QA-SCOUT","task_id":"TASK-0014","at":"2026-08-25T11:46:00Z","candidate_sha":"07e9c85b82c48ef2df5d87549ebc9ffefd2af1ce","detail":"Visual-regression feasibility audit completed; TASK-0015 queued READY with exact evidence and verification plan."}
+    {"type":"COMPLETE","agent":"PATHENA-QA-SCOUT","task_id":"TASK-0014","at":"2026-08-25T11:46:00Z","candidate_sha":"07e9c85b82c48ef2df5d87549ebc9ffefd2af1ce","detail":"Visual-regression feasibility audit completed; TASK-0015 queued READY with exact evidence and verification plan."},
+    {"type":"CLAIM","agent":"PATHENA-LEAD","task_id":"TASK-0008","at":"2026-08-25T12:02:00Z","candidate_sha":"07e9c85b82c48ef2df5d87549ebc9ffefd2af1ce","detail":"Claimed promotion-path audit using live candidate and current ledger; no product mutation authorized by this claim."}
   ]
 }
