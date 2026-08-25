@@ -1,58 +1,163 @@
-name: pATHENA UI Snapshot
+name: pATHENA 11-Surface Visual Regression
 
 on:
   push:
     branches:
-      - agent/pathena
+      - bot/pathena-candidate
     paths:
       - ".github/workflows/ui-snapshot.yml"
       - "scripts/render_pathena_ui_snapshot.py"
+      - "scripts/compare_pathena_ui_snapshots.py"
+      - "tests/qa/**"
+      - "tests/qa/visual-baseline-windows.json"
       - "src/athena/desktop/**"
       - "pyproject.toml"
       - "uv.lock"
   workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Exact bot/pathena-candidate SHA to verify
+        required: true
 
 permissions:
   contents: read
 
+concurrency:
+  group: pathena-visual-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
-  render:
-    name: Render pATHENA desktop
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+  compare:
+    name: Exact candidate visual regression on Windows Server 2025
+    runs-on: windows-2025
+    timeout-minutes: 20
     env:
+      PYTHONUTF8: "1"
       QT_QPA_PLATFORM: offscreen
-      PATHENA_UI_SNAPSHOT: artifacts/pathena-ui.png
 
     steps:
-      - name: Check out repository
-        uses: actions/checkout@v6
+      - name: Resolve exact candidate SHA
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $candidate = "${{ inputs.candidate_sha }}"
+          } else {
+            $candidate = "${{ github.sha }}"
+          }
+          $candidate = $candidate.Trim().ToLowerInvariant()
+          if ($candidate -notmatch "^[0-9a-f]{40}$") {
+            throw "candidate_sha must be exactly 40 lowercase hexadecimal characters."
+          }
+          "CANDIDATE_SHA=$candidate" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Check out exact candidate
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          persist-credentials: false
+
+      - name: Prove immutable candidate identity
+        shell: pwsh
+        run: |
+          $checkedOut = (git rev-parse HEAD).Trim().ToLowerInvariant()
+          if ($LASTEXITCODE -ne 0 -or $checkedOut -ne $env:CANDIDATE_SHA) {
+            throw "Checked out $checkedOut instead of exact candidate $env:CANDIDATE_SHA."
+          }
+          $remote = git ls-remote https://github.com/bnbgrs/pATHENA.git refs/heads/bot/pathena-candidate
+          if ($LASTEXITCODE -ne 0 -or -not $remote) {
+            throw "Could not resolve the live candidate branch."
+          }
+          $live = ($remote -split "\s+")[0].ToLowerInvariant()
+          if ($live -ne $env:CANDIDATE_SHA) {
+            throw "Candidate moved before visual execution: expected $env:CANDIDATE_SHA, found $live."
+          }
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.12"
-          cache: "pip"
+          check-latest: false
 
-      - name: Install pinned resolver
+      - name: Install locked test and desktop environment
+        shell: pwsh
         run: |
-          python -m pip install --disable-pip-version-check "pip==26.1.2"
           python -m pip install --disable-pip-version-check "uv==0.11.21"
+          uv lock --check
+          if ($LASTEXITCODE -ne 0) { throw "uv.lock is not current." }
+          uv sync --locked --extra dev --extra desktop
+          if ($LASTEXITCODE -ne 0) { throw "Locked environment sync failed." }
 
-      - name: Install Qt runtime libraries
+      - name: Ruff visual harness
+        shell: pwsh
         run: |
-          sudo apt-get update
-          sudo apt-get install --no-install-recommends -y libegl1
+          uv run --locked --extra dev --extra desktop --no-sync ruff check `
+            scripts/render_pathena_ui_snapshot.py `
+            scripts/compare_pathena_ui_snapshots.py `
+            tests/qa/test_visual_snapshot_compare.py
+          if ($LASTEXITCODE -ne 0) { throw "Visual harness Ruff failed." }
 
-      - name: Validate dependency lock
-        run: uv lock --check
+      - name: Mypy comparator
+        shell: pwsh
+        run: |
+          uv run --locked --extra dev --extra desktop --no-sync mypy scripts/compare_pathena_ui_snapshots.py
+          if ($LASTEXITCODE -ne 0) { throw "Visual comparator mypy failed." }
 
-      - name: Render current pATHENA UI
-        run: uv run --locked --extra desktop python scripts/render_pathena_ui_snapshot.py
+      - name: Run comparator contract tests
+        shell: pwsh
+        run: |
+          uv run --locked --extra dev --extra desktop --no-sync pytest -q tests/qa/test_visual_snapshot_compare.py
+          if ($LASTEXITCODE -ne 0) { throw "Visual comparator contract tests failed." }
 
-      - name: Upload exact UI snapshot
-        uses: actions/upload-artifact@v4
+      - name: Capture exactly eleven canonical surfaces
+        shell: pwsh
+        run: |
+          $runtimeRoot = Join-Path $env:RUNNER_TEMP "pathena-visual-runtime"
+          $actualRoot = Join-Path (Get-Location) "artifacts\visual-actual"
+          uv run --locked --extra desktop --no-sync python scripts/render_pathena_ui_snapshot.py `
+            --runtime-root $runtimeRoot `
+            --screenshot-directory $actualRoot `
+            --initial-delay-seconds 7
+          if ($LASTEXITCODE -ne 0) { throw "Eleven-surface capture failed." }
+
+      - name: Compare committed baseline or emit proposal
+        id: visual
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $actualRoot = Join-Path (Get-Location) "artifacts\visual-actual"
+          $diffRoot = Join-Path (Get-Location) "artifacts\visual-diff"
+          $baseline = Join-Path (Get-Location) "tests\qa\visual-baseline-windows.json"
+          if (-not (Test-Path $baseline)) {
+            $proposal = Join-Path (Get-Location) "artifacts\visual-baseline-proposal.json"
+            uv run --locked --extra desktop --no-sync python scripts/compare_pathena_ui_snapshots.py `
+              --actual-dir $actualRoot `
+              --baseline-bundle $proposal `
+              --diff-dir $diffRoot `
+              --write-baseline `
+              --candidate-sha $env:CANDIDATE_SHA
+            if ($LASTEXITCODE -ne 0) { throw "Baseline proposal generation failed." }
+            throw "Committed visual baseline is absent; proposal uploaded for review."
+          }
+          uv run --locked --extra desktop --no-sync python scripts/compare_pathena_ui_snapshots.py `
+            --actual-dir $actualRoot `
+            --baseline-bundle $baseline `
+            --diff-dir $diffRoot
+          if ($LASTEXITCODE -ne 0) { throw "Visual regression detected." }
+
+      - name: Upload actual, diff, and baseline proposal artifacts
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
-          name: pathena-ui-snapshot
-          path: artifacts/pathena-ui.png
+          name: pathena-visual-${{ env.CANDIDATE_SHA }}
+          path: |
+            artifacts/visual-actual/**
+            artifacts/visual-diff/**
+            artifacts/visual-baseline-proposal.json
           if-no-files-found: error
+          retention-days: 14
+
+      - name: Enforce visual verdict
+        if: steps.visual.outcome != 'success'
+        shell: pwsh
+        run: |
+          throw "Visual regression gate did not pass. Inspect the uploaded visual artifact."
