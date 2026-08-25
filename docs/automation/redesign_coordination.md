@@ -3,8 +3,8 @@
 Last updated: 2026-08-25
 
 - Accepted `agent/pathena`: `fbbf44dc8c8175499528f07be079061b644d1604`
-- Candidate product head before this coordination update: `de8a028b61ee6f5d149a9f82e295fd305f6c079f`
-- Promotion: **BLOCKED** — no exact-candidate Cloud-Windows GREEN; targeted PALLAS fallback and dialog-focus failures remain
+- Candidate product head before this coordination update: `1fa833904b280917459f611032425c6b88c237ed`
+- Promotion: **BLOCKED** — no exact-candidate Cloud-Windows GREEN; the targeted dialog-focus failure remains
 - `main`, ATHENA, and foreign user branches remain read-only; no force-push
 
 ## Ownership
@@ -29,21 +29,24 @@ No integrated worker slices overlap files. `app.py` remains Lead-arbitrated.
 | Lead install hooks | n/a | `2560dfbae78ddf696307dd69367d8f349b3c98db` | INTEGRATED | `install_settings_runtime` and `install_pallas_grounded_field` only |
 | OPS-002 live capability Help | `c9764b4318cdef30fbb09ec844f944cf1dd66f55` | `8d3f0ed36fc658362f6c6e23055ce85b16b669c4` | INTEGRATED | 21 worker tests; live command/target catalogue; 820×680 Help render |
 | CORE-003 Research result review | `73eec8784c9d7a7ac5b06c835ae2f0755ed73cc0` | `de8a028b61ee6f5d149a9f82e295fd305f6c079f` | INTEGRATED | persisted result summary, coverage, evidence and provenance; honest loading/error states; 1480×900 worker render |
+| CORE-002 + DS-002 PALLAS owner repair | `11d618a5373b1abafb4761b60a882e740c6bf522` + `0049d7fcdd5c0e71e5e73517af6ec7a92abe949a` | `842a6464c587a39a87d0b0b193a3a561102db190` | INTEGRATED | 12 combined owner/target/shell tests PASS; window-local weak binding; no lifecycle leak |
+| CORE-004 Knowledge provenance review | `9bbd34e3321f47021c65fda4728370bf4abf6ade` | `d47c3ed30388757e3ca5171be75bb0405e9250ef` | INTEGRATED | persisted Knowledge/Claim detail, evidence and provenance; truthful parse failures |
+| OPS-003 Jobs lifecycle | `5c0fedafdc0f202a205180c90b9ce73372420535` | `1fa833904b280917459f611032425c6b88c237ed` | INTEGRATED | state-bound pause/resume/wake/cancel availability and exact transition receipts |
 
-Current product verification: 49 targeted redesign tests PASS; targeted Ruff PASS; strict Mypy PASS; integrated Help render PASS. Separately targeted blocker tests remain RED below.
+Current integration verification: 25 targeted tests PASS and the single DS-003 focus test remains RED; targeted Ruff PASS; strict Mypy PASS. The PALLAS lifecycle blockers are closed.
 
 ## Eleven-screen matrix
 
 | Reference | Owner | Status | Next acceptance boundary |
 | --- | --- | --- | --- |
 | `pATHENA im eleganten Dunkelmodus.png` | Design System | INTEGRATED / DS-001 | refine only through shared tokens/components |
-| `PALLAS – Lebendes semantisches Wissensfeld.png` | Core + Design | INTEGRATED / CORE-001; CORE-002 CONTRACT PUBLISHED | integrate CORE-002 and DS-002 only as one verified repair pair |
+| `PALLAS – Lebendes semantisches Wissensfeld.png` | Core + Design | INTEGRATED / CORE-001 + CORE-002 + DS-002 | Windows interaction, pause/resume and mini/full-screen acceptance |
 | `pATHENA Einstellungen für lokale KI.png` | Operations | INTEGRATED / OPS-001 | provider-backed controls remain truthful |
 | `pATHENA Hilfe: Fähigkeiten im Überblick.png` | Operations + Design | INTEGRATED / OPS-002; FOCUS REPAIR ASSIGNED | retain live catalogue; repair shared dialog focus lifecycle in DS-003 |
 | `pATHENA – Dunkles Studio für Wissensforschung.png` | Core | INTEGRATED / CORE-003 | exact-candidate Windows navigation and persisted-result review |
 | `pATHENA: Intelligenzstudio für lokales Wissen.png` | Core + Design | QUEUED | real chat/source/provenance flow in shared shell |
-| `pATHENA: Lokales Gedächtnis neu gedacht.png` | Core | QUEUED | real Knowledge/Claim/Decision selection and provenance |
-| `pATHENA Jobs: Prüfung der Speicher-Richtlinie.png` | Operations | QUEUED | real progress, pause/resume/cancel and logs |
+| `pATHENA: Lokales Gedächtnis neu gedacht.png` | Core | INTEGRATED / CORE-004 | exact-candidate navigation and persisted provenance acceptance |
+| `pATHENA Jobs: Prüfung der Speicher-Richtlinie.png` | Operations | INTEGRATED / OPS-003 | exact-candidate pause/resume/wake/cancel and receipt acceptance |
 | `pATHENA Such- und Befehlspalette.png` | Operations | QUEUED | truthful actions/blockers and keyboard flow |
 | `pATHENA Systemübersicht für lokale KI.png` | Operations | QUEUED | real Core/provider/storage/runtime state |
 | `ComfyUI-Integration im pATHENA Studio.png` | Operations | QUEUED | real endpoint/workflow/VRAM/error path only |
@@ -52,34 +55,29 @@ All eleven named references remain the exclusive visual source.
 
 ## Targeted blockers
 
-`tests/unit/test_pathena_pallas_target_lifecycle.py` reproduces two failures in the candidate lineage and the accepted base:
-
-- `AsciiPanel._pallas_target` remains `None`, so the legacy fallback is not bound to its own window.
-- semantic sampling returns only the page context and does not see the owning window's prompt.
-
-CORE-002 published the explicit weak owner contract at `11d618a5373b1abafb4761b60a882e740c6bf522`; its 16 focused tests, Ruff, Mypy and offscreen render pass. It is not integrated alone because the unchanged shared shell cannot activate it. DS-002 must publish the matching shell hook, then Lead integrates and tests the pair.
+The two former `test_pathena_pallas_target_lifecycle.py` failures are closed by the integrated CORE-002/DS-002 pair. All combined owner, target and shell-binding tests pass in the candidate product tree.
 
 `tests/unit/test_pathena_transient_dialog_shortcuts.py::test_transient_handoff_restores_original_workspace_focus_after_escape` also reproduces on the exact product candidate: F1 opened from Commands closes correctly on Escape but does not restore the original workspace focus. This predates OPS-002 and its new Help modules do not edit focus code, but it is now a targeted Help behavior blocker owned by Design System.
 
-Neither blocker is generic Quality red. Both block Windows acceptance and promotion until repaired and retested in the exact candidate.
+The remaining focus failure is not generic Quality red. It blocks Windows acceptance and promotion until DS-003 is integrated and retested in the exact candidate.
 
 ## New assignments
 
 ### CORE-002 — explicit legacy PALLAS owner contract
 
-- Status: **BLOCKED / CONTRACT PUBLISHED** at `11d618a5373b1abafb4761b60a882e740c6bf522`; wait for DS-002.
+- Status: **INTEGRATED** with DS-002 as candidate commit `842a6464c587a39a87d0b0b193a3a561102db190`.
 - Owner files: `src/athena/desktop/ascii_panel.py` plus focused Core tests only.
 - Deliverable: an explicit, lifecycle-safe semantic-root binding API; no global widget lookup, cross-window sampling, random data, or shell edit.
 - Acceptance after pairing: both existing target-lifecycle tests PASS; destroyed/recreated windows do not leak targets; fallback still paints when the new field is absent.
-- Dependency: DS-002 consumes `bind_semantic_root`; Lead integrates neither half as a completed repair until the combined tests pass.
+- Dependency: satisfied by DS-002; combined tests pass.
 
-### DS-002 — shared-shell fallback binding and Inspector hook
+### DS-002 — shared-shell fallback binding
 
-- Status: **ASSIGNED**, remote Design-System head still `99d46061a98e0cea009cf03e6fa4a25ba3fd2deb`.
+- Status: **INTEGRATED** from `0049d7fcdd5c0e71e5e73517af6ec7a92abe949a`.
 - Owner files: `src/athena/desktop/pathena_window.py` and shared component tests only.
-- Deliverable: bind each window's legacy PALLAS controller through CORE-002's API and expose a stable shared Context Inspector slot for `PallasSelection` without duplicating Core renderer code.
-- Acceptance: no controller/signal regression; fallback target is window-local; selection can reach Inspector; offscreen shell render PASS.
-- Dependency: test the DS-only diff in a temporary composite with candidate plus CORE-002; publish no Core-owned file on the Design branch.
+- Deliverable: bind each window's legacy PALLAS controller through CORE-002's API. The shared Context Inspector slot remains a later Design-System slice.
+- Acceptance: no controller/signal regression; fallback target is window-local; combined lifecycle and shell tests PASS.
+- Dependency: satisfied by CORE-002.
 
 ### DS-003 — dialog focus lifecycle
 
@@ -98,7 +96,7 @@ Neither blocker is generic Quality red. Both block Windows acceptance and promot
 
 ### CORE-004 — Knowledge selection and provenance review
 
-- Status: **ASSIGNED** after CORE-003.
+- Status: **INTEGRATED** from `9bbd34e3321f47021c65fda4728370bf4abf6ade`.
 - Owner files: `src/athena/desktop/knowledge_workspace.py`, new Core-owned Knowledge extension modules and focused tests; no shared shell/theme files.
 - Deliverable: real persisted Knowledge/Claim selection with evidence, provenance, conflicts and honest empty/loading/error states; actions only where a real controller or repository path exists.
 - Acceptance: existing controller, persistence and recovery contracts remain intact; selection/provenance/conflict tests PASS; 1480×900 render compared with `pATHENA: Lokales Gedächtnis neu gedacht.png`.
@@ -106,21 +104,47 @@ Neither blocker is generic Quality red. Both block Windows acceptance and promot
 
 ### OPS-003 — Jobs lifecycle vertical slice
 
+- Status: **INTEGRATED** from `5c0fedafdc0f202a205180c90b9ce73372420535`.
+
 - Owner files: `src/athena/desktop/jobs_workspace.py`, new Ops-owned Jobs extension modules and focused tests; no shared shell/theme files.
 - Deliverable: real persisted job list/detail, progress and supported pause/resume/cancel/wake actions through the existing scheduler path; truthful unavailable and failure/log states.
 - Acceptance: no invented job/metric; persisted refresh and each supported transition tested; action enablement follows actual job state; 1480×900 Jobs render compared with `pATHENA Jobs: Prüfung der Speicher-Richtlinie.png`.
 - Dependency: DS-001 components only; may proceed independently of PALLAS.
+
+### DS-004 — shared PALLAS Context Inspector slot
+
+- Status: **QUEUED after DS-003**.
+- Owner files: `src/athena/desktop/pathena_window.py`, a new shared Inspector component, and focused Design-System tests only.
+- Deliverable: one stable shared slot consuming `PallasSelection`; no Core renderer duplication and no invented actions.
+- Acceptance: selection, clearing, keyboard focus, destroyed-window safety and 1480×900 shell render PASS.
+- Dependency: DS-003 must land first; CORE-001 `selection_changed` is the only data contract.
+
+### CORE-005 — Chat source and provenance flow
+
+- Status: **ASSIGNED**.
+- Owner files: Core-owned Chat workspace/extension modules and focused tests; no shell/theme files.
+- Deliverable: real grounded response sources, claim identifiers and supported Knowledge/PALLAS actions through existing controller contracts, with honest loading/empty/error states.
+- Acceptance: persisted thread behavior preserved; source and action routing tests PASS; 1480×900 render compared with `pATHENA: Intelligenzstudio für lokales Wissen.png`.
+- Dependency: DS-001 only; use DS-004 later through its published interface.
+
+### OPS-004 — System runtime overview
+
+- Status: **ASSIGNED**.
+- Owner files: Ops-owned System workspace/extension modules and focused tests; no shared shell/theme files.
+- Deliverable: real Core, provider, storage and network/runtime states from existing probes; unavailable metrics remain explicitly unavailable.
+- Acceptance: reachable/unreachable/stale-state tests PASS, no invented metrics, 1480×900 render compared with `pATHENA Systemübersicht für lokale KI.png`.
+- Dependency: DS-001 only; independent of DS-003.
 
 ### WIN-001 — publish harness, then test repaired candidate
 
 - Published safe harness: `4712a0fd53da219532159c079f2b7792ab143fdb`; current Cloud-Windows head `98b79047ce6958b9cd7b1e6c3feea6a92909db4`.
 - Harness source validation run `32799370991` PASS; the Windows product job was correctly skipped because the candidate is still blocked.
 - Do not run the current blocked candidate or repeat unsafe `bf54714d23a0b3da27fcac5d8215b55c2715ce48`.
-- After CORE-002 + DS-002 integration, test that exact new candidate SHA with complete process-tree sampling, zero-orphan shutdown, install/import/start, DB reopen, navigation, PALLAS, Settings and packaging checks.
+- After DS-003 integration, test that exact new candidate SHA with complete process-tree sampling, zero-orphan shutdown, install/import/start, DB reopen, navigation, PALLAS, Settings and packaging checks.
 - GREEN only for fully executed checks; otherwise RED or NOT_EXECUTABLE. No distributable artifact on RED.
 
 ## Windows and promotion
 
-Windows status: **NOT_EXECUTABLE**. The SHA-bound report for prior product candidate `1166e7fdafc702b7d927b6cdf63dcdf7ea62f708` records no product run because the three targeted blockers were already reproducible. Current product commit `de8a028b61ee6f5d149a9f82e295fd305f6c079f` has no Windows acceptance and remains blocked by the same unaffected tests. Historical run `32634986477` ended with runner shutdown/cancel and cleanup of 608 orphan `pATHENA` processes, so it supplies no transferable PASS.
+Windows status: **NOT_EXECUTABLE**. The latest SHA-bound report covers prior candidate `5875a2cb15a3429db9121e1fd4e0033a6082212f`, not this new product tree. The PALLAS blockers are repaired, but DS-003 focus restoration remains reproducibly RED. Historical run `32634986477` ended with runner shutdown/cancel and cleanup of 608 orphan `pATHENA` processes, so it supplies no transferable PASS.
 
-Next Lead step: wait for READY DS-002, integrate CORE-002 plus DS-002 as one repair pair, then integrate READY DS-003 and rerun all three targeted blocker tests. OPS-003 and CORE-004 may proceed in isolated ownership. Publish a repaired candidate SHA and only then request one SHA-bound Windows acceptance. Promote to `agent/pathena` only after exact-candidate GREEN.
+Next Lead step: integrate READY DS-003 when published and rerun the focus handoff plus full targeted redesign set. In parallel assign CORE-005 to the real Chat/source/provenance flow and OPS-004 to the real System runtime overview; Design receives DS-004 for the shared PALLAS Context Inspector slot only after DS-003. Publish a focus-clean candidate SHA and only then request one SHA-bound Windows acceptance. Promote to `agent/pathena` only after exact-candidate GREEN.
