@@ -21,8 +21,9 @@ from athena.api.contracts import (
     ModelResponse,
     ProviderHealthResponse,
     RememberedChatMessageResponse,
+    StorageHealthResponse,
 )
-from athena.api.ports import CoreApiSurface
+from athena.api.ports import CoreDomainSurface
 from athena.core.application import ApplicationState, AthenaApplication
 
 _ResultT = TypeVar("_ResultT")
@@ -184,18 +185,24 @@ class CoreDomainExecutor:
 
 
 class SerializedCoreApiSurface:
-    """Dispatch every Core API facade operation onto its single owner thread."""
+    """Dispatch every Core API operation onto its single owner thread."""
 
     def __init__(
         self,
-        surface: CoreApiSurface,
+        surface: CoreDomainSurface,
         executor: CoreDomainExecutor,
+        *,
+        storage_health: Callable[[], StorageHealthResponse],
     ) -> None:
         self._surface = surface
         self._executor = executor
+        self._storage_health = storage_health
 
     def health(self) -> HealthResponse:
         return self._executor.call(self._surface.health)
+
+    def storage_health(self) -> StorageHealthResponse:
+        return self._executor.call(self._storage_health)
 
     def capabilities(self) -> CapabilitiesResponse:
         return self._executor.call(self._surface.capabilities)
