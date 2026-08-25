@@ -6,8 +6,16 @@ import ipaddress
 import math
 from numbers import Real
 from typing import Any
+from urllib.error import HTTPError
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
+
+
+MAX_LOCAL_RESPONSE_BYTES = 32 * 1024 * 1024
+
+
+class LocalResponseTooLargeError(OSError):
+    """Raised when a non-streaming local provider response exceeds its byte cap."""
 
 
 class _RejectRedirects(HTTPRedirectHandler):
@@ -24,6 +32,45 @@ class _RejectRedirects(HTTPRedirectHandler):
     ) -> None:
         del req, fp, code, msg, headers, newurl
         return None
+
+
+class _BoundedLocalResponse:
+    """Delegate one local HTTP response while bounding whole-body reads."""
+
+    def __init__(self, response: Any, *, max_bytes: int) -> None:
+        self._response = response
+        self._max_bytes = max_bytes
+
+    def __enter__(self) -> _BoundedLocalResponse:
+        enter = getattr(self._response, "__enter__", None)
+        if enter is not None:
+            enter()
+        return self
+
+    def __exit__(self, exc_type: Any, exc: Any, traceback: Any) -> Any:
+        exit_method = getattr(self._response, "__exit__", None)
+        if exit_method is not None:
+            return exit_method(exc_type, exc, traceback)
+        close = getattr(self._response, "close", None)
+        if close is not None:
+            close()
+        return None
+
+    def __iter__(self) -> Any:
+        return iter(self._response)
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._response, name)
+
+    def read(self, amt: int | None = None) -> bytes:
+        if amt is not None and amt >= 0:
+            return self._response.read(amt)
+        raw = self._response.read(self._max_bytes + 1)
+        if len(raw) > self._max_bytes:
+            raise LocalResponseTooLargeError(
+                "Local model response exceeded the configured byte limit."
+            )
+        return raw
 
 
 def _assert_loopback_http_request(request: Request) -> None:
@@ -59,6 +106,14 @@ def _validated_timeout(value: object) -> float:
     return timeout
 
 
+def _bound_http_error_body(exc: HTTPError) -> None:
+    if exc.fp is not None:
+        exc.fp = _BoundedLocalResponse(
+            exc.fp,
+            max_bytes=MAX_LOCAL_RESPONSE_BYTES,
+        )
+
+
 def open_local_request(request: Request, *, timeout: float) -> Any:
     """Open a loopback provider request without proxies or redirect traversal.
 
@@ -67,10 +122,23 @@ def open_local_request(request: Request, *, timeout: float) -> Any:
     are present. Redirects are rejected so a loopback service cannot move a
     request onto an external URL. The URL itself is revalidated here so future
     adapters cannot accidentally use this transport for a non-loopback target.
+
+    Whole-body ``read()`` calls are capped independently of Content-Length so a
+    faulty or compromised loopback service cannot make callers buffer an
+    arbitrarily large non-streaming response. Iteration remains unchanged for
+    explicitly streaming protocols such as SSE.
     """
     if not isinstance(request, Request):
         raise TypeError("Local model transport requires urllib.request.Request.")
     _assert_loopback_http_request(request)
     validated_timeout = _validated_timeout(timeout)
     opener = build_opener(ProxyHandler({}), _RejectRedirects())
-    return opener.open(request, timeout=validated_timeout)
+    try:
+        response = opener.open(request, timeout=validated_timeout)
+    except HTTPError as exc:
+        _bound_http_error_body(exc)
+        raise
+    return _BoundedLocalResponse(
+        response,
+        max_bytes=MAX_LOCAL_RESPONSE_BYTES,
+    )
