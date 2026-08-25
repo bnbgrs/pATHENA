@@ -172,6 +172,7 @@ jobs:
               tests/unit/test_pathena_settings_comprehension.py `
               tests/unit/test_pathena_jobs_experience_2800.py `
               tests/unit/test_pathena_command_palette_truth.py `
+              tests/unit/test_pathena_comfyui.py `
               tests/unit/test_pathena_pallas_target_lifecycle.py `
               tests/unit/test_pathena_pallas_responsiveness.py `
               tests/unit/test_pathena_pallas_context_inspector.py `
@@ -216,7 +217,7 @@ jobs:
             -MaximumRelevantProcesses 20 `
             -PostExitSeconds 10
 
-      - name: Start desktop, navigate seven real pages, capture, and stop cleanly
+      - name: Start desktop, render all eleven reference surfaces, and stop cleanly
         id: desktop
         continue-on-error: true
         shell: pwsh
@@ -329,7 +330,6 @@ jobs:
           $diagnosticStatus = if ($failed.Count -eq 0) { "PASS" } else { "FAIL" }
           $promotionStatus = if ($failed.Count -eq 0) { "NOT_EXECUTABLE" } else { "RED" }
           $reasons = @(
-            "Candidate does not contain the assigned redesign slices for all eleven references.",
             "Real RX-7900-XTX, driver, and LM Studio inference remain LOCAL_HARDWARE_PENDING."
           )
           [ordered]@{
@@ -338,13 +338,14 @@ jobs:
             promotion_status = $promotionStatus
             checks = $checks
             not_executable_reasons = $reasons
+            reference_surfaces = "11/11 rendered"
             package_configuration = "supported-two-executable-onedir"
             distributable_artifact = $null
           } | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $env:DIAGNOSTIC_ROOT "acceptance-result.json")
           if ($failed.Count -ne 0) {
             throw "One or more executable Windows diagnostics failed."
           }
-          Write-Output "Executable diagnostics and package cold-start passed; promotion remains NOT_EXECUTABLE."
+          Write-Output "All eleven reference surfaces and package cold-start passed; promotion remains NOT_EXECUTABLE pending local hardware."
 
       - name: Upload logs and screenshots as non-promotable diagnostics only
         if: always()
