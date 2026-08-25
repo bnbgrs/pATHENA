@@ -1122,8 +1122,9 @@ _SENSITIVE_QUERY_KEYS = frozenset(
     {
         "token", "access_token", "refresh_token", "key", "api_key", "apikey",
         "secret", "client_secret", "password", "auth", "authorization",
-        "signature", "sig", "x-amz-signature", "session", "session_id",
-        "code", "jwt",
+        "signature", "sig", "x-amz-signature", "x-amz-credential",
+        "x-amz-security-token", "x-goog-signature", "x-goog-credential",
+        "session", "session_id", "code", "jwt",
     }
 )
 
