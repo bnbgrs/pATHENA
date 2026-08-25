@@ -10,7 +10,6 @@ from urllib.error import HTTPError
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
-
 MAX_LOCAL_RESPONSE_BYTES = 32 * 1024 * 1024
 
 
