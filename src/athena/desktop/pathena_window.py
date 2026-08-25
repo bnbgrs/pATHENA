@@ -16,17 +16,26 @@ from PySide6.QtWidgets import (
 
 from athena.api.contracts import ChatThreadResponse, GroundedChatResponse
 from athena.desktop.api_controller import DesktopApiController, DesktopApiSnapshot
+from athena.desktop.pathena_design_tokens import SHELL
 from athena.desktop.window import AthenaMainWindow, MetricRow
 
 _DISPLAY_NAVIGATION = (
-    "Chat",
-    "Knowledge",
+    "Workspace",
+    "Library",
     "Research",
     "Jobs",
-    "Files",
+    "Sources",
     "System",
     "Settings",
 )
+_TOP_NAVIGATION = (
+    (0, "WORKSPACE"),
+    (1, "LIBRARY"),
+    (2, "RESEARCH"),
+    (3, "JOBS"),
+    (4, "SOURCES"),
+)
+_ICON_NAVIGATION = ("◉", "◇", "⌁", "▤", "▱", "◎", "⚙")
 
 
 def _conversation_label(started_at_us: int, message_count: int) -> str:
@@ -73,47 +82,44 @@ def _humanize_review_heading(text: str) -> str:
 
 
 class PathenaMainWindow(AthenaMainWindow):
-    """Apply pATHENA's quiet shell without changing ATHENA-derived behaviour."""
+    """Apply the reference-family shell while preserving desktop contracts."""
 
     def __init__(self, api_controller: DesktopApiController | None = None) -> None:
         super().__init__(api_controller=api_controller)
         bind_semantic_root = getattr(self.ascii_panel, "bind_semantic_root", None)
         if callable(bind_semantic_root):
             bind_semantic_root(self)
-        self._apply_quiet_cognitive_workspace()
+        self._apply_reference_workspace_presentation()
         self._install_progressive_disclosure()
+        self._install_reference_shell()
         self.chat_selector.currentIndexChanged.connect(
             self._sync_progressive_chat_actions
         )
+        self.navigation.currentRowChanged.connect(self._sync_reference_navigation)
+        self._sync_reference_navigation(self.navigation.currentRow())
         self._sync_progressive_chat_actions()
 
-    def _apply_quiet_cognitive_workspace(self) -> None:
+    def _apply_reference_workspace_presentation(self) -> None:
         self.setWindowTitle("pATHENA")
         self.resize(1480, 900)
         self.setMinimumSize(1180, 720)
 
         rail = self.findChild(QFrame, "rail")
         if rail is not None:
-            rail.setFixedWidth(218)
+            rail.setFixedWidth(SHELL.icon_rail_width)
             rail_layout = rail.layout()
             if rail_layout is not None:
-                rail_layout.setContentsMargins(18, 20, 16, 18)
-                rail_layout.setSpacing(11)
+                rail_layout.setContentsMargins(8, 14, 8, 14)
+                rail_layout.setSpacing(8)
 
             for metric in rail.findChildren(MetricRow):
                 metric.hide()
-
-            status_square = rail.findChild(QLabel, "statusSquare")
-            if status_square is not None:
-                status_square.hide()
-
-            network_state = rail.findChild(QLabel, "networkState")
-            if network_state is not None:
-                network_state.hide()
-            rail_rules = rail.findChildren(QFrame, "rule")
-            for rule in rail_rules[-2:]:
+            for label_name in ("statusSquare", "networkState"):
+                label = rail.findChild(QLabel, label_name)
+                if label is not None:
+                    label.hide()
+            for rule in rail.findChildren(QFrame, "rule"):
                 rule.hide()
-
             for child_label in rail.findChildren(QLabel):
                 if child_label.text() == "PALLAS":
                     child_label.hide()
@@ -125,11 +131,11 @@ class PathenaMainWindow(AthenaMainWindow):
         if center is not None:
             center_layout = center.layout()
             if isinstance(center_layout, QVBoxLayout):
-                center_layout.setContentsMargins(30, 24, 30, 18)
+                center_layout.setContentsMargins(34, 26, 34, 20)
 
         wordmark = self.findChild(QLabel, "wordmark")
         if wordmark is not None:
-            wordmark.setText("pATHENA")
+            wordmark.hide()
 
         breadcrumb = self.findChild(QLabel, "breadcrumb")
         if breadcrumb is not None:
@@ -144,16 +150,20 @@ class PathenaMainWindow(AthenaMainWindow):
             if index >= self.navigation.count():
                 break
             item = self.navigation.item(index)
-            item.setText(navigation_label)
-            item.setSizeHint(QSize(176, 36))
+            item.setText(_ICON_NAVIGATION[index])
+            item.setToolTip(navigation_label)
+            item.setSizeHint(QSize(52, 44))
 
+        self.navigation.setFixedWidth(60)
+        self.navigation.setFixedHeight(min(360, self.navigation.count() * 48))
+        self.page_title.setObjectName("pageTitle")
         current_page = self.navigation.currentRow()
         if 0 <= current_page < len(_DISPLAY_NAVIGATION):
             self.page_title.setText(_DISPLAY_NAVIGATION[current_page])
 
-        self.pallas_visual.setFixedSize(126, 224)
+        self.pallas_visual.hide()
         self.pallas_visual.setToolTip(
-            "PALLAS — local reactive view of the current workspace context"
+            "PALLAS — local semantic view of the current workspace context"
         )
 
         self.chat_selector.setMinimumWidth(250)
@@ -170,8 +180,9 @@ class PathenaMainWindow(AthenaMainWindow):
         self.ground_button.setToolTip("Ground this message in available sources")
 
         self.send_button.setObjectName("sendButton")
-        self.send_button.setText("Send")
+        self.send_button.setText("→")
         self.send_button.setToolTip("Send message (Ctrl+Enter)")
+        self.send_button.setAccessibleName("Send message")
 
         self.new_chat_button.setText("New")
         self.new_chat_button.setToolTip("Start a new conversation")
@@ -183,30 +194,88 @@ class PathenaMainWindow(AthenaMainWindow):
         self._hide_nonfunctional_placeholders()
         self._humanize_knowledge_review_panel()
 
+    def _install_reference_shell(self) -> None:
+        """Wrap the real legacy body in reference top navigation without re-wiring pages."""
+        body = self.takeCentralWidget()
+        if body is None:
+            return
+
+        shell = QWidget()
+        shell.setObjectName("referenceShell")
+        shell_layout = QVBoxLayout(shell)
+        shell_layout.setContentsMargins(0, 0, 0, 0)
+        shell_layout.setSpacing(0)
+
+        top_bar = QFrame()
+        top_bar.setObjectName("topBar")
+        top_bar.setFixedHeight(SHELL.top_bar_height)
+        top_layout = QHBoxLayout(top_bar)
+        top_layout.setContentsMargins(22, 0, 18, 0)
+        top_layout.setSpacing(4)
+
+        wordmark = QLabel("pATHENA")
+        wordmark.setObjectName("topWordmark")
+        top_layout.addWidget(wordmark)
+
+        self.reference_top_nav_buttons: list[QPushButton] = []
+        for page_index, label in _TOP_NAVIGATION:
+            button = QPushButton(label)
+            button.setObjectName("topNavButton")
+            button.setCheckable(True)
+            button.setAutoExclusive(True)
+            button.setProperty("pageIndex", page_index)
+            button.setToolTip(f"Open {_DISPLAY_NAVIGATION[page_index]}")
+            button.clicked.connect(
+                lambda _checked=False, index=page_index: self.navigation.setCurrentRow(index)
+            )
+            self.reference_top_nav_buttons.append(button)
+            top_layout.addWidget(button)
+
+        top_layout.addStretch(1)
+        for page_index, symbol, label in ((5, "◎", "System"), (6, "⚙", "Settings")):
+            button = QPushButton(symbol)
+            button.setObjectName("topUtilityButton")
+            button.setToolTip(f"Open {label}")
+            button.setAccessibleName(label)
+            button.clicked.connect(
+                lambda _checked=False, index=page_index: self.navigation.setCurrentRow(index)
+            )
+            top_layout.addWidget(button)
+
+        local_dot = QLabel("●")
+        local_dot.setObjectName("localPrivateDot")
+        top_layout.addWidget(local_dot)
+        local_status = QLabel("Local · Private")
+        local_status.setObjectName("localPrivateStatus")
+        top_layout.addWidget(local_status)
+
+        shell_layout.addWidget(top_bar)
+        shell_layout.addWidget(body, 1)
+        self.setCentralWidget(shell)
+
+        inspector = body.findChild(QFrame, "inspector")
+        if inspector is not None:
+            inspector.setFixedWidth(SHELL.inspector_width)
+            inspector.show()
+
+    def _sync_reference_navigation(self, index: int) -> None:
+        for button in getattr(self, "reference_top_nav_buttons", ()):
+            page_index = button.property("pageIndex")
+            button.setChecked(page_index == index)
+        if 0 <= index < len(_DISPLAY_NAVIGATION):
+            self.page_title.setText(_DISPLAY_NAVIGATION[index])
+
     def _install_progressive_disclosure(self) -> None:
         self.details_button = QPushButton("Details")
         self.details_button.setObjectName("detailsToggle")
         self.details_button.setCheckable(True)
-        self.details_button.setToolTip("Show conversation details and provenance")
-        self.details_button.setMaximumWidth(84)
+        self.details_button.setToolTip("Conversation details are shown in the inspector")
+        self.details_button.hide()
 
         inspector = self.findChild(QFrame, "inspector")
         if inspector is not None:
-            inspector.setFixedWidth(340)
-            inspector.hide()
-            self.details_button.toggled.connect(inspector.setVisible)
-
-        center = self.findChild(QFrame, "conversation")
-        if center is not None:
-            center_layout = center.layout()
-            if isinstance(center_layout, QVBoxLayout):
-                header_item = center_layout.itemAt(0)
-                header_layout = header_item.layout() if header_item is not None else None
-                if isinstance(header_layout, QHBoxLayout):
-                    header_layout.insertWidget(
-                        max(0, header_layout.count() - 1),
-                        self.details_button,
-                    )
+            inspector.setFixedWidth(SHELL.inspector_width)
+            inspector.show()
 
         self.context_button = QPushButton("Context")
         self.context_button.setObjectName("contextToggle")
@@ -237,16 +306,15 @@ class PathenaMainWindow(AthenaMainWindow):
             self.evidence_chain.hide()
 
     def _sync_progressive_chat_actions(self, _index: int | None = None) -> None:
-        """Expose secondary chat chrome only for an actual persisted conversation."""
+        """Expose secondary chat actions only for a persisted conversation."""
         has_selected_chat = self.chat_selector.currentData() is not None
-        is_chat_page = self.navigation.currentRow() == 0
         self.delete_chat_button.setVisible(has_selected_chat)
-
         details_button = getattr(self, "details_button", None)
         if isinstance(details_button, QPushButton):
-            details_button.setVisible(has_selected_chat and is_chat_page)
-            if not has_selected_chat or not is_chat_page:
-                details_button.setChecked(False)
+            details_button.hide()
+        inspector = self.findChild(QFrame, "inspector")
+        if inspector is not None:
+            inspector.show()
 
     def _replace_visible_copy(self) -> None:
         replacements = {
@@ -567,10 +635,9 @@ class PathenaMainWindow(AthenaMainWindow):
 
     def _select_page(self, index: int) -> None:
         super()._select_page(index)
-        if 0 <= index < len(_DISPLAY_NAVIGATION):
-            self.page_title.setText(_DISPLAY_NAVIGATION[index])
+        self._sync_reference_navigation(index)
         self._sync_progressive_chat_actions()
 
     def apply_chat_busy(self, busy: bool) -> None:
         super().apply_chat_busy(busy)
-        self.send_button.setText("Working…" if busy else "Send")
+        self.send_button.setText("…" if busy else "→")
