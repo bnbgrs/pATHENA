@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import unicodedata
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 
@@ -34,6 +35,7 @@ _ALLOWED_KEYS = frozenset(
     }
 )
 _REQUIRED_KEYS = _ALLOWED_KEYS - {"publisher"}
+_UNSAFE_DISPLAY_CATEGORIES = frozenset({"Cc", "Cf", "Zl", "Zp"})
 
 
 class PluginManifestError(ValueError):
@@ -42,6 +44,16 @@ class PluginManifestError(ValueError):
 
 class PluginCompatibilityError(PluginManifestError):
     """Raised when a valid manifest targets an unsupported plugin API version."""
+
+
+def _reject_unsafe_display_text(value: str, *, field: str) -> None:
+    """Reject characters that can inject lines or visually spoof metadata."""
+
+    for character in value:
+        if unicodedata.category(character) in _UNSAFE_DISPLAY_CATEGORIES:
+            raise PluginManifestError(
+                f"Plugin manifest field {field!r} contains unsafe control or format characters."
+            )
 
 
 def _required_string(
@@ -58,10 +70,7 @@ def _required_string(
         raise PluginManifestError(
             f"Plugin manifest field {key!r} must be 1..{max_length} characters."
         )
-    if any(ord(character) < 32 for character in normalized):
-        raise PluginManifestError(
-            f"Plugin manifest field {key!r} contains control characters."
-        )
+    _reject_unsafe_display_text(normalized, field=key)
     return normalized
 
 
@@ -102,6 +111,8 @@ def _publisher_metadata(payload: Mapping[str, object]) -> tuple[tuple[str, str],
         normalized_value = value.strip()
         if len(normalized_key) > 64 or len(normalized_value) > 512:
             raise PluginManifestError("Plugin publisher metadata field is too large.")
+        _reject_unsafe_display_text(normalized_key, field="publisher key")
+        _reject_unsafe_display_text(normalized_value, field=f"publisher.{normalized_key}")
         pairs.append((normalized_key, normalized_value))
     return tuple(sorted(pairs))
 
