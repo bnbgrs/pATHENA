@@ -149,11 +149,15 @@ class ObsidianVaultExporter:
         if not relative_path or "\\" in relative_path:
             raise ValueError("Obsidian note path must be a non-empty POSIX-relative path.")
 
+        raw_parts = relative_path.split("/")
+        if any(part in {"", ".", ".."} or ":" in part for part in raw_parts):
+            raise ValueError(
+                "Obsidian note path must use strict portable relative segments."
+            )
+
         relative = PurePosixPath(relative_path)
-        if relative.is_absolute() or any(part in {"", ".", ".."} for part in relative.parts):
+        if relative.is_absolute() or relative.anchor:
             raise ValueError("Obsidian note path must remain strictly inside the vault.")
-        if relative.anchor:
-            raise ValueError("Obsidian note path must not contain an absolute anchor.")
 
         target = self._vault_root.joinpath(*relative.parts)
         try:
@@ -163,10 +167,21 @@ class ObsidianVaultExporter:
         return target
 
     def _assert_safe_vault_root(self) -> None:
-        if is_link_boundary(self._vault_root) or not self._vault_root.is_dir():
+        if not self._vault_root.is_dir():
             raise NotADirectoryError(
                 f"Obsidian vault root must be an existing real directory: {self._vault_root}"
             )
+
+        cursor = self._vault_root
+        while True:
+            if is_link_boundary(cursor):
+                raise NotADirectoryError(
+                    f"Obsidian vault root has an unsafe filesystem ancestor: {cursor}"
+                )
+            parent = cursor.parent
+            if parent == cursor:
+                break
+            cursor = parent
 
     def _ensure_safe_parent(self, parent: Path) -> None:
         try:
