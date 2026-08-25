@@ -10,9 +10,20 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import BinaryIO
 
-_MOVEFILE_REPLACE_EXISTING = 0x00000001
-_MOVEFILE_WRITE_THROUGH = 0x00000008
+_FILE_ATTRIBUTE_DIRECTORY = 0x00000010
 _FILE_ATTRIBUTE_REPARSE_POINT = 0x00000400
+_FILE_FLAG_BACKUP_SEMANTICS = 0x02000000
+_FILE_FLAG_OPEN_REPARSE_POINT = 0x00200000
+_FILE_FLAG_WRITE_THROUGH = 0x80000000
+_FILE_READ_ATTRIBUTES = 0x00000080
+_FILE_SHARE_DELETE = 0x00000004
+_FILE_SHARE_READ = 0x00000001
+_FILE_SHARE_WRITE = 0x00000002
+_DELETE = 0x00010000
+_OPEN_EXISTING = 3
+_FILE_RENAME_INFO_CLASS = 3
+_ERROR_ALREADY_EXISTS = 183
+_ERROR_FILE_EXISTS = 80
 
 
 def is_link_boundary(path: Path) -> bool:
@@ -199,8 +210,9 @@ def durable_atomic_writer(path: Path, *, mode: int = 0o600) -> Iterator[BinaryIO
     On POSIX, temp creation, payload write and publication remain relative to one
     opened parent directory identity. The parent pathname is re-checked after
     temp creation and before yielding the handle, so a replacement raced into
-    the create boundary receives no caller payload. Windows keeps the existing
-    path-based publication semantics until BE-038 supplies HANDLE-relative IO.
+    the create boundary receives no caller payload. Windows publication is
+    HANDLE-bound; temporary creation remains path-based until the confined
+    creation primitive is extended to Windows.
     """
     destination = Path(path)
     validated_mode = _validated_file_mode(mode)
@@ -422,28 +434,231 @@ def _windows_api_path(path: Path) -> str:
     return "\\\\?\\" + value
 
 
-def _windows_replace_write_through(source: Path, destination: Path) -> None:
+def _windows_normalized_path(value: str | Path) -> str:
+    text = str(value).replace("/", "\\")
+    if text.startswith("\\\\?\\UNC\\"):
+        text = "\\\\" + text[8:]
+    elif text.startswith("\\\\?\\"):
+        text = text[4:]
+    return os.path.normcase(os.path.normpath(text))
+
+
+def _windows_open_bound_handle(
+    path: Path,
+    *,
+    access: int,
+    require_directory: bool,
+    write_through: bool = False,
+) -> int:
+    """Open *path* without following reparse points and bind it to its HANDLE identity."""
     import ctypes
     from ctypes import wintypes
 
     win_dll = vars(ctypes)["WinDLL"]
     get_last_error = vars(ctypes)["get_last_error"]
+    kernel32 = win_dll("kernel32", use_last_error=True)
+
+    create_file = kernel32.CreateFileW
+    create_file.argtypes = (
+        wintypes.LPCWSTR,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.LPVOID,
+        wintypes.DWORD,
+        wintypes.DWORD,
+        wintypes.HANDLE,
+    )
+    create_file.restype = wintypes.HANDLE
+    flags = _FILE_FLAG_OPEN_REPARSE_POINT
+    if require_directory:
+        flags |= _FILE_FLAG_BACKUP_SEMANTICS
+    if write_through:
+        flags |= _FILE_FLAG_WRITE_THROUGH
+    handle = create_file(
+        _windows_api_path(path),
+        access,
+        _FILE_SHARE_READ | _FILE_SHARE_WRITE | _FILE_SHARE_DELETE,
+        None,
+        _OPEN_EXISTING,
+        flags,
+        None,
+    )
+    invalid_handle = ctypes.c_void_p(-1).value
+    if handle in (None, invalid_handle):
+        error = get_last_error()
+        raise OSError(error, f"CreateFileW failed with Windows error {error}.", str(path))
+
+    close_handle = kernel32.CloseHandle
+    close_handle.argtypes = (wintypes.HANDLE,)
+    close_handle.restype = wintypes.BOOL
+
+    class _ByHandleFileInformation(ctypes.Structure):
+        _fields_ = [
+            ("dwFileAttributes", wintypes.DWORD),
+            ("ftCreationTime", wintypes.FILETIME),
+            ("ftLastAccessTime", wintypes.FILETIME),
+            ("ftLastWriteTime", wintypes.FILETIME),
+            ("dwVolumeSerialNumber", wintypes.DWORD),
+            ("nFileSizeHigh", wintypes.DWORD),
+            ("nFileSizeLow", wintypes.DWORD),
+            ("nNumberOfLinks", wintypes.DWORD),
+            ("nFileIndexHigh", wintypes.DWORD),
+            ("nFileIndexLow", wintypes.DWORD),
+        ]
+
+    try:
+        information = _ByHandleFileInformation()
+        get_information = kernel32.GetFileInformationByHandle
+        get_information.argtypes = (
+            wintypes.HANDLE,
+            ctypes.POINTER(_ByHandleFileInformation),
+        )
+        get_information.restype = wintypes.BOOL
+        if not get_information(handle, ctypes.byref(information)):
+            error = get_last_error()
+            raise OSError(
+                error,
+                f"GetFileInformationByHandle failed with Windows error {error}.",
+                str(path),
+            )
+        if information.dwFileAttributes & _FILE_ATTRIBUTE_REPARSE_POINT:
+            raise OSError(f"Windows identity-bound path is a reparse point: {path}")
+        is_directory = bool(information.dwFileAttributes & _FILE_ATTRIBUTE_DIRECTORY)
+        if is_directory != require_directory:
+            expected = "directory" if require_directory else "file"
+            raise OSError(f"Windows identity-bound path is not the expected {expected}: {path}")
+
+        get_final_path = kernel32.GetFinalPathNameByHandleW
+        get_final_path.argtypes = (
+            wintypes.HANDLE,
+            wintypes.LPWSTR,
+            wintypes.DWORD,
+            wintypes.DWORD,
+        )
+        get_final_path.restype = wintypes.DWORD
+        buffer = ctypes.create_unicode_buffer(32768)
+        length = get_final_path(handle, buffer, len(buffer), 0)
+        if length == 0 or length >= len(buffer):
+            error = get_last_error()
+            raise OSError(
+                error,
+                f"GetFinalPathNameByHandleW failed with Windows error {error}.",
+                str(path),
+            )
+        if _windows_normalized_path(buffer.value) != _windows_normalized_path(path.absolute()):
+            raise OSError(f"Windows path identity changed while opening handle: {path}")
+        return int(handle)
+    except BaseException:
+        close_handle(handle)
+        raise
+
+
+def _windows_close_handle(handle: int) -> None:
+    import ctypes
+    from ctypes import wintypes
+
+    kernel32 = vars(ctypes)["WinDLL"]("kernel32", use_last_error=True)
+    close_handle = kernel32.CloseHandle
+    close_handle.argtypes = (wintypes.HANDLE,)
+    close_handle.restype = wintypes.BOOL
+    close_handle(handle)
+
+
+def _windows_rename_relative(
+    source_handle: int,
+    destination_parent_handle: int,
+    destination_name: str,
+    *,
+    replace_existing: bool,
+) -> None:
+    """Rename an already-open source relative to an already-open destination parent."""
+    import ctypes
+    from ctypes import wintypes
+
+    if (
+        not destination_name
+        or destination_name in {".", ".."}
+        or "\\" in destination_name
+        or "/" in destination_name
+        or ":" in destination_name
+    ):
+        raise ValueError("Windows durable rename destination must be one plain leaf name.")
+
+    class _FileRenameInfo(ctypes.Structure):
+        _fields_ = [
+            ("ReplaceIfExists", wintypes.BOOL),
+            ("RootDirectory", wintypes.HANDLE),
+            ("FileNameLength", wintypes.DWORD),
+            ("FileName", wintypes.WCHAR * 1),
+        ]
+
+    encoded_name = destination_name.encode("utf-16-le")
+    filename_offset = _FileRenameInfo.FileName.offset
+    buffer_size = filename_offset + len(encoded_name)
+    buffer = ctypes.create_string_buffer(buffer_size)
+    information = _FileRenameInfo.from_buffer(buffer)
+    information.ReplaceIfExists = bool(replace_existing)
+    information.RootDirectory = destination_parent_handle
+    information.FileNameLength = len(encoded_name)
+    ctypes.memmove(
+        ctypes.addressof(buffer) + filename_offset,
+        encoded_name,
+        len(encoded_name),
+    )
+
+    win_dll = vars(ctypes)["WinDLL"]
+    get_last_error = vars(ctypes)["get_last_error"]
+    kernel32 = win_dll("kernel32", use_last_error=True)
+    set_information = kernel32.SetFileInformationByHandle
+    set_information.argtypes = (
+        wintypes.HANDLE,
+        ctypes.c_int,
+        wintypes.LPVOID,
+        wintypes.DWORD,
+    )
+    set_information.restype = wintypes.BOOL
+    if set_information(
+        source_handle,
+        _FILE_RENAME_INFO_CLASS,
+        ctypes.byref(buffer),
+        buffer_size,
+    ):
+        return
+    error = get_last_error()
+    if not replace_existing and error in {_ERROR_ALREADY_EXISTS, _ERROR_FILE_EXISTS}:
+        raise FileExistsError(error, "Durable directory destination already exists.")
+    raise OSError(
+        error,
+        f"SetFileInformationByHandle durable publication failed with Windows error {error}.",
+    )
+
+
+def _windows_replace_write_through(source: Path, destination: Path) -> None:
+    """Publish using bound Windows HANDLEs so path replacement cannot redirect rename."""
     source_is_directory = source.is_dir()
     if source_is_directory and destination.exists():
         raise FileExistsError(f"Durable directory destination already exists: {destination}")
-    kernel32 = win_dll("kernel32", use_last_error=True)
-    move_file_ex = kernel32.MoveFileExW
-    move_file_ex.argtypes = (wintypes.LPCWSTR, wintypes.LPCWSTR, wintypes.DWORD)
-    move_file_ex.restype = wintypes.BOOL
-    flags = _MOVEFILE_WRITE_THROUGH
-    if not source_is_directory:
-        flags |= _MOVEFILE_REPLACE_EXISTING
-    succeeded = move_file_ex(_windows_api_path(source), _windows_api_path(destination), flags)
-    if succeeded:
-        return
-    error = get_last_error()
-    raise OSError(
-        error,
-        f"MoveFileExW durable publication failed with Windows error {error}.",
-        str(destination),
+
+    source_handle = _windows_open_bound_handle(
+        source,
+        access=_DELETE | _FILE_READ_ATTRIBUTES,
+        require_directory=source_is_directory,
+        write_through=True,
     )
+    destination_parent_handle = -1
+    try:
+        destination_parent_handle = _windows_open_bound_handle(
+            destination.parent,
+            access=_FILE_READ_ATTRIBUTES,
+            require_directory=True,
+        )
+        _windows_rename_relative(
+            source_handle,
+            destination_parent_handle,
+            destination.name,
+            replace_existing=not source_is_directory,
+        )
+    finally:
+        if destination_parent_handle >= 0:
+            _windows_close_handle(destination_parent_handle)
+        _windows_close_handle(source_handle)
