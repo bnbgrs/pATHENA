@@ -13,6 +13,7 @@ from PySide6.QtCore import QObject, QPointF, QRectF, Qt, Signal, Slot
 from PySide6.QtGui import (
     QBrush,
     QColor,
+    QFocusEvent,
     QFont,
     QKeyEvent,
     QPainter,
@@ -171,12 +172,17 @@ class _PallasNodeItem(QGraphicsEllipseItem):
         value: object,
     ) -> object:
         result = super().itemChange(change, value)
-        if change in (
-            QGraphicsItem.GraphicsItemChange.ItemSelectedHasChanged,
-            QGraphicsItem.GraphicsItemChange.ItemFocusHasChanged,
-        ):
+        if change is QGraphicsItem.GraphicsItemChange.ItemSelectedHasChanged:
             self._refresh_outline()
         return result
+
+    def focusInEvent(self, event: QFocusEvent) -> None:  # noqa: N802
+        super().focusInEvent(event)
+        self._refresh_outline()
+
+    def focusOutEvent(self, event: QFocusEvent) -> None:  # noqa: N802
+        super().focusOutEvent(event)
+        self._refresh_outline()
 
     def _refresh_outline(self) -> None:
         if self.isSelected():
