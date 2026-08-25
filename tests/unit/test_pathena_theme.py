@@ -28,6 +28,21 @@ def test_specialized_theme_does_not_reintroduce_legacy_quiet_workspace_palette()
     assert all(color not in lowered for color in legacy_colors)
 
 
+def test_meaningful_small_metadata_uses_accessible_subtle_token() -> None:
+    assert f"color: {PALETTE.text_subtle};" in PATHENA_SPECIALIZED_STYLESHEET
+    assert "QWidget#chatMessage QLabel#userMeta" in PATHENA_SPECIALIZED_STYLESHEET
+    assert "QLabel#commandPaletteHint" in PATHENA_SPECIALIZED_STYLESHEET
+    assert "QTabWidget#canonicalMemoryTabs QTabBar::tab" in PATHENA_SPECIALIZED_STYLESHEET
+    assert "QLabel#knowledgeReviewState" in PATHENA_SPECIALIZED_STYLESHEET
+
+
+def test_disabled_actions_keep_deliberately_quiet_token() -> None:
+    disabled_block = PATHENA_SPECIALIZED_STYLESHEET.split(
+        "QPushButton#rememberMessageButton:disabled,", maxsplit=1
+    )[1].split("QLineEdit#promptInput", maxsplit=1)[0]
+    assert f"color: {PALETTE.text_quiet};" in disabled_block
+
+
 def test_final_theme_keeps_orange_primary_action_contract() -> None:
     assert "QPushButton#sendButton" in PATHENA_STYLESHEET
     assert f"background: {PALETTE.accent};" in PATHENA_STYLESHEET
