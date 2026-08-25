@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
 
 from athena.desktop.api_controller import DesktopApiController, DesktopApiSnapshot
 from athena.desktop.pathena_ui_refinement_600 import set_pathena_ui_state
+from athena.desktop.system_hardware_acceptance import SystemHardwareAcceptancePanel
 from athena.desktop.system_runtime_overview import (
     RuntimeFact,
     SystemRuntimeOverview,
@@ -65,6 +66,7 @@ class SystemWorkspace(QWidget):
         self.api = _SystemMetric("API")
         self.storage = _SystemMetric("STORAGE TELEMETRY")
         self.network = _SystemMetric("LOCAL CONNECTIVITY")
+        self.hardware_acceptance = SystemHardwareAcceptancePanel()
         self.detail = QLabel("Awaiting local Core snapshot.")
         self.detail.setObjectName("systemDetail")
         self.detail.setWordWrap(True)
@@ -117,6 +119,7 @@ class SystemWorkspace(QWidget):
             for column, widget in enumerate(widgets):
                 grid.addWidget(widget, row, column)
         layout.addLayout(grid)
+        layout.addWidget(self.hardware_acceptance)
 
         detail_heading = QLabel("DETAIL")
         detail_heading.setProperty("role", "section")
