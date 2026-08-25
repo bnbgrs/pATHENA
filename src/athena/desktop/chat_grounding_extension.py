@@ -113,6 +113,7 @@ class ChatGroundingController(QObject):
 
         existing = container.findChild(QWidget, "groundedEvidenceSummary")
         if existing is not None:
+            existing.setParent(None)
             existing.deleteLater()
 
         references = project_chat_evidence(payload)
@@ -171,6 +172,7 @@ class ChatGroundingController(QObject):
         existing = content.findChild(QWidget, "groundedInspectorPanel")
         if existing is not None:
             layout.removeWidget(existing)
+            existing.setParent(None)
             existing.deleteLater()
 
         panel = QFrame(content)
