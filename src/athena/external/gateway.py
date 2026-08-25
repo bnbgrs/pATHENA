@@ -166,10 +166,6 @@ class TorSocksTransport:
                 )
                 try:
                     sock.settimeout(timeout_seconds)
-                    # Tor supports SOCKS5 auth values as stream-isolation keys.
-                    # Use the current <torS0X>0 extension form and a fresh
-                    # password isolation value per fetch, without resolving
-                    # the destination locally.
                     username = b"<torS0X>0"
                     password = secrets.token_hex(16).encode("ascii")
                     sock.sendall(b"\x05\x01\x02")
@@ -320,7 +316,6 @@ class ExternalAccessGateway:
         host: str,
         ttl_seconds: int = 900,
     ) -> ExternalAccessAuthorizationRecord:
-        """Create a separate explicit Direct authorization from an active Tor-Preferred grant."""
         source = self.get_authorization(authorization_id)
         actor_id = self.chat.ensure_local_user()
         now_us = utc_now_us()
@@ -569,8 +564,6 @@ class ExternalAccessGateway:
                 )
                 raise
             except ExternalResponsePolicyError:
-                # Size/content/encoding policy failures are not evidence that
-                # Tor is blocked and must never expose the normal IP.
                 self._audit(
                     authorization,
                     url=url,
@@ -719,8 +712,8 @@ class ExternalAccessGateway:
             raise ExternalAuthorizationError("External authorization origin is invalid.")
 
         parsed = urlsplit(url)
-        if parsed.scheme not in {"http", "https"}:
-            raise ExternalDestinationError("Only HTTP(S) external URLs are permitted.")
+        if parsed.scheme != "https":
+            raise ExternalDestinationError("Only HTTPS external URLs are permitted.")
         if parsed.username is not None or parsed.password is not None:
             raise ExternalDestinationError("Credentials in external URLs are prohibited.")
         if parsed.fragment:
@@ -738,7 +731,7 @@ class ExternalAccessGateway:
         port = parsed.port or _default_port(parsed.scheme)
         if port != _default_port(parsed.scheme):
             raise ExternalDestinationError(
-                "ATHENA v1 external access permits only the default HTTP/HTTPS ports."
+                "ATHENA v1 external access permits only the default HTTPS port."
             )
         return authorization
 
@@ -752,8 +745,6 @@ class ExternalAccessGateway:
         response_bytes: int | None,
         source_id: uuid.UUID | None,
     ) -> uuid.UUID:
-        """Persist one independently durable failed/denied audit event."""
-
         with self.database.write_transaction() as connection:
             return self._insert_audit_event(
                 connection,
@@ -776,14 +767,10 @@ class ExternalAccessGateway:
         response_bytes: int | None,
         source_id: uuid.UUID | None,
     ) -> uuid.UUID:
-        """Insert one audit event in the caller-owned transaction."""
-
         event_id = new_uuid7()
         parsed = urlsplit(url)
         host = parsed.hostname or "<invalid>"
-        url_hash = hashlib.sha256(
-            url.encode("utf-8")
-        ).digest()
+        url_hash = hashlib.sha256(url.encode("utf-8")).digest()
         event_now_us = utc_now_us()
 
         previous = connection.execute(
@@ -792,69 +779,40 @@ class ExternalAccessGateway:
             FROM external_access_events
             WHERE authorization_id = ?
             """,
-            (
-                uuid_to_blob(
-                    authorization.authorization_id
-                ),
-            ),
+            (uuid_to_blob(authorization.authorization_id),),
         ).fetchone()
-
         previous_created_at_us = (
             None
-            if (
-                previous is None
-                or previous["created_at_us"] is None
-            )
-            else int(
-                previous["created_at_us"]
-            )
+            if previous is None or previous["created_at_us"] is None
+            else int(previous["created_at_us"])
         )
-
         event_created_at_us = (
             event_now_us
             if previous_created_at_us is None
-            else max(
-                event_now_us,
-                previous_created_at_us + 1,
-            )
+            else max(event_now_us, previous_created_at_us + 1)
         )
 
         connection.execute(
             """
             INSERT INTO external_access_events (
-                event_id,
-                authorization_id,
-                request_url_hash,
-                destination_host,
-                method,
-                privacy_route,
-                outcome,
-                reason_code,
-                response_bytes,
-                source_id,
-                created_at_us
+                event_id, authorization_id, request_url_hash, destination_host,
+                method, privacy_route, outcome, reason_code, response_bytes,
+                source_id, created_at_us
             ) VALUES (?, ?, ?, ?, 'GET', ?, ?, ?, ?, ?, ?)
             """,
             (
                 uuid_to_blob(event_id),
-                uuid_to_blob(
-                    authorization.authorization_id
-                ),
+                uuid_to_blob(authorization.authorization_id),
                 url_hash,
                 host.lower(),
                 authorization.privacy_route,
                 outcome,
                 reason_code,
                 response_bytes,
-                (
-                    uuid_to_blob(source_id)
-                    if source_id is not None
-                    else None
-                ),
+                uuid_to_blob(source_id) if source_id is not None else None,
                 event_created_at_us,
             ),
         )
-
         return event_id
 
     @staticmethod
@@ -867,16 +825,10 @@ class ExternalAccessGateway:
         provenance_url: str,
         captured_at_us: int,
     ) -> None:
-        """Insert external Source provenance in the caller transaction."""
-
         connection.execute(
             """
             INSERT INTO external_source_captures (
-                source_id,
-                authorization_id,
-                access_event_id,
-                provenance_url,
-                captured_at_us
+                source_id, authorization_id, access_event_id, provenance_url, captured_at_us
             ) VALUES (?, ?, ?, ?, ?)
             """,
             (
@@ -951,15 +903,9 @@ def _http_over_socket(
         elif parsed.scheme != "http":
             raise ExternalDestinationError("Only HTTP(S) external URLs are supported.")
         raw_sock.settimeout(timeout_seconds)
-        path = quote(
-            parsed.path or "/",
-            safe="/%:@!$&'()*+,;=-._~",
-        )
+        path = quote(parsed.path or "/", safe="/%:@!$&'()*+,;=-._~")
         if parsed.query:
-            path += "?" + quote(
-                parsed.query,
-                safe="=&;%:+,/?@!$'()*-._~",
-            )
+            path += "?" + quote(parsed.query, safe="=&;%:+,/?@!$'()*-._~")
         port = parsed.port or _default_port(parsed.scheme)
         host_literal = f"[{host}]" if ":" in host else host
         host_header = host_literal
