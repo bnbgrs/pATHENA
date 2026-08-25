@@ -1,8 +1,10 @@
-"""Inline grounded provenance for the persisted assistant message.
+"""Grounded provenance presentation for persisted assistant messages.
 
 The extension consumes only ``GroundedChatResponse`` data already validated by Core.
 It adds no synthetic sources or claims and exposes a PALLAS action only when the
 matching semantic graph is installed and contains the exact persisted entity.
+The persistent inspector mirrors the same real evidence so the reference-family
+Evidence/Activity column never needs a second source of truth.
 """
 
 from __future__ import annotations
@@ -26,7 +28,7 @@ from athena.desktop.pathena_pallas_field import PallasGroundedFieldController
 
 @dataclass(frozen=True, slots=True)
 class ChatEvidenceReference:
-    """One stable inline reference backed by a grounded response entity."""
+    """One stable reference backed by a grounded response entity."""
 
     context_id: str
     node_id: str
@@ -68,7 +70,7 @@ def project_chat_evidence(
 
 
 class ChatGroundingController(QObject):
-    """Attach real evidence references to the latest persisted assistant row."""
+    """Attach real evidence to the assistant row and persistent inspector."""
 
     def __init__(
         self,
@@ -80,6 +82,7 @@ class ChatGroundingController(QObject):
         self.api_controller = api_controller
         self.last_run_id: str | None = None
         self.last_state = "empty"
+        self._prepare_reference_inspector()
         if api_controller is not None:
             api_controller.grounded_chat_sent.connect(self.apply_grounded_response)
 
@@ -120,6 +123,8 @@ class ChatGroundingController(QObject):
             self.last_state = "error"
             return
         layout.insertWidget(max(0, layout.count() - 1), panel)
+        self._render_reference_inspector(payload, references)
+        self._sync_real_workspace_title(payload)
         self.last_run_id = payload.processing_run_id
         self.last_state = "ready" if references else "empty"
         container.setProperty("pathenaGroundedRunId", payload.processing_run_id)
@@ -137,6 +142,123 @@ class ChatGroundingController(QObject):
             ),
             None,
         )
+
+    def _prepare_reference_inspector(self) -> None:
+        """Retitle the real inspector without replacing its controller-owned content."""
+        title = self.window.findChild(QLabel, "inspectorTitle")
+        if title is not None:
+            title.setText("Evidence & Activity")
+            title.setAccessibleName("Evidence and activity inspector")
+        for label in self.window.findChildren(QLabel):
+            if label.text() in {"PROVENANCE", "SOURCES & KNOWLEDGE"}:
+                label.setText("Evidence")
+            elif label.text() in {"JOBS / API NOT CONNECTED", "BACKGROUND WORK"}:
+                label.setText("Activity")
+
+    def _render_reference_inspector(
+        self,
+        response: GroundedChatResponse,
+        references: tuple[ChatEvidenceReference, ...],
+    ) -> None:
+        """Mirror current grounded evidence into the existing persistent inspector."""
+        content = self.window.findChild(QWidget, "inspectorScrollContent")
+        if content is None:
+            return
+        layout = content.layout()
+        if not isinstance(layout, QVBoxLayout):
+            return
+
+        existing = content.findChild(QWidget, "groundedInspectorPanel")
+        if existing is not None:
+            layout.removeWidget(existing)
+            existing.deleteLater()
+
+        panel = QFrame(content)
+        panel.setObjectName("groundedInspectorPanel")
+        panel.setProperty("pathenaUiState", "ready" if references else "empty")
+        panel.setProperty("groundedRunId", response.processing_run_id)
+        panel.setAccessibleName("Evidence and activity from the latest grounded response")
+        panel_layout = QVBoxLayout(panel)
+        panel_layout.setContentsMargins(0, 14, 0, 0)
+        panel_layout.setSpacing(8)
+
+        evidence_heading = QLabel("Evidence", panel)
+        evidence_heading.setObjectName("inspectorSectionTitle")
+        panel_layout.addWidget(evidence_heading)
+
+        if references:
+            for reference in references:
+                card = QFrame(panel)
+                card.setObjectName("inspectorEvidenceCard")
+                card.setProperty("cited", reference.cited)
+                card.setProperty("contextId", reference.context_id)
+                card_layout = QVBoxLayout(card)
+                card_layout.setContentsMargins(10, 9, 10, 9)
+                card_layout.setSpacing(3)
+
+                title = QLabel(reference.title, card)
+                title.setObjectName("inspectorEvidenceTitle")
+                title.setWordWrap(True)
+                title.setToolTip(reference.summary)
+                title.setAccessibleName(reference.title)
+                card_layout.addWidget(title)
+
+                metadata_text = _reference_metadata(reference)
+                metadata = QLabel(metadata_text, card)
+                metadata.setObjectName("inspectorEvidenceMeta")
+                metadata.setWordWrap(True)
+                metadata.setProperty("role", "muted")
+                metadata.setAccessibleName(metadata_text)
+                card_layout.addWidget(metadata)
+                panel_layout.addWidget(card)
+        else:
+            empty = QLabel("No evidence returned for this grounded response.", panel)
+            empty.setObjectName("inspectorEvidenceEmpty")
+            empty.setWordWrap(True)
+            empty.setProperty("role", "muted")
+            panel_layout.addWidget(empty)
+
+        activity_heading = QLabel("Activity", panel)
+        activity_heading.setObjectName("inspectorSectionTitle")
+        panel_layout.addWidget(activity_heading)
+
+        cited_count = sum(reference.cited for reference in references)
+        activity = QLabel(
+            f"Latest grounded response · {cited_count} cited · {len(references)} evidence",
+            panel,
+        )
+        activity.setObjectName("inspectorActivityItem")
+        activity.setWordWrap(True)
+        activity.setProperty("groundedRunId", response.processing_run_id)
+        activity.setToolTip(f"Processing run {response.processing_run_id}")
+        activity.setAccessibleName(activity.text())
+        panel_layout.addWidget(activity)
+
+        layout.insertWidget(max(0, layout.count() - 1), panel)
+
+    def _sync_real_workspace_title(self, response: GroundedChatResponse) -> None:
+        """Use the persisted user prompt as editorial title when one exists."""
+        page_title = getattr(self.window, "page_title", None)
+        navigation = getattr(self.window, "navigation", None)
+        if not isinstance(page_title, QLabel) or navigation is None:
+            return
+        current_row = getattr(navigation, "currentRow", None)
+        if not callable(current_row) or current_row() != 0:
+            return
+        user_message = next(
+            (
+                message.content.strip()
+                for message in response.thread.messages
+                if message.message_type == "user" and message.content.strip()
+            ),
+            None,
+        )
+        if user_message is None:
+            return
+        title = user_message if len(user_message) <= 96 else f"{user_message[:93].rstrip()}…"
+        page_title.setText(title)
+        page_title.setToolTip(user_message)
+        page_title.setAccessibleName(user_message)
 
     def _build_panel(
         self,
@@ -259,7 +381,7 @@ def install_chat_grounding_extension(
     window: QWidget,
     api_controller: DesktopApiController | None = None,
 ) -> ChatGroundingController:
-    """Install inline grounding without changing the shared shell or chat renderer."""
+    """Install grounding without changing the chat or Core data contracts."""
     resolved = api_controller
     if resolved is None:
         candidate = getattr(window, "api_controller", None)
