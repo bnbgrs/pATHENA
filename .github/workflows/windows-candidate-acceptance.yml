@@ -1,0 +1,265 @@
+name: pATHENA Windows candidate diagnostics (not promotion)
+
+on:
+  push:
+    branches:
+      - bot/pathena-cloud-windows
+    paths:
+      - .github/workflows/windows-candidate-acceptance.yml
+      - scripts/windows_candidate_process_tree.ps1
+      - scripts/windows_candidate_desktop_driver.py
+      - scripts/windows_candidate_provider_probe.py
+      - tests/unit/test_windows_candidate_harness_contract.py
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Exact bot/pathena-candidate commit to diagnose
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pathena-windows-candidate-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate-harness-source:
+    name: Validate diagnostic harness without executing pATHENA
+    if: github.event_name == 'push'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout diagnostic harness
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+      - name: Set up Python 3.12 without dependency cache
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+          check-latest: false
+      - name: Validate source-only harness contract
+        shell: bash
+        run: |
+          python -m pip install --disable-pip-version-check "pytest==8.4.2"
+          python -m pytest -q tests/unit/test_windows_candidate_harness_contract.py
+
+  exact-candidate-source-diagnostics:
+    name: Exact candidate source diagnostics on Windows Server 2025
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: windows-2025
+    timeout-minutes: 35
+    env:
+      KNOWN_UNSAFE_SHA: bf54714d23a0b3da27fcac5d8215b55c2715ce48
+      PYTHONUTF8: "1"
+      QT_QPA_PLATFORM: offscreen
+
+    steps:
+      - name: Resolve immutable candidate identity
+        shell: pwsh
+        run: |
+          $candidate = "${{ inputs.candidate_sha }}"
+          $candidate = $candidate.Trim().ToLowerInvariant()
+          if ($candidate -notmatch "^[0-9a-f]{40}$") {
+            throw "candidate_sha must be exactly 40 lowercase hexadecimal characters."
+          }
+          if ($candidate -eq $env:KNOWN_UNSAFE_SHA) {
+            throw "Refusing the known recursive/unsafe Windows package SHA."
+          }
+          "CANDIDATE_SHA=$candidate" | Out-File -FilePath $env:GITHUB_ENV -Append
+          $diagnosticRoot = Join-Path $env:RUNNER_TEMP "pathena-$candidate"
+          New-Item -ItemType Directory -Path $diagnosticRoot -Force | Out-Null
+          "DIAGNOSTIC_ROOT=$diagnosticRoot" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Checkout diagnostic harness
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          path: harness
+          persist-credentials: false
+
+      - name: Checkout exact candidate SHA
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          path: candidate
+          persist-credentials: false
+
+      - name: Prove checkout and live candidate branch identity
+        shell: pwsh
+        run: |
+          $checkedOut = (git -C candidate rev-parse HEAD).Trim().ToLowerInvariant()
+          if ($LASTEXITCODE -ne 0 -or $checkedOut -ne $env:CANDIDATE_SHA) {
+            throw "Checked out $checkedOut instead of exact candidate $env:CANDIDATE_SHA."
+          }
+          $remote = git ls-remote https://github.com/bnbgrs/pATHENA.git refs/heads/bot/pathena-candidate
+          if ($LASTEXITCODE -ne 0 -or -not $remote) {
+            throw "Could not resolve the live bot/pathena-candidate branch."
+          }
+          $liveCandidate = ($remote -split "\s+")[0].ToLowerInvariant()
+          if ($liveCandidate -ne $env:CANDIDATE_SHA) {
+            throw "Candidate moved before execution: expected $env:CANDIDATE_SHA, found $liveCandidate."
+          }
+          $harnessSha = (git -C harness rev-parse HEAD).Trim().ToLowerInvariant()
+          [ordered]@{
+            candidate_sha = $env:CANDIDATE_SHA
+            live_candidate_sha = $liveCandidate
+            harness_sha = $harnessSha
+            workflow_run_id = "${{ github.run_id }}"
+            workflow_run_attempt = "${{ github.run_attempt }}"
+          } | ConvertTo-Json | Set-Content (Join-Path $env:DIAGNOSTIC_ROOT "identity.json")
+
+      - name: Set up Python 3.12 without dependency cache
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+          check-latest: false
+
+      - name: Install locked environment and record runner
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check "uv==0.11.21"
+          if ($LASTEXITCODE -ne 0) { throw "uv installation failed." }
+          Push-Location candidate
+          try {
+            uv lock --check
+            if ($LASTEXITCODE -ne 0) { throw "uv.lock is not current." }
+            uv sync --locked --extra dev --extra desktop
+            if ($LASTEXITCODE -ne 0) { throw "Locked dependency sync failed." }
+          } finally {
+            Pop-Location
+          }
+          $os = Get-CimInstance Win32_OperatingSystem
+          [ordered]@{
+            candidate_sha = $env:CANDIDATE_SHA
+            runner_image = $env:ImageOS
+            runner_image_version = $env:ImageVersion
+            os_caption = [string]$os.Caption
+            os_version = [string]$os.Version
+            os_build = [string]$os.BuildNumber
+            architecture = [string]$os.OSArchitecture
+            python = (& python --version 2>&1 | Out-String).Trim()
+            pip = (& python -m pip --version 2>&1 | Out-String).Trim()
+            uv = (& uv --version 2>&1 | Out-String).Trim()
+          } | ConvertTo-Json | Set-Content (Join-Path $env:DIAGNOSTIC_ROOT "environment.json")
+
+      - name: Run targeted Windows and behavior tests
+        id: targeted
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          Push-Location candidate
+          try {
+            uv run --locked --extra dev --extra desktop --no-sync pytest -q `
+              tests/unit/test_windows_runtime_root_contract.py `
+              tests/unit/test_windows_settings_script_safety.py `
+              tests/unit/test_windows_uv_probe_safety.py `
+              tests/unit/test_lm_studio_proxy_bypass.py `
+              tests/unit/test_desktop_core_supervisor.py `
+              tests/unit/test_desktop_app_startup_refresh.py `
+              tests/unit/test_pathena_local_smoke.py `
+              tests/unit/test_pathena_settings_comprehension.py `
+              tests/unit/test_pathena_jobs_experience_2800.py `
+              tests/unit/test_pathena_pallas_target_lifecycle.py `
+              tests/unit/test_pathena_pallas_responsiveness.py `
+              2>&1 | Tee-Object (Join-Path $env:DIAGNOSTIC_ROOT "targeted-tests.log")
+            if ($LASTEXITCODE -ne 0) { throw "Targeted candidate tests failed." }
+          } finally {
+            Pop-Location
+          }
+
+      - name: Run reachable and unreachable LM Studio loopback contract
+        id: provider
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          & candidate\.venv\Scripts\python.exe `
+            harness\scripts\windows_candidate_provider_probe.py `
+            2>&1 | Tee-Object (Join-Path $env:DIAGNOSTIC_ROOT "provider-loopback.log")
+          if ($LASTEXITCODE -ne 0) { throw "LM Studio loopback probe failed." }
+
+      - name: Run database reopen smoke under complete process-tree monitor
+        id: persistence
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $runtimeRoot = Join-Path $env:DIAGNOSTIC_ROOT "persistence-runtime"
+          & harness\scripts\windows_candidate_process_tree.ps1 `
+            -CandidateRoot (Resolve-Path candidate) `
+            -WorkingDirectory (Resolve-Path candidate) `
+            -FilePath (Resolve-Path candidate\.venv\Scripts\python.exe) `
+            -ArgumentList @(
+              "-m", "athena.local_smoke",
+              "--keep-root", $runtimeRoot,
+              "--restart-cycles", "2"
+            ) `
+            -Label "database-reopen" `
+            -ReportDirectory $env:DIAGNOSTIC_ROOT `
+            -TimeoutSeconds 120 `
+            -MaximumRelevantProcesses 20 `
+            -PostExitSeconds 10
+
+      - name: Start desktop, navigate seven real pages, capture, and stop cleanly
+        id: desktop
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $runtimeRoot = Join-Path $env:DIAGNOSTIC_ROOT "desktop-runtime"
+          $screenshotRoot = Join-Path $env:DIAGNOSTIC_ROOT "screenshots"
+          & harness\scripts\windows_candidate_process_tree.ps1 `
+            -CandidateRoot (Resolve-Path candidate) `
+            -WorkingDirectory (Resolve-Path candidate) `
+            -FilePath (Resolve-Path candidate\.venv\Scripts\python.exe) `
+            -ArgumentList @(
+              (Resolve-Path harness\scripts\windows_candidate_desktop_driver.py),
+              "--runtime-root", $runtimeRoot,
+              "--screenshot-directory", $screenshotRoot,
+              "--initial-delay-seconds", "7"
+            ) `
+            -Label "desktop-source" `
+            -ReportDirectory $env:DIAGNOSTIC_ROOT `
+            -TimeoutSeconds 120 `
+            -MaximumRelevantProcesses 20 `
+            -PostExitSeconds 10
+
+      - name: Classify diagnostic results without claiming promotion GREEN
+        id: verdict
+        shell: pwsh
+        run: |
+          $checks = [ordered]@{
+            targeted_tests = "${{ steps.targeted.outcome }}"
+            provider_loopback = "${{ steps.provider.outcome }}"
+            database_reopen = "${{ steps.persistence.outcome }}"
+            desktop_process_tree = "${{ steps.desktop.outcome }}"
+          }
+          $failed = @($checks.GetEnumerator() | Where-Object Value -ne "success")
+          $diagnosticStatus = if ($failed.Count -eq 0) { "PASS" } else { "FAIL" }
+          $promotionStatus = if ($failed.Count -eq 0) { "NOT_EXECUTABLE" } else { "RED" }
+          $reasons = @(
+            "Candidate does not contain the assigned redesign slices for all eleven references.",
+            "Candidate has no supported Windows package/EXE configuration to build and cold-start.",
+            "Real RX-7900-XTX, driver, and LM Studio inference remain LOCAL_HARDWARE_PENDING."
+          )
+          [ordered]@{
+            candidate_sha = $env:CANDIDATE_SHA
+            windows_diagnostic_status = $diagnosticStatus
+            promotion_status = $promotionStatus
+            checks = $checks
+            not_executable_reasons = $reasons
+            distributable_artifact = $null
+          } | ConvertTo-Json -Depth 5 | Set-Content (Join-Path $env:DIAGNOSTIC_ROOT "acceptance-result.json")
+          if ($failed.Count -ne 0) {
+            throw "One or more executable Windows diagnostics failed."
+          }
+          Write-Output "Executable diagnostics passed; promotion remains NOT_EXECUTABLE."
+
+      - name: Upload logs and screenshots as non-promotable diagnostics only
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: UNSAFE-DIAGNOSTIC-windows-${{ env.CANDIDATE_SHA }}
+          path: ${{ runner.temp }}/pathena-${{ env.CANDIDATE_SHA }}
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 6
+          include-hidden-files: false
