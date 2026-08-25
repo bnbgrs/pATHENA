@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Iterator
 from io import BytesIO
 from typing import Any
 from urllib.error import HTTPError
@@ -25,8 +26,9 @@ class _FakeResponse:
         content_length: str | None = None,
     ) -> None:
         self._stream = BytesIO(payload)
-        self._lines = lines
+        self._lines = iter(lines)
         self.read_sizes: list[int] = []
+        self.readline_sizes: list[int] = []
         self.closed = False
         self.headers = (
             {} if content_length is None else {"Content-Length": content_length}
@@ -36,8 +38,12 @@ class _FakeResponse:
         self.read_sizes.append(amount)
         return self._stream.read(amount)
 
-    def __iter__(self) -> Any:
-        return iter(self._lines)
+    def readline(self, amount: int = -1) -> bytes:
+        self.readline_sizes.append(amount)
+        try:
+            return next(self._lines)
+        except StopIteration:
+            return b""
 
     def close(self) -> None:
         self.closed = True
@@ -117,19 +123,55 @@ def test_misleading_small_content_length_cannot_bypass_real_byte_limit(
     assert raw.read_sizes == [9]
 
 
-def test_stream_iteration_is_not_converted_into_a_whole_body_read(
+def test_stream_iteration_uses_bounded_readline_without_whole_body_read(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    raw = _FakeResponse(b"", lines=(b"data: one\n", b"data: [DONE]\n"))
+    raw = _FakeResponse(b"", lines=(b"data: 1\n", b"[DONE]\n"))
     _install_response(monkeypatch, raw)
 
     with local_http.open_local_request(
         Request("http://127.0.0.1:1234/v1/chat/completions"),
         timeout=1.0,
     ) as response:
-        assert list(response) == [b"data: one\n", b"data: [DONE]\n"]
+        assert list(response) == [b"data: 1\n", b"[DONE]\n"]
 
     assert raw.read_sizes == []
+    assert raw.readline_sizes == [9, 9, 9]
+
+
+def test_stream_iteration_rejects_oversize_line_without_leaking_content(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    raw = _FakeResponse(b"", lines=(b"SECRET123",))
+    _install_response(monkeypatch, raw)
+
+    with local_http.open_local_request(
+        Request("http://127.0.0.1:1234/v1/chat/completions"),
+        timeout=1.0,
+    ) as response:
+        with pytest.raises(local_http.LocalResponseTooLargeError) as raised:
+            list(response)
+
+    assert "SECRET" not in str(raised.value)
+    assert raw.readline_sizes == [9]
+
+
+def test_stream_iteration_enforces_monotonic_total_deadline(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    times: Iterator[float] = iter([10.0, 10.2, 10.6, 11.0])
+    monkeypatch.setattr(local_http, "monotonic", lambda: next(times))
+    raw = _FakeResponse(b"", lines=(b": one\n", b": two\n"))
+    _install_response(monkeypatch, raw, max_bytes=64)
+
+    with local_http.open_local_request(
+        Request("http://127.0.0.1:1234/v1/chat/completions"),
+        timeout=1.0,
+    ) as response:
+        stream = iter(response)
+        assert next(stream) == b": one\n"
+        with pytest.raises(TimeoutError, match="total timeout"):
+            next(stream)
 
 
 def test_http_error_body_is_bounded_before_provider_error_parsing(
