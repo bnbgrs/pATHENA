@@ -1,10 +1,16 @@
 from __future__ import annotations
 
+import os
+import sys
+from pathlib import Path
+
 import pytest
 
 from athena.desktop.packaged_app import (
     PackagedInvocationError,
     PackagedTarget,
+    packaged_worker_path,
+    prepare_frozen_desktop_runtime,
     route_packaged_argv,
 )
 
@@ -48,6 +54,41 @@ def test_jobs_workspace_helper_routes_to_jobs_cli() -> None:
 
     assert invocation.target is PackagedTarget.JOBS_CLI
     assert invocation.arguments == ("list", "--limit", "150")
+
+
+def test_frozen_desktop_binds_sys_executable_to_sibling_worker(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    desktop = tmp_path / "pATHENA.exe"
+    worker = tmp_path / "pATHENA-Worker.exe"
+    desktop.write_bytes(b"desktop")
+    worker.write_bytes(b"worker")
+    monkeypatch.setattr(sys, "executable", str(desktop))
+    monkeypatch.delenv("PATHENA_PACKAGED_DESKTOP_EXECUTABLE", raising=False)
+
+    resolved = prepare_frozen_desktop_runtime(
+        executable=str(desktop),
+        frozen=True,
+    )
+
+    assert resolved == worker
+    assert Path(sys.executable) == worker
+    assert os.environ["PATHENA_PACKAGED_DESKTOP_EXECUTABLE"] == str(desktop.resolve())
+    assert packaged_worker_path(str(desktop)) == worker
+
+
+def test_incomplete_frozen_package_fails_before_desktop_start(
+    tmp_path: Path,
+) -> None:
+    desktop = tmp_path / "pATHENA.exe"
+    desktop.write_bytes(b"desktop")
+
+    with pytest.raises(PackagedInvocationError, match="missing pATHENA-Worker.exe"):
+        prepare_frozen_desktop_runtime(
+            executable=str(desktop),
+            frozen=True,
+        )
 
 
 @pytest.mark.parametrize(
