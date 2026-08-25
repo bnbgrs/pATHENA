@@ -245,3 +245,15 @@ def test_malformed_diff_fails_closed(tmp_path: Path) -> None:
 
     assert result.returncode == 1
     assert "diff.commits" in result.stdout
+
+
+@pytest.mark.parametrize("field", ["claims", "completed"])
+def test_malformed_ledger_arrays_fail_cleanly(tmp_path: Path, field: str) -> None:
+    ledger = _ledger()
+    ledger[field] = None
+
+    result = _run_guard(tmp_path, ledger=ledger, diff=_diff([]))
+
+    assert result.returncode == 1
+    assert f"ledger.{field} must be a JSON array" in result.stdout
+    assert "Traceback" not in result.stderr
