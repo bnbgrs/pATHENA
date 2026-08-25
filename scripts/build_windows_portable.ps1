@@ -106,6 +106,7 @@ try {
     $workerRuntime = Join-Path $workerSourceRoot "app_runtime"
     $workerTarget = Join-Path $packageRoot "pATHENA-Worker.exe"
     $runtime = Join-Path $packageRoot "app_runtime"
+    $hardwareCheck = Join-Path $packageRoot "CHECK_HARDWARE.cmd"
 
     if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) {
         throw "pATHENA.exe was not produced."
@@ -132,22 +133,53 @@ try {
     }
 
     @"
+@echo off
+setlocal
+cd /d "%~dp0"
+"%~dp0pATHENA-Worker.exe" -m athena.hardware_acceptance --output "%~dp0hardware-acceptance.json" %*
+set "PATHENA_HW_EXIT=%ERRORLEVEL%"
+echo.
+echo Hardware acceptance report: %~dp0hardware-acceptance.json
+if "%PATHENA_HW_EXIT%"=="0" (
+  echo pATHENA target hardware acceptance: PASS
+) else (
+  echo pATHENA target hardware acceptance: FAIL ^(exit %PATHENA_HW_EXIT%^)
+)
+exit /b %PATHENA_HW_EXIT%
+"@ | Set-Content -LiteralPath $hardwareCheck -Encoding ASCII
+
+    if (-not (Test-Path -LiteralPath $hardwareCheck -PathType Leaf)) {
+        throw "The assembled package is missing CHECK_HARDWARE.cmd."
+    }
+
+    @"
 pATHENA Windows Portable
 ========================
 
 Start:
   pATHENA.exe
 
+Target workstation acceptance:
+  CHECK_HARDWARE.cmd
+
+The hardware check requires the actual Windows workstation. It verifies the expected
+AMD Radeon RX 7900 XTX through Windows CIM, requires an already-loaded local LLM in
+LM Studio, performs one real short inference with reasoning disabled, and writes
+hardware-acceptance.json beside the package. Optional arguments are passed through;
+for example CHECK_HARDWARE.cmd --model-id <loaded-model-id>.
+
 Keep together:
   pATHENA.exe
   pATHENA-Worker.exe
+  CHECK_HARDWARE.cmd
   app_runtime\
 
 pATHENA.exe is the no-console desktop. pATHENA-Worker.exe is a no-console internal
-process host for Core, Scheduler lanes, and JOBS receipts. The desktop binds all
-sys.executable child launches to that sibling before normal application startup, and
-the worker accepts only the explicit internal '-m' module roles used by pATHENA.
-Unknown module dispatches fail closed instead of reopening the desktop.
+process host for Core, Scheduler lanes, JOBS receipts, and the explicit hardware
+acceptance probe. The desktop binds all sys.executable child launches to that sibling
+before normal application startup, and the worker accepts only the explicit internal
+'-m' module roles used by pATHENA. Unknown module dispatches fail closed instead of
+reopening the desktop.
 "@ | Set-Content -LiteralPath (Join-Path $packageRoot "START_HERE.txt") -Encoding UTF8
 
     Write-Output $executable
