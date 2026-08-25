@@ -105,6 +105,7 @@ jobs:
       - name: Run comparator contract tests
         shell: pwsh
         run: |
+          $env:PYTHONPATH = (Get-Location).Path
           uv run --locked --extra dev --extra desktop --no-sync pytest -q tests/qa/test_visual_snapshot_compare.py
           if ($LASTEXITCODE -ne 0) { throw "Visual comparator contract tests failed." }
 
