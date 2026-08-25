@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QTimer, Qt
 from PySide6.QtGui import QHideEvent, QShowEvent
 from PySide6.QtWidgets import (
     QFrame,
@@ -294,16 +294,23 @@ class SystemWorkspace(QWidget):
 
     def showEvent(self, event: QShowEvent) -> None:  # noqa: N802
         super().showEvent(event)
-        inspector = self.window().findChild(QFrame, "inspector")
-        if inspector is not None:
-            self._shell_inspector = inspector
-            inspector.hide()
+        self._hide_shell_inspector()
+        # Navigation listeners may restore the shared inspector later in the same
+        # event turn. Reassert the SYSTEM-specific posture panel after those slots.
+        QTimer.singleShot(0, self._hide_shell_inspector)
 
     def hideEvent(self, event: QHideEvent) -> None:  # noqa: N802
         if self._shell_inspector is not None:
             self._shell_inspector.show()
             self._shell_inspector = None
         super().hideEvent(event)
+
+    def _hide_shell_inspector(self) -> None:
+        inspector = self.window().findChild(QFrame, "inspector")
+        if inspector is None:
+            return
+        self._shell_inspector = inspector
+        inspector.hide()
 
     def apply_snapshot(self, payload: object) -> None:
         if not isinstance(payload, DesktopApiSnapshot):
