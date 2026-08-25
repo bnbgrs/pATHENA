@@ -168,6 +168,7 @@ jobs:
               tests/unit/test_pathena_local_smoke.py `
               tests/unit/test_pathena_settings_comprehension.py `
               tests/unit/test_pathena_jobs_experience_2800.py `
+              tests/unit/test_pathena_command_palette_truth.py `
               tests/unit/test_pathena_pallas_target_lifecycle.py `
               tests/unit/test_pathena_pallas_responsiveness.py `
               tests/unit/test_pathena_pallas_context_inspector.py `
