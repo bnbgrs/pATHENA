@@ -34,6 +34,7 @@ class ChatEvidenceReference:
     entity_id: str
     title: str
     summary: str
+    source_name: str | None
     location: str | None
     epistemic_status: str | None
     cited: bool
@@ -57,6 +58,7 @@ def project_chat_evidence(
                 entity_id=item.entity_id,
                 title=_evidence_title(item),
                 summary=item.text,
+                source_name=item.source_name,
                 location=_source_location(item),
                 epistemic_status=item.epistemic_status,
                 cited=item.cited,
@@ -153,11 +155,14 @@ class ChatGroundingController(QObject):
 
         cited_count = sum(reference.cited for reference in references)
         heading = QLabel(
-            f"Grounded context · {cited_count} cited / {len(references)} available",
+            f"Grounded evidence · {cited_count} cited · {len(references)} available",
             panel,
         )
         heading.setObjectName("groundedEvidenceHeading")
         heading.setProperty("role", "muted")
+        heading.setAccessibleName(
+            f"Grounded evidence, {cited_count} cited, {len(references)} available"
+        )
         layout.addWidget(heading)
 
         if not references:
@@ -181,21 +186,31 @@ class ChatGroundingController(QObject):
         row = QHBoxLayout()
         row.setContentsMargins(0, 0, 0, 0)
         row.setSpacing(8)
-        state = "Cited" if reference.cited else "Context"
-        detail = f"{state} · {reference.entity_type} · {reference.entity_id}"
-        if reference.location:
-            detail += f" · {reference.location}"
-        if reference.epistemic_status:
-            detail += f" · {reference.epistemic_status}"
-        label = QLabel(f"{reference.title}\n{detail}", parent)
-        label.setObjectName("groundedEvidenceReference")
-        label.setWordWrap(True)
-        label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
-        label.setProperty("contextId", reference.context_id)
-        label.setProperty("entityId", reference.entity_id)
-        label.setProperty("cited", reference.cited)
-        label.setToolTip(reference.summary)
-        row.addWidget(label, 1)
+
+        text_column = QVBoxLayout()
+        text_column.setContentsMargins(0, 0, 0, 0)
+        text_column.setSpacing(1)
+
+        title = QLabel(reference.title, parent)
+        title.setObjectName("groundedEvidenceTitle")
+        title.setWordWrap(True)
+        title.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        title.setProperty("contextId", reference.context_id)
+        title.setProperty("entityId", reference.entity_id)
+        title.setProperty("cited", reference.cited)
+        title.setToolTip(reference.summary)
+        title.setAccessibleName(reference.title)
+        text_column.addWidget(title)
+
+        metadata = QLabel(_reference_metadata(reference), parent)
+        metadata.setObjectName("groundedEvidenceMeta")
+        metadata.setWordWrap(True)
+        metadata.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+        metadata.setProperty("role", "muted")
+        metadata.setProperty("contextId", reference.context_id)
+        metadata.setAccessibleName(_reference_metadata(reference))
+        text_column.addWidget(metadata)
+        row.addLayout(text_column, 1)
 
         action = QPushButton("Open in PALLAS", parent)
         action.setObjectName("openPallasEvidenceButton")
@@ -266,3 +281,19 @@ def _source_location(item: GroundedEvidenceResponse) -> str | None:
     if item.page_end is not None and item.page_end != item.page_start:
         return f"pages {item.page_start}–{item.page_end}"
     return f"page {item.page_start}"
+
+
+def _reference_metadata(reference: ChatEvidenceReference) -> str:
+    """Return compact provenance using only persisted response fields."""
+    parts = [
+        "CITED" if reference.cited else "CONTEXT",
+        reference.entity_type.upper(),
+        reference.entity_id,
+    ]
+    if reference.source_name and reference.source_name != reference.title:
+        parts.append(reference.source_name)
+    if reference.location:
+        parts.append(reference.location)
+    if reference.epistemic_status:
+        parts.append(reference.epistemic_status)
+    return " · ".join(parts)
