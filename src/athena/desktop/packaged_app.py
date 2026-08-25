@@ -22,6 +22,7 @@ class PackagedTarget(StrEnum):
     ATHENA_CLI = "athena-cli"
     JOBS_CLI = "jobs-cli"
     HARDWARE_ACCEPTANCE = "hardware-acceptance"
+    RECOVERY = "recovery"
 
 
 class PackagedInvocationError(ValueError):
@@ -39,6 +40,7 @@ _MODULE_TARGETS = {
     "athena": PackagedTarget.ATHENA_CLI,
     "athena.desktop.jobs_cli": PackagedTarget.JOBS_CLI,
     "athena.hardware_acceptance": PackagedTarget.HARDWARE_ACCEPTANCE,
+    "athena.recovery_cli": PackagedTarget.RECOVERY,
 }
 
 _WORKER_NAME = "pATHENA-Worker.exe"
