@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "authority": "docs/automation/redesign_visual_spec.md",
+  "candidate_sha_observed": "e35eb3f5d1cd3311e6c658663a991a12d011cbcc",
+  "updated_at": "2026-08-25T20:00:00Z",
+  "pixel_reference_access": "REFERENCE_IMAGES_UNAVAILABLE",
+  "global_status": "STRUCTURAL_NONCONFORMING",
+  "text_spec_conforming": false,
+  "optional_ui_feature_freeze": true,
+  "freeze_reason": "Global shell still uses a 218px text rail, legacy black/orange-first tokens, all-sans primary hierarchy, a hidden-by-default inspector, and a compact line composer. Until shared shell/navigation, navy-blue tokens plus serif display hierarchy, persistent inspector geometry, and anchored composer are TEXT_SPEC_CONFORMING, unrelated optional UI work must not outrank redesign P1.",
+  "evidence": {
+    "capture_is_design": false,
+    "capture_pass_meaning": "Renderability/regression stability only; candidate-derived baselines are not design references.",
+    "candidate_shell_findings": [
+      "PathenaMainWindow explicitly fixes the legacy rail at 218px.",
+      "The inspector is hidden by default behind a Details toggle rather than acting as a first-class persistent right column.",
+      "create_application sets Segoe UI globally and current design tokens define sans display typography only.",
+      "Current palette remains #060606/#080808 with #F26A21 orange primary accent rather than navy/blue-led reference tokens.",
+      "promptInput is a compact QLineEdit with a 42px minimum height rather than the large anchored reference composer."
+    ]
+  },
+  "reclassified_matrix": [
+    {"screen":"A","reference":"pATHENA im eleganten Dunkelmodus.png","functional_status":"FUNCTIONALLY_INTEGRATED","visual_status":"VISUAL_REVIEW_REQUIRED","text_spec_status":"NONCONFORMING_GLOBAL_SHELL","reason":"Canonical shell requirements fail before screen-local Chat evidence can qualify."},
+    {"screen":"B","reference":"PALLAS – Lebendes semantisches Wissensfeld.png","functional_status":"FUNCTIONALLY_INTEGRATED","visual_status":"VISUAL_REVIEW_REQUIRED","text_spec_status":"NONCONFORMING_GLOBAL_SHELL","reason":"PALLAS interaction/keyboard work is functional but global shell and inspector geometry are not conforming."},
+    {"screen":"C","reference":"pATHENA Einstellungen für lokale KI.png","functional_status":"FUNCTIONALLY_INTEGRATED","visual_status":"VISUAL_REVIEW_REQUIRED","text_spec_status":"NONCONFORMING_GLOBAL_SHELL","reason":"Settings functionality exists; top-nav/icon-rail/subnav/serif-title/system-inspector composition has not been text-spec accepted."},
+    {"screen":"D","reference":"pATHENA Hilfe: Fähigkeiten im Überblick.png","functional_status":"FUNCTIONALLY_INTEGRATED","visual_status":"VISUAL_REVIEW_REQUIRED","text_spec_status":"NONCONFORMING_GLOBAL_SHELL","reason":"Capability help exists but reference Help shell/subnav/inspector composition is not accepted."},
+    {"screen":"E","reference":"pATHENA – Dunkles Studio für Wissensforschung.png","functional_status":"FUNCTIONALLY_INTEGRATED","visual_status":"VISUAL_REVIEW_REQUIRED","text_spec_status":"NONCONFORMING_GLOBAL_SHELL","reason":"Research functionality exists but shared studio geometry, serif hierarchy, inspector and composer remain unaccepted."},
+    {"screen":"F","reference":"pATHENA: Intelligenzstudio für lokales Wissen.png","functional_status":"FUNCTIONALLY_INTEGRATED","visual_status":"VISUAL_REVIEW_REQUIRED","text_spec_status":"NONCONFORMING_GLOBAL_SHELL","reason":"Theme-independent light sibling geometry is not yet demonstrated against the fallback spec."},
+    {"screen":"G","reference":"pATHENA: Lokales Gedächtnis neu gedacht.png","functional_status":"FUNCTIONALLY_INTEGRATED","visual_status":"VISUAL_REVIEW_REQUIRED","text_spec_status":"NONCONFORMING_GLOBAL_SHELL","reason":"Knowledge functionality exists but reference workspace/map/evidence/composer hierarchy is not accepted."},
+    {"screen":"H","reference":"pATHENA Jobs: Prüfung der Speicher-Richtlinie.png","functional_status":"FUNCTIONALLY_INTEGRATED","visual_status":"VISUAL_REVIEW_REQUIRED","text_spec_status":"NONCONFORMING_GLOBAL_SHELL","reason":"Jobs functionality exists; three-column job navigator/stepper/log/metadata composition has not been accepted."},
+    {"screen":"I","reference":"pATHENA Such- und Befehlspalette.png","functional_status":"FUNCTIONALLY_INTEGRATED","visual_status":"VISUAL_REVIEW_REQUIRED","text_spec_status":"NONCONFORMING_GLOBAL_SHELL","reason":"TASK-0044 validates behavior and rendering only; underlying Knowledge shell and centered reference palette still require spec acceptance."},
+    {"screen":"J","reference":"pATHENA Systemübersicht für lokale KI.png","functional_status":"FUNCTIONALLY_INTEGRATED","visual_status":"VISUAL_REVIEW_REQUIRED","text_spec_status":"NONCONFORMING_GLOBAL_SHELL","reason":"SYSTEM runtime state exists, but TASK-0046 plus honest storage/DB telemetry and reference status-row/security-inspector geometry remain open."},
+    {"screen":"K","reference":"ComfyUI-Integration im pATHENA Studio.png","functional_status":"FUNCTIONALLY_INTEGRATED","visual_status":"VISUAL_REVIEW_REQUIRED","text_spec_status":"NONCONFORMING_GLOBAL_SHELL","reason":"TASK-0045 validates real controller/VRAM/error behavior and rendering; first-class integration shell/subnav/right Connection inspector remains unaccepted."}
+  ],
+  "ui_ready": [
+    {
+      "task_id":"TASK-0047",
+      "priority":"P1_CORE",
+      "owner":"PATHENA-UI",
+      "title":"Replace legacy wide text rail with reference top navigation and narrow icon rail",
+      "scope":["src/athena/desktop/pathena_window.py","src/athena/desktop/window.py","targeted shell/navigation tests"],
+      "acceptance":["full-width top bar with pATHENA and horizontal primary destinations","far-left icon-only rail approximately 68-82px","no 218px text sidebar dominance","existing page routing/signals/controllers preserved","optional second-column navigation remains screen-owned rather than global"],
+      "verification":["targeted shell tests","keyboard navigation continuity","Ruff/Mypy","11-surface capture for renderability","fallback-spec review; TEXT_SPEC_CONFORMING allowed, MATCH forbidden without pixels"]
+    },
+    {
+      "task_id":"TASK-0048",
+      "priority":"P1_CORE",
+      "owner":"PATHENA-UI",
+      "title":"Replace orange-first tokens with navy/blue-led palette and serif-plus-sans typography hierarchy",
+      "scope":["src/athena/desktop/pathena_design_tokens.py","src/athena/desktop/pathena_theme.py","src/athena/desktop/pathena_shared_components.py","token/theme tests"],
+      "acceptance":["deep navy/blue-black canvas and matte panels","cobalt/electric blue primary interaction accent","orange/coral restricted to conflict/risk/error semantics","editorial serif primary page-title token plus sans UI/body token","fine separators and semantic green/cyan/violet states preserved"],
+      "verification":["token contract tests","stylesheet smoke","Ruff/Mypy","11-surface capture for renderability","fallback-spec review; TEXT_SPEC_CONFORMING allowed, MATCH forbidden without pixels"]
+    },
+    {
+      "task_id":"TASK-0049",
+      "priority":"P1_CORE",
+      "owner":"PATHENA-UI",
+      "title":"Make right inspector first-class and rebuild Chat/Workspace composer as anchored reference geometry",
+      "scope":["src/athena/desktop/pathena_workspace_presentation.py","src/athena/desktop/pathena_shared_components.py","Chat/Workspace presentation tests"],
+      "dependencies":["TASK-0047"],
+      "acceptance":["persistent aligned right inspector on information-rich workspace surfaces","inspector no longer hidden-by-default as the canonical composition","wide anchored bottom composer with context/actions and prominent circular blue send action","controller/signal/persistence/security behavior unchanged","screen-local inspector content remains truthful and evidence-backed"],
+      "verification":["Chat workspace presentation tests","focus/tab continuity","Ruff/Mypy","11-surface capture for renderability","fallback-spec review; TEXT_SPEC_CONFORMING allowed, MATCH forbidden without pixels"]
+    }
+  ],
+  "backend_ready": [
+    {
+      "task_id":"TASK-0050",
+      "priority":"P1_CORE",
+      "owner":"PATHENA-BACKEND",
+      "title":"Expose truthful Storage/DB health snapshot contract for SYSTEM reference composition",
+      "scope":["storage/database health snapshot contract","Core API projection consumed by desktop SYSTEM","backend contract tests"],
+      "acceptance":["writable/read-only/recovery-required state explicit","database and storage health are probe-backed rather than invented metrics","unavailable telemetry represented explicitly","no destructive repair side effect","UI can map snapshot to SYSTEM status rows and security posture without preserving legacy card-grid geometry"],
+      "verification":["storage/database health contract tests","API projection tests","Ruff/Mypy","Full-Windows if runtime/startup contract changes"]
+    }
+  ],
+  "qa_directive": {
+    "pixel_probe_budget":"Attempt only a short 1-2-image original-pixel access probe. If unavailable, stop probing and use redesign_visual_spec.md.",
+    "forbidden_claim":"MATCH",
+    "allowed_without_pixels":"TEXT_SPEC_CONFORMING",
+    "capture_pass_is_only":"RENDERABLE",
+    "candidate_baseline_is_only":"REGRESSION_BASELINE"
+  },
+  "promotion_blockers":[
+    "Global shared shell is STRUCTURAL_NONCONFORMING against the authoritative fallback spec.",
+    "No original-pixel visual acceptance is available in scheduled context; no screen may claim MATCH.",
+    "TASK-0047/0048/0049 structural P1 slices are not yet integrated and text-spec accepted.",
+    "SYSTEM needs TASK-0050 truthful Storage/DB snapshot plus TASK-0046 reference composition.",
+    "TASK-0015 capture harness must be treated as render/regression infrastructure, not design authority.",
+    "Canonical Quality must be green on the settled candidate after the ComfyUI QLabel test import correction and later structural slices.",
+    "Full-Windows must be rerun after structural/runtime-sensitive integration when the candidate is settled."
+  ]
+}
