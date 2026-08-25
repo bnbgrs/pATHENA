@@ -7,8 +7,10 @@ import base64
 import json
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, cast
 
 import numpy as np
+from numpy.typing import NDArray
 from PySide6.QtGui import QImage
 
 EXPECTED_SURFACES = (
@@ -25,6 +27,8 @@ EXPECTED_SURFACES = (
     "11-comfyui.png",
 )
 
+PixelArray = NDArray[np.uint8]
+
 
 @dataclass(frozen=True)
 class ComparisonPolicy:
@@ -33,26 +37,32 @@ class ComparisonPolicy:
     max_mean_channel_delta: float = 0.35
 
 
-def _load_rgba(path: Path) -> np.ndarray:
+def _load_rgba(path: Path) -> PixelArray:
     image = QImage(str(path))
     if image.isNull():
         raise ValueError(f"Unable to decode PNG: {path}")
     image = image.convertToFormat(QImage.Format.Format_RGBA8888)
     data = np.frombuffer(image.bits(), dtype=np.uint8, count=image.sizeInBytes())
-    return data.reshape((image.height(), image.bytesPerLine()))[:, : image.width() * 4].reshape(
-        image.height(), image.width(), 4
-    ).copy()
+    return cast(
+        PixelArray,
+        data.reshape((image.height(), image.bytesPerLine()))[:, : image.width() * 4]
+        .reshape(image.height(), image.width(), 4)
+        .copy(),
+    )
 
 
-def _load_rgba_bytes(payload: bytes) -> np.ndarray:
+def _load_rgba_bytes(payload: bytes) -> PixelArray:
     image = QImage.fromData(payload, b"PNG")
     if image.isNull():
         raise ValueError("Unable to decode baseline PNG payload")
     image = image.convertToFormat(QImage.Format.Format_RGBA8888)
     data = np.frombuffer(image.bits(), dtype=np.uint8, count=image.sizeInBytes())
-    return data.reshape((image.height(), image.bytesPerLine()))[:, : image.width() * 4].reshape(
-        image.height(), image.width(), 4
-    ).copy()
+    return cast(
+        PixelArray,
+        data.reshape((image.height(), image.bytesPerLine()))[:, : image.width() * 4]
+        .reshape(image.height(), image.width(), 4)
+        .copy(),
+    )
 
 
 def _png_bytes(path: Path) -> bytes:
@@ -79,8 +89,9 @@ def write_baseline_bundle(
     destination: Path,
     *,
     candidate_sha: str,
-    policy: ComparisonPolicy = ComparisonPolicy(),
+    policy: ComparisonPolicy | None = None,
 ) -> None:
+    resolved_policy = policy or ComparisonPolicy()
     _validate_surface_set(actual_dir)
     surfaces: dict[str, dict[str, object]] = {}
     for name in EXPECTED_SURFACES:
@@ -95,9 +106,9 @@ def write_baseline_bundle(
         "platform": "windows-2025",
         "candidate_sha": candidate_sha,
         "policy": {
-            "channel_tolerance": policy.channel_tolerance,
-            "max_changed_ratio": policy.max_changed_ratio,
-            "max_mean_channel_delta": policy.max_mean_channel_delta,
+            "channel_tolerance": resolved_policy.channel_tolerance,
+            "max_changed_ratio": resolved_policy.max_changed_ratio,
+            "max_mean_channel_delta": resolved_policy.max_mean_channel_delta,
         },
         "surfaces": surfaces,
     }
@@ -105,7 +116,7 @@ def write_baseline_bundle(
     destination.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
 
 
-def _save_diff(diff: np.ndarray, destination: Path) -> None:
+def _save_diff(diff: PixelArray, destination: Path) -> None:
     amplified = np.clip(diff * 8, 0, 255).astype(np.uint8)
     amplified[:, :, 3] = 255
     height, width, _channels = amplified.shape
@@ -121,21 +132,32 @@ def _save_diff(diff: np.ndarray, destination: Path) -> None:
         raise RuntimeError(f"Unable to save visual diff: {destination}")
 
 
+def _load_baseline(path: Path) -> dict[str, Any]:
+    parsed: object = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(parsed, dict):
+        raise ValueError("Visual baseline root must be an object")
+    return cast(dict[str, Any], parsed)
+
+
 def compare_bundle(
     actual_dir: Path,
     baseline_bundle: Path,
     diff_dir: Path,
 ) -> dict[str, object]:
     _validate_surface_set(actual_dir)
-    baseline = json.loads(baseline_bundle.read_text(encoding="utf-8"))
+    baseline = _load_baseline(baseline_bundle)
     if baseline.get("schema_version") != 1 or baseline.get("platform") != "windows-2025":
         raise ValueError("Unsupported visual baseline bundle")
-    surfaces = baseline.get("surfaces")
-    if not isinstance(surfaces, dict) or tuple(sorted(surfaces)) != EXPECTED_SURFACES:
+    surfaces_value = baseline.get("surfaces")
+    if not isinstance(surfaces_value, dict):
+        raise ValueError("Baseline surfaces are missing")
+    surfaces = cast(dict[str, Any], surfaces_value)
+    if tuple(sorted(surfaces)) != EXPECTED_SURFACES:
         raise ValueError("Baseline surface set does not match the canonical eleven surfaces")
-    raw_policy = baseline.get("policy")
-    if not isinstance(raw_policy, dict):
+    raw_policy_value = baseline.get("policy")
+    if not isinstance(raw_policy_value, dict):
         raise ValueError("Baseline comparison policy is missing")
+    raw_policy = cast(dict[str, Any], raw_policy_value)
     policy = ComparisonPolicy(
         channel_tolerance=int(raw_policy["channel_tolerance"]),
         max_changed_ratio=float(raw_policy["max_changed_ratio"]),
@@ -145,9 +167,10 @@ def compare_bundle(
     results: list[dict[str, object]] = []
     failures: list[str] = []
     for name in EXPECTED_SURFACES:
-        entry = surfaces[name]
-        if not isinstance(entry, dict):
+        entry_value = surfaces[name]
+        if not isinstance(entry_value, dict):
             raise ValueError(f"Invalid baseline entry for {name}")
+        entry = cast(dict[str, Any], entry_value)
         encoded = entry.get("png_base64")
         if not isinstance(encoded, str):
             raise ValueError(f"Missing baseline PNG payload for {name}")
@@ -157,7 +180,10 @@ def compare_bundle(
             failures.append(f"{name}: geometry {actual.shape} != {expected.shape}")
             results.append({"surface": name, "status": "FAIL", "reason": "geometry"})
             continue
-        delta = np.abs(actual.astype(np.int16) - expected.astype(np.int16)).astype(np.uint8)
+        delta = cast(
+            PixelArray,
+            np.abs(actual.astype(np.int16) - expected.astype(np.int16)).astype(np.uint8),
+        )
         changed = np.any(delta[:, :, :3] > policy.channel_tolerance, axis=2)
         changed_ratio = float(changed.mean())
         mean_delta = float(delta[:, :, :3].mean())
@@ -181,9 +207,9 @@ def compare_bundle(
             )
             _save_diff(delta, diff_dir / name)
 
-    report = {
+    report: dict[str, object] = {
         "status": "PASS" if not failures else "FAIL",
-        "baseline_candidate_sha": baseline.get("candidate_sha", ""),
+        "baseline_candidate_sha": str(baseline.get("candidate_sha", "")),
         "policy": raw_policy,
         "results": results,
         "failures": failures,
