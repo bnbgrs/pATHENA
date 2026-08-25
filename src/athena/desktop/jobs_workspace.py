@@ -18,13 +18,13 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from athena.desktop.jobs_lifecycle import (
+    JobLifecycleError,
+    action_availability,
+    parse_transition_receipt,
+)
 from athena.desktop.pathena_ui_refinement_600 import set_pathena_ui_state
 from athena.desktop.scheduler_supervisor import DesktopJobSchedulerSupervisor
-
-_TERMINAL_STATES = frozenset({"cancelled", "failed", "completed"})
-_PAUSABLE_STATES = frozenset({"queued", "waiting"})
-_RESUMABLE_STATES = frozenset({"paused"})
-_WAKEABLE_STATES = frozenset({"waiting"})
 
 
 class JobsWorkspace(QWidget):
@@ -267,15 +267,16 @@ class JobsWorkspace(QWidget):
             return
 
         state = self._selected_state
+        availability = action_availability(state)
         self.refresh_button.setEnabled(True)
-        self.pause_button.setEnabled(state in _PAUSABLE_STATES)
-        self.resume_button.setEnabled(state in _RESUMABLE_STATES)
-        self.wake_button.setEnabled(state in _WAKEABLE_STATES)
-        self.cancel_button.setEnabled(
-            state is not None
-            and state not in _TERMINAL_STATES
-            and state != "cancel_requested"
-        )
+        for action, button in (
+            ("pause", self.pause_button),
+            ("resume", self.resume_button),
+            ("wake", self.wake_button),
+            ("cancel", self.cancel_button),
+        ):
+            button.setEnabled(bool(getattr(availability, action)))
+            button.setToolTip(availability.reason(action))
 
     def _operation_owns_details(self) -> bool:
         return self._operation_job_id == self._selected_job_id
@@ -329,9 +330,36 @@ class JobsWorkspace(QWidget):
                 set_pathena_ui_state(self.details, "success")
             return
 
+        try:
+            receipt = parse_transition_receipt(
+                output,
+                expected_operation=operation,
+                expected_job_id=operation_job_id or "",
+            )
+        except JobLifecycleError as exc:
+            self.status.setText(
+                f"{operation.upper()} receipt for job {job_label} could not be verified."
+            )
+            self.status.setToolTip(str(exc))
+            set_pathena_ui_state(self.status, "error")
+            if owns_details:
+                self.details.setPlainText(
+                    f"TRANSITION RECEIPT UNAVAILABLE\n{exc}\n\nRaw command output:\n{output}"
+                )
+                set_pathena_ui_state(self.details, "error")
+            return
+
+        if owns_details:
+            self._selected_state = receipt.state
+            current = self.jobs.currentItem()
+            if current is not None and current.data(Qt.ItemDataRole.UserRole) == receipt.job_id:
+                current.setData(Qt.ItemDataRole.UserRole + 1, receipt.state)
+        self._sync_action_buttons()
         self.status.setText(
-            f"{operation.upper()} transition for job {job_label} persisted."
+            f"{operation.upper()} transition for job {job_label} persisted · "
+            f"{receipt.state.upper()}."
         )
+        self.status.setToolTip("")
         set_pathena_ui_state(self.status, "success")
         if owns_details:
             set_pathena_ui_state(self.details, "success")
