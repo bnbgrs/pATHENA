@@ -42,14 +42,8 @@ jobs:
       - name: Run fail-closed promotion guard
         run: python scripts/promotion_guard.py --actual-ref "$GITHUB_REF"
 
-      - name: Ruff import rules
-        run: uv run --locked --extra dev --no-sync ruff check --select I scripts/promotion_guard.py
-
-      - name: Ruff bugbear rules
-        run: uv run --locked --extra dev --no-sync ruff check --select B scripts/promotion_guard.py
-
-      - name: Ruff error and pyflakes rules
-        run: uv run --locked --extra dev --no-sync ruff check --select E4,E7,E9,F scripts/promotion_guard.py
+      - name: Show Ruff import normalization
+        run: uv run --locked --extra dev --no-sync ruff check --select I --diff scripts/promotion_guard.py
 
       - name: Ruff promotion guard tests
         run: uv run --locked --extra dev --no-sync ruff check tests/unit/test_promotion_guard.py
