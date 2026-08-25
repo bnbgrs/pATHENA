@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "coordination_branch": "bot/pathena-coordination",
+  "candidate_branch": "bot/pathena-candidate",
+  "last_known_candidate_sha": "d13a793357f27c90d0e4ae32db4236eb87006820",
+  "claim_timeout_minutes": 90,
+  "priority_order": [
+    "P0_DEFECT",
+    "P1_CORE",
+    "REGRESSION",
+    "SECURITY",
+    "UX_GAP",
+    "FEATURE_GAP",
+    "CLEANUP"
+  ],
+  "agents": {
+    "PATHENA-LEAD": {"scope": ["coordination", "integration", "architecture", "prioritization"]},
+    "PATHENA-BACKEND": {"scope": ["core", "storage", "knowledge", "research", "jobs", "api", "persistence"]},
+    "PATHENA-UI": {"scope": ["desktop", "ux", "design-system", "pallas", "accessibility", "interactions"]},
+    "PATHENA-SECURITY": {"scope": ["local-first", "network", "tor", "secrets", "encryption", "process-boundaries", "privacy", "logging"]},
+    "PATHENA-QA-SCOUT": {"scope": ["regressions", "windows", "packaging", "tests", "feature-gaps", "reproduction"]}
+  },
+  "claims": [],
+  "backlog": [],
+  "completed": [],
+  "events": [
+    {
+      "type": "LEDGER_CREATED",
+      "agent": "PATHENA-LEAD",
+      "at": "2026-08-25T09:35:00Z",
+      "candidate_sha": "d13a793357f27c90d0e4ae32db4236eb87006820",
+      "detail": "Initialized shared optimistic-locking coordination ledger before first scheduled five-bot cycle."
+    }
+  ]
+}
