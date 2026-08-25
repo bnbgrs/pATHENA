@@ -24,6 +24,7 @@ class Palette:
     border_strong: str = "#34302C"
     text: str = "#F4F1EC"
     text_muted: str = "#A9A29A"
+    text_subtle: str = "#847E77"
     text_quiet: str = "#706B65"
     accent: str = "#F26A21"
     accent_hover: str = "#FF7A2D"
