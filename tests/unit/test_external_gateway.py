@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from urllib.parse import parse_qsl, urlsplit
 
 import pytest
 
@@ -9,6 +10,8 @@ from athena.external.gateway import (
     ExternalAccessAuthorizationRecord,
     ExternalAccessGateway,
     ExternalDestinationError,
+    ExternalDirectApprovalRequired,
+    _provenance_url,
 )
 
 
@@ -48,6 +51,10 @@ def _authorization(*, host: str = "example.com") -> ExternalAccessAuthorizationR
     )
 
 
+def _query(url: str) -> dict[str, str]:
+    return dict(parse_qsl(urlsplit(url).query, keep_blank_values=True))
+
+
 def test_require_authorized_rejects_plaintext_http() -> None:
     authorization = _authorization()
     gateway = _PolicyGateway(authorization)
@@ -82,3 +89,61 @@ def test_require_authorized_rejects_https_to_http_redirect_target() -> None:
             authorization.authorization_id,
             url="http://example.com/redirected",
         )
+
+
+def test_provenance_url_redacts_aws_signed_url_credentials_case_insensitively() -> None:
+    source = (
+        "https://example.com/object?X-Amz-Algorithm=AWS4-HMAC-SHA256"
+        "&X-Amz-Credential=AKIA_TEST%2F20260825%2Feu-central-1%2Fs3%2Faws4_request"
+        "&x-AmZ-SeCuRiTy-ToKeN=session-secret"
+        "&X-AMZ-SIGNATURE=deadbeef"
+        "&partNumber=1#local-fragment"
+    )
+
+    provenance = _provenance_url(source)
+    query = _query(provenance)
+
+    assert query["X-Amz-Credential"] == "[REDACTED]"
+    assert query["x-AmZ-SeCuRiTy-ToKeN"] == "[REDACTED]"
+    assert query["X-AMZ-SIGNATURE"] == "[REDACTED]"
+    assert query["X-Amz-Algorithm"] == "AWS4-HMAC-SHA256"
+    assert query["partNumber"] == "1"
+    assert urlsplit(provenance).fragment == ""
+    assert "AKIA_TEST" not in provenance
+    assert "session-secret" not in provenance
+    assert "deadbeef" not in provenance
+
+
+def test_provenance_url_redacts_google_signed_url_credentials_case_insensitively() -> None:
+    source = (
+        "https://example.com/object?X-Goog-Algorithm=GOOG4-RSA-SHA256"
+        "&x-GoOg-CrEdEnTiAl=user%40example.com%2F20260825%2Fauto%2Fstorage%2Fgoog4_request"
+        "&X-GOOG-SIGNATURE=cafebabe"
+        "&response-content-type=text%2Fplain"
+    )
+
+    provenance = _provenance_url(source)
+    query = _query(provenance)
+
+    assert query["x-GoOg-CrEdEnTiAl"] == "[REDACTED]"
+    assert query["X-GOOG-SIGNATURE"] == "[REDACTED]"
+    assert query["X-Goog-Algorithm"] == "GOOG4-RSA-SHA256"
+    assert query["response-content-type"] == "text/plain"
+    assert "user%40example.com" not in provenance
+    assert "cafebabe" not in provenance
+
+
+def test_direct_approval_error_uses_redacted_signed_url() -> None:
+    error = ExternalDirectApprovalRequired(
+        url=(
+            "https://example.com/object?X-Goog-Credential=private-credential"
+            "&X-Goog-Signature=private-signature&generation=7"
+        ),
+        reason_code="tor_transport_failed_direct_approval_required",
+    )
+
+    message = str(error)
+    assert "private-credential" not in message
+    assert "private-signature" not in message
+    assert "generation=7" in message
+    assert message.count("%5BREDACTED%5D") == 2
