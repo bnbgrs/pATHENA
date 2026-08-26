@@ -86,16 +86,16 @@ class SettingsSecondaryNavigation(QObject):
             """
         )
         for section in self.sections:
-            item = QListWidgetItem(section.label)
-            item.setData(Qt.ItemDataRole.UserRole, section.key)
-            item.setData(Qt.ItemDataRole.AccessibleTextRole, section.label)
-            item.setData(
+            nav_item = QListWidgetItem(section.label)
+            nav_item.setData(Qt.ItemDataRole.UserRole, section.key)
+            nav_item.setData(Qt.ItemDataRole.AccessibleTextRole, section.label)
+            nav_item.setData(
                 Qt.ItemDataRole.AccessibleDescriptionRole,
                 f"Open {section.label} settings",
             )
-            item.setToolTip(f"Open {section.label} settings")
-            item.setSizeHint(QSize(SHELL.secondary_nav_width - 34, 40))
-            self.navigation.addItem(item)
+            nav_item.setToolTip(f"Open {section.label} settings")
+            nav_item.setSizeHint(QSize(SHELL.secondary_nav_width - 34, 40))
+            self.navigation.addItem(nav_item)
 
         self.content = QWidget()
         self.content.setObjectName("settingsSecondaryContent")
@@ -103,15 +103,17 @@ class SettingsSecondaryNavigation(QObject):
         content_layout.setContentsMargins(4, 0, 12, 28)
         content_layout.setSpacing(18)
         while page_layout.count():
-            item = page_layout.takeAt(0)
-            widget = item.widget()
-            nested_layout = item.layout()
+            layout_item = page_layout.takeAt(0)
+            if layout_item is None:
+                continue
+            widget = layout_item.widget()
+            nested_layout = layout_item.layout()
             if widget is not None:
                 content_layout.addWidget(widget)
             elif nested_layout is not None:
                 content_layout.addLayout(nested_layout)
             else:
-                content_layout.addItem(item)
+                content_layout.addItem(layout_item)
 
         self.scroll = QScrollArea()
         self.scroll.setObjectName("settingsSecondaryScroll")

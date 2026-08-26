@@ -189,7 +189,7 @@ class KnowledgeDetailOwnership(QObject):
 
     @staticmethod
     def _current_item_id(widget: QListWidget) -> str | None:
-        current_item = widget.currentItem()
+        current_item: QListWidgetItem | None = widget.currentItem()
         if current_item is None:
             return None
         value = current_item.data(Qt.ItemDataRole.UserRole)

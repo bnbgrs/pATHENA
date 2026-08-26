@@ -90,7 +90,10 @@ class MessageActionTabOrderController(QObject):
             return []
         groups: list[list[QPushButton]] = []
         for index in range(layout.count()):
-            container = layout.itemAt(index).widget()
+            layout_item = layout.itemAt(index)
+            if layout_item is None:
+                continue
+            container = layout_item.widget()
             if container is None or container.objectName() not in _CONTAINER_NAMES:
                 continue
             buttons = self._buttons_for(container)

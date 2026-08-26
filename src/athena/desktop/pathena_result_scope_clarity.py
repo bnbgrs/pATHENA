@@ -64,10 +64,10 @@ class ResultScopeController(QObject):
     @staticmethod
     def _connect_list(list_widget: QListWidget, callback: object) -> None:
         model = list_widget.model()
-        model.rowsInserted.connect(callback)  # type: ignore[arg-type]
-        model.rowsRemoved.connect(callback)  # type: ignore[arg-type]
-        model.modelReset.connect(callback)  # type: ignore[arg-type]
-        list_widget.currentItemChanged.connect(callback)  # type: ignore[arg-type]
+        model.rowsInserted.connect(callback)
+        model.rowsRemoved.connect(callback)
+        model.modelReset.connect(callback)
+        list_widget.currentItemChanged.connect(callback)
 
     def schedule_sync(self, *_args: object) -> None:
         QTimer.singleShot(0, self.sync)

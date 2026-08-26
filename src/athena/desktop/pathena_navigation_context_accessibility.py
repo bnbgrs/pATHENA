@@ -52,13 +52,16 @@ class NavigationContextAccessibility(QObject):
             item.setData(Qt.ItemDataRole.StatusTipRole, "Current workspace" if current else "")
 
         page = self.pages.widget(index)
-        page.setAccessibleName(current_label)
-        page.setAccessibleDescription(f"{current_label} workspace content.")
-        page.setProperty("pathenaCurrentWorkspace", True)
+        if page is not None:
+            page.setAccessibleName(current_label)
+            page.setAccessibleDescription(f"{current_label} workspace content.")
+            page.setProperty("pathenaCurrentWorkspace", True)
         for row in range(self.pages.count()):
             if row == index:
                 continue
-            self.pages.widget(row).setProperty("pathenaCurrentWorkspace", False)
+            other_page = self.pages.widget(row)
+            if other_page is not None:
+                other_page.setProperty("pathenaCurrentWorkspace", False)
 
 
 def install_navigation_context_accessibility(

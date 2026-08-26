@@ -116,7 +116,7 @@ class StateTransitionIntegrityController(QObject):
     def _current_identity(item: QListWidgetItem | None) -> object | None:
         if item is None:
             return None
-        identity = item.data(Qt.ItemDataRole.UserRole)
+        identity: object | None = item.data(Qt.ItemDataRole.UserRole)
         if identity is not None:
             return identity
         return item.text()

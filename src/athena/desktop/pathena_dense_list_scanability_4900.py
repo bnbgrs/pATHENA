@@ -130,7 +130,7 @@ class DenseListScanabilityController(QObject):
     def _sync_accessibility(self, widget: QListWidget) -> None:
         label = self._accessibility_labels[widget]
         for index in range(widget.count()):
-            item = widget.item(index)
+            item: QListWidgetItem | None = widget.item(index)
             if item is None:
                 continue
             summary = item.text().strip()

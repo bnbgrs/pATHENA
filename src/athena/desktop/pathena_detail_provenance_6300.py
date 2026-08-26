@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from PySide6.QtCore import QObject, Qt, QTimer
-from PySide6.QtWidgets import QBoxLayout, QLabel, QListWidget, QPlainTextEdit, QWidget
+from PySide6.QtWidgets import QBoxLayout, QLabel, QListWidget, QListWidgetItem, QPlainTextEdit, QWidget
 
 
 @dataclass(frozen=True)
@@ -187,7 +187,7 @@ class DetailProvenanceController(QObject):
 
     @staticmethod
     def _identity(listing: QListWidget) -> str:
-        item = listing.currentItem()
+        item: QListWidgetItem | None = listing.currentItem()
         if item is None:
             return ""
         value = item.data(Qt.ItemDataRole.UserRole)
