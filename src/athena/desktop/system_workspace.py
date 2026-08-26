@@ -120,6 +120,7 @@ class _SystemSubnav(QFrame):
     def __init__(self) -> None:
         super().__init__()
         self.setObjectName("systemSubnav")
+        self.setAccessibleName("System sections")
         self.setFixedWidth(218)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 4, 22, 0)
@@ -149,6 +150,7 @@ class _SecurityPosture(QFrame):
     def __init__(self) -> None:
         super().__init__()
         self.setObjectName("systemSecurityPosture")
+        self.setAccessibleName("Security posture")
         self.setFixedWidth(348)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(22, 8, 0, 0)
