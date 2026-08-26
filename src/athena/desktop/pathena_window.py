@@ -214,6 +214,7 @@ class PathenaMainWindow(AthenaMainWindow):
 
         top_bar = QFrame()
         top_bar.setObjectName("topBar")
+        top_bar.setAccessibleName("Global navigation")
         top_bar.setFixedHeight(SHELL.top_bar_height)
         top_layout = QHBoxLayout(top_bar)
         top_layout.setContentsMargins(22, 0, 18, 0)
@@ -258,6 +259,7 @@ class PathenaMainWindow(AthenaMainWindow):
 
         reference_body = QFrame()
         reference_body.setObjectName("referenceBody")
+        reference_body.setAccessibleName("Workspace")
         body_layout = QHBoxLayout(reference_body)
         body_layout.setContentsMargins(0, 0, 0, 0)
         body_layout.setSpacing(0)
@@ -284,8 +286,6 @@ class PathenaMainWindow(AthenaMainWindow):
         body_layout.addWidget(inspector)
         shell_layout.addWidget(reference_body, 1)
 
-        # Keep legacy-owned status/model widgets alive for inherited controller updates,
-        # but remove their container from the visible pATHENA geometry entirely.
         if legacy_rail is not None:
             legacy_rail.hide()
         legacy_body.setObjectName("legacyShellHost")
@@ -343,7 +343,6 @@ class PathenaMainWindow(AthenaMainWindow):
             self.evidence_chain.hide()
 
     def _sync_progressive_chat_actions(self, _index: int | None = None) -> None:
-        """Expose secondary chat actions only for a persisted conversation."""
         has_selected_chat = self.chat_selector.currentData() is not None
         self.delete_chat_button.setVisible(has_selected_chat)
         details_button = getattr(self, "details_button", None)
@@ -355,19 +354,14 @@ class PathenaMainWindow(AthenaMainWindow):
 
     def _replace_visible_copy(self) -> None:
         replacements = {
-            "Connect to ATHENA Core to load a conversation.": (
-                "Connect to the local core to load a conversation."
-            ),
+            "Connect to ATHENA Core to load a conversation.": "Connect to the local core to load a conversation.",
             "INSPECTOR": "DETAILS",
             "PROVENANCE": "SOURCES & KNOWLEDGE",
             "KNOWLEDGE REVIEW": "KNOWLEDGE FROM THIS CHAT",
             "EVIDENCE CHAIN": "SOURCES & EVIDENCE",
             "DIRECT / PROVENANCE NOT ATTACHED": "No sources attached",
             "JOBS / API NOT CONNECTED": "BACKGROUND WORK",
-            (
-                "Autonomous job state will appear here when the desktop jobs API "
-                "is available."
-            ): "Open Jobs for background work status and controls.",
+            "Autonomous job state will appear here when the desktop jobs API is available.": "Open Jobs for background work status and controls.",
         }
         for label in self.findChildren(QLabel):
             replacement = replacements.get(label.text())
@@ -397,16 +391,10 @@ class PathenaMainWindow(AthenaMainWindow):
                 label.hide()
                 continue
             if label.text().startswith("Per-model session controls."):
-                label.setText(
-                    "Tune how the selected local model uses context and generates "
-                    "responses. Settings are kept per model for this session."
-                )
+                label.setText("Tune how the selected local model uses context and generates responses. Settings are kept per model for this session.")
                 continue
             if label.text().startswith("THINKING OFF sends reasoning_effort=none."):
-                label.setText(
-                    "Reasoning is used only when enabled and supported by the selected "
-                    "model. Maximum response stays within the current context budget."
-                )
+                label.setText("Reasoning is used only when enabled and supported by the selected model. Maximum response stays within the current context budget.")
                 continue
             replacement = label_replacements.get(label.text())
             if replacement is not None:
@@ -417,9 +405,7 @@ class PathenaMainWindow(AthenaMainWindow):
         self.max_output_slider.setToolTip("Adjust the maximum response length")
         self.max_output_spin.setToolTip("Enter the maximum response length in tokens")
         self.temperature_spin.setToolTip("Adjust sampling temperature")
-        self.thinking_checkbox.setToolTip(
-            "Allow model reasoning when the selected model supports it"
-        )
+        self.thinking_checkbox.setToolTip("Allow model reasoning when the selected model supports it")
         self._humanize_model_settings_state()
 
     def _humanize_model_settings_state(self) -> None:
@@ -429,13 +415,10 @@ class PathenaMainWindow(AthenaMainWindow):
         else:
             state = "Loaded" if model.loaded else "Not loaded"
             self.settings_model_value.setText(f"{model.display_name} · {state}")
-        self.thinking_checkbox.setText(
-            "On" if self.thinking_checkbox.isChecked() else "Off"
-        )
+        self.thinking_checkbox.setText("On" if self.thinking_checkbox.isChecked() else "Off")
 
     def _humanize_knowledge_review_panel(self) -> None:
         self.knowledge_review_close_button.setText("Close")
-
         state_replacements = {
             "IDLE": "Idle",
             "EXTRACTING / SELECTED MESSAGE": "Extracting…",
@@ -455,20 +438,14 @@ class PathenaMainWindow(AthenaMainWindow):
             if replacement is not None:
                 self.knowledge_review_state.setText(replacement)
 
-        for label in self.knowledge_review_panel.findChildren(
-            QLabel,
-            "knowledgeReviewItemTitle",
-        ):
+        for label in self.knowledge_review_panel.findChildren(QLabel, "knowledgeReviewItemTitle"):
             original = label.text()
             humanized = _humanize_review_heading(original)
             if humanized != original:
                 label.setToolTip(original)
                 label.setText(humanized)
 
-        for button in self.knowledge_review_panel.findChildren(
-            QPushButton,
-            "knowledgeMergeButton",
-        ):
+        for button in self.knowledge_review_panel.findChildren(QPushButton, "knowledgeMergeButton"):
             decision = button.property("decision")
             if decision == "merge":
                 button.setText("Merge")
@@ -476,23 +453,14 @@ class PathenaMainWindow(AthenaMainWindow):
                 button.setText("Keep separate")
 
     def _hide_nonfunctional_placeholders(self) -> None:
-        hidden_copy = {
-            "ATTACH",
-            "BACKGROUND WORK",
-            "Open Jobs for background work status and controls.",
-        }
+        hidden_copy = {"ATTACH", "BACKGROUND WORK", "Open Jobs for background work status and controls."}
         for label in self.findChildren(QLabel):
             if label.text() in hidden_copy:
                 label.hide()
 
     def _apply_control_snapshot(self, snapshot: DesktopApiSnapshot) -> None:
         super()._apply_control_snapshot(snapshot)
-
-        models = {
-            model.backend_model_id: model
-            for model in snapshot.models
-            if model.model_type == "llm"
-        }
+        models = {model.backend_model_id: model for model in snapshot.models if model.model_type == "llm"}
         for index in range(self.model_selector.count()):
             model_id = self.model_selector.itemData(index)
             if not isinstance(model_id, str):
@@ -511,15 +479,11 @@ class PathenaMainWindow(AthenaMainWindow):
                 continue
             chat = chats.get(chat_id)
             if chat is not None:
-                self.chat_selector.setItemText(
-                    index,
-                    _conversation_label(chat.started_at_us, chat.message_count),
-                )
+                self.chat_selector.setItemText(index, _conversation_label(chat.started_at_us, chat.message_count))
             elif chat_id == self.pending_chat_id:
                 self.chat_selector.setItemText(index, "Loading conversation…")
             else:
                 self.chat_selector.setItemText(index, "Current conversation")
-
         self._humanize_model_settings_state()
         self._sync_progressive_chat_actions()
 
@@ -531,16 +495,8 @@ class PathenaMainWindow(AthenaMainWindow):
         super()._on_thinking_changed(checked)
         self._humanize_model_settings_state()
 
-    def _enter_new_chat_state(
-        self,
-        *,
-        clear_transient: bool,
-        message: str = "New persistent conversation. Type below to send the first message.",
-    ) -> None:
-        super()._enter_new_chat_state(
-            clear_transient=clear_transient,
-            message=message,
-        )
+    def _enter_new_chat_state(self, *, clear_transient: bool, message: str = "New persistent conversation. Type below to send the first message.") -> None:
+        super()._enter_new_chat_state(clear_transient=clear_transient, message=message)
         self._set_context_available(False)
         self._sync_progressive_chat_actions()
 
@@ -555,11 +511,7 @@ class PathenaMainWindow(AthenaMainWindow):
     @Slot(object)
     def apply_chat_loaded(self, thread: object) -> None:
         super().apply_chat_loaded(thread)
-        if (
-            isinstance(thread, ChatThreadResponse)
-            and self.current_chat_id == thread.chat_id
-            and self.pending_chat_id is None
-        ):
+        if isinstance(thread, ChatThreadResponse) and self.current_chat_id == thread.chat_id and self.pending_chat_id is None:
             self._set_context_available(False)
         self._sync_progressive_chat_actions()
 
@@ -573,10 +525,7 @@ class PathenaMainWindow(AthenaMainWindow):
     @Slot(object)
     def apply_grounded_chat_sent(self, response: object) -> None:
         super().apply_grounded_chat_sent(response)
-        if (
-            isinstance(response, GroundedChatResponse)
-            and self.current_chat_id == response.thread.chat_id
-        ):
+        if isinstance(response, GroundedChatResponse) and self.current_chat_id == response.thread.chat_id:
             self._set_context_available(True)
         self._sync_progressive_chat_actions()
 
@@ -600,60 +549,26 @@ class PathenaMainWindow(AthenaMainWindow):
         super()._render_knowledge_review_panel()
         self._humanize_knowledge_review_panel()
 
-    def _message_widget(
-        self,
-        *,
-        role: str,
-        content: str | None,
-        created_at_us: int,
-        sequence_no: int,
-        message_id: str,
-        revision_id: str,
-    ) -> QWidget:
-        container = super()._message_widget(
-            role=role,
-            content=content,
-            created_at_us=created_at_us,
-            sequence_no=sequence_no,
-            message_id=message_id,
-            revision_id=revision_id,
-        )
-
+    def _message_widget(self, *, role: str, content: str | None, created_at_us: int, sequence_no: int, message_id: str, revision_id: str) -> QWidget:
+        container = super()._message_widget(role=role, content=content, created_at_us=created_at_us, sequence_no=sequence_no, message_id=message_id, revision_id=revision_id)
         meta_name = "userMeta" if role == "user" else "speaker"
         meta = container.findChild(QLabel, meta_name)
         if meta is not None:
-            display_role = (
-                "You"
-                if role == "user"
-                else "pATHENA"
-                if role == "assistant"
-                else role.replace("_", " ").title()
-            )
+            display_role = "You" if role == "user" else "pATHENA" if role == "assistant" else role.replace("_", " ").title()
             meta.setText(f"{display_role} · {_message_time(created_at_us)}")
-
         remember_button = container.findChild(QPushButton, "rememberMessageButton")
         if remember_button is not None:
             remember_button.setText("Remember")
-
         knowledge_button = container.findChild(QPushButton, "addKnowledgeButton")
         if knowledge_button is not None:
             knowledge_button.setText("Add to knowledge")
-
         return container
 
     def _sync_message_action_buttons(self) -> None:
         super()._sync_message_action_buttons()
-        for button in self.chat_messages_widget.findChildren(
-            QPushButton,
-            "rememberMessageButton",
-        ):
-            button.setText(
-                "Remembered" if button.text() == "REMEMBERED" else "Remember"
-            )
-        for button in self.chat_messages_widget.findChildren(
-            QPushButton,
-            "addKnowledgeButton",
-        ):
+        for button in self.chat_messages_widget.findChildren(QPushButton, "rememberMessageButton"):
+            button.setText("Remembered" if button.text() == "REMEMBERED" else "Remember")
+        for button in self.chat_messages_widget.findChildren(QPushButton, "addKnowledgeButton"):
             button.setText("Add to knowledge")
         self._humanize_knowledge_review_panel()
 
