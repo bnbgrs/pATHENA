@@ -44,25 +44,24 @@ jobs:
       - name: Validate dependency lock
         run: uv lock --check
 
-      # Preserve the canonical four checks while exposing each outcome in Actions.
+      # Keep every canonical check independently observable while still running all four.
       - name: Quality — specification validator
         id: quality_spec
-        continue-on-error: true
         run: uv run --locked --extra dev --extra desktop python scripts/validate_spec.py
 
       - name: Quality — Ruff
         id: quality_ruff
-        continue-on-error: true
+        if: always()
         run: uv run --locked --extra dev --extra desktop python -m ruff check src tests scripts
 
       - name: Quality — mypy
         id: quality_mypy
-        continue-on-error: true
+        if: always()
         run: uv run --locked --extra dev --extra desktop python -m mypy src/athena
 
       - name: Quality — pytest
         id: quality_pytest
-        continue-on-error: true
+        if: always()
         run: uv run --locked --extra dev --extra desktop python -m pytest
 
       - name: Enforce canonical quality result
