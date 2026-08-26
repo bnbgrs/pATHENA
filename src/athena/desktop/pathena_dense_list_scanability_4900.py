@@ -43,7 +43,7 @@ _DENSE_LIST_STYLESHEET = """
 QListWidget[pathenaDenseList="true"]::item {
     padding: 5px 7px;
     border-left: 2px solid transparent;
-}
+n}
 QListWidget[pathenaDenseList="true"]::item:selected {
     background: #101010;
     border-left: 2px solid #F26A21;
@@ -130,7 +130,7 @@ class DenseListScanabilityController(QObject):
     def _sync_accessibility(self, widget: QListWidget) -> None:
         label = self._accessibility_labels[widget]
         for index in range(widget.count()):
-            item = widget.item(index)
+            item: QListWidgetItem | None = widget.item(index)
             if item is None:
                 continue
             summary = item.text().strip()
