@@ -48,7 +48,7 @@ def test_generate_structured_forces_reasoning_off_per_request(
 ) -> None:
     captured: dict[str, Any] = {}
 
-    def fake_urlopen(request: Any, timeout: float) -> _FakeResponse:
+    def fake_open_local_request(request: Any, timeout: float) -> _FakeResponse:
         del timeout
         assert request.data is not None
         captured.update(json.loads(request.data.decode("utf-8")))
@@ -64,7 +64,7 @@ def test_generate_structured_forces_reasoning_off_per_request(
             }
         )
 
-    monkeypatch.setattr(lm_studio, "urlopen", fake_urlopen)
+    monkeypatch.setattr(lm_studio, "open_local_request", fake_open_local_request)
 
     result = _provider().generate_structured(
         model_id="fake-model",
@@ -86,7 +86,7 @@ def test_generate_structured_rejects_backend_reasoning_despite_off_pin(
     monkeypatch: pytest.MonkeyPatch,
     reasoning_key: str,
 ) -> None:
-    def fake_urlopen(request: Any, timeout: float) -> _FakeResponse:
+    def fake_open_local_request(request: Any, timeout: float) -> _FakeResponse:
         del request, timeout
         return _FakeResponse(
             {
@@ -101,7 +101,7 @@ def test_generate_structured_rejects_backend_reasoning_despite_off_pin(
             }
         )
 
-    monkeypatch.setattr(lm_studio, "urlopen", fake_urlopen)
+    monkeypatch.setattr(lm_studio, "open_local_request", fake_open_local_request)
 
     with pytest.raises(
         ProviderProtocolError,
