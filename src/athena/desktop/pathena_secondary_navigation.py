@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import cast
 
 from PySide6.QtCore import QObject, QSize, Qt
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
+    QLayout,
     QListWidget,
     QListWidgetItem,
     QScrollArea,
@@ -106,8 +108,8 @@ class SettingsSecondaryNavigation(QObject):
             layout_item = page_layout.takeAt(0)
             if layout_item is None:
                 continue
-            widget = layout_item.widget()
-            nested_layout = layout_item.layout()
+            widget = cast(QWidget | None, layout_item.widget())
+            nested_layout = cast(QLayout | None, layout_item.layout())
             if widget is not None:
                 content_layout.addWidget(widget)
             elif nested_layout is not None:
@@ -157,10 +159,10 @@ def install_settings_secondary_navigation(
 
     dynamic_existing = window.property("pathenaSettingsSecondaryNavigation")
     if isinstance(dynamic_existing, SettingsSecondaryNavigation):
-        window._pathena_settings_secondary_navigation = dynamic_existing
+        setattr(window, "_pathena_settings_secondary_navigation", dynamic_existing)
         return dynamic_existing
 
     controller = SettingsSecondaryNavigation(window)
-    window._pathena_settings_secondary_navigation = controller
+    setattr(window, "_pathena_settings_secondary_navigation", controller)
     window.setProperty("pathenaSettingsSecondaryNavigation", controller)
     return controller

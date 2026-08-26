@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from PySide6.QtCore import QObject, Qt, QTimer
+from PySide6.QtCore import QEvent, QObject, Qt, QTimer
 from PySide6.QtWidgets import QListWidget, QListWidgetItem, QWidget
 
 
@@ -61,7 +61,7 @@ class SelectionLoadingController(QObject):
         detail.installEventFilter(self)
         self._sync_one(listing, detail, label)
 
-    def eventFilter(self, watched: QObject, event: object) -> bool:  # noqa: N802
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
         if isinstance(watched, QWidget):
             QTimer.singleShot(0, self.sync)
         return super().eventFilter(watched, event)
