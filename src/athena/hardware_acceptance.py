@@ -94,11 +94,14 @@ def _video_controller_names_from_payload(payload: str) -> tuple[str, ...]:
         raise HardwareAcceptanceError(
             "Windows video-controller query returned an invalid names field."
         )
-    if any(not isinstance(value, str) or not value.strip() for value in names):
-        raise HardwareAcceptanceError(
-            "Windows video-controller query returned an invalid controller name."
-        )
-    return tuple(value.strip() for value in names)
+    normalized: list[str] = []
+    for value in names:
+        if not isinstance(value, str) or not value.strip():
+            raise HardwareAcceptanceError(
+                "Windows video-controller query returned an invalid controller name."
+            )
+        normalized.append(value.strip())
+    return tuple(normalized)
 
 
 def detect_windows_video_controllers() -> tuple[str, ...]:
