@@ -8,7 +8,6 @@ from typing import Any
 import pytest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-pytest.importorskip("PySide6")
 
 from PySide6.QtCore import QThreadPool
 from PySide6.QtTest import QSignalSpy
