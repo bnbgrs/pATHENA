@@ -43,7 +43,7 @@ _DENSE_LIST_STYLESHEET = """
 QListWidget[pathenaDenseList="true"]::item {
     padding: 5px 7px;
     border-left: 2px solid transparent;
-n}
+}
 QListWidget[pathenaDenseList="true"]::item:selected {
     background: #101010;
     border-left: 2px solid #F26A21;
