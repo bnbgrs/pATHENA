@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import uuid
 from dataclasses import replace
 from typing import Any, cast
-import uuid
 
 import pytest
 
