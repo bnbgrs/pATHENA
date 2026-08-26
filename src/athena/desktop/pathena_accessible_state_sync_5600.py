@@ -35,7 +35,7 @@ _TARGETS: tuple[AccessibleStateTarget, ...] = (
     AccessibleStateTarget("jobsStatus", "Durable jobs status"),
     AccessibleStateTarget("schedulerStatus", "Scheduler status"),
     AccessibleStateTarget("durableJobList", "Durable jobs"),
-    AccessibleStateTarget("jobDetails", "Durable job details"),
+    AccessibleStateTarget("jobDetails", "Job details"),
     AccessibleStateTarget("sourceStatus", "Source status"),
     AccessibleStateTarget("sourceList", "Sources"),
     AccessibleStateTarget("sourceDetails", "Source details"),
