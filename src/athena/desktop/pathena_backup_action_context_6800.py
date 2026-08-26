@@ -9,7 +9,7 @@ It does not infer eligibility, change button enablement or alter BackupService b
 from __future__ import annotations
 
 from PySide6.QtCore import QObject, Qt, QTimer
-from PySide6.QtWidgets import QBoxLayout, QLabel, QListWidget, QPushButton, QWidget
+from PySide6.QtWidgets import QBoxLayout, QLabel, QListWidget, QListWidgetItem, QPushButton, QWidget
 
 
 class BackupActionContextController(QObject):
@@ -63,7 +63,7 @@ class BackupActionContextController(QObject):
         QTimer.singleShot(0, self.sync)
 
     def sync(self) -> None:
-        item = self.snapshots.currentItem()
+        item: QListWidgetItem | None = self.snapshots.currentItem()
         if item is None:
             self._apply("NO SNAPSHOT SELECTED", "", "")
             return
