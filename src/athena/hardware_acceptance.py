@@ -188,7 +188,8 @@ def _run_live_inference(provider: _AcceptanceProvider, model: ModelInfo) -> str:
     if response != INFERENCE_MARKER:
         clipped = response[:160].replace("\r", " ").replace("\n", " ")
         raise HardwareAcceptanceError(
-            "LM Studio inference completed but did not return exactly the acceptance marker: "
+            "LM Studio inference completed but did not return exactly "
+            "the acceptance marker: "
             f"{clipped!r}"
         )
     return response
