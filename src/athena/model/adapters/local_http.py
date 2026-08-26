@@ -91,23 +91,23 @@ class _BoundedLocalResponse:
             )
 
     def _is_event_stream(self) -> bool:
-        headers = getattr(self._response, "headers", None)
-        if headers is None:
+        try:
+            headers = self._response.headers
+        except AttributeError:
             return False
-        get_content_type = getattr(headers, "get_content_type", None)
-        if callable(get_content_type):
+
+        try:
+            content_type = headers.get_content_type()
+        except (AttributeError, TypeError, ValueError):
             try:
-                return str(get_content_type()).casefold() == "text/event-stream"
+                raw_content_type = headers.get("Content-Type", "")
             except (AttributeError, TypeError, ValueError):
                 return False
-        get_header = getattr(headers, "get", None)
-        if not callable(get_header):
-            return False
-        raw_content_type = get_header("Content-Type", "")
-        if not isinstance(raw_content_type, str):
-            return False
-        media_type = raw_content_type.partition(";")[0].strip().casefold()
-        return media_type == "text/event-stream"
+            if not isinstance(raw_content_type, str):
+                return False
+            content_type = raw_content_type.partition(";")[0].strip()
+
+        return str(content_type).casefold() == "text/event-stream"
 
     def _iter_sse_events(self) -> Any:
         """Yield one normalized ``data:`` line per complete SSE event.
