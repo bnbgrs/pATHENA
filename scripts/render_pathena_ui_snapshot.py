@@ -13,6 +13,16 @@ from collections.abc import Sequence
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+WORKSPACE_SURFACE_LABELS = (
+    "Chat",
+    "Knowledge",
+    "Research",
+    "Jobs",
+    "Files",
+    "System",
+    "Settings",
+)
+
 
 def _safe_name(value: str) -> str:
     normalized = re.sub(r"[^a-z0-9]+", "-", value.casefold()).strip("-")
@@ -165,8 +175,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 )
             navigation.setCurrentRow(row)
             app.processEvents()
-            label = navigation.item(row).text()
+            label = WORKSPACE_SURFACE_LABELS[row]
             save_widget(window, ordinal=row + 1, label=label, kind="workspace")
+            captures[-1]["navigation_label"] = navigation.item(row).text()
             captures[-1]["row"] = row
             captures[-1]["page_index"] = pages.currentIndex()
         except Exception as exc:  # noqa: BLE001
