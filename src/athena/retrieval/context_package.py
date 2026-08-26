@@ -195,6 +195,13 @@ class ContextPackage:
             raise ContextPackageError(
                 "Structured ContextPackage requires both schema ID and schema JSON."
             )
+        if not isinstance(self.structured_schema_id, str) or not isinstance(
+            self.structured_schema_json,
+            str,
+        ):
+            raise ContextPackageError(
+                "ContextPackage structured schema metadata must be text."
+            )
         try:
             payload = json.loads(
                 self.structured_schema_json,
@@ -298,8 +305,18 @@ class ContextPackage:
             },
             "snapshot_commit_seq": self.snapshot_commit_seq,
         }
-        if self.structured_schema_id is not None:
-            assert self.structured_schema_json is not None
+        if self.structured_schema_id is not None or self.structured_schema_json is not None:
+            if self.structured_schema_id is None or self.structured_schema_json is None:
+                raise ContextPackageError(
+                    "Structured ContextPackage requires both schema ID and schema JSON."
+                )
+            if not isinstance(self.structured_schema_id, str) or not isinstance(
+                self.structured_schema_json,
+                str,
+            ):
+                raise ContextPackageError(
+                    "ContextPackage structured schema metadata must be text."
+                )
             snapshot["structured_output"] = {
                 "schema_id": self.structured_schema_id,
                 "schema_sha256": hashlib.sha256(
