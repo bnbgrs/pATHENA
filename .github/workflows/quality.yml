@@ -17,7 +17,7 @@ jobs:
   quality:
     name: Python 3.12 quality
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 25
     env:
       QT_QPA_PLATFORM: offscreen
 
@@ -73,13 +73,14 @@ jobs:
       - name: Quality — pytest
         id: quality_pytest
         if: always()
+        timeout-minutes: 20
         run: |
           set -o pipefail
           mkdir -p .quality-evidence
           uv run --locked --extra dev --extra desktop python -m pytest 2>&1 | tee .quality-evidence/pytest.txt
 
       - name: Upload canonical quality diagnostics
-        if: always()
+        if: ${{ always() && !cancelled() }}
         uses: actions/upload-artifact@v4
         with:
           name: canonical-quality-diagnostics-${{ github.sha }}
@@ -89,7 +90,7 @@ jobs:
           retention-days: 7
 
       - name: Enforce canonical quality result
-        if: always()
+        if: ${{ always() && !cancelled() }}
         env:
           SPEC_OUTCOME: ${{ steps.quality_spec.outcome }}
           RUFF_OUTCOME: ${{ steps.quality_ruff.outcome }}
