@@ -12,6 +12,7 @@ from PySide6.QtWidgets import QApplication
 from athena.api.client import CoreApiClient
 from athena.desktop.api_controller import DesktopApiController
 from athena.desktop.canonical_memory_extensions import install_canonical_memory_extensions
+from athena.desktop.chat_grounding_extension import install_chat_grounding_extension
 from athena.desktop.command_palette import install_command_palette
 from athena.desktop.files_workspace import install_files_workspace
 from athena.desktop.jobs_workspace import install_jobs_workspace
@@ -27,6 +28,7 @@ from athena.desktop.pathena_backup_details_provenance import (
     install_backup_details_provenance,
 )
 from athena.desktop.pathena_backup_target_context import install_backup_target_context
+from athena.desktop.pathena_capability_help import install_capability_help
 from athena.desktop.pathena_chat_scroll_stability_6600 import install_chat_scroll_stability
 from athena.desktop.pathena_command_palette_truth_6500 import install_command_palette_truth
 from athena.desktop.pathena_detail_provenance_6300 import apply_detail_provenance
@@ -60,6 +62,9 @@ from athena.desktop.pathena_message_action_tab_order import (
 from athena.desktop.pathena_navigation_context_accessibility import (
     install_navigation_context_accessibility,
 )
+from athena.desktop.pathena_pallas_field import install_pallas_grounded_field
+from athena.desktop.pathena_pallas_full_view import install_pallas_full_view
+from athena.desktop.pathena_pallas_inspector import install_pallas_context_inspector
 from athena.desktop.pathena_primary_input_accessibility import (
     install_primary_input_accessibility,
 )
@@ -85,9 +90,11 @@ from athena.desktop.pathena_research_result_presentation import (
     apply_research_result_presentation,
 )
 from athena.desktop.pathena_result_scope_clarity import apply_result_scope_clarity
+from athena.desktop.pathena_secondary_navigation import install_settings_secondary_navigation
 from athena.desktop.pathena_selection_disappearance_handoff import (
     install_selection_disappearance_handoff,
 )
+from athena.desktop.pathena_settings_runtime import install_settings_runtime
 from athena.desktop.pathena_shell_density import apply_shell_density
 from athena.desktop.pathena_startup_experience_2900 import install_startup_experience
 from athena.desktop.pathena_theme import PATHENA_STYLESHEET
@@ -186,6 +193,15 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     controller = DesktopApiController(client)
     window = PathenaMainWindow(api_controller=controller)
+    settings_runtime = install_settings_runtime(window, controller)
+    install_settings_secondary_navigation(window)
+    pallas_grounded_field = install_pallas_grounded_field(window, controller)
+    pallas_full_view = install_pallas_full_view(window, pallas_grounded_field)
+    pallas_context_inspector = install_pallas_context_inspector(
+        window,
+        pallas_grounded_field,
+    )
+    chat_grounding = install_chat_grounding_extension(window, controller)
     knowledge_workspace = install_knowledge_workspace(window, controller)
     knowledge_selection_continuity = install_knowledge_selection_continuity(
         knowledge_workspace
@@ -213,6 +229,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     command_palette = install_command_palette(window)
     transient_dialog_shortcuts = install_transient_dialog_shortcut_continuity(command_palette)
     command_palette_truth = install_command_palette_truth(command_palette)
+    capability_help = install_capability_help(command_palette)
     empty_search_comprehension = install_empty_search_comprehension(
         window,
         command_palette,
@@ -311,9 +328,15 @@ def main(argv: Sequence[str] | None = None) -> int:
     files_workspace.deleteLater()
     system_backup.deleteLater()
     system_workspace.deleteLater()
+    capability_help.deleteLater()
     command_palette_truth.deleteLater()
     transient_dialog_shortcuts.deleteLater()
     command_palette.deleteLater()
+    chat_grounding.deleteLater()
+    pallas_context_inspector.deleteLater()
+    pallas_full_view.deleteLater()
+    pallas_grounded_field.deleteLater()
+    settings_runtime.deleteLater()
     return exit_code
 
 

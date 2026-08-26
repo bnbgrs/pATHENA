@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
+from weakref import ref
 
 from PySide6.QtCore import QObject
 from PySide6.QtWidgets import QLabel, QListWidget, QWidget
@@ -31,13 +32,32 @@ class BackgroundCompletionAccessibility(QObject):
         super().__init__(parent)
         self._targets = targets
         for target in targets:
-            target.status.textChanged.connect(
-                lambda _text, current=target: self._sync_target(current)
-            )
+            self._observe_status_text(target)
             target.selection.currentItemChanged.connect(
                 lambda _current, _previous, current=target: self._sync_target(current)
             )
             self._sync_target(target)
+
+    def _observe_status_text(self, target: _Target) -> None:
+        """Refresh accessibility copy after QLabel.setText without assuming a Qt signal.
+
+        QLabel intentionally exposes no ``textChanged`` signal.  The desktop status widgets
+        are plain QLabel instances, so observing a non-existent signal crashes the native
+        shell during construction.  Wrap the instance method instead: callers keep the
+        normal QLabel API and accessibility state is synchronized immediately after a
+        successful text update.
+        """
+
+        original_set_text = target.status.setText
+        controller_ref = ref(self)
+
+        def set_text(text: str, *, current: _Target = target) -> None:
+            original_set_text(text)
+            controller = controller_ref()
+            if controller is not None:
+                controller._sync_target(current)
+
+        target.status.setText = set_text  # type: ignore[method-assign]
 
     @staticmethod
     def _label(identifier: str | None) -> str:

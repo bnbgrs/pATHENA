@@ -21,8 +21,10 @@ class _Response:
     def __exit__(self, exc_type, exc, tb) -> None:
         return None
 
-    def read(self) -> bytes:
-        return self._payload
+    def read(self, amount: int = -1) -> bytes:
+        if amount < 0:
+            return self._payload
+        return self._payload[:amount]
 
 
 class _Opener:

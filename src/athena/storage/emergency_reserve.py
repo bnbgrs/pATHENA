@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 import shutil
 import stat
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -17,6 +18,9 @@ _MIN_RESERVE_BYTES = 256 * _MIB
 _MAX_RESERVE_BYTES = 1 * _GIB
 _DEFAULT_WRITE_CHUNK_BYTES = 4 * _MIB
 _RESERVE_FILENAME = "emergency.reserve"
+_CONCURRENT_CREATION_TIMEOUT_SECONDS = 30.0
+_CONCURRENT_CREATION_STAGNANT_SECONDS = 0.5
+_CONCURRENT_CREATION_POLL_SECONDS = 0.05
 
 
 class EmergencyReserveError(RuntimeError):
@@ -216,6 +220,14 @@ class EmergencyReserveStore:
         else:
             try:
                 durable_mkdir(self.reserve_root, parents=False, exist_ok=False)
+            except FileExistsError as exc:
+                # Another local process may have created the same durable directory
+                # after our exists() check. Accept only the safe real directory that
+                # now occupies the expected pathname; all redirecting boundaries fail.
+                if is_link_boundary(self.reserve_root) or not self.reserve_root.is_dir():
+                    raise EmergencyReserveError(
+                        "Emergency reserve directory could not be created safely."
+                    ) from exc
             except OSError as exc:
                 raise EmergencyReserveError(
                     "Emergency reserve directory could not be created durably."
@@ -241,6 +253,54 @@ class EmergencyReserveStore:
             )
         except ValueError as exc:
             raise EmergencyReserveError(str(exc)) from exc
+
+    def _wait_for_concurrent_creation(self, *, required: int) -> EmergencyReserveStatus:
+        """Wait only while an incomplete reserve is demonstrably making progress.
+
+        A second core/scheduler process can observe the O_EXCL winner after the file
+        has been published but before its physical allocation write completes. That
+        partial file is not corruption. Conversely, a stable wrong-sized file must
+        still fail closed rather than becoming silently accepted.
+        """
+        deadline = time.monotonic() + _CONCURRENT_CREATION_TIMEOUT_SECONDS
+        last_size: int | None = None
+        last_progress = time.monotonic()
+
+        while True:
+            if is_link_boundary(self.path):
+                raise EmergencyReserveError(
+                    "Emergency reserve file became unsafe during concurrent creation."
+                )
+            try:
+                current = self.path.stat(follow_symlinks=False)
+            except FileNotFoundError as exc:
+                raise EmergencyReserveError(
+                    "Emergency reserve disappeared during concurrent creation."
+                ) from exc
+            except OSError as exc:
+                raise EmergencyReserveError(
+                    "Emergency reserve metadata could not be read during concurrent creation."
+                ) from exc
+
+            if not stat.S_ISREG(current.st_mode):
+                raise EmergencyReserveError(
+                    "Emergency reserve path is not a regular file."
+                )
+            if current.st_size == required:
+                return self.inspect(required_bytes=required)
+            if current.st_size > required:
+                return self.inspect(required_bytes=required)
+
+            now = time.monotonic()
+            if last_size is None or current.st_size > last_size:
+                last_size = current.st_size
+                last_progress = now
+            elif now - last_progress >= _CONCURRENT_CREATION_STAGNANT_SECONDS:
+                return self.inspect(required_bytes=required)
+
+            if now >= deadline:
+                return self.inspect(required_bytes=required)
+            time.sleep(_CONCURRENT_CREATION_POLL_SECONDS)
 
     def _inspect_posix_with_root_fd(
         self,
@@ -292,10 +352,15 @@ class EmergencyReserveStore:
                 )
                 created = True
             except FileExistsError:
-                return self._inspect_posix_with_root_fd(
-                    root_fd=root_fd,
-                    required=required,
-                )
+                try:
+                    return self._inspect_posix_with_root_fd(
+                        root_fd=root_fd,
+                        required=required,
+                    )
+                except EmergencyReserveError as exc:
+                    if "file size must exactly match required bytes" not in str(exc):
+                        raise
+                    return self._wait_for_concurrent_creation(required=required)
             except (NotImplementedError, TypeError) as exc:
                 raise EmergencyReserveError(
                     "Identity-bound emergency reserve creation is unsupported."
@@ -366,27 +431,37 @@ class EmergencyReserveStore:
             return self._ensure_posix(required=required, chunk_bytes=chunk_bytes)
 
         if self.path.exists():
-            status = self.inspect(required_bytes=required)
-            if status.file_size_bytes == required and (
-                status.allocated_bytes is None or status.allocated_bytes >= required
-            ):
-                return status
-            raise EmergencyReserveError(
-                "Existing emergency reserve does not match the required physical allocation."
-            )
+            try:
+                return self.inspect(required_bytes=required)
+            except EmergencyReserveError as exc:
+                if "file size must exactly match required bytes" not in str(exc):
+                    raise
+                return self._wait_for_concurrent_creation(required=required)
 
         flags = os.O_RDWR | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
         descriptor = -1
+        created = False
+        created_identity: os.stat_result | None = None
         try:
-            descriptor = os.open(self.path, flags, 0o600)
             try:
+                descriptor = os.open(self.path, flags, 0o600)
+                created = True
+            except FileExistsError:
+                # Losing O_EXCL means another process owns creation. Never enter
+                # our cleanup path for that file; wait for the winner to finish.
+                return self._wait_for_concurrent_creation(required=required)
+
+            try:
+                created_identity = os.fstat(descriptor)
                 path_stat = self.path.stat(follow_symlinks=False)
-                handle_stat = os.fstat(descriptor)
             except OSError as exc:
                 raise EmergencyReserveError(
                     "Emergency reserve file identity could not be verified."
                 ) from exc
-            if is_link_boundary(self.path) or not os.path.samestat(path_stat, handle_stat):
+            if is_link_boundary(self.path) or not os.path.samestat(
+                path_stat,
+                created_identity,
+            ):
                 raise EmergencyReserveError(
                     "Emergency reserve pathname changed during creation."
                 )
@@ -403,11 +478,22 @@ class EmergencyReserveStore:
                 except OSError:
                     pass
                 descriptor = -1
-            try:
-                self.path.unlink(missing_ok=True)
-                fsync_directory(self.reserve_root)
-            except OSError:
-                pass
+
+            # Only remove the exact file identity created by this process. A lost
+            # O_EXCL race or pathname replacement must never delete another
+            # process's completed reserve or an attacker-controlled replacement.
+            if created and created_identity is not None:
+                try:
+                    current = self.path.stat(follow_symlinks=False)
+                    if not is_link_boundary(self.path) and os.path.samestat(
+                        current,
+                        created_identity,
+                    ):
+                        self.path.unlink()
+                        fsync_directory(self.reserve_root)
+                except OSError:
+                    pass
+
             if isinstance(exc, EmergencyReserveError):
                 raise
             if isinstance(exc, OSError):

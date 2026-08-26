@@ -1,28 +1,20 @@
-"""Truthful command-palette availability for existing pATHENA actions.
-
-The command palette intentionally reuses visible desktop actions. Some of those actions
-can be disabled by real readiness/selection state, so presenting every command as
-immediately runnable is misleading. This presentation-only controller reuses existing
-enablement rationale, marks unavailable commands, and blocks only palette invocation
-until the same visible control becomes enabled. It adds no command or domain action.
-"""
+"""Truthful command-palette availability for existing pATHENA actions."""
 
 from __future__ import annotations
 
 from collections.abc import Callable
 
-from PySide6.QtCore import QObject, QTimer, Qt
+from PySide6.QtCore import QObject, Qt, QTimer
 from PySide6.QtWidgets import QBoxLayout, QLabel, QWidget
 
 from athena.desktop.command_palette import CommandPaletteController
-
-
-_ACTION_TARGETS: dict[str, tuple[str, str | None]] = {
-    "New conversation": ("new_chat_button", None),
-    "Focus message field": ("prompt_input", None),
-    "Use sources for next response": ("ground_button", None),
-    "Filter canonical memory": ("search_input", "knowledgeWorkspace"),
-}
+from athena.desktop.pathena_capability_catalog import (
+    CAPABILITY_CATALOG_VERSION,
+    CapabilityAvailability,
+    ResolvedCapability,
+    resolve_capability_catalog,
+)
+from athena.desktop.pathena_comfyui import install_comfyui_integration
 
 
 class CommandPaletteTruthController(QObject):
@@ -71,54 +63,76 @@ class CommandPaletteTruthController(QObject):
     def _schedule_refresh(self, *_args: object) -> None:
         QTimer.singleShot(0, self.refresh)
 
+    def _set_palette_state(self, state: str) -> None:
+        self.palette.dialog.setProperty("pathenaUiState", state)
+        self.palette.results.setProperty("pathenaUiState", state)
+
     def refresh(self) -> None:
+        capability_by_label, has_drift = self._resolved_capabilities()
+        self.palette.dialog.setProperty(
+            "pathenaCapabilityCatalogVersion", CAPABILITY_CATALOG_VERSION
+        )
+        self.palette.dialog.setProperty("pathenaCapabilityCatalogDrift", has_drift)
         for row, command in enumerate(self.palette._filtered_commands):
             item = self.palette.results.item(row)
-            if item is None:
-                continue
-            available, explanation = self._availability(command.label)
-            visible_text = command.label if available else f"{command.label} · unavailable"
+            capability = capability_by_label[command.label]
+            available = capability.availability is CapabilityAvailability.AVAILABLE
+            state = capability.availability.value
+            visible_text = command.label if available else f"{command.label} · {state}"
             item.setText(visible_text)
-            item.setToolTip(explanation)
+            item.setToolTip(capability.explanation)
             item.setData(256, available)
+            item.setData(257, state)
+            item.setData(258, CAPABILITY_CATALOG_VERSION)
             item.setData(Qt.ItemDataRole.AccessibleTextRole, visible_text)
-            availability = "available" if available else "unavailable"
             item.setData(
                 Qt.ItemDataRole.AccessibleDescriptionRole,
-                f"Command {availability}. {explanation}",
+                f"Command {state}. {capability.explanation}",
             )
         self._selection_changed(self.palette.results.currentRow())
 
     def _selection_changed(self, row: int) -> None:
         self._sync_results_accessibility(row)
+        if not self.palette._filtered_commands:
+            self.status.setText("No matching commands · refine the search.")
+            self.status.setAccessibleName("No matching commands")
+            self.status.setAccessibleDescription(
+                "No registered pATHENA command matches the current search."
+            )
+            self.status.show()
+            self._set_palette_state("empty")
+            return
         if not 0 <= row < len(self.palette._filtered_commands):
             self.status.clear()
             self.status.hide()
+            self._set_palette_state("ready")
             return
         command = self.palette._filtered_commands[row]
-        available, explanation = self._availability(command.label)
-        if available:
+        capability = self._capability(command.label)
+        if capability.availability is CapabilityAvailability.AVAILABLE:
             self.status.clear()
             self.status.hide()
+            self._set_palette_state("ready")
             return
-        self.status.setText(f"Unavailable · {explanation}")
-        self.status.setAccessibleName(f"{command.label} unavailable")
-        self.status.setAccessibleDescription(explanation)
+        state = capability.availability.value.capitalize()
+        self.status.setText(f"{state} · {capability.explanation}")
+        self.status.setAccessibleName(f"{command.label} {capability.availability.value}")
+        self.status.setAccessibleDescription(capability.explanation)
         self.status.show()
+        self._set_palette_state("blocked")
 
     def _sync_results_accessibility(self, row: int) -> None:
         count = self.palette.results.count()
         available_count = 0
         for index in range(count):
             item = self.palette.results.item(index)
-            if item is not None and item.data(256) is True:
+            if item.data(256) is True:
                 available_count += 1
         noun = "command" if count == 1 else "commands"
         description = f"{count} {noun} shown. {available_count} available."
         if 0 <= row < len(self.palette._filtered_commands):
             command = self.palette._filtered_commands[row]
-            available, _explanation = self._availability(command.label)
-            state = "available" if available else "unavailable"
+            state = self._capability(command.label).availability.value
             description += f" Current command: {command.label}, {state}."
         else:
             description += " No command selected."
@@ -130,50 +144,51 @@ class CommandPaletteTruthController(QObject):
             self._original_run(row)
             return
         command = self.palette._filtered_commands[row]
-        available, explanation = self._availability(command.label)
-        if not available:
-            self.status.setText(f"Unavailable · {explanation}")
+        capability = self._capability(command.label)
+        if capability.availability is not CapabilityAvailability.AVAILABLE:
+            state = capability.availability.value.capitalize()
+            self.status.setText(f"{state} · {capability.explanation}")
             self.status.show()
+            self._set_palette_state("blocked")
             self.palette.query.setFocus()
             return
+        self._set_palette_state("ready")
         self._original_run(row)
 
     def _availability(self, label: str) -> tuple[bool, str]:
-        target = _ACTION_TARGETS.get(label)
-        if target is None:
-            return True, "Available."
+        capability = self._capability(label)
+        return (
+            capability.availability is CapabilityAvailability.AVAILABLE,
+            capability.explanation,
+        )
 
-        attribute_name, workspace_name = target
-        owner: QWidget = self.window
-        if workspace_name is not None:
-            found = self.window.findChild(QWidget, workspace_name)
-            if found is None:
-                return False, "The target workspace is not available in this desktop."
-            owner = found
+    def _capability(self, label: str) -> ResolvedCapability:
+        capabilities, _has_drift = self._resolved_capabilities()
+        capability = capabilities.get(label)
+        if capability is not None:
+            return capability
+        return ResolvedCapability(
+            label=label,
+            area="Other",
+            summary="Command is not registered by the current desktop.",
+            availability=CapabilityAvailability.UNAVAILABLE,
+            explanation="The command is not registered by the current desktop.",
+            documented=False,
+        )
 
-        widget = getattr(owner, attribute_name, None)
-        if not isinstance(widget, QWidget):
-            return False, "The target control is not available in this desktop."
-        if widget.isEnabled():
-            return True, "Available."
-
-        reason = _property_text(widget, "pathenaEnablementReason")
-        restore = _property_text(widget, "pathenaEnablementRestoreCondition")
-        explanation = " ".join(part for part in (reason, restore) if part)
-        if explanation:
-            return False, explanation
-        return False, "The existing target control is currently disabled."
-
-
-def _property_text(widget: QWidget, name: str) -> str:
-    value = widget.property(name)
-    return " ".join(str(value).split()) if value else ""
+    def _resolved_capabilities(self) -> tuple[dict[str, ResolvedCapability], bool]:
+        snapshot = resolve_capability_catalog(self.window, self.palette._commands)
+        return (
+            {capability.label: capability for capability in snapshot.capabilities},
+            snapshot.has_drift,
+        )
 
 
 def install_command_palette_truth(
     palette: CommandPaletteController,
 ) -> CommandPaletteTruthController:
-    """Install truthful availability guidance on the existing command palette."""
+    """Install truthful availability guidance and the local ComfyUI command."""
+    install_comfyui_integration(palette)
     controller = CommandPaletteTruthController(palette)
     palette.window.setProperty("pathenaCommandPaletteTruthController", controller)
     palette.window.setProperty("pathenaCommandPaletteTruthManaged", True)

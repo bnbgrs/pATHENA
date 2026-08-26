@@ -2,17 +2,20 @@
 
 from __future__ import annotations
 
+import json
 import sys
 
 from PySide6.QtCore import QProcess, Qt, QTimer
 from PySide6.QtGui import QTextCursor
 from PySide6.QtWidgets import (
+    QFileDialog,
     QFrame,
     QHBoxLayout,
     QLabel,
     QLineEdit,
     QListWidget,
     QListWidgetItem,
+    QMessageBox,
     QPlainTextEdit,
     QPushButton,
     QScrollArea,
@@ -28,6 +31,11 @@ from athena.api.contracts import (
     MessageKnowledgeExtractionResponse,
 )
 from athena.desktop.api_controller import DesktopApiController, DesktopApiSnapshot
+from athena.desktop.knowledge_review import (
+    KnowledgeReviewError,
+    parse_knowledge_entity_review,
+    render_knowledge_entity_review,
+)
 
 
 class KnowledgeWorkspace(QWidget):
@@ -43,6 +51,9 @@ class KnowledgeWorkspace(QWidget):
         self._selected_review_id: str | None = None
         self._knowledge_operation = ""
         self._knowledge_buffer = ""
+        self._obsidian_operation = ""
+        self._obsidian_buffer = ""
+        self._obsidian_vault = ""
         self.setObjectName("knowledgeWorkspace")
 
         self.state = QLabel("IDLE")
@@ -92,6 +103,20 @@ class KnowledgeWorkspace(QWidget):
         self.history_button.setObjectName("newChatButton")
         self.history_button.setEnabled(False)
         self.history_button.clicked.connect(self.show_history)
+
+        self.obsidian_export_button = QPushButton("EXPORT TO OBSIDIAN")
+        self.obsidian_export_button.setObjectName("newChatButton")
+        self.obsidian_export_button.setEnabled(False)
+        self.obsidian_export_button.setToolTip(
+            "Preview a local Markdown projection before explicitly exporting it"
+        )
+        self.obsidian_export_button.clicked.connect(self.begin_obsidian_export)
+
+        self.obsidian_status = QLabel(
+            "OBSIDIAN  —  Select canonical Knowledge, then choose a local vault to preview."
+        )
+        self.obsidian_status.setObjectName("settingsHelp")
+        self.obsidian_status.setWordWrap(True)
 
         self.claim_history_button = QPushButton("HISTORY")
         self.claim_history_button.setObjectName("newChatButton")
@@ -158,6 +183,12 @@ class KnowledgeWorkspace(QWidget):
         self._knowledge_process.readyReadStandardOutput.connect(self._drain_knowledge_output)
         self._knowledge_process.finished.connect(self._knowledge_process_finished)
         self._knowledge_process.errorOccurred.connect(self._knowledge_process_error)
+
+        self._obsidian_process = QProcess(self)
+        self._obsidian_process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
+        self._obsidian_process.readyReadStandardOutput.connect(self._drain_obsidian_output)
+        self._obsidian_process.finished.connect(self._obsidian_process_finished)
+        self._obsidian_process.errorOccurred.connect(self._obsidian_process_error)
 
         self.items_widget = QWidget()
         self.items_widget.setObjectName("knowledgeWorkspaceItems")
@@ -236,8 +267,10 @@ class KnowledgeWorkspace(QWidget):
         detail_heading.setProperty("role", "section")
         detail_header.addWidget(detail_heading)
         detail_header.addStretch(1)
+        detail_header.addWidget(self.obsidian_export_button)
         detail_header.addWidget(self.history_button)
         right_layout.addLayout(detail_header)
+        right_layout.addWidget(self.obsidian_status)
         right_layout.addWidget(self.knowledge_details, 1)
 
         splitter.addWidget(left)
@@ -475,6 +508,154 @@ class KnowledgeWorkspace(QWidget):
             "Loading immutable Claim revision history",
         )
 
+    def begin_obsidian_export(self) -> None:
+        if self._knowledge_busy() or not self._selected_knowledge_id:
+            return
+        vault = QFileDialog.getExistingDirectory(
+            self,
+            "Select local Obsidian vault",
+            "",
+            QFileDialog.Option.ShowDirsOnly | QFileDialog.Option.DontResolveSymlinks,
+        )
+        if not vault:
+            self.obsidian_status.setText("OBSIDIAN  CANCELLED  /  No files were changed.")
+            return
+        self._obsidian_vault = vault
+        self._start_obsidian_process("preview", replace=False)
+
+    def _start_obsidian_process(self, operation: str, *, replace: bool) -> None:
+        knowledge_id = self._selected_knowledge_id
+        if not knowledge_id or not self._obsidian_vault:
+            return
+        self._obsidian_operation = operation
+        self._obsidian_buffer = ""
+        self.obsidian_export_button.setEnabled(False)
+        self.refresh_knowledge_button.setEnabled(False)
+        if operation == "preview":
+            self.obsidian_status.setText("OBSIDIAN  PREVIEWING  /  No files changed yet …")
+        else:
+            policy = "REPLACE" if replace else "KEEP IDENTICAL"
+            self.obsidian_status.setText(f"OBSIDIAN  EXPORTING  /  POLICY {policy} …")
+        arguments = [
+            "-m",
+            "athena.desktop.knowledge_obsidian_export",
+            operation,
+            knowledge_id,
+            "--vault",
+            self._obsidian_vault,
+        ]
+        if operation == "export" and replace:
+            arguments.append("--replace")
+        self._obsidian_process.start(sys.executable, arguments)
+
+    def _drain_obsidian_output(self) -> None:
+        chunk = bytes(self._obsidian_process.readAllStandardOutput().data()).decode(
+            "utf-8", errors="replace"
+        )
+        if chunk:
+            self._obsidian_buffer += chunk
+
+    def _obsidian_process_finished(
+        self,
+        exit_code: int,
+        _exit_status: QProcess.ExitStatus,
+    ) -> None:
+        self._drain_obsidian_output()
+        operation = self._obsidian_operation
+        raw = self._obsidian_buffer.strip()
+        self._obsidian_operation = ""
+        self.refresh_knowledge_button.setEnabled(True)
+
+        try:
+            payload = json.loads(raw)
+        except (json.JSONDecodeError, TypeError):
+            detail = raw or f"local export process exited with code {exit_code}"
+            self.obsidian_status.setText(f"OBSIDIAN  ERROR  /  {detail}")
+            self._restore_obsidian_button()
+            return
+        if not isinstance(payload, dict):
+            self.obsidian_status.setText("OBSIDIAN  ERROR  /  Invalid local export response.")
+            self._restore_obsidian_button()
+            return
+        if exit_code != 0 or payload.get("kind") == "error":
+            detail = str(payload.get("detail") or "Local export failed.")
+            self.obsidian_status.setText(f"OBSIDIAN  BLOCKED  /  {detail}")
+            self._restore_obsidian_button()
+            return
+
+        if operation == "preview" and payload.get("kind") == "preview":
+            self._present_obsidian_preview(payload)
+            return
+        if operation == "export" and payload.get("kind") == "result":
+            status = str(payload.get("status") or "unknown").upper()
+            destination = str(payload.get("destination") or "")
+            policy = str(payload.get("policy") or "").replace("_", " ").upper()
+            self.obsidian_status.setText(
+                f"OBSIDIAN  {status}  /  {destination}  /  POLICY {policy}"
+            )
+            self._restore_obsidian_button()
+            return
+
+        self.obsidian_status.setText("OBSIDIAN  ERROR  /  Unexpected local export response.")
+        self._restore_obsidian_button()
+
+    def _present_obsidian_preview(self, payload: dict[str, object]) -> None:
+        state = str(payload.get("state") or "blocked")
+        destination = str(payload.get("destination") or "")
+        relative_path = str(payload.get("relative_path") or "")
+        detail = str(payload.get("detail") or "")
+        replace_required = bool(payload.get("replace_required"))
+        self.obsidian_status.setText(
+            f"OBSIDIAN  PREVIEW {state.upper()}  /  {relative_path}  /  {detail}"
+        )
+
+        if state == "blocked":
+            self._restore_obsidian_button()
+            return
+
+        dialog = QMessageBox(self)
+        dialog.setWindowTitle("Preview Obsidian export")
+        dialog.setIcon(QMessageBox.Icon.Question)
+        dialog.setText(f"{state.upper()}  {relative_path}")
+        dialog.setInformativeText(
+            f"Target\n{destination}\n\n{detail}\n\n"
+            "Canonical pATHENA Knowledge remains the source of truth. "
+            "Only this selected local vault will be changed after confirmation."
+        )
+        cancel_button = dialog.addButton("CANCEL", QMessageBox.ButtonRole.RejectRole)
+        action_label = "REPLACE LOCAL NOTE" if replace_required else "EXPORT"
+        action_role = (
+            QMessageBox.ButtonRole.DestructiveRole
+            if replace_required
+            else QMessageBox.ButtonRole.AcceptRole
+        )
+        action_button = dialog.addButton(action_label, action_role)
+        dialog.setDefaultButton(cancel_button)
+        dialog.exec()
+        if dialog.clickedButton() is not action_button:
+            self.obsidian_status.setText(
+                f"OBSIDIAN  CANCELLED  /  {relative_path}  /  No files were changed."
+            )
+            self._restore_obsidian_button()
+            return
+        self._start_obsidian_process("export", replace=replace_required)
+
+    def _restore_obsidian_button(self) -> None:
+        self.obsidian_export_button.setEnabled(
+            bool(self._selected_knowledge_id) and not self._knowledge_busy()
+        )
+
+    def _obsidian_process_error(self, error: QProcess.ProcessError) -> None:
+        self._obsidian_operation = ""
+        self.refresh_knowledge_button.setEnabled(True)
+        if error == QProcess.ProcessError.FailedToStart:
+            self.obsidian_status.setText(
+                "OBSIDIAN  ERROR  /  Unable to start the local export process."
+            )
+        else:
+            self.obsidian_status.setText(f"OBSIDIAN  ERROR  /  {error.name}")
+        self._restore_obsidian_button()
+
     def accept_selected_review(self) -> None:
         self._resolve_selected_review(accept=True)
 
@@ -500,9 +681,15 @@ class KnowledgeWorkspace(QWidget):
     ) -> None:
         knowledge_id = None if current is None else current.data(Qt.ItemDataRole.UserRole)
         self._selected_knowledge_id = str(knowledge_id) if knowledge_id else None
-        self.history_button.setEnabled(
-            bool(self._selected_knowledge_id) and not self._knowledge_busy()
-        )
+        enabled = bool(self._selected_knowledge_id) and not self._knowledge_busy()
+        self.history_button.setEnabled(enabled)
+        self.obsidian_export_button.setEnabled(enabled)
+        if self._selected_knowledge_id:
+            self.obsidian_status.setText(
+                "OBSIDIAN  READY  /  Choose a local vault to preview before export."
+            )
+        else:
+            self.obsidian_status.setText("OBSIDIAN  —  Select canonical Knowledge first.")
         if self._selected_knowledge_id and not self._knowledge_busy():
             self.knowledge_details.clear()
             self._start_knowledge(
@@ -564,7 +751,10 @@ class KnowledgeWorkspace(QWidget):
             self.refresh_knowledge()
 
     def _knowledge_busy(self) -> bool:
-        return self._knowledge_process.state() != QProcess.ProcessState.NotRunning
+        return (
+            self._knowledge_process.state() != QProcess.ProcessState.NotRunning
+            or self._obsidian_process.state() != QProcess.ProcessState.NotRunning
+        )
 
     def _start_knowledge(
         self,
@@ -577,6 +767,7 @@ class KnowledgeWorkspace(QWidget):
         self.browser_status.setText(label + " …")
         self.refresh_knowledge_button.setEnabled(False)
         self.history_button.setEnabled(False)
+        self.obsidian_export_button.setEnabled(False)
         self.claim_history_button.setEnabled(False)
         self.review_accept_button.setEnabled(False)
         self.review_reject_button.setEnabled(False)
@@ -621,6 +812,7 @@ class KnowledgeWorkspace(QWidget):
         self._knowledge_operation = ""
         self.refresh_knowledge_button.setEnabled(True)
         self.history_button.setEnabled(bool(self._selected_knowledge_id))
+        self.obsidian_export_button.setEnabled(bool(self._selected_knowledge_id))
         self.claim_history_button.setEnabled(bool(self._selected_claim_id))
         review_enabled = bool(self._selected_review_id)
         self.review_accept_button.setEnabled(review_enabled)
@@ -632,6 +824,22 @@ class KnowledgeWorkspace(QWidget):
             if target is not None and output and not target.toPlainText():
                 target.setPlainText(output)
             return
+
+        if operation in {"show", "claim-show"}:
+            target = self._detail_target_for_operation(operation)
+            if target is not None:
+                try:
+                    review = parse_knowledge_entity_review(output)
+                except KnowledgeReviewError as exc:
+                    target.setProperty("pathenaKnowledgeReviewState", "error")
+                    target.setPlainText(
+                        f"PERSISTED DETAIL UNAVAILABLE\n{exc}\n\nRaw command output:\n{output}"
+                    )
+                    self.browser_status.setText("Persisted detail could not be verified.")
+                    return
+                target.setPlainText(render_knowledge_entity_review(review))
+                target.setProperty("pathenaKnowledgeReviewState", "ready")
+                target.setProperty("pathenaKnowledgeEntityId", review.entity_id)
 
         if operation == "list":
             self._render_knowledge_list(output)
@@ -792,6 +1000,8 @@ class KnowledgeWorkspace(QWidget):
     def _empty_knowledge(self) -> None:
         self._selected_knowledge_id = None
         self.history_button.setEnabled(False)
+        self.obsidian_export_button.setEnabled(False)
+        self.obsidian_status.setText("OBSIDIAN  —  No canonical Knowledge selected.")
         self.knowledge_details.setPlainText(
             "No canonical Knowledge exists yet. Use Add to knowledge on a persisted chat "
             "message; accepted proposals remain visible here across restarts."
@@ -818,6 +1028,7 @@ class KnowledgeWorkspace(QWidget):
         self._knowledge_operation = ""
         self.refresh_knowledge_button.setEnabled(True)
         self.history_button.setEnabled(bool(self._selected_knowledge_id))
+        self.obsidian_export_button.setEnabled(bool(self._selected_knowledge_id))
         self.claim_history_button.setEnabled(bool(self._selected_claim_id))
         review_enabled = bool(self._selected_review_id)
         self.review_accept_button.setEnabled(review_enabled)

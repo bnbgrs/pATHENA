@@ -132,23 +132,36 @@ class DiskPressureCheckResult:
 class EmergencyReserveProvisionResult:
     assessment: DiskPressureAssessment
     required_bytes: int
+    provisioned_bytes: int
     status: EmergencyReserveStatus | None
 
     def __post_init__(self) -> None:
         if not isinstance(self.assessment, DiskPressureAssessment):
             raise TypeError("Reserve provision assessment must be DiskPressureAssessment.")
-        _positive_int(self.required_bytes, "Reserve provision required_bytes")
+        required = _positive_int(self.required_bytes, "Reserve provision required_bytes")
+        provisioned = _nonnegative_int(
+            self.provisioned_bytes,
+            "Reserve provision provisioned_bytes",
+        )
+        if provisioned > required:
+            raise ValueError("Reserve provisioned bytes must not exceed required bytes.")
         if self.status is not None and not isinstance(self.status, EmergencyReserveStatus):
             raise TypeError("Reserve provision status must be EmergencyReserveStatus or None.")
-        if self.assessment.state is DiskPressureState.EMERGENCY:
-            if self.status is not None:
-                raise ValueError("Emergency disk pressure must not provision a reserve.")
-        elif self.status is None:
-            raise ValueError("Non-emergency reserve provisioning must return reserve status.")
+        if self.status is None:
+            if provisioned != 0:
+                raise ValueError("Missing reserve status requires zero provisioned bytes.")
+        elif self.status.required_bytes != provisioned:
+            raise ValueError("Reserve status size must match provisioned bytes.")
+        if self.assessment.state is DiskPressureState.EMERGENCY and self.status is not None:
+            raise ValueError("Emergency disk pressure must not provision a reserve.")
 
     @property
     def provisioned(self) -> bool:
         return self.status is not None
+
+    @property
+    def downsized(self) -> bool:
+        return 0 < self.provisioned_bytes < self.required_bytes
 
 
 def disk_pressure_thresholds(total_bytes: int) -> DiskPressureThresholds:
@@ -258,7 +271,15 @@ class DiskPressureController:
         *,
         write_chunk_bytes: int = 4 * _MIB,
     ) -> EmergencyReserveProvisionResult:
-        """Provision the Beta reserve unless the volume is already EMERGENCY."""
+        """Provision as much reserve as possible without creating EMERGENCY pressure.
+
+        The Beta reserve target remains the normal sizing policy. Before allocation,
+        however, the controller projects free space after the physical write. If the
+        full reserve would cross below the strict EMERGENCY threshold, allocation is
+        downsized to leave free space exactly at that threshold. If no byte can be
+        allocated safely, provisioning is refused rather than creating an immediate
+        reserve-release/read-only cycle.
+        """
         chunk_bytes = _positive_int(
             write_chunk_bytes,
             "Reserve provision write_chunk_bytes",
@@ -269,16 +290,31 @@ class DiskPressureController:
             return EmergencyReserveProvisionResult(
                 assessment=assessment,
                 required_bytes=required,
+                provisioned_bytes=0,
+                status=None,
+            )
+
+        safe_allocation = max(
+            0,
+            assessment.free_bytes - assessment.thresholds.emergency_free_bytes,
+        )
+        provisioned = min(required, safe_allocation)
+        if provisioned == 0:
+            return EmergencyReserveProvisionResult(
+                assessment=assessment,
+                required_bytes=required,
+                provisioned_bytes=0,
                 status=None,
             )
 
         status = self.reserve_store.ensure(
-            required_bytes=required,
+            required_bytes=provisioned,
             write_chunk_bytes=chunk_bytes,
         )
         return EmergencyReserveProvisionResult(
             assessment=assessment,
             required_bytes=required,
+            provisioned_bytes=provisioned,
             status=status,
         )
 

@@ -7,7 +7,9 @@ import pytest
 from athena.storage.database import SQLiteDatabase
 from athena.storage.wal_maintenance import (
     WalCheckpointResult,
+    WalMaintenanceCycle,
     WalMaintenanceError,
+    WalMaintenanceOrchestrator,
     WalMaintenanceService,
     WalRuntimeStatus,
 )
@@ -27,6 +29,27 @@ def _status(tmp_path: Path, *, size_bytes: int) -> WalRuntimeStatus:
         page_size_bytes=4096,
         autocheckpoint_pages=1000,
         autocheckpoint_bytes=4_096_000,
+    )
+
+
+def _cycle(
+    tmp_path: Path,
+    *,
+    before_size: int,
+    after_size: int,
+    blocked: bool = False,
+) -> WalMaintenanceCycle:
+    checkpoint = WalCheckpointResult(
+        mode="PASSIVE",
+        busy=blocked,
+        log_frames=20,
+        checkpointed_frames=10 if blocked else 20,
+        wal_size_after_bytes=after_size,
+    )
+    return WalMaintenanceCycle(
+        status_before=_status(tmp_path, size_bytes=before_size),
+        checkpoint=checkpoint,
+        status_after=_status(tmp_path, size_bytes=after_size),
     )
 
 
@@ -121,3 +144,123 @@ def test_status_fails_closed_if_wal_autocheckpoint_is_disabled(tmp_path: Path) -
             WalMaintenanceService(database).status()
     finally:
         database.stop()
+
+
+def test_orchestrator_reports_healthy_when_checkpoint_not_due(tmp_path: Path) -> None:
+    database = _started_database(tmp_path)
+    try:
+        service = WalMaintenanceService(database)
+        diagnosis = WalMaintenanceOrchestrator(service).run_cycle()
+    finally:
+        database.stop()
+
+    assert diagnosis.level == "HEALTHY"
+    assert not diagnosis.cycle.attempted_checkpoint
+    assert diagnosis.consecutive_blocked_cycles == 0
+    assert not diagnosis.requires_attention
+
+
+def test_orchestrator_tracks_blocked_reader_cycles(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    database = _started_database(tmp_path)
+    try:
+        service = WalMaintenanceService(database)
+        blocked_cycle = _cycle(
+            tmp_path,
+            before_size=8_192_000,
+            after_size=8_192_000,
+            blocked=True,
+        )
+        monkeypatch.setattr(service, "maintain_once", lambda: blocked_cycle)
+        orchestrator = WalMaintenanceOrchestrator(service)
+
+        first = orchestrator.run_cycle()
+        second = orchestrator.run_cycle()
+    finally:
+        database.stop()
+
+    assert first.level == "BLOCKED"
+    assert first.consecutive_blocked_cycles == 1
+    assert second.level == "BLOCKED"
+    assert second.consecutive_blocked_cycles == 2
+    assert second.requires_attention
+
+
+def test_orchestrator_classifies_sustained_abnormal_growth(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    database = _started_database(tmp_path)
+    try:
+        service = WalMaintenanceService(database)
+        cycles = iter(
+            (
+                _cycle(
+                    tmp_path,
+                    before_size=16_384_000,
+                    after_size=16_384_000,
+                    blocked=True,
+                ),
+                _cycle(
+                    tmp_path,
+                    before_size=17_000_000,
+                    after_size=17_000_000,
+                    blocked=True,
+                ),
+                _cycle(
+                    tmp_path,
+                    before_size=18_000_000,
+                    after_size=18_000_000,
+                    blocked=True,
+                ),
+            )
+        )
+        monkeypatch.setattr(service, "maintain_once", lambda: next(cycles))
+        orchestrator = WalMaintenanceOrchestrator(
+            service,
+            blocked_cycle_threshold=3,
+            growth_cycle_threshold=2,
+        )
+
+        orchestrator.run_cycle()
+        orchestrator.run_cycle()
+        diagnosis = orchestrator.run_cycle()
+    finally:
+        database.stop()
+
+    assert diagnosis.level == "ABNORMAL_GROWTH"
+    assert diagnosis.consecutive_blocked_cycles == 3
+    assert diagnosis.consecutive_growth_cycles == 2
+    assert diagnosis.requires_attention
+
+
+def test_orchestrator_never_calls_truncate_implicitly(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    database = _started_database(tmp_path)
+    try:
+        service = WalMaintenanceService(database)
+        blocked_cycle = _cycle(
+            tmp_path,
+            before_size=20_000_000,
+            after_size=20_000_000,
+            blocked=True,
+        )
+        monkeypatch.setattr(service, "maintain_once", lambda: blocked_cycle)
+
+        def _forbidden_truncate(*, idle_confirmed: bool) -> WalCheckpointResult:
+            raise AssertionError(f"unexpected TRUNCATE: {idle_confirmed}")
+
+        monkeypatch.setattr(service, "checkpoint_truncate", _forbidden_truncate)
+        diagnosis = WalMaintenanceOrchestrator(
+            service,
+            abnormal_size_multiplier=1,
+            blocked_cycle_threshold=1,
+        ).run_cycle()
+    finally:
+        database.stop()
+
+    assert diagnosis.level == "ABNORMAL_GROWTH"

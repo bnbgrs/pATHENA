@@ -1,186 +1,154 @@
-"""Temporary screenshot harness for the current pATHENA Qt UI.
-
-This script is intentionally presentation-only: it instantiates the current desktop
-shell without starting Core, Scheduler, workers, or model generation.
-"""
-
 from __future__ import annotations
 
 import json
 import os
-import sys
 from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("QT_QUICK_BACKEND", "software")
 os.environ.setdefault("QT_OPENGL", "software")
 
-from PySide6.QtCore import QCoreApplication
-from PySide6.QtGui import QFont
-from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import QCoreApplication, QTimer
+from PySide6.QtGui import QFont, QFontDatabase
+from PySide6.QtWidgets import QApplication, QMainWindow
 
-from athena.api.client import CoreApiClient
-from athena.desktop.api_controller import DesktopApiController
-from athena.desktop.canonical_memory_extensions import install_canonical_memory_extensions
-from athena.desktop.command_palette import install_command_palette
-from athena.desktop.files_workspace import install_files_workspace
-from athena.desktop.jobs_workspace import install_jobs_workspace
-from athena.desktop.knowledge_acceptance import install_knowledge_acceptance
-from athena.desktop.knowledge_workspace import install_knowledge_workspace
-from athena.desktop.pathena_knowledge_acceptance_presentation import (
-    apply_knowledge_acceptance_presentation,
-)
-from athena.desktop.pathena_quiet_workspace import apply_quiet_workspace_refinement
-from athena.desktop.pathena_research_result_presentation import (
-    apply_research_result_presentation,
-)
-from athena.desktop.pathena_shell_density import apply_shell_density
-from athena.desktop.pathena_theme import PATHENA_STYLESHEET
-from athena.desktop.pathena_window import PathenaMainWindow
-from athena.desktop.pathena_workspace_presentation import apply_workspace_presentation
-from athena.desktop.research_results_extension import install_research_results_extension
-from athena.desktop.research_workspace import install_research_workspace
-from athena.desktop.system_backup import install_system_backup
-from athena.desktop.system_workspace import install_system_workspace
+from athena.desktop import app as desktop_app
 
-
-OUT = Path(os.environ.get("PATHENA_SCREENSHOT_DIR", "screenshots-current"))
+OUT = Path(os.environ.get("PATHENA_SCREENSHOT_DIR", "screenshots-current-live"))
 OUT.mkdir(parents=True, exist_ok=True)
+PRODUCT_SHA = os.environ.get("PATHENA_PRODUCT_SHA", "unknown")
+FONT_REPORT: dict[str, object] = {}
 
 
-def _flush(app: QApplication) -> None:
-    for _ in range(6):
+def _flush(app: QApplication, rounds: int = 12) -> None:
+    for _ in range(rounds):
         app.processEvents()
         QCoreApplication.sendPostedEvents()
 
 
-def _save(window: PathenaMainWindow, app: QApplication, name: str) -> None:
-    _flush(app)
-    image = window.grab()
-    path = OUT / f"{name}.png"
-    if not image.save(str(path), "PNG"):
-        raise RuntimeError(f"Could not save {path}")
-    print(f"saved {path} {image.width()}x{image.height()}")
+def _register_fonts_and_normalize_qss(app: QApplication) -> None:
+    windows_dir = Path(os.environ.get("WINDIR", r"C:\Windows"))
+    font_dir = windows_dir / "Fonts"
+    candidates = [
+        "segoeui.ttf",
+        "segoeuib.ttf",
+        "seguisb.ttf",
+        "seguisym.ttf",
+        "arial.ttf",
+        "arialbd.ttf",
+        "georgia.ttf",
+        "georgiab.ttf",
+        "times.ttf",
+        "timesbd.ttf",
+        "consola.ttf",
+        "consolab.ttf",
+    ]
+    loaded: dict[str, list[str]] = {}
+    for filename in candidates:
+        path = font_dir / filename
+        if not path.exists():
+            continue
+        font_id = QFontDatabase.addApplicationFont(str(path))
+        families = list(QFontDatabase.applicationFontFamilies(font_id)) if font_id >= 0 else []
+        loaded[filename] = families
+
+    families = set(QFontDatabase.families())
+    content = "Segoe UI" if "Segoe UI" in families else ("Arial" if "Arial" in families else app.font().family())
+    display = "Georgia" if "Georgia" in families else ("Times New Roman" if "Times New Roman" in families else content)
+    mono = "Consolas" if "Consolas" in families else content
+
+    css = app.styleSheet()
+    replacements = {
+        '"Segoe UI Variable", "Segoe UI", sans-serif': f'"{content}"',
+        '"Georgia", "Times New Roman", serif': f'"{display}"',
+        '"Cascadia Mono", "Consolas", monospace': f'"{mono}"',
+    }
+    for old, new in replacements.items():
+        css = css.replace(old, new)
+    app.setStyleSheet(css)
+    app.setFont(QFont(content, 10))
+
+    FONT_REPORT.update(
+        {
+            "font_dir": str(font_dir),
+            "loaded": loaded,
+            "content_family": content,
+            "display_family": display,
+            "mono_family": mono,
+        }
+    )
+
+
+def _largest_main_window(app: QApplication) -> QMainWindow:
+    windows = [
+        widget
+        for widget in app.topLevelWidgets()
+        if isinstance(widget, QMainWindow) and widget.isVisible()
+    ]
+    if not windows:
+        raise RuntimeError("No visible pATHENA QMainWindow found")
+    return max(windows, key=lambda window: window.width() * window.height())
 
 
 def main() -> int:
-    app = QApplication.instance()
-    if not isinstance(app, QApplication):
-        app = QApplication(sys.argv)
-    app.setApplicationName("pATHENA Screenshot Capture")
-    app.setOrganizationName("pATHENA")
-    app.setFont(QFont("Segoe UI", 10))
-    app.setStyleSheet(PATHENA_STYLESHEET)
+    app = desktop_app.create_application(["pATHENA-live-current-capture"])
+    _register_fonts_and_normalize_qss(app)
+    capture_error: list[str] = []
 
-    client = CoreApiClient.from_environment()
-    controller = DesktopApiController(client)
-    window = PathenaMainWindow(api_controller=controller)
+    def capture() -> None:
+        try:
+            window = _largest_main_window(app)
+            window.resize(1480, 900)
+            window.show()
+            _flush(app)
 
-    installed: list[object] = []
+            navigation = getattr(window, "navigation", None)
+            pages = getattr(window, "pages", None)
+            if navigation is None or pages is None:
+                raise RuntimeError("Current pATHENA navigation contract unavailable")
 
-    knowledge_workspace = install_knowledge_workspace(window, controller)
-    installed.append(knowledge_workspace)
-    knowledge_acceptance = install_knowledge_acceptance(knowledge_workspace, controller)
-    installed.append(knowledge_acceptance)
-    apply_knowledge_acceptance_presentation(knowledge_acceptance)
-    installed.append(install_canonical_memory_extensions(knowledge_workspace))
+            names = ["chat", "knowledge", "research", "jobs", "files", "system", "settings"]
+            files: list[str] = []
+            for index, name in enumerate(names):
+                if index >= navigation.count():
+                    break
+                navigation.setCurrentRow(index)
+                _flush(app)
+                path = OUT / f"{index + 1:02d}-{name}.png"
+                image = window.grab()
+                if not image.save(str(path), "PNG"):
+                    raise RuntimeError(f"Could not save {path}")
+                files.append(path.name)
 
-    research_workspace = install_research_workspace(window)
-    installed.append(research_workspace)
-    research_results_extension = install_research_results_extension(research_workspace)
-    installed.append(research_results_extension)
-    apply_research_result_presentation(research_results_extension)
-    if hasattr(research_results_extension, "refresh_timer"):
-        research_results_extension.refresh_timer.stop()
+            manifest = {
+                "product_sha": PRODUCT_SHA,
+                "capture_branch": os.environ.get("GITHUB_REF_NAME", "local"),
+                "platform": os.name,
+                "qt_platform": os.environ.get("QT_QPA_PLATFORM"),
+                "real_program_started": True,
+                "mockup": False,
+                "window_size": [window.width(), window.height()],
+                "navigation_count": navigation.count(),
+                "page_count": pages.count(),
+                "font_report": FONT_REPORT,
+                "files": files,
+                "capture_errors": capture_error,
+            }
+            (OUT / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
+        except Exception as exc:  # noqa: BLE001
+            capture_error.append(f"{type(exc).__name__}: {exc}")
+            (OUT / "capture-error.txt").write_text("\n".join(capture_error), encoding="utf-8")
+        finally:
+            app.quit()
 
-    installed.append(install_jobs_workspace(window, None))
-    installed.append(install_files_workspace(window))
-    system_workspace = install_system_workspace(window, controller)
-    installed.append(system_workspace)
-    installed.append(install_system_backup(window, system_workspace))
+    def timeout() -> None:
+        capture_error.append("TimeoutError: pATHENA did not become capturable within 35 seconds")
+        (OUT / "capture-error.txt").write_text("\n".join(capture_error), encoding="utf-8")
+        app.quit()
 
-    apply_shell_density(window)
-    apply_workspace_presentation(window)
-    apply_quiet_workspace_refinement(window)
-    command_palette = install_command_palette(window)
-    installed.append(command_palette)
-
-    if hasattr(window, "refresh_timer"):
-        window.refresh_timer.stop()
-
-    window.resize(1480, 900)
-    window.show()
-    _flush(app)
-
-    page_names = ["chat", "knowledge", "research", "jobs", "files", "system", "settings"]
-    for index, name in enumerate(page_names):
-        window.navigation.setCurrentRow(index)
-        _flush(app)
-        _save(window, app, f"01-page-{index+1:02d}-{name}")
-
-    # Settings variants: capture the actual widgets in several realistic states.
-    window.navigation.setCurrentRow(6)
-    _flush(app)
-
-    window.context_spin.setValue(32768)
-    window.max_output_spin.setValue(4096)
-    window.temperature_spin.setValue(0.20)
-    window.thinking_checkbox.setChecked(False)
-    _save(window, app, "02-settings-balanced-direct")
-
-    window.context_spin.setValue(65536)
-    window.max_output_spin.setValue(8192)
-    window.temperature_spin.setValue(0.70)
-    window.thinking_checkbox.setChecked(True)
-    _save(window, app, "03-settings-reasoning-medium")
-
-    window.context_spin.setValue(131072)
-    window.max_output_spin.setValue(16384)
-    window.temperature_spin.setValue(1.00)
-    window.thinking_checkbox.setChecked(True)
-    _save(window, app, "04-settings-long-context")
-
-    # Return to Chat and capture progressive disclosure / command palette where available.
-    window.navigation.setCurrentRow(0)
-    _flush(app)
-    details = getattr(window, "details_button", None)
-    if details is not None:
-        details.setVisible(True)
-        details.setChecked(True)
-        _save(window, app, "05-chat-details-open")
-        details.setChecked(False)
-
-    # Open the real command palette via its public-ish installed widget/action path when possible.
-    opened = False
-    for method_name in ("show_palette", "open", "show"):
-        method = getattr(command_palette, method_name, None)
-        if callable(method):
-            try:
-                method()
-                opened = True
-                break
-            except TypeError:
-                pass
-    if opened:
-        _save(window, app, "06-command-palette")
-
-    manifest = {
-        "branch": "agent/pathena",
-        "source_commit": "fbbf44dc8c8175499528f07be079061b644d1604",
-        "capture_branch": "capture/current-ui-20260825",
-        "pages": page_names,
-        "note": "UI instantiated without Core/Scheduler/workers; screenshots are real Qt renders from current source.",
-        "files": sorted(path.name for path in OUT.glob("*.png")),
-    }
-    (OUT / "manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
-
-    window.close()
-    for obj in reversed(installed):
-        delete_later = getattr(obj, "deleteLater", None)
-        if callable(delete_later):
-            delete_later()
-    _flush(app)
-    return 0
+    QTimer.singleShot(12_000, capture)
+    QTimer.singleShot(35_000, timeout)
+    return desktop_app.main(["pATHENA-live-current-capture"])
 
 
 if __name__ == "__main__":

@@ -1,11 +1,58 @@
 from __future__ import annotations
 
+from PySide6.QtWidgets import QApplication, QFrame
+
 from athena.desktop import pathena_interaction_refinement as refinement
+from athena.desktop.app import create_application
+from athena.desktop.pathena_window import PathenaMainWindow
+
+
+def _app() -> QApplication:
+    return create_application(["pathena-interaction-refinement-test"])
 
 
 def test_interaction_refinement_uses_short_lightweight_motion() -> None:
     assert refinement._ANIMATION_MS == 140
     assert refinement._COMPACT_WIDTH < refinement._COMFORTABLE_WIDTH
+
+
+def test_interaction_refinement_honours_explicit_reduced_motion(monkeypatch) -> None:
+    monkeypatch.setenv("PATHENA_REDUCED_MOTION", "1")
+
+    assert refinement._resolved_animation_duration() == 0
+
+
+def test_interaction_refinement_keeps_normal_motion_bounded(monkeypatch) -> None:
+    monkeypatch.delenv("PATHENA_REDUCED_MOTION", raising=False)
+    monkeypatch.delenv("QT_QUICK_CONTROLS_REDUCE_MOTION", raising=False)
+
+    assert refinement._resolved_animation_duration() == 140
+
+
+def test_reduced_motion_disclosure_changes_geometry_immediately(monkeypatch) -> None:
+    monkeypatch.setenv("PATHENA_REDUCED_MOTION", "1")
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    controller = refinement.install_interaction_refinement(window)
+    window.show()
+    try:
+        inspector = window.findChild(QFrame, "inspector")
+        assert inspector is not None
+        window.chat_selector.clear()
+        window.chat_selector.addItem("Existing chat", "chat-1")
+        app.processEvents()
+
+        window.details_button.click()
+        assert controller._animation_ms == 0
+        assert inspector.isHidden() is False
+        assert inspector.maximumWidth() == inspector.property("pathenaResponsiveWidth")
+
+        window.details_button.click()
+        assert inspector.isHidden()
+        assert inspector.maximumWidth() == 0
+    finally:
+        window.close()
+        app.processEvents()
 
 
 def test_interaction_refinement_keeps_responsive_breakpoints_explicit() -> None:

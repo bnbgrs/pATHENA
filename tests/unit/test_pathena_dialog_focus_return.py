@@ -10,6 +10,7 @@ pytest.importorskip("PySide6")
 
 from PySide6.QtCore import QCoreApplication, QEvent, Qt
 from PySide6.QtWidgets import QApplication, QDialog, QLineEdit, QPushButton, QWidget
+from shiboken6 import isValid
 
 from athena.desktop.pathena_dialog_focus_return_7200 import DialogFocusReturnController
 
@@ -43,6 +44,9 @@ def test_capture_remembers_pre_dialog_focus() -> None:
 
     assert controller._previous[dialog] is previous
     assert dialog.property("pathenaFocusReturnCaptured") is True
+    controller.dispose()
+    window.close()
+    app.processEvents()
 
 
 def test_close_restores_previous_focus_when_unclaimed() -> None:
@@ -56,6 +60,9 @@ def test_close_restores_previous_focus_when_unclaimed() -> None:
 
     assert QApplication.focusWidget() is previous
     assert previous.property("pathenaDialogFocusReturn") == "restored"
+    controller.dispose()
+    window.close()
+    app.processEvents()
 
 
 def test_newer_valid_focus_is_not_stolen() -> None:
@@ -69,6 +76,9 @@ def test_newer_valid_focus_is_not_stolen() -> None:
 
     assert QApplication.focusWidget() is newer
     assert previous.property("pathenaDialogFocusReturn") == "preserved-newer-focus"
+    controller.dispose()
+    window.close()
+    app.processEvents()
 
 
 def test_no_focus_restore_to_nofocus_widget() -> None:
@@ -81,6 +91,9 @@ def test_no_focus_restore_to_nofocus_widget() -> None:
     controller._restore_if_unclaimed(previous)
 
     assert QApplication.focusWidget() is newer
+    controller.dispose()
+    window.close()
+    app.processEvents()
 
 
 def test_deleted_previous_widget_is_ignored_safely() -> None:
@@ -100,3 +113,29 @@ def test_deleted_previous_widget_is_ignored_safely() -> None:
     app.processEvents()
 
     assert QApplication.focusWidget() is newer
+    controller.dispose()
+    window.close()
+    app.processEvents()
+
+
+def test_deferred_delete_removes_application_event_filter_safely() -> None:
+    app, window, previous, _newer, dialog = _surface()
+    controller = DialogFocusReturnController(window)
+    previous.setFocus()
+    app.processEvents()
+    controller._capture(dialog)
+    assert controller._filter_installed is True
+
+    controller.dispose()
+    assert controller._filter_installed is False
+    assert controller._previous == {}
+    controller.deleteLater()
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    app.processEvents()
+
+    assert not isValid(controller)
+    dialog.show()
+    dialog.hide()
+    app.processEvents()
+    window.close()
+    app.processEvents()

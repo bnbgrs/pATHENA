@@ -43,6 +43,7 @@ class _FakePalette(QObject):
         self.dialog.layout().addWidget(self.query)
         self.dialog.layout().addWidget(self.results)
         self._filtered_commands = [_FakeCommand("New conversation")]
+        self._commands = tuple(self._filtered_commands)
         self.results.addItem("New conversation")
         self.calls: list[int] = []
 
@@ -93,7 +94,7 @@ def test_disabled_palette_command_is_not_invoked() -> None:
     assert palette.calls == []
     assert (
         controller.status.isVisible() is False
-        or "Unavailable" in controller.status.text()
+        or "Context required" in controller.status.text()
     )
 
 
@@ -112,7 +113,7 @@ def test_refresh_marks_unavailable_command_without_removing_it() -> None:
 
     item = palette.results.item(0)
     assert item is not None
-    assert item.text() == "New conversation · unavailable"
+    assert item.text() == "New conversation · context required"
     assert palette.results.count() == 1
 
 
@@ -125,16 +126,46 @@ def test_command_rows_expose_availability_and_current_scope_to_accessibility() -
     item = palette.results.item(0)
     assert item is not None
     assert item.data(Qt.ItemDataRole.AccessibleTextRole) == (
-        "New conversation · unavailable"
+        "New conversation · context required"
     )
     description = str(item.data(Qt.ItemDataRole.AccessibleDescriptionRole))
-    assert "Command unavailable" in description
+    assert "Command context required" in description
     assert "chat operation is still running" in description
     assert palette.results.accessibleName() == "Command results"
     assert "1 command shown" in palette.results.accessibleDescription()
-    assert "Current command: New conversation, unavailable" in (
+    assert "Current command: New conversation, context required" in (
         palette.results.accessibleDescription()
     )
+
+
+def test_palette_rows_expose_shared_capability_catalog_contract() -> None:
+    _window, palette, controller = _surface(enabled=False)
+
+    controller.refresh()
+
+    item = palette.results.item(0)
+    assert item is not None
+    assert item.data(257) == "context required"
+    assert item.data(258) == "2026.08.25.1"
+    assert palette.dialog.property("pathenaCapabilityCatalogVersion") == "2026.08.25.1"
+    assert palette.dialog.property("pathenaCapabilityCatalogDrift") is True
+
+
+def test_undocumented_live_command_fails_closed_and_cannot_execute() -> None:
+    _window, palette, controller = _surface(enabled=True)
+    palette._commands = (_FakeCommand("Undocumented live command"),)
+    palette._filtered_commands = list(palette._commands)
+    palette.results.clear()
+    palette.results.addItem("Undocumented live command")
+
+    controller.refresh()
+    controller._run_row(0)
+
+    item = palette.results.item(0)
+    assert item is not None
+    assert item.text() == "Undocumented live command · unavailable"
+    assert "catalogue metadata is missing" in item.toolTip()
+    assert palette.calls == []
 
 
 def test_command_search_and_help_have_stable_assistive_semantics() -> None:
