@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import uuid
 from pathlib import Path
 
@@ -33,6 +34,17 @@ def _uuid_argument(value: str) -> uuid.UUID:
     except ValueError as exc:
         raise argparse.ArgumentTypeError(f"invalid UUID: {value!r}") from exc
 
+
+def _contains_non_finite_number(value: object) -> bool:
+    if isinstance(value, float):
+        return not math.isfinite(value)
+    if isinstance(value, dict):
+        return any(_contains_non_finite_number(item) for item in value.values())
+    if isinstance(value, list):
+        return any(_contains_non_finite_number(item) for item in value)
+    return False
+
+
 def _json_object_argument(value: str) -> dict[str, object]:
     try:
         parsed = json.loads(value)
@@ -40,7 +52,20 @@ def _json_object_argument(value: str) -> dict[str, object]:
         raise argparse.ArgumentTypeError(f"invalid JSON object: {exc.msg}") from exc
     if not isinstance(parsed, dict):
         raise argparse.ArgumentTypeError("value must be a JSON object")
+    if _contains_non_finite_number(parsed):
+        raise argparse.ArgumentTypeError("JSON object numbers must be finite")
     return parsed
+
+
+def _finite_float_argument(value: str) -> float:
+    try:
+        parsed = float(value)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(f"invalid finite number: {value!r}") from exc
+    if not math.isfinite(parsed):
+        raise argparse.ArgumentTypeError("number must be finite")
+    return parsed
+
 
 def _lease_token_argument(value: str) -> bytes:
     try:
@@ -51,6 +76,7 @@ def _lease_token_argument(value: str) -> bytes:
         raise argparse.ArgumentTypeError("lease token must encode exactly 32 bytes")
     return token
 
+
 def _waiting_reason_argument(value: str) -> WaitingReason:
     try:
         return WaitingReason(value)
@@ -59,6 +85,7 @@ def _waiting_reason_argument(value: str) -> WaitingReason:
         raise argparse.ArgumentTypeError(
             f"invalid waiting reason {value!r}; choose one of: {allowed}"
         ) from exc
+
 
 def _knowledge_kind_argument(value: str) -> KnowledgeKind:
     try:
@@ -69,6 +96,7 @@ def _knowledge_kind_argument(value: str) -> KnowledgeKind:
             f"invalid knowledge kind {value!r}; choose one of: {allowed}"
         ) from exc
 
+
 def _memory_kind_argument(value: str) -> MemoryKind:
     try:
         return MemoryKind(value)
@@ -77,6 +105,7 @@ def _memory_kind_argument(value: str) -> MemoryKind:
         raise argparse.ArgumentTypeError(
             f"invalid memory kind {value!r}; choose one of: {allowed}"
         ) from exc
+
 
 def _memory_scope_kind_argument(value: str) -> MemoryScopeKind:
     try:
@@ -87,6 +116,7 @@ def _memory_scope_kind_argument(value: str) -> MemoryScopeKind:
             f"invalid memory scope {value!r}; choose one of: {allowed}"
         ) from exc
 
+
 def _memory_sensitivity_argument(value: str) -> MemorySensitivity:
     try:
         return MemorySensitivity(value)
@@ -95,6 +125,7 @@ def _memory_sensitivity_argument(value: str) -> MemorySensitivity:
         raise argparse.ArgumentTypeError(
             f"invalid memory sensitivity {value!r}; choose one of: {allowed}"
         ) from exc
+
 
 def _claim_kind_argument(value: str) -> ClaimKind:
     try:
@@ -105,6 +136,7 @@ def _claim_kind_argument(value: str) -> ClaimKind:
             f"invalid claim kind {value!r}; choose one of: {allowed}"
         ) from exc
 
+
 def _epistemic_status_argument(value: str) -> EpistemicStatus:
     try:
         return EpistemicStatus(value)
@@ -113,6 +145,7 @@ def _epistemic_status_argument(value: str) -> EpistemicStatus:
         raise argparse.ArgumentTypeError(
             f"invalid epistemic status {value!r}; choose one of: {allowed}"
         ) from exc
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -568,7 +601,11 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("contradiction",),
         default="contradiction",
     )
-    review_accept_all.add_argument("--min-confidence", type=float, default=0.0)
+    review_accept_all.add_argument(
+        "--min-confidence",
+        type=_finite_float_argument,
+        default=0.0,
+    )
 
     search_parser = commands.add_parser(
         "search",
@@ -592,13 +629,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Force a complete rebuild of the derived FTS index before searching.",
     )
-
     search_parser.add_argument(
         "--raw",
         action="store_true",
         help="Show raw FTS results without consolidation or retrieval ranking.",
     )
-
     search_parser.add_argument(
         "--hybrid",
         action="store_true",
@@ -608,7 +643,6 @@ def build_parser() -> argparse.ArgumentParser:
         "--embedding-model",
         help="LM Studio embedding model id. Auto-selects only when unambiguous.",
     )
-
 
     context_parser = commands.add_parser(
         "context",
