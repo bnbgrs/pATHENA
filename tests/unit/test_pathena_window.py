@@ -6,7 +6,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtWidgets import QApplication, QFrame, QLabel, QPushButton, QWidget
 
-from athena.desktop.pathena_design_tokens import SHELL
+from athena.desktop.pathena_design_tokens import PALETTE, SHELL
 from athena.desktop.pathena_window import PathenaMainWindow
 
 
@@ -52,6 +52,18 @@ def test_reference_shell_owns_icon_rail_without_rewiring_navigation() -> None:
         window.navigation.setCurrentRow(3)
         assert window.pages.currentIndex() == 3
         assert window.page_title.text() == "Jobs"
+    finally:
+        window.close()
+
+
+def test_reference_shell_owns_cobalt_navigation_selection() -> None:
+    _app()
+    window = PathenaMainWindow()
+    try:
+        stylesheet = window.navigation.styleSheet()
+        assert PALETTE.accent in stylesheet
+        assert PALETTE.surface_selected in stylesheet
+        assert "#F26A21" not in stylesheet.upper()
     finally:
         window.close()
 
