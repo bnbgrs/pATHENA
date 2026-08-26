@@ -60,7 +60,7 @@ class SelectionDisappearanceHandoff(QObject):
         if isinstance(watched, QListWidget) and isinstance(
             event, QDynamicPropertyChangeEvent
         ):
-            property_name = bytes(event.propertyName())
+            property_name = event.propertyName().data()
             if property_name in {
                 b"pathenaSelectionDisappeared",
                 b"pathenaResultScopeText",
