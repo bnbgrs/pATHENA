@@ -19,10 +19,33 @@ def test_quality_workflow_collapses_pending_runs_without_cancelling_active_gate(
     assert "cancel-in-progress: false" in workflow
 
 
-def test_quality_workflow_runs_keep_going_gate() -> None:
+def test_quality_workflow_keeps_canonical_checks_independently_observable() -> None:
     workflow = _workflow_text()
 
-    assert "python scripts/quality.py --keep-going" in workflow
+    for step_name in (
+        "Quality — specification validator",
+        "Quality — Ruff",
+        "Quality — mypy",
+        "Quality — pytest",
+    ):
+        assert f"name: {step_name}" in workflow
+    assert "name: Upload canonical quality diagnostics" in workflow
+    assert "name: Enforce canonical quality result" in workflow
+    assert "SPEC_OUTCOME: ${{ steps.quality_spec.outcome }}" in workflow
+    assert "RUFF_OUTCOME: ${{ steps.quality_ruff.outcome }}" in workflow
+    assert "MYPY_OUTCOME: ${{ steps.quality_mypy.outcome }}" in workflow
+    assert "PYTEST_OUTCOME: ${{ steps.quality_pytest.outcome }}" in workflow
+
+
+def test_quality_workflow_preserves_post_pytest_diagnostics_budget() -> None:
+    workflow = _workflow_text()
+
+    assert "timeout-minutes: 25" in workflow
+    pytest_step = workflow.split("- name: Quality — pytest", maxsplit=1)[1].split(
+        "- name: Upload canonical quality diagnostics", maxsplit=1
+    )[0]
+    assert "timeout-minutes: 20" in pytest_step
+    assert "if: ${{ always() && !cancelled() }}" in workflow
 
 
 def test_quality_workflow_avoids_duplicate_feature_branch_push_runs() -> None:
