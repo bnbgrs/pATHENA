@@ -69,6 +69,10 @@ class _BoundedLocalResponse:
         return None
 
     def __iter__(self) -> Any:
+        if self._is_event_stream():
+            yield from self._iter_sse_events()
+            return
+
         while True:
             self._assert_before_deadline()
             raw_line = self.readline()
@@ -85,6 +89,71 @@ class _BoundedLocalResponse:
             raise TimeoutError(
                 "Local model streaming response exceeded the configured total timeout."
             )
+
+    def _is_event_stream(self) -> bool:
+        headers = getattr(self._response, "headers", None)
+        if headers is None:
+            return False
+        get_content_type = getattr(headers, "get_content_type", None)
+        if callable(get_content_type):
+            try:
+                return str(get_content_type()).casefold() == "text/event-stream"
+            except (AttributeError, TypeError, ValueError):
+                return False
+        get_header = getattr(headers, "get", None)
+        if not callable(get_header):
+            return False
+        raw_content_type = get_header("Content-Type", "")
+        if not isinstance(raw_content_type, str):
+            return False
+        media_type = raw_content_type.partition(";")[0].strip().casefold()
+        return media_type == "text/event-stream"
+
+    def _iter_sse_events(self) -> Any:
+        """Yield one normalized ``data:`` line per complete SSE event.
+
+        SSE events are framed by blank lines, not by TCP/HTTP line boundaries.
+        Multiple data fields therefore form one event and are joined with a
+        newline as required by the event-stream format. Comments and unrelated
+        fields are ignored. A final buffered event is flushed at EOF because
+        local model servers commonly terminate immediately after ``[DONE]``.
+        """
+        data_fields: list[bytes] = []
+        first_line = True
+
+        while True:
+            self._assert_before_deadline()
+            raw_line = self.readline()
+            self._assert_before_deadline()
+            if not raw_line:
+                if data_fields:
+                    yield b"data:" + b"\n".join(data_fields) + b"\n"
+                return
+
+            line = raw_line.rstrip(b"\r\n")
+            if first_line:
+                first_line = False
+                if line.startswith(b"\xef\xbb\xbf"):
+                    line = line[3:]
+
+            if not line:
+                if data_fields:
+                    yield b"data:" + b"\n".join(data_fields) + b"\n"
+                    data_fields.clear()
+                continue
+
+            if line.startswith(b":"):
+                continue
+
+            if b":" in line:
+                field, value = line.split(b":", 1)
+                if value.startswith(b" "):
+                    value = value[1:]
+            else:
+                field, value = line, b""
+
+            if field == b"data":
+                data_fields.append(value)
 
     def readline(self) -> bytes:
         readline = getattr(self._response, "readline", None)
@@ -172,7 +241,8 @@ def open_local_request(request: Request, *, timeout: float) -> Any:
     ``readline()`` calls, a cumulative byte cap, and a monotonic total deadline
     in addition to the socket inactivity timeout, preventing giant SSE lines,
     many-small-event floods, and indefinitely active local streams from bypassing
-    the configured transport and generation bounds.
+    the configured transport and generation bounds. Event-stream responses are
+    normalized to complete SSE data events before adapters consume them.
     """
     if not isinstance(request, Request):
         raise TypeError("Local model transport requires urllib.request.Request.")
