@@ -14,8 +14,8 @@ class ResearchStartTruth(QObject):
         super().__init__(workspace)
         self.workspace = workspace
         workspace.query_input.textChanged.connect(self.sync)
-        workspace.process.finished.connect(self._schedule_sync)
-        workspace.process.errorOccurred.connect(self._schedule_sync)
+        workspace._process.finished.connect(self._schedule_sync)
+        workspace._process.errorOccurred.connect(self._schedule_sync)
         self.sync()
 
     def _schedule_sync(self, *_args: object) -> None:
