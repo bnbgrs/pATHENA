@@ -94,12 +94,11 @@ def _video_controller_names_from_payload(payload: str) -> tuple[str, ...]:
         raise HardwareAcceptanceError(
             "Windows video-controller query returned an invalid names field."
         )
-    normalized = tuple(
-        value.strip()
-        for value in names
-        if isinstance(value, str) and value.strip()
-    )
-    return normalized
+    if any(not isinstance(value, str) or not value.strip() for value in names):
+        raise HardwareAcceptanceError(
+            "Windows video-controller query returned an invalid controller name."
+        )
+    return tuple(value.strip() for value in names)
 
 
 def detect_windows_video_controllers() -> tuple[str, ...]:
@@ -186,10 +185,10 @@ def _run_live_inference(provider: _AcceptanceProvider, model: ModelInfo) -> str:
     response = "".join(chunks).strip()
     if not response:
         raise HardwareAcceptanceError("LM Studio returned an empty inference response.")
-    if INFERENCE_MARKER not in response:
+    if response != INFERENCE_MARKER:
         clipped = response[:160].replace("\r", " ").replace("\n", " ")
         raise HardwareAcceptanceError(
-            "LM Studio inference completed but did not return the acceptance marker: "
+            "LM Studio inference completed but did not return exactly the acceptance marker: "
             f"{clipped!r}"
         )
     return response
