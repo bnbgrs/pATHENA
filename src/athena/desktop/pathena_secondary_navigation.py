@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from PySide6.QtCore import QSize, Qt
+from PySide6.QtCore import QObject, QSize, Qt
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -28,10 +28,11 @@ class SecondarySection:
     target: QWidget
 
 
-class SettingsSecondaryNavigation:
+class SettingsSecondaryNavigation(QObject):
     """Wrap existing Settings content with a stable, keyboard-reachable section rail."""
 
     def __init__(self, window: PathenaMainWindow) -> None:
+        super().__init__(window)
         self.window = window
         settings_page = window.pages.widget(6)
         if settings_page is None:
@@ -139,9 +140,9 @@ def install_settings_secondary_navigation(
     window: PathenaMainWindow,
 ) -> SettingsSecondaryNavigation:
     """Install the reference section rail without inventing Settings capabilities."""
-    existing = getattr(window, "_pathena_settings_secondary_navigation", None)
+    existing = window.property("pathenaSettingsSecondaryNavigation")
     if isinstance(existing, SettingsSecondaryNavigation):
         return existing
     controller = SettingsSecondaryNavigation(window)
-    window._pathena_settings_secondary_navigation = controller
+    window.setProperty("pathenaSettingsSecondaryNavigation", controller)
     return controller
