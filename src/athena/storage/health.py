@@ -77,7 +77,7 @@ class StorageHealthService:
         database_path = self._database.path
 
         try:
-            self._database.connection
+            _ = self._database.connection
         except DatabaseNotStartedError:
             return StorageHealthSnapshot(
                 status="unavailable",

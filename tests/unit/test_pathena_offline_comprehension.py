@@ -88,7 +88,7 @@ def test_model_error_has_precedence_after_core_connects() -> None:
     window._model = SimpleNamespace(loaded=True)
     window._last_model_error = "provider model failed"
 
-    controller = OfflineComprehensionController(window)
+    OfflineComprehensionController(window)
 
     assert window.status.property("pathenaReadinessState") == "model-error"
     assert "model" in window.status.toolTip().casefold()

@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import cast
 
-from PySide6.QtCore import QDynamicPropertyChangeEvent, QEvent, QObject, QTimer, Qt
+from PySide6.QtCore import QDynamicPropertyChangeEvent, QEvent, QObject, Qt, QTimer
 from PySide6.QtWidgets import QLabel, QListWidget, QListWidgetItem, QPlainTextEdit, QWidget
 
 
@@ -35,7 +35,7 @@ _TARGETS: tuple[AccessibleStateTarget, ...] = (
     AccessibleStateTarget("jobsStatus", "Durable jobs status"),
     AccessibleStateTarget("schedulerStatus", "Scheduler status"),
     AccessibleStateTarget("durableJobList", "Durable jobs"),
-    AccessibleStateTarget("jobDetails", "Job details"),
+    AccessibleStateTarget("jobDetails", "Durable job details"),
     AccessibleStateTarget("sourceStatus", "Source status"),
     AccessibleStateTarget("sourceList", "Sources"),
     AccessibleStateTarget("sourceDetails", "Source details"),

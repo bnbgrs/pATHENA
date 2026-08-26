@@ -16,10 +16,7 @@ from PySide6.QtWidgets import QApplication, QFrame, QLabel
 from shiboken6 import isValid
 
 from athena.desktop import app as app_module
-from athena.desktop.pathena_pallas_inspector import (
-    PallasContextInspectorController,
-    install_pallas_context_inspector,
-)
+from athena.desktop.pathena_pallas_inspector import install_pallas_context_inspector
 from athena.desktop.pathena_theme import PATHENA_STYLESHEET
 from athena.desktop.pathena_window import PathenaMainWindow
 

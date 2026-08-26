@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QEvent, QObject, Qt, QTimer
-from PySide6.QtWidgets import QApplication, QAbstractButton, QListWidgetItem
+from PySide6.QtWidgets import QAbstractButton, QApplication, QListWidgetItem
 
 from athena.desktop.system_backup import BackupWorkspace
 

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QObject, QProcess, QTimer, Qt
+from PySide6.QtCore import QObject, QProcess, Qt, QTimer
 from PySide6.QtWidgets import (
     QLabel,
     QListWidget,
@@ -12,10 +12,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from athena.desktop.pathena_backup_selection_ownership import (
-    install_backup_selection_ownership,
-)
-
+from athena.desktop.pathena_backup_selection_ownership import install_backup_selection_ownership
 
 _MODE_LABELS = {
     "create": "backup creation log",

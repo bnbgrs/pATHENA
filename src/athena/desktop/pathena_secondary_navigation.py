@@ -155,10 +155,10 @@ def install_settings_secondary_navigation(
 
     dynamic_existing = window.property("pathenaSettingsSecondaryNavigation")
     if isinstance(dynamic_existing, SettingsSecondaryNavigation):
-        setattr(window, "_pathena_settings_secondary_navigation", dynamic_existing)
+        window._pathena_settings_secondary_navigation = dynamic_existing
         return dynamic_existing
 
     controller = SettingsSecondaryNavigation(window)
-    setattr(window, "_pathena_settings_secondary_navigation", controller)
+    window._pathena_settings_secondary_navigation = controller
     window.setProperty("pathenaSettingsSecondaryNavigation", controller)
     return controller

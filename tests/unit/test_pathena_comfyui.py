@@ -12,7 +12,6 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 pytest.importorskip("PySide6")
 
-from PySide6.QtCore import QObject
 from PySide6.QtWidgets import QApplication, QLabel, QWidget
 
 from athena.desktop.pathena_comfyui import (

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QObject, QProcess, QTimer, Qt
+from PySide6.QtCore import QObject, QProcess, Qt, QTimer
 from PySide6.QtWidgets import QApplication, QListWidget, QPushButton, QWidget
 
 from athena.desktop.research_results_extension import ResearchResultsExtension
