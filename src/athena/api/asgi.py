@@ -104,6 +104,14 @@ class CoreApiAsgiApp:
                 await _send_contract(send, self._facade.health(), request_id=request_id)
                 return
 
+            if method == "GET" and path == "/api/v1/storage/health":
+                await _send_contract(
+                    send,
+                    self._facade.storage_health(),
+                    request_id=request_id,
+                )
+                return
+
             if method == "GET" and path == "/api/v1/capabilities":
                 await _send_contract(send, self._facade.capabilities(), request_id=request_id)
                 return
@@ -828,6 +836,7 @@ class CoreApiAsgiApp:
 def _known_path(path: str) -> bool:
     if path in {
         "/api/v1/health",
+        "/api/v1/storage/health",
         "/api/v1/capabilities",
         "/api/v1/chats",
         "/api/v1/models",
