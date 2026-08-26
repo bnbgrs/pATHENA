@@ -94,7 +94,7 @@ def test_docx_scheduler_builds_structure_chunks_search_and_table_anchor(tmp_path
     )
     assert scheduled.returncode == 0, scheduled.stderr
     assert f"Job: {job_id}" in scheduled.stdout
-    assert "State: completed" in scheduled.stdout
+    assert "State: completed" in scheduled.stdout, scheduled.stderr
 
     representations = _run_cli(local_root, "source", "representation-list", source_id)
     assert representations.returncode == 0, representations.stderr
