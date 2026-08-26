@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from athena.api.contracts import StorageHealthResponse
 from athena.desktop.api_controller import DesktopApiSnapshot
 
 
@@ -75,6 +76,10 @@ def project_system_runtime(snapshot: DesktopApiSnapshot) -> SystemRuntimeOvervie
     )
     chats = _count_fact(len(snapshot.chats), chat_freshness)
 
+    storage = _snapshot_storage(snapshot)
+    storage_error = _snapshot_storage_error(snapshot)
+    storage_fact = _storage_fact(storage)
+
     details: list[str] = []
     if snapshot.health.detail:
         details.append(snapshot.health.detail)
@@ -84,9 +89,17 @@ def project_system_runtime(snapshot: DesktopApiSnapshot) -> SystemRuntimeOvervie
         details.append("Model discovery: " + snapshot.model_error)
     if snapshot.chat_error:
         details.append("Chat discovery: " + snapshot.chat_error)
+    if storage is None:
+        details.append(
+            "Storage telemetry: "
+            + (storage_error or "unavailable from the current desktop API snapshot.")
+        )
+    elif storage.detail:
+        details.append("Storage: " + storage.detail)
+    else:
+        details.append("Storage: " + _storage_summary(storage))
     details.extend(
         (
-            "Storage telemetry: unavailable — the desktop API snapshot exposes no storage probe.",
             "Background activity history: unavailable — the desktop API snapshot "
             "exposes no event feed.",
             "Security posture: loopback binding, encryption-at-rest and Tor state "
@@ -94,13 +107,14 @@ def project_system_runtime(snapshot: DesktopApiSnapshot) -> SystemRuntimeOvervie
         )
     )
     if len(details) == 3:
-        details.insert(0, "Core and provider snapshot data is current.")
+        details.insert(0, "Core, provider and storage snapshot data is current.")
 
     states = (
         core_state,
         provider_fact.state,
         models.state,
         chats.state,
+        storage_fact.state,
     )
     overall = (
         "error"
@@ -119,7 +133,7 @@ def project_system_runtime(snapshot: DesktopApiSnapshot) -> SystemRuntimeOvervie
         models=models,
         loaded_models=loaded,
         chats=chats,
-        storage=unavailable,
+        storage=storage_fact,
         network=network_fact,
         background=unavailable,
         loopback=unavailable,
@@ -156,6 +170,50 @@ def disconnected_system_runtime(message: str) -> SystemRuntimeOverview:
         ),
         state="error",
     )
+
+
+def _snapshot_storage(snapshot: DesktopApiSnapshot) -> StorageHealthResponse | None:
+    storage = getattr(snapshot, "storage", None)
+    return storage if isinstance(storage, StorageHealthResponse) else None
+
+
+def _snapshot_storage_error(snapshot: DesktopApiSnapshot) -> str | None:
+    error = getattr(snapshot, "storage_error", None)
+    return error if isinstance(error, str) and error else None
+
+
+def _storage_fact(storage: StorageHealthResponse | None) -> RuntimeFact:
+    if storage is None:
+        return RuntimeFact("Unavailable", "unavailable")
+    state = _health_state(storage.status)
+    if storage.status == "available":
+        return RuntimeFact(_storage_summary(storage), state)
+    return RuntimeFact(_display(storage.status), state)
+
+
+def _storage_summary(storage: StorageHealthResponse) -> str:
+    if not storage.database_open:
+        return "Database closed"
+    sizes: list[str] = []
+    if storage.database_size_bytes is not None:
+        sizes.append(f"DB {_format_bytes(storage.database_size_bytes)}")
+    if storage.wal_size_bytes is not None:
+        sizes.append(f"WAL {_format_bytes(storage.wal_size_bytes)}")
+    return "Available" if not sizes else "Available · " + " · ".join(sizes)
+
+
+def _format_bytes(value: int) -> str:
+    amount = float(value)
+    units = ("B", "KiB", "MiB", "GiB", "TiB")
+    unit = units[0]
+    for candidate in units:
+        unit = candidate
+        if amount < 1024.0 or candidate == units[-1]:
+            break
+        amount /= 1024.0
+    if unit == "B":
+        return f"{int(amount)} {unit}"
+    return f"{amount:.1f} {unit}"
 
 
 def _count_fact(count: int, freshness: str) -> RuntimeFact:
