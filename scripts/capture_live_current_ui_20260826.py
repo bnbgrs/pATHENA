@@ -96,4 +96,4 @@ def main() -> int:
 if __name__ == "__main__":
     raise SystemExit(main())
 
-# Trigger push after workflow exists on this isolated branch.
+# Trigger registered workflow after branch-specific routing is installed.
