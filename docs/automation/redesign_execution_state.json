@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
   "authority": "docs/automation/redesign_visual_spec.md",
-  "candidate_sha_observed": "ae369c16a13f92fc87cb04c515ff51c66cb735c6",
-  "updated_at": "2026-08-25T22:03:00Z",
+  "candidate_sha_observed": "0b59a3e0e31f3a497586333c2a32c090d475f415",
+  "updated_at": "2026-08-26T00:25:00Z",
   "pixel_reference_access": "REFERENCE_IMAGES_UNAVAILABLE",
-  "global_status": "STRUCTURAL_FOUNDATION_TEXT_SPEC_CONFORMING / WORKSPACE_CHAT_TEXT_SPEC_CONFORMING / SCREEN_COMPOSITION_OPEN / VISUAL_REVIEW_REQUIRED",
+  "global_status": "STRUCTURAL_FOUNDATION_TEXT_SPEC_CONFORMING / WORKSPACE_CHAT_TEXT_SPEC_CONFORMING / SYSTEM_TEXT_SPEC_CONFORMING / SCREEN_COMPOSITION_OPEN / VISUAL_REVIEW_REQUIRED",
   "text_spec_conforming": false,
   "optional_ui_feature_freeze": true,
-  "freeze_reason": "The shared shell and Workspace/Chat now satisfy the fallback specification structurally: top navigation, narrow icon rail, navy/cobalt tokens, serif-plus-sans hierarchy, persistent Evidence/Activity inspector, enlarged anchored composer and circular primary send action are present. The freeze remains because SYSTEM still contradicts the required status-row geometry, shared secondary navigation is open, other screen-specific compositions remain unaccepted, and no original-pixel acceptance exists.",
+  "freeze_scope": "Only optional comfort/novelty UI is deprioritized. PALLAS core product work is explicitly exempt and remains required when its deterministic screen turn is reached.",
   "foundation_status": {
     "top_navigation": "TEXT_SPEC_CONFORMING",
     "icon_rail": "TEXT_SPEC_CONFORMING",
@@ -15,96 +15,98 @@
     "serif_plus_sans_typography": "TEXT_SPEC_CONFORMING",
     "persistent_right_inspector": "TEXT_SPEC_CONFORMING",
     "workspace_chat_composer": "TEXT_SPEC_CONFORMING",
+    "system_reference_geometry": "TEXT_SPEC_CONFORMING",
     "screen_specific_reference_geometry": "VISUAL_REVIEW_REQUIRED"
   },
   "evidence": {
     "capture_is_design": false,
     "capture_pass_meaning": "Renderability/regression stability only; candidate-derived baselines are not design references.",
-    "candidate_delta_from_previous_lead_sha": "3ef1b64... -> ae369c16... is 8 commits ahead / 0 behind and changes only src/athena/api/process.py, Chat grounding/presentation shared components and their tests.",
-    "workspace_chat_findings": [
-      "Grounded Chat now mirrors only persisted evidence into the persistent inspector and explicitly labels the hierarchy Evidence & Activity.",
-      "Grounded Chat derives the editorial page title from the persisted user prompt and does not synthesize provenance.",
-      "Shared composer styling now provides a raised anchored surface, enlarged input and 44px circular cobalt primary send action.",
-      "Candidate remains functionally integrated and text-spec conforming for Workspace/Chat only; MATCH remains forbidden without original pixels."
+    "system_findings": [
+      "SYSTEM no longer uses the legacy metrics-card grid.",
+      "Current candidate provides major Local runtime / Knowledge storage / Connectivity / Background work rows, an explicit SYSTEM subnavigation, Recent Events and a Security Posture panel.",
+      "Unavailable telemetry is projected explicitly instead of synthesizing metrics.",
+      "Original pixels remain unavailable, therefore MATCH is forbidden and SYSTEM remains VISUAL_REVIEW_REQUIRED."
     ],
-    "system_handoff_findings": [
-      "StorageHealthResponse exists in the public API contracts and storage-health process plumbing is present.",
-      "DesktopApiSnapshot still has no storage-health field on candidate ae369c16, so Backend TASK-0047 remains an incomplete UI handoff.",
-      "SYSTEM must not preserve the legacy metrics-card grid while waiting for telemetry; UI can prepare the reference status-row geometry using explicit unavailable states."
+    "backend_handoff_findings": [
+      "Storage health validation is present in src/athena/storage/health.py.",
+      "DesktopApiSnapshot on candidate 0b59a3e still does not expose a storage-health field, so TASK-0047 remains a Backend handoff and must not be silently claimed complete by Lead/UI.",
+      "The missing snapshot field no longer blocks SYSTEM reference geometry because truthful unavailable state is supported."
+    ],
+    "runtime_windows_findings": [
+      "LM Studio bounded response/SSE behavior is classified RUNTIME_TRANSPORT_BEHAVIOR_CHANGE, not RUNTIME_PROCESS_BOUNDARY_CHANGE.",
+      "Exact Full-Windows diagnostics run 32912592880 for candidate e3abb0d31c257dced2675139f8806964a9cd4451 completed SUCCESS after the transport change.",
+      "Candidate 0b59a3e is two commits ahead of e3abb0d and changes only src/athena/storage/health.py plus its unit test; this delta is DATA_OR_SNAPSHOT_PLUMBING_ONLY and does not independently require another Full-Windows run."
     ],
     "current_ci": [
-      "Canonical Quality run 32902514009 on exact candidate ae369c16: FAILURE only in Python 3.12 quality lane.",
-      "Windows path safety, Linux storage regressions and local install smoke are SUCCESS on ae369c16.",
-      "The failing Python lane produced no downloadable artifact through the available GitHub evidence path; root cause remains unclassified and must not be guessed."
+      "Promotion Readiness run 32914511192 on exact candidate 0b59a3e completed SUCCESS.",
+      "Canonical Quality run 32914514726 on exact candidate 0b59a3e is currently in progress; do not promote until its result is known."
     ]
   },
   "reclassified_matrix": [
-    {"screen":"A","reference":"pATHENA im eleganten Dunkelmodus.png","functional_status":"FUNCTIONALLY_INTEGRATED","visual_status":"VISUAL_REVIEW_REQUIRED","text_spec_status":"TEXT_SPEC_CONFORMING","reason":"Workspace/Chat now has the conforming shared shell, editorial real-chat hierarchy, enlarged anchored composer, circular blue send action and persistent truthful Evidence/Activity inspector. Original-pixel acceptance is unavailable, so MATCH is forbidden."},
-    {"screen":"B","reference":"PALLAS – Lebendes semantisches Wissensfeld.png","functional_status":"FUNCTIONALLY_INTEGRATED","visual_status":"VISUAL_REVIEW_REQUIRED","text_spec_status":"FOUNDATION_CONFORMING_SCREEN_REVIEW_OPEN","reason":"PALLAS remains functional under the conforming shell; screen-local semantic field and inspector composition still require fallback-spec review and later pixel acceptance."},
-    {"screen":"C","reference":"pATHENA Einstellungen für lokale KI.png","functional_status":"FUNCTIONALLY_INTEGRATED","visual_status":"VISUAL_REVIEW_REQUIRED","text_spec_status":"FOUNDATION_CONFORMING_SECONDARY_NAV_OPEN","reason":"Settings inherits the conforming foundation, but the required 210–280px category subnavigation and screen-specific form/status geometry remain open."},
-    {"screen":"D","reference":"pATHENA Hilfe: Fähigkeiten im Überblick.png","functional_status":"FUNCTIONALLY_INTEGRATED","visual_status":"VISUAL_REVIEW_REQUIRED","text_spec_status":"FOUNDATION_CONFORMING_SECONDARY_NAV_OPEN","reason":"Help inherits the conforming foundation; capability subnavigation and catalogue/right-side hierarchy remain open."},
-    {"screen":"E","reference":"pATHENA – Dunkles Studio für Wissensforschung.png","functional_status":"FUNCTIONALLY_INTEGRATED","visual_status":"VISUAL_REVIEW_REQUIRED","text_spec_status":"FOUNDATION_CONFORMING_SCREEN_REVIEW_OPEN","reason":"Research inherits the conforming foundation; studio-specific workspace/evidence/composer geometry remains unaccepted."},
-    {"screen":"F","reference":"pATHENA: Intelligenzstudio für lokales Wissen.png","functional_status":"FUNCTIONALLY_INTEGRATED","visual_status":"VISUAL_REVIEW_REQUIRED","text_spec_status":"FOUNDATION_CONFORMING_SCREEN_REVIEW_OPEN","reason":"Shared geometry foundation is conforming; light-sibling surface treatment and screen composition remain open."},
-    {"screen":"G","reference":"pATHENA: Lokales Gedächtnis neu gedacht.png","functional_status":"FUNCTIONALLY_INTEGRATED","visual_status":"VISUAL_REVIEW_REQUIRED","text_spec_status":"FOUNDATION_CONFORMING_SECONDARY_NAV_OPEN","reason":"Knowledge inherits the conforming shell but its secondary navigation, map/evidence hierarchy and screen composition remain open."},
-    {"screen":"H","reference":"pATHENA Jobs: Prüfung der Speicher-Richtlinie.png","functional_status":"FUNCTIONALLY_INTEGRATED","visual_status":"VISUAL_REVIEW_REQUIRED","text_spec_status":"FOUNDATION_CONFORMING_SCREEN_REVIEW_OPEN","reason":"Jobs inherits the conforming foundation; job navigator/stepper/log/metadata reference composition remains unaccepted."},
-    {"screen":"I","reference":"pATHENA Such- und Befehlspalette.png","functional_status":"FUNCTIONALLY_INTEGRATED","visual_status":"VISUAL_REVIEW_REQUIRED","text_spec_status":"FOUNDATION_CONFORMING_SCREEN_REVIEW_OPEN","reason":"Command Palette behavior and shared foundation are integrated; centered overlay geometry still lacks authoritative pixel acceptance."},
-    {"screen":"J","reference":"pATHENA Systemübersicht für lokale KI.png","functional_status":"FUNCTIONALLY_INTEGRATED","visual_status":"VISUAL_REVIEW_REQUIRED","text_spec_status":"VISUAL_FAIL_BY_TEXTUAL_STRUCTURE / BACKEND_HANDOFF_IN_PROGRESS","reason":"SYSTEM remains the highest visual structural blocker: the legacy metrics-card grid contradicts the required Local runtime / Knowledge storage / Connectivity / Background work rows plus Recent events and Security posture. StorageHealthResponse exists, but DesktopApiSnapshot handoff is still missing."},
-    {"screen":"K","reference":"ComfyUI-Integration im pATHENA Studio.png","functional_status":"FUNCTIONALLY_INTEGRATED","visual_status":"VISUAL_REVIEW_REQUIRED","text_spec_status":"FOUNDATION_CONFORMING_SCREEN_REVIEW_OPEN","reason":"Real ComfyUI behavior and shared foundation are integrated; screen-local Connection/Workflow/Activity and inspector composition remain open."}
+    {"screen":"A","reference":"pATHENA im eleganten Dunkelmodus.png","functional_status":"FUNCTIONALLY_INTEGRATED","visual_status":"VISUAL_REVIEW_REQUIRED","text_spec_status":"TEXT_SPEC_CONFORMING"},
+    {"screen":"B","reference":"PALLAS – Lebendes semantisches Wissensfeld.png","functional_status":"FUNCTIONALLY_INTEGRATED","visual_status":"VISUAL_REVIEW_REQUIRED","text_spec_status":"SCREEN_REVIEW_OPEN","pallas_core_work":"OPEN_NOT_FROZEN"},
+    {"screen":"C","reference":"pATHENA Einstellungen für lokale KI.png","functional_status":"FUNCTIONALLY_INTEGRATED","visual_status":"VISUAL_REVIEW_REQUIRED","text_spec_status":"SECONDARY_NAV_OPEN"},
+    {"screen":"D","reference":"pATHENA Hilfe: Fähigkeiten im Überblick.png","functional_status":"FUNCTIONALLY_INTEGRATED","visual_status":"VISUAL_REVIEW_REQUIRED","text_spec_status":"SECONDARY_NAV_OPEN"},
+    {"screen":"E","reference":"pATHENA – Dunkles Studio für Wissensforschung.png","functional_status":"FUNCTIONALLY_INTEGRATED","visual_status":"VISUAL_REVIEW_REQUIRED","text_spec_status":"SCREEN_REVIEW_OPEN"},
+    {"screen":"F","reference":"pATHENA: Intelligenzstudio für lokales Wissen.png","functional_status":"FUNCTIONALLY_INTEGRATED","visual_status":"VISUAL_REVIEW_REQUIRED","text_spec_status":"SCREEN_REVIEW_OPEN"},
+    {"screen":"G","reference":"pATHENA: Lokales Gedächtnis neu gedacht.png","functional_status":"FUNCTIONALLY_INTEGRATED","visual_status":"VISUAL_REVIEW_REQUIRED","text_spec_status":"SECONDARY_NAV_OPEN"},
+    {"screen":"H","reference":"pATHENA Jobs: Prüfung der Speicher-Richtlinie.png","functional_status":"FUNCTIONALLY_INTEGRATED","visual_status":"VISUAL_REVIEW_REQUIRED","text_spec_status":"SCREEN_REVIEW_OPEN"},
+    {"screen":"I","reference":"pATHENA Such- und Befehlspalette.png","functional_status":"FUNCTIONALLY_INTEGRATED","visual_status":"VISUAL_REVIEW_REQUIRED","text_spec_status":"SCREEN_REVIEW_OPEN"},
+    {"screen":"J","reference":"pATHENA Systemübersicht für lokale KI.png","functional_status":"FUNCTIONALLY_INTEGRATED","visual_status":"VISUAL_REVIEW_REQUIRED","text_spec_status":"TEXT_SPEC_CONFORMING","backend_data_handoff":"TASK-0047_OPEN"},
+    {"screen":"K","reference":"ComfyUI-Integration im pATHENA Studio.png","functional_status":"FUNCTIONALLY_INTEGRATED","visual_status":"VISUAL_REVIEW_REQUIRED","text_spec_status":"SCREEN_REVIEW_OPEN"}
   ],
+  "deterministic_sequence": {
+    "completed_or_text_conforming": ["SYSTEM"],
+    "next_shared_prerequisite": "REDESIGN-SECONDARY-NAV",
+    "remaining_order": ["Settings","Help","Knowledge","Research","Jobs","PALLAS","Command Palette","ComfyUI","Workspace/Chat final recheck"],
+    "rule": "Skip any screen already proven TEXT_SPEC_CONFORMING; keep at most 2-3 immediately executable UI P1 slices open. No optional UX slices may interleave. PALLAS core work is required, not optional."
+  },
   "ui_ready": [
-    {
-      "task_id":"TASK-0046",
-      "priority":"P1_CORE",
-      "owner":"PATHENA-UI",
-      "status":"READY_GEOMETRY_NOW_DATA_HANDOFF_PENDING",
-      "title":"Replace SYSTEM metrics-card grid with reference status-row composition",
-      "acceptance":["major vertical Local runtime / Knowledge storage / Connectivity / Background work rows","explicit unavailable state for storage until Backend handoff is complete","Recent events section","Security posture inspector uses truthful available state only","no invented metrics and no destructive repair action"],
-      "verification":["SYSTEM projection/geometry tests","Ruff/Mypy touched files","exact Qt render for renderability","fallback-spec review; MATCH forbidden without original pixels"]
-    },
     {
       "task_id":"REDESIGN-SECONDARY-NAV",
       "priority":"P1_CORE",
       "owner":"PATHENA-UI",
-      "status":"READY",
-      "title":"Introduce shared optional secondary section navigation geometry for Settings/System/Help/Knowledge-family screens",
-      "acceptance":["optional 210–280px second navigation column only where required","global 76px icon rail and top navigation remain unchanged","existing real routes/state remain authoritative","no synthetic content and no wide global text sidebar regression"],
-      "verification":["targeted Qt geometry/routing tests","Ruff/Mypy touched files","11-surface renderability","fallback-spec structural review"]
+      "status":"READY_NEXT",
+      "title":"Introduce shared optional secondary navigation for reference screens that require it",
+      "acceptance":["210–280px optional second navigation only where specified","preserve global narrow icon rail and top navigation","reuse real routes/state","no return to wide global text sidebar"]
     },
     {
-      "task_id":"REDESIGN-PALLAS-INSPECTOR-REVIEW",
+      "task_id":"REDESIGN-SETTINGS-COMPOSITION",
       "priority":"P1_CORE",
       "owner":"PATHENA-UI",
-      "status":"READY_AFTER_SYSTEM_OR_SECONDARY_NAV",
-      "title":"Close PALLAS semantic-field and right-inspector composition against fallback spec",
-      "acceptance":["preserve real semantic graph and keyboard/controller contracts","right inspector hierarchy follows reference family","no optional PALLAS feature expansion","screen classified at most TEXT_SPEC_CONFORMING without original pixels"],
-      "verification":["targeted PALLAS Qt tests","Ruff/Mypy touched files","renderability capture","fallback-spec review"]
+      "status":"READY_AFTER_SECONDARY_NAV",
+      "title":"Close Settings reference composition against the visual spec"
+    },
+    {
+      "task_id":"REDESIGN-HELP-COMPOSITION",
+      "priority":"P1_CORE",
+      "owner":"PATHENA-UI",
+      "status":"READY_AFTER_SETTINGS",
+      "title":"Close Help reference composition against the visual spec"
     }
   ],
   "backend_handoff": {
     "task_id":"TASK-0047",
-    "priority":"P1_CORE",
     "owner":"PATHENA-BACKEND",
-    "status":"CLAIMED_PARTIAL_IMPLEMENTATION",
-    "title":"Complete read-only Storage health telemetry through DesktopApiSnapshot",
-    "observed":"StorageHealthResponse and process plumbing exist on candidate ae369c16, but DesktopApiSnapshot still lacks the storage field.",
-    "next_contract":"Add storage health to the desktop refresh snapshot with explicit fresh/stale/unavailable semantics and no UI geometry coupling."
+    "status":"CLAIMED",
+    "title":"Expose read-only Storage health telemetry through Core API and DesktopApiSnapshot",
+    "observed":"Storage health validation exists, but DesktopApiSnapshot does not yet expose the field on candidate 0b59a3e.",
+    "ui_rule":"SYSTEM keeps truthful unavailable state until the handoff lands; geometry remains reference-compliant rather than reverting to cards."
   },
   "qa_directive": {
-    "pixel_probe_budget":"Attempt only a short 1-2-image original-pixel access probe. If unavailable, stop probing and use redesign_visual_spec.md.",
-    "forbidden_claim":"MATCH",
+    "pixel_probe_budget":"1-2 original images maximum; otherwise use redesign_visual_spec.md immediately.",
+    "forbidden_without_pixels":"MATCH",
     "allowed_without_pixels":"TEXT_SPEC_CONFORMING",
     "capture_pass_is_only":"RENDERABLE",
-    "candidate_baseline_is_only":"REGRESSION_BASELINE",
-    "current_quality_action":"Isolate the Python 3.12 quality-lane failure on exact candidate ae369c16; do not infer the cause from the green sibling lanes."
+    "next_action":"Finish Canonical Quality on exact candidate 0b59a3e; then validate Secondary Navigation/Settings in deterministic order."
   },
-  "promotion_blockers":[
-    "SYSTEM remains textually nonconforming until its metrics grid is replaced with the reference status-row composition.",
-    "Backend TASK-0047 has not yet delivered StorageHealthResponse through DesktopApiSnapshot.",
-    "Settings/System/Help/Knowledge-family secondary navigation geometry remains open.",
-    "PALLAS and other screen-local compositions remain VISUAL_REVIEW_REQUIRED.",
-    "No original-pixel visual acceptance is available; no screen may claim MATCH.",
-    "Canonical Quality run 32902514009 is red in the Python 3.12 quality lane and remains unclassified.",
-    "Candidate is 178 commits ahead of accepted agent/pathena and 0 behind; blocker reduction outranks optional feature churn."
-  ],
-  "next_lead_slice":"Integrate Backend TASK-0047 if DesktopApiSnapshot handoff lands; otherwise integrate/reclassify SYSTEM or shared secondary-navigation UI evidence, then consume QA's exact Python-lane diagnosis. Keep optional UI frozen and do not touch active Backend/Security paths."
+  "release": {
+    "promotion_ready": false,
+    "rc_stabilization_reached": false,
+    "promotion_guard":"SUCCESS on 0b59a3e",
+    "canonical_quality":"IN_PROGRESS on 0b59a3e",
+    "full_windows":"SUCCESS on e3abb0d after the latest runtime transport change; no repeat currently required for the subsequent storage-health-only delta",
+    "blockers":["Secondary Navigation and remaining screen-specific compositions are not yet TEXT_SPEC_CONFORMING","PALLAS core target is still open","No original-pixel acceptance exists","Canonical Quality on current candidate is not yet complete","Backend TASK-0047 remains an open data handoff"]
+  },
+  "next_lead_slice":"Consume the current Quality result and UI handoff; integrate shared Secondary Navigation next, then Settings and Help in deterministic order. Keep PALLAS core explicitly scheduled for its turn and do not freeze it."
 }
