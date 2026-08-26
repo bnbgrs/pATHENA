@@ -43,7 +43,7 @@ def test_lm_studio_stream_chat_enforces_max_output_tokens() -> None:
     provider = LMStudioProvider("http://127.0.0.1:1234")
     captured: dict[str, object] = {}
 
-    def fake_urlopen(request, timeout):
+    def fake_open_local_request(request, timeout):
         captured["timeout"] = timeout
         captured["payload"] = json.loads(request.data.decode("utf-8"))
         return FakeStreamResponse(
@@ -53,7 +53,10 @@ def test_lm_studio_stream_chat_enforces_max_output_tokens() -> None:
             )
         )
 
-    with patch("athena.model.adapters.lm_studio.urlopen", side_effect=fake_urlopen):
+    with patch(
+        "athena.model.adapters.lm_studio.open_local_request",
+        side_effect=fake_open_local_request,
+    ):
         chunks = tuple(
             provider.stream_chat(
                 model_id="example/model-q4",
@@ -124,7 +127,7 @@ def test_lm_studio_discovers_and_normalizes_models() -> None:
     }
 
     with patch(
-        "athena.model.adapters.lm_studio.urlopen",
+        "athena.model.adapters.lm_studio.open_local_request",
         return_value=FakeResponse(payload),
     ):
         models = provider.discover_models()
@@ -147,7 +150,7 @@ def test_lm_studio_health_is_unavailable_when_server_cannot_be_reached() -> None
     provider = LMStudioProvider("http://127.0.0.1:1234")
 
     with patch(
-        "athena.model.adapters.lm_studio.urlopen",
+        "athena.model.adapters.lm_studio.open_local_request",
         side_effect=URLError("connection refused"),
     ):
         health = provider.health()
@@ -161,7 +164,7 @@ def test_lm_studio_rejects_malformed_model_payload() -> None:
     provider = LMStudioProvider("http://127.0.0.1:1234")
 
     with patch(
-        "athena.model.adapters.lm_studio.urlopen",
+        "athena.model.adapters.lm_studio.open_local_request",
         return_value=FakeResponse({"unexpected": []}),
     ):
         with pytest.raises(ProviderProtocolError, match="models"):
@@ -172,7 +175,7 @@ def test_lm_studio_controlled_structured_uses_native_reasoning_off() -> None:
     provider = LMStudioProvider("http://127.0.0.1:1234")
     captured: dict[str, object] = {}
 
-    def fake_urlopen(request, timeout):
+    def fake_open_local_request(request, timeout):
         captured["url"] = request.full_url
         captured["timeout"] = timeout
         captured["payload"] = json.loads(request.data.decode("utf-8"))
@@ -188,7 +191,10 @@ def test_lm_studio_controlled_structured_uses_native_reasoning_off() -> None:
             }
         )
 
-    with patch("athena.model.adapters.lm_studio.urlopen", side_effect=fake_urlopen):
+    with patch(
+        "athena.model.adapters.lm_studio.open_local_request",
+        side_effect=fake_open_local_request,
+    ):
         result = provider.generate_controlled_structured(
             model_id="example/model-q4",
             messages=(
@@ -245,7 +251,10 @@ def test_lm_studio_controlled_structured_rejects_reasoning_tokens_when_off() -> 
         }
     )
 
-    with patch("athena.model.adapters.lm_studio.urlopen", return_value=response):
+    with patch(
+        "athena.model.adapters.lm_studio.open_local_request",
+        return_value=response,
+    ):
         with pytest.raises(ProviderProtocolError, match="reasoning tokens"):
             provider.generate_controlled_structured(
                 model_id="example/model-q4",
@@ -270,7 +279,7 @@ def test_lm_studio_controlled_structured_reuses_returned_runtime_instance() -> N
     provider = LMStudioProvider("http://127.0.0.1:1234")
     payloads: list[dict[str, object]] = []
 
-    def fake_urlopen(request, timeout):
+    def fake_open_local_request(request, timeout):
         del timeout
         payload = json.loads(request.data.decode("utf-8"))
         payloads.append(payload)
@@ -304,7 +313,10 @@ def test_lm_studio_controlled_structured_reuses_returned_runtime_instance() -> N
         "repeat_penalty": 1.1,
     }
 
-    with patch("athena.model.adapters.lm_studio.urlopen", side_effect=fake_urlopen):
+    with patch(
+        "athena.model.adapters.lm_studio.open_local_request",
+        side_effect=fake_open_local_request,
+    ):
         assert provider.generate_controlled_structured(**kwargs) == {"answer": 42}
         assert provider.generate_controlled_structured(**kwargs) == {"answer": 42}
 

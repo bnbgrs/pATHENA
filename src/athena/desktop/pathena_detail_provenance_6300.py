@@ -11,7 +11,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from PySide6.QtCore import QObject, Qt, QTimer
-from PySide6.QtWidgets import QBoxLayout, QLabel, QListWidget, QListWidgetItem, QPlainTextEdit, QWidget
+from PySide6.QtWidgets import (
+    QBoxLayout,
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QPlainTextEdit,
+    QWidget,
+)
 
 
 @dataclass(frozen=True)
@@ -139,17 +146,13 @@ class DetailProvenanceController(QObject):
 
         if state == "busy":
             if has_content and rendered and rendered != selected:
-                text = (
-                    f"RETAINED · {rendered_short} · loading {selected_short}"
-                )
+                text = f"RETAINED · {rendered_short} · loading {selected_short}"
                 return "retained", text, rendered
             return "loading", f"LOADING · {selected_short}", rendered
 
         if state == "error":
             if has_content and rendered and rendered != selected:
-                text = (
-                    f"RETAINED · {rendered_short} · load failed for {selected_short}"
-                )
+                text = f"RETAINED · {rendered_short} · load failed for {selected_short}"
                 return "retained-error", text, rendered
             return "error", f"LOAD ERROR · {selected_short}", rendered
 
