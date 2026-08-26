@@ -1,0 +1,60 @@
+name: Capture live current pATHENA UI font-safe 2026-08-26
+
+on:
+  pull_request:
+    branches:
+      - capture/live-current-20260826-1757-base
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: windows-2022
+    timeout-minutes: 20
+    env:
+      PYTHONUTF8: "1"
+      QT_QPA_PLATFORM: offscreen
+      QT_QUICK_BACKEND: software
+      QT_OPENGL: software
+      PATHENA_SCREENSHOT_DIR: screenshots-current-live
+      PATHENA_PRODUCT_SHA: 994f7068ef76412f4689b9fd6c9d20645f4df207
+    steps:
+      - name: Checkout isolated capture PR
+        uses: actions/checkout@v4
+
+      - name: Prove product source is current candidate
+        shell: pwsh
+        run: |
+          git diff --exit-code 994f7068ef76412f4689b9fd6c9d20645f4df207 -- src/athena pyproject.toml uv.lock
+          if ($LASTEXITCODE -ne 0) { throw "Capture product source differs from current candidate." }
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install locked desktop environment
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check "uv==0.11.21"
+          uv sync --locked --extra dev --extra desktop
+          if ($LASTEXITCODE -ne 0) { throw "Locked environment sync failed." }
+
+      - name: Start current pATHENA program and take screenshots
+        shell: pwsh
+        run: |
+          $env:ATHENA_LOCAL_ROOT = Join-Path $env:RUNNER_TEMP "pathena-current-live-runtime"
+          uv run --locked --extra desktop --no-sync python scripts/capture_live_current_ui_fontsafe_20260826.py
+          if (-not (Test-Path .\screenshots-current-live\manifest.json)) { throw "Current UI capture did not produce a manifest." }
+          Get-ChildItem .\screenshots-current-live -File | Select-Object Name,Length
+
+      - name: Upload real current screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pATHENA-current-live-994f7068-fontsafe
+          path: screenshots-current-live/
+          if-no-files-found: error
+          retention-days: 7
