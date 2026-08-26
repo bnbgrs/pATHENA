@@ -17,6 +17,24 @@ This file and `.pathena/agent-ledger.json` live on branch `bot/pathena-coordinat
 11. Record result, candidate commit SHA, verification evidence, residual risks and useful follow-up tasks in the ledger.
 12. Release the claim only after recording outcome. Then, if runtime remains, repeat from step 1.
 
+## Large-ledger / truncated-response recovery
+
+A connector response that truncates `.pathena/agent-ledger.json` is a tooling presentation limit, not by itself a coordination blocker.
+
+1. Retry ledger access once with repository file reads on `bot/pathena-coordination` using bounded `start_line` / `end_line` ranges. Read consecutive non-overlapping chunks until the complete file is reconstructed. Prefer chunks around 80-160 lines and reduce the range if a chunk still truncates.
+2. Preserve the exact file order and bytes/line content while reconstructing. Use the blob SHA returned by the file read as the optimistic-lock SHA for any ledger mutation.
+3. Immediately before a ledger mutation, re-read the candidate SHA and the ledger region containing active claims relevant to the proposed paths/semantic scope. If the blob SHA changed, discard the reconstructed old ledger and re-read; never force-update.
+4. If complete reconstruction cannot be proven, do not mutate the ledger. Do not spend the remainder of the run repeating the same failed full-file read. Continue only inside an already valid, non-conflicting own claim, or perform evidence-producing read-only verification/handoff work and switch to another safe slice that needs no product mutation.
+5. A bot must not leave an already completed own claim stale merely because the ledger is large. On the next successful chunked read, closing/releasing that completed claim is the first coordination action before claiming new product paths.
+6. Do not treat stale foreign claims as free. The normal 90-minute STALE/TAKEOVER event rule still applies.
+
+## No-idle / blocker rotation rule
+
+- The same unchanged connector/tooling blocker may be diagnosed only once per run.
+- After one safe retry or the chunked-ledger recovery above, either make the safe coordination mutation, continue within an existing valid claim, or switch to a different evidence-producing non-conflicting slice.
+- Never use tooling limits as a reason for an hour-long repetition of the same read-only root-cause analysis.
+- Never bypass claim ownership to create progress. Product mutation still requires a valid claim.
+
 ## Claim shape
 
 ```json
