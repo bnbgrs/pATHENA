@@ -84,6 +84,7 @@ jobs:
         with:
           name: canonical-quality-diagnostics-${{ github.sha }}
           path: .quality-evidence/
+          include-hidden-files: true
           if-no-files-found: error
           retention-days: 7
 
