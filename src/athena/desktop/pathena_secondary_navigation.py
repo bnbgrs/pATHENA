@@ -54,6 +54,9 @@ class SettingsSecondaryNavigation(QObject):
         self.navigation = QListWidget()
         self.navigation.setObjectName("settingsSecondaryNavigation")
         self.navigation.setAccessibleName("Settings sections")
+        self.navigation.setAccessibleDescription(
+            "Navigate between available Settings sections"
+        )
         self.navigation.setFixedWidth(SHELL.secondary_nav_width)
         self.navigation.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.navigation.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
@@ -85,6 +88,12 @@ class SettingsSecondaryNavigation(QObject):
         for section in self.sections:
             item = QListWidgetItem(section.label)
             item.setData(Qt.ItemDataRole.UserRole, section.key)
+            item.setData(Qt.ItemDataRole.AccessibleTextRole, section.label)
+            item.setData(
+                Qt.ItemDataRole.AccessibleDescriptionRole,
+                f"Open {section.label} settings",
+            )
+            item.setToolTip(f"Open {section.label} settings")
             item.setSizeHint(QSize(SHELL.secondary_nav_width - 34, 40))
             self.navigation.addItem(item)
 
