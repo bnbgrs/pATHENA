@@ -3,8 +3,10 @@ from __future__ import annotations
 import io
 import os
 import re
+import sqlite3
 import subprocess
 import sys
+import uuid
 import zipfile
 from pathlib import Path
 
@@ -94,7 +96,15 @@ def test_docx_scheduler_builds_structure_chunks_search_and_table_anchor(tmp_path
     )
     assert scheduled.returncode == 0, scheduled.stderr
     assert f"Job: {job_id}" in scheduled.stdout
-    assert "State: completed" in scheduled.stdout, scheduled.stderr
+    if "State: completed" not in scheduled.stdout:
+        with sqlite3.connect(local_root / "state" / "athena.db") as connection:
+            row = connection.execute(
+                "SELECT state, current_stage, blocked_reason FROM jobs WHERE job_id = ?",
+                (uuid.UUID(job_id).bytes,),
+            ).fetchone()
+        raise AssertionError(
+            f"scheduler stdout={scheduled.stdout!r}; stderr={scheduled.stderr!r}; job_row={row!r}"
+        )
 
     representations = _run_cli(local_root, "source", "representation-list", source_id)
     assert representations.returncode == 0, representations.stderr
