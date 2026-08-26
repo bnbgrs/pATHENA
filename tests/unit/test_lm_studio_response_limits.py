@@ -127,7 +127,7 @@ def test_stream_iteration_uses_bounded_readline_without_whole_body_read(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     raw = _FakeResponse(b"", lines=(b"data: 1\n", b"[DONE]\n"))
-    _install_response(monkeypatch, raw)
+    _install_response(monkeypatch, raw, max_bytes=16)
 
     with local_http.open_local_request(
         Request("http://127.0.0.1:1234/v1/chat/completions"),
@@ -136,7 +136,7 @@ def test_stream_iteration_uses_bounded_readline_without_whole_body_read(
         assert list(response) == [b"data: 1\n", b"[DONE]\n"]
 
     assert raw.read_sizes == []
-    assert raw.readline_sizes == [9, 9, 9]
+    assert raw.readline_sizes == [17, 17, 17]
 
 
 def test_stream_iteration_rejects_many_small_lines_over_cumulative_limit(
