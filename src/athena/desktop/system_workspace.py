@@ -41,6 +41,7 @@ class _SystemStatusRow(QFrame):
         super().__init__()
         self.setObjectName("systemStatusRow")
         self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        self.setMinimumHeight(82)
         self.setAccessibleName(title)
 
         layout = QHBoxLayout(self)
@@ -148,7 +149,7 @@ class _SecurityPosture(QFrame):
     def __init__(self) -> None:
         super().__init__()
         self.setObjectName("systemSecurityPosture")
-        self.setFixedWidth(300)
+        self.setFixedWidth(348)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(22, 8, 0, 0)
         layout.setSpacing(8)
