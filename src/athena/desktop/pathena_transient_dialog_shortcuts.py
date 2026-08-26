@@ -50,6 +50,7 @@ class TransientDialogShortcutContinuity(QObject):
             )
             return True
 
+        target: QWidget
         if watched is self.controller.query:
             target = self.controller.results
         elif watched is self.controller.results:
