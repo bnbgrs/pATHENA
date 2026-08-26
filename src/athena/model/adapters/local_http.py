@@ -46,6 +46,7 @@ class _BoundedLocalResponse:
     ) -> None:
         self._response = response
         self._max_bytes = max_bytes
+        self._stream_bytes_read = 0
         self._deadline = (
             monotonic() + total_timeout_seconds
             if total_timeout_seconds is not None
@@ -94,6 +95,11 @@ class _BoundedLocalResponse:
             raise LocalResponseTooLargeError(
                 "Local model streaming response line exceeded the configured byte limit."
             )
+        if self._stream_bytes_read + len(raw) > self._max_bytes:
+            raise LocalResponseTooLargeError(
+                "Local model streaming response exceeded the configured byte limit."
+            )
+        self._stream_bytes_read += len(raw)
         return raw
 
     def read(self, amt: int | None = None) -> bytes:
@@ -163,9 +169,10 @@ def open_local_request(request: Request, *, timeout: float) -> Any:
     Whole-body ``read()`` calls are capped independently of Content-Length so a
     faulty or compromised loopback service cannot make callers buffer an
     arbitrarily large non-streaming response. Streaming iteration uses bounded
-    ``readline()`` calls and a monotonic total deadline in addition to the socket
-    inactivity timeout, preventing giant SSE lines and indefinitely active local
-    streams from bypassing the configured generation timeout.
+    ``readline()`` calls, a cumulative byte cap, and a monotonic total deadline
+    in addition to the socket inactivity timeout, preventing giant SSE lines,
+    many-small-event floods, and indefinitely active local streams from bypassing
+    the configured transport and generation bounds.
     """
     if not isinstance(request, Request):
         raise TypeError("Local model transport requires urllib.request.Request.")
