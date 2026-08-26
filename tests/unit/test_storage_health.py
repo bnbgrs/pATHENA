@@ -72,6 +72,18 @@ def test_storage_health_reports_safe_error_without_invented_sizes(
     [
         (
             {
+                "status": "bogus",
+                "database_open": True,
+                "database_path": "athena.sqlite3",
+                "database_size_bytes": None,
+                "wal_size_bytes": None,
+                "observed_at_us": 1,
+                "detail": "probe failed",
+            },
+            "status is invalid",
+        ),
+        (
+            {
                 "status": "available",
                 "database_open": False,
                 "database_path": "athena.sqlite3",
