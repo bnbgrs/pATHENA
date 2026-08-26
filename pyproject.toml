@@ -43,7 +43,7 @@ where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra -x tests/integration/test_docx_ingestion_cli.py::test_docx_scheduler_builds_structure_chunks_search_and_table_anchor tests/unit/test_source_processing_jobs.py"
+addopts = "-ra"
 
 [tool.ruff]
 target-version = "py312"
