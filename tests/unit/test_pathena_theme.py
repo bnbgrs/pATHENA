@@ -7,6 +7,14 @@ from athena.desktop.pathena_theme import (
 )
 
 
+def _assert_later_override(selector: str, declaration: str) -> None:
+    first_index = PATHENA_STYLESHEET.index(selector)
+    last_index = PATHENA_STYLESHEET.rindex(selector)
+    assert last_index > first_index
+    rule_end = PATHENA_STYLESHEET.index("}", last_index)
+    assert declaration in PATHENA_STYLESHEET[last_index:rule_end]
+
+
 def test_specialized_theme_uses_canonical_palette() -> None:
     assert f"background: {PALETTE.canvas};" in PATHENA_SPECIALIZED_STYLESHEET
     assert f"background: {PALETTE.surface};" in PATHENA_SPECIALIZED_STYLESHEET
@@ -51,6 +59,44 @@ def test_legacy_meaningful_metadata_is_overridden_after_base_theme() -> None:
 
     assert command_override_index > command_base_index
     assert chain_override_index > chain_base_index
+
+
+def test_legacy_orange_primary_interactions_are_overridden_after_base_theme() -> None:
+    _assert_later_override(
+        'QLabel[accent="true"]',
+        f"color: {PALETTE.accent};",
+    )
+    _assert_later_override(
+        "QLabel#objectId",
+        f"color: {PALETTE.accent};",
+    )
+    _assert_later_override(
+        "QProgressBar#jobProgress::chunk",
+        f"background: {PALETTE.accent};",
+    )
+    _assert_later_override(
+        "QSlider#contextSlider::handle:horizontal",
+        f"background: {PALETTE.accent};",
+    )
+    _assert_later_override(
+        "QSlider#maxOutputSlider::handle:horizontal",
+        f"background: {PALETTE.accent};",
+    )
+    _assert_later_override(
+        "QCheckBox#thinkingToggle::indicator:checked",
+        f"background: {PALETTE.accent};",
+    )
+    _assert_later_override(
+        "QPushButton#inspectorCopyButton:hover",
+        f"color: {PALETTE.accent};",
+    )
+
+
+def test_job_header_stays_informational_instead_of_becoming_primary_accent() -> None:
+    _assert_later_override(
+        "QLabel#jobHeader",
+        f"color: {PALETTE.text_subtle};",
+    )
 
 
 def test_decorative_and_disabled_legacy_dim_states_are_not_blanket_promoted() -> None:
