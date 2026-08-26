@@ -17,7 +17,7 @@ def _app() -> QApplication:
     return QApplication([])
 
 
-def test_reference_shell_replaces_wide_text_sidebar_without_rewiring_navigation() -> None:
+def test_reference_shell_owns_icon_rail_without_rewiring_navigation() -> None:
     _app()
     window = PathenaMainWindow()
     try:
@@ -29,16 +29,51 @@ def test_reference_shell_replaces_wide_text_sidebar_without_rewiring_navigation(
         assert top_bar is not None
         assert top_bar.height() == SHELL.top_bar_height
 
-        rail = shell.findChild(QFrame, "rail")
-        assert rail is not None
-        assert rail.width() == SHELL.icon_rail_width
+        body = shell.findChild(QFrame, "referenceBody")
+        assert body is not None
+        icon_rail = body.findChild(QFrame, "iconRail")
+        assert icon_rail is not None
+        assert icon_rail.width() == SHELL.icon_rail_width
+        assert icon_rail.accessibleName() == "Primary navigation"
+        assert window.navigation.parentWidget() is icon_rail
         assert window.navigation.width() <= SHELL.icon_rail_width
         assert window.navigation.item(0).text() != "Workspace"
         assert window.navigation.item(0).toolTip() == "Workspace"
 
+        legacy_host = shell.findChild(QWidget, "legacyShellHost")
+        assert legacy_host is not None
+        legacy_rail = legacy_host.findChild(QFrame, "rail")
+        assert legacy_rail is not None
+        assert legacy_host.isHidden()
+        assert legacy_rail.isHidden()
+        assert not icon_rail.isAncestorOf(window.pallas_visual)
+        assert window.pallas_visual.isHidden()
+
         window.navigation.setCurrentRow(3)
         assert window.pages.currentIndex() == 3
         assert window.page_title.text() == "Jobs"
+    finally:
+        window.close()
+
+
+def test_reference_body_directly_owns_workspace_and_persistent_inspector() -> None:
+    _app()
+    window = PathenaMainWindow()
+    try:
+        shell = window.centralWidget()
+        assert isinstance(shell, QWidget)
+        body = shell.findChild(QFrame, "referenceBody")
+        assert body is not None
+
+        center = body.findChild(QFrame, "conversation")
+        inspector = body.findChild(QFrame, "inspector")
+        assert center is not None
+        assert inspector is not None
+        assert center.parentWidget() is body
+        assert inspector.parentWidget() is body
+        assert inspector.width() == SHELL.inspector_width
+        assert inspector.accessibleName() == "Inspector"
+        assert not inspector.isHidden()
     finally:
         window.close()
 
@@ -59,6 +94,7 @@ def test_reference_shell_has_horizontal_primary_navigation_and_private_status() 
 
         buttons[1].click()
         assert window.navigation.currentRow() == 1
+        assert window.pages.currentIndex() == 1
         assert buttons[1].isChecked()
 
         status = window.findChild(QLabel, "localPrivateStatus")
