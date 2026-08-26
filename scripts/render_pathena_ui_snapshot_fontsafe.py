@@ -3,8 +3,8 @@ from __future__ import annotations
 import os
 import sys
 import traceback
-from pathlib import Path
 from collections.abc import Sequence
+from pathlib import Path
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("QT_QUICK_BACKEND", "software")
