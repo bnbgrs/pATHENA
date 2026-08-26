@@ -36,14 +36,14 @@ athena-desktop = "athena.desktop.app:main"
 required-version = "==0.11.21"
 
 [tool.setuptools]
-package-dir = {"" = "src"}
+package-dir = {"" = "src"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-ra -x tests/integration/test_docx_ingestion_cli.py::test_docx_scheduler_builds_structure_chunks_search_and_table_anchor tests/unit/test_source_processing_jobs.py"
+addopts = "-ra -x tests/integration/test_docx_ingestion_cli.py::test_docx_scheduler_builds_structure_chunks_search_and_table_anchor"
 
 [tool.ruff]
 target-version = "py312"
