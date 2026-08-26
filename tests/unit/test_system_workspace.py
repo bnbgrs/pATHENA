@@ -28,6 +28,7 @@ def test_system_workspace_uses_reference_status_rows_instead_of_metric_grid() ->
     assert workspace.findChildren(QFrame, "systemMetric") == []
     rows = workspace.findChildren(QFrame, "systemStatusRow")
     assert len(rows) == 4
+    assert all(row.minimumHeight() >= 82 for row in rows)
     assert [row.accessibleName() for row in rows] == [
         "Local runtime",
         "Knowledge storage",
@@ -45,6 +46,14 @@ def test_system_workspace_exposes_reference_secondary_navigation() -> None:
         for label in workspace.findChildren(QLabel, "systemSubnavItem")
     ]
     assert labels == ["Overview", "Runtime", "Storage", "Network", "Logs"]
+
+
+def test_system_workspace_uses_reference_inspector_width() -> None:
+    _app()
+    workspace = SystemWorkspace(None)
+
+    assert workspace.security_posture.minimumWidth() == 348
+    assert workspace.security_posture.maximumWidth() == 348
 
 
 def test_system_workspace_recent_events_does_not_invent_history() -> None:
