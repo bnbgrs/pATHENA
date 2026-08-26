@@ -58,7 +58,9 @@ def test_video_controller_payload_rejects_mixed_type_names() -> None:
 
 def test_video_controller_payload_rejects_blank_names() -> None:
     with pytest.raises(HardwareAcceptanceError, match="invalid controller name"):
-        _video_controller_names_from_payload('{"names":["AMD Radeon RX 7900 XTX",""]}')
+        _video_controller_names_from_payload(
+            '{"names":["AMD Radeon RX 7900 XTX",""]}'
+        )
 
 
 def test_live_inference_rejects_marker_embedded_in_extra_text() -> None:
