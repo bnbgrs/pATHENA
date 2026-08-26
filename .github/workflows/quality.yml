@@ -45,24 +45,47 @@ jobs:
         run: uv lock --check
 
       # Keep every canonical check independently observable while still running all four.
+      # Persist complete text diagnostics so release verification does not depend on
+      # transient Actions log access.
       - name: Quality — specification validator
         id: quality_spec
-        run: uv run --locked --extra dev --extra desktop python scripts/validate_spec.py
+        run: |
+          set -o pipefail
+          mkdir -p .quality-evidence
+          uv run --locked --extra dev --extra desktop python scripts/validate_spec.py 2>&1 | tee .quality-evidence/specification-validator.txt
 
       - name: Quality — Ruff
         id: quality_ruff
         if: always()
-        run: uv run --locked --extra dev --extra desktop python -m ruff check src tests scripts
+        run: |
+          set -o pipefail
+          mkdir -p .quality-evidence
+          uv run --locked --extra dev --extra desktop python -m ruff check src tests scripts 2>&1 | tee .quality-evidence/ruff.txt
 
       - name: Quality — mypy
         id: quality_mypy
         if: always()
-        run: uv run --locked --extra dev --extra desktop python -m mypy src/athena
+        run: |
+          set -o pipefail
+          mkdir -p .quality-evidence
+          uv run --locked --extra dev --extra desktop python -m mypy src/athena 2>&1 | tee .quality-evidence/mypy.txt
 
       - name: Quality — pytest
         id: quality_pytest
         if: always()
-        run: uv run --locked --extra dev --extra desktop python -m pytest
+        run: |
+          set -o pipefail
+          mkdir -p .quality-evidence
+          uv run --locked --extra dev --extra desktop python -m pytest 2>&1 | tee .quality-evidence/pytest.txt
+
+      - name: Upload canonical quality diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: canonical-quality-diagnostics-${{ github.sha }}
+          path: .quality-evidence/
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Enforce canonical quality result
         if: always()
