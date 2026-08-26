@@ -102,8 +102,18 @@ def test_docx_scheduler_builds_structure_chunks_search_and_table_anchor(tmp_path
                 "SELECT state, current_stage, blocked_reason FROM jobs WHERE job_id = ?",
                 (uuid.UUID(job_id).bytes,),
             ).fetchone()
+            run_row = connection.execute(
+                """
+                SELECT run_type, status, error_detail
+                FROM processing_runs
+                WHERE run_type = 'source_chunk_build'
+                ORDER BY started_at_us DESC
+                LIMIT 1
+                """
+            ).fetchone()
         raise AssertionError(
-            f"scheduler stdout={scheduled.stdout!r}; stderr={scheduled.stderr!r}; job_row={row!r}"
+            f"scheduler stdout={scheduled.stdout!r}; stderr={scheduled.stderr!r}; "
+            f"job_row={row!r}; chunk_run={run_row!r}"
         )
 
     representations = _run_cli(local_root, "source", "representation-list", source_id)
