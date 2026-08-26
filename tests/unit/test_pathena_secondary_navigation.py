@@ -53,6 +53,22 @@ def test_settings_secondary_navigation_wraps_only_real_sections() -> None:
         window.close()
 
 
+def test_settings_secondary_navigation_does_not_invent_unavailable_sections() -> None:
+    _app()
+    window = PathenaMainWindow()
+    try:
+        controller = install_settings_secondary_navigation(window)
+
+        assert controller.section_names == ("Model & inference",)
+        assert controller.navigation.count() == 1
+        assert controller.navigation.item(0).data(Qt.ItemDataRole.UserRole) == "model"
+        assert controller.navigation.findItems(
+            "Local runtime", Qt.MatchFlag.MatchExactly
+        ) == []
+    finally:
+        window.close()
+
+
 def test_settings_secondary_navigation_keyboard_selection_is_deterministic() -> None:
     app = _app()
     window, _runtime_panel = _window_with_runtime_panel()
