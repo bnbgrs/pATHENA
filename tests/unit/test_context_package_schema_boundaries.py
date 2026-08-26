@@ -120,3 +120,33 @@ def test_reader_rejects_non_standard_json_constants(constant: str) -> None:
 
     with pytest.raises(ContextPackageError, match="structured schema JSON is invalid"):
         corrupted.structured_schema()
+
+
+@pytest.mark.parametrize(
+    ("schema_id", "schema_json"),
+    [("test.schema.v1", None), (None, '{"type":"object"}')],
+)
+def test_run_snapshot_rejects_half_present_schema_metadata(
+    schema_id: str | None,
+    schema_json: str | None,
+) -> None:
+    package = replace(
+        _build_structured_package(),
+        structured_schema_id=schema_id,
+        structured_schema_json=schema_json,
+    )
+
+    with pytest.raises(ContextPackageError, match="requires both schema ID and schema JSON"):
+        package.run_snapshot()
+
+
+def test_reader_and_snapshot_reject_non_text_persisted_schema_json() -> None:
+    package = replace(
+        _build_structured_package(),
+        structured_schema_json=cast(Any, 42),
+    )
+
+    with pytest.raises(ContextPackageError, match="metadata must be text"):
+        package.structured_schema()
+    with pytest.raises(ContextPackageError, match="metadata must be text"):
+        package.run_snapshot()
