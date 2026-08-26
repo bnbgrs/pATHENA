@@ -53,6 +53,28 @@ def test_settings_secondary_navigation_wraps_only_real_sections() -> None:
         window.close()
 
 
+def test_settings_secondary_navigation_exposes_accessible_section_semantics() -> None:
+    _app()
+    window, _runtime_panel = _window_with_runtime_panel()
+    try:
+        controller = install_settings_secondary_navigation(window)
+
+        model_item = controller.navigation.item(0)
+        runtime_item = controller.navigation.item(1)
+        assert model_item.data(Qt.ItemDataRole.AccessibleTextRole) == "Model & inference"
+        assert model_item.data(Qt.ItemDataRole.AccessibleDescriptionRole) == (
+            "Open Model & inference settings"
+        )
+        assert model_item.toolTip() == "Open Model & inference settings"
+        assert runtime_item.data(Qt.ItemDataRole.AccessibleTextRole) == "Local runtime"
+        assert runtime_item.data(Qt.ItemDataRole.AccessibleDescriptionRole) == (
+            "Open Local runtime settings"
+        )
+        assert runtime_item.toolTip() == "Open Local runtime settings"
+    finally:
+        window.close()
+
+
 def test_settings_secondary_navigation_does_not_invent_unavailable_sections() -> None:
     _app()
     window = PathenaMainWindow()
