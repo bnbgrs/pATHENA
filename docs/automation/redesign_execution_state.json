@@ -2,7 +2,7 @@
   "schema_version": 1,
   "authority": "docs/automation/redesign_visual_spec.md",
   "candidate_sha_observed": "0b59a3e0e31f3a497586333c2a32c090d475f415",
-  "updated_at": "2026-08-26T00:51:00Z",
+  "updated_at": "2026-08-26T03:02:00Z",
   "pixel_reference_access": "REFERENCE_IMAGES_UNAVAILABLE",
   "global_status": "STRUCTURAL_FOUNDATION_TEXT_SPEC_CONFORMING / WORKSPACE_CHAT_TEXT_SPEC_CONFORMING / SYSTEM_TEXT_SPEC_CONFORMING / SCREEN_COMPOSITION_OPEN / VISUAL_REVIEW_REQUIRED",
   "text_spec_conforming": false,
@@ -23,33 +23,41 @@
     "capture_pass_meaning": "Renderability/regression stability only; candidate-derived baselines are not design references.",
     "system_findings": [
       "SYSTEM no longer uses the legacy metrics-card grid.",
-      "Current candidate provides major Local runtime / Knowledge storage / Connectivity / Background work rows, an explicit 218px SYSTEM subnavigation, Recent Events and a Security Posture panel.",
+      "Current candidate provides major Local runtime / Knowledge storage / Connectivity / Background work rows, an explicit SYSTEM subnavigation, Recent Events and a Security Posture panel.",
       "Unavailable telemetry is projected explicitly instead of synthesizing metrics.",
       "Original pixels remain unavailable, therefore MATCH is forbidden and SYSTEM remains VISUAL_REVIEW_REQUIRED."
     ],
     "backend_handoff_findings": [
       "Storage health validation is present in src/athena/storage/health.py.",
-      "DesktopApiSnapshot on candidate 0b59a3e still has no storage-health field; TASK-0047 therefore remains a Backend handoff and must not be silently claimed complete by Lead/UI.",
-      "The missing snapshot field no longer blocks SYSTEM reference geometry because truthful unavailable state is supported."
+      "Fresh lead inspection of src/athena/desktop/api_controller.py on candidate 0b59a3e confirms DesktopApiSnapshot still contains health, provider, models, chats and freshness/error fields only; it has no storage-health field.",
+      "TASK-0047 therefore remains a real Backend handoff and must not be silently claimed complete by Lead/UI.",
+      "The missing snapshot field does not block SYSTEM reference geometry because truthful unavailable state is supported."
     ],
     "runtime_windows_findings": [
       "LM Studio bounded response/SSE behavior is classified RUNTIME_TRANSPORT_BEHAVIOR_CHANGE, not RUNTIME_PROCESS_BOUNDARY_CHANGE.",
       "Exact Full-Windows diagnostics run 32912592880 for candidate e3abb0d31c257dced2675139f8806964a9cd4451 completed SUCCESS after the transport change.",
-      "Candidate 0b59a3e is exactly one commit ahead of e3abb0d. That commit changes only src/athena/storage/health.py plus tests/unit/test_storage_health.py and projects unrecovered temporary backup leftovers into read-only health diagnosis.",
-      "The e3abb0d -> 0b59a3e delta is DATA_OR_SNAPSHOT_PLUMBING_ONLY: it changes no network/transport, process/IPC/lifecycle, recovery execution, packaging or launch semantics. A new Full-Windows run is therefore not independently required for this delta."
+      "Git compare e3abb0d -> 0b59a3e reports only src/athena/storage/health.py and tests/unit/test_storage_health.py across the delta.",
+      "That delta is DATA_OR_SNAPSHOT_PLUMBING_ONLY: no network/transport, process/IPC/lifecycle, runtime recovery execution, packaging or launch semantics changed. A new Full-Windows run is not independently required for this delta."
     ],
     "current_ci": [
       "Promotion Readiness run 32914511192 on exact candidate 0b59a3e completed SUCCESS.",
       "Canonical Quality run 32914514726 is bound to exact candidate 0b59a3e and completed FAILURE.",
-      "Windows Path Safety, Linux Storage Regressions and Local Install Smoke all completed SUCCESS.",
-      "Only the Python 3.12 quality job failed, specifically its top-level Run ATHENA quality gate step. The currently accessible structured evidence does not expose the trustworthy inner failing check/test, so no product root cause is inferred.",
-      "QA must isolate the inner quality failure on exact 0b59a3e before promotion or unrelated product mutation is used as a fix."
+      "Windows Path Safety, Linux Storage Regressions and Local Install Smoke completed SUCCESS.",
+      "Only Python 3.12 quality failed, at the top-level Run ATHENA quality gate step; current structured GitHub evidence still does not expose a trustworthy inner failing check/test.",
+      "No newer candidate-bound workflow run has superseded this evidence; QA must isolate the inner quality failure before promotion or unrelated product mutation is used as a fix."
+    ],
+    "lead_cycle_findings": [
+      "Candidate remained stable at 0b59a3e throughout this Lead audit; no new UI slice was available to integrate safely.",
+      "No product-code mutation was performed by Lead because the next structural UI slice belongs to PATHENA-UI and active/stale specialist claims were not silently taken over.",
+      "The next deterministic UI prerequisite remains REDESIGN-SECONDARY-NAV, followed by Settings then Help.",
+      "PALLAS core work remains explicitly open and unfrozen at its defined sequence position."
     ],
     "coordination_hygiene": [
-      "The ledger still carries old CLAIMED records for TASK-0015, TASK-0017, TASK-0046 and TASK-0047 whose heartbeats exceed the normal 90-minute threshold.",
-      "SYSTEM/TASK-0046 is visually reclassified here from landed candidate evidence, but the Lead does not silently take over or delete another bot's stale claim without a documented STALE/TAKEOVER or owner handoff.",
-      "TASK-0047 remains explicitly owned by Backend because DesktopApiSnapshot still lacks the storage-health field on the observed candidate.",
-      "Active Security TASK-0051 remains untouched."
+      "Ledger claims TASK-0015, TASK-0017, TASK-0046, TASK-0047 and TASK-0051 all exceed the nominal 90-minute heartbeat window at this observation point.",
+      "Staleness alone does not authorize silent deletion or mutation of another owner's scope; no takeover was performed in this Lead cycle.",
+      "TASK-0046 is visually reclassified from landed candidate evidence as text-spec conforming even though its ledger claim is stale.",
+      "TASK-0047 remains Backend-owned because its required DesktopApiSnapshot contract is observably incomplete.",
+      "TASK-0051 remains Security-owned; no LM Studio paths were touched by Lead."
     ]
   },
   "reclassified_matrix": [
@@ -69,7 +77,7 @@
     "completed_or_text_conforming": ["SYSTEM"],
     "next_shared_prerequisite": "REDESIGN-SECONDARY-NAV",
     "remaining_order": ["Settings","Help","Knowledge","Research","Jobs","PALLAS","Command Palette","ComfyUI","Workspace/Chat final recheck"],
-    "rule": "Skip any screen already proven TEXT_SPEC_CONFORMING; keep at most 2-3 immediately executable UI P1 slices open. No optional UX slices may interleave. PALLAS core work is required, not optional, and closing PALLAS includes the product-required semantic visualization, real Source/Claim/Knowledge wiring and interaction contract rather than cosmetic parity alone."
+    "rule": "Skip any screen already proven TEXT_SPEC_CONFORMING; keep at most 2-3 immediately executable UI P1 slices open. No optional UX slices may interleave. PALLAS core work is required, not optional, and closing PALLAS includes product-required semantic visualization, real Source/Claim/Knowledge wiring and interaction rather than cosmetic parity alone."
   },
   "ui_ready": [
     {
@@ -108,7 +116,7 @@
     "owner":"PATHENA-BACKEND",
     "status":"CLAIMED_STALE_HEARTBEAT_REVIEW_REQUIRED",
     "title":"Expose read-only Storage health telemetry through Core API and DesktopApiSnapshot",
-    "observed":"Storage health validation exists, but DesktopApiSnapshot does not expose the field on candidate 0b59a3e. The ledger heartbeat is stale; ownership must be refreshed, explicitly handed off or formally taken over under the coordination protocol before mutation by another role.",
+    "observed":"Storage health validation exists, but fresh lead inspection confirms DesktopApiSnapshot still does not expose storage health on candidate 0b59a3e. Ownership must be refreshed, explicitly handed off or formally taken over under the coordination protocol before mutation by another role.",
     "ui_rule":"SYSTEM keeps truthful unavailable state until the handoff lands; geometry remains reference-compliant rather than reverting to cards."
   },
   "qa_directive": {
@@ -123,7 +131,7 @@
     "rc_stabilization_reached": false,
     "promotion_guard":"SUCCESS on 0b59a3e",
     "canonical_quality":"FAILURE on exact 0b59a3e; Windows Path Safety, Linux Storage Regressions and Local Install Smoke are green, while the Python 3.12 quality job fails inside the top-level quality-gate invocation and still needs inner root-cause isolation",
-    "full_windows":"SUCCESS run 32912592880 on exact e3abb0d after the latest runtime transport change; current 0b59a3e is one DATA_OR_SNAPSHOT_PLUMBING_ONLY commit ahead, so no repeat is currently required for that delta",
+    "full_windows":"SUCCESS run 32912592880 on exact e3abb0d after the latest runtime transport change; current 0b59a3e differs only by DATA_OR_SNAPSHOT_PLUMBING_ONLY storage-health diagnosis/tests, so no repeat is currently required for that delta",
     "blockers":["Canonical Quality on current candidate is RED and requires exact root-cause isolation","Shared Secondary Navigation and remaining screen-specific compositions are not yet TEXT_SPEC_CONFORMING","PALLAS core target remains open and is explicitly not frozen","No original-pixel acceptance exists","Backend TASK-0047 remains an open/stale data handoff"]
   },
   "next_lead_slice":"Consume QA root-cause evidence for Quality 32914514726 and the UI Secondary Navigation handoff. Integrate Secondary Navigation next, then Settings and Help in deterministic order. Refresh or explicitly requeue stale TASK-0047 ownership without stealing it silently. Keep PALLAS core scheduled and unfrozen."
