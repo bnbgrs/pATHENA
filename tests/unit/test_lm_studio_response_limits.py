@@ -139,6 +139,27 @@ def test_stream_iteration_uses_bounded_readline_without_whole_body_read(
     assert raw.readline_sizes == [9, 9, 9]
 
 
+def test_stream_iteration_rejects_many_small_lines_over_cumulative_limit(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    raw = _FakeResponse(b"", lines=(b"1234", b"5678", b"9"))
+    _install_response(monkeypatch, raw)
+
+    with local_http.open_local_request(
+        Request("http://127.0.0.1:1234/v1/chat/completions"),
+        timeout=1.0,
+    ) as response:
+        stream = iter(response)
+        assert next(stream) == b"1234"
+        assert next(stream) == b"5678"
+        with pytest.raises(local_http.LocalResponseTooLargeError) as raised:
+            next(stream)
+
+    assert "1234" not in str(raised.value)
+    assert "5678" not in str(raised.value)
+    assert raw.readline_sizes == [9, 9, 9]
+
+
 def test_stream_iteration_rejects_oversize_line_without_leaking_content(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
