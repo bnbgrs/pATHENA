@@ -74,3 +74,19 @@ def test_settings_secondary_navigation_keyboard_selection_is_deterministic() -> 
         assert window.pages.currentIndex() == 6
     finally:
         window.close()
+
+
+def test_settings_secondary_navigation_install_is_idempotent() -> None:
+    _app()
+    window, _runtime_panel = _window_with_runtime_panel()
+    try:
+        first = install_settings_secondary_navigation(window)
+        second = install_settings_secondary_navigation(window)
+
+        assert second is first
+        settings_page = window.pages.widget(6)
+        assert settings_page is not None
+        assert len(settings_page.findChildren(QFrame, "settingsSecondaryContainer")) == 1
+        assert first.parent() is window
+    finally:
+        window.close()
