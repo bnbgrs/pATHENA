@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import hashlib
 import random
+from weakref import ReferenceType, ref
 
 from PySide6.QtCore import QEvent, QObject, Qt, QTimer
 from PySide6.QtGui import QColor, QFont, QPainter, QPen, QTextCharFormat, QTextCursor
 from PySide6.QtWidgets import QLabel, QLineEdit, QPlainTextEdit, QWidget
+from shiboken6 import isValid
 
 from athena.desktop.theme import ORANGE
 
@@ -144,7 +146,10 @@ class AsciiPanel(QPlainTextEdit):
         self._semantic_sample = ""
         self._generation = 0
         self._grid = _seed_grid(self._context)
+        self._semantic_root_ref: ReferenceType[QWidget] | None = None
+        self._semantic_root_revision = 0
         self._pallas_target: QWidget | None = None
+        self._pallas_target_revision = 0
 
         self._timer = QTimer(self)
         self._timer.setInterval(_TICK_MS)
@@ -153,6 +158,57 @@ class AsciiPanel(QPlainTextEdit):
         self._refresh_text_surface()
 
         QTimer.singleShot(0, self._bind_pallas_target)
+
+    def bind_semantic_root(self, root: QWidget | None) -> None:
+        """Bind PALLAS sampling and painting to one explicit top-level window.
+
+        ``AsciiPanel`` intentionally has no Qt parent in the legacy desktop shell, so
+        ``self.window()`` cannot identify the window that owns it. The shell must bind
+        its own top-level widget explicitly. A weak reference preserves independent
+        window lifecycles and prevents one PALLAS instance from sampling another.
+        """
+        if root is not None:
+            if not isValid(root):
+                raise ValueError("semantic root must be a live QWidget")
+            if root is self or root.window() is not root:
+                raise ValueError("semantic root must be an explicit top-level widget")
+
+        if root is self._semantic_root():
+            self._bind_pallas_target()
+            self._sync_semantic_context(force=True)
+            return
+
+        self._semantic_root_revision += 1
+        revision = self._semantic_root_revision
+        self._release_pallas_target()
+        self._semantic_root_ref = None if root is None else ref(root)
+
+        if root is not None:
+            panel_ref = ref(self)
+
+            def semantic_root_destroyed(_object: QObject | None = None) -> None:
+                panel = panel_ref()
+                if panel is not None and isValid(panel):
+                    panel._semantic_root_destroyed(revision)
+
+            root.destroyed.connect(semantic_root_destroyed)
+
+        self._semantic_signature = ""
+        self._semantic_sample = ""
+        self._bind_pallas_target()
+        self._sync_semantic_context(force=True)
+
+    def _semantic_root(self) -> QWidget | None:
+        root = None if self._semantic_root_ref is None else self._semantic_root_ref()
+        if root is None or not isValid(root):
+            return None
+        return root
+
+    def _semantic_root_destroyed(self, revision: int) -> None:
+        if revision != self._semantic_root_revision:
+            return
+        self._semantic_root_ref = None
+        self._release_pallas_target()
 
     def set_context(self, context: str) -> None:
         normalized = context.casefold().strip() or "idle"
@@ -203,8 +259,8 @@ class AsciiPanel(QPlainTextEdit):
         self._grid = _seed_grid(self._semantic_seed_context())
 
     def _semantic_snapshot(self) -> str:
-        root = self.window()
-        if root is self:
+        root = self._semantic_root()
+        if root is None:
             return self._context
 
         items: list[str] = []
@@ -241,35 +297,54 @@ class AsciiPanel(QPlainTextEdit):
         return " | ".join(items)
 
     def _bind_pallas_target(self) -> None:
-        root = self.window()
-        if root is self:
+        root = self._semantic_root()
+        if root is None:
+            self._release_pallas_target()
             return
 
         current = self._pallas_target
         if current is not None:
-            if current.window() is root:
+            if isValid(current) and current.window() is root:
                 return
-            current.removeEventFilter(self)
-            self._pallas_target = None
+            self._release_pallas_target()
 
         target = root.findChild(QWidget, "pallasVisualPlaceholder")
         if target is None or target.window() is not root:
             return
 
         self._pallas_target = target
+        self._pallas_target_revision += 1
+        revision = self._pallas_target_revision
         target.installEventFilter(self)
         target.setToolTip(
             "PALLAS — live local semantic field; reacts to visible workspace content"
         )
-        target.destroyed.connect(self._pallas_destroyed)
+        panel_ref = ref(self)
+
+        def pallas_target_destroyed(_object: QObject | None = None) -> None:
+            panel = panel_ref()
+            if panel is not None and isValid(panel):
+                panel._pallas_destroyed(revision)
+
+        target.destroyed.connect(pallas_target_destroyed)
         target.update()
 
-    def _pallas_destroyed(self, _object: QObject | None = None) -> None:
+    def _release_pallas_target(self) -> None:
+        target = self._pallas_target
+        self._pallas_target = None
+        self._pallas_target_revision += 1
+        if target is not None and isValid(target):
+            target.removeEventFilter(self)
+
+    def _pallas_destroyed(self, revision: int) -> None:
+        if revision != self._pallas_target_revision:
+            return
         self._pallas_target = None
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
         if watched is self._pallas_target and event.type() == QEvent.Type.Paint:
-            if isinstance(watched, QWidget) and watched.window() is self.window():
+            root = self._semantic_root()
+            if root is not None and isinstance(watched, QWidget) and watched.window() is root:
                 self._paint_pallas(watched)
                 return True
         return super().eventFilter(watched, event)

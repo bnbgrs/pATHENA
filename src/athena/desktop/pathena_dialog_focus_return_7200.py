@@ -8,7 +8,7 @@ established. Command actions that intentionally move focus therefore keep owners
 
 from __future__ import annotations
 
-from PySide6.QtCore import QEvent, QObject, QTimer, Qt
+from PySide6.QtCore import QEvent, QObject, Qt, QTimer
 from PySide6.QtWidgets import QApplication, QDialog, QWidget
 
 
@@ -21,8 +21,12 @@ class DialogFocusReturnController(QObject):
         self._previous: dict[QDialog, QWidget] = {}
         app = QApplication.instance()
         self.app = app if isinstance(app, QApplication) else None
+        self._filter_installed = False
         if self.app is not None:
             self.app.installEventFilter(self)
+            self._filter_installed = True
+        self._window_destroyed_cleanup = lambda *_args: self.dispose()
+        window.destroyed.connect(self._window_destroyed_cleanup)
         window.setProperty("pathenaDialogFocusReturnManaged", True)
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
@@ -60,12 +64,41 @@ class DialogFocusReturnController(QObject):
     def _restore_if_unclaimed(self, previous: QWidget) -> None:
         if not self._usable(previous):
             return
+        if self._has_visible_handoff(previous):
+            previous.setProperty("pathenaDialogFocusReturn", "deferred-to-child-dialog")
+            return
         current = QApplication.focusWidget()
         if current is not None and current is not previous and self._usable(current):
             previous.setProperty("pathenaDialogFocusReturn", "preserved-newer-focus")
             return
+        top_level = previous.window()
+        active_window = QApplication.activeWindow()
+        if active_window is not None and active_window is not top_level:
+            previous.setProperty("pathenaDialogFocusReturn", "preserved-newer-window")
+            return
+        if active_window is None:
+            top_level.activateWindow()
         previous.setFocus(Qt.FocusReason.OtherFocusReason)
         previous.setProperty("pathenaDialogFocusReturn", "restored")
+
+    def _has_visible_handoff(self, previous: QWidget) -> bool:
+        for dialog, inherited in self._previous.items():
+            try:
+                if inherited is previous and dialog.isVisible():
+                    return True
+            except RuntimeError:
+                continue
+        return False
+
+    def dispose(self) -> None:
+        """Detach the application filter before this controller is destroyed."""
+        if self._filter_installed and self.app is not None:
+            try:
+                self.app.removeEventFilter(self)
+            except RuntimeError:
+                pass
+        self._filter_installed = False
+        self._previous.clear()
 
     def _tracked_dialog_for(self, widget: QWidget) -> QDialog | None:
         current: QWidget | None = widget

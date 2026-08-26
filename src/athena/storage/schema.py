@@ -10,6 +10,9 @@ from athena.news.schema import (
     migrate_news_schema_v27_to_v28,
     migrate_news_schema_v29_to_v30,
 )
+from athena.storage.archive_replication_migration import (
+    migrate_schema_v30_to_v31_restart_safe as _migrate_schema_v30_to_v31,
+)
 from athena.storage.schema_contract import (
     ARCHIVE_REPLICATION_MIGRATION_ID as ARCHIVE_REPLICATION_MIGRATION_ID,
 )
@@ -362,9 +365,6 @@ from athena.storage.schema_evolution import (
     _migrate_schema_v28_to_v29 as _migrate_schema_v28_to_v29,
 )
 from athena.storage.schema_evolution import (
-    _migrate_schema_v30_to_v31 as _migrate_schema_v30_to_v31,
-)
-from athena.storage.schema_evolution import (
     _migrate_schema_v31_to_v32 as _migrate_schema_v31_to_v32,
 )
 from athena.storage.schema_evolution import (
@@ -568,7 +568,6 @@ def initialize_schema(connection: sqlite3.Connection, *, created_at_us: int) -> 
         )
 
     if existing_user_version == 0:
-        # Must be selected before schema objects are created for a new database.
         connection.execute("PRAGMA auto_vacuum = INCREMENTAL")
         connection.execute(f"PRAGMA application_id = {ATHENA_APPLICATION_ID}")
         _create_schema_v1(connection, created_at_us=created_at_us)
@@ -696,138 +695,69 @@ def initialize_schema(connection: sqlite3.Connection, *, created_at_us: int) -> 
 
     if existing_user_version == NEWS_OPERATIONAL_SCHEMA_VERSION:
         _migrate_schema_v28_to_v29(connection)
-        existing_user_version = (
-            PRECISE_RESEARCH_PROVENANCE_SCHEMA_VERSION
-        )
+        existing_user_version = PRECISE_RESEARCH_PROVENANCE_SCHEMA_VERSION
 
-    if (
-        existing_user_version
-        == PRECISE_RESEARCH_PROVENANCE_SCHEMA_VERSION
-    ):
+    if existing_user_version == PRECISE_RESEARCH_PROVENANCE_SCHEMA_VERSION:
         _verify_schema_v29(connection)
         migrate_news_schema_v29_to_v30(
             connection,
-            schema_version=(
-                NEWS_EVENT_ELIGIBILITY_SCHEMA_VERSION
-            ),
-            migration_id=(
-                NEWS_EVENT_ELIGIBILITY_MIGRATION_ID
-            ),
+            schema_version=NEWS_EVENT_ELIGIBILITY_SCHEMA_VERSION,
+            migration_id=NEWS_EVENT_ELIGIBILITY_MIGRATION_ID,
         )
-        existing_user_version = (
-            NEWS_EVENT_ELIGIBILITY_SCHEMA_VERSION
-        )
+        existing_user_version = NEWS_EVENT_ELIGIBILITY_SCHEMA_VERSION
 
-    if (
-        existing_user_version
-        == NEWS_EVENT_ELIGIBILITY_SCHEMA_VERSION
-    ):
+    if existing_user_version == NEWS_EVENT_ELIGIBILITY_SCHEMA_VERSION:
         _verify_schema_v30(connection)
         _migrate_schema_v30_to_v31(connection)
-        existing_user_version = (
-            ARCHIVE_REPLICATION_SCHEMA_VERSION
-        )
+        existing_user_version = ARCHIVE_REPLICATION_SCHEMA_VERSION
 
-    if (
-        existing_user_version
-        == ARCHIVE_REPLICATION_SCHEMA_VERSION
-    ):
+    if existing_user_version == ARCHIVE_REPLICATION_SCHEMA_VERSION:
         _verify_schema_v31(connection)
         _migrate_schema_v31_to_v32(connection)
-        existing_user_version = (
-            PROTECTED_CONTENT_SCHEMA_VERSION
-        )
+        existing_user_version = PROTECTED_CONTENT_SCHEMA_VERSION
 
-    if (
-        existing_user_version
-        == PROTECTED_CONTENT_SCHEMA_VERSION
-    ):
+    if existing_user_version == PROTECTED_CONTENT_SCHEMA_VERSION:
         _verify_schema_v32(connection)
         _migrate_schema_v32_to_v33(connection)
-        existing_user_version = (
-            PROTECTED_SOURCE_BLOB_SCHEMA_VERSION
-        )
+        existing_user_version = PROTECTED_SOURCE_BLOB_SCHEMA_VERSION
 
-    if (
-        existing_user_version
-        == PROTECTED_SOURCE_BLOB_SCHEMA_VERSION
-    ):
+    if existing_user_version == PROTECTED_SOURCE_BLOB_SCHEMA_VERSION:
         _verify_schema_v33(connection)
         _migrate_schema_v33_to_v34(connection)
-        existing_user_version = (
-            SOURCE_PROTECTION_TRANSITION_SCHEMA_VERSION
-        )
+        existing_user_version = SOURCE_PROTECTION_TRANSITION_SCHEMA_VERSION
 
-    if (
-        existing_user_version
-        == SOURCE_PROTECTION_TRANSITION_SCHEMA_VERSION
-    ):
+    if existing_user_version == SOURCE_PROTECTION_TRANSITION_SCHEMA_VERSION:
         _verify_schema_v34(connection)
         _migrate_schema_v34_to_v35(connection)
         existing_user_version = BACKUP_RETENTION_SCHEMA_VERSION
 
-    if (
-        existing_user_version
-        == BACKUP_RETENTION_SCHEMA_VERSION
-    ):
+    if existing_user_version == BACKUP_RETENTION_SCHEMA_VERSION:
         _verify_schema_v35(connection)
         _migrate_schema_v35_to_v36(connection)
         existing_user_version = DELETION_LEDGER_SCHEMA_VERSION
 
-    if (
-        existing_user_version
-        == DELETION_LEDGER_SCHEMA_VERSION
-    ):
+    if existing_user_version == DELETION_LEDGER_SCHEMA_VERSION:
         _verify_schema_v36(connection)
         _migrate_schema_v36_to_v37(connection)
-        existing_user_version = (
-            OPERATIONAL_ERROR_SANITIZATION_SCHEMA_VERSION
-        )
+        existing_user_version = OPERATIONAL_ERROR_SANITIZATION_SCHEMA_VERSION
 
-    if (
-        existing_user_version
-        == OPERATIONAL_ERROR_SANITIZATION_SCHEMA_VERSION
-    ):
+    if existing_user_version == OPERATIONAL_ERROR_SANITIZATION_SCHEMA_VERSION:
         _verify_schema_v37(connection)
         _migrate_schema_v37_to_v38(connection)
-        existing_user_version = (
-            OPERATIONAL_ERROR_PHYSICAL_CLEANUP_SCHEMA_VERSION
-        )
+        existing_user_version = OPERATIONAL_ERROR_PHYSICAL_CLEANUP_SCHEMA_VERSION
 
-    if (
-        existing_user_version
-        == OPERATIONAL_ERROR_PHYSICAL_CLEANUP_SCHEMA_VERSION
-    ):
+    if existing_user_version == OPERATIONAL_ERROR_PHYSICAL_CLEANUP_SCHEMA_VERSION:
         _verify_schema_v38(connection)
         _migrate_schema_v38_to_v39(connection)
-        existing_user_version = (
-            PROTECTED_SOURCE_SEMANTIC_SCHEMA_VERSION
-        )
+        existing_user_version = PROTECTED_SOURCE_SEMANTIC_SCHEMA_VERSION
 
-    if (
-        existing_user_version
-        == PROTECTED_SOURCE_SEMANTIC_SCHEMA_VERSION
-    ):
+    if existing_user_version == PROTECTED_SOURCE_SEMANTIC_SCHEMA_VERSION:
         _verify_schema_v39(connection)
         _migrate_schema_v39_to_v40(connection)
-        existing_user_version = (
-            GROUNDED_RESPONSE_RECEIPT_SCHEMA_VERSION
-        )
+        existing_user_version = GROUNDED_RESPONSE_RECEIPT_SCHEMA_VERSION
 
     _configure_connection(connection)
     _verify_schema_v40(connection)
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -910,18 +840,12 @@ def _checkpoint_wal_truncate_for_physical_cleanup(
         row = connection.execute(
             "PRAGMA wal_checkpoint(TRUNCATE)"
         ).fetchone()
-
     except sqlite3.OperationalError as exc:
         raise DatabaseCompatibilityError(
-            "SQLite WAL physical-cleanup checkpoint "
-            "could not run."
+            "SQLite WAL physical-cleanup checkpoint could not run."
         ) from exc
 
-    if (
-        row is None
-        or len(row) < 1
-        or int(row[0]) != 0
-    ):
+    if row is None or len(row) < 1 or int(row[0]) != 0:
         raise DatabaseCompatibilityError(
             "SQLite WAL physical-cleanup checkpoint is busy."
         )
@@ -933,126 +857,62 @@ def _physical_cleanup_operational_error_remnants(
     """Remove unreachable historical error bytes from SQLite storage."""
     if connection.in_transaction:
         raise RuntimeError(
-            "Operational-error physical cleanup "
-            "requires no active transaction."
+            "Operational-error physical cleanup requires no active transaction."
         )
 
-    # Do not switch a freshly created database into WAL here.
-    # A manual checkpoint immediately after that transition can be
-    # blocked by statements from the same startup connection.
-    journal_row = connection.execute(
-        "PRAGMA journal_mode"
-    ).fetchone()
-
+    journal_row = connection.execute("PRAGMA journal_mode").fetchone()
     if journal_row is None:
         raise DatabaseCompatibilityError(
             "SQLite journal mode could not be determined."
         )
 
-    journal_mode = str(
-        journal_row[0]
-    ).lower()
-
-    # Existing ATHENA databases are WAL. A database being created by
-    # this same initialize_schema() call is still in SQLite's default
-    # DELETE mode until normal connection configuration runs below.
-    if journal_mode not in {
-        "wal",
-        "delete",
-    }:
+    journal_mode = str(journal_row[0]).lower()
+    if journal_mode not in {"wal", "delete"}:
         raise DatabaseCompatibilityError(
             "ATHENA physical cleanup encountered "
             f"unsupported SQLite journal mode {journal_mode!r}."
         )
 
-    connection.execute(
-        "PRAGMA busy_timeout = 5000"
-    )
-
-    connection.execute(
-        "PRAGMA secure_delete = ON"
-    )
-
-    secure_delete_row = connection.execute(
-        "PRAGMA secure_delete"
-    ).fetchone()
-
-    if (
-        secure_delete_row is None
-        or int(secure_delete_row[0]) != 1
-    ):
+    connection.execute("PRAGMA busy_timeout = 5000")
+    connection.execute("PRAGMA secure_delete = ON")
+    secure_delete_row = connection.execute("PRAGMA secure_delete").fetchone()
+    if secure_delete_row is None or int(secure_delete_row[0]) != 1:
         raise DatabaseCompatibilityError(
             "SQLite secure_delete could not be enabled."
         )
 
-    # Existing ATHENA databases may still contain historical frames
-    # in their WAL. Fresh databases are still in DELETE mode and have
-    # no WAL to checkpoint.
     if journal_mode == "wal":
-        _checkpoint_wal_truncate_for_physical_cleanup(
-            connection
-        )
+        _checkpoint_wal_truncate_for_physical_cleanup(connection)
 
-    # VACUUM must run outside a transaction. With secure_delete
-    # enabled it rebuilds the main database using only reachable
-    # logical content.
-    connection.execute(
-        "VACUUM"
-    )
+    connection.execute("VACUUM")
 
-    # VACUUM in WAL mode may itself create WAL frames. Truncate them
-    # before declaring the physical cleanup complete.
     if journal_mode == "wal":
-        _checkpoint_wal_truncate_for_physical_cleanup(
-            connection
-        )
+        _checkpoint_wal_truncate_for_physical_cleanup(connection)
 
-    quick_check = tuple(
-        str(row[0])
-        for row in connection.execute(
-            "PRAGMA quick_check"
-        )
-    )
-
+    quick_check = tuple(str(row[0]) for row in connection.execute("PRAGMA quick_check"))
     if quick_check != ("ok",):
         raise DatabaseCompatibilityError(
             "ATHENA physical-cleanup integrity verification failed."
         )
 
-    if connection.execute(
-        "PRAGMA foreign_key_check"
-    ).fetchall():
+    if connection.execute("PRAGMA foreign_key_check").fetchall():
         raise DatabaseCompatibilityError(
             "ATHENA physical-cleanup foreign-key verification failed."
         )
 
 
-def _migrate_schema_v37_to_v38(
-    connection: sqlite3.Connection,
-) -> None:
+def _migrate_schema_v37_to_v38(connection: sqlite3.Connection) -> None:
     """Physically purge unreachable historical operational-error bytes."""
     if connection.in_transaction:
         raise RuntimeError(
-            "Operational-error physical-cleanup migration "
-            "requires no active transaction."
+            "Operational-error physical-cleanup migration requires no active transaction."
         )
 
-    _verify_schema_v37(
-        connection
-    )
-
-    # Crucially, perform the physical work before advancing durable
-    # schema metadata. A crash or failure before the final transaction
-    # leaves the database at v37 so startup retries the cleanup.
-    _physical_cleanup_operational_error_remnants(
-        connection
-    )
+    _verify_schema_v37(connection)
+    _physical_cleanup_operational_error_remnants(connection)
 
     try:
-        connection.execute(
-            "BEGIN IMMEDIATE"
-        )
-
+        connection.execute("BEGIN IMMEDIATE")
         connection.execute(
             """
             UPDATE schema_metadata
@@ -1067,16 +927,10 @@ def _migrate_schema_v37_to_v38(
                 OPERATIONAL_ERROR_PHYSICAL_CLEANUP_SCHEMA_VERSION,
             ),
         )
-
         connection.execute(
-            f"PRAGMA user_version = "
-            f"{OPERATIONAL_ERROR_PHYSICAL_CLEANUP_SCHEMA_VERSION}"
+            f"PRAGMA user_version = {OPERATIONAL_ERROR_PHYSICAL_CLEANUP_SCHEMA_VERSION}"
         )
-
-        connection.execute(
-            "COMMIT"
-        )
-
+        connection.execute("COMMIT")
     except BaseException:
         connection.rollback()
         raise
