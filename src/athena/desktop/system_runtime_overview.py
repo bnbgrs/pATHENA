@@ -92,7 +92,10 @@ def project_system_runtime(snapshot: DesktopApiSnapshot) -> SystemRuntimeOvervie
     if storage is None:
         details.append(
             "Storage telemetry: "
-            + (storage_error or "unavailable from the current desktop API snapshot.")
+            + (
+                storage_error
+                or "unavailable — the desktop API snapshot exposes no storage probe."
+            )
         )
     elif storage.detail:
         details.append("Storage: " + storage.detail)
@@ -114,8 +117,9 @@ def project_system_runtime(snapshot: DesktopApiSnapshot) -> SystemRuntimeOvervie
         provider_fact.state,
         models.state,
         chats.state,
-        storage_fact.state,
     )
+    if storage is not None:
+        states += (storage_fact.state,)
     overall = (
         "error"
         if "error" in states
