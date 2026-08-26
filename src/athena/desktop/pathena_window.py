@@ -106,7 +106,6 @@ class PathenaMainWindow(AthenaMainWindow):
 
         rail = self.findChild(QFrame, "rail")
         if rail is not None:
-            rail.setFixedWidth(SHELL.icon_rail_width)
             rail_layout = rail.layout()
             if rail_layout is not None:
                 rail_layout.setContentsMargins(8, 14, 8, 14)
@@ -195,9 +194,16 @@ class PathenaMainWindow(AthenaMainWindow):
         self._humanize_knowledge_review_panel()
 
     def _install_reference_shell(self) -> None:
-        """Wrap the real legacy body in reference top navigation without re-wiring pages."""
-        body = self.takeCentralWidget()
-        if body is None:
+        """Own the visible pATHENA shell while preserving real legacy-built widgets."""
+        legacy_body = self.takeCentralWidget()
+        if legacy_body is None:
+            return
+
+        legacy_rail = legacy_body.findChild(QFrame, "rail")
+        center = legacy_body.findChild(QFrame, "conversation")
+        inspector = legacy_body.findChild(QFrame, "inspector")
+        if center is None or inspector is None:
+            self.setCentralWidget(legacy_body)
             return
 
         shell = QWidget()
@@ -248,15 +254,46 @@ class PathenaMainWindow(AthenaMainWindow):
         local_status = QLabel("Local · Private")
         local_status.setObjectName("localPrivateStatus")
         top_layout.addWidget(local_status)
-
         shell_layout.addWidget(top_bar)
-        shell_layout.addWidget(body, 1)
-        self.setCentralWidget(shell)
 
-        inspector = body.findChild(QFrame, "inspector")
-        if inspector is not None:
-            inspector.setFixedWidth(SHELL.inspector_width)
-            inspector.show()
+        reference_body = QFrame()
+        reference_body.setObjectName("referenceBody")
+        body_layout = QHBoxLayout(reference_body)
+        body_layout.setContentsMargins(0, 0, 0, 0)
+        body_layout.setSpacing(0)
+
+        icon_rail = QFrame()
+        icon_rail.setObjectName("iconRail")
+        icon_rail.setAccessibleName("Primary navigation")
+        icon_rail.setFixedWidth(SHELL.icon_rail_width)
+        icon_layout = QVBoxLayout(icon_rail)
+        icon_layout.setContentsMargins(8, 14, 8, 14)
+        icon_layout.setSpacing(8)
+        self.navigation.setParent(icon_rail)
+        icon_layout.addWidget(self.navigation)
+        icon_layout.addStretch(1)
+
+        center.setParent(reference_body)
+        inspector.setParent(reference_body)
+        inspector.setFixedWidth(SHELL.inspector_width)
+        inspector.setAccessibleName("Inspector")
+        inspector.show()
+
+        body_layout.addWidget(icon_rail)
+        body_layout.addWidget(center, 1)
+        body_layout.addWidget(inspector)
+        shell_layout.addWidget(reference_body, 1)
+
+        # Keep legacy-owned status/model widgets alive for inherited controller updates,
+        # but remove their container from the visible pATHENA geometry entirely.
+        if legacy_rail is not None:
+            legacy_rail.hide()
+        legacy_body.setObjectName("legacyShellHost")
+        legacy_body.setParent(shell)
+        legacy_body.hide()
+        self._legacy_shell_host = legacy_body
+
+        self.setCentralWidget(shell)
 
     def _sync_reference_navigation(self, index: int) -> None:
         for button in getattr(self, "reference_top_nav_buttons", ()):
