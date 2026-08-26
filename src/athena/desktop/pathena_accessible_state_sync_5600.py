@@ -11,20 +11,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import cast
 
-from PySide6.QtCore import (
-    QDynamicPropertyChangeEvent,
-    QEvent,
-    QObject,
-    QTimer,
-    Qt,
-)
-from PySide6.QtWidgets import (
-    QLabel,
-    QListWidget,
-    QListWidgetItem,
-    QPlainTextEdit,
-    QWidget,
-)
+from PySide6.QtCore import QDynamicPropertyChangeEvent, QEvent, QObject, QTimer, Qt
+from PySide6.QtWidgets import QLabel, QListWidget, QListWidgetItem, QPlainTextEdit, QWidget
 
 
 @dataclass(frozen=True)
