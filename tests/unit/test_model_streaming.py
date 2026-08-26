@@ -38,7 +38,10 @@ def test_lm_studio_streams_openai_chat_completion_content() -> None:
     )
     provider = LMStudioProvider("http://127.0.0.1:1234")
 
-    with patch("athena.model.adapters.lm_studio.urlopen", return_value=response) as mocked:
+    with patch(
+        "athena.model.adapters.lm_studio.open_local_request",
+        return_value=response,
+    ) as mocked:
         chunks = tuple(
             provider.stream_chat(
                 model_id="example/model",
@@ -63,7 +66,10 @@ def test_lm_studio_requires_done_marker() -> None:
     )
     provider = LMStudioProvider("http://127.0.0.1:1234")
 
-    with patch("athena.model.adapters.lm_studio.urlopen", return_value=response):
+    with patch(
+        "athena.model.adapters.lm_studio.open_local_request",
+        return_value=response,
+    ):
         with pytest.raises(ProviderProtocolError, match="DONE"):
             tuple(
                 provider.stream_chat(
