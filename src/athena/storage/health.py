@@ -10,6 +10,7 @@ from athena.common.time import utc_now_us
 from athena.storage.database import DatabaseNotStartedError, SQLiteDatabase
 
 StorageHealthStatus = Literal["available", "unavailable", "error"]
+_ALLOWED_STORAGE_HEALTH_STATUSES = frozenset({"available", "unavailable", "error"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,6 +26,8 @@ class StorageHealthSnapshot:
     detail: str | None = None
 
     def __post_init__(self) -> None:
+        if self.status not in _ALLOWED_STORAGE_HEALTH_STATUSES:
+            raise ValueError("Storage health status is invalid.")
         if self.observed_at_us <= 0:
             raise ValueError("Storage health observation time must be positive.")
         if self.database_size_bytes is not None and self.database_size_bytes < 0:
