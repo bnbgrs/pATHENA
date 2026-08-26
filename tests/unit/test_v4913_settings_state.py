@@ -272,6 +272,7 @@ def test_asgi_projects_output_limit_without_internal_error(tmp_path) -> None:
     assert payload["code"] == "output_limit_reached"
     assert "not persisted" in str(payload["message"])
 
+
 def test_client_transports_explicit_inference_controls(tmp_path) -> None:
     client = _RecordingClient(tmp_path)
     client.send_chat_message(
@@ -297,12 +298,15 @@ def test_lm_studio_stream_chat_sends_temperature_and_native_thinking() -> None:
     provider = LMStudioProvider("http://127.0.0.1:1234")
     captured = {}
 
-    def fake_urlopen(request, timeout):
+    def fake_open_local_request(request, *, timeout):
         del timeout
         captured.update(json.loads(request.data.decode("utf-8")))
         return _Stream()
 
-    with patch("athena.model.adapters.lm_studio.urlopen", side_effect=fake_urlopen):
+    with patch(
+        "athena.model.adapters.lm_studio.open_local_request",
+        side_effect=fake_open_local_request,
+    ):
         chunks = tuple(
             provider.stream_chat(
                 model_id="loaded-llm",
