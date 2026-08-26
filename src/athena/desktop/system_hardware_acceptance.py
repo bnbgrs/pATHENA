@@ -237,7 +237,7 @@ class SystemHardwareAcceptancePanel(QFrame):
     def _handle_finished(self, exit_code: int, _exit_status: object) -> None:
         loaded = self.load_existing_report()
         if not loaded and self.status.text() != "INVALID":
-            output = self._process.readAllStandardOutput().data().decode(
+            output = bytes(self._process.readAllStandardOutput().data()).decode(
                 "utf-8", errors="replace"
             ).strip()
             clipped = output[-240:] if output else "no diagnostic output"
