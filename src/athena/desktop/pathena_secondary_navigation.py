@@ -139,9 +139,9 @@ def install_settings_secondary_navigation(
     window: PathenaMainWindow,
 ) -> SettingsSecondaryNavigation:
     """Install the reference section rail without inventing Settings capabilities."""
-    existing = window.property("pathenaSettingsSecondaryNavigation")
+    existing = getattr(window, "_pathena_settings_secondary_navigation", None)
     if isinstance(existing, SettingsSecondaryNavigation):
         return existing
     controller = SettingsSecondaryNavigation(window)
-    window.setProperty("pathenaSettingsSecondaryNavigation", controller)
+    window._pathena_settings_secondary_navigation = controller
     return controller
