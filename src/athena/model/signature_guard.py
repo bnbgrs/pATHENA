@@ -12,10 +12,17 @@ class ModelSignatureDriftError(ValueError):
 
 
 class PinnedModelSignature(Protocol):
-    provider: str
-    model_identifier: str
-    model_revision: str | None
-    quantization: str | None
+    @property
+    def provider(self) -> str: ...
+
+    @property
+    def model_identifier(self) -> str: ...
+
+    @property
+    def model_revision(self) -> str | None: ...
+
+    @property
+    def quantization(self) -> str | None: ...
 
 
 def assert_runtime_model_matches_signature(
