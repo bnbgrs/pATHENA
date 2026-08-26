@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - bot/pathena-repair-0017-0047-ci
   pull_request:
 
 permissions:
