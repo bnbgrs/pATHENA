@@ -172,7 +172,7 @@ def test_controlled_structured_recovers_after_cached_instance_unload(
 
     monkeypatch.setattr(
         lm_studio,
-        "urlopen",
+        "open_local_request",
         fake_urlopen,
     )
 
@@ -268,7 +268,7 @@ def test_controlled_structured_reacquires_when_cached_context_changed(
 
     monkeypatch.setattr(
         lm_studio,
-        "urlopen",
+        "open_local_request",
         fake_urlopen,
     )
 
@@ -334,7 +334,7 @@ def test_controlled_structured_does_not_retry_unrelated_cached_instance_error(
 
     monkeypatch.setattr(
         lm_studio,
-        "urlopen",
+        "open_local_request",
         fake_urlopen,
     )
 
@@ -389,7 +389,7 @@ def test_controlled_structured_preserves_error_when_lifecycle_probe_unavailable(
 
     monkeypatch.setattr(
         lm_studio,
-        "urlopen",
+        "open_local_request",
         fake_urlopen,
     )
 
@@ -444,7 +444,7 @@ def test_controlled_structured_context_limit_error_is_not_lifecycle_retried(
 
     monkeypatch.setattr(
         lm_studio,
-        "urlopen",
+        "open_local_request",
         fake_urlopen,
     )
 
