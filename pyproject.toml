@@ -36,7 +36,7 @@ athena-desktop = "athena.desktop.app:main"
 required-version = "==0.11.21"
 
 [tool.setuptools]
-package-dir = {"" = "src"]
+package-dir = {"" = "src"}
 
 [tool.setuptools.packages.find]
 where = ["src"]
