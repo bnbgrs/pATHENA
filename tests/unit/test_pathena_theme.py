@@ -92,6 +92,25 @@ def test_legacy_orange_primary_interactions_are_overridden_after_base_theme() ->
     )
 
 
+def test_all_legacy_orange_theme_boundaries_have_later_pathena_overrides() -> None:
+    cobalt_overrides = {
+        'QLabel[accent="true"]': f"color: {PALETTE.accent};",
+        "QLabel#objectId": f"color: {PALETTE.accent};",
+        "QProgressBar#jobProgress::chunk": f"background: {PALETTE.accent};",
+        "QSlider#contextSlider::sub-page:horizontal": f"background: {PALETTE.accent_soft};",
+        "QSlider#contextSlider::handle:horizontal": f"background: {PALETTE.accent};",
+        "QSlider#maxOutputSlider::sub-page:horizontal": f"background: {PALETTE.accent_soft};",
+        "QSlider#maxOutputSlider::handle:horizontal": f"background: {PALETTE.accent};",
+        "QCheckBox#thinkingToggle:checked": f"color: {PALETTE.accent};",
+        "QCheckBox#thinkingToggle::indicator:checked": f"background: {PALETTE.accent};",
+        "QPushButton#inspectorCopyButton:hover": f"color: {PALETTE.accent};",
+        "QPlainTextEdit#asciiPanel": f"selection-background-color: {PALETTE.accent_soft};",
+        "QLabel": f"selection-background-color: {PALETTE.accent_soft};",
+    }
+    for selector, declaration in cobalt_overrides.items():
+        _assert_later_override(selector, declaration)
+
+
 def test_job_header_stays_informational_instead_of_becoming_primary_accent() -> None:
     _assert_later_override(
         "QLabel#jobHeader",
