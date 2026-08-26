@@ -112,14 +112,14 @@ def project_system_runtime(snapshot: DesktopApiSnapshot) -> SystemRuntimeOvervie
     if len(details) == 3:
         details.insert(0, "Core, provider and storage snapshot data is current.")
 
-    states = (
+    states = [
         core_state,
         provider_fact.state,
         models.state,
         chats.state,
-    )
+    ]
     if storage is not None:
-        states += (storage_fact.state,)
+        states.append(storage_fact.state)
     overall = (
         "error"
         if "error" in states
