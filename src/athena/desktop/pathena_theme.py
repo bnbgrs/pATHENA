@@ -476,6 +476,52 @@ QPushButton#knowledgeMergeButton:hover {{
     border-color: {PALETTE.border_strong};
 }}
 
+/* Neutralize legacy orange that still enters through ATHENA_BASE_STYLESHEET. */
+QLabel[accent="true"],
+QLabel#objectId {{
+    color: {PALETTE.accent};
+}}
+
+QLabel#jobHeader {{
+    color: {PALETTE.text_subtle};
+}}
+
+QProgressBar#jobProgress::chunk {{
+    background: {PALETTE.accent};
+    border: none;
+}}
+
+QSlider#contextSlider::sub-page:horizontal,
+QSlider#maxOutputSlider::sub-page:horizontal {{
+    background: {PALETTE.accent_soft};
+}}
+
+QSlider#contextSlider::handle:horizontal,
+QSlider#maxOutputSlider::handle:horizontal {{
+    background: {PALETTE.accent};
+    border: none;
+}}
+
+QCheckBox#thinkingToggle:checked {{
+    color: {PALETTE.accent};
+}}
+
+QCheckBox#thinkingToggle::indicator:checked {{
+    background: {PALETTE.accent};
+    border-color: {PALETTE.accent};
+}}
+
+QPushButton#inspectorCopyButton:hover {{
+    color: {PALETTE.accent};
+    border-color: {PALETTE.border_strong};
+}}
+
+QPlainTextEdit#asciiPanel,
+QLabel {{
+    selection-background-color: {PALETTE.accent_soft};
+    selection-color: {PALETTE.text};
+}}
+
 QSplitter::handle {{
     background: {PALETTE.border};
 }}
