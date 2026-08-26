@@ -106,3 +106,26 @@ class SelectionLoadingController(QObject):
             return ""
         identity = item.data(Qt.ItemDataRole.UserRole)
         return str(identity) if identity is not None else item.text()
+
+
+def apply_ui_refinements_5301_5400(window: QWidget) -> tuple[int, ...]:
+    """Install selection-to-detail state mirroring on existing list/detail pairs."""
+    controller = SelectionLoadingController(window)
+    applied: list[int] = []
+
+    for index, pair in enumerate(_PAIRS):
+        listing = window.findChild(QListWidget, pair.list_name)
+        detail = window.findChild(QWidget, pair.detail_name)
+        if listing is None or detail is None:
+            continue
+        controller.register(listing, detail, pair.label)
+        start = 5301 + index * 14
+        applied.extend(range(start, min(start + 14, 5401)))
+
+    if _SELECTION_STYLESHEET not in window.styleSheet():
+        window.setStyleSheet(window.styleSheet() + _SELECTION_STYLESHEET)
+
+    window.setProperty("pathenaSelectionLoadingController", controller)
+    window.setProperty("pathenaSelectionLoadingBindingCount", len(controller._pairs))
+    window.setProperty("pathenaSelectionLoadingTaskCount", len(applied))
+    return tuple(applied)
