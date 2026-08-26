@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
 
 from athena.api.contracts import ChatThreadResponse, GroundedChatResponse
 from athena.desktop.api_controller import DesktopApiController, DesktopApiSnapshot
-from athena.desktop.pathena_design_tokens import SHELL
+from athena.desktop.pathena_design_tokens import PALETTE, SHELL
 from athena.desktop.window import AthenaMainWindow, MetricRow
 
 _DISPLAY_NAVIGATION = (
@@ -155,6 +155,15 @@ class PathenaMainWindow(AthenaMainWindow):
 
         self.navigation.setFixedWidth(60)
         self.navigation.setFixedHeight(min(360, self.navigation.count() * 48))
+        self.navigation.setStyleSheet(
+            f"""
+            QListWidget#navigation::item:selected {{
+                color: {PALETTE.text};
+                background: {PALETTE.surface_selected};
+                border-left: 2px solid {PALETTE.accent};
+            }}
+            """
+        )
         self.page_title.setObjectName("pageTitle")
         current_page = self.navigation.currentRow()
         if 0 <= current_page < len(_DISPLAY_NAVIGATION):
