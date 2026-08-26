@@ -34,7 +34,8 @@ class HardwareAcceptanceError(RuntimeError):
 
 
 class _AcceptanceProvider(Protocol):
-    base_url: str
+    @property
+    def base_url(self) -> str: ...
 
     def discover_models(self) -> tuple[ModelInfo, ...]: ...
 
