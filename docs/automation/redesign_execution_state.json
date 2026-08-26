@@ -2,7 +2,7 @@
   "schema_version": 1,
   "authority": "docs/automation/redesign_visual_spec.md",
   "candidate_sha_observed": "0b59a3e0e31f3a497586333c2a32c090d475f415",
-  "updated_at": "2026-08-26T00:25:00Z",
+  "updated_at": "2026-08-26T00:32:00Z",
   "pixel_reference_access": "REFERENCE_IMAGES_UNAVAILABLE",
   "global_status": "STRUCTURAL_FOUNDATION_TEXT_SPEC_CONFORMING / WORKSPACE_CHAT_TEXT_SPEC_CONFORMING / SYSTEM_TEXT_SPEC_CONFORMING / SCREEN_COMPOSITION_OPEN / VISUAL_REVIEW_REQUIRED",
   "text_spec_conforming": false,
@@ -23,7 +23,7 @@
     "capture_pass_meaning": "Renderability/regression stability only; candidate-derived baselines are not design references.",
     "system_findings": [
       "SYSTEM no longer uses the legacy metrics-card grid.",
-      "Current candidate provides major Local runtime / Knowledge storage / Connectivity / Background work rows, an explicit SYSTEM subnavigation, Recent Events and a Security Posture panel.",
+      "Current candidate provides major Local runtime / Knowledge storage / Connectivity / Background work rows, an explicit 218px SYSTEM subnavigation, Recent Events and a Security Posture panel.",
       "Unavailable telemetry is projected explicitly instead of synthesizing metrics.",
       "Original pixels remain unavailable, therefore MATCH is forbidden and SYSTEM remains VISUAL_REVIEW_REQUIRED."
     ],
@@ -39,7 +39,9 @@
     ],
     "current_ci": [
       "Promotion Readiness run 32914511192 on exact candidate 0b59a3e completed SUCCESS.",
-      "Canonical Quality run 32914514726 on exact candidate 0b59a3e is currently in progress; do not promote until its result is known."
+      "Canonical Quality run 32914514726 on exact candidate 0b59a3e completed FAILURE.",
+      "The failing job reached only the top-level Run ATHENA quality gate step; the currently accessible structured evidence does not expose a trustworthy inner Ruff/Mypy/Pytest root cause, so no product cause is inferred.",
+      "QA must isolate the exact inner quality failure on 0b59a3e before promotion or unrelated product mutation is used as a fix."
     ]
   },
   "reclassified_matrix": [
@@ -88,9 +90,9 @@
   "backend_handoff": {
     "task_id":"TASK-0047",
     "owner":"PATHENA-BACKEND",
-    "status":"CLAIMED",
+    "status":"CLAIMED_STALE_HEARTBEAT_REVIEW_REQUIRED",
     "title":"Expose read-only Storage health telemetry through Core API and DesktopApiSnapshot",
-    "observed":"Storage health validation exists, but DesktopApiSnapshot does not yet expose the field on candidate 0b59a3e.",
+    "observed":"Storage health validation exists, but DesktopApiSnapshot does not yet expose the field on candidate 0b59a3e. The ledger heartbeat predates the current candidate by several hours, so ownership must be refreshed or explicitly handed off before takeover.",
     "ui_rule":"SYSTEM keeps truthful unavailable state until the handoff lands; geometry remains reference-compliant rather than reverting to cards."
   },
   "qa_directive": {
@@ -98,15 +100,15 @@
     "forbidden_without_pixels":"MATCH",
     "allowed_without_pixels":"TEXT_SPEC_CONFORMING",
     "capture_pass_is_only":"RENDERABLE",
-    "next_action":"Finish Canonical Quality on exact candidate 0b59a3e; then validate Secondary Navigation/Settings in deterministic order."
+    "next_action":"Isolate Canonical Quality run 32914514726 failure on exact candidate 0b59a3e without guessing; then validate Secondary Navigation/Settings in deterministic order."
   },
   "release": {
     "promotion_ready": false,
     "rc_stabilization_reached": false,
     "promotion_guard":"SUCCESS on 0b59a3e",
-    "canonical_quality":"IN_PROGRESS on 0b59a3e",
+    "canonical_quality":"FAILURE on 0b59a3e; inner root cause not yet trustworthy from available structured evidence",
     "full_windows":"SUCCESS on e3abb0d after the latest runtime transport change; no repeat currently required for the subsequent storage-health-only delta",
-    "blockers":["Secondary Navigation and remaining screen-specific compositions are not yet TEXT_SPEC_CONFORMING","PALLAS core target is still open","No original-pixel acceptance exists","Canonical Quality on current candidate is not yet complete","Backend TASK-0047 remains an open data handoff"]
+    "blockers":["Canonical Quality on current candidate is RED and requires exact root-cause isolation","Secondary Navigation and remaining screen-specific compositions are not yet TEXT_SPEC_CONFORMING","PALLAS core target is still open","No original-pixel acceptance exists","Backend TASK-0047 remains an open/stale data handoff"]
   },
-  "next_lead_slice":"Consume the current Quality result and UI handoff; integrate shared Secondary Navigation next, then Settings and Help in deterministic order. Keep PALLAS core explicitly scheduled for its turn and do not freeze it."
+  "next_lead_slice":"Consume QA root-cause evidence for Quality 32914514726 and UI Secondary Navigation handoff. Integrate Secondary Navigation next, then Settings and Help in deterministic order. Refresh or explicitly requeue stale TASK-0047 ownership without stealing it silently. Keep PALLAS core scheduled and unfrozen."
 }
