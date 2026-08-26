@@ -11,6 +11,7 @@ from scripts.compare_pathena_ui_snapshots import (
     compare_bundle,
     write_baseline_bundle,
 )
+from scripts.render_pathena_ui_snapshot import WORKSPACE_SURFACE_LABELS, _safe_name
 
 
 def _write_png(path: Path, *, value: int, changed_pixel: tuple[int, int] | None = None) -> None:
@@ -34,6 +35,21 @@ def _capture_set(root: Path, *, changed_surface: str | None = None) -> None:
     for index, name in enumerate(EXPECTED_SURFACES):
         changed = (0, 0) if name == changed_surface else None
         _write_png(root / name, value=20 + index, changed_pixel=changed)
+
+
+def test_renderer_workspace_names_match_comparator_contract() -> None:
+    workspace_names = tuple(
+        f"{ordinal:02d}-{_safe_name(label)}.png"
+        for ordinal, label in enumerate(WORKSPACE_SURFACE_LABELS, start=1)
+    )
+    renderer_names = workspace_names + (
+        "08-pallas.png",
+        "09-command-palette.png",
+        "10-help.png",
+        "11-comfyui.png",
+    )
+
+    assert renderer_names == EXPECTED_SURFACES
 
 
 def test_identical_baseline_passes(tmp_path: Path) -> None:
