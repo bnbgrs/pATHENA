@@ -1,13 +1,10 @@
 from __future__ import annotations
 
-import hashlib
 import io
 import os
 import re
-import sqlite3
 import subprocess
 import sys
-import uuid
 import zipfile
 from pathlib import Path
 
@@ -97,93 +94,7 @@ def test_docx_scheduler_builds_structure_chunks_search_and_table_anchor(tmp_path
     )
     assert scheduled.returncode == 0, scheduled.stderr
     assert f"Job: {job_id}" in scheduled.stdout
-    if "State: completed" not in scheduled.stdout:
-        with sqlite3.connect(local_root / "state" / "athena.db") as connection:
-            row = connection.execute(
-                "SELECT state, current_stage, blocked_reason FROM jobs WHERE job_id = ?",
-                (uuid.UUID(job_id).bytes,),
-            ).fetchone()
-            run_row = connection.execute(
-                """
-                SELECT processing_run_id, run_type, status, error_detail
-                FROM processing_runs
-                WHERE run_type = 'source_chunk_build'
-                ORDER BY started_at_us DESC
-                LIMIT 1
-                """
-            ).fetchone()
-            representation_row = connection.execute(
-                """
-                SELECT representation_id, content_hash
-                FROM source_representations
-                WHERE source_id = ?
-                ORDER BY created_at_us DESC
-                LIMIT 1
-                """,
-                (uuid.UUID(source_id).bytes,),
-            ).fetchone()
-            profile_rows = connection.execute(
-                """
-                SELECT chunking_profile_id, configuration_hash
-                FROM chunking_profiles
-                WHERE algorithm = 'document_structure_char_v1'
-                ORDER BY created_at_us
-                """
-            ).fetchall()
-        search_db = next(local_root.rglob("search.db"))
-        with sqlite3.connect(search_db) as derived:
-            derived.row_factory = sqlite3.Row
-            build_rows = derived.execute(
-                """
-                SELECT representation_id, chunking_profile_id, build_signature,
-                       processing_run_id
-                FROM source_chunk_builds
-                """
-            ).fetchall()
-            chunk_rows = derived.execute(
-                """
-                SELECT chunk_index, start_anchor_value, end_anchor_value,
-                       content_hash, processing_run_id, build_signature, chunk_text
-                FROM source_chunks
-                ORDER BY chunk_index
-                """
-            ).fetchall()
-        digest = hashlib.sha256()
-        for chunk_row in chunk_rows:
-            digest.update(str(chunk_row["chunk_text"]).encode("utf-8"))
-        representation_hash = (
-            bytes(representation_row[1]).hex() if representation_row is not None else None
-        )
-        build_summary = [
-            (
-                bytes(build["representation_id"]).hex(),
-                bytes(build["chunking_profile_id"]).hex(),
-                bytes(build["build_signature"]).hex(),
-                bytes(build["processing_run_id"]).hex(),
-            )
-            for build in build_rows
-        ]
-        chunk_summary = [
-            (
-                int(chunk["chunk_index"]),
-                int(chunk["start_anchor_value"]),
-                int(chunk["end_anchor_value"]),
-                bytes(chunk["content_hash"]).hex(),
-                bytes(chunk["processing_run_id"]).hex(),
-                bytes(chunk["build_signature"]).hex(),
-                len(str(chunk["chunk_text"])),
-            )
-            for chunk in chunk_rows
-        ]
-        profile_summary = [
-            (bytes(profile[0]).hex(), bytes(profile[1]).hex()) for profile in profile_rows
-        ]
-        raise AssertionError(
-            f"scheduler stdout={scheduled.stdout!r}; stderr={scheduled.stderr!r}; "
-            f"job_row={row!r}; chunk_run={run_row!r}; "
-            f"representation_hash={representation_hash!r}; chunk_digest={digest.hexdigest()!r}; "
-            f"profiles={profile_summary!r}; builds={build_summary!r}; chunks={chunk_summary!r}"
-        )
+    assert "State: completed" in scheduled.stdout
 
     representations = _run_cli(local_root, "source", "representation-list", source_id)
     assert representations.returncode == 0, representations.stderr
