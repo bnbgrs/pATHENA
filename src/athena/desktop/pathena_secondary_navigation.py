@@ -139,10 +139,17 @@ class SettingsSecondaryNavigation(QObject):
 def install_settings_secondary_navigation(
     window: PathenaMainWindow,
 ) -> SettingsSecondaryNavigation:
-    """Install the reference section rail without inventing Settings capabilities."""
-    existing = window.property("pathenaSettingsSecondaryNavigation")
+    """Install the reference section rail once without inventing Settings capabilities."""
+    existing = getattr(window, "_pathena_settings_secondary_navigation", None)
     if isinstance(existing, SettingsSecondaryNavigation):
         return existing
+
+    dynamic_existing = window.property("pathenaSettingsSecondaryNavigation")
+    if isinstance(dynamic_existing, SettingsSecondaryNavigation):
+        setattr(window, "_pathena_settings_secondary_navigation", dynamic_existing)
+        return dynamic_existing
+
     controller = SettingsSecondaryNavigation(window)
+    setattr(window, "_pathena_settings_secondary_navigation", controller)
     window.setProperty("pathenaSettingsSecondaryNavigation", controller)
     return controller
