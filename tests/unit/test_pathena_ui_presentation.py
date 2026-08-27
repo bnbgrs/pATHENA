@@ -142,7 +142,7 @@ def test_pathena_removes_redundant_shell_chrome_and_fake_status_marker() -> None
         breadcrumb = window.findChild(QLabel, "breadcrumb")
         assert breadcrumb is not None
         assert breadcrumb.isHidden()
-        assert window.page_title.text() == "Chat"
+        assert window.page_title.text() == "Workspace"
         assert window.status_text.text() == "Connecting…"
 
         rail = window.findChild(QFrame, "rail")
