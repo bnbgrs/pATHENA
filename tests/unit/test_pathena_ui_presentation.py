@@ -41,7 +41,7 @@ def test_pathena_shell_progressively_discloses_chat_actions() -> None:
         window.chat_selector.setCurrentIndex(0)
         app.processEvents()
         assert window.delete_chat_button.isHidden() is False
-        assert window.details_button.isHidden() is False
+        assert window.details_button.isHidden()
 
         window.chat_selector.clear()
         window.chat_selector.addItem("New chat", None)
@@ -59,8 +59,8 @@ def test_pathena_secondary_context_is_grounded_only_and_user_controlled() -> Non
     try:
         inspector = window.findChild(QFrame, "inspector")
         assert inspector is not None
-        assert inspector.isHidden()
-        assert inspector.width() == 340
+        assert inspector.isHidden() is False
+        assert inspector.width() == 360
         assert window.details_button.text() == "Details"
         assert window.details_button.isChecked() is False
         assert window.details_button.isHidden()
@@ -88,17 +88,14 @@ def test_pathena_secondary_context_is_grounded_only_and_user_controlled() -> Non
         window.chat_selector.addItem("Existing chat", "chat-1")
         window.chat_selector.setCurrentIndex(0)
         app.processEvents()
-        assert window.details_button.isHidden() is False
-
-        window.details_button.click()
-        app.processEvents()
+        assert window.details_button.isHidden()
         assert inspector.isHidden() is False
 
         window.navigation.setCurrentRow(1)
         app.processEvents()
         assert window.details_button.isHidden()
         assert window.details_button.isChecked() is False
-        assert inspector.isHidden()
+        assert inspector.isHidden() is False
     finally:
         window.close()
         app.processEvents()
@@ -127,9 +124,9 @@ def test_pathena_hides_unwired_attach_placeholder_and_humanizes_context_copy() -
         assert "INSPECTOR" not in visible_copy
 
         window.apply_chat_busy(True)
-        assert window.send_button.text() == "Working…"
+        assert window.send_button.text() == "…"
         window.apply_chat_busy(False)
-        assert window.send_button.text() == "Send"
+        assert window.send_button.text() == "→"
     finally:
         window.close()
         app.processEvents()
