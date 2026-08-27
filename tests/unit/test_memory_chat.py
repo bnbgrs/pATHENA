@@ -11,6 +11,7 @@ from athena.chat.generation import ChatGenerationResult
 from athena.chat.grounding import GroundingContract
 from athena.chat.memory import MemoryAugmentedChatService
 from athena.chat.models import ChatMessage, ChatThread, MessageType
+from athena.knowledge.models import EpistemicStatus
 from athena.memory.models import (
     MemoryKind,
     MemoryLearningMode,
@@ -95,6 +96,27 @@ class FakeHybrid:
 
 
 class FakeEvidencePolicy:
+    @staticmethod
+    def _classification(item: HybridSearchResult) -> MemoryEvidenceClassification:
+        if item.entity_type in {SearchEntityType.KNOWLEDGE, SearchEntityType.CLAIM}:
+            return MemoryEvidenceClassification(
+                entity_id=item.entity_id,
+                revision_id=item.revision_id,
+                entity_type=item.entity_type,
+                evidence_class=EvidenceClass.CANONICAL,
+                message_type=None,
+                epistemic_status=EpistemicStatus.ASSERTED,
+            )
+        if item.entity_type is SearchEntityType.CHAT_MESSAGE:
+            return MemoryEvidenceClassification(
+                entity_id=item.entity_id,
+                revision_id=item.revision_id,
+                entity_type=item.entity_type,
+                evidence_class=EvidenceClass.CONVERSATION_RECORD,
+                message_type="assistant",
+            )
+        raise AssertionError(f"Unexpected fake evidence entity type: {item.entity_type.value}")
+
     def classify(
         self,
         results: tuple[HybridSearchResult, ...],
@@ -102,16 +124,7 @@ class FakeEvidencePolicy:
         return MemoryEvidenceSelection(
             policy_id="typed-provenance-v1",
             results=results,
-            classifications=tuple(
-                MemoryEvidenceClassification(
-                    entity_id=item.entity_id,
-                    revision_id=item.revision_id,
-                    entity_type=item.entity_type,
-                    evidence_class=EvidenceClass.CANONICAL,
-                    message_type=None,
-                )
-                for item in results
-            ),
+            classifications=tuple(self._classification(item) for item in results),
         )
 
 

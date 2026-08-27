@@ -31,6 +31,7 @@ from athena.retrieval.evidence import (
     MemoryEvidenceClassification,
     MemoryEvidenceSelection,
 )
+from athena.retrieval.hybrid import HybridSearchResult
 from athena.retrieval.search import SearchEntityType
 
 CHAT_ID = uuid.UUID("11111111-1111-1111-1111-111111111111")
@@ -212,7 +213,21 @@ class _Unified:
         )
         selection = MemoryEvidenceSelection(
             policy_id="typed-provenance-v1",
-            results=(),
+            results=(
+                HybridSearchResult(
+                    entity_id=KNOWLEDGE_ID,
+                    revision_id=KNOWLEDGE_REVISION_ID,
+                    entity_type=SearchEntityType.KNOWLEDGE,
+                    title="Stored capital",
+                    text="Berlin ist die Hauptstadt Deutschlands.",
+                    score=1.0,
+                    lexical_score=1.0,
+                    semantic_score=1.0,
+                    authority_score=1.0,
+                    contradiction_count=0,
+                    duplicate_count=0,
+                ),
+            ),
             classifications=(
                 MemoryEvidenceClassification(
                     entity_id=KNOWLEDGE_ID,
