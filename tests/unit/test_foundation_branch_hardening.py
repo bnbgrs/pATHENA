@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import uuid
-from dataclasses import dataclass, replace
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
@@ -553,15 +553,16 @@ def test_context_package_sections_reject_inconsistent_candidate_counts() -> None
         )
 
 
-@dataclass
-class _MutatingEmbeddingProvider:
-    callback: object
-    mutated: bool = False
+class _MutatingEmbeddingProvider(LMStudioEmbeddingProvider):
+    def __init__(self, *, callback: object) -> None:
+        super().__init__(LMStudioProvider("http://127.0.0.1:1234"))
+        object.__setattr__(self, "callback", callback)
+        object.__setattr__(self, "mutated", False)
 
     def embed(self, *, model_id: str, texts):
         del model_id
         if not self.mutated:
-            self.mutated = True
+            object.__setattr__(self, "mutated", True)
             callback = self.callback
             assert callable(callback)
             callback()
@@ -596,7 +597,7 @@ def test_semantic_rebuild_rejects_canonical_change_during_embedding_call(
             )
             semantic = LocalSemanticSearchService(
                 app.database,
-                provider,  # type: ignore[arg-type]
+                provider,
                 batch_size=100,
             )
 
@@ -614,9 +615,10 @@ def test_semantic_rebuild_rejects_canonical_change_during_embedding_call(
         database.stop()
 
 
-@dataclass
-class _RecordingEmbeddingProvider:
-    inputs: list[tuple[str, ...]]
+class _RecordingEmbeddingProvider(LMStudioEmbeddingProvider):
+    def __init__(self, *, inputs: list[tuple[str, ...]]) -> None:
+        super().__init__(LMStudioProvider("http://127.0.0.1:1234"))
+        object.__setattr__(self, "inputs", inputs)
 
     def embed(self, *, model_id: str, texts):
         del model_id
@@ -645,7 +647,7 @@ def test_semantic_rebuild_retries_if_canonical_changes_before_snapshot_lock(
         provider = _RecordingEmbeddingProvider(inputs=[])
         semantic = LocalSemanticSearchService(
             app.database,
-            provider,  # type: ignore[arg-type]
+            provider,
             batch_size=100,
         )
         original_ensure = semantic._ensure_fts_current
