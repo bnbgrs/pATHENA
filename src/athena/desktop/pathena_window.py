@@ -52,6 +52,11 @@ def _message_time(created_at_us: int) -> str:
         return "—"
 
 
+def _take_central_widget(window: AthenaMainWindow) -> QWidget | None:
+    """Preserve Qt's nullable runtime boundary despite stricter PySide stubs."""
+    return window.takeCentralWidget()
+
+
 def _humanize_review_heading(text: str) -> str:
     """Translate proposal codes into compact readable review headings."""
     if text.startswith("RUN "):
@@ -204,7 +209,7 @@ class PathenaMainWindow(AthenaMainWindow):
 
     def _install_reference_shell(self) -> None:
         """Own the visible pATHENA shell while preserving real legacy-built widgets."""
-        legacy_body = self.takeCentralWidget()
+        legacy_body = _take_central_widget(self)
         if legacy_body is None:
             return
 
