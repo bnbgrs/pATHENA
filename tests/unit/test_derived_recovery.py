@@ -3,7 +3,6 @@ from __future__ import annotations
 import subprocess
 import sys
 import uuid
-from dataclasses import dataclass
 from pathlib import Path
 
 import pytest
@@ -16,14 +15,17 @@ from athena.core.derived_recovery import (
     DerivedRecoveryService,
 )
 from athena.knowledge.models import KnowledgeKind
+from athena.model.adapters.lm_studio import LMStudioProvider
+from athena.model.adapters.lm_studio_embeddings import LMStudioEmbeddingProvider
 from athena.retrieval.archive import ArchiveSemanticSearchService
 from athena.retrieval.semantic import LocalSemanticSearchService
 from athena.storage.database import SQLiteDatabase
 
 
-@dataclass
-class _FakeEmbeddingProvider:
-    calls: int = 0
+class _FakeEmbeddingProvider(LMStudioEmbeddingProvider):
+    def __init__(self) -> None:
+        super().__init__(LMStudioProvider("http://127.0.0.1:1234"))
+        object.__setattr__(self, "calls", 0)
 
     def embed(
         self,
@@ -32,7 +34,7 @@ class _FakeEmbeddingProvider:
         texts,
     ):
         del model_id
-        self.calls += 1
+        object.__setattr__(self, "calls", self.calls + 1)
 
         return tuple(
             (
