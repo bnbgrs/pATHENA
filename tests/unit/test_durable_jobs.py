@@ -83,7 +83,13 @@ def test_job_type_registry_and_json_fail_closed(tmp_path) -> None:
 def test_lease_checkpoint_and_completion_are_durable_and_fenced(tmp_path) -> None:
     app = _app(tmp_path)
     job = app.jobs.create(job_type="source.process", **_source_process_payload())
-    leased = app.jobs.acquire(job.job_id, worker_id="worker-a", lease_seconds=60, now_us=100)
+    now_us = job.created_at_us + 100
+    leased = app.jobs.acquire(
+        job.job_id,
+        worker_id="worker-a",
+        lease_seconds=60,
+        now_us=now_us,
+    )
     assert leased.state is JobState.RUNNING
     assert leased.lease_token is not None
     assert leased.fencing_sequence == 1
@@ -95,7 +101,7 @@ def test_lease_checkpoint_and_completion_are_durable_and_fenced(tmp_path) -> Non
         progress_state={"completed_units": 3},
         last_confirmed_input={"source_id": "source-1"},
         resume_metadata={"next_unit": 4},
-        now_us=101,
+        now_us=now_us + 1,
     )
     assert checkpoint.fencing_sequence == 1
     assert checkpoint.progress_state_json == '{"completed_units":3}'
@@ -104,13 +110,13 @@ def test_lease_checkpoint_and_completion_are_durable_and_fenced(tmp_path) -> Non
     completed = app.jobs.complete(
         job.job_id,
         lease_token=leased.lease_token,
-        now_us=102,
+        now_us=now_us + 2,
     )
     assert completed.state is JobState.COMPLETED
     assert completed.lease_token is None
 
     with pytest.raises(JobTransitionError):
-        app.jobs.acquire(job.job_id, worker_id="worker-b", now_us=103)
+        app.jobs.acquire(job.job_id, worker_id="worker-b", now_us=now_us + 3)
 
     app.stop()
 
@@ -118,36 +124,38 @@ def test_lease_checkpoint_and_completion_are_durable_and_fenced(tmp_path) -> Non
 def test_heartbeat_clamps_backward_clock_and_never_shortens_lease(tmp_path) -> None:
     app = _app(tmp_path)
     job = app.jobs.create(job_type="source.process", **_source_process_payload())
+    lease_now_us = job.created_at_us + 2_000_000
     leased = app.jobs.acquire(
         job.job_id,
         worker_id="worker-a",
         lease_seconds=60,
-        now_us=2_000_000,
+        now_us=lease_now_us,
     )
     assert leased.lease_token is not None
-    assert leased.lease_acquired_at_us == 2_000_000
-    assert leased.lease_expires_at_us == 62_000_000
+    assert leased.lease_acquired_at_us == lease_now_us
+    assert leased.lease_expires_at_us == lease_now_us + 60_000_000
 
     heartbeat = app.jobs.heartbeat(
         job.job_id,
         lease_token=leased.lease_token,
         extend_seconds=10,
-        now_us=1_000_000,
+        now_us=lease_now_us - 1_000_000,
     )
 
-    assert heartbeat.heartbeat_at_us == 2_000_000
-    assert heartbeat.lease_expires_at_us == 62_000_000
+    assert heartbeat.heartbeat_at_us == lease_now_us
+    assert heartbeat.lease_expires_at_us == lease_now_us + 60_000_000
     app.stop()
 
 
 def test_checkpoint_listing_preserves_commit_order_when_timestamps_tie(tmp_path) -> None:
     app = _app(tmp_path)
     job = app.jobs.create(job_type="source.process", **_source_process_payload())
+    lease_now_us = job.created_at_us + 1_000_000
     leased = app.jobs.acquire(
         job.job_id,
         worker_id="worker-a",
         lease_seconds=60,
-        now_us=1_000_000,
+        now_us=lease_now_us,
     )
     assert leased.lease_token is not None
 
@@ -156,14 +164,14 @@ def test_checkpoint_listing_preserves_commit_order_when_timestamps_tie(tmp_path)
         lease_token=leased.lease_token,
         current_stage="first",
         resume_metadata={"next_stage": "first"},
-        now_us=1_000_001,
+        now_us=lease_now_us + 1,
     )
     second = app.jobs.checkpoint(
         job.job_id,
         lease_token=leased.lease_token,
         current_stage="second",
         resume_metadata={"next_stage": "second"},
-        now_us=1_000_001,
+        now_us=lease_now_us + 1,
     )
 
     checkpoints = app.jobs.checkpoints(job.job_id)
@@ -171,22 +179,26 @@ def test_checkpoint_listing_preserves_commit_order_when_timestamps_tie(tmp_path)
         first.checkpoint_id,
         second.checkpoint_id,
     ]
-    assert [item.created_at_us for item in checkpoints] == [1_000_001, 1_000_002]
+    assert [item.created_at_us for item in checkpoints] == [
+        lease_now_us + 1,
+        lease_now_us + 2,
+    ]
     app.stop()
 
 
 def test_expired_lease_recovery_requeues_and_rejects_zombie_worker(tmp_path) -> None:
     app = _app(tmp_path)
     job = app.jobs.create(job_type="source.process", **_source_process_payload())
+    lease_now_us = job.created_at_us + 1_000_000
     first_lease = app.jobs.acquire(
         job.job_id,
         worker_id="worker-old",
         lease_seconds=1,
-        now_us=1_000_000,
+        now_us=lease_now_us,
     )
     assert first_lease.lease_token is not None
 
-    recovered = app.jobs.recover_startup(now_us=2_000_001)
+    recovered = app.jobs.recover_startup(now_us=lease_now_us + 1_000_001)
     assert [item.job_id for item in recovered] == [job.job_id]
     assert recovered[0].state is JobState.QUEUED
     assert recovered[0].blocked_reason == "recovered_after_expired_lease"
@@ -195,7 +207,7 @@ def test_expired_lease_recovery_requeues_and_rejects_zombie_worker(tmp_path) -> 
         job.job_id,
         worker_id="worker-new",
         lease_seconds=60,
-        now_us=2_000_002,
+        now_us=lease_now_us + 1_000_002,
     )
     assert second_lease.lease_token is not None
     assert second_lease.fencing_sequence == 2
@@ -206,7 +218,7 @@ def test_expired_lease_recovery_requeues_and_rejects_zombie_worker(tmp_path) -> 
             lease_token=first_lease.lease_token,
             current_stage="zombie-write",
             progress_state={"should": "fail"},
-            now_us=2_000_003,
+            now_us=lease_now_us + 1_000_003,
         )
 
     checkpoint = app.jobs.checkpoint(
@@ -214,7 +226,7 @@ def test_expired_lease_recovery_requeues_and_rejects_zombie_worker(tmp_path) -> 
         lease_token=second_lease.lease_token,
         current_stage="safe-write",
         progress_state={"accepted": True},
-        now_us=2_000_003,
+        now_us=lease_now_us + 1_000_003,
     )
     assert checkpoint.fencing_sequence == 2
     app.stop()
@@ -230,19 +242,20 @@ def test_startup_automatically_recovers_only_expired_leases(tmp_path) -> None:
         job_type="source.process",
         **_source_process_payload("00000000-0000-0000-0000-000000000003"),
     )
+    lease_now_us = max(expired.created_at_us, live.created_at_us) + 1
     first.job_repository.acquire_lease(
         job_id=expired.job_id,
         worker_id="dead-worker",
         lease_token=b"a" * 32,
         lease_duration_us=1,
-        now_us=1,
+        now_us=lease_now_us,
     )
     first.job_repository.acquire_lease(
         job_id=live.job_id,
         worker_id="live-worker",
         lease_token=b"b" * 32,
         lease_duration_us=10**18,
-        now_us=1,
+        now_us=lease_now_us,
     )
     first.stop()
 
@@ -271,11 +284,12 @@ def test_pause_resume_and_cooperative_cancel(tmp_path) -> None:
         job_type="source.process",
         **_source_process_payload("00000000-0000-0000-0000-000000000005"),
     )
+    lease_now_us = running.created_at_us + 100
     leased = app.jobs.acquire(
         running.job_id,
         worker_id="worker",
         lease_seconds=60,
-        now_us=100,
+        now_us=lease_now_us,
     )
     assert leased.lease_token is not None
     requested = app.jobs.request_cancel(running.job_id)
@@ -283,7 +297,7 @@ def test_pause_resume_and_cooperative_cancel(tmp_path) -> None:
     acknowledged = app.jobs.acknowledge_cancel(
         running.job_id,
         lease_token=leased.lease_token,
-        now_us=101,
+        now_us=lease_now_us + 1,
     )
     assert acknowledged.state is JobState.CANCELLED
     app.stop()
@@ -292,11 +306,13 @@ def test_pause_resume_and_cooperative_cancel(tmp_path) -> None:
 def test_waiting_state_requires_reason_and_can_wake(tmp_path) -> None:
     app = _app(tmp_path)
     job = app.jobs.create(job_type="source.process", **_source_process_payload())
+    lease_now_us = job.created_at_us + 100
+    next_run_at_us = lease_now_us + 400
     leased = app.jobs.acquire(
         job.job_id,
         worker_id="worker",
         lease_seconds=60,
-        now_us=100,
+        now_us=lease_now_us,
     )
     assert leased.lease_token is not None
 
@@ -304,12 +320,12 @@ def test_waiting_state_requires_reason_and_can_wake(tmp_path) -> None:
         job.job_id,
         lease_token=leased.lease_token,
         reason=WaitingReason.STORAGE,
-        next_run_at_us=500,
-        now_us=101,
+        next_run_at_us=next_run_at_us,
+        now_us=lease_now_us + 1,
     )
     assert waiting.state is JobState.WAITING
     assert waiting.blocked_reason == "waiting_storage"
-    assert waiting.next_run_at_us == 500
+    assert waiting.next_run_at_us == next_run_at_us
     assert waiting.lease_token is None
 
     queued = app.jobs.wake(job.job_id)
@@ -325,11 +341,13 @@ def test_dependency_wait_wakes_when_due_without_consuming_retry_budget(tmp_path)
         job_type="source.process",
         **_source_process_payload("00000000-0000-0000-0000-000000000006"),
     )
+    lease_now_us = job.created_at_us + 100
+    next_run_at_us = lease_now_us + 400
     leased = app.jobs.acquire(
         job.job_id,
         worker_id="research-parent",
         lease_seconds=60,
-        now_us=100,
+        now_us=lease_now_us,
     )
     assert leased.lease_token is not None
 
@@ -337,26 +355,26 @@ def test_dependency_wait_wakes_when_due_without_consuming_retry_budget(tmp_path)
         job.job_id,
         lease_token=leased.lease_token,
         reason=WaitingReason.DEPENDENCY,
-        next_run_at_us=500,
-        now_us=101,
+        next_run_at_us=next_run_at_us,
+        now_us=lease_now_us + 1,
     )
     assert waiting.state is JobState.WAITING
     assert waiting.blocked_reason == WaitingReason.DEPENDENCY.value
-    assert waiting.next_run_at_us == 500
+    assert waiting.next_run_at_us == next_run_at_us
     assert waiting.retry_count == 0
 
-    assert app.jobs.wake_due_waiting(now_us=499) == ()
+    assert app.jobs.wake_due_waiting(now_us=next_run_at_us - 1) == ()
     still_waiting = app.jobs.get(job.job_id)
     assert still_waiting.state is JobState.WAITING
     assert still_waiting.retry_count == 0
 
-    woken = app.jobs.wake_due_waiting(now_us=500)
+    woken = app.jobs.wake_due_waiting(now_us=next_run_at_us)
     assert [item.job_id for item in woken] == [job.job_id]
 
     queued = app.jobs.get(job.job_id)
     assert queued.state is JobState.QUEUED
     assert queued.blocked_reason is None
-    assert queued.next_run_at_us == 500
+    assert queued.next_run_at_us == next_run_at_us
     assert queued.retry_count == 0
     app.stop()
 
