@@ -40,6 +40,7 @@ def test_lock_failure_still_closes_handle(
         unlock_calls += 1
 
     monkeypatch.setattr(target_lock, "_open_lock_file", lambda _: handle)
+    monkeypatch.setattr(target_lock, "_assert_handle_matches_path", lambda *_: None)
     monkeypatch.setattr(target_lock, "_lock", fail_lock)
     monkeypatch.setattr(target_lock, "_unlock", record_unlock)
 
@@ -59,6 +60,7 @@ def test_unlock_failure_still_closes_handle(
     target = _available_target(tmp_path)
 
     monkeypatch.setattr(target_lock, "_open_lock_file", lambda _: handle)
+    monkeypatch.setattr(target_lock, "_assert_handle_matches_path", lambda *_: None)
     monkeypatch.setattr(target_lock, "_lock", lambda _: None)
 
     def fail_unlock(_: Any) -> None:
@@ -82,6 +84,7 @@ def test_body_failure_unlocks_and_closes_handle(
     unlock_calls = 0
 
     monkeypatch.setattr(target_lock, "_open_lock_file", lambda _: handle)
+    monkeypatch.setattr(target_lock, "_assert_handle_matches_path", lambda *_: None)
     monkeypatch.setattr(target_lock, "_lock", lambda _: None)
 
     def record_unlock(_: Any) -> None:
