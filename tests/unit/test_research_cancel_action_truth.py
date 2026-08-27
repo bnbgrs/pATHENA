@@ -58,7 +58,10 @@ def test_terminal_or_requested_research_states_cannot_cancel_again(
     assert not workspace.cancel_button.isEnabled()
     assert workspace.cancel_button.property("pathenaResearchCancelAvailable") is False
     assert "22222222" in workspace.cancel_button.accessibleDescription()
-    assert state in workspace.cancel_button.accessibleDescription()
+    if state == "cancel_requested":
+        assert "cancellation requested" in workspace.cancel_button.accessibleDescription()
+    else:
+        assert state in workspace.cancel_button.accessibleDescription()
 
 
 def test_no_research_selection_explains_cancel_blocker(qt_app: QApplication) -> None:

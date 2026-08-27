@@ -176,6 +176,6 @@ def test_valid_probe_snapshot_is_canonicalized_and_persisted(tmp_path: Path) -> 
 
     assert snapshot.cpu_load_fraction == 0.0
     assert snapshot.gpu_utilization_fraction == 1.0
-    assert snapshot.degraded_metrics == ("gpu", "model_availability", "vram")
+    assert snapshot.degraded_metrics == ("gpu", "vram")
     assert snapshot.disk_free_bytes == 32_000
     assert manager.persisted == [snapshot]
