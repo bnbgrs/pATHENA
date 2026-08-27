@@ -9,7 +9,7 @@ from athena.config.settings import AthenaSettings
 from athena.core.application import AthenaApplication
 from athena.jobs.models import JobState
 from athena.jobs.repository import JobLeaseError
-from athena.jobs.source_processing import SourceProcessingJobError
+from athena.jobs.service import InvalidJobPayloadError
 
 
 def _app(root: Path) -> AthenaApplication:
@@ -174,12 +174,8 @@ def test_finalize_repairs_lost_derived_chunks_from_retained_representation(tmp_p
 
 def test_source_worker_rejects_generic_unpinned_source_process_job(tmp_path) -> None:
     app = _app(tmp_path / "runtime")
-    job = app.jobs.create(job_type="source.process")
-    leased = app.jobs.acquire(job.job_id, worker_id="worker", lease_seconds=60)
-    assert leased.lease_token is not None
 
-    with pytest.raises(SourceProcessingJobError, match="pinned_configuration"):
-        app.source_processing.step(job.job_id, lease_token=leased.lease_token)
+    with pytest.raises(InvalidJobPayloadError, match="requested_scope is required"):
+        app.jobs.create(job_type="source.process")
 
-    assert app.jobs.get(job.job_id).state is JobState.RUNNING
     app.stop()
