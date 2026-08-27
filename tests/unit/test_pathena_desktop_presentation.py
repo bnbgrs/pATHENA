@@ -31,11 +31,11 @@ def test_pathena_theme_layers_on_existing_desktop_theme() -> None:
 
 def test_pathena_shell_keeps_all_primary_workspaces_visible() -> None:
     assert pathena_window._DISPLAY_NAVIGATION == (
-        "Chat",
-        "Knowledge",
+        "Workspace",
+        "Library",
         "Research",
         "Jobs",
-        "Files",
+        "Sources",
         "System",
         "Settings",
     )

@@ -145,21 +145,28 @@ def test_waiting_source_job_and_checkpoints_are_protected_atomically(
             )
         )
 
-        job = app.jobs.create(
-            job_type="source.process",
-            requested_scope={
-                "source_id": str(
-                    captured.source.source_id
-                ),
-                "canary": (
-                    "ATHENA_JOB_SCOPE_CANARY_D391"
-                ),
-            },
-            pinned_configuration={
-                "canary": (
-                    "ATHENA_JOB_CONFIG_CANARY_D391"
-                ),
-            },
+        job = (
+            app.source_processing.enqueue(
+                captured.source.source_id
+            )
+        )
+
+        assert (
+            job.requested_scope_json
+            is not None
+        )
+
+        assert (
+            job.pinned_configuration_json
+            is not None
+        )
+
+        expected_requested_scope_json = (
+            job.requested_scope_json
+        )
+
+        expected_pinned_configuration_json = (
+            job.pinned_configuration_json
         )
 
         running = app.jobs.acquire(
@@ -382,21 +389,17 @@ def test_waiting_source_job_and_checkpoints_are_protected_atomically(
         )
 
         assert (
-            "ATHENA_JOB_SCOPE_CANARY_D391"
-            in str(
-                job_values[
-                    "requested_scope_json"
-                ]
-            )
+            job_values[
+                "requested_scope_json"
+            ]
+            == expected_requested_scope_json
         )
 
         assert (
-            "ATHENA_JOB_CONFIG_CANARY_D391"
-            in str(
-                job_values[
-                    "pinned_configuration_json"
-                ]
-            )
+            job_values[
+                "pinned_configuration_json"
+            ]
+            == expected_pinned_configuration_json
         )
 
         assert (
@@ -465,16 +468,10 @@ def test_running_source_job_is_fenced_but_not_scrubbed_until_terminal(
             )
         )
 
-        job = app.jobs.create(
-            job_type="source.process",
-            requested_scope={
-                "source_id": str(
-                    captured.source.source_id
-                ),
-                "canary": (
-                    "ATHENA_RUNNING_SCOPE_CANARY_55E2"
-                ),
-            },
+        job = (
+            app.source_processing.enqueue(
+                captured.source.source_id
+            )
         )
 
         running = app.jobs.acquire(
@@ -689,16 +686,10 @@ def test_operational_cutover_rolls_back_job_checkpoint_and_ciphertext_together(
             )
         )
 
-        job = app.jobs.create(
-            job_type="source.process",
-            requested_scope={
-                "source_id": str(
-                    captured.source.source_id
-                ),
-                "canary": (
-                    "ATHENA_ROLLBACK_SCOPE_CANARY_719C"
-                ),
-            },
+        job = (
+            app.source_processing.enqueue(
+                captured.source.source_id
+            )
         )
 
         running = app.jobs.acquire(
@@ -825,7 +816,7 @@ def test_operational_cutover_rolls_back_job_checkpoint_and_ciphertext_together(
                 """
                 SELECT COUNT(*)
                 FROM protected_payloads
-                """
+                """,
             ).fetchone()[0]
         )
 

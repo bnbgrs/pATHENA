@@ -71,12 +71,12 @@ def test_job_record_rejects_non_integer_retry_count(value: object) -> None:
 
 
 def test_job_record_rejects_invalid_requested_scope_json() -> None:
-    with pytest.raises(ValueError, match="requested_scope_json must contain valid JSON"):
+    with pytest.raises(ValueError, match="requested_scope_json must contain strict JSON"):
         _job(requested_scope_json="{")
 
 
 def test_job_record_rejects_blank_job_type() -> None:
-    with pytest.raises(ValueError, match="job_type must not be empty"):
+    with pytest.raises(ValueError, match="job_type must use canonical trimmed text"):
         _job(job_type="   ")
 
 
@@ -106,7 +106,7 @@ def test_checkpoint_rejects_non_integer_fencing_sequence(value: object) -> None:
 
 
 def test_checkpoint_rejects_invalid_progress_json() -> None:
-    with pytest.raises(ValueError, match="progress_state_json must contain valid JSON"):
+    with pytest.raises(ValueError, match="progress_state_json must contain strict JSON"):
         _checkpoint(progress_state_json="[")
 
 
