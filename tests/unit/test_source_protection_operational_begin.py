@@ -102,21 +102,8 @@ def test_waiting_job_is_protected_before_raw_source_transition_prepares(
             )
         )
 
-        job = app.jobs.create(
-            job_type="source.process",
-            requested_scope={
-                "source_id": str(
-                    captured.source.source_id
-                ),
-                "canary": (
-                    "ATHENA_ATOMIC_JOB_SCOPE_91D2"
-                ),
-            },
-            pinned_configuration={
-                "canary": (
-                    "ATHENA_ATOMIC_JOB_CONFIG_91D2"
-                ),
-            },
+        job = app.source_processing.enqueue(
+            captured.source.source_id
         )
 
         running = app.jobs.acquire(
@@ -303,16 +290,8 @@ def test_running_job_commits_pending_guard_then_retry_completes_after_ack(
             )
         )
 
-        job = app.jobs.create(
-            job_type="source.process",
-            requested_scope={
-                "source_id": str(
-                    captured.source.source_id
-                ),
-                "canary": (
-                    "ATHENA_ATOMIC_RUNNING_SCOPE_6F20"
-                ),
-            },
+        job = app.source_processing.enqueue(
+            captured.source.source_id
         )
 
         running = app.jobs.acquire(
@@ -408,13 +387,8 @@ def test_running_job_commits_pending_guard_then_retry_completes_after_ack(
         with pytest.raises(
             JobSourceProtectionFenceError
         ):
-            app.jobs.create(
-                job_type="source.process",
-                requested_scope={
-                    "source_id": str(
-                        captured.source.source_id
-                    ),
-                },
+            app.source_processing.enqueue(
+                captured.source.source_id
             )
 
         cancelled = (
@@ -530,13 +504,8 @@ def test_begin_callback_failure_rolls_back_pending_and_job_fence(
             )
         )
 
-        job = app.jobs.create(
-            job_type="source.process",
-            requested_scope={
-                "source_id": str(
-                    captured.source.source_id
-                ),
-            },
+        job = app.source_processing.enqueue(
+            captured.source.source_id
         )
 
         def fail_cutover(
