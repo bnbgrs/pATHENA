@@ -1,21 +1,23 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 from pathlib import Path
 
 from athena.config.settings import AthenaSettings
 from athena.core.application import AthenaApplication
 from athena.knowledge.models import KnowledgeKind
+from athena.model.adapters.lm_studio import LMStudioProvider
+from athena.model.adapters.lm_studio_embeddings import LMStudioEmbeddingProvider
 from athena.retrieval.archive import ArchiveSemanticSearchService
 from athena.retrieval.semantic import LocalSemanticSearchService
 
 
-@dataclass
-class FakeEmbeddingProvider:
-    calls: int = 0
+class FakeEmbeddingProvider(LMStudioEmbeddingProvider):
+    def __init__(self) -> None:
+        super().__init__(LMStudioProvider("http://127.0.0.1:1234"))
+        object.__setattr__(self, "calls", 0)
 
     def embed(self, *, model_id: str, texts):
-        self.calls += 1
+        object.__setattr__(self, "calls", self.calls + 1)
         vectors = []
         for text in texts:
             lowered = text.casefold()

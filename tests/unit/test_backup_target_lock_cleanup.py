@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, cast
+from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -17,31 +18,18 @@ class _Handle:
         self.closed = True
 
 
-@dataclass
-class _LockPath:
-    handle: _Handle
-
-    def open(self, mode: str) -> _Handle:
-        assert mode == "a+b"
-        return self.handle
+def _available_target(tmp_path: Path) -> Path:
+    target = tmp_path / "backup-target"
+    target.mkdir()
+    return target
 
 
-@dataclass
-class _TargetRoot:
-    handle: _Handle
-    available: bool = True
-
-    def is_dir(self) -> bool:
-        return self.available
-
-    def __truediv__(self, name: str) -> _LockPath:
-        assert name == ".athena-backup.lock"
-        return _LockPath(self.handle)
-
-
-def test_lock_failure_still_closes_handle(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_lock_failure_still_closes_handle(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     handle = _Handle()
-    target = _TargetRoot(handle)
+    target = _available_target(tmp_path)
     unlock_calls = 0
 
     def fail_lock(_: Any) -> None:
@@ -51,21 +39,28 @@ def test_lock_failure_still_closes_handle(monkeypatch: pytest.MonkeyPatch) -> No
         nonlocal unlock_calls
         unlock_calls += 1
 
+    monkeypatch.setattr(target_lock, "_open_lock_file", lambda _: handle)
+    monkeypatch.setattr(target_lock, "_assert_handle_matches_path", lambda *_: None)
     monkeypatch.setattr(target_lock, "_lock", fail_lock)
     monkeypatch.setattr(target_lock, "_unlock", record_unlock)
 
     with pytest.raises(BackupTargetBusyError, match="busy"):
-        with backup_target_lock(cast(Any, target)):
+        with backup_target_lock(target):
             raise AssertionError("unreachable")
 
     assert handle.closed is True
     assert unlock_calls == 0
 
 
-def test_unlock_failure_still_closes_handle(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_unlock_failure_still_closes_handle(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     handle = _Handle()
-    target = _TargetRoot(handle)
+    target = _available_target(tmp_path)
 
+    monkeypatch.setattr(target_lock, "_open_lock_file", lambda _: handle)
+    monkeypatch.setattr(target_lock, "_assert_handle_matches_path", lambda *_: None)
     monkeypatch.setattr(target_lock, "_lock", lambda _: None)
 
     def fail_unlock(_: Any) -> None:
@@ -74,17 +69,22 @@ def test_unlock_failure_still_closes_handle(monkeypatch: pytest.MonkeyPatch) -> 
     monkeypatch.setattr(target_lock, "_unlock", fail_unlock)
 
     with pytest.raises(OSError, match="unlock failed"):
-        with backup_target_lock(cast(Any, target)):
+        with backup_target_lock(target):
             pass
 
     assert handle.closed is True
 
 
-def test_body_failure_unlocks_and_closes_handle(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_body_failure_unlocks_and_closes_handle(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     handle = _Handle()
-    target = _TargetRoot(handle)
+    target = _available_target(tmp_path)
     unlock_calls = 0
 
+    monkeypatch.setattr(target_lock, "_open_lock_file", lambda _: handle)
+    monkeypatch.setattr(target_lock, "_assert_handle_matches_path", lambda *_: None)
     monkeypatch.setattr(target_lock, "_lock", lambda _: None)
 
     def record_unlock(_: Any) -> None:
@@ -94,27 +94,31 @@ def test_body_failure_unlocks_and_closes_handle(monkeypatch: pytest.MonkeyPatch)
     monkeypatch.setattr(target_lock, "_unlock", record_unlock)
 
     with pytest.raises(RuntimeError, match="body failed"):
-        with backup_target_lock(cast(Any, target)):
+        with backup_target_lock(target):
             raise RuntimeError("body failed")
 
     assert unlock_calls == 1
     assert handle.closed is True
 
 
-def test_unavailable_target_never_opens_lock_handle(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_unavailable_target_never_opens_lock_handle(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     handle = _Handle()
-    target = _TargetRoot(handle, available=False)
-    lock_calls = 0
+    target = tmp_path / "missing-backup-target"
+    open_calls = 0
 
-    def record_lock(_: Any) -> None:
-        nonlocal lock_calls
-        lock_calls += 1
+    def record_open(_: Path) -> _Handle:
+        nonlocal open_calls
+        open_calls += 1
+        return handle
 
-    monkeypatch.setattr(target_lock, "_lock", record_lock)
+    monkeypatch.setattr(target_lock, "_open_lock_file", record_open)
 
     with pytest.raises(RuntimeError, match="unavailable"):
-        with backup_target_lock(cast(Any, target)):
+        with backup_target_lock(target):
             pass
 
-    assert lock_calls == 0
+    assert open_calls == 0
     assert handle.closed is False
