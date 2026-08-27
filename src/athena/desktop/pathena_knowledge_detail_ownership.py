@@ -37,8 +37,8 @@ class KnowledgeDetailOwnership(QObject):
         )
         self._original_drain: Callable[[], None] = workspace._drain_knowledge_output
 
-        setattr(workspace, "_start_knowledge", self._start_knowledge)
-        setattr(workspace, "_drain_knowledge_output", self._drain_output)
+        object.__setattr__(workspace, "_start_knowledge", self._start_knowledge)
+        object.__setattr__(workspace, "_drain_knowledge_output", self._drain_output)
         workspace._knowledge_process.readyReadStandardOutput.disconnect(self._original_drain)
         workspace._knowledge_process.readyReadStandardOutput.connect(self._drain_output)
         workspace._knowledge_process.finished.connect(self._after_finished)
