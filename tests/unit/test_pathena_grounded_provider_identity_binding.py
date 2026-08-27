@@ -4,6 +4,7 @@ import uuid
 
 import pytest
 
+from athena.chat.grounded_processing_run import bind_grounded_processing_run
 from athena.chat.grounded_provider_attempt import GroundedProviderAttemptConflictError
 from athena.chat.grounded_recovery import GroundedRecoveryState
 from athena.chat.grounded_send import (
@@ -150,21 +151,53 @@ def _started_coordinator(database: SQLiteDatabase):
         chat_id=chat_id,
         package=package,
     )
+    run = ModelRunRepository(database).start_run(
+        run_type="chat.unified_local_context_package",
+        trigger_actor_id=user,
+        pipeline_version="provider-identity-binding-test-v1",
+        input_snapshot=package.run_snapshot(),
+        configuration={"context_package_version": 1},
+        model_signature_id=package.model_signature.model_signature_id,
+        prompt_template_id="provider-identity-binding-test",
+        prompt_template_version="1",
+    )
+    bind_grounded_processing_run(
+        database,
+        operation_id=operation_id,
+        chat_id=chat_id,
+        processing_run_id=run.processing_run_id,
+        package=package,
+        trigger_actor_id=user,
+    )
     coordinator.begin_provider_attempt(
         operation_id=operation_id,
         chat_id=chat_id,
         fingerprint=fingerprint,
     )
-    return coordinator, user, chat_id, operation_id, fingerprint, package
+    return (
+        coordinator,
+        user,
+        chat_id,
+        operation_id,
+        fingerprint,
+        package,
+        run.processing_run_id,
+    )
 
 
 def test_provider_result_identity_must_match_pinned_context_model(tmp_path) -> None:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
     try:
-        coordinator, _user, chat_id, operation_id, fingerprint, _package_record = (
-            _started_coordinator(database)
-        )
+        (
+            coordinator,
+            _user,
+            chat_id,
+            operation_id,
+            fingerprint,
+            _package_record,
+            processing_run_id,
+        ) = _started_coordinator(database)
 
         with pytest.raises(
             GroundedProviderIdentityError,
@@ -174,7 +207,7 @@ def test_provider_result_identity_must_match_pinned_context_model(tmp_path) -> N
                 operation_id=operation_id,
                 chat_id=chat_id,
                 fingerprint=fingerprint,
-                processing_run_id=uuid.uuid4(),
+                processing_run_id=processing_run_id,
                 assistant_content="answer",
                 receipt_payload_json='{"assistant_text":"answer"}',
                 provider_id="other_provider",
@@ -191,9 +224,15 @@ def test_low_level_provider_result_cannot_bypass_pinned_context_model(tmp_path) 
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
     try:
-        coordinator, _user, chat_id, operation_id, _, _package_record = (
-            _started_coordinator(database)
-        )
+        (
+            coordinator,
+            _user,
+            chat_id,
+            operation_id,
+            _,
+            _package_record,
+            processing_run_id,
+        ) = _started_coordinator(database)
 
         with pytest.raises(
             GroundedProviderAttemptConflictError,
@@ -202,7 +241,7 @@ def test_low_level_provider_result_cannot_bypass_pinned_context_model(tmp_path) 
             coordinator.provider_attempts.store_result(
                 operation_id=operation_id,
                 chat_id=chat_id,
-                processing_run_id=uuid.uuid4(),
+                processing_run_id=processing_run_id,
                 assistant_content="answer",
                 receipt_payload_json='{"assistant_text":"answer"}',
                 provider_id="other_provider",
@@ -219,9 +258,15 @@ def test_low_level_provider_result_requires_identity_when_context_pins_model(tmp
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
     try:
-        coordinator, _user, chat_id, operation_id, _, _package_record = (
-            _started_coordinator(database)
-        )
+        (
+            coordinator,
+            _user,
+            chat_id,
+            operation_id,
+            _,
+            _package_record,
+            processing_run_id,
+        ) = _started_coordinator(database)
 
         with pytest.raises(
             GroundedProviderAttemptConflictError,
@@ -230,7 +275,7 @@ def test_low_level_provider_result_requires_identity_when_context_pins_model(tmp
             coordinator.provider_attempts.store_result(
                 operation_id=operation_id,
                 chat_id=chat_id,
-                processing_run_id=uuid.uuid4(),
+                processing_run_id=processing_run_id,
                 assistant_content="answer",
                 receipt_payload_json='{"assistant_text":"answer"}',
             )
@@ -245,24 +290,20 @@ def test_recovery_rejects_provider_identity_tampered_after_persistence(tmp_path)
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
     try:
-        coordinator, user, chat_id, operation_id, fingerprint, package = (
-            _started_coordinator(database)
-        )
-        run = ModelRunRepository(database).start_run(
-            run_type="chat.unified_local_context_package",
-            trigger_actor_id=user,
-            pipeline_version="provider-identity-binding-test-v1",
-            input_snapshot=package.run_snapshot(),
-            configuration={"context_package_version": 1},
-            model_signature_id=package.model_signature.model_signature_id,
-            prompt_template_id="provider-identity-binding-test",
-            prompt_template_version="1",
-        )
+        (
+            coordinator,
+            _user,
+            chat_id,
+            operation_id,
+            fingerprint,
+            _package_record,
+            processing_run_id,
+        ) = _started_coordinator(database)
         coordinator.record_provider_result(
             operation_id=operation_id,
             chat_id=chat_id,
             fingerprint=fingerprint,
-            processing_run_id=run.processing_run_id,
+            processing_run_id=processing_run_id,
             assistant_content="answer",
             receipt_payload_json='{"assistant_text":"answer"}',
             provider_id="lm_studio",
