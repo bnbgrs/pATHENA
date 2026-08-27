@@ -403,9 +403,6 @@ def test_research_stale_parent_fence_rejects_work_state_commit(tmp_path: Path) -
         work = app.research_repository.list_work_items(scope.scope_id)
         assert len(work) == 1
 
-        # Acquire a structurally valid lease entirely in the past. This keeps
-        # the jobs-table CHECK constraints satisfied while ensuring that the
-        # Research repository's own wall-clock fence check sees the parent as stale.
         leased = app.jobs.acquire(
             job.job_id,
             worker_id="stale-research-parent",
@@ -743,7 +740,7 @@ def test_lm_studio_controlled_runtime_rejects_instance_switch() -> None:
     )
 
     with patch(
-        "athena.model.adapters.lm_studio.urlopen",
+        "athena.model.adapters.lm_studio.open_local_request",
         side_effect=lambda request, timeout: next(responses),
     ):
         assert provider.generate_controlled_structured(**_controlled_kwargs()) == {
@@ -759,7 +756,7 @@ def test_lm_studio_controlled_runtime_rejects_missing_stats() -> None:
     payload.pop("stats")
 
     with patch(
-        "athena.model.adapters.lm_studio.urlopen",
+        "athena.model.adapters.lm_studio.open_local_request",
         return_value=_FakeResponse(payload),
     ):
         with pytest.raises(ProviderProtocolError, match="missing stats"):
