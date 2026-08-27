@@ -10,7 +10,6 @@ from athena.jobs.models import JobPriority, JobState, WaitingReason
 from athena.jobs.repository import JobLeaseError, JobTransitionError
 from athena.jobs.service import InvalidJobPayloadError, UnsupportedJobTypeError
 
-
 _SOURCE_ID = "00000000-0000-0000-0000-000000000001"
 
 

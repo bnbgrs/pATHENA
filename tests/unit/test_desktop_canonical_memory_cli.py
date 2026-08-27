@@ -42,12 +42,12 @@ def test_claim_relations_show_reciprocal_canonical_contradiction(
         left = app.claims.promote_chat_message(
             chat_id=chat_id,
             sequence_no=left_message.sequence_no,
-            claim_kind=ClaimKind.FACT,
+            claim_kind=ClaimKind.FACTUAL_ASSERTION,
         )
         right = app.claims.promote_chat_message(
             chat_id=chat_id,
             sequence_no=right_message.sequence_no,
-            claim_kind=ClaimKind.FACT,
+            claim_kind=ClaimKind.FACTUAL_ASSERTION,
         )
         app.claims.mark_contradiction(
             left_claim_id=left.claim_id,

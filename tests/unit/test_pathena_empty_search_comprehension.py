@@ -44,6 +44,16 @@ def _canonical_stub() -> SimpleNamespace:
     return SimpleNamespace(workspace=workspace, counts=QLabel())
 
 
+def _controller(canonical: SimpleNamespace) -> EmptySearchComprehensionController:
+    controller = EmptySearchComprehensionController.__new__(
+        EmptySearchComprehensionController
+    )
+    controller.canonical = canonical
+    controller.knowledge_search = canonical.workspace.search_input
+    controller.counts = canonical.counts
+    return controller
+
+
 def test_knowledge_filter_distinguishes_no_match_from_empty_data() -> None:
     _app()
     canonical = _canonical_stub()
@@ -51,10 +61,7 @@ def test_knowledge_filter_distinguishes_no_match_from_empty_data() -> None:
     canonical.workspace.knowledge_list.item(0).setHidden(True)
     canonical.workspace.search_input.setText("beta")
 
-    controller = object.__new__(EmptySearchComprehensionController)
-    controller.canonical = canonical
-    controller.knowledge_search = canonical.workspace.search_input
-    controller.counts = canonical.counts
+    controller = _controller(canonical)
     controller.sync_knowledge()
 
     assert canonical.counts.property("pathenaSearchResultState") == "no-match"
@@ -65,10 +72,7 @@ def test_knowledge_empty_view_is_labeled_as_empty() -> None:
     _app()
     canonical = _canonical_stub()
 
-    controller = object.__new__(EmptySearchComprehensionController)
-    controller.canonical = canonical
-    controller.knowledge_search = canonical.workspace.search_input
-    controller.counts = canonical.counts
+    controller = _controller(canonical)
     controller.sync_knowledge()
 
     assert canonical.counts.property("pathenaSearchResultState") == "empty"
@@ -81,10 +85,7 @@ def test_visible_results_keep_normal_count_copy() -> None:
     canonical.workspace.knowledge_list.addItem("Alpha")
     canonical.workspace.search_input.setText("alpha")
 
-    controller = object.__new__(EmptySearchComprehensionController)
-    controller.canonical = canonical
-    controller.knowledge_search = canonical.workspace.search_input
-    controller.counts = canonical.counts
+    controller = _controller(canonical)
     controller.sync_knowledge()
 
     assert canonical.counts.property("pathenaSearchResultState") == "matches"
