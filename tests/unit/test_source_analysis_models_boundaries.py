@@ -37,7 +37,7 @@ def test_source_anchor_input_rejects_ambiguous_reference(
     source_anchor_id: uuid.UUID | None,
     artifact_id: uuid.UUID | None,
 ) -> None:
-    with pytest.raises(ValueError, match="exactly one source_anchor_id"):
+    with pytest.raises(ValueError, match="exactly one UUID source_anchor_id"):
         SourceAnalysisWorkInput(
             work_item_id=_uuid(),
             ordinal=0,
