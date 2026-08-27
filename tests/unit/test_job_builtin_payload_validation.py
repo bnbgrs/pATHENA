@@ -15,7 +15,7 @@ from athena.jobs.payload_validation import (
 )
 from athena.jobs.service import DurableJobService, InvalidJobPayloadError
 
-SOURCE_ID = str(uuid.UUID("aaaaaaaa-1111-4111-8111-111111111111"))
+SOURCE_ID = str(uuid.UUID("11111111-1111-4111-8111-111111111111"))
 REPRESENTATION_ID = str(uuid.UUID("22222222-2222-4222-8222-222222222222"))
 WORK_ID = str(uuid.UUID("33333333-3333-4333-8333-333333333333"))
 MODEL_SIGNATURE_ID = str(uuid.UUID("44444444-4444-4444-8444-444444444444"))
@@ -113,7 +113,7 @@ INVALID_CASES = [
     pytest.param(*_case("source.process", "scope", "source_id", None, delete=True), id="process-source-required"),
     pytest.param(*_case("source.process", "scope", "extra", 1, add=True), id="process-scope-extra"),
     pytest.param(*_case("source.process", "scope", "source_id", "not-a-uuid"), id="process-source-uuid"),
-    pytest.param(*_case("source.process", "scope", "source_id", SOURCE_ID.upper()), id="process-source-canonical-uuid"),
+    pytest.param(*_case("source.process", "scope", "source_id", SOURCE_ID.replace("-", "")), id="process-source-canonical-uuid"),
     pytest.param(*_case("source.process", "scope", "research_work_item_id", "bad", add=True), id="process-research-uuid"),
     pytest.param(*_case("source.process", "config", None, None), id="process-config-required"),
     pytest.param(*_case("source.process", "config", "pipeline_version", None, delete=True), id="process-config-missing"),
