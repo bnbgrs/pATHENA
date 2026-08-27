@@ -1,0 +1,79 @@
+name: Capture exact current pATHENA UI 20260827
+
+on:
+  push:
+    branches:
+      - capture/current-ui-20260827-2355
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    runs-on: windows-2025
+    timeout-minutes: 20
+    env:
+      PYTHONUTF8: "1"
+      QT_QPA_PLATFORM: offscreen
+      PRODUCT_SHA: 6deb8578ea83ddc6161c33995de44dcdcd2f32cc
+    steps:
+      - name: Check out capture branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: false
+
+      - name: Prove product code is exact current candidate
+        shell: pwsh
+        run: |
+          git cat-file -e "$env:PRODUCT_SHA^{commit}"
+          if ($LASTEXITCODE -ne 0) { throw "Pinned product SHA missing." }
+          $changed = git diff --name-only $env:PRODUCT_SHA HEAD
+          $allowed = @(
+            '.github/workflows/capture-current-ui-20260827.yml',
+            'scripts/capture_current_fontsafe_20260827.py'
+          )
+          foreach ($path in $changed) {
+            if ($allowed -notcontains $path) { throw "Capture branch changes product path: $path" }
+          }
+          "PRODUCT_SHA=$env:PRODUCT_SHA" | Out-File -FilePath artifacts-product-sha.txt
+          Write-Host "Exact product source: $env:PRODUCT_SHA"
+          Write-Host "Capture-only additions:"
+          $changed
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1
+        with:
+          python-version: "3.12"
+          check-latest: false
+
+      - name: Install locked desktop environment
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check "uv==0.11.21"
+          uv lock --check
+          if ($LASTEXITCODE -ne 0) { throw "uv.lock is not current." }
+          uv sync --locked --extra desktop
+          if ($LASTEXITCODE -ne 0) { throw "Desktop environment sync failed." }
+
+      - name: Start real current pATHENA and capture eleven surfaces
+        shell: pwsh
+        run: |
+          uv run --locked --extra desktop --no-sync python scripts/capture_current_fontsafe_20260827.py
+          if ($LASTEXITCODE -ne 0) { throw "Current UI capture failed." }
+          Get-ChildItem artifacts\current-ui -File | Select-Object Name,Length
+
+      - name: Add provenance
+        if: always()
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force artifacts\current-ui | Out-Null
+          Copy-Item artifacts-product-sha.txt artifacts\current-ui\product-sha.txt -ErrorAction SilentlyContinue
+
+      - name: Upload real current screenshots
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: pATHENA-current-real-6deb8578
+          path: artifacts/current-ui/**
+          if-no-files-found: warn
+          retention-days: 7
