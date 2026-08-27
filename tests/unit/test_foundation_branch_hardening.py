@@ -743,7 +743,7 @@ def test_lm_studio_controlled_runtime_rejects_instance_switch() -> None:
     )
 
     with patch(
-        "athena.model.adapters.lm_studio.urlopen",
+        "athena.model.adapters.lm_studio.open_local_request",
         side_effect=lambda request, timeout: next(responses),
     ):
         assert provider.generate_controlled_structured(**_controlled_kwargs()) == {
@@ -759,7 +759,7 @@ def test_lm_studio_controlled_runtime_rejects_missing_stats() -> None:
     payload.pop("stats")
 
     with patch(
-        "athena.model.adapters.lm_studio.urlopen",
+        "athena.model.adapters.lm_studio.open_local_request",
         return_value=_FakeResponse(payload),
     ):
         with pytest.raises(ProviderProtocolError, match="missing stats"):
