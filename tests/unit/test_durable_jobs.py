@@ -11,10 +11,31 @@ from athena.jobs.repository import JobLeaseError, JobTransitionError
 from athena.jobs.service import InvalidJobPayloadError, UnsupportedJobTypeError
 
 
+_SOURCE_ID = "00000000-0000-0000-0000-000000000001"
+
+
 def _app(root: Path) -> AthenaApplication:
     app = AthenaApplication(settings=AthenaSettings(local_root=root))
     app.start()
     return app
+
+
+def _source_process_payload(
+    source_id: str = _SOURCE_ID,
+) -> dict[str, dict[str, object]]:
+    return {
+        "requested_scope": {"source_id": source_id},
+        "pinned_configuration": {
+            "pipeline_version": "source-process-v2",
+            "text_parser": "athena.native_text@1",
+            "pdf_parser": "athena.pdf@1",
+            "docx_parser": "athena.docx@1",
+            "html_parser": "athena.html@1",
+            "chunking_profile": "default",
+            "chunk_batch_size": 32,
+            "embedding_policy": "deferred",
+        },
+    }
 
 
 def test_durable_job_survives_restart_with_canonical_pinned_payload(tmp_path) -> None:
@@ -22,8 +43,7 @@ def test_durable_job_survives_restart_with_canonical_pinned_payload(tmp_path) ->
     job = first.jobs.create(
         job_type="source.process",
         priority=JobPriority.BACKGROUND,
-        requested_scope={"z": 2, "a": 1},
-        pinned_configuration={"pipeline_version": 1, "chunking": "paragraph_char_v1"},
+        **_source_process_payload(),
     )
     first.stop()
 
@@ -32,9 +52,14 @@ def test_durable_job_survives_restart_with_canonical_pinned_payload(tmp_path) ->
 
     assert loaded.state is JobState.QUEUED
     assert loaded.priority is JobPriority.BACKGROUND
-    assert loaded.requested_scope_json == '{"a":1,"z":2}'
+    assert loaded.requested_scope_json == (
+        '{"source_id":"00000000-0000-0000-0000-000000000001"}'
+    )
     assert loaded.pinned_configuration_json == (
-        '{"chunking":"paragraph_char_v1","pipeline_version":1}'
+        '{"chunk_batch_size":32,"chunking_profile":"default",'
+        '"docx_parser":"athena.docx@1","embedding_policy":"deferred",'
+        '"html_parser":"athena.html@1","pdf_parser":"athena.pdf@1",'
+        '"pipeline_version":"source-process-v2","text_parser":"athena.native_text@1"}'
     )
     assert loaded.uri == f"operational://job/{job.job_id}"
     second.stop()
@@ -58,7 +83,7 @@ def test_job_type_registry_and_json_fail_closed(tmp_path) -> None:
 
 def test_lease_checkpoint_and_completion_are_durable_and_fenced(tmp_path) -> None:
     app = _app(tmp_path)
-    job = app.jobs.create(job_type="source.process")
+    job = app.jobs.create(job_type="source.process", **_source_process_payload())
     leased = app.jobs.acquire(job.job_id, worker_id="worker-a", lease_seconds=60, now_us=100)
     assert leased.state is JobState.RUNNING
     assert leased.lease_token is not None
@@ -93,7 +118,7 @@ def test_lease_checkpoint_and_completion_are_durable_and_fenced(tmp_path) -> Non
 
 def test_heartbeat_clamps_backward_clock_and_never_shortens_lease(tmp_path) -> None:
     app = _app(tmp_path)
-    job = app.jobs.create(job_type="source.process")
+    job = app.jobs.create(job_type="source.process", **_source_process_payload())
     leased = app.jobs.acquire(
         job.job_id,
         worker_id="worker-a",
@@ -118,7 +143,7 @@ def test_heartbeat_clamps_backward_clock_and_never_shortens_lease(tmp_path) -> N
 
 def test_checkpoint_listing_preserves_commit_order_when_timestamps_tie(tmp_path) -> None:
     app = _app(tmp_path)
-    job = app.jobs.create(job_type="source.process")
+    job = app.jobs.create(job_type="source.process", **_source_process_payload())
     leased = app.jobs.acquire(
         job.job_id,
         worker_id="worker-a",
@@ -153,7 +178,7 @@ def test_checkpoint_listing_preserves_commit_order_when_timestamps_tie(tmp_path)
 
 def test_expired_lease_recovery_requeues_and_rejects_zombie_worker(tmp_path) -> None:
     app = _app(tmp_path)
-    job = app.jobs.create(job_type="source.process")
+    job = app.jobs.create(job_type="source.process", **_source_process_payload())
     first_lease = app.jobs.acquire(
         job.job_id,
         worker_id="worker-old",
@@ -198,8 +223,14 @@ def test_expired_lease_recovery_requeues_and_rejects_zombie_worker(tmp_path) -> 
 
 def test_startup_automatically_recovers_only_expired_leases(tmp_path) -> None:
     first = _app(tmp_path)
-    expired = first.jobs.create(job_type="source.process")
-    live = first.jobs.create(job_type="integrity.sweep")
+    expired = first.jobs.create(
+        job_type="source.process",
+        **_source_process_payload("00000000-0000-0000-0000-000000000002"),
+    )
+    live = first.jobs.create(
+        job_type="source.process",
+        **_source_process_payload("00000000-0000-0000-0000-000000000003"),
+    )
     first.job_repository.acquire_lease(
         job_id=expired.job_id,
         worker_id="dead-worker",
@@ -226,7 +257,10 @@ def test_startup_automatically_recovers_only_expired_leases(tmp_path) -> None:
 
 def test_pause_resume_and_cooperative_cancel(tmp_path) -> None:
     app = _app(tmp_path)
-    idle = app.jobs.create(job_type="search.rebuild")
+    idle = app.jobs.create(
+        job_type="source.process",
+        **_source_process_payload("00000000-0000-0000-0000-000000000004"),
+    )
     paused = app.jobs.pause(idle.job_id)
     assert paused.state is JobState.PAUSED
     resumed = app.jobs.resume(idle.job_id)
@@ -234,7 +268,10 @@ def test_pause_resume_and_cooperative_cancel(tmp_path) -> None:
     cancelled_idle = app.jobs.request_cancel(idle.job_id)
     assert cancelled_idle.state is JobState.CANCELLED
 
-    running = app.jobs.create(job_type="source.process")
+    running = app.jobs.create(
+        job_type="source.process",
+        **_source_process_payload("00000000-0000-0000-0000-000000000005"),
+    )
     leased = app.jobs.acquire(
         running.job_id,
         worker_id="worker",
@@ -252,9 +289,10 @@ def test_pause_resume_and_cooperative_cancel(tmp_path) -> None:
     assert acknowledged.state is JobState.CANCELLED
     app.stop()
 
+
 def test_waiting_state_requires_reason_and_can_wake(tmp_path) -> None:
     app = _app(tmp_path)
-    job = app.jobs.create(job_type="source.process")
+    job = app.jobs.create(job_type="source.process", **_source_process_payload())
     leased = app.jobs.acquire(
         job.job_id,
         worker_id="worker",
@@ -282,10 +320,12 @@ def test_waiting_state_requires_reason_and_can_wake(tmp_path) -> None:
     app.stop()
 
 
-
 def test_dependency_wait_wakes_when_due_without_consuming_retry_budget(tmp_path) -> None:
     app = _app(tmp_path)
-    job = app.jobs.create(job_type="research.exhaustive")
+    job = app.jobs.create(
+        job_type="source.process",
+        **_source_process_payload("00000000-0000-0000-0000-000000000006"),
+    )
     leased = app.jobs.acquire(
         job.job_id,
         worker_id="research-parent",
@@ -322,14 +362,15 @@ def test_dependency_wait_wakes_when_due_without_consuming_retry_budget(tmp_path)
     app.stop()
 
 
-
 def test_one_hundred_queued_jobs_survive_restart(tmp_path) -> None:
     first = _app(tmp_path)
     created_ids = {
         first.jobs.create(
-            job_type="integrity.sweep",
+            job_type="source.process",
             priority=JobPriority.MAINTENANCE,
-            requested_scope={"ordinal": ordinal},
+            **_source_process_payload(
+                f"00000000-0000-0000-0000-{ordinal + 100:012d}"
+            ),
         ).job_id
         for ordinal in range(100)
     }
@@ -340,4 +381,3 @@ def test_one_hundred_queued_jobs_survive_restart(tmp_path) -> None:
     assert len(loaded) == 100
     assert {job.job_id for job in loaded} == created_ids
     second.stop()
-
