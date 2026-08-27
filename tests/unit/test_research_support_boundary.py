@@ -14,6 +14,10 @@ VALIDATION_HELPERS = (
     "_json_string_array",
 )
 
+VALIDATION_INTERNAL_HELPERS = (
+    "_nonnegative_int",
+)
+
 IDEMPOTENCY_HELPERS = (
     "_synthesis_work_idempotency_key",
     "_work_idempotency_key",
@@ -51,7 +55,9 @@ def test_boundary_modules_own_exact_helper_sets() -> None:
         and value.__module__ == idempotency.__name__
     }
 
-    assert validation_functions == set(VALIDATION_HELPERS)
+    assert validation_functions == set(
+        VALIDATION_HELPERS + VALIDATION_INTERNAL_HELPERS
+    )
     assert idempotency_functions == set(IDEMPOTENCY_HELPERS)
 
 

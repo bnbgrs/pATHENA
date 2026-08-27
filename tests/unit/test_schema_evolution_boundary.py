@@ -5,8 +5,15 @@ import inspect
 import pickle
 
 from athena.storage import schema, schema_evolution
+from athena.storage.archive_replication_migration import (
+    migrate_schema_v30_to_v31_restart_safe,
+)
 
 _EXPECTED_EVOLUTION_FUNCTIONS = ('_create_schema_v1', '_migrate_schema_v10_to_v11', '_migrate_schema_v11_to_v12', '_migrate_schema_v12_to_v13', '_migrate_schema_v13_to_v14', '_migrate_schema_v14_to_v15', '_migrate_schema_v15_to_v16', '_migrate_schema_v16_to_v17', '_migrate_schema_v17_to_v18', '_migrate_schema_v18_to_v19', '_migrate_schema_v19_to_v20', '_migrate_schema_v1_to_v2', '_migrate_schema_v20_to_v21', '_migrate_schema_v21_to_v22', '_migrate_schema_v22_to_v23', '_migrate_schema_v23_to_v24', '_migrate_schema_v24_to_v25', '_migrate_schema_v28_to_v29', '_migrate_schema_v2_to_v3', '_migrate_schema_v30_to_v31', '_migrate_schema_v31_to_v32', '_migrate_schema_v32_to_v33', '_migrate_schema_v33_to_v34', '_migrate_schema_v34_to_v35', '_migrate_schema_v35_to_v36', '_migrate_schema_v36_to_v37', '_migrate_schema_v38_to_v39', '_migrate_schema_v39_to_v40', '_migrate_schema_v3_to_v4', '_migrate_schema_v4_to_v5', '_migrate_schema_v5_to_v6', '_migrate_schema_v6_to_v7', '_migrate_schema_v7_to_v8', '_migrate_schema_v8_to_v9', '_migrate_schema_v9_to_v10')
+
+_SPECIALIZED_SCHEMA_EVOLUTION_FUNCTIONS = (
+    "_migrate_schema_v30_to_v31",
+)
 
 _COMPATIBILITY_RETAINED_FUNCTIONS = (
     "_checkpoint_wal_truncate_for_physical_cleanup",
@@ -19,20 +26,34 @@ def test_schema_reexports_all_evolution_functions() -> None:
     assert _EXPECTED_EVOLUTION_FUNCTIONS
 
     for name in _EXPECTED_EVOLUTION_FUNCTIONS:
+        if name in _SPECIALIZED_SCHEMA_EVOLUTION_FUNCTIONS:
+            continue
         assert getattr(schema, name) is getattr(
             schema_evolution,
             name,
         )
 
+    assert (
+        schema._migrate_schema_v30_to_v31
+        is migrate_schema_v30_to_v31_restart_safe
+    )
+
 
 def test_evolution_functions_preserve_historical_module_identity() -> None:
     for name in _EXPECTED_EVOLUTION_FUNCTIONS:
+        if name in _SPECIALIZED_SCHEMA_EVOLUTION_FUNCTIONS:
+            continue
         function = getattr(schema, name)
 
         assert function.__module__ == "athena.storage.schema"
         assert pickle.loads(
             pickle.dumps(function, protocol=5)
         ) is function
+
+    assert (
+        schema._migrate_schema_v30_to_v31.__module__
+        == "athena.storage.archive_replication_migration"
+    )
 
 
 def test_schema_retains_physical_cleanup_compatibility_boundary() -> None:

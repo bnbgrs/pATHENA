@@ -8,6 +8,7 @@ from PySide6.QtCore import QObject, QSize, Qt
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
+    QLayout,
     QListWidget,
     QListWidgetItem,
     QScrollArea,
@@ -106,8 +107,8 @@ class SettingsSecondaryNavigation(QObject):
             layout_item = page_layout.takeAt(0)
             if layout_item is None:
                 continue
-            widget = layout_item.widget()
-            nested_layout = layout_item.layout()
+            widget: QWidget | None = layout_item.widget()
+            nested_layout: QLayout | None = layout_item.layout()
             if widget is not None:
                 content_layout.addWidget(widget)
             elif nested_layout is not None:
