@@ -63,13 +63,8 @@ def test_source_dependency_fence_cancels_waiting_and_fences_running_job(
             )
         )
 
-        waiting_job = app.jobs.create(
-            job_type="source.process",
-            requested_scope={
-                "source_id": str(
-                    target.source.source_id
-                ),
-            },
+        waiting_job = app.source_processing.enqueue(
+            target.source.source_id,
         )
 
         waiting_running = app.jobs.acquire(
@@ -94,13 +89,8 @@ def test_source_dependency_fence_cancels_waiting_and_fences_running_job(
             is JobState.WAITING
         )
 
-        running_job = app.jobs.create(
-            job_type="source.process",
-            requested_scope={
-                "source_id": str(
-                    target.source.source_id
-                ),
-            },
+        running_job = app.source_processing.enqueue(
+            target.source.source_id,
         )
 
         running = app.jobs.acquire(
@@ -123,13 +113,8 @@ def test_source_dependency_fence_cancels_waiting_and_fences_running_job(
             running.lease_token
         )
 
-        unrelated = app.jobs.create(
-            job_type="source.process",
-            requested_scope={
-                "source_id": str(
-                    unrelated_source.source.source_id
-                ),
-            },
+        unrelated = app.source_processing.enqueue(
+            unrelated_source.source.source_id,
         )
 
         before_unrelated = (

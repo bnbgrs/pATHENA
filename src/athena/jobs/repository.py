@@ -361,6 +361,15 @@ class JobRepository:
             next_run_at = row["next_run_at_us"]
             if next_run_at is not None and int(next_run_at) > now:
                 raise JobTransitionError(f"Job {job_id} is not eligible yet.")
+            # A scheduler tick may create a new durable job after capturing its
+            # eligibility clock. Preserve that requested lease clock (including
+            # deliberately stale leases used by fencing tests), while keeping
+            # the record's durable update timestamp monotonic.
+            updated_at = max(
+                now,
+                int(row["created_at_us"]),
+                int(row["updated_at_us"]),
+            )
             fencing_sequence = int(row["fencing_sequence"]) + 1
             connection.execute(
                 """
@@ -378,7 +387,7 @@ class JobRepository:
                     expires,
                     now,
                     fencing_sequence,
-                    now,
+                    updated_at,
                     uuid_to_blob(job_id),
                 ),
             )
