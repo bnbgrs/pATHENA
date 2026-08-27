@@ -18,7 +18,7 @@ class KnowledgeSelectionContinuity(QObject):
         super().__init__(workspace)
         self.workspace = workspace
         self._original: Callable[..., None] = workspace._restore_or_select_first
-        object.__setattr__(workspace, "_restore_or_select_first", self._restore_or_select_first)
+        workspace.__setattr__("_restore_or_select_first", self._restore_or_select_first)
         for widget in (
             workspace.knowledge_list,
             workspace.claim_list,

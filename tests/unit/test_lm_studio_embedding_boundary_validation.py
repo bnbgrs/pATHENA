@@ -6,14 +6,17 @@ from typing import Any
 
 import pytest
 
-from athena.model.adapters.lm_studio import ModelProviderError, ProviderProtocolError
+from athena.model.adapters.lm_studio import (
+    LMStudioProvider,
+    ModelProviderError,
+    ProviderProtocolError,
+)
 from athena.model.adapters.lm_studio_embeddings import LMStudioEmbeddingProvider
 from athena.model.domain import ModelInfo
 
 
-@dataclass
-class _ModelProvider:
-    base_url: str = "http://127.0.0.1:1234"
+@dataclass(frozen=True, slots=True)
+class _ModelProvider(LMStudioProvider):
     models: tuple[ModelInfo, ...] = ()
 
     def discover_models(self) -> tuple[ModelInfo, ...]:
@@ -26,7 +29,10 @@ def _provider(
     models: tuple[ModelInfo, ...] = (),
 ) -> LMStudioEmbeddingProvider:
     return LMStudioEmbeddingProvider(
-        model_provider=_ModelProvider(models=models),  # type: ignore[arg-type]
+        model_provider=_ModelProvider(
+            base_url="http://127.0.0.1:1234",
+            models=models,
+        ),
         generation_timeout_seconds=timeout,
     )
 
