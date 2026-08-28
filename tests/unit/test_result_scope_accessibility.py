@@ -26,10 +26,9 @@ def qt_app() -> Iterator[QApplication]:
     app.quit()
 
 
-def _item(text: str, identity: str, *, hidden: bool = False) -> QListWidgetItem:
+def _item(text: str, identity: str) -> QListWidgetItem:
     item = QListWidgetItem(text)
     item.setData(Qt.ItemDataRole.UserRole, identity)
-    item.setHidden(hidden)
     return item
 
 
@@ -40,9 +39,10 @@ def test_filtered_result_scope_is_mirrored_to_list_accessibility(
     results = QListWidget(window)
     scope = QLabel(window)
     visible = _item("Visible", "12345678-visible")
-    hidden = _item("Hidden", "87654321-hidden", hidden=True)
+    hidden = _item("Hidden", "87654321-hidden")
     results.addItem(visible)
     results.addItem(hidden)
+    hidden.setHidden(True)
     results.setCurrentItem(visible)
 
     ResultScopeController._sync_one(results, scope, "Research jobs")
@@ -62,9 +62,10 @@ def test_filtered_selected_item_is_announced_as_filtered(
     results = QListWidget(window)
     scope = QLabel(window)
     visible = _item("Visible", "12345678-visible")
-    hidden = _item("Hidden", "87654321-hidden", hidden=True)
+    hidden = _item("Hidden", "87654321-hidden")
     results.addItem(visible)
     results.addItem(hidden)
+    hidden.setHidden(True)
     results.setCurrentItem(hidden)
 
     ResultScopeController._sync_one(results, scope, "Knowledge")
