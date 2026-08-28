@@ -71,6 +71,12 @@ class BackupActionTruth(QObject):
             verify_enabled=complete,
             restore_enabled=restore_ready,
         )
+        if focus_return:
+            # Move focus away before disabling the currently focused action. Letting Qt
+            # disable the focused button first can enqueue its own focus traversal,
+            # which may later overwrite both this fallback and a newer explicit user
+            # focus choice made before the next event-loop drain.
+            self._focus_snapshot_list()
         self._syncing = True
         try:
             workspace.verify_button.setEnabled(complete)
@@ -79,13 +85,9 @@ class BackupActionTruth(QObject):
         finally:
             self._syncing = False
         if focus_return:
-            self._focus_snapshot_list()
-            # Queue both fallback checks before returning to the event loop. A test/user
-            # may clear the immediate handoff after selection changes; scheduling a
-            # second timer from inside the first callback requires another event-loop
-            # turn and can leave focus unowned after a single processEvents() drain.
-            # Two pre-queued callbacks both remain non-stealing because each rechecks
-            # QApplication.focusWidget() before restoring list focus.
+            # Queue fallback checks for callers that deliberately clear the immediate
+            # handoff before the next event-loop drain. Both callbacks are non-stealing:
+            # any newer owned focus wins.
             QTimer.singleShot(0, self._restore_snapshot_focus_if_unowned)
             QTimer.singleShot(0, self._restore_snapshot_focus_if_unowned)
 
