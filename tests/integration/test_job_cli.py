@@ -30,7 +30,7 @@ def test_job_cli_survives_process_restarts_and_checkpoints(tmp_path) -> None:
         local_root,
         "job",
         "create",
-        "source.process",
+        "test.checkpoint",
         "--priority",
         "4",
         "--scope-json",

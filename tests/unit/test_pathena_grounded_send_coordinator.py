@@ -148,6 +148,10 @@ def _store_context_and_run(
     assert commit_row is not None
 
     model_runs = ModelRunRepository(coordinator.database)
+    context_configuration = {
+        "mode": "grounded",
+        "embedding_model_id": "embed",
+    }
     signature = model_runs.get_or_create_signature(
         model=_model_info(),
         generation_parameters={
@@ -155,7 +159,7 @@ def _store_context_and_run(
             "reasoning_mode": "off",
             "temperature": 0.3,
         },
-        context_configuration={"mode": "grounded"},
+        context_configuration=context_configuration,
     )
     package = _context_package(
         signature,
@@ -173,7 +177,7 @@ def _store_context_and_run(
         trigger_actor_id=trigger_actor_id,
         pipeline_version="test-v1",
         input_snapshot=package.run_snapshot(),
-        configuration={"mode": "grounded"},
+        configuration=context_configuration,
         model_signature_id=signature.model_signature_id,
         prompt_template_id="grounded-test",
         prompt_template_version="1",
