@@ -8,6 +8,7 @@ import pytest
 from athena.chat.grounded_processing_run import bind_grounded_processing_run
 from athena.chat.grounded_recovery import GroundedRecoveryState
 from athena.chat.grounded_send import (
+    GroundedProviderBoundaryError,
     GroundedProviderContextError,
     GroundedSendCoordinator,
 )
@@ -260,8 +261,8 @@ def test_coordinator_rejects_none_temperature_drift_before_attempt(tmp_path: Pat
         )
 
         with pytest.raises(
-            GroundedProviderContextError,
-            match="durable ContextPackage",
+            GroundedProviderBoundaryError,
+            match="conflict; only resumable operations may begin a provider attempt",
         ):
             coordinator.begin_provider_attempt(
                 operation_id=operation_id,

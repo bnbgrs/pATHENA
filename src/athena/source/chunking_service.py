@@ -726,9 +726,9 @@ def _chunk_spans(
 
     spans: list[tuple[int, int]] = []
     chunk_start = units[0][0]
-    chunk_end = units[0][1]
+    chunk_end = units[0][0]
 
-    for unit_start, unit_end in units[1:]:
+    for unit_start, unit_end in units:
         if unit_start != chunk_end:
             raise SourceChunkIntegrityError("Chunking units are not contiguous.")
         proposed_length = unit_end - chunk_start

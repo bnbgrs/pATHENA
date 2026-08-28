@@ -179,7 +179,7 @@ def test_canonical_drift_inside_boundary_is_fenced_before_provider(tmp_path: Pat
 
         with pytest.raises(
             DurableGroundedGenerationError,
-            match="inside the Grounded provider boundary",
+            match="ContextPackage no longer owns the current canonical snapshot",
         ):
             generation.send_context_package(
                 operation_id=operation_id,

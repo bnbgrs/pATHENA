@@ -58,6 +58,14 @@ def _load_run_identity(
         raise GroundedProcessingRunError(
             "Grounded generation requires a persisted ProcessingRun."
         ) from exc
+    except ValueError as exc:
+        if "ProcessingRun pipeline_version" in str(exc):
+            raise GroundedProcessingRunError(
+                "Grounded ProcessingRun has an invalid pipeline version."
+            ) from exc
+        raise GroundedProcessingRunError(
+            "Grounded ProcessingRun has invalid persisted provenance."
+        ) from exc
 
     if run.run_type != GROUNDED_PROCESSING_RUN_TYPE:
         raise GroundedProcessingRunError(
