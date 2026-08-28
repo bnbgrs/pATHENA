@@ -151,7 +151,8 @@ def _assistant_committed(database: SQLiteDatabase):
         chat_id=chat_id,
         package=package,
     )
-    run = ModelRunRepository(database).start_run(
+    runs = ModelRunRepository(database)
+    run = runs.start_run(
         run_type="chat.unified_local_context_package",
         trigger_actor_id=user,
         pipeline_version="completion-context-identity-test-v1",
@@ -194,6 +195,7 @@ def _assistant_committed(database: SQLiteDatabase):
         actor_id=model_actor,
         content="answer",
     )
+    runs.finish_run(run.processing_run_id, status="succeeded")
     return chats, chat_id, operation_id, run.processing_run_id, payload
 
 

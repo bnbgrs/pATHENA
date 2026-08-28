@@ -156,7 +156,7 @@ def _fixture(database: SQLiteDatabase):
         omitted_count=0,
         estimated_tokens=0,
         max_estimated_tokens=300,
-        rendered_text="",
+        rendered_text="No source context selected.",
     )
     evidence = MemoryEvidenceSelection(
         policy_id="typed-provenance-v1",
