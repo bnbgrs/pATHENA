@@ -71,6 +71,8 @@ class BackupActionTruth(QObject):
             verify_enabled=complete,
             restore_enabled=restore_ready,
         )
+        if focus_return:
+            self._prime_snapshot_focus_before_disable()
         self._syncing = True
         try:
             workspace.verify_button.setEnabled(complete)
@@ -210,6 +212,11 @@ class BackupActionTruth(QObject):
             or (workspace.deep_verify_button.hasFocus() and not verify_enabled)
             or (workspace.restore_button.hasFocus() and not restore_enabled)
         )
+
+    def _prime_snapshot_focus_before_disable(self) -> None:
+        snapshots = self.workspace.snapshots
+        if snapshots.isVisibleTo(self.workspace) and snapshots.isEnabled():
+            snapshots.setFocus(Qt.FocusReason.OtherFocusReason)
 
     def _restore_snapshot_focus_if_unowned(self) -> None:
         focus = QApplication.focusWidget()

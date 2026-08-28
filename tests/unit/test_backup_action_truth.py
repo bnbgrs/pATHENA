@@ -54,7 +54,7 @@ def test_incomplete_snapshot_disables_verify_and_restore(qt_app: QApplication) -
     assert not workspace.verify_button.isEnabled()
     assert not workspace.deep_verify_button.isEnabled()
     assert not workspace.restore_button.isEnabled()
-    assert "not complete" in workspace.restore_button.accessibleDescription()
+    assert "not a completed restore point" in workspace.restore_button.accessibleDescription()
     controller.deleteLater()
 
 
