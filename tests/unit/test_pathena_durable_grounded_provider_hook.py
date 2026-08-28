@@ -16,6 +16,7 @@ from athena.chat.grounded_send import GroundedSendCoordinator
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
 from athena.chat.service import ChatService
+from athena.common.ids import uuid_to_blob
 from athena.model.domain import ModelChatMessage, ModelInfo, ProviderHealth, ProviderHealthStatus
 from athena.model.provenance import ModelRunRepository, ModelSignature
 from athena.retrieval.context import ContextBuilderService
@@ -83,7 +84,21 @@ def _fingerprint(chat_id: uuid.UUID):
     )
 
 
-def _package(user_message, signature: ModelSignature):
+def _user_commit_seq(database: SQLiteDatabase, user_message) -> int:
+    row = database.connection.execute(
+        """
+        SELECT c.commit_seq
+        FROM revisions AS r
+        JOIN commit_records AS c ON c.commit_id = r.commit_id
+        WHERE r.revision_id = ?
+        """,
+        (uuid_to_blob(user_message.revision_id),),
+    ).fetchone()
+    assert row is not None
+    return int(row["commit_seq"])
+
+
+def _package(database: SQLiteDatabase, user_message, signature: ModelSignature):
     context = ContextBuilderService().build_from_ranked(
         query="hello",
         results=(),
@@ -109,7 +124,7 @@ def _package(user_message, signature: ModelSignature):
             estimated_input_tokens=20,
             estimated_total_tokens=1220,
         ),
-        snapshot_commit_seq=1,
+        snapshot_commit_seq=_user_commit_seq(database, user_message),
         retrieval_candidate_count=0,
         memory_candidate_count=0,
     )
@@ -149,7 +164,7 @@ def _prepared_generation(database: SQLiteDatabase):
         },
         context_configuration={"context_package_version": 1},
     )
-    package = _package(started.user_message, signature)
+    package = _package(database, started.user_message, signature)
     run = model_runs.start_run(
         run_type="chat.unified_local_context_package",
         trigger_actor_id=user,

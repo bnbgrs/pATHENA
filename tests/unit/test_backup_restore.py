@@ -11,7 +11,7 @@ import athena.backup.service as backup_module
 from athena.common.time import utc_now_us
 from athena.config.settings import AthenaSettings
 from athena.core.application import AthenaApplication
-from athena.jobs.models import JobState
+from athena.jobs.models import JobPriority, JobState
 from athena.jobs.recovery import (
     CANCELLED_AFTER_RESTORE,
     RECOVERY_REQUIRED_AFTER_RESTORE,
@@ -79,6 +79,21 @@ def test_backup_is_verified_and_restores_snapshot_without_later_changes(
     app.stop()
 
 
+def _persist_restore_fixture_job(app: AthenaApplication, *, job_type: str):
+    """Persist a generic durable job below application payload validation.
+
+    Restore reconciliation is intentionally job-type agnostic. These rows model
+    already-persisted durable state rather than new application-facing jobs.
+    """
+    return app.job_repository.create(
+        job_type=job_type,
+        actor_id=app.chat.ensure_local_user(),
+        priority=JobPriority.NORMAL,
+        requested_scope_json=None,
+        pinned_configuration_json=None,
+    )
+
+
 def test_restore_fences_inflight_jobs_and_preserves_confirmed_checkpoint(
     tmp_path: Path,
 ) -> None:
@@ -91,15 +106,9 @@ def test_restore_fences_inflight_jobs_and_preserves_confirmed_checkpoint(
     )
     app.start()
 
-    running = app.jobs.create(
-        job_type="source.process"
-    )
-    cancelling = app.jobs.create(
-        job_type="integrity.sweep"
-    )
-    queued = app.jobs.create(
-        job_type="search.rebuild"
-    )
+    running = _persist_restore_fixture_job(app, job_type="source.process")
+    cancelling = _persist_restore_fixture_job(app, job_type="integrity.sweep")
+    queued = _persist_restore_fixture_job(app, job_type="search.rebuild")
 
     base = utc_now_us()
 

@@ -7,7 +7,7 @@ import pytest
 
 from athena.config.settings import AthenaSettings
 from athena.core.application import AthenaApplication
-from athena.jobs.models import JobState
+from athena.jobs.models import JobPriority, JobState
 from athena.jobs.source_processing import SourceProcessingJobError
 from athena.source.anchor_service import SourceAnchorIntegrityError
 from athena.source.chunking_service import SourceChunkIntegrityError
@@ -605,17 +605,27 @@ def test_legacy_docx_pinned_job_cannot_process_new_html_source(tmp_path: Path) -
 
     app = _app(tmp_path)
     captured = app.sources.capture_file(path)
-    job = app.jobs.create(
+    job = app.job_repository.create(
         job_type="source.process",
-        requested_scope={"source_id": str(captured.source.source_id)},
-        pinned_configuration={
-            "pipeline_version": "source-process-v1",
-            "text_parser": "athena.native_text@1",
-            "pdf_parser": app.source_pdf.parser_signature,
-            "docx_parser": app.source_docx.parser_signature,
-            "chunking_profile": "default",
-            "embedding_policy": "deferred",
-        },
+        actor_id=app.chat.ensure_local_user(),
+        priority=JobPriority.NORMAL,
+        requested_scope_json=json.dumps(
+            {"source_id": str(captured.source.source_id)},
+            sort_keys=True,
+            separators=(",", ":"),
+        ),
+        pinned_configuration_json=json.dumps(
+            {
+                "pipeline_version": "source-process-v1",
+                "text_parser": "athena.native_text@1",
+                "pdf_parser": app.source_pdf.parser_signature,
+                "docx_parser": app.source_docx.parser_signature,
+                "chunking_profile": "default",
+                "embedding_policy": "deferred",
+            },
+            sort_keys=True,
+            separators=(",", ":"),
+        ),
     )
     leased = app.jobs.acquire(job.job_id, worker_id="legacy", lease_seconds=60)
     assert leased.lease_token is not None

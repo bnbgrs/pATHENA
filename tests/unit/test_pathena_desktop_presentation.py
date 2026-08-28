@@ -10,6 +10,10 @@ pathena_window = pytest.importorskip(
     "athena.desktop.pathena_window",
     reason="pATHENA desktop presentation tests require the optional desktop dependency",
 )
+pathena_design_tokens = pytest.importorskip(
+    "athena.desktop.pathena_design_tokens",
+    reason="pATHENA desktop presentation tests require the optional desktop dependency",
+)
 base_window = pytest.importorskip(
     "athena.desktop.window",
     reason="pATHENA desktop presentation tests require the optional desktop dependency",
@@ -26,7 +30,7 @@ def test_pathena_theme_layers_on_existing_desktop_theme() -> None:
     assert "QFrame#rail" in stylesheet
     assert "QListWidget#navigation::item:selected" in stylesheet
     assert "QPushButton#sendButton" in stylesheet
-    assert "border-right: 1px solid #262b30" in stylesheet
+    assert f"border-right: 1px solid {pathena_design_tokens.PALETTE.border}" in stylesheet
 
 
 def test_pathena_shell_keeps_all_primary_workspaces_visible() -> None:
