@@ -127,9 +127,15 @@ class MutationBoundaryController(QObject):
 
     @staticmethod
     def _with_suffix(current: str, marker: str, suffix: str) -> str:
-        base = current.split(marker, 1)[0].rstrip()
+        boundary_label = "Interaction boundary:"
+        boundary_index = current.find(boundary_label)
+        base = (
+            current[:boundary_index].rstrip()
+            if boundary_index >= 0
+            else current.rstrip()
+        )
         if not base:
-            return f"Interaction boundary: {suffix}"
+            return f"{boundary_label} {suffix}"
         return f"{base}{marker}{suffix}"
 
 
