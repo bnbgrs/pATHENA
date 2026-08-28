@@ -305,8 +305,29 @@ def test_due_dependency_parent_does_not_starve_queued_child(tmp_path) -> None:
     parent = app.jobs.create(
         job_type="research.exhaustive",
         priority=JobPriority.BACKGROUND,
-        requested_scope={"mode": "regression-test"},
-        pinned_configuration={"pipeline": "regression-test"},
+        requested_scope={
+            "mode": "local_exhaustive",
+            "query": "dependency scheduling regression",
+            "domains": [],
+            "project_ids": [],
+            "source_types": [],
+            "explicit_source_ids": [],
+            "time_start_us": None,
+            "time_end_us": None,
+            "internet_scope": None,
+            "coverage_target": 1.0,
+        },
+        pinned_configuration={
+            "pipeline_version": "exhaustive-research-orchestration-v2",
+            "snapshot_commit_seq": 0,
+            "coverage_formula_id": "eligible-success-or-irrelevant-v1",
+            "candidate_dedup_id": "source-content-sha256-v1",
+            "requested_model_id": None,
+            "context_limit": None,
+            "output_reserve": None,
+            "safety_margin": None,
+            "max_hierarchy_depth": 1,
+        },
     )
     source = _capture_source(
         app,

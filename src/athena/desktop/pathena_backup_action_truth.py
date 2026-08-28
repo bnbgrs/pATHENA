@@ -71,8 +71,6 @@ class BackupActionTruth(QObject):
             verify_enabled=complete,
             restore_enabled=restore_ready,
         )
-        if focus_return:
-            self._prime_snapshot_focus_before_disable()
         self._syncing = True
         try:
             workspace.verify_button.setEnabled(complete)
@@ -81,6 +79,7 @@ class BackupActionTruth(QObject):
         finally:
             self._syncing = False
         if focus_return:
+            self._focus_snapshot_list()
             QTimer.singleShot(0, self._restore_snapshot_focus_if_unowned)
 
         label = snapshot_id[:8].upper() if snapshot_id else "none"
@@ -213,7 +212,7 @@ class BackupActionTruth(QObject):
             or (workspace.restore_button.hasFocus() and not restore_enabled)
         )
 
-    def _prime_snapshot_focus_before_disable(self) -> None:
+    def _focus_snapshot_list(self) -> None:
         snapshots = self.workspace.snapshots
         if snapshots.isVisibleTo(self.workspace) and snapshots.isEnabled():
             snapshots.setFocus(Qt.FocusReason.OtherFocusReason)
@@ -222,9 +221,7 @@ class BackupActionTruth(QObject):
         focus = QApplication.focusWidget()
         if focus is not None:
             return
-        snapshots = self.workspace.snapshots
-        if snapshots.isVisibleTo(self.workspace) and snapshots.isEnabled():
-            snapshots.setFocus(Qt.FocusReason.OtherFocusReason)
+        self._focus_snapshot_list()
 
     @staticmethod
     def _value(item: QListWidgetItem | None, role: int) -> str:
