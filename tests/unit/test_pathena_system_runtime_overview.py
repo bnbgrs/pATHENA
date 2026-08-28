@@ -119,10 +119,9 @@ def test_workspace_clears_live_values_on_core_failure() -> None:
         workspace.apply_failure("Core connection refused.")
         app.processEvents()
 
-        assert workspace.core.value.text() == "Disconnected"
-        assert workspace.provider.value.text() == "Unavailable"
-        assert workspace.models.value.text() == "Unavailable"
-        assert workspace.network.value.text() == "Core unreachable"
+        assert workspace.runtime.value.text() == "Disconnected"
+        assert workspace.storage.value.text() == "Unavailable"
+        assert workspace.connectivity.value.text() == "Core unreachable"
         assert "Core connection refused" in workspace.detail.text()
     finally:
         workspace.close()
