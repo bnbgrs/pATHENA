@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from athena.desktop.pathena_design_tokens import PALETTE, SHELL, TYPE
 from athena.desktop.pathena_theme import (
     PATHENA_SPECIALIZED_STYLESHEET,
@@ -8,8 +10,13 @@ from athena.desktop.pathena_theme import (
 
 
 def _assert_later_override(selector: str, declaration: str) -> None:
-    first_index = PATHENA_STYLESHEET.index(selector)
-    last_index = PATHENA_STYLESHEET.rindex(selector)
+    selector_pattern = re.compile(
+        rf"(?m)^[ \t]*{re.escape(selector)}(?=\s*(?:,|\{{))"
+    )
+    matches = list(selector_pattern.finditer(PATHENA_STYLESHEET))
+    assert len(matches) >= 2
+    first_index = matches[0].start()
+    last_index = matches[-1].start()
     assert last_index > first_index
     rule_end = PATHENA_STYLESHEET.index("}", last_index)
     assert declaration in PATHENA_STYLESHEET[last_index:rule_end]

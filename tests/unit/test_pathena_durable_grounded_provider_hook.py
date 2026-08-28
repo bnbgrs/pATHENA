@@ -17,7 +17,7 @@ from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
 from athena.chat.service import ChatService
 from athena.model.domain import ModelChatMessage, ModelInfo, ProviderHealth, ProviderHealthStatus
-from athena.model.provenance import ModelSignature
+from athena.model.provenance import ModelRunRepository, ModelSignature
 from athena.retrieval.context import ContextBuilderService
 from athena.retrieval.context_package import (
     ContextPackageBudget,
@@ -83,22 +83,11 @@ def _fingerprint(chat_id: uuid.UUID):
     )
 
 
-def _package(user_message):
+def _package(user_message, signature: ModelSignature):
     context = ContextBuilderService().build_from_ranked(
         query="hello",
         results=(),
         max_estimated_tokens=300,
-    )
-    signature = ModelSignature(
-        model_signature_id=uuid.uuid4(),
-        provider="lm_studio",
-        model_identifier="primary",
-        model_revision=None,
-        quantization="Q4_K_M",
-        generation_parameters_json='{"max_output_tokens":1000,"reasoning_mode":"off"}',
-        context_configuration_json='{"context_package_version":1}',
-        signature_hash=b"s" * 32,
-        created_at_us=1,
     )
     return ContextPackageService.build(
         model_signature=signature,
@@ -150,8 +139,27 @@ def _prepared_generation(database: SQLiteDatabase):
         content="hello",
         fingerprint=fingerprint,
     )
-    package = _package(started.user_message)
     provider = _Provider()
+    model_runs = ModelRunRepository(database)
+    signature = model_runs.get_or_create_signature(
+        model=provider.discover_models()[0],
+        generation_parameters={
+            "max_output_tokens": 1000,
+            "reasoning_mode": "off",
+        },
+        context_configuration={"context_package_version": 1},
+    )
+    package = _package(started.user_message, signature)
+    run = model_runs.start_run(
+        run_type="chat.unified_local_context_package",
+        trigger_actor_id=user,
+        pipeline_version="durable-grounded-provider-hook-v1",
+        input_snapshot=package.run_snapshot(),
+        configuration={"context_package_version": 1},
+        model_signature_id=signature.model_signature_id,
+        prompt_template_id="durable-grounded-provider-hook",
+        prompt_template_version="1",
+    )
     generation = DurableGroundedGenerationService(
         ChatGenerationService(ChatService(chats), provider),
         coordinator,
@@ -164,6 +172,7 @@ def _prepared_generation(database: SQLiteDatabase):
         coordinator,
         started,
         package,
+        run.processing_run_id,
         provider,
         generation,
     )
@@ -181,6 +190,7 @@ def test_provider_hook_failure_does_not_claim_irreversible_boundary(tmp_path) ->
             coordinator,
             started,
             package,
+            processing_run_id,
             provider,
             generation,
         ) = _prepared_generation(database)
@@ -194,7 +204,7 @@ def test_provider_hook_failure_does_not_claim_irreversible_boundary(tmp_path) ->
                 chat_id=chat_id,
                 user_message=started.user_message,
                 context_package=package,
-                processing_run_id=uuid.uuid4(),
+                processing_run_id=processing_run_id,
                 fingerprint=fingerprint,
                 receipt_payload_builder=_receipt,
                 on_before_provider_call=fail_before_provider,
@@ -214,7 +224,7 @@ def test_provider_hook_failure_does_not_claim_irreversible_boundary(tmp_path) ->
             chat_id=chat_id,
             user_message=started.user_message,
             context_package=package,
-            processing_run_id=uuid.uuid4(),
+            processing_run_id=processing_run_id,
             fingerprint=fingerprint,
             receipt_payload_builder=_receipt,
         )
@@ -245,10 +255,10 @@ def test_receipt_builder_failure_journals_provider_answer_for_recovery(tmp_path)
             coordinator,
             started,
             package,
+            processing_run_id,
             provider,
             generation,
         ) = _prepared_generation(database)
-        processing_run_id = uuid.uuid4()
 
         def broken_receipt_builder(
             content: str,
