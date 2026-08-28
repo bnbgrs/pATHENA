@@ -23,6 +23,13 @@ IDEMPOTENCY_HELPERS = (
     "_work_idempotency_key",
 )
 
+IDEMPOTENCY_INTERNAL_HELPERS = (
+    "_uuid_value",
+    "_nonnegative_int",
+    "_canonical_text",
+    "_research_input_sequence",
+)
+
 ALL_HELPERS = VALIDATION_HELPERS + IDEMPOTENCY_HELPERS
 
 
@@ -58,7 +65,9 @@ def test_boundary_modules_own_exact_helper_sets() -> None:
     assert validation_functions == set(
         VALIDATION_HELPERS + VALIDATION_INTERNAL_HELPERS
     )
-    assert idempotency_functions == set(IDEMPOTENCY_HELPERS)
+    assert idempotency_functions == set(
+        IDEMPOTENCY_HELPERS + IDEMPOTENCY_INTERNAL_HELPERS
+    )
 
 
 def test_repository_uses_explicit_static_reexports() -> None:

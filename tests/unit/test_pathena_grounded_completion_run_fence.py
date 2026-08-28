@@ -141,7 +141,9 @@ def _receipt_payload() -> str:
             "assistant_text": "durable answer",
             "provider_id": "lm_studio",
             "model_id": "primary",
-        }
+        },
+        sort_keys=True,
+        separators=(",", ":"),
     )
 
 
@@ -307,6 +309,15 @@ def test_coordinator_completion_rejects_missing_pinned_processing_run(
             cursor = connection.execute(
                 """
                 UPDATE grounded_provider_results
+                SET processing_run_id = ?
+                WHERE operation_id = ?
+                """,
+                (uuid_to_blob(foreign_run_id), uuid_to_blob(operation_id)),
+            )
+            assert cursor.rowcount == 1
+            cursor = connection.execute(
+                """
+                UPDATE chat_send_operations
                 SET processing_run_id = ?
                 WHERE operation_id = ?
                 """,
