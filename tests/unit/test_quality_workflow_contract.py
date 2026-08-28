@@ -40,11 +40,11 @@ def test_quality_workflow_keeps_canonical_checks_independently_observable() -> N
 def test_quality_workflow_preserves_post_pytest_diagnostics_budget() -> None:
     workflow = _workflow_text()
 
-    assert "timeout-minutes: 25" in workflow
+    assert "timeout-minutes: 50" in workflow
     pytest_step = workflow.split("- name: Quality — pytest", maxsplit=1)[1].split(
         "- name: Upload canonical quality diagnostics", maxsplit=1
     )[0]
-    assert "timeout-minutes: 20" in pytest_step
+    assert "timeout-minutes: 40" in pytest_step
     assert "if: ${{ always() && !cancelled() }}" in workflow
 
 
