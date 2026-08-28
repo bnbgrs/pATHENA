@@ -208,7 +208,7 @@ def test_low_level_result_rejects_unknown_run_when_context_is_pinned(
 
         with pytest.raises(
             GroundedProviderAttemptConflictError,
-            match="ProcessingRun conflicts with the pinned ContextPackage",
+            match="Provider result conflicts with the pinned Grounded ProcessingRun",
         ):
             coordinator.provider_attempts.store_result(
                 operation_id=operation_id,
