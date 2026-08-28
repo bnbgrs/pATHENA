@@ -80,7 +80,7 @@ class BackupActionTruth(QObject):
             self._syncing = False
         if focus_return:
             self._focus_snapshot_list()
-            QTimer.singleShot(0, self._restore_snapshot_focus_if_unowned)
+            QTimer.singleShot(0, self._settle_snapshot_focus_handoff)
 
         label = snapshot_id[:8].upper() if snapshot_id else "none"
         if not snapshot_id:
@@ -216,6 +216,11 @@ class BackupActionTruth(QObject):
         snapshots = self.workspace.snapshots
         if snapshots.isVisibleTo(self.workspace) and snapshots.isEnabled():
             snapshots.setFocus(Qt.FocusReason.OtherFocusReason)
+
+    def _settle_snapshot_focus_handoff(self) -> None:
+        """Recheck one event turn later without stealing newer user focus."""
+        self._restore_snapshot_focus_if_unowned()
+        QTimer.singleShot(0, self._restore_snapshot_focus_if_unowned)
 
     def _restore_snapshot_focus_if_unowned(self) -> None:
         focus = QApplication.focusWidget()
