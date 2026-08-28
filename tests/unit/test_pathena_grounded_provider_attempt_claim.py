@@ -160,7 +160,7 @@ def _pin_context_and_run(
         trigger_actor_id=trigger_actor_id,
         pipeline_version="provider-attempt-claim-test-v1",
         input_snapshot=package.run_snapshot(),
-        configuration={"mode": "unified_local_chat"},
+        configuration={"embedding_model_id": "embed", "max_items": 4},
         model_signature_id=signature.model_signature_id,
         prompt_template_id="provider-attempt-claim-test",
         prompt_template_version="1",

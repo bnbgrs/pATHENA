@@ -80,7 +80,14 @@ class BackupActionTruth(QObject):
             self._syncing = False
         if focus_return:
             self._focus_snapshot_list()
-            QTimer.singleShot(0, self._settle_snapshot_focus_handoff)
+            # Queue both fallback checks before returning to the event loop. A test/user
+            # may clear the immediate handoff after selection changes; scheduling a
+            # second timer from inside the first callback requires another event-loop
+            # turn and can leave focus unowned after a single processEvents() drain.
+            # Two pre-queued callbacks both remain non-stealing because each rechecks
+            # QApplication.focusWidget() before restoring list focus.
+            QTimer.singleShot(0, self._restore_snapshot_focus_if_unowned)
+            QTimer.singleShot(0, self._restore_snapshot_focus_if_unowned)
 
         label = snapshot_id[:8].upper() if snapshot_id else "none"
         if not snapshot_id:
@@ -216,11 +223,6 @@ class BackupActionTruth(QObject):
         snapshots = self.workspace.snapshots
         if snapshots.isVisibleTo(self.workspace) and snapshots.isEnabled():
             snapshots.setFocus(Qt.FocusReason.OtherFocusReason)
-
-    def _settle_snapshot_focus_handoff(self) -> None:
-        """Recheck one event turn later without stealing newer user focus."""
-        self._restore_snapshot_focus_if_unowned()
-        QTimer.singleShot(0, self._restore_snapshot_focus_if_unowned)
 
     def _restore_snapshot_focus_if_unowned(self) -> None:
         focus = QApplication.focusWidget()

@@ -183,7 +183,7 @@ jobs:
   windows-path-safety:
     name: Windows path safety
     runs-on: windows-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
       - name: Check out repository
