@@ -120,6 +120,8 @@ def test_disabled_focused_restore_returns_to_snapshot_list_when_focus_is_unowned
 ) -> None:
     workspace = BackupWorkspace()
     workspace.show()
+    workspace.activateWindow()
+    qt_app.processEvents()
     controller = install_backup_action_truth(workspace)
     _select(
         workspace,
@@ -152,6 +154,8 @@ def test_disabled_action_focus_return_preserves_newer_user_focus(
 ) -> None:
     workspace = BackupWorkspace()
     workspace.show()
+    workspace.activateWindow()
+    qt_app.processEvents()
     controller = install_backup_action_truth(workspace)
     _select(
         workspace,
