@@ -10,6 +10,7 @@ from athena.api.contracts import (
 )
 from athena.desktop.api_controller import DesktopApiSnapshot
 from athena.desktop.app import create_application
+from athena.desktop.pathena_design_tokens import SHELL
 from athena.desktop.pathena_theme import PATHENA_STYLESHEET
 from athena.desktop.pathena_window import (
     PathenaMainWindow,
@@ -60,7 +61,7 @@ def test_pathena_secondary_context_is_grounded_only_and_user_controlled() -> Non
         inspector = window.findChild(QFrame, "inspector")
         assert inspector is not None
         assert inspector.isHidden() is False
-        assert inspector.width() == 360
+        assert inspector.width() == SHELL.inspector_width + inspector.frameWidth()
         assert window.details_button.text() == "Details"
         assert window.details_button.isChecked() is False
         assert window.details_button.isHidden()

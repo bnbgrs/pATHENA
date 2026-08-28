@@ -17,6 +17,10 @@ def _app() -> QApplication:
     return QApplication([])
 
 
+def _assert_inspector_width(inspector: QFrame) -> None:
+    assert inspector.width() == SHELL.inspector_width + inspector.frameWidth()
+
+
 def test_reference_shell_owns_icon_rail_without_rewiring_navigation() -> None:
     _app()
     window = PathenaMainWindow()
@@ -84,7 +88,7 @@ def test_reference_body_directly_owns_workspace_and_persistent_inspector() -> No
         assert inspector is not None
         assert center.parentWidget() is body
         assert inspector.parentWidget() is body
-        assert inspector.width() == SHELL.inspector_width
+        _assert_inspector_width(inspector)
         assert inspector.accessibleName() == "Inspector"
         assert not inspector.isHidden()
     finally:
@@ -124,7 +128,7 @@ def test_reference_inspector_is_persistent_and_composer_action_is_compact() -> N
     try:
         inspector = window.findChild(QFrame, "inspector")
         assert inspector is not None
-        assert inspector.width() == SHELL.inspector_width
+        _assert_inspector_width(inspector)
         assert not inspector.isHidden()
         assert window.details_button.isHidden()
 
