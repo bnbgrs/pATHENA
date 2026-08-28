@@ -127,6 +127,7 @@ def test_disabled_focused_restore_returns_to_snapshot_list_when_focus_is_unowned
         "complete",
         "verified_light",
     )
+    qt_app.processEvents()
     workspace.restore_button.setFocus()
     assert workspace.restore_button.hasFocus()
 
@@ -158,6 +159,7 @@ def test_disabled_action_focus_return_preserves_newer_user_focus(
         "complete",
         "verified_deep",
     )
+    qt_app.processEvents()
     workspace.restore_button.setFocus()
     assert workspace.restore_button.hasFocus()
 
