@@ -48,8 +48,14 @@ def test_newer_focus_wins_over_stale_completion_restore() -> None:
     app.processEvents()
     controller._focus_changed(first, second)
 
-    first.setFocus()
-    app.processEvents()
+    # Simulate a stale programmatic restore from another completion controller.
+    # It must not be reclassified as newer user-selected focus by this arbiter.
+    controller._reasserting = True
+    try:
+        first.setFocus()
+        app.processEvents()
+    finally:
+        controller._reasserting = False
     assert QApplication.focusWidget() is first
 
     controller._settle_completion(workspace)
