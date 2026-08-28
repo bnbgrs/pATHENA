@@ -77,7 +77,13 @@ def test_lost_nonposix_exclusive_create_never_unlinks_winner(
     real_open = reserve_module.os.open
     raced = False
 
-    monkeypatch.setattr(reserve_module.os, "name", "nt")
+    class _NonPosixOS:
+        name = "nt"
+
+        def __getattr__(self, name: str) -> object:
+            return getattr(os, name)
+
+    monkeypatch.setattr(reserve_module, "os", _NonPosixOS())
 
     def racing_open(
         path: str | bytes | os.PathLike[str] | os.PathLike[bytes],
