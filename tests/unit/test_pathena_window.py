@@ -69,8 +69,9 @@ def test_reference_shell_owns_cobalt_navigation_selection() -> None:
 
 
 def test_reference_body_directly_owns_workspace_and_persistent_inspector() -> None:
-    _app()
+    app = _app()
     window = PathenaMainWindow()
+    app.processEvents()
     try:
         shell = window.centralWidget()
         assert isinstance(shell, QWidget)
@@ -117,8 +118,9 @@ def test_reference_shell_has_horizontal_primary_navigation_and_private_status() 
 
 
 def test_reference_inspector_is_persistent_and_composer_action_is_compact() -> None:
-    _app()
+    app = _app()
     window = PathenaMainWindow()
+    app.processEvents()
     try:
         inspector = window.findChild(QFrame, "inspector")
         assert inspector is not None

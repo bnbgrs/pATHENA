@@ -26,7 +26,16 @@ def _run_cli(root: Path, *args: str) -> subprocess.CompletedProcess[str]:
 
 def test_two_scheduler_processes_consume_one_retry_budget_slot(tmp_path) -> None:
     local_root = tmp_path / "runtime"
-    created = _run_cli(local_root, "job", "create", "embedding.rebuild")
+    created = _run_cli(
+        local_root,
+        "job",
+        "create",
+        "embedding.rebuild",
+        "--scope-json",
+        '{"index_kind":"archive_source_chunks"}',
+        "--config-json",
+        '{"batch_size":32,"index_kind":"archive_source_chunks","model_id":"test-embed","pipeline_version":"archive-embedding-rebuild-v1","target_chunk_generation":0}',
+    )
     assert created.returncode == 0, created.stderr
     job_match = _UUID_RE.search(created.stdout)
     assert job_match is not None
