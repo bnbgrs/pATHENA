@@ -86,12 +86,21 @@ def test_job_create_blocks_pending_and_protected_source_dependencies(
         / "protected-source.txt"
     )
 
+    unrelated_path = (
+        tmp_path
+        / "unrelated-source.txt"
+    )
+
     pending_path.write_bytes(
         b"ATHENA_JOB_FENCE_PENDING_8E31"
     )
 
     protected_path.write_bytes(
         b"ATHENA_JOB_FENCE_PROTECTED_7C42"
+    )
+
+    unrelated_path.write_bytes(
+        b"ATHENA_JOB_FENCE_UNRELATED_4B16"
     )
 
     app = _app(
@@ -131,27 +140,18 @@ def test_job_create_blocks_pending_and_protected_source_dependencies(
         with pytest.raises(
             JobSourceProtectionFenceError
         ):
-            app.jobs.create(
-                job_type="source.process",
-                requested_scope={
-                    "source_id": str(
-                        pending.source.source_id
-                    ),
-                },
+            app.source_processing.enqueue(
+                pending.source.source_id
             )
 
         with pytest.raises(
             JobSourceProtectionFenceError
         ):
-            app.jobs.create(
-                job_type="research.exhaustive",
-                requested_scope={
-                    "explicit_source_ids": [
-                        str(
-                            pending.source.source_id
-                        )
-                    ],
-                },
+            app.research.enqueue_local(
+                query="Fence pending source dependency.",
+                explicit_source_ids=(
+                    pending.source.source_id,
+                ),
             )
 
         captured_protected = (
@@ -175,26 +175,25 @@ def test_job_create_blocks_pending_and_protected_source_dependencies(
         with pytest.raises(
             JobSourceProtectionFenceError
         ):
-            app.jobs.create(
-                job_type="source.process",
-                requested_scope={
-                    "source_id": str(
-                        captured_protected.source.source_id
-                    ),
-                },
+            app.source_processing.enqueue(
+                captured_protected.source.source_id
             )
 
-        # Jobs without Source dependencies remain
-        # unaffected by the fence.
-        unrelated = app.jobs.create(
-            job_type="embedding.rebuild",
-            requested_scope={
-                "index_kind": "local",
-            },
+        # Jobs for unprotected Source dependencies remain
+        # unaffected by the fence while still using the
+        # canonical durable source-processing payload builder.
+        captured_unrelated = (
+            app.sources.capture_file(
+                unrelated_path
+            )
+        )
+
+        unrelated = app.source_processing.enqueue(
+            captured_unrelated.source.source_id
         )
 
         assert unrelated.job_type == (
-            "embedding.rebuild"
+            "source.process"
         )
 
     finally:

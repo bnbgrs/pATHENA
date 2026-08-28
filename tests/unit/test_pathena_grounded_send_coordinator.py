@@ -4,6 +4,7 @@ import uuid
 
 import pytest
 
+from athena.chat.grounded_processing_run import bind_grounded_processing_run
 from athena.chat.grounded_reconciliation import GroundedReconciliationState
 from athena.chat.grounded_recovery import GroundedRecoveryState
 from athena.chat.grounded_send import (
@@ -17,6 +18,7 @@ from athena.chat.grounded_send import (
 )
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
+from athena.common.ids import uuid_to_blob
 from athena.model.domain import ModelInfo
 from athena.model.provenance import ModelRunRepository, ModelSignature
 from athena.retrieval.context_package import (
@@ -76,6 +78,8 @@ def _context_package(
     signature: ModelSignature,
     operation_id: uuid.UUID,
     revision_id: uuid.UUID,
+    *,
+    snapshot_commit_seq: int,
 ) -> ContextPackage:
     return ContextPackageService.build_from_sections(
         model_signature=signature,
@@ -120,7 +124,7 @@ def _context_package(
             estimated_input_tokens=10,
             estimated_total_tokens=1034,
         ),
-        snapshot_commit_seq=1,
+        snapshot_commit_seq=snapshot_commit_seq,
     )
 
 
@@ -132,6 +136,17 @@ def _store_context_and_run(
     revision_id: uuid.UUID,
     trigger_actor_id: uuid.UUID,
 ) -> uuid.UUID:
+    commit_row = coordinator.database.connection.execute(
+        """
+        SELECT c.commit_seq
+        FROM revisions AS r
+        JOIN commit_records AS c ON c.commit_id = r.commit_id
+        WHERE r.entity_id = ? AND r.revision_id = ?
+        """,
+        (uuid_to_blob(operation_id), uuid_to_blob(revision_id)),
+    ).fetchone()
+    assert commit_row is not None
+
     model_runs = ModelRunRepository(coordinator.database)
     signature = model_runs.get_or_create_signature(
         model=_model_info(),
@@ -142,7 +157,12 @@ def _store_context_and_run(
         },
         context_configuration={"mode": "grounded"},
     )
-    package = _context_package(signature, operation_id, revision_id)
+    package = _context_package(
+        signature,
+        operation_id,
+        revision_id,
+        snapshot_commit_seq=int(commit_row["commit_seq"]),
+    )
     coordinator.store_context_package(
         operation_id=operation_id,
         chat_id=chat_id,
@@ -157,6 +177,14 @@ def _store_context_and_run(
         model_signature_id=signature.model_signature_id,
         prompt_template_id="grounded-test",
         prompt_template_version="1",
+    )
+    bind_grounded_processing_run(
+        coordinator.database,
+        operation_id=operation_id,
+        chat_id=chat_id,
+        processing_run_id=run.processing_run_id,
+        package=package,
+        trigger_actor_id=trigger_actor_id,
     )
     return run.processing_run_id
 
