@@ -9,8 +9,8 @@ def test_local_smoke_initializes_and_reopens_current_schema(tmp_path: Path) -> N
 
     assert report.local_root == tmp_path.resolve()
     assert report.chat_id
-    assert report.first_core_status == "running"
-    assert report.restarted_core_status == "running"
+    assert report.first_core_status == "ok"
+    assert report.restarted_core_status == "ok"
     assert report.restart_cycles == 3
     assert report.persisted_chat_count >= 1
     assert report.database_schema_version == SCHEMA_VERSION
