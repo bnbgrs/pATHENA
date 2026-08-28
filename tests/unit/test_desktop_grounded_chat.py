@@ -447,8 +447,11 @@ def test_window_ground_toggle_renders_real_evidence() -> None:
         app.processEvents()
 
         assert gateway.direct_sent == []
-        assert gateway.grounded_sent == [(CHAT_ID, "ground this")]
-        assert window.current_chat_id == CHAT_ID
+        assert len(gateway.grounded_sent) == 1
+        sent_chat_id, sent_content = gateway.grounded_sent[0]
+        assert uuid.UUID(sent_chat_id)
+        assert sent_content == "ground this"
+        assert window.current_chat_id == sent_chat_id
         assert window.prompt_input.text() == ""
         assert window.inspector_mode.value_label.text() == (
             "GROUNDED LOCAL"
@@ -534,8 +537,11 @@ def test_window_grounded_failure_is_visible_and_not_persisted() -> None:
         assert pool.waitForDone(2_000)
         app.processEvents()
 
-        assert gateway.grounded_sent == [(CHAT_ID, "ground this")]
-        assert gateway.loaded == [CHAT_ID]
+        assert len(gateway.grounded_sent) == 1
+        sent_chat_id, sent_content = gateway.grounded_sent[0]
+        assert uuid.UUID(sent_chat_id)
+        assert sent_content == "ground this"
+        assert gateway.loaded == [sent_chat_id]
         assert window.inspector_object_id.text() == "CHAT / ERROR"
         assert window.inspector_heading.text() == "Grounded chat failed"
 
