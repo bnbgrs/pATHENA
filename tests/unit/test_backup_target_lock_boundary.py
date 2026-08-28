@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from athena.backup import target_lock as target_lock_module
 from athena.backup.target_lock import BackupTargetBusyError, backup_target_lock
 
 
@@ -27,14 +28,14 @@ def test_backup_target_lock_wraps_lockfile_open_error(
 ) -> None:
     target = tmp_path / "backup"
     target.mkdir()
-    original_open = Path.open
+    original_open = target_lock_module.os.open
 
-    def failing_open(path: Path, *args, **kwargs):  # type: ignore[no-untyped-def]
-        if path.name == ".athena-backup.lock":
+    def failing_open(path, flags, mode=0o777, *args, **kwargs):  # type: ignore[no-untyped-def]
+        if Path(path).name == ".athena-backup.lock":
             raise PermissionError("denied")
-        return original_open(path, *args, **kwargs)
+        return original_open(path, flags, mode, *args, **kwargs)
 
-    monkeypatch.setattr(Path, "open", failing_open)
+    monkeypatch.setattr(target_lock_module.os, "open", failing_open)
 
     with pytest.raises(BackupTargetBusyError, match="cannot be opened safely"):
         with backup_target_lock(target):
