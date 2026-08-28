@@ -65,6 +65,7 @@ def test_unified_receipt_binds_operation_run_package_and_model() -> None:
     operation_id = uuid.uuid4()
     run_id = uuid.uuid4()
     package_id = uuid.uuid4()
+    replay_projection: dict[str, object] = {}
     payload_json = build_unified_grounded_receipt(
         assistant_text="answer",
         provider_id="lm_studio",
@@ -73,6 +74,7 @@ def test_unified_receipt_binds_operation_run_package_and_model() -> None:
         processing_run_id=run_id,
         context_package_request_id=package_id,
         embedding_model_id="embedding",
+        replay_projection=replay_projection,
     )
     validate_provider_result_contract(
         assistant_content="answer",
@@ -85,4 +87,5 @@ def test_unified_receipt_binds_operation_run_package_and_model() -> None:
     assert payload["provider_id"] == "lm_studio"
     assert payload["model_id"] == "primary"
     assert payload["embedding_model_id"] == "embedding"
-    assert payload["unified_grounded_receipt_version"] == 1
+    assert payload["unified_replay_projection"] == replay_projection
+    assert payload["unified_grounded_receipt_version"] == 2
