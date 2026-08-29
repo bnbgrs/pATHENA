@@ -28,6 +28,11 @@ class _CheckpointingLegacyConnection(sqlite3.Connection):
                 raise AssertionError(
                     "legacy migration fixture could not checkpoint SQLite WAL"
                 )
+            journal_mode = self.execute("PRAGMA journal_mode=DELETE").fetchone()
+            if journal_mode is None or str(journal_mode[0]).lower() != "delete":
+                raise AssertionError(
+                    "legacy migration fixture could not leave WAL journal mode"
+                )
         finally:
             super().close()
 
