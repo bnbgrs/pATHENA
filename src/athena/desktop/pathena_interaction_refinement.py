@@ -108,7 +108,8 @@ class PathenaInteractionRefinement(QObject):
             return
         target = int(self.inspector.property("pathenaResponsiveWidth") or 320)
         if self._animation_ms == 0:
-            self.inspector.setMaximumWidth(target if visible else 0)
+            self.inspector.setFixedWidth(target if visible else 0)
+            self.inspector.setMinimumWidth(0)
             self.inspector.setVisible(visible)
             self._inspector_animation = None
             return
