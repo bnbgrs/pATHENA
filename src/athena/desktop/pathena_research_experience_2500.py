@@ -203,12 +203,13 @@ class PathenaResearchExperience(QObject):
             )
             splitter = result_panel.parentWidget()
             if isinstance(splitter, QSplitter):
-                splitter.setObjectName("researchPrimarySplitter")
-                splitter.setAccessibleName("Research run and result splitter")
-                splitter.setAccessibleDescription(
-                    "Resize the research run browser and result detail areas."
+                _set_identity(
+                    splitter,
+                    object_name="researchPrimarySplitter",
+                    accessible_name="Research run and result splitter",
+                    description="Resize the research run browser and result detail areas.",
+                    role="surface",
                 )
-                splitter.setProperty("pathenaResearchRole", "surface")
 
         control_specs = (
             (
