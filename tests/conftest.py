@@ -3,12 +3,47 @@
 from __future__ import annotations
 
 import shutil
+import sqlite3
 from collections.abc import Iterator
 from pathlib import Path
+from types import ModuleType
+from typing import Any
 
 import pytest
 
 _RESERVE_FILENAME = "emergency.reserve"
+_LEGACY_MIGRATION_TESTS = {
+    "test_v30_migration_backfills_existing_spool_blob",
+    "test_v29_migration_backfills_legacy_event_assessment_without_model",
+}
+
+
+class _CheckpointingLegacyConnection(sqlite3.Connection):
+    """Quiesce test-reconstructed WAL state before the legacy handle closes."""
+
+    def close(self) -> None:
+        try:
+            result = self.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
+            if result is not None and int(result[0]) != 0:
+                raise AssertionError(
+                    "legacy migration fixture could not checkpoint SQLite WAL"
+                )
+        finally:
+            super().close()
+
+
+class _LegacySQLiteProxy:
+    """Proxy sqlite3 for legacy-fixture connections without touching product code."""
+
+    def __init__(self, module: ModuleType) -> None:
+        self._module = module
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._module, name)
+
+    def connect(self, *args: Any, **kwargs: Any) -> sqlite3.Connection:
+        kwargs["factory"] = _CheckpointingLegacyConnection
+        return self._module.connect(*args, **kwargs)
 
 
 def _remove_test_reserve(path: Path) -> None:
@@ -20,6 +55,32 @@ def _remove_test_reserve(path: Path) -> None:
         shutil.rmtree(path)
         return
     path.unlink(missing_ok=True)
+
+
+@pytest.fixture(autouse=True)
+def quiesce_reconstructed_legacy_sqlite(
+    request: pytest.FixtureRequest,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Close synthetic legacy DBs without leaving modern WAL sidecars behind.
+
+    The two migration tests deliberately create the current database first, then
+    use a direct sqlite3 handle to reconstruct an older schema boundary. Those
+    DDL writes legitimately create WAL/SHM sidecars. Production startup must stay
+    fail-closed when real sidecars are present, so only the test-owned direct
+    sqlite3 handle is wrapped and checkpointed before close.
+    """
+    if request.node.name not in _LEGACY_MIGRATION_TESTS:
+        return
+
+    module = request.module
+    module_sqlite = getattr(module, "sqlite3", None)
+    if module_sqlite is sqlite3:
+        monkeypatch.setattr(
+            module,
+            "sqlite3",
+            _LegacySQLiteProxy(sqlite3),
+        )
 
 
 @pytest.fixture(autouse=True)
