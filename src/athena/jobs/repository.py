@@ -1350,7 +1350,7 @@ class JobRepository:
                     SET state = ?, blocked_reason = ?, worker_id = NULL,
                         lease_token = NULL, lease_acquired_at_us = NULL,
                         lease_expires_at_us = NULL, heartbeat_at_us = NULL,
-                        updated_at_us = ?
+                        updated_at_us = MAX(updated_at_us, ?)
                     WHERE job_id = ?
                     """,
                     (target.value, reason, now, uuid_to_blob(job_id)),
