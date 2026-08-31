@@ -469,6 +469,7 @@ class PallasGroundedFieldController(QObject):
         if target is None:
             raise RuntimeError("PALLAS shared container is unavailable.")
         self.target = target
+        self.target.show()
         self.field = PallasSemanticField(target)
         self.field.set_compact_mode(True)
         self._fields: list[PallasSemanticField] = [self.field]

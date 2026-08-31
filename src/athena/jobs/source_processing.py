@@ -8,7 +8,11 @@ from dataclasses import dataclass
 from typing import Any
 
 from athena.jobs.models import CheckpointRecord, JobPriority, JobRecord, JobState
-from athena.jobs.repository import JobLeaseError, JobTransitionError
+from athena.jobs.repository import (
+    JobLeaseError,
+    JobSourceProtectionFenceError,
+    JobTransitionError,
+)
 from athena.jobs.service import DurableJobService
 from athena.source.chunking_service import (
     SourceChunkBuildResult,
@@ -26,6 +30,7 @@ from athena.source.models import (
     SourceRepresentationType,
 )
 from athena.source.pdf_representation_service import SourcePdfRepresentationService
+from athena.source.repository import SourceProtectionTransitionPendingError
 from athena.source.representation_service import SourceTextRepresentationService
 from athena.source.service import SourceCaptureService
 
@@ -117,7 +122,13 @@ class DurableSourceProcessingWorker:
         research_work_item_id: uuid.UUID | None = None,
     ) -> JobRecord:
         """Queue one reproducibly configured source-processing job."""
-        self.sources.get(source_id)
+        try:
+            self.sources.get(source_id)
+        except SourceProtectionTransitionPendingError as exc:
+            raise JobSourceProtectionFenceError(
+                "Durable job creation is blocked because a referenced Source is protected or "
+                "has an active protection transition."
+            ) from exc
         requested_scope: dict[str, object] = {"source_id": str(source_id)}
         if research_work_item_id is not None:
             requested_scope["research_work_item_id"] = str(research_work_item_id)
@@ -155,9 +166,6 @@ class DurableSourceProcessingWorker:
         lease_token = leased.lease_token
         last_result: SourceProcessingStepResult | None = None
         try:
-            # A large representation may require many checkpointed chunk
-            # batches. The high guard is only a corruption backstop; normal
-            # scheduler dispatches yield after a much smaller boundary count.
             for _ in range(100_000):
                 last_result = self.step(
                     job_id,
@@ -179,8 +187,6 @@ class DurableSourceProcessingWorker:
                     blocked_reason=_failure_reason(exc),
                 )
             except JobLeaseError:
-                # A lost/expired fence must be recovered by normal startup
-                # recovery; the stale worker must not mutate the job further.
                 pass
             if isinstance(exc, SourceProcessingJobError):
                 raise
@@ -224,8 +230,6 @@ class DurableSourceProcessingWorker:
                 f"source.process job {job_id} is not running ({job.state.value!r})."
             )
 
-        # Validate ownership and extend the fence before starting potentially
-        # expensive I/O. Every checkpoint validates the same lease again.
         job = self.jobs.heartbeat(
             job_id,
             lease_token=lease_token,
@@ -312,7 +316,6 @@ class DurableSourceProcessingWorker:
                 job_id,
                 lease_token=lease_token,
             )
-
             if is_pdf:
                 built_pdf = self.source_pdf.build(
                     cursor.source_id,
@@ -396,7 +399,6 @@ class DurableSourceProcessingWorker:
                 representation_id=representation_id,
                 chunk_count=len(built.chunks),
             )
-
         planned = self.source_chunks.prepare_staged_default(representation_id)
         checkpoint = self._checkpoint_chunk_plan(
             job_id,
@@ -560,9 +562,6 @@ class DurableSourceProcessingWorker:
                     representation_id=representation_id,
                     chunk_count=len(built.chunks),
                 )
-            # Derived State is reconstructible. A v2 job repairs through the
-            # same bounded staging path rather than falling back to one large
-            # replacement transaction.
             try:
                 planned = self.source_chunks.prepare_staged_default(representation_id)
             except Exception as repair_exc:
@@ -583,7 +582,6 @@ class DurableSourceProcessingWorker:
                 representation_id=representation_id,
                 chunk_count=planned.chunk_count,
             )
-
         completed = self.jobs.complete(job_id, lease_token=lease_token)
         return SourceProcessingStepResult(
             job=completed,
