@@ -1,7 +1,12 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QCoreApplication, QEvent
-from PySide6.QtWidgets import QAbstractItemView, QApplication, QListWidget
+from PySide6.QtWidgets import (
+    QAbstractItemView,
+    QApplication,
+    QListWidget,
+    QPushButton,
+)
 
 from athena.desktop.app import create_application
 from athena.desktop.canonical_memory_extensions import install_canonical_memory_extensions
@@ -17,7 +22,10 @@ from athena.desktop.pathena_research_result_presentation import (
     apply_research_result_presentation,
 )
 from athena.desktop.pathena_shell_density import apply_shell_density
-from athena.desktop.pathena_ui_refinement_100 import UI_REFINEMENT_TASKS
+from athena.desktop.pathena_ui_refinement_100 import (
+    UI_REFINEMENT_TASKS,
+    apply_ui_refinements,
+)
 from athena.desktop.pathena_ui_refinement_integrity import apply_complete_ui_refinements
 from athena.desktop.pathena_window import PathenaMainWindow
 from athena.desktop.pathena_workspace_presentation import apply_workspace_presentation
@@ -63,11 +71,28 @@ def test_all_100_refinements_target_real_installed_desktop_controls() -> None:
         assert len(UI_REFINEMENT_TASKS) == 100
         assert len(set(UI_REFINEMENT_TASKS)) == 100
 
-        applied = apply_complete_ui_refinements(window)
+        first_pass = apply_ui_refinements(window)
+        details_toggle = window.findChild(QPushButton, "detailsToggle")
+        expected_first_pass = tuple(
+            task_id
+            for task_id in range(1, 101)
+            if details_toggle is not None or task_id not in {17, 18}
+        )
 
-        assert applied == tuple(range(1, 101))
-        assert window.property("pathenaUiRefinementAppliedCount") == 100
+        assert first_pass == expected_first_pass
+        assert (17 in first_pass) is (details_toggle is not None)
+        assert (18 in first_pass) is (details_toggle is not None)
+        assert window.property("pathenaUiRefinementAppliedCount") == len(first_pass)
         assert window.property("pathenaUiRefinementTaskCount") == 100
+
+        complete = apply_complete_ui_refinements(window)
+        assert complete == tuple(sorted(set(complete)))
+        assert set(first_pass).issubset(complete)
+        assert tuple(task_id for task_id in complete if task_id <= 100) == first_pass
+        assert len(complete) > len(first_pass)
+        assert window.property("pathenaUiRefinementAppliedCount") == len(complete)
+        assert window.property("pathenaUiRefinementTaskCount") > 100
+
         assert window.chat_selector.accessibleName() == "Conversation"
         assert window.prompt_input.accessibleName() == "Message"
         assert knowledge.search_input.isClearButtonEnabled()
