@@ -1,0 +1,456 @@
+"""Render the eleven canonical pATHENA reference surfaces on native Windows."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import sys
+import threading
+import time
+from collections.abc import Sequence
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
+
+WORKSPACE_SURFACE_LABELS = (
+    "Chat",
+    "Knowledge",
+    "Research",
+    "Jobs",
+    "Files",
+    "System",
+    "Settings",
+)
+
+
+def _safe_name(value: str) -> str:
+    normalized = re.sub(r"[^a-z0-9]+", "-", value.casefold()).strip("-")
+    return normalized or "screen"
+
+
+def _build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--runtime-root", type=Path, required=True)
+    parser.add_argument("--screenshot-directory", type=Path, required=True)
+    parser.add_argument("--initial-delay-seconds", type=int, default=7)
+    return parser
+
+
+class _DiagnosticComfyHandler(BaseHTTPRequestHandler):
+    posted_prompts: list[dict[str, object]] = []
+
+    def log_message(self, _format: str, *_args: object) -> None:
+        return
+
+    def do_GET(self) -> None:  # noqa: N802
+        if self.path != "/system_stats":
+            self.send_error(404)
+            return
+        body = json.dumps(
+            {
+                "system": {"comfyui_version": "visual-regression-local"},
+                "devices": [{"name": "visual-regression-device"}],
+            }
+        ).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_POST(self) -> None:  # noqa: N802
+        if self.path != "/prompt":
+            self.send_error(404)
+            return
+        size = int(self.headers.get("Content-Length", "0"))
+        payload = json.loads(self.rfile.read(size).decode("utf-8"))
+        type(self).posted_prompts.append(payload)
+        body = json.dumps(
+            {
+                "prompt_id": "visual-regression-prompt",
+                "number": 1,
+                "node_errors": {},
+            }
+        ).encode("utf-8")
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = _build_parser().parse_args(argv)
+    if os.name != "nt":
+        raise RuntimeError("Reference capture is valid only on native Windows.")
+    if args.initial_delay_seconds < 5:
+        raise ValueError("The desktop needs at least five seconds before capture.")
+
+    runtime_root = args.runtime_root.resolve()
+    screenshot_directory = args.screenshot_directory.resolve()
+    runtime_root.mkdir(parents=True, exist_ok=True)
+    screenshot_directory.mkdir(parents=True, exist_ok=True)
+    os.environ["ATHENA_LOCAL_ROOT"] = str(runtime_root)
+    os.environ["QT_QPA_PLATFORM"] = "offscreen"
+
+    _DiagnosticComfyHandler.posted_prompts.clear()
+    comfy_server = ThreadingHTTPServer(("127.0.0.1", 0), _DiagnosticComfyHandler)
+    comfy_thread = threading.Thread(target=comfy_server.serve_forever, daemon=True)
+    comfy_thread.start()
+    os.environ["PATHENA_COMFYUI_URL"] = (
+        f"http://127.0.0.1:{comfy_server.server_port}"
+    )
+    comfy_workflow = runtime_root / "visual-regression-comfyui-api-workflow.json"
+    comfy_workflow.write_text(
+        json.dumps(
+            {
+                "1": {
+                    "class_type": "DiagnosticNode",
+                    "inputs": {"value": 1},
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    from PySide6.QtCore import QTimer
+    from PySide6.QtWidgets import QMainWindow, QWidget
+
+    from athena.desktop.app import create_application
+    from athena.desktop.app import main as desktop_main
+    from athena.desktop.command_palette import CommandPaletteController
+    from athena.desktop.pathena_pallas_field import PallasGroundedFieldController
+    from athena.desktop.pathena_pallas_semantic import (
+        PallasGraphSnapshot,
+        PallasNodeKind,
+        PallasSemanticEdge,
+        PallasSemanticNode,
+    )
+
+    app = create_application(["pathena-ui-reference-capture"])
+    captures: list[dict[str, object]] = []
+    errors: list[str] = []
+    started = time.monotonic()
+
+    def find_window() -> QMainWindow:
+        windows = [
+            widget
+            for widget in app.topLevelWidgets()
+            if isinstance(widget, QMainWindow) and widget.isVisible()
+        ]
+        if len(windows) != 1:
+            raise RuntimeError(
+                f"Expected exactly one visible main window, found {len(windows)}."
+            )
+        return windows[0]
+
+    def save_widget(widget: QWidget, *, ordinal: int, label: str, kind: str) -> str:
+        output = screenshot_directory / f"{ordinal:02d}-{_safe_name(label)}.png"
+        if not widget.grab().save(str(output), "PNG"):
+            raise RuntimeError(f"Qt failed to save {output.name}.")
+        captures.append(
+            {
+                "ordinal": ordinal,
+                "label": label,
+                "kind": kind,
+                "file": output.name,
+                "width": widget.width(),
+                "height": widget.height(),
+            }
+        )
+        return output.name
+
+    def capture_row(row: int) -> None:
+        try:
+            window = find_window()
+            navigation = getattr(window, "navigation", None)
+            pages = getattr(window, "pages", None)
+            if navigation is None or pages is None:
+                raise RuntimeError("Desktop navigation contract is unavailable.")
+            if navigation.count() != 7 or pages.count() != 7:
+                raise RuntimeError(
+                    "Candidate must expose seven primary navigation pages; "
+                    f"found {navigation.count()} nav items and {pages.count()} pages."
+                )
+            navigation.setCurrentRow(row)
+            app.processEvents()
+            label = WORKSPACE_SURFACE_LABELS[row]
+            save_widget(window, ordinal=row + 1, label=label, kind="workspace")
+            captures[-1]["navigation_label"] = navigation.item(row).text()
+            captures[-1]["row"] = row
+            captures[-1]["page_index"] = pages.currentIndex()
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"workspace row {row}: {type(exc).__name__}: {exc}")
+
+    def diagnostic_pallas_snapshot() -> PallasGraphSnapshot:
+        focus = PallasSemanticNode(
+            node_id="focus:visual-reference",
+            kind=PallasNodeKind.FOCUS,
+            entity_type="diagnostic_reference",
+            entity_id="visual-reference",
+            revision_id=None,
+            title="Grounded response",
+            summary="Deterministic visual-regression fixture for the real PALLAS renderer.",
+            epistemic_status=None,
+            cited=True,
+        )
+        source = PallasSemanticNode(
+            node_id="source_anchor:source-reference",
+            kind=PallasNodeKind.SOURCE,
+            entity_type="source_anchor",
+            entity_id="source-reference",
+            revision_id="revision-source-reference",
+            title="Persisted source",
+            summary="A source-shaped fixture used only to exercise presentation.",
+            epistemic_status=None,
+            cited=True,
+        )
+        claim = PallasSemanticNode(
+            node_id="canonical_claim:claim-reference",
+            kind=PallasNodeKind.CLAIM,
+            entity_type="canonical_claim",
+            entity_id="claim-reference",
+            revision_id="revision-claim-reference",
+            title="Supported claim",
+            summary="A claim-shaped fixture used only to exercise presentation.",
+            epistemic_status="supported",
+            cited=True,
+            confidence=0.92,
+        )
+        knowledge = PallasSemanticNode(
+            node_id="knowledge_unit:knowledge-reference",
+            kind=PallasNodeKind.KNOWLEDGE,
+            entity_type="knowledge_unit",
+            entity_id="knowledge-reference",
+            revision_id="revision-knowledge-reference",
+            title="Canonical knowledge",
+            summary="A knowledge-shaped fixture used only to exercise presentation.",
+            epistemic_status="accepted",
+            cited=True,
+            confidence=0.88,
+        )
+        conflict = PallasSemanticNode(
+            node_id="conflict:conflict-reference",
+            kind=PallasNodeKind.CONFLICT,
+            entity_type="diagnostic_conflict",
+            entity_id="conflict-reference",
+            revision_id=None,
+            title="Conflicting evidence",
+            summary="A conflict-shaped fixture used only to exercise presentation.",
+            epistemic_status="conflict",
+            cited=False,
+            confidence=0.51,
+        )
+        return PallasGraphSnapshot(
+            graph_id="diagnostic:visual-reference",
+            nodes=(focus, source, claim, knowledge, conflict),
+            edges=(
+                PallasSemanticEdge(focus.node_id, source.node_id, "cites"),
+                PallasSemanticEdge(focus.node_id, claim.node_id, "cites"),
+                PallasSemanticEdge(focus.node_id, knowledge.node_id, "includes_context"),
+                PallasSemanticEdge(focus.node_id, conflict.node_id, "includes_context"),
+            ),
+            focus_id=focus.node_id,
+            status="ready",
+            status_detail="Visual-regression fixture for the real PALLAS renderer.",
+        )
+
+    def capture_pallas() -> None:
+        try:
+            window = find_window()
+            grounded = window.property("pathenaPallasGroundedController")
+            if not isinstance(grounded, PallasGroundedFieldController):
+                raise RuntimeError("Real PALLAS grounded controller is unavailable.")
+            grounded.apply_snapshot(diagnostic_pallas_snapshot())
+            full_view = getattr(window, "_pathena_pallas_full_view_controller", None)
+            if full_view is None or not callable(getattr(full_view, "open_workspace", None)):
+                raise RuntimeError("Real PALLAS full-view controller is unavailable.")
+            full_view.open_workspace()
+            app.processEvents()
+            dialog = getattr(full_view, "dialog", None)
+            workspace = getattr(full_view, "workspace", None)
+            if not isinstance(dialog, QWidget) or not dialog.isVisible() or workspace is None:
+                raise RuntimeError("PALLAS full workspace did not become visible.")
+            if workspace.field.property("pathenaPallasMode") != "full":
+                raise RuntimeError("PALLAS reference capture is not using the full renderer.")
+            if workspace.field.property("pathenaUiState") != "ready":
+                raise RuntimeError("PALLAS reference capture did not reach ready state.")
+            if int(workspace.field.property("pathenaPallasNodeCount") or 0) != 5:
+                raise RuntimeError("PALLAS reference graph did not render all diagnostic nodes.")
+            save_widget(dialog, ordinal=8, label="PALLAS", kind="full-pallas")
+            captures[-1]["fixture"] = "diagnostic semantic graph; presentation only"
+            dialog.hide()
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"PALLAS: {type(exc).__name__}: {exc}")
+
+    def palette_controller() -> CommandPaletteController:
+        window = find_window()
+        controller = next(
+            (
+                child
+                for child in window.children()
+                if isinstance(child, CommandPaletteController)
+            ),
+            None,
+        )
+        if controller is None:
+            raise RuntimeError("Real Command Palette controller is unavailable.")
+        return controller
+
+    def capture_commands() -> None:
+        try:
+            controller = palette_controller()
+            controller.open()
+            app.processEvents()
+            if not controller.dialog.isVisible():
+                raise RuntimeError("Command Palette did not become visible.")
+            labels = {command.label for command in controller._commands}
+            if "Open ComfyUI" not in labels:
+                raise RuntimeError("Command Palette does not expose the ComfyUI integration.")
+            save_widget(
+                controller.dialog,
+                ordinal=9,
+                label="Command Palette",
+                kind="command-palette",
+            )
+            captures[-1]["result_count"] = controller.results.count()
+            controller.dialog.hide()
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"Command Palette: {type(exc).__name__}: {exc}")
+
+    def capture_help() -> None:
+        try:
+            controller = palette_controller()
+            controller.open_help()
+            app.processEvents()
+            if not controller.help_dialog.isVisible():
+                raise RuntimeError("Help surface did not become visible.")
+            help_text = controller.help_text.toPlainText()
+            if "pATHENA capabilities" not in help_text or "Open ComfyUI" not in help_text:
+                raise RuntimeError("Help did not render the live ComfyUI capability.")
+            save_widget(controller.help_dialog, ordinal=10, label="Help", kind="help")
+            captures[-1]["catalog_version"] = str(
+                controller.help_text.property("pathenaCapabilityCatalogVersion") or ""
+            )
+            captures[-1]["catalog_drift"] = bool(
+                controller.help_text.property("pathenaCapabilityCatalogDrift")
+            )
+            controller.help_dialog.hide()
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"Help: {type(exc).__name__}: {exc}")
+
+    def capture_comfyui() -> None:
+        try:
+            palette = palette_controller()
+            controller = getattr(palette, "_pathena_comfyui_controller", None)
+            if controller is None:
+                raise RuntimeError("Real ComfyUI controller is unavailable.")
+            controller.load_workflow(comfy_workflow)
+            if not controller.check_connection():
+                raise RuntimeError("ComfyUI local diagnostic endpoint did not become ready.")
+            if not controller.queue_selected_workflow():
+                raise RuntimeError("ComfyUI diagnostic workflow did not queue.")
+            controller.open()
+            app.processEvents()
+            dialog = getattr(controller, "dialog", None)
+            if not isinstance(dialog, QWidget) or not dialog.isVisible():
+                raise RuntimeError("ComfyUI dialog did not become visible.")
+            if dialog.property("pathenaComfyUiLocalOnly") is not True:
+                raise RuntimeError("ComfyUI surface lost its local-only contract.")
+            prompt_id = controller.receipt.property("pathenaComfyUiPromptId")
+            if prompt_id != "visual-regression-prompt":
+                raise RuntimeError("ComfyUI queue receipt did not preserve prompt identity.")
+            if _DiagnosticComfyHandler.posted_prompts != [
+                {
+                    "prompt": {
+                        "1": {
+                            "class_type": "DiagnosticNode",
+                            "inputs": {"value": 1},
+                        }
+                    }
+                }
+            ]:
+                raise RuntimeError("ComfyUI local server did not receive the exact API workflow.")
+            save_widget(dialog, ordinal=11, label="ComfyUI", kind="comfyui")
+            captures[-1]["endpoint"] = controller.endpoint.text()
+            captures[-1]["prompt_id"] = prompt_id
+            captures[-1]["transport"] = "loopback HTTP; proxy bypassed"
+            dialog.hide()
+        except Exception as exc:  # noqa: BLE001
+            errors.append(f"ComfyUI: {type(exc).__name__}: {exc}")
+
+    interval_ms = 500
+    first_capture_ms = args.initial_delay_seconds * 1_000
+    for row in range(7):
+        QTimer.singleShot(
+            first_capture_ms + row * interval_ms,
+            lambda selected_row=row: capture_row(selected_row),
+        )
+
+    after_workspaces_ms = first_capture_ms + 7 * interval_ms + 500
+    QTimer.singleShot(after_workspaces_ms, capture_pallas)
+    QTimer.singleShot(after_workspaces_ms + 1_000, capture_commands)
+    QTimer.singleShot(after_workspaces_ms + 2_000, capture_help)
+    QTimer.singleShot(after_workspaces_ms + 3_000, capture_comfyui)
+    QTimer.singleShot(after_workspaces_ms + 4_000, app.quit)
+
+    try:
+        exit_code = desktop_main(["pathena-ui-reference-capture"])
+    finally:
+        comfy_server.shutdown()
+        comfy_server.server_close()
+        comfy_thread.join(timeout=2)
+
+    duration_seconds = time.monotonic() - started
+    expected_capture_count = 11
+    manifest = {
+        "candidate_sha": os.environ.get("CANDIDATE_SHA", ""),
+        "platform": sys.platform,
+        "status": (
+            "PASS"
+            if not errors and len(captures) == expected_capture_count
+            else "FAIL"
+        ),
+        "duration_seconds": round(duration_seconds, 3),
+        "captures": captures,
+        "errors": errors,
+        "target_coverage": {
+            "captured_reference_surfaces": [
+                "Chat",
+                "Knowledge",
+                "Research",
+                "Jobs",
+                "Files",
+                "System",
+                "Settings",
+                "interactive PALLAS",
+                "standalone search/command palette reference state",
+                "Help",
+                "ComfyUI",
+            ],
+            "not_implemented_as_target_screens": [],
+            "captured_reference_count": expected_capture_count,
+            "assigned_reference_count": 11,
+        },
+    }
+    (screenshot_directory / "manifest.json").write_text(
+        json.dumps(manifest, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+
+    if exit_code != 0:
+        raise RuntimeError(f"Desktop returned exit code {exit_code}.")
+    if errors or len(captures) != expected_capture_count:
+        raise RuntimeError(
+            "Desktop capture failed: " + "; ".join(errors or ["capture count mismatch"])
+        )
+    if duration_seconds < args.initial_delay_seconds:
+        raise RuntimeError("Desktop exited before the controlled capture window.")
+
+    print(json.dumps(manifest, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -1,0 +1,145 @@
+"""Fail-closed durable-job reconciliation for restored ATHENA runtimes."""
+
+from __future__ import annotations
+
+import sqlite3
+from dataclasses import dataclass
+from typing import Protocol, cast
+
+RECOVERY_REQUIRED_AFTER_RESTORE = "recovery_required_after_restore"
+CANCELLED_AFTER_RESTORE = "recovered_cancel_after_restore"
+
+
+class _RecoveryConnection(Protocol):
+    in_transaction: bool
+
+    def execute(self, sql: str, parameters: object = ()) -> object:
+        ...
+
+
+@dataclass(frozen=True, slots=True)
+class RestoredJobRecoverySummary:
+    """Payload-free summary of in-flight job reconciliation during restore."""
+
+    paused_running: int
+    cancelled_requested: int
+
+    def __post_init__(self) -> None:
+        for value, label in (
+            (self.paused_running, "paused_running"),
+            (self.cancelled_requested, "cancelled_requested"),
+        ):
+            if isinstance(value, bool) or not isinstance(value, int):
+                raise TypeError(f"Restore recovery {label} must be an integer.")
+            if value < 0:
+                raise ValueError(f"Restore recovery {label} must not be negative.")
+
+    @property
+    def total(self) -> int:
+        return self.paused_running + self.cancelled_requested
+
+
+def _require_rowcount(value: object) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise RuntimeError(
+            "Restore reconciliation returned an invalid SQLite row count."
+        )
+    return value
+
+
+def reconcile_jobs_after_restore(
+    connection: sqlite3.Connection,
+    *,
+    now_us: int,
+) -> RestoredJobRecoverySummary:
+    """Fence jobs whose workers cannot exist in the restored runtime.
+
+    A restored ``running`` row is never treated as evidence that a worker is
+    still executing. It is paused and requires an explicit resume after
+    recovery review. A durable cancellation request is completed because the
+    pre-restore worker no longer exists.
+
+    Confirmed checkpoints, current stage, retry count, processing-run identity,
+    and fencing sequence are deliberately preserved. Worker identity and lease
+    material are always removed.
+    """
+    if not hasattr(connection, "execute") or not hasattr(connection, "in_transaction"):
+        raise TypeError(
+            "Restore reconciliation requires a SQLite-compatible connection."
+        )
+    db = cast(_RecoveryConnection, connection)
+    if not isinstance(db.in_transaction, bool):
+        raise TypeError("Restore reconciliation connection state must be bool.")
+    if isinstance(now_us, bool) or not isinstance(now_us, int) or now_us < 0:
+        raise ValueError(
+            "Restore reconciliation timestamp must be a non-negative integer."
+        )
+
+    if db.in_transaction:
+        raise RuntimeError(
+            "Restore job reconciliation requires transaction ownership."
+        )
+
+    transaction_started = False
+    try:
+        db.execute("BEGIN IMMEDIATE")
+        transaction_started = True
+
+        paused = db.execute(
+            """
+            UPDATE jobs
+            SET state = 'paused',
+                blocked_reason = ?,
+                next_run_at_us = NULL,
+                worker_id = NULL,
+                lease_token = NULL,
+                lease_acquired_at_us = NULL,
+                lease_expires_at_us = NULL,
+                heartbeat_at_us = NULL,
+                updated_at_us = MAX(updated_at_us, ?)
+            WHERE state = 'running'
+            """,
+            (RECOVERY_REQUIRED_AFTER_RESTORE, now_us),
+        )
+
+        cancelled = db.execute(
+            """
+            UPDATE jobs
+            SET state = 'cancelled',
+                blocked_reason = ?,
+                next_run_at_us = NULL,
+                worker_id = NULL,
+                lease_token = NULL,
+                lease_acquired_at_us = NULL,
+                lease_expires_at_us = NULL,
+                heartbeat_at_us = NULL,
+                updated_at_us = MAX(updated_at_us, ?)
+            WHERE state = 'cancel_requested'
+            """,
+            (CANCELLED_AFTER_RESTORE, now_us),
+        )
+
+        # Validate driver/cursor contracts while rollback is still possible.
+        # Committing first and discovering an invalid rowcount afterwards would
+        # report failure even though the restore reconciliation had become
+        # durable, leaving callers unable to distinguish committed state.
+        paused_count = _require_rowcount(getattr(paused, "rowcount", None))
+        cancelled_count = _require_rowcount(getattr(cancelled, "rowcount", None))
+
+        db.execute("COMMIT")
+        transaction_started = False
+    except BaseException:
+        if transaction_started:
+            try:
+                db.execute("ROLLBACK")
+            except BaseException:
+                # Preserve the operation failure that triggered rollback. A
+                # rollback failure is secondary and must never mask the cause,
+                # including process-level interruption during recovery cleanup.
+                pass
+        raise
+
+    return RestoredJobRecoverySummary(
+        paused_running=paused_count,
+        cancelled_requested=cancelled_count,
+    )
