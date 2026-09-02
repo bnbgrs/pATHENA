@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QApplication, QFrame
+from PySide6.QtWidgets import QApplication
 
 from athena.desktop import pathena_interaction_refinement as refinement
 from athena.desktop.app import create_application
@@ -36,20 +36,18 @@ def test_reduced_motion_disclosure_changes_geometry_immediately(monkeypatch) -> 
     controller = refinement.install_interaction_refinement(window)
     window.show()
     try:
-        inspector = window.findChild(QFrame, "inspector")
-        assert inspector is not None
-        window.chat_selector.clear()
-        window.chat_selector.addItem("Existing chat", "chat-1")
+        evidence = window.evidence_chain
+        window._set_context_available(True)
         app.processEvents()
 
-        window.details_button.click()
+        window.context_button.click()
         assert controller._animation_ms == 0
-        assert inspector.isHidden() is False
-        assert inspector.maximumWidth() == inspector.property("pathenaResponsiveWidth")
+        assert evidence.isHidden() is False
+        assert evidence.maximumHeight() > 0
 
-        window.details_button.click()
-        assert inspector.isHidden()
-        assert inspector.maximumWidth() == 0
+        window.context_button.click()
+        assert evidence.isHidden()
+        assert evidence.maximumHeight() == 0
     finally:
         window.close()
         app.processEvents()
