@@ -111,7 +111,8 @@ def test_all_100_refinements_target_real_installed_desktop_controls() -> None:
         assert window.prompt_input.accessibleName() == "Message"
         assert knowledge.search_input.isClearButtonEnabled()
         assert research_results.proposal_list.accessibleName() == "Research proposals"
-        assert backup.backup.snapshots.accessibleName() == "Backup snapshots"
+        assert backup.backup.snapshots.property("pathenaAccessibleUiState") == "success"
+        assert backup.backup.snapshots.accessibleName() == "Backup snapshots — complete"
         assert commands.query.accessibleName() == "Search commands"
         assert commands.help_text.accessibleName().startswith("pATHENA capabilities")
 
