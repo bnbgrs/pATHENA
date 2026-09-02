@@ -73,22 +73,36 @@ def test_all_100_refinements_target_real_installed_desktop_controls() -> None:
 
         first_pass = apply_ui_refinements(window)
         details_toggle = window.findChild(QPushButton, "detailsToggle")
+        first_pass_missing = {48, 49}
+        if details_toggle is None:
+            first_pass_missing.update({17, 18})
         expected_first_pass = tuple(
             task_id
             for task_id in range(1, 101)
-            if details_toggle is not None or task_id not in {17, 18}
+            if task_id not in first_pass_missing
         )
 
         assert first_pass == expected_first_pass
         assert (17 in first_pass) is (details_toggle is not None)
         assert (18 in first_pass) is (details_toggle is not None)
+        assert 48 not in first_pass
+        assert 49 not in first_pass
         assert window.property("pathenaUiRefinementAppliedCount") == len(first_pass)
         assert window.property("pathenaUiRefinementTaskCount") == 100
 
         complete = apply_complete_ui_refinements(window)
+        expected_complete_first_hundred = tuple(
+            task_id
+            for task_id in range(1, 101)
+            if details_toggle is not None or task_id not in {17, 18}
+        )
         assert complete == tuple(sorted(set(complete)))
         assert set(first_pass).issubset(complete)
-        assert tuple(task_id for task_id in complete if task_id <= 100) == first_pass
+        assert tuple(task_id for task_id in complete if task_id <= 100) == (
+            expected_complete_first_hundred
+        )
+        assert 48 in complete
+        assert 49 in complete
         assert len(complete) > len(first_pass)
         assert window.property("pathenaUiRefinementAppliedCount") == len(complete)
         assert window.property("pathenaUiRefinementTaskCount") > 100
