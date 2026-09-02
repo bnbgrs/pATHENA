@@ -1,0 +1,113 @@
+name: pATHENA Focus Platform Parity
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  ubuntu-offscreen-focus:
+    name: Ubuntu offscreen backup focus
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install pinned resolver and desktop runtime
+        run: |
+          python -m pip install --disable-pip-version-check "pip==26.1.2"
+          python -m pip install --disable-pip-version-check "uv==0.11.21"
+          sudo apt-get update
+          sudo apt-get install --no-install-recommends -y libegl1
+      - name: Validate dependency lock
+        run: uv lock --check
+      - name: Record environment
+        run: |
+          uv run --locked --extra dev --extra desktop python - <<'PY'
+          import locale, os, platform, sys, time
+          from PySide6.QtCore import qVersion
+          from PySide6.QtWidgets import QApplication
+          app = QApplication.instance() or QApplication([])
+          print("python", sys.version)
+          print("os", platform.platform())
+          print("qt", qVersion())
+          print("qpa", app.platformName())
+          print("QT_QPA_PLATFORM", os.environ.get("QT_QPA_PLATFORM"))
+          print("locale", locale.getlocale())
+          print("preferred_encoding", locale.getpreferredencoding(False))
+          print("timezone", time.tzname)
+          screen = app.primaryScreen()
+          if screen is not None:
+              print("dpi", screen.logicalDotsPerInch(), screen.physicalDotsPerInch())
+              print("dpr", screen.devicePixelRatio())
+              print("geometry", screen.geometry().getRect())
+          PY
+      - name: Run focused backup focus contract
+        run: >-
+          uv run --locked --extra dev --extra desktop python -m pytest -vv -s
+          tests/unit/test_backup_action_truth.py::test_disabled_focused_restore_returns_to_snapshot_list_when_focus_is_unowned
+          tests/unit/test_backup_action_truth.py::test_disabled_action_focus_return_preserves_newer_user_focus
+
+  windows-native-focus:
+    name: Windows native backup focus
+    runs-on: windows-latest
+    timeout-minutes: 15
+    env:
+      QT_QPA_PLATFORM: windows
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install pinned resolver
+        run: |
+          python -m pip install --disable-pip-version-check "pip==26.1.2"
+          python -m pip install --disable-pip-version-check "uv==0.11.21"
+      - name: Validate dependency lock
+        run: uv lock --check
+      - name: Record environment
+        shell: pwsh
+        run: |
+          @'
+          import locale, os, platform, sys, time
+          from PySide6.QtCore import qVersion
+          from PySide6.QtWidgets import QApplication
+          app = QApplication.instance() or QApplication([])
+          print("python", sys.version)
+          print("os", platform.platform())
+          print("qt", qVersion())
+          print("qpa", app.platformName())
+          print("QT_QPA_PLATFORM", os.environ.get("QT_QPA_PLATFORM"))
+          print("locale", locale.getlocale())
+          print("preferred_encoding", locale.getpreferredencoding(False))
+          print("timezone", time.tzname)
+          screen = app.primaryScreen()
+          if screen is not None:
+              print("dpi", screen.logicalDotsPerInch(), screen.physicalDotsPerInch())
+              print("dpr", screen.devicePixelRatio())
+              print("geometry", screen.geometry().getRect())
+          '@ | uv run --locked --extra dev --extra desktop python -
+      - name: Run focused backup focus contract
+        run: >-
+          uv run --locked --extra dev --extra desktop python -m pytest -vv -s
+          tests/unit/test_backup_action_truth.py::test_disabled_focused_restore_returns_to_snapshot_list_when_focus_is_unowned
+          tests/unit/test_backup_action_truth.py::test_disabled_action_focus_return_preserves_newer_user_focus
