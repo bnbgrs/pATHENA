@@ -3,79 +3,68 @@
 ## Current branch state
 
 - `main` (strict read-only): `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `dd4b623cc7bbc5b5a24c4427382f0b98ff50ad02`.
+- Develop before this run: `aed609ef8a7ff4af48e15e3dba953daf35d56b5c`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads observed before Integrator action: errors `f9e226e21603dc1a745e14151dc382eece45fec3`; spec-core `2ad502603b78c2ae39ff9deaff2c1c9324d9ed7c`; backend `40c0aff638ee485591d8373d81e0de32ec0acfe7`; ui `25addc9833d0d655efa46cd48974e160a7f275dd`.
-- Integrator advanced `postmerge/spec-core` NON-FORCE to existing worker-created synchronization commit `26c7b84821baf33c461490962a6983c78e038185`. Compare proved previous Core head `2ad502603b78c2ae39ff9deaff2c1c9324d9ed7c` is an ancestor (`ahead_by=2`, `behind_by=0`); only `docs/agent_handoffs/integrator.md` differs in that sync object. No Core product/test blob was changed by this ref advance.
+- Worker heads reviewed: errors `bd88a8bd3d101d5f1be0dff8675049169109854a`; spec-core `8d5fa074a30451d5d8c8d2f8897689883c65a1ed`; backend `cc053d75d81f62b03a1d55b7c004b42d7bb6e432`; ui `d581a88dfb916f2ffb3e358d16d92d502139ce42`.
 
 ## READY assessment
 
-No worker product slice is integrated yet in this run because the two newly applied candidates are still under exact-SHA verification.
+### Core — READY and integrated
 
-### Error worker
+Core product commit `e93cd24ce3deaf19d4fe6cdc2c14169a2ad9c1be` implements the bounded normal-Hybrid composition slice. Independent diff review confirmed only the intended product paths in `src/athena/api/service.py` and `src/athena/core/application.py`: typed `NormalSearch`, one-time attachment, gated `search.normal.hybrid` capability, exact argument delegation, canonical `hybrid_search_result_response()` mapping and exact `AthenaApplication.hybrid_retrieval` identity wiring. Existing acceptance-test blobs from the verified worker lineage were integrated with the product blobs.
 
-`postmerge/errors@f9e226e21603dc1a745e14151dc382eece45fec3` keeps `ERR-0004` OPEN pending verification of the UI correction. Historical `ERR-0001`, `ERR-0002`, `ERR-0003` remain FIXED.
+Worker evidence: bounded run `33795894172` completed success with `tests/unit/test_core_api_search_wiring.py`, `tests/unit/test_application_wiring.py`, Ruff on product + acceptance files, mypy on both product files, `git diff --check`, exact baseline/lock validation and exact changed-file guard. No global Quality PASS is claimed for the Core worker itself.
 
-### Core worker
+Integrator commit: `a104b7c9c3b3108cd13e1653c8f9794116108dfd`.
 
-The repeated branch-synchronization tooling blocker is now removed by the NON-FORCE ref advance to `26c7b84821baf33c461490962a6983c78e038185`. The normal-Hybrid facade/application product patch remains unapplied, so the capability is still not READY. Next Core run must apply `docs/agent_handoffs/spec-core-normal-search.patch`, execute the focused API/application tests, and hand off the resulting product SHA rather than repeat synchronization analysis.
+### Backend — READY and integrated
 
-### Backend worker
+Backend product/test lineage `5cc4ea8c6b10c43c7203269bb4ccb1dbe484a109 -> f34e2e6ffd589d7cfceb85dfbe7fcf7aea9f1be9` hardens ExternalAccessGateway runtime boundaries: exact-int/non-bool TTL and `max_bytes`, and finite numeric/non-bool `timeout_seconds`, all before authorization/audit/transport/Source side effects. Independent review found the remaining gateway diff to be formatting/comment-only churn with no changed executable semantics.
 
-Backend has made real product progress. Candidate lineage is synchronization `8997b1edbcaf565d4eda5b6879c0596c452091d9` -> focused tests `5cc4ea8c6b10c43c7203269bb4ccb1dbe484a109` -> product `f34e2e6ffd589d7cfceb85dfbe7fcf7aea9f1be9`; handoff head is `40c0aff638ee485591d8373d81e0de32ec0acfe7`.
+Exact product SHA `f34e2e6ffd589d7cfceb85dfbe7fcf7aea9f1be9` passed canonical Quality run `33790984890`: Windows path safety, Linux storage, local install/restart smoke, specification validator, Ruff, mypy, full pytest and canonical enforcement all PASS.
 
-Independent review confirms the intended behavior changes are exact-type/bool-safe TTL and `max_bytes` validation plus finite non-bool timeout validation. The same product commit also contains formatting/comment-only churn in `src/athena/external/gateway.py`; no changed executable semantics were identified in those hunks, but this remains part of the reviewed diff.
+Integrator commit: `f4f74927f61aab7d40c5eab54ab45b6cbd2326d0`.
 
-Canonical Quality run `33790984890` is exact-SHA-bound to `f34e2e6ffd589d7cfceb85dfbe7fcf7aea9f1be9`. Windows path safety, Linux storage regressions, local-install smoke, specification validator, Ruff and mypy are PASS. Full pytest is still in progress, therefore the Backend slice remains `IMPLEMENTED_PENDING_VERIFY` and is not integrated yet.
+### UI — not READY yet
 
-### UI worker
+UI head `d581a88dfb916f2ffb3e358d16d92d502139ce42` contains the B010 correction followed by an exact I001 import-order correction. Prior run `33792012599` passed Windows path safety, Linux storage, local-install smoke, validator, mypy and full pytest, but failed Ruff only on I001. Final-head canonical Quality run `33797732276` is still pending. Therefore UI-GAP-0004 / ERR-0004 remain unintegrated until exact final-head evidence is green.
 
-UI has also made real progress. Canonical diagnostics from failed run `33785726577` identify exact Ruff rule `B010` at `tests/unit/test_pathena_startup_experience_2900.py:61`. Harness correction `77e7b4c7d95202e6814226e2b4a2c4a54e3f5c8e` replaces the constant-name `setattr` with a typed test-only disconnected window subclass; no product code, assertion, Ruff rule, backend/storage/security behavior or availability contract is weakened.
+### Errors — no integrator-ready mutation
 
-Final UI handoff head is `25addc9833d0d655efa46cd48974e160a7f275dd`. Exact final-head Quality run `33792012599` is pending, so UI-GAP-0004 remains `FIXED_PENDING_VERIFY` and `ERR-0004` cannot yet be closed or integrated.
+Error worker `bd88a8bd3d101d5f1be0dff8675049169109854a` keeps `ERR-0004` open pending the final UI exact-head Quality result. Historical `ERR-0001`, `ERR-0002`, `ERR-0003` remain fixed.
 
 ## Integrated this run
 
-No product/test worker commit was integrated while its required exact-SHA verification remained incomplete. `develop/pathena-next` product behavior is unchanged.
+1. `a104b7c9c3b3108cd13e1653c8f9794116108dfd` — Core normal-Hybrid facade/application composition plus acceptance-test blobs.
+2. `f4f74927f61aab7d40c5eab54ab45b6cbd2326d0` — Backend ExternalAccessGateway runtime-boundary hardening plus focused runtime-boundary tests.
 
-## Cross-cutting progress this run
-
-The Integrator removed the concrete Core ref/synchronization blocker rather than repeating the same handoff:
-
-- verified worker-created commit `26c7b84821baf33c461490962a6983c78e038185` exists;
-- verified `postmerge/spec-core@2ad502603b78c2ae39ff9deaff2c1c9324d9ed7c` is its ancestor and the move is a safe fast-forward;
-- advanced `postmerge/spec-core` to `26c7b84821baf33c461490962a6983c78e038185` with `force=false`;
-- changed no Core product/test file and did not touch `main`.
-
-This eliminates the previously reported `safe ref advance unavailable` blocker. The next Core cycle has no valid reason to repeat synchronization-only analysis.
+Both commits are direct descendants of the prior Develop SHA and were applied by exact reviewed worker blobs. No temporary worker workflow or worker handoff commit was integrated.
 
 ## Product / quality state
 
-- `ERR-0001`: FIXED.
-- `ERR-0002`: FIXED.
-- `ERR-0003`: FIXED and integrated.
-- `ERR-0004`: OPEN in canonical Error ledger; exact B010 root cause is now known and UI correction exists, verification pending.
+- Normal-Hybrid `CoreApiFacade <-> AthenaApplication` composition: integrated; worker-focused verification PASS. Marked `VERIFIED` in the tracker based on concrete product/test evidence, while combined final-Develop canonical Quality is separately pending validation.
+- ExternalAccessGateway runtime-type policy boundaries: integrated; exact worker product canonical Quality PASS.
+- `ERR-0001`, `ERR-0002`, `ERR-0003`: FIXED.
+- `ERR-0004`: OPEN pending UI final-head canonical Quality.
 - UI-GAP-0001 / 0002 / 0003: VERIFIED/integrated.
-- UI-GAP-0004: `FIXED_PENDING_VERIFY` on UI worker; not integrated.
-- Normal-Hybrid `CoreApiFacade/AthenaApplication` composition: `MISSING`; Core sync blocker removed, product patch still required.
-- ExternalAccessGateway exact runtime-policy hardening: `IMPLEMENTED_PENDING_VERIFY` on Backend worker; not yet integrated.
-- Eleven UI reference slots: zero `MATCH`; original pixels remain `VISUAL_REFERENCE_PENDING`.
-- No exact-final-Develop canonical Quality PASS is claimed.
+- UI-GAP-0004: fixed on UI worker but `IMPLEMENTED_PENDING_VERIFY`; not integrated.
+- Eleven UI reference slots: zero `MATCH`; original reference pixels remain `VISUAL_REFERENCE_PENDING`.
+- No exact combined final-Develop canonical Quality PASS is claimed in this handoff.
 
 ## Handoffs / next priorities
 
-1. `postmerge/spec-core`: immediately apply the existing normal-Hybrid patch now that the branch ref is safely synchronized; run `tests/unit/test_core_api_search_wiring.py`, `tests/unit/test_application_wiring.py`, relevant API/application regressions and Quality; hand off an applied product SHA.
-2. `postmerge/backend`: consume completion of Quality `33790984890`. If green, hand off exact READY product lineage; if failed, correct only the exact current-lineage diagnostic.
-3. `postmerge/ui`: consume final-head Quality `33792012599`. If green, hand off UI-GAP-0004 as READY and Error can close `ERR-0004`; if failed, fix only the exact diagnostic.
-4. `postmerge/errors`: verify the next UI exact-SHA result and update `ERR-0004`; continue independent current-lineage regression scanning.
+1. `postmerge/ui`: consume final-head Quality `33797732276`; if green, hand off exact READY SHA immediately. If failed, fix only the exact current diagnostic.
+2. `postmerge/errors`: close `ERR-0004` only after final UI exact-head green evidence; otherwise deduplicate the exact remaining signature.
+3. `postmerge/spec-core`: move to the next highest unclaimed Alpha/Beta CHAT/KNOWLEDGE/RESEARCH/PALLAS gap; do not repeat normal-Hybrid composition work.
+4. `postmerge/backend`: move to the next runtime-boundary gap (`authorize_explicit` purpose/allowed_hosts exact-type validation) without touching integrated gateway invariants.
 
 ## Next integration
 
-First exact applied-and-verified candidate among Backend `f34e2e6...` lineage or UI `25addc98...` lineage. Both are already materially closer to READY than at the previous Integrator run. Core should become the next applied candidate after the ref blocker removal.
+UI-GAP-0004 once `postmerge/ui@d581a88dfb916f2ffb3e358d16d92d502139ce42` receives an exact green canonical Quality result, or the next bounded verified worker slice if UI remains pending.
 
 ## Rules retained
 
-- `main` remains strictly read-only.
+- `main` remains strictly read-only and unchanged.
 - No force-push, history rewrite, auto-merge or automatic promotion to main.
-- Worker commits are integrated only with compatible baseline, bounded scope, actual verification, no weakened tests/guards, clear ownership and no confirmed regression.
+- Worker slices require compatible baseline, bounded scope, real verification, no weakened tests/guards and no confirmed regression.
 - Pending/cancelled/unexecuted runs are never PASS evidence.

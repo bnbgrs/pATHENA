@@ -6,6 +6,7 @@ import hashlib
 import http.client
 import ipaddress
 import json
+import math
 import os
 import secrets
 import socket
@@ -166,10 +167,6 @@ class TorSocksTransport:
                 )
                 try:
                     sock.settimeout(timeout_seconds)
-                    # Tor supports SOCKS5 auth values as stream-isolation keys.
-                    # Use the current <torS0X>0 extension form and a fresh
-                    # password isolation value per fetch, without resolving
-                    # the destination locally.
                     username = b"<torS0X>0"
                     password = secrets.token_hex(16).encode("ascii")
                     sock.sendall(b"\x05\x01\x02")
@@ -279,7 +276,7 @@ class ExternalAccessGateway:
             raise ExternalAuthorizationError(
                 f"Privacy route {privacy_route!r} is unavailable; refusing fallback."
             )
-        if ttl_seconds < 1 or ttl_seconds > 86_400:
+        if type(ttl_seconds) is not int or ttl_seconds < 1 or ttl_seconds > 86_400:
             raise ExternalAuthorizationError(
                 "Explicit external authorization TTL must be between 1 and 86400 seconds."
             )
@@ -321,6 +318,10 @@ class ExternalAccessGateway:
         ttl_seconds: int = 900,
     ) -> ExternalAccessAuthorizationRecord:
         """Create a separate explicit Direct authorization from an active Tor-Preferred grant."""
+        if type(ttl_seconds) is not int:
+            raise ExternalAuthorizationError(
+                "Direct fallback authorization TTL must be an integer number of seconds."
+            )
         source = self.get_authorization(authorization_id)
         actor_id = self.chat.ensure_local_user()
         now_us = utc_now_us()
@@ -407,9 +408,15 @@ class ExternalAccessGateway:
         max_bytes: int = 8 * 1024 * 1024,
         timeout_seconds: float = 30.0,
     ) -> SourceCaptureResult:
-        if max_bytes < 1 or max_bytes > 128 * 1024 * 1024:
+        if type(max_bytes) is not int or max_bytes < 1 or max_bytes > 128 * 1024 * 1024:
             raise ValueError("External response max_bytes is outside the safe v1 range.")
-        if timeout_seconds <= 0 or timeout_seconds > 300:
+        if (
+            isinstance(timeout_seconds, bool)
+            or not isinstance(timeout_seconds, (int, float))
+            or not math.isfinite(float(timeout_seconds))
+            or timeout_seconds <= 0
+            or timeout_seconds > 300
+        ):
             raise ValueError("External timeout must be in (0, 300] seconds.")
 
         authorization = self._authorized_or_audit(
@@ -569,8 +576,6 @@ class ExternalAccessGateway:
                 )
                 raise
             except ExternalResponsePolicyError:
-                # Size/content/encoding policy failures are not evidence that
-                # Tor is blocked and must never expose the normal IP.
                 self._audit(
                     authorization,
                     url=url,
@@ -617,10 +622,7 @@ class ExternalAccessGateway:
                 raise
 
             blocked_status = response.status in {403, 429, 503}
-            challenge = (
-                200 <= response.status < 300
-                and _looks_like_access_challenge(response)
-            )
+            challenge = 200 <= response.status < 300 and _looks_like_access_challenge(response)
             if challenge and authorization.privacy_route != "tor_preferred":
                 self._audit(
                     authorization,
@@ -633,10 +635,7 @@ class ExternalAccessGateway:
                 raise ExternalResponsePolicyError(
                     "External response is an access challenge, not source evidence."
                 )
-            if (
-                authorization.privacy_route == "tor_preferred"
-                and (blocked_status or challenge)
-            ):
+            if authorization.privacy_route == "tor_preferred" and (blocked_status or challenge):
                 reason = (
                     f"tor_blocked_http_{response.status}"
                     if blocked_status
@@ -753,7 +752,6 @@ class ExternalAccessGateway:
         source_id: uuid.UUID | None,
     ) -> uuid.UUID:
         """Persist one independently durable failed/denied audit event."""
-
         with self.database.write_transaction() as connection:
             return self._insert_audit_event(
                 connection,
@@ -777,48 +775,29 @@ class ExternalAccessGateway:
         source_id: uuid.UUID | None,
     ) -> uuid.UUID:
         """Insert one audit event in the caller-owned transaction."""
-
         event_id = new_uuid7()
         parsed = urlsplit(url)
         host = parsed.hostname or "<invalid>"
-        url_hash = hashlib.sha256(
-            url.encode("utf-8")
-        ).digest()
+        url_hash = hashlib.sha256(url.encode("utf-8")).digest()
         event_now_us = utc_now_us()
-
         previous = connection.execute(
             """
             SELECT MAX(created_at_us) AS created_at_us
             FROM external_access_events
             WHERE authorization_id = ?
             """,
-            (
-                uuid_to_blob(
-                    authorization.authorization_id
-                ),
-            ),
+            (uuid_to_blob(authorization.authorization_id),),
         ).fetchone()
-
         previous_created_at_us = (
             None
-            if (
-                previous is None
-                or previous["created_at_us"] is None
-            )
-            else int(
-                previous["created_at_us"]
-            )
+            if previous is None or previous["created_at_us"] is None
+            else int(previous["created_at_us"])
         )
-
         event_created_at_us = (
             event_now_us
             if previous_created_at_us is None
-            else max(
-                event_now_us,
-                previous_created_at_us + 1,
-            )
+            else max(event_now_us, previous_created_at_us + 1)
         )
-
         connection.execute(
             """
             INSERT INTO external_access_events (
@@ -837,24 +816,17 @@ class ExternalAccessGateway:
             """,
             (
                 uuid_to_blob(event_id),
-                uuid_to_blob(
-                    authorization.authorization_id
-                ),
+                uuid_to_blob(authorization.authorization_id),
                 url_hash,
                 host.lower(),
                 authorization.privacy_route,
                 outcome,
                 reason_code,
                 response_bytes,
-                (
-                    uuid_to_blob(source_id)
-                    if source_id is not None
-                    else None
-                ),
+                uuid_to_blob(source_id) if source_id is not None else None,
                 event_created_at_us,
             ),
         )
-
         return event_id
 
     @staticmethod
@@ -868,7 +840,6 @@ class ExternalAccessGateway:
         captured_at_us: int,
     ) -> None:
         """Insert external Source provenance in the caller transaction."""
-
         connection.execute(
             """
             INSERT INTO external_source_captures (
