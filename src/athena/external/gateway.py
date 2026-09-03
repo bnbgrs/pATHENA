@@ -263,9 +263,19 @@ class ExternalAccessGateway:
         privacy_route: str = "tor_preferred",
         ttl_seconds: int = 1800,
     ) -> ExternalAccessAuthorizationRecord:
+        if not isinstance(purpose, str):
+            raise ExternalAuthorizationError("External access purpose must be text.")
         normalized_purpose = purpose.strip()
         if not normalized_purpose:
             raise ExternalAuthorizationError("External access purpose must not be empty.")
+        if isinstance(allowed_hosts, (str, bytes)) or not isinstance(allowed_hosts, Sequence):
+            raise ExternalAuthorizationError(
+                "Allowed external hosts must be a sequence of host strings."
+            )
+        if any(not isinstance(item, str) for item in allowed_hosts):
+            raise ExternalAuthorizationError(
+                "Allowed external hosts must contain only host strings."
+            )
         valid_routes = {"tor_preferred", "tor", "direct_explicit"}
         if privacy_route not in valid_routes:
             raise ExternalAuthorizationError(
