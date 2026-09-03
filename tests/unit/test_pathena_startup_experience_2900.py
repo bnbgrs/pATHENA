@@ -9,6 +9,10 @@ from athena.desktop.pathena_startup_experience_2900 import (
 )
 
 
+class _DisconnectedStartupWindow(QWidget):
+    _core_transport_ready = False
+
+
 def _app() -> QApplication:
     existing = QApplication.instance()
     if isinstance(existing, QApplication):
@@ -57,8 +61,7 @@ def test_quiet_workspace_contract_remains_effect_free() -> None:
 
 def test_disconnected_startup_copy_keeps_core_infrastructure_in_background() -> None:
     _app()
-    window = QWidget()
-    setattr(window, "_core_transport_ready", False)
+    window = _DisconnectedStartupWindow()
 
     status = QLabel(window)
     status.setObjectName("localStatus")
