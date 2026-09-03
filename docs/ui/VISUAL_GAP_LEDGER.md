@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `dd4b623cc7bbc5b5a24c4427382f0b98ff50ad02`
+Baseline: `aed609ef8a7ff4af48e15e3dba953daf35d56b5c`
 Integration target: `develop/pathena-next`
 
 Only evidence-backed gaps belong here. The original 11 reference screenshots remain unavailable for direct visual comparison; therefore no pixel-level mismatch or `MATCH` claim is asserted.
@@ -48,10 +48,12 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Candidate product/test commit: `99d6b31c78be2932154137a6527200759f349628`.
 - Candidate behavior: disconnected normal-workspace copy says `pATHENA reconnecting` / `Getting pATHENA ready`, keeps detailed recovery direction in System, and preserves the real `core-offline` state property plus existing controller/service semantics.
 - Verification history: canonical Quality run `33785726577` on synchronized candidate lineage `b76115748aed53e3502a71eef10a41b11f97f8ae` passed Windows path safety, Linux storage, local-install smoke, specification validator, mypy and full pytest, but failed Ruff B010 at `tests/unit/test_pathena_startup_experience_2900.py:61` because the harness called `setattr(window, "_core_transport_ready", False)` with a constant attribute name.
-- Harness correction: `77e7b4c7d95202e6814226e2b4a2c4a54e3f5c8e` replaces the B010-triggering dynamic assignment with a typed test-window subclass carrying the same disconnected-state contract; no product assertion, availability rule, backend behavior or guard is weakened.
-- Current verification: ATHENA Quality Gate `33791855218` is SHA-bound to `77e7b4c7d95202e6814226e2b4a2c4a54e3f5c8e` and is pending/running. Do not promote before a successful exact-SHA result.
+- First harness correction: `77e7b4c7d95202e6814226e2b4a2c4a54e3f5c8e` replaces the B010-triggering dynamic assignment with a typed test-window subclass carrying the same disconnected-state contract.
+- Follow-up exact evidence: canonical Quality run `33792012599` on `25addc9833d0d655efa46cd48974e160a7f275dd` passed Windows path safety, Linux storage, local-install smoke, specification validator, mypy and full pytest (`4492 passed`, three pre-existing Windows-specific skips), but Ruff found exactly one remaining harness-only error: `I001` unsorted/unformatted import block at `tests/unit/test_pathena_startup_experience_2900.py:1:1`.
+- Second harness correction: `ecbf44ddd0fb8c7428d4cca090834eca284b997e` reformats only that PySide6 import block into Ruff/isort-compatible multiline form. Product code, assertions and lint configuration are unchanged.
+- Current verification: exact post-correction Quality evidence is pending; do not promote before a successful exact-head result.
 - Status: `FIXED_PENDING_VERIFY`.
-- Acceptance: no backend, transport, persistence, security, capability, focus, or availability semantics changed; technical Core state remains represented internally and may remain visible in System diagnostics.
+- Acceptance: no backend, transport, persistence, security, capability, focus, availability or product-state semantics changed; technical Core state remains represented internally and may remain visible in System diagnostics.
 
 ## Evidence blocker
 
