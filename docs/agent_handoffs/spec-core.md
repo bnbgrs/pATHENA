@@ -2,66 +2,57 @@
 
 ## Current slice
 
-- Baseline: `develop/pathena-next@fc3f6e44fcbeecdf1f4e817a4b9523a5ba2fbbaf`
-- Product commit: `8fb96f2333208e2f7f3c7048423dc6d2fd10e184`
-- Focused-test commit: `ececd7741ca17a8c5c75af161359a5284fe88695`
-- Verification PR: `#41` (`postmerge/spec-core` -> `develop/pathena-next`, draft, verification only)
-- Canonical Quality run for product/test head: `33703529634`
-- Status: `VERIFYING`
+- Baseline: `develop/pathena-next@7e23616b79b65f759980ad98a27640b6c29bcea0`
+- Worker branch: `postmerge/spec-core`
+- Product commit: `3036b5f37d667d5ee6255480e7f460e5d61c8b9e`
+- Focused-test commit: `11720aa82b38175b2f06e6a0ed80ddafd15f63ea`
+- Verification PR: `#42` (`postmerge/spec-core` -> `develop/pathena-next`, draft, verification only)
+- Status: `IMPLEMENTED_PENDING_VERIFY`
 
 ## Spec anchor
 
-`docs/beta/10_Retrieval_und_Suche.md` requires retrieval provenance to remain explainable: CandidateSets retain the retrieval method, and Search Responses expose retrieval methods.
+`docs/beta/10_Retrieval_und_Suche.md` §52 requires Search Responses to include `rank` alongside result identity, revision, retrieval methods, source anchor and protection state. The already integrated `HybridSearchResult` exposed retrieval methods but still did not expose the final returned rank.
 
 ## Implemented product contract
 
-`HybridSearchResult` now exposes additive `retrieval_methods: tuple[str, ...]` provenance without changing ranking or RRF scoring.
+`HybridSearchResult` now has additive `rank: int | None = None`.
 
-Production hybrid fusion derives the value only from actual contributing retrieval paths:
-
-- lexical contribution only -> `("lexical",)`
-- semantic contribution only -> `("semantic",)`
-- both contributions -> `("lexical", "semantic")`
-
-The contract validates supported method names, uniqueness, and canonical lexical-before-semantic ordering. The field has an empty tuple default so existing direct result construction remains source-compatible. Diversity-score adjustment preserves provenance unchanged.
+- Results produced by hybrid diversification receive contiguous final ranks `1..N` after diversity selection and any diversity-score adjustment.
+- Explicit ranks must be positive integers; zero, negative values, booleans and non-integers are rejected.
+- Direct construction remains source-compatible through the `None` default; only actual returned hybrid result sets assign final rank.
+- The rank reflects returned order, not an intermediate lexical/semantic/RRF position.
 
 ## Files
 
 - `src/athena/retrieval/hybrid.py`
 - `tests/unit/test_hybrid_retrieval_provenance.py`
 
-## Verification evidence
+## Focused verification contract
 
-Quality run `33703529634` is bound to exact product/test SHA `ececd7741ca17a8c5c75af161359a5284fe88695`.
+Added focused coverage that:
 
-Observed successful checks so far:
+- invalid explicit ranks are rejected;
+- backward-compatible direct construction leaves `rank is None`;
+- diversified result sets expose contiguous final ranks `(1, 2, 3)` in returned order.
 
-- dependency lock
-- specification validator
-- Ruff
-- mypy
-- Linux storage regressions
-- Windows path-safety regressions
-- local install/Core API restart smoke
-
-Full pytest / final canonical enforcement were still running when this handoff was written. Do **not** classify the slice `INTEGRATE_NOW` until that exact-SHA run finishes successfully and no new failure signature appears.
+No runtime PASS is claimed yet. Draft PR #42 was opened to trigger canonical verification; no workflow run was visible for exact head `11720aa82b38175b2f06e6a0ed80ddafd15f63ea` at handoff update time.
 
 ## Safety / compatibility
 
-- No RRF formula or ranking order change.
+- No RRF formula or score weights changed.
+- No candidate selection rule changed.
 - No persistence/storage/recovery mutation.
 - No network/provider/security mutation.
 - No UI mutation.
 - No Skip/XFail/assertion weakening.
-- No fake retrieval path or synthetic provenance: methods are derived from real nonzero lexical/semantic RRF contributions.
 
 ## Coordination
 
-- Error worker: no current `ERR-*` ownership collision was present before this slice.
-- Backend worker: no overlap with its ResourceMode/system boundary work.
-- UI worker: may consume `retrieval_methods` later for Search/Knowledge explainability, but must not synthesize labels before this contract is integrated.
-- Feature Integrator: wait for exact-SHA Quality run `33703529634` to finish. If SUCCESS, integrate the product/test commits (and this handoff documentation if desired) into `develop/pathena-next`; never into `main` from this worker.
+- Error worker: no current confirmed `ERR-*` ownership collision from the latest develop handoff.
+- Backend worker: no overlap with ResourceMode/deletion-ledger work.
+- UI worker: may later consume final `rank` for Search/Knowledge explainability only after integration; no synthetic display rank is needed.
+- Feature Integrator: do not integrate `3036b5f3`/`11720aa8` until exact-head focused/canonical verification is successful and no new regression is confirmed.
 
 ## Next Alpha/Beta gap
 
-After this slice is fully verified, continue Search Response explainability tracing from Beta Retrieval/Search: determine which existing response surfaces already expose scope/protection-state/source-anchor/ranking explanation and implement only the next actually missing provenance field. Avoid duplicating fields already present elsewhere in the response contract.
+After rank is verified, trace the remaining §52 response fields against real contracts in this order: `source anchor`, then `protection state`. Do not add either until the canonical source/protection ownership path is identified; LocalSearch currently excludes protected payloads, so a simplistic constant protection label would be a fake contract.
