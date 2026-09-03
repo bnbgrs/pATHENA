@@ -2,50 +2,61 @@
 
 ## Current branch state
 
-- `main` (read-only): `0d4d621f8a38ddf8eccfa09622bf193687619943`
+- `main` (strict read-only): `0d4d621f8a38ddf8eccfa09622bf193687619943`
 - Integration branch: `develop/pathena-next`
-- Integration branch was created non-force from the exact current `main` SHA.
+- Develop before this pass: `fc3f6e44fcbeecdf1f4e817a4b9523a5ba2fbbaf`
+- Verified Core lineage integrated non-force through `db5fab81e1121ed024101c8b1ddf1a8f0f57951b`.
+- Progress tracker updated on develop in commit `5434b03947b17f5b04736451730266d513e45185`.
 
 ## Worker heads reviewed
 
-- `postmerge/errors`: `4b5355ed79d09ae057e3091d07c87e3f474c58ec` — documentation/error-ledger only; two commits ahead of main.
-- `postmerge/backend`: `a592e95db10c62b68e67e67754eb14f983cc885e` — documentation/handoff only; no product commit ready.
-- `postmerge/ui`: `244a1cefd164a37aebf5abedc307b660c41d3845` — documentation/reference-audit only; no product commit ready.
-- `postmerge/spec-core`: not present at review time; no commit available to integrate.
+- `postmerge/errors`: `8fdbaa188faebe6bac41545e80785157aa2e8bfb` — no OPEN/IN_PROGRESS defect; latest changes are error-ledger/handoff coordination only.
+- `postmerge/spec-core`: `db5fab81e1121ed024101c8b1ddf1a8f0f57951b` — product/test slice plus handoff. Product/test head `ececd7741ca17a8c5c75af161359a5284fe88695` passed canonical Quality run `33703529634` with conclusion `success`.
+- `postmerge/backend`: `6564aa57a3c5a15f0d424197b0cad1c658392877` — contains ResourceMode product candidate `881d662958b9fe6b94a9ad549a72d91abb24e692` plus focused test, but worker explicitly lacks executable focused/Quality evidence; not READY.
+- `postmerge/ui`: `244a1cefd164a37aebf5abedc307b660c41d3845` — no tested product patch; worker reports branch divergence/synchronization blocker; not READY.
 
-## Integrated coordination artifacts
+## Integrated product slice
 
-The following repository coordination artifacts were reviewed and recreated on `develop/pathena-next` without changing product/test behavior:
+### Hybrid retrieval provenance
 
-- `docs/agent_logs/ERROR_LEDGER.md`
-- `docs/agent_handoffs/errors.md`
-- `docs/agent_handoffs/backend.md`
-- `docs/agent_handoffs/ui.md`
-- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md`
-- `docs/ui/VISUAL_GAP_LEDGER.md`
-- `docs/development/ALPHA_BETA_PROGRESS.md`
+Integrated via non-force fast-forward from develop base to the Core worker lineage:
 
-## Product integration decision
+- `8fb96f2333208e2f7f3c7048423dc6d2fd10e184` — adds `HybridSearchResult.retrieval_methods`, validates canonical lexical/semantic provenance, derives methods only from actual contributing retrieval paths and preserves provenance through diversity reweighting.
+- `ececd7741ca17a8c5c75af161359a5284fe88695` — focused retrieval-provenance regression coverage.
+- `db5fab81e1121ed024101c8b1ddf1a8f0f57951b` — Core handoff documentation.
 
-No worker product commit was READY in this integration pass.
+Independent integrator review found the product/test delta against prior develop to be exactly two commits, zero commits behind, touching only `src/athena/retrieval/hybrid.py` and `tests/unit/test_hybrid_retrieval_provenance.py`. No RRF/ranking formula, persistence, recovery, transport, security or UI path was changed.
 
-- Error worker: no current defects and no product mutation.
-- Backend worker: proposed `ResourceMode` runtime guard is not implemented or tested yet.
-- UI worker: identified `UI-GAP-0001` and `UI-GAP-0002`, but no Qt-tested product patch exists yet.
-- Spec/Core worker: branch absent; prior analysis indicates Search Response retrieval-method provenance should be traced against Beta Retrieval §34/§52 before any additive contract mutation.
+Canonical Quality run `33703529634` is exact-bound to product/test SHA `ececd7741ca17a8c5c75af161359a5284fe88695` and completed successfully. This satisfies the READY rule for the product/test slice.
 
-Therefore no untested product code was integrated.
+## Rejected / deferred inputs
 
-## Current prioritized handoffs
+### Backend ResourceMode boundary
 
-1. `postmerge/backend`: implement the surgical `ResourceManager.set_mode()` runtime `ResourceMode` guard before side effects; add focused malformed-input and valid-enum regression coverage.
-2. `postmerge/ui`: close `UI-GAP-0001` with copy/accessibility-only change plus focused Qt regression; keep `UI-GAP-0002` analysis-first until focus/reduced-motion/progressive-disclosure contracts are enumerated.
-3. `postmerge/spec-core`: create/synchronize from current `develop/pathena-next`; trace all `HybridSearchResult`/Search Response constructors, serializers and tests against Beta Retrieval §34/§52 before implementing retrieval-method provenance.
-4. `postmerge/errors`: rescan the evolving `develop/pathena-next` exact SHA and open `ERR-0001` only for fresh reproducible/exact-SHA evidence.
+`881d662958b9fe6b94a9ad549a72d91abb24e692` remains `IMPLEMENTED_PENDING_VERIFY`. The patch is small and plausibly safe, but the worker recorded no executable focused pytest/Ruff/mypy/Quality evidence. Do not integrate until actual runtime verification exists.
+
+### UI
+
+No UI product commit is READY. `UI-GAP-0001` remains the first product target after `postmerge/ui` is safely synchronized with current develop. `UI-GAP-0002` remains analysis-first because focus/reduced-motion/progressive-disclosure contracts must be preserved.
+
+### Error worker
+
+No product fix is pending. After this Core product integration, the error worker should rescan the new exact develop lineage and open an `ERR-####` only for fresh reproduced/exact-SHA evidence.
+
+## Alpha/Beta tracking
+
+`docs/development/ALPHA_BETA_PROGRESS.md` now marks Search response retrieval-method provenance `VERIFIED` on the integrated tested lineage. Resource policy remains `IMPLEMENTED_PENDING_VERIFY`; UI gaps remain `PARTIAL`.
+
+## Next prioritized handoffs
+
+1. `postmerge/errors`: rescan the new product-bearing develop lineage for fresh CI/runtime regressions.
+2. `postmerge/backend`: obtain focused executable verification for ResourceMode candidate before resubmission.
+3. `postmerge/ui`: safely synchronize from current develop, then implement/test `UI-GAP-0001` only.
+4. `postmerge/spec-core`: trace the next genuinely missing Search Response explainability field (scope/protection-state/source-anchor/ranking explanation) and avoid duplicating existing contracts.
 
 ## Integration rules retained
 
-- `main` remains strictly read-only.
-- No force-push/history rewrite/auto-merge.
-- No worker product commit without baseline compatibility, focused verification, safety review and no known regression.
-- Documentation-only integration must not be represented as product progress.
+- `main` remains exactly read-only; no main merge or mutation occurred.
+- No force-push, history rewrite or auto-merge.
+- Worker product changes integrate only with baseline compatibility, concrete verification, safety review, gap/spec anchor and no known regression.
+- Documentation-only updates are not counted as product progress.
