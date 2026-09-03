@@ -1,9 +1,9 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `edae673243cfea9114302bd0b52655a7034b106e`
+Baseline: `280066cc5450f172693e2ee913bd269b6755f7bb`
 Worker: `postmerge/ui`
 
-Only evidence-backed gaps belong here. The original 11 reference screenshots were not successfully opened in this run; therefore no pixel-level mismatch or `MATCH` claim is asserted.
+Only evidence-backed gaps belong here. File Library search can locate likely original pATHENA reference screenshots, but the actual image payloads still could not be opened in this run. Therefore no pixel-level mismatch or `MATCH` claim is asserted.
 
 ## UI-GAP-0001 — Inspector naming does not express the Evidence & Activity contract
 
@@ -32,8 +32,9 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots wer
 - Test commit: `ff14f8fbe9c99e043521605c1ae790f20e807ae2`
 - Behavior: Chat hides Evidence & Activity when no grounded context is available; grounded-context availability reveals it; non-chat surfaces retain the inspector; returning to Chat re-evaluates the same real context state. No animation, controller, storage, provenance or backend semantics changed.
 - Focused contract: initial/new Chat hidden; grounded-context state visible; non-chat navigation visible even after context clears; return to ungrounded Chat hidden.
-- Verification: draft PR #53 targets `develop/pathena-next`; canonical workflow evidence is pending and no PASS is claimed yet.
+- Verification evidence: exact product/test head `ff14f8fbe9c99e043521605c1ae790f20e807ae2` ATHENA Quality Gate run `33729667950` completed `failure` on 2026-09-03. Validator, Ruff, mypy, local-install smoke, Windows path safety and Linux storage regressions passed; the failing step was canonical `pytest`. Exact pytest failure text is not available through the current connector/artifact surface, so the slice remains unverified and MUST NOT be integrated.
+- Synchronization: UI worker was safely history-preservingly merged with current Develop in `aea3f418e28ccc7cae6a3899391c049cc3beaee4`; Develop changes since the prior UI baseline were disjoint from the five UI-owned files.
 
 ## Evidence blocker
 
-`VISUAL_REFERENCE_PENDING`: File Library search located likely pATHENA reference assets, but attempts to open the relevant images failed. Until an original reference image and a real rendered current build can both be inspected, spacing, exact proportions, pixel colors and screenshot-level `MATCH` claims remain prohibited.
+`VISUAL_REFERENCE_PENDING`: File Library search located likely original pATHENA reference assets, including dark Chat/Knowledge/PALLAS layouts, but attempts to open the relevant image payloads failed. Until an original reference image and a real rendered current build can both be inspected, spacing, exact proportions, pixel colors and screenshot-level `MATCH` claims remain prohibited.
