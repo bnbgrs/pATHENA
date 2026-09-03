@@ -1,7 +1,9 @@
 name: pATHENA UI GAP 0004 Focused Validation
 
 on:
-  pull_request:
+  push:
+    branches:
+      - postmerge/ui
 
 permissions:
   contents: read
