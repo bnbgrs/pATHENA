@@ -14,10 +14,10 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 ## Current baseline
 
 - Baseline branch: `develop/pathena-next`
-- Baseline SHA: `aed609ef8a7ff4af48e15e3dba953daf35d56b5c`
+- Baseline SHA: `a728668f046bf0d8b66724bb8004a1767bd5589f`
 - Stable read-only parent: `main` at `0d4d621f8a38ddf8eccfa09622bf193687619943`
 - Worker branch: `postmerge/errors`
-- Worker synchronized history-preservingly and NON-FORCE with current Develop in merge `a9d8383c5135e78eb116129150c614c327075678`; prior Error head `f9e226e21603dc1a745e14151dc382eece45fec3` and current Develop were retained as parents.
+- Worker synchronized history-preservingly and NON-FORCE with current Develop in merge `71a9fa36281ad60de650bd393b447e77fbe76e73`; prior Error head `bd88a8bd3d101d5f1be0dff8675049169109854a` and current Develop were retained as parents.
 
 ## Current error state
 
@@ -29,12 +29,14 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 
 ## Current scan
 
-- Current Develop `aed609ef8a7ff4af48e15e3dba953daf35d56b5c` is an Integrator documentation commit; no new Develop product/test defect is evidenced by that commit itself.
-- `ERR-0004` original canonical failure is now exactly diagnosed from the UI worker's uploaded diagnostics as Ruff `B010` at `tests/unit/test_pathena_startup_experience_2900.py:61`: constant-name `setattr(window, "_core_transport_ready", False)`.
-- UI correction commit `77e7b4c7d95202e6814226e2b4a2c4a54e3f5c8e` removes that exact `setattr` and replaces the harness object with `_DisconnectedStartupWindow`, preserving the disconnected startup state without changing product code or weakening lint/tests.
-- Final UI head `25addc9833d0d655efa46cd48974e160a7f275dd` has canonical Quality run `33792012599`. On the currently observed exact-head run: Linux storage PASS, local-install smoke PASS, Windows path safety PASS; specification validator PASS; Ruff FAIL again; mypy/pytest were still running at scan time. Because Ruff failed again after the B010 correction, `ERR-0004` remains `IN_PROGRESS`. The current post-fix Ruff signature must be taken from the new diagnostics artifact before deciding whether it is a recurrence of B010 or a distinct harness-lint signature. No `ERR-0005` is allocated without that deduplication evidence.
+- Current Develop `a728668f046bf0d8b66724bb8004a1767bd5589f` contains the verified Core normal-Hybrid and Backend ExternalAccessGateway integrations plus progress documentation. No new Develop product/test defect is evidenced by those integrated worker slices at this observation point.
+- `ERR-0004` original canonical failure is exactly diagnosed as Ruff `B010` at `tests/unit/test_pathena_startup_experience_2900.py:61`: constant-name `setattr(window, "_core_transport_ready", False)`.
+- UI correction `77e7b4c7d95202e6814226e2b4a2c4a54e3f5c8e` removed that B010 site using a test-only `_DisconnectedStartupWindow` contract.
+- UI run `33792012599` then exposed Ruff `I001` on the startup harness. UI correction `ecbf44ddd0fb8c7428d4cca090834eca284b997e` reformatted the first `PySide6.QtWidgets` import block only; no product semantics, assertions, lint rules, storage/security/recovery invariants or accessibility behavior were changed.
+- Current UI exact head is `d581a88dfb916f2ffb3e358d16d92d502139ce42`, with canonical Quality run `33797732276`. Exact-head evidence already shows Linux storage PASS, Windows path safety PASS, local-install smoke PASS, specification validator PASS, mypy PASS, but Ruff FAIL again; full pytest is still running. Therefore `ERR-0004` remains `IN_PROGRESS` and UI-GAP-0004 is not Integrator-ready.
+- The exact current Ruff rule/message from `33797732276` is not yet retrievable because diagnostics upload follows completion of the still-running pytest step. No new `ERR-0005` is allocated until that exact diagnostic is available and deduplicated.
+- Static inspection confirms `tests/unit/test_pathena_startup_experience_2900.py` now has a multiline `PySide6.QtWidgets` import plus the existing multi-name `athena.desktop.pathena_startup_experience_2900` import block. This confines current investigation to import-block formatting/order or another exact Ruff signature in the UI lineage, but no rule is asserted without the uploaded diagnostics.
 - Qt deleted-`QProcess` stderr remains warning-only because no current-lineage failing path was reproduced.
-- Backend owns ExternalAccessGateway runtime-boundary hardening; Core owns normal-Hybrid Search composition; UI still owns the active startup harness correction. Error does not create a competing mutation while the exact UI run is active.
 
 ## Entries
 
@@ -93,22 +95,22 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 
 - first_seen: 2026-09-03
 - last_seen: 2026-09-03
-- checked_sha: `25addc9833d0d655efa46cd48974e160a7f275dd`
+- checked_sha: `d581a88dfb916f2ffb3e358d16d92d502139ce42`
 - severity: P2
 - area: Quality / Python lint / Qt startup-readiness test harness
 - status: `IN_PROGRESS`
 - exact evidence:
-  - Canonical Quality run `33785726577` on `b76115748aed53e3502a71eef10a41b11f97f8ae` failed only at Ruff while Windows path safety, Linux storage, local-install smoke, specification validator, mypy and full pytest passed.
-  - UI's uploaded diagnostics identify exact original rule `B010` at `tests/unit/test_pathena_startup_experience_2900.py:61` for constant-name `setattr(window, "_core_transport_ready", False)`.
-  - UI fix `77e7b4c7d95202e6814226e2b4a2c4a54e3f5c8e` removes that exact call with a test-only `_DisconnectedStartupWindow` subclass.
-  - Canonical Quality run `33792012599` on final UI head `25addc9833d0d655efa46cd48974e160a7f275dd` again reports Ruff FAIL. At observation time specification validator PASS, Linux storage PASS, local-install smoke PASS, Windows path safety PASS; remaining Python quality stages had not all completed.
-- reproducible path: canonical Ruff on the exact UI final head `25addc9833d0d655efa46cd48974e160a7f275dd` reproduces a post-fix failure.
-- primary root cause: original `B010` root cause is verified and corrected by `77e7b4c7...`; current post-fix Ruff root cause is not yet classified because the new diagnostics artifact is not yet available. Do not assume it is the same rule.
-- affected files: currently constrained to the UI candidate/test lineage; `tests/unit/test_pathena_startup_experience_2900.py` is the only Python file changed between the previous failing UI SHA and the new final UI SHA. No production/runtime defect is currently implicated.
-- fix_commit: original B010 correction `77e7b4c7d95202e6814226e2b4a2c4a54e3f5c8e`; verification incomplete because final exact-head Ruff remains red.
-- verification executed: prior full Quality diagnosis; exact-head run `33792012599` currently confirms Ruff still FAIL with platform/storage/install/validator checks already green.
-- remaining risks: current Ruff rule text must be read from the new diagnostics artifact after upload; deduplicate before allocating a new ERR-ID. UI owns this active test file while its exact-head run is active.
-- integrator handoff: keep UI-GAP-0004 rejected. Consume `33792012599` to completion, read the exact new Ruff diagnostic, apply the smallest harness correction without weakening Ruff/assertions, then require exact-head Ruff plus focused startup/offline verification before integration.
+  - Canonical Quality `33785726577` on `b76115748aed53e3502a71eef10a41b11f97f8ae`: Ruff-only quality failure; Windows path safety, Linux storage, local-install smoke, validator, mypy and full pytest passed. Uploaded diagnostics identified `B010` at startup harness line 61.
+  - UI B010 correction `77e7b4c7d95202e6814226e2b4a2c4a54e3f5c8e` removes constant-name `setattr` with a test-only disconnected-window type.
+  - Next exact UI run `33792012599` exposed Ruff `I001`; correction `ecbf44ddd0fb8c7428d4cca090834eca284b997e` changed only the first PySide6 import from a single line to a multiline import.
+  - Current exact UI head `d581a88dfb916f2ffb3e358d16d92d502139ce42` / run `33797732276`: Linux storage PASS, Windows path safety PASS, local-install smoke PASS, validator PASS, mypy PASS, Ruff FAIL again; pytest still in progress at the checked state.
+- reproducible path: canonical Ruff on exact UI head `d581a88dfb916f2ffb3e358d16d92d502139ce42` reproduces a lint failure after both prior corrections.
+- primary root cause: original B010 is verified corrected. I001 was the next exact known signature. The latest exact Ruff signature is pending diagnostics upload; current evidence shows the I001 correction was insufficient but does not justify claiming the exact rule/message yet.
+- affected files: `tests/unit/test_pathena_startup_experience_2900.py` remains the active Python harness file; no production/runtime defect is implicated by current evidence.
+- fix_commit: B010 correction `77e7b4c7d95202e6814226e2b4a2c4a54e3f5c8e`; attempted I001 correction `ecbf44ddd0fb8c7428d4cca090834eca284b997e`; no verified final fix yet.
+- verification executed: exact-head canonical run `33797732276` already confirms platform/storage/install/validator/mypy green and Ruff still FAIL; pytest/diagnostics upload pending.
+- remaining risks: consume exact diagnostics immediately after upload; deduplicate current rule under ERR-0004 unless it is demonstrably independent. UI owns the active harness file while the exact-head run is in progress.
+- integrator handoff: keep UI-GAP-0004 rejected. Do not integrate `d581a88d...`. After run completion, use exact diagnostics to make one minimal import/harness correction and require exact-head Ruff + focused startup/offline tests before acceptance.
 
 ## Historical/stale evidence
 
