@@ -292,7 +292,7 @@ class PathenaMainWindow(AthenaMainWindow):
         center.setParent(reference_body)
         inspector.setParent(reference_body)
         inspector.setFixedWidth(SHELL.inspector_width)
-        inspector.setAccessibleName("Inspector")
+        inspector.setAccessibleName("Evidence & Activity")
         inspector.show()
 
         body_layout.addWidget(icon_rail)
@@ -369,7 +369,7 @@ class PathenaMainWindow(AthenaMainWindow):
     def _replace_visible_copy(self) -> None:
         replacements = {
             "Connect to ATHENA Core to load a conversation.": "Connect to the local core to load a conversation.",
-            "INSPECTOR": "DETAILS",
+            "INSPECTOR": "EVIDENCE & ACTIVITY",
             "PROVENANCE": "SOURCES & KNOWLEDGE",
             "KNOWLEDGE REVIEW": "KNOWLEDGE FROM THIS CHAT",
             "EVIDENCE CHAIN": "SOURCES & EVIDENCE",
