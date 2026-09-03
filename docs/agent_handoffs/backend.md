@@ -2,43 +2,36 @@
 
 ## Baseline
 
-- Shared baseline: `develop/pathena-next@f76911dfef6530041d62fb6c2e0ddec242d64231`.
+- Shared baseline: `develop/pathena-next@dd4b623cc7bbc5b5a24c4427382f0b98ff50ad02`.
 - Worker branch: `postmerge/backend`.
-- History-preserving NON-FORCE synchronization: `e644e0d22b6733dd6bc5fec2c1dff042ef6dca0d`, with current Develop as first parent and prior Backend head `fad7ff588bc5035f07eac4d14ff53cc3d964cdc9` as second parent.
-- The merge tree preserves current Develop plus Backend-owned `backend.md` and `backend-external-gateway-runtime-boundaries.patch`.
+- History-preserving NON-FORCE synchronization: `8997b1edbcaf565d4eda5b6879c0596c452091d9`, with prior Backend head `9083ca691b804962e136006745b07622bb95d84e` and current Develop as parents.
 - `main@0d4d621f8a38ddf8eccfa09622bf193687619943` remains strictly read-only and untouched.
 
 ## Selected backend slice
 
 Area: `ExternalAccessGateway` runtime-boundary hardening.
 
-Spec/product anchor: `docs/agent_backend_run_201_300.md`, the existing fail-closed external-access contract in `src/athena/external/gateway.py`, and `tests/unit/test_external_access_gateway.py`.
+Spec/product anchor: `docs/agent_backend_run_201_300.md`, existing fail-closed external-access contracts in `src/athena/external/gateway.py`, and the versioned patch `docs/agent_handoffs/backend-external-gateway-runtime-boundaries.patch`.
 
-Current product evidence was re-read from the exact worker blob `src/athena/external/gateway.py@ccadac3991c01e726108068768b5c7df8fadd9e9`:
+## Implemented behavior
 
-- `authorize_explicit(... ttl_seconds)` still accepts `True` because Python `bool` is an `int`; the value can reach durable authorization insertion.
-- `authorize_direct_fallback(... ttl_seconds)` still accepts boolean TTL far enough to read the source grant and resolve the actor before downstream clamping/attachment.
-- `capture_url(... max_bytes, timeout_seconds)` still accepts boolean resource bounds.
-- `timeout_seconds=float("nan")` bypasses both ordered comparisons because comparisons with NaN are false.
-- These malformed values therefore cross intended fail-closed runtime boundaries before the relevant durable/network operations.
+Product commit `f34e2e6ffd589d7cfceb85dfbe7fcf7aea9f1be9` now enforces:
 
-## Exact corrective contract
+1. `authorize_explicit(... ttl_seconds)` accepts only genuine `int` values in the existing `1..86400` range; booleans fail before durable authorization creation.
+2. `authorize_direct_fallback(... ttl_seconds)` rejects non-genuine integers before reading the source authorization or resolving the actor; valid effective-TTL clamping remains unchanged.
+3. `capture_url(... max_bytes)` accepts only genuine `int` values within the existing safe range before authorization/audit/transport/Source side effects.
+4. `capture_url(... timeout_seconds)` rejects booleans, non-numeric values, NaN and infinities; finite numeric values must remain in `(0, 300]`.
+5. Tor/Direct routing, redirect reauthorization, retries, audit/provenance, staging/fsync, transaction boundaries, persistence schema and recovery semantics are unchanged.
 
-1. Explicit authorization TTL must be a genuine `int` and remain within `1..86400`.
-2. Direct-fallback TTL must reject non-genuine integers before source/actor/service side effects; valid effective-TTL clamping remains unchanged.
-3. `max_bytes` must be a genuine `int` before authorization/audit/transport/Source side effects; existing safe range remains unchanged.
-4. `timeout_seconds` may be `int|float`, but bool and non-finite values must fail before authorization/audit/transport/Source side effects; `(0, 300]` remains unchanged.
-5. No retry, persistence schema, recovery, redirect, Tor/Direct, provenance, UI or Search semantics change.
-
-Exact product+test diff remains versioned at `docs/agent_handoffs/backend-external-gateway-runtime-boundaries.patch`.
+Focused acceptance tests were added in `5cc4ea8c6b10c43c7203269bb4ccb1dbe484a109` as `tests/unit/test_external_access_gateway_runtime_boundaries.py`. They assert malformed values fail before new authorization rows, audit rows, transport calls or Source creation.
 
 ## Call-chain
 
-`authorize_explicit -> purpose/route -> TTL boundary -> host policy -> actor -> authorization INSERT/readback`
+`authorize_explicit -> purpose/route -> exact TTL boundary -> host policy -> actor -> authorization INSERT/readback`
 
-`authorize_direct_fallback -> TTL boundary -> source grant -> actor/route/host -> effective TTL -> explicit Direct grant`
+`authorize_direct_fallback -> exact TTL boundary -> source grant -> actor/route/host -> effective TTL -> explicit Direct grant`
 
-`capture_url -> resource boundaries -> _authorized_or_audit -> privacy route -> redirect re-authorization -> transport -> response policy -> fsync staging -> transactional Source/audit/provenance finalize`
+`capture_url -> exact resource boundaries -> _authorized_or_audit -> privacy route -> redirect re-authorization -> transport -> response policy -> fsync staging -> transactional Source/audit/provenance finalize`
 
 ## Retained invariants
 
@@ -50,25 +43,27 @@ Exact product+test diff remains versioned at `docs/agent_handoffs/backend-extern
 - audit durability, Source provenance, fsync and transaction semantics remain unchanged;
 - no uncontrolled retries or new cryptography.
 
-## Verification / mutation state
+## Verification
 
-Repository synchronization succeeded through the GitHub Git-data path; the worker is now based on exact current Develop without force or history rewrite.
+A draft verification PR was opened as `#54` from `postmerge/backend` to `develop/pathena-next`; it is not authorized for merge and exists only to obtain SHA-bound CI evidence.
 
-The runtime environment still cannot resolve `github.com` for a local checkout, so `git apply` and pytest execution remain unavailable in this run. The connector can now return the complete gateway and test blobs, eliminating the earlier truncated-read uncertainty, but it still has no bounded hunk-edit/apply-patch operation. Applying the patch through whole-file replacement without an executable checkout would create a materially higher risk of transcription/formatting error and would still leave the required tests unexecuted. No unsafe product mutation was made.
+Canonical Quality run `33790984890` is bound to exact product head `f34e2e6ffd589d7cfceb85dfbe7fcf7aea9f1be9`. At the handoff update point all four jobs had started and no conclusion was yet available. No PASS is claimed until the run completes successfully.
 
-No focused PASS is claimed. The versioned acceptance patch covers boolean explicit TTL, boolean direct-fallback TTL, boolean `max_bytes`, and boolean/NaN/infinite timeout, and asserts rejection before relevant persistence, audit, transport and Source side effects.
+Local checkout-based pytest remains unavailable because the execution environment cannot resolve `github.com`; GitHub Actions is therefore the current executable verification path.
 
 ## Coordination
 
-- Error worker: no current open root cause overlaps this gateway boundary slice; do not allocate a duplicate error unless a concrete current-lineage failure is reproduced.
+- Error worker: current open `ERR-0004` is UI-owned and does not overlap this gateway slice.
 - Core worker: normal-Hybrid Search composition remains Core-owned.
-- UI worker: Qt/11-screen work remains UI-owned.
-- Integrator: integrate only an applied-and-verified product/test SHA; the synchronization/handoff commits are not product completion.
+- UI worker: Qt/11-screen and Ruff harness correction remain UI-owned.
+- Integrator: do not integrate until exact SHA-bound Quality evidence is green; if run `33790984890` fails, reject this candidate and use the exact failing diagnostic for the next backend correction.
 
 ## Integrator handoff
 
-`e644e0d22b6733dd6bc5fec2c1dff042ef6dca0d` is synchronization only. The gateway patch remains NOT READY AS PRODUCT. Apply the existing patch through a bounded patch-capable execution environment, run `tests/unit/test_external_access_gateway.py` plus relevant Network/Security regressions, and integrate only the resulting verified product/test SHA.
+Candidate product lineage: synchronization `8997b1edbcaf565d4eda5b6879c0596c452091d9` -> focused tests `5cc4ea8c6b10c43c7203269bb4ccb1dbe484a109` -> product `f34e2e6ffd589d7cfceb85dfbe7fcf7aea9f1be9`.
+
+Status: `IMPLEMENTED_PENDING_VERIFY`. Integrate only after canonical Quality run `33790984890` completes green on exact head `f34e2e6ffd589d7cfceb85dfbe7fcf7aea9f1be9` and independent diff review confirms no guard weakening.
 
 ## Next backend slice
 
-First apply and verify the ExternalAccessGateway runtime-boundary patch. After closure, take the highest unclaimed Backend/System P0/P1/P2 gap from persistence/recovery, Provider/Transport, Windows publication/path safety, Packaging/install/runtime, or Research/Jobs execution.
+First close or correct this exact Gateway candidate from CI evidence. After verification, take the highest unclaimed Backend/System P0/P1/P2 gap from persistence/recovery, Provider/Transport, Windows publication/path safety, Packaging/install/runtime, or Research/Jobs execution.
