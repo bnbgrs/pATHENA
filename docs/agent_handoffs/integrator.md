@@ -3,64 +3,59 @@
 ## Current branch state
 
 - `main` (strict read-only): `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `aed609ef8a7ff4af48e15e3dba953daf35d56b5c`.
+- Develop before this run: `a728668f046bf0d8b66724bb8004a1767bd5589f`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `bd88a8bd3d101d5f1be0dff8675049169109854a`; spec-core `8d5fa074a30451d5d8c8d2f8897689883c65a1ed`; backend `cc053d75d81f62b03a1d55b7c004b42d7bb6e432`; ui `d581a88dfb916f2ffb3e358d16d92d502139ce42`.
+- Worker heads reviewed: errors `1afe9c2db228a3435797a9157023c072b4574a38`; spec-core `7a886fe7d4335210ffb831dc56dc9dabfb220e91`; backend `ba5014a2994369034d45899896174cebfcc83b15`; ui `1ffd2fbc063c1836cdc2dd9504ce297807e5745a`.
 
-## READY assessment
+## Validation carried forward
 
-### Core — READY and integrated
+Combined Core normal-Hybrid + Backend Gateway runtime-boundary Develop tree was independently validated by canonical Quality run `33799110483`, conclusion `success`, on validation commit `b46472e34cbab3bb3659d546aeabd6cab9240a7e` whose PR base is exact prior Develop `a728668f046bf0d8b66724bb8004a1767bd5589f`. This closes the prior combined-validation pending state without changing main.
 
-Core product commit `e93cd24ce3deaf19d4fe6cdc2c14169a2ad9c1be` implements the bounded normal-Hybrid composition slice. Independent diff review confirmed only the intended product paths in `src/athena/api/service.py` and `src/athena/core/application.py`: typed `NormalSearch`, one-time attachment, gated `search.normal.hybrid` capability, exact argument delegation, canonical `hybrid_search_result_response()` mapping and exact `AthenaApplication.hybrid_retrieval` identity wiring. Existing acceptance-test blobs from the verified worker lineage were integrated with the product blobs.
+## READY assessment and integration
 
-Worker evidence: bounded run `33795894172` completed success with `tests/unit/test_core_api_search_wiring.py`, `tests/unit/test_application_wiring.py`, Ruff on product + acceptance files, mypy on both product files, `git diff --check`, exact baseline/lock validation and exact changed-file guard. No global Quality PASS is claimed for the Core worker itself.
+### Core temporal contradiction policy — READY and integrated
 
-Integrator commit: `a104b7c9c3b3108cd13e1653c8f9794116108dfd`.
+Core product `f2db1041d73312b27fe9d74eb82f0f5c76f297aa` plus focused tests `76a4ab8011ee163e2ce1c58fd01772e006273fc9` add a deterministic temporal gate for Claim contradiction candidacy. Independent diff review confirmed exactly two new files: `src/athena/knowledge/contradiction_policy.py` and `tests/unit/test_knowledge_temporal_contradiction_policy.py`. The policy only suppresses a contradiction candidate when Claim validity windows are provably disjoint; touching or unknown/open bounds remain potentially overlapping. It creates no relation, mutates no Claim, performs no persistence, and preserves historical/provenance semantics.
 
-### Backend — READY and integrated
+Exact worker Quality run `33801697326` on `76a4ab8011ee163e2ce1c58fd01772e006273fc9` completed `success`. The worker was synchronized from exact prior Develop `a728668f046bf0d8b66724bb8004a1767bd5589f`, so the Integrator applied the reviewed product/test files byte-for-byte to the same Develop base.
 
-Backend product/test lineage `5cc4ea8c6b10c43c7203269bb4ccb1dbe484a109 -> f34e2e6ffd589d7cfceb85dfbe7fcf7aea9f1be9` hardens ExternalAccessGateway runtime boundaries: exact-int/non-bool TTL and `max_bytes`, and finite numeric/non-bool `timeout_seconds`, all before authorization/audit/transport/Source side effects. Independent review found the remaining gateway diff to be formatting/comment-only churn with no changed executable semantics.
+Integrator commits:
 
-Exact product SHA `f34e2e6ffd589d7cfceb85dfbe7fcf7aea9f1be9` passed canonical Quality run `33790984890`: Windows path safety, Linux storage, local install/restart smoke, specification validator, Ruff, mypy, full pytest and canonical enforcement all PASS.
+- `a915719f6ac7dd8e3b212d1f39cbaef077c89b02` — temporal contradiction policy.
+- `df981f2718d7df508dfb608261b93abebaccbc0a` — focused policy tests.
 
-Integrator commit: `f4f74927f61aab7d40c5eab54ab45b6cbd2326d0`.
+### Backend explicit authorization boundaries — focused verified, not integrated this run
 
-### UI — not READY yet
+Backend product `7fb68f20e48a463282c4f29e08c531cadc71b60b` hardens `ExternalAccessGateway.authorize_explicit()` purpose/allowed-host runtime boundaries before actor/persistence side effects. Focused run `33802635370` is reported successful in the Backend handoff. Canonical run `33802762604` was cancelled, so this slice remains a valid focused-verified candidate but was not selected ahead of the fully canonical-green Core slice in this run. Reassess next run; cancellation is not PASS evidence.
 
-UI head `d581a88dfb916f2ffb3e358d16d92d502139ce42` contains the B010 correction followed by an exact I001 import-order correction. Prior run `33792012599` passed Windows path safety, Linux storage, local-install smoke, validator, mypy and full pytest, but failed Ruff only on I001. Final-head canonical Quality run `33797732276` is still pending. Therefore UI-GAP-0004 / ERR-0004 remain unintegrated until exact final-head evidence is green.
+### UI-GAP-0004 / ERR-0004 — still rejected
 
-### Errors — no integrator-ready mutation
+Canonical Quality `33797732276` on UI head `d581a88dfb916f2ffb3e358d16d92d502139ce42` completed failure: Windows path safety, Linux storage, local-install smoke, specification validator, mypy and full pytest succeeded, but Ruff failed. The newer UI head `1ffd2fbc063c1836cdc2dd9504ce297807e5745a` contains further import-order corrections and cleanup. Its exact canonical Quality run `33804193396` is pending. Do not integrate until that exact current-head run is green.
 
-Error worker `bd88a8bd3d101d5f1be0dff8675049169109854a` keeps `ERR-0004` open pending the final UI exact-head Quality result. Historical `ERR-0001`, `ERR-0002`, `ERR-0003` remain fixed.
+### Errors
 
-## Integrated this run
-
-1. `a104b7c9c3b3108cd13e1653c8f9794116108dfd` — Core normal-Hybrid facade/application composition plus acceptance-test blobs.
-2. `f4f74927f61aab7d40c5eab54ab45b6cbd2326d0` — Backend ExternalAccessGateway runtime-boundary hardening plus focused runtime-boundary tests.
-
-Both commits are direct descendants of the prior Develop SHA and were applied by exact reviewed worker blobs. No temporary worker workflow or worker handoff commit was integrated.
+`ERR-0004` remains open/in-progress until the current UI exact-head Quality becomes green. `ERR-0001`, `ERR-0002`, `ERR-0003` remain fixed.
 
 ## Product / quality state
 
-- Normal-Hybrid `CoreApiFacade <-> AthenaApplication` composition: integrated; worker-focused verification PASS. Marked `VERIFIED` in the tracker based on concrete product/test evidence, while combined final-Develop canonical Quality is separately pending validation.
-- ExternalAccessGateway runtime-type policy boundaries: integrated; exact worker product canonical Quality PASS.
-- `ERR-0001`, `ERR-0002`, `ERR-0003`: FIXED.
-- `ERR-0004`: OPEN pending UI final-head canonical Quality.
-- UI-GAP-0001 / 0002 / 0003: VERIFIED/integrated.
-- UI-GAP-0004: fixed on UI worker but `IMPLEMENTED_PENDING_VERIFY`; not integrated.
+- Normal-Hybrid facade/application composition: VERIFIED/integrated.
+- ExternalAccessGateway TTL/max-bytes/timeout runtime boundaries: VERIFIED/integrated.
+- Combined prior Develop product tree: canonical validation PASS via `33799110483`.
+- Temporal contradiction policy: VERIFIED/integrated as a deterministic policy only; not yet composed into contradiction-review enqueue logic.
+- Backend explicit authorization purpose/allowed-host boundaries: focused verified, pending Integrator acceptance/integration.
+- UI-GAP-0004: not integrated; exact latest UI Quality pending.
 - Eleven UI reference slots: zero `MATCH`; original reference pixels remain `VISUAL_REFERENCE_PENDING`.
-- No exact combined final-Develop canonical Quality PASS is claimed in this handoff.
 
 ## Handoffs / next priorities
 
-1. `postmerge/ui`: consume final-head Quality `33797732276`; if green, hand off exact READY SHA immediately. If failed, fix only the exact current diagnostic.
-2. `postmerge/errors`: close `ERR-0004` only after final UI exact-head green evidence; otherwise deduplicate the exact remaining signature.
-3. `postmerge/spec-core`: move to the next highest unclaimed Alpha/Beta CHAT/KNOWLEDGE/RESEARCH/PALLAS gap; do not repeat normal-Hybrid composition work.
-4. `postmerge/backend`: move to the next runtime-boundary gap (`authorize_explicit` purpose/allowed_hosts exact-type validation) without touching integrated gateway invariants.
+1. `postmerge/spec-core`: compose the temporal policy into the existing contradiction-candidate/review path so provably disjoint windows cannot enqueue contradiction review while overlapping/unknown windows preserve current behavior; retain atomic acceptance, provenance, historical Claims and explicit human review.
+2. `postmerge/backend`: preserve the focused-verified `authorize_explicit` boundary slice and provide exact current-lineage evidence; Integrator will independently review/integrate it next if compatible.
+3. `postmerge/ui`: consume exact current-head Quality `33804193396`; hand off only on green. If red, fix the exact diagnostic rather than repeating prior hypotheses.
+4. `postmerge/errors`: close `ERR-0004` only after exact UI green evidence and continue regression scanning.
 
 ## Next integration
 
-UI-GAP-0004 once `postmerge/ui@d581a88dfb916f2ffb3e358d16d92d502139ce42` receives an exact green canonical Quality result, or the next bounded verified worker slice if UI remains pending.
+First priority next run: UI-GAP-0004 if `postmerge/ui@1ffd2fbc063c1836cdc2dd9504ce297807e5745a` is exact canonical green. Otherwise independently review/integrate Backend `7fb68f20e48a463282c4f29e08c531cadc71b60b` if its focused evidence remains compatible with current Develop.
 
 ## Rules retained
 
