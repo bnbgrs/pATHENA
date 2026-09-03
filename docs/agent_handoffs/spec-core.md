@@ -2,19 +2,19 @@
 
 ## Current baseline
 
-- Shared baseline: `develop/pathena-next@63742ba81ade7dfcb82eb1f60c2efcd4b11fbeb5`.
+- Shared baseline: `develop/pathena-next@eaab89bb4d7b08839517c40b622480bb1dc309f0`.
 - Stable read-only branch: `main@0d4d621f8a38ddf8eccfa09622bf193687619943` (unchanged).
 - Worker branch: `postmerge/spec-core`.
-- Previous worker head: `d8872f9b4b58f9cde1c2c413419938601b6b30ea`.
-- History-preserving NON-FORCE synchronization merge this run: `ee7b5322cb34868bccb5ffa35f2b2dac42d62d94`, with parents `d8872f9b4b58f9cde1c2c413419938601b6b30ea` and current Develop `63742ba81ade7dfcb82eb1f60c2efcd4b11fbeb5`.
-- Develop-only `docs/agent_handoffs/integrator.md` and `docs/development/ALPHA_BETA_PROGRESS.md` changes were preserved; Core-only Search acceptance coverage was preserved.
+- Previous worker head: `6e31cb229651faeb3cd005badbe5f878e00c40b7`.
+- History-preserving NON-FORCE synchronization merge this run: `509d4cad032b8fae78f4b1a4301dda4eae10d7d8`, with parents `6e31cb229651faeb3cd005badbe5f878e00c40b7` and current Develop `eaab89bb4d7b08839517c40b622480bb1dc309f0`.
+- Develop-only Integrator/UI tracking and verified contextual-inspector changes were preserved; Core-only Search acceptance coverage was preserved.
 
 ## Coordination checked this run
 
 - Integrator still assigns normal-Hybrid Search facade/application wiring exclusively to Core.
-- Backend owns the deletion-ledger runtime-boundary root cause and subsequent verification/lint correction; Core did not touch lifecycle/storage code.
-- UI owns contextual Inspector/UI reference work; Core did not touch Qt/UI files.
-- Error worker remains root-cause owner for confirmed regressions outside this Search slice.
+- Backend owns deletion-ledger runtime-boundary work (`ERR-0001`) and its corrected Ruff harness lineage; Core did not touch lifecycle/storage files.
+- UI owns PALLAS `UI-GAP-0003` lifecycle verification; Core did not touch Qt/UI files.
+- Error worker has no Core product-file ownership; its latest handoff keeps `ERR-0001` Backend-owned and `ERR-0002` fixed.
 
 ## Spec anchors
 
@@ -72,25 +72,27 @@ These tests remain intentional red acceptance coverage until product wiring exis
 
 ## Mutation safety this run
 
-The full current blobs for `src/athena/api/service.py` and `src/athena/core/application.py` were successfully re-read and the exact insertion points were verified. The available repository mutation interface still replaces existing UTF-8 files as complete blobs rather than applying a bounded textual patch. Because both files are central composition modules, this run did not manually reconstruct and replace either whole file merely to add a few lines. That avoids accidental unrelated loss while preserving the now fully traced implementation contract.
+The worker was successfully synchronized with the latest Develop history before any product mutation attempt. The relevant insertion points in `src/athena/api/service.py` and `src/athena/core/application.py` were re-read and remain unchanged by Develop.
+
+A local repository checkout was attempted for a bounded patch workflow, but the execution environment could not resolve `github.com`. The available GitHub file-write interface replaces complete UTF-8 files and does not expose a bounded patch operation. `service.py` is a large central composition module; manually reconstructing and replacing the whole blob for a small Search addition would create disproportionate overwrite risk. Therefore no product mutation was made in this run.
 
 No persistence, recovery, provider, ranking, authorization, protected-content, UI or security behavior changed.
 
 ## Verification state
 
-- Worker synchronized with current Develop: CONFIRMED via `ee7b5322cb34868bccb5ffa35f2b2dac42d62d94`.
+- Worker synchronized with current Develop: CONFIRMED via `509d4cad032b8fae78f4b1a4301dda4eae10d7d8`.
 - Canonical DTO + Hybrid adapter: previously VERIFIED/integrated.
 - Application Search identity wiring: RED acceptance pinned; product missing.
 - Facade attachment/capability/delegation/error contract: RED acceptance pinned; product missing.
-- No new test execution occurred in this run; no PASS/FAIL claim is made.
+- No new test execution occurred because product code was not changed; no PASS claim is made.
 
 ## Integrator handoff
 
-NOT READY. Do not integrate acceptance-only Search commits as a completed capability. The Search tests must travel with the future bounded product implementation and exact-head verification.
+NOT READY. Do not integrate the acceptance-only Search tests as a completed capability. The worker is now based on current Develop, but the bounded CoreApiFacade/AthenaApplication product mutation and exact-head verification are still required.
 
 ## Next Alpha/Beta gap
 
-Remain on normal-Hybrid Search facade/application wiring. On the next run, use a safe patch-capable mutation route if available; otherwise preserve the current exact contract and avoid whole-file reconstruction risk. After implementation run:
+Remain on normal-Hybrid Search facade/application wiring. On the next run, use a safe patch-capable mutation route if available. Required verification after implementation:
 
 - `tests/unit/test_core_api_search_wiring.py`;
 - `tests/unit/test_application_wiring.py`;
