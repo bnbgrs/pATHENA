@@ -3,68 +3,64 @@
 ## Current branch state
 
 - `main` (strict read-only): `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `3347f766651a9b6e2a03235eca4add7905ad4527`.
+- Develop before this run: `7be496d2fcbb94ab81f5e520f2e45ee2820d3fd9`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `fa87540eda15721b4de98d28fac3043ab869928b`; spec-core `7bcbb723eb03d9d4d0e59973616b14db1eeb56b3`; backend `4b175ef028c32c8fd26529fc39442438e1489966`; ui `5d38a07a18765064c392836588128e0477401b9e`.
+- Worker heads reviewed: errors `39db19165bcf4f7e2d587a368e3f8ef93a5ae7cb`; spec-core `69300173278214aeeb1724cb339e81de19589548`; backend `d3396dbc5d517a415a00a8e1105118263ad5c8d3`; ui `14c26718b4ad6debe7666197549505fb5e3f9261`.
 
-## READY review this run
+## Integrated this run
 
-No worker product slice satisfied all READY conditions.
+### Error worker — READY and integrated
 
-### Error worker
+`postmerge/errors@39db19165bcf4f7e2d587a368e3f8ef93a5ae7cb` was strictly ahead of Develop by 7 commits with `behind_by=0`; the merge base was the exact prior Develop head. The delta is bounded to `docs/agent_handoffs/errors.md`, `docs/agent_logs/ERROR_LEDGER.md`, and `tests/unit/test_pathena_window.py`.
 
-`postmerge/errors@fa87540eda15721b4de98d28fac3043ab869928b` contains a real current-baseline P1 harness regression, `ERR-0003`. Canonical run `33755878184` produced exactly two failures in `tests/unit/test_pathena_window.py`; the stale assertions require a permanently visible Workspace inspector despite integrated `UI-GAP-0002` intentionally making Evidence & Activity context-sensitive. Candidate correction `ebcf0dc2a305e946aabd0309c95316d29a1ebd91` changes the obsolete harness contract only. It remains `FIXED_PENDING_VERIFY`: no focused execution on the corrected Error head has been observed, so it is NOT READY and was not integrated.
+`ERR-0003` is closed by verified harness fix `6253577227d427c9bb00707c3e3e578a16c0f9d6`. The worker restored exact shell-test blob `82f492814250536dd003857a4eec2d083e9e13d5`, byte-identical with canonical-green UI head `ce959e148ddbe8f13952ca56f7d07e7a7ce1addb`; its relevant product/presentation blobs are also byte-identical. Canonical Quality run `33745885426` on that exact relevant content completed success. No product UI code or guards were weakened.
+
+Develop was advanced NON-FORCE by fast-forward to `39db19165bcf4f7e2d587a368e3f8ef93a5ae7cb`.
+
+## Not READY
 
 ### Core worker
 
-`postmerge/spec-core@7bcbb723eb03d9d4d0e59973616b14db1eeb56b3` is synchronized to the prior Develop baseline and contains bounded normal-Hybrid Search acceptance coverage, but no product implementation. The required `CoreApiFacade` attachment/capability/delegation and exact `AthenaApplication.hybrid_retrieval` identity wiring remain missing. Acceptance-only commits are NOT READY as completed functionality.
+`postmerge/spec-core@69300173278214aeeb1724cb339e81de19589548` is synchronized and has an exact normal-Hybrid Search patch artifact plus acceptance coverage, but no applied product mutation and no green verification. NOT READY as functionality.
 
 ### Backend worker
 
-`postmerge/backend@4b175ef028c32c8fd26529fc39442438e1489966` is synchronized to the prior Develop baseline and documents the ExternalAccessGateway bool-as-int runtime boundary defect. The required fail-before-side-effect validation and focused tests remain unimplemented. Evidence-only synchronization commits are NOT READY as product functionality.
+`postmerge/backend@d3396dbc5d517a415a00a8e1105118263ad5c8d3` is synchronized and has an exact ExternalAccessGateway runtime-boundary patch artifact, including bool-safe and finite-timeout requirements, but no applied product mutation and no green verification. NOT READY as functionality.
 
 ### UI worker
 
-`postmerge/ui@5d38a07a18765064c392836588128e0477401b9e` completed safe history-preserving reconciliation and documentation/evidence synchronization. It contains no new verified UI product slice. All eleven slots remain `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no `MATCH` claim exists while original references cannot be opened.
+`postmerge/ui@14c26718b4ad6debe7666197549505fb5e3f9261` contains synchronization/evidence-state work only. No new verified UI product slice; visual references remain pending and no `MATCH` claim is allowed.
 
 ## Cross-cutting work this run
 
-No unclaimed product code was modified because the concrete open implementation gaps are actively owned by Core or Backend, while the only current regression is Error-owned. Competing in those files would violate ownership/collision rules.
+`docs/development/ALPHA_BETA_PROGRESS.md` was reconciled after ERR-0003 integration:
 
-A bounded cross-stream integration-state correction was made instead:
-
-- `docs/development/ALPHA_BETA_PROGRESS.md` updated in `c9477d8d2fc068ee55e0658be960468c7a6ab648`.
-- Added the explicitly missing normal-Hybrid facade/application composition contract.
-- Added the explicitly missing ExternalAccessGateway exact runtime-type boundary contract.
-- Corrected canonical post-merge error state from `VERIFIED` to `PARTIAL` because `ERR-0003` is a current-baseline regression with a candidate fix still awaiting focused verification.
-- Existing verified capabilities remain unchanged.
-- No product semantics, assertions, security/storage/recovery guards, UI behavior, or `main` state were changed.
+- canonical post-merge error state is now `VERIFIED`;
+- current Core worker head and exact-patch state are recorded while capability remains `MISSING`;
+- current Backend worker head, bool/NaN boundary evidence and patch-artifact state are recorded while capability remains `MISSING`;
+- no product semantics or tests/guards were changed by the Integrator.
 
 ## Product / quality state
 
 - `ERR-0001`: FIXED.
 - `ERR-0002`: FIXED.
-- `ERR-0003`: FIXED_PENDING_VERIFY; candidate `ebcf0dc2...`, not integrated.
+- `ERR-0003`: FIXED and integrated.
 - UI-GAP-0001 / 0002 / 0003: technically verified and integrated.
 - Normal-Hybrid CoreApiFacade/AthenaApplication composition: MISSING, Core-owned.
-- ExternalAccessGateway exact-type runtime-policy hardening: MISSING, Backend-owned.
-- Eleven UI reference slots: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; zero `MATCH`; `VISUAL_REFERENCE_PENDING` remains truthful.
-- No whole-final-Develop canonical Quality PASS is claimed for documentation-only commits without a workflow bound to the exact final SHA.
+- ExternalAccessGateway exact runtime-policy hardening: MISSING, Backend-owned.
+- Eleven UI reference slots: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; zero `MATCH`; `VISUAL_REFERENCE_PENDING` remains required.
+- No whole-final-Develop canonical Quality PASS is claimed until a workflow is bound to the exact final Develop SHA.
 
 ## Handoffs / next priorities
 
-1. `postmerge/errors`: execute `tests/unit/test_pathena_window.py` and `tests/unit/test_pathena_ui_presentation.py` on the exact corrected Error head. Only after green verification mark ERR-0003 FIXED and hand the candidate commit to Integrator.
-2. `postmerge/spec-core`: implement the already-pinned normal-Hybrid `CoreApiFacade` attachment/capability/delegation and exact `AthenaApplication` wiring; run focused API/application tests and canonical Quality on one exact SHA.
-3. `postmerge/backend`: implement exact-type fail-before-side-effect validation for ExternalAccessGateway TTL, response-byte-budget and timeout parameters with focused bool/wrong-type regressions while preserving Tor/Direct/redirect/audit/provenance invariants.
-4. `postmerge/ui`: use the synchronized branch for the next evidence-backed 11-screen gap; do not invent pixel parity while reference payloads remain unavailable.
+1. `postmerge/errors`: continue fresh regression scanning; allocate a new ERR-ID only on reproducible current-lineage evidence.
+2. `postmerge/spec-core`: apply the versioned normal-Hybrid Search patch to product code, run focused API/application suites and relevant canonical Quality, then hand an applied product/test SHA to Integrator.
+3. `postmerge/backend`: apply the versioned ExternalAccessGateway runtime-boundary patch, verify fail-before-side-effect bool/NaN/Inf cases plus network/security regressions, then hand an applied product/test SHA to Integrator.
+4. `postmerge/ui`: continue only with evidence-backed 11-screen gaps; preserve contextual Evidence & Activity behavior and the restored ERR-0003 harness contract.
 
 ## Next integration
 
-Priority order is evidence-driven rather than worker-name-driven:
-
-1. verified ERR-0003 harness correction if focused tests pass;
-2. first bounded verified Core or Backend product/test slice satisfying READY rules;
-3. next verified evidence-backed UI product slice.
+First bounded applied-and-verified Core, Backend or UI product slice satisfying READY rules. Error remains active as regression scanner but currently has no open error.
 
 ## Rules retained
 
@@ -72,4 +68,4 @@ Priority order is evidence-driven rather than worker-name-driven:
 - No force-push, history rewrite, auto-merge or automatic promotion to main.
 - Worker commits are integrated only with compatible baseline, bounded scope, real verification, no weakened tests/guards, clear ownership and no confirmed regression.
 - Pending/cancelled workflow runs are never PASS evidence.
-- If no worker is READY, Integrator continues with only genuinely unclaimed cross-cutting work; it does not compete with active worker ownership.
+- Integrator avoids competing product mutations in files actively owned by Core/Backend/UI workers.
