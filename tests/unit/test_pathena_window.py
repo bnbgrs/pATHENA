@@ -89,7 +89,11 @@ def test_reference_body_directly_owns_workspace_and_persistent_inspector() -> No
         assert center.parentWidget() is body
         assert inspector.parentWidget() is body
         _assert_inspector_width(inspector)
-        assert inspector.accessibleName() == "Inspector"
+        assert inspector.accessibleName() == "Evidence & Activity"
+        assert any(
+            label.text() == "EVIDENCE & ACTIVITY"
+            for label in inspector.findChildren(QLabel)
+        )
         assert not inspector.isHidden()
     finally:
         window.close()
