@@ -276,6 +276,8 @@ class ExternalAccessGateway:
             raise ExternalAuthorizationError(
                 "Allowed external hosts must contain only host strings."
             )
+        if not isinstance(privacy_route, str):
+            raise ExternalAuthorizationError("Privacy route must be text.")
         valid_routes = {"tor_preferred", "tor", "direct_explicit"}
         if privacy_route not in valid_routes:
             raise ExternalAuthorizationError(
@@ -328,6 +330,8 @@ class ExternalAccessGateway:
         ttl_seconds: int = 900,
     ) -> ExternalAccessAuthorizationRecord:
         """Create a separate explicit Direct authorization from an active Tor-Preferred grant."""
+        if not isinstance(host, str):
+            raise ExternalAuthorizationError("Direct fallback host must be text.")
         if type(ttl_seconds) is not int:
             raise ExternalAuthorizationError(
                 "Direct fallback authorization TTL must be an integer number of seconds."
