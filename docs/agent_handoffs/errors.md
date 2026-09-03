@@ -39,8 +39,8 @@ No product/test files are currently owned by the error worker. Core, Backend and
 ## Integrator-ready commits
 
 - `c0345254685376b4a9fba053acdc9ef18e06e312` — initializes the canonical error ledger only; no product/test behavior change.
-- This handoff commit — repository coordination only; no product/test behavior change.
+- `4b5355ed79d09ae057e3091d07c87e3f474c58ec` — repository coordination only; no product/test behavior change.
 
 ## Next scan
 
-On the next cycle, re-read `develop/pathena-next` if it exists; otherwise use current `main` as read-only baseline. Re-evaluate fresh CI/runtime evidence and open `ERR-0001` only for a reproducible or exact-SHA evidenced current defect.
+Re-read `develop/pathena-next` first. Re-evaluate fresh CI/runtime evidence and open `ERR-0001` only for a reproducible or exact-SHA evidenced current defect.
