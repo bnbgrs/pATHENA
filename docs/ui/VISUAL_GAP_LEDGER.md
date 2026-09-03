@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `aed609ef8a7ff4af48e15e3dba953daf35d56b5c`
+Baseline: `647ea036329280378a7e573aca0df905f48ac3b1`
 Integration target: `develop/pathena-next`
 
 Only evidence-backed gaps belong here. The original 11 reference screenshots remain unavailable for direct visual comparison; therefore no pixel-level mismatch or `MATCH` claim is asserted.
@@ -45,14 +45,13 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Severity: `P1`
 - Evidence: `docs/alpha/16_Desktop_Anwendung_und_Benutzeroberflaeche.md` requires normal use to present pATHENA while daemon/workers/providers remain background infrastructure; prior startup/readiness presentation exposed `Local core offline`, `Waiting for the local core`, and Core-specific composer/tool-tip guidance.
 - Affected widgets/files: `localStatus`, `promptInput`, `emptyStateTitle`; `src/athena/desktop/pathena_startup_experience_2900.py`; `src/athena/desktop/pathena_offline_comprehension_4700.py`; focused tests in `tests/unit/test_pathena_startup_experience_2900.py` and `tests/unit/test_pathena_offline_comprehension.py`.
-- Candidate product/test commit: `99d6b31c78be2932154137a6527200759f349628`.
+- Product/test candidate: `99d6b31c78be2932154137a6527200759f349628`.
 - Candidate behavior: disconnected normal-workspace copy says `pATHENA reconnecting` / `Getting pATHENA ready`, keeps detailed recovery direction in System, and preserves the real `core-offline` state property plus existing controller/service semantics.
-- Verification history: canonical Quality run `33785726577` on synchronized candidate lineage `b76115748aed53e3502a71eef10a41b11f97f8ae` passed Windows path safety, Linux storage, local-install smoke, specification validator, mypy and full pytest, but failed Ruff B010 at `tests/unit/test_pathena_startup_experience_2900.py:61` because the harness called `setattr(window, "_core_transport_ready", False)` with a constant attribute name.
-- First harness correction: `77e7b4c7d95202e6814226e2b4a2c4a54e3f5c8e` replaces the B010-triggering dynamic assignment with a typed test-window subclass carrying the same disconnected-state contract.
-- Follow-up exact evidence: canonical Quality run `33792012599` on `25addc9833d0d655efa46cd48974e160a7f275dd` passed Windows path safety, Linux storage, local-install smoke, specification validator, mypy and full pytest (`4492 passed`, three pre-existing Windows-specific skips), but Ruff found exactly one remaining harness-only error: `I001` unsorted/unformatted import block at `tests/unit/test_pathena_startup_experience_2900.py:1:1`.
-- Second harness correction: `ecbf44ddd0fb8c7428d4cca090834eca284b997e` reformats only that PySide6 import block into Ruff/isort-compatible multiline form. Product code, assertions and lint configuration are unchanged.
-- Current verification: exact post-correction Quality evidence is pending; do not promote before a successful exact-head result.
-- Status: `FIXED_PENDING_VERIFY`.
+- Ruff correction chain: `77e7b4c7d95202e6814226e2b4a2c4a54e3f5c8e` closed B010; the initial I001 formatting attempt `ecbf44ddd0fb8c7428d4cca090834eca284b997e` was insufficient; final import-order correction `a5d9530525bd0b6bf0eae3945c23a6805f6b9669` orders the SCREAMING_SNAKE_CASE QtWidgets symbol before CamelCase as Ruff/isort requires.
+- Focused verification: run `33804104455` passed dependency-lock validation, Ruff on both affected harnesses, and both startup/offline focused pytest files.
+- Canonical verification: Quality run `33804193396` completed `success` on the byte-identical cleanup tree `15cdecfd067f39fc2a96e84a83772a67fefb9760`; Python 3.12 quality, specification validator, Ruff, mypy, full pytest, Windows path safety, Linux storage regressions, local-install smoke and canonical enforcement all passed.
+- Status: `FIXED`.
+- Integrator-ready product/harness lineage: bounded UI-GAP-0004 changes through final harness commit `a5d9530525bd0b6bf0eae3945c23a6805f6b9669`; temporary validation-workflow commits are not part of the retained product/test tree.
 - Acceptance: no backend, transport, persistence, security, capability, focus, availability or product-state semantics changed; technical Core state remains represented internally and may remain visible in System diagnostics.
 
 ## Evidence blocker
