@@ -557,6 +557,7 @@ class AthenaApplication:
             self.retrieval,
             self.semantic_search,
         )
+        self.api.attach_normal_search(self.hybrid_retrieval)
         self.context_builder = ContextBuilderService()
         self.memory_evidence_policy = MemoryEvidencePolicy(self.database)
         self.memory_chat = MemoryAugmentedChatService(
