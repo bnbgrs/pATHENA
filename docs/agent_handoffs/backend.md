@@ -2,60 +2,90 @@
 
 ## Baseline
 
-- Baseline source: `main` (read-only; `develop/pathena-next` did not yet exist at run start)
-- Baseline SHA: `0d4d621f8a38ddf8eccfa09622bf193687619943`
+- Shared baseline: `develop/pathena-next`
+- Baseline SHA: `7c15b44818e9ac5c3484ee30d4a20d6f0d56087e`
 - Worker branch: `postmerge/backend`
-- Error worker state checked: no OPEN/IN_PROGRESS ERR IDs and no product/test file ownership collision.
+- History-preserving synchronization commit: `4b1eb51ade8fa5633f92c781c72acc4922b4feef`
+- `main` remains read-only and was not touched.
+- Error worker handoff/ledger checked: `ERR-0001` is confirmed on the current lineage, explicitly Backend-owned, and must not be mutated in parallel by `postmerge/errors`.
+- Core/UI/Integrator handoffs checked; no active ownership collision in `src/athena/lifecycle/deletion.py`.
 
 ## Selected backend slice
 
-Area: resource policy / scheduler admission boundary.
+Area: durable deletion-ledger runtime boundaries / recovery cursor.
 
-Existing backend audit finding: `docs/agent_backend_run_201_300.md` task 289 records that `ResourceManager.set_mode()` uses `mode.value` without first requiring an actual `ResourceMode`.
+Anchor: `ERR-0001` plus backend audit tasks 290-293. Current `src/athena/lifecycle/deletion.py` still proves the root cause:
 
-Current baseline re-read confirms the finding still exists in `src/athena/resources/manager.py`: `set_mode(self, mode: ResourceMode)` calls `self.chat.ensure_local_user()` and then persists `mode.value` without a runtime enum guard.
+- `record_deletion()` executes `entity_type.strip()` before requiring an actual string;
+- `deleted_at_us < 0` and `deletion_commit_seq <= 0` accept `bool` because Python booleans are integer subclasses;
+- `read_deletion_records()` likewise accepts `after_seq=False` through its relational check.
 
-### Intended product contract
+These are durable mutation/query boundaries and malformed runtime values must fail before SQL/query side effects.
 
-`ResourceManager.set_mode()` is a mutation boundary for persisted scheduler/resource policy. It must accept only an actual `ResourceMode`; malformed runtime values must be rejected before actor creation or database mutation. Valid enum behavior and persisted values remain unchanged.
+## Required product contract
 
-### Proposed minimal patch
-
-Before any side effect in `set_mode()`:
+Apply exact runtime validation before the first SQL operation:
 
 ```python
-if not isinstance(mode, ResourceMode):
-    raise TypeError("Resource mode must be a ResourceMode.")
+if type(entity_type) is not str:
+    raise ValueError("Deletion entity_type must be a string.")
+
+normalized_type = entity_type.strip()
+if not normalized_type:
+    raise ValueError("Deletion entity_type must not be empty.")
+
+if type(deleted_at_us) is not int or deleted_at_us < 0:
+    raise ValueError("Deletion timestamp must be a non-negative integer.")
+
+if type(deletion_commit_seq) is not int or deletion_commit_seq <= 0:
+    raise ValueError("Deletion commit sequence must be a positive integer.")
 ```
 
-Then retain the existing actor creation, timestamp, transaction and persistence path unchanged.
+and at the read boundary:
 
-### Focused regression
+```python
+if type(after_seq) is not int or after_seq < 0:
+    raise ValueError("Deletion ledger cursor must be a non-negative integer.")
+```
 
-Add/extend the resource-manager unit regression so malformed values such as `"quiet"`, `None`, `True`, and arbitrary objects are rejected before `ensure_local_user()` and before any write transaction; all four real `ResourceMode` values remain accepted and persist their existing `.value` strings.
+Do not alter the existing existing-marker reconciliation, INSERT/readback sequence, restore replay, transaction, ordering, or identity-conflict semantics.
+
+## Focused acceptance tests
+
+1. `entity_type=None` and other non-strings raise `ValueError` before `connection.execute()`.
+2. Empty/whitespace-only strings remain rejected before SQL.
+3. `deleted_at_us=False` and non-int values fail before SQL; `0` remains valid.
+4. `deletion_commit_seq=True`, zero, negative and non-int values fail before SQL; positive exact ints remain valid.
+5. `after_seq=False`, negative and non-int values fail before query execution; `0` remains valid.
+6. Existing deletion-ledger integration/recovery tests remain green, specifically idempotent one-marker behavior, restore reapplication, watermark publication and ordered cursor reads.
 
 ## Verification state
 
-- Static baseline re-read: CONFIRMED finding.
+- Exact current-lineage source re-read: CONFIRMED.
+- Existing deletion integration tests were reviewed and already exercise payload-free persistence, one-marker reset behavior, old-snapshot restore reapplication and watermark publication.
 - Product mutation this run: NOT APPLIED.
-- No PASS claim is made for the proposed regression because it was not executed.
+- Reason: the available GitHub write primitive replaces complete UTF-8 files; `deletion.py` is a large recovery-sensitive module. Reconstructing/replacing the entire file only to change these few boundary lines would create unnecessary overwrite risk, violating the worker's minimal/non-destructive mutation rule. No unsafe whole-file rewrite was attempted.
+- Therefore no PASS/FIXED claim is made and `ERR-0001` remains open/Backend-owned.
 
-## Safety / recovery impact
+## Failure / recovery impact
 
-The proposed change is fail-fast and side-effect reducing. It does not alter valid resource policy persistence, admission thresholds, durable jobs, storage, recovery, network policy, Windows path safety, or provider behavior. Rejecting malformed mode values before actor/database mutation improves the existing boundary without changing recovery semantics.
+The intended change is fail-before-SQL and side-effect reducing. It does not alter ledger rows, persistence format, ordering, idempotent replay, restore transactions, deletion identity reconciliation, or crash/restart behavior. Rejecting `bool` prevents Python's integer-subclass semantics from crossing the SQLite durability/cursor boundary.
 
 ## Platform impact
 
-Platform-neutral Python runtime type boundary. No expected Windows/Linux divergence.
+Platform-neutral Python validation. No Windows/Linux storage-format divergence is introduced.
 
 ## Integrator handoff
 
-Nothing is ready to integrate from this worker yet. The branch currently contains only this coordination/handoff document. The next backend run should apply the surgical `ResourceMode` runtime guard using a safe patch-capable path, add the focused regression, run that test plus the smallest resource-manager regression set, and only then mark a product commit READY.
+Nothing from `ERR-0001` is product-ready yet. The worker is synchronized history-preservingly with current Develop and the exact safe patch/acceptance contract above is now versioned. Do not integrate a deletion-ledger product change until the focused boundary tests and existing deletion/recovery regressions have actually passed. After a Backend fix integrates, `postmerge/errors` should independently re-verify `ERR-0001` on the exact Develop SHA before marking it FIXED.
+
+## Coordination
+
+- `postmerge/errors`: do not duplicate `ERR-0001` product mutation; verify after integration.
+- `postmerge/spec-core`: Search DTO/adapter work is non-overlapping.
+- `postmerge/ui`: UI-GAP work is non-overlapping.
+- `develop/pathena-next`: remains the only integration target; `main` remains untouched.
 
 ## Next backend slice
 
-After task 289 is closed, re-read the next residual backend findings from `docs/agent_backend_run_201_300.md` in this order unless newer exact-baseline evidence supersedes them:
-
-1. deletion ledger runtime boundary validation (`entity_type`, timestamps, commit sequence, read cursor),
-2. external gateway input boundaries (`purpose`, allowed hosts, TTL, max_bytes, finite timeout),
-3. then fresh Alpha/Beta/backend gap tracing.
+Continue `ERR-0001` first. Use the smallest patch-capable mutation path available to apply only the runtime guards above, add focused fail-before-SQL tests, then execute the deletion-ledger/lifecycle regressions and canonical Quality as applicable. Only after exact-head verification may this slice be handed to the Integrator as READY.
