@@ -2,78 +2,73 @@
 
 ## Baseline
 
-- Shared baseline: `develop/pathena-next@647ea036329280378a7e573aca0df905f48ac3b1`.
+- Shared baseline: `develop/pathena-next@e98c88e0d3b41b81de7efa70873729f873038080`.
 - Worker branch: `postmerge/backend`.
-- History-preserving NON-FORCE synchronization: `899d37e93be6590d4fcec423e88d31abea31b4e6`, retaining Backend work while taking current Develop, including the integrated temporal contradiction policy.
+- History-preserving NON-FORCE synchronization: `c6d9569cd1bcb80a7b0a46dcb5003e0f680ecff3` with parents previous Backend head and current Develop.
 - `main@0d4d621f8a38ddf8eccfa09622bf193687619943` remains strictly read-only and untouched.
 
-## Prior Gateway slices
+## Closed Gateway boundary lineage
 
-- TTL/max-bytes/timeout runtime hardening is already integrated on Develop and remains closed.
-- `authorize_explicit()` purpose/allowed-host boundaries remain present on this worker as product commit `7fb68f20e48a463282c4f29e08c531cadc71b60b`, focused verified and pending independent Integrator acceptance.
+The worker retains the previously focused-verified Gateway hardening for:
 
-## Current selected slice
+- explicit TTL / capture max-bytes / timeout runtime boundaries;
+- explicit authorization purpose and allowed-host container/element validation;
+- privacy-route runtime text validation;
+- explicit Direct-fallback host runtime text validation.
 
-Area: ExternalAccessGateway privacy-route and explicit direct-fallback host runtime boundaries.
+No Tor→Direct silent fallback, redirect, destination, audit, Source capture, fsync, transactional provenance, retry, recovery, storage or platform-path invariant was weakened.
 
-Current-code evidence after synchronization showed two concrete fail-closed gaps:
+## Current completed slice — Direct fallback TTL range
 
-1. `authorize_explicit()` performed `privacy_route not in {…}` without first requiring text. An unhashable runtime value such as `[]` or `{}` could therefore escape as a generic `TypeError` instead of the Gateway authorization error contract.
-2. `authorize_direct_fallback()` performed source authorization lookup and actor resolution before normalizing `host`. A non-text runtime host could therefore reach authorization/actor reads before its invalid type was rejected.
+Current code previously rejected non-integer `ttl_seconds` before authorization lookup, but integer values `<= 0` or `> 900` still reached `get_authorization()` and actor/source-state checks before the later `effective_ttl` calculation. This violated the established fail-before-side-effect runtime-boundary pattern.
 
-Product commit: `6a2d920630df5f5ca921369fe249310110b79270`.
+Product/test commit: `6b6498e36959e044c874b9c17b31b4f547febd0b`.
 
-The bounded product mutation adds:
+The bounded mutation changes only `authorize_direct_fallback()` TTL validation from exact-type-only to exact integer range `1..900` before `get_authorization()`. Valid values retain the existing `min(requested_ttl, remaining_source_lifetime, 900)` semantics; therefore the source authorization lifetime can still shorten an otherwise valid request.
 
-- exact runtime text validation for `privacy_route` before set membership / transport-route resolution;
-- exact runtime text validation for explicit direct-fallback `host` before `get_authorization()` and actor resolution;
-- focused tests proving malformed privacy-route inputs fail before actor/persistence and malformed fallback-host inputs fail before authorization lookup.
+Focused tests add:
 
-No Tor/Direct policy, redirect handling, authorization scope, destination safety, audit, Source capture, fsync, transaction, provenance, retry, recovery or platform-path semantics changed.
+- `0`, `-1`, `901`, and `10000` rejection before authorization lookup;
+- valid boundary values `1` and `900` preserving creation of a separate `direct_explicit` authorization.
 
 ## Call-chain / failure boundary
 
-`authorize_explicit(runtime input) -> purpose/host-container validation -> privacy_route text guard -> route allow-list / transport availability -> TTL guard -> host normalization/safety -> actor -> authorization persistence`.
+`authorize_direct_fallback(runtime input) -> host text guard -> TTL exact-type/range 1..900 guard -> source authorization lookup -> actor -> active Tor-Preferred checks -> host scope/safety -> remaining-source-lifetime bound -> explicit Direct authorization`.
 
-`authorize_direct_fallback(runtime input) -> host text guard -> TTL exact-type guard -> source authorization lookup -> actor -> active Tor-Preferred checks -> host scope/safety -> bounded effective TTL -> explicit Direct authorization`.
-
-Malformed route or fallback-host runtime values now fail with `ExternalAuthorizationError` before the first actor/persistence or source-authorization lookup boundary relevant to that invalid input.
+Malformed or out-of-range TTL now fails with `ExternalAuthorizationError` before source/actor lookup. Valid TTL still cannot exceed either 900 seconds or the remaining lifetime of the original Tor-Preferred grant.
 
 ## Verification
 
-Because the local checkout path still could not resolve `github.com`, verification used a temporary worker-only GitHub Actions runner. Initial workflow-definition attempts failed before job creation and produced no product mutation. The corrected runner executed the actual bounded slice.
+Temporary worker-only verifier run `33813211483` completed SUCCESS. Exact successful steps:
 
-Focused run `33808355340` completed SUCCESS. Its predecessor `33808249465` had already established the same product/tests as green but was stopped only by `git diff --check` detecting one writer-created blank line at EOF; the writer was corrected without changing test semantics.
-
-Exact successful verification for the final committed slice:
-
-- dependency lock check PASS;
-- focused Gateway suites PASS: `36 passed` across `test_external_access_gateway_authorization_boundaries.py`, `test_external_access_gateway_runtime_boundaries.py`, and `test_external_access_gateway.py`;
-- Ruff on Gateway plus boundary tests PASS;
+- install project PASS;
+- deterministic bounded patch application PASS;
+- focused Gateway suites PASS: `test_external_access_gateway_authorization_boundaries.py`, `test_external_access_gateway_runtime_boundaries.py`, `test_external_access_gateway.py`;
+- Ruff on changed Gateway/test files PASS;
 - mypy on `src/athena/external/gateway.py` PASS;
-- `git diff --check` PASS before product commit;
-- bounded product/test commit and NON-FORCE push PASS.
+- `git diff --check` PASS;
+- product/test commit + NON-FORCE push PASS.
 
-Canonical Quality run `33808413391` associated with the bot-created product commit concluded `action_required` with no jobs, so it is not PASS evidence and does not indicate a product/test failure. Focused execution remains the concrete verification evidence for this slice.
+The first verifier run `33813121816` already had focused tests, Ruff and mypy PASS but stopped at `git diff --check` because the temporary writer emitted an extra EOF blank line; it therefore created no product commit. The writer was normalized and the full verification rerun successfully without changing product/test semantics.
 
 ## Commits
 
-- Develop synchronization: `899d37e93be6590d4fcec423e88d31abea31b4e6`.
-- Temporary runner/debug commits: `e9f9e080bb153e087fd2e69e282e6c1c9fcb90a6`, `0e1773853e6621f410683eeaafd1e77dcfb75c33`, `48f97141836fbaa3837cdcfeed509f8dc50e5a15`, `bda51d110ecefdab294728a1d9c9cb061358c324`, `443716c4572859352220c3c54aa8fc838fa3fed0` — tooling only, do not integrate.
-- Product + focused tests: `6a2d920630df5f5ca921369fe249310110b79270`.
-- Temporary runner removal: `0a5a0a3d6afa2da6e3be6cffb35f3b2779ef51ea`.
+- Develop synchronization: `c6d9569cd1bcb80a7b0a46dcb5003e0f680ecff3`.
+- Temporary verifier add/fix: `bb9e15830f89d8f22a77bb45c910a285ac536d6f`, `35acaa2202e023ad1c4e2371217d4b0b42afa2c4` — tooling only, do not integrate.
+- Product + focused tests: `6b6498e36959e044c874b9c17b31b4f547febd0b`.
+- Temporary verifier removal: `eeaeb32e07ddd18b1446d57b37ac76df710114c3`.
 
 ## Integrator handoff
 
-`6a2d920630df5f5ca921369fe249310110b79270` is `BOUNDED_FOCUSED_VERIFIED` and ready for independent diff review. Integrate only the bounded product/test delta from `src/athena/external/gateway.py` and `tests/unit/test_external_access_gateway_authorization_boundaries.py`; do not integrate temporary runner history. Preserve the earlier purpose/allowed-host boundary slice and all integrated Gateway invariants.
+`6b6498e36959e044c874b9c17b31b4f547febd0b` is `BOUNDED_FOCUSED_VERIFIED`. Independently review and integrate only its product/test delta, preserving the preceding Backend Gateway boundary state. Do not integrate temporary verifier workflow history. Canonical Quality evidence must be treated separately from the focused verifier; no global PASS is claimed here unless an exact relevant canonical run completes successfully.
 
 ## Coordination
 
-- Error worker: no new Backend-owned regression signature was produced by focused tests.
-- Core: current Develop temporal-contradiction changes are included through the synchronization merge; no overlap with Gateway files.
-- UI: no UI/Qt files touched.
+- Error worker: no new Backend-owned regression signature from focused verification.
+- Core: no Core files changed.
+- UI: no UI/Qt files changed.
 - Main remains unchanged.
 
 ## Next backend slice
 
-Verify the remaining explicit-direct-fallback TTL range boundary on current code. `ttl_seconds` currently rejects non-int types before source/actor lookup, but zero/negative or excessively large integer values can still traverse source authorization and actor checks before the later effective-TTL calculation. If reproduced, add a minimal fail-before-lookup range guard while preserving the 900-second cap and remaining-source-lifetime semantics; otherwise move to the next evidence-backed Research/Jobs/Storage/Recovery/Provider/Packaging P0/P1/P2 gap.
+Trace the next evidence-backed Backend/System runtime boundary on current Develop. First candidate to verify is `capture_url()` URL runtime typing/fail-before-authorization-audit behavior: resource limits are validated before lookup, but malformed non-text URL input may still reach authorization/audit lookup before URL parsing rejects it. Only mutate if reproduced and supported by the existing external-access contract; otherwise move to the highest current Research/Jobs/Storage/Recovery/Provider/Packaging gap.
