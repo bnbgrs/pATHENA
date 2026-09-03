@@ -2,84 +2,76 @@
 
 ## Current slice
 
-- Baseline: `develop/pathena-next@e76b4cb2cca1612fe68b1ddd66554213352d32a9`
+- Baseline: `develop/pathena-next@96489c4c493992ff9d8c7efd57557a69aa578e56`
 - Worker branch: `postmerge/spec-core`
-- NON-FORCE sync: worker fast-forwarded from `3a5dfffaea7b3a1bc3e0f376e2edac6cf1a8dc5c` to the current develop baseline before mutation.
-- Product commit: `3a29225a4d79fac558f2b0d7c7757471daa34aaf`
-- Focused-test commit: `9ee3c3c21ea6629b6ca203a73b56de221ccca871`
+- NON-FORCE sync: worker fast-forwarded from the previously integrated Core head to the exact current develop baseline before mutation.
+- Product commit: `a6f36715982c399f7138faf0760e55e30e970f8b`
+- Focused-test commit: `2c9773ad95436ba304ba78caaa221d403a088c60`
 - Status: `IMPLEMENTED_PENDING_VERIFY`
 
 ## Spec anchor
 
-`docs/beta/10_Retrieval_und_Suche.md` §5 requires a protection context in SearchRequest, §8 requires Protection Scope filtering before final ranking where possible, §19 keeps protected embeddings out of normal persistent HNSW state, §52 requires `protection state` in every Search Response, and §§59-61 require authorization-first protected retrieval, no metadata leak while locked, and Protection Labels to survive mixed ranking into the Context Builder.
+`docs/beta/10_Retrieval_und_Suche.md` §34 requires candidates to retain entity/revision, source/chunk, retrieval method, rank, score and selection reason. §52 requires the Search API response to expose at least result ref, title/preview, entity type, revision, rank, retrieval methods, source anchor and protection state. §§59-61 require protected candidates to be authorization-first, leak no locked metadata and retain Protection Labels through mixed retrieval.
 
-The current code establishes two authoritative result classes:
-
-- `LocalSearchService` and `LocalSemanticSearchService` are unprotected retrieval pipelines. Local FTS explicitly excludes protected payloads; semantic results are joined back through that unprotected FTS projection.
-- `ProtectedRuntimeSourceSearchService` returns `ProtectedRuntimeSearchResult` only from authorized unlocked scopes and each result carries its actual `protection_scope_id`.
-
-This slice therefore labels only facts already established by those pipelines. It does not infer current unlock state and does not expose protected metadata for results that were never authorized/returned.
+The repository already has the canonical transport-neutral client boundary in `src/athena/api/contracts.py`: `ApiContract` recursively emits JSON-safe DTO dictionaries, and `CoreApiFacade` is documented as the stable client boundary rather than repositories/provider payloads. The normal hybrid retrieval result already carries deterministic `rank` and `retrieval_methods`; prior verified Core slices supply stable source-anchor and protection value contracts.
 
 ## Implemented product contract
 
-Added `src/athena/retrieval/protection.py` with:
+Added `src/athena/api/search_contracts.py` as an additive extension of the existing `ApiContract` architecture, not a second facade or transport:
 
-- `SearchProtectionState.UNPROTECTED` and `.PROTECTED`;
-- immutable `SearchProtectionRef(state, protection_scope_id)`;
-- `unprotected_search_protection_ref()` for the explicitly unprotected retrieval paths;
-- `protected_search_protection_ref(result)` which preserves the authorized result's real ProtectionScope UUID.
+- `SearchResultResponse` is the canonical transport-neutral §52 result shape;
+- `SearchSourceAnchorResponse` serializes only stable representation/range/SHA-256 materialization inputs and never invents a durable anchor id;
+- `SearchProtectionResponse` serializes protection classification and preserves a real protected scope UUID without claiming current unlock state;
+- source anchor remains explicitly nullable for result classes that have no SourceChunk provenance;
+- rank must be a real positive integer (bool rejected);
+- retrieval methods must be non-empty, textual and unique;
+- unprotected results cannot carry protection scope metadata;
+- protected results must retain a canonical UUID scope;
+- malformed source ranges/digests fail closed.
 
-Invariants:
-
-- unprotected labels cannot carry a scope id;
-- protected labels must carry an actual UUID scope id;
-- `protected` is a classification, not a claim that the scope remains unlocked later;
-- no plaintext, hash, title, score, unlock flag, durable row, actor, commit, or synthetic scope is created;
-- a malformed protected result fails closed rather than degrading to an unprotected label.
-
-This is an additive Search Response value contract. It does not yet merge protected and unprotected ranking pipelines or alter authorization behavior.
+No search execution, ranking, authorization, persistence, unlock state, candidate visibility or source loading behavior changes in this slice.
 
 ## Files
 
-- `src/athena/retrieval/protection.py`
-- `tests/unit/test_search_protection_ref.py`
+- `src/athena/api/search_contracts.py`
+- `tests/unit/test_search_api_contracts.py`
 - `docs/agent_handoffs/spec-core.md`
 
 ## Focused verification contract
 
 Focused tests cover:
 
-- unprotected label contains no scope metadata;
-- protected adapter preserves the exact authorized `protection_scope_id`;
-- inconsistent unprotected+scope state is rejected;
-- protected labels reject missing/non-UUID scope values;
-- malformed protected result adapters fail closed.
+- exact JSON-safe serialization of all Beta §52 fields, including nested source-anchor and protection records;
+- no scope metadata on unprotected responses;
+- mandatory real UUID scope on protected responses;
+- bool/invalid rank rejection and duplicate retrieval-method rejection;
+- fail-closed source-anchor range and SHA-256 validation.
 
-Runtime/CI result is pending exact-head verification. No PASS is claimed until the worker head is verified.
+Exact-head runtime/CI verification is pending. No PASS/VERIFIED claim is made until the worker head has canonical evidence.
 
 ## Safety / compatibility
 
-- No search ranking, selection, candidate visibility, FTS, HNSW, persistence, recovery, network/provider, or UI behavior changed.
-- No Protected Source plaintext or derived hashes are persisted.
-- No locked-scope metadata is surfaced.
-- No Skip/XFail/assertion/security/storage guard weakening.
-- `ERR-0001` deletion-ledger files remain owned by Backend and untouched.
+- No endpoint, facade attachment, ranking, retrieval selection, protected candidate visibility, FTS/HNSW, persistence, recovery, network/provider or UI code changed.
+- No protected plaintext or hash is derived from locked data; the DTO can only serialize values a caller already possesses after the relevant authorization path.
+- No Skip/XFail/assertion/security/storage/Windows guard weakening.
+- Backend-owned `ERR-0001` deletion-ledger files remain untouched.
+- UI worker files remain untouched.
 
 ## Coordination
 
-- Error worker: latest handoff records `ERR-0001` blocked from error-worker mutation because Backend owns deletion-ledger tasks 290-293; no overlap here.
-- Backend worker: no overlap with ResourceMode or deletion-ledger files.
-- UI worker: may eventually display this real label after integration/wiring; must not infer unlock state or fabricate scope ids.
-- Integrator: review the two additive commits and integrate only after exact-head verification succeeds.
+- Error worker: no overlap; `ERR-0001` remains Backend-owned.
+- Backend worker: no overlap with ResourceMode/deletion-ledger work.
+- UI worker: no visible UI mutation. Later Search UI may consume this DTO only after real facade/controller wiring.
+- Integrator: integrate only after exact-head Quality succeeds and independent review confirms this remains an additive `ApiContract` extension.
 
-## Previous completed source-anchor slice
+## Previous verified slices
 
-Archive Search source-anchor provenance was integrated into `develop/pathena-next` and is tracked there as verified. No further mutation to that slice was made in this run.
+The Archive Search source-anchor contract and Search protection-state contract are already integrated and verified on `develop/pathena-next`; this slice consumes their established semantics but does not modify them.
 
 ## Remaining Search Response gap
 
-Beta §52 still lacks one canonical serialized response DTO joining rank, retrieval methods, source anchor and protection label across the actual domain-specific result types. Do not create a parallel response architecture. Trace the existing API/controller boundary and wire these verified value adapters into that real boundary as a separate slice.
+The DTO shape now exists inside the real API contract architecture, but it is intentionally not yet advertised as a capability or exposed through `CoreApiFacade`. The next Core slice must wire actual `HybridSearchResult`/archive result adapters into `CoreApiFacade` (and only then transport/controller layers) without fabricating source anchors or protected state. Archive hybrid retrieval still needs an authoritative carried rank/retrieval-method signal before its §52 adapter can be complete; do not infer method membership from a zero/nonzero score.
 
 ## Next Alpha/Beta gap
 
-Trace the actual Search API/controller/serialization call chain. Highest safe next step is a small cross-domain response adapter only if an existing boundary is found. Protected/unprotected mixed ranking itself remains a separate larger capability and must preserve §§59-61 authorization/no-leak invariants.
+Trace application construction for the existing Hybrid retrieval services and add the smallest real `CoreApiFacade` Search attachment/call only after this DTO slice verifies. Preserve §§59-61: unprotected normal search must remain unable to reveal locked protected candidates, and protected results must come only from the authorized runtime path.
