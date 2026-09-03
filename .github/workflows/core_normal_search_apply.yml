@@ -1,0 +1,175 @@
+name: Core normal-search bounded apply
+
+on:
+  push:
+    branches:
+      - postmerge/spec-core
+    paths:
+      - .github/workflows/core_normal_search_apply.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: postmerge/spec-core
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install pinned resolver
+        run: |
+          python -m pip install --disable-pip-version-check "pip==26.1.2"
+          python -m pip install --disable-pip-version-check "uv==0.11.21"
+
+      - name: Validate exact baseline
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ github.sha }}"
+          uv lock --check
+
+      - name: Apply bounded normal-search composition
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          service_path = Path("src/athena/api/service.py")
+          application_path = Path("src/athena/core/application.py")
+          service = service_path.read_text(encoding="utf-8")
+          application = application_path.read_text(encoding="utf-8")
+
+          replacements = [
+              (
+                  "from athena.chat.models import ChatMessage, ChatSummary, ChatThread\n",
+                  "from athena.api.search_adapter import hybrid_search_result_response\n"
+                  "from athena.api.search_contracts import SearchResultResponse\n"
+                  "from athena.chat.models import ChatMessage, ChatSummary, ChatThread\n",
+              ),
+              (
+                  "from athena.observability.health import HealthService\n",
+                  "from athena.observability.health import HealthService\n"
+                  "from athena.retrieval.hybrid import HybridSearchResult\n"
+                  "from athena.retrieval.search import SearchEntityType\n",
+              ),
+              (
+                  "    ) -> UnifiedLocalChatResult: ...\n\nclass CoreApiFacade:\n",
+                  "    ) -> UnifiedLocalChatResult: ...\n\n\n"
+                  "class NormalSearch(Protocol):\n"
+                  "    \"\"\"Minimal normal Hybrid retrieval boundary exposed by the Core API.\"\"\"\n\n"
+                  "    def search(\n"
+                  "        self,\n"
+                  "        query: str,\n"
+                  "        *,\n"
+                  "        model_id: str,\n"
+                  "        limit: int = 20,\n"
+                  "        entity_type: SearchEntityType | None = None,\n"
+                  "    ) -> tuple[HybridSearchResult, ...]: ...\n\n\n"
+                  "class CoreApiFacade:\n",
+              ),
+              (
+                  "        self._knowledge_reviews: KnowledgeReviewQueue | None = None\n\n    def attach_unified_local_chat(\n",
+                  "        self._knowledge_reviews: KnowledgeReviewQueue | None = None\n"
+                  "        self._normal_search: NormalSearch | None = None\n\n"
+                  "    def attach_normal_search(self, search: NormalSearch) -> None:\n"
+                  "        \"\"\"Attach normal Hybrid Search exactly once after app construction.\"\"\"\n\n"
+                  "        if self._normal_search is not None:\n"
+                  "            raise RuntimeError(\"Normal Hybrid Search is already attached to the Core API.\")\n"
+                  "        self._normal_search = search\n\n"
+                  "    def attach_unified_local_chat(\n",
+              ),
+              (
+                  "            features = (\n                *features,\n                \"knowledge.review.preflight\",\n                \"knowledge.review.merge\",\n            )\n        return CapabilitiesResponse(\n",
+                  "            features = (\n                *features,\n                \"knowledge.review.preflight\",\n                \"knowledge.review.merge\",\n            )\n"
+                  "        if self._normal_search is not None:\n"
+                  "            features = (*features, \"search.normal.hybrid\")\n"
+                  "        return CapabilitiesResponse(\n",
+              ),
+              (
+                  "    def list_models(self) -> tuple[ModelResponse, ...]:\n        return tuple(_model(model) for model in self._model_provider.discover_models())\n\n\ndef _message_knowledge_extraction_response(\n",
+                  "    def list_models(self) -> tuple[ModelResponse, ...]:\n"
+                  "        return tuple(_model(model) for model in self._model_provider.discover_models())\n\n"
+                  "    def search(\n"
+                  "        self,\n"
+                  "        query: str,\n"
+                  "        *,\n"
+                  "        model_id: str,\n"
+                  "        limit: int = 20,\n"
+                  "        entity_type: SearchEntityType | None = None,\n"
+                  "    ) -> tuple[SearchResultResponse, ...]:\n"
+                  "        if self._normal_search is None:\n"
+                  "            raise RuntimeError(\"Normal Hybrid Search is unavailable in this Core process.\")\n"
+                  "        return tuple(\n"
+                  "            hybrid_search_result_response(result)\n"
+                  "            for result in self._normal_search.search(\n"
+                  "                query,\n"
+                  "                model_id=model_id,\n"
+                  "                limit=limit,\n"
+                  "                entity_type=entity_type,\n"
+                  "            )\n"
+                  "        )\n\n\n"
+                  "def _message_knowledge_extraction_response(\n",
+              ),
+          ]
+
+          for old, new in replacements:
+              if service.count(old) != 1:
+                  raise SystemExit(f"service anchor count != 1: {old[:80]!r}")
+              service = service.replace(old, new, 1)
+
+          old_app = (
+              "        self.hybrid_retrieval = HybridRetrievalService(\n"
+              "            self.retrieval,\n"
+              "            self.semantic_search,\n"
+              "        )\n"
+              "        self.context_builder = ContextBuilderService()\n"
+          )
+          new_app = (
+              "        self.hybrid_retrieval = HybridRetrievalService(\n"
+              "            self.retrieval,\n"
+              "            self.semantic_search,\n"
+              "        )\n"
+              "        self.api.attach_normal_search(self.hybrid_retrieval)\n"
+              "        self.context_builder = ContextBuilderService()\n"
+          )
+          if application.count(old_app) != 1:
+              raise SystemExit("application hybrid anchor count != 1")
+          application = application.replace(old_app, new_app, 1)
+
+          service_path.write_text(service, encoding="utf-8")
+          application_path.write_text(application, encoding="utf-8")
+          PY
+
+      - name: Verify bounded diff
+        run: |
+          git diff --check
+          git diff -- src/athena/api/service.py src/athena/core/application.py
+          test "$(git diff --name-only | sort)" = $'src/athena/api/service.py\nsrc/athena/core/application.py'
+
+      - name: Run focused search composition tests
+        run: |
+          uv run --locked --extra dev --extra desktop python -m pytest -q \
+            tests/unit/test_core_api_search_wiring.py \
+            tests/unit/test_application_wiring.py
+
+      - name: Run focused lint and typing
+        run: |
+          uv run --locked --extra dev --extra desktop python -m ruff check \
+            src/athena/api/service.py src/athena/core/application.py \
+            tests/unit/test_core_api_search_wiring.py tests/unit/test_application_wiring.py
+          uv run --locked --extra dev --extra desktop python -m mypy \
+            src/athena/api/service.py src/athena/core/application.py
+
+      - name: Commit verified product slice
+        run: |
+          git config user.name "pATHENA Core Automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add src/athena/api/service.py src/athena/core/application.py
+          git commit -m "feat(core): wire normal hybrid search into API facade"
+          git push origin HEAD:postmerge/spec-core
