@@ -2,47 +2,56 @@
 
 ## Baseline
 
-- Baseline source: `main` (read-only; `develop/pathena-next` did not yet exist at run start)
-- Baseline SHA: `0d4d621f8a38ddf8eccfa09622bf193687619943`
+- Shared development baseline: `develop/pathena-next`
+- Baseline SHA: `fc3f6e44fcbeecdf1f4e817a4b9523a5ba2fbbaf`
 - Worker branch: `postmerge/backend`
-- Error worker state checked: no OPEN/IN_PROGRESS ERR IDs and no product/test file ownership collision.
+- Worker was synchronized NON-FORCE with the shared development baseline before product mutation.
+- Error worker state checked from the integrated handoff: no OPEN/IN_PROGRESS ERR IDs and no product/test file ownership collision for this slice.
 
 ## Selected backend slice
 
 Area: resource policy / scheduler admission boundary.
 
-Existing backend audit finding: `docs/agent_backend_run_201_300.md` task 289 records that `ResourceManager.set_mode()` uses `mode.value` without first requiring an actual `ResourceMode`.
+Spec/backlog anchor: `docs/agent_backend_run_201_300.md` task 289 records that `ResourceManager.set_mode()` used `mode.value` without first requiring an actual `ResourceMode`.
 
-Current baseline re-read confirms the finding still exists in `src/athena/resources/manager.py`: `set_mode(self, mode: ResourceMode)` calls `self.chat.ensure_local_user()` and then persists `mode.value` without a runtime enum guard.
+The current development baseline re-read confirmed the finding: `set_mode(self, mode: ResourceMode)` called `self.chat.ensure_local_user()` and then persisted `mode.value` without a runtime enum guard.
 
-### Intended product contract
+## Product contract
 
 `ResourceManager.set_mode()` is a mutation boundary for persisted scheduler/resource policy. It must accept only an actual `ResourceMode`; malformed runtime values must be rejected before actor creation or database mutation. Valid enum behavior and persisted values remain unchanged.
 
-### Proposed minimal patch
+## Implemented slice
 
-Before any side effect in `set_mode()`:
+Product commit: `881d662958b9fe6b94a9ad549a72d91abb24e692`
 
-```python
-if not isinstance(mode, ResourceMode):
-    raise TypeError("Resource mode must be a ResourceMode.")
-```
+Changes:
 
-Then retain the existing actor creation, timestamp, transaction and persistence path unchanged.
+- `src/athena/resources/manager.py`: fail-fast `isinstance(mode, ResourceMode)` guard before `ensure_local_user()` and the write transaction.
+- `tests/unit/test_resource_mode_boundary.py`: focused regression for malformed runtime values (`"quiet"`, `None`, `True`, arbitrary object) and all real `ResourceMode` values.
 
-### Focused regression
+Independent diff inspection against the synchronized worker base reports exactly:
 
-Add/extend the resource-manager unit regression so malformed values such as `"quiet"`, `None`, `True`, and arbitrary objects are rejected before `ensure_local_user()` and before any write transaction; all four real `ResourceMode` values remain accepted and persist their existing `.value` strings.
+- `src/athena/resources/manager.py`: +2 / -0
+- `tests/unit/test_resource_mode_boundary.py`: new focused test file
+
+No unrelated production changes are present in the slice.
 
 ## Verification state
 
-- Static baseline re-read: CONFIRMED finding.
-- Product mutation this run: NOT APPLIED.
-- No PASS claim is made for the proposed regression because it was not executed.
+- Current `develop/pathena-next` SHA rechecked immediately before mutation: unchanged at `fc3f6e44fcbeecdf1f4e817a4b9523a5ba2fbbaf`.
+- Static call-chain review: PASS.
+- Minimal-diff review: PASS (production diff is exactly two added guard lines).
+- Focused pytest runtime: NOT EXECUTED in this run because no local repository/runtime executor was available.
+- Canonical Quality on worker SHA: NOT EXECUTED. `.github/workflows/quality.yml` triggers only on `main` push or pull request, so pushing `postmerge/backend` does not create a Quality run.
+- Therefore this product commit is **IMPLEMENTED_PENDING_VERIFY**, not yet `READY` for integration under the integrator's focused-test rule.
+
+No PASS claim is made for pytest, Ruff, mypy, or canonical Quality on this worker SHA.
 
 ## Safety / recovery impact
 
-The proposed change is fail-fast and side-effect reducing. It does not alter valid resource policy persistence, admission thresholds, durable jobs, storage, recovery, network policy, Windows path safety, or provider behavior. Rejecting malformed mode values before actor/database mutation improves the existing boundary without changing recovery semantics.
+The change is fail-fast and side-effect reducing. Invalid values now fail before local-user creation and before persisted resource-policy mutation. Valid resource-mode persistence, admission thresholds, durable jobs, storage, recovery, network policy, Windows path safety, and provider behavior are otherwise unchanged.
+
+No retry, cancellation, recovery, or cross-platform behavior is broadened.
 
 ## Platform impact
 
@@ -50,11 +59,18 @@ Platform-neutral Python runtime type boundary. No expected Windows/Linux diverge
 
 ## Integrator handoff
 
-Nothing is ready to integrate from this worker yet. The branch currently contains only this coordination/handoff document. The next backend run should apply the surgical `ResourceMode` runtime guard using a safe patch-capable path, add the focused regression, run that test plus the smallest resource-manager regression set, and only then mark a product commit READY.
+Do **not** integrate `881d662958b9fe6b94a9ad549a72d91abb24e692` yet solely from static evidence. It is the exact minimal candidate and should be promoted once focused runtime evidence confirms:
+
+1. malformed modes raise `TypeError` before `ensure_local_user()`,
+2. the persisted policy is unchanged after rejected values,
+3. every real `ResourceMode` still persists and round-trips,
+4. the existing resource-manager regression set remains green.
+
+If the integrator has an executor capable of running the focused tests on this exact SHA, it may perform that verification before integration. Otherwise leave the candidate pending for the next backend run with executable test access.
 
 ## Next backend slice
 
-After task 289 is closed, re-read the next residual backend findings from `docs/agent_backend_run_201_300.md` in this order unless newer exact-baseline evidence supersedes them:
+Do not broaden task 289 while its runtime verification is pending. If no executor is available next run, continue read-only tracing of the next independent residual backend findings without colliding with this candidate:
 
 1. deletion ledger runtime boundary validation (`entity_type`, timestamps, commit sequence, read cursor),
 2. external gateway input boundaries (`purpose`, allowed hosts, TTL, max_bytes, finite timeout),
