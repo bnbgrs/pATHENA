@@ -3,10 +3,13 @@
 ## Baseline
 
 - Shared development baseline: `develop/pathena-next`
-- Baseline SHA: `fc3f6e44fcbeecdf1f4e817a4b9523a5ba2fbbaf`
+- Baseline SHA inspected this run: `7e23616b79b65f759980ad98a27640b6c29bcea0`
 - Worker branch: `postmerge/backend`
-- Worker was synchronized NON-FORCE with the shared development baseline before product mutation.
-- Error worker state checked from the integrated handoff: no OPEN/IN_PROGRESS ERR IDs and no product/test file ownership collision for this slice.
+- Previous worker SHA: `6564aa57a3c5a15f0d424197b0cad1c658392877`
+- NON-FORCE synchronization merge: `8ac7b3d5822daa395f71ee6fc797946ccd3d04b0` via PR #43 (`develop/pathena-next` -> `postmerge/backend`).
+- Post-sync compare: worker is ahead of develop and behind by 0; only `docs/agent_handoffs/backend.md`, `src/athena/resources/manager.py`, and `tests/unit/test_resource_mode_boundary.py` differ from develop.
+- `main` was not mutated.
+- Current error handoff reports no OPEN/IN_PROGRESS root-cause ownership collision with this slice.
 
 ## Selected backend slice
 
@@ -14,64 +17,63 @@ Area: resource policy / scheduler admission boundary.
 
 Spec/backlog anchor: `docs/agent_backend_run_201_300.md` task 289 records that `ResourceManager.set_mode()` used `mode.value` without first requiring an actual `ResourceMode`.
 
-The current development baseline re-read confirmed the finding: `set_mode(self, mode: ResourceMode)` called `self.chat.ensure_local_user()` and then persisted `mode.value` without a runtime enum guard.
+## Product contract and call chain
 
-## Product contract
+`ResourceManager.set_mode()` is a mutation boundary for persisted scheduler/resource policy.
 
-`ResourceManager.set_mode()` is a mutation boundary for persisted scheduler/resource policy. It must accept only an actual `ResourceMode`; malformed runtime values must be rejected before actor creation or database mutation. Valid enum behavior and persisted values remain unchanged.
+Call chain:
+
+`ResourceManager.set_mode(mode)` -> runtime `ResourceMode` guard -> `ChatService.ensure_local_user()` -> resource-policy write transaction -> persisted policy round-trip.
+
+Contract:
+
+- accept only an actual `ResourceMode`;
+- reject malformed runtime values before actor creation or database mutation;
+- leave valid persisted mode behavior unchanged.
 
 ## Implemented slice
 
-Product commit: `881d662958b9fe6b94a9ad549a72d91abb24e692`
+Product commit: `881d662958b9fe6b94a9ad549a72d91abb24e692`.
 
 Changes:
 
-- `src/athena/resources/manager.py`: fail-fast `isinstance(mode, ResourceMode)` guard before `ensure_local_user()` and the write transaction.
-- `tests/unit/test_resource_mode_boundary.py`: focused regression for malformed runtime values (`"quiet"`, `None`, `True`, arbitrary object) and all real `ResourceMode` values.
+- `src/athena/resources/manager.py`: fail-fast `isinstance(mode, ResourceMode)` guard before `ensure_local_user()` and the write transaction;
+- `tests/unit/test_resource_mode_boundary.py`: regression coverage for `"quiet"`, `None`, `True`, arbitrary object, unchanged persisted policy on rejection, and every valid `ResourceMode`.
 
-Independent diff inspection against the synchronized worker base reports exactly:
+Current diff against `develop/pathena-next` confirms the production delta remains exactly two added lines in `manager.py`; no storage, recovery, transport, network, UI, or platform guard was relaxed.
 
-- `src/athena/resources/manager.py`: +2 / -0
-- `tests/unit/test_resource_mode_boundary.py`: new focused test file
+## Verification
 
-No unrelated production changes are present in the slice.
+Verification-only draft PR: #44 (`postmerge/backend` -> `develop/pathena-next`).
 
-## Verification state
+Exact synchronized backend SHA under verification: `8ac7b3d5822daa395f71ee6fc797946ccd3d04b0`.
 
-- Current `develop/pathena-next` SHA rechecked immediately before mutation: unchanged at `fc3f6e44fcbeecdf1f4e817a4b9523a5ba2fbbaf`.
-- Static call-chain review: PASS.
-- Minimal-diff review: PASS (production diff is exactly two added guard lines).
-- Focused pytest runtime: NOT EXECUTED in this run because no local repository/runtime executor was available.
-- Canonical Quality on worker SHA: NOT EXECUTED. `.github/workflows/quality.yml` triggers only on `main` push or pull request, so pushing `postmerge/backend` does not create a Quality run.
-- Therefore this product commit is **IMPLEMENTED_PENDING_VERIFY**, not yet `READY` for integration under the integrator's focused-test rule.
+Canonical Quality run: `33707952053` / run number `3264`.
 
-No PASS claim is made for pytest, Ruff, mypy, or canonical Quality on this worker SHA.
+State observed during this run: **IN_PROGRESS**. The run is exact-bound to head SHA `8ac7b3d5822daa395f71ee6fc797946ccd3d04b0`; Python 3.12 quality, Windows path safety, local install smoke, and Linux storage jobs all started. No completion or PASS is claimed before GitHub reports it.
 
-## Safety / recovery impact
+Therefore the slice remains **IMPLEMENTED_PENDING_VERIFY** in this handoff. The integrator must not treat it as READY solely from this file if run `33707952053` has not completed successfully.
 
-The change is fail-fast and side-effect reducing. Invalid values now fail before local-user creation and before persisted resource-policy mutation. Valid resource-mode persistence, admission thresholds, durable jobs, storage, recovery, network policy, Windows path safety, and provider behavior are otherwise unchanged.
+## Failure / recovery and platform impact
 
-No retry, cancellation, recovery, or cross-platform behavior is broadened.
+The change is fail-fast and side-effect reducing. Invalid modes fail before local-user creation and before durable resource-policy mutation. Valid resource-policy persistence, admission thresholds, jobs, recovery, transport, TOR/network policy, Windows path safety, and Linux storage semantics are unchanged.
 
-## Platform impact
+Platform impact: platform-neutral Python runtime input boundary; no expected Windows/Linux behavioral divergence.
 
-Platform-neutral Python runtime type boundary. No expected Windows/Linux divergence.
+## Coordination handoffs
 
-## Integrator handoff
-
-Do **not** integrate `881d662958b9fe6b94a9ad549a72d91abb24e692` yet solely from static evidence. It is the exact minimal candidate and should be promoted once focused runtime evidence confirms:
-
-1. malformed modes raise `TypeError` before `ensure_local_user()`,
-2. the persisted policy is unchanged after rejected values,
-3. every real `ResourceMode` still persists and round-trips,
-4. the existing resource-manager regression set remains green.
-
-If the integrator has an executor capable of running the focused tests on this exact SHA, it may perform that verification before integration. Otherwise leave the candidate pending for the next backend run with executable test access.
+- Error worker: no confirmed defect/root-cause collision; re-open only on real exact-SHA failure evidence.
+- Spec-core: no product-semantics change requested.
+- UI: no UI contract change requested.
+- Integrator: review `881d662958b9fe6b94a9ad549a72d91abb24e692` plus focused test and Quality run `33707952053`; integrate only after actual successful verification. PR #44 is verification-only and must not auto-merge.
 
 ## Next backend slice
 
-Do not broaden task 289 while its runtime verification is pending. If no executor is available next run, continue read-only tracing of the next independent residual backend findings without colliding with this candidate:
+Tasks 290-293 were re-traced read-only on the synchronized lineage and remain real residual findings in `src/athena/lifecycle/deletion.py`:
 
-1. deletion ledger runtime boundary validation (`entity_type`, timestamps, commit sequence, read cursor),
-2. external gateway input boundaries (`purpose`, allowed hosts, TTL, max_bytes, finite timeout),
-3. then fresh Alpha/Beta/backend gap tracing.
+1. `record_deletion()` calls `entity_type.strip()` before a runtime text check;
+2. `deleted_at_us` comparison is not exact-int/bool-safe;
+3. `deletion_commit_seq` comparison is not exact-int/bool-safe;
+4. `read_deletion_records(after_seq=...)` lacks exact-int/bool-safe cursor validation.
+
+Keep this cluster separate from the ResourceMode candidate. Once task 289 has successful runtime evidence, take the smallest coherent deletion-ledger boundary slice with focused persistence/idempotency regressions.
