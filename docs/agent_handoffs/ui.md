@@ -2,26 +2,29 @@
 
 ## Current baseline
 
-- Base: `develop/pathena-next@0a0953e34f6da2a9e47119d00da29662397944e8`
+- Base: `develop/pathena-next@96489c4c493992ff9d8c7efd57557a69aa578e56`
 - Worker: `postmerge/ui`
-- Worker synchronization commit: `33d0e0d012476a81ecac8155c5b0b99a8644e393`
+- Worker synchronization commit: `9eb906c3f3c85f37e4c1c8dedfea407d09951fa5`
+- UI product commit: `1f0fd548431be122d13a403fe9e2387087edf8fa`
+- UI focused-test commit: `d85d2a2e144abc9d3ef1008b80f74114c7fafe23`
 - Original eleven reference images: `VISUAL_REFERENCE_PENDING`; no pixel-level parity or `MATCH` claim is made.
 
 ## Work completed
 
-- Re-checked `develop/pathena-next` and `postmerge/ui`; both had advanced since merge base `7e23616b79b65f759980ad98a27640b6c29bcea0`.
-- Safely synchronized `postmerge/ui` through a non-force, history-preserving two-parent merge. Develop and UI changed disjoint files, so the merge preserved both histories without overwriting foreign work.
-- Re-read the 11-screen manifest, Visual Gap Ledger, and live `PathenaMainWindow` shell on the synchronized product tree.
-- `UI-GAP-0001` remains directly evidenced: `_replace_visible_copy()` maps `INSPECTOR` to `DETAILS`, while `_install_reference_shell()` sets the right panel accessible name to `Inspector`; the design contract names this surface `Evidence & Activity`.
-- No product mutation was forced: the available repository write surface for this run cannot safely apply a surgical partial edit to the large `src/athena/desktop/pathena_window.py` without full-file replacement, so an unsafe replacement was deliberately avoided.
+- Safely reconciled the previously diverged UI worker with current Develop using a non-force, history-preserving two-parent merge. Develop supplies the product baseline; the UI-owned manifest, gap ledger and handoff history were retained.
+- Re-read the 11-screen manifest, Visual Gap Ledger, Core/Backend/Error/Integrator ownership guidance, and the live `PathenaMainWindow` shell.
+- Implemented only `UI-GAP-0001`: `_replace_visible_copy()` now maps legacy `INSPECTOR` to `EVIDENCE & ACTIVITY`, and `_install_reference_shell()` assigns the right panel accessible name `Evidence & Activity`.
+- Added a focused Qt shell contract asserting the right panel Accessible Name and visible `EVIDENCE & ACTIVITY` label.
+- Independent commit comparison confirms the product commit changes exactly two lines in `src/athena/desktop/pathena_window.py`; no controller, provenance, persistence, visibility, focus or backend semantics changed.
+- Draft verification PR #51 targets `develop/pathena-next`. It is verification-only; no merge or auto-merge is requested.
 
 ## Active UI gaps
 
 ### UI-GAP-0001 — Inspector hierarchy/copy
 
-Status: `OPEN`, P1.
+Status: `FIXED_PENDING_VERIFY`, P1.
 
-Next safe product slice: change only visible inspector copy and accessible name to `Evidence & Activity`, preserve controller/provenance/persistence semantics, then run focused Qt/UI tests. Do not alter visibility behavior in the same commit.
+Product implementation is complete on `1f0fd548431be122d13a403fe9e2387087edf8fa`; focused Qt contract is present on `d85d2a2e144abc9d3ef1008b80f74114c7fafe23`. Promote to closed only after exact-head verification succeeds. This does not imply screenshot-level `MATCH`.
 
 ### UI-GAP-0002 — Contextual inspector behavior
 
@@ -38,11 +41,12 @@ The reference shell still forces the right inspector visible in `_install_refere
 
 ## Verification
 
-- Branch synchronization: completed non-force with merge commit `33d0e0d012476a81ecac8155c5b0b99a8644e393`.
-- Static code-path review: completed on synchronized product tree.
-- No product/test file changed after synchronization, therefore no Qt/runtime PASS is claimed.
+- Branch synchronization: completed non-force with two-parent merge `9eb906c3f3c85f37e4c1c8dedfea407d09951fa5`.
+- Product diff review: `1f0fd548431be122d13a403fe9e2387087edf8fa` is exactly 2 additions / 2 deletions in `src/athena/desktop/pathena_window.py`.
+- Focused Qt contract: added in `tests/unit/test_pathena_window.py` on `d85d2a2e144abc9d3ef1008b80f74114c7fafe23`.
+- GitHub Quality Gate was queued after the verification PR was opened; exact final-head result must be checked before integration readiness is claimed.
 - No reference screenshot was opened in this run; `VISUAL_REFERENCE_PENDING` remains mandatory.
 
 ## Integrator handoff
 
-There is no new verified product UI commit to integrate. Documentation commits only refresh the synchronized baseline and evidence. Keep `UI-GAP-0001` assigned to `postmerge/ui`; once a surgical patch can be applied safely, integrate only after focused Qt/UI verification. `UI-GAP-0002` remains separate and must not be bundled with the naming change.
+Do not integrate until the exact current UI head has successful verification. Once green, the bounded product/test lineage for `UI-GAP-0001` is `1f0fd548431be122d13a403fe9e2387087edf8fa` + `d85d2a2e144abc9d3ef1008b80f74114c7fafe23`; subsequent commits only update UI-owned evidence/handoff documentation. `UI-GAP-0002` remains separate and must not be bundled with the naming change.
