@@ -44,21 +44,22 @@ class OfflineComprehensionController(QObject):
 
     def sync(self) -> None:
         presentation = self._presentation()
-        if presentation.state == self._last_state:
-            return
-        self._last_state = presentation.state
-
-        for widget in self._managed_widgets():
-            widget.setProperty("pathenaReadinessState", presentation.state)
-            widget.setProperty("pathenaReadinessSummary", presentation.summary)
-            widget.setProperty("pathenaReadinessNextStep", presentation.next_step)
+        state_changed = presentation.state != self._last_state
+        if state_changed:
+            self._last_state = presentation.state
+            for widget in self._managed_widgets():
+                widget.setProperty("pathenaReadinessState", presentation.state)
+                widget.setProperty("pathenaReadinessSummary", presentation.summary)
+                widget.setProperty("pathenaReadinessNextStep", presentation.next_step)
 
         if self.status is not None:
+            if presentation.state == "core-offline":
+                self.status.setText("pATHENA reconnecting")
             self.status.setToolTip(
                 f"{presentation.summary} Next: {presentation.next_step}."
             )
             self.status.setAccessibleDescription(
-                f"Local readiness: {presentation.summary} Next step: "
+                f"pATHENA readiness: {presentation.summary} Next step: "
                 f"{presentation.next_step}."
             )
         if self.model_selector is not None:
@@ -76,6 +77,11 @@ class OfflineComprehensionController(QObject):
         if self.ground is not None:
             self.ground.setStatusTip(presentation.summary)
 
+        if presentation.state == "core-offline":
+            empty_title = self.window.findChild(QLabel, "emptyStateTitle")
+            if empty_title is not None:
+                empty_title.setText("Getting pATHENA ready")
+
     def _presentation(self) -> ReadinessPresentation:
         core_transport_ready = bool(
             getattr(self.window, "_core_transport_ready", False)
@@ -87,41 +93,41 @@ class OfflineComprehensionController(QObject):
         if not core_transport_ready:
             return ReadinessPresentation(
                 "core-offline",
-                "The local Core is not connected; chat submission is unavailable.",
-                "keep pATHENA open while the desktop reconnects to the local Core",
-                "Local Core offline — reconnecting",
+                "pATHENA is reconnecting; chat submission is temporarily unavailable.",
+                "keep pATHENA open while it reconnects",
+                "pATHENA reconnecting",
             )
         if last_model_error is not None:
             return ReadinessPresentation(
                 "model-error",
-                "The local Core is connected, but the selected model reported an error.",
+                "The selected local model reported an error.",
                 "inspect System status or select another available local model",
                 "Local model error — choose or recover a model",
             )
         if not provider_ready:
             return ReadinessPresentation(
                 "provider-unavailable",
-                "The local Core is connected, but the model provider is unavailable.",
-                "start or recover the configured local model provider",
-                "Local model provider unavailable",
+                "The local model service is unavailable.",
+                "recover it in System or select another available local model",
+                "Local model service unavailable",
             )
         if selected_model is None:
             return ReadinessPresentation(
                 "model-required",
-                "The model provider is available, but no local model is selected.",
+                "No local model is selected.",
                 "choose an available local model",
                 "Choose a local model to chat",
             )
         if not bool(getattr(selected_model, "loaded", False)):
             return ReadinessPresentation(
                 "model-not-loaded",
-                "The selected local model is known but is not currently loaded.",
+                "The selected local model is not currently loaded.",
                 "load the model in the provider or select a loaded model",
                 "Selected local model is not loaded",
             )
         return ReadinessPresentation(
             "ready",
-            "The local Core, provider and selected model are ready.",
+            "pATHENA and the selected local model are ready.",
             "type a message",
             "Ask ATHENA",
         )
