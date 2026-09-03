@@ -12,7 +12,6 @@ from athena.api.search_contracts import (
 
 
 def test_search_result_response_serializes_required_beta_fields() -> None:
-    revision_id = uuid.uuid4()
     representation_id = uuid.uuid4()
     scope_id = uuid.uuid4()
 
@@ -21,7 +20,7 @@ def test_search_result_response_serializes_required_beta_fields() -> None:
         title="Reference source",
         preview="Relevant excerpt",
         entity_type="source_chunk",
-        revision_id=str(revision_id),
+        revision_id=None,
         rank=1,
         retrieval_methods=("lexical", "semantic"),
         source_anchor=SearchSourceAnchorResponse(
@@ -41,7 +40,7 @@ def test_search_result_response_serializes_required_beta_fields() -> None:
         "title": "Reference source",
         "preview": "Relevant excerpt",
         "entity_type": "source_chunk",
-        "revision_id": str(revision_id),
+        "revision_id": None,
         "rank": 1,
         "retrieval_methods": ["lexical", "semantic"],
         "source_anchor": {
@@ -55,6 +54,26 @@ def test_search_result_response_serializes_required_beta_fields() -> None:
             "protection_scope_id": str(scope_id),
         },
     }
+
+
+def test_entity_search_result_retains_revision_id() -> None:
+    revision_id = str(uuid.uuid4())
+    response = SearchResultResponse(
+        result_ref="knowledge:1",
+        title=None,
+        preview="Canonical knowledge",
+        entity_type="knowledge",
+        revision_id=revision_id,
+        rank=1,
+        retrieval_methods=("lexical",),
+        source_anchor=None,
+        protection=SearchProtectionResponse(
+            state="unprotected",
+            protection_scope_id=None,
+        ),
+    )
+
+    assert response.revision_id == revision_id
 
 
 def test_unprotected_response_cannot_leak_scope_metadata() -> None:
