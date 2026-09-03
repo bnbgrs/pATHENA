@@ -8,7 +8,7 @@ instead of fabricating success.
 from __future__ import annotations
 
 from PySide6.QtCore import QObject, Slot
-from PySide6.QtGui import QAction
+from PySide6.QtGui import QAction, QIcon
 from PySide6.QtWidgets import QApplication, QMenu, QStyle, QSystemTrayIcon, QWidget
 
 
@@ -49,11 +49,14 @@ class PathenaSystemTrayController(QObject):
 
         self.tray = QSystemTrayIcon(self)
         self.tray.setObjectName("pathenaSystemTray")
-        icon = window.windowIcon()
-        if icon.isNull():
-            icon = self.app.style().standardIcon(QStyle.StandardPixmap.SP_ComputerIcon)
-        self.tray.setIcon(icon)
-        self.tray.setToolTip("pATHENA")
+        self._base_icon = window.windowIcon()
+        if self._base_icon.isNull():
+            self._base_icon = self.app.style().standardIcon(
+                QStyle.StandardPixmap.SP_ComputerIcon
+            )
+        self.tray.setIcon(self._base_icon)
+        self.tray.setToolTip("pATHENA · Awaiting system status")
+        self.tray.setProperty("pathenaRuntimeState", "unavailable")
         self.tray.setContextMenu(self.menu)
         self.tray.activated.connect(self._activate)
         self.tray.show()
@@ -64,6 +67,27 @@ class PathenaSystemTrayController(QObject):
         action.setProperty("pathenaUnavailable", True)
         self.menu.addAction(action)
         return action
+
+    def apply_runtime_state(self, state: str) -> None:
+        """Reflect one real SYSTEM snapshot state without synthesising telemetry."""
+        normalized = state.strip().lower()
+        icon: QIcon
+        if normalized == "success":
+            icon = self._base_icon
+            label = "Ready"
+        elif normalized == "error":
+            icon = self.app.style().standardIcon(QStyle.StandardPixmap.SP_MessageBoxCritical)
+            label = "Attention needed"
+        elif normalized == "stale":
+            icon = self.app.style().standardIcon(QStyle.StandardPixmap.SP_MessageBoxWarning)
+            label = "Status stale"
+        else:
+            normalized = "unavailable"
+            icon = self.app.style().standardIcon(QStyle.StandardPixmap.SP_MessageBoxWarning)
+            label = "Status unavailable"
+        self.tray.setIcon(icon)
+        self.tray.setToolTip(f"pATHENA · {label}")
+        self.tray.setProperty("pathenaRuntimeState", normalized)
 
     @Slot()
     def open_window(self) -> None:
