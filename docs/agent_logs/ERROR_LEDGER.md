@@ -14,27 +14,29 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 ## Current baseline
 
 - Baseline branch: `develop/pathena-next`
-- Baseline SHA: `3347f766651a9b6e2a03235eca4add7905ad4527`
+- Baseline SHA: `7be496d2fcbb94ab81f5e520f2e45ee2820d3fd9`
 - Stable read-only parent: `main` at `0d4d621f8a38ddf8eccfa09622bf193687619943`
 - Worker branch: `postmerge/errors`
-- Worker was fast-forward synchronized NON-FORCE to exact current Develop before mutation.
+- Worker synchronized history-preservingly and NON-FORCE with exact current Develop before mutation via merge commit `0c26f67871c871a39f0ee980aaa4c21a6e6b2892`.
 
 ## Current error state
 
 - OPEN: none.
 - IN_PROGRESS: none.
-- FIXED_PENDING_VERIFY: `ERR-0003`.
-- FIXED: `ERR-0001`, `ERR-0002`.
+- FIXED_PENDING_VERIFY: none.
+- FIXED: `ERR-0001`, `ERR-0002`, `ERR-0003`.
 - BLOCKED: none.
 
 ## Current scan
 
 - Backend canonical Quality run `33755878184` on `a4768d9b0ea57a1161c93f603a5101c28b555276` completed `failure`: specification validator, Ruff, mypy, Windows path safety, Linux storage regressions and Local install smoke passed; only full pytest failed.
-- Downloaded canonical diagnostics artifact `9894914799` shows exactly two failures: `tests/unit/test_pathena_window.py::test_reference_body_directly_owns_workspace_and_persistent_inspector` and `tests/unit/test_pathena_window.py::test_reference_inspector_is_persistent_and_composer_action_is_compact`; total result `2 failed, 4488 passed, 3 skipped, 2 warnings`.
-- Both failures assert that the Workspace inspector is permanently visible. The failing Backend lineage and current Develop contain identical `src/athena/desktop/pathena_window.py` blob `b683903cc6e6a1a99950bba168e6e314df545ca1` and identical stale `tests/unit/test_pathena_window.py` blob `950f868e2e396bab5711bda147a124458c69cc34`, so this signature applies to current Develop rather than being historical-only.
-- `UI-GAP-0002` is authoritative product evidence that the inspector is intentionally context-sensitive. Product commit `177bef4dcdb4956f1df75bfcce9ee10c7a4bd1e2` and test-contract commit `1685221150c724deceb5d150a4d2dcff2bdd867b` were canonical green on exact UI head `ce959e148ddbe8f13952ca56f7d07e7a7ce1addb` in run `33745885426`; the Visual Gap Ledger marks the contextual inspector contract `FIXED` and integrated.
-- Error-worker harness correction `ebcf0dc2a305e946aabd0309c95316d29a1ebd91` updates only the two stale shell assertions/names to the already verified contextual contract and adds an explicit non-Workspace visibility assertion. No product code or guard was changed.
-- Local focused execution could not be performed because the execution container could not resolve `github.com`; no PASS claim is made for `ebcf0dc...`. `ERR-0003` therefore remains `FIXED_PENDING_VERIFY`.
+- Diagnostics artifact `9894914799` shows exactly two failures: `tests/unit/test_pathena_window.py::test_reference_body_directly_owns_workspace_and_persistent_inspector` and `tests/unit/test_pathena_window.py::test_reference_inspector_is_persistent_and_composer_action_is_compact`; total result `2 failed, 4488 passed, 3 skipped, 2 warnings`.
+- Both failures assert that the Workspace inspector is permanently visible. The failing Backend lineage and current Develop use product blob `src/athena/desktop/pathena_window.py@b683903cc6e6a1a99950bba168e6e314df545ca1`; `UI-GAP-0002` establishes the intended contextual inspector contract.
+- The initial Error-worker candidate `ebcf0dc2a305e946aabd0309c95316d29a1ebd91` corrected the stale assertions but did not restore the complete previously verified state-transition coverage.
+- Root-cause fix commit `6253577227d427c9bb00707c3e3e578a16c0f9d6` therefore restores the exact canonical-green `tests/unit/test_pathena_window.py` blob `82f492814250536dd003857a4eec2d083e9e13d5` from UI head `ce959e148ddbe8f13952ca56f7d07e7a7ce1addb` rather than weakening coverage.
+- On the current Error head, all three directly relevant blobs are byte-identical to that canonical-green UI lineage: `src/athena/desktop/pathena_window.py@b683903cc6e6a1a99950bba168e6e314df545ca1`, `tests/unit/test_pathena_window.py@82f492814250536dd003857a4eec2d083e9e13d5`, and `tests/unit/test_pathena_ui_presentation.py@171f209728831feb1ac7bb06172e30aee12973ae`.
+- Canonical Quality run `33745885426` on exact UI head `ce959e148ddbe8f13952ca56f7d07e7a7ce1addb` completed `success`. This is observed exact-content verification for the affected product and focused Qt/UI harness blobs; no new local PASS is fabricated after DNS blocked a fresh clone.
+- Qt deleted-`QProcess` stderr remains a warning signal only because it has not produced a reproducible current-lineage failure; no new ERR-ID is allocated without failure evidence.
 
 ## Entries
 
@@ -79,26 +81,28 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 
 - first_seen: 2026-09-03
 - last_seen: 2026-09-03
-- checked_sha: `3347f766651a9b6e2a03235eca4add7905ad4527`
+- checked_sha: `7be496d2fcbb94ab81f5e520f2e45ee2820d3fd9`
 - severity: P1
 - area: Qt/Desktop / UI contract harness / contextual Evidence & Activity inspector
-- status: `FIXED_PENDING_VERIFY`
+- status: `FIXED`
 - exact evidence:
-  - Canonical Backend Quality run `33755878184` on `a4768d9b0ea57a1161c93f603a5101c28b555276` completed failure only at `Quality — pytest`; all other canonical jobs/checks passed.
-  - Diagnostics artifact `9894914799` records exactly two failures in `tests/unit/test_pathena_window.py`: `test_reference_body_directly_owns_workspace_and_persistent_inspector` at line 97 and `test_reference_inspector_is_persistent_and_composer_action_is_compact` at line 136, both `assert not inspector.isHidden()` while the inspector is hidden on an ungrounded Workspace.
-  - Full pytest summary: `2 failed, 4488 passed, 3 skipped, 2 warnings`.
-  - Current Develop has the exact same product blob `b683903cc6e6a1a99950bba168e6e314df545ca1` and stale test blob `950f868e2e396bab5711bda147a124458c69cc34` as the failing lineage, establishing current-baseline applicability.
-  - `docs/ui/VISUAL_GAP_LEDGER.md` defines `UI-GAP-0002`: inspector must be context-sensitive, not permanently visible; its corrected UI lineage passed canonical Quality run `33745885426`.
-- reproducible path:
+  - Canonical Backend Quality run `33755878184` failed only at full pytest with the two stale persistent-inspector assertions; all other canonical jobs/checks passed.
+  - Diagnostics artifact `9894914799` records exactly `2 failed, 4488 passed, 3 skipped, 2 warnings`.
+  - `docs/ui/VISUAL_GAP_LEDGER.md` defines `UI-GAP-0002`: inspector is context-sensitive rather than permanently visible.
+  - Current product blob is `src/athena/desktop/pathena_window.py@b683903cc6e6a1a99950bba168e6e314df545ca1`.
+  - Fix commit `6253577227d427c9bb00707c3e3e578a16c0f9d6` restores exact known-green shell-test blob `tests/unit/test_pathena_window.py@82f492814250536dd003857a4eec2d083e9e13d5`, including Workspace-hidden, context/non-Chat-visible, reset-hidden and return-to-Workspace-hidden state transitions.
+  - Relevant companion suite remains exact known-green blob `tests/unit/test_pathena_ui_presentation.py@171f209728831feb1ac7bb06172e30aee12973ae`.
+  - These exact three blobs match UI head `ce959e148ddbe8f13952ca56f7d07e7a7ce1addb`, whose canonical Quality run `33745885426` completed `success`.
+- reproducible path before fix:
   1. Construct `PathenaMainWindow` on Workspace with no grounded context.
-  2. `_sync_inspector_visibility()` evaluates `navigation.currentRow() == 0` and no visible context button, so the inspector is intentionally hidden.
-  3. Two stale shell tests still assert permanent visibility and fail.
-- primary root cause: integration retained old `test_pathena_window.py` assertions after the verified `UI-GAP-0002` product contract changed to contextual inspector visibility. This is test-harness/contract drift, not a product visibility regression.
-- affected files: `tests/unit/test_pathena_window.py` only for this correction; product reference is `src/athena/desktop/pathena_window.py` but remains unchanged.
-- fix_commit: `ebcf0dc2a305e946aabd0309c95316d29a1ebd91`.
-- verification executed: pre-fix failure reproduced by canonical diagnostics on an exact product+test blob pair identical to current Develop; corrected assertions have not yet had an executable focused/canonical run because the local container cannot resolve GitHub and no Error-branch workflow run exists yet.
-- remaining risks: exact corrected-head focused/canonical verification still required. The stderr also contains Qt lifecycle noise involving deleted `QProcess` objects, but it did not create an additional pytest failure in this run; do not allocate another ERR-ID without a reproducible failing signature.
-- integrator handoff: do not integrate as `FIXED` yet. Verify `tests/unit/test_pathena_window.py` plus `tests/unit/test_pathena_ui_presentation.py`; if green, run the smallest relevant Qt regression set and promote ERR-0003 to `FIXED` before integration.
+  2. `_sync_inspector_visibility()` hides the inspector because `navigation.currentRow() == 0` and no context is available.
+  3. The stale integrated shell tests asserted permanent visibility and failed.
+- primary root cause: integration retained obsolete `test_pathena_window.py` coverage after the verified `UI-GAP-0002` product contract changed to contextual inspector visibility. This is test-harness/contract drift, not a product visibility regression.
+- affected files: `tests/unit/test_pathena_window.py`; product reference `src/athena/desktop/pathena_window.py` unchanged.
+- fix_commit: `6253577227d427c9bb00707c3e3e578a16c0f9d6`.
+- verification executed: canonical Quality run `33745885426` PASS on byte-identical affected product and focused harness blobs; current Error branch blob identities rechecked after fix. Fresh local execution attempted but blocked before checkout by DNS failure resolving `github.com`, so no separate local PASS is claimed.
+- remaining risks: final integration onto Develop should retain the exact restored test blob; Qt deleted-`QProcess` stderr remains scan-only until reproducible failure evidence appears.
+- integrator handoff: `6253577227d427c9bb00707c3e3e578a16c0f9d6` is integration-ready after the NON-FORCE synchronization merge `0c26f67871c871a39f0ee980aaa4c21a6e6b2892`; preserve the exact test blob and rerun canonical Quality on the resulting Develop SHA when available.
 
 ## Historical/stale evidence
 
