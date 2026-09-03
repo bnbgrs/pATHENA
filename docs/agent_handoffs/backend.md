@@ -2,23 +2,25 @@
 
 ## Baseline
 
-- Shared baseline: `develop/pathena-next@1dc2da1bd38e6147d01d3b1d6833ea1ea6a0e37b`.
+- Shared baseline: `develop/pathena-next@f76911dfef6530041d62fb6c2e0ddec242d64231`.
 - Worker branch: `postmerge/backend`.
-- History-preserving NON-FORCE synchronization: `a2274a512a0fdcb124112fd0060b7e6f03e23ee9`, with current Develop as first parent and prior Backend head `d3396dbc5d517a415a00a8e1105118263ad5c8d3` as second parent. The tree preserves current Develop plus the Backend handoff and versioned gateway patch artifact.
+- History-preserving NON-FORCE synchronization: `e644e0d22b6733dd6bc5fec2c1dff042ef6dca0d`, with current Develop as first parent and prior Backend head `fad7ff588bc5035f07eac4d14ff53cc3d964cdc9` as second parent.
+- The merge tree preserves current Develop plus Backend-owned `backend.md` and `backend-external-gateway-runtime-boundaries.patch`.
 - `main@0d4d621f8a38ddf8eccfa09622bf193687619943` remains strictly read-only and untouched.
 
 ## Selected backend slice
 
 Area: `ExternalAccessGateway` runtime-boundary hardening.
 
-Spec/product anchor: `docs/agent_backend_run_201_300.md` gateway-hardening target plus the existing fail-closed external-access contract in `src/athena/external/gateway.py` and `tests/unit/test_external_access_gateway.py`.
+Spec/product anchor: `docs/agent_backend_run_201_300.md`, the existing fail-closed external-access contract in `src/athena/external/gateway.py`, and `tests/unit/test_external_access_gateway.py`.
 
-Current product evidence remains reproducible by inspection on the synchronized worker:
+Current product evidence was re-read from the exact worker blob `src/athena/external/gateway.py@ccadac3991c01e726108068768b5c7df8fadd9e9`:
 
-- `authorize_explicit(... ttl_seconds)` accepts `True` because Python `bool` is an `int`; this can reach durable authorization insertion.
-- `authorize_direct_fallback(... ttl_seconds)` reads the source authorization and resolves the actor before malformed boolean TTL is rejected downstream.
-- `capture_url(... max_bytes, timeout_seconds)` accepts boolean resource bounds; `timeout_seconds=float("nan")` also bypasses the current ordered comparisons.
-- These malformed values therefore can cross security/resource boundaries before the intended fail-closed rejection point.
+- `authorize_explicit(... ttl_seconds)` still accepts `True` because Python `bool` is an `int`; the value can reach durable authorization insertion.
+- `authorize_direct_fallback(... ttl_seconds)` still accepts boolean TTL far enough to read the source grant and resolve the actor before downstream clamping/attachment.
+- `capture_url(... max_bytes, timeout_seconds)` still accepts boolean resource bounds.
+- `timeout_seconds=float("nan")` bypasses both ordered comparisons because comparisons with NaN are false.
+- These malformed values therefore cross intended fail-closed runtime boundaries before the relevant durable/network operations.
 
 ## Exact corrective contract
 
@@ -28,7 +30,7 @@ Current product evidence remains reproducible by inspection on the synchronized 
 4. `timeout_seconds` may be `int|float`, but bool and non-finite values must fail before authorization/audit/transport/Source side effects; `(0, 300]` remains unchanged.
 5. No retry, persistence schema, recovery, redirect, Tor/Direct, provenance, UI or Search semantics change.
 
-Exact product+test diff remains versioned at `docs/agent_handoffs/backend-external-gateway-runtime-boundaries.patch` from `2094951f358a8b60a1336a61d48daed7b15ef1b0`.
+Exact product+test diff remains versioned at `docs/agent_handoffs/backend-external-gateway-runtime-boundaries.patch`.
 
 ## Call-chain
 
@@ -46,24 +48,26 @@ Exact product+test diff remains versioned at `docs/agent_handoffs/backend-extern
 - redirect host re-authorization remains fail-closed;
 - HTTPS/default-port and response size/compression policy remain unchanged;
 - audit durability, Source provenance, fsync and transaction semantics remain unchanged;
-- no uncontrolled retries or new crypto.
+- no uncontrolled retries or new cryptography.
 
 ## Verification / mutation state
 
-The worker synchronization is complete. The local execution environment still cannot resolve `github.com`, so a checkout-based `git apply` + pytest run remains unavailable. The GitHub connector can safely create commits/trees but does not expose a bounded hunk-edit/apply-patch operation for an existing large source file. Replacing the complete central gateway module from truncated reads would be an unnecessary overwrite risk, so no unsafe product mutation was made.
+Repository synchronization succeeded through the GitHub Git-data path; the worker is now based on exact current Develop without force or history rewrite.
 
-No focused PASS is claimed. The existing gateway suite and the versioned patch specify acceptance for boolean explicit TTL, boolean direct-fallback TTL, boolean `max_bytes`, and boolean/NaN/infinite timeout, all failing before relevant durable/network side effects.
+The runtime environment still cannot resolve `github.com` for a local checkout, so `git apply` and pytest execution remain unavailable in this run. The connector can now return the complete gateway and test blobs, eliminating the earlier truncated-read uncertainty, but it still has no bounded hunk-edit/apply-patch operation. Applying the patch through whole-file replacement without an executable checkout would create a materially higher risk of transcription/formatting error and would still leave the required tests unexecuted. No unsafe product mutation was made.
+
+No focused PASS is claimed. The versioned acceptance patch covers boolean explicit TTL, boolean direct-fallback TTL, boolean `max_bytes`, and boolean/NaN/infinite timeout, and asserts rejection before relevant persistence, audit, transport and Source side effects.
 
 ## Coordination
 
-- Error worker: no open root cause overlaps this gateway boundary slice; ERR-0003 is integrated on Develop.
+- Error worker: no current open root cause overlaps this gateway boundary slice; do not allocate a duplicate error unless a concrete current-lineage failure is reproduced.
 - Core worker: normal-Hybrid Search composition remains Core-owned.
 - UI worker: Qt/11-screen work remains UI-owned.
-- Integrator: integrate only an applied-and-verified product/test SHA, never this documentation/patch-artifact state as completed functionality.
+- Integrator: integrate only an applied-and-verified product/test SHA; the synchronization/handoff commits are not product completion.
 
 ## Integrator handoff
 
-`a2274a512a0fdcb124112fd0060b7e6f03e23ee9` is synchronization only. The gateway patch artifact remains NOT READY AS PRODUCT. Apply it through a bounded patch-capable environment, run `tests/unit/test_external_access_gateway.py` plus relevant Network/Security regressions, then hand off only the resulting verified product/test SHA.
+`e644e0d22b6733dd6bc5fec2c1dff042ef6dca0d` is synchronization only. The gateway patch remains NOT READY AS PRODUCT. Apply the existing patch through a bounded patch-capable execution environment, run `tests/unit/test_external_access_gateway.py` plus relevant Network/Security regressions, and integrate only the resulting verified product/test SHA.
 
 ## Next backend slice
 
