@@ -3,11 +3,11 @@
 ## Baseline
 
 - Shared baseline: `develop/pathena-next`
-- Baseline SHA: `7c15b44818e9ac5c3484ee30d4a20d6f0d56087e`
+- Baseline SHA: `edae673243cfea9114302bd0b52655a7034b106e`
 - Worker branch: `postmerge/backend`
-- History-preserving synchronization commit: `4b1eb51ade8fa5633f92c781c72acc4922b4feef`
+- History-preserving synchronization commit: `374313e9d64bf7cb173df96cce3b5c238cd5afbe`
 - `main` remains read-only and was not touched.
-- Error worker handoff/ledger checked: `ERR-0001` is confirmed on the current lineage, explicitly Backend-owned, and must not be mutated in parallel by `postmerge/errors`.
+- Error worker handoff/ledger checked: `ERR-0001` remains confirmed and Backend-owned; `postmerge/errors` must not mutate the same root cause in parallel.
 - Core/UI/Integrator handoffs checked; no active ownership collision in `src/athena/lifecycle/deletion.py`.
 
 ## Selected backend slice
@@ -21,6 +21,21 @@ Anchor: `ERR-0001` plus backend audit tasks 290-293. Current `src/athena/lifecyc
 - `read_deletion_records()` likewise accepts `after_seq=False` through its relational check.
 
 These are durable mutation/query boundaries and malformed runtime values must fail before SQL/query side effects.
+
+## New focused regression harness
+
+Commit `de7da517f0cc0cd056de3cbe8aed19db44915884` adds `tests/unit/test_deletion_ledger_boundaries.py`.
+
+The new test file uses a no-SQL connection sentinel and asserts that malformed runtime inputs fail with `ValueError` before any `connection.execute()` call:
+
+- non-string `entity_type` values;
+- bool/non-int `deleted_at_us` values;
+- bool/zero/negative/non-int `deletion_commit_seq` values;
+- bool/negative/non-int `after_seq` values.
+
+The tests deliberately preserve valid zero timestamp/cursor and positive commit-sequence semantics. No production guard was weakened or bypassed.
+
+ATHENA Quality Gate run `33728141579` targets exact test-bearing worker SHA `de7da517f0cc0cd056de3cbe8aed19db44915884` and is currently pending. No PASS claim is made.
 
 ## Required product contract
 
@@ -48,36 +63,27 @@ if type(after_seq) is not int or after_seq < 0:
     raise ValueError("Deletion ledger cursor must be a non-negative integer.")
 ```
 
-Do not alter the existing existing-marker reconciliation, INSERT/readback sequence, restore replay, transaction, ordering, or identity-conflict semantics.
-
-## Focused acceptance tests
-
-1. `entity_type=None` and other non-strings raise `ValueError` before `connection.execute()`.
-2. Empty/whitespace-only strings remain rejected before SQL.
-3. `deleted_at_us=False` and non-int values fail before SQL; `0` remains valid.
-4. `deletion_commit_seq=True`, zero, negative and non-int values fail before SQL; positive exact ints remain valid.
-5. `after_seq=False`, negative and non-int values fail before query execution; `0` remains valid.
-6. Existing deletion-ledger integration/recovery tests remain green, specifically idempotent one-marker behavior, restore reapplication, watermark publication and ordered cursor reads.
+Do not alter existing-marker reconciliation, INSERT/readback sequence, restore replay, transaction, ordering, or identity-conflict semantics.
 
 ## Verification state
 
 - Exact current-lineage source re-read: CONFIRMED.
-- Existing deletion integration tests were reviewed and already exercise payload-free persistence, one-marker reset behavior, old-snapshot restore reapplication and watermark publication.
-- Product mutation this run: NOT APPLIED.
-- Reason: the available GitHub write primitive replaces complete UTF-8 files; `deletion.py` is a large recovery-sensitive module. Reconstructing/replacing the entire file only to change these few boundary lines would create unnecessary overwrite risk, violating the worker's minimal/non-destructive mutation rule. No unsafe whole-file rewrite was attempted.
-- Therefore no PASS/FIXED claim is made and `ERR-0001` remains open/Backend-owned.
+- Focused regression test commit: `de7da517f0cc0cd056de3cbe8aed19db44915884`.
+- Canonical Quality run: `33728141579` PENDING on the exact test-bearing SHA.
+- Product mutation: NOT YET APPLIED; `ERR-0001` remains OPEN/BACKEND_OWNED.
+- Existing deletion integration tests remain the required post-fix regression set: payload-free persistence, one-marker/idempotent replay, old-snapshot restore reapplication, watermark publication and ordered cursor reads.
 
 ## Failure / recovery impact
 
-The intended change is fail-before-SQL and side-effect reducing. It does not alter ledger rows, persistence format, ordering, idempotent replay, restore transactions, deletion identity reconciliation, or crash/restart behavior. Rejecting `bool` prevents Python's integer-subclass semantics from crossing the SQLite durability/cursor boundary.
+The intended product change is fail-before-SQL and side-effect reducing. It does not alter ledger rows, persistence format, ordering, idempotent replay, restore transactions, deletion identity reconciliation, or crash/restart behavior. Explicit bool rejection prevents Python integer-subclass semantics from crossing SQLite durability/cursor boundaries.
 
 ## Platform impact
 
-Platform-neutral Python validation. No Windows/Linux storage-format divergence is introduced.
+Platform-neutral Python validation. No Windows/Linux storage-format or path-semantics divergence is introduced.
 
 ## Integrator handoff
 
-Nothing from `ERR-0001` is product-ready yet. The worker is synchronized history-preservingly with current Develop and the exact safe patch/acceptance contract above is now versioned. Do not integrate a deletion-ledger product change until the focused boundary tests and existing deletion/recovery regressions have actually passed. After a Backend fix integrates, `postmerge/errors` should independently re-verify `ERR-0001` on the exact Develop SHA before marking it FIXED.
+Not product-ready yet. The worker is current with Develop and now has a focused regression harness pinned to the exact root cause. Do not integrate `ERR-0001` until the product guards are applied and the focused tests plus deletion/recovery regressions pass on the exact worker SHA. After integration, `postmerge/errors` should independently re-verify the exact Develop SHA before marking the ledger entry FIXED.
 
 ## Coordination
 
@@ -88,4 +94,4 @@ Nothing from `ERR-0001` is product-ready yet. The worker is synchronized history
 
 ## Next backend slice
 
-Continue `ERR-0001` first. Use the smallest patch-capable mutation path available to apply only the runtime guards above, add focused fail-before-SQL tests, then execute the deletion-ledger/lifecycle regressions and canonical Quality as applicable. Only after exact-head verification may this slice be handed to the Integrator as READY.
+Continue `ERR-0001` first. Apply only the exact runtime guards above, run `tests/unit/test_deletion_ledger_boundaries.py`, then the existing deletion-ledger/lifecycle regressions and canonical Quality. Only exact-head verification can make the product commit READY for the Integrator.
