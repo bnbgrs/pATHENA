@@ -72,7 +72,7 @@ def test_reference_shell_owns_cobalt_navigation_selection() -> None:
         window.close()
 
 
-def test_reference_body_directly_owns_workspace_and_persistent_inspector() -> None:
+def test_reference_body_directly_owns_workspace_and_contextual_inspector() -> None:
     app = _app()
     window = PathenaMainWindow()
     app.processEvents()
@@ -94,7 +94,7 @@ def test_reference_body_directly_owns_workspace_and_persistent_inspector() -> No
             label.text() == "EVIDENCE & ACTIVITY"
             for label in inspector.findChildren(QLabel)
         )
-        assert not inspector.isHidden()
+        assert inspector.isHidden()
     finally:
         window.close()
 
@@ -125,7 +125,7 @@ def test_reference_shell_has_horizontal_primary_navigation_and_private_status() 
         window.close()
 
 
-def test_reference_inspector_is_persistent_and_composer_action_is_compact() -> None:
+def test_reference_inspector_follows_grounding_and_non_chat_navigation() -> None:
     app = _app()
     window = PathenaMainWindow()
     app.processEvents()
@@ -133,8 +133,23 @@ def test_reference_inspector_is_persistent_and_composer_action_is_compact() -> N
         inspector = window.findChild(QFrame, "inspector")
         assert inspector is not None
         _assert_inspector_width(inspector)
-        assert not inspector.isHidden()
+        assert inspector.isHidden()
         assert window.details_button.isHidden()
+
+        window._set_context_available(True)
+        assert not inspector.isHidden()
+
+        window._enter_new_chat_state(clear_transient=True)
+        assert inspector.isHidden()
+
+        window.navigation.setCurrentRow(2)
+        assert not inspector.isHidden()
+
+        window._set_context_available(False)
+        assert not inspector.isHidden()
+
+        window.navigation.setCurrentRow(0)
+        assert inspector.isHidden()
 
         assert window.send_button.text() == "→"
         assert window.send_button.accessibleName() == "Send message"
