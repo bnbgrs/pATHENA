@@ -2,48 +2,41 @@
 
 ## Current baseline
 
-- Base: `develop/pathena-next@7c15b44818e9ac5c3484ee30d4a20d6f0d56087e`
+- Base: `develop/pathena-next@1dc2da1bd38e6147d01d3b1d6833ea1ea6a0e37b`
 - Worker: `postmerge/ui`
-- Worker synchronization commit: `7952eedcda8cc889e60ced3170e72a762245d00c`
-- UI product commit: `1f0fd548431be122d13a403fe9e2387087edf8fa`
-- UI focused-test commit: `d85d2a2e144abc9d3ef1008b80f74114c7fafe23`
+- Worker synchronization commit: `0d87382f31bc9ff3985b35d9004b1658a9c105c2`
+- Current UI candidate: `99d6b31c78be2932154137a6527200759f349628`
 - Original eleven reference images: `VISUAL_REFERENCE_PENDING`; no pixel-level parity or `MATCH` claim is made.
 
-## Work completed
+## Current slice
 
-- Reconciled the UI worker with current Develop using a non-force, history-preserving two-parent merge. Develop changed only integrator/progress documentation plus the ResourceMode product/test files since the prior UI base; the UI delta changed only UI-owned files, so no foreign work was overwritten.
-- `UI-GAP-0001` product/test lineage remains unchanged: visible inspector copy and accessible name use `Evidence & Activity` without changing controller, provenance, persistence, visibility, focus or backend semantics.
-- Exact prior UI head `f31be028652095b18b8a98dfacd65b73be9af763` passed ATHENA Quality Gate run `33720745475` with conclusion `success`.
-- Because synchronization produced a new exact worker head, Quality run `33724577775` is currently verifying `7952eedcda8cc889e60ced3170e72a762245d00c`; `UI-GAP-0001` remains `FIXED_PENDING_VERIFY` until that current-head run succeeds.
-- Reviewed `UI-GAP-0002` call-chain: `_install_reference_shell()` and `_install_progressive_disclosure()` force the inspector visible; `_sync_progressive_chat_actions()` forces it visible again; `_set_context_available()` already exposes the truthful grounded-context state; grounded responses set that state true while new/loaded/ordinary sent chat paths clear it. This gives a real existing state signal for a later contextual-visibility slice, but no visibility mutation was bundled into this synchronization run.
+### UI-GAP-0004 — Startup/readiness infrastructure copy
 
-## Active UI gaps
+Status: `FIXED_PENDING_VERIFY`, P1, Screen 11.
 
-### UI-GAP-0001 — Inspector hierarchy/copy
+Spec anchor: `docs/alpha/16_Desktop_Anwendung_und_Benutzeroberflaeche.md` requires normal use to present pATHENA while daemon/workers/providers remain background infrastructure. The real startup/readiness chain exposed local-Core implementation terminology in `localStatus`, the composer guidance and the disconnected empty-state title.
 
-Status: `FIXED_PENDING_VERIFY`, P1.
+Candidate `99d6b31c78be2932154137a6527200759f349628` changes presentation only:
 
-Implementation: `1f0fd548431be122d13a403fe9e2387087edf8fa`; focused Qt contract: `d85d2a2e144abc9d3ef1008b80f74114c7fafe23`. Prior exact UI head is green; current synchronized head still requires successful Quality run `33724577775` before closure. This does not imply screenshot-level `MATCH`.
+- `Local core offline` -> `pATHENA reconnecting`.
+- `Waiting for the local core` -> `Getting pATHENA ready`.
+- Core-specific normal-workspace tooltips/placeholders become pATHENA/model-level guidance.
+- `OfflineComprehensionController` continues to expose the truthful internal `core-offline` readiness state and refreshes user-facing copy without changing reconnect, provider, model, transport, persistence or security behavior.
+- Technical recovery detail remains available through System-oriented next steps.
 
-### UI-GAP-0002 — Contextual inspector behavior
-
-Status: `OPEN / CONTRACT_TRACED`, P1.
-
-Evidence: chat grounded-context availability already has a truthful state transition through `_set_context_available()`. A safe bounded implementation should keep the inspector visible on non-chat surfaces, while Chat visibility should derive from real grounded-context availability instead of unconditional `show()` calls. Any implementation must preserve current non-chat details, immediate/no-animation reduced-motion behavior, and existing focus contracts. No product mutation for this gap was made in this run.
+Focused assertions were added to `tests/unit/test_pathena_startup_experience_2900.py` and `tests/unit/test_pathena_offline_comprehension.py` for the new presentation contract. No exact-SHA execution is claimed: there is currently no workflow run associated with candidate `99d6b31...`, and local repository checkout remains unavailable in this tool path. Keep the gap `FIXED_PENDING_VERIFY` until these Qt suites actually pass.
 
 ## Collision / ownership guidance
 
-- UI owns inspector presentation/visibility state on `postmerge/ui`.
-- Core/Backend should not implement alternate inspector widgets or mutate its presentation state.
-- Backend/storage/security semantics remain untouched.
-- No verified UI root-cause error is handed to the error worker.
-
-## Verification
-
-- Prior exact UI head `f31be028652095b18b8a98dfacd65b73be9af763`: ATHENA Quality Gate `33720745475` = `success`.
-- Current synchronized head `7952eedcda8cc889e60ced3170e72a762245d00c`: ATHENA Quality Gate `33724577775` = `in_progress` at handoff update time.
-- No original reference screenshot was opened; `VISUAL_REFERENCE_PENDING` remains mandatory.
+- Core: normal-Hybrid Search composition remains Core-owned; no overlap.
+- Backend: ExternalAccessGateway runtime-boundary hardening remains Backend-owned; no overlap.
+- Error: no new reproduced defect was created or assigned in this slice; preserve the integrated contextual Evidence & Activity contract.
+- UI owns only presentation copy/state hierarchy here. No controller availability decision, backend semantics or recovery rule was changed.
 
 ## Integrator handoff
 
-Do not integrate the synchronized UI worker until Quality `33724577775` succeeds on exact head `7952eedcda8cc889e60ced3170e72a762245d00c` (or a later documentation-only head with equivalent successful verification). The bounded UI-GAP-0001 product/test lineage remains `1f0fd548431be122d13a403fe9e2387087edf8fa` + `d85d2a2e144abc9d3ef1008b80f74114c7fafe23`. `UI-GAP-0002` remains a separate subsequent interaction slice.
+Do not integrate `99d6b31c78be2932154137a6527200759f349628` as READY until at minimum `tests/unit/test_pathena_startup_experience_2900.py` and `tests/unit/test_pathena_offline_comprehension.py` execute successfully on the exact candidate lineage. Then run the relevant desktop/UI regressions or canonical Quality as available. The preceding `0d87382f...` is synchronization only.
+
+## Next UI work
+
+First verify UI-GAP-0004. After verification, retry opening the actual eleven references and render Screen 11 for direct comparison. If reference pixels remain unavailable, select the next gap only from explicit versioned UI/Alpha/Beta evidence; do not infer screenshot geometry or claim `MATCH`.
