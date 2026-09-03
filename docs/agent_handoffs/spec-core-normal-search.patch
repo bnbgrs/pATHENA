@@ -1,0 +1,83 @@
+*** Begin Patch
+*** Update File: src/athena/api/service.py
+@@
+ from athena.api.contracts import (
+@@
+ )
++from athena.api.search_adapter import hybrid_search_result_response
++from athena.api.search_contracts import SearchResultResponse
+@@
+ from athena.observability.health import HealthService
++from athena.retrieval.hybrid import HybridSearchResult
++from athena.retrieval.search import SearchEntityType
+@@
+ class UnifiedLocalChatSender(Protocol):
+@@
+     ) -> UnifiedLocalChatResult: ...
++
++
++class NormalSearch(Protocol):
++    """Minimal normal Hybrid retrieval boundary exposed by the Core API."""
++
++    def search(
++        self,
++        query: str,
++        *,
++        model_id: str,
++        limit: int = 20,
++        entity_type: SearchEntityType | None = None,
++    ) -> tuple[HybridSearchResult, ...]: ...
+@@
+         self._knowledge_reviews: KnowledgeReviewQueue | None = None
++        self._normal_search: NormalSearch | None = None
++
++    def attach_normal_search(self, search: NormalSearch) -> None:
++        """Attach normal Hybrid Search exactly once after app construction."""
++
++        if self._normal_search is not None:
++            raise RuntimeError("Normal Hybrid Search is already attached to the Core API.")
++        self._normal_search = search
+@@
+         if (
+             self._extraction_snapshots is not None
+@@
+             features = (
+                 *features,
+                 "knowledge.review.preflight",
+                 "knowledge.review.merge",
+             )
++        if self._normal_search is not None:
++            features = (*features, "search.normal.hybrid")
+         return CapabilitiesResponse(
+@@
+     def list_models(self) -> tuple[ModelResponse, ...]:
+         return tuple(_model(model) for model in self._model_provider.discover_models())
++
++    def search(
++        self,
++        query: str,
++        *,
++        model_id: str,
++        limit: int = 20,
++        entity_type: SearchEntityType | None = None,
++    ) -> tuple[SearchResultResponse, ...]:
++        if self._normal_search is None:
++            raise RuntimeError("Normal Hybrid Search is unavailable in this Core process.")
++        return tuple(
++            hybrid_search_result_response(result)
++            for result in self._normal_search.search(
++                query,
++                model_id=model_id,
++                limit=limit,
++                entity_type=entity_type,
++            )
++        )
+*** Update File: src/athena/core/application.py
+@@
+         self.hybrid_retrieval = HybridRetrievalService(
+             self.retrieval,
+             self.semantic_search,
+         )
++        self.api.attach_normal_search(self.hybrid_retrieval)
+         self.context_builder = ContextBuilderService()
+*** End Patch
