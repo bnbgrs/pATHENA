@@ -2,78 +2,60 @@
 
 ## Baseline
 
-- Shared development baseline: `develop/pathena-next`
-- Baseline SHA inspected this run: `7e23616b79b65f759980ad98a27640b6c29bcea0`
+- Baseline source: `main` (read-only; `develop/pathena-next` did not yet exist at run start)
+- Baseline SHA: `0d4d621f8a38ddf8eccfa09622bf193687619943`
 - Worker branch: `postmerge/backend`
-- Previous worker SHA: `6564aa57a3c5a15f0d424197b0cad1c658392877`
-- NON-FORCE synchronization merge: `8ac7b3d5822daa395f71ee6fc797946ccd3d04b0` via PR #43 (`develop/pathena-next` -> `postmerge/backend`).
-- Post-sync compare: worker is ahead of develop and behind by 0; only `docs/agent_handoffs/backend.md`, `src/athena/resources/manager.py`, and `tests/unit/test_resource_mode_boundary.py` differ from develop.
-- `main` was not mutated.
-- Current error handoff reports no OPEN/IN_PROGRESS root-cause ownership collision with this slice.
+- Error worker state checked: no OPEN/IN_PROGRESS ERR IDs and no product/test file ownership collision.
 
 ## Selected backend slice
 
 Area: resource policy / scheduler admission boundary.
 
-Spec/backlog anchor: `docs/agent_backend_run_201_300.md` task 289 records that `ResourceManager.set_mode()` used `mode.value` without first requiring an actual `ResourceMode`.
+Existing backend audit finding: `docs/agent_backend_run_201_300.md` task 289 records that `ResourceManager.set_mode()` uses `mode.value` without first requiring an actual `ResourceMode`.
 
-## Product contract and call chain
+Current baseline re-read confirms the finding still exists in `src/athena/resources/manager.py`: `set_mode(self, mode: ResourceMode)` calls `self.chat.ensure_local_user()` and then persists `mode.value` without a runtime enum guard.
 
-`ResourceManager.set_mode()` is a mutation boundary for persisted scheduler/resource policy.
+### Intended product contract
 
-Call chain:
+`ResourceManager.set_mode()` is a mutation boundary for persisted scheduler/resource policy. It must accept only an actual `ResourceMode`; malformed runtime values must be rejected before actor creation or database mutation. Valid enum behavior and persisted values remain unchanged.
 
-`ResourceManager.set_mode(mode)` -> runtime `ResourceMode` guard -> `ChatService.ensure_local_user()` -> resource-policy write transaction -> persisted policy round-trip.
+### Proposed minimal patch
 
-Contract:
+Before any side effect in `set_mode()`:
 
-- accept only an actual `ResourceMode`;
-- reject malformed runtime values before actor creation or database mutation;
-- leave valid persisted mode behavior unchanged.
+```python
+if not isinstance(mode, ResourceMode):
+    raise TypeError("Resource mode must be a ResourceMode.")
+```
 
-## Implemented slice
+Then retain the existing actor creation, timestamp, transaction and persistence path unchanged.
 
-Product commit: `881d662958b9fe6b94a9ad549a72d91abb24e692`.
+### Focused regression
 
-Changes:
+Add/extend the resource-manager unit regression so malformed values such as `"quiet"`, `None`, `True`, and arbitrary objects are rejected before `ensure_local_user()` and before any write transaction; all four real `ResourceMode` values remain accepted and persist their existing `.value` strings.
 
-- `src/athena/resources/manager.py`: fail-fast `isinstance(mode, ResourceMode)` guard before `ensure_local_user()` and the write transaction;
-- `tests/unit/test_resource_mode_boundary.py`: regression coverage for `"quiet"`, `None`, `True`, arbitrary object, unchanged persisted policy on rejection, and every valid `ResourceMode`.
+## Verification state
 
-Current diff against `develop/pathena-next` confirms the production delta remains exactly two added lines in `manager.py`; no storage, recovery, transport, network, UI, or platform guard was relaxed.
+- Static baseline re-read: CONFIRMED finding.
+- Product mutation this run: NOT APPLIED.
+- No PASS claim is made for the proposed regression because it was not executed.
 
-## Verification
+## Safety / recovery impact
 
-Verification-only draft PR: #44 (`postmerge/backend` -> `develop/pathena-next`).
+The proposed change is fail-fast and side-effect reducing. It does not alter valid resource policy persistence, admission thresholds, durable jobs, storage, recovery, network policy, Windows path safety, or provider behavior. Rejecting malformed mode values before actor/database mutation improves the existing boundary without changing recovery semantics.
 
-Exact synchronized backend SHA under verification: `8ac7b3d5822daa395f71ee6fc797946ccd3d04b0`.
+## Platform impact
 
-Canonical Quality run: `33707952053` / run number `3264`.
+Platform-neutral Python runtime type boundary. No expected Windows/Linux divergence.
 
-State observed during this run: **IN_PROGRESS**. The run is exact-bound to head SHA `8ac7b3d5822daa395f71ee6fc797946ccd3d04b0`; Python 3.12 quality, Windows path safety, local install smoke, and Linux storage jobs all started. No completion or PASS is claimed before GitHub reports it.
+## Integrator handoff
 
-Therefore the slice remains **IMPLEMENTED_PENDING_VERIFY** in this handoff. The integrator must not treat it as READY solely from this file if run `33707952053` has not completed successfully.
-
-## Failure / recovery and platform impact
-
-The change is fail-fast and side-effect reducing. Invalid modes fail before local-user creation and before durable resource-policy mutation. Valid resource-policy persistence, admission thresholds, jobs, recovery, transport, TOR/network policy, Windows path safety, and Linux storage semantics are unchanged.
-
-Platform impact: platform-neutral Python runtime input boundary; no expected Windows/Linux behavioral divergence.
-
-## Coordination handoffs
-
-- Error worker: no confirmed defect/root-cause collision; re-open only on real exact-SHA failure evidence.
-- Spec-core: no product-semantics change requested.
-- UI: no UI contract change requested.
-- Integrator: review `881d662958b9fe6b94a9ad549a72d91abb24e692` plus focused test and Quality run `33707952053`; integrate only after actual successful verification. PR #44 is verification-only and must not auto-merge.
+Nothing is ready to integrate from this worker yet. The branch currently contains only this coordination/handoff document. The next backend run should apply the surgical `ResourceMode` runtime guard using a safe patch-capable path, add the focused regression, run that test plus the smallest resource-manager regression set, and only then mark a product commit READY.
 
 ## Next backend slice
 
-Tasks 290-293 were re-traced read-only on the synchronized lineage and remain real residual findings in `src/athena/lifecycle/deletion.py`:
+After task 289 is closed, re-read the next residual backend findings from `docs/agent_backend_run_201_300.md` in this order unless newer exact-baseline evidence supersedes them:
 
-1. `record_deletion()` calls `entity_type.strip()` before a runtime text check;
-2. `deleted_at_us` comparison is not exact-int/bool-safe;
-3. `deletion_commit_seq` comparison is not exact-int/bool-safe;
-4. `read_deletion_records(after_seq=...)` lacks exact-int/bool-safe cursor validation.
-
-Keep this cluster separate from the ResourceMode candidate. Once task 289 has successful runtime evidence, take the smallest coherent deletion-ledger boundary slice with focused persistence/idempotency regressions.
+1. deletion ledger runtime boundary validation (`entity_type`, timestamps, commit sequence, read cursor),
+2. external gateway input boundaries (`purpose`, allowed hosts, TTL, max_bytes, finite timeout),
+3. then fresh Alpha/Beta/backend gap tracing.
