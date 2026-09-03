@@ -2,19 +2,19 @@
 
 ## Current baseline
 
-- Base: `develop/pathena-next@edae673243cfea9114302bd0b52655a7034b106e`
-- Worker: `postmerge/ui`
-- Worker synchronization: NON-FORCE fast-forward to current Develop before mutation.
-- UI product commit: `177bef4dcdb4956f1df75bfcce9ee10c7a4bd1e2`
-- UI focused-test commit: `ff14f8fbe9c99e043521605c1ae790f20e807ae2`
+- Base: `develop/pathena-next@280066cc5450f172693e2ee913bd269b6755f7bb`.
+- Worker: `postmerge/ui`.
+- Worker synchronization: history-preserving NON-FORCE merge `aea3f418e28ccc7cae6a3899391c049cc3beaee4` with current Develop. The Develop delta since the old UI base was disjoint from the five UI-owned files, so no foreign product/test/document change was overwritten.
+- UI product commit: `177bef4dcdb4956f1df75bfcce9ee10c7a4bd1e2`.
+- UI focused-test commit: `ff14f8fbe9c99e043521605c1ae790f20e807ae2`.
 - Draft verification PR: #53, base `develop/pathena-next`, no auto-merge.
-- Original eleven reference images: `VISUAL_REFERENCE_PENDING`; File Library search found likely assets, but image-open attempts failed, so no pixel-level parity or `MATCH` claim is made.
+- Original eleven reference images: `VISUAL_REFERENCE_PENDING`; File Library search locates likely pATHENA assets, but image-open attempts still fail, so no pixel-level parity or `MATCH` claim is made.
 
 ## Current slice — UI-GAP-0002
 
 Screen targets: 01 Workspace/Chat and 10 Grounded Chat/Evidence & Activity.
 
-The prior call-chain showed three unconditional inspector `show()` calls despite an existing truthful grounded-context state signal. This slice removes those unconditional visibility forces and adds `_sync_inspector_visibility()` as presentation-only glue:
+The implementation remains bounded presentation-only glue:
 
 - Chat + no grounded context: inspector hidden.
 - Chat + grounded-context availability: inspector visible.
@@ -22,22 +22,24 @@ The prior call-chain showed three unconditional inspector `show()` calls despite
 - Returning to Chat re-evaluates the same real context state.
 - `_set_context_available()` remains the existing state transition used by new/loaded/plain/grounded chat paths; no controller, provenance, storage, security or backend semantics changed.
 
-The implementation uses explicit widget hidden state rather than parent-derived `isVisible()` so the context signal remains deterministic before the top-level window is shown in offscreen Qt tests.
+## Verification state
 
-## Focused verification
+Exact product/test head `ff14f8fbe9c99e043521605c1ae790f20e807ae2` ran ATHENA Quality Gate `33729667950` and completed with `failure` on 2026-09-03.
 
-`tests/unit/test_pathena_window.py` now pins:
+Confirmed passing jobs/steps:
 
-- reference shell still directly owns center + inspector;
-- Evidence & Activity accessible name/title remain intact;
-- initial ungrounded Chat hides the inspector;
-- real context-availability transition reveals it;
-- entering a new Chat clears context and hides it;
-- non-chat navigation keeps the inspector visible even with context cleared;
-- returning to ungrounded Chat hides it again;
-- composer accessibility contract remains unchanged.
+- specification validator
+- Ruff
+- mypy
+- Local install smoke
+- Windows path safety
+- Linux storage regressions
 
-ATHENA Quality Gate run `33729667950` for exact product/test head `ff14f8fbe9c99e043521605c1ae790f20e807ae2` is currently `in_progress`; no PASS claim is made until it completes successfully.
+Confirmed failing step:
+
+- Python 3.12 quality → canonical `pytest`
+
+The workflow uploaded diagnostic artifact `canonical-quality-diagnostics-ff14f8fbe9c99e043521605c1ae790f20e807ae2`, but the current GitHub connector can list only artifact metadata; its ZIP/test trace is not readable through the available surface. Therefore the exact failing pytest node/signature is still unknown. No speculative product or test weakening was applied.
 
 ## Active UI gaps
 
@@ -47,23 +49,23 @@ Status: `FIXED`. Product/test lineage `1f0fd548431be122d13a403fe9e2387087edf8fa`
 
 ### UI-GAP-0002 — Contextual inspector behavior
 
-Status: `FIXED_PENDING_VERIFY`, P1. Product `177bef4dcdb4956f1df75bfcce9ee10c7a4bd1e2`; focused tests `ff14f8fbe9c99e043521605c1ae790f20e807ae2`; Quality `33729667950=in_progress`.
+Status: `FIXED_PENDING_VERIFY`, P1, but with a confirmed failed exact-head canonical run. It is not Integrator-ready. Product `177bef4dcdb4956f1df75bfcce9ee10c7a4bd1e2`; focused tests `ff14f8fbe9c99e043521605c1ae790f20e807ae2`; Quality `33729667950=failure` at canonical pytest.
 
 ## Collision / ownership guidance
 
 - UI owns inspector presentation/visibility state on `postmerge/ui`.
 - Core/Backend should not implement alternate inspector widgets or mutate this presentation state.
 - Backend/storage/security semantics remain untouched.
-- No verified UI root-cause defect is handed to the error worker.
+- Error worker may inspect run `33729667950` diagnostics if it gains readable artifact/log access, but should not patch UI presentation speculatively.
 
 ## Visual evidence
 
-`VISUAL_REFERENCE_PENDING`. Likely reference assets were discoverable in the File Library, but the actual image payloads could not be opened in this run. No exact spacing, proportion, color or screenshot-level MATCH claim is permitted. No current-build screenshot was produced because the available execution environment did not have repository/network access for a local Qt checkout.
+`VISUAL_REFERENCE_PENDING`. File Library search locates several plausible original pATHENA dark UI references, including Chat/Knowledge/PALLAS compositions, but actual image payload opening failed again. No exact spacing, proportion, color or screenshot-level `MATCH` claim is permitted. No current-build screenshot was generated because there is no network-enabled local repository checkout in this runtime.
 
 ## Integrator handoff
 
-Do not integrate UI-GAP-0002 until exact product/test head `ff14f8fbe9c99e043521605c1ae790f20e807ae2` passes Quality run `33729667950` (or equivalent later exact-lineage verification). Review the bounded two-file product/test diff independently. Draft PR #53 exists only for verification and must not auto-merge.
+DO NOT integrate UI-GAP-0002. The exact product/test canonical run failed. The worker is now safely synchronized with current Develop, so the next UI run should obtain the exact pytest failure signature if tooling permits, determine whether it is slice-caused or an unrelated lineage failure, apply only the smallest evidence-backed correction, and rerun focused Qt tests plus canonical Quality on the exact corrected worker SHA.
 
 ## Next UI gap
 
-After UI-GAP-0002 verification, re-read the 11-screen ledger and choose the next highest evidence-backed P1/P2 gap. Prefer actual reference-image inspection first if image access succeeds; otherwise continue only from the versioned manifest/gap contract and keep pixel claims `VISUAL_REFERENCE_PENDING`.
+UI-GAP-0002 remains first until technical verification is recovered. After that, re-read the 11-screen ledger and choose the next highest evidence-backed P1/P2 gap. Prefer actual reference-image inspection first if image access succeeds; otherwise continue only from the versioned manifest/gap contract and keep pixel claims `VISUAL_REFERENCE_PENDING`.
