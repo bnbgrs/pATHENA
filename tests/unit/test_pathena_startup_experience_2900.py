@@ -1,4 +1,10 @@
-from PySide6.QtWidgets import QApplication, QLabel, QLineEdit, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QApplication,
+    QLabel,
+    QLineEdit,
+    QVBoxLayout,
+    QWidget,
+)
 
 from athena.desktop.pathena_startup_experience_2900 import (
     _STARTUP_REFINEMENTS,
