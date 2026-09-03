@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `96489c4c493992ff9d8c7efd57557a69aa578e56`
+Baseline: `7c15b44818e9ac5c3484ee30d4a20d6f0d56087e`
 Worker: `postmerge/ui`
 
 Only evidence-backed gaps belong here. The original 11 reference screenshots were not openable in this run; therefore no pixel-level mismatch or `MATCH` claim is asserted.
@@ -13,28 +13,29 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots wer
 - Evidence before fix: `PathenaMainWindow._replace_visible_copy()` rewrote legacy `INSPECTOR` to `DETAILS`, while `_install_reference_shell()` assigned the right rail accessible name `Inspector`; the versioned UI contract calls for the right-side `Evidence & Activity` inspector.
 - Current code: `src/athena/desktop/pathena_window.py`
 - Affected widgets: right inspector heading/copy and accessibility naming
-- Risk addressed: the right rail no longer reads as generic details; its visible and accessibility semantics now identify the provenance/activity surface.
+- Risk addressed: the right rail no longer reads as generic details; its visible and accessibility semantics identify the provenance/activity surface.
 - Status: `FIXED_PENDING_VERIFY`
 - Commit: `1f0fd548431be122d13a403fe9e2387087edf8fa`
 - Test commit: `d85d2a2e144abc9d3ef1008b80f74114c7fafe23`
-- Acceptance: visible inspector heading and accessible name use `Evidence & Activity` vocabulary without changing provenance, controller, visibility or persistence semantics; focused Qt contract is added and exact-head Quality verification is pending.
+- Verification evidence: prior exact UI head `f31be028652095b18b8a98dfacd65b73be9af763` passed ATHENA Quality Gate `33720745475`; current Develop-synchronized lineage is undergoing exact-head re-verification.
+- Acceptance: visible inspector heading and accessible name use `Evidence & Activity` vocabulary without changing provenance, controller, visibility or persistence semantics; no screenshot-level `MATCH` is implied.
 
 ## UI-GAP-0002 — Inspector is forced permanently visible instead of remaining context-sensitive
 
 - Category: `INTERACTION`
 - Screen: `01 — Workspace / Chat`, `10 — Grounded Chat / Evidence & Activity`
 - Severity: `P1`
-- Evidence: `PathenaMainWindow._install_reference_shell()` calls `inspector.show()` and `_sync_progressive_chat_actions()` also unconditionally calls `inspector.show()`, while the current design contract specifies a contextual right inspector.
+- Evidence: `_install_reference_shell()` and `_install_progressive_disclosure()` call `inspector.show()`, and `_sync_progressive_chat_actions()` unconditionally calls it again. `_set_context_available()` already represents real grounded-context availability; grounded responses set it true, while new/loaded/ordinary sent chat paths clear it.
 - Current code: `src/athena/desktop/pathena_window.py`
 - Affected widgets: `inspector`, `detailsToggle`, grounded-context controls
-- Risk: the inspector consumes permanent workspace width even when no useful contextual evidence/activity is available; changing this behavior may intersect existing progressive-disclosure, focus and reduced-motion contracts.
-- Status: `OPEN / REQUIRES_FOCUSED_CONTRACT_REVIEW`
+- Risk: the inspector consumes permanent workspace width even when Chat has no useful grounded evidence/activity; a careless global hide could instead remove required details from non-chat surfaces.
+- Status: `OPEN / CONTRACT_TRACED`
 - Commit: `NONE`
-- Acceptance: visibility follows an explicit product state contract, preserves focus return, reduced-motion behavior, grounded evidence availability and desktop tests, and does not hide required system/detail state on non-chat surfaces.
+- Acceptance: non-chat surfaces retain their required inspector/detail state; Chat inspector visibility is derived from truthful existing grounded-context state rather than unconditional show calls; focus and reduced-motion contracts remain unchanged; focused Qt tests cover new/loaded/plain chat, grounded chat and non-chat navigation.
 
 ## Current run note
 
-`postmerge/ui` was safely history-preservingly synchronized with `develop/pathena-next@96489c4c493992ff9d8c7efd57557a69aa578e56` via two-parent merge commit `9eb906c3f3c85f37e4c1c8dedfea407d09951fa5`. `UI-GAP-0001` then received a surgical presentation-only patch: the visible legacy `INSPECTOR` copy now resolves to `EVIDENCE & ACTIVITY`, and the right panel accessible name is `Evidence & Activity`. The focused Qt shell test now asserts both contracts. No inspector content, controller, persistence, provenance, focus, visibility or disclosure behavior changed.
+`postmerge/ui` was history-preservingly synchronized with `develop/pathena-next@7c15b44818e9ac5c3484ee30d4a20d6f0d56087e` through two-parent merge `7952eedcda8cc889e60ced3170e72a762245d00c`. Develop changes since the previous UI base were disjoint from the UI-owned files. No product visibility mutation was made in this run; the call-chain for `UI-GAP-0002` was traced and narrowed to an existing truthful grounded-context state signal.
 
 ## Evidence blocker
 
