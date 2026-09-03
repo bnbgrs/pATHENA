@@ -26,7 +26,11 @@ class MessageActionTabOrderController(QObject):
         self.sync()
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
-        if watched is self.document and event.type() == QEvent.Type.ChildAdded:
+        # Qt can dispatch child events while parent-owned controllers are being
+        # constructed or torn down. Treat an unavailable document binding as a
+        # transient lifecycle state instead of failing the UI event loop.
+        document = getattr(self, "document", None)
+        if watched is document and event.type() == QEvent.Type.ChildAdded:
             QTimer.singleShot(0, self.sync)
         return super().eventFilter(watched, event)
 
