@@ -122,3 +122,47 @@ def test_authorize_direct_fallback_rejects_non_text_host_before_authorization_lo
             host=host,  # type: ignore[arg-type]
         )
     app.stop()
+
+@pytest.mark.parametrize("ttl_seconds", [0, -1, 901, 10_000])
+def test_authorize_direct_fallback_rejects_out_of_range_ttl_before_authorization_lookup(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    ttl_seconds: int,
+) -> None:
+    app = AthenaApplication(settings=AthenaSettings(local_root=tmp_path / "fallback-ttl-boundary"))
+    app.start()
+    source = app.external_access.authorize_explicit(
+        purpose="fallback source",
+        allowed_hosts=("example.com",),
+    )
+    monkeypatch.setattr(app.external_access, "get_authorization", _fail_authorization_lookup)
+    with pytest.raises(ExternalAuthorizationError, match="between 1 and 900 seconds"):
+        app.external_access.authorize_direct_fallback(
+            source.authorization_id,
+            host="example.com",
+            ttl_seconds=ttl_seconds,
+        )
+    app.stop()
+
+
+@pytest.mark.parametrize("ttl_seconds", [1, 900])
+def test_authorize_direct_fallback_preserves_valid_ttl_range(
+    tmp_path: Path,
+    ttl_seconds: int,
+) -> None:
+    app = AthenaApplication(settings=AthenaSettings(local_root=tmp_path / f"fallback-valid-ttl-{ttl_seconds}"))
+    app.start()
+    source = app.external_access.authorize_explicit(
+        purpose="fallback source",
+        allowed_hosts=("example.com",),
+        ttl_seconds=1800,
+    )
+    direct = app.external_access.authorize_direct_fallback(
+        source.authorization_id,
+        host="example.com",
+        ttl_seconds=ttl_seconds,
+    )
+    assert direct.privacy_route == "direct_explicit"
+    remaining_us = direct.expires_at_us - direct.created_at_us
+    assert 0 < remaining_us <= ttl_seconds * 1_000_000
+    app.stop()

@@ -332,9 +332,9 @@ class ExternalAccessGateway:
         """Create a separate explicit Direct authorization from an active Tor-Preferred grant."""
         if not isinstance(host, str):
             raise ExternalAuthorizationError("Direct fallback host must be text.")
-        if type(ttl_seconds) is not int:
+        if type(ttl_seconds) is not int or ttl_seconds < 1 or ttl_seconds > 900:
             raise ExternalAuthorizationError(
-                "Direct fallback authorization TTL must be an integer number of seconds."
+                "Direct fallback authorization TTL must be between 1 and 900 seconds."
             )
         source = self.get_authorization(authorization_id)
         actor_id = self.chat.ensure_local_user()
