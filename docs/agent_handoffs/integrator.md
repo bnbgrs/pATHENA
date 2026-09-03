@@ -3,48 +3,33 @@
 ## Current branch state
 
 - `main` (strict read-only): `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `edae673243cfea9114302bd0b52655a7034b106e`.
-- Integrated Core worker head: `61776afc26860fd062ce80e6c484d638515261ff`.
-- Progress tracker commit after integration: `6793d88be7fd09ac1f4acfe97cdb6b184ad5990a`.
+- Develop before this run: `5eb99f4cc3baed1f4eef23a54d686d109a7da21c`.
+- Develop progress-state correction: `d0f234de95754b8dfdcf9543197d4a85ad6013d6`.
+- No Worker product slice was integrated in this run.
 
 ## Worker heads reviewed
 
-- `postmerge/errors`: `1a5345dfdb0ff1467f3a51ae4733a42c3e89c2a2` — synchronized ledger/handoff only; no product fix ready; `ERR-0001` remains Backend-owned.
-- `postmerge/spec-core`: `61776afc26860fd062ce80e6c484d638515261ff` — synchronized Core lineage containing the canonical Search DTO + normal-Hybrid adapter; exact product/test head `2951bac6edb0d6f52b104b374cc224c75b6977d3` passed ATHENA Quality Gate `33722932411 = success`.
-- `postmerge/backend`: `b533c99e0b56c022f5ab22ec3413675d00f6ff86` — synchronized branch with focused ERR-0001 regression harness; exact harness head `de7da517f0cc0cd056de3cbe8aed19db44915884` had canonical Quality run `33728141579 = cancelled`; no product fix exists yet.
-- `postmerge/ui`: `f5ab6c64c20446628e87c6c5ede05e04a3f5e099` — UI-GAP-0002 product/test slice exists; exact product/test head `ff14f8fbe9c99e043521605c1ae790f20e807ae2` Quality run `33729667950` remained `in_progress` at review.
+- `postmerge/errors`: `71d36d6cb9804982162c72256cdb1a99cfe3fd0d` — current Develop synchronized ledger/handoff only; no product fix ready; `ERR-0001` remains Backend-owned.
+- `postmerge/spec-core`: `6760c4ada415cdfa46acb16552e8a98faf78ddc0` — exactly one commit ahead of Develop at review, changing only `docs/agent_handoffs/spec-core.md`; no new product commit. The next Search facade/application attachment slice remains explicitly Core-owned.
+- `postmerge/backend`: `a05c9b7da1dd865ece0f390074a7fb36928ed3fc` — eight commits ahead of Develop at review, but tree delta is limited to `docs/agent_handoffs/backend.md` and `tests/unit/test_deletion_ledger_boundaries.py`. The focused harness exists, but no ERR-0001 product fix exists and its canonical Quality run `33728141579` was cancelled; not READY.
+- `postmerge/ui`: `f5ab6c64c20446628e87c6c5ede05e04a3f5e099` — UI-GAP-0002 implementation remains unintegrated. Exact product/test SHA `ff14f8fbe9c99e043521605c1ae790f20e807ae2` ATHENA Quality Gate run `33729667950` completed with conclusion `failure` on 2026-09-03; this slice is rejected pending diagnosis/correction.
 
-## Integrated slice — canonical Search API DTO + normal-Hybrid adapter
+## READY decision
 
-`develop/pathena-next` was advanced NON-FORCE by fast-forward from `edae673243cfea9114302bd0b52655a7034b106e` to synchronized Core head `61776afc26860fd062ce80e6c484d638515261ff`.
+No Worker input satisfies the READY rule in this run.
 
-Independent compare review reported `ahead_by=12`, `behind_by=0`, merge-base exactly equal to the pre-run Develop head, and a bounded tree delta limited to:
+- Core: documentation/handoff only; no new product slice to integrate.
+- Backend: reproducing harness without product fix and without successful canonical verification.
+- UI: confirmed canonical Quality failure on the exact product/test SHA.
+- Error: ledger/handoff only and no product fix.
 
-- `src/athena/api/search_contracts.py` — canonical Search response/provenance/protection contract.
-- `src/athena/api/search_adapter.py` — normal final-ranked `HybridSearchResult` to `SearchResultResponse` adapter.
-- `tests/unit/test_search_api_contracts.py`.
-- `tests/unit/test_search_api_adapter.py`.
-- `docs/agent_handoffs/spec-core.md`.
+No force update, history rewrite, auto-merge or promotion to `main` was performed.
 
-The exact product/test Core head `2951bac6edb0d6f52b104b374cc224c75b6977d3` passed ATHENA Quality Gate run `33722932411` with conclusion `success`. The synchronized worker history did not broaden the product scope beyond this verified slice.
+## Cross-cutting slice this run
 
-The integrated adapter preserves actual entity identity/type, revision, title/text, deterministic final rank and real retrieval methods. It explicitly represents normal Hybrid search results as unprotected, leaves `source_anchor=None` where no real source anchor exists, and fails closed for missing final rank or wrong input type. Archive/Protected Search authorization semantics were not merged into this path.
+A bounded integration-state correctness slice was applied directly to `develop/pathena-next`: `docs/development/ALPHA_BETA_PROGRESS.md` was corrected so `UI-GAP-0002` records the completed failing Quality run rather than the stale `in progress` state. The tracker now explicitly treats a completed failing canonical run as a rejection condition until its failure is explained and corrected.
 
-`docs/development/ALPHA_BETA_PROGRESS.md` now marks Canonical Search API DTO + normal-Hybrid adapter `VERIFIED` on the shared Develop lineage.
-
-## Deferred inputs
-
-### Backend / Error worker
-
-`ERR-0001` remains OPEN/BACKEND-owned. Backend added a focused fail-before-SQL regression harness but has not implemented the deletion-ledger exact-type/bool-safe product guards. The harness-associated canonical Quality run was cancelled, so neither the harness alone nor any ERR-0001 product change is READY.
-
-### UI
-
-`UI-GAP-0002` contextual Inspector visibility is implemented on the UI worker but remains deferred while exact product/test Quality run `33729667950` is still in progress. No visual MATCH claim is permitted without original-reference evidence.
-
-### Core next slice
-
-The existing `CoreApiFacade` / `AthenaApplication` normal-Hybrid Search attachment and capability registration remain unimplemented. This is Core-owned and must not be duplicated by the Integrator while the Core handoff explicitly claims it as the next slice.
+This change prevents a later Integrator run from accidentally treating UI-GAP-0002 as merely pending verification. It changes no product, UI, backend, storage, security or test semantics.
 
 ## Current product status
 
@@ -55,19 +40,15 @@ The existing `CoreApiFacade` / `AthenaApplication` normal-Hybrid Search attachme
 - Canonical Search API DTO + normal-Hybrid adapter: `VERIFIED` and integrated.
 - Resource policy runtime mutation boundary: `VERIFIED`.
 - Grounded Chat inspector hierarchy / Evidence & Activity copy: `VERIFIED`.
-- Contextual inspector visibility: `PARTIAL`; UI worker implementation pending exact-head verification/integration.
+- Contextual inspector visibility: `PARTIAL`; worker implementation failed canonical verification and is not integrated.
 - Canonical error state: `PARTIAL`; `ERR-0001` remains open and Backend-owned.
-- 11-screen UI: manifest/ledger retained; no unsupported pixel/MATCH claim.
-
-## Cross-cutting decision this run
-
-No additional product glue was authored by the Integrator because the highest obvious Search facade/application wiring is explicitly claimed by `postmerge/spec-core`, while ERR-0001 and UI-GAP-0002 are likewise actively owned by Backend and UI. Creating a competing implementation would violate ownership/collision rules. The bounded cross-cutting work was therefore integration-state reconciliation and progress/handoff updates only.
+- 11-screen UI: exactly 11 manifest slots retained; no visual MATCH claim without opened original references.
 
 ## Next prioritized handoffs
 
-1. `postmerge/backend`: implement ERR-0001 exact runtime guards, prove fail-before-SQL with the focused harness, run deletion/recovery regressions and canonical Quality.
-2. `postmerge/ui`: complete exact-head verification for UI-GAP-0002; if green, resubmit after comparison with current Develop.
-3. `postmerge/spec-core`: synchronize to current Develop and implement the already traced `CoreApiFacade` + `AthenaApplication` normal-Hybrid Search attachment/delegation/capability-registration slice with focused API/application tests.
+1. `postmerge/backend`: implement ERR-0001 exact runtime guards, prove fail-before-SQL with the focused harness, run deletion/recovery regressions and canonical Quality on the exact product/test lineage.
+2. `postmerge/ui`: obtain the exact pytest failure signature for run `33729667950`, distinguish slice-caused from lineage/global failure, safely synchronize to current Develop, minimally fix, then rerun focused Qt tests and canonical Quality.
+3. `postmerge/spec-core`: implement the already pinned `CoreApiFacade` + `AthenaApplication` normal-Hybrid Search attachment/delegation/capability-registration slice with focused API/application tests; Integrator must not duplicate this claimed scope.
 4. `postmerge/errors`: independently verify eventual integrated ERR-0001 fix on exact Develop and continue unrelated regression scans.
 
 ## Integration rules retained
@@ -75,5 +56,5 @@ No additional product glue was authored by the Integrator because the highest ob
 - `main` remains strictly read-only.
 - No force-push, history rewrite, auto-merge or automatic promotion to main.
 - Only baseline-compatible, independently reviewed and adequately tested worker slices are integrated.
-- Focused exact-product verification is sufficient when later worker-head changes are demonstrably synchronization/documentation-only and introduce no unverified product delta.
-- Green CI is evidence, not permission to ignore scope, ownership, provenance, security or recovery invariants.
+- A green focused/exact-product run is evidence, not an exemption from scope, ownership, provenance, security or recovery review.
+- A confirmed failing exact-product canonical run blocks integration until diagnosed and corrected.
