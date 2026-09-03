@@ -2,68 +2,74 @@
 
 ## Baseline
 
-- Shared baseline: `develop/pathena-next@dd4b623cc7bbc5b5a24c4427382f0b98ff50ad02`.
+- Shared baseline: `develop/pathena-next@aed609ef8a7ff4af48e15e3dba953daf35d56b5c`.
 - Worker branch: `postmerge/backend`.
-- History-preserving NON-FORCE synchronization: `8997b1edbcaf565d4eda5b6879c0596c452091d9`, with prior Backend head `9083ca691b804962e136006745b07622bb95d84e` and current Develop as parents.
+- Latest history-preserving NON-FORCE synchronization: `6b85147dfd66399fabc04e4950058291feb85fec`, with prior Backend head `40c0aff638ee485591d8373d81e0de32ec0acfe7` and current Develop as parents.
+- Develop differed from the previous Backend lineage only in `docs/agent_handoffs/integrator.md`; no Gateway/product/test conflict existed.
 - `main@0d4d621f8a38ddf8eccfa09622bf193687619943` remains strictly read-only and untouched.
 
-## Selected backend slice
+## Completed backend slice — ExternalAccessGateway runtime boundaries
 
-Area: `ExternalAccessGateway` runtime-boundary hardening.
+Spec/product anchor: `docs/agent_backend_run_201_300.md` findings 297-298, existing fail-closed contracts in `src/athena/external/gateway.py`, and `docs/agent_handoffs/backend-external-gateway-runtime-boundaries.patch`.
 
-Spec/product anchor: `docs/agent_backend_run_201_300.md`, existing fail-closed external-access contracts in `src/athena/external/gateway.py`, and the versioned patch `docs/agent_handoffs/backend-external-gateway-runtime-boundaries.patch`.
+Product commit `f34e2e6ffd589d7cfceb85dfbe7fcf7aea9f1be9` enforces fail-before-side-effect runtime validation:
 
-## Implemented behavior
+1. explicit authorization TTL: genuine `int`, existing `1..86400` range, bool rejected;
+2. direct-fallback TTL: genuine `int` before source-grant/actor reads; existing effective-TTL clamp retained;
+3. capture `max_bytes`: genuine `int`, existing safe range, bool rejected before authorization/audit/transport/Source effects;
+4. capture timeout: numeric but not bool, finite, existing `(0, 300]` range; NaN/Inf rejected.
 
-Product commit `f34e2e6ffd589d7cfceb85dfbe7fcf7aea9f1be9` now enforces:
+Focused acceptance tests were added in `5cc4ea8c6b10c43c7203269bb4ccb1dbe484a109` as `tests/unit/test_external_access_gateway_runtime_boundaries.py` and assert malformed inputs do not create authorization/audit/Source side effects or transport calls.
 
-1. `authorize_explicit(... ttl_seconds)` accepts only genuine `int` values in the existing `1..86400` range; booleans fail before durable authorization creation.
-2. `authorize_direct_fallback(... ttl_seconds)` rejects non-genuine integers before reading the source authorization or resolving the actor; valid effective-TTL clamping remains unchanged.
-3. `capture_url(... max_bytes)` accepts only genuine `int` values within the existing safe range before authorization/audit/transport/Source side effects.
-4. `capture_url(... timeout_seconds)` rejects booleans, non-numeric values, NaN and infinities; finite numeric values must remain in `(0, 300]`.
-5. Tor/Direct routing, redirect reauthorization, retries, audit/provenance, staging/fsync, transaction boundaries, persistence schema and recovery semantics are unchanged.
+### Call-chain / invariants
 
-Focused acceptance tests were added in `5cc4ea8c6b10c43c7203269bb4ccb1dbe484a109` as `tests/unit/test_external_access_gateway_runtime_boundaries.py`. They assert malformed values fail before new authorization rows, audit rows, transport calls or Source creation.
+`authorize_explicit -> purpose/route -> TTL boundary -> host policy -> actor -> authorization INSERT/readback`
 
-## Call-chain
+`authorize_direct_fallback -> TTL boundary -> source grant -> actor/route/host -> effective TTL -> explicit Direct grant`
 
-`authorize_explicit -> purpose/route -> exact TTL boundary -> host policy -> actor -> authorization INSERT/readback`
+`capture_url -> resource boundaries -> _authorized_or_audit -> privacy route -> redirect reauthorization -> transport -> response policy -> fsync staging -> transactional Source/audit/provenance finalize`
 
-`authorize_direct_fallback -> exact TTL boundary -> source grant -> actor/route/host -> effective TTL -> explicit Direct grant`
+Retained: no silent Tor->Direct fallback; explicit Direct approval; no loopback/private proxy leak; redirect reauthorization; HTTPS/default-port fail-closed policy; response size/compression fail-closed policy; durable audit/provenance/fsync/transaction semantics; no new retries or cryptography.
 
-`capture_url -> exact resource boundaries -> _authorized_or_audit -> privacy route -> redirect re-authorization -> transport -> response policy -> fsync staging -> transactional Source/audit/provenance finalize`
+## Verification — READY
 
-## Retained invariants
+Canonical ATHENA Quality Gate `33790984890` is exact-SHA-bound to product head `f34e2e6ffd589d7cfceb85dfbe7fcf7aea9f1be9` and completed `success`.
 
-- no silent Tor -> Direct fallback;
-- separate explicit Direct authorization remains mandatory;
-- no loopback/private proxy leak;
-- redirect host re-authorization remains fail-closed;
-- HTTPS/default-port and response size/compression policy remain unchanged;
-- audit durability, Source provenance, fsync and transaction semantics remain unchanged;
-- no uncontrolled retries or new cryptography.
+Verified green jobs/steps include:
 
-## Verification
+- Windows path safety: PASS;
+- Linux storage regressions: PASS;
+- Local install smoke / disposable Core-API restart: PASS;
+- specification validator: PASS;
+- Ruff: PASS;
+- mypy: PASS;
+- full pytest: PASS;
+- canonical result enforcement: PASS.
 
-A draft verification PR was opened as `#54` from `postmerge/backend` to `develop/pathena-next`; it is not authorized for merge and exists only to obtain SHA-bound CI evidence.
-
-Canonical Quality run `33790984890` is bound to exact product head `f34e2e6ffd589d7cfceb85dfbe7fcf7aea9f1be9`. At the handoff update point all four jobs had started and no conclusion was yet available. No PASS is claimed until the run completes successfully.
-
-Local checkout-based pytest remains unavailable because the execution environment cannot resolve `github.com`; GitHub Actions is therefore the current executable verification path.
-
-## Coordination
-
-- Error worker: current open `ERR-0004` is UI-owned and does not overlap this gateway slice.
-- Core worker: normal-Hybrid Search composition remains Core-owned.
-- UI worker: Qt/11-screen and Ruff harness correction remain UI-owned.
-- Integrator: do not integrate until exact SHA-bound Quality evidence is green; if run `33790984890` fails, reject this candidate and use the exact failing diagnostic for the next backend correction.
+Independent Integrator review had already identified the intended executable delta as exact-type/bool-safe TTL/max-bytes validation plus finite non-bool timeout validation; other product-commit changes are formatting/comment-only churn. No guard weakening or changed routing/persistence semantics is evidenced.
 
 ## Integrator handoff
 
-Candidate product lineage: synchronization `8997b1edbcaf565d4eda5b6879c0596c452091d9` -> focused tests `5cc4ea8c6b10c43c7203269bb4ccb1dbe484a109` -> product `f34e2e6ffd589d7cfceb85dfbe7fcf7aea9f1be9`.
+READY product lineage:
 
-Status: `IMPLEMENTED_PENDING_VERIFY`. Integrate only after canonical Quality run `33790984890` completes green on exact head `f34e2e6ffd589d7cfceb85dfbe7fcf7aea9f1be9` and independent diff review confirms no guard weakening.
+`synchronization 8997b1edbcaf565d4eda5b6879c0596c452091d9 -> focused tests 5cc4ea8c6b10c43c7203269bb4ccb1dbe484a109 -> product f34e2e6ffd589d7cfceb85dfbe7fcf7aea9f1be9`
 
-## Next backend slice
+Current Backend synchronization `6b85147dfd66399fabc04e4950058291feb85fec` additionally incorporates current Develop documentation without altering Gateway product/test blobs.
 
-First close or correct this exact Gateway candidate from CI evidence. After verification, take the highest unclaimed Backend/System P0/P1/P2 gap from persistence/recovery, Provider/Transport, Windows publication/path safety, Packaging/install/runtime, or Research/Jobs execution.
+Integrator may now integrate the bounded Gateway product/test lineage into `develop/pathena-next`; never `main`.
+
+## Next backend slice — selected
+
+Next highest residual Gateway findings are `docs/agent_backend_run_201_300.md` tasks 295-296:
+
+- `authorize_explicit(... purpose)` currently calls `.strip()` without first requiring runtime text;
+- `allowed_hosts: Sequence[str]` can receive malformed shapes such as a naked string and then iterate characters; elements also need explicit runtime text validation before `_normalize_host()`.
+
+Planned contract: reject malformed purpose/host-container/host-element values before actor creation or durable authorization side effects while retaining existing normalized-host, local/private rejection, route, TTL and persistence behavior. Focused tests must prove fail-before-authorization-row and preserve valid tuple/list host inputs. This is the next Backend-owned slice unless a newer higher-severity current-lineage defect appears.
+
+## Coordination
+
+- Error worker owns current UI-related Ruff/error-ledger work; no overlap.
+- Core owns normal-Hybrid facade/application composition and CHAT/KNOWLEDGE/RESEARCH/PALLAS semantics.
+- UI owns Qt/11-screen work.
+- Backend next touches only ExternalAccessGateway runtime input boundaries unless superseded by higher-priority evidence.
