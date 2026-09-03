@@ -10,7 +10,6 @@ permissions:
 
 jobs:
   apply-and-verify:
-    if: "github.actor != 'github-actions[bot]' || !contains(github.event.head_commit.message, 'harden gateway route and fallback host boundaries')"
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
@@ -22,6 +21,13 @@ jobs:
         with:
           ref: postmerge/backend
           fetch-depth: 0
+
+      - name: Stop on self-generated product commit
+        run: |
+          if git log -1 --pretty=%B | grep -Fq "fix(backend): harden gateway route and fallback host boundaries"; then
+            echo "Product commit already created; no second mutation."
+            exit 78
+          fi
 
       - name: Apply bounded product and test patch
         run: |
@@ -124,10 +130,6 @@ def test_authorize_direct_fallback_rejects_non_text_host_before_authorization_lo
       - name: Commit verified bounded slice
         run: |
           git diff --check
-          if git diff --quiet -- src/athena/external/gateway.py tests/unit/test_external_access_gateway_authorization_boundaries.py; then
-            echo "Boundary patch already present; no product commit required."
-            exit 0
-          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add src/athena/external/gateway.py tests/unit/test_external_access_gateway_authorization_boundaries.py
