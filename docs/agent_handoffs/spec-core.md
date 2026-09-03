@@ -2,92 +2,67 @@
 
 ## Current baseline
 
-- Shared baseline: `develop/pathena-next@edae673243cfea9114302bd0b52655a7034b106e`.
+- Shared baseline: `develop/pathena-next@1dc2da1bd38e6147d01d3b1d6833ea1ea6a0e37b`.
 - Stable read-only branch: `main@0d4d621f8a38ddf8eccfa09622bf193687619943` (unchanged).
 - Worker branch: `postmerge/spec-core`.
-- Previous verified worker head: `2951bac6edb0d6f52b104b374cc224c75b6977d3`.
-- Exact previous worker head passed ATHENA Quality Gate run `33722932411` with conclusion `success`.
-- History-preserving NON-FORCE synchronization merge: `95b2daacb867e84102de0cc56eae01dc1085dbbe`, with parents `2951bac6edb0d6f52b104b374cc224c75b6977d3` and `edae673243cfea9114302bd0b52655a7034b106e`.
+- Previous worker head: `69300173278214aeeb1724cb339e81de19589548`.
+- History-preserving NON-FORCE synchronization merge: `11f64736fae9452f93662627b1c48910740d1168`, with current Develop as first parent and the previous Core worker as second parent.
+- Synchronization retained current Develop product/error state plus Core-owned Search acceptance files and the exact patch artifact; no foreign product file was overwritten.
 
-Independent comparison before synchronization confirmed that Develop changes since the prior Core base were disjoint from the Search API contract/adapter product files. The merge retained both histories, current Develop UI/integration documentation, and the verified Core Search slice without force, rebase, history rewrite, main mutation, or foreign-worker overwrite.
-
-## Spec anchors
+## Spec anchor
 
 Primary source: `docs/beta/10_Retrieval_und_Suche.md`.
 
-- §52 requires Search Response to carry result id/ref, title/preview, entity type, revision, final rank, retrieval methods, source anchor and protection state.
-- §§59-61 require authorization-first Protected Search, no locked metadata leak, and persistent protection labels through mixed ranking/context use.
-- Existing normal `LocalSearchService` explicitly excludes protected payloads; `HybridRetrievalService` derives from that normal lexical projection plus semantic candidates and emits deterministic `rank` plus `retrieval_methods`.
+Normal Hybrid retrieval is the established normal-search candidate/ranking path. Protected/Archive retrieval remains a distinct authorization/provenance-sensitive path and is outside this slice. The existing `HybridRetrievalService` and canonical `hybrid_search_result_response()` adapter are the only established services used by this composition contract.
 
-## Verified product slice — normal Hybrid result → canonical Search DTO
+## Current traced product gap
 
-Product commit: `ade3d4a0cafdfbaceb89c35dff04a6a16e58b5fc`.
-Focused-test commit: `e16dee12688e8560ae02445ac88a656839ba616c`.
-Exact verified worker head: `2951bac6edb0d6f52b104b374cc224c75b6977d3`.
-Quality: `33722932411 = success`.
-Status: `VERIFIED_ON_WORKER / READY_FOR_INTEGRATOR_REVIEW`.
+`AthenaApplication` constructs `CoreApiFacade` before normal retrieval, then later constructs `LocalSearchService -> RetrievalRankingService -> LocalSemanticSearchService -> HybridRetrievalService` as `self.hybrid_retrieval`. Current code proceeds directly from that construction to context/memory services; the normal Hybrid service is not attached to the API.
 
-`src/athena/api/search_adapter.py` provides `hybrid_search_result_response()` and maps only established facts from a final-ranked `HybridSearchResult` into the canonical `SearchResultResponse` contract:
+`CoreApiFacade` already uses one-time post-construction `attach_*` boundaries and capability gating for later-built services. The architecture-conforming change therefore remains:
 
-- stable result ref from actual entity type + entity UUID;
-- actual title/text projection;
-- actual entity type and revision UUID;
-- final rank from Hybrid diversification;
-- actual retrieval-method tuple;
-- `source_anchor=None`, because normal entity Hybrid results carry no SourceAnchor provenance;
-- explicit `unprotected` protection state derived from the established normal-search protection contract.
+- one-time `attach_normal_search()`;
+- capability `search.normal.hybrid` only after attachment;
+- exact delegation of query, `model_id`, `limit` and optional `SearchEntityType`;
+- response mapping only through `hybrid_search_result_response()`;
+- propagation of `SemanticRetrievalUnavailableError` unchanged;
+- `AthenaApplication` attaches the exact `self.hybrid_retrieval` instance immediately after construction;
+- no Archive/Protected expansion, synthetic provenance, persistence, ranking, security, recovery, storage or UI change.
 
-The adapter rejects a result without final rank and rejects non-`HybridSearchResult` input. It does not synthesize Archive anchors, Protected scopes, unlock state, scores-as-truth, persistent records, or alternate ranking behavior.
+## Acceptance coverage retained on worker
 
-Focused tests prove rank/retrieval methods/revision/title/text retention, normal unprotected/no-scope classification, absence of fabricated SourceAnchor data, fail-closed missing rank, and fail-closed wrong result type.
+- `tests/unit/test_core_api_search_wiring.py`: capability gating, one-time attachment, exact delegation, canonical DTO projection, semantic-unavailable propagation.
+- `tests/unit/test_application_wiring.py`: exact application identity wiring.
+- `docs/agent_handoffs/spec-core-normal-search.patch`: exact bounded intended product mutation.
 
-## Current trace — canonical Search DTO → Core API composition
-
-The next product gap was traced against the real construction path rather than guessed.
-
-`src/athena/api/service.py` already uses post-construction `attach_*` methods because `CoreApiFacade` is instantiated before several later application services. `capabilities()` exposes features only when the corresponding attached service is present.
-
-`src/athena/core/application.py` constructs `CoreApiFacade` first, then later constructs:
-
-1. `LocalSearchService`,
-2. `RetrievalRankingService`,
-3. `LocalSemanticSearchService`,
-4. `HybridRetrievalService` as `self.hybrid_retrieval`,
-5. downstream memory/unified chat services.
-
-Therefore the minimal architecture-conforming Search exposure is an additive Search attachment on the existing facade, followed immediately after `self.hybrid_retrieval` construction by application attachment. A parallel facade, repository bypass, or alternate retrieval stack is not justified.
-
-### Required contract for the next product mutation
-
-- Introduce a minimal Search protocol matching the existing normal `HybridRetrievalService.search()` call shape.
-- Attach the normal Hybrid retrieval service exactly once, following existing `attach_unified_local_chat`/knowledge attachment semantics.
-- Expose a transport-neutral API Search call returning `tuple[SearchResultResponse, ...]` by mapping each final-ranked result through `hybrid_search_result_response()`.
-- Advertise the capability only while the Search service is actually attached.
-- Preserve `model_id`, `limit`, and optional `SearchEntityType` behavior of the real retrieval service; do not silently degrade semantic failure into a different success contract.
-- Do not expose Archive or Protected Search through this path. §§59-61 remain a separate authorization-first composition slice.
-- Do not fabricate SourceAnchors, scopes, revisions, retrieval methods, or protection state.
+These tests are acceptance pins for behavior that is still absent from the product files. No PASS claim is made for the missing composition.
 
 ## Mutation state this run
 
-No Search facade/application product mutation was applied after the trace. The available repository mutation interface for existing files requires complete-file replacement; both `src/athena/api/service.py` and `src/athena/core/application.py` are broad central composition files. Reconstructing either entire file from partial reads for a surgical attachment would create unnecessary overwrite risk. The worker therefore stopped at the verified architecture/acceptance contract rather than performing an unsafe broad replacement.
+The worker was safely synchronized to the current Develop lineage. A real checkout was then attempted in order to apply and execute the versioned patch, but the execution environment failed before checkout because `github.com` DNS resolution was unavailable. The GitHub repository connector remains writable, but its existing-file mutation surface requires complete-file replacement; `src/athena/api/service.py` is a large central facade module. Reconstructing and replacing the whole file for a surgical change is not accepted as a safe mutation path.
 
-This is not a product blocker: the verified DTO + adapter slice is independently READY for Integrator review now. The facade/application wiring remains the next Core-owned gap.
+Therefore no product file was changed and no test was falsely reported as executed. The exact patch remains versioned for a bounded patch-capable execution path.
 
-## Ownership / collision avoidance
+## Coordination
 
-- Backend owns `ERR-0001` / deletion-ledger tasks 290-293 in `src/athena/lifecycle/deletion.py`; Core did not touch that component.
-- UI owns contextual Inspector visibility / `UI-GAP-0002`; Core did not touch Qt/UI files.
-- Error worker remains independent verifier for confirmed defects; no new Core-owned ERR root cause was identified.
-- No Archive or Protected Search adapter/wiring is added here because those result classes carry materially different provenance/authorization semantics.
+- Error stream: ERR-0003 is already integrated into current Develop; Core preserves contextual Evidence & Activity behavior and does not touch its harness root cause.
+- Backend stream: ExternalAccessGateway runtime-boundary hardening remains Backend-owned; Core does not touch gateway/network/storage/security files.
+- UI stream: 11-screen visual/interaction work remains UI-owned; Core does not touch Qt/theme/layout files.
+- `main` remains read-only.
 
 ## Integrator handoff
 
-The Search DTO + normal-Hybrid adapter product/test slice at exact worker head `2951bac6edb0d6f52b104b374cc224c75b6977d3` is now backed by canonical Quality run `33722932411 = success` and was synchronised history-preservingly onto current Develop through `95b2daacb867e84102de0cc56eae01dc1085dbbe`.
+NOT READY AS PRODUCT. The synchronization commit `11f64736fae9452f93662627b1c48910740d1168` is safe history/evidence state only. Do not integrate it as completed Search functionality.
 
-Integrator should independently review the bounded Search contract/adapter/test delta and may integrate it if current Develop remains conflict-free. The synchronization itself contains no new Search behavior beyond that already verified slice.
+When a bounded patch-capable environment is available, apply `docs/agent_handoffs/spec-core-normal-search.patch`, then execute at minimum:
 
-Do not treat the traced facade/application wiring as implemented; it remains a separate future commit requiring focused API capability/delegation/application-composition tests.
+1. `tests/unit/test_core_api_search_wiring.py`;
+2. `tests/unit/test_application_wiring.py`;
+3. relevant API/application regression tests;
+4. canonical Quality on the exact resulting worker SHA if available.
+
+Only the resulting applied-and-verified product/test SHA is Integrator-ready.
 
 ## Next Alpha/Beta gap
 
-Implement the traced normal-Hybrid Search attachment/call through the existing `CoreApiFacade` and `AthenaApplication` composition using a safe patch-capable mutation path. Focused acceptance must cover: capability absent before attachment/present after attachment, double-attach rejection, exact delegation of query/model/limit/entity type, DTO mapping of returned ranked results, propagation of semantic retrieval failure, and application wiring identity (`api` uses the same `hybrid_retrieval` instance). Then run the relevant API/application regression set and canonical Quality before handoff.
+First finish normal-Hybrid `CoreApiFacade <-> AthenaApplication` composition. After verification, trace current Alpha/Beta coverage and take the highest unclaimed CHAT / KNOWLEDGE / RESEARCH / PALLAS P0/P1/P2 gap. PALLAS work must remain data-driven from real Sources/Claims/Knowledge/Research.
