@@ -455,6 +455,8 @@ class ResourceManager:
         )
 
     def set_mode(self, mode: ResourceMode) -> ResourcePolicy:
+        if not isinstance(mode, ResourceMode):
+            raise TypeError("Resource mode must be a ResourceMode.")
         actor_id = self.chat.ensure_local_user()
         now_us = utc_now_us()
         with self.database.write_transaction() as connection:
