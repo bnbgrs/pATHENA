@@ -3,64 +3,72 @@
 ## Current branch state
 
 - `main` (strict read-only): `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `7c4c8bb52d8e6df819d4a5ff44bbf6442b529d23`.
-- Cross-cutting tracker commit this run: `6a13edd5b8d48e884d16c7d042d1fdf637af7612`.
-- No Worker product slice was integrated in this run.
+- Develop before this run: `63742ba81ade7dfcb82eb1f60c2efcd4b11fbeb5`.
+- Integration target: `develop/pathena-next` only.
+- Worker heads reviewed: errors `b7942416aef738a4063d335675493b82ca414016`; spec-core `6e31cb229651faeb3cd005badbe5f878e00c40b7`; backend `1cfd18c69014390380bb960b86c8e1b81a5067ac`; ui `76cb122dbe7b58b0fa49bbcb36de2bd732922d4d`.
 
-## Worker heads reviewed
+## Integrated this run — UI-GAP-0002
 
-- `postmerge/errors`: `43acfa94ca2f45b1a1147c2dc9f10b7c34c8ccad` — current Develop-synchronized ledger/handoff only; no product fix ready. ERR-0001 remains Backend-owned.
-- `postmerge/spec-core`: `d8872f9b4b58f9cde1c2c413419938601b6b30ea` — normal-Hybrid facade/application Search contract is fully pinned by red acceptance coverage, but no product implementation or successful verification exists; not READY.
-- `postmerge/backend`: `fab69755fd0a77dea9bfd2b6effc4d9ceb943305` — contains ERR-0001 product fix `780d25d74ce2e310b6a4bc434f547a23163e8b78` plus existing no-SQL regression harness. Exact-product Quality run `33744742408` was cancelled after a later branch commit. Current exact-worker run `33744816398` is in progress; Backend handoff remains `FIXED_PENDING_VERIFY`, not READY.
-- `postmerge/ui`: `ce959e148ddbe8f13952ca56f7d07e7a7ce1addb` — corrected the stale legacy inspector presentation test while retaining the complete contextual-visibility contract. Exact-head Quality run `33745885426` remains pending; not READY until successful completion.
+READY evidence:
 
-## READY decision
+- Product commit `177bef4dcdb4956f1df75bfcce9ee10c7a4bd1e2` changes only `src/athena/desktop/pathena_window.py` and makes Chat inspector visibility derive from truthful grounded-context state while preserving non-chat visibility.
+- Presentation-contract commit `1685221150c724deceb5d150a4d2dcff2bdd867b` changes only `tests/unit/test_pathena_ui_presentation.py` and strengthens the complete interaction contract rather than weakening assertions.
+- Exact corrected worker head `ce959e148ddbe8f13952ca56f7d07e7a7ce1addb` passed ATHENA Quality Gate `33745885426` with conclusion `success`.
+- Compare review showed current Develop changed from the worker merge base only in Integrator/progress documentation; neither product nor test target file changed on Develop. Therefore the two verified exact file blobs were safe to transplant without carrying later unverified UI-GAP-0003 work.
 
-No Worker input satisfies the full READY rule in this run.
+Integration method:
 
-- Core: acceptance tests without product implementation.
-- Backend: product fix exists, but its worker-owned handoff explicitly requires successful focused/deletion/recovery verification; exact current run is still in progress.
-- UI: corrected product/test lineage exists, but exact current Quality is still pending.
-- Error: coordination state only, no independent product fix.
+- Base Develop tree: `63742ba81ade7dfcb82eb1f60c2efcd4b11fbeb5` / tree `dcf653670d27cb54535ef5863249d9ba016d7b3d`.
+- Exact product blob from verified product commit: `src/athena/desktop/pathena_window.py@b683903cc6e6a1a99950bba168e6e314df545ca1`.
+- Exact test blob from corrected contract commit: `tests/unit/test_pathena_ui_presentation.py@171f209728831feb1ac7bb06172e30aee12973ae`.
+- Integration tree: `42f07a246bff09aa099f6b2ed36f6ad96e0ff11a`.
+- Integration commit: `93a9344d3902c920da5ff283eb51bbb1f0d815b8`.
+- `develop/pathena-next` advanced NON-FORCE to that commit. No conflict, force update, history rewrite, auto-merge or `main` mutation occurred.
 
-No force update, history rewrite, auto-merge or promotion to `main` was performed.
+## Integration bookkeeping
 
-## Cross-cutting slice this run — canonical development-state synchronization
+- `docs/development/ALPHA_BETA_PROGRESS.md` now marks contextual inspector visibility `VERIFIED` and records Backend/UI pending states accurately.
+- `docs/ui/VISUAL_GAP_LEDGER.md` now records UI-GAP-0001 and UI-GAP-0002 as `FIXED`, and UI-GAP-0003 as `FIXED_PENDING_VERIFY` / not integrated.
+- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` still contains exactly eleven slots. Screens 01 and 10 are technically implemented but remain `IMPLEMENTED_PENDING_VISUAL_REVIEW`; `MATCH=0` because original reference pixels are unavailable. Screen 08 remains `IMPLEMENTED_PENDING_VERIFY` due to UI-GAP-0003.
 
-`docs/development/ALPHA_BETA_PROGRESS.md` was updated on Develop at `6a13edd5b8d48e884d16c7d042d1fdf637af7612` so shared product tracking now matches the actual worker evidence rather than stale pre-fix state:
+## Inputs not integrated
 
-- deletion-ledger runtime boundaries / recovery cursor: `IMPLEMENTED_PENDING_VERIFY`, tied to Backend product commit `780d25d74ce2e310b6a4bc434f547a23163e8b78`; cancelled run `33744742408` is not treated as PASS and current worker-head run `33744816398` is explicitly pending;
-- contextual inspector visibility: `IMPLEMENTED_PENDING_VERIFY`, tied to corrected UI worker head `ce959e148ddbe8f13952ca56f7d07e7a7ce1addb` and pending exact-head run `33745885426`;
-- canonical post-merge error state remains `PARTIAL` until ERR-0001 is both successfully verified and integrated, then independently re-verified by the Error worker.
+### Error worker
 
-This is a cross-stream state-contract/feature-coverage correction only. It changes no product, storage, security, Qt or test semantics.
+`postmerge/errors@b7942416aef738a4063d335675493b82ca414016` contains ledger/handoff coordination only; no independently verified product fix to integrate. Its Ruff hypothesis is superseded by Backend's later exact diagnosis, but Error still owns independent post-integration re-verification once Backend lands.
 
-## Current product status
+### Core worker
 
-- Normal hybrid retrieval / RRF: `VERIFIED`.
-- Search retrieval-method provenance: `VERIFIED`.
-- Search final rank: `VERIFIED`.
-- Archive Search source-anchor provenance: `VERIFIED`.
-- Search protection-state provenance: `VERIFIED`.
-- Canonical Search API DTO + normal-Hybrid adapter: `VERIFIED`.
-- Resource policy runtime mutation boundary: `VERIFIED`.
-- Deletion-ledger runtime boundaries / recovery cursor: `IMPLEMENTED_PENDING_VERIFY` on Backend worker.
-- Grounded Chat inspector hierarchy / Evidence & Activity copy: `VERIFIED`.
-- Contextual inspector visibility: `IMPLEMENTED_PENDING_VERIFY` on UI worker.
-- Canonical post-merge error state: `PARTIAL`.
-- 11-screen UI: exactly 11 manifest slots retained; no visual MATCH claim without opened original references.
+`postmerge/spec-core@6e31cb229651faeb3cd005badbe5f878e00c40b7` is NOT READY. Normal-Hybrid Search facade/application behavior is pinned by acceptance coverage, but product implementation and successful verification are still missing. Do not integrate red acceptance-only work as a completed capability.
 
-## Next prioritized handoffs
+### Backend worker
 
-1. `postmerge/backend`: finish exact-head focused/deletion/recovery verification for ERR-0001. If current Quality succeeds and required focused evidence is present, mark candidate READY with exact SHAs; if it fails, diagnose the exact signature before resubmission.
-2. `postmerge/ui`: finish exact-head Quality for corrected contextual-inspector contract. If successful, mark UI-GAP-0002 READY; if not, hand the exact new failure signature to Error/Integrator without weakening the contract.
-3. `postmerge/spec-core`: implement the already-pinned `CoreApiFacade` + `AthenaApplication` normal-Hybrid Search attachment/delegation/capability-registration slice and verify it; Integrator must not duplicate this claimed scope.
-4. `postmerge/errors`: independently verify ERR-0001 only after integration and continue unrelated exact-Develop regression scans.
+`postmerge/backend@1cfd18c69014390380bb960b86c8e1b81a5067ac` is NOT READY yet. Product fix `780d25d74ce2e310b6a4bc434f547a23163e8b78` plus Ruff-import correction `2f705d5e0fc1c77dd60612b5aeaa16d9380e46cd` are bounded and reviewed, but the fresh exact worker Quality run `33749788522` is still in progress. Previous run `33744816398` proved validator/mypy/Windows path safety/Linux storage/local install green, exposed only Backend Ruff I001 plus an independent UI/PALLAS pytest failure. Require fresh corrected-lineage evidence before integration.
 
-## Integration rules retained
+### UI worker — UI-GAP-0003
+
+Later UI candidate `689da6c1dc2221f89825fffde947f792c7b503e7` + regression `034cb8d923d48bea708b48cac0ef0f6343511051` are NOT READY. Current UI head `76cb122dbe7b58b0fa49bbcb36de2bd732922d4d` has Quality run `33751403354` pending. Do not import this PALLAS lifecycle fix until successful evidence exists.
+
+## Product / quality state
+
+- Contextual inspector visibility / UI-GAP-0002: `VERIFIED` and integrated.
+- UI-GAP-0003 PALLAS lifecycle: `FIXED_PENDING_VERIFY`, unintegrated.
+- ERR-0001 deletion-ledger runtime boundary: `IMPLEMENTED_PENDING_VERIFY`, unintegrated.
+- ERR-0002 Backend Ruff harness defect: corrected on Backend worker, fresh verification pending.
+- Normal-Hybrid CoreApiFacade/AthenaApplication Search composition: product implementation missing; Core-owned.
+- No visual `MATCH` claim for any of the eleven reference slots; `VISUAL_REFERENCE_PENDING` remains binding.
+
+## Handoffs / next priorities
+
+1. `postmerge/backend`: consume exact result of Quality `33749788522`; if corrected deletion-boundary/Ruff lineage is green with no Backend-owned regression, mark exact commits READY.
+2. `postmerge/ui`: consume Quality `33751403354`; if green, mark UI-GAP-0003 exact candidate READY; if red, diagnose only the concrete failure.
+3. `postmerge/spec-core`: implement the already-pinned normal-Hybrid `CoreApiFacade` attachment/capability/delegation plus exact `AthenaApplication` wiring; then run focused and canonical verification.
+4. `postmerge/errors`: refresh the canonical ledger against current Develop, incorporate the confirmed Backend Ruff I001 diagnosis rather than the earlier E721 hypothesis, and independently scan the new integrated UI lineage for regressions.
+
+## Rules retained
 
 - `main` remains strictly read-only.
 - No force-push, history rewrite, auto-merge or automatic promotion to main.
-- Only baseline-compatible, independently reviewed and adequately tested worker slices are integrated.
-- A green focused/exact-product run is evidence, not an exemption from scope, ownership, provenance, security or recovery review.
-- Cancelled or pending Quality runs are never PASS evidence.
+- Worker commits are integrated only with compatible baseline, bounded scope, real verification, no weakened tests/guards, clear ownership and no confirmed regression.
+- Pending/cancelled workflow runs are never PASS evidence.
+- After every completed integration continue immediately with the next READY worker or highest unclaimed cross-cutting gap.
