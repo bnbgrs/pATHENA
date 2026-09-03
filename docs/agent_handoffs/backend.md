@@ -2,74 +2,80 @@
 
 ## Baseline
 
-- Shared baseline: `develop/pathena-next@aed609ef8a7ff4af48e15e3dba953daf35d56b5c`.
+- Shared baseline: `develop/pathena-next@eaab89bb4d7b08839517c40b622480bb1dc309f0`.
 - Worker branch: `postmerge/backend`.
-- Latest history-preserving NON-FORCE synchronization: `6b85147dfd66399fabc04e4950058291feb85fec`, with prior Backend head `40c0aff638ee485591d8373d81e0de32ec0acfe7` and current Develop as parents.
-- Develop differed from the previous Backend lineage only in `docs/agent_handoffs/integrator.md`; no Gateway/product/test conflict existed.
+- History-preserving NON-FORCE synchronization with current Develop: merge commit `b7d2f5fd6ed3e1c35fd7458f84be62341e3938af`.
 - `main@0d4d621f8a38ddf8eccfa09622bf193687619943` remains strictly read-only and untouched.
 
-## Completed backend slice — ExternalAccessGateway runtime boundaries
+## Selected backend slice
 
-Spec/product anchor: `docs/agent_backend_run_201_300.md` findings 297-298, existing fail-closed contracts in `src/athena/external/gateway.py`, and `docs/agent_handoffs/backend-external-gateway-runtime-boundaries.patch`.
+Area: durable deletion-ledger runtime boundaries / recovery cursor.
 
-Product commit `f34e2e6ffd589d7cfceb85dfbe7fcf7aea9f1be9` enforces fail-before-side-effect runtime validation:
+Spec/error anchor: `ERR-0001`, backend audit tasks 290-293, and the existing deletion/recovery invariants in `src/athena/lifecycle/deletion.py`.
 
-1. explicit authorization TTL: genuine `int`, existing `1..86400` range, bool rejected;
-2. direct-fallback TTL: genuine `int` before source-grant/actor reads; existing effective-TTL clamp retained;
-3. capture `max_bytes`: genuine `int`, existing safe range, bool rejected before authorization/audit/transport/Source effects;
-4. capture timeout: numeric but not bool, finite, existing `(0, 300]` range; NaN/Inf rejected.
+Product commit `780d25d74ce2e310b6a4bc434f547a23163e8b78` adds fail-before-SQL runtime validation for malformed entity types and bool-as-int deletion values without changing persistence or recovery semantics. Ruff-only harness correction `2f705d5e0fc1c77dd60612b5aeaa16d9380e46cd` formats the new boundary test import block; assertions and product behavior are unchanged.
 
-Focused acceptance tests were added in `5cc4ea8c6b10c43c7203269bb4ccb1dbe484a109` as `tests/unit/test_external_access_gateway_runtime_boundaries.py` and assert malformed inputs do not create authorization/audit/Source side effects or transport calls.
+## Exact verification evidence
 
-### Call-chain / invariants
+Canonical Quality run `33749788522` checked exact Backend head `1cfd18c69014390380bb960b86c8e1b81a5067ac`.
 
-`authorize_explicit -> purpose/route -> TTL boundary -> host policy -> actor -> authorization INSERT/readback`
+Backend-relevant results:
 
-`authorize_direct_fallback -> TTL boundary -> source grant -> actor/route/host -> effective TTL -> explicit Direct grant`
-
-`capture_url -> resource boundaries -> _authorized_or_audit -> privacy route -> redirect reauthorization -> transport -> response policy -> fsync staging -> transactional Source/audit/provenance finalize`
-
-Retained: no silent Tor->Direct fallback; explicit Direct approval; no loopback/private proxy leak; redirect reauthorization; HTTPS/default-port fail-closed policy; response size/compression fail-closed policy; durable audit/provenance/fsync/transaction semantics; no new retries or cryptography.
-
-## Verification — READY
-
-Canonical ATHENA Quality Gate `33790984890` is exact-SHA-bound to product head `f34e2e6ffd589d7cfceb85dfbe7fcf7aea9f1be9` and completed `success`.
-
-Verified green jobs/steps include:
-
-- Windows path safety: PASS;
-- Linux storage regressions: PASS;
-- Local install smoke / disposable Core-API restart: PASS;
 - specification validator: PASS;
 - Ruff: PASS;
 - mypy: PASS;
-- full pytest: PASS;
-- canonical result enforcement: PASS.
+- Windows path safety: PASS;
+- Linux storage regressions: PASS;
+- Local install smoke: PASS;
+- `tests/unit/test_deletion_ledger_boundaries.py`: all 22 tests PASS inside the full pytest run;
+- full pytest: `1 failed, 4489 passed, 3 skipped, 2 warnings`.
 
-Independent Integrator review had already identified the intended executable delta as exact-type/bool-safe TTL/max-bytes validation plus finite non-bool timeout validation; other product-commit changes are formatting/comment-only churn. No guard weakening or changed routing/persistence semantics is evidenced.
+The single pytest failure is exactly `tests/unit/test_pathena_pallas_full_view.py::test_open_workspace_reuses_one_synchronized_full_surface`, raising `AttributeError` in `MessageActionTabOrderController.eventFilter()` because `document` is transiently absent. This is the already UI-owned PALLAS lifecycle defect (`UI-GAP-0003`), not a deletion-ledger/backend failure. No new Backend-owned pytest failure appears in the exact log.
 
-## Integrator handoff
+UI independently corrected that exact lifecycle root cause and canonical Quality run `33751403354` on UI head `76cb122dbe7b58b0fa49bbcb36de2bd732922d4d` completed SUCCESS. Backend does not absorb or modify the UI fix.
 
-READY product lineage:
+## Product call-chain and invariants
 
-`synchronization 8997b1edbcaf565d4eda5b6879c0596c452091d9 -> focused tests 5cc4ea8c6b10c43c7203269bb4ccb1dbe484a109 -> product f34e2e6ffd589d7cfceb85dfbe7fcf7aea9f1be9`
+`record_deletion(runtime input) -> exact runtime validation -> UUID materialization -> existing-marker SELECT -> identity reconciliation -> INSERT/readback`.
 
-Current Backend synchronization `6b85147dfd66399fabc04e4950058291feb85fec` additionally incorporates current Develop documentation without altering Gateway product/test blobs.
+`read_deletion_records(after_seq) -> exact runtime validation -> ordered ledger SELECT`.
 
-Integrator may now integrate the bounded Gateway product/test lineage into `develop/pathena-next`; never `main`.
+Retained invariants:
 
-## Next backend slice — selected
+- malformed values fail before SQL;
+- bool is not accepted as deletion timestamp, commit sequence or cursor;
+- `deleted_at_us=0` and `after_seq=0` remain valid;
+- deletion commit sequence remains a positive genuine integer;
+- marker idempotency/reconciliation, restore replay, transaction boundaries, ordering, identity-conflict behavior, schema and persistence representation are unchanged;
+- no Security, TOR, Provider, UI or platform-path semantics changed.
 
-Next highest residual Gateway findings are `docs/agent_backend_run_201_300.md` tasks 295-296:
+## Verification / readiness state
 
-- `authorize_explicit(... purpose)` currently calls `.strip()` without first requiring runtime text;
-- `allowed_hosts: Sequence[str]` can receive malformed shapes such as a naked string and then iterate characters; elements also need explicit runtime text validation before `_normalize_host()`.
+- `ERR-0002` Ruff I001: FIXED and verified by canonical Ruff PASS in run `33749788522`.
+- `ERR-0001` Backend candidate: BACKEND_VERIFIED / INTEGRATOR_READY. Its focused boundary suite passes in the full canonical pytest execution, and every Backend/system canonical job is green. The only global failure is the independently owned UI/PALLAS lifecycle signature above.
+- Error worker should independently re-verify `ERR-0001` after integration before changing the canonical Error Ledger state to `FIXED`.
 
-Planned contract: reject malformed purpose/host-container/host-element values before actor creation or durable authorization side effects while retaining existing normalized-host, local/private rejection, route, TTL and persistence behavior. Focused tests must prove fail-before-authorization-row and preserve valid tuple/list host inputs. This is the next Backend-owned slice unless a newer higher-severity current-lineage defect appears.
+## Failure / recovery impact
+
+The product mutation is fail-before-SQL and side-effect reducing. No ledger rows, schema, transaction semantics, ordering, marker identity, restore replay, crash/restart behavior or recovery format changed. Invalid boundary inputs now terminate before any SQL operation.
+
+## Platform impact
+
+Platform-neutral Python runtime-boundary hardening only. Windows path safety, Linux storage regression and local-install smoke jobs are all green on the exact Backend lineage.
 
 ## Coordination
 
-- Error worker owns current UI-related Ruff/error-ledger work; no overlap.
-- Core owns normal-Hybrid facade/application composition and CHAT/KNOWLEDGE/RESEARCH/PALLAS semantics.
-- UI owns Qt/11-screen work.
-- Backend next touches only ExternalAccessGateway runtime input boundaries unless superseded by higher-priority evidence.
+- `postmerge/errors`: exact pytest evidence gap is now closed; `ERR-0001` may be treated as Backend-verified, with final canonical Ledger closure after integration/reverification.
+- `postmerge/ui`: owns `UI-GAP-0003`; its exact corrective lineage is now canonical green. Backend must not modify this UI root cause.
+- `postmerge/spec-core`: normal-Hybrid Search facade/application wiring remains Core-owned and non-overlapping.
+- `develop/pathena-next`: integration target only; Backend never self-integrates.
+
+## Integrator handoff
+
+READY for independent Integrator review/integration: product `780d25d74ce2e310b6a4bc434f547a23163e8b78` plus test/Ruff correction `2f705d5e0fc1c77dd60612b5aeaa16d9380e46cd`, carried on the history-preserving current-Develop Backend lineage beginning at merge `b7d2f5fd6ed3e1c35fd7458f84be62341e3938af`.
+
+The global red result of run `33749788522` must not be attributed to this Backend slice: its sole failure is the exact independently verified UI/PALLAS defect described above.
+
+## Next backend slice
+
+Select the highest currently unclaimed Backend/System P0/P1/P2 gap from current Alpha/Beta progress, Error Ledger and worker handoffs after excluding Core-owned normal-Hybrid Search and UI-owned PALLAS lifecycle work. Preserve deletion-ledger ownership only until Integrator imports the verified slice; do not broaden this root cause further.
