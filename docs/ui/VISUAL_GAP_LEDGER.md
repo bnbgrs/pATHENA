@@ -54,6 +54,17 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Integrator-ready product/harness lineage: bounded UI-GAP-0004 changes through final harness commit `a5d9530525bd0b6bf0eae3945c23a6805f6b9669`; temporary validation-workflow commits are not part of the retained product/test tree.
 - Acceptance: no backend, transport, persistence, security, capability, focus, availability or product-state semantics changed; technical Core state remains represented internally and may remain visible in System diagnostics.
 
+## UI-GAP-0005 — Required desktop system-tray surface is absent from the current Develop tree
+
+- Category: `CONTROL`
+- Screen: `06 — System` / desktop shell lifecycle adjunct; no screenshot-level geometry is inferred.
+- Severity: `P1`.
+- Spec evidence: `docs/alpha/16_Desktop_Anwendung_und_Benutzeroberflaeche.md` requires a persistent desktop tray icon, background-active behavior when the main window is minimized, and tray access to open pATHENA, load/unload the primary model, toggle Internet, pause background tasks, inspect system status and quit.
+- Code evidence: recursive path inspection of current Develop tree `3c96aa4788f3de35a4e505489e73366dea8a2d6f` contains no tray-named implementation path, and exact repository search for `QSystemTrayIcon` returned no implementation result.
+- Status: `MISSING`.
+- Next action: trace the real desktop bootstrap/application lifetime plus existing model, Internet, jobs-pause and shutdown command paths before adding any visible tray action. Do not invent backend commands; implement only controls that map to existing real operations, and represent unsupported spec actions explicitly rather than faking success.
+- Acceptance target: one `QSystemTrayIcon` lifecycle owned by the desktop application; minimizing/closing behavior remains explicit and testable; tray actions delegate to existing real command/service paths; no duplicate business logic; shutdown remains orderly; focused Qt tests cover menu action wiring and lifecycle semantics.
+
 ## Evidence blocker
 
 `VISUAL_REFERENCE_PENDING`: until an original reference image and a real rendered current build can both be opened and inspected, spacing, exact proportions, pixel colors and screenshot-level `MATCH` claims remain prohibited.
