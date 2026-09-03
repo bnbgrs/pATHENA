@@ -2,66 +2,84 @@
 
 ## Current slice
 
-- Baseline: `develop/pathena-next@0a0953e34f6da2a9e47119d00da29662397944e8`
+- Baseline: `develop/pathena-next@e76b4cb2cca1612fe68b1ddd66554213352d32a9`
 - Worker branch: `postmerge/spec-core`
-- Product commit: `52e73e2a86afc3190a3695ebf9b3b5da341eb870`
-- Focused-test commit: `e90306776b32cdfa0b6b0227b490845279870792`
+- NON-FORCE sync: worker fast-forwarded from `3a5dfffaea7b3a1bc3e0f376e2edac6cf1a8dc5c` to the current develop baseline before mutation.
+- Product commit: `3a29225a4d79fac558f2b0d7c7757471daa34aaf`
+- Focused-test commit: `9ee3c3c21ea6629b6ca203a73b56de221ccca871`
 - Status: `IMPLEMENTED_PENDING_VERIFY`
 
 ## Spec anchor
 
-`docs/beta/10_Retrieval_und_Suche.md` §34 requires retrieval candidates to retain source/chunk provenance, and §52 requires Search Responses to include a source anchor. Archive lexical search already exposed `stable_anchor_key` from a verified SourceChunk. Semantic and hybrid archive results carry the same verified `representation_id`, start/end offsets, and SHA-256 content hash but had no shared Search Response adapter for that provenance.
+`docs/beta/10_Retrieval_und_Suche.md` §5 requires a protection context in SearchRequest, §8 requires Protection Scope filtering before final ranking where possible, §19 keeps protected embeddings out of normal persistent HNSW state, §52 requires `protection state` in every Search Response, and §§59-61 require authorization-first protected retrieval, no metadata leak while locked, and Protection Labels to survive mixed ranking into the Context Builder.
 
-`src/athena/source/anchor_service.py` establishes the canonical durable text SourceAnchor materialization contract: representation id + start/end offsets + quoted SHA-256 hash. Search must not invent an anchor id or mutate canonical state merely to format a response.
+The current code establishes two authoritative result classes:
+
+- `LocalSearchService` and `LocalSemanticSearchService` are unprotected retrieval pipelines. Local FTS explicitly excludes protected payloads; semantic results are joined back through that unprotected FTS projection.
+- `ProtectedRuntimeSourceSearchService` returns `ProtectedRuntimeSearchResult` only from authorized unlocked scopes and each result carries its actual `protection_scope_id`.
+
+This slice therefore labels only facts already established by those pipelines. It does not infer current unlock state and does not expose protected metadata for results that were never authorized/returned.
 
 ## Implemented product contract
 
-Added `SearchSourceAnchorRef` and `source_anchor_ref()` in `src/athena/retrieval/source_anchor.py`.
+Added `src/athena/retrieval/protection.py` with:
 
-- The adapter projects only existing verified archive-result inputs: `representation_id`, `start_anchor_value`, `end_anchor_value`, `content_hash`.
-- It produces the exact representation/range/hash tuple required to materialize a durable text SourceAnchor later.
-- It does not create a SourceAnchor row, actor, commit, or other canonical mutation during search.
-- It rejects booleans/non-integer offsets, negative/empty ranges, non-bytes hashes, and non-SHA-256-length digests.
-- It does not synthesize a SourceAnchor UUID.
+- `SearchProtectionState.UNPROTECTED` and `.PROTECTED`;
+- immutable `SearchProtectionRef(state, protection_scope_id)`;
+- `unprotected_search_protection_ref()` for the explicitly unprotected retrieval paths;
+- `protected_search_protection_ref(result)` which preserves the authorized result's real ProtectionScope UUID.
 
-This is an additive provenance adapter rather than a replacement storage architecture.
+Invariants:
+
+- unprotected labels cannot carry a scope id;
+- protected labels must carry an actual UUID scope id;
+- `protected` is a classification, not a claim that the scope remains unlocked later;
+- no plaintext, hash, title, score, unlock flag, durable row, actor, commit, or synthetic scope is created;
+- a malformed protected result fails closed rather than degrading to an unprotected label.
+
+This is an additive Search Response value contract. It does not yet merge protected and unprotected ranking pipelines or alter authorization behavior.
 
 ## Files
 
-- `src/athena/retrieval/source_anchor.py`
-- `tests/unit/test_search_source_anchor_ref.py`
+- `src/athena/retrieval/protection.py`
+- `tests/unit/test_search_protection_ref.py`
 - `docs/agent_handoffs/spec-core.md`
 
 ## Focused verification contract
 
-Added focused unit coverage proving that:
+Focused tests cover:
 
-- verified archive anchor inputs project unchanged into the Search source-anchor reference;
-- `stable_key` preserves `(representation_id, start_offset, end_offset, quoted_hash)` exactly;
-- malformed materialization inputs fail closed.
+- unprotected label contains no scope metadata;
+- protected adapter preserves the exact authorized `protection_scope_id`;
+- inconsistent unprotected+scope state is rejected;
+- protected labels reject missing/non-UUID scope values;
+- malformed protected result adapters fail closed.
 
-Runtime result is pending canonical verification. No PASS is claimed until exact-head CI succeeds.
+Runtime/CI result is pending exact-head verification. No PASS is claimed until the worker head is verified.
 
 ## Safety / compatibility
 
-- No search ranking or candidate-selection change.
-- No storage/persistence/recovery mutation.
-- No SourceAnchor creation during read-only search.
-- No protected-content widening.
-- No network/provider/UI mutation.
-- No Skip/XFail/assertion weakening.
+- No search ranking, selection, candidate visibility, FTS, HNSW, persistence, recovery, network/provider, or UI behavior changed.
+- No Protected Source plaintext or derived hashes are persisted.
+- No locked-scope metadata is surfaced.
+- No Skip/XFail/assertion/security/storage guard weakening.
+- `ERR-0001` deletion-ledger files remain owned by Backend and untouched.
 
 ## Coordination
 
-- Error worker: no current confirmed `ERR-*` ownership collision on the reviewed develop handoff.
+- Error worker: latest handoff records `ERR-0001` blocked from error-worker mutation because Backend owns deletion-ledger tasks 290-293; no overlap here.
 - Backend worker: no overlap with ResourceMode or deletion-ledger files.
-- UI worker: may consume this value only after integration; do not invent anchor UUIDs or source provenance in the UI.
-- Integrator: integrate only after exact-head focused/canonical verification succeeds and independent diff review confirms the adapter remains additive.
+- UI worker: may eventually display this real label after integration/wiring; must not infer unlock state or fabricate scope ids.
+- Integrator: review the two additive commits and integrate only after exact-head verification succeeds.
 
-## Remaining source-anchor gap
+## Previous completed source-anchor slice
 
-This slice establishes the deterministic Search Response provenance value for archive results, but does not yet wire it into a broader serialized Search API response object because no single canonical cross-domain response DTO has been identified on the current code path. That wiring should be a separate small slice once the actual response boundary is traced.
+Archive Search source-anchor provenance was integrated into `develop/pathena-next` and is tracked there as verified. No further mutation to that slice was made in this run.
+
+## Remaining Search Response gap
+
+Beta §52 still lacks one canonical serialized response DTO joining rank, retrieval methods, source anchor and protection label across the actual domain-specific result types. Do not create a parallel response architecture. Trace the existing API/controller boundary and wire these verified value adapters into that real boundary as a separate slice.
 
 ## Next Alpha/Beta gap
 
-Trace `protection state` against the authoritative visibility/protection contracts next. Current unprotected LocalSearch and ArchiveSearch paths explicitly exclude protected payloads/scopes, but do not synthesize a constant label until the response boundary and protected-search merge path are identified.
+Trace the actual Search API/controller/serialization call chain. Highest safe next step is a small cross-domain response adapter only if an existing boundary is found. Protected/unprotected mixed ranking itself remains a separate larger capability and must preserve §§59-61 authorization/no-leak invariants.
