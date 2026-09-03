@@ -8,7 +8,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 pytest.importorskip("PySide6")
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QEvent, Qt
 from PySide6.QtWidgets import QApplication, QLineEdit, QPushButton, QVBoxLayout, QWidget
 
 from athena.desktop.pathena_message_action_tab_order import (
@@ -119,6 +119,16 @@ def test_new_message_is_included_after_resync() -> None:
     controller.sync()
 
     assert window.property("pathenaMessageTabOrderCount") == 6
+
+
+def test_event_filter_tolerates_transient_missing_document_binding() -> None:
+    window, document, _composer = _surface()
+    controller = MessageActionTabOrderController(window)
+    del controller.document
+
+    handled = controller.eventFilter(document, QEvent(QEvent.Type.ChildAdded))
+
+    assert handled is False
 
 
 def test_visual_flow_includes_operation_failure_copy_between_messages() -> None:
