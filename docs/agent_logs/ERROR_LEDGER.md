@@ -14,26 +14,26 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 ## Current baseline
 
 - Baseline branch: `develop/pathena-next`
-- Baseline SHA: `eaab89bb4d7b08839517c40b622480bb1dc309f0`
+- Baseline SHA: `58dbd4d80bc61c4cc8e9cd6d61adaa5b311ea4c3`
 - Stable read-only parent: `main` at `0d4d621f8a38ddf8eccfa09622bf193687619943`
 - Worker branch: `postmerge/errors`
-- Error worker synchronized history-preservingly and NON-FORCE with current Develop via merge commit `e01971082f9f04331f1305b097af2e5a23580603`.
+- Exact current Develop has no associated workflow run or commit-status result, so no synthetic whole-Develop Quality PASS is claimed.
 
 ## Current error state
 
-- OPEN: none assigned to error-worker product mutation.
+- OPEN: none confirmed on the current baseline.
 - IN_PROGRESS: none.
-- FIXED: `ERR-0002` Ruff I001 regression is verified fixed on the corrected Backend lineage.
-- BLOCKED: `ERR-0001` remains Backend-owned pending diagnosis of the remaining corrected-lineage pytest failure and integration.
+- FIXED: `ERR-0001`, `ERR-0002`.
+- BLOCKED: none.
 
 ## Current scan
 
-- Exact current Develop `eaab89bb4d7b08839517c40b622480bb1dc309f0` has no associated workflow run or commit statuses, so no exact-Develop Quality PASS is claimed.
-- Backend worker head `1cfd18c69014390380bb960b86c8e1b81a5067ac` contains ERR-0001 product fix `780d25d74ce2e310b6a4bc434f547a23163e8b78` plus Ruff harness correction `2f705d5e0fc1c77dd60612b5aeaa16d9380e46cd`.
-- Canonical Backend Quality run `33749788522` on exact head `1cfd18c69014390380bb960b86c8e1b81a5067ac` completed FAILURE: specification validator PASS, Ruff PASS, mypy PASS, Windows path safety PASS, Linux storage regressions PASS and Local install smoke PASS; `Quality — pytest` failed.
-- The run published diagnostics artifact `canonical-quality-diagnostics-1cfd18c69014390380bb960b86c8e1b81a5067ac` (artifact id `9892378143`). The connector exposes artifact metadata but not its zipped diagnostic contents in this run, so the exact current pytest signature is not claimed.
-- The previous Backend run had exactly one UI/PALLAS `MessageActionTabOrderController.document` pytest failure and Backend handed it to UI. Until the new artifact is read, the current pytest failure is not assigned a new ERR ID or assumed identical.
-- The prior ERR-0002 hypothesis against direct `type(...)` comparisons is retired. Confirmed root cause was Ruff `I001` in the import block of `tests/unit/test_deletion_ledger_boundaries.py`, fixed by `2f705d5e0fc1c77dd60612b5aeaa16d9380e46cd` and verified by canonical Ruff PASS on the corrected exact head.
+- Integrator fast-forwarded the verified Backend lineage containing deletion-ledger fix `780d25d74ce2e310b6a4bc434f547a23163e8b78` and Ruff-only test correction `2f705d5e0fc1c77dd60612b5aeaa16d9380e46cd` into Develop, then integrated the independent UI/PALLAS lifecycle repair.
+- On current Develop, `src/athena/lifecycle/deletion.py` has blob `b37897f385e216508314d9cbdc44610d569df331`, identical to current Backend; `tests/unit/test_deletion_ledger_boundaries.py` has blob `1c5ff46c623f9bb57fca2bd7613e1efee9ea3aec`, also identical to current Backend.
+- Canonical Backend run `33749788522` exercised this exact deletion product/test content: all 22 deletion-boundary tests passed; specification validator, Ruff, mypy, Windows path safety, Linux storage regressions and Local install smoke passed. Its sole full-pytest failure was independently diagnosed as UI/PALLAS `MessageActionTabOrderController.document`, not deletion/storage.
+- The UI-owned PALLAS defect was subsequently fixed and exact UI head `76cb122dbe7b58b0fa49bbcb36de2bd732922d4d` passed canonical Quality run `33751403354`; the bounded fix was then integrated into Develop.
+- Backend head `a4768d9b0ea57a1161c93f603a5101c28b555276` currently has canonical run `33755878184` still in progress; pending/in-progress evidence is not treated as PASS or FAIL.
+- No new current-lineage error signature is evidenced in this run.
 
 ## Entries
 
@@ -41,44 +41,46 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 
 - first_seen: 2026-09-03
 - last_seen: 2026-09-03
-- checked_sha: `eaab89bb4d7b08839517c40b622480bb1dc309f0` baseline; candidate on Backend head `1cfd18c69014390380bb960b86c8e1b81a5067ac`
+- checked_sha: `58dbd4d80bc61c4cc8e9cd6d61adaa5b311ea4c3`
 - severity: P2
 - area: Storage / Persistence / Deletion Ledger / Recovery boundary
-- status: `BLOCKED`
+- status: `FIXED`
 - exact evidence:
-  - Current Develop does not yet contain Backend product fix `780d25d74ce2e310b6a4bc434f547a23163e8b78`.
-  - The candidate adds fail-before-SQL runtime type/range guards for deletion-ledger mutation and cursor boundaries.
-  - Corrected-lineage run `33749788522` passed all non-pytest canonical checks and platform/storage smoke jobs, but full pytest failed with exact signature still unavailable from connector-readable metadata.
-- reproducible path:
-  1. On baseline without the candidate fix, malformed `entity_type` can reach `.strip()` before intended boundary validation.
-  2. Bool values can cross integer timestamp/commit-sequence/cursor boundaries because `bool` is an `int` subclass.
+  - Product fix `780d25d74ce2e310b6a4bc434f547a23163e8b78` is integrated into current Develop.
+  - Current Develop deletion product blob `b37897f385e216508314d9cbdc44610d569df331` is identical to the verified Backend blob.
+  - Current Develop boundary-test blob `1c5ff46c623f9bb57fca2bd7613e1efee9ea3aec` is identical to the verified Backend blob.
+  - Canonical Backend run `33749788522` passed all 22 deletion-boundary tests plus validator, Ruff, mypy, Windows path safety, Linux storage and local-install smoke on this exact product/test content.
+  - That run's only full-pytest failure was independently identified as UI/PALLAS and later fixed/verifiably green on UI canonical run `33751403354` before bounded integration into Develop.
+- reproducible path before fix:
+  1. Malformed `entity_type` could reach `.strip()` before intended boundary validation.
+  2. Bool values could cross integer timestamp/commit-sequence/cursor boundaries because `bool` is an `int` subclass.
 - primary root cause: durable deletion-ledger APIs relied on annotations/relational comparisons instead of explicit bool-safe runtime validation before SQL access.
-- affected files: `src/athena/lifecycle/deletion.py`; `tests/unit/test_deletion_ledger_boundaries.py`; existing deletion-ledger/lifecycle recovery regressions.
-- fix_commit: Backend candidate `780d25d74ce2e310b6a4bc434f547a23163e8b78`, not integrated.
-- verification executed: candidate diff and Backend handoff reviewed; corrected exact-head canonical run `33749788522` inspected to completion.
-- remaining risks: current exact-head pytest failure must be diagnosed before candidate integration readiness can be claimed; candidate remains absent from Develop; post-integration independent verification remains required.
-- integrator handoff: do not integrate until the exact pytest failure from `33749788522` is retrieved and shown unrelated to Backend candidate or corrected safely by its owning worker.
-- blocked reason: active ownership collision avoidance with `postmerge/backend`.
+- affected files: `src/athena/lifecycle/deletion.py`; `tests/unit/test_deletion_ledger_boundaries.py`.
+- fix_commit: `780d25d74ce2e310b6a4bc434f547a23163e8b78`; harness correction `2f705d5e0fc1c77dd60612b5aeaa16d9380e46cd`.
+- verification executed: 22 focused boundary tests PASS in canonical Backend run `33749788522`; validator/Ruff/mypy/Windows/Linux-storage/local-install checks PASS; current-Develop product and test blobs independently compared and confirmed identical to the verified lineage; unrelated UI-only pytest failure separately fixed and canonical-green before integration.
+- remaining risks: no exact whole-Develop Quality run exists yet for `58dbd4d...`; this does not reopen ERR-0001 absent recurrence, but the next scan must consume any new current-Develop/worker Quality evidence.
+- integrator handoff: no further ERR-0001 fix integration required; keep closed unless the same runtime-boundary signature recurs on a newer checked SHA.
 
 ### ERR-0002 — Backend deletion-boundary test import block failed canonical Ruff I001
 
 - first_seen: 2026-09-03
 - last_seen: 2026-09-03
-- checked_sha: `1cfd18c69014390380bb960b86c8e1b81a5067ac`
+- checked_sha: `58dbd4d80bc61c4cc8e9cd6d61adaa5b311ea4c3`
 - severity: P2
 - area: Quality / Python lint / Storage boundary test harness
 - status: `FIXED`
 - exact evidence:
   - Previous canonical run `33744816398` failed `Quality — Ruff` because `tests/unit/test_deletion_ledger_boundaries.py` had Ruff `I001` for an unformatted import block.
-  - Backend correction `2f705d5e0fc1c77dd60612b5aeaa16d9380e46cd` changes import formatting only; assertions and product semantics are unchanged.
-  - Corrected exact-head canonical run `33749788522` reports `Quality — Ruff` = SUCCESS on Backend head `1cfd18c69014390380bb960b86c8e1b81a5067ac`.
-- reproducible path: canonical Ruff on the previous Backend lineage reproduced I001; the same canonical Ruff step passes on the corrected exact head.
-- primary root cause: import ordering/formatting defect in `tests/unit/test_deletion_ledger_boundaries.py`; not the product `type(...)` runtime guards.
+  - Correction `2f705d5e0fc1c77dd60612b5aeaa16d9380e46cd` changes import formatting only; assertions and product semantics are unchanged.
+  - Corrected canonical run `33749788522` reports Ruff PASS.
+  - Current Develop test blob `1c5ff46c623f9bb57fca2bd7613e1efee9ea3aec` is identical to the corrected verified Backend blob.
+- reproducible path: canonical Ruff on the previous Backend lineage reproduced I001; corrected lineage passes canonical Ruff.
+- primary root cause: import ordering/formatting defect in `tests/unit/test_deletion_ledger_boundaries.py`.
 - affected files: `tests/unit/test_deletion_ledger_boundaries.py` only.
 - fix_commit: `2f705d5e0fc1c77dd60612b5aeaa16d9380e46cd`.
-- verification executed: canonical `Quality — Ruff` PASS in run `33749788522` on exact corrected Backend head.
-- remaining risks: none for ERR-0002 itself. The separate pytest failure blocks overall Backend-lineage readiness but does not reopen this Ruff signature.
-- integrator handoff: ERR-0002 no longer blocks integration by itself; use the corrected Backend lineage and resolve/classify the separate pytest failure first.
+- verification executed: canonical Ruff PASS in run `33749788522`; current Develop contains the identical corrected test blob.
+- remaining risks: none for this signature.
+- integrator handoff: no action required unless Ruff I001 recurs on a newer checked SHA.
 
 ## Historical/stale evidence
 
