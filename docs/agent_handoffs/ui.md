@@ -2,20 +2,17 @@
 
 ## Current baseline
 
-- Base: `develop/pathena-next@7c4c8bb52d8e6df819d4a5ff44bbf6442b529d23`.
+- Base: `develop/pathena-next@63742ba81ade7dfcb82eb1f60c2efcd4b11fbeb5`.
 - Worker: `postmerge/ui`.
-- Worker synchronization: history-preserving NON-FORCE merge `b617f49fa1c372b1532d5a87df66814b61525b3c` with current Develop. Develop-only Integrator/progress documentation and all UI-owned files were preserved; no backend/storage/security semantics changed.
-- UI product commit: `177bef4dcdb4956f1df75bfcce9ee10c7a4bd1e2`.
-- Original focused-test commit: `ff14f8fbe9c99e043521605c1ae790f20e807ae2`.
-- Corrected legacy presentation-contract commit: `1685221150c724deceb5d150a4d2dcff2bdd867b`.
+- Worker synchronization: history-preserving NON-FORCE merge `b89cf1dcf9046444d1df218569e2b84b8d4dc93f` with current Develop. Develop-only Integrator/progress documentation and all UI-owned files were preserved; no backend/storage/security semantics changed.
 - Draft verification PR: #53, base `develop/pathena-next`, no auto-merge.
-- Original eleven reference images: `VISUAL_REFERENCE_PENDING`; likely pATHENA assets are discoverable but the image payloads remain unavailable for actual visual opening, so no pixel-level parity or `MATCH` claim is made.
+- Original eleven reference images: `VISUAL_REFERENCE_PENDING`; likely pATHENA assets remain discoverable but the image payloads are unavailable for actual visual opening, so no pixel-level parity or `MATCH` claim is made.
 
-## Current slice — UI-GAP-0002
+## Closed slice — UI-GAP-0002
 
 Screen targets: 01 Workspace/Chat and 10 Grounded Chat/Evidence & Activity.
 
-The presentation contract remains:
+The verified interaction contract is:
 
 - Chat + no grounded context: inspector hidden.
 - Chat + grounded-context availability: inspector visible.
@@ -23,32 +20,54 @@ The presentation contract remains:
 - Returning to Chat re-evaluates the same real context state.
 - `_set_context_available()` remains the existing state transition used by new/loaded/plain/grounded chat paths; no controller, provenance, storage, security or backend semantics changed.
 
-## Root cause and correction
+Product commit `177bef4dcdb4956f1df75bfcce9ee10c7a4bd1e2`; corrected legacy presentation-contract commit `1685221150c724deceb5d150a4d2dcff2bdd867b`. Exact corrected UI head `ce959e148ddbe8f13952ca56f7d07e7a7ce1addb` passed ATHENA Quality Gate `33745885426`. UI-GAP-0002 is therefore technically `FIXED`; visual parity remains `VISUAL_REFERENCE_PENDING`.
 
-Prior exact product/test head `ff14f8fbe9c99e043521605c1ae790f20e807ae2` failed ATHENA Quality Gate `33729667950` with one canonical pytest failure: `tests/unit/test_pathena_ui_presentation.py::test_pathena_secondary_context_is_grounded_only_and_user_controlled`. The legacy test still required the initial ungrounded Chat inspector to be visible, directly conflicting with the focused UI-GAP-0002 contract and the intended contextual product behavior.
+## Current slice — UI-GAP-0003
 
-Commit `1685221150c724deceb5d150a4d2dcff2bdd867b` corrects only that stale presentation contract. Coverage was strengthened rather than weakened: it now asserts initial ungrounded Chat hidden, grounded context visible, context-clear hidden, non-chat visible, and return-to-ungrounded Chat hidden. Product code was not changed in this correction.
+Screen target: 08 PALLAS.
+
+Canonical Quality run `33744816398` on Backend candidate `fab69755fd0a77dea9bfd2b6effc4d9ceb943305` exposed one independent UI/PALLAS pytest failure while opening the synchronized full workspace:
+
+`tests/unit/test_pathena_pallas_full_view.py::test_open_workspace_reuses_one_synchronized_full_surface`
+
+The exact failure path is `install_pallas_full_view()` → PALLAS viewport/widget lifecycle churn → `MessageActionTabOrderController.eventFilter()` → direct access to a missing `document` attribute. Qt can deliver child events while a parent-owned QObject is being constructed or torn down; raising from that event filter can abort an otherwise valid PALLAS full-view transition.
+
+### Fix
+
+- Product commit: `689da6c1dc2221f89825fffde947f792c7b503e7`.
+- Focused regression-test commit: `034cb8d923d48bea708b48cac0ef0f6343511051`.
+- `eventFilter()` now reads the document binding with `getattr(self, "document", None)` and treats a transiently missing binding as an unhandled/no-op lifecycle state.
+- Existing ChildAdded resynchronization, message action order, disabled-state preservation and composer return target are unchanged.
+- Regression coverage explicitly removes the Python-side binding and verifies that a ChildAdded callback returns `False` instead of raising.
 
 ## Verification state
 
-ATHENA Quality Gate `33745779210` is pending for exact corrected product/test head `1685221150c724deceb5d150a4d2dcff2bdd867b`. No PASS claim is made until that run completes successfully.
+`UI-GAP-0003 = FIXED_PENDING_VERIFY`.
+
+The local execution environment could not resolve `github.com`, so the current branch could not be cloned for local pytest execution and no local PASS is claimed. At the time of handoff update, no exact-head workflow run existed yet for product/test SHA `034cb8d923d48bea708b48cac0ef0f6343511051`. Canonical/focused evidence is therefore still required before Integrator readiness.
+
+The Backend run that discovered this issue had 4489 passing tests, with this single PALLAS pytest failure; its separate Ruff I001 failure is Backend-owned and unrelated to this UI fix.
 
 ## Active UI gaps
 
 ### UI-GAP-0001 — Inspector hierarchy/copy
 
-Status: `FIXED`. Product/test lineage `1f0fd548431be122d13a403fe9e2387087edf8fa` + `d85d2a2e144abc9d3ef1008b80f74114c7fafe23`; exact prior worker Quality `33720745475=success`; lineage already integrated into Develop.
+Status: `FIXED`. Exact prior worker Quality `33720745475=success`; lineage already integrated into Develop.
 
 ### UI-GAP-0002 — Contextual inspector behavior
 
-Status: `FIXED_PENDING_VERIFY`, P1. Product `177bef4dcdb4956f1df75bfcce9ee10c7a4bd1e2`; corrected presentation test `1685221150c724deceb5d150a4d2dcff2bdd867b`; exact corrected-head Quality `33745779210=pending`.
+Status: `FIXED`. Exact corrected UI head `ce959e148ddbe8f13952ca56f7d07e7a7ce1addb`; Quality `33745885426=success`.
+
+### UI-GAP-0003 — PALLAS full-view / message-tab-order lifecycle safety
+
+Status: `FIXED_PENDING_VERIFY`, P1. Product `689da6c1dc2221f89825fffde947f792c7b503e7`; focused regression coverage `034cb8d923d48bea708b48cac0ef0f6343511051`.
 
 ## Collision / ownership guidance
 
-- UI owns inspector presentation/visibility state on `postmerge/ui`.
-- Core/Backend should not implement alternate inspector widgets or mutate this presentation state.
+- UI owns `src/athena/desktop/pathena_message_action_tab_order.py` and this PALLAS-triggered Qt lifecycle root cause until verification completes.
+- Core/Backend should not implement a parallel workaround in PALLAS, storage or service layers.
 - Backend/storage/security semantics remain untouched.
-- Error worker does not need to patch this UI root cause; the stale test contract is now corrected on the UI branch.
+- Error worker may track the CI signature but should not parallel-mutate this root cause while UI verification is pending.
 
 ## Visual evidence
 
@@ -56,8 +75,10 @@ Status: `FIXED_PENDING_VERIFY`, P1. Product `177bef4dcdb4956f1df75bfcce9ee10c7a4
 
 ## Integrator handoff
 
-DO NOT integrate UI-GAP-0002 yet. Candidate exact product/test head is `1685221150c724deceb5d150a4d2dcff2bdd867b`; integrate only if Quality `33745779210` completes successfully and the UI diff remains bounded to the intended presentation contract. Documentation-only commits after that candidate do not change product/test semantics.
+- UI-GAP-0002 is technically verified and integration-compatible from its exact successful lineage, subject to normal Integrator diff review.
+- DO NOT mark UI-GAP-0003 ready yet. Its product/test candidate is `034cb8d923d48bea708b48cac0ef0f6343511051`; require focused/canonical successful evidence on the corrected lineage first.
+- Do not treat the independent Backend Ruff I001 from run `33744816398` as a UI regression.
 
 ## Next UI gap
 
-First consume exact result of Quality `33745779210`. If green, mark UI-GAP-0002 verified/integrator-ready and select the next highest evidence-backed P1/P2 gap from the 11-screen ledger. If red, diagnose only the exact failing signature. Visual work remains constrained to versioned evidence while the original image payloads are unavailable.
+First consume verification for UI-GAP-0003. If green, mark it `FIXED`/Integrator-ready and continue to the next highest evidence-backed P1/P2 interaction/accessibility/visual gap. If red, diagnose only the concrete new signature. Visual work remains constrained to versioned evidence while original screenshot payloads are unavailable.
