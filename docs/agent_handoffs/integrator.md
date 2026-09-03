@@ -3,63 +3,67 @@
 ## Current branch state
 
 - `main` (strict read-only): `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `a728668f046bf0d8b66724bb8004a1767bd5589f`.
+- Develop before this run: `647ea036329280378a7e573aca0df905f48ac3b1`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `1afe9c2db228a3435797a9157023c072b4574a38`; spec-core `7a886fe7d4335210ffb831dc56dc9dabfb220e91`; backend `ba5014a2994369034d45899896174cebfcc83b15`; ui `1ffd2fbc063c1836cdc2dd9504ce297807e5745a`.
+- Worker heads reviewed this run: errors `1afe9c2db228a3435797a9157023c072b4574a38`; spec-core `7a886fe7d4335210ffb831dc56dc9dabfb220e91`; backend `ba5014a2994369034d45899896174cebfcc83b15`; ui `f5fee92c23491ca0b1ec65ad1eba4442314984eb`.
 
-## Validation carried forward
+## Integrated this run
 
-Combined Core normal-Hybrid + Backend Gateway runtime-boundary Develop tree was independently validated by canonical Quality run `33799110483`, conclusion `success`, on validation commit `b46472e34cbab3bb3659d546aeabd6cab9240a7e` whose PR base is exact prior Develop `a728668f046bf0d8b66724bb8004a1767bd5589f`. This closes the prior combined-validation pending state without changing main.
+### UI-GAP-0004 — startup/readiness foreground copy
 
-## READY assessment and integration
+UI-GAP-0004 is now integrated on Develop as `9f7ac114b69ee0d415ed37d27245ae28cbd3e999`.
 
-### Core temporal contradiction policy — READY and integrated
+Independent review confirmed the UI candidate diverged from Develop at `dd4b623cc7bbc5b5a24c4427382f0b98ff50ad02`, but current Develop had not modified any of the four UI product/test files. The Integrator therefore carried only the exact final verified blobs for:
 
-Core product `f2db1041d73312b27fe9d74eb82f0f5c76f297aa` plus focused tests `76a4ab8011ee163e2ce1c58fd01772e006273fc9` add a deterministic temporal gate for Claim contradiction candidacy. Independent diff review confirmed exactly two new files: `src/athena/knowledge/contradiction_policy.py` and `tests/unit/test_knowledge_temporal_contradiction_policy.py`. The policy only suppresses a contradiction candidate when Claim validity windows are provably disjoint; touching or unknown/open bounds remain potentially overlapping. It creates no relation, mutates no Claim, performs no persistence, and preserves historical/provenance semantics.
+- `src/athena/desktop/pathena_offline_comprehension_4700.py`
+- `src/athena/desktop/pathena_startup_experience_2900.py`
+- `tests/unit/test_pathena_offline_comprehension.py`
+- `tests/unit/test_pathena_startup_experience_2900.py`
 
-Exact worker Quality run `33801697326` on `76a4ab8011ee163e2ce1c58fd01772e006273fc9` completed `success`. The worker was synchronized from exact prior Develop `a728668f046bf0d8b66724bb8004a1767bd5589f`, so the Integrator applied the reviewed product/test files byte-for-byte to the same Develop base.
+No UI-worker documentation or temporary validation-workflow commits were integrated.
 
-Integrator commits:
+Verification evidence is canonical Quality run `33804193396`, which completed `success` on the retained byte-identical final UI product/test tree after workflow cleanup. Python 3.12 quality, specification validator, Ruff, mypy, full pytest, Windows path safety, Linux storage regressions, local-install smoke and canonical enforcement all passed. Focused validation run `33804104455` also passed Ruff and the required startup/offline tests.
 
-- `a915719f6ac7dd8e3b212d1f39cbaef077c89b02` — temporal contradiction policy.
-- `df981f2718d7df508dfb608261b93abebaccbc0a` — focused policy tests.
+The product change remains presentation-only: user-facing startup/offline language now presents pATHENA/readiness rather than foreground local-Core infrastructure while truthful internal `core-offline` state and reconnect/provider/transport/persistence/recovery/security semantics remain unchanged.
 
-### Backend explicit authorization boundaries — focused verified, not integrated this run
+## Error status
 
-Backend product `7fb68f20e48a463282c4f29e08c531cadc71b60b` hardens `ExternalAccessGateway.authorize_explicit()` purpose/allowed-host runtime boundaries before actor/persistence side effects. Focused run `33802635370` is reported successful in the Backend handoff. Canonical run `33802762604` was cancelled, so this slice remains a valid focused-verified candidate but was not selected ahead of the fully canonical-green Core slice in this run. Reassess next run; cancellation is not PASS evidence.
+The verified UI lineage removes the complete `ERR-0004` B010 -> I001 harness lint cluster. `postmerge/errors` should mark `ERR-0004` FIXED on its next current-lineage ledger update using canonical run `33804193396` plus Develop integration `9f7ac114b69ee0d415ed37d27245ae28cbd3e999` as evidence. The Integrator does not mutate Error-owned ledger files.
 
-### UI-GAP-0004 / ERR-0004 — still rejected
+## Other worker inputs
 
-Canonical Quality `33797732276` on UI head `d581a88dfb916f2ffb3e358d16d92d502139ce42` completed failure: Windows path safety, Linux storage, local-install smoke, specification validator, mypy and full pytest succeeded, but Ruff failed. The newer UI head `1ffd2fbc063c1836cdc2dd9504ce297807e5745a` contains further import-order corrections and cleanup. Its exact canonical Quality run `33804193396` is pending. Do not integrate until that exact current-head run is green.
+### Core
 
-### Errors
+Current Core handoff contains exact-revision contradiction-review adapter product `214e0dc3ff8d7227bae023d7f368ebfa62daa779` plus tests `b3a87154fda34c9d9044d0bb1f2f58d4e37471f5`. Status remains `IMPLEMENTED_PENDING_VERIFY`; do not integrate until exact worker verification exists.
 
-`ERR-0004` remains open/in-progress until the current UI exact-head Quality becomes green. `ERR-0001`, `ERR-0002`, `ERR-0003` remain fixed.
+### Backend
+
+Backend product `6a2d920630df5f5ca921369fe249310110b79270` hardens ExternalAccessGateway privacy-route and explicit Direct-fallback host runtime boundaries. Focused run `33808355340` completed success with 36 Gateway tests plus Ruff, mypy and diff-check. Canonical run `33808413391` concluded `action_required` with no jobs; that is not failure evidence but is also not PASS evidence. This bounded slice is next for independent diff review. The earlier purpose/allowed-host product `7fb68f20e48a463282c4f29e08c531cadc71b60b` remains on the Backend lineage and must be preserved/reviewed together where the exact current gateway blob includes it.
 
 ## Product / quality state
 
-- Normal-Hybrid facade/application composition: VERIFIED/integrated.
-- ExternalAccessGateway TTL/max-bytes/timeout runtime boundaries: VERIFIED/integrated.
-- Combined prior Develop product tree: canonical validation PASS via `33799110483`.
-- Temporal contradiction policy: VERIFIED/integrated as a deterministic policy only; not yet composed into contradiction-review enqueue logic.
-- Backend explicit authorization purpose/allowed-host boundaries: focused verified, pending Integrator acceptance/integration.
-- UI-GAP-0004: not integrated; exact latest UI Quality pending.
-- Eleven UI reference slots: zero `MATCH`; original reference pixels remain `VISUAL_REFERENCE_PENDING`.
+- Normal-Hybrid facade/application composition: VERIFIED and integrated.
+- ExternalAccessGateway TTL/max-bytes/timeout runtime boundaries: VERIFIED and integrated.
+- Temporal contradiction disjoint-window policy: VERIFIED and integrated.
+- UI-GAP-0001/0002/0003: VERIFIED and integrated.
+- UI-GAP-0004: VERIFIED and integrated in `9f7ac114b69ee0d415ed37d27245ae28cbd3e999`.
+- `ERR-0004`: technically cleared by exact green UI evidence and integrated equivalent blobs; Error-owned ledger closure pending.
+- Eleven UI reference slots: zero `MATCH`; all remain `IMPLEMENTED_PENDING_VISUAL_REVIEW` / `VISUAL_REFERENCE_PENDING` until original pixels and a current render are available.
 
 ## Handoffs / next priorities
 
-1. `postmerge/spec-core`: compose the temporal policy into the existing contradiction-candidate/review path so provably disjoint windows cannot enqueue contradiction review while overlapping/unknown windows preserve current behavior; retain atomic acceptance, provenance, historical Claims and explicit human review.
-2. `postmerge/backend`: preserve the focused-verified `authorize_explicit` boundary slice and provide exact current-lineage evidence; Integrator will independently review/integrate it next if compatible.
-3. `postmerge/ui`: consume exact current-head Quality `33804193396`; hand off only on green. If red, fix the exact diagnostic rather than repeating prior hypotheses.
-4. `postmerge/errors`: close `ERR-0004` only after exact UI green evidence and continue regression scanning.
+1. `postmerge/errors`: close `ERR-0004` from exact canonical run `33804193396` plus integrated equivalent Develop blobs, then resume regression scanning.
+2. `postmerge/backend`: continue current bounded Gateway hardening; Integrator next independently reviews `6a2d920630df5f5ca921369fe249310110b79270` and required preceding boundary state against current Develop.
+3. `postmerge/spec-core`: obtain exact verification for contradiction-review adapter, then compose it immediately before contradiction-review enqueue without weakening human review or historical Claim semantics.
+4. `postmerge/ui`: no evidence-backed technical gap remains in the eleven-screen ledger; continue only from actual reference pixels/current rendered comparison or a newly traced explicit Alpha/Beta/UI contract mismatch.
 
 ## Next integration
 
-First priority next run: UI-GAP-0004 if `postmerge/ui@1ffd2fbc063c1836cdc2dd9504ce297807e5745a` is exact canonical green. Otherwise independently review/integrate Backend `7fb68f20e48a463282c4f29e08c531cadc71b60b` if its focused evidence remains compatible with current Develop.
+Backend ExternalAccessGateway focused-verified boundary lineage after independent current-Develop diff review. If incompatibility or unverified prerequisite state is found, defer it and take the first exact-green Core/UI/Error bounded slice instead.
 
 ## Rules retained
 
 - `main` remains strictly read-only and unchanged.
 - No force-push, history rewrite, auto-merge or automatic promotion to main.
 - Worker slices require compatible baseline, bounded scope, real verification, no weakened tests/guards and no confirmed regression.
-- Pending/cancelled/unexecuted runs are never PASS evidence.
+- Pending/cancelled/action-required-with-no-jobs runs are never PASS evidence.
