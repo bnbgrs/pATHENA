@@ -14,11 +14,10 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 ## Current baseline
 
 - Baseline branch: `develop/pathena-next`
-- Baseline SHA: `5eb99f4cc3baed1f4eef23a54d686d109a7da21c`
+- Baseline SHA: `280066cc5450f172693e2ee913bd269b6755f7bb`
 - Stable read-only parent: `main` at `0d4d621f8a38ddf8eccfa09622bf193687619943`
 - Worker branch: `postmerge/errors`
-- Error worker synchronized history-preservingly and NON-FORCE with current Develop via merge commit `a174c515c613c00332f1a69bcaa2befbf3c3e604`, retaining the prior Error Ledger/Handoff plus the complete current Develop product tree.
-- Latest newly integrated product slice is the canonical Search API DTO + normal-Hybrid adapter; it does not touch the deletion-ledger root cause.
+- Error worker synchronized history-preservingly and NON-FORCE with current Develop via merge commit `253df53a23d7e5b9ccfbed4e29fa568fe8efa675`, retaining the prior Error Ledger/Handoff plus the complete current Develop product tree.
 
 ## Current error state
 
@@ -28,10 +27,11 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 
 ## Current scan
 
-- Current Develop is `5eb99f4cc3baed1f4eef23a54d686d109a7da21c`; no deletion-ledger product fix is present on that lineage.
-- `postmerge/backend@b533c99e0b56c022f5ab22ec3413675d00f6ff86` added focused fail-before-SQL regression coverage for `ERR-0001` at test-bearing commit `de7da517f0cc0cd056de3cbe8aed19db44915884`, but still has no product fix commit.
-- Canonical ATHENA Quality Gate run `33728141579` for that focused-test commit completed with conclusion `cancelled`; this is not a PASS and does not close the defect.
-- Therefore `ERR-0001` remains current and BLOCKED from error-worker mutation by ownership, not resolved.
+- Exact current Develop `280066cc5450f172693e2ee913bd269b6755f7bb` was re-read directly.
+- `src/athena/lifecycle/deletion.py` still has no exact runtime guards before the durable SQL boundary: `entity_type.strip()` occurs before type validation; integer fields/cursors rely on relational comparisons that accept bool as an int subtype.
+- `postmerge/backend@a05c9b7da1dd865ece0f390074a7fb36928ed3fc` retains focused fail-before-SQL regression coverage but still has no product fix commit.
+- Canonical Quality run `33728141579` for the focused-test lineage completed with conclusion `cancelled`; this is not a PASS and does not close the defect.
+- Exact current Develop has no combined commit-status contexts attached; absence of status is not treated as green evidence.
 - No unrelated current-Develop failure signature was established in this cycle; historical recovery/platform failures remain stale unless their signature recurs on current Develop evidence.
 
 ## Entries
@@ -40,16 +40,16 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 
 - first_seen: 2026-09-03
 - last_seen: 2026-09-03
-- checked_sha: `5eb99f4cc3baed1f4eef23a54d686d109a7da21c`
+- checked_sha: `280066cc5450f172693e2ee913bd269b6755f7bb`
 - severity: P2
 - area: Storage / Persistence / Deletion Ledger / Recovery boundary
 - status: `BLOCKED`
 - exact evidence:
-  - `record_deletion()` calls `entity_type.strip()` before validating that `entity_type` is text.
+  - On exact current Develop, `record_deletion()` calls `entity_type.strip()` before validating that `entity_type` is text.
   - `deleted_at_us` and `deletion_commit_seq` rely on relational guards without exact-int/bool-safe validation.
   - `read_deletion_records(after_seq=...)` has the same exact-int/bool-safe cursor-boundary gap.
-  - Backend owns the repair and has now pinned malformed-input fail-before-SQL behavior in `tests/unit/test_deletion_ledger_boundaries.py`, but has not yet published the product guard fix.
-  - Quality run `33728141579` on the focused-test commit was cancelled, so verification is incomplete.
+  - Backend owns the repair and has pinned malformed-input fail-before-SQL behavior in `tests/unit/test_deletion_ledger_boundaries.py`, but has not published the product guard fix.
+  - Quality run `33728141579` on the focused-test lineage was cancelled, so verification is incomplete.
 - reproducible path:
   1. `record_deletion(..., entity_type=None, ...)` reaches `.strip()` before intended boundary validation.
   2. `record_deletion(..., deleted_at_us=False, deletion_commit_seq=True, ...)` permits bool-as-int values toward SQLite.
@@ -57,7 +57,7 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 - primary root cause: durable deletion-ledger APIs rely on annotations/relational comparisons instead of explicit exact runtime validation before SQL access.
 - affected files: `src/athena/lifecycle/deletion.py`; `tests/unit/test_deletion_ledger_boundaries.py`; existing deletion-ledger/lifecycle recovery regressions.
 - fix_commit: none yet.
-- verification executed: exact current Develop lineage rechecked; Backend handoff/test commit reviewed; canonical workflow run `33728141579` independently checked and observed `completed/cancelled`. No product verification was claimed.
+- verification executed: exact current Develop source re-read; Backend head reviewed; canonical workflow evidence remains `completed/cancelled`. No product verification was claimed.
 - remaining risks: malformed types can fail inconsistently; bool-as-int values may silently cross persistence/query boundaries and weaken recovery guarantees.
 - integrator handoff: accept a Backend fix only with focused proof that malformed values fail before SQL/query side effects, bool is rejected for integer fields/cursors, valid boundary values remain valid, idempotent replay remains unchanged, ordered cursor behavior remains unchanged, and exact product-head Quality/regressions pass. After integration, Error worker must verify on the exact new Develop SHA before moving to `FIXED`.
 - blocked reason: active ownership collision avoidance with `postmerge/backend`.
