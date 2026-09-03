@@ -6,7 +6,7 @@ import math
 import re
 import unicodedata
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from numbers import Real
 
 from athena.model.adapters.lm_studio import ModelProviderError
@@ -100,6 +100,7 @@ class HybridSearchResult:
     contradiction_count: int
     duplicate_count: int
     retrieval_methods: tuple[str, ...] = ()
+    rank: int | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.entity_id, uuid.UUID):
@@ -131,6 +132,8 @@ class HybridSearchResult:
             "Hybrid result duplicate_count",
         )
         _validate_retrieval_methods(self.retrieval_methods)
+        if self.rank is not None:
+            _positive_int(self.rank, "Hybrid result rank")
 
 
 @dataclass(slots=True)
@@ -444,7 +447,10 @@ def _diversify(
             )
         selected.append(chosen)
 
-    return tuple(selected)
+    return tuple(
+        replace(item, rank=rank)
+        for rank, item in enumerate(selected, start=1)
+    )
 
 
 def _diversity_penalty(
