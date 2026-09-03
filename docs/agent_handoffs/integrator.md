@@ -3,63 +3,59 @@
 ## Current branch state
 
 - `main` (strict read-only): `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `280066cc5450f172693e2ee913bd269b6755f7bb`.
-- Develop cross-cutting diagnostic commit: `5596949685b41139363a4298b741c5967df3cca4`.
+- Develop before this run: `7c4c8bb52d8e6df819d4a5ff44bbf6442b529d23`.
+- Cross-cutting tracker commit this run: `6a13edd5b8d48e884d16c7d042d1fdf637af7612`.
 - No Worker product slice was integrated in this run.
 
 ## Worker heads reviewed
 
-- `postmerge/errors`: `8ba00d4327468badb5be1b0f1a08aabd63c724b1` — synchronized ledger/handoff only; no product fix ready; `ERR-0001` remains Backend-owned.
-- `postmerge/spec-core`: `d6fd113b7592d7f8f6e076f383fbefb5ab1d725e` — contains the Search facade/application contract plus red acceptance test `4b6523d30f61a57c29bace801393648b579f0427`; no product implementation or verification yet, so not READY.
-- `postmerge/backend`: `5d431c2d6f66b05a29591f93f777f95b11c7fce8` — synchronized with Develop and retains the focused ERR-0001 regression harness, but no deletion-ledger product guard fix and no successful exact-head verification; not READY.
-- `postmerge/ui`: `110c3985fb521fdbd3e472d42a0a3c58ee0a325d` — synchronized with Develop; UI-GAP-0002 implementation remains unintegrated. The exact product/test SHA `ff14f8fbe9c99e043521605c1ae790f20e807ae2` failed canonical Quality run `33729667950`.
+- `postmerge/errors`: `43acfa94ca2f45b1a1147c2dc9f10b7c34c8ccad` — current Develop-synchronized ledger/handoff only; no product fix ready. ERR-0001 remains Backend-owned.
+- `postmerge/spec-core`: `d8872f9b4b58f9cde1c2c413419938601b6b30ea` — normal-Hybrid facade/application Search contract is fully pinned by red acceptance coverage, but no product implementation or successful verification exists; not READY.
+- `postmerge/backend`: `fab69755fd0a77dea9bfd2b6effc4d9ceb943305` — contains ERR-0001 product fix `780d25d74ce2e310b6a4bc434f547a23163e8b78` plus existing no-SQL regression harness. Exact-product Quality run `33744742408` was cancelled after a later branch commit. Current exact-worker run `33744816398` is in progress; Backend handoff remains `FIXED_PENDING_VERIFY`, not READY.
+- `postmerge/ui`: `ce959e148ddbe8f13952ca56f7d07e7a7ce1addb` — corrected the stale legacy inspector presentation test while retaining the complete contextual-visibility contract. Exact-head Quality run `33745885426` remains pending; not READY until successful completion.
 
 ## READY decision
 
-No Worker input satisfies the READY rule in this run.
+No Worker input satisfies the full READY rule in this run.
 
-- Core: red acceptance coverage without the product slice.
-- Backend: reproducing harness without product fix and without successful canonical verification.
-- UI: exact-head canonical failure, now diagnosed but not yet corrected/reverified.
-- Error: coordination state only and no product fix.
+- Core: acceptance tests without product implementation.
+- Backend: product fix exists, but its worker-owned handoff explicitly requires successful focused/deletion/recovery verification; exact current run is still in progress.
+- UI: corrected product/test lineage exists, but exact current Quality is still pending.
+- Error: coordination state only, no independent product fix.
 
 No force update, history rewrite, auto-merge or promotion to `main` was performed.
 
-## Cross-cutting slice this run — canonical UI failure diagnosis
+## Cross-cutting slice this run — canonical development-state synchronization
 
-The previously opaque UI-GAP-0002 Quality failure was resolved to an exact test-contract collision by downloading and reading workflow artifact `canonical-quality-diagnostics-ff14f8fbe9c99e043521605c1ae790f20e807ae2` from run `33729667950`.
+`docs/development/ALPHA_BETA_PROGRESS.md` was updated on Develop at `6a13edd5b8d48e884d16c7d042d1fdf637af7612` so shared product tracking now matches the actual worker evidence rather than stale pre-fix state:
 
-Canonical pytest result:
+- deletion-ledger runtime boundaries / recovery cursor: `IMPLEMENTED_PENDING_VERIFY`, tied to Backend product commit `780d25d74ce2e310b6a4bc434f547a23163e8b78`; cancelled run `33744742408` is not treated as PASS and current worker-head run `33744816398` is explicitly pending;
+- contextual inspector visibility: `IMPLEMENTED_PENDING_VERIFY`, tied to corrected UI worker head `ce959e148ddbe8f13952ca56f7d07e7a7ce1addb` and pending exact-head run `33745885426`;
+- canonical post-merge error state remains `PARTIAL` until ERR-0001 is both successfully verified and integrated, then independently re-verified by the Error worker.
 
-- `1 failed, 4458 passed, 3 skipped, 2 warnings`.
-- Sole failure: `tests/unit/test_pathena_ui_presentation.py::test_pathena_secondary_context_is_grounded_only_and_user_controlled`.
-- Failing assertion: the legacy presentation test requires `inspector.isHidden() is False` immediately after constructing an ungrounded Chat window.
-- The UI-GAP-0002 focused contract in `tests/unit/test_pathena_window.py` intentionally requires the opposite: initial/new ungrounded Chat hides the inspector; grounded Chat reveals it; non-chat surfaces keep it visible; returning to ungrounded Chat hides it again.
-- Product commit `177bef4dcdb4956f1df75bfcce9ee10c7a4bd1e2` implements exactly that contextual rule by removing unconditional `inspector.show()` calls and centralizing visibility in `_sync_inspector_visibility()`.
-
-Independent review therefore classifies the canonical failure as a stale/conflicting legacy test contract, not as evidence that the new contextual-visibility implementation itself violates its stated UI-GAP contract. This does NOT make the worker READY yet: the UI worker must reconcile the legacy presentation test without weakening contextual visibility, preserve grounded/non-chat assertions, and obtain focused plus canonical PASS on the corrected exact head.
-
-`docs/development/ALPHA_BETA_PROGRESS.md` was updated on Develop at `5596949685b41139363a4298b741c5967df3cca4` with this exact diagnosis.
+This is a cross-stream state-contract/feature-coverage correction only. It changes no product, storage, security, Qt or test semantics.
 
 ## Current product status
 
-- Retrieval-method provenance: `VERIFIED`.
-- Search Response final rank: `VERIFIED`.
+- Normal hybrid retrieval / RRF: `VERIFIED`.
+- Search retrieval-method provenance: `VERIFIED`.
+- Search final rank: `VERIFIED`.
 - Archive Search source-anchor provenance: `VERIFIED`.
-- Search Response protection-state provenance: `VERIFIED`.
-- Canonical Search API DTO + normal-Hybrid adapter: `VERIFIED` and integrated.
+- Search protection-state provenance: `VERIFIED`.
+- Canonical Search API DTO + normal-Hybrid adapter: `VERIFIED`.
 - Resource policy runtime mutation boundary: `VERIFIED`.
+- Deletion-ledger runtime boundaries / recovery cursor: `IMPLEMENTED_PENDING_VERIFY` on Backend worker.
 - Grounded Chat inspector hierarchy / Evidence & Activity copy: `VERIFIED`.
-- Contextual inspector visibility: `PARTIAL`; implementation exists on UI worker, canonical failure is now diagnosed as a legacy test-contract collision, but corrected exact-head verification is still required.
-- Canonical error state: `PARTIAL`; `ERR-0001` remains open and Backend-owned.
+- Contextual inspector visibility: `IMPLEMENTED_PENDING_VERIFY` on UI worker.
+- Canonical post-merge error state: `PARTIAL`.
 - 11-screen UI: exactly 11 manifest slots retained; no visual MATCH claim without opened original references.
 
 ## Next prioritized handoffs
 
-1. `postmerge/ui`: reconcile `test_pathena_secondary_context_is_grounded_only_and_user_controlled` with the evidence-backed contextual inspector contract. Do not merely delete/weaken the assertion: require initial ungrounded Chat hidden, grounded Chat visible, non-chat visible, and return-to-ungrounded Chat hidden. Rerun focused Qt tests and canonical Quality on one exact corrected head.
-2. `postmerge/backend`: implement ERR-0001 exact runtime guards, prove fail-before-SQL with the focused harness, run deletion/recovery regressions and canonical Quality on the exact product/test lineage.
-3. `postmerge/spec-core`: implement the already pinned `CoreApiFacade` + `AthenaApplication` normal-Hybrid Search attachment/delegation/capability-registration slice with focused API/application tests; Integrator must not duplicate this claimed scope.
-4. `postmerge/errors`: independently verify eventual integrated ERR-0001 fix on exact Develop and continue unrelated regression scans.
+1. `postmerge/backend`: finish exact-head focused/deletion/recovery verification for ERR-0001. If current Quality succeeds and required focused evidence is present, mark candidate READY with exact SHAs; if it fails, diagnose the exact signature before resubmission.
+2. `postmerge/ui`: finish exact-head Quality for corrected contextual-inspector contract. If successful, mark UI-GAP-0002 READY; if not, hand the exact new failure signature to Error/Integrator without weakening the contract.
+3. `postmerge/spec-core`: implement the already-pinned `CoreApiFacade` + `AthenaApplication` normal-Hybrid Search attachment/delegation/capability-registration slice and verify it; Integrator must not duplicate this claimed scope.
+4. `postmerge/errors`: independently verify ERR-0001 only after integration and continue unrelated exact-Develop regression scans.
 
 ## Integration rules retained
 
@@ -67,4 +63,4 @@ Independent review therefore classifies the canonical failure as a stale/conflic
 - No force-push, history rewrite, auto-merge or automatic promotion to main.
 - Only baseline-compatible, independently reviewed and adequately tested worker slices are integrated.
 - A green focused/exact-product run is evidence, not an exemption from scope, ownership, provenance, security or recovery review.
-- A confirmed failing exact-product canonical run blocks integration until diagnosed and corrected.
+- Cancelled or pending Quality runs are never PASS evidence.
