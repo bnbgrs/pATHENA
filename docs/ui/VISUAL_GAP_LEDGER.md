@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `1dc2da1bd38e6147d01d3b1d6833ea1ea6a0e37b`
+Baseline: `dd4b623cc7bbc5b5a24c4427382f0b98ff50ad02`
 Integration target: `develop/pathena-next`
 
 Only evidence-backed gaps belong here. The original 11 reference screenshots remain unavailable for direct visual comparison; therefore no pixel-level mismatch or `MATCH` claim is asserted.
@@ -43,12 +43,14 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Category: `STATE`
 - Screen: `11 — Startup / Empty / Disconnected state`
 - Severity: `P1`
-- Evidence: `docs/alpha/16_Desktop_Anwendung_und_Benutzeroberflaeche.md` requires normal use to present pATHENA while daemon/workers/providers remain background infrastructure; current startup/readiness presentation exposed `Local core offline`, `Waiting for the local core`, and Core-specific composer/tool-tip guidance.
+- Evidence: `docs/alpha/16_Desktop_Anwendung_und_Benutzeroberflaeche.md` requires normal use to present pATHENA while daemon/workers/providers remain background infrastructure; prior startup/readiness presentation exposed `Local core offline`, `Waiting for the local core`, and Core-specific composer/tool-tip guidance.
 - Affected widgets/files: `localStatus`, `promptInput`, `emptyStateTitle`; `src/athena/desktop/pathena_startup_experience_2900.py`; `src/athena/desktop/pathena_offline_comprehension_4700.py`; focused tests in `tests/unit/test_pathena_startup_experience_2900.py` and `tests/unit/test_pathena_offline_comprehension.py`.
 - Candidate product/test commit: `99d6b31c78be2932154137a6527200759f349628`.
-- Candidate behavior: disconnected normal-workspace copy now says `pATHENA reconnecting` / `Getting pATHENA ready`, keeps detailed recovery direction in System, and preserves the real `core-offline` state property plus existing controller/service semantics.
+- Candidate behavior: disconnected normal-workspace copy says `pATHENA reconnecting` / `Getting pATHENA ready`, keeps detailed recovery direction in System, and preserves the real `core-offline` state property plus existing controller/service semantics.
+- Verification history: canonical Quality run `33785726577` on synchronized candidate lineage `b76115748aed53e3502a71eef10a41b11f97f8ae` passed Windows path safety, Linux storage, local-install smoke, specification validator, mypy and full pytest, but failed Ruff B010 at `tests/unit/test_pathena_startup_experience_2900.py:61` because the harness called `setattr(window, "_core_transport_ready", False)` with a constant attribute name.
+- Harness correction: `77e7b4c7d95202e6814226e2b4a2c4a54e3f5c8e` replaces the B010-triggering dynamic assignment with a typed test-window subclass carrying the same disconnected-state contract; no product assertion, availability rule, backend behavior or guard is weakened.
+- Current verification: ATHENA Quality Gate `33791855218` is SHA-bound to `77e7b4c7d95202e6814226e2b4a2c4a54e3f5c8e` and is pending/running. Do not promote before a successful exact-SHA result.
 - Status: `FIXED_PENDING_VERIFY`.
-- Verification evidence: focused Qt assertions were added, but no exact-SHA test execution is available yet; GitHub reports no workflow run associated with the candidate SHA. Do not promote to `FIXED` until the focused Qt suites actually pass on this lineage.
 - Acceptance: no backend, transport, persistence, security, capability, focus, or availability semantics changed; technical Core state remains represented internally and may remain visible in System diagnostics.
 
 ## Evidence blocker
