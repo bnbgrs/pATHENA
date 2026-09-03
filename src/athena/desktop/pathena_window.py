@@ -293,7 +293,6 @@ class PathenaMainWindow(AthenaMainWindow):
         inspector.setParent(reference_body)
         inspector.setFixedWidth(SHELL.inspector_width)
         inspector.setAccessibleName("Evidence & Activity")
-        inspector.show()
 
         body_layout.addWidget(icon_rail)
         body_layout.addWidget(center, 1)
@@ -315,6 +314,7 @@ class PathenaMainWindow(AthenaMainWindow):
             button.setChecked(page_index == index)
         if 0 <= index < len(_DISPLAY_NAVIGATION):
             self.page_title.setText(_DISPLAY_NAVIGATION[index])
+        self._sync_inspector_visibility()
 
     def _install_progressive_disclosure(self) -> None:
         self.details_button = QPushButton("Details")
@@ -326,7 +326,6 @@ class PathenaMainWindow(AthenaMainWindow):
         inspector = self.findChild(QFrame, "inspector")
         if inspector is not None:
             inspector.setFixedWidth(SHELL.inspector_width)
-            inspector.show()
 
         self.context_button = QPushButton("Context")
         self.context_button.setObjectName("contextToggle")
@@ -347,6 +346,16 @@ class PathenaMainWindow(AthenaMainWindow):
                 if evidence_index >= 0:
                     chat_layout.insertWidget(evidence_index, self.context_button)
 
+    def _sync_inspector_visibility(self) -> None:
+        inspector = self.findChild(QFrame, "inspector")
+        if inspector is None:
+            return
+        context_button = getattr(self, "context_button", None)
+        context_available = (
+            isinstance(context_button, QPushButton) and not context_button.isHidden()
+        )
+        inspector.setVisible(self.navigation.currentRow() != 0 or context_available)
+
     def _set_context_available(self, available: bool) -> None:
         button = getattr(self, "context_button", None)
         if not isinstance(button, QPushButton):
@@ -355,6 +364,7 @@ class PathenaMainWindow(AthenaMainWindow):
         if not available:
             button.setChecked(False)
             self.evidence_chain.hide()
+        self._sync_inspector_visibility()
 
     def _sync_progressive_chat_actions(self, _index: int | None = None) -> None:
         has_selected_chat = self.chat_selector.currentData() is not None
@@ -362,9 +372,7 @@ class PathenaMainWindow(AthenaMainWindow):
         details_button = getattr(self, "details_button", None)
         if isinstance(details_button, QPushButton):
             details_button.hide()
-        inspector = self.findChild(QFrame, "inspector")
-        if inspector is not None:
-            inspector.show()
+        self._sync_inspector_visibility()
 
     def _replace_visible_copy(self) -> None:
         replacements = {
