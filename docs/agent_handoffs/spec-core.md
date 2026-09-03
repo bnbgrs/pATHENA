@@ -2,57 +2,66 @@
 
 ## Current slice
 
-- Baseline: `develop/pathena-next@7e23616b79b65f759980ad98a27640b6c29bcea0`
+- Baseline: `develop/pathena-next@0a0953e34f6da2a9e47119d00da29662397944e8`
 - Worker branch: `postmerge/spec-core`
-- Product commit: `3036b5f37d667d5ee6255480e7f460e5d61c8b9e`
-- Focused-test commit: `11720aa82b38175b2f06e6a0ed80ddafd15f63ea`
-- Verification PR: `#42` (`postmerge/spec-core` -> `develop/pathena-next`, draft, verification only)
+- Product commit: `52e73e2a86afc3190a3695ebf9b3b5da341eb870`
+- Focused-test commit: `e90306776b32cdfa0b6b0227b490845279870792`
 - Status: `IMPLEMENTED_PENDING_VERIFY`
 
 ## Spec anchor
 
-`docs/beta/10_Retrieval_und_Suche.md` §52 requires Search Responses to include `rank` alongside result identity, revision, retrieval methods, source anchor and protection state. The already integrated `HybridSearchResult` exposed retrieval methods but still did not expose the final returned rank.
+`docs/beta/10_Retrieval_und_Suche.md` §34 requires retrieval candidates to retain source/chunk provenance, and §52 requires Search Responses to include a source anchor. Archive lexical search already exposed `stable_anchor_key` from a verified SourceChunk. Semantic and hybrid archive results carry the same verified `representation_id`, start/end offsets, and SHA-256 content hash but had no shared Search Response adapter for that provenance.
+
+`src/athena/source/anchor_service.py` establishes the canonical durable text SourceAnchor materialization contract: representation id + start/end offsets + quoted SHA-256 hash. Search must not invent an anchor id or mutate canonical state merely to format a response.
 
 ## Implemented product contract
 
-`HybridSearchResult` now has additive `rank: int | None = None`.
+Added `SearchSourceAnchorRef` and `source_anchor_ref()` in `src/athena/retrieval/source_anchor.py`.
 
-- Results produced by hybrid diversification receive contiguous final ranks `1..N` after diversity selection and any diversity-score adjustment.
-- Explicit ranks must be positive integers; zero, negative values, booleans and non-integers are rejected.
-- Direct construction remains source-compatible through the `None` default; only actual returned hybrid result sets assign final rank.
-- The rank reflects returned order, not an intermediate lexical/semantic/RRF position.
+- The adapter projects only existing verified archive-result inputs: `representation_id`, `start_anchor_value`, `end_anchor_value`, `content_hash`.
+- It produces the exact representation/range/hash tuple required to materialize a durable text SourceAnchor later.
+- It does not create a SourceAnchor row, actor, commit, or other canonical mutation during search.
+- It rejects booleans/non-integer offsets, negative/empty ranges, non-bytes hashes, and non-SHA-256-length digests.
+- It does not synthesize a SourceAnchor UUID.
+
+This is an additive provenance adapter rather than a replacement storage architecture.
 
 ## Files
 
-- `src/athena/retrieval/hybrid.py`
-- `tests/unit/test_hybrid_retrieval_provenance.py`
+- `src/athena/retrieval/source_anchor.py`
+- `tests/unit/test_search_source_anchor_ref.py`
+- `docs/agent_handoffs/spec-core.md`
 
 ## Focused verification contract
 
-Added focused coverage that:
+Added focused unit coverage proving that:
 
-- invalid explicit ranks are rejected;
-- backward-compatible direct construction leaves `rank is None`;
-- diversified result sets expose contiguous final ranks `(1, 2, 3)` in returned order.
+- verified archive anchor inputs project unchanged into the Search source-anchor reference;
+- `stable_key` preserves `(representation_id, start_offset, end_offset, quoted_hash)` exactly;
+- malformed materialization inputs fail closed.
 
-No runtime PASS is claimed yet. Draft PR #42 was opened to trigger canonical verification; no workflow run was visible for exact head `11720aa82b38175b2f06e6a0ed80ddafd15f63ea` at handoff update time.
+Runtime result is pending canonical verification. No PASS is claimed until exact-head CI succeeds.
 
 ## Safety / compatibility
 
-- No RRF formula or score weights changed.
-- No candidate selection rule changed.
-- No persistence/storage/recovery mutation.
-- No network/provider/security mutation.
-- No UI mutation.
+- No search ranking or candidate-selection change.
+- No storage/persistence/recovery mutation.
+- No SourceAnchor creation during read-only search.
+- No protected-content widening.
+- No network/provider/UI mutation.
 - No Skip/XFail/assertion weakening.
 
 ## Coordination
 
-- Error worker: no current confirmed `ERR-*` ownership collision from the latest develop handoff.
-- Backend worker: no overlap with ResourceMode/deletion-ledger work.
-- UI worker: may later consume final `rank` for Search/Knowledge explainability only after integration; no synthetic display rank is needed.
-- Feature Integrator: do not integrate `3036b5f3`/`11720aa8` until exact-head focused/canonical verification is successful and no new regression is confirmed.
+- Error worker: no current confirmed `ERR-*` ownership collision on the reviewed develop handoff.
+- Backend worker: no overlap with ResourceMode or deletion-ledger files.
+- UI worker: may consume this value only after integration; do not invent anchor UUIDs or source provenance in the UI.
+- Integrator: integrate only after exact-head focused/canonical verification succeeds and independent diff review confirms the adapter remains additive.
+
+## Remaining source-anchor gap
+
+This slice establishes the deterministic Search Response provenance value for archive results, but does not yet wire it into a broader serialized Search API response object because no single canonical cross-domain response DTO has been identified on the current code path. That wiring should be a separate small slice once the actual response boundary is traced.
 
 ## Next Alpha/Beta gap
 
-After rank is verified, trace the remaining §52 response fields against real contracts in this order: `source anchor`, then `protection state`. Do not add either until the canonical source/protection ownership path is identified; LocalSearch currently excludes protected payloads, so a simplistic constant protection label would be a fake contract.
+Trace `protection state` against the authoritative visibility/protection contracts next. Current unprotected LocalSearch and ArchiveSearch paths explicitly exclude protected payloads/scopes, but do not synthesize a constant label until the response boundary and protected-search merge path are identified.
