@@ -102,7 +102,7 @@ jobs:
           ''')
           marker = 'test_authorize_explicit_rejects_non_text_privacy_route_before_actor_or_persistence'
           if marker not in test_text:
-              tests.write_text(test_text.rstrip() + addition + '\n', encoding='utf-8')
+              tests.write_text(test_text.rstrip() + addition.rstrip() + '\n', encoding='utf-8')
           PY
 
       - name: Set up Python 3.12
