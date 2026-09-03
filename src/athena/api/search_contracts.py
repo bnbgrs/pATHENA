@@ -67,7 +67,9 @@ class SearchSourceAnchorResponse(ApiContract):
             )
         digest = _nonempty_text(self.quoted_sha256, "Search source quoted_sha256")
         if len(digest) != 64:
-            raise ValueError("Search source quoted_sha256 must be a SHA-256 hex digest.")
+            raise ValueError(
+                "Search source quoted_sha256 must be a SHA-256 hex digest."
+            )
         try:
             bytes.fromhex(digest)
         except ValueError as exc:
@@ -111,7 +113,7 @@ class SearchResultResponse(ApiContract):
     title: str | None
     preview: str
     entity_type: str
-    revision_id: str
+    revision_id: str | None
     rank: int
     retrieval_methods: tuple[str, ...]
     source_anchor: SearchSourceAnchorResponse | None
@@ -124,7 +126,8 @@ class SearchResultResponse(ApiContract):
         if not isinstance(self.preview, str):
             raise TypeError("Search preview must be text.")
         _nonempty_text(self.entity_type, "Search entity_type")
-        _uuid_text(self.revision_id, "Search revision_id")
+        if self.revision_id is not None:
+            _uuid_text(self.revision_id, "Search revision_id")
         _positive_int(self.rank, "Search rank")
         if not isinstance(self.retrieval_methods, tuple):
             raise TypeError("Search retrieval_methods must be a tuple.")
