@@ -1,23 +1,23 @@
 # pATHENA 11-Screen Reference Manifest
 
-Baseline: `0a0953e34f6da2a9e47119d00da29662397944e8`
+Baseline: `96489c4c493992ff9d8c7efd57557a69aa578e56`
 Worker: `postmerge/ui`
 
-This manifest is the canonical inventory for the eleven user-provided pATHENA UI references. File Library search can currently discover several historical pATHENA design images, but the actual image payloads could not be opened in this run. Therefore all pixel/composition claims remain `VISUAL_REFERENCE_PENDING`. No slot may be promoted to `MATCH` without opening the actual reference and comparing it against a real rendered pATHENA state.
+This manifest is the canonical inventory for the eleven user-provided pATHENA UI references. The original image payloads were not successfully opened in this run. Therefore all pixel/composition claims remain `VISUAL_REFERENCE_PENDING`. No slot may be promoted to `MATCH` without opening the actual reference and comparing it against a real rendered pATHENA state.
 
 | Slot | Surface / state | Reference source | Evidence-backed intent available now | Implementation status | Last checked SHA |
 |---|---|---|---|---|---|
-| 01 | Workspace / Chat | `VISUAL_REFERENCE_PENDING` | Quiet central workspace; chat as work document; large composer; contextual evidence/activity inspector | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `33d0e0d012476a81ecac8155c5b0b99a8644e393` |
-| 02 | Library / Knowledge | `VISUAL_REFERENCE_PENDING` | Reduced knowledge workspace with real durable knowledge/claim provenance | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `33d0e0d012476a81ecac8155c5b0b99a8644e393` |
-| 03 | Research | `VISUAL_REFERENCE_PENDING` | Real research process/results with restrained hierarchy and provenance | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `33d0e0d012476a81ecac8155c5b0b99a8644e393` |
-| 04 | Jobs | `VISUAL_REFERENCE_PENDING` | Real durable-job state and controls; no fabricated queue state | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `33d0e0d012476a81ecac8155c5b0b99a8644e393` |
-| 05 | Sources / Files | `VISUAL_REFERENCE_PENDING` | Real source/file state with import and provenance surfaces | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `33d0e0d012476a81ecac8155c5b0b99a8644e393` |
-| 06 | System | `VISUAL_REFERENCE_PENDING` | Real local runtime/core/provider/storage/backup state | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `33d0e0d012476a81ecac8155c5b0b99a8644e393` |
-| 07 | Settings | `VISUAL_REFERENCE_PENDING` | Local-model/context/output/reasoning controls with reduced presentation | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `33d0e0d012476a81ecac8155c5b0b99a8644e393` |
-| 08 | PALLAS | `VISUAL_REFERENCE_PENDING` | Characteristic but non-dominant, data-driven semantic view based on real Sources/Claims/Knowledge/Research | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `33d0e0d012476a81ecac8155c5b0b99a8644e393` |
-| 09 | Command Palette / Help | `VISUAL_REFERENCE_PENDING` | Keyboard-first command/search surface backed by real capabilities | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `33d0e0d012476a81ecac8155c5b0b99a8644e393` |
-| 10 | Grounded Chat / Evidence & Activity | `VISUAL_REFERENCE_PENDING` | Contextual evidence, claims, sources and activity without synthesized provenance | `PARTIAL` | `33d0e0d012476a81ecac8155c5b0b99a8644e393` |
-| 11 | Startup / Empty / Disconnected state | `VISUAL_REFERENCE_PENDING` | Quiet local-first startup and truthful unavailable/empty states | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `33d0e0d012476a81ecac8155c5b0b99a8644e393` |
+| 01 | Workspace / Chat | `VISUAL_REFERENCE_PENDING` | Quiet central workspace; chat as work document; large composer; contextual evidence/activity inspector | `PARTIAL` | `d85d2a2e144abc9d3ef1008b80f74114c7fafe23` |
+| 02 | Library / Knowledge | `VISUAL_REFERENCE_PENDING` | Reduced knowledge workspace with real durable knowledge/claim provenance | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `9eb906c3f3c85f37e4c1c8dedfea407d09951fa5` |
+| 03 | Research | `VISUAL_REFERENCE_PENDING` | Real research process/results with restrained hierarchy and provenance | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `9eb906c3f3c85f37e4c1c8dedfea407d09951fa5` |
+| 04 | Jobs | `VISUAL_REFERENCE_PENDING` | Real durable-job state and controls; no fabricated queue state | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `9eb906c3f3c85f37e4c1c8dedfea407d09951fa5` |
+| 05 | Sources / Files | `VISUAL_REFERENCE_PENDING` | Real source/file state with import and provenance surfaces | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `9eb906c3f3c85f37e4c1c8dedfea407d09951fa5` |
+| 06 | System | `VISUAL_REFERENCE_PENDING` | Real local runtime/core/provider/storage/backup state | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `9eb906c3f3c85f37e4c1c8dedfea407d09951fa5` |
+| 07 | Settings | `VISUAL_REFERENCE_PENDING` | Local-model/context/output/reasoning controls with reduced presentation | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `9eb906c3f3c85f37e4c1c8dedfea407d09951fa5` |
+| 08 | PALLAS | `VISUAL_REFERENCE_PENDING` | Characteristic but non-dominant, data-driven semantic view based on real Sources/Claims/Knowledge/Research | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `9eb906c3f3c85f37e4c1c8dedfea407d09951fa5` |
+| 09 | Command Palette / Help | `VISUAL_REFERENCE_PENDING` | Keyboard-first command/search surface backed by real capabilities | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `9eb906c3f3c85f37e4c1c8dedfea407d09951fa5` |
+| 10 | Grounded Chat / Evidence & Activity | `VISUAL_REFERENCE_PENDING` | Contextual evidence, claims, sources and activity without synthesized provenance; Evidence & Activity title/a11y semantics implemented, contextual visibility still open | `PARTIAL` | `d85d2a2e144abc9d3ef1008b80f74114c7fafe23` |
+| 11 | Startup / Empty / Disconnected state | `VISUAL_REFERENCE_PENDING` | Quiet local-first startup and truthful unavailable/empty states | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `9eb906c3f3c85f37e4c1c8dedfea407d09951fa5` |
 
 ## Promotion rules
 
