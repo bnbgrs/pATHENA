@@ -3,44 +3,46 @@
 ## Current branch state
 
 - `main` (strict read-only): `0d4d621f8a38ddf8eccfa09622bf193687619943`
-- Develop before this run: `96489c4c493992ff9d8c7efd57557a69aa578e56`
-- Integrated Backend product SHA: `0ee051eac32cd6156d464475571ee1b0995999b0`
-- Tracker reconciliation commit: `7bd3a5dd670655f96bedaa6061e73c09a0bf5613`
+- Develop before this run: `7c15b44818e9ac5c3484ee30d4a20d6f0d56087e`
+- Integrated UI worker head: `d12f747c65e9039a9e4f3b727c5e78156e6a1264`
+- Progress tracker commit after integration: `7eea9e1fcc6ff8e1f1793cdb497831e6daa8a2bc`
 
 ## Worker heads reviewed
 
-- `postmerge/errors`: `a299380214626d4f523181637e285f0f51909d59` — no integrator-ready fix; `ERR-0001` remains Backend-owned.
-- `postmerge/spec-core`: `6c6d90d4a852dae82b9e61f4e23c2045588cbd32` — Search API DTO slice is exactly based on the prior Develop lineage and structurally small, but exact-head Quality run `33718602977` was still in progress when reviewed; deferred until success.
-- `postmerge/backend`: `731ef923455dcc6649955f5459516aef8ba6576f` — synchronized lineage; product-bearing SHA `0ee051eac32cd6156d464475571ee1b0995999b0` passed Quality run `33718973461` with conclusion `success`.
-- `postmerge/ui`: `f31be028652095b18b8a98dfacd65b73be9af763` — no independently verified READY product UI slice integrated in this run.
+- `postmerge/errors`: `2081395225e45ae786bf38ea8dac8225ac5c0706` — synchronized documentation/ledger worker, no product fix ready; `ERR-0001` remains Backend-owned.
+- `postmerge/spec-core`: `2951bac6edb0d6f52b104b374cc224c75b6977d3` — canonical Search DTO + normal-Hybrid adapter lineage; exact-head Quality run `33722932411` remained `in_progress` at review, so deferred.
+- `postmerge/backend`: `ef88bbf9e649a6524f110d88b62e6126299d3a64` — synchronization + precise `ERR-0001` handoff only; no product fix ready.
+- `postmerge/ui`: `d12f747c65e9039a9e4f3b727c5e78156e6a1264` — synchronized, conflict-free lineage containing the bounded UI-GAP-0001 product/test change plus UI manifest/ledger/handoff updates.
 
-## Integrated slice — ResourceMode runtime boundary
+## Integrated slice — UI-GAP-0001 Evidence & Activity hierarchy
 
-`develop/pathena-next` was advanced by NON-FORCE fast-forward from `96489c4c493992ff9d8c7efd57557a69aa578e56` to `0ee051eac32cd6156d464475571ee1b0995999b0`.
+`develop/pathena-next` was advanced NON-FORCE by fast-forward from `7c15b44818e9ac5c3484ee30d4a20d6f0d56087e` to `d12f747c65e9039a9e4f3b727c5e78156e6a1264`.
 
-Independent compare review showed the backend lineage is ahead of the prior Develop base and changes only:
+Independent compare review showed the synchronized UI lineage was `ahead_by=21`, `behind_by=0` with merge-base equal to current Develop and a bounded tree delta limited to:
 
-- `src/athena/resources/manager.py` — adds the bounded pre-side-effect `ResourceMode` runtime validation.
-- `tests/unit/test_resource_mode_boundary.py` — focused boundary coverage.
-- backend handoff documentation.
+- `src/athena/desktop/pathena_window.py` — 2 additions / 2 deletions for visible and accessible `EVIDENCE & ACTIVITY` naming.
+- `tests/unit/test_pathena_window.py` — focused contract coverage.
+- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md`.
+- `docs/ui/VISUAL_GAP_LEDGER.md`.
+- `docs/agent_handoffs/ui.md`.
 
-Exact synchronized product SHA `0ee051eac32cd6156d464475571ee1b0995999b0` passed ATHENA Quality Gate run `33718973461` with conclusion `success`. No force update, history rewrite, main mutation, test weakening, or unrelated backend change was used.
+The unchanged product/test lineage `1f0fd548431be122d13a403fe9e2387087edf8fa` + `d85d2a2e144abc9d3ef1008b80f74114c7fafe23` had already passed ATHENA Quality Gate run `33720745475` on exact UI head `f31be028652095b18b8a98dfacd65b73be9af763`. The later synchronized commits changed only repository handoff/manifest state plus the history-preserving merge of current Develop; no later product/test mutation occurred. This satisfied the focused-verification READY rule without waiting for the documentation-only final-head run.
 
-`docs/development/ALPHA_BETA_PROGRESS.md` now marks the Resource policy runtime mutation boundary `VERIFIED` on the integrated develop lineage.
+`docs/development/ALPHA_BETA_PROGRESS.md` now marks Grounded Chat inspector hierarchy / Evidence & Activity copy `VERIFIED` on the integrated develop lineage. No visual `MATCH` claim is made because original reference images were not available to the worker during that run.
 
 ## Deferred inputs
 
 ### Core
 
-The Search API DTO slice remains deferred until the exact final worker SHA `6c6d90d4a852dae82b9e61f4e23c2045588cbd32` has a successful Quality result. Its baseline was the pre-Backend Develop SHA, so after verification it must be re-compared against the new Develop head and integrated only if conflict-free and semantically compatible.
+The Search DTO + normal-Hybrid adapter worker head `2951bac6edb0d6f52b104b374cc224c75b6977d3` remains deferred because exact-head Quality run `33722932411` was still in progress at review. Recompare it against the now advanced Develop after success; integrate only if the Search contract/adapter/test delta remains conflict-free and ownership-safe.
 
-### Error worker
+### Backend / Error worker
 
-`ERR-0001` remains a real deletion-ledger durable-boundary validation defect. Backend owns the product fix; Error worker should independently re-verify only after the fix is integrated.
+`ERR-0001` remains OPEN and Backend-owned. Backend has synchronized and versioned the exact fail-before-SQL validation contract, but has not produced the deletion-ledger product fix yet. Error worker remains verification-only for this root cause until integration.
 
-### UI
+### UI next slice
 
-No UI product commit was integrated. `UI-GAP-0001` remains the next bounded UI slice, followed by `UI-GAP-0002`. No visual MATCH claim is allowed without actual reference-image evidence.
+`UI-GAP-0002` is now contract-traced but not implemented: contextual Chat inspector visibility should derive from the existing grounded-context availability signal while preserving non-chat inspector surfaces. It remains UI-owned.
 
 ## Current product status
 
@@ -48,21 +50,24 @@ No UI product commit was integrated. `UI-GAP-0001` remains the next bounded UI s
 - Search Response final rank: `VERIFIED`.
 - Archive Search source-anchor provenance: `VERIFIED`.
 - Search Response protection-state provenance: `VERIFIED`.
-- Resource policy runtime mutation boundary: `VERIFIED` on shared Develop via `0ee051eac32cd6156d464475571ee1b0995999b0` / Quality run `33718973461`.
-- Canonical Search API DTO/facade wiring: `PARTIAL` / deferred pending exact-head Core verification.
+- Resource policy runtime mutation boundary: `VERIFIED`.
+- Grounded Chat inspector hierarchy / Evidence & Activity copy: `VERIFIED`.
+- Contextual inspector visibility: `PARTIAL` / UI-owned `UI-GAP-0002`.
+- Canonical Search API DTO + normal-Hybrid adapter: worker implementation exists, but shared Develop remains `PARTIAL` until exact-head Core Quality succeeds and integration is re-reviewed.
 - Canonical error state: `PARTIAL`; `ERR-0001` remains open and Backend-owned.
-- 11-screen UI: unchanged; no unsupported MATCH claims.
+- 11-screen UI: manifest/ledger advanced; no unsupported pixel/MATCH claim.
 
 ## Next prioritized handoffs
 
-1. `postmerge/backend`: implement deletion-ledger tasks 290–293 / `ERR-0001` on the now compatible lineage with fail-before-SQL and bool-safe exact-int tests.
-2. `postmerge/spec-core`: after exact-head Quality success, synchronize/recompare against current Develop and resubmit the canonical Search API DTO slice without creating a parallel response architecture.
-3. `postmerge/errors`: rescan exact current Develop and re-verify the future `ERR-0001` fix after integration.
-4. `postmerge/ui`: synchronize to current Develop and submit a focused, tested `UI-GAP-0001` product patch.
+1. `postmerge/backend`: implement deletion-ledger tasks 290–293 / `ERR-0001` with fail-before-SQL exact-type/bool-safe guards and focused regressions.
+2. `postmerge/spec-core`: after Quality `33722932411` succeeds, recompare current worker against the new Develop head and resubmit the Search DTO + normal-Hybrid adapter slice.
+3. `postmerge/ui`: synchronize to the new Develop head and implement/test `UI-GAP-0002` contextual inspector visibility using the existing grounded-context signal.
+4. `postmerge/errors`: independently verify the eventual integrated `ERR-0001` fix on exact Develop and continue unrelated regression scans.
 
 ## Integration rules retained
 
 - `main` remains strictly read-only.
 - No force-push, history rewrite or auto-merge.
 - Only baseline-compatible, independently reviewed, tested worker slices are integrated.
+- Focused exact-product verification is sufficient when later worker-head changes are demonstrably documentation-only/synchronization-only and introduce no product delta.
 - Green CI is evidence, not permission to ignore ownership or conflict boundaries.
