@@ -2,18 +2,18 @@
 
 ## Current baseline
 
-- Shared baseline: `develop/pathena-next@5eb99f4cc3baed1f4eef23a54d686d109a7da21c`.
+- Shared baseline: `develop/pathena-next@280066cc5450f172693e2ee913bd269b6755f7bb`.
 - Stable read-only branch: `main@0d4d621f8a38ddf8eccfa09622bf193687619943` (unchanged).
 - Worker branch: `postmerge/spec-core`.
-- Worker was safely fast-forwarded NON-FORCE from `61776afc26860fd062ce80e6c484d638515261ff` to current Develop because comparison showed exactly two Develop-only documentation/progress commits and merge-base equal to the prior worker head.
-- Canonical Search DTO + normal-Hybrid adapter are already integrated on Develop. Their exact product/test worker head `2951bac6edb0d6f52b104b374cc224c75b6977d3` passed ATHENA Quality Gate `33722932411 = success`.
+- Worker synchronized NON-FORCE/history-preservingly with current Develop through merge commit `a35d05c3f21a674e9b07d9456ed5d7cb8d6a1baf`. Develop-side changes were limited to integration/progress documentation; the previous Core handoff was preserved.
+- Canonical Search DTO + normal-Hybrid adapter are already integrated on Develop. Exact product/test worker head `2951bac6edb0d6f52b104b374cc224c75b6977d3` passed ATHENA Quality Gate `33722932411 = success`.
 
 ## Coordination checked this run
 
-- Integrator explicitly assigns the next Search facade/application wiring slice to Core.
-- Backend owns `ERR-0001` deletion-ledger runtime-boundary hardening; Core must not touch `src/athena/lifecycle/deletion.py`.
-- UI owns contextual Inspector `UI-GAP-0002`; Core must not touch Qt/UI files.
-- Error worker remains verifier/root-cause owner for independent confirmed defects.
+- Integrator still assigns the next Search facade/application wiring slice exclusively to Core.
+- Backend owns `ERR-0001` deletion-ledger runtime-boundary hardening; Core did not touch `src/athena/lifecycle/deletion.py`.
+- UI owns contextual Inspector `UI-GAP-0002`; Core did not touch Qt/UI files.
+- Error worker remains independent verifier/root-cause owner for unrelated confirmed defects.
 
 ## Spec anchors
 
@@ -24,23 +24,17 @@ Primary source: `docs/beta/10_Retrieval_und_Suche.md`.
 - §51 keeps ranking/popularity separate from truth/evidence quality.
 - §§59-61 require authorization-first Protected Search, no locked metadata leak, and preservation of protection labels through mixed ranking/context use.
 
-The existing integrated adapter satisfies the normal unprotected result DTO projection without inventing Source anchors or Protected metadata. Protected/Archive search remain deliberately outside this normal-Hybrid API slice.
+The integrated `hybrid_search_result_response()` adapter satisfies the normal unprotected DTO projection without inventing Source anchors or Protected metadata. Protected/Archive search remain outside this normal-Hybrid API slice.
 
 ## Current Core gap — canonical Search DTO -> existing Core API composition
 
-The missing product path is now precisely traced:
+The missing product path remains:
 
 `CoreApiFacade` is constructed before normal Hybrid retrieval exists. The facade already uses one-time post-construction `attach_*` methods and derives advertised capabilities from actually attached services.
 
-`AthenaApplication` later constructs:
+`AthenaApplication` later constructs `LocalSearchService`, `RetrievalRankingService`, `LocalSemanticSearchService`, then `HybridRetrievalService` as `self.hybrid_retrieval`, before downstream memory/unified chat services.
 
-1. `LocalSearchService`,
-2. `RetrievalRankingService`,
-3. `LocalSemanticSearchService`,
-4. `HybridRetrievalService` as `self.hybrid_retrieval`,
-5. downstream memory/unified chat services.
-
-`HybridRetrievalService.search()` is the authoritative normal call:
+`HybridRetrievalService.search()` remains the authoritative normal call:
 
 ```python
 search(
@@ -52,44 +46,46 @@ search(
 ) -> tuple[HybridSearchResult, ...]
 ```
 
-It validates the interactive result limit, executes authoritative lexical retrieval first, executes semantic retrieval second, raises `SemanticRetrievalUnavailableError("knowledge_semantic_unavailable")` on semantic/provider failure, and returns deterministically final-ranked `HybridSearchResult` values. The facade must not replace this failure with lexical-only success because that would violate the existing normal-Hybrid contract and Beta §47.
+It validates the interactive result limit, executes lexical and semantic retrieval, raises `SemanticRetrievalUnavailableError("knowledge_semantic_unavailable")` on semantic/provider failure, and returns deterministically final-ranked results. The facade must not silently replace this failure with lexical-only or empty success.
 
-## Required product contract for the next safe mutation
-
-The smallest architecture-conforming implementation is:
+## Required product contract
 
 1. Add a minimal `NormalHybridSearch` protocol in `src/athena/api/service.py` matching the existing `HybridRetrievalService.search()` signature.
 2. Add `self._normal_search: NormalHybridSearch | None = None` to `CoreApiFacade`.
-3. Add one-time `attach_normal_search(search)` with the same double-attach rejection pattern as existing facade attachments.
-4. Advertise one explicit Search capability only when `_normal_search` is attached.
-5. Add a transport-neutral facade method accepting `query`, required `model_id`, optional `limit`, optional `SearchEntityType`, delegating those values unchanged to `_normal_search.search()`.
-6. Convert every returned final-ranked result only via `hybrid_search_result_response()` and return `tuple[SearchResultResponse, ...]`.
+3. Add one-time `attach_normal_search(search)` with the same double-attach rejection semantics as existing facade attachments.
+4. Advertise one explicit normal Search capability only when `_normal_search` is attached.
+5. Add a transport-neutral facade Search method accepting `query`, required `model_id`, optional `limit`, optional `SearchEntityType`, delegating unchanged to `_normal_search.search()`.
+6. Convert returned results only via `hybrid_search_result_response()` and return `tuple[SearchResultResponse, ...]`.
 7. Immediately after `self.hybrid_retrieval = HybridRetrievalService(...)` in `AthenaApplication`, attach that exact instance to `self.api`.
-8. Do not add Archive/Protected results, authorization shortcuts, fallback semantics, repositories, ranking changes, persistence writes, synthetic provenance, or UI behavior.
+8. Do not broaden into Archive/Protected search, authorization shortcuts, fallback semantics, repositories, ranking changes, persistence writes, synthetic provenance, or UI behavior.
 
-## Focused acceptance criteria
+## Acceptance coverage
 
-A focused facade/application test slice must prove all of the following before Integrator handoff:
+The focused slice must prove:
 
-- Search capability absent before attachment.
-- Search capability present after attachment.
-- Second attachment fails explicitly without replacing the first service.
-- Query/model_id/limit/entity_type are delegated unchanged.
-- Returned ranked results are converted through the canonical Search DTO contract.
-- `SemanticRetrievalUnavailableError` propagates rather than becoming fake success or an empty result.
-- Application composition uses object identity: the facade is attached to the same `self.hybrid_retrieval` instance used by downstream normal retrieval consumers.
-- Existing capability tuples and current chat/knowledge behavior remain unchanged except for the additive Search capability after attachment.
+- capability absent before attachment and present after attachment;
+- second attachment fails without replacing the first service;
+- exact query/model_id/limit/entity_type delegation;
+- canonical DTO conversion;
+- semantic retrieval failure propagation;
+- object-identity wiring to the same `self.hybrid_retrieval` instance;
+- existing capabilities and chat/knowledge behavior remain unchanged except for the additive Search capability.
 
-## Mutation state this run
+## Test-first mutation this run
 
-No product file was mutated. The repository write interface available in this run only permits complete-file replacement for existing files. `src/athena/api/service.py` and especially `src/athena/core/application.py` are large central composition modules; reconstructing either from truncated/partial reads solely to insert a few lines would create avoidable overwrite risk and could violate the no-foreign-commit-overwrite rule.
+A safe narrow test-first mutation was possible without touching the large central product modules:
 
-The safe action was therefore to fast-forward the worker to the current shared baseline, re-read the real specification and authoritative call chain, and version the exact minimal contract/acceptance criteria here. This is an explicit safe-mutation limitation, not a claim that the Search wiring is implemented.
+- `tests/unit/test_application_wiring.py` commit `4b6523d30f61a57c29bace801393648b579f0427` now pins the application identity requirement: `app.api._normal_search is app.hybrid_retrieval`.
+- The existing chat/extraction wiring assertion was preserved unchanged.
+- This test intentionally exposes the currently missing composition path; it is not a claim that the product wiring is implemented.
+- No workflow run was associated with the commit at the time of handoff, so no PASS/FAIL execution claim is made.
+
+The available repository mutation interface still exposes complete-file replacement for existing product files rather than a surgical patch action. `src/athena/api/service.py` and `src/athena/core/application.py` are large central modules. Reconstructing either wholesale solely to insert the bounded wiring remains an avoidable overwrite risk. The worker therefore advanced the red/acceptance coverage while preserving product safety.
 
 ## Integrator handoff
 
-No new product commit is READY from this run. Develop already contains the verified Search DTO + normal-Hybrid adapter. The next Core product commit should be integrated only after a patch-capable mutation route can change the two central files surgically and focused tests plus relevant API/application regressions pass on the exact worker SHA.
+No product commit is READY for integration. Do not integrate the red test independently as a completed capability. The test commit is evidence for the missing object-identity composition contract and should travel with the future product fix once that fix is implemented and verified.
 
 ## Next Alpha/Beta gap
 
-Remain on the normal-Hybrid Search facade/application wiring until implemented and verified. If a safe patch-capable mutation route becomes available, apply exactly the bounded contract above, then run focused facade capability/delegation/error-propagation tests, application identity wiring coverage, relevant API/application regressions, and canonical Quality. Do not broaden into Protected/Archive Search until the authorization-first §§59-61 composition is separately specified and tested.
+Remain on normal-Hybrid Search facade/application wiring. Next safe mutation should implement the bounded product contract, then add the remaining facade capability/delegation/error-propagation tests, run `tests/unit/test_application_wiring.py` plus relevant API/application regressions, and run canonical Quality on the exact worker product/test head. Do not broaden into Protected/Archive Search before the authorization-first §§59-61 composition is separately specified and tested.
