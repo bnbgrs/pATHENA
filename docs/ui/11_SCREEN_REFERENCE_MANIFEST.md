@@ -1,6 +1,6 @@
 # pATHENA 11-Screen Reference Manifest
 
-Baseline: `e98c88e0d3b41b81de7efa70873729f873038080`
+Baseline: `a76537a1002e323a97d18a0a95a4d39ce5f298ee`
 Integration target: `develop/pathena-next`
 
 This manifest is the canonical inventory for the eleven user-provided pATHENA UI references. The original image payloads are still not available for direct visual opening in the current repository/tool path. Therefore all pixel/composition claims remain `VISUAL_REFERENCE_PENDING`. No slot may be promoted to `MATCH` without opening the actual reference and comparing it against a real rendered pATHENA state.
@@ -12,7 +12,7 @@ This manifest is the canonical inventory for the eleven user-provided pATHENA UI
 | 03 | Research | `VISUAL_REFERENCE_PENDING` | Real research process/results with restrained hierarchy and provenance | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `df60ad0e0b3084da05a8b55d94a227798296a1ac` |
 | 04 | Jobs | `VISUAL_REFERENCE_PENDING` | Real durable-job state and controls; no fabricated queue state | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `df60ad0e0b3084da05a8b55d94a227798296a1ac` |
 | 05 | Sources / Files | `VISUAL_REFERENCE_PENDING` | Real source/file state with import and provenance surfaces | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `df60ad0e0b3084da05a8b55d94a227798296a1ac` |
-| 06 | System | `VISUAL_REFERENCE_PENDING` | Real local runtime/core/provider/storage/backup state plus spec-required desktop tray lifecycle; UI-GAP-0005 candidate exposes only real Open/System/Quit paths and marks missing model/Internet/pause commands unavailable | `IMPLEMENTED_PENDING_VERIFY` | `27281ce08e1e3d5021cc8a362c11f172818c0742` |
+| 06 | System | `VISUAL_REFERENCE_PENDING` | Real local runtime/core/provider/storage/backup state plus verified persistent tray lifecycle; UI-GAP-0006 now maps only real SystemRuntimeOverview states into tray icon/tooltip presentation | `IMPLEMENTED_PENDING_VERIFY` | `4be2ac9e69e8a60f2f98fc32ac636017961583c6` |
 | 07 | Settings | `VISUAL_REFERENCE_PENDING` | Local-model/context/output/reasoning controls with reduced presentation | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `df60ad0e0b3084da05a8b55d94a227798296a1ac` |
 | 08 | PALLAS | `VISUAL_REFERENCE_PENDING` | Characteristic but non-dominant, data-driven semantic view based on real Sources/Claims/Knowledge/Research; UI-GAP-0003 lifecycle regression is technically verified and integrated | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `df60ad0e0b3084da05a8b55d94a227798296a1ac` |
 | 09 | Command Palette / Help | `VISUAL_REFERENCE_PENDING` | Keyboard-first command/search surface backed by real capabilities | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `df60ad0e0b3084da05a8b55d94a227798296a1ac` |
