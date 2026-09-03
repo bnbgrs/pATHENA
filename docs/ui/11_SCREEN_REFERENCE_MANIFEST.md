@@ -1,6 +1,6 @@
 # pATHENA 11-Screen Reference Manifest
 
-Baseline: `dd4b623cc7bbc5b5a24c4427382f0b98ff50ad02`
+Baseline: `aed609ef8a7ff4af48e15e3dba953daf35d56b5c`
 Integration target: `develop/pathena-next`
 
 This manifest is the canonical inventory for the eleven user-provided pATHENA UI references. The original image payloads are still not available for direct visual opening in the current repository/tool path. Therefore all pixel/composition claims remain `VISUAL_REFERENCE_PENDING`. No slot may be promoted to `MATCH` without opening the actual reference and comparing it against a real rendered pATHENA state.
@@ -17,7 +17,7 @@ This manifest is the canonical inventory for the eleven user-provided pATHENA UI
 | 08 | PALLAS | `VISUAL_REFERENCE_PENDING` | Characteristic but non-dominant, data-driven semantic view based on real Sources/Claims/Knowledge/Research; UI-GAP-0003 lifecycle regression is technically verified and integrated | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `df60ad0e0b3084da05a8b55d94a227798296a1ac` |
 | 09 | Command Palette / Help | `VISUAL_REFERENCE_PENDING` | Keyboard-first command/search surface backed by real capabilities | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `df60ad0e0b3084da05a8b55d94a227798296a1ac` |
 | 10 | Grounded Chat / Evidence & Activity | `VISUAL_REFERENCE_PENDING` | Contextual evidence, claims, sources and activity without synthesized provenance; hierarchy/copy and contextual visibility are technically verified/integrated | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `df60ad0e0b3084da05a8b55d94a227798296a1ac` |
-| 11 | Startup / Empty / Disconnected state | `VISUAL_REFERENCE_PENDING` | Quiet local-first startup and truthful unavailable/empty states; normal workspace copy keeps Core infrastructure behind pATHENA. Exact Ruff B010 harness blocker is corrected on the current UI lineage and awaits exact-SHA Quality verification. | `IMPLEMENTED_PENDING_VERIFY` | `77e7b4c7d95202e6814226e2b4a2c4a54e3f5c8e` |
+| 11 | Startup / Empty / Disconnected state | `VISUAL_REFERENCE_PENDING` | Quiet local-first startup and truthful unavailable/empty states; normal workspace copy keeps Core infrastructure behind pATHENA. Product behavior and full pytest are green on the latest verified lineage; the remaining Ruff I001 harness-only import-format defect was corrected in `ecbf44ddd0fb8c7428d4cca090834eca284b997e` and awaits exact-head Quality confirmation. | `IMPLEMENTED_PENDING_VERIFY` | `ecbf44ddd0fb8c7428d4cca090834eca284b997e` |
 
 ## Promotion rules
 
