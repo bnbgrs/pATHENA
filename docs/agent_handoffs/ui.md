@@ -2,22 +2,20 @@
 
 ## Current baseline
 
-- Base: `develop/pathena-next@aed609ef8a7ff4af48e15e3dba953daf35d56b5c`
-- Worker: `postmerge/ui`
-- UI product candidate retained: `99d6b31c78be2932154137a6527200759f349628`
-- First Ruff harness correction: `77e7b4c7d95202e6814226e2b4a2c4a54e3f5c8e`
-- Second Ruff harness correction: `ecbf44ddd0fb8c7428d4cca090834eca284b997e`
+- Current integration target: `develop/pathena-next@647ea036329280378a7e573aca0df905f48ac3b1`.
+- Worker: `postmerge/ui`.
+- UI-GAP-0004 product candidate: `99d6b31c78be2932154137a6527200759f349628`.
+- B010 harness correction: `77e7b4c7d95202e6814226e2b4a2c4a54e3f5c8e`.
+- Final I001 harness correction: `a5d9530525bd0b6bf0eae3945c23a6805f6b9669`.
 - Original eleven reference images: `VISUAL_REFERENCE_PENDING`; no pixel-level parity or `MATCH` claim is made.
 
-## Current slice
+## UI-GAP-0004 — Startup/readiness infrastructure copy
 
-### UI-GAP-0004 — Startup/readiness infrastructure copy
-
-Status: `FIXED_PENDING_VERIFY`, P1, Screen 11.
+Status: `FIXED`, P1, Screen 11, technically verified and Integrator-ready.
 
 Spec anchor: `docs/alpha/16_Desktop_Anwendung_und_Benutzeroberflaeche.md` requires normal use to present pATHENA while daemon/workers/providers remain background infrastructure.
 
-Product candidate `99d6b31c78be2932154137a6527200759f349628` changes presentation only:
+The product candidate changes presentation only:
 
 - `Local core offline` -> `pATHENA reconnecting`.
 - `Waiting for the local core` -> `Getting pATHENA ready`.
@@ -27,28 +25,30 @@ Product candidate `99d6b31c78be2932154137a6527200759f349628` changes presentatio
 
 Focused assertions remain in `tests/unit/test_pathena_startup_experience_2900.py` and `tests/unit/test_pathena_offline_comprehension.py`.
 
-## Exact Quality history and correction chain
+## Exact verification chain
 
-1. Canonical Quality run `33785726577` on synchronized lineage `b76115748aed53e3502a71eef10a41b11f97f8ae` passed Windows path safety, Linux storage, local-install smoke, specification validator, mypy and full pytest. Ruff alone failed with exact `B010` at `tests/unit/test_pathena_startup_experience_2900.py:61` because `setattr(window, "_core_transport_ready", False)` used a constant attribute name.
-2. Commit `77e7b4c7d95202e6814226e2b4a2c4a54e3f5c8e` fixed only that harness defect with `_DisconnectedStartupWindow`, preserving the exact disconnected-state behavior and without changing product code/assertions/lint configuration.
-3. Canonical Quality run `33792012599` on `25addc9833d0d655efa46cd48974e160a7f275dd` again passed Windows path safety, Linux storage, local-install smoke, specification validator, mypy and full pytest (`4492 passed`, three existing Windows-only skips). Ruff found one remaining harness-only defect: `I001` unsorted/unformatted import block at `tests/unit/test_pathena_startup_experience_2900.py:1:1`.
-4. Commit `ecbf44ddd0fb8c7428d4cca090834eca284b997e` reformats only the PySide6 `QtWidgets` import into Ruff/isort-compatible multiline form. No product or assertion semantics changed.
+1. Quality run `33785726577` isolated Ruff B010 at the startup harness after all other required stages and full pytest passed.
+2. `77e7b4c7d95202e6814226e2b4a2c4a54e3f5c8e` fixed B010 with a typed disconnected startup-window subclass; assertions/product behavior remained unchanged.
+3. Quality run `33792012599` then isolated Ruff I001 in the same harness while Windows path safety, Linux storage, local-install smoke, validator, mypy and full pytest (`4492 passed`, three existing Windows-specific skips) passed.
+4. The multiline-only import formatting attempt `ecbf44ddd0fb8c7428d4cca090834eca284b997e` did not fully satisfy Ruff ordering.
+5. Final correction `a5d9530525bd0b6bf0eae3945c23a6805f6b9669` orders the SCREAMING_SNAKE_CASE QtWidgets symbol before CamelCase as Ruff/isort requires.
+6. Focused validation run `33804104455` passed dependency-lock validation, Ruff on both affected harnesses and both required startup/offline pytest files.
+7. Canonical Quality run `33804193396` completed `success` on the byte-identical retained product/test tree after temporary validation-workflow cleanup. Python 3.12 quality, specification validator, Ruff, mypy, full pytest, Windows path safety, Linux storage regressions, local-install smoke and canonical enforcement all passed.
 
-Until a Quality run succeeds on the exact current final UI head containing the second correction plus only evidence documentation, UI-GAP-0004 remains `FIXED_PENDING_VERIFY`.
+UI-GAP-0004 is therefore technically `FIXED`. The remaining Screen 11 status is only `IMPLEMENTED_PENDING_VISUAL_REVIEW` because the original reference pixels are unavailable.
 
-## Collision / ownership guidance
+## Integrator / Error handoff
 
-- Core: normal-Hybrid Search composition is Core-owned; no overlap.
-- Backend: ExternalAccessGateway runtime-boundary hardening is Backend-owned; no overlap.
-- Error: `ERR-0004` corresponds to this startup harness lint chain. Error should verify/close it only from exact successful current-lineage evidence and should not create a competing mutation while UI owns this test file.
-- Preserve contextual Evidence & Activity behavior and PALLAS lifecycle fixes already integrated.
-
-## Integrator handoff
-
-Do not integrate UI-GAP-0004 as READY until canonical Quality succeeds on the exact final `postmerge/ui` head containing `ecbf44ddd...`. When green, independently review the bounded product/test diff and integrate only to `develop/pathena-next`. No visual `MATCH` is implied.
+- Integrator: UI-GAP-0004 is READY for bounded integration to `develop/pathena-next`. Independently review and integrate only the product/test lineage through final harness commit `a5d9530525bd0b6bf0eae3945c23a6805f6b9669`; temporary validation-workflow commits are cleanup-only and must not be promoted as product functionality.
+- Error: `ERR-0004` can now be closed from canonical Quality run `33804193396`; both the original B010 and follow-up I001 harness defects are gone on the verified candidate tree.
+- Core: no overlap with Core-owned Search/Chat/Knowledge/Research/PALLAS product semantics.
+- Backend: no overlap with Backend-owned ExternalAccessGateway/system hardening.
 
 ## Next UI work
 
-1. Consume exact-head Quality for the current worker. If any stage fails, fix the exact current-lineage cause before taking another product slice.
-2. If green, mark UI-GAP-0004 technically `FIXED`, update ledger/manifest, and hand the exact worker SHA to Integrator/Error.
-3. Retry access to the actual eleven references and render Screen 11 for direct comparison. If reference pixels remain unavailable, select the next gap only from explicit versioned UI/Alpha/Beta evidence; do not infer screenshot geometry.
+The eleven slots currently have no remaining evidence-backed technical gap in this ledger; every slot is `IMPLEMENTED_PENDING_VISUAL_REVIEW`, never `MATCH`. The next mutation must therefore come from one of two evidence sources only:
+
+1. actual original reference pixels plus a real rendered current build, yielding a concrete `STRUCTURE|HIERARCHY|SPACING|TYPOGRAPHY|COLOR|CONTROL|STATE|INTERACTION|ACCESSIBILITY|RESPONSIVE` gap; or
+2. a new explicit Alpha/Beta/UI contract mismatch traced against current code/tests.
+
+Until image access exists, continue with explicit spec/code tracing for the next real UI gap; do not manufacture screenshot geometry or decorative work.
