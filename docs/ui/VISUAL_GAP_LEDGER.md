@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `7e23616b79b65f759980ad98a27640b6c29bcea0`
+Baseline: `0a0953e34f6da2a9e47119d00da29662397944e8`
 Worker: `postmerge/ui`
 
 Only evidence-backed gaps belong here. File Library search can discover several historical pATHENA design images, but the actual image payloads could not be opened in this run; therefore no pixel-level mismatch is asserted.
@@ -31,6 +31,10 @@ Only evidence-backed gaps belong here. File Library search can discover several 
 - Commit: `NONE`
 - Acceptance: visibility follows an explicit product state contract, preserves focus return, reduced-motion behavior, grounded evidence availability and desktop tests, and does not hide required system/detail state on non-chat surfaces.
 
+## Current run note
+
+`postmerge/ui` was safely history-preservingly synchronized with `develop/pathena-next@0a0953e34f6da2a9e47119d00da29662397944e8` via merge commit `33d0e0d012476a81ecac8155c5b0b99a8644e393`. `UI-GAP-0001` remains directly code-evidenced on that synchronized tree. No product patch is claimed in this run because the available repository write path cannot safely apply a surgical partial edit to the large `pathena_window.py` without replacing the complete file. No unsafe full-file rewrite was attempted.
+
 ## Evidence blocker
 
-`VISUAL_REFERENCE_PENDING`: historical pATHENA image records were discoverable in File Library during this run, including workspace/knowledge/PALLAS-oriented designs, but opening the actual image payloads failed. Until the relevant reference pixels can be inspected, spacing, exact proportions, pixel colors and screenshot-level `MATCH` claims remain prohibited.
+`VISUAL_REFERENCE_PENDING`: historical pATHENA image records were discoverable in File Library during the preceding visual-reference search, including workspace/knowledge/PALLAS-oriented designs, but opening the actual image payloads failed. Until the relevant reference pixels can be inspected, spacing, exact proportions, pixel colors and screenshot-level `MATCH` claims remain prohibited.
