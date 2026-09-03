@@ -4,7 +4,10 @@ import uuid
 
 import pytest
 
-from athena.lifecycle.deletion import record_deletion, read_deletion_records
+from athena.lifecycle.deletion import (
+    read_deletion_records,
+    record_deletion,
+)
 
 
 class _NoSqlConnection:
