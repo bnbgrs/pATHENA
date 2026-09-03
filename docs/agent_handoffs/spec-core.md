@@ -2,57 +2,84 @@
 
 ## Current slice
 
-- Baseline: `develop/pathena-next@7e23616b79b65f759980ad98a27640b6c29bcea0`
+- Baseline: `develop/pathena-next@e76b4cb2cca1612fe68b1ddd66554213352d32a9`
 - Worker branch: `postmerge/spec-core`
-- Product commit: `3036b5f37d667d5ee6255480e7f460e5d61c8b9e`
-- Focused-test commit: `11720aa82b38175b2f06e6a0ed80ddafd15f63ea`
-- Verification PR: `#42` (`postmerge/spec-core` -> `develop/pathena-next`, draft, verification only)
+- NON-FORCE sync: worker fast-forwarded from `3a5dfffaea7b3a1bc3e0f376e2edac6cf1a8dc5c` to the current develop baseline before mutation.
+- Product commit: `3a29225a4d79fac558f2b0d7c7757471daa34aaf`
+- Focused-test commit: `9ee3c3c21ea6629b6ca203a73b56de221ccca871`
 - Status: `IMPLEMENTED_PENDING_VERIFY`
 
 ## Spec anchor
 
-`docs/beta/10_Retrieval_und_Suche.md` §52 requires Search Responses to include `rank` alongside result identity, revision, retrieval methods, source anchor and protection state. The already integrated `HybridSearchResult` exposed retrieval methods but still did not expose the final returned rank.
+`docs/beta/10_Retrieval_und_Suche.md` §5 requires a protection context in SearchRequest, §8 requires Protection Scope filtering before final ranking where possible, §19 keeps protected embeddings out of normal persistent HNSW state, §52 requires `protection state` in every Search Response, and §§59-61 require authorization-first protected retrieval, no metadata leak while locked, and Protection Labels to survive mixed ranking into the Context Builder.
+
+The current code establishes two authoritative result classes:
+
+- `LocalSearchService` and `LocalSemanticSearchService` are unprotected retrieval pipelines. Local FTS explicitly excludes protected payloads; semantic results are joined back through that unprotected FTS projection.
+- `ProtectedRuntimeSourceSearchService` returns `ProtectedRuntimeSearchResult` only from authorized unlocked scopes and each result carries its actual `protection_scope_id`.
+
+This slice therefore labels only facts already established by those pipelines. It does not infer current unlock state and does not expose protected metadata for results that were never authorized/returned.
 
 ## Implemented product contract
 
-`HybridSearchResult` now has additive `rank: int | None = None`.
+Added `src/athena/retrieval/protection.py` with:
 
-- Results produced by hybrid diversification receive contiguous final ranks `1..N` after diversity selection and any diversity-score adjustment.
-- Explicit ranks must be positive integers; zero, negative values, booleans and non-integers are rejected.
-- Direct construction remains source-compatible through the `None` default; only actual returned hybrid result sets assign final rank.
-- The rank reflects returned order, not an intermediate lexical/semantic/RRF position.
+- `SearchProtectionState.UNPROTECTED` and `.PROTECTED`;
+- immutable `SearchProtectionRef(state, protection_scope_id)`;
+- `unprotected_search_protection_ref()` for the explicitly unprotected retrieval paths;
+- `protected_search_protection_ref(result)` which preserves the authorized result's real ProtectionScope UUID.
+
+Invariants:
+
+- unprotected labels cannot carry a scope id;
+- protected labels must carry an actual UUID scope id;
+- `protected` is a classification, not a claim that the scope remains unlocked later;
+- no plaintext, hash, title, score, unlock flag, durable row, actor, commit, or synthetic scope is created;
+- a malformed protected result fails closed rather than degrading to an unprotected label.
+
+This is an additive Search Response value contract. It does not yet merge protected and unprotected ranking pipelines or alter authorization behavior.
 
 ## Files
 
-- `src/athena/retrieval/hybrid.py`
-- `tests/unit/test_hybrid_retrieval_provenance.py`
+- `src/athena/retrieval/protection.py`
+- `tests/unit/test_search_protection_ref.py`
+- `docs/agent_handoffs/spec-core.md`
 
 ## Focused verification contract
 
-Added focused coverage that:
+Focused tests cover:
 
-- invalid explicit ranks are rejected;
-- backward-compatible direct construction leaves `rank is None`;
-- diversified result sets expose contiguous final ranks `(1, 2, 3)` in returned order.
+- unprotected label contains no scope metadata;
+- protected adapter preserves the exact authorized `protection_scope_id`;
+- inconsistent unprotected+scope state is rejected;
+- protected labels reject missing/non-UUID scope values;
+- malformed protected result adapters fail closed.
 
-No runtime PASS is claimed yet. Draft PR #42 was opened to trigger canonical verification; no workflow run was visible for exact head `11720aa82b38175b2f06e6a0ed80ddafd15f63ea` at handoff update time.
+Runtime/CI result is pending exact-head verification. No PASS is claimed until the worker head is verified.
 
 ## Safety / compatibility
 
-- No RRF formula or score weights changed.
-- No candidate selection rule changed.
-- No persistence/storage/recovery mutation.
-- No network/provider/security mutation.
-- No UI mutation.
-- No Skip/XFail/assertion weakening.
+- No search ranking, selection, candidate visibility, FTS, HNSW, persistence, recovery, network/provider, or UI behavior changed.
+- No Protected Source plaintext or derived hashes are persisted.
+- No locked-scope metadata is surfaced.
+- No Skip/XFail/assertion/security/storage guard weakening.
+- `ERR-0001` deletion-ledger files remain owned by Backend and untouched.
 
 ## Coordination
 
-- Error worker: no current confirmed `ERR-*` ownership collision from the latest develop handoff.
-- Backend worker: no overlap with ResourceMode/deletion-ledger work.
-- UI worker: may later consume final `rank` for Search/Knowledge explainability only after integration; no synthetic display rank is needed.
-- Feature Integrator: do not integrate `3036b5f3`/`11720aa8` until exact-head focused/canonical verification is successful and no new regression is confirmed.
+- Error worker: latest handoff records `ERR-0001` blocked from error-worker mutation because Backend owns deletion-ledger tasks 290-293; no overlap here.
+- Backend worker: no overlap with ResourceMode or deletion-ledger files.
+- UI worker: may eventually display this real label after integration/wiring; must not infer unlock state or fabricate scope ids.
+- Integrator: review the two additive commits and integrate only after exact-head verification succeeds.
+
+## Previous completed source-anchor slice
+
+Archive Search source-anchor provenance was integrated into `develop/pathena-next` and is tracked there as verified. No further mutation to that slice was made in this run.
+
+## Remaining Search Response gap
+
+Beta §52 still lacks one canonical serialized response DTO joining rank, retrieval methods, source anchor and protection label across the actual domain-specific result types. Do not create a parallel response architecture. Trace the existing API/controller boundary and wire these verified value adapters into that real boundary as a separate slice.
 
 ## Next Alpha/Beta gap
 
-After rank is verified, trace the remaining §52 response fields against real contracts in this order: `source anchor`, then `protection state`. Do not add either until the canonical source/protection ownership path is identified; LocalSearch currently excludes protected payloads, so a simplistic constant protection label would be a fake contract.
+Trace the actual Search API/controller/serialization call chain. Highest safe next step is a small cross-domain response adapter only if an existing boundary is found. Protected/unprotected mixed ranking itself remains a separate larger capability and must preserve §§59-61 authorization/no-leak invariants.

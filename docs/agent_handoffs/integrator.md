@@ -4,66 +4,67 @@
 
 - `main` (strict read-only): `0d4d621f8a38ddf8eccfa09622bf193687619943`
 - Integration branch: `develop/pathena-next`
-- Develop before this pass: `7e23616b79b65f759980ad98a27640b6c29bcea0`
-- Core rank worker lineage `54ca55da93074993c7f81757b53683ddbdfd3f4a` was explicitly integrated into develop as merge commit `8b5f684c7200675c46d098430cf3e17b1525565e`.
-- Progress tracker reconciliation commit: `c9d962d4416366696af8416c1afa845307aee361`.
+- Develop before this pass: `e76b4cb2cca1612fe68b1ddd66554213352d32a9`
+- Core protection-state worker lineage `412dcf41ae933c8568b42fc343ae0e50f454de40` was fast-forward integrated because it was exactly three commits ahead and zero behind the then-current develop head.
+- Progress tracker reconciliation commit: `7d4351938c41409cceedb70d542512c90376f179`.
 
 ## Worker heads reviewed
 
-- `postmerge/errors`: `8fdbaa188faebe6bac41545e80785157aa2e8bfb` — no verified product fix pending; must rescan the new product-bearing develop lineage.
-- `postmerge/spec-core`: `54ca55da93074993c7f81757b53683ddbdfd3f4a` — final Search Response rank slice. Exact product/test SHA `11720aa82b38175b2f06e6a0ed80ddafd15f63ea` passed ATHENA Quality Gate run `33706998826` and is now integrated.
-- `postmerge/backend`: `eaafbea79e2ae99158b213304eccaf4b29811f94` — ResourceMode boundary slice. Exact synchronized SHA `8ac7b3d5822daa395f71ee6fc797946ccd3d04b0` passed ATHENA Quality Gate run `33707952053`, but PR #44 is no longer mergeable after the Core integration changed develop; do not force or rewrite the worker branch.
-- `postmerge/ui`: `10d1145192db8c3ce70afc15090f973b0f6e8323` — history-preserving synchronization completed by the UI worker, but no tested product UI patch is READY.
+- `postmerge/errors`: `a299380214626d4f523181637e285f0f51909d59` — records `ERR-0001` for deletion-ledger runtime-boundary validation and explicitly defers product mutation to Backend ownership.
+- `postmerge/spec-core`: `412dcf41ae933c8568b42fc343ae0e50f454de40` — Search protection-state provenance contract; exact worker head passed ATHENA Quality Gate run `33714394204` with conclusion `success` and is now integrated.
+- `postmerge/backend`: `eaafbea79e2ae99158b213304eccaf4b29811f94` — ResourceMode boundary slice remains verified on its worker lineage, but the branch is diverged from current develop and cannot be integrated wholesale safely.
+- `postmerge/ui`: `31c6ee295791c34ca54176768107ca67cd8494d1` — no tested product UI patch READY; branch is also behind/diverged from current develop.
 
-## Integrated product slice — Search Response final rank
+## Integrated product slice — Search protection-state provenance
 
-Integrated via explicit non-auto merge of PR #42 into `develop/pathena-next`:
+Integrated by NON-FORCE fast-forward of `develop/pathena-next` to worker head `412dcf41ae933c8568b42fc343ae0e50f454de40`:
 
-- `3036b5f37d667d5ee6255480e7f460e5d61c8b9e` — additive optional positive final `HybridSearchResult.rank`.
-- `11720aa82b38175b2f06e6a0ed80ddafd15f63ea` — focused validation/backward-compatibility/final contiguous-rank tests.
-- `54ca55da93074993c7f81757b53683ddbdfd3f4a` — worker handoff.
-- `8b5f684c7200675c46d098430cf3e17b1525565e` — develop merge commit with parents previous develop and the exact worker head.
+- `3a29225a4d79fac558f2b0d7c7757471daa34aaf` — additive `SearchProtectionState` / `SearchProtectionRef` classification contract and adapters.
+- `9ee3c3c21ea6629b6ca203a73b56de221ccca871` — focused fail-closed tests for unprotected/protected classification and malformed scope values.
+- `412dcf41ae933c8568b42fc343ae0e50f454de40` — worker handoff and exact verified head.
 
-The final rank is assigned after diversity selection/reweighting, so it describes actual returned order rather than lexical/semantic/RRF intermediate position. Existing ranking formula, persistence, recovery, transport, security and UI behavior were not broadened by this slice.
+Independent compare review showed exactly three commits, zero commits behind develop, and only three changed paths: `src/athena/retrieval/protection.py`, `tests/unit/test_search_protection_ref.py`, and `docs/agent_handoffs/spec-core.md`. No ranking, selection, persistence, recovery, network or UI behavior is broadened. The protection contract preserves real protected scope identity and forbids synthetic scope metadata on unprotected results.
 
-Exact product/test SHA `11720aa82b38175b2f06e6a0ed80ddafd15f63ea` passed ATHENA Quality Gate run `33706998826` with conclusion `success`.
+Exact worker head `412dcf41ae933c8568b42fc343ae0e50f454de40` passed ATHENA Quality Gate run `33714394204` with conclusion `success` before integration. The subsequent tracker/handoff reconciliation commits are documentation-only.
 
-## READY but deferred after baseline movement — Backend ResourceMode boundary
+## READY but deferred — Backend ResourceMode boundary
 
-Backend product commit `881d662958b9fe6b94a9ad549a72d91abb24e692` remains small and independently verified. Its synchronized product-bearing SHA `8ac7b3d5822daa395f71ee6fc797946ccd3d04b0` passed ATHENA Quality Gate run `33707952053` with conclusion `success`.
+Backend product commit `881d662958b9fe6b94a9ad549a72d91abb24e692` remains small and its synchronized product-bearing SHA `8ac7b3d5822daa395f71ee6fc797946ccd3d04b0` passed ATHENA Quality Gate run `33707952053` with conclusion `success`.
 
-After the Core merge advanced develop, PR #44 reports non-mergeable against the new baseline. No force-push, history rewrite, blind conflict resolution or mutation of the backend-owned branch was attempted. `postmerge/backend` must first safely NON-FORCE synchronize to the current develop head and preserve the same bounded product/test delta. The integrator may then re-review and integrate it.
+Current backend branch is nevertheless diverged from the newly advanced develop lineage. Prior direct synchronization attempts were non-mergeable, so no force, history rewrite, blind merge or stale-tree replacement is permitted. The safe path is to transplant/recreate only the bounded ResourceMode product/test delta onto a current develop-compatible Backend lineage, then re-review it independently before integration. Backend should then implement deletion-ledger tasks 290–293 / `ERR-0001` on that synchronized lineage.
 
 ## Deferred inputs
 
 ### UI
 
-No tested product UI commit is READY. `UI-GAP-0001` remains the first bounded product target: align visible and accessible inspector naming to `Evidence & Activity` without changing controller/storage semantics. `UI-GAP-0002` follows only after focus/reduced-motion/progressive-disclosure review. Original reference pixels remain `VISUAL_REFERENCE_PENDING`; no MATCH claim is permitted without actual image evidence.
+No tested product UI commit is READY. `UI-GAP-0001` remains the first bounded target: align visible and accessible inspector naming to `Evidence & Activity` while preserving controller/storage semantics. `UI-GAP-0002` follows after focus/reduced-motion/progressive-disclosure review. Original reference pixels remain `VISUAL_REFERENCE_PENDING`; no MATCH claim is permitted without actual image evidence.
 
 ### Error worker
 
-No verified error-fix commit is pending. The new Core product integration requires a fresh exact-develop regression scan; historical failures must not be reopened without reproduction/current-SHA evidence.
+`ERR-0001` is a real current-lineage deletion-ledger durable-boundary validation defect but product ownership is intentionally Backend-only to avoid duplicate root-cause mutation. Error worker should re-verify the eventual Backend fix on integrated develop and continue scanning the exact current develop SHA for unrelated defects.
 
 ## Alpha/Beta and UI tracking
 
 - Retrieval-method provenance: `VERIFIED`.
-- Search Response final rank: `VERIFIED` on integrated develop lineage.
-- Source anchor: next Core trace target; current status remains incomplete/partial until evidence proves otherwise.
-- Protection state: follow source-anchor tracing; do not synthesize a constant value.
-- ResourceMode runtime boundary: verified on worker lineage but still `IMPLEMENTED_PENDING_VERIFY` on shared develop until safely reintegrated after baseline synchronization.
-- 11-screen UI tracking remains unchanged: exactly 11 manifest slots, no unsupported MATCH claims, UI-GAP-0001/UI-GAP-0002 remain open.
+- Search Response final rank: `VERIFIED`.
+- Archive Search source-anchor provenance: `VERIFIED`.
+- Search Response protection-state provenance: `VERIFIED` via worker head `412dcf41ae933c8568b42fc343ae0e50f454de40` and Quality run `33714394204`.
+- Broader serialized Search-response wiring remains a separate gap: rank + retrieval methods + source-anchor + protection state must be surfaced through the existing canonical response boundary rather than a parallel DTO.
+- ResourceMode runtime boundary remains `IMPLEMENTED_PENDING_VERIFY` on shared develop until Backend resubmits on a compatible lineage.
+- Canonical error state is no longer clean: `ERR-0001` is tracked and Backend-owned.
+- 11-screen UI tracking remains unchanged: exactly 11 slots, no unsupported MATCH claims, Grounded Chat remains `PARTIAL`, UI-GAP-0001/UI-GAP-0002 remain open.
 
 ## Next prioritized handoffs
 
-1. `postmerge/errors`: rescan exact current develop after the Core rank integration and open an `ERR-####` only for fresh reproducible evidence.
-2. `postmerge/backend`: NON-FORCE synchronize onto current develop, retain ResourceMode product/test semantics, and resubmit for integration; then continue independent deletion-ledger tasks 290–293.
-3. `postmerge/ui`: use its synchronized lineage to implement/test UI-GAP-0001; do not fabricate visual parity while references are unavailable.
-4. `postmerge/spec-core`: trace `source anchor` next, then `protection state`, reusing canonical Source/Chunk contracts rather than introducing duplicate provenance.
+1. `postmerge/backend`: rebuild/synchronize safely from current develop, preserve the already verified ResourceMode product/test semantics, resubmit for integration, then fix deletion-ledger tasks 290–293 / `ERR-0001` with fail-before-SQL tests.
+2. `postmerge/errors`: rescan exact current develop after the protection-state integration; re-verify `ERR-0001` only after a Backend fix lands and open new IDs only for fresh reproducible evidence.
+3. `postmerge/ui`: move onto a current compatible develop lineage, then implement/test UI-GAP-0001 without fabricating visual parity.
+4. `postmerge/spec-core`: trace the real serialized Search response boundary and wire the already verified rank/retrieval/source-anchor/protection contracts into it only if one canonical DTO/controller boundary exists.
 
 ## Integration rules retained
 
 - `main` remains strictly read-only; no main merge or mutation occurred.
 - No force-push, history rewrite or auto-merge.
-- Worker product changes integrate only with baseline compatibility, concrete verification, safety review, gap/spec anchor and no known regression.
-- A green worker SHA does not override an incompatible/moved integration baseline.
+- Worker product changes integrate only with baseline compatibility, concrete verification, independent diff review, gap/spec anchor and no known regression.
+- A green worker SHA does not override an incompatible or moved integration baseline.
 - Documentation-only reconciliation is not counted as product capability progress.
