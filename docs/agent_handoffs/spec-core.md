@@ -2,69 +2,63 @@
 
 ## Current baseline
 
-- Shared baseline: `develop/pathena-next@f76911dfef6530041d62fb6c2e0ddec242d64231`.
+- Shared baseline: `develop/pathena-next@aed609ef8a7ff4af48e15e3dba953daf35d56b5c`.
 - Stable read-only branch: `main@0d4d621f8a38ddf8eccfa09622bf193687619943` (unchanged).
 - Worker branch: `postmerge/spec-core`.
-- Previous worker head: `b18ef92d6b6ccd6d573fcf694ab7e2a5c404305c`.
-- History-preserving NON-FORCE synchronization merge: `4cf32721ace5f544e9adbf3d01908ac3f5d505c9`, with current Develop as first parent and the previous Core worker as second parent.
-- Synchronization retained current Develop state plus Core-owned Search acceptance files and the exact patch artifact; no foreign product file was overwritten.
+- Worker synchronization merge before this slice: `26c7b84821baf33c461490962a6983c78e038185`.
+- Bounded apply workflow commit: `524728edca2394c82bc43b795333ec1c9e899611`.
+- Verified product commit: `e93cd24ce3deaf19d4fe6cdc2c14169a2ad9c1be`.
+- Temporary workflow cleanup commit: `b28ce614f0876fc414aab099dd5d4af6a397ad67`; product blobs are unchanged from `e93cd24c...`.
 
 ## Spec anchor
 
-Primary source: `docs/beta/10_Retrieval_und_Suche.md`.
+Primary source: `docs/beta/10_Retrieval_und_Suche.md`, normal Hybrid retrieval and canonical Search response contract. Existing `HybridRetrievalService` and `hybrid_search_result_response()` remain the only established normal-search retrieval/response adapters used by this slice. Protected/Archive search remains outside scope.
 
-Normal Hybrid retrieval is the established normal-search candidate/ranking path. Protected/Archive retrieval remains a distinct authorization/provenance-sensitive path and is outside this slice. The existing `HybridRetrievalService` and canonical `hybrid_search_result_response()` adapter are the only established services used by this composition contract.
+## Slice completed
 
-## Current traced product gap
+Normal-Hybrid `CoreApiFacade <-> AthenaApplication` composition is now implemented on the worker line.
 
-`AthenaApplication` constructs `CoreApiFacade` before normal retrieval, then later constructs `LocalSearchService -> RetrievalRankingService -> LocalSemanticSearchService -> HybridRetrievalService` as `self.hybrid_retrieval`. On the current worker line the constructor still proceeds directly from `self.hybrid_retrieval` to `ContextBuilderService`; the normal Hybrid service is not attached to the API.
+Product behavior:
 
-`CoreApiFacade` already uses one-time post-construction `attach_*` boundaries and capability gating for later-built services. The bounded architecture-conforming change remains:
+- `NormalSearch` protocol added at the API boundary with exact `query`, `model_id`, `limit`, optional `SearchEntityType` contract.
+- `CoreApiFacade.attach_normal_search()` is one-time only.
+- capability `search.normal.hybrid` appears only after a normal-search attachment exists.
+- `CoreApiFacade.search()` delegates unchanged arguments to the attached Hybrid retrieval service and maps results only through canonical `hybrid_search_result_response()`.
+- underlying semantic retrieval exceptions are not caught or transformed by the facade.
+- `AthenaApplication` attaches the exact `self.hybrid_retrieval` instance immediately after construction.
+- no Archive/Protected expansion, synthetic provenance, persistence, ranking, security, recovery, storage or UI semantics changed.
 
-- one-time `attach_normal_search()`;
-- capability `search.normal.hybrid` only after attachment;
-- exact delegation of query, `model_id`, `limit` and optional `SearchEntityType`;
-- response mapping only through `hybrid_search_result_response()`;
-- propagation of `SemanticRetrievalUnavailableError` unchanged;
-- `AthenaApplication` attaches the exact `self.hybrid_retrieval` instance immediately after construction;
-- no Archive/Protected expansion, synthetic provenance, persistence, ranking, security, recovery, storage or UI change.
+## Evidence
 
-## Acceptance coverage on worker
+Bounded workflow run `33795894172` completed `success` on the exact apply baseline and required all of the following before producing product commit `e93cd24ce3deaf19d4fe6cdc2c14169a2ad9c1be`:
 
-- `tests/unit/test_core_api_search_wiring.py`: capability gating, one-time attachment, exact delegation, canonical DTO projection, semantic-unavailable propagation.
-- `tests/unit/test_application_wiring.py`: exact application identity wiring.
-- `docs/agent_handoffs/spec-core-normal-search.patch`: exact bounded intended product mutation.
+1. exact baseline/lock validation;
+2. deterministic anchor-count checked application of the versioned Search composition patch;
+3. `git diff --check` and an exact changed-file assertion limited to `src/athena/api/service.py` and `src/athena/core/application.py`;
+4. `tests/unit/test_core_api_search_wiring.py` — PASS;
+5. `tests/unit/test_application_wiring.py` — PASS;
+6. Ruff on the two product files and the two acceptance-test files — PASS;
+7. mypy on `src/athena/api/service.py` and `src/athena/core/application.py` — PASS.
 
-These tests are acceptance pins for behavior that remains absent from the product files. No PASS claim is made for the missing composition.
+Repository reads after the commit independently confirm the API imports/protocol/one-time attachment, gated capability, canonical search mapping, and exact application identity wiring are present on `e93cd24c...`.
 
-## Mutation state this run
-
-The worker was synchronized safely to the current Develop lineage through `4cf32721ace5f544e9adbf3d01908ac3f5d505c9`.
-
-The repository connector was then used to inspect the exact current product blobs and revalidate the patch context. `src/athena/api/service.py` still has no normal-search attachment/capability/search method, and `src/athena/core/application.py` still has no `self.api.attach_normal_search(self.hybrid_retrieval)` after Hybrid retrieval construction.
-
-A local checkout was retried and remains blocked by transient DNS resolution failure for `github.com`. The repository connector can create complete replacement blobs but does not expose bounded hunk application. Replacing the ~1300-line central facade or the large application coordinator from reconstructed text solely to make a surgical insertion is not accepted as a safe mutation path in this run. Therefore product files were deliberately not rewritten and no fabricated test PASS is reported.
-
-## Coordination
-
-- Error stream: ERR-0003 remains closed/integrated on Develop; Core does not touch its Qt harness root cause.
-- Backend stream: ExternalAccessGateway runtime-boundary hardening remains Backend-owned; Core does not touch gateway/network/storage/security files.
-- UI stream: 11-screen visual/interaction work and UI-GAP-0004 verification remain UI-owned; Core does not touch Qt/theme/layout files.
-- `main` remains read-only.
+Canonical global Quality is not claimed for `e93cd24c...` or cleanup head `b28ce614...`; no exact-head Quality run was visible at handoff update time. The focused product contract itself is verified by run `33795894172`.
 
 ## Integrator handoff
 
-NOT READY AS PRODUCT. `4cf32721ace5f544e9adbf3d01908ac3f5d505c9` is a safe synchronization merge only.
+READY as a bounded Core product slice subject to Integrator READY review.
 
-The exact product mutation remains `docs/agent_handoffs/spec-core-normal-search.patch`. Apply it only through a bounded patch-capable path, then execute at minimum:
+Preferred product commit: `e93cd24ce3deaf19d4fe6cdc2c14169a2ad9c1be`.
 
-1. `tests/unit/test_core_api_search_wiring.py`;
-2. `tests/unit/test_application_wiring.py`;
-3. relevant API/application regressions;
-4. canonical Quality on the exact resulting worker SHA when available.
+The temporary workflow file was removed in cleanup commit `b28ce614f0876fc414aab099dd5d4af6a397ad67`; do not integrate the temporary workflow. If integrating by commit selection, take the bounded product change and existing acceptance-test lineage only, then run relevant API/application regressions and canonical Quality on the resulting exact Develop SHA.
 
-Only the resulting applied-and-verified product/test SHA is Integrator-ready.
+## Coordination
+
+- Backend retains ExternalAccessGateway runtime-boundary ownership.
+- UI/Error retain `ERR-0004` / `UI-GAP-0004` ownership.
+- Core did not change Qt, storage, network, security, recovery or worker-owned handoff files.
+- `main` remains read-only.
 
 ## Next Alpha/Beta gap
 
-First finish normal-Hybrid `CoreApiFacade <-> AthenaApplication` composition. After verification, trace current Alpha/Beta coverage and take the highest unclaimed CHAT / KNOWLEDGE / RESEARCH / PALLAS P0/P1/P2 gap. PALLAS work must remain data-driven from real Sources/Claims/Knowledge/Research.
+Normal-Hybrid composition is no longer the active Core gap. Next run must trace current Alpha/Beta coverage against the latest Develop/worker state and select the highest unclaimed P0/P1/P2 gap in CHAT / KNOWLEDGE / RESEARCH / PALLAS. PALLAS remains data-driven only from real Sources/Claims/Knowledge/Research.
