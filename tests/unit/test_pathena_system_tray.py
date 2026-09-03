@@ -13,7 +13,15 @@ class _TrayWindow(QMainWindow):
     def __init__(self) -> None:
         super().__init__()
         self.navigation = QListWidget(self)
-        for label in ("Workspace", "Library", "Research", "Jobs", "Sources", "System", "Settings"):
+        for label in (
+            "Workspace",
+            "Library",
+            "Research",
+            "Jobs",
+            "Sources",
+            "System",
+            "Settings",
+        ):
             self.navigation.addItem(label)
         self.navigation.setCurrentRow(0)
 
@@ -57,5 +65,29 @@ def test_system_status_reuses_existing_navigation_and_restores_window() -> None:
 
     assert window.navigation.currentRow() == 5
     assert not window.isMinimized()
+
+    controller.shutdown()
+
+
+def test_tray_reflects_only_explicit_runtime_snapshot_states() -> None:
+    app = _app()
+    window = _TrayWindow()
+    controller = PathenaSystemTrayController(window, app=app)
+
+    expected = {
+        "success": "pATHENA · Ready",
+        "stale": "pATHENA · Status stale",
+        "error": "pATHENA · Attention needed",
+        "unavailable": "pATHENA · Status unavailable",
+    }
+    for state, tooltip in expected.items():
+        controller.apply_runtime_state(state)
+        assert controller.tray.property("pathenaRuntimeState") == state
+        assert controller.tray.toolTip() == tooltip
+        assert not controller.tray.icon().isNull()
+
+    controller.apply_runtime_state("unexpected")
+    assert controller.tray.property("pathenaRuntimeState") == "unavailable"
+    assert controller.tray.toolTip() == "pATHENA · Status unavailable"
 
     controller.shutdown()
