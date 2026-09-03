@@ -38,7 +38,6 @@ Add/extend the resource-manager unit regression so malformed values such as `"qu
 
 - Static baseline re-read: CONFIRMED finding.
 - Product mutation this run: NOT APPLIED.
-- Reason: the available GitHub contents mutation interface replaces complete files; the current manager is a large, high-conflict production file and this run could not safely apply a surgical patch without reconstructing/replacing the complete file. Per non-force/no-stale-overwrite rules, no broad file replacement was attempted.
 - No PASS claim is made for the proposed regression because it was not executed.
 
 ## Safety / recovery impact
