@@ -1,9 +1,9 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `df60ad0e0b3084da05a8b55d94a227798296a1ac`
+Baseline: `319e41378b41b9d1ad02efa20253c2917e21b69a`
 Integration target: `develop/pathena-next`
 
-Only evidence-backed gaps belong here. The original 11 reference screenshots remain unavailable for direct visual comparison; therefore no pixel-level mismatch or `MATCH` claim is asserted.
+Only evidence-backed gaps belong here. Plausible pATHENA reference-image records are discoverable in the File Library, but their actual image payloads could not be opened successfully in this run. Therefore no new pixel-level mismatch or `MATCH` claim is asserted; `VISUAL_REFERENCE_PENDING` remains in force.
 
 ## UI-GAP-0001 — Inspector naming does not express the Evidence & Activity contract
 
@@ -40,4 +40,4 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 
 ## Evidence blocker
 
-`VISUAL_REFERENCE_PENDING`: until an original reference image and a real rendered current build can both be opened and inspected, spacing, exact proportions, pixel colors and screenshot-level `MATCH` claims remain prohibited.
+`VISUAL_REFERENCE_PENDING`: until an original reference image and a real rendered current build can both be opened and inspected, spacing, exact proportions, pixel colors and screenshot-level `MATCH` claims remain prohibited. Do not allocate `UI-GAP-0004` from filenames, generated descriptions, memory, or inaccessible image records alone.
