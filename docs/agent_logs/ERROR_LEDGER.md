@@ -14,11 +14,11 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 ## Current baseline
 
 - Baseline branch: `develop/pathena-next`
-- Baseline SHA: `edae673243cfea9114302bd0b52655a7034b106e`
+- Baseline SHA: `5eb99f4cc3baed1f4eef23a54d686d109a7da21c`
 - Stable read-only parent: `main` at `0d4d621f8a38ddf8eccfa09622bf193687619943`
 - Worker branch: `postmerge/errors`
-- Error worker synchronized history-preservingly and NON-FORCE with current Develop via merge commit `26096356bcd00614e65f01c7f326f404d46862c8`, retaining the prior Error Ledger/Handoff plus the complete current Develop product tree.
-- Latest newly integrated product/test slice is UI-GAP-0001; its bounded product/test lineage had already passed canonical Quality before integration. Current exact Develop head is an integration-handoff commit.
+- Error worker synchronized history-preservingly and NON-FORCE with current Develop via merge commit `a174c515c613c00332f1a69bcaa2befbf3c3e604`, retaining the prior Error Ledger/Handoff plus the complete current Develop product tree.
+- Latest newly integrated product slice is the canonical Search API DTO + normal-Hybrid adapter; it does not touch the deletion-ledger root cause.
 
 ## Current error state
 
@@ -28,11 +28,11 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 
 ## Current scan
 
-- Current Develop advanced to `edae673243cfea9114302bd0b52655a7034b106e` through the verified UI-GAP-0001 integration path; no deletion-ledger product fix was integrated.
-- `postmerge/backend@ef88bbf9e649a6524f110d88b62e6126299d3a64` still contains only the documented ERR-0001 root-cause handoff for this slice, not a product fix.
+- Current Develop is `5eb99f4cc3baed1f4eef23a54d686d109a7da21c`; no deletion-ledger product fix is present on that lineage.
+- `postmerge/backend@b533c99e0b56c022f5ab22ec3413675d00f6ff86` added focused fail-before-SQL regression coverage for `ERR-0001` at test-bearing commit `de7da517f0cc0cd056de3cbe8aed19db44915884`, but still has no product fix commit.
+- Canonical ATHENA Quality Gate run `33728141579` for that focused-test commit completed with conclusion `cancelled`; this is not a PASS and does not close the defect.
 - Therefore `ERR-0001` remains current and BLOCKED from error-worker mutation by ownership, not resolved.
-- No fresh canonical CI failure tied to the current Develop SHA was found in this cycle. The latest UI exact-head Quality run observed remains pending, not failed; pending status is not opened as an error.
-- Historical recovery/platform failures remain stale unless their signature recurs on current Develop evidence.
+- No unrelated current-Develop failure signature was established in this cycle; historical recovery/platform failures remain stale unless their signature recurs on current Develop evidence.
 
 ## Entries
 
@@ -40,7 +40,7 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 
 - first_seen: 2026-09-03
 - last_seen: 2026-09-03
-- checked_sha: `edae673243cfea9114302bd0b52655a7034b106e`
+- checked_sha: `5eb99f4cc3baed1f4eef23a54d686d109a7da21c`
 - severity: P2
 - area: Storage / Persistence / Deletion Ledger / Recovery boundary
 - status: `BLOCKED`
@@ -48,17 +48,18 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
   - `record_deletion()` calls `entity_type.strip()` before validating that `entity_type` is text.
   - `deleted_at_us` and `deletion_commit_seq` rely on relational guards without exact-int/bool-safe validation.
   - `read_deletion_records(after_seq=...)` has the same exact-int/bool-safe cursor-boundary gap.
-  - Backend independently owns the repair as tasks 290-293 and has not yet published a product fix commit.
+  - Backend owns the repair and has now pinned malformed-input fail-before-SQL behavior in `tests/unit/test_deletion_ledger_boundaries.py`, but has not yet published the product guard fix.
+  - Quality run `33728141579` on the focused-test commit was cancelled, so verification is incomplete.
 - reproducible path:
   1. `record_deletion(..., entity_type=None, ...)` reaches `.strip()` before intended boundary validation.
   2. `record_deletion(..., deleted_at_us=False, deletion_commit_seq=True, ...)` permits bool-as-int values toward SQLite.
   3. `read_deletion_records(..., after_seq=False)` treats bool as numeric zero.
 - primary root cause: durable deletion-ledger APIs rely on annotations/relational comparisons instead of explicit exact runtime validation before SQL access.
-- affected files: `src/athena/lifecycle/deletion.py`; focused deletion-ledger/lifecycle regression tests.
+- affected files: `src/athena/lifecycle/deletion.py`; `tests/unit/test_deletion_ledger_boundaries.py`; existing deletion-ledger/lifecycle recovery regressions.
 - fix_commit: none yet.
-- verification executed: exact branch/head and Backend ownership review in this cycle; no focused runtime regression executed by Error worker because Backend owns the root cause.
+- verification executed: exact current Develop lineage rechecked; Backend handoff/test commit reviewed; canonical workflow run `33728141579` independently checked and observed `completed/cancelled`. No product verification was claimed.
 - remaining risks: malformed types can fail inconsistently; bool-as-int values may silently cross persistence/query boundaries and weaken recovery guarantees.
-- integrator handoff: accept a Backend fix only with focused proof that malformed values fail before SQL/query side effects, bool is rejected for integer fields/cursors, valid boundary values remain valid, idempotent replay remains unchanged, and ordered cursor behavior remains unchanged. After integration, Error worker must verify on the exact new Develop SHA before moving to `FIXED`.
+- integrator handoff: accept a Backend fix only with focused proof that malformed values fail before SQL/query side effects, bool is rejected for integer fields/cursors, valid boundary values remain valid, idempotent replay remains unchanged, ordered cursor behavior remains unchanged, and exact product-head Quality/regressions pass. After integration, Error worker must verify on the exact new Develop SHA before moving to `FIXED`.
 - blocked reason: active ownership collision avoidance with `postmerge/backend`.
 
 ## Historical/stale evidence
