@@ -14,34 +14,55 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 ## Current baseline
 
 - Baseline branch: `develop/pathena-next`
-- Baseline SHA: `7e23616b79b65f759980ad98a27640b6c29bcea0`
+- Baseline SHA: `e76b4cb2cca1612fe68b1ddd66554213352d32a9`
 - Stable read-only parent: `main` at `0d4d621f8a38ddf8eccfa09622bf193687619943`
 - Worker branch: `postmerge/errors`
-- Error worker synchronized NON-FORCE with current develop through merge commit `887672108b3bc1e4d3185bad07df6efca6963c1d`.
-- Latest product/test-bearing SHA on the develop lineage: `ececd7741ca17a8c5c75af161359a5284fe88695`.
-- `develop/pathena-next` is three documentation-only commits ahead of that product/test SHA; compare evidence shows no additional product/test file changes.
-- Canonical Quality run `33703529634` for exact SHA `ececd7741ca17a8c5c75af161359a5284fe88695` completed `SUCCESS`.
-- Exact `develop/pathena-next` branch Actions runs observed: none.
+- Error worker synchronized NON-FORCE with current develop through PR #46 / merge commit `ed032b8cca14461de4d5e1087e12ab1428627ef1`.
+- Latest product/test-bearing SHA on the develop lineage: `3a5dfffaea7b3a1bc3e0f376e2edac6cf1a8dc5c`.
+- The two commits after that product/test SHA on develop are documentation-only tracker/handoff updates.
+- Canonical Quality run `33710799386` for exact SHA `3a5dfffaea7b3a1bc3e0f376e2edac6cf1a8dc5c` completed `SUCCESS`.
+- Verified jobs on that exact SHA include Python 3.12 Quality (Spec Validator, Ruff, mypy, full pytest), Linux storage regressions, local install/restart smoke, and Windows path safety.
 
-## Open errors
+## Current error state
 
-None confirmed on current `develop/pathena-next` SHA `7e23616b79b65f759980ad98a27640b6c29bcea0` as of 2026-09-03.
-
-The absence of an exact develop-HEAD workflow run is an evidence gap, not a product defect. The current develop product/test tree is code-equivalent to the exact-SHA Quality-successful product/test commit above because only documentation changed afterward.
+- OPEN: none currently assigned to error-worker mutation.
+- IN_PROGRESS: none.
+- BLOCKED: `ERR-0001` is a confirmed current-lineage persistence-boundary defect cluster already claimed by `postmerge/backend`; error worker must not patch the same root cause in parallel.
 
 ## Current scan
 
-- Reviewed the integrated hybrid retrieval provenance lineage; no current failure signature was identified.
-- Exact product/test SHA `ececd7741ca17a8c5c75af161359a5284fe88695` retains successful canonical Quality evidence via run `33703529634`.
-- Reviewed current worker heads for impending integration risk. Backend synchronized product-bearing SHA `8ac7b3d5822daa395f71ee6fc797946ccd3d04b0` completed canonical Quality run `33707952053` with `SUCCESS`; no error entry is warranted from that evidence.
-- Core rank product/test SHA `11720aa82b38175b2f06e6a0ed80ddafd15f63ea` completed canonical Quality run `33706998826` with `SUCCESS`; no error entry is warranted from that evidence.
-- UI worker currently has no product/test mutation requiring error ownership.
-- No historical pre-merge failure was reopened without current-lineage reproduction/evidence.
-
-## Historical/stale evidence
-
-Historical pre-consolidation failures remain stale unless their signature recurs on the current baseline. The previous post-merge baseline Quality success remains supporting historical evidence but has been superseded for the current product/test lineage by Quality run `33703529634`.
+- The newly integrated archive Search source-anchor product/test SHA `3a5dfffaea7b3a1bc3e0f376e2edac6cf1a8dc5c` retains successful canonical Quality evidence via run `33710799386`.
+- No new canonical CI, Windows path, Linux storage, install/restart, Ruff, mypy or pytest regression was found on that exact product/test lineage.
+- Recent repository-wide failing Actions are historical recovery/platform-parity runs from an older lineage; they are not reopened against current develop without recurrence.
+- Static current-lineage persistence-boundary review confirmed `ERR-0001` below.
 
 ## Entries
 
-_No `ERR-####` entries yet. The first newly evidenced current-baseline defect will receive `ERR-0001`._
+### ERR-0001 — Deletion-ledger mutation/cursor boundaries accept malformed runtime types
+
+- first_seen: 2026-09-03
+- last_seen: 2026-09-03
+- checked_sha: `e76b4cb2cca1612fe68b1ddd66554213352d32a9`
+- severity: P2
+- area: Storage / Persistence / Deletion Ledger / Recovery boundary
+- status: `BLOCKED`
+- exact evidence:
+  - `src/athena/lifecycle/deletion.py` on current develop calls `entity_type.strip()` before validating that `entity_type` is actually text; malformed values such as `None` therefore escape as an uncontrolled attribute/type failure instead of the durable-boundary validation contract.
+  - The same function checks `deleted_at_us < 0` and `deletion_commit_seq <= 0` without exact-int validation. In Python, `bool` is a subclass of `int`, so `False`/`True` can pass numeric guards and reach persistence.
+  - `read_deletion_records(after_seq=...)` likewise checks only `after_seq < 0`, allowing bool-as-int cursors and leaking uncontrolled comparison `TypeError` for unrelated malformed runtime values.
+  - `postmerge/backend` independently records these exact residual findings as its next tasks 290-293 and owns the repair slice.
+- reproducible path:
+  1. Call `record_deletion(..., entity_type=None, ...)` -> `.strip()` is invoked before type validation.
+  2. Call `record_deletion(..., deleted_at_us=False, deletion_commit_seq=True, ...)` -> both numeric comparisons evaluate without rejecting bool-as-int, so malformed values can proceed toward SQLite persistence.
+  3. Call `read_deletion_records(..., after_seq=False)` -> cursor is accepted as numeric zero rather than rejected as a malformed runtime type.
+- primary root cause: durable deletion-ledger API relies on annotations and relational comparisons instead of explicit runtime boundary validation before SQL access.
+- affected files: `src/athena/lifecycle/deletion.py`; focused regression tests to be added by Backend owner.
+- fix_commit: none yet.
+- verification executed: source-level exact-SHA inspection plus current backend handoff cross-check; no product fix or focused runtime regression test has yet been executed by the error worker.
+- remaining risks: malformed type failures can be nondeterministic by input shape; bool-as-int values may silently persist as integer values and weaken API boundary guarantees used by deletion/recovery flows.
+- integrator handoff: do not ask `postmerge/errors` and `postmerge/backend` to patch this root cause concurrently. Backend should land one coherent fail-before-SQL validation slice with focused idempotency/cursor regressions; after integration, error worker must verify on the new exact develop SHA before moving this entry to `FIXED`.
+- blocked reason: active ownership collision avoidance — Backend has already claimed tasks 290-293 for this exact root cause.
+
+## Historical/stale evidence
+
+Historical pre-consolidation and recovery/platform-parity failures remain stale unless their signature recurs on current `develop/pathena-next`.
