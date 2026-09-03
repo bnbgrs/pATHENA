@@ -3,10 +3,11 @@
 ## Baseline
 
 - Baseline source: `develop/pathena-next`
-- Baseline SHA: `280066cc5450f172693e2ee913bd269b6755f7bb`
+- Baseline SHA: `7c4c8bb52d8e6df819d4a5ff44bbf6442b529d23`
 - Stable read-only parent: `main` at `0d4d621f8a38ddf8eccfa09622bf193687619943`
 - Worker branch: `postmerge/errors`
-- Worker synchronized history-preservingly and NON-FORCE with current Develop via merge commit `253df53a23d7e5b9ccfbed4e29fa568fe8efa675`; prior Error Ledger/Handoff state and the complete current Develop tree are retained.
+- Worker synchronized history-preservingly and NON-FORCE with current Develop via merge commit `3acc9bd5252870b9a1469cd2a28aa44ef65b2fbb`; canonical Error state and the complete current Develop tree are retained.
+- Ledger refresh commit: `d9ba8807986dbc86875e98c9338ae07a0a21c1e2`.
 
 ## Current error state
 
@@ -18,11 +19,13 @@
 
 ## Current evidence
 
-Current Develop is `280066cc5450f172693e2ee913bd269b6755f7bb`. Direct inspection of `src/athena/lifecycle/deletion.py` on that exact SHA confirms the defect is still present: `record_deletion()` calls `entity_type.strip()` before runtime type validation; `deleted_at_us` and `deletion_commit_seq` use relational guards without exact-int/bool-safe checks; `read_deletion_records()` only checks `after_seq < 0`, so bool remains accepted as an integer subtype.
+Current Develop is `7c4c8bb52d8e6df819d4a5ff44bbf6442b529d23`. Direct inspection of `src/athena/lifecycle/deletion.py` on that exact SHA reconfirms the defect: `record_deletion()` calls `entity_type.strip()` before runtime type validation; `deleted_at_us` and `deletion_commit_seq` use relational guards without exact-int/bool-safe checks; `read_deletion_records()` only checks `after_seq < 0`, so bool remains accepted as an integer subtype.
 
-`postmerge/backend@a05c9b7da1dd865ece0f390074a7fb36928ed3fc` still contains focused ERR-0001 regression coverage but no product fix. Canonical Quality run `33728141579` for the focused-test lineage completed `cancelled`; no PASS claim is valid.
+`postmerge/backend@5d431c2d6f66b05a29591f93f777f95b11c7fce8` still owns the repair and has not published the product guard fix. Exact current Develop has no associated workflow run; this is not a green Quality claim.
 
-No unrelated failure signature was established on exact current Develop in this cycle. Current Develop has no combined commit-status contexts attached, so absence of a failing status is not treated as a green Quality claim.
+The separately diagnosed UI pytest failure belongs to an unintegrated UI-worker SHA. It is therefore not registered as a current-Develop error here unless that signature reaches or reproduces on current Develop.
+
+No unrelated current-lineage failure signature was established in this cycle.
 
 ## Collision avoidance
 
@@ -33,7 +36,8 @@ No unrelated failure signature was established on exact current Develop in this 
 
 ## New fixed/error commits
 
-- `253df53a23d7e5b9ccfbed4e29fa568fe8efa675` — history-preserving NON-FORCE synchronization with current Develop.
+- `3acc9bd5252870b9a1469cd2a28aa44ef65b2fbb` — history-preserving NON-FORCE synchronization with current Develop.
+- `d9ba8807986dbc86875e98c9338ae07a0a21c1e2` — canonical Ledger re-verification on exact current Develop.
 - No product fix commit this cycle.
 
 ## Integrator-ready commits
