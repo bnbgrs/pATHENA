@@ -14,30 +14,30 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 ## Current baseline
 
 - Baseline branch: `develop/pathena-next`
-- Baseline SHA: `fc3f6e44fcbeecdf1f4e817a4b9523a5ba2fbbaf`
+- Baseline SHA: `7e23616b79b65f759980ad98a27640b6c29bcea0`
 - Stable read-only parent: `main` at `0d4d621f8a38ddf8eccfa09622bf193687619943`
 - Worker branch: `postmerge/errors`
-- Baseline delta versus `main`: documentation/coordination only; no production or test code changes observed in the compare.
-- Exact `develop/pathena-next` Actions runs observed: none.
-- Nearest exact production-code evidence: canonical post-merge Quality run `33694896994` on `main` SHA `0d4d621f8a38ddf8eccfa09622bf193687619943` — `SUCCESS`.
-- Verified jobs on that code-equivalent production baseline: Python 3.12 quality, Spec Validator, Ruff, mypy, full pytest, diagnostics enforcement, Windows path safety, Linux storage regressions, local install smoke — all `SUCCESS`.
+- Latest product/test-bearing SHA on the develop lineage: `ececd7741ca17a8c5c75af161359a5284fe88695`.
+- `develop/pathena-next` is three documentation-only commits ahead of that product/test SHA; compare evidence shows no additional product/test file changes.
+- Canonical Quality run `33703529634` for exact SHA `ececd7741ca17a8c5c75af161359a5284fe88695` completed `SUCCESS`.
+- Exact `develop/pathena-next` branch Actions runs observed: none.
 
 ## Open errors
 
-None confirmed on current `develop/pathena-next` SHA `fc3f6e44fcbeecdf1f4e817a4b9523a5ba2fbbaf` as of 2026-09-03.
+None confirmed on current `develop/pathena-next` SHA `7e23616b79b65f759980ad98a27640b6c29bcea0` as of 2026-09-03.
 
-The absence of an exact `develop/pathena-next` workflow run is not recorded as a product defect because the branch currently differs from the green post-merge code baseline only by documentation/coordination files. It remains an evidence gap to re-evaluate as soon as product/test code changes land.
+The absence of an exact develop-HEAD workflow run is an evidence gap, not a product defect. The current develop product/test tree is code-equivalent to the exact-SHA Quality-successful product/test commit above because only documentation changed afterward.
 
 ## Current scan
 
-- No `NotImplementedError` occurrences found by repository code search.
-- No `TODO` occurrences found by repository code search.
-- No current CI failure signature exists for `develop/pathena-next` because no Actions run is associated with the branch yet.
-- No historical pre-merge failure was reopened without current-SHA reproduction/evidence.
+- Reviewed the newly integrated hybrid retrieval provenance diff (`8fb96f2333208e2f7f3c7048423dc6d2fd10e184`). It adds validated `retrieval_methods` provenance and preserves it through diversification; no current failure signature was identified.
+- Exact product/test SHA `ececd7741ca17a8c5c75af161359a5284fe88695` has successful canonical Quality evidence.
+- No historical pre-merge failure was reopened without current-lineage reproduction/evidence.
+- Backend ResourceMode hardening remains an unverified backend candidate, not an error entry, because no failing current-lineage reproduction is recorded.
 
 ## Historical/stale evidence
 
-Historical pre-consolidation failures are not open entries unless their signature recurs on the current baseline. Old bootstrap/recovery failures predating PR #26 remain stale evidence because the merged production code received a fully green exact-SHA canonical Quality run and no production-code delta has yet landed on `develop/pathena-next`.
+Historical pre-consolidation failures remain stale unless their signature recurs on the current baseline. The previous post-merge baseline Quality success remains supporting historical evidence but has been superseded for the current product/test lineage by Quality run `33703529634`.
 
 ## Entries
 

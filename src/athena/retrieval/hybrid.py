@@ -26,6 +26,7 @@ _TYPE_AUTHORITY = {
     SearchEntityType.CHAT_MESSAGE: 0.68,
 }
 
+_RETRIEVAL_METHOD_ORDER = ("lexical", "semantic")
 _DIVERSITY_THRESHOLD = 0.82
 _DIVERSITY_PENALTY_FRACTION = 0.14
 
@@ -65,6 +66,26 @@ def _search_limit(value: object) -> int:
     return validated
 
 
+def _validate_retrieval_methods(value: object) -> tuple[str, ...]:
+    if not isinstance(value, tuple):
+        raise TypeError("Hybrid result retrieval_methods must be a tuple.")
+    if any(not isinstance(method, str) for method in value):
+        raise TypeError("Hybrid result retrieval_methods must contain text values.")
+    unknown = tuple(
+        method for method in value if method not in _RETRIEVAL_METHOD_ORDER
+    )
+    if unknown:
+        raise ValueError("Hybrid result retrieval_methods contains an unknown method.")
+    canonical = tuple(
+        method for method in _RETRIEVAL_METHOD_ORDER if method in value
+    )
+    if value != canonical:
+        raise ValueError(
+            "Hybrid result retrieval_methods must be unique and canonically ordered."
+        )
+    return value
+
+
 @dataclass(frozen=True, slots=True)
 class HybridSearchResult:
     entity_id: uuid.UUID
@@ -78,6 +99,7 @@ class HybridSearchResult:
     authority_score: float
     contradiction_count: int
     duplicate_count: int
+    retrieval_methods: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.entity_id, uuid.UUID):
@@ -108,6 +130,7 @@ class HybridSearchResult:
             self.duplicate_count,
             "Hybrid result duplicate_count",
         )
+        _validate_retrieval_methods(self.retrieval_methods)
 
 
 @dataclass(slots=True)
@@ -312,6 +335,14 @@ class HybridRetrievalService:
 def _score(candidate: _Candidate) -> HybridSearchResult:
     authority = _TYPE_AUTHORITY[candidate.entity_type]
     score = candidate.lexical_score + candidate.semantic_score
+    retrieval_methods = tuple(
+        method
+        for method, method_score in (
+            ("lexical", candidate.lexical_score),
+            ("semantic", candidate.semantic_score),
+        )
+        if method_score > 0.0
+    )
     return HybridSearchResult(
         entity_id=candidate.entity_id,
         revision_id=candidate.revision_id,
@@ -324,6 +355,7 @@ def _score(candidate: _Candidate) -> HybridSearchResult:
         authority_score=authority,
         contradiction_count=candidate.contradiction_count,
         duplicate_count=max(0, len(candidate.member_entity_ids) - 1),
+        retrieval_methods=retrieval_methods,
     )
 
 
@@ -408,6 +440,7 @@ def _diversify(
                 authority_score=chosen.authority_score,
                 contradiction_count=chosen.contradiction_count,
                 duplicate_count=chosen.duplicate_count,
+                retrieval_methods=chosen.retrieval_methods,
             )
         selected.append(chosen)
 
