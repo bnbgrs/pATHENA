@@ -60,7 +60,7 @@ def test_pathena_secondary_context_is_grounded_only_and_user_controlled() -> Non
     try:
         inspector = window.findChild(QFrame, "inspector")
         assert inspector is not None
-        assert inspector.isHidden() is False
+        assert inspector.isHidden()
         assert inspector.width() == SHELL.inspector_width + inspector.frameWidth()
         assert window.details_button.text() == "Details"
         assert window.details_button.isChecked() is False
@@ -72,6 +72,7 @@ def test_pathena_secondary_context_is_grounded_only_and_user_controlled() -> Non
 
         window._set_context_available(True)
         app.processEvents()
+        assert inspector.isHidden() is False
         assert window.context_button.isHidden() is False
         assert window.context_button.isChecked() is False
 
@@ -81,6 +82,7 @@ def test_pathena_secondary_context_is_grounded_only_and_user_controlled() -> Non
 
         window._set_context_available(False)
         app.processEvents()
+        assert inspector.isHidden()
         assert window.context_button.isHidden()
         assert window.context_button.isChecked() is False
         assert window.evidence_chain.isHidden()
@@ -90,13 +92,17 @@ def test_pathena_secondary_context_is_grounded_only_and_user_controlled() -> Non
         window.chat_selector.setCurrentIndex(0)
         app.processEvents()
         assert window.details_button.isHidden()
-        assert inspector.isHidden() is False
+        assert inspector.isHidden()
 
         window.navigation.setCurrentRow(1)
         app.processEvents()
         assert window.details_button.isHidden()
         assert window.details_button.isChecked() is False
         assert inspector.isHidden() is False
+
+        window.navigation.setCurrentRow(0)
+        app.processEvents()
+        assert inspector.isHidden()
     finally:
         window.close()
         app.processEvents()
