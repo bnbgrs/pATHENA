@@ -2,80 +2,62 @@
 
 ## Baseline
 
-- Shared baseline: `develop/pathena-next@eaab89bb4d7b08839517c40b622480bb1dc309f0`.
+- Shared baseline: `develop/pathena-next@a76537a1002e323a97d18a0a95a4d39ce5f298ee`.
 - Worker branch: `postmerge/backend`.
-- History-preserving NON-FORCE synchronization with current Develop: merge commit `b7d2f5fd6ed3e1c35fd7458f84be62341e3938af`.
+- History-preserving NON-FORCE synchronization: `2ee92e0f776ab5333039c7cbd6912d19d36b273b`, preserving the prior Backend history while using the exact current Develop tree.
 - `main@0d4d621f8a38ddf8eccfa09622bf193687619943` remains strictly read-only and untouched.
 
-## Selected backend slice
+## Current backend slice — capture URL runtime type boundary
 
-Area: durable deletion-ledger runtime boundaries / recovery cursor.
+Area: `ExternalAccessGateway.capture_url()` fail-before-side-effect runtime validation.
 
-Spec/error anchor: `ERR-0001`, backend audit tasks 290-293, and the existing deletion/recovery invariants in `src/athena/lifecycle/deletion.py`.
+Current Develop validates `max_bytes` and `timeout_seconds` before authorization, but a non-text `url` was passed into `_authorized_or_audit()` first. That path can perform authorization lookup and local-actor resolution before `_require_authorized()` eventually calls `urlsplit(url)`. This is inconsistent with the established Gateway runtime-boundary pattern for malformed caller input.
 
-Product commit `780d25d74ce2e310b6a4bc434f547a23163e8b78` adds fail-before-SQL runtime validation for malformed entity types and bool-as-int deletion values without changing persistence or recovery semantics. Ruff-only harness correction `2f705d5e0fc1c77dd60612b5aeaa16d9380e46cd` formats the new boundary test import block; assertions and product behavior are unchanged.
+Product/test commit: `07782c78d6e2cb1e9f4bfb6bf9175c9fb041a806`.
 
-## Exact verification evidence
+The production change is intentionally minimal: `capture_url()` now rejects non-text `url` values with `ExternalDestinationError("External URL must be text.")` before max-bytes/timeout processing and, critically, before authorization/audit/actor/transport/Source paths. Valid string URLs continue through the existing authorization, destination, redirect, audit, transport and transactional capture logic unchanged.
 
-Canonical Quality run `33749788522` checked exact Backend head `1cfd18c69014390380bb960b86c8e1b81a5067ac`.
+Focused coverage in `tests/unit/test_external_access_gateway_authorization_boundaries.py` exercises `None`, integer, bool, bytes and list URL values while monkeypatching `_authorized_or_audit()` to fail if the malformed input reaches authorization lookup.
 
-Backend-relevant results:
+Independent tree comparison from synchronized Backend `2ee92e0f776ab5333039c7cbd6912d19d36b273b` to product commit `07782c78d6e2cb1e9f4bfb6bf9175c9fb041a806` shows an effective net delta of only:
 
-- specification validator: PASS;
-- Ruff: PASS;
-- mypy: PASS;
-- Windows path safety: PASS;
-- Linux storage regressions: PASS;
-- Local install smoke: PASS;
-- `tests/unit/test_deletion_ledger_boundaries.py`: all 22 tests PASS inside the full pytest run;
-- full pytest: `1 failed, 4489 passed, 3 skipped, 2 warnings`.
+- `src/athena/external/gateway.py`: +2 / -0;
+- `tests/unit/test_external_access_gateway_authorization_boundaries.py`: bounded test update.
 
-The single pytest failure is exactly `tests/unit/test_pathena_pallas_full_view.py::test_open_workspace_reuses_one_synchronized_full_surface`, raising `AttributeError` in `MessageActionTabOrderController.eventFilter()` because `document` is transiently absent. This is the already UI-owned PALLAS lifecycle defect (`UI-GAP-0003`), not a deletion-ledger/backend failure. No new Backend-owned pytest failure appears in the exact log.
+A temporary verifier workflow was created in tooling commit `bf3b957cbe409db7456f0fc7f261f448f08d679b`, but connector-originated push behavior did not execute that temporary workflow. It is absent from the final product tree and must never be integrated.
 
-UI independently corrected that exact lifecycle root cause and canonical Quality run `33751403354` on UI head `76cb122dbe7b58b0fa49bbcb36de2bd732922d4d` completed SUCCESS. Backend does not absorb or modify the UI fix.
+## Call-chain / retained invariants
 
-## Product call-chain and invariants
+New malformed-input boundary:
 
-`record_deletion(runtime input) -> exact runtime validation -> UUID materialization -> existing-marker SELECT -> identity reconciliation -> INSERT/readback`.
-
-`read_deletion_records(after_seq) -> exact runtime validation -> ordered ledger SELECT`.
+`capture_url(runtime input) -> URL text guard -> existing max_bytes guard -> existing timeout guard -> authorization/audit -> privacy route -> redirect reauthorization -> transport -> response policy -> fsync staging -> transactional Source/audit/provenance finalize`.
 
 Retained invariants:
 
-- malformed values fail before SQL;
-- bool is not accepted as deletion timestamp, commit sequence or cursor;
-- `deleted_at_us=0` and `after_seq=0` remain valid;
-- deletion commit sequence remains a positive genuine integer;
-- marker idempotency/reconciliation, restore replay, transaction boundaries, ordering, identity-conflict behavior, schema and persistence representation are unchanged;
-- no Security, TOR, Provider, UI or platform-path semantics changed.
+- no silent Tor to Direct fallback;
+- Direct fallback remains explicitly authorized only;
+- loopback/private destination and proxy-leak protections unchanged;
+- every redirect is still re-authorized before fetch;
+- HTTPS/default-port policy remains fail-closed;
+- compressed-response and response-size policies unchanged;
+- audit/provenance/fsync/transactional Source-finalization semantics for valid text URLs unchanged;
+- no retry, cryptography, storage, recovery or platform-path behavior changed.
 
-## Verification / readiness state
+## Verification state
 
-- `ERR-0002` Ruff I001: FIXED and verified by canonical Ruff PASS in run `33749788522`.
-- `ERR-0001` Backend candidate: BACKEND_VERIFIED / INTEGRATOR_READY. Its focused boundary suite passes in the full canonical pytest execution, and every Backend/system canonical job is green. The only global failure is the independently owned UI/PALLAS lifecycle signature above.
-- Error worker should independently re-verify `ERR-0001` after integration before changing the canonical Error Ledger state to `FIXED`.
+Canonical Quality run `33818120429` is associated with exact product SHA `07782c78d6e2cb1e9f4bfb6bf9175c9fb041a806`. At this handoff update it is still pending and has not produced exact-head jobs, therefore no PASS or Integrator-READY claim is made yet.
 
-## Failure / recovery impact
+Baseline/synchronization Quality run `33817819189` on pre-slice sync SHA `2ee92e0f776ab5333039c7cbd6912d19d36b273b` currently shows Linux storage, Local install smoke and Windows path safety PASS; its Python quality job has specification validator, Ruff and mypy PASS while full pytest is still running. This is useful baseline-health evidence only and is not treated as verification of the new URL guard.
 
-The product mutation is fail-before-SQL and side-effect reducing. No ledger rows, schema, transaction semantics, ordering, marker identity, restore replay, crash/restart behavior or recovery format changed. Invalid boundary inputs now terminate before any SQL operation.
-
-## Platform impact
-
-Platform-neutral Python runtime-boundary hardening only. Windows path safety, Linux storage regression and local-install smoke jobs are all green on the exact Backend lineage.
+Local checkout remained unavailable because DNS resolution of `github.com` failed. Per the established worker rule, mutation used complete GitHub blobs/tree construction and NON-FORCE ref advancement rather than treating DNS as a durable blocker.
 
 ## Coordination
 
-- `postmerge/errors`: exact pytest evidence gap is now closed; `ERR-0001` may be treated as Backend-verified, with final canonical Ledger closure after integration/reverification.
-- `postmerge/ui`: owns `UI-GAP-0003`; its exact corrective lineage is now canonical green. Backend must not modify this UI root cause.
-- `postmerge/spec-core`: normal-Hybrid Search facade/application wiring remains Core-owned and non-overlapping.
-- `develop/pathena-next`: integration target only; Backend never self-integrates.
-
-## Integrator handoff
-
-READY for independent Integrator review/integration: product `780d25d74ce2e310b6a4bc434f547a23163e8b78` plus test/Ruff correction `2f705d5e0fc1c77dd60612b5aeaa16d9380e46cd`, carried on the history-preserving current-Develop Backend lineage beginning at merge `b7d2f5fd6ed3e1c35fd7458f84be62341e3938af`.
-
-The global red result of run `33749788522` must not be attributed to this Backend slice: its sole failure is the exact independently verified UI/PALLAS defect described above.
+- Error: no new confirmed Backend regression has been observed from this bounded mutation; exact product Quality remains pending.
+- Core: no Core-owned Chat/Knowledge/PALLAS/Search-semantic files changed.
+- UI: no Qt/UI files changed.
+- Integrator: do not integrate this slice until exact product run `33818120429` completes green (or later equivalent exact-content evidence exists). Then independently review only the two-file product/test delta from `07782c78d6e2cb1e9f4bfb6bf9175c9fb041a806`; exclude temporary workflow history.
 
 ## Next backend slice
 
-Select the highest currently unclaimed Backend/System P0/P1/P2 gap from current Alpha/Beta progress, Error Ledger and worker handoffs after excluding Core-owned normal-Hybrid Search and UI-owned PALLAS lifecycle work. Preserve deletion-ledger ownership only until Integrator imports the verified slice; do not broaden this root cause further.
+First consume exact Quality `33818120429`. If green, inspect `ExternalResearchService.enqueue(urls=...)` for a real runtime-boundary gap: current normalization iterates the supplied container and invokes `.strip()` on elements, so naked string/bytes containers or non-text elements may bypass a clear fail-closed contract or fail with incidental Python exceptions before Gateway capture. Only harden if reproduced and supported by the existing external-Research contract, and preserve Gateway authorization/audit semantics. If exact Quality is red, classify and correct that failure before taking a new slice.
