@@ -3,59 +3,62 @@
 ## Baseline
 
 - Baseline source: `develop/pathena-next`
-- Baseline SHA: `3347f766651a9b6e2a03235eca4add7905ad4527`
+- Baseline SHA: `7be496d2fcbb94ab81f5e520f2e45ee2820d3fd9`
 - Stable read-only parent: `main@0d4d621f8a38ddf8eccfa09622bf193687619943`
 - Worker branch: `postmerge/errors`
-- Worker was fast-forward synchronized NON-FORCE to exact current Develop before mutation.
+- Worker synchronized history-preservingly and NON-FORCE with exact current Develop before mutation via `0c26f67871c871a39f0ee980aaa4c21a6e6b2892`.
 
 ## Current error state
 
 - OPEN: none.
 - IN_PROGRESS: none.
-- FIXED_PENDING_VERIFY:
-  - `ERR-0003` P1 — two stale `test_pathena_window.py` assertions still require a permanently visible Workspace inspector even though integrated `UI-GAP-0002` intentionally makes Evidence & Activity context-sensitive. Harness correction: `ebcf0dc2a305e946aabd0309c95316d29a1ebd91`.
+- FIXED_PENDING_VERIFY: none.
 - FIXED:
   - `ERR-0001` P2 — deletion-ledger malformed runtime boundary acceptance; product fix `780d25d74ce2e310b6a4bc434f547a23163e8b78`.
   - `ERR-0002` P2 — Ruff I001 deletion-boundary harness regression; fix `2f705d5e0fc1c77dd60612b5aeaa16d9380e46cd`.
+  - `ERR-0003` P1 — stale persistent-inspector harness contract; verified fix `6253577227d427c9bb00707c3e3e578a16c0f9d6`.
 - BLOCKED: none.
 
 ## Current evidence
 
-- Backend canonical Quality run `33755878184` on `a4768d9b0ea57a1161c93f603a5101c28b555276` is now completed `failure`.
-- Canonical jobs/checks: specification validator PASS; Ruff PASS; mypy PASS; Windows path safety PASS; Linux storage regressions PASS; Local install smoke PASS. Only `Quality — pytest` failed.
-- Downloaded diagnostics artifact `9894914799`: exactly `2 failed, 4488 passed, 3 skipped, 2 warnings`.
-- Failing tests:
-  - `tests/unit/test_pathena_window.py::test_reference_body_directly_owns_workspace_and_persistent_inspector`
-  - `tests/unit/test_pathena_window.py::test_reference_inspector_is_persistent_and_composer_action_is_compact`
-- Both fail only because `inspector.isHidden()` is true on Workspace without grounded context.
-- Failing Backend lineage and current Develop share the exact same product blob `src/athena/desktop/pathena_window.py@b683903cc6e6a1a99950bba168e6e314df545ca1` and stale test blob `tests/unit/test_pathena_window.py@950f868e2e396bab5711bda147a124458c69cc34`; therefore this is a current-baseline error, not stale evidence.
-- `docs/ui/VISUAL_GAP_LEDGER.md` explicitly records `UI-GAP-0002` as FIXED: the inspector must be context-sensitive rather than permanently visible. Exact corrected UI head `ce959e148ddbe8f13952ca56f7d07e7a7ce1addb` passed canonical Quality run `33745885426`.
-- Error-worker fix `ebcf0dc2...` changes only the two obsolete shell test names/assertions and adds a non-Workspace visibility assertion. Product code is untouched.
-- Focused execution on the corrected Error head has not been observed: local clone/test was blocked by DNS resolution of `github.com`, and no Error-branch workflow run is currently available. Do not mark ERR-0003 FIXED yet.
+- Backend canonical Quality run `33755878184` on `a4768d9b0ea57a1161c93f603a5101c28b555276` failed only at full pytest with two stale `tests/unit/test_pathena_window.py` assertions; validator, Ruff, mypy, Windows path safety, Linux storage and local-install smoke passed.
+- Diagnostics artifact `9894914799`: exactly `2 failed, 4488 passed, 3 skipped, 2 warnings`.
+- Product contract is `UI-GAP-0002`: Evidence & Activity is contextual, not permanently visible.
+- Initial candidate `ebcf0dc2a305e946aabd0309c95316d29a1ebd91` corrected the failing assertions but did not restore the complete previously verified state-transition coverage.
+- Final Error fix `6253577227d427c9bb00707c3e3e578a16c0f9d6` restores the exact canonical-green shell test blob `82f492814250536dd003857a4eec2d083e9e13d5` from UI head `ce959e148ddbe8f13952ca56f7d07e7a7ce1addb`.
+- Current Error lineage and canonical-green UI head share byte-identical directly relevant blobs:
+  - `src/athena/desktop/pathena_window.py@b683903cc6e6a1a99950bba168e6e314df545ca1`
+  - `tests/unit/test_pathena_window.py@82f492814250536dd003857a4eec2d083e9e13d5`
+  - `tests/unit/test_pathena_ui_presentation.py@171f209728831feb1ac7bb06172e30aee12973ae`
+- Canonical Quality run `33745885426` on exact UI head `ce959e148ddbe8f13952ca56f7d07e7a7ce1addb` completed `success`; this is exact-content verification of the affected product and focused harness state.
+- Fresh local execution was attempted again but checkout was blocked by DNS resolution of `github.com`; no fabricated separate local PASS is claimed.
 
 ## Collision avoidance
 
-- Active Error-worker files: `tests/unit/test_pathena_window.py`, `docs/agent_logs/ERROR_LEDGER.md`, `docs/agent_handoffs/errors.md`.
-- UI should avoid parallel edits to `tests/unit/test_pathena_window.py` until ERR-0003 is verified or rejected.
-- Product UI files are not owned by Error for this root cause; no mutation to `src/athena/desktop/pathena_window.py` is required.
+- Error-owned active files for this closed root cause: `tests/unit/test_pathena_window.py`, `docs/agent_logs/ERROR_LEDGER.md`, `docs/agent_handoffs/errors.md`.
+- Integrator should preserve exact shell-test blob `82f492814250536dd003857a4eec2d083e9e13d5` while integrating ERR-0003.
+- UI may resume changes to `tests/unit/test_pathena_window.py` after integration, but should not reintroduce the persistent-inspector contract.
+- Product UI code was not changed by Error.
 - Core/Backend are non-overlapping.
 
 ## Fix commits
 
-- `ERR-0003` harness candidate: `ebcf0dc2a305e946aabd0309c95316d29a1ebd91`.
-- Ledger update: `34e6dc5ef6b7e684f73b2305b7b894f85cd60acd`.
+- Synchronization merge: `0c26f67871c871a39f0ee980aaa4c21a6e6b2892`.
+- `ERR-0003` verified harness fix: `6253577227d427c9bb00707c3e3e578a16c0f9d6`.
+- Ledger closure: `05785eb84151eb841519980da94ff3ad02700383`.
 
 ## Integrator-ready commits
 
-None yet for ERR-0003. Verification is still required before integration.
+- READY: `6253577227d427c9bb00707c3e3e578a16c0f9d6` for ERR-0003, after/current with synchronization merge `0c26f67871c871a39f0ee980aaa4c21a6e6b2892`.
+- Preserve exact test blob `82f492814250536dd003857a4eec2d083e9e13d5`.
+- After integration, run canonical Quality on the resulting exact Develop SHA when available.
 
 ## Blocked root causes
 
-None. Test execution is temporarily unavailable in this worker environment, but the correction itself is committed and reviewable.
+None.
 
 ## Next scan / verification
 
-1. Run `tests/unit/test_pathena_window.py` and `tests/unit/test_pathena_ui_presentation.py` on the exact current Error head.
-2. If green, run the smallest relevant Qt/Desktop regression set; update ERR-0003 to `FIXED` and hand `ebcf0dc2...` to Integrator.
-3. Treat the Qt stderr deleted-`QProcess` lifecycle noise from the canonical diagnostics as a warning signal only; allocate a separate ERR-ID only if it becomes a reproducible test/runtime failure.
-4. Continue scanning Packaging, Provider/Transport, Research/Jobs, Windows publication/path safety, Storage/Recovery and install/start for new current-lineage signatures.
+1. Continue scanning the Qt deleted-`QProcess` stderr warning; allocate a new ERR-ID only if a current-lineage runtime/test failure is reproducible.
+2. Inspect Packaging, Provider/Transport, Research/Jobs, Windows publication/path safety, Storage/Recovery and local install/start for fresh current-lineage signatures.
+3. Re-open historical errors only if their exact signatures recur on the then-current Develop SHA.
