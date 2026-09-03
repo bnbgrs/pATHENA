@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import uuid
 from pathlib import Path
 
 import pytest
 
 from athena.config.settings import AthenaSettings
 from athena.core.application import AthenaApplication
-from athena.external.gateway import ExternalAuthorizationError
+from athena.external.gateway import ExternalAuthorizationError, ExternalDestinationError
 
 
 def _authorization_count(app: AthenaApplication) -> int:
@@ -79,6 +80,7 @@ def test_authorize_explicit_preserves_valid_host_normalization(tmp_path: Path) -
     assert authorization.allowed_hosts_json == '["example.com","openai.com"]'
     app.stop()
 
+
 @pytest.mark.parametrize("privacy_route", [None, 7, True, b"tor", [], {}])
 def test_authorize_explicit_rejects_non_text_privacy_route_before_actor_or_persistence(
     tmp_path: Path,
@@ -100,7 +102,7 @@ def test_authorize_explicit_rejects_non_text_privacy_route_before_actor_or_persi
 
 
 def _fail_authorization_lookup(*_args: object, **_kwargs: object) -> None:
-    pytest.fail("invalid direct fallback host reached authorization lookup")
+    pytest.fail("invalid input reached authorization lookup")
 
 
 @pytest.mark.parametrize("host", [None, 7, True, b"example.com", []])
@@ -122,6 +124,7 @@ def test_authorize_direct_fallback_rejects_non_text_host_before_authorization_lo
             host=host,  # type: ignore[arg-type]
         )
     app.stop()
+
 
 @pytest.mark.parametrize("ttl_seconds", [0, -1, 901, 10_000])
 def test_authorize_direct_fallback_rejects_out_of_range_ttl_before_authorization_lookup(
@@ -165,4 +168,21 @@ def test_authorize_direct_fallback_preserves_valid_ttl_range(
     assert direct.privacy_route == "direct_explicit"
     remaining_us = direct.expires_at_us - direct.created_at_us
     assert 0 < remaining_us <= ttl_seconds * 1_000_000
+    app.stop()
+
+
+@pytest.mark.parametrize("url", [None, 7, True, b"https://example.com", []])
+def test_capture_url_rejects_non_text_url_before_authorization_lookup(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    url: object,
+) -> None:
+    app = AthenaApplication(settings=AthenaSettings(local_root=tmp_path / "capture-url-boundary"))
+    app.start()
+    monkeypatch.setattr(app.external_access, "_authorized_or_audit", _fail_authorization_lookup)
+    with pytest.raises(ExternalDestinationError, match="URL must be text"):
+        app.external_access.capture_url(
+            uuid.uuid4(),
+            url,  # type: ignore[arg-type]
+        )
     app.stop()
