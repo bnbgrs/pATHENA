@@ -1,85 +1,79 @@
 # pATHENA Alpha/Beta Core Handoff
 
-## Current slice
+## Current baseline
 
-- Baseline: `develop/pathena-next@e76b4cb2cca1612fe68b1ddd66554213352d32a9`
-- Worker branch: `postmerge/spec-core`
-- NON-FORCE sync: worker fast-forwarded from `3a5dfffaea7b3a1bc3e0f376e2edac6cf1a8dc5c` to the current develop baseline before mutation.
-- Product commit: `3a29225a4d79fac558f2b0d7c7757471daa34aaf`
-- Focused-test commit: `9ee3c3c21ea6629b6ca203a73b56de221ccca871`
-- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Shared baseline: `develop/pathena-next@7c15b44818e9ac5c3484ee30d4a20d6f0d56087e`.
+- Stable read-only branch: `main@0d4d621f8a38ddf8eccfa09622bf193687619943` (unchanged).
+- Worker branch: `postmerge/spec-core`.
+- Previous worker head: `6c6d90d4a852dae82b9e61f4e23c2045588cbd32`.
+- Exact previous worker head passed ATHENA Quality Gate run `33718602977` with conclusion `success`.
+- History-preserving NON-FORCE synchronization merge: `1e6ddcccfe77e03101ebc6863ff51cb72d733942`, with parents `6c6d90d4a852dae82b9e61f4e23c2045588cbd32` and `7c15b44818e9ac5c3484ee30d4a20d6f0d56087e`.
 
-## Spec anchor
+The merge tree uses the exact current Develop product/documentation tree and retains only the already verified Search API DTO/test files from the previous Core worker. No force, rebase, history rewrite, main mutation or foreign-worker overwrite was used.
 
-`docs/beta/10_Retrieval_und_Suche.md` §5 requires a protection context in SearchRequest, §8 requires Protection Scope filtering before final ranking where possible, §19 keeps protected embeddings out of normal persistent HNSW state, §52 requires `protection state` in every Search Response, and §§59-61 require authorization-first protected retrieval, no metadata leak while locked, and Protection Labels to survive mixed ranking into the Context Builder.
+## Spec anchors
 
-The current code establishes two authoritative result classes:
+Primary source: `docs/beta/10_Retrieval_und_Suche.md`.
 
-- `LocalSearchService` and `LocalSemanticSearchService` are unprotected retrieval pipelines. Local FTS explicitly excludes protected payloads; semantic results are joined back through that unprotected FTS projection.
-- `ProtectedRuntimeSourceSearchService` returns `ProtectedRuntimeSearchResult` only from authorized unlocked scopes and each result carries its actual `protection_scope_id`.
+- §52 requires Search Response to carry result id/ref, title/preview, entity type, revision, final rank, retrieval methods, source anchor and protection state.
+- §§59-61 require authorization-first Protected Search, no locked metadata leak, and persistent protection labels through mixed ranking/context use.
+- Existing normal `LocalSearchService` explicitly excludes protected payloads; `HybridRetrievalService` derives from that normal lexical projection plus semantic candidates and emits deterministic `rank` plus `retrieval_methods`.
 
-This slice therefore labels only facts already established by those pipelines. It does not infer current unlock state and does not expose protected metadata for results that were never authorized/returned.
+## Current product slice — normal Hybrid result → canonical Search DTO
 
-## Implemented product contract
+Product commit: `ade3d4a0cafdfbaceb89c35dff04a6a16e58b5fc`.
+Focused-test commit: `e16dee12688e8560ae02445ac88a656839ba616c`.
+Status: `IMPLEMENTED_PENDING_VERIFY`.
 
-Added `src/athena/retrieval/protection.py` with:
+Added `src/athena/api/search_adapter.py` with `hybrid_search_result_response()`.
 
-- `SearchProtectionState.UNPROTECTED` and `.PROTECTED`;
-- immutable `SearchProtectionRef(state, protection_scope_id)`;
-- `unprotected_search_protection_ref()` for the explicitly unprotected retrieval paths;
-- `protected_search_protection_ref(result)` which preserves the authorized result's real ProtectionScope UUID.
+The adapter maps only established facts from a final-ranked `HybridSearchResult` into the already existing `SearchResultResponse` contract:
 
-Invariants:
+- stable result ref from actual entity type + entity UUID;
+- actual title/text projection;
+- actual entity type and revision UUID;
+- final rank from Hybrid diversification;
+- actual retrieval-method tuple;
+- `source_anchor=None`, because normal entity Hybrid results carry no SourceAnchor provenance;
+- explicit `unprotected` protection state derived from the established normal-search protection contract.
 
-- unprotected labels cannot carry a scope id;
-- protected labels must carry an actual UUID scope id;
-- `protected` is a classification, not a claim that the scope remains unlocked later;
-- no plaintext, hash, title, score, unlock flag, durable row, actor, commit, or synthetic scope is created;
-- a malformed protected result fails closed rather than degrading to an unprotected label.
-
-This is an additive Search Response value contract. It does not yet merge protected and unprotected ranking pipelines or alter authorization behavior.
+The adapter rejects a result without final rank and rejects non-`HybridSearchResult` input. It does not synthesize Archive anchors, Protected scopes, unlock state, scores-as-truth, persistent records or alternate ranking behavior.
 
 ## Files
 
-- `src/athena/retrieval/protection.py`
-- `tests/unit/test_search_protection_ref.py`
-- `docs/agent_handoffs/spec-core.md`
+- `src/athena/api/search_contracts.py` — previously verified canonical Search DTO.
+- `tests/unit/test_search_api_contracts.py` — previously verified DTO validation.
+- `src/athena/api/search_adapter.py` — current bounded adapter.
+- `tests/unit/test_search_api_adapter.py` — current focused adapter tests.
+- `docs/agent_handoffs/spec-core.md` — this handoff.
 
-## Focused verification contract
+## Verification
 
-Focused tests cover:
+Previous DTO worker head `6c6d90d4a852dae82b9e61f4e23c2045588cbd32` passed Quality run `33718602977`.
 
-- unprotected label contains no scope metadata;
-- protected adapter preserves the exact authorized `protection_scope_id`;
-- inconsistent unprotected+scope state is rejected;
-- protected labels reject missing/non-UUID scope values;
-- malformed protected result adapters fail closed.
+Current adapter head before this documentation update, `e16dee12688e8560ae02445ac88a656839ba616c`, triggered ATHENA Quality Gate run `33722871184`; final result was still pending when this handoff was written. Do not claim the new adapter VERIFIED until an exact final worker-head run succeeds.
 
-Runtime/CI result is pending exact-head verification. No PASS is claimed until the worker head is verified.
+Focused tests assert:
 
-## Safety / compatibility
+- rank/retrieval methods/revision/title/text survive serialization unchanged;
+- normal Hybrid results expose `unprotected` with no scope metadata;
+- no SourceAnchor is fabricated;
+- missing final rank fails closed;
+- wrong result type fails closed.
 
-- No search ranking, selection, candidate visibility, FTS, HNSW, persistence, recovery, network/provider, or UI behavior changed.
-- No Protected Source plaintext or derived hashes are persisted.
-- No locked-scope metadata is surfaced.
-- No Skip/XFail/assertion/security/storage guard weakening.
-- `ERR-0001` deletion-ledger files remain owned by Backend and untouched.
+## Ownership / collision avoidance
 
-## Coordination
+- Backend owns `ERR-0001` / deletion-ledger tasks 290-293 in `src/athena/lifecycle/deletion.py`; Core did not touch them.
+- UI owns UI-GAP-0001/0002 and presentation/inspector work; Core did not touch Qt/UI files.
+- Error worker owns canonical error ledger verification, not this Search product path.
+- No Archive or Protected Search adapter is added here because those result classes carry materially different provenance/authorization semantics.
 
-- Error worker: latest handoff records `ERR-0001` blocked from error-worker mutation because Backend owns deletion-ledger tasks 290-293; no overlap here.
-- Backend worker: no overlap with ResourceMode or deletion-ledger files.
-- UI worker: may eventually display this real label after integration/wiring; must not infer unlock state or fabricate scope ids.
-- Integrator: review the two additive commits and integrate only after exact-head verification succeeds.
+## Integrator handoff
 
-## Previous completed source-anchor slice
+The previous Search DTO is now safely synchronized onto the current Develop lineage. The current bounded adapter is additive and isolated to new API adapter/test files.
 
-Archive Search source-anchor provenance was integrated into `develop/pathena-next` and is tracked there as verified. No further mutation to that slice was made in this run.
-
-## Remaining Search Response gap
-
-Beta §52 still lacks one canonical serialized response DTO joining rank, retrieval methods, source anchor and protection label across the actual domain-specific result types. Do not create a parallel response architecture. Trace the existing API/controller boundary and wire these verified value adapters into that real boundary as a separate slice.
+Integrate only after the exact final Core worker SHA has successful Quality evidence and an independent diff review confirms no broadened authorization, persistence, ranking or protected-content visibility.
 
 ## Next Alpha/Beta gap
 
-Trace the actual Search API/controller/serialization call chain. Highest safe next step is a small cross-domain response adapter only if an existing boundary is found. Protected/unprotected mixed ranking itself remains a separate larger capability and must preserve §§59-61 authorization/no-leak invariants.
+Trace and wire this canonical DTO through the existing `CoreApiFacade` / application construction boundary using the already constructed `HybridRetrievalService`. Add one real Search attachment/call and capability registration rather than a parallel facade. Preserve the current distinction between normal unprotected Hybrid retrieval and Archive/Protected Search. Protected/mixed Search remains a later explicit §§59-61 slice requiring authorization-first composition and no metadata leak.
