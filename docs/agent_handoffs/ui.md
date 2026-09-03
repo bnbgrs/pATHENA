@@ -2,12 +2,11 @@
 
 ## Current baseline
 
-- Base: `develop/pathena-next@dd4b623cc7bbc5b5a24c4427382f0b98ff50ad02`
+- Base: `develop/pathena-next@aed609ef8a7ff4af48e15e3dba953daf35d56b5c`
 - Worker: `postmerge/ui`
-- History-preserving NON-FORCE synchronization commit: `0413ae80d20e1488aeb1fba490bbfd19dee5c433`
 - UI product candidate retained: `99d6b31c78be2932154137a6527200759f349628`
-- Ruff harness correction: `77e7b4c7d95202e6814226e2b4a2c4a54e3f5c8e`
-- Evidence updates: ledger `00ec6e7257b23681f780033c7fb046a9ce795ce2`; manifest `e91b1dd10bf6eb295980406012bcfde63a7d1a98`.
+- First Ruff harness correction: `77e7b4c7d95202e6814226e2b4a2c4a54e3f5c8e`
+- Second Ruff harness correction: `ecbf44ddd0fb8c7428d4cca090834eca284b997e`
 - Original eleven reference images: `VISUAL_REFERENCE_PENDING`; no pixel-level parity or `MATCH` claim is made.
 
 ## Current slice
@@ -28,33 +27,28 @@ Product candidate `99d6b31c78be2932154137a6527200759f349628` changes presentatio
 
 Focused assertions remain in `tests/unit/test_pathena_startup_experience_2900.py` and `tests/unit/test_pathena_offline_comprehension.py`.
 
-## Exact failure diagnosis and correction
+## Exact Quality history and correction chain
 
-Canonical Quality run `33785726577` on synchronized lineage `b76115748aed53e3502a71eef10a41b11f97f8ae` completed with Windows path safety, Linux storage, local-install smoke, specification validator, mypy and full pytest passing. Ruff alone failed.
+1. Canonical Quality run `33785726577` on synchronized lineage `b76115748aed53e3502a71eef10a41b11f97f8ae` passed Windows path safety, Linux storage, local-install smoke, specification validator, mypy and full pytest. Ruff alone failed with exact `B010` at `tests/unit/test_pathena_startup_experience_2900.py:61` because `setattr(window, "_core_transport_ready", False)` used a constant attribute name.
+2. Commit `77e7b4c7d95202e6814226e2b4a2c4a54e3f5c8e` fixed only that harness defect with `_DisconnectedStartupWindow`, preserving the exact disconnected-state behavior and without changing product code/assertions/lint configuration.
+3. Canonical Quality run `33792012599` on `25addc9833d0d655efa46cd48974e160a7f275dd` again passed Windows path safety, Linux storage, local-install smoke, specification validator, mypy and full pytest (`4492 passed`, three existing Windows-only skips). Ruff found one remaining harness-only defect: `I001` unsorted/unformatted import block at `tests/unit/test_pathena_startup_experience_2900.py:1:1`.
+4. Commit `ecbf44ddd0fb8c7428d4cca090834eca284b997e` reformats only the PySide6 `QtWidgets` import into Ruff/isort-compatible multiline form. No product or assertion semantics changed.
 
-The uploaded canonical diagnostics identify the exact failure as `B010` in `tests/unit/test_pathena_startup_experience_2900.py:61`: `setattr(window, "_core_transport_ready", False)` used a constant attribute name.
-
-Commit `77e7b4c7d95202e6814226e2b4a2c4a54e3f5c8e` fixes only that harness defect by using `_DisconnectedStartupWindow`, a test-only `QWidget` subclass whose `_core_transport_ready` class attribute is `False`. This preserves the exact disconnected-state behavior exercised by `PathenaStartupExperience.sync()` and does not suppress Ruff/mypy, weaken assertions, change product code or alter backend/storage/security semantics.
-
-A new ATHENA Quality Gate was automatically started for the corrected lineage. Because subsequent ledger/manifest/handoff documentation commits are behavior-neutral descendants, the final branch-head Quality result is the integration evidence to consume. Until that exact final worker-head run is green, UI-GAP-0004 remains `FIXED_PENDING_VERIFY`.
-
-## Synchronization state
-
-Develop was one documentation commit ahead of the prior UI worker. The current Integrator handoff blob was first carried onto UI, then merge commit `0413ae80d20e1488aeb1fba490bbfd19dee5c433` recorded both UI and `develop/pathena-next@dd4b623cc7bbc5b5a24c4427382f0b98ff50ad02` as parents. The worker ref was advanced NON-FORCE. No UI product/test blob was overwritten by synchronization.
+Until a Quality run succeeds on the exact current final UI head containing the second correction plus only evidence documentation, UI-GAP-0004 remains `FIXED_PENDING_VERIFY`.
 
 ## Collision / ownership guidance
 
-- Core: normal-Hybrid Search composition remains Core-owned; no overlap.
-- Backend: ExternalAccessGateway runtime-boundary hardening remains Backend-owned; no overlap.
-- Error: `ERR-0004` corresponds to this Ruff harness failure; UI owns the correction in the active test file. Error should verify/close it from exact successful evidence rather than create a competing mutation.
+- Core: normal-Hybrid Search composition is Core-owned; no overlap.
+- Backend: ExternalAccessGateway runtime-boundary hardening is Backend-owned; no overlap.
+- Error: `ERR-0004` corresponds to this startup harness lint chain. Error should verify/close it only from exact successful current-lineage evidence and should not create a competing mutation while UI owns this test file.
 - Preserve contextual Evidence & Activity behavior and PALLAS lifecycle fixes already integrated.
 
 ## Integrator handoff
 
-Do not integrate UI-GAP-0004 as READY until canonical Quality completes successfully on the exact final `postmerge/ui` head containing `77e7b4c7...` plus only the documented synchronization/evidence commits. If green, independently review the bounded product/test diff and integrate only to `develop/pathena-next`. No visual `MATCH` is implied.
+Do not integrate UI-GAP-0004 as READY until canonical Quality succeeds on the exact final `postmerge/ui` head containing `ecbf44ddd...`. When green, independently review the bounded product/test diff and integrate only to `develop/pathena-next`. No visual `MATCH` is implied.
 
 ## Next UI work
 
-1. Consume the exact final-head Quality result; if any stage fails, fix the exact current-lineage cause before taking another product slice.
-2. If green, mark UI-GAP-0004 technically `FIXED` and hand the exact worker SHA to Integrator/Error.
+1. Consume exact-head Quality for the current worker. If any stage fails, fix the exact current-lineage cause before taking another product slice.
+2. If green, mark UI-GAP-0004 technically `FIXED`, update ledger/manifest, and hand the exact worker SHA to Integrator/Error.
 3. Retry access to the actual eleven references and render Screen 11 for direct comparison. If reference pixels remain unavailable, select the next gap only from explicit versioned UI/Alpha/Beta evidence; do not infer screenshot geometry.
