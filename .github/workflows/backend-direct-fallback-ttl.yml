@@ -43,7 +43,7 @@ jobs:
           marker = 'test_authorize_direct_fallback_rejects_out_of_range_ttl_before_authorization_lookup'
           if marker in test_text:
               raise SystemExit('TTL boundary tests already exist')
-          tests.write_text(test_text.rstrip() + addition + '\n', encoding='utf-8')
+          tests.write_text(test_text.rstrip() + addition.rstrip() + '\n', encoding='utf-8')
       - name: Focused gateway tests
         run: >-
           python -m pytest -q
