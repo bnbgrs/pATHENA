@@ -14,14 +14,14 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 ## Current baseline
 
 - Baseline branch: `develop/pathena-next`
-- Baseline SHA: `f76911dfef6530041d62fb6c2e0ddec242d64231`
+- Baseline SHA: `dd4b623cc7bbc5b5a24c4427382f0b98ff50ad02`
 - Stable read-only parent: `main` at `0d4d621f8a38ddf8eccfa09622bf193687619943`
 - Worker branch: `postmerge/errors`
-- Worker synchronized history-preservingly and NON-FORCE with current Develop in merge `1dde89eab7840de06a31521765217106331dc2a0`; previous Error head and current Develop were both retained as parents.
+- Worker synchronized history-preservingly and NON-FORCE with current Develop in merge `7afa39e6fd3bf519e32259b26398b6bed884a28c`; prior Error head `757827e2e5b7ed08dd2367645f94ee32f3063781` and current Develop were retained as parents.
 
 ## Current error state
 
-- OPEN: none.
+- OPEN: `ERR-0004`.
 - IN_PROGRESS: none.
 - FIXED_PENDING_VERIFY: none.
 - FIXED: `ERR-0001`, `ERR-0002`, `ERR-0003`.
@@ -29,13 +29,11 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 
 ## Current scan
 
-- Exact baseline `f76911dfef6530041d62fb6c2e0ddec242d64231` has no commit-status checks and no SHA-bound workflow run returned by the repository connector; no exact-head global PASS is claimed.
-- Compare `1dc2da1bd38e6147d01d3b1d6833ea1ea6a0e37b...f76911dfef6530041d62fb6c2e0ddec242d64231` contains exactly two changed files: `docs/agent_handoffs/integrator.md` and `docs/development/ALPHA_BETA_PROGRESS.md`. No product, test, packaging, storage, runtime, provider, Windows or Qt file changed in that baseline delta.
-- The branch-level Develop workflow history inspected this run contains successful canonical Quality runs on earlier Develop SHAs, but no exact current-head run and no fresh current-lineage failure signature.
-- Backend canonical Quality run `33755878184` on `a4768d9b0ea57a1161c93f603a5101c28b555276` remains a historical descendant-lineage failure source already explained by `ERR-0003`; it does not justify a new current-baseline ERR-ID.
-- Qt deleted-`QProcess` stderr remains a warning signal only because it has not produced a reproducible current-lineage failure; no new ERR-ID is allocated without failure evidence.
-- Backend currently owns the independently identified ExternalAccessGateway runtime-boundary hardening work; Error does not duplicate that root cause unless it manifests as a confirmed current-lineage failure.
-- Core currently owns normal-Hybrid Search facade/application composition; UI owns UI-GAP-0004 startup/readiness presentation verification. Neither is reclassified as an Error without a reproduced failing path.
+- Current Develop SHA `dd4b623cc7bbc5b5a24c4427382f0b98ff50ad02` is an Integrator documentation commit over the prior product lineage; no new Develop product/test defect was evidenced this run.
+- UI descendant `b76115748aed53e3502a71eef10a41b11f97f8ae` has canonical Quality run `33785726577` completed `failure`: Windows path safety PASS, Linux storage PASS, local-install smoke PASS, specification validator PASS, mypy PASS, full pytest PASS, Ruff FAIL.
+- The UI delta adds a constant-name `setattr(window, "_core_transport_ready", False)` in `tests/unit/test_pathena_startup_experience_2900.py`; project Ruff config selects the full `B` family. This is the strongest isolated root-cause hypothesis for `ERR-0004`, but the exact Ruff annotation text was not retrievable through the repository connector, so the rule code is not asserted as verified.
+- Qt deleted-`QProcess` stderr remains warning-only because no current-lineage failing path was reproduced.
+- Backend owns ExternalAccessGateway runtime-boundary hardening; Core owns normal-Hybrid Search composition; UI owns UI-GAP-0004 product work. Error does not duplicate those product scopes.
 
 ## Entries
 
@@ -47,10 +45,7 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 - severity: P2
 - area: Storage / Persistence / Deletion Ledger / Recovery boundary
 - status: `FIXED`
-- exact evidence:
-  - Product fix `780d25d74ce2e310b6a4bc434f547a23163e8b78` is integrated into Develop.
-  - Canonical Backend run `33749788522` passed all 22 deletion-boundary tests plus validator, Ruff, mypy, Windows path safety, Linux storage and local-install smoke on the exact integrated product/test content.
-  - That run's only full-pytest failure was independently identified as UI/PALLAS and later fixed/verifiably green before bounded integration.
+- exact evidence: product fix `780d25d74ce2e310b6a4bc434f547a23163e8b78` integrated; canonical Backend run `33749788522` passed all 22 deletion-boundary tests plus validator, Ruff, mypy, Windows path safety, Linux storage and local-install smoke.
 - reproducible path before fix: malformed entity/runtime integer boundaries could cross validation before SQL because Python `bool` is an `int` subclass and annotations did not enforce runtime types.
 - primary root cause: deletion-ledger APIs lacked explicit bool-safe fail-before-SQL runtime validation.
 - affected files: `src/athena/lifecycle/deletion.py`; `tests/unit/test_deletion_ledger_boundaries.py`.
@@ -84,24 +79,36 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 - severity: P1
 - area: Qt/Desktop / UI contract harness / contextual Evidence & Activity inspector
 - status: `FIXED`
-- exact evidence:
-  - Canonical Backend Quality run `33755878184` failed only at full pytest with the two stale persistent-inspector assertions; all other canonical jobs/checks passed.
-  - Diagnostics artifact `9894914799` records exactly `2 failed, 4488 passed, 3 skipped, 2 warnings`.
-  - `docs/ui/VISUAL_GAP_LEDGER.md` defines `UI-GAP-0002`: inspector is context-sensitive rather than permanently visible.
-  - Fix commit `6253577227d427c9bb00707c3e3e578a16c0f9d6` restores exact known-green shell-test blob `tests/unit/test_pathena_window.py@82f492814250536dd003857a4eec2d083e9e13d5`, including Workspace-hidden, context/non-Chat-visible, reset-hidden and return-to-Workspace-hidden state transitions.
-  - Relevant companion suite remains exact known-green blob `tests/unit/test_pathena_ui_presentation.py@171f209728831feb1ac7bb06172e30aee12973ae`.
-  - These exact affected product/test blobs match UI head `ce959e148ddbe8f13952ca56f7d07e7a7ce1addb`, whose canonical Quality run `33745885426` completed `success`.
-  - Current Develop changed only Integrator/Alpha-Beta documentation since the previous Error baseline, so the fixed affected product/test blobs remain unchanged.
-- reproducible path before fix:
-  1. Construct `PathenaMainWindow` on Workspace with no grounded context.
-  2. `_sync_inspector_visibility()` hides the inspector because `navigation.currentRow() == 0` and no context is available.
-  3. The stale integrated shell tests asserted permanent visibility and failed.
-- primary root cause: integration retained obsolete `test_pathena_window.py` coverage after the verified `UI-GAP-0002` product contract changed to contextual inspector visibility. This is test-harness/contract drift, not a product visibility regression.
+- exact evidence: canonical Backend Quality run `33755878184` failed only at full pytest with the stale persistent-inspector assertions; fix commit `6253577227d427c9bb00707c3e3e578a16c0f9d6` restored the verified contextual-inspector harness contract; exact affected product/test blobs match UI head `ce959e148ddbe8f13952ca56f7d07e7a7ce1addb`, whose canonical Quality run `33745885426` succeeded.
+- reproducible path before fix: construct `PathenaMainWindow` on Workspace without grounded context; `_sync_inspector_visibility()` correctly hides inspector; obsolete tests asserted permanent visibility.
+- primary root cause: test-harness/contract drift after UI-GAP-0002 changed the inspector to contextual visibility.
 - affected files: `tests/unit/test_pathena_window.py`; product reference `src/athena/desktop/pathena_window.py` unchanged.
 - fix_commit: `6253577227d427c9bb00707c3e3e578a16c0f9d6`.
-- verification executed: canonical Quality run `33745885426` PASS on byte-identical affected product and focused harness blobs; current baseline delta from the previously checked Error baseline is documentation-only. No exact-current-head global Quality PASS is claimed.
+- verification executed: canonical Quality run `33745885426` PASS on byte-identical affected product and focused harness blobs.
 - remaining risks: Qt deleted-`QProcess` stderr remains scan-only until reproducible failure evidence appears.
-- integrator handoff: already integrated into Develop; preserve the contextual-inspector test contract in future UI changes.
+- integrator handoff: already integrated into Develop; preserve contextual-inspector behavior.
+
+### ERR-0004 — UI startup/readiness harness fails canonical Ruff
+
+- first_seen: 2026-09-03
+- last_seen: 2026-09-03
+- checked_sha: `b76115748aed53e3502a71eef10a41b11f97f8ae`
+- severity: P2
+- area: Quality / Python lint / Qt startup-readiness test harness
+- status: `OPEN`
+- exact evidence:
+  - Canonical Quality run `33785726577` on UI descendant `b76115748aed53e3502a71eef10a41b11f97f8ae` completed `failure`.
+  - In that run: Windows path safety PASS, Linux storage regressions PASS, local-install smoke PASS; Python-3.12 specification validator PASS, Ruff FAIL, mypy PASS, full pytest PASS.
+  - Changed startup test `tests/unit/test_pathena_startup_experience_2900.py` contains `setattr(window, "_core_transport_ready", False)` with a constant attribute name.
+  - `pyproject.toml` selects Ruff `B` rules in addition to E/F/I.
+- reproducible path: run canonical Ruff on UI SHA `b76115748aed53e3502a71eef10a41b11f97f8ae`; the canonical job reproduces the failure before full pytest, while pytest itself remains green.
+- primary root cause or hypothesis: likely a lint-only harness defect introduced by the constant-name `setattr` in the new startup-readiness test. Exact Ruff rule/annotation is pending retrieval or a local Ruff reproduction; do not treat the hypothesized rule code as verified yet.
+- affected files: `tests/unit/test_pathena_startup_experience_2900.py`; no product file is currently implicated by the evidence.
+- status: `OPEN`
+- fix_commit: none.
+- verification executed: canonical run `33785726577` confirms Ruff FAIL and all listed non-Ruff checks PASS; no fix verification yet.
+- remaining risks: exact Ruff diagnostic text unavailable from current connector surface; avoid changing production code or weakening Ruff. UI currently owns this active test file, so Error will not create a competing mutation.
+- integrator handoff: reject UI candidate until UI applies the minimal harness correction and reruns Ruff plus the focused startup/offline tests; Error can take over only if UI releases ownership or the defect persists independently.
 
 ## Historical/stale evidence
 
