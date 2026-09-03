@@ -1,0 +1,79 @@
+name: Backend Gateway Boundary Apply
+
+on:
+  push:
+    branches:
+      - postmerge/backend
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-verify:
+    if: github.actor != 'github-actions[bot]' || !contains(github.event.head_commit.message, 'harden explicit authorization input boundaries')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      QT_QPA_PLATFORM: offscreen
+
+    steps:
+      - name: Check out backend worker
+        uses: actions/checkout@v6
+        with:
+          ref: postmerge/backend
+          fetch-depth: 0
+
+      - name: Apply bounded product and test patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          gateway = Path('src/athena/external/gateway.py')
+          text = gateway.read_text(encoding='utf-8')
+          old = '''    ) -> ExternalAccessAuthorizationRecord:\n        normalized_purpose = purpose.strip()\n        if not normalized_purpose:\n            raise ExternalAuthorizationError("External access purpose must not be empty.")\n        valid_routes = {"tor_preferred", "tor", "direct_explicit"}\n'''
+          new = '''    ) -> ExternalAccessAuthorizationRecord:\n        if not isinstance(purpose, str):\n            raise ExternalAuthorizationError("External access purpose must be text.")\n        normalized_purpose = purpose.strip()\n        if not normalized_purpose:\n            raise ExternalAuthorizationError("External access purpose must not be empty.")\n        if isinstance(allowed_hosts, (str, bytes)) or not isinstance(allowed_hosts, Sequence):\n            raise ExternalAuthorizationError(\n                "Allowed external hosts must be a sequence of host strings."\n            )\n        if any(not isinstance(item, str) for item in allowed_hosts):\n            raise ExternalAuthorizationError(\n                "Allowed external hosts must contain only host strings."\n            )\n        valid_routes = {"tor_preferred", "tor", "direct_explicit"}\n'''
+          if new not in text:
+              if old not in text:
+                  raise SystemExit('authorize_explicit patch anchor not found')
+              gateway.write_text(text.replace(old, new, 1), encoding='utf-8')
+
+          tests = Path('tests/unit/test_external_access_gateway_authorization_boundaries.py')
+          tests.write_text('''from __future__ import annotations\n\nfrom pathlib import Path\n\nimport pytest\n\nfrom athena.config.settings import AthenaSettings\nfrom athena.core.application import AthenaApplication\nfrom athena.external.gateway import ExternalAuthorizationError\n\n\ndef _authorization_count(app: AthenaApplication) -> int:\n    row = app.database.connection.execute(\n        "SELECT COUNT(*) AS count FROM external_access_authorizations"\n    ).fetchone()\n    assert row is not None\n    return int(row["count"])\n\n\ndef _fail_actor_resolution() -> None:\n    pytest.fail("invalid authorization input reached actor resolution")\n\n\n@pytest.mark.parametrize("purpose", [None, 7, True, b"research"])\ndef test_authorize_explicit_rejects_non_text_purpose_before_actor_or_persistence(\n    tmp_path: Path,\n    monkeypatch: pytest.MonkeyPatch,\n    purpose: object,\n) -> None:\n    app = AthenaApplication(settings=AthenaSettings(local_root=tmp_path / "purpose-boundary"))\n    app.start()\n    monkeypatch.setattr(app.external_access.chat, "ensure_local_user", _fail_actor_resolution)\n    before = _authorization_count(app)\n    with pytest.raises(ExternalAuthorizationError):\n        app.external_access.authorize_explicit(\n            purpose=purpose,  # type: ignore[arg-type]\n            allowed_hosts=("example.com",),\n        )\n    assert _authorization_count(app) == before\n    app.stop()\n\n\n@pytest.mark.parametrize(\n    "allowed_hosts",\n    [\n        "example.com",\n        b"example.com",\n        123,\n        ("example.com", 7),\n        [None],\n    ],\n)\ndef test_authorize_explicit_rejects_invalid_host_container_before_actor_or_persistence(\n    tmp_path: Path,\n    monkeypatch: pytest.MonkeyPatch,\n    allowed_hosts: object,\n) -> None:\n    app = AthenaApplication(settings=AthenaSettings(local_root=tmp_path / "hosts-boundary"))\n    app.start()\n    monkeypatch.setattr(app.external_access.chat, "ensure_local_user", _fail_actor_resolution)\n    before = _authorization_count(app)\n    with pytest.raises(ExternalAuthorizationError):\n        app.external_access.authorize_explicit(\n            purpose="bounded authorization",\n            allowed_hosts=allowed_hosts,  # type: ignore[arg-type]\n        )\n    assert _authorization_count(app) == before\n    app.stop()\n\n\ndef test_authorize_explicit_preserves_valid_host_normalization(tmp_path: Path) -> None:\n    app = AthenaApplication(settings=AthenaSettings(local_root=tmp_path / "valid-hosts"))\n    app.start()\n    authorization = app.external_access.authorize_explicit(\n        purpose=" normalized purpose ",\n        allowed_hosts=["EXAMPLE.com.", "example.com", "openai.com"],\n    )\n    assert authorization.purpose == "normalized purpose"\n    assert authorization.allowed_hosts_json == '["example.com","openai.com"]'\n    app.stop()\n''', encoding='utf-8')
+          PY
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install pinned resolver
+        run: |
+          python -m pip install --disable-pip-version-check "pip==26.1.2"
+          python -m pip install --disable-pip-version-check "uv==0.11.21"
+
+      - name: Verify dependency lock
+        run: uv lock --check
+
+      - name: Focused authorization-boundary tests
+        run: uv run --locked --extra dev --extra desktop python -m pytest tests/unit/test_external_access_gateway_authorization_boundaries.py tests/unit/test_external_access_gateway_runtime_boundaries.py tests/unit/test_external_access_gateway.py
+
+      - name: Ruff changed files
+        run: uv run --locked --extra dev --extra desktop python -m ruff check src/athena/external/gateway.py tests/unit/test_external_access_gateway_authorization_boundaries.py tests/unit/test_external_access_gateway_runtime_boundaries.py
+
+      - name: Mypy gateway
+        run: uv run --locked --extra dev --extra desktop python -m mypy src/athena/external/gateway.py
+
+      - name: Commit verified bounded slice
+        run: |
+          git diff --check
+          git status --short
+          if git diff --quiet -- src/athena/external/gateway.py tests/unit/test_external_access_gateway_authorization_boundaries.py; then
+            echo "Product boundary patch already present; no product commit required."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/athena/external/gateway.py tests/unit/test_external_access_gateway_authorization_boundaries.py
+          git commit -m "fix(backend): harden explicit authorization input boundaries"
+          git push origin HEAD:postmerge/backend
