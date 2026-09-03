@@ -263,9 +263,21 @@ class ExternalAccessGateway:
         privacy_route: str = "tor_preferred",
         ttl_seconds: int = 1800,
     ) -> ExternalAccessAuthorizationRecord:
+        if not isinstance(purpose, str):
+            raise ExternalAuthorizationError("External access purpose must be text.")
         normalized_purpose = purpose.strip()
         if not normalized_purpose:
             raise ExternalAuthorizationError("External access purpose must not be empty.")
+        if isinstance(allowed_hosts, (str, bytes)) or not isinstance(allowed_hosts, Sequence):
+            raise ExternalAuthorizationError(
+                "Allowed external hosts must be a sequence of host strings."
+            )
+        if any(not isinstance(item, str) for item in allowed_hosts):
+            raise ExternalAuthorizationError(
+                "Allowed external hosts must contain only host strings."
+            )
+        if not isinstance(privacy_route, str):
+            raise ExternalAuthorizationError("Privacy route must be text.")
         valid_routes = {"tor_preferred", "tor", "direct_explicit"}
         if privacy_route not in valid_routes:
             raise ExternalAuthorizationError(
@@ -318,9 +330,11 @@ class ExternalAccessGateway:
         ttl_seconds: int = 900,
     ) -> ExternalAccessAuthorizationRecord:
         """Create a separate explicit Direct authorization from an active Tor-Preferred grant."""
-        if type(ttl_seconds) is not int:
+        if not isinstance(host, str):
+            raise ExternalAuthorizationError("Direct fallback host must be text.")
+        if type(ttl_seconds) is not int or ttl_seconds < 1 or ttl_seconds > 900:
             raise ExternalAuthorizationError(
-                "Direct fallback authorization TTL must be an integer number of seconds."
+                "Direct fallback authorization TTL must be between 1 and 900 seconds."
             )
         source = self.get_authorization(authorization_id)
         actor_id = self.chat.ensure_local_user()
