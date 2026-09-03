@@ -1,0 +1,135 @@
+name: Backend Gateway Route Host Boundary Apply
+
+on:
+  push:
+    branches:
+      - postmerge/backend
+
+permissions:
+  contents: write
+
+jobs:
+  apply-and-verify:
+    if: github.actor != 'github-actions[bot]' || !contains(github.event.head_commit.message, 'harden gateway route and fallback host boundaries')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      QT_QPA_PLATFORM: offscreen
+
+    steps:
+      - name: Check out backend worker
+        uses: actions/checkout@v6
+        with:
+          ref: postmerge/backend
+          fetch-depth: 0
+
+      - name: Apply bounded product and test patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          gateway = Path('src/athena/external/gateway.py')
+          text = gateway.read_text(encoding='utf-8')
+          old_route = '''        valid_routes = {"tor_preferred", "tor", "direct_explicit"}\n        if privacy_route not in valid_routes:\n'''
+          new_route = '''        if not isinstance(privacy_route, str):\n            raise ExternalAuthorizationError("Privacy route must be text.")\n        valid_routes = {"tor_preferred", "tor", "direct_explicit"}\n        if privacy_route not in valid_routes:\n'''
+          if new_route not in text:
+              if old_route not in text:
+                  raise SystemExit('privacy_route patch anchor not found')
+              text = text.replace(old_route, new_route, 1)
+
+          old_host = '''        """Create a separate explicit Direct authorization from an active Tor-Preferred grant."""\n        if type(ttl_seconds) is not int:\n'''
+          new_host = '''        """Create a separate explicit Direct authorization from an active Tor-Preferred grant."""\n        if not isinstance(host, str):\n            raise ExternalAuthorizationError("Direct fallback host must be text.")\n        if type(ttl_seconds) is not int:\n'''
+          if new_host not in text:
+              if old_host not in text:
+                  raise SystemExit('direct fallback host patch anchor not found')
+              text = text.replace(old_host, new_host, 1)
+          gateway.write_text(text, encoding='utf-8')
+
+          tests = Path('tests/unit/test_external_access_gateway_authorization_boundaries.py')
+          test_text = tests.read_text(encoding='utf-8')
+          addition = r'''
+
+@pytest.mark.parametrize("privacy_route", [None, 7, True, b"tor", [], {}])
+def test_authorize_explicit_rejects_non_text_privacy_route_before_actor_or_persistence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    privacy_route: object,
+) -> None:
+    app = AthenaApplication(settings=AthenaSettings(local_root=tmp_path / "route-boundary"))
+    app.start()
+    monkeypatch.setattr(app.external_access.chat, "ensure_local_user", _fail_actor_resolution)
+    before = _authorization_count(app)
+    with pytest.raises(ExternalAuthorizationError):
+        app.external_access.authorize_explicit(
+            purpose="bounded authorization",
+            allowed_hosts=("example.com",),
+            privacy_route=privacy_route,  # type: ignore[arg-type]
+        )
+    assert _authorization_count(app) == before
+    app.stop()
+
+
+def _fail_authorization_lookup(*_args: object, **_kwargs: object) -> None:
+    pytest.fail("invalid direct fallback host reached authorization lookup")
+
+
+@pytest.mark.parametrize("host", [None, 7, True, b"example.com", []])
+def test_authorize_direct_fallback_rejects_non_text_host_before_authorization_lookup(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    host: object,
+) -> None:
+    app = AthenaApplication(settings=AthenaSettings(local_root=tmp_path / "fallback-host-boundary"))
+    app.start()
+    source = app.external_access.authorize_explicit(
+        purpose="fallback source",
+        allowed_hosts=("example.com",),
+    )
+    monkeypatch.setattr(app.external_access, "get_authorization", _fail_authorization_lookup)
+    with pytest.raises(ExternalAuthorizationError):
+        app.external_access.authorize_direct_fallback(
+            source.authorization_id,
+            host=host,  # type: ignore[arg-type]
+        )
+    app.stop()
+'''
+          marker = 'test_authorize_explicit_rejects_non_text_privacy_route_before_actor_or_persistence'
+          if marker not in test_text:
+              tests.write_text(test_text.rstrip() + addition + '\n', encoding='utf-8')
+          PY
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install pinned resolver
+        run: |
+          python -m pip install --disable-pip-version-check "pip==26.1.2"
+          python -m pip install --disable-pip-version-check "uv==0.11.21"
+
+      - name: Verify dependency lock
+        run: uv lock --check
+
+      - name: Focused gateway boundary tests
+        run: uv run --locked --extra dev --extra desktop python -m pytest tests/unit/test_external_access_gateway_authorization_boundaries.py tests/unit/test_external_access_gateway_runtime_boundaries.py tests/unit/test_external_access_gateway.py
+
+      - name: Ruff changed files
+        run: uv run --locked --extra dev --extra desktop python -m ruff check src/athena/external/gateway.py tests/unit/test_external_access_gateway_authorization_boundaries.py tests/unit/test_external_access_gateway_runtime_boundaries.py
+
+      - name: Mypy gateway
+        run: uv run --locked --extra dev --extra desktop python -m mypy src/athena/external/gateway.py
+
+      - name: Commit verified bounded slice
+        run: |
+          git diff --check
+          if git diff --quiet -- src/athena/external/gateway.py tests/unit/test_external_access_gateway_authorization_boundaries.py; then
+            echo "Boundary patch already present; no product commit required."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/athena/external/gateway.py tests/unit/test_external_access_gateway_authorization_boundaries.py
+          git commit -m "fix(backend): harden gateway route and fallback host boundaries"
+          git push origin HEAD:postmerge/backend
