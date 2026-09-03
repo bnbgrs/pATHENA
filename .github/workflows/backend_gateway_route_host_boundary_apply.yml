@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   apply-and-verify:
-    if: github.actor != 'github-actions[bot]' || !contains(github.event.head_commit.message, 'harden gateway route and fallback host boundaries')
+    if: "github.actor != 'github-actions[bot]' || !contains(github.event.head_commit.message, 'harden gateway route and fallback host boundaries')"
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
