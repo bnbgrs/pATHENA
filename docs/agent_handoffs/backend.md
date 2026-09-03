@@ -2,104 +2,74 @@
 
 ## Baseline
 
-- Shared baseline: `develop/pathena-next`
-- Baseline SHA: `280066cc5450f172693e2ee913bd269b6755f7bb`
-- Worker branch: `postmerge/backend`
-- History-preserving synchronization commit: `100bfbf458e0bd4a90c6f8b100823e698bcd79e4`
-- `main` remains strictly read-only and was not touched.
-- Synchronization was NON-FORCE. Develop-only changes to `docs/agent_handoffs/integrator.md` and `docs/development/ALPHA_BETA_PROGRESS.md` were preserved; Backend-only `docs/agent_handoffs/backend.md` and `tests/unit/test_deletion_ledger_boundaries.py` were preserved.
+- Shared baseline: `develop/pathena-next@7c4c8bb52d8e6df819d4a5ff44bbf6442b529d23`.
+- Worker branch: `postmerge/backend`.
+- History-preserving NON-FORCE synchronization commit: `d93e73be642b09d8719ef2ee8f653bffdb4aed5a` with parents previous Backend head and current Develop.
+- `main@0d4d621f8a38ddf8eccfa09622bf193687619943` remains strictly read-only and untouched.
 
 ## Selected backend slice
 
 Area: durable deletion-ledger runtime boundaries / recovery cursor.
 
-Anchor: `ERR-0001` plus backend audit tasks 290-293.
+Spec/error anchor: `ERR-0001` plus backend audit tasks 290-293 and the existing deletion/recovery invariants in `src/athena/lifecycle/deletion.py`.
 
-Current `src/athena/lifecycle/deletion.py` still proves the root cause:
+Root cause on the synchronized lineage was:
 
-- `record_deletion()` calls `entity_type.strip()` before requiring an actual string;
-- `deleted_at_us < 0` and `deletion_commit_seq <= 0` accept `bool` because `bool` subclasses `int`;
-- `read_deletion_records()` likewise accepts `after_seq=False`.
+- `record_deletion()` called `entity_type.strip()` before requiring an actual string;
+- `deleted_at_us < 0` and `deletion_commit_seq <= 0` accepted `bool` because `bool` subclasses `int`;
+- `read_deletion_records()` likewise accepted boolean cursors.
 
 Malformed runtime values at these durable mutation/query boundaries must fail before SQL.
 
+## Product fix
+
+Commit `780d25d74ce2e310b6a4bc434f547a23163e8b78` applies only the bounded runtime guards:
+
+- exact `str` requirement before `entity_type.strip()`;
+- exact `int` plus non-negative requirement for `deleted_at_us`;
+- exact `int` plus positive requirement for `deletion_commit_seq`;
+- exact `int` plus non-negative requirement for `after_seq`.
+
+Independent commit-diff inspection confirms that only `src/athena/lifecycle/deletion.py` changed and only those validation blocks/messages were modified. Existing-marker reconciliation, INSERT/readback sequencing, restore replay, transaction boundaries, ordering, identity-conflict semantics and persistence format are unchanged.
+
 ## Focused regression harness
 
-Commit `de7da517f0cc0cd056de3cbe8aed19db44915884` adds `tests/unit/test_deletion_ledger_boundaries.py` with a no-SQL sentinel and covers:
+Existing Backend commit `de7da517f0cc0cd056de3cbe8aed19db44915884` provides `tests/unit/test_deletion_ledger_boundaries.py` with a no-SQL sentinel covering:
 
 - non-string `entity_type`;
 - bool/non-int `deleted_at_us`;
 - bool/zero/negative/non-int `deletion_commit_seq`;
 - bool/negative/non-int `after_seq`.
 
-Valid `deleted_at_us=0`, `after_seq=0`, and positive integer commit sequence semantics remain required.
-
-Canonical Quality run `33728141579` for the focused-test lineage completed `cancelled`; it is not PASS evidence.
-
-## Required product contract
-
-Before any SQL operation in `record_deletion()`:
-
-```python
-if type(entity_type) is not str:
-    raise ValueError("Deletion entity_type must be a string.")
-
-normalized_type = entity_type.strip()
-if not normalized_type:
-    raise ValueError("Deletion entity_type must not be empty.")
-
-if type(deleted_at_us) is not int or deleted_at_us < 0:
-    raise ValueError("Deletion timestamp must be a non-negative integer.")
-
-if type(deletion_commit_seq) is not int or deletion_commit_seq <= 0:
-    raise ValueError("Deletion commit sequence must be a positive integer.")
-```
-
-Before SQL in `read_deletion_records()`:
-
-```python
-if type(after_seq) is not int or after_seq < 0:
-    raise ValueError("Deletion ledger cursor must be a non-negative integer.")
-```
-
-Do not alter existing-marker reconciliation, INSERT/readback sequencing, restore replay, transaction boundaries, ordering, identity-conflict semantics, or persistence format.
-
-## Mutation status
-
-`ERR-0001` remains OPEN/BACKEND_OWNED; no production guard was changed in this run.
-
-The previous tooling blocker is materially reduced: the GitHub connector now exposes the complete exact `deletion.py` blob (`446ebd69c3fbc286bad66c5076cec2e6a36250f8`) in addition to line-range reads. Therefore the next run can construct a byte-for-byte-preserving replacement with only the two validation blocks changed instead of reconstructing from truncated reads.
+Valid `deleted_at_us=0`, `after_seq=0`, and positive integer commit-sequence semantics remain required.
 
 ## Verification state
 
-- Current Develop baseline traced: CONFIRMED.
-- Worker synchronized with Develop: CONFIRMED via `100bfbf458e0bd4a90c6f8b100823e698bcd79e4`.
-- Root cause on synchronized lineage: CONFIRMED.
-- Focused regression harness retained: CONFIRMED.
-- Product fix: NOT YET APPLIED.
-- Canonical Quality: no PASS claim for ERR-0001.
-
-Required post-fix regressions remain payload-free persistence, idempotent marker reconciliation, deletion restore replay, watermark publication, ordered cursor reads, crash/restart-sensitive lifecycle behavior, and the focused fail-before-SQL boundary harness.
+- Branch sync with exact current Develop: COMPLETE via `d93e73be642b09d8719ef2ee8f653bffdb4aed5a`.
+- Product mutation: COMPLETE at `780d25d74ce2e310b6a4bc434f547a23163e8b78`.
+- Product diff review: COMPLETE; only expected validation blocks changed.
+- ATHENA Quality Gate run `33744742408` is associated with exact product/test head `780d25d74ce2e310b6a4bc434f547a23163e8b78` and is currently pending. No PASS claim is made yet.
+- Focused/deletion/recovery results must be read from that exact run before Integrator readiness is asserted.
 
 ## Failure / recovery impact
 
-The intended fix is fail-before-SQL and side-effect reducing. It must not change ledger rows, schema, ordering, idempotency, restore transactions, deletion identity reconciliation, crash/restart behavior, or recovery semantics.
+The fix is fail-before-SQL and side-effect reducing. It does not change ledger rows, schema, ordering, idempotency, restore transactions, deletion identity reconciliation, crash/restart behavior, or recovery semantics. Invalid values now terminate before database access instead of relying on Python subtype/coercion behavior.
 
 ## Platform impact
 
-Platform-neutral Python runtime-boundary hardening. No Windows/Linux path or storage-format divergence.
+Platform-neutral Python runtime-boundary hardening only. No Windows/Linux path, packaging, storage-format or provider/transport changes.
 
 ## Coordination
 
-- `postmerge/errors`: `ERR-0001` remains Backend-owned; do not mutate the same root cause in parallel. Independently verify after integration.
-- `postmerge/spec-core`: current Search facade/application work is non-overlapping.
-- `postmerge/ui`: current UI-GAP work is non-overlapping.
-- `develop/pathena-next`: only integration target; `main` remains untouched.
+- `postmerge/errors`: `ERR-0001` remains Backend-owned until exact-head verification and Integrator handoff; Error worker should independently verify after integration.
+- `postmerge/spec-core`: normal-Hybrid Search facade/application wiring is non-overlapping.
+- `postmerge/ui`: contextual Inspector work is non-overlapping.
+- `develop/pathena-next`: integration target only; no Backend self-integration.
 
 ## Integrator handoff
 
-NOT READY. Do not integrate the ERR-0001 slice yet. The Backend worker is synchronized with Develop and the reproducing test is preserved, but a product fix and exact-head verification are still required.
+`FIXED_PENDING_VERIFY`, not READY yet. Candidate product/test head: `780d25d74ce2e310b6a4bc434f547a23163e8b78`. Integrate only after exact-head Quality/focused deletion and recovery checks complete successfully. If the run fails, diagnose the precise failure before any further product mutation.
 
 ## Next backend slice
 
-Apply the exact runtime guards to the complete verified `deletion.py` blob, then execute the focused boundary harness plus deletion/lifecycle recovery regressions. If those pass, run canonical Quality on the same product/test worker lineage and hand the exact SHA to the Integrator.
+First consume exact run `33744742408`. If successful, mark ERR-0001 candidate READY for Integrator and immediately select the next highest unclaimed Backend/System gap from current Alpha/Beta/backlog evidence. If failed, root-cause the exact failure and keep the slice Backend-owned until corrected.
