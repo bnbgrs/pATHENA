@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `e98c88e0d3b41b81de7efa70873729f873038080`
+Baseline: `a76537a1002e323a97d18a0a95a4d39ce5f298ee`
 Integration target: `develop/pathena-next`
 
 Only evidence-backed gaps belong here. The original 11 reference screenshots remain unavailable for direct visual comparison; therefore no pixel-level mismatch or `MATCH` claim is asserted.
@@ -56,15 +56,27 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Screen: `06 — System` / desktop shell lifecycle adjunct; no screenshot-level geometry is inferred.
 - Severity: `P1`.
 - Spec evidence: `docs/alpha/16_Desktop_Anwendung_und_Benutzeroberflaeche.md` requires a persistent desktop tray icon, background-active behavior when the main window is minimized, and tray access to open pATHENA, load/unload the primary model, toggle Internet, pause background tasks, inspect system status and quit.
-- Code evidence: the current Develop desktop bootstrap installs `SystemWorkspace` but has no `QSystemTrayIcon` lifecycle; Settings exposes model configuration/readiness, not trustworthy model load/unload commands.
-- Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Status: `FIXED`.
 - Candidate module: `src/athena/desktop/pathena_system_tray.py` at `faabeb42fc7d13e04f660c3be1222a95e1f47836`.
 - Focused tests: `tests/unit/test_pathena_system_tray.py` at `47d4473d80fc61660674a96feeb0ba93c28c3d1e`.
 - Application wiring: `SystemWorkspace` owns one tray controller from `441c9ee3889b2927332ecd9cc4b33abd89b8b88f`.
 - Real paths: `Open pATHENA` restores/raises/activates the existing window; `System status` selects the existing System navigation row; `Quit pATHENA` delegates to `QApplication.quit` and therefore preserves existing `aboutToQuit` supervisor shutdown wiring.
 - Honest unavailable actions: model load, model unload, Internet toggle and background-task pause remain visible but disabled with `pathenaUnavailable=True`; no backend command or success state is fabricated.
-- Verification: draft PR #53 is validation-only; canonical Quality run `33814551829` is pending on exact head `441c9ee3889b2927332ecd9cc4b33abd89b8b88f`.
-- Acceptance target: one persistent tray lifecycle; background activity remains alive while the window is minimized; all enabled actions delegate existing real paths; unsupported spec actions remain explicitly unavailable until Core/Backend exposes trustworthy commands.
+- Canonical verification: exact UI head `acc156a8538e83ffec4e3eba4b9bef3e9c2fdb37` passed ATHENA Quality Gate `33814651800` with conclusion `success`.
+- Acceptance: one persistent tray lifecycle; background activity remains alive while the window is minimized; all enabled actions delegate existing real paths; unsupported spec actions remain explicitly unavailable until Core/Backend exposes trustworthy commands.
+
+## UI-GAP-0006 — Tray icon does not surface real system runtime state
+
+- Category: `STATE`
+- Screen: `06 — System` / desktop tray adjunct; no screenshot-level geometry is inferred.
+- Severity: `P1`.
+- Spec evidence: `docs/alpha/16_Desktop_Anwendung_und_Benutzeroberflaeche.md` requires the tray symbol to expose simple system states such as normal, warning and unavailable conditions without opening the main window.
+- Prior behavior: the tray icon and tooltip remained static even though `SystemWorkspace` already receives a real `SystemRuntimeOverview.state` derived from the desktop API snapshot.
+- Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Product commits: `ea027e44a30e335459a9449bb95879700b905551` adds fail-closed tray state presentation; `64927940daca2d36dc52616f9d412ff0025cea06` wires the existing real `SystemRuntimeOverview.state` into the tray controller.
+- Test commit: `4be2ac9e69e8a60f2f98fc32ac636017961583c6` covers `success`, `stale`, `error`, `unavailable`, and unexpected-state fallback without synthesising telemetry.
+- Presentation contract: success restores the application icon and `Ready`; stale/unavailable use a warning icon with explicit tooltip; error uses a critical icon with `Attention needed`; any unknown state fails closed to `unavailable`.
+- Canonical verification: Quality run `33818773088` is pending on exact product/test head `4be2ac9e69e8a60f2f98fc32ac636017961583c6`; no PASS is claimed yet.
 
 ## Evidence blocker
 
