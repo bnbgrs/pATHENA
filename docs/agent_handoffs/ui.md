@@ -2,21 +2,20 @@
 
 ## Current baseline
 
-- Base: `develop/pathena-next@96489c4c493992ff9d8c7efd57557a69aa578e56`
+- Base: `develop/pathena-next@7c15b44818e9ac5c3484ee30d4a20d6f0d56087e`
 - Worker: `postmerge/ui`
-- Worker synchronization commit: `9eb906c3f3c85f37e4c1c8dedfea407d09951fa5`
+- Worker synchronization commit: `7952eedcda8cc889e60ced3170e72a762245d00c`
 - UI product commit: `1f0fd548431be122d13a403fe9e2387087edf8fa`
 - UI focused-test commit: `d85d2a2e144abc9d3ef1008b80f74114c7fafe23`
 - Original eleven reference images: `VISUAL_REFERENCE_PENDING`; no pixel-level parity or `MATCH` claim is made.
 
 ## Work completed
 
-- Safely reconciled the previously diverged UI worker with current Develop using a non-force, history-preserving two-parent merge. Develop supplies the product baseline; the UI-owned manifest, gap ledger and handoff history were retained.
-- Re-read the 11-screen manifest, Visual Gap Ledger, Core/Backend/Error/Integrator ownership guidance, and the live `PathenaMainWindow` shell.
-- Implemented only `UI-GAP-0001`: `_replace_visible_copy()` now maps legacy `INSPECTOR` to `EVIDENCE & ACTIVITY`, and `_install_reference_shell()` assigns the right panel accessible name `Evidence & Activity`.
-- Added a focused Qt shell contract asserting the right panel Accessible Name and visible `EVIDENCE & ACTIVITY` label.
-- Independent commit comparison confirms the product commit changes exactly two lines in `src/athena/desktop/pathena_window.py`; no controller, provenance, persistence, visibility, focus or backend semantics changed.
-- Draft verification PR #51 targets `develop/pathena-next`. It is verification-only; no merge or auto-merge is requested.
+- Reconciled the UI worker with current Develop using a non-force, history-preserving two-parent merge. Develop changed only integrator/progress documentation plus the ResourceMode product/test files since the prior UI base; the UI delta changed only UI-owned files, so no foreign work was overwritten.
+- `UI-GAP-0001` product/test lineage remains unchanged: visible inspector copy and accessible name use `Evidence & Activity` without changing controller, provenance, persistence, visibility, focus or backend semantics.
+- Exact prior UI head `f31be028652095b18b8a98dfacd65b73be9af763` passed ATHENA Quality Gate run `33720745475` with conclusion `success`.
+- Because synchronization produced a new exact worker head, Quality run `33724577775` is currently verifying `7952eedcda8cc889e60ced3170e72a762245d00c`; `UI-GAP-0001` remains `FIXED_PENDING_VERIFY` until that current-head run succeeds.
+- Reviewed `UI-GAP-0002` call-chain: `_install_reference_shell()` and `_install_progressive_disclosure()` force the inspector visible; `_sync_progressive_chat_actions()` forces it visible again; `_set_context_available()` already exposes the truthful grounded-context state; grounded responses set that state true while new/loaded/ordinary sent chat paths clear it. This gives a real existing state signal for a later contextual-visibility slice, but no visibility mutation was bundled into this synchronization run.
 
 ## Active UI gaps
 
@@ -24,29 +23,27 @@
 
 Status: `FIXED_PENDING_VERIFY`, P1.
 
-Product implementation is complete on `1f0fd548431be122d13a403fe9e2387087edf8fa`; focused Qt contract is present on `d85d2a2e144abc9d3ef1008b80f74114c7fafe23`. Promote to closed only after exact-head verification succeeds. This does not imply screenshot-level `MATCH`.
+Implementation: `1f0fd548431be122d13a403fe9e2387087edf8fa`; focused Qt contract: `d85d2a2e144abc9d3ef1008b80f74114c7fafe23`. Prior exact UI head is green; current synchronized head still requires successful Quality run `33724577775` before closure. This does not imply screenshot-level `MATCH`.
 
 ### UI-GAP-0002 — Contextual inspector behavior
 
-Status: `OPEN / REQUIRES_FOCUSED_CONTRACT_REVIEW`, P1.
+Status: `OPEN / CONTRACT_TRACED`, P1.
 
-The reference shell still forces the right inspector visible in `_install_reference_shell()` and `_sync_progressive_chat_actions()`. This intersects focus, reduced-motion, progressive disclosure and non-chat details ownership, so it remains a separate analysis-first slice.
+Evidence: chat grounded-context availability already has a truthful state transition through `_set_context_available()`. A safe bounded implementation should keep the inspector visible on non-chat surfaces, while Chat visibility should derive from real grounded-context availability instead of unconditional `show()` calls. Any implementation must preserve current non-chat details, immediate/no-animation reduced-motion behavior, and existing focus contracts. No product mutation for this gap was made in this run.
 
 ## Collision / ownership guidance
 
-- UI worker owns presentation copy, shell geometry, view state and visual interaction on `postmerge/ui`.
-- Core/Backend should not implement alternate inspector widgets.
+- UI owns inspector presentation/visibility state on `postmerge/ui`.
+- Core/Backend should not implement alternate inspector widgets or mutate its presentation state.
 - Backend/storage/security semantics remain untouched.
-- No verified UI root-cause error is handed to the error worker in this run.
+- No verified UI root-cause error is handed to the error worker.
 
 ## Verification
 
-- Branch synchronization: completed non-force with two-parent merge `9eb906c3f3c85f37e4c1c8dedfea407d09951fa5`.
-- Product diff review: `1f0fd548431be122d13a403fe9e2387087edf8fa` is exactly 2 additions / 2 deletions in `src/athena/desktop/pathena_window.py`.
-- Focused Qt contract: added in `tests/unit/test_pathena_window.py` on `d85d2a2e144abc9d3ef1008b80f74114c7fafe23`.
-- GitHub Quality Gate was queued after the verification PR was opened; exact final-head result must be checked before integration readiness is claimed.
-- No reference screenshot was opened in this run; `VISUAL_REFERENCE_PENDING` remains mandatory.
+- Prior exact UI head `f31be028652095b18b8a98dfacd65b73be9af763`: ATHENA Quality Gate `33720745475` = `success`.
+- Current synchronized head `7952eedcda8cc889e60ced3170e72a762245d00c`: ATHENA Quality Gate `33724577775` = `in_progress` at handoff update time.
+- No original reference screenshot was opened; `VISUAL_REFERENCE_PENDING` remains mandatory.
 
 ## Integrator handoff
 
-Do not integrate until the exact current UI head has successful verification. Once green, the bounded product/test lineage for `UI-GAP-0001` is `1f0fd548431be122d13a403fe9e2387087edf8fa` + `d85d2a2e144abc9d3ef1008b80f74114c7fafe23`; subsequent commits only update UI-owned evidence/handoff documentation. `UI-GAP-0002` remains separate and must not be bundled with the naming change.
+Do not integrate the synchronized UI worker until Quality `33724577775` succeeds on exact head `7952eedcda8cc889e60ced3170e72a762245d00c` (or a later documentation-only head with equivalent successful verification). The bounded UI-GAP-0001 product/test lineage remains `1f0fd548431be122d13a403fe9e2387087edf8fa` + `d85d2a2e144abc9d3ef1008b80f74114c7fafe23`. `UI-GAP-0002` remains a separate subsequent interaction slice.
