@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `647ea036329280378a7e573aca0df905f48ac3b1`
+Baseline: `e98c88e0d3b41b81de7efa70873729f873038080`
 Integration target: `develop/pathena-next`
 
 Only evidence-backed gaps belong here. The original 11 reference screenshots remain unavailable for direct visual comparison; therefore no pixel-level mismatch or `MATCH` claim is asserted.
@@ -44,15 +44,11 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Screen: `11 — Startup / Empty / Disconnected state`
 - Severity: `P1`
 - Evidence: `docs/alpha/16_Desktop_Anwendung_und_Benutzeroberflaeche.md` requires normal use to present pATHENA while daemon/workers/providers remain background infrastructure; prior startup/readiness presentation exposed `Local core offline`, `Waiting for the local core`, and Core-specific composer/tool-tip guidance.
-- Affected widgets/files: `localStatus`, `promptInput`, `emptyStateTitle`; `src/athena/desktop/pathena_startup_experience_2900.py`; `src/athena/desktop/pathena_offline_comprehension_4700.py`; focused tests in `tests/unit/test_pathena_startup_experience_2900.py` and `tests/unit/test_pathena_offline_comprehension.py`.
 - Product/test candidate: `99d6b31c78be2932154137a6527200759f349628`.
-- Candidate behavior: disconnected normal-workspace copy says `pATHENA reconnecting` / `Getting pATHENA ready`, keeps detailed recovery direction in System, and preserves the real `core-offline` state property plus existing controller/service semantics.
-- Ruff correction chain: `77e7b4c7d95202e6814226e2b4a2c4a54e3f5c8e` closed B010; the initial I001 formatting attempt `ecbf44ddd0fb8c7428d4cca090834eca284b997e` was insufficient; final import-order correction `a5d9530525bd0b6bf0eae3945c23a6805f6b9669` orders the SCREAMING_SNAKE_CASE QtWidgets symbol before CamelCase as Ruff/isort requires.
+- Ruff correction chain: `77e7b4c7d95202e6814226e2b4a2c4a54e3f5c8e` closed B010; final import-order correction `a5d9530525bd0b6bf0eae3945c23a6805f6b9669` closed I001.
 - Focused verification: run `33804104455` passed dependency-lock validation, Ruff on both affected harnesses, and both startup/offline focused pytest files.
-- Canonical verification: Quality run `33804193396` completed `success` on the byte-identical cleanup tree `15cdecfd067f39fc2a96e84a83772a67fefb9760`; Python 3.12 quality, specification validator, Ruff, mypy, full pytest, Windows path safety, Linux storage regressions, local-install smoke and canonical enforcement all passed.
+- Canonical verification: Quality run `33804193396` completed `success`; Python 3.12 quality, specification validator, Ruff, mypy, full pytest, Windows path safety, Linux storage regressions, local-install smoke and canonical enforcement all passed.
 - Status: `FIXED`.
-- Integrator-ready product/harness lineage: bounded UI-GAP-0004 changes through final harness commit `a5d9530525bd0b6bf0eae3945c23a6805f6b9669`; temporary validation-workflow commits are not part of the retained product/test tree.
-- Acceptance: no backend, transport, persistence, security, capability, focus, availability or product-state semantics changed; technical Core state remains represented internally and may remain visible in System diagnostics.
 
 ## UI-GAP-0005 — Required desktop system-tray surface is absent from the current Develop tree
 
@@ -60,10 +56,15 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Screen: `06 — System` / desktop shell lifecycle adjunct; no screenshot-level geometry is inferred.
 - Severity: `P1`.
 - Spec evidence: `docs/alpha/16_Desktop_Anwendung_und_Benutzeroberflaeche.md` requires a persistent desktop tray icon, background-active behavior when the main window is minimized, and tray access to open pATHENA, load/unload the primary model, toggle Internet, pause background tasks, inspect system status and quit.
-- Code evidence: recursive path inspection of current Develop tree `3c96aa4788f3de35a4e505489e73366dea8a2d6f` contains no tray-named implementation path, and exact repository search for `QSystemTrayIcon` returned no implementation result.
-- Status: `MISSING`.
-- Next action: trace the real desktop bootstrap/application lifetime plus existing model, Internet, jobs-pause and shutdown command paths before adding any visible tray action. Do not invent backend commands; implement only controls that map to existing real operations, and represent unsupported spec actions explicitly rather than faking success.
-- Acceptance target: one `QSystemTrayIcon` lifecycle owned by the desktop application; minimizing/closing behavior remains explicit and testable; tray actions delegate to existing real command/service paths; no duplicate business logic; shutdown remains orderly; focused Qt tests cover menu action wiring and lifecycle semantics.
+- Code evidence: the current Develop desktop bootstrap installs `SystemWorkspace` but has no `QSystemTrayIcon` lifecycle; Settings exposes model configuration/readiness, not trustworthy model load/unload commands.
+- Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Candidate module: `src/athena/desktop/pathena_system_tray.py` at `faabeb42fc7d13e04f660c3be1222a95e1f47836`.
+- Focused tests: `tests/unit/test_pathena_system_tray.py` at `47d4473d80fc61660674a96feeb0ba93c28c3d1e`.
+- Application wiring: `SystemWorkspace` owns one tray controller from `441c9ee3889b2927332ecd9cc4b33abd89b8b88f`.
+- Real paths: `Open pATHENA` restores/raises/activates the existing window; `System status` selects the existing System navigation row; `Quit pATHENA` delegates to `QApplication.quit` and therefore preserves existing `aboutToQuit` supervisor shutdown wiring.
+- Honest unavailable actions: model load, model unload, Internet toggle and background-task pause remain visible but disabled with `pathenaUnavailable=True`; no backend command or success state is fabricated.
+- Verification: draft PR #53 is validation-only; canonical Quality run `33814551829` is pending on exact head `441c9ee3889b2927332ecd9cc4b33abd89b8b88f`.
+- Acceptance target: one persistent tray lifecycle; background activity remains alive while the window is minimized; all enabled actions delegate existing real paths; unsupported spec actions remain explicitly unavailable until Core/Backend exposes trustworthy commands.
 
 ## Evidence blocker
 
