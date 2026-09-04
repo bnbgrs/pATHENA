@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import sqlite3
 import uuid
+from dataclasses import replace
 
 import pytest
 
+from athena.common.ids import uuid_to_blob
 from athena.research.errors import ResearchStateError
 from athena.research.models import (
     ResearchCandidateEligibility,
@@ -14,6 +17,7 @@ from athena.research.models import (
 from athena.research.source_coverage_composition import (
     SOURCE_COVERAGE_RESULT_KEY,
     research_result_content_with_source_coverage,
+    research_result_content_with_source_coverage_from_connection,
     source_coverage_result_payloads_from_records,
     source_coverages_from_records,
 )
@@ -194,3 +198,122 @@ def test_research_result_content_rejects_semantic_source_coverage_override() -> 
             [],
             [],
         )
+
+
+def test_connection_composition_reads_only_real_scope_rows_in_one_connection() -> None:
+    connection = sqlite3.connect(":memory:")
+    connection.row_factory = sqlite3.Row
+    connection.executescript(
+        """
+        CREATE TABLE research_candidate_sets (
+            candidate_set_id BLOB PRIMARY KEY,
+            scope_id BLOB NOT NULL
+        );
+        CREATE TABLE research_candidates (
+            candidate_id BLOB PRIMARY KEY,
+            candidate_set_id BLOB NOT NULL,
+            source_id BLOB NOT NULL,
+            ordinal INTEGER NOT NULL,
+            content_sha256 BLOB NOT NULL,
+            eligibility_state TEXT NOT NULL,
+            duplicate_of_candidate_id BLOB,
+            created_at_us INTEGER NOT NULL
+        );
+        CREATE TABLE research_work_items (
+            work_item_id BLOB PRIMARY KEY,
+            scope_id BLOB NOT NULL,
+            candidate_id BLOB NOT NULL,
+            state TEXT NOT NULL,
+            idempotency_key BLOB NOT NULL,
+            source_processing_job_id BLOB,
+            source_analysis_job_id BLOB,
+            attempt_count INTEGER NOT NULL,
+            created_at_us INTEGER NOT NULL,
+            updated_at_us INTEGER NOT NULL
+        );
+        """
+    )
+    scope_id = uuid.uuid4()
+    other_scope_id = uuid.uuid4()
+    source_id = uuid.UUID(int=31)
+    successful = _candidate(source_id=source_id, ordinal=0)
+    failed = _candidate(source_id=source_id, ordinal=1)
+    other = _candidate(source_id=uuid.UUID(int=32), ordinal=0)
+
+    for candidate, candidate_scope in (
+        (successful, scope_id),
+        (failed, scope_id),
+        (other, other_scope_id),
+    ):
+        connection.execute(
+            "INSERT INTO research_candidate_sets (candidate_set_id, scope_id) VALUES (?, ?)",
+            (uuid_to_blob(candidate.candidate_set_id), uuid_to_blob(candidate_scope)),
+        )
+        connection.execute(
+            """
+            INSERT INTO research_candidates (
+                candidate_id, candidate_set_id, source_id, ordinal,
+                content_sha256, eligibility_state, duplicate_of_candidate_id,
+                created_at_us
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                uuid_to_blob(candidate.candidate_id),
+                uuid_to_blob(candidate.candidate_set_id),
+                uuid_to_blob(candidate.source_id),
+                candidate.ordinal,
+                candidate.content_sha256,
+                candidate.eligibility.value,
+                None,
+                candidate.created_at_us,
+            ),
+        )
+
+    for candidate, state, work_scope in (
+        (successful, ResearchWorkState.SUCCESSFUL, scope_id),
+        (failed, ResearchWorkState.FAILED, scope_id),
+        (other, ResearchWorkState.SUCCESSFUL, other_scope_id),
+    ):
+        work = replace(_work(candidate, state), scope_id=work_scope)
+        connection.execute(
+            """
+            INSERT INTO research_work_items (
+                work_item_id, scope_id, candidate_id, state, idempotency_key,
+                source_processing_job_id, source_analysis_job_id, attempt_count,
+                created_at_us, updated_at_us
+            ) VALUES (?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?)
+            """,
+            (
+                uuid_to_blob(work.work_item_id),
+                uuid_to_blob(work.scope_id),
+                uuid_to_blob(work.candidate_id),
+                work.state.value,
+                work.idempotency_key,
+                work.attempt_count,
+                work.created_at_us,
+                work.updated_at_us,
+            ),
+        )
+
+    payload = research_result_content_with_source_coverage_from_connection(
+        {"summary": "grounded"},
+        connection,
+        scope_id,
+    )
+
+    assert payload["summary"] == "grounded"
+    assert payload[SOURCE_COVERAGE_RESULT_KEY] == [
+        {
+            "formula_id": "eligible-units-success-or-irrelevant-v1",
+            "source_id": str(source_id),
+            "unit_total": 2,
+            "processed_count": 2,
+            "successful_count": 1,
+            "irrelevant_count": 0,
+            "failed_count": 1,
+            "unavailable_count": 0,
+            "excluded_count": 0,
+            "eligible_count": 2,
+            "coverage_ratio": 0.5,
+        }
+    ]
