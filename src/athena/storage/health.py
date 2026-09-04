@@ -28,6 +28,8 @@ def _optional_text(value: object, label: str) -> str | None:
         return None
     if not isinstance(value, str):
         raise TypeError(f"{label} must be str or None.")
+    if value == "":
+        raise ValueError(f"{label} must not be empty.")
     return value
 
 
