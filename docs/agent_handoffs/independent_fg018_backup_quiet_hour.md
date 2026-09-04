@@ -2,7 +2,7 @@
 
 ## Baseline and ownership
 
-- Exact baseline: `develop/pathena-next@0b7f428f8679db9391c00b4b9638d85550332c43`.
+- Original exact baseline: `develop/pathena-next@0b7f428f8679db9391c00b4b9638d85550332c43`.
 - Independent branch: `independent/fg018-backup-quiet-hour-20260904`.
 - Scope: Beta 21 / historical `FG-018` only — make the existing daily backup quiet hour bootstrap-configurable.
 - `main`, `develop/pathena-next`, `postmerge/backend`, `postmerge/spec-core`, `postmerge/ui`, and `postmerge/errors` were not mutated.
@@ -41,17 +41,25 @@ Coverage locks:
 - invalid environment values fail closed;
 - explicit boolean values remain rejected.
 
-## Collision guidance
+## Collision and synchronization evidence
 
-This branch is intentionally disjoint from the active worker scopes observed when it was created:
+This branch was intentionally disjoint from the active worker scopes observed when it was created:
 
 - Core worker: Research/source-coverage/ResearchResult composition;
 - Backend worker: ExternalAccessGateway and local-model HTTP response-size boundaries;
 - UI worker: Settings runtime/accessibility freshness;
 - Error worker: current-lineage failure scanning.
 
+While this slice was being prepared, Develop advanced from `0b7f428f8679db9391c00b4b9638d85550332c43` to `2520224ebe3143368b3e5f13c091479d5e7b8d35`. The intervening Develop delta touched only Research composition/tests and shared progress/integrator documentation; it did not touch `src/athena/jobs/backup.py` or this focused test path.
+
+The independent branch was then synchronized without force-push using merge commit `173bc6b462377a3fdab3d6cd489fa054768f7e47`, with the independent handoff lineage and exact Develop `2520224ebe3143368b3e5f13c091479d5e7b8d35` as parents. PR #66 became mergeable after that synchronization.
+
 Integrator should review/cherry-pick only the bounded product/test state after executable Quality evidence is green. Do not merge this branch automatically and do not infer broader Beta 21 completion from this slice.
 
 ## Validation state
 
-At handoff-document creation, no canonical Quality PASS is claimed for this branch. A draft validation PR should target `develop/pathena-next`; pending, cancelled, action-required, or failed runs are not PASS evidence.
+- Draft validation PR: `#66` — `Backend: make daily backup quiet hour configurable`.
+- Exact synchronized validation head before this documentation refresh: `173bc6b462377a3fdab3d6cd489fa054768f7e47`.
+- ATHENA Quality Gate run `33898237340` was `pending` when this documentation refresh was written; no PASS is claimed from it.
+- This documentation commit advances the PR head again without changing product/test blobs, so Integrator must consume the canonical Quality result for the final exact PR head (or a verified descendant containing these blobs unchanged).
+- Pending, cancelled, action-required, in-progress, or failed runs are not PASS evidence.
