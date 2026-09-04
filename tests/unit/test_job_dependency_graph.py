@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -9,11 +10,13 @@ from athena.config.settings import AthenaSettings
 from athena.core.application import AthenaApplication
 from athena.jobs.dependency_graph import (
     ChildCancellationPolicy,
+    JobGraphCorruptionError,
     JobGraphError,
     JobParentCompletionBlockedError,
     ParentCompletionPolicy,
 )
-from athena.jobs.models import JobPriority, JobState, WaitingReason
+from athena.jobs.models import JobPriority, JobRecord, JobState, WaitingReason
+from athena.jobs.repository import JobNotFoundError
 from athena.storage.schema_contract import JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION
 
 
@@ -39,7 +42,12 @@ def _payload(source_id: uuid.UUID) -> dict[str, dict[str, object]]:
     }
 
 
-def _job(app: AthenaApplication, *, priority: JobPriority = JobPriority.NORMAL, **kwargs):
+def _job(
+    app: AthenaApplication,
+    *,
+    priority: JobPriority = JobPriority.NORMAL,
+    **kwargs: Any,
+) -> JobRecord:
     return app.jobs.create(
         job_type="source.process",
         priority=priority,
@@ -97,6 +105,18 @@ def test_dependency_is_durable_blocks_lease_and_wakes_after_completion(
     _complete(second, dependency.job_id)
     assert second.jobs.get(blocked.job_id).state is JobState.QUEUED
     second.stop()
+
+
+def test_create_rolls_back_job_when_graph_validation_fails(tmp_path: Path) -> None:
+    app = _app(tmp_path)
+    before = tuple(job.job_id for job in app.jobs.list(limit=100))
+
+    with pytest.raises(JobNotFoundError):
+        _job(app, depends_on_job_ids=(uuid.uuid4(),))
+
+    after = tuple(job.job_id for job in app.jobs.list(limit=100))
+    assert after == before
+    app.stop()
 
 
 def test_parent_completion_policy_requires_successful_explicit_children(
@@ -163,6 +183,37 @@ def test_parent_cancellation_cascades_only_across_explicit_cascade_edges(
     app.stop()
 
 
+def test_cancellation_cascade_rolls_back_as_one_transaction(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = _app(tmp_path)
+    parent = _job(app)
+    child = _job(
+        app,
+        parent_job_id=parent.job_id,
+        child_cancellation_policy=ChildCancellationPolicy.CASCADE,
+    )
+    original = app.job_repository._request_cancel_row
+    calls = 0
+
+    def fail_second_call(*args: Any, **kwargs: Any) -> JobState:
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise RuntimeError("injected cascade failure")
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(app.job_repository, "_request_cancel_row", fail_second_call)
+
+    with pytest.raises(RuntimeError, match="injected cascade failure"):
+        app.jobs.request_cancel(parent.job_id)
+
+    assert app.jobs.get(parent.job_id).state is JobState.QUEUED
+    assert app.jobs.get(child.job_id).state is JobState.QUEUED
+    app.stop()
+
+
 def test_dependency_updates_reject_cycles(tmp_path: Path) -> None:
     app = _app(tmp_path)
     first = _job(app)
@@ -200,14 +251,32 @@ def test_priority_inheritance_is_bounded_and_does_not_mutate_base_priority(
     candidates = app.jobs.eligible_queued(now_us=now)
     candidate = next(item for item in candidates if item.job_id == dependency.job_id)
     assert candidate.priority is JobPriority.INTERACTIVE
-    # Acquiring re-reads the canonical row. Resource admission therefore sees
-    # MAINTENANCE, not the donated scheduling priority.
     leased = app.jobs.acquire(
         dependency.job_id,
         worker_id="priority-test",
         now_us=now + 1,
     )
     assert leased.priority is JobPriority.MAINTENANCE
+    app.stop()
+
+
+def test_priority_inheritance_survives_small_candidate_limit(tmp_path: Path) -> None:
+    app = _app(tmp_path)
+    decoy = _job(app, priority=JobPriority.NORMAL)
+    dependency = _job(app, priority=JobPriority.MAINTENANCE)
+    blocked = _job(
+        app,
+        priority=JobPriority.INTERACTIVE,
+        depends_on_job_ids=(dependency.job_id,),
+    )
+    now = max(decoy.created_at_us, dependency.created_at_us, blocked.created_at_us) + 100
+
+    candidates = app.jobs.eligible_queued(now_us=now, limit=1)
+
+    assert len(candidates) == 1
+    assert candidates[0].job_id == dependency.job_id
+    assert candidates[0].priority is JobPriority.INTERACTIVE
+    assert app.jobs.get(dependency.job_id).priority is JobPriority.MAINTENANCE
     app.stop()
 
 
@@ -242,4 +311,23 @@ def test_direct_dependency_limit_fails_closed(tmp_path: Path) -> None:
         app.jobs.replace_dependencies(target.job_id, dependencies)
 
     assert app.jobs.graph_snapshot(target.job_id).depends_on_job_ids == ()
+    app.stop()
+
+
+def test_dangling_dependency_state_fails_closed(tmp_path: Path) -> None:
+    app = _app(tmp_path)
+    target = _job(app)
+    connection = app.database.connection
+    connection.execute("PRAGMA foreign_keys = OFF")
+    connection.execute(
+        """
+        INSERT INTO job_dependencies(job_id, depends_on_job_id, created_at_us)
+        VALUES (?, ?, ?)
+        """,
+        (target.job_id.bytes, uuid.uuid4().bytes, target.created_at_us),
+    )
+    connection.execute("PRAGMA foreign_keys = ON")
+
+    with pytest.raises(JobGraphCorruptionError, match="dangling"):
+        app.jobs.graph_snapshot(target.job_id)
     app.stop()
