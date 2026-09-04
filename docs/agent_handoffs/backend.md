@@ -2,42 +2,34 @@
 
 ## Baseline
 
-- Shared baseline: `develop/pathena-next@a783e8d0f45f5beb888b8bd708d52124a44c3420`.
+- Shared baseline: `develop/pathena-next@3659470baa5cc0cdeea538bcfe241174f319a502`.
 - Worker branch: `postmerge/backend`.
-- History-preserving NON-FORCE synchronization with current Develop: merge commit `6eb421cf5efc510898006868bfc475c7928bc32b`.
+- History-preserving NON-FORCE synchronization with current Develop: merge commit `d54914b31c24cf63aba6ca282f0e5461397971c8`.
 - `main@0d4d621f8a38ddf8eccfa09622bf193687619943` remains strictly read-only and untouched.
 
-## Current backend slice — capture URL runtime type boundary
+## Verified prior slice
 
-Area: `ExternalAccessGateway.capture_url()` fail-before-side-effect runtime validation.
+The ExternalAccessGateway capture-URL runtime text boundary is already integrated on Develop and is recorded by the Integrator as VERIFIED. Canonical worker Quality `33822032100` completed successfully on synchronized Gateway candidate `6eb421cf5efc510898006868bfc475c7928bc32b`.
 
-Product/test commit `07782c78d6e2cb1e9f4bfb6bf9175c9fb041a806` rejects non-text `url` values with `ExternalDestinationError("External URL must be text.")` before authorization/audit/actor/transport/Source paths. Valid text URLs retain the existing authorization, redirect re-authorization, transport, response-policy, fsync and transactional Source/audit/provenance flow.
+## Current backend slice — Research string-filter container boundary
 
-The earlier exact-product Quality run `33818120429` completed `cancelled` with zero jobs, so it is explicitly not PASS evidence.
+Product/test commit `818e421ea721003e16447ce8e335e49388dc1520` hardens `athena.research.service._stable_strings()` so scalar text-like containers (`str`, `bytes`, `bytearray`) and non-Sequence containers fail closed before element normalization. Existing per-element text validation remains intact. Valid `Sequence[str]` behavior still strips whitespace, rejects blanks, deduplicates and returns deterministic sorted values.
 
-After the NON-FORCE sync, canonical Quality run `33822032100` was created on exact synchronized worker SHA `6eb421cf5efc510898006868bfc475c7928bc32b`. It currently has four real jobs running: Linux storage regressions, Python 3.12 quality, Local install smoke and Windows path safety. No PASS is claimed until completion.
+Focused verifier run `33829758780` completed SUCCESS. It installed the project, applied the bounded patch, ran `tests/unit/test_research_stable_strings_boundaries.py`, Ruff on the changed product/test files, mypy on `src/athena/research/service.py`, and `git diff --check`, then committed the exact product/test delta. No skip/XFail or assertion/guard weakening was introduced.
+
+Temporary verifier workflow commits are tooling-only and must not be integrated. The workflow has been removed again.
 
 ## Retained invariants
 
-- no silent Tor to Direct fallback;
-- Direct fallback remains explicitly authorized only;
-- loopback/private destination and proxy-leak protections unchanged;
-- every redirect is re-authorized before fetch;
-- HTTPS/default-port policy remains fail-closed;
-- compressed-response and response-size policies unchanged;
-- audit/provenance/fsync/transactional Source-finalization semantics unchanged;
-- no retry, cryptography, storage, recovery or platform-path behavior changed.
-
-## Next backend slice — reproduced External Research URL-container boundary
-
-`ExternalResearchService.enqueue(urls=...)` currently computes:
-
-`tuple(item.strip() for item in urls if item.strip())`.
-
-This is a real runtime-boundary gap: a naked string is iterated character-by-character and non-text elements call `.strip()` incidentally, while bytes can flow as byte elements. The next bounded mutation should reject `str`/`bytes` as the URL container, require a real `Sequence`, require every element to be `str`, normalize/trim only after those checks, and fail before any `gateway.capture_url()` side effect. Valid sequence-of-text behavior and Gateway authorization/audit semantics must remain unchanged.
-
-Do not implement or claim this next slice until the currently running exact synchronized Quality is consumed; if that run is red, classify and correct the exact failure first.
+- Research persistence, snapshot pinning, job creation and model-contract behavior are unchanged.
+- Gateway authorization/audit/provenance/TOR/redirect/fsync/transactional Source semantics are unchanged.
+- No retries, cryptography, storage, recovery or platform-path behavior changed.
+- Invalid container values now fail before downstream Research job/persistence side effects reached through the normalized filter path.
 
 ## Integrator handoff
 
-Do not integrate `07782c78d6e2cb1e9f4bfb6bf9175c9fb041a806` yet. Wait for canonical Quality `33822032100` on synchronized worker SHA `6eb421cf5efc510898006868bfc475c7928bc32b` to complete. If green, independently review only the bounded Gateway product/test delta; temporary tooling history remains excluded.
+READY_FOR_BOUNDED_REVIEW: independently review/integrate only product/test commit `818e421ea721003e16447ce8e335e49388dc1520`. Focused verification is green via run `33829758780`; canonical Quality on the final worker line must still be consumed before claiming global PASS if required by integration policy.
+
+## Next backend slice
+
+After consuming current canonical evidence, inspect the adjacent `_stable_uuids()` and `source_types` filter container boundaries for the same scalar/non-Sequence ambiguity. Harden only if reproduced, preserve exact valid normalization semantics, and keep the slice bounded to Research runtime validation.
