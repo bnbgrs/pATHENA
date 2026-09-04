@@ -94,6 +94,26 @@ def _apply(
     runtime.apply_snapshot(snapshot)
 
 
+def test_runtime_panel_initial_state_is_fail_closed_before_first_snapshot(tmp_path) -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    runtime = install_settings_runtime(window, None, settings=_settings(tmp_path))
+    try:
+        assert runtime.provider_value.text() == "Model provider · awaiting Core"
+        assert runtime.provider_value.property("pathenaUiState") == "idle"
+        assert runtime.provider_value.property("pathenaRuntimeFreshness") == "unavailable"
+        assert runtime.network_value.text() == "Local Core · awaiting connection"
+        assert runtime.network_value.property("pathenaUiState") == "idle"
+        assert runtime.network_value.property("pathenaRuntimeFreshness") == "unavailable"
+        assert runtime.network_value.property("pathenaNetworkScope") == "unavailable"
+        assert runtime.network_value.property("pathenaInternetStateInferred") is False
+        assert "Internet access is not inferred" in runtime.network_value.accessibleDescription()
+        assert "connected" not in runtime.network_value.accessibleDescription().lower()
+    finally:
+        window.close()
+        app.processEvents()
+
+
 def test_model_settings_persist_across_real_window_recreation(tmp_path) -> None:
     app = _app()
     snapshot = _snapshot()
