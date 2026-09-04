@@ -2,32 +2,32 @@
 
 ## Current baseline
 
-- Base: `develop/pathena-next@0b7f428f8679db9391c00b4b9638d85550332c43`.
+- Base: `develop/pathena-next@2520224ebe3143368b3e5f13c091479d5e7b8d35`.
 - Worker: `postmerge/ui`.
-- History-preserving NON-FORCE synchronization commit: `eeb9c8816a81495769c83d0acb51646f44bed6a3`, parents `622f85338613b7d59ef5b1bd0fd05eae3d488c47` + `0b7f428f8679db9391c00b4b9638d85550332c43`.
+- History-preserving NON-FORCE synchronization commit: `0328405eb0c8db793e78f83885b4eda4235e4a23`, parents `3d3ac638ce35c2bd149cea2358ef726f243244f0` + `2520224ebe3143368b3e5f13c091479d5e7b8d35`.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 - Original eleven reference images remain `VISUAL_REFERENCE_PENDING`; no pixel-level `MATCH` claim is made.
 
-## UI-GAP-0013 — runtime detail freshness/accessibility transitions
+## UI-GAP-0014 — no-model persistence freshness
 
 Status: `FIXED / INTEGRATOR_READY`, P2.
 
 Verified implementation:
 
-- product `046414551ad85bc418af0c7bdfdc2d8be7befd7d` initializes `settingsRuntimeDetail` as `idle/unavailable`, routes snapshot-backed detail through `_set_state()` using the snapshot's resolved model freshness, keeps model-error detail explicitly `error`, and makes Core connection failure `error/unavailable` with synchronized accessible description;
-- focused test `7de1ccb040083375fb31242f54b9515b18403113` asserts initial, fresh, stale, unavailable and connection-failure transitions without changing visible copy or runtime/provider behavior;
-- exact final UI head `622f85338613b7d59ef5b1bd0fd05eae3d488c47` passed ATHENA Quality Gate `33891068183` with conclusion `success`.
+- product lineage culminates at `e1218685577230fa6ad190291ad0f626912853ac`; `Per-model settings · choose a model` uses `pathenaRuntimeFreshness=unavailable` instead of `fresh` when `_selected_model()` returns `None`;
+- focused test `ce7ae251f5d7b8548a21abde6c67cbd2fafa9f24` clears the real model selector and asserts unchanged visible copy, `idle`, `unavailable`, and synchronized accessible description;
+- exact final documented UI head `3d3ac638ce35c2bd149cea2358ef726f243244f0` passed ATHENA Quality Gate `33897120327` with conclusion `success`;
+- no persistence implementation, storage format, provider behavior, backend contract or security semantics changed.
 
-## UI-GAP-0014 — no-model persistence freshness
+## UI-GAP-0015 — unsaved selected-model defaults freshness
 
-Status: `IMPLEMENTED_PENDING_VERIFY`, P2.
+Status: `OPEN`, P2.
 
-Implementation:
+Evidence:
 
-- product lineage culminates at `e1218685577230fa6ad190291ad0f626912853ac`; the cumulative product diff against synchronized baseline is exactly one semantic line: `Per-model settings · choose a model` now uses `pathenaRuntimeFreshness=unavailable` instead of `fresh` when `_selected_model()` returns `None`;
-- focused test `ce7ae251f5d7b8548a21abde6c67cbd2fafa9f24` clears the real model selector, calls `hydrate_selected_model()`, and asserts unchanged visible copy, `idle`, `unavailable`, and synchronized accessible description;
-- no persistence implementation, storage format, provider behavior, backend contract or security semantics changed;
-- exact-head canonical Quality is required before Integrator promotion.
+- `SettingsRuntimeController.hydrate_selected_model()` renders `<model> · defaults not yet saved` when a real model is selected but no local persisted record exists;
+- that state is `idle` but currently carries `pathenaRuntimeFreshness=fresh`, despite the visible copy explicitly stating that no model-specific settings have been saved;
+- the next bounded correction is presentation-only: retain the copy and idle state, fail closed to `unavailable`, keep accessibility synchronized, and add focused Qt coverage using a selected model plus empty QSettings store.
 
 ## Collision / ownership guidance
 
@@ -38,9 +38,10 @@ Implementation:
 
 ## Integrator handoff
 
-- READY: UI-GAP-0013 product `046414551ad85bc418af0c7bdfdc2d8be7befd7d` + focused test `7de1ccb040083375fb31242f54b9515b18403113`, backed by exact green UI head `622f85338613b7d59ef5b1bd0fd05eae3d488c47` / Quality `33891068183`.
-- NOT READY: UI-GAP-0014 until canonical Quality on the final documented exact worker head succeeds.
+- READY: UI-GAP-0014 bounded product/test lineage culminating at product normalization `e1218685577230fa6ad190291ad0f626912853ac` plus focused test `ce7ae251f5d7b8548a21abde6c67cbd2fafa9f24`, backed by exact green UI head `3d3ac638ce35c2bd149cea2358ef726f243244f0` / Quality `33897120327`.
+- The worker has been NON-FORCE synchronized with current Develop through `0328405eb0c8db793e78f83885b4eda4235e4a23`.
+- UI-GAP-0015 is not ready and has no product mutation yet.
 
 ## Next UI step
 
-Consume canonical Quality for the final documented UI-GAP-0014 candidate. If green, mark UI-GAP-0014 `FIXED`, return Screen 07 to `IMPLEMENTED_PENDING_VISUAL_REVIEW`, hand the bounded product/test lineage to Integrator, then select the next highest evidence-backed Settings interaction/accessibility gap without claiming screenshot parity.
+Implement UI-GAP-0015 in `src/athena/desktop/pathena_settings_runtime.py`, add focused Qt coverage for a selected model with an empty settings store, run canonical Quality on the exact candidate, and only then promote it to Integrator-ready. Until the original reference images are directly available, keep Screen 07 at `IMPLEMENTED_PENDING_VISUAL_REVIEW` and make no screenshot-level `MATCH` claim.
