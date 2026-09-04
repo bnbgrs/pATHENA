@@ -274,10 +274,13 @@ class SettingsRuntimeController(QObject):
             or "Provider readiness is reported by the local Core; no remote status "
             "or unsupported capability is inferred."
         )
+        provider_detail_error = (
+            provider is not None and freshness == "fresh" and provider.status != "ready"
+        )
         self._set_state(
             self.detail,
             detail_text,
-            "error" if value.model_error is not None else "idle",
+            "error" if value.model_error is not None or provider_detail_error else "idle",
             freshness=freshness,
         )
         self.hydrate_selected_model()
