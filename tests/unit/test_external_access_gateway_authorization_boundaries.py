@@ -101,6 +101,24 @@ def test_authorize_explicit_rejects_non_text_privacy_route_before_actor_or_persi
     app.stop()
 
 
+def test_authorize_explicit_rejects_bool_ttl_before_actor_or_persistence(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = AthenaApplication(settings=AthenaSettings(local_root=tmp_path / "explicit-bool-ttl"))
+    app.start()
+    monkeypatch.setattr(app.external_access.chat, "ensure_local_user", _fail_actor_resolution)
+    before = _authorization_count(app)
+    with pytest.raises(ExternalAuthorizationError, match="between 1 and 86400 seconds"):
+        app.external_access.authorize_explicit(
+            purpose="bounded authorization",
+            allowed_hosts=("example.com",),
+            ttl_seconds=True,  # type: ignore[arg-type]
+        )
+    assert _authorization_count(app) == before
+    app.stop()
+
+
 def _fail_authorization_lookup(*_args: object, **_kwargs: object) -> None:
     pytest.fail("invalid input reached authorization lookup")
 
@@ -148,6 +166,26 @@ def test_authorize_direct_fallback_rejects_out_of_range_ttl_before_authorization
     app.stop()
 
 
+def test_authorize_direct_fallback_rejects_bool_ttl_before_authorization_lookup(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = AthenaApplication(settings=AthenaSettings(local_root=tmp_path / "fallback-bool-ttl"))
+    app.start()
+    source = app.external_access.authorize_explicit(
+        purpose="fallback source",
+        allowed_hosts=("example.com",),
+    )
+    monkeypatch.setattr(app.external_access, "get_authorization", _fail_authorization_lookup)
+    with pytest.raises(ExternalAuthorizationError, match="between 1 and 900 seconds"):
+        app.external_access.authorize_direct_fallback(
+            source.authorization_id,
+            host="example.com",
+            ttl_seconds=True,  # type: ignore[arg-type]
+        )
+    app.stop()
+
+
 @pytest.mark.parametrize("ttl_seconds", [1, 900])
 def test_authorize_direct_fallback_preserves_valid_ttl_range(
     tmp_path: Path,
@@ -184,5 +222,39 @@ def test_capture_url_rejects_non_text_url_before_authorization_lookup(
         app.external_access.capture_url(
             uuid.uuid4(),
             url,  # type: ignore[arg-type]
+        )
+    app.stop()
+
+
+def test_capture_url_rejects_bool_max_bytes_before_authorization_lookup(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = AthenaApplication(settings=AthenaSettings(local_root=tmp_path / "capture-bool-max"))
+    app.start()
+    monkeypatch.setattr(app.external_access, "_authorized_or_audit", _fail_authorization_lookup)
+    with pytest.raises(ValueError, match="max_bytes"):
+        app.external_access.capture_url(
+            uuid.uuid4(),
+            "https://example.com/report",
+            max_bytes=True,  # type: ignore[arg-type]
+        )
+    app.stop()
+
+
+@pytest.mark.parametrize("timeout_seconds", [True, float("nan"), float("inf"), float("-inf")])
+def test_capture_url_rejects_invalid_timeout_before_authorization_lookup(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    timeout_seconds: object,
+) -> None:
+    app = AthenaApplication(settings=AthenaSettings(local_root=tmp_path / "capture-timeout-boundary"))
+    app.start()
+    monkeypatch.setattr(app.external_access, "_authorized_or_audit", _fail_authorization_lookup)
+    with pytest.raises(ValueError, match="timeout"):
+        app.external_access.capture_url(
+            uuid.uuid4(),
+            "https://example.com/report",
+            timeout_seconds=timeout_seconds,  # type: ignore[arg-type]
         )
     app.stop()
