@@ -126,10 +126,30 @@ class SettingsRuntimeController(QObject):
         ):
             label.setTextFormat(Qt.TextFormat.PlainText)
 
-        self._set_state(self.provider_value, self.provider_value.text(), "idle", freshness="unavailable")
-        self._set_state(self.network_value, self.network_value.text(), "idle", freshness="unavailable")
-        self._set_state(self.persistence_value, self.persistence_value.text(), "idle", freshness="unavailable")
-        self._set_state(self.detail, self.detail.text(), "idle", freshness="unavailable")
+        self._set_state(
+            self.provider_value,
+            self.provider_value.text(),
+            "idle",
+            freshness="unavailable",
+        )
+        self._set_state(
+            self.network_value,
+            self.network_value.text(),
+            "idle",
+            freshness="unavailable",
+        )
+        self._set_state(
+            self.persistence_value,
+            self.persistence_value.text(),
+            "idle",
+            freshness="unavailable",
+        )
+        self._set_state(
+            self.detail,
+            self.detail.text(),
+            "idle",
+            freshness="unavailable",
+        )
         initial_network_detail = (
             "Local Core · awaiting connection. Internet access is not inferred before "
             "a Core snapshot."
@@ -170,6 +190,7 @@ class SettingsRuntimeController(QObject):
         layout.addLayout(self._status_row("Connection", self.network_value))
         layout.addLayout(self._status_row("Persistence", self.persistence_value))
         layout.addWidget(self.detail)
+
         page_layout.insertWidget(4, self.panel)
 
     @staticmethod
@@ -191,10 +212,12 @@ class SettingsRuntimeController(QObject):
         for label in settings_page.findChildren(QLabel, "settingsHelp"):
             if "Settings are kept per model for this session." not in label.text():
                 continue
-            label.setText(label.text().replace(
-                "Settings are kept per model for this session.",
-                "Changes are saved locally per model on this computer.",
-            ))
+            label.setText(
+                label.text().replace(
+                    "Settings are kept per model for this session.",
+                    "Changes are saved locally per model on this computer.",
+                )
+            )
 
     @Slot(object)
     def apply_snapshot(self, value: object) -> None:
@@ -204,6 +227,7 @@ class SettingsRuntimeController(QObject):
         self._last_snapshot = value
         freshness = value.resolved_model_freshness
         provider = value.provider
+
         if provider is None or freshness == "unavailable":
             provider_text = "Model provider · unavailable"
             provider_state = "error"
@@ -213,12 +237,26 @@ class SettingsRuntimeController(QObject):
         else:
             provider_text = f"{provider.provider} · {provider.status}"
             provider_state = "success" if provider.status == "ready" else "error"
-        self._set_state(self.provider_value, provider_text, provider_state, freshness=freshness)
+        self._set_state(
+            self.provider_value,
+            provider_text,
+            provider_state,
+            freshness=freshness,
+        )
 
         core_status = value.health.core_status
         core_ready = core_status in _CORE_READY_STATES
-        network_text = "Local Core · connected" if core_ready else f"Local Core · {core_status}"
-        self._set_state(self.network_value, network_text, "success" if core_ready else "error", freshness="fresh")
+        network_text = (
+            "Local Core · connected"
+            if core_ready
+            else f"Local Core · {core_status}"
+        )
+        self._set_state(
+            self.network_value,
+            network_text,
+            "success" if core_ready else "error",
+            freshness="fresh",
+        )
         network_detail = (
             f"{network_text}. Local loopback connection only; this status does not "
             "indicate Internet access."
@@ -231,18 +269,34 @@ class SettingsRuntimeController(QObject):
         detail = value.model_error
         if detail is None and provider is not None:
             detail = provider.detail
-        detail_text = detail or (
-            "Provider readiness is reported by the local Core; no remote status "
+        detail_text = (
+            detail
+            or "Provider readiness is reported by the local Core; no remote status "
             "or unsupported capability is inferred."
         )
-        self._set_state(self.detail, detail_text, "error" if value.model_error is not None else "idle", freshness=freshness)
+        self._set_state(
+            self.detail,
+            detail_text,
+            "error" if value.model_error is not None else "idle",
+            freshness=freshness,
+        )
         self.hydrate_selected_model()
 
     @Slot(str)
     def apply_connection_failure(self, message: str) -> None:
         """Represent a failed Core refresh without retaining a ready claim."""
-        self._set_state(self.provider_value, "Model provider · unavailable", "error", freshness="unavailable")
-        self._set_state(self.network_value, "Local Core · unavailable", "error", freshness="unavailable")
+        self._set_state(
+            self.provider_value,
+            "Model provider · unavailable",
+            "error",
+            freshness="unavailable",
+        )
+        self._set_state(
+            self.network_value,
+            "Local Core · unavailable",
+            "error",
+            freshness="unavailable",
+        )
         network_detail = (
             "Local Core unavailable. Internet-access state is not inferred from this "
             "failed local connection."
@@ -251,10 +305,21 @@ class SettingsRuntimeController(QObject):
         self.network_value.setProperty("pathenaInternetStateInferred", False)
         self.network_value.setToolTip(network_detail)
         self.network_value.setAccessibleDescription(network_detail)
-        self._set_state(self.detail, message, "error", freshness="unavailable")
+        self._set_state(
+            self.detail,
+            message,
+            "error",
+            freshness="unavailable",
+        )
 
     @staticmethod
-    def _set_state(label: QLabel, text: str, ui_state: str, *, freshness: str) -> None:
+    def _set_state(
+        label: QLabel,
+        text: str,
+        ui_state: str,
+        *,
+        freshness: str,
+    ) -> None:
         label.setText(text)
         label.setProperty("pathenaUiState", ui_state)
         label.setProperty("pathenaRuntimeFreshness", freshness)
@@ -277,6 +342,7 @@ class SettingsRuntimeController(QObject):
         model = self.window._selected_model()
         if model is None:
             return
+
         group = model_storage_group(model.backend_model_id)
         self.settings.beginGroup(group)
         try:
@@ -285,16 +351,36 @@ class SettingsRuntimeController(QObject):
             runtime_limit = model.loaded_context_length or model.context_capacity
             if runtime_limit is not None:
                 self.settings.setValue("context_tokens", self.window.context_spin.value())
-            self.settings.setValue("max_output_tokens", self.window.max_output_spin.value())
-            self.settings.setValue("temperature", float(self.window.temperature_spin.value()))
-            self.settings.setValue("thinking", self.window.thinking_checkbox.isChecked())
+            self.settings.setValue(
+                "max_output_tokens",
+                self.window.max_output_spin.value(),
+            )
+            self.settings.setValue(
+                "temperature",
+                float(self.window.temperature_spin.value()),
+            )
+            self.settings.setValue(
+                "thinking",
+                self.window.thinking_checkbox.isChecked(),
+            )
         finally:
             self.settings.endGroup()
         self.settings.sync()
+
         if self.settings.status() == QSettings.Status.NoError:
-            self._set_state(self.persistence_value, f"{model.display_name} · saved locally", "success", freshness="fresh")
+            self._set_state(
+                self.persistence_value,
+                f"{model.display_name} · saved locally",
+                "success",
+                freshness="fresh",
+            )
             return
-        self._set_state(self.persistence_value, f"{model.display_name} · local save failed", "error", freshness="unavailable")
+        self._set_state(
+            self.persistence_value,
+            f"{model.display_name} · local save failed",
+            "error",
+            freshness="unavailable",
+        )
 
     def hydrate_selected_model(self) -> None:
         """Restore validated values through the existing control handlers."""
@@ -311,29 +397,65 @@ class SettingsRuntimeController(QObject):
         if stored is None:
             if self.settings.status() != QSettings.Status.NoError:
                 return
-            self._set_state(self.persistence_value, f"{model.display_name} · defaults not yet saved", "idle", freshness="fresh")
+            self._set_state(
+                self.persistence_value,
+                f"{model.display_name} · defaults not yet saved",
+                "idle",
+                freshness="fresh",
+            )
             return
-        if all(value is None for value in (stored.context_tokens, stored.max_output_tokens, stored.temperature, stored.thinking)):
-            self._set_state(self.persistence_value, f"{model.display_name} · invalid local values; defaults kept", "error", freshness="unavailable")
+        if all(
+            value is None
+            for value in (
+                stored.context_tokens,
+                stored.max_output_tokens,
+                stored.temperature,
+                stored.thinking,
+            )
+        ):
+            self._set_state(
+                self.persistence_value,
+                f"{model.display_name} · invalid local values; defaults kept",
+                "error",
+                freshness="unavailable",
+            )
             return
 
         self._hydrating = True
         try:
             runtime_limit = model.loaded_context_length or model.context_capacity
             if stored.context_tokens is not None and runtime_limit is not None:
-                context = max(self.window.context_spin.minimum(), min(stored.context_tokens, self.window.context_spin.maximum()))
+                context = max(
+                    self.window.context_spin.minimum(),
+                    min(stored.context_tokens, self.window.context_spin.maximum()),
+                )
                 self.window.context_spin.setValue(context)
             if stored.max_output_tokens is not None:
-                output = max(self.window.max_output_spin.minimum(), min(stored.max_output_tokens, self.window.max_output_spin.maximum()))
+                output = max(
+                    self.window.max_output_spin.minimum(),
+                    min(
+                        stored.max_output_tokens,
+                        self.window.max_output_spin.maximum(),
+                    ),
+                )
                 self.window.max_output_spin.setValue(output)
             if stored.temperature is not None:
-                temperature = max(self.window.temperature_spin.minimum(), min(stored.temperature, self.window.temperature_spin.maximum()))
+                temperature = max(
+                    self.window.temperature_spin.minimum(),
+                    min(stored.temperature, self.window.temperature_spin.maximum()),
+                )
                 self.window.temperature_spin.setValue(temperature)
             if stored.thinking is not None:
                 self.window.thinking_checkbox.setChecked(stored.thinking)
         finally:
             self._hydrating = False
-        self._set_state(self.persistence_value, f"{model.display_name} · restored locally", "success", freshness="fresh")
+
+        self._set_state(
+            self.persistence_value,
+            f"{model.display_name} · restored locally",
+            "success",
+            freshness="fresh",
+        )
 
     def _read_model(self, model_id: str) -> StoredModelSettings | None:
         group = model_storage_group(model_id)
@@ -348,9 +470,19 @@ class SettingsRuntimeController(QObject):
         finally:
             self.settings.endGroup()
         if self.settings.status() != QSettings.Status.NoError:
-            self._set_state(self.persistence_value, f"{model_id} · local settings unreadable", "error", freshness="unavailable")
+            self._set_state(
+                self.persistence_value,
+                f"{model_id} · local settings unreadable",
+                "error",
+                freshness="unavailable",
+            )
             return None
-        return StoredModelSettings(context_tokens=context, max_output_tokens=output, temperature=temperature, thinking=thinking)
+        return StoredModelSettings(
+            context_tokens=context,
+            max_output_tokens=output,
+            temperature=temperature,
+            thinking=thinking,
+        )
 
 
 def install_settings_runtime(
