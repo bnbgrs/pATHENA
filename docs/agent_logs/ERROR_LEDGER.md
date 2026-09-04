@@ -14,9 +14,9 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 ## Current baseline
 
 - Baseline branch: `develop/pathena-next`
-- Baseline SHA: `c5a255fe45b6c6984cb66f1251c0a9f8eb0c7f0c`
+- Baseline SHA: `14adeb8949f680dc16a3067e586b3950132e0375`
 - Worker branch: `postmerge/errors`
-- Synchronization: history-preserving NON-FORCE merge `bed5ee500103bb47ff516afdf77533b882bca097` of current Develop into Error lineage.
+- Synchronization: history-preserving NON-FORCE merge `ecfe7964db47e67f6b68a903a0dc66e15a0f0c74` of current Develop into Error lineage.
 
 ## Current error state
 
@@ -28,10 +28,13 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 
 ## Current scan
 
-- Backend canonical Quality `33868034634` on exact SHA `19c73aee29cae2d2ea479a6e3d2aa1256afa06a1` completed `success`; the previously pending Backend signal is cleared and no Backend-owned error is allocated from that slice.
-- UI exact head `45e2b84d14bfc11b4878d9b945065063fdc40e6d` is under canonical Quality `33874283635`. Windows path safety, Linux storage, Local install smoke, specification validator, Ruff and mypy are PASS; full pytest remains in progress. No PASS/failure claim is made while incomplete.
+- UI canonical Quality `33874283635` on exact SHA `45e2b84d14bfc11b4878d9b945065063fdc40e6d` completed `success`; the previously pending UI signal is cleared and no `ERR-0009` is allocated from that slice.
+- A newer UI Quality `33879947654` on exact SHA `3a1be68c48dab4176e9258170147cf127c4b3d2a` is currently `in_progress`; no PASS/failure claim is made while incomplete.
+- Backend canonical Quality `33868034634` on exact SHA `19c73aee29cae2d2ea479a6e3d2aa1256afa06a1` completed `success`; no Backend-owned error is allocated from that slice.
 - Historical Develop Quality `33862677128` on exact SHA `a0e0a2bcf76b0e7f77bb3cd15b8c2ccf79d5c600` remains a real pytest-only red run whose exact primary node/signature was unavailable. It did not recur on later canonical-green Develop lineage; no speculative `ERR-0009` is allocated.
-- Current Develop is `c5a255fe45b6c6984cb66f1251c0a9f8eb0c7f0c`; no exact-head global PASS is claimed in this scan.
+- Develop Quality `33867305345` on exact SHA `a7c1d8cd1530a3003690292a9bf4c660472d59ce` completed `success`.
+- Current Develop is `14adeb8949f680dc16a3067e586b3950132e0375`; no exact-head global PASS is claimed in this scan.
+- Reviewed current Develop `spec-core.md`, `backend.md`, `ui.md`, `integrator.md` plus Backend/UI worker heads. No new deduplicated primary error signature is evidenced by those handoffs.
 
 ## Entries
 
