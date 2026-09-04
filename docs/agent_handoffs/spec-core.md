@@ -2,56 +2,59 @@
 
 ## Current baseline
 
-- Shared baseline: `develop/pathena-next@a0e0a2bcf76b0e7f77bb3cd15b8c2ccf79d5c600`.
+- Shared baseline: `develop/pathena-next@a7c1d8cd1530a3003690292a9bf4c660472d59ce`.
 - Stable read-only branch: `main@0d4d621f8a38ddf8eccfa09622bf193687619943` (unchanged).
 - Worker branch: `postmerge/spec-core`.
-- History-preserving NON-FORCE synchronization was completed through GitHub PR #64, merging current Develop into the worker as `029bb7042c2f38f5d2d68c782d74679f66b72c5a`. No `main` mutation occurred.
+- History-preserving NON-FORCE synchronization merged current Develop into the worker through PR #65 as `fcdb0976a47b6da839244785a3403de1df5444f9`. No `main` mutation occurred.
 
-## Current verified foundation
+## Verified foundation
 
-Develop already verifies normal-Hybrid Search facade/application composition and temporal contradiction composition. Canonical Exhaustive Research coverage accounting and the durable ResearchScope counter composition are implemented on the Core lineage.
+Develop verifies normal-Hybrid Search facade/application composition, temporal contradiction composition, canonical Exhaustive Research coverage accounting, canonical coverage result payload, and durable ResearchScope/ResearchResult coverage composition.
 
-Exact Core head `ae691a463c0188c3b8c824a5d9d784297efcff5d` passed canonical ATHENA Quality Gate `33858321148` with conclusion `success`; this verifies durable ResearchScope counter composition product `341852850c18766f88833530f9e73565c268c3d0` plus the focused persistence acceptance test on that exact lineage.
+The prior formula-identity correction is also now canonically verified: exact Core handoff head `1863e4e761edc71d6f08a05b6cab211fcdc41fd8` passed ATHENA Quality Gate `33862929677` with conclusion `success`. Product `b1e93c5bd3121bcb8c871964e8a24b65a200694a` and focused test `9b4fe08205f50cbc57004044685058c5f01a51b5` therefore have exact product-containing green evidence.
 
-## Implemented product slice — Research coverage formula identity drift
+That correction keeps the persisted Research job and canonical coverage payload on one stable formula identity: `eligible-success-or-irrelevant-v1`. Coverage arithmetic is unchanged.
 
-Product commit: `b1e93c5bd3121bcb8c871964e8a24b65a200694a`.
-Focused test commit: `9b4fe08205f50cbc57004044685058c5f01a51b5`.
+## Implemented product slice — source-internal Research coverage
 
-Current code inspection exposed two distinct persisted formula identifiers for the same Beta §36 coverage contract:
+Beta Exhaustive Research §37 requires multi-part Sources to retain source-internal coverage rather than exposing only job-wide coverage. Repository/code search found no existing Core source-coverage policy on current Develop.
 
-- `ResearchService` already pins `eligible-success-or-irrelevant-v1` into the durable Research job configuration and rejects drift from that value during initialization;
-- canonical `ResearchCoverage.result_payload()` used `eligible-successful-irrelevant-v1`.
+Product commit: `18715d6976dd05b7f511e5ecbc201130525fcf11`.
+Focused test commit: `c9ea636de878dc5cfb4afae17aa5a6c452745c0e`.
 
-The product correction makes `ResearchCoverage` use the already persisted job-contract identity `eligible-success-or-irrelevant-v1`. No coverage arithmetic changed. The focused test now locks the literal identity and verifies that `ResearchService.COVERAGE_FORMULA_ID` and `athena.research.coverage.COVERAGE_FORMULA_ID` are identical, preventing the two durable surfaces from drifting independently again.
+`SourceCoverage` now provides one deterministic, source-identified coverage contract for required Research work units:
 
-Retained invariants:
+- stable formula identity `eligible-units-success-or-irrelevant-v1`;
+- eligible units = unit_total - excluded_count;
+- processed units = successful + irrelevant + failed + unavailable;
+- coverage-positive units = successful + irrelevant only;
+- failed/unavailable remain terminal and visible but never inflate coverage;
+- zero eligible units cannot synthesize 100% coverage;
+- impossible and bool/non-integer/negative counters fail closed;
+- payload includes the real source UUID and all canonical counters.
 
-- eligible = candidate_total - excluded_count;
-- processed = successful + irrelevant + failed + unavailable;
-- only successful + irrelevant are coverage-positive;
-- failed/unavailable remain visible and never inflate coverage;
-- zero eligible work cannot synthesize 100% coverage;
-- no schema, transaction, snapshot, recovery, fencing, idempotency, provider/transport, security, provenance, PALLAS or UI semantics changed.
+No persistence schema, transaction, snapshot, recovery, fencing, idempotency, provider/transport, security, provenance, PALLAS or UI semantics changed. Persistence composition is deliberately a later bounded slice after the policy itself is green.
 
 ## Verification state
 
-- Durable ResearchScope composition exact head `ae691a463c0188c3b8c824a5d9d784297efcff5d`: canonical Quality `33858321148` = `success`.
-- Current formula-identity product/test head `9b4fe08205f50cbc57004044685058c5f01a51b5`: canonical Quality not yet observed at this handoff update. No PASS is claimed for the new formula-identity correction until an exact product-containing run completes successfully.
+- Formula-identity exact handoff head `1863e4e761edc71d6f08a05b6cab211fcdc41fd8`: canonical Quality `33862929677` = `success`.
+- New source-coverage product/test head `c9ea636de878dc5cfb4afae17aa5a6c452745c0e`: canonical Quality `33867401901` = `pending` at handoff update time.
+- No PASS is claimed for SourceCoverage until an exact product-containing run completes successfully.
+- No Skip/XFail, weakened assertion, fake source, synthetic provenance or decorative PALLAS state was introduced.
 
 ## Coordination
 
 - Backend-owned Research runtime/input boundaries and deeper Storage/Recovery/System contracts remain untouched.
 - UI-owned presentation/accessibility/visual files remain untouched.
-- Error handoff currently has no open confirmed Core defect.
+- Error handoff currently records no open confirmed Core defect.
 - `main` and `bnbgrs/ATHENA` remain read-only and unchanged.
 
 ## Integrator handoff
 
-READY for the previously pending durable ResearchScope counter composition: exact verified worker head `ae691a463c0188c3b8c824a5d9d784297efcff5d`, product `341852850c18766f88833530f9e73565c268c3d0`, canonical Quality `33858321148` = `success`.
+READY: formula-identity correction `b1e93c5bd3121bcb8c871964e8a24b65a200694a` + `9b4fe08205f50cbc57004044685058c5f01a51b5`, backed by exact green Core handoff head `1863e4e761edc71d6f08a05b6cab211fcdc41fd8` / Quality `33862929677`.
 
-NOT READY for formula-identity correction `b1e93c5bd3121bcb8c871964e8a24b65a200694a` + `9b4fe08205f50cbc57004044685058c5f01a51b5` until exact canonical Quality is green.
+NOT READY: source-internal Research coverage `18715d6976dd05b7f511e5ecbc201130525fcf11` + `c9ea636de878dc5cfb4afae17aa5a6c452745c0e` until exact canonical Quality `33867401901` is green.
 
 ## Next Core action
 
-First consume exact Quality for `9b4fe08205f50cbc57004044685058c5f01a51b5`. If green, hand off the formula-identity correction as READY. Then compose `ResearchCoverage.result_payload()` into `ResearchResult` finalization so Beta §36 stores the exact canonical formula and counters from one policy object without duplicate arithmetic, preserving existing result idempotency, snapshot, fencing, problem-source visibility and provenance semantics.
+Consume exact Quality `33867401901`. If green, hand SourceCoverage to Integrator as READY and take the next bounded Beta §37 composition gap: persist source-internal coverage only from real per-source Work Units/Candidates, retaining source identity and failed/unavailable visibility without duplicate arithmetic or fabricated coverage. If the source-coverage policy itself fails canonical checks, fix only the exact Core-owned root cause first.
