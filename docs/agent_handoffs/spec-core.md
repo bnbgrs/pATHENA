@@ -2,59 +2,59 @@
 
 ## Current baseline
 
-- Shared baseline: `develop/pathena-next@a7c1d8cd1530a3003690292a9bf4c660472d59ce`.
+- Shared baseline: `develop/pathena-next@3ea908affd23f1d80e0b863a6af8cf366e2b8484`.
 - Stable read-only branch: `main@0d4d621f8a38ddf8eccfa09622bf193687619943` (unchanged).
 - Worker branch: `postmerge/spec-core`.
-- History-preserving NON-FORCE synchronization merged current Develop into the worker through PR #65 as `fcdb0976a47b6da839244785a3403de1df5444f9`. No `main` mutation occurred.
+- History-preserving NON-FORCE synchronization with current Develop: merge commit `e526173a6c0a60c316ae5f9ee1d3400dc1db18cf` (parents previous Core head and exact Develop SHA). No `main` mutation occurred.
 
 ## Verified foundation
 
 Develop verifies normal-Hybrid Search facade/application composition, temporal contradiction composition, canonical Exhaustive Research coverage accounting, canonical coverage result payload, and durable ResearchScope/ResearchResult coverage composition.
 
-The prior formula-identity correction is also now canonically verified: exact Core handoff head `1863e4e761edc71d6f08a05b6cab211fcdc41fd8` passed ATHENA Quality Gate `33862929677` with conclusion `success`. Product `b1e93c5bd3121bcb8c871964e8a24b65a200694a` and focused test `9b4fe08205f50cbc57004044685058c5f01a51b5` therefore have exact product-containing green evidence.
+Formula identity remains `eligible-success-or-irrelevant-v1` and is canonically verified.
 
-That correction keeps the persisted Research job and canonical coverage payload on one stable formula identity: `eligible-success-or-irrelevant-v1`. Coverage arithmetic is unchanged.
+Source-internal Research coverage policy is now also canonically verified: exact Core handoff head `0261a299b8703aec41c6032be0bb6e03d2aba637` passed ATHENA Quality Gate `33867459130` with conclusion `success`. Product `18715d6976dd05b7f511e5ecbc201130525fcf11` and focused test `c9ea636de878dc5cfb4afae17aa5a6c452745c0e` therefore have exact product-containing green evidence.
 
-## Implemented product slice — source-internal Research coverage
+## Implemented product slice — real-record source coverage composition
 
-Beta Exhaustive Research §37 requires multi-part Sources to retain source-internal coverage rather than exposing only job-wide coverage. Repository/code search found no existing Core source-coverage policy on current Develop.
+Beta Exhaustive Research requires source-internal coverage for large/multipart Sources, and its Work Unit contract requires status to come from real persisted work rather than marketing or synthesized completeness.
 
-Product commit: `18715d6976dd05b7f511e5ecbc201130525fcf11`.
-Focused test commit: `c9ea636de878dc5cfb4afae17aa5a6c452745c0e`.
+Product commit: `d8f0c42a94ded684e3e9a9980c3a875da37b5f06`.
+Focused test commit: `585908f1459bbf251b3c463706e6b09db7f9e1d8`.
 
-`SourceCoverage` now provides one deterministic, source-identified coverage contract for required Research work units:
+`source_coverages_from_records()` composes the verified `SourceCoverage` policy directly from real `ResearchCandidateRecord` and `ResearchWorkItemRecord` identity/state:
 
-- stable formula identity `eligible-units-success-or-irrelevant-v1`;
-- eligible units = unit_total - excluded_count;
-- processed units = successful + irrelevant + failed + unavailable;
-- coverage-positive units = successful + irrelevant only;
-- failed/unavailable remain terminal and visible but never inflate coverage;
-- zero eligible units cannot synthesize 100% coverage;
-- impossible and bool/non-integer/negative counters fail closed;
-- payload includes the real source UUID and all canonical counters.
+- groups candidates by their real `source_id`;
+- derives terminal counters only from matching real work-item states;
+- pending eligible candidates remain uncovered rather than being invented as terminal;
+- excluded duplicate candidates remain excluded and do not inflate coverage;
+- failed/unavailable remain visible and never coverage-positive;
+- unknown candidate references and multiple work records for one candidate fail closed;
+- result order is stable by source UUID;
+- no synthetic source/provenance/PALLAS data is introduced.
 
-No persistence schema, transaction, snapshot, recovery, fencing, idempotency, provider/transport, security, provenance, PALLAS or UI semantics changed. Persistence composition is deliberately a later bounded slice after the policy itself is green.
+This slice deliberately does not add or alter persistence schema. Repository-level durable embedding remains the next bounded step after this composition is verified.
 
 ## Verification state
 
-- Formula-identity exact handoff head `1863e4e761edc71d6f08a05b6cab211fcdc41fd8`: canonical Quality `33862929677` = `success`.
-- New source-coverage product/test head `c9ea636de878dc5cfb4afae17aa5a6c452745c0e`: canonical Quality `33867401901` = `pending` at handoff update time.
-- No PASS is claimed for SourceCoverage until an exact product-containing run completes successfully.
+- SourceCoverage policy exact handoff head `0261a299b8703aec41c6032be0bb6e03d2aba637`: canonical Quality `33867459130` = `success`.
+- Current real-record composition product/test head `585908f1459bbf251b3c463706e6b09db7f9e1d8`: canonical Quality `33871914294` = `pending` at handoff update time.
+- No PASS is claimed for real-record composition until an exact product-containing run completes successfully.
 - No Skip/XFail, weakened assertion, fake source, synthetic provenance or decorative PALLAS state was introduced.
 
 ## Coordination
 
 - Backend-owned Research runtime/input boundaries and deeper Storage/Recovery/System contracts remain untouched.
 - UI-owned presentation/accessibility/visual files remain untouched.
-- Error handoff currently records no open confirmed Core defect.
+- Error handoff records no open confirmed Core blocker relevant to this slice.
 - `main` and `bnbgrs/ATHENA` remain read-only and unchanged.
 
 ## Integrator handoff
 
-READY: formula-identity correction `b1e93c5bd3121bcb8c871964e8a24b65a200694a` + `9b4fe08205f50cbc57004044685058c5f01a51b5`, backed by exact green Core handoff head `1863e4e761edc71d6f08a05b6cab211fcdc41fd8` / Quality `33862929677`.
+READY: source-internal Research coverage policy `18715d6976dd05b7f511e5ecbc201130525fcf11` + `c9ea636de878dc5cfb4afae17aa5a6c452745c0e`, backed by exact green Core handoff head `0261a299b8703aec41c6032be0bb6e03d2aba637` / Quality `33867459130`.
 
-NOT READY: source-internal Research coverage `18715d6976dd05b7f511e5ecbc201130525fcf11` + `c9ea636de878dc5cfb4afae17aa5a6c452745c0e` until exact canonical Quality `33867401901` is green.
+NOT READY: real-record source coverage composition `d8f0c42a94ded684e3e9a9980c3a875da37b5f06` + `585908f1459bbf251b3c463706e6b09db7f9e1d8` until exact canonical Quality is green.
 
 ## Next Core action
 
-Consume exact Quality `33867401901`. If green, hand SourceCoverage to Integrator as READY and take the next bounded Beta §37 composition gap: persist source-internal coverage only from real per-source Work Units/Candidates, retaining source identity and failed/unavailable visibility without duplicate arithmetic or fabricated coverage. If the source-coverage policy itself fails canonical checks, fix only the exact Core-owned root cause first.
+Consume exact Quality for the current composition head. If green, hand the bounded composition commits READY and implement repository/result persistence of these source-identified payloads from the same real Candidate/Work records without duplicate arithmetic, schema broadening, fabricated coverage, or changes to snapshot/recovery/idempotency/provenance semantics. If Core-owned diagnostics fail, fix only the exact root cause first.
