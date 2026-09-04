@@ -55,9 +55,12 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Category: `STATE / ACCESSIBILITY`
 - Screen: `07 — Settings`
 - Severity: `P1`
-- Status: `OPEN`
-- Evidence: `SettingsRuntimeController.apply_snapshot()` assigns `pathenaNetworkScope=loopback-only` and a connected-state tooltip, while `apply_connection_failure()` changes visible text/state to unavailable but does not clear or replace that scope/tooltip. A ready→connection-failure transition can therefore retain stale connected metadata on the visible Settings connection indicator.
-- Acceptance: on connection failure, visible state remains unavailable/error, network scope must fail closed to unavailable, stale loopback-only tooltip metadata must be replaced, and accessibility text must explicitly avoid inferring Internet access. No backend/network capability is added.
+- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Evidence: `SettingsRuntimeController.apply_snapshot()` assigns `pathenaNetworkScope=loopback-only` and a connected-state tooltip, while the previous `apply_connection_failure()` changed visible text/state to unavailable without clearing that scope/tooltip. A ready→connection-failure transition could therefore retain stale connected metadata on the visible Settings connection indicator.
+- Product commit: `ad416f76cd52eadd42aa7f2b09a96ce43bf737c7`.
+- Focused test commit: `d7e85654db03eb21da35a5fa06d3bdf94cb4a1a5`.
+- Candidate behavior: connection failure now sets `pathenaNetworkScope=unavailable`, keeps `pathenaInternetStateInferred=False`, replaces stale tooltip/accessibility text, and preserves unavailable/error freshness semantics. No backend/network capability is added.
+- Verification: canonical Quality required on the final documented worker head before `FIXED`.
 
 ## Evidence blocker
 
