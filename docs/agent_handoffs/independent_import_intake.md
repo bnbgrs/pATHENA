@@ -9,6 +9,7 @@
 - `independent/import-intake-20260904`
 - original base: `develop/pathena-next@33c4a9657bb9aca24c6e85c0a2b4a7c0132c3358`
 - draft PR: `#68`
+- current product/test head: `38a6de11c7bc6ac9374e4da4e159b7046a021b30`
 
 ## Why this slice
 
@@ -74,7 +75,7 @@ Coverage includes:
 - Source mutation is retried at most once; there is no unbounded retry loop.
 - Archive Root unavailability is a warning rather than a blocker because canonical BlobStore already supports durable local spool capture.
 
-## Worker collision review at slice start
+## Worker collision review
 
 Observed active worker ownership before branch creation:
 
@@ -85,14 +86,37 @@ Observed active worker ownership before branch creation:
 
 No worker was observed claiming `src/athena/source/import_intake.py` or `tests/unit/test_import_intake.py`.
 
+Latest collision refresh:
+
+- Develop remains exactly `33c4a9657bb9aca24c6e85c0a2b4a7c0132c3358`.
+- Branch comparison is `ahead`, `behind_by=0`.
+- Slice diff consists only of this handoff, `src/athena/source/import_intake.py`, and `tests/unit/test_import_intake.py`.
+
 ## Validation
 
-Canonical ATHENA Quality Gate for product/test head `d655c348e498b16542d5a70013b6d7f33cdada81`:
+First product/test run on `d655c348e498b16542d5a70013b6d7f33cdada81`:
 
 - run `33914652802` / Quality #3665
-- state at handoff creation: `in_progress`
+- specification validator: green
+- Ruff: green
+- Linux storage regressions: green
+- Windows path safety: green
+- local-install smoke: green
+- mypy: failed on the new JSON payload typing boundary
+- full pytest was still running when the newer product head superseded this run
 
-Do not call this slice `VERIFIED` until the exact final synchronized PR head passes canonical Quality.
+Correction:
+
+- `38a6de11c7bc6ac9374e4da4e159b7046a021b30`
+- explicit type narrowing was added for durable JSON roots, origin and symlink-policy values
+- no mypy ignore, exclusion or gate weakening was added
+
+Exact corrected product/test Quality run:
+
+- run `33915050373` / Quality #3667
+- state at this handoff refresh: `pending`
+
+Do not call this slice `VERIFIED` until canonical Quality is green on the exact final synchronized PR head.
 
 ## Integrator guidance
 
