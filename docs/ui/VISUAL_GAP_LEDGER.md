@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `df60ad0e0b3084da05a8b55d94a227798296a1ac`
+Baseline: `f886a63ea190cb8d8df202bfd6528a6ef22df317`
 Integration target: `develop/pathena-next`
 
 Only evidence-backed gaps belong here. The original 11 reference screenshots remain unavailable for direct visual comparison; therefore no pixel-level mismatch or `MATCH` claim is asserted.
@@ -37,6 +37,27 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Verification evidence: exact UI head `76cb122dbe7b58b0fa49bbcb36de2bd732922d4d` passed ATHENA Quality Gate `33751403354` with conclusion `success`.
 - Integration evidence: bounded equivalent product/test changes landed on Develop as `d149f6bbfd367f2999c8ee54e52326695aeb9f55` and `df60ad0e0b3084da05a8b55d94a227798296a1ac`; Backend changes were disjoint.
 - Acceptance: transient missing binding is an unhandled/no-op lifecycle state; existing ChildAdded resynchronization, action ordering, disabled-state preservation and composer return target remain unchanged.
+
+## UI-GAP-0008 — Local Core readiness could be mistaken for Internet-access state
+
+- Category: `STATE / ACCESSIBILITY`
+- Screen: `07 — Settings`
+- Severity: `P1`
+- Status: `FIXED`
+- Product commit: `9dd1836154a190fdcb9f9a690b46035f9dcacda6`
+- Focused test lineage culminates at exact UI head `afa319f0ab1b12edccc4b649d4a1ca36bcd7ac39`.
+- Verification evidence: ATHENA Quality Gate `33854660676` completed `success` on exact UI head `afa319f0ab1b12edccc4b649d4a1ca36bcd7ac39`.
+- Acceptance: the Settings `Local Core` indicator explicitly represents local loopback Core readiness only, sets `pathenaInternetStateInferred=False`, and never claims Internet reachability from Core/provider readiness.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0009 — Core connection failure can retain stale loopback-only presentation metadata
+
+- Category: `STATE / ACCESSIBILITY`
+- Screen: `07 — Settings`
+- Severity: `P1`
+- Status: `OPEN`
+- Evidence: `SettingsRuntimeController.apply_snapshot()` assigns `pathenaNetworkScope=loopback-only` and a connected-state tooltip, while `apply_connection_failure()` changes visible text/state to unavailable but does not clear or replace that scope/tooltip. A ready→connection-failure transition can therefore retain stale connected metadata on the visible Settings connection indicator.
+- Acceptance: on connection failure, visible state remains unavailable/error, network scope must fail closed to unavailable, stale loopback-only tooltip metadata must be replaced, and accessibility text must explicitly avoid inferring Internet access. No backend/network capability is added.
 
 ## Evidence blocker
 
