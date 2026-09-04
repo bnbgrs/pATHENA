@@ -2,69 +2,62 @@
 
 ## Current baseline
 
-- Shared baseline: `develop/pathena-next@e51e805266b625c008812ae5ab79435655ff1ca5`.
+- Shared baseline: `develop/pathena-next@c91e76804e74595f92c8eb624ce7c5d83b66bad2`.
 - Worker branch: `postmerge/spec-core`.
-- History-preserving NON-FORCE sync merge: `4081e0dd0581f011ad97cea613a0e5cd089d1e44`, parents `921c6868c8813c92da200cdd68a0ba12df583e9c` and `e51e805266b625c008812ae5ab79435655ff1ca5`.
-- The merge tree is current Develop plus exactly the five still-Core-owned worker deltas: `docs/agent_handoffs/spec-core.md`, `src/athena/research/coverage.py`, `src/athena/research/source_coverage_composition.py`, `tests/unit/test_research_coverage.py`, and `tests/unit/test_research_source_coverage_composition.py`.
+- History-preserving NON-FORCE sync merge: `ce465846a084db57e51db9f8009c765863ab64b5`, parents `8ed5913ffc0b1fd222bff854c138ff23e94572bb` and `c91e76804e74595f92c8eb624ce7c5d83b66bad2`.
+- Sync tree is exact current Develop plus this versioned Core handoff; previously verified formula-identity product/test content is already integrated on Develop and was not overwritten.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
-## Spec anchors
+## Verified predecessor state
 
-Primary source: `docs/beta/11_Exhaustive_Research.md` §§35-39 and §§49-52.
+- Normal-Hybrid Search application/facade composition: `VERIFIED / INTEGRATED`.
+- Transaction-bound Research source-coverage composition: `VERIFIED / INTEGRATED`.
+- Canonical Research coverage formula identity: exact Core head `921c6868c8813c92da200cdd68a0ba12df583e9c`, Quality `33900087353 = success`, and now integrated on Develop.
 
-- Coverage keeps explicit candidate/processed/successful/irrelevant/failed/unavailable/excluded counters.
-- Coverage ratio is based on eligible units and successful/irrelevant completion; exact formula identity is durable result data.
-- §37 requires source-internal coverage for multipart Sources.
-- Unavailable and failed areas remain visible; no synthetic 100% coverage.
+## ResearchResult repository finalization blocker
 
-## Verified predecessor slices
+`ResearchRepository.finalize_result_fenced()` still does not persist the already-verified Core-owned `source_coverage` payload. Complete exact blob `142c98f8ada90d5ea7266a5a8aeeb83bffe618dc` was retrieved and the minimal target delta remains known, but authenticated mutation currently exposes only complete-file replacement for the 110 KB repository file. Local checkout again failed DNS resolution. No unsafe large-file reconstruction or overwrite was performed.
 
-Transaction-bound source-coverage composition is verified and already integrated on Develop:
+Per the hard progress rule this blocker was not repeated as the run result; the worker moved immediately to a disjoint evidence-backed Core gap.
 
-- product: `03e91df28a7f23fdd23d060a6979d6b0f33a90ff`
-- focused tests: `6ca37ab0e7bffd745c3cc1766be9a4c176b51158`
-- exact green worker head: `a9787104649383b5a70eb61fd08362cd2d2c462b`
-- canonical Quality: `33894989515 = success`
-- Develop integration: `57788317d068ccbcfa22ecb4fada9ef3855d1636` + `c6d89fa6c7dad3614e63981c3b2bc7cdcce2575c`
+## Current slice — attribution-aware contradiction candidate policy
 
-The helper reads exact-scope Candidate/Work rows through the caller-provided SQLite connection, reuses canonical row mapping, and composes Core-owned `source_coverage` without a second connection or synthetic counters.
+Spec anchor: Beta Knowledge/Claims §59 (different opinions from different sources are not automatically logical contradictions over an objective fact).
 
-## Current READY slice — canonical coverage formula identity
+Product commit: `2e88324d91b72656e6af707110989edffd25ec6a`.
+Focused-test commit: `29722370080121da3d577abe9b88aa84f7403c72`.
+Status: `IMPLEMENTED_PENDING_VERIFY`.
+Canonical Quality run started on exact product/test head: `33910588440`; it was `pending` when this handoff was written. No PASS is claimed.
 
-Product commit: `c87569315cdf7732d8896692a84ca7af4ea4e7e6`.
-Focused-test commit: `5a8f8184fdb15e5475b818d43e93868e48f1db83`.
-Exact verified head: `921c6868c8813c92da200cdd68a0ba12df583e9c`.
-Canonical Quality: `33900087353 = success`.
-Status: `VERIFIED / INTEGRATOR_READY`.
+The bounded policy suppresses automatic objective contradiction candidacy only when both inputs are explicit `attributed_opinion` ClaimDrafts with two distinct real `attributed_to_entity_id` values. Same-attribution opinions, factual/mixed claim kinds, and missing attribution remain eligible for semantic review; missing identity never causes invented attribution. The slice performs no persistence writes and introduces no Source/Evidence/Provenance/PALLAS data.
 
-The bounded fix makes canonical `ResearchCoverage.COVERAGE_FORMULA_ID` equal the already-pinned `ResearchService.COVERAGE_FORMULA_ID` value `eligible-success-or-irrelevant-v1`. Arithmetic, counters, ratios, failure visibility, schema, transaction/fence/snapshot/recovery/idempotency, provider/transport, provenance, PALLAS and UI behavior are unchanged. Focused coverage locks both the literal identity and cross-surface Service/Coverage equality.
+Files:
 
-## Repository finalization remaining gap
+- `src/athena/knowledge/attribution_contradiction_policy.py`
+- `tests/unit/test_attribution_contradiction_policy.py`
 
-`ResearchRepository.finalize_result_fenced()` still does not persist the already-verified `source_coverage` payload.
+Acceptance coverage locks:
 
-The exact current repository blob is `142c98f8ada90d5ea7266a5a8aeeb83bffe618dc`. Complete authenticated blob retrieval is available and the target finalization function was re-read from the synchronized branch. The intended delta remains strictly bounded:
-
-1. import `SOURCE_COVERAGE_RESULT_KEY` and `research_result_content_with_source_coverage_from_connection`;
-2. reserve `source_coverage` together with the existing Core-owned result fields;
-3. initialize result payload from `research_result_content_with_source_coverage_from_connection(semantic_content, connection, scope_id)` inside the existing fenced transaction before adding global coverage/problem/snapshot fields;
-4. preserve existing-result idempotency and all transaction/fence/snapshot/recovery/provenance behavior.
-
-Available authenticated write primitives still require complete-file replacement for this 110 KB file rather than a bounded patch. Local checkout/raw retrieval again failed DNS resolution. No unsafe reconstruction from partial/chunked reads and no foreign-file overwrite was attempted. The blocker is now narrowed to mutation transport, not file visibility or patch design.
+- distinct identified speakers suppress objective contradiction candidacy;
+- same speaker remains review-eligible;
+- missing attribution fails open to semantic review rather than inventing identity;
+- mixed/factual claims are not suppressed;
+- non-ClaimDraft runtime inputs fail fast.
 
 ## Ownership / collision avoidance
 
-- Backend deep storage/runtime/recovery/system ownership remains untouched.
-- UI styling/Qt paths remain untouched.
-- Error handoff reports no active stable error root cause.
-- No fake Source, Claim, Evidence, Provenance, Archive/Protected scope, or PALLAS data was introduced.
+- Backend deep storage/runtime/recovery/system paths untouched.
+- UI-owned presentation/Qt paths untouched.
+- Error-owned ERR-0009 work untouched.
+- Existing temporal contradiction policy remains unchanged; this is a separate attribution semantic gate for later composition.
+- No fake Source, Claim, Evidence, Provenance or PALLAS data introduced.
 
 ## Integrator handoff
 
-READY: formula identity product `c87569315cdf7732d8896692a84ca7af4ea4e7e6` + focused tests `5a8f8184fdb15e5475b818d43e93868e48f1db83`, exact green head `921c6868c8813c92da200cdd68a0ba12df583e9c`, Quality `33900087353 = success`.
+The previously verified formula-identity slice is already integrated on Develop and requires no further Core import.
 
-The synchronized worker continuation starts at merge `4081e0dd0581f011ad97cea613a0e5cd089d1e44`; Integrator should independently review/import the READY formula-identity slice rather than merge the worker wholesale.
+Attribution policy is NOT READY until exact canonical Quality for the product/test lineage completes green. Integrator should not import `2e88324d91b72656e6af707110989edffd25ec6a` + `29722370080121da3d577abe9b88aa84f7403c72` before that evidence exists.
 
 ## Next Alpha/Beta gap
 
-Next run must not repeat repository-finalization analysis. First attempt the minimal `finalize_result_fenced()` source-coverage wiring through a safe non-truncating authenticated mutation route. If the connector still exposes only unsafe complete-file replacement and local DNS remains unavailable, immediately take the next disjoint evidence-backed Core P0/P1/P2 gap rather than restating this blocker. Preserve all persistence/recovery/provenance invariants and keep PALLAS strictly data-driven.
+First consume exact Quality for the attribution policy. If green, hand the product/test commits READY, then compose attribution with the existing temporal contradiction review gate so a candidate is only auto-promoted when neither proven temporal disjointness nor distinct attributed-opinion identity rules it out. Preserve exact revision binding and fail-closed lookup behavior. Repository source-coverage finalization remains pending until a safe bounded mutation primitive is available; do not repeat the same transport blocker without a new mutation path.
