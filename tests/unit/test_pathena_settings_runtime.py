@@ -214,6 +214,16 @@ def test_runtime_panel_never_turns_stale_or_missing_provider_into_ready(tmp_path
         assert "ready" not in runtime.provider_value.text().lower()
         assert "does not indicate Internet access" in runtime.network_value.accessibleDescription()
         assert runtime.network_value.property("pathenaInternetStateInferred") is False
+
+        runtime.apply_connection_failure("Local Core refresh failed.")
+        comprehension.sync()
+        assert runtime.network_value.text() == "Local Core · unavailable"
+        assert runtime.network_value.property("pathenaUiState") == "error"
+        assert runtime.network_value.property("pathenaRuntimeFreshness") == "unavailable"
+        assert runtime.network_value.property("pathenaNetworkScope") == "unavailable"
+        assert runtime.network_value.property("pathenaInternetStateInferred") is False
+        assert "Internet-access state is not inferred" in runtime.network_value.accessibleDescription()
+        assert "loopback" not in runtime.network_value.toolTip().lower()
     finally:
         window.close()
         app.processEvents()
