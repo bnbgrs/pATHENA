@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import uuid
 from collections import defaultdict
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
+from typing import Any
 
 from athena.research.errors import ResearchStateError
 from athena.research.models import (
@@ -14,6 +15,8 @@ from athena.research.models import (
     ResearchWorkState,
 )
 from athena.research.source_coverage import SourceCoverage
+
+SOURCE_COVERAGE_RESULT_KEY = "source_coverage"
 
 
 def source_coverages_from_records(
@@ -66,3 +69,33 @@ def source_coverages_from_records(
         )
 
     return tuple(result)
+
+
+def source_coverage_result_payloads_from_records(
+    candidates: Iterable[ResearchCandidateRecord],
+    work_items: Iterable[ResearchWorkItemRecord],
+) -> tuple[dict[str, int | float | str], ...]:
+    """Return deterministic Core-owned payloads ready for ResearchResult storage."""
+
+    return tuple(
+        coverage.result_payload()
+        for coverage in source_coverages_from_records(candidates, work_items)
+    )
+
+
+def research_result_content_with_source_coverage(
+    semantic_content: Mapping[str, Any],
+    candidates: Iterable[ResearchCandidateRecord],
+    work_items: Iterable[ResearchWorkItemRecord],
+) -> dict[str, Any]:
+    """Add the reserved source-coverage field to ResearchResult semantic content."""
+
+    if SOURCE_COVERAGE_RESULT_KEY in semantic_content:
+        raise ResearchStateError(
+            "ResearchResult semantic content contains Core-owned source coverage."
+        )
+    payload = dict(semantic_content)
+    payload[SOURCE_COVERAGE_RESULT_KEY] = list(
+        source_coverage_result_payloads_from_records(candidates, work_items)
+    )
+    return payload
