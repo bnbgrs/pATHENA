@@ -181,3 +181,30 @@ def test_storage_health_snapshot_requires_real_boolean_open_state() -> None:
             observed_at_us=1,
             detail=None,
         )
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("database_path", 1, "database_path must be str or None"),
+        ("detail", b"probe failed", "detail must be str or None"),
+    ],
+)
+def test_storage_health_snapshot_rejects_non_text_runtime_values(
+    field: str,
+    value: object,
+    message: str,
+) -> None:
+    kwargs: dict[str, object] = {
+        "status": "error",
+        "database_open": True,
+        "database_path": "athena.sqlite3",
+        "database_size_bytes": None,
+        "wal_size_bytes": None,
+        "observed_at_us": 1,
+        "detail": "probe failed",
+    }
+    kwargs[field] = value
+
+    with pytest.raises(TypeError, match=message):
+        StorageHealthSnapshot(**kwargs)  # type: ignore[arg-type]
