@@ -2,48 +2,80 @@
 
 ## Baseline
 
-- Current integration base reviewed: `develop/pathena-next@5d7061678afd2e2f6195d5a3ce6e15cde2797007`.
+- Shared baseline: `develop/pathena-next@eaab89bb4d7b08839517c40b622480bb1dc309f0`.
 - Worker branch: `postmerge/backend`.
+- History-preserving NON-FORCE synchronization with current Develop: merge commit `b7d2f5fd6ed3e1c35fd7458f84be62341e3938af`.
 - `main@0d4d621f8a38ddf8eccfa09622bf193687619943` remains strictly read-only and untouched.
-- History-preserving NON-FORCE synchronization merge: `e336c32b39138b4067bb4aa84520bb1def65eedf`, with parents `e5b021ac3e99fc4ef8bf15f3d790c5220799fedd` and current Develop `5d7061678afd2e2f6195d5a3ce6e15cde2797007`.
-- Synchronization tree starts from exact current Develop and overlays only Backend-owned Research boundary files plus this handoff; no foreign worker or main mutation was performed.
 
-## READY — Research source-types runtime boundary
+## Selected backend slice
 
-Product/test commit `5f9f3713c53c16375453c4a0f6be9a9a086700d6` introduces `_stable_source_types(values: object)`, rejects scalar text-like and non-Sequence containers, retains the per-element `SourceType` guard, and preserves deterministic `.value` sorting/deduplication before actor setup, snapshot pinning or durable job creation.
+Area: durable deletion-ledger runtime boundaries / recovery cursor.
 
-Canonical ATHENA Quality Gate `33840621670` on synchronized candidate `75ae07fdb0bf72c100cc8401f7881ffa03b96b03` completed `success` with real jobs. The earlier zero-job run `33837041846` remains explicitly non-evidence.
+Spec/error anchor: `ERR-0001`, backend audit tasks 290-293, and the existing deletion/recovery invariants in `src/athena/lifecycle/deletion.py`.
 
-Integrator status: READY_FOR_BOUNDED_REVIEW. Independently isolate/review the source-types product/test delta rooted at `5f9f3713c53c16375453c4a0f6be9a9a086700d6`; do not treat synchronization or documentation commits as product behavior.
+Product commit `780d25d74ce2e310b6a4bc434f547a23163e8b78` adds fail-before-SQL runtime validation for malformed entity types and bool-as-int deletion values without changing persistence or recovery semantics. Ruff-only harness correction `2f705d5e0fc1c77dd60612b5aeaa16d9380e46cd` formats the new boundary test import block; assertions and product behavior are unchanged.
 
-## Current backend slice — WAL checkpoint runtime-mode boundary
+## Exact verification evidence
 
-Current `WalMaintenanceService._checkpoint()` interpolates its `mode` into `PRAGMA wal_checkpoint(...)`. Static `CheckpointMode` typing is not a runtime security boundary, so a malformed runtime value could reach SQLite before the existing `WalCheckpointResult` mode validation.
+Canonical Quality run `33749788522` checked exact Backend head `1cfd18c69014390380bb960b86c8e1b81a5067ac`.
 
-Product commit `536728afe987af35884318641f2250b1f63fefdf` adds an explicit allow-list guard for exactly `PASSIVE` and `TRUNCATE` before obtaining the connection or executing SQL. Test commit `72b73df19b8152146e02aa42922f585ca72ed582` adds a regression asserting an invalid runtime mode fails with `WalMaintenanceError`.
+Backend-relevant results:
 
-Canonical Quality `33844840855` was triggered on exact product/test head `72b73df19b8152146e02aa42922f585ca72ed582`; at this handoff write it is pending and therefore no PASS/READY claim is made for the WAL slice.
+- specification validator: PASS;
+- Ruff: PASS;
+- mypy: PASS;
+- Windows path safety: PASS;
+- Linux storage regressions: PASS;
+- Local install smoke: PASS;
+- `tests/unit/test_deletion_ledger_boundaries.py`: all 22 tests PASS inside the full pytest run;
+- full pytest: `1 failed, 4489 passed, 3 skipped, 2 warnings`.
 
-## Current queue re-trace
+The single pytest failure is exactly `tests/unit/test_pathena_pallas_full_view.py::test_open_workspace_reuses_one_synchronized_full_surface`, raising `AttributeError` in `MessageActionTabOrderController.eventFilter()` because `document` is transiently absent. This is the already UI-owned PALLAS lifecycle defect (`UI-GAP-0003`), not a deletion-ledger/backend failure. No new Backend-owned pytest failure appears in the exact log.
 
-- `BE-038` queue wording is stale on current Develop: Windows durable publication already uses bound source/destination HANDLEs and `NtSetInformationFile` relative rename in `storage/durable_fs.py`.
-- `BE-020` is stale on current Develop: `chat/generation.py` already invokes `assert_runtime_model_matches_signature()` before provider generation from a ContextPackage.
-- `BE-021` is stale on current Develop: `ContextPackage.generation_temperature()` already catches `OverflowError` and keeps the error inside `ContextPackageError`.
-- The WAL runtime-mode guard is therefore a current, independently reproduced system hardening slice rather than mutation against stale queue evidence.
+UI independently corrected that exact lifecycle root cause and canonical Quality run `33751403354` on UI head `76cb122dbe7b58b0fa49bbcb36de2bd732922d4d` completed SUCCESS. Backend does not absorb or modify the UI fix.
 
-## Retained invariants
+## Product call-chain and invariants
 
-- No silent Tor to Direct fallback and no new Direct authorization path.
-- No external transport retry, cryptography, redirect, provenance, audit, fsync or transactional Source-finalization change.
-- Research persistence, snapshot pinning and durable job semantics are unchanged for valid input.
-- WAL maintenance remains SQLite-owned; PASSIVE remains the automatic mode and TRUNCATE remains explicitly idle-confirmed only.
-- No skip/XFail, assertion weakening or guard weakening.
+`record_deletion(runtime input) -> exact runtime validation -> UUID materialization -> existing-marker SELECT -> identity reconciliation -> INSERT/readback`.
+
+`read_deletion_records(after_seq) -> exact runtime validation -> ordered ledger SELECT`.
+
+Retained invariants:
+
+- malformed values fail before SQL;
+- bool is not accepted as deletion timestamp, commit sequence or cursor;
+- `deleted_at_us=0` and `after_seq=0` remain valid;
+- deletion commit sequence remains a positive genuine integer;
+- marker idempotency/reconciliation, restore replay, transaction boundaries, ordering, identity-conflict behavior, schema and persistence representation are unchanged;
+- no Security, TOR, Provider, UI or platform-path semantics changed.
+
+## Verification / readiness state
+
+- `ERR-0002` Ruff I001: FIXED and verified by canonical Ruff PASS in run `33749788522`.
+- `ERR-0001` Backend candidate: BACKEND_VERIFIED / INTEGRATOR_READY. Its focused boundary suite passes in the full canonical pytest execution, and every Backend/system canonical job is green. The only global failure is the independently owned UI/PALLAS lifecycle signature above.
+- Error worker should independently re-verify `ERR-0001` after integration before changing the canonical Error Ledger state to `FIXED`.
+
+## Failure / recovery impact
+
+The product mutation is fail-before-SQL and side-effect reducing. No ledger rows, schema, transaction semantics, ordering, marker identity, restore replay, crash/restart behavior or recovery format changed. Invalid boundary inputs now terminate before any SQL operation.
+
+## Platform impact
+
+Platform-neutral Python runtime-boundary hardening only. Windows path safety, Linux storage regression and local-install smoke jobs are all green on the exact Backend lineage.
+
+## Coordination
+
+- `postmerge/errors`: exact pytest evidence gap is now closed; `ERR-0001` may be treated as Backend-verified, with final canonical Ledger closure after integration/reverification.
+- `postmerge/ui`: owns `UI-GAP-0003`; its exact corrective lineage is now canonical green. Backend must not modify this UI root cause.
+- `postmerge/spec-core`: normal-Hybrid Search facade/application wiring remains Core-owned and non-overlapping.
+- `develop/pathena-next`: integration target only; Backend never self-integrates.
 
 ## Integrator handoff
 
-- READY: Research source-types boundary `5f9f3713c53c16375453c4a0f6be9a9a086700d6`, backed by canonical green `33840621670` on synchronized candidate `75ae07fdb0bf72c100cc8401f7881ffa03b96b03`.
-- NOT_READY: WAL runtime-mode boundary `536728afe987af35884318641f2250b1f63fefdf` + test `72b73df19b8152146e02aa42922f585ca72ed582` until canonical Quality completes green on an exact head containing both changes.
+READY for independent Integrator review/integration: product `780d25d74ce2e310b6a4bc434f547a23163e8b78` plus test/Ruff correction `2f705d5e0fc1c77dd60612b5aeaa16d9380e46cd`, carried on the history-preserving current-Develop Backend lineage beginning at merge `b7d2f5fd6ed3e1c35fd7458f84be62341e3938af`.
+
+The global red result of run `33749788522` must not be attributed to this Backend slice: its sole failure is the exact independently verified UI/PALLAS defect described above.
 
 ## Next backend slice
 
-First consume the canonical WAL result. If green, mark the WAL slice READY and continue with the highest current evidence-backed Storage/Recovery/Provider/Packaging gap after re-tracing stale queue entries. If red, fix the exact primary failure before unrelated work.
+Select the highest currently unclaimed Backend/System P0/P1/P2 gap from current Alpha/Beta progress, Error Ledger and worker handoffs after excluding Core-owned normal-Hybrid Search and UI-owned PALLAS lifecycle work. Preserve deletion-ledger ownership only until Integrator imports the verified slice; do not broaden this root cause further.
