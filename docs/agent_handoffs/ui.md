@@ -1,53 +1,49 @@
 # pATHENA UI Handoff
 
 ## Current baseline
-- Integration target: `develop/pathena-next@3cfef2c2ee67799066ceefaf9ea84287817f256a`.
-- Worker: `postmerge/ui`.
-- Worker head before verification docs: `40efd4f894aa07110de67c9260deaf4fb14e1c41`.
+
+- Base: `develop/pathena-next@7c15b44818e9ac5c3484ee30d4a20d6f0d56087e`
+- Worker: `postmerge/ui`
+- Worker synchronization commit: `7952eedcda8cc889e60ced3170e72a762245d00c`
+- UI product commit: `1f0fd548431be122d13a403fe9e2387087edf8fa`
+- UI focused-test commit: `d85d2a2e144abc9d3ef1008b80f74114c7fafe23`
 - Original eleven reference images: `VISUAL_REFERENCE_PENDING`; no pixel-level parity or `MATCH` claim is made.
-- Current Develop has advanced independently; no force synchronization or main mutation is allowed.
 
-## UI-GAP-0004 — Startup/readiness infrastructure copy
-Status: `FIXED`. Canonical Quality run `33804193396` passed. The bounded UI-GAP-0004 lineage is already integrated into Develop; ERR-0004 remains closed.
+## Work completed
 
-## UI-GAP-0005 — Persistent desktop system tray
-Status: `FIXED`, P1, Screen 06 / desktop shell adjunct.
+- Reconciled the UI worker with current Develop using a non-force, history-preserving two-parent merge. Develop changed only integrator/progress documentation plus the ResourceMode product/test files since the prior UI base; the UI delta changed only UI-owned files, so no foreign work was overwritten.
+- `UI-GAP-0001` product/test lineage remains unchanged: visible inspector copy and accessible name use `Evidence & Activity` without changing controller, provenance, persistence, visibility, focus or backend semantics.
+- Exact prior UI head `f31be028652095b18b8a98dfacd65b73be9af763` passed ATHENA Quality Gate run `33720745475` with conclusion `success`.
+- Because synchronization produced a new exact worker head, Quality run `33724577775` is currently verifying `7952eedcda8cc889e60ced3170e72a762245d00c`; `UI-GAP-0001` remains `FIXED_PENDING_VERIFY` until that current-head run succeeds.
+- Reviewed `UI-GAP-0002` call-chain: `_install_reference_shell()` and `_install_progressive_disclosure()` force the inspector visible; `_sync_progressive_chat_actions()` forces it visible again; `_set_context_available()` already exposes the truthful grounded-context state; grounded responses set that state true while new/loaded/ordinary sent chat paths clear it. This gives a real existing state signal for a later contextual-visibility slice, but no visibility mutation was bundled into this synchronization run.
 
-Verified bounded slice:
-- `faabeb42fc7d13e04f660c3be1222a95e1f47836`: `PathenaSystemTrayController` owns one `QSystemTrayIcon`.
-- `47d4473d80fc61660674a96feeb0ba93c28c3d1e`: focused Qt tests for enabled real paths and explicit unavailable states.
-- `441c9ee3889b2927332ecd9cc4b33abd89b8b88f`: `SystemWorkspace` installs exactly one tray controller for the desktop window.
-- exact UI head `acc156a8538e83ffec4e3eba4b9bef3e9c2fdb37` passed canonical ATHENA Quality Gate `33814651800`.
+## Active UI gaps
 
-Real enabled paths remain Open pATHENA, System status and Quit. Primary-model load/unload, Internet toggle and background-task pause remain visible but disabled until Core/Backend exposes trustworthy commands.
+### UI-GAP-0001 — Inspector hierarchy/copy
 
-## UI-GAP-0006 — Tray runtime-state visibility
-Status: `FIXED`, P1, Screen 06 / tray adjunct.
+Status: `FIXED_PENDING_VERIFY`, P1.
 
-Verified bounded slice:
-- `ea027e44a30e335459a9449bb95879700b905551`: fail-closed tray state presentation.
-- `64927940daca2d36dc52616f9d412ff0025cea06`: forwards existing real `SystemRuntimeOverview.state`.
-- `4be2ac9e69e8a60f2f98fc32ac636017961583c6`: focused Qt coverage.
-- `72e43bc18c28b5c92f6528919abf788f66924ba9`: typing-only QApplication narrowing.
-- exact UI head `72e43bc18c28b5c92f6528919abf788f66924ba9` passed Quality `33822861477`.
+Implementation: `1f0fd548431be122d13a403fe9e2387087edf8fa`; focused Qt contract: `d85d2a2e144abc9d3ef1008b80f74114c7fafe23`. Prior exact UI head is green; current synchronized head still requires successful Quality run `33724577775` before closure. This does not imply screenshot-level `MATCH`.
 
-## UI-GAP-0007 — System subnavigation truthfulness
-Status: `FIXED`, P1, Screen 06.
+### UI-GAP-0002 — Contextual inspector behavior
 
-Verified bounded slice:
-- `f32b64b5e3c3f0c91434b9a8e72d11c869512495`: Overview remains the sole real selected destination; Runtime/Storage/Network/Logs visibly state `Unavailable`, carry `pathenaUnavailable=True`, expose accessibility descriptions, and use the existing empty/unavailable presentation state.
-- `40efd4f894aa07110de67c9260deaf4fb14e1c41`: focused Qt contract coverage for destination names and unavailable semantics.
-- exact UI head `40efd4f894aa07110de67c9260deaf4fb14e1c41` passed canonical ATHENA Quality Gate `33830601076`; Python quality, Ruff, mypy, full pytest, Windows path safety, Linux storage regressions and local-install smoke all succeeded.
+Status: `OPEN / CONTRACT_TRACED`, P1.
 
-Integrator handoff for UI-GAP-0007: READY for independent bounded review/integration of `f32b64b5e3c3f0c91434b9a8e72d11c869512495 -> 40efd4f894aa07110de67c9260deaf4fb14e1c41`. No backend/system destination was fabricated.
+Evidence: chat grounded-context availability already has a truthful state transition through `_set_context_available()`. A safe bounded implementation should keep the inspector visible on non-chat surfaces, while Chat visibility should derive from real grounded-context availability instead of unconditional `show()` calls. Any implementation must preserve current non-chat details, immediate/no-animation reduced-motion behavior, and existing focus contracts. No product mutation for this gap was made in this run.
 
-## Next evidence-backed UI gap
-The next slice should be selected from an explicit Alpha/Beta/UI contract after reviewing current Develop and worker ownership. The Alpha desktop contract still requires clearly visible user-facing Internet/privacy status and simple model-management controls, but UI must not expose fabricated actions until trustworthy Core/Backend commands exist. Prefer a bounded state/accessibility/control-truthfulness slice that does not change backend/storage/security semantics.
+## Collision / ownership guidance
 
-## Handoffs
-- Integrator: UI-GAP-0007 is READY from exact green run `33830601076`.
-- Backend/Core: expose trustworthy model load/unload, normal-chat Internet toggle and background-pause commands before UI enables those tray actions or equivalent controls.
-- Error: no new confirmed defect; ERR-0004 remains closed.
+- UI owns inspector presentation/visibility state on `postmerge/ui`.
+- Core/Backend should not implement alternate inspector widgets or mutate its presentation state.
+- Backend/storage/security semantics remain untouched.
+- No verified UI root-cause error is handed to the error worker.
 
-## Next UI work
-Trace the highest explicit Alpha/Beta/UI mismatch on current Develop, implement at most one bounded truthfulness/accessibility/state slice, add focused Qt coverage, and run canonical Quality on the exact candidate. Do not infer screenshot geometry while references remain unavailable.
+## Verification
+
+- Prior exact UI head `f31be028652095b18b8a98dfacd65b73be9af763`: ATHENA Quality Gate `33720745475` = `success`.
+- Current synchronized head `7952eedcda8cc889e60ced3170e72a762245d00c`: ATHENA Quality Gate `33724577775` = `in_progress` at handoff update time.
+- No original reference screenshot was opened; `VISUAL_REFERENCE_PENDING` remains mandatory.
+
+## Integrator handoff
+
+Do not integrate the synchronized UI worker until Quality `33724577775` succeeds on exact head `7952eedcda8cc889e60ced3170e72a762245d00c` (or a later documentation-only head with equivalent successful verification). The bounded UI-GAP-0001 product/test lineage remains `1f0fd548431be122d13a403fe9e2387087edf8fa` + `d85d2a2e144abc9d3ef1008b80f74114c7fafe23`. `UI-GAP-0002` remains a separate subsequent interaction slice.

@@ -11,11 +11,19 @@ from athena.chat.repository import ChatRepository
 from athena.chat.service import ChatService
 from athena.knowledge.acceptance_service import ProposalAcceptanceService
 from athena.knowledge.claim_repository import ClaimRepository
+from athena.knowledge.deduplication import (
+    CanonicalDeduplicationService,
+    DedupAction,
+    DedupDecision,
+    DeduplicationPlan,
+)
 from athena.knowledge.extraction_models import (
     CONTRADICTION_AUDIT_SCHEMA_ID,
     EXTRACTION_SCHEMA_ID,
+    ProposalEntityType,
 )
 from athena.knowledge.extraction_service import ChatKnowledgeExtractionService
+from athena.knowledge.models import ClaimDraft, ClaimKind, EpistemicStatus
 from athena.knowledge.repository import KnowledgeRepository
 from athena.knowledge.review_service import ReviewService
 from athena.model.domain import ModelChatMessage, ModelInfo, ProviderHealth, ProviderHealthStatus
@@ -263,7 +271,6 @@ def test_dedup_preflight_surfaces_near_duplicate_and_blocks_acceptance(tmp_path)
         ).fetchone()
         assert current is not None
 
-        # Modify only canonical text enough to be non-exact but still textually near.
         database.connection.execute(
             "UPDATE knowledge_unit_revisions SET body = ? WHERE revision_id = ?",
             (
@@ -308,5 +315,76 @@ def test_acceptance_reuses_duplicate_knowledge_proposal_within_same_run(tmp_path
             "SELECT COUNT(*) FROM knowledge_units"
         ).fetchone()[0]
         assert knowledge_count == 1
+    finally:
+        database.stop()
+
+
+def test_acceptance_temporal_gate_suppresses_disjoint_canonical_revisions(
+    tmp_path,
+    monkeypatch,
+) -> None:
+    database, result, _knowledge, claims, acceptance = _extracted(tmp_path)
+    try:
+        actor_id = acceptance.chat.ensure_local_user()
+        left = claims.create_claim(
+            actor_id=actor_id,
+            draft=ClaimDraft(
+                claim_kind=ClaimKind.FACTUAL_ASSERTION,
+                statement="Berlin ist die Hauptstadt von Deutschland.",
+                epistemic_status=EpistemicStatus.ASSERTED,
+                valid_from_us=0,
+                valid_to_us=10,
+            ),
+            reason="temporal contradiction composition fixture",
+        )
+        right = claims.create_claim(
+            actor_id=actor_id,
+            draft=ClaimDraft(
+                claim_kind=ClaimKind.FACTUAL_ASSERTION,
+                statement="München ist die Hauptstadt von Deutschland.",
+                epistemic_status=EpistemicStatus.ASSERTED,
+                valid_from_us=20,
+                valid_to_us=30,
+            ),
+            reason="temporal contradiction composition fixture",
+        )
+        gated_result = replace(
+            result,
+            proposals=replace(result.proposals, knowledge_units=()),
+        )
+        plan = DeduplicationPlan(
+            knowledge=(),
+            claims=(
+                DedupDecision(
+                    proposal_type=ProposalEntityType.CLAIM,
+                    proposal_index=0,
+                    action=DedupAction.REUSE_CANONICAL,
+                    existing_entity_id=left.claim_id,
+                    existing_revision_id=left.revision_id,
+                ),
+                DedupDecision(
+                    proposal_type=ProposalEntityType.CLAIM,
+                    proposal_index=1,
+                    action=DedupAction.REUSE_CANONICAL,
+                    existing_entity_id=right.claim_id,
+                    existing_revision_id=right.revision_id,
+                ),
+            ),
+            merge_candidates=(),
+        )
+        monkeypatch.setattr(
+            CanonicalDeduplicationService,
+            "plan",
+            staticmethod(lambda connection, carrier: plan),
+        )
+
+        accepted = acceptance.accept_all(gated_result, expected_plan=plan)
+
+        assert accepted.claim_ids == (left.claim_id, right.claim_id)
+        assert accepted.contradiction_review_ids == ()
+        review_count = database.connection.execute(
+            "SELECT COUNT(*) FROM semantic_review_items WHERE review_type = 'contradiction'"
+        ).fetchone()[0]
+        assert review_count == 0
     finally:
         database.stop()

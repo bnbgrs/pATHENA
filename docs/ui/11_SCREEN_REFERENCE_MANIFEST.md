@@ -1,6 +1,6 @@
 # pATHENA 11-Screen Reference Manifest
 
-Baseline: `4d36d5f13e1449973e74c48df5e2efb53d0e8aae`
+Baseline: `df60ad0e0b3084da05a8b55d94a227798296a1ac`
 Integration target: `develop/pathena-next`
 
 This manifest is the canonical inventory for the eleven user-provided pATHENA UI references. The original image payloads are still not available for direct visual opening in the current repository/tool path. Therefore all pixel/composition claims remain `VISUAL_REFERENCE_PENDING`. No slot may be promoted to `MATCH` without opening the actual reference and comparing it against a real rendered pATHENA state.
@@ -12,12 +12,12 @@ This manifest is the canonical inventory for the eleven user-provided pATHENA UI
 | 03 | Research | `VISUAL_REFERENCE_PENDING` | Real research process/results with restrained hierarchy and provenance | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `df60ad0e0b3084da05a8b55d94a227798296a1ac` |
 | 04 | Jobs | `VISUAL_REFERENCE_PENDING` | Real durable-job state and controls; no fabricated queue state | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `df60ad0e0b3084da05a8b55d94a227798296a1ac` |
 | 05 | Sources / Files | `VISUAL_REFERENCE_PENDING` | Real source/file state with import and provenance surfaces | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `df60ad0e0b3084da05a8b55d94a227798296a1ac` |
-| 06 | System | `VISUAL_REFERENCE_PENDING` | Real local runtime/core/provider/storage/backup state plus verified persistent tray lifecycle, verified tray runtime-state presentation and truthful unavailable System subnavigation | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `40efd4f894aa07110de67c9260deaf4fb14e1c41` |
+| 06 | System | `VISUAL_REFERENCE_PENDING` | Real local runtime/core/provider/storage/backup state | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `df60ad0e0b3084da05a8b55d94a227798296a1ac` |
 | 07 | Settings | `VISUAL_REFERENCE_PENDING` | Local-model/context/output/reasoning controls with reduced presentation | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `df60ad0e0b3084da05a8b55d94a227798296a1ac` |
 | 08 | PALLAS | `VISUAL_REFERENCE_PENDING` | Characteristic but non-dominant, data-driven semantic view based on real Sources/Claims/Knowledge/Research; UI-GAP-0003 lifecycle regression is technically verified and integrated | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `df60ad0e0b3084da05a8b55d94a227798296a1ac` |
 | 09 | Command Palette / Help | `VISUAL_REFERENCE_PENDING` | Keyboard-first command/search surface backed by real capabilities | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `df60ad0e0b3084da05a8b55d94a227798296a1ac` |
 | 10 | Grounded Chat / Evidence & Activity | `VISUAL_REFERENCE_PENDING` | Contextual evidence, claims, sources and activity without synthesized provenance; hierarchy/copy and contextual visibility are technically verified/integrated | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `df60ad0e0b3084da05a8b55d94a227798296a1ac` |
-| 11 | Startup / Empty / Disconnected state | `VISUAL_REFERENCE_PENDING` | Quiet local-first startup and truthful unavailable/empty states; UI-GAP-0004 is canonically green in Quality run `33804193396` | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `a5d9530525bd0b6bf0eae3945c23a6805f6b9669` |
+| 11 | Startup / Empty / Disconnected state | `VISUAL_REFERENCE_PENDING` | Quiet local-first startup and truthful unavailable/empty states | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `df60ad0e0b3084da05a8b55d94a227798296a1ac` |
 
 ## Promotion rules
 
