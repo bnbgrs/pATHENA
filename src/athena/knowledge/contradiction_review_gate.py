@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import sqlite3
 import uuid
+from dataclasses import dataclass
 
 from athena.common.ids import uuid_to_blob
 from athena.knowledge.attribution_contradiction_policy import (
