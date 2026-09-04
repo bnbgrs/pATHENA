@@ -7,6 +7,7 @@ import uuid
 from collections.abc import Iterable
 from dataclasses import dataclass, replace
 from enum import Enum
+from typing import cast
 
 from athena.common.ids import new_uuid7, uuid_from_blob, uuid_to_blob
 from athena.common.time import utc_now_us
@@ -763,7 +764,7 @@ class JobDependencyGraph:
         ).fetchone()
         if row is None:
             raise JobNotFoundError(str(job_id))
-        return row
+        return cast(sqlite3.Row, row)
 
     def _require_graph_editable_job(
         self,
