@@ -2,53 +2,51 @@
 
 ## Current baseline
 
-- Base: `develop/pathena-next@a0e0a2bcf76b0e7f77bb3cd15b8c2ccf79d5c600`.
+- Base: `develop/pathena-next@a7c1d8cd1530a3003690292a9bf4c660472d59ce`.
 - Worker: `postmerge/ui`.
-- History-preserving NON-FORCE synchronization commit: `186e85f40a29b25cd1daa26ccf654ee6b3b477c3`, parents `6d6869d4927a52e98158238f396b8d5855b771b9` + `a0e0a2bcf76b0e7f77bb3cd15b8c2ccf79d5c600`.
+- History-preserving NON-FORCE synchronization commit: `79afe45ec83194ffd56fd13c8f25a0701e723ba7`, parents `dc82cdded9e9d3c87be964a5f582965a9f4d3c9a` + `a7c1d8cd1530a3003690292a9bf4c660472d59ce`.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 - Original eleven reference images remain `VISUAL_REFERENCE_PENDING`; no pixel-level `MATCH` claim is made.
 
-## UI-GAP-0009 — stale connection metadata after Core failure
+## UI-GAP-0010 — immediate fresh-snapshot accessibility boundary
 
 Status: `FIXED / INTEGRATOR_READY`, P1.
 
-Evidence: the existing `SettingsRuntimeController.apply_snapshot()` assigns loopback presentation metadata. Previously `apply_connection_failure()` changed visible text to `Local Core · unavailable` but retained connected metadata across a ready→failure transition.
+Evidence: before this slice `SettingsRuntimeController.apply_snapshot()` set the immediate accessible description to the generic visible text and relied on the separate `SettingsComprehensionController` sync/timer to add the explicit local-loopback / no-Internet-inference boundary. That created a short-lived accessibility-state mismatch after a fresh snapshot.
 
 Verified implementation:
 
-- product `ad416f76cd52eadd42aa7f2b09a96ce43bf737c7` sets failure scope to `unavailable`, keeps `pathenaInternetStateInferred=False`, replaces stale tooltip/accessibility text and leaves runtime freshness/error state unavailable;
-- focused test `d7e85654db03eb21da35a5fa06d3bdf94cb4a1a5` covers the real ready/provider-unavailable/Core-failure transition and asserts that no loopback metadata survives the Core failure;
-- exact documented UI head `6d6869d4927a52e98158238f396b8d5855b771b9` passed ATHENA Quality Gate `33860150646` with conclusion `success`;
-- no backend command, network capability, Security/Storage behavior, provider action or test rule changed.
-
-Integrator may independently review/import the bounded UI-GAP-0009 product/test lineage. This is technical state/accessibility evidence only; Screen 07 remains pending original visual review.
-
-## UI-GAP-0010 — immediate fresh-snapshot accessibility boundary
-
-Status: `IMPLEMENTED_PENDING_VERIFY`, P1.
-
-Evidence: before this slice `SettingsRuntimeController.apply_snapshot()` set the immediate accessible description to the generic visible text and relied on the separate `SettingsComprehensionController` sync/timer to add the explicit local-loopback / no-Internet-inference boundary. That creates a short-lived accessibility-state mismatch after a fresh snapshot.
-
-Candidate implementation:
-
 - product `0722d780b94d8d297bd89e417ae09fab08cb4dcf` makes the runtime snapshot itself set `pathenaNetworkScope=loopback-only`, `pathenaInternetStateInferred=False`, and self-contained accessibility/tooltip copy stating that Local Core status does not indicate Internet access;
 - focused test `a2d7030101a01415af99b5a8cba31ad10550e5de` asserts those semantics immediately after `_apply(...)`, before `comprehension.sync()` is called;
-- the later comprehension sync remains compatible and still supplies the accessible name; no backend/network/security semantics changed.
+- exact documented UI head `dc82cdded9e9d3c87be964a5f582965a9f4d3c9a` passed ATHENA Quality Gate `33864721817` with conclusion `success`;
+- no backend/network/security semantics, quality rules, assertions, provider commands or fake runtime capabilities changed.
 
-Canonical Quality must pass on the final documented worker head before UI-GAP-0010 becomes `FIXED` or Integrator-ready.
+Integrator may independently review/import the bounded UI-GAP-0010 product/test lineage. This is technical state/accessibility evidence only; Screen 07 remains pending original visual review.
+
+## Current next evidence-backed Settings gap
+
+The next bounded Settings target is the pre-first-snapshot state in `SettingsRuntimeController.__init__`: visible labels say `awaiting Core` / `awaiting connection`, but unlike snapshot and connection-failure paths they are not initialized through `_set_state()` and do not yet carry explicit fail-closed runtime freshness/network-scope/Internet-inference metadata. The next product slice should make that initial state explicitly non-ready/unavailable for assistive/state consumers while preserving the existing visible copy and without inventing any Core or Internet capability.
+
+Acceptance for that next slice:
+
+- provider and Local Core initial labels carry explicit non-success UI/freshness state before any snapshot;
+- Local Core initial state exposes `pathenaNetworkScope=unavailable` and `pathenaInternetStateInferred=False` with self-contained accessibility text that Internet access is not inferred;
+- no ready/connected claim is introduced before a real snapshot;
+- focused Qt coverage checks the state immediately after `install_settings_runtime(...)`, before any snapshot signal;
+- no backend, Storage, Security, provider or transport semantics change.
 
 ## Collision / ownership guidance
 
-- UI owns only the Settings presentation/accessibility state in these slices.
-- Core owns Search/facade composition and must not infer Internet state from UI metadata.
+- UI owns only Settings presentation/accessibility state in this lineage.
+- Core owns Search/research composition and must not infer Internet state from UI metadata.
 - Backend owns durable runtime/storage/network mechanics and must not absorb this presentation-only state contract.
 - Error worker should treat any new canonical failure by exact signature; historical `ERR-0004` remains closed unless it recurs.
 
 ## Integrator handoff
 
-- READY: UI-GAP-0009 product `ad416f76cd52eadd42aa7f2b09a96ce43bf737c7` + focused test `d7e85654db03eb21da35a5fa06d3bdf94cb4a1a5`, backed by exact green UI head `6d6869d4927a52e98158238f396b8d5855b771b9` / Quality `33860150646`.
-- NOT READY: UI-GAP-0010 until canonical Quality succeeds on the final current UI candidate containing `0722d780b94d8d297bd89e417ae09fab08cb4dcf` + `a2d7030101a01415af99b5a8cba31ad10550e5de` and this handoff/ledger/manifest state.
+- READY: UI-GAP-0010 product `0722d780b94d8d297bd89e417ae09fab08cb4dcf` + focused test `a2d7030101a01415af99b5a8cba31ad10550e5de`, backed by exact green UI head `dc82cdded9e9d3c87be964a5f582965a9f4d3c9a` / Quality `33864721817`.
+- The later synchronization merge `79afe45ec83194ffd56fd13c8f25a0701e723ba7` carried current Develop research/integrator changes while preserving the verified UI product/test blobs; it is not new UI behavior.
 
 ## Next UI step
 
-Consume the exact-head canonical Quality result for UI-GAP-0010. If green, mark it `FIXED`, return Screen 07 to `IMPLEMENTED_PENDING_VISUAL_REVIEW`, hand the bounded product/test lineage to Integrator, then select the next highest evidence-backed Settings/privacy/model-state gap. If red, read and fix only the exact diagnostic without weakening assertions or quality rules.
+Implement the bounded pre-first-snapshot fail-closed Settings state described above, add focused Qt coverage, then run canonical Quality on the exact final worker candidate. If the canonical run is green, register/close the new stable `UI-GAP-####`, update Screen 07 without claiming `MATCH`, and hand the exact verified lineage to Integrator.
