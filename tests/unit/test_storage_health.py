@@ -208,3 +208,20 @@ def test_storage_health_snapshot_rejects_non_text_runtime_values(
 
     with pytest.raises(TypeError, match=message):
         StorageHealthSnapshot(**kwargs)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("field", ["database_path", "detail"])
+def test_storage_health_snapshot_rejects_empty_text_facts(field: str) -> None:
+    kwargs: dict[str, object] = {
+        "status": "error",
+        "database_open": True,
+        "database_path": "athena.sqlite3",
+        "database_size_bytes": None,
+        "wal_size_bytes": None,
+        "observed_at_us": 1,
+        "detail": "probe failed",
+    }
+    kwargs[field] = ""
+
+    with pytest.raises(ValueError, match="must not be empty"):
+        StorageHealthSnapshot(**kwargs)  # type: ignore[arg-type]
