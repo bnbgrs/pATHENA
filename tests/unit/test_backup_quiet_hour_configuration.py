@@ -47,7 +47,10 @@ def test_explicit_backup_quiet_hour_overrides_environment(
     assert worker.quiet_hour_utc == 6
 
 
-@pytest.mark.parametrize("raw", ["", "-1", "24", "+3", " 3", "3 ", "3.0", "true"])
+@pytest.mark.parametrize(
+    "raw",
+    ["", "-1", "24", "+3", " 3", "3 ", "3.0", "true"],
+)
 def test_backup_quiet_hour_environment_fails_closed_on_invalid_values(
     monkeypatch: pytest.MonkeyPatch,
     raw: str,
