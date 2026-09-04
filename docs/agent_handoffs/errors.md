@@ -3,62 +3,35 @@
 ## Baseline
 
 - Baseline source: `develop/pathena-next`
-- Baseline SHA: `7be496d2fcbb94ab81f5e520f2e45ee2820d3fd9`
-- Stable read-only parent: `main@0d4d621f8a38ddf8eccfa09622bf193687619943`
+- Baseline SHA: `c5a255fe45b6c6984cb66f1251c0a9f8eb0c7f0c`
 - Worker branch: `postmerge/errors`
-- Worker synchronized history-preservingly and NON-FORCE with exact current Develop before mutation via `0c26f67871c871a39f0ee980aaa4c21a6e6b2892`.
+- History-preserving NON-FORCE synchronization merge: `bed5ee500103bb47ff516afdf77533b882bca097`.
+- `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
 ## Current error state
 
 - OPEN: none.
 - IN_PROGRESS: none.
 - FIXED_PENDING_VERIFY: none.
-- FIXED:
-  - `ERR-0001` P2 — deletion-ledger malformed runtime boundary acceptance; product fix `780d25d74ce2e310b6a4bc434f547a23163e8b78`.
-  - `ERR-0002` P2 — Ruff I001 deletion-boundary harness regression; fix `2f705d5e0fc1c77dd60612b5aeaa16d9380e46cd`.
-  - `ERR-0003` P1 — stale persistent-inspector harness contract; verified fix `6253577227d427c9bb00707c3e3e578a16c0f9d6`.
+- FIXED: `ERR-0001` through `ERR-0008`.
 - BLOCKED: none.
 
-## Current evidence
+## Fresh evidence
 
-- Backend canonical Quality run `33755878184` on `a4768d9b0ea57a1161c93f603a5101c28b555276` failed only at full pytest with two stale `tests/unit/test_pathena_window.py` assertions; validator, Ruff, mypy, Windows path safety, Linux storage and local-install smoke passed.
-- Diagnostics artifact `9894914799`: exactly `2 failed, 4488 passed, 3 skipped, 2 warnings`.
-- Product contract is `UI-GAP-0002`: Evidence & Activity is contextual, not permanently visible.
-- Initial candidate `ebcf0dc2a305e946aabd0309c95316d29a1ebd91` corrected the failing assertions but did not restore the complete previously verified state-transition coverage.
-- Final Error fix `6253577227d427c9bb00707c3e3e578a16c0f9d6` restores the exact canonical-green shell test blob `82f492814250536dd003857a4eec2d083e9e13d5` from UI head `ce959e148ddbe8f13952ca56f7d07e7a7ce1addb`.
-- Current Error lineage and canonical-green UI head share byte-identical directly relevant blobs:
-  - `src/athena/desktop/pathena_window.py@b683903cc6e6a1a99950bba168e6e314df545ca1`
-  - `tests/unit/test_pathena_window.py@82f492814250536dd003857a4eec2d083e9e13d5`
-  - `tests/unit/test_pathena_ui_presentation.py@171f209728831feb1ac7bb06172e30aee12973ae`
-- Canonical Quality run `33745885426` on exact UI head `ce959e148ddbe8f13952ca56f7d07e7a7ce1addb` completed `success`; this is exact-content verification of the affected product and focused harness state.
-- Fresh local execution was attempted again but checkout was blocked by DNS resolution of `github.com`; no fabricated separate local PASS is claimed.
+- Backend canonical ATHENA Quality `33868034634` on exact SHA `19c73aee29cae2d2ea479a6e3d2aa1256afa06a1` completed `success`. The prior pending Backend signal is cleared; no new Backend ERR-ID is justified.
+- Current UI head `45e2b84d14bfc11b4878d9b945065063fdc40e6d` is under canonical Quality `33874283635`. Windows path safety, Linux storage, Local install smoke, validator, Ruff and mypy are PASS; full pytest is still in progress. Do not integrate/declare global green until full pytest and canonical enforcement complete successfully.
+- Historical Develop Quality `33862677128` remains a genuine pytest-only red run on `a0e0a2bcf76b0e7f77bb3cd15b8c2ccf79d5c600`, but its exact primary node/signature was unavailable and later Develop lineage was canonical green. Do not allocate speculative `ERR-0009` absent a recurring concrete signature.
+- Current Develop is `c5a255fe45b6c6984cb66f1251c0a9f8eb0c7f0c`; no exact-head global PASS is claimed yet.
 
-## Collision avoidance
+## Integrator handoff
 
-- Error-owned active files for this closed root cause: `tests/unit/test_pathena_window.py`, `docs/agent_logs/ERROR_LEDGER.md`, `docs/agent_handoffs/errors.md`.
-- Integrator should preserve exact shell-test blob `82f492814250536dd003857a4eec2d083e9e13d5` while integrating ERR-0003.
-- UI may resume changes to `tests/unit/test_pathena_window.py` after integration, but should not reintroduce the persistent-inspector contract.
-- Product UI code was not changed by Error.
-- Core/Backend are non-overlapping.
+- `ERR-0001` through `ERR-0008` remain cleared.
+- Backend exact SHA `19c73aee29cae2d2ea479a6e3d2aa1256afa06a1` is canonical-green via Quality `33868034634`.
+- UI exact SHA `45e2b84d14bfc11b4878d9b945065063fdc40e6d` remains pending because full pytest is incomplete; consume only after exact-head canonical success.
+- Preserve prior verified ERR fixes and do not treat historical red SHAs as globally green.
 
-## Fix commits
+## Next scan
 
-- Synchronization merge: `0c26f67871c871a39f0ee980aaa4c21a6e6b2892`.
-- `ERR-0003` verified harness fix: `6253577227d427c9bb00707c3e3e578a16c0f9d6`.
-- Ledger closure: `05785eb84151eb841519980da94ff3ad02700383`.
-
-## Integrator-ready commits
-
-- READY: `6253577227d427c9bb00707c3e3e578a16c0f9d6` for ERR-0003, after/current with synchronization merge `0c26f67871c871a39f0ee980aaa4c21a6e6b2892`.
-- Preserve exact test blob `82f492814250536dd003857a4eec2d083e9e13d5`.
-- After integration, run canonical Quality on the resulting exact Develop SHA when available.
-
-## Blocked root causes
-
-None.
-
-## Next scan / verification
-
-1. Continue scanning the Qt deleted-`QProcess` stderr warning; allocate a new ERR-ID only if a current-lineage runtime/test failure is reproducible.
-2. Inspect Packaging, Provider/Transport, Research/Jobs, Windows publication/path safety, Storage/Recovery and local install/start for fresh current-lineage signatures.
-3. Re-open historical errors only if their exact signatures recur on the then-current Develop SHA.
+1. Consume completion of UI Quality `33874283635`; allocate `ERR-0009` only if a concrete deduplicated primary failure appears.
+2. Check newest Backend/Core/Integrator exact heads and current Develop exact-head Quality.
+3. Continue Packaging, Provider/Transport, Research/Jobs, Persistence/Recovery, Qt/Desktop and local install/start scanning for real current-lineage failures.
