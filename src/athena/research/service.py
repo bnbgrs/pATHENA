@@ -457,9 +457,18 @@ def _stable_strings(values: Sequence[str], *, field: str) -> tuple[str, ...]:
     return tuple(sorted(set(normalized)))
 
 
-def _stable_uuids(values: Sequence[uuid.UUID]) -> tuple[uuid.UUID, ...]:
+def _stable_uuids(values: object) -> tuple[uuid.UUID, ...]:
+    if (
+        isinstance(values, (str, bytes, bytearray))
+        or not isinstance(values, Sequence)
+    ):
+        raise ResearchConfigurationError(
+            "Research UUID filters must be a sequence of UUID values."
+        )
     if any(not isinstance(item, uuid.UUID) for item in values):
-        raise ResearchConfigurationError("Research UUID filters must contain UUID values only.")
+        raise ResearchConfigurationError(
+            "Research UUID filters must contain UUID values only."
+        )
     return tuple(sorted(set(values), key=lambda item: item.bytes))
 
 
