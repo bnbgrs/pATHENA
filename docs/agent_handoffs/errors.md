@@ -3,54 +3,59 @@
 ## Baseline
 
 - Baseline source: `develop/pathena-next`
-- Baseline SHA: `33c4a9657bb9aca24c6e85c0a2b4a7c0132c3358`
+- Baseline SHA: `b69a91a5781fd8d65b3643243c8feec60e4824f7`
 - Worker branch: `postmerge/errors`
-- Synchronization: history-preserving NON-FORCE merge `09bc08b6945e4097c07998768738e0ad1f1760be`, with parents prior Error head `f99d9b8f911874c45928a7911013b0774ce96068` and exact Develop `33c4a9657bb9aca24c6e85c0a2b4a7c0132c3358`.
+- Synchronization: history-preserving NON-FORCE merge `adcd0a63d9917e46277537a6ce088b263cc3c7da`, with parents prior Error head `5f7bc011e7a14c893394e12afb9c68275bdeef17` and exact Develop `b69a91a5781fd8d65b3643243c8feec60e4824f7`.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
 ## Current error state
 
 - OPEN: none.
 - IN_PROGRESS: none.
-- FIXED_PENDING_VERIFY: `ERR-0009`.
-- FIXED: `ERR-0001` through `ERR-0008`.
+- FIXED_PENDING_VERIFY: none.
+- FIXED: `ERR-0001` through `ERR-0009`.
 - BLOCKED: none.
 
 ## Fresh evidence
 
-- Historical `ERR-0004` remains `FIXED` and did not recur.
-- Error candidate `67f3f447621c4544a5fb2fe321e76b62347290e0` changes only the two stale `raw.readline_sizes` expectations to `[17, 9, 2]` and `[9, 5, 1]`; product byte caps, overflow handling and secrecy/security assertions remain unchanged.
-- Backend independently converged on the same harness-only correction at `0e966a49cd37d9ee6a4572ac4e35ce3d8018ff8e`; current Backend handoff head is `225db6c031551a2b79edf0d74b331a33e359ad26`.
-- Exact canonical Quality `33911612711` on Backend head `225db6c031551a2b79edf0d74b331a33e359ad26` is still `in_progress`.
-- In that exact run, Windows path safety, Linux storage regressions and local-install smoke are `success`; specification validator, Ruff and mypy are also `success`; full pytest remains in progress. Pending pytest is neither PASS nor failure evidence.
-- Therefore `ERR-0009` remains `FIXED_PENDING_VERIFY`; no global-green claim is made yet.
-- Current Develop is `33c4a9657bb9aca24c6e85c0a2b4a7c0132c3358`; Error was synchronized non-force without dropping the candidate harness correction.
+- Historical `ERR-0004` remains `FIXED`; its startup/readiness Ruff failures have not recurred.
+- `ERR-0009` is closed on exact canonical verification. Backend owner correction `0e966a49cd37d9ee6a4572ac4e35ce3d8018ff8e` preserves product remaining-budget hardening while updating only the stale readline-size expectations.
+- Exact Backend head `225db6c031551a2b79edf0d74b331a33e359ad26` passed ATHENA Quality Gate `33911612711 = success`.
+- In that exact run Windows path safety, Linux storage regressions, Local install smoke, specification validator, Ruff, mypy, full pytest and canonical enforcement all passed.
+- Error candidate `67f3f447621c4544a5fb2fe321e76b62347290e0` remains equivalent, but Integrator should prefer the Backend-owned verified lineage.
+- Current Develop is `b69a91a5781fd8d65b3643243c8feec60e4824f7`. It has the cumulative local-response byte-budget prerequisite but has not yet integrated the verified `remaining + 1` readline hardening/harness successor.
+- Current Core exact head `ceb3682728aceb0b09893da6530dc38bc99f943a` is canonical green via Quality `33915587266`.
+- Current UI Quality `33917796701` on `72c143fae1e339b254e5dc7be884c8efb79c7f84` is still in progress.
+- Current Backend Quality `33916312429` on `f459035a701d6dad90d7be130e7a0644ae78201c` is still in progress.
+- No new deduplicated primary failure is confirmed this run.
 
-## ERR-0009 verification contract
+## ERR-0009 closure
 
-Candidate fix lineage: Error `67f3f447621c4544a5fb2fe321e76b62347290e0`; equivalent Backend owner correction `0e966a49cd37d9ee6a4572ac4e35ce3d8018ff8e`.
+Verified fix lineage: Backend owner correction `0e966a49cd37d9ee6a4572ac4e35ce3d8018ff8e`, exact verification head `225db6c031551a2b79edf0d74b331a33e359ad26`.
 
-Required before closure:
+Closure evidence:
 
-1. `tests/unit/test_lm_studio_response_limits.py::test_stream_iteration_uses_bounded_readline_without_whole_body_read` PASS.
-2. `tests/unit/test_lm_studio_response_limits.py::test_stream_iteration_rejects_many_small_lines_over_cumulative_limit` PASS.
-3. Ruff PASS.
-4. mypy PASS.
-5. full pytest PASS.
-6. canonical ATHENA Quality on an exact descendant containing the correction unchanged = `success`.
+1. stale readline-size harness expectations corrected to remaining-budget behavior;
+2. Ruff PASS;
+3. mypy PASS;
+4. full pytest PASS;
+5. Windows path safety PASS;
+6. Linux storage regressions PASS;
+7. Local install smoke PASS;
+8. canonical ATHENA Quality `33911612711 = success` on the exact verified head.
 
-Until all required evidence exists, do not mark `ERR-0009` `FIXED`.
+No assertions, byte caps, overflow behavior, secrecy checks, security rules, storage rules or recovery guards were weakened.
 
 ## Integrator handoff
 
-- `ERR-0001` through `ERR-0008` remain cleared.
-- Reject failing Backend `2d9375d8afbeb05eea8d0b9149ffd3f352e4a9c1` and cancelled Quality `33900614960` as global-green evidence.
-- Prefer the Backend-owned equivalent correction lineage now that owner and Error agree on the same harness contract; do not duplicate or revert the product remaining-budget hardening.
-- Do not consume Backend `225db6c031551a2b79edf0d74b331a33e359ad26` as globally green until Quality `33911612711` completes successfully, including full pytest and canonical enforcement.
-- Preserve prior verified ERR fixes and do not treat red, cancelled, pending or unverified exact-head SHAs as globally green.
+- `ERR-0001` through `ERR-0009` are cleared.
+- Reject failing Backend `2d9375d8afbeb05eea8d0b9149ffd3f352e4a9c1`, cancelled run `33900614960`, and any pending run as global-green evidence.
+- Prefer the Backend-owned `ERR-0009` correction lineage and preserve the `remaining + 1` product hardening unchanged when Integrator consumes the successor slice.
+- Current Develop is not globally green by inference; exact-head canonical evidence remains required after each integration.
+- Preserve all prior verified Error fixes and do not reinterpret red/cancelled/pending exact heads as PASS.
 
 ## Next scan
 
-1. Consume completion of Backend Quality `33911612711`; if green, close `ERR-0009` with exact evidence, otherwise isolate the exact primary pytest signature and fix only that root cause.
-2. Consume newest UI/Core/Integrator/current-Develop exact-head evidence and allocate `ERR-0010` only for a concrete deduplicated primary failure.
-3. Continue Packaging, Provider/Transport, Research/Jobs, Persistence/Recovery, Qt/Desktop, Security and local install/start scanning for real current-lineage failures.
+1. Consume completion of current Backend Quality `33916312429` and UI Quality `33917796701`; allocate `ERR-0010` only if a concrete deduplicated primary failure appears.
+2. Continue scanning current Develop and worker lineages across Packaging, Provider/Transport, Research/Jobs, Persistence/Recovery, Qt/Desktop, Security, local install/start, Windows path safety and Linux storage.
+3. If a new exact failure appears, isolate its first primary signature before mutating; product defects stay in product code and harness defects stay in harness scope.
