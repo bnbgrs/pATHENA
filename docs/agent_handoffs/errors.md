@@ -3,50 +3,62 @@
 ## Baseline
 
 - Baseline source: `develop/pathena-next`
-- Baseline SHA: `606e9dc72278ec331856e998a1b3fb4fa4754787`
+- Baseline SHA: `7be496d2fcbb94ab81f5e520f2e45ee2820d3fd9`
 - Stable read-only parent: `main@0d4d621f8a38ddf8eccfa09622bf193687619943`
 - Worker branch: `postmerge/errors`
-- History-preserving NON-FORCE synchronization merge: `256f2381d20a98323e2d4f52829a8a710f19152a`.
+- Worker synchronized history-preservingly and NON-FORCE with exact current Develop before mutation via `0c26f67871c871a39f0ee980aaa4c21a6e6b2892`.
 
 ## Current error state
 
 - OPEN: none.
 - IN_PROGRESS: none.
-- FIXED_PENDING_VERIFY: `ERR-0006`.
-- FIXED: `ERR-0001`, `ERR-0002`, `ERR-0003`, `ERR-0004`, `ERR-0005`.
+- FIXED_PENDING_VERIFY: none.
+- FIXED:
+  - `ERR-0001` P2 — deletion-ledger malformed runtime boundary acceptance; product fix `780d25d74ce2e310b6a4bc434f547a23163e8b78`.
+  - `ERR-0002` P2 — Ruff I001 deletion-boundary harness regression; fix `2f705d5e0fc1c77dd60612b5aeaa16d9380e46cd`.
+  - `ERR-0003` P1 — stale persistent-inspector harness contract; verified fix `6253577227d427c9bb00707c3e3e578a16c0f9d6`.
 - BLOCKED: none.
 
-## New exact evidence
+## Current evidence
 
-### ERR-0006 — Research UUID filter container boundary — FIXED_PENDING_VERIFY
-
-- Failing candidate: Backend SHA `24775cd9b6dd621a1cde188a376a3926c3c062b2`, canonical Quality `33833499697`.
-- Primary signatures: Linux and Windows both failed `Run API runtime path-boundary regressions`; local-install smoke failed at disposable Core/API restart; canonical Quality passed validator/Ruff but failed mypy and pytest, with enforcement failure treated as cascade.
-- Root cause: `_stable_uuids()` relied on `Sequence[uuid.UUID]` only at annotation level and did not fail closed on scalar `str`/`bytes`/`bytearray` or other non-Sequence runtime containers.
-- Backend owner correction: `462fba22637e0083c87df32f987134ce0fb3de00`, limited to `src/athena/research/service.py` plus `tests/unit/test_research_stable_strings_boundaries.py`. It adds explicit runtime container validation while preserving UUID-only element validation and deterministic normalization.
-- Focused verification: dedicated workflow `33833496929` completed SUCCESS; it ran `tests/unit/test_research_stable_strings_boundaries.py`, Ruff on product/test files, mypy on `src/athena/research/service.py`, and `git diff --check`, then committed the exact verified delta.
-- Canonical exact-fix run `33833527206` ended `action_required` before jobs executed. Therefore no canonical PASS is claimed and `ERR-0006` remains `FIXED_PENDING_VERIFY`.
-
-## Other current evidence
-
-- UI head `3407fd0169ff3b5ccfc711d2562153f25cc3ce26` has Quality `33834029967`: Windows path safety, Linux storage, local-install smoke, validator, Ruff and mypy are PASS; full pytest is still in progress, with no concrete new UI failure yet.
-- `ERR-0001`..`ERR-0005` remain closed with no recurrence evidenced.
-- `action_required` without executed jobs is neither PASS nor a product failure.
+- Backend canonical Quality run `33755878184` on `a4768d9b0ea57a1161c93f603a5101c28b555276` failed only at full pytest with two stale `tests/unit/test_pathena_window.py` assertions; validator, Ruff, mypy, Windows path safety, Linux storage and local-install smoke passed.
+- Diagnostics artifact `9894914799`: exactly `2 failed, 4488 passed, 3 skipped, 2 warnings`.
+- Product contract is `UI-GAP-0002`: Evidence & Activity is contextual, not permanently visible.
+- Initial candidate `ebcf0dc2a305e946aabd0309c95316d29a1ebd91` corrected the failing assertions but did not restore the complete previously verified state-transition coverage.
+- Final Error fix `6253577227d427c9bb00707c3e3e578a16c0f9d6` restores the exact canonical-green shell test blob `82f492814250536dd003857a4eec2d083e9e13d5` from UI head `ce959e148ddbe8f13952ca56f7d07e7a7ce1addb`.
+- Current Error lineage and canonical-green UI head share byte-identical directly relevant blobs:
+  - `src/athena/desktop/pathena_window.py@b683903cc6e6a1a99950bba168e6e314df545ca1`
+  - `tests/unit/test_pathena_window.py@82f492814250536dd003857a4eec2d083e9e13d5`
+  - `tests/unit/test_pathena_ui_presentation.py@171f209728831feb1ac7bb06172e30aee12973ae`
+- Canonical Quality run `33745885426` on exact UI head `ce959e148ddbe8f13952ca56f7d07e7a7ce1addb` completed `success`; this is exact-content verification of the affected product and focused harness state.
+- Fresh local execution was attempted again but checkout was blocked by DNS resolution of `github.com`; no fabricated separate local PASS is claimed.
 
 ## Collision avoidance
 
-- No Error-owned product/test mutation was performed. Backend already owns and supplied the bounded UUID-boundary correction.
-- Error mutated only `docs/agent_logs/ERROR_LEDGER.md` and this handoff after history-preserving NON-FORCE synchronization with Develop.
-- Core/Backend/UI product ownership remains unchanged.
+- Error-owned active files for this closed root cause: `tests/unit/test_pathena_window.py`, `docs/agent_logs/ERROR_LEDGER.md`, `docs/agent_handoffs/errors.md`.
+- Integrator should preserve exact shell-test blob `82f492814250536dd003857a4eec2d083e9e13d5` while integrating ERR-0003.
+- UI may resume changes to `tests/unit/test_pathena_window.py` after integration, but should not reintroduce the persistent-inspector contract.
+- Product UI code was not changed by Error.
+- Core/Backend are non-overlapping.
 
-## Integrator handoff
+## Fix commits
 
-- Reject failing Backend SHA `24775cd9b6dd621a1cde188a376a3926c3c062b2` as evidence-bearing but not READY.
-- Do not promote `ERR-0006` to FIXED or treat owner fix `462fba22637e0083c87df32f987134ce0fb3de00` as globally green until exact-fix canonical/full verification exists.
-- The focused verifier is strong enough to retain the fix candidate; no duplicate Error-side product mutation is justified.
+- Synchronization merge: `0c26f67871c871a39f0ee980aaa4c21a6e6b2892`.
+- `ERR-0003` verified harness fix: `6253577227d427c9bb00707c3e3e578a16c0f9d6`.
+- Ledger closure: `05785eb84151eb841519980da94ff3ad02700383`.
+
+## Integrator-ready commits
+
+- READY: `6253577227d427c9bb00707c3e3e578a16c0f9d6` for ERR-0003, after/current with synchronization merge `0c26f67871c871a39f0ee980aaa4c21a6e6b2892`.
+- Preserve exact test blob `82f492814250536dd003857a4eec2d083e9e13d5`.
+- After integration, run canonical Quality on the resulting exact Develop SHA when available.
+
+## Blocked root causes
+
+None.
 
 ## Next scan / verification
 
-1. Obtain/consume exact-fix canonical Quality for Backend SHA `462fba22637e0083c87df32f987134ce0fb3de00`; close `ERR-0006` only if validator, Ruff, mypy, full pytest, Windows path safety, Linux storage, local-install smoke and enforcement are green.
-2. Consume completion of UI Quality `33834029967`; allocate `ERR-0007` only on a concrete primary failing job/signature.
-3. Continue Packaging, Provider/Transport, Research/Jobs, Persistence/Recovery, Qt/Desktop lifecycle and local install/start scanning.
+1. Continue scanning the Qt deleted-`QProcess` stderr warning; allocate a new ERR-ID only if a current-lineage runtime/test failure is reproducible.
+2. Inspect Packaging, Provider/Transport, Research/Jobs, Windows publication/path safety, Storage/Recovery and local install/start for fresh current-lineage signatures.
+3. Re-open historical errors only if their exact signatures recur on the then-current Develop SHA.
