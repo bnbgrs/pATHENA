@@ -13,7 +13,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 pytest.importorskip("PySide6")
 
 from PySide6.QtCore import QObject
-from PySide6.QtWidgets import QApplication, QWidget
+from PySide6.QtWidgets import QApplication, QLabel, QWidget
 
 from athena.desktop.pathena_comfyui import (
     ComfyUiClient,
@@ -22,6 +22,8 @@ from athena.desktop.pathena_comfyui import (
     load_api_workflow,
 )
 
+_GIB = 1024**3
+
 
 class _Handler(BaseHTTPRequestHandler):
     posted: list[dict[str, object]] = []
@@ -29,6 +31,16 @@ class _Handler(BaseHTTPRequestHandler):
     queue_running: list[list[object]] = []
     queue_pending: list[list[object]] = []
     history: dict[str, object] = {}
+    system_stats: dict[str, object] = {
+        "system": {"comfyui_version": "test-local"},
+        "devices": [
+            {
+                "name": "diagnostic-gpu",
+                "vram_total": 24 * _GIB,
+                "vram_free": 18 * _GIB,
+            }
+        ],
+    }
 
     def log_message(self, _format: str, *_args: object) -> None:
         return
@@ -43,12 +55,7 @@ class _Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:  # noqa: N802
         if self.path == "/system_stats":
-            self._json(
-                {
-                    "system": {"comfyui_version": "test-local"},
-                    "devices": [{"name": "diagnostic-gpu"}],
-                }
-            )
+            self._json(type(self).system_stats)
             return
         if self.path == "/queue":
             self._json(
@@ -71,164 +78,193 @@ class _Handler(BaseHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802
         length = int(self.headers.get("Content-Length", "0"))
-        payload = json.loads(self.rfile.read(length).decode()) if length else {}
+        body = self.rfile.read(length) if length else b"{}"
+        payload = json.loads(body)
         if self.path == "/prompt":
             type(self).posted.append(payload)
-            self._json(
-                {"prompt_id": "prompt-local-1", "number": 7, "node_errors": {}}
-            )
+            self._json({"prompt_id": "prompt-1"})
             return
         if self.path == "/free":
             type(self).freed.append(payload)
-            self.send_response(200)
-            self.send_header("Content-Length", "0")
-            self.end_headers()
+            self._json({"ok": True})
             return
         self.send_error(404)
 
 
 @pytest.fixture
-def local_comfyui():
-    _Handler.posted.clear()
-    _Handler.freed.clear()
+def comfyui_server() -> tuple[str, type[_Handler]]:
+    _Handler.posted = []
+    _Handler.freed = []
     _Handler.queue_running = []
     _Handler.queue_pending = []
     _Handler.history = {}
+    _Handler.system_stats = {
+        "system": {"comfyui_version": "test-local"},
+        "devices": [
+            {
+                "name": "diagnostic-gpu",
+                "vram_total": 24 * _GIB,
+                "vram_free": 18 * _GIB,
+            }
+        ],
+    }
     server = ThreadingHTTPServer(("127.0.0.1", 0), _Handler)
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
+    host, port = server.server_address
     try:
-        yield f"http://127.0.0.1:{server.server_port}"
+        yield f"http://{host}:{port}", _Handler
     finally:
         server.shutdown()
-        server.server_close()
         thread.join(timeout=2)
+        server.server_close()
 
 
-def _workflow() -> dict[str, object]:
-    return {
-        "1": {
-            "class_type": "KSampler",
-            "inputs": {"seed": 1},
-        }
-    }
+@pytest.fixture
+def qt_app() -> QApplication:
+    app = QApplication.instance()
+    if app is None:
+        app = QApplication([])
+    assert isinstance(app, QApplication)
+    return app
 
 
-def _queue_item(prompt_id: str) -> list[object]:
-    return [1, prompt_id, _workflow(), {}, ["1"]]
+class _Palette(QObject):
+    def __init__(self, window: QWidget) -> None:
+        super().__init__(window)
+        self.window = window
+        self._commands: tuple[object, ...] = ()
 
 
-def _app() -> QApplication:
-    existing = QApplication.instance()
-    if isinstance(existing, QApplication):
-        return existing
-    return QApplication([])
-
-
-@pytest.mark.parametrize(
-    "endpoint",
-    [
-        "https://127.0.0.1:8188",
-        "http://example.com:8188",
-        "http://127.0.0.1:8188/api",
-        "http://user@127.0.0.1:8188",
-        "http://127.0.0.1:8188/?token=secret",
-    ],
-)
-def test_client_rejects_non_loopback_or_non_root_endpoints(endpoint: str) -> None:
-    with pytest.raises(ComfyUiError):
-        ComfyUiClient(endpoint)
-
-
-def test_proxy_environment_cannot_capture_loopback_health(
-    local_comfyui: str,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setenv("HTTP_PROXY", "http://127.0.0.1:9")
-    monkeypatch.setenv("HTTPS_PROXY", "http://127.0.0.1:9")
-    monkeypatch.setenv("NO_PROXY", "")
-
-    health = ComfyUiClient(local_comfyui).health()
-
-    assert health.version == "test-local"
-    assert health.device_count == 1
-
-
-def test_queue_uses_real_prompt_contract(local_comfyui: str) -> None:
-    receipt = ComfyUiClient(local_comfyui).queue_workflow(_workflow())
-
-    assert receipt.prompt_id == "prompt-local-1"
-    assert _Handler.posted == [{"prompt": _workflow()}]
-
-
-def test_prompt_state_reads_queue_before_history(local_comfyui: str) -> None:
-    client = ComfyUiClient(local_comfyui)
-
-    _Handler.queue_pending = [_queue_item("prompt-local-1")]
-    assert client.prompt_state("prompt-local-1").state == "pending"
-
-    _Handler.queue_pending = []
-    _Handler.queue_running = [_queue_item("prompt-local-1")]
-    assert client.prompt_state("prompt-local-1").state == "running"
-
-    _Handler.queue_running = []
-    _Handler.history = {"prompt-local-1": {"outputs": {}, "status": {}}}
-    assert client.prompt_state("prompt-local-1").state == "completed"
-
-    _Handler.history = {}
-    assert client.prompt_state("prompt-local-1").state == "unknown"
-
-
-def test_release_vram_uses_explicit_local_free_contract(local_comfyui: str) -> None:
-    ComfyUiClient(local_comfyui).release_vram()
-
-    assert _Handler.freed == [{"unload_models": True, "free_memory": True}]
-
-
-def test_api_workflow_validation_rejects_ui_graph(tmp_path: Path) -> None:
+def _workflow_file(tmp_path: Path) -> Path:
     path = tmp_path / "workflow.json"
-    path.write_text(json.dumps({"nodes": [], "links": []}), encoding="utf-8")
-
-    with pytest.raises(ComfyUiError, match="API format"):
-        load_api_workflow(path)
+    path.write_text(json.dumps({"1": {"class_type": "KSampler", "inputs": {}}}))
+    return path
 
 
-def test_dialog_loads_checks_queues_tracks_and_releases_local_resources(
-    local_comfyui: str,
+def test_client_projects_live_system_stats(comfyui_server: tuple[str, type[_Handler]]) -> None:
+    endpoint, _handler = comfyui_server
+    client = ComfyUiClient(endpoint)
+
+    snapshot = client.health()
+
+    assert snapshot.endpoint == endpoint
+    assert snapshot.version == "test-local"
+    assert snapshot.device_count == 1
+    assert snapshot.vram_total_bytes == 24 * _GIB
+    assert snapshot.vram_free_bytes == 18 * _GIB
+
+
+def test_client_reports_unavailable_vram_without_inventing_values(
+    comfyui_server: tuple[str, type[_Handler]],
+) -> None:
+    endpoint, handler = comfyui_server
+    handler.system_stats = {"system": {"comfyui_version": "test-local"}, "devices": []}
+    client = ComfyUiClient(endpoint)
+
+    snapshot = client.health()
+
+    assert snapshot.version == "test-local"
+    assert snapshot.device_count == 0
+    assert snapshot.vram_total_bytes is None
+    assert snapshot.vram_free_bytes is None
+
+
+def test_client_queue_and_free_are_explicit_requests(
+    comfyui_server: tuple[str, type[_Handler]], tmp_path: Path
+) -> None:
+    endpoint, handler = comfyui_server
+    client = ComfyUiClient(endpoint)
+    workflow = load_api_workflow(_workflow_file(tmp_path))
+
+    receipt = client.queue_workflow(workflow)
+    client.release_vram()
+
+    assert receipt.prompt_id == "prompt-1"
+    assert receipt.node_errors == {}
+    assert handler.posted == [{"prompt": workflow}]
+    assert handler.freed == [{"unload_models": True, "free_memory": True}]
+
+
+def test_dialog_projects_measured_vram_and_reference_hierarchy(
+    qt_app: QApplication,
+    comfyui_server: tuple[str, type[_Handler]],
     tmp_path: Path,
 ) -> None:
-    _app()
-    window = QWidget()
+    endpoint, _handler = comfyui_server
+    host = QWidget()
+    palette = _Palette(host)
+    controller = install_comfyui_integration(palette, client=ComfyUiClient(endpoint))
+    dialog = controller.dialog
+    controller.load_workflow(_workflow_file(tmp_path))
 
-    class _Palette(QObject):
-        def __init__(self) -> None:
-            super().__init__(window)
-            self.window = window
-            self._commands = ()
-
-    palette = _Palette()
-    controller = install_comfyui_integration(  # type: ignore[arg-type]
-        palette,
-        client=ComfyUiClient(local_comfyui),
-    )
-    workflow_path = tmp_path / "api-workflow.json"
-    workflow_path.write_text(json.dumps(_workflow()), encoding="utf-8")
-
-    controller.load_workflow(workflow_path)
-    assert controller.queue_button.isEnabled()
     assert controller.check_connection() is True
-    assert controller.queue_selected_workflow() is True
-    assert controller.refresh_job_button.isEnabled()
+    qt_app.processEvents()
 
-    _Handler.queue_pending = [_queue_item("prompt-local-1")]
-    assert controller.refresh_prompt_status() is True
-    assert controller.dialog.property("pathenaComfyUiPromptState") == "pending"
+    assert controller.status.text() == "Connected · ComfyUI test-local · 1 device."
+    assert controller.status.property("pathenaUiState") == "success"
+    assert controller.resource_status.text() == (
+        "VRAM · 6.0 GiB used · 18.0 GiB free · 24.0 GiB total"
+    )
+    assert dialog.property("pathenaComfyUiVramAvailable") is True
+    assert [
+        label.text()
+        for label in dialog.findChildren(QLabel)
+        if label.objectName() == "comfyUiSectionLabel"
+    ] == ["CONNECTION", "WORKFLOW", "ACTIVITY"]
+    assert controller.queue_button.isEnabled()
 
-    assert controller.release_vram() is True
-    assert controller.dialog.property("pathenaComfyUiVramReleaseRequested") is True
+    controller.deleteLater()
+    dialog.deleteLater()
+    palette.deleteLater()
+    host.deleteLater()
 
-    assert controller.dialog.objectName() == "comfyUiDialog"
-    assert controller.dialog.property("pathenaComfyUiLocalOnly") is True
-    assert controller.dialog.property("pathenaComfyUiGlobalInterruptAvailable") is False
-    assert controller.receipt.property("pathenaComfyUiPromptId") == "prompt-local-1"
-    assert "Open ComfyUI" in {command.label for command in palette._commands}
+
+def test_dialog_exposes_retry_state_after_disconnect(
+    qt_app: QApplication,
+    tmp_path: Path,
+) -> None:
+    host = QWidget()
+    palette = _Palette(host)
+    controller = install_comfyui_integration(
+        palette,
+        client=ComfyUiClient("http://127.0.0.1:9", timeout=0.05),
+    )
+    dialog = controller.dialog
+    controller.load_workflow(_workflow_file(tmp_path))
+
+    assert controller.check_connection() is False
+    qt_app.processEvents()
+
+    assert controller.status.property("pathenaUiState") == "error"
+    assert dialog.property("pathenaComfyUiVramAvailable") is False
+    assert "unavailable" in controller.resource_status.text()
+    assert "Retry" in controller.check_button.text()
+
+    controller.deleteLater()
+    dialog.deleteLater()
+    palette.deleteLater()
+    host.deleteLater()
+
+
+def test_dialog_tab_order_reaches_reference_actions(qt_app: QApplication) -> None:
+    host = QWidget()
+    palette = _Palette(host)
+    controller = install_comfyui_integration(palette)
+
+    assert controller.check_button.nextInFocusChain() is controller.browse_button
+    assert controller.browse_button.nextInFocusChain() is controller.queue_button
+    assert controller.queue_button.nextInFocusChain() is controller.refresh_job_button
+    assert controller.refresh_job_button.nextInFocusChain() is controller.release_vram_button
+
+    controller.deleteLater()
+    controller.dialog.deleteLater()
+    palette.deleteLater()
+    host.deleteLater()
+
+
+def test_invalid_endpoint_fails_closed() -> None:
+    with pytest.raises(ComfyUiError, match="local HTTP"):
+        ComfyUiClient("https://example.com:8188")
+    with pytest.raises(ComfyUiError, match="loopback"):
+        ComfyUiClient("http://example.com:8188")

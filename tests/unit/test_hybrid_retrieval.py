@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 import pytest
 
 from athena.chat.repository import ChatRepository
@@ -9,7 +7,8 @@ from athena.chat.service import ChatService
 from athena.knowledge.models import KnowledgeKind
 from athena.knowledge.repository import KnowledgeRepository
 from athena.knowledge.service import KnowledgeService
-from athena.model.adapters.lm_studio import ModelProviderError
+from athena.model.adapters.lm_studio import LMStudioProvider, ModelProviderError
+from athena.model.adapters.lm_studio_embeddings import LMStudioEmbeddingProvider
 from athena.retrieval.degradation import SemanticRetrievalUnavailableError
 from athena.retrieval.hybrid import HybridRetrievalService
 from athena.retrieval.ranking import RetrievalRankingService
@@ -18,8 +17,10 @@ from athena.retrieval.semantic import LocalSemanticSearchService
 from athena.storage.database import SQLiteDatabase
 
 
-@dataclass
-class FakeEmbeddingProvider:
+class FakeEmbeddingProvider(LMStudioEmbeddingProvider):
+    def __init__(self) -> None:
+        super().__init__(LMStudioProvider("http://127.0.0.1:1234"))
+
     def embed(self, *, model_id: str, texts):
         vectors = []
         for text in texts:
@@ -34,16 +35,17 @@ class FakeEmbeddingProvider:
         return tuple(vectors)
 
 
-@dataclass
-class StableEmbeddingProvider:
+class StableEmbeddingProvider(LMStudioEmbeddingProvider):
     """Return valid deterministic vectors for index setup only."""
 
-    calls: int = 0
+    def __init__(self) -> None:
+        super().__init__(LMStudioProvider("http://127.0.0.1:1234"))
+        object.__setattr__(self, "calls", 0)
 
     def embed(self, *, model_id: str, texts):
         del model_id
         captured = tuple(texts)
-        self.calls += 1
+        object.__setattr__(self, "calls", self.calls + 1)
         return tuple(
             (1.0, 0.0, 0.0)
             for _ in captured
@@ -144,8 +146,10 @@ def test_hybrid_duplicate_count_does_not_double_count_same_entities(tmp_path) ->
         database.stop()
 
 
-@dataclass
-class FailingEmbeddingProvider:
+class FailingEmbeddingProvider(LMStudioEmbeddingProvider):
+    def __init__(self) -> None:
+        super().__init__(LMStudioProvider("http://127.0.0.1:1234"))
+
     def embed(self, *, model_id: str, texts):
         del model_id, texts
         raise ModelProviderError("synthetic embedding outage")

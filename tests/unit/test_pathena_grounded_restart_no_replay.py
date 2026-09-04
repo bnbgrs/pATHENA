@@ -12,6 +12,7 @@ from athena.chat.durable_grounded_generation import (
     DurableGroundedGenerationService,
 )
 from athena.chat.generation import ChatGenerationService
+from athena.chat.grounded_processing_run import bind_grounded_processing_run
 from athena.chat.grounded_recovery import (
     GroundedRecoveryConflictError,
     GroundedRecoveryState,
@@ -478,6 +479,14 @@ def test_direct_completion_finalizes_processing_run_before_complete(
             operation_id=operation_id,
             chat_id=chat_id,
             package=package,
+        )
+        bind_grounded_processing_run(
+            database,
+            operation_id=operation_id,
+            chat_id=chat_id,
+            processing_run_id=processing_run_id,
+            package=package,
+            trigger_actor_id=user,
         )
         coordinator.begin_provider_attempt(
             operation_id=operation_id,

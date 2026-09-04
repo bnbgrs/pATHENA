@@ -164,7 +164,7 @@ class SystemRecoveryPanel(QFrame):
             self._process.waitForFinished(1_000)
 
     def _handle_finished(self, exit_code: int, _exit_status: object) -> None:
-        output = bytes(self._process.readAllStandardOutput()).decode(
+        output = bytes(self._process.readAllStandardOutput().data()).decode(
             "utf-8", errors="replace"
         ).strip()
         try:

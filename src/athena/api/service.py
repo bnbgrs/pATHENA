@@ -34,6 +34,8 @@ from athena.api.contracts import (
     RelationProposalResponse,
     RememberedChatMessageResponse,
 )
+from athena.api.search_adapter import hybrid_search_result_response
+from athena.api.search_contracts import SearchResultResponse
 from athena.chat.models import ChatMessage, ChatSummary, ChatThread
 from athena.chat.provenance import strip_durable_provenance_manifest
 from athena.chat.send_identity import (
@@ -70,6 +72,8 @@ from athena.memory.models import PersonalMemoryRevision
 from athena.model.domain import ModelInfo
 from athena.model.ports import ModelDiscoveryProvider
 from athena.observability.health import HealthService
+from athena.retrieval.hybrid import HybridSearchResult
+from athena.retrieval.search import SearchEntityType
 
 
 class DirectChatSender(Protocol):
@@ -176,6 +180,20 @@ class UnifiedLocalChatSender(Protocol):
         reasoning_mode: str | None = "off",
     ) -> UnifiedLocalChatResult: ...
 
+
+class NormalSearch(Protocol):
+    """Minimal normal Hybrid retrieval boundary exposed by the Core API."""
+
+    def search(
+        self,
+        query: str,
+        *,
+        model_id: str,
+        limit: int = 20,
+        entity_type: SearchEntityType | None = None,
+    ) -> tuple[HybridSearchResult, ...]: ...
+
+
 class CoreApiFacade:
     """Stable client boundary used by desktop and future transports.
 
@@ -212,6 +230,14 @@ class CoreApiFacade:
         self._extraction_snapshots: ExtractionSnapshotLoader | None = None
         self._proposal_review_planner: ProposalReviewPlanner | None = None
         self._knowledge_reviews: KnowledgeReviewQueue | None = None
+        self._normal_search: NormalSearch | None = None
+
+    def attach_normal_search(self, search: NormalSearch) -> None:
+        """Attach normal Hybrid Search exactly once after app construction."""
+
+        if self._normal_search is not None:
+            raise RuntimeError("Normal Hybrid Search is already attached to the Core API.")
+        self._normal_search = search
 
     def attach_unified_local_chat(
         self,
@@ -293,6 +319,8 @@ class CoreApiFacade:
                 "knowledge.review.preflight",
                 "knowledge.review.merge",
             )
+        if self._normal_search is not None:
+            features = (*features, "search.normal.hybrid")
         return CapabilitiesResponse(
             api_version=API_VERSION,
             features=features,
@@ -847,6 +875,26 @@ class CoreApiFacade:
 
     def list_models(self) -> tuple[ModelResponse, ...]:
         return tuple(_model(model) for model in self._model_provider.discover_models())
+
+    def search(
+        self,
+        query: str,
+        *,
+        model_id: str,
+        limit: int = 20,
+        entity_type: SearchEntityType | None = None,
+    ) -> tuple[SearchResultResponse, ...]:
+        if self._normal_search is None:
+            raise RuntimeError("Normal Hybrid Search is unavailable in this Core process.")
+        return tuple(
+            hybrid_search_result_response(result)
+            for result in self._normal_search.search(
+                query,
+                model_id=model_id,
+                limit=limit,
+                entity_type=entity_type,
+            )
+        )
 
 
 def _message_knowledge_extraction_response(

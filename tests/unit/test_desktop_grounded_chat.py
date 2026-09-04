@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import threading
+import uuid
 
 from PySide6.QtCore import QThreadPool
 from PySide6.QtTest import QSignalSpy
@@ -19,6 +20,7 @@ from athena.api.contracts import (
     ModelResponse,
     ProviderHealthResponse,
 )
+from athena.chat.send_identity import assistant_message_id_for_operation
 from athena.desktop.api_controller import (
     DesktopApiController,
     DesktopApiSnapshot,
@@ -29,28 +31,42 @@ from athena.desktop.window import AthenaMainWindow
 CHAT_ID = "11111111-1111-1111-1111-111111111111"
 
 
-def _thread() -> ChatThreadResponse:
+def _thread(
+    *,
+    chat_id: str = CHAT_ID,
+    operation_id: str | None = None,
+    content: str = "ground this",
+) -> ChatThreadResponse:
+    if operation_id is None:
+        user_message_id = "22222222-2222-2222-2222-222222222222"
+        assistant_message_id = "55555555-5555-5555-5555-555555555555"
+    else:
+        parsed_operation_id = uuid.UUID(operation_id)
+        user_message_id = str(parsed_operation_id)
+        assistant_message_id = str(
+            assistant_message_id_for_operation(parsed_operation_id)
+        )
     return ChatThreadResponse(
-        chat_id=CHAT_ID,
+        chat_id=chat_id,
         started_at_us=1,
         ended_at_us=None,
         archive_mode="standard",
         lifecycle_state="active",
         messages=(
             ChatMessageResponse(
-                message_id="22222222-2222-2222-2222-222222222222",
-                chat_id=CHAT_ID,
+                message_id=user_message_id,
+                chat_id=chat_id,
                 sequence_no=1,
                 message_type="user",
                 actor_id="33333333-3333-3333-3333-333333333333",
                 created_at_us=1_777_000_000_000_000,
                 revision_id="44444444-4444-4444-4444-444444444444",
-                content="ground this",
+                content=content,
                 content_format="text/plain",
             ),
             ChatMessageResponse(
-                message_id="55555555-5555-5555-5555-555555555555",
-                chat_id=CHAT_ID,
+                message_id=assistant_message_id,
+                chat_id=chat_id,
                 sequence_no=2,
                 message_type="assistant",
                 actor_id="66666666-6666-6666-6666-666666666666",
@@ -66,9 +82,18 @@ def _thread() -> ChatThreadResponse:
     )
 
 
-def _grounded() -> GroundedChatResponse:
+def _grounded(
+    *,
+    chat_id: str = CHAT_ID,
+    operation_id: str | None = None,
+    content: str = "ground this",
+) -> GroundedChatResponse:
     return GroundedChatResponse(
-        thread=_thread(),
+        thread=_thread(
+            chat_id=chat_id,
+            operation_id=operation_id,
+            content=content,
+        ),
         assistant_text=(
             "grounded answer [CTX-001] [SOURCE:CTX-002]"
         ),
@@ -203,11 +228,14 @@ class _Gateway:
         assert limit == 50
         return ()
 
-    def create_chat(self) -> ChatThreadResponse:
+    def create_chat(
+        self,
+        chat_id: str | None = None,
+    ) -> ChatThreadResponse:
         self._record()
         self.created += 1
         return ChatThreadResponse(
-            chat_id=CHAT_ID,
+            chat_id=chat_id or CHAT_ID,
             started_at_us=1,
             ended_at_us=None,
             archive_mode="standard",
@@ -218,7 +246,7 @@ class _Gateway:
     def load_chat(self, chat_id: str) -> ChatThreadResponse:
         self._record()
         self.loaded.append(chat_id)
-        return _thread()
+        return _thread(chat_id=chat_id)
 
     def send_chat_message(
         self,
@@ -226,6 +254,7 @@ class _Gateway:
         *,
         content: str,
         model_id: str | None = None,
+        operation_id: str | None = None,
         effective_context_limit: int | None = None,
         max_output_tokens: int | None = None,
         temperature: float | None = None,
@@ -240,7 +269,12 @@ class _Gateway:
             thinking_enabled,
         )
         self.direct_sent.append((chat_id, content))
-        return _thread()
+        return _thread(
+            chat_id=chat_id,
+            operation_id=operation_id,
+            content=content,
+        )
+
     def send_unified_local_chat_message(
         self,
         chat_id: str,
@@ -248,6 +282,7 @@ class _Gateway:
         content: str,
         model_id: str | None = None,
         embedding_model_id: str | None = None,
+        operation_id: str | None = None,
         effective_context_limit: int | None = None,
         max_output_tokens: int | None = None,
         temperature: float | None = None,
@@ -269,7 +304,12 @@ class _Gateway:
                 code="core_unavailable",
                 retryable=True,
             )
-        return _grounded()
+        return _grounded(
+            chat_id=chat_id,
+            operation_id=operation_id,
+            content=content,
+        )
+
 
 def _app() -> QApplication:
     return create_application(
@@ -334,7 +374,10 @@ def test_controller_sends_grounded_chat_off_ui_thread() -> None:
 
     assert spy.count() == 1
     assert gateway.created == 1
-    assert gateway.grounded_sent == [(CHAT_ID, "ground this")]
+    assert len(gateway.grounded_sent) == 1
+    sent_chat_id, sent_content = gateway.grounded_sent[0]
+    assert uuid.UUID(sent_chat_id)
+    assert sent_content == "ground this"
     assert gateway.direct_sent == []
     assert gateway.thread_ids
     assert all(
@@ -404,8 +447,11 @@ def test_window_ground_toggle_renders_real_evidence() -> None:
         app.processEvents()
 
         assert gateway.direct_sent == []
-        assert gateway.grounded_sent == [(CHAT_ID, "ground this")]
-        assert window.current_chat_id == CHAT_ID
+        assert len(gateway.grounded_sent) == 1
+        sent_chat_id, sent_content = gateway.grounded_sent[0]
+        assert uuid.UUID(sent_chat_id)
+        assert sent_content == "ground this"
+        assert window.current_chat_id == sent_chat_id
         assert window.prompt_input.text() == ""
         assert window.inspector_mode.value_label.text() == (
             "GROUNDED LOCAL"
@@ -491,8 +537,11 @@ def test_window_grounded_failure_is_visible_and_not_persisted() -> None:
         assert pool.waitForDone(2_000)
         app.processEvents()
 
-        assert gateway.grounded_sent == [(CHAT_ID, "ground this")]
-        assert gateway.loaded == [CHAT_ID]
+        assert len(gateway.grounded_sent) == 1
+        sent_chat_id, sent_content = gateway.grounded_sent[0]
+        assert uuid.UUID(sent_chat_id)
+        assert sent_content == "ground this"
+        assert gateway.loaded == [sent_chat_id]
         assert window.inspector_object_id.text() == "CHAT / ERROR"
         assert window.inspector_heading.text() == "Grounded chat failed"
 

@@ -50,6 +50,7 @@ INVALID_IDS: tuple[Any, ...] = (
     b"x" * 16,
     object(),
 )
+INVALID_OPTIONAL_IDS = INVALID_IDS[1:]
 
 
 @pytest.mark.parametrize("value", INVALID_IDS)
@@ -122,7 +123,7 @@ def test_get_checkpoint_rejects_non_uuid_before_repository(value: Any) -> None:
 
 
 @pytest.mark.parametrize("field", ["processing_stage_id", "commit_id"])
-@pytest.mark.parametrize("value", INVALID_IDS)
+@pytest.mark.parametrize("value", INVALID_OPTIONAL_IDS)
 def test_checkpoint_rejects_non_uuid_optional_identity_before_repository(
     field: str,
     value: Any,
@@ -138,6 +139,23 @@ def test_checkpoint_rejects_non_uuid_optional_identity_before_repository(
         service.checkpoint(JOB_ID, **kwargs)
 
     assert repository.calls == []
+
+
+def test_checkpoint_allows_none_optional_identities() -> None:
+    service, repository = _service()
+
+    service.checkpoint(
+        JOB_ID,
+        lease_token=TOKEN,
+        current_stage="stage",
+        processing_stage_id=None,
+        commit_id=None,
+    )
+
+    name, _args, kwargs = repository.calls[0]
+    assert name == "add_checkpoint"
+    assert kwargs["processing_stage_id"] is None
+    assert kwargs["commit_id"] is None
 
 
 def test_valid_uuid_identities_reach_repository_unchanged() -> None:

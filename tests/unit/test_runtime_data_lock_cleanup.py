@@ -26,13 +26,15 @@ def _fake_open(
     monkeypatch: pytest.MonkeyPatch,
     handle: _Handle,
 ) -> None:
-    def open_handle(path: Path, mode: str, *args: Any, **kwargs: Any) -> _Handle:
-        del args, kwargs
+    def open_handle(path: Path) -> _Handle:
         assert path.name == ".athena-runtime-data.lock"
-        assert mode == "a+b"
         return handle
 
-    monkeypatch.setattr(Path, "open", open_handle)
+    # These cleanup tests isolate lock lifecycle behavior from the separately
+    # covered pathname/handle-identity boundary. Production still uses the
+    # hardened os.open/fstat path in _open_lock_file.
+    monkeypatch.setattr(runtime_lock, "_open_lock_file", open_handle)
+    monkeypatch.setattr(runtime_lock, "_assert_handle_matches_path", lambda *_: None)
 
 
 def test_runtime_lock_acquire_failure_closes_handle_and_clears_depth(

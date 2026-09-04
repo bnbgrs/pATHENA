@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from athena.chat.grounded_processing_run import bind_grounded_processing_run
 from athena.chat.grounded_provider_attempt import GroundedProviderAttemptConflictError
 from athena.chat.grounded_recovery import GroundedRecoveryState
 from athena.chat.grounded_send import GroundedSendCoordinator
@@ -172,6 +173,14 @@ def _ready_operation(
         prompt_template_id="grounded-test",
         prompt_template_version="1",
     )
+    bind_grounded_processing_run(
+        database,
+        operation_id=operation_id,
+        chat_id=chat_id,
+        processing_run_id=run.processing_run_id,
+        package=package,
+        trigger_actor_id=user_id,
+    )
     coordinator.begin_provider_attempt(
         operation_id=operation_id,
         chat_id=chat_id,
@@ -199,7 +208,7 @@ def test_low_level_result_rejects_unknown_run_when_context_is_pinned(
 
         with pytest.raises(
             GroundedProviderAttemptConflictError,
-            match="ProcessingRun conflicts with the pinned ContextPackage",
+            match="Provider result conflicts with the pinned Grounded ProcessingRun",
         ):
             coordinator.provider_attempts.store_result(
                 operation_id=operation_id,

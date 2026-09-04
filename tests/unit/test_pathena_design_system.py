@@ -23,10 +23,10 @@ pathena_theme = pytest.importorskip(
 
 
 def test_palette_matches_the_redesign_foundation() -> None:
-    assert PALETTE.canvas == "#060606"
-    assert PALETTE.surface in {"#080808", "#090909"}
-    assert PALETTE.text == "#F4F1EC"
-    assert PALETTE.accent == "#F26A21"
+    assert PALETTE.canvas == "#07101F"
+    assert PALETTE.surface == "#0A1425"
+    assert PALETTE.text == "#F5F7FB"
+    assert PALETTE.accent == "#377DFF"
 
 
 def test_spacing_and_motion_are_small_bounded_scales() -> None:
@@ -40,7 +40,7 @@ def test_spacing_and_motion_are_small_bounded_scales() -> None:
     )
     assert SPACE.workspace_ratio == pytest.approx(0.618)
     assert (MOTION.fast_ms, MOTION.standard_ms, MOTION.deliberate_ms) == (80, 140, 220)
-    assert (TYPE.body_px, TYPE.metadata_px, TYPE.title_px) == (14, 11, 20)
+    assert (TYPE.body_px, TYPE.metadata_px, TYPE.title_px) == (14, 11, 34)
 
 
 @pytest.mark.parametrize("value", ["1", "true", "YES", "on"])

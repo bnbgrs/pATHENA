@@ -91,7 +91,7 @@ def test_desktop_claim_list_show_and_history_survive_restart(
         created = first.claims.promote_chat_message(
             chat_id=chat_id,
             sequence_no=message.sequence_no,
-            claim_kind=ClaimKind.FACT,
+            claim_kind=ClaimKind.FACTUAL_ASSERTION,
         )
         revised = first.claims.revise(
             claim_id=created.claim_id,
@@ -109,7 +109,7 @@ def test_desktop_claim_list_show_and_history_survive_restart(
         assert _run(second, argparse.Namespace(command="claims-list", limit=20)) == 0
         listing = capsys.readouterr().out
         assert str(claim_id) in listing
-        assert "\t2\tfact\tsupported\t" in listing
+        assert "\t2\tfactual_assertion\tsupported\t" in listing
         assert "The observatory opens shortly before dawn." in listing
 
         assert _run(

@@ -19,7 +19,15 @@ def test_navigation_context_tracks_existing_workspace_selection() -> None:
     window = PathenaMainWindow(api_controller=None)
     controller = NavigationContextAccessibility(window)
     try:
-        expected = ("Chat", "Knowledge", "Research", "Jobs", "Files", "System", "Settings")
+        expected = (
+            "Workspace",
+            "Library",
+            "Research",
+            "Jobs",
+            "Sources",
+            "System",
+            "Settings",
+        )
         assert window.navigation.accessibleName() == "Workspaces"
 
         for row, label in enumerate(expected):

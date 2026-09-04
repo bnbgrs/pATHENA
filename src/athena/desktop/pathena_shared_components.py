@@ -1,7 +1,7 @@
 """Shared pATHENA shell and component presentation contract.
 
 The selectors intentionally target existing object names and dynamic
-properties.  They add no controls, actions, status claims, or backend paths.
+properties. They add no controls, actions, status claims, or backend paths.
 """
 
 from __future__ import annotations
@@ -19,8 +19,12 @@ SHARED_OBJECT_NAMES: Final = (
     "pageTitle",
     "inspector",
     "inspectorPanel",
+    "groundedInspectorPanel",
+    "inspectorEvidenceCard",
     "pallasVisualPlaceholder",
+    "composer",
     "promptInput",
+    "groundButton",
     "sendButton",
     "commandPalette",
     "commandPaletteQuery",
@@ -75,8 +79,10 @@ QLabel#keyboardHint,
 QLabel#breadcrumb,
 QLabel#speaker,
 QLabel#sessionLabel,
-QLabel#settingsLabel {{
-    color: {PALETTE.text_quiet};
+QLabel#settingsLabel,
+QLabel#inspectorEvidenceMeta,
+QLabel#inspectorActivityItem {{
+    color: {PALETTE.text_subtle};
     font-family: {TYPE.metadata_family};
     font-size: {TYPE.metadata_px}px;
 }}
@@ -124,10 +130,79 @@ QFrame#inspectorPanel {{
     border-left: 1px solid {PALETTE.border};
 }}
 
+QFrame#groundedInspectorPanel {{
+    background: transparent;
+    border: none;
+    border-top: 1px solid {PALETTE.border};
+}}
+
+QLabel#inspectorSectionTitle {{
+    color: {PALETTE.text};
+    font-family: {TYPE.content_family};
+    font-size: {TYPE.body_px}px;
+    font-weight: 600;
+}}
+
+QFrame#inspectorEvidenceCard {{
+    background: {PALETTE.surface_raised};
+    border: 1px solid {PALETTE.border};
+    border-radius: {RADII.control}px;
+}}
+
+QFrame#inspectorEvidenceCard[cited="true"] {{
+    border-left: 2px solid {PALETTE.accent};
+}}
+
+QLabel#inspectorEvidenceTitle {{
+    color: {PALETTE.text};
+    font-weight: 600;
+}}
+
+QLabel#inspectorEvidenceEmpty {{
+    color: {PALETTE.text_muted};
+}}
+
+QLabel#inspectorActivityItem {{
+    background: {PALETTE.surface_raised};
+    border: 1px solid {PALETTE.border};
+    border-radius: {RADII.control}px;
+    padding: {SPACE.sm}px;
+}}
+
 QFrame#pallasVisualPlaceholder {{
     background: {PALETTE.surface};
     border: 1px solid {PALETTE.border};
     border-radius: {RADII.prominent}px;
+}}
+
+QFrame#composer {{
+    background: {PALETTE.surface_raised};
+    border: 1px solid {PALETTE.border_strong};
+    border-radius: {RADII.prominent}px;
+}}
+
+QLineEdit#promptInput {{
+    background: transparent;
+    border: none;
+    min-height: 42px;
+    padding: 0 {SPACE.sm}px;
+}}
+
+QLineEdit#promptInput:focus {{
+    border: none;
+}}
+
+QPushButton#groundButton {{
+    color: {PALETTE.text_muted};
+    background: transparent;
+    border-color: transparent;
+}}
+
+QPushButton#groundButton:hover,
+QPushButton#groundButton:checked {{
+    color: {PALETTE.accent};
+    background: {PALETTE.accent_soft};
+    border-color: {PALETTE.accent_soft};
 }}
 
 QPushButton {{
@@ -157,6 +232,15 @@ QPushButton[pathenaActionRole="primary"] {{
     background: {PALETTE.accent};
     border-color: {PALETTE.accent};
     font-weight: 600;
+}}
+
+QPushButton#sendButton {{
+    min-width: 44px;
+    max-width: 44px;
+    min-height: 44px;
+    max-height: 44px;
+    border-radius: 22px;
+    padding: 0;
 }}
 
 QPushButton#sendButton:hover,

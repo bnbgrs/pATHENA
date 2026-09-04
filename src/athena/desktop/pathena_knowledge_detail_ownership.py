@@ -37,8 +37,8 @@ class KnowledgeDetailOwnership(QObject):
         )
         self._original_drain: Callable[[], None] = workspace._drain_knowledge_output
 
-        setattr(workspace, "_start_knowledge", self._start_knowledge)
-        setattr(workspace, "_drain_knowledge_output", self._drain_output)
+        workspace.__setattr__("_start_knowledge", self._start_knowledge)
+        workspace.__setattr__("_drain_knowledge_output", self._drain_output)
         workspace._knowledge_process.readyReadStandardOutput.disconnect(self._original_drain)
         workspace._knowledge_process.readyReadStandardOutput.connect(self._drain_output)
         workspace._knowledge_process.finished.connect(self._after_finished)
@@ -189,7 +189,7 @@ class KnowledgeDetailOwnership(QObject):
 
     @staticmethod
     def _current_item_id(widget: QListWidget) -> str | None:
-        current_item = widget.currentItem()
+        current_item: QListWidgetItem | None = widget.currentItem()
         if current_item is None:
             return None
         value = current_item.data(Qt.ItemDataRole.UserRole)

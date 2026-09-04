@@ -11,8 +11,9 @@ import tempfile
 import threading
 from collections.abc import Callable, Sequence
 from pathlib import Path
-from typing import BinaryIO, cast
+from typing import TYPE_CHECKING, BinaryIO, cast
 
+from athena.api.contracts import API_VERSION, StorageHealthResponse
 from athena.api.executor import (
     CoreDomainExecutor,
     CoreDomainExecutorError,
@@ -21,6 +22,9 @@ from athena.api.executor import (
 from athena.api.server import CoreApiServer, CoreApiServerError
 from athena.config.settings import AthenaSettings, ConfigurationError
 from athena.core.application import ApplicationState, AthenaApplication
+
+if TYPE_CHECKING:
+    from athena.storage.health import StorageHealthSnapshot
 
 _POLL_INTERVAL_SECONDS = 0.25
 _RUNTIME_DIRECTORY_NAME = "core-api"
@@ -146,6 +150,19 @@ class _CoreApiProcessLock:
         handle.close()
 
 
+def _storage_health_response(snapshot: StorageHealthSnapshot) -> StorageHealthResponse:
+    return StorageHealthResponse(
+        api_version=API_VERSION,
+        status=snapshot.status,
+        database_open=snapshot.database_open,
+        database_path=snapshot.database_path,
+        database_size_bytes=snapshot.database_size_bytes,
+        wal_size_bytes=snapshot.wal_size_bytes,
+        observed_at_us=snapshot.observed_at_us,
+        detail=snapshot.detail,
+    )
+
+
 class CoreApiProcess:
     """Own ATHENA Core, its loopback API server, and single-process ownership."""
 
@@ -154,13 +171,17 @@ class CoreApiProcess:
             raise ValueError(
                 "ATHENA Core API port must be an integer between 0 and 65535."
             )
+        from athena.storage.health import StorageHealthService
+
         self.settings = settings
         self.port = port
         self.app = AthenaApplication(settings=settings)
         self.executor = CoreDomainExecutor(self.app)
+        storage_health = StorageHealthService(self.app.database)
         self.api_surface = SerializedCoreApiSurface(
             self.app.api,
             self.executor,
+            storage_health=lambda: _storage_health_response(storage_health.snapshot()),
         )
         self.runtime_root = self.app.paths.temp_root / _RUNTIME_DIRECTORY_NAME
         self._shutdown_requested = threading.Event()
@@ -266,8 +287,6 @@ class CoreApiProcess:
             try:
                 ownership.close()
             except BaseException:
-                # Rollback must never replace the startup failure that caused
-                # the rollback. The process is already failing closed.
                 pass
 
 

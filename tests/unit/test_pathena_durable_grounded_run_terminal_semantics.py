@@ -30,8 +30,26 @@ from athena.retrieval.context_package import (
 from athena.storage.database import SQLiteDatabase
 
 
+def _primary_model() -> ModelInfo:
+    return ModelInfo(
+        provider="lm_studio",
+        backend_model_id="primary",
+        display_name="primary",
+        model_type="llm",
+        context_capacity=32768,
+        quantization="Q4_K_M",
+        loaded=True,
+        vision=False,
+        trained_for_tool_use=False,
+        loaded_context_length=4096,
+    )
+
+
 class _InterruptingProvider:
     provider_id = "lm_studio"
+
+    def discover_models(self) -> tuple[ModelInfo, ...]:
+        return (_primary_model(),)
 
     def stream_chat(
         self,
@@ -48,6 +66,9 @@ class _InterruptingProvider:
 
 class _AnswerProvider:
     provider_id = "lm_studio"
+
+    def discover_models(self) -> tuple[ModelInfo, ...]:
+        return (_primary_model(),)
 
     def stream_chat(
         self,
@@ -102,18 +123,7 @@ def _fixture(database: SQLiteDatabase, provider):
     )
     model_runs = ModelRunRepository(database)
     signature = model_runs.get_or_create_signature(
-        model=ModelInfo(
-            provider="lm_studio",
-            backend_model_id="primary",
-            display_name="primary",
-            model_type="llm",
-            context_capacity=32768,
-            quantization="Q4_K_M",
-            loaded=True,
-            vision=False,
-            trained_for_tool_use=False,
-            loaded_context_length=4096,
-        ),
+        model=_primary_model(),
         generation_parameters={
             "max_output_tokens": 1000,
             "reasoning_mode": "off",

@@ -71,7 +71,7 @@ def test_scheduler_once_automatically_processes_queued_source_job(tmp_path) -> N
     assert "Worker: <none>" in final.stdout
 
 
-def test_scheduler_drain_leaves_unimplemented_registered_job_visible(tmp_path) -> None:
+def test_scheduler_drain_rejects_unimplemented_registered_job_before_queue(tmp_path) -> None:
     local_root = tmp_path / "runtime"
     created = _run_cli(
         local_root,
@@ -81,9 +81,8 @@ def test_scheduler_drain_leaves_unimplemented_registered_job_visible(tmp_path) -
         "--priority",
         "0",
     )
-    assert created.returncode == 0, created.stderr
-    job_match = _UUID_RE.search(created.stdout)
-    assert job_match is not None
+    assert created.returncode == 2
+    assert "has no executable durable worker and cannot be persisted" in created.stderr
 
     drained = _run_cli(
         local_root,
@@ -97,10 +96,6 @@ def test_scheduler_drain_leaves_unimplemented_registered_job_visible(tmp_path) -
     assert drained.returncode == 0, drained.stderr
     assert "Dispatched jobs: 0" in drained.stdout
     assert "Idle: True" in drained.stdout
-
-    shown = _run_cli(local_root, "job", "show", job_match.group(0))
-    assert shown.returncode == 0, shown.stderr
-    assert "State: queued" in shown.stdout
 
 
 def test_two_scheduler_processes_do_not_double_dispatch_one_job(tmp_path) -> None:

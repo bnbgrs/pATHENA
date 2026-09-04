@@ -49,7 +49,10 @@ def test_lm_studio_generates_schema_constrained_json() -> None:
         "required": ["items"],
     }
 
-    with patch("athena.model.adapters.lm_studio.urlopen", return_value=response) as mocked:
+    with patch(
+        "athena.model.adapters.lm_studio.open_local_request",
+        return_value=response,
+    ) as mocked:
         result = provider.generate_structured(
             model_id="example/model",
             messages=(ModelChatMessage(role="user", content="Extract."),),
@@ -79,7 +82,10 @@ def test_lm_studio_rejects_non_json_structured_content() -> None:
     )
     provider = LMStudioProvider("http://127.0.0.1:1234")
 
-    with patch("athena.model.adapters.lm_studio.urlopen", return_value=response):
+    with patch(
+        "athena.model.adapters.lm_studio.open_local_request",
+        return_value=response,
+    ):
         with pytest.raises(ProviderProtocolError, match="not valid JSON"):
             provider.generate_structured(
                 model_id="example/model",
@@ -105,7 +111,10 @@ def test_lm_studio_classifies_structured_output_token_limit() -> None:
     )
     provider = LMStudioProvider("http://127.0.0.1:1234")
 
-    with patch("athena.model.adapters.lm_studio.urlopen", return_value=response):
+    with patch(
+        "athena.model.adapters.lm_studio.open_local_request",
+        return_value=response,
+    ):
         with pytest.raises(
             ProviderOutputLimitError,
             match="output-token limit",
@@ -141,7 +150,10 @@ def test_lm_studio_classifies_backend_context_overflow() -> None:
         fp=body,
     )
 
-    with patch("athena.model.adapters.lm_studio.urlopen", side_effect=error):
+    with patch(
+        "athena.model.adapters.lm_studio.open_local_request",
+        side_effect=error,
+    ):
         with pytest.raises(
             ProviderContextLimitError,
             match="context capacity",
@@ -171,7 +183,10 @@ def test_lm_studio_structured_generation_honors_max_output_tokens() -> None:
     )
     provider = LMStudioProvider("http://127.0.0.1:1234")
 
-    with patch("athena.model.adapters.lm_studio.urlopen", return_value=response) as mocked:
+    with patch(
+        "athena.model.adapters.lm_studio.open_local_request",
+        return_value=response,
+    ) as mocked:
         provider.generate_structured(
             model_id="example/model",
             messages=(ModelChatMessage(role="user", content="Extract."),),
@@ -202,7 +217,10 @@ def test_lm_studio_classifies_explicit_structured_refusal() -> None:
     )
     provider = LMStudioProvider("http://127.0.0.1:1234")
 
-    with patch("athena.model.adapters.lm_studio.urlopen", return_value=response):
+    with patch(
+        "athena.model.adapters.lm_studio.open_local_request",
+        return_value=response,
+    ):
         with pytest.raises(
             ProviderRefusalError,
             match="refused by the model",

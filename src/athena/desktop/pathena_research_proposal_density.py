@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QObject, Qt, QTimer
-from PySide6.QtWidgets import QLabel, QListWidget, QVBoxLayout
+from PySide6.QtWidgets import QLabel, QListWidgetItem, QVBoxLayout
 
 from athena.desktop.research_results_extension import ResearchResultsExtension
 
@@ -88,7 +88,7 @@ class ResearchProposalDensityController(QObject):
         self.summary.setProperty("pathenaProposalSelected", selected)
 
     def _selected_summary(self) -> str:
-        item = self.extension.proposal_list.currentItem()
+        item: QListWidgetItem | None = self.extension.proposal_list.currentItem()
         if item is None:
             return "none selected"
         proposal_id = item.data(Qt.ItemDataRole.UserRole)

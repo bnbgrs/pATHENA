@@ -59,12 +59,16 @@ def test_readiness_copy_tracks_real_local_state() -> None:
     controller = OfflineComprehensionController(window)
 
     assert window.prompt.property("pathenaReadinessState") == "core-offline"
-    assert "offline" in window.prompt.placeholderText().casefold()
+    assert window.prompt.placeholderText() == "pATHENA reconnecting"
+    assert window.status.text() == "pATHENA reconnecting"
+    assert "core" not in window.prompt.toolTip().casefold()
+    assert "core" not in window.status.toolTip().casefold()
 
     window._core_transport_ready = True
     window._provider_ready = False
     controller.sync()
     assert window.prompt.property("pathenaReadinessState") == "provider-unavailable"
+    assert "core" not in window.prompt.toolTip().casefold()
 
     window._provider_ready = True
     controller.sync()
@@ -78,6 +82,7 @@ def test_readiness_copy_tracks_real_local_state() -> None:
     controller.sync()
     assert window.prompt.property("pathenaReadinessState") == "ready"
     assert window.prompt.placeholderText() == "Ask ATHENA"
+    assert "core" not in window.prompt.toolTip().casefold()
 
 
 def test_model_error_has_precedence_after_core_connects() -> None:
@@ -88,8 +93,9 @@ def test_model_error_has_precedence_after_core_connects() -> None:
     window._model = SimpleNamespace(loaded=True)
     window._last_model_error = "provider model failed"
 
-    controller = OfflineComprehensionController(window)
+    OfflineComprehensionController(window)
 
     assert window.status.property("pathenaReadinessState") == "model-error"
     assert "model" in window.status.toolTip().casefold()
+    assert "core" not in window.status.toolTip().casefold()
     assert "system" in window.model_selector.toolTip().casefold()

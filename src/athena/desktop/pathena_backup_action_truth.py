@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QEvent, QObject, Qt, QTimer
-from PySide6.QtWidgets import QApplication, QAbstractButton, QListWidgetItem
+from PySide6.QtWidgets import QAbstractButton, QApplication, QListWidgetItem, QWidget
 
 from athena.desktop.system_backup import BackupWorkspace
 
@@ -17,11 +17,15 @@ class BackupActionTruth(QObject):
         super().__init__(workspace)
         self.workspace = workspace
         self._syncing = False
+        self._focus_return_pending = False
         workspace.snapshots.currentItemChanged.connect(self._selection_changed)
         workspace.snapshots.model().rowsInserted.connect(self._schedule_sync)
         workspace.snapshots.model().modelReset.connect(self._schedule_sync)
         workspace.process.finished.connect(self._schedule_sync)
         workspace.process.errorOccurred.connect(self._schedule_sync)
+        app = QApplication.instance()
+        if isinstance(app, QApplication):
+            app.focusChanged.connect(self._focus_changed)
         for button in (
             workspace.verify_button,
             workspace.deep_verify_button,
@@ -71,6 +75,12 @@ class BackupActionTruth(QObject):
             verify_enabled=complete,
             restore_enabled=restore_ready,
         )
+        if focus_return:
+            # Move focus away before disabling the currently focused action. Keep a
+            # one-turn return lease so an explicit clearFocus during the same handoff
+            # can be repaired without stealing any newer user-selected focus.
+            self._focus_return_pending = True
+            self._focus_snapshot_list()
         self._syncing = True
         try:
             workspace.verify_button.setEnabled(complete)
@@ -79,7 +89,7 @@ class BackupActionTruth(QObject):
         finally:
             self._syncing = False
         if focus_return:
-            QTimer.singleShot(0, self._restore_snapshot_focus_if_unowned)
+            QTimer.singleShot(0, self._clear_focus_return_pending)
 
         label = snapshot_id[:8].upper() if snapshot_id else "none"
         if not snapshot_id:
@@ -211,13 +221,32 @@ class BackupActionTruth(QObject):
             or (workspace.restore_button.hasFocus() and not restore_enabled)
         )
 
+    def _focus_changed(self, _old: QWidget | None, new: QWidget | None) -> None:
+        if not self._focus_return_pending:
+            return
+        snapshots = self.workspace.snapshots
+        if new is None:
+            # Schedule after the clearFocus transition itself. The fallback remains
+            # non-stealing because it re-checks QApplication.focusWidget() when run.
+            QTimer.singleShot(0, self._restore_snapshot_focus_if_unowned)
+            return
+        if new is snapshots or snapshots.isAncestorOf(new):
+            return
+        self._focus_return_pending = False
+
+    def _clear_focus_return_pending(self) -> None:
+        self._focus_return_pending = False
+
+    def _focus_snapshot_list(self) -> None:
+        snapshots = self.workspace.snapshots
+        if snapshots.isVisibleTo(self.workspace) and snapshots.isEnabled():
+            snapshots.setFocus(Qt.FocusReason.OtherFocusReason)
+
     def _restore_snapshot_focus_if_unowned(self) -> None:
         focus = QApplication.focusWidget()
         if focus is not None:
             return
-        snapshots = self.workspace.snapshots
-        if snapshots.isVisibleTo(self.workspace) and snapshots.isEnabled():
-            snapshots.setFocus(Qt.FocusReason.OtherFocusReason)
+        self._focus_snapshot_list()
 
     @staticmethod
     def _value(item: QListWidgetItem | None, role: int) -> str:

@@ -27,6 +27,11 @@ class SystemRuntimeOverview:
     chats: RuntimeFact
     storage: RuntimeFact
     network: RuntimeFact
+    background: RuntimeFact
+    loopback: RuntimeFact
+    local_processing: RuntimeFact
+    encrypted_at_rest: RuntimeFact
+    tor: RuntimeFact
     detail: str
     state: str
 
@@ -43,14 +48,23 @@ def project_system_runtime(snapshot: DesktopApiSnapshot) -> SystemRuntimeOvervie
     if provider is None:
         provider_fact = RuntimeFact("Unavailable", "unavailable")
         network_fact = RuntimeFact("Provider unavailable", "unavailable")
+        local_processing_fact = RuntimeFact("Unavailable", "unavailable")
     elif model_freshness == "stale":
         provider_fact = RuntimeFact(f"{_display(provider.status)} · stale", "stale")
         network_fact = RuntimeFact("Provider state stale", "stale")
+        local_processing_fact = RuntimeFact(
+            f"{_display(provider.provider)} · stale",
+            "stale",
+        )
     else:
         provider_state = _health_state(provider.status)
         provider_fact = RuntimeFact(_display(provider.status), provider_state)
         network_fact = RuntimeFact(
             "Provider reachable" if provider_state == "success" else "Provider degraded",
+            provider_state,
+        )
+        local_processing_fact = RuntimeFact(
+            _display(provider.provider),
             provider_state,
         )
 
@@ -70,10 +84,16 @@ def project_system_runtime(snapshot: DesktopApiSnapshot) -> SystemRuntimeOvervie
         details.append("Model discovery: " + snapshot.model_error)
     if snapshot.chat_error:
         details.append("Chat discovery: " + snapshot.chat_error)
-    details.append(
-        "Storage telemetry: unavailable — the desktop API snapshot exposes no storage probe."
+    details.extend(
+        (
+            "Storage telemetry: unavailable — the desktop API snapshot exposes no storage probe.",
+            "Background activity history: unavailable — the desktop API snapshot "
+            "exposes no event feed.",
+            "Security posture: loopback binding, encryption-at-rest and Tor state "
+            "are not exposed by this snapshot.",
+        )
     )
-    if len(details) == 1:
+    if len(details) == 3:
         details.insert(0, "Core and provider snapshot data is current.")
 
     states = (
@@ -91,6 +111,7 @@ def project_system_runtime(snapshot: DesktopApiSnapshot) -> SystemRuntimeOvervie
         if "unavailable" in states
         else "success"
     )
+    unavailable = RuntimeFact("Unavailable", "unavailable")
     return SystemRuntimeOverview(
         core=RuntimeFact(core_value, core_state),
         provider=provider_fact,
@@ -98,8 +119,13 @@ def project_system_runtime(snapshot: DesktopApiSnapshot) -> SystemRuntimeOvervie
         models=models,
         loaded_models=loaded,
         chats=chats,
-        storage=RuntimeFact("Unavailable", "unavailable"),
+        storage=unavailable,
         network=network_fact,
+        background=unavailable,
+        loopback=unavailable,
+        local_processing=local_processing_fact,
+        encrypted_at_rest=unavailable,
+        tor=unavailable,
         detail="\n".join(details),
         state=overall,
     )
@@ -118,9 +144,15 @@ def disconnected_system_runtime(message: str) -> SystemRuntimeOverview:
         chats=unavailable,
         storage=unavailable,
         network=RuntimeFact("Core unreachable", "error"),
+        background=unavailable,
+        loopback=unavailable,
+        local_processing=unavailable,
+        encrypted_at_rest=unavailable,
+        tor=unavailable,
         detail=(
             f"{message}\n"
-            "Storage telemetry: unavailable while the Core snapshot cannot be read."
+            "Storage telemetry, background activity and security posture are unavailable "
+            "while the Core snapshot cannot be read."
         ),
         state="error",
     )

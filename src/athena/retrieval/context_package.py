@@ -33,6 +33,10 @@ class ContextSnapshotDriftError(RuntimeError):
     """Raised when canonical state changes across a pinned context build."""
 
 
+def _reject_json_constant(value: str) -> None:
+    raise ValueError(f"Non-standard JSON constant {value!r} is not permitted.")
+
+
 @dataclass(frozen=True, slots=True)
 class ContextModelSignature:
     model_signature_id: uuid.UUID
@@ -191,9 +195,19 @@ class ContextPackage:
             raise ContextPackageError(
                 "Structured ContextPackage requires both schema ID and schema JSON."
             )
+        if not isinstance(self.structured_schema_id, str) or not isinstance(
+            self.structured_schema_json,
+            str,
+        ):
+            raise ContextPackageError(
+                "ContextPackage structured schema metadata must be text."
+            )
         try:
-            payload = json.loads(self.structured_schema_json)
-        except json.JSONDecodeError as exc:
+            payload = json.loads(
+                self.structured_schema_json,
+                parse_constant=_reject_json_constant,
+            )
+        except (json.JSONDecodeError, ValueError) as exc:
             raise ContextPackageError(
                 "ContextPackage structured schema JSON is invalid."
             ) from exc
@@ -291,8 +305,18 @@ class ContextPackage:
             },
             "snapshot_commit_seq": self.snapshot_commit_seq,
         }
-        if self.structured_schema_id is not None:
-            assert self.structured_schema_json is not None
+        if self.structured_schema_id is not None or self.structured_schema_json is not None:
+            if self.structured_schema_id is None or self.structured_schema_json is None:
+                raise ContextPackageError(
+                    "Structured ContextPackage requires both schema ID and schema JSON."
+                )
+            if not isinstance(self.structured_schema_id, str) or not isinstance(
+                self.structured_schema_json,
+                str,
+            ):
+                raise ContextPackageError(
+                    "ContextPackage structured schema metadata must be text."
+                )
             snapshot["structured_output"] = {
                 "schema_id": self.structured_schema_id,
                 "schema_sha256": hashlib.sha256(
@@ -430,19 +454,27 @@ class ContextPackageService:
         schema_json: str | None = None
         normalized_schema_id: str | None = None
         if structured_schema is not None:
-            assert structured_schema_id is not None
+            if not isinstance(structured_schema_id, str):
+                raise ContextPackageError(
+                    "Structured ContextPackage schema ID must be text."
+                )
             normalized_schema_id = structured_schema_id.strip()
             if not normalized_schema_id:
                 raise ContextPackageError(
                     "Structured ContextPackage schema ID must not be blank."
                 )
-            schema_json = json.dumps(
-                dict(structured_schema),
-                ensure_ascii=False,
-                sort_keys=True,
-                separators=(",", ":"),
-                allow_nan=False,
-            )
+            try:
+                schema_json = json.dumps(
+                    dict(structured_schema),
+                    ensure_ascii=False,
+                    sort_keys=True,
+                    separators=(",", ":"),
+                    allow_nan=False,
+                )
+            except (TypeError, ValueError) as exc:
+                raise ContextPackageError(
+                    "ContextPackage structured schema must be strict JSON-serializable."
+                ) from exc
 
         signature = ContextModelSignature(
             model_signature_id=model_signature.model_signature_id,

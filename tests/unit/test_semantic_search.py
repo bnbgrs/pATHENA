@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
-
 import pytest
 
 from athena.chat.repository import ChatRepository
@@ -9,6 +7,8 @@ from athena.chat.service import ChatService
 from athena.knowledge.models import KnowledgeKind
 from athena.knowledge.repository import KnowledgeRepository
 from athena.knowledge.service import KnowledgeService
+from athena.model.adapters.lm_studio import LMStudioProvider
+from athena.model.adapters.lm_studio_embeddings import LMStudioEmbeddingProvider
 from athena.retrieval.search import SearchEntityType
 from athena.retrieval.semantic import (
     LocalSemanticSearchService,
@@ -17,12 +17,13 @@ from athena.retrieval.semantic import (
 from athena.storage.database import SQLiteDatabase
 
 
-@dataclass
-class FakeEmbeddingProvider:
-    calls: int = 0
+class FakeEmbeddingProvider(LMStudioEmbeddingProvider):
+    def __init__(self) -> None:
+        super().__init__(LMStudioProvider("http://127.0.0.1:1234"))
+        object.__setattr__(self, "calls", 0)
 
     def embed(self, *, model_id: str, texts):
-        self.calls += 1
+        object.__setattr__(self, "calls", self.calls + 1)
         vectors = []
         for text in texts:
             lowered = text.casefold()
@@ -34,6 +35,17 @@ class FakeEmbeddingProvider:
                 )
             )
         return tuple(vectors)
+
+
+class RecordingEmbeddingProvider(LMStudioEmbeddingProvider):
+    def __init__(self) -> None:
+        super().__init__(LMStudioProvider("http://127.0.0.1:1234"))
+        object.__setattr__(self, "inputs", [])
+
+    def embed(self, *, model_id: str, texts):
+        captured = tuple(texts)
+        self.inputs.append(captured)
+        return tuple((1.0, 0.0, 0.0) for _ in captured)
 
 
 def test_semantic_search_finds_nonlexical_related_document(tmp_path) -> None:
@@ -139,17 +151,6 @@ def test_empty_semantic_index_returns_no_results(tmp_path) -> None:
         database.stop()
 
 
-
-@dataclass
-class RecordingEmbeddingProvider:
-    inputs: list[tuple[str, ...]]
-
-    def embed(self, *, model_id: str, texts):
-        captured = tuple(texts)
-        self.inputs.append(captured)
-        return tuple((1.0, 0.0, 0.0) for _ in captured)
-
-
 def test_nomic_retrieval_uses_required_task_prefixes(tmp_path) -> None:
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
@@ -167,7 +168,7 @@ def test_nomic_retrieval_uses_required_task_prefixes(tmp_path) -> None:
             knowledge_kind=KnowledgeKind.FACT,
         )
 
-        provider = RecordingEmbeddingProvider(inputs=[])
+        provider = RecordingEmbeddingProvider()
         semantic = LocalSemanticSearchService(database, provider)
         semantic.rebuild(
             "text-embedding-nomic-embed-text-v1.5"
@@ -200,7 +201,7 @@ def test_semantic_documents_exclude_internal_assistant_provenance_manifest(tmp_p
             provider_id="lm_studio",
             model_id="primary",
         )
-        provider = RecordingEmbeddingProvider(inputs=[])
+        provider = RecordingEmbeddingProvider()
         semantic = LocalSemanticSearchService(database, provider)
 
         semantic.rebuild("fake-embed")
@@ -265,6 +266,7 @@ def test_hnsw_sidecar_rebuilds_from_persisted_vectors_without_reembedding(tmp_pa
         assert provider.calls == calls_after_embedding_rebuild
     finally:
         database.stop()
+
 
 def test_semantic_snapshot_ignores_unrelated_empty_chat_commit(
     tmp_path,
@@ -332,6 +334,7 @@ def test_semantic_snapshot_ignores_unrelated_empty_chat_commit(
 
     finally:
         database.stop()
+
 
 def test_semantic_search_absent_index_requires_explicit_rebuild(
     tmp_path,

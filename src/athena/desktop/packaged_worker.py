@@ -6,7 +6,7 @@ import ctypes
 import os
 import sys
 from collections.abc import Sequence
-from typing import TextIO
+from typing import Literal, TextIO
 
 from athena.desktop.packaged_app import (
     PackagedInvocationError,
@@ -20,26 +20,32 @@ _STD_ERROR_HANDLE = -12
 _INVALID_HANDLE_VALUE = ctypes.c_void_p(-1).value
 
 
-def _windows_standard_stream(std_handle: int, mode: str) -> TextIO:
+def _windows_standard_stream(std_handle: int, mode: Literal["r", "w"]) -> TextIO:
     """Recover an inherited Win32 pipe for a no-console PyInstaller worker."""
     import msvcrt
 
-    kernel32 = ctypes.windll.kernel32
+    windll = getattr(ctypes, "windll", None)
+    open_osfhandle = getattr(msvcrt, "open_osfhandle", None)
+    if windll is None or open_osfhandle is None:
+        return open(os.devnull, mode, encoding="utf-8")
+
+    kernel32 = windll.kernel32
     kernel32.GetStdHandle.argtypes = [ctypes.c_ulong]
     kernel32.GetStdHandle.restype = ctypes.c_void_p
     handle = kernel32.GetStdHandle(ctypes.c_ulong(std_handle).value)
     if handle in (None, 0, _INVALID_HANDLE_VALUE):
         return open(os.devnull, mode, encoding="utf-8")
 
-    flags = os.O_RDONLY if "r" in mode else os.O_WRONLY
-    descriptor = msvcrt.open_osfhandle(int(handle), flags)
-    buffering = -1 if "r" in mode else 1
-    return os.fdopen(
+    flags = os.O_RDONLY if mode == "r" else os.O_WRONLY
+    descriptor = open_osfhandle(int(handle), flags)
+    buffering = -1 if mode == "r" else 1
+    return open(
         descriptor,
         mode,
         buffering=buffering,
         encoding="utf-8",
         errors="replace",
+        closefd=True,
     )
 
 

@@ -9,6 +9,7 @@ from athena.jobs.news_payload_validation import (
     _month_end,
     validate_news_job_payload,
 )
+from athena.news.common import _default_profile_id
 from athena.news.models import NEWS_JOB_TYPE, NEWS_PIPELINE_VERSION
 from athena.news.schema import NEWS_SCHEMA_ID
 
@@ -17,6 +18,13 @@ def _config() -> dict[str, str]:
     return {
         "pipeline_version": NEWS_PIPELINE_VERSION,
         "news_schema": NEWS_SCHEMA_ID,
+    }
+
+
+def _scope() -> dict[str, str]:
+    return {
+        "profile_id": str(_default_profile_id()),
+        "target_date": "2026-08-27",
     }
 
 
@@ -36,7 +44,7 @@ def test_daily_news_rejects_non_object_configuration_with_domain_error() -> None
     ):
         validate_news_job_payload(
             NEWS_JOB_TYPE,
-            requested_scope={},
+            requested_scope=_scope(),
             pinned_configuration=[],  # type: ignore[arg-type]
         )
 

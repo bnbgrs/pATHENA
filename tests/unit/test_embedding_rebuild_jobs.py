@@ -9,12 +9,10 @@ import pytest
 from athena.common.time import utc_now_us
 from athena.config.settings import AthenaSettings
 from athena.core.application import AthenaApplication
-from athena.jobs.embedding_processing import (
-    DurableEmbeddingRebuildWorker,
-    EmbeddingRebuildJobError,
-)
+from athena.jobs.embedding_processing import DurableEmbeddingRebuildWorker
 from athena.jobs.models import JobState
 from athena.jobs.repository import JobLeaseError
+from athena.jobs.service import InvalidJobPayloadError
 from athena.model.adapters.lm_studio import ProviderUnavailableError
 from athena.retrieval.archive import ArchiveSemanticSearchService
 
@@ -227,16 +225,11 @@ def test_finalize_is_idempotent_after_crash_before_checkpoint(tmp_path, monkeypa
 
 def test_embedding_worker_rejects_generic_unpinned_job(tmp_path) -> None:
     app = _app(tmp_path / "runtime")
-    worker = _worker(app, FakeEmbeddingProvider())
-    job = app.jobs.create(job_type="embedding.rebuild")
-    leased = app.jobs.acquire(job.job_id, worker_id="embed", lease_seconds=60)
-    assert leased.lease_token is not None
-
-    with pytest.raises(EmbeddingRebuildJobError, match="requested_scope"):
-        worker.step(job.job_id, lease_token=leased.lease_token)
-
-    assert app.jobs.get(job.job_id).state is JobState.RUNNING
-    app.stop()
+    try:
+        with pytest.raises(InvalidJobPayloadError, match="requested_scope"):
+            app.jobs.create(job_type="embedding.rebuild")
+    finally:
+        app.stop()
 
 
 def test_embedding_rebuild_uses_keyset_progress_without_quadratic_rewalk(
@@ -355,6 +348,7 @@ def test_visibility_change_during_provider_call_waits_dependency(
     status = worker.semantic.status("fake-embed")
     assert status is None or not status.current
     app.stop()
+
 
 def test_embedding_provider_call_extends_lease_before_blocking_boundary(
     tmp_path,

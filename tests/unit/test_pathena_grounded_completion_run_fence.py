@@ -11,7 +11,10 @@ from athena.chat.grounded_completion import (
     GroundedSendCompletionCorruptionError,
     GroundedSendCompletionRepository,
 )
-from athena.chat.grounded_processing_run import complete_grounded_processing_run
+from athena.chat.grounded_processing_run import (
+    bind_grounded_processing_run,
+    complete_grounded_processing_run,
+)
 from athena.chat.grounded_recovery import GroundedRecoveryState
 from athena.chat.grounded_send import GroundedProviderRunError, GroundedSendCoordinator
 from athena.chat.models import ChatMessage
@@ -138,7 +141,9 @@ def _receipt_payload() -> str:
             "assistant_text": "durable answer",
             "provider_id": "lm_studio",
             "model_id": "primary",
-        }
+        },
+        sort_keys=True,
+        separators=(",", ":"),
     )
 
 
@@ -169,6 +174,14 @@ def _prepare_assistant_committed(
         operation_id=operation_id,
         chat_id=chat_id,
         package=package,
+    )
+    bind_grounded_processing_run(
+        database,
+        operation_id=operation_id,
+        chat_id=chat_id,
+        processing_run_id=processing_run_id,
+        package=package,
+        trigger_actor_id=user,
     )
     coordinator.begin_provider_attempt(
         operation_id=operation_id,
@@ -296,6 +309,15 @@ def test_coordinator_completion_rejects_missing_pinned_processing_run(
             cursor = connection.execute(
                 """
                 UPDATE grounded_provider_results
+                SET processing_run_id = ?
+                WHERE operation_id = ?
+                """,
+                (uuid_to_blob(foreign_run_id), uuid_to_blob(operation_id)),
+            )
+            assert cursor.rowcount == 1
+            cursor = connection.execute(
+                """
+                UPDATE chat_send_operations
                 SET processing_run_id = ?
                 WHERE operation_id = ?
                 """,

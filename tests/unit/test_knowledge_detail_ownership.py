@@ -42,7 +42,7 @@ def test_selection_change_marks_old_knowledge_operation_as_background(
     controller._operation = "show"
     controller._owner_id = "11111111-1111-1111-1111-111111111111"
     workspace._selected_knowledge_id = "22222222-2222-2222-2222-222222222222"
-    setattr(workspace, "_knowledge_busy", lambda: True)
+    workspace._knowledge_busy = lambda: True
 
     controller._selection_changed(None, None)
 
@@ -62,7 +62,7 @@ def test_return_to_operation_owner_restores_buffered_output(qt_app: QApplication
     workspace._selected_knowledge_id = "44444444-4444-4444-4444-444444444444"
     workspace.knowledge_details.setProperty("pathenaBackgroundOperationOwner", owner)
     workspace._knowledge_buffer = "owned canonical output"
-    setattr(workspace, "_knowledge_busy", lambda: True)
+    workspace._knowledge_busy = lambda: True
 
     workspace._selected_knowledge_id = owner
     controller._selection_changed(None, None)

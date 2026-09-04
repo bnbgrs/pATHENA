@@ -63,6 +63,10 @@ class CommandPaletteTruthController(QObject):
     def _schedule_refresh(self, *_args: object) -> None:
         QTimer.singleShot(0, self.refresh)
 
+    def _set_palette_state(self, state: str) -> None:
+        self.palette.dialog.setProperty("pathenaUiState", state)
+        self.palette.results.setProperty("pathenaUiState", state)
+
     def refresh(self) -> None:
         capability_by_label, has_drift = self._resolved_capabilities()
         self.palette.dialog.setProperty(
@@ -71,8 +75,6 @@ class CommandPaletteTruthController(QObject):
         self.palette.dialog.setProperty("pathenaCapabilityCatalogDrift", has_drift)
         for row, command in enumerate(self.palette._filtered_commands):
             item = self.palette.results.item(row)
-            if item is None:
-                continue
             capability = capability_by_label[command.label]
             available = capability.availability is CapabilityAvailability.AVAILABLE
             state = capability.availability.value
@@ -91,28 +93,40 @@ class CommandPaletteTruthController(QObject):
 
     def _selection_changed(self, row: int) -> None:
         self._sync_results_accessibility(row)
+        if not self.palette._filtered_commands:
+            self.status.setText("No matching commands · refine the search.")
+            self.status.setAccessibleName("No matching commands")
+            self.status.setAccessibleDescription(
+                "No registered pATHENA command matches the current search."
+            )
+            self.status.show()
+            self._set_palette_state("empty")
+            return
         if not 0 <= row < len(self.palette._filtered_commands):
             self.status.clear()
             self.status.hide()
+            self._set_palette_state("ready")
             return
         command = self.palette._filtered_commands[row]
         capability = self._capability(command.label)
         if capability.availability is CapabilityAvailability.AVAILABLE:
             self.status.clear()
             self.status.hide()
+            self._set_palette_state("ready")
             return
         state = capability.availability.value.capitalize()
         self.status.setText(f"{state} · {capability.explanation}")
         self.status.setAccessibleName(f"{command.label} {capability.availability.value}")
         self.status.setAccessibleDescription(capability.explanation)
         self.status.show()
+        self._set_palette_state("blocked")
 
     def _sync_results_accessibility(self, row: int) -> None:
         count = self.palette.results.count()
         available_count = 0
         for index in range(count):
             item = self.palette.results.item(index)
-            if item is not None and item.data(256) is True:
+            if item.data(256) is True:
                 available_count += 1
         noun = "command" if count == 1 else "commands"
         description = f"{count} {noun} shown. {available_count} available."
@@ -135,8 +149,10 @@ class CommandPaletteTruthController(QObject):
             state = capability.availability.value.capitalize()
             self.status.setText(f"{state} · {capability.explanation}")
             self.status.show()
+            self._set_palette_state("blocked")
             self.palette.query.setFocus()
             return
+        self._set_palette_state("ready")
         self._original_run(row)
 
     def _availability(self, label: str) -> tuple[bool, str]:

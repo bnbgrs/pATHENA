@@ -4,6 +4,8 @@ import argparse
 import inspect
 import uuid
 
+import pytest
+
 from athena import __main__ as launcher
 from athena.cli import parser as parser_module
 
@@ -34,3 +36,43 @@ def test_extracted_parser_preserves_typed_core_commands() -> None:
     assert job.command == "job"
     assert job.job_command == "show"
     assert job.job_id == job_id
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        '{"value": NaN}',
+        '{"value": Infinity}',
+        '{"value": -Infinity}',
+        '{"value": 1e309}',
+        '{"nested": [{"value": -1e309}]}',
+    ],
+)
+def test_json_object_argument_rejects_non_finite_numbers(payload: str) -> None:
+    with pytest.raises(argparse.ArgumentTypeError, match="finite"):
+        parser_module._json_object_argument(payload)
+
+
+def test_json_object_argument_preserves_finite_nested_payload() -> None:
+    payload = '{"value": 1.25, "nested": [0, -2.5, {"enabled": true}]}'
+
+    assert parser_module._json_object_argument(payload) == {
+        "value": 1.25,
+        "nested": [0, -2.5, {"enabled": True}],
+    }
+
+
+@pytest.mark.parametrize("value", ["nan", "NaN", "inf", "+inf", "-inf", "1e309"])
+def test_finite_float_argument_rejects_non_finite_values(value: str) -> None:
+    with pytest.raises(argparse.ArgumentTypeError, match="finite"):
+        parser_module._finite_float_argument(value)
+
+
+def test_review_accept_all_uses_finite_confidence_boundary() -> None:
+    parser = launcher.build_parser()
+
+    args = parser.parse_args(["review", "accept-all", "--min-confidence", "0.75"])
+
+    assert args.min_confidence == 0.75
+    with pytest.raises(SystemExit):
+        parser.parse_args(["review", "accept-all", "--min-confidence", "nan"])

@@ -237,15 +237,15 @@ class PathenaStartupExperience(QObject):
 
         status = self.window.findChild(QLabel, "localStatus")
         if status is not None and not core_ready:
-            status.setText("Local core offline")
-            status.setToolTip("pATHENA reconnects to the local Core automatically")
+            status.setText("pATHENA reconnecting")
+            status.setToolTip("pATHENA reconnects automatically")
 
         prompt = self.window.findChild(QWidget, "promptInput")
         if prompt is not None:
             if core_ready:
                 prompt.setToolTip("Message the selected local model")
             else:
-                prompt.setToolTip("Available when the local Core and model are ready")
+                prompt.setToolTip("Available when pATHENA and the selected model are ready")
 
         self._polish_empty_state(core_ready=core_ready)
 
@@ -292,7 +292,7 @@ class PathenaStartupExperience(QObject):
 
         raw_text = raw.text().strip()
         if not core_ready:
-            title.setText("Waiting for the local core")
+            title.setText("Getting pATHENA ready")
             body.setText(
                 "pATHENA reconnects automatically. Chat, knowledge, research and "
                 "files remain local while the workspace comes online."

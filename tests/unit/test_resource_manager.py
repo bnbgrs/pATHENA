@@ -18,6 +18,47 @@ from athena.resources.manager import (
 )
 
 
+def _embedding_rebuild_payload() -> tuple[dict[str, object], dict[str, object]]:
+    return (
+        {"index_kind": "archive_source_chunks"},
+        {
+            "batch_size": 1,
+            "index_kind": "archive_source_chunks",
+            "model_id": "resource-test-embedding-model",
+            "pipeline_version": "archive-embedding-rebuild-v1",
+            "target_chunk_generation": 0,
+        },
+    )
+
+
+def _research_exhaustive_payload() -> tuple[dict[str, object], dict[str, object]]:
+    return (
+        {
+            "mode": "local_exhaustive",
+            "query": "resource policy test",
+            "domains": [],
+            "project_ids": [],
+            "source_types": [],
+            "explicit_source_ids": [],
+            "time_start_us": None,
+            "time_end_us": None,
+            "internet_scope": None,
+            "coverage_target": 1.0,
+        },
+        {
+            "pipeline_version": "exhaustive-research-orchestration-v2",
+            "snapshot_commit_seq": 0,
+            "coverage_formula_id": "eligible-success-or-irrelevant-v1",
+            "candidate_dedup_id": "source-content-sha256-v1",
+            "requested_model_id": None,
+            "context_limit": None,
+            "output_reserve": None,
+            "safety_margin": None,
+            "max_hierarchy_depth": 1,
+        },
+    )
+
+
 def test_scheduler_waits_background_job_when_background_is_paused(
     tmp_path: Path,
 ) -> None:
@@ -38,11 +79,12 @@ def test_scheduler_waits_background_job_when_background_is_paused(
     )
     app.resources.probe = StaticResourceProbe(snapshot)
     app.resources.set_mode(ResourceMode.PAUSE_BACKGROUND)
+    requested_scope, pinned_configuration = _embedding_rebuild_payload()
     job = app.jobs.create(
         job_type="embedding.rebuild",
         priority=JobPriority.BACKGROUND,
-        requested_scope={"model_id": "unused"},
-        pinned_configuration={"batch_size": 1},
+        requested_scope=requested_scope,
+        pinned_configuration=pinned_configuration,
     )
 
     tick = app.job_scheduler.tick(worker_id="resource-test", now_us=utc_now_us())
@@ -77,11 +119,12 @@ def test_quiet_mode_defers_normal_gpu_research_without_mutating_payload(
     )
     app.resources.probe = StaticResourceProbe(snapshot)
     app.resources.set_mode(ResourceMode.QUIET)
+    requested_scope, pinned_configuration = _research_exhaustive_payload()
     job = app.jobs.create(
         job_type="research.exhaustive",
         priority=JobPriority.NORMAL,
-        requested_scope={"sentinel": "unchanged"},
-        pinned_configuration={"sentinel": "unchanged"},
+        requested_scope=requested_scope,
+        pinned_configuration=pinned_configuration,
     )
     before = app.jobs.get(job.job_id)
 
@@ -137,11 +180,12 @@ def test_probe_failure_degrades_to_resource_wait_instead_of_scheduler_crash(
     app = AthenaApplication(settings=AthenaSettings(local_root=tmp_path / "broken-runtime"))
     app.start()
     app.resources.probe = _BrokenProbe()
+    requested_scope, pinned_configuration = _embedding_rebuild_payload()
     job = app.jobs.create(
         job_type="embedding.rebuild",
         priority=JobPriority.BACKGROUND,
-        requested_scope={"model_id": "unused"},
-        pinned_configuration={"batch_size": 1},
+        requested_scope=requested_scope,
+        pinned_configuration=pinned_configuration,
     )
 
     tick = app.job_scheduler.tick(worker_id="broken-resource-test", now_us=utc_now_us())
@@ -223,17 +267,18 @@ def test_interactive_chat_defers_background_gpu_job_but_not_data_safety(
     )
     app.start()
 
+    requested_scope, pinned_configuration = _research_exhaustive_payload()
     background = app.jobs.create(
         job_type="research.exhaustive",
         priority=JobPriority.BACKGROUND,
-        requested_scope={"sentinel": "background"},
-        pinned_configuration={"sentinel": "background"},
+        requested_scope=requested_scope,
+        pinned_configuration=pinned_configuration,
     )
     data_safety = app.jobs.create(
         job_type="research.exhaustive",
         priority=JobPriority.DATA_SAFETY,
-        requested_scope={"sentinel": "data-safety"},
-        pinned_configuration={"sentinel": "data-safety"},
+        requested_scope=requested_scope,
+        pinned_configuration=pinned_configuration,
     )
 
     with app.resources.interactive_session(purpose="priority_test"):
@@ -377,10 +422,16 @@ def test_interactive_demand_fail_closed_for_news_and_future_provider_jobs(
     app.start()
     try:
         base = app.jobs.create(
-            job_type="source.process",
+            job_type="backup.create",
             priority=JobPriority.BACKGROUND,
-            requested_scope={"sentinel": "classification-template"},
-            pinned_configuration={"sentinel": "classification-template"},
+            requested_scope={
+                "schedule_slot_us": 0,
+                "target_id": str(new_uuid7()),
+            },
+            pinned_configuration={
+                "pipeline_version": "backup-scheduler-v1",
+                "quiet_hour_utc": 0,
+            },
         )
         provider_jobs = tuple(
             replace(

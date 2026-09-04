@@ -1,9 +1,23 @@
+from PySide6.QtWidgets import QApplication, QLabel, QLineEdit, QVBoxLayout, QWidget
+
 from athena.desktop.pathena_startup_experience_2900 import (
     _STARTUP_REFINEMENTS,
     _STARTUP_STYLESHEET,
     _STARTUP_TARGETS,
     UI_REFINEMENT_TASKS_2801_2900,
+    PathenaStartupExperience,
 )
+
+
+class _DisconnectedStartupWindow(QWidget):
+    _core_transport_ready = False
+
+
+def _app() -> QApplication:
+    existing = QApplication.instance()
+    if isinstance(existing, QApplication):
+        return existing
+    return QApplication([])
 
 
 def test_first_run_refinement_contract_is_exactly_one_hundred_tasks() -> None:
@@ -43,3 +57,30 @@ def test_quiet_workspace_contract_remains_effect_free() -> None:
     assert "glow" not in lowered
     assert "shadow" not in lowered
     assert "gradient" not in lowered
+
+
+def test_disconnected_startup_copy_keeps_core_infrastructure_in_background() -> None:
+    _app()
+    window = _DisconnectedStartupWindow()
+
+    status = QLabel(window)
+    status.setObjectName("localStatus")
+    prompt = QLineEdit(window)
+    prompt.setObjectName("promptInput")
+
+    messages = QWidget(window)
+    messages.setObjectName("chatMessages")
+    layout = QVBoxLayout(messages)
+    raw = QLabel("No conversation", messages)
+    raw.setObjectName("emptyChatState")
+    layout.addWidget(raw)
+
+    controller = PathenaStartupExperience(window)
+    controller.sync()
+
+    assert status.text() == "pATHENA reconnecting"
+    assert "core" not in status.toolTip().casefold()
+    assert "core" not in prompt.toolTip().casefold()
+    title = messages.findChild(QLabel, "emptyStateTitle")
+    assert title is not None
+    assert title.text() == "Getting pATHENA ready"

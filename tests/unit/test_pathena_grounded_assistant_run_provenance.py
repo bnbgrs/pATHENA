@@ -90,6 +90,7 @@ def _prepare_recorded_result(
         model=_model(),
         generation_parameters={
             "max_output_tokens": 1000,
+            "temperature": 0.3,
             "reasoning_mode": "off",
         },
         context_configuration={"context_package_version": 1},

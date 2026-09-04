@@ -20,6 +20,10 @@ from athena.chat.provenance import strip_durable_provenance_manifest
 from athena.chat.service import ChatService
 from athena.model.domain import ModelChatMessage, ModelInfo
 from athena.model.ports import ChatModelProvider
+from athena.model.signature_guard import (
+    ModelSignatureDriftError,
+    assert_runtime_model_matches_signature,
+)
 from athena.retrieval.context_package import ContextPackage
 
 if TYPE_CHECKING:
@@ -100,17 +104,10 @@ def _grounding_retry_history(
         "- Return only the corrected final answer."
     )
 
-    if (
-        history
-        and history[0].role == "system"
-    ):
+    if history and history[0].role == "system":
         repaired_system = ModelChatMessage(
             role="system",
-            content=(
-                history[0].content
-                + "\n\n"
-                + instruction
-            ),
+            content=(history[0].content + "\n\n" + instruction),
         )
 
         return (
@@ -408,10 +405,7 @@ class ChatGenerationService:
             raise ValueError("ContextPackage generation requires a user message.")
         if user_message.content is None:
             raise ValueError("ContextPackage current user content is unavailable.")
-        if (
-            operation_id is not None
-            and user_message.message_id != operation_id
-        ):
+        if operation_id is not None and user_message.message_id != operation_id:
             raise ValueError(
                 "ContextPackage user message does not match "
                 "the send operation identity."
@@ -429,14 +423,12 @@ class ChatGenerationService:
 
         model = self.select_model(context_package.model_signature.model_identifier)
         signature = context_package.model_signature
-        if (
-            model.provider != signature.provider
-            or model.backend_model_id != signature.model_identifier
-            or model.quantization != signature.quantization
-        ):
+        try:
+            assert_runtime_model_matches_signature(model=model, signature=signature)
+        except ModelSignatureDriftError as exc:
             raise ModelSelectionError(
                 "Active model drifted from the ContextPackage ModelSignature."
-            )
+            ) from exc
         runtime_limit = model.loaded_context_length or model.context_capacity
         if (
             runtime_limit is not None
@@ -491,6 +483,7 @@ class ChatGenerationService:
             on_before_provider_call=on_before_provider_call,
             interactive_lease=None,
         )
+
     def _generate_and_persist(
         self,
         *,
@@ -518,9 +511,7 @@ class ChatGenerationService:
             )
 
         attempt_limit = (
-            _GROUNDING_GENERATION_ATTEMPTS
-            if grounding_contract is not None
-            else 1
+            _GROUNDING_GENERATION_ATTEMPTS if grounding_contract is not None else 1
         )
 
         attempt_history = history
@@ -530,18 +521,12 @@ class ChatGenerationService:
                 demand = self.interactive_demand
                 if demand is None:
                     raise RuntimeError(
-                        "Interactive lease exists without a "
-                        "ResourceManager."
+                        "Interactive lease exists without a ResourceManager."
                     )
 
-                # Refresh before every provider attempt. This also covers
-                # grounded validation retries without allowing the lease to
-                # age between attempts.
-                interactive_lease = (
-                    demand.renew_interactive_demand(
-                        interactive_lease,
-                        force=True,
-                    )
+                interactive_lease = demand.renew_interactive_demand(
+                    interactive_lease,
+                    force=True,
                 )
 
             if on_before_provider_call is not None:
@@ -583,24 +568,11 @@ class ChatGenerationService:
                     demand = self.interactive_demand
                     if demand is None:
                         raise RuntimeError(
-                            "Interactive lease exists without a "
-                            "ResourceManager."
+                            "Interactive lease exists without a ResourceManager."
                         )
+                    interactive_lease = demand.renew_interactive_demand(interactive_lease)
 
-                    # Cheap on every token: ResourceManager only performs
-                    # durable I/O after half the lease lifetime has elapsed.
-                    interactive_lease = (
-                        demand.renew_interactive_demand(
-                            interactive_lease
-                        )
-                    )
-
-                # Direct chat retains live streaming behavior. Grounded output
-                # is withheld until deterministic validation succeeds.
-                if (
-                    grounding_contract is None
-                    and on_delta is not None
-                ):
+                if grounding_contract is None and on_delta is not None:
                     on_delta(chunk)
 
             assistant_text = "".join(chunks)
@@ -626,7 +598,6 @@ class ChatGenerationService:
                         history,
                         violation=exc,
                     )
-
                     continue
 
                 provenance_manifest = render_durable_provenance_manifest(
@@ -634,15 +605,9 @@ class ChatGenerationService:
                     report=grounding_report,
                 )
 
-                # Never expose the rejected first candidate. Only validated
-                # grounded text reaches the UI/CLI callback.
                 if on_delta is not None:
-                    on_delta(
-                        assistant_text
-                    )
-                    on_delta(
-                        provenance_manifest
-                    )
+                    on_delta(assistant_text)
+                    on_delta(provenance_manifest)
 
                 assistant_text += provenance_manifest
 
@@ -664,6 +629,7 @@ class ChatGenerationService:
         raise RuntimeError(
             "Grounded generation exhausted attempts without a terminal result."
         )
+
     def select_model(self, requested_model_id: str | None = None) -> ModelInfo:
         models = self.provider.discover_models()
         llms = tuple(model for model in models if model.model_type == "llm")

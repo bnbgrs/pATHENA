@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import uuid
-from dataclasses import dataclass, replace
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
@@ -47,6 +47,11 @@ def _app(root: Path) -> AthenaApplication:
 def _capture(app: AthenaApplication, path: Path, text: str):
     path.write_text(text, encoding="utf-8", newline="")
     return app.sources.capture_file(path)
+
+
+def _source_process_job(app: AthenaApplication, path: Path):
+    captured = _capture(app, path, "Durable source-process contract fixture.")
+    return app.source_processing.enqueue(captured.source.source_id)
 
 
 def _lease_parent(app: AthenaApplication, job_id: uuid.UUID) -> bytes:
@@ -106,7 +111,7 @@ def _drive_parent_to_synthesis_wait(
 def test_matching_but_expired_job_lease_is_rejected_before_recovery(tmp_path: Path) -> None:
     app = _app(tmp_path / "runtime")
     try:
-        job = app.jobs.create(job_type="source.process")
+        job = _source_process_job(app, tmp_path / "expired-lease-source.txt")
         leased = app.jobs.acquire(
             job.job_id,
             worker_id="expiring-worker",
@@ -131,7 +136,7 @@ def test_matching_but_expired_job_lease_is_rejected_before_recovery(tmp_path: Pa
 def test_expired_cancel_requested_lease_recovers_to_cancelled(tmp_path: Path) -> None:
     app = _app(tmp_path / "runtime")
     try:
-        job = app.jobs.create(job_type="source.process")
+        job = _source_process_job(app, tmp_path / "cancel-lease-source.txt")
         leased = app.jobs.acquire(
             job.job_id,
             worker_id="cancel-worker",
@@ -214,7 +219,7 @@ def test_current_schema_foreign_key_corruption_fails_closed_on_restart(
 ) -> None:
     root = tmp_path / "runtime"
     app = _app(root)
-    job = app.jobs.create(job_type="source.process")
+    job = _source_process_job(app, tmp_path / "foreign-key-source.txt")
     db_path = app.database.path
     app.stop()
 
@@ -403,9 +408,6 @@ def test_research_stale_parent_fence_rejects_work_state_commit(tmp_path: Path) -
         work = app.research_repository.list_work_items(scope.scope_id)
         assert len(work) == 1
 
-        # Acquire a structurally valid lease entirely in the past. This keeps
-        # the jobs-table CHECK constraints satisfied while ensuring that the
-        # Research repository's own wall-clock fence check sees the parent as stale.
         leased = app.jobs.acquire(
             job.job_id,
             worker_id="stale-research-parent",
@@ -553,15 +555,16 @@ def test_context_package_sections_reject_inconsistent_candidate_counts() -> None
         )
 
 
-@dataclass
-class _MutatingEmbeddingProvider:
-    callback: object
-    mutated: bool = False
+class _MutatingEmbeddingProvider(LMStudioEmbeddingProvider):
+    def __init__(self, *, callback: object) -> None:
+        super().__init__(LMStudioProvider("http://127.0.0.1:1234"))
+        object.__setattr__(self, "callback", callback)
+        object.__setattr__(self, "mutated", False)
 
     def embed(self, *, model_id: str, texts):
         del model_id
         if not self.mutated:
-            self.mutated = True
+            object.__setattr__(self, "mutated", True)
             callback = self.callback
             assert callable(callback)
             callback()
@@ -596,7 +599,7 @@ def test_semantic_rebuild_rejects_canonical_change_during_embedding_call(
             )
             semantic = LocalSemanticSearchService(
                 app.database,
-                provider,  # type: ignore[arg-type]
+                provider,
                 batch_size=100,
             )
 
@@ -614,9 +617,10 @@ def test_semantic_rebuild_rejects_canonical_change_during_embedding_call(
         database.stop()
 
 
-@dataclass
-class _RecordingEmbeddingProvider:
-    inputs: list[tuple[str, ...]]
+class _RecordingEmbeddingProvider(LMStudioEmbeddingProvider):
+    def __init__(self, *, inputs: list[tuple[str, ...]]) -> None:
+        super().__init__(LMStudioProvider("http://127.0.0.1:1234"))
+        object.__setattr__(self, "inputs", inputs)
 
     def embed(self, *, model_id: str, texts):
         del model_id
@@ -645,7 +649,7 @@ def test_semantic_rebuild_retries_if_canonical_changes_before_snapshot_lock(
         provider = _RecordingEmbeddingProvider(inputs=[])
         semantic = LocalSemanticSearchService(
             app.database,
-            provider,  # type: ignore[arg-type]
+            provider,
             batch_size=100,
         )
         original_ensure = semantic._ensure_fts_current
@@ -743,7 +747,7 @@ def test_lm_studio_controlled_runtime_rejects_instance_switch() -> None:
     )
 
     with patch(
-        "athena.model.adapters.lm_studio.urlopen",
+        "athena.model.adapters.lm_studio.open_local_request",
         side_effect=lambda request, timeout: next(responses),
     ):
         assert provider.generate_controlled_structured(**_controlled_kwargs()) == {
@@ -759,7 +763,7 @@ def test_lm_studio_controlled_runtime_rejects_missing_stats() -> None:
     payload.pop("stats")
 
     with patch(
-        "athena.model.adapters.lm_studio.urlopen",
+        "athena.model.adapters.lm_studio.open_local_request",
         return_value=_FakeResponse(payload),
     ):
         with pytest.raises(ProviderProtocolError, match="missing stats"):

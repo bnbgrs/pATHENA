@@ -113,7 +113,7 @@ INVALID_CASES = [
     pytest.param(*_case("source.process", "scope", "source_id", None, delete=True), id="process-source-required"),
     pytest.param(*_case("source.process", "scope", "extra", 1, add=True), id="process-scope-extra"),
     pytest.param(*_case("source.process", "scope", "source_id", "not-a-uuid"), id="process-source-uuid"),
-    pytest.param(*_case("source.process", "scope", "source_id", SOURCE_ID.upper()), id="process-source-canonical-uuid"),
+    pytest.param(*_case("source.process", "scope", "source_id", SOURCE_ID.replace("-", "")), id="process-source-canonical-uuid"),
     pytest.param(*_case("source.process", "scope", "research_work_item_id", "bad", add=True), id="process-research-uuid"),
     pytest.param(*_case("source.process", "config", None, None), id="process-config-required"),
     pytest.param(*_case("source.process", "config", "pipeline_version", None, delete=True), id="process-config-missing"),

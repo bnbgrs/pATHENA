@@ -36,7 +36,7 @@ def test_job_cli_survives_process_restarts_and_checkpoints(tmp_path) -> None:
         "--scope-json",
         '{"source_id":"11111111-1111-4111-8111-111111111111"}',
         "--config-json",
-        '{"pipeline_version":1}',
+        '{"pipeline_version":"source-process-v2","text_parser":"athena.native_text@1","pdf_parser":"test.pdf@1","docx_parser":"test.docx@1","html_parser":"test.html@1","chunking_profile":"default","chunk_batch_size":32,"embedding_policy":"deferred"}',
     )
     assert created.returncode == 0, created.stderr
     match = _UUID_RE.search(created.stdout)

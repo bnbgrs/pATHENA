@@ -252,7 +252,105 @@ def test_windows_route_uses_write_through_primitive(
     assert called == [(source, destination)]
 
 
-@pytest.mark.skipif(os.name != "nt", reason="Windows MoveFileExW behavior")
+def test_windows_replace_binds_source_and_destination_parent_handles(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = tmp_path / "source.partial"
+    destination = tmp_path / "destination.bin"
+    source.write_bytes(b"payload")
+    opened: list[tuple[Path, int, bool, bool]] = []
+    renamed: list[tuple[int, int, str, bool]] = []
+    closed: list[int] = []
+
+    def open_bound(
+        path: Path,
+        *,
+        access: int,
+        require_directory: bool,
+        write_through: bool = False,
+    ) -> int:
+        opened.append((Path(path), access, require_directory, write_through))
+        return 101 if Path(path) == source else 202
+
+    def rename_relative(
+        source_handle: int,
+        destination_parent_handle: int,
+        destination_name: str,
+        *,
+        replace_existing: bool,
+    ) -> None:
+        renamed.append(
+            (
+                source_handle,
+                destination_parent_handle,
+                destination_name,
+                replace_existing,
+            )
+        )
+
+    monkeypatch.setattr(durable_fs, "_windows_open_bound_handle", open_bound)
+    monkeypatch.setattr(durable_fs, "_windows_rename_relative", rename_relative)
+    monkeypatch.setattr(durable_fs, "_windows_close_handle", closed.append)
+
+    durable_fs._windows_replace_write_through(source, destination)
+
+    assert opened == [
+        (
+            source,
+            durable_fs._DELETE | durable_fs._FILE_READ_ATTRIBUTES,
+            False,
+            True,
+        ),
+        (tmp_path, durable_fs._FILE_READ_ATTRIBUTES, True, False),
+    ]
+    assert renamed == [(101, 202, "destination.bin", True)]
+    assert closed == [202, 101]
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows HANDLE-bound rename behavior")
+def test_windows_handle_bound_replace_cannot_redirect_to_replaced_parent(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_parent = tmp_path / "source-parent"
+    destination_parent = tmp_path / "destination-parent"
+    source_parent.mkdir()
+    destination_parent.mkdir()
+    source = source_parent / "payload.partial"
+    destination = destination_parent / "payload.bin"
+    source.write_bytes(b"trusted")
+
+    displaced_parent = tmp_path / "destination-parent-original"
+    real_rename_relative = durable_fs._windows_rename_relative
+
+    def race_then_rename(
+        source_handle: int,
+        destination_parent_handle: int,
+        destination_name: str,
+        *,
+        replace_existing: bool,
+    ) -> None:
+        destination_parent.rename(displaced_parent)
+        destination_parent.mkdir()
+        (destination_parent / destination_name).write_bytes(b"attacker")
+        real_rename_relative(
+            source_handle,
+            destination_parent_handle,
+            destination_name,
+            replace_existing=replace_existing,
+        )
+
+    monkeypatch.setattr(durable_fs, "_windows_rename_relative", race_then_rename)
+
+    durable_fs._windows_replace_write_through(source, destination)
+
+    assert not source.exists()
+    assert (displaced_parent / destination.name).read_bytes() == b"trusted"
+    assert destination.read_bytes() == b"attacker"
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows HANDLE-bound rename behavior")
 def test_windows_write_through_replaces_existing_file(tmp_path: Path) -> None:
     source = tmp_path / "source.partial"
     destination = tmp_path / "destination.bin"
@@ -265,7 +363,7 @@ def test_windows_write_through_replaces_existing_file(tmp_path: Path) -> None:
 
 @pytest.mark.skipif(
     os.name != "nt",
-    reason="Windows MoveFileExW durable directory creation",
+    reason="Windows HANDLE-bound durable directory creation",
 )
 def test_windows_durable_mkdir_creates_nested_tree(tmp_path: Path) -> None:
     target = tmp_path / "first" / "second" / "third"

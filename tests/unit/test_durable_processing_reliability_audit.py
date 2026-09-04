@@ -23,9 +23,16 @@ def _capture_source(app: AthenaApplication, path: Path, text: str):
 def test_hundred_queued_jobs_survive_restart_without_loss(tmp_path) -> None:
     root = tmp_path / "runtime"
     first = _app(root)
-    job_ids = {
-        first.jobs.create(job_type="integrity.sweep").job_id for _ in range(100)
-    }
+    job_ids = set()
+    for index in range(100):
+        source = _capture_source(
+            first,
+            tmp_path / f"queued-{index}.md",
+            f"ATHENA durable queued restart marker {index}.\n",
+        )
+        job_ids.add(
+            first.source_processing.enqueue(source.source_id).job_id
+        )
     assert len(job_ids) == 100
     first.stop()
 
@@ -39,7 +46,12 @@ def test_hundred_queued_jobs_survive_restart_without_loss(tmp_path) -> None:
 
 def test_retry_schedule_is_idempotent_for_competing_schedulers(tmp_path) -> None:
     app = _app(tmp_path / "runtime")
-    job = app.jobs.create(job_type="embedding.rebuild")
+    source = _capture_source(
+        app,
+        tmp_path / "retry-schedule.md",
+        "ATHENA retry schedule idempotency marker.\n",
+    )
+    job = app.source_processing.enqueue(source.source_id)
     leased = app.jobs.acquire(job.job_id, worker_id="retry-owner", lease_seconds=60)
     assert leased.lease_token is not None
     waiting = app.jobs.wait(

@@ -176,7 +176,7 @@ class EnablementRationaleController(QObject):
                 "Chat becomes available when the existing readiness checks report ready.",
             )
         if kind == "chat-model" and hasattr(widget, "count"):
-            count = getattr(widget, "count")
+            count = widget.count
             if callable(count) and count() == 0:
                 return (
                     "No local model is currently listed.",

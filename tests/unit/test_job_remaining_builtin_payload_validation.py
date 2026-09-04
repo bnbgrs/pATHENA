@@ -14,7 +14,7 @@ from athena.jobs.payload_validation import (
 )
 from athena.jobs.service import DurableJobService, InvalidJobPayloadError
 
-PROJECT_ID = str(uuid.UUID("11111111-1111-4111-8111-111111111111"))
+PROJECT_ID = str(uuid.UUID("abcdefab-1111-4111-8111-111111111111"))
 SOURCE_ID = str(uuid.UUID("22222222-2222-4222-8222-222222222222"))
 PayloadFactory = Callable[[], tuple[dict[str, Any], dict[str, Any]]]
 
@@ -41,7 +41,7 @@ def _research_exhaustive() -> tuple[dict[str, Any], dict[str, Any]]:
             "project_ids": [PROJECT_ID],
             "source_types": ["document", "web_snapshot"],
             "explicit_source_ids": [SOURCE_ID],
-            "time_start_us": 0,
+            "time_start_us": 1,
             "time_end_us": 1_000_000,
             "internet_scope": None,
             "coverage_target": 0.85,

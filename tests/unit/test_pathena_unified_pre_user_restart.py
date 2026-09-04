@@ -10,6 +10,7 @@ import pytest
 from athena.chat.generation import ChatGenerationService
 from athena.chat.grounded_recovery import GroundedRecoveryState, GroundedSendRecovery
 from athena.chat.repository import ChatRepository
+from athena.chat.send_operation import ChatSendOperationRepository
 from athena.chat.service import ChatService
 from athena.chat.unified_durable import build_unified_grounded_fingerprint
 from athena.chat.unified_resumable import UnifiedLocalChatService
@@ -222,6 +223,7 @@ def test_pre_user_plan_survives_rolled_back_user_transaction_and_retry(
     try:
         chat_id = ChatService(ChatRepository(database)).create_chat()
         fingerprint = _fingerprint(chat_id, content)
+        ChatSendOperationRepository(database)
         database.connection.execute(
             """
             CREATE TRIGGER fail_unified_user_operation

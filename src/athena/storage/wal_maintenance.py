@@ -12,6 +12,7 @@ from athena.storage.database import SQLiteDatabase
 from athena.storage.durable_fs import is_link_boundary
 
 CheckpointMode = Literal["PASSIVE", "TRUNCATE"]
+WalDiagnosisLevel = Literal["HEALTHY", "CHECKPOINTED", "BLOCKED", "ABNORMAL_GROWTH"]
 
 
 class WalMaintenanceError(RuntimeError):
@@ -173,6 +174,32 @@ class WalMaintenanceCycle:
         return self.checkpoint is not None and self.checkpoint.blocked
 
 
+@dataclass(frozen=True, slots=True)
+class WalMaintenanceDiagnosis:
+    """Stable diagnosis emitted by a scheduler-friendly maintenance tick."""
+
+    level: WalDiagnosisLevel
+    cycle: WalMaintenanceCycle
+    consecutive_blocked_cycles: int
+    consecutive_growth_cycles: int
+
+    def __post_init__(self) -> None:
+        if self.level not in {"HEALTHY", "CHECKPOINTED", "BLOCKED", "ABNORMAL_GROWTH"}:
+            raise ValueError("WAL maintenance diagnosis level is invalid.")
+        _nonnegative_int(
+            self.consecutive_blocked_cycles,
+            "WAL diagnosis consecutive_blocked_cycles",
+        )
+        _nonnegative_int(
+            self.consecutive_growth_cycles,
+            "WAL diagnosis consecutive_growth_cycles",
+        )
+
+    @property
+    def requires_attention(self) -> bool:
+        return self.level in {"BLOCKED", "ABNORMAL_GROWTH"}
+
+
 class WalMaintenanceService:
     """Observe WAL growth and invoke only SQLite-owned checkpoint primitives."""
 
@@ -235,6 +262,8 @@ class WalMaintenanceService:
         return self._checkpoint("TRUNCATE")
 
     def _checkpoint(self, mode: CheckpointMode) -> WalCheckpointResult:
+        if mode not in {"PASSIVE", "TRUNCATE"}:
+            raise WalMaintenanceError("WAL checkpoint mode must be PASSIVE or TRUNCATE.")
         connection = self.database.connection
         if connection.in_transaction:
             raise WalMaintenanceError(
@@ -258,4 +287,77 @@ class WalMaintenanceService:
             log_frames=log_frames,
             checkpointed_frames=checkpointed_frames,
             wal_size_after_bytes=wal_size,
+        )
+
+
+class WalMaintenanceOrchestrator:
+    """Classify periodic PASSIVE maintenance without escalating to TRUNCATE."""
+
+    def __init__(
+        self,
+        service: WalMaintenanceService,
+        *,
+        abnormal_size_multiplier: int = 4,
+        blocked_cycle_threshold: int = 3,
+        growth_cycle_threshold: int = 3,
+    ) -> None:
+        if not isinstance(service, WalMaintenanceService):
+            raise TypeError("WAL maintenance orchestrator requires WalMaintenanceService.")
+        self.service = service
+        self.abnormal_size_multiplier = _positive_int(
+            abnormal_size_multiplier,
+            "WAL abnormal_size_multiplier",
+        )
+        self.blocked_cycle_threshold = _positive_int(
+            blocked_cycle_threshold,
+            "WAL blocked_cycle_threshold",
+        )
+        self.growth_cycle_threshold = _positive_int(
+            growth_cycle_threshold,
+            "WAL growth_cycle_threshold",
+        )
+        self._previous_size_bytes: int | None = None
+        self._consecutive_blocked_cycles = 0
+        self._consecutive_growth_cycles = 0
+
+    def run_cycle(self) -> WalMaintenanceDiagnosis:
+        """Run one scheduler tick using PASSIVE checkpointing only."""
+        cycle = self.service.maintain_once()
+        size_after = cycle.status_after.size_bytes
+
+        if cycle.blocked:
+            self._consecutive_blocked_cycles += 1
+        else:
+            self._consecutive_blocked_cycles = 0
+
+        if self._previous_size_bytes is not None and size_after > self._previous_size_bytes:
+            self._consecutive_growth_cycles += 1
+        else:
+            self._consecutive_growth_cycles = 0
+        self._previous_size_bytes = size_after
+
+        abnormal_floor = (
+            cycle.status_after.autocheckpoint_bytes * self.abnormal_size_multiplier
+        )
+        sustained_blocking = (
+            self._consecutive_blocked_cycles >= self.blocked_cycle_threshold
+        )
+        sustained_growth = (
+            self._consecutive_growth_cycles >= self.growth_cycle_threshold
+        )
+
+        if size_after >= abnormal_floor and (sustained_blocking or sustained_growth):
+            level: WalDiagnosisLevel = "ABNORMAL_GROWTH"
+        elif cycle.blocked:
+            level = "BLOCKED"
+        elif cycle.attempted_checkpoint:
+            level = "CHECKPOINTED"
+        else:
+            level = "HEALTHY"
+
+        return WalMaintenanceDiagnosis(
+            level=level,
+            cycle=cycle,
+            consecutive_blocked_cycles=self._consecutive_blocked_cycles,
+            consecutive_growth_cycles=self._consecutive_growth_cycles,
         )

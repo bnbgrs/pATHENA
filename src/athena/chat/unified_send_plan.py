@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from typing import Any, cast
 
 from athena.chat.request_fingerprint import ChatRequestFingerprint
+from athena.chat.send_operation import ChatSendOperationRepository
 from athena.chat.unified_replay import (
     UnifiedReplayProjection,
     UnifiedReplayProjectionError,
@@ -311,6 +312,7 @@ class UnifiedSendPlanRepository:
 
     def __init__(self, database: SQLiteDatabase) -> None:
         self.database = database
+        self.operations = ChatSendOperationRepository(database)
         self.model_runs = ModelRunRepository(database)
         self._ensure_schema()
 

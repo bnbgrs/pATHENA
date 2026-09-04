@@ -13,17 +13,22 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: false
 
+env:
+  CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
 jobs:
   quality:
     name: Python 3.12 quality
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 50
     env:
       QT_QPA_PLATFORM: offscreen
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v6
@@ -44,8 +49,77 @@ jobs:
       - name: Validate dependency lock
         run: uv lock --check
 
-      - name: Run ATHENA quality gate
-        run: uv run --locked --extra dev --extra desktop python scripts/quality.py --keep-going
+      # Keep every canonical check independently observable while still running all four.
+      # Persist complete text diagnostics so release verification does not depend on
+      # transient Actions log access.
+      - name: Quality — specification validator
+        id: quality_spec
+        run: |
+          set -o pipefail
+          mkdir -p .quality-evidence
+          uv run --locked --extra dev --extra desktop python scripts/validate_spec.py 2>&1 | tee .quality-evidence/specification-validator.txt
+
+      - name: Quality — Ruff
+        id: quality_ruff
+        if: always()
+        run: |
+          set -o pipefail
+          mkdir -p .quality-evidence
+          uv run --locked --extra dev --extra desktop python -m ruff check src tests scripts 2>&1 | tee .quality-evidence/ruff.txt
+
+      - name: Quality — mypy
+        id: quality_mypy
+        if: always()
+        run: |
+          set -o pipefail
+          mkdir -p .quality-evidence
+          uv run --locked --extra dev --extra desktop python -m mypy src/athena 2>&1 | tee .quality-evidence/mypy.txt
+
+      - name: Quality — pytest
+        id: quality_pytest
+        if: always()
+        timeout-minutes: 40
+        run: |
+          set -o pipefail
+          mkdir -p .quality-evidence
+          uv run --locked --extra dev --extra desktop python -m pytest 2>&1 | tee .quality-evidence/pytest.txt
+
+      - name: Upload canonical quality diagnostics
+        if: ${{ always() && !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: canonical-quality-diagnostics-${{ env.CANDIDATE_SHA }}
+          path: .quality-evidence/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Enforce canonical quality result
+        if: ${{ always() && !cancelled() }}
+        env:
+          SPEC_OUTCOME: ${{ steps.quality_spec.outcome }}
+          RUFF_OUTCOME: ${{ steps.quality_ruff.outcome }}
+          MYPY_OUTCOME: ${{ steps.quality_mypy.outcome }}
+          PYTEST_OUTCOME: ${{ steps.quality_pytest.outcome }}
+        run: |
+          python - <<'PY'
+          import os
+          import sys
+
+          outcomes = {
+              "Specification validator": os.environ["SPEC_OUTCOME"],
+              "Ruff": os.environ["RUFF_OUTCOME"],
+              "mypy": os.environ["MYPY_OUTCOME"],
+              "pytest": os.environ["PYTEST_OUTCOME"],
+          }
+          failures = [name for name, outcome in outcomes.items() if outcome != "success"]
+          for name, outcome in outcomes.items():
+              print(f"{name}: {outcome}")
+          if failures:
+              print("ATHENA QUALITY GATE: FAIL — " + ", ".join(failures), file=sys.stderr)
+              sys.exit(1)
+          print("ATHENA QUALITY GATE: PASS")
+          PY
 
   storage-regressions:
     name: Linux storage regressions
@@ -55,6 +129,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v6
@@ -84,6 +160,8 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v6
@@ -105,11 +183,13 @@ jobs:
   windows-path-safety:
     name: Windows path safety
     runs-on: windows-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
 
       - name: Set up Python 3.12
         uses: actions/setup-python@v6

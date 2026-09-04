@@ -58,6 +58,11 @@ def record_deletion(
     deleted_by_actor_id: uuid.UUID,
 ) -> DeletionLedgerRecord:
     """Persist one idempotent payload-free permanent-deletion marker."""
+    if type(entity_type) is not str:
+        raise ValueError(
+            "Deletion entity_type must be a string."
+        )
+
     normalized_type = entity_type.strip()
 
     if not normalized_type:
@@ -65,14 +70,14 @@ def record_deletion(
             "Deletion entity_type must not be empty."
         )
 
-    if deleted_at_us < 0:
+    if type(deleted_at_us) is not int or deleted_at_us < 0:
         raise ValueError(
-            "Deletion timestamp must be non-negative."
+            "Deletion timestamp must be a non-negative integer."
         )
 
-    if deletion_commit_seq <= 0:
+    if type(deletion_commit_seq) is not int or deletion_commit_seq <= 0:
         raise ValueError(
-            "Deletion commit sequence must be positive."
+            "Deletion commit sequence must be a positive integer."
         )
 
     entity_blob = uuid_to_blob(
@@ -206,9 +211,9 @@ def read_deletion_records(
     DeletionLedgerRecord,
     ...,
 ]:
-    if after_seq < 0:
+    if type(after_seq) is not int or after_seq < 0:
         raise ValueError(
-            "Deletion ledger cursor must be non-negative."
+            "Deletion ledger cursor must be a non-negative integer."
         )
 
     rows = connection.execute(

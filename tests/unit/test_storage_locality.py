@@ -50,7 +50,7 @@ def test_windows_unverifiable_drive_is_rejected(drive_type: int) -> None:
 def test_linux_nfs_mount_is_rejected() -> None:
     mountinfo = "36 25 0:32 / / rw,relatime - ext4 /dev/root rw\n37 36 0:44 / /mnt/shared rw - nfs4 server:/data rw\n"
 
-    with pytest.raises(ActiveStateLocalityError, match="network filesystem \(nfs4\)"):
+    with pytest.raises(ActiveStateLocalityError, match=r"network filesystem \(nfs4\)"):
         assert_active_state_root_local(
             Path("/mnt/shared/ATHENA/state"),
             _platform_name="posix",
@@ -71,7 +71,7 @@ def test_linux_longest_mount_match_allows_local_nested_mount() -> None:
 def test_linux_mountinfo_escaped_space_is_matched() -> None:
     mountinfo = "36 25 0:32 / / rw - ext4 /dev/root rw\n37 36 0:44 / /mnt/network\\040share rw - cifs //server/share rw\n"
 
-    with pytest.raises(ActiveStateLocalityError, match="network filesystem \(cifs\)"):
+    with pytest.raises(ActiveStateLocalityError, match=r"network filesystem \(cifs\)"):
         assert_active_state_root_local(
             Path("/mnt/network share/ATHENA/state"),
             _platform_name="posix",

@@ -463,6 +463,7 @@ class SourceChunkingService:
                 chunking_profile_id=profile.chunking_profile_id,
                 expected_build_signature=build_signature,
                 expected_chunk_count=expected_chunk_count,
+                expected_inflight_run_id=run.processing_run_id,
             )
             finished = self.runs.finish_run(run.processing_run_id, status="succeeded")
         except Exception as exc:
@@ -480,7 +481,6 @@ class SourceChunkingService:
             build_signature=build_signature,
             chunk_count=published_count,
         )
-
 
     def verify_current_build(
         self,
@@ -505,6 +505,7 @@ class SourceChunkingService:
         chunking_profile_id: uuid.UUID,
         expected_build_signature: bytes,
         expected_chunk_count: int,
+        expected_inflight_run_id: uuid.UUID | None = None,
     ) -> int:
         """Stream-verify one exact current profile build against retained evidence."""
         representation, _blob = self.source_text.get(representation_id)
@@ -527,7 +528,11 @@ class SourceChunkingService:
         if current.chunk_count != expected_chunk_count:
             raise SourceChunkIntegrityError("Current SourceChunk count is incomplete.")
         run = self.runs.load_run(current.processing_run_id)
-        if run.status != "succeeded":
+        if run.status != "succeeded" and not (
+            expected_inflight_run_id is not None
+            and current.processing_run_id == expected_inflight_run_id
+            and run.status == "running"
+        ):
             raise SourceChunkIntegrityError(
                 "Current SourceChunk build references a non-succeeded ProcessingRun."
             )
@@ -580,6 +585,7 @@ class SourceChunkingService:
                 "Concatenated SourceChunks do not reproduce the retained representation hash."
             )
         return expected_index
+
     def _default_profile_for_representation(
         self,
         representation_id: uuid.UUID,
@@ -720,9 +726,9 @@ def _chunk_spans(
 
     spans: list[tuple[int, int]] = []
     chunk_start = units[0][0]
-    chunk_end = units[0][1]
+    chunk_end = units[0][0]
 
-    for unit_start, unit_end in units[1:]:
+    for unit_start, unit_end in units:
         if unit_start != chunk_end:
             raise SourceChunkIntegrityError("Chunking units are not contiguous.")
         proposed_length = unit_end - chunk_start

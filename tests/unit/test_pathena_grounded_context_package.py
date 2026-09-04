@@ -9,6 +9,7 @@ from athena.chat.grounded_context_package import (
     GroundedContextPackageRepository,
     GroundedContextPackageSchemaError,
 )
+from athena.chat.grounded_processing_run import bind_grounded_processing_run
 from athena.chat.grounded_provider_attempt import GroundedProviderAttemptRepository
 from athena.chat.grounded_recovery import GroundedRecoveryState, GroundedSendRecovery
 from athena.chat.grounded_send import GroundedProviderBoundaryError, GroundedSendCoordinator
@@ -16,7 +17,8 @@ from athena.chat.grounded_turn import GroundedUserTurnRepository
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
 from athena.common.ids import uuid_to_blob
-from athena.model.provenance import ModelSignature
+from athena.model.domain import ModelInfo
+from athena.model.provenance import ModelRunRepository, ModelSignature
 from athena.retrieval.context_package import (
     ContextIncludedRef,
     ContextPackageBudget,
@@ -56,8 +58,9 @@ def _package(
     revision_id: uuid.UUID,
     *,
     snapshot_commit_seq: int | None = None,
+    model_signature: ModelSignature | None = None,
 ):
-    signature = ModelSignature(
+    signature = model_signature or ModelSignature(
         model_signature_id=uuid.uuid4(),
         provider="lm_studio",
         model_identifier="primary",
@@ -124,6 +127,51 @@ def _package(
         ),
         snapshot_commit_seq=resolved_snapshot_commit_seq,
     )
+
+
+def _package_and_run(
+    database: SQLiteDatabase,
+    operation_id: uuid.UUID,
+    revision_id: uuid.UUID,
+    actor_id: uuid.UUID,
+):
+    model_runs = ModelRunRepository(database)
+    signature = model_runs.get_or_create_signature(
+        model=ModelInfo(
+            provider="lm_studio",
+            backend_model_id="primary",
+            display_name="primary",
+            model_type="llm",
+            context_capacity=32768,
+            quantization="Q4_K_M",
+            loaded=True,
+            vision=False,
+            trained_for_tool_use=False,
+            loaded_context_length=4096,
+        ),
+        generation_parameters={
+            "max_output_tokens": 1000,
+            "reasoning_mode": "off",
+        },
+        context_configuration={"mode": "unified_local_chat"},
+    )
+    package = _package(
+        database,
+        operation_id,
+        revision_id,
+        model_signature=signature,
+    )
+    run = model_runs.start_run(
+        run_type="chat.unified_local_context_package",
+        trigger_actor_id=actor_id,
+        pipeline_version="grounded-context-package-test-v1",
+        input_snapshot=package.run_snapshot(),
+        configuration={"mode": "unified_local_chat"},
+        model_signature_id=signature.model_signature_id,
+        prompt_template_id=None,
+        prompt_template_version=None,
+    )
+    return package, run.processing_run_id
 
 
 def _fingerprint(chat_id: uuid.UUID):
@@ -330,17 +378,31 @@ def test_recovery_rejects_result_missing_identity_when_context_is_pinned(tmp_pat
             content="hello",
             fingerprint=fingerprint,
         )
+        package, processing_run_id = _package_and_run(
+            database,
+            operation_id,
+            message.revision_id,
+            user,
+        )
         GroundedContextPackageRepository(database).store(
             operation_id=operation_id,
             chat_id=chat_id,
-            package=_package(database, operation_id, message.revision_id),
+            package=package,
+        )
+        bind_grounded_processing_run(
+            database,
+            operation_id=operation_id,
+            chat_id=chat_id,
+            processing_run_id=processing_run_id,
+            package=package,
+            trigger_actor_id=user,
         )
         provider = GroundedProviderAttemptRepository(database)
         provider.mark_started(operation_id=operation_id, chat_id=chat_id)
         provider.store_result(
             operation_id=operation_id,
             chat_id=chat_id,
-            processing_run_id=uuid.uuid4(),
+            processing_run_id=processing_run_id,
             assistant_content="answer",
             receipt_payload_json='{"assistant_text":"answer"}',
             provider_id="lm_studio",

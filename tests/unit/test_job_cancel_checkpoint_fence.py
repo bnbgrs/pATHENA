@@ -33,9 +33,16 @@ def test_cancel_requested_job_cannot_commit_new_checkpoint(
     )
 
     try:
-        job = app.jobs.create(
-            job_type="integrity.sweep",
-            requested_scope=None,
+        source_path = tmp_path / "cancel-checkpoint-source.txt"
+        source_path.write_text(
+            "Cancellation checkpoint fence evidence.",
+            encoding="utf-8",
+        )
+        captured = app.sources.capture_file(source_path)
+        # Use the production source-processing builder so this generic
+        # cancellation test starts with a fully valid durable job payload.
+        job = app.source_processing.enqueue(
+            captured.source.source_id,
         )
 
         running = app.jobs.acquire(

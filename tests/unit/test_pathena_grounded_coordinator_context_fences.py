@@ -5,8 +5,10 @@ from pathlib import Path
 
 import pytest
 
+from athena.chat.grounded_processing_run import bind_grounded_processing_run
 from athena.chat.grounded_recovery import GroundedRecoveryState
 from athena.chat.grounded_send import (
+    GroundedProviderBoundaryError,
     GroundedProviderContextError,
     GroundedSendCoordinator,
 )
@@ -18,6 +20,7 @@ from athena.model.domain import ModelInfo
 from athena.model.provenance import ModelRunRepository
 from athena.retrieval.context_package import (
     ContextIncludedRef,
+    ContextPackage,
     ContextPackageBudget,
     ContextPackageService,
     ContextSection,
@@ -136,6 +139,34 @@ def _package(
     )
 
 
+def _bind_processing_run(
+    database: SQLiteDatabase,
+    *,
+    operation_id: uuid.UUID,
+    chat_id: uuid.UUID,
+    trigger_actor_id: uuid.UUID,
+    package: ContextPackage,
+) -> None:
+    run = ModelRunRepository(database).start_run(
+        run_type="chat.unified_local_context_package",
+        trigger_actor_id=trigger_actor_id,
+        pipeline_version="coordinator-context-fence-test-v1",
+        input_snapshot=package.run_snapshot(),
+        configuration={"context_package_version": 1},
+        model_signature_id=package.model_signature.model_signature_id,
+        prompt_template_id="coordinator-context-fence-test",
+        prompt_template_version="1",
+    )
+    bind_grounded_processing_run(
+        database,
+        operation_id=operation_id,
+        chat_id=chat_id,
+        processing_run_id=run.processing_run_id,
+        package=package,
+        trigger_actor_id=trigger_actor_id,
+    )
+
+
 def _started(database: SQLiteDatabase):
     chats = ChatRepository(database)
     user = chats.create_actor(actor_type="user")
@@ -170,6 +201,13 @@ def test_coordinator_rejects_stale_snapshot_before_attempt(tmp_path: Path) -> No
             chat_id=chat_id,
             package=package,
         )
+        _bind_processing_run(
+            database,
+            operation_id=operation_id,
+            chat_id=chat_id,
+            trigger_actor_id=user,
+            package=package,
+        )
         other_chat_id = chats.create_chat(actor_id=user)
         ChatService(chats).add_user_message(
             chat_id=other_chat_id,
@@ -200,7 +238,7 @@ def test_coordinator_rejects_none_temperature_drift_before_attempt(tmp_path: Pat
     database = SQLiteDatabase(tmp_path / "athena.db")
     database.start()
     try:
-        _chats, _user, chat_id, operation_id, fingerprint, coordinator, started = _started(
+        _chats, user, chat_id, operation_id, fingerprint, coordinator, started = _started(
             database
         )
         package = _package(
@@ -214,10 +252,17 @@ def test_coordinator_rejects_none_temperature_drift_before_attempt(tmp_path: Pat
             chat_id=chat_id,
             package=package,
         )
+        _bind_processing_run(
+            database,
+            operation_id=operation_id,
+            chat_id=chat_id,
+            trigger_actor_id=user,
+            package=package,
+        )
 
         with pytest.raises(
-            GroundedProviderContextError,
-            match="durable ContextPackage",
+            GroundedProviderBoundaryError,
+            match="conflict; only resumable operations may begin a provider attempt",
         ):
             coordinator.begin_provider_attempt(
                 operation_id=operation_id,

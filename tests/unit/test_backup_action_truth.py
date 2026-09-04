@@ -41,6 +41,14 @@ def _select(
     workspace.snapshots.setCurrentItem(item)
 
 
+def _new_focus_workspace(monkeypatch: pytest.MonkeyPatch) -> BackupWorkspace:
+    # These tests exercise BackupActionTruth's focus handoff, not the workspace's
+    # constructor-triggered CLI refresh. Keep that zero-turn refresh from racing the
+    # synthetic list state established below.
+    monkeypatch.setattr(BackupWorkspace, "refresh", lambda _workspace: None)
+    return BackupWorkspace()
+
+
 def test_incomplete_snapshot_disables_verify_and_restore(qt_app: QApplication) -> None:
     workspace = BackupWorkspace()
     controller = install_backup_action_truth(workspace)
@@ -54,7 +62,7 @@ def test_incomplete_snapshot_disables_verify_and_restore(qt_app: QApplication) -
     assert not workspace.verify_button.isEnabled()
     assert not workspace.deep_verify_button.isEnabled()
     assert not workspace.restore_button.isEnabled()
-    assert "not complete" in workspace.restore_button.accessibleDescription()
+    assert "not a completed restore point" in workspace.restore_button.accessibleDescription()
     controller.deleteLater()
 
 
@@ -117,9 +125,13 @@ def test_base_reenable_cannot_expose_ineligible_snapshot_actions(
 
 def test_disabled_focused_restore_returns_to_snapshot_list_when_focus_is_unowned(
     qt_app: QApplication,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    workspace = BackupWorkspace()
+    workspace = _new_focus_workspace(monkeypatch)
     workspace.show()
+    workspace.activateWindow()
+    QApplication.setActiveWindow(workspace)
+    qt_app.processEvents()
     controller = install_backup_action_truth(workspace)
     _select(
         workspace,
@@ -127,6 +139,8 @@ def test_disabled_focused_restore_returns_to_snapshot_list_when_focus_is_unowned
         "complete",
         "verified_light",
     )
+    qt_app.processEvents()
+    assert workspace.restore_button.isEnabled()
     workspace.restore_button.setFocus()
     assert workspace.restore_button.hasFocus()
 
@@ -148,9 +162,13 @@ def test_disabled_focused_restore_returns_to_snapshot_list_when_focus_is_unowned
 
 def test_disabled_action_focus_return_preserves_newer_user_focus(
     qt_app: QApplication,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    workspace = BackupWorkspace()
+    workspace = _new_focus_workspace(monkeypatch)
     workspace.show()
+    workspace.activateWindow()
+    QApplication.setActiveWindow(workspace)
+    qt_app.processEvents()
     controller = install_backup_action_truth(workspace)
     _select(
         workspace,
@@ -158,6 +176,8 @@ def test_disabled_action_focus_return_preserves_newer_user_focus(
         "complete",
         "verified_deep",
     )
+    qt_app.processEvents()
+    assert workspace.restore_button.isEnabled()
     workspace.restore_button.setFocus()
     assert workspace.restore_button.hasFocus()
 

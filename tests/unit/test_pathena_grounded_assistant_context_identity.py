@@ -5,6 +5,7 @@ import uuid
 import pytest
 
 from athena.chat.grounded_assistant_turn import GroundedAssistantTurnRepository
+from athena.chat.grounded_processing_run import bind_grounded_processing_run
 from athena.chat.grounded_send import GroundedSendCoordinator
 from athena.chat.repository import ChatRepository
 from athena.chat.request_fingerprint import ChatSendMode, build_chat_request_fingerprint
@@ -156,6 +157,14 @@ def test_assistant_commit_rejects_identity_tampered_against_context_model(tmp_pa
             model_signature_id=package.model_signature.model_signature_id,
             prompt_template_id="assistant-context-identity-test",
             prompt_template_version="1",
+        )
+        bind_grounded_processing_run(
+            database,
+            operation_id=operation_id,
+            chat_id=chat_id,
+            processing_run_id=run.processing_run_id,
+            package=package,
+            trigger_actor_id=user,
         )
         coordinator.begin_provider_attempt(
             operation_id=operation_id,

@@ -148,11 +148,7 @@ class ResearchService:
 
         normalized_domains = _stable_strings(domains, field="domains")
         normalized_projects = _stable_uuids(project_ids)
-        if any(not isinstance(item, SourceType) for item in source_types):
-            raise ResearchConfigurationError(
-                "source_types must contain SourceType values only."
-            )
-        normalized_source_types = tuple(sorted({item.value for item in source_types}))
+        normalized_source_types = _stable_source_types(source_types)
         normalized_sources = _stable_uuids(explicit_source_ids)
         normalized_model = (
             requested_model_id.strip()
@@ -440,6 +436,10 @@ def _analysis_config_from_scope(
 
 
 def _stable_strings(values: Sequence[str], *, field: str) -> tuple[str, ...]:
+    if isinstance(values, (str, bytes, bytearray)) or not isinstance(values, Sequence):
+        raise ResearchConfigurationError(
+            f"{field} must be a sequence of text values."
+        )
     normalized: list[str] = []
     for value in values:
         if not isinstance(value, str):
@@ -453,9 +453,33 @@ def _stable_strings(values: Sequence[str], *, field: str) -> tuple[str, ...]:
     return tuple(sorted(set(normalized)))
 
 
-def _stable_uuids(values: Sequence[uuid.UUID]) -> tuple[uuid.UUID, ...]:
+def _stable_source_types(values: object) -> tuple[str, ...]:
+    if (
+        isinstance(values, (str, bytes, bytearray))
+        or not isinstance(values, Sequence)
+    ):
+        raise ResearchConfigurationError(
+            "source_types must be a sequence of SourceType values."
+        )
+    if any(not isinstance(item, SourceType) for item in values):
+        raise ResearchConfigurationError(
+            "source_types must contain SourceType values only."
+        )
+    return tuple(sorted({item.value for item in values}))
+
+
+def _stable_uuids(values: object) -> tuple[uuid.UUID, ...]:
+    if (
+        isinstance(values, (str, bytes, bytearray))
+        or not isinstance(values, Sequence)
+    ):
+        raise ResearchConfigurationError(
+            "Research UUID filters must be a sequence of UUID values."
+        )
     if any(not isinstance(item, uuid.UUID) for item in values):
-        raise ResearchConfigurationError("Research UUID filters must contain UUID values only.")
+        raise ResearchConfigurationError(
+            "Research UUID filters must contain UUID values only."
+        )
     return tuple(sorted(set(values), key=lambda item: item.bytes))
 
 

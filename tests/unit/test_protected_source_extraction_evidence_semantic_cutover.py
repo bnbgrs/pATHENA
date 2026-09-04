@@ -229,7 +229,43 @@ def _create_extraction(
 ):
     assert analysis.final_artifact_id is not None
 
-    job = app.jobs.create(job_type="source.extract")
+    signature = app.model_runs.load_signature(analysis.model_signature_id)
+    job = app.jobs.create(
+        job_type="source.extract",
+        requested_scope={
+            "analysis_id": str(analysis.analysis_id),
+            "final_artifact_id": str(analysis.final_artifact_id),
+        },
+        pinned_configuration={
+            "pipeline_version": "source-analysis-knowledge-extraction/3",
+            "model_id": "fake-primary",
+            "model_signature_id": str(analysis.model_signature_id),
+            "model_signature_sha256": signature.signature_hash.hex(),
+            "model": {"backend_model_id": "fake-primary"},
+            "effective_context_limit": 3000,
+            "provider_context_length": 3000,
+            "output_reserve": 300,
+            "safety_margin": 100,
+            "token_estimator": "utf8-bytes-div3-v1",
+            "max_hierarchy_depth": 12,
+            "prompt_template_id": "athena.source_analysis_knowledge_extraction_hierarchical",
+            "prompt_template_version": "6",
+            "source_extraction_schema_id": "athena_source_analysis_knowledge_extraction_v1",
+            "merge_schema_id": "athena_source_extraction_semantic_dedup_v3",
+            "pair_audit_schema_id": "athena_source_extraction_pair_batch_audit_v1",
+            "provider_transport": "fake-test-transport",
+            "reasoning_mode": "off",
+            "temperature": 0.0,
+            "top_p": 0.95,
+            "top_k": 40,
+            "min_p": 0.05,
+            "repeat_penalty": 1.1,
+            "store": False,
+            "structured_contract_version": "athena.controlled_structured_json/1",
+            "structured_validation": "athena_stage_parser_v1",
+            "provider_instance_policy": "initial_context_then_runtime_instance_reuse_v1",
+        },
+    )
     arguments = {
         "job_id": job.job_id,
         "analysis_id": analysis.analysis_id,

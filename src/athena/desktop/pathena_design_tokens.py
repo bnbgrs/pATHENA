@@ -1,6 +1,6 @@
 """Stable visual tokens for the shared pATHENA desktop foundation.
 
-This module is deliberately independent from Qt.  Screen implementations may
+This module is deliberately independent from Qt. Screen implementations may
 consume these values without importing the application shell or changing its
 controller and persistence contracts.
 """
@@ -15,33 +15,41 @@ from typing import Final
 
 @dataclass(frozen=True, slots=True)
 class Palette:
-    canvas: str = "#060606"
-    surface: str = "#080808"
-    surface_raised: str = "#0D0D0D"
-    surface_hover: str = "#15110E"
-    surface_selected: str = "#1A120E"
-    border: str = "#202020"
-    border_strong: str = "#34302C"
-    text: str = "#F4F1EC"
-    text_muted: str = "#A9A29A"
-    text_quiet: str = "#706B65"
-    accent: str = "#F26A21"
-    accent_hover: str = "#FF7A2D"
-    accent_pressed: str = "#D95413"
-    accent_soft: str = "#3A1B0C"
-    success: str = "#72B879"
-    warning: str = "#D5A34B"
-    error: str = "#D96B62"
+    """Reference-family colors shared by all pATHENA desktop surfaces."""
+
+    canvas: str = "#07101F"
+    surface: str = "#0A1425"
+    surface_raised: str = "#0F1B2E"
+    surface_hover: str = "#12213A"
+    surface_selected: str = "#132C52"
+    border: str = "#1B2A40"
+    border_strong: str = "#2B4261"
+    text: str = "#F5F7FB"
+    text_muted: str = "#AAB4C5"
+    text_subtle: str = "#8793A6"
+    text_quiet: str = "#657187"
+    accent: str = "#377DFF"
+    accent_hover: str = "#5A95FF"
+    accent_pressed: str = "#2869DB"
+    accent_soft: str = "#102C57"
+    success: str = "#4BC486"
+    info: str = "#4CC9D8"
+    question: str = "#A887FF"
+    warning: str = "#E2AD5A"
+    error: str = "#F0706A"
 
 
 @dataclass(frozen=True, slots=True)
 class Typography:
+    """Editorial display + restrained sans-serif application hierarchy."""
+
     content_family: str = '"Segoe UI Variable", "Segoe UI", sans-serif'
-    display_family: str = '"Segoe UI Variable Display", "Segoe UI", sans-serif'
+    display_family: str = '"Georgia", "Times New Roman", serif'
     metadata_family: str = '"Cascadia Mono", "Consolas", monospace'
     body_px: int = 14
     metadata_px: int = 11
-    title_px: int = 20
+    title_px: int = 34
+    section_px: int = 18
 
 
 @dataclass(frozen=True, slots=True)
@@ -52,6 +60,7 @@ class Spacing:
     md: int = 16
     lg: int = 24
     xl: int = 32
+    xxl: int = 40
     workspace_ratio: float = 0.618
 
 
@@ -59,7 +68,8 @@ class Spacing:
 class Radii:
     control: int = 6
     panel: int = 8
-    prominent: int = 10
+    prominent: int = 14
+    composer: int = 22
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,11 +79,23 @@ class Motion:
     deliberate_ms: int = 220
 
 
+@dataclass(frozen=True, slots=True)
+class ShellGeometry:
+    """Stable geometry derived from the eleven-screen reference family."""
+
+    top_bar_height: int = 60
+    icon_rail_width: int = 76
+    secondary_nav_width: int = 236
+    inspector_width: int = 360
+    composer_min_height: int = 58
+
+
 PALETTE: Final = Palette()
 TYPE: Final = Typography()
 SPACE: Final = Spacing()
 RADII: Final = Radii()
 MOTION: Final = Motion()
+SHELL: Final = ShellGeometry()
 
 _REDUCED_MOTION_KEYS: Final = (
     "PATHENA_REDUCED_MOTION",

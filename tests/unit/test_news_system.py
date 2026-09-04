@@ -44,7 +44,6 @@ def test_default_taxonomy_has_22_editable_categories_and_diverse_source_classes(
         app.stop()
 
 
-
 def test_web_discovery_keeps_only_same_host_article_candidates() -> None:
     payload = b"""<!doctype html><html><body>
     <nav><a href='/about'>About us</a></nav>
@@ -222,14 +221,6 @@ def test_discovery_capture_uses_web_snapshots_then_waits_for_research(tmp_path: 
 
         monkeypatch.setattr(app.external_access, "capture_url", fake_capture)
 
-        def fake_research(**_kwargs: object):
-            return app.jobs.create(
-                job_type="research.exhaustive",
-                requested_scope={"test": True},
-                pinned_configuration={"test": True},
-            )
-
-        monkeypatch.setattr(app.research, "enqueue_local", fake_research)
         job_id = news.queue_date("2026-08-15")
         leased = app.jobs.acquire(job_id, worker_id="test-news", lease_seconds=300)
         state = news.process_leased(leased)

@@ -51,6 +51,20 @@ class HealthResponse(ApiContract):
 
 
 @dataclass(frozen=True, slots=True)
+class StorageHealthResponse(ApiContract):
+    """Read-only storage facts observed by the running Core process."""
+
+    api_version: str
+    status: str
+    database_open: bool
+    database_path: str | None
+    database_size_bytes: int | None
+    wal_size_bytes: int | None
+    observed_at_us: int
+    detail: str | None
+
+
+@dataclass(frozen=True, slots=True)
 class CapabilitiesResponse(ApiContract):
     api_version: str
     features: tuple[str, ...]

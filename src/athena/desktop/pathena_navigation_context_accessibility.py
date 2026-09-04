@@ -3,7 +3,13 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QObject, Qt
-from PySide6.QtWidgets import QLabel, QListWidget, QStackedWidget, QWidget
+from PySide6.QtWidgets import QLabel, QListWidget, QListWidgetItem, QStackedWidget, QWidget
+
+
+def _workspace_label(item: QListWidgetItem) -> str:
+    """Resolve the human workspace name when navigation renders icon glyphs."""
+    tooltip = item.toolTip().strip()
+    return tooltip or item.text().strip()
 
 
 class NavigationContextAccessibility(QObject):
@@ -34,7 +40,7 @@ class NavigationContextAccessibility(QObject):
             return
 
         current_item = self.navigation.item(index)
-        current_label = current_item.text().strip()
+        current_label = _workspace_label(current_item)
         self.navigation.setProperty("pathenaCurrentWorkspace", current_label)
         self.navigation.setProperty("pathenaCurrentWorkspaceIndex", index)
         self.page_title.setAccessibleDescription(f"Current workspace: {current_label}.")
@@ -42,7 +48,7 @@ class NavigationContextAccessibility(QObject):
 
         for row in range(self.navigation.count()):
             item = self.navigation.item(row)
-            label = item.text().strip()
+            label = _workspace_label(item)
             current = row == index
             item.setData(Qt.ItemDataRole.AccessibleTextRole, label)
             item.setData(
@@ -52,13 +58,16 @@ class NavigationContextAccessibility(QObject):
             item.setData(Qt.ItemDataRole.StatusTipRole, "Current workspace" if current else "")
 
         page = self.pages.widget(index)
-        page.setAccessibleName(current_label)
-        page.setAccessibleDescription(f"{current_label} workspace content.")
-        page.setProperty("pathenaCurrentWorkspace", True)
+        if page is not None:
+            page.setAccessibleName(current_label)
+            page.setAccessibleDescription(f"{current_label} workspace content.")
+            page.setProperty("pathenaCurrentWorkspace", True)
         for row in range(self.pages.count()):
             if row == index:
                 continue
-            self.pages.widget(row).setProperty("pathenaCurrentWorkspace", False)
+            other_page = self.pages.widget(row)
+            if other_page is not None:
+                other_page.setProperty("pathenaCurrentWorkspace", False)
 
 
 def install_navigation_context_accessibility(

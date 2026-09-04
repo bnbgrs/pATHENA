@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import pytest
+
 from athena.common.time import utc_now_us
 from athena.config.settings import AthenaSettings
 from athena.core.application import AthenaApplication
@@ -15,6 +17,7 @@ from athena.jobs.scheduler import (
     SchedulerLane,
     SchedulerPolicy,
 )
+from athena.jobs.service import InvalidJobPayloadError
 from athena.model.adapters.lm_studio import ProviderUnavailableError
 from athena.news.models import NEWS_JOB_TYPE, NEWS_PERIOD_JOB_TYPE
 from athena.resources.manager import AdmissionDecision
@@ -83,6 +86,25 @@ def _capture_source(app: AthenaApplication, path: Path, text: str):
     return app.sources.capture_file(path).source
 
 
+def _create_embedding_job(
+    app: AthenaApplication,
+    *,
+    priority: JobPriority = JobPriority.NORMAL,
+):
+    return app.jobs.create(
+        job_type="embedding.rebuild",
+        priority=priority,
+        requested_scope={"index_kind": "archive_source_chunks"},
+        pinned_configuration={
+            "batch_size": 1,
+            "index_kind": "archive_source_chunks",
+            "model_id": "scheduler-test-embed",
+            "pipeline_version": "archive-embedding-rebuild-v1",
+            "target_chunk_generation": 0,
+        },
+    )
+
+
 def _embedding_scheduler(
     app: AthenaApplication,
     provider,
@@ -124,27 +146,19 @@ def test_scheduler_dispatches_source_process_to_completion(tmp_path) -> None:
     app.stop()
 
 
-def test_scheduler_ignores_registered_job_types_without_dispatcher(tmp_path) -> None:
+def test_non_executable_registered_job_type_is_rejected_before_scheduler(tmp_path) -> None:
     app = _app(tmp_path / "runtime")
-    unsupported = app.jobs.create(
-        job_type="integrity.sweep",
-        priority=JobPriority.DATA_SAFETY,
-    )
-    source = _capture_source(
-        app,
-        tmp_path / "supported.md",
-        "Supported scheduler source.\n",
-    )
-    supported = app.source_processing.enqueue(
-        source.source_id,
-        priority=JobPriority.NORMAL,
-    )
-
-    tick = app.job_scheduler.tick(worker_id="scheduler-a")
-
-    assert tick.selected_job_id == supported.job_id
-    assert app.jobs.get(unsupported.job_id).state is JobState.QUEUED
-    app.stop()
+    try:
+        with pytest.raises(
+            InvalidJobPayloadError,
+            match="has no executable durable worker and cannot be persisted",
+        ):
+            app.jobs.create(
+                job_type="integrity.sweep",
+                priority=JobPriority.DATA_SAFETY,
+            )
+    finally:
+        app.stop()
 
 
 def test_fairness_aging_promotes_old_background_work_but_not_to_p0(tmp_path) -> None:
@@ -265,7 +279,7 @@ def test_network_wait_gets_backoff_wakes_due_and_exhausts_retry_budget(tmp_path)
 
 def test_scheduler_repairs_waiter_if_process_died_before_backoff_was_assigned(tmp_path) -> None:
     app = _app(tmp_path / "runtime")
-    job = app.jobs.create(job_type="embedding.rebuild")
+    job = _create_embedding_job(app)
     leased = app.jobs.acquire(job.job_id, worker_id="worker", lease_seconds=60)
     assert leased.lease_token is not None
     app.jobs.wait(
@@ -285,13 +299,35 @@ def test_scheduler_repairs_waiter_if_process_died_before_backoff_was_assigned(tm
     assert repaired.retry_count == 1
     app.stop()
 
+
 def test_due_dependency_parent_does_not_starve_queued_child(tmp_path) -> None:
     app = _app(tmp_path / "runtime")
     parent = app.jobs.create(
         job_type="research.exhaustive",
         priority=JobPriority.BACKGROUND,
-        requested_scope={"mode": "regression-test"},
-        pinned_configuration={"pipeline": "regression-test"},
+        requested_scope={
+            "mode": "local_exhaustive",
+            "query": "dependency scheduling regression",
+            "domains": [],
+            "project_ids": [],
+            "source_types": [],
+            "explicit_source_ids": [],
+            "time_start_us": None,
+            "time_end_us": None,
+            "internet_scope": None,
+            "coverage_target": 1.0,
+        },
+        pinned_configuration={
+            "pipeline_version": "exhaustive-research-orchestration-v2",
+            "snapshot_commit_seq": 0,
+            "coverage_formula_id": "eligible-success-or-irrelevant-v1",
+            "candidate_dedup_id": "source-content-sha256-v1",
+            "requested_model_id": None,
+            "context_limit": None,
+            "output_reserve": None,
+            "safety_margin": None,
+            "max_hierarchy_depth": 1,
+        },
     )
     source = _capture_source(
         app,
@@ -342,6 +378,7 @@ def test_due_dependency_parent_does_not_starve_queued_child(tmp_path) -> None:
     assert queued_parent.state is JobState.QUEUED
     assert queued_parent.next_run_at_us == due_at
     app.stop()
+
 
 def test_running_gpu_job_yields_at_next_boundary_for_interactive_chat(
     tmp_path,
@@ -402,13 +439,14 @@ def test_running_gpu_job_yields_at_next_boundary_for_interactive_chat(
     assert app.jobs.get(job.job_id).state is JobState.COMPLETED
     app.stop()
 
+
 def test_control_lane_skips_provider_bound_jobs(
     tmp_path,
 ) -> None:
     app = _app(tmp_path / "control-lane-runtime")
     try:
-        provider_job = app.jobs.create(
-            job_type="embedding.rebuild",
+        provider_job = _create_embedding_job(
+            app,
             priority=JobPriority.DATA_SAFETY,
         )
         source = _capture_source(
@@ -488,6 +526,7 @@ def test_provider_lane_skips_control_jobs(
     finally:
         app.stop()
 
+
 def test_news_jobs_are_provider_lane_only(
     tmp_path,
 ) -> None:
@@ -506,6 +545,7 @@ def test_news_jobs_are_provider_lane_only(
         assert NEWS_PERIOD_JOB_TYPE not in control_types
     finally:
         app.stop()
+
 
 def test_provider_lane_skips_global_housekeeping(
     tmp_path,
@@ -612,6 +652,7 @@ def test_worker_start_can_skip_global_startup_maintenance(
         assert app.news.profile()["name"] == "default"
     finally:
         app.stop()
+
 
 def test_future_supported_job_type_fails_closed_to_provider_lane(
     tmp_path,
