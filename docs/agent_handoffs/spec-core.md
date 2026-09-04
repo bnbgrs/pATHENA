@@ -2,9 +2,9 @@
 
 ## Current baseline
 
-- Shared baseline: `develop/pathena-next@fefe26b9fdc972b5e6950cd535397eae1067d5ea`.
+- Shared baseline: `develop/pathena-next@0b7f428f8679db9391c00b4b9638d85550332c43`.
 - Worker branch: `postmerge/spec-core`.
-- History-preserving NON-FORCE sync merge: `c3e67ae74c10c1b3fa33f67c41e5698c87f50287`, parents `0948f3e432f9b909cae01711a5fd6beaf4dffc8b` and `fefe26b9fdc972b5e6950cd535397eae1067d5ea`.
+- History-preserving NON-FORCE sync merge: `0bbec37d359b97bc106aa1c6f1ae9aaa01dd43fc`, parents `5e5461a6c0a0a2f2e522d76f48a3870ca8414635` and `0b7f428f8679db9391c00b4b9638d85550332c43`.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Spec anchors
@@ -19,41 +19,42 @@ Primary source: `docs/beta/11_Exhaustive_Research.md` §§35-39 and §§49-52.
 
 ## Verified predecessor slice
 
-Storage-ready per-source payload composition is verified and READY:
+Reserved ResearchResult source-coverage content is verified and READY:
 
-- product: `4c5b1364bce18f572c949f3134df7d9b61947242`
-- focused tests: `27e3f3e444e9caf164f6a34c82b4dc041950be38`
-- exact green worker head: `0948f3e432f9b909cae01711a5fd6beaf4dffc8b`
-- canonical Quality: `33882785879 = success`
+- product: `4418162af598e7ac2e2e8ea6c843c1f41808600b`
+- focused tests: `b93b3255e4ce9eed53bde34866290f3a6e414be9`
+- exact green worker head: `5e5461a6c0a0a2f2e522d76f48a3870ca8414635`
+- canonical Quality: `33888920061 = success`
 
-The verified helper derives deterministic source coverage only from real `ResearchCandidateRecord` / `ResearchWorkItemRecord` identity and delegates arithmetic to `SourceCoverage.result_payload()`.
+The verified helper owns the `source_coverage` result key, rejects semantic override attempts, and derives deterministic payloads only from real `ResearchCandidateRecord` / `ResearchWorkItemRecord` identity.
 
-## Current product slice — reserved ResearchResult source-coverage content
+## Current product slice — transaction-bound source-coverage composition
 
-Product commit: `4418162af598e7ac2e2e8ea6c843c1f41808600b`.
-Focused-test commit: `b93b3255e4ce9eed53bde34866290f3a6e414be9`.
-Status: `IMPLEMENTED / EXACT QUALITY PENDING`.
+Product commit: `03e91df28a7f23fdd23d060a6979d6b0f33a90ff`.
+Focused-test commit: `6ca37ab0e7bffd745c3cc1766be9a4c176b51158`.
+Status: `IMPLEMENTED / EXACT QUALITY PENDING` (`33894871215`).
 
-`src/athena/research/source_coverage_composition.py` now defines the Core-owned result key `source_coverage` and `research_result_content_with_source_coverage()`.
+`src/athena/research/source_coverage_composition.py` now adds `research_result_content_with_source_coverage_from_connection()`.
 
 Contract:
 
-- semantic/model content cannot override the Core-owned `source_coverage` key;
-- payloads are computed from real Candidate/Work records, not caller-supplied counters;
-- source identity and formula identity are retained;
-- failed/unavailable units remain visible but do not count as coverage-positive;
-- semantic fields are preserved unchanged;
+- composition reads Candidate and Work rows through the caller-provided SQLite connection, so final wiring can use the same fenced transaction as `ResearchRepository.finalize_result_fenced()`;
+- Candidate rows are scope-bound through `research_candidate_sets`; Work rows are restricted by exact `scope_id`;
+- row mapping reuses canonical `_candidate_from_row()` / `_work_item_from_row()` contracts rather than reconstructing domain state independently;
+- source identity, terminal state, exclusion state and stable ordering remain real persisted data;
+- failed/unavailable units remain visible and never coverage-positive;
+- semantic/model content still cannot override the Core-owned `source_coverage` key;
 - no schema, transaction, snapshot, recovery, fence, provider, transport, security, provenance, PALLAS, or UI behavior is broadened.
 
-Focused tests lock deterministic truthful payload insertion and fail-closed semantic override rejection.
+Focused acceptance coverage uses a real SQLite connection with two scopes and proves that only rows from the requested scope enter the resulting source-coverage payload.
 
 ## Repository finalization trace / bounded remaining gap
 
-`ResearchRepository.finalize_result_fenced()` currently reserves only `coverage`, `problem_sources`, and `snapshot_commit_seq`, then constructs `ResearchResult.content_json` inside the fenced write transaction. It does not yet insert `source_coverage`.
+`ResearchRepository.finalize_result_fenced()` still reserves only `coverage`, `problem_sources`, and `snapshot_commit_seq`, then constructs `ResearchResult.content_json` inside its fenced write transaction. It does not yet insert `source_coverage`.
 
-The exact repository blob on the synchronized worker is `142c98f8ada90d5ea7266a5a8aeeb83bffe618dc`. The available authenticated existing-file mutation action accepts complete-file replacement only, while full `repository.py` retrieval is truncated by the connector response budget. Reconstructing this large persistence file from partial ranges would violate the Core safety rule and risk overwriting foreign work. Local checkout was also attempted this run and failed DNS resolution. Therefore this run did not perform an unsafe repository reconstruction.
+The previous truncated-read blocker is no longer valid: this run retrieved the complete exact repository blob `142c98f8ada90d5ea7266a5a8aeeb83bffe618dc` through the authenticated GitHub blob path and traced the exact finalization transaction. Local checkout still fails transient DNS resolution. The available authenticated `update_file` mutation is complete-file replacement only, so the 110260-byte repository file was not rewritten merely to add the final import/call/reserved-key delta. Instead this run moved the transaction-sensitive SQL and canonical row mapping into a bounded tested Core helper, reducing the eventual large-file mutation to the smallest possible wiring delta.
 
-This blocker is narrowed to the final wiring only: the reserved-field composition contract itself is now real code plus focused acceptance tests. The next run must use a non-truncating authenticated blob/patch path to insert the already-bounded call into `finalize_result_fenced()`, or move to another disjoint Core gap if that mutation primitive remains unavailable.
+The remaining repository delta is now strictly bounded: import `SOURCE_COVERAGE_RESULT_KEY` plus `research_result_content_with_source_coverage_from_connection`, add the key to the existing reserved set, and initialize the payload from that helper inside the already-open fenced transaction before adding global coverage/problem/snapshot fields. No duplicate arithmetic or secondary connection is required.
 
 ## Ownership / collision avoidance
 
@@ -63,10 +64,10 @@ This blocker is narrowed to the final wiring only: the reserved-field compositio
 
 ## Integrator handoff
 
-READY predecessor: storage-ready source coverage helper at `0948f3e432f9b909cae01711a5fd6beaf4dffc8b`, Quality `33882785879 = success`.
+READY predecessor: reserved ResearchResult source-coverage content at `5e5461a6c0a0a2f2e522d76f48a3870ca8414635`, Quality `33888920061 = success`.
 
-NOT READY current slice until exact canonical Quality for the product-containing head is green. Integrator should review `4418162af598e7ac2e2e8ea6c843c1f41808600b` + `b93b3255e4ce9eed53bde34866290f3a6e414be9` only after that exact verification.
+NOT READY current transaction-bound composition until exact canonical Quality `33894871215` on `6ca37ab0e7bffd745c3cc1766be9a4c176b51158` is green. Integrator should review `03e91df28a7f23fdd23d060a6979d6b0f33a90ff` + `6ca37ab0e7bffd745c3cc1766be9a4c176b51158` only after that exact verification.
 
 ## Next Alpha/Beta gap
 
-Consume exact Quality for the current reserved-field composition. If green, wire `research_result_content_with_source_coverage()` into `ResearchRepository.finalize_result_fenced()` using real scope Candidate/Work rows inside the existing fenced transaction, add `source_coverage` to the repository-owned reserved set, persist it in `ResearchResult.content_json`, and run the smallest ResearchResult/repository regressions plus canonical Quality. Preserve idempotent existing-result behavior, snapshot fencing, failed/unavailable visibility, provenance, and schema.
+Consume exact Quality `33894871215`. If green, hand the transaction-bound composition READY and apply the now-minimal `ResearchRepository.finalize_result_fenced()` wiring: reserve `source_coverage`, call `research_result_content_with_source_coverage_from_connection()` with the existing fenced transaction connection and exact scope, preserve global coverage/problem/snapshot composition plus existing-result idempotency, then run focused ResearchResult/repository regressions and canonical Quality. If complete-file repository mutation remains the only authenticated write primitive and cannot be safely performed, do not repeat that blocker unchanged; move to the next disjoint evidence-backed Core gap.
