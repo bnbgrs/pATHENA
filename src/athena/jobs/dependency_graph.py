@@ -5,13 +5,18 @@ from __future__ import annotations
 import sqlite3
 import uuid
 from collections.abc import Iterable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 
-from athena.common.ids import uuid_from_blob, uuid_to_blob
+from athena.common.ids import new_uuid7, uuid_from_blob, uuid_to_blob
 from athena.common.time import utc_now_us
-from athena.jobs.models import JobPriority, JobState, WaitingReason
-from athena.jobs.repository import JobNotFoundError, JobRepository
+from athena.jobs.models import JobPriority, JobRecord, JobState, WaitingReason
+from athena.jobs.repository import (
+    JobNotFoundError,
+    JobRepository,
+    _job_from_row,
+    _require_unprotected_job_dependencies,
+)
 
 _MAX_DIRECT_DEPENDENCIES = 64
 _MAX_GRAPH_DEPTH = 32
@@ -71,13 +76,83 @@ class JobDependencyGraph:
         depends_on_job_ids: Iterable[uuid.UUID],
     ) -> tuple[uuid.UUID, ...]:
         dependencies = _normalized_ids(depends_on_job_ids)
-        with self.database.connection as connection:
+        connection = self.database.connection
+        self._require_integrity(connection)
+        if parent_job_id is not None:
+            self._require_job(connection, parent_job_id)
+        for dependency_id in dependencies:
+            self._require_job(connection, dependency_id)
+        return dependencies
+
+    def create_job(
+        self,
+        *,
+        job_type: str,
+        actor_id: uuid.UUID,
+        priority: JobPriority,
+        requested_scope_json: str | None,
+        pinned_configuration_json: str | None,
+        next_run_at_us: int | None,
+        parent_job_id: uuid.UUID | None,
+        parent_completion_policy: ParentCompletionPolicy,
+        child_cancellation_policy: ChildCancellationPolicy,
+        depends_on_job_ids: Iterable[uuid.UUID],
+    ) -> JobRecord:
+        """Persist one job and every graph edge in one write transaction."""
+        dependencies = _normalized_ids(depends_on_job_ids)
+        completion_policy = _completion_policy(parent_completion_policy)
+        cancellation_policy = _cancellation_policy(child_cancellation_policy)
+        job_id = new_uuid7()
+        now = utc_now_us()
+
+        with self.database.write_transaction() as connection:
             self._require_integrity(connection)
+            self.repository._require_active_actor(connection, actor_id)
+            _require_unprotected_job_dependencies(connection, requested_scope_json)
             if parent_job_id is not None:
                 self._require_job(connection, parent_job_id)
             for dependency_id in dependencies:
                 self._require_job(connection, dependency_id)
-        return dependencies
+
+            connection.execute(
+                """
+                INSERT INTO jobs (
+                    job_id, job_type, created_at_us, created_by_actor_id,
+                    priority, state, requested_scope_json, processing_run_id,
+                    current_stage, last_checkpoint_id, retry_count,
+                    next_run_at_us, blocked_reason, pinned_configuration_json,
+                    protection_scope_id, protected_payload_id, worker_id,
+                    lease_token, lease_acquired_at_us, lease_expires_at_us,
+                    heartbeat_at_us, fencing_sequence, updated_at_us
+                ) VALUES (
+                    ?, ?, ?, ?, ?, 'queued', ?, NULL,
+                    NULL, NULL, 0, ?, NULL, ?,
+                    NULL, NULL, NULL, NULL, NULL, NULL,
+                    NULL, 0, ?
+                )
+                """,
+                (
+                    uuid_to_blob(job_id),
+                    job_type,
+                    now,
+                    uuid_to_blob(actor_id),
+                    int(priority),
+                    requested_scope_json,
+                    next_run_at_us,
+                    pinned_configuration_json,
+                    now,
+                ),
+            )
+            self._configure_in_transaction(
+                connection,
+                job_id,
+                parent_job_id=parent_job_id,
+                parent_completion_policy=completion_policy,
+                child_cancellation_policy=cancellation_policy,
+                depends_on_job_ids=dependencies,
+                now_us=now,
+            )
+        return self.repository.get(job_id)
 
     def configure(
         self,
@@ -92,62 +167,83 @@ class JobDependencyGraph:
         completion_policy = _completion_policy(parent_completion_policy)
         cancellation_policy = _cancellation_policy(child_cancellation_policy)
         now = utc_now_us()
-
         with self.database.write_transaction() as connection:
-            self._require_integrity(connection)
-            self._require_graph_editable_job(connection, job_id)
-            if parent_job_id is not None:
-                self._require_job(connection, parent_job_id)
-                if parent_job_id == job_id:
-                    raise JobGraphError("A job cannot be its own parent.")
-            for dependency_id in dependencies:
-                self._require_job(connection, dependency_id)
-                if dependency_id == job_id:
-                    raise JobGraphError("A job cannot depend on itself.")
-
-            dependency_graph = self._dependency_adjacency(connection)
-            dependency_graph[job_id] = set(dependencies)
-            self._assert_acyclic_from(job_id, dependency_graph, label="dependency")
-
-            parent_graph = self._parent_adjacency(connection)
-            parent_graph[job_id] = set() if parent_job_id is None else {parent_job_id}
-            self._assert_acyclic_from(job_id, parent_graph, label="parent")
-
-            connection.execute(
-                "DELETE FROM job_dependencies WHERE job_id = ?",
-                (uuid_to_blob(job_id),),
+            self._configure_in_transaction(
+                connection,
+                job_id,
+                parent_job_id=parent_job_id,
+                parent_completion_policy=completion_policy,
+                child_cancellation_policy=cancellation_policy,
+                depends_on_job_ids=dependencies,
+                now_us=now,
             )
-            for dependency_id in dependencies:
-                connection.execute(
-                    """
-                    INSERT INTO job_dependencies(job_id, depends_on_job_id, created_at_us)
-                    VALUES (?, ?, ?)
-                    """,
-                    (uuid_to_blob(job_id), uuid_to_blob(dependency_id), now),
-                )
 
+    def _configure_in_transaction(
+        self,
+        connection: sqlite3.Connection,
+        job_id: uuid.UUID,
+        *,
+        parent_job_id: uuid.UUID | None,
+        parent_completion_policy: ParentCompletionPolicy,
+        child_cancellation_policy: ChildCancellationPolicy,
+        depends_on_job_ids: tuple[uuid.UUID, ...],
+        now_us: int,
+    ) -> None:
+        if not connection.in_transaction:
+            raise RuntimeError("Job graph configuration requires an active transaction.")
+        self._require_integrity(connection)
+        self._require_graph_editable_job(connection, job_id)
+        if parent_job_id is not None:
+            self._require_job(connection, parent_job_id)
+            if parent_job_id == job_id:
+                raise JobGraphError("A job cannot be its own parent.")
+        for dependency_id in depends_on_job_ids:
+            self._require_job(connection, dependency_id)
+            if dependency_id == job_id:
+                raise JobGraphError("A job cannot depend on itself.")
+
+        dependency_graph = self._dependency_adjacency(connection)
+        dependency_graph[job_id] = set(depends_on_job_ids)
+        self._assert_acyclic_from(job_id, dependency_graph, label="dependency")
+
+        parent_graph = self._parent_adjacency(connection)
+        parent_graph[job_id] = set() if parent_job_id is None else {parent_job_id}
+        self._assert_acyclic_from(job_id, parent_graph, label="parent")
+
+        connection.execute(
+            "DELETE FROM job_dependencies WHERE job_id = ?",
+            (uuid_to_blob(job_id),),
+        )
+        for dependency_id in depends_on_job_ids:
             connection.execute(
-                "DELETE FROM job_parent_links WHERE job_id = ?",
-                (uuid_to_blob(job_id),),
+                """
+                INSERT INTO job_dependencies(job_id, depends_on_job_id, created_at_us)
+                VALUES (?, ?, ?)
+                """,
+                (uuid_to_blob(job_id), uuid_to_blob(dependency_id), now_us),
             )
-            if parent_job_id is not None:
-                connection.execute(
-                    """
-                    INSERT INTO job_parent_links(
-                        job_id, parent_job_id, completion_policy,
-                        cancellation_policy, created_at_us
-                    ) VALUES (?, ?, ?, ?, ?)
-                    """,
-                    (
-                        uuid_to_blob(job_id),
-                        uuid_to_blob(parent_job_id),
-                        completion_policy.value,
-                        cancellation_policy.value,
-                        now,
-                    ),
-                )
 
-            self._reconcile_job_row(connection, job_id, now_us=now)
+        connection.execute(
+            "DELETE FROM job_parent_links WHERE job_id = ?",
+            (uuid_to_blob(job_id),),
+        )
+        if parent_job_id is not None:
+            connection.execute(
+                """
+                INSERT INTO job_parent_links(
+                    job_id, parent_job_id, completion_policy,
+                    cancellation_policy, created_at_us
+                ) VALUES (?, ?, ?, ?, ?)
+                """,
+                (
+                    uuid_to_blob(job_id),
+                    uuid_to_blob(parent_job_id),
+                    parent_completion_policy.value,
+                    child_cancellation_policy.value,
+                    now_us,
+                ),
+            )
+        self._reconcile_job_row(connection, job_id, now_us=now_us)
 
     def replace_dependencies(
         self,
@@ -276,6 +372,37 @@ class JobDependencyGraph:
         connection = self.database.connection
         self._require_integrity(connection)
         self._require_job(connection, parent_job_id)
+        return self._cancellation_descendants(connection, parent_job_id)
+
+    def request_cancel_cascade(self, parent_job_id: uuid.UUID) -> JobRecord:
+        """Apply the root cancellation and every cascade edge atomically."""
+        now = utc_now_us()
+        with self.database.write_transaction() as connection:
+            self._require_integrity(connection)
+            parent_row = self.repository._require_job_row(connection, parent_job_id)
+            descendants = self._cancellation_descendants(connection, parent_job_id)
+            self.repository._request_cancel_row(
+                connection,
+                row=parent_row,
+                now_us=now,
+            )
+            for descendant_id in descendants:
+                row = self.repository._require_job_row(connection, descendant_id)
+                state = JobState(str(row["state"]))
+                if state.terminal:
+                    continue
+                self.repository._request_cancel_row(
+                    connection,
+                    row=row,
+                    now_us=now,
+                )
+        return self.repository.get(parent_job_id)
+
+    def _cancellation_descendants(
+        self,
+        connection: sqlite3.Connection,
+        parent_job_id: uuid.UUID,
+    ) -> tuple[uuid.UUID, ...]:
         result: list[uuid.UUID] = []
         frontier: list[tuple[uuid.UUID, int]] = [(parent_job_id, 0)]
         seen = {parent_job_id}
@@ -336,6 +463,88 @@ class JobDependencyGraph:
                     frontier.append((dependent_id, depth + 1))
         return JobPriority(best)
 
+    def eligible_queued(
+        self,
+        *,
+        now_us: int,
+        job_types: set[str] | frozenset[str] | None,
+        limit: int,
+    ) -> tuple[JobRecord, ...]:
+        """Return bounded candidates without truncating inherited-priority prerequisites."""
+        base = self.repository.list_eligible_queued(
+            now_us=now_us,
+            job_types=job_types,
+            limit=limit,
+        )
+        candidates: dict[uuid.UUID, JobRecord] = {job.job_id: job for job in base}
+        connection = self.database.connection
+        self._require_integrity(connection)
+
+        donated_ids = self._donated_dependency_ids(connection, now_us=now_us)
+        for job_id in donated_ids:
+            row = self._require_job(connection, job_id)
+            state = JobState(str(row["state"]))
+            if state is not JobState.QUEUED:
+                continue
+            next_run = row["next_run_at_us"]
+            if next_run is not None and int(next_run) > now_us:
+                continue
+            job_type = str(row["job_type"])
+            if job_types is not None and job_type not in job_types:
+                continue
+            candidates[job_id] = _job_from_row(row)
+
+        effective = tuple(
+            replace(
+                job,
+                priority=self.effective_priority(job.job_id, now_us=now_us),
+            )
+            for job in candidates.values()
+        )
+        ordered = sorted(
+            effective,
+            key=lambda job: (
+                int(job.priority),
+                job.next_run_at_us or job.created_at_us,
+                job.created_at_us,
+                job.job_id.bytes,
+            ),
+        )
+        return tuple(ordered[:limit])
+
+    def _donated_dependency_ids(
+        self,
+        connection: sqlite3.Connection,
+        *,
+        now_us: int,
+    ) -> tuple[uuid.UUID, ...]:
+        rows = connection.execute(
+            """
+            SELECT d.job_id, d.depends_on_job_id, j.state, j.next_run_at_us,
+                   j.blocked_reason
+            FROM job_dependencies AS d
+            JOIN jobs AS j ON j.job_id = d.job_id
+            ORDER BY d.job_id, d.depends_on_job_id
+            """
+        ).fetchall()
+        result: set[uuid.UUID] = set()
+        for row in rows:
+            state = JobState(str(row["state"]))
+            active = False
+            if state is JobState.QUEUED:
+                next_run = row["next_run_at_us"]
+                active = next_run is None or int(next_run) <= now_us
+            elif state is JobState.WAITING:
+                active = str(row["blocked_reason"]) == WaitingReason.DEPENDENCY.value
+            if not active:
+                continue
+            result.add(uuid_from_blob(bytes(row["depends_on_job_id"])))
+            if len(result) > _MAX_GRAPH_NODES:
+                raise JobGraphCorruptionError(
+                    "Priority inheritance candidate expansion exceeded the bounded graph budget."
+                )
+        return tuple(sorted(result, key=lambda item: item.bytes))
+
     def _blocked_dependents(
         self,
         connection: sqlite3.Connection,
@@ -380,7 +589,11 @@ class JobDependencyGraph:
     ) -> bool:
         row = self._require_job(connection, job_id)
         state = JobState(str(row["state"]))
-        if state.terminal or state in {JobState.RUNNING, JobState.CANCEL_REQUESTED, JobState.PAUSED}:
+        if state.terminal or state in {
+            JobState.RUNNING,
+            JobState.CANCEL_REQUESTED,
+            JobState.PAUSED,
+        }:
             return False
         incomplete = self._incomplete_dependencies(connection, job_id)
         if incomplete and state is JobState.QUEUED:
@@ -425,9 +638,7 @@ class JobDependencyGraph:
             (uuid_to_blob(job_id),),
         ).fetchall()
         if len(rows) > _MAX_DIRECT_DEPENDENCIES:
-            raise JobGraphCorruptionError(
-                "Persisted job has too many direct dependencies."
-            )
+            raise JobGraphCorruptionError("Persisted job has too many direct dependencies.")
         incomplete: list[uuid.UUID] = []
         for row in rows:
             if row["state"] is None:
@@ -442,9 +653,14 @@ class JobDependencyGraph:
         connection: sqlite3.Connection,
     ) -> dict[uuid.UUID, set[uuid.UUID]]:
         result: dict[uuid.UUID, set[uuid.UUID]] = {}
-        for row in connection.execute(
-            "SELECT job_id, depends_on_job_id FROM job_dependencies ORDER BY job_id, depends_on_job_id"
-        ):
+        rows = connection.execute(
+            """
+            SELECT job_id, depends_on_job_id
+            FROM job_dependencies
+            ORDER BY job_id, depends_on_job_id
+            """
+        )
+        for row in rows:
             source = uuid_from_blob(bytes(row["job_id"]))
             target = uuid_from_blob(bytes(row["depends_on_job_id"]))
             result.setdefault(source, set()).add(target)
@@ -475,7 +691,9 @@ class JobDependencyGraph:
 
         def visit(node: uuid.UUID, depth: int) -> None:
             if depth > _MAX_GRAPH_DEPTH:
-                raise JobGraphError(f"Job {label} graph exceeds maximum depth {_MAX_GRAPH_DEPTH}.")
+                raise JobGraphError(
+                    f"Job {label} graph exceeds maximum depth {_MAX_GRAPH_DEPTH}."
+                )
             if node in active:
                 raise JobGraphError(f"Job {label} graph would contain a cycle.")
             if node in visited:
