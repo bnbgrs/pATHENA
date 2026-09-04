@@ -139,8 +139,14 @@ class _SystemSubnav(QFrame):
             item.setAccessibleName(f"System section: {text}")
             if index == 0:
                 item.setText("●  Overview")
+                item.setAccessibleDescription("Current System overview")
             else:
-                item.setText(f"   {text}")
+                item.setText(f"   {text}  ·  Unavailable")
+                item.setProperty("pathenaUnavailable", True)
+                item.setAccessibleDescription(
+                    f"{text} section unavailable in this build"
+                )
+                set_pathena_ui_state(item, "empty")
             layout.addWidget(item)
         layout.addStretch(1)
 
