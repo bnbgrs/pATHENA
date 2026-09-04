@@ -16,8 +16,10 @@ _ALLOWED_STORAGE_HEALTH_STATUSES = frozenset({"available", "unavailable", "error
 def _optional_nonnegative_int(value: object, label: str) -> int | None:
     if value is None:
         return None
-    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+    if isinstance(value, bool) or not isinstance(value, int):
         raise ValueError(f"{label} must be a non-negative integer or None.")
+    if value < 0:
+        raise ValueError(f"{label} cannot be negative.")
     return value
 
 
