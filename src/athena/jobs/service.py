@@ -8,7 +8,6 @@ import secrets
 import sqlite3
 import uuid
 from collections.abc import Callable, Iterable, Mapping
-from dataclasses import replace
 from typing import Any
 
 from athena.chat.service import ChatService
@@ -32,7 +31,7 @@ from athena.jobs.payload_validation import (
     BuiltinJobPayloadValidationError,
     validate_builtin_job_payload,
 )
-from athena.jobs.repository import JobRepository, JobTransitionError
+from athena.jobs.repository import JobRepository
 from athena.news.models import NEWS_JOB_TYPE, NEWS_PERIOD_JOB_TYPE
 
 
@@ -93,10 +92,6 @@ class DurableJobService:
         _optional_nonnegative_int(next_run_at_us, "next_run_at_us")
         if parent_job_id is not None:
             _uuid_value(parent_job_id, "parent_job_id")
-        normalized_dependencies = self.graph.validate_new_links(
-            parent_job_id=parent_job_id,
-            depends_on_job_ids=depends_on_job_ids,
-        )
         try:
             if normalized_job_type in {NEWS_JOB_TYPE, NEWS_PERIOD_JOB_TYPE}:
                 validate_news_job_payload(
@@ -116,22 +111,18 @@ class DurableJobService:
         requested_scope_json = _canonical_json(normalized_scope)
         pinned_configuration_json = _canonical_json(normalized_configuration)
         actor_id = self.chat.ensure_local_user()
-        created = self.repository.create(
+        return self.graph.create_job(
             job_type=normalized_job_type,
             actor_id=actor_id,
             priority=priority,
             requested_scope_json=requested_scope_json,
             pinned_configuration_json=pinned_configuration_json,
             next_run_at_us=next_run_at_us,
-        )
-        self.graph.configure(
-            created.job_id,
             parent_job_id=parent_job_id,
             parent_completion_policy=parent_completion_policy,
             child_cancellation_policy=child_cancellation_policy,
-            depends_on_job_ids=normalized_dependencies,
+            depends_on_job_ids=depends_on_job_ids,
         )
-        return self.repository.get(created.job_id)
 
     def active_for_type(
         self,
@@ -294,20 +285,13 @@ class DurableJobService:
         _positive_int(limit, "limit")
         normalized_job_types = self._registered_job_type_filter(job_types)
         self.graph.reconcile(now_us=now_us)
-        queued = self.repository.list_eligible_queued(
+        # The graph expands dependency targets before applying the caller's
+        # final candidate limit. Leasing still re-reads canonical rows, so
+        # ResourceManager and P0 safety policy receive persisted base priority.
+        return self.graph.eligible_queued(
             now_us=now_us,
             job_types=normalized_job_types,
             limit=limit,
-        )
-        # The scheduler ranks these snapshots by effective priority. Leasing
-        # re-reads the canonical row, so ResourceManager and P0 safety policy
-        # still receive the persisted base priority and cannot be bypassed.
-        return tuple(
-            replace(
-                job,
-                priority=self.graph.effective_priority(job.job_id, now_us=now_us),
-            )
-            for job in queued
         )
 
     def waiting(self, *, limit: int = 128) -> tuple[JobRecord, ...]:
@@ -417,19 +401,7 @@ class DurableJobService:
 
     def request_cancel(self, job_id: uuid.UUID) -> JobRecord:
         normalized_job_id = _uuid_value(job_id, "job_id")
-        descendants = self.graph.cancellation_descendants(normalized_job_id)
-        parent = self.repository.request_cancel(normalized_job_id)
-        for descendant_id in descendants:
-            current = self.repository.get(descendant_id)
-            if current.state.terminal:
-                continue
-            try:
-                self.repository.request_cancel(descendant_id)
-            except JobTransitionError:
-                current = self.repository.get(descendant_id)
-                if not current.state.terminal:
-                    raise
-        return parent
+        return self.graph.request_cancel_cascade(normalized_job_id)
 
     def pause(self, job_id: uuid.UUID) -> JobRecord:
         return self.repository.pause(_uuid_value(job_id, "job_id"))
