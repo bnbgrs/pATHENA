@@ -14,9 +14,9 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 ## Current baseline
 
 - Baseline branch: `develop/pathena-next`
-- Baseline SHA: `a0e0a2bcf76b0e7f77bb3cd15b8c2ccf79d5c600`
+- Baseline SHA: `a7c1d8cd1530a3003690292a9bf4c660472d59ce`
 - Worker branch: `postmerge/errors`
-- History-preserving NON-FORCE synchronization merge: `ba80f4060ad4aac5ebf77bdcf09e0f23c77cc964`.
+- History-preserving NON-FORCE synchronization merge: `c74acfbebd4786fb58be84208156d09cc102b57f`.
 
 ## Current error state
 
@@ -28,10 +28,11 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 
 ## Current scan
 
-- `ERR-0008` exact owner fix SHA `afa319f0ab1b12edccc4b649d4a1ca36bcd7ac39` now has canonical ATHENA Quality Gate `33854660676 = success`.
-- Integrator independently carried the canonical-green Settings product/test blobs onto Develop and records UI-GAP-0008 as integrated without Provider, Security, Storage or network-capability changes.
-- Therefore `ERR-0008` is now `FIXED`; no PASS was claimed before the exact run completed.
-- Current Backend head `33933c00169ab72786b8b27b8286af6432225e8e` has Quality `33858608297` still in progress: Windows path safety PASS, Linux storage PASS, local-install smoke PASS, validator PASS, Ruff PASS, mypy PASS, pytest still running. No new ERR-ID is allocated without a concrete failing signature.
+- `ERR-0008` remains `FIXED`; exact owner fix `afa319f0ab1b12edccc4b649d4a1ca36bcd7ac39` has canonical ATHENA Quality Gate `33854660676 = success`.
+- Backend head `33933c00169ab72786b8b27b8286af6432225e8e` completed canonical Quality `33858608297 = success`; the previously pending Backend signal therefore does not justify `ERR-0009`.
+- Develop Quality `33862677128` on exact SHA `a0e0a2bcf76b0e7f77bb3cd15b8c2ccf79d5c600` is a concrete red signal: Windows path safety PASS, Linux storage PASS, local-install smoke PASS, validator PASS, Ruff PASS, mypy PASS, full pytest FAIL. The exact failing pytest test/signature is not exposed by the available run/job metadata, so no new stable ERR-ID is allocated yet; the next run must extract the diagnostic before classification.
+- Current Develop has advanced to `a7c1d8cd1530a3003690292a9bf4c660472d59ce`; no Develop-wide PASS is claimed for that newer head.
+- Current UI head `dc82cdded9e9d3c87be964a5f582965a9f4d3c9a` is under canonical Quality `33864721817`, still in progress at this scan. No UI failure is claimed while the run remains incomplete.
 
 ## Entries
 
