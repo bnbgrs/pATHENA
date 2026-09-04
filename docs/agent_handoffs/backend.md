@@ -2,47 +2,46 @@
 
 ## Baseline
 
-- Shared baseline: `develop/pathena-next@fefe26b9fdc972b5e6950cd535397eae1067d5ea`.
+- Shared baseline reviewed: `develop/pathena-next@0b7f428f8679db9391c00b4b9638d85550332c43`.
 - Worker branch: `postmerge/backend`.
-- History-preserving NON-FORCE synchronization: `538e1ae2e26bc33a63dc4c7377ac76940ba45b62`, parents `c67fa646d8ba4e4137cdf69992b9c8b42ad904d6` and exact Develop `fefe26b9fdc972b5e6950cd535397eae1067d5ea`.
+- History-preserving NON-FORCE synchronization: `9dd82f0c25c6442db79c54b5bf7f756dc35c427c`, parents prior Backend head `b025f6de83a969cca10a7677faae0b349e1a2988` and exact Develop `0b7f428f8679db9391c00b4b9638d85550332c43`.
 - `main` remains strict read-only and untouched.
-
-## Storage Health runtime boundaries — VERIFIED
-
-Canonical ATHENA Quality Gate `33868034634` completed `success` on exact worker head `19c73aee29cae2d2ea479a6e3d2aa1256afa06a1`.
-
-Status: `BACKEND_VERIFIED / INTEGRATOR_READY` for the bounded Storage Health lineage through `19c73aee29cae2d2ea479a6e3d2aa1256afa06a1`.
 
 ## ExternalAccessGateway runtime boundaries — VERIFIED
 
-Current product code contains the required fail-before-side-effect runtime guards:
+Required fail-before-side-effect runtime guards and canonical-harness coverage are present and verified. Gateway lineage through Backend head `c67fa646d8ba4e4137cdf69992b9c8b42ad904d6` is backed by canonical ATHENA Quality `33884210684 = success`.
 
-- `authorize_explicit(... ttl_seconds=...)`: exact `int`, bool rejected, established `1..86400` range retained;
-- `authorize_direct_fallback(... ttl_seconds=...)`: exact `int`, bool rejected, established `1..900` range retained before authorization lookup;
-- `capture_url(... max_bytes=...)`: exact `int`, bool rejected, established safe range retained before authorization lookup/fetch;
-- `capture_url(... timeout_seconds=...)`: numeric but not bool, finite via `math.isfinite`, established `(0, 300]` range retained before authorization lookup/fetch.
+Status: `BACKEND_VERIFIED / INTEGRATOR_READY`.
 
-Gateway boundary test commit `3bd9e6ae4fd67344d5e8b094747daa5ff7ea405f` is canonically verified by ATHENA Quality Gate `33878485868 = success` on exact synchronized head `3ff9e39ab8e01bf0aedc8ac524dd8bef8cf00e39`.
+## Storage Health runtime boundaries — VERIFIED
 
-The explicitly required canonical harness `tests/unit/test_external_access_gateway.py` contains equivalent regression coverage in commit `f4a1fcb13ce80071a42e383cee1226516cba5a74`, without removing the dedicated authorization-boundary tests. Although run `33884147977` was cancelled and is not PASS evidence, the immediately following canonical Quality run `33884210684` completed `success` on exact head `c67fa646d8ba4e4137cdf69992b9c8b42ad904d6`, which contains `f4a1fcb13ce80071a42e383cee1226516cba5a74` unchanged.
+Storage Health lineage through `19c73aee29cae2d2ea479a6e3d2aa1256afa06a1` is backed by canonical ATHENA Quality `33868034634 = success`.
 
-Status: `BACKEND_VERIFIED / INTEGRATOR_READY` for the ExternalAccessGateway runtime-boundary lineage through `c67fa646d8ba4e4137cdf69992b9c8b42ad904d6`.
+Status: `BACKEND_VERIFIED / INTEGRATOR_READY`.
 
-## Local model HTTP cumulative response-size boundary — VERIFYING
+## Local model HTTP cumulative response-size boundary — VERIFIED
 
-A concrete adjacent provider/transport gap was found in `_BoundedLocalResponse.read(amt)`: explicit chunk reads delegated `amt` directly and therefore did not share the cumulative response byte budget already enforced for streaming `readline()` calls. Repeated chunk reads could exceed `MAX_LOCAL_RESPONSE_BYTES` without triggering `LocalResponseTooLargeError`.
+Product commit `247ff4710a889fdeb8be880b11be1d2cf870eb18` and focused-test commit `f8001aa04ba969a21ffa06bc9b991c4b3a8c0d33` make `read()`, `read(-1)` and `readline()` share one response-wide byte budget so repeated explicit reads cannot bypass `MAX_LOCAL_RESPONSE_BYTES`.
 
-Product commit `247ff4710a889fdeb8be880b11be1d2cf870eb18` replaces the separate streaming counter with one response-wide byte counter. `read()`, `read(-1)` and `readline()` now share the same budget, requests are bounded to at most the remaining budget plus one detection byte, and overflow still fails closed with `LocalResponseTooLargeError`.
+Exact descendant Backend head `b025f6de83a969cca10a7677faae0b349e1a2988` contains those product/test blobs unchanged and canonical ATHENA Quality run `33890486614` completed `success` on that exact head.
 
-Test commit `f8001aa04ba969a21ffa06bc9b991c4b3a8c0d33` adds unit coverage for cumulative chunk overflow, exact-limit EOF, mixed `readline()` + `read()` accounting, and negative/read-all behavior.
+Status: `BACKEND_VERIFIED / INTEGRATOR_READY` for the cumulative local-response-size lineage through `b025f6de83a969cca10a7677faae0b349e1a2988`.
 
-No PASS is claimed until an exact-head or descendant canonical Quality run executes these unchanged product/test blobs successfully.
+## Local model HTTP readline remaining-budget hardening — VERIFYING
+
+Adjacent review found that cumulative `readline()` accounting failed closed correctly but still requested up to `max_bytes + 1` bytes from the underlying stream on every call. Once part of the response budget had already been consumed, this could unnecessarily buffer far more than the remaining response allowance before rejection.
+
+Product commit `2981624e0f7eef8c2e94b6f0eb86a859132a2386` changes `readline()` to request only `remaining + 1` bytes and rejects any result larger than the remaining budget. The extra byte is retained solely to detect overflow fail-closed.
+
+Focused-test commit `4822b9ed6d84e05ae3d293e362dc9be62b6e844b` verifies that a partially consumed response requests exactly remaining-budget-plus-one and that an exact-limit response probes only one detection byte before rejecting further payload.
+
+Canonical ATHENA Quality run `33895580329` exists for exact test head `4822b9ed6d84e05ae3d293e362dc9be62b6e844b` and was `pending` at handoff update time. No PASS/READY claim is made until it executes and completes green.
 
 ## Invariants retained
 
 - local model HTTP transport remains loopback-only and proxy-free;
 - redirect rejection and timeout validation remain unchanged;
-- response-size enforcement is strengthened without new retries, routing or cryptography;
+- response-size enforcement remains fail-closed and is strengthened without new retries, routing or cryptography;
 - no silent Tor -> Direct fallback; Direct remains explicit-only;
 - no loopback/private proxy leak relaxation;
 - ExternalAccessGateway redirect authorization, HTTPS/default-port policy, compressed-response rejection and response-size fail-closed behavior unchanged;
@@ -51,10 +50,11 @@ No PASS is claimed until an exact-head or descendant canonical Quality run execu
 
 ## Integrator handoff
 
+- READY: ExternalAccessGateway runtime-boundary lineage through `c67fa646d8ba4e4137cdf69992b9c8b42ad904d6`, canonical Quality `33884210684 = success`.
 - READY: Storage Health lineage through `19c73aee29cae2d2ea479a6e3d2aa1256afa06a1`, canonical Quality `33868034634 = success`.
-- READY: ExternalAccessGateway runtime-boundary lineage through `c67fa646d8ba4e4137cdf69992b9c8b42ad904d6`, canonical Quality `33884210684 = success`, including required harness commit `f4a1fcb13ce80071a42e383cee1226516cba5a74`.
-- NOT READY: local HTTP cumulative response-size product/test commits `247ff4710a889fdeb8be880b11be1d2cf870eb18` + `f8001aa04ba969a21ffa06bc9b991c4b3a8c0d33` pending executable canonical evidence.
+- READY: local HTTP cumulative response-size lineage through exact head `b025f6de83a969cca10a7677faae0b349e1a2988`, canonical Quality `33890486614 = success`, product/test commits `247ff4710a889fdeb8be880b11be1d2cf870eb18` + `f8001aa04ba969a21ffa06bc9b991c4b3a8c0d33`.
+- NOT READY: local HTTP readline remaining-budget hardening `2981624e0f7eef8c2e94b6f0eb86a859132a2386` + `4822b9ed6d84e05ae3d293e362dc9be62b6e844b` until canonical `33895580329` is green.
 
 ## Next backend slice
 
-Consume the exact Quality result containing local HTTP commits `247ff4710a889fdeb8be880b11be1d2cf870eb18` and `f8001aa04ba969a21ffa06bc9b991c4b3a8c0d33`. If green, mark the cumulative response-size boundary VERIFIED/READY and immediately take the highest current unclaimed Storage/Recovery/Provider/Packaging P0/P1/P2 runtime gap. If red, correct only the exact Backend-owned failure before unrelated work.
+Consume canonical Quality `33895580329`. If green, mark readline remaining-budget hardening VERIFIED/READY and immediately take the highest current unclaimed Storage/Recovery/Provider/Packaging P0/P1/P2 runtime gap. If red, correct only the exact Backend-owned failure before unrelated mutation.
