@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `0b7f428f8679db9391c00b4b9638d85550332c43`
+Baseline: `2520224ebe3143368b3e5f13c091479d5e7b8d35`
 Integration target: `develop/pathena-next`
 
 Only evidence-backed gaps belong here. The original 11 reference screenshots remain unavailable for direct visual comparison; therefore no pixel-level mismatch or `MATCH` claim is asserted.
@@ -120,12 +120,23 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Category: `STATE / ACCESSIBILITY`
 - Screen: `07 — Settings`
 - Severity: `P2`
-- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Status: `FIXED`
 - Evidence: `SettingsRuntimeController.hydrate_selected_model()` rendered `Per-model settings · choose a model` with `pathenaRuntimeFreshness=fresh` when `_selected_model()` returned `None`, even though no model-specific persistence fact exists in that state.
-- Product commit: `9cfcf802643fdbd1357f8886d710b9dcd86a761e`.
+- Product lineage culminates at: `e1218685577230fa6ad190291ad0f626912853ac`.
 - Focused test commit: `ce7ae251f5d7b8548a21abde6c67cbd2fafa9f24`.
 - Acceptance: when no model is selected, the existing visible copy remains unchanged, UI state remains `idle`, freshness fails closed to `unavailable`, and the accessible description remains synchronized to the visible state. No persistence/storage/backend semantics change.
-- Verification: canonical Quality required on the final documented exact UI head before `FIXED`.
+- Verification evidence: exact final documented UI head `3d3ac638ce35c2bd149cea2358ef726f243244f0` passed ATHENA Quality Gate `33897120327` with conclusion `success`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0015 — Unsaved per-model defaults incorrectly present persistence freshness as fresh
+
+- Category: `STATE / ACCESSIBILITY`
+- Screen: `07 — Settings`
+- Severity: `P2`
+- Status: `OPEN`
+- Evidence: in `SettingsRuntimeController.hydrate_selected_model()`, a selected model with no persisted local record renders `<model> · defaults not yet saved` with `pathenaUiState=idle` but `pathenaRuntimeFreshness=fresh`. The visible copy explicitly says there is no saved model-specific persistence fact, so `fresh` overstates the persistence state.
+- Acceptance: retain the existing visible copy and idle UI state, fail closed to `pathenaRuntimeFreshness=unavailable`, keep accessible description synchronized, and do not change QSettings storage, model controls, provider behavior or backend semantics.
+- Verification required: focused Qt coverage for a real selected model with an empty QSettings store, then canonical Quality on the exact candidate head.
 
 ## Evidence blocker
 
