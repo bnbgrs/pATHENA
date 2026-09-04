@@ -66,3 +66,15 @@ def source_coverages_from_records(
         )
 
     return tuple(result)
+
+
+def source_coverage_result_payloads_from_records(
+    candidates: Iterable[ResearchCandidateRecord],
+    work_items: Iterable[ResearchWorkItemRecord],
+) -> tuple[dict[str, int | float | str], ...]:
+    """Return deterministic Core-owned payloads ready for ResearchResult storage."""
+
+    return tuple(
+        coverage.result_payload()
+        for coverage in source_coverages_from_records(candidates, work_items)
+    )
