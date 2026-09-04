@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import sqlite3
 import uuid
 from collections import defaultdict
 from collections.abc import Iterable, Mapping
 from typing import Any
 
+from athena.common.ids import uuid_to_blob
 from athena.research.errors import ResearchStateError
 from athena.research.models import (
     ResearchCandidateEligibility,
@@ -14,6 +16,7 @@ from athena.research.models import (
     ResearchWorkItemRecord,
     ResearchWorkState,
 )
+from athena.research.row_mapping import _candidate_from_row, _work_item_from_row
 from athena.research.source_coverage import SourceCoverage
 
 SOURCE_COVERAGE_RESULT_KEY = "source_coverage"
@@ -99,3 +102,37 @@ def research_result_content_with_source_coverage(
         source_coverage_result_payloads_from_records(candidates, work_items)
     )
     return payload
+
+
+def research_result_content_with_source_coverage_from_connection(
+    semantic_content: Mapping[str, Any],
+    connection: sqlite3.Connection,
+    scope_id: uuid.UUID,
+) -> dict[str, Any]:
+    """Compose source coverage from rows read inside the caller's fenced transaction."""
+
+    candidate_rows = connection.execute(
+        """
+        SELECT c.*
+        FROM research_candidates AS c
+        JOIN research_candidate_sets AS cs
+          ON cs.candidate_set_id = c.candidate_set_id
+        WHERE cs.scope_id = ?
+        ORDER BY c.ordinal ASC
+        """,
+        (uuid_to_blob(scope_id),),
+    ).fetchall()
+    work_item_rows = connection.execute(
+        """
+        SELECT *
+        FROM research_work_items
+        WHERE scope_id = ?
+        ORDER BY created_at_us ASC, work_item_id ASC
+        """,
+        (uuid_to_blob(scope_id),),
+    ).fetchall()
+    return research_result_content_with_source_coverage(
+        semantic_content,
+        tuple(_candidate_from_row(row) for row in candidate_rows),
+        tuple(_work_item_from_row(row) for row in work_item_rows),
+    )
