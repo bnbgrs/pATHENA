@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `c5a255fe45b6c6984cb66f1251c0a9f8eb0c7f0c`
+Baseline: `14adeb8949f680dc16a3067e586b3950132e0375`
 Integration target: `develop/pathena-next`
 
 Only evidence-backed gaps belong here. The original 11 reference screenshots remain unavailable for direct visual comparison; therefore no pixel-level mismatch or `MATCH` claim is asserted.
@@ -94,12 +94,23 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Category: `STATE / ACCESSIBILITY`
 - Screen: `07 — Settings`
 - Severity: `P2`
-- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Status: `FIXED`
 - Evidence: before a model is selected, hydrated or saved, `Per-model settings · not saved yet` was visible but did not carry the same explicit `pathenaUiState` / `pathenaRuntimeFreshness` contract used by later persistence transitions.
 - Product commit: `d9797b5ff665b2c94ad7a9c34a6843d06f7cda4d`.
 - Focused test commit: `5c9b49773ea16dfa6db341da37ab33d12f9ee7c5`.
 - Acceptance: the initial persistence indicator keeps its existing copy but starts as `pathenaUiState=idle` and `pathenaRuntimeFreshness=unavailable`, preventing an untyped initial state from being mistaken for fresh/successful persistence. No storage/persistence behavior changes.
-- Verification: canonical Quality required on the exact final documented candidate before promotion to `FIXED`.
+- Verification evidence: exact UI head `3a1be68c48dab4176e9258170147cf127c4b3d2a` passed ATHENA Quality Gate `33879947654` with conclusion `success`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0013 — Runtime detail state lacks explicit freshness/accessibility transition metadata
+
+- Category: `STATE / ACCESSIBILITY`
+- Screen: `07 — Settings`
+- Severity: `P2`
+- Status: `OPEN`
+- Evidence: `settingsRuntimeDetail` changes between initial explanatory copy, snapshot-backed provider detail/model error, and connection-failure error text, but unlike the adjacent Provider/Connection/Persistence indicators it does not consistently carry `pathenaRuntimeFreshness` or transition its accessible description through the same state changes. After `apply_connection_failure()` only `pathenaUiState=error` is set on this visible detail label.
+- Acceptance: keep existing visible text and runtime behavior, but make the detail label fail-closed and self-describing across initial, fresh/stale/unavailable snapshot, and connection-failure states without inventing backend/network/provider capability.
+- Verification: focused Qt regression plus canonical Quality required on the exact candidate before promotion.
 
 ## Evidence blocker
 
