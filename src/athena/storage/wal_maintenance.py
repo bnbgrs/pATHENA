@@ -262,6 +262,8 @@ class WalMaintenanceService:
         return self._checkpoint("TRUNCATE")
 
     def _checkpoint(self, mode: CheckpointMode) -> WalCheckpointResult:
+        if mode not in {"PASSIVE", "TRUNCATE"}:
+            raise WalMaintenanceError("WAL checkpoint mode must be PASSIVE or TRUNCATE.")
         connection = self.database.connection
         if connection.in_transaction:
             raise WalMaintenanceError(
