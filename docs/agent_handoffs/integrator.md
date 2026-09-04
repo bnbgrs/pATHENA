@@ -3,35 +3,39 @@
 ## Current branch state
 
 - `main` is strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `5d7061678afd2e2f6195d5a3ce6e15cde2797007`.
+- Develop before this run: `da34f14284cd61eb0e23b4dc2ac1d7757b2b2e5a`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `914c35ecb93829f932d0f5c13f379599dc003844`; spec-core `769ae5aa74f785ee2c48c2f93de7111043b4622e`; backend `effab66be11900adeb9a72db2e01207483060261`; ui `f7da16e05aa50da9ca17e5069a8880a84e34432e`.
+- Latest worker heads reviewed: errors `1431653d5c0059a8b376a644274d6b180e7991bb`; spec-core `b647e17fb972c9acada8e5d77296be8ebd27c860`; backend `40180ced8d77debf1479fa53e7e1c814753dea4e`; ui `e6cb967c354f55a1cbb4ca1a4bbd2ff26b863b90`.
 
-## Integrated this run — Research source-types runtime boundary
+## Integrated this run — WAL checkpoint runtime-mode boundary
 
-Backend synchronized candidate `75ae07fdb0bf72c100cc8401f7881ffa03b96b03` passed canonical ATHENA Quality Gate `33840621670` with conclusion `success`. Independent comparison against Develop showed only the Backend handoff plus two product/test files; documentation was excluded from product integration.
+Backend product commit `536728afe987af35884318641f2250b1f63fefdf` plus focused runtime-boundary test was independently reviewed against current Develop. The synchronized Backend head `40180ced8d77debf1479fa53e7e1c814753dea4e` passed canonical ATHENA Quality Gate `33848858160` with conclusion `success` and real jobs.
 
-- `src/athena/research/service.py` blob `1bc7d9095c852c9070b2675dcedbf7bd4f1bddb9`;
-- `tests/unit/test_research_stable_strings_boundaries.py` blob `487a0c9a567ba6042db66d702a0e53a131ebeb15`.
+Only the validated product/test blobs were carried onto Develop:
 
-The bounded slice was integrated as `d645f7136b4c6325899ccd2f2d13ba95eb4ab2a8` by non-force ref advance. `_stable_source_types(values)` now rejects scalar text-like values and non-Sequence containers, preserves the per-element `SourceType` runtime guard, and retains deterministic sorting/deduplication before actor setup, snapshot pinning or durable job creation. No persistence, provider, transport, UI, security, recovery, provenance or PALLAS semantics changed.
+- `src/athena/storage/wal_maintenance.py` blob `428bebc5e9e48bef2ceb41ed43abe5e27bf26175`;
+- `tests/unit/test_wal_maintenance_runtime_boundaries.py` blob `55ab782727ad0c7d0c75390463dd3707c850cab1`.
+
+The bounded integration commit is `f07286fe5c9ef346a337d5d904c7f7d2b2b02a4e`, advanced non-force from the exact prior Develop head. The runtime boundary rejects non-text checkpoint mode values before SQLite connection/SQL side effects while preserving valid checkpoint behavior and existing storage/recovery invariants. No Backend worker documentation was carried as product behavior.
 
 ## Validation state
 
-- Backend source-types Sequence boundary canonical run `33840621670`: `success` on synchronized candidate `75ae07fdb0bf72c100cc8401f7881ffa03b96b03`.
-- Error handoff confirms `ERR-0001` through `ERR-0007` are FIXED and no current open error exists.
-- Backend WAL checkpoint runtime-mode slice remains NOT_READY until its exact canonical Quality `33844840855` is green.
+- Backend exact synchronized head canonical Quality `33848858160`: `success`.
+- The source/test blobs integrated on Develop are the exact reviewed blobs from that green Backend lineage.
+- UI Quality `33845743958` completed `failure`; `ERR-0008` remains `FIXED_PENDING_VERIFY`, so no UI settings slice is integrated this run.
+- Core Quality `33848536310` was cancelled; its ResearchResult formula payload remains NOT_READY.
+- The versioned durable ResearchScope/ResearchResult composition patch remains unapplied. Under anti-stagnation it is the next bounded entblock/integration target if Core is still tooling-blocked and ownership is collision-free.
 - Eleven visual references remain unavailable; zero `MATCH` claims are permitted without original pixels plus a real current render.
 
 ## Next integration order
 
-1. Consume Backend WAL checkpoint runtime-mode Quality `33844840855`; integrate only if exact-green and independently compatible.
-2. Otherwise consume the next exact-green Core/UI bounded slice.
-3. If none is READY, implement exactly one small unclaimed cross-cutting product path rather than repeating handoffs.
+1. If Core remains tooling-blocked, independently review and safely apply/verify `docs/agent_handoffs/spec-core-research-coverage-composition.patch` on current Develop under the anti-stagnation rule; retain only if focused Research/Application regressions are green.
+2. Otherwise consume a newer exact-green bounded Core/UI/Backend worker slice.
+3. Do not integrate the UI settings correction while its exact Quality remains red; route the exact primary failure through Error ownership.
 
 ## Rules retained
 
 - `main` remains read-only and unchanged.
 - No force-push, history rewrite, auto-merge or automatic promotion to main.
-- Pending/cancelled/action-required/in-progress Quality is never PASS evidence.
+- Pending/cancelled/action-required/in-progress/failed Quality is never PASS evidence.
 - No weakened tests/guards or fabricated runtime success paths.
