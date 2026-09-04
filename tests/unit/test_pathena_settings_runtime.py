@@ -112,6 +112,10 @@ def test_runtime_panel_initial_state_is_fail_closed_before_first_snapshot(tmp_pa
         assert runtime.persistence_value.text() == "Per-model settings · not saved yet"
         assert runtime.persistence_value.property("pathenaUiState") == "idle"
         assert runtime.persistence_value.property("pathenaRuntimeFreshness") == "unavailable"
+        assert runtime.detail.text() == "Runtime status comes from the local Core API."
+        assert runtime.detail.property("pathenaUiState") == "idle"
+        assert runtime.detail.property("pathenaRuntimeFreshness") == "unavailable"
+        assert runtime.detail.accessibleDescription() == runtime.detail.text()
     finally:
         window.close()
         app.processEvents()
@@ -211,6 +215,9 @@ def test_runtime_panel_never_turns_stale_or_missing_provider_into_ready(tmp_path
         assert runtime.network_value.property("pathenaNetworkScope") == "loopback-only"
         assert runtime.network_value.property("pathenaInternetStateInferred") is False
         assert "does not indicate Internet access" in runtime.network_value.accessibleDescription()
+        assert runtime.detail.property("pathenaUiState") == "idle"
+        assert runtime.detail.property("pathenaRuntimeFreshness") == "fresh"
+        assert runtime.detail.accessibleDescription() == runtime.detail.text()
 
         comprehension.sync()
         assert runtime.network_value.accessibleName() == "Local Core connection"
@@ -226,6 +233,9 @@ def test_runtime_panel_never_turns_stale_or_missing_provider_into_ready(tmp_path
         assert runtime.provider_value.property("pathenaUiState") != "success"
         assert runtime.provider_value.property("pathenaRuntimeFreshness") == "stale"
         assert runtime.detail.text() == "LM Studio model refresh timed out."
+        assert runtime.detail.property("pathenaUiState") == "error"
+        assert runtime.detail.property("pathenaRuntimeFreshness") == "stale"
+        assert runtime.detail.accessibleDescription() == runtime.detail.text()
 
         unavailable = _snapshot(
             models=(),
@@ -240,6 +250,9 @@ def test_runtime_panel_never_turns_stale_or_missing_provider_into_ready(tmp_path
         assert "ready" not in runtime.provider_value.text().lower()
         assert "does not indicate Internet access" in runtime.network_value.accessibleDescription()
         assert runtime.network_value.property("pathenaInternetStateInferred") is False
+        assert runtime.detail.property("pathenaUiState") == "error"
+        assert runtime.detail.property("pathenaRuntimeFreshness") == "unavailable"
+        assert runtime.detail.accessibleDescription() == "Provider could not be reached."
 
         runtime.apply_connection_failure("Local Core refresh failed.")
         comprehension.sync()
@@ -250,6 +263,10 @@ def test_runtime_panel_never_turns_stale_or_missing_provider_into_ready(tmp_path
         assert runtime.network_value.property("pathenaInternetStateInferred") is False
         assert "Internet-access state is not inferred" in runtime.network_value.accessibleDescription()
         assert "loopback" not in runtime.network_value.toolTip().lower()
+        assert runtime.detail.text() == "Local Core refresh failed."
+        assert runtime.detail.property("pathenaUiState") == "error"
+        assert runtime.detail.property("pathenaRuntimeFreshness") == "unavailable"
+        assert runtime.detail.accessibleDescription() == "Local Core refresh failed."
     finally:
         window.close()
         app.processEvents()
