@@ -1,0 +1,45 @@
+name: Backend Research Stable Strings
+on:
+  push:
+    branches: [postmerge/backend]
+    paths: [.github/workflows/backend-research-stable-strings.yml]
+permissions:
+  contents: write
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: postmerge/backend
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: python -m pip install -e '.[dev]'
+      - name: Apply bounded patch and tests
+        shell: python
+        run: |
+          from pathlib import Path
+          p=Path('src/athena/research/service.py')
+          s=p.read_text()
+          old='''def _stable_strings(values: Sequence[str], *, field: str) -> tuple[str, ...]:\n    normalized: list[str] = []\n'''
+          new='''def _stable_strings(values: Sequence[str], *, field: str) -> tuple[str, ...]:\n    if isinstance(values, (str, bytes, bytearray)) or not isinstance(values, Sequence):\n        raise ResearchConfigurationError(\n            f"{field} must be a sequence of text values."\n        )\n    normalized: list[str] = []\n'''
+          if old not in s:
+              raise SystemExit('expected helper shape not found')
+          p.write_text(s.replace(old,new,1))
+          Path('tests/unit/test_research_stable_strings_boundaries.py').write_text('''from __future__ import annotations\n\nimport pytest\n\nfrom athena.research.service import ResearchConfigurationError, _stable_strings\n\n\n@pytest.mark.parametrize("value", ["example.com", b"example.com", bytearray(b"example.com")])\ndef test_stable_strings_rejects_scalar_text_like_containers(value: object) -> None:\n    with pytest.raises(ResearchConfigurationError, match="sequence of text values"):\n        _stable_strings(value, field="domains")  # type: ignore[arg-type]\n\n\ndef test_stable_strings_preserves_valid_normalization() -> None:\n    assert _stable_strings([" b.example ", "a.example", "a.example"], field="domains") == (\n        "a.example",\n        "b.example",\n    )\n\n\ndef test_stable_strings_rejects_non_text_elements() -> None:\n    with pytest.raises(ResearchConfigurationError, match="text values only"):\n        _stable_strings(["a.example", 7], field="domains")  # type: ignore[list-item]\n''')
+      - name: Focused verification
+        run: |
+          python -m pytest -q tests/unit/test_research_stable_strings_boundaries.py
+          python -m ruff check src/athena/research/service.py tests/unit/test_research_stable_strings_boundaries.py
+          python -m mypy src/athena/research/service.py
+          git diff --check
+      - name: Commit product and tests
+        run: |
+          git config user.name 'pATHENA Backend Bot'
+          git config user.email 'actions@users.noreply.github.com'
+          git add src/athena/research/service.py tests/unit/test_research_stable_strings_boundaries.py
+          git commit -m 'fix(research): harden string filter containers'
+          git push origin HEAD:postmerge/backend
