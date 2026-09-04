@@ -401,7 +401,7 @@ class SettingsRuntimeController(QObject):
                 self.persistence_value,
                 f"{model.display_name} · defaults not yet saved",
                 "idle",
-                freshness="fresh",
+                freshness="unavailable",
             )
             return
         if all(
