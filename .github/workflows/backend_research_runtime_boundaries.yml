@@ -29,7 +29,7 @@ jobs:
           service = Path('src/athena/research/service.py')
           text = service.read_text(encoding='utf-8')
           old_uuid = '''def _stable_uuids(values: Sequence[uuid.UUID]) -> tuple[uuid.UUID, ...]:\n    if any(not isinstance(item, uuid.UUID) for item in values):\n        raise ResearchConfigurationError("Research UUID filters must contain UUID values only.")\n    return tuple(sorted(set(values), key=lambda item: item.bytes))\n'''
-          new_uuid = '''def _stable_uuids(values: Sequence[uuid.UUID]) -> tuple[uuid.UUID, ...]:\n    if isinstance(values, (str, bytes, bytearray)) or not isinstance(values, Sequence):\n        raise ResearchConfigurationError(\n            "Research UUID filters must be a sequence of UUID values."\n        )\n    if any(not isinstance(item, uuid.UUID) for item in values):\n        raise ResearchConfigurationError(\n            "Research UUID filters must contain UUID values only."\n        )\n    return tuple(sorted(set(values), key=lambda item: item.bytes))\n'''
+          new_uuid = '''def _stable_uuids(values: Sequence[uuid.UUID]) -> tuple[uuid.UUID, ...]:\n    if (\n        isinstance(values, (str, bytes, bytearray))\n        or not isinstance(values, Sequence)\n    ):\n        raise ResearchConfigurationError(\n            "Research UUID filters must be a sequence of UUID values."\n        )\n    if any(not isinstance(item, uuid.UUID) for item in values):\n        raise ResearchConfigurationError(\n            "Research UUID filters must contain UUID values only."\n        )\n    return tuple(sorted(set(values), key=lambda item: item.bytes))\n'''
           if old_uuid not in text:
               raise SystemExit('_stable_uuids anchor not found')
           service.write_text(text.replace(old_uuid, new_uuid, 1), encoding='utf-8')
@@ -41,16 +41,18 @@ jobs:
               'import uuid\n\nimport pytest\n\nfrom athena.research.service import (\n    ResearchConfigurationError,\n    _stable_strings,\n    _stable_uuids,\n)\n',
               1,
           )
-          addition = '''\n\n@pytest.mark.parametrize("value", ["not-a-sequence", b"uuid", bytearray(b"uuid"), {uuid.uuid4()}])\ndef test_stable_uuids_rejects_non_sequence_containers(value: object) -> None:\n    with pytest.raises(ResearchConfigurationError, match="sequence of UUID values"):\n        _stable_uuids(value)  # type: ignore[arg-type]\n\n\ndef test_stable_uuids_preserves_deterministic_uuid_normalization() -> None:\n    first = uuid.UUID("00000000-0000-0000-0000-000000000001")\n    second = uuid.UUID("00000000-0000-0000-0000-000000000002")\n    assert _stable_uuids([second, first, second]) == (first, second)\n'''
+          addition = '''\n\n@pytest.mark.parametrize(\n    "value",\n    ["not-a-sequence", b"uuid", bytearray(b"uuid"), {uuid.uuid4()}],\n)\ndef test_stable_uuids_rejects_non_sequence_containers(value: object) -> None:\n    with pytest.raises(ResearchConfigurationError, match="sequence of UUID values"):\n        _stable_uuids(value)  # type: ignore[arg-type]\n\n\ndef test_stable_uuids_preserves_deterministic_uuid_normalization() -> None:\n    first = uuid.UUID("00000000-0000-0000-0000-000000000001")\n    second = uuid.UUID("00000000-0000-0000-0000-000000000002")\n    assert _stable_uuids([second, first, second]) == (first, second)\n'''
           if 'test_stable_uuids_rejects_non_sequence_containers' not in t:
               t += addition
           tests.write_text(t, encoding='utf-8')
-      - name: Focused tests and static checks
-        run: |
-          python -m pytest -q tests/unit/test_research_stable_strings_boundaries.py
-          python -m ruff check src/athena/research/service.py tests/unit/test_research_stable_strings_boundaries.py
-          python -m mypy src/athena/research/service.py
-          git diff --check
+      - name: Focused tests
+        run: python -m pytest -q tests/unit/test_research_stable_strings_boundaries.py
+      - name: Ruff
+        run: python -m ruff check src/athena/research/service.py tests/unit/test_research_stable_strings_boundaries.py
+      - name: Mypy
+        run: python -m mypy src/athena/research/service.py
+      - name: Diff check
+        run: git diff --check
       - name: Commit bounded product and tests
         run: |
           git config user.name 'pATHENA Backend Bot'
