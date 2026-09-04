@@ -3,39 +3,39 @@
 ## Current branch state
 
 - `main` is strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `fefe26b9fdc972b5e6950cd535397eae1067d5ea`.
+- Develop before this run: `0b7f428f8679db9391c00b4b9638d85550332c43`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `2067724a54ca807f5def27d1e1c59d9c5e32ecae`; spec-core `0948f3e432f9b909cae01711a5fd6beaf4dffc8b`; backend `c67fa646d8ba4e4137cdf69992b9c8b42ad904d6`; ui `44352a5d6bfe113e8a8a748af98c142534cfc9cc`.
+- Worker heads reviewed: errors `469500d9f17e9a355d46c68065e439dd2a50bbf7`; spec-core `a9787104649383b5a70eb61fd08362cd2d2c462b`; backend `d9685d5ab3ce49c09ccfe6c4df375e238886b904`; ui `3d3ac638ce35c2bd149cea2358ef726f243244f0`.
 
-## Integrated this run — ExternalAccessGateway canonical runtime-boundary harness
+## Integrated this run — reserved ResearchResult source coverage content
 
-The bounded Backend ExternalAccessGateway runtime-boundary candidate was independently reviewed against current Develop. Production guards were already present on Develop, while the canonical gateway harness lacked the worker's exact runtime-type regression coverage. Backend current head `c67fa646d8ba4e4137cdf69992b9c8b42ad904d6` passed canonical ATHENA Quality `33884210684 = success`.
+Core predecessor slice was independently reviewed and integrated from exact green worker head `5e5461a6c0a0a2f2e522d76f48a3870ca8414635`, canonical Quality `33888920061 = success`.
 
-Only the exact verified canonical-harness blob was carried:
+Only the exact verified product/test blobs were carried:
 
-- `tests/unit/test_external_access_gateway.py` now includes the exact worker runtime-boundary cases from Backend commit `f4a1fcb13ce80071a42e383cee1226516cba5a74`, blob `fbdf55e14cac1483922fd23b3a19c4cb02923075`.
+- `src/athena/research/source_coverage_composition.py` blob `0ac130e710fa42b201cc06df8d4d552f87a26912`.
+- `tests/unit/test_research_source_coverage_composition.py` blob `bdb15c7314a0718acc29ee68e2397a283e7cad7e`.
 
-Integrated Develop commit: `e8574de635dbd6c3cfd4906075b49073e06cf966`.
+Develop commits: product `76cdbb7f8297d33939d9c51456bb49eafd79b1f6`; test `8a3e66d36fa56ae951ae131c4b649ad6391165c0`.
 
-The added cases assert bool-safe `ttl_seconds`/`max_bytes`, finite non-bool timeout handling, and fail-before-side-effect behavior. No production source was changed. Tor/Direct/redirect/audit/provenance/fsync/transactional behavior is untouched; no Skip/XFail, assertion weakening, fake data or guard relaxation was introduced.
+The bounded slice reserves `source_coverage` as Core-owned ResearchResult content, derives storage-ready deterministic payloads from real candidate/work identities, rejects semantic override attempts, keeps failed/unavailable visible and non-coverage-positive, and preserves existing transaction/snapshot/recovery/provider/security/UI semantics. No Skip/XFail, guard relaxation, fabricated completeness or fake data was introduced.
 
 ## Validation state
 
-- Backend exact current head `c67fa646d8ba4e4137cdf69992b9c8b42ad904d6`: ATHENA Quality `33884210684` completed `success`.
-- Integrated canonical gateway test blob is byte-identical to the verified Backend lineage.
-- No new exact-Develop global Quality PASS is claimed for the integration commit.
-- Core storage-ready source coverage payload remains pending exact canonical-green evidence.
-- Backend Storage Health remains READY through exact head `19c73aee29cae2d2ea479a6e3d2aa1256afa06a1` / Quality `33868034634`.
-- UI-GAP-0011 remains independently consumable after baseline review; UI-GAP-0012 is also READY per current UI handoff.
-- UI-GAP-0013 remains NOT READY until its exact final Quality is green.
-- Error handoff reports `ERR-0001` through `ERR-0008` fixed and no open confirmed error.
+- Exact Core worker head `5e5461a6c0a0a2f2e522d76f48a3870ca8414635`: canonical Quality `33888920061 = success`.
+- Integrated product and test blobs are byte-identical to that verified lineage.
+- No new exact-Develop global Quality PASS is claimed for the two integration commits.
+- Current Core transaction-bound source-coverage composition remains NOT READY while Quality `33894871215` is pending.
+- Backend Storage Health remains READY via `19c73aee29cae2d2ea479a6e3d2aa1256afa06a1` / `33868034634 = success`.
+- Backend local HTTP cumulative response-size boundary is READY via `b025f6de83a969cca10a7677faae0b349e1a2988` / `33890486614 = success`.
+- UI later-gap candidates require separate baseline review before integration.
 - Original eleven visual references remain unavailable; zero pixel-level `MATCH` claims are permitted.
 
 ## Next integration order
 
-1. Independently review exactly one READY candidate from Backend Storage Health, UI-GAP-0011 or UI-GAP-0012 against current Develop.
-2. Prefer Core storage-ready source coverage payload only after exact product-containing canonical Quality succeeds.
-3. Require exact-head evidence before any new global-green Develop claim.
+1. Prefer the Core transaction-bound source-coverage composition only after exact canonical Quality `33894871215` completes green.
+2. Otherwise independently review exactly one READY Backend/UI bounded slice against current Develop.
+3. Require exact-head evidence before any global-green Develop claim.
 
 ## Rules retained
 
