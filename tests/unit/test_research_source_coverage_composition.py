@@ -11,7 +11,12 @@ from athena.research.models import (
     ResearchWorkItemRecord,
     ResearchWorkState,
 )
-from athena.research.source_coverage_composition import source_coverages_from_records
+from athena.research.source_coverage_composition import (
+    SOURCE_COVERAGE_RESULT_KEY,
+    research_result_content_with_source_coverage,
+    source_coverage_result_payloads_from_records,
+    source_coverages_from_records,
+)
 
 
 def _candidate(
@@ -118,3 +123,74 @@ def test_source_coverages_fail_closed_on_unknown_or_duplicate_work_identity() ->
     work = _work(candidate, ResearchWorkState.SUCCESSFUL)
     with pytest.raises(ResearchStateError, match="multiple Research work items"):
         source_coverages_from_records([candidate], [work, work])
+
+
+def test_source_coverage_result_payloads_are_storage_ready_and_truthful() -> None:
+    source_id = uuid.UUID(int=9)
+    successful = _candidate(source_id=source_id, ordinal=0)
+    failed = _candidate(source_id=source_id, ordinal=1)
+
+    payloads = source_coverage_result_payloads_from_records(
+        [failed, successful],
+        [
+            _work(failed, ResearchWorkState.FAILED),
+            _work(successful, ResearchWorkState.SUCCESSFUL),
+        ],
+    )
+
+    assert payloads == (
+        {
+            "formula_id": "eligible-units-success-or-irrelevant-v1",
+            "source_id": str(source_id),
+            "unit_total": 2,
+            "processed_count": 2,
+            "successful_count": 1,
+            "irrelevant_count": 0,
+            "failed_count": 1,
+            "unavailable_count": 0,
+            "excluded_count": 0,
+            "eligible_count": 2,
+            "coverage_ratio": 0.5,
+        },
+    )
+
+
+def test_research_result_content_reserves_truthful_source_coverage() -> None:
+    source_id = uuid.UUID(int=17)
+    successful = _candidate(source_id=source_id, ordinal=0)
+    unavailable = _candidate(source_id=source_id, ordinal=1)
+
+    payload = research_result_content_with_source_coverage(
+        {"findings": ["grounded"]},
+        [unavailable, successful],
+        [
+            _work(unavailable, ResearchWorkState.UNAVAILABLE),
+            _work(successful, ResearchWorkState.SUCCESSFUL),
+        ],
+    )
+
+    assert payload["findings"] == ["grounded"]
+    assert payload[SOURCE_COVERAGE_RESULT_KEY] == [
+        {
+            "formula_id": "eligible-units-success-or-irrelevant-v1",
+            "source_id": str(source_id),
+            "unit_total": 2,
+            "processed_count": 2,
+            "successful_count": 1,
+            "irrelevant_count": 0,
+            "failed_count": 0,
+            "unavailable_count": 1,
+            "excluded_count": 0,
+            "eligible_count": 2,
+            "coverage_ratio": 0.5,
+        }
+    ]
+
+
+def test_research_result_content_rejects_semantic_source_coverage_override() -> None:
+    with pytest.raises(ResearchStateError, match="Core-owned source coverage"):
+        research_result_content_with_source_coverage(
+            {SOURCE_COVERAGE_RESULT_KEY: []},
+            [],
+            [],
+        )
