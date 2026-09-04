@@ -3,41 +3,40 @@
 ## Current branch state
 
 - `main` is strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `c5a255fe45b6c6984cb66f1251c0a9f8eb0c7f0c`.
+- Develop before this run: `14adeb8949f680dc16a3067e586b3950132e0375`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `ec28e73682017167af6be911b9be109df2e566ea`; spec-core `fe356aa1fdea519d1391e61a3694c4e19d92fabc`; backend `3ff9e39ab8e01bf0aedc8ac524dd8bef8cf00e39`; ui `3a1be68c48dab4176e9258170147cf127c4b3d2a`.
+- Worker heads reviewed: errors `2067724a54ca807f5def27d1e1c59d9c5e32ecae`; spec-core `0948f3e432f9b909cae01711a5fd6beaf4dffc8b`; backend `c67fa646d8ba4e4137cdf69992b9c8b42ad904d6`; ui `44352a5d6bfe113e8a8a748af98c142534cfc9cc`.
 
-## Integrated this run — source-internal Research coverage policy
+## Integrated this run — real-record per-source Research coverage composition
 
-The bounded Core source-internal Research coverage policy was independently re-reviewed against current Develop. Exact Core handoff head `0261a299b8703aec41c6032be0bb6e03d2aba637` passed canonical ATHENA Quality `33867459130 = success`.
+The bounded Core real-record Research coverage composition was independently reviewed against current Develop and was collision-free in its owned paths. Exact Core head `fe356aa1fdea519d1391e61a3694c4e19d92fabc` passed canonical ATHENA Quality `33877310215 = success`.
 
 Only the exact verified product/test files were carried:
 
-- `src/athena/research/source_coverage.py` defines deterministic per-source coverage using real source UUID identity and fail-closed integer counters.
-- `tests/unit/test_research_source_coverage.py` locks successful/irrelevant-only positive coverage, failed/unavailable visibility, zero-eligible semantics, invalid count rejection, impossible terminal-total rejection and UUID type enforcement.
+- `src/athena/research/source_coverage_composition.py` derives deterministic per-source `SourceCoverage` from real `ResearchCandidateRecord` and `ResearchWorkItemRecord` identity/state.
+- `tests/unit/test_research_source_coverage_composition.py` locks real terminal-state accounting, stable UUID ordering, and fail-closed unknown/duplicate work identity behavior.
 
-Integrated commits: product `ff078e5b0dbe635d59553ce7fad67fedded9787a`; focused test `99576478b60c0f494cfb76b3acbeff0a39842c82`.
+Integrated commits on Develop: product `d0f8f5bf602d559ef3b8d8269cfef76160720ba5`; focused test `62dc9a25b32a0f56391788333ad4cc24d0a8f4e8`.
 
-Integrated blobs exactly equal the canonical-green Core blobs: product `50e15f86918b4878575385b49cacd31c2ba1bb9c`; test `557a3e5d812649c924b939d8d385d35bcee9602d`.
-
-No persistence schema, transaction, snapshot, recovery, fencing, idempotency, provider/transport, security, provenance, PALLAS or UI semantics changed. No Skip/XFail, assertion weakening, fake source or fabricated coverage was introduced.
+The integrated file contents are byte-identical to the exact canonical-green Core lineage. Failed/unavailable work remains terminal and visible without becoming coverage-positive; missing work remains pending. No schema, persistence transaction, snapshot, recovery, fencing, idempotency, provider/transport, security, provenance, PALLAS or UI semantics changed. No Skip/XFail, assertion weakening, fake source or fabricated completion was introduced.
 
 ## Validation state
 
-- Source-internal Research coverage exact Core head `0261a299b8703aec41c6032be0bb6e03d2aba637`: canonical Quality `33867459130` completed `success`.
-- Integrated source/test blobs are byte-identical to that verified lineage.
-- No new Develop workflow run is attached to exact integration commit `99576478b60c0f494cfb76b3acbeff0a39842c82`; no exact-Develop global PASS is claimed.
-- Core real-record source coverage composition remains NOT READY until exact canonical Quality is green.
+- Core exact head `fe356aa1fdea519d1391e61a3694c4e19d92fabc`: ATHENA Quality `33877310215` completed `success`.
+- Current integrated Develop product/test blobs match the verified Core files exactly.
+- No new exact-Develop global Quality PASS is claimed for the integration commits.
+- Core storage-ready source coverage payload composition remains NOT READY pending exact canonical Quality.
 - Backend Storage Health remains READY through exact head `19c73aee29cae2d2ea479a6e3d2aa1256afa06a1` / Quality `33868034634`.
-- UI-GAP-0011 is READY through exact UI head `45e2b84d14bfc11b4878d9b945065063fdc40e6d` / Quality `33874283635`.
-- UI-GAP-0012 and Backend Gateway verification remain pending exact green evidence.
+- Backend ExternalAccessGateway bounded runtime lineage through `3ff9e39ab8e01bf0aedc8ac524dd8bef8cf00e39` is green; final canonical-harness placement remains pending its newer exact run.
+- UI-GAP-0011 remains READY through exact head `45e2b84d14bfc11b4878d9b945065063fdc40e6d` / Quality `33874283635`.
+- UI-GAP-0012 is READY through exact UI head `3a1be68c48dab4176e9258170147cf127c4b3d2a` / Quality `33879947654` per the current UI handoff.
 - Error handoff reports `ERR-0001` through `ERR-0008` fixed and no open confirmed error.
 - Original eleven visual references remain unavailable; zero pixel-level `MATCH` claims are permitted.
 
 ## Next integration order
 
-1. Independently review Backend Storage Health or UI-GAP-0011 against current Develop and integrate only one bounded exact-green slice.
-2. Prefer Core real-record source coverage composition once its exact product-containing Quality is green.
+1. Independently review Backend Storage Health or UI-GAP-0011/UI-GAP-0012 against current Develop and integrate exactly one bounded exact-green slice.
+2. Prefer Core storage-ready source coverage payload composition only after its exact product-containing Quality is green.
 3. Require exact-head evidence before any new global-green Develop claim.
 
 ## Rules retained
