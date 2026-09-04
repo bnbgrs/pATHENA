@@ -109,6 +109,9 @@ def test_runtime_panel_initial_state_is_fail_closed_before_first_snapshot(tmp_pa
         assert runtime.network_value.property("pathenaInternetStateInferred") is False
         assert "Internet access is not inferred" in runtime.network_value.accessibleDescription()
         assert "connected" not in runtime.network_value.accessibleDescription().lower()
+        assert runtime.persistence_value.text() == "Per-model settings · not saved yet"
+        assert runtime.persistence_value.property("pathenaUiState") == "idle"
+        assert runtime.persistence_value.property("pathenaRuntimeFreshness") == "unavailable"
     finally:
         window.close()
         app.processEvents()
