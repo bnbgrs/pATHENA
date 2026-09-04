@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from athena.research.coverage import ResearchCoverage
+from athena.research.coverage import COVERAGE_FORMULA_ID, ResearchCoverage
 from athena.research.errors import ResearchStateError
 
 
@@ -63,6 +63,30 @@ def test_empty_eligible_set_does_not_claim_one_hundred_percent() -> None:
 
     assert coverage.coverage_ratio == 0.0
     assert coverage.fully_covered is False
+
+
+def test_result_payload_persists_formula_identity_and_problem_counts() -> None:
+    coverage = ResearchCoverage(
+        candidate_total=6,
+        successful_count=2,
+        irrelevant_count=1,
+        failed_count=1,
+        unavailable_count=1,
+        excluded_count=1,
+    )
+
+    assert coverage.result_payload() == {
+        "formula_id": COVERAGE_FORMULA_ID,
+        "candidate_total": 6,
+        "processed_count": 5,
+        "successful_count": 2,
+        "irrelevant_count": 1,
+        "failed_count": 1,
+        "unavailable_count": 1,
+        "excluded_count": 1,
+        "eligible_count": 5,
+        "coverage_ratio": 0.6,
+    }
 
 
 @pytest.mark.parametrize(
