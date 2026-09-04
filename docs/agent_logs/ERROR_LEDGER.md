@@ -14,9 +14,9 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 ## Current baseline
 
 - Baseline branch: `develop/pathena-next`
-- Baseline SHA: `0b7f428f8679db9391c00b4b9638d85550332c43`
+- Baseline SHA: `2520224ebe3143368b3e5f13c091479d5e7b8d35`
 - Worker branch: `postmerge/errors`
-- Synchronization: history-preserving NON-FORCE merge `03fe027d2fbd634324135e330ecde30eb69f3b9b` of current Develop into Error lineage.
+- Synchronization: history-preserving NON-FORCE merge `7b19faf68d8d32cee355457d0a3cb2c0145dc68b` of current Develop into Error lineage.
 
 ## Current error state
 
@@ -28,13 +28,13 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 
 ## Current scan
 
-- UI canonical Quality `33885558190` on exact SHA `44352a5d6bfe113e8a8a748af98c142534cfc9cc` completed `success`; no `ERR-0009` is allocated from that slice.
-- Backend canonical Quality `33884210684` on exact SHA `c67fa646d8ba4e4137cdf69992b9c8b42ad904d6` completed `success`; the prior cancelled Backend run remains non-evidence.
-- Current Backend head is `b025f6de83a969cca10a7677faae0b349e1a2988`; Quality `33890486614` is in progress. No PASS/failure claim is made while incomplete.
-- Current UI head is `622f85338613b7d59ef5b1bd0fd05eae3d488c47`; Quality `33891068183` is in progress. No PASS/failure claim is made while incomplete.
-- Current Develop is `0b7f428f8679db9391c00b4b9638d85550332c43`; no exact-head global PASS is claimed in this scan.
-- Reviewed current Develop `spec-core.md`, `backend.md`, `ui.md`, `integrator.md` plus relevant worker heads. Integrator confirms the verified ExternalAccessGateway canonical runtime-boundary harness was integrated into Develop with no production-source mutation and no new exact-Develop PASS claim.
-- No new concrete deduplicated primary failure signature is evidenced. Therefore `ERR-0009` is not allocated.
+- UI canonical Quality `33891068183` on exact SHA `622f85338613b7d59ef5b1bd0fd05eae3d488c47` completed `success`; no `ERR-0009` is allocated from that slice.
+- Backend canonical Quality `33890486614` on exact SHA `b025f6de83a969cca10a7677faae0b349e1a2988` completed `success`; no `ERR-0009` is allocated from that slice.
+- Current UI head is `3d3ac638ce35c2bd149cea2358ef726f243244f0`; Quality `33897120327` is in progress. No PASS/failure claim is made while incomplete.
+- Current Backend head is `d9685d5ab3ce49c09ccfe6c4df375e238886b904`; Quality `33895643213` is in progress. No PASS/failure claim is made while incomplete.
+- Current Core head is `a9787104649383b5a70eb61fd08362cd2d2c462b`.
+- Current Develop is `2520224ebe3143368b3e5f13c091479d5e7b8d35`; no exact-head global PASS is claimed in this scan.
+- Reviewed current Develop baseline plus current UI, Backend and Core worker heads. No new concrete deduplicated primary failure signature is evidenced. Therefore `ERR-0009` is not allocated.
 
 ## Entries
 
