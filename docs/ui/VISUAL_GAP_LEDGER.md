@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `a7c1d8cd1530a3003690292a9bf4c660472d59ce`
+Baseline: `3ea908affd23f1d80e0b863a6af8cf366e2b8484`
 Integration target: `develop/pathena-next`
 
 Only evidence-backed gaps belong here. The original 11 reference screenshots remain unavailable for direct visual comparison; therefore no pixel-level mismatch or `MATCH` claim is asserted.
@@ -81,10 +81,12 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Category: `STATE / ACCESSIBILITY`
 - Screen: `07 — Settings`
 - Severity: `P1`
-- Status: `OPEN`
-- Evidence: `SettingsRuntimeController.__init__()` creates visible `Model provider · awaiting Core` and `Local Core · awaiting connection` labels, but unlike `apply_snapshot()` and `apply_connection_failure()` it does not initialize them through `_set_state()` and does not set explicit initial `pathenaNetworkScope` / `pathenaInternetStateInferred` metadata. State/assistive consumers therefore receive a weaker contract before the first Core snapshot than after any subsequent runtime transition.
-- Acceptance: before any snapshot, provider/Core labels expose explicit non-success UI/freshness state; Local Core exposes `pathenaNetworkScope=unavailable`, `pathenaInternetStateInferred=False`, and self-contained accessibility text stating that Internet access is not inferred; existing visible awaiting copy remains; no backend/network/security/provider behavior changes.
-- Required focused coverage: assert the state immediately after `install_settings_runtime(...)`, before any snapshot signal.
+- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Evidence: `SettingsRuntimeController.__init__()` created visible `Model provider · awaiting Core` and `Local Core · awaiting connection` labels without the explicit fail-closed state metadata used by later snapshot/failure transitions.
+- Product commit: `44ae9513ec5b77586d98a45c02afe0fe171af932`.
+- Focused test commit: `b307a771860c455b1630c2885ca1295e08a900d0`.
+- Acceptance: before any snapshot, provider/Core labels expose explicit non-success `idle` UI state with `pathenaRuntimeFreshness=unavailable`; Local Core exposes `pathenaNetworkScope=unavailable`, `pathenaInternetStateInferred=False`, and self-contained accessibility text stating that Internet access is not inferred. Existing visible awaiting copy remains unchanged; no backend/network/security/provider behavior changes.
+- Verification: canonical Quality required on the exact final documented candidate before promotion to `FIXED`.
 
 ## Evidence blocker
 
