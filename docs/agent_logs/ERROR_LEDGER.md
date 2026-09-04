@@ -14,27 +14,25 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 ## Current baseline
 
 - Baseline branch: `develop/pathena-next`
-- Baseline SHA: `a783e8d0f45f5beb888b8bd708d52124a44c3420`
+- Baseline SHA: `4d36d5f13e1449973e74c48df5e2efb53d0e8aae`
 - Stable read-only parent: `main` at `0d4d621f8a38ddf8eccfa09622bf193687619943`
 - Worker branch: `postmerge/errors`
-- Worker synchronized history-preservingly and NON-FORCE with exact current Develop via merge commit `ea8a93e121df872751b045e25570d829f9815332`.
+- Worker synchronized history-preservingly and NON-FORCE with exact current Develop via merge commit `ae52fb6243d85219a0328d602212b280f75b02a2`.
 
 ## Current error state
 
 - OPEN: none.
 - IN_PROGRESS: none.
-- FIXED_PENDING_VERIFY: none.
+- FIXED_PENDING_VERIFY: `ERR-0005`.
 - FIXED: `ERR-0001`, `ERR-0002`, `ERR-0003`, `ERR-0004`.
 - BLOCKED: none.
 
 ## Current scan
 
-- Combined Develop validation run `33815279390` completed `success` on validation SHA `6e5caf7611f1e8fd61aa5530f7954df1ff815994`; no current-lineage failure is derived from that run.
-- UI system-tray Quality run `33814651800` completed `success` on exact UI candidate `acc156a8538e83ffec4e3eba4b9bef3e9c2fdb37`.
-- Backend capture-URL product run `33818120429` was superseded/cancelled after the branch advanced; current Backend-head run `33818260008` remains in progress and has not produced a confirmed failure signature.
-- UI runtime-state product run `33818773088` was superseded/cancelled after the branch advanced; current UI-head run `33818867163` remains in progress and has not produced a confirmed failure signature.
-- Cancelled/superseded runs without a failing job/signature are not allocated an `ERR-####`.
-- Qt deleted-`QProcess` stderr remains a warning signal only because it has not produced a reproducible current-lineage failure.
+- UI system-tray Quality run `33822842314` on exact UI SHA `19402585415e7b5ed341386bb2d689d6a636e270` completed `failure`: Windows path safety PASS, Linux storage PASS, local-install smoke PASS, specification validator PASS, Ruff PASS, full pytest PASS; Python 3.12 quality failed specifically at `Quality — mypy`, with canonical enforcement failing as the downstream consequence.
+- UI immediately supplied bounded correction `72e43bc18c28b5c92f6528919abf788f66924ba9`, narrowing `QApplication.instance()` through a local `application` value and assigning `self.app: QApplication` only after the existing `isinstance(..., QApplication)` guard.
+- Exact-head follow-up Quality run `33822861477` on `72e43bc18c28b5c92f6528919abf788f66924ba9` has already passed local-install smoke, Windows path safety, Linux storage, specification validator, Ruff and mypy; full pytest/canonical enforcement remain in progress. Therefore `ERR-0005` is `FIXED_PENDING_VERIFY`, not `FIXED`.
+- No recurrence of `ERR-0001`..`ERR-0004` is evidenced.
 
 ## Entries
 
@@ -116,6 +114,27 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 - verification executed: canonical Quality run `33804193396` PASS on exact UI lineage; no skip/XFail/assertion/guard weakening used.
 - remaining risks: none for this signature absent recurrence.
 - integrator handoff: error blocker cleared; the verified startup/readiness lineage is already represented on Develop.
+
+### ERR-0005 — System-tray QApplication ownership typing fails canonical mypy
+
+- first_seen: 2026-09-04
+- last_seen: 2026-09-04
+- checked_sha: `19402585415e7b5ed341386bb2d689d6a636e270`
+- severity: P2
+- area: Qt/Desktop / system tray / static typing
+- status: `FIXED_PENDING_VERIFY`
+- exact evidence:
+  - Canonical UI Quality run `33822842314` completed `failure` on exact SHA `19402585415e7b5ed341386bb2d689d6a636e270`.
+  - Windows path safety, Linux storage, local-install smoke, specification validator, Ruff and full pytest all passed; `Quality — mypy` alone failed, and canonical enforcement failed only as its downstream aggregate consequence.
+  - UI corrective commit `72e43bc18c28b5c92f6528919abf788f66924ba9` changes only `src/athena/desktop/pathena_system_tray.py`: it assigns `QApplication.instance()`/injected app to local `application`, retains the existing runtime `isinstance(application, QApplication)` fail-closed guard, then assigns `self.app: QApplication = application` after narrowing.
+  - Exact-head follow-up run `33822861477` has already passed specification validator, Ruff and mypy plus Windows path safety, Linux storage and local-install smoke; pytest/canonical enforcement are still running.
+- reproducible path before fix: canonical mypy on the system-tray candidate could not prove that `self.app` was a `QApplication` when it was assigned directly from `app or QApplication.instance()` before the runtime type guard.
+- primary root cause: static type narrowing occurred too late for the instance attribute assignment; the runtime ownership guard itself was correct and remains unchanged.
+- affected files: `src/athena/desktop/pathena_system_tray.py`.
+- fix_commit: `72e43bc18c28b5c92f6528919abf788f66924ba9`.
+- verification executed: exact-head follow-up run `33822861477` mypy PASS; full canonical Quality still pending, therefore no FIXED claim yet.
+- remaining risks: none known for runtime semantics; final full-pytest/canonical-enforcement completion remains required.
+- integrator handoff: do not integrate the failing `194025...` candidate; consider the corrected `72e43bc...` lineage only after exact-head run `33822861477` completes success.
 
 ## Historical/stale evidence
 
