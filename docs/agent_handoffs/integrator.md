@@ -3,36 +3,36 @@
 ## Current branch state
 
 - `main` is strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `3659470baa5cc0cdeea538bcfe241174f319a502`.
+- Develop before this run: `3cfef2c2ee67799066ceefaf9ea84287817f256a`.
 - Integration target remains `develop/pathena-next` only.
-- Worker heads reviewed: errors `eb769084a343f914d719b8c6778bc3d957d4b6dd`; spec-core `e33f6f1f56e9adf665d695fe2d2b3efadd910f15`; backend `5a1ed0c349f210cc348cd51e6edf0767c98a0154`; ui `40efd4f894aa07110de67c9260deaf4fb14e1c41`.
+- Worker heads reviewed: errors `006071fe14f0ca62a523802cbe7dd4ea5509eff2`; spec-core `bdda15ce7f5a8b3b3ae426b85c7d2f0cc7759f79`; backend `462fba22637e0083c87df32f987134ce0fb3de00`; ui `3407fd0169ff3b5ccfc711d2562153f25cc3ce26`.
 
-## Integrated this run — ProposalAcceptanceService temporal contradiction gate
+## Integrated this run — UI-GAP-0007 System subnavigation truthfulness
 
-Core exact verified head `a20dbe70824d5fc07bdd1d981e3acf431554877a` passed canonical ATHENA Quality Gate `33826094843`; the synchronized Core handoff confirms baseline `develop/pathena-next@3659470baa5cc0cdeea538bcfe241174f319a502` and READY status.
+UI exact product/test head `40efd4f894aa07110de67c9260deaf4fb14e1c41` passed canonical ATHENA Quality Gate `33830601076` with conclusion `success`.
 
-Independent bounded review accepted only the exact verified product/test blobs from commits `11b56867dd2f23d7149bc9defa299434e3ca5409` and `209c5c3715c8e560e0c3954c3cd88991876f9086`:
+Independent bounded review accepted only the exact verified UI product/test changes from commits `f32b64b5e3c3f0c91434b9a8e72d11c869512495` and `40efd4f894aa07110de67c9260deaf4fb14e1c41`:
 
-- `src/athena/knowledge/acceptance_service.py`: injects the existing `ContradictionReviewGate` and performs fail-before-write temporal contradiction preflight before relation construction/transactional acceptance side effects;
-- `tests/unit/test_proposal_acceptance.py`: focused acceptance coverage for disjoint versus touching/overlapping/open/unknown exact revision windows and failure-before-write behavior.
+- `src/athena/desktop/system_workspace.py`: Overview remains the only selected real System destination; Runtime, Storage, Network and Logs are explicitly rendered as `Unavailable`, carry `pathenaUnavailable=True`, expose accessible unavailable descriptions and use the existing empty/unavailable UI state.
+- `tests/unit/test_system_workspace.py`: focused Qt contract coverage preserves destination names and asserts truthful unavailable/accessibility semantics.
 
-Develop integration commit: `497b200d59323acb3f5e9bcdf6b69be0760aead0`.
+Develop integration commits: product `8a8cccd2397e832a61004405db032adfaa2cbfa9`; focused test `1828529f71695439b9f63fc8f8152944cb6ad316`.
 
-Only provably disjoint exact canonical Claim revision windows suppress review enqueue. Touching, overlapping, open, unknown and failed/missing revision assessment retain or fail closed into the explicit review path. No inferred timestamps, mutable-head substitution, automatic contradiction relation, history deletion, schema change, synthetic provenance, Backend/Storage/Security/Transport/UI semantics, test weakening or guard weakening was introduced.
+No backend destination, data source, telemetry, storage/security semantics, enabled action, fake success path, skip/XFail, assertion weakening or guard weakening was introduced.
 
 ## Current evidence / remaining candidates
 
-- Error branch reports `ERR-0005` closed; no Error-owned product mutation is accepted in this run.
-- Backend now hands off a research string-container hardening candidate; it remains deferred because this run integrates exactly one READY bounded slice.
-- UI now carries System-subnav truthfulness work; it remains deferred pending independent READY/evidence review.
+- Error ledger reports `ERR-0001` through `ERR-0005` closed; no Error-owned product mutation is requested.
+- Core exhaustive Research coverage accounting is `IMPLEMENTED_PENDING_VERIFY`; canonical Quality `33832553543` was pending at the Core handoff and is not accepted until exact green evidence is consumed.
+- Backend research string-container hardening commit `818e421ea721003e16447ce8e335e49388dc1520` has focused green evidence `33829758780`; current Backend head also contains a newer `_stable_uuids()` boundary commit, so the next Integrator run must independently separate/verify the exact bounded candidate before integration.
 - Eleven reference screens remain `VISUAL_REFERENCE_PENDING`; zero `MATCH` claims are permitted without original pixels plus a real current render.
 
 ## Next integration order
 
-1. Consume post-integration Develop validation for `497b200d...` when available.
-2. Independently review the Backend research string-container hardening candidate and its exact focused/canonical evidence.
-3. Otherwise consume the next exact-green bounded UI System-subnav slice.
-4. If none is READY, implement exactly one small unclaimed cross-cutting product path rather than repeating handoffs.
+1. Independently consume exact current Backend/Core canonical evidence and select one bounded READY slice.
+2. Prefer the already focused-green Research string-container boundary if its canonical/equivalent product-test evidence is exact and current.
+3. Otherwise accept Core exhaustive Research coverage accounting only after `33832553543` (or exact equivalent descendant) is green.
+4. If neither is READY, implement exactly one small unclaimed cross-cutting product path rather than repeating handoffs.
 
 ## Rules retained
 

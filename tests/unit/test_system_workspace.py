@@ -42,10 +42,26 @@ def test_system_workspace_exposes_reference_secondary_navigation() -> None:
     workspace = SystemWorkspace(None)
 
     labels = [
-        label.text().replace("●", "").strip()
+        label.text().replace("●", "").split("·", maxsplit=1)[0].strip()
         for label in workspace.findChildren(QLabel, "systemSubnavItem")
     ]
     assert labels == ["Overview", "Runtime", "Storage", "Network", "Logs"]
+
+
+def test_system_workspace_marks_unwired_subnav_destinations_unavailable() -> None:
+    _app()
+    workspace = SystemWorkspace(None)
+
+    items = workspace.findChildren(QLabel, "systemSubnavItem")
+    overview, *unavailable = items
+
+    assert overview.property("pathenaUnavailable") is None
+    assert overview.accessibleDescription() == "Current System overview"
+    assert all(item.property("pathenaUnavailable") is True for item in unavailable)
+    assert all("unavailable" in item.text().lower() for item in unavailable)
+    assert all(
+        "unavailable" in item.accessibleDescription().lower() for item in unavailable
+    )
 
 
 def test_system_workspace_uses_reference_inspector_width() -> None:
