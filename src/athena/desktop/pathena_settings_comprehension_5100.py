@@ -52,6 +52,7 @@ class SettingsComprehensionController(QObject):
         self.sync()
 
     def sync(self) -> None:
+        self._sync_local_connection_boundary()
         model = self._selected_model()
         loaded = bool(getattr(model, "loaded", False)) if model is not None else False
         capacity = self._runtime_capacity(model)
@@ -102,6 +103,27 @@ class SettingsComprehensionController(QObject):
             settings_value.setAccessibleDescription(
                 self._model_description(model, model_state, capacity)
             )
+
+    def _sync_local_connection_boundary(self) -> None:
+        """Keep local Core readiness distinct from Internet-access semantics."""
+        network_value = self.window.findChild(QLabel, "settingsNetworkState")
+        if network_value is None:
+            return
+        network_value.setAccessibleName("Local Core connection")
+        scope = network_value.property("pathenaNetworkScope")
+        if scope == "loopback-only":
+            description = (
+                f"{network_value.text()}. Local loopback connection only; this status "
+                "does not indicate Internet access."
+            )
+        else:
+            description = (
+                f"{network_value.text()}. This reports the local Core connection only; "
+                "Internet-access state is not inferred here."
+            )
+        network_value.setAccessibleDescription(description)
+        network_value.setToolTip(description)
+        network_value.setProperty("pathenaInternetStateInferred", False)
 
     def _bind_visible_labels(self) -> None:
         settings_page = self.window.findChild(QWidget, "pageSettings")
