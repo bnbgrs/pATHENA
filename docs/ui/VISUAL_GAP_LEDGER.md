@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `f886a63ea190cb8d8df202bfd6528a6ef22df317`
+Baseline: `a0e0a2bcf76b0e7f77bb3cd15b8c2ccf79d5c600`
 Integration target: `develop/pathena-next`
 
 Only evidence-backed gaps belong here. The original 11 reference screenshots remain unavailable for direct visual comparison; therefore no pixel-level mismatch or `MATCH` claim is asserted.
@@ -55,11 +55,24 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Category: `STATE / ACCESSIBILITY`
 - Screen: `07 — Settings`
 - Severity: `P1`
-- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Status: `FIXED`
 - Evidence: `SettingsRuntimeController.apply_snapshot()` assigns `pathenaNetworkScope=loopback-only` and a connected-state tooltip, while the previous `apply_connection_failure()` changed visible text/state to unavailable without clearing that scope/tooltip. A ready→connection-failure transition could therefore retain stale connected metadata on the visible Settings connection indicator.
 - Product commit: `ad416f76cd52eadd42aa7f2b09a96ce43bf737c7`.
 - Focused test commit: `d7e85654db03eb21da35a5fa06d3bdf94cb4a1a5`.
-- Candidate behavior: connection failure now sets `pathenaNetworkScope=unavailable`, keeps `pathenaInternetStateInferred=False`, replaces stale tooltip/accessibility text, and preserves unavailable/error freshness semantics. No backend/network capability is added.
+- Acceptance: connection failure sets `pathenaNetworkScope=unavailable`, keeps `pathenaInternetStateInferred=False`, replaces stale tooltip/accessibility text, and preserves unavailable/error freshness semantics. No backend/network capability is added.
+- Verification evidence: exact documented UI head `6d6869d4927a52e98158238f396b8d5855b771b9` passed ATHENA Quality Gate `33860150646` with conclusion `success`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0010 — Fresh Core snapshot accessibility depended on delayed comprehension sync
+
+- Category: `STATE / ACCESSIBILITY`
+- Screen: `07 — Settings`
+- Severity: `P1`
+- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Evidence: `SettingsRuntimeController.apply_snapshot()` previously left the immediate accessible description at the generic visible text (`Local Core · connected`) and did not directly set `pathenaInternetStateInferred=False`; the separate `SettingsComprehensionController` corrected that metadata only on its own sync/timer cycle.
+- Product commit: `0722d780b94d8d297bd89e417ae09fab08cb4dcf`.
+- Focused test commit: `a2d7030101a01415af99b5a8cba31ad10550e5de`.
+- Candidate behavior: every fresh Core snapshot now immediately carries self-contained local-loopback accessibility text, `pathenaNetworkScope=loopback-only`, and `pathenaInternetStateInferred=False` before any later comprehension sync. Backend/network/security semantics remain unchanged.
 - Verification: canonical Quality required on the final documented worker head before `FIXED`.
 
 ## Evidence blocker
