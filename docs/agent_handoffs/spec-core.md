@@ -2,63 +2,51 @@
 
 ## Current baseline
 
-- Shared baseline: `develop/pathena-next@5d7061678afd2e2f6195d5a3ce6e15cde2797007`.
+- Shared baseline: `develop/pathena-next@da34f14284cd61eb0e23b4dc2ac1d7757b2b2e5a`.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 - Worker branch: `postmerge/spec-core`.
-- History-preserving NON-FORCE synchronization merge: `edec1568cf60d9708bcbb05beb5338b82c7e0ee1`, with parents `482dc5a376c288979d30d9c63132582ae951a254` and current Develop `5d7061678afd2e2f6195d5a3ce6e15cde2797007`.
+- History-preserving NON-FORCE synchronization merge: `b211a27431c687694577dec8469a1a5b40b02997`, with parents previous Core `769ae5aa74f785ee2c48c2f93de7111043b4622e` and current Develop `da34f14284cd61eb0e23b4dc2ac1d7757b2b2e5a`.
 
-## Verified slice — Exhaustive Research coverage accounting
+## Verified prior slice — Exhaustive Research coverage accounting
 
-Spec source: `docs/beta/11_Exhaustive_Research.md` plus the integrated Alpha/Beta progress contract.
+Canonical coverage policy remains integrated and verified. The durable Scope/Result composition patch is still versioned at `docs/agent_handoffs/spec-core-research-coverage-composition.patch` against exact repository blob `dde58860ae0008b8d24cb0a868fb9420faeef405`.
 
-Canonical policy files:
-- `src/athena/research/coverage.py`
-- `tests/unit/test_research_coverage.py`
+This run obtained the complete exact repository blob through the GitHub blob API, so the prior read/truncation blocker is not repeated. However, the available authenticated write actions still replace an existing file only from complete literal content and expose no patch/delta mutation endpoint. Local git checkout again failed DNS resolution of `github.com`. The large central repository file therefore remains intentionally unmodified rather than reconstructed unsafely.
 
-Exact worker Quality run `33839840564` completed `success` on `482dc5a376c288979d30d9c63132582ae951a254`. Develop independently records the integrated coverage slice as `VERIFIED`.
+## Implemented disjoint Core slice — canonical ResearchResult coverage formula payload
 
-Contract retained:
+Spec anchors: Beta 11 §§35–39 and §50. Section 36 requires the exact coverage formula to be stored in ResearchResult; Section 50 requires Coverage and failed/unavailable areas to remain explicit.
+
+Product commit `bd0e8c1810b98ea8f34f4f820d8d9b71e8bbe604` adds `COVERAGE_FORMULA_ID = "eligible-successful-irrelevant-v1"` and `ResearchCoverage.result_payload()`. The payload is derived only from already validated canonical counters and includes formula identity, eligible/processed counts, successful/irrelevant/failed/unavailable/excluded counts, and coverage ratio. It does not fabricate provenance or convert failures/unavailable work into coverage.
+
+Focused-test commit `60a68e6ff4089139f07cf8207e3f773fd25606a0` pins the exact canonical payload including visible failed/unavailable counts and formula identity. Canonical Quality run `33848536310` is pending on that exact product/test head; no PASS is claimed.
+
+## Product contract
+
+- formula identity is stable and explicit;
 - eligible = candidate_total - excluded_count;
 - processed = successful + irrelevant + failed + unavailable;
-- only successful + explicitly irrelevant work contributes to coverage;
-- failed/unavailable work remains terminal and visible but cannot inflate coverage;
-- zero eligible work does not synthesize 100% coverage;
-- invalid, bool, negative, or impossible counter combinations fail closed.
-
-## Current Core gap — durable ResearchScope / ResearchResult composition
-
-`ResearchRepository._recompute_scope_counters()` still manually duplicates the same processed/coverage arithmetic before persisting `research_scopes`. `finalize_result_fenced()` calls that recomputation and then copies the persisted counters into the durable `ResearchResult`, so this single bounded composition point governs both Scope and Result truthfulness.
-
-The required product mutation is now versioned exactly in:
-
-`docs/agent_handoffs/spec-core-research-coverage-composition.patch`
-
-The patch is based on the current repository blob `src/athena/research/repository.py@dde58860ae0008b8d24cb0a868fb9420faeef405` and does only the following:
-
-1. imports the verified pure coverage policy as `CoverageAccounting`;
-2. removes the duplicate SQL/manual processed/ratio arithmetic;
-3. derives persisted `processed_count` and `coverage_ratio` from `CoverageAccounting` using the same real SQL counters;
-4. adds a focused SQLite acceptance test proving the durable recomputation invokes the canonical policy and persists failed/unavailable work as processed without counting it as coverage.
-
-No schema, transaction, snapshot, recovery, fence, state-transition, source/provider, security, provenance, PALLAS, or UI semantics are changed.
-
-## Write-path blocker and mandatory next action
-
-The available GitHub contents mutation action can replace an existing file only by sending its complete UTF-8 contents. `repository.py` is a large central persistence file. Local checkout/download is currently unavailable because the execution environment cannot resolve `github.com`. Reconstructing the large file from partial ranges would violate the Core safety rule and risk overwriting unrelated worker changes.
-
-This blocker is therefore recorded only for this run. It must not be repeated unchanged. The next Core run must use a safe alternative that applies the versioned patch against the exact `dde58860...` base (for example a restored checkout/download path or another patch-capable mutation route), or, if that exact base has moved, regenerate/review the patch against the new complete blob before mutation. Once applied, run `tests/unit/test_research_coverage.py`, the new persistence-focused test, smallest Research repository/result regressions, then canonical Quality.
+- coverage-positive = successful + irrelevant only;
+- failed/unavailable remain visible and never inflate coverage;
+- zero eligible work cannot synthesize 100%;
+- no storage schema, transaction, snapshot, recovery, fence, provider, security, provenance, PALLAS or UI semantics changed.
 
 ## Ownership / collision avoidance
 
-- Backend owns Research runtime/source-types/input-boundary hardening; Core does not modify those paths.
-- UI owns styling/Desktop/UI slices; no UI files are touched.
-- Error worker owns independent defect ledger/recovery validation; no new ERR root cause is asserted here.
-- Integrator must not integrate the composition patch as product code until it has actually been applied to `postmerge/spec-core` and verified.
+- Backend owns Research runtime/source-types/input-boundary and WAL/system work.
+- UI owns styling/Desktop/UI slices.
+- Error owns independent defect ledger/recovery validation.
+- Core retains durable coverage composition and canonical Research result truthfulness.
 
 ## Integrator handoff
 
-The pure Research coverage policy itself is `VERIFIED` and already integrated on Develop. The new durable Scope/Result composition is `PATCH_READY_BLOCKED_ON_SAFE_EXISTING_FILE_MUTATION`, not product-ready. Do not infer implementation from the patch file.
+NOT READY for the new formula-payload slice until exact Quality `33848536310` completes green. If green, independently review bounded product/test commits `bd0e8c1810b98ea8f34f4f820d8d9b71e8bbe604` + `60a68e6ff4089139f07cf8207e3f773fd25606a0`.
+
+The durable Scope/Result composition patch remains not implemented and must not be inferred from its patch file.
 
 ## Next Alpha/Beta gap
 
-Priority remains applying `spec-core-research-coverage-composition.patch` safely, committing the bounded product/test slice, and verifying it. After green verification, immediately select the next highest unclaimed P0/P1/P2 CHAT/KNOWLEDGE/RESEARCH/PALLAS composition gap from current Alpha/Beta evidence.
+1. Consume exact Quality `33848536310`.
+2. If green, integrate the formula-payload slice through Integrator review.
+3. Continue the durable ResearchScope/ResearchResult composition using a safe authenticated mutation path; the complete exact blob is now available, but no large-file manual reconstruction is permitted.
+4. Once composition is real and green, use `ResearchCoverage.result_payload()` at ResearchResult creation so the Beta-mandated exact formula identity is durably stored without duplicating coverage arithmetic.
