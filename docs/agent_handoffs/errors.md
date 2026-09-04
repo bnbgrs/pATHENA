@@ -5,7 +5,7 @@
 - Baseline source: `develop/pathena-next`
 - Baseline SHA: `fefe26b9fdc972b5e6950cd535397eae1067d5ea`
 - Worker branch: `postmerge/errors`
-- Synchronization: history-preserving NON-FORCE merge of current Develop into Error lineage in this run.
+- Synchronization: history-preserving NON-FORCE merge `7619f1df97f4661bf684f9a18dc3eb71450dfaaa`.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
 ## Current error state
@@ -19,7 +19,7 @@
 ## Fresh evidence
 
 - UI Quality `33879947654` on exact SHA `3a1be68c48dab4176e9258170147cf127c4b3d2a` completed `success`; no `ERR-0009` is justified from that slice.
-- Newest UI Quality `33885558190` on exact head `44352a5d6bfe113e8a8a748af98c142534cfc9cc` remains `in_progress`. Completed evidence so far: Linux storage PASS, local install smoke PASS, validator PASS, Ruff PASS; mypy/pytest and Windows path safety remain incomplete. Do not claim PASS or failure while incomplete.
+- Newest UI Quality `33885558190` on exact head `44352a5d6bfe113e8a8a748af98c142534cfc9cc` remains `in_progress`. Completed evidence: Windows path safety PASS, Linux storage PASS, local install smoke PASS, specification validator PASS, Ruff PASS and mypy PASS; full pytest remains in progress. Do not claim PASS or failure while incomplete.
 - Backend Quality `33884147977` on exact SHA `f4a1fcb13ce80071a42e383cee1226516cba5a74` ended `cancelled`, therefore it is not PASS evidence. Replacement Quality `33884210684` on current Backend head `c67fa646d8ba4e4137cdf69992b9c8b42ad904d6` is in progress.
 - Current Develop is `fefe26b9fdc972b5e6950cd535397eae1067d5ea`; no exact-head global PASS is claimed.
 - Current `spec-core.md`, `backend.md`, `ui.md`, `integrator.md` and relevant worker heads were reviewed. No new concrete deduplicated primary error signature was found.
