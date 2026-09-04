@@ -132,7 +132,7 @@ def test_model_settings_persist_across_real_window_recreation(tmp_path) -> None:
         assert second._effective_context_limit() == 24_576
         assert second._max_output_tokens() == 2_048
         assert second._temperature() == pytest.approx(0.35)
-        assert second.thinking_checkbox.isChecked() is True
+        assert second._thinking_enabled() is True
         assert "restored locally" in second_runtime.persistence_value.text()
     finally:
         second.close()
