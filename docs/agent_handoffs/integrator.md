@@ -3,36 +3,40 @@
 ## Current branch state
 
 - `main` is strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `a7c1d8cd1530a3003690292a9bf4c660472d59ce`.
+- Develop before this run: `3ea908affd23f1d80e0b863a6af8cf366e2b8484`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `5ca5443be7f74391388c5ef967b200c83e7b4f28`; spec-core `0261a299b8703aec41c6032be0bb6e03d2aba637`; backend `19c73aee29cae2d2ea479a6e3d2aa1256afa06a1`; ui `acd4bcbeb68d9578fef53b223ef98f8ee2c6f43e`.
+- Worker heads reviewed: errors `628f16ed933a33c5963ef90b2e71b0c66a412bef`; spec-core `fc8bdf385c6464c6c7edfa75658fefb10c63b423`; backend `5e3afe703d0eb9257cca5ce8a1e502d9b158612e`; ui `45e2b84d14bfc11b4878d9b945065063fdc40e6d`.
 
-## Integrated this run — UI-GAP-0009
+## Integrated this run — UI-GAP-0010
 
-The previously deferred Settings connection-failure metadata slice was independently reviewed and remained baseline-compatible. Exact UI head `6d6869d4927a52e98158238f396b8d5855b771b9` passed canonical ATHENA Quality `33860150646 = success`.
+UI-GAP-0010 was independently re-reviewed against current Develop. Exact UI head `dc82cdded9e9d3c87be964a5f582965a9f4d3c9a` passed canonical ATHENA Quality `33864721817 = success`.
 
 Only the bounded product/test state was carried to Develop:
 
-- `src/athena/desktop/pathena_settings_runtime.py` now fails closed on Core connection failure by replacing stale loopback metadata with `pathenaNetworkScope=unavailable`, `pathenaInternetStateInferred=False`, and explicit unavailable accessibility/tooltip copy.
-- `tests/unit/test_pathena_settings_runtime.py` covers the ready/provider-unavailable/Core-failure transition and asserts that loopback metadata does not survive the failed Core refresh.
+- `src/athena/desktop/pathena_settings_runtime.py` now makes the fresh Core snapshot itself publish `pathenaNetworkScope=loopback-only`, `pathenaInternetStateInferred=False`, and self-contained tooltip/accessibility copy stating that Local Core connectivity does not indicate Internet access.
+- `tests/unit/test_pathena_settings_runtime.py` asserts those semantics immediately after snapshot application, before comprehension synchronization.
 
-No backend/network/security capability, Storage/Recovery behavior, provider command, quality rule, skip, xfail, or weakened assertion was introduced.
+Integrated commits: product `70729b7084dc960d1437db379c9088365dc70293`; focused test `6ed3f3397de8abffe2e120afa81616598b05d9ab`.
+
+No Backend/Network/Security/Storage capability, provider command, quality rule, skip/xfail, weakened assertion, fake telemetry or synthetic success path was introduced.
 
 ## Validation state
 
-- UI-GAP-0009 exact UI head `6d6869d4927a52e98158238f396b8d5855b771b9`: canonical Quality `33860150646` completed `success`.
-- Integrated product blob equals verified UI blob `8fd521dfed66dc0cf74ba95fffcfabdc6a969d9d`.
-- Integrated test blob equals verified UI blob `2047826ee3a2b6963a0ac4f022e967213ccaaa48`.
-- No new Develop-wide PASS is claimed in this run.
-- UI-GAP-0010 is now independently READY on exact UI head `dc82cdded9e9d3c87be964a5f582965a9f4d3c9a` with canonical Quality `33864721817 = success`; it remains deferred to the next bounded integration cycle.
-- ERR-0001 through ERR-0008 remain fixed according to the current error handoff. Develop Quality `33862677128` has a pytest-only failure whose exact diagnostic is still required before allocating a new stable ERR-ID.
+- UI-GAP-0010 exact UI head `dc82cdded9e9d3c87be964a5f582965a9f4d3c9a`: canonical Quality `33864721817` completed `success`.
+- Integrated product blob equals verified UI blob `c5c40e6dae84590087267f6bb0257b5d435f26a0`.
+- Integrated test blob equals verified UI blob `63c08e6e3928b7bb82b353a8a87475b368dd474e`.
+- No new Develop-wide workflow run is attached to exact integration commit `6ed3f3397de8abffe2e120afa81616598b05d9ab`; no exact-Develop global PASS is claimed.
+- Error handoff reports `ERR-0001` through `ERR-0008` fixed and no active stable `ERR-0009`.
+- UI-GAP-0011 remains `IMPLEMENTED_PENDING_VERIFY`; it is not READY until exact canonical Quality is green.
+- Core source-internal Research coverage policy is READY on exact green head `0261a299b8703aec41c6032be0bb6e03d2aba637` / Quality `33867459130`; the later real-record source coverage composition remains pending verification.
+- Backend Storage Health lineage is READY through `19c73aee29cae2d2ea479a6e3d2aa1256afa06a1` / Quality `33868034634`; the later Gateway verification remains pending.
 - Eleven original visual references remain unavailable; zero pixel-level `MATCH` claims are permitted.
 
 ## Next integration order
 
-1. Independently review and integrate UI-GAP-0010 from exact green UI head `dc82cdded9e9d3c87be964a5f582965a9f4d3c9a` if current Develop remains collision-free in the bounded Settings runtime/test paths.
-2. Otherwise select the next independently reviewed bounded READY Backend/Core/UI slice.
-3. Consume the exact pytest diagnostic from Develop Quality `33862677128` before assigning any new error identity.
+1. Prefer the highest bounded exact-green READY slice after independent baseline/diff review: Core source-internal Research coverage policy or Backend Storage Health, unless UI-GAP-0011 becomes exact-green first and has higher product priority.
+2. Do not consume Core real-record source coverage composition or Backend Gateway verification while their canonical runs remain pending/non-green.
+3. Require exact-head evidence before any new global-green Develop claim.
 
 ## Rules retained
 
