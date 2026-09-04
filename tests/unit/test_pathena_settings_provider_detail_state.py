@@ -53,3 +53,31 @@ def test_fresh_non_ready_provider_detail_is_presented_as_error(tmp_path) -> None
     finally:
         window.close()
         app.processEvents()
+
+
+def test_unavailable_provider_detail_fails_closed_as_error(tmp_path) -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    runtime = install_settings_runtime(
+        window,
+        None,
+        settings=QSettings(str(tmp_path / "settings.ini"), QSettings.Format.IniFormat),
+    )
+    snapshot = DesktopApiSnapshot(
+        health=HealthResponse(api_version="v1", core_status="ok", detail=None),
+        provider=None,
+        models=(),
+        chats=(),
+    )
+    try:
+        runtime.apply_snapshot(snapshot)
+
+        assert runtime.provider_value.text() == "Model provider · unavailable"
+        assert runtime.provider_value.property("pathenaUiState") == "error"
+        assert runtime.provider_value.property("pathenaRuntimeFreshness") == "unavailable"
+        assert runtime.detail.property("pathenaUiState") == "error"
+        assert runtime.detail.property("pathenaRuntimeFreshness") == "unavailable"
+        assert runtime.detail.accessibleDescription() == runtime.detail.text()
+    finally:
+        window.close()
+        app.processEvents()
