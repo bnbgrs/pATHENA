@@ -85,10 +85,12 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Category: `CONTROL`
 - Screen: `06 — System`; no screenshot-level geometry is inferred.
 - Severity: `P1`.
-- Status: `OPEN`.
-- Evidence: `_SystemSubnav` renders `Overview`, `Runtime`, `Storage`, `Network` and `Logs` with the same destination-like item treatment, but only the current Overview surface has a real product/navigation path. The other four labels are passive `QLabel` entries with no destination and no unavailable marker.
-- Contract: visible destination-like controls must either route to a real product path or be clearly represented as unavailable; do not fabricate backend/system pages.
-- Planned bounded fix: keep `Overview` as the real selected destination; mark `Runtime`, `Storage`, `Network` and `Logs` explicitly unavailable/disabled with an accessibility-visible unavailable state, plus a focused Qt contract test.
+- Status: `FIXED`.
+- Evidence: `_SystemSubnav` previously rendered `Overview`, `Runtime`, `Storage`, `Network` and `Logs` with the same destination-like item treatment, but only Overview has a real product/navigation path.
+- Product commit: `f32b64b5e3c3f0c91434b9a8e72d11c869512495` keeps Overview as the sole selected real destination and marks Runtime/Storage/Network/Logs visibly unavailable with `pathenaUnavailable=True`, explicit accessibility descriptions and the existing empty/unavailable UI state.
+- Focused test commit: `40efd4f894aa07110de67c9260deaf4fb14e1c41` verifies labels plus visible/property/accessibility unavailable semantics without fabricating destinations.
+- Canonical verification: exact UI head `40efd4f894aa07110de67c9260deaf4fb14e1c41` passed ATHENA Quality Gate `33830601076`; Python 3.12 quality, Ruff, mypy, full pytest, Windows path safety, Linux storage regressions and local-install smoke all completed successfully.
+- Acceptance: every destination-like System subnav item is either the real Overview path or explicitly unavailable; no backend/system page is fabricated.
 
 ## Evidence blocker
 
