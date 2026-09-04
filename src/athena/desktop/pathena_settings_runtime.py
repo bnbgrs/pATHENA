@@ -275,7 +275,13 @@ class SettingsRuntimeController(QObject):
             "or unsupported capability is inferred."
         )
         provider_detail_error = (
-            provider is not None and freshness == "fresh" and provider.status != "ready"
+            provider is None
+            or freshness == "unavailable"
+            or (
+                provider is not None
+                and freshness == "fresh"
+                and provider.status != "ready"
+            )
         )
         self._set_state(
             self.detail,
