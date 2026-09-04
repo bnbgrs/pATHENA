@@ -23,6 +23,14 @@ def _optional_nonnegative_int(value: object, label: str) -> int | None:
     return value
 
 
+def _optional_text(value: object, label: str) -> str | None:
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise TypeError(f"{label} must be str or None.")
+    return value
+
+
 @dataclass(frozen=True, slots=True)
 class StorageHealthSnapshot:
     """Truthful point-in-time facts about the live SQLite storage service."""
@@ -40,6 +48,8 @@ class StorageHealthSnapshot:
             raise ValueError("Storage health status is invalid.")
         if not isinstance(self.database_open, bool):
             raise TypeError("Storage health database_open must be bool.")
+        database_path = _optional_text(self.database_path, "Storage health database_path")
+        detail = _optional_text(self.detail, "Storage health detail")
         if isinstance(self.observed_at_us, bool) or not isinstance(self.observed_at_us, int):
             raise ValueError("Storage health observation time must be a positive integer.")
         if self.observed_at_us <= 0:
@@ -56,11 +66,11 @@ class StorageHealthSnapshot:
         if self.status == "available":
             if not self.database_open:
                 raise ValueError("Available storage health requires an open database.")
-            if self.database_path is None:
+            if database_path is None:
                 raise ValueError("Available storage health requires a database path.")
             if database_size is None or wal_size is None:
                 raise ValueError("Available storage health requires measured sizes.")
-            if self.detail is not None:
+            if detail is not None:
                 raise ValueError("Available storage health cannot carry an error detail.")
             return
 
@@ -72,13 +82,13 @@ class StorageHealthSnapshot:
         if self.status == "unavailable":
             if self.database_open:
                 raise ValueError("Unavailable storage health cannot report an open database.")
-            if self.detail is None:
+            if detail is None:
                 raise ValueError("Unavailable storage health requires a detail.")
             return
 
         if not self.database_open:
             raise ValueError("Storage health errors require a live database boundary.")
-        if self.detail is None:
+        if detail is None:
             raise ValueError("Storage health errors require a detail.")
 
 
