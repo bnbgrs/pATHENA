@@ -3,50 +3,45 @@
 ## Current branch state
 
 - `main` is strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `a76537a1002e323a97d18a0a95a4d39ce5f298ee`.
+- Develop before this run: `4d36d5f13e1449973e74c48df5e2efb53d0e8aae`.
 - Integration target remains `develop/pathena-next` only.
-- Worker heads reviewed: errors `cd45129cd482f7aa00905ffe585014ab8fd62cd9`; spec-core `0bcff9e3350705e6f10deb09c55ac38223d89a8b`; backend `05260394522502283738e2ef56e4902d70160540`; ui `873a027a1a2b3b08a4e633762b705e06faee4018`.
+- Worker heads reviewed: errors `523dc78afb81849de328fcb01a0580beac47424d`; spec-core `a20dbe70824d5fc07bdd1d981e3acf431554877a`; backend `9a0fa2bb23e897cb1da602951d548a792a3309e8`; ui `6d1862eddf6fff3620a7871ccb9176c62e6b737e`.
 
-## Prior combined validation consumed
+## Integrated this run — UI-GAP-0006 tray runtime-state visibility
 
-Canonical Quality run `33815279390` for the previously integrated ExternalAccessGateway authorization/runtime boundary bundle completed `success`. That bundle is now integration-verified on the prior Develop lineage; no error handoff is required for it.
+UI exact head `72e43bc18c28b5c92f6528919abf788f66924ba9` passed canonical ATHENA Quality Gate `33822861477` with conclusion `success`.
 
-## Integrated this run — UI-GAP-0005 persistent desktop system tray
+Independent bounded review accepted only the verified product/test state from the UI-GAP-0006 lineage:
 
-UI handoff reports exact canonical Quality run `33814651800 = success` for UI product/test head `acc156a8538e83ffec4e3eba4b9bef3e9c2fdb37`.
+- `src/athena/desktop/pathena_system_tray.py`: explicit runtime-state presentation for success/stale/error/unavailable, unknown values fail closed to unavailable, and QApplication ownership is narrowed only after the existing runtime guard;
+- `src/athena/desktop/system_workspace.py`: existing `SystemRuntimeOverview.state` is forwarded to the installed tray controller; no telemetry source is invented;
+- `tests/unit/test_pathena_system_tray.py`: focused Qt coverage for the explicit runtime states and unknown fallback.
 
-Independent bounded review accepted only the three UI-GAP-0005 product/test changes:
+Develop integration commits: `aa2cdbc8a3272caf036a5753551a6ce9dcc18e6b`, `f5cbe19db9efd1287e8b568ed62ea016fdca48cb`, `0cb6f5cb85edf569d47bc1060133e7f1eb7206bb`.
 
-- `src/athena/desktop/pathena_system_tray.py` — one persistent `QSystemTrayIcon` controller with real Open/System/Quit paths and explicit disabled unavailable states for model load/unload, Internet toggle and background-task pause;
-- `tests/unit/test_pathena_system_tray.py` — focused lifecycle/unavailable-state coverage;
-- `src/athena/desktop/system_workspace.py` — single-install wiring through the existing System workspace.
+The integrated product/test blobs exactly match the canonical-green UI head for those files. UI-GAP-0007 worker documentation/tooling is not integrated. No Backend/Storage/Security semantics, fake success states or unsupported tray actions were added.
 
-Develop integration commits:
-
-- `42d7ab41f3ebe92e5d0bf0ce7e1a52d7cb6d0672` — tray controller;
-- `0f814bd96b9addd1ba44e041f60e0cbb4fefd09e` — focused tests;
-- `9b2693fef8040b9be8f414943ba4686f71e50331` — SystemWorkspace wiring.
-
-The integrated files are exact worker contents for the canonical-green UI-GAP-0005 slice. No UI-GAP-0006 runtime-state changes, UI worker documentation, temporary verifier tooling, Core behavior, Backend/storage/security semantics, or `main` mutation were included.
+A validation-only draft PR `#61` targets `develop/pathena-next` from `validation/pathena-next-ui-gap-0006-20260904`; its branch-only delta is a documentation marker. It must not be auto-merged or promoted to main. At handoff-update time no workflow run had yet attached to validation head `631cafa77344fe175388c9fa467e1972b5236bc6`, so no new post-integration PASS is claimed.
 
 ## Current evidence / remaining candidates
 
-- `ERR-0001`..`ERR-0004`: closed; Error worker has no product mutation pending.
-- Core contradiction-review exact-revision adapter remains pending exact verification; do not integrate until its current exact evidence is green.
-- Backend capture-URL runtime-type boundary product/test commit `07782c78d6e2cb1e9f4bfb6bf9175c9fb041a806` has canonical run `33818120429` pending at the Backend handoff snapshot; do not integrate until green.
-- UI-GAP-0006 runtime-state visibility is implemented on UI worker but its exact product/test Quality `33818773088` is pending; do not integrate yet.
-- Eleven reference screens remain `VISUAL_REFERENCE_PENDING`; zero `MATCH` claims are permitted without opening original pixels and a real current render.
+- `ERR-0001`..`ERR-0004`: closed; Error worker reports the tray mypy root-cause lineage but no product mutation is required here.
+- Core ProposalAcceptanceService temporal contradiction gate has bounded product/test commits `11b56867dd2f23d7149bc9defa299434e3ca5409` + `209c5c3715c8e560e0c3954c3cd88991876f9086`; canonical run `33825883574` completed `cancelled`, therefore it is not READY.
+- Backend has no newer READY product slice than the already integrated Gateway capture-URL boundary.
+- UI-GAP-0006 is integrated from exact canonical-green evidence `33822861477`.
+- UI-GAP-0007 is the next worker-owned UI truthfulness gap and is not part of this integration.
+- Eleven reference screens remain `VISUAL_REFERENCE_PENDING`; zero `MATCH` claims are permitted without original pixels plus a real current render.
 
 ## Next integration order
 
-1. Consume exact validation for the current Core contradiction-review candidate; if green, independently review its bounded adapter/test delta.
-2. Otherwise consume Backend `33818120429`; if green, independently review only the two-file capture-URL guard slice.
-3. Otherwise consume UI `33818773088`; if green, independently review only UI-GAP-0006 runtime-state visibility.
+1. Consume a fresh exact-green Core contradiction-gate run before integrating `11b56867...` + `209c5c371...`.
+2. Otherwise consume the next bounded Backend slice only after focused/canonical evidence.
+3. Otherwise consume UI-GAP-0007 only after exact green verification.
 4. If none is READY, implement exactly one small unclaimed cross-cutting product path rather than repeating handoffs.
 
 ## Rules retained
 
 - `main` remains strictly read-only and unchanged.
 - No force-push, history rewrite, auto-merge or automatic promotion to main.
-- Pending/cancelled/action-required-with-no-jobs runs are never PASS evidence.
+- Pending, cancelled, action-required-with-no-jobs runs are never PASS evidence.
 - Worker slices require compatible baseline, bounded scope, real verification, no weakened tests/guards and no confirmed regression.
