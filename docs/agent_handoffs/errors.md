@@ -3,9 +3,9 @@
 ## Baseline
 
 - Baseline source: `develop/pathena-next`
-- Baseline SHA: `fefe26b9fdc972b5e6950cd535397eae1067d5ea`
+- Baseline SHA: `0b7f428f8679db9391c00b4b9638d85550332c43`
 - Worker branch: `postmerge/errors`
-- Synchronization: history-preserving NON-FORCE merge `7619f1df97f4661bf684f9a18dc3eb71450dfaaa`.
+- Synchronization: history-preserving NON-FORCE merge `03fe027d2fbd634324135e330ecde30eb69f3b9b`.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
 ## Current error state
@@ -18,22 +18,25 @@
 
 ## Fresh evidence
 
-- UI Quality `33879947654` on exact SHA `3a1be68c48dab4176e9258170147cf127c4b3d2a` completed `success`; no `ERR-0009` is justified from that slice.
-- Newest UI Quality `33885558190` on exact head `44352a5d6bfe113e8a8a748af98c142534cfc9cc` remains `in_progress`. Completed evidence: Windows path safety PASS, Linux storage PASS, local install smoke PASS, specification validator PASS, Ruff PASS and mypy PASS; full pytest remains in progress. Do not claim PASS or failure while incomplete.
-- Backend Quality `33884147977` on exact SHA `f4a1fcb13ce80071a42e383cee1226516cba5a74` ended `cancelled`, therefore it is not PASS evidence. Replacement Quality `33884210684` on current Backend head `c67fa646d8ba4e4137cdf69992b9c8b42ad904d6` is in progress.
-- Current Develop is `fefe26b9fdc972b5e6950cd535397eae1067d5ea`; no exact-head global PASS is claimed.
-- Current `spec-core.md`, `backend.md`, `ui.md`, `integrator.md` and relevant worker heads were reviewed. No new concrete deduplicated primary error signature was found.
+- UI Quality `33885558190` on exact SHA `44352a5d6bfe113e8a8a748af98c142534cfc9cc` completed `success`; no `ERR-0009` is justified from that slice.
+- Backend Quality `33884210684` on exact SHA `c67fa646d8ba4e4137cdf69992b9c8b42ad904d6` completed `success`; no error is justified from that slice.
+- Current Backend head `b025f6de83a969cca10a7677faae0b349e1a2988` has Quality `33890486614` in progress. Pending is not PASS or failure evidence.
+- Current UI head `622f85338613b7d59ef5b1bd0fd05eae3d488c47` has Quality `33891068183` in progress. Pending is not PASS or failure evidence.
+- Current Develop is `0b7f428f8679db9391c00b4b9638d85550332c43`; no exact-head global PASS is claimed.
+- Current Develop `spec-core.md`, `backend.md`, `ui.md`, `integrator.md` and relevant worker heads were reviewed. Integrator has already carried the verified ExternalAccessGateway canonical runtime-boundary harness into Develop; no production source changed in that integration.
+- No new concrete deduplicated primary failure signature was found.
 
 ## Integrator handoff
 
 - `ERR-0001` through `ERR-0008` remain cleared.
-- UI exact SHA `3a1be68c48dab4176e9258170147cf127c4b3d2a` is canonical-green via Quality `33879947654`.
-- Do not consume newest UI SHA `44352a5d6bfe113e8a8a748af98c142534cfc9cc` as globally green until Quality `33885558190` completes successfully.
-- Do not treat Backend SHA `f4a1fcb13ce80071a42e383cee1226516cba5a74` as verified from cancelled run `33884147977`; consume replacement current-head Quality `33884210684` instead.
-- Preserve prior verified ERR fixes and do not treat historical red or cancelled SHAs as globally green.
+- UI exact SHA `44352a5d6bfe113e8a8a748af98c142534cfc9cc` is canonical-green via Quality `33885558190`.
+- Backend exact SHA `c67fa646d8ba4e4137cdf69992b9c8b42ad904d6` is canonical-green via Quality `33884210684`.
+- Do not consume current UI SHA `622f85338613b7d59ef5b1bd0fd05eae3d488c47` as globally green until Quality `33891068183` completes successfully.
+- Do not consume current Backend SHA `b025f6de83a969cca10a7677faae0b349e1a2988` as globally green until Quality `33890486614` completes successfully.
+- Preserve prior verified ERR fixes and do not treat historical red, cancelled or pending SHAs as globally green.
 
 ## Next scan
 
-1. Consume completion of UI Quality `33885558190` and Backend Quality `33884210684`; allocate `ERR-0009` only if a concrete deduplicated primary failure appears.
+1. Consume completion of UI Quality `33891068183` and Backend Quality `33890486614`; allocate `ERR-0009` only if a concrete deduplicated primary failure appears.
 2. Check newest Core/Integrator exact heads and current Develop exact-head Quality.
 3. Continue Packaging, Provider/Transport, Research/Jobs, Persistence/Recovery, Qt/Desktop and local install/start scanning for real current-lineage failures.
