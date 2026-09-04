@@ -3,9 +3,9 @@
 ## Baseline
 
 - Baseline source: `develop/pathena-next`
-- Baseline SHA: `c91e76804e74595f92c8eb624ce7c5d83b66bad2`
+- Baseline SHA: `33c4a9657bb9aca24c6e85c0a2b4a7c0132c3358`
 - Worker branch: `postmerge/errors`
-- Synchronization: history-preserving NON-FORCE merge `964e71b98d6a417f87920fdb44a5630b87069424`, parents prior Error head `94e703f99f3363b10e96a4be32a92eda3f829ca3` and exact Develop `c91e76804e74595f92c8eb624ce7c5d83b66bad2`.
+- Synchronization: history-preserving NON-FORCE merge `09bc08b6945e4097c07998768738e0ad1f1760be`, with parents prior Error head `f99d9b8f911874c45928a7911013b0774ce96068` and exact Develop `33c4a9657bb9aca24c6e85c0a2b4a7c0132c3358`.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
 ## Current error state
@@ -18,20 +18,17 @@
 
 ## Fresh evidence
 
-- Historical `ERR-0004` remains FIXED and did not recur.
-- Backend advanced from the failing ERR-0009 lineage to `7688f49ea351749bf227a1683fd14aba719d9bb6`, but `tests/unit/test_lm_studio_response_limits.py` still contained the two stale constant-size expectations `[17, 17, 17]` and `[9, 9, 9]`.
-- Backend handoff separately records product hardening `2981624e0f7eef8c2e94b6f0eb86a859132a2386` and fixture-only correction `d988c9faa171f4fe86aac4b5fa4d169e8ee34a41`; its exact canonical Quality `33900614960` was cancelled after a later branch update and therefore is not PASS evidence.
-- The owner cycle completed without correcting the exact ERR-0009 expectations, and no newer conflicting Backend mutation of those assertions was present. Under the hard progress rule, Error took the minimal harness-only fix.
-- Error fix `67f3f447621c4544a5fb2fe321e76b62347290e0` changes only:
-  - `raw.readline_sizes == [17, 17, 17]` -> `[17, 9, 2]`;
-  - `raw.readline_sizes == [9, 9, 9]` -> `[9, 5, 1]`.
-- All response-byte limits, overflow behavior, secrecy assertions and product guards remain unchanged. No Skip/XFail or success mocking was introduced.
-- No exact workflow run was associated with `67f3f447621c4544a5fb2fe321e76b62347290e0` at first verification check, so `ERR-0009` is `FIXED_PENDING_VERIFY`, not `FIXED`.
-- Current Develop `c91e76804e74595f92c8eb624ce7c5d83b66bad2` has no exact-head global PASS claim in this handoff.
+- Historical `ERR-0004` remains `FIXED` and did not recur.
+- Error candidate `67f3f447621c4544a5fb2fe321e76b62347290e0` changes only the two stale `raw.readline_sizes` expectations to `[17, 9, 2]` and `[9, 5, 1]`; product byte caps, overflow handling and secrecy/security assertions remain unchanged.
+- Backend independently converged on the same harness-only correction at `0e966a49cd37d9ee6a4572ac4e35ce3d8018ff8e`; current Backend handoff head is `225db6c031551a2b79edf0d74b331a33e359ad26`.
+- Exact canonical Quality `33911612711` on Backend head `225db6c031551a2b79edf0d74b331a33e359ad26` is still `in_progress`.
+- In that exact run, Windows path safety, Linux storage regressions and local-install smoke are `success`; specification validator, Ruff and mypy are also `success`; full pytest remains in progress. Pending pytest is neither PASS nor failure evidence.
+- Therefore `ERR-0009` remains `FIXED_PENDING_VERIFY`; no global-green claim is made yet.
+- Current Develop is `33c4a9657bb9aca24c6e85c0a2b4a7c0132c3358`; Error was synchronized non-force without dropping the candidate harness correction.
 
 ## ERR-0009 verification contract
 
-Candidate fix SHA: `67f3f447621c4544a5fb2fe321e76b62347290e0`.
+Candidate fix lineage: Error `67f3f447621c4544a5fb2fe321e76b62347290e0`; equivalent Backend owner correction `0e966a49cd37d9ee6a4572ac4e35ce3d8018ff8e`.
 
 Required before closure:
 
@@ -40,21 +37,20 @@ Required before closure:
 3. Ruff PASS.
 4. mypy PASS.
 5. full pytest PASS.
-6. canonical ATHENA Quality on an exact descendant containing the candidate unchanged = success.
+6. canonical ATHENA Quality on an exact descendant containing the correction unchanged = `success`.
 
-Until those exist, do not mark `ERR-0009` FIXED and do not call the Error candidate globally green.
+Until all required evidence exists, do not mark `ERR-0009` `FIXED`.
 
 ## Integrator handoff
 
 - `ERR-0001` through `ERR-0008` remain cleared.
-- Reject Backend `2d9375d8afbeb05eea8d0b9149ffd3f352e4a9c1` as globally green because canonical Quality `33900689788` fails full pytest.
-- Do not use cancelled Backend Quality `33900614960` as verification evidence.
-- Candidate `ERR-0009` correction is Error `67f3f447621c4544a5fb2fe321e76b62347290e0`; it is harness-only and preserves product hardening, but remains NOT READY pending exact verification.
-- Preserve prior verified ERR fixes and do not treat historical red, cancelled, pending or unverified exact-head SHAs as globally green.
+- Reject failing Backend `2d9375d8afbeb05eea8d0b9149ffd3f352e4a9c1` and cancelled Quality `33900614960` as global-green evidence.
+- Prefer the Backend-owned equivalent correction lineage now that owner and Error agree on the same harness contract; do not duplicate or revert the product remaining-budget hardening.
+- Do not consume Backend `225db6c031551a2b79edf0d74b331a33e359ad26` as globally green until Quality `33911612711` completes successfully, including full pytest and canonical enforcement.
+- Preserve prior verified ERR fixes and do not treat red, cancelled, pending or unverified exact-head SHAs as globally green.
 
 ## Next scan
 
-1. Verify exact Error candidate `67f3f447621c4544a5fb2fe321e76b62347290e0` or an exact descendant with unchanged test blob using the two focused nodes, Ruff, mypy, full pytest and canonical Quality.
-2. If the candidate fails, isolate the exact primary signature and correct only that root cause; no assertion/guard weakening.
-3. Consume newest Backend/UI/Core/Integrator and current Develop exact-head evidence.
-4. Continue Packaging, Provider/Transport, Research/Jobs, Persistence/Recovery, Qt/Desktop and local install/start scanning for real current-lineage failures.
+1. Consume completion of Backend Quality `33911612711`; if green, close `ERR-0009` with exact evidence, otherwise isolate the exact primary pytest signature and fix only that root cause.
+2. Consume newest UI/Core/Integrator/current-Develop exact-head evidence and allocate `ERR-0010` only for a concrete deduplicated primary failure.
+3. Continue Packaging, Provider/Transport, Research/Jobs, Persistence/Recovery, Qt/Desktop, Security and local install/start scanning for real current-lineage failures.
