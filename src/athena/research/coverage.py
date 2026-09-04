@@ -11,7 +11,7 @@ from dataclasses import dataclass
 
 from athena.research.errors import ResearchStateError
 
-COVERAGE_FORMULA_ID = "eligible-success-or-irrelevant-v1"
+COVERAGE_FORMULA_ID = "eligible-successful-irrelevant-v1"
 
 
 def _count(value: object, field: str) -> int:
