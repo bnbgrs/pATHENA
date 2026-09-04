@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `3ea908affd23f1d80e0b863a6af8cf366e2b8484`
+Baseline: `c5a255fe45b6c6984cb66f1251c0a9f8eb0c7f0c`
 Integration target: `develop/pathena-next`
 
 Only evidence-backed gaps belong here. The original 11 reference screenshots remain unavailable for direct visual comparison; therefore no pixel-level mismatch or `MATCH` claim is asserted.
@@ -81,11 +81,24 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Category: `STATE / ACCESSIBILITY`
 - Screen: `07 — Settings`
 - Severity: `P1`
-- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Status: `FIXED`
 - Evidence: `SettingsRuntimeController.__init__()` created visible `Model provider · awaiting Core` and `Local Core · awaiting connection` labels without the explicit fail-closed state metadata used by later snapshot/failure transitions.
 - Product commit: `44ae9513ec5b77586d98a45c02afe0fe171af932`.
 - Focused test commit: `b307a771860c455b1630c2885ca1295e08a900d0`.
 - Acceptance: before any snapshot, provider/Core labels expose explicit non-success `idle` UI state with `pathenaRuntimeFreshness=unavailable`; Local Core exposes `pathenaNetworkScope=unavailable`, `pathenaInternetStateInferred=False`, and self-contained accessibility text stating that Internet access is not inferred. Existing visible awaiting copy remains unchanged; no backend/network/security/provider behavior changes.
+- Verification evidence: exact final documented candidate `45e2b84d14bfc11b4878d9b945065063fdc40e6d` passed ATHENA Quality Gate `33874283635` with conclusion `success`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0012 — Initial Settings persistence state lacked explicit non-success freshness metadata
+
+- Category: `STATE / ACCESSIBILITY`
+- Screen: `07 — Settings`
+- Severity: `P2`
+- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Evidence: before a model is selected, hydrated or saved, `Per-model settings · not saved yet` was visible but did not carry the same explicit `pathenaUiState` / `pathenaRuntimeFreshness` contract used by later persistence transitions.
+- Product commit: `d9797b5ff665b2c94ad7a9c34a6843d06f7cda4d`.
+- Focused test commit: `5c9b49773ea16dfa6db341da37ab33d12f9ee7c5`.
+- Acceptance: the initial persistence indicator keeps its existing copy but starts as `pathenaUiState=idle` and `pathenaRuntimeFreshness=unavailable`, preventing an untyped initial state from being mistaken for fresh/successful persistence. No storage/persistence behavior changes.
 - Verification: canonical Quality required on the exact final documented candidate before promotion to `FIXED`.
 
 ## Evidence blocker
