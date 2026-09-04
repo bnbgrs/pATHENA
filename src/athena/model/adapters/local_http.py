@@ -90,12 +90,9 @@ class _BoundedLocalResponse:
         readline = getattr(self._response, "readline", None)
         if readline is None:
             raise OSError("Local model streaming response does not support bounded lines.")
-        raw = cast(bytes, readline(self._max_bytes + 1))
-        if len(raw) > self._max_bytes:
-            raise LocalResponseTooLargeError(
-                "Local model streaming response line exceeded the configured byte limit."
-            )
-        if self._bytes_read + len(raw) > self._max_bytes:
+        remaining = self._max_bytes - self._bytes_read
+        raw = cast(bytes, readline(remaining + 1))
+        if len(raw) > remaining:
             raise LocalResponseTooLargeError(
                 "Local model streaming response exceeded the configured byte limit."
             )

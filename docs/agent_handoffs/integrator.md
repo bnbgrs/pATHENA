@@ -3,42 +3,44 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `33c4a9657bb9aca24c6e85c0a2b4a7c0132c3358`.
+- Develop before this run: `b69a91a5781fd8d65b3643243c8feec60e4824f7`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `5f7bc011e7a14c893394e12afb9c68275bdeef17`; spec-core `ceb3682728aceb0b09893da6530dc38bc99f943a`; backend `f459035a701d6dad90d7be130e7a0644ae78201c`; ui `72c143fae1e339b254e5dc7be884c8efb79c7f84`.
+- Worker heads reviewed: errors `2ee9c374fd931a099de27b5ea8bd9dae0c876b76`; spec-core `66ddde67931b0fbc6b79cc35f534fb221bdd13bc`; backend `c9d1a7a9ab782ae081e4699eecd436d6a0ff5fb5`; ui `3d74d43279d9a80bf891bb6bc31001b1e43490e2`.
 
-## Integrated this run — local HTTP cumulative response-size boundary
+## Integrated this run — local HTTP readline remaining-budget hardening
 
-Backend READY lineage through `b025f6de83a969cca10a7677faae0b349e1a2988` is backed by canonical Quality `33890486614 = success`.
+Backend READY lineage is product `2981624e0f7eef8c2e94b6f0eb86a859132a2386` plus harness correction `0e966a49cd37d9ee6a4572ac4e35ce3d8018ff8e`, exact verified descendant `225db6c031551a2b79edf0d74b331a33e359ad26`, canonical Quality `33911612711 = success`.
 
-Independent review confirmed current Develop still used separate streaming-only accounting and allowed bounded positive `read(amt)` calls to bypass the response-wide budget. The exact verified product and focused-test contents were carried:
+Independent diff review confirmed current Develop already contained the cumulative response-wide byte-budget prerequisite but still requested `max_bytes + 1` on every `readline()` call. The bounded successor changes only that remaining-budget boundary and its stale harness expectations.
 
-- `src/athena/model/adapters/local_http.py` -> verified blob `c14d431d171edae4741dd0031f64b587965e4ca9`
-- `tests/unit/test_local_http_response_boundaries.py` -> verified blob `5522f8e9f3ca2244f1126ca4480c2e28a84a63dc`
+Exact verified contents carried to Develop:
+
+- `src/athena/model/adapters/local_http.py` -> blob `5fe00ce8a4b0b78f17279497b2a3d1caeeaac704`
+- `tests/unit/test_lm_studio_response_limits.py` -> blob `28737d4b79f0d4b3e03d24f0f1a6d161ee736f99`
 
 Develop integration commits:
 
-- product: `86f3dd9059f5501b3455518f362d830e4d0aa1e3`
-- focused test: `d6375236ae47d9fb7463722718fda12d82ab612e`
+- product: `efb5b1cb3ddc82f2908437ece67af2dbe9524032`
+- harness: `2924280beed8999be4e82c41e16e4285e3c03eec`
 
-The slice establishes one cumulative byte budget across `read()`, `read(-1)` and `readline()`, retains one overflow-detection byte, and fails closed once accepted bytes would exceed the configured cap. Loopback-only routing, proxy rejection, redirect rejection, timeout validation and existing total-deadline semantics are unchanged.
+`readline()` now requests only `remaining + 1`, preserving one overflow-detection byte and failing closed if the returned line exceeds remaining capacity. The harness expectation changes from repeated full-cap requests to the verified shrinking remaining-budget sizes. No assertion, byte cap, loopback-only restriction, proxy/redirect rejection, timeout validation, storage/security/recovery guard or provider routing contract was weakened.
 
 ## Validation state
 
-- Exact Backend cumulative-size lineage passed canonical Quality `33890486614`.
-- Integrated product/test blobs are byte-identical to that verified lineage.
-- No exact current-Develop global Quality PASS is claimed in this run.
-- Backend exact descendant `225db6c031551a2b79edf0d74b331a33e359ad26` passed canonical Quality `33911612711 = success`; this satisfies the Error worker's `ERR-0009` verification contract for the unchanged remaining-budget hardening plus harness correction.
-- The newer direct-read total-deadline slice remains NOT READY until its own exact canonical Quality completes green.
-- Core attribution candidate remains NOT READY while its exact Quality is pending.
-- UI-GAP-0016 is READY on exact green UI lineage; UI-GAP-0017 remains pending verification.
+- Exact Backend descendant `225db6c031551a2b79edf0d74b331a33e359ad26` passed canonical ATHENA Quality `33911612711` with Windows path safety, Linux storage regressions, local-install smoke, validator, Ruff, mypy, full pytest and canonical enforcement green.
+- Integrated product and harness blobs are byte-identical to the exact verified lineage.
+- No exact current-Develop canonical Quality run was attached immediately after the two integration commits; no global-green Develop claim is made.
+- Error worker has already closed `ERR-0009`; no open deduplicated product error is currently recorded.
+- Core attribution-aware contradiction policy is READY on exact green `ceb3682728aceb0b09893da6530dc38bc99f943a` / Quality `33915587266`; its newer combined contradiction gate remains pending verification.
+- UI-GAP-0017 is READY on exact green `72c143fae1e339b254e5dc7be884c8efb79c7f84` / Quality `33917796701`; UI-GAP-0018 remains pending verification.
+- Backend direct-read total-deadline product is still NOT READY until an exact descendant containing harness correction `14cdda954d621e9b9cb5fd8b7b2fdbda8297dc81` is canonical green.
 - Original eleven visual references remain unavailable; zero pixel-level `MATCH` claims are permitted.
 
 ## Next integration order
 
-1. Integrate the verified local HTTP `remaining + 1` readline hardening plus harness-only correction as the direct successor to this cumulative-budget prerequisite, after independent baseline/diff review.
-2. Otherwise consume exactly one READY UI-GAP-0016 or exact-green Core slice if stronger current evidence appears.
-3. Do not consume the direct-read total-deadline slice until its own exact canonical Quality is green.
+1. Independently review exactly one current READY bounded slice: Core attribution-aware contradiction policy or UI-GAP-0017, preferring the stronger cross-cutting product dependency.
+2. If Backend direct-read total-deadline correction obtains exact canonical-green evidence first, it becomes a valid bounded alternative.
+3. Do not consume UI-GAP-0018 or the combined contradiction gate until their exact product-containing canonical Quality is green.
 4. Require exact-head evidence before any global-green Develop claim.
 
 ## Rules retained
