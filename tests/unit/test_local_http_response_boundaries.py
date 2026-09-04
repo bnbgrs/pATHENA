@@ -13,7 +13,12 @@ from athena.model.adapters.local_http import (
 class _RecordingBytesIO(io.BytesIO):
     def __init__(self, initial_bytes: bytes) -> None:
         super().__init__(initial_bytes)
+        self.read_sizes: list[int] = []
         self.readline_sizes: list[int] = []
+
+    def read(self, size: int = -1) -> bytes:
+        self.read_sizes.append(size)
+        return super().read(size)
 
     def readline(self, size: int = -1) -> bytes:
         self.readline_sizes.append(size)
@@ -71,3 +76,66 @@ def test_negative_read_is_bounded_like_read_all() -> None:
 
     with pytest.raises(LocalResponseTooLargeError, match="configured byte limit"):
         response.read(-1)
+
+
+def test_direct_read_rejects_expired_total_deadline_before_underlying_read(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    times = iter([10.0, 11.0])
+    monkeypatch.setattr(
+        "athena.model.adapters.local_http.monotonic",
+        lambda: next(times),
+    )
+    raw = _RecordingBytesIO(b"abc")
+    response = _BoundedLocalResponse(
+        raw,
+        max_bytes=5,
+        total_timeout_seconds=0.5,
+    )
+
+    with pytest.raises(TimeoutError, match="total timeout"):
+        response.read(1)
+
+    assert raw.read_sizes == []
+
+
+def test_direct_readline_rejects_expired_total_deadline_before_underlying_read(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    times = iter([20.0, 21.0])
+    monkeypatch.setattr(
+        "athena.model.adapters.local_http.monotonic",
+        lambda: next(times),
+    )
+    raw = _RecordingBytesIO(b"abc\n")
+    response = _BoundedLocalResponse(
+        raw,
+        max_bytes=5,
+        total_timeout_seconds=0.5,
+    )
+
+    with pytest.raises(TimeoutError, match="total timeout"):
+        response.readline()
+
+    assert raw.readline_sizes == []
+
+
+def test_direct_read_fails_closed_when_deadline_expires_during_underlying_read(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    times = iter([30.0, 30.2, 31.0])
+    monkeypatch.setattr(
+        "athena.model.adapters.local_http.monotonic",
+        lambda: next(times),
+    )
+    raw = _RecordingBytesIO(b"abc")
+    response = _BoundedLocalResponse(
+        raw,
+        max_bytes=5,
+        total_timeout_seconds=0.5,
+    )
+
+    with pytest.raises(TimeoutError, match="total timeout"):
+        response.read(1)
+
+    assert raw.read_sizes == [1]
