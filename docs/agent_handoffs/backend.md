@@ -2,33 +2,29 @@
 
 ## Baseline
 
-- Shared baseline: `develop/pathena-next@3ea908affd23f1d80e0b863a6af8cf366e2b8484`.
+- Shared baseline: `develop/pathena-next@14adeb8949f680dc16a3067e586b3950132e0375`.
 - Worker branch: `postmerge/backend`.
-- History-preserving NON-FORCE synchronization: `a3d0a19a499172d1a86f65f0486d3551df647de5`, parents `19c73aee29cae2d2ea479a6e3d2aa1256afa06a1` and exact Develop `3ea908affd23f1d80e0b863a6af8cf366e2b8484`.
+- History-preserving NON-FORCE synchronization: `9cbace0756d5ab93ce322b7e0a76a5ce1eda03b2`, parents `3ff9e39ab8e01bf0aedc8ac524dd8bef8cf00e39` and exact Develop `14adeb8949f680dc16a3067e586b3950132e0375`.
 - `main` remains strict read-only and untouched.
 
 ## Storage Health runtime boundaries — VERIFIED
 
 Canonical ATHENA Quality Gate `33868034634` completed `success` on exact worker head `19c73aee29cae2d2ea479a6e3d2aa1256afa06a1`.
 
-The verified Storage Health lineage rejects malformed numeric/open-state/text telemetry facts, including bool sizes/time, non-bool open state, non-text path/detail and empty path/detail, while preserving established negative-size and state-consistency contracts.
-
 Status: `BACKEND_VERIFIED / INTEGRATOR_READY` for the bounded Storage Health lineage through `19c73aee29cae2d2ea479a6e3d2aa1256afa06a1`.
 
-## ExternalAccessGateway runtime boundaries — EXECUTED / VERIFYING
+## ExternalAccessGateway runtime boundaries — VERIFIED / FINAL HARNESS PLACEMENT VERIFYING
 
-Current product code on Develop already contains the required fail-before-side-effect guards:
+Current product code contains the required fail-before-side-effect runtime guards:
 
 - `authorize_explicit(... ttl_seconds=...)`: exact `int`, bool rejected, established `1..86400` range retained;
 - `authorize_direct_fallback(... ttl_seconds=...)`: exact `int`, bool rejected, established `1..900` range retained before authorization lookup;
 - `capture_url(... max_bytes=...)`: exact `int`, bool rejected, established safe range retained before authorization lookup/fetch;
 - `capture_url(... timeout_seconds=...)`: numeric but not bool, finite via `math.isfinite`, established `(0, 300]` range retained before authorization lookup/fetch.
 
-The named historical patch artifact is not present on the current Develop/Backend trees, so no stale patch was reconstructed or re-applied over already-integrated product code.
+Gateway boundary test commit `3bd9e6ae4fd67344d5e8b094747daa5ff7ea405f` is canonically verified by ATHENA Quality Gate `33878485868 = success` on exact synchronized head `3ff9e39ab8e01bf0aedc8ac524dd8bef8cf00e39`. This supplies real canonical evidence for bool TTL, bool max_bytes and bool/NaN/+Inf/-Inf timeout fail-before-side-effect behavior.
 
-Test commit `3bd9e6ae4fd67344d5e8b094747daa5ff7ea405f` adds explicit fail-before-side-effect coverage for bool explicit TTL, bool direct-fallback TTL, bool max_bytes, and bool/NaN/+Inf/-Inf timeout in the dedicated ExternalAccessGateway authorization-boundary harness. Existing `tests/unit/test_external_access_gateway.py` remains part of the canonical regression suite and retains Tor/direct/response-policy/audit/provenance atomicity coverage.
-
-Canonical Quality `33873350238` is associated with exact test head `3bd9e6ae4fd67344d5e8b094747daa5ff7ea405f`; it was `pending` with zero jobs at the latest check. No PASS/READY claim is made for the Gateway slice yet.
+The explicitly required canonical harness `tests/unit/test_external_access_gateway.py` now also contains equivalent regression coverage in commit `f4a1fcb13ce80071a42e383cee1226516cba5a74`, without removing the dedicated authorization-boundary tests. Canonical Quality `33884147977` is associated with this exact test head and is pending; no PASS is claimed for this final harness-placement commit until jobs complete.
 
 ## Invariants retained
 
@@ -41,9 +37,10 @@ Canonical Quality `33873350238` is associated with exact test head `3bd9e6ae4fd6
 
 ## Integrator handoff
 
-- READY: bounded Storage Health lineage through `19c73aee29cae2d2ea479a6e3d2aa1256afa06a1`, canonical Quality `33868034634 = success`.
-- NOT READY: ExternalAccessGateway runtime-boundary verification commit `3bd9e6ae4fd67344d5e8b094747daa5ff7ea405f` until a real executable run with jobs completes green.
+- READY: Storage Health lineage through `19c73aee29cae2d2ea479a6e3d2aa1256afa06a1`, canonical Quality `33868034634 = success`.
+- READY FOR BOUNDED REVIEW: ExternalAccessGateway runtime-boundary product/test lineage through `3ff9e39ab8e01bf0aedc8ac524dd8bef8cf00e39`, canonical Quality `33878485868 = success`.
+- PENDING FINAL HARNESS EVIDENCE: `f4a1fcb13ce80071a42e383cee1226516cba5a74` adds the same required cases to `tests/unit/test_external_access_gateway.py`; Quality `33884147977` pending.
 
 ## Next backend slice
 
-First consume Quality `33873350238`. If it executes and passes, mark the Gateway verification lineage READY and immediately take the highest current unclaimed Storage/Recovery/Provider/Packaging runtime gap. If it remains zero-job/pending for the next cycle, use a different executable verification path or a disjoint real Backend slice rather than repeating the same runner blocker.
+Consume exact Quality `33884147977`. If green, mark the canonical-harness placement verified and immediately take the highest current unclaimed Storage/Recovery/Provider/Packaging P0/P1/P2 runtime gap. If red, correct only the exact Backend-owned failure before unrelated work.
