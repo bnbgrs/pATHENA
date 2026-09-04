@@ -69,6 +69,7 @@ def test_external_capture_requires_explicit_scope_and_becomes_raw_source(
         )
     app.stop()
 
+
 class _BlockedTorTransport:
     def __init__(self) -> None:
         self.calls = 0
@@ -168,7 +169,6 @@ def test_tor_preferred_requires_separate_explicit_direct_authorization(
     app.stop()
 
 
-
 class _ChallengeTorTransport:
     def __init__(self) -> None:
         self.calls = 0
@@ -255,6 +255,7 @@ def test_tor_response_policy_failure_does_not_request_direct_fallback(
         )
     app.stop()
 
+
 def test_direct_access_challenge_is_not_captured_as_source_evidence(
     tmp_path: Path,
 ) -> None:
@@ -274,6 +275,7 @@ def test_direct_access_challenge_is_not_captured_as_source_evidence(
         )
     assert len(app.sources.list()) == before
     app.stop()
+
 
 def test_external_audit_order_is_strict_with_coarse_clock(
     tmp_path: Path,
@@ -318,7 +320,6 @@ def test_external_audit_order_is_strict_with_coarse_clock(
     assert "direct_approval_required" in str(events[1]["reason_code"])
     assert int(events[1]["created_at_us"]) > int(events[0]["created_at_us"])
     app.stop()
-
 
 
 def test_external_capture_finalization_rolls_back_source_audit_and_link(
@@ -473,3 +474,77 @@ def test_successful_external_capture_has_complete_atomic_provenance_triplet(
 
     finally:
         app.stop()
+
+
+def _fail_gateway_boundary_side_effect(*_args: object, **_kwargs: object) -> None:
+    pytest.fail("invalid ExternalAccessGateway runtime input reached a side effect boundary")
+
+
+def test_external_gateway_rejects_bool_ttl_before_actor_resolution(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = AthenaApplication(settings=AthenaSettings(local_root=tmp_path / "bool-ttl"))
+    app.start()
+    monkeypatch.setattr(
+        app.external_access.chat,
+        "ensure_local_user",
+        _fail_gateway_boundary_side_effect,
+    )
+    with pytest.raises(ExternalAuthorizationError, match="between 1 and 86400 seconds"):
+        app.external_access.authorize_explicit(
+            purpose="runtime boundary",
+            allowed_hosts=("example.com",),
+            ttl_seconds=True,  # type: ignore[arg-type]
+        )
+    app.stop()
+
+
+def test_external_gateway_rejects_bool_max_bytes_before_authorization_lookup(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = AthenaApplication(settings=AthenaSettings(local_root=tmp_path / "bool-max"))
+    app.start()
+    authorization = app.external_access.authorize_explicit(
+        purpose="runtime boundary",
+        allowed_hosts=("example.com",),
+    )
+    monkeypatch.setattr(
+        app.external_access,
+        "_authorized_or_audit",
+        _fail_gateway_boundary_side_effect,
+    )
+    with pytest.raises(ValueError, match="max_bytes"):
+        app.external_access.capture_url(
+            authorization.authorization_id,
+            "https://example.com/report",
+            max_bytes=True,  # type: ignore[arg-type]
+        )
+    app.stop()
+
+
+@pytest.mark.parametrize("timeout_seconds", [True, float("nan"), float("inf"), float("-inf")])
+def test_external_gateway_rejects_invalid_timeout_before_authorization_lookup(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    timeout_seconds: object,
+) -> None:
+    app = AthenaApplication(settings=AthenaSettings(local_root=tmp_path / "timeout-boundary"))
+    app.start()
+    authorization = app.external_access.authorize_explicit(
+        purpose="runtime boundary",
+        allowed_hosts=("example.com",),
+    )
+    monkeypatch.setattr(
+        app.external_access,
+        "_authorized_or_audit",
+        _fail_gateway_boundary_side_effect,
+    )
+    with pytest.raises(ValueError, match="timeout"):
+        app.external_access.capture_url(
+            authorization.authorization_id,
+            "https://example.com/report",
+            timeout_seconds=timeout_seconds,  # type: ignore[arg-type]
+        )
+    app.stop()
