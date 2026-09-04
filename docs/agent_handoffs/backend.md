@@ -2,46 +2,48 @@
 
 ## Baseline
 
-- Shared baseline: `develop/pathena-next@a0e0a2bcf76b0e7f77bb3cd15b8c2ccf79d5c600`.
+- Shared baseline: `develop/pathena-next@3ea908affd23f1d80e0b863a6af8cf366e2b8484`.
 - Worker branch: `postmerge/backend`.
-- History-preserving NON-FORCE synchronization with current Develop: merge commit `7c25e3330f27e734c4490376fefe897c5aea2f55`.
-- `main@0d4d621f8a38ddf8eccfa09622bf193687619943` remains strictly read-only and untouched.
+- History-preserving NON-FORCE synchronization: `a3d0a19a499172d1a86f65f0486d3551df647de5`, parents `19c73aee29cae2d2ea479a6e3d2aa1256afa06a1` and exact Develop `3ea908affd23f1d80e0b863a6af8cf366e2b8484`.
+- `main` remains strict read-only and untouched.
 
-## Verified Storage Health runtime-boundary slice
+## Storage Health runtime boundaries — VERIFIED
 
-Canonical ATHENA Quality Gate `33858608297` completed `success` on exact corrected head `33933c00169ab72786b8b27b8286af6432225e8e`.
+Canonical ATHENA Quality Gate `33868034634` completed `success` on exact worker head `19c73aee29cae2d2ea479a6e3d2aa1256afa06a1`.
 
-The verified slice rejects bool/non-int runtime values for `database_size_bytes`, `wal_size_bytes`, and `observed_at_us`, requires a genuine boolean `database_open`, and preserves the pre-existing negative-size `cannot be negative` error contract. The product/test lineage is `28d31ed053deecd1f8e4cb04210a22deee7d2876` + `d0fb68d799d30b713a4ef368bd0b2f243a014986` + correction `33933c00169ab72786b8b27b8286af6432225e8e`.
+The verified Storage Health lineage rejects malformed numeric/open-state/text telemetry facts, including bool sizes/time, non-bool open state, non-text path/detail and empty path/detail, while preserving established negative-size and state-consistency contracts.
 
-Status: `BACKEND_VERIFIED / INTEGRATOR_READY`.
+Status: `BACKEND_VERIFIED / INTEGRATOR_READY` for the bounded Storage Health lineage through `19c73aee29cae2d2ea479a6e3d2aa1256afa06a1`.
 
-## Current Storage Health text-boundary slice
+## ExternalAccessGateway runtime boundaries — EXECUTED / VERIFYING
 
-After synchronizing to current Develop, a disjoint adjacent runtime-boundary defect was closed in real product code: `StorageHealthSnapshot` previously accepted arbitrary runtime objects for `database_path` and `detail` despite those fields being public telemetry facts typed as `str | None`.
+Current product code on Develop already contains the required fail-before-side-effect guards:
 
-Product commit `606ab036a84c92c2d672d568c82cf8bdf4da4353` adds a shared fail-closed optional-text runtime guard before state-consistency evaluation. Test commit `26bbeaf17e8556dfb234a43b792a4a97c8c0becf` proves non-text path/detail inputs are rejected while valid strings/None and all prior Storage Health behavior remain unchanged.
+- `authorize_explicit(... ttl_seconds=...)`: exact `int`, bool rejected, established `1..86400` range retained;
+- `authorize_direct_fallback(... ttl_seconds=...)`: exact `int`, bool rejected, established `1..900` range retained before authorization lookup;
+- `capture_url(... max_bytes=...)`: exact `int`, bool rejected, established safe range retained before authorization lookup/fetch;
+- `capture_url(... timeout_seconds=...)`: numeric but not bool, finite via `math.isfinite`, established `(0, 300]` range retained before authorization lookup/fetch.
 
-Canonical Quality `33863441574` was triggered on exact product/test head and is pending at this handoff update; no PASS/READY claim is made for this second slice yet.
+The named historical patch artifact is not present on the current Develop/Backend trees, so no stale patch was reconstructed or re-applied over already-integrated product code.
 
-## Call-chain and invariants
+Test commit `3bd9e6ae4fd67344d5e8b094747daa5ff7ea405f` adds explicit fail-before-side-effect coverage for bool explicit TTL, bool direct-fallback TTL, bool max_bytes, and bool/NaN/+Inf/-Inf timeout in the dedicated ExternalAccessGateway authorization-boundary harness. Existing `tests/unit/test_external_access_gateway.py` remains part of the canonical regression suite and retains Tor/direct/response-policy/audit/provenance atomicity coverage.
 
-`StorageHealthService.snapshot -> StorageHealthSnapshot.__post_init__ -> status/open/text/time/size runtime guards -> state consistency validation -> immutable telemetry snapshot`.
+Canonical Quality `33873350238` is associated with exact test head `3bd9e6ae4fd67344d5e8b094747daa5ff7ea405f`; it was `pending` with zero jobs at the latest check. No PASS/READY claim is made for the Gateway slice yet.
 
-Retained invariants:
+## Invariants retained
 
-- read-only telemetry only; no SQL mutation;
-- no schema, WAL, recovery, persistence representation, install/start, provider or transport change;
-- no silent TOR-to-Direct fallback or other network behavior change;
-- no retry or cryptography change;
-- no audit/provenance/fsync/transactional Source change;
+- no silent Tor -> Direct fallback; Direct remains explicit-only;
+- no loopback/private proxy leak relaxation;
+- redirect authorization, HTTPS/default-port policy, compressed-response rejection and response-size fail-closed behavior unchanged;
+- audit, provenance, fsync and transactional Source finalization unchanged;
+- no retries or cryptography added;
 - no Skip/XFail, assertion weakening or guard relaxation.
 
 ## Integrator handoff
 
-READY for bounded independent review/integration: corrected numeric/open-state Storage Health lineage ending at exact canonical-green SHA `33933c00169ab72786b8b27b8286af6432225e8e` with Quality `33858608297 = success`.
-
-NOT READY yet: optional text-boundary product/test commits `606ab036a84c92c2d672d568c82cf8bdf4da4353` + `26bbeaf17e8556dfb234a43b792a4a97c8c0becf`; wait for a real successful canonical run containing those commits.
+- READY: bounded Storage Health lineage through `19c73aee29cae2d2ea479a6e3d2aa1256afa06a1`, canonical Quality `33868034634 = success`.
+- NOT READY: ExternalAccessGateway runtime-boundary verification commit `3bd9e6ae4fd67344d5e8b094747daa5ff7ea405f` until a real executable run with jobs completes green.
 
 ## Next backend slice
 
-First consume the exact canonical result containing the text-boundary slice. If green, mark it READY and immediately re-trace the highest unclaimed current Storage/Recovery/Provider/Packaging runtime boundary. If red, fix only the exact Backend-owned failure before unrelated mutation.
+First consume Quality `33873350238`. If it executes and passes, mark the Gateway verification lineage READY and immediately take the highest current unclaimed Storage/Recovery/Provider/Packaging runtime gap. If it remains zero-job/pending for the next cycle, use a different executable verification path or a disjoint real Backend slice rather than repeating the same runner blocker.
