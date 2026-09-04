@@ -2,51 +2,48 @@
 
 ## Current baseline
 
-- Shared baseline: `develop/pathena-next@da34f14284cd61eb0e23b4dc2ac1d7757b2b2e5a`.
+- Shared baseline: `develop/pathena-next@66a8953629a7bce28e19479c9309a016c62ee63a`.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 - Worker branch: `postmerge/spec-core`.
-- History-preserving NON-FORCE synchronization merge: `b211a27431c687694577dec8469a1a5b40b02997`, with parents previous Core `769ae5aa74f785ee2c48c2f93de7111043b4622e` and current Develop `da34f14284cd61eb0e23b4dc2ac1d7757b2b2e5a`.
+- History-preserving NON-FORCE synchronization merge: `09061bcb45e813e784baee6183681b8bbae4b27a`, with parents previous Core `b647e17fb972c9acada8e5d77296be8ebd27c860` and current Develop `66a8953629a7bce28e19479c9309a016c62ee63a`.
 
-## Verified prior slice — Exhaustive Research coverage accounting
+## Verified prior slice — ResearchResult coverage formula payload
 
-Canonical coverage policy remains integrated and verified. The durable Scope/Result composition patch is still versioned at `docs/agent_handoffs/spec-core-research-coverage-composition.patch` against exact repository blob `dde58860ae0008b8d24cb0a868fb9420faeef405`.
+Canonical ATHENA Quality Gate run `33848576424` completed `success` on exact Core head `b647e17fb972c9acada8e5d77296be8ebd27c860`. The bounded formula-payload product/test lineage is therefore READY for independent Integrator review: product `bd0e8c1810b98ea8f34f4f820d8d9b71e8bbe604` plus focused tests `60a68e6ff4089139f07cf8207e3f773fd25606a0`.
 
-This run obtained the complete exact repository blob through the GitHub blob API, so the prior read/truncation blocker is not repeated. However, the available authenticated write actions still replace an existing file only from complete literal content and expose no patch/delta mutation endpoint. Local git checkout again failed DNS resolution of `github.com`. The large central repository file therefore remains intentionally unmodified rather than reconstructed unsafely.
+The contract remains: formula identity `eligible-successful-irrelevant-v1`; eligible = candidate_total - excluded_count; processed = successful + irrelevant + failed + unavailable; coverage-positive = successful + irrelevant only; failed/unavailable remain explicit and do not inflate coverage; zero eligible work does not synthesize 100%.
 
-## Implemented disjoint Core slice — canonical ResearchResult coverage formula payload
+## Current slice — durable ResearchScope/ResearchResult coverage composition
 
-Spec anchors: Beta 11 §§35–39 and §50. Section 36 requires the exact coverage formula to be stored in ResearchResult; Section 50 requires Coverage and failed/unavailable areas to remain explicit.
+Source patch: `docs/agent_handoffs/spec-core-research-coverage-composition.patch`.
 
-Product commit `bd0e8c1810b98ea8f34f4f820d8d9b71e8bbe604` adds `COVERAGE_FORMULA_ID = "eligible-successful-irrelevant-v1"` and `ResearchCoverage.result_payload()`. The payload is derived only from already validated canonical counters and includes formula identity, eligible/processed counts, successful/irrelevant/failed/unavailable/excluded counts, and coverage ratio. It does not fabricate provenance or convert failures/unavailable work into coverage.
+This run advanced the previously repeated tooling blocker in two concrete ways:
 
-Focused-test commit `60a68e6ff4089139f07cf8207e3f773fd25606a0` pins the exact canonical payload including visible failed/unavailable counts and formula identity. Canonical Quality run `33848536310` is pending on that exact product/test head; no PASS is claimed.
+1. Core was NON-FORCE synchronized with current Develop through the Git Data tree/commit/ref mutation path, without local checkout and without overwriting foreign worker files.
+2. The exact full `src/athena/research/repository.py` base blob `dde58860ae0008b8d24cb0a868fb9420faeef405` was read successfully through the dedicated GitHub blob endpoint. No truncated read is being used as mutation input.
 
-## Product contract
+The focused acceptance test from the versioned patch was applied as real repository file `tests/unit/test_research_coverage_persistence.py` in commit `da0d10a798c11a3047466776534b2bbdcd768b1a`. It pins that `_recompute_scope_counters()` delegates to canonical `ResearchCoverage`, with four eligible terminal units yielding processed=4 and coverage=0.5 while failed/unavailable remain non-coverage.
 
-- formula identity is stable and explicit;
-- eligible = candidate_total - excluded_count;
-- processed = successful + irrelevant + failed + unavailable;
-- coverage-positive = successful + irrelevant only;
-- failed/unavailable remain visible and never inflate coverage;
-- zero eligible work cannot synthesize 100%;
-- no storage schema, transaction, snapshot, recovery, fence, provider, security, provenance, PALLAS or UI semantics changed.
+The product hunk in the large existing `repository.py` is not yet committed. The remaining connector limitation is now precise: available authenticated writes accept complete replacement content or Git object blobs/trees, but there is no delta/apply-patch action and connector results cannot be directly piped from the fetched full blob into `create_blob`. Local git remains DNS-blocked. The branch therefore intentionally does not reconstruct the large file from shortened output.
+
+Canonical Quality run `33852735339` was created for the exact acceptance-test head `da0d10a798c11a3047466776534b2bbdcd768b1a`; it is pending at this handoff update. No PASS is claimed for the current composition slice.
 
 ## Ownership / collision avoidance
 
 - Backend owns Research runtime/source-types/input-boundary and WAL/system work.
 - UI owns styling/Desktop/UI slices.
 - Error owns independent defect ledger/recovery validation.
-- Core retains durable coverage composition and canonical Research result truthfulness.
+- Core owns canonical Research coverage accounting, durable Scope/Result composition, and Research result truthfulness.
+- Current Backend/UI/Error worker heads were inspected before mutation; this Core slice does not touch their owned product files.
 
 ## Integrator handoff
 
-NOT READY for the new formula-payload slice until exact Quality `33848536310` completes green. If green, independently review bounded product/test commits `bd0e8c1810b98ea8f34f4f820d8d9b71e8bbe604` + `60a68e6ff4089139f07cf8207e3f773fd25606a0`.
+READY only for the already-green formula-payload lineage `bd0e8c1810b98ea8f34f4f820d8d9b71e8bbe604` + `60a68e6ff4089139f07cf8207e3f773fd25606a0`, backed by exact green Core head `b647e17fb972c9acada8e5d77296be8ebd27c860` / Quality `33848576424`.
 
-The durable Scope/Result composition patch remains not implemented and must not be inferred from its patch file.
+NOT READY for durable repository composition. `tests/unit/test_research_coverage_persistence.py` is now real, but the corresponding product hunk must be committed and verified before integration.
 
 ## Next Alpha/Beta gap
 
-1. Consume exact Quality `33848536310`.
-2. If green, integrate the formula-payload slice through Integrator review.
-3. Continue the durable ResearchScope/ResearchResult composition using a safe authenticated mutation path; the complete exact blob is now available, but no large-file manual reconstruction is permitted.
-4. Once composition is real and green, use `ResearchCoverage.result_payload()` at ResearchResult creation so the Beta-mandated exact formula identity is durably stored without duplicating coverage arithmetic.
+1. Apply the existing product hunk to exact `repository.py@dde58860ae0008b8d24cb0a868fb9420faeef405` using a safe full-blob replacement path; do not repeat analysis-only handling of this blocker.
+2. Verify `tests/unit/test_research_coverage.py`, `tests/unit/test_research_coverage_persistence.py`, the smallest Research repository/result regressions, then canonical Quality.
+3. Once green, compose `ResearchCoverage.result_payload()` into ResearchResult creation so the exact formula identity and the same canonical problem counters are durably represented without duplicate arithmetic.
