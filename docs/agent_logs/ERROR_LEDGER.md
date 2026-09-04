@@ -14,28 +14,28 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 ## Current baseline
 
 - Baseline branch: `develop/pathena-next`
-- Baseline SHA: `6a9b933dcec80d4d104ac7d3be68351c46554864`
+- Baseline SHA observed this run: `25089e434412e7c1b8ede229438324338a0d5da0`
 - Worker branch: `postmerge/errors`
-- Synchronization: history-preserving NON-FORCE merge `88725f431fe46e30e49d03d487f8ef9a8935260e` of exact current Develop into Error lineage.
+- Latest history-preserving NON-FORCE synchronization already present in Error lineage: `88725f431fe46e30e49d03d487f8ef9a8935260e`; no force, rebase or history rewrite was performed this run.
 
 ## Current error state
 
 - OPEN: none.
 - IN_PROGRESS: none.
-- FIXED_PENDING_VERIFY: `ERR-0010`.
-- FIXED: `ERR-0001` through `ERR-0009`.
+- FIXED_PENDING_VERIFY: `ERR-0011`.
+- FIXED: `ERR-0001` through `ERR-0010`.
 - BLOCKED: none.
 
 ## Current scan
 
 - `ERR-0004` remains `FIXED`; its startup/readiness Ruff signatures did not recur.
 - `ERR-0009` remains `FIXED` on canonical Backend Quality `33911612711 = success`.
-- New concrete signal: canonical Backend Quality `33916312429` on `f459035a701d6dad90d7be130e7a0644ae78201c` passed Windows path safety, Linux storage, local-install smoke, validator, Ruff and mypy, but full pytest failed.
-- Backend owner root-caused the failure to stale harness timing in `test_stream_iteration_enforces_monotonic_total_deadline` after product `2270477ccf7631471379774430745f1a81f24d36` added direct `read()`/`readline()` total-deadline checks.
-- Harness-only correction `14cdda954d621e9b9cb5fd8b7b2fdbda8297dc81` preserves fail-closed deadline behavior and supplies timestamps through the full first-line check chain.
-- Exact descendant canonical Quality `33921338439` on Backend head `c9d1a7a9ab782ae081e4699eecd436d6a0ff5fb5` currently has Windows path safety PASS, Linux storage PASS, local-install smoke PASS, validator PASS, Ruff PASS and mypy PASS; full pytest remains in progress. Therefore `ERR-0010` is not `FIXED` yet.
-- Current UI canonical Quality `33922277491` on `3d74d43279d9a80bf891bb6bc31001b1e43490e2` remains in progress and is neither PASS nor failure evidence yet.
-- Current Develop exact head `6a9b933dcec80d4d104ac7d3be68351c46554864` has no exact-head canonical global PASS evidence yet.
+- `ERR-0010` is now `FIXED`: exact descendant canonical Backend Quality `33921338439` on `c9d1a7a9ab782ae081e4699eecd436d6a0ff5fb5` completed with conclusion `success`. The verified harness correction preserves direct fail-closed total-deadline enforcement.
+- New concrete UI signal: canonical UI Quality `33922277491` on `3d74d43279d9a80bf891bb6bc31001b1e43490e2` passed Windows path safety, Linux storage, local-install smoke, specification validator, Ruff and mypy, but full pytest failed only at `tests/unit/test_pathena_settings_provider_detail_state.py::test_unavailable_provider_detail_fails_closed_as_error` with `assert 'fresh' == 'unavailable'`.
+- Root cause for `ERR-0011`: an unavailable snapshot with `provider=None` could still carry `resolved_model_freshness='fresh'`, and Settings reused that raw freshness for provider/detail accessibility metadata even though the semantic provider state was unavailable/error. The defect is UI presentation metadata coherence, not Provider/Transport behavior.
+- UI owner correction `9df9d7d46e3c4774aeea5439f91166a2092bd7fb` introduces fail-closed `provider_freshness = 'unavailable' if provider is None else freshness` and applies it to provider/detail state only. Current canonical UI Quality `33926653411` on that exact SHA is still in progress, so `ERR-0011` remains `FIXED_PENDING_VERIFY`.
+- Current Backend exact head `d507de617f27976b174c1beadb22d8432fef63d6` has canonical Quality `33925587762` still in progress and is neither PASS nor failure evidence yet.
+- Current Develop exact head `25089e434412e7c1b8ede229438324338a0d5da0` has no exact-head global PASS claim from this scan.
 
 ## Entries
 
@@ -108,17 +108,32 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 - first_seen: 2026-09-04
 - severity: P2
 - area: Backend / Provider-Transport / local HTTP test harness
-- status: `FIXED_PENDING_VERIFY`
-- checked_sha: failing Backend `f459035a701d6dad90d7be130e7a0644ae78201c`; candidate Backend correction `14cdda954d621e9b9cb5fd8b7b2fdbda8297dc81`; verification head `c9d1a7a9ab782ae081e4699eecd436d6a0ff5fb5`.
-- evidence: canonical Quality `33916312429` passed Windows path safety, Linux storage, local-install smoke, validator, Ruff and mypy; only full pytest failed. Backend handoff identifies `test_stream_iteration_enforces_monotonic_total_deadline` as the failing harness after direct `readline()` gained its own pre/post deadline checks.
-- repro: `tests/unit/test_lm_studio_response_limits.py::test_stream_iteration_enforces_monotonic_total_deadline` on lineage containing product `2270477ccf7631471379774430745f1a81f24d36` and focused tests `93e83640e69df9016fc4a10ac790e803fecf5d57`.
-- root_cause: the previous four-value monotonic iterator modeled the old iterator-only deadline-check sequence; direct `readline()` now consumes additional pre/post timestamps and reaches the deadline during the first yielded line.
+- status: `FIXED`
+- checked_sha: failing Backend `f459035a701d6dad90d7be130e7a0644ae78201c`; correction `14cdda954d621e9b9cb5fd8b7b2fdbda8297dc81`; verified descendant `c9d1a7a9ab782ae081e4699eecd436d6a0ff5fb5`.
+- evidence: failing canonical Quality `33916312429`; exact descendant canonical Quality `33921338439 = success`.
+- repro: `tests/unit/test_lm_studio_response_limits.py::test_stream_iteration_enforces_monotonic_total_deadline`.
+- root_cause: the prior monotonic iterator modeled the old iterator-only deadline sequence; direct `readline()` added pre/post deadline checks and consumed additional timestamps.
 - files: `tests/unit/test_lm_studio_response_limits.py`; product reference `src/athena/model/adapters/local_http.py`.
 - fix_sha: `14cdda954d621e9b9cb5fd8b7b2fdbda8297dc81`.
-- fix: harness-only timestamp sequence updated to cover `__iter__` pre, `readline` pre/post and `__iter__` post before reaching the deadline ahead of the second underlying read.
-- verification: pending exact descendant canonical Quality `33921338439`; Windows/Linux-storage/local-install/validator/Ruff/mypy already PASS, full pytest still running.
-- risk: low if canonical run completes green; no production timeout, byte cap, routing or security guard was weakened.
-- integrator_handoff: do not integrate/declare this slice ready until `33921338439` completes success; if red, isolate the exact remaining primary signature before any further mutation.
+- verification: exact canonical Backend Quality `33921338439` completed `success` on `c9d1a7a9ab782ae081e4699eecd436d6a0ff5fb5`.
+- risk: low; no production timeout, byte cap, routing or security guard was weakened.
+- integrator_handoff: direct total-deadline slice is cleared by exact canonical success; retain fail-closed product behavior.
+
+### ERR-0011 — Unavailable provider leaks fresh accessibility freshness
+- first_seen: 2026-09-04
+- severity: P2
+- area: UI / Settings / provider detail accessibility state
+- status: `FIXED_PENDING_VERIFY`
+- checked_sha: failing UI `3d74d43279d9a80bf891bb6bc31001b1e43490e2`; owner correction `9df9d7d46e3c4774aeea5439f91166a2092bd7fb`.
+- evidence: canonical UI Quality `33922277491`: Windows path safety PASS, Linux storage PASS, local-install smoke PASS, validator PASS, Ruff PASS, mypy PASS, full pytest FAIL; exact primary assertion at `tests/unit/test_pathena_settings_provider_detail_state.py:77` is `assert 'fresh' == 'unavailable'`.
+- repro: `tests/unit/test_pathena_settings_provider_detail_state.py::test_unavailable_provider_detail_fails_closed_as_error` on failing SHA `3d74d43279d9a80bf891bb6bc31001b1e43490e2`.
+- root_cause: `SettingsRuntimePanel.apply_snapshot()` used `resolved_model_freshness` directly for provider/detail metadata even when `provider is None`; semantic state was unavailable/error but metadata could remain `fresh`.
+- files: `src/athena/desktop/pathena_settings_runtime.py`, `tests/unit/test_pathena_settings_provider_detail_state.py`.
+- fix_sha: UI owner `9df9d7d46e3c4774aeea5439f91166a2092bd7fb`.
+- fix: derive provider-specific freshness as `unavailable` whenever provider is absent and apply it only to provider/detail presentation metadata; no backend/provider/network/security behavior changed.
+- verification: canonical UI Quality `33926653411` on exact fix SHA is currently in progress; no PASS claim yet.
+- risk: low and UI-local; freshness presentation must remain fail-closed without changing actual provider transport state.
+- integrator_handoff: do not integrate or declare UI-GAP-0018 ready until `33926653411` completes success; if red, isolate the new exact primary signature before any mutation.
 
 ## Historical/stale evidence
 
