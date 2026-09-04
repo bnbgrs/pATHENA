@@ -14,9 +14,9 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 ## Current baseline
 
 - Baseline branch: `develop/pathena-next`
-- Baseline SHA: `fefe26b9fdc972b5e6950cd535397eae1067d5ea`
+- Baseline SHA: `0b7f428f8679db9391c00b4b9638d85550332c43`
 - Worker branch: `postmerge/errors`
-- Synchronization: history-preserving NON-FORCE merge `7619f1df97f4661bf684f9a18dc3eb71450dfaaa` of current Develop into Error lineage.
+- Synchronization: history-preserving NON-FORCE merge `03fe027d2fbd634324135e330ecde30eb69f3b9b` of current Develop into Error lineage.
 
 ## Current error state
 
@@ -28,12 +28,13 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 
 ## Current scan
 
-- UI canonical Quality `33879947654` on exact SHA `3a1be68c48dab4176e9258170147cf127c4b3d2a` completed `success`; no `ERR-0009` is allocated from that slice.
-- Newest UI head `44352a5d6bfe113e8a8a748af98c142534cfc9cc` has Quality `33885558190` in progress. Windows path safety PASS, Linux storage PASS, local install smoke PASS, specification validator PASS, Ruff PASS and mypy PASS. Full pytest is still in progress; no PASS/failure claim is made while incomplete.
-- Backend Quality `33884147977` on exact SHA `f4a1fcb13ce80071a42e383cee1226516cba5a74` completed `cancelled`, so it is not verification evidence. A newer Backend head `c67fa646d8ba4e4137cdf69992b9c8b42ad904d6` has replacement Quality `33884210684` in progress; no error is allocated without a concrete failing signature.
-- Historical Develop Quality `33862677128` remains a real pytest-only red run whose exact primary node/signature was unavailable; its signature did not recur on later canonical-green Develop lineage, so no speculative `ERR-0009` is allocated.
-- Current Develop is `fefe26b9fdc972b5e6950cd535397eae1067d5ea`; no exact-head global PASS is claimed in this scan.
-- Reviewed current Develop `spec-core.md`, `backend.md`, `ui.md`, `integrator.md` plus Backend/UI/Core worker heads. No new deduplicated primary error signature is evidenced by those handoffs.
+- UI canonical Quality `33885558190` on exact SHA `44352a5d6bfe113e8a8a748af98c142534cfc9cc` completed `success`; no `ERR-0009` is allocated from that slice.
+- Backend canonical Quality `33884210684` on exact SHA `c67fa646d8ba4e4137cdf69992b9c8b42ad904d6` completed `success`; the prior cancelled Backend run remains non-evidence.
+- Current Backend head is `b025f6de83a969cca10a7677faae0b349e1a2988`; Quality `33890486614` is in progress. No PASS/failure claim is made while incomplete.
+- Current UI head is `622f85338613b7d59ef5b1bd0fd05eae3d488c47`; Quality `33891068183` is in progress. No PASS/failure claim is made while incomplete.
+- Current Develop is `0b7f428f8679db9391c00b4b9638d85550332c43`; no exact-head global PASS is claimed in this scan.
+- Reviewed current Develop `spec-core.md`, `backend.md`, `ui.md`, `integrator.md` plus relevant worker heads. Integrator confirms the verified ExternalAccessGateway canonical runtime-boundary harness was integrated into Develop with no production-source mutation and no new exact-Develop PASS claim.
+- No new concrete deduplicated primary failure signature is evidenced. Therefore `ERR-0009` is not allocated.
 
 ## Entries
 
