@@ -2,48 +2,42 @@
 
 ## Current branch state
 
-- `main` is strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `e51e805266b625c008812ae5ab79435655ff1ca5`.
+- `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
+- Develop before this run: `c91e76804e74595f92c8eb624ce7c5d83b66bad2`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `94e703f99f3363b10e96a4be32a92eda3f829ca3`; spec-core `8ed5913ffc0b1fd222bff854c138ff23e94572bb`; backend `7688f49ea351749bf227a1683fd14aba719d9bb6`; ui `98700b0c657ba8cc488d0d9698b54fd6bce18718`.
+- Worker heads reviewed: errors `f99d9b8f911874c45928a7911013b0774ce96068`; spec-core `f59e3c6862ab7ac2e976c3a8348f3a58e52de4ca`; backend `225db6c031551a2b79edf0d74b331a33e359ad26`; ui `f66a1cc2c80cf0cadc89ba1a4771345af79df934`.
 
-## Integrated this run — canonical Research coverage formula identity
+## Integrated this run — Storage Health runtime boundaries
 
-Core READY slice independently reviewed from exact canonical-green lineage:
+Backend READY lineage through `19c73aee29cae2d2ea479a6e3d2aa1256afa06a1` is backed by canonical Quality `33868034634 = success`.
 
-- product commit: `c87569315cdf7732d8896692a84ca7af4ea4e7e6`
-- focused-test commit: `5a8f8184fdb15e5475b818d43e93868e48f1db83`
-- exact verified head: `921c6868c8813c92da200cdd68a0ba12df583e9c`
-- canonical Quality: `33900087353 = success`
+Independent review confirmed current Develop was missing the bounded runtime-type/text hardening present in that verified lineage. Only these exact verified blobs were carried:
 
-Develop exactly matched the pre-slice product/test state. The carried files are byte-identical to the verified lineage:
-
-- `src/athena/research/coverage.py` -> blob `494195de64eba27c063ee3143364d94dc92a338f`
-- `tests/unit/test_research_coverage.py` -> blob `7b07839fc7084fdd194175ba32baa6ca54b38a7f`
+- `src/athena/storage/health.py` -> blob `16c9512522f83f886669526c268aa8d3747060a2`
+- `tests/unit/test_storage_health.py` -> blob `7397f174d436b2e600a8a0e0b3831d478651a64b`
 
 Develop integration commits:
 
-- product: `bb37e6eaa91ece448a5c1c0c962ecbd2f4fd75fc`
-- focused test: `9b0cce1c8e694a205023d92e463b72621d99fd15`
+- product: `2abaec45c20115bc02f4eea9d5bf8644db6dec97`
+- focused test: `3d236e6aa755bc1da68d7055eefda7e4ad5bfd72`
 
-The bounded fix aligns canonical `ResearchCoverage.COVERAGE_FORMULA_ID` with the already-pinned `ResearchService.COVERAGE_FORMULA_ID` value `eligible-success-or-irrelevant-v1`. Coverage arithmetic, counters, failure/unavailable visibility, zero-eligible behavior, persistence schema, transaction/fence/snapshot/recovery/idempotency, provider/transport, provenance, PALLAS and UI semantics are unchanged. The focused test explicitly locks literal identity and cross-surface equality.
+The slice rejects bool/non-integer size values, bool/non-integer observation timestamps, non-bool open state, non-text path/detail values and empty textual facts while preserving existing truthful availability/error semantics. No Storage transaction/recovery/fsync behavior, Network/Tor/Provider boundary, provenance, UI behavior or main history was changed.
 
 ## Validation state
 
-- Canonical Core Quality `33900087353` completed `success` on exact head `921c6868c8813c92da200cdd68a0ba12df583e9c`.
+- Exact Backend lineage passed canonical Quality `33868034634`.
 - Integrated product/test blobs are byte-identical to that verified lineage.
-- No exact current-Develop global Quality PASS is claimed.
-- Error worker has allocated `ERR-0009` against Backend head `2d9375d8afbeb05eea8d0b9149ffd3f352e4a9c1`: canonical Quality `33900689788` failed only two stale `readline_sizes` expectations after the product correctly hardened reads to `remaining + 1`. This is not evidence to revert the product guard.
-- Backend Storage Health and cumulative local-HTTP response-size slices remain READY alternatives; the newer remaining-budget hardening is not READY until corrected exact Quality is green.
-- UI-GAP-0014 remains READY. Newer UI candidates require exact completed canonical evidence before integration.
-- `ERR-0001` through `ERR-0008` remain fixed.
+- No exact current-Develop global Quality PASS is claimed in this run.
+- `ERR-0009` remains `FIXED_PENDING_VERIFY`; the remaining-budget product hardening must not be reverted and the harness-only correction still requires exact green descendant evidence.
+- Backend local-HTTP cumulative response-size lineage remains READY.
+- UI verified candidates remain available for later single-slice integration; newest UI head reports verified GAP-0015 plus candidate GAP-0016.
 - Original eleven visual references remain unavailable; zero pixel-level `MATCH` claims are permitted.
 
 ## Next integration order
 
-1. Prefer minimal fenced `ResearchRepository.finalize_result_fenced()` source-coverage wiring only after exact green product-containing evidence and collision review.
-2. Otherwise independently consume exactly one READY Backend/UI bounded slice against current Develop.
-3. Do not consume the Backend remaining-budget lineage while `ERR-0009` remains unresolved.
+1. Prefer an exact-green bounded Core finalization/attribution slice if its product-containing evidence is complete and collision-free.
+2. Otherwise independently consume exactly one READY Backend local-HTTP cumulative-size or verified UI bounded slice.
+3. Do not consume/close ERR-0009 lineage until exact descendant Quality is green with unchanged correction blob.
 4. Require exact-head evidence before any global-green Develop claim.
 
 ## Rules retained
