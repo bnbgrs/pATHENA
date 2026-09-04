@@ -46,7 +46,7 @@ class _BoundedLocalResponse:
     ) -> None:
         self._response = response
         self._max_bytes = max_bytes
-        self._stream_bytes_read = 0
+        self._bytes_read = 0
         self._deadline = (
             monotonic() + total_timeout_seconds
             if total_timeout_seconds is not None
@@ -95,21 +95,26 @@ class _BoundedLocalResponse:
             raise LocalResponseTooLargeError(
                 "Local model streaming response line exceeded the configured byte limit."
             )
-        if self._stream_bytes_read + len(raw) > self._max_bytes:
+        if self._bytes_read + len(raw) > self._max_bytes:
             raise LocalResponseTooLargeError(
                 "Local model streaming response exceeded the configured byte limit."
             )
-        self._stream_bytes_read += len(raw)
+        self._bytes_read += len(raw)
         return raw
 
     def read(self, amt: int | None = None) -> bytes:
-        if amt is not None and amt >= 0:
-            return cast(bytes, self._response.read(amt))
-        raw = cast(bytes, self._response.read(self._max_bytes + 1))
-        if len(raw) > self._max_bytes:
+        remaining = self._max_bytes - self._bytes_read
+        request_size = (
+            remaining + 1
+            if amt is None or amt < 0
+            else min(amt, remaining + 1)
+        )
+        raw = cast(bytes, self._response.read(request_size))
+        if self._bytes_read + len(raw) > self._max_bytes:
             raise LocalResponseTooLargeError(
                 "Local model response exceeded the configured byte limit."
             )
+        self._bytes_read += len(raw)
         return raw
 
 
