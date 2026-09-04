@@ -14,9 +14,9 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 ## Current baseline
 
 - Baseline branch: `develop/pathena-next`
-- Baseline SHA: `14adeb8949f680dc16a3067e586b3950132e0375`
+- Baseline SHA: `fefe26b9fdc972b5e6950cd535397eae1067d5ea`
 - Worker branch: `postmerge/errors`
-- Synchronization: history-preserving NON-FORCE merge `ecfe7964db47e67f6b68a903a0dc66e15a0f0c74` of current Develop into Error lineage.
+- Synchronization: history-preserving NON-FORCE merge of current Develop into Error lineage in this run.
 
 ## Current error state
 
@@ -28,13 +28,12 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 
 ## Current scan
 
-- UI canonical Quality `33874283635` on exact SHA `45e2b84d14bfc11b4878d9b945065063fdc40e6d` completed `success`; the previously pending UI signal is cleared and no `ERR-0009` is allocated from that slice.
-- A newer UI Quality `33879947654` on exact SHA `3a1be68c48dab4176e9258170147cf127c4b3d2a` is currently `in_progress`; no PASS/failure claim is made while incomplete.
-- Backend canonical Quality `33868034634` on exact SHA `19c73aee29cae2d2ea479a6e3d2aa1256afa06a1` completed `success`; no Backend-owned error is allocated from that slice.
-- Historical Develop Quality `33862677128` on exact SHA `a0e0a2bcf76b0e7f77bb3cd15b8c2ccf79d5c600` remains a real pytest-only red run whose exact primary node/signature was unavailable. It did not recur on later canonical-green Develop lineage; no speculative `ERR-0009` is allocated.
-- Develop Quality `33867305345` on exact SHA `a7c1d8cd1530a3003690292a9bf4c660472d59ce` completed `success`.
-- Current Develop is `14adeb8949f680dc16a3067e586b3950132e0375`; no exact-head global PASS is claimed in this scan.
-- Reviewed current Develop `spec-core.md`, `backend.md`, `ui.md`, `integrator.md` plus Backend/UI worker heads. No new deduplicated primary error signature is evidenced by those handoffs.
+- UI canonical Quality `33879947654` on exact SHA `3a1be68c48dab4176e9258170147cf127c4b3d2a` completed `success`; no `ERR-0009` is allocated from that slice.
+- Newest UI head `44352a5d6bfe113e8a8a748af98c142534cfc9cc` has Quality `33885558190` in progress. Linux storage and local install are already PASS; Ruff is PASS; mypy/pytest and Windows path safety are not yet complete. No PASS/failure claim is made while incomplete.
+- Backend Quality `33884147977` on exact SHA `f4a1fcb13ce80071a42e383cee1226516cba5a74` completed `cancelled`, so it is not verification evidence. A newer Backend head `c67fa646d8ba4e4137cdf69992b9c8b42ad904d6` has replacement Quality `33884210684` in progress; no error is allocated without a concrete failing signature.
+- Historical Develop Quality `33862677128` remains a real pytest-only red run whose exact primary node/signature was unavailable; its signature did not recur on later canonical-green Develop lineage, so no speculative `ERR-0009` is allocated.
+- Current Develop is `fefe26b9fdc972b5e6950cd535397eae1067d5ea`; no exact-head global PASS is claimed in this scan.
+- Reviewed current Develop `spec-core.md`, `backend.md`, `ui.md`, `integrator.md` plus Backend/UI/Core worker heads. No new deduplicated primary error signature is evidenced by those handoffs.
 
 ## Entries
 
