@@ -12,6 +12,7 @@ from athena.chat.service import ChatService
 from athena.common.ids import new_uuid7, uuid_to_blob
 from athena.common.time import utc_now_us
 from athena.knowledge.claim_repository import ClaimRepository, _claim_payload_hash
+from athena.knowledge.contradiction_review_gate import assess_canonical_claim_revisions
 from athena.knowledge.deduplication import (
     CanonicalDeduplicationService,
     CanonicalMergeCandidate,
@@ -234,6 +235,13 @@ class ProposalAcceptanceService:
                 ):
                     contradiction_pairs_reused.append((left_claim_id, right_claim_id))
                     continue
+                temporal_assessment = assess_canonical_claim_revisions(
+                    connection,
+                    left_revision_id=left_revision_id,
+                    right_revision_id=right_revision_id,
+                )
+                if not temporal_assessment.permits_contradiction_candidate:
+                    continue
                 review_id = self.reviews.enqueue_contradiction(
                     connection,
                     processing_run_id=result.processing_run.processing_run_id,
@@ -337,8 +345,6 @@ class ProposalAcceptanceService:
             else:
                 claims[candidate.proposal_index] = replacement
 
-        # Once a proposal has an explicit merge target, its other near-duplicate
-        # candidates no longer need an independent decision for this acceptance.
         filtered_unresolved = tuple(
             candidate
             for candidate in unresolved
