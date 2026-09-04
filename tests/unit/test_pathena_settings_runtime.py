@@ -22,6 +22,9 @@ from athena.desktop.api_controller import (
     SnapshotFreshness,
 )
 from athena.desktop.app import create_application
+from athena.desktop.pathena_settings_comprehension_5100 import (
+    apply_ui_refinements_5001_5100,
+)
 from athena.desktop.pathena_settings_runtime import (
     install_settings_runtime,
     model_storage_group,
@@ -174,6 +177,7 @@ def test_runtime_panel_never_turns_stale_or_missing_provider_into_ready(tmp_path
     app = _app()
     window = PathenaMainWindow(api_controller=None)
     runtime = install_settings_runtime(window, None, settings=_settings(tmp_path))
+    apply_ui_refinements_5001_5100(window)
     comprehension = window.property("pathenaSettingsComprehensionController")
     try:
         ready = _snapshot()
