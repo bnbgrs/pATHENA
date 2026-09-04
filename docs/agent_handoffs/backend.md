@@ -5,36 +5,33 @@
 - Integration base reviewed: `develop/pathena-next@606e9dc72278ec331856e998a1b3fb4fa4754787`.
 - Worker branch: `postmerge/backend`.
 - `main@0d4d621f8a38ddf8eccfa09622bf193687619943` remains strictly read-only and untouched.
-- Worker and Develop are currently diverged from merge base `3cfef2c2ee67799066ceefaf9ea84287817f256a`; no force update/history rewrite is permitted.
+- Worker and Develop are diverged from merge base `3cfef2c2ee67799066ceefaf9ea84287817f256a`; no force update/history rewrite is permitted.
 
 ## Verified Research UUID-container slice
 
 Product/test commit `462fba22637e0083c87df32f987134ce0fb3de00` hardens `_stable_uuids()` so naked scalar text-like values and non-Sequence containers fail closed before Research actor/job/persistence side effects. Valid UUID sequence deduplication and deterministic byte-order sorting are unchanged.
 
-Focused verifier run `33833496929` completed SUCCESS: install, focused pytest, Ruff, mypy and `git diff --check` all passed before the product/test commit was created. Temporary UUID verifier workflow was removed in cleanup commit `8d30cc4cc45f916a72007c1ba63f95da60e346ca`.
+Focused verifier run `33833496929` completed SUCCESS: install, focused pytest, Ruff, mypy and `git diff --check` all passed before the product/test commit was created. The temporary UUID verifier was removed in cleanup commit `8d30cc4cc45f916a72007c1ba63f95da60e346ca`.
 
-Canonical Quality run `33833527206` on the exact product SHA concluded `action_required` with no accepted PASS evidence; do not treat it as global green.
+Canonical Quality run `33833527206` on the exact product SHA concluded `action_required`; it is not global PASS evidence.
 
-## Current backend slice — Research source-types container boundary
+## Next confirmed backend gap — Research source-types container boundary
 
-A new bounded gap is confirmed in `ResearchService.enqueue_local()`: `source_types` is annotated as `Sequence[SourceType]` but the runtime path previously accepted arbitrary iterable containers such as `set[SourceType]`. This can normalize and proceed to actor/job persistence rather than failing at the API boundary.
+`ResearchService.enqueue_local()` annotates `source_types` as `Sequence[SourceType]`, but the current runtime path accepts arbitrary iterable containers such as `set[SourceType]`: every element passes the existing element guard and normalization can continue into actor/job persistence. The required bounded fix is an explicit Sequence/container guard before normalization while retaining the existing per-element `SourceType` guard and deterministic `.value` sort/dedupe behavior.
 
-The bounded correction introduces `_stable_source_types(values: object)` with explicit Sequence narrowing, rejects scalar text-like/non-Sequence containers, preserves the existing per-element `SourceType` guard and deterministic `.value` sorting/deduplication, and routes `enqueue_local()` through that helper.
-
-Temporary verifier workflow `.github/workflows/backend_research_source_types_boundaries.yml` is tooling-only. It must commit product/test files only after focused pytest, Ruff, mypy and diff-check all pass, and must then be removed before Integrator handoff.
+A temporary GitHub verifier was created to apply and test this exact patch, but pushes containing the newly created workflow produced no workflow run. No product/test mutation from that verifier was committed, and the temporary workflow was removed again in `e7a205197573c78a87edb0ed33fb0cf984fbbd74`. This is a first-cycle tooling blocker only; it must not be repeated unchanged next run. Use direct Git-data mutation with complete current blobs or another safe disjoint Backend slice if exact verified mutation cannot be produced.
 
 ## Retained invariants
 
 - Research persistence, snapshot pinning and durable job creation semantics remain unchanged for valid inputs.
 - ExternalAccessGateway authorization/audit/provenance/TOR/redirect/fsync/transactional Source behavior is untouched.
-- No retries, cryptography, storage, recovery, Windows/Linux path or packaging behavior is changed.
-- No skip/XFail, assertion weakening or guard weakening is allowed.
+- No retries, cryptography, storage, recovery, Windows/Linux path or packaging behavior changed.
+- No skip/XFail, assertion weakening or guard weakening.
 
 ## Integrator handoff
 
-- READY_FOR_BOUNDED_REVIEW: UUID product/test commit `462fba22637e0083c87df32f987134ce0fb3de00` has exact focused green evidence from run `33833496929`; independently separate it from tooling history before integration.
-- NOT_READY: source-types boundary remains pending exact verifier completion and temporary workflow cleanup.
+READY_FOR_BOUNDED_REVIEW: UUID product/test commit `462fba22637e0083c87df32f987134ce0fb3de00` with exact focused green evidence from run `33833496929`. Independently isolate product/test content from tooling history before integration. Canonical global PASS is not claimed.
 
 ## Next backend slice
 
-Consume the source-types verifier. If green, remove tooling, hand off its exact product/test SHA, then move to the next highest evidence-backed Research/Jobs/Storage/Recovery/Provider/Packaging gap. If red, fix only the exact diagnostic and rerun; do not weaken tests or runtime guards.
+Apply and verify the confirmed `source_types` Sequence boundary through direct Git-data/full-blob mutation or another executable safe path. If that cannot be done without reconstructing a truncated large file, implement one disjoint evidence-backed Backend/System slice instead of repeating the workflow blocker.
