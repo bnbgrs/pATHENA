@@ -71,21 +71,31 @@ class ImportRequest:
 
     def __post_init__(self) -> None:
         if not isinstance(self.roots, tuple) or not self.roots:
-            raise ImportRequestError("roots must be a non-empty tuple of absolute path strings.")
+            raise ImportRequestError(
+                "roots must be a non-empty tuple of absolute path strings."
+            )
         normalized_roots: list[str] = []
         for value in self.roots:
             if not isinstance(value, str) or not value or value != value.strip():
-                raise ImportRequestError("Every import root must be non-empty canonical text.")
+                raise ImportRequestError(
+                    "Every import root must be non-empty canonical text."
+                )
             path = Path(value)
             if not path.is_absolute():
-                raise ImportRequestError("Every persisted import root must be absolute.")
+                raise ImportRequestError(
+                    "Every persisted import root must be absolute."
+                )
             normalized_roots.append(os.path.normpath(value))
         if tuple(normalized_roots) != self.roots:
-            raise ImportRequestError("Import roots must already be normalized absolute paths.")
+            raise ImportRequestError(
+                "Import roots must already be normalized absolute paths."
+            )
         if not isinstance(self.origin, ImportOrigin):
             raise ImportRequestError("origin must be an ImportOrigin value.")
         if not isinstance(self.symlink_policy, SymlinkPolicy):
-            raise ImportRequestError("symlink_policy must be a SymlinkPolicy value.")
+            raise ImportRequestError(
+                "symlink_policy must be a SymlinkPolicy value."
+            )
         for value, label in (
             (self.recursive, "recursive"),
             (self.temporary, "temporary"),
@@ -100,11 +110,15 @@ class ImportRequest:
             _nonnegative_int(self.expected_count, "expected_count")
         if self.protection_scope_id is not None:
             try:
-                uuid.UUID(self.protection_scope_id)
+                parsed_scope_id = uuid.UUID(self.protection_scope_id)
             except (ValueError, AttributeError, TypeError) as exc:
-                raise ImportRequestError("protection_scope_id must be canonical UUID text.") from exc
-            if str(uuid.UUID(self.protection_scope_id)) != self.protection_scope_id:
-                raise ImportRequestError("protection_scope_id must be canonical UUID text.")
+                raise ImportRequestError(
+                    "protection_scope_id must be canonical UUID text."
+                ) from exc
+            if str(parsed_scope_id) != self.protection_scope_id:
+                raise ImportRequestError(
+                    "protection_scope_id must be canonical UUID text."
+                )
 
     @classmethod
     def from_paths(
@@ -124,9 +138,13 @@ class ImportRequest:
         normalized: list[str] = []
         for value in paths:
             if not isinstance(value, Path):
-                raise ImportRequestError("paths must contain pathlib.Path values.")
+                raise ImportRequestError(
+                    "paths must contain pathlib.Path values."
+                )
             expanded = value.expanduser()
-            normalized.append(os.path.normpath(os.path.abspath(os.fspath(expanded))))
+            normalized.append(
+                os.path.normpath(os.path.abspath(os.fspath(expanded)))
+            )
         return cls(
             roots=tuple(normalized),
             origin=origin,
@@ -134,7 +152,9 @@ class ImportRequest:
             symlink_policy=symlink_policy,
             max_file_bytes=max_file_bytes,
             expected_count=expected_count,
-            protection_scope_id=(None if protection_scope_id is None else str(protection_scope_id)),
+            protection_scope_id=(
+                None if protection_scope_id is None else str(protection_scope_id)
+            ),
             temporary=temporary,
             do_not_store=do_not_store,
             include_system_metadata=include_system_metadata,
@@ -159,7 +179,9 @@ class ImportRequest:
     def from_payload(cls, payload: Mapping[str, object]) -> ImportRequest:
         """Restore an import request from its exact durable JSON representation."""
         if not isinstance(payload, Mapping):
-            raise ImportRequestError("Import request payload must be an object mapping.")
+            raise ImportRequestError(
+                "Import request payload must be an object mapping."
+            )
         expected = {
             "roots",
             "origin",
@@ -173,27 +195,55 @@ class ImportRequest:
             "include_system_metadata",
         }
         if set(payload) != expected:
-            raise ImportRequestError("Import request payload keys do not match the v1 contract.")
+            raise ImportRequestError(
+                "Import request payload keys do not match the v1 contract."
+            )
+
         roots_value = payload["roots"]
-        if not isinstance(roots_value, list) or not all(isinstance(item, str) for item in roots_value):
-            raise ImportRequestError("Import request roots must be a JSON string array.")
+        if not isinstance(roots_value, list):
+            raise ImportRequestError(
+                "Import request roots must be a JSON string array."
+            )
+        roots = tuple(
+            _required_text(item, "roots item")
+            for item in roots_value
+        )
+
+        origin_text = _required_text(payload["origin"], "origin")
+        symlink_policy_text = _required_text(
+            payload["symlink_policy"],
+            "symlink_policy",
+        )
         try:
-            origin = ImportOrigin(payload["origin"])
-            symlink_policy = SymlinkPolicy(payload["symlink_policy"])
-        except (ValueError, TypeError) as exc:
-            raise ImportRequestError("Import request enum value is not recognized.") from exc
+            origin = ImportOrigin(origin_text)
+            symlink_policy = SymlinkPolicy(symlink_policy_text)
+        except ValueError as exc:
+            raise ImportRequestError(
+                "Import request enum value is not recognized."
+            ) from exc
+
         return cls(
-            roots=tuple(roots_value),
+            roots=roots,
             origin=origin,
             recursive=_exact_bool(payload["recursive"], "recursive"),
             symlink_policy=symlink_policy,
-            max_file_bytes=_optional_nonnegative_int(payload["max_file_bytes"], "max_file_bytes"),
-            expected_count=_optional_nonnegative_int(payload["expected_count"], "expected_count"),
-            protection_scope_id=_optional_text(payload["protection_scope_id"], "protection_scope_id"),
+            max_file_bytes=_optional_nonnegative_int(
+                payload["max_file_bytes"],
+                "max_file_bytes",
+            ),
+            expected_count=_optional_nonnegative_int(
+                payload["expected_count"],
+                "expected_count",
+            ),
+            protection_scope_id=_optional_text(
+                payload["protection_scope_id"],
+                "protection_scope_id",
+            ),
             temporary=_exact_bool(payload["temporary"], "temporary"),
             do_not_store=_exact_bool(payload["do_not_store"], "do_not_store"),
             include_system_metadata=_exact_bool(
-                payload["include_system_metadata"], "include_system_metadata"
+                payload["include_system_metadata"],
+                "include_system_metadata",
             ),
         )
 
@@ -240,9 +290,14 @@ class ImportCaptureResult:
 
 
 class ImportIntakeService:
-    """Preflight and capture deterministic path imports using the canonical Source service."""
+    """Preflight and capture deterministic paths through canonical Source capture."""
 
-    def __init__(self, *, sources: SourceCaptureService, paths: RuntimePaths) -> None:
+    def __init__(
+        self,
+        *,
+        sources: SourceCaptureService,
+        paths: RuntimePaths,
+    ) -> None:
         if not isinstance(sources, SourceCaptureService):
             raise TypeError("sources must be a SourceCaptureService.")
         if not isinstance(paths, RuntimePaths):
@@ -257,21 +312,44 @@ class ImportIntakeService:
         candidates: dict[Path, ImportCandidate] = {}
 
         if request.temporary:
-            issues.append(ImportIssue("temporary_not_supported_by_raw_archive_slice", None, True))
+            issues.append(
+                ImportIssue(
+                    "temporary_not_supported_by_raw_archive_slice",
+                    None,
+                    True,
+                )
+            )
         if request.do_not_store:
-            issues.append(ImportIssue("do_not_store_not_supported_by_raw_archive_slice", None, True))
+            issues.append(
+                ImportIssue(
+                    "do_not_store_not_supported_by_raw_archive_slice",
+                    None,
+                    True,
+                )
+            )
 
         for root_text in sorted(request.roots, key=_text_sort_key):
-            self._enumerate_root(Path(root_text), request=request, candidates=candidates, issues=issues)
+            self._enumerate_root(
+                Path(root_text),
+                request=request,
+                candidates=candidates,
+                issues=issues,
+            )
 
         ordered_candidates = tuple(
-            sorted(candidates.values(), key=lambda item: _path_sort_key(item.path))
+            sorted(
+                candidates.values(),
+                key=lambda item: _path_sort_key(item.path),
+            )
         )
         total_bytes = sum(item.byte_length for item in ordered_candidates)
         free_spool_bytes = _free_bytes_for(self.paths.spool_root)
         if total_bytes > free_spool_bytes:
             issues.append(ImportIssue("insufficient_local_spool", None, True))
-        if request.expected_count is not None and request.expected_count != len(ordered_candidates):
+        if (
+            request.expected_count is not None
+            and request.expected_count != len(ordered_candidates)
+        ):
             issues.append(ImportIssue("expected_count_mismatch", None, False))
         if not ordered_candidates:
             issues.append(ImportIssue("no_importable_files", None, True))
@@ -279,7 +357,13 @@ class ImportIntakeService:
         archive_root = self.paths.archive_root
         archive_available = archive_root is not None and archive_root.is_dir()
         if archive_root is not None and not archive_available:
-            issues.append(ImportIssue("archive_root_unavailable_spool_will_be_used", archive_root, False))
+            issues.append(
+                ImportIssue(
+                    "archive_root_unavailable_spool_will_be_used",
+                    archive_root,
+                    False,
+                )
+            )
 
         return ImportPreflight(
             request=request,
@@ -293,7 +377,9 @@ class ImportIntakeService:
     def capture(self, request: ImportRequest) -> ImportCaptureResult:
         preflight = self.preflight(request)
         if preflight.blocked:
-            raise ImportPreflightBlockedError("Import preflight contains blocking findings.")
+            raise ImportPreflightBlockedError(
+                "Import preflight contains blocking findings."
+            )
 
         scope_id = (
             None
@@ -305,16 +391,34 @@ class ImportIntakeService:
 
         for candidate in preflight.candidates:
             try:
-                captures.append(self._capture_candidate(candidate.path, scope_id=scope_id))
+                captures.append(
+                    self._capture_candidate(
+                        candidate.path,
+                        scope_id=scope_id,
+                    )
+                )
             except SourceChangedDuringCaptureError:
                 try:
-                    captures.append(self._capture_candidate(candidate.path, scope_id=scope_id))
-                except Exception as exc:  # noqa: BLE001 - sanitized import-level failure report
-                    failures.append(
-                        ImportCaptureFailure(candidate.path, type(exc).__name__)
+                    captures.append(
+                        self._capture_candidate(
+                            candidate.path,
+                            scope_id=scope_id,
+                        )
                     )
-            except Exception as exc:  # noqa: BLE001 - sanitized import-level failure report
-                failures.append(ImportCaptureFailure(candidate.path, type(exc).__name__))
+                except Exception as exc:  # noqa: BLE001
+                    failures.append(
+                        ImportCaptureFailure(
+                            candidate.path,
+                            type(exc).__name__,
+                        )
+                    )
+            except Exception as exc:  # noqa: BLE001
+                failures.append(
+                    ImportCaptureFailure(
+                        candidate.path,
+                        type(exc).__name__,
+                    )
+                )
 
         if failures and captures:
             state = ImportState.PARTIAL
@@ -337,7 +441,10 @@ class ImportIntakeService:
     ) -> SourceCaptureResult:
         if scope_id is None:
             return self.sources.capture_file(path)
-        return self.sources.capture_protected_file(path, protection_scope_id=scope_id)
+        return self.sources.capture_protected_file(
+            path,
+            protection_scope_id=scope_id,
+        )
 
     def _enumerate_root(
         self,
@@ -350,7 +457,9 @@ class ImportIntakeService:
         try:
             root_lstat = root.lstat()
         except OSError:
-            issues.append(ImportIssue("root_unreadable_or_missing", root, True))
+            issues.append(
+                ImportIssue("root_unreadable_or_missing", root, True)
+            )
             return
         del root_lstat
 
@@ -358,10 +467,17 @@ class ImportIntakeService:
             issues.append(ImportIssue("selected_root_is_link", root, True))
             return
         if root.is_file():
-            self._consider_file(root, request=request, candidates=candidates, issues=issues)
+            self._consider_file(
+                root,
+                request=request,
+                candidates=candidates,
+                issues=issues,
+            )
             return
         if not root.is_dir():
-            issues.append(ImportIssue("root_not_regular_file_or_directory", root, True))
+            issues.append(
+                ImportIssue("root_not_regular_file_or_directory", root, True)
+            )
             return
 
         boundary = root.resolve()
@@ -404,8 +520,13 @@ class ImportIntakeService:
             return
 
         for entry in entries:
-            if not request.include_system_metadata and _is_system_metadata(entry):
-                issues.append(ImportIssue("filtered_system_metadata", entry, False))
+            if (
+                not request.include_system_metadata
+                and _is_system_metadata(entry)
+            ):
+                issues.append(
+                    ImportIssue("filtered_system_metadata", entry, False)
+                )
                 continue
 
             if _is_link_or_junction(entry):
@@ -418,10 +539,21 @@ class ImportIntakeService:
                     issues.append(ImportIssue("broken_link", entry, True))
                     continue
                 if not target.is_relative_to(boundary):
-                    issues.append(ImportIssue("filtered_link_outside_root", entry, False))
+                    issues.append(
+                        ImportIssue(
+                            "filtered_link_outside_root",
+                            entry,
+                            False,
+                        )
+                    )
                     continue
                 if target.is_file():
-                    self._consider_file(target, request=request, candidates=candidates, issues=issues)
+                    self._consider_file(
+                        target,
+                        request=request,
+                        candidates=candidates,
+                        issues=issues,
+                    )
                 elif target.is_dir() and recursive:
                     self._walk_directory(
                         target,
@@ -435,7 +567,12 @@ class ImportIntakeService:
                 continue
 
             if entry.is_file():
-                self._consider_file(entry, request=request, candidates=candidates, issues=issues)
+                self._consider_file(
+                    entry,
+                    request=request,
+                    candidates=candidates,
+                    issues=issues,
+                )
             elif entry.is_dir() and recursive:
                 self._walk_directory(
                     entry,
@@ -467,13 +604,21 @@ class ImportIntakeService:
         if not os.access(resolved, os.R_OK):
             issues.append(ImportIssue("file_unreadable", resolved, True))
             return
-        if request.max_file_bytes is not None and stat_result.st_size > request.max_file_bytes:
+        if (
+            request.max_file_bytes is not None
+            and stat_result.st_size > request.max_file_bytes
+        ):
             issues.append(ImportIssue("file_exceeds_max_size", resolved, True))
             return
         if resolved in candidates:
-            issues.append(ImportIssue("duplicate_resolved_path", resolved, False))
+            issues.append(
+                ImportIssue("duplicate_resolved_path", resolved, False)
+            )
             return
-        candidates[resolved] = ImportCandidate(resolved, stat_result.st_size)
+        candidates[resolved] = ImportCandidate(
+            resolved,
+            stat_result.st_size,
+        )
 
 
 def _is_system_metadata(path: Path) -> bool:
@@ -514,7 +659,10 @@ def _nonnegative_int(value: object, label: str) -> int:
     return value
 
 
-def _optional_nonnegative_int(value: object, label: str) -> int | None:
+def _optional_nonnegative_int(
+    value: object,
+    label: str,
+) -> int | None:
     if value is None:
         return None
     return _nonnegative_int(value, label)
@@ -526,9 +674,13 @@ def _exact_bool(value: object, label: str) -> bool:
     return value
 
 
+def _required_text(value: object, label: str) -> str:
+    if not isinstance(value, str) or not value or value != value.strip():
+        raise ImportRequestError(f"{label} must be non-empty canonical text.")
+    return value
+
+
 def _optional_text(value: object, label: str) -> str | None:
     if value is None:
         return None
-    if not isinstance(value, str) or not value or value != value.strip():
-        raise ImportRequestError(f"{label} must be non-empty canonical text or null.")
-    return value
+    return _required_text(value, label)
