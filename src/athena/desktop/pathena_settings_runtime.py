@@ -223,11 +223,14 @@ class SettingsRuntimeController(QObject):
             "success" if core_ready else "error",
             freshness="fresh",
         )
-        self.network_value.setProperty("pathenaNetworkScope", "loopback-only")
-        self.network_value.setToolTip(
-            "The desktop Core API and configured LM Studio endpoint are restricted "
-            "to this computer by existing runtime validation."
+        network_detail = (
+            f"{network_text}. Local loopback connection only; this status does not "
+            "indicate Internet access."
         )
+        self.network_value.setProperty("pathenaNetworkScope", "loopback-only")
+        self.network_value.setProperty("pathenaInternetStateInferred", False)
+        self.network_value.setToolTip(network_detail)
+        self.network_value.setAccessibleDescription(network_detail)
 
         detail = value.model_error
         if detail is None and provider is not None:
