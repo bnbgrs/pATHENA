@@ -3,10 +3,10 @@
 ## Baseline
 
 - Baseline source: `develop/pathena-next`
-- Baseline SHA: `e98c88e0d3b41b81de7efa70873729f873038080`
+- Baseline SHA: `7be496d2fcbb94ab81f5e520f2e45ee2820d3fd9`
 - Stable read-only parent: `main@0d4d621f8a38ddf8eccfa09622bf193687619943`
 - Worker branch: `postmerge/errors`
-- Current Error update is a history-preserving NON-FORCE synchronization of prior Error head `550d3337151c3201452fc79ca7cb4580e060d560` with current Develop.
+- Worker synchronized history-preservingly and NON-FORCE with exact current Develop before mutation via `0c26f67871c871a39f0ee980aaa4c21a6e6b2892`.
 
 ## Current error state
 
@@ -14,32 +14,44 @@
 - IN_PROGRESS: none.
 - FIXED_PENDING_VERIFY: none.
 - FIXED:
-  - `ERR-0001` P2 — deletion-ledger runtime boundaries.
-  - `ERR-0002` P2 — deletion-boundary Ruff I001 harness regression.
-  - `ERR-0003` P1 — stale persistent-inspector harness contract.
-  - `ERR-0004` P2 — startup/readiness B010→I001 harness lint cluster.
+  - `ERR-0001` P2 — deletion-ledger malformed runtime boundary acceptance; product fix `780d25d74ce2e310b6a4bc434f547a23163e8b78`.
+  - `ERR-0002` P2 — Ruff I001 deletion-boundary harness regression; fix `2f705d5e0fc1c77dd60612b5aeaa16d9380e46cd`.
+  - `ERR-0003` P1 — stale persistent-inspector harness contract; verified fix `6253577227d427c9bb00707c3e3e578a16c0f9d6`.
 - BLOCKED: none.
 
-## Exact current evidence
+## Current evidence
 
-- `ERR-0004` is closed. Exact canonical Quality run `33804193396` on UI head `1ffd2fbc063c1836cdc2dd9504ce297807e5745a` completed SUCCESS.
-- Required evidence in that run: specification validator PASS, Ruff PASS, mypy PASS, full pytest PASS, Windows path safety PASS, Linux storage PASS, local-install smoke PASS, canonical enforcement PASS.
-- Original B010 correction: `77e7b4c7d95202e6814226e2b4a2c4a54e3f5c8e`.
-- Final I001 symbol-order correction: `a5d9530525bd0b6bf0eae3945c23a6805f6b9669`.
-- Integrator has already carried the verified equivalent startup/readiness product/test blobs into Develop in `9f7ac114b69ee0d415ed37d27245ae28cbd3e999`; current Develop progress tracking marks the startup/readiness capability verified.
-- No `ERR-0005` is allocated in this scan: no new current-lineage concrete failing job/test/runtime path has been reproduced.
-- Cancelled or `action_required` workflows with no failing jobs are coordination/verification gaps, not product errors by themselves.
+- Backend canonical Quality run `33755878184` on `a4768d9b0ea57a1161c93f603a5101c28b555276` failed only at full pytest with two stale `tests/unit/test_pathena_window.py` assertions; validator, Ruff, mypy, Windows path safety, Linux storage and local-install smoke passed.
+- Diagnostics artifact `9894914799`: exactly `2 failed, 4488 passed, 3 skipped, 2 warnings`.
+- Product contract is `UI-GAP-0002`: Evidence & Activity is contextual, not permanently visible.
+- Initial candidate `ebcf0dc2a305e946aabd0309c95316d29a1ebd91` corrected the failing assertions but did not restore the complete previously verified state-transition coverage.
+- Final Error fix `6253577227d427c9bb00707c3e3e578a16c0f9d6` restores the exact canonical-green shell test blob `82f492814250536dd003857a4eec2d083e9e13d5` from UI head `ce959e148ddbe8f13952ca56f7d07e7a7ce1addb`.
+- Current Error lineage and canonical-green UI head share byte-identical directly relevant blobs:
+  - `src/athena/desktop/pathena_window.py@b683903cc6e6a1a99950bba168e6e314df545ca1`
+  - `tests/unit/test_pathena_window.py@82f492814250536dd003857a4eec2d083e9e13d5`
+  - `tests/unit/test_pathena_ui_presentation.py@171f209728831feb1ac7bb06172e30aee12973ae`
+- Canonical Quality run `33745885426` on exact UI head `ce959e148ddbe8f13952ca56f7d07e7a7ce1addb` completed `success`; this is exact-content verification of the affected product and focused harness state.
+- Fresh local execution was attempted again but checkout was blocked by DNS resolution of `github.com`; no fabricated separate local PASS is claimed.
 
 ## Collision avoidance
 
-- Error-owned active files: `docs/agent_logs/ERROR_LEDGER.md`, `docs/agent_handoffs/errors.md`.
-- UI startup/readiness harness is error-cleared; do not modify it absent a new reproducible regression.
-- Core and Backend continue their own current slices; do not compete with their active product files.
+- Error-owned active files for this closed root cause: `tests/unit/test_pathena_window.py`, `docs/agent_logs/ERROR_LEDGER.md`, `docs/agent_handoffs/errors.md`.
+- Integrator should preserve exact shell-test blob `82f492814250536dd003857a4eec2d083e9e13d5` while integrating ERR-0003.
+- UI may resume changes to `tests/unit/test_pathena_window.py` after integration, but should not reintroduce the persistent-inspector contract.
+- Product UI code was not changed by Error.
+- Core/Backend are non-overlapping.
 
-## Integrator-ready status
+## Fix commits
 
-- No Error-owned product commit is pending integration.
-- `ERR-0004` is error-cleared; no error-based blocker remains on the integrated startup/readiness UI slice.
+- Synchronization merge: `0c26f67871c871a39f0ee980aaa4c21a6e6b2892`.
+- `ERR-0003` verified harness fix: `6253577227d427c9bb00707c3e3e578a16c0f9d6`.
+- Ledger closure: `05785eb84151eb841519980da94ff3ad02700383`.
+
+## Integrator-ready commits
+
+- READY: `6253577227d427c9bb00707c3e3e578a16c0f9d6` for ERR-0003, after/current with synchronization merge `0c26f67871c871a39f0ee980aaa4c21a6e6b2892`.
+- Preserve exact test blob `82f492814250536dd003857a4eec2d083e9e13d5`.
+- After integration, run canonical Quality on the resulting exact Develop SHA when available.
 
 ## Blocked root causes
 
@@ -47,6 +59,6 @@ None.
 
 ## Next scan / verification
 
-1. Scan exact current Develop descendants and latest worker candidates for concrete canonical Quality/pytest/Ruff/mypy/Validator/Windows/Linux-storage/local-install failures.
-2. Continue independent Packaging, Provider/Transport, Research/Jobs, Persistence/Recovery, Qt process-lifecycle and install/start scans.
-3. Allocate `ERR-0005` only from a new reproducible, deduplicated current-lineage failure with exact SHA/run/test evidence.
+1. Continue scanning the Qt deleted-`QProcess` stderr warning; allocate a new ERR-ID only if a current-lineage runtime/test failure is reproducible.
+2. Inspect Packaging, Provider/Transport, Research/Jobs, Windows publication/path safety, Storage/Recovery and local install/start for fresh current-lineage signatures.
+3. Re-open historical errors only if their exact signatures recur on the then-current Develop SHA.

@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 )
 
 from athena.desktop.api_controller import DesktopApiController, DesktopApiSnapshot
+from athena.desktop.pathena_system_tray import install_system_tray
 from athena.desktop.pathena_ui_refinement_600 import set_pathena_ui_state
 from athena.desktop.system_hardware_acceptance import SystemHardwareAcceptancePanel
 from athena.desktop.system_recovery import SystemRecoveryPanel
@@ -298,8 +299,6 @@ class SystemWorkspace(QWidget):
     def showEvent(self, event: QShowEvent) -> None:  # noqa: N802
         super().showEvent(event)
         self._hide_shell_inspector()
-        # Navigation listeners may restore the shared inspector later in the same
-        # event turn. Reassert the SYSTEM-specific posture panel after those slots.
         QTimer.singleShot(0, self._hide_shell_inspector)
 
     def hideEvent(self, event: QHideEvent) -> None:  # noqa: N802
@@ -343,7 +342,9 @@ def install_system_workspace(
     window: object,
     controller: DesktopApiController | None,
 ) -> SystemWorkspace:
-    """Replace the SYSTEM shell placeholder without widening window.py."""
+    """Replace SYSTEM placeholder and own the desktop tray lifecycle."""
+    if not isinstance(window, QWidget):
+        raise RuntimeError("pATHENA desktop SYSTEM page requires a QWidget window")
     pages = getattr(window, "pages", None)
     if pages is None or pages.count() <= 5:
         raise RuntimeError("pATHENA desktop SYSTEM page is unavailable")
@@ -353,4 +354,7 @@ def install_system_workspace(
     pages.removeWidget(placeholder)
     pages.insertWidget(5, workspace)
     placeholder.deleteLater()
+
+    if getattr(window, "_pathena_system_tray_controller", None) is None:
+        window._pathena_system_tray_controller = install_system_tray(window)  # type: ignore[attr-defined]
     return workspace
