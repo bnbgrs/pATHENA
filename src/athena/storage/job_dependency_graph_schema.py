@@ -5,11 +5,11 @@ from __future__ import annotations
 import sqlite3
 
 from athena.storage.schema_contract import (
+    BLOB_FORMAT_VERSION,
+    GROUNDED_RESPONSE_RECEIPT_SCHEMA_VERSION,
     JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
     JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION,
-    GROUNDED_RESPONSE_RECEIPT_SCHEMA_VERSION,
     STORAGE_LAYOUT_VERSION,
-    BLOB_FORMAT_VERSION,
     DatabaseCompatibilityError,
     _user_tables,
 )
@@ -110,21 +110,21 @@ def verify_schema_v41(connection: sqlite3.Connection) -> None:
     parent_columns = {
         str(row[1]) for row in connection.execute("PRAGMA table_info(job_parent_links)")
     }
-    if not {
+    required_parent_columns = {
         "job_id",
         "parent_job_id",
         "completion_policy",
         "cancellation_policy",
         "created_at_us",
-    }.issubset(parent_columns):
+    }
+    if not required_parent_columns.issubset(parent_columns):
         raise DatabaseCompatibilityError("ATHENA job parent-link schema is incomplete.")
 
     dependency_columns = {
         str(row[1]) for row in connection.execute("PRAGMA table_info(job_dependencies)")
     }
-    if not {"job_id", "depends_on_job_id", "created_at_us"}.issubset(
-        dependency_columns
-    ):
+    required_dependency_columns = {"job_id", "depends_on_job_id", "created_at_us"}
+    if not required_dependency_columns.issubset(dependency_columns):
         raise DatabaseCompatibilityError("ATHENA job dependency schema is incomplete.")
 
     if connection.execute("PRAGMA foreign_key_check").fetchall():
