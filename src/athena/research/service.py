@@ -440,6 +440,10 @@ def _analysis_config_from_scope(
 
 
 def _stable_strings(values: Sequence[str], *, field: str) -> tuple[str, ...]:
+    if isinstance(values, (str, bytes, bytearray)) or not isinstance(values, Sequence):
+        raise ResearchConfigurationError(
+            f"{field} must be a sequence of text values."
+        )
     normalized: list[str] = []
     for value in values:
         if not isinstance(value, str):
