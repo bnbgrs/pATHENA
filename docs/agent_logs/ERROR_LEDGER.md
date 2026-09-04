@@ -14,9 +14,9 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 ## Current baseline
 
 - Baseline branch: `develop/pathena-next`
-- Baseline SHA: `a7c1d8cd1530a3003690292a9bf4c660472d59ce`
+- Baseline SHA: `3ea908affd23f1d80e0b863a6af8cf366e2b8484`
 - Worker branch: `postmerge/errors`
-- History-preserving NON-FORCE synchronization merge: `c74acfbebd4786fb58be84208156d09cc102b57f`.
+- Synchronization: history-preserving NON-FORCE merge of current Develop into Error lineage in this run.
 
 ## Current error state
 
@@ -28,11 +28,12 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 
 ## Current scan
 
-- `ERR-0008` remains `FIXED`; exact owner fix `afa319f0ab1b12edccc4b649d4a1ca36bcd7ac39` has canonical ATHENA Quality Gate `33854660676 = success`.
-- Backend head `33933c00169ab72786b8b27b8286af6432225e8e` completed canonical Quality `33858608297 = success`; the previously pending Backend signal therefore does not justify `ERR-0009`.
-- Develop Quality `33862677128` on exact SHA `a0e0a2bcf76b0e7f77bb3cd15b8c2ccf79d5c600` is a concrete red signal: Windows path safety PASS, Linux storage PASS, local-install smoke PASS, validator PASS, Ruff PASS, mypy PASS, full pytest FAIL. The exact failing pytest test/signature is not exposed by the available run/job metadata, so no new stable ERR-ID is allocated yet; the next run must extract the diagnostic before classification.
-- Current Develop has advanced to `a7c1d8cd1530a3003690292a9bf4c660472d59ce`; no Develop-wide PASS is claimed for that newer head.
-- Current UI head `dc82cdded9e9d3c87be964a5f582965a9f4d3c9a` is under canonical Quality `33864721817`, still in progress at this scan. No UI failure is claimed while the run remains incomplete.
+- Historical Develop Quality `33862677128` on exact SHA `a0e0a2bcf76b0e7f77bb3cd15b8c2ccf79d5c600` remains a real pytest-only red run, but the exact node/signature is not exposed by available job metadata. It is therefore not promoted to a stable `ERR-0009` without primary evidence.
+- A later exact Develop SHA `a7c1d8cd1530a3003690292a9bf4c660472d59ce` completed canonical ATHENA Quality `33867305345 = success`. The earlier red signal is not currently recurring on that later canonical-green lineage, so no active new error is asserted from it.
+- UI exact head `dc82cdded9e9d3c87be964a5f582965a9f4d3c9a` completed canonical Quality `33864721817 = success`; no UI error is allocated from that candidate.
+- Current UI branch advanced to `acd4bcbeb68d9578fef53b223ef98f8ee2c6f43e` with a documentation-only registration of the next Settings gap; no concrete Quality failure is evidenced for that head.
+- Current Backend head `19c73aee29cae2d2ea479a6e3d2aa1256afa06a1` is under Quality `33868034634`, still in progress at this scan. No PASS/failure claim is made while incomplete.
+- Current Develop advanced to `3ea908affd23f1d80e0b863a6af8cf366e2b8484` after bounded UI-GAP-0010 integration/documentation; no exact-head canonical PASS is currently available for this newest Develop SHA, so global green is not claimed for it.
 
 ## Entries
 
@@ -96,7 +97,7 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 - root_cause: first owner correction exposed a second stale harness expectation. Product runtime and accessibility state were consistent; the harness lagged the truthful loopback-only contract.
 - files: `tests/unit/test_pathena_settings_runtime.py`; product reference `src/athena/desktop/pathena_settings_comprehension_5100.py`.
 - fix_sha: `afa319f0ab1b12edccc4b649d4a1ca36bcd7ac39`.
-- verification: canonical ATHENA Quality Gate `33854660676 = success` on exact fix SHA. Integrator records byte-identical verified Settings product/test blobs integrated onto Develop.
+- verification: canonical ATHENA Quality Gate `33854660676 = success` on exact fix SHA.
 - risk: low; the fix retains substantive accessibility/network non-inference coverage via loopback-specific wording plus `pathenaInternetStateInferred is False`.
 - integrator_handoff: no remaining ERR-0008 blocker; reject earlier red SHAs as globally green and preserve the verified final blobs.
 
