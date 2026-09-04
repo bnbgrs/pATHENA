@@ -4,6 +4,7 @@ import pytest
 
 from athena.research.coverage import COVERAGE_FORMULA_ID, ResearchCoverage
 from athena.research.errors import ResearchStateError
+from athena.research.service import COVERAGE_FORMULA_ID as SERVICE_COVERAGE_FORMULA_ID
 
 
 def test_coverage_counts_success_and_irrelevant_only() -> None:
@@ -87,6 +88,11 @@ def test_result_payload_persists_formula_identity_and_problem_counts() -> None:
         "eligible_count": 5,
         "coverage_ratio": 0.6,
     }
+
+
+def test_coverage_formula_identity_matches_pinned_research_service_contract() -> None:
+    assert COVERAGE_FORMULA_ID == "eligible-success-or-irrelevant-v1"
+    assert COVERAGE_FORMULA_ID == SERVICE_COVERAGE_FORMULA_ID
 
 
 @pytest.mark.parametrize(
