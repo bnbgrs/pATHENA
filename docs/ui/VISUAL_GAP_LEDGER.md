@@ -133,10 +133,12 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Category: `STATE / ACCESSIBILITY`
 - Screen: `07 — Settings`
 - Severity: `P2`
-- Status: `OPEN`
-- Evidence: in `SettingsRuntimeController.hydrate_selected_model()`, a selected model with no persisted local record renders `<model> · defaults not yet saved` with `pathenaUiState=idle` but `pathenaRuntimeFreshness=fresh`. The visible copy explicitly says there is no saved model-specific persistence fact, so `fresh` overstates the persistence state.
-- Acceptance: retain the existing visible copy and idle UI state, fail closed to `pathenaRuntimeFreshness=unavailable`, keep accessible description synchronized, and do not change QSettings storage, model controls, provider behavior or backend semantics.
-- Verification required: focused Qt coverage for a real selected model with an empty QSettings store, then canonical Quality on the exact candidate head.
+- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Evidence: in `SettingsRuntimeController.hydrate_selected_model()`, a selected model with no persisted local record rendered `<model> · defaults not yet saved` with `pathenaUiState=idle` but `pathenaRuntimeFreshness=fresh`. The visible copy explicitly says there is no saved model-specific persistence fact, so `fresh` overstated the persistence state.
+- Product commit: `e175de079fd30dc2fb1bc3c64065ebd40127cd0b`.
+- Focused test commit: `0b0303e89c4fd358291e0fb180062212debdeff7`.
+- Acceptance: existing visible copy and idle state remain unchanged; freshness fails closed to `unavailable`; accessible description remains synchronized. QSettings storage, model controls, provider behavior and backend semantics are unchanged.
+- Verification required: canonical Quality on the final documented exact candidate head before promotion to `FIXED`.
 
 ## Evidence blocker
 
