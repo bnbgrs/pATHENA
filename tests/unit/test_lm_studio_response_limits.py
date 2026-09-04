@@ -136,7 +136,7 @@ def test_stream_iteration_uses_bounded_readline_without_whole_body_read(
         assert list(response) == [b"data: 1\n", b"[DONE]\n"]
 
     assert raw.read_sizes == []
-    assert raw.readline_sizes == [17, 17, 17]
+    assert raw.readline_sizes == [17, 9, 2]
 
 
 def test_stream_iteration_rejects_many_small_lines_over_cumulative_limit(
@@ -157,7 +157,7 @@ def test_stream_iteration_rejects_many_small_lines_over_cumulative_limit(
 
     assert "1234" not in str(raised.value)
     assert "5678" not in str(raised.value)
-    assert raw.readline_sizes == [9, 9, 9]
+    assert raw.readline_sizes == [9, 5, 1]
 
 
 def test_stream_iteration_rejects_oversize_line_without_leaking_content(
