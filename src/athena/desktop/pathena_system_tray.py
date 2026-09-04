@@ -18,9 +18,10 @@ class PathenaSystemTrayController(QObject):
     def __init__(self, window: QWidget, *, app: QApplication | None = None) -> None:
         super().__init__(window)
         self.window = window
-        self.app = app or QApplication.instance()
-        if not isinstance(self.app, QApplication):
+        application = app or QApplication.instance()
+        if not isinstance(application, QApplication):
             raise RuntimeError("pATHENA system tray requires QApplication ownership")
+        self.app: QApplication = application
 
         self.menu = QMenu()
         self.menu.setObjectName("pathenaTrayMenu")
