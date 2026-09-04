@@ -212,7 +212,8 @@ def test_runtime_panel_never_turns_stale_or_missing_provider_into_ready(tmp_path
         assert runtime.provider_value.text() == "Model provider · unavailable"
         assert runtime.provider_value.property("pathenaUiState") == "error"
         assert "ready" not in runtime.provider_value.text().lower()
-        assert "Internet-access state is not inferred" in runtime.network_value.accessibleDescription()
+        assert "does not indicate Internet access" in runtime.network_value.accessibleDescription()
+        assert runtime.network_value.property("pathenaInternetStateInferred") is False
     finally:
         window.close()
         app.processEvents()
