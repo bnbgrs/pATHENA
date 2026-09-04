@@ -3,28 +3,29 @@
 ## Current branch state
 
 - `main` is strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `5522e73c6f314b1dfac77fa5cfdb8e8d6f667704`.
+- Develop before this run: `5d7061678afd2e2f6195d5a3ce6e15cde2797007`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `76eb1c696c1c42cb774a27f7a0ea70e86189b984`; spec-core `482dc5a376c288979d30d9c63132582ae951a254`; backend `e5b021ac3e99fc4ef8bf15f3d790c5220799fedd`; ui `d1b1014c6ebe78d9130264550a41eba519ae1696`.
+- Worker heads reviewed: errors `914c35ecb93829f932d0f5c13f379599dc003844`; spec-core `769ae5aa74f785ee2c48c2f93de7111043b4622e`; backend `effab66be11900adeb9a72db2e01207483060261`; ui `f7da16e05aa50da9ca17e5069a8880a84e34432e`.
 
-## Integrated this run — Exhaustive Research coverage accounting
+## Integrated this run — Research source-types runtime boundary
 
-Core synchronized head `fa7eec0d332c6119a4a0f069ec6cf0ee92bf64c9` passed canonical ATHENA Quality Gate `33839797520` with conclusion `success`. Independent comparison against Develop showed exactly two product/test files and no unrelated tree delta:
+Backend synchronized candidate `75ae07fdb0bf72c100cc8401f7881ffa03b96b03` passed canonical ATHENA Quality Gate `33840621670` with conclusion `success`. Independent comparison against Develop showed only the Backend handoff plus two product/test files; documentation was excluded from product integration.
 
-- `src/athena/research/coverage.py` blob `d478ff1a90a2e2dfa9514b7f4ff5a771962580b1`;
-- `tests/unit/test_research_coverage.py` blob `db1437488b72a35439dd077d8412e20ed1454121`.
+- `src/athena/research/service.py` blob `1bc7d9095c852c9070b2675dcedbf7bd4f1bddb9`;
+- `tests/unit/test_research_stable_strings_boundaries.py` blob `487a0c9a567ba6042db66d702a0e53a131ebeb15`.
 
-The slice was integrated as bounded commit `6b8d3b101d89393eecdbb0a478c6b74adc82dd3e` by non-force ref advance. Contract retained: eligible work excludes explicit exclusions; processed includes successful/irrelevant/failed/unavailable terminal work; coverage-positive includes successful plus explicitly irrelevant only; failed/unavailable cannot inflate coverage; zero eligible never synthesizes 100%; bool/negative/impossible counters fail closed. No persistence, provider, transport, UI, security, recovery, provenance or PALLAS mutation was included.
+The bounded slice was integrated as `d645f7136b4c6325899ccd2f2d13ba95eb4ab2a8` by non-force ref advance. `_stable_source_types(values)` now rejects scalar text-like values and non-Sequence containers, preserves the per-element `SourceType` runtime guard, and retains deterministic sorting/deduplication before actor setup, snapshot pinning or durable job creation. No persistence, provider, transport, UI, security, recovery, provenance or PALLAS semantics changed.
 
 ## Validation state
 
-- Repaired-lineage canonical validation `33838658964` completed `success`; the prior missing contradiction-review dependency repair and integrated Research UUID boundary are therefore verified on that validated lineage.
-- Backend source-types Sequence boundary canonical run `33840621670` remains `in_progress`; it is not READY yet.
+- Backend source-types Sequence boundary canonical run `33840621670`: `success` on synchronized candidate `75ae07fdb0bf72c100cc8401f7881ffa03b96b03`.
+- Error handoff confirms `ERR-0001` through `ERR-0007` are FIXED and no current open error exists.
+- Backend WAL checkpoint runtime-mode slice remains NOT_READY until its exact canonical Quality `33844840855` is green.
 - Eleven visual references remain unavailable; zero `MATCH` claims are permitted without original pixels plus a real current render.
 
 ## Next integration order
 
-1. Consume Backend `33840621670`; if green, independently review the bounded source-types Sequence delta before integration.
+1. Consume Backend WAL checkpoint runtime-mode Quality `33844840855`; integrate only if exact-green and independently compatible.
 2. Otherwise consume the next exact-green Core/UI bounded slice.
 3. If none is READY, implement exactly one small unclaimed cross-cutting product path rather than repeating handoffs.
 
