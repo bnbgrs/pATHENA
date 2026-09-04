@@ -4,6 +4,12 @@ import pytest
 
 from athena.research.coverage import COVERAGE_FORMULA_ID, ResearchCoverage
 from athena.research.errors import ResearchStateError
+from athena.research.service import COVERAGE_FORMULA_ID as SERVICE_COVERAGE_FORMULA_ID
+
+
+def test_coverage_formula_identity_matches_research_job_contract() -> None:
+    assert COVERAGE_FORMULA_ID == "eligible-success-or-irrelevant-v1"
+    assert SERVICE_COVERAGE_FORMULA_ID == COVERAGE_FORMULA_ID
 
 
 def test_coverage_counts_success_and_irrelevant_only() -> None:
