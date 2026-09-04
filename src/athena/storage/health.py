@@ -13,6 +13,14 @@ StorageHealthStatus = Literal["available", "unavailable", "error"]
 _ALLOWED_STORAGE_HEALTH_STATUSES = frozenset({"available", "unavailable", "error"})
 
 
+def _optional_nonnegative_int(value: object, label: str) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ValueError(f"{label} must be a non-negative integer or None.")
+    return value
+
+
 @dataclass(frozen=True, slots=True)
 class StorageHealthSnapshot:
     """Truthful point-in-time facts about the live SQLite storage service."""
@@ -26,27 +34,35 @@ class StorageHealthSnapshot:
     detail: str | None = None
 
     def __post_init__(self) -> None:
-        if self.status not in _ALLOWED_STORAGE_HEALTH_STATUSES:
+        if not isinstance(self.status, str) or self.status not in _ALLOWED_STORAGE_HEALTH_STATUSES:
             raise ValueError("Storage health status is invalid.")
+        if not isinstance(self.database_open, bool):
+            raise TypeError("Storage health database_open must be bool.")
+        if isinstance(self.observed_at_us, bool) or not isinstance(self.observed_at_us, int):
+            raise ValueError("Storage health observation time must be a positive integer.")
         if self.observed_at_us <= 0:
             raise ValueError("Storage health observation time must be positive.")
-        if self.database_size_bytes is not None and self.database_size_bytes < 0:
-            raise ValueError("Storage health database size cannot be negative.")
-        if self.wal_size_bytes is not None and self.wal_size_bytes < 0:
-            raise ValueError("Storage health WAL size cannot be negative.")
+        database_size = _optional_nonnegative_int(
+            self.database_size_bytes,
+            "Storage health database size",
+        )
+        wal_size = _optional_nonnegative_int(
+            self.wal_size_bytes,
+            "Storage health WAL size",
+        )
 
         if self.status == "available":
             if not self.database_open:
                 raise ValueError("Available storage health requires an open database.")
             if self.database_path is None:
                 raise ValueError("Available storage health requires a database path.")
-            if self.database_size_bytes is None or self.wal_size_bytes is None:
+            if database_size is None or wal_size is None:
                 raise ValueError("Available storage health requires measured sizes.")
             if self.detail is not None:
                 raise ValueError("Available storage health cannot carry an error detail.")
             return
 
-        if self.database_size_bytes is not None or self.wal_size_bytes is not None:
+        if database_size is not None or wal_size is not None:
             raise ValueError(
                 "Non-available storage health cannot expose partial measured sizes."
             )
