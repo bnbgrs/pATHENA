@@ -138,3 +138,46 @@ def test_storage_health_snapshot_rejects_contradictory_or_invented_facts(
 ) -> None:
     with pytest.raises(ValueError, match=message):
         StorageHealthSnapshot(**kwargs)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("field", ["database_size_bytes", "wal_size_bytes"])
+def test_storage_health_snapshot_rejects_bool_size_values(field: str) -> None:
+    kwargs: dict[str, object] = {
+        "status": "available",
+        "database_open": True,
+        "database_path": "athena.sqlite3",
+        "database_size_bytes": 1,
+        "wal_size_bytes": 0,
+        "observed_at_us": 1,
+        "detail": None,
+    }
+    kwargs[field] = True
+
+    with pytest.raises(ValueError, match="non-negative integer or None"):
+        StorageHealthSnapshot(**kwargs)  # type: ignore[arg-type]
+
+
+def test_storage_health_snapshot_rejects_bool_observation_time() -> None:
+    with pytest.raises(ValueError, match="positive integer"):
+        StorageHealthSnapshot(
+            status="available",
+            database_open=True,
+            database_path="athena.sqlite3",
+            database_size_bytes=1,
+            wal_size_bytes=0,
+            observed_at_us=True,  # type: ignore[arg-type]
+            detail=None,
+        )
+
+
+def test_storage_health_snapshot_requires_real_boolean_open_state() -> None:
+    with pytest.raises(TypeError, match="database_open must be bool"):
+        StorageHealthSnapshot(
+            status="available",
+            database_open=1,  # type: ignore[arg-type]
+            database_path="athena.sqlite3",
+            database_size_bytes=1,
+            wal_size_bytes=0,
+            observed_at_us=1,
+            detail=None,
+        )
