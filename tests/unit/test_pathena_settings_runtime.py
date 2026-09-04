@@ -182,11 +182,14 @@ def test_runtime_panel_never_turns_stale_or_missing_provider_into_ready(tmp_path
     try:
         ready = _snapshot()
         _apply(window, runtime, ready)
-        comprehension.sync()
         assert runtime.provider_value.text() == "LM Studio · ready"
         assert runtime.provider_value.property("pathenaUiState") == "success"
         assert runtime.network_value.text() == "Local Core · connected"
         assert runtime.network_value.property("pathenaNetworkScope") == "loopback-only"
+        assert runtime.network_value.property("pathenaInternetStateInferred") is False
+        assert "does not indicate Internet access" in runtime.network_value.accessibleDescription()
+
+        comprehension.sync()
         assert runtime.network_value.accessibleName() == "Local Core connection"
         assert "does not indicate Internet access" in runtime.network_value.accessibleDescription()
         assert runtime.network_value.property("pathenaInternetStateInferred") is False
