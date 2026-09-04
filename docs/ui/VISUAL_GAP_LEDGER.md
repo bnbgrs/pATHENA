@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `fefe26b9fdc972b5e6950cd535397eae1067d5ea`
+Baseline: `0b7f428f8679db9391c00b4b9638d85550332c43`
 Integration target: `develop/pathena-next`
 
 Only evidence-backed gaps belong here. The original 11 reference screenshots remain unavailable for direct visual comparison; therefore no pixel-level mismatch or `MATCH` claim is asserted.
@@ -107,12 +107,25 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Category: `STATE / ACCESSIBILITY`
 - Screen: `07 — Settings`
 - Severity: `P2`
-- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Status: `FIXED`
 - Evidence: `settingsRuntimeDetail` changes between initial explanatory copy, snapshot-backed provider detail/model error, and connection-failure error text, but unlike the adjacent Provider/Connection/Persistence indicators it did not consistently carry `pathenaRuntimeFreshness` or transition its accessible description through the same state changes.
 - Product commit: `046414551ad85bc418af0c7bdfdc2d8be7befd7d`.
 - Focused test commit: `7de1ccb040083375fb31242f54b9515b18403113`.
 - Acceptance: existing visible detail copy is preserved; initial state is `idle/unavailable`; snapshot transitions use the snapshot's resolved model freshness and synchronize the accessible description to the displayed detail; model errors are explicit `error`; Core connection failure is `error/unavailable` and self-describing. No backend/network/provider capability is invented.
-- Verification: canonical ATHENA Quality Gate `33890936090` started on exact product/test head `7de1ccb040083375fb31242f54b9515b18403113`; result pending at documentation time.
+- Verification evidence: exact final UI head `622f85338613b7d59ef5b1bd0fd05eae3d488c47` passed ATHENA Quality Gate `33891068183` with conclusion `success`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0014 — No-model persistence state incorrectly claims fresh model persistence
+
+- Category: `STATE / ACCESSIBILITY`
+- Screen: `07 — Settings`
+- Severity: `P2`
+- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Evidence: `SettingsRuntimeController.hydrate_selected_model()` rendered `Per-model settings · choose a model` with `pathenaRuntimeFreshness=fresh` when `_selected_model()` returned `None`, even though no model-specific persistence fact exists in that state.
+- Product commit: `9cfcf802643fdbd1357f8886d710b9dcd86a761e`.
+- Focused test commit: `ce7ae251f5d7b8548a21abde6c67cbd2fafa9f24`.
+- Acceptance: when no model is selected, the existing visible copy remains unchanged, UI state remains `idle`, freshness fails closed to `unavailable`, and the accessible description remains synchronized to the visible state. No persistence/storage/backend semantics change.
+- Verification: canonical Quality required on the final documented exact UI head before `FIXED`.
 
 ## Evidence blocker
 
