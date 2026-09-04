@@ -125,6 +125,28 @@ class SettingsRuntimeController(QObject):
             self.detail,
         ):
             label.setTextFormat(Qt.TextFormat.PlainText)
+
+        self._set_state(
+            self.provider_value,
+            self.provider_value.text(),
+            "idle",
+            freshness="unavailable",
+        )
+        self._set_state(
+            self.network_value,
+            self.network_value.text(),
+            "idle",
+            freshness="unavailable",
+        )
+        initial_network_detail = (
+            "Local Core · awaiting connection. Internet access is not inferred before "
+            "a Core snapshot."
+        )
+        self.network_value.setProperty("pathenaNetworkScope", "unavailable")
+        self.network_value.setProperty("pathenaInternetStateInferred", False)
+        self.network_value.setToolTip(initial_network_detail)
+        self.network_value.setAccessibleDescription(initial_network_detail)
+
         self._install_panel()
         self._update_settings_copy()
 
