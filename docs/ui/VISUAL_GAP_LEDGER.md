@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `a0e0a2bcf76b0e7f77bb3cd15b8c2ccf79d5c600`
+Baseline: `a7c1d8cd1530a3003690292a9bf4c660472d59ce`
 Integration target: `develop/pathena-next`
 
 Only evidence-backed gaps belong here. The original 11 reference screenshots remain unavailable for direct visual comparison; therefore no pixel-level mismatch or `MATCH` claim is asserted.
@@ -68,12 +68,13 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Category: `STATE / ACCESSIBILITY`
 - Screen: `07 — Settings`
 - Severity: `P1`
-- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Status: `FIXED`
 - Evidence: `SettingsRuntimeController.apply_snapshot()` previously left the immediate accessible description at the generic visible text (`Local Core · connected`) and did not directly set `pathenaInternetStateInferred=False`; the separate `SettingsComprehensionController` corrected that metadata only on its own sync/timer cycle.
 - Product commit: `0722d780b94d8d297bd89e417ae09fab08cb4dcf`.
 - Focused test commit: `a2d7030101a01415af99b5a8cba31ad10550e5de`.
-- Candidate behavior: every fresh Core snapshot now immediately carries self-contained local-loopback accessibility text, `pathenaNetworkScope=loopback-only`, and `pathenaInternetStateInferred=False` before any later comprehension sync. Backend/network/security semantics remain unchanged.
-- Verification: canonical Quality required on the final documented worker head before `FIXED`.
+- Acceptance: every fresh Core snapshot immediately carries self-contained local-loopback accessibility text, `pathenaNetworkScope=loopback-only`, and `pathenaInternetStateInferred=False` before any later comprehension sync. Backend/network/security semantics remain unchanged.
+- Verification evidence: exact documented UI head `dc82cdded9e9d3c87be964a5f582965a9f4d3c9a` passed ATHENA Quality Gate `33864721817` with conclusion `success`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
 
 ## Evidence blocker
 
