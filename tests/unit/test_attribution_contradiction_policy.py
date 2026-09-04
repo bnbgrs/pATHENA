@@ -50,22 +50,18 @@ def test_same_attribution_remains_eligible_for_semantic_contradiction_review() -
     assert assessment.permits_contradiction_candidate is True
 
 
-def test_missing_attribution_fails_open_to_semantic_review_instead_of_inventing_identity() -> None:
-    assessment = AttributionContradictionPolicy.assess(
-        _claim(kind=ClaimKind.ATTRIBUTED_OPINION, attributed_to=None),
-        _claim(kind=ClaimKind.ATTRIBUTED_OPINION, attributed_to=uuid.uuid4()),
-    )
-
-    assert assessment.state is AttributionContradictionState.NOT_DISJOINT
-    assert assessment.permits_contradiction_candidate is True
+def test_unattributed_attributed_opinion_is_rejected_by_canonical_claim_model() -> None:
+    with pytest.raises(ValueError, match="attributed_to_entity_id"):
+        _claim(kind=ClaimKind.ATTRIBUTED_OPINION, attributed_to=None)
 
 
 def test_mixed_or_factual_claims_are_not_suppressed_by_attribution_policy() -> None:
     assessment = AttributionContradictionPolicy.assess(
-        _claim(kind=ClaimKind.FACTUAL_ASSERTION, attributed_to=uuid.uuid4()),
+        _claim(kind=ClaimKind.FACTUAL_ASSERTION, attributed_to=None),
         _claim(kind=ClaimKind.ATTRIBUTED_OPINION, attributed_to=uuid.uuid4()),
     )
 
+    assert assessment.left_attributed_to_entity_id is None
     assert assessment.permits_contradiction_candidate is True
 
 
