@@ -3,38 +3,47 @@
 ## Current branch state
 
 - `main` is strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `0b7f428f8679db9391c00b4b9638d85550332c43`.
+- Develop before this run: `2520224ebe3143368b3e5f13c091479d5e7b8d35`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `469500d9f17e9a355d46c68065e439dd2a50bbf7`; spec-core `a9787104649383b5a70eb61fd08362cd2d2c462b`; backend `d9685d5ab3ce49c09ccfe6c4df375e238886b904`; ui `3d3ac638ce35c2bd149cea2358ef726f243244f0`.
+- Worker heads reviewed: errors `28e75ca7391ce0f41165f6d481f1318a98f27fdb`; spec-core `921c6868c8813c92da200cdd68a0ba12df583e9c`; backend `2d9375d8afbeb05eea8d0b9149ffd3f352e4a9c1`; ui `be55343dcaab9eb2afe80fe869000c139e6e2de1`.
 
-## Integrated this run — reserved ResearchResult source coverage content
+## Integrated this run — transaction-bound source coverage composition
 
-Core predecessor slice was independently reviewed and integrated from exact green worker head `5e5461a6c0a0a2f2e522d76f48a3870ca8414635`, canonical Quality `33888920061 = success`.
+Core READY slice independently reviewed from exact green worker lineage:
 
-Only the exact verified product/test blobs were carried:
+- product commit: `03e91df28a7f23fdd23d060a6979d6b0f33a90ff`
+- focused-test commit: `6ca37ab0e7bffd745c3cc1766be9a4c176b51158`
+- exact green head: `a9787104649383b5a70eb61fd08362cd2d2c462b`
+- canonical Quality: `33894989515 = success`
 
-- `src/athena/research/source_coverage_composition.py` blob `0ac130e710fa42b201cc06df8d4d552f87a26912`.
-- `tests/unit/test_research_source_coverage_composition.py` blob `bdb15c7314a0718acc29ee68e2397a283e7cad7e`.
+Develop exactly matched the pre-slice blobs before mutation. The carried files are byte-identical to the verified green lineage:
 
-Develop commits: product `76cdbb7f8297d33939d9c51456bb49eafd79b1f6`; test `8a3e66d36fa56ae951ae131c4b649ad6391165c0`.
+- `src/athena/research/source_coverage_composition.py` -> blob `5dc608c9384b8c762af8f8376d1ca933b837f712`
+- `tests/unit/test_research_source_coverage_composition.py` -> blob `db2710fb46c70f84b58288ab15fda877751637e8`
 
-The bounded slice reserves `source_coverage` as Core-owned ResearchResult content, derives storage-ready deterministic payloads from real candidate/work identities, rejects semantic override attempts, keeps failed/unavailable visible and non-coverage-positive, and preserves existing transaction/snapshot/recovery/provider/security/UI semantics. No Skip/XFail, guard relaxation, fabricated completeness or fake data was introduced.
+Develop integration commits:
+
+- product: `57788317d068ccbcfa22ecb4fada9ef3855d1636`
+- focused test: `c6d89fa6c7dad3614e63981c3b2bc7cdcce2575c`
+
+The bounded helper reads exact-scope candidate/work rows through the caller-provided SQLite connection, reuses canonical row mapping, and composes Core-owned `source_coverage` without opening a second connection or synthesizing counters. No persistence schema, transaction/fence/snapshot/recovery/idempotency, provider/transport, security, provenance, PALLAS or UI semantics were changed.
 
 ## Validation state
 
-- Exact Core worker head `5e5461a6c0a0a2f2e522d76f48a3870ca8414635`: canonical Quality `33888920061 = success`.
-- Integrated product and test blobs are byte-identical to that verified lineage.
-- No new exact-Develop global Quality PASS is claimed for the two integration commits.
-- Current Core transaction-bound source-coverage composition remains NOT READY while Quality `33894871215` is pending.
-- Backend Storage Health remains READY via `19c73aee29cae2d2ea479a6e3d2aa1256afa06a1` / `33868034634 = success`.
-- Backend local HTTP cumulative response-size boundary is READY via `b025f6de83a969cca10a7677faae0b349e1a2988` / `33890486614 = success`.
-- UI later-gap candidates require separate baseline review before integration.
+- Canonical Core Quality `33894989515` completed `success` on exact head `a9787104649383b5a70eb61fd08362cd2d2c462b`.
+- Integrated product/test blobs are byte-identical to that verified lineage.
+- Local checkout/test execution was attempted but blocked by DNS resolution of `github.com`; no local PASS is claimed.
+- No exact current-Develop global Quality PASS is claimed.
+- Core formula-identity regression fix remains NOT READY until exact canonical Quality is green.
+- Backend Storage Health and cumulative local-HTTP response-size slices remain independently READY alternatives.
+- UI-GAP-0014 is READY; UI-GAP-0015 remains pending exact verification.
+- `ERR-0001` through `ERR-0008` remain fixed; no stable `ERR-0009` is allocated.
 - Original eleven visual references remain unavailable; zero pixel-level `MATCH` claims are permitted.
 
 ## Next integration order
 
-1. Prefer the Core transaction-bound source-coverage composition only after exact canonical Quality `33894871215` completes green.
-2. Otherwise independently review exactly one READY Backend/UI bounded slice against current Develop.
+1. Prefer the next exact-green Core repository-finalization source-coverage wiring only after bounded diff review and collision check.
+2. Otherwise independently consume exactly one READY Backend/UI bounded slice against current Develop.
 3. Require exact-head evidence before any global-green Develop claim.
 
 ## Rules retained
