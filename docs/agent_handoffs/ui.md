@@ -2,9 +2,9 @@
 
 ## Current baseline
 
-- Base: `develop/pathena-next@14adeb8949f680dc16a3067e586b3950132e0375`.
+- Base: `develop/pathena-next@fefe26b9fdc972b5e6950cd535397eae1067d5ea`.
 - Worker: `postmerge/ui`.
-- History-preserving NON-FORCE synchronization commit: `5ba20b04136ee3e843f388b4aa40dec0143c974c`, parents `3a1be68c48dab4176e9258170147cf127c4b3d2a` + `14adeb8949f680dc16a3067e586b3950132e0375`.
+- History-preserving NON-FORCE synchronization commit: `230812f52cd075fcb1f63420b19270105973097e`, parents `44352a5d6bfe113e8a8a748af98c142534cfc9cc` + `fefe26b9fdc972b5e6950cd535397eae1067d5ea`.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 - Original eleven reference images remain `VISUAL_REFERENCE_PENDING`; no pixel-level `MATCH` claim is made.
 
@@ -21,11 +21,16 @@ Verified implementation:
 
 ## UI-GAP-0013 — runtime detail freshness/accessibility transitions
 
-Status: `OPEN`, P2.
+Status: `IMPLEMENTED_PENDING_VERIFY`, P2.
 
-Evidence: `settingsRuntimeDetail` changes between initial explanatory copy, snapshot-backed provider detail/model error, and connection-failure error text, but unlike the adjacent runtime indicators it does not consistently carry `pathenaRuntimeFreshness` or transition its accessible description. After `apply_connection_failure()` only `pathenaUiState=error` is set.
+Implementation:
 
-Acceptance: preserve all visible copy and real runtime behavior while making the detail label fail-closed and self-describing across initial, fresh/stale/unavailable snapshot, and connection-failure states. Add focused Qt coverage and require canonical Quality on the exact candidate.
+- product `046414551ad85bc418af0c7bdfdc2d8be7befd7d` initializes `settingsRuntimeDetail` as `idle/unavailable`, routes snapshot-backed detail through `_set_state()` using the snapshot's resolved model freshness, keeps model-error detail explicitly `error`, and makes Core connection failure `error/unavailable` with synchronized accessible description;
+- focused test `7de1ccb040083375fb31242f54b9515b18403113` asserts initial, fresh, stale, unavailable and connection-failure transitions without changing visible copy or runtime/provider behavior;
+- canonical Quality run `33890936090` started on exact product/test head `7de1ccb040083375fb31242f54b9515b18403113` and was pending when documentation began;
+- documentation-only commits follow the product/test head, so final exact-head Quality must still be consumed before Integrator promotion.
+
+No backend/storage/network/security/provider semantics changed. The UI mutation is presentation/accessibility metadata only.
 
 ## Collision / ownership guidance
 
@@ -37,9 +42,8 @@ Acceptance: preserve all visible copy and real runtime behavior while making the
 ## Integrator handoff
 
 - READY: UI-GAP-0012 product `d9797b5ff665b2c94ad7a9c34a6843d06f7cda4d` + focused test `5c9b49773ea16dfa6db341da37ab33d12f9ee7c5`, backed by exact green UI head `3a1be68c48dab4176e9258170147cf127c4b3d2a` / Quality `33879947654`.
-- UI-GAP-0011 remains READY through exact green head `45e2b84d14bfc11b4878d9b945065063fdc40e6d` / Quality `33874283635`.
-- NOT READY: UI-GAP-0013 until implementation, focused tests, and exact canonical Quality succeed.
+- NOT READY: UI-GAP-0013 until canonical Quality on the final documented exact worker head succeeds.
 
 ## Next UI step
 
-Implement UI-GAP-0013 minimally in `src/athena/desktop/pathena_settings_runtime.py`, add focused coverage in `tests/unit/test_pathena_settings_runtime.py`, then start/evaluate canonical Quality on the exact candidate. Screen 07 remains `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot parity is claimed.
+Consume canonical Quality for the final documented UI-GAP-0013 candidate. If green, mark UI-GAP-0013 `FIXED`, return Screen 07 to `IMPLEMENTED_PENDING_VISUAL_REVIEW`, hand product `046414551ad85bc418af0c7bdfdc2d8be7befd7d` + focused test `7de1ccb040083375fb31242f54b9515b18403113` to Integrator, then select the next highest evidence-backed interaction/accessibility gap without claiming screenshot parity.
