@@ -1,9 +1,9 @@
 # pATHENA UI Handoff
 
 ## Current baseline
-- Integration target: `develop/pathena-next@a76537a1002e323a97d18a0a95a4d39ce5f298ee`.
+- Integration target: `develop/pathena-next@4d36d5f13e1449973e74c48df5e2efb53d0e8aae`.
 - Worker: `postmerge/ui`.
-- Worker synchronization: NON-FORCE merge `29613f40741428a97d07d93110fcfd4087ef74e1` from current Develop into UI; `main` unchanged.
+- Worker synchronization: NON-FORCE merge `7594f85e16f3fb5529cf2c8bc9cde0111e919a65` incorporated current Develop while preserving the bounded tray-state UI files; `main` unchanged.
 - Original eleven reference images: `VISUAL_REFERENCE_PENDING`; no pixel-level parity or `MATCH` claim is made.
 
 ## UI-GAP-0004 — Startup/readiness infrastructure copy
@@ -22,24 +22,27 @@ Verified bounded slice:
 
 Real enabled paths remain Open pATHENA, System status and Quit. Primary-model load/unload, Internet toggle and background-task pause remain visible but disabled with `pathenaUnavailable=True` until Core/Backend exposes trustworthy commands; no side effect or success state is fabricated.
 
-Integrator handoff for UI-GAP-0005: READY for independent bounded review/integration of the three product/test commits above. Screen 06 remains `IMPLEMENTED_PENDING_VISUAL_REVIEW`, never `MATCH` without original pixels.
-
 ## UI-GAP-0006 — Tray runtime-state visibility
-Status: `IMPLEMENTED_PENDING_VERIFY`, P1, Screen 06 / tray adjunct.
+Status: `FIXED`, P1, Screen 06 / tray adjunct.
 
-Spec anchor: the same Alpha desktop spec requires the tray symbol to expose simple system states such as normal, warning and unavailable conditions.
+Spec anchor: the Alpha desktop spec requires the tray symbol to expose simple system states such as normal, warning and unavailable conditions.
 
-Bounded candidate:
+Verified bounded slice:
 - `ea027e44a30e335459a9449bb95879700b905551`: tray presentation accepts only an explicit runtime-state value, restores the app icon for `success`, uses warning/critical standard icons for stale/unavailable/error, and maps unknown values fail-closed to `unavailable`.
 - `64927940daca2d36dc52616f9d412ff0025cea06`: existing `SystemWorkspace._apply_overview()` forwards the real `SystemRuntimeOverview.state`; no new telemetry source is invented.
-- `4be2ac9e69e8a60f2f98fc32ac636017961583c6`: focused Qt test covers success/stale/error/unavailable and unknown fallback, including non-null icon and exact truthful tooltip state.
+- `4be2ac9e69e8a60f2f98fc32ac636017961583c6`: focused Qt test covers success/stale/error/unavailable and unknown fallback.
+- `72e43bc18c28b5c92f6528919abf788f66924ba9`: mypy-only QApplication ownership narrowing after the existing runtime guard.
+- exact UI head `72e43bc18c28b5c92f6528919abf788f66924ba9` passed canonical ATHENA Quality Gate `33822861477` with conclusion `success`.
 
-Canonical Quality run `33818773088` is pending on exact product/test head `4be2ac9e69e8a60f2f98fc32ac636017961583c6`; no PASS is claimed yet.
+Integrator handoff for UI-GAP-0006: READY for independent bounded review/integration of the runtime-state lineage above. Screen 06 is technically `IMPLEMENTED_PENDING_VISUAL_REVIEW`, never `MATCH` without the original reference pixels.
+
+## Next evidence-backed UI gap
+`UI-GAP-0007` P1 / Screen 06: `_SystemSubnav` currently renders `Runtime`, `Storage`, `Network` and `Logs` in the same destination-like treatment as `Overview`, but there is no navigation/product path behind those labels. This violates the UI rule that visible controls must either have a real product path or be clearly unavailable. The next bounded UI slice should mark those non-destinations explicitly unavailable (or wire them only if a real path exists) and add a focused Qt contract test. No backend semantics are required.
 
 ## Handoffs
-- Integrator: UI-GAP-0005 is READY from exact green run `33814651800`. Do not integrate UI-GAP-0006 until its exact product/test Quality is green.
+- Integrator: UI-GAP-0006 is READY from exact green run `33822861477`; UI-GAP-0005 was already independently READY earlier.
 - Backend/Core: expose trustworthy model load/unload, normal-chat Internet toggle and background-pause commands before UI enables those tray actions.
-- Error: no new confirmed defect; classify any `33818773088` failure by exact signature only.
+- Error: no new confirmed defect; ERR-0004 stays closed.
 
 ## Next UI work
-Consume Quality `33818773088`. If green, mark UI-GAP-0006 `FIXED` technically and Screen 06 `IMPLEMENTED_PENDING_VISUAL_REVIEW`; then trace the next explicit Alpha/Beta/UI mismatch. If red, fix only the exact root cause without weakening tests, Ruff, Qt, platform or product guards.
+Implement UI-GAP-0007 as a bounded System-subnav truthfulness slice with focused Qt verification, then canonical Quality on the exact candidate. Do not infer screenshot geometry while references remain unavailable.
