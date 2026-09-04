@@ -1,4 +1,5 @@
 name: Backend Research Stable Strings
+# bounded verifier trigger
 on:
   push:
     branches: [postmerge/backend]
