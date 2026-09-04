@@ -2,61 +2,47 @@
 
 ## Current branch state
 
-- `main` (strict read-only): `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `e98c88e0d3b41b81de7efa70873729f873038080`.
-- Develop product integration commit: `c8cf496def52629df341196613bc6c30409aa44a`.
+- `main` is strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
+- Develop before this run: `a76537a1002e323a97d18a0a95a4d39ce5f298ee`.
 - Integration target remains `develop/pathena-next` only.
-- Worker heads reviewed: errors `cd45129cd482f7aa00905ffe585014ab8fd62cd9`; spec-core `a33999316c26f907d6945773365d0246929e23ba`; backend `2db2bdf6934529446d44b466ff248d8a4a57e097`; ui `acc156a8538e83ffec4e3eba4b9bef3e9c2fdb37`.
+- Worker heads reviewed: errors `cd45129cd482f7aa00905ffe585014ab8fd62cd9`; spec-core `0bcff9e3350705e6f10deb09c55ac38223d89a8b`; backend `05260394522502283738e2ef56e4902d70160540`; ui `873a027a1a2b3b08a4e633762b705e06faee4018`.
 
-## Integrated this run — ExternalAccessGateway authorization/runtime boundaries
+## Prior combined validation consumed
 
-Integrated onto Develop as `c8cf496def52629df341196613bc6c30409aa44a` by constructing a new tree directly from the current Develop tree and carrying only two independently reviewed worker blobs:
+Canonical Quality run `33815279390` for the previously integrated ExternalAccessGateway authorization/runtime boundary bundle completed `success`. That bundle is now integration-verified on the prior Develop lineage; no error handoff is required for it.
 
-- `src/athena/external/gateway.py` from worker product tree `6b6498e36959e044c874b9c17b31b4f547febd0b`;
-- `tests/unit/test_external_access_gateway_authorization_boundaries.py` from the same focused-verified product tree.
+## Integrated this run — UI-GAP-0005 persistent desktop system tray
 
-Excluded intentionally: `.github/workflows/backend-direct-fallback-ttl.yml`, backend handoff/documentation history, and all temporary verifier commits/workflows.
+UI handoff reports exact canonical Quality run `33814651800 = success` for UI product/test head `acc156a8538e83ffec4e3eba4b9bef3e9c2fdb37`.
 
-Independent comparison against current Develop showed the cumulative Backend product tree changes only one production file (`gateway.py`, +16/-2) plus the bounded authorization-boundary test module; workflow/documentation deltas were separable and excluded.
+Independent bounded review accepted only the three UI-GAP-0005 product/test changes:
 
-The integrated Gateway bundle now fails before actor/source lookup or persistence for malformed explicit purpose, malformed allowed-host container/elements, non-text privacy route, non-text explicit Direct-fallback host, and Direct-fallback TTL outside `1..900`. Valid host normalization, Tor-preferred semantics, explicit Direct authorization, redirect/destination checks, audit/provenance/fsync/transactional Source capture, retry/recovery/storage/platform invariants remain unchanged.
+- `src/athena/desktop/pathena_system_tray.py` — one persistent `QSystemTrayIcon` controller with real Open/System/Quit paths and explicit disabled unavailable states for model load/unload, Internet toggle and background-task pause;
+- `tests/unit/test_pathena_system_tray.py` — focused lifecycle/unavailable-state coverage;
+- `src/athena/desktop/system_workspace.py` — single-install wiring through the existing System workspace.
 
-Worker verification evidence: focused verifier run `33813211483` completed SUCCESS with install, the Gateway authorization/runtime/main suites, Ruff on changed Gateway/test files, mypy on `src/athena/external/gateway.py`, `git diff --check`, commit and NON-FORCE push. Canonical global PASS is not inferred from that focused run.
+Develop integration commits:
 
-## Combined validation
+- `42d7ab41f3ebe92e5d0bf0ce7e1a52d7cb6d0672` — tray controller;
+- `0f814bd96b9addd1ba44e041f60e0cbb4fefd09e` — focused tests;
+- `9b2693fef8040b9be8f414943ba4686f71e50331` — SystemWorkspace wiring.
 
-Created validation-only branch `validation/pathena-next-integrator-20260904-0052` from exact Develop product commit `c8cf496def52629df341196613bc6c30409aa44a`, added only a documentation marker, and opened draft PR #57 targeting `develop/pathena-next`. It must never be auto-merged. Canonical Quality is pending/awaiting workflow association; no combined Develop PASS is claimed yet.
+The integrated files are exact worker contents for the canonical-green UI-GAP-0005 slice. No UI-GAP-0006 runtime-state changes, UI worker documentation, temporary verifier tooling, Core behavior, Backend/storage/security semantics, or `main` mutation were included.
 
-## Other worker inputs
+## Current evidence / remaining candidates
 
-### Error
+- `ERR-0001`..`ERR-0004`: closed; Error worker has no product mutation pending.
+- Core contradiction-review exact-revision adapter remains pending exact verification; do not integrate until its current exact evidence is green.
+- Backend capture-URL runtime-type boundary product/test commit `07782c78d6e2cb1e9f4bfb6bf9175c9fb041a806` has canonical run `33818120429` pending at the Backend handoff snapshot; do not integrate until green.
+- UI-GAP-0006 runtime-state visibility is implemented on UI worker but its exact product/test Quality `33818773088` is pending; do not integrate yet.
+- Eleven reference screens remain `VISUAL_REFERENCE_PENDING`; zero `MATCH` claims are permitted without opening original pixels and a real current render.
 
-`ERR-0004` is now closed on `postmerge/errors@cd45129cd482f7aa00905ffe585014ab8fd62cd9` after exact green UI Quality. No Error-owned product mutation is ready for integration.
+## Next integration order
 
-### Core
-
-`postmerge/spec-core@a33999316c26f907d6945773365d0246929e23ba` retains the canonical contradiction-review exact-revision adapter. Status remains `IMPLEMENTED_PENDING_VERIFY`; exact-head Quality run `33812392688` is still in progress and therefore is not READY evidence.
-
-### UI
-
-`postmerge/ui@acc156a8538e83ffec4e3eba4b9bef3e9c2fdb37` contains UI-GAP-0005 persistent system tray. It remains `IMPLEMENTED_PENDING_VERIFY`; exact-head Quality run `33814651800` is pending, therefore do not integrate yet.
-
-## Current product / quality state
-
-- Normal-Hybrid facade/application composition: VERIFIED and integrated.
-- Temporal contradiction disjoint-window policy: VERIFIED and integrated.
-- ExternalAccessGateway TTL/max-bytes/timeout runtime boundaries: VERIFIED and integrated.
-- ExternalAccessGateway explicit-purpose / allowed-host / privacy-route / Direct-host / Direct-TTL fail-before-side-effect boundaries: INTEGRATED_FROM_FOCUSED_VERIFIED_WORKER; combined Develop canonical validation pending.
-- UI-GAP-0001..0004: technically integrated; `ERR-0004` closed by Error worker.
-- UI-GAP-0005 system tray: IMPLEMENTED_PENDING_VERIFY on UI worker.
-- Eleven reference screens: zero `MATCH`; visual parity remains `VISUAL_REFERENCE_PENDING`.
-
-## Handoffs / next priorities
-
-1. Consume canonical validation for PR #57 / exact combined Develop tree; if green, promote the newly integrated Gateway boundary bundle to `VERIFIED` in `ALPHA_BETA_PROGRESS.md`. If red, classify exact signature and hand off to Error/Backend without weakening guards.
-2. Core: consume exact-head run `33812392688`; if green, independently review and integrate only contradiction-review adapter/test delta.
-3. UI: consume exact-head run `33814651800`; if green, independently review tray module/test/SystemWorkspace wiring only.
-4. Backend: continue the next evidence-backed runtime boundary from the newly integrated Gateway baseline; do not re-integrate temporary verifier tooling.
+1. Consume exact validation for the current Core contradiction-review candidate; if green, independently review its bounded adapter/test delta.
+2. Otherwise consume Backend `33818120429`; if green, independently review only the two-file capture-URL guard slice.
+3. Otherwise consume UI `33818773088`; if green, independently review only UI-GAP-0006 runtime-state visibility.
+4. If none is READY, implement exactly one small unclaimed cross-cutting product path rather than repeating handoffs.
 
 ## Rules retained
 
