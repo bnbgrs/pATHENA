@@ -12,6 +12,7 @@ from typing import Any
 
 from athena.common.ids import new_uuid7, uuid_from_blob, uuid_to_blob
 from athena.common.time import utc_now_us
+from athena.research.coverage import ResearchCoverage as CoverageAccounting
 from athena.research.errors import (
     ResearchFenceError as ResearchFenceError,
 )
@@ -1697,7 +1698,6 @@ class ResearchRepository:
                 set[uuid.UUID],
             ] = {}
             nested_input_was_cited = False
-
             for kind, output_ordinal, input_ordinal in evidence_rows:
                 input_item = work_inputs[input_ordinal]
                 reachable: tuple[uuid.UUID, ...]
@@ -2766,7 +2766,6 @@ class ResearchRepository:
         work_row = connection.execute(
             """
             SELECT
-                SUM(CASE WHEN state != 'pending' THEN 1 ELSE 0 END) AS processed_count,
                 SUM(CASE WHEN state = 'successful' THEN 1 ELSE 0 END) AS successful_count,
                 SUM(CASE WHEN state = 'irrelevant' THEN 1 ELSE 0 END) AS irrelevant_count,
                 SUM(CASE WHEN state = 'failed' THEN 1 ELSE 0 END) AS failed_count,
@@ -2779,14 +2778,18 @@ class ResearchRepository:
 
         candidate_total = int(candidate_row["candidate_total"] or 0)
         excluded_count = int(candidate_row["excluded_count"] or 0)
-        processed_count = int(work_row["processed_count"] or 0)
         successful_count = int(work_row["successful_count"] or 0)
         irrelevant_count = int(work_row["irrelevant_count"] or 0)
         failed_count = int(work_row["failed_count"] or 0)
         unavailable_count = int(work_row["unavailable_count"] or 0)
-        eligible_count = candidate_total - excluded_count
-        covered = successful_count + irrelevant_count
-        coverage_ratio = covered / eligible_count if eligible_count > 0 else 0.0
+        coverage = CoverageAccounting(
+            candidate_total=candidate_total,
+            successful_count=successful_count,
+            irrelevant_count=irrelevant_count,
+            failed_count=failed_count,
+            unavailable_count=unavailable_count,
+            excluded_count=excluded_count,
+        )
 
         connection.execute(
             """
@@ -2804,13 +2807,13 @@ class ResearchRepository:
             """,
             (
                 candidate_total,
-                processed_count,
+                coverage.processed_count,
                 successful_count,
                 irrelevant_count,
                 failed_count,
                 unavailable_count,
                 excluded_count,
-                coverage_ratio,
+                coverage.coverage_ratio,
                 now_us,
                 uuid_to_blob(scope_id),
             ),
