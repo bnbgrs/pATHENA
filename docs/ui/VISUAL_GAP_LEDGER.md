@@ -76,6 +76,16 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Verification evidence: exact documented UI head `dc82cdded9e9d3c87be964a5f582965a9f4d3c9a` passed ATHENA Quality Gate `33864721817` with conclusion `success`.
 - Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
 
+## UI-GAP-0011 — Pre-first-snapshot Settings runtime state lacks explicit fail-closed metadata
+
+- Category: `STATE / ACCESSIBILITY`
+- Screen: `07 — Settings`
+- Severity: `P1`
+- Status: `OPEN`
+- Evidence: `SettingsRuntimeController.__init__()` creates visible `Model provider · awaiting Core` and `Local Core · awaiting connection` labels, but unlike `apply_snapshot()` and `apply_connection_failure()` it does not initialize them through `_set_state()` and does not set explicit initial `pathenaNetworkScope` / `pathenaInternetStateInferred` metadata. State/assistive consumers therefore receive a weaker contract before the first Core snapshot than after any subsequent runtime transition.
+- Acceptance: before any snapshot, provider/Core labels expose explicit non-success UI/freshness state; Local Core exposes `pathenaNetworkScope=unavailable`, `pathenaInternetStateInferred=False`, and self-contained accessibility text stating that Internet access is not inferred; existing visible awaiting copy remains; no backend/network/security/provider behavior changes.
+- Required focused coverage: assert the state immediately after `install_settings_runtime(...)`, before any snapshot signal.
+
 ## Evidence blocker
 
 `VISUAL_REFERENCE_PENDING`: until an original reference image and a real rendered current build can both be opened and inspected, spacing, exact proportions, pixel colors and screenshot-level `MATCH` claims remain prohibited.
