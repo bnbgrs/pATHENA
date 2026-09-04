@@ -174,13 +174,18 @@ def test_runtime_panel_never_turns_stale_or_missing_provider_into_ready(tmp_path
     app = _app()
     window = PathenaMainWindow(api_controller=None)
     runtime = install_settings_runtime(window, None, settings=_settings(tmp_path))
+    comprehension = window.property("pathenaSettingsComprehensionController")
     try:
         ready = _snapshot()
         _apply(window, runtime, ready)
+        comprehension.sync()
         assert runtime.provider_value.text() == "LM Studio · ready"
         assert runtime.provider_value.property("pathenaUiState") == "success"
         assert runtime.network_value.text() == "Local Core · connected"
         assert runtime.network_value.property("pathenaNetworkScope") == "loopback-only"
+        assert runtime.network_value.accessibleName() == "Local Core connection"
+        assert "does not indicate Internet access" in runtime.network_value.accessibleDescription()
+        assert runtime.network_value.property("pathenaInternetStateInferred") is False
 
         stale = _snapshot(
             model_error="LM Studio model refresh timed out.",
@@ -199,9 +204,11 @@ def test_runtime_panel_never_turns_stale_or_missing_provider_into_ready(tmp_path
             model_freshness="unavailable",
         )
         _apply(window, runtime, unavailable)
+        comprehension.sync()
         assert runtime.provider_value.text() == "Model provider · unavailable"
         assert runtime.provider_value.property("pathenaUiState") == "error"
         assert "ready" not in runtime.provider_value.text().lower()
+        assert "Internet-access state is not inferred" in runtime.network_value.accessibleDescription()
     finally:
         window.close()
         app.processEvents()
