@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `a76537a1002e323a97d18a0a95a4d39ce5f298ee`
+Baseline: `4d36d5f13e1449973e74c48df5e2efb53d0e8aae`
 Integration target: `develop/pathena-next`
 
 Only evidence-backed gaps belong here. The original 11 reference screenshots remain unavailable for direct visual comparison; therefore no pixel-level mismatch or `MATCH` claim is asserted.
@@ -72,11 +72,13 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Severity: `P1`.
 - Spec evidence: `docs/alpha/16_Desktop_Anwendung_und_Benutzeroberflaeche.md` requires the tray symbol to expose simple system states such as normal, warning and unavailable conditions without opening the main window.
 - Prior behavior: the tray icon and tooltip remained static even though `SystemWorkspace` already receives a real `SystemRuntimeOverview.state` derived from the desktop API snapshot.
-- Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Status: `FIXED`.
 - Product commits: `ea027e44a30e335459a9449bb95879700b905551` adds fail-closed tray state presentation; `64927940daca2d36dc52616f9d412ff0025cea06` wires the existing real `SystemRuntimeOverview.state` into the tray controller.
 - Test commit: `4be2ac9e69e8a60f2f98fc32ac636017961583c6` covers `success`, `stale`, `error`, `unavailable`, and unexpected-state fallback without synthesising telemetry.
+- Typing correction: `72e43bc18c28b5c92f6528919abf788f66924ba9` narrows QApplication ownership after the existing runtime guard; no runtime semantics changed.
 - Presentation contract: success restores the application icon and `Ready`; stale/unavailable use a warning icon with explicit tooltip; error uses a critical icon with `Attention needed`; any unknown state fails closed to `unavailable`.
-- Canonical verification: Quality run `33818773088` is pending on exact product/test head `4be2ac9e69e8a60f2f98fc32ac636017961583c6`; no PASS is claimed yet.
+- Canonical verification: exact UI head `72e43bc18c28b5c92f6528919abf788f66924ba9` passed ATHENA Quality Gate `33822861477` with conclusion `success`.
+- Acceptance: tray state is derived only from the existing real `SystemRuntimeOverview.state`; no telemetry, provider state or backend success condition is synthesized.
 
 ## Evidence blocker
 
