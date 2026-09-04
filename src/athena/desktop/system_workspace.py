@@ -337,6 +337,13 @@ class SystemWorkspace(QWidget):
         self.detail.setText(overview.detail)
         set_pathena_ui_state(self.detail, _presentation_state(overview.state))
 
+        tray_controller = getattr(
+            self.window(), "_pathena_system_tray_controller", None
+        )
+        apply_runtime_state = getattr(tray_controller, "apply_runtime_state", None)
+        if callable(apply_runtime_state):
+            apply_runtime_state(overview.state)
+
 
 def install_system_workspace(
     window: object,
