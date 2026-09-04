@@ -1,14 +1,18 @@
 from __future__ import annotations
 
+from typing import cast
+
 import pytest
 
+from athena.backup.service import BackupService
 from athena.jobs.backup import BACKUP_QUIET_HOUR_ENV, DurableBackupWorker
+from athena.jobs.service import DurableJobService
 
 
 def _worker(*, quiet_hour_utc: int | None = None) -> DurableBackupWorker:
     return DurableBackupWorker(
-        jobs=object(),  # type: ignore[arg-type]
-        backup=object(),  # type: ignore[arg-type]
+        jobs=cast(DurableJobService, object()),
+        backup=cast(BackupService, object()),
         quiet_hour_utc=quiet_hour_utc,
     )
 
@@ -60,4 +64,4 @@ def test_explicit_backup_quiet_hour_rejects_bool(
     monkeypatch.delenv(BACKUP_QUIET_HOUR_ENV, raising=False)
 
     with pytest.raises(ValueError, match="Backup quiet_hour_utc"):
-        _worker(quiet_hour_utc=True)  # type: ignore[arg-type]
+        _worker(quiet_hour_utc=True)
