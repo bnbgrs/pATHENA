@@ -80,6 +80,16 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Canonical verification: exact UI head `72e43bc18c28b5c92f6528919abf788f66924ba9` passed ATHENA Quality Gate `33822861477` with conclusion `success`.
 - Acceptance: tray state is derived only from the existing real `SystemRuntimeOverview.state`; no telemetry, provider state or backend success condition is synthesized.
 
+## UI-GAP-0007 — System subnavigation presents unavailable destinations as if interactive
+
+- Category: `CONTROL`
+- Screen: `06 — System`; no screenshot-level geometry is inferred.
+- Severity: `P1`.
+- Status: `OPEN`.
+- Evidence: `_SystemSubnav` renders `Overview`, `Runtime`, `Storage`, `Network` and `Logs` with the same destination-like item treatment, but only the current Overview surface has a real product/navigation path. The other four labels are passive `QLabel` entries with no destination and no unavailable marker.
+- Contract: visible destination-like controls must either route to a real product path or be clearly represented as unavailable; do not fabricate backend/system pages.
+- Planned bounded fix: keep `Overview` as the real selected destination; mark `Runtime`, `Storage`, `Network` and `Logs` explicitly unavailable/disabled with an accessibility-visible unavailable state, plus a focused Qt contract test.
+
 ## Evidence blocker
 
 `VISUAL_REFERENCE_PENDING`: until an original reference image and a real rendered current build can both be opened and inspected, spacing, exact proportions, pixel colors and screenshot-level `MATCH` claims remain prohibited.
