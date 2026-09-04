@@ -3,10 +3,10 @@
 ## Baseline
 
 - Baseline source: `develop/pathena-next`
-- Baseline SHA: `a0e0a2bcf76b0e7f77bb3cd15b8c2ccf79d5c600`
+- Baseline SHA: `a7c1d8cd1530a3003690292a9bf4c660472d59ce`
 - Stable read-only parent: `main@0d4d621f8a38ddf8eccfa09622bf193687619943`
 - Worker branch: `postmerge/errors`
-- History-preserving NON-FORCE synchronization merge: `ba80f4060ad4aac5ebf77bdcf09e0f23c77cc964`.
+- History-preserving NON-FORCE synchronization merge: `c74acfbebd4786fb58be84208156d09cc102b57f`.
 
 ## Current error state
 
@@ -18,16 +18,18 @@
 
 ## This run
 
-`ERR-0008` is closed with exact verification. UI owner fix `afa319f0ab1b12edccc4b649d4a1ca36bcd7ac39` has canonical ATHENA Quality Gate `33854660676 = success`. The fix keeps the real `loopback-only` Settings network scope truthful, preserves the accessibility assertion, and explicitly checks `pathenaInternetStateInferred is False`; it does not add Internet capability or weaken any guard.
+The pending Backend verification from the prior run is resolved without a new error: exact Backend head `33933c00169ab72786b8b27b8286af6432225e8e` completed ATHENA Quality Gate `33858608297 = success`.
 
-Integrator already carried the canonical-green Settings product/test blobs onto Develop and records UI-GAP-0008 as integrated. Earlier red ERR-0008 SHAs remain rejected as globally green.
+A distinct Develop-wide signal is now visible: Quality `33862677128` on exact SHA `a0e0a2bcf76b0e7f77bb3cd15b8c2ccf79d5c600` completed failure with Windows path safety, Linux storage, local-install smoke, specification validator, Ruff and mypy all passing; only full pytest and canonical enforcement failed. Available run/job metadata does not expose the exact failing pytest node/signature, so `ERR-0009` is deliberately not allocated yet. The next Error run must consume the exact diagnostic before assigning ownership/root cause.
+
+Current Develop has since advanced to `a7c1d8cd1530a3003690292a9bf4c660472d59ce`; this error worker synchronized to it history-preservingly via `c74acfbebd4786fb58be84208156d09cc102b57f`, retaining the canonical Error Ledger/Handoff blobs.
 
 ## Current scan
 
-- Develop head checked: `a0e0a2bcf76b0e7f77bb3cd15b8c2ccf79d5c600`.
-- UI head checked: `6d6869d4927a52e98158238f396b8d5855b771b9`; its handoff records the verified Settings truthfulness lineage.
-- Backend head checked: `33933c00169ab72786b8b27b8286af6432225e8e`.
-- Backend Quality `33858608297` is still in progress. Completed evidence is green for Windows path safety, Linux storage, local-install smoke, specification validator, Ruff and mypy; full pytest is still running. No new concrete failure signature exists yet, so no `ERR-0009` is allocated.
+- Develop head checked: `a7c1d8cd1530a3003690292a9bf4c660472d59ce`.
+- Backend exact head `33933c00169ab72786b8b27b8286af6432225e8e`: Quality `33858608297 = success`.
+- Develop exact SHA `a0e0a2bcf76b0e7f77bb3cd15b8c2ccf79d5c600`: Quality `33862677128 = failure`, pytest-only primary job after all static/platform gates passed; exact pytest signature still required.
+- UI current head checked: `dc82cdded9e9d3c87be964a5f582965a9f4d3c9a`; Quality `33864721817` remains in progress at this scan, therefore no PASS/failure claim is made for that candidate.
 
 ## Collision avoidance
 
@@ -37,12 +39,14 @@ Integrator already carried the canonical-green Settings product/test blobs onto 
 
 ## Integrator handoff
 
-- `ERR-0008`: CLEARED. Preserve final verified Settings blobs represented by `afa319f0ab1b12edccc4b649d4a1ca36bcd7ac39`; do not resurrect earlier failing expectations.
-- `ERR-0001` through `ERR-0007`: remain FIXED with prior verification.
-- No current Error blocker to integration.
+- `ERR-0001` through `ERR-0008`: remain FIXED with prior exact verification.
+- Backend head `33933c00169ab72786b8b27b8286af6432225e8e` is canonical-green and creates no Error blocker.
+- Do not treat Develop `a0e0a2bcf76b0e7f77bb3cd15b8c2ccf79d5c600` as globally green: run `33862677128` has a real pytest failure. Do not assign a product/harness owner until the exact pytest diagnostic is extracted.
+- No current stable open ERR-ID is asserted without that diagnostic.
 
 ## Next scan / verification
 
-1. Consume completion of Backend Quality `33858608297`; allocate `ERR-0009` only if an exact primary failing job/signature appears.
-2. Continue scanning current exact-SHA Packaging, Provider/Transport, Research/Jobs, Persistence/Recovery, Qt/Desktop and local install/start evidence.
-3. Re-open historical errors only on exact signature recurrence.
+1. Extract the exact failing pytest node/signature from Develop Quality `33862677128`; allocate `ERR-0009` only when that evidence is concrete and deduplicated.
+2. Consume completion of UI Quality `33864721817`; if red, classify its exact primary signature independently rather than conflating it with the Develop failure.
+3. Continue scanning current exact-SHA Packaging, Provider/Transport, Research/Jobs, Persistence/Recovery, Qt/Desktop and local install/start evidence.
+4. Re-open historical errors only on exact signature recurrence.
