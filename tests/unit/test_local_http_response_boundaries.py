@@ -45,7 +45,7 @@ def test_read_after_readline_shares_the_same_response_budget() -> None:
 
 
 def test_readline_only_requests_remaining_budget_plus_detection_byte() -> None:
-    raw = _RecordingBytesIO(b"abc\ndefgh")
+    raw = _RecordingBytesIO(b"abcdef\n")
     response = _BoundedLocalResponse(raw, max_bytes=5)
 
     assert response.read(3) == b"abc"
