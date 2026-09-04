@@ -14,20 +14,21 @@ Status: `FIXED / INTEGRATOR_READY`, P2.
 
 Verified implementation:
 
-- product lineage culminates at `e1218685577230fa6ad190291ad0f626912853ac`; `Per-model settings · choose a model` uses `pathenaRuntimeFreshness=unavailable` instead of `fresh` when `_selected_model()` returns `None`;
-- focused test `ce7ae251f5d7b8548a21abde6c67cbd2fafa9f24` clears the real model selector and asserts unchanged visible copy, `idle`, `unavailable`, and synchronized accessible description;
+- product lineage culminates at `e1218685577230fa6ad190291ad0f626912853ac`; `Per-model settings · choose a model` uses `pathenaRuntimeFreshness=unavailable` when `_selected_model()` returns `None`;
+- focused test `ce7ae251f5d7b8548a21abde6c67cbd2fafa9f24` asserts unchanged visible copy, `idle`, `unavailable`, and synchronized accessibility;
 - exact final documented UI head `3d3ac638ce35c2bd149cea2358ef726f243244f0` passed ATHENA Quality Gate `33897120327` with conclusion `success`;
 - no persistence implementation, storage format, provider behavior, backend contract or security semantics changed.
 
 ## UI-GAP-0015 — unsaved selected-model defaults freshness
 
-Status: `OPEN`, P2.
+Status: `IMPLEMENTED_PENDING_VERIFY`, P2.
 
-Evidence:
+Candidate:
 
-- `SettingsRuntimeController.hydrate_selected_model()` renders `<model> · defaults not yet saved` when a real model is selected but no local persisted record exists;
-- that state is `idle` but currently carries `pathenaRuntimeFreshness=fresh`, despite the visible copy explicitly stating that no model-specific settings have been saved;
-- the next bounded correction is presentation-only: retain the copy and idle state, fail closed to `unavailable`, keep accessibility synchronized, and add focused Qt coverage using a selected model plus empty QSettings store.
+- product `e175de079fd30dc2fb1bc3c64065ebd40127cd0b` changes only the presentation freshness for `<model> · defaults not yet saved` from `fresh` to fail-closed `unavailable`; visible copy, idle state and persistence behavior are unchanged;
+- focused test `0b0303e89c4fd358291e0fb180062212debdeff7` applies a real one-model snapshot with an empty QSettings store and asserts the unchanged visible copy, `idle`, `unavailable`, and synchronized accessible description;
+- no QSettings format/write path, model control, provider, Core, storage, network or security semantics changed;
+- local checkout/test execution remains blocked by DNS resolution of github.com, so no local PASS is claimed; canonical Quality on the exact final documented head is required.
 
 ## Collision / ownership guidance
 
@@ -39,9 +40,8 @@ Evidence:
 ## Integrator handoff
 
 - READY: UI-GAP-0014 bounded product/test lineage culminating at product normalization `e1218685577230fa6ad190291ad0f626912853ac` plus focused test `ce7ae251f5d7b8548a21abde6c67cbd2fafa9f24`, backed by exact green UI head `3d3ac638ce35c2bd149cea2358ef726f243244f0` / Quality `33897120327`.
-- The worker has been NON-FORCE synchronized with current Develop through `0328405eb0c8db793e78f83885b4eda4235e4a23`.
-- UI-GAP-0015 is not ready and has no product mutation yet.
+- NOT READY: UI-GAP-0015 until canonical Quality succeeds on the exact final documented UI head containing product `e175de079fd30dc2fb1bc3c64065ebd40127cd0b` and focused test `0b0303e89c4fd358291e0fb180062212debdeff7`.
 
 ## Next UI step
 
-Implement UI-GAP-0015 in `src/athena/desktop/pathena_settings_runtime.py`, add focused Qt coverage for a selected model with an empty settings store, run canonical Quality on the exact candidate, and only then promote it to Integrator-ready. Until the original reference images are directly available, keep Screen 07 at `IMPLEMENTED_PENDING_VISUAL_REVIEW` and make no screenshot-level `MATCH` claim.
+Consume canonical Quality for the exact final UI-GAP-0015 head. If green, mark UI-GAP-0015 `FIXED`, return Screen 07 to `IMPLEMENTED_PENDING_VISUAL_REVIEW`, hand the bounded product/test lineage to Integrator, then select the next highest evidence-backed UI interaction/accessibility gap. Until the original reference images are directly available, make no screenshot-level `MATCH` claim.
