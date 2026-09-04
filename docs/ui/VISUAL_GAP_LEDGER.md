@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `33c4a9657bb9aca24c6e85c0a2b4a7c0132c3358`
+Baseline: `b69a91a5781fd8d65b3643243c8feec60e4824f7`
 Integration target: `develop/pathena-next`
 
 Only evidence-backed gaps belong here. The original 11 reference screenshots remain unavailable for direct visual comparison; therefore no pixel-level mismatch or `MATCH` claim is asserted.
@@ -159,11 +159,24 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Category: `STATE / ACCESSIBILITY`
 - Screen: `07 — Settings`
 - Severity: `P2`
-- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Status: `FIXED`
 - Evidence: `SettingsRuntimeController.apply_snapshot()` already marks a fresh provider whose `status != "ready"` as `pathenaUiState=error`, but `settingsRuntimeDetail` remained `idle` whenever `model_error` was absent, even when that detail text came from the same non-ready provider. The adjacent status and detail therefore exposed contradictory semantic state for one fresh snapshot.
 - Product commit: `a0c8ea842e6dfb4c029b7a722eeb4b43189941e5`.
 - Focused test commit: `f668520bef1d2789b70cb7561b8e0f5dd4fd6041`.
 - Acceptance: for a fresh provider with a non-ready status, the provider detail inherits `pathenaUiState=error`, retains the snapshot freshness, and keeps the accessible description synchronized to its visible text. Ready, stale, explicit model-error, connection, persistence, backend, provider, storage, network and security behavior remain unchanged.
+- Verification evidence: exact UI head `72c143fae1e339b254e5dc7be884c8efb79c7f84` passed ATHENA Quality Gate `33917796701` with conclusion `success`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0018 — Unavailable provider detail remains idle while provider state is error
+
+- Category: `STATE / ACCESSIBILITY`
+- Screen: `07 — Settings`
+- Severity: `P2`
+- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Evidence: when `DesktopApiSnapshot.provider` is absent or the resolved model freshness is `unavailable`, `settingsProviderState` already fails closed to `error/unavailable`, but fallback `settingsRuntimeDetail` could still remain `idle/unavailable`. The two adjacent representations therefore disagreed on whether the same provider-unavailable snapshot is an error state.
+- Product commit: `82fb17da950f8234e28c69bd576e38047ba9b2bb`.
+- Focused test commit: `6aad966258288a7519af6d261dea4695e7ffde76`.
+- Acceptance: unavailable provider detail fails closed to `pathenaUiState=error`, retains `pathenaRuntimeFreshness=unavailable`, and keeps the accessible description synchronized. Fresh ready, stale, explicit model-error, persistence, connection, backend, provider, storage, network and security behavior remain unchanged.
 - Verification required: canonical Quality on the exact final documented candidate before promotion to `FIXED`.
 
 ## Evidence blocker
