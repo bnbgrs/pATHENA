@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import uuid
 from pathlib import Path
 
@@ -17,6 +18,7 @@ from athena.jobs.service import DurableJobService
 logger = logging.getLogger(__name__)
 
 BACKUP_CREATE_JOB_TYPE = "backup.create"
+BACKUP_QUIET_HOUR_ENV = "ATHENA_BACKUP_QUIET_HOUR_UTC"
 
 _PIPELINE_VERSION = "backup-scheduler-v1"
 _DAY_US = 86_400_000_000
@@ -35,6 +37,20 @@ def _bounded_hour(value: object, *, label: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 23:
         raise ValueError(f"{label} must be an integer between 0 and 23.")
     return value
+
+
+def _configured_quiet_hour_utc() -> int:
+    raw = os.environ.get(BACKUP_QUIET_HOUR_ENV)
+    if raw is None:
+        return _DEFAULT_QUIET_HOUR_UTC
+    if not raw.isascii() or not raw.isdecimal():
+        raise ValueError(
+            f"{BACKUP_QUIET_HOUR_ENV} must be a decimal integer between 0 and 23."
+        )
+    return _bounded_hour(
+        int(raw, 10),
+        label=BACKUP_QUIET_HOUR_ENV,
+    )
 
 
 def _positive_seconds(value: object, *, label: str) -> int:
@@ -75,12 +91,17 @@ class DurableBackupWorker:
         *,
         jobs: DurableJobService,
         backup: BackupService,
-        quiet_hour_utc: int = _DEFAULT_QUIET_HOUR_UTC,
+        quiet_hour_utc: int | None = None,
         retry_seconds: int = _DEFAULT_RETRY_SECONDS,
         lease_extension_seconds: int = _DEFAULT_LEASE_EXTENSION_SECONDS,
     ) -> None:
+        resolved_quiet_hour_utc = (
+            _configured_quiet_hour_utc()
+            if quiet_hour_utc is None
+            else quiet_hour_utc
+        )
         self.quiet_hour_utc = _bounded_hour(
-            quiet_hour_utc,
+            resolved_quiet_hour_utc,
             label="Backup quiet_hour_utc",
         )
         self.retry_seconds = _positive_seconds(
