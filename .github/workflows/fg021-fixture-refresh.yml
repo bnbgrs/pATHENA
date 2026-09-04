@@ -1,0 +1,98 @@
+name: FG021 fixture refresh
+
+on:
+  push:
+    branches:
+      - independent/fg021-job-dependencies-20260904
+
+permissions:
+  contents: write
+
+jobs:
+  refresh-fixtures:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Refresh synthetic historical schema fixtures
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace(path: str, old: str, new: str, *, expected: int | None = None) -> None:
+              target = Path(path)
+              text = target.read_text(encoding="utf-8")
+              count = text.count(old)
+              if expected is not None and count != expected:
+                  raise RuntimeError(f"{path}: expected {expected} matches, found {count}")
+              if count == 0:
+                  raise RuntimeError(f"{path}: replacement anchor not found")
+              target.write_text(text.replace(old, new), encoding="utf-8")
+
+          latest_old = "GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID"
+          latest_new = "JOB_DEPENDENCY_GRAPH_MIGRATION_ID"
+          downgrade_anchor = '''    legacy.execute(\n        "DROP TABLE IF EXISTS "\n        "grounded_response_receipts"\n    )'''
+          downgrade_with_v41 = '''    legacy.execute(\n        "DROP TABLE IF EXISTS job_dependencies"\n    )\n    legacy.execute(\n        "DROP TABLE IF EXISTS job_parent_links"\n    )\n''' + downgrade_anchor
+
+          knowledge = "tests/unit/test_knowledge_schema.py"
+          replace(knowledge, latest_old, latest_new)
+          replace(
+              knowledge,
+              '    "grounded_response_receipts",\n',
+              '    "grounded_response_receipts",\n    "job_parent_links",\n    "job_dependencies",\n',
+              expected=1,
+          )
+          replace(
+              knowledge,
+              '    # v39 is additive. Legacy fixtures that construct an\n',
+              '    connection.execute("DROP TABLE IF EXISTS job_dependencies")\n'
+              '    connection.execute("DROP TABLE IF EXISTS job_parent_links")\n\n'
+              '    # v39 is additive. Legacy fixtures that construct an\n',
+              expected=1,
+          )
+          replace(
+              knowledge,
+              '    # Remove additive v39 objects before declaring\n'
+              '    # this current database to be an older schema.\n'
+              '    # The production migration remains fail-closed.\n',
+              '    # Remove additive post-v36 objects before declaring\n'
+              '    # this current database to be an older schema.\n'
+              '    # The production migration remains fail-closed.\n'
+              '    legacy.execute("DROP TABLE IF EXISTS job_dependencies")\n'
+              '    legacy.execute("DROP TABLE IF EXISTS job_parent_links")\n',
+              expected=1,
+          )
+
+          archive = "tests/unit/test_archive_replication.py"
+          replace(archive, latest_old, latest_new)
+          replace(archive, downgrade_anchor, downgrade_with_v41, expected=2)
+
+          news = "tests/unit/test_news_audit.py"
+          replace(news, downgrade_anchor, downgrade_with_v41, expected=1)
+
+          protected = "tests/unit/test_protected_content.py"
+          replace(protected, latest_old, latest_new)
+          replace(protected, downgrade_anchor, downgrade_with_v41, expected=1)
+
+          transition = "tests/unit/test_protected_source_transition.py"
+          replace(transition, latest_old, latest_new)
+          replace(transition, downgrade_anchor, downgrade_with_v41, expected=1)
+          PY
+
+          git diff --check
+          git diff --exit-code -- . ':(exclude).github/workflows/fg021-fixture-refresh.yml' >/dev/null && exit 0
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add tests/unit/test_knowledge_schema.py \
+                  tests/unit/test_archive_replication.py \
+                  tests/unit/test_news_audit.py \
+                  tests/unit/test_protected_content.py \
+                  tests/unit/test_protected_source_transition.py
+          git commit -m "test(storage): refresh historical fixtures for schema v41"
+          git push origin HEAD:"${GITHUB_REF_NAME}"
