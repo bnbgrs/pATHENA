@@ -2,37 +2,30 @@
 
 ## Current baseline
 
-- Base: `develop/pathena-next@c5a255fe45b6c6984cb66f1251c0a9f8eb0c7f0c`.
+- Base: `develop/pathena-next@14adeb8949f680dc16a3067e586b3950132e0375`.
 - Worker: `postmerge/ui`.
-- History-preserving NON-FORCE synchronization commit: `29c9aae29f07810df57316f06d1c40a415820bfc`, parents `45e2b84d14bfc11b4878d9b945065063fdc40e6d` + `c5a255fe45b6c6984cb66f1251c0a9f8eb0c7f0c`.
+- History-preserving NON-FORCE synchronization commit: `5ba20b04136ee3e843f388b4aa40dec0143c974c`, parents `3a1be68c48dab4176e9258170147cf127c4b3d2a` + `14adeb8949f680dc16a3067e586b3950132e0375`.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 - Original eleven reference images remain `VISUAL_REFERENCE_PENDING`; no pixel-level `MATCH` claim is made.
 
-## UI-GAP-0011 — pre-first-snapshot fail-closed Settings state
+## UI-GAP-0012 — initial persistence-state freshness metadata
 
-Status: `FIXED / INTEGRATOR_READY`, P1.
+Status: `FIXED / INTEGRATOR_READY`, P2.
 
 Verified implementation:
 
-- product `44ae9513ec5b77586d98a45c02afe0fe171af932` initializes Provider and Local Core through the existing `_set_state()` path with non-success `idle` UI state and `pathenaRuntimeFreshness=unavailable` while preserving the visible awaiting copy;
-- Local Core additionally sets `pathenaNetworkScope=unavailable`, `pathenaInternetStateInferred=False`, and self-contained tooltip/accessibility copy stating that Internet access is not inferred before a Core snapshot;
-- focused test `b307a771860c455b1630c2885ca1295e08a900d0` asserts those properties before any snapshot signal;
-- exact documented UI head `45e2b84d14bfc11b4878d9b945065063fdc40e6d` passed ATHENA Quality Gate `33874283635` with conclusion `success`;
-- no Core/provider/backend/network/storage/security behavior or capability changed.
-
-## UI-GAP-0012 — initial persistence-state freshness metadata
-
-Status: `IMPLEMENTED_PENDING_VERIFY`, P2.
-
-Evidence: the visible initial `Per-model settings · not saved yet` indicator had no explicit `pathenaUiState` or `pathenaRuntimeFreshness` until a later hydrate/save transition, unlike the rest of the Settings runtime-state surface.
-
-Current candidate:
-
-- product `d9797b5ff665b2c94ad7a9c34a6843d06f7cda4d` initializes that existing label through `_set_state()` as `idle` with `pathenaRuntimeFreshness=unavailable`, preserving its visible copy;
+- product `d9797b5ff665b2c94ad7a9c34a6843d06f7cda4d` initializes the existing `Per-model settings · not saved yet` label through `_set_state()` as `idle` with `pathenaRuntimeFreshness=unavailable`, preserving visible copy;
 - focused test `5c9b49773ea16dfa6db341da37ab33d12f9ee7c5` asserts the initial persistence state before model hydration or save;
+- exact UI head `3a1be68c48dab4176e9258170147cf127c4b3d2a` passed ATHENA Quality Gate `33879947654` with conclusion `success`;
 - no persistence implementation, storage format, provider behavior, backend contract or security semantics changed.
 
-Canonical Quality must complete successfully on the exact final documented worker head before UI-GAP-0012 is promoted to `FIXED` or handed to Integrator.
+## UI-GAP-0013 — runtime detail freshness/accessibility transitions
+
+Status: `OPEN`, P2.
+
+Evidence: `settingsRuntimeDetail` changes between initial explanatory copy, snapshot-backed provider detail/model error, and connection-failure error text, but unlike the adjacent runtime indicators it does not consistently carry `pathenaRuntimeFreshness` or transition its accessible description. After `apply_connection_failure()` only `pathenaUiState=error` is set.
+
+Acceptance: preserve all visible copy and real runtime behavior while making the detail label fail-closed and self-describing across initial, fresh/stale/unavailable snapshot, and connection-failure states. Add focused Qt coverage and require canonical Quality on the exact candidate.
 
 ## Collision / ownership guidance
 
@@ -43,9 +36,10 @@ Canonical Quality must complete successfully on the exact final documented worke
 
 ## Integrator handoff
 
-- READY: UI-GAP-0011 product `44ae9513ec5b77586d98a45c02afe0fe171af932` + focused test `b307a771860c455b1630c2885ca1295e08a900d0`, backed by exact green UI head `45e2b84d14bfc11b4878d9b945065063fdc40e6d` / Quality `33874283635`.
-- NOT READY: UI-GAP-0012 until canonical Quality on the exact final UI candidate succeeds.
+- READY: UI-GAP-0012 product `d9797b5ff665b2c94ad7a9c34a6843d06f7cda4d` + focused test `5c9b49773ea16dfa6db341da37ab33d12f9ee7c5`, backed by exact green UI head `3a1be68c48dab4176e9258170147cf127c4b3d2a` / Quality `33879947654`.
+- UI-GAP-0011 remains READY through exact green head `45e2b84d14bfc11b4878d9b945065063fdc40e6d` / Quality `33874283635`.
+- NOT READY: UI-GAP-0013 until implementation, focused tests, and exact canonical Quality succeed.
 
 ## Next UI step
 
-Consume exact-head canonical Quality for UI-GAP-0012. If green, mark UI-GAP-0012 `FIXED`, return Screen 07 to `IMPLEMENTED_PENDING_VISUAL_REVIEW`, hand the bounded product/test lineage to Integrator, then select the next highest evidence-backed Settings/privacy/model-state UI gap without claiming screenshot parity.
+Implement UI-GAP-0013 minimally in `src/athena/desktop/pathena_settings_runtime.py`, add focused coverage in `tests/unit/test_pathena_settings_runtime.py`, then start/evaluate canonical Quality on the exact candidate. Screen 07 remains `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot parity is claimed.
