@@ -16,7 +16,7 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 - Baseline branch: `develop/pathena-next`
 - Baseline SHA: `fefe26b9fdc972b5e6950cd535397eae1067d5ea`
 - Worker branch: `postmerge/errors`
-- Synchronization: history-preserving NON-FORCE merge of current Develop into Error lineage in this run.
+- Synchronization: history-preserving NON-FORCE merge `7619f1df97f4661bf684f9a18dc3eb71450dfaaa` of current Develop into Error lineage.
 
 ## Current error state
 
@@ -29,7 +29,7 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 ## Current scan
 
 - UI canonical Quality `33879947654` on exact SHA `3a1be68c48dab4176e9258170147cf127c4b3d2a` completed `success`; no `ERR-0009` is allocated from that slice.
-- Newest UI head `44352a5d6bfe113e8a8a748af98c142534cfc9cc` has Quality `33885558190` in progress. Linux storage and local install are already PASS; Ruff is PASS; mypy/pytest and Windows path safety are not yet complete. No PASS/failure claim is made while incomplete.
+- Newest UI head `44352a5d6bfe113e8a8a748af98c142534cfc9cc` has Quality `33885558190` in progress. Windows path safety PASS, Linux storage PASS, local install smoke PASS, specification validator PASS, Ruff PASS and mypy PASS. Full pytest is still in progress; no PASS/failure claim is made while incomplete.
 - Backend Quality `33884147977` on exact SHA `f4a1fcb13ce80071a42e383cee1226516cba5a74` completed `cancelled`, so it is not verification evidence. A newer Backend head `c67fa646d8ba4e4137cdf69992b9c8b42ad904d6` has replacement Quality `33884210684` in progress; no error is allocated without a concrete failing signature.
 - Historical Develop Quality `33862677128` remains a real pytest-only red run whose exact primary node/signature was unavailable; its signature did not recur on later canonical-green Develop lineage, so no speculative `ERR-0009` is allocated.
 - Current Develop is `fefe26b9fdc972b5e6950cd535397eae1067d5ea`; no exact-head global PASS is claimed in this scan.
