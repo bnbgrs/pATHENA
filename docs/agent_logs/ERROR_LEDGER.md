@@ -14,25 +14,24 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 ## Current baseline
 
 - Baseline branch: `develop/pathena-next`
-- Baseline SHA: `5522e73c6f314b1dfac77fa5cfdb8e8d6f667704`
+- Baseline SHA: `5d7061678afd2e2f6195d5a3ce6e15cde2797007`
 - Stable read-only parent: `main@0d4d621f8a38ddf8eccfa09622bf193687619943`
 - Worker branch: `postmerge/errors`
-- History-preserving NON-FORCE synchronization merge: `0fea7636ed7e2c2fac8a95851c836fe037b27767`.
+- History-preserving NON-FORCE synchronization merge: `2fc8b3cfb7a764a223d56fffe80eb720c00ba13f`.
 
 ## Current error state
 
 - OPEN: none.
 - IN_PROGRESS: none.
-- FIXED_PENDING_VERIFY: `ERR-0006`, `ERR-0007`.
-- FIXED: `ERR-0001`, `ERR-0002`, `ERR-0003`, `ERR-0004`, `ERR-0005`.
+- FIXED_PENDING_VERIFY: none.
+- FIXED: `ERR-0001` through `ERR-0007`.
 - BLOCKED: none.
 
 ## Current scan
 
-- Research UUID correction `462fba22637e0083c87df32f987134ce0fb3de00` is now integrated on Develop as equivalent reviewed blobs in `4b390b4fcc39affc1884f304f460901d07ea622a`. Focused verifier `33833496929` is green; exact combined canonical verification remains pending, so `ERR-0006` is not yet `FIXED`.
-- Post-integration canonical validation `33838377083` exposed a distinct integration defect: `src/athena/knowledge/acceptance_service.py` imported `athena.knowledge.contradiction_review_gate`, but the dependency module was absent from Develop. This produced `ModuleNotFoundError` and a 131-error pytest collection cascade, with mypy/local-install/API-runtime regressions failing from the same missing dependency.
-- The missing dependency was restored from exact previously canonical-green Core blob `95866345cfa5fd2727bdb01c60ec4b2a60660707` into Develop commit `05bca268e2d2fc8e5b0f5ae59c564f2403605540`. No unrelated product/test/guard change was bundled.
-- Canonical validation `33838658964` on the repaired product lineage is in progress. Local install smoke, Windows path safety, Linux storage, specification validator, Ruff and mypy are already PASS; full pytest/canonical enforcement remain pending. Therefore `ERR-0007` is `FIXED_PENDING_VERIFY`.
+- Repaired-lineage canonical Quality `33838658964` completed `success` on `7ee8638187acf77221631db944fa0628adb36c5c`, closing both `ERR-0006` and `ERR-0007` with exact combined verification.
+- Backend source-types Sequence boundary Quality `33840621670` on `75ae07fdb0bf72c100cc8401f7881ffa03b96b03` also completed `success`; no new Error ID is allocated from that slice.
+- Current Develop additionally records canonical-green Research coverage integration; no concrete new current-lineage failure signature was found in this run.
 
 ## Entries
 
@@ -105,30 +104,30 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 - first_seen: 2026-09-04
 - severity: P2
 - area: Research / Jobs / runtime validation / API boundary
-- status: `FIXED_PENDING_VERIFY`
+- status: `FIXED`
 - evidence: Backend canonical `33833499697` on `24775cd9b6dd621a1cde188a376a3926c3c062b2` failed API runtime boundary/local-install/mypy/pytest; focused verifier `33833496929` passed.
 - repro: scalar text-like or non-Sequence values could cross `_stable_uuids()` normalization instead of failing closed.
 - root_cause: static `Sequence[uuid.UUID]` annotation was trusted at runtime without explicit container validation.
 - files: `src/athena/research/service.py`; `tests/unit/test_research_stable_strings_boundaries.py`.
 - fix_sha: owner fix `462fba22637e0083c87df32f987134ce0fb3de00`; equivalent integrated blobs `4b390b4fcc39affc1884f304f460901d07ea622a`.
-- verification: focused pytest/Ruff/mypy/diff-check PASS; combined canonical run `33838658964` still pending final pytest/enforcement.
-- risk: do not claim global green until exact combined verification completes.
-- integrator_handoff: retain integrated bounded slice; close only after canonical PASS.
+- verification: focused pytest/Ruff/mypy/diff-check PASS; repaired-lineage combined canonical Quality `33838658964` completed SUCCESS.
+- risk: none absent recurrence.
+- integrator_handoff: cleared.
 
 ### ERR-0007 — Missing contradiction-review dependency breaks integrated Core import graph
 - first_seen: 2026-09-04
 - severity: P1
 - area: Core / Knowledge / application composition / integration dependency
-- status: `FIXED_PENDING_VERIFY`
-- checked_sha: pre-repair integrated lineage validated by run `33838377083`; repair lineage `05bca268e2d2fc8e5b0f5ae59c564f2403605540`.
+- status: `FIXED`
+- checked_sha: defective integrated lineage validated by run `33838377083`; repair `05bca268e2d2fc8e5b0f5ae59c564f2403605540`; combined verification head `7ee8638187acf77221631db944fa0628adb36c5c`.
 - evidence: post-integration Quality `33838377083` produced `ModuleNotFoundError: No module named 'athena.knowledge.contradiction_review_gate'`; pytest collection cascaded to 131 errors, with mypy, local-install and API-runtime checks failing from the same absent module.
 - repro: import `athena.knowledge.acceptance_service` on the defective integrated lineage; its direct import of `athena.knowledge.contradiction_review_gate` cannot resolve.
 - root_cause: earlier Core integration carried `acceptance_service.py` without its required contradiction-review module dependency. This is an integration omission, not a Research UUID regression.
-- files: missing `src/athena/knowledge/contradiction_review_gate.py`; importer `src/athena/knowledge/acceptance_service.py` unchanged by repair.
+- files: restored `src/athena/knowledge/contradiction_review_gate.py`; importer `src/athena/knowledge/acceptance_service.py` unchanged by repair.
 - fix_sha: `05bca268e2d2fc8e5b0f5ae59c564f2403605540`, restoring exact blob `95866345cfa5fd2727bdb01c60ec4b2a60660707` from canonical-green Core head `a20dbe70824d5fc07bdd1d981e3acf431554877a` / Quality `33826094843`.
-- verification: current combined run `33838658964` has Local install smoke, Windows path safety, Linux storage, validator, Ruff and mypy PASS; full pytest and canonical enforcement are still pending.
-- risk: no `FIXED` claim until `33838658964` completes successfully.
-- integrator_handoff: repair is already on Develop; retain it and treat ERR-0007 as blocker only if final combined validation fails.
+- verification: repaired-lineage combined canonical Quality `33838658964` completed SUCCESS, including full pytest and canonical enforcement.
+- risk: none absent recurrence.
+- integrator_handoff: cleared.
 
 ## Historical/stale evidence
 
