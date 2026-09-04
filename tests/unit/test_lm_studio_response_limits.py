@@ -180,7 +180,7 @@ def test_stream_iteration_rejects_oversize_line_without_leaking_content(
 def test_stream_iteration_enforces_monotonic_total_deadline(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    times: Iterator[float] = iter([10.0, 10.2, 10.6, 11.0])
+    times: Iterator[float] = iter([10.0, 10.2, 10.3, 10.4, 10.5, 11.0])
     monkeypatch.setattr(local_http, "monotonic", lambda: next(times))
     raw = _FakeResponse(b"", lines=(b": one\n", b": two\n"))
     _install_response(monkeypatch, raw, max_bytes=64)
