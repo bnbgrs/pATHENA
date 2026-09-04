@@ -14,9 +14,9 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 ## Current baseline
 
 - Baseline branch: `develop/pathena-next`
-- Baseline SHA: `c91e76804e74595f92c8eb624ce7c5d83b66bad2`
+- Baseline SHA: `33c4a9657bb9aca24c6e85c0a2b4a7c0132c3358`
 - Worker branch: `postmerge/errors`
-- Synchronization: history-preserving NON-FORCE merge `964e71b98d6a417f87920fdb44a5630b87069424` of current Develop into Error lineage.
+- Synchronization: history-preserving NON-FORCE merge `09bc08b6945e4097c07998768738e0ad1f1760be` of exact current Develop into Error lineage.
 
 ## Current error state
 
@@ -29,10 +29,11 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 ## Current scan
 
 - `ERR-0004` remains `FIXED`; its historical startup/readiness Ruff signatures did not recur.
-- Backend advanced to `7688f49ea351749bf227a1683fd14aba719d9bb6` after the ERR-0009 handoff but still retained the two stale readline-size expectations. Its separate exact fix-head Quality `33900614960` on `d988c9faa171f4fe86aac4b5fa4d169e8ee34a41` was cancelled after a later branch update, so it is not verification evidence for ERR-0009.
-- Under the hard progress rule, Error took the now non-colliding harness-only correction on `postmerge/errors`: `67f3f447621c4544a5fb2fe321e76b62347290e0` updates only the two request-size expectations to the already-observed remaining-budget sequences. Product code, byte caps, overflow assertions and security guards are unchanged.
-- No exact canonical Quality run is yet associated with Error fix SHA `67f3f447621c4544a5fb2fe321e76b62347290e0`; therefore `ERR-0009` is `FIXED_PENDING_VERIFY`, not `FIXED`.
-- Current Develop is `c91e76804e74595f92c8eb624ce7c5d83b66bad2`; no exact-head global PASS is claimed.
+- Error candidate `67f3f447621c4544a5fb2fe321e76b62347290e0` corrects only the two stale readline-size expectations; product code, byte caps, overflow behavior and secrecy/security assertions are unchanged.
+- Backend independently converged on the same harness correction at `0e966a49cd37d9ee6a4572ac4e35ce3d8018ff8e`; current Backend handoff head is `225db6c031551a2b79edf0d74b331a33e359ad26`.
+- Exact canonical Quality `33911612711` on Backend head `225db6c031551a2b79edf0d74b331a33e359ad26` is still in progress. Windows path safety, Linux storage regressions and local-install smoke have passed; specification validator, Ruff and mypy have passed; full pytest is still running.
+- Pending full pytest is neither PASS nor failure evidence, so `ERR-0009` remains `FIXED_PENDING_VERIFY`, not `FIXED`.
+- Error is now synchronized non-force to Develop `33c4a9657bb9aca24c6e85c0a2b4a7c0132c3358` while preserving its candidate correction.
 
 ## Entries
 
@@ -104,19 +105,19 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 - severity: P2
 - area: Backend / Provider-Transport / local HTTP test harness
 - status: `FIXED_PENDING_VERIFY`
-- checked_sha: failing Backend `2d9375d8afbeb05eea8d0b9149ffd3f352e4a9c1`; Error fix `67f3f447621c4544a5fb2fe321e76b62347290e0`.
-- evidence: canonical ATHENA Quality Gate `33900689788`; Windows path safety PASS, Linux storage PASS, local-install smoke PASS, specification validator PASS, Ruff PASS, mypy PASS, full pytest FAIL. Diagnostics artifact `9948717940` reports exactly:
+- checked_sha: failing Backend `2d9375d8afbeb05eea8d0b9149ffd3f352e4a9c1`; Error fix `67f3f447621c4544a5fb2fe321e76b62347290e0`; equivalent Backend owner correction `0e966a49cd37d9ee6a4572ac4e35ce3d8018ff8e`; current Backend verification head `225db6c031551a2b79edf0d74b331a33e359ad26`.
+- evidence: canonical ATHENA Quality Gate `33900689788` failed only full pytest after Windows path safety, Linux storage, local-install smoke, validator, Ruff and mypy passed. Diagnostics artifact `9948717940` reported exactly:
   - `tests/unit/test_lm_studio_response_limits.py::test_stream_iteration_uses_bounded_readline_without_whole_body_read`: expected `[17, 17, 17]`, actual `[17, 9, 2]`.
   - `tests/unit/test_lm_studio_response_limits.py::test_stream_iteration_rejects_many_small_lines_over_cumulative_limit`: expected `[9, 9, 9]`, actual `[9, 5, 1]`.
 - repro: run the two focused pytest nodes above on lineage containing product commit `2981624e0f7eef8c2e94b6f0eb86a859132a2386`.
-- root_cause: product commit `2981624e0f7eef8c2e94b6f0eb86a859132a2386` intentionally changed `_BoundedLocalResponse.readline()` from constant `max_bytes + 1` reads to `remaining + 1` reads, but two pre-existing harness assertions still encoded the old constant request-size behavior. The actual sequences are the direct arithmetic consequence of cumulative remaining-budget enforcement. Product behavior is fail-closed and matches the hardening intent; this is a harness contract lag.
+- root_cause: product commit `2981624e0f7eef8c2e94b6f0eb86a859132a2386` intentionally changed `_BoundedLocalResponse.readline()` from constant `max_bytes + 1` reads to `remaining + 1` reads, but two pre-existing harness assertions still encoded the old constant request-size behavior. Product behavior is fail-closed and matches the hardening intent; this is a harness contract lag.
 - files: `tests/unit/test_lm_studio_response_limits.py`; product reference `src/athena/model/adapters/local_http.py`.
-- owner: Error assumed the minimal harness-only fix after Backend completed an additional non-colliding cycle without correcting these two expectations.
-- fix_sha: `67f3f447621c4544a5fb2fe321e76b62347290e0`.
+- owner: Error applied the minimal harness-only fix after the non-colliding owner-cycle threshold; Backend then independently applied an equivalent owner correction.
+- fix_sha: Error `67f3f447621c4544a5fb2fe321e76b62347290e0`; equivalent Backend `0e966a49cd37d9ee6a4572ac4e35ce3d8018ff8e`.
 - fix: changed only `raw.readline_sizes` expectations from `[17, 17, 17]` to `[17, 9, 2]` and `[9, 9, 9]` to `[9, 5, 1]`; all overflow, secrecy and byte-cap assertions remain intact; product code unchanged.
-- verification: pending exact Error-fix SHA focused tests, Ruff, mypy, full pytest and canonical Quality. No workflow run was associated with the exact fix SHA at first check.
+- verification: canonical Backend Quality `33911612711` on exact head `225db6c031551a2b79edf0d74b331a33e359ad26` currently has Windows path safety PASS, Linux storage PASS, local-install smoke PASS, validator PASS, Ruff PASS and mypy PASS; full pytest remains in progress. No final PASS/FIXED claim yet.
 - risk: low; harness-only correction. Security/runtime risk would increase if product hardening were reverted, which remains prohibited.
-- integrator_handoff: do not consume failing Backend `2d9375d8afbeb05eea8d0b9149ffd3f352e4a9c1` as green. Candidate correction is Error `67f3f447621c4544a5fb2fe321e76b62347290e0`, but it is not integration-ready until exact verification is green.
+- integrator_handoff: prefer the owner-equivalent correction lineage once `33911612711` completes green; until then do not consume the current Backend head as globally green and do not revert remaining-budget hardening.
 
 ## Historical/stale evidence
 
