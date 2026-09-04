@@ -9,7 +9,7 @@ from PySide6.QtCore import QTimer
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import QApplication
 
-from athena.api.client import CoreApiClient
+from athena.api.storage_client import StorageAwareCoreApiClient
 from athena.desktop.api_controller import DesktopApiController
 from athena.desktop.canonical_memory_extensions import install_canonical_memory_extensions
 from athena.desktop.chat_grounding_extension import install_chat_grounding_extension
@@ -107,6 +107,7 @@ from athena.desktop.pathena_workspace_presentation import apply_workspace_presen
 from athena.desktop.research_results_extension import install_research_results_extension
 from athena.desktop.research_workspace import install_research_workspace
 from athena.desktop.scheduler_supervisor import DesktopJobSchedulerSupervisor
+from athena.desktop.storage_api_controller import StorageDesktopApiController
 from athena.desktop.supervisor import DesktopCoreSupervisor
 from athena.desktop.system_backup import install_system_backup
 from athena.desktop.system_workspace import install_system_workspace
@@ -182,7 +183,7 @@ def _start_core_refresh_heartbeat(
 
 def main(argv: Sequence[str] | None = None) -> int:
     app = create_application(argv)
-    client = CoreApiClient.from_environment()
+    client = StorageAwareCoreApiClient.from_environment()
     supervisor = DesktopCoreSupervisor(client=client, parent=app)
     scheduler_supervisor = DesktopJobSchedulerSupervisor(parent=app)
     app.aboutToQuit.connect(scheduler_supervisor.stop)
@@ -191,7 +192,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     supervisor.ensure_running()
     scheduler_supervisor.ensure_running()
 
-    controller = DesktopApiController(client)
+    controller = StorageDesktopApiController(client)
     window = PathenaMainWindow(api_controller=controller)
     settings_runtime = install_settings_runtime(window, controller)
     install_settings_secondary_navigation(window)
