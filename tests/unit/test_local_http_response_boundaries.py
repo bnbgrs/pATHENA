@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import io
+from typing import Any
+from urllib.error import HTTPError
+from urllib.request import Request
 
 import pytest
 
+from athena.model.adapters import local_http
 from athena.model.adapters.local_http import (
     LocalResponseTooLargeError,
     _BoundedLocalResponse,
@@ -23,6 +27,15 @@ class _RecordingBytesIO(io.BytesIO):
     def readline(self, size: int = -1) -> bytes:
         self.readline_sizes.append(size)
         return super().readline(size)
+
+
+class _ErrorOpener:
+    def __init__(self, error: HTTPError) -> None:
+        self._error = error
+
+    def open(self, request: Request, *, timeout: float) -> Any:
+        del request, timeout
+        raise self._error
 
 
 def test_chunked_reads_cannot_bypass_cumulative_response_limit() -> None:
@@ -139,3 +152,34 @@ def test_direct_read_fails_closed_when_deadline_expires_during_underlying_read(
         response.read(1)
 
     assert raw.read_sizes == [1]
+
+
+def test_http_error_body_rejects_expired_total_deadline_before_underlying_read(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    times = iter([40.0, 41.0])
+    monkeypatch.setattr(local_http, "monotonic", lambda: next(times))
+    raw = _RecordingBytesIO(b"provider error")
+    error = HTTPError(
+        "http://127.0.0.1:1234/v1/chat/completions",
+        500,
+        "provider error",
+        {},
+        raw,
+    )
+    monkeypatch.setattr(
+        local_http,
+        "build_opener",
+        lambda *handlers: _ErrorOpener(error),
+    )
+
+    with pytest.raises(HTTPError) as raised:
+        local_http.open_local_request(
+            Request("http://127.0.0.1:1234/v1/chat/completions"),
+            timeout=0.5,
+        )
+
+    with pytest.raises(TimeoutError, match="total timeout"):
+        raised.value.read()
+
+    assert raw.read_sizes == []
