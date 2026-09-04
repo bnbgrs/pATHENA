@@ -138,6 +138,12 @@ class SettingsRuntimeController(QObject):
             "idle",
             freshness="unavailable",
         )
+        self._set_state(
+            self.persistence_value,
+            self.persistence_value.text(),
+            "idle",
+            freshness="unavailable",
+        )
         initial_network_detail = (
             "Local Core · awaiting connection. Internet access is not inferred before "
             "a Core snapshot."
