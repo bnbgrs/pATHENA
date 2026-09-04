@@ -422,6 +422,8 @@ class ExternalAccessGateway:
         max_bytes: int = 8 * 1024 * 1024,
         timeout_seconds: float = 30.0,
     ) -> SourceCaptureResult:
+        if not isinstance(url, str):
+            raise ExternalDestinationError("External URL must be text.")
         if type(max_bytes) is not int or max_bytes < 1 or max_bytes > 128 * 1024 * 1024:
             raise ValueError("External response max_bytes is outside the safe v1 range.")
         if (
