@@ -258,6 +258,14 @@ class SettingsRuntimeController(QObject):
             "error",
             freshness="unavailable",
         )
+        network_detail = (
+            "Local Core unavailable. Internet-access state is not inferred from this "
+            "failed local connection."
+        )
+        self.network_value.setProperty("pathenaNetworkScope", "unavailable")
+        self.network_value.setProperty("pathenaInternetStateInferred", False)
+        self.network_value.setToolTip(network_detail)
+        self.network_value.setAccessibleDescription(network_detail)
         self.detail.setText(message)
         self.detail.setProperty("pathenaUiState", "error")
 
