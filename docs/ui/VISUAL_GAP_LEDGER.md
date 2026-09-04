@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `2520224ebe3143368b3e5f13c091479d5e7b8d35`
+Baseline: `c91e76804e74595f92c8eb624ce7c5d83b66bad2`
 Integration target: `develop/pathena-next`
 
 Only evidence-backed gaps belong here. The original 11 reference screenshots remain unavailable for direct visual comparison; therefore no pixel-level mismatch or `MATCH` claim is asserted.
@@ -133,12 +133,25 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Category: `STATE / ACCESSIBILITY`
 - Screen: `07 — Settings`
 - Severity: `P2`
-- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Status: `FIXED`
 - Evidence: in `SettingsRuntimeController.hydrate_selected_model()`, a selected model with no persisted local record rendered `<model> · defaults not yet saved` with `pathenaUiState=idle` but `pathenaRuntimeFreshness=fresh`. The visible copy explicitly says there is no saved model-specific persistence fact, so `fresh` overstated the persistence state.
 - Product commit: `e175de079fd30dc2fb1bc3c64065ebd40127cd0b`.
 - Focused test commit: `0b0303e89c4fd358291e0fb180062212debdeff7`.
 - Acceptance: existing visible copy and idle state remain unchanged; freshness fails closed to `unavailable`; accessible description remains synchronized. QSettings storage, model controls, provider behavior and backend semantics are unchanged.
-- Verification required: canonical Quality on the final documented exact candidate head before promotion to `FIXED`.
+- Verification evidence: exact UI head `be55343dcaab9eb2afe80fe869000c139e6e2de1` passed ATHENA Quality Gate `33902213148` with conclusion `success`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0016 — Unreadable local settings expose opaque backend model identifier in user-facing error copy
+
+- Category: `COPY / ACCESSIBILITY / STATE`
+- Screen: `07 — Settings`
+- Severity: `P2`
+- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Evidence: `_read_model()` previously rendered `<backend_model_id> · local settings unreadable` when QSettings reported an access/format error, while the adjacent saved/restored/invalid/default states consistently use the selected model's `display_name`. Provider backend IDs are implementation identifiers and can differ from the user-facing model name.
+- Product commit: `b0bac270a461afdef3322550e6ddf3e49314653a`.
+- Focused test commit: `5d819895dfbfecc6c7a24f46251d0e3a07791409`.
+- Acceptance: unreadable-settings presentation uses the real selected model `display_name`, retains `pathenaUiState=error`, fails closed to `pathenaRuntimeFreshness=unavailable`, and keeps the accessible description synchronized. The backend model ID remains the storage lookup key; QSettings behavior and storage/backend/security semantics are unchanged.
+- Verification required: canonical Quality on the exact final documented candidate before promotion to `FIXED`.
 
 ## Evidence blocker
 
