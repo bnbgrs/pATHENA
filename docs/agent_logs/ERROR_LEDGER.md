@@ -14,25 +14,26 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 ## Current baseline
 
 - Baseline branch: `develop/pathena-next`
-- Baseline SHA: `3659470baa5cc0cdeea538bcfe241174f319a502`
+- Baseline SHA: `606e9dc72278ec331856e998a1b3fb4fa4754787`
 - Stable read-only parent: `main` at `0d4d621f8a38ddf8eccfa09622bf193687619943`
 - Worker branch: `postmerge/errors`
-- Worker synchronized history-preservingly and NON-FORCE with exact current Develop via merge commit `880ecb17aa000ed02782e8338481217f54000e41`.
+- Worker synchronized history-preservingly and NON-FORCE with exact current Develop via merge commit `256f2381d20a98323e2d4f52829a8a710f19152a`.
 
 ## Current error state
 
 - OPEN: none.
 - IN_PROGRESS: none.
-- FIXED_PENDING_VERIFY: none.
+- FIXED_PENDING_VERIFY: `ERR-0006`.
 - FIXED: `ERR-0001`, `ERR-0002`, `ERR-0003`, `ERR-0004`, `ERR-0005`.
 - BLOCKED: none.
 
 ## Current scan
 
-- Exact-head UI follow-up Quality run `33822861477` on `72e43bc18c28b5c92f6528919abf788f66924ba9` completed `success`; this closes `ERR-0005` with real canonical verification.
-- Integrator has already accepted the verified UI-GAP-0006 system-tray product/test blobs onto Develop and records that integration from the exact green UI lineage.
-- Current UI head `6d1862eddf6fff3620a7871ccb9176c62e6b737e` has Quality run `33826919058` still in progress; no new error is allocated without a concrete failing job/signature.
-- No recurrence of `ERR-0001`..`ERR-0004` is evidenced.
+- Canonical Backend Quality run `33833499697` on `24775cd9b6dd621a1cde188a376a3926c3c062b2` failed reproducibly across API runtime path-boundary/local-install/full-pytest execution; validator and Ruff passed, while mypy and pytest failed.
+- The dedicated bounded verifier `33833496929` completed `success` and produced Backend commit `462fba22637e0083c87df32f987134ce0fb3de00`, hardening `_stable_uuids()` against scalar text-like and non-Sequence containers and adding focused regression coverage.
+- Canonical Quality on exact fix SHA `462fba22637e0083c87df32f987134ce0fb3de00` is not yet available: run `33833527206` concluded `action_required` without executing jobs. Therefore `ERR-0006` remains `FIXED_PENDING_VERIFY`, not `FIXED`.
+- Current UI Quality `33834029967` on `3407fd0169ff3b5ccfc711d2562153f25cc3ce26` has Windows path safety, Linux storage, local-install smoke, validator, Ruff and mypy passing; full pytest remains in progress and supplies no new failure signature yet.
+- No recurrence of `ERR-0001`..`ERR-0005` is evidenced.
 
 ## Entries
 
@@ -135,6 +136,27 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 - verification executed: exact-head canonical Quality `33822861477` PASS across every required stage.
 - remaining risks: none for this signature absent recurrence.
 - integrator handoff: error blocker cleared; failing `194025...` remains rejected, corrected verified lineage is already represented on Develop.
+
+### ERR-0006 — Research UUID filter container boundary is not runtime-safe
+
+- first_seen: 2026-09-04
+- last_seen: 2026-09-04
+- checked_sha: `24775cd9b6dd621a1cde188a376a3926c3c062b2`
+- severity: P2
+- area: Research / Jobs / runtime validation / API boundary
+- status: `FIXED_PENDING_VERIFY`
+- exact evidence:
+  - Canonical Backend Quality `33833499697` on exact SHA `24775cd9b6dd621a1cde188a376a3926c3c062b2` failed. Linux storage's focused storage tests passed, then `Run API runtime path-boundary regressions` failed; local-install smoke failed at the disposable Core/API restart smoke; Windows path safety passed locality/storage checks then failed at the same API runtime path-boundary regressions; Quality passed validator and Ruff but failed mypy and pytest, with canonical enforcement failing as a cascade.
+  - Dedicated bounded verifier workflow `33833496929` completed `success`. Its exact focused contract applies the UUID-container patch, runs `tests/unit/test_research_stable_strings_boundaries.py`, Ruff on `src/athena/research/service.py` plus that test, mypy on `src/athena/research/service.py`, and `git diff --check`, then commits the verified product/test delta.
+  - Resulting owner fix commit `462fba22637e0083c87df32f987134ce0fb3de00` changes `_stable_uuids(values: Sequence[uuid.UUID])` to a runtime-checked `object` boundary, rejects scalar `str`/`bytes`/`bytearray` and non-`Sequence` containers with `ResearchConfigurationError`, preserves UUID-only element validation and deterministic UUID normalization, and adds focused regression tests.
+  - Exact-fix canonical Quality `33833527206` concluded `action_required` before jobs ran; this is not failure evidence but also not canonical verification.
+- reproducible path before fix: `_stable_uuids()` trusted a `Sequence[uuid.UUID]` annotation at runtime, so text-like scalars and other unexpected containers could cross the normalization boundary instead of failing closed with the configured Research validation error.
+- primary root cause: Research UUID filter normalization lacked explicit runtime container validation; static typing did not enforce the boundary at runtime.
+- affected files: `src/athena/research/service.py`; `tests/unit/test_research_stable_strings_boundaries.py`.
+- fix_commit: `462fba22637e0083c87df32f987134ce0fb3de00`.
+- verification executed: focused verifier `33833496929` PASS for the exact product/test patch, focused pytest, Ruff, mypy and diff-check. Canonical exact-fix verification remains pending because `33833527206` was `action_required` without jobs.
+- remaining risks: exact candidate still needs canonical Quality (or equivalent exact-SHA full verification) before promotion from `FIXED_PENDING_VERIFY` to `FIXED`.
+- integrator handoff: do not treat failing `24775cd9...` as READY. Review `462fba22637e0083c87df32f987134ce0fb3de00` only after exact-fix canonical/full evidence is available under normal READY policy.
 
 ## Historical/stale evidence
 
