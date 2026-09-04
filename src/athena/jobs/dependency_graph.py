@@ -18,6 +18,7 @@ from athena.jobs.repository import (
     _job_from_row,
     _require_unprotected_job_dependencies,
 )
+from athena.storage.database import SQLiteDatabase
 
 _MAX_DIRECT_DEPENDENCIES = 64
 _MAX_GRAPH_DEPTH = 32
@@ -68,7 +69,11 @@ class JobDependencyGraph:
 
     def __init__(self, repository: JobRepository) -> None:
         self.repository = repository
-        self.database = repository.database
+
+    @property
+    def database(self) -> SQLiteDatabase:
+        """Resolve storage lazily so fail-before-write validation stays storage-free."""
+        return self.repository.database
 
     def validate_new_links(
         self,
