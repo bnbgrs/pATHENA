@@ -32,8 +32,8 @@ def source_coverages_from_records(
 
     state_by_candidate: dict[uuid.UUID, ResearchWorkState] = {}
     for work_item in work_items:
-        candidate = candidate_by_id.get(work_item.candidate_id)
-        if candidate is None:
+        work_candidate = candidate_by_id.get(work_item.candidate_id)
+        if work_candidate is None:
             raise ResearchStateError("Research work item references an unknown candidate.")
         if work_item.candidate_id in state_by_candidate:
             raise ResearchStateError("multiple Research work items reference one candidate.")
