@@ -11,6 +11,8 @@ from dataclasses import dataclass
 
 from athena.research.errors import ResearchStateError
 
+COVERAGE_FORMULA_ID = "eligible-successful-irrelevant-v1"
+
 
 def _count(value: object, field: str) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
@@ -77,3 +79,19 @@ class ResearchCoverage:
         """True only when every eligible work unit succeeded or was irrelevant."""
 
         return self.eligible_count > 0 and self.coverage_positive_count == self.eligible_count
+
+    def result_payload(self) -> dict[str, int | float | str]:
+        """Return the canonical ResearchResult coverage payload with formula identity."""
+
+        return {
+            "formula_id": COVERAGE_FORMULA_ID,
+            "candidate_total": self.candidate_total,
+            "processed_count": self.processed_count,
+            "successful_count": self.successful_count,
+            "irrelevant_count": self.irrelevant_count,
+            "failed_count": self.failed_count,
+            "unavailable_count": self.unavailable_count,
+            "excluded_count": self.excluded_count,
+            "eligible_count": self.eligible_count,
+            "coverage_ratio": self.coverage_ratio,
+        }
