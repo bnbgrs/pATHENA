@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `14adeb8949f680dc16a3067e586b3950132e0375`
+Baseline: `fefe26b9fdc972b5e6950cd535397eae1067d5ea`
 Integration target: `develop/pathena-next`
 
 Only evidence-backed gaps belong here. The original 11 reference screenshots remain unavailable for direct visual comparison; therefore no pixel-level mismatch or `MATCH` claim is asserted.
@@ -107,10 +107,12 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Category: `STATE / ACCESSIBILITY`
 - Screen: `07 — Settings`
 - Severity: `P2`
-- Status: `OPEN`
-- Evidence: `settingsRuntimeDetail` changes between initial explanatory copy, snapshot-backed provider detail/model error, and connection-failure error text, but unlike the adjacent Provider/Connection/Persistence indicators it does not consistently carry `pathenaRuntimeFreshness` or transition its accessible description through the same state changes. After `apply_connection_failure()` only `pathenaUiState=error` is set on this visible detail label.
-- Acceptance: keep existing visible text and runtime behavior, but make the detail label fail-closed and self-describing across initial, fresh/stale/unavailable snapshot, and connection-failure states without inventing backend/network/provider capability.
-- Verification: focused Qt regression plus canonical Quality required on the exact candidate before promotion.
+- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Evidence: `settingsRuntimeDetail` changes between initial explanatory copy, snapshot-backed provider detail/model error, and connection-failure error text, but unlike the adjacent Provider/Connection/Persistence indicators it did not consistently carry `pathenaRuntimeFreshness` or transition its accessible description through the same state changes.
+- Product commit: `046414551ad85bc418af0c7bdfdc2d8be7befd7d`.
+- Focused test commit: `7de1ccb040083375fb31242f54b9515b18403113`.
+- Acceptance: existing visible detail copy is preserved; initial state is `idle/unavailable`; snapshot transitions use the snapshot's resolved model freshness and synchronize the accessible description to the displayed detail; model errors are explicit `error`; Core connection failure is `error/unavailable` and self-describing. No backend/network/provider capability is invented.
+- Verification: canonical ATHENA Quality Gate `33890936090` started on exact product/test head `7de1ccb040083375fb31242f54b9515b18403113`; result pending at documentation time.
 
 ## Evidence blocker
 
