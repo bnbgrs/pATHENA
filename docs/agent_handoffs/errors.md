@@ -3,62 +3,54 @@
 ## Baseline
 
 - Baseline source: `develop/pathena-next`
-- Baseline SHA: `7be496d2fcbb94ab81f5e520f2e45ee2820d3fd9`
-- Stable read-only parent: `main@0d4d621f8a38ddf8eccfa09622bf193687619943`
+- Baseline SHA: `6a9b933dcec80d4d104ac7d3be68351c46554864`
 - Worker branch: `postmerge/errors`
-- Worker synchronized history-preservingly and NON-FORCE with exact current Develop before mutation via `0c26f67871c871a39f0ee980aaa4c21a6e6b2892`.
+- History-preserving NON-FORCE synchronization: `88725f431fe46e30e49d03d487f8ef9a8935260e`, with parents prior Error head `2ee9c374fd931a099de27b5ea8bd9dae0c876b76` and exact Develop `6a9b933dcec80d4d104ac7d3be68351c46554864`.
+- `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
 ## Current error state
 
 - OPEN: none.
 - IN_PROGRESS: none.
-- FIXED_PENDING_VERIFY: none.
-- FIXED:
-  - `ERR-0001` P2 — deletion-ledger malformed runtime boundary acceptance; product fix `780d25d74ce2e310b6a4bc434f547a23163e8b78`.
-  - `ERR-0002` P2 — Ruff I001 deletion-boundary harness regression; fix `2f705d5e0fc1c77dd60612b5aeaa16d9380e46cd`.
-  - `ERR-0003` P1 — stale persistent-inspector harness contract; verified fix `6253577227d427c9bb00707c3e3e578a16c0f9d6`.
+- FIXED_PENDING_VERIFY: `ERR-0010`.
+- FIXED: `ERR-0001` through `ERR-0009`.
 - BLOCKED: none.
 
-## Current evidence
+## Fresh evidence
 
-- Backend canonical Quality run `33755878184` on `a4768d9b0ea57a1161c93f603a5101c28b555276` failed only at full pytest with two stale `tests/unit/test_pathena_window.py` assertions; validator, Ruff, mypy, Windows path safety, Linux storage and local-install smoke passed.
-- Diagnostics artifact `9894914799`: exactly `2 failed, 4488 passed, 3 skipped, 2 warnings`.
-- Product contract is `UI-GAP-0002`: Evidence & Activity is contextual, not permanently visible.
-- Initial candidate `ebcf0dc2a305e946aabd0309c95316d29a1ebd91` corrected the failing assertions but did not restore the complete previously verified state-transition coverage.
-- Final Error fix `6253577227d427c9bb00707c3e3e578a16c0f9d6` restores the exact canonical-green shell test blob `82f492814250536dd003857a4eec2d083e9e13d5` from UI head `ce959e148ddbe8f13952ca56f7d07e7a7ce1addb`.
-- Current Error lineage and canonical-green UI head share byte-identical directly relevant blobs:
-  - `src/athena/desktop/pathena_window.py@b683903cc6e6a1a99950bba168e6e314df545ca1`
-  - `tests/unit/test_pathena_window.py@82f492814250536dd003857a4eec2d083e9e13d5`
-  - `tests/unit/test_pathena_ui_presentation.py@171f209728831feb1ac7bb06172e30aee12973ae`
-- Canonical Quality run `33745885426` on exact UI head `ce959e148ddbe8f13952ca56f7d07e7a7ce1addb` completed `success`; this is exact-content verification of the affected product and focused harness state.
-- Fresh local execution was attempted again but checkout was blocked by DNS resolution of `github.com`; no fabricated separate local PASS is claimed.
+- `ERR-0004` remains fixed; its historical startup/readiness Ruff failures have not recurred.
+- `ERR-0009` remains fixed on exact canonical Backend Quality `33911612711 = success`.
+- Backend Quality `33916312429` on `f459035a701d6dad90d7be130e7a0644ae78201c` is a real new red signal: Windows path safety, Linux storage, local-install smoke, validator, Ruff and mypy passed; full pytest failed.
+- Backend owner isolated the single current root cause to stale timing in `tests/unit/test_lm_studio_response_limits.py::test_stream_iteration_enforces_monotonic_total_deadline` after direct `read()`/`readline()` total-deadline enforcement was added in product `2270477ccf7631471379774430745f1a81f24d36`.
+- Harness-only correction `14cdda954d621e9b9cb5fd8b7b2fdbda8297dc81` supplies timestamps for `__iter__` pre, `readline` pre/post and `__iter__` post so expiry occurs before the second underlying read. No product deadline, byte-limit, routing, storage, recovery or security guard is weakened.
+- Exact descendant Backend Quality `33921338439` on `c9d1a7a9ab782ae081e4699eecd436d6a0ff5fb5` currently has Windows path safety PASS, Linux storage PASS, local-install smoke PASS, validator PASS, Ruff PASS and mypy PASS; full pytest is still running. Therefore `ERR-0010` remains `FIXED_PENDING_VERIFY`, not `FIXED`.
+- UI Quality `33922277491` on `3d74d43279d9a80bf891bb6bc31001b1e43490e2` is still in progress and is neither PASS nor failure evidence yet.
+- Current Develop `6a9b933dcec80d4d104ac7d3be68351c46554864` has no exact-head global PASS evidence yet.
 
-## Collision avoidance
+## ERR-0010
 
-- Error-owned active files for this closed root cause: `tests/unit/test_pathena_window.py`, `docs/agent_logs/ERROR_LEDGER.md`, `docs/agent_handoffs/errors.md`.
-- Integrator should preserve exact shell-test blob `82f492814250536dd003857a4eec2d083e9e13d5` while integrating ERR-0003.
-- UI may resume changes to `tests/unit/test_pathena_window.py` after integration, but should not reintroduce the persistent-inspector contract.
-- Product UI code was not changed by Error.
-- Core/Backend are non-overlapping.
+- Severity: P2.
+- Area: Backend / Provider-Transport / local HTTP test harness.
+- Failing exact SHA: `f459035a701d6dad90d7be130e7a0644ae78201c`.
+- Failing canonical run: `33916312429`.
+- Product hardening: `2270477ccf7631471379774430745f1a81f24d36`.
+- Focused product tests: `93e83640e69df9016fc4a10ac790e803fecf5d57`.
+- Harness correction: `14cdda954d621e9b9cb5fd8b7b2fdbda8297dc81`.
+- Verification head: `c9d1a7a9ab782ae081e4699eecd436d6a0ff5fb5`.
+- Verification run: `33921338439`, currently in progress.
+- Status: `FIXED_PENDING_VERIFY`.
 
-## Fix commits
+## Integrator handoff
 
-- Synchronization merge: `0c26f67871c871a39f0ee980aaa4c21a6e6b2892`.
-- `ERR-0003` verified harness fix: `6253577227d427c9bb00707c3e3e578a16c0f9d6`.
-- Ledger closure: `05785eb84151eb841519980da94ff3ad02700383`.
+- `ERR-0001` through `ERR-0009` remain cleared.
+- Do not treat Backend `f459035a701d6dad90d7be130e7a0644ae78201c` as globally green; its full pytest failed.
+- Do not integrate or mark the direct total-deadline slice READY until exact descendant `33921338439` completes success.
+- Preserve product fail-closed total-deadline enforcement; the root cause is harness timing drift, not a reason to revert direct deadline checks.
+- If `33921338439` turns red, inspect its exact diagnostics and mutate only the remaining primary root cause; do not repeat the existing hypothesis without new evidence.
+- Current Develop must receive exact-head canonical verification after any integration.
 
-## Integrator-ready commits
+## Next scan
 
-- READY: `6253577227d427c9bb00707c3e3e578a16c0f9d6` for ERR-0003, after/current with synchronization merge `0c26f67871c871a39f0ee980aaa4c21a6e6b2892`.
-- Preserve exact test blob `82f492814250536dd003857a4eec2d083e9e13d5`.
-- After integration, run canonical Quality on the resulting exact Develop SHA when available.
-
-## Blocked root causes
-
-None.
-
-## Next scan / verification
-
-1. Continue scanning the Qt deleted-`QProcess` stderr warning; allocate a new ERR-ID only if a current-lineage runtime/test failure is reproducible.
-2. Inspect Packaging, Provider/Transport, Research/Jobs, Windows publication/path safety, Storage/Recovery and local install/start for fresh current-lineage signatures.
-3. Re-open historical errors only if their exact signatures recur on the then-current Develop SHA.
+1. Consume completion of Backend `33921338439`; mark `ERR-0010` `FIXED` only on real success, otherwise isolate the exact remaining signature.
+2. Consume UI `33922277491` and allocate `ERR-0011` only for a concrete deduplicated primary failure.
+3. Continue Packaging, Provider/Transport, Research/Jobs, Persistence/Recovery, Qt/Desktop, Security, local install/start, Windows path safety and Linux storage scanning.
