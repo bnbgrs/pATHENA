@@ -3,41 +3,42 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `c91e76804e74595f92c8eb624ce7c5d83b66bad2`.
+- Develop before this run: `33c4a9657bb9aca24c6e85c0a2b4a7c0132c3358`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `f99d9b8f911874c45928a7911013b0774ce96068`; spec-core `f59e3c6862ab7ac2e976c3a8348f3a58e52de4ca`; backend `225db6c031551a2b79edf0d74b331a33e359ad26`; ui `f66a1cc2c80cf0cadc89ba1a4771345af79df934`.
+- Worker heads reviewed: errors `5f7bc011e7a14c893394e12afb9c68275bdeef17`; spec-core `ceb3682728aceb0b09893da6530dc38bc99f943a`; backend `f459035a701d6dad90d7be130e7a0644ae78201c`; ui `72c143fae1e339b254e5dc7be884c8efb79c7f84`.
 
-## Integrated this run — Storage Health runtime boundaries
+## Integrated this run — local HTTP cumulative response-size boundary
 
-Backend READY lineage through `19c73aee29cae2d2ea479a6e3d2aa1256afa06a1` is backed by canonical Quality `33868034634 = success`.
+Backend READY lineage through `b025f6de83a969cca10a7677faae0b349e1a2988` is backed by canonical Quality `33890486614 = success`.
 
-Independent review confirmed current Develop was missing the bounded runtime-type/text hardening present in that verified lineage. Only these exact verified blobs were carried:
+Independent review confirmed current Develop still used separate streaming-only accounting and allowed bounded positive `read(amt)` calls to bypass the response-wide budget. The exact verified product and focused-test contents were carried:
 
-- `src/athena/storage/health.py` -> blob `16c9512522f83f886669526c268aa8d3747060a2`
-- `tests/unit/test_storage_health.py` -> blob `7397f174d436b2e600a8a0e0b3831d478651a64b`
+- `src/athena/model/adapters/local_http.py` -> verified blob `c14d431d171edae4741dd0031f64b587965e4ca9`
+- `tests/unit/test_local_http_response_boundaries.py` -> verified blob `5522f8e9f3ca2244f1126ca4480c2e28a84a63dc`
 
 Develop integration commits:
 
-- product: `2abaec45c20115bc02f4eea9d5bf8644db6dec97`
-- focused test: `3d236e6aa755bc1da68d7055eefda7e4ad5bfd72`
+- product: `86f3dd9059f5501b3455518f362d830e4d0aa1e3`
+- focused test: `d6375236ae47d9fb7463722718fda12d82ab612e`
 
-The slice rejects bool/non-integer size values, bool/non-integer observation timestamps, non-bool open state, non-text path/detail values and empty textual facts while preserving existing truthful availability/error semantics. No Storage transaction/recovery/fsync behavior, Network/Tor/Provider boundary, provenance, UI behavior or main history was changed.
+The slice establishes one cumulative byte budget across `read()`, `read(-1)` and `readline()`, retains one overflow-detection byte, and fails closed once accepted bytes would exceed the configured cap. Loopback-only routing, proxy rejection, redirect rejection, timeout validation and existing total-deadline semantics are unchanged.
 
 ## Validation state
 
-- Exact Backend lineage passed canonical Quality `33868034634`.
+- Exact Backend cumulative-size lineage passed canonical Quality `33890486614`.
 - Integrated product/test blobs are byte-identical to that verified lineage.
 - No exact current-Develop global Quality PASS is claimed in this run.
-- `ERR-0009` remains `FIXED_PENDING_VERIFY`; the remaining-budget product hardening must not be reverted and the harness-only correction still requires exact green descendant evidence.
-- Backend local-HTTP cumulative response-size lineage remains READY.
-- UI verified candidates remain available for later single-slice integration; newest UI head reports verified GAP-0015 plus candidate GAP-0016.
+- Backend exact descendant `225db6c031551a2b79edf0d74b331a33e359ad26` passed canonical Quality `33911612711 = success`; this satisfies the Error worker's `ERR-0009` verification contract for the unchanged remaining-budget hardening plus harness correction.
+- The newer direct-read total-deadline slice remains NOT READY until its own exact canonical Quality completes green.
+- Core attribution candidate remains NOT READY while its exact Quality is pending.
+- UI-GAP-0016 is READY on exact green UI lineage; UI-GAP-0017 remains pending verification.
 - Original eleven visual references remain unavailable; zero pixel-level `MATCH` claims are permitted.
 
 ## Next integration order
 
-1. Prefer an exact-green bounded Core finalization/attribution slice if its product-containing evidence is complete and collision-free.
-2. Otherwise independently consume exactly one READY Backend local-HTTP cumulative-size or verified UI bounded slice.
-3. Do not consume/close ERR-0009 lineage until exact descendant Quality is green with unchanged correction blob.
+1. Integrate the verified local HTTP `remaining + 1` readline hardening plus harness-only correction as the direct successor to this cumulative-budget prerequisite, after independent baseline/diff review.
+2. Otherwise consume exactly one READY UI-GAP-0016 or exact-green Core slice if stronger current evidence appears.
+3. Do not consume the direct-read total-deadline slice until its own exact canonical Quality is green.
 4. Require exact-head evidence before any global-green Develop claim.
 
 ## Rules retained
