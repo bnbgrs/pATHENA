@@ -147,6 +147,16 @@ def test_reference_shell_styles_top_nav_icon_rail_and_persistent_inspector() -> 
     assert f"min-width: {SHELL.inspector_width}px;" in PATHENA_SPECIALIZED_STYLESHEET
 
 
+def test_global_navigation_has_explicit_keyboard_focus_treatment() -> None:
+    focus_block = PATHENA_SPECIALIZED_STYLESHEET.split(
+        "QPushButton#topNavButton:focus,", maxsplit=1
+    )[1].split("QPushButton#topNavButton:checked", maxsplit=1)[0]
+    assert "QPushButton#topUtilityButton:focus" in focus_block
+    assert f"color: {PALETTE.text};" in focus_block
+    assert f"background: {PALETTE.surface_hover};" in focus_block
+    assert f"border-bottom: 2px solid {PALETTE.accent};" in focus_block
+
+
 def test_reference_title_and_composer_use_editorial_blue_contract() -> None:
     assert "QLabel#pageTitle" in PATHENA_SPECIALIZED_STYLESHEET
     assert f"font-family: {TYPE.display_family};" in PATHENA_SPECIALIZED_STYLESHEET
