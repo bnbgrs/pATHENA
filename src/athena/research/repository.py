@@ -65,6 +65,10 @@ from athena.research.row_mapping import (
     _synthesis_work_item_from_row,
     _work_item_from_row,
 )
+from athena.research.source_coverage_composition import (
+    SOURCE_COVERAGE_RESULT_KEY,
+    research_result_content_with_source_coverage_from_connection,
+)
 from athena.research.validation import (
     _canonical_json_object as _canonical_json_object,
 )
@@ -2415,7 +2419,12 @@ class ResearchRepository:
             synthesis_pipeline_version,
             "ResearchResult synthesis_pipeline_version",
         )
-        reserved = {"coverage", "problem_sources", "snapshot_commit_seq"}
+        reserved = {
+            "coverage",
+            "problem_sources",
+            "snapshot_commit_seq",
+            SOURCE_COVERAGE_RESULT_KEY,
+        }
         if reserved.intersection(semantic_content):
             raise ResearchStateError(
                 "ResearchResult semantic content contains Core-owned coverage fields."
@@ -2558,7 +2567,11 @@ class ResearchRepository:
                 "eligible_count": eligible_count,
                 "coverage_ratio": scope.coverage_ratio,
             }
-            payload = dict(semantic_content)
+            payload = research_result_content_with_source_coverage_from_connection(
+                semantic_content,
+                connection,
+                scope_id,
+            )
             payload["coverage"] = coverage_payload
             payload["problem_sources"] = problems
             payload["snapshot_commit_seq"] = scope.snapshot_commit_seq
