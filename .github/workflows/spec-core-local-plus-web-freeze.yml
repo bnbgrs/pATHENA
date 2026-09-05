@@ -39,6 +39,19 @@ jobs:
       - name: Apply deterministic product and acceptance patch
         run: python scripts/apply_spec_core_local_plus_web_freeze.py
 
+      - name: Correct exact tuple result type
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path("src/athena/research/repository.py")
+          text = path.read_text(encoding="utf-8")
+          old = '''                rows = [\n                    row\n                    for row in rows\n                    if (\n                        uuid_from_blob(bytes(row["source_id"]))\n                        not in all_external_source_ids\n                        or uuid_from_blob(bytes(row["source_id"])) in authorized\n                    )\n                ]\n'''
+          new = '''                rows = tuple(\n                    row\n                    for row in rows\n                    if (\n                        uuid_from_blob(bytes(row["source_id"]))\n                        not in all_external_source_ids\n                        or uuid_from_blob(bytes(row["source_id"])) in authorized\n                    )\n                )\n'''
+          if text.count(old) != 1:
+              raise SystemExit("tuple correction anchor did not match exactly once")
+          path.write_text(text.replace(old, new), encoding="utf-8")
+          PY
+
       - name: Focused Research regressions
         run: >-
           uv run --locked --extra dev pytest -q
