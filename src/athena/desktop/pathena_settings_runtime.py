@@ -247,10 +247,11 @@ class SettingsRuntimeController(QObject):
 
         core_status = value.health.core_status
         core_ready = core_status in _CORE_READY_STATES
+        display_core_status = core_status if core_status.strip() else "unavailable"
         network_text = (
             "Local Core · connected"
             if core_ready
-            else f"Local Core · {core_status}"
+            else f"Local Core · {display_core_status}"
         )
         self._set_state(
             self.network_value,
