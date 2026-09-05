@@ -3,64 +3,65 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `7710c7aaa82b4fe4725238cbe8f84d5be9ed3017`.
+- Develop before this run: `4ce70615cffcbf0e76ec404e7e58b34c7c5e308a`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `eaa7e17d8425a05682e011639504d8266c32acb9`; spec-core `1bf7a9947a004b813924c91aad105fe2eacffa56`; backend `1cc0017d560a1534de1fc2c83989d26e05238236`; ui `77b3f9582d4530dbe081e3c81b8768ad00d3f050`.
-- Required worker handoffs and current Alpha/Beta tracker were reviewed.
-- `main` and `bnbgrs/ATHENA` remained untouched.
+- Worker heads reviewed: errors `8cfa0784496cb26b1da9f396b424d6c10ed1d45f`; spec-core `00b510090b7ffea7d7492e224e4cccfc646317d1`; backend `4c9855df8e662e47a66cb2dcb9f66704c4d8f780`; ui `3262343d1f3e31e31d289dd0b0d22ff9559c458e`.
+- Required worker handoffs were reviewed. `main` and `bnbgrs/ATHENA` were untouched.
 
-## Integrated this run — Scoped Project Research
+## Integrated this run — Historical Backfill Research
 
 READY Core lineage independently reviewed:
 
-- exact verified worker product/test head `de0863e0c26f9d0c1474ef7c4f405cfc3ab6c79d`;
-- canonical ATHENA Quality `33960242573 = success`;
-- history-preserving Core synchronization `9416aa810c13c746c1d5e55545591477b00ef4c4` against prior Develop `8c2f08ef5a9dcafd9cf029da944527d97313cd2b` changed exactly three files.
+- product entrypoint `f696d26308b25ae7954167e253cae9a4469a87d1`;
+- durable payload validation `eab1e98b51b4ba5bde071d5c62841d72882aad01`;
+- focused real-application acceptance `1bf7a9947a004b813924c91aad105fe2eacffa56`;
+- canonical ATHENA Quality `33965803951 = success` on the exact product/test head.
 
-Collision review established that current Develop retained the same pre-slice blobs as `8c2f08ef...` for `src/athena/research/service.py` and `src/athena/jobs/payload_validation.py`, and `tests/unit/test_research_scoped_project.py` was still absent. Therefore the exact verified worker blobs were applied to the current Develop tree without copying an older worker tree or disturbing newer StorageHealth/integrator changes.
+The worker and current Develop diverged only because Develop already contained the previously integrated Scoped Project Research/progress lineage. The exact verified worker blobs for the two product files and the new focused test were therefore applied onto the current Develop base tree rather than transplanting an older worker tree.
 
 Integrated exact blobs:
 
-- `src/athena/research/service.py@ea69a4c2318da0f7faf2d6fc73d5022ae11ae8b3`;
-- `src/athena/jobs/payload_validation.py@c8dfae33147ec02b9589300324eb5ca26086552a`;
-- `tests/unit/test_research_scoped_project.py@dbdac1a7a87e94eba7825a741d9648decafffce8`.
+- `src/athena/research/service.py@902ab0423b8d63cd4ee7e16f60cb45fcd389264d`;
+- `src/athena/jobs/payload_validation.py@171fddf4c8d2bd2643fffdb338a19976ede645d8`;
+- `tests/unit/test_research_historical_backfill.py@1340b5ce4d63d6c317321c44a1d3fe231d1b7c02`.
 
-Integration commit: `55f1c1638ad5032818ce156f97dc252f23ab3dc8`.
-Independent compare `7710c7aaa82b4fe4725238cbe8f84d5be9ed3017..55f1c1638ad5032818ce156f97dc252f23ab3dc8` is exactly one commit and exactly three files: payload validator `+9/-1`, ResearchService `+79/-1`, and one focused test file `+69`.
+Integration commit: `70d5f135d9e9eb2640117314658a175f7d6a04f6`.
+Independent compare from prior Develop is exactly one commit and exactly three files: payload validator `+6/-7`, ResearchService `+48/-1`, historical-backfill focused test `+88`.
 
 ## Product contract preserved
 
-- `enqueue_scoped_project()` persists truthful `ResearchMode.SCOPED_PROJECT`.
-- Project scope is mandatory and must contain canonical UUIDs before durable persistence.
-- Durable `research.exhaustive` validation permits only `local_exhaustive` and `scoped_project`; scoped-project mode fails closed on empty `project_ids`.
-- Project IDs remain sorted/unique/canonical.
-- Query, source type, time range, coverage, snapshot, pinned model, candidate dedup and orchestration validation remain unchanged.
-- Scoped Project Research does not implicitly enable Internet; `internet_scope` remains null.
-- No synthetic source/claim/evidence/provenance/PALLAS data was introduced.
+- `enqueue_historical_backfill()` persists truthful `ResearchMode.HISTORICAL_BACKFILL`.
+- Both time bounds are mandatory non-negative genuine integers; bool is rejected.
+- End-before-start fails closed before durable job persistence.
+- Durable `research.exhaustive` validation independently requires both bounds for historical-backfill mode.
+- Existing local/scoped-project behavior, project/source filters, coverage, snapshot pinning, candidate dedup identity, model parameters and orchestration remain unchanged.
+- `internet_scope` remains null; Historical Backfill does not implicitly enable external access.
+- No synthetic source, claim, evidence, provenance or PALLAS data was introduced.
 
 ## Validation state
 
-- Exact worker canonical Quality: `33960242573 = success`.
-- Exact worker focused acceptance used real AthenaApplication/SQLite persistence and verified truthful mode/project persistence plus empty-project fail-closed behavior.
-- Independent integration diff review: PASS, exactly the three expected files and no other tree changes.
-- No pull-request-triggered workflow run is currently bound to integration commit `55f1c1638ad5032818ce156f97dc252f23ab3dc8`; therefore no exact-current-Develop repository-wide global-green claim is made.
+- Exact worker canonical Quality: `33965803951 = success`.
+- Focused acceptance uses the real `AthenaApplication`/SQLite path and verifies truthful mode/time persistence, initialization, invalid interval rejection before persistence, and bool rejection.
+- Independent integration diff review: PASS; exactly the expected three files.
+- No exact-current-Develop canonical Quality result is available yet, therefore repository-wide global green is not claimed.
 
 ## Other current inputs
 
-- Backend StorageHealth single-line-detail hardening is READY via exact green Backend head `f7913b50618998b9b16a48ae9a810ed9122b64bc`, Quality `33963593580`, but deferred by the single-bounded-slice rule.
-- Backend ASCII-control-detail hardening remains `FIXED_PENDING_VERIFY`.
-- UI current lineage has an Error-owned regression handoff: `ERR-0012` is `FIXED_PENDING_VERIFY`; corrected UI head has verification still pending and is not READY on that evidence.
-- Previously READY UI bounded slices remain deferred pending fresh dependency/collision review.
+- Backend StorageHealth ASCII-control-detail is READY through exact Backend head `1cc0017d560a1534de1fc2c83989d26e05238236`, Quality `33966299076 = success`.
+- Backend DiskPressure reserve-release-state hardening remains pending exact green verification.
+- UI-GAP-0024 is READY: exact UI head `77b3f9582d4530dbe081e3c81b8768ad00d3f050`, Quality `33966822035 = success`.
+- Error handoff is stale relative to that completed UI Quality and still lists `ERR-0012`/`ERR-0013` as FIXED_PENDING_VERIFY; Error worker should consume the exact green UI evidence before closure.
+- All eleven UI screens remain implemented pending visual review; no pixel-level MATCH claim is made.
 
 ## Next integration order
 
-1. Consume any newer exact-green bounded Core successor only after independent compatibility review.
-2. Otherwise consume exactly one READY alternative; Backend StorageHealth single-line-detail hardening currently has exact green evidence.
-3. Do not integrate the UI corrected lineage for `ERR-0012` until its exact canonical Quality completes successfully.
+1. Independently review any newer exact-green bounded Core successor first.
+2. Otherwise integrate exactly one READY alternative; Backend ASCII-control-detail and UI-GAP-0024 are current candidates.
+3. Error worker should close `ERR-0012`/`ERR-0013` only after independently consuming exact UI Quality `33966822035` and confirming the unavailable-path guard plus Ruff correction remain present.
 4. Preserve single-bounded-slice discipline and exact-head evidence before any repository-wide green claim.
 
 ## Rules retained
 
 - No direct work on `main`; no main promotion.
 - No force-push, history rewrite or auto-merge.
-- No Skip/XFail, weaker assertion, Security/Storage/Windows/Recovery/validator relaxation, fake success or fabricated provenance.
+- No Skip/XFail, weaker assertions, Security/Storage/Windows/Recovery/validator relaxation, fake success or fabricated provenance.
