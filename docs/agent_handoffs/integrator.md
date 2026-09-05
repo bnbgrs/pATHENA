@@ -3,47 +3,41 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `f9938b0f3c3a016b1cc7837441caaec72974e1cf`.
+- Develop before this run: `fdbf882eede84bfcc5debc6cfffc311fdfb1e440`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `bb0f9ef8f16d28b069aa565041c0fa38dab34389`; spec-core `dd7d23672ecf634d3bda4ed466df3c596b792f67`; backend `15c06e210952aabcb49c22f08e92ed0c0c73272e`; ui `525ae04361dd29cc4a9e05f62f810c5ec47ac16d`.
-- `ERROR_LEDGER`, `11-Screen-Manifest`, and `Visual-Gap-Ledger` remain unavailable as separately named repository files in the reviewed evidence; `errors.md`, `ui.md`, and `ALPHA_BETA_PROGRESS.md` remain the available trackers.
+- Worker heads reviewed: errors `32d59d7b43bbd6d6cf4108ba8b00b6f8726645a7`; spec-core `88b9bad5a3c6cd028b421cafc2e7fb65caeb6a53`; backend `cb23f971ac68ed5c4cf67a5638efc6a44a9c3fb2`; ui `f2cc20321c79809a37079b0525b2aab676ac8682`.
+- `ERROR_LEDGER`, `11-Screen-Manifest`, and `Visual-Gap-Ledger` were not available as separately named repository files in the reviewed evidence; `errors.md`, `ui.md`, and `ALPHA_BETA_PROGRESS.md` remain the available trackers.
 
-## Integrated this run — local HTTP delegated bulk-read escape
+## Integrated this run — production acceptance combined contradiction gate
 
-READY Backend lineage independently reviewed:
+READY Core lineage independently reviewed:
 
-- product `0d0844a70d6e825253ec15e5544b8b716990dad0`;
-- focused tests `f55f092b5d20568f20f1172dd6500bc4a55c7f31`;
-- exact verified Backend descendant `cdc61439364028d29ecc56f3c39d34cd9a3dcc12`;
-- canonical Quality `33941852514 = success`.
+- exact verified product/test head `dd7d23672ecf634d3bda4ed466df3c596b792f67`;
+- canonical Quality `33944149694 = success`;
+- history-preserving NON-FORCE synchronization commit `451772e57f0edfd38a2fce95ec10a882473c1275`, whose tree combines the verified Core-owned product/test changes with exact inspected Develop baseline `fdbf882eede84bfcc5debc6cfffc311fdfb1e440`.
 
-Independent diff review confirmed the bounded product mutation only extends the already fail-closed delegated read-API boundary from `peek/read1/readinto/readinto1` to also reject `readall/readlines`. The focused test extends the same parametrized fail-before-I/O contract. Current Develop already contained cumulative byte-budget, remaining+1 readline, total-deadline, terminal-overflow, alternative-read and raw body-handle hardening, so the newer Backend file-descriptor successor was not absorbed.
+The bounded slice places the already verified temporal-plus-attribution contradiction eligibility gate on the real `ProposalAcceptanceService.accept_all()` durable contradiction-review path through `enqueue_canonical_contradiction_review()`. Exact Claim entity/revision identity is retained from canonical deduplication to enqueue; provably disjoint temporal windows and two explicitly attributed opinions with distinct persisted attribution entities do not create contradiction-review rows. Permitted candidates retain existing processing-run/model/entity/revision/confidence/reason/timestamp metadata, existing review deduplication and explicit human accept/reject semantics remain unchanged, and missing exact revisions remain fail-closed.
 
-Develop integration commits:
-
-- product: `201c6a9f00c6c7d7cf48cafb712cde7311e89412`;
-- focused tests: `5352e60216b41ac4570a2ed21cfcce2559a20bfb`.
-
-No loopback/proxy/redirect, deadline, byte-budget, Storage/Recovery, audit, provenance, fsync or transactional behavior was weakened or broadened.
+No Backend transport/runtime/storage/recovery, UI/Qt, provenance synthesis, schema, PALLAS, fsync or transaction-ownership semantics were broadened or weakened.
 
 ## Validation state
 
-- Backend exact descendant `cdc61439364028d29ecc56f3c39d34cd9a3dcc12` passed canonical Quality `33941852514 = success`.
-- Product and test changes integrated on Develop are the independently reviewed bounded deltas from the green lineage.
-- No exact-current-Develop global-green claim is made until a workflow run binds to the final Develop head.
-- Backend file-descriptor escape remains not READY until exact descendant canonical green evidence.
-- UI-GAP-0020 is READY on exact UI head `9ca1cb04031d618bd6d34d2df4a46d331d110a82` / Quality `33942660590 = success`, but was deferred by single-bounded-slice discipline.
-- Error handoff reports `ERR-0001` through `ERR-0011` fixed with no current OPEN item.
+- Exact Core head `dd7d23672ecf634d3bda4ed466df3c596b792f67` passed `ATHENA Quality Gate` run `33944149694` with conclusion `success`.
+- Independent compare against exact inspected Develop showed only four bounded files: `src/athena/knowledge/acceptance_service.py`, new `src/athena/knowledge/contradiction_review_enqueue.py`, and two focused unit-test files.
+- Develop advanced non-force to synchronization commit `451772e57f0edfd38a2fce95ec10a882473c1275`; no exact-current-final-Develop global-green claim is made until a workflow run binds to the final documentation descendant.
+- Backend file-descriptor escape is independently READY on exact green Backend head `15c06e210952aabcb49c22f08e92ed0c0c73272e` / Quality `33944818290`, but was deferred by single-bounded-slice discipline.
+- UI-GAP-0020 remains independently READY on exact UI head `9ca1cb04031d618bd6d34d2df4a46d331d110a82` / Quality `33942660590`; current newer UI lineage was still in progress in the Error handoff and was not consumed.
+- Error handoff records `ERR-0001` through `ERR-0011` fixed with no current OPEN item.
 
 ## Next integration order
 
-1. Prefer a newly confirmed exact-green bounded Core product-containing successor if current and collision-free.
-2. Otherwise independently review exactly one READY UI/Backend slice; UI-GAP-0020 is READY, while Backend file-descriptor escape requires its own exact-green descendant.
-3. Preserve single-bounded-slice discipline and exact-head evidence before any global-green Develop claim.
+1. Inspect whether current Core head contains a new exact-green product-containing successor beyond the integrated production acceptance gate; consume only if independently bounded and collision-free.
+2. Otherwise independently review exactly one READY alternative: Backend file-descriptor escape first if still exact-green/current, or UI-GAP-0020.
+3. Preserve single-bounded-slice discipline and exact-head evidence before any repository-wide green claim.
 
 ## Rules retained
 
 - `main` and `bnbgrs/ATHENA` remain read-only and unchanged.
-- No force-push, history rewrite, auto-merge or automatic promotion to main.
+- No force-push, history rewrite, auto-merge or promotion to main.
 - Pending/cancelled/action-required/in-progress/failed Quality is never PASS evidence.
 - No weakened tests/guards, fake success paths or fabricated provenance.
