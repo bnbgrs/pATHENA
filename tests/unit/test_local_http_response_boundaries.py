@@ -52,6 +52,23 @@ def test_alternative_response_read_apis_are_rejected_before_underlying_io(
     assert response.closed is False
 
 
+def test_raw_body_handle_attributes_are_rejected_before_escape() -> None:
+    raw = _RecordingBytesIO(b"abcdef")
+    raw.fp = raw  # type: ignore[attr-defined]
+    raw.file = raw  # type: ignore[attr-defined]
+    raw.raw = raw  # type: ignore[attr-defined]
+    response = _BoundedLocalResponse(raw, max_bytes=5)
+
+    for attribute_name in ("fp", "file", "raw"):
+        with pytest.raises(OSError, match="raw body handles"):
+            getattr(response, attribute_name)
+
+    assert raw.tell() == 0
+    assert raw.read_sizes == []
+    assert raw.readline_sizes == []
+    assert response.closed is False
+
+
 def test_chunked_reads_cannot_bypass_cumulative_response_limit() -> None:
     response = _BoundedLocalResponse(io.BytesIO(b"abcdef"), max_bytes=5)
 
