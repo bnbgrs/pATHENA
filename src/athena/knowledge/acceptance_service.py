@@ -12,7 +12,9 @@ from athena.chat.service import ChatService
 from athena.common.ids import new_uuid7, uuid_to_blob
 from athena.common.time import utc_now_us
 from athena.knowledge.claim_repository import ClaimRepository, _claim_payload_hash
-from athena.knowledge.contradiction_review_gate import assess_canonical_claim_revisions
+from athena.knowledge.contradiction_review_enqueue import (
+    enqueue_canonical_contradiction_review,
+)
 from athena.knowledge.deduplication import (
     CanonicalDeduplicationService,
     CanonicalMergeCandidate,
@@ -235,14 +237,7 @@ class ProposalAcceptanceService:
                 ):
                     contradiction_pairs_reused.append((left_claim_id, right_claim_id))
                     continue
-                temporal_assessment = assess_canonical_claim_revisions(
-                    connection,
-                    left_revision_id=left_revision_id,
-                    right_revision_id=right_revision_id,
-                )
-                if not temporal_assessment.permits_contradiction_candidate:
-                    continue
-                review_id = self.reviews.enqueue_contradiction(
+                review_id = enqueue_canonical_contradiction_review(
                     connection,
                     processing_run_id=result.processing_run.processing_run_id,
                     model_signature_id=result.model_signature.model_signature_id,
@@ -257,6 +252,8 @@ class ProposalAcceptanceService:
                     ),
                     created_at_us=created_at_us,
                 )
+                if review_id is None:
+                    continue
                 contradiction_review_ids.append(review_id)
 
         return ProposalAcceptanceResult(
@@ -278,7 +275,7 @@ class ProposalAcceptanceService:
         result: ChatExtractionResult,
         plan: DeduplicationPlan,
     ) -> tuple[uuid.UUID, ...]:
-        """Persist unresolved canonical merge candidates without canonical semantic writes."""
+        """Persist unresolved canonical near-duplicate decisions without canonical semantic writes."""
         thread = self.chat.load_chat(result.chat_id)
         source_by_sequence = {message.sequence_no: message for message in thread.messages}
         self._validate_snapshot(result, source_by_sequence)
