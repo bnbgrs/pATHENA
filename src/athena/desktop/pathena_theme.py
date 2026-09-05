@@ -52,6 +52,13 @@ QPushButton#topUtilityButton:hover {{
     background: transparent;
 }}
 
+QPushButton#topNavButton:focus,
+QPushButton#topUtilityButton:focus {{
+    color: {PALETTE.text};
+    background: {PALETTE.surface_hover};
+    border-bottom: 2px solid {PALETTE.accent};
+}}
+
 QPushButton#topNavButton:checked {{
     color: {PALETTE.accent};
     background: transparent;
