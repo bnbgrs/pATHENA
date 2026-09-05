@@ -91,6 +91,8 @@ class StorageHealthSnapshot:
         if self.status == "unavailable":
             if self.database_open:
                 raise ValueError("Unavailable storage health cannot report an open database.")
+            if database_path is None:
+                raise ValueError("Unavailable storage health requires a database path.")
             if detail is None:
                 raise ValueError("Unavailable storage health requires a detail.")
             return
