@@ -7,10 +7,16 @@ import math
 import secrets
 import sqlite3
 import uuid
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from typing import Any
 
 from athena.chat.service import ChatService
+from athena.jobs.dependency_graph import (
+    ChildCancellationPolicy,
+    JobDependencyGraph,
+    JobGraphSnapshot,
+    ParentCompletionPolicy,
+)
 from athena.jobs.models import (
     CheckpointRecord,
     JobPriority,
@@ -61,6 +67,7 @@ class DurableJobService:
     def __init__(self, repository: JobRepository, chat: ChatService) -> None:
         self.repository = repository
         self.chat = chat
+        self.graph = JobDependencyGraph(repository)
 
     def create(
         self,
@@ -70,6 +77,10 @@ class DurableJobService:
         requested_scope: Mapping[str, Any] | None = None,
         pinned_configuration: Mapping[str, Any] | None = None,
         next_run_at_us: int | None = None,
+        parent_job_id: uuid.UUID | None = None,
+        parent_completion_policy: ParentCompletionPolicy = ParentCompletionPolicy.INDEPENDENT,
+        child_cancellation_policy: ChildCancellationPolicy = ChildCancellationPolicy.INDEPENDENT,
+        depends_on_job_ids: Iterable[uuid.UUID] = (),
     ) -> JobRecord:
         normalized_job_type = self._registered_job_type(job_type)
         normalized_scope = _optional_mapping(requested_scope, "requested_scope")
@@ -79,6 +90,8 @@ class DurableJobService:
         )
         _job_priority(priority)
         _optional_nonnegative_int(next_run_at_us, "next_run_at_us")
+        if parent_job_id is not None:
+            _uuid_value(parent_job_id, "parent_job_id")
         try:
             if normalized_job_type in {NEWS_JOB_TYPE, NEWS_PERIOD_JOB_TYPE}:
                 validate_news_job_payload(
@@ -98,13 +111,17 @@ class DurableJobService:
         requested_scope_json = _canonical_json(normalized_scope)
         pinned_configuration_json = _canonical_json(normalized_configuration)
         actor_id = self.chat.ensure_local_user()
-        return self.repository.create(
+        return self.graph.create_job(
             job_type=normalized_job_type,
             actor_id=actor_id,
             priority=priority,
             requested_scope_json=requested_scope_json,
             pinned_configuration_json=pinned_configuration_json,
             next_run_at_us=next_run_at_us,
+            parent_job_id=parent_job_id,
+            parent_completion_policy=parent_completion_policy,
+            child_cancellation_policy=child_cancellation_policy,
+            depends_on_job_ids=depends_on_job_ids,
         )
 
     def active_for_type(
@@ -133,6 +150,7 @@ class DurableJobService:
         _canonical_text(worker_id, "worker_id")
         _positive_int(lease_seconds, "lease_seconds")
         _optional_nonnegative_int(now_us, "now_us")
+        self.graph.require_runnable(normalized_job_id)
         return self.repository.acquire_lease(
             job_id=normalized_job_id,
             worker_id=worker_id,
@@ -226,9 +244,11 @@ class DurableJobService:
         )
 
     def recover_startup(self, *, now_us: int | None = None) -> tuple[JobRecord, ...]:
-        """Recover only expired leases; live worker leases are never stolen."""
+        """Recover expired leases, then restore durable dependency waiting state."""
         _optional_nonnegative_int(now_us, "now_us")
-        return self.repository.recover_expired_leases(now_us=now_us)
+        recovered = self.repository.recover_expired_leases(now_us=now_us)
+        self.graph.reconcile(now_us=now_us)
+        return recovered
 
     def get(self, job_id: uuid.UUID) -> JobRecord:
         return self.repository.get(_uuid_value(job_id, "job_id"))
@@ -236,6 +256,23 @@ class DurableJobService:
     def list(self, *, limit: int = 100) -> tuple[JobRecord, ...]:
         _positive_int(limit, "limit")
         return self.repository.list(limit=limit)
+
+    def graph_snapshot(self, job_id: uuid.UUID) -> JobGraphSnapshot:
+        return self.graph.snapshot(_uuid_value(job_id, "job_id"))
+
+    def replace_dependencies(
+        self,
+        job_id: uuid.UUID,
+        depends_on_job_ids: Iterable[uuid.UUID],
+    ) -> JobRecord:
+        normalized_job_id = _uuid_value(job_id, "job_id")
+        self.graph.replace_dependencies(normalized_job_id, depends_on_job_ids)
+        return self.repository.get(normalized_job_id)
+
+    def effective_priority(self, job_id: uuid.UUID, *, now_us: int) -> JobPriority:
+        normalized_job_id = _uuid_value(job_id, "job_id")
+        _nonnegative_int(now_us, "now_us")
+        return self.graph.effective_priority(normalized_job_id, now_us=now_us)
 
     def eligible_queued(
         self,
@@ -247,7 +284,11 @@ class DurableJobService:
         _nonnegative_int(now_us, "now_us")
         _positive_int(limit, "limit")
         normalized_job_types = self._registered_job_type_filter(job_types)
-        return self.repository.list_eligible_queued(
+        self.graph.reconcile(now_us=now_us)
+        # The graph expands dependency targets before applying the caller's
+        # final candidate limit. Leasing still re-reads canonical rows, so
+        # ResourceManager and P0 safety policy receive persisted base priority.
+        return self.graph.eligible_queued(
             now_us=now_us,
             job_types=normalized_job_types,
             limit=limit,
@@ -263,7 +304,9 @@ class DurableJobService:
         now_us: int | None = None,
     ) -> tuple[JobRecord, ...]:
         _optional_nonnegative_int(now_us, "now_us")
-        return self.repository.wake_due_waiting(now_us=now_us)
+        woken = self.repository.wake_due_waiting(now_us=now_us)
+        self.graph.reconcile(now_us=now_us)
+        return woken
 
     def schedule_retry(
         self,
@@ -351,16 +394,23 @@ class DurableJobService:
         )
 
     def wake(self, job_id: uuid.UUID) -> JobRecord:
-        return self.repository.wake(_uuid_value(job_id, "job_id"))
+        normalized_job_id = _uuid_value(job_id, "job_id")
+        woken = self.repository.wake(normalized_job_id)
+        self.graph.reconcile()
+        return self.repository.get(woken.job_id)
 
     def request_cancel(self, job_id: uuid.UUID) -> JobRecord:
-        return self.repository.request_cancel(_uuid_value(job_id, "job_id"))
+        normalized_job_id = _uuid_value(job_id, "job_id")
+        return self.graph.request_cancel_cascade(normalized_job_id)
 
     def pause(self, job_id: uuid.UUID) -> JobRecord:
         return self.repository.pause(_uuid_value(job_id, "job_id"))
 
     def resume(self, job_id: uuid.UUID) -> JobRecord:
-        return self.repository.resume(_uuid_value(job_id, "job_id"))
+        normalized_job_id = _uuid_value(job_id, "job_id")
+        resumed = self.repository.resume(normalized_job_id)
+        self.graph.reconcile()
+        return self.repository.get(resumed.job_id)
 
     def complete(
         self,
@@ -372,11 +422,14 @@ class DurableJobService:
         normalized_job_id = _uuid_value(job_id, "job_id")
         _lease_token(lease_token)
         _optional_nonnegative_int(now_us, "now_us")
-        return self.repository.complete(
+        self.graph.assert_parent_completion_allowed(normalized_job_id)
+        completed = self.repository.complete(
             job_id=normalized_job_id,
             lease_token=lease_token,
             now_us=now_us,
         )
+        self.graph.reconcile(now_us=now_us)
+        return completed
 
     def acknowledge_cancel(
         self,
