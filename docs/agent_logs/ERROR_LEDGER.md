@@ -14,9 +14,9 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 ## Current baseline
 
 - Baseline branch: `develop/pathena-next`
-- Baseline SHA observed this run: `52e702912b3b2c0f4cfc7c93baf4c656a02231ad`
+- Baseline SHA observed this run: `d1ca4580b129f5b255215ce415f4e627b22dbc63`
 - Worker branch: `postmerge/errors`
-- Error branch was observed diverged from current Develop; no force/ref rewrite was attempted. History preservation remains mandatory.
+- Error branch remains history-diverged from current Develop; no force/ref rewrite was attempted. History preservation remains mandatory.
 
 ## Current error state
 
@@ -30,12 +30,13 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 
 - Historical `ERR-0004` remains `FIXED`; no startup/readiness Ruff recurrence was observed.
 - `ERR-0010` remains `FIXED`; no recurrence of the stale four-timestamp stream-deadline fixture signature was observed.
-- Backend Quality `33949831624` on `ec392a018a381bc478e83ef335107f9b9e4a30e8` completed `success`.
-- UI Quality `33950433025` on `bbf03ba95695c12cf70f88195e09714cff25593c` completed `success`.
-- Newer Backend head `6cdb9095b265230b5484a7ce203c09c798b9a0a6` is under canonical Quality `33952543793`, still in progress; this is neither PASS nor failure evidence.
-- Newer UI head `f36ffd143ae51b5e6e0fd653cefddbd33ce0b886` is under canonical Quality `33953459102`, pending; this is neither PASS nor failure evidence.
+- Backend Quality `33952543793` on `6cdb9095b265230b5484a7ce203c09c798b9a0a6` completed `success`.
+- UI Quality `33953459102` on `f36ffd143ae51b5e6e0fd653cefddbd33ce0b886` completed `success`.
+- Newer Backend head `1ca844d7f5d8a90165e3b109fe1a7caa1880d877` is under canonical Quality `33955258771`, still `in_progress`; this is neither PASS nor failure evidence.
+- Newer UI head `d70147b804447ef9834d3ce27661682cf0ea98f7` is under canonical Quality `33956094573`, still `pending`; this is neither PASS nor failure evidence.
+- Integrator has already consumed the exact-green Backend StorageHealth whitespace-detail slice into current Develop; no new Error-owned defect is exposed by that integration handoff.
 - No `ERR-0012` is allocated because no concrete deduplicated primary failure is currently complete.
-- Current Develop `52e702912b3b2c0f4cfc7c93baf4c656a02231ad` has no exact-head global-green claim in this run.
+- Current Develop `d1ca4580b129f5b255215ce415f4e627b22dbc63` has no exact-head global-green claim in this run.
 
 ## Entries
 
