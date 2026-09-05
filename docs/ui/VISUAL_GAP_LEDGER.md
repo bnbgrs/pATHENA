@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `4ce70615cffcbf0e76ec404e7e58b34c7c5e308a`
+Baseline: `b9ab5ecb7fc49a5d3bd5c25f0254f118e21fc7ee`
 Integration target: `develop/pathena-next`
 UI worker: `postmerge/ui`
 
@@ -97,6 +97,14 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Acceptance: blank/whitespace runtime detail uses the existing self-describing provider-readiness fallback; every nonblank supplied detail remains verbatim; provider readiness, snapshot freshness, transport, backend, storage, network and security semantics are unchanged.
 - Verification evidence: exact UI head `77b3f9582d4530dbe081e3c81b8768ad00d3f050` passed ATHENA Quality Gate `33966822035` with conclusion `success`; validator, Ruff, mypy, full pytest, Windows path safety, Linux storage regressions and local-install smoke all passed.
 - Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0025 — Glyph-only primary navigation lacks human accessible item text
+- Screen: `01 — Workspace / Chat`; Category: `ACCESSIBILITY / NAVIGATION`; Severity: `P1`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Evidence: the reduced primary rail intentionally replaces visible item labels with glyphs and retains the human destination only as a tooltip; the QListWidget items had no explicit accessible-text role, unlike the symbol-only top utility buttons which already carry accessible names.
+- Product `b3deae1671a8832e94fd8b3ef85fefa916ced468`; focused shell coverage `b25bc07059bc116ec25a4e7ce924a89f4508e2df`.
+- Acceptance: visible glyphs, rail width, destination ordering, tooltips and navigation behavior remain unchanged; every rail item exposes the corresponding Workspace/Library/Research/Jobs/Sources/System/Settings label through `Qt.ItemDataRole.AccessibleTextRole`.
+- Verification evidence: canonical exact-head Quality pending.
+- Visual status: `IMPLEMENTED_PENDING_VERIFY`; no screenshot-level `MATCH` claim.
 
 ## Evidence blocker
 
