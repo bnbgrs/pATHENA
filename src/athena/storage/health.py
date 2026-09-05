@@ -140,7 +140,7 @@ class StorageHealthService:
             database_open=True,
             database_path=str(database_path),
             database_size_bytes=database_size_bytes,
-            wal_size_bytes=wal_size_size_bytes,
+            wal_size_bytes=wal_size_bytes,
             observed_at_us=observed_at_us,
             detail=None,
         )
