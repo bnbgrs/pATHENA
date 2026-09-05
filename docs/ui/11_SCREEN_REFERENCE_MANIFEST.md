@@ -1,13 +1,13 @@
 # pATHENA 11-Screen Reference Manifest
 
-Baseline: `b9ab5ecb7fc49a5d3bd5c25f0254f118e21fc7ee`
+Baseline: `49212a0f157d433d68e9d04e9a9643e2909b6827`
 Integration target: `develop/pathena-next`
 
 This manifest is the canonical inventory for the eleven user-provided pATHENA UI references. The original image payloads are still not available for direct visual opening in the current repository/tool path. Therefore all pixel/composition claims remain `VISUAL_REFERENCE_PENDING`. No slot may be promoted to `MATCH` without opening the actual reference and comparing it against a real rendered pATHENA state.
 
 | Slot | Surface / state | Reference source | Evidence-backed intent available now | Implementation status | Last checked SHA |
 |---|---|---|---|---|---|
-| 01 | Workspace / Chat | `VISUAL_REFERENCE_PENDING` | Quiet central workspace; chat as work document; large composer; contextual evidence/activity inspector; glyph-only primary rail retains human destination names through explicit accessible item text | `IMPLEMENTED_PENDING_VERIFY` | `b25bc07059bc116ec25a4e7ce924a89f4508e2df` |
+| 01 | Workspace / Chat | `VISUAL_REFERENCE_PENDING` | Quiet central workspace; chat as work document; large composer; contextual evidence/activity inspector; glyph-only primary rail retains human destination names through explicit accessible item text; global top navigation has explicit keyboard-focus treatment | `IMPLEMENTED_PENDING_VERIFY` | `d40aee5fdc98571f725f644806b272726ad74041` |
 | 02 | Library / Knowledge | `VISUAL_REFERENCE_PENDING` | Reduced knowledge workspace with real durable knowledge/claim provenance | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `4ce70615cffcbf0e76ec404e7e58b34c7c5e308a` |
 | 03 | Research | `VISUAL_REFERENCE_PENDING` | Real research process/results with restrained hierarchy and provenance | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `4ce70615cffcbf0e76ec404e7e58b34c7c5e308a` |
 | 04 | Jobs | `VISUAL_REFERENCE_PENDING` | Real durable-job state and controls; no fabricated queue state | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `4ce70615cffcbf0e76ec404e7e58b34c7c5e308a` |
