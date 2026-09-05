@@ -280,6 +280,11 @@ QPushButton#sendButton:hover {{
     border-color: {PALETTE.accent_hover};
 }}
 
+QPushButton#sendButton:focus {{
+    background: {PALETTE.accent_hover};
+    border: 2px solid {PALETTE.text};
+}}
+
 QPushButton#sendButton:pressed {{
     background: {PALETTE.accent_pressed};
     border-color: {PALETTE.accent_pressed};

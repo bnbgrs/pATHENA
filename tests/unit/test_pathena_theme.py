@@ -166,6 +166,22 @@ def test_primary_navigation_has_explicit_keyboard_focus_treatment() -> None:
     assert f"border-left: 2px solid {PALETTE.accent};" in focus_block
 
 
+def test_send_button_has_explicit_keyboard_focus_treatment() -> None:
+    focus_block = PATHENA_SPECIALIZED_STYLESHEET.split(
+        "QPushButton#sendButton:focus", maxsplit=1
+    )[1].split("QPushButton#sendButton:pressed", maxsplit=1)[0]
+    assert f"background: {PALETTE.accent_hover};" in focus_block
+    assert f"border: 2px solid {PALETTE.text};" in focus_block
+
+    base_block = PATHENA_SPECIALIZED_STYLESHEET.split(
+        "QPushButton#sendButton {", maxsplit=1
+    )[1].split("QPushButton#sendButton:hover", maxsplit=1)[0]
+    assert "min-width: 48px;" in base_block
+    assert "max-width: 48px;" in base_block
+    assert "min-height: 48px;" in base_block
+    assert "max-height: 48px;" in base_block
+
+
 def test_reference_title_and_composer_use_editorial_blue_contract() -> None:
     assert "QLabel#pageTitle" in PATHENA_SPECIALIZED_STYLESHEET
     assert f"font-family: {TYPE.display_family};" in PATHENA_SPECIALIZED_STYLESHEET
