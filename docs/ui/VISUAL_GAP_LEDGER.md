@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `25089e434412e7c1b8ede229438324338a0d5da0`
+Baseline: `de2f5a64e7a0fbc282df81db6beee3431297f2de`
 Integration target: `develop/pathena-next`
 
 Only evidence-backed gaps belong here. The original 11 reference screenshots remain unavailable for direct visual comparison; therefore no pixel-level mismatch or `MATCH` claim is asserted.
@@ -180,6 +180,19 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Acceptance: unavailable provider detail fails closed to `pathenaUiState=error`, retains `pathenaRuntimeFreshness=unavailable`, and keeps the accessible description synchronized. Provider absence itself also forces provider/detail freshness to `unavailable`; fresh ready, stale, explicit model-error, persistence, connection, backend, provider, storage, network and security behavior remain unchanged.
 - Verification evidence: exact corrective UI head `9df9d7d46e3c4774aeea5439f91166a2092bd7fb` passed ATHENA Quality Gate `33926653411` with conclusion `success`.
 - Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0019 — Unavailable provider detail copy describes generic readiness instead of the actual unavailable state
+
+- Category: `COPY / STATE / ACCESSIBILITY`
+- Screen: `07 — Settings`
+- Severity: `P2`
+- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Evidence: for a real `DesktopApiSnapshot` with `provider=None` and no explicit `model_error`, the provider indicator renders `Model provider · unavailable` as `error/unavailable`, while `settingsRuntimeDetail` fell back to generic text about provider readiness being reported by Core. That copy does not explain the actual unavailable state represented by the same snapshot.
+- Product commit: `6bfce859c177dfc75119a63c270c028b5b3c5772`.
+- Focused test commit: `de688468ff3265d997a2b4c5a39d0aebdf89a9da`.
+- Acceptance: provider absence with no explicit model error renders a self-describing local-Core-snapshot unavailable message; `error/unavailable` metadata and synchronized accessible description remain intact. Explicit model errors and provider-supplied detail keep precedence. Provider/backend/storage/network/security semantics remain unchanged.
+- Verification evidence: canonical ATHENA Quality run `33933815974` started on exact product/test head `de688468ff3265d997a2b4c5a39d0aebdf89a9da`; result pending.
+- Visual status: `IMPLEMENTED_PENDING_VERIFY`; no screenshot-level `MATCH` claim.
 
 ## Evidence blocker
 
