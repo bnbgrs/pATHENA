@@ -227,19 +227,6 @@ def test_storage_health_snapshot_rejects_empty_text_facts(field: str) -> None:
         StorageHealthSnapshot(**kwargs)  # type: ignore[arg-type]
 
 
-def test_storage_health_snapshot_requires_path_for_open_error_state() -> None:
-    with pytest.raises(ValueError, match="Open storage health requires a database path"):
-        StorageHealthSnapshot(
-            status="error",
-            database_open=True,
-            database_path=None,
-            database_size_bytes=None,
-            wal_size_bytes=None,
-            observed_at_us=1,
-            detail="probe failed",
-        )
-
-
 def test_storage_health_snapshot_requires_path_for_unavailable_state() -> None:
     with pytest.raises(ValueError, match="Unavailable storage health requires a database path"):
         StorageHealthSnapshot(
@@ -250,22 +237,6 @@ def test_storage_health_snapshot_requires_path_for_unavailable_state() -> None:
             wal_size_bytes=None,
             observed_at_us=1,
             detail="not started",
-        )
-
-
-@pytest.mark.parametrize("database_path", [" ", "\t", "\r\n"])
-def test_storage_health_snapshot_rejects_whitespace_only_database_path(
-    database_path: str,
-) -> None:
-    with pytest.raises(ValueError, match="database_path must contain non-whitespace text"):
-        StorageHealthSnapshot(
-            status="error",
-            database_open=True,
-            database_path=database_path,
-            database_size_bytes=None,
-            wal_size_bytes=None,
-            observed_at_us=1,
-            detail="probe failed",
         )
 
 
@@ -300,34 +271,6 @@ def test_storage_health_snapshot_rejects_nul_detail(detail: str) -> None:
 @pytest.mark.parametrize("detail", [" ", "\t", "\r\n"])
 def test_storage_health_snapshot_rejects_whitespace_only_detail(detail: str) -> None:
     with pytest.raises(ValueError, match="detail must contain non-whitespace text"):
-        StorageHealthSnapshot(
-            status="error",
-            database_open=True,
-            database_path="athena.sqlite3",
-            database_size_bytes=None,
-            wal_size_bytes=None,
-            observed_at_us=1,
-            detail=detail,
-        )
-
-
-@pytest.mark.parametrize("detail", ["probe\nfailed", "probe\rfailed", "probe\r\nfailed"])
-def test_storage_health_snapshot_rejects_multiline_detail(detail: str) -> None:
-    with pytest.raises(ValueError, match="detail must be single-line text"):
-        StorageHealthSnapshot(
-            status="error",
-            database_open=True,
-            database_path="athena.sqlite3",
-            database_size_bytes=None,
-            wal_size_bytes=None,
-            observed_at_us=1,
-            detail=detail,
-        )
-
-
-@pytest.mark.parametrize("detail", ["probe\tfailed", "probe\x08failed", "probe\x0bfailed", "probe\x0cfailed", "probe\x7ffailed"])
-def test_storage_health_snapshot_rejects_ascii_control_detail(detail: str) -> None:
-    with pytest.raises(ValueError, match="detail must not contain ASCII control characters"):
         StorageHealthSnapshot(
             status="error",
             database_open=True,

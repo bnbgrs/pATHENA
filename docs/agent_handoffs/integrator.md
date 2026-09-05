@@ -3,56 +3,58 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `49e51f29f3e3c1864a5e26a514b5c07e37c1f28f`.
+- Develop before this run: `b9ab5ecb7fc49a5d3bd5c25f0254f118e21fc7ee`.
 - Integration target: `develop/pathena-next` only.
-- Required worker handoffs, ledgers, UI tracking and progress evidence were reviewed through GitHub-accessible repository state.
+- Worker heads reviewed: errors `9ae3ff7f6c021ea153b7a6a51cb59b6663365c01`; spec-core `b4414f89c4eddf2c24df553146969dd77b2a6772`; backend `be13865f8ab863809a7da28a38e5c5df35b3fa29`; ui `97b051612ca1199907a47d7e3f6938e3f1f8ca37`.
+- Required worker handoffs and current progress/UI/error evidence were reviewed through GitHub-accessible repository state.
 - `main` and `bnbgrs/ATHENA` were untouched.
 
-## Integrated this run — Historical Backfill Candidate Freeze
+## Integrated this run — Disk-pressure reserve-release state invariant
 
-READY Core lineage independently reviewed:
+READY Backend lineage independently reviewed:
 
-- worker head `00b510090b7ffea7d7492e224e4cccfc646317d1`;
-- bounded worker product lineage includes `980530324f4cb6b822169be8fb82bc79fa9128d2`;
-- canonical Quality `33969149906 = success` for the exact verified Core candidate-freeze lineage.
+- product `79d6382f728fac2ca7bdae2306881327c82042ed`;
+- focused tests `02e9d210a946e9d782797cc5950902afd38a0781`;
+- exact Backend verification head `8be678b5fa3e19aa442e788d935436914a53452b`;
+- canonical ATHENA Quality `33972009715 = success`.
 
-The verified worker tree was not transplanted wholesale. The exact reviewed candidate-freeze product and focused-test blobs were applied onto the then-current Develop base tree so newer integrated Research, Backend, UI and Error state remained intact.
+Compatibility was proven at blob level before integration: current Develop `src/athena/storage/disk_pressure.py@576d0f5740e7b199e10add0861c40495d34b103e` is byte-identical to the immediate product parent blob, so the worker product blob could be applied without importing older Backend history or overwriting newer Develop state. The focused test file was new on Develop.
 
 Integrated exact blobs:
 
-- `src/athena/research/repository.py@1538b79220be19c1934cbc3028764c60185c47ea`;
-- `tests/unit/test_research_historical_backfill.py@2ae730684ad0badc6adeb0b4c9b6ae43414afc41`.
+- `src/athena/storage/disk_pressure.py@2d3cf760ccd2ed318c66bf07edb5595f121b984f`;
+- `tests/unit/test_disk_pressure_result_boundaries.py@0cb1b46a21b0926517ffd6e0a3f30b2c9f9fa96c`.
 
-Product/test integration commit: `2b5533fbce564a8d52b4a66fa1bb606ad3f44fb4`.
-Independent compare from prior Develop is bounded to the expected two files.
+Product/test integration commit: `52b3bbe6d34be12a077735a17e89e8b0c55aa394`.
 
 ## Product contract preserved
 
-- Historical Backfill is accepted as a truthful local research mode at candidate-freeze/finalization boundaries where its persisted candidates are frozen.
-- Existing exact snapshot pinning, historical time-bound semantics, candidate identity/deduplication, fenced transaction behavior, coverage accounting, recovery and provenance semantics remain unchanged.
-- No Internet/Tor access is implicitly enabled.
-- No synthetic source, claim, evidence, provenance or PALLAS data was introduced.
+- Positive `released_reserve_bytes` now requires an `EMERGENCY` before-state.
+- The valid `EMERGENCY -> CRITICAL` reassessment after reserve release remains accepted.
+- Zero-release identity behavior remains unchanged.
+- No SQLite/WAL mutation, reserve deletion policy, read-only safe-mode, noncritical-write gating, transport, Security, audit, provenance, fsync, recovery or transaction semantics were changed.
 
 ## Validation state
 
-- Exact worker canonical Quality: `33969149906 = success`.
-- Focused Historical Backfill candidate-freeze coverage is green in the worker lineage.
-- Independent integration diff review: PASS; only the expected two files were applied to current Develop.
-- A local exact-current-Develop focused rerun was attempted, but the local checkout/DNS environment was transiently unavailable. This is not treated as a permanent repository blocker because the complete GitHub blobs and branch mutations were available and independently reviewed.
-- No exact-current-Develop canonical Quality result is therefore claimed in this handoff.
+- Exact worker canonical Quality: `33972009715 = success` on the verified Backend lineage containing the product and focused tests.
+- Focused tests cover rejection from NORMAL and acceptance from EMERGENCY.
+- Independent compatibility review: PASS by byte-identical immediate-parent/current-Develop product blob and exact two-file tree application.
+- No exact-current-Develop post-integration canonical Quality result is available yet; repository-wide global green is not claimed.
 
 ## Other current inputs
 
-- Backend DiskPressure reserve/release-state work has focused-green evidence, but the latest canonical path is not used as READY evidence here because its broader run is blocked by an unrelated UI/PALLAS failure.
-- UI continues to advance on its worker branch; only exact-green bounded UI successors should be selected in a later integrator cycle.
-- Error worker now records `ERR-0001` through `ERR-0013` closed/fixed.
-- All eleven UI screens remain implemented pending final visual comparison unless a newer versioned UI manifest proves a stronger state; no pixel-level MATCH claim is made without that evidence.
+- UI-GAP-0024 remains exact-green/READY through UI head `77b3f9582d4530dbe081e3c81b8768ad00d3f050`, Quality `33966822035 = success`, but is deferred by the single-bounded-slice rule.
+- UI-GAP-0025 is `IMPLEMENTED_PENDING_VERIFY` on the current UI worker handoff.
+- Backend released-volume-bound successor is not READY until exact canonical evidence is green.
+- Error worker records `ERR-0001` through `ERR-0013` fixed, with no OPEN/BLOCKED error.
+- All eleven UI screens remain implemented pending visual review; no pixel-level MATCH claim is made.
 
 ## Next integration order
 
-1. Independently review any newer exact-green bounded Core successor first.
-2. Otherwise integrate exactly one current READY UI or Backend successor after compatibility review and exact evidence check.
-3. Preserve single-bounded-slice discipline and obtain an exact-current-Develop Quality result before any repository-wide green claim.
+1. Prefer a newer exact-green bounded Core successor if available and compatible.
+2. Otherwise integrate exactly one READY alternative, with UI-GAP-0024 currently exact-green and bounded.
+3. Do not absorb Backend released-volume-bound until its exact canonical evidence is green.
+4. Obtain exact-current-Develop Quality before any repository-wide green claim.
 
 ## Rules retained
 

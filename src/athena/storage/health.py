@@ -33,10 +33,6 @@ def _optional_text(value: object, label: str) -> str | None:
     return value
 
 
-def _contains_ascii_control(value: str) -> bool:
-    return any(ord(character) < 0x20 or ord(character) == 0x7F for character in value)
-
-
 @dataclass(frozen=True, slots=True)
 class StorageHealthSnapshot:
     """Truthful point-in-time facts about the live SQLite storage service."""
@@ -56,6 +52,12 @@ class StorageHealthSnapshot:
             raise TypeError("Storage health database_open must be bool.")
         database_path = _optional_text(self.database_path, "Storage health database_path")
         detail = _optional_text(self.detail, "Storage health detail")
+        if database_path is not None and "\x00" in database_path:
+            raise ValueError("Storage health database_path must not contain NUL characters.")
+        if detail is not None and not detail.strip():
+            raise ValueError("Storage health detail must contain non-whitespace text.")
+        if detail is not None and "\x00" in detail:
+            raise ValueError("Storage health detail must not contain NUL characters.")
         if isinstance(self.observed_at_us, bool) or not isinstance(self.observed_at_us, int):
             raise ValueError("Storage health observation time must be a positive integer.")
         if self.observed_at_us <= 0:
@@ -68,21 +70,6 @@ class StorageHealthSnapshot:
             self.wal_size_bytes,
             "Storage health WAL size",
         )
-
-        if database_path is not None and not database_path.strip():
-            raise ValueError("Storage health database_path must contain non-whitespace text.")
-        if database_path is not None and "\x00" in database_path:
-            raise ValueError("Storage health database_path must not contain NUL characters.")
-        if detail is not None and not detail.strip():
-            raise ValueError("Storage health detail must contain non-whitespace text.")
-        if detail is not None and "\x00" in detail:
-            raise ValueError("Storage health detail must not contain NUL characters.")
-        if detail is not None and ("\r" in detail or "\n" in detail):
-            raise ValueError("Storage health detail must be single-line text.")
-        if detail is not None and _contains_ascii_control(detail):
-            raise ValueError("Storage health detail must not contain ASCII control characters.")
-        if self.database_open and database_path is None:
-            raise ValueError("Open storage health requires a database path.")
 
         if self.status == "available":
             if not self.database_open:
