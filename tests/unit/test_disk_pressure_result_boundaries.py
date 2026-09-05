@@ -8,6 +8,7 @@ from athena.storage.disk_pressure import (
     DiskPressureAssessment,
     DiskPressureCheckResult,
     DiskPressureState,
+    EmergencyReserveProvisionResult,
     assess_disk_pressure,
 )
 
@@ -82,4 +83,16 @@ def test_disk_pressure_check_result_rejects_threshold_change_during_check() -> N
             before_release=before,
             released_reserve_bytes=1 * _GIB,
             after_release=inconsistent_after,
+        )
+
+
+def test_reserve_provision_result_rejects_provisioning_beyond_free_space() -> None:
+    assessment = assess_disk_pressure(total_bytes=100 * _GIB, free_bytes=1 * _GIB)
+
+    with pytest.raises(ValueError, match="provisioned bytes must not exceed assessed free bytes"):
+        EmergencyReserveProvisionResult(
+            assessment=assessment,
+            required_bytes=2 * _GIB,
+            provisioned_bytes=2 * _GIB,
+            status=None,
         )
