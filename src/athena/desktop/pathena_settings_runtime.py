@@ -318,9 +318,10 @@ class SettingsRuntimeController(QObject):
         self.network_value.setProperty("pathenaInternetStateInferred", False)
         self.network_value.setToolTip(network_detail)
         self.network_value.setAccessibleDescription(network_detail)
+        detail_message = message if message.strip() else "Local Core connection failed."
         self._set_state(
             self.detail,
-            message,
+            detail_message,
             "error",
             freshness="unavailable",
         )
