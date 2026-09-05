@@ -96,3 +96,17 @@ def test_reserve_provision_result_rejects_provisioning_beyond_free_space() -> No
             provisioned_bytes=2 * _GIB,
             status=None,
         )
+
+
+def test_reserve_provision_result_rejects_provisioning_that_creates_emergency_pressure() -> None:
+    assessment = assess_disk_pressure(total_bytes=100 * _GIB, free_bytes=3 * _GIB)
+    assert assessment.state is DiskPressureState.CRITICAL
+    assert assessment.thresholds.emergency_free_bytes == 2 * _GIB
+
+    with pytest.raises(ValueError, match="must not create EMERGENCY disk pressure"):
+        EmergencyReserveProvisionResult(
+            assessment=assessment,
+            required_bytes=2 * _GIB,
+            provisioned_bytes=2 * _GIB,
+            status=None,
+        )
