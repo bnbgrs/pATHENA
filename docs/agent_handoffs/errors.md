@@ -3,9 +3,9 @@
 ## Baseline
 
 - Baseline source: `develop/pathena-next`
-- Baseline SHA observed this run: `de2f5a64e7a0fbc282df81db6beee3431297f2de`
+- Baseline SHA observed this run: `a6500b54246c42acb898696bcf009845ce1ecf80`
 - Worker branch: `postmerge/errors`
-- History-preserving NON-FORCE synchronization this run: `70eb579a1e1581f8164db91c5e2a0903e509b416`; no force, rebase or history rewrite was performed.
+- History-preserving NON-FORCE synchronization this run: `f5c5c803c033a085d35dae58fcce0af29018d43d`; no force, rebase or history rewrite was performed.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
 ## Current error state
@@ -19,36 +19,30 @@
 ## Fresh evidence
 
 - `ERR-0004` remains fixed; its historical startup/readiness Ruff failures have not recurred.
-- `ERR-0011` is now fixed: exact UI owner correction `9df9d7d46e3c4774aeea5439f91166a2092bd7fb` completed canonical Quality `33926653411` with conclusion `success`.
-- The fixed primary signature was `tests/unit/test_pathena_settings_provider_detail_state.py::test_unavailable_provider_detail_fails_closed_as_error`, where unavailable provider/detail metadata incorrectly exposed `fresh` instead of `unavailable`.
-- Root cause remains UI metadata coherence only: `SettingsRuntimePanel.apply_snapshot()` reused snapshot-level resolved-model freshness when `provider is None`. The verified correction derives provider-specific fail-closed freshness without changing Provider/Transport behavior.
-- Previously pending Backend Quality `33925587762` on `d507de617f27976b174c1beadb22d8432fef63d6` also completed `success`; no new error is allocated from it.
-- Newer worker-head Quality runs remain in progress and are not PASS or failure evidence: UI `33930318851` on `37a097b9e97314184c36780b38b39b217418be12`; Backend `33929643363` on `235a13086985341edc02ee61e742e63a863974ab`.
-- Current Develop `de2f5a64e7a0fbc282df81db6beee3431297f2de` has no exact-head global PASS claim from this scan.
+- Previously pending UI Quality `33930318851` on `37a097b9e97314184c36780b38b39b217418be12` completed `success`; no new error is allocated.
+- Previously pending Backend Quality `33929643363` on `235a13086985341edc02ee61e742e63a863974ab` completed `success`; no new error is allocated.
+- Backend current head `4adcf14dc67a617a4a2a5ff942cc600e40aaf456` has canonical Quality `33933291735` in progress. Windows path safety, Linux storage, local install smoke, specification validator, Ruff and mypy are already green; full pytest is still running. This is not yet PASS/failure evidence.
+- UI candidate Quality `33933815974` on `de688468ff3265d997a2b4c5a39d0aebdf89a9da` was cancelled and is not failure evidence. Current UI head `2193332eeb3a390c263baa66e83324ff70a61168` has successor Quality `33933890301` pending.
+- Current Develop `a6500b54246c42acb898696bcf009845ce1ecf80` has no exact-head global PASS claim from this scan.
+- No concrete deduplicated primary failure is currently available for `ERR-0012`.
 
-## ERR-0011 closure
+## Verified closed errors
 
-- Severity: P2.
-- Area: UI / Settings / provider detail accessibility state.
-- Failing exact SHA: `3d74d43279d9a80bf891bb6bc31001b1e43490e2`.
-- Failing canonical run: `33922277491`.
-- Exact failing node: `tests/unit/test_pathena_settings_provider_detail_state.py::test_unavailable_provider_detail_fails_closed_as_error`.
-- Exact assertion: expected `unavailable`, actual `fresh`.
-- Owner correction: `9df9d7d46e3c4774aeea5439f91166a2092bd7fb`.
-- Verification run: `33926653411 = success` on the exact correction SHA.
-- Status: `FIXED`.
-- Guard statement: preserve UI-local fail-closed provider/detail freshness; do not alter actual provider transport, network, security, storage, recovery or runtime freshness semantics.
+- `ERR-0001` through `ERR-0011` remain `FIXED` on their recorded exact verification evidence.
+- `ERR-0011` specifically remains closed on exact UI owner correction `9df9d7d46e3c4774aeea5439f91166a2092bd7fb` and canonical Quality `33926653411 = success`.
+- Preserve fail-closed provider/detail metadata, local HTTP cumulative-byte and deadline guards, storage/recovery invariants, Windows path safety and Security/TOR boundaries.
 
 ## Integrator handoff
 
-- `ERR-0001` through `ERR-0011` are cleared.
-- UI-GAP-0018 owner correction `9df9d7d46e3c4774aeea5439f91166a2092bd7fb` is verified by exact canonical Quality `33926653411 = success` and may be considered error-cleared for integration review.
-- Backend HTTP-error total-deadline lineage through `d507de617f27976b174c1beadb22d8432fef63d6` is independently green on canonical Quality `33925587762 = success`.
-- Do not infer green status for newer UI `37a097b9e97314184c36780b38b39b217418be12` or Backend `235a13086985341edc02ee61e742e63a863974ab` while their exact canonical runs remain in progress.
+- `ERR-0001` through `ERR-0011` remain cleared.
+- UI `37a097b9e97314184c36780b38b39b217418be12` and Backend `235a13086985341edc02ee61e742e63a863974ab` may now be treated as exact canonical-green worker lineages on runs `33930318851` and `33929643363` respectively.
+- Do not treat Backend `4adcf14dc67a617a4a2a5ff942cc600e40aaf456` as ready while `33933291735` full pytest remains in progress.
+- Do not treat UI-GAP-0019 as ready from cancelled run `33933815974`; consume successor run `33933890301` for the current UI head instead.
 - Current Develop still requires exact-head canonical verification after integration.
 
 ## Next scan
 
-1. Consume UI `33930318851` and Backend `33929643363` when complete; allocate `ERR-0012` only for a concrete deduplicated primary failure.
-2. Continue Packaging, Provider/Transport, Research/Jobs, Persistence/Recovery, Qt/Desktop, Security, local install/start, Windows path safety and Linux storage scanning.
-3. Keep product defects in product code and harness defects in harness; never weaken assertions, Ruff rules, security/storage/recovery safeguards or platform protections.
+1. Consume Backend `33933291735` and UI `33933890301`; allocate `ERR-0012` only for a concrete deduplicated primary failure.
+2. If Backend turns red, inspect the exact full-pytest/diagnostic signature before any mutation; do not weaken the alternate-read bypass hardening.
+3. If UI turns red, isolate the exact UI-GAP-0019 primary signature; cancelled predecessor runs are not evidence.
+4. Otherwise continue Packaging, Provider/Transport, Research/Jobs, Persistence/Recovery, Qt/Desktop, Security, local install/start, Windows path safety and Linux storage scanning.
