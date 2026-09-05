@@ -238,3 +238,19 @@ def test_storage_health_snapshot_requires_path_for_open_error_state() -> None:
             observed_at_us=1,
             detail="probe failed",
         )
+
+
+@pytest.mark.parametrize("database_path", [" ", "\t", "\r\n"])
+def test_storage_health_snapshot_rejects_whitespace_only_database_path(
+    database_path: str,
+) -> None:
+    with pytest.raises(ValueError, match="database_path must contain non-whitespace text"):
+        StorageHealthSnapshot(
+            status="error",
+            database_open=True,
+            database_path=database_path,
+            database_size_bytes=None,
+            wal_size_bytes=None,
+            observed_at_us=1,
+            detail="probe failed",
+        )
