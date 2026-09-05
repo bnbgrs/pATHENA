@@ -165,6 +165,8 @@ class EmergencyReserveProvisionResult:
         )
         if provisioned > required:
             raise ValueError("Reserve provisioned bytes must not exceed required bytes.")
+        if provisioned > self.assessment.free_bytes:
+            raise ValueError("Reserve provisioned bytes must not exceed assessed free bytes.")
         if self.status is not None and not isinstance(self.status, EmergencyReserveStatus):
             raise TypeError("Reserve provision status must be EmergencyReserveStatus or None.")
         if self.status is None:
