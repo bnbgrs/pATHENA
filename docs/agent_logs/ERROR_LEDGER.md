@@ -14,9 +14,9 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 ## Current baseline
 
 - Baseline branch: `develop/pathena-next`
-- Baseline SHA observed this run: `de2f5a64e7a0fbc282df81db6beee3431297f2de`
+- Baseline SHA observed this run: `a6500b54246c42acb898696bcf009845ce1ecf80`
 - Worker branch: `postmerge/errors`
-- History-preserving NON-FORCE synchronization this run: `70eb579a1e1581f8164db91c5e2a0903e509b416`, merging Error lineage with current Develop without force, rebase or history rewrite.
+- History-preserving NON-FORCE synchronization this run: `f5c5c803c033a085d35dae58fcce0af29018d43d`, merging prior Error lineage with exact Develop head without force, rebase or history rewrite.
 
 ## Current error state
 
@@ -31,11 +31,13 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 - `ERR-0004` remains `FIXED`; its startup/readiness Ruff signatures did not recur.
 - `ERR-0009` remains `FIXED` on canonical Backend Quality `33911612711 = success`.
 - `ERR-0010` remains `FIXED` on exact descendant canonical Backend Quality `33921338439 = success`.
-- `ERR-0011` is now `FIXED`: canonical UI Quality `33926653411` on exact owner fix SHA `9df9d7d46e3c4774aeea5439f91166a2092bd7fb` completed with conclusion `success`.
-- The ERR-0011 fix remains UI-local and fail-closed: provider/detail metadata reports `unavailable` when provider is absent; Provider/Transport, network, security, storage, recovery and actual runtime freshness behavior were not changed.
-- Backend Quality `33925587762` on `d507de617f27976b174c1beadb22d8432fef63d6` also completed `success`; no new error is allocated from that previously pending signal.
-- Newer exact worker-head Quality remains pending: UI `33930318851` on `37a097b9e97314184c36780b38b39b217418be12` and Backend `33929643363` on `235a13086985341edc02ee61e742e63a863974ab` are in progress and are neither PASS nor failure evidence.
-- Current Develop exact head `de2f5a64e7a0fbc282df81db6beee3431297f2de` has no exact-head global PASS claim from this scan.
+- `ERR-0011` remains `FIXED` on canonical UI Quality `33926653411 = success` for owner fix `9df9d7d46e3c4774aeea5439f91166a2092bd7fb`.
+- Previously pending UI Quality `33930318851` on `37a097b9e97314184c36780b38b39b217418be12` completed `success`; no new error is allocated.
+- Previously pending Backend Quality `33929643363` on `235a13086985341edc02ee61e742e63a863974ab` completed `success`; no new error is allocated.
+- Backend current head `4adcf14dc67a617a4a2a5ff942cc600e40aaf456` has canonical Quality `33933291735` in progress. Windows path safety, Linux storage, local install smoke, specification validator, Ruff and mypy are PASS; full pytest is still running, so this is neither PASS nor failure evidence.
+- UI candidate Quality `33933815974` on `de688468ff3265d997a2b4c5a39d0aebdf89a9da` was cancelled and is not failure evidence. Current UI head `2193332eeb3a390c263baa66e83324ff70a61168` has successor Quality `33933890301` pending; no PASS/failure claim is made.
+- Current Develop exact head `a6500b54246c42acb898696bcf009845ce1ecf80` has no exact-head global PASS claim from this scan.
+- No concrete deduplicated primary failure is currently available for `ERR-0012`.
 
 ## Entries
 
