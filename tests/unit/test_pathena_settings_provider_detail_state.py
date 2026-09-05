@@ -221,3 +221,71 @@ def test_nonempty_connection_failure_detail_is_preserved(tmp_path) -> None:
     finally:
         window.close()
         app.processEvents()
+
+
+@pytest.mark.parametrize("detail", [" ", "\t", "\r\n"])
+def test_whitespace_provider_detail_uses_self_describing_fallback(
+    tmp_path, detail: str
+) -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    runtime = install_settings_runtime(
+        window,
+        None,
+        settings=QSettings(str(tmp_path / "settings.ini"), QSettings.Format.IniFormat),
+    )
+    snapshot = DesktopApiSnapshot(
+        health=HealthResponse(api_version="v1", core_status="ok", detail=None),
+        provider=ProviderHealthResponse(
+            provider="LM Studio",
+            status="ready",
+            detail=detail,
+        ),
+        models=(),
+        chats=(),
+    )
+    fallback = (
+        "Provider readiness is reported by the local Core; no remote status "
+        "or unsupported capability is inferred."
+    )
+    try:
+        runtime.apply_snapshot(snapshot)
+
+        assert runtime.detail.text() == fallback
+        assert runtime.detail.accessibleDescription() == fallback
+        assert runtime.detail.property("pathenaUiState") == "idle"
+        assert runtime.detail.property("pathenaRuntimeFreshness") == "fresh"
+    finally:
+        window.close()
+        app.processEvents()
+
+
+def test_nonblank_provider_detail_is_preserved_verbatim(tmp_path) -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    runtime = install_settings_runtime(
+        window,
+        None,
+        settings=QSettings(str(tmp_path / "settings.ini"), QSettings.Format.IniFormat),
+    )
+    detail = "  Provider is ready with local metadata.  "
+    snapshot = DesktopApiSnapshot(
+        health=HealthResponse(api_version="v1", core_status="ok", detail=None),
+        provider=ProviderHealthResponse(
+            provider="LM Studio",
+            status="ready",
+            detail=detail,
+        ),
+        models=(),
+        chats=(),
+    )
+    try:
+        runtime.apply_snapshot(snapshot)
+
+        assert runtime.detail.text() == detail
+        assert runtime.detail.accessibleDescription() == detail
+        assert runtime.detail.property("pathenaUiState") == "idle"
+        assert runtime.detail.property("pathenaRuntimeFreshness") == "fresh"
+    finally:
+        window.close()
+        app.processEvents()
