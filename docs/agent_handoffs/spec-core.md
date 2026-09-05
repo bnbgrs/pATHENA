@@ -2,50 +2,58 @@
 
 ## Current baseline
 
-- Shared baseline: `develop/pathena-next@f630b27ddb7a40f2982f50f79d9f7d9f1322d1b1`.
+- Shared baseline: `develop/pathena-next@415debaae20fd84cd12fa0613dc063dc48dd134f`.
 - Worker branch: `postmerge/spec-core`.
-- History-preserving NON-FORCE synchronization commit: `9e9d15ff9b4f9b4def6d19683db76089efee11f4`, using the exact current Develop tree and parents previous worker `4df931d3e9ea5d60952c92f9c8b93ef54e3d23e3` plus Develop.
+- History-preserving NON-FORCE synchronization commit: `32fe54c850dacee3e62be84c9f122539f35645d4`, with parents previous worker `f58ddd4ad333401a12bf8fd786d1f45016363d57` plus exact Develop `415debaae20fd84cd12fa0613dc063dc48dd134f`.
 - `main` and `bnbgrs/ATHENA` remain untouched/read-only.
 
 ## Completed Core coverage
 
-Normal Hybrid Search facade/application composition, production contradiction acceptance, fenced Research source coverage, Scoped Project Research, Historical Backfill enqueue/durable validation, Historical Backfill candidate freeze, and its real persisted-Source inclusive-time/pinned-snapshot regression have already been verified/integrated on Develop. They are not re-opened by this handoff.
+Normal Hybrid Search facade/application composition, production contradiction acceptance, fenced Research source coverage, Scoped Project Research, Historical Backfill enqueue/durable validation, Historical Backfill candidate freeze, and its real persisted-Source inclusive-time/pinned-snapshot regression are already verified/integrated on Develop and remain closed.
 
-## Current gap — truthful Local plus Web Research
+## Current slice — truthful Local plus Web Research
 
 Primary source: `docs/beta/11_Exhaustive_Research.md`.
 
-The Beta contract requires external facts to be captured into durable Sources before analysis and Internet access to be explicit/visible rather than implicit. `ResearchMode.LOCAL_PLUS_WEB` exists, and the existing `ExternalAccessGateway` already enforces explicit authorization and capture-before-analysis. The composition defect is downstream: `ExternalResearchService.enqueue()` currently captures authorized URLs and then calls `ResearchService.enqueue_local()`, persisting the job as `local_exhaustive` with null `internet_scope`. The durable `research.exhaustive` payload validator also rejects any Local+Web mode/scope.
+The previously versioned Local+Web patch has now been materially applied. The original pseudo-unified patch was not directly consumable by `git apply`, so the worker used an exact-match deterministic transformation against the fully inspected current product blobs. During application one concrete mismatch was corrected: `_canonical_uuid_list()` previously returned `None`, while truthful Local+Web durable validation needs the canonical UUID list for exact captured-source equality; the helper now returns that canonical list without weakening any existing validation.
 
-## Versioned executable patch
+Product/test commit: `6c5431f35951b7916e1db97138306de41a5da622`.
 
-`docs/agent_handoffs/spec-core-local-plus-web.patch` was authored against exact current blobs and committed on the worker. It contains the bounded next mutation plus acceptance tests:
+Implemented contract:
 
-- add `ResearchService.enqueue_local_plus_web()` requiring an explicit UUID authorization and at least one captured external Source;
-- persist truthful `mode=local_plus_web` and a canonical non-null `internet_scope` containing the exact authorization id and captured Source ids;
-- require `internet_scope.captured_source_ids` to exactly match the persisted explicit Source ids at the durable job-validation boundary;
-- change `ExternalResearchService` only after capture has completed to delegate to the truthful Local+Web enqueue path;
-- preserve null Internet scope for all non-Web Research modes;
-- add real `AthenaApplication`/SQLite durable-persistence acceptance plus fail-before-persistence cases.
-
-The patch deliberately does **not** broaden candidate-freeze behavior yet. Local+Web candidate union/provenance verification remains a separate fail-closed slice and must be implemented with real `external_source_captures` linkage before the overall Local+Web runtime can be marked READY.
+- `ResearchService.enqueue_local_plus_web()` requires an explicit UUID authorization and at least one captured external Source;
+- persists truthful `mode=local_plus_web` plus canonical non-null `internet_scope` with exact authorization id and captured Source ids;
+- durable `research.exhaustive` validation accepts Local+Web only with canonical authorization/captured-source provenance and requires captured ids to exactly match `explicit_source_ids`;
+- all non-Web Research modes continue to require null Internet scope;
+- `ExternalResearchService` still captures authorized external URLs first and only then delegates to truthful Local+Web enqueue;
+- no candidate-freeze union expansion is included yet;
+- no Protected/Archive expansion or synthetic Source/Claim/Evidence/PALLAS data is introduced.
 
 ## Verification state
 
-The versioned patch itself is committed but has not yet been applied to product/test files, so no focused-test or canonical-Quality PASS is claimed for Local+Web. Under the Core progress rule, the next run must apply this exact patch (or resolve a concrete mismatch if Develop has moved), commit product/tests, run the focused acceptance and canonical Quality, and must not merely re-analyze the same gap.
+Focused mutation run `33986943543` succeeded before the product/test commit:
+
+- `tests/unit/test_research_local_plus_web.py`
+- `tests/unit/test_research_scoped_project.py`
+- `tests/unit/test_research_historical_backfill.py`
+- focused Ruff on changed product/test files
+- focused mypy on changed product files
+
+Result: focused pytest `10 passed`; Ruff PASS; mypy PASS.
+
+The automatic PR Quality attempt on the workflow-authored product commit was `33986966745` with conclusion `action_required` and zero jobs, so it is **not** a Quality PASS. This handoff commit exists to trigger canonical Quality through the normal repository mutation identity on the same product/test tree. No READY claim is made until that exact descendant Quality run succeeds.
 
 ## Collision avoidance
 
 - Backend storage/disk-pressure work is disjoint.
 - UI presentation/navigation work is disjoint.
-- ERR-0014 Qt desktop capture failure is unrelated to this Research Core slice.
-- No Protected/Archive scope expansion is included.
-- No synthetic Sources, Claims, Evidence, provenance, or PALLAS data is introduced.
+- Current Error handoff has no Core-owned blocker for this slice.
+- No candidate-freeze, Protected/Archive, or implicit Internet scope broadening occurred.
 
 ## Integrator handoff
 
-No new product READY SHA in this run. The current artifact is a versioned executable patch only; Integrator should not integrate it as product behavior until it has been applied and exact tests/Quality are green.
+`NOT READY` pending a real canonical Quality run on this product/test tree. Do not integrate the new Local+Web slice solely from the focused run.
 
 ## Next Alpha/Beta gap
 
-Apply `docs/agent_handoffs/spec-core-local-plus-web.patch` against the exact current worker base, commit the bounded product/test changes, run `tests/unit/test_research_local_plus_web.py` plus the smallest relevant Research/External regressions and canonical Quality. If green, version the exact product/test READY SHA. Then implement Local+Web candidate-freeze union semantics using only the exact captured external Sources linked by `external_source_captures` plus eligible local Sources at the pinned snapshot, excluding unrelated historical web captures and preserving all Protected/Archive fail-closed rules.
+If canonical Quality succeeds, mark this truthful enqueue/durable-scope slice READY with the exact Quality evidence, then immediately implement Local+Web candidate-freeze union semantics: eligible local Sources at the pinned snapshot plus only exact external Sources linked to the explicit authorization through durable external capture linkage; unrelated historical external captures must remain excluded and Protected/Archive must remain fail-closed.
