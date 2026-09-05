@@ -2,12 +2,11 @@
 
 ## Baseline
 
-- Shared baseline reviewed: `develop/pathena-next@c3d72d3d745033f7382f99a3a717dc1f246d727a`.
+- Shared baseline reviewed: `develop/pathena-next@49212a0f157d433d68e9d04e9a9643e2909b6827`.
 - Worker branch: `postmerge/backend`.
-- Prior worker head: `be13865f8ab863809a7da28a38e5c5df35b3fa29`.
-- Required handoffs reviewed: `errors.md`, `spec-core.md`, `ui.md`, `integrator.md`, and this Backend handoff; current worker branches were checked before mutation.
-- Worker heads observed: errors `e0d009c4ecc2e0db3000acdb4b0dc726e64005de`; spec-core `2f62d2a26f9341e7ea8c84abe2ae48762bfe117c`; ui `97b051612ca1199907a47d7e3f6938e3f1f8ca37`.
-- History-preserving NON-FORCE synchronization: `a209e733fab5192a57cb0f52a6be4ed9596edeba`, with parents prior Backend head and exact Develop.
+- Prior worker head: `5b04d7e335823f59bd33847e5b5c2c5b7e23458c`.
+- Required handoffs and worker branches were reviewed before mutation; current observed error worker was `e0d009c4ecc2e0db3000acdb4b0dc726e64005de`, with Develop integrator evidence also recording spec-core `2f62d2a26f9341e7ea8c84abe2ae48762bfe117c` and UI `fb98e47fde410137b971a303678d4e63f66e1d6d`.
+- History-preserving NON-FORCE synchronization: `9efa14326b3c4b0eaacff26aa9942202e7a70aca`, with parents prior Backend head and exact Develop.
 - `main` and `bnbgrs/ATHENA` remain strict read-only and untouched.
 
 ## ExternalAccessGateway runtime boundaries — VERIFIED
@@ -16,27 +15,21 @@ Required fail-before-side-effect guards remain present: `ttl_seconds` and `max_b
 
 Status: `BACKEND_VERIFIED / INTEGRATOR_READY`.
 
-## Disk-pressure reserve-release state invariant — VERIFIED
+## Disk-pressure threshold consistency — VERIFIED
 
-Product `79d6382f728fac2ca7bdae2306881327c82042ed` requires positive `released_reserve_bytes` to originate from an EMERGENCY before-state. Focused tests `02e9d210a946e9d782797cc5950902afd38a0781` cover rejection from NORMAL and acceptance of EMERGENCY -> CRITICAL reassessment. Exact Backend head `8be678b5fa3e19aa442e788d935436914a53452b` passed canonical ATHENA Quality `33972009715 = success`.
+Product `c0ee910a20fb396b0c20429f2da33873b407c641` rejects one-check recovery telemetry where `after_release.thresholds` differs from `before_release.thresholds` while volume size is stable. Focused test `dde63f019c5ecd95d1805ff9c19fdd986fe4b436` covers the contradictory threshold mutation.
 
-Status: `BACKEND_VERIFIED / INTEGRATOR_READY`.
-
-## Disk-pressure released-volume bound — VERIFIED
-
-Product/test commit `a6968852a8db404fdb52e5a157c8e6eb6d82a485` rejects physically impossible telemetry where `released_reserve_bytes` exceeds `before_release.total_bytes`. Existing EMERGENCY-only release and zero-release identity rules remain unchanged.
-
-Exact descendant Backend head `be13865f8ab863809a7da28a38e5c5df35b3fa29` passed canonical ATHENA Quality `33974947204 = success`.
+The exact documentation descendant Backend head `5b04d7e335823f59bd33847e5b5c2c5b7e23458c` passed canonical ATHENA Quality `33978168395 = success`.
 
 Status: `BACKEND_VERIFIED / INTEGRATOR_READY`.
 
-## Disk-pressure threshold consistency — APPLIED / PENDING CANONICAL
+## Disk-pressure assessment-state truth boundary — APPLIED / PENDING CANONICAL
 
-A `DiskPressureCheckResult` represents one check against one stable volume size. Because thresholds are a deterministic function of that volume size, accepting different threshold objects before and after a reserve release creates contradictory recovery/audit telemetry even while `total_bytes` is unchanged.
+`DiskPressureAssessment` was externally constructible with a `state` that contradicted its own `free_bytes` and ordered thresholds. Such a contradictory object could feed reserve-release, safe-mode, write-gating, provision-result, or audit paths with false recovery semantics even though controller-generated assessments are consistent.
 
-Product commit `c0ee910a20fb396b0c20429f2da33873b407c641` now fails closed when `after_release.thresholds != before_release.thresholds`. Test commit `dde63f019c5ecd95d1805ff9c19fdd986fe4b436` adds focused rejection of a threshold change while preserving the valid EMERGENCY -> CRITICAL release path.
+Product commit `deb69f03a5aa40e655e83bea1f69d6aeaa2b2af8` now derives the expected state from the supplied free-space/threshold boundary and fails closed when the supplied enum differs. Existing strict `< threshold` semantics are preserved. Test commit `918c742e86c0567260f2fbc588efd8febd2114ea` verifies that EMERGENCY free space cannot be mislabeled NORMAL.
 
-Canonical ATHENA Quality `33978138355` is pending on exact test head `dde63f019c5ecd95d1805ff9c19fdd986fe4b436`; no PASS/READY claim is made yet.
+No canonical PASS is claimed until an exact run containing `918c742e86c0567260f2fbc588efd8febd2114ea` (or a documentation-only descendant) completes green.
 
 Status: `BACKEND_APPLIED / CANONICAL_PENDING`.
 
@@ -58,7 +51,7 @@ Status: `BACKEND_APPLIED / CANONICAL_PENDING`.
 
 ## Error / collision handoff
 
-- Current Error handoff has `ERR-0014` IN_PROGRESS for a Qt/Desktop SIGSEGV on the UI worker lineage; the affected DesktopApiController product/test blobs were unchanged from prior green evidence, so Backend does not mutate that foreign owner path.
+- Current Error handoff has `ERR-0014` IN_PROGRESS for a Qt/Desktop SIGSEGV on the UI worker lineage; Backend did not mutate that foreign owner path.
 - No Backend blocker is introduced by ERR-0014; current DiskPressure work is disjoint.
 - No UI/Core-owned files were mutated in this Backend run.
 
@@ -66,10 +59,11 @@ Status: `BACKEND_APPLIED / CANONICAL_PENDING`.
 
 - READY: ExternalAccessGateway runtime boundaries through `c67fa646d8ba4e4137cdf69992b9c8b42ad904d6`, Quality `33884210684 = success`.
 - READY: StorageHealth ASCII-control-detail through Backend head `1cc0017d560a1534de1fc2c83989d26e05238236`, Quality `33966299076 = success`.
-- READY: Disk-pressure reserve-release-state product `79d6382f728fac2ca7bdae2306881327c82042ed` + tests `02e9d210a946e9d782797cc5950902afd38a0781`, exact Backend head `8be678b5fa3e19aa442e788d935436914a53452b`, Quality `33972009715 = success`.
-- READY: Disk-pressure released-volume-bound product/test `a6968852a8db404fdb52e5a157c8e6eb6d82a485`, exact descendant Backend head `be13865f8ab863809a7da28a38e5c5df35b3fa29`, Quality `33974947204 = success`.
-- NOT READY: Disk-pressure threshold-consistency product `c0ee910a20fb396b0c20429f2da33873b407c641` + test `dde63f019c5ecd95d1805ff9c19fdd986fe4b436` until exact canonical evidence is green.
+- READY: Disk-pressure reserve-release-state through `8be678b5fa3e19aa442e788d935436914a53452b`, Quality `33972009715 = success`.
+- READY: Disk-pressure released-volume-bound through `be13865f8ab863809a7da28a38e5c5df35b3fa29`, Quality `33974947204 = success`.
+- READY: Disk-pressure threshold-consistency product `c0ee910a20fb396b0c20429f2da33873b407c641` + test `dde63f019c5ecd95d1805ff9c19fdd986fe4b436`, exact green descendant `5b04d7e335823f59bd33847e5b5c2c5b7e23458c`, Quality `33978168395 = success`.
+- NOT READY: Disk-pressure assessment-state truth boundary product `deb69f03a5aa40e655e83bea1f69d6aeaa2b2af8` + test `918c742e86c0567260f2fbc588efd8febd2114ea` until exact canonical green evidence.
 
 ## Next backend slice
 
-Consume exact canonical Quality `33978138355` on `dde63f019c5ecd95d1805ff9c19fdd986fe4b436`. If green, promote threshold consistency to VERIFIED/READY and immediately take the highest unclaimed disjoint Storage/Recovery/Provider/Packaging P0/P1/P2 runtime gap. If red, inspect exact diagnostics and repair only a Backend-owned failure. If no executable result is available next run, use an alternate executable verification path or a different real disjoint Backend/System slice rather than repeating the same runner state.
+Consume the first exact canonical Quality run containing `918c742e86c0567260f2fbc588efd8febd2114ea` or its documentation-only descendant. If green, promote assessment-state truth to VERIFIED/READY and immediately take the highest current unclaimed disjoint Storage/Recovery/Provider/Packaging P0/P1/P2 runtime gap. If red, inspect exact diagnostics and repair only a Backend-owned failure. If no executable result binds next run, use an alternate executable verification path or a different real disjoint Backend/System slice rather than repeating the runner state.
