@@ -254,3 +254,17 @@ def test_storage_health_snapshot_rejects_whitespace_only_database_path(
             observed_at_us=1,
             detail="probe failed",
         )
+
+
+@pytest.mark.parametrize("detail", [" ", "\t", "\r\n"])
+def test_storage_health_snapshot_rejects_whitespace_only_detail(detail: str) -> None:
+    with pytest.raises(ValueError, match="detail must contain non-whitespace text"):
+        StorageHealthSnapshot(
+            status="error",
+            database_open=True,
+            database_path="athena.sqlite3",
+            database_size_bytes=None,
+            wal_size_bytes=None,
+            observed_at_us=1,
+            detail=detail,
+        )
