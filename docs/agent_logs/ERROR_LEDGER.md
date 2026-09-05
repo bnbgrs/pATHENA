@@ -14,28 +14,28 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 ## Current baseline
 
 - Baseline branch: `develop/pathena-next`
-- Baseline SHA observed this run: `25089e434412e7c1b8ede229438324338a0d5da0`
+- Baseline SHA observed this run: `de2f5a64e7a0fbc282df81db6beee3431297f2de`
 - Worker branch: `postmerge/errors`
-- Latest history-preserving NON-FORCE synchronization already present in Error lineage: `88725f431fe46e30e49d03d487f8ef9a8935260e`; no force, rebase or history rewrite was performed this run.
+- History-preserving NON-FORCE synchronization this run: `70eb579a1e1581f8164db91c5e2a0903e509b416`, merging Error lineage with current Develop without force, rebase or history rewrite.
 
 ## Current error state
 
 - OPEN: none.
 - IN_PROGRESS: none.
-- FIXED_PENDING_VERIFY: `ERR-0011`.
-- FIXED: `ERR-0001` through `ERR-0010`.
+- FIXED_PENDING_VERIFY: none.
+- FIXED: `ERR-0001` through `ERR-0011`.
 - BLOCKED: none.
 
 ## Current scan
 
 - `ERR-0004` remains `FIXED`; its startup/readiness Ruff signatures did not recur.
 - `ERR-0009` remains `FIXED` on canonical Backend Quality `33911612711 = success`.
-- `ERR-0010` is now `FIXED`: exact descendant canonical Backend Quality `33921338439` on `c9d1a7a9ab782ae081e4699eecd436d6a0ff5fb5` completed with conclusion `success`. The verified harness correction preserves direct fail-closed total-deadline enforcement.
-- New concrete UI signal: canonical UI Quality `33922277491` on `3d74d43279d9a80bf891bb6bc31001b1e43490e2` passed Windows path safety, Linux storage, local-install smoke, specification validator, Ruff and mypy, but full pytest failed only at `tests/unit/test_pathena_settings_provider_detail_state.py::test_unavailable_provider_detail_fails_closed_as_error` with `assert 'fresh' == 'unavailable'`.
-- Root cause for `ERR-0011`: an unavailable snapshot with `provider=None` could still carry `resolved_model_freshness='fresh'`, and Settings reused that raw freshness for provider/detail accessibility metadata even though the semantic provider state was unavailable/error. The defect is UI presentation metadata coherence, not Provider/Transport behavior.
-- UI owner correction `9df9d7d46e3c4774aeea5439f91166a2092bd7fb` introduces fail-closed `provider_freshness = 'unavailable' if provider is None else freshness` and applies it to provider/detail state only. Current canonical UI Quality `33926653411` on that exact SHA is still in progress, so `ERR-0011` remains `FIXED_PENDING_VERIFY`.
-- Current Backend exact head `d507de617f27976b174c1beadb22d8432fef63d6` has canonical Quality `33925587762` still in progress and is neither PASS nor failure evidence yet.
-- Current Develop exact head `25089e434412e7c1b8ede229438324338a0d5da0` has no exact-head global PASS claim from this scan.
+- `ERR-0010` remains `FIXED` on exact descendant canonical Backend Quality `33921338439 = success`.
+- `ERR-0011` is now `FIXED`: canonical UI Quality `33926653411` on exact owner fix SHA `9df9d7d46e3c4774aeea5439f91166a2092bd7fb` completed with conclusion `success`.
+- The ERR-0011 fix remains UI-local and fail-closed: provider/detail metadata reports `unavailable` when provider is absent; Provider/Transport, network, security, storage, recovery and actual runtime freshness behavior were not changed.
+- Backend Quality `33925587762` on `d507de617f27976b174c1beadb22d8432fef63d6` also completed `success`; no new error is allocated from that previously pending signal.
+- Newer exact worker-head Quality remains pending: UI `33930318851` on `37a097b9e97314184c36780b38b39b217418be12` and Backend `33929643363` on `235a13086985341edc02ee61e742e63a863974ab` are in progress and are neither PASS nor failure evidence.
+- Current Develop exact head `de2f5a64e7a0fbc282df81db6beee3431297f2de` has no exact-head global PASS claim from this scan.
 
 ## Entries
 
@@ -123,17 +123,17 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 - first_seen: 2026-09-04
 - severity: P2
 - area: UI / Settings / provider detail accessibility state
-- status: `FIXED_PENDING_VERIFY`
+- status: `FIXED`
 - checked_sha: failing UI `3d74d43279d9a80bf891bb6bc31001b1e43490e2`; owner correction `9df9d7d46e3c4774aeea5439f91166a2092bd7fb`.
-- evidence: canonical UI Quality `33922277491`: Windows path safety PASS, Linux storage PASS, local-install smoke PASS, validator PASS, Ruff PASS, mypy PASS, full pytest FAIL; exact primary assertion at `tests/unit/test_pathena_settings_provider_detail_state.py:77` is `assert 'fresh' == 'unavailable'`.
+- evidence: failing canonical UI Quality `33922277491`: Windows path safety PASS, Linux storage PASS, local-install smoke PASS, validator PASS, Ruff PASS, mypy PASS, full pytest FAIL; primary assertion at `tests/unit/test_pathena_settings_provider_detail_state.py:77` was `assert 'fresh' == 'unavailable'`. Exact fix-head canonical UI Quality `33926653411` completed `success`.
 - repro: `tests/unit/test_pathena_settings_provider_detail_state.py::test_unavailable_provider_detail_fails_closed_as_error` on failing SHA `3d74d43279d9a80bf891bb6bc31001b1e43490e2`.
 - root_cause: `SettingsRuntimePanel.apply_snapshot()` used `resolved_model_freshness` directly for provider/detail metadata even when `provider is None`; semantic state was unavailable/error but metadata could remain `fresh`.
 - files: `src/athena/desktop/pathena_settings_runtime.py`, `tests/unit/test_pathena_settings_provider_detail_state.py`.
 - fix_sha: UI owner `9df9d7d46e3c4774aeea5439f91166a2092bd7fb`.
 - fix: derive provider-specific freshness as `unavailable` whenever provider is absent and apply it only to provider/detail presentation metadata; no backend/provider/network/security behavior changed.
-- verification: canonical UI Quality `33926653411` on exact fix SHA is currently in progress; no PASS claim yet.
-- risk: low and UI-local; freshness presentation must remain fail-closed without changing actual provider transport state.
-- integrator_handoff: do not integrate or declare UI-GAP-0018 ready until `33926653411` completes success; if red, isolate the new exact primary signature before any mutation.
+- verification: canonical UI Quality `33926653411` completed with conclusion `success` on exact fix SHA `9df9d7d46e3c4774aeea5439f91166a2092bd7fb`.
+- risk: low and UI-local; freshness presentation remains fail-closed without changing actual provider transport state.
+- integrator_handoff: UI-GAP-0018 correction is cleared by exact canonical success; preserve the UI-local fail-closed provider/detail metadata behavior.
 
 ## Historical/stale evidence
 
