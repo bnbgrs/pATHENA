@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `d14aca9504021bdacadb89dc478ca41545ab4316`
+Baseline: `3ad1437409eb4104aba5484afe56b139191a0a54`
 Integration target: `develop/pathena-next`
 UI worker: `postmerge/ui`
 
@@ -117,12 +117,18 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
 
 ## UI-GAP-0029 — Workspace action controls lack explicit keyboard-focus presentation
-- Screen: `01 — Workspace / Chat`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `IMPLEMENTED_PENDING_VERIFY`.
-- Evidence: `detailsToggle`, `contextToggle`, `newChatButton`, `deleteChatButton`, `rememberMessageButton`, `addKnowledgeButton`, and `groundButton` define transparent normal borders plus hover and/or checked/disabled states but no explicit `:focus` presentation.
+- Screen: `01 — Workspace / Chat`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `FIXED`.
+- Evidence: `detailsToggle`, `contextToggle`, `newChatButton`, `deleteChatButton`, `rememberMessageButton`, `addKnowledgeButton`, and `groundButton` define transparent normal borders plus hover and/or checked/disabled states but previously had no explicit `:focus` presentation.
 - Product `d25d563ed02ac677a038f522c050e7942d6b0462` adds a shared explicit focus state using canonical readable text, `surface_hover`, and accent border color without changing routing, labels, enabled/disabled semantics, or checked-state behavior.
 - Focused regression `a4cfa5522cb666c9cf53ae53c5a297746fee2f38` verifies all seven selectors and canonical focus tokens.
-- Verification evidence: canonical exact-head Quality pending on the final UI descendant; no `FIXED` claim yet.
-- Visual status: `IMPLEMENTED_PENDING_VERIFY`; no screenshot-level `MATCH` claim.
+- Verification evidence: exact UI head `a0ba6bd47f4b8a6e91e8f6c222334c99cbe1a3aa` passed ATHENA Quality Gate `33996745959` with conclusion `success`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0030 — Command Palette query lacks explicit keyboard-focus presentation
+- Screen: `09 — Command Palette / Help`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `OPEN`.
+- Evidence: `QLineEdit#commandPaletteQuery` has a specialized canvas background and strong border but no explicit `:focus` presentation. `CommandPaletteController.open()` intentionally lands keyboard focus on this query, while the query already has a real command-filtering path plus `Command search` accessibility metadata.
+- Acceptance: add only a canonical-token query focus treatment; preserve focus landing, accessible name/description, placeholder, filtering, result navigation and command activation behavior. No backend/runtime semantics belong in this slice.
+- Visual status: `PARTIAL`; no screenshot-level `MATCH` claim.
 
 ## Evidence blocker
 
