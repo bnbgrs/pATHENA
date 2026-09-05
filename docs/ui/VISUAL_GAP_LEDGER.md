@@ -83,12 +83,12 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
 
 ## UI-GAP-0023 — Empty provider identity/status produces incomplete provider presentation
-- Screen: `07 — Settings`; Category: `COPY / STATE / ACCESSIBILITY`; Severity: `P2`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Screen: `07 — Settings`; Category: `COPY / STATE / ACCESSIBILITY`; Severity: `P2`; Status: `FIXED`.
 - Evidence: `ProviderHealthResponse.provider` and `status` are transport strings without non-empty invariants; empty/whitespace values could render incomplete provider labels and accessible descriptions.
 - Product `c2c681f2a9a60baf43afa0b11eae81ef0db11110`; focused test `90447e0ba08ed7d3e41723702d16ea624d524e1b`.
 - Acceptance: only blank provider identity/status use presentation fallbacks `Model provider` / `unavailable`; non-empty provider identity/status, snapshot freshness and provider readiness semantics remain unchanged; blank status remains non-success.
-- Verification evidence: canonical exact-head Quality pending.
-- Visual status: `IMPLEMENTED_PENDING_VERIFY`; no screenshot-level `MATCH` claim.
+- Verification evidence: exact UI head `d70147b804447ef9834d3ce27661682cf0ea98f7` passed ATHENA Quality Gate `33956094573` with conclusion `success`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
 
 ## Evidence blocker
 
