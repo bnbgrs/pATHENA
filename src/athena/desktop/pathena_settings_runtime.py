@@ -279,7 +279,8 @@ class SettingsRuntimeController(QObject):
                 detail = provider.detail
         detail_text = (
             detail
-            or "Provider readiness is reported by the local Core; no remote status "
+            if detail is not None and detail.strip()
+            else "Provider readiness is reported by the local Core; no remote status "
             "or unsupported capability is inferred."
         )
         provider_detail_error = (
