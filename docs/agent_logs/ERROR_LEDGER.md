@@ -7,35 +7,37 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 - Stable IDs use `ERR-####`.
 - Only reproduced or exact-SHA evidenced failures are opened.
 - Cascades are deduplicated under the primary root cause.
-- `FIXED` requires observed verification; unverified or recurrent corrections remain `FIXED_PENDING_VERIFY`.
+- `FIXED` requires observed verification; unverified corrections remain `FIXED_PENDING_VERIFY`.
 - Allowed states: `OPEN`, `IN_PROGRESS`, `FIXED_PENDING_VERIFY`, `FIXED`, `STALE`, `BLOCKED`.
 - `main` and `bnbgrs/ATHENA` remain read-only.
 
 ## Current baseline
 
-- Baseline branch: `develop/pathena-next`
-- Baseline SHA observed this run: `4ce70615cffcbf0e76ec404e7e58b34c7c5e308a`
-- Worker branch: `postmerge/errors`
-- Pre-run Error branch head: `eaa7e17d8425a05682e011639504d8266c32acb9`.
-- History-preserving NON-FORCE synchronization with current Develop: merge commit `02ff9a758aaf15a9a66db44cf314a5f7839d6e91`; no force update, rebase or history rewrite was used.
+- Baseline branch: `develop/pathena-next`.
+- Baseline SHA observed this run: `49e51f29f3e3c1864a5e26a514b5c07e37c1f28f`.
+- Worker branch: `postmerge/errors`.
+- Pre-run Error branch head: `8cfa0784496cb26b1da9f396b424d6c10ed1d45f`.
+- Error and Develop are currently diverged from merge base `4ce70615cffcbf0e76ec404e7e58b34c7c5e308a`; no force update, rebase or history rewrite was attempted.
 
 ## Current error state
 
 - OPEN: none.
 - IN_PROGRESS: none.
-- FIXED_PENDING_VERIFY: `ERR-0012`, `ERR-0013`.
-- FIXED: `ERR-0001` through `ERR-0011`.
+- FIXED_PENDING_VERIFY: none.
+- FIXED: `ERR-0001` through `ERR-0013`.
 - BLOCKED: none.
 
 ## Current scan
 
 - Historical `ERR-0004` remains `FIXED`; no startup/readiness Ruff recurrence was observed.
-- `ERR-0010` remains `FIXED`; no recurrence of the stale four-timestamp stream-deadline fixture signature was observed.
-- UI correction run `33964058090` on exact SHA `cef280487dd12b6fe88d4a3f021ec9b1b2aea0d5` completed `failure`, but the `ERR-0012` product invariant itself is restored: Windows path safety PASS, Linux storage PASS, local install smoke PASS, specification validator PASS, mypy PASS, and full pytest PASS with 4660 collected tests.
-- The sole canonical blocker in `33964058090` is Ruff `I001` in `tests/unit/test_pathena_settings_provider_detail_whitespace.py:11`: import block unsorted/unformatted. Canonical diagnostics artifact `canonical-quality-diagnostics-cef280487dd12b6fe88d4a3f021ec9b1b2aea0d5` contains the exact rule and file.
-- This Ruff failure is distinct from `ERR-0012`: it is a UI-owned test-harness formatting defect, not StorageHealth product behavior. It is recorded as `ERR-0013`.
-- Current UI head `77b3f9582d4530dbe081e3c81b8768ad00d3f050` is a six-commit descendant of the failing SHA and removes the redundant unformatted `tests/unit/test_pathena_settings_provider_detail_whitespace.py` harness while preserving the corrected StorageHealth guard. Canonical Quality `33966822035` on that exact head is `in_progress`, so neither `ERR-0012` nor `ERR-0013` is closed yet.
-- Current Develop `4ce70615cffcbf0e76ec404e7e58b34c7c5e308a` remains without an exact-head repository-wide global-green claim in this ledger.
+- UI correction Quality `33966822035` on exact SHA `77b3f9582d4530dbe081e3c81b8768ad00d3f050` completed `success`.
+- Exact jobs on `33966822035` show Windows path safety PASS, Linux storage regressions PASS, local install smoke PASS, specification validator PASS, Ruff PASS, mypy PASS, full pytest PASS, and canonical enforcement PASS.
+- On exact SHA `77b3f958...`, `src/athena/storage/health.py` retains the unavailable-state `database_path is None` rejection and related NUL/detail guards.
+- The previously Ruff-red redundant file `tests/unit/test_pathena_settings_provider_detail_whitespace.py` is absent on exact SHA `77b3f958...`; Ruff passes canonically on that same SHA.
+- Therefore `ERR-0012` and `ERR-0013` are closed as `FIXED` with real exact-head verification.
+- Current UI head observed after that verified lineage: `3262343d1f3e31e31d289dd0b0d22ff9559c458e`; its newer Quality `33969699860` is pending and is not used as PASS or failure evidence.
+- Current Backend head observed: `4c9855df8e662e47a66cb2dcb9f66704c4d8f780`.
+- Current Develop `49e51f29f3e3c1864a5e26a514b5c07e37c1f28f` has no exact-head repository-wide global-green claim in this ledger.
 
 ## Entries
 
@@ -43,12 +45,12 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 - severity: P2
 - status: `FIXED`
 - evidence: canonical Backend `33749788522`.
-- repro: malformed/bool-like runtime values crossing deletion-ledger mutation/cursor boundaries before SQL validation.
+- repro: malformed/bool-like runtime values crossed deletion-ledger mutation/cursor boundaries before SQL validation.
 - root_cause: bool-safe runtime validation missing before SQL mutation/cursor boundaries.
 - files: `src/athena/lifecycle/deletion.py`, `tests/unit/test_deletion_ledger_boundaries.py`.
 - fix_sha: `780d25d74ce2e310b6a4bc434f547a23163e8b78`; harness `2f705d5e0fc1c77dd60612b5aeaa16d9380e46cd`.
-- verification: focused deletion boundaries plus validator/Ruff/mypy/Windows/Linux-storage/local-install passed in canonical Backend evidence.
-- risk: none absent recurrence.
+- verification: canonical Backend boundary evidence green for focused/system checks.
+- risk: preserve fail-before-SQL semantics.
 - integrator_handoff: no action required.
 
 ### ERR-0002 — Deletion-boundary harness Ruff I001
@@ -60,18 +62,18 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 - files: `tests/unit/test_deletion_ledger_boundaries.py`.
 - fix_sha: `2f705d5e0fc1c77dd60612b5aeaa16d9380e46cd`.
 - verification: canonical Ruff PASS `33749788522`.
-- risk: none.
+- risk: none absent recurrence.
 - integrator_handoff: no action required.
 
 ### ERR-0003 — Stale permanent-inspector harness contract
 - severity: P1
 - status: `FIXED`
-- evidence: Backend `33755878184`; canonical UI `33745885426` passed byte-identical affected product/harness blobs.
+- evidence: Backend `33755878184`; UI `33745885426` green on affected blobs.
 - repro: shell tests asserted permanently visible inspector while product contract is contextual.
-- root_cause: test contract lagged contextual `Evidence & Activity` inspector behavior.
+- root_cause: test contract lagged contextual `Evidence & Activity` behavior.
 - files: `tests/unit/test_pathena_window.py`; product reference `src/athena/desktop/pathena_window.py`.
 - fix_sha: `6253577227d427c9bb00707c3e3e578a16c0f9d6`.
-- verification: exact known-green UI lineage `33745885426 = success`.
+- verification: exact known-green UI lineage `33745885426`.
 - risk: do not reintroduce permanent-inspector contract.
 - integrator_handoff: preserve contextual state-transition coverage.
 
@@ -103,13 +105,13 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 - severity: P2
 - status: `FIXED`
 - evidence: Backend `33833499697`; repaired-lineage `33838658964 = success`.
-- repro: malformed runtime filter container accepted because static `Sequence[uuid.UUID]` annotation was trusted.
+- repro: malformed runtime filter container accepted because static annotation was trusted.
 - root_cause: missing explicit runtime container/element validation.
 - files: Research filter boundary implementation/tests.
 - fix_sha: `462fba22637e0083c87df32f987134ce0fb3de00`; integrated equivalent `4b390b4fcc39affc1884f304f460901d07ea622a`.
 - verification: canonical repaired lineage `33838658964 = success`.
-- risk: none absent recurrence.
-- integrator_handoff: preserve runtime-safe boundary checks.
+- risk: preserve runtime-safe boundary checks.
+- integrator_handoff: no action required.
 
 ### ERR-0007 — Missing contradiction-review dependency breaks integrated Core import graph
 - severity: P1
@@ -126,7 +128,7 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 ### ERR-0008 — Settings runtime/comprehension harness contract mismatch
 - severity: P2
 - status: `FIXED`
-- evidence: `33845743958`, `33849890354`; final exact fix Quality `33854660676 = success`.
+- evidence: `33845743958`, `33849890354`; exact fix Quality `33854660676 = success`.
 - repro: Settings harness expected stale runtime/comprehension copy/state after truthful loopback-only contract changes.
 - root_cause: harness contract drift.
 - files: `tests/unit/test_pathena_settings_runtime.py`.
@@ -145,27 +147,26 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 - fix_sha: Error `67f3f447621c4544a5fb2fe321e76b62347290e0`; equivalent Backend `0e966a49cd37d9ee6a4572ac4e35ce3d8018ff8e`.
 - verification: exact Backend Quality `33911612711 = success`.
 - risk: never revert remaining-budget cap behavior.
-- integrator_handoff: preserve `[17,9,2]` / `[9,5,1]` remaining-budget semantics or equivalent strict assertions.
+- integrator_handoff: preserve strict remaining-budget semantics.
 
 ### ERR-0010 — Direct total-deadline hardening invalidates stream timing harness
 - first_seen: 2026-09-04
 - severity: P2
 - area: Backend / Provider-Transport / local HTTP test harness
 - status: `FIXED`
-- original evidence: failing Backend `33916312429`; corrected descendant `33921338439 = success`.
-- recurrent evidence: Backend `33933291735` and UI `33936799048` reproduced the exact node `tests/unit/test_lm_studio_response_limits.py::test_stream_iteration_enforces_monotonic_total_deadline` with `TimeoutError`.
-- repro: stale fixture `[10.0, 10.2, 10.6, 11.0]` is consumed by iterator plus direct `readline()` pre/post deadline checks before intended second-line timeout.
-- root_cause: worker/integration drift reintroduced an obsolete four-timestamp harness fixture; product fail-closed deadline behavior is correct.
+- evidence: Backend `33916312429`; recurrent `33933291735` and UI `33936799048`; corrected Backend `33936396203 = success`, UI `33937005854 = success`.
+- repro: stale four-timestamp fixture is consumed by iterator plus direct `readline()` pre/post deadline checks before intended timeout.
+- root_cause: worker/integration drift reintroduced obsolete timing fixture; product fail-closed deadline behavior is correct.
 - files: `tests/unit/test_lm_studio_response_limits.py`; product reference `src/athena/model/adapters/local_http.py`.
-- fix_sha: corrected fixture lineage Backend `e62fcc2db49815e7d32579d0dc68a143f8af07b0` / corrected owner head `dd1311dfeec02030fe6e05f6bd8a81fc13f5fce0`; UI exact-green descendant `f6d2b3afe58fcb0552a0fbd7c72737c2038b18b0`.
-- verification: Backend `33936396203 = success`; UI `33937005854 = success`; corrected six-timestamp fixture `[10.0,10.2,10.4,10.6,10.8,11.0]` preserved through subsequent green lineages.
-- risk: low if correction remains harness-only; no timeout, cumulative-byte, network, storage, recovery or security guard may be weakened.
-- integrator_handoff: preserve the corrected fixture and direct total-deadline fail-closed behavior.
+- fix_sha: Backend `e62fcc2db49815e7d32579d0dc68a143f8af07b0`; owner head `dd1311dfeec02030fe6e05f6bd8a81fc13f5fce0`; UI descendant `f6d2b3afe58fcb0552a0fbd7c72737c2038b18b0`.
+- verification: corrected six-timestamp fixture preserved through canonical green lineages.
+- risk: never weaken total-deadline, cumulative-byte, network, storage, recovery or security guards.
+- integrator_handoff: preserve direct total-deadline fail-closed behavior.
 
 ### ERR-0011 — Unavailable provider leaks fresh accessibility freshness
 - severity: P2
 - status: `FIXED`
-- evidence: failing UI `33922277491`; exact fix-head canonical UI Quality `33926653411 = success`.
+- evidence: failing UI `33922277491`; exact fix-head UI Quality `33926653411 = success`.
 - repro: `provider=None` detail state exposed `fresh` metadata.
 - root_cause: provider/detail metadata reused snapshot freshness even when provider was unavailable.
 - files: `src/athena/desktop/pathena_settings_runtime.py`, `tests/unit/test_pathena_settings_provider_detail_state.py`.
@@ -178,29 +179,29 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 - first_seen: 2026-09-05
 - severity: P1
 - area: UI worker synchronization / Storage / regression composition
-- status: `FIXED_PENDING_VERIFY`
-- evidence: UI Quality `33961422115` on `9f24999c62b309e25ac512a110ef18011225a4cc`; canonical pytest diagnostic `tests/unit/test_storage_health.py::test_storage_health_snapshot_requires_path_for_unavailable_state` -> `Failed: DID NOT RAISE ValueError`; `1 failed, 4650 passed, 3 skipped, 2 warnings`.
-- repro: construct `StorageHealthSnapshot(status="unavailable", database_open=False, database_path=None, database_size_bytes=None, wal_size_bytes=None, observed_at_us=..., detail=...)`; failing UI tree accepts the invalid state although the integrated test requires rejection.
-- root_cause: UI synchronization tree at `9f24999c...` retained stale `src/athena/storage/health.py` relative to Develop, deleting the two-line `database_path is None` invariant while retaining the corresponding test. This is cross-owner tree drift, not a test defect.
+- status: `FIXED`
+- evidence: failing UI Quality `33961422115@9f24999c62b309e25ac512a110ef18011225a4cc`; exact corrected Quality `33966822035@77b3f9582d4530dbe081e3c81b8768ad00d3f050 = success`.
+- repro: `StorageHealthSnapshot(status="unavailable", database_open=False, database_path=None, ...)` was accepted on the stale UI tree and failed `test_storage_health_snapshot_requires_path_for_unavailable_state` with `DID NOT RAISE ValueError`.
+- root_cause: UI synchronization retained stale `src/athena/storage/health.py`, dropping the unavailable `database_path` invariant while retaining its regression test.
 - files: `src/athena/storage/health.py`, `tests/unit/test_storage_health.py`.
-- fix_sha: owner correction present by `cef280487dd12b6fe88d4a3f021ec9b1b2aea0d5` and retained by current UI head `77b3f9582d4530dbe081e3c81b8768ad00d3f050`.
-- verification: on correction run `33964058090@cef280487...`, Windows path safety, Linux storage, local install smoke, validator, mypy and full pytest all PASS; overall Quality remains red only because unrelated Ruff `ERR-0013`. Exact current corrected descendant Quality `33966822035@77b3f958...` is still in progress, so the ledger keeps `FIXED_PENDING_VERIFY`.
-- risk: any future UI/non-storage synchronization must preserve Backend/Integrator StorageHealth invariants, including unavailable-path and NUL/control validation. Do not weaken the test or Storage/Recovery guards.
-- integrator_handoff: reject the old `9f24999c...` tree; do not declare the corrected UI lineage READY until the exact current descendant completes canonical Quality successfully.
+- fix_sha: correction present by `cef280487dd12b6fe88d4a3f021ec9b1b2aea0d5`, canonically verified on descendant `77b3f9582d4530dbe081e3c81b8768ad00d3f050`.
+- verification: exact Quality `33966822035` SUCCESS; Windows path safety, Linux storage, local install, validator, Ruff, mypy, full pytest and canonical enforcement all PASS. Exact file inspection confirms `if database_path is None: raise ValueError(...)` remains in the unavailable branch together with NUL/detail guards.
+- risk: future UI/non-storage synchronization must preserve StorageHealth invariants and Storage/Recovery guards.
+- integrator_handoff: old `9f24999c...` tree remains rejected; verified `77b3f958...` lineage is error-cleared for independent integrator review.
 
 ### ERR-0013 — UI provider-detail whitespace harness Ruff I001
 - first_seen: 2026-09-05
 - severity: P2
 - area: UI test harness / Ruff
-- status: `FIXED_PENDING_VERIFY`
-- evidence: canonical UI Quality `33964058090` on `cef280487dd12b6fe88d4a3f021ec9b1b2aea0d5`; Ruff diagnostic artifact reports `I001 [*] Import block is un-sorted or un-formatted` at `tests/unit/test_pathena_settings_provider_detail_whitespace.py:11:1`, covering the PySide6 and ATHENA import block.
-- repro: run canonical Ruff on exact SHA `cef280487...`; Ruff exits red with exactly one I001 while validator, mypy, Windows path safety, Linux storage, local install smoke and full pytest pass.
-- root_cause: UI added/retained a redundant provider-detail whitespace harness with an import block not formatted according to the repository Ruff/isort contract. This is a harness formatting defect, not a product failure and not a recurrence of startup/readiness `ERR-0004`.
+- status: `FIXED`
+- evidence: failing UI Quality `33964058090@cef280487dd12b6fe88d4a3f021ec9b1b2aea0d5`; exact corrected Quality `33966822035@77b3f9582d4530dbe081e3c81b8768ad00d3f050 = success`.
+- repro: Ruff `I001 [*] Import block is un-sorted or un-formatted` at `tests/unit/test_pathena_settings_provider_detail_whitespace.py:11:1`.
+- root_cause: redundant UI provider-detail whitespace harness had an import block outside repository Ruff/isort format.
 - files: `tests/unit/test_pathena_settings_provider_detail_whitespace.py`.
-- fix_sha: current UI descendant `77b3f9582d4530dbe081e3c81b8768ad00d3f050` removes the redundant unformatted harness; compare from `cef280487...` shows that file removed while provider-detail state coverage remains in `tests/unit/test_pathena_settings_provider_detail_state.py`.
-- verification: canonical replacement Quality `33966822035@77b3f9582d4530dbe081e3c81b8768ad00d3f050` is `in_progress`; therefore no FIXED claim yet.
+- fix_sha: `77b3f9582d4530dbe081e3c81b8768ad00d3f050` removes the redundant offending harness while retaining provider-state coverage elsewhere.
+- verification: exact Quality `33966822035` SUCCESS with Ruff PASS and full pytest PASS; exact file lookup confirms the offending redundant file is absent on that SHA.
 - risk: do not suppress Ruff I001, weaken assertions, or remove non-redundant provider-state coverage merely to make lint green.
-- integrator_handoff: reject `cef280487...` as READY despite pytest success; consume only an exact canonical-green descendant after Ruff and full Quality complete.
+- integrator_handoff: verified `77b3f958...` lineage is error-cleared for independent integrator review.
 
 ## Historical/stale evidence
 
