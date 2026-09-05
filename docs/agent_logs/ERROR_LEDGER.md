@@ -14,16 +14,16 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 ## Current baseline
 
 - Baseline branch: `develop/pathena-next`
-- Baseline SHA observed this run: `8c2f08ef5a9dcafd9cf029da944527d97313cd2b`
+- Baseline SHA observed this run: `7710c7aaa82b4fe4725238cbe8f84d5be9ed3017`
 - Worker branch: `postmerge/errors`
-- Pre-run Error branch head: `5d607519091c1a03d3914e301e5d4524d664e13a`.
-- Current Develop and Error branch are diverged at merge-base `c887b2beb4b0f919fdd4f86d3db245c16c2094f4`; no force update, rebase or history rewrite was attempted.
+- Pre-run Error branch head: `6ccac5e5add098e4981f7d95d5fc912ca776259f`.
+- Error branch remains history-diverged from current Develop; no force update, rebase or history rewrite was attempted.
 
 ## Current error state
 
 - OPEN: none.
 - IN_PROGRESS: none.
-- FIXED_PENDING_VERIFY: none.
+- FIXED_PENDING_VERIFY: `ERR-0012`.
 - FIXED: `ERR-0001` through `ERR-0011`.
 - BLOCKED: none.
 
@@ -31,14 +31,12 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 
 - Historical `ERR-0004` remains `FIXED`; no startup/readiness Ruff recurrence was observed.
 - `ERR-0010` remains `FIXED`; no recurrence of the stale four-timestamp stream-deadline fixture signature was observed.
-- Backend `35e4858146ea7ad423da6ec5d59ce8d2e8eb4115` completed canonical Quality `33958054144 = success`.
-- UI `095eef0e061b5b3a2a718f7c1ee12016d6ca0587` completed canonical Quality `33958727478 = success`.
-- Current Backend head `2d5b22801d5889c374ae1a75bd9880e3070e21c4` is under canonical Quality `33960721888`: Windows path safety PASS, Linux storage PASS, local install smoke PASS, specification validator PASS, Ruff PASS and mypy PASS; full pytest remains `in_progress`.
-- Current UI head `9f24999c62b309e25ac512a110ef18011225a4cc` is under canonical Quality `33961422115`: Windows path safety PASS, Linux storage PASS, local install smoke PASS, specification validator PASS, Ruff PASS and mypy PASS; full pytest remains `in_progress`.
-- Neither current worker run has a completed failure signature; neither is PASS evidence until canonical completion.
-- Integrator has consumed the exact-green Backend StorageHealth NUL-path invariant into Develop. No Error-owned defect is exposed by that bounded integration handoff.
-- No `ERR-0012` is allocated because no concrete deduplicated primary failure is currently complete.
-- Current Develop `8c2f08ef5a9dcafd9cf029da944527d97313cd2b` has no exact-head repository-wide global-green claim in this run.
+- Backend `2d5b22801d5889c374ae1a75bd9880e3070e21c4` completed canonical Quality `33960721888 = success`.
+- UI `9f24999c62b309e25ac512a110ef18011225a4cc` completed canonical Quality `33961422115 = failure`.
+- Exact UI Quality decomposition: Windows path safety PASS, Linux storage PASS, local install smoke PASS, specification validator PASS, Ruff PASS, mypy PASS; full pytest failed one node: `tests/unit/test_storage_health.py::test_storage_health_snapshot_requires_path_for_unavailable_state` with `Failed: DID NOT RAISE ValueError`; full result `1 failed, 4650 passed, 3 skipped, 2 warnings`.
+- The failing UI tree regressed `src/athena/storage/health.py` relative to its Develop merge parent by deleting the `database_path is None` guard for `status == "unavailable"`, while retaining the matching regression test. This is a cross-owner synchronization/product-tree regression, not a flaky test and not a UI startup/readiness failure.
+- Current UI head `cef280487dd12b6fe88d4a3f021ec9b1b2aea0d5` again contains the required unavailable-path guard. Canonical UI Quality `33964058090` is still `in_progress`, so the correction is `FIXED_PENDING_VERIFY`, not `FIXED`.
+- Current Develop `7710c7aaa82b4fe4725238cbe8f84d5be9ed3017` contains the unavailable-path guard plus later StorageHealth NUL-detail hardening; no exact current-Develop repository-wide global-green claim is made here.
 
 ## Entries
 
@@ -176,6 +174,20 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 - verification: exact fix-head UI Quality `33926653411 = success`.
 - risk: preserve fail-closed unavailable/error presentation semantics.
 - integrator_handoff: no action required.
+
+### ERR-0012 — UI synchronization drops unavailable StorageHealth database-path invariant
+- first_seen: 2026-09-05
+- severity: P1
+- area: UI worker synchronization / Storage / regression composition
+- status: `FIXED_PENDING_VERIFY`
+- evidence: UI Quality `33961422115` on `9f24999c62b309e25ac512a110ef18011225a4cc`; canonical pytest diagnostic `tests/unit/test_storage_health.py::test_storage_health_snapshot_requires_path_for_unavailable_state` -> `Failed: DID NOT RAISE ValueError`; `1 failed, 4650 passed, 3 skipped, 2 warnings`.
+- repro: construct `StorageHealthSnapshot(status="unavailable", database_open=False, database_path=None, database_size_bytes=None, wal_size_bytes=None, observed_at_us=..., detail=...)`; failing UI tree accepts the invalid state although the integrated test requires rejection.
+- root_cause: the UI synchronization tree at `9f24999c...` retained a stale `src/athena/storage/health.py` relative to Develop, deleting the two-line `database_path is None` invariant while importing/retaining the corresponding test. Compare against Develop merge parent `c887b2beb4b0f919fdd4f86d3db245c16c2094f4` shows `src/athena/storage/health.py` with exactly 2 deletions. This is cross-owner tree drift, not a test defect.
+- files: `src/athena/storage/health.py`, `tests/unit/test_storage_health.py`.
+- fix_sha: owner correction present on current UI head `cef280487dd12b6fe88d4a3f021ec9b1b2aea0d5`; current file again rejects missing database path for unavailable state. Exact canonical verification is pending.
+- verification: failing run has Validator/Ruff/mypy/Windows path safety/Linux storage/local install PASS and full pytest FAIL only on the exact invariant node. Replacement UI Quality `33964058090` on `cef280487dd12b6fe88d4a3f021ec9b1b2aea0d5` remains `in_progress`; therefore not FIXED yet.
+- risk: any future UI/non-storage synchronization must preserve Backend/Integrator StorageHealth invariants, including unavailable-path and NUL validation. Do not weaken the test or Storage/Recovery guards.
+- integrator_handoff: reject `9f24999c62b309e25ac512a110ef18011225a4cc` as globally green/READY. Require exact canonical success on a corrected UI descendant that preserves current Develop StorageHealth invariants before integration.
 
 ## Historical/stale evidence
 
