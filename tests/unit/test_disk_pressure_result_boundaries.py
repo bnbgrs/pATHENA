@@ -122,3 +122,16 @@ def test_reserve_provision_result_rejects_provisioning_that_creates_emergency_pr
             provisioned_bytes=1 * _GIB,
             status=None,
         )
+
+
+def test_reserve_provision_result_rejects_underprovisioned_safe_allocation() -> None:
+    assessment = assess_disk_pressure(total_bytes=100 * _GIB, free_bytes=20 * _GIB)
+    assert assessment.state is DiskPressureState.NORMAL
+
+    with pytest.raises(ValueError, match="must match the deterministic safe allocation policy"):
+        EmergencyReserveProvisionResult(
+            assessment=assessment,
+            required_bytes=1 * _GIB,
+            provisioned_bytes=0,
+            status=None,
+        )
