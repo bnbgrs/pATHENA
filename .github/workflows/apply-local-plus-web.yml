@@ -31,7 +31,9 @@ jobs:
           python -m pip install --disable-pip-version-check "uv==0.11.21"
 
       - name: Apply deterministic Local+Web slice
-        run: python scripts/apply_spec_core_local_plus_web.py
+        run: |
+          python scripts/apply_spec_core_local_plus_web.py
+          python -c 'from pathlib import Path; p=Path("tests/unit/test_research_local_plus_web.py"); s=p.read_text(encoding="utf-8"); s=s.replace("from athena.core.application import AthenaApplication\n", "from athena.config.settings import AthenaSettings\nfrom athena.core.application import AthenaApplication\n"); s=s.replace("    app = AthenaApplication(tmp_path / \"athena.db\")\n", "    app = AthenaApplication(settings=AthenaSettings(local_root=tmp_path / \"runtime\"))\n    app.start(run_startup_maintenance=False)\n"); s=s.replace("app.jobs.list_jobs()", "app.jobs.list(limit=500)"); p.write_text(s, encoding="utf-8")'
 
       - name: Validate focused Core regressions
         env:
