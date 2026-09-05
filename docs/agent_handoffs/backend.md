@@ -2,10 +2,10 @@
 
 ## Baseline
 
-- Shared baseline reviewed: `develop/pathena-next@cf33955bcaa91649f2b5ac1142940e5e72ffa43a`.
+- Shared baseline reviewed: `develop/pathena-next@d69fcc570bceac78536614f40b0ae3e1b867d791`.
 - Worker branch: `postmerge/backend`.
-- Prior worker head: `dd1311dfeec02030fe6e05f6bd8a81fc13f5fce0`.
-- History-preserving NON-FORCE synchronization: `ff7702e620b6cdb40075ae9cd6038578c4743eaa`, with parents prior Backend head `dd1311dfeec02030fe6e05f6bd8a81fc13f5fce0` and exact Develop `cf33955bcaa91649f2b5ac1142940e5e72ffa43a`.
+- Prior worker head: `7d380631f69b8b9b9f580f01f4510760f11de577`.
+- History-preserving NON-FORCE synchronization: `ca1750d681e6ff521fba01211ef4947df5c923a3`, with parents prior Backend head `7d380631f69b8b9b9f580f01f4510760f11de577` and exact Develop `d69fcc570bceac78536614f40b0ae3e1b867d791`.
 - Required handoffs reviewed: `errors.md`, `spec-core.md`, `ui.md`, `integrator.md`, and this Backend handoff.
 - `main` and `bnbgrs/ATHENA` remain strict read-only and untouched.
 
@@ -15,17 +15,17 @@ Required fail-before-side-effect runtime guards and canonical-harness coverage a
 
 Status: `BACKEND_VERIFIED / INTEGRATOR_READY`.
 
-## Local model HTTP alternative read API bypass — VERIFIED
+## Local model HTTP raw body-handle escape — VERIFIED
 
-Product `91bf40b1a8cfd72403e4b81061980079460b7c16` rejects alternative data-consuming response APIs `peek`, `read1`, `readinto`, and `readinto1` before underlying I/O. Focused tests `23e914033a1012d7f6901ae86299e49d435a90ed` plus monotonic fixture correction `e62fcc2db49815e7d32579d0dc68a143f8af07b0` passed exact descendant Backend head `dd1311dfeec02030fe6e05f6bd8a81fc13f5fce0` in ATHENA Quality `33936396203 = success`.
+Product `05730b74a2bb64aa240b6199a0476bd3e0c83998` rejects delegated `fp`, `file`, and `raw` body-handle attributes before escape. Focused tests `202d2f6ac5d3c0e7da4dede2e381d838f25abf8f` prove rejection before underlying body consumption. Exact descendant Backend head `7d380631f69b8b9b9f580f01f4510760f11de577` passed canonical ATHENA Quality `33939326942 = success`.
 
 Status: `BACKEND_VERIFIED / INTEGRATOR_READY`.
 
-## Local model HTTP raw body-handle escape — PRODUCT_FIXED / TESTS_ADDED_PENDING_VERIFY
+## Local model HTTP delegated bulk-read escape — PRODUCT_FIXED / TESTS_ADDED_PENDING_VERIFY
 
-Product commit `05730b74a2bb64aa240b6199a0476bd3e0c83998` closes a distinct response-wrapper escape: delegated `fp`, `file`, or `raw` attributes could expose the underlying body object and therefore allow callers to bypass the established cumulative byte cap and monotonic total deadline even after alternative read methods were blocked. `_BoundedLocalResponse.__getattr__` now rejects these raw body-handle attributes fail-closed while retaining ordinary response metadata delegation.
+Product commit `0d0844a70d6e825253ec15e5544b8b716990dad0` closes a distinct response-wrapper escape: delegated `readall()` and `readlines()` methods could bypass `_BoundedLocalResponse.read()` / `.readline()`, cumulative byte accounting, overflow poisoning, and the monotonic total deadline. They are now rejected through the same fail-closed delegated-read boundary as `peek`, `read1`, `readinto`, and `readinto1`.
 
-Focused test commit `202d2f6ac5d3c0e7da4dede2e381d838f25abf8f` proves `fp`, `file`, and `raw` are rejected without consuming underlying bytes and that ordinary bounded response state remains intact.
+Focused test commit `f55f092b5d20568f20f1172dd6500bc4a55c7f31` extends the existing parameterized rejection harness to `readall` and `readlines` and verifies rejection before underlying I/O while metadata delegation remains unchanged.
 
 Status: `FIXED_PENDING_VERIFY`; no PASS/READY claim until an exact product-containing descendant canonical Quality run is green.
 
@@ -35,7 +35,7 @@ Status: `FIXED_PENDING_VERIFY`; no PASS/READY claim until an exact product-conta
 - redirect rejection and timeout validation unchanged;
 - response-size enforcement remains cumulative and terminal after overflow;
 - total response deadline remains fail-closed on successful and HTTP-error paths;
-- alternative raw response read APIs and raw body-handle escape attributes cannot bypass bounded `read()`/`readline()` paths;
+- delegated alternative/bulk response read APIs and raw body-handle attributes cannot bypass bounded `read()`/`readline()` paths;
 - no new retries, routing behavior or cryptography;
 - no silent Tor -> Direct fallback; Direct remains explicit-only;
 - ExternalAccessGateway redirect authorization, HTTPS/default-port policy, compressed-response rejection and response-size fail-closed behavior unchanged;
@@ -46,9 +46,9 @@ Status: `FIXED_PENDING_VERIFY`; no PASS/READY claim until an exact product-conta
 ## Integrator handoff
 
 - READY: ExternalAccessGateway runtime boundaries through `c67fa646d8ba4e4137cdf69992b9c8b42ad904d6`, Quality `33884210684 = success`.
-- READY: alternate-read bypass product `91bf40b1a8cfd72403e4b81061980079460b7c16` + focused tests `23e914033a1012d7f6901ae86299e49d435a90ed` + fixture correction `e62fcc2db49815e7d32579d0dc68a143f8af07b0` through exact green Backend head `dd1311dfeec02030fe6e05f6bd8a81fc13f5fce0`, Quality `33936396203 = success`.
-- NOT READY: raw body-handle escape product `05730b74a2bb64aa240b6199a0476bd3e0c83998` + tests `202d2f6ac5d3c0e7da4dede2e381d838f25abf8f` until exact descendant canonical green evidence.
+- READY: raw body-handle escape product `05730b74a2bb64aa240b6199a0476bd3e0c83998` + tests `202d2f6ac5d3c0e7da4dede2e381d838f25abf8f` through exact green Backend head `7d380631f69b8b9b9f580f01f4510760f11de577`, Quality `33939326942 = success`.
+- NOT READY: delegated bulk-read product `0d0844a70d6e825253ec15e5544b8b716990dad0` + tests `f55f092b5d20568f20f1172dd6500bc4a55c7f31` until exact descendant canonical green evidence.
 
 ## Next backend slice
 
-Consume the first exact canonical Quality run containing `202d2f6ac5d3c0e7da4dede2e381d838f25abf8f`. If green, mark raw body-handle escape hardening VERIFIED/READY and immediately take the highest current unclaimed Storage/Recovery/Provider/Packaging P0/P1/P2 runtime gap. If red, inspect exact diagnostics and minimally correct only the Backend-owned failure.
+Consume the first exact canonical Quality run containing `f55f092b5d20568f20f1172dd6500bc4a55c7f31`. If green, mark delegated bulk-read hardening VERIFIED/READY and immediately take the highest current unclaimed Storage/Recovery/Provider/Packaging P0/P1/P2 runtime gap. If no run binds, use an alternate executable verification path or take a disjoint real Backend/System slice rather than repeating the runner blocker. If red, inspect exact diagnostics and minimally correct only the Backend-owned failure.
