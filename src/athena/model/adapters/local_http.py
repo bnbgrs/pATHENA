@@ -87,6 +87,7 @@ class _BoundedLocalResponse:
             )
 
     def readline(self) -> bytes:
+        self._assert_before_deadline()
         readline = getattr(self._response, "readline", None)
         if readline is None:
             raise OSError("Local model streaming response does not support bounded lines.")
@@ -97,9 +98,11 @@ class _BoundedLocalResponse:
                 "Local model streaming response exceeded the configured byte limit."
             )
         self._bytes_read += len(raw)
+        self._assert_before_deadline()
         return raw
 
     def read(self, amt: int | None = None) -> bytes:
+        self._assert_before_deadline()
         remaining = self._max_bytes - self._bytes_read
         request_size = (
             remaining + 1
@@ -112,6 +115,7 @@ class _BoundedLocalResponse:
                 "Local model response exceeded the configured byte limit."
             )
         self._bytes_read += len(raw)
+        self._assert_before_deadline()
         return raw
 
 
