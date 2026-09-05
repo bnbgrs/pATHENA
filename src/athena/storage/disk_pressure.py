@@ -159,6 +159,11 @@ class EmergencyReserveProvisionResult:
         if not isinstance(self.assessment, DiskPressureAssessment):
             raise TypeError("Reserve provision assessment must be DiskPressureAssessment.")
         required = _positive_int(self.required_bytes, "Reserve provision required_bytes")
+        expected_required = emergency_reserve_size_bytes(self.assessment.total_bytes)
+        if required != expected_required:
+            raise ValueError(
+                "Reserve required bytes must match the canonical emergency reserve sizing policy."
+            )
         provisioned = _nonnegative_int(
             self.provisioned_bytes,
             "Reserve provision provisioned_bytes",
