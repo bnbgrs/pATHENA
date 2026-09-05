@@ -280,12 +280,7 @@ def _validate_source_extract(
         "athena.controlled_structured_json/1",
         label=label,
     )
-    _equal_text(
-        config,
-        "structured_validation",
-        "athena_stage_parser_v1",
-        label=label,
-    )
+    _equal_text(config, "structured_validation", "athena_stage_parser_v1", label=label)
     _equal_text(
         config,
         "provider_instance_policy",
@@ -354,7 +349,7 @@ def _validate_research_exhaustive(
     )
     assert scope is not None
     mode = _text(scope, "mode", label=label)
-    if mode not in {"local_exhaustive", "scoped_project"}:
+    if mode not in {"local_exhaustive", "scoped_project", "historical_backfill"}:
         raise BuiltinJobPayloadValidationError(
             "research.exhaustive field 'mode' has an unsupported value."
         )
@@ -373,6 +368,10 @@ def _validate_research_exhaustive(
     _canonical_uuid_list(scope, "explicit_source_ids", label=label)
     start = _optional_integer(scope, "time_start_us", minimum=0, label=label)
     end = _optional_integer(scope, "time_end_us", minimum=0, label=label)
+    if mode == "historical_backfill" and (start is None or end is None):
+        raise BuiltinJobPayloadValidationError(
+            "research.exhaustive historical_backfill mode requires time bounds."
+        )
     if start is not None and end is not None and end < start:
         raise BuiltinJobPayloadValidationError(
             "research.exhaustive time_end_us must be >= time_start_us."
