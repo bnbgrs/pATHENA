@@ -2,12 +2,12 @@
 
 ## Baseline
 
-- Shared baseline reviewed: `develop/pathena-next@fdbf882eede84bfcc5debc6cfffc311fdfb1e440`.
+- Shared baseline reviewed: `develop/pathena-next@5c5cb8d3011f3fb1c7df01faeeacaf1b0033e2d8`.
 - Worker branch: `postmerge/backend`.
-- Prior worker head: `15c06e210952aabcb49c22f08e92ed0c0c73272e`.
-- Worker heads reviewed: errors `32d59d7b43bbd6d6cf4108ba8b00b6f8726645a7`, spec-core `88b9bad5a3c6cd028b421cafc2e7fb65caeb6a53`, ui `525ae04361dd29cc4a9e05f62f810c5ec47ac16d`.
+- Prior worker head: `cb23f971ac68ed5c4cf67a5638efc6a44a9c3fb2`.
+- Worker heads reviewed: errors `af81167e35c0c8f7eda24fd8a818c1532cbb89da`, spec-core `e2c04019465ed9499e8e66ad6d97901c6591d4ef`, ui `f2cc20321c79809a37079b0525b2aab676ac8682`.
 - Required handoffs reviewed: `errors.md`, `spec-core.md`, `ui.md`, `integrator.md`, and this Backend handoff.
-- History-preserving NON-FORCE synchronization: `2d2d09907806ecf633a48cd614ef2b6ffe7c924a`, with parents prior Backend head `15c06e210952aabcb49c22f08e92ed0c0c73272e` and exact Develop `fdbf882eede84bfcc5debc6cfffc311fdfb1e440`.
+- History-preserving NON-FORCE synchronization: `11551b4b2827862c3e7268fbcdf14c7f12e068b6`, with parents prior Backend head `cb23f971ac68ed5c4cf67a5638efc6a44a9c3fb2` and exact Develop `5c5cb8d3011f3fb1c7df01faeeacaf1b0033e2d8`.
 - `main` and `bnbgrs/ATHENA` remain strict read-only and untouched.
 
 ## ExternalAccessGateway runtime boundaries — VERIFIED
@@ -22,13 +22,19 @@ Product `58ddb559a69f0278225a439c9118617b51bab7bc` rejects delegated `fileno` so
 
 Status: `BACKEND_VERIFIED / INTEGRATOR_READY`.
 
-## Storage health open-path invariant — PRODUCT_FIXED / TESTS_ADDED_PENDING_VERIFY
+## Storage health open-path invariant — VERIFIED
 
-A malformed runtime `StorageHealthSnapshot` could previously claim `database_open=True` while carrying `database_path=None`. That contradicts the live-database boundary and weakens truthful storage telemetry/provenance.
+Product `114aee1b46f199548c0b87c1c0ae431e240fee94` rejects `database_open=True` snapshots without a concrete database path. Focused test commit `bac92f7fa682b551369ace821f46c18cc9743f76` covers the previously accepted contradictory open-error state. Exact Backend descendant `cb23f971ac68ed5c4cf67a5638efc6a44a9c3fb2` passed canonical ATHENA Quality `33947479509 = success`.
 
-Product commit `114aee1b46f199548c0b87c1c0ae431e240fee94` now rejects every open snapshot without a concrete database path before the status-specific state is accepted. Existing valid available/unavailable/error states remain unchanged.
+Status: `BACKEND_VERIFIED / INTEGRATOR_READY`.
 
-Focused test commit `bac92f7fa682b551369ace821f46c18cc9743f76` covers the previously accepted contradictory open-error state with `database_path=None`.
+## Storage health whitespace-path invariant — PRODUCT_FIXED / TESTS_ADDED_PENDING_VERIFY
+
+A runtime `StorageHealthSnapshot` could still claim a database identity such as `" "`, `"\t"`, or newline-only text. That is not a concrete filesystem identity and could make an open/error health snapshot appear grounded while carrying no usable database path.
+
+Product commit `ca790d2e79477ecc23f7654e5544d171fe13e647` now rejects a non-None `database_path` whose text contains only whitespace, before status-specific state is accepted. Valid Windows/Linux paths and existing unavailable/available/error semantics are unchanged.
+
+Focused test commit `5b381076659f75a80666100045a73562eb68acd7` covers space-, tab-, and CRLF-only database paths.
 
 Status: `FIXED_PENDING_VERIFY`; no PASS/READY claim until an exact product-containing descendant canonical Quality run is green.
 
@@ -49,8 +55,9 @@ Status: `FIXED_PENDING_VERIFY`; no PASS/READY claim until an exact product-conta
 
 - READY: ExternalAccessGateway runtime boundaries through `c67fa646d8ba4e4137cdf69992b9c8b42ad904d6`, Quality `33884210684 = success`.
 - READY: local HTTP file-descriptor escape product `58ddb559a69f0278225a439c9118617b51bab7bc` + tests `5f38ed071b384021395f084ca53aab6575a71b96` through exact green Backend head `15c06e210952aabcb49c22f08e92ed0c0c73272e`, Quality `33944818290 = success`.
-- NOT READY: StorageHealth open-path product `114aee1b46f199548c0b87c1c0ae431e240fee94` + tests `bac92f7fa682b551369ace821f46c18cc9743f76` until exact descendant canonical green evidence.
+- READY: StorageHealth open-path product `114aee1b46f199548c0b87c1c0ae431e240fee94` + tests `bac92f7fa682b551369ace821f46c18cc9743f76` through exact green Backend head `cb23f971ac68ed5c4cf67a5638efc6a44a9c3fb2`, Quality `33947479509 = success`.
+- NOT READY: StorageHealth whitespace-path product `ca790d2e79477ecc23f7654e5544d171fe13e647` + tests `5b381076659f75a80666100045a73562eb68acd7` until exact descendant canonical green evidence.
 
 ## Next backend slice
 
-Consume the first exact canonical Quality run containing `bac92f7fa682b551369ace821f46c18cc9743f76` or a documentation-only descendant. If green, mark StorageHealth open-path hardening VERIFIED/READY and immediately take the highest current unclaimed Storage/Recovery/Provider/Packaging P0/P1/P2 runtime gap. If no run binds, use an alternate executable verification path or take a disjoint real Backend/System slice rather than repeating the runner blocker. If red, inspect exact diagnostics and minimally correct only the Backend-owned failure.
+Consume the first exact canonical Quality run containing `5b381076659f75a80666100045a73562eb68acd7` or a documentation-only descendant. If green, mark StorageHealth whitespace-path hardening VERIFIED/READY and immediately take the highest current unclaimed Storage/Recovery/Provider/Packaging P0/P1/P2 runtime gap. If no run binds, use an alternate executable verification path or take a disjoint real Backend/System slice rather than repeating the runner blocker. If red, inspect exact diagnostics and minimally correct only the Backend-owned failure.
