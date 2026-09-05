@@ -12,6 +12,7 @@ from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
 
 MAX_LOCAL_RESPONSE_BYTES = 32 * 1024 * 1024
+_BLOCKED_RESPONSE_READ_APIS = frozenset({"peek", "read1", "readinto", "readinto1"})
 
 
 class LocalResponseTooLargeError(OSError):
@@ -78,6 +79,10 @@ class _BoundedLocalResponse:
             yield raw_line
 
     def __getattr__(self, name: str) -> Any:
+        if name in _BLOCKED_RESPONSE_READ_APIS:
+            raise OSError(
+                "Local model response only supports bounded read/readline access."
+            )
         return getattr(self._response, name)
 
     def _assert_before_deadline(self) -> None:
@@ -186,7 +191,10 @@ def open_local_request(request: Request, *, timeout: float) -> Any:
     ``readline()`` calls, a cumulative byte cap, and a monotonic total deadline
     in addition to the socket inactivity timeout, preventing giant SSE lines,
     many-small-event floods, and indefinitely active local streams from bypassing
-    the configured transport and generation bounds.
+    the configured transport and generation bounds. HTTP error bodies use the
+    same byte and total-time bounds before provider-specific error parsing.
+    Alternative raw response read APIs are rejected so callers cannot bypass the
+    bounded read/readline paths accidentally.
     """
     if not isinstance(request, Request):
         raise TypeError("Local model transport requires urllib.request.Request.")
