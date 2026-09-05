@@ -3,9 +3,9 @@
 ## Baseline
 
 - Baseline source: `develop/pathena-next`
-- Baseline SHA observed this run: `f90160f4a4269394215927bec07ac047b6297d1e`
+- Baseline SHA observed this run: `52e702912b3b2c0f4cfc7c93baf4c656a02231ad`
 - Worker branch: `postmerge/errors`
-- History-preserving NON-FORCE synchronization is recorded by the current Error branch merge commit for this run.
+- Error branch was observed at `24b9cceaad0b6f53740325f9da8fe10a4a588de8`; comparison with current Develop is diverged, so no force/ref rewrite was attempted. History preservation remains mandatory.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
 ## Current error state
@@ -18,29 +18,29 @@
 
 ## Fresh evidence
 
-- Backend StorageHealth/open-path lineage `cb23f971ac68ed5c4cf67a5638efc6a44a9c3fb2` completed canonical Quality `33947479509 = success`.
-- Current Backend head `ec392a018a381bc478e83ef335107f9b9e4a30e8` has Quality `33949831624` in progress. Windows path safety, Linux storage, local install smoke, validator, Ruff and mypy are PASS; full pytest remains in progress.
-- Current UI head `bbf03ba95695c12cf70f88195e09714cff25593c` has Quality `33950433025` in progress. Windows path safety, Linux storage, local install smoke, validator, Ruff and mypy are PASS; full pytest remains in progress.
+- Backend `ec392a018a381bc478e83ef335107f9b9e4a30e8` completed canonical Quality `33949831624 = success`.
+- UI `bbf03ba95695c12cf70f88195e09714cff25593c` completed canonical Quality `33950433025 = success`.
+- Newer Backend head `6cdb9095b265230b5484a7ce203c09c798b9a0a6` is under canonical Quality `33952543793`, still in progress; this is neither PASS nor failure evidence.
+- Newer UI head `f36ffd143ae51b5e6e0fd653cefddbd33ce0b886` is under canonical Quality `33953459102`, pending; this is neither PASS nor failure evidence.
 - No current completed worker evidence exposes a concrete new primary failure; therefore `ERR-0012` is not allocated.
-- Current Develop `f90160f4a4269394215927bec07ac047b6297d1e` has no exact-head repository-wide global-green claim.
+- Current Develop `52e702912b3b2c0f4cfc7c93baf4c656a02231ad` has no exact-head repository-wide global-green claim in this run.
 
 ## Collision avoidance
 
-- No Error-owned product/harness mutation is justified while current Backend/UI full pytest runs are still active and no failure signature exists.
-- Do not touch Backend StorageHealth whitespace-path work or current UI Settings work while their exact Quality runs remain active.
+- No Error-owned product/harness mutation is justified while current Backend/UI canonical runs have no completed failure signature.
 - Preserve direct deadline, cumulative byte-budget, delegated body-handle/file-descriptor restrictions, loopback-only/proxy-free transport, Security, Storage and Recovery guards.
 - No skip/XFail, assertion weakening, dummy success, force-push, history rewrite or merge to main.
 
 ## Integrator handoff
 
 - `ERR-0001` through `ERR-0011` remain error-cleared on recorded exact evidence.
-- Backend `cb23f971ac68ed5c4cf67a5638efc6a44a9c3fb2` / `33947479509` is exact canonical green and may be independently reviewed as bounded Backend evidence.
-- Do not interpret Backend `ec392a018a381bc478e83ef335107f9b9e4a30e8` / `33949831624` or UI `bbf03ba95695c12cf70f88195e09714cff25593c` / `33950433025` as READY until full pytest and canonical enforcement complete successfully.
+- Backend `ec392a018a381bc478e83ef335107f9b9e4a30e8` / `33949831624` and UI `bbf03ba95695c12cf70f88195e09714cff25593c` / `33950433025` are exact canonical green.
+- Do not interpret Backend `6cdb9095b265230b5484a7ce203c09c798b9a0a6` / `33952543793` or UI `f36ffd143ae51b5e6e0fd653cefddbd33ce0b886` / `33953459102` as READY until their exact canonical runs complete successfully.
 - Current Develop still requires exact-head canonical Quality before any repository-wide global-green claim.
 
 ## Next scan
 
-1. Consume Backend `33949831624` and UI `33950433025` when complete.
+1. Consume Backend `33952543793` and UI `33953459102` when complete.
 2. Allocate `ERR-0012` only if a concrete, deduplicated primary failure appears.
 3. If either run fails, extract the exact canonical diagnostic/log signature before mutating anything and distinguish product defect from harness drift.
 4. Continue Packaging, Provider/Transport, Research/Jobs, Persistence/Recovery, Qt/Desktop, Security, Windows path safety, Linux storage and local install/start scanning for real current-lineage failures.
