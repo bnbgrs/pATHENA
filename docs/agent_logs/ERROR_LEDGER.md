@@ -14,9 +14,9 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 ## Current baseline
 
 - Baseline branch: `develop/pathena-next`
-- Baseline SHA observed this run: `f9938b0f3c3a016b1cc7837441caaec72974e1cf`
+- Baseline SHA observed this run: `fdbf882eede84bfcc5debc6cfffc311fdfb1e440`
 - Worker branch: `postmerge/errors`
-- History-preserving NON-FORCE synchronization: `5442abac714b0b7caf3a5c9c49fe151d4f7ccfb4`, parents prior Error head `a64daaba830b3cac1c67ec85c1bd2bafd1e3be39` and exact Develop head `f9938b0f3c3a016b1cc7837441caaec72974e1cf`.
+- Synchronization for this run is history-preserving and NON-FORCE; exact merge SHA is recorded after the ledger/handoff refresh.
 
 ## Current error state
 
@@ -29,12 +29,14 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 ## Current scan
 
 - Historical `ERR-0004` remains `FIXED`; no startup/readiness Ruff recurrence was observed.
-- `ERR-0010` remains `FIXED`; the corrected six-timestamp stream-deadline fixture remains preserved in current Develop.
-- Previously pending Backend Quality `33939326942` on `7d380631f69b8b9b9f580f01f4510760f11de577` completed `success` and was independently integrated as the bounded raw body-handle escape slice.
-- Previously pending UI Quality `33939919740` on `550943bd4515514ea9e87b863d1b16f22b60445a` completed `success`.
-- No `ERR-0012` is allocated. Current Backend head `cdc61439364028d29ecc56f3c39d34cd9a3dcc12` is under canonical Quality `33941852514`: Windows path safety PASS, Linux storage PASS, local install smoke PASS, Validator PASS, Ruff PASS, mypy PASS, full pytest still in progress at observation time.
-- Current UI head `9ca1cb04031d618bd6d34d2df4a46d331d110a82` is under canonical Quality `33942660590`: Linux storage PASS, local install smoke PASS, Validator PASS, Ruff PASS, mypy PASS, Windows path-safety teardown still completing, full pytest still in progress at observation time.
-- Pending runs are neither PASS nor failure evidence. No exact-current-Develop global-green claim is made.
+- `ERR-0010` remains `FIXED`; no recurrence of the stale four-timestamp stream-deadline fixture signature was observed.
+- Previously pending Backend Quality `33941852514` on `cdc61439364028d29ecc56f3c39d34cd9a3dcc12` completed `success`.
+- Previously pending UI Quality `33942660590` on `9ca1cb04031d618bd6d34d2df4a46d331d110a82` completed `success`.
+- No `ERR-0012` is allocated.
+- Current Backend head `15c06e210952aabcb49c22f08e92ed0c0c73272e` is under canonical Quality `33944818290`: Windows path safety PASS, Linux storage PASS, local install smoke PASS, Validator PASS, Ruff PASS, mypy PASS, full pytest still in progress at observation time. This head contains the file-descriptor escape hardening successor and is not PASS/READY evidence until the run completes.
+- Current UI head `525ae04361dd29cc4a9e05f62f810c5ec47ac16d` is under canonical Quality `33945298515`: Windows path safety PASS, Linux storage PASS, local install smoke PASS, Validator PASS, Ruff PASS, mypy PASS, full pytest still in progress at observation time.
+- Current Develop `fdbf882eede84bfcc5debc6cfffc311fdfb1e440` has no exact-head global-green claim in this run.
+- Pending runs are neither PASS nor failure evidence.
 
 ## Entries
 
@@ -157,9 +159,9 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 - root_cause: worker/integration drift reintroduced an obsolete four-timestamp harness fixture; product fail-closed deadline behavior is correct.
 - files: `tests/unit/test_lm_studio_response_limits.py`; product reference `src/athena/model/adapters/local_http.py`.
 - fix_sha: corrected fixture lineage Backend `e62fcc2db49815e7d32579d0dc68a143f8af07b0` / corrected owner head `dd1311dfeec02030fe6e05f6bd8a81fc13f5fce0`; UI exact-green descendant `f6d2b3afe58fcb0552a0fbd7c72737c2038b18b0`.
-- verification: Backend `33936396203 = success`; UI `33937005854 = success`; current Develop preserves the corrected six-timestamp fixture `[10.0,10.2,10.4,10.6,10.8,11.0]`.
+- verification: Backend `33936396203 = success`; UI `33937005854 = success`; corrected six-timestamp fixture `[10.0,10.2,10.4,10.6,10.8,11.0]` preserved through subsequent green lineages.
 - risk: low if correction remains harness-only; no timeout, cumulative-byte, network, storage, recovery or security guard may be weakened.
-- integrator_handoff: preserve the corrected fixture and direct total-deadline fail-closed behavior. Exact-current-Develop global Quality remains a separate readiness question.
+- integrator_handoff: preserve the corrected fixture and direct total-deadline fail-closed behavior.
 
 ### ERR-0011 — Unavailable provider leaks fresh accessibility freshness
 - severity: P2
