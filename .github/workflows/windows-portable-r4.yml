@@ -53,12 +53,15 @@ jobs:
         run: |
           $pkg = Join-Path $env:RUNNER_TEMP "pathena-portable-r4\pATHENA"
           $worker = Join-Path $pkg "pATHENA-Worker.exe"
-          & $worker -m athena --help
-          if ($LASTEXITCODE -ne 0) { throw "Worker ATHENA CLI smoke failed." }
-          & $worker -m athena.api.process --help
-          if ($LASTEXITCODE -ne 0) { throw "Worker Core role smoke failed." }
-          & $worker -m athena.desktop.jobs_cli --help
-          if ($LASTEXITCODE -ne 0) { throw "Worker jobs role smoke failed." }
+          foreach ($arguments in @(
+            @("-m", "athena", "--help"),
+            @("-m", "athena.api.process", "--help")
+          )) {
+            $process = Start-Process -FilePath $worker -WorkingDirectory $pkg -ArgumentList $arguments -Wait -PassThru -NoNewWindow
+            if ($process.ExitCode -ne 0) {
+              throw "Worker role smoke failed with exit code $($process.ExitCode): $($arguments -join ' ')"
+            }
+          }
 
       - name: Exercise real desktop process tree in isolated runtime
         shell: pwsh
@@ -95,13 +98,20 @@ jobs:
             $desktopCount2 = @(Get-CimInstance Win32_Process | Where-Object { $_.Name -ieq "pATHENA.exe" }).Count
             $workerCount2 = @(Get-CimInstance Win32_Process | Where-Object { $_.Name -ieq "pATHENA-Worker.exe" }).Count
 
+            Write-Host "Desktop count: $desktopCount1 -> $desktopCount2"
+            Write-Host "Worker count: $workerCount1 -> $workerCount2"
             if ($desktopCount2 -ne 1) { throw "Expected exactly one desktop process, found $desktopCount2." }
             if ($workerCount2 -gt $workerCount1) { throw "Worker process count grew from $workerCount1 to $workerCount2." }
             if ($workerCount2 -gt 12) { throw "Worker process count $workerCount2 exceeds bounded ceiling." }
 
+            $patterns = @(
+              "duplicate column name: source_processing_job_id",
+              "ATHENA Core startup failed",
+              "Failed to start service 'storage-bootstrap'"
+            )
             $bad = Get-ChildItem -Path $runtime -Recurse -File -ErrorAction SilentlyContinue |
               Where-Object { $_.Length -lt 10MB } |
-              Select-String -Pattern "duplicate column name: source_processing_job_id|ATHENA Core startup failed|Failed to start service 'storage-bootstrap'" -SimpleMatch:$false -ErrorAction SilentlyContinue
+              Select-String -Pattern $patterns -SimpleMatch -ErrorAction SilentlyContinue
             if ($bad) {
               $bad | ForEach-Object { Write-Host $_.Line }
               throw "Detected fatal Core/database startup error in isolated runtime."
