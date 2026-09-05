@@ -48,6 +48,31 @@ def test_historical_backfill_persists_truthful_mode_and_time_scope(tmp_path: Pat
         app.stop()
 
 
+def test_historical_backfill_candidate_freeze_preserves_truthful_mode(
+    tmp_path: Path,
+) -> None:
+    app = _app(tmp_path / "runtime")
+    try:
+        job = app.research.enqueue_historical_backfill(
+            query="Freeze only the bounded historical snapshot.",
+            time_start_us=1_700_000_000_000_000,
+            time_end_us=1_710_000_000_000_000,
+            coverage_target=1,
+        )
+        scope = app.research.initialize(job.job_id)
+
+        candidate_set = app.research.repository.freeze_local_candidates(scope.scope_id)
+
+        persisted = app.research.repository.get_scope(scope.scope_id)
+        assert persisted.mode is ResearchMode.HISTORICAL_BACKFILL
+        assert persisted.time_start_us == 1_700_000_000_000_000
+        assert persisted.time_end_us == 1_710_000_000_000_000
+        assert candidate_set.snapshot_commit_seq == persisted.snapshot_commit_seq
+        assert candidate_set.candidate_total == 0
+    finally:
+        app.stop()
+
+
 def test_historical_backfill_rejects_invalid_bounds_before_persistence(
     tmp_path: Path,
 ) -> None:
