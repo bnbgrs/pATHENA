@@ -14,9 +14,9 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 ## Current baseline
 
 - Baseline branch: `develop/pathena-next`
-- Baseline SHA observed this run: `5c5cb8d3011f3fb1c7df01faeeacaf1b0033e2d8`
+- Baseline SHA observed this run: `f90160f4a4269394215927bec07ac047b6297d1e`
 - Worker branch: `postmerge/errors`
-- History-preserving NON-FORCE synchronization merge: `d60e1f938340ce7bdaf7b2444bfd5dc24b0a8d26`.
+- History-preserving NON-FORCE synchronization is recorded by the current Error branch merge commit for this run.
 
 ## Current error state
 
@@ -30,13 +30,11 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 
 - Historical `ERR-0004` remains `FIXED`; no startup/readiness Ruff recurrence was observed.
 - `ERR-0010` remains `FIXED`; no recurrence of the stale four-timestamp stream-deadline fixture signature was observed.
-- Previously pending Backend Quality `33944818290` on `15c06e210952aabcb49c22f08e92ed0c0c73272e` completed `success`.
-- Previously pending UI Quality `33945298515` on `525ae04361dd29cc4a9e05f62f810c5ec47ac16d` completed `success`.
-- No `ERR-0012` is allocated.
-- Current Backend successor head `cb23f971ac68ed5c4cf67a5638efc6a44a9c3fb2` is under canonical Quality `33947479509`, still `in_progress`; it is not PASS/READY evidence yet.
-- Current UI successor head `f2cc20321c79809a37079b0525b2aab676ac8682` is under canonical Quality `33947967906`, still `in_progress`; it is not PASS/READY evidence yet.
-- Current Develop `5c5cb8d3011f3fb1c7df01faeeacaf1b0033e2d8` has no exact-head global-green claim in this run.
-- Pending runs are neither PASS nor failure evidence.
+- Backend Quality `33947479509` on `cb23f971ac68ed5c4cf67a5638efc6a44a9c3fb2` completed `success`.
+- The current Backend head `ec392a018a381bc478e83ef335107f9b9e4a30e8` is under canonical Quality `33949831624`: Windows path safety PASS, Linux storage PASS, local install smoke PASS, specification validator PASS, Ruff PASS and mypy PASS; full pytest is still in progress. This is neither PASS nor failure evidence yet.
+- The current UI head `bbf03ba95695c12cf70f88195e09714cff25593c` is under canonical Quality `33950433025`: Windows path safety PASS, Linux storage PASS, local install smoke PASS, specification validator PASS, Ruff PASS and mypy PASS; full pytest is still in progress. This is neither PASS nor failure evidence yet.
+- No `ERR-0012` is allocated because no concrete deduplicated primary failure is currently complete.
+- Current Develop `f90160f4a4269394215927bec07ac047b6297d1e` has no exact-head global-green claim in this run.
 
 ## Entries
 

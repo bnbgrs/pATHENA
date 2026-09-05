@@ -49,7 +49,7 @@ def test_raw_body_handle_attributes_are_rejected_before_escape() -> None:
     raw.raw = raw  # type: ignore[attr-defined]
     response = _BoundedLocalResponse(raw, max_bytes=5)
 
-    for attribute_name in ("fp", "file", "raw"):
+    for attribute_name in ("fp", "file", "fileno", "raw"):
         with pytest.raises(OSError, match="raw body handles"):
             getattr(response, attribute_name)
 
