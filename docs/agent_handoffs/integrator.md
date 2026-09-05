@@ -3,46 +3,43 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `52e702912b3b2c0f4cfc7c93baf4c656a02231ad`.
+- Develop before this run: `d1ca4580b129f5b255215ce415f4e627b22dbc63`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `ff51b179f7954dbaf756b5000f8c3430c4f454f7`; spec-core `f8764009f88987e9e8dff9a9466a30d5834e6e35`; backend `1ca844d7f5d8a90165e3b109fe1a7caa1880d877`; ui `d70147b804447ef9834d3ce27661682cf0ea98f7`.
-- `errors.md`, `spec-core.md`, `backend.md`, `ui.md`, and `ALPHA_BETA_PROGRESS.md` were reviewed. Separate files exactly named `ERROR_LEDGER`, `11-Screen-Manifest`, and `Visual-Gap-Ledger` were not independently established in the reviewed repository evidence.
+- Worker heads reviewed: errors `e1b0b2de9697b1241f1e97484210197173a59f4d`; spec-core `2e94cbc8bc94fe1638ff5476fe166889ccc662b3`; backend `35e4858146ea7ad423da6ec5d59ce8d2e8eb4115`; ui `095eef0e061b5b3a2a718f7c1ee12016d6ca0587`.
+- Required handoffs and `ALPHA_BETA_PROGRESS.md` were reviewed. Separate exact files named `ERROR_LEDGER`, `11-Screen-Manifest`, and `Visual-Gap-Ledger` were not independently established in this run.
 
-## Integrated this run — StorageHealth whitespace-only detail rejection
+## Integrated this run — StorageHealth unavailable-path invariant
 
 READY Backend lineage independently reviewed:
 
-- product `73ed1c6fa99078f2559dcc2e7236dcffae10553f`;
-- focused tests `3e29d5e012a82795c064ea2e574e49e6546d464e`;
-- exact green Backend descendant `6cdb9095b265230b5484a7ce203c09c798b9a0a6`;
-- canonical ATHENA Quality `33952543793 = success`.
+- product `3421ea19c33b16a7694d7cb96951787225cb0d4c`;
+- focused test `fbc3e214b822e8f25477ece0248d21f5fbe5d4fe`;
+- exact green Backend descendant `1ca844d7f5d8a90165e3b109fe1a7caa1880d877`;
+- canonical ATHENA Quality `33955258771 = success`.
 
-The bounded semantic change rejects non-None `StorageHealthSnapshot.detail` values containing only whitespace. Existing valid non-empty detail strings, available/unavailable/error state semantics, database path behavior, size telemetry, WAL handling, persistence, recovery, transport, security, audit and provenance remain unchanged.
+The bounded change requires `StorageHealthSnapshot(status="unavailable")` to retain a concrete database path. It fails closed when the path is absent while preserving available/error semantics, existing detail validation, size/WAL telemetry, persistence, recovery, transport, security, audit and provenance behavior.
 
-The current Develop baseline differed structurally from the worker context, so the worker blob was not copied blindly. The two-line product delta was applied semantically to the current `src/athena/storage/health.py`, and the exact focused three-case whitespace test was added to `tests/unit/test_storage_health.py`.
-
-During contents-API replacement, an accidental identifier typo was introduced in an otherwise unchanged WAL assignment line; it was immediately corrected in the next commit before validation/handoff. Independent compare from the pre-run Develop baseline to the resulting product/test head confirms the final net delta is only two added product lines and fourteen added focused-test lines across those two files.
+Current Develop already contained the preceding whitespace-detail hardening. The worker commit was therefore not transplanted blindly; the exact two-line product semantic delta and focused unavailable-without-path test were applied to the current Develop files.
 
 ## Validation state
 
-- Worker exact canonical Quality: `33952543793 = success`.
-- Product integration commit: `c765fb5f3e1dbdc89ffed7ea9e7da707bfc215ca`.
-- Immediate correction commit preserving the original WAL assignment: `1b3401598316281afca339a9879474612d452217`.
-- Focused test integration commit: `747bda0369c5493c60426f74d0a0becc28dae899`.
-- Independent compare `52e702912b3b2c0f4cfc7c93baf4c656a02231ad..747bda0369c5493c60426f74d0a0becc28dae899` is ahead by three commits with exactly two modified files: `src/athena/storage/health.py` (+2) and `tests/unit/test_storage_health.py` (+14).
+- Product integration commit: `41d6d91580d26606b06285b5ae7140e1b46b70a5`.
+- Focused test integration commit: `86cfa075c039b62f67162b86737d1ca56c99e13f`.
+- Independent compare `d1ca4580b129f5b255215ce415f4e627b22dbc63..86cfa075c039b62f67162b86737d1ca56c99e13f` is ahead by two commits with exactly two modified files: `src/athena/storage/health.py` (+2) and `tests/unit/test_storage_health.py` (+13).
+- Worker exact canonical Quality: `33955258771 = success`.
 - No exact current-Develop repository-wide global-green claim is made in this run.
 
 ## READY alternatives deferred
 
-- UI-GAP-0022 is exact-green and READY via UI Quality `33953459102`, but deferred by the single-bounded-slice rule.
-- Backend StorageHealth unavailable-path hardening remains `FIXED_PENDING_VERIFY` without exact product-containing green evidence in the reviewed Backend handoff.
-- No newer Core product slice was selected from the synchronized Core head in this run.
+- UI-GAP-0022 remains exact-green and READY via UI Quality `33953459102`, but is deferred by the single-bounded-slice rule.
+- Backend StorageHealth NUL-path hardening is `FIXED_PENDING_VERIFY` and must not be integrated until exact product-containing canonical green evidence exists.
+- No newer bounded Core product slice was selected in this run.
 
 ## Next integration order
 
 1. Prefer any newer bounded Core product successor only with exact product-containing green evidence.
-2. Otherwise independently review and integrate exactly one READY alternative, with UI-GAP-0022 currently available.
-3. If Backend unavailable-path hardening gains exact canonical green evidence first, it may be considered instead after collision review.
+2. Otherwise independently review and integrate exactly one READY alternative; UI-GAP-0022 is currently READY.
+3. If Backend NUL-path hardening gains exact canonical green evidence first, consider it after collision review.
 4. Preserve single-bounded-slice discipline and exact-head evidence before any repository-wide green claim.
 
 ## Rules retained
