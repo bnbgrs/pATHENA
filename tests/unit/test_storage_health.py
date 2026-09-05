@@ -240,6 +240,20 @@ def test_storage_health_snapshot_requires_path_for_unavailable_state() -> None:
         )
 
 
+@pytest.mark.parametrize("database_path", ["\x00", "athena\x00.sqlite3"])
+def test_storage_health_snapshot_rejects_nul_database_path(database_path: str) -> None:
+    with pytest.raises(ValueError, match="database_path must not contain NUL characters"):
+        StorageHealthSnapshot(
+            status="error",
+            database_open=True,
+            database_path=database_path,
+            database_size_bytes=None,
+            wal_size_bytes=None,
+            observed_at_us=1,
+            detail="probe failed",
+        )
+
+
 @pytest.mark.parametrize("detail", [" ", "\t", "\r\n"])
 def test_storage_health_snapshot_rejects_whitespace_only_detail(detail: str) -> None:
     with pytest.raises(ValueError, match="detail must contain non-whitespace text"):
