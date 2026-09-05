@@ -2,35 +2,23 @@
 
 ## Current baseline
 
-- Base: `develop/pathena-next@de2f5a64e7a0fbc282df81db6beee3431297f2de`.
+- Base: `develop/pathena-next@cf33955bcaa91649f2b5ac1142940e5e72ffa43a`.
 - Worker: `postmerge/ui`.
-- History-preserving NON-FORCE synchronization commit: `d1d8a3b4e659dd1f697d72fa5b96b4d7f76482a7`, with parents `37a097b9e97314184c36780b38b39b217418be12` + `de2f5a64e7a0fbc282df81db6beee3431297f2de`; Develop changes were limited to current Integrator/progress plus local HTTP product/test files and were disjoint from the Settings slice.
+- History-preserving NON-FORCE synchronization commit: `f5f8ba8b261a1e586eb682a4af68b1968e841fab`, with parents `f6d2b3afe58fcb0552a0fbd7c72737c2038b18b0` + `cf33955bcaa91649f2b5ac1142940e5e72ffa43a`; Develop changes were limited to current Integrator/progress plus local HTTP product/test files and were disjoint from the Settings slice.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 - Original eleven reference images remain `VISUAL_REFERENCE_PENDING`; no pixel-level `MATCH` claim is made.
 
-## UI-GAP-0018 — unavailable provider detail semantic state
+## UI-GAP-0019 — unavailable provider detail copy
 
 Status: `FIXED / INTEGRATOR_READY`, P2.
 
 Verified implementation:
 
-- product `82fb17da950f8234e28c69bd576e38047ba9b2bb` makes unavailable provider detail fail closed to `error` while retaining `unavailable` freshness;
-- focused test `6aad966258288a7519af6d261dea4695e7ffde76` verifies provider/detail state coherence and synchronized accessibility for a real snapshot with `provider=None`;
-- corrective product `9df9d7d46e3c4774aeea5439f91166a2092bd7fb` makes provider absence force `provider_freshness=unavailable` consistently for provider and detail;
-- exact corrective UI head `9df9d7d46e3c4774aeea5439f91166a2092bd7fb` passed ATHENA Quality Gate `33926653411` with conclusion `success`;
-- no provider/backend/storage/network/security behavior changed.
-
-## UI-GAP-0019 — unavailable provider detail copy
-
-Status: `IMPLEMENTED_PENDING_VERIFY`, P2.
-
-Candidate:
-
-- exact current-lineage inspection confirmed that `provider=None` plus no explicit `model_error` made `settingsProviderState` say `Model provider · unavailable` while `settingsRuntimeDetail` used generic readiness explanatory copy;
-- product `6bfce859c177dfc75119a63c270c028b5b3c5772` changes only that presentation fallback to `Model provider is unavailable in the local Core snapshot.`;
-- explicit `model_error` still has first precedence, provider-supplied detail still has second precedence, and the generic readiness copy remains the fallback only when a provider exists but supplies no detail;
+- product `6bfce859c177dfc75119a63c270c028b5b3c5772` changes only the provider-absent presentation fallback to `Model provider is unavailable in the local Core snapshot.`;
+- explicit `model_error` still has first precedence, provider-supplied detail retains provider-present precedence, and generic readiness copy remains only the provider-present/no-detail fallback;
 - focused test `de688468ff3265d997a2b4c5a39d0aebdf89a9da` verifies exact copy, `error/unavailable` state, and synchronized accessible description for a real snapshot with `provider=None`;
-- canonical ATHENA Quality `33933815974` started on exact product/test head `de688468ff3265d997a2b4c5a39d0aebdf89a9da`; result is pending;
+- harness-only commit `f6d2b3afe58fcb0552a0fbd7c72737c2038b18b0` aligned an unrelated deterministic LM Studio monotonic-deadline fixture with the unchanged bounded transport checks without weakening assertions or product semantics;
+- exact final UI head `f6d2b3afe58fcb0552a0fbd7c72737c2038b18b0` passed ATHENA Quality Gate `33937005854` with conclusion `success`;
 - no provider/backend/storage/network/security behavior changed.
 
 ## Collision / ownership guidance
@@ -43,10 +31,10 @@ Candidate:
 
 ## Integrator handoff
 
-- READY: UI-GAP-0018 bounded lineage `82fb17da950f8234e28c69bd576e38047ba9b2bb` -> `6aad966258288a7519af6d261dea4695e7ffde76` -> corrective product `9df9d7d46e3c4774aeea5439f91166a2092bd7fb`, backed by exact green Quality `33926653411`.
-- NOT READY: UI-GAP-0019 until canonical Quality succeeds on an exact head containing product `6bfce859c177dfc75119a63c270c028b5b3c5772` and focused test `de688468ff3265d997a2b4c5a39d0aebdf89a9da`.
-- Screen 07 is `IMPLEMENTED_PENDING_VERIFY`; no screenshot-level `MATCH` is claimed.
+- READY: UI-GAP-0019 bounded UI lineage `6bfce859c177dfc75119a63c270c028b5b3c5772` -> `de688468ff3265d997a2b4c5a39d0aebdf89a9da`, with final exact-green descendant `f6d2b3afe58fcb0552a0fbd7c72737c2038b18b0` backed by ATHENA Quality Gate `33937005854 = success`.
+- The LM Studio fixture commit on the exact-green descendant is harness-only and unrelated to UI product semantics; Integrator should independently review whether it is already present or needed on current Develop rather than treating it as UI product scope.
+- Screen 07 is `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` is claimed.
 
 ## Next UI step
 
-Consume canonical Quality for the exact UI-GAP-0019 candidate. If green, mark UI-GAP-0019 `FIXED`, return Screen 07 to `IMPLEMENTED_PENDING_VISUAL_REVIEW`, hand the bounded product/test lineage to Integrator, then select the next highest evidence-backed interaction/accessibility gap. Until the original reference images are directly available, make no screenshot-level `MATCH` claim.
+Select the next highest evidence-backed interaction/accessibility gap from the synchronized current lineage. Until the original reference images are directly available, make no screenshot-level `MATCH` claim and continue only spec-/ledger-backed state, interaction, accessibility or responsive polishing.
