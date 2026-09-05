@@ -25,6 +25,20 @@ class _RecordingBytesIO(io.BytesIO):
         return super().readline(size)
 
 
+@pytest.mark.parametrize("method_name", ["peek", "read1", "readinto", "readinto1"])
+def test_alternative_response_read_apis_are_rejected_before_underlying_io(
+    method_name: str,
+) -> None:
+    raw = io.BytesIO(b"abcdef")
+    response = _BoundedLocalResponse(raw, max_bytes=5)
+
+    with pytest.raises(OSError, match="bounded read/readline"):
+        getattr(response, method_name)
+
+    assert raw.tell() == 0
+    assert response.closed is False
+
+
 def test_chunked_reads_cannot_bypass_cumulative_response_limit() -> None:
     response = _BoundedLocalResponse(io.BytesIO(b"abcdef"), max_bytes=5)
 
