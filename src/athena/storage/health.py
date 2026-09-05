@@ -71,6 +71,8 @@ class StorageHealthSnapshot:
             raise ValueError("Storage health database_path must not contain NUL characters.")
         if detail is not None and not detail.strip():
             raise ValueError("Storage health detail must contain non-whitespace text.")
+        if detail is not None and "\x00" in detail:
+            raise ValueError("Storage health detail must not contain NUL characters.")
         if self.database_open and database_path is None:
             raise ValueError("Open storage health requires a database path.")
 
