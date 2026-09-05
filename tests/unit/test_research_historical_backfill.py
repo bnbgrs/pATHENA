@@ -21,6 +21,23 @@ def _research_job_count(app: AthenaApplication) -> int:
     return sum(job.job_type == "research.exhaustive" for job in app.jobs.list(limit=500))
 
 
+def _capture_source_at(
+    app: AthenaApplication,
+    root: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    name: str,
+    acquired_at_us: int,
+) -> object:
+    path = root / name
+    path.write_text(f"historical source {name}\n", encoding="utf-8")
+    monkeypatch.setattr(
+        "athena.source.repository.utc_now_us",
+        lambda: acquired_at_us,
+    )
+    return app.sources.capture_file(path).source.source_id
+
+
 def test_historical_backfill_persists_truthful_mode_and_time_scope(tmp_path: Path) -> None:
     app = _app(tmp_path / "runtime")
     try:
@@ -69,6 +86,71 @@ def test_historical_backfill_candidate_freeze_preserves_truthful_mode(
         assert persisted.time_end_us == 1_710_000_000_000_000
         assert candidate_set.snapshot_commit_seq == persisted.snapshot_commit_seq
         assert candidate_set.candidate_total == 0
+    finally:
+        app.stop()
+
+
+def test_historical_backfill_freeze_honors_inclusive_time_and_pinned_snapshot(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app = _app(tmp_path / "runtime")
+    source_root = tmp_path / "sources"
+    source_root.mkdir()
+    try:
+        below = _capture_source_at(
+            app,
+            source_root,
+            monkeypatch,
+            name="below.txt",
+            acquired_at_us=99,
+        )
+        lower = _capture_source_at(
+            app,
+            source_root,
+            monkeypatch,
+            name="lower.txt",
+            acquired_at_us=100,
+        )
+        upper = _capture_source_at(
+            app,
+            source_root,
+            monkeypatch,
+            name="upper.txt",
+            acquired_at_us=200,
+        )
+        above = _capture_source_at(
+            app,
+            source_root,
+            monkeypatch,
+            name="above.txt",
+            acquired_at_us=201,
+        )
+
+        job = app.research.enqueue_historical_backfill(
+            query="Freeze only sources visible inside the pinned historical interval.",
+            time_start_us=100,
+            time_end_us=200,
+            coverage_target=1,
+        )
+        scope = app.research.initialize(job.job_id)
+
+        late = _capture_source_at(
+            app,
+            source_root,
+            monkeypatch,
+            name="late.txt",
+            acquired_at_us=150,
+        )
+
+        candidate_set = app.research.repository.freeze_local_candidates(scope.scope_id)
+        candidates = app.research.repository.list_candidates(scope.scope_id)
+        selected = {candidate.source_id for candidate in candidates}
+
+        assert candidate_set.snapshot_commit_seq == scope.snapshot_commit_seq
+        assert candidate_set.candidate_total == 2
+        assert selected == {lower, upper}
+        assert selected.isdisjoint({below, above, late})
     finally:
         app.stop()
 
