@@ -250,16 +250,94 @@ class ResearchRepository:
                     "Foundation local discovery cannot yet apply domain/project filters; "
                     "refusing to silently broaden the ResearchScope."
                 )
+            internet_scope: Mapping[str, Any] | None = None
             if scope.internet_scope_json is not None:
-                raise ResearchScopeUnsupportedError(
-                    "Foundation local discovery does not support internet_scope."
-                )
+                decoded_scope = json.loads(scope.internet_scope_json)
+                if not isinstance(decoded_scope, dict):
+                    raise ResearchScopeUnsupportedError(
+                        "Research internet_scope must be a canonical object."
+                    )
+                internet_scope = decoded_scope
+
             if scope.mode not in {
                 ResearchMode.LOCAL_EXHAUSTIVE,
                 ResearchMode.HISTORICAL_BACKFILL,
+                ResearchMode.LOCAL_PLUS_WEB,
             }:
                 raise ResearchScopeUnsupportedError(
                     f"Foundation discovery does not support Research mode {scope.mode.value!r}."
+                )
+
+            authorized_external_source_ids: tuple[uuid.UUID, ...] = ()
+            all_external_source_ids: set[uuid.UUID] = set()
+            if scope.mode is ResearchMode.LOCAL_PLUS_WEB:
+                if internet_scope is None:
+                    raise ResearchScopeUnsupportedError(
+                        "Local+Web discovery requires explicit internet_scope provenance."
+                    )
+                authorization_raw = internet_scope.get("authorization_id")
+                captured_raw = internet_scope.get("captured_source_ids")
+                if not isinstance(authorization_raw, str):
+                    raise ResearchScopeUnsupportedError(
+                        "Local+Web internet_scope requires authorization_id UUID text."
+                    )
+                if not isinstance(captured_raw, list) or not captured_raw:
+                    raise ResearchScopeUnsupportedError(
+                        "Local+Web internet_scope requires captured_source_ids."
+                    )
+                if any(not isinstance(value, str) for value in captured_raw):
+                    raise ResearchScopeUnsupportedError(
+                        "Local+Web captured_source_ids must contain UUID text."
+                    )
+                try:
+                    authorization_id = uuid.UUID(authorization_raw)
+                    authorized_external_source_ids = tuple(
+                        uuid.UUID(value) for value in captured_raw
+                    )
+                except ValueError as exc:
+                    raise ResearchScopeUnsupportedError(
+                        "Local+Web internet_scope contains a malformed UUID."
+                    ) from exc
+                canonical_captured = tuple(
+                    sorted(set(authorized_external_source_ids), key=str)
+                )
+                if (
+                    str(authorization_id) != authorization_raw
+                    or canonical_captured != authorized_external_source_ids
+                    or [str(value) for value in canonical_captured] != captured_raw
+                ):
+                    raise ResearchScopeUnsupportedError(
+                        "Local+Web internet_scope is not canonical."
+                    )
+
+                linked_rows = connection.execute(
+                    """
+                    SELECT source_id
+                    FROM external_source_captures
+                    WHERE authorization_id = ?
+                    ORDER BY source_id
+                    """,
+                    (uuid_to_blob(authorization_id),),
+                ).fetchall()
+                linked_source_ids = tuple(
+                    sorted(
+                        {uuid_from_blob(bytes(row["source_id"])) for row in linked_rows},
+                        key=str,
+                    )
+                )
+                if linked_source_ids != authorized_external_source_ids:
+                    raise ResearchSnapshotError(
+                        "Local+Web capture linkage does not match the explicit authorization."
+                    )
+                external_rows = connection.execute(
+                    "SELECT DISTINCT source_id FROM external_source_captures"
+                ).fetchall()
+                all_external_source_ids = {
+                    uuid_from_blob(bytes(row["source_id"])) for row in external_rows
+                }
+            elif internet_scope is not None:
+                raise ResearchScopeUnsupportedError(
+                    "Foundation local discovery does not support internet_scope."
                 )
 
             source_types = _json_string_array(
@@ -273,14 +351,30 @@ class ResearchRepository:
                     "explicit_source_ids_json",
                 )
             )
+            selection_explicit_source_ids = (
+                ()
+                if scope.mode is ResearchMode.LOCAL_PLUS_WEB
+                else explicit_source_ids
+            )
             rows = self._select_sources_as_of(
                 connection,
                 snapshot_commit_seq=scope.snapshot_commit_seq,
                 source_types=source_types,
-                explicit_source_ids=explicit_source_ids,
+                explicit_source_ids=selection_explicit_source_ids,
                 time_start_us=scope.time_start_us,
                 time_end_us=scope.time_end_us,
             )
+            if scope.mode is ResearchMode.LOCAL_PLUS_WEB:
+                authorized = set(authorized_external_source_ids)
+                rows = tuple(
+                    row
+                    for row in rows
+                    if (
+                        uuid_from_blob(bytes(row["source_id"]))
+                        not in all_external_source_ids
+                        or uuid_from_blob(bytes(row["source_id"])) in authorized
+                    )
+                )
 
             if explicit_source_ids:
                 found = {uuid_from_blob(bytes(row["source_id"])) for row in rows}
