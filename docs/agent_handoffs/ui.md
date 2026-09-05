@@ -2,42 +2,42 @@
 
 ## Current baseline
 
-- Base reviewed: `develop/pathena-next@e25c483909881221aa1b42b868ce22993ec0f9b9`.
+- Base reviewed: `develop/pathena-next@b5d888b09774e70a389457f568a8079faf130b5e`.
 - Worker: `postmerge/ui`.
-- Current Develop Research/Integrator delta was copied exactly and synchronized history-preservingly through two-parent NON-FORCE commit `77b24435ff688e4d9ba49702fe826e3ff260fa42` with prior UI head `5a5ba2681412c32c181e63026ce1b92574675d64` and current Develop as parents.
+- Current Develop history was synchronized history-preservingly through two-parent NON-FORCE commit `43c3fdd7304210e88f4acb6f6cf6747542fc27d7`; the exact current Integrator handoff was then copied onto the worker at `ee34615775157a949400d3c8adf40a0357556e69`.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 - Original eleven reference images remain `VISUAL_REFERENCE_PENDING`; no pixel-level `MATCH` claim is made.
 
-## Windows runtime promotion guard
+## Runtime/release regression guard
 
-The reported 2026-09-05 Windows `SchedulerLaneOwnershipError` following `PermissionError [Errno 13]` in `athena/jobs/lane_lock.py`, plus packaged-worker `OSError [Errno 22]`, remains an external P0 promotion blocker for UI claims. This UI worker did not mutate Backend/Worker/Scheduler semantics, did not add relaunch behavior, and does not claim any UI candidate Windows-runtime-ready. Startup/status work must remain fail-closed and must not trigger parallel Desktop/Scheduler starts while the owning Backend/Error workers resolve the exact-SHA root cause.
-
-## UI-GAP-0027 — explicit keyboard focus for glyph primary rail
-
-Status: `FIXED / INTEGRATOR_READY`, P1.
-
-- Product/test candidate `38793f4e116900d4d06db0aff9a8e42c69272141` adds `QListWidget#navigation:focus::item:current` while preserving visible glyphs, selection semantics, accessible item labels, rail dimensions and routing.
-- Exact synchronized UI head `779b28a0845e80bb16feadca28f5eaba26124db9` passed ATHENA Quality Gate `33987939232 = success`.
+Known Windows packaging/process-tree/startup/chat-context/lane-lock crash classes remain release-acceptance regressions only unless reproduced on the exact current SHA. This UI slice does not alter Desktop/Worker/Scheduler spawn ownership, backend/storage/security semantics, or claim Windows promotion readiness.
 
 ## UI-GAP-0028 — explicit keyboard focus for composer Send
 
 Status: `FIXED / INTEGRATOR_READY`, P1.
 
-- Exact evidence: `QPushButton#sendButton` defined normal, hover and pressed presentation while adjacent `QLineEdit#promptInput` already had explicit focus styling; no `sendButton:focus` rule existed.
-- Product/test `8c132673f7a991ae1fc16e27b0d65342bdae02e9` adds only a presentation-state rule using canonical focus tokens and preserves the existing 48px Send geometry, hover/pressed states and send routing.
+- Product/test `8c132673f7a991ae1fc16e27b0d65342bdae02e9` adds the explicit `QPushButton#sendButton:focus` presentation while preserving 48px geometry, hover/pressed states and routing.
 - Exact UI head `5a5ba2681412c32c181e63026ce1b92574675d64` passed ATHENA Quality Gate `33991088294 = success`.
-- No Backend, Storage, Security, Provider, transport, persistence or provenance semantics changed.
+- Exact synchronized successor `5604ee6bdf4783a096bd08cbbf2e08b9fb5ae303` passed ATHENA Quality Gate `33993942327 = success`.
+- Develop subsequently integrated the bounded Send-focus slice at `996f07d3efca994536e5c9cadbf72eb24eb8dd25`.
 
-## Collision review
+## UI-GAP-0029 — explicit keyboard focus for Workspace action controls
 
-Current Develop delta from the prior shared base was exactly `docs/agent_handoffs/integrator.md`, `src/athena/external/gateway.py`, `src/athena/jobs/payload_validation.py`, `src/athena/research/service.py`, and `tests/unit/test_research_local_plus_web.py`. Those Develop blobs were copied exactly before two-parent synchronization commit `77b24435ff688e4d9ba49702fe826e3ff260fa42`; UI-GAP-0028 itself remains bounded to `src/athena/desktop/pathena_theme.py`, `tests/unit/test_pathena_theme.py`, and versioned UI coordination docs.
+Status: `IMPLEMENTED_PENDING_VERIFY`, P1.
+
+Evidence from the current specialized stylesheet showed `detailsToggle`, `contextToggle`, `newChatButton`, `deleteChatButton`, `rememberMessageButton`, `addKnowledgeButton`, and `groundButton` with transparent normal borders plus hover and/or checked/disabled states but no explicit keyboard-focus presentation.
+
+- Product `d25d563ed02ac677a038f522c050e7942d6b0462` adds a shared `:focus` presentation for the seven real Workspace controls using only canonical `text`, `surface_hover`, and `accent` tokens.
+- Focused regression `a4cfa5522cb666c9cf53ae53c5a297746fee2f38` verifies all seven selectors and the canonical focus declarations.
+- No routing, accessible labels, enabled/disabled behavior, checked-state semantics, Backend/Storage/Security/Provider/transport/persistence/provenance behavior, or runtime spawn logic changed.
+- Ledger and exact eleven-slot manifest mark Screen 01 `IMPLEMENTED_PENDING_VERIFY`; no `FIXED`, visual-match, or Windows-runtime-ready claim is made before canonical exact-head Quality succeeds.
 
 ## Integrator handoff
 
-- UI-GAP-0028 is READY: product/test `8c132673f7a991ae1fc16e27b0d65342bdae02e9`, exact verified UI head `5a5ba2681412c32c181e63026ce1b92574675d64`, Quality `33991088294 = success`.
-- Current UI branch is history-preservingly synchronized with `develop/pathena-next@e25c483909881221aa1b42b868ce22993ec0f9b9`; no Windows-runtime-ready claim is made because the Scheduler lane ownership P0 remains unresolved by its owning workers.
-- Screen 01 remains `IMPLEMENTED_PENDING_VISUAL_REVIEW` and `VISUAL_REFERENCE_PENDING`; no screenshot-level `MATCH` is claimed.
+- UI-GAP-0028 remains READY and is already integrated on Develop.
+- UI-GAP-0029: DO NOT INTEGRATE until canonical Quality succeeds on the exact final UI descendant containing product `d25d563ed02ac677a038f522c050e7942d6b0462`, focused regression `a4cfa5522cb666c9cf53ae53c5a297746fee2f38`, ledger, manifest, and this handoff.
+- Current worker is history-preservingly based on `develop/pathena-next@b5d888b09774e70a389457f568a8079faf130b5e` through `43c3fdd7304210e88f4acb6f6cf6747542fc27d7`.
 
 ## Next UI step
 
-Inspect the next concrete Workspace composer/action accessibility or fail-closed startup/status presentation inconsistency. Do not revisit completed glyph-label, top-bar-focus, primary-rail-focus or Send-focus diagnoses, and do not alter Scheduler/Worker/Backend behavior while the Windows P0 remains open.
+Consume exact-head Quality first. If green, promote UI-GAP-0029 to `FIXED / INTEGRATOR_READY`, return Screen 01 to `IMPLEMENTED_PENDING_VISUAL_REVIEW`, and then inspect the next concrete Workspace/Command-Palette keyboard-focus or accessibility inconsistency. Do not repeat completed glyph-label, top-bar-focus, rail-focus, Send-focus, or Workspace-action-focus diagnoses.
