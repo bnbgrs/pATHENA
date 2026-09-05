@@ -2,80 +2,74 @@
 
 ## Baseline
 
-- Shared baseline: `develop/pathena-next@eaab89bb4d7b08839517c40b622480bb1dc309f0`.
+- Shared baseline reviewed: `develop/pathena-next@c3d72d3d745033f7382f99a3a717dc1f246d727a`.
 - Worker branch: `postmerge/backend`.
-- History-preserving NON-FORCE synchronization with current Develop: merge commit `b7d2f5fd6ed3e1c35fd7458f84be62341e3938af`.
-- `main@0d4d621f8a38ddf8eccfa09622bf193687619943` remains strictly read-only and untouched.
+- Prior worker head: `be13865f8ab863809a7da28a38e5c5df35b3fa29`.
+- Required handoffs reviewed: `errors.md`, `spec-core.md`, `ui.md`, `integrator.md`, and this Backend handoff; current worker branches were checked before mutation.
+- Worker heads observed: errors `e0d009c4ecc2e0db3000acdb4b0dc726e64005de`; spec-core `2f62d2a26f9341e7ea8c84abe2ae48762bfe117c`; ui `97b051612ca1199907a47d7e3f6938e3f1f8ca37`.
+- History-preserving NON-FORCE synchronization: `a209e733fab5192a57cb0f52a6be4ed9596edeba`, with parents prior Backend head and exact Develop.
+- `main` and `bnbgrs/ATHENA` remain strict read-only and untouched.
 
-## Selected backend slice
+## ExternalAccessGateway runtime boundaries — VERIFIED
 
-Area: durable deletion-ledger runtime boundaries / recovery cursor.
+Required fail-before-side-effect guards remain present: `ttl_seconds` and `max_bytes` reject bool/non-int values; `timeout_seconds` rejects bool and non-finite values while preserving valid numeric ranges. Gateway lineage through Backend head `c67fa646d8ba4e4137cdf69992b9c8b42ad904d6` is backed by canonical ATHENA Quality `33884210684 = success`.
 
-Spec/error anchor: `ERR-0001`, backend audit tasks 290-293, and the existing deletion/recovery invariants in `src/athena/lifecycle/deletion.py`.
+Status: `BACKEND_VERIFIED / INTEGRATOR_READY`.
 
-Product commit `780d25d74ce2e310b6a4bc434f547a23163e8b78` adds fail-before-SQL runtime validation for malformed entity types and bool-as-int deletion values without changing persistence or recovery semantics. Ruff-only harness correction `2f705d5e0fc1c77dd60612b5aeaa16d9380e46cd` formats the new boundary test import block; assertions and product behavior are unchanged.
+## Disk-pressure reserve-release state invariant — VERIFIED
 
-## Exact verification evidence
+Product `79d6382f728fac2ca7bdae2306881327c82042ed` requires positive `released_reserve_bytes` to originate from an EMERGENCY before-state. Focused tests `02e9d210a946e9d782797cc5950902afd38a0781` cover rejection from NORMAL and acceptance of EMERGENCY -> CRITICAL reassessment. Exact Backend head `8be678b5fa3e19aa442e788d935436914a53452b` passed canonical ATHENA Quality `33972009715 = success`.
 
-Canonical Quality run `33749788522` checked exact Backend head `1cfd18c69014390380bb960b86c8e1b81a5067ac`.
+Status: `BACKEND_VERIFIED / INTEGRATOR_READY`.
 
-Backend-relevant results:
+## Disk-pressure released-volume bound — VERIFIED
 
-- specification validator: PASS;
-- Ruff: PASS;
-- mypy: PASS;
-- Windows path safety: PASS;
-- Linux storage regressions: PASS;
-- Local install smoke: PASS;
-- `tests/unit/test_deletion_ledger_boundaries.py`: all 22 tests PASS inside the full pytest run;
-- full pytest: `1 failed, 4489 passed, 3 skipped, 2 warnings`.
+Product/test commit `a6968852a8db404fdb52e5a157c8e6eb6d82a485` rejects physically impossible telemetry where `released_reserve_bytes` exceeds `before_release.total_bytes`. Existing EMERGENCY-only release and zero-release identity rules remain unchanged.
 
-The single pytest failure is exactly `tests/unit/test_pathena_pallas_full_view.py::test_open_workspace_reuses_one_synchronized_full_surface`, raising `AttributeError` in `MessageActionTabOrderController.eventFilter()` because `document` is transiently absent. This is the already UI-owned PALLAS lifecycle defect (`UI-GAP-0003`), not a deletion-ledger/backend failure. No new Backend-owned pytest failure appears in the exact log.
+Exact descendant Backend head `be13865f8ab863809a7da28a38e5c5df35b3fa29` passed canonical ATHENA Quality `33974947204 = success`.
 
-UI independently corrected that exact lifecycle root cause and canonical Quality run `33751403354` on UI head `76cb122dbe7b58b0fa49bbcb36de2bd732922d4d` completed SUCCESS. Backend does not absorb or modify the UI fix.
+Status: `BACKEND_VERIFIED / INTEGRATOR_READY`.
 
-## Product call-chain and invariants
+## Disk-pressure threshold consistency — APPLIED / PENDING CANONICAL
 
-`record_deletion(runtime input) -> exact runtime validation -> UUID materialization -> existing-marker SELECT -> identity reconciliation -> INSERT/readback`.
+A `DiskPressureCheckResult` represents one check against one stable volume size. Because thresholds are a deterministic function of that volume size, accepting different threshold objects before and after a reserve release creates contradictory recovery/audit telemetry even while `total_bytes` is unchanged.
 
-`read_deletion_records(after_seq) -> exact runtime validation -> ordered ledger SELECT`.
+Product commit `c0ee910a20fb396b0c20429f2da33873b407c641` now fails closed when `after_release.thresholds != before_release.thresholds`. Test commit `dde63f019c5ecd95d1805ff9c19fdd986fe4b436` adds focused rejection of a threshold change while preserving the valid EMERGENCY -> CRITICAL release path.
 
-Retained invariants:
+Canonical ATHENA Quality `33978138355` is pending on exact test head `dde63f019c5ecd95d1805ff9c19fdd986fe4b436`; no PASS/READY claim is made yet.
 
-- malformed values fail before SQL;
-- bool is not accepted as deletion timestamp, commit sequence or cursor;
-- `deleted_at_us=0` and `after_seq=0` remain valid;
-- deletion commit sequence remains a positive genuine integer;
-- marker idempotency/reconciliation, restore replay, transaction boundaries, ordering, identity-conflict behavior, schema and persistence representation are unchanged;
-- no Security, TOR, Provider, UI or platform-path semantics changed.
+Status: `BACKEND_APPLIED / CANONICAL_PENDING`.
 
-## Verification / readiness state
+## Invariants retained
 
-- `ERR-0002` Ruff I001: FIXED and verified by canonical Ruff PASS in run `33749788522`.
-- `ERR-0001` Backend candidate: BACKEND_VERIFIED / INTEGRATOR_READY. Its focused boundary suite passes in the full canonical pytest execution, and every Backend/system canonical job is green. The only global failure is the independently owned UI/PALLAS lifecycle signature above.
-- Error worker should independently re-verify `ERR-0001` after integration before changing the canonical Error Ledger state to `FIXED`.
+- emergency reserve release remains EMERGENCY-only and no canonical data is deleted;
+- read-only safe-mode latching and noncritical-write gating remain unchanged;
+- storage telemetry does not mutate SQLite/WAL state;
+- no persistence format, transaction, recovery, fsync or Source-finalization semantics changed;
+- valid Windows/Linux storage behavior remains unchanged;
+- local model transport remains loopback-only, proxy-free and redirect-rejecting;
+- response-size and total-deadline enforcement remain fail-closed;
+- no new retries, routing behavior or cryptography;
+- no silent Tor -> Direct fallback; Direct remains explicit-only;
+- ExternalAccessGateway redirect authorization, HTTPS/default-port policy and compressed-response rejection unchanged;
+- audit and provenance semantics unchanged;
+- no Skip/XFail, assertion weakening or guard relaxation;
+- no merge to `main`, force-push or history rewrite.
 
-## Failure / recovery impact
+## Error / collision handoff
 
-The product mutation is fail-before-SQL and side-effect reducing. No ledger rows, schema, transaction semantics, ordering, marker identity, restore replay, crash/restart behavior or recovery format changed. Invalid boundary inputs now terminate before any SQL operation.
-
-## Platform impact
-
-Platform-neutral Python runtime-boundary hardening only. Windows path safety, Linux storage regression and local-install smoke jobs are all green on the exact Backend lineage.
-
-## Coordination
-
-- `postmerge/errors`: exact pytest evidence gap is now closed; `ERR-0001` may be treated as Backend-verified, with final canonical Ledger closure after integration/reverification.
-- `postmerge/ui`: owns `UI-GAP-0003`; its exact corrective lineage is now canonical green. Backend must not modify this UI root cause.
-- `postmerge/spec-core`: normal-Hybrid Search facade/application wiring remains Core-owned and non-overlapping.
-- `develop/pathena-next`: integration target only; Backend never self-integrates.
+- Current Error handoff has `ERR-0014` IN_PROGRESS for a Qt/Desktop SIGSEGV on the UI worker lineage; the affected DesktopApiController product/test blobs were unchanged from prior green evidence, so Backend does not mutate that foreign owner path.
+- No Backend blocker is introduced by ERR-0014; current DiskPressure work is disjoint.
+- No UI/Core-owned files were mutated in this Backend run.
 
 ## Integrator handoff
 
-READY for independent Integrator review/integration: product `780d25d74ce2e310b6a4bc434f547a23163e8b78` plus test/Ruff correction `2f705d5e0fc1c77dd60612b5aeaa16d9380e46cd`, carried on the history-preserving current-Develop Backend lineage beginning at merge `b7d2f5fd6ed3e1c35fd7458f84be62341e3938af`.
-
-The global red result of run `33749788522` must not be attributed to this Backend slice: its sole failure is the exact independently verified UI/PALLAS defect described above.
+- READY: ExternalAccessGateway runtime boundaries through `c67fa646d8ba4e4137cdf69992b9c8b42ad904d6`, Quality `33884210684 = success`.
+- READY: StorageHealth ASCII-control-detail through Backend head `1cc0017d560a1534de1fc2c83989d26e05238236`, Quality `33966299076 = success`.
+- READY: Disk-pressure reserve-release-state product `79d6382f728fac2ca7bdae2306881327c82042ed` + tests `02e9d210a946e9d782797cc5950902afd38a0781`, exact Backend head `8be678b5fa3e19aa442e788d935436914a53452b`, Quality `33972009715 = success`.
+- READY: Disk-pressure released-volume-bound product/test `a6968852a8db404fdb52e5a157c8e6eb6d82a485`, exact descendant Backend head `be13865f8ab863809a7da28a38e5c5df35b3fa29`, Quality `33974947204 = success`.
+- NOT READY: Disk-pressure threshold-consistency product `c0ee910a20fb396b0c20429f2da33873b407c641` + test `dde63f019c5ecd95d1805ff9c19fdd986fe4b436` until exact canonical evidence is green.
 
 ## Next backend slice
 
-Select the highest currently unclaimed Backend/System P0/P1/P2 gap from current Alpha/Beta progress, Error Ledger and worker handoffs after excluding Core-owned normal-Hybrid Search and UI-owned PALLAS lifecycle work. Preserve deletion-ledger ownership only until Integrator imports the verified slice; do not broaden this root cause further.
+Consume exact canonical Quality `33978138355` on `dde63f019c5ecd95d1805ff9c19fdd986fe4b436`. If green, promote threshold consistency to VERIFIED/READY and immediately take the highest unclaimed disjoint Storage/Recovery/Provider/Packaging P0/P1/P2 runtime gap. If red, inspect exact diagnostics and repair only a Backend-owned failure. If no executable result is available next run, use an alternate executable verification path or a different real disjoint Backend/System slice rather than repeating the same runner state.
