@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `b9ab5ecb7fc49a5d3bd5c25f0254f118e21fc7ee`
+Baseline: `49212a0f157d433d68e9d04e9a9643e2909b6827`
 Integration target: `develop/pathena-next`
 UI worker: `postmerge/ui`
 
@@ -78,31 +78,28 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Screen: `07 — Settings`; Category: `COPY / STATE / ACCESSIBILITY`; Severity: `P2`; Status: `FIXED`.
 - Evidence: `HealthResponse.core_status` has no non-empty invariant; empty/whitespace values previously rendered `Local Core · `.
 - Product `afe37f4a4a6677239ae4e0ea8fa5d8681d273b1d`; focused test `cdca131585b15559145c43eef204f34518dad39e`.
-- Acceptance: only empty/whitespace status falls back to `unavailable`; non-empty Core status/readiness semantics remain unchanged.
 - Verification evidence: exact UI head `f36ffd143ae51b5e6e0fd653cefddbd33ce0b886` passed ATHENA Quality Gate `33953459102` with conclusion `success`.
-- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
 
 ## UI-GAP-0023 — Empty provider identity/status produces incomplete provider presentation
 - Screen: `07 — Settings`; Category: `COPY / STATE / ACCESSIBILITY`; Severity: `P2`; Status: `FIXED`.
-- Evidence: `ProviderHealthResponse.provider` and `status` are transport strings without non-empty invariants; empty/whitespace values could render incomplete provider labels and accessible descriptions.
-- Product `c2c681f2a9a60baf43afa0b11eae81ef0db11110`; focused test `90447e0ba08ed7d3e41723702d16ea624d524e1b`.
-- Acceptance: only blank provider identity/status use presentation fallbacks `Model provider` / `unavailable`; non-empty provider identity/status, snapshot freshness and provider readiness semantics remain unchanged; blank status remains non-success.
-- Verification evidence: exact UI head `d70147b804447ef9834d3ce27661682cf0ea98f7` passed ATHENA Quality Gate `33956094573` with conclusion `success`.
-- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+- Product `c2c681f2a9a60baf43afa0b11eae81ef0db11110`; focused test `90447e0ba08ed7d3e41723702d16ea624d524e1b`; exact UI head `d70147b804447ef9834d3ce27661682cf0ea98f7` passed Quality `33956094573`.
 
 ## UI-GAP-0024 — Whitespace provider detail can render an effectively blank runtime detail
 - Screen: `07 — Settings`; Category: `COPY / STATE / ACCESSIBILITY`; Severity: `P2`; Status: `FIXED`.
-- Evidence: `ProviderHealthResponse.detail` is `str | None`; Settings previously treated whitespace-only strings as truthy and rendered them directly into `settingsRuntimeDetail` and its accessible description.
-- Product `8b986323cabcb459e4203af1e5bdbe1fbb62375c`; focused coverage consolidated into `tests/unit/test_pathena_settings_provider_detail_state.py` by `216c3270df0658ac19d16b043531b48d05bcae93`; redundant unformatted harness removed by `77b3f9582d4530dbe081e3c81b8768ad00d3f050`.
-- Acceptance: blank/whitespace runtime detail uses the existing self-describing provider-readiness fallback; every nonblank supplied detail remains verbatim; provider readiness, snapshot freshness, transport, backend, storage, network and security semantics are unchanged.
-- Verification evidence: exact UI head `77b3f9582d4530dbe081e3c81b8768ad00d3f050` passed ATHENA Quality Gate `33966822035` with conclusion `success`; validator, Ruff, mypy, full pytest, Windows path safety, Linux storage regressions and local-install smoke all passed.
-- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+- Product `8b986323cabcb459e4203af1e5bdbe1fbb62375c`; focused coverage consolidated by `216c3270df0658ac19d16b043531b48d05bcae93`; exact UI head `77b3f9582d4530dbe081e3c81b8768ad00d3f050` passed Quality `33966822035`.
 
 ## UI-GAP-0025 — Glyph-only primary navigation lacks human accessible item text
-- Screen: `01 — Workspace / Chat`; Category: `ACCESSIBILITY / NAVIGATION`; Severity: `P1`; Status: `IMPLEMENTED_PENDING_VERIFY`.
-- Evidence: the reduced primary rail intentionally replaces visible item labels with glyphs and retains the human destination only as a tooltip; the QListWidget items had no explicit accessible-text role, unlike the symbol-only top utility buttons which already carry accessible names.
+- Screen: `01 — Workspace / Chat`; Category: `ACCESSIBILITY / NAVIGATION`; Severity: `P1`; Status: `FIXED`.
 - Product `b3deae1671a8832e94fd8b3ef85fefa916ced468`; focused shell coverage `b25bc07059bc116ec25a4e7ce924a89f4508e2df`.
-- Acceptance: visible glyphs, rail width, destination ordering, tooltips and navigation behavior remain unchanged; every rail item exposes the corresponding Workspace/Library/Research/Jobs/Sources/System/Settings label through `Qt.ItemDataRole.AccessibleTextRole`.
+- Acceptance: visible glyphs, rail width, destination ordering, tooltips and navigation behavior remain unchanged; every rail item exposes Workspace/Library/Research/Jobs/Sources/System/Settings through `Qt.ItemDataRole.AccessibleTextRole`.
+- Verification evidence: exact synchronized UI head `fb98e47fde410137b971a303678d4e63f66e1d6d` passed ATHENA Quality Gate `33978582156` with conclusion `success`; the prior full-suite PySide6 SIGSEGV from `33975657049` did not recur.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0026 — Global top navigation lacks an explicit keyboard-focus treatment
+- Screen: `01 — Workspace / Chat`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Evidence: the specialized top-bar stylesheet explicitly defined normal, hover and checked presentation for `topNavButton` and normal/hover presentation for glyph-only `topUtilityButton`, but no `:focus` presentation existed for either keyboard-focusable control family. Because the specialized stylesheet suppresses native borders, keyboard focus had no explicit pATHENA focus contract.
+- Product `6cc37912531c648ed8374f6585efd7cbdec9db3d`; focused stylesheet coverage `d40aee5fdc98571f725f644806b272726ad74041`.
+- Acceptance: keyboard focus on both text top-navigation and glyph utility buttons uses existing canonical tokens (`text`, `surface_hover`, `accent`) and a 2px accent bottom border; hover, checked, navigation, Backend/Storage/Security and accessibility-name semantics remain unchanged.
 - Verification evidence: canonical exact-head Quality pending.
 - Visual status: `IMPLEMENTED_PENDING_VERIFY`; no screenshot-level `MATCH` claim.
 
