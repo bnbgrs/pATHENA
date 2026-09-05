@@ -353,10 +353,18 @@ def _validate_research_exhaustive(
         label=f"{label} requested_scope",
     )
     assert scope is not None
-    _equal_text(scope, "mode", "local_exhaustive", label=label)
+    mode = _text(scope, "mode", label=label)
+    if mode not in {"local_exhaustive", "scoped_project"}:
+        raise BuiltinJobPayloadValidationError(
+            "research.exhaustive field 'mode' has an unsupported value."
+        )
     _text(scope, "query", label=label)
     _canonical_sorted_text_list(scope, "domains", label=label)
     _canonical_uuid_list(scope, "project_ids", label=label)
+    if mode == "scoped_project" and not scope.get("project_ids"):
+        raise BuiltinJobPayloadValidationError(
+            "research.exhaustive scoped_project mode requires project_ids."
+        )
     source_types = _canonical_sorted_text_list(scope, "source_types", label=label)
     if any(item not in _RESEARCH_SOURCE_TYPES for item in source_types):
         raise BuiltinJobPayloadValidationError(
