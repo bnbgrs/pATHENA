@@ -2,40 +2,41 @@
 
 ## Current baseline
 
-- Base reviewed: `develop/pathena-next@f630b27ddb7a40f2982f50f79d9f7d9f1322d1b1`.
+- Base reviewed: `develop/pathena-next@d14aca9504021bdacadb89dc478ca41545ab4316`.
 - Worker: `postmerge/ui`.
-- History-preserving NON-FORCE synchronization commit: `0ec14faa440319f5e9aa36fa52b86e48cc843bf0`, with parents `074c7b9a4ccf9271a91dd1e56784601f749ac020` and current Develop.
+- Current Develop Storage threshold-consistency product/test and Integrator handoff were synchronized exactly through ordinary commits `10968d42e6cb445fb29d78b7fb7e8b40f5fc8667`, `04d65b435981f4071547f701616c2a2bc58035b4`, `298a050793111f3ffc7f480fbbaa661c10c5e1f7`, followed by history-preserving NON-FORCE two-parent synchronization commit `f27bae9da6e0a499da6ba67898f358f6ba9a2e5c` with current Develop as second parent.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 - Original eleven reference images remain `VISUAL_REFERENCE_PENDING`; no pixel-level `MATCH` claim is made.
 
-## UI-GAP-0026 — explicit keyboard focus for global navigation
+## UI-GAP-0027 — explicit keyboard focus for glyph primary rail
 
 Status: `FIXED / INTEGRATOR_READY`, P1.
 
-- Product `6cc37912531c648ed8374f6585efd7cbdec9db3d` adds explicit focus treatment for `topNavButton` and glyph-only `topUtilityButton` using canonical text, hover-surface and accent tokens only.
-- Focused stylesheet coverage `d40aee5fdc98571f725f644806b272726ad74041` asserts both control families and the canonical focus declarations.
-- Exact UI head `074c7b9a4ccf9271a91dd1e56784601f749ac020` passed ATHENA Quality Gate `33981877292 = success`.
-- Hover/checked routing, accessible names and Backend/Storage/Security semantics remain unchanged.
+- Exact evidence: `QListWidget#navigation` suppresses native outline and required an explicit focused-current state.
+- Product/test candidate `38793f4e116900d4d06db0aff9a8e42c69272141` adds `QListWidget#navigation:focus::item:current` using canonical readable text, `surface_hover`, and a 2px accent left edge while preserving visible glyphs, selection semantics, accessible item labels, rail dimensions and routing.
+- Exact synchronized UI head `779b28a0845e80bb16feadca28f5eaba26124db9` passed ATHENA Quality Gate `33987939232 = success`.
+- No Backend, Storage, Security, Provider, transport or persistence semantics changed by the UI slice.
 
-## UI-GAP-0027 — explicit keyboard focus for glyph primary rail
+## UI-GAP-0028 — explicit keyboard focus for composer Send
 
 Status: `IMPLEMENTED_PENDING_VERIFY`, P1.
 
-- Exact evidence: `QListWidget#navigation` explicitly sets `outline: none` and defines item normal/hover/selected styling, but no focused-current item state. This removes reliance on a native outline without replacing it with a pATHENA keyboard-focus contract.
-- Candidate product adds `QListWidget#navigation:focus::item:current` using only canonical readable text, `surface_hover` and a 2px accent left edge; visible glyphs, selection state, accessible item labels, rail dimensions and routing remain unchanged.
-- Focused stylesheet coverage asserts the exact focus selector and canonical declarations.
-- No Backend, Storage, Security, Provider, transport or persistence semantics changed.
+- Exact evidence: `QPushButton#sendButton` defined normal, hover and pressed presentation while adjacent `QLineEdit#promptInput` already had explicit focus styling; no `sendButton:focus` rule existed.
+- Candidate `8c132673f7a991ae1fc16e27b0d65342bdae02e9` adds only a presentation-state rule: `accent_hover` background plus a 2px readable-text border.
+- Focused stylesheet coverage asserts the selector/declarations and preservation of the existing fixed 48px Send geometry.
+- Existing hover/pressed states and send routing were not changed.
+- No Backend, Storage, Security, Provider, transport, persistence or provenance semantics changed.
 
 ## Collision review
 
-Current Develop added only the verified Historical Backfill boundary regression and Integrator handoff since the previous UI base. Exact Develop blobs were synchronized before this slice, then current Develop was recorded as the second parent in `0ec14faa440319f5e9aa36fa52b86e48cc843bf0`.
+Current Develop delta from the prior UI synchronization was exactly `src/athena/storage/disk_pressure.py`, `tests/unit/test_disk_pressure_result_boundaries.py`, and `docs/agent_handoffs/integrator.md`. Those Develop blobs were copied exactly before the two-parent synchronization commit `f27bae9da6e0a499da6ba67898f358f6ba9a2e5c`; the UI candidate touches only `src/athena/desktop/pathena_theme.py`, `tests/unit/test_pathena_theme.py`, and versioned UI coordination docs.
 
 ## Integrator handoff
 
-- UI-GAP-0026 is READY: bounded product/test lineage `6cc37912531c648ed8374f6585efd7cbdec9db3d` -> `d40aee5fdc98571f725f644806b272726ad74041`, exact verified UI head `074c7b9a4ccf9271a91dd1e56784601f749ac020`, Quality `33981877292 = success`.
-- Do not integrate UI-GAP-0027 until canonical Quality succeeds on the exact candidate carrying the navigation-focus product/test blobs.
+- UI-GAP-0027 is READY: exact synchronized UI head `779b28a0845e80bb16feadca28f5eaba26124db9`, Quality `33987939232 = success`.
+- Do not integrate UI-GAP-0028 until canonical Quality succeeds on the exact final UI candidate carrying product/test plus ledger/manifest/handoff state.
 - Screen 01 remains `VISUAL_REFERENCE_PENDING`; no screenshot-level `MATCH` is claimed.
 
 ## Next UI step
 
-Consume exact-head Quality for UI-GAP-0027. If green, promote it to `FIXED / INTEGRATOR_READY`, return Screen 01 to `IMPLEMENTED_PENDING_VISUAL_REVIEW`, then inspect the Workspace composer/action controls for the next concrete keyboard/accessibility inconsistency without revisiting the completed glyph-label, top-bar-focus or primary-rail-focus diagnoses.
+Consume canonical Quality for the exact final UI-GAP-0028 head. If green, promote UI-GAP-0028 to `FIXED / INTEGRATOR_READY`, return Screen 01 to `IMPLEMENTED_PENDING_VISUAL_REVIEW`, and inspect the next concrete Workspace composer/action keyboard or accessibility inconsistency without revisiting completed glyph-label, top-bar-focus, primary-rail-focus, or Send-focus diagnoses.
