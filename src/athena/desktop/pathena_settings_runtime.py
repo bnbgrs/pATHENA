@@ -268,8 +268,11 @@ class SettingsRuntimeController(QObject):
         self.network_value.setAccessibleDescription(network_detail)
 
         detail = value.model_error
-        if detail is None and provider is not None:
-            detail = provider.detail
+        if detail is None:
+            if provider is None:
+                detail = "Model provider is unavailable in the local Core snapshot."
+            else:
+                detail = provider.detail
         detail_text = (
             detail
             or "Provider readiness is reported by the local Core; no remote status "
