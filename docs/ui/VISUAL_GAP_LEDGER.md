@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `5c5cb8d3011f3fb1c7df01faeeacaf1b0033e2d8`
+Baseline: `f90160f4a4269394215927bec07ac047b6297d1e`
 Integration target: `develop/pathena-next`
 UI worker: `postmerge/ui`
 
@@ -81,6 +81,14 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Acceptance: non-empty Core failure messages are preserved exactly; only empty/whitespace-only input falls back to the self-describing presentation copy `Local Core connection failed.`; error state, unavailable freshness and synchronized accessible description remain intact. No Core/network/provider/storage/security behavior changes.
 - Verification evidence: exact UI head `f2cc20321c79809a37079b0525b2aab676ac8682` passed ATHENA Quality Gate `33947967906` with conclusion `success`.
 - Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0022 — Empty Core health status produces an incomplete visible/accessibility connection label
+- Screen: `07 — Settings`; Category: `COPY / STATE / ACCESSIBILITY`; Severity: `P2`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Evidence: `HealthResponse.core_status` is a transport string without a non-empty invariant; `SettingsRuntimeController.apply_snapshot()` previously rendered empty or whitespace-only values as `Local Core · ` while still exposing error state.
+- Product `afe37f4a4a6677239ae4e0ea8fa5d8681d273b1d`; focused test `cdca131585b15559145c43eef204f34518dad39e`.
+- Acceptance: only empty/whitespace-only Core status falls back to presentation copy `unavailable`; non-empty Core status and readiness semantics are unchanged; loopback-only/network-not-Internet accessibility metadata remains intact. No Core/backend/network/provider/storage/security semantics change.
+- Verification evidence: canonical exact-head Quality pending.
+- Visual status: `IMPLEMENTED_PENDING_VERIFY`; no screenshot-level `MATCH` claim.
 
 ## Evidence blocker
 
