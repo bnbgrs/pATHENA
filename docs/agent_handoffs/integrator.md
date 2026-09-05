@@ -3,62 +3,56 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `4ce70615cffcbf0e76ec404e7e58b34c7c5e308a`.
+- Develop before this run: `49e51f29f3e3c1864a5e26a514b5c07e37c1f28f`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `8cfa0784496cb26b1da9f396b424d6c10ed1d45f`; spec-core `00b510090b7ffea7d7492e224e4cccfc646317d1`; backend `4c9855df8e662e47a66cb2dcb9f66704c4d8f780`; ui `3262343d1f3e31e31d289dd0b0d22ff9559c458e`.
-- Required worker handoffs were reviewed. `main` and `bnbgrs/ATHENA` were untouched.
+- Required worker handoffs, ledgers, UI tracking and progress evidence were reviewed through GitHub-accessible repository state.
+- `main` and `bnbgrs/ATHENA` were untouched.
 
-## Integrated this run — Historical Backfill Research
+## Integrated this run — Historical Backfill Candidate Freeze
 
 READY Core lineage independently reviewed:
 
-- product entrypoint `f696d26308b25ae7954167e253cae9a4469a87d1`;
-- durable payload validation `eab1e98b51b4ba5bde071d5c62841d72882aad01`;
-- focused real-application acceptance `1bf7a9947a004b813924c91aad105fe2eacffa56`;
-- canonical ATHENA Quality `33965803951 = success` on the exact product/test head.
+- worker head `00b510090b7ffea7d7492e224e4cccfc646317d1`;
+- bounded worker product lineage includes `980530324f4cb6b822169be8fb82bc79fa9128d2`;
+- canonical Quality `33969149906 = success` for the exact verified Core candidate-freeze lineage.
 
-The worker and current Develop diverged only because Develop already contained the previously integrated Scoped Project Research/progress lineage. The exact verified worker blobs for the two product files and the new focused test were therefore applied onto the current Develop base tree rather than transplanting an older worker tree.
+The verified worker tree was not transplanted wholesale. The exact reviewed candidate-freeze product and focused-test blobs were applied onto the then-current Develop base tree so newer integrated Research, Backend, UI and Error state remained intact.
 
 Integrated exact blobs:
 
-- `src/athena/research/service.py@902ab0423b8d63cd4ee7e16f60cb45fcd389264d`;
-- `src/athena/jobs/payload_validation.py@171fddf4c8d2bd2643fffdb338a19976ede645d8`;
-- `tests/unit/test_research_historical_backfill.py@1340b5ce4d63d6c317321c44a1d3fe231d1b7c02`.
+- `src/athena/research/repository.py@1538b79220be19c1934cbc3028764c60185c47ea`;
+- `tests/unit/test_research_historical_backfill.py@2ae730684ad0badc6adeb0b4c9b6ae43414afc41`.
 
-Integration commit: `70d5f135d9e9eb2640117314658a175f7d6a04f6`.
-Independent compare from prior Develop is exactly one commit and exactly three files: payload validator `+6/-7`, ResearchService `+48/-1`, historical-backfill focused test `+88`.
+Product/test integration commit: `2b5533fbce564a8d52b4a66fa1bb606ad3f44fb4`.
+Independent compare from prior Develop is bounded to the expected two files.
 
 ## Product contract preserved
 
-- `enqueue_historical_backfill()` persists truthful `ResearchMode.HISTORICAL_BACKFILL`.
-- Both time bounds are mandatory non-negative genuine integers; bool is rejected.
-- End-before-start fails closed before durable job persistence.
-- Durable `research.exhaustive` validation independently requires both bounds for historical-backfill mode.
-- Existing local/scoped-project behavior, project/source filters, coverage, snapshot pinning, candidate dedup identity, model parameters and orchestration remain unchanged.
-- `internet_scope` remains null; Historical Backfill does not implicitly enable external access.
+- Historical Backfill is accepted as a truthful local research mode at candidate-freeze/finalization boundaries where its persisted candidates are frozen.
+- Existing exact snapshot pinning, historical time-bound semantics, candidate identity/deduplication, fenced transaction behavior, coverage accounting, recovery and provenance semantics remain unchanged.
+- No Internet/Tor access is implicitly enabled.
 - No synthetic source, claim, evidence, provenance or PALLAS data was introduced.
 
 ## Validation state
 
-- Exact worker canonical Quality: `33965803951 = success`.
-- Focused acceptance uses the real `AthenaApplication`/SQLite path and verifies truthful mode/time persistence, initialization, invalid interval rejection before persistence, and bool rejection.
-- Independent integration diff review: PASS; exactly the expected three files.
-- No exact-current-Develop canonical Quality result is available yet, therefore repository-wide global green is not claimed.
+- Exact worker canonical Quality: `33969149906 = success`.
+- Focused Historical Backfill candidate-freeze coverage is green in the worker lineage.
+- Independent integration diff review: PASS; only the expected two files were applied to current Develop.
+- A local exact-current-Develop focused rerun was attempted, but the local checkout/DNS environment was transiently unavailable. This is not treated as a permanent repository blocker because the complete GitHub blobs and branch mutations were available and independently reviewed.
+- No exact-current-Develop canonical Quality result is therefore claimed in this handoff.
 
 ## Other current inputs
 
-- Backend StorageHealth ASCII-control-detail is READY through exact Backend head `1cc0017d560a1534de1fc2c83989d26e05238236`, Quality `33966299076 = success`.
-- Backend DiskPressure reserve-release-state hardening remains pending exact green verification.
-- UI-GAP-0024 is READY: exact UI head `77b3f9582d4530dbe081e3c81b8768ad00d3f050`, Quality `33966822035 = success`.
-- Error handoff is stale relative to that completed UI Quality and still lists `ERR-0012`/`ERR-0013` as FIXED_PENDING_VERIFY; Error worker should consume the exact green UI evidence before closure.
-- All eleven UI screens remain implemented pending visual review; no pixel-level MATCH claim is made.
+- Backend DiskPressure reserve/release-state work has focused-green evidence, but the latest canonical path is not used as READY evidence here because its broader run is blocked by an unrelated UI/PALLAS failure.
+- UI continues to advance on its worker branch; only exact-green bounded UI successors should be selected in a later integrator cycle.
+- Error worker now records `ERR-0001` through `ERR-0013` closed/fixed.
+- All eleven UI screens remain implemented pending final visual comparison unless a newer versioned UI manifest proves a stronger state; no pixel-level MATCH claim is made without that evidence.
 
 ## Next integration order
 
 1. Independently review any newer exact-green bounded Core successor first.
-2. Otherwise integrate exactly one READY alternative; Backend ASCII-control-detail and UI-GAP-0024 are current candidates.
-3. Error worker should close `ERR-0012`/`ERR-0013` only after independently consuming exact UI Quality `33966822035` and confirming the unavailable-path guard plus Ruff correction remain present.
-4. Preserve single-bounded-slice discipline and exact-head evidence before any repository-wide green claim.
+2. Otherwise integrate exactly one current READY UI or Backend successor after compatibility review and exact evidence check.
+3. Preserve single-bounded-slice discipline and obtain an exact-current-Develop Quality result before any repository-wide green claim.
 
 ## Rules retained
 
