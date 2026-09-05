@@ -180,6 +180,15 @@ class EmergencyReserveProvisionResult:
             raise ValueError(
                 "Reserve provisioned bytes must not create EMERGENCY disk pressure."
             )
+        expected_provisioned = (
+            0
+            if self.assessment.state is DiskPressureState.EMERGENCY
+            else min(required, safe_allocation)
+        )
+        if provisioned != expected_provisioned:
+            raise ValueError(
+                "Reserve provisioned bytes must match the deterministic safe allocation policy."
+            )
         if self.status is not None and not isinstance(self.status, EmergencyReserveStatus):
             raise TypeError("Reserve provision status must be EmergencyReserveStatus or None.")
         if self.status is None:
