@@ -33,6 +33,19 @@ def test_chunked_reads_cannot_bypass_cumulative_response_limit() -> None:
         response.read(3)
 
 
+def test_size_overflow_poisoning_blocks_followup_read_before_underlying_io() -> None:
+    raw = _RecordingBytesIO(b"abcdefghi")
+    response = _BoundedLocalResponse(raw, max_bytes=5)
+
+    with pytest.raises(LocalResponseTooLargeError, match="configured byte limit"):
+        response.read(6)
+    assert raw.read_sizes == [6]
+
+    with pytest.raises(LocalResponseTooLargeError, match="configured byte limit"):
+        response.read(1)
+    assert raw.read_sizes == [6]
+
+
 def test_exact_cumulative_limit_still_allows_eof() -> None:
     response = _BoundedLocalResponse(io.BytesIO(b"abcde"), max_bytes=5)
 
@@ -58,6 +71,19 @@ def test_readline_only_requests_remaining_budget_plus_detection_byte() -> None:
         response.readline()
 
     assert raw.readline_sizes == [3]
+
+
+def test_readline_overflow_poisoning_blocks_followup_io() -> None:
+    raw = _RecordingBytesIO(b"abcdef\nmore\n")
+    response = _BoundedLocalResponse(raw, max_bytes=5)
+
+    with pytest.raises(LocalResponseTooLargeError, match="configured byte limit"):
+        response.readline()
+    assert raw.readline_sizes == [6]
+
+    with pytest.raises(LocalResponseTooLargeError, match="configured byte limit"):
+        response.readline()
+    assert raw.readline_sizes == [6]
 
 
 def test_readline_after_exact_limit_reads_only_one_detection_byte() -> None:

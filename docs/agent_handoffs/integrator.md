@@ -3,50 +3,50 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `de2f5a64e7a0fbc282df81db6beee3431297f2de`.
+- Develop before this run: `a6500b54246c42acb898696bcf009845ce1ecf80`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed before integration: errors `2d5bca8124d9e9cd013ea9885469d295194b6ac8`; spec-core `8fab2f3080adc50c4093124c8e0bc1906176da40`; backend `4adcf14dc67a617a4a2a5ff942cc600e40aaf456`; ui `2193332eeb3a390c263baa66e83324ff70a61168`.
-- `ERROR_LEDGER`, `11-Screen-Manifest`, and `Visual-Gap-Ledger` were searched by those exact repository terms and were not present as separately named repository files; `errors.md`, `ui.md`, and `ALPHA_BETA_PROGRESS.md` remain the available canonical handoff/tracker evidence.
+- Worker heads reviewed before integration: errors `1b0ba3a3b9dd01641cac368b23f29573e6df19f0`; spec-core `5be34bf266c0a0bda3a80c01ab5337e560ec9255`; backend `dd1311dfeec02030fe6e05f6bd8a81fc13f5fce0`; ui `f6d2b3afe58fcb0552a0fbd7c72737c2038b18b0`.
+- `ERROR_LEDGER`, `11-Screen-Manifest`, and `Visual-Gap-Ledger` are not present as separately named repository files in the currently reviewed repository evidence; `errors.md`, `ui.md`, and `ALPHA_BETA_PROGRESS.md` remain the canonical available handoff/tracker sources.
 
-## Integrated this run — exact-revision combined contradiction candidate gate
+## Integrated this run — local HTTP terminal response-size overflow
 
-READY Core lineage:
+READY Backend lineage:
 
-- product `b10bdc52eba9449a105a0db57466771ad4412a63`;
-- focused tests `8eab1e513a5957a01e1c3e2afcdeaa885965de96`;
-- Ruff-only import-order correction `b1da19a0aab5a80bc9cef06ff68cf92dfdb61317`;
-- canonical ATHENA Quality `33925078295 = success` on exact head `b1da19a0aab5a80bc9cef06ff68cf92dfdb61317`.
+- product `f1fba82ed81bb1fe744fa698bdacc8d25c1a1f8e`;
+- focused tests `31fa8d4cd25cd9a67a1e43bce22a600a98b98128`;
+- exact verified descendant `235a13086985341edc02ee61e742e63a863974ab`;
+- canonical ATHENA Quality `33929643363 = success`.
 
-Independent review confirmed that Develop still carried the temporal-only predecessor while current `postmerge/spec-core` carries the exact same verified combined-gate product blob. No newer Core mutation changed `src/athena/knowledge/contradiction_review_gate.py`, so the bounded predecessor could be transplanted without absorbing the newer contradiction-review persistence work.
+Independent review confirmed that current Develop already carried the cumulative response-wide byte budget and direct-read deadline predecessor. The exact-green descendant additionally contains a separate HTTP-error total-deadline slice, so its whole product blob was deliberately not transplanted. Only the bounded terminal-overflow diff from `f1fba82ed81bb1fe744fa698bdacc8d25c1a1f8e` and the two focused poisoning tests from `31fa8d4cd25cd9a67a1e43bce22a600a98b98128` were applied to current Develop.
 
 Develop integration commits:
 
-- product: `de3b24000f4ccae1c76612ce75322a6cba6675cc`;
-- focused tests: `2e0dd87892f148c644853dfd001fa70979ed159c`.
+- product: `07fd55673c36da32a86d4619665818487d607f79`;
+- focused tests: `09a2611990727684270c534e46a6960b62a4eb13`.
 
-Exact integrated blobs:
+Integrated blobs after the bounded application:
 
-- `src/athena/knowledge/contradiction_review_gate.py` -> `5cf5714bbcfa28cfc66368378c9818b2ef4bcf95`;
-- `tests/unit/test_contradiction_candidate_gate.py` -> `297a9eed3a7de10b3c0173bb0532e75a2bdc8da1`.
+- `src/athena/model/adapters/local_http.py` -> `c0d431d87da589df6d7ea8673923e6be4b3c7b4b`;
+- `tests/unit/test_local_http_response_boundaries.py` -> `b15db70a7a1fd0dcb41c73f26eba92123eef1f5f`.
 
-The exact left/right Claim revisions are loaded once and assessed by both temporal and attribution policies. A contradiction candidate is permitted only when both deterministic policies permit it. Missing revisions continue to fail closed through the existing exact-revision loader; no identity, provenance, persistence state, queue item or PALLAS state is synthesized.
+The response wrapper now records an overflowing read before raising and remains poisoned afterward: subsequent `read()`/`readline()` calls fail before underlying I/O. Existing cumulative byte accounting, remaining+1 detection, monotonic direct-read deadline, loopback-only routing, proxy-free behavior and redirect rejection remain unchanged. The separate HTTP-error deadline successor was intentionally not absorbed in this run.
 
 ## Validation state
 
-- Exact worker Quality `33925078295` completed `success` on exact verified head `b1da19a0aab5a80bc9cef06ff68cf92dfdb61317`.
-- Integrated product and focused-test blobs are byte-identical to that exact-green lineage.
-- Local checkout/pytest execution was attempted after integration but the runtime could not resolve `github.com`; no local PASS is claimed.
-- No exact current-Develop global workflow is claimed green.
-- Error worker reports `ERR-0001` through `ERR-0011` fixed; no confirmed open product defect is handed off.
-- Backend HTTP-error total-deadline and terminal-overflow lineages are verified READY alternatives; alternate-read bypass hardening remains pending exact canonical verification in the latest Backend handoff.
-- UI-GAP-0018 is exact-green and error-cleared but remains pending shared-Develop integration; UI-GAP-0019 remains pending exact canonical verification in the latest UI handoff.
-- Original eleven visual references remain unavailable in the repository/tool path; zero pixel-level `MATCH` claims are made.
+- Exact worker descendant `235a13086985341edc02ee61e742e63a863974ab` passed canonical Quality `33929643363 = success`.
+- The integrated product delta is exactly the bounded product commit `f1fba82ed81bb1fe744fa698bdacc8d25c1a1f8e` applied to the current Develop predecessor rather than a blind full-blob replacement.
+- Focused tests lock both `read()` and `readline()` poisoning against follow-up underlying I/O.
+- Local checkout/pytest remains unavailable because the runtime cannot resolve `github.com`; no local PASS or exact-current-Develop global-green claim is made.
+- Backend alternate-read bypass Quality `33933291735` completed `failure`; it remains NOT READY and must not be integrated from that lineage.
+- Error handoff still reports `ERR-0001` through `ERR-0011` fixed with no confirmed open product defect.
+- UI-GAP-0018 remains exact-green and pending shared-Develop integration; UI-GAP-0019 requires successor exact-green evidence.
+- Original eleven visual references remain unavailable; zero pixel-level `MATCH` claims are made.
 
 ## Next integration order
 
-1. Review Core contradiction-review persistence/enqueue successor only if its exact product-containing canonical Quality is green; do not infer READY from newer branch head alone.
-2. Otherwise integrate exactly one bounded READY alternative: Backend HTTP-error total-deadline, Backend terminal-overflow, or UI-GAP-0018 after dependency/collision review.
-3. Do not consume Backend alternate-read bypass or UI-GAP-0019 before exact green evidence.
+1. Consume a newer exact-green Core contradiction-review production-path successor if its product-containing Quality is green.
+2. Otherwise independently review exactly one READY bounded alternative: Backend HTTP-error total-deadline or UI-GAP-0018.
+3. Do not consume Backend alternate-read bypass from failed Quality `33933291735`; require a corrected exact descendant canonical green.
 4. Require exact-head evidence before any global-green Develop claim.
 
 ## Rules retained
