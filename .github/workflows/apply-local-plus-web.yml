@@ -1,0 +1,88 @@
+name: Apply Core Local+Web Slice
+
+on:
+  push:
+    branches:
+      - postmerge/spec-core
+    paths:
+      - .github/workflows/apply-local-plus-web.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: postmerge/spec-core
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install pinned resolver
+        run: |
+          python -m pip install --disable-pip-version-check "pip==26.1.2"
+          python -m pip install --disable-pip-version-check "uv==0.11.21"
+
+      - name: Apply exact versioned patch
+        run: |
+          git apply --check docs/agent_handoffs/spec-core-local-plus-web.patch
+          git apply docs/agent_handoffs/spec-core-local-plus-web.patch
+
+      - name: Correct canonical UUID helper return contract exposed by patch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("src/athena/jobs/payload_validation.py")
+          text = path.read_text(encoding="utf-8")
+          start = text.index("def _canonical_uuid_list(")
+          end = text.index("\n\ndef _equal_text(", start)
+          block = text[start:end]
+          old_sig = ") -> None:"
+          if old_sig not in block:
+              raise SystemExit("canonical UUID helper signature drifted")
+          block = block.replace(old_sig, ") -> list[str]:", 1)
+          if "return canonical" in block:
+              raise SystemExit("canonical UUID helper already returns a value")
+          block = block.rstrip() + "\n    return canonical"
+          text = text[:start] + block + text[end:]
+          path.write_text(text, encoding="utf-8")
+          PY
+
+      - name: Validate focused Core regressions
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          uv lock --check
+          uv run --locked --extra dev --extra desktop python -m pytest -q \
+            tests/unit/test_research_local_plus_web.py \
+            tests/unit/test_research_scoped_project.py \
+            tests/unit/test_research_historical_backfill.py
+          uv run --locked --extra dev --extra desktop python -m ruff check \
+            src/athena/research/service.py \
+            src/athena/jobs/payload_validation.py \
+            src/athena/external/gateway.py \
+            tests/unit/test_research_local_plus_web.py
+          uv run --locked --extra dev --extra desktop python -m mypy \
+            src/athena/research/service.py \
+            src/athena/jobs/payload_validation.py \
+            src/athena/external/gateway.py
+
+      - name: Commit exact product and acceptance slice
+        run: |
+          git config user.name "pATHENA Core Automation"
+          git config user.email "actions@users.noreply.github.com"
+          git rm .github/workflows/apply-local-plus-web.yml
+          git add src/athena/research/service.py \
+                  src/athena/jobs/payload_validation.py \
+                  src/athena/external/gateway.py \
+                  tests/unit/test_research_local_plus_web.py
+          git commit -m "core(research): persist truthful Local+Web scope"
+          git push origin HEAD:postmerge/spec-core
