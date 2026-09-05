@@ -229,15 +229,15 @@ class SettingsRuntimeController(QObject):
         provider = value.provider
         provider_freshness = "unavailable" if provider is None else freshness
 
-        if provider is None or freshness == "unavailable":
+        if provider is None:
             provider_text = "Model provider · unavailable"
             provider_state = "error"
-        elif freshness == "stale":
-            provider_text = f"{provider.provider} · last known {provider.status}"
-            provider_state = "idle"
-        else:
+        elif freshness == "fresh":
             provider_text = f"{provider.provider} · {provider.status}"
             provider_state = "success" if provider.status == "ready" else "error"
+        else:
+            provider_text = f"{provider.provider} · last known {provider.status}"
+            provider_state = "idle"
         self._set_state(
             self.provider_value,
             provider_text,
