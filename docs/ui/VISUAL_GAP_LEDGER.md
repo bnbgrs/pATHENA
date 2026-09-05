@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `52e702912b3b2c0f4cfc7c93baf4c656a02231ad`
+Baseline: `8c2f08ef5a9dcafd9cf029da944527d97313cd2b`
 Integration target: `develop/pathena-next`
 UI worker: `postmerge/ui`
 
@@ -89,6 +89,14 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Acceptance: only blank provider identity/status use presentation fallbacks `Model provider` / `unavailable`; non-empty provider identity/status, snapshot freshness and provider readiness semantics remain unchanged; blank status remains non-success.
 - Verification evidence: exact UI head `d70147b804447ef9834d3ce27661682cf0ea98f7` passed ATHENA Quality Gate `33956094573` with conclusion `success`.
 - Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0024 — Whitespace provider detail can render an effectively blank runtime detail
+- Screen: `07 — Settings`; Category: `COPY / STATE / ACCESSIBILITY`; Severity: `P2`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Evidence: `ProviderHealthResponse.detail` is `str | None`; Settings previously treated whitespace-only strings as truthy and rendered them directly into `settingsRuntimeDetail` and its accessible description.
+- Product `8b986323cabcb459e4203af1e5bdbe1fbb62375c`; focused test `fd1718cec04025d24420f5f958d247b81b4a9c05`.
+- Acceptance: blank/whitespace runtime detail uses the existing self-describing provider-readiness fallback; every nonblank supplied detail remains verbatim; provider readiness, snapshot freshness, transport, backend, storage, network and security semantics are unchanged.
+- Verification evidence: canonical exact-head Quality pending.
+- Visual status: `IMPLEMENTED_PENDING_VERIFY`; no screenshot-level `MATCH` claim.
 
 ## Evidence blocker
 
