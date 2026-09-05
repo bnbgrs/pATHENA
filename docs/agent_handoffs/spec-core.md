@@ -2,71 +2,62 @@
 
 ## Current baseline
 
-- Shared baseline reviewed this run: `develop/pathena-next@d14aca9504021bdacadb89dc478ca41545ab4316`.
+- Shared baseline: `develop/pathena-next@e25c483909881221aa1b42b868ce22993ec0f9b9`.
 - Worker branch: `postmerge/spec-core`.
-- History-preserving NON-FORCE synchronization commit: `93193c4df012515099f809bd7c339f0b15df2783`, with parents verified worker `eaa43526398c2e5abb6efb2ec2ae58c53178e878` plus exact Develop `d14aca9504021bdacadb89dc478ca41545ab4316`.
+- History-preserving NON-FORCE synchronization before this slice: `4be3b9bc52fb669756478be0031c2b8299ada533`, parents prior worker `bab57ac560c3d0fd43f2beb7501b3d4160a09064` plus exact Develop `e25c483909881221aa1b42b868ce22993ec0f9b9`.
 - `main` and `bnbgrs/ATHENA` remain untouched/read-only.
 
-## Completed Core coverage
+## Previously READY / integrated
 
-Normal Hybrid Search facade/application composition, production contradiction acceptance, fenced Research source coverage, Scoped Project Research, Historical Backfill enqueue/durable validation, Historical Backfill candidate freeze, and its real persisted-Source inclusive-time/pinned-snapshot regression are already verified/integrated on Develop and remain closed.
+Normal Hybrid Search facade/application composition, production contradiction acceptance, fenced Research source coverage, Scoped Project Research, Historical Backfill enqueue/durable validation/candidate freeze/persisted-source boundaries, and truthful Local+Web enqueue/durable authorization scope are already verified and integrated on Develop.
 
-## READY — truthful Local plus Web Research enqueue/durable scope
+Truthful Local+Web enqueue evidence remains product/test `6c5431f35951b7916e1db97138306de41a5da622`, exact green descendant `eaa43526398c2e5abb6efb2ec2ae58c53178e878`, focused `33986943543 = success`, canonical Quality `33987002816 = success`.
 
-Primary source: `docs/beta/11_Exhaustive_Research.md`.
+## IMPLEMENTED / focused green — Local+Web candidate freeze union
 
-Exact product/test commit: `6c5431f35951b7916e1db97138306de41a5da622`.
-Exact verified descendant: `eaa43526398c2e5abb6efb2ec2ae58c53178e878`.
-Canonical ATHENA Quality: `33987002816 = success`.
-Focused verification: `33986943543 = success` with pytest `10 passed`, Ruff PASS and mypy PASS.
+Exact product/test commit: `31a52e034c154759a2ccce2eebc77a2f2d961f37`.
+Focused execution: `33992910995 = success` with `12 passed`, Ruff PASS, mypy PASS.
 
-Verified contract:
+Implemented contract:
 
-- `ResearchService.enqueue_local_plus_web()` requires an explicit UUID authorization and at least one captured external Source;
-- persists truthful `mode=local_plus_web` plus canonical non-null `internet_scope` with exact authorization id and captured Source ids;
-- durable `research.exhaustive` validation accepts Local+Web only with canonical authorization/captured-source provenance and requires captured ids to exactly match `explicit_source_ids`;
-- all non-Web Research modes continue to require null Internet scope;
-- `ExternalResearchService` captures authorized external URLs first and only then delegates to truthful Local+Web enqueue;
-- no candidate-freeze union expansion is included in this READY slice;
-- no Protected/Archive expansion or synthetic Source/Claim/Evidence/PALLAS data is introduced.
+- `ResearchRepository.freeze_local_candidates()` admits `ResearchMode.LOCAL_PLUS_WEB` only with a canonical persisted Internet scope.
+- The scope must contain canonical UUID `authorization_id` plus sorted/unique canonical `captured_source_ids`.
+- Durable `external_source_captures` linkage for that authorization must exactly equal the requested captured Source set; mismatch or absence fails closed with `ResearchSnapshotError`.
+- Existing `_select_sources_as_of()` remains the authoritative pinned-snapshot/time/source-type visibility selector.
+- The local portion excludes every Source having any durable external-capture linkage.
+- Only external Sources linked to this exact authorization may re-enter the candidate union, and existing explicit-source snapshot checks require them to be visible at the pinned snapshot.
+- Another authorization's historical external capture and Sources persisted after Research initialization are excluded.
+- Local Exhaustive and Historical Backfill semantics remain unchanged; project/domain/Protected/Archive scope remains fail-closed.
+- No external transport occurs during freeze; only already captured durable Sources are composed.
+- No synthetic Source/Claim/Evidence/Provenance/PALLAS data is introduced.
 
-## Current open Core slice — Local plus Web candidate freeze union
+Real persistence acceptance uses `AthenaApplication`, real local Source capture, real explicit ExternalAccess authorization and real `capture_url()` persistence through `external_source_captures`, with a deterministic in-process transport only replacing network I/O. It proves the pinned union and mismatched authorization linkage failure.
 
-The production gap is now concrete in `ResearchRepository.freeze_local_candidates()`:
+## Verification state
 
-- every non-null `internet_scope_json` is currently rejected;
-- the supported-mode guard currently admits only `local_exhaustive` and `historical_backfill`;
-- simply removing those guards would be incorrect because ordinary local discovery would also include unrelated historical external captures;
-- durable `external_source_captures` already records the exact `authorization_id -> source_id` linkage created during capture-before-analysis.
+- First executable attempt `33992843065`: product/acceptance application PASS; `12 passed`; Ruff PASS; mypy found one concrete list-vs-tuple assignment error. Fixed without weakening behavior.
+- Second attempt `33992880709`: `12 passed`; Ruff PASS; mypy PASS; commit step stopped only on an EOF whitespace `git diff --check` finding. Fixed without changing assertions or product semantics.
+- Final focused run `33992910995`: SUCCESS; `12 passed`; Ruff PASS; mypy PASS; product/test committed at `31a52e034c154759a2ccce2eebc77a2f2d961f37`.
+- Automatic canonical Quality `33992936522` for the Actions-authored product commit was `action_required` with no usable verification. This is not a PASS.
+- This documentation-only user-authored descendant exists specifically to trigger canonical Quality through the open worker PR. Do not mark this slice READY until that exact descendant obtains a successful canonical Quality run.
 
-Required next product contract:
+## Runtime / crash invariants retained
 
-1. For `local_plus_web`, parse the canonical Internet scope and require its authorization/captured Source ids to match the persisted explicit Source ids.
-2. Build candidates from eligible local Sources at the pinned snapshot, excluding Sources that have any durable external-capture linkage.
-3. Add only the explicit captured Sources whose durable `external_source_captures.authorization_id` matches this Research authorization and whose Source version is visible at the pinned snapshot.
-4. Reject missing/mismatched capture linkage fail-closed; never fall back to all historical Web captures.
-5. Keep local/historical behavior unchanged and keep project/domain/Protected/Archive scope fail-closed.
-
-A versioned deterministic implementation/acceptance patch is stored at `docs/agent_handoffs/spec-core-local-plus-web-freeze.patch`. The next Core run must apply and verify it rather than repeat this analysis.
+This slice does not change packaging metadata/dependencies, frozen entrypoints/argv routing, Desktop/Worker process topology, DirectChat context-budgeting or safety margin, migrations/storage bootstrap, scheduler process policy, or Windows publication. The known pypdf packaging, bounded worker tree, fail-closed unknown argv, 2048-context DirectChat regression guard, and storage-startup prevention invariants remain untouched.
 
 ## Collision avoidance
 
-- Current Develop Integrator/Backend changes are preserved by the two-parent sync.
-- UI presentation/navigation work remains disjoint.
-- Current Error handoff reports no Core-owned blocker for this slice.
-- No implicit external access occurs during candidate freeze; only already captured durable Sources may participate.
+- Required Error/Backend/UI/Integrator handoffs were reviewed before mutation.
+- Error reports no active Core blocker; Backend and UI active scopes are disjoint from this Research repository/test slice.
+- Current Develop integration/handoff changes were preserved by the two-parent NON-FORCE synchronization.
+- Only `postmerge/spec-core` was mutated; no force push or history rewrite occurred.
 
 ## Integrator handoff
 
-`READY` for the truthful Local+Web enqueue/durable authorization-scope slice only:
+`NOT_READY` for the candidate-freeze union until canonical Quality succeeds on the exact current documentation descendant carrying product/test ancestor `31a52e034c154759a2ccce2eebc77a2f2d961f37`.
 
-- product/test: `6c5431f35951b7916e1db97138306de41a5da622`
-- exact green descendant: `eaa43526398c2e5abb6efb2ec2ae58c53178e878`
-- canonical Quality: `33987002816 = success`
-- current history-preserving sync: `93193c4df012515099f809bd7c339f0b15df2783`
-
-Do not treat the candidate-freeze union as READY until its separate product/test head is green.
+Once canonical Quality is green, update this handoff with the exact green SHA/run and hand the bounded candidate-freeze slice to Integrator. Do not transplant any temporary applicator workflow/script; they were deleted before the product/test commit.
 
 ## Next Alpha/Beta gap
 
-Apply `docs/agent_handoffs/spec-core-local-plus-web-freeze.patch`, run the focused Local+Web/Research regressions and canonical Quality, then version an exact READY SHA if green. If the patch exposes an exact schema/API mismatch, fix only the smallest fail-closed candidate-selection contract; do not broaden authorization, Internet, Protected or Archive scope.
+First consume the exact canonical Quality result for this descendant. If green, close and hand off Local+Web candidate freeze, then select the highest current unclaimed bounded Alpha/Beta Core gap from current Develop/spec coverage without broadening Protected/Archive/Internet semantics. If red, fix only the smallest exact root cause while preserving authorization linkage, pinned-snapshot visibility, provenance and fail-closed scope behavior.
