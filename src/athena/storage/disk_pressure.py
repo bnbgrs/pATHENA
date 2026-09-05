@@ -90,6 +90,10 @@ class DiskPressureAssessment:
             raise TypeError("Disk pressure state must be DiskPressureState.")
         if not isinstance(self.thresholds, DiskPressureThresholds):
             raise TypeError("Disk pressure thresholds must be DiskPressureThresholds.")
+        if self.thresholds != disk_pressure_thresholds(total):
+            raise ValueError(
+                "Disk pressure thresholds must match the canonical policy for total_bytes."
+            )
         if free < self.thresholds.emergency_free_bytes:
             expected_state = DiskPressureState.EMERGENCY
         elif free < self.thresholds.critical_free_bytes:
