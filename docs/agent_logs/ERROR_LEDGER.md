@@ -14,9 +14,9 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 ## Current baseline
 
 - Baseline branch: `develop/pathena-next`.
-- Baseline SHA observed this run: `c3d72d3d745033f7382f99a3a717dc1f246d727a`.
+- Baseline SHA observed this run: `f630b27ddb7a40f2982f50f79d9f7d9f1322d1b1`.
 - Worker branch: `postmerge/errors`.
-- Pre-run Error branch head: `9ae3ff7f6c021ea153b7a6a51cb59b6663365c01`.
+- Pre-run Error branch head: `e0d009c4ecc2e0db3000acdb4b0dc726e64005de`.
 - No force update, rebase, history rewrite or merge to `main` was attempted.
 
 ## Current error state
@@ -29,15 +29,12 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 
 ## Current scan
 
-- Historical `ERR-0004` remains `FIXED`; current UI Ruff is PASS.
-- Current UI head `97b051612ca1199907a47d7e3f6938e3f1f8ca37` completed canonical Quality `33975657049 = failure`.
-- Exact UI jobs show Windows path safety PASS, Linux storage PASS, local install smoke PASS, Validator PASS, Ruff PASS, mypy PASS; full pytest terminated with `SIGSEGV` / exit code `139`, and canonical enforcement failed as a cascade.
-- Exact failing location: `tests/unit/test_desktop_api_controller.py::test_controller_refresh_runs_gateway_off_ui_thread`, faulthandler at line 109.
-- The affected test blob `0dc03576d71766c5a2ae45bc30f9fdcbb04f7fa9` is byte-identical to previously exact-green UI head `5a4bf9116524fcc4ed93aa89c3fefde15ba1023b` / Quality `33972487131 = success`.
-- Compare `5a4bf911...97b051612` contains no change to `tests/unit/test_desktop_api_controller.py` or `src/athena/desktop/api_controller.py`. The final UI head commit changes only `docs/agent_handoffs/ui.md`.
-- `ERR-0014` is therefore bounded to Qt/Desktop test-runtime/lifecycle behavior; a `DesktopApiController` product regression is not established and no competing product mutation is justified while UI owns the harness.
-- Current Backend head `be13865f8ab863809a7da28a38e5c5df35b3fa29` / Quality `33974947204` remains `in_progress` and is not PASS or failure evidence.
-- Current Develop `c3d72d3d745033f7382f99a3a717dc1f246d727a` has no exact-head canonical Quality result; no repository-wide green claim is made.
+- Historical `ERR-0004` remains `FIXED`; current UI Ruff evidence remains green.
+- `ERR-0014` has two exact canonical recurrences: UI Quality `33975657049@97b051612ca1199907a47d7e3f6938e3f1f8ca37` and `33978563758@8adcc65f394c556b2783b5da070a52c9afc27d0d` both terminated full pytest with `SIGSEGV` / exit code `139` at `tests/unit/test_desktop_api_controller.py::test_controller_refresh_runs_gateway_off_ui_thread` while Windows path safety, Linux storage, local install smoke, Validator, Ruff and mypy passed.
+- Exact-green UI successor `fb98e47fde410137b971a303678d4e63f66e1d6d` passed canonical Quality `33978582156 = success` without changing `tests/unit/test_desktop_api_controller.py` or `src/athena/desktop/api_controller.py`; the crash did not recur there.
+- This makes the failure recurrent but nondeterministic on an unchanged Qt/Desktop test/controller lineage. A `DesktopApiController` product regression remains unestablished. The bounded root-cause class is Qt/QObject/QThreadPool/queued-signal/application-lifecycle test-runtime teardown.
+- Current UI head `074c7b9a4ccf9271a91dd1e56784601f749ac020` is under canonical Quality `33981877292`, currently `in_progress`; its recent commits are accessibility/manifest/handoff work, not a demonstrated Qt lifecycle correction.
+- Current Develop `f630b27ddb7a40f2982f50f79d9f7d9f1322d1b1` has no exact-head global-green claim.
 
 ## Entries
 
@@ -208,14 +205,14 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 - severity: P1
 - area: UI / Qt Desktop / test runtime lifecycle
 - status: `IN_PROGRESS`
-- evidence: canonical UI Quality `33975657049@97b051612ca1199907a47d7e3f6938e3f1f8ca37`; Python process exited `139` with `Fatal Python error: Segmentation fault` during `tests/unit/test_desktop_api_controller.py::test_controller_refresh_runs_gateway_off_ui_thread`, faulthandler line 109. Windows path safety, Linux storage, local install, Validator, Ruff and mypy all PASS.
-- repro: full canonical pytest on the exact UI SHA; focused repeated reproduction has not yet been supplied by the active UI owner.
-- root_cause: bounded to Qt/Desktop harness/runtime lifecycle rather than a demonstrated controller product delta. The affected test blob is byte-identical to prior exact-green UI `5a4bf911...`, and neither `tests/unit/test_desktop_api_controller.py` nor `src/athena/desktop/api_controller.py` changed between that green lineage and the failing head. Exact object-lifetime trigger remains to be finalized by repeated focused UI evidence.
+- evidence: canonical UI Quality `33975657049@97b051612ca1199907a47d7e3f6938e3f1f8ca37` and recurrent canonical UI Quality `33978563758@8adcc65f394c556b2783b5da070a52c9afc27d0d`; both exited `139` with `Fatal Python error: Segmentation fault` during `tests/unit/test_desktop_api_controller.py::test_controller_refresh_runs_gateway_off_ui_thread`, faulthandler line 109. Exact-green successor `33978582156@fb98e47fde410137b971a303678d4e63f66e1d6d = success` did not reproduce the crash.
+- repro: two independent full canonical pytest executions on the UI lineage reproduced the same SIGSEGV; a subsequent unchanged controller/test lineage completed green, proving nondeterministic runtime behavior rather than deterministic product failure.
+- root_cause: recurrent Qt/Desktop harness/runtime lifecycle instability involving real `QThreadPool` work, queued signals and QObject/QApplication teardown. A `DesktopApiController` product regression is not established because the affected test and controller were unchanged across exact-green and exact-red lineages.
 - files: `tests/unit/test_desktop_api_controller.py`; diagnostic product reference `src/athena/desktop/api_controller.py`.
-- fix_sha: none.
-- verification: failure exact; no corrective exact-green SHA exists yet.
+- fix_sha: none; current UI successor contains no demonstrated Qt lifecycle correction.
+- verification: two exact red recurrences plus one exact green successor. This is insufficient for `FIXED`; closure requires a real lifecycle correction with focused verification plus canonical green, or stronger repeated clean evidence that explicitly resolves the lifecycle condition.
 - risk: do not convert the real `QThreadPool`/`QSignalSpy` concurrency assertion into mocks, skips or weaker assertions; preserve off-UI-thread execution semantics and Qt object lifetime correctness.
-- integrator_handoff: reject UI `97b051612...` as READY. UI owner should repeatedly run the focused test under `QT_QPA_PLATFORM=offscreen`, inspect QApplication/QObject/QThreadPool/queued-signal teardown, and provide a minimal harness fix only if recurrence confirms lifecycle instability. If the next complete UI cycle passes unchanged, treat this as nondeterministic runtime/harness evidence and require another exact recurrence before product mutation.
+- integrator_handoff: reject recurrent red UI `8adcc65f...` as READY. `fb98e47f...` is canonical green but does not itself establish a fix. Current UI `074c7b9a...` Quality `33981877292` is in progress; consume it next and inspect whether any actual Qt lifecycle change exists before closure.
 
 ## Historical/stale evidence
 
