@@ -68,6 +68,84 @@ class ResearchService:
         safety_margin: int | None = None,
         max_hierarchy_depth: int = DEFAULT_MAX_HIERARCHY_DEPTH,
     ) -> JobRecord:
+        return self._enqueue(
+            mode=ResearchMode.LOCAL_EXHAUSTIVE,
+            query=query,
+            priority=priority,
+            domains=domains,
+            project_ids=project_ids,
+            source_types=source_types,
+            explicit_source_ids=explicit_source_ids,
+            time_start_us=time_start_us,
+            time_end_us=time_end_us,
+            coverage_target=coverage_target,
+            requested_model_id=requested_model_id,
+            context_limit=context_limit,
+            output_reserve=output_reserve,
+            safety_margin=safety_margin,
+            max_hierarchy_depth=max_hierarchy_depth,
+        )
+
+    def enqueue_scoped_project(
+        self,
+        *,
+        query: str,
+        project_ids: Sequence[uuid.UUID],
+        priority: JobPriority = JobPriority.NORMAL,
+        domains: Sequence[str] = (),
+        source_types: Sequence[SourceType] = (),
+        explicit_source_ids: Sequence[uuid.UUID] = (),
+        time_start_us: int | None = None,
+        time_end_us: int | None = None,
+        coverage_target: float = 1.0,
+        requested_model_id: str | None = None,
+        context_limit: int | None = None,
+        output_reserve: int | None = None,
+        safety_margin: int | None = None,
+        max_hierarchy_depth: int = DEFAULT_MAX_HIERARCHY_DEPTH,
+    ) -> JobRecord:
+        normalized_projects = _stable_uuids(project_ids)
+        if not normalized_projects:
+            raise ResearchConfigurationError(
+                "Scoped Project Research requires at least one project_id."
+            )
+        return self._enqueue(
+            mode=ResearchMode.SCOPED_PROJECT,
+            query=query,
+            priority=priority,
+            domains=domains,
+            project_ids=normalized_projects,
+            source_types=source_types,
+            explicit_source_ids=explicit_source_ids,
+            time_start_us=time_start_us,
+            time_end_us=time_end_us,
+            coverage_target=coverage_target,
+            requested_model_id=requested_model_id,
+            context_limit=context_limit,
+            output_reserve=output_reserve,
+            safety_margin=safety_margin,
+            max_hierarchy_depth=max_hierarchy_depth,
+        )
+
+    def _enqueue(
+        self,
+        *,
+        mode: ResearchMode,
+        query: str,
+        priority: JobPriority,
+        domains: Sequence[str],
+        project_ids: Sequence[uuid.UUID],
+        source_types: Sequence[SourceType],
+        explicit_source_ids: Sequence[uuid.UUID],
+        time_start_us: int | None,
+        time_end_us: int | None,
+        coverage_target: float,
+        requested_model_id: str | None,
+        context_limit: int | None,
+        output_reserve: int | None,
+        safety_margin: int | None,
+        max_hierarchy_depth: int,
+    ) -> JobRecord:
         if not isinstance(query, str):
             raise ResearchConfigurationError("Research query must be text.")
         normalized_query = query.strip()
@@ -164,7 +242,7 @@ class ResearchService:
             job_type="research.exhaustive",
             priority=priority,
             requested_scope={
-                "mode": ResearchMode.LOCAL_EXHAUSTIVE.value,
+                "mode": mode.value,
                 "query": normalized_query,
                 "domains": list(normalized_domains),
                 "project_ids": [str(item) for item in normalized_projects],
