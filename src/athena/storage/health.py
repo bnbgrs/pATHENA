@@ -52,6 +52,8 @@ class StorageHealthSnapshot:
             raise TypeError("Storage health database_open must be bool.")
         database_path = _optional_text(self.database_path, "Storage health database_path")
         detail = _optional_text(self.detail, "Storage health detail")
+        if database_path is not None and "\x00" in database_path:
+            raise ValueError("Storage health database_path must not contain NUL characters.")
         if detail is not None and not detail.strip():
             raise ValueError("Storage health detail must contain non-whitespace text.")
         if isinstance(self.observed_at_us, bool) or not isinstance(self.observed_at_us, int):
