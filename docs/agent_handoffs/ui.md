@@ -2,48 +2,35 @@
 
 ## Current baseline
 
-- Base: `develop/pathena-next@7c15b44818e9ac5c3484ee30d4a20d6f0d56087e`
-- Worker: `postmerge/ui`
-- Worker synchronization commit: `7952eedcda8cc889e60ced3170e72a762245d00c`
-- UI product commit: `1f0fd548431be122d13a403fe9e2387087edf8fa`
-- UI focused-test commit: `d85d2a2e144abc9d3ef1008b80f74114c7fafe23`
-- Original eleven reference images: `VISUAL_REFERENCE_PENDING`; no pixel-level parity or `MATCH` claim is made.
+- Base reviewed: `develop/pathena-next@b9ab5ecb7fc49a5d3bd5c25f0254f118e21fc7ee`.
+- Worker: `postmerge/ui`.
+- History-preserving NON-FORCE synchronization commit: `b4702d8e6519ad2f0d923c373377012a3ec98a67`, with parents `5a4bf9116524fcc4ed93aa89c3fefde15ba1023b` and current Develop.
+- `main` and `bnbgrs/ATHENA` remain read-only and untouched.
+- Original eleven reference images remain `VISUAL_REFERENCE_PENDING`; no pixel-level `MATCH` claim is made.
 
-## Work completed
+## UI-GAP-0025 — accessible labels for glyph-only primary navigation
 
-- Reconciled the UI worker with current Develop using a non-force, history-preserving two-parent merge. Develop changed only integrator/progress documentation plus the ResourceMode product/test files since the prior UI base; the UI delta changed only UI-owned files, so no foreign work was overwritten.
-- `UI-GAP-0001` product/test lineage remains unchanged: visible inspector copy and accessible name use `Evidence & Activity` without changing controller, provenance, persistence, visibility, focus or backend semantics.
-- Exact prior UI head `f31be028652095b18b8a98dfacd65b73be9af763` passed ATHENA Quality Gate run `33720745475` with conclusion `success`.
-- Because synchronization produced a new exact worker head, Quality run `33724577775` is currently verifying `7952eedcda8cc889e60ced3170e72a762245d00c`; `UI-GAP-0001` remains `FIXED_PENDING_VERIFY` until that current-head run succeeds.
-- Reviewed `UI-GAP-0002` call-chain: `_install_reference_shell()` and `_install_progressive_disclosure()` force the inspector visible; `_sync_progressive_chat_actions()` forces it visible again; `_set_context_available()` already exposes the truthful grounded-context state; grounded responses set that state true while new/loaded/ordinary sent chat paths clear it. This gives a real existing state signal for a later contextual-visibility slice, but no visibility mutation was bundled into this synchronization run.
+Status: `IMPLEMENTED_PENDING_VERIFY`, P1.
 
-## Active UI gaps
+- Exact product path: the reduced primary rail intentionally renders seven QListWidget items as glyphs while preserving human destination names only in tooltips. The symbol-only top utility buttons already expose accessible names, but the rail items had no explicit accessible item text.
+- Product `b3deae1671a8832e94fd8b3ef85fefa916ced468` preserves visible glyphs, widths, ordering, tooltips and navigation behavior and adds only `Qt.ItemDataRole.AccessibleTextRole` values for Workspace, Library, Research, Jobs, Sources, System and Settings.
+- Focused shell coverage `b25bc07059bc116ec25a4e7ce924a89f4508e2df` asserts the complete seven-item accessible label contract while retaining the existing glyph, tooltip and page-navigation assertions.
+- No Backend, Storage, Security, Provider, transport or persistence semantics changed.
 
-### UI-GAP-0001 — Inspector hierarchy/copy
+## Collision review
 
-Status: `FIXED_PENDING_VERIFY`, P1.
+Current Develop advanced from the prior UI sync only through the historical-backfill candidate-freeze slice and Integrator handoff. Exact Develop blobs for `src/athena/research/repository.py`, `tests/unit/test_research_historical_backfill.py` and `docs/agent_handoffs/integrator.md` were synchronized onto the UI tree before this mutation via the two-parent commit above. Those files are disjoint from the current UI product/test path.
 
-Implementation: `1f0fd548431be122d13a403fe9e2387087edf8fa`; focused Qt contract: `d85d2a2e144abc9d3ef1008b80f74114c7fafe23`. Prior exact UI head is green; current synchronized head still requires successful Quality run `33724577775` before closure. This does not imply screenshot-level `MATCH`.
+## Prior ready UI lineage
 
-### UI-GAP-0002 — Contextual inspector behavior
-
-Status: `OPEN / CONTRACT_TRACED`, P1.
-
-Evidence: chat grounded-context availability already has a truthful state transition through `_set_context_available()`. A safe bounded implementation should keep the inspector visible on non-chat surfaces, while Chat visibility should derive from real grounded-context availability instead of unconditional `show()` calls. Any implementation must preserve current non-chat details, immediate/no-animation reduced-motion behavior, and existing focus contracts. No product mutation for this gap was made in this run.
-
-## Collision / ownership guidance
-
-- UI owns inspector presentation/visibility state on `postmerge/ui`.
-- Core/Backend should not implement alternate inspector widgets or mutate its presentation state.
-- Backend/storage/security semantics remain untouched.
-- No verified UI root-cause error is handed to the error worker.
-
-## Verification
-
-- Prior exact UI head `f31be028652095b18b8a98dfacd65b73be9af763`: ATHENA Quality Gate `33720745475` = `success`.
-- Current synchronized head `7952eedcda8cc889e60ced3170e72a762245d00c`: ATHENA Quality Gate `33724577775` = `in_progress` at handoff update time.
-- No original reference screenshot was opened; `VISUAL_REFERENCE_PENDING` remains mandatory.
+UI-GAP-0024 remains `FIXED / INTEGRATOR_READY`: product `8b986323cabcb459e4203af1e5bdbe1fbb62375c`, assertion-equivalent focused coverage in `216c3270df0658ac19d16b043531b48d05bcae93`, exact verified UI head `77b3f9582d4530dbe081e3c81b8768ad00d3f050`, canonical Quality `33966822035 = success`.
 
 ## Integrator handoff
 
-Do not integrate the synchronized UI worker until Quality `33724577775` succeeds on exact head `7952eedcda8cc889e60ced3170e72a762245d00c` (or a later documentation-only head with equivalent successful verification). The bounded UI-GAP-0001 product/test lineage remains `1f0fd548431be122d13a403fe9e2387087edf8fa` + `d85d2a2e144abc9d3ef1008b80f74114c7fafe23`. `UI-GAP-0002` remains a separate subsequent interaction slice.
+- Do not integrate UI-GAP-0025 until canonical Quality succeeds on the exact final candidate carrying product `b3deae1671a8832e94fd8b3ef85fefa916ced468` and focused test `b25bc07059bc116ec25a4e7ce924a89f4508e2df`.
+- If exact-head Quality succeeds, the bounded lineage may be promoted to `FIXED / INTEGRATOR_READY` without changing the visual-reference status.
+- Screen 01 remains `VISUAL_REFERENCE_PENDING`; no screenshot-level `MATCH` is claimed.
+
+## Next UI step
+
+Consume exact-head Quality for UI-GAP-0025. If green, promote ledger/manifest/handoff and immediately inspect the synchronized Workspace/Chat shell for the next highest concrete keyboard/focus/accessibility inconsistency. Do not repeat the glyph-accessibility diagnosis.

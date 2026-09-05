@@ -125,6 +125,40 @@ class SettingsRuntimeController(QObject):
             self.detail,
         ):
             label.setTextFormat(Qt.TextFormat.PlainText)
+
+        self._set_state(
+            self.provider_value,
+            self.provider_value.text(),
+            "idle",
+            freshness="unavailable",
+        )
+        self._set_state(
+            self.network_value,
+            self.network_value.text(),
+            "idle",
+            freshness="unavailable",
+        )
+        self._set_state(
+            self.persistence_value,
+            self.persistence_value.text(),
+            "idle",
+            freshness="unavailable",
+        )
+        self._set_state(
+            self.detail,
+            self.detail.text(),
+            "idle",
+            freshness="unavailable",
+        )
+        initial_network_detail = (
+            "Local Core · awaiting connection. Internet access is not inferred before "
+            "a Core snapshot."
+        )
+        self.network_value.setProperty("pathenaNetworkScope", "unavailable")
+        self.network_value.setProperty("pathenaInternetStateInferred", False)
+        self.network_value.setToolTip(initial_network_detail)
+        self.network_value.setAccessibleDescription(initial_network_detail)
+
         self._install_panel()
         self._update_settings_copy()
 
@@ -193,29 +227,34 @@ class SettingsRuntimeController(QObject):
         self._last_snapshot = value
         freshness = value.resolved_model_freshness
         provider = value.provider
+        provider_freshness = "unavailable" if provider is None else freshness
 
-        if provider is None or freshness == "unavailable":
+        if provider is None:
             provider_text = "Model provider · unavailable"
             provider_state = "error"
-        elif freshness == "stale":
-            provider_text = f"{provider.provider} · last known {provider.status}"
-            provider_state = "idle"
         else:
-            provider_text = f"{provider.provider} · {provider.status}"
-            provider_state = "success" if provider.status == "ready" else "error"
+            provider_name = provider.provider if provider.provider.strip() else "Model provider"
+            provider_status = provider.status if provider.status.strip() else "unavailable"
+            if freshness == "fresh":
+                provider_text = f"{provider_name} · {provider_status}"
+                provider_state = "success" if provider.status == "ready" else "error"
+            else:
+                provider_text = f"{provider_name} · last known {provider_status}"
+                provider_state = "idle"
         self._set_state(
             self.provider_value,
             provider_text,
             provider_state,
-            freshness=freshness,
+            freshness=provider_freshness,
         )
 
         core_status = value.health.core_status
         core_ready = core_status in _CORE_READY_STATES
+        display_core_status = core_status if core_status.strip() else "unavailable"
         network_text = (
             "Local Core · connected"
             if core_ready
-            else f"Local Core · {core_status}"
+            else f"Local Core · {display_core_status}"
         )
         self._set_state(
             self.network_value,
@@ -233,16 +272,31 @@ class SettingsRuntimeController(QObject):
         self.network_value.setAccessibleDescription(network_detail)
 
         detail = value.model_error
-        if detail is None and provider is not None:
-            detail = provider.detail
-        self.detail.setText(
+        if detail is None:
+            if provider is None:
+                detail = "Model provider is unavailable in the local Core snapshot."
+            else:
+                detail = provider.detail
+        detail_text = (
             detail
-            or "Provider readiness is reported by the local Core; no remote status "
+            if detail is not None and detail.strip()
+            else "Provider readiness is reported by the local Core; no remote status "
             "or unsupported capability is inferred."
         )
-        self.detail.setProperty(
-            "pathenaUiState",
-            "error" if value.model_error is not None else "idle",
+        provider_detail_error = (
+            provider is None
+            or freshness == "unavailable"
+            or (
+                provider is not None
+                and freshness == "fresh"
+                and provider.status != "ready"
+            )
+        )
+        self._set_state(
+            self.detail,
+            detail_text,
+            "error" if value.model_error is not None or provider_detail_error else "idle",
+            freshness=provider_freshness,
         )
         self.hydrate_selected_model()
 
@@ -269,8 +323,13 @@ class SettingsRuntimeController(QObject):
         self.network_value.setProperty("pathenaInternetStateInferred", False)
         self.network_value.setToolTip(network_detail)
         self.network_value.setAccessibleDescription(network_detail)
-        self.detail.setText(message)
-        self.detail.setProperty("pathenaUiState", "error")
+        detail_message = message if message.strip() else "Local Core connection failed."
+        self._set_state(
+            self.detail,
+            detail_message,
+            "error",
+            freshness="unavailable",
+        )
 
     @staticmethod
     def _set_state(
@@ -350,10 +409,13 @@ class SettingsRuntimeController(QObject):
                 self.persistence_value,
                 "Per-model settings · choose a model",
                 "idle",
-                freshness="fresh",
+                freshness="unavailable",
             )
             return
-        stored = self._read_model(model.backend_model_id)
+        stored = self._read_model(
+            model.backend_model_id,
+            display_name=model.display_name,
+        )
         if stored is None:
             if self.settings.status() != QSettings.Status.NoError:
                 return
@@ -361,7 +423,7 @@ class SettingsRuntimeController(QObject):
                 self.persistence_value,
                 f"{model.display_name} · defaults not yet saved",
                 "idle",
-                freshness="fresh",
+                freshness="unavailable",
             )
             return
         if all(
@@ -417,7 +479,12 @@ class SettingsRuntimeController(QObject):
             freshness="fresh",
         )
 
-    def _read_model(self, model_id: str) -> StoredModelSettings | None:
+    def _read_model(
+        self,
+        model_id: str,
+        *,
+        display_name: str,
+    ) -> StoredModelSettings | None:
         group = model_storage_group(model_id)
         self.settings.beginGroup(group)
         try:
@@ -432,7 +499,7 @@ class SettingsRuntimeController(QObject):
         if self.settings.status() != QSettings.Status.NoError:
             self._set_state(
                 self.persistence_value,
-                f"{model_id} · local settings unreadable",
+                f"{display_name} · local settings unreadable",
                 "error",
                 freshness="unavailable",
             )
