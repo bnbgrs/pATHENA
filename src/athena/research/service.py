@@ -86,6 +86,52 @@ class ResearchService:
             max_hierarchy_depth=max_hierarchy_depth,
         )
 
+    def enqueue_local_plus_web(
+        self,
+        *,
+        query: str,
+        authorization_id: uuid.UUID,
+        captured_source_ids: Sequence[uuid.UUID],
+        priority: JobPriority = JobPriority.NORMAL,
+        coverage_target: float = 1.0,
+        requested_model_id: str | None = None,
+        context_limit: int | None = None,
+        output_reserve: int | None = None,
+        safety_margin: int | None = None,
+        max_hierarchy_depth: int = DEFAULT_MAX_HIERARCHY_DEPTH,
+    ) -> JobRecord:
+        if not isinstance(authorization_id, uuid.UUID):
+            raise ResearchConfigurationError(
+                "Local plus Web Research requires an authorization_id UUID."
+            )
+        normalized_sources = _stable_uuids(captured_source_ids)
+        if not normalized_sources:
+            raise ResearchConfigurationError(
+                "Local plus Web Research requires captured external Sources."
+            )
+        internet_scope = {
+            "authorization_id": str(authorization_id),
+            "captured_source_ids": [str(item) for item in normalized_sources],
+        }
+        return self._enqueue(
+            mode=ResearchMode.LOCAL_PLUS_WEB,
+            query=query,
+            priority=priority,
+            domains=(),
+            project_ids=(),
+            source_types=(),
+            explicit_source_ids=normalized_sources,
+            time_start_us=None,
+            time_end_us=None,
+            coverage_target=coverage_target,
+            requested_model_id=requested_model_id,
+            context_limit=context_limit,
+            output_reserve=output_reserve,
+            safety_margin=safety_margin,
+            max_hierarchy_depth=max_hierarchy_depth,
+            internet_scope=internet_scope,
+        )
+
     def enqueue_scoped_project(
         self,
         *,
@@ -192,6 +238,7 @@ class ResearchService:
         output_reserve: int | None,
         safety_margin: int | None,
         max_hierarchy_depth: int,
+        internet_scope: Mapping[str, object] | None = None,
     ) -> JobRecord:
         if not isinstance(query, str):
             raise ResearchConfigurationError("Research query must be text.")
@@ -297,7 +344,7 @@ class ResearchService:
                 "explicit_source_ids": [str(item) for item in normalized_sources],
                 "time_start_us": time_start_us,
                 "time_end_us": time_end_us,
-                "internet_scope": None,
+                "internet_scope": internet_scope,
                 "coverage_target": normalized_coverage_target,
             },
             pinned_configuration={
