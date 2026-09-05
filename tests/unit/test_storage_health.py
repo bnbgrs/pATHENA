@@ -227,6 +227,19 @@ def test_storage_health_snapshot_rejects_empty_text_facts(field: str) -> None:
         StorageHealthSnapshot(**kwargs)  # type: ignore[arg-type]
 
 
+def test_storage_health_snapshot_requires_path_for_unavailable_state() -> None:
+    with pytest.raises(ValueError, match="Unavailable storage health requires a database path"):
+        StorageHealthSnapshot(
+            status="unavailable",
+            database_open=False,
+            database_path=None,
+            database_size_bytes=None,
+            wal_size_bytes=None,
+            observed_at_us=1,
+            detail="not started",
+        )
+
+
 @pytest.mark.parametrize("detail", [" ", "\t", "\r\n"])
 def test_storage_health_snapshot_rejects_whitespace_only_detail(detail: str) -> None:
     with pytest.raises(ValueError, match="detail must contain non-whitespace text"):
