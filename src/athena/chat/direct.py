@@ -148,10 +148,12 @@ class DirectChatService:
             model=model,
             requested_limit=effective_context_limit,
         )
+        current_user_tokens = estimate_tokens(content) + _MESSAGE_WRAPPER_ESTIMATE
         effective_output_reserve = _resolve_output_reserve(
             requested_reserve=validated_output_reserve,
             context_limit=context_limit,
             safety_margin=validated_safety_margin,
+            current_input_tokens=current_user_tokens,
         )
         retrieval_snapshot_commit_seq = self.context_packages.current_commit_seq()
         thread = self.chat_generation.chat.load_chat(chat_id)
@@ -159,9 +161,18 @@ class DirectChatService:
             thread.messages,
             max_turns=validated_turns,
         )
+        conversation_budget = (
+            context_limit
+            - effective_output_reserve
+            - validated_safety_margin
+            - current_user_tokens
+        )
+        recent_messages = _trim_recent_conversation_to_budget(
+            recent_messages,
+            token_budget=conversation_budget,
+        )
         prior_sections, prior_refs = _prior_chat_sections(recent_messages)
         conversation_tokens = _estimate_persisted_messages(recent_messages)
-        current_user_tokens = estimate_tokens(content) + _MESSAGE_WRAPPER_ESTIMATE
         estimated_input_tokens = conversation_tokens + current_user_tokens
         estimated_total_tokens = (
             estimated_input_tokens
@@ -170,8 +181,8 @@ class DirectChatService:
         )
         if estimated_total_tokens > context_limit:
             raise ContextBuilderError(
-                "Recent conversation plus current input, output reserve and safety "
-                "margin exceed the active model context."
+                "Current input, output reserve and safety margin exceed the active "
+                "model context after trimming recent conversation history."
             )
 
         self.context_packages.assert_snapshot_current(
@@ -422,21 +433,57 @@ def _estimate_persisted_messages(messages: tuple[ChatMessage, ...]) -> int:
     return total
 
 
+def _trim_recent_conversation_to_budget(
+    messages: tuple[ChatMessage, ...],
+    *,
+    token_budget: int,
+) -> tuple[ChatMessage, ...]:
+    """Drop oldest complete turns until recent history fits the model budget."""
+
+    if token_budget < 0:
+        return ()
+    if any(
+        message.message_type not in {MessageType.USER, MessageType.ASSISTANT}
+        for message in messages
+    ):
+        return messages
+
+    selected = messages
+    while selected and _estimate_persisted_messages(selected) > token_budget:
+        next_user_index = next(
+            (
+                index
+                for index, message in enumerate(selected[1:], start=1)
+                if message.message_type is MessageType.USER
+            ),
+            len(selected),
+        )
+        selected = selected[next_user_index:]
+
+    return selected
+
+
 def _resolve_output_reserve(
     *,
     requested_reserve: int,
     context_limit: int,
     safety_margin: int,
+    current_input_tokens: int,
 ) -> int:
-    """Cap generation output so a small loaded context still has prompt room."""
+    """Cap generation output so the current input always has prompt room."""
 
     usable_context = context_limit - safety_margin
-    if usable_context < 2:
+    available_after_current_input = usable_context - current_input_tokens
+    if available_after_current_input < 1:
         raise ContextBuilderError(
-            "Active model context is too small after applying the safety margin."
+            "Current input and safety margin leave no room for model output."
         )
     prompt_balanced_ceiling = max(1, usable_context // 2)
-    return min(requested_reserve, prompt_balanced_ceiling)
+    return min(
+        requested_reserve,
+        prompt_balanced_ceiling,
+        available_after_current_input,
+    )
 
 
 def _resolve_context_limit(
