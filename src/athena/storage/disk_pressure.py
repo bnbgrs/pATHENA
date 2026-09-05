@@ -190,6 +190,8 @@ def assess_disk_pressure(
         raise ValueError("Disk pressure free_bytes must not exceed total_bytes.")
     thresholds = disk_pressure_thresholds(total)
 
+    # Beta wording uses strict "free < threshold" boundaries. Exact equality
+    # therefore remains in the less severe state.
     if free < thresholds.emergency_free_bytes:
         state = DiskPressureState.EMERGENCY
     elif free < thresholds.critical_free_bytes:
