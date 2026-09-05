@@ -43,6 +43,7 @@ class _Provider:
         self.stream_calls = 0
         self.loaded_context_length = loaded_context_length
         self.expected_output_tokens = expected_output_tokens
+        self.requests: list[tuple[ModelChatMessage, ...]] = []
 
     def health(self) -> ProviderHealth:
         return ProviderHealth(
@@ -78,14 +79,13 @@ class _Provider:
         reasoning_mode: str | None = None,
         temperature: float | None = None,
     ) -> Iterator[str]:
-        del messages
-
         assert model_id == "primary"
         assert max_output_tokens == self.expected_output_tokens
         assert reasoning_mode == "off"
         assert temperature is None
 
         self.stream_calls += 1
+        self.requests.append(tuple(messages))
 
         yield "direct answer"
 
@@ -308,5 +308,59 @@ def test_default_direct_chat_adapts_output_reserve_to_2048_loaded_context(
         assert result.context_package.token_estimates.estimated_total_tokens <= 2048
         assert result.generation.assistant_message.content == "direct answer"
         assert provider.stream_calls == 1
+    finally:
+        database.stop()
+
+
+def test_default_direct_chat_trims_old_history_but_keeps_it_persisted(
+    tmp_path: Path,
+) -> None:
+    database, chat, provider, service = _runtime(
+        tmp_path,
+        loaded_context_length=2048,
+        expected_output_tokens=896,
+    )
+
+    try:
+        chat_id = chat.create_chat()
+        old_payload = "OLD-HISTORY " * 500
+
+        for index in range(3):
+            chat.add_user_message(
+                chat_id=chat_id,
+                content=f"old-user-{index} {old_payload}",
+            )
+            chat.add_assistant_message(
+                chat_id=chat_id,
+                content=f"old-assistant-{index} {old_payload}",
+                provider_id="lm_studio",
+                model_id="history-model",
+            )
+
+        result = service.send_message(
+            chat_id=chat_id,
+            content="test",
+            requested_model_id="primary",
+        )
+
+        summary = result.context_package.excluded_candidate_summary
+        assert summary.conversation_candidate_count == 6
+        assert summary.conversation_included_count < 6
+        assert summary.conversation_excluded_count > 0
+        assert result.context_package.token_estimates.estimated_total_tokens <= 2048
+        assert provider.stream_calls == 1
+
+        sent_text = "\n".join(
+            message.content
+            for message in provider.requests[-1]
+        )
+        assert "test" in sent_text
+        assert "old-user-0" not in sent_text
+
+        persisted = chat.load_chat(chat_id).messages
+        assert len(persisted) == 8
+        assert persisted[0].content is not None
+        assert "old-user-0" in persisted[0].content
+        assert persisted[-1].content == "direct answer"
     finally:
         database.stop()
