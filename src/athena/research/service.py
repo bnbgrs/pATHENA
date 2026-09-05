@@ -127,6 +127,53 @@ class ResearchService:
             max_hierarchy_depth=max_hierarchy_depth,
         )
 
+    def enqueue_historical_backfill(
+        self,
+        *,
+        query: str,
+        time_start_us: int,
+        time_end_us: int,
+        priority: JobPriority = JobPriority.NORMAL,
+        domains: Sequence[str] = (),
+        project_ids: Sequence[uuid.UUID] = (),
+        source_types: Sequence[SourceType] = (),
+        explicit_source_ids: Sequence[uuid.UUID] = (),
+        coverage_target: float = 1.0,
+        requested_model_id: str | None = None,
+        context_limit: int | None = None,
+        output_reserve: int | None = None,
+        safety_margin: int | None = None,
+        max_hierarchy_depth: int = DEFAULT_MAX_HIERARCHY_DEPTH,
+    ) -> JobRecord:
+        if (
+            isinstance(time_start_us, bool)
+            or not isinstance(time_start_us, int)
+            or time_start_us < 0
+            or isinstance(time_end_us, bool)
+            or not isinstance(time_end_us, int)
+            or time_end_us < 0
+        ):
+            raise ResearchConfigurationError(
+                "Historical Backfill Research requires non-negative integer time bounds."
+            )
+        return self._enqueue(
+            mode=ResearchMode.HISTORICAL_BACKFILL,
+            query=query,
+            priority=priority,
+            domains=domains,
+            project_ids=project_ids,
+            source_types=source_types,
+            explicit_source_ids=explicit_source_ids,
+            time_start_us=time_start_us,
+            time_end_us=time_end_us,
+            coverage_target=coverage_target,
+            requested_model_id=requested_model_id,
+            context_limit=context_limit,
+            output_reserve=output_reserve,
+            safety_margin=safety_margin,
+            max_hierarchy_depth=max_hierarchy_depth,
+        )
+
     def _enqueue(
         self,
         *,
