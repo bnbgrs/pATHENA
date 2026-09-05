@@ -14,9 +14,10 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 ## Current baseline
 
 - Baseline branch: `develop/pathena-next`
-- Baseline SHA observed this run: `c887b2beb4b0f919fdd4f86d3db245c16c2094f4`
+- Baseline SHA observed this run: `8c2f08ef5a9dcafd9cf029da944527d97313cd2b`
 - Worker branch: `postmerge/errors`
-- History-preserving NON-FORCE synchronization with current Develop: `c4fbe2ebcffdb7683ce748bf7d7383cc49085850`.
+- Pre-run Error branch head: `5d607519091c1a03d3914e301e5d4524d664e13a`.
+- Current Develop and Error branch are diverged at merge-base `c887b2beb4b0f919fdd4f86d3db245c16c2094f4`; no force update, rebase or history rewrite was attempted.
 
 ## Current error state
 
@@ -30,12 +31,14 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 
 - Historical `ERR-0004` remains `FIXED`; no startup/readiness Ruff recurrence was observed.
 - `ERR-0010` remains `FIXED`; no recurrence of the stale four-timestamp stream-deadline fixture signature was observed.
-- Backend current head `35e4858146ea7ad423da6ec5d59ce8d2e8eb4115` is under canonical Quality `33958054144`: Windows path safety PASS, Linux storage PASS, local install smoke PASS, specification validator PASS, Ruff PASS and mypy PASS; full pytest remains `in_progress`.
-- UI current head `095eef0e061b5b3a2a718f7c1ee12016d6ca0587` is under canonical Quality `33958727478`: Linux storage PASS, local install smoke PASS, specification validator PASS, Ruff PASS and mypy PASS; full pytest and Windows path safety remain `in_progress`.
-- Neither current run has a completed failure signature; neither is PASS evidence until canonical completion.
-- Integrator has consumed the exact-green Backend StorageHealth unavailable-path slice into Develop. No Error-owned defect is exposed by that integration handoff.
+- Backend `35e4858146ea7ad423da6ec5d59ce8d2e8eb4115` completed canonical Quality `33958054144 = success`.
+- UI `095eef0e061b5b3a2a718f7c1ee12016d6ca0587` completed canonical Quality `33958727478 = success`.
+- Current Backend head `2d5b22801d5889c374ae1a75bd9880e3070e21c4` is under canonical Quality `33960721888`: Windows path safety PASS, Linux storage PASS, local install smoke PASS, specification validator PASS, Ruff PASS and mypy PASS; full pytest remains `in_progress`.
+- Current UI head `9f24999c62b309e25ac512a110ef18011225a4cc` is under canonical Quality `33961422115`: Windows path safety PASS, Linux storage PASS, local install smoke PASS, specification validator PASS, Ruff PASS and mypy PASS; full pytest remains `in_progress`.
+- Neither current worker run has a completed failure signature; neither is PASS evidence until canonical completion.
+- Integrator has consumed the exact-green Backend StorageHealth NUL-path invariant into Develop. No Error-owned defect is exposed by that bounded integration handoff.
 - No `ERR-0012` is allocated because no concrete deduplicated primary failure is currently complete.
-- Current Develop `c887b2beb4b0f919fdd4f86d3db245c16c2094f4` has no exact-head repository-wide global-green claim in this run.
+- Current Develop `8c2f08ef5a9dcafd9cf029da944527d97313cd2b` has no exact-head repository-wide global-green claim in this run.
 
 ## Entries
 
