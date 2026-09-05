@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `f630b27ddb7a40f2982f50f79d9f7d9f1322d1b1`
+Baseline: `d14aca9504021bdacadb89dc478ca41545ab4316`
 Integration target: `develop/pathena-next`
 UI worker: `postmerge/ui`
 
@@ -103,9 +103,17 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
 
 ## UI-GAP-0027 — Glyph primary rail suppresses native outline without an explicit focused-current state
+- Screen: `01 — Workspace / Chat`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `FIXED`.
+- Evidence: `QListWidget#navigation` explicitly sets `outline: none` and previously provided item normal/hover/selected styling but no keyboard-focused current-item rule.
+- Product/test candidate `38793f4e116900d4d06db0aff9a8e42c69272141` adds `QListWidget#navigation:focus::item:current` using canonical readable text, `surface_hover`, and the existing 2px accent left edge while preserving visible glyphs, selection semantics, accessible item labels, rail dimensions and navigation routing.
+- Verification evidence: exact synchronized UI head `779b28a0845e80bb16feadca28f5eaba26124db9` passed ATHENA Quality Gate `33987939232` with conclusion `success`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0028 — Composer Send button lacks an explicit keyboard-focus treatment
 - Screen: `01 — Workspace / Chat`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `IMPLEMENTED_PENDING_VERIFY`.
-- Evidence: `QListWidget#navigation` explicitly sets `outline: none` and provides item normal/hover/selected styling, but no keyboard-focused current-item rule.
-- Candidate acceptance: `QListWidget#navigation:focus::item:current` uses canonical readable text, `surface_hover`, and the existing 2px accent left edge; visible glyphs, selection semantics, accessible item labels, rail dimensions and navigation routing remain unchanged.
+- Evidence: `QPushButton#sendButton` explicitly defines normal, hover and pressed presentation while the adjacent `QLineEdit#promptInput` has an explicit focus state; no `sendButton:focus` rule existed.
+- Candidate `8c132673f7a991ae1fc16e27b0d65342bdae02e9` adds a canonical-token focus state using `accent_hover` plus a 2px readable-text border. The existing 48px fixed control geometry, hover/pressed states and send routing are unchanged.
+- Focused stylesheet coverage in `tests/unit/test_pathena_theme.py` asserts the focus selector, canonical declarations and preserved 48px geometry.
 - Verification evidence: canonical exact-head Quality pending.
 - Visual status: `IMPLEMENTED_PENDING_VERIFY`; no screenshot-level `MATCH` claim.
 
