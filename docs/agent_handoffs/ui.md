@@ -2,39 +2,35 @@
 
 ## Current baseline
 
-- Base reviewed: `develop/pathena-next@4ce70615cffcbf0e76ec404e7e58b34c7c5e308a`.
+- Base reviewed: `develop/pathena-next@b9ab5ecb7fc49a5d3bd5c25f0254f118e21fc7ee`.
 - Worker: `postmerge/ui`.
-- Prior history-preserving NON-FORCE synchronization commit: `c166ae177d5b76fdb83fad4dcfa060871fc5cf6f`.
+- History-preserving NON-FORCE synchronization commit: `b4702d8e6519ad2f0d923c373377012a3ec98a67`, with parents `5a4bf9116524fcc4ed93aa89c3fefde15ba1023b` and current Develop.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 - Original eleven reference images remain `VISUAL_REFERENCE_PENDING`; no pixel-level `MATCH` claim is made.
 
-## UI-GAP-0024 — whitespace provider detail presentation fallback
+## UI-GAP-0025 — accessible labels for glyph-only primary navigation
 
-Status: `FIXED / INTEGRATOR_READY`, P2.
+Status: `IMPLEMENTED_PENDING_VERIFY`, P1.
 
-- Exact product path: `ProviderHealthResponse.detail` is `str | None`; Settings previously treated a whitespace-only value as truthy and rendered it directly into `settingsRuntimeDetail` plus its accessible description.
-- Product `8b986323cabcb459e4203af1e5bdbe1fbb62375c` uses the existing self-describing provider-readiness fallback only when the resolved runtime detail is absent or whitespace-only.
-- Every nonblank supplied runtime detail remains verbatim; provider readiness, snapshot freshness and Core/Backend/Storage/Network/Security semantics are unchanged.
-- Focused assertions were consolidated into `tests/unit/test_pathena_settings_provider_detail_state.py` by `216c3270df0658ac19d16b043531b48d05bcae93`; redundant unformatted harness removal is `77b3f9582d4530dbe081e3c81b8768ad00d3f050`.
-- Exact UI head `77b3f9582d4530dbe081e3c81b8768ad00d3f050` passed ATHENA Quality Gate `33966822035` with conclusion `success`. Validator, Ruff, mypy, full pytest, Windows path safety, Linux storage regressions and local-install smoke all passed.
+- Exact product path: the reduced primary rail intentionally renders seven QListWidget items as glyphs while preserving human destination names only in tooltips. The symbol-only top utility buttons already expose accessible names, but the rail items had no explicit accessible item text.
+- Product `b3deae1671a8832e94fd8b3ef85fefa916ced468` preserves visible glyphs, widths, ordering, tooltips and navigation behavior and adds only `Qt.ItemDataRole.AccessibleTextRole` values for Workspace, Library, Research, Jobs, Sources, System and Settings.
+- Focused shell coverage `b25bc07059bc116ec25a4e7ce924a89f4508e2df` asserts the complete seven-item accessible label contract while retaining the existing glyph, tooltip and page-navigation assertions.
+- No Backend, Storage, Security, Provider, transport or persistence semantics changed.
 
-## Current Develop collision review
+## Collision review
 
-Develop advanced after the verified UI head to `4ce70615cffcbf0e76ec404e7e58b34c7c5e308a`. Its reviewed delta is disjoint from the UI-GAP-0024 Settings product/test path: Integrator/progress documentation plus scoped-project Research files (`src/athena/jobs/payload_validation.py`, `src/athena/research/service.py`, `tests/unit/test_research_scoped_project.py`). The current Integrator handoff was synchronized onto `postmerge/ui` non-force before this handoff update. Remaining exact Develop file synchronization is deferred to the next bounded run rather than approximated from partial content.
+Current Develop advanced from the prior UI sync only through the historical-backfill candidate-freeze slice and Integrator handoff. Exact Develop blobs for `src/athena/research/repository.py`, `tests/unit/test_research_historical_backfill.py` and `docs/agent_handoffs/integrator.md` were synchronized onto the UI tree before this mutation via the two-parent commit above. Those files are disjoint from the current UI product/test path.
 
-## Ownership / collision guidance
+## Prior ready UI lineage
 
-- UI owns only Settings presentation/accessibility behavior in the UI-GAP-0024 lineage.
-- Core/Backend retain snapshot collection, transport, provider/model, storage, network and security semantics.
-- Historical `ERR-0004` remains closed unless its exact signature recurs.
-- Current Integrator notes an Error-owned `ERR-0012` corrected UI lineage elsewhere; this UI worker does not absorb or overwrite that Error-owned slice without exact handoff/evidence review.
+UI-GAP-0024 remains `FIXED / INTEGRATOR_READY`: product `8b986323cabcb459e4203af1e5bdbe1fbb62375c`, assertion-equivalent focused coverage in `216c3270df0658ac19d16b043531b48d05bcae93`, exact verified UI head `77b3f9582d4530dbe081e3c81b8768ad00d3f050`, canonical Quality `33966822035 = success`.
 
 ## Integrator handoff
 
-- UI-GAP-0024 is READY for independent Integrator review: bounded product `8b986323cabcb459e4203af1e5bdbe1fbb62375c` with assertion-equivalent focused coverage carried by `216c3270df0658ac19d16b043531b48d05bcae93` and exact verified UI head `77b3f9582d4530dbe081e3c81b8768ad00d3f050`.
-- Canonical evidence: ATHENA Quality Gate `33966822035 = success` on exact head `77b3f9582d4530dbe081e3c81b8768ad00d3f050`.
-- Screen 07 is `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` is claimed.
+- Do not integrate UI-GAP-0025 until canonical Quality succeeds on the exact final candidate carrying product `b3deae1671a8832e94fd8b3ef85fefa916ced468` and focused test `b25bc07059bc116ec25a4e7ce924a89f4508e2df`.
+- If exact-head Quality succeeds, the bounded lineage may be promoted to `FIXED / INTEGRATOR_READY` without changing the visual-reference status.
+- Screen 01 remains `VISUAL_REFERENCE_PENDING`; no screenshot-level `MATCH` is claimed.
 
 ## Next UI step
 
-Complete exact NON-FORCE synchronization of the remaining current Develop scoped-project Research/progress delta, then inspect the synchronized Settings/System lineage and current Error handoff before registering the next stable UI gap. Do not repeat UI-GAP-0024 diagnosis.
+Consume exact-head Quality for UI-GAP-0025. If green, promote ledger/manifest/handoff and immediately inspect the synchronized Workspace/Chat shell for the next highest concrete keyboard/focus/accessibility inconsistency. Do not repeat the glyph-accessibility diagnosis.
