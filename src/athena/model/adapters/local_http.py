@@ -172,16 +172,11 @@ def _validated_timeout(value: object) -> float:
     return timeout
 
 
-def _bound_http_error_body(
-    exc: HTTPError,
-    *,
-    total_timeout_seconds: float,
-) -> None:
+def _bound_http_error_body(exc: HTTPError) -> None:
     if exc.fp is not None:
         bounded_fp: Any = _BoundedLocalResponse(
             exc.fp,
             max_bytes=MAX_LOCAL_RESPONSE_BYTES,
-            total_timeout_seconds=total_timeout_seconds,
         )
         error: Any = exc
         error.fp = bounded_fp
@@ -216,10 +211,7 @@ def open_local_request(request: Request, *, timeout: float) -> Any:
     try:
         response = opener.open(request, timeout=validated_timeout)
     except HTTPError as exc:
-        _bound_http_error_body(
-            exc,
-            total_timeout_seconds=validated_timeout,
-        )
+        _bound_http_error_body(exc)
         raise
     return _BoundedLocalResponse(
         response,
