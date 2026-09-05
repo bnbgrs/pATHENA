@@ -3,38 +3,44 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `f90160f4a4269394215927bec07ac047b6297d1e`.
+- Develop before this run: `d1ca4580b129f5b255215ce415f4e627b22dbc63`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `24b9cceaad0b6f53740325f9da8fe10a4a588de8`; spec-core `61f829241bdccf048d8e9ba57bdf9abfbbd9e503`; backend `6cdb9095b265230b5484a7ce203c09c798b9a0a6`; ui `f36ffd143ae51b5e6e0fd653cefddbd33ce0b886`.
-- `ERROR_LEDGER`, `11-Screen-Manifest`, and `Visual-Gap-Ledger` remain unavailable as separately named repository files in the reviewed evidence; `errors.md`, `ui.md`, and `ALPHA_BETA_PROGRESS.md` remain the active trackers.
+- Worker heads reviewed: errors `e1b0b2de9697b1241f1e97484210197173a59f4d`; spec-core `2e94cbc8bc94fe1638ff5476fe166889ccc662b3`; backend `35e4858146ea7ad423da6ec5d59ce8d2e8eb4115`; ui `095eef0e061b5b3a2a718f7c1ee12016d6ca0587`.
+- Required handoffs and `ALPHA_BETA_PROGRESS.md` were reviewed. Separate exact files named `ERROR_LEDGER`, `11-Screen-Manifest`, and `Visual-Gap-Ledger` were not independently established in this run.
 
-## Integrated this run — Research repository-finalization source coverage
+## Integrated this run — StorageHealth unavailable-path invariant
 
-READY Core lineage independently reviewed:
+READY Backend lineage independently reviewed:
 
-- exact product head `61f829241bdccf048d8e9ba57bdf9abfbbd9e503`;
-- canonical Quality `33950168057 = success` on that exact head;
-- product diff is one file, `src/athena/research/repository.py`, with 15 additions and 2 deletions;
-- exact worker product blob `50c7e33f9d6162b9326f5ad416aef540b485bce1`.
+- product `3421ea19c33b16a7694d7cb96951787225cb0d4c`;
+- focused test `fbc3e214b822e8f25477ece0248d21f5fbe5d4fe`;
+- exact green Backend descendant `1ca844d7f5d8a90165e3b109fe1a7caa1880d877`;
+- canonical ATHENA Quality `33955258771 = success`.
 
-The bounded slice reserves the Core-owned `source_coverage` result key and composes source coverage from the same caller-owned SQLite connection and `scope_id` inside `finalize_result_fenced()`. Existing coverage, problem-source, snapshot, fence, transaction, recovery and idempotency behavior is preserved.
+The bounded change requires `StorageHealthSnapshot(status="unavailable")` to retain a concrete database path. It fails closed when the path is absent while preserving available/error semantics, existing detail validation, size/WAL telemetry, persistence, recovery, transport, security, audit and provenance behavior.
 
-Current Develop already carried `source_coverage_composition.py`, including deterministic real-record composition and fail-closed duplicate/unknown work identity. The exact worker `repository.py` blob was therefore applied on top of current Develop without importing the worker's older tree or overwriting Backend/UI/Error-owned paths.
+Current Develop already contained the preceding whitespace-detail hardening. The worker commit was therefore not transplanted blindly; the exact two-line product semantic delta and focused unavailable-without-path test were applied to the current Develop files.
 
 ## Validation state
 
-- Exact Core head `61f829241bdccf048d8e9ba57bdf9abfbbd9e503` passed ATHENA Quality Gate `33950168057` with conclusion `success`.
-- Integration product commit: `d5b51a8799c964a88a6a1158294f9bc69c628464`.
-- Independent commit review confirmed the worker delta is one product file / 17 changed lines.
-- Local post-integration execution was attempted but blocked by transient DNS resolution for `github.com`; no exact-current-Develop global-green claim is made.
-- Backend StorageHealth and UI READY alternatives remain deferred by the single-bounded-slice rule.
-- Error handoff continues to report `ERR-0001` through `ERR-0011` fixed with no open product defect.
+- Product integration commit: `41d6d91580d26606b06285b5ae7140e1b46b70a5`.
+- Focused test integration commit: `86cfa075c039b62f67162b86737d1ca56c99e13f`.
+- Independent compare `d1ca4580b129f5b255215ce415f4e627b22dbc63..86cfa075c039b62f67162b86737d1ca56c99e13f` is ahead by two commits with exactly two modified files: `src/athena/storage/health.py` (+2) and `tests/unit/test_storage_health.py` (+13).
+- Worker exact canonical Quality: `33955258771 = success`.
+- No exact current-Develop repository-wide global-green claim is made in this run.
+
+## READY alternatives deferred
+
+- UI-GAP-0022 remains exact-green and READY via UI Quality `33953459102`, but is deferred by the single-bounded-slice rule.
+- Backend StorageHealth NUL-path hardening is `FIXED_PENDING_VERIFY` and must not be integrated until exact product-containing canonical green evidence exists.
+- No newer bounded Core product slice was selected in this run.
 
 ## Next integration order
 
-1. Independently review the newest Core successor only if it carries exact product-containing green evidence and remains bounded/collision-free.
-2. Otherwise consume exactly one READY alternative, preferring Backend StorageHealth hardening, then the oldest dependency-compatible UI gap.
-3. Preserve single-bounded-slice discipline and exact-head evidence before any repository-wide green claim.
+1. Prefer any newer bounded Core product successor only with exact product-containing green evidence.
+2. Otherwise independently review and integrate exactly one READY alternative; UI-GAP-0022 is currently READY.
+3. If Backend NUL-path hardening gains exact canonical green evidence first, consider it after collision review.
+4. Preserve single-bounded-slice discipline and exact-head evidence before any repository-wide green claim.
 
 ## Rules retained
 
