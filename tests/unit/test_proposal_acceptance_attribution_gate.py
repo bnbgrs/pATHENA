@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import uuid
 from dataclasses import replace
 
 from athena.knowledge.deduplication import (
@@ -10,7 +9,13 @@ from athena.knowledge.deduplication import (
     DeduplicationPlan,
 )
 from athena.knowledge.extraction_models import ProposalEntityType
-from athena.knowledge.models import ClaimDraft, ClaimKind, EpistemicStatus
+from athena.knowledge.models import (
+    ClaimDraft,
+    ClaimKind,
+    EpistemicStatus,
+    KnowledgeKind,
+    KnowledgeUnitDraft,
+)
 from tests.unit.test_proposal_acceptance import _extracted
 
 
@@ -18,16 +23,34 @@ def test_acceptance_attribution_gate_suppresses_distinct_speakers(
     tmp_path,
     monkeypatch,
 ) -> None:
-    database, result, _knowledge, claims, acceptance = _extracted(tmp_path)
+    database, result, knowledge, claims, acceptance = _extracted(tmp_path)
     try:
         actor_id = acceptance.chat.ensure_local_user()
+        left_speaker = knowledge.create_knowledge_unit(
+            actor_id=actor_id,
+            draft=KnowledgeUnitDraft(
+                knowledge_kind=KnowledgeKind.CONCEPT,
+                title="Speaker Alice",
+                body="Canonical attribution identity for Alice.",
+            ),
+            reason="attribution contradiction speaker fixture",
+        )
+        right_speaker = knowledge.create_knowledge_unit(
+            actor_id=actor_id,
+            draft=KnowledgeUnitDraft(
+                knowledge_kind=KnowledgeKind.CONCEPT,
+                title="Speaker Bob",
+                body="Canonical attribution identity for Bob.",
+            ),
+            reason="attribution contradiction speaker fixture",
+        )
         left = claims.create_claim(
             actor_id=actor_id,
             draft=ClaimDraft(
                 claim_kind=ClaimKind.ATTRIBUTED_OPINION,
                 statement="Berlin is the best capital city.",
                 epistemic_status=EpistemicStatus.ASSERTED,
-                attributed_to_entity_id=uuid.uuid4(),
+                attributed_to_entity_id=left_speaker.knowledge_id,
             ),
             reason="attribution contradiction composition fixture",
         )
@@ -37,7 +60,7 @@ def test_acceptance_attribution_gate_suppresses_distinct_speakers(
                 claim_kind=ClaimKind.ATTRIBUTED_OPINION,
                 statement="Munich is the best capital city.",
                 epistemic_status=EpistemicStatus.ASSERTED,
-                attributed_to_entity_id=uuid.uuid4(),
+                attributed_to_entity_id=right_speaker.knowledge_id,
             ),
             reason="attribution contradiction composition fixture",
         )
