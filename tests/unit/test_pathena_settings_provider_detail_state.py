@@ -119,3 +119,44 @@ def test_model_snapshot_failure_keeps_provider_as_last_known(tmp_path) -> None:
     finally:
         window.close()
         app.processEvents()
+
+
+@pytest.mark.parametrize("message", ["", "   "])
+def test_empty_connection_failure_detail_uses_self_describing_fallback(
+    tmp_path, message: str
+) -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    runtime = install_settings_runtime(
+        window,
+        None,
+        settings=QSettings(str(tmp_path / "settings.ini"), QSettings.Format.IniFormat),
+    )
+    try:
+        runtime.apply_connection_failure(message)
+
+        assert runtime.detail.text() == "Local Core connection failed."
+        assert runtime.detail.property("pathenaUiState") == "error"
+        assert runtime.detail.property("pathenaRuntimeFreshness") == "unavailable"
+        assert runtime.detail.accessibleDescription() == runtime.detail.text()
+    finally:
+        window.close()
+        app.processEvents()
+
+
+def test_nonempty_connection_failure_detail_is_preserved(tmp_path) -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    runtime = install_settings_runtime(
+        window,
+        None,
+        settings=QSettings(str(tmp_path / "settings.ini"), QSettings.Format.IniFormat),
+    )
+    try:
+        runtime.apply_connection_failure("Core handshake failed.")
+
+        assert runtime.detail.text() == "Core handshake failed."
+        assert runtime.detail.accessibleDescription() == runtime.detail.text()
+    finally:
+        window.close()
+        app.processEvents()
