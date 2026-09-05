@@ -349,7 +349,12 @@ def _validate_research_exhaustive(
     )
     assert scope is not None
     mode = _text(scope, "mode", label=label)
-    if mode not in {"local_exhaustive", "scoped_project", "historical_backfill"}:
+    if mode not in {
+        "local_exhaustive",
+        "scoped_project",
+        "local_plus_web",
+        "historical_backfill",
+    }:
         raise BuiltinJobPayloadValidationError(
             "research.exhaustive field 'mode' has an unsupported value."
         )
@@ -365,7 +370,9 @@ def _validate_research_exhaustive(
         raise BuiltinJobPayloadValidationError(
             "research.exhaustive source_types contains an unsupported source type."
         )
-    _canonical_uuid_list(scope, "explicit_source_ids", label=label)
+    explicit_source_ids = _canonical_uuid_list(
+        scope, "explicit_source_ids", label=label
+    )
     start = _optional_integer(scope, "time_start_us", minimum=0, label=label)
     end = _optional_integer(scope, "time_end_us", minimum=0, label=label)
     if mode == "historical_backfill" and (start is None or end is None):
@@ -376,9 +383,57 @@ def _validate_research_exhaustive(
         raise BuiltinJobPayloadValidationError(
             "research.exhaustive time_end_us must be >= time_start_us."
         )
-    if scope.get("internet_scope") is not None:
+    internet_scope = scope.get("internet_scope")
+    if mode == "local_plus_web":
+        if not isinstance(internet_scope, Mapping):
+            raise BuiltinJobPayloadValidationError(
+                "research.exhaustive local_plus_web mode requires internet_scope."
+            )
+        _require_exact_keys(
+            internet_scope,
+            {"authorization_id", "captured_source_ids"},
+            label="research.exhaustive internet_scope",
+        )
+        authorization_id = internet_scope.get("authorization_id")
+        if not isinstance(authorization_id, str):
+            raise BuiltinJobPayloadValidationError(
+                "research.exhaustive internet_scope authorization_id must be UUID text."
+            )
+        try:
+            if str(uuid.UUID(authorization_id)) != authorization_id:
+                raise ValueError
+        except ValueError as exc:
+            raise BuiltinJobPayloadValidationError(
+                "research.exhaustive internet_scope authorization_id must be canonical UUID text."
+            ) from exc
+        captured_source_ids = internet_scope.get("captured_source_ids")
+        if not isinstance(captured_source_ids, list) or not captured_source_ids:
+            raise BuiltinJobPayloadValidationError(
+                "research.exhaustive local_plus_web mode requires captured_source_ids."
+            )
+        if captured_source_ids != sorted(set(captured_source_ids)):
+            raise BuiltinJobPayloadValidationError(
+                "research.exhaustive captured_source_ids must be sorted and unique."
+            )
+        for source_id in captured_source_ids:
+            if not isinstance(source_id, str):
+                raise BuiltinJobPayloadValidationError(
+                    "research.exhaustive captured_source_ids must contain UUID text."
+                )
+            try:
+                if str(uuid.UUID(source_id)) != source_id:
+                    raise ValueError
+            except ValueError as exc:
+                raise BuiltinJobPayloadValidationError(
+                    "research.exhaustive captured_source_ids must contain canonical UUID text."
+                ) from exc
+        if captured_source_ids != explicit_source_ids:
+            raise BuiltinJobPayloadValidationError(
+                "research.exhaustive Local+Web captured Sources must match explicit_source_ids."
+            )
+    elif internet_scope is not None:
         raise BuiltinJobPayloadValidationError(
-            "research.exhaustive local mode requires internet_scope to be null."
+            "research.exhaustive non-Web modes require internet_scope to be null."
         )
     coverage = scope.get("coverage_target")
     if isinstance(coverage, bool) or not isinstance(coverage, float):
@@ -562,7 +617,7 @@ def _canonical_uuid_list(
     field: str,
     *,
     label: str,
-) -> None:
+) -> list[str]:
     raw = value.get(field)
     if not isinstance(raw, list):
         raise BuiltinJobPayloadValidationError(
@@ -590,7 +645,7 @@ def _canonical_uuid_list(
         raise BuiltinJobPayloadValidationError(
             f"{label} field {field!r} must be sorted and unique."
         )
-
+    return canonical
 
 def _equal_text(
     value: Mapping[str, Any],

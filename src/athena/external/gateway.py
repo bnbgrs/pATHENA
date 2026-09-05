@@ -877,7 +877,7 @@ class ExternalAccessGateway:
 
 
 class ExternalResearchService:
-    """Capture explicit external URLs first, then freeze them through normal local Research."""
+    """Capture authorized external URLs first, then enqueue truthful Local+Web Research."""
 
     def __init__(
         self,
@@ -906,9 +906,10 @@ class ExternalResearchService:
             self.gateway.capture_url(authorization_id, url).source.source_id
             for url in normalized_urls
         )
-        return self.research.enqueue_local(
+        return self.research.enqueue_local_plus_web(
             query=query,
-            explicit_source_ids=source_ids,
+            authorization_id=authorization_id,
+            captured_source_ids=source_ids,
             requested_model_id=requested_model_id,
             context_limit=context_limit,
             output_reserve=output_reserve,
