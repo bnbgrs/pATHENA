@@ -14,9 +14,9 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 ## Current baseline
 
 - Baseline branch: `develop/pathena-next`
-- Baseline SHA observed this run: `d69fcc570bceac78536614f40b0ae3e1b867d791`
+- Baseline SHA observed this run: `f9938b0f3c3a016b1cc7837441caaec72974e1cf`
 - Worker branch: `postmerge/errors`
-- History-preserving NON-FORCE synchronization: `5562f63d3fc932b400e804cdc76af94b8bcff48c`, parents prior Error head `ce50717cd0dd82148ab3fc465abe74b80ae6d134` and exact Develop head `d69fcc570bceac78536614f40b0ae3e1b867d791`.
+- History-preserving NON-FORCE synchronization: `5442abac714b0b7caf3a5c9c49fe151d4f7ccfb4`, parents prior Error head `a64daaba830b3cac1c67ec85c1bd2bafd1e3be39` and exact Develop head `f9938b0f3c3a016b1cc7837441caaec72974e1cf`.
 
 ## Current error state
 
@@ -29,10 +29,12 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 ## Current scan
 
 - Historical `ERR-0004` remains `FIXED`; no startup/readiness Ruff recurrence was observed.
-- `ERR-0010` recurrent signature is now closed again. Backend corrected owner lineage `dd1311dfeec02030fe6e05f6bd8a81fc13f5fce0` completed canonical Quality `33936396203 = success`; UI corrected owner head `f6d2b3afe58fcb0552a0fbd7c72737c2038b18b0` completed canonical Quality `33937005854 = success`.
-- Current Develop `d69fcc570bceac78536614f40b0ae3e1b867d791` preserves the corrected deterministic timing fixture `times = iter([10.0, 10.2, 10.4, 10.6, 10.8, 11.0])` in `tests/unit/test_lm_studio_response_limits.py`; product deadline checks remain unchanged and fail-closed.
-- No `ERR-0012` is allocated. Latest Backend Quality `33939326942` on `7d380631f69b8b9b9f580f01f4510760f11de577` is still in progress for raw body-handle boundary hardening; latest UI Quality `33939919740` on `550943bd4515514ea9e87b863d1b16f22b60445a` is still in progress. Pending runs are not PASS or failure evidence.
-- Current Develop has no exact-head global-green claim in this run; Error closure is scoped to the verified recurrent harness root cause plus observed preserved Develop fixture.
+- `ERR-0010` remains `FIXED`; the corrected six-timestamp stream-deadline fixture remains preserved in current Develop.
+- Previously pending Backend Quality `33939326942` on `7d380631f69b8b9b9f580f01f4510760f11de577` completed `success` and was independently integrated as the bounded raw body-handle escape slice.
+- Previously pending UI Quality `33939919740` on `550943bd4515514ea9e87b863d1b16f22b60445a` completed `success`.
+- No `ERR-0012` is allocated. Current Backend head `cdc61439364028d29ecc56f3c39d34cd9a3dcc12` is under canonical Quality `33941852514`: Windows path safety PASS, Linux storage PASS, local install smoke PASS, Validator PASS, Ruff PASS, mypy PASS, full pytest still in progress at observation time.
+- Current UI head `9ca1cb04031d618bd6d34d2df4a46d331d110a82` is under canonical Quality `33942660590`: Linux storage PASS, local install smoke PASS, Validator PASS, Ruff PASS, mypy PASS, Windows path-safety teardown still completing, full pytest still in progress at observation time.
+- Pending runs are neither PASS nor failure evidence. No exact-current-Develop global-green claim is made.
 
 ## Entries
 
@@ -155,7 +157,7 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 - root_cause: worker/integration drift reintroduced an obsolete four-timestamp harness fixture; product fail-closed deadline behavior is correct.
 - files: `tests/unit/test_lm_studio_response_limits.py`; product reference `src/athena/model/adapters/local_http.py`.
 - fix_sha: corrected fixture lineage Backend `e62fcc2db49815e7d32579d0dc68a143f8af07b0` / corrected owner head `dd1311dfeec02030fe6e05f6bd8a81fc13f5fce0`; UI exact-green descendant `f6d2b3afe58fcb0552a0fbd7c72737c2038b18b0`.
-- verification: Backend `33936396203 = success`; UI `33937005854 = success`; current Develop `d69fcc570bceac78536614f40b0ae3e1b867d791` preserves the corrected six-timestamp fixture `[10.0,10.2,10.4,10.6,10.8,11.0]`.
+- verification: Backend `33936396203 = success`; UI `33937005854 = success`; current Develop preserves the corrected six-timestamp fixture `[10.0,10.2,10.4,10.6,10.8,11.0]`.
 - risk: low if correction remains harness-only; no timeout, cumulative-byte, network, storage, recovery or security guard may be weakened.
 - integrator_handoff: preserve the corrected fixture and direct total-deadline fail-closed behavior. Exact-current-Develop global Quality remains a separate readiness question.
 
