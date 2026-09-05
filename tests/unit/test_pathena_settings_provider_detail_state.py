@@ -121,6 +121,39 @@ def test_model_snapshot_failure_keeps_provider_as_last_known(tmp_path) -> None:
         app.processEvents()
 
 
+@pytest.mark.parametrize("core_status", ["", "   "])
+def test_empty_core_status_uses_self_describing_unavailable_copy(
+    tmp_path, core_status: str
+) -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    runtime = install_settings_runtime(
+        window,
+        None,
+        settings=QSettings(str(tmp_path / "settings.ini"), QSettings.Format.IniFormat),
+    )
+    snapshot = DesktopApiSnapshot(
+        health=HealthResponse(api_version="v1", core_status=core_status, detail=None),
+        provider=None,
+        models=(),
+        chats=(),
+    )
+    try:
+        runtime.apply_snapshot(snapshot)
+
+        assert runtime.network_value.text() == "Local Core · unavailable"
+        assert runtime.network_value.property("pathenaUiState") == "error"
+        assert runtime.network_value.property("pathenaRuntimeFreshness") == "fresh"
+        assert runtime.network_value.property("pathenaNetworkScope") == "loopback-only"
+        assert runtime.network_value.property("pathenaInternetStateInferred") is False
+        assert runtime.network_value.accessibleDescription().startswith(
+            "Local Core · unavailable."
+        )
+    finally:
+        window.close()
+        app.processEvents()
+
+
 @pytest.mark.parametrize("message", ["", "   "])
 def test_empty_connection_failure_detail_uses_self_describing_fallback(
     tmp_path, message: str
