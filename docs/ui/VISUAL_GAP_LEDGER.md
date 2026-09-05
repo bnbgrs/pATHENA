@@ -116,6 +116,14 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Verification evidence: exact UI head `5a5ba2681412c32c181e63026ce1b92574675d64` passed ATHENA Quality Gate `33991088294` with conclusion `success`.
 - Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
 
+## UI-GAP-0029 — Workspace action controls lack explicit keyboard-focus presentation
+- Screen: `01 — Workspace / Chat`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Evidence: `detailsToggle`, `contextToggle`, `newChatButton`, `deleteChatButton`, `rememberMessageButton`, `addKnowledgeButton`, and `groundButton` define transparent normal borders plus hover and/or checked/disabled states but no explicit `:focus` presentation.
+- Product `d25d563ed02ac677a038f522c050e7942d6b0462` adds a shared explicit focus state using canonical readable text, `surface_hover`, and accent border color without changing routing, labels, enabled/disabled semantics, or checked-state behavior.
+- Focused regression `a4cfa5522cb666c9cf53ae53c5a297746fee2f38` verifies all seven selectors and canonical focus tokens.
+- Verification evidence: canonical exact-head Quality pending on the final UI descendant; no `FIXED` claim yet.
+- Visual status: `IMPLEMENTED_PENDING_VERIFY`; no screenshot-level `MATCH` claim.
+
 ## Evidence blocker
 
 `VISUAL_REFERENCE_PENDING`: until an original reference image and a real rendered current build can both be opened and inspected, spacing, exact proportions, pixel colors and screenshot-level `MATCH` claims remain prohibited.
