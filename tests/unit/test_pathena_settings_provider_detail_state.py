@@ -121,6 +121,34 @@ def test_model_snapshot_failure_keeps_provider_as_last_known(tmp_path) -> None:
         app.processEvents()
 
 
+def test_blank_provider_identity_and_status_use_self_describing_copy(tmp_path) -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    runtime = install_settings_runtime(
+        window,
+        None,
+        settings=QSettings(str(tmp_path / "settings.ini"), QSettings.Format.IniFormat),
+    )
+    snapshot = DesktopApiSnapshot(
+        health=HealthResponse(api_version="v1", core_status="ok", detail=None),
+        provider=ProviderHealthResponse(provider="   ", status="", detail=None),
+        models=(),
+        chats=(),
+    )
+    try:
+        runtime.apply_snapshot(snapshot)
+
+        assert runtime.provider_value.text() == "Model provider · unavailable"
+        assert runtime.provider_value.property("pathenaUiState") == "error"
+        assert runtime.provider_value.property("pathenaRuntimeFreshness") == "fresh"
+        assert runtime.provider_value.accessibleDescription() == runtime.provider_value.text()
+        assert runtime.detail.property("pathenaUiState") == "error"
+        assert runtime.detail.property("pathenaRuntimeFreshness") == "fresh"
+    finally:
+        window.close()
+        app.processEvents()
+
+
 @pytest.mark.parametrize("core_status", ["", "   "])
 def test_empty_core_status_uses_self_describing_unavailable_copy(
     tmp_path, core_status: str
