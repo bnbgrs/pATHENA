@@ -14,30 +14,30 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 ## Current baseline
 
 - Baseline branch: `develop/pathena-next`.
-- Baseline SHA observed this run: `b9ab5ecb7fc49a5d3bd5c25f0254f118e21fc7ee`.
+- Baseline SHA observed this run: `c3d72d3d745033f7382f99a3a717dc1f246d727a`.
 - Worker branch: `postmerge/errors`.
-- Pre-run Error branch head: `114a1a87367e1059374325d8b77891afcdc46fbe`.
-- Error and Develop remain diverged from merge base `4ce70615cffcbf0e76ec404e7e58b34c7c5e308a`; current compare reports Error 124 commits behind and 4 commits ahead. No force update, rebase or history rewrite was attempted.
+- Pre-run Error branch head: `9ae3ff7f6c021ea153b7a6a51cb59b6663365c01`.
+- No force update, rebase, history rewrite or merge to `main` was attempted.
 
 ## Current error state
 
 - OPEN: none.
-- IN_PROGRESS: none.
+- IN_PROGRESS: `ERR-0014`.
 - FIXED_PENDING_VERIFY: none.
 - FIXED: `ERR-0001` through `ERR-0013`.
 - BLOCKED: none.
 
 ## Current scan
 
-- Historical `ERR-0004` remains `FIXED`; no startup/readiness Ruff recurrence was observed.
-- Current UI head `5a4bf9116524fcc4ed93aa89c3fefde15ba1023b` completed canonical Quality `33972487131 = success`.
-- Exact UI jobs on `33972487131` show Windows path safety PASS, Linux storage regressions PASS, local install smoke PASS, specification validator PASS, Ruff PASS, mypy PASS, full pytest PASS, and canonical enforcement PASS.
-- This exact current UI success is a newer non-regression anchor for `ERR-0012`/`ERR-0013`; no StorageHealth or provider-detail Ruff recurrence is present.
-- Current Backend head `8be678b5fa3e19aa442e788d935436914a53452b` has canonical Quality `33972009715` still `in_progress`; it is neither PASS nor failure evidence and does not justify a new ERR allocation.
-- The immediately previous Backend lineage `d15f14166dffa8030b366a3b155b4609d69e8adb` completed Quality `33971949063 = success`.
-- Current Develop `b9ab5ecb7fc49a5d3bd5c25f0254f118e21fc7ee` has no exact-head canonical Quality result; the latest exact Develop Quality visible in the branch run history remains older than the current head.
-- The current Develop delta relative to the Error branch is bounded in the compare output to Integrator documentation, Jobs payload validation, Research repository/service, and historical-backfill tests; no exact completed failure signal from those current-lineage changes was observed this run.
-- No concrete, deduplicated new primary failure exists; `ERR-0014` is not allocated.
+- Historical `ERR-0004` remains `FIXED`; current UI Ruff is PASS.
+- Current UI head `97b051612ca1199907a47d7e3f6938e3f1f8ca37` completed canonical Quality `33975657049 = failure`.
+- Exact UI jobs show Windows path safety PASS, Linux storage PASS, local install smoke PASS, Validator PASS, Ruff PASS, mypy PASS; full pytest terminated with `SIGSEGV` / exit code `139`, and canonical enforcement failed as a cascade.
+- Exact failing location: `tests/unit/test_desktop_api_controller.py::test_controller_refresh_runs_gateway_off_ui_thread`, faulthandler at line 109.
+- The affected test blob `0dc03576d71766c5a2ae45bc30f9fdcbb04f7fa9` is byte-identical to previously exact-green UI head `5a4bf9116524fcc4ed93aa89c3fefde15ba1023b` / Quality `33972487131 = success`.
+- Compare `5a4bf911...97b051612` contains no change to `tests/unit/test_desktop_api_controller.py` or `src/athena/desktop/api_controller.py`. The final UI head commit changes only `docs/agent_handoffs/ui.md`.
+- `ERR-0014` is therefore bounded to Qt/Desktop test-runtime/lifecycle behavior; a `DesktopApiController` product regression is not established and no competing product mutation is justified while UI owns the harness.
+- Current Backend head `be13865f8ab863809a7da28a38e5c5df35b3fa29` / Quality `33974947204` remains `in_progress` and is not PASS or failure evidence.
+- Current Develop `c3d72d3d745033f7382f99a3a717dc1f246d727a` has no exact-head canonical Quality result; no repository-wide green claim is made.
 
 ## Entries
 
@@ -187,21 +187,35 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 - fix_sha: correction present by `cef280487dd12b6fe88d4a3f021ec9b1b2aea0d5`, canonically verified on descendant `77b3f9582d4530dbe081e3c81b8768ad00d3f050`.
 - verification: exact Quality `33966822035` SUCCESS; newer exact UI Quality `33972487131` also SUCCESS with Windows path safety, Linux storage, local install, validator, Ruff, mypy, full pytest and canonical enforcement PASS.
 - risk: future UI/non-storage synchronization must preserve StorageHealth invariants and Storage/Recovery guards.
-- integrator_handoff: old `9f24999c...` tree remains rejected; current UI `5a4bf911...` is error-cleared on exact canonical evidence.
+- integrator_handoff: old `9f24999c...` tree remains rejected; current exact-green reference `5a4bf911...` remains the prior error-clearance anchor.
 
 ### ERR-0013 — UI provider-detail whitespace harness Ruff I001
 - first_seen: 2026-09-05
 - severity: P2
 - area: UI test harness / Ruff
 - status: `FIXED`
-- evidence: failing UI Quality `33964058090@cef280487dd12b6fe88d4a3f021ec9b1b2aea0d5`; corrected Quality `33966822035@77b3f9582d4530dbe081e3c81b8768ad00d3f050 = success`; newer current UI Quality `33972487131@5a4bf9116524fcc4ed93aa89c3fefde15ba1023b = success`.
+- evidence: failing UI Quality `33964058090@cef280487dd12b6fe88d4a3f021ec9b1b2aea0d5`; corrected Quality `33966822035@77b3f9582d4530dbe081e3c81b8768ad00d3f050 = success`; newer exact-green UI Quality `33972487131@5a4bf9116524fcc4ed93aa89c3fefde15ba1023b = success`.
 - repro: Ruff `I001 [*] Import block is un-sorted or un-formatted` at `tests/unit/test_pathena_settings_provider_detail_whitespace.py:11:1`.
 - root_cause: redundant UI provider-detail whitespace harness had an import block outside repository Ruff/isort format.
 - files: `tests/unit/test_pathena_settings_provider_detail_whitespace.py`.
 - fix_sha: `77b3f9582d4530dbe081e3c81b8768ad00d3f050` removes the redundant offending harness while retaining provider-state coverage elsewhere.
-- verification: exact Quality `33966822035` SUCCESS; newer current UI exact-head Quality `33972487131` also has Ruff PASS and full pytest PASS.
+- verification: exact Quality `33966822035` SUCCESS; newer exact-green UI Quality `33972487131` also has Ruff PASS and full pytest PASS.
 - risk: do not suppress Ruff I001, weaken assertions, or remove non-redundant provider-state coverage merely to make lint green.
-- integrator_handoff: current UI `5a4bf911...` is error-cleared on exact canonical evidence.
+- integrator_handoff: remains closed; unrelated later Qt SIGSEGV is tracked separately as `ERR-0014`.
+
+### ERR-0014 — Qt Desktop controller test process SIGSEGV
+- first_seen: 2026-09-05
+- severity: P1
+- area: UI / Qt Desktop / test runtime lifecycle
+- status: `IN_PROGRESS`
+- evidence: canonical UI Quality `33975657049@97b051612ca1199907a47d7e3f6938e3f1f8ca37`; Python process exited `139` with `Fatal Python error: Segmentation fault` during `tests/unit/test_desktop_api_controller.py::test_controller_refresh_runs_gateway_off_ui_thread`, faulthandler line 109. Windows path safety, Linux storage, local install, Validator, Ruff and mypy all PASS.
+- repro: full canonical pytest on the exact UI SHA; focused repeated reproduction has not yet been supplied by the active UI owner.
+- root_cause: bounded to Qt/Desktop harness/runtime lifecycle rather than a demonstrated controller product delta. The affected test blob is byte-identical to prior exact-green UI `5a4bf911...`, and neither `tests/unit/test_desktop_api_controller.py` nor `src/athena/desktop/api_controller.py` changed between that green lineage and the failing head. Exact object-lifetime trigger remains to be finalized by repeated focused UI evidence.
+- files: `tests/unit/test_desktop_api_controller.py`; diagnostic product reference `src/athena/desktop/api_controller.py`.
+- fix_sha: none.
+- verification: failure exact; no corrective exact-green SHA exists yet.
+- risk: do not convert the real `QThreadPool`/`QSignalSpy` concurrency assertion into mocks, skips or weaker assertions; preserve off-UI-thread execution semantics and Qt object lifetime correctness.
+- integrator_handoff: reject UI `97b051612...` as READY. UI owner should repeatedly run the focused test under `QT_QPA_PLATFORM=offscreen`, inspect QApplication/QObject/QThreadPool/queued-signal teardown, and provide a minimal harness fix only if recurrence confirms lifecycle instability. If the next complete UI cycle passes unchanged, treat this as nondeterministic runtime/harness evidence and require another exact recurrence before product mutation.
 
 ## Historical/stale evidence
 
