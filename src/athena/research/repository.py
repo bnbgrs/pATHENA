@@ -254,7 +254,10 @@ class ResearchRepository:
                 raise ResearchScopeUnsupportedError(
                     "Foundation local discovery does not support internet_scope."
                 )
-            if scope.mode is not ResearchMode.LOCAL_EXHAUSTIVE:
+            if scope.mode not in {
+                ResearchMode.LOCAL_EXHAUSTIVE,
+                ResearchMode.HISTORICAL_BACKFILL,
+            }:
                 raise ResearchScopeUnsupportedError(
                     f"Foundation discovery does not support Research mode {scope.mode.value!r}."
                 )
