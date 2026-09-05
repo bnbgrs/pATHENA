@@ -50,6 +50,9 @@ jobs:
           if text.count(old) != 1:
               raise SystemExit("tuple correction anchor did not match exactly once")
           path.write_text(text.replace(old, new), encoding="utf-8")
+          test_path = Path("tests/unit/test_research_local_plus_web.py")
+          test_text = test_path.read_text(encoding="utf-8")
+          test_path.write_text(test_text.rstrip() + "\n", encoding="utf-8")
           PY
 
       - name: Focused Research regressions
