@@ -148,6 +148,11 @@ class DirectChatService:
             model=model,
             requested_limit=effective_context_limit,
         )
+        effective_output_reserve = _resolve_output_reserve(
+            requested_reserve=validated_output_reserve,
+            context_limit=context_limit,
+            safety_margin=validated_safety_margin,
+        )
         retrieval_snapshot_commit_seq = self.context_packages.current_commit_seq()
         thread = self.chat_generation.chat.load_chat(chat_id)
         recent_messages = _select_recent_conversation_window(
@@ -160,7 +165,7 @@ class DirectChatService:
         estimated_input_tokens = conversation_tokens + current_user_tokens
         estimated_total_tokens = (
             estimated_input_tokens
-            + validated_output_reserve
+            + effective_output_reserve
             + validated_safety_margin
         )
         if estimated_total_tokens > context_limit:
@@ -182,7 +187,7 @@ class DirectChatService:
             "safety_margin": validated_safety_margin,
         }
         generation_parameters: dict[str, object] = {
-            "max_output_tokens": validated_output_reserve,
+            "max_output_tokens": effective_output_reserve,
             "reasoning_mode": reasoning_mode,
         }
         if validated_temperature is not None:
@@ -243,7 +248,7 @@ class DirectChatService:
             budget=ContextPackageBudget(
                 effective_context_limit=context_limit,
                 context_budget=0,
-                output_reserve=validated_output_reserve,
+                output_reserve=effective_output_reserve,
                 safety_margin=validated_safety_margin,
             ),
             sections=sections,
@@ -415,6 +420,23 @@ def _estimate_persisted_messages(messages: tuple[ChatMessage, ...]) -> int:
         if message.content is not None:
             total += estimate_tokens(message.content) + _MESSAGE_WRAPPER_ESTIMATE
     return total
+
+
+def _resolve_output_reserve(
+    *,
+    requested_reserve: int,
+    context_limit: int,
+    safety_margin: int,
+) -> int:
+    """Cap generation output so a small loaded context still has prompt room."""
+
+    usable_context = context_limit - safety_margin
+    if usable_context < 2:
+        raise ContextBuilderError(
+            "Active model context is too small after applying the safety margin."
+        )
+    prompt_balanced_ceiling = max(1, usable_context // 2)
+    return min(requested_reserve, prompt_balanced_ceiling)
 
 
 def _resolve_context_limit(
