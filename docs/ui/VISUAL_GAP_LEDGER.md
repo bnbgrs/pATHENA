@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `f90160f4a4269394215927bec07ac047b6297d1e`
+Baseline: `52e702912b3b2c0f4cfc7c93baf4c656a02231ad`
 Integration target: `develop/pathena-next`
 UI worker: `postmerge/ui`
 
@@ -68,25 +68,25 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 
 ## UI-GAP-0020 — Model-list failure hides a still-known provider behind generic unavailable copy
 - Screen: `07 — Settings`; Category: `COPY / STATE / ACCESSIBILITY`; Severity: `P2`; Status: `FIXED`.
-- Evidence: a valid `ProviderHealthResponse` may coexist with a model-list error; presentation previously discarded still-known provider identity/status.
-- Product `64b9956601f2ec21ee3624d27323221dc2aba10c`; focused test `7b4569dd55c93cb19b5dfe2d53ea0c2ccc34fe71`.
-- Acceptance: true provider absence remains unavailable; a present provider on non-fresh aggregate model state is rendered conservatively as `<provider> · last known <status>` with non-success UI state and unchanged snapshot freshness; explicit model error remains error/unavailable detail. No provider/backend/storage/network/security semantics change.
-- Verification evidence: exact UI head `9ca1cb04031d618bd6d34d2df4a46d331d110a82` passed ATHENA Quality Gate `33942660590` with conclusion `success`.
-- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+- Product `64b9956601f2ec21ee3624d27323221dc2aba10c`; focused test `7b4569dd55c93cb19b5dfe2d53ea0c2ccc34fe71`; exact UI head `9ca1cb04031d618bd6d34d2df4a46d331d110a82` passed Quality `33942660590`.
 
 ## UI-GAP-0021 — Empty Core connection-failure text produces an empty visible/accessibility error detail
 - Screen: `07 — Settings`; Category: `COPY / STATE / ACCESSIBILITY`; Severity: `P2`; Status: `FIXED`.
-- Evidence: `SettingsRuntimeController.apply_connection_failure(message)` accepted empty or whitespace-only Core failure text and passed it directly to `settingsRuntimeDetail`, leaving an empty error label/accessible description despite `error/unavailable` state.
-- Product `43a62eeb393a8929a92b3273ca49d427d6eb095d`; focused test `f2cc20321c79809a37079b0525b2aab676ac8682`.
-- Acceptance: non-empty Core failure messages are preserved exactly; only empty/whitespace-only input falls back to the self-describing presentation copy `Local Core connection failed.`; error state, unavailable freshness and synchronized accessible description remain intact. No Core/network/provider/storage/security behavior changes.
-- Verification evidence: exact UI head `f2cc20321c79809a37079b0525b2aab676ac8682` passed ATHENA Quality Gate `33947967906` with conclusion `success`.
-- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+- Product `43a62eeb393a8929a92b3273ca49d427d6eb095d`; focused test `f2cc20321c79809a37079b0525b2aab676ac8682`; exact UI head `f2cc20321c79809a37079b0525b2aab676ac8682` passed Quality `33947967906`.
 
 ## UI-GAP-0022 — Empty Core health status produces an incomplete visible/accessibility connection label
-- Screen: `07 — Settings`; Category: `COPY / STATE / ACCESSIBILITY`; Severity: `P2`; Status: `IMPLEMENTED_PENDING_VERIFY`.
-- Evidence: `HealthResponse.core_status` is a transport string without a non-empty invariant; `SettingsRuntimeController.apply_snapshot()` previously rendered empty or whitespace-only values as `Local Core · ` while still exposing error state.
+- Screen: `07 — Settings`; Category: `COPY / STATE / ACCESSIBILITY`; Severity: `P2`; Status: `FIXED`.
+- Evidence: `HealthResponse.core_status` has no non-empty invariant; empty/whitespace values previously rendered `Local Core · `.
 - Product `afe37f4a4a6677239ae4e0ea8fa5d8681d273b1d`; focused test `cdca131585b15559145c43eef204f34518dad39e`.
-- Acceptance: only empty/whitespace-only Core status falls back to presentation copy `unavailable`; non-empty Core status and readiness semantics are unchanged; loopback-only/network-not-Internet accessibility metadata remains intact. No Core/backend/network/provider/storage/security semantics change.
+- Acceptance: only empty/whitespace status falls back to `unavailable`; non-empty Core status/readiness semantics remain unchanged.
+- Verification evidence: exact UI head `f36ffd143ae51b5e6e0fd653cefddbd33ce0b886` passed ATHENA Quality Gate `33953459102` with conclusion `success`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0023 — Empty provider identity/status produces incomplete provider presentation
+- Screen: `07 — Settings`; Category: `COPY / STATE / ACCESSIBILITY`; Severity: `P2`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Evidence: `ProviderHealthResponse.provider` and `status` are transport strings without non-empty invariants; empty/whitespace values could render incomplete provider labels and accessible descriptions.
+- Product `c2c681f2a9a60baf43afa0b11eae81ef0db11110`; focused test `90447e0ba08ed7d3e41723702d16ea624d524e1b`.
+- Acceptance: only blank provider identity/status use presentation fallbacks `Model provider` / `unavailable`; non-empty provider identity/status, snapshot freshness and provider readiness semantics remain unchanged; blank status remains non-success.
 - Verification evidence: canonical exact-head Quality pending.
 - Visual status: `IMPLEMENTED_PENDING_VERIFY`; no screenshot-level `MATCH` claim.
 
