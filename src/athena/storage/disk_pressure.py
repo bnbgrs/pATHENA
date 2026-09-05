@@ -90,6 +90,18 @@ class DiskPressureAssessment:
             raise TypeError("Disk pressure state must be DiskPressureState.")
         if not isinstance(self.thresholds, DiskPressureThresholds):
             raise TypeError("Disk pressure thresholds must be DiskPressureThresholds.")
+        if free < self.thresholds.emergency_free_bytes:
+            expected_state = DiskPressureState.EMERGENCY
+        elif free < self.thresholds.critical_free_bytes:
+            expected_state = DiskPressureState.CRITICAL
+        elif free < self.thresholds.warning_free_bytes:
+            expected_state = DiskPressureState.WARNING
+        else:
+            expected_state = DiskPressureState.NORMAL
+        if self.state is not expected_state:
+            raise ValueError(
+                "Disk pressure state must match free bytes and thresholds."
+            )
 
     @property
     def release_emergency_reserve(self) -> bool:
