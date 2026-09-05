@@ -110,12 +110,11 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
 
 ## UI-GAP-0028 — Composer Send button lacks an explicit keyboard-focus treatment
-- Screen: `01 — Workspace / Chat`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `IMPLEMENTED_PENDING_VERIFY`.
-- Evidence: `QPushButton#sendButton` explicitly defines normal, hover and pressed presentation while the adjacent `QLineEdit#promptInput` has an explicit focus state; no `sendButton:focus` rule existed.
-- Candidate `8c132673f7a991ae1fc16e27b0d65342bdae02e9` adds a canonical-token focus state using `accent_hover` plus a 2px readable-text border. The existing 48px fixed control geometry, hover/pressed states and send routing are unchanged.
-- Focused stylesheet coverage in `tests/unit/test_pathena_theme.py` asserts the focus selector, canonical declarations and preserved 48px geometry.
-- Verification evidence: canonical exact-head Quality pending.
-- Visual status: `IMPLEMENTED_PENDING_VERIFY`; no screenshot-level `MATCH` claim.
+- Screen: `01 — Workspace / Chat`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `FIXED`.
+- Evidence: `QPushButton#sendButton` explicitly defined normal, hover and pressed presentation while the adjacent `QLineEdit#promptInput` has an explicit focus state; no `sendButton:focus` rule existed.
+- Product/test `8c132673f7a991ae1fc16e27b0d65342bdae02e9` adds a canonical-token focus state using `accent_hover` plus a 2px readable-text border. The existing 48px fixed control geometry, hover/pressed states and send routing are unchanged.
+- Verification evidence: exact UI head `5a5ba2681412c32c181e63026ce1b92574675d64` passed ATHENA Quality Gate `33991088294` with conclusion `success`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
 
 ## Evidence blocker
 
