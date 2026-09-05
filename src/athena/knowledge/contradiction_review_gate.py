@@ -1,11 +1,16 @@
-"""Canonical temporal gate for contradiction-review candidates."""
+"""Canonical gates for contradiction-review candidates."""
 
 from __future__ import annotations
 
 import sqlite3
 import uuid
+from dataclasses import dataclass
 
 from athena.common.ids import uuid_to_blob
+from athena.knowledge.attribution_contradiction_policy import (
+    AttributionContradictionAssessment,
+    AttributionContradictionPolicy,
+)
 from athena.knowledge.contradiction_policy import (
     TemporalContradictionAssessment,
     TemporalContradictionPolicy,
@@ -17,22 +22,54 @@ class ContradictionReviewGateError(LookupError):
     """Raised when an exact Claim revision cannot be assessed safely."""
 
 
+@dataclass(frozen=True, slots=True)
+class CanonicalContradictionCandidateAssessment:
+    """Explain all deterministic gates applied to an exact revision pair."""
+
+    temporal: TemporalContradictionAssessment
+    attribution: AttributionContradictionAssessment
+
+    @property
+    def permits_contradiction_candidate(self) -> bool:
+        """Return true only when neither deterministic gate rules the pair out."""
+
+        return (
+            self.temporal.permits_contradiction_candidate
+            and self.attribution.permits_contradiction_candidate
+        )
+
+
 def assess_canonical_claim_revisions(
     connection: sqlite3.Connection,
     *,
     left_revision_id: uuid.UUID,
     right_revision_id: uuid.UUID,
 ) -> TemporalContradictionAssessment:
-    """Assess exact persisted Claim revisions before contradiction review enqueue.
+    """Assess exact persisted Claim revisions with the canonical temporal gate.
 
-    The lookup is revision-bound rather than head-bound so the caller can assess the
-    same canonical revisions it is about to place into the durable review item.
+    This API is retained for callers that consume the temporal assessment directly.
     Missing or non-Claim revisions fail closed instead of inventing temporal data.
     """
 
     left = _load_claim_draft(connection, revision_id=left_revision_id)
     right = _load_claim_draft(connection, revision_id=right_revision_id)
     return TemporalContradictionPolicy.assess(left, right)
+
+
+def assess_canonical_contradiction_candidate(
+    connection: sqlite3.Connection,
+    *,
+    left_revision_id: uuid.UUID,
+    right_revision_id: uuid.UUID,
+) -> CanonicalContradictionCandidateAssessment:
+    """Apply temporal and attribution gates to the same exact Claim revisions."""
+
+    left = _load_claim_draft(connection, revision_id=left_revision_id)
+    right = _load_claim_draft(connection, revision_id=right_revision_id)
+    return CanonicalContradictionCandidateAssessment(
+        temporal=TemporalContradictionPolicy.assess(left, right),
+        attribution=AttributionContradictionPolicy.assess(left, right),
+    )
 
 
 def _load_claim_draft(
