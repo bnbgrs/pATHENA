@@ -122,6 +122,10 @@ class DiskPressureCheckResult:
             raise TypeError("Disk pressure after_release must be DiskPressureAssessment.")
         if self.after_release.total_bytes != self.before_release.total_bytes:
             raise ValueError("Disk pressure volume size changed during one check.")
+        if released > 0 and self.before_release.state is not DiskPressureState.EMERGENCY:
+            raise ValueError(
+                "Disk pressure reserve release requires an EMERGENCY before state."
+            )
         if released == 0 and self.after_release != self.before_release:
             raise ValueError(
                 "Disk pressure state cannot change without a reserve release in one check."
@@ -186,8 +190,6 @@ def assess_disk_pressure(
         raise ValueError("Disk pressure free_bytes must not exceed total_bytes.")
     thresholds = disk_pressure_thresholds(total)
 
-    # Beta wording uses strict "free < threshold" boundaries. Exact equality
-    # therefore remains in the less severe state.
     if free < thresholds.emergency_free_bytes:
         state = DiskPressureState.EMERGENCY
     elif free < thresholds.critical_free_bytes:
