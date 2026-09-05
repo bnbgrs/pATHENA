@@ -225,3 +225,16 @@ def test_storage_health_snapshot_rejects_empty_text_facts(field: str) -> None:
 
     with pytest.raises(ValueError, match="must not be empty"):
         StorageHealthSnapshot(**kwargs)  # type: ignore[arg-type]
+
+
+def test_storage_health_snapshot_requires_path_for_open_error_state() -> None:
+    with pytest.raises(ValueError, match="Open storage health requires a database path"):
+        StorageHealthSnapshot(
+            status="error",
+            database_open=True,
+            database_path=None,
+            database_size_bytes=None,
+            wal_size_bytes=None,
+            observed_at_us=1,
+            detail="probe failed",
+        )
