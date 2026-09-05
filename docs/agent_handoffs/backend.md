@@ -2,12 +2,11 @@
 
 ## Baseline
 
-- Shared baseline reviewed: `develop/pathena-next@8c2f08ef5a9dcafd9cf029da944527d97313cd2b`.
+- Shared baseline reviewed: `develop/pathena-next@7710c7aaa82b4fe4725238cbe8f84d5be9ed3017`.
 - Worker branch: `postmerge/backend`.
-- Prior worker head: `2d5b22801d5889c374ae1a75bd9880e3070e21c4`.
-- Required handoffs reviewed: `errors.md`, `spec-core.md`, `ui.md`, `integrator.md`, and this Backend handoff.
-- Worker heads reviewed: errors `6ccac5e5add098e4981f7d95d5fc912ca776259f`, spec-core `1ed4b9c4b2e41c52f787e1a9e26f9d2e523a89ce`, ui `9f24999c62b309e25ac512a110ef18011225a4cc`.
-- History-preserving NON-FORCE synchronization: `220bd47b2f17508b61fe6c18a25ffe6d01583dba`, with parents prior Backend head `2d5b22801d5889c374ae1a75bd9880e3070e21c4` and exact Develop `8c2f08ef5a9dcafd9cf029da944527d97313cd2b`.
+- Prior worker head: `f7913b50618998b9b16a48ae9a810ed9122b64bc`.
+- Required handoffs reviewed: `errors.md`, `spec-core.md`, `ui.md`, `integrator.md`, and this Backend handoff; worker branches were checked before mutation.
+- History-preserving NON-FORCE synchronization: `2d368ace89999867d9ddc75df0555f30b304ea41`, with parents prior Backend head `f7913b50618998b9b16a48ae9a810ed9122b64bc` and exact Develop `7710c7aaa82b4fe4725238cbe8f84d5be9ed3017`.
 - `main` and `bnbgrs/ATHENA` remain strict read-only and untouched.
 
 ## ExternalAccessGateway runtime boundaries — VERIFIED
@@ -16,27 +15,27 @@ Required fail-before-side-effect runtime guards and canonical-harness coverage r
 
 Status: `BACKEND_VERIFIED / INTEGRATOR_READY`.
 
-## Storage health NUL-detail invariant — VERIFIED
+## Storage health single-line detail invariant — VERIFIED
 
-Product `60af3d61e687108fb07ed3569dd5459f4721b551` rejects NUL-containing `detail` strings. Focused tests `8bb2adb2951900a0389eab57e1d4735b87cb0d29` cover all-NUL and embedded-NUL diagnostics. Exact Backend descendant `2d5b22801d5889c374ae1a75bd9880e3070e21c4` passed canonical ATHENA Quality `33960721888 = success`.
+Product `9183cf1d5c5bae6831b7a31302a7aee8eb856ff4` rejects CR/LF-containing `detail` strings and tests `e074bd13d77b92821d9b84ecd803ef3c22c081c1` cover LF/CR/CRLF payloads. Exact Backend descendant `f7913b50618998b9b16a48ae9a810ed9122b64bc` passed canonical ATHENA Quality `33963593580 = success`.
 
 Status: `BACKEND_VERIFIED / INTEGRATOR_READY`.
 
-## Storage health single-line detail invariant — PRODUCT_FIXED / TESTS_ADDED_PENDING_VERIFY
+## Storage health ASCII-control detail invariant — PRODUCT_FIXED / TESTS_ADDED_PENDING_VERIFY
 
-`StorageHealthSnapshot.detail` is propagated into status/transport/presentation surfaces. Embedded CR/LF sequences could therefore produce multiline diagnostic payloads despite the boundary representing one diagnostic fact.
+`StorageHealthSnapshot.detail` is a single diagnostic fact propagated into status, log and presentation surfaces. Embedded C0 or DEL control characters can alter rendering or downstream text framing even when CR/LF and NUL are already rejected.
 
-Product commit `9183cf1d5c5bae6831b7a31302a7aee8eb856ff4` rejects non-None detail values containing `\r` or `\n` after the existing non-empty, non-whitespace and NUL guards and before state-specific acceptance. Existing service-generated diagnostics are already single-line and remain unchanged.
+Product commit `09893113ec42337db2c590bac99263db393f75e4` adds a fail-closed ASCII-control guard after the existing non-empty, non-whitespace, NUL and single-line guards. Existing service-generated diagnostics contain no control characters and remain unchanged.
 
-Focused test commit `e074bd13d77b92821d9b84ecd803ef3c22c081c1` covers LF, CR and CRLF embedded diagnostic text and requires fail-closed rejection.
+Focused test commit `454ae52cae8baeaec82a787dabb588e8ecf2ff6a` covers embedded TAB, backspace, vertical-tab, form-feed and DEL characters and requires rejection before state-specific acceptance.
 
 Status: `FIXED_PENDING_VERIFY`; no PASS/READY claim until an exact product-containing descendant canonical Quality run is green.
 
 ## Invariants retained
 
 - storage telemetry remains read-only and does not mutate SQLite/WAL state;
-- no persistence format, transaction, recovery, fsync or Source finalization semantics changed;
-- valid Windows/Linux storage paths and valid single-line diagnostic text remain unchanged;
+- no persistence format, transaction, recovery, fsync or Source-finalization semantics changed;
+- valid Windows/Linux storage paths and ordinary diagnostic text remain unchanged;
 - local model transport remains loopback-only, proxy-free and redirect-rejecting;
 - response-size and total-deadline enforcement remain fail-closed;
 - no new retries, routing behavior or cryptography;
@@ -49,9 +48,9 @@ Status: `FIXED_PENDING_VERIFY`; no PASS/READY claim until an exact product-conta
 ## Integrator handoff
 
 - READY: ExternalAccessGateway runtime boundaries through `c67fa646d8ba4e4137cdf69992b9c8b42ad904d6`, Quality `33884210684 = success`.
-- READY: StorageHealth NUL-detail product `60af3d61e687108fb07ed3569dd5459f4721b551` + tests `8bb2adb2951900a0389eab57e1d4735b87cb0d29` through exact green Backend head `2d5b22801d5889c374ae1a75bd9880e3070e21c4`, Quality `33960721888 = success`.
-- NOT READY: StorageHealth single-line-detail product `9183cf1d5c5bae6831b7a31302a7aee8eb856ff4` + tests `e074bd13d77b92821d9b84ecd803ef3c22c081c1` until exact descendant canonical green evidence.
+- READY: StorageHealth single-line-detail product `9183cf1d5c5bae6831b7a31302a7aee8eb856ff4` + tests `e074bd13d77b92821d9b84ecd803ef3c22c081c1` through exact green Backend head `f7913b50618998b9b16a48ae9a810ed9122b64bc`, Quality `33963593580 = success`.
+- NOT READY: StorageHealth ASCII-control-detail product `09893113ec42337db2c590bac99263db393f75e4` + tests `454ae52cae8baeaec82a787dabb588e8ecf2ff6a` until exact descendant canonical green evidence.
 
 ## Next backend slice
 
-Consume the first exact canonical Quality run containing `e074bd13d77b92821d9b84ecd803ef3c22c081c1` or a documentation-only descendant. If green, mark StorageHealth single-line-detail hardening VERIFIED/READY and immediately take the highest current unclaimed Storage/Recovery/Provider/Packaging P0/P1/P2 runtime gap. If no run binds, use an alternate executable verification path or take a disjoint real Backend/System slice rather than repeating the runner blocker. If red, inspect exact diagnostics and minimally correct only the Backend-owned failure.
+Consume the first exact canonical Quality run containing `454ae52cae8baeaec82a787dabb588e8ecf2ff6a` or a documentation-only descendant. If green, mark ASCII-control-detail hardening VERIFIED/READY and immediately take the highest current unclaimed Storage/Recovery/Provider/Packaging P0/P1/P2 runtime gap. If no run binds, use an alternate executable verification path or take a disjoint real Backend/System slice rather than repeating the runner blocker. If red, inspect exact diagnostics and minimally correct only the Backend-owned failure.
