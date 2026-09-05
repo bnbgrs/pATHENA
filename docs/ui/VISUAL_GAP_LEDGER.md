@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `cf33955bcaa91649f2b5ac1142940e5e72ffa43a`
+Baseline: `d69fcc570bceac78536614f40b0ae3e1b867d791`
 Integration target: `develop/pathena-next`
 
 Only evidence-backed gaps belong here. The original 11 reference screenshots remain unavailable for direct visual comparison; therefore no pixel-level mismatch or `MATCH` claim is asserted.
@@ -193,6 +193,19 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Acceptance: provider absence with no explicit model error renders a self-describing local-Core-snapshot unavailable message; `error/unavailable` metadata and synchronized accessible description remain intact. Explicit model errors and provider-supplied detail keep precedence. Provider/backend/storage/network/security semantics remain unchanged.
 - Verification evidence: exact final UI head `f6d2b3afe58fcb0552a0fbd7c72737c2038b18b0` passed ATHENA Quality Gate `33937005854` with conclusion `success`; the final descendant includes only the bounded UI product/test lineage plus an unrelated harness-only monotonic-deadline fixture correction.
 - Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0020 — Model-list failure hides a still-known provider behind generic unavailable copy
+
+- Category: `COPY / STATE / ACCESSIBILITY`
+- Screen: `07 — Settings`
+- Severity: `P2`
+- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Evidence: `_model_snapshot()` can return a valid `ProviderHealthResponse` together with a model-list error. `SettingsRuntimeController.apply_snapshot()` previously treated aggregate `resolved_model_freshness=unavailable` as if the provider itself were absent and rendered `Model provider · unavailable`, discarding the provider identity/status that is still present in the snapshot.
+- Product commit: `64b9956601f2ec21ee3624d27323221dc2aba10c`.
+- Focused test commit: `7b4569dd55c93cb19b5dfe2d53ea0c2ccc34fe71`.
+- Acceptance: provider absence still renders `Model provider · unavailable`; a present provider with non-fresh aggregate model state renders conservatively as `<provider> · last known <status>` with non-success UI state and the existing snapshot freshness. The model error remains the error/unavailable runtime detail. No provider/backend/storage/network/security behavior changes.
+- Verification evidence: canonical exact-head Quality not yet observed for the documented candidate.
+- Visual status: `IMPLEMENTED_PENDING_VERIFY`; no screenshot-level `MATCH` claim.
 
 ## Evidence blocker
 
