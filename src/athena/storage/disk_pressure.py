@@ -167,6 +167,14 @@ class EmergencyReserveProvisionResult:
             raise ValueError("Reserve provisioned bytes must not exceed required bytes.")
         if provisioned > self.assessment.free_bytes:
             raise ValueError("Reserve provisioned bytes must not exceed assessed free bytes.")
+        safe_allocation = max(
+            0,
+            self.assessment.free_bytes - self.assessment.thresholds.emergency_free_bytes,
+        )
+        if provisioned > safe_allocation:
+            raise ValueError(
+                "Reserve provisioned bytes must not create EMERGENCY disk pressure."
+            )
         if self.status is not None and not isinstance(self.status, EmergencyReserveStatus):
             raise TypeError("Reserve provision status must be EmergencyReserveStatus or None.")
         if self.status is None:
