@@ -2,11 +2,11 @@
 
 ## Baseline
 
-- Shared baseline reviewed: `develop/pathena-next@de2f5a64e7a0fbc282df81db6beee3431297f2de`.
+- Shared baseline reviewed: `develop/pathena-next@a6500b54246c42acb898696bcf009845ce1ecf80`.
 - Worker branch: `postmerge/backend`.
-- Prior worker head: `235a13086985341edc02ee61e742e63a863974ab`.
-- History-preserving NON-FORCE synchronization: `358c81718b7ad51689307c2613ebdf4010b0ea24`, with parents prior Backend head `235a13086985341edc02ee61e742e63a863974ab` and exact Develop `de2f5a64e7a0fbc282df81db6beee3431297f2de`.
-- Worker heads reviewed before mutation: errors `2d5bca8124d9e9cd013ea9885469d295194b6ac8`; spec-core `8fab2f3080adc50c4093124c8e0bc1906176da40`; ui `37a097b9e97314184c36780b38b39b217418be12`.
+- Prior worker head: `4adcf14dc67a617a4a2a5ff942cc600e40aaf456`.
+- History-preserving NON-FORCE synchronization: `184c8ca7eb518be7bd8180567d53c1cfd8920f50`, with parents prior Backend head `4adcf14dc67a617a4a2a5ff942cc600e40aaf456` and exact Develop `a6500b54246c42acb898696bcf009845ce1ecf80`.
+- Worker heads reviewed: errors handoff observed `postmerge/errors` state with no open error; exact spec-core head `5be34bf266c0a0bda3a80c01ab5337e560ec9255`; exact UI head `2193332eeb3a390c263baa66e83324ff70a61168`; no `postmerge/integrator` branch exists, so current `develop/pathena-next` `integrator.md` was used as the integrator handoff source.
 - Required handoffs reviewed: `errors.md`, `spec-core.md`, `ui.md`, `integrator.md`, and this Backend handoff.
 - `main` and `bnbgrs/ATHENA` remain strict read-only and untouched.
 
@@ -24,21 +24,19 @@ Status: `BACKEND_VERIFIED / INTEGRATOR_READY`.
 
 ## Local model HTTP terminal size-overflow state — VERIFIED
 
-Product `f1fba82ed81bb1fe744fa698bdacc8d25c1a1f8e` accounts bytes consumed by the underlying response before evaluating the cumulative cap and leaves the wrapper in a terminal fail-closed overflow state. Test commit `31fa8d4cd25cd9a67a1e43bce22a600a98b98128` covers direct-read and readline overflow poisoning and verifies subsequent access performs no new underlying read.
-
-Exact descendant Backend head `235a13086985341edc02ee61e742e63a863974ab` passed canonical ATHENA Quality `33929643363 = success`.
+Product `f1fba82ed81bb1fe744fa698bdacc8d25c1a1f8e` + test commit `31fa8d4cd25cd9a67a1e43bce22a600a98b98128` passed exact descendant canonical Quality `33929643363 = success` on Backend head `235a13086985341edc02ee61e742e63a863974ab`.
 
 Status: `BACKEND_VERIFIED / INTEGRATOR_READY`.
 
-## Local model HTTP alternative read API bypass — FIXED_PENDING_VERIFY
+## Local model HTTP alternative read API bypass — PRODUCT_FIXED / HARNESS_CORRECTED_PENDING_VERIFY
 
-`_BoundedLocalResponse.__getattr__` previously delegated alternative data-consuming response APIs such as `readinto()`, `read1()`, `readinto1()` and `peek()` directly to the underlying HTTP response. Those calls bypassed the wrapper's cumulative response-size accounting and monotonic total-deadline checks.
+Product `91bf40b1a8cfd72403e4b81061980079460b7c16` rejects alternative data-consuming response APIs `peek`, `read1`, `readinto`, and `readinto1` before underlying I/O, preventing bypass of the cumulative byte cap and monotonic deadline while retaining ordinary metadata delegation. Focused test commit `23e914033a1012d7f6901ae86299e49d435a90ed` covers the blocked APIs.
 
-Product `91bf40b1a8cfd72403e4b81061980079460b7c16` now rejects those alternative read APIs fail-closed while continuing to delegate non-data metadata/accessor attributes. Test commit `23e914033a1012d7f6901ae86299e49d435a90ed` proves all four bypass names are rejected before underlying I/O and ordinary metadata delegation remains available.
+Exact descendant Backend head `4adcf14dc67a617a4a2a5ff942cc600e40aaf456` ran canonical Quality `33933291735`. Windows path safety, Linux storage regressions, local install smoke, specification validator, Ruff and mypy passed. Full pytest failed exactly one test: `tests/unit/test_lm_studio_response_limits.py::test_stream_iteration_enforces_monotonic_total_deadline`; canonical diagnostics reported `4625 passed, 3 skipped` plus this one failure.
 
-This does not alter normal `read()`/`readline()` behavior, configured byte/timeout values, loopback destination policy, proxy/redirect policy, routing, retries, persistence, provenance, audit or cryptography.
+The product guard was not weakened. Root cause was the pre-existing monotonic timestamp fixture: the wrapper now performs `__iter__` pre-check plus `readline()` pre/post deadline checks and an `__iter__` post-check, so the old four timestamps `[10.0, 10.2, 10.6, 11.0]` reached the deadline during the first yielded line. Test-only commit `e62fcc2db49815e7d32579d0dc68a143f8af07b0` changes the sequence to `[10.0, 10.2, 10.4, 10.6, 10.8, 11.0]`, allowing the first line to complete and expiring before the second underlying read, which is the original behavioral assertion.
 
-Status: `FIXED_PENDING_VERIFY`; no PASS/READY claim until a product-containing canonical Quality run is green.
+Status: `FIXED_PENDING_VERIFY`; no PASS/READY claim until an exact product-containing descendant canonical Quality run is green.
 
 ## Invariants retained
 
@@ -59,9 +57,9 @@ Status: `FIXED_PENDING_VERIFY`; no PASS/READY claim until a product-containing c
 - READY: ExternalAccessGateway runtime boundaries through `c67fa646d8ba4e4137cdf69992b9c8b42ad904d6`, Quality `33884210684 = success`.
 - READY: local HTTP direct deadline through `c9d1a7a9ab782ae081e4699eecd436d6a0ff5fb5`, Quality `33921338439 = success`.
 - READY: HTTP-error deadline `4f94d07f87849aec832437c2ac0dde66bd7433b2` + `08973df26572e66a3ecb26ace403362701e7376e`, Quality `33925587762 = success`.
-- READY: terminal size-overflow product `f1fba82ed81bb1fe744fa698bdacc8d25c1a1f8e` + tests `31fa8d4cd25cd9a67a1e43bce22a600a98b98128`, exact descendant `235a13086985341edc02ee61e742e63a863974ab`, Quality `33929643363 = success`.
-- NOT READY: alternate-read bypass product `91bf40b1a8cfd72403e4b81061980079460b7c16` + tests `23e914033a1012d7f6901ae86299e49d435a90ed` until canonical green evidence.
+- READY: terminal size-overflow product `f1fba82ed81bb1fe744fa698bdacc8d25c1a1f8e` + tests `31fa8d4cd25cd9a67a1e43bce22a600a98b98128`, Quality `33929643363 = success`.
+- NOT READY: alternate-read bypass product `91bf40b1a8cfd72403e4b81061980079460b7c16` + focused tests `23e914033a1012d7f6901ae86299e49d435a90ed` + monotonic fixture correction `e62fcc2db49815e7d32579d0dc68a143f8af07b0` until exact descendant canonical green evidence.
 
 ## Next backend slice
 
-Consume the exact canonical Quality run containing `23e914033a1012d7f6901ae86299e49d435a90ed`. If green, mark alternative-read bypass hardening VERIFIED/READY and immediately take the highest current unclaimed Storage/Recovery/Provider/Packaging P0/P1/P2 runtime gap. If red, inspect exact diagnostics and minimally correct only the Backend-owned failure.
+Consume the exact canonical Quality run containing `e62fcc2db49815e7d32579d0dc68a143f8af07b0`. If green, mark alternative-read bypass hardening VERIFIED/READY and immediately take the highest current unclaimed Storage/Recovery/Provider/Packaging P0/P1/P2 runtime gap. If red, inspect exact diagnostics and minimally correct only the Backend-owned failure.
