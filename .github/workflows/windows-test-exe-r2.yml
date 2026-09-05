@@ -1,0 +1,141 @@
+name: pATHENA Windows Test EXE R2
+
+on:
+  push:
+    branches:
+      - independent/windows-exe-test-r2-20260905
+    paths:
+      - ".github/workflows/windows-test-exe-r2.yml"
+      - "scripts/pathena_frozen_entry.py"
+  pull_request:
+    paths:
+      - ".github/workflows/windows-test-exe-r2.yml"
+      - "scripts/pathena_frozen_entry.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pathena-windows-test-exe-r2-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SOURCE_SHA: e639ed59cc449738c74bf550503282f7f2df9d4b
+  EXE_NAME: pATHENA-Test-e639ed59-r2.exe
+
+jobs:
+  build:
+    name: Build and smoke-test corrected Windows executable
+    runs-on: windows-2022
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out build branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+          check-latest: false
+
+      - name: Validate locked pATHENA environment
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check "uv==0.11.21"
+          uv lock --check
+          if ($LASTEXITCODE -ne 0) { throw "uv.lock is not current." }
+          uv sync --locked --extra desktop
+          if ($LASTEXITCODE -ne 0) { throw "Locked desktop environment sync failed." }
+
+      - name: Build corrected single-file pATHENA executable
+        shell: pwsh
+        run: |
+          uv run --locked --extra desktop --with "pyinstaller==6.22.2" python -m PyInstaller `
+            --noconfirm `
+            --clean `
+            --onefile `
+            --windowed `
+            --noupx `
+            --name "pATHENA-Test-e639ed59-r2" `
+            --paths src `
+            --collect-submodules athena `
+            --collect-all usearch `
+            --copy-metadata pypdf `
+            --hidden-import athena.api.process `
+            --hidden-import athena.__main__ `
+            scripts/pathena_frozen_entry.py
+          if ($LASTEXITCODE -ne 0) { throw "PyInstaller build failed." }
+          if (-not (Test-Path "dist\$env:EXE_NAME")) { throw "Expected EXE was not produced." }
+
+      - name: Smoke-test frozen executable in clean environment
+        shell: pwsh
+        run: |
+          $sourceExe = (Resolve-Path "dist\$env:EXE_NAME").Path
+          $smokeRoot = Join-Path $env:RUNNER_TEMP "pathena-frozen-clean-smoke"
+          if (Test-Path $smokeRoot) { Remove-Item -Recurse -Force $smokeRoot }
+          New-Item -ItemType Directory -Path $smokeRoot | Out-Null
+          $exe = Join-Path $smokeRoot $env:EXE_NAME
+          Copy-Item $sourceExe $exe
+
+          Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue
+          Remove-Item Env:PYTHONHOME -ErrorAction SilentlyContinue
+          Remove-Item Env:VIRTUAL_ENV -ErrorAction SilentlyContinue
+          $env:QT_QPA_PLATFORM = "offscreen"
+          $env:QT_QUICK_BACKEND = "software"
+          $env:QT_OPENGL = "software"
+          $env:ATHENA_LOCAL_ROOT = Join-Path $smokeRoot "runtime"
+
+          Push-Location $smokeRoot
+          try {
+            foreach ($arguments in @(
+              @("--pathena-build-info"),
+              @("--pathena-import-smoke"),
+              @("-m", "athena", "--help"),
+              @("-m", "athena", "job", "scheduler-run", "--help"),
+              @("-m", "athena.api.process", "--help"),
+              @("--pathena-desktop-smoke")
+            )) {
+              $process = Start-Process -FilePath $exe -ArgumentList $arguments -Wait -PassThru -NoNewWindow
+              if ($process.ExitCode -ne 0) {
+                throw "Frozen smoke command failed with exit code $($process.ExitCode): $($arguments -join ' ')"
+              }
+            }
+          }
+          finally {
+            Pop-Location
+          }
+
+      - name: Write build provenance and SHA-256
+        shell: pwsh
+        run: |
+          $exe = "dist\$env:EXE_NAME"
+          $hash = (Get-FileHash -Algorithm SHA256 $exe).Hash.ToLowerInvariant()
+          "SHA256  $hash  $env:EXE_NAME" | Out-File -Encoding ascii "dist\SHA256.txt"
+          @"
+          pATHENA Windows test executable R2
+          Source develop SHA: $env:SOURCE_SHA
+          Packaging branch SHA: $env:GITHUB_SHA
+          Python: 3.12
+          PyInstaller: 6.22.2
+          Packaging fix: embedded pypdf distribution metadata via --copy-metadata pypdf
+          Smoke isolation: clean temporary working directory without PYTHONPATH/PYTHONHOME/VIRTUAL_ENV
+
+          This is an unsigned development/test build. Windows SmartScreen may warn on first launch.
+          Runtime data defaults to %LOCALAPPDATA%\ATHENA unless ATHENA_LOCAL_ROOT is explicitly set.
+          "@ | Out-File -Encoding utf8 "dist\README-TEST-BUILD.txt"
+
+      - name: Upload corrected Windows test build
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: pathena-windows-test-e639ed59-r2
+          path: |
+            dist/pATHENA-Test-e639ed59-r2.exe
+            dist/SHA256.txt
+            dist/README-TEST-BUILD.txt
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
