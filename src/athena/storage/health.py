@@ -52,6 +52,8 @@ class StorageHealthSnapshot:
             raise TypeError("Storage health database_open must be bool.")
         database_path = _optional_text(self.database_path, "Storage health database_path")
         detail = _optional_text(self.detail, "Storage health detail")
+        if detail is not None and not detail.strip():
+            raise ValueError("Storage health detail must contain non-whitespace text.")
         if isinstance(self.observed_at_us, bool) or not isinstance(self.observed_at_us, int):
             raise ValueError("Storage health observation time must be a positive integer.")
         if self.observed_at_us <= 0:
@@ -84,6 +86,8 @@ class StorageHealthSnapshot:
         if self.status == "unavailable":
             if self.database_open:
                 raise ValueError("Unavailable storage health cannot report an open database.")
+            if database_path is None:
+                raise ValueError("Unavailable storage health requires a database path.")
             if detail is None:
                 raise ValueError("Unavailable storage health requires a detail.")
             return

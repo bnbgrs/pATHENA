@@ -3,41 +3,44 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `5c5cb8d3011f3fb1c7df01faeeacaf1b0033e2d8`.
+- Develop before this run: `d1ca4580b129f5b255215ce415f4e627b22dbc63`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `af81167e35c0c8f7eda24fd8a818c1532cbb89da`; spec-core `61f829241bdccf048d8e9ba57bdf9abfbbd9e503`; backend `ec392a018a381bc478e83ef335107f9b9e4a30e8`; ui `bbf03ba95695c12cf70f88195e09714cff25593c`.
-- `ERROR_LEDGER`, `11-Screen-Manifest`, and `Visual-Gap-Ledger` remain unavailable as separately named repository files in the reviewed evidence; `errors.md`, `ui.md`, and `ALPHA_BETA_PROGRESS.md` remain the active trackers.
+- Worker heads reviewed: errors `e1b0b2de9697b1241f1e97484210197173a59f4d`; spec-core `2e94cbc8bc94fe1638ff5476fe166889ccc662b3`; backend `35e4858146ea7ad423da6ec5d59ce8d2e8eb4115`; ui `095eef0e061b5b3a2a718f7c1ee12016d6ca0587`.
+- Required handoffs and `ALPHA_BETA_PROGRESS.md` were reviewed. Separate exact files named `ERROR_LEDGER`, `11-Screen-Manifest`, and `Visual-Gap-Ledger` were not independently established in this run.
 
-## Integrated this run — local HTTP file-descriptor escape
+## Integrated this run — StorageHealth unavailable-path invariant
 
 READY Backend lineage independently reviewed:
 
-- product `58ddb559a69f0278225a439c9118617b51bab7bc`;
-- focused test `5f38ed071b384021395f084ca53aab6575a71b96`;
-- exact green Backend descendant `15c06e210952aabcb49c22f08e92ed0c0c73272e`;
-- canonical Quality `33944818290 = success`.
+- product `3421ea19c33b16a7694d7cb96951787225cb0d4c`;
+- focused test `fbc3e214b822e8f25477ece0248d21f5fbe5d4fe`;
+- exact green Backend descendant `1ca844d7f5d8a90165e3b109fe1a7caa1880d877`;
+- canonical ATHENA Quality `33955258771 = success`.
 
-The bounded slice adds `fileno` to the existing fail-closed raw-body escape boundary and extends the focused test so `fp`, `file`, `fileno`, and `raw` all fail before underlying I/O. Current Develop already contained the prerequisite cumulative byte budget, remaining+1 `readline`, total-deadline, terminal-overflow, alternative-read, raw-body-handle, and bulk-read boundaries.
+The bounded change requires `StorageHealthSnapshot(status="unavailable")` to retain a concrete database path. It fails closed when the path is absent while preserving available/error semantics, existing detail validation, size/WAL telemetry, persistence, recovery, transport, security, audit and provenance behavior.
 
-Independent compare from exact pre-run Develop to the integration descendant shows only two one-line files changed: `src/athena/model/adapters/local_http.py` and `tests/unit/test_local_http_response_boundaries.py`. No Core, UI, Error, Storage, Recovery, provenance, audit, fsync, transaction, redirect, proxy, or routing behavior was changed.
+Current Develop already contained the preceding whitespace-detail hardening. The worker commit was therefore not transplanted blindly; the exact two-line product semantic delta and focused unavailable-without-path test were applied to the current Develop files.
 
 ## Validation state
 
-- Exact worker descendant `15c06e210952aabcb49c22f08e92ed0c0c73272e` passed ATHENA Quality Gate `33944818290` with conclusion `success`.
-- Product integration commit: `2352c49854452205f860ec688f91ea936c3a4342`.
-- Focused-test integration commit: `efe1882630f1586256846b6a6e72b51cf075c5c5`.
-- Current Core head `61f829241bdccf048d8e9ba57bdf9abfbbd9e503` has Quality run `33950168057` still in progress and is not READY evidence.
-- Backend StorageHealth open-path hardening is separately READY on exact green `cb23f971ac68ed5c4cf67a5638efc6a44a9c3fb2` / Quality `33947479509`.
-- Backend StorageHealth whitespace-path hardening is not READY until an exact product-containing descendant is green.
-- UI-GAP-0020 and UI-GAP-0021 are separately READY on their recorded exact-green lineages but were deferred by the single-bounded-slice rule.
-- Error handoff records `ERR-0001` through `ERR-0011` fixed with no OPEN item.
-- No exact-current-final-Develop canonical global-green claim is made in this run.
+- Product integration commit: `41d6d91580d26606b06285b5ae7140e1b46b70a5`.
+- Focused test integration commit: `86cfa075c039b62f67162b86737d1ca56c99e13f`.
+- Independent compare `d1ca4580b129f5b255215ce415f4e627b22dbc63..86cfa075c039b62f67162b86737d1ca56c99e13f` is ahead by two commits with exactly two modified files: `src/athena/storage/health.py` (+2) and `tests/unit/test_storage_health.py` (+13).
+- Worker exact canonical Quality: `33955258771 = success`.
+- No exact current-Develop repository-wide global-green claim is made in this run.
+
+## READY alternatives deferred
+
+- UI-GAP-0022 remains exact-green and READY via UI Quality `33953459102`, but is deferred by the single-bounded-slice rule.
+- Backend StorageHealth NUL-path hardening is `FIXED_PENDING_VERIFY` and must not be integrated until exact product-containing canonical green evidence exists.
+- No newer bounded Core product slice was selected in this run.
 
 ## Next integration order
 
-1. Consume the current Core repository-finalization source-coverage successor only if Quality `33950168057` completes success on exact head `61f829241bdccf048d8e9ba57bdf9abfbbd9e503` and independent diff review confirms a bounded collision-free slice.
-2. Otherwise independently review exactly one READY alternative, preferring Backend StorageHealth open-path hardening, then UI-GAP-0020/UI-GAP-0021.
-3. Preserve single-bounded-slice discipline and exact-head evidence before any repository-wide green claim.
+1. Prefer any newer bounded Core product successor only with exact product-containing green evidence.
+2. Otherwise independently review and integrate exactly one READY alternative; UI-GAP-0022 is currently READY.
+3. If Backend NUL-path hardening gains exact canonical green evidence first, consider it after collision review.
+4. Preserve single-bounded-slice discipline and exact-head evidence before any repository-wide green claim.
 
 ## Rules retained
 
