@@ -4,6 +4,7 @@ import os
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QFrame, QLabel, QPushButton, QWidget
 
 from athena.desktop.pathena_design_tokens import PALETTE, SHELL
@@ -43,6 +44,18 @@ def test_reference_shell_owns_icon_rail_without_rewiring_navigation() -> None:
         assert window.navigation.width() <= SHELL.icon_rail_width
         assert window.navigation.item(0).text() != "Workspace"
         assert window.navigation.item(0).toolTip() == "Workspace"
+        assert [
+            window.navigation.item(index).data(Qt.ItemDataRole.AccessibleTextRole)
+            for index in range(window.navigation.count())
+        ] == [
+            "Workspace",
+            "Library",
+            "Research",
+            "Jobs",
+            "Sources",
+            "System",
+            "Settings",
+        ]
 
         legacy_host = shell.findChild(QWidget, "legacyShellHost")
         assert legacy_host is not None
