@@ -1,211 +1,86 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `d69fcc570bceac78536614f40b0ae3e1b867d791`
+Baseline: `5c5cb8d3011f3fb1c7df01faeeacaf1b0033e2d8`
 Integration target: `develop/pathena-next`
+UI worker: `postmerge/ui`
 
-Only evidence-backed gaps belong here. The original 11 reference screenshots remain unavailable for direct visual comparison; therefore no pixel-level mismatch or `MATCH` claim is asserted.
+Only evidence-backed gaps belong here. The original 11 reference screenshots remain unavailable for direct visual comparison; therefore all screenshot-level work remains `VISUAL_REFERENCE_PENDING` and no pixel-level `MATCH` claim is asserted.
 
 ## UI-GAP-0001 — Inspector naming does not express the Evidence & Activity contract
-
-- Category: `HIERARCHY`
-- Screen: `10 — Grounded Chat / Evidence & Activity`
-- Severity: `P1`
-- Status: `FIXED`
-- Product commit: `1f0fd548431be122d13a403fe9e2387087edf8fa`
-- Test commit: `d85d2a2e144abc9d3ef1008b80f74114c7fafe23`
-- Verification evidence: exact UI head `f31be028652095b18b8a98dfacd65b73be9af763` passed ATHENA Quality Gate `33720745475`; lineage is integrated in Develop.
+- Screen: `10 — Grounded Chat / Evidence & Activity`; Category: `HIERARCHY`; Severity: `P1`; Status: `FIXED`.
+- Product `1f0fd548431be122d13a403fe9e2387087edf8fa`; test `d85d2a2e144abc9d3ef1008b80f74114c7fafe23`; exact Quality `33720745475` passed.
 
 ## UI-GAP-0002 — Inspector was forced permanently visible instead of remaining context-sensitive
-
-- Category: `INTERACTION`
-- Screen: `01 — Workspace / Chat`, `10 — Grounded Chat / Evidence & Activity`
-- Severity: `P1`
-- Status: `FIXED`
-- Product commit: `177bef4dcdb4956f1df75bfcce9ee10c7a4bd1e2`
-- Test-contract commit: `1685221150c724deceb5d150a4d2dcff2bdd867b`
-- Verification evidence: exact corrected worker head `ce959e148ddbe8f13952ca56f7d07e7a7ce1addb` passed ATHENA Quality Gate `33745885426`; exact verified blobs were integrated into Develop in `93a9344d3902c920da5ff283eb51bbb1f0d815b8`.
+- Screens: `01 — Workspace / Chat`, `10 — Grounded Chat / Evidence & Activity`; Category: `INTERACTION`; Severity: `P1`; Status: `FIXED`.
+- Product `177bef4dcdb4956f1df75bfcce9ee10c7a4bd1e2`; test `1685221150c724deceb5d150a4d2dcff2bdd867b`; exact corrected head `ce959e148ddbe8f13952ca56f7d07e7a7ce1addb` passed Quality `33745885426`.
 
 ## UI-GAP-0003 — PALLAS full-view transition can hit a transient missing tab-order document binding
-
-- Category: `INTERACTION`
-- Screen: `08 — PALLAS`
-- Severity: `P1`
-- Evidence: canonical Backend run `33744816398` exposed `tests/unit/test_pathena_pallas_full_view.py::test_open_workspace_reuses_one_synchronized_full_surface` failing through `MessageActionTabOrderController.eventFilter()` when `document` was transiently absent during Qt lifecycle churn.
-- UI candidate product commit: `689da6c1dc2221f89825fffde947f792c7b503e7`
-- Focused regression commit: `034cb8d923d48bea708b48cac0ef0f6343511051`
-- Status: `FIXED`
-- Verification evidence: exact UI head `76cb122dbe7b58b0fa49bbcb36de2bd732922d4d` passed ATHENA Quality Gate `33751403354` with conclusion `success`.
-- Integration evidence: bounded equivalent product/test changes landed on Develop as `d149f6bbfd367f2999c8ee54e52326695aeb9f55` and `df60ad0e0b3084da05a8b55d94a227798296a1ac`; Backend changes were disjoint.
-- Acceptance: transient missing binding is an unhandled/no-op lifecycle state; existing ChildAdded resynchronization, action ordering, disabled-state preservation and composer return target remain unchanged.
+- Screen: `08 — PALLAS`; Category: `INTERACTION`; Severity: `P1`; Status: `FIXED`.
+- Product `689da6c1dc2221f89825fffde947f792c7b503e7`; focused regression `034cb8d923d48bea708b48cac0ef0f6343511051`; exact UI head `76cb122dbe7b58b0fa49bbcb36de2bd732922d4d` passed Quality `33751403354`.
 
 ## UI-GAP-0008 — Local Core readiness could be mistaken for Internet-access state
-
-- Category: `STATE / ACCESSIBILITY`
-- Screen: `07 — Settings`
-- Severity: `P1`
-- Status: `FIXED`
-- Product commit: `9dd1836154a190fdcb9f9a690b46035f9dcacda6`
-- Focused test lineage culminates at exact UI head `afa319f0ab1b12edccc4b649d4a1ca36bcd7ac39`.
-- Verification evidence: ATHENA Quality Gate `33854660676` completed `success` on exact UI head `afa319f0ab1b12edccc4b649d4a1ca36bcd7ac39`.
-- Acceptance: the Settings `Local Core` indicator explicitly represents local loopback Core readiness only, sets `pathenaInternetStateInferred=False`, and never claims Internet reachability from Core/provider readiness.
-- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+- Screen: `07 — Settings`; Category: `STATE / ACCESSIBILITY`; Severity: `P1`; Status: `FIXED`.
+- Product `9dd1836154a190fdcb9f9a690b46035f9dcacda6`; exact UI head `afa319f0ab1b12edccc4b649d4a1ca36bcd7ac39` passed Quality `33854660676`.
 
 ## UI-GAP-0009 — Core connection failure can retain stale loopback-only presentation metadata
-
-- Category: `STATE / ACCESSIBILITY`
-- Screen: `07 — Settings`
-- Severity: `P1`
-- Status: `FIXED`
-- Evidence: `SettingsRuntimeController.apply_snapshot()` assigns `pathenaNetworkScope=loopback-only` and a connected-state tooltip, while the previous `apply_connection_failure()` changed visible text/state to unavailable without clearing that scope/tooltip. A ready→connection-failure transition could therefore retain stale connected metadata on the visible Settings connection indicator.
-- Product commit: `ad416f76cd52eadd42aa7f2b09a96ce43bf737c7`.
-- Focused test commit: `d7e85654db03eb21da35a5fa06d3bdf94cb4a1a5`.
-- Acceptance: connection failure sets `pathenaNetworkScope=unavailable`, keeps `pathenaInternetStateInferred=False`, replaces stale tooltip/accessibility text, and preserves unavailable/error freshness semantics. No backend/network capability is added.
-- Verification evidence: exact documented UI head `6d6869d4927a52e98158238f396b8d5855b771b9` passed ATHENA Quality Gate `33860150646` with conclusion `success`.
-- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+- Screen: `07 — Settings`; Category: `STATE / ACCESSIBILITY`; Severity: `P1`; Status: `FIXED`.
+- Product `ad416f76cd52eadd42aa7f2b09a96ce43bf737c7`; test `d7e85654db03eb21da35a5fa06d3bdf94cb4a1a5`; exact head `6d6869d4927a52e98158238f396b8d5855b771b9` passed Quality `33860150646`.
 
 ## UI-GAP-0010 — Fresh Core snapshot accessibility depended on delayed comprehension sync
-
-- Category: `STATE / ACCESSIBILITY`
-- Screen: `07 — Settings`
-- Severity: `P1`
-- Status: `FIXED`
-- Evidence: `SettingsRuntimeController.apply_snapshot()` previously left the immediate accessible description at the generic visible text (`Local Core · connected`) and did not directly set `pathenaInternetStateInferred=False`; the separate `SettingsComprehensionController` corrected that metadata only on its own sync/timer cycle.
-- Product commit: `0722d780b94d8d297bd89e417ae09fab08cb4dcf`.
-- Focused test commit: `a2d7030101a01415af99b5a8cba31ad10550e5de`.
-- Acceptance: every fresh Core snapshot immediately carries self-contained local-loopback accessibility text, `pathenaNetworkScope=loopback-only`, and `pathenaInternetStateInferred=False` before any later comprehension sync. Backend/network/security semantics remain unchanged.
-- Verification evidence: exact documented UI head `dc82cdded9e9d3c87be964a5f582965a9f4d3c9a` passed ATHENA Quality Gate `33864721817` with conclusion `success`.
-- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+- Screen: `07 — Settings`; Category: `STATE / ACCESSIBILITY`; Severity: `P1`; Status: `FIXED`.
+- Product `0722d780b94d8d297bd89e417ae09fab08cb4dcf`; test `a2d7030101a01415af99b5a8cba31ad10550e5de`; exact head `dc82cdded9e9d3c87be964a5f582965a9f4d3c9a` passed Quality `33864721817`.
 
 ## UI-GAP-0011 — Pre-first-snapshot Settings runtime state lacks explicit fail-closed metadata
-
-- Category: `STATE / ACCESSIBILITY`
-- Screen: `07 — Settings`
-- Severity: `P1`
-- Status: `FIXED`
-- Evidence: `SettingsRuntimeController.__init__()` created visible `Model provider · awaiting Core` and `Local Core · awaiting connection` labels without the explicit fail-closed state metadata used by later snapshot/failure transitions.
-- Product commit: `44ae9513ec5b77586d98a45c02afe0fe171af932`.
-- Focused test commit: `b307a771860c455b1630c2885ca1295e08a900d0`.
-- Acceptance: before any snapshot, provider/Core labels expose explicit non-success `idle` UI state with `pathenaRuntimeFreshness=unavailable`; Local Core exposes `pathenaNetworkScope=unavailable`, `pathenaInternetStateInferred=False`, and self-contained accessibility text stating that Internet access is not inferred. Existing visible awaiting copy remains unchanged; no backend/network/security/provider behavior changes.
-- Verification evidence: exact final documented candidate `45e2b84d14bfc11b4878d9b945065063fdc40e6d` passed ATHENA Quality Gate `33874283635` with conclusion `success`.
-- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+- Screen: `07 — Settings`; Category: `STATE / ACCESSIBILITY`; Severity: `P1`; Status: `FIXED`.
+- Product `44ae9513ec5b77586d98a45c02afe0fe171af932`; test `b307a771860c455b1630c2885ca1295e08a900d0`; exact head `45e2b84d14bfc11b4878d9b945065063fdc40e6d` passed Quality `33874283635`.
 
 ## UI-GAP-0012 — Initial Settings persistence state lacked explicit non-success freshness metadata
-
-- Category: `STATE / ACCESSIBILITY`
-- Screen: `07 — Settings`
-- Severity: `P2`
-- Status: `FIXED`
-- Evidence: before a model is selected, hydrated or saved, `Per-model settings · not saved yet` was visible but did not carry the same explicit `pathenaUiState` / `pathenaRuntimeFreshness` contract used by later persistence transitions.
-- Product commit: `d9797b5ff665b2c94ad7a9c34a6843d06f7cda4d`.
-- Focused test commit: `5c9b49773ea16dfa6db341da37ab33d12f9ee7c5`.
-- Acceptance: the initial persistence indicator keeps its existing copy but starts as `pathenaUiState=idle` and `pathenaRuntimeFreshness=unavailable`, preventing an untyped initial state from being mistaken for fresh/successful persistence. No storage/persistence behavior changes.
-- Verification evidence: exact UI head `3a1be68c48dab4176e9258170147cf127c4b3d2a` passed ATHENA Quality Gate `33879947654` with conclusion `success`.
-- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+- Screen: `07 — Settings`; Category: `STATE / ACCESSIBILITY`; Severity: `P2`; Status: `FIXED`.
+- Product `d9797b5ff665b2c94ad7a9c34a6843d06f7cda4d`; test `5c9b49773ea16dfa6db341da37ab33d12f9ee7c5`; exact head `3a1be68c48dab4176e9258170147cf127c4b3d2a` passed Quality `33879947654`.
 
 ## UI-GAP-0013 — Runtime detail state lacks explicit freshness/accessibility transition metadata
-
-- Category: `STATE / ACCESSIBILITY`
-- Screen: `07 — Settings`
-- Severity: `P2`
-- Status: `FIXED`
-- Evidence: `settingsRuntimeDetail` changes between initial explanatory copy, snapshot-backed provider detail/model error, and connection-failure error text, but unlike the adjacent Provider/Connection/Persistence indicators it did not consistently carry `pathenaRuntimeFreshness` or transition its accessible description through the same state changes.
-- Product commit: `046414551ad85bc418af0c7bdfdc2d8be7befd7d`.
-- Focused test commit: `7de1ccb040083375fb31242f54b9515b18403113`.
-- Acceptance: existing visible detail copy is preserved; initial state is `idle/unavailable`; snapshot transitions use the snapshot's resolved model freshness and synchronize the accessible description to the displayed detail; model errors are explicit `error`; Core connection failure is `error/unavailable` and self-describing. No backend/network/provider capability is invented.
-- Verification evidence: exact final UI head `622f85338613b7d59ef5b1bd0fd05eae3d488c47` passed ATHENA Quality Gate `33891068183` with conclusion `success`.
-- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+- Screen: `07 — Settings`; Category: `STATE / ACCESSIBILITY`; Severity: `P2`; Status: `FIXED`.
+- Product `046414551ad85bc418af0c7bdfdc2d8be7befd7d`; test `7de1ccb040083375fb31242f54b9515b18403113`; exact head `622f85338613b7d59ef5b1bd0fd05eae3d488c47` passed Quality `33891068183`.
 
 ## UI-GAP-0014 — No-model persistence state incorrectly claims fresh model persistence
-
-- Category: `STATE / ACCESSIBILITY`
-- Screen: `07 — Settings`
-- Severity: `P2`
-- Status: `FIXED`
-- Evidence: `SettingsRuntimeController.hydrate_selected_model()` rendered `Per-model settings · choose a model` with `pathenaRuntimeFreshness=fresh` when `_selected_model()` returned `None`, even though no model-specific persistence fact exists in that state.
-- Product lineage culminates at: `e1218685577230fa6ad190291ad0f626912853ac`.
-- Focused test commit: `ce7ae251f5d7b8548a21abde6c67cbd2fafa9f24`.
-- Acceptance: when no model is selected, the existing visible copy remains unchanged, UI state remains `idle`, freshness fails closed to `unavailable`, and the accessible description remains synchronized to the visible state. No persistence/storage/backend semantics change.
-- Verification evidence: exact final documented UI head `3d3ac638ce35c2bd149cea2358ef726f243244f0` passed ATHENA Quality Gate `33897120327` with conclusion `success`.
-- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+- Screen: `07 — Settings`; Category: `STATE / ACCESSIBILITY`; Severity: `P2`; Status: `FIXED`.
+- Product lineage `e1218685577230fa6ad190291ad0f626912853ac`; test `ce7ae251f5d7b8548a21abde6c67cbd2fafa9f24`; exact head `3d3ac638ce35c2bd149cea2358ef726f243244f0` passed Quality `33897120327`.
 
 ## UI-GAP-0015 — Unsaved per-model defaults incorrectly present persistence freshness as fresh
-
-- Category: `STATE / ACCESSIBILITY`
-- Screen: `07 — Settings`
-- Severity: `P2`
-- Status: `FIXED`
-- Evidence: in `SettingsRuntimeController.hydrate_selected_model()`, a selected model with no persisted local record rendered `<model> · defaults not yet saved` with `pathenaUiState=idle` but `pathenaRuntimeFreshness=fresh`. The visible copy explicitly says there is no saved model-specific persistence fact, so `fresh` overstated the persistence state.
-- Product commit: `e175de079fd30dc2fb1bc3c64065ebd40127cd0b`.
-- Focused test commit: `0b0303e89c4fd358291e0fb180062212debdeff7`.
-- Acceptance: existing visible copy and idle state remain unchanged; freshness fails closed to `unavailable`; accessible description remains synchronized. QSettings storage, model controls, provider behavior and backend semantics are unchanged.
-- Verification evidence: exact UI head `be55343dcaab9eb2afe80fe869000c139e6e2de1` passed ATHENA Quality Gate `33902213148` with conclusion `success`.
-- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+- Screen: `07 — Settings`; Category: `STATE / ACCESSIBILITY`; Severity: `P2`; Status: `FIXED`.
+- Product `e175de079fd30dc2fb1bc3c64065ebd40127cd0b`; test `0b0303e89c4fd358291e0fb180062212debdeff7`; exact head `be55343dcaab9eb2afe80fe869000c139e6e2de1` passed Quality `33902213148`.
 
 ## UI-GAP-0016 — Unreadable local settings expose opaque backend model identifier in user-facing error copy
-
-- Category: `COPY / ACCESSIBILITY / STATE`
-- Screen: `07 — Settings`
-- Severity: `P2`
-- Status: `FIXED`
-- Evidence: `_read_model()` previously rendered `<backend_model_id> · local settings unreadable` when QSettings reported an access/format error, while the adjacent saved/restored/invalid/default states consistently use the selected model's `display_name`. Provider backend IDs are implementation identifiers and can differ from the user-facing model name.
-- Product commit: `b0bac270a461afdef3322550e6ddf3e49314653a`.
-- Focused test commit: `5d819895dfbfecc6c7a24f46251d0e3a07791409`.
-- Acceptance: unreadable-settings presentation uses the real selected model `display_name`, retains `pathenaUiState=error`, fails closed to `pathenaRuntimeFreshness=unavailable`, and keeps the accessible description synchronized. The backend model ID remains the storage lookup key; QSettings behavior and storage/backend/security semantics are unchanged.
-- Verification evidence: exact UI head `f66a1cc2c80cf0cadc89ba1a4771345af79df934` passed ATHENA Quality Gate `33912482820` with conclusion `success`.
-- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+- Screen: `07 — Settings`; Category: `COPY / ACCESSIBILITY / STATE`; Severity: `P2`; Status: `FIXED`.
+- Product `b0bac270a461afdef3322550e6ddf3e49314653a`; test `5d819895dfbfecc6c7a24f46251d0e3a07791409`; exact head `f66a1cc2c80cf0cadc89ba1a4771345af79df934` passed Quality `33912482820`.
 
 ## UI-GAP-0017 — Fresh non-ready provider detail is styled as idle while provider state is error
-
-- Category: `STATE / ACCESSIBILITY`
-- Screen: `07 — Settings`
-- Severity: `P2`
-- Status: `FIXED`
-- Evidence: `SettingsRuntimeController.apply_snapshot()` already marks a fresh provider whose `status != "ready"` as `pathenaUiState=error`, but `settingsRuntimeDetail` remained `idle` whenever `model_error` was absent, even when that detail text came from the same non-ready provider. The adjacent status and detail therefore exposed contradictory semantic state for one fresh snapshot.
-- Product commit: `a0c8ea842e6dfb4c029b7a722eeb4b43189941e5`.
-- Focused test commit: `f668520bef1d2789b70cb7561b8e0f5dd4fd6041`.
-- Acceptance: for a fresh provider with a non-ready status, the provider detail inherits `pathenaUiState=error`, retains the snapshot freshness, and keeps the accessible description synchronized to its visible text. Ready, stale, explicit model-error, connection, persistence, backend, provider, storage, network and security behavior remain unchanged.
-- Verification evidence: exact UI head `72c143fae1e339b254e5dc7be884c8efb79c7f84` passed ATHENA Quality Gate `33917796701` with conclusion `success`.
-- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+- Screen: `07 — Settings`; Category: `STATE / ACCESSIBILITY`; Severity: `P2`; Status: `FIXED`.
+- Product `a0c8ea842e6dfb4c029b7a722eeb4b43189941e5`; test `f668520bef1d2789b70cb7561b8e0f5dd4fd6041`; exact head `72c143fae1e339b254e5dc7be884c8efb79c7f84` passed Quality `33917796701`.
 
 ## UI-GAP-0018 — Unavailable provider detail remains idle while provider state is error
-
-- Category: `STATE / ACCESSIBILITY`
-- Screen: `07 — Settings`
-- Severity: `P2`
-- Status: `FIXED`
-- Evidence: when `DesktopApiSnapshot.provider` is absent or the resolved model freshness is `unavailable`, `settingsProviderState` already fails closed to `error/unavailable`, but fallback `settingsRuntimeDetail` could still remain `idle/unavailable`. The two adjacent representations therefore disagreed on whether the same provider-unavailable snapshot is an error state.
-- Product commit: `82fb17da950f8234e28c69bd576e38047ba9b2bb`.
-- Focused test commit: `6aad966258288a7519af6d261dea4695e7ffde76`.
-- Corrective product commit: `9df9d7d46e3c4774aeea5439f91166a2092bd7fb`.
-- Acceptance: unavailable provider detail fails closed to `pathenaUiState=error`, retains `pathenaRuntimeFreshness=unavailable`, and keeps the accessible description synchronized. Provider absence itself also forces provider/detail freshness to `unavailable`; fresh ready, stale, explicit model-error, persistence, connection, backend, provider, storage, network and security behavior remain unchanged.
-- Verification evidence: exact corrective UI head `9df9d7d46e3c4774aeea5439f91166a2092bd7fb` passed ATHENA Quality Gate `33926653411` with conclusion `success`.
-- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+- Screen: `07 — Settings`; Category: `STATE / ACCESSIBILITY`; Severity: `P2`; Status: `FIXED`.
+- Product `82fb17da950f8234e28c69bd576e38047ba9b2bb`; test `6aad966258288a7519af6d261dea4695e7ffde76`; corrective product `9df9d7d46e3c4774aeea5439f91166a2092bd7fb`; exact corrective head passed Quality `33926653411`.
 
 ## UI-GAP-0019 — Unavailable provider detail copy describes generic readiness instead of the actual unavailable state
-
-- Category: `COPY / STATE / ACCESSIBILITY`
-- Screen: `07 — Settings`
-- Severity: `P2`
-- Status: `FIXED`
-- Evidence: for a real `DesktopApiSnapshot` with `provider=None` and no explicit `model_error`, the provider indicator renders `Model provider · unavailable` as `error/unavailable`, while `settingsRuntimeDetail` previously fell back to generic text about provider readiness being reported by Core. That copy did not explain the actual unavailable state represented by the same snapshot.
-- Product commit: `6bfce859c177dfc75119a63c270c028b5b3c5772`.
-- Focused test commit: `de688468ff3265d997a2b4c5a39d0aebdf89a9da`.
-- Acceptance: provider absence with no explicit model error renders a self-describing local-Core-snapshot unavailable message; `error/unavailable` metadata and synchronized accessible description remain intact. Explicit model errors and provider-supplied detail keep precedence. Provider/backend/storage/network/security semantics remain unchanged.
-- Verification evidence: exact final UI head `f6d2b3afe58fcb0552a0fbd7c72737c2038b18b0` passed ATHENA Quality Gate `33937005854` with conclusion `success`; the final descendant includes only the bounded UI product/test lineage plus an unrelated harness-only monotonic-deadline fixture correction.
-- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+- Screen: `07 — Settings`; Category: `COPY / STATE / ACCESSIBILITY`; Severity: `P2`; Status: `FIXED`.
+- Product `6bfce859c177dfc75119a63c270c028b5b3c5772`; test `de688468ff3265d997a2b4c5a39d0aebdf89a9da`; exact final head `f6d2b3afe58fcb0552a0fbd7c72737c2038b18b0` passed Quality `33937005854`.
 
 ## UI-GAP-0020 — Model-list failure hides a still-known provider behind generic unavailable copy
+- Screen: `07 — Settings`; Category: `COPY / STATE / ACCESSIBILITY`; Severity: `P2`; Status: `FIXED`.
+- Evidence: a valid `ProviderHealthResponse` may coexist with a model-list error; presentation previously discarded still-known provider identity/status.
+- Product `64b9956601f2ec21ee3624d27323221dc2aba10c`; focused test `7b4569dd55c93cb19b5dfe2d53ea0c2ccc34fe71`.
+- Acceptance: true provider absence remains unavailable; a present provider on non-fresh aggregate model state is rendered conservatively as `<provider> · last known <status>` with non-success UI state and unchanged snapshot freshness; explicit model error remains error/unavailable detail. No provider/backend/storage/network/security semantics change.
+- Verification evidence: exact UI head `9ca1cb04031d618bd6d34d2df4a46d331d110a82` passed ATHENA Quality Gate `33942660590` with conclusion `success`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
 
-- Category: `COPY / STATE / ACCESSIBILITY`
-- Screen: `07 — Settings`
-- Severity: `P2`
-- Status: `IMPLEMENTED_PENDING_VERIFY`
-- Evidence: `_model_snapshot()` can return a valid `ProviderHealthResponse` together with a model-list error. `SettingsRuntimeController.apply_snapshot()` previously treated aggregate `resolved_model_freshness=unavailable` as if the provider itself were absent and rendered `Model provider · unavailable`, discarding the provider identity/status that is still present in the snapshot.
-- Product commit: `64b9956601f2ec21ee3624d27323221dc2aba10c`.
-- Focused test commit: `7b4569dd55c93cb19b5dfe2d53ea0c2ccc34fe71`.
-- Acceptance: provider absence still renders `Model provider · unavailable`; a present provider with non-fresh aggregate model state renders conservatively as `<provider> · last known <status>` with non-success UI state and the existing snapshot freshness. The model error remains the error/unavailable runtime detail. No provider/backend/storage/network/security behavior changes.
-- Verification evidence: canonical exact-head Quality not yet observed for the documented candidate.
-- Visual status: `IMPLEMENTED_PENDING_VERIFY`; no screenshot-level `MATCH` claim.
+## UI-GAP-0021 — Empty Core connection-failure text produces an empty visible/accessibility error detail
+- Screen: `07 — Settings`; Category: `COPY / STATE / ACCESSIBILITY`; Severity: `P2`; Status: `FIXED`.
+- Evidence: `SettingsRuntimeController.apply_connection_failure(message)` accepted empty or whitespace-only Core failure text and passed it directly to `settingsRuntimeDetail`, leaving an empty error label/accessible description despite `error/unavailable` state.
+- Product `43a62eeb393a8929a92b3273ca49d427d6eb095d`; focused test `f2cc20321c79809a37079b0525b2aab676ac8682`.
+- Acceptance: non-empty Core failure messages are preserved exactly; only empty/whitespace-only input falls back to the self-describing presentation copy `Local Core connection failed.`; error state, unavailable freshness and synchronized accessible description remain intact. No Core/network/provider/storage/security behavior changes.
+- Verification evidence: exact UI head `f2cc20321c79809a37079b0525b2aab676ac8682` passed ATHENA Quality Gate `33947967906` with conclusion `success`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
 
 ## Evidence blocker
 
