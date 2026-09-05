@@ -40,6 +40,7 @@ jobs:
           QT_QPA_PLATFORM: offscreen
         run: |
           uv lock --check
+          uv run --locked --extra dev --extra desktop python -m ruff check --fix tests/unit/test_research_local_plus_web.py
           uv run --locked --extra dev --extra desktop python -m pytest -q tests/unit/test_research_local_plus_web.py tests/unit/test_research_scoped_project.py tests/unit/test_research_historical_backfill.py
           uv run --locked --extra dev --extra desktop python -m ruff check src/athena/research/service.py src/athena/jobs/payload_validation.py src/athena/external/gateway.py tests/unit/test_research_local_plus_web.py
           uv run --locked --extra dev --extra desktop python -m mypy src/athena/research/service.py src/athena/jobs/payload_validation.py src/athena/external/gateway.py
