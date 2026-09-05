@@ -2,11 +2,11 @@
 
 ## Baseline
 
-- Shared baseline reviewed: `develop/pathena-next@f90160f4a4269394215927bec07ac047b6297d1e`.
+- Shared baseline reviewed: `develop/pathena-next@52e702912b3b2c0f4cfc7c93baf4c656a02231ad`.
 - Worker branch: `postmerge/backend`.
-- Prior worker head: `ec392a018a381bc478e83ef335107f9b9e4a30e8`.
+- Prior worker head: `6cdb9095b265230b5484a7ce203c09c798b9a0a6`.
 - Required handoffs reviewed: `errors.md`, `spec-core.md`, `ui.md`, `integrator.md`, and this Backend handoff.
-- History-preserving NON-FORCE synchronization: `04076c1ef19192213f9ba7d98928ec9e1ee74f6c`, with parents prior Backend head `ec392a018a381bc478e83ef335107f9b9e4a30e8` and exact Develop `f90160f4a4269394215927bec07ac047b6297d1e`.
+- History-preserving NON-FORCE synchronization: `330d47573daa0ccbcf124b15c3c2cb8c6642b4fc`, with parents prior Backend head `6cdb9095b265230b5484a7ce203c09c798b9a0a6` and exact Develop `52e702912b3b2c0f4cfc7c93baf4c656a02231ad`.
 - `main` and `bnbgrs/ATHENA` remain strict read-only and untouched.
 
 ## ExternalAccessGateway runtime boundaries — VERIFIED
@@ -15,19 +15,19 @@ Required fail-before-side-effect runtime guards and canonical-harness coverage r
 
 Status: `BACKEND_VERIFIED / INTEGRATOR_READY`.
 
-## Storage health whitespace-path invariant — VERIFIED
+## Storage health whitespace-detail invariant — VERIFIED
 
-Product `ca790d2e79477ecc23f7654e5544d171fe13e647` rejects non-None `database_path` values containing only whitespace. Focused tests `5b381076659f75a80666100045a73562eb68acd7` cover space, tab and CRLF-only paths. Exact Backend descendant `ec392a018a381bc478e83ef335107f9b9e4a30e8` passed canonical ATHENA Quality `33949831624 = success`.
+Product `73ed1c6fa99078f2559dcc2e7236dcffae10553f` rejects non-None `detail` values containing only whitespace. Focused tests `3e29d5e012a82795c064ea2e574e49e6546d464e` cover space, tab and CRLF-only details. Exact Backend descendant `6cdb9095b265230b5484a7ce203c09c798b9a0a6` passed canonical ATHENA Quality `33952543793 = success`.
 
 Status: `BACKEND_VERIFIED / INTEGRATOR_READY`.
 
-## Storage health whitespace-detail invariant — PRODUCT_FIXED / TESTS_ADDED_PENDING_VERIFY
+## Storage health unavailable-path invariant — PRODUCT_FIXED / TESTS_ADDED_PENDING_VERIFY
 
-A runtime `StorageHealthSnapshot` could still satisfy required error/unavailable detail with whitespace-only text, producing a nominal diagnostic without usable content.
+`StorageHealthService.snapshot()` always knows and emits the configured SQLite path even before database start, but the runtime `StorageHealthSnapshot` contract still accepted `status="unavailable"` with `database_path=None`. That allowed contradictory telemetry to pass validation.
 
-Product commit `73ed1c6fa99078f2559dcc2e7236dcffae10553f` now rejects non-None `detail` values containing only whitespace before status-specific state acceptance. Existing valid error and unavailable details remain unchanged.
+Product commit `3421ea19c33b16a7694d7cb96951787225cb0d4c` now requires a concrete database path for the unavailable state. Existing available/error path requirements and valid unavailable service snapshots are unchanged.
 
-Focused test commit `3e29d5e012a82795c064ea2e574e49e6546d464e` covers space-, tab-, and CRLF-only details.
+Focused test commit `fbc3e214b822e8f25477ece0248d21f5fbe5d4fe` verifies fail-closed rejection of an unavailable snapshot without a path.
 
 Status: `FIXED_PENDING_VERIFY`; no PASS/READY claim until an exact product-containing descendant canonical Quality run is green.
 
@@ -47,9 +47,9 @@ Status: `FIXED_PENDING_VERIFY`; no PASS/READY claim until an exact product-conta
 ## Integrator handoff
 
 - READY: ExternalAccessGateway runtime boundaries through `c67fa646d8ba4e4137cdf69992b9c8b42ad904d6`, Quality `33884210684 = success`.
-- READY: StorageHealth whitespace-path product `ca790d2e79477ecc23f7654e5544d171fe13e647` + tests `5b381076659f75a80666100045a73562eb68acd7` through exact green Backend head `ec392a018a381bc478e83ef335107f9b9e4a30e8`, Quality `33949831624 = success`.
-- NOT READY: StorageHealth whitespace-detail product `73ed1c6fa99078f2559dcc2e7236dcffae10553f` + tests `3e29d5e012a82795c064ea2e574e49e6546d464e` until exact descendant canonical green evidence.
+- READY: StorageHealth whitespace-detail product `73ed1c6fa99078f2559dcc2e7236dcffae10553f` + tests `3e29d5e012a82795c064ea2e574e49e6546d464e` through exact green Backend head `6cdb9095b265230b5484a7ce203c09c798b9a0a6`, Quality `33952543793 = success`.
+- NOT READY: StorageHealth unavailable-path product `3421ea19c33b16a7694d7cb96951787225cb0d4c` + tests `fbc3e214b822e8f25477ece0248d21f5fbe5d4fe` until exact descendant canonical green evidence.
 
 ## Next backend slice
 
-Consume the first exact canonical Quality run containing `3e29d5e012a82795c064ea2e574e49e6546d464e` or a documentation-only descendant. If green, mark StorageHealth whitespace-detail hardening VERIFIED/READY and immediately take the highest current unclaimed Storage/Recovery/Provider/Packaging P0/P1/P2 runtime gap. If no run binds, use an alternate executable verification path or take a disjoint real Backend/System slice rather than repeating the runner blocker. If red, inspect exact diagnostics and minimally correct only the Backend-owned failure.
+Consume the first exact canonical Quality run containing `fbc3e214b822e8f25477ece0248d21f5fbe5d4fe` or a documentation-only descendant. If green, mark StorageHealth unavailable-path hardening VERIFIED/READY and immediately take the highest current unclaimed Storage/Recovery/Provider/Packaging P0/P1/P2 runtime gap. If no run binds, use an alternate executable verification path or take a disjoint real Backend/System slice rather than repeating the runner blocker. If red, inspect exact diagnostics and minimally correct only the Backend-owned failure.
