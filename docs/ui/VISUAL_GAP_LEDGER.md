@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `8c2f08ef5a9dcafd9cf029da944527d97313cd2b`
+Baseline: `4ce70615cffcbf0e76ec404e7e58b34c7c5e308a`
 Integration target: `develop/pathena-next`
 UI worker: `postmerge/ui`
 
@@ -91,12 +91,12 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
 
 ## UI-GAP-0024 — Whitespace provider detail can render an effectively blank runtime detail
-- Screen: `07 — Settings`; Category: `COPY / STATE / ACCESSIBILITY`; Severity: `P2`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Screen: `07 — Settings`; Category: `COPY / STATE / ACCESSIBILITY`; Severity: `P2`; Status: `FIXED`.
 - Evidence: `ProviderHealthResponse.detail` is `str | None`; Settings previously treated whitespace-only strings as truthy and rendered them directly into `settingsRuntimeDetail` and its accessible description.
-- Product `8b986323cabcb459e4203af1e5bdbe1fbb62375c`; focused test `fd1718cec04025d24420f5f958d247b81b4a9c05`.
+- Product `8b986323cabcb459e4203af1e5bdbe1fbb62375c`; focused coverage consolidated into `tests/unit/test_pathena_settings_provider_detail_state.py` by `216c3270df0658ac19d16b043531b48d05bcae93`; redundant unformatted harness removed by `77b3f9582d4530dbe081e3c81b8768ad00d3f050`.
 - Acceptance: blank/whitespace runtime detail uses the existing self-describing provider-readiness fallback; every nonblank supplied detail remains verbatim; provider readiness, snapshot freshness, transport, backend, storage, network and security semantics are unchanged.
-- Verification evidence: canonical exact-head Quality pending.
-- Visual status: `IMPLEMENTED_PENDING_VERIFY`; no screenshot-level `MATCH` claim.
+- Verification evidence: exact UI head `77b3f9582d4530dbe081e3c81b8768ad00d3f050` passed ATHENA Quality Gate `33966822035` with conclusion `success`; validator, Ruff, mypy, full pytest, Windows path safety, Linux storage regressions and local-install smoke all passed.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
 
 ## Evidence blocker
 
