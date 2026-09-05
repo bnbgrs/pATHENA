@@ -309,3 +309,17 @@ def test_storage_health_snapshot_rejects_whitespace_only_detail(detail: str) -> 
             observed_at_us=1,
             detail=detail,
         )
+
+
+@pytest.mark.parametrize("detail", ["probe\nfailed", "probe\rfailed", "probe\r\nfailed"])
+def test_storage_health_snapshot_rejects_multiline_detail(detail: str) -> None:
+    with pytest.raises(ValueError, match="detail must be single-line text"):
+        StorageHealthSnapshot(
+            status="error",
+            database_open=True,
+            database_path="athena.sqlite3",
+            database_size_bytes=None,
+            wal_size_bytes=None,
+            observed_at_us=1,
+            detail=detail,
+        )
