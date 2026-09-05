@@ -3,53 +3,58 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `e25c483909881221aa1b42b868ce22993ec0f9b9`.
+- Develop before this run: `b5d888b09774e70a389457f568a8079faf130b5e`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `0017b4d83481ba46e020d12492eb5c1d0a5fca7a`; spec-core `372697dbbb356ac0bbedfbd4d27f917c38fcefac`; backend `90084f68bab8b8ec55aefe0edfb30bfa55c23dde`; ui `5604ee6bdf4783a096bd08cbbf2e08b9fb5ae303`.
+- Worker heads reviewed: errors `0017b4d83481ba46e020d12492eb5c1d0a5fca7a`; spec-core `38d83997e5fb183570f277385dbff85525ab99dc`; backend `8d07a57809507ada1ae5a87cd1fb6e360b66f74d`; ui `a0ba6bd47f4b8a6e91e8f6c222334c99cbe1a3aa`.
 - `main` and `bnbgrs/ATHENA` were untouched.
 
-## Integrated this run — UI-GAP-0028 Send keyboard focus
+## Integrated this run — truthful Local+Web candidate freeze
 
-READY UI lineage independently reviewed:
+READY Core lineage independently reviewed:
 
-- bounded product/test commit `8c132673f7a991ae1fc16e27b0d65342bdae02e9`;
-- exact verified UI descendant `5a5ba2681412c32c181e63026ce1b92574675d64`;
-- canonical ATHENA Quality `33991088294 = success`.
+- bounded product/test commit `31a52e034c154759a2ccce2eebc77a2f2d961f37`;
+- exact canonical-green descendant `372697dbbb356ac0bbedfbd4d27f917c38fcefac`;
+- focused execution `33992910995 = success`, 12 passed, Ruff PASS, mypy PASS;
+- canonical Quality `33993014519 = success`.
 
-The independently reviewed diff changes only `src/athena/desktop/pathena_theme.py` and `tests/unit/test_pathena_theme.py`: it adds an explicit `QPushButton#sendButton:focus` presentation rule using canonical focus tokens and a focused regression retaining the existing 48x48 geometry. Exact worker blobs were overlaid onto the exact Develop tree without importing older UI history.
+Compatibility was checked at blob level before integration: current Develop `src/athena/research/repository.py` blob `1538b79220be19c1934cbc3028764c60185c47ea` exactly matched the product commit parent, and current Develop `tests/unit/test_research_local_plus_web.py` blob `f0d54a76ce1ed5b03ad1f875f2ccd7980f0e3726` also exactly matched the product commit parent. Only the verified product blob `20fb0286d02048b612aa4b1624a47530d4d3abc4` and acceptance-test blob `ab5b0e090010dbcf0a581b83b378883dd580efb0` were overlaid; temporary applicator workflow/script and older worker history were excluded.
 
-Integration commit: `996f07d3efca994536e5c9cadbf72eb24eb8dd25`.
+Integration commit: `0d490e59e27a3289cc44dc4a366fd304c11b68cf`.
 
 ## Contract now covered
 
-- Composer Send exposes explicit keyboard-focus presentation;
-- existing 48px Send geometry is preserved;
-- hover/pressed styling and send routing are unchanged;
-- no Backend, Storage, Security, Recovery, Provider, transport, persistence or provenance semantics changed;
-- no Skip/XFail, assertion weakening or guard relaxation was introduced.
+- `ResearchRepository.freeze_local_candidates()` accepts `LOCAL_PLUS_WEB` only with canonical persisted Internet scope;
+- authorization UUID and captured Source IDs must be canonical and the durable authorization linkage must exactly match;
+- local candidates remain pinned to the authoritative snapshot/time/type visibility rules;
+- Sources carrying unrelated external-capture linkage are excluded from the local portion;
+- only Sources linked to the exact current authorization may re-enter the Local+Web union;
+- unrelated historical captures and post-snapshot Sources remain excluded;
+- Local Exhaustive and Historical Backfill behavior remains unchanged;
+- no transport call or synthetic Source/Claim/Evidence/Provenance/PALLAS data is introduced by freeze.
 
 ## Validation state
 
-- Exact UI descendant Quality `33991088294 = success` verifies the bounded product/test lineage.
-- Independent diff review confirmed exactly +5 presentation lines and +16 focused-test lines across two files.
-- Exact-current-Develop repository-wide green is not claimed until an associated post-integration Quality run is available.
-
-## Other current inputs
-
-- Core Local+Web candidate-freeze product/test `31a52e034c154759a2ccce2eebc77a2f2d961f37` is applied and focused green (`33992910995`, 12 passed, Ruff PASS, mypy PASS); current canonical Quality `33993014519` on descendant `372697dbbb356ac0bbedfbd4d27f917c38fcefac` is still in progress, so it is not READY yet.
-- Backend continues bounded reserve-allocation truth work; only exact-green successors may be consumed.
-- `ERR-0014` remains STALE and reopens only on exact exit-139 recurrence.
-- Eleven UI screens remain implemented pending visual review; original visual references remain pending and no pixel-level MATCH is claimed.
+- Exact worker focused suite and canonical Quality are green as cited above.
+- Exact-current-Develop repository-wide green is not claimed until a post-integration run exists.
+- `ALPHA_BETA_PROGRESS.md` was read, but a complete safe rewrite was not attempted because connector retrieval is truncated for the large tracker; this handoff records the exact integrated evidence without fabricating tracker state.
 
 ## Runtime/release guards retained
 
-Known Windows packaging/process-tree/startup/chat-context/lane-lock crash classes remain release-acceptance regressions. This UI presentation slice does not modify their owning code or claim Windows promotion readiness.
+Known Windows packaging/process-tree/startup/chat-context/lane-lock crash classes remain release-acceptance regressions. This Research slice does not modify their owning code or claim Windows promotion readiness.
+
+## Other current inputs
+
+- Backend has a newer canonical threshold-boundary handoff and must be independently reviewed before selection.
+- UI has a newer workspace-action-focus candidate and must be exact-green before integration.
+- `ERR-0014` remains STALE and reopens only on exact exit-139 recurrence.
+- Eleven UI screens remain implemented pending visual review; pixel-level MATCH remains unclaimed.
 
 ## Next integration order
 
-1. Prefer the Core Local+Web candidate-freeze slice immediately if its exact current canonical Quality succeeds and compatibility remains clean.
-2. Otherwise integrate exactly one bounded exact-green Backend/UI successor after independent review.
+1. Inspect the remaining production Knowledge/Claims paths for any contradiction-review enqueue bypass, or consume another exact-green bounded Core successor if one appears.
+2. Otherwise independently review exactly one READY Backend/UI successor.
 3. Obtain exact-current-Develop Quality before any repository-wide green claim.
+4. Before Beta/release readiness, explicitly regress known Windows packaging/process-tree/startup/chat-context/lane-lock crash classes.
 
 ## Rules retained
 
