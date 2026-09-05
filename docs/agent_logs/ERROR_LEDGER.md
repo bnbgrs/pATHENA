@@ -14,10 +14,10 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 ## Current baseline
 
 - Baseline branch: `develop/pathena-next`.
-- Baseline SHA observed this run: `49e51f29f3e3c1864a5e26a514b5c07e37c1f28f`.
+- Baseline SHA observed this run: `b9ab5ecb7fc49a5d3bd5c25f0254f118e21fc7ee`.
 - Worker branch: `postmerge/errors`.
-- Pre-run Error branch head: `8cfa0784496cb26b1da9f396b424d6c10ed1d45f`.
-- Error and Develop are currently diverged from merge base `4ce70615cffcbf0e76ec404e7e58b34c7c5e308a`; no force update, rebase or history rewrite was attempted.
+- Pre-run Error branch head: `114a1a87367e1059374325d8b77891afcdc46fbe`.
+- Error and Develop remain diverged from merge base `4ce70615cffcbf0e76ec404e7e58b34c7c5e308a`; current compare reports Error 124 commits behind and 4 commits ahead. No force update, rebase or history rewrite was attempted.
 
 ## Current error state
 
@@ -30,14 +30,14 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 ## Current scan
 
 - Historical `ERR-0004` remains `FIXED`; no startup/readiness Ruff recurrence was observed.
-- UI correction Quality `33966822035` on exact SHA `77b3f9582d4530dbe081e3c81b8768ad00d3f050` completed `success`.
-- Exact jobs on `33966822035` show Windows path safety PASS, Linux storage regressions PASS, local install smoke PASS, specification validator PASS, Ruff PASS, mypy PASS, full pytest PASS, and canonical enforcement PASS.
-- On exact SHA `77b3f958...`, `src/athena/storage/health.py` retains the unavailable-state `database_path is None` rejection and related NUL/detail guards.
-- The previously Ruff-red redundant file `tests/unit/test_pathena_settings_provider_detail_whitespace.py` is absent on exact SHA `77b3f958...`; Ruff passes canonically on that same SHA.
-- Therefore `ERR-0012` and `ERR-0013` are closed as `FIXED` with real exact-head verification.
-- Current UI head observed after that verified lineage: `3262343d1f3e31e31d289dd0b0d22ff9559c458e`; its newer Quality `33969699860` is pending and is not used as PASS or failure evidence.
-- Current Backend head observed: `4c9855df8e662e47a66cb2dcb9f66704c4d8f780`.
-- Current Develop `49e51f29f3e3c1864a5e26a514b5c07e37c1f28f` has no exact-head repository-wide global-green claim in this ledger.
+- Current UI head `5a4bf9116524fcc4ed93aa89c3fefde15ba1023b` completed canonical Quality `33972487131 = success`.
+- Exact UI jobs on `33972487131` show Windows path safety PASS, Linux storage regressions PASS, local install smoke PASS, specification validator PASS, Ruff PASS, mypy PASS, full pytest PASS, and canonical enforcement PASS.
+- This exact current UI success is a newer non-regression anchor for `ERR-0012`/`ERR-0013`; no StorageHealth or provider-detail Ruff recurrence is present.
+- Current Backend head `8be678b5fa3e19aa442e788d935436914a53452b` has canonical Quality `33972009715` still `in_progress`; it is neither PASS nor failure evidence and does not justify a new ERR allocation.
+- The immediately previous Backend lineage `d15f14166dffa8030b366a3b155b4609d69e8adb` completed Quality `33971949063 = success`.
+- Current Develop `b9ab5ecb7fc49a5d3bd5c25f0254f118e21fc7ee` has no exact-head canonical Quality result; the latest exact Develop Quality visible in the branch run history remains older than the current head.
+- The current Develop delta relative to the Error branch is bounded in the compare output to Integrator documentation, Jobs payload validation, Research repository/service, and historical-backfill tests; no exact completed failure signal from those current-lineage changes was observed this run.
+- No concrete, deduplicated new primary failure exists; `ERR-0014` is not allocated.
 
 ## Entries
 
@@ -85,7 +85,7 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 - root_cause: bounded startup/readiness test-harness lint defects, not product startup failure.
 - files: `tests/unit/test_pathena_startup_experience_2900.py` and related startup harness imports.
 - fix_sha: `77e7b4c7d95202e6814226e2b4a2c4a54e3f5c8e`, `a5d9530525bd0b6bf0eae3945c23a6805f6b9669`.
-- verification: canonical exact-head Quality `33804193396 = success`.
+- verification: canonical exact-head Quality `33804193396 = success`; newer UI exact-head Quality `33972487131 = success` also has Ruff and full pytest PASS.
 - risk: none absent exact recurrence.
 - integrator_handoff: remain closed unless exact signature recurs.
 
@@ -180,28 +180,28 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 - severity: P1
 - area: UI worker synchronization / Storage / regression composition
 - status: `FIXED`
-- evidence: failing UI Quality `33961422115@9f24999c62b309e25ac512a110ef18011225a4cc`; exact corrected Quality `33966822035@77b3f9582d4530dbe081e3c81b8768ad00d3f050 = success`.
+- evidence: failing UI Quality `33961422115@9f24999c62b309e25ac512a110ef18011225a4cc`; corrected Quality `33966822035@77b3f9582d4530dbe081e3c81b8768ad00d3f050 = success`; newer current UI Quality `33972487131@5a4bf9116524fcc4ed93aa89c3fefde15ba1023b = success`.
 - repro: `StorageHealthSnapshot(status="unavailable", database_open=False, database_path=None, ...)` was accepted on the stale UI tree and failed `test_storage_health_snapshot_requires_path_for_unavailable_state` with `DID NOT RAISE ValueError`.
 - root_cause: UI synchronization retained stale `src/athena/storage/health.py`, dropping the unavailable `database_path` invariant while retaining its regression test.
 - files: `src/athena/storage/health.py`, `tests/unit/test_storage_health.py`.
 - fix_sha: correction present by `cef280487dd12b6fe88d4a3f021ec9b1b2aea0d5`, canonically verified on descendant `77b3f9582d4530dbe081e3c81b8768ad00d3f050`.
-- verification: exact Quality `33966822035` SUCCESS; Windows path safety, Linux storage, local install, validator, Ruff, mypy, full pytest and canonical enforcement all PASS. Exact file inspection confirms `if database_path is None: raise ValueError(...)` remains in the unavailable branch together with NUL/detail guards.
+- verification: exact Quality `33966822035` SUCCESS; newer exact UI Quality `33972487131` also SUCCESS with Windows path safety, Linux storage, local install, validator, Ruff, mypy, full pytest and canonical enforcement PASS.
 - risk: future UI/non-storage synchronization must preserve StorageHealth invariants and Storage/Recovery guards.
-- integrator_handoff: old `9f24999c...` tree remains rejected; verified `77b3f958...` lineage is error-cleared for independent integrator review.
+- integrator_handoff: old `9f24999c...` tree remains rejected; current UI `5a4bf911...` is error-cleared on exact canonical evidence.
 
 ### ERR-0013 — UI provider-detail whitespace harness Ruff I001
 - first_seen: 2026-09-05
 - severity: P2
 - area: UI test harness / Ruff
 - status: `FIXED`
-- evidence: failing UI Quality `33964058090@cef280487dd12b6fe88d4a3f021ec9b1b2aea0d5`; exact corrected Quality `33966822035@77b3f9582d4530dbe081e3c81b8768ad00d3f050 = success`.
+- evidence: failing UI Quality `33964058090@cef280487dd12b6fe88d4a3f021ec9b1b2aea0d5`; corrected Quality `33966822035@77b3f9582d4530dbe081e3c81b8768ad00d3f050 = success`; newer current UI Quality `33972487131@5a4bf9116524fcc4ed93aa89c3fefde15ba1023b = success`.
 - repro: Ruff `I001 [*] Import block is un-sorted or un-formatted` at `tests/unit/test_pathena_settings_provider_detail_whitespace.py:11:1`.
 - root_cause: redundant UI provider-detail whitespace harness had an import block outside repository Ruff/isort format.
 - files: `tests/unit/test_pathena_settings_provider_detail_whitespace.py`.
 - fix_sha: `77b3f9582d4530dbe081e3c81b8768ad00d3f050` removes the redundant offending harness while retaining provider-state coverage elsewhere.
-- verification: exact Quality `33966822035` SUCCESS with Ruff PASS and full pytest PASS; exact file lookup confirms the offending redundant file is absent on that SHA.
+- verification: exact Quality `33966822035` SUCCESS; newer current UI exact-head Quality `33972487131` also has Ruff PASS and full pytest PASS.
 - risk: do not suppress Ruff I001, weaken assertions, or remove non-redundant provider-state coverage merely to make lint green.
-- integrator_handoff: verified `77b3f958...` lineage is error-cleared for independent integrator review.
+- integrator_handoff: current UI `5a4bf911...` is error-cleared on exact canonical evidence.
 
 ## Historical/stale evidence
 
