@@ -65,6 +65,9 @@ class StorageHealthSnapshot:
             "Storage health WAL size",
         )
 
+        if self.database_open and database_path is None:
+            raise ValueError("Open storage health requires a database path.")
+
         if self.status == "available":
             if not self.database_open:
                 raise ValueError("Available storage health requires an open database.")
