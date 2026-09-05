@@ -5,12 +5,26 @@ from dataclasses import replace
 import pytest
 
 from athena.storage.disk_pressure import (
+    DiskPressureAssessment,
     DiskPressureCheckResult,
     DiskPressureState,
     assess_disk_pressure,
 )
 
 _GIB = 1024 * 1024 * 1024
+
+
+def test_disk_pressure_assessment_rejects_state_inconsistent_with_free_bytes() -> None:
+    assessment = assess_disk_pressure(total_bytes=100 * _GIB, free_bytes=1 * _GIB)
+    assert assessment.state is DiskPressureState.EMERGENCY
+
+    with pytest.raises(ValueError, match="state must match free bytes and thresholds"):
+        DiskPressureAssessment(
+            total_bytes=assessment.total_bytes,
+            free_bytes=assessment.free_bytes,
+            state=DiskPressureState.NORMAL,
+            thresholds=assessment.thresholds,
+        )
 
 
 def test_disk_pressure_check_result_rejects_release_before_emergency() -> None:
