@@ -28,6 +28,22 @@ def test_disk_pressure_assessment_rejects_state_inconsistent_with_free_bytes() -
         )
 
 
+def test_disk_pressure_assessment_rejects_noncanonical_thresholds() -> None:
+    assessment = assess_disk_pressure(total_bytes=100 * _GIB, free_bytes=20 * _GIB)
+    changed_thresholds = replace(
+        assessment.thresholds,
+        warning_free_bytes=assessment.thresholds.warning_free_bytes + 1,
+    )
+
+    with pytest.raises(ValueError, match="thresholds must match the canonical policy"):
+        DiskPressureAssessment(
+            total_bytes=assessment.total_bytes,
+            free_bytes=assessment.free_bytes,
+            state=assessment.state,
+            thresholds=changed_thresholds,
+        )
+
+
 def test_disk_pressure_check_result_rejects_release_before_emergency() -> None:
     before = assess_disk_pressure(total_bytes=100 * _GIB, free_bytes=20 * _GIB)
     after = assess_disk_pressure(total_bytes=100 * _GIB, free_bytes=21 * _GIB)
@@ -76,13 +92,13 @@ def test_disk_pressure_check_result_rejects_threshold_change_during_check() -> N
         after.thresholds,
         warning_free_bytes=after.thresholds.warning_free_bytes + 1,
     )
-    inconsistent_after = replace(after, thresholds=changed_thresholds)
+    object.__setattr__(after, "thresholds", changed_thresholds)
 
     with pytest.raises(ValueError, match="thresholds changed during one check"):
         DiskPressureCheckResult(
             before_release=before,
             released_reserve_bytes=1 * _GIB,
-            after_release=inconsistent_after,
+            after_release=after,
         )
 
 
