@@ -3,48 +3,64 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `d1ca4580b129f5b255215ce415f4e627b22dbc63`.
+- Develop before this run: `7710c7aaa82b4fe4725238cbe8f84d5be9ed3017`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `e1b0b2de9697b1241f1e97484210197173a59f4d`; spec-core `2e94cbc8bc94fe1638ff5476fe166889ccc662b3`; backend `35e4858146ea7ad423da6ec5d59ce8d2e8eb4115`; ui `095eef0e061b5b3a2a718f7c1ee12016d6ca0587`.
-- Required handoffs and `ALPHA_BETA_PROGRESS.md` were reviewed. Separate exact files named `ERROR_LEDGER`, `11-Screen-Manifest`, and `Visual-Gap-Ledger` were not independently established in this run.
+- Worker heads reviewed: errors `eaa7e17d8425a05682e011639504d8266c32acb9`; spec-core `1bf7a9947a004b813924c91aad105fe2eacffa56`; backend `1cc0017d560a1534de1fc2c83989d26e05238236`; ui `77b3f9582d4530dbe081e3c81b8768ad00d3f050`.
+- Required worker handoffs and current Alpha/Beta tracker were reviewed.
+- `main` and `bnbgrs/ATHENA` remained untouched.
 
-## Integrated this run — StorageHealth unavailable-path invariant
+## Integrated this run — Scoped Project Research
 
-READY Backend lineage independently reviewed:
+READY Core lineage independently reviewed:
 
-- product `3421ea19c33b16a7694d7cb96951787225cb0d4c`;
-- focused test `fbc3e214b822e8f25477ece0248d21f5fbe5d4fe`;
-- exact green Backend descendant `1ca844d7f5d8a90165e3b109fe1a7caa1880d877`;
-- canonical ATHENA Quality `33955258771 = success`.
+- exact verified worker product/test head `de0863e0c26f9d0c1474ef7c4f405cfc3ab6c79d`;
+- canonical ATHENA Quality `33960242573 = success`;
+- history-preserving Core synchronization `9416aa810c13c746c1d5e55545591477b00ef4c4` against prior Develop `8c2f08ef5a9dcafd9cf029da944527d97313cd2b` changed exactly three files.
 
-The bounded change requires `StorageHealthSnapshot(status="unavailable")` to retain a concrete database path. It fails closed when the path is absent while preserving available/error semantics, existing detail validation, size/WAL telemetry, persistence, recovery, transport, security, audit and provenance behavior.
+Collision review established that current Develop retained the same pre-slice blobs as `8c2f08ef...` for `src/athena/research/service.py` and `src/athena/jobs/payload_validation.py`, and `tests/unit/test_research_scoped_project.py` was still absent. Therefore the exact verified worker blobs were applied to the current Develop tree without copying an older worker tree or disturbing newer StorageHealth/integrator changes.
 
-Current Develop already contained the preceding whitespace-detail hardening. The worker commit was therefore not transplanted blindly; the exact two-line product semantic delta and focused unavailable-without-path test were applied to the current Develop files.
+Integrated exact blobs:
+
+- `src/athena/research/service.py@ea69a4c2318da0f7faf2d6fc73d5022ae11ae8b3`;
+- `src/athena/jobs/payload_validation.py@c8dfae33147ec02b9589300324eb5ca26086552a`;
+- `tests/unit/test_research_scoped_project.py@dbdac1a7a87e94eba7825a741d9648decafffce8`.
+
+Integration commit: `55f1c1638ad5032818ce156f97dc252f23ab3dc8`.
+Independent compare `7710c7aaa82b4fe4725238cbe8f84d5be9ed3017..55f1c1638ad5032818ce156f97dc252f23ab3dc8` is exactly one commit and exactly three files: payload validator `+9/-1`, ResearchService `+79/-1`, and one focused test file `+69`.
+
+## Product contract preserved
+
+- `enqueue_scoped_project()` persists truthful `ResearchMode.SCOPED_PROJECT`.
+- Project scope is mandatory and must contain canonical UUIDs before durable persistence.
+- Durable `research.exhaustive` validation permits only `local_exhaustive` and `scoped_project`; scoped-project mode fails closed on empty `project_ids`.
+- Project IDs remain sorted/unique/canonical.
+- Query, source type, time range, coverage, snapshot, pinned model, candidate dedup and orchestration validation remain unchanged.
+- Scoped Project Research does not implicitly enable Internet; `internet_scope` remains null.
+- No synthetic source/claim/evidence/provenance/PALLAS data was introduced.
 
 ## Validation state
 
-- Product integration commit: `41d6d91580d26606b06285b5ae7140e1b46b70a5`.
-- Focused test integration commit: `86cfa075c039b62f67162b86737d1ca56c99e13f`.
-- Independent compare `d1ca4580b129f5b255215ce415f4e627b22dbc63..86cfa075c039b62f67162b86737d1ca56c99e13f` is ahead by two commits with exactly two modified files: `src/athena/storage/health.py` (+2) and `tests/unit/test_storage_health.py` (+13).
-- Worker exact canonical Quality: `33955258771 = success`.
-- No exact current-Develop repository-wide global-green claim is made in this run.
+- Exact worker canonical Quality: `33960242573 = success`.
+- Exact worker focused acceptance used real AthenaApplication/SQLite persistence and verified truthful mode/project persistence plus empty-project fail-closed behavior.
+- Independent integration diff review: PASS, exactly the three expected files and no other tree changes.
+- No pull-request-triggered workflow run is currently bound to integration commit `55f1c1638ad5032818ce156f97dc252f23ab3dc8`; therefore no exact-current-Develop repository-wide global-green claim is made.
 
-## READY alternatives deferred
+## Other current inputs
 
-- UI-GAP-0022 remains exact-green and READY via UI Quality `33953459102`, but is deferred by the single-bounded-slice rule.
-- Backend StorageHealth NUL-path hardening is `FIXED_PENDING_VERIFY` and must not be integrated until exact product-containing canonical green evidence exists.
-- No newer bounded Core product slice was selected in this run.
+- Backend StorageHealth single-line-detail hardening is READY via exact green Backend head `f7913b50618998b9b16a48ae9a810ed9122b64bc`, Quality `33963593580`, but deferred by the single-bounded-slice rule.
+- Backend ASCII-control-detail hardening remains `FIXED_PENDING_VERIFY`.
+- UI current lineage has an Error-owned regression handoff: `ERR-0012` is `FIXED_PENDING_VERIFY`; corrected UI head has verification still pending and is not READY on that evidence.
+- Previously READY UI bounded slices remain deferred pending fresh dependency/collision review.
 
 ## Next integration order
 
-1. Prefer any newer bounded Core product successor only with exact product-containing green evidence.
-2. Otherwise independently review and integrate exactly one READY alternative; UI-GAP-0022 is currently READY.
-3. If Backend NUL-path hardening gains exact canonical green evidence first, consider it after collision review.
+1. Consume any newer exact-green bounded Core successor only after independent compatibility review.
+2. Otherwise consume exactly one READY alternative; Backend StorageHealth single-line-detail hardening currently has exact green evidence.
+3. Do not integrate the UI corrected lineage for `ERR-0012` until its exact canonical Quality completes successfully.
 4. Preserve single-bounded-slice discipline and exact-head evidence before any repository-wide green claim.
 
 ## Rules retained
 
-- `main` and `bnbgrs/ATHENA` remain read-only and unchanged.
-- No force-push, history rewrite, auto-merge or promotion to main.
-- Pending/cancelled/action-required/in-progress/failed Quality is never PASS evidence.
-- No weakened tests/guards, fake success paths or fabricated provenance.
+- No direct work on `main`; no main promotion.
+- No force-push, history rewrite or auto-merge.
+- No Skip/XFail, weaker assertion, Security/Storage/Windows/Recovery/validator relaxation, fake success or fabricated provenance.
