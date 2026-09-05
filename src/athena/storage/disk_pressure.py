@@ -122,6 +122,10 @@ class DiskPressureCheckResult:
             raise TypeError("Disk pressure after_release must be DiskPressureAssessment.")
         if self.after_release.total_bytes != self.before_release.total_bytes:
             raise ValueError("Disk pressure volume size changed during one check.")
+        if released > 0 and self.before_release.state is not DiskPressureState.EMERGENCY:
+            raise ValueError(
+                "Disk pressure reserve release requires an EMERGENCY before state."
+            )
         if released == 0 and self.after_release != self.before_release:
             raise ValueError(
                 "Disk pressure state cannot change without a reserve release in one check."
