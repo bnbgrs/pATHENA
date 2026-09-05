@@ -33,6 +33,10 @@ def _optional_text(value: object, label: str) -> str | None:
     return value
 
 
+def _contains_ascii_control(value: str) -> bool:
+    return any(ord(character) < 0x20 or ord(character) == 0x7F for character in value)
+
+
 @dataclass(frozen=True, slots=True)
 class StorageHealthSnapshot:
     """Truthful point-in-time facts about the live SQLite storage service."""
@@ -75,6 +79,8 @@ class StorageHealthSnapshot:
             raise ValueError("Storage health detail must not contain NUL characters.")
         if detail is not None and ("\r" in detail or "\n" in detail):
             raise ValueError("Storage health detail must be single-line text.")
+        if detail is not None and _contains_ascii_control(detail):
+            raise ValueError("Storage health detail must not contain ASCII control characters.")
         if self.database_open and database_path is None:
             raise ValueError("Open storage health requires a database path.")
 
