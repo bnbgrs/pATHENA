@@ -232,6 +232,18 @@ QPushButton#groundButton:hover {{
     border-color: {PALETTE.border};
 }}
 
+QPushButton#detailsToggle:focus,
+QPushButton#contextToggle:focus,
+QPushButton#newChatButton:focus,
+QPushButton#deleteChatButton:focus,
+QPushButton#rememberMessageButton:focus,
+QPushButton#addKnowledgeButton:focus,
+QPushButton#groundButton:focus {{
+    color: {PALETTE.text};
+    background: {PALETTE.surface_hover};
+    border-color: {PALETTE.accent};
+}}
+
 QPushButton#detailsToggle:checked,
 QPushButton#contextToggle:checked,
 QPushButton#groundButton:checked {{
