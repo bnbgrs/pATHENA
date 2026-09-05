@@ -15,7 +15,7 @@ MAX_LOCAL_RESPONSE_BYTES = 32 * 1024 * 1024
 _BLOCKED_RESPONSE_READ_APIS = frozenset(
     {"peek", "read1", "readall", "readinto", "readinto1", "readlines"}
 )
-_BLOCKED_RESPONSE_BODY_ESCAPE_ATTRS = frozenset({"file", "fp", "raw"})
+_BLOCKED_RESPONSE_BODY_ESCAPE_ATTRS = frozenset({"file", "fileno", "fp", "raw"})
 
 
 class LocalResponseTooLargeError(OSError):
