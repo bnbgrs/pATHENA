@@ -75,6 +75,9 @@ def test_unavailable_provider_detail_fails_closed_as_error(tmp_path) -> None:
         assert runtime.provider_value.text() == "Model provider · unavailable"
         assert runtime.provider_value.property("pathenaUiState") == "error"
         assert runtime.provider_value.property("pathenaRuntimeFreshness") == "unavailable"
+        assert runtime.detail.text() == (
+            "Model provider is unavailable in the local Core snapshot."
+        )
         assert runtime.detail.property("pathenaUiState") == "error"
         assert runtime.detail.property("pathenaRuntimeFreshness") == "unavailable"
         assert runtime.detail.accessibleDescription() == runtime.detail.text()
