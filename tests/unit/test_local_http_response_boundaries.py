@@ -38,7 +38,10 @@ class _ErrorOpener:
         raise self._error
 
 
-@pytest.mark.parametrize("method_name", ["peek", "read1", "readinto", "readinto1"])
+@pytest.mark.parametrize(
+    "method_name",
+    ["peek", "read1", "readall", "readinto", "readinto1", "readlines"],
+)
 def test_alternative_response_read_apis_are_rejected_before_underlying_io(
     method_name: str,
 ) -> None:
