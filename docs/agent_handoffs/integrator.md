@@ -3,36 +3,37 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `fdbf882eede84bfcc5debc6cfffc311fdfb1e440`.
+- Develop before this run: `f90160f4a4269394215927bec07ac047b6297d1e`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `32d59d7b43bbd6d6cf4108ba8b00b6f8726645a7`; spec-core `88b9bad5a3c6cd028b421cafc2e7fb65caeb6a53`; backend `cb23f971ac68ed5c4cf67a5638efc6a44a9c3fb2`; ui `f2cc20321c79809a37079b0525b2aab676ac8682`.
-- `ERROR_LEDGER`, `11-Screen-Manifest`, and `Visual-Gap-Ledger` were not available as separately named repository files in the reviewed evidence; `errors.md`, `ui.md`, and `ALPHA_BETA_PROGRESS.md` remain the available trackers.
+- Worker heads reviewed: errors `24b9cceaad0b6f53740325f9da8fe10a4a588de8`; spec-core `61f829241bdccf048d8e9ba57bdf9abfbbd9e503`; backend `6cdb9095b265230b5484a7ce203c09c798b9a0a6`; ui `f36ffd143ae51b5e6e0fd653cefddbd33ce0b886`.
+- `ERROR_LEDGER`, `11-Screen-Manifest`, and `Visual-Gap-Ledger` remain unavailable as separately named repository files in the reviewed evidence; `errors.md`, `ui.md`, and `ALPHA_BETA_PROGRESS.md` remain the active trackers.
 
-## Integrated this run — production acceptance combined contradiction gate
+## Integrated this run — Research repository-finalization source coverage
 
 READY Core lineage independently reviewed:
 
-- exact verified product/test head `dd7d23672ecf634d3bda4ed466df3c596b792f67`;
-- canonical Quality `33944149694 = success`;
-- history-preserving NON-FORCE synchronization commit `451772e57f0edfd38a2fce95ec10a882473c1275`, whose tree combines the verified Core-owned product/test changes with exact inspected Develop baseline `fdbf882eede84bfcc5debc6cfffc311fdfb1e440`.
+- exact product head `61f829241bdccf048d8e9ba57bdf9abfbbd9e503`;
+- canonical Quality `33950168057 = success` on that exact head;
+- product diff is one file, `src/athena/research/repository.py`, with 15 additions and 2 deletions;
+- exact worker product blob `50c7e33f9d6162b9326f5ad416aef540b485bce1`.
 
-The bounded slice places the already verified temporal-plus-attribution contradiction eligibility gate on the real `ProposalAcceptanceService.accept_all()` durable contradiction-review path through `enqueue_canonical_contradiction_review()`. Exact Claim entity/revision identity is retained from canonical deduplication to enqueue; provably disjoint temporal windows and two explicitly attributed opinions with distinct persisted attribution entities do not create contradiction-review rows. Permitted candidates retain existing processing-run/model/entity/revision/confidence/reason/timestamp metadata, existing review deduplication and explicit human accept/reject semantics remain unchanged, and missing exact revisions remain fail-closed.
+The bounded slice reserves the Core-owned `source_coverage` result key and composes source coverage from the same caller-owned SQLite connection and `scope_id` inside `finalize_result_fenced()`. Existing coverage, problem-source, snapshot, fence, transaction, recovery and idempotency behavior is preserved.
 
-No Backend transport/runtime/storage/recovery, UI/Qt, provenance synthesis, schema, PALLAS, fsync or transaction-ownership semantics were broadened or weakened.
+Current Develop already carried `source_coverage_composition.py`, including deterministic real-record composition and fail-closed duplicate/unknown work identity. The exact worker `repository.py` blob was therefore applied on top of current Develop without importing the worker's older tree or overwriting Backend/UI/Error-owned paths.
 
 ## Validation state
 
-- Exact Core head `dd7d23672ecf634d3bda4ed466df3c596b792f67` passed `ATHENA Quality Gate` run `33944149694` with conclusion `success`.
-- Independent compare against exact inspected Develop showed only four bounded files: `src/athena/knowledge/acceptance_service.py`, new `src/athena/knowledge/contradiction_review_enqueue.py`, and two focused unit-test files.
-- Develop advanced non-force to synchronization commit `451772e57f0edfd38a2fce95ec10a882473c1275`; no exact-current-final-Develop global-green claim is made until a workflow run binds to the final documentation descendant.
-- Backend file-descriptor escape is independently READY on exact green Backend head `15c06e210952aabcb49c22f08e92ed0c0c73272e` / Quality `33944818290`, but was deferred by single-bounded-slice discipline.
-- UI-GAP-0020 remains independently READY on exact UI head `9ca1cb04031d618bd6d34d2df4a46d331d110a82` / Quality `33942660590`; current newer UI lineage was still in progress in the Error handoff and was not consumed.
-- Error handoff records `ERR-0001` through `ERR-0011` fixed with no current OPEN item.
+- Exact Core head `61f829241bdccf048d8e9ba57bdf9abfbbd9e503` passed ATHENA Quality Gate `33950168057` with conclusion `success`.
+- Integration product commit: `d5b51a8799c964a88a6a1158294f9bc69c628464`.
+- Independent commit review confirmed the worker delta is one product file / 17 changed lines.
+- Local post-integration execution was attempted but blocked by transient DNS resolution for `github.com`; no exact-current-Develop global-green claim is made.
+- Backend StorageHealth and UI READY alternatives remain deferred by the single-bounded-slice rule.
+- Error handoff continues to report `ERR-0001` through `ERR-0011` fixed with no open product defect.
 
 ## Next integration order
 
-1. Inspect whether current Core head contains a new exact-green product-containing successor beyond the integrated production acceptance gate; consume only if independently bounded and collision-free.
-2. Otherwise independently review exactly one READY alternative: Backend file-descriptor escape first if still exact-green/current, or UI-GAP-0020.
+1. Independently review the newest Core successor only if it carries exact product-containing green evidence and remains bounded/collision-free.
+2. Otherwise consume exactly one READY alternative, preferring Backend StorageHealth hardening, then the oldest dependency-compatible UI gap.
 3. Preserve single-bounded-slice discipline and exact-head evidence before any repository-wide green claim.
 
 ## Rules retained
