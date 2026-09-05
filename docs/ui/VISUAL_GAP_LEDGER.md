@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `49212a0f157d433d68e9d04e9a9643e2909b6827`
+Baseline: `f630b27ddb7a40f2982f50f79d9f7d9f1322d1b1`
 Integration target: `develop/pathena-next`
 UI worker: `postmerge/ui`
 
@@ -96,10 +96,16 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
 
 ## UI-GAP-0026 — Global top navigation lacks an explicit keyboard-focus treatment
-- Screen: `01 — Workspace / Chat`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Screen: `01 — Workspace / Chat`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `FIXED`.
 - Evidence: the specialized top-bar stylesheet explicitly defined normal, hover and checked presentation for `topNavButton` and normal/hover presentation for glyph-only `topUtilityButton`, but no `:focus` presentation existed for either keyboard-focusable control family. Because the specialized stylesheet suppresses native borders, keyboard focus had no explicit pATHENA focus contract.
 - Product `6cc37912531c648ed8374f6585efd7cbdec9db3d`; focused stylesheet coverage `d40aee5fdc98571f725f644806b272726ad74041`.
-- Acceptance: keyboard focus on both text top-navigation and glyph utility buttons uses existing canonical tokens (`text`, `surface_hover`, `accent`) and a 2px accent bottom border; hover, checked, navigation, Backend/Storage/Security and accessibility-name semantics remain unchanged.
+- Verification evidence: exact UI head `074c7b9a4ccf9271a91dd1e56784601f749ac020` passed ATHENA Quality Gate `33981877292` with conclusion `success`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0027 — Glyph primary rail suppresses native outline without an explicit focused-current state
+- Screen: `01 — Workspace / Chat`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Evidence: `QListWidget#navigation` explicitly sets `outline: none` and provides item normal/hover/selected styling, but no keyboard-focused current-item rule.
+- Candidate acceptance: `QListWidget#navigation:focus::item:current` uses canonical readable text, `surface_hover`, and the existing 2px accent left edge; visible glyphs, selection semantics, accessible item labels, rail dimensions and navigation routing remain unchanged.
 - Verification evidence: canonical exact-head Quality pending.
 - Visual status: `IMPLEMENTED_PENDING_VERIFY`; no screenshot-level `MATCH` claim.
 

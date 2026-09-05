@@ -105,6 +105,12 @@ QListWidget#navigation::item:hover {{
     background: {PALETTE.surface_hover};
 }}
 
+QListWidget#navigation:focus::item:current {{
+    color: {PALETTE.text};
+    background: {PALETTE.surface_hover};
+    border-left: 2px solid {PALETTE.accent};
+}}
+
 QListWidget#navigation::item:selected {{
     color: {PALETTE.accent};
     background: {PALETTE.accent_soft};

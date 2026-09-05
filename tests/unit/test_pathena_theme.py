@@ -157,6 +157,15 @@ def test_global_navigation_has_explicit_keyboard_focus_treatment() -> None:
     assert f"border-bottom: 2px solid {PALETTE.accent};" in focus_block
 
 
+def test_primary_navigation_has_explicit_keyboard_focus_treatment() -> None:
+    focus_block = PATHENA_SPECIALIZED_STYLESHEET.split(
+        "QListWidget#navigation:focus::item:current", maxsplit=1
+    )[1].split("QListWidget#navigation::item:selected", maxsplit=1)[0]
+    assert f"color: {PALETTE.text};" in focus_block
+    assert f"background: {PALETTE.surface_hover};" in focus_block
+    assert f"border-left: 2px solid {PALETTE.accent};" in focus_block
+
+
 def test_reference_title_and_composer_use_editorial_blue_contract() -> None:
     assert "QLabel#pageTitle" in PATHENA_SPECIALIZED_STYLESHEET
     assert f"font-family: {TYPE.display_family};" in PATHENA_SPECIALIZED_STYLESHEET
