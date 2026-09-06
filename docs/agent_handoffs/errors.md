@@ -2,9 +2,9 @@
 
 ## Baseline
 
-- Baseline source: `develop/pathena-next@be0e8da5127f17f6bbc3cbbc8c58496102c9135c`.
-- Error branch history-preserving NON-FORCE synchronization: `632ce8aa789e3b8c0760a87fb953597c5a1ac897`, parents prior Error head `59a45e490f130199a6177416f2ac9a06332053d2` + exact Develop `be0e8da5127f17f6bbc3cbbc8c58496102c9135c`.
-- Worker heads reviewed: Backend `a424e32621d2c7441a144ff3a1a3faecd32ea7c4`; Spec/Core `c995fd2c4c6c369359dbdb09cedb43a8e74f535c`; UI `d955ccd53e3e2c7f98af0f6f3838be1ffa9b6fe6`; Integrator/Develop `be0e8da5127f17f6bbc3cbbc8c58496102c9135c`.
+- Baseline source: `develop/pathena-next@70f985ce7a28044824bfbfa53769b982fa152747`.
+- Error branch history-preserving NON-FORCE synchronization: `63b43664c5fd87d7d9672bff880d2804efb15b9f`, parents prior Error head `ea77cc03ce1d5c6a27286ac6c7cba38a7ce6566e` + exact Develop `70f985ce7a28044824bfbfa53769b982fa152747`.
+- Worker heads reviewed: Backend `8964f9ae22f0b3f98d06f9c000a47a98dc54f473`; Spec/Core `07263cc7474954f1591523077caa8eb8532605dd`; UI `0d5a89b879ee0959a42734181adb129f4c3de024`; Integrator/Develop `70f985ce7a28044824bfbfa53769b982fa152747`.
 - `main` and `bnbgrs/ATHENA` remained strictly read-only; no force update or history rewrite was used.
 
 ## Current error state
@@ -15,37 +15,22 @@
 - STALE: `ERR-0014`.
 - BLOCKED: none.
 
-## ERR-0017 — FIXED on corrected lineage
+## Verified closures retained
 
-The Personal-Memory import-graph defect is now closed with real corrected-lineage evidence. The compatible `ModelInferredMemoryProposal` dependency is present together with MODEL_INFERRED mode, confidence, NORMAL sensitivity, real UUID provenance and exact `review_required=True` validation.
+`ERR-0016` and `ERR-0017` remain FIXED on corrected-lineage canonical Quality `34030367660@54637682087b880622796ee0b618362f7ed802fe = success`; no current exact-SHA evidence reopens either defect. `ERR-0004` remains FIXED and `ERR-0014` remains STALE absent exact-current reproduction.
 
-Canonical Quality `34030367660@54637682087b880622796ee0b618362f7ed802fe = success`. Its four jobs all complete successfully. Python 3.12 quality passes specification Validator, Ruff, mypy and full pytest. Local install smoke passes disposable Core/API restart. Linux storage passes focused storage plus API runtime path-boundary regressions. Windows path safety passes locality, storage-path and API runtime path-boundary regressions.
+## Current canonical evidence
 
-The prior mypy/import-collection/API-path/startup cascade is absent on this exact corrected descendant. `ERR-0017` is therefore `FIXED`, not merely structurally repaired.
-
-Do not remove the service import, weaken UUID/review/provenance validation, fabricate provenance, or bypass review-gated inference semantics.
-
-## ERR-0016 — FIXED on the same corrected lineage
-
-Backend product fix `d721846ea9524ab18336ba72eeb082cca7ee0fb8` plus regression `44bf215b999e727514fc10ddb88eb8379a5358b6` establishes explicit fail-closed poisoning after overflow without counting rejected bytes as successful consumption.
-
-The same corrected-lineage canonical Quality `34030367660@54637682087b880622796ee0b618362f7ed802fe = success` includes the Local HTTP response-boundary/oversize regression files in the successful full pytest execution, together with Ruff and mypy. The two poisoning failures reproduced in `34016515174` and `34019237735` do not recur. `ERR-0016` is now `FIXED`.
-
-Preserve the explicit poisoned state, `remaining + 1` overflow probe, exact-limit/EOF behavior, negative integer read acceptance, byte-budget/deadline/type validation and loopback/proxy/redirect guards.
-
-## Current Develop quality status
-
-Integrator composed the verified corrected-lineage Local HTTP blobs onto Develop in `3376fac0051483308d8c24e1e58d6b532bde702e` and recorded that in current Develop head `be0e8da5127f17f6bbc3cbbc8c58496102c9135c`.
-
-No exact canonical Quality run for current Develop head `be0e8da5127f17f6bbc3cbbc8c58496102c9135c` was observed in this Error run. Therefore this handoff closes the two defect IDs but does **not** claim current Develop or any release candidate promotion-ready.
+- Backend `postmerge/backend@8964f9ae22f0b3f98d06f9c000a47a98dc54f473`, Quality `34033392294`: Windows path safety PASS, Linux storage regressions PASS, local install smoke PASS, Validator PASS, Ruff PASS, mypy PASS; full pytest remains IN_PROGRESS. No concrete primary failure is established.
+- UI `postmerge/ui@0d5a89b879ee0959a42734181adb129f4c3de024`, Quality `34034051224`: run is pending/queued and has not produced job evidence yet. The immediately prior superseded UI run was cancelled, not failure evidence.
+- Current Develop `70f985ce7a28044824bfbfa53769b982fa152747` has advanced with UI-GAP-0039 integration. No exact completed canonical Quality for this exact Develop SHA was observed in this run; therefore it is not promotion-ready by Error criteria.
 
 ## Integrator handoff
 
-- Accept `ERR-0017` as FIXED based on corrected-lineage Quality `34030367660` and do not reapply the model dependency.
-- Accept `ERR-0016` as FIXED on the same exact corrected lineage; preserve all verified Local HTTP boundary semantics.
-- Current Develop still needs its own exact-SHA canonical Quality before promotion/readiness.
-- Consume the next real canonical/runtime failure only; do not manufacture a new error from documentation-only or old-base failures.
-- Preserve all Provider/Transport byte-budget/deadline, Windows path, Storage, Security, Recovery and Human-Control guards.
+- Do not reopen or reapply `ERR-0016` / `ERR-0017` absent exact-current contradictory evidence.
+- Consume completion of Backend Quality `34033392294` and UI Quality `34034051224`; allocate/reopen an ERR only for a concrete deduplicated primary failure.
+- Preserve Provider/Transport byte-budget/deadline and poisoning semantics, Personal-Memory provenance/review controls, Windows path safety, Storage, Security and Recovery guards.
+- Current Develop still requires its own exact-SHA completed canonical evidence before promotion/readiness.
 
 ## Persistent Beta/release regression knowledge
 
@@ -53,7 +38,7 @@ Retain as explicit release acceptance without reopening absent exact-current rep
 
 ## Next scan
 
-1. Consume the next exact canonical Quality/runtime signal on current Develop or active worker corrected descendants.
-2. Deduplicate any failure against the existing ledger and persistent crash matrix.
-3. On a concrete primary failure, finalize root cause and either perform the minimal Error-owned fix or concretely verify the responsible active worker correction in the same run.
-4. Keep current Develop non-promotion-ready until its exact head receives completed canonical evidence.
+1. Consume Backend Quality `34033392294` and UI Quality `34034051224` to completion.
+2. Check the next exact current Develop/worker canonical or runtime signal.
+3. Deduplicate against the ledger and persistent crash matrix.
+4. On a concrete primary failure, finalize root cause and either perform the minimal Error-owned fix or concretely verify the responsible worker correction in the same run.
