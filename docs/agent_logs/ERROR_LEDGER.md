@@ -15,20 +15,20 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 
 ## Current baseline
 
-- Baseline: `develop/pathena-next@86ab95c9bd31e52a8d65fd3b37f7c27556a6f3b9`.
-- Error branch pre-sync head: `b8e050c9756299a70e8f5d4df0139ef54a5f08a0`.
-- History-preserving NON-FORCE synchronization: `28017c9cfb1c39623dd860dcaf30ac099fdd0ada`, parents prior Error head + exact Develop, using exact Develop tree before Error-owned mutation.
-- Relevant Backend head: `bc622dcb0554d2449183afe2331669ab15c7c8ef`.
-- Relevant Spec/Core head: `96c8f17d99017060238da27b51f6e59b77b9eafc`.
-- Relevant UI head: `6558031bb31e5e35f5c8639bf4f5c8591f7fa250`.
+- Baseline: `develop/pathena-next@be0e8da5127f17f6bbc3cbbc8c58496102c9135c`.
+- Error branch pre-sync head: `59a45e490f130199a6177416f2ac9a06332053d2`.
+- History-preserving NON-FORCE synchronization: `632ce8aa789e3b8c0760a87fb953597c5a1ac897`, parents prior Error head + exact Develop, retaining the two Error-owned canonical docs over the exact Develop tree.
+- Relevant Backend head: `a424e32621d2c7441a144ff3a1a3faecd32ea7c4`; exact corrected product lineage `54637682087b880622796ee0b618362f7ed802fe`.
+- Relevant Spec/Core head: `c995fd2c4c6c369359dbdb09cedb43a8e74f535c`.
+- Relevant UI head: `d955ccd53e3e2c7f98af0f6f3838be1ffa9b6fe6`.
 - No force update, rebase, history rewrite, ATHENA mutation, or merge to `main` occurred.
 
 ## Current error state
 
 - OPEN: none.
 - IN_PROGRESS: none.
-- FIXED_PENDING_VERIFY: `ERR-0016`, `ERR-0017`.
-- FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015`.
+- FIXED_PENDING_VERIFY: none.
+- FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015`, `ERR-0016`, `ERR-0017`.
 - STALE: `ERR-0014`.
 - BLOCKED: none.
 
@@ -146,25 +146,28 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 - first_seen: 2026-09-06
 - severity: P1
 - area: Backend / Provider-Transport / local HTTP product safety
-- status: `FIXED_PENDING_VERIFY`
-- evidence: Backend `34016515174@c991482a9f49dec50e69779f73e3a0939df5c73b` and `34019237735@a5904fc2078a8dec5eece17dd352436d14453d8f` reproduced exactly two poisoning failures.
+- status: `FIXED`
+- evidence: Backend `34016515174@c991482a9f49dec50e69779f73e3a0939df5c73b` and `34019237735@a5904fc2078a8dec5eece17dd352436d14453d8f` reproduced exactly two poisoning failures; corrected-lineage canonical Quality `34030367660@54637682087b880622796ee0b618362f7ed802fe = success`.
 - root_cause: oversize-before-accounting left `_bytes_read` within budget and removed the implicit poisoned-state marker.
 - files: `src/athena/model/adapters/local_http.py`, `tests/unit/test_local_http_response_boundaries.py`, `tests/unit/test_local_http_oversize_accounting.py`.
-- fix_sha: product `d721846ea9524ab18336ba72eeb082cca7ee0fb8`; regression `44bf215b999e727514fc10ddb88eb8379a5358b6`.
-- verification: independent `ERR-0017` import failure prevented complete canonical closure; reverify poisoning/oversize semantics after import graph repair.
+- fix_sha: product `d721846ea9524ab18336ba72eeb082cca7ee0fb8`; regression `44bf215b999e727514fc10ddb88eb8379a5358b6`; consolidated corrected-lineage Local HTTP blob verified at `54637682087b880622796ee0b618362f7ed802fe`.
+- verification: Quality `34030367660` passes Validator, Ruff, mypy, full pytest, local Core/API restart smoke, Linux storage + API runtime path boundaries, and Windows locality/storage + API runtime path boundaries on the corrected lineage. Full pytest includes the poisoning/oversize regressions and the signature is absent.
+- risks: preserve explicit fail-closed poisoning, `remaining + 1` overflow probe, byte-budget accounting, type/deadline and loopback/proxy/redirect guards.
+- integrator_handoff: closed; do not weaken or reimplement the verified boundary semantics.
 
 ### ERR-0017 — Integrated Personal Memory service imports missing proposal model
 - first_seen: 2026-09-06
 - severity: P1
 - area: Core / Personal Memory / Integration / Startup import graph
-- status: `FIXED_PENDING_VERIFY`
-- evidence: Backend `34022137849@d6fca835ad432e05aecbdc3c790a55ec2691a11b` and current Backend `34024809050@bc622dcb0554d2449183afe2331669ab15c7c8ef` fail through the same missing-symbol import graph. Current Develop `86ab95c9bd31e52a8d65fd3b37f7c27556a6f3b9` still imports `ModelInferredMemoryProposal` from `src/athena/memory/service.py` while `src/athena/memory/models.py` lacks it.
-- root_cause: incomplete bounded Core integration: reviewed-inference service semantics landed without the required proposal-model dependency. mypy failure, pytest collection errors, Linux/Windows API runtime path-boundary failures and local Core/API restart failure are cascades under this single root cause.
+- status: `FIXED`
+- evidence: Backend `34022137849@d6fca835ad432e05aecbdc3c790a55ec2691a11b` and `34024809050@bc622dcb0554d2449183afe2331669ab15c7c8ef` reproduced the missing-symbol import cascade; corrected-lineage canonical Quality `34030367660@54637682087b880622796ee0b618362f7ed802fe = success` after the bounded model dependency was integrated.
+- root_cause: incomplete bounded Core integration: reviewed-inference service semantics landed without the required `ModelInferredMemoryProposal` dependency. mypy failure, pytest collection errors, Linux/Windows API runtime path-boundary failures and local Core/API restart failure were cascades under this single root cause.
 - files: `src/athena/memory/models.py`, `src/athena/memory/service.py`, `tests/unit/test_personal_memory_inferred_provenance_validation.py`.
-- worker_evidence: Spec/Core `96c8f17d99017060238da27b51f6e59b77b9eafc` contains the compatible model and focused provenance regression; canonical Quality `34024071953 = success`. Earlier exact-green source `a43a471b611c78d24ebb8c67253b855b6a0642f3`, Quality `34021606032 = success`.
-- fix_sha: Error product `5ff326e39611a3aea5678e2151c300822ad593f9`; regression `281cedc6010617ce0aa60ea25ec497500225bb17`.
-- correction: add only `ModelInferredMemoryProposal` with MODEL_INFERRED, confidence, NORMAL-sensitivity, real UUID provenance, and exact `review_required is True` validation; no service bypass or guard weakening.
-- verification_required: focused inferred-proposal/review/provenance tests, Ruff, mypy, local Core/API restart, Linux/Windows API path-boundary, full pytest and exact canonical Quality on the corrected Error SHA. Only then mark `FIXED`.
+- worker_evidence: exact-green Spec/Core sources provided the compatible model and focused provenance regression; Develop integrated equivalent product/test commits `a7a6301ec580492ee443d2c32e3d65ad624cdcc4` and `dbfcd37e7411447cb6abb4be29731908deff909e`.
+- fix_sha: Error product `5ff326e39611a3aea5678e2151c300822ad593f9`; regression `281cedc6010617ce0aa60ea25ec497500225bb17`; Develop equivalent `a7a6301ec580492ee443d2c32e3d65ad624cdcc4` + `dbfcd37e7411447cb6abb4be29731908deff909e`.
+- verification: canonical Quality `34030367660` on corrected descendant `54637682087b880622796ee0b618362f7ed802fe` passes Validator, Ruff, mypy, full pytest, disposable Core/API restart smoke, Linux API runtime path boundary and Windows API runtime path boundary; the import/startup cascade is absent.
+- risks: preserve MODEL_INFERRED, confidence, NORMAL sensitivity, real UUID provenance, exact `review_required is True`, and human review control.
+- integrator_handoff: closed; do not reapply the structural fix. Current Develop still requires its own exact-SHA Quality before any promotion-ready claim.
 
 ## Persistent Beta/release regression matrix
 
