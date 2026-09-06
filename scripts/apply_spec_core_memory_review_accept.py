@@ -16,8 +16,8 @@ replace_once(
 )
 replace_once(
     "src/athena/memory/repository.py",
-    """                actor_id=actor_id,\n                created_at_us=created_at_us,\n                reason=reason,\n            )\n            self._insert_revision(\n""",
-    """                actor_id=actor_id,\n                created_at_us=created_at_us,\n                reason=reason,\n                model_signature_id=model_signature_id,\n                processing_run_id=processing_run_id,\n            )\n            self._insert_revision(\n""",
+    """                operation=\"personal_memory.create\",\n                actor_id=actor_id,\n                created_at_us=created_at_us,\n                reason=reason,\n            )\n            self._insert_revision(\n""",
+    """                operation=\"personal_memory.create\",\n                actor_id=actor_id,\n                created_at_us=created_at_us,\n                reason=reason,\n                model_signature_id=model_signature_id,\n                processing_run_id=processing_run_id,\n            )\n            self._insert_revision(\n""",
 )
 replace_once(
     "src/athena/memory/repository.py",
