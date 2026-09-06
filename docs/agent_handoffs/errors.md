@@ -2,57 +2,55 @@
 
 ## Baseline
 
-- Baseline source: `develop/pathena-next@abfe054654ae69994ad22d5a1079aeae42fba09f`.
-- Error branch was history-preservingly NON-FORCE synchronized from `79a3aa4eaedf53b81d3d3499d5102ae58d6dbb5a` with current Develop through merge commit `8ebc23b3138469d9633303023513dadc735b67ed`.
-- Worker heads reviewed: Backend `4f09ad222547f279e27fb3d34285feb82f6a8f71`; Spec/Core `e8f7199f70c56a79403026926430ea56a5177bec`; UI `c9762d1b65dd6c9db1c30ae9cba9510f83ab942f`; Integrator/Develop `abfe054654ae69994ad22d5a1079aeae42fba09f`.
-- `spec-core.md`, `backend.md`, `ui.md`, `integrator.md`, current worker heads and canonical Quality evidence were reviewed before mutation.
-- `main` and `bnbgrs/ATHENA` remained strictly read-only; no force update, rebase or history rewrite was used.
+- Baseline: `develop/pathena-next@8b6c7a2f44104675570152a5b44fa65979493bc9`.
+- Error branch history-preserving NON-FORCE sync: `2c8de3800f8ae028f7e8689a24a653a1e5e7cc56` from prior Error `f4208cedd9574e6fddcc4cf47dac2694eeab69c8` plus current Develop.
+- Worker heads reviewed: Spec/Core `b8858f986ec96e5973d47f8b74d2a120149a2037`; Backend `77ce30acb409881e00f12a9ab78655b81b0cdd1e`; UI `59b2046d5e127664195f7ecf17245c45f70f00ca`; Integrator/Develop `8b6c7a2f44104675570152a5b44fa65979493bc9`.
+- `spec-core.md`, `backend.md`, `ui.md`, `integrator.md`, current worker heads and canonical Quality evidence were reviewed. `main` and `bnbgrs/ATHENA` remained read-only.
 
-## Current error state
+## Current state
 
 - OPEN: `ERR-0018`.
-- IN_PROGRESS: none.
-- FIXED_PENDING_VERIFY: none.
 - FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015`, `ERR-0016`, `ERR-0017`.
 - STALE: `ERR-0014`.
 - BLOCKED: none.
 
-## ERR-0018 — second exact verification
+## ERR-0018 — third exact verification
 
-Initial exact Spec/Core head `4ebe23f510a0b36d8f87e027088de54a9809148a` failed canonical Quality `34044943935` solely at Ruff I001 in `src/athena/memory/context.py:3:1`; Windows path safety, Linux storage/API path-boundary, local install/Core-API restart, Validator, mypy and full pytest all passed.
+Spec/Core correction head `b8858f986ec96e5973d47f8b74d2a120149a2037` was concretely verified with canonical Quality `34051030897`. The run completed `failure` solely because Ruff still reports `I001 [*] Import block is un-sorted or un-formatted` at `src/athena/memory/context.py:3:1`.
 
-Spec/Core then applied import-only correction commit `e8f7199f70c56a79403026926430ea56a5177bec`. Exact canonical Quality `34048268758` on that SHA again completed with failure solely at Ruff while local install smoke, Linux storage/API path-boundary, Windows path safety, Validator, mypy and full pytest all passed.
+Everything else is green on that exact SHA: Local install/Core-API restart PASS; Windows path safety PASS; Linux storage/API path-boundary PASS; Validator 63/63 PASS; mypy PASS; full pytest `4736 passed, 3 skipped, 2 warnings`.
 
-The first correction changed only the local `athena.memory.models` import from a 91-character single line into a parenthesized multiline import. Repository Ruff is configured at `line-length = 100` with `I` enabled, so that line did not require wrapping. The stdlib order remained `import uuid` before `from dataclasses import dataclass`. The repeated I001 therefore narrows the root cause to the import block's canonical isort ordering/format, not semantic code: the responsible correction should place `from dataclasses import dataclass` before `import uuid` and keep the 91-character `from athena.memory.models import MemoryScopeKind, MemorySensitivity, PersonalMemorySnapshot` import on one line, subject to exact Ruff verification.
+This is the same `ERR-0018`, not a new error and not a Personal Memory semantic/runtime defect.
 
-`ERR-0018` remains OPEN. No PASS/FIXED claim is allowed until an exact corrected descendant passes Ruff, focused `tests/unit/test_personal_memory_context.py`, and canonical Quality. No semantic change, Skip/XFail, Ruff relaxation, or Protected Memory behavior change is permitted.
+The two attempted worker fixes are both rejected by exact Quality:
 
-## Other current canonical evidence
+1. `e8f7199f70c56a79403026926430ea56a5177bec` kept `import uuid` before `from dataclasses import dataclass` and changed the 91-character local models import to multiline; Ruff still failed.
+2. `b8858f986ec96e5973d47f8b74d2a120149a2037` reversed stdlib order to `from dataclasses import dataclass` before `import uuid` and restored the local import to one line; Ruff still failed.
 
-- Backend current head `postmerge/backend@4f09ad222547f279e27fb3d34285feb82f6a8f71`, Quality `34048748410`, is still in progress; no independent confirmed primary failure is established from the completed evidence inspected this run.
-- UI current head `postmerge/ui@c9762d1b65dd6c9db1c30ae9cba9510f83ab942f`; no independent confirmed primary failure was established in this scan.
-- Current Develop `abfe054654ae69994ad22d5a1079aeae42fba09f` has no exact completed canonical Quality verified in this run and is not promotion-ready by Error criteria.
+Ruff/isort default ordering places straight imports before from-imports, so the second attempt's stdlib reversal is not a safe canonical assumption. The next correction must be generated from the exact pinned Ruff (`ruff==0.15.22`) using `ruff check --fix` on the complete import block rather than another guessed permutation, then rerun focused Personal Memory context tests and canonical Quality.
 
-## Verified closures retained
+Current Develop does not contain `src/athena/memory/context.py`. Therefore Error must not import this unintegrated Spec/Core feature onto `postmerge/errors` merely to make lint green. The correct mutation remains Spec/Core-owned; this run satisfies the hard progress rule by concretely rejecting the active worker mutation with exact diagnostics and refining the next corrective action.
 
-`ERR-0016` and `ERR-0017` remain FIXED on corrected-lineage canonical Quality `34030367660@54637682087b880622796ee0b618362f7ed802fe = success`; no exact-current contradictory evidence reopens them. `ERR-0004` remains FIXED. `ERR-0014` remains STALE absent exact recurrence.
+## Other evidence
+
+- Backend `postmerge/backend@77ce30acb409881e00f12a9ab78655b81b0cdd1e`, Quality `34052064954`, was still in progress at scan time; no confirmed independent primary failure was established.
+- UI `postmerge/ui@59b2046d5e127664195f7ecf17245c45f70f00ca` was reviewed; no confirmed independent primary failure was established in this scan.
+- Current Develop `8b6c7a2f44104675570152a5b44fa65979493bc9` has no exact completed canonical Quality verified this run and is not promotion-ready by Error criteria.
 
 ## Integrator handoff
 
-- Reject Spec/Core `e8f7199f70c56a79403026926430ea56a5177bec` as Integrator-ready because exact canonical Quality `34048268758` still fails Ruff I001 while every semantic/runtime gate passes.
-- Do not repeat the failed multiline-only import mutation. Apply only canonical import ordering/formatting in `src/athena/memory/context.py`: `dataclasses` before `uuid`, then the 91-character `athena.memory.models` import on one line, with no behavior changes.
-- Require exact corrected SHA evidence: Ruff PASS, focused Personal Memory context PASS, full pytest PASS and canonical Quality success before `ERR-0018` can move to FIXED.
-- Do not weaken Ruff, remove the context projection, or change Protected Memory fail-closed semantics.
-- Preserve Provider/Transport byte-budget/deadline/poisoning semantics, Personal-Memory provenance/review controls, Windows path safety, Storage, Security and Recovery guards.
-- Current Develop still requires its own exact-SHA completed canonical evidence before promotion/readiness.
+- Reject Spec/Core `e8f7199f70c56a79403026926430ea56a5177bec` and `b8858f986ec96e5973d47f8b74d2a120149a2037` as ready.
+- Have Spec/Core run the repository-pinned `ruff==0.15.22` organizer (`ruff check --fix`) on `src/athena/memory/context.py`, commit only the resulting import-block normalization, and preserve all Personal Memory semantics.
+- Require exact corrected SHA: Ruff PASS, focused `tests/unit/test_personal_memory_context.py` PASS, full pytest PASS and canonical Quality SUCCESS before `ERR-0018` becomes FIXED.
+- Do not weaken Ruff or import the unintegrated feature into Develop/Error as a workaround.
+- Preserve Provider/Transport byte-budget/deadline/poisoning, Personal-Memory provenance/review, Windows path safety, Storage, Security and Recovery guards.
 
 ## Persistent Beta/release regression knowledge
 
-Retain as explicit release acceptance without reopening absent exact-current reproduction: Windows `pypdf` metadata/`PackageNotFoundError`; fail-closed frozen child argv and two-EXE split; exactly one Desktop with bounded workers; adaptive 2048-context Chat reserve; lane-lock `PermissionError [Errno 13]` -> `SchedulerLaneOwnershipError` -> packaged-worker `OSError [Errno 22]`; `duplicate column name: source_processing_job_id`; `ATHENA Core startup failed`; `Failed to start service 'storage-bootstrap'`.
+Retain without reopening absent exact-current reproduction: Windows `pypdf` metadata/`PackageNotFoundError`; fail-closed frozen child argv and two-EXE split; exactly one Desktop with bounded workers; adaptive 2048-context Chat reserve; lane-lock `PermissionError [Errno 13]` -> `SchedulerLaneOwnershipError` -> packaged-worker `OSError [Errno 22]`; `duplicate column name: source_processing_job_id`; `ATHENA Core startup failed`; `Failed to start service 'storage-bootstrap'`.
 
 ## Next scan
 
-1. Verify the next corrected Spec/Core descendant after `e8f7199f70c56a79403026926430ea56a5177bec`; close `ERR-0018` only on real Ruff + focused + canonical evidence.
-2. Consume Backend Quality `34048748410` and the latest UI Quality to completion.
-3. Check the next exact current Develop/worker canonical or runtime signal and deduplicate against the ledger and persistent crash matrix.
-4. On any new concrete primary failure, finalize root cause and either perform the minimal Error-owned fix or concretely verify the responsible worker correction in the same run.
+1. Verify the next Spec/Core descendant after `b8858f986ec96e5973d47f8b74d2a120149a2037`; close `ERR-0018` only on exact Ruff + focused + full canonical evidence.
+2. Consume Backend Quality `34052064954` and latest UI Quality to completion.
+3. Inspect the next exact current Develop/worker canonical or runtime signal and deduplicate against the ledger/crash matrix.
