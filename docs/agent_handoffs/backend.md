@@ -2,12 +2,11 @@
 
 ## Baseline
 
-- Shared baseline reviewed: `develop/pathena-next@da493c1390192425d50caddc451c1a497027027a`.
+- Shared baseline reviewed: `develop/pathena-next@62aa4e9ff20919f32d5147d183521fbf98f49535`.
 - Worker branch: `postmerge/backend`.
-- Prior worker head: `7b37f0629d3a137301ef04284524a8dfd78c36d3`.
-- Required handoffs reviewed before mutation: `errors.md`, `spec-core.md`, `ui.md`, `integrator.md`, and this Backend handoff.
-- Relevant worker heads observed in current handoffs: Error `0017b4d83481ba46e020d12492eb5c1d0a5fca7a`; Spec/Core current lineage includes `daf618982b068557919b58a3e0e6935c9cf41afe`; UI current lineage includes `f09406daab9440ee77a06e907add84280b3ae936`.
-- History-preserving NON-FORCE synchronization: `1adee89a9a551ee92220fd741640d4d79e1b1ff3`, parents prior Backend head + exact Develop.
+- Prior worker head: `e4ddf651db85c1abe1c42e8b3f65a7b77fd08eba`.
+- Required handoffs/worker heads reviewed: Error `118f3b2c182de43d1876c7c369a00282800018fa`; Spec/Core `93bd90539ce052cf5359d358cc27aec2cb781806`; UI `856d9f56fac059f257451c2e31fd35b4e554e55f`; Integrator baseline `62aa4e9ff20919f32d5147d183521fbf98f49535`.
+- History-preserving NON-FORCE synchronization after canonical pytest failure: `aed7296fd0ca173daaca41da1f2f64e575b8c5b4`, parents prior Backend head + exact Develop.
 - `main` and `bnbgrs/ATHENA` remain strict read-only and untouched.
 
 ## ExternalAccessGateway runtime boundaries — VERIFIED
@@ -26,15 +25,15 @@ Exact Backend descendant `7b37f0629d3a137301ef04284524a8dfd78c36d3` passed canon
 
 Status: `BACKEND_VERIFIED / INTEGRATOR_READY`.
 
-## Local provider bounded-read size type stability — APPLIED / PENDING CANONICAL
+## Local provider bounded-read size type stability — APPLIED / CANONICAL RED ON STALE BASE / RESYNCED
 
-The bounded local response accepted Python `bool` as an integer read amount and allowed other invalid runtime values to reach arithmetic/delegate behavior. This was a type-unstable boundary on the shared loopback-only provider transport. Product `e6ae4998b675d8ed83efc266fd7d73063e1df63c` now requires `read(amt)` to receive `None` or a true non-bool integer before deadline/accounting/delegate access. Negative integer semantics remain the existing bounded whole-body behavior.
+Product `e6ae4998b675d8ed83efc266fd7d73063e1df63c` requires `_BoundedLocalResponse.read(amt)` to receive `None` or a true non-bool integer before deadline/accounting/delegate access. Focused regression `629871ef5a2c1ff1daf03b4ec5520324ddeb94be` covers bool/float/string rejection before delegate access and preserves negative-integer bounded whole-body semantics.
 
-Focused regression `629871ef5a2c1ff1daf03b4ec5520324ddeb94be` adds `tests/unit/test_local_http_read_size_validation.py`, covering `True`, float and string rejection before the delegate is called, plus retention of valid negative-integer bounded reads.
+Canonical ATHENA Quality `34004101347` on documentation descendant `e4ddf651db85c1abe1c42e8b3f65a7b77fd08eba` completed `failure`: Windows path safety, Local install smoke, Linux storage regressions, spec validator, Ruff and mypy passed; only canonical pytest failed. That run used Develop base `da493c1390192425d50caddc451c1a497027027a`. Develop subsequently advanced with disjoint Personal Memory exact-scope priority product/test fixes through `62aa4e9ff20919f32d5147d183521fbf98f49535`.
 
-No exact canonical workflow run is currently bound to `629871ef5a2c1ff1daf03b4ec5520324ddeb94be`; no PASS/READY claim is made.
+Backend therefore synchronized NON-FORCE/history-preserving to exact current Develop using only complete Backend-owned blobs. Sync commit: `aed7296fd0ca173daaca41da1f2f64e575b8c5b4`. No exact workflow run was bound to that sync commit at handoff-write time; no PASS/READY claim is made for the bounded-read slice.
 
-Status: `BACKEND_APPLIED / CANONICAL_PENDING`.
+Status: `BACKEND_APPLIED / CANONICAL_REVERIFY_REQUIRED`.
 
 ## Persistent runtime / crash prevention invariants
 
@@ -61,30 +60,20 @@ Status: `BACKEND_APPLIED / CANONICAL_PENDING`.
 
 ## Error / collision handoff
 
-- Error worker reports no current OPEN Backend blocker; historical `ERR-0014` remains stale absent exact recurrence.
-- Spec/Core and UI current work are disjoint; no Core/UI-owned product file was mutated.
-- Exact Develop changes were preserved during synchronization.
-- Local checkout was retried once after the previous DNS class and again failed with `Could not resolve host: github.com`; GitHub-native complete-blob/tree/commit writes were used instead, so DNS did not block progress.
+- Error worker head `118f3b2c182de43d1876c7c369a00282800018fa` retains the release crash regression matrix; no exact-SHA Backend crash signature was reopened.
+- Spec/Core `93bd90539ce052cf5359d358cc27aec2cb781806` and UI `856d9f56fac059f257451c2e31fd35b4e554e55f` are disjoint from this Provider transport slice.
+- Current Develop Personal Memory changes were preserved during synchronization; no foreign product/test file was overwritten.
 
 ## Integrator handoff
 
 READY:
 - ExternalAccessGateway runtime boundaries through `c67fa646d8ba4e4137cdf69992b9c8b42ad904d6`, Quality `33884210684 = success`.
-- StorageHealth ASCII-control-detail through `1cc0017d560a1534de1fc2c83989d26e05238236`, Quality `33966299076 = success`.
-- Disk-pressure reserve-release-state through `8be678b5fa3e19aa442e788d935436914a53452b`, Quality `33972009715 = success`.
-- Disk-pressure released-volume-bound through `be13865f8ab863809a7da28a38e5c5df35b3fa29`, Quality `33974947204 = success`.
-- Disk-pressure threshold-consistency through `5b04d7e335823f59bd33847e5b5c2c5b7e23458c`, Quality `33978168395 = success`.
-- Disk-pressure assessment-state truth / reserve free-space bound through `94c6e37d2d6b1d1993703dbaef351fffbc734f6d`, Quality `33984348331 = success`.
-- Reserve-provision EMERGENCY-boundary truth through `35a7ca4a31a86aa31cecc2d6140518071f1c7b71`, Quality `33987267648 = success`.
-- Reserve canonical required-size truth through `876fcd4dcffbcca50ac6cf137b5299343135c0e8`, Quality `33990310049 = success`.
-- Deterministic safe-allocation truth through `90084f68bab8b8ec55aefe0edfb30bfa55c23dde`, Quality `33993264724 = success`.
-- Canonical assessment-threshold truth through `8d07a57809507ada1ae5a87cd1fb6e360b66f74d`, Quality `33996189939 = success`.
-- Canonical reserve-release-size truth through `02707d295e31e8d321ba6f2ed1bd6f50197eeb81`, Quality `33999117392 = success`.
 - Local-provider HTTP error-body total-deadline hardening through `7b37f0629d3a137301ef04284524a8dfd78c36d3`, Quality `34001608473 = success`.
+- All previously recorded green Storage/DiskPressure Backend slices remain READY under their exact green lineages.
 
 NOT READY:
-- Local-provider bounded-read size type stability product `e6ae4998b675d8ed83efc266fd7d73063e1df63c` + focused regression `629871ef5a2c1ff1daf03b4ec5520324ddeb94be` until exact canonical verification is green.
+- Local-provider bounded-read size type stability product `e6ae4998b675d8ed83efc266fd7d73063e1df63c` + focused regression `629871ef5a2c1ff1daf03b4ec5520324ddeb94be`; stale-base canonical run `34004101347` failed only pytest, and current-Develop sync `aed7296fd0ca173daaca41da1f2f64e575b8c5b4` requires exact re-verification.
 
 ## Next backend slice
 
-Consume the first exact canonical Quality run containing `629871ef5a2c1ff1daf03b4ec5520324ddeb94be` or its documentation-only descendant. If green, promote bounded-read size type stability to VERIFIED/READY and immediately take the highest current unclaimed disjoint Storage/Recovery/Provider/Packaging/Runtime P0/P1/P2 gap. If no run binds, use another executable verification path or a different real disjoint Backend/System slice rather than repeating runner state. If red, inspect exact diagnostics and minimally repair only Backend-owned failure while preserving ExternalAccessGateway and persistent Windows release/crash invariants.
+Consume the first exact canonical Quality run containing `aed7296fd0ca173daaca41da1f2f64e575b8c5b4` or this documentation-only descendant. If green, promote bounded-read size type stability VERIFIED/READY and immediately take the highest current unclaimed disjoint Backend/System P0/P1/P2 gap. If red, inspect exact pytest diagnostics and minimally repair only Backend-owned failures; if no executable run binds, use an alternate executable verification route or a different real disjoint slice rather than repeating the same runner state.
