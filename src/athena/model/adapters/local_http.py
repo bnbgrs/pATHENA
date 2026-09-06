@@ -121,6 +121,8 @@ class _BoundedLocalResponse:
         return raw
 
     def read(self, amt: int | None = None) -> bytes:
+        if amt is not None and (isinstance(amt, bool) or not isinstance(amt, int)):
+            raise TypeError("Local model response read size must be an integer or None.")
         self._assert_before_deadline()
         self._assert_within_byte_budget()
         remaining = self._max_bytes - self._bytes_read
