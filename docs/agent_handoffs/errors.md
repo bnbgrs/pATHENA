@@ -3,77 +3,92 @@
 ## Baseline
 
 - Baseline source: `develop/pathena-next`.
-- Baseline SHA observed this run: `da493c1390192425d50caddc451c1a497027027a`.
+- Baseline SHA observed this run: `859e1a68e8d9a207a5094462aefe189f6f276c9d`.
 - Worker branch: `postmerge/errors`.
-- Error branch pre-run head: `0017b4d83481ba46e020d12492eb5c1d0a5fca7a`.
-- Relevant worker heads: UI `f09406daab9440ee77a06e907add84280b3ae936`; Backend `7b37f0629d3a137301ef04284524a8dfd78c36d3`; Core `daf618982b068557919b58a3e0e6935c9cf41afe`.
+- Error branch pre-run head: `118f3b2c182de43d1876c7c369a00282800018fa`.
+- Current Backend head observed: `3d61f4ed646ceda00785928320bfefa12b6fb257`.
+- Required `spec-core.md`, `backend.md`, `ui.md` and `integrator.md` handoffs were reviewed before disposition.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only; no force update, rebase, history rewrite or merge to main was attempted.
 
 ## Current error state
 
 - OPEN: none.
-- IN_PROGRESS: none.
+- IN_PROGRESS: `ERR-0015`.
 - FIXED_PENDING_VERIFY: none.
 - FIXED: `ERR-0001` through `ERR-0013`.
 - STALE: `ERR-0014`.
 - BLOCKED: none.
 
-## Fresh evidence
+## Fresh evidence — ERR-0015
 
-- Historical `ERR-0004` remains `FIXED`. Its exact Ruff evidence is already closed by exact-head Quality `33804193396 = success`; no current Ruff recurrence exists.
-- `ERR-0014` had two exact canonical recurrences: UI Quality `33975657049@97b051612ca1199907a47d7e3f6938e3f1f8ca37` and `33978563758@8adcc65f394c556b2783b5da070a52c9afc27d0d`, both terminating full pytest with `SIGSEGV` / exit `139` at `tests/unit/test_desktop_api_controller.py::test_controller_refresh_runs_gateway_off_ui_thread`.
-- Two later exact canonical UI successors on the unchanged affected controller/test lineage completed green: `33978582156@fb98e47fde410137b971a303678d4e63f66e1d6d = success` and `33981877292@074c7b9a4ccf9271a91dd1e56784601f749ac020 = success`.
-- Current UI Quality `34001923188@f09406daab9440ee77a06e907add84280b3ae936` is still in progress. Windows path safety, Linux storage, Local install smoke, Validator, Ruff and mypy are already PASS; full pytest remains in progress at this handoff update.
-- Current Backend Quality `34001608473@7b37f0629d3a137301ef04284524a8dfd78c36d3` is still in progress and therefore is not PASS/failure evidence yet.
-- Latest completed exact Develop Quality remains `33989730675@d14aca9504021bdacadb89dc478ca41545ab4316 = success`. Current Develop head `da493c1390192425d50caddc451c1a497027027a` has no exact completed canonical Quality run yet.
-- No new concrete deduplicated primary failure is established in this run, so no speculative product or harness mutation is justified.
+Backend bounded local-response read-size type stability has a concrete reproducible canonical failure.
 
-## Root-cause disposition
+- First canonical signal: Quality `34004101347@e4ddf651db85c1abe1c42e8b3f65a7b77fd08eba` failed only full pytest at `tests/unit/test_local_http_read_size_validation.py::test_bounded_local_response_still_accepts_negative_integer_read_size`.
+- Backend then history-preserving NON-FORCE resynced to Develop at `aed7296fd0ca173daaca41da1f2f64e575b8c5b4`.
+- Exact resync Quality `34006604490@aed7296fd0ca173daaca41da1f2f64e575b8c5b4` reproduced the identical sole failure: `1 failed, 4666 passed, 3 skipped`.
+- In `34006604490`, Windows path safety, Linux storage regressions, local install smoke, specification Validator, Ruff and mypy all PASS. Only canonical full pytest fails.
+- Exact exception: `LocalResponseTooLargeError: Local model response exceeded the configured byte limit.` from `src/athena/model/adapters/local_http.py:137` while the test expects `bounded.read(-1) == b"xxxx"` with `max_bytes=4`.
 
-- Bounded class for historical `ERR-0014`: Qt/QObject/QThreadPool/queued-signal/application-lifecycle runtime teardown around the real asynchronous controller harness.
-- A `DesktopApiController` product regression remains unestablished because the affected source/test blobs were unchanged across both red and multiple green canonical executions.
-- Do not create a speculative product or harness mutation while the failure is non-reproducing. Reopen the same stable ID immediately if the exact SIGSEGV signature recurs; then capture the exact Qt lifecycle delta or take the minimal lifecycle fix once no colliding UI owner mutation exists.
+## Root cause — finalized
+
+This is a harness defect, not a product byte-budget defect.
+
+The bounded response intentionally maps `read(None)` or `read(negative_integer)` to an underlying request of `remaining + 1`. This one-extra-byte probe is what detects a response larger than the configured limit. With `max_bytes=4`, the wrapper therefore asks the delegate for five bytes.
+
+The test's `_TrackingResponse.read(amt)` behaves as an unbounded byte generator: when asked for five bytes it fabricates five bytes. That contradicts the test's intended finite four-byte response premise. The wrapper then correctly counts five bytes and raises `LocalResponseTooLargeError`.
+
+The product guard must not be changed. The minimal correction is in `tests/unit/test_local_http_read_size_validation.py`: make the fake response finite/remaining-aware so its four-byte body returns at most the bytes actually present even when probed with `remaining + 1`. Preserve the assertion that true negative integers are accepted and preserve explicit oversized-body rejection coverage.
+
+## Ownership / collision rule
+
+Backend currently owns `tests/unit/test_local_http_read_size_validation.py`. Current Backend head `3d61f4ed646ceda00785928320bfefa12b6fb257` is a documentation descendant and exact canonical Quality `34006623230` is still in progress. Error therefore does not create a competing mutation in this cycle.
+
+Required Backend correction signature:
+
+1. finite/remaining-aware `_TrackingResponse` or equivalent finite-body harness;
+2. no change to `src/athena/model/adapters/local_http.py` `remaining + 1` overflow probe;
+3. no weaker assertions or changed exception contract for truly oversized bodies;
+4. focused `tests/unit/test_local_http_read_size_validation.py` green;
+5. relevant local HTTP response-limit regressions green;
+6. Ruff green;
+7. exact new Backend SHA canonical Quality green, including full pytest.
+
+If Backend completes one further worker cycle without this correction and no active colliding code mutation remains, Error may take the minimal harness-only fix under the hard progress rule.
+
+## Historical state retained
+
+- Historical `ERR-0004` remains `FIXED`; exact B010/I001 evidence and exact-head green verification remain recorded in the ledger. No current startup/readiness Ruff recurrence exists.
+- `ERR-0014` remains `STALE`, not `FIXED`: two historical exact SIGSEGV recurrences were followed by repeated exact canonical clean runs on unchanged affected controller/test lineage. Reopen the same ID only on exact exit-139/controller-refresh recurrence.
 - No mocks, Skip/XFail, dummy success path, weaker off-UI-thread assertions, Ruff/mypy relaxation, or Security/Storage/Recovery/Windows guard weakening is permitted.
 
 ## Persistent Windows/runtime regression knowledge
 
-The following signatures are retained as Beta/release acceptance knowledge only. They are not automatically OPEN without current exact-SHA reproduction, but a current reproduction must reopen/create the corresponding deduplicated error immediately.
+The following signatures remain Beta/release acceptance knowledge only and are not automatically OPEN without current exact-SHA reproduction:
 
-- Windows R1/R2 packaging: `PackageNotFoundError` caused by missing `pypdf` distribution metadata plus supervisor relaunch behavior.
-- Frozen-entrypoint routing: unknown child argv must fail closed and must never recursively multiply Desktop/Core/Scheduler. Preserve the two-EXE split.
-- Process-tree invariant: exactly one Desktop instance and bounded/non-growing workers.
-- 2048-context chat regression: fixed `2048` output reserve plus `256` safety against a 2048 LM-Studio context is invalid. Preserve adaptive reserve behavior and require explicit 2048-context regression coverage before release.
-- Windows scheduler/lane-lock crash cluster observed 2026-09-05: `PermissionError: [Errno 13] Permission denied` in `athena/jobs/lane_lock.py::_lock_nonblocking`, followed by `SchedulerLaneOwnershipError: Scheduler control lane already has a live process owner.`, followed by `OSError: [Errno 22] Invalid argument` in the packaged-worker failure path. Before Beta/release this cluster must be deliberately reproduced/verified closed on the exact candidate SHA.
-- Additional startup signatures retained for exact-SHA regression: `duplicate column name: source_processing_job_id`, `ATHENA Core startup failed`, `Failed to start service 'storage-bootstrap'`.
+- missing `pypdf` distribution metadata / `PackageNotFoundError` plus supervisor relaunch behavior;
+- frozen child argv recursion: preserve fail-closed routing and two-EXE split;
+- exactly one Desktop and bounded/non-growing workers;
+- adaptive output reserve at 2048 LM-Studio context;
+- Windows lane-lock cluster: `_lock_nonblocking` `PermissionError [Errno 13]`, then `SchedulerLaneOwnershipError`, then packaged-worker `OSError [Errno 22]`;
+- `duplicate column name: source_processing_job_id`;
+- `ATHENA Core startup failed`;
+- `Failed to start service 'storage-bootstrap'`.
 
-## Release/Beta acceptance matrix
-
-No Windows/Beta candidate is promotion-ready until the exact candidate SHA has explicit regression evidence for:
-
-1. pypdf package metadata availability and no supervisor relaunch loop;
-2. fail-closed frozen child argv routing and two-EXE separation;
-3. exactly-one-Desktop / bounded-worker process tree;
-4. adaptive 2048-context output budgeting;
-5. lane-lock permission / scheduler ownership / packaged-worker error-path stability;
-6. duplicate-column migration/startup safety;
-7. Core and storage-bootstrap startup;
-8. canonical Windows path safety, Linux storage, local install/start, Ruff, mypy, Validator and full pytest.
-
-Any exact-SHA recurrence blocks promotion until root cause is closed with real verification.
+Any recurrence on an exact Beta/release candidate blocks promotion until root cause is closed with real verification.
 
 ## Integrator handoff
 
-- `ERR-0001` through `ERR-0013` remain error-cleared on recorded exact evidence; `ERR-0004` remains closed and current Ruff evidence is green.
-- Historical red UI `8adcc65f394c556b2783b5da070a52c9afc27d0d` / Quality `33978563758` remains rejected as READY.
-- `ERR-0014` is `STALE`, not `FIXED`: later exact canonical green runs on the unchanged affected lineage establish current non-reproduction but no corrective SHA.
-- Do not block otherwise-green UI integration solely on stale `ERR-0014`; reopen it if the exact exit-139/controller-refresh signature recurs.
-- Current UI `f09406da...` and Backend `7b37f062...` must not be called READY until their running canonical Quality jobs complete successfully.
-- Preserve StorageHealth unavailable-path/NUL guards, provider truthfulness, total deadline, cumulative byte budget, body-handle/file-descriptor restrictions, loopback-only/proxy-free transport, Security, Storage and Recovery invariants.
-- Before Beta/release, run the persistent Windows/runtime regression matrix above on the exact candidate SHA; historical signatures alone do not create current OPEN errors.
+- `ERR-0015` is the sole active error.
+- Reject Backend bounded-read type-stability candidate `e4ddf651...` and resync `aed7296f...` as READY because both have the exact same full-pytest failure.
+- Do not classify the product `remaining + 1` probe as defective; it is the safety mechanism exposing the fake-response defect.
+- Current Backend `3d61f4ed...` remains unverified while Quality `34006623230` is in progress.
+- Current Develop `859e1a68e8d9a207a5094462aefe189f6f276c9d` does not receive a repository-wide green claim from this run.
+- Preserve all provider transport byte-budget, deadline, loopback-only/proxy-free, Storage, Security, Recovery, Qt, Windows path, Validator, Ruff and mypy guards.
 
 ## Next scan
 
-1. Consume canonical UI Quality `34001923188@f09406daab9440ee77a06e907add84280b3ae936` and Backend Quality `34001608473@7b37f0629d3a137301ef04284524a8dfd78c36d3` when complete.
-2. Reopen `ERR-0014` only if its exact SIGSEGV/controller-refresh signature recurs.
-3. Allocate the next stable ID only for a new concrete deduplicated primary failure, then finalize root cause or apply the minimal non-colliding fix in that same cycle where evidence permits.
-4. Continue Packaging, Provider/Transport, Research/Jobs, Persistence/Recovery, Qt/Desktop, Security, Windows path safety, Linux storage and local install/start scanning without manufacturing failures.
+1. Consume Backend Quality `34006623230@3d61f4ed646ceda00785928320bfefa12b6fb257`.
+2. Verify whether Backend supplies the exact minimal `ERR-0015` harness correction on a new SHA; do not accept a documentation-only handoff as a fix.
+3. Set `ERR-0015` to `FIXED` only after focused and exact canonical verification are actually green.
+4. If one full further Backend cycle leaves the same error unfixed and no active collision remains, apply the minimal harness-only correction on `postmerge/errors` and verify it without weakening product safeguards.
+5. After `ERR-0015`, immediately consume the next concrete canonical/runtime signal; do not manufacture failures.
