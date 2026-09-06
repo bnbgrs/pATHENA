@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `b1537fc138560fe85d4d97cf76c887b92e63c8f4`
+Baseline: `be0e8da5127f17f6bbc3cbbc8c58496102c9135c`
 Integration target: `develop/pathena-next`
 UI worker: `postmerge/ui`
 
@@ -195,10 +195,18 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
 
 ## UI-GAP-0039 — Sources detail reader lacks explicit keyboard-focus presentation
-- Screen: `05 — Sources / Files`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Screen: `05 — Sources / Files`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `FIXED`.
 - Evidence: `FilesWorkspace` creates read-only `QPlainTextEdit#sourceDetails`; the reader remains keyboard-focusable for reading/copying, while the canonical object-specific reader-focus block covered Help, Library, Research and Jobs but omitted Sources.
 - Product `6d2d0eb32fa0bcd6b2c1112070a36ce1401f6bfa` adds only `QPlainTextEdit#sourceDetails:focus` to the existing canonical accent-border focus block. Focused regression `57636da80d3f3db586d1d728b4e6d39dd11896bd` locks the selector and canonical accent token.
 - Source content, import/retrieval processing, selection routing, read-only semantics, provenance and backend/storage/security/runtime behavior are unchanged.
+- Verification evidence: exact UI head `d955ccd53e3e2c7f98af0f6f3838be1ffa9b6fe6` passed ATHENA Quality Gate `34031028328` with conclusion `success`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0040 — System detail text lacks explicit keyboard-focus presentation
+- Screen: `06 — System`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Evidence: `SystemWorkspace` creates `QLabel#systemDetail` and explicitly enables `TextSelectableByKeyboard`; the shared canonical focus block previously covered buttons, inputs, lists and read-only plain-text readers, but not this keyboard-selectable System detail label.
+- Product `330fd20ec285b44dee8c9f89597a9c75e55c9c95` adds only `QLabel#systemDetail:focus` to the existing canonical accent-border focus block. Focused regression `4cba0e0235ea5094f9f39b4d3f615879ca4362df` locks the selector and canonical accent token.
+- Runtime facts, refresh routing, Core/provider/storage/security semantics and text-selection behavior are unchanged.
 - Verification evidence: canonical Quality on the exact final product/test/documentation successor is pending; no PASS is claimed yet.
 - Visual status: `IMPLEMENTED_PENDING_VERIFY`; no screenshot-level `MATCH` claim.
 
