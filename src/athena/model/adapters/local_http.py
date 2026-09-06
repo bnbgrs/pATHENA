@@ -66,16 +66,16 @@ class _BoundedLocalResponse:
         )
 
     def __enter__(self) -> _BoundedLocalResponse:
-        enter = getattr(self._response, "__enter__", None)
+        enter = self._optional_response_method("__enter__")
         if enter is not None:
             enter()
         return self
 
     def __exit__(self, exc_type: Any, exc: Any, traceback: Any) -> Any:
-        exit_method = getattr(self._response, "__exit__", None)
+        exit_method = self._optional_response_method("__exit__")
         if exit_method is not None:
             return exit_method(exc_type, exc, traceback)
-        close = getattr(self._response, "close", None)
+        close = self._optional_response_method("close")
         if close is not None:
             close()
         return None
@@ -124,6 +124,14 @@ class _BoundedLocalResponse:
             raise OSError(
                 f"Local model response does not support bounded {name} access."
             )
+        return method
+
+    def _optional_response_method(self, name: str) -> Any:
+        method = getattr(self._response, name, None)
+        if method is None:
+            return None
+        if not callable(method):
+            raise OSError(f"Local model response {name} hook must be callable.")
         return method
 
     def readline(self) -> bytes:
