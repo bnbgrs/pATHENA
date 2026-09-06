@@ -74,6 +74,22 @@ def test_help_is_rendered_from_live_commands_and_reports_missing_surfaces() -> N
         app.processEvents()
 
 
+def test_help_disambiguates_ctrl_enter_for_chat_and_pallas() -> None:
+    app, window, palette = _surface()
+    controller = install_capability_help(palette)
+    try:
+        rendered = controller.render()
+
+        assert "Ctrl+Enter   Send message from the Chat composer" in rendered
+        assert (
+            "Ctrl+Enter   Open full PALLAS while its semantic canvas is focused" in rendered
+        )
+    finally:
+        palette.deleteLater()
+        window.close()
+        app.processEvents()
+
+
 def test_disabled_real_control_is_context_required_with_existing_reason() -> None:
     app, window, palette = _surface()
     controller = install_capability_help(palette)
