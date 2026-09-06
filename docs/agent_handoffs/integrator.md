@@ -3,55 +3,53 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `3ad1437409eb4104aba5484afe56b139191a0a54`.
+- Develop before this run: `ff780f2edf367320340771ffc3176d9fc1724c5c`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `0017b4d83481ba46e020d12492eb5c1d0a5fca7a`; spec-core `0166f4dbc6962fe8fd1f96de2d265d6767b009dc`; backend `02707d295e31e8d321ba6f2ed1bd6f50197eeb81`; ui `1d82f95268affd9fd700e1b3079120887760f97b`.
+- Worker heads reviewed: errors `0017b4d83481ba46e020d12492eb5c1d0a5fca7a`; spec-core `daf618982b068557919b58a3e0e6935c9cf41afe`; backend `7b37f0629d3a137301ef04284524a8dfd78c36d3`; ui `f09406daab9440ee77a06e907add84280b3ae936`.
 - `main` and `bnbgrs/ATHENA` were untouched.
 
-## Integrated this run — UI-GAP-0029 Workspace action keyboard focus
+## Integrated this run — Disk-pressure canonical reserve-release size truth
 
-READY UI lineage independently reviewed:
+READY Backend lineage independently reviewed:
 
-- product `d25d563ed02ac677a038f522c050e7942d6b0462`;
-- focused regression `a4cfa5522cb666c9cf53ae53c5a297746fee2f38`;
-- exact green UI head `a0ba6bd47f4b8a6e91e8f6c222334c99cbe1a3aa`;
-- canonical Quality `33996745959 = success`.
+- product `ef7dbde6e660d095272e14febcbbd1fc4cfa4370`;
+- focused regression `415691b0cac741f461ed41bcecbbe08bd9011330`;
+- exact green Backend descendant `02707d295e31e8d321ba6f2ed1bd6f50197eeb81`;
+- canonical Quality `33999117392 = success`.
 
-Only the exact verified blobs were overlaid onto current Develop: `src/athena/desktop/pathena_theme.py` blob `75bb0be8dde775ee7e245b0fb12ef9ce323cd500` and `tests/unit/test_pathena_workspace_action_focus.py` blob `53de211d5a5d9019d0ec8609a4083dfffb23ba80`. Worker history and the separate open Command Palette focus gap were not imported.
+The worker descendant contains additional later Backend hardening, so it was not transplanted wholesale. The bounded reviewed product patch was applied semantically to exact current Develop `src/athena/storage/disk_pressure.py`, adding only the canonical reserve-size upper bound after the existing volume/threshold guards. The focused regression was added to `tests/unit/test_disk_pressure_result_boundaries.py`. This preserves already-integrated UI/Core/Error state and excludes newer unrelated Backend changes.
 
-Integration commit: `8403c1c7c0da263af34a2ba281a1bfaef23c8c32`.
-
-Independent post-write compare against the exact Develop baseline is one commit ahead, zero behind, and changes exactly those two files: theme +13/-1 and focused test +24/-0.
+Integration commits: product `c6cdc28f2236f9124535da1f76af9e639827ce85`; focused test `86364de2041b6a170e32d952ed005faa6e156da7`.
 
 ## Contract now covered
 
-Workspace action controls `detailsToggle`, `contextToggle`, `newChatButton`, `deleteChatButton`, `rememberMessageButton`, `addKnowledgeButton`, and `groundButton` expose explicit keyboard-focus presentation using canonical `text`, `surface_hover`, and `accent` tokens. Checked/hover/disabled semantics, routing, accessible labels and Backend/Storage/Security/Provider/transport/persistence/provenance behavior are unchanged.
+`DiskPressureCheckResult.released_reserve_bytes` fails closed when telemetry exceeds `emergency_reserve_size_bytes(before_release.total_bytes)`, even if the value remains below total volume size. Existing threshold consistency, EMERGENCY-only positive release, zero-release identity, reserve provisioning, read-only safe mode, noncritical-write gating, SQLite/WAL, recovery, fsync, transport, security, audit and provenance behavior are unchanged.
 
 ## Validation state
 
-- Exact worker canonical Quality `33996745959` is green on the verified UI lineage.
-- Exact-current-Develop repository-wide green is not claimed: no workflow run is currently associated with integration commit `8403c1c7c0da263af34a2ba281a1bfaef23c8c32`.
-- `ALPHA_BETA_PROGRESS.md` was read. A whole-file rewrite was not attempted because connector retrieval remains truncated; no tracker state was fabricated or accidentally truncated.
+- Exact worker canonical Quality `33999117392` is green on the verified Backend lineage.
+- Focused worker regression explicitly covers a 2 GiB claimed release on a 100 GiB volume whose canonical reserve is 1 GiB.
+- Exact-current-Develop repository-wide green is not claimed: this connector run cannot execute local pytest/Quality and no workflow run is yet associated with integration commit `86364de2041b6a170e32d952ed005faa6e156da7`.
+- `ALPHA_BETA_PROGRESS.md` was read; connector retrieval is truncated, so no whole-file rewrite was attempted and no tracker state was fabricated or truncated.
 
 ## Other current inputs
 
-- Core Local+Web candidate-freeze union is already integrated on Develop; Core synchronized current Develop and is inspecting the next contradiction-review composition gap.
-- Backend canonical assessment-threshold truth is READY through exact descendant `8d07a57809507ada1ae5a87cd1fb6e360b66f74d`, Quality `33996189939 = success`; canonical reserve-release size truth remains canonical-pending.
-- UI-GAP-0030 Command Palette query focus is OPEN and not READY.
-- Error worker reports no current exact-SHA blocker; historical `ERR-0014` remains STALE.
+- Core head `daf618982b068557919b58a3e0e6935c9cf41afe` has memory-scope-priority work pending canonical Quality and is not READY for this run.
+- Backend local-provider HTTP error-body total-deadline hardening product `eaa0c891d794529708917461b600ebe4584ae2a2` plus focused test `18710d1441206c8282f7c7dacae15f8116365c17` remains canonical-pending and was not integrated.
+- UI head `f09406daab9440ee77a06e907add84280b3ae936` continues visual/focus work; no UI slice was selected under the single-bounded-slice rule.
+- Error worker head `0017b4d83481ba46e020d12492eb5c1d0a5fca7a` still has no current exact-SHA blocker; historical `ERR-0014` remains stale unless reproduced exactly.
 - Eleven UI screens remain implemented pending visual review; pixel-level `MATCH` remains unclaimed.
 
 ## Runtime/release guards retained
 
-Known Windows pypdf packaging, fail-closed frozen argv routing, bounded process-tree, adaptive 2048-context DirectChat budgeting, lane-lock/scheduler packaged-worker crash cluster and storage-startup signatures remain explicit Beta/release regression requirements. This UI slice does not alter their owning code or reopen them without exact-SHA reproduction.
+Known Windows pypdf packaging, fail-closed frozen argv routing, bounded process-tree, adaptive 2048-context DirectChat budgeting, lane-lock/scheduler packaged-worker crash cluster and storage-startup signatures remain explicit Beta/release regression requirements. This Storage slice does not alter their owning code or reopen them without exact-SHA reproduction.
 
 ## Next integration order
 
 1. Prefer any newer exact-green bounded Core composition successor.
-2. Otherwise independently review Backend canonical assessment-threshold truth against exact current Develop and integrate only the bounded compatible product/test delta.
-3. UI-GAP-0030 remains excluded until exact focused/canonical green evidence exists.
-4. Obtain exact-current-Develop Quality before any repository-wide green or promotion-ready claim.
-5. Before Beta/release readiness, explicitly regress known Windows packaging/process-tree/startup/chat-context/lane-lock crash classes.
+2. Otherwise independently review the next READY Backend/UI slice against exact current Develop; do not absorb canonical-pending local-provider deadline hardening.
+3. Obtain exact-current-Develop Quality before any repository-wide green or promotion-ready claim.
+4. Before Beta/release readiness, explicitly regress known Windows packaging/process-tree/startup/chat-context/lane-lock crash classes.
 
 ## Rules retained
 
