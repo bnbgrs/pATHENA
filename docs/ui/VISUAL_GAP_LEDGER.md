@@ -155,6 +155,13 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Verification evidence: exact UI head `644c3cd5e3fd9c646b5e9d881a821b25d55b70ea` passed ATHENA Quality Gate `34012079406` with conclusion `success`.
 - Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
 
+## UI-GAP-0034 — Research job list lacks row-level focused-current presentation
+- Screen: `03 — Research`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Evidence: `ResearchWorkspace` creates keyboard-focusable `QListWidget#researchJobList`. The shared foundation supplies a widget focus border and selected-row presentation, but before this slice it had no `researchJobList:focus::item:current` rule, so the active keyboard row was not separately expressed from the unfocused selected row.
+- Product `0da430fdccb469b1edf8fd7adf01773b5ec5340f` adds `QListWidget#researchJobList:focus::item:current` to the existing canonical focused-current selector block, using readable text, `surface_hover`, and the existing 2px accent left edge.
+- Focused regression `3d9339295f3c413c4c7a31c2a7037600bc3b93f6` locks the selector and canonical tokens. Research selection routing, durable-job state, cancellation semantics, scheduler behavior and backend/runtime semantics are unchanged.
+- Canonical Quality `34014651392` is pending on the exact product/test head at handoff time.
+
 ## Evidence blocker
 
 `VISUAL_REFERENCE_PENDING`: until an original reference image and a real rendered current build can both be opened and inspected, spacing, exact proportions, pixel colors and screenshot-level `MATCH` claims remain prohibited.
