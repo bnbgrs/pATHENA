@@ -2,11 +2,11 @@
 
 ## Baseline
 
-- Shared baseline reviewed: `develop/pathena-next@62aa4e9ff20919f32d5147d183521fbf98f49535`.
+- Shared baseline reviewed: `develop/pathena-next@859e1a68e8d9a207a5094462aefe189f6f276c9d`.
 - Worker branch: `postmerge/backend`.
-- Prior worker head: `e4ddf651db85c1abe1c42e8b3f65a7b77fd08eba`.
-- Required handoffs/worker heads reviewed: Error `118f3b2c182de43d1876c7c369a00282800018fa`; Spec/Core `93bd90539ce052cf5359d358cc27aec2cb781806`; UI `856d9f56fac059f257451c2e31fd35b4e554e55f`; Integrator baseline `62aa4e9ff20919f32d5147d183521fbf98f49535`.
-- History-preserving NON-FORCE synchronization after canonical pytest failure: `aed7296fd0ca173daaca41da1f2f64e575b8c5b4`, parents prior Backend head + exact Develop.
+- Pre-run worker head: `3d61f4ed646ceda00785928320bfefa12b6fb257`.
+- Worker heads reviewed: Error `46fb660d7980d83e1b22c061187bae2b99832610`; Spec/Core `396a66302d0e4e96deb2d69076fdaa340bb395c5`; UI `062440397c9330ac23e9f8b3293d822f2451c902`; Integrator baseline `859e1a68e8d9a207a5094462aefe189f6f276c9d`.
+- History-preserving NON-FORCE synchronization to current Develop: `64b8077fa15f870e0fdd5b4a2a5ce5c4e3f887ed`, parents prior Backend head + exact Develop.
 - `main` and `bnbgrs/ATHENA` remain strict read-only and untouched.
 
 ## ExternalAccessGateway runtime boundaries — VERIFIED
@@ -25,15 +25,17 @@ Exact Backend descendant `7b37f0629d3a137301ef04284524a8dfd78c36d3` passed canon
 
 Status: `BACKEND_VERIFIED / INTEGRATOR_READY`.
 
-## Local provider bounded-read size type stability — APPLIED / CANONICAL RED ON STALE BASE / RESYNCED
+## Local provider bounded-read size type stability — PRODUCT PRESERVED / HARNESS FIX APPLIED
 
-Product `e6ae4998b675d8ed83efc266fd7d73063e1df63c` requires `_BoundedLocalResponse.read(amt)` to receive `None` or a true non-bool integer before deadline/accounting/delegate access. Focused regression `629871ef5a2c1ff1daf03b4ec5520324ddeb94be` covers bool/float/string rejection before delegate access and preserves negative-integer bounded whole-body semantics.
+Product `e6ae4998b675d8ed83efc266fd7d73063e1df63c` requires `_BoundedLocalResponse.read(amt)` to receive `None` or a true non-bool integer before deadline/accounting/delegate access. The product `remaining + 1` whole-body probe remains unchanged because it is the overflow-detection mechanism.
 
-Canonical ATHENA Quality `34004101347` on documentation descendant `e4ddf651db85c1abe1c42e8b3f65a7b77fd08eba` completed `failure`: Windows path safety, Local install smoke, Linux storage regressions, spec validator, Ruff and mypy passed; only canonical pytest failed. That run used Develop base `da493c1390192425d50caddc451c1a497027027a`. Develop subsequently advanced with disjoint Personal Memory exact-scope priority product/test fixes through `62aa4e9ff20919f32d5147d183521fbf98f49535`.
+Canonical Quality `34006623230@3d61f4ed646ceda00785928320bfefa12b6fb257` reproduced the sole pytest failure while Windows path safety, Local install smoke, Linux storage regressions, specification validator, Ruff and mypy passed. Error handoff `ERR-0015` correctly identified the root cause as the focused test harness: `_TrackingResponse.read(size)` fabricated exactly `size` bytes, so the wrapper's intentional 5-byte probe against a nominal four-byte body created a fake oversized response.
 
-Backend therefore synchronized NON-FORCE/history-preserving to exact current Develop using only complete Backend-owned blobs. Sync commit: `aed7296fd0ca173daaca41da1f2f64e575b8c5b4`. No exact workflow run was bound to that sync commit at handoff-write time; no PASS/READY claim is made for the bounded-read slice.
+Backend synchronized to current Develop through `64b8077fa15f870e0fdd5b4a2a5ce5c4e3f887ed`, then applied the minimal test-only correction at `5abee1fb3cf9aa639a2600796036302ef63a773d`: `_TrackingResponse` now models a finite remaining-aware byte body. Invalid bool/float/string read sizes still fail before delegate access; a true negative integer now exercises a real finite four-byte whole-body response rather than an infinite byte generator.
 
-Status: `BACKEND_APPLIED / CANONICAL_REVERIFY_REQUIRED`.
+Canonical Quality `34009015142` is bound to exact test-fix SHA `5abee1fb3cf9aa639a2600796036302ef63a773d` and is pending at handoff-write time. No PASS or READY claim is made until that exact run succeeds.
+
+Status: `BACKEND_FIXED_PENDING_CANONICAL_VERIFY`.
 
 ## Persistent runtime / crash prevention invariants
 
@@ -60,9 +62,9 @@ Status: `BACKEND_APPLIED / CANONICAL_REVERIFY_REQUIRED`.
 
 ## Error / collision handoff
 
-- Error worker head `118f3b2c182de43d1876c7c369a00282800018fa` retains the release crash regression matrix; no exact-SHA Backend crash signature was reopened.
-- Spec/Core `93bd90539ce052cf5359d358cc27aec2cb781806` and UI `856d9f56fac059f257451c2e31fd35b4e554e55f` are disjoint from this Provider transport slice.
-- Current Develop Personal Memory changes were preserved during synchronization; no foreign product/test file was overwritten.
+- Error worker `46fb660d7980d83e1b22c061187bae2b99832610` owns `ERR-0015` verification and explicitly required this finite-body harness correction without product-guard weakening.
+- Spec/Core `396a66302d0e4e96deb2d69076fdaa340bb395c5` and UI `062440397c9330ac23e9f8b3293d822f2451c902` are disjoint from this Provider test correction.
+- Current Develop Personal Memory acceptance additions were preserved during synchronization; no foreign product/test file was overwritten.
 
 ## Integrator handoff
 
@@ -72,8 +74,8 @@ READY:
 - All previously recorded green Storage/DiskPressure Backend slices remain READY under their exact green lineages.
 
 NOT READY:
-- Local-provider bounded-read size type stability product `e6ae4998b675d8ed83efc266fd7d73063e1df63c` + focused regression `629871ef5a2c1ff1daf03b4ec5520324ddeb94be`; stale-base canonical run `34004101347` failed only pytest, and current-Develop sync `aed7296fd0ca173daaca41da1f2f64e575b8c5b4` requires exact re-verification.
+- Local-provider bounded-read size type stability product `e6ae4998b675d8ed83efc266fd7d73063e1df63c` + harness-fix `5abee1fb3cf9aa639a2600796036302ef63a773d`; exact canonical Quality `34009015142` is pending.
 
 ## Next backend slice
 
-Consume the first exact canonical Quality run containing `aed7296fd0ca173daaca41da1f2f64e575b8c5b4` or this documentation-only descendant. If green, promote bounded-read size type stability VERIFIED/READY and immediately take the highest current unclaimed disjoint Backend/System P0/P1/P2 gap. If red, inspect exact pytest diagnostics and minimally repair only Backend-owned failures; if no executable run binds, use an alternate executable verification route or a different real disjoint slice rather than repeating the same runner state.
+Consume exact canonical Quality `34009015142@5abee1fb3cf9aa639a2600796036302ef63a773d`. If green, promote `ERR-0015` bounded-read type stability/harness correction VERIFIED/READY and immediately take the highest current unclaimed disjoint Backend/System P0/P1/P2 gap. If red, inspect exact pytest diagnostics and minimally repair only Backend-owned failure without weakening the true-int read guard, overflow probe, byte/deadline limits or ExternalAccessGateway/security/runtime invariants. If no executable result becomes available, take a distinct real Backend/System slice rather than repeating runner state.
