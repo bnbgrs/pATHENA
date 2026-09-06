@@ -2,54 +2,54 @@
 
 ## Baseline
 
-- Baseline source: `develop/pathena-next`.
-- Baseline SHA observed this run: `3bd2b7f0bc25f9b3b756a1765b27db7ab787b789`.
-- Worker branch: `postmerge/errors`.
-- Error branch pre-run head: `3392f70d4c4c0830fefe2833d098bed34fa2127b`.
-- Current Backend head observed: `c991482a9f49dec50e69779f73e3a0939df5c73b`.
-- Current UI head observed: `bf7fadf849140697dc63c92c6a5c6c69335e3278`.
+- Baseline source: `develop/pathena-next@8236500a5ae0ae58e7dce5bb3cf0771eb534670d`.
+- Worker branch: `postmerge/errors`; pre-run head `90904477f4810d0580ca42f4be3b9290b703c1a4`.
+- Current Backend head: `a5904fc2078a8dec5eece17dd352436d14453d8f`.
+- Current UI head: `089a0e4b0b8fc43e37f00f8288f64cd62014fbb4`.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only; no force update, rebase, history rewrite or merge to main was attempted.
 
 ## Current error state
 
-- OPEN: none.
+- OPEN: `ERR-0016`.
 - IN_PROGRESS: none.
 - FIXED_PENDING_VERIFY: none.
 - FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015`.
 - STALE: `ERR-0014`.
 - BLOCKED: none.
 
-## ERR-0015 — closed with exact verification
+## ERR-0016 — Local HTTP overflow no longer poisons the bounded response
 
-The reproduced bounded local-response negative-read failure remains closed as a harness defect.
+Exact canonical Backend Quality `34016515174@c991482a9f49dec50e69779f73e3a0939df5c73b` completed failure. Windows path safety, Linux storage, local install smoke, specification Validator, Ruff and mypy all passed; full pytest failed exactly two tests with `2 failed, 4690 passed, 3 skipped`:
 
-- Failing canonical Backend Quality: `34004101347@e4ddf651db85c1abe1c42e8b3f65a7b77fd08eba`.
-- Reproduced same sole failure: `34006604490@aed7296fd0ca173daaca41da1f2f64e575b8c5b4`, `1 failed, 4666 passed, 3 skipped`.
-- Root cause: `_TrackingResponse.read(amt)` behaved as an unbounded byte generator. The production wrapper intentionally requested `remaining + 1` bytes to detect overflow, so the fake fabricated a fifth byte for an intended four-byte body and correctly triggered `LocalResponseTooLargeError`.
-- Minimal Backend harness fix: `5abee1fb3cf9aa639a2600796036302ef63a773d` makes the fake response finite/remaining-aware without changing the product overflow probe or weakening assertions.
-- Verified descendant: `a9a267ec790ea4dd1c9cfc79d07fc1665f664e30`.
-- Exact canonical verification: Quality `34009044381@a9a267ec790ea4dd1c9cfc79d07fc1665f664e30 = success`.
-- Newer exact Backend descendant `9dc8375399c6b07f9c52545783004607aa9dd430` also completed Quality `34011613102 = success`.
-- Result: `ERR-0015 = FIXED`.
+- `tests/unit/test_local_http_response_boundaries.py::test_size_overflow_poisoning_blocks_followup_read_before_underlying_io`
+- `tests/unit/test_local_http_response_boundaries.py::test_readline_overflow_poisoning_blocks_followup_io`
 
-The product `remaining + 1` byte-budget probe, true-integer validation, deadlines and provider/transport guards remain mandatory and unchanged.
+The first oversized `read()`/`readline()` correctly raises `LocalResponseTooLargeError`, but a subsequent body read reaches underlying I/O instead of failing immediately.
+
+Root cause is a product regression in the oversize-before-accounting lineage beginning at `5e6862fe9544465e3aed66840601a204d4d2cae5`. The new implementation computes `next_bytes_read`, raises if it exceeds the cap, and only assigns `_bytes_read` after that check. This leaves `_bytes_read` within budget after rejection and removes the established poisoned-state marker consumed by `_assert_within_byte_budget()`. The new `tests/unit/test_local_http_oversize_accounting.py` expectation that `_bytes_read == 0` after rejection conflicts with the older fail-closed poisoning invariant when no separate poison state exists.
+
+Previous synchronized Backend head `56a78635a8404ac4d7fb1aa2129d1ef2054040bb` passed canonical Quality `34016477844 = success`; the delta to failing `c991482a...` is bounded to Local HTTP oversize-accounting product/test changes plus handoff documentation. Current Backend `a5904fc2078a8dec5eece17dd352436d14453d8f` still contains the non-poisoning `next_bytes_read` implementation, so the root cause remains present in the active Backend lineage.
+
+Required correction: preserve a distinct fail-closed poisoned state after any over-budget returned chunk, preferably via an explicit flag rather than treating rejected bytes as successfully consumed. `_assert_within_byte_budget()` or an equivalent pre-I/O guard must reject all subsequent bounded body access. Preserve `remaining + 1` overflow probing, cumulative byte limits, true-integer validation, total deadlines, bytes-only body validation, loopback-only/proxy-free/redirect-rejecting transport, Security, Storage and Recovery guards. The new oversize-accounting regression should assert that rejected bytes are not counted as successful consumption while also proving follow-up I/O is blocked.
+
+No Error-branch product patch was made this run because the active defect is Backend-owned and the current Error branch does not contain that newer mutation. This run finalized and versioned the root cause instead of duplicating an active worker mutation.
 
 ## Current worker evidence
 
-- Backend exact head `20edbed46471a50e72661e2e69502b094a0b599f` completed canonical Quality `34014111747 = success`; its Windows path safety, Linux storage, local install smoke, Validator, Ruff, mypy and full pytest all passed. This confirms the bounded-response-constructor hardening lineage remains green.
-- Current Backend head `c991482a9f49dec50e69779f73e3a0939df5c73b`: canonical Quality `34016515174` is in progress. Windows path safety, Linux storage, local install smoke, Validator, Ruff and mypy are PASS; full pytest is still running. No current failure is established.
-- UI exact head `5a40e75ed78293ddd8c1ea3533c5632d6dea2910` completed canonical Quality `34014713429 = success`; its full workflow is green.
-- Current UI head `bf7fadf849140697dc63c92c6a5c6c69335e3278`: canonical Quality `34017125454` is in progress. Windows path safety, Linux storage, local install smoke, Validator, Ruff and mypy are PASS; full pytest is still running. No current failure is established.
-- Develop head `3bd2b7f0bc25f9b3b756a1765b27db7ab787b789` has no completed exact pull-request-triggered canonical Quality observed this cycle. Do not claim repository-wide green for that exact head from older runs.
+- Backend `34019237735@a5904fc2078a8dec5eece17dd352436d14453d8f`: in progress; Windows path safety PASS, Linux storage PASS, local install smoke PASS, Validator PASS, Ruff PASS, mypy PASS, full pytest running at observation time. It is not fix evidence because its code still contains the `ERR-0016` root cause.
+- UI `34017125454@bf7fadf849140697dc63c92c6a5c6c69335e3278 = success`.
+- Current UI `34019891561@089a0e4b0b8fc43e37f00f8288f64cd62014fbb4`: in progress; Windows path safety PASS, Linux storage PASS, local install smoke PASS, Validator PASS, Ruff PASS, mypy PASS, full pytest running at observation time.
+- Current Develop `8236500a5ae0ae58e7dce5bb3cf0771eb534670d` has no exact completed canonical Quality observed this run; do not claim repository-wide green for that exact head from older evidence.
 
 ## Historical state retained
 
-- `ERR-0004` remains `FIXED`; exact B010/I001 evidence and exact canonical green verification remain recorded.
-- `ERR-0014` remains `STALE`, not `FIXED`: reopen the same ID only if the exact exit-139/controller-refresh signature recurs on a current exact SHA.
+- `ERR-0004` remains `FIXED`; exact startup/readiness Ruff evidence and exact canonical green verification remain recorded in the ledger.
+- `ERR-0014` remains `STALE`, not `FIXED`; reopen only on recurrence of the exact controller-refresh exit-139 signature on a current exact SHA.
+- `ERR-0015` remains `FIXED`; its finite/remaining-aware harness correction is independently verified and must not be confused with the new product poisoning regression.
 
 ## Persistent Windows/runtime regression knowledge
 
-The following signatures remain Beta/release acceptance knowledge only and are not automatically OPEN without current exact-SHA reproduction:
+The following remain Beta/release acceptance knowledge and are not automatically OPEN without current exact-SHA reproduction:
 
 - missing `pypdf` distribution metadata / `PackageNotFoundError` plus supervisor relaunch behavior;
 - frozen child argv recursion: preserve fail-closed routing and two-EXE split;
@@ -64,17 +64,14 @@ Any recurrence on an exact Beta/release candidate blocks promotion until root ca
 
 ## Integrator handoff
 
-- ERR-0015 remains closed: fix `5abee1fb3cf9aa639a2600796036302ef63a773d`, verified descendant `a9a267ec790ea4dd1c9cfc79d07fc1665f664e30`, canonical Quality `34009044381 = success`; later Backend descendant `9dc8375399c6b07f9c52545783004607aa9dd430`, Quality `34011613102 = success`.
-- Backend exact head `20edbed46471a50e72661e2e69502b094a0b599f` is additionally canonical-green via `34014111747 = success`.
-- UI exact head `5a40e75ed78293ddd8c1ea3533c5632d6dea2910` is canonical-green via `34014713429 = success`.
-- Preserve all provider transport byte-budget, deadline, loopback-only/proxy-free, Storage, Security, Recovery, Qt, Windows path, Validator, Ruff and mypy guards.
-- Do not promote current Develop `3bd2b7f0bc25f9b3b756a1765b27db7ab787b789` without exact completed canonical evidence.
-- Current Backend `c991482a9f49dec50e69779f73e3a0939df5c73b` and UI `bf7fadf849140697dc63c92c6a5c6c69335e3278` runs are partially green but still await full pytest/workflow completion; do not mark either exact head READY yet.
+- Reject the Backend oversize-before-accounting lineage beginning at `5e6862fe9544465e3aed66840601a204d4d2cae5`, including current descendant `a5904fc2078a8dec5eece17dd352436d14453d8f`, as READY while `ERR-0016` remains open.
+- Accept no fix claim until focused read/readline overflow-poisoning, exact-limit/EOF and `ERR-0015` negative-read regressions pass, Ruff and mypy remain green, and an exact canonical full Quality run succeeds.
+- Preserve all provider transport byte-budget, deadline, bytes-only, loopback-only/proxy-free, Storage, Security, Recovery, Qt, Windows path, Validator, Ruff and mypy guards.
+- `ERR-0001` through `ERR-0013` and `ERR-0015` remain fixed; `ERR-0014` remains stale.
 
 ## Next scan
 
-1. Consume completion of Backend Quality `34016515174@c991482a9f49dec50e69779f73e3a0939df5c73b`.
-2. Consume completion of UI Quality `34017125454@bf7fadf849140697dc63c92c6a5c6c69335e3278`.
-3. Inspect the next exact Develop/runtime signal.
-4. Allocate or reopen a stable `ERR-####` only for a concrete deduplicated primary failure; then finalize root cause or perform the minimal scope-correct fix in the same run where evidence permits.
-5. Keep historical crash classes as release-regression knowledge unless reproduced on the exact current candidate.
+1. Consume completion of Backend Quality `34019237735@a5904fc2078a8dec5eece17dd352436d14453d8f` and verify whether it reproduces `ERR-0016`.
+2. Verify the first Backend correction on a new exact SHA against both poisoning and oversize-accounting semantics; do not accept a harness-only weakening.
+3. Consume current UI Quality `34019891561@089a0e4b0b8fc43e37f00f8288f64cd62014fbb4` for any unrelated concrete primary failure.
+4. After `ERR-0016` closure, immediately scan the next current canonical/runtime signal and allocate a new stable ID only for a concrete deduplicated primary failure.
