@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `8941f823d896e85b58c7f566b45bef04bbfdb84d`
+Baseline: `208efc473cbcbb30f7af08a2e5e1dc6956c557ce`
 Integration target: `develop/pathena-next`
 UI worker: `postmerge/ui`
 
@@ -276,10 +276,18 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
 
 ## UI-GAP-0049 — Disconnected composer readiness reason is not exposed through accessibility description
-- Screen: `11 — Startup / Empty / Disconnected state`; Category: `ACCESSIBILITY / STATE`; Severity: `P1`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Screen: `11 — Startup / Empty / Disconnected state`; Category: `ACCESSIBILITY / STATE`; Severity: `P1`; Status: `FIXED`.
 - Evidence: `PathenaStartupExperience.sync()` already derives truthful readiness copy for `promptInput` and exposes it as a tooltip, but the same reason was not mirrored to `accessibleDescription`. This made the disabled/disconnected composer less self-describing to assistive technology than to pointer users.
 - Product `39f1e71db444302f7b4e08006a4a281727a0f919` mirrors the already-derived prompt tooltip into `accessibleDescription` after every readiness sync, covering both disconnected and ready states without adding a new state source. Focused regression `eed8dff3923f415640517a96e8dd395d55c75ea0` locks equality between the truthful tooltip and accessibility description in the disconnected startup state.
 - Core readiness, model selection, prompt enablement, chat routing, persistence, backend/storage/security/runtime and relaunch/spawn behavior are unchanged; this is accessibility metadata only.
+- Verification evidence: exact UI head `a9c17d91f1c332e3ef0d9950dd858a5f8d7d7f3f` passed canonical ATHENA Quality Gate `34064741852` with conclusion `success`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0050 — Startup reconnect status detail is not exposed through accessibility description
+- Screen: `11 — Startup / Empty / Disconnected state`; Category: `ACCESSIBILITY / STATE`; Severity: `P1`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Evidence: disconnected `PathenaStartupExperience.sync()` exposes `pATHENA reconnecting` visibly and the truthful `pATHENA reconnects automatically` detail through the `localStatus` tooltip, but that automatic-reconnect explanation was not mirrored to `accessibleDescription` for assistive technology.
+- Product `0e6c31510abaaa9fe312c809565297b1aad785fa` mirrors only the existing disconnected `localStatus` tooltip into its accessibility description. Focused regression `ffeff123f868c5217b1592951e039c51347f156a` locks tooltip/accessibility equivalence while retaining the already-verified prompt readiness assertion.
+- Reconnect behavior, Core readiness, session-control visibility, prompt enablement, chat routing, persistence, backend/storage/security/runtime and relaunch/spawn behavior are unchanged; this is accessibility metadata only.
 - Verification evidence: canonical Quality on the exact final product/test/documentation successor is pending; no PASS is claimed yet.
 - Visual status: `IMPLEMENTED_PENDING_VERIFY`; no screenshot-level `MATCH` claim.
 
