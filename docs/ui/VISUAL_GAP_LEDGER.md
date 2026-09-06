@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `fd15a75212acac7f88886117835b8d754577ea91`
+Baseline: `14ca6fece527d6b51956b3e5fa3ec7b291252420`
 Integration target: `develop/pathena-next`
 UI worker: `postmerge/ui`
 
@@ -156,11 +156,12 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
 
 ## UI-GAP-0034 — Research job list lacks row-level focused-current presentation
-- Screen: `03 — Research`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Screen: `03 — Research`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `FIXED`.
 - Evidence: `ResearchWorkspace` creates keyboard-focusable `QListWidget#researchJobList`. The shared foundation supplies a widget focus border and selected-row presentation, but before this slice it had no `researchJobList:focus::item:current` rule, so the active keyboard row was not separately expressed from the unfocused selected row.
 - Product `0da430fdccb469b1edf8fd7adf01773b5ec5340f` adds `QListWidget#researchJobList:focus::item:current` to the existing canonical focused-current selector block, using readable text, `surface_hover`, and the existing 2px accent left edge.
 - Focused regression `3d9339295f3c413c4c7a31c2a7037600bc3b93f6` locks the selector and canonical tokens. Research selection routing, durable-job state, cancellation semantics, scheduler behavior and backend/runtime semantics are unchanged.
-- Canonical Quality `34014651392` is pending on the exact product/test head at handoff time.
+- Verification evidence: exact UI documentation head `5a40e75ed78293ddd8c1ea3533c5632d6dea2910` passed ATHENA Quality Gate `34014713429` with conclusion `success`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
 
 ## Evidence blocker
 
