@@ -125,11 +125,12 @@ class _BoundedLocalResponse:
             raise OSError("Local model streaming response does not support bounded lines.")
         remaining = self._max_bytes - self._bytes_read
         raw = self._require_bytes(readline(remaining + 1))
-        self._bytes_read += len(raw)
-        if self._bytes_read > self._max_bytes:
+        next_bytes_read = self._bytes_read + len(raw)
+        if next_bytes_read > self._max_bytes:
             raise LocalResponseTooLargeError(
                 "Local model streaming response exceeded the configured byte limit."
             )
+        self._bytes_read = next_bytes_read
         self._assert_before_deadline()
         return raw
 
@@ -145,11 +146,12 @@ class _BoundedLocalResponse:
             else min(amt, remaining + 1)
         )
         raw = self._require_bytes(self._response.read(request_size))
-        self._bytes_read += len(raw)
-        if self._bytes_read > self._max_bytes:
+        next_bytes_read = self._bytes_read + len(raw)
+        if next_bytes_read > self._max_bytes:
             raise LocalResponseTooLargeError(
                 "Local model response exceeded the configured byte limit."
             )
+        self._bytes_read = next_bytes_read
         self._assert_before_deadline()
         return raw
 
