@@ -2,9 +2,9 @@
 
 ## Baseline
 
-- Baseline: `develop/pathena-next@2bc57c4c84a0ed13ca9adbbc61f8fd00fc87fb8f`.
-- Error branch history-preserving NON-FORCE sync: `a00978919ca870fdfc6029cfc925cdaa68c15cd7`, parents prior Error `410bdc595d3f4c370541b0701386cfe4b4b880ce` plus current Develop.
-- Worker heads reviewed: Spec/Core `942d19f46a91af6672bb7639c1fca4cadf378ac7`; Backend `80bd67a2a0ad9b1b013635597f6cdaeca0f05cba`; UI `38a28f61af16d0b12500b4056b586ba934a2ba1a`; Integrator/Develop `2bc57c4c84a0ed13ca9adbbc61f8fd00fc87fb8f`.
+- Current baseline reviewed: `develop/pathena-next@1cc7b8dceb5b4ff098442e9f17f89b8cc36cb390`.
+- Error branch prior head: `postmerge/errors@045e3fc6b73c7f79b7b305f6d284f22be8dba0a3`.
+- Worker heads reviewed: Spec/Core `528ed7d3d7d80470a0fa78458ff2babd59bff20e`; Backend `2ea98794facffcae29d4f94b337fc84083028526`; Integrator/Develop `1cc7b8dceb5b4ff098442e9f17f89b8cc36cb390`.
 - `spec-core.md`, `backend.md`, `ui.md`, `integrator.md`, worker heads and canonical Quality evidence were reviewed. `main` and `bnbgrs/ATHENA` remained read-only.
 
 ## Current state
@@ -14,32 +14,36 @@
 - STALE: `ERR-0014`.
 - BLOCKED: none.
 
-## ERR-0018 — fourth exact verification and final root-cause narrowing
+## ERR-0018 — fourth correction concretely rejected; guessing stopped
 
-Spec/Core head `942d19f46a91af6672bb7639c1fca4cadf378ac7` was concretely verified with canonical Quality `34054516742 = failure`. The run completed with exactly one primary gate failure: Ruff `I001 [*] Import block is un-sorted or un-formatted` at `src/athena/memory/context.py:3:1`.
+Spec/Core head `528ed7d3d7d80470a0fa78458ff2babd59bff20e` was concretely verified with canonical Quality `34057610329 = failure`. The run completed with exactly one primary gate failure: Ruff `I001 [*] Import block is un-sorted or un-formatted` at `src/athena/memory/context.py:3:1`.
 
-Everything else is green on that exact SHA: Local install/Core-API restart PASS; Windows path safety PASS; Linux storage/API path-boundary PASS; Validator 63/63 PASS; mypy PASS; full pytest `4736 passed, 3 skipped, 2 warnings`.
+Everything else is green on that exact SHA: Local install/Core-API restart PASS; Windows path safety PASS; Linux storage/API path-boundary PASS; Validator 63/63 PASS; mypy PASS; full pytest `4736 passed, 3 skipped, 2 warnings`; focused `tests/unit/test_personal_memory_context.py` also passes inside the full suite.
 
-The exact import forms now rejected by canonical Quality are:
+The exact current import block is:
 
-1. `e8f7199f70c56a79403026926430ea56a5177bec`: `import uuid` before `from dataclasses import dataclass`, local `athena.memory.models` import multiline.
-2. `b8858f986ec96e5973d47f8b74d2a120149a2037`: `from dataclasses import dataclass` before `import uuid`, local models import single-line.
-3. `942d19f46a91af6672bb7639c1fca4cadf378ac7`: `from dataclasses import dataclass` before `import uuid`, local models import multiline.
+```python
+from __future__ import annotations
 
-That exhausts three of the four meaningful combinations. The only remaining canonical candidate is therefore `import uuid` before `from dataclasses import dataclass` with the `athena.memory.models` import kept single-line. This is now the finalized bounded root cause/corrective shape, not another open-ended hypothesis.
+import uuid
+from dataclasses import dataclass
 
-Current Develop still does not contain `src/athena/memory/context.py`; Error must not import the unintegrated Spec/Core feature onto `postmerge/errors`. The product mutation remains Spec/Core-owned. The next Spec/Core correction should change only the import block to the remaining form and then run Ruff plus focused Personal Memory context tests and canonical Quality.
+from athena.memory.models import MemoryScopeKind, MemorySensitivity, PersonalMemorySnapshot
+```
+
+This is the previously proposed remaining permutation, and canonical Ruff still rejects it. Therefore the prior handoff claim that the root cause/corrective shape was finalized by enumerating four hand-written permutations was incorrect and is withdrawn. `ERR-0018` remains bounded to import-block normalization, but the next mutation must be produced from the repository-pinned `ruff==0.15.22` fixer itself (`python -m ruff check src/athena/memory/context.py --fix`) rather than another manually guessed ordering/wrapping variant.
+
+No semantic Personal Memory defect is evidenced. Do not alter projection, protection, duplicate/snapshot identity or active-only behavior. Develop/Error still must not import this unintegrated Spec/Core feature as a workaround.
 
 ## Other evidence
 
-- Backend `postmerge/backend@80bd67a2a0ad9b1b013635597f6cdaeca0f05cba`: Quality `34055313570` was in progress at scan time; no confirmed independent primary failure.
-- UI `postmerge/ui@38a28f61af16d0b12500b4056b586ba934a2ba1a`: Quality `34056114998` was pending at scan time; no confirmed independent primary failure.
-- Current Develop `2bc57c4c84a0ed13ca9adbbc61f8fd00fc87fb8f` has no exact completed canonical Quality verified this run and is not promotion-ready by Error criteria.
+- Backend current worker head `postmerge/backend@2ea98794facffcae29d4f94b337fc84083028526` is a history-preserving WAL-policy synchronization descendant; no independent primary error was confirmed in this scan.
+- Current Develop `1cc7b8dceb5b4ff098442e9f17f89b8cc36cb390` advanced through integrator checkpoint-counter documentation/integration and has no exact completed canonical Quality verified by Error in this run; no promotion-ready claim.
 
 ## Integrator handoff
 
-- Reject Spec/Core `e8f7199f70c56a79403026926430ea56a5177bec`, `b8858f986ec96e5973d47f8b74d2a120149a2037`, and `942d19f46a91af6672bb7639c1fca4cadf378ac7` as ready.
-- Next Spec/Core correction: keep `import uuid` before `from dataclasses import dataclass` and keep `from athena.memory.models import MemoryScopeKind, MemorySensitivity, PersonalMemorySnapshot` single-line. No semantic changes.
+- Reject Spec/Core `528ed7d3d7d80470a0fa78458ff2babd59bff20e` as ready: exact Quality `34057610329` is Ruff-only failure.
+- Do not repeat any hand-written import permutation. Spec/Core must run pinned `ruff==0.15.22` with `--fix` on `src/athena/memory/context.py`, commit only the fixer-produced import-block change, then rerun exact verification.
 - Require exact corrected SHA: Ruff PASS, focused `tests/unit/test_personal_memory_context.py` PASS, full pytest PASS and canonical Quality SUCCESS before `ERR-0018` becomes FIXED.
 - Do not weaken Ruff or import the unintegrated feature into Develop/Error as a workaround.
 - Preserve Provider/Transport byte-budget/deadline/poisoning, Personal-Memory provenance/review, Windows path safety, Storage, Security and Recovery guards.
@@ -50,6 +54,6 @@ Retain without reopening absent exact-current reproduction: Windows `pypdf` meta
 
 ## Next scan
 
-1. Verify the next Spec/Core descendant after `942d19f46a91af6672bb7639c1fca4cadf378ac7`; close `ERR-0018` only on exact Ruff + focused + full canonical evidence.
-2. Consume Backend Quality `34055313570` and UI Quality `34056114998` to completion.
-3. Inspect the next exact current Develop/worker canonical or runtime signal and deduplicate against the ledger/crash matrix.
+1. Verify the first Spec/Core descendant of `528ed7d3d7d80470a0fa78458ff2babd59bff20e` generated using pinned Ruff `--fix`; close `ERR-0018` only on exact Ruff + focused + full canonical evidence.
+2. Consume latest Backend/UI canonical runs to completion and inspect the next exact current Develop/worker canonical or runtime signal.
+3. Deduplicate any new failure against the ledger and persistent crash matrix before allocating a new ERR id.
