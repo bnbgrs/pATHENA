@@ -2,50 +2,80 @@
 
 ## Baseline
 
-- Shared baseline: `develop/pathena-next@70f985ce7a28044824bfbfa53769b982fa152747`.
-- Worker pre-run head: `postmerge/backend@8964f9ae22f0b3f98d06f9c000a47a98dc54f473`.
-- Worker heads reviewed: Error reports OPEN none; Spec/Core and UI are disjoint; Integrator is current Develop.
-- History-preserving NON-FORCE synchronization: `2e1b1b5b06c6b2486066054b62cc02982bb270b6`, parents prior Backend head plus exact Develop, using exact Develop tree plus only Backend-owned migration/handoff blobs.
-- `main` and `bnbgrs/ATHENA` remained strictly read-only; no force update or history rewrite was used.
+- Shared baseline: `develop/pathena-next@eaab89bb4d7b08839517c40b622480bb1dc309f0`.
+- Worker branch: `postmerge/backend`.
+- History-preserving NON-FORCE synchronization with current Develop: merge commit `b7d2f5fd6ed3e1c35fd7458f84be62341e3938af`.
+- `main@0d4d621f8a38ddf8eccfa09622bf193687619943` remains strictly read-only and untouched.
 
-## ExternalAccessGateway runtime boundaries — VERIFIED / READY
+## Selected backend slice
 
-Required runtime validation remains exact-green and integrated: `ttl_seconds` and `max_bytes` require true non-bool integers; `timeout_seconds` requires finite numeric non-bool input. Canonical Quality `33884210684@c67fa646d8ba4e4137cdf69992b9c8b42ad904d6 = success`.
+Area: durable deletion-ledger runtime boundaries / recovery cursor.
 
-No Tor/Direct, proxy, redirect, HTTPS/default-port, compressed-response, response-size, audit, provenance, fsync or transactional Source-finalization invariant was weakened.
+Spec/error anchor: `ERR-0001`, backend audit tasks 290-293, and the existing deletion/recovery invariants in `src/athena/lifecycle/deletion.py`.
 
-## Prior Storage/Recovery slice — migration PRAGMA runtime types VERIFIED / READY
+Product commit `780d25d74ce2e310b6a4bc434f547a23163e8b78` adds fail-before-SQL runtime validation for malformed entity types and bool-as-int deletion values without changing persistence or recovery semantics. Ruff-only harness correction `2f705d5e0fc1c77dd60612b5aeaa16d9380e46cd` formats the new boundary test import block; assertions and product behavior are unchanged.
 
-Canonical Quality `34033392294@8964f9ae22f0b3f98d06f9c000a47a98dc54f473 = success`. Safety-critical PRAGMA values are exact runtime types: `user_version` and WAL checkpoint counters are genuine non-bool integers; `journal_mode` is genuine text. This lineage is now Integrator-ready.
+## Exact verification evidence
 
-## New Storage/Recovery slice — WAL checkpoint frame-count domain
+Canonical Quality run `33749788522` checked exact Backend head `1cfd18c69014390380bb960b86c8e1b81a5067ac`.
 
-Product `051b9d3f553f686ff30c20a0bf79291281023c8f` strengthens candidate migration acceptance so `log_frames` and `checkpointed_frames` must be non-negative genuine integers. Previously the exact-type boundary still allowed `(busy=0, log_frames=-1, checkpointed_frames=-1)` to satisfy equality and falsely pass complete-checkpoint acceptance even though negative SQLite frame counts are invalid.
+Backend-relevant results:
 
-Focused regression `633300e071143b7b43dba8e6bc49f132ba37350f` adds negative `log_frames` and negative `checkpointed_frames` cases and verifies fail-closed `MigrationExecutorError` before journal-mode/activation eligibility.
+- specification validator: PASS;
+- Ruff: PASS;
+- mypy: PASS;
+- Windows path safety: PASS;
+- Linux storage regressions: PASS;
+- Local install smoke: PASS;
+- `tests/unit/test_deletion_ledger_boundaries.py`: all 22 tests PASS inside the full pytest run;
+- full pytest: `1 failed, 4489 passed, 3 skipped, 2 warnings`.
 
-Canonical Quality `34036277571@633300e071143b7b43dba8e6bc49f132ba37350f` exists and was pending at the exact check. No PASS is claimed for the new slice until a completed exact descendant succeeds.
+The single pytest failure is exactly `tests/unit/test_pathena_pallas_full_view.py::test_open_workspace_reuses_one_synchronized_full_surface`, raising `AttributeError` in `MessageActionTabOrderController.eventFilter()` because `document` is transiently absent. This is the already UI-owned PALLAS lifecycle defect (`UI-GAP-0003`), not a deletion-ledger/backend failure. No new Backend-owned pytest failure appears in the exact log.
 
-## Call chain / invariants
+UI independently corrected that exact lifecycle root cause and canonical Quality run `33751403354` on UI head `76cb122dbe7b58b0fa49bbcb36de2bd732922d4d` completed SUCCESS. Backend does not absorb or modify the UI fix.
 
-`migrate_schema_candidate -> candidate path/link/type guards -> SQLite candidate-only open -> initialize_schema -> exact user_version -> TRUNCATE checkpoint -> exact busy integer -> non-negative exact log/checkpointed frame counters -> complete checkpoint equality -> exact text DELETE journal mode -> close -> sidecar absence verification`.
+## Product call-chain and invariants
 
-Retained invariants: candidate-only mutation; no live database migration; no coercion of safety-critical PRAGMA values; complete WAL checkpoint required; DELETE journal mode required before activation; candidate path absolute/regular/non-link with safe ancestors; sidecar-free handoff mandatory; no transaction/WAL/recovery format change; no new retry or crypto behavior.
+`record_deletion(runtime input) -> exact runtime validation -> UUID materialization -> existing-marker SELECT -> identity reconciliation -> INSERT/readback`.
 
-## Queue correction
+`read_deletion_records(after_seq) -> exact runtime validation -> ordered ledger SELECT`.
 
-The 2026-08-24 backend queue is stale in two places reviewed this run: current Develop already contains Windows HANDLE-bound durable replacement in `storage/durable_fs.py` (so BE-038 must not be blindly re-applied), and Chat generation already calls the reusable revision-aware ModelSignature guard (so BE-020 is no longer a current mutation gap). Backend therefore did not duplicate either stale item.
+Retained invariants:
 
-## Persistent release regression knowledge
+- malformed values fail before SQL;
+- bool is not accepted as deletion timestamp, commit sequence or cursor;
+- `deleted_at_us=0` and `after_seq=0` remain valid;
+- deletion commit sequence remains a positive genuine integer;
+- marker idempotency/reconciliation, restore replay, transaction boundaries, ordering, identity-conflict behavior, schema and persistence representation are unchanged;
+- no Security, TOR, Provider, UI or platform-path semantics changed.
 
-Retain Windows `pypdf` packaging metadata, fail-closed frozen child argv, Desktop/Worker two-EXE split, exactly one Desktop with bounded workers, adaptive 2048-context DirectChat reserve, lane-lock `PermissionError [Errno 13]` -> `SchedulerLaneOwnershipError` -> packaged-worker `OSError [Errno 22]`, and storage-bootstrap/migration startup signatures as Beta/release acceptance knowledge. Reopen only on exact-current reproduction.
+## Verification / readiness state
+
+- `ERR-0002` Ruff I001: FIXED and verified by canonical Ruff PASS in run `33749788522`.
+- `ERR-0001` Backend candidate: BACKEND_VERIFIED / INTEGRATOR_READY. Its focused boundary suite passes in the full canonical pytest execution, and every Backend/system canonical job is green. The only global failure is the independently owned UI/PALLAS lifecycle signature above.
+- Error worker should independently re-verify `ERR-0001` after integration before changing the canonical Error Ledger state to `FIXED`.
+
+## Failure / recovery impact
+
+The product mutation is fail-before-SQL and side-effect reducing. No ledger rows, schema, transaction semantics, ordering, marker identity, restore replay, crash/restart behavior or recovery format changed. Invalid boundary inputs now terminate before any SQL operation.
+
+## Platform impact
+
+Platform-neutral Python runtime-boundary hardening only. Windows path safety, Linux storage regression and local-install smoke jobs are all green on the exact Backend lineage.
+
+## Coordination
+
+- `postmerge/errors`: exact pytest evidence gap is now closed; `ERR-0001` may be treated as Backend-verified, with final canonical Ledger closure after integration/reverification.
+- `postmerge/ui`: owns `UI-GAP-0003`; its exact corrective lineage is now canonical green. Backend must not modify this UI root cause.
+- `postmerge/spec-core`: normal-Hybrid Search facade/application wiring remains Core-owned and non-overlapping.
+- `develop/pathena-next`: integration target only; Backend never self-integrates.
 
 ## Integrator handoff
 
-READY: ExternalAccessGateway runtime boundaries; corrected Local HTTP lineage; migration PRAGMA exact-runtime-type boundary through `8964f9ae22f0b3f98d06f9c000a47a98dc54f473` / Quality `34033392294`.
+READY for independent Integrator review/integration: product `780d25d74ce2e310b6a4bc434f547a23163e8b78` plus test/Ruff correction `2f705d5e0fc1c77dd60612b5aeaa16d9380e46cd`, carried on the history-preserving current-Develop Backend lineage beginning at merge `b7d2f5fd6ed3e1c35fd7458f84be62341e3938af`.
 
-NOT READY: negative WAL checkpoint frame-count rejection `051b9d3f553f686ff30c20a0bf79291281023c8f` + regression `633300e071143b7b43dba8e6bc49f132ba37350f` until canonical Quality succeeds on an exact descendant.
+The global red result of run `33749788522` must not be attributed to this Backend slice: its sole failure is the exact independently verified UI/PALLAS defect described above.
 
 ## Next backend slice
 
-Consume the first completed canonical Quality containing `633300e071143b7b43dba8e6bc49f132ba37350f` or this documentation-only descendant. If green, promote negative checkpoint-frame rejection VERIFIED / INTEGRATOR_READY and take the highest current non-stale, disjoint Backend/System P1/P2 gap. If red, isolate the smallest Backend-owned failure and repair without weakening schema/WAL/recovery/path or Provider/Security invariants. If cancelled, do not repeat the runner state unchanged; use a different executable verification route or a distinct real Backend/System slice.
+Select the highest currently unclaimed Backend/System P0/P1/P2 gap from current Alpha/Beta progress, Error Ledger and worker handoffs after excluding Core-owned normal-Hybrid Search and UI-owned PALLAS lifecycle work. Preserve deletion-ledger ownership only until Integrator imports the verified slice; do not broaden this root cause further.
