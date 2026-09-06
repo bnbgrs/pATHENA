@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `f0a0272e564b483f91099846c2644006298dc6a4`
+Baseline: `2bc57c4c84a0ed13ca9adbbc61f8fd00fc87fb8f`
 Integration target: `develop/pathena-next`
 UI worker: `postmerge/ui`
 
@@ -199,7 +199,7 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Evidence: `FilesWorkspace` creates read-only `QPlainTextEdit#sourceDetails`; the reader remains keyboard-focusable for reading/copying, while the canonical object-specific reader-focus block covered Help, Library, Research and Jobs but omitted Sources.
 - Product `6d2d0eb32fa0bcd6b2c1112070a36ce1401f6bfa` adds only `QPlainTextEdit#sourceDetails:focus` to the existing canonical accent-border focus block. Focused regression `57636da80d3f3db586d1d728b4e6d39dd11896bd` locks the selector and canonical accent token.
 - Source content, import/retrieval processing, selection routing, read-only semantics, provenance and backend/storage/security/runtime behavior are unchanged.
-- Verification evidence: exact UI head `d955ccd53e3e2c7f98af0f6f3838be1ffa9b6fe6` passed ATHENA Quality Gate `34031028328` with conclusion `success`.
+- Verification evidence: exact UI head `d955ccd53e3e2c7f98af0f6f3838be1ffa9b6fe6` passed canonical ATHENA Quality Gate `34031028328` with conclusion `success`.
 - Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
 
 ## UI-GAP-0040 — System detail text lacks explicit keyboard-focus presentation
@@ -235,10 +235,36 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
 
 ## UI-GAP-0044 — Settings runtime facts are not keyboard-selectable with explicit focus presentation
-- Screen: `07 — Settings`; Category: `ACCESSIBILITY / KEYBOARD / INTERACTION`; Severity: `P1`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Screen: `07 — Settings`; Category: `ACCESSIBILITY / KEYBOARD / INTERACTION`; Severity: `P1`; Status: `FIXED`.
 - Evidence: the snapshot-backed Provider, Connection, Persistence and runtime-detail labels expose important live/local state through `settingsProviderState`, `settingsNetworkState`, `settingsPersistenceState` and `settingsRuntimeDetail`, but previously used plain-text QLabel presentation without keyboard text selection or object-specific focus styling. Keyboard users therefore could not select/copy these truthful Settings facts consistently with System runtime facts.
 - Product `caa288717e3eb8f403cece7c43affbb6e3282be2` enables only `TextSelectableByMouse | TextSelectableByKeyboard` on the four existing runtime labels; coupled presentation product `fd013674ff126d3f7a6429fe08c7240fcd7b2b50` adds only their four object-specific `:focus` selectors to the existing canonical accent-border focus block. Focused regression `691011884825a91227d35eb6d42b915e9a5bc4e6` locks both selection flags, all four object identities and their canonical focus selectors.
 - Runtime text/state vocabulary, snapshot projection, persistence behavior, provider/Core semantics, network truthfulness and backend/storage/security behavior are unchanged; this is read/copy/focus accessibility only.
+- Verification evidence: exact UI head `c9762d1b65dd6c9db1c30ae9cba9510f83ab942f` passed canonical ATHENA Quality Gate `34049733492` with conclusion `success`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0045 — PALLAS semantic canvas lacks explicit keyboard-focus presentation
+- Screen: `08 — PALLAS`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `FIXED`.
+- Evidence: `_PallasCanvas` is a `StrongFocus` frameless `QGraphicsView`. Semantic nodes have their own focus outlines after node focus exists, but the canvas itself previously had no explicit pATHENA widget-focus presentation when keyboard focus first enters the canvas.
+- Product `73653063f4922d1e7168f06560c7f0e6bfda1fb7` adds only `QGraphicsView#pallasSemanticCanvas:focus` to the existing canonical accent-border focus block. Focused regression `1bbecf2c9a3a8ed738b7203e39085e65477a0f28` locks the selector and canonical accent border.
+- PALLAS graph data, node selection, keyboard traversal, pan/zoom, Inspector synchronization and backend/Core semantics are unchanged.
+- Verification evidence: exact UI head `59b2046d5e127664195f7ecf17245c45f70f00ca` passed canonical ATHENA Quality Gate `34052665337` with conclusion `success`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0046 — PALLAS full synchronized workspace lacks a conflict-free keyboard opening path
+- Screen: `08 — PALLAS`; Category: `ACCESSIBILITY / KEYBOARD / INTERACTION`; Severity: `P1`; Status: `FIXED`.
+- Evidence: the compact semantic field exposes a real double-click path to the synchronized full PALLAS workspace, but keyboard users had no equivalent opening path. Plain Enter, keypad Enter and Space are already intentionally owned by semantic-node selection in `_PallasCanvas.keyPressEvent`, so intercepting them would break the verified keyboard selection contract.
+- Product `4b4eb8c0ee1ea66f7f9c50a03c464330b02f7143` installs the full-view event filter on the real compact canvas in addition to its viewport and adds only `Ctrl+Enter` as the full-view keyboard command. Existing left-button double-click remains unchanged. Target/canvas tooltip and accessible description expose the same shortcut.
+- Focused regression `5ce4d87f7360741087d7a59a91441faa8e6d8a83` proves plain Enter does not open the full view, Ctrl+Enter opens the single synchronized full workspace, focus lands on the full semantic canvas, and the keyboard path is exposed in accessibility copy.
+- Graph state, node selection, Enter/Space selection behavior, pan/zoom, Inspector synchronization, Core/backend/storage/security and runtime semantics are unchanged.
+- Verification evidence: exact UI head `38a28f61af16d0b12500b4056b586ba934a2ba1a` passed canonical ATHENA Quality Gate `34056114998` with conclusion `success`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0047 — Command Palette results lack row-level focused-current presentation
+- Screen: `09 — Command Palette / Help`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Evidence: `CommandPaletteController` creates keyboard-focusable `QListWidget#commandPaletteResults`, routes Up/Down movement and Enter activation, and the shared foundation already provides normal/hover/selected item styling plus a widget-level `QListWidget:focus` border. The canonical focused-current row block covered Library, Research, Jobs and Sources lists but omitted Command Palette results, so the active keyboard row was not separately expressed from an unfocused selected row.
+- Product `ca27570a842a98754dfcce0741bd946ba2711689` adds only `QListWidget#commandPaletteResults:focus::item:current` to the existing canonical focused-current selector block using readable text, `surface_hover`, and the existing 2px accent left edge.
+- Focused regression `5a2351300fc46974e68bdd7ce120848995f12c5f` locks the selector and canonical focus tokens.
+- Query filtering, command ordering, Up/Down movement, Enter activation, command routing, F1 help and backend/storage/security/runtime semantics are unchanged.
 - Verification evidence: canonical Quality on the exact final product/test/documentation successor is pending; no PASS is claimed yet.
 - Visual status: `IMPLEMENTED_PENDING_VERIFY`; no screenshot-level `MATCH` claim.
 
