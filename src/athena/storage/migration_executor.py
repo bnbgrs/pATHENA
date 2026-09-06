@@ -19,6 +19,13 @@ def _require_sqlite_int(value: object, label: str) -> int:
     return value
 
 
+def _require_sqlite_nonnegative_int(value: object, label: str) -> int:
+    validated = _require_sqlite_int(value, label)
+    if validated < 0:
+        raise MigrationExecutorError(f"{label} must not be negative.")
+    return validated
+
+
 def _require_sqlite_text(value: object, label: str) -> str:
     if not isinstance(value, str):
         raise MigrationExecutorError(f"{label} must be a text SQLite value.")
@@ -46,21 +53,24 @@ def migrate_schema_candidate(candidate_db: Path, *, created_at_us: int) -> None:
         connection.row_factory = sqlite3.Row
         initialize_schema(connection, created_at_us=created_at_us)
         row = connection.execute("PRAGMA user_version").fetchone()
-        if row is None:
-            raise MigrationExecutorError("Migration candidate did not reach current schema.")
+        if row is None or len(row) != 1:
+            raise MigrationExecutorError("Migration candidate user_version returned invalid status.")
         user_version = _require_sqlite_int(row[0], "Migration candidate user_version")
         if user_version != SCHEMA_VERSION:
             raise MigrationExecutorError("Migration candidate did not reach current schema.")
 
         checkpoint = connection.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
-        if checkpoint is None or len(checkpoint) < 3:
-            raise MigrationExecutorError("Migration candidate WAL checkpoint returned no status.")
-        busy = _require_sqlite_int(checkpoint[0], "Migration candidate checkpoint busy")
-        log_frames = _require_sqlite_int(
+        if checkpoint is None or len(checkpoint) != 3:
+            raise MigrationExecutorError("Migration candidate WAL checkpoint returned invalid status.")
+        busy = _require_sqlite_nonnegative_int(
+            checkpoint[0],
+            "Migration candidate checkpoint busy",
+        )
+        log_frames = _require_sqlite_nonnegative_int(
             checkpoint[1],
             "Migration candidate checkpoint log_frames",
         )
-        checkpointed_frames = _require_sqlite_int(
+        checkpointed_frames = _require_sqlite_nonnegative_int(
             checkpoint[2],
             "Migration candidate checkpoint checkpointed_frames",
         )
@@ -70,8 +80,8 @@ def migrate_schema_candidate(candidate_db: Path, *, created_at_us: int) -> None:
             )
 
         mode = connection.execute("PRAGMA journal_mode = DELETE").fetchone()
-        if mode is None:
-            raise MigrationExecutorError("Migration candidate could not leave WAL mode.")
+        if mode is None or len(mode) != 1:
+            raise MigrationExecutorError("Migration candidate journal_mode returned invalid status.")
         journal_mode = _require_sqlite_text(mode[0], "Migration candidate journal_mode")
         if journal_mode.casefold() != "delete":
             raise MigrationExecutorError("Migration candidate could not leave WAL mode.")

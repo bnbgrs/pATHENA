@@ -3,47 +3,42 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `8de698904c98cb50de327e805ae8e9b600df11ea`.
+- Develop before this run: `1cc7b8dceb5b4ff098442e9f17f89b8cc36cb390`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `df0009ddc998216638ff63d426310138b34ddd2c`; spec-core `a47d4902c44d1a2126536cef65cb5f858aaa7fe9`; backend `22db94266d9219bdcf01a4567d0262f236f9fcad`; ui `b021424a3d6b79786b695b00356c2f98fa7390dc`.
+- Worker heads reviewed at run start: errors `d53cfd799fab60859f6e2b2fe76e4154fa4555bd`; spec-core `5714f3c7724cb82ccd75a7e852c668bfe78c6d5d`; backend `74df90dc3b189d397c7a9f18afd0929a25e372bc`; ui `4be3a9c897313f63f8c49ddc6eb9ecfea9186ded`.
 - `main` and `bnbgrs/ATHENA` were untouched; no force update, history rewrite or auto-merge was used.
 
-## Integrated this run — UI-GAP-0042 System security-posture selection/copy
+## Integrated this run — Storage/WAL policy exact status shape
 
-UI handoff marks UI-GAP-0042 `FIXED / INTEGRATOR_READY`. The bounded worker product `f7086b9838bdbb29a3fbfef7dd1eeb070ff4fead` adds only `TextSelectableByMouse | TextSelectableByKeyboard` to `_PostureRow.value` in `src/athena/desktop/system_workspace.py`; focused regression `50c483a985053bb6450de93e6ddae3e03b6720ff` locks the existing `settingsValue` object family and both interaction flags.
+Backend BE-053 WAL-policy exact-status-shape lineage `2ea98794facffcae29d4f94b337fc84083028526` passed canonical ATHENA Quality Gate `34058195011 = success`. Independent review selected only product commit `76cda6717b15784d7d6722e07f0775179577c6eb` semantics and focused regression `978d67958bddf0e4e3a72f4b5bc2220146242a1f`; divergent Backend history and later `WalRuntimeStatus.autocheckpoint_bytes` work were excluded.
 
-Exact worker head `81b8d6c2c250a412bb2947b2b356d9111c10b995` passed ATHENA Quality Gate `34040342678 = success`. Develop had no competing mutation in the `_PostureRow` interaction block and did not contain the focused regression. The exact semantic product delta was composed as `17d189496136293d1a5cb93442de2a355a32a2d3`; the exact focused regression was added as `d6813d1a9f7f5665b0906b82ee389b9d116cbc33`.
+Develop commits created this run:
+- `be2fbc3192e65fe62acb6e4ac0d760f3ca114e06` — require `PRAGMA page_size` and `PRAGMA wal_autocheckpoint` to each return exactly one status field before policy values are accepted.
+- `b037c6d4d25f699be85de9b8a48c88decff46c62` — exact focused regression for absent/empty/multi-field policy rows and canonical single-field acceptance, including fail-before-WAL-observation behavior.
 
-Independent compare from Develop-before to the product/test head is ahead 2 / behind 0 and changes exactly two files: `src/athena/desktop/system_workspace.py` (+4) and `tests/unit/test_pathena_system_security_posture_selection.py` (+11). Divergent UI history and later UI-GAP-0043 work were not imported.
+The integrated contract preserves positive true-int policy validation, no-follow/identity-checked WAL observation, PASSIVE-only automatic checkpointing, explicit-idle TRUNCATE, exact checkpoint result validation, Storage/Recovery invariants, and unrelated Core/UI/Security/Provider/Windows behavior. No test or guard was weakened.
 
-## Validation and error state
+## Current readiness/error state
 
-- Source-lineage canonical Quality `34040342678 = success` on exact UI head `81b8d6c2c250a412bb2947b2b356d9111c10b995`.
-- Focused regression asserts mouse and keyboard text selection on `_PostureRow.value` and preserves the canonical `settingsValue` object identity.
-- No security facts, runtime vocabulary, provider/Core projection, routing, storage, recovery, process ownership or Windows-runtime semantics changed.
-- Error worker currently reports OPEN=none, IN_PROGRESS=none and FIXED_PENDING_VERIFY=none; ERR-0016 and ERR-0017 remain fixed on corrected-lineage evidence.
-- Exact-current-Develop global Quality is not claimed because the available connector exposes existing workflow evidence but no direct workflow-dispatch action.
+- Backend current handoff marks `WalRuntimeStatus.autocheckpoint_bytes` true-int boundary product `22fa292c2213e8dbeca4e0a6733d32e71f5141df` + regression `fcd0b9a453cdf15c8d13c9708ebc5cd206ccbdad` NOT READY pending exact canonical success.
+- Error worker tracks only Core-owned `ERR-0018` Ruff import-order rejection; no Backend defect is implicated.
+- Exact-current-Develop global Quality is not claimed after this composition.
 
-## UI state
+## UI / Alpha-Beta state
 
-- UI-GAP-0042 is now integrated on Develop.
-- Current UI head `b021424a3d6b79786b695b00356c2f98fa7390dc` carries later UI-GAP-0043 Settings checkbox-focus work, but that successor was not consumed because the current handoff still marks it `IMPLEMENTED_PENDING_VERIFY`.
-- The 11-screen manifest remains `IMPLEMENTED_PENDING_VISUAL_REVIEW` for all eleven slots; original references remain `VISUAL_REFERENCE_PENDING`, so no pixel-level `MATCH` claim is valid.
-- `docs/ui/VISUAL_GAP_LEDGER.md` remains the stable evidence ledger on Develop; no unsafe whole-file rewrite was attempted.
-
-## Alpha/Beta progress
-
-`docs/development/ALPHA_BETA_PROGRESS.md` remains the canonical tracker and was read from current Develop. Full connector retrieval is truncated because the tracker is large, so this run does not replace the whole file and risk data loss. UI-GAP-0042 integration evidence is versioned here pending safe tracker reconciliation.
+- Eleven-screen implementation remains pending visual-reference review; no pixel-level MATCH claim is made without original reference evidence.
+- `docs/development/ALPHA_BETA_PROGRESS.md` remains canonical. Its complete body was not safely writable through the connector in this run because retrieval was truncated; no destructive whole-file replacement was attempted. This integration evidence is versioned here until a safe line-preserving tracker update path is available.
 
 ## Next integration order
 
-1. Prefer one newer bounded exact-green Core successor if independently compatible with current Develop.
-2. Otherwise consume exactly one READY Backend/UI successor; Backend WAL checkpoint exact-status-shape work remains excluded until its exact containing Quality is green, and UI-GAP-0043 remains excluded until exact canonical verification succeeds.
-3. Obtain exact-current-Develop canonical Quality before any promotion/readiness claim.
+1. Obtain exact-current-Develop canonical Quality if available.
+2. Consume exactly one independently compatible bounded READY Core/Backend/UI successor.
+3. Do not consume the Backend derived WAL-byte boundary without exact successful canonical evidence.
+4. Keep `ERR-0018` excluded from closure until exact corrected Core SHA is canonical-green.
 
 ## Persistent release guards
 
-Retain explicit Beta/release regression acceptance for pypdf packaging metadata, fail-closed frozen argv routing and Desktop/Worker two-EXE split, exactly one Desktop with bounded/non-growing workers, adaptive 2048-context DirectChat budgeting, the Windows lane-lock `PermissionError` -> `SchedulerLaneOwnershipError` -> packaged-worker `OSError` crash cluster, and storage-bootstrap/migration startup signatures.
+Retain explicit Beta/release regression acceptance for pypdf packaging metadata, fail-closed frozen argv routing and Desktop/Worker two-EXE split, exactly one Desktop with bounded/non-growing workers, adaptive 2048-context DirectChat budgeting, the Windows lane-lock `PermissionError` -> `SchedulerLaneOwnershipError` -> packaged-worker `OSError` crash cluster, and storage-bootstrap/migration startup signatures including duplicate-column startup failures.
 
 ## Rules retained
 
