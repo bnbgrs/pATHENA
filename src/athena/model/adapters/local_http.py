@@ -48,26 +48,34 @@ class _BoundedLocalResponse:
         max_bytes: int,
         total_timeout_seconds: float | None = None,
     ) -> None:
+        if isinstance(max_bytes, bool) or not isinstance(max_bytes, int) or max_bytes <= 0:
+            raise ValueError("Local model response byte limit must be a positive integer.")
+        validated_total_timeout = (
+            _validated_timeout(total_timeout_seconds)
+            if total_timeout_seconds is not None
+            else None
+        )
         self._response = response
         self._max_bytes = max_bytes
         self._bytes_read = 0
+        self._byte_budget_poisoned = False
         self._deadline = (
-            monotonic() + total_timeout_seconds
-            if total_timeout_seconds is not None
+            monotonic() + validated_total_timeout
+            if validated_total_timeout is not None
             else None
         )
 
     def __enter__(self) -> _BoundedLocalResponse:
-        enter = getattr(self._response, "__enter__", None)
+        enter = self._optional_response_method("__enter__")
         if enter is not None:
             enter()
         return self
 
     def __exit__(self, exc_type: Any, exc: Any, traceback: Any) -> Any:
-        exit_method = getattr(self._response, "__exit__", None)
+        exit_method = self._optional_response_method("__exit__")
         if exit_method is not None:
             return exit_method(exc_type, exc, traceback)
-        close = getattr(self._response, "close", None)
+        close = self._optional_response_method("close")
         if close is not None:
             close()
         return None
@@ -99,7 +107,7 @@ class _BoundedLocalResponse:
             )
 
     def _assert_within_byte_budget(self) -> None:
-        if self._bytes_read > self._max_bytes:
+        if self._byte_budget_poisoned or self._bytes_read > self._max_bytes:
             raise LocalResponseTooLargeError(
                 "Local model response exceeded the configured byte limit."
             )
@@ -110,19 +118,35 @@ class _BoundedLocalResponse:
             raise OSError("Local model response body must be bytes.")
         return raw
 
+    def _require_body_method(self, name: str) -> Any:
+        method = getattr(self._response, name, None)
+        if not callable(method):
+            raise OSError(
+                f"Local model response does not support bounded {name} access."
+            )
+        return method
+
+    def _optional_response_method(self, name: str) -> Any:
+        method = getattr(self._response, name, None)
+        if method is None:
+            return None
+        if not callable(method):
+            raise OSError(f"Local model response {name} hook must be callable.")
+        return method
+
     def readline(self) -> bytes:
         self._assert_before_deadline()
         self._assert_within_byte_budget()
-        readline = getattr(self._response, "readline", None)
-        if readline is None:
-            raise OSError("Local model streaming response does not support bounded lines.")
+        readline = self._require_body_method("readline")
         remaining = self._max_bytes - self._bytes_read
         raw = self._require_bytes(readline(remaining + 1))
-        self._bytes_read += len(raw)
-        if self._bytes_read > self._max_bytes:
+        next_bytes_read = self._bytes_read + len(raw)
+        if next_bytes_read > self._max_bytes:
+            self._byte_budget_poisoned = True
             raise LocalResponseTooLargeError(
                 "Local model streaming response exceeded the configured byte limit."
             )
+        self._bytes_read = next_bytes_read
         self._assert_before_deadline()
         return raw
 
@@ -131,18 +155,23 @@ class _BoundedLocalResponse:
             raise TypeError("Local model response read size must be an integer or None.")
         self._assert_before_deadline()
         self._assert_within_byte_budget()
+        read = self._require_body_method("read")
+        if amt == 0:
+            return b""
         remaining = self._max_bytes - self._bytes_read
         request_size = (
             remaining + 1
             if amt is None or amt < 0
             else min(amt, remaining + 1)
         )
-        raw = self._require_bytes(self._response.read(request_size))
-        self._bytes_read += len(raw)
-        if self._bytes_read > self._max_bytes:
+        raw = self._require_bytes(read(request_size))
+        next_bytes_read = self._bytes_read + len(raw)
+        if next_bytes_read > self._max_bytes:
+            self._byte_budget_poisoned = True
             raise LocalResponseTooLargeError(
                 "Local model response exceeded the configured byte limit."
             )
+        self._bytes_read = next_bytes_read
         self._assert_before_deadline()
         return raw
 
