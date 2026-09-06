@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `ef759aa0d6980da5adc3512b90e08512b7735082`
+Baseline: `f0a0272e564b483f91099846c2644006298dc6a4`
 Integration target: `develop/pathena-next`
 UI worker: `postmerge/ui`
 
@@ -219,10 +219,26 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
 
 ## UI-GAP-0042 — System Security posture values are not keyboard-selectable
-- Screen: `06 — System`; Category: `ACCESSIBILITY / KEYBOARD / INTERACTION`; Severity: `P1`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Screen: `06 — System`; Category: `ACCESSIBILITY / KEYBOARD / INTERACTION`; Severity: `P1`; Status: `FIXED`.
 - Evidence: `_PostureRow` exposes snapshot-backed Loopback only, Local processing, Encrypted at rest and Tor status values through the same `QLabel#settingsValue` presentation as major runtime facts, but unlike `_SystemStatusRow` it did not enable text selection. Keyboard users therefore could not focus/select/copy these truthful live posture facts even though `settingsValue` already has the verified canonical focus treatment.
 - Product `f7086b9838bdbb29a3fbfef7dd1eeb070ff4fead` enables only `TextSelectableByMouse | TextSelectableByKeyboard` on `_PostureRow.value`; focused regression `50c483a985053bb6450de93e6ddae3e03b6720ff` locks the object family and both interaction flags.
 - Security facts, snapshot projection, state vocabulary, Core/provider/storage/security semantics and control routing are unchanged; this is read/copy accessibility only.
+- Verification evidence: exact UI head `81b8d6c2c250a412bb2947b2b356d9111c10b995` passed canonical ATHENA Quality Gate `34040342678` with conclusion `success`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0043 — Settings checkbox lacks explicit keyboard-focus presentation
+- Screen: `07 — Settings`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `FIXED`.
+- Evidence: Settings exposes the keyboard-focusable reasoning/thinking control as a `QCheckBox`; the shared canonical focus block covered buttons, line edits, combo boxes, spin boxes, lists and reader controls but omitted `QCheckBox:focus`.
+- Product `05c9ee062ae29b3ba075521fc645bc63aea31b23` adds only `QCheckBox:focus` to the existing canonical accent-border focus selector family; focused regression `74f8d885a5a8ede339545f282bc42bdf1f1199e5` locks that selector and canonical focus border.
+- Checkbox value semantics, thinking/reasoning request routing, model persistence, provider/Core state and backend/storage/security behavior are unchanged.
+- Verification evidence: exact UI head `b021424a3d6b79786b695b00356c2f98fa7390dc` passed canonical ATHENA Quality Gate `34043271088` with conclusion `success`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0044 — Settings runtime facts are not keyboard-selectable with explicit focus presentation
+- Screen: `07 — Settings`; Category: `ACCESSIBILITY / KEYBOARD / INTERACTION`; Severity: `P1`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Evidence: the snapshot-backed Provider, Connection, Persistence and runtime-detail labels expose important live/local state through `settingsProviderState`, `settingsNetworkState`, `settingsPersistenceState` and `settingsRuntimeDetail`, but previously used plain-text QLabel presentation without keyboard text selection or object-specific focus styling. Keyboard users therefore could not select/copy these truthful Settings facts consistently with System runtime facts.
+- Product `caa288717e3eb8f403cece7c43affbb6e3282be2` enables only `TextSelectableByMouse | TextSelectableByKeyboard` on the four existing runtime labels; coupled presentation product `fd013674ff126d3f7a6429fe08c7240fcd7b2b50` adds only their four object-specific `:focus` selectors to the existing canonical accent-border focus block. Focused regression `691011884825a91227d35eb6d42b915e9a5bc4e6` locks both selection flags, all four object identities and their canonical focus selectors.
+- Runtime text/state vocabulary, snapshot projection, persistence behavior, provider/Core semantics, network truthfulness and backend/storage/security behavior are unchanged; this is read/copy/focus accessibility only.
 - Verification evidence: canonical Quality on the exact final product/test/documentation successor is pending; no PASS is claimed yet.
 - Visual status: `IMPLEMENTED_PENDING_VERIFY`; no screenshot-level `MATCH` claim.
 
