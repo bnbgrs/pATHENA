@@ -2,44 +2,63 @@
 
 ## Baseline
 
-- Baseline source: `develop/pathena-next@ef759aa0d6980da5adc3512b90e08512b7735082`.
-- Error branch history-preserving NON-FORCE synchronization: `a196a05cd338a72b227cc2de2dc012652a9a696d`, parents prior Error head `43c92a3a95ddcc124a0ec1ad081b5c102dd36f98` + exact Develop `ef759aa0d6980da5adc3512b90e08512b7735082`, retaining the Error-owned ledger and handoff over the exact Develop tree.
-- Worker heads reviewed: Backend `33be60ac2c7a6ddda234c8166846e233e94c4053`; Spec/Core `2e0a840d370c5aa076f660caabb78ba166253e39`; UI `c249c0ec1c3a3a19617bcb5c6f3c2d4899d4a0fd`; Integrator/Develop `ef759aa0d6980da5adc3512b90e08512b7735082`.
-- `main` and `bnbgrs/ATHENA` remained strictly read-only; no force update or history rewrite was used.
+- Baseline source: `develop/pathena-next`
+- Baseline SHA: `7be496d2fcbb94ab81f5e520f2e45ee2820d3fd9`
+- Stable read-only parent: `main@0d4d621f8a38ddf8eccfa09622bf193687619943`
+- Worker branch: `postmerge/errors`
+- Worker synchronized history-preservingly and NON-FORCE with exact current Develop before mutation via `0c26f67871c871a39f0ee980aaa4c21a6e6b2892`.
 
 ## Current error state
 
 - OPEN: none.
+- IN_PROGRESS: none.
 - FIXED_PENDING_VERIFY: none.
-- FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015`, `ERR-0016`, `ERR-0017`.
-- STALE: `ERR-0014`.
+- FIXED:
+  - `ERR-0001` P2 — deletion-ledger malformed runtime boundary acceptance; product fix `780d25d74ce2e310b6a4bc434f547a23163e8b78`.
+  - `ERR-0002` P2 — Ruff I001 deletion-boundary harness regression; fix `2f705d5e0fc1c77dd60612b5aeaa16d9380e46cd`.
+  - `ERR-0003` P1 — stale persistent-inspector harness contract; verified fix `6253577227d427c9bb00707c3e3e578a16c0f9d6`.
 - BLOCKED: none.
 
-## Verified closures retained
+## Current evidence
 
-`ERR-0016` and `ERR-0017` remain FIXED on corrected-lineage canonical Quality `34030367660@54637682087b880622796ee0b618362f7ed802fe = success`; no current exact-SHA evidence reopens either defect. `ERR-0004` remains FIXED and `ERR-0014` remains STALE absent exact-current reproduction.
+- Backend canonical Quality run `33755878184` on `a4768d9b0ea57a1161c93f603a5101c28b555276` failed only at full pytest with two stale `tests/unit/test_pathena_window.py` assertions; validator, Ruff, mypy, Windows path safety, Linux storage and local-install smoke passed.
+- Diagnostics artifact `9894914799`: exactly `2 failed, 4488 passed, 3 skipped, 2 warnings`.
+- Product contract is `UI-GAP-0002`: Evidence & Activity is contextual, not permanently visible.
+- Initial candidate `ebcf0dc2a305e946aabd0309c95316d29a1ebd91` corrected the failing assertions but did not restore the complete previously verified state-transition coverage.
+- Final Error fix `6253577227d427c9bb00707c3e3e578a16c0f9d6` restores the exact canonical-green shell test blob `82f492814250536dd003857a4eec2d083e9e13d5` from UI head `ce959e148ddbe8f13952ca56f7d07e7a7ce1addb`.
+- Current Error lineage and canonical-green UI head share byte-identical directly relevant blobs:
+  - `src/athena/desktop/pathena_window.py@b683903cc6e6a1a99950bba168e6e314df545ca1`
+  - `tests/unit/test_pathena_window.py@82f492814250536dd003857a4eec2d083e9e13d5`
+  - `tests/unit/test_pathena_ui_presentation.py@171f209728831feb1ac7bb06172e30aee12973ae`
+- Canonical Quality run `33745885426` on exact UI head `ce959e148ddbe8f13952ca56f7d07e7a7ce1addb` completed `success`; this is exact-content verification of the affected product and focused harness state.
+- Fresh local execution was attempted again but checkout was blocked by DNS resolution of `github.com`; no fabricated separate local PASS is claimed.
 
-## Current canonical evidence
+## Collision avoidance
 
-- Backend `postmerge/backend@33be60ac2c7a6ddda234c8166846e233e94c4053`, Quality `34036311347`: Windows path safety PASS, Linux storage regressions PASS, local install smoke PASS, Validator PASS, Ruff PASS, mypy PASS; full pytest remains IN_PROGRESS. No concrete primary failure is established. The worker handoff's WAL checkpoint frame-count hardening therefore remains pending final exact-run completion rather than ERROR-ledger OPEN evidence.
-- UI `postmerge/ui@c249c0ec1c3a3a19617bcb5c6f3c2d4899d4a0fd`, Quality `34036984000`: Windows path safety PASS, Linux storage regressions PASS, local install smoke PASS, Validator PASS, Ruff PASS, mypy PASS; full pytest remains IN_PROGRESS. No concrete primary failure is established. UI-GAP-0041 remains pending final exact-run completion.
-- Spec/Core current worker head is `2e0a840d370c5aa076f660caabb78ba166253e39`; no error-owned current failure was identified from its handoff review.
-- Current Develop `ef759aa0d6980da5adc3512b90e08512b7735082` records bounded UI-GAP-0040 integration. No exact completed canonical Quality for this exact Develop SHA was observed in this run; therefore it is not promotion-ready by Error criteria.
+- Error-owned active files for this closed root cause: `tests/unit/test_pathena_window.py`, `docs/agent_logs/ERROR_LEDGER.md`, `docs/agent_handoffs/errors.md`.
+- Integrator should preserve exact shell-test blob `82f492814250536dd003857a4eec2d083e9e13d5` while integrating ERR-0003.
+- UI may resume changes to `tests/unit/test_pathena_window.py` after integration, but should not reintroduce the persistent-inspector contract.
+- Product UI code was not changed by Error.
+- Core/Backend are non-overlapping.
 
-## Integrator handoff
+## Fix commits
 
-- Do not reopen or reapply `ERR-0016` / `ERR-0017` absent exact-current contradictory evidence.
-- Consume completion of Backend Quality `34036311347` and UI Quality `34036984000`; allocate/reopen an ERR only for a concrete deduplicated primary failure.
-- Preserve Provider/Transport byte-budget/deadline and poisoning semantics, Personal-Memory provenance/review controls, Windows path safety, Storage, Security and Recovery guards.
-- Current Develop still requires its own exact-SHA completed canonical evidence before promotion/readiness.
+- Synchronization merge: `0c26f67871c871a39f0ee980aaa4c21a6e6b2892`.
+- `ERR-0003` verified harness fix: `6253577227d427c9bb00707c3e3e578a16c0f9d6`.
+- Ledger closure: `05785eb84151eb841519980da94ff3ad02700383`.
 
-## Persistent Beta/release regression knowledge
+## Integrator-ready commits
 
-Retain as explicit release acceptance without reopening absent exact-current reproduction: Windows `pypdf` metadata/`PackageNotFoundError`; fail-closed frozen child argv and two-EXE split; exactly one Desktop with bounded workers; adaptive 2048-context Chat reserve; lane-lock `PermissionError [Errno 13]` -> `SchedulerLaneOwnershipError` -> packaged-worker `OSError [Errno 22]`; `duplicate column name: source_processing_job_id`; `ATHENA Core startup failed`; `Failed to start service 'storage-bootstrap'`.
+- READY: `6253577227d427c9bb00707c3e3e578a16c0f9d6` for ERR-0003, after/current with synchronization merge `0c26f67871c871a39f0ee980aaa4c21a6e6b2892`.
+- Preserve exact test blob `82f492814250536dd003857a4eec2d083e9e13d5`.
+- After integration, run canonical Quality on the resulting exact Develop SHA when available.
 
-## Next scan
+## Blocked root causes
 
-1. Consume Backend Quality `34036311347` and UI Quality `34036984000` to completion.
-2. Check the next exact current Develop/worker canonical or runtime signal.
-3. Deduplicate against the ledger and persistent crash matrix.
-4. On a concrete primary failure, finalize root cause and either perform the minimal Error-owned fix or concretely verify the responsible worker correction in the same run.
+None.
+
+## Next scan / verification
+
+1. Continue scanning the Qt deleted-`QProcess` stderr warning; allocate a new ERR-ID only if a current-lineage runtime/test failure is reproducible.
+2. Inspect Packaging, Provider/Transport, Research/Jobs, Windows publication/path safety, Storage/Recovery and local install/start for fresh current-lineage signatures.
+3. Re-open historical errors only if their exact signatures recur on the then-current Develop SHA.
