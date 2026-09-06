@@ -117,12 +117,18 @@ class _BoundedLocalResponse:
             raise OSError("Local model response body must be bytes.")
         return raw
 
+    def _require_body_method(self, name: str) -> Any:
+        method = getattr(self._response, name, None)
+        if not callable(method):
+            raise OSError(
+                f"Local model response does not support bounded {name} access."
+            )
+        return method
+
     def readline(self) -> bytes:
         self._assert_before_deadline()
         self._assert_within_byte_budget()
-        readline = getattr(self._response, "readline", None)
-        if readline is None:
-            raise OSError("Local model streaming response does not support bounded lines.")
+        readline = self._require_body_method("readline")
         remaining = self._max_bytes - self._bytes_read
         raw = self._require_bytes(readline(remaining + 1))
         next_bytes_read = self._bytes_read + len(raw)
@@ -139,13 +145,14 @@ class _BoundedLocalResponse:
             raise TypeError("Local model response read size must be an integer or None.")
         self._assert_before_deadline()
         self._assert_within_byte_budget()
+        read = self._require_body_method("read")
         remaining = self._max_bytes - self._bytes_read
         request_size = (
             remaining + 1
             if amt is None or amt < 0
             else min(amt, remaining + 1)
         )
-        raw = self._require_bytes(self._response.read(request_size))
+        raw = self._require_bytes(read(request_size))
         next_bytes_read = self._bytes_read + len(raw)
         if next_bytes_read > self._max_bytes:
             raise LocalResponseTooLargeError(
