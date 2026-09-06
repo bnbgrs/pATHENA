@@ -1,0 +1,42 @@
+name: Spec Core Ruff Fix
+
+on:
+  push:
+    branches:
+      - postmerge/spec-core
+
+permissions:
+  contents: write
+
+jobs:
+  fix-context-imports:
+    runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: postmerge/spec-core
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install pinned resolver
+        run: |
+          python -m pip install --disable-pip-version-check "pip==26.1.2"
+          python -m pip install --disable-pip-version-check "uv==0.11.21"
+      - name: Run repository-pinned Ruff fixer
+        run: uv run --locked --extra dev python -m ruff check src/athena/memory/context.py --fix
+      - name: Enforce bounded mutation
+        shell: bash
+        run: |
+          changed="$(git diff --name-only)"
+          test "$changed" = "src/athena/memory/context.py"
+      - name: Verify fixed file
+        run: uv run --locked --extra dev python -m ruff check src/athena/memory/context.py
+      - name: Commit fixer output
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/athena/memory/context.py
+          git commit -m "Fix Personal Memory imports with pinned Ruff"
+          git push origin HEAD:postmerge/spec-core
