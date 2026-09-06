@@ -214,8 +214,13 @@ class WalMaintenanceService:
         connection = self.database.connection
         page_size_row = connection.execute("PRAGMA page_size").fetchone()
         autocheckpoint_row = connection.execute("PRAGMA wal_autocheckpoint").fetchone()
-        if page_size_row is None or autocheckpoint_row is None:
-            raise WalMaintenanceError("SQLite WAL policy could not be observed.")
+        if (
+            page_size_row is None
+            or len(page_size_row) != 1
+            or autocheckpoint_row is None
+            or len(autocheckpoint_row) != 1
+        ):
+            raise WalMaintenanceError("SQLite WAL policy returned invalid status.")
         page_size = _positive_int(page_size_row[0], "SQLite page_size")
         autocheckpoint_pages = _positive_int(
             autocheckpoint_row[0],

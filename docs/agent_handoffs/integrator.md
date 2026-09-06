@@ -3,38 +3,37 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `2bc57c4c84a0ed13ca9adbbc61f8fd00fc87fb8f`.
+- Develop before this run: `1cc7b8dceb5b4ff098442e9f17f89b8cc36cb390`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed at run start: errors `410bdc595d3f4c370541b0701386cfe4b4b880ce`; spec-core `942d19f46a91af6672bb7639c1fca4cadf378ac7`; backend `2ea437827e004743531535375f57db3cfbc3b105`; ui `38bdc878be20502710fe82373fcc3b3e3f90b7a`.
+- Worker heads reviewed at run start: errors `d53cfd799fab60859f6e2b2fe76e4154fa4555bd`; spec-core `5714f3c7724cb82ccd75a7e852c668bfe78c6d5d`; backend `74df90dc3b189d397c7a9f18afd0929a25e372bc`; ui `4be3a9c897313f63f8c49ddc6eb9ecfea9186ded`.
 - `main` and `bnbgrs/ATHENA` were untouched; no force update, history rewrite or auto-merge was used.
 
-## Integrated this run — Storage/Recovery WAL checkpoint counter domain
+## Integrated this run — Storage/WAL policy exact status shape
 
-Backend checkpoint counter-domain lineage `77ce30acb409881e00f12a9ab78655b81b0cdd1e` passed canonical ATHENA Quality Gate `34052064954 = success`. Independent review selected only product commit `38dac1166d951f4a11b55181f927389304b3cd2e` semantics and exact focused regression `eacb43bee6f8d168346198d5bb4b7630156b1570`; divergent Backend history and handoff were excluded.
+Backend BE-053 WAL-policy exact-status-shape lineage `2ea98794facffcae29d4f94b337fc84083028526` passed canonical ATHENA Quality Gate `34058195011 = success`. Independent review selected only product commit `76cda6717b15784d7d6722e07f0775179577c6eb` semantics and focused regression `978d67958bddf0e4e3a72f4b5bc2220146242a1f`; divergent Backend history and later `WalRuntimeStatus.autocheckpoint_bytes` work were excluded.
 
-Develop composition created `087897c5136f218ff694d6f361b7ecd996befbac`, replacing only the exact verified blobs for:
-- `src/athena/storage/migration_executor.py`
-- `tests/unit/test_migration_executor_checkpoint_counters.py`
+Develop commits created this run:
+- `be2fbc3192e65fe62acb6e4ac0d760f3ca114e06` — require `PRAGMA page_size` and `PRAGMA wal_autocheckpoint` to each return exactly one status field before policy values are accepted.
+- `b037c6d4d25f699be85de9b8a48c88decff46c62` — exact focused regression for absent/empty/multi-field policy rows and canonical single-field acceptance, including fail-before-WAL-observation behavior.
 
-The integrated contract rejects malformed negative WAL checkpoint status counters before journal-mode transition while preserving the existing exact status-shape/runtime-type validation, candidate-only migration, path/link safety, sidecar-free activation and unrelated Security/Provider/UI/Windows behavior. No test or production guard was weakened.
+The integrated contract preserves positive true-int policy validation, no-follow/identity-checked WAL observation, PASSIVE-only automatic checkpointing, explicit-idle TRUNCATE, exact checkpoint result validation, Storage/Recovery invariants, and unrelated Core/UI/Security/Provider/Windows behavior. No test or guard was weakened.
 
 ## Current readiness/error state
 
-- Backend WAL-policy exact-status-shape run `34055278060` completed `cancelled`; that successor is NOT READY from this evidence and was not integrated.
-- Error worker still tracks `ERR-0018` as Core-owned pending successful exact corrected canonical verification.
-- Spec/Core remains excluded until its corrected exact SHA is canonical-green.
+- Backend current handoff marks `WalRuntimeStatus.autocheckpoint_bytes` true-int boundary product `22fa292c2213e8dbeca4e0a6733d32e71f5141df` + regression `fcd0b9a453cdf15c8d13c9708ebc5cd206ccbdad` NOT READY pending exact canonical success.
+- Error worker tracks only Core-owned `ERR-0018` Ruff import-order rejection; no Backend defect is implicated.
 - Exact-current-Develop global Quality is not claimed after this composition.
 
 ## UI / Alpha-Beta state
 
 - Eleven-screen implementation remains pending visual-reference review; no pixel-level MATCH claim is made without original reference evidence.
-- `docs/development/ALPHA_BETA_PROGRESS.md` remains canonical. No unsafe whole-file replacement was attempted from partial retrieval; this run's integration evidence is versioned here.
+- `docs/development/ALPHA_BETA_PROGRESS.md` remains canonical. Its complete body was not safely writable through the connector in this run because retrieval was truncated; no destructive whole-file replacement was attempted. This integration evidence is versioned here until a safe line-preserving tracker update path is available.
 
 ## Next integration order
 
 1. Obtain exact-current-Develop canonical Quality if available.
 2. Consume exactly one independently compatible bounded READY Core/Backend/UI successor.
-3. Do not consume the cancelled Backend WAL-policy lineage without a later exact successful canonical run.
+3. Do not consume the Backend derived WAL-byte boundary without exact successful canonical evidence.
 4. Keep `ERR-0018` excluded from closure until exact corrected Core SHA is canonical-green.
 
 ## Persistent release guards
