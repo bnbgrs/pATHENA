@@ -2,10 +2,10 @@
 
 ## Baseline
 
-- Shared baseline reviewed: `develop/pathena-next@14ca6fece527d6b51956b3e5fa3ec7b291252420`.
-- Worker branch pre-run head: `postmerge/backend@20edbed46471a50e72661e2e69502b094a0b599f`.
-- Worker heads reviewed: Error `3392f70d4c4c0830fefe2833d098bed34fa2127b`; Spec/Core `f7e29299871394fb78d9129a4436b9cedcaee3a3`; UI `5a40e75ed78293ddd8c1ea3533c5632d6dea2910`; Integrator baseline `14ca6fece527d6b51956b3e5fa3ec7b291252420`.
-- History-preserving NON-FORCE synchronization: `56a78635a8404ac4d7fb1aa2129d1ef2054040bb`, parents prior Backend head + exact Develop.
+- Shared baseline reviewed: `develop/pathena-next@3bd2b7f0bc25f9b3b756a1765b27db7ab787b789`.
+- Worker branch pre-run head: `postmerge/backend@c991482a9f49dec50e69779f73e3a0939df5c73b`.
+- Worker heads reviewed: Error `90904477f4810d0580ca42f4be3b9290b703c1a4`; Spec/Core `e5a6c6bd2c84ec6101b93a354ef2515b240fd353`; UI `bf7fadf849140697dc63c92c6a5c6c69335e3278`; Integrator baseline `3bd2b7f0bc25f9b3b756a1765b27db7ab787b789`.
+- History-preserving NON-FORCE synchronization: `7ff49ba1facb65fc0e578a39867e4051a36431bc`, parents prior Backend head + exact Develop.
 - `main` and `bnbgrs/ATHENA` remain strict read-only and untouched.
 
 ## ExternalAccessGateway runtime boundaries — VERIFIED / READY
@@ -14,25 +14,23 @@
 
 Exact green lineage: `c67fa646d8ba4e4137cdf69992b9c8b42ad904d6`; canonical Quality `33884210684 = success`.
 
-## Local provider bounded response constructor limits — VERIFIED / READY
+## Previously verified local-provider lineages — READY
 
-Exact Backend documentation descendant `20edbed46471a50e72661e2e69502b094a0b599f` passed canonical ATHENA Quality `34014111747 = success`.
+- HTTP-error body total deadline: `7b37f0629d3a137301ef04284524a8dfd78c36d3`, Quality `34001608473 = success`.
+- Bounded-read type stability + ERR-0015 harness fix + response bytes boundary: `9dc8375399c6b07f9c52545783004607aa9dd430`, Quality `34011613102 = success`.
+- Bounded-response constructor limits: `20edbed46471a50e72661e2e69502b094a0b599f`, Quality `34014111747 = success`.
 
-That exact green ancestry contains product `575f3a722ad682e80ea5ac05af2c23d326c75922` plus regression `3eca7fce6ffedfff15bdfeb252db63d88b671de6`:
+## Oversize rejection before accounting mutation — NOT READY
 
-- `_BoundedLocalResponse.max_bytes` requires a true non-bool positive integer;
-- supplied `total_timeout_seconds` is validated as finite, positive and non-bool before response use;
-- valid production callers using `MAX_LOCAL_RESPONSE_BYTES` plus validated provider request timeouts are unchanged.
+Product `5e6862fe9544465e3aed66840601a204d4d2cae5` plus regression `3449aab12922d4ffc15ad576d6b458fd7ef8d1bf` preserves `_bytes_read` when an oversized delegate chunk is rejected. Exact canonical Quality `34016494344@3449aab12922d4ffc15ad576d6b458fd7ef8d1bf` completed `cancelled`, not success. No PASS/READY claim is made.
 
-Previously verified local-provider lineages remain READY: HTTP-error body total deadline under `7b37f0629d3a137301ef04284524a8dfd78c36d3` / Quality `34001608473`; bounded-read type stability + ERR-0015 harness fix + response bytes boundary under `9dc8375399c6b07f9c52545783004607aa9dd430` / Quality `34011613102`.
+## New disjoint Provider slice — callable body-delegate boundary
 
-## New disjoint Provider slice — oversize rejection before accounting mutation
+Product `14a6cfdb7adf1e92cbcddf9c6d629afb5ff5106a` makes bounded `read()` and `readline()` require a callable delegate method before invocation. Missing or non-callable delegates now fail closed with `OSError` before body access or byte-accounting mutation instead of surfacing an incidental attribute/call `TypeError`.
 
-Product `5e6862fe9544465e3aed66840601a204d4d2cae5` changes bounded `read()` and `readline()` accounting so an oversized delegate chunk is checked against the cumulative byte limit before `_bytes_read` is committed. The existing `remaining + 1` overflow probe, exception type and byte cap remain unchanged.
+Focused regression `c1c6b938f925c9e91cc73ab08ae80e599965a4bb` covers missing/non-callable `read` and non-callable `readline`, and asserts `_bytes_read == 0` after rejection.
 
-Focused regression `3449aab12922d4ffc15ad576d6b458fd7ef8d1bf` verifies both read and readline overflow paths leave `_bytes_read == 0` when the first returned chunk exceeds the configured cap.
-
-Canonical Quality `34016494344` is bound to the exact regression head and is pending; no PASS/READY claim is made for this new slice.
+No exact canonical PASS is claimed for this new slice until a workflow run binds the test/handoff descendant.
 
 ## Persistent runtime / crash prevention invariants
 
@@ -48,7 +46,8 @@ Canonical Quality `34016494344` is bound to the exact regression head and is pen
 - Local model transport remains loopback-only, proxy-free and redirect-rejecting.
 - Successful and HTTP-error bodies remain byte-bounded and total-deadline-bounded.
 - Non-byte response bodies fail closed before byte accounting.
-- Oversized response chunks now fail before cumulative byte-accounting state is committed.
+- Oversized response chunks fail before cumulative byte-accounting state is committed.
+- Missing/non-callable body delegates fail before accounting mutation.
 - No new retries, provider routing behavior or cryptography.
 - No silent Tor -> Direct fallback; Direct remains explicit-only.
 - ExternalAccessGateway redirect reauthorization, HTTPS/default-port fail-closed policy, compressed-response rejection and response-size bounds remain unchanged.
@@ -61,14 +60,15 @@ Canonical Quality `34016494344` is bound to the exact regression head and is pen
 
 READY:
 - ExternalAccessGateway runtime boundaries: `c67fa646d8ba4e4137cdf69992b9c8b42ad904d6`, Quality `33884210684 = success`.
-- Local-provider HTTP error-body deadline: `7b37f0629d3a137301ef04284524a8dfd78c36d3`, Quality `34001608473 = success`.
-- Bounded-read size type stability + ERR-0015 harness correction + response-body runtime bytes boundary: `9dc8375399c6b07f9c52545783004607aa9dd430`, Quality `34011613102 = success`.
+- Local-provider HTTP error-body deadline: `7b37f0629d560a1534de1fc2c83989d26e05238236`, Quality `34001608473 = success`.
+- Bounded-read / ERR-0015 / response-body runtime bytes boundary: `9dc8375399c6b07f9c52545783004607aa9dd430`, Quality `34011613102 = success`.
 - Bounded local response constructor limits: `20edbed46471a50e72661e2e69502b094a0b599f`, Quality `34014111747 = success`.
 - Previously recorded green Storage/DiskPressure Backend lineages remain READY under their exact green SHAs.
 
 NOT READY:
-- Oversized local response rejection before accounting mutation: product `5e6862fe9544465e3aed66840601a204d4d2cae5`, tests `3449aab12922d4ffc15ad576d6b458fd7ef8d1bf`; Quality `34016494344 = pending`.
+- Oversize rejection before accounting mutation: `5e6862fe9544465e3aed66840601a204d4d2cae5` + `3449aab12922d4ffc15ad576d6b458fd7ef8d1bf`; Quality `34016494344 = cancelled`.
+- Callable local body-delegate boundary: `14a6cfdb7adf1e92cbcddf9c6d629afb5ff5106a` + `c1c6b938f925c9e91cc73ab08ae80e599965a4bb`; awaiting exact canonical run.
 
 ## Next backend slice
 
-Consume exact canonical Quality `34016494344@3449aab12922d4ffc15ad576d6b458fd7ef8d1bf` or an exact documentation-only descendant. If green, promote oversize-before-accounting semantics VERIFIED/READY and immediately take the highest current unclaimed disjoint Backend/System P0/P1/P2 gap. If red, repair only exact Backend-owned diagnostics without weakening byte/deadline/type, ExternalAccessGateway, persistence, recovery or Windows runtime invariants. If no usable run binds, use a different real disjoint Backend/System slice rather than repeating runner state.
+Consume the first exact canonical Quality run containing `c1c6b938f925c9e91cc73ab08ae80e599965a4bb` or this documentation descendant. If green, promote only exact-supported Provider lineages READY and immediately take the highest current unclaimed disjoint Backend/System P0/P1/P2 gap. If red, repair only exact Backend-owned diagnostics without weakening byte/deadline/type, ExternalAccessGateway, persistence, recovery or Windows runtime invariants. If no usable run binds, use another real disjoint Backend/System slice rather than repeating a cancelled runner state.
