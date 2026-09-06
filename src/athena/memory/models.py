@@ -80,6 +80,26 @@ class PersonalMemoryDraft:
 
 
 @dataclass(frozen=True, slots=True)
+class ModelInferredMemoryProposal:
+    """Non-canonical model-inferred Memory awaiting explicit review."""
+
+    draft: PersonalMemoryDraft
+    model_signature_id: uuid.UUID
+    processing_run_id: uuid.UUID
+    review_required: bool = True
+
+    def __post_init__(self) -> None:
+        if self.draft.learning_mode is not MemoryLearningMode.MODEL_INFERRED:
+            raise ValueError("Model-inferred Memory proposal requires MODEL_INFERRED learning mode.")
+        if self.draft.confidence is None:
+            raise ValueError("Model-inferred Memory proposal requires confidence.")
+        if self.draft.sensitivity is not MemorySensitivity.NORMAL:
+            raise ValueError("Sensitive model-inferred Memory requires explicit approval before proposal.")
+        if not self.review_required:
+            raise ValueError("Default model-inferred Memory proposal must remain review-gated.")
+
+
+@dataclass(frozen=True, slots=True)
 class PersonalMemoryRevision:
     memory_id: uuid.UUID
     revision_id: uuid.UUID
