@@ -7,7 +7,6 @@ from dataclasses import dataclass
 
 from athena.memory.models import MemoryScopeKind, MemorySensitivity, PersonalMemorySnapshot
 
-
 PERSONAL_MEMORY_CONTEXT_LABEL = "USER PREFERENCE"
 
 
