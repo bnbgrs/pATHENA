@@ -317,6 +317,14 @@ QListWidget#commandPaletteResults::item:selected {{
     border-left: 2px solid {PALETTE.accent};
 }}
 
+QListWidget#persistentKnowledgeList:focus::item:current,
+QListWidget#persistentClaimList:focus::item:current,
+QListWidget#semanticReviewList:focus::item:current {{
+    color: {PALETTE.text};
+    background: {PALETTE.surface_hover};
+    border-left: 2px solid {PALETTE.accent};
+}}
+
 QTabWidget#canonicalMemoryTabs QTabBar:focus::tab:selected {{
     color: {PALETTE.text};
     background: {PALETTE.surface_hover};
