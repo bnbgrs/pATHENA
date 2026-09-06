@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `451b2f39377653b44fb178e58d86705b6026bef8`
+Baseline: `b1537fc138560fe85d4d97cf76c887b92e63c8f4`
 Integration target: `develop/pathena-next`
 UI worker: `postmerge/ui`
 
@@ -180,11 +180,26 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
 
 ## UI-GAP-0037 — Durable jobs list lacks row-level focused-current presentation
-- Screen: `04 — Jobs`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Screen: `04 — Jobs`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `FIXED`.
 - Evidence: `JobsWorkspace` creates keyboard-focusable `QListWidget#durableJobList`, and the shared foundation provides widget-level focus plus selected-row presentation. Before this slice, the canonical focused-current selector block covered Library and Research lists but omitted the durable Jobs list, so the active keyboard row did not receive the same explicit row-level focus treatment.
 - Product `7a518d2ab2e7b0255187650ff961c6fa7132a284` adds only `QListWidget#durableJobList:focus::item:current` to the existing canonical focused-current block, using readable text, `surface_hover`, and the existing 2px accent left edge.
 - Focused regression `3f17c1e68be68e6f560cd27e70dfca9f3961db95` locks the selector and canonical focus tokens. Durable job content, selection routing, refresh, action availability/transitions, scheduler behavior and backend/storage/security/runtime semantics remain unchanged.
-- Verification evidence: canonical Quality on the exact product/test/documentation successor is pending; no PASS is claimed yet.
+- Verification evidence: exact UI documentation head `6558031bb31e5e35f5c8639bf4f5c8591f7fa250` passed canonical ATHENA Quality Gate `34025529919` with conclusion `success`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0038 — Sources list lacks row-level focused-current presentation
+- Screen: `05 — Sources / Files`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `FIXED`.
+- Evidence: `FilesWorkspace` creates keyboard-focusable `QListWidget#sourceList`; before this slice the canonical focused-current selector block covered Library, Research and Jobs but omitted Sources.
+- Product `ea1d62fedc1fa67715f4f1f7c20621931a4a3db8` adds only `QListWidget#sourceList:focus::item:current` using readable text, `surface_hover`, and the existing 2px accent left edge. Focused regression `bc20c308e97cfdf88a8109f2b4a4d1d60b387a62` locks the selector and canonical focus tokens.
+- Verification evidence: exact UI documentation head `3d89bffeef82244361e701738ebc05862d1a2b64` passed ATHENA Quality Gate `34028122788` with conclusion `success`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0039 — Sources detail reader lacks explicit keyboard-focus presentation
+- Screen: `05 — Sources / Files`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Evidence: `FilesWorkspace` creates read-only `QPlainTextEdit#sourceDetails`; the reader remains keyboard-focusable for reading/copying, while the canonical object-specific reader-focus block covered Help, Library, Research and Jobs but omitted Sources.
+- Product `6d2d0eb32fa0bcd6b2c1112070a36ce1401f6bfa` adds only `QPlainTextEdit#sourceDetails:focus` to the existing canonical accent-border focus block. Focused regression `57636da80d3f3db586d1d728b4e6d39dd11896bd` locks the selector and canonical accent token.
+- Source content, import/retrieval processing, selection routing, read-only semantics, provenance and backend/storage/security/runtime behavior are unchanged.
+- Verification evidence: canonical Quality on the exact final product/test/documentation successor is pending; no PASS is claimed yet.
 - Visual status: `IMPLEMENTED_PENDING_VERIFY`; no screenshot-level `MATCH` claim.
 
 ## Evidence blocker
