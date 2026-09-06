@@ -135,3 +135,107 @@ def test_candidate_executor_rejects_incomplete_wal_checkpoint(
 
     with pytest.raises(MigrationExecutorError, match="checkpoint did not fully complete"):
         migrate_schema_candidate(candidate, created_at_us=123)
+
+
+@pytest.mark.parametrize("invalid_user_version", [True, str(SCHEMA_VERSION), float(SCHEMA_VERSION)])
+def test_candidate_executor_rejects_coercible_user_version_runtime_types(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    invalid_user_version: object,
+) -> None:
+    candidate = (tmp_path / "candidate.db").absolute()
+    candidate.write_bytes(b"placeholder")
+
+    class _Cursor:
+        def fetchone(self) -> tuple[object]:
+            return (invalid_user_version,)
+
+    class _Connection:
+        row_factory: object = None
+
+        def execute(self, sql: str) -> _Cursor:
+            assert sql == "PRAGMA user_version"
+            return _Cursor()
+
+        def close(self) -> None:
+            return
+
+    monkeypatch.setattr(executor_module.sqlite3, "connect", lambda *a, **k: _Connection())
+    monkeypatch.setattr(executor_module, "initialize_schema", lambda *a, **k: None)
+
+    with pytest.raises(MigrationExecutorError, match="user_version must be an integer"):
+        migrate_schema_candidate(candidate, created_at_us=123)
+
+
+@pytest.mark.parametrize("invalid_checkpoint_value", [True, "0", 0.0])
+def test_candidate_executor_rejects_coercible_checkpoint_runtime_types(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    invalid_checkpoint_value: object,
+) -> None:
+    candidate = (tmp_path / "candidate.db").absolute()
+    candidate.write_bytes(b"placeholder")
+
+    class _Cursor:
+        def __init__(self, row: tuple[object, ...]) -> None:
+            self._row = row
+
+        def fetchone(self) -> tuple[object, ...]:
+            return self._row
+
+    class _Connection:
+        row_factory: object = None
+
+        def execute(self, sql: str) -> _Cursor:
+            if sql == "PRAGMA user_version":
+                return _Cursor((SCHEMA_VERSION,))
+            if sql == "PRAGMA wal_checkpoint(TRUNCATE)":
+                return _Cursor((invalid_checkpoint_value, 0, 0))
+            raise AssertionError(sql)
+
+        def close(self) -> None:
+            return
+
+    monkeypatch.setattr(executor_module.sqlite3, "connect", lambda *a, **k: _Connection())
+    monkeypatch.setattr(executor_module, "initialize_schema", lambda *a, **k: None)
+
+    with pytest.raises(MigrationExecutorError, match="checkpoint busy must be an integer"):
+        migrate_schema_candidate(candidate, created_at_us=123)
+
+
+@pytest.mark.parametrize("invalid_journal_mode", [True, 0, 0.0, b"delete"])
+def test_candidate_executor_rejects_nontext_journal_mode_runtime_types(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    invalid_journal_mode: object,
+) -> None:
+    candidate = (tmp_path / "candidate.db").absolute()
+    candidate.write_bytes(b"placeholder")
+
+    class _Cursor:
+        def __init__(self, row: tuple[object, ...]) -> None:
+            self._row = row
+
+        def fetchone(self) -> tuple[object, ...]:
+            return self._row
+
+    class _Connection:
+        row_factory: object = None
+
+        def execute(self, sql: str) -> _Cursor:
+            if sql == "PRAGMA user_version":
+                return _Cursor((SCHEMA_VERSION,))
+            if sql == "PRAGMA wal_checkpoint(TRUNCATE)":
+                return _Cursor((0, 0, 0))
+            if sql == "PRAGMA journal_mode = DELETE":
+                return _Cursor((invalid_journal_mode,))
+            raise AssertionError(sql)
+
+        def close(self) -> None:
+            return
+
+    monkeypatch.setattr(executor_module.sqlite3, "connect", lambda *a, **k: _Connection())
+    monkeypatch.setattr(executor_module, "initialize_schema", lambda *a, **k: None)
+
+    with pytest.raises(MigrationExecutorError, match="journal_mode must be a text"):
+        migrate_schema_candidate(candidate, created_at_us=123)
