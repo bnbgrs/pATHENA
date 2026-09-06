@@ -14,9 +14,10 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 ## Current baseline
 
 - Baseline branch: `develop/pathena-next`.
-- Baseline SHA observed this run: `415debaae20fd84cd12fa0613dc063dc48dd134f`.
+- Baseline SHA observed this run: `da493c1390192425d50caddc451c1a497027027a`.
 - Worker branch: `postmerge/errors`.
-- Pre-run Error branch head: `3dd9b02aa30cd276f40ad197c0c527eb712e555c`.
+- Pre-run Error branch head: `0017b4d83481ba46e020d12492eb5c1d0a5fca7a`.
+- Relevant worker heads: UI `f09406daab9440ee77a06e907add84280b3ae936`; Backend `7b37f0629d3a137301ef04284524a8dfd78c36d3`; Core `daf618982b068557919b58a3e0e6935c9cf41afe`.
 - No force update, rebase, history rewrite or merge to `main` was attempted.
 
 ## Current error state
@@ -30,13 +31,13 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 
 ## Current scan
 
-- Historical `ERR-0004` remains `FIXED`; current UI Ruff evidence remains green.
+- Historical `ERR-0004` remains `FIXED`; exact-head Quality `33804193396 = success` closed the startup/readiness Ruff defect and no current Ruff recurrence is present.
 - `ERR-0014` had two exact canonical recurrences: UI Quality `33975657049@97b051612ca1199907a47d7e3f6938e3f1f8ca37` and `33978563758@8adcc65f394c556b2783b5da070a52c9afc27d0d` both terminated full pytest with `SIGSEGV` / exit code `139` at `tests/unit/test_desktop_api_controller.py::test_controller_refresh_runs_gateway_off_ui_thread` while Windows path safety, Linux storage, local install smoke, Validator, Ruff and mypy passed.
 - Two later exact canonical UI successors on the unchanged affected controller/test lineage completed green: `33978582156@fb98e47fde410137b971a303678d4e63f66e1d6d = success` and `33981877292@074c7b9a4ccf9271a91dd1e56784601f749ac020 = success`.
-- Compare `074c7b9a...0ec14faa` modifies only Integrator handoff and Historical Backfill coverage; compare `0ec14faa...38793f4e` modifies only UI handoff/visual ledgers/theme/focus coverage. Neither interval touches `tests/unit/test_desktop_api_controller.py` or `src/athena/desktop/api_controller.py`.
-- Repeated red followed by repeated clean canonical execution on the unchanged affected lineage establishes current non-reproduction, not a corrective SHA. `ERR-0014` is therefore `STALE`, not `FIXED`; reopen the same stable ID on exact signature recurrence.
-- Current UI head `38793f4e116900d4d06db0aff9a8e42c69272141` is under canonical Quality `33984881889`, currently `in_progress`; its parent `0ec14faa440319f5e9aa36fa52b86e48cc843bf0` passed `33984735336 = success`.
-- Current Develop `415debaae20fd84cd12fa0613dc063dc48dd134f` has no exact-head global-green claim.
+- Current UI Quality `34001923188@f09406daab9440ee77a06e907add84280b3ae936` is still in progress. Windows path safety, Linux storage, Local install smoke, Validator, Ruff and mypy are already PASS; full pytest is still in progress.
+- Current Backend Quality `34001608473@7b37f0629d3a137301ef04284524a8dfd78c36d3` is still in progress and is not PASS/failure evidence yet.
+- Latest completed exact Develop Quality remains `33989730675@d14aca9504021bdacadb89dc478ca41545ab4316 = success`. Current Develop `da493c1390192425d50caddc451c1a497027027a` has no exact completed canonical Quality run yet.
+- No new concrete deduplicated primary failure is established in this run, so no speculative product or harness mutation is justified.
 
 ## Entries
 
@@ -215,6 +216,21 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 - verification: repeated-clean exact canonical evidence `33978582156` and `33981877292` on the unchanged affected lineage establishes current non-reproduction. This supports `STALE`, not `FIXED`.
 - risk: do not convert the real `QThreadPool`/`QSignalSpy` concurrency assertion into mocks, skips or weaker assertions; preserve off-UI-thread execution semantics and Qt object lifetime correctness.
 - integrator_handoff: historical red UI `8adcc65f...` remains rejected. Do not block otherwise-green descendants solely on stale `ERR-0014`; reopen this same ID immediately if the exact exit-139/controller-refresh signature recurs and then require exact lifecycle evidence before mutation.
+
+## Persistent release/runtime crash knowledge
+
+These are retained as regression/release-acceptance classes only; they are not current `OPEN` entries unless reproduced on the exact current candidate SHA.
+
+- Windows R1/R2 packaging: `PackageNotFoundError` from missing `pypdf` distribution metadata and associated supervisor relaunch behavior.
+- Frozen-entrypoint routing: unknown child argv must fail closed; preserve two-EXE separation and prevent recursive Desktop/Core/Scheduler multiplication.
+- Process-tree invariant: exactly one Desktop instance; workers remain bounded/non-growing.
+- 2048-context chat regression: fixed `2048` output reserve plus `256` safety cannot be used against a 2048 LM-Studio context. Preserve adaptive reserve behavior and exact 2048-context regression coverage before release.
+- Windows scheduler/lane-lock crash cluster observed 2026-09-05: `PermissionError: [Errno 13] Permission denied` in `athena/jobs/lane_lock.py::_lock_nonblocking`, then `SchedulerLaneOwnershipError: Scheduler control lane already has a live process owner.`, then `OSError: [Errno 22] Invalid argument` in the packaged-worker failure path. This cluster must be deliberately reproduced/verified closed on the exact Beta/release candidate SHA.
+- Additional startup signatures retained for exact-SHA regression: `duplicate column name: source_processing_job_id`, `ATHENA Core startup failed`, `Failed to start service 'storage-bootstrap'`.
+
+## Release/Beta regression matrix
+
+Before any Windows/Beta promotion-ready claim, require exact-candidate evidence for pypdf package metadata/no relaunch loop, fail-closed frozen argv/two-EXE routing, exactly-one-Desktop bounded workers, adaptive 2048-context budgeting, lane-lock/scheduler/package-worker error-path stability, duplicate-column migration safety, Core/storage-bootstrap startup, Windows path safety, Linux storage, local install/start, Validator, Ruff, mypy and full pytest. Any exact-SHA recurrence blocks promotion until its root cause is closed with real verification.
 
 ## Historical/stale evidence
 
