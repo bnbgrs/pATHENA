@@ -2,41 +2,51 @@
 
 ## Current baseline
 
-- Shared baseline: `develop/pathena-next@8ca3c7b87677a59b9d99d6a5b8703cfc78da6c28`.
+- Shared baseline: `develop/pathena-next@fd15a75212acac7f88886117835b8d754577ea91`.
 - Stable read-only branch: `main@0d4d621f8a38ddf8eccfa09622bf193687619943` (unchanged).
 - Worker branch: `postmerge/spec-core`.
-- Product/test head before synchronization: `396a66302d0e4e96deb2d69076fdaa340bb395c5`.
-- Exact product/test head passed ATHENA Quality Gate run `34008561064` with conclusion `success`.
-- History-preserving NON-FORCE synchronization merge: `9b9807694b50cc237cae37480743bde6be3bf6fe`, parents `396a66302d0e4e96deb2d69076fdaa340bb395c5` and `8ca3c7b87677a59b9d99d6a5b8703cfc78da6c28`.
+- History-preserving NON-FORCE synchronization merge: `00f2441e67407f4402d82c8ad3b6aad28403e212`, parents prior Core head `0824bc5779d19e53585a315aeee2e468217b3f41` and exact current Develop `fd15a75212acac7f88886117835b8d754577ea91`.
 
-## READY slice — model-inferred Personal Memory default suggest boundary
+## Previously READY — model-inferred Personal Memory default suggest boundary
 
-Spec source: `docs/beta/06_Personal_Memory.md` default-suggest/review-gate and sensitive-memory Human-Control requirements.
+- Exact product/test head `396a66302d0e4e96deb2d69076fdaa340bb395c5` passed ATHENA Quality `34008561064 = success`.
+- `ModelInferredMemoryProposal` remains non-canonical and review-gated.
+- NORMAL inferred preferences remain suggestions pending explicit review; SENSITIVE/PROTECTED inference fails closed before canonical persistence.
+- Explicit-user Memory operations and scoped context ordering remain unchanged.
 
-Product lineage:
+## Implemented pending canonical Quality — explicit reviewed inference acceptance
 
-- proposal model: `3fd6a31b7d469aacee30353e82b4083bfe6f3fa0`;
-- service boundary: `7d3a2ae8da7f14d376d1b7400d3b49be006dbce8`;
-- real SQLite acceptance: `396a66302d0e4e96deb2d69076fdaa340bb395c5`;
-- canonical Quality: `34008561064 = success`.
+Spec source: `docs/beta/06_Personal_Memory.md` Human-Control/default-suggest requirements plus the repository-wide provenance contract.
 
-Contract now verified:
+Current provenance schema already contains `model_signature_id` and `processing_run_id`; no schema migration was required. The previous repository path always wrote both columns as `NULL`, so this slice changes only the Memory create/provenance composition boundary.
 
-- `ModelInferredMemoryProposal` is non-canonical and requires `MODEL_INFERRED`, confidence, caller-supplied `model_signature_id`, caller-supplied `processing_run_id`, and `review_required=True`;
-- `PersonalMemoryService.propose_model_inferred()` performs no Personal-Memory repository write;
-- NORMAL inferred preferences remain suggestions pending explicit review;
-- SENSITIVE/PROTECTED inferred content fails closed before canonical persistence;
-- focused persistence acceptance proves both normal suggestion and rejected sensitive inference leave the canonical Personal Memory store unchanged;
-- explicit-user Memory write/revise/confirm semantics and scoped context ordering remain unchanged.
+Product/test head: `f4a793171e56305f47e49d177e16287619b943bf`.
 
-Integrator may review/import this bounded lineage. The synchronized worker preserves exact product/test blobs over current Develop without force/rebase/history rewrite.
+Contract implemented:
+
+- `PersonalMemoryRepository.create()` accepts an optional model-provenance pair and rejects a half-present pair;
+- `_insert_provenance()` persists the exact caller-supplied `model_signature_id` and `processing_run_id` when present, while explicit-user writes retain `NULL/NULL` behavior;
+- `PersonalMemoryService.accept_model_inferred()` is the explicit user-review boundary that canonizes one previously non-canonical proposal;
+- accepted Memory retains `MODEL_INFERRED` learning mode and confidence, receives an explicit confirmation timestamp, and persists the proposal's exact model/processing provenance;
+- acceptance creates a new canonical Memory entry rather than silently revising or overwriting an existing explicit-user Memory revision.
+
+Real SQLite acceptance: `tests/unit/test_personal_memory_review_acceptance.py` proves durable provenance identity and non-overwrite behavior.
+
+Focused GitHub runner evidence:
+
+- initial applicator run `34013694569` failed before tests because a deterministic exact-match anchor was intentionally non-unique; no product mutation occurred;
+- corrected run `34013731297 = success` after narrowing the anchor to the `personal_memory.create` call;
+- corrected run passed the deterministic patch, focused Personal-Memory pytest set, Ruff, mypy and `git diff --check`, then created product/test commit `f4a793171e56305f47e49d177e16287619b943bf`;
+- the automatic canonical Quality attached directly to the GitHub-Actions-authored product commit was `34013750664 = action_required`, so it is not counted as canonical verification;
+- temporary applicator/workflow were removed in `37ff0586ef92b922465f7cf9dc954e5cfbc38acc` and `00f37a56e3b910903866027a1d57899639a232ab`.
+
+No READY claim is made for this new slice until canonical ATHENA Quality succeeds on this handoff head or an exact descendant carrying the same product/test blobs.
 
 ## Coordination / collision avoidance
 
-- Backend active head observed this run: `a9a267ec790ea4dd1c9cfc79d07fc1665f664e30`; current work is Backend/System-owned and disjoint from Personal-Memory review composition.
-- UI active head observed this run: `3c5fe2e16293e9bfb8228e62b0f7a183b34a92f7`; UI presentation remains disjoint.
-- Error active head observed this run: `46fb660d7980d83e1b22c061187bae2b99832610`; no current exact-SHA Core blocker was found.
-- Integrator handoff on current Develop was reviewed before mutation.
+- Backend active head checked: `9dc8375399c6b07f9c52545783004607aa9dd430`; Backend/System work remains disjoint from Personal-Memory review composition.
+- UI and Error handoffs were checked on current Develop; neither claims this Memory composition path.
+- Integrator handoff was checked before mutation; current Develop had not integrated this acceptance slice.
 - `main` and `bnbgrs/ATHENA` remain untouched.
 
 ## Retained release/runtime invariants
@@ -45,6 +55,6 @@ Do not regress Windows pypdf distribution metadata, frozen unknown-argv fail-clo
 
 ## Next Alpha/Beta gap
 
-Implement the smallest explicit review-acceptance boundary for one `ModelInferredMemoryProposal`. User acceptance must be the only path that can convert a reviewed proposal into canonical Memory; it must not silently overwrite an existing explicit-user revision. Before product mutation, verify the durable provenance model can persist the proposal's real `model_signature_id` and `processing_run_id`. If the current Personal-Memory provenance schema cannot represent those IDs, do not discard or synthesize them: version the exact schema/composition blocker and switch to the next disjoint evidence-backed Core slice rather than weakening provenance.
+First consume canonical Quality for this exact product/test lineage. If green, hand the exact READY SHA to Integrator, then select the highest evidence-backed bounded Core gap. A natural next Personal-Memory slice is durable review-decision identity/idempotency so the same reviewed proposal cannot be accepted twice without an explicit distinct decision, but do not implement it unless current Beta/spec and persistence contracts support it without synthetic provenance or destructive merge semantics.
 
 Normal-Hybrid Search remains previously verified/integrated; do not reopen or broaden Archive/Protected Search semantics without new evidence.
