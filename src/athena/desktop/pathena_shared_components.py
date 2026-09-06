@@ -328,6 +328,7 @@ QListWidget#commandPaletteResults::item:selected {{
     border-left: 2px solid {PALETTE.accent};
 }}
 
+QListWidget#commandPaletteResults:focus::item:current,
 QListWidget#persistentKnowledgeList:focus::item:current,
 QListWidget#persistentClaimList:focus::item:current,
 QListWidget#semanticReviewList:focus::item:current,
