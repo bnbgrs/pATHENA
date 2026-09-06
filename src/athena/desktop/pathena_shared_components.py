@@ -289,6 +289,7 @@ QPlainTextEdit#semanticReviewDetails:focus,
 QPlainTextEdit#researchDetails:focus,
 QPlainTextEdit#jobDetails:focus,
 QPlainTextEdit#sourceDetails:focus,
+QLabel#systemDetail:focus,
 QWidget[pathenaKeyboardFocus="true"] {{
     border: 1px solid {PALETTE.accent};
 }}
