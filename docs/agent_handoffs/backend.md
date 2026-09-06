@@ -2,55 +2,60 @@
 
 ## Baseline
 
-- Shared baseline: `develop/pathena-next@8de698904c98cb50de327e805ae8e9b600df11ea`.
+- Shared baseline: `develop/pathena-next@6c7fdb4f2cf22215ac065ce6d2fad7b15e54b650`.
 - Worker branch: `postmerge/backend`.
-- History-preserving NON-FORCE synchronization: `61370efd1a1c7accff52184772ace0c7299ab4d8`, parents prior Backend `e7e8d46e4d1011ec5586367f086c1571fe2a1267` + exact Develop `8de698904c98cb50de327e805ae8e9b600df11ea`.
+- History-preserving NON-FORCE synchronization: `87b73ef3f5448c58e1082d514c49067ff370f060`, parents prior Backend `22db94266d9219bdcf01a4567d0262f236f9fcad` + exact Develop `6c7fdb4f2cf22215ac065ce6d2fad7b15e54b650`.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
 ## Verified predecessor
 
-- `e7e8d46e4d1011ec5586367f086c1571fe2a1267` passed canonical ATHENA Quality Gate `34039538125 = success`.
-- That exact-green lineage includes the migration PRAGMA exact-runtime-type boundary and negative WAL checkpoint frame-counter rejection.
-- Error worker reports OPEN=none and no objection to that Backend candidate.
+- Exact WAL checkpoint status-shape worker head `22db94266d9219bdcf01a4567d0262f236f9fcad` passed canonical ATHENA Quality Gate `34042444478 = success`.
+- This exact-green lineage retains non-bool exact integer PRAGMA validation, non-negative WAL frame counters and exact three-field `wal_checkpoint(TRUNCATE)` status acceptance.
+- ExternalAccessGateway runtime-boundary lineage remains previously verified exact-green; no current contradictory evidence reopens it.
 
 ## Current slice
 
-Area: Storage / Recovery / migration WAL checkpoint status shape.
+Area: Storage / Recovery / migration journal-mode status shape.
 
-Product `cdd261a0ee9ff9cb7799247cc83e1adc778cfd5f` requires `PRAGMA wal_checkpoint(TRUNCATE)` to return exactly the canonical three status fields before any journal-mode transition is attempted. Previously an oversized malformed row could pass the `len >= 3` shape gate and have trailing status data silently ignored.
+Product `1e3a28402343628b2fdfd3cb53ae78bf3ac21801` requires `PRAGMA journal_mode = DELETE` to return exactly one status field before the candidate is accepted as having left WAL mode. Previously a malformed multi-field row could be accepted because only `mode[0]` was inspected and trailing runtime status data was ignored.
 
-Focused regression `53fb49cdf974ddf984def9d5978187191c621007` covers empty, one-field, two-field and four-field checkpoint rows and asserts rejection occurs before `PRAGMA journal_mode = DELETE`. Existing negative-frame-counter tests remain retained.
+Focused regression `38d91a38c02e18d65f5e58234f1e72ea0948eafb` covers empty and two-field journal-mode rows plus the canonical single-field `("delete",)` row.
 
 ## Invariants
 
 - candidate-only schema migration; live DB untouched;
 - absolute regular non-link candidate and safe ancestry required;
 - exact non-bool integer PRAGMA values retained;
+- WAL checkpoint status remains exactly three fields;
 - WAL frame counters remain non-negative;
-- complete checkpoint remains required;
-- malformed checkpoint shape fails before journal-mode transition;
-- DELETE journal mode and sidecar-free activation handoff retained;
-- no Security/TOR/Provider/UI semantics, schema representation, WAL format, retry or cryptography changes.
+- complete WAL checkpoint remains required;
+- journal-mode status must be exactly one field and exact text `delete` case-insensitively;
+- sidecar-free activation handoff retained;
+- no Security/TOR/Provider/UI semantics, schema representation, WAL format, retries or cryptography changes.
 
 ## Verification
 
-- Predecessor canonical Quality `34039538125 = success`.
-- Current exact test head `53fb49cdf974ddf984def9d5978187191c621007` has canonical Quality `34042405895` pending at handoff write time.
-- No PASS or Integrator-ready claim is made for the new checkpoint-shape slice until an exact containing run completes successfully.
+- Predecessor exact canonical Quality `34042444478 = success` on `22db94266d9219bdcf01a4567d0262f236f9fcad`.
+- Current focused test head `38d91a38c02e18d65f5e58234f1e72ea0948eafb` has ATHENA Quality Gate `34045576145` pending at handoff-write time.
+- No PASS or Integrator-ready claim is made for the new journal-mode-shape slice until an exact containing run completes successfully.
 
 ## Coordination
 
-- Error head reviewed: OPEN=none; ERR-0016/ERR-0017 remain fixed.
-- Spec/Core head `a47d4902c44d1a2126536cef65cb5f858aaa7fe9` is disjoint Personal-Memory/Core work.
-- UI head `81b8d6c2c250a412bb2947b2b356d9111c10b995` is disjoint System posture UI work.
-- Integrator/Develop head is `8de698904c98cb50de327e805ae8e9b600df11ea`; it has integrated the earlier PRAGMA exact-type slice but not this new exact-shape successor.
+- Error handoff reviewed: OPEN=none, IN_PROGRESS=none, FIXED_PENDING_VERIFY=none; ERR-0016/ERR-0017 remain fixed.
+- Current Spec/Core worker head reviewed: `4ebe23f510a0b36d8f87e027088de54a9809148a`; Core-owned Search/Memory work remains disjoint.
+- Current UI worker head reviewed: `b021424a3d6b79786b695b00356c2f98fa7390dc`; UI-owned Settings focus work remains disjoint.
+- Integrator/Develop head reviewed: `6c7fdb4f2cf22215ac065ce6d2fad7b15e54b650`.
 
 ## Integrator handoff
 
-READY: verified predecessor `e7e8d46e4d1011ec5586367f086c1571fe2a1267` / Quality `34039538125`.
+READY: exact WAL checkpoint status-shape lineage `22db94266d9219bdcf01a4567d0262f236f9fcad` / Quality `34042444478 = success`.
 
-NOT READY: exact WAL checkpoint status-shape product `cdd261a0ee9ff9cb7799247cc83e1adc778cfd5f` + focused tests `53fb49cdf974ddf984def9d5978187191c621007` pending canonical completion.
+NOT READY: journal-mode exact-status-shape product `1e3a28402343628b2fdfd3cb53ae78bf3ac21801` + focused regression `38d91a38c02e18d65f5e58234f1e72ea0948eafb` pending exact canonical completion.
+
+## Persistent release regression knowledge
+
+Retain without reopening absent exact-current reproduction: Windows pypdf packaging metadata; fail-closed frozen child argv; two-EXE Desktop/Worker split; exactly one Desktop with bounded workers; adaptive small-context DirectChat reserve; lane-lock `PermissionError [Errno 13]` -> `SchedulerLaneOwnershipError` -> packaged-worker `OSError [Errno 22]`; duplicate `source_processing_job_id`; Core startup failure; storage-bootstrap startup failure.
 
 ## Next backend slice
 
-Consume the first exact canonical Quality containing `53fb49cdf974ddf984def9d5978187191c621007` or this documentation descendant. If green, promote only the exact status-shape slice and continue to the highest current unclaimed disjoint Backend/System gap. If red, repair only the smallest Backend-owned primary failure without weakening Storage/Recovery, ExternalAccessGateway, persistence, provenance or platform invariants. If cancelled, do not repeat unchanged; use a distinct executable verification route or disjoint real Backend/System slice.
+Consume the first exact canonical Quality containing `38d91a38c02e18d65f5e58234f1e72ea0948eafb` or this documentation descendant. If green, promote only the journal-mode exact-status-shape slice and continue to the highest current unclaimed disjoint Backend/System gap. If red, repair only the smallest Backend-owned primary failure without weakening Storage/Recovery, ExternalAccessGateway, persistence, provenance or platform invariants. If cancelled, do not repeat unchanged; use another executable verification route or a distinct real Backend/System slice.
