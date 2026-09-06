@@ -314,6 +314,12 @@ QListWidget#commandPaletteResults::item:selected {{
     border-left: 2px solid {PALETTE.accent};
 }}
 
+QTabWidget#canonicalMemoryTabs QTabBar:focus::tab:selected {{
+    color: {PALETTE.text};
+    background: {PALETTE.surface_hover};
+    border-bottom: 2px solid {PALETTE.accent};
+}}
+
 QToolTip {{
     color: {PALETTE.text};
     background: {PALETTE.surface_raised};
