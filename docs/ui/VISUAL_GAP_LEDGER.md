@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `da493c1390192425d50caddc451c1a497027027a`
+Baseline: `62aa4e9ff20919f32d5147d183521fbf98f49535`
 Integration target: `develop/pathena-next`
 UI worker: `postmerge/ui`
 
@@ -132,11 +132,18 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
 
 ## UI-GAP-0031 — Canonical memory tabs lack an explicit focused-selected keyboard state
-- Screen: `02 — Library / Knowledge`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Screen: `02 — Library / Knowledge`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `FIXED`.
 - Evidence: `canonicalMemoryTabs` has specialized normal, hover and selected tab presentation, but no focused-selected rule. The selected tab therefore did not distinguish keyboard focus on the tab bar from an unfocused selected tab.
 - Product `089f005aa6d81a6a4a15cc8594c74eeeed417373` adds `QTabWidget#canonicalMemoryTabs QTabBar:focus::tab:selected` using only canonical readable text, `surface_hover`, and the existing 2px accent bottom edge.
 - Focused regression `e18fe9945e805230aa9c1af95202d8b9c81ba822` verifies the selector and canonical tokens. Existing tab labels, routing, selected semantics, accessibility metadata and backend/runtime behavior are unchanged.
-- Canonical Quality `34004657500` was registered on exact product/test head `e18fe9945e805230aa9c1af95202d8b9c81ba822`; later documentation successors require their own exact-head result before Integrator readiness is claimed.
+- Verification evidence: exact documentation successor `856d9f56fac059f257451c2e31fd35b4e554e55f` passed ATHENA Quality Gate `34004718037` with conclusion `success`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0032 — Library detail readers lack explicit keyboard-focus presentation
+- Screen: `02 — Library / Knowledge`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Evidence: `KnowledgeWorkspace` creates read-only `QPlainTextEdit#persistentKnowledgeDetails`, `QPlainTextEdit#persistentClaimDetails`, and `QPlainTextEdit#semanticReviewDetails`. These surfaces are keyboard-focusable for reading/copying, but the shared explicit focus block previously covered only `QPlainTextEdit#helpText` among plain-text readers.
+- Product `4be86b946333e88160d4f7a11fe4199c23d2c0ec` adds only the three object-specific `:focus` selectors to the existing canonical accent-border focus block.
+- Focused regression `ebe9aaa0d465df78e52782ce0f2d4d5dab6a2086` verifies all three selectors and the canonical accent border. Read-only behavior, detail content, selection routing, provenance, persistence and backend/runtime semantics remain unchanged.
 - Visual status: `IMPLEMENTED_PENDING_VERIFY`; no screenshot-level `MATCH` claim.
 
 ## Evidence blocker
