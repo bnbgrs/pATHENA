@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `3ad1437409eb4104aba5484afe56b139191a0a54`
+Baseline: `ff780f2edf367320340771ffc3176d9fc1724c5c`
 Integration target: `develop/pathena-next`
 UI worker: `postmerge/ui`
 
@@ -124,10 +124,11 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Verification evidence: exact UI head `a0ba6bd47f4b8a6e91e8f6c222334c99cbe1a3aa` passed ATHENA Quality Gate `33996745959` with conclusion `success`.
 - Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
 
-## UI-GAP-0030 — Command Palette query lacks explicit keyboard-focus presentation
-- Screen: `09 — Command Palette / Help`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `OPEN`.
-- Evidence: `QLineEdit#commandPaletteQuery` has a specialized canvas background and strong border but no explicit `:focus` presentation. `CommandPaletteController.open()` intentionally lands keyboard focus on this query, while the query already has a real command-filtering path plus `Command search` accessibility metadata.
-- Acceptance: add only a canonical-token query focus treatment; preserve focus landing, accessible name/description, placeholder, filtering, result navigation and command activation behavior. No backend/runtime semantics belong in this slice.
+## UI-GAP-0030 — Help reader lacks explicit keyboard-focus presentation
+- Screen: `09 — Command Palette / Help`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Corrected evidence: the prior query-focus hypothesis was false because the later-applied Foundation already contains `QLineEdit:focus` with canonical accent border, so `commandPaletteQuery` is covered without another rule. `CommandPaletteController.open_help()` deliberately lands focus on read-only `QPlainTextEdit#helpText`, while the Foundation focus selector did not include `QPlainTextEdit` and the specialized `helpText` rule had no `:focus` state.
+- Product `811b43c37e6010667b6779ccbf886715647e23dc` adds only `QPlainTextEdit#helpText:focus` to the existing canonical focus selector; focused regression finalized at `9875e1c4e3a33753225398d0f2a08971e78977fe` verifies the selector shares the canonical accent-border declaration. Existing F1 focus landing, read-only behavior, text content, shortcuts and backend/runtime semantics are unchanged.
+- Canonical Quality `34001851419` is pending on exact product/test head `9875e1c4e3a33753225398d0f2a08971e78977fe`.
 - Visual status: `PARTIAL`; no screenshot-level `MATCH` claim.
 
 ## Evidence blocker
