@@ -3,11 +3,11 @@
 ## Baseline
 
 - Baseline source: `develop/pathena-next`.
-- Baseline SHA observed this run: `14ca6fece527d6b51956b3e5fa3ec7b291252420`.
+- Baseline SHA observed this run: `3bd2b7f0bc25f9b3b756a1765b27db7ab787b789`.
 - Worker branch: `postmerge/errors`.
-- Error branch pre-run head: `2b42d3acfc11cf3862659e272ff920cd43f77873`.
-- Current Backend head observed: `20edbed46471a50e72661e2e69502b094a0b599f`.
-- Current UI head observed: `5a40e75ed78293ddd8c1ea3533c5632d6dea2910`.
+- Error branch pre-run head: `3392f70d4c4c0830fefe2833d098bed34fa2127b`.
+- Current Backend head observed: `c991482a9f49dec50e69779f73e3a0939df5c73b`.
+- Current UI head observed: `bf7fadf849140697dc63c92c6a5c6c69335e3278`.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only; no force update, rebase, history rewrite or merge to main was attempted.
 
 ## Current error state
@@ -36,10 +36,11 @@ The product `remaining + 1` byte-budget probe, true-integer validation, deadline
 
 ## Current worker evidence
 
-- Backend head `20edbed46471a50e72661e2e69502b094a0b599f`: canonical Quality `34014111747` is in progress. Local install smoke, Linux storage, Windows path safety, Validator, Ruff and mypy are PASS; full pytest is still running. This head contains the bounded-response-constructor hardening lineage. No current failure is established.
-- Earlier constructor-limit exact test head `3eca7fce6ffedfff15bdfeb252db63d88b671de6` had Quality `34014086876` cancelled by the newer descendant run; cancellation is not failure evidence.
-- UI head `5a40e75ed78293ddd8c1ea3533c5632d6dea2910`: canonical Quality `34014713429` is in progress. Local install smoke, Linux storage, Windows path safety, Validator, Ruff and mypy are PASS; full pytest is still running. No current failure is established.
-- Develop head `14ca6fece527d6b51956b3e5fa3ec7b291252420` has no completed pull-request-triggered canonical Quality run observed this cycle. Do not claim repository-wide green for that exact head from older runs.
+- Backend exact head `20edbed46471a50e72661e2e69502b094a0b599f` completed canonical Quality `34014111747 = success`; its Windows path safety, Linux storage, local install smoke, Validator, Ruff, mypy and full pytest all passed. This confirms the bounded-response-constructor hardening lineage remains green.
+- Current Backend head `c991482a9f49dec50e69779f73e3a0939df5c73b`: canonical Quality `34016515174` is in progress. Windows path safety, Linux storage, local install smoke, Validator, Ruff and mypy are PASS; full pytest is still running. No current failure is established.
+- UI exact head `5a40e75ed78293ddd8c1ea3533c5632d6dea2910` completed canonical Quality `34014713429 = success`; its full workflow is green.
+- Current UI head `bf7fadf849140697dc63c92c6a5c6c69335e3278`: canonical Quality `34017125454` is in progress. Windows path safety, Linux storage, local install smoke, Validator, Ruff and mypy are PASS; full pytest is still running. No current failure is established.
+- Develop head `3bd2b7f0bc25f9b3b756a1765b27db7ab787b789` has no completed exact pull-request-triggered canonical Quality observed this cycle. Do not claim repository-wide green for that exact head from older runs.
 
 ## Historical state retained
 
@@ -64,14 +65,16 @@ Any recurrence on an exact Beta/release candidate blocks promotion until root ca
 ## Integrator handoff
 
 - ERR-0015 remains closed: fix `5abee1fb3cf9aa639a2600796036302ef63a773d`, verified descendant `a9a267ec790ea4dd1c9cfc79d07fc1665f664e30`, canonical Quality `34009044381 = success`; later Backend descendant `9dc8375399c6b07f9c52545783004607aa9dd430`, Quality `34011613102 = success`.
+- Backend exact head `20edbed46471a50e72661e2e69502b094a0b599f` is additionally canonical-green via `34014111747 = success`.
+- UI exact head `5a40e75ed78293ddd8c1ea3533c5632d6dea2910` is canonical-green via `34014713429 = success`.
 - Preserve all provider transport byte-budget, deadline, loopback-only/proxy-free, Storage, Security, Recovery, Qt, Windows path, Validator, Ruff and mypy guards.
-- Do not promote current Develop `14ca6fece527d6b51956b3e5fa3ec7b291252420` without exact completed canonical evidence.
-- Current Backend and UI runs are partially green but still await full pytest/workflow completion; do not mark either exact head READY yet.
+- Do not promote current Develop `3bd2b7f0bc25f9b3b756a1765b27db7ab787b789` without exact completed canonical evidence.
+- Current Backend `c991482a9f49dec50e69779f73e3a0939df5c73b` and UI `bf7fadf849140697dc63c92c6a5c6c69335e3278` runs are partially green but still await full pytest/workflow completion; do not mark either exact head READY yet.
 
 ## Next scan
 
-1. Consume completion of Backend Quality `34014111747@20edbed46471a50e72661e2e69502b094a0b599f`.
-2. Consume completion of UI Quality `34014713429@5a40e75ed78293ddd8c1ea3533c5632d6dea2910`.
+1. Consume completion of Backend Quality `34016515174@c991482a9f49dec50e69779f73e3a0939df5c73b`.
+2. Consume completion of UI Quality `34017125454@bf7fadf849140697dc63c92c6a5c6c69335e3278`.
 3. Inspect the next exact Develop/runtime signal.
 4. Allocate or reopen a stable `ERR-####` only for a concrete deduplicated primary failure; then finalize root cause or perform the minimal scope-correct fix in the same run where evidence permits.
 5. Keep historical crash classes as release-regression knowledge unless reproduced on the exact current candidate.
