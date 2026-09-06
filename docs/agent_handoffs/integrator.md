@@ -3,39 +3,41 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `70f985ce7a28044824bfbfa53769b982fa152747`.
+- Develop before this run: `ef759aa0d6980da5adc3512b90e08512b7735082`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `43c92a3a95ddcc124a0ec1ad081b5c102dd36f98`; spec-core `2e0a840d370c5aa076f660caabb78ba166253e39`; backend `33be60ac2c7a6ddda234c8166846e233e94c4053`; ui `c249c0ec1c3a3a19617bcb5c6f3c2d4899d4a0fd`.
+- Worker heads reviewed: errors `61a65244ecd31797f47b7af1a454c3188193e2d5`; spec-core `a4180a04a2e2f1e3abacdf62af954775c1bd5058`; backend `e7e8d46e4d1011ec5586367f086c1571fe2a1267`; ui `81b8d6c2c250a412bb2947b2b356d9111c10b995`.
 - `main` and `bnbgrs/ATHENA` were untouched; no force update, history rewrite or auto-merge was used.
 
-## Integrated this run — UI-GAP-0040 System detail keyboard focus
+## Integrated this run — Storage migration PRAGMA runtime-type boundary
 
-The UI handoff marks UI-GAP-0040 `FIXED / INTEGRATOR_READY`. Product commit `330fd20ec285b44dee8c9f89597a9c75e55c9c95` adds only `QLabel#systemDetail:focus` to the established canonical accent-border focus selector block. Focused regression `4cba0e0235ea5094f9f39b4d3f615879ca4362df` locks the selector and canonical accent token. Exact verified UI head `0d5a89b879ee0959a42734181adb129f4c3de024` passed Quality `34034051224 = success`.
+Backend handoff marks the migration PRAGMA runtime-type slice through `8964f9ae22f0b3f98d06f9c000a47a98dc54f473` VERIFIED / READY. Exact canonical Quality `34033392294` completed successfully on that SHA.
 
-The UI worker product parent also contained later/unconsumed selector context, so no worker history or whole worker blob was imported. The exact bounded semantic delta was applied directly to current Develop, together with the exact focused regression, in integration commit `97a8cc71bbc52dcf2cbba83a330d634ac36197d9`.
+The bounded product delta replaces coercive `int(...)`/`str(...)` acceptance with exact runtime-type guards: `PRAGMA user_version` and WAL checkpoint counters must be genuine non-bool integers, while `journal_mode` must be genuine text. This prevents values such as `True`, numeric strings, floats, bytes or other coercible types from crossing the storage recovery boundary as valid SQLite safety signals.
+
+Only the exact verified product blob and focused regression blob were composed onto current Develop. Divergent Backend history and its handoff were not imported. Integration commits are `bb4701c3b3147e06c78065491fd994798ee2e347` and `29d1b0f16b3e02f8b0ea1e947e69f09b1dde7f31`.
 
 ## Validation and error state
 
-- UI source lineage canonical Quality `34034051224 = success`.
-- Focused UI-GAP-0040 regression is included in that exact green lineage.
-- Independent review confirmed the product delta is one selector and the regression is one nine-line test file.
-- Exact-current-Develop global Quality is not yet claimed.
-- No OPEN current exact-SHA error was established by this bounded UI slice; historical Windows runtime/crash classes remain release-acceptance guards only unless reproduced on the exact current SHA.
+- Source-lineage canonical Quality `34033392294 = success`.
+- Focused regressions cover coercible `user_version`, checkpoint `busy`, and non-text `journal_mode` values.
+- Existing candidate-only mutation, path/link ancestry, complete checkpoint, DELETE journal mode and sidecar-free handoff invariants are retained.
+- Exact-current-Develop global Quality is not yet claimed because the available connector exposes read/write and existing workflow evidence but no direct workflow-dispatch action.
+- Backend's newer negative WAL frame-count rejection remains excluded until its own exact canonical green descendant exists.
 
 ## UI state
 
-- UI-GAP-0040 is integrated on Develop.
-- Current UI handoff marks UI-GAP-0041 `IMPLEMENTED_PENDING_VERIFY`; it remains excluded until exact canonical Quality succeeds.
-- All eleven screens remain `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no pixel-level `MATCH` claim is valid while original reference images remain pending.
+- UI-GAP-0040 remains integrated on Develop.
+- Current UI head is `81b8d6c2c250a412bb2947b2b356d9111c10b995`; its newest System posture selection candidate was not consumed in this run.
+- All eleven screens remain `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no pixel-level `MATCH` claim is valid without reference-image review.
 
 ## Alpha/Beta progress
 
-`docs/development/ALPHA_BETA_PROGRESS.md` remains the canonical tracker. Complete connector retrieval has previously been truncated, so this run does not replace the whole file and risk data loss. UI-GAP-0040 integration evidence is versioned here pending safe tracker reconciliation.
+`docs/development/ALPHA_BETA_PROGRESS.md` remains the canonical tracker. Complete connector retrieval has previously been truncated, so this run does not replace the whole file and risk data loss. Storage migration exact-runtime-type integration evidence is versioned here pending safe tracker reconciliation.
 
 ## Next integration order
 
-1. Prefer a newer bounded exact-green Core successor if compatible with current Develop.
-2. Otherwise consume exactly one READY Backend/UI successor; UI-GAP-0041 remains excluded until canonical green evidence exists.
+1. Prefer one newer bounded exact-green Core successor if compatible with current Develop.
+2. Otherwise consume exactly one READY UI/Backend successor; Backend negative WAL frame-count rejection remains excluded until exact canonical green evidence exists.
 3. Obtain exact-current-Develop canonical Quality before any promotion/readiness claim.
 
 ## Persistent release guards
