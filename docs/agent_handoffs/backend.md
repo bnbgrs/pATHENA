@@ -2,12 +2,12 @@
 
 ## Baseline
 
-- Shared baseline reviewed: `develop/pathena-next@3ad1437409eb4104aba5484afe56b139191a0a54`.
+- Shared baseline reviewed: `develop/pathena-next@ff780f2edf367320340771ffc3176d9fc1724c5c`.
 - Worker branch: `postmerge/backend`.
-- Prior worker head: `8d07a57809507ada1ae5a87cd1fb6e360b66f74d`.
+- Prior worker head: `02707d295e31e8d321ba6f2ed1bd6f50197eeb81`.
 - Required worker heads reviewed before mutation: Error `0017b4d83481ba46e020d12492eb5c1d0a5fca7a`, Spec/Core `0166f4dbc6962fe8fd1f96de2d265d6767b009dc`, UI `a0ba6bd47f4b8a6e91e8f6c222334c99cbe1a3aa`.
 - Required handoffs reviewed: `errors.md`, `spec-core.md`, `ui.md`, `integrator.md`, and this Backend handoff.
-- History-preserving NON-FORCE synchronization: `272ed424bdf8ad2b0347e7ca38c79c36989d196e`, with parents prior Backend head and exact Develop.
+- History-preserving NON-FORCE synchronization: `61d2755651657859cfa2ae78bf8ff232d826c494`, with parents prior Backend head and exact Develop.
 - `main` and `bnbgrs/ATHENA` remain strict read-only and untouched.
 
 ## ExternalAccessGateway runtime boundaries — VERIFIED
@@ -18,23 +18,23 @@ Gateway lineage through Backend head `c67fa646d8ba4e4137cdf69992b9c8b42ad904d6` 
 
 Status: `BACKEND_VERIFIED / INTEGRATOR_READY`.
 
-## Disk-pressure canonical assessment thresholds — VERIFIED
+## Disk-pressure canonical reserve-release size truth — VERIFIED
 
-Product `5121c16a93b53f12f021cc779530fdc7bbc3635e` requires every externally constructed `DiskPressureAssessment.thresholds` value to equal `disk_pressure_thresholds(total_bytes)` before state truth is evaluated. Test `8701d15b795147370f5558f7eb36da31070998c5` covers noncanonical threshold rejection while retaining the pre-existing one-check threshold-change defense.
+Product `ef7dbde6e660d095272e14febcbbd1fc4cfa4370` bounds positive `DiskPressureCheckResult.released_reserve_bytes` by `emergency_reserve_size_bytes(before_release.total_bytes)`. Test `415691b0cac741f461ed41bcecbbe08bd9011330` covers malformed telemetry claiming a 2 GiB release from a 100 GiB volume whose canonical reserve is 1 GiB.
 
-Exact Backend descendant `8d07a57809507ada1ae5a87cd1fb6e360b66f74d` passed canonical ATHENA Quality `33996189939 = success`.
+Exact Backend descendant `02707d295e31e8d321ba6f2ed1bd6f50197eeb81` passed canonical ATHENA Quality `33999117392 = success`.
 
 Status: `BACKEND_VERIFIED / INTEGRATOR_READY`.
 
-## Disk-pressure canonical reserve-release size truth — APPLIED / PENDING CANONICAL
+## Local provider HTTP error-body total deadline — APPLIED / PENDING CANONICAL
 
-`DiskPressureCheckResult` already required an EMERGENCY before-state for positive reserve release and rejected release telemetry larger than the volume. That still permitted impossible externally constructed telemetry claiming release of more bytes than the canonical Emergency Reserve policy could ever allocate for the same volume.
+The shared loopback-only local provider transport already enforced proxy-free routing, redirect rejection, response-byte limits and a monotonic total deadline for successful responses. Its `HTTPError` path wrapped the error body with `_BoundedLocalResponse` but omitted `total_timeout_seconds`, despite the transport contract stating that HTTP error bodies use the same byte and total-time bounds before provider-specific error parsing. A provider could therefore keep an error body alive beyond the request's total deadline while continuing to make progress within the lower-level socket timeout.
 
-Product `ef7dbde6e660d095272e14febcbbd1fc4cfa4370` now derives `emergency_reserve_size_bytes(before_release.total_bytes)` and rejects `released_reserve_bytes` above that canonical reserve target.
+Product `eaa0c891d794529708917461b600ebe4584ae2a2` changes `_bound_http_error_body` to require the already validated request timeout and propagates it into `_BoundedLocalResponse`; `open_local_request` passes the exact `validated_timeout`. No retry, proxy, redirect, routing, byte-limit, provider parsing or cryptographic behavior changed.
 
-Test commit `415691b0cac741f461ed41bcecbbe08bd9011330` adds `test_disk_pressure_check_result_rejects_release_larger_than_canonical_reserve`, covering a 100 GiB volume whose canonical reserve is 1 GiB while malformed telemetry claims a 2 GiB release.
+Test `18710d1441206c8282f7c7dacae15f8116365c17` adds `tests/unit/test_local_http_error_body_timeout.py`, proving that an HTTP error-body read fails with `TimeoutError` once the monotonic total deadline is reached.
 
-No exact workflow run or commit status is currently bound to `415691b0cac741f461ed41bcecbbe08bd9011330`; no PASS/READY claim is made for this new slice.
+No exact workflow run is currently bound to test head `18710d1441206c8282f7c7dacae15f8116365c17`; no PASS/READY claim is made for this slice.
 
 Status: `BACKEND_APPLIED / CANONICAL_PENDING`.
 
@@ -50,20 +50,15 @@ Status: `BACKEND_APPLIED / CANONICAL_PENDING`.
 
 ## Invariants retained
 
-- emergency reserve release remains EMERGENCY-only and no canonical data is deleted;
-- positive reserve-release telemetry is bounded by the canonical reserve size for the assessed volume;
-- reserve provisioning remains canonical-size, free-space, EMERGENCY-threshold and deterministic-safe-allocation bounded;
-- disk-pressure assessments must use canonical thresholds for their exact volume size;
-- read-only safe-mode latching and noncritical-write gating remain unchanged;
-- storage telemetry does not mutate SQLite/WAL state;
-- no persistence format, transaction, recovery, fsync or Source-finalization semantics changed;
-- valid Windows/Linux storage behavior remains unchanged;
 - local model transport remains loopback-only, proxy-free and redirect-rejecting;
-- response-size and total-deadline enforcement remain fail-closed;
-- no new retries, routing behavior or cryptography;
+- successful and HTTP-error response bodies are byte-bounded and total-deadline-bounded;
+- no new retries, provider routing behavior or cryptography;
 - no silent Tor -> Direct fallback; Direct remains explicit-only;
-- ExternalAccessGateway redirect authorization, HTTPS/default-port policy and compressed-response rejection unchanged;
-- audit and provenance semantics unchanged;
+- ExternalAccessGateway redirect authorization, HTTPS/default-port policy, compressed-response rejection and response-size bounds remain unchanged;
+- audit, provenance, fsync and transactional Source-finalization semantics remain unchanged;
+- emergency reserve release remains EMERGENCY-only and no canonical data is deleted;
+- reserve provisioning and disk-pressure truth contracts remain intact;
+- no SQLite/WAL, persistence-format, transaction or recovery-protocol mutation;
 - no Skip/XFail, assertion weakening or guard relaxation;
 - no merge to `main`, force-push or history rewrite.
 
@@ -71,8 +66,8 @@ Status: `BACKEND_APPLIED / CANONICAL_PENDING`.
 
 - Error worker `0017b4d83481ba46e020d12492eb5c1d0a5fca7a` reports OPEN none and historical `ERR-0014` STALE; Backend does not reopen it without exact recurrence.
 - Spec/Core head `0166f4dbc6962fe8fd1f96de2d265d6767b009dc` owns disjoint Core work.
-- UI head `a0ba6bd47f4b8a6e91e8f6c222334c99cbe1a3aa` owns disjoint Workspace-action focus work.
-- Current Develop Local+Web candidate-freeze integration was preserved exactly during synchronization.
+- UI head `a0ba6bd47f4b8a6e91e8f6c222334c99cbe1a3aa` owns disjoint UI work.
+- Exact Develop UI/Integrator changes were preserved during synchronization.
 - No UI/Core-owned file was mutated.
 
 ## Integrator handoff
@@ -86,9 +81,10 @@ Status: `BACKEND_APPLIED / CANONICAL_PENDING`.
 - READY: reserve-provision EMERGENCY-boundary truth through `35a7ca4a31a86aa31cecc2d6140518071f1c7b71`, Quality `33987267648 = success`.
 - READY: reserve canonical required-size truth through `876fcd4dcffbcca50ac6cf137b5299343135c0e8`, Quality `33990310049 = success`.
 - READY: deterministic safe-allocation result truth through `90084f68bab8b8ec55aefe0edfb30bfa55c23dde`, Quality `33993264724 = success`.
-- READY: canonical assessment-threshold truth through exact Backend descendant `8d07a57809507ada1ae5a87cd1fb6e360b66f74d`, Quality `33996189939 = success`.
-- NOT READY: canonical reserve-release size truth product `ef7dbde6e660d095272e14febcbbd1fc4cfa4370` + test `415691b0cac741f461ed41bcecbbe08bd9011330` until executable canonical verification is green.
+- READY: canonical assessment-threshold truth through `8d07a57809507ada1ae5a87cd1fb6e360b66f74d`, Quality `33996189939 = success`.
+- READY: canonical reserve-release-size truth through exact Backend descendant `02707d295e31e8d321ba6f2ed1bd6f50197eeb81`, Quality `33999117392 = success`.
+- NOT READY: local provider HTTP error-body total-deadline hardening product `eaa0c891d794529708917461b600ebe4584ae2a2` + test `18710d1441206c8282f7c7dacae15f8116365c17` until executable canonical verification is green.
 
 ## Next backend slice
 
-Consume the first exact canonical Quality run containing `415691b0cac741f461ed41bcecbbe08bd9011330` or this documentation-only descendant. If green, promote canonical reserve-release size truth to VERIFIED/READY and immediately take the highest current unclaimed disjoint Storage/Recovery/Provider/Packaging/Runtime P0/P1/P2 gap. If no run binds, use an alternate executable verification path or another real disjoint Backend/System slice instead of repeating runner state. If red, inspect exact diagnostics and repair only a Backend-owned failure while preserving ExternalAccessGateway and persistent Windows release/crash invariants.
+Consume the first exact canonical Quality run containing `18710d1441206c8282f7c7dacae15f8116365c17` or this documentation-only descendant. If green, promote local provider HTTP error-body total-deadline hardening to VERIFIED/READY and immediately take the highest current unclaimed disjoint Storage/Recovery/Provider/Packaging/Runtime P0/P1/P2 gap. If no run binds, use an alternate executable verification path or another real disjoint Backend/System slice instead of repeating runner state. If red, inspect exact diagnostics and repair only a Backend-owned failure while preserving ExternalAccessGateway and persistent Windows release/crash invariants.
