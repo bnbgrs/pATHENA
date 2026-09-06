@@ -55,6 +55,7 @@ jobs:
       - name: Capture exactly eleven canonical surfaces with native fonts
         shell: pwsh
         run: |
+          $env:PYTHONPATH = (Get-Location).Path
           $runtimeRoot = Join-Path $env:RUNNER_TEMP "pathena-visual-runtime"
           $actualRoot = Join-Path (Get-Location) "artifacts\visual-actual"
           uv run --locked --extra desktop --no-sync python scripts/render_pathena_ui_snapshot_fontsafe.py `
