@@ -3,63 +3,46 @@
 ## Baseline
 
 - Baseline source: `develop/pathena-next`.
-- Baseline SHA observed this run: `859e1a68e8d9a207a5094462aefe189f6f276c9d`.
+- Baseline SHA observed this run: `fd15a75212acac7f88886117835b8d754577ea91`.
 - Worker branch: `postmerge/errors`.
-- Error branch pre-run head: `118f3b2c182de43d1876c7c369a00282800018fa`.
-- Current Backend head observed: `3d61f4ed646ceda00785928320bfefa12b6fb257`.
-- Required `spec-core.md`, `backend.md`, `ui.md` and `integrator.md` handoffs were reviewed before disposition.
+- Error branch pre-run head: `46fb660d7980d83e1b22c061187bae2b99832610`.
+- Current Backend head observed: `9dc8375399c6b07f9c52545783004607aa9dd430`.
+- Current UI head observed: `644c3cd5e3fd9c646b5e9d881a821b25d55b70ea`.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only; no force update, rebase, history rewrite or merge to main was attempted.
 
 ## Current error state
 
 - OPEN: none.
-- IN_PROGRESS: `ERR-0015`.
+- IN_PROGRESS: none.
 - FIXED_PENDING_VERIFY: none.
-- FIXED: `ERR-0001` through `ERR-0013`.
+- FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015`.
 - STALE: `ERR-0014`.
 - BLOCKED: none.
 
-## Fresh evidence — ERR-0015
+## ERR-0015 — closed with exact verification
 
-Backend bounded local-response read-size type stability has a concrete reproducible canonical failure.
+The reproduced bounded local-response negative-read failure is confirmed as a harness defect and is now closed.
 
-- First canonical signal: Quality `34004101347@e4ddf651db85c1abe1c42e8b3f65a7b77fd08eba` failed only full pytest at `tests/unit/test_local_http_read_size_validation.py::test_bounded_local_response_still_accepts_negative_integer_read_size`.
-- Backend then history-preserving NON-FORCE resynced to Develop at `aed7296fd0ca173daaca41da1f2f64e575b8c5b4`.
-- Exact resync Quality `34006604490@aed7296fd0ca173daaca41da1f2f64e575b8c5b4` reproduced the identical sole failure: `1 failed, 4666 passed, 3 skipped`.
-- In `34006604490`, Windows path safety, Linux storage regressions, local install smoke, specification Validator, Ruff and mypy all PASS. Only canonical full pytest fails.
-- Exact exception: `LocalResponseTooLargeError: Local model response exceeded the configured byte limit.` from `src/athena/model/adapters/local_http.py:137` while the test expects `bounded.read(-1) == b"xxxx"` with `max_bytes=4`.
+- Failing canonical Backend Quality: `34004101347@e4ddf651db85c1abe1c42e8b3f65a7b77fd08eba`.
+- Reproduced same sole failure: `34006604490@aed7296fd0ca173daaca41da1f2f64e575b8c5b4`, `1 failed, 4666 passed, 3 skipped`.
+- Root cause: `_TrackingResponse.read(amt)` behaved as an unbounded byte generator. The production wrapper intentionally requested `remaining + 1` bytes to detect overflow, so the fake fabricated a fifth byte for an intended four-byte body and correctly triggered `LocalResponseTooLargeError`.
+- Minimal Backend harness fix: `5abee1fb3cf9aa639a2600796036302ef63a773d` makes the fake response finite/remaining-aware without changing the product overflow probe or weakening assertions.
+- Verified descendant: `a9a267ec790ea4dd1c9cfc79d07fc1665f664e30`.
+- Exact canonical verification: Quality `34009044381@a9a267ec790ea4dd1c9cfc79d07fc1665f664e30 = success`.
+- Result: `ERR-0015 = FIXED`.
 
-## Root cause — finalized
+The product `remaining + 1` byte-budget probe, true-integer validation, deadlines and provider/transport guards remain mandatory and unchanged.
 
-This is a harness defect, not a product byte-budget defect.
+## Current worker evidence
 
-The bounded response intentionally maps `read(None)` or `read(negative_integer)` to an underlying request of `remaining + 1`. This one-extra-byte probe is what detects a response larger than the configured limit. With `max_bytes=4`, the wrapper therefore asks the delegate for five bytes.
-
-The test's `_TrackingResponse.read(amt)` behaves as an unbounded byte generator: when asked for five bytes it fabricates five bytes. That contradicts the test's intended finite four-byte response premise. The wrapper then correctly counts five bytes and raises `LocalResponseTooLargeError`.
-
-The product guard must not be changed. The minimal correction is in `tests/unit/test_local_http_read_size_validation.py`: make the fake response finite/remaining-aware so its four-byte body returns at most the bytes actually present even when probed with `remaining + 1`. Preserve the assertion that true negative integers are accepted and preserve explicit oversized-body rejection coverage.
-
-## Ownership / collision rule
-
-Backend currently owns `tests/unit/test_local_http_read_size_validation.py`. Current Backend head `3d61f4ed646ceda00785928320bfefa12b6fb257` is a documentation descendant and exact canonical Quality `34006623230` is still in progress. Error therefore does not create a competing mutation in this cycle.
-
-Required Backend correction signature:
-
-1. finite/remaining-aware `_TrackingResponse` or equivalent finite-body harness;
-2. no change to `src/athena/model/adapters/local_http.py` `remaining + 1` overflow probe;
-3. no weaker assertions or changed exception contract for truly oversized bodies;
-4. focused `tests/unit/test_local_http_read_size_validation.py` green;
-5. relevant local HTTP response-limit regressions green;
-6. Ruff green;
-7. exact new Backend SHA canonical Quality green, including full pytest.
-
-If Backend completes one further worker cycle without this correction and no active colliding code mutation remains, Error may take the minimal harness-only fix under the hard progress rule.
+- Backend head `9dc8375399c6b07f9c52545783004607aa9dd430` has canonical Quality `34011613102` in progress. It is newer than the exact verified ERR-0015 descendant; consume it only for new Backend readiness/failure evidence, not to reopen ERR-0015 without an exact recurrence.
+- UI head `644c3cd5e3fd9c646b5e9d881a821b25d55b70ea` is a separate current candidate and is not evidence of an Error-owned failure by itself.
+- Develop head `fd15a75212acac7f88886117835b8d754577ea91` has no completed pull-request-triggered canonical Quality run observed this cycle. Do not claim repository-wide green for that exact head from older runs.
 
 ## Historical state retained
 
-- Historical `ERR-0004` remains `FIXED`; exact B010/I001 evidence and exact-head green verification remain recorded in the ledger. No current startup/readiness Ruff recurrence exists.
-- `ERR-0014` remains `STALE`, not `FIXED`: two historical exact SIGSEGV recurrences were followed by repeated exact canonical clean runs on unchanged affected controller/test lineage. Reopen the same ID only on exact exit-139/controller-refresh recurrence.
-- No mocks, Skip/XFail, dummy success path, weaker off-UI-thread assertions, Ruff/mypy relaxation, or Security/Storage/Recovery/Windows guard weakening is permitted.
+- `ERR-0004` remains `FIXED`; exact B010/I001 evidence and exact canonical green verification remain recorded.
+- `ERR-0014` remains `STALE`, not `FIXED`: reopen the same ID only if the exact exit-139/controller-refresh signature recurs on a current exact SHA.
 
 ## Persistent Windows/runtime regression knowledge
 
@@ -78,17 +61,14 @@ Any recurrence on an exact Beta/release candidate blocks promotion until root ca
 
 ## Integrator handoff
 
-- `ERR-0015` is the sole active error.
-- Reject Backend bounded-read type-stability candidate `e4ddf651...` and resync `aed7296f...` as READY because both have the exact same full-pytest failure.
-- Do not classify the product `remaining + 1` probe as defective; it is the safety mechanism exposing the fake-response defect.
-- Current Backend `3d61f4ed...` remains unverified while Quality `34006623230` is in progress.
-- Current Develop `859e1a68e8d9a207a5094462aefe189f6f276c9d` does not receive a repository-wide green claim from this run.
+- Accept the ERR-0015 correction lineage as closed evidence: fix `5abee1fb3cf9aa639a2600796036302ef63a773d`, exact verified descendant `a9a267ec790ea4dd1c9cfc79d07fc1665f664e30`, canonical Quality `34009044381 = success`.
 - Preserve all provider transport byte-budget, deadline, loopback-only/proxy-free, Storage, Security, Recovery, Qt, Windows path, Validator, Ruff and mypy guards.
+- Do not promote current Develop `fd15a75212acac7f88886117835b8d754577ea91` without exact completed canonical evidence.
+- Consume Backend `34011613102`; only allocate a new error if it finishes with a concrete deduplicated primary failure.
 
 ## Next scan
 
-1. Consume Backend Quality `34006623230@3d61f4ed646ceda00785928320bfefa12b6fb257`.
-2. Verify whether Backend supplies the exact minimal `ERR-0015` harness correction on a new SHA; do not accept a documentation-only handoff as a fix.
-3. Set `ERR-0015` to `FIXED` only after focused and exact canonical verification are actually green.
-4. If one full further Backend cycle leaves the same error unfixed and no active collision remains, apply the minimal harness-only correction on `postmerge/errors` and verify it without weakening product safeguards.
-5. After `ERR-0015`, immediately consume the next concrete canonical/runtime signal; do not manufacture failures.
+1. Consume completion of Backend Quality `34011613102@9dc8375399c6b07f9c52545783004607aa9dd430`.
+2. Inspect the next exact Develop/UI canonical or runtime signal.
+3. Allocate a new stable `ERR-####` only for a real deduplicated primary failure.
+4. Keep historical crash classes as release-regression knowledge unless reproduced on the exact current candidate.
