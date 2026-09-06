@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `70f985ce7a28044824bfbfa53769b982fa152747`
+Baseline: `ef759aa0d6980da5adc3512b90e08512b7735082`
 Integration target: `develop/pathena-next`
 UI worker: `postmerge/ui`
 
@@ -211,10 +211,18 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
 
 ## UI-GAP-0041 — System runtime status values lack explicit keyboard-focus presentation
-- Screen: `06 — System`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Screen: `06 — System`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `FIXED`.
 - Evidence: each `_SystemStatusRow` creates `QLabel#settingsValue` and explicitly enables `TextSelectableByKeyboard`; these live runtime values are therefore keyboard-interactive for reading/copying, while the canonical focus block covered `QLabel#systemDetail:focus` but not the status-value object family.
 - Product `96b6f2525bf2572fe2eeaa09eda8cddc80ae18a1` adds only `QLabel#settingsValue:focus` to the existing canonical accent-border focus block. Focused regression `36b3b9441f1202353cab42b867292ff292f8cb4a` locks the selector and canonical accent token.
 - Runtime values, snapshot projection, refresh routing, text-selection behavior and Core/provider/storage/security semantics are unchanged.
+- Verification evidence: exact UI head `c249c0ec1c3a3a19617bcb5c6f3c2d4899d4a0fd` passed canonical ATHENA Quality Gate `34036984000` with conclusion `success`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0042 — System Security posture values are not keyboard-selectable
+- Screen: `06 — System`; Category: `ACCESSIBILITY / KEYBOARD / INTERACTION`; Severity: `P1`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Evidence: `_PostureRow` exposes snapshot-backed Loopback only, Local processing, Encrypted at rest and Tor status values through the same `QLabel#settingsValue` presentation as major runtime facts, but unlike `_SystemStatusRow` it did not enable text selection. Keyboard users therefore could not focus/select/copy these truthful live posture facts even though `settingsValue` already has the verified canonical focus treatment.
+- Product `f7086b9838bdbb29a3fbfef7dd1eeb070ff4fead` enables only `TextSelectableByMouse | TextSelectableByKeyboard` on `_PostureRow.value`; focused regression `50c483a985053bb6450de93e6ddae3e03b6720ff` locks the object family and both interaction flags.
+- Security facts, snapshot projection, state vocabulary, Core/provider/storage/security semantics and control routing are unchanged; this is read/copy accessibility only.
 - Verification evidence: canonical Quality on the exact final product/test/documentation successor is pending; no PASS is claimed yet.
 - Visual status: `IMPLEMENTED_PENDING_VERIFY`; no screenshot-level `MATCH` claim.
 
