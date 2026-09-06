@@ -2,9 +2,9 @@
 
 ## Current baseline
 
-- Base reviewed: `develop/pathena-next@8b6c7a2f44104675570152a5b44fa65979493bc9`.
+- Base reviewed: `develop/pathena-next@2bc57c4c84a0ed13ca9adbbc61f8fd00fc87fb8f`.
 - Worker: `postmerge/ui`.
-- Current Develop was synchronized history-preservingly through two-parent NON-FORCE commit `085ec5a01e46a86015e49583de48ce451175d4d0`; `main` and `bnbgrs/ATHENA` remain read-only and untouched.
+- Current Develop was synchronized history-preservingly through two-parent NON-FORCE commit `4ae77034aa6e24ed6dbb18f05154e6ef3bcdbfaf`; `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 - Original eleven reference images remain `VISUAL_REFERENCE_PENDING`; no pixel-level `MATCH` claim is made. A real current Windows implementation render was captured successfully by snapshot run `34038626901`, but those implementation screenshots are not the original user references and therefore do not establish visual parity.
 
 ## Runtime/release regression guard
@@ -25,35 +25,43 @@ Status: `FIXED / INTEGRATOR_READY`, P1.
 - Product `73653063f4922d1e7168f06560c7f0e6bfda1fb7` adds only `QGraphicsView#pallasSemanticCanvas:focus` to the canonical accent-border focus block.
 - Focused regression `1bbecf2c9a3a8ed738b7203e39085e65477a0f28` locks the selector and canonical focus token.
 - Exact UI head `59b2046d5e127664195f7ecf17245c45f70f00ca` passed canonical Quality `34052665337 = success`.
-- PALLAS graph data, node selection, keyboard traversal, pan/zoom, Inspector synchronization and backend/Core semantics are unchanged.
 
-## UI-GAP-0046 — PALLAS full synchronized workspace lacks a conflict-free keyboard opening path
+## UI-GAP-0046 — PALLAS full synchronized workspace keyboard opening
+
+Status: `FIXED / INTEGRATOR_READY`, P1.
+
+- Product `4b4eb8c0ee1ea66f7f9c50a03c464330b02f7143` installs the existing full-view filter on the compact semantic canvas plus viewport and adds only `Ctrl+Enter` as the conflict-free keyboard opening path. Plain Enter, keypad Enter and Space retain semantic-node selection behavior.
+- Focused regression `5ce4d87f7360741087d7a59a91441faa8e6d8a83` proves plain Enter does not open the full view, Ctrl+Enter opens the single synchronized full workspace, focus lands on its semantic canvas, and accessibility copy exposes the shortcut.
+- Exact final UI head `38a28f61af16d0b12500b4056b586ba934a2ba1a` passed canonical Quality `34056114998 = success`.
+- Graph state, node selection, pan/zoom, Inspector synchronization, Core/backend/storage/security and runtime semantics are unchanged.
+
+## UI-GAP-0047 — Command Palette results lack row-level focused-current presentation
 
 Status: `IMPLEMENTED_PENDING_VERIFY`, P1.
 
-- Evidence: the compact semantic field exposes a real double-click path to the synchronized full PALLAS workspace, but keyboard users had no equivalent opening path. Plain Enter, keypad Enter and Space are already intentionally owned by semantic-node selection in `_PallasCanvas.keyPressEvent`, so intercepting them would break the verified keyboard selection contract.
-- Product `4b4eb8c0ee1ea66f7f9c50a03c464330b02f7143` installs the full-view event filter on the real compact canvas in addition to its viewport and adds only `Ctrl+Enter` as the full-view keyboard command. Existing left-button double-click remains unchanged. Target/canvas tooltip and accessible description now expose the same shortcut.
-- Focused regression `5ce4d87f7360741087d7a59a91441faa8e6d8a83` proves plain Enter does not open the full view, Ctrl+Enter does open the single synchronized full workspace, focus lands on the full semantic canvas, and the keyboard path is exposed in accessibility copy.
-- Graph state, node selection, Enter/Space selection behavior, pan/zoom, Inspector synchronization, Core/backend/storage/security and runtime semantics are unchanged.
+- Evidence: `CommandPaletteController` creates keyboard-focusable `QListWidget#commandPaletteResults`, routes Up/Down selection and Enter activation, and the shared foundation provides normal/hover/selected item styling plus a widget-level `QListWidget:focus` border. The focused-current selector block covered Library, Research, Jobs and Sources lists but omitted Command Palette results, so the active keyboard row was not separately expressed from an unfocused selected row.
+- Product `ca27570a842a98754dfcce0741bd946ba2711689` adds only `QListWidget#commandPaletteResults:focus::item:current` to the existing canonical focused-current selector block using readable text, `surface_hover`, and the existing 2px accent left edge.
+- Focused regression `5a2351300fc46974e68bdd7ce120848995f12c5f` locks the selector and canonical focus tokens.
+- Query filtering, command ordering, Up/Down movement, Enter activation, command routing, F1 help, backend/storage/security and runtime semantics are unchanged.
 
 ## Develop synchronization
 
-Develop advanced to `8b6c7a2f44104675570152a5b44fa65979493bc9`. The UI worker imported exactly the three Develop delta files `docs/agent_handoffs/integrator.md`, `src/athena/storage/migration_executor.py`, and `tests/unit/test_migration_executor_journal_mode_shape.py`, then joined both histories through two-parent NON-FORCE commit `085ec5a01e46a86015e49583de48ce451175d4d0`. No force, rebase, history rewrite, `main` mutation or `bnbgrs/ATHENA` mutation occurred.
+Develop advanced to `2bc57c4c84a0ed13ca9adbbc61f8fd00fc87fb8f`. The UI worker imported exactly the three Develop delta files `docs/agent_handoffs/integrator.md`, `src/athena/storage/migration_executor.py`, and `tests/unit/test_migration_executor_user_version_shape.py`, then joined both histories through two-parent NON-FORCE commit `4ae77034aa6e24ed6dbb18f05154e6ef3bcdbfaf`. No force, rebase, history rewrite, `main` mutation or `bnbgrs/ATHENA` mutation occurred.
 
 ## Ledger coordination
 
-- `UI-GAP-0042` is already recorded as `FIXED` with exact Quality `34040342678`.
-- `UI-GAP-0044` is technically verified by exact Quality `34049733492`, but the current ledger text still carries the earlier pending-verification wording.
+- `UI-GAP-0044` is technically verified by exact Quality `34049733492`; its legacy ledger wording still requires reconciliation.
 - `UI-GAP-0045` is technically verified by exact Quality `34052665337` and still requires stable ledger registration.
-- `UI-GAP-0046` is the current stable next identifier and is pending canonical verification.
-- No unsafe whole-ledger replacement was performed while exact complete-file patch mutation was unavailable; existing ledger history was preserved.
+- `UI-GAP-0046` is technically verified by exact Quality `34056114998` and still requires stable ledger registration.
+- `UI-GAP-0047` is the current stable next identifier and has product/test evidence on this worker; canonical verification is pending.
+- Existing ledger history was not dropped or rewritten.
 
 ## Integrator handoff
 
-- UI-GAP-0045 is ready: product `73653063f4922d1e7168f06560c7f0e6bfda1fb7`, regression `1bbecf2c9a3a8ed738b7203e39085e65477a0f28`, exact verified UI head `59b2046d5e127664195f7ecf17245c45f70f00ca`, canonical Quality `34052665337 = success`.
-- UI-GAP-0046 is NOT READY until canonical Quality succeeds on the exact final candidate containing product, focused regression, manifest and this handoff.
+- UI-GAP-0046 is ready: product `4b4eb8c0ee1ea66f7f9c50a03c464330b02f7143`, regression `5ce4d87f7360741087d7a59a91441faa8e6d8a83`, exact verified UI head `38a28f61af16d0b12500b4056b586ba934a2ba1a`, canonical Quality `34056114998 = success`.
+- UI-GAP-0047 is NOT READY until canonical Quality succeeds on the exact final candidate containing product, focused regression, manifest and this handoff.
 - No backend/storage/security/provider/worker/scheduler semantics changed by UI.
 
 ## Next UI step
 
-Consume canonical Quality on the exact final UI-GAP-0046 candidate. If green, promote UI-GAP-0046 to `FIXED / INTEGRATOR_READY`, return Screen 08 to `IMPLEMENTED_PENDING_VISUAL_REVIEW`, reconcile the pending ledger wording for UI-GAP-0044 plus stable UI-GAP-0045/UI-GAP-0046 evidence without dropping history, then continue with one distinct PALLAS or Command Palette accessibility/state/interaction gap.
+Consume canonical Quality on the exact final UI-GAP-0047 candidate. If green, promote UI-GAP-0047 to `FIXED / INTEGRATOR_READY`, return Screen 09 to `IMPLEMENTED_PENDING_VISUAL_REVIEW`, reconcile UI-GAP-0044 plus stable UI-GAP-0045/UI-GAP-0046/UI-GAP-0047 evidence in `VISUAL_GAP_LEDGER.md` without dropping history, then inspect one distinct Command Palette/Help or Startup accessibility/state/interaction gap.
