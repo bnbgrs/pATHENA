@@ -1,0 +1,73 @@
+name: pATHENA Postmerge UI Snapshot
+
+on:
+  push:
+    branches:
+      - postmerge/ui
+    paths:
+      - ".github/workflows/ui-snapshot-postmerge.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    name: Capture current postmerge UI on Windows
+    runs-on: windows-2022
+    timeout-minutes: 20
+    env:
+      PYTHONUTF8: "1"
+      QT_QPA_PLATFORM: offscreen
+      QT_QUICK_BACKEND: software
+      QT_OPENGL: software
+
+    steps:
+      - name: Check out exact pushed head
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+
+      - name: Prove immutable checked-out identity
+        shell: pwsh
+        run: |
+          $checkedOut = (git rev-parse HEAD).Trim().ToLowerInvariant()
+          $expected = "${{ github.sha }}".Trim().ToLowerInvariant()
+          if ($LASTEXITCODE -ne 0 -or $checkedOut -ne $expected) {
+            throw "Checked out $checkedOut instead of exact pushed head $expected."
+          }
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+          check-latest: false
+
+      - name: Install locked desktop environment
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check "uv==0.11.21"
+          uv lock --check
+          if ($LASTEXITCODE -ne 0) { throw "uv.lock is not current." }
+          uv sync --locked --extra dev --extra desktop
+          if ($LASTEXITCODE -ne 0) { throw "Locked environment sync failed." }
+
+      - name: Capture exactly eleven canonical surfaces with native fonts
+        shell: pwsh
+        run: |
+          $runtimeRoot = Join-Path $env:RUNNER_TEMP "pathena-visual-runtime"
+          $actualRoot = Join-Path (Get-Location) "artifacts\visual-actual"
+          uv run --locked --extra desktop --no-sync python scripts/render_pathena_ui_snapshot_fontsafe.py `
+            --runtime-root $runtimeRoot `
+            --screenshot-directory $actualRoot `
+            --initial-delay-seconds 7
+          if ($LASTEXITCODE -ne 0) { throw "Eleven-surface capture failed." }
+
+      - name: Upload real UI screenshots
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: pathena-postmerge-ui-${{ github.sha }}
+          path: artifacts/visual-actual/**
+          if-no-files-found: error
+          retention-days: 14
