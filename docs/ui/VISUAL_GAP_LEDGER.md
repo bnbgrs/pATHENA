@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `2bc57c4c84a0ed13ca9adbbc61f8fd00fc87fb8f`
+Baseline: `8941f823d896e85b58c7f566b45bef04bbfdb84d`
 Integration target: `develop/pathena-next`
 UI worker: `postmerge/ui`
 
@@ -260,11 +260,26 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
 
 ## UI-GAP-0047 — Command Palette results lack row-level focused-current presentation
-- Screen: `09 — Command Palette / Help`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Screen: `09 — Command Palette / Help`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `FIXED`.
 - Evidence: `CommandPaletteController` creates keyboard-focusable `QListWidget#commandPaletteResults`, routes Up/Down movement and Enter activation, and the shared foundation already provides normal/hover/selected item styling plus a widget-level `QListWidget:focus` border. The canonical focused-current row block covered Library, Research, Jobs and Sources lists but omitted Command Palette results, so the active keyboard row was not separately expressed from an unfocused selected row.
 - Product `ca27570a842a98754dfcce0741bd946ba2711689` adds only `QListWidget#commandPaletteResults:focus::item:current` to the existing canonical focused-current selector block using readable text, `surface_hover`, and the existing 2px accent left edge.
 - Focused regression `5a2351300fc46974e68bdd7ce120848995f12c5f` locks the selector and canonical focus tokens.
 - Query filtering, command ordering, Up/Down movement, Enter activation, command routing, F1 help and backend/storage/security/runtime semantics are unchanged.
+- Verification evidence: exact UI head `63a3387107b017d8bae7a46f5ea315cd766f7c9f` passed canonical ATHENA Quality Gate `34059147367` with conclusion `success`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0048 — F1 Help omits the contextual PALLAS Ctrl+Enter shortcut
+- Screen: `09 — Command Palette / Help`; Category: `ACCESSIBILITY / COPY / DISCOVERABILITY`; Severity: `P1`; Status: `FIXED`.
+- Evidence: `UI-GAP-0046` established Ctrl+Enter as the conflict-free keyboard path to full PALLAS while the semantic canvas is focused, but the live F1 keyboard guide previously described Ctrl+Enter only as Chat send. Keyboard users therefore could not discover the verified PALLAS path from Help.
+- Product `d1ce2e7978035d969cc2916804c3d903f1345978` disambiguates Ctrl+Enter into context-specific Chat-composer send and PALLAS-semantic-canvas full-view entries without changing any command routing. Focused regression `4be3a9c897313f63f8c49ddc6eb9ecfea9186ded` locks both strings.
+- Verification evidence: exact UI head `4be3a9c897313f63f8c49ddc6eb9ecfea9186ded` passed canonical ATHENA Quality Gate `34061905305` with conclusion `success`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0049 — Disconnected composer readiness reason is not exposed through accessibility description
+- Screen: `11 — Startup / Empty / Disconnected state`; Category: `ACCESSIBILITY / STATE`; Severity: `P1`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Evidence: `PathenaStartupExperience.sync()` already derives truthful readiness copy for `promptInput` and exposes it as a tooltip, but the same reason was not mirrored to `accessibleDescription`. This made the disabled/disconnected composer less self-describing to assistive technology than to pointer users.
+- Product `39f1e71db444302f7b4e08006a4a281727a0f919` mirrors the already-derived prompt tooltip into `accessibleDescription` after every readiness sync, covering both disconnected and ready states without adding a new state source. Focused regression `eed8dff3923f415640517a96e8dd395d55c75ea0` locks equality between the truthful tooltip and accessibility description in the disconnected startup state.
+- Core readiness, model selection, prompt enablement, chat routing, persistence, backend/storage/security/runtime and relaunch/spawn behavior are unchanged; this is accessibility metadata only.
 - Verification evidence: canonical Quality on the exact final product/test/documentation successor is pending; no PASS is claimed yet.
 - Visual status: `IMPLEMENTED_PENDING_VERIFY`; no screenshot-level `MATCH` claim.
 
