@@ -283,6 +283,9 @@ QComboBox:focus,
 QSpinBox:focus,
 QDoubleSpinBox:focus,
 QListWidget:focus,
+QPlainTextEdit#persistentKnowledgeDetails:focus,
+QPlainTextEdit#persistentClaimDetails:focus,
+QPlainTextEdit#semanticReviewDetails:focus,
 QWidget[pathenaKeyboardFocus="true"] {{
     border: 1px solid {PALETTE.accent};
 }}
