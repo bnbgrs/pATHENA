@@ -293,6 +293,10 @@ QPlainTextEdit#sourceDetails:focus,
 QPlainTextEdit#helpText:focus,
 QLabel#systemDetail:focus,
 QLabel#settingsValue:focus,
+QLabel#settingsProviderState:focus,
+QLabel#settingsNetworkState:focus,
+QLabel#settingsPersistenceState:focus,
+QLabel#settingsRuntimeDetail:focus,
 QWidget[pathenaKeyboardFocus="true"] {{
     border: 1px solid {PALETTE.accent};
 }}
