@@ -16,18 +16,18 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 ## Current baseline
 
 - Baseline branch: `develop/pathena-next`.
-- Baseline SHA observed this run: `fd15a75212acac7f88886117835b8d754577ea91`.
+- Baseline SHA observed this run: `8236500a5ae0ae58e7dce5bb3cf0771eb534670d`.
 - Worker branch: `postmerge/errors`.
-- Pre-run Error branch head: `46fb660d7980d83e1b22c061187bae2b99832610`.
-- Relevant Backend head: `9dc8375399c6b07f9c52545783004607aa9dd430`; canonical Quality `34011613102` is in progress.
-- Relevant UI head: `644c3cd5e3fd9c646b5e9d881a821b25d55b70ea`.
-- `ERR-0015` fix lineage `5abee1fb3cf9aa639a2600796036302ef63a773d` is contained by verified descendant `a9a267ec790ea4dd1c9cfc79d07fc1665f664e30`; exact canonical Quality `34009044381 = success`.
-- Current Develop head has no exact completed pull-request-triggered canonical Quality run observed this cycle.
+- Pre-run Error branch head: `90904477f4810d0580ca42f4be3b9290b703c1a4`.
+- Relevant Backend head: `a5904fc2078a8dec5eece17dd352436d14453d8f`; canonical Quality `34019237735` is in progress with Windows path safety, Linux storage, local install smoke, Validator, Ruff and mypy green while full pytest runs.
+- Relevant UI head: `089a0e4b0b8fc43e37f00f8288f64cd62014fbb4`; canonical Quality `34019891561` is in progress with Windows path safety, Linux storage, local install smoke, Validator, Ruff and mypy green while full pytest runs.
+- Previous Backend Quality `34016515174@c991482a9f49dec50e69779f73e3a0939df5c73b` completed failure with two exact pytest failures in local HTTP overflow-poisoning coverage; this is `ERR-0016`.
+- Previous UI Quality `34017125454@bf7fadf849140697dc63c92c6a5c6c69335e3278` completed success.
 - No force update, rebase, history rewrite or merge to `main` was attempted.
 
 ## Current error state
 
-- OPEN: none.
+- OPEN: `ERR-0016`.
 - IN_PROGRESS: none.
 - FIXED_PENDING_VERIFY: none.
 - FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015`.
@@ -166,6 +166,21 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 - risk: do not weaken the product overflow probe; reopen only on exact recurrence.
 - integrator_handoff: bounded-read harness defect is closed and the verified descendant is acceptable evidence for this error.
 
+### ERR-0016 — Local HTTP overflow no longer poisons the bounded response
+- first_seen: 2026-09-06
+- severity: P1
+- area: Backend / Provider-Transport / local HTTP product safety
+- status: `OPEN`
+- evidence: canonical Backend Quality `34016515174@c991482a9f49dec50e69779f73e3a0939df5c73b`; Windows path safety PASS, Linux storage PASS, local install smoke PASS, Validator PASS, Ruff PASS, mypy PASS, full pytest FAIL with exactly two failures: `tests/unit/test_local_http_response_boundaries.py::test_size_overflow_poisoning_blocks_followup_read_before_underlying_io` and `tests/unit/test_local_http_response_boundaries.py::test_readline_overflow_poisoning_blocks_followup_io`; total `2 failed, 4690 passed, 3 skipped`.
+- repro: first oversized `read(6)`/`readline()` correctly raises `LocalResponseTooLargeError`, but a subsequent bounded body access is allowed to perform underlying I/O instead of failing immediately.
+- root_cause: product regression introduced by the oversize-before-accounting mutation (`5e6862fe9544465e3aed66840601a204d4d2cae5` lineage). It computes `next_bytes_read`, raises on overflow, and deliberately leaves `_bytes_read` unmodified. That removes the established poisoned-state marker (`_bytes_read > _max_bytes`) used by `_assert_within_byte_budget()` to block all follow-up body I/O after an overflow. The new harness requirement `_bytes_read == 0` after rejection conflicts with the older fail-closed poisoning invariant and weakens post-overflow containment.
+- files: `src/athena/model/adapters/local_http.py`, `tests/unit/test_local_http_response_boundaries.py`, `tests/unit/test_local_http_oversize_accounting.py`.
+- current_worker_verification: current Backend `a5904fc2078a8dec5eece17dd352436d14453d8f` still contains the non-poisoning `next_bytes_read` implementation; therefore the root cause is still present. Canonical Quality `34019237735` is in progress and is not fix evidence.
+- required_fix: preserve fail-closed poisoning explicitly after any over-budget returned chunk while avoiding ambiguous successful-byte accounting. A dedicated poisoned flag is preferable to pretending rejected bytes were successfully consumed; `_assert_within_byte_budget()` must reject before any subsequent underlying body I/O. Update the new oversize-accounting test to assert the safe state contract rather than `_bytes_read == 0` as the sole invariant. Do not weaken `remaining + 1`, cumulative byte caps, type validation, deadlines, loopback/proxy/redirect controls, or the existing poisoning tests.
+- fix_sha: none.
+- verification_required: focused read/readline overflow + poisoning + exact-limit/EOF + ERR-0015 negative-read regressions, Ruff, mypy, then exact canonical Quality success.
+- integrator_handoff: reject the oversize-before-accounting Backend slice and all descendants as READY until `ERR-0016` is corrected and exactly verified.
+
 ## Persistent release/runtime crash knowledge
 
 These remain regression/release-acceptance classes only and are not current `OPEN` entries unless reproduced on the exact current candidate SHA.
@@ -183,7 +198,8 @@ Before any Windows/Beta promotion-ready claim, require exact-candidate evidence 
 
 ## Current integrator handoff
 
-- `ERR-0001` through `ERR-0013` and `ERR-0015` are `FIXED`; `ERR-0014` remains `STALE`.
-- `ERR-0015` closed on exact canonical Quality `34009044381@a9a267ec790ea4dd1c9cfc79d07fc1665f664e30 = success` with fix lineage `5abee1fb3cf9aa639a2600796036302ef63a773d`.
-- Current Backend `9dc8375399c6b07f9c52545783004607aa9dd430` has a newer canonical Quality `34011613102` still in progress; that run is not needed to close `ERR-0015` but must be consumed for any new Backend readiness claim.
-- Current Develop `fd15a75212acac7f88886117835b8d754577ea91` has no exact completed canonical Quality observed this run; do not promote it based on older lineage alone.
+- `ERR-0001` through `ERR-0013` and `ERR-0015` are `FIXED`; `ERR-0014` remains `STALE`; `ERR-0016` is `OPEN`.
+- Reject Backend oversize-before-accounting lineage beginning at `5e6862fe9544465e3aed66840601a204d4d2cae5` as READY while the current descendant still removes post-overflow poisoning.
+- Current Backend `a5904fc2078a8dec5eece17dd352436d14453d8f` has canonical Quality `34019237735` in progress; non-pytest jobs are green, but the code still contains the `ERR-0016` root cause.
+- Current UI `089a0e4b0b8fc43e37f00f8288f64cd62014fbb4` has canonical Quality `34019891561` in progress; previous UI `34017125454@bf7fadf849140697dc63c92c6a5c6c69335e3278 = success`.
+- Current Develop `8236500a5ae0ae58e7dce5bb3cf0771eb534670d` has no exact completed canonical Quality observed this run; do not promote it based on older lineage alone.
