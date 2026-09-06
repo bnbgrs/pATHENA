@@ -2,25 +2,37 @@
 
 ## Baseline
 
-- Shared baseline reviewed: `develop/pathena-next@8236500a5ae0ae58e7dce5bb3cf0771eb534670d`.
-- Worker branch pre-run head: `postmerge/backend@a5904fc2078a8dec5eece17dd352436d14453d8f`.
-- Worker heads reviewed: Error `90904477f4810d0580ca42f4be3b9290b703c1a4` then current error handoff with `ERR-0016`; Spec/Core `a43a471b611c78d24ebb8c67253b855b6a0642f3`; UI `089a0e4b0b8fc43e37f00f8288f64cd62014fbb4`; Integrator baseline `8236500a5ae0ae58e7dce5bb3cf0771eb534670d`.
-- History-preserving NON-FORCE synchronization: `cd05768f396ecd0eac44fec5d9f1305efb88ac66`, parents prior Backend head + exact Develop.
+- Shared baseline reviewed: `develop/pathena-next@451b2f39377653b44fb178e58d86705b6026bef8`.
+- Worker branch pre-run head: `postmerge/backend@d6fca835ad432e05aecbdc3c790a55ec2691a11b`.
+- Worker heads reviewed: Error `b8e050c9756299a70e8f5d4df0139ef54a5f08a0`; Spec/Core `96c8f17d99017060238da27b51f6e59b77b9eafc`; UI `8cbec3ef97a13caf626450a0111ee3dc50b262cc`; Integrator/Develop `451b2f39377653b44fb178e58d86705b6026bef8`.
+- History-preserving NON-FORCE synchronization: `e8449509f9f6acd8cb63e19d4675eef712ae1077`, parents prior Backend head + exact Develop.
 - `main` and `bnbgrs/ATHENA` remain strict read-only and untouched.
 
 ## ExternalAccessGateway runtime boundaries — VERIFIED / READY
 
-`ttl_seconds` and `max_bytes` require true non-bool integers. `timeout_seconds` accepts finite numeric non-bool values only and rejects NaN/Inf while preserving existing valid ranges. Tor/Direct, proxy, redirect, HTTPS/default-port, compressed-response, response-size, audit, provenance, fsync and transactional Source-finalization invariants remain unchanged.
+`ttl_seconds` and `max_bytes` require true non-bool integers. `timeout_seconds` accepts finite numeric non-bool values only and rejects NaN/Inf while preserving valid ranges. Tor/Direct, proxy, redirect, HTTPS/default-port, compressed-response, response-size, audit, provenance, fsync and transactional Source-finalization invariants remain unchanged.
 
 Exact green lineage: `c67fa646d8ba4e4137cdf69992b9c8b42ad904d6`; canonical Quality `33884210684 = success`.
 
-## ERR-0016 — fix applied, pending canonical verification
+## ERR-0016 — fix applied, canonical closure blocked by ERR-0017
 
-Exact Error-worker evidence on Backend descendant `a5904fc2078a8dec5eece17dd352436d14453d8f` showed full pytest failing exactly the two overflow-poisoning regressions while Windows path safety, Linux storage, local install smoke, Validator, Ruff and mypy passed. The oversize-before-accounting change correctly avoided counting rejected bytes but accidentally removed the fail-closed poisoned state used to block subsequent underlying I/O.
+Product fix `d721846ea9524ab18336ba72eeb082cca7ee0fb8` retains rejected oversized bytes outside successful `_bytes_read` accounting while introducing explicit `_byte_budget_poisoned` fail-closed state. Regression `44bf215b999e727514fc10ddb88eb8379a5358b6` proves follow-up body access is blocked before delegate I/O.
 
-Product fix `d721846ea9524ab18336ba72eeb082cca7ee0fb8` introduces an explicit `_byte_budget_poisoned` state. An oversized returned chunk sets the poison flag before raising `LocalResponseTooLargeError`; `_bytes_read` remains unchanged because rejected bytes are not successful consumption. Every subsequent bounded `read()`/`readline()` is rejected by `_assert_within_byte_budget()` before delegate access.
+Exact Backend documentation Quality `34022137849@d6fca835ad432e05aecbdc3c790a55ec2691a11b = failure`, but current Error-worker analysis proves the failure is the independent Personal-Memory import graph defect `ERR-0017`, not a recurrence of the poisoning signature. Keep ERR-0016 `FIXED_PENDING_VERIFY` until a corrected exact descendant can complete canonical verification.
 
-Regression commit `44bf215b999e727514fc10ddb88eb8379a5358b6` updates the oversize-accounting tests to prove both required truths simultaneously: rejected bytes do not advance `_bytes_read`, and follow-up body access is blocked without another underlying read/readline call. Existing canonical poisoning tests remain untouched. No exact workflow run is currently bound to the fix SHA, so ERR-0016 is FIXED_PENDING_VERIFY, not closed.
+## ERR-0017 coordination — do not duplicate Core ownership
+
+Current Develop imports `ModelInferredMemoryProposal` from `athena.memory.models` but does not define it. Error worker `b8e050c9756299a70e8f5d4df0139ef54a5f08a0` binds this as the root cause for mypy failure, pytest collection abort, API path-boundary failures and local-install smoke failure. Spec/Core owns the compatible verified model contract and has synchronized it on `postmerge/spec-core@96c8f17d99017060238da27b51f6e59b77b9eafc`.
+
+Backend does not duplicate or reinterpret that Core model. Canonical Backend Quality remains expected to stay blocked until Integrator composes the exact-green Core dependency onto Develop.
+
+## New P2 Provider slice — lifecycle-hook runtime boundary
+
+Product commit: `e6c4176261640c6bdfbb11ee299de40896cbe034`.
+Focused regression: `72539330ff3f7e9ace511ce9e6be63e2a15ac595`.
+Canonical Quality: `34024769901` is pending on the exact focused-test head at handoff time; no PASS claim.
+
+`_BoundedLocalResponse` previously called present `__enter__`, `__exit__`, and fallback `close` attributes without checking callability. Malformed/future response delegates could therefore surface arbitrary `TypeError` from lifecycle handling rather than a deterministic transport-boundary failure, including cleanup paths. The wrapper now validates optional lifecycle hooks as callable before invocation and raises deterministic `OSError` for non-callable hooks. Missing hooks retain the existing behavior; valid callable hooks are unchanged. The focused test covers non-callable enter, exit and close hooks plus the valid lifecycle path, with byte accounting unchanged.
 
 ## Previously verified local-provider lineages — READY
 
@@ -44,6 +56,7 @@ Regression commit `44bf215b999e727514fc10ddb88eb8379a5358b6` updates the oversiz
 - Non-byte response bodies fail closed before byte accounting.
 - Oversized response chunks are not counted as successful consumption and permanently poison further bounded body access.
 - Missing/non-callable body delegates fail before accounting mutation.
+- Lifecycle hooks now fail deterministically before invocation when present but non-callable.
 - No new retries, provider routing behavior or cryptography.
 - No silent Tor -> Direct fallback; Direct remains explicit-only.
 - ExternalAccessGateway redirect reauthorization, HTTPS/default-port fail-closed policy, compressed-response rejection and response-size bounds remain unchanged.
@@ -62,9 +75,10 @@ READY:
 - Previously recorded green Storage/DiskPressure Backend lineages remain READY under their exact green SHAs.
 
 NOT READY:
-- ERR-0016 explicit overflow poison fix: `d721846ea9524ab18336ba72eeb082cca7ee0fb8` + regression `44bf215b999e727514fc10ddb88eb8379a5358b6`; awaiting exact canonical Quality.
-- Callable local body-delegate boundary remains included in the same descendant but its exact earlier Quality `34019203379` was cancelled; promote only after a successful exact descendant run.
+- ERR-0016 overflow poison fix: `d721846ea9524ab18336ba72eeb082cca7ee0fb8` + `44bf215b999e727514fc10ddb88eb8379a5358b6`; canonical closure blocked by independent ERR-0017 import graph.
+- Callable body-delegate boundary remains in the same Backend descendant and still awaits an exact successful descendant.
+- Lifecycle-hook callable boundary: `e6c4176261640c6bdfbb11ee299de40896cbe034` + `72539330ff3f7e9ace511ce9e6be63e2a15ac595`; Quality `34024769901` pending at handoff time.
 
 ## Next backend slice
 
-Consume the first exact canonical Quality run containing `44bf215b999e727514fc10ddb88eb8379a5358b6` or this documentation descendant. If green, close ERR-0016 and promote only exact-supported Provider lineages READY, then immediately take the highest current unclaimed disjoint Backend/System P0/P1/P2 gap. If red, inspect exact diagnostics and minimally repair Backend-owned failure without weakening poison, byte/deadline/type, ExternalAccessGateway, persistence, recovery or Windows runtime invariants. If no run binds, use an alternate executable verification path or another real disjoint Backend/System slice rather than repeating runner state.
+First consume the exact Quality result for `72539330ff3f7e9ace511ce9e6be63e2a15ac595` or this documentation descendant. Do not attribute ERR-0017 import-graph failures to Provider code. Once Integrator composes the verified Core proposal-model dependency onto Develop, re-synchronize NON-FORCE and require focused local HTTP poisoning/oversize/delegate/lifecycle regressions plus canonical Quality before closing ERR-0016 or promoting pending Provider slices. If the Core blocker remains unchanged for one run, take a distinct evidence-backed Backend/System slice rather than repeating the same runner state.
