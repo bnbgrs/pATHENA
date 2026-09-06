@@ -95,7 +95,11 @@ class ModelInferredMemoryProposal:
             raise ValueError("Model-inferred Memory proposal requires confidence.")
         if self.draft.sensitivity is not MemorySensitivity.NORMAL:
             raise ValueError("Sensitive model-inferred Memory requires explicit approval before proposal.")
-        if not self.review_required:
+        if type(self.model_signature_id) is not uuid.UUID:
+            raise TypeError("Model-inferred Memory proposal requires UUID model_signature_id.")
+        if type(self.processing_run_id) is not uuid.UUID:
+            raise TypeError("Model-inferred Memory proposal requires UUID processing_run_id.")
+        if type(self.review_required) is not bool or not self.review_required:
             raise ValueError("Default model-inferred Memory proposal must remain review-gated.")
 
 
