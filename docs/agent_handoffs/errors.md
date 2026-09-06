@@ -2,9 +2,9 @@
 
 ## Baseline
 
-- Baseline source: `develop/pathena-next@70f985ce7a28044824bfbfa53769b982fa152747`.
-- Error branch history-preserving NON-FORCE synchronization: `63b43664c5fd87d7d9672bff880d2804efb15b9f`, parents prior Error head `ea77cc03ce1d5c6a27286ac6c7cba38a7ce6566e` + exact Develop `70f985ce7a28044824bfbfa53769b982fa152747`.
-- Worker heads reviewed: Backend `8964f9ae22f0b3f98d06f9c000a47a98dc54f473`; Spec/Core `07263cc7474954f1591523077caa8eb8532605dd`; UI `0d5a89b879ee0959a42734181adb129f4c3de024`; Integrator/Develop `70f985ce7a28044824bfbfa53769b982fa152747`.
+- Baseline source: `develop/pathena-next@ef759aa0d6980da5adc3512b90e08512b7735082`.
+- Error branch history-preserving NON-FORCE synchronization: `a196a05cd338a72b227cc2de2dc012652a9a696d`, parents prior Error head `43c92a3a95ddcc124a0ec1ad081b5c102dd36f98` + exact Develop `ef759aa0d6980da5adc3512b90e08512b7735082`, retaining the Error-owned ledger and handoff over the exact Develop tree.
+- Worker heads reviewed: Backend `33be60ac2c7a6ddda234c8166846e233e94c4053`; Spec/Core `2e0a840d370c5aa076f660caabb78ba166253e39`; UI `c249c0ec1c3a3a19617bcb5c6f3c2d4899d4a0fd`; Integrator/Develop `ef759aa0d6980da5adc3512b90e08512b7735082`.
 - `main` and `bnbgrs/ATHENA` remained strictly read-only; no force update or history rewrite was used.
 
 ## Current error state
@@ -21,14 +21,15 @@
 
 ## Current canonical evidence
 
-- Backend `postmerge/backend@8964f9ae22f0b3f98d06f9c000a47a98dc54f473`, Quality `34033392294`: Windows path safety PASS, Linux storage regressions PASS, local install smoke PASS, Validator PASS, Ruff PASS, mypy PASS; full pytest remains IN_PROGRESS. No concrete primary failure is established.
-- UI `postmerge/ui@0d5a89b879ee0959a42734181adb129f4c3de024`, Quality `34034051224`: run is pending/queued and has not produced job evidence yet. The immediately prior superseded UI run was cancelled, not failure evidence.
-- Current Develop `70f985ce7a28044824bfbfa53769b982fa152747` has advanced with UI-GAP-0039 integration. No exact completed canonical Quality for this exact Develop SHA was observed in this run; therefore it is not promotion-ready by Error criteria.
+- Backend `postmerge/backend@33be60ac2c7a6ddda234c8166846e233e94c4053`, Quality `34036311347`: Windows path safety PASS, Linux storage regressions PASS, local install smoke PASS, Validator PASS, Ruff PASS, mypy PASS; full pytest remains IN_PROGRESS. No concrete primary failure is established. The worker handoff's WAL checkpoint frame-count hardening therefore remains pending final exact-run completion rather than ERROR-ledger OPEN evidence.
+- UI `postmerge/ui@c249c0ec1c3a3a19617bcb5c6f3c2d4899d4a0fd`, Quality `34036984000`: Windows path safety PASS, Linux storage regressions PASS, local install smoke PASS, Validator PASS, Ruff PASS, mypy PASS; full pytest remains IN_PROGRESS. No concrete primary failure is established. UI-GAP-0041 remains pending final exact-run completion.
+- Spec/Core current worker head is `2e0a840d370c5aa076f660caabb78ba166253e39`; no error-owned current failure was identified from its handoff review.
+- Current Develop `ef759aa0d6980da5adc3512b90e08512b7735082` records bounded UI-GAP-0040 integration. No exact completed canonical Quality for this exact Develop SHA was observed in this run; therefore it is not promotion-ready by Error criteria.
 
 ## Integrator handoff
 
 - Do not reopen or reapply `ERR-0016` / `ERR-0017` absent exact-current contradictory evidence.
-- Consume completion of Backend Quality `34033392294` and UI Quality `34034051224`; allocate/reopen an ERR only for a concrete deduplicated primary failure.
+- Consume completion of Backend Quality `34036311347` and UI Quality `34036984000`; allocate/reopen an ERR only for a concrete deduplicated primary failure.
 - Preserve Provider/Transport byte-budget/deadline and poisoning semantics, Personal-Memory provenance/review controls, Windows path safety, Storage, Security and Recovery guards.
 - Current Develop still requires its own exact-SHA completed canonical evidence before promotion/readiness.
 
@@ -38,7 +39,7 @@ Retain as explicit release acceptance without reopening absent exact-current rep
 
 ## Next scan
 
-1. Consume Backend Quality `34033392294` and UI Quality `34034051224` to completion.
+1. Consume Backend Quality `34036311347` and UI Quality `34036984000` to completion.
 2. Check the next exact current Develop/worker canonical or runtime signal.
 3. Deduplicate against the ledger and persistent crash matrix.
 4. On a concrete primary failure, finalize root cause and either perform the minimal Error-owned fix or concretely verify the responsible worker correction in the same run.
