@@ -3,38 +3,36 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `1cc7b8dceb5b4ff098442e9f17f89b8cc36cb390`.
+- Develop before this run: `8941f823d896e85b58c7f566b45bef04bbfdb84d`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed at run start: errors `d53cfd799fab60859f6e2b2fe76e4154fa4555bd`; spec-core `5714f3c7724cb82ccd75a7e852c668bfe78c6d5d`; backend `74df90dc3b189d397c7a9f18afd0929a25e372bc`; ui `4be3a9c897313f63f8c49ddc6eb9ecfea9186ded`.
 - `main` and `bnbgrs/ATHENA` were untouched; no force update, history rewrite or auto-merge was used.
 
-## Integrated this run — Storage/WAL policy exact status shape
+## Integrated this run — WalRuntimeStatus autocheckpoint-bytes runtime boundary
 
-Backend BE-053 WAL-policy exact-status-shape lineage `2ea98794facffcae29d4f94b337fc84083028526` passed canonical ATHENA Quality Gate `34058195011 = success`. Independent review selected only product commit `76cda6717b15784d7d6722e07f0775179577c6eb` semantics and focused regression `978d67958bddf0e4e3a72f4b5bc2220146242a1f`; divergent Backend history and later `WalRuntimeStatus.autocheckpoint_bytes` work were excluded.
+Backend exact verified lineage synchronized at `37c0310d64eec37d3499ef0397f085fe431e04de` passed canonical ATHENA Quality Gate `34061317620 = success`. Independent review selected only the bounded `WalRuntimeStatus.autocheckpoint_bytes` product semantics and its focused regression; divergent Backend history and unrelated successors were excluded.
 
 Develop commits created this run:
-- `be2fbc3192e65fe62acb6e4ac0d760f3ca114e06` — require `PRAGMA page_size` and `PRAGMA wal_autocheckpoint` to each return exactly one status field before policy values are accepted.
-- `b037c6d4d25f699be85de9b8a48c88decff46c62` — exact focused regression for absent/empty/multi-field policy rows and canonical single-field acceptance, including fail-before-WAL-observation behavior.
+- `847aa16760da86431ea42ab0eeadfc96d917c325` — validate `WalRuntimeStatus.autocheckpoint_bytes` through the existing positive-integer boundary before checking the derived page-size × autocheckpoint-pages equality.
+- `606ee5ec87c0fec4e32915d1518575f0a215cef2` — focused regression locking rejection of boolean/non-positive `autocheckpoint_bytes` and acceptance of the exact positive canonical value.
 
-The integrated contract preserves positive true-int policy validation, no-follow/identity-checked WAL observation, PASSIVE-only automatic checkpointing, explicit-idle TRUNCATE, exact checkpoint result validation, Storage/Recovery invariants, and unrelated Core/UI/Security/Provider/Windows behavior. No test or guard was weakened.
+The integrated contract prevents Python boolean-as-integer coercion from satisfying the derived WAL byte threshold while retaining the existing exact equality invariant, WAL observation/checkpoint behavior, no-follow filesystem safety, Storage/Recovery semantics, and unrelated Core/UI/Security/Provider/Windows behavior. No test or guard was weakened.
 
 ## Current readiness/error state
 
-- Backend current handoff marks `WalRuntimeStatus.autocheckpoint_bytes` true-int boundary product `22fa292c2213e8dbeca4e0a6733d32e71f5141df` + regression `fcd0b9a453cdf15c8d13c9708ebc5cd206ccbdad` NOT READY pending exact canonical success.
-- Error worker tracks only Core-owned `ERR-0018` Ruff import-order rejection; no Backend defect is implicated.
-- Exact-current-Develop global Quality is not claimed after this composition.
+- Error worker still owns Core `ERR-0018` until an exact corrected pinned-Ruff canonical-green SHA closes it; this Backend slice does not intersect that scope.
+- Exact-current-Develop global Quality is not claimed after this composition unless a run is observed on the final head.
+- Other READY worker inputs remain deferred by the one-bounded-slice-per-run rule.
 
 ## UI / Alpha-Beta state
 
 - Eleven-screen implementation remains pending visual-reference review; no pixel-level MATCH claim is made without original reference evidence.
-- `docs/development/ALPHA_BETA_PROGRESS.md` remains canonical. Its complete body was not safely writable through the connector in this run because retrieval was truncated; no destructive whole-file replacement was attempted. This integration evidence is versioned here until a safe line-preserving tracker update path is available.
+- `docs/development/ALPHA_BETA_PROGRESS.md` remains canonical. Its complete body is truncated by the connector response budget, so no destructive whole-file replacement was attempted. This integration evidence is versioned here until a safe line-preserving tracker update path is available.
 
 ## Next integration order
 
 1. Obtain exact-current-Develop canonical Quality if available.
 2. Consume exactly one independently compatible bounded READY Core/Backend/UI successor.
-3. Do not consume the Backend derived WAL-byte boundary without exact successful canonical evidence.
-4. Keep `ERR-0018` excluded from closure until exact corrected Core SHA is canonical-green.
+3. Keep `ERR-0018` excluded from closure until exact corrected Core SHA is canonical-green.
 
 ## Persistent release guards
 
