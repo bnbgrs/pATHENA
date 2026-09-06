@@ -48,12 +48,19 @@ class _BoundedLocalResponse:
         max_bytes: int,
         total_timeout_seconds: float | None = None,
     ) -> None:
+        if isinstance(max_bytes, bool) or not isinstance(max_bytes, int) or max_bytes <= 0:
+            raise ValueError("Local model response byte limit must be a positive integer.")
+        validated_total_timeout = (
+            _validated_timeout(total_timeout_seconds)
+            if total_timeout_seconds is not None
+            else None
+        )
         self._response = response
         self._max_bytes = max_bytes
         self._bytes_read = 0
         self._deadline = (
-            monotonic() + total_timeout_seconds
-            if total_timeout_seconds is not None
+            monotonic() + validated_total_timeout
+            if validated_total_timeout is not None
             else None
         )
 
