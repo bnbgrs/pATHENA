@@ -2,40 +2,40 @@
 
 ## Current baseline
 
-- Base reviewed: `develop/pathena-next@ff780f2edf367320340771ffc3176d9fc1724c5c`.
+- Base reviewed: `develop/pathena-next@da493c1390192425d50caddc451c1a497027027a`.
 - Worker: `postmerge/ui`.
-- Current Develop was synchronized history-preservingly through two-parent NON-FORCE commit `fda18996235fd5b03eef44732bb0ad445d9fc6fb`; `main` and `bnbgrs/ATHENA` remain read-only and untouched.
+- Current Develop was synchronized history-preservingly through two-parent NON-FORCE commit `2da645b6b9fd24427e3fc70c36df21d8da1676fa`; `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 - Original eleven reference images remain `VISUAL_REFERENCE_PENDING`; no pixel-level `MATCH` claim is made.
 
 ## Runtime/release regression guard
 
 Known Windows packaging/process-tree/startup/chat-context/lane-lock crash classes remain release-acceptance regressions only unless reproduced on the exact current SHA. This UI slice does not alter Desktop/Worker/Scheduler spawn ownership, backend/storage/security semantics, or claim Windows promotion readiness.
 
-## UI-GAP-0029 — explicit keyboard focus for Workspace action controls
-
-Status: `FIXED / INTEGRATED_ON_DEVELOP`, P1.
-
-- Product `d25d563ed02ac677a038f522c050e7942d6b0462`; focused regression `a4cfa5522cb666c9cf53ae53c5a297746fee2f38`.
-- Exact UI head `a0ba6bd47f4b8a6e91e8f6c222334c99cbe1a3aa` passed ATHENA Quality Gate `33996745959 = success`.
-- Develop integration commit `8403c1c7c0da263af34a2ba281a1bfaef23c8c32`; Integrator handoff `ff780f2edf367320340771ffc3176d9fc1724c5c`.
-
 ## UI-GAP-0030 — Help reader explicit keyboard-focus presentation
+
+Status: `FIXED / INTEGRATOR_READY`, P1.
+
+- The rejected Command Palette query-focus hypothesis remains rejected: the Foundation already supplies canonical `QLineEdit:focus` presentation for `commandPaletteQuery`.
+- Product `811b43c37e6010667b6779ccbf886715647e23dc` adds the missing explicit focus presentation for read-only `QPlainTextEdit#helpText`.
+- Focused regression `9875e1c4e3a33753225398d0f2a08971e78977fe` verifies the canonical accent-border contract.
+- Exact documentation successor `f09406daab9440ee77a06e907add84280b3ae936` passed ATHENA Quality Gate `34001923188 = success`.
+- Existing F1 focus landing, read-only behavior, help content, shortcuts, command routing, accessibility metadata and backend/runtime semantics remain unchanged.
+
+## UI-GAP-0031 — Canonical memory tabs need an explicit focused-selected state
 
 Status: `IMPLEMENTED_PENDING_VERIFY`, P1.
 
-- The earlier Command Palette query-focus hypothesis was rejected after exact cascade review: `PATHENA_FOUNDATION_STYLESHEET` is appended after the specialized stylesheet and already contains `QLineEdit:focus` with canonical accent border, so `commandPaletteQuery` already has a real keyboard-focus state.
-- The adjacent F1 Help reader is the actual uncovered focus target: `CommandPaletteController.open_help()` deliberately focuses read-only `QPlainTextEdit#helpText`, while neither the specialized `helpText` rule nor the Foundation focus selector previously covered that widget.
-- Product `811b43c37e6010667b6779ccbf886715647e23dc` adds only `QPlainTextEdit#helpText:focus` to the existing canonical Foundation focus selector.
-- Focused regression finalized at `9875e1c4e3a33753225398d0f2a08971e78977fe` verifies the selector shares the canonical accent-border declaration.
-- F1 focus landing, read-only behavior, help content, shortcuts, command routing, accessibility metadata and backend/runtime semantics remain unchanged.
-- Canonical Quality `34001851419` was registered on exact product/test head `9875e1c4e3a33753225398d0f2a08971e78977fe`; documentation successors must also be green before Integrator readiness is claimed.
+- Evidence: `canonicalMemoryTabs` already has specialized normal/hover/selected tab presentation, but no focused-selected rule. The selected state therefore did not distinguish keyboard focus on the tab bar from an unfocused selected tab.
+- Product `089f005aa6d81a6a4a15cc8594c74eeeed417373` adds `QTabWidget#canonicalMemoryTabs QTabBar:focus::tab:selected` using only canonical readable text, `surface_hover`, and the existing 2px accent bottom edge.
+- Focused regression `e18fe9945e805230aa9c1af95202d8b9c81ba822` verifies the selector and canonical tokens without changing tab labels, routing, selected semantics, accessibility metadata, or backend/runtime behavior.
+- Canonical Quality `34004657500` is pending on exact product/test head `e18fe9945e805230aa9c1af95202d8b9c81ba822`.
 
 ## Integrator handoff
 
-- UI-GAP-0029 is already integrated on Develop.
-- UI-GAP-0030 is NOT Integrator-ready until canonical Quality succeeds on the exact current documentation successor.
-- Preserve the bounded product/test lineage `811b43c37e6010667b6779ccbf886715647e23dc -> 9875e1c4e3a33753225398d0f2a08971e78977fe`; do not add a redundant `commandPaletteQuery:focus` rule.
+- UI-GAP-0030 is READY: bounded lineage `811b43c37e6010667b6779ccbf886715647e23dc -> 9875e1c4e3a33753225398d0f2a08971e78977fe`, verified by exact successor `f09406daab9440ee77a06e907add84280b3ae936` and Quality `34001923188 = success`.
+- UI-GAP-0031 is NOT Integrator-ready until exact-head canonical Quality succeeds.
+- Preserve the current Develop synchronization parent `da493c1390192425d50caddc451c1a497027027a`; do not absorb unrelated Backend/Core/Error worker heads.
 
 ## Next UI step
 
-Consume canonical Quality for the exact current UI head. If green, promote UI-GAP-0030 to `FIXED / INTEGRATOR_READY` and keep Screen 09 `IMPLEMENTED_PENDING_VISUAL_REVIEW`; then inspect the Command Palette result list/help surface for the next distinct keyboard/accessibility gap without repeating the rejected query-focus hypothesis or completed Workspace focus diagnoses.
+Consume canonical Quality `34004657500`. If green, promote UI-GAP-0031 to `FIXED / INTEGRATOR_READY`, update the Visual Gap Ledger and manifest, then continue with the next evidence-backed keyboard/accessibility/state gap without reopening completed focus diagnoses.
