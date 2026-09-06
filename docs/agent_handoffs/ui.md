@@ -2,43 +2,43 @@
 
 ## Current baseline
 
-- Base reviewed: `develop/pathena-next@b1537fc138560fe85d4d97cf76c887b92e63c8f4`.
+- Base reviewed: `develop/pathena-next@be0e8da5127f17f6bbc3cbbc8c58496102c9135c`.
 - Worker: `postmerge/ui`.
-- Current Develop was synchronized history-preservingly through two-parent NON-FORCE commit `82dd049c014cd62248ba8277595122bab42225de`; `main` and `bnbgrs/ATHENA` remain read-only and untouched.
+- Current Develop was synchronized history-preservingly through two-parent NON-FORCE commit `a0c499a580e7afd8ecbd66d0faddf463c0df5ad5`; `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 - Original eleven reference images remain `VISUAL_REFERENCE_PENDING`; no pixel-level `MATCH` claim is made.
 
 ## Runtime/release regression guard
 
 Known Windows packaging/process-tree/startup/chat-context/lane-lock crash classes remain release-acceptance regressions only unless reproduced on the exact current SHA. This UI slice does not alter Desktop/Worker/Scheduler spawn ownership, backend/storage/security semantics, or claim Windows promotion readiness.
 
-## UI-GAP-0038 — Sources list focused-current keyboard state
+## UI-GAP-0039 — Sources detail reader keyboard-focus presentation
 
 Status: `FIXED / INTEGRATOR_READY`, P1.
 
-- Product `ea1d62fedc1fa67715f4f1f7c20621931a4a3db8` adds only `QListWidget#sourceList:focus::item:current` to the canonical focused-current selector block.
-- Focused regression `bc20c308e97cfdf88a8109f2b4a4d1d60b387a62` locks the selector and canonical focus tokens.
-- Exact UI documentation head `3d89bffeef82244361e701738ebc05862d1a2b64` passed ATHENA Quality Gate `34028122788 = success`.
-- Source capture, import, retrieval processing, provenance, selection routing, refresh behavior and backend/storage/security/runtime ownership are unchanged.
+- Product `6d2d0eb32fa0bcd6b2c1112070a36ce1401f6bfa` adds only `QPlainTextEdit#sourceDetails:focus` to the existing canonical accent-border selector block.
+- Focused regression `57636da80d3f3db586d1d728b4e6d39dd11896bd` locks the selector and canonical accent token.
+- Exact UI head `d955ccd53e3e2c7f98af0f6f3838be1ffa9b6fe6` passed ATHENA Quality Gate `34031028328 = success`.
+- Source content, import/retrieval processing, selection routing, read-only semantics, provenance and backend/storage/security/runtime ownership remain unchanged.
 
-## UI-GAP-0039 — Sources detail reader keyboard-focus presentation
+## UI-GAP-0040 — System detail keyboard-focus presentation
 
 Status: `IMPLEMENTED_PENDING_VERIFY`, P1.
 
-- Evidence: `FilesWorkspace` creates read-only `QPlainTextEdit#sourceDetails`; the reader is keyboard-focusable for reading/copying and previously was omitted from the object-specific canonical plain-text reader focus block used by Help, Library, Research and Jobs.
-- Product `6d2d0eb32fa0bcd6b2c1112070a36ce1401f6bfa` adds only `QPlainTextEdit#sourceDetails:focus` to that existing accent-border selector block.
-- Focused regression `57636da80d3f3db586d1d728b4e6d39dd11896bd` locks the selector and canonical accent token.
-- Read-only semantics, source content, processing state, selection routing, provenance and backend/storage/security/runtime ownership remain unchanged.
+- Evidence: `SystemWorkspace` creates `QLabel#systemDetail` and explicitly enables `Qt.TextInteractionFlag.TextSelectableByKeyboard`; that label is keyboard-interactive for text selection, but the canonical focus block had no `QLabel#systemDetail:focus` selector.
+- Product `330fd20ec285b44dee8c9f89597a9c75e55c9c95` adds only `QLabel#systemDetail:focus` to the existing accent-border focus selector block.
+- Focused regression `4cba0e0235ea5094f9f39b4d3f615879ca4362df` locks the selector and canonical accent token.
+- Runtime facts, refresh routing, Core/provider/storage/security semantics and text-selection behavior are unchanged.
 
 ## Develop synchronization
 
-Develop advanced from the prior shared base to `b1537fc138560fe85d4d97cf76c887b92e63c8f4`, adding only the verified Personal-Memory inferred-provenance domain contract/test plus the Integrator handoff on that lineage. Exact Develop blobs for `src/athena/memory/models.py`, `tests/unit/test_personal_memory_inferred_provenance_validation.py`, and `docs/agent_handoffs/integrator.md` were composed onto the UI tree and histories were joined by two-parent NON-FORCE merge `82dd049c014cd62248ba8277595122bab42225de`. No force, rebase, history rewrite, `main` mutation or ATHENA mutation occurred.
+Develop advanced to `be0e8da5127f17f6bbc3cbbc8c58496102c9135c` with corrected-lineage Local HTTP runtime-boundary integration and Integrator documentation. Exact verified product/test blobs were composed onto the UI tree and both histories were joined by two-parent NON-FORCE merge `a0c499a580e7afd8ecbd66d0faddf463c0df5ad5`. No force, rebase, history rewrite, `main` mutation or `bnbgrs/ATHENA` mutation occurred.
 
 ## Integrator handoff
 
-- UI-GAP-0038 is READY: product `ea1d62fedc1fa67715f4f1f7c20621931a4a3db8`, focused regression `bc20c308e97cfdf88a8109f2b4a4d1d60b387a62`, exact verified head `3d89bffeef82244361e701738ebc05862d1a2b64`, Quality `34028122788 = success`.
-- UI-GAP-0039 is NOT READY until canonical Quality succeeds on an exact candidate containing product, focused regression, manifest, ledger and this handoff.
-- No backend/storage/security/provider/worker/scheduler semantics changed.
+- UI-GAP-0039 is READY: product `6d2d0eb32fa0bcd6b2c1112070a36ce1401f6bfa`, focused regression `57636da80d3f3db586d1d728b4e6d39dd11896bd`, exact verified head `d955ccd53e3e2c7f98af0f6f3838be1ffa9b6fe6`, Quality `34031028328 = success`.
+- UI-GAP-0040 is NOT READY until canonical Quality succeeds on an exact candidate containing product, focused regression, manifest, ledger and this handoff.
+- No backend/storage/security/provider/worker/scheduler semantics changed by UI.
 
 ## Next UI step
 
-Reconcile the Visual Gap Ledger with stable `UI-GAP-0038`/`UI-GAP-0039`, then consume canonical Quality on the exact final UI-GAP-0039 candidate. If green, promote it to `FIXED / INTEGRATOR_READY`, return Screen 05 to `IMPLEMENTED_PENDING_VISUAL_REVIEW`, and inspect the next distinct Sources/System keyboard-accessibility or state inconsistency without reopening source-list or source-detail focus diagnoses.
+Consume canonical Quality on the exact final UI-GAP-0040 candidate. If green, promote UI-GAP-0040 to `FIXED / INTEGRATOR_READY`, return Screen 06 to `IMPLEMENTED_PENDING_VISUAL_REVIEW`, then inspect one distinct System/Settings keyboard-accessibility, state or interaction inconsistency without reopening System-detail, Sources-detail or Sources-list focus diagnoses.
