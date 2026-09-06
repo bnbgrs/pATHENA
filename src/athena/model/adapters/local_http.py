@@ -58,6 +58,7 @@ class _BoundedLocalResponse:
         self._response = response
         self._max_bytes = max_bytes
         self._bytes_read = 0
+        self._byte_budget_poisoned = False
         self._deadline = (
             monotonic() + validated_total_timeout
             if validated_total_timeout is not None
@@ -106,7 +107,7 @@ class _BoundedLocalResponse:
             )
 
     def _assert_within_byte_budget(self) -> None:
-        if self._bytes_read > self._max_bytes:
+        if self._byte_budget_poisoned or self._bytes_read > self._max_bytes:
             raise LocalResponseTooLargeError(
                 "Local model response exceeded the configured byte limit."
             )
@@ -133,6 +134,7 @@ class _BoundedLocalResponse:
         raw = self._require_bytes(readline(remaining + 1))
         next_bytes_read = self._bytes_read + len(raw)
         if next_bytes_read > self._max_bytes:
+            self._byte_budget_poisoned = True
             raise LocalResponseTooLargeError(
                 "Local model streaming response exceeded the configured byte limit."
             )
@@ -155,6 +157,7 @@ class _BoundedLocalResponse:
         raw = self._require_bytes(read(request_size))
         next_bytes_read = self._bytes_read + len(raw)
         if next_bytes_read > self._max_bytes:
+            self._byte_budget_poisoned = True
             raise LocalResponseTooLargeError(
                 "Local model response exceeded the configured byte limit."
             )
