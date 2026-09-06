@@ -124,6 +124,31 @@ class PersonalMemoryService:
             processing_run_id=processing_run_id,
         )
 
+    def accept_model_inferred(
+        self,
+        proposal: ModelInferredMemoryProposal,
+    ) -> PersonalMemoryRevision:
+        """Canonize one reviewed model proposal only after explicit user acceptance."""
+        actor_id = self.chat.ensure_local_user()
+        draft = proposal.draft
+        accepted_draft = PersonalMemoryDraft(
+            memory_kind=draft.memory_kind,
+            content=draft.content,
+            scope_kind=draft.scope_kind,
+            scope_entity_id=draft.scope_entity_id,
+            learning_mode=MemoryLearningMode.MODEL_INFERRED,
+            sensitivity=draft.sensitivity,
+            confidence=draft.confidence,
+            last_confirmed_at_us=utc_now_us(),
+        )
+        return self.repository.create(
+            actor_id=actor_id,
+            draft=accepted_draft,
+            reason="explicit user acceptance of model-inferred Personal Memory",
+            model_signature_id=proposal.model_signature_id,
+            processing_run_id=proposal.processing_run_id,
+        )
+
     def remember_explicit_chat_command(
         self,
         *,
