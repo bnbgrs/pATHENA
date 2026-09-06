@@ -30,7 +30,7 @@ Product `14a6cfdb7adf1e92cbcddf9c6d629afb5ff5106a` makes bounded `read()` and `r
 
 Focused regression `c1c6b938f925c9e91cc73ab08ae80e599965a4bb` covers missing/non-callable `read` and non-callable `readline`, and asserts `_bytes_read == 0` after rejection.
 
-No exact canonical PASS is claimed for this new slice until a workflow run binds the test/handoff descendant.
+Canonical Quality `34019203379` is bound to exact regression head `c1c6b938f925c9e91cc73ab08ae80e599965a4bb` and is currently pending. No PASS/READY claim is made.
 
 ## Persistent runtime / crash prevention invariants
 
@@ -60,15 +60,15 @@ No exact canonical PASS is claimed for this new slice until a workflow run binds
 
 READY:
 - ExternalAccessGateway runtime boundaries: `c67fa646d8ba4e4137cdf69992b9c8b42ad904d6`, Quality `33884210684 = success`.
-- Local-provider HTTP error-body deadline: `7b37f0629d560a1534de1fc2c83989d26e05238236`, Quality `34001608473 = success`.
+- Local-provider HTTP error-body deadline: `7b37f0629d3a137301ef04284524a8dfd78c36d3`, Quality `34001608473 = success`.
 - Bounded-read / ERR-0015 / response-body runtime bytes boundary: `9dc8375399c6b07f9c52545783004607aa9dd430`, Quality `34011613102 = success`.
 - Bounded local response constructor limits: `20edbed46471a50e72661e2e69502b094a0b599f`, Quality `34014111747 = success`.
 - Previously recorded green Storage/DiskPressure Backend lineages remain READY under their exact green SHAs.
 
 NOT READY:
 - Oversize rejection before accounting mutation: `5e6862fe9544465e3aed66840601a204d4d2cae5` + `3449aab12922d4ffc15ad576d6b458fd7ef8d1bf`; Quality `34016494344 = cancelled`.
-- Callable local body-delegate boundary: `14a6cfdb7adf1e92cbcddf9c6d629afb5ff5106a` + `c1c6b938f925c9e91cc73ab08ae80e599965a4bb`; awaiting exact canonical run.
+- Callable local body-delegate boundary: `14a6cfdb7adf1e92cbcddf9c6d629afb5ff5106a` + `c1c6b938f925c9e91cc73ab08ae80e599965a4bb`; Quality `34019203379 = pending`.
 
 ## Next backend slice
 
-Consume the first exact canonical Quality run containing `c1c6b938f925c9e91cc73ab08ae80e599965a4bb` or this documentation descendant. If green, promote only exact-supported Provider lineages READY and immediately take the highest current unclaimed disjoint Backend/System P0/P1/P2 gap. If red, repair only exact Backend-owned diagnostics without weakening byte/deadline/type, ExternalAccessGateway, persistence, recovery or Windows runtime invariants. If no usable run binds, use another real disjoint Backend/System slice rather than repeating a cancelled runner state.
+Consume exact canonical Quality `34019203379@c1c6b938f925c9e91cc73ab08ae80e599965a4bb` or this documentation descendant. If green, promote only exact-supported Provider lineages READY and immediately take the highest current unclaimed disjoint Backend/System P0/P1/P2 gap. If red, repair only exact Backend-owned diagnostics without weakening byte/deadline/type, ExternalAccessGateway, persistence, recovery or Windows runtime invariants. If cancelled or otherwise unusable, use another real disjoint Backend/System slice rather than repeating the runner state.
