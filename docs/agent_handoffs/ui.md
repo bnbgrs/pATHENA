@@ -2,9 +2,9 @@
 
 ## Current baseline
 
-- Base reviewed: `develop/pathena-next@fd15a75212acac7f88886117835b8d754577ea91`.
+- Base reviewed: `develop/pathena-next@14ca6fece527d6b51956b3e5fa3ec7b291252420`.
 - Worker: `postmerge/ui`.
-- Current Develop was synchronized history-preservingly through two-parent NON-FORCE commit `b87a34706e1acb77087345f81412ca2b70f6eb1d`; `main` and `bnbgrs/ATHENA` remain read-only and untouched.
+- Current Develop was synchronized history-preservingly through two-parent NON-FORCE commit `a48cfbaea74c80792316777a7491b5e8245d0b23`; `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 - Original eleven reference images remain `VISUAL_REFERENCE_PENDING`; no pixel-level `MATCH` claim is made.
 
 ## Runtime/release regression guard
@@ -21,20 +21,20 @@ Status: `FIXED / INTEGRATOR_READY`, P1.
 
 ## UI-GAP-0034 — Research job list focused-current row
 
-Status: `IMPLEMENTED_PENDING_VERIFY`, P1.
+Status: `FIXED / INTEGRATOR_READY`, P1.
 
 - Evidence: `ResearchWorkspace` creates keyboard-focusable `QListWidget#researchJobList`; existing foundation styling provided widget focus and selected-row presentation but no row-level focused-current state.
 - Product `0da430fdccb469b1edf8fd7adf01773b5ec5340f` adds only `QListWidget#researchJobList:focus::item:current` to the established focused-current selector block, using canonical readable text, `surface_hover`, and the existing 2px accent left edge.
 - Focused regression `3d9339295f3c413c4c7a31c2a7037600bc3b93f6` verifies selector and canonical tokens. Durable research selection, refresh, cancellation, scheduler, backend/storage/security and runtime semantics are unchanged.
-- Canonical Quality `34014651392` was started on the exact product/test head and was pending when documentation was written.
+- Exact documentation head `5a40e75ed78293ddd8c1ea3533c5632d6dea2910` passed ATHENA Quality Gate `34014713429 = success`.
 
 ## Integrator handoff
 
 - UI-GAP-0033 is READY: product `5b6f8a5740d463524daf4cfae14c0335b2207693`, focused regression `35dacd3fc1ef3e6aa37051cfa14fb751f03c726d`, exact documentation head `644c3cd5e3fd9c646b5e9d881a821b25d55b70ea`, Quality `34012079406 = success`.
-- Do not integrate UI-GAP-0034 until exact candidate Quality succeeds.
-- Current worker history includes Develop synchronization merge `b87a34706e1acb77087345f81412ca2b70f6eb1d` with `develop/pathena-next@fd15a75212acac7f88886117835b8d754577ea91` as second parent.
+- UI-GAP-0034 is READY: product `0da430fdccb469b1edf8fd7adf01773b5ec5340f`, focused regression `3d9339295f3c413c4c7a31c2a7037600bc3b93f6`, exact documentation head `5a40e75ed78293ddd8c1ea3533c5632d6dea2910`, Quality `34014713429 = success`.
+- Current worker history includes Develop synchronization merge `a48cfbaea74c80792316777a7491b5e8245d0b23` with `develop/pathena-next@14ca6fece527d6b51956b3e5fa3ec7b291252420` as second parent.
 - No backend/storage/security/provider/worker/scheduler semantics changed.
 
 ## Next UI step
 
-Consume exact-candidate Quality for UI-GAP-0034. If green, promote UI-GAP-0034 to `FIXED / INTEGRATOR_READY` and Screen 03 to `IMPLEMENTED_PENDING_VISUAL_REVIEW`, then inspect the next distinct Research accessibility/state gap without reopening completed Library focus diagnoses.
+Inspect the next distinct Research accessibility/state/interaction gap from current product evidence without reopening completed Library focus or research-job focused-current diagnoses. Register a new stable UI-GAP only when the current implementation proves a real gap, then keep the slice bounded and run canonical Quality on the exact candidate.
