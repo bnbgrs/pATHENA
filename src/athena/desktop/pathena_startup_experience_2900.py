@@ -246,6 +246,7 @@ class PathenaStartupExperience(QObject):
                 prompt.setToolTip("Message the selected local model")
             else:
                 prompt.setToolTip("Available when pATHENA and the selected model are ready")
+            prompt.setAccessibleDescription(prompt.toolTip())
 
         self._polish_empty_state(core_ready=core_ready)
 

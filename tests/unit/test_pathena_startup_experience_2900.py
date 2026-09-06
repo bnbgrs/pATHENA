@@ -81,6 +81,7 @@ def test_disconnected_startup_copy_keeps_core_infrastructure_in_background() -> 
     assert status.text() == "pATHENA reconnecting"
     assert "core" not in status.toolTip().casefold()
     assert "core" not in prompt.toolTip().casefold()
+    assert prompt.accessibleDescription() == prompt.toolTip()
     title = messages.findChild(QLabel, "emptyStateTitle")
     assert title is not None
     assert title.text() == "Getting pATHENA ready"

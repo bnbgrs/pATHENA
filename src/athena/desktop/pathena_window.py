@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from PySide6.QtCore import QSize, Slot
+from PySide6.QtCore import QSize, Qt, Slot
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -156,6 +156,7 @@ class PathenaMainWindow(AthenaMainWindow):
             item = self.navigation.item(index)
             item.setText(_ICON_NAVIGATION[index])
             item.setToolTip(navigation_label)
+            item.setData(Qt.ItemDataRole.AccessibleTextRole, navigation_label)
             item.setSizeHint(QSize(52, 44))
 
         self.navigation.setFixedWidth(60)

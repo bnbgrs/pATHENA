@@ -284,23 +284,22 @@ QSpinBox:focus,
 QDoubleSpinBox:focus,
 QCheckBox:focus,
 QListWidget:focus,
+QGraphicsView#pallasSemanticCanvas:focus,
 QPlainTextEdit#persistentKnowledgeDetails:focus,
 QPlainTextEdit#persistentClaimDetails:focus,
 QPlainTextEdit#semanticReviewDetails:focus,
 QPlainTextEdit#researchDetails:focus,
 QPlainTextEdit#jobDetails:focus,
 QPlainTextEdit#sourceDetails:focus,
+QPlainTextEdit#helpText:focus,
 QLabel#systemDetail:focus,
+QLabel#settingsValue:focus,
+QLabel#settingsProviderState:focus,
+QLabel#settingsNetworkState:focus,
+QLabel#settingsPersistenceState:focus,
+QLabel#settingsRuntimeDetail:focus,
 QWidget[pathenaKeyboardFocus="true"] {{
     border: 1px solid {PALETTE.accent};
-}}
-
-QListWidget#persistentKnowledgeList:focus::item:current,
-QListWidget#persistentClaimList:focus::item:current,
-QListWidget#semanticReviewList:focus::item:current {{
-    color: {PALETTE.text};
-    background: {PALETTE.surface_hover};
-    border-left: 2px solid {PALETTE.accent};
 }}
 
 QDialog#commandPalette,
@@ -327,6 +326,24 @@ QListWidget#commandPaletteResults::item:selected {{
     color: {PALETTE.text};
     background: {PALETTE.surface_selected};
     border-left: 2px solid {PALETTE.accent};
+}}
+
+QListWidget#commandPaletteResults:focus::item:current,
+QListWidget#persistentKnowledgeList:focus::item:current,
+QListWidget#persistentClaimList:focus::item:current,
+QListWidget#semanticReviewList:focus::item:current,
+QListWidget#researchJobList:focus::item:current,
+QListWidget#durableJobList:focus::item:current,
+QListWidget#sourceList:focus::item:current {{
+    color: {PALETTE.text};
+    background: {PALETTE.surface_hover};
+    border-left: 2px solid {PALETTE.accent};
+}}
+
+QTabWidget#canonicalMemoryTabs QTabBar:focus::tab:selected {{
+    color: {PALETTE.text};
+    background: {PALETTE.surface_hover};
+    border-bottom: 2px solid {PALETTE.accent};
 }}
 
 QToolTip {{
