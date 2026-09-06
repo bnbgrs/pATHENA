@@ -322,7 +322,8 @@ QListWidget#commandPaletteResults::item:selected {{
 QListWidget#persistentKnowledgeList:focus::item:current,
 QListWidget#persistentClaimList:focus::item:current,
 QListWidget#semanticReviewList:focus::item:current,
-QListWidget#researchJobList:focus::item:current {{
+QListWidget#researchJobList:focus::item:current,
+QListWidget#durableJobList:focus::item:current {{
     color: {PALETTE.text};
     background: {PALETTE.surface_hover};
     border-left: 2px solid {PALETTE.accent};
