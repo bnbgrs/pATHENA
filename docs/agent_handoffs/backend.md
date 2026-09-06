@@ -2,39 +2,39 @@
 
 ## Baseline
 
-- Shared baseline: `develop/pathena-next@be0e8da5127f17f6bbc3cbbc8c58496102c9135c`.
-- Worker pre-run head: `postmerge/backend@a424e32621d2c7441a144ff3a1a3faecd32ea7c4`.
-- Current worker heads reviewed: Error handoff closes `ERR-0016` and `ERR-0017`; Spec/Core remains disjoint Search work; UI remains disjoint Sources focus work; Integrator has composed the corrected-lineage Local HTTP boundaries onto Develop.
-- History-preserving NON-FORCE synchronization: `db8a000ac2369fce921887c671ec6778eb30b7c7`, parents prior Backend head plus exact Develop, using the exact Develop tree.
+- Shared baseline: `develop/pathena-next@70f985ce7a28044824bfbfa53769b982fa152747`.
+- Worker pre-run head: `postmerge/backend@8964f9ae22f0b3f98d06f9c000a47a98dc54f473`.
+- Worker heads reviewed: Error reports OPEN none; Spec/Core and UI are disjoint; Integrator is current Develop.
+- History-preserving NON-FORCE synchronization: `2e1b1b5b06c6b2486066054b62cc02982bb270b6`, parents prior Backend head plus exact Develop, using exact Develop tree plus only Backend-owned migration/handoff blobs.
 - `main` and `bnbgrs/ATHENA` remained strictly read-only; no force update or history rewrite was used.
 
 ## ExternalAccessGateway runtime boundaries — VERIFIED / READY
 
-The required runtime boundary remains exact-green and integrated: `ttl_seconds` and `max_bytes` require true non-bool integers; `timeout_seconds` requires finite numeric non-bool input. Canonical Quality `33884210684@c67fa646d8ba4e4137cdf69992b9c8b42ad904d6 = success`.
+Required runtime validation remains exact-green and integrated: `ttl_seconds` and `max_bytes` require true non-bool integers; `timeout_seconds` requires finite numeric non-bool input. Canonical Quality `33884210684@c67fa646d8ba4e4137cdf69992b9c8b42ad904d6 = success`.
 
 No Tor/Direct, proxy, redirect, HTTPS/default-port, compressed-response, response-size, audit, provenance, fsync or transactional Source-finalization invariant was weakened.
 
-## Corrected Local HTTP lineage — VERIFIED / INTEGRATED
+## Prior Storage/Recovery slice — migration PRAGMA runtime types VERIFIED / READY
 
-Canonical Quality `34030367660@54637682087b880622796ee0b618362f7ed802fe = success`. Error worker now records `ERR-0016` and `ERR-0017` FIXED. Integrator composed the exact verified Local HTTP runtime-boundary blobs onto Develop in `3376fac0051483308d8c24e1e58d6b532bde702e` and documented the composition at current Develop head.
+Canonical Quality `34033392294@8964f9ae22f0b3f98d06f9c000a47a98dc54f473 = success`. Safety-critical PRAGMA values are exact runtime types: `user_version` and WAL checkpoint counters are genuine non-bool integers; `journal_mode` is genuine text. This lineage is now Integrator-ready.
 
-Backend therefore did not repeat the already-verified Provider micro-slice.
+## New Storage/Recovery slice — WAL checkpoint frame-count domain
 
-## New backend slice — migration PRAGMA readback runtime types
+Product `051b9d3f553f686ff30c20a0bf79291281023c8f` strengthens candidate migration acceptance so `log_frames` and `checkpointed_frames` must be non-negative genuine integers. Previously the exact-type boundary still allowed `(busy=0, log_frames=-1, checkpointed_frames=-1)` to satisfy equality and falsely pass complete-checkpoint acceptance even though negative SQLite frame counts are invalid.
 
-Area: Storage / Recovery / schema-candidate verification.
+Focused regression `633300e071143b7b43dba8e6bc49f132ba37350f` adds negative `log_frames` and negative `checkpointed_frames` cases and verifies fail-closed `MigrationExecutorError` before journal-mode/activation eligibility.
 
-Product `8eaddc0c40c304b1ba741e9a0980e1f7f760a17c` hardens `src/athena/storage/migration_executor.py` so safety-critical SQLite PRAGMA readbacks no longer pass through permissive `int(...)` / `str(...)` coercion. `user_version`, WAL checkpoint `busy/log_frames/checkpointed_frames` must be genuine non-bool integers; `journal_mode` must be genuine text. Malformed but coercible runtime values fail closed before migration acceptance or activation eligibility.
-
-Focused regression `987fb5b1c548c3a7a7ab0c25e2cc1d3b43c95fb1` extends `tests/unit/test_migration_executor.py` with bool/string/float user-version and checkpoint cases plus non-text journal-mode cases while preserving existing real SQLite candidate migration coverage.
-
-Canonical Quality `34033357836@987fb5b1c548c3a7a7ab0c25e2cc1d3b43c95fb1` was created and was pending at the last exact check. The product-only predecessor run `34033328965@8eaddc0c40c304b1ba741e9a0980e1f7f760a17c` was cancelled by the successor push. No PASS is claimed until a completed exact descendant run succeeds.
+Canonical Quality `34036277571@633300e071143b7b43dba8e6bc49f132ba37350f` exists and was pending at the exact check. No PASS is claimed for the new slice until a completed exact descendant succeeds.
 
 ## Call chain / invariants
 
-`migrate_schema_candidate -> path/link/type guards -> sqlite connect candidate only -> initialize_schema -> PRAGMA user_version exact-int validation -> WAL TRUNCATE checkpoint exact-int validation -> journal_mode DELETE exact-text validation -> connection close -> sidecar absence verification`.
+`migrate_schema_candidate -> candidate path/link/type guards -> SQLite candidate-only open -> initialize_schema -> exact user_version -> TRUNCATE checkpoint -> exact busy integer -> non-negative exact log/checkpointed frame counters -> complete checkpoint equality -> exact text DELETE journal mode -> close -> sidecar absence verification`.
 
-Retained invariants: candidate-only mutation; no live database migration; no schema-version coercion; complete WAL checkpoint required; DELETE journal mode required before activation; candidate path must be absolute regular file without link-boundary ancestors; sidecar-free handoff remains mandatory; no transaction/WAL/recovery format change; no new retry or crypto behavior.
+Retained invariants: candidate-only mutation; no live database migration; no coercion of safety-critical PRAGMA values; complete WAL checkpoint required; DELETE journal mode required before activation; candidate path absolute/regular/non-link with safe ancestors; sidecar-free handoff mandatory; no transaction/WAL/recovery format change; no new retry or crypto behavior.
+
+## Queue correction
+
+The 2026-08-24 backend queue is stale in two places reviewed this run: current Develop already contains Windows HANDLE-bound durable replacement in `storage/durable_fs.py` (so BE-038 must not be blindly re-applied), and Chat generation already calls the reusable revision-aware ModelSignature guard (so BE-020 is no longer a current mutation gap). Backend therefore did not duplicate either stale item.
 
 ## Persistent release regression knowledge
 
@@ -42,8 +42,10 @@ Retain Windows `pypdf` packaging metadata, fail-closed frozen child argv, Deskto
 
 ## Integrator handoff
 
-READY remains the already integrated/verified ExternalAccessGateway and corrected Local HTTP lineage. NOT READY: migration PRAGMA readback exact-runtime-type boundary `8eaddc0c40c304b1ba741e9a0980e1f7f760a17c` + regression `987fb5b1c548c3a7a7ab0c25e2cc1d3b43c95fb1` until canonical Quality completes successfully on an exact descendant.
+READY: ExternalAccessGateway runtime boundaries; corrected Local HTTP lineage; migration PRAGMA exact-runtime-type boundary through `8964f9ae22f0b3f98d06f9c000a47a98dc54f473` / Quality `34033392294`.
+
+NOT READY: negative WAL checkpoint frame-count rejection `051b9d3f553f686ff30c20a0bf79291281023c8f` + regression `633300e071143b7b43dba8e6bc49f132ba37350f` until canonical Quality succeeds on an exact descendant.
 
 ## Next backend slice
 
-Consume the first completed canonical Quality containing `987fb5b1c548c3a7a7ab0c25e2cc1d3b43c95fb1` or this documentation-only descendant. If green, promote the migration PRAGMA runtime boundary to VERIFIED / INTEGRATOR_READY and immediately take the highest current unclaimed disjoint Backend/System P0/P1/P2 gap. If red, isolate the smallest Backend-owned failure and repair it without weakening schema/WAL/recovery/path or Provider/Security invariants. If cancelled, do not repeat the same runner state unchanged; use another executable verification route or a distinct real Backend/System slice.
+Consume the first completed canonical Quality containing `633300e071143b7b43dba8e6bc49f132ba37350f` or this documentation-only descendant. If green, promote negative checkpoint-frame rejection VERIFIED / INTEGRATOR_READY and take the highest current non-stale, disjoint Backend/System P1/P2 gap. If red, isolate the smallest Backend-owned failure and repair without weakening schema/WAL/recovery/path or Provider/Security invariants. If cancelled, do not repeat the runner state unchanged; use a different executable verification route or a distinct real Backend/System slice.
