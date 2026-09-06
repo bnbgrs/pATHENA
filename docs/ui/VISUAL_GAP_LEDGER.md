@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `14ca6fece527d6b51956b3e5fa3ec7b291252420`
+Baseline: `3bd2b7f0bc25f9b3b756a1765b27db7ab787b789`
 Integration target: `develop/pathena-next`
 UI worker: `postmerge/ui`
 
@@ -162,6 +162,14 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Focused regression `3d9339295f3c413c4c7a31c2a7037600bc3b93f6` locks the selector and canonical tokens. Research selection routing, durable-job state, cancellation semantics, scheduler behavior and backend/runtime semantics are unchanged.
 - Verification evidence: exact UI documentation head `5a40e75ed78293ddd8c1ea3533c5632d6dea2910` passed ATHENA Quality Gate `34014713429` with conclusion `success`.
 - Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0035 — Research detail reader lacks explicit keyboard-focus presentation
+- Screen: `03 — Research`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Evidence: `ResearchWorkspace` creates read-only `QPlainTextEdit#researchDetails`. The surface remains keyboard-focusable for reading/copying, but the shared explicit focus block covered the Help and Library detail readers while omitting `researchDetails`.
+- Product `f9d0a01de648ea806bfd725c3b35a68fc9eb425d` adds only `QPlainTextEdit#researchDetails:focus` to the existing canonical accent-border focus selector. Focused regression `4183addc10689496101c2b4d6ae7d45fcb4cf3d1` locks the selector and canonical accent border.
+- Durable research content, selection routing, cancellation, scheduler behavior, read-only semantics and backend/storage/security/runtime behavior are unchanged.
+- Verification evidence: canonical Quality `34019811058` is pending on exact product/test head `4183addc10689496101c2b4d6ae7d45fcb4cf3d1`; no PASS is claimed yet.
+- Visual status: `IMPLEMENTED_PENDING_VERIFY`; no screenshot-level `MATCH` claim.
 
 ## Evidence blocker
 
