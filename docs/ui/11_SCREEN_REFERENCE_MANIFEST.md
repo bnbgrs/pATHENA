@@ -1,6 +1,6 @@
 # pATHENA 11-Screen Reference Manifest
 
-Baseline: `fd15a75212acac7f88886117835b8d754577ea91`
+Baseline: `14ca6fece527d6b51956b3e5fa3ec7b291252420`
 Integration target: `develop/pathena-next`
 
 This manifest is the canonical inventory for the eleven user-provided pATHENA UI references. The original image payloads are still not available for direct visual opening in the current repository/tool path. Therefore all pixel/composition claims remain `VISUAL_REFERENCE_PENDING`. No slot may be promoted to `MATCH` without opening the actual reference and comparing it against a real rendered pATHENA state.
@@ -9,7 +9,7 @@ This manifest is the canonical inventory for the eleven user-provided pATHENA UI
 |---|---|---|---|---|---|
 | 01 | Workspace / Chat | `VISUAL_REFERENCE_PENDING` | Quiet central workspace; chat as work document; large composer; contextual evidence/activity inspector; glyph-only primary rail retains human destination names through explicit accessible item text; global top navigation, primary glyph rail, composer Send and Workspace action controls have explicit keyboard-focus treatments | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `a0ba6bd47f4b8a6e91e8f6c222334c99cbe1a3aa` |
 | 02 | Library / Knowledge | `VISUAL_REFERENCE_PENDING` | Reduced knowledge workspace with real durable knowledge/claim provenance; canonical memory tab, detail-reader focus and focused-current row presentation for Knowledge/Claim/Decision lists are technically verified | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `644c3cd5e3fd9c646b5e9d881a821b25d55b70ea` |
-| 03 | Research | `VISUAL_REFERENCE_PENDING` | Real durable research process/results with restrained hierarchy and provenance; research job list focused-current keyboard state is implemented pending exact-head Quality | `IMPLEMENTED_PENDING_VERIFY` | `3d9339295f3c413c4c7a31c2a7037600bc3b93f6` |
+| 03 | Research | `VISUAL_REFERENCE_PENDING` | Real durable research process/results with restrained hierarchy and provenance; research job list focused-current keyboard state is technically verified | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `5a40e75ed78293ddd8c1ea3533c5632d6dea2910` |
 | 04 | Jobs | `VISUAL_REFERENCE_PENDING` | Real durable-job state and controls; no fabricated queue state | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `fd15a75212acac7f88886117835b8d754577ea91` |
 | 05 | Sources / Files | `VISUAL_REFERENCE_PENDING` | Real source/file state with import and provenance surfaces | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `fd15a75212acac7f88886117835b8d754577ea91` |
 | 06 | System | `VISUAL_REFERENCE_PENDING` | Real local runtime/core/provider/storage/backup state | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `fd15a75212acac7f88886117835b8d754577ea91` |
