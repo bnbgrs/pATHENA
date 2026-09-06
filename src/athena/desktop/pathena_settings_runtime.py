@@ -125,6 +125,10 @@ class SettingsRuntimeController(QObject):
             self.detail,
         ):
             label.setTextFormat(Qt.TextFormat.PlainText)
+            label.setTextInteractionFlags(
+                Qt.TextInteractionFlag.TextSelectableByMouse
+                | Qt.TextInteractionFlag.TextSelectableByKeyboard
+            )
 
         self._set_state(
             self.provider_value,
