@@ -2,10 +2,9 @@
 
 ## Baseline
 
-- Baseline source: `develop/pathena-next@86ab95c9bd31e52a8d65fd3b37f7c27556a6f3b9`.
-- Error branch pre-sync head: `b8e050c9756299a70e8f5d4df0139ef54a5f08a0`.
-- History-preserving NON-FORCE synchronization: `28017c9cfb1c39623dd860dcaf30ac099fdd0ada`, with parents prior Error head + exact Develop and exact Develop tree before Error mutation.
-- Worker heads reviewed: Backend `bc622dcb0554d2449183afe2331669ab15c7c8ef`; Spec/Core `96c8f17d99017060238da27b51f6e59b77b9eafc`; UI `6558031bb31e5e35f5c8639bf4f5c8591f7fa250`; Integrator/Develop `86ab95c9bd31e52a8d65fd3b37f7c27556a6f3b9`.
+- Baseline source: `develop/pathena-next@b1537fc138560fe85d4d97cf76c887b92e63c8f4`.
+- Error branch history-preserving NON-FORCE synchronization: `d01e73b889a8fa9e680fca3fb79fa5ce6c91f1bc`, parents prior Error head `f434f9f714f1453cac5fda8b1aa5b7f8684dedda` + exact Develop `b1537fc138560fe85d4d97cf76c887b92e63c8f4`.
+- Worker heads reviewed: Backend `2a6d1ba76d4822e324bd8117fc001dd79667d702`; Spec/Core `b62e08cac198fde7ce7c5f081dd577decdcc216d`; UI `3d89bffeef82244361e701738ebc05862d1a2b64`; Integrator/Develop `b1537fc138560fe85d4d97cf76c887b92e63c8f4`.
 - `main` and `bnbgrs/ATHENA` remained strictly read-only; no force update or history rewrite was used.
 
 ## Current error state
@@ -16,25 +15,19 @@
 - STALE: `ERR-0014`.
 - BLOCKED: none.
 
-## ERR-0017 — minimal Error-owned correction now exists
+## ERR-0017 — integrated on Develop, exact-current verification still required
 
-Current Develop still has the confirmed broken Personal-Memory import graph: `src/athena/memory/service.py` imports `ModelInferredMemoryProposal`, while current Develop `src/athena/memory/models.py` does not define it.
+The confirmed Personal-Memory import-graph defect is structurally repaired on current Develop. `src/athena/memory/models.py` now defines `ModelInferredMemoryProposal` with MODEL_INFERRED mode, confidence, NORMAL sensitivity, real UUID provenance and exact `review_required=True` validation. Integrator composed the bounded product/test blobs from exact-green Spec/Core evidence.
 
-The latest Backend canonical run inspected this cycle, `34024809050@bc622dcb0554d2449183afe2331669ab15c7c8ef`, remains red with the same primary cascade: mypy failure, pytest import-collection failure, Linux/Windows API runtime path-boundary failure and local Core/API restart failure. These remain one `ERR-0017` root cause, not separate error IDs.
+Integrator evidence: source `postmerge/spec-core@b62e08cac198fde7ce7c5f081dd577decdcc216d`; canonical Quality `34026871459 = success`; Develop product/test commits `a7a6301ec580492ee443d2c32e3d65ad624cdcc4`, `dbfcd37e7411447cb6abb4be29731908deff909e`, normalization `bda6aed03fd928e19c8bac3e1f5751e55c833bcc`, `8d56252a1c4da7ee2a59739659e6a4614fce7a2d`.
 
-The active Spec/Core worker supplies exact-green compatible evidence: `postmerge/spec-core@96c8f17d99017060238da27b51f6e59b77b9eafc`, canonical Quality `34024071953 = success`. Its proposal model enforces MODEL_INFERRED mode, confidence, NORMAL sensitivity, real UUID model/processing provenance and exact `review_required=True`.
+Current Develop head `b1537fc138560fe85d4d97cf76c887b92e63c8f4` has no exact canonical workflow run. Therefore `ERR-0017` remains `FIXED_PENDING_VERIFY`, not `FIXED`.
 
-To satisfy the hard progress rule without weakening product semantics, Error now carries that minimal compatible correction on top of exact current Develop:
-
-- synchronization merge: `28017c9cfb1c39623dd860dcaf30ac099fdd0ada`;
-- product fix: `5ff326e39611a3aea5678e2151c300822ad593f9` (`src/athena/memory/models.py`);
-- focused provenance regression: `281cedc6010617ce0aa60ea25ec497500225bb17` (`tests/unit/test_personal_memory_inferred_provenance_validation.py`).
-
-`ERR-0017` is therefore `FIXED_PENDING_VERIFY`, not `FIXED`. No PASS is claimed until the Error candidate itself completes real verification.
+Backend `34027582618@2a6d1ba76d4822e324bd8117fc001dd79667d702` is red through the same old-base ERR-0017 cascade: Validator PASS and Ruff PASS, then mypy/import collection/API path-boundary/local Core restart failures. It is not a new independent error and does not reopen the repaired current-Develop import graph.
 
 ## Verification required for ERR-0017
 
-Require on the exact corrected Error descendant:
+Require on an exact corrected Develop descendant:
 
 - specification Validator;
 - Ruff;
@@ -51,13 +44,14 @@ Do not remove the service import, weaken UUID/review/provenance validation, fabr
 
 Backend fix `d721846ea9524ab18336ba72eeb082cca7ee0fb8` plus regression `44bf215b999e727514fc10ddb88eb8379a5358b6` implements explicit fail-closed poisoning after overflow without counting rejected bytes as successful consumption. Previous canonical closure was blocked by `ERR-0017`, not by recurrence of the poisoning signature.
 
-On the corrected Error lineage, rerun focused poisoning, oversize-accounting, exact-limit/EOF and negative-read regressions. Close `ERR-0016` only when its signature remains absent under real focused/canonical verification.
+On the corrected Develop lineage, rerun focused poisoning, oversize-accounting, exact-limit/EOF and negative-read regressions. Close `ERR-0016` only when its signature remains absent under real focused/canonical verification.
 
 ## Integrator handoff
 
-- Do not promote current Develop while `ERR-0017` remains present there.
-- Preferred bounded correction is the exact model/test semantic delta represented by Error commits `5ff326e39611a3aea5678e2151c300822ad593f9` + `281cedc6010617ce0aa60ea25ec497500225bb17`, cross-checked against exact-green Spec/Core `96c8f17d99017060238da27b51f6e59b77b9eafc` / Quality `34024071953`.
-- Accept `ERR-0017` as fixed only after exact candidate verification; then reverify `ERR-0016` on the same lineage.
+- Do not claim promotion-ready for `b1537fc138560fe85d4d97cf76c887b92e63c8f4` without exact-current canonical verification.
+- Structural ERR-0017 correction is already integrated; do not reapply or broaden it.
+- Treat Backend run `34027582618` as an old-base ERR-0017 cascade, not a new error ID.
+- First exact corrected-lineage Quality success may close ERR-0017 if focused/import/startup evidence is green; on that same lineage reverify ERR-0016 poisoning/oversize accounting.
 - Preserve all Provider/Transport byte-budget/deadline, Windows path, Storage, Security, Recovery and Human-Control guards.
 
 ## Persistent Beta/release regression knowledge
@@ -66,7 +60,7 @@ Retain as explicit release acceptance without reopening absent exact-current rep
 
 ## Next scan
 
-1. Consume exact Quality/focused verification for the new ERR-0017 Error candidate.
-2. If green, mark `ERR-0017` FIXED and reverify/close `ERR-0016` on that same lineage.
+1. Consume exact corrected-lineage canonical verification for ERR-0017.
+2. If green, mark ERR-0017 FIXED and reverify/close ERR-0016 on the same lineage.
 3. If red, deduplicate the exact primary diagnostic and fix the smallest real root cause without guard weakening.
 4. After both closures, immediately consume the next real canonical/runtime failure signal.
