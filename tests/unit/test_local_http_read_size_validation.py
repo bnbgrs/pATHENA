@@ -8,12 +8,20 @@ from athena.model.adapters.local_http import _BoundedLocalResponse
 
 
 class _TrackingResponse:
-    def __init__(self) -> None:
+    def __init__(self, body: bytes = b"xxxx") -> None:
         self.read_calls = 0
+        self._body = body
+        self._offset = 0
 
     def read(self, size: int) -> bytes:
         self.read_calls += 1
-        return b"x" * max(0, size)
+        if size < 0:
+            chunk = self._body[self._offset :]
+            self._offset = len(self._body)
+            return chunk
+        chunk = self._body[self._offset : self._offset + size]
+        self._offset += len(chunk)
+        return chunk
 
 
 @pytest.mark.parametrize("invalid_size", [True, 1.5, "1"])
@@ -33,7 +41,7 @@ def test_bounded_local_response_rejects_invalid_read_size_before_delegate(
 
 
 def test_bounded_local_response_still_accepts_negative_integer_read_size() -> None:
-    response = _TrackingResponse()
+    response = _TrackingResponse(b"xxxx")
     bounded = _BoundedLocalResponse(response, max_bytes=4)
 
     assert bounded.read(-1) == b"xxxx"
