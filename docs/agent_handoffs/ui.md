@@ -50,18 +50,18 @@ Develop advanced to `2bc57c4c84a0ed13ca9adbbc61f8fd00fc87fb8f`. The UI worker im
 
 ## Ledger coordination
 
-- `UI-GAP-0044` is technically verified by exact Quality `34049733492`; its legacy ledger wording still requires reconciliation.
-- `UI-GAP-0045` is technically verified by exact Quality `34052665337` and still requires stable ledger registration.
-- `UI-GAP-0046` is technically verified by exact Quality `34056114998` and still requires stable ledger registration.
-- `UI-GAP-0047` is the current stable next identifier and has product/test evidence on this worker; canonical verification is pending.
-- Existing ledger history was not dropped or rewritten.
+- `VISUAL_GAP_LEDGER.md` was reconciled without dropping prior entries.
+- `UI-GAP-0044` now records exact Quality `34049733492 = success` as `FIXED`.
+- `UI-GAP-0045` is stably registered with exact Quality `34052665337 = success` as `FIXED`.
+- `UI-GAP-0046` is stably registered with exact Quality `34056114998 = success` as `FIXED`.
+- `UI-GAP-0047` is stably registered as `IMPLEMENTED_PENDING_VERIFY` with product/test evidence.
 
 ## Integrator handoff
 
 - UI-GAP-0046 is ready: product `4b4eb8c0ee1ea66f7f9c50a03c464330b02f7143`, regression `5ce4d87f7360741087d7a59a91441faa8e6d8a83`, exact verified UI head `38a28f61af16d0b12500b4056b586ba934a2ba1a`, canonical Quality `34056114998 = success`.
-- UI-GAP-0047 is NOT READY until canonical Quality succeeds on the exact final candidate containing product, focused regression, manifest and this handoff.
+- UI-GAP-0047 is NOT READY until canonical Quality succeeds on the exact final candidate containing product, focused regression, manifest, ledger and this handoff.
 - No backend/storage/security/provider/worker/scheduler semantics changed by UI.
 
 ## Next UI step
 
-Consume canonical Quality on the exact final UI-GAP-0047 candidate. If green, promote UI-GAP-0047 to `FIXED / INTEGRATOR_READY`, return Screen 09 to `IMPLEMENTED_PENDING_VISUAL_REVIEW`, reconcile UI-GAP-0044 plus stable UI-GAP-0045/UI-GAP-0046/UI-GAP-0047 evidence in `VISUAL_GAP_LEDGER.md` without dropping history, then inspect one distinct Command Palette/Help or Startup accessibility/state/interaction gap.
+Consume canonical Quality on the exact final UI-GAP-0047 candidate. If green, promote UI-GAP-0047 to `FIXED / INTEGRATOR_READY`, return Screen 09 to `IMPLEMENTED_PENDING_VISUAL_REVIEW`, update ledger/manifest/handoff with the exact verified SHA, then inspect one distinct Command Palette/Help or Startup accessibility/state/interaction gap.
