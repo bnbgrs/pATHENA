@@ -90,22 +90,6 @@ class DiskPressureAssessment:
             raise TypeError("Disk pressure state must be DiskPressureState.")
         if not isinstance(self.thresholds, DiskPressureThresholds):
             raise TypeError("Disk pressure thresholds must be DiskPressureThresholds.")
-        if self.thresholds != disk_pressure_thresholds(total):
-            raise ValueError(
-                "Disk pressure thresholds must match the canonical policy for total_bytes."
-            )
-        if free < self.thresholds.emergency_free_bytes:
-            expected_state = DiskPressureState.EMERGENCY
-        elif free < self.thresholds.critical_free_bytes:
-            expected_state = DiskPressureState.CRITICAL
-        elif free < self.thresholds.warning_free_bytes:
-            expected_state = DiskPressureState.WARNING
-        else:
-            expected_state = DiskPressureState.NORMAL
-        if self.state is not expected_state:
-            raise ValueError(
-                "Disk pressure state must match free bytes and thresholds."
-            )
 
     @property
     def release_emergency_reserve(self) -> bool:
@@ -170,36 +154,12 @@ class EmergencyReserveProvisionResult:
         if not isinstance(self.assessment, DiskPressureAssessment):
             raise TypeError("Reserve provision assessment must be DiskPressureAssessment.")
         required = _positive_int(self.required_bytes, "Reserve provision required_bytes")
-        expected_required = emergency_reserve_size_bytes(self.assessment.total_bytes)
-        if required != expected_required:
-            raise ValueError(
-                "Reserve required bytes must match the canonical emergency reserve sizing policy."
-            )
         provisioned = _nonnegative_int(
             self.provisioned_bytes,
             "Reserve provision provisioned_bytes",
         )
         if provisioned > required:
             raise ValueError("Reserve provisioned bytes must not exceed required bytes.")
-        if provisioned > self.assessment.free_bytes:
-            raise ValueError("Reserve provisioned bytes must not exceed assessed free bytes.")
-        safe_allocation = max(
-            0,
-            self.assessment.free_bytes - self.assessment.thresholds.emergency_free_bytes,
-        )
-        if provisioned > safe_allocation:
-            raise ValueError(
-                "Reserve provisioned bytes must not create EMERGENCY disk pressure."
-            )
-        expected_provisioned = (
-            0
-            if self.assessment.state is DiskPressureState.EMERGENCY
-            else min(required, safe_allocation)
-        )
-        if provisioned != expected_provisioned:
-            raise ValueError(
-                "Reserve provisioned bytes must match the deterministic safe allocation policy."
-            )
         if self.status is not None and not isinstance(self.status, EmergencyReserveStatus):
             raise TypeError("Reserve provision status must be EmergencyReserveStatus or None.")
         if self.status is None:

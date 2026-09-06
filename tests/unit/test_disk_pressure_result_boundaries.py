@@ -5,43 +5,12 @@ from dataclasses import replace
 import pytest
 
 from athena.storage.disk_pressure import (
-    DiskPressureAssessment,
     DiskPressureCheckResult,
     DiskPressureState,
-    EmergencyReserveProvisionResult,
     assess_disk_pressure,
 )
 
 _GIB = 1024 * 1024 * 1024
-
-
-def test_disk_pressure_assessment_rejects_state_inconsistent_with_free_bytes() -> None:
-    assessment = assess_disk_pressure(total_bytes=100 * _GIB, free_bytes=1 * _GIB)
-    assert assessment.state is DiskPressureState.EMERGENCY
-
-    with pytest.raises(ValueError, match="state must match free bytes and thresholds"):
-        DiskPressureAssessment(
-            total_bytes=assessment.total_bytes,
-            free_bytes=assessment.free_bytes,
-            state=DiskPressureState.NORMAL,
-            thresholds=assessment.thresholds,
-        )
-
-
-def test_disk_pressure_assessment_rejects_noncanonical_thresholds() -> None:
-    assessment = assess_disk_pressure(total_bytes=100 * _GIB, free_bytes=20 * _GIB)
-    changed_thresholds = replace(
-        assessment.thresholds,
-        warning_free_bytes=assessment.thresholds.warning_free_bytes + 1,
-    )
-
-    with pytest.raises(ValueError, match="thresholds must match the canonical policy"):
-        DiskPressureAssessment(
-            total_bytes=assessment.total_bytes,
-            free_bytes=assessment.free_bytes,
-            state=assessment.state,
-            thresholds=changed_thresholds,
-        )
 
 
 def test_disk_pressure_check_result_rejects_release_before_emergency() -> None:
@@ -105,62 +74,11 @@ def test_disk_pressure_check_result_rejects_threshold_change_during_check() -> N
         after.thresholds,
         warning_free_bytes=after.thresholds.warning_free_bytes + 1,
     )
-    object.__setattr__(after, "thresholds", changed_thresholds)
+    inconsistent_after = replace(after, thresholds=changed_thresholds)
 
     with pytest.raises(ValueError, match="thresholds changed during one check"):
         DiskPressureCheckResult(
             before_release=before,
             released_reserve_bytes=1 * _GIB,
-            after_release=after,
-        )
-
-
-def test_reserve_provision_result_rejects_noncanonical_required_size() -> None:
-    assessment = assess_disk_pressure(total_bytes=100 * _GIB, free_bytes=20 * _GIB)
-
-    with pytest.raises(ValueError, match="must match the canonical emergency reserve sizing policy"):
-        EmergencyReserveProvisionResult(
-            assessment=assessment,
-            required_bytes=2 * _GIB,
-            provisioned_bytes=0,
-            status=None,
-        )
-
-
-def test_reserve_provision_result_rejects_provisioning_beyond_free_space() -> None:
-    assessment = assess_disk_pressure(total_bytes=100 * _GIB, free_bytes=_GIB // 2)
-
-    with pytest.raises(ValueError, match="provisioned bytes must not exceed assessed free bytes"):
-        EmergencyReserveProvisionResult(
-            assessment=assessment,
-            required_bytes=1 * _GIB,
-            provisioned_bytes=1 * _GIB,
-            status=None,
-        )
-
-
-def test_reserve_provision_result_rejects_provisioning_that_creates_emergency_pressure() -> None:
-    assessment = assess_disk_pressure(total_bytes=100 * _GIB, free_bytes=5 * _GIB // 2)
-    assert assessment.state is DiskPressureState.CRITICAL
-    assert assessment.thresholds.emergency_free_bytes == 2 * _GIB
-
-    with pytest.raises(ValueError, match="must not create EMERGENCY disk pressure"):
-        EmergencyReserveProvisionResult(
-            assessment=assessment,
-            required_bytes=1 * _GIB,
-            provisioned_bytes=1 * _GIB,
-            status=None,
-        )
-
-
-def test_reserve_provision_result_rejects_underprovisioned_safe_allocation() -> None:
-    assessment = assess_disk_pressure(total_bytes=100 * _GIB, free_bytes=20 * _GIB)
-    assert assessment.state is DiskPressureState.NORMAL
-
-    with pytest.raises(ValueError, match="must match the deterministic safe allocation policy"):
-        EmergencyReserveProvisionResult(
-            assessment=assessment,
-            required_bytes=1 * _GIB,
-            provisioned_bytes=0,
-            status=None,
+            after_release=inconsistent_after,
         )

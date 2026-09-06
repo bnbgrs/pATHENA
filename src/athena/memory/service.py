@@ -237,10 +237,10 @@ class PersonalMemoryService:
     ) -> tuple[PersonalMemorySnapshot, ...]:
         """Return deterministic active Memory candidates for one model call.
 
-        Global core collaboration preferences are eligible everywhere. Scoped
-        entries are eligible only for an exact current scope match. Protected
-        entries cannot exist in the v1 plaintext repository, so this method never
-        silently unlocks protected content.
+        Exact scoped entries outrank global Memory for the active scope. Global
+        core collaboration preferences remain eligible everywhere as baseline
+        preferences. Protected entries cannot exist in the v1 plaintext
+        repository, so this method never silently unlocks protected content.
         """
         if not 1 <= limit <= 100:
             raise ValueError("Personal Memory context limit must be between 1 and 100.")
@@ -262,14 +262,14 @@ class PersonalMemoryService:
 
         def priority(snapshot: PersonalMemorySnapshot) -> tuple[int, int, str]:
             payload = snapshot.revision.payload
-            if payload.scope_kind is MemoryScopeKind.GLOBAL and payload.memory_kind in core_kinds:
-                tier = 0
-            elif (
+            if (
                 scope_kind is not None
                 and scope_kind is not MemoryScopeKind.GLOBAL
                 and payload.scope_kind is scope_kind
                 and payload.scope_entity_id == scope_entity_id
             ):
+                tier = 0
+            elif payload.scope_kind is MemoryScopeKind.GLOBAL and payload.memory_kind in core_kinds:
                 tier = 1
             elif payload.scope_kind is MemoryScopeKind.GLOBAL:
                 tier = 2
