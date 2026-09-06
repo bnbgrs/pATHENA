@@ -126,6 +126,13 @@ class DiskPressureCheckResult:
             raise ValueError("Disk pressure thresholds changed during one check.")
         if released > self.before_release.total_bytes:
             raise ValueError("Disk pressure released reserve bytes must not exceed volume size.")
+        canonical_reserve_bytes = emergency_reserve_size_bytes(
+            self.before_release.total_bytes
+        )
+        if released > canonical_reserve_bytes:
+            raise ValueError(
+                "Disk pressure released reserve bytes must not exceed canonical reserve size."
+            )
         if released > 0 and self.before_release.state is not DiskPressureState.EMERGENCY:
             raise ValueError(
                 "Disk pressure reserve release requires an EMERGENCY before state."
