@@ -15,17 +15,17 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 
 ## Current baseline
 
-- Baseline: `develop/pathena-next@6c7fdb4f2cf22215ac065ce6d2fad7b15e54b650`.
-- Error branch pre-sync head: `df0009ddc998216638ff63d426310138b34ddd2c`.
-- History-preserving NON-FORCE synchronization: `db5c45e40e9b7ab7b9114d7f07f4dc69b5f1ce65`, parents prior Error head + exact Develop; Error-owned canonical docs were preserved over the Develop tree.
-- Relevant Backend head: `22db94266d9219bdcf01a4567d0262f236f9fcad`.
-- Relevant Spec/Core head: `a47d4902c44d1a2126536cef65cb5f858aaa7fe9`.
-- Relevant UI head: `b021424a3d6b79786b695b00356c2f98fa7390dc`.
-- No force update, rebase, history rewrite, ATHENA mutation, or merge to `main` occurred.
+- Baseline: `develop/pathena-next@f0a0272e564b483f91099846c2644006298dc6a4`.
+- Error branch pre-run head: `a99ee201a6ee1e548666d3154fdd9a7fddc92877`.
+- Error branch is diverged from current Develop; no unsafe ref move, force update, rebase, or history rewrite was attempted.
+- Relevant Backend head: `a6b3e0d7b185fd08a851b0b3f05127d66428697b`.
+- Relevant Spec/Core head: `4ebe23f510a0b36d8f87e027088de54a9809148a`.
+- Relevant UI head: `550eb74508f7d1cbd4771a41ace283b11ea30fdb`.
+- No ATHENA mutation or merge to `main` occurred.
 
 ## Current error state
 
-- OPEN: none.
+- OPEN: `ERR-0018`.
 - IN_PROGRESS: none.
 - FIXED_PENDING_VERIFY: none.
 - FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015`, `ERR-0016`, `ERR-0017`.
@@ -169,13 +169,26 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 - risks: preserve MODEL_INFERRED, confidence, NORMAL sensitivity, real UUID provenance, exact `review_required is True`, and human review control.
 - integrator_handoff: closed; do not reapply the structural fix. Current Develop still requires its own exact-SHA Quality before any promotion-ready claim.
 
+### ERR-0018 — Personal Memory context import block violates Ruff I001
+- first_seen: 2026-09-06
+- severity: P2
+- area: Spec/Core / Personal Memory / Quality harness-source formatting
+- status: `OPEN`
+- evidence: exact Spec/Core `34044943935@4ebe23f510a0b36d8f87e027088de54a9809148a = failure`; canonical diagnostics artifact reports `I001 Import block is un-sorted or un-formatted` at `src/athena/memory/context.py:3:1` and exactly one fixable Ruff error.
+- repro: canonical Quality on the exact SHA; Windows path safety PASS, Linux storage + API runtime path-boundary PASS, local install/Core-API restart PASS, specification Validator PASS, mypy PASS, full pytest PASS, Ruff FAIL.
+- root_cause: the newly added Personal Memory context projection has a non-canonical import block; this is a source-formatting gate defect, not a Personal Memory semantic/runtime failure.
+- files: `src/athena/memory/context.py`.
+- fix_sha: none yet.
+- verification: not fixed; require exact corrected descendant with Ruff PASS, focused `tests/unit/test_personal_memory_context.py` PASS, and canonical Quality success.
+- risks: import-only correction; preserve `USER PREFERENCE` labeling, active-only projection, duplicate/snapshot identity checks, and fail-closed Protected Memory behavior.
+- integrator_handoff: reject `4ebe23f510a0b36d8f87e027088de54a9809148a` as READY; Spec/Core should organize only the import block and rerun exact canonical Quality. Do not weaken Ruff or change semantics.
+
 ## Current scan evidence — 2026-09-06
 
-- Previously pending UI `81b8d6c2c250a412bb2947b2b356d9111c10b995` completed canonical Quality `34040342678 = success`; no ERR signature was present.
-- Spec/Core `postmerge/spec-core@a47d4902c44d1a2126536cef65cb5f858aaa7fe9`, canonical Quality `34041882996 = success`. No error-owned failure is established.
-- Backend `postmerge/backend@22db94266d9219bdcf01a4567d0262f236f9fcad`, canonical Quality `34042444478` is in progress. Windows path safety PASS; Linux storage and API runtime path boundaries PASS; local install/Core-API restart PASS; Validator PASS; Ruff PASS; mypy PASS; full pytest still running. No concrete failure evidence exists yet.
-- UI `postmerge/ui@b021424a3d6b79786b695b00356c2f98fa7390dc`, canonical Quality `34043271088` is in progress. Windows path safety PASS; Linux storage and API runtime path boundaries PASS; local install/Core-API restart PASS; Validator PASS; Ruff PASS; mypy PASS; full pytest still running. No concrete failure evidence exists yet.
-- Current Develop `6c7fdb4f2cf22215ac065ce6d2fad7b15e54b650` has no exact completed canonical Quality observed in this scan and is not promotion-ready by Error criteria.
+- Spec/Core `postmerge/spec-core@4ebe23f510a0b36d8f87e027088de54a9809148a`, canonical Quality `34044943935 = failure`: only Ruff fails; exact diagnostic is `I001` at `src/athena/memory/context.py:3:1`. This is `ERR-0018`.
+- Backend `postmerge/backend@a6b3e0d7b185fd08a851b0b3f05127d66428697b`, canonical Quality `34045619981` is in progress. Windows path safety PASS; Linux storage/API runtime path boundaries PASS; local install/Core-API restart PASS; Validator PASS; Ruff PASS; mypy PASS; full pytest still running. No independent failure evidence exists yet.
+- UI `postmerge/ui@550eb74508f7d1cbd4771a41ace283b11ea30fdb`, canonical Quality `34046419446` is pending; no failure evidence exists yet.
+- Current Develop `f0a0272e564b483f91099846c2644006298dc6a4` has no exact completed canonical Quality observed in this scan and is not promotion-ready by Error criteria.
 
 ## Persistent Beta/release regression matrix
 
