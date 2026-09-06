@@ -53,8 +53,8 @@ def migrate_schema_candidate(candidate_db: Path, *, created_at_us: int) -> None:
         connection.row_factory = sqlite3.Row
         initialize_schema(connection, created_at_us=created_at_us)
         row = connection.execute("PRAGMA user_version").fetchone()
-        if row is None:
-            raise MigrationExecutorError("Migration candidate did not reach current schema.")
+        if row is None or len(row) != 1:
+            raise MigrationExecutorError("Migration candidate user_version returned invalid status.")
         user_version = _require_sqlite_int(row[0], "Migration candidate user_version")
         if user_version != SCHEMA_VERSION:
             raise MigrationExecutorError("Migration candidate did not reach current schema.")
