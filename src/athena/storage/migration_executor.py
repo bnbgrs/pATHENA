@@ -77,8 +77,8 @@ def migrate_schema_candidate(candidate_db: Path, *, created_at_us: int) -> None:
             )
 
         mode = connection.execute("PRAGMA journal_mode = DELETE").fetchone()
-        if mode is None:
-            raise MigrationExecutorError("Migration candidate could not leave WAL mode.")
+        if mode is None or len(mode) != 1:
+            raise MigrationExecutorError("Migration candidate journal_mode returned invalid status.")
         journal_mode = _require_sqlite_text(mode[0], "Migration candidate journal_mode")
         if journal_mode.casefold() != "delete":
             raise MigrationExecutorError("Migration candidate could not leave WAL mode.")
