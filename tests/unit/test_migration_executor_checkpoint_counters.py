@@ -42,33 +42,35 @@ class _Connection:
         return
 
 
+def _run_candidate(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    checkpoint: tuple[Any, ...],
+) -> _Connection:
+    candidate = (tmp_path / "candidate.db").absolute()
+    candidate.write_bytes(b"placeholder")
+    fake = _Connection(checkpoint)
+    monkeypatch.setattr(executor_module.sqlite3, "connect", lambda *args, **kwargs: fake)
+    monkeypatch.setattr(executor_module, "initialize_schema", lambda *args, **kwargs: None)
+    return fake
+
+
 @pytest.mark.parametrize(
     ("checkpoint", "label"),
     [
+        ((-1, 0, 0), "busy"),
         ((0, -1, -1), "log_frames"),
         ((0, 0, -1), "checkpointed_frames"),
     ],
 )
-def test_candidate_executor_rejects_negative_checkpoint_frame_counters(
+def test_candidate_executor_rejects_negative_checkpoint_counters(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
     checkpoint: tuple[int, int, int],
     label: str,
 ) -> None:
+    fake = _run_candidate(monkeypatch, tmp_path, checkpoint)
     candidate = (tmp_path / "candidate.db").absolute()
-    candidate.write_bytes(b"placeholder")
-    fake = _Connection(checkpoint)
-
-    monkeypatch.setattr(
-        executor_module.sqlite3,
-        "connect",
-        lambda *args, **kwargs: fake,
-    )
-    monkeypatch.setattr(
-        executor_module,
-        "initialize_schema",
-        lambda *args, **kwargs: None,
-    )
 
     with pytest.raises(MigrationExecutorError, match=rf"{label} must not be negative"):
         migrate_schema_candidate(candidate, created_at_us=123)
@@ -90,20 +92,8 @@ def test_candidate_executor_requires_exact_checkpoint_status_shape_before_journa
     tmp_path: Path,
     checkpoint: tuple[int, ...],
 ) -> None:
+    fake = _run_candidate(monkeypatch, tmp_path, checkpoint)
     candidate = (tmp_path / "candidate.db").absolute()
-    candidate.write_bytes(b"placeholder")
-    fake = _Connection(checkpoint)
-
-    monkeypatch.setattr(
-        executor_module.sqlite3,
-        "connect",
-        lambda *args, **kwargs: fake,
-    )
-    monkeypatch.setattr(
-        executor_module,
-        "initialize_schema",
-        lambda *args, **kwargs: None,
-    )
 
     with pytest.raises(MigrationExecutorError, match="checkpoint returned invalid status"):
         migrate_schema_candidate(candidate, created_at_us=123)
