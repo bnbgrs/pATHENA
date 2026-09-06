@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `62aa4e9ff20919f32d5147d183521fbf98f49535`
+Baseline: `859e1a68e8d9a207a5094462aefe189f6f276c9d`
 Integration target: `develop/pathena-next`
 UI worker: `postmerge/ui`
 
@@ -140,11 +140,12 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
 
 ## UI-GAP-0032 — Library detail readers lack explicit keyboard-focus presentation
-- Screen: `02 — Library / Knowledge`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Screen: `02 — Library / Knowledge`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `FIXED`.
 - Evidence: `KnowledgeWorkspace` creates read-only `QPlainTextEdit#persistentKnowledgeDetails`, `QPlainTextEdit#persistentClaimDetails`, and `QPlainTextEdit#semanticReviewDetails`. These surfaces are keyboard-focusable for reading/copying, but the shared explicit focus block previously covered only `QPlainTextEdit#helpText` among plain-text readers.
 - Product `4be86b946333e88160d4f7a11fe4199c23d2c0ec` adds only the three object-specific `:focus` selectors to the existing canonical accent-border focus block.
 - Focused regression `ebe9aaa0d465df78e52782ce0f2d4d5dab6a2086` verifies all three selectors and the canonical accent border. Read-only behavior, detail content, selection routing, provenance, persistence and backend/runtime semantics remain unchanged.
-- Visual status: `IMPLEMENTED_PENDING_VERIFY`; no screenshot-level `MATCH` claim.
+- Verification evidence: exact UI head `062440397c9330ac23e9f8b3293d822f2451c902` passed ATHENA Quality Gate `34007202893` with conclusion `success`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
 
 ## Evidence blocker
 
