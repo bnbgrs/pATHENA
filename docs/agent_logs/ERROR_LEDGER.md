@@ -8,9 +8,9 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 
 ## Current baseline
 
-- Baseline: `develop/pathena-next@2bc57c4c84a0ed13ca9adbbc61f8fd00fc87fb8f`.
-- Error NON-FORCE sync: `a00978919ca870fdfc6029cfc925cdaa68c15cd7`, parents prior Error `410bdc595d3f4c370541b0701386cfe4b4b880ce` + Develop `2bc57c4c84a0ed13ca9adbbc61f8fd00fc87fb8f`.
-- Reviewed heads: Spec/Core `942d19f46a91af6672bb7639c1fca4cadf378ac7`; Backend `80bd67a2a0ad9b1b013635597f6cdaeca0f05cba`; UI `38a28f61af16d0b12500b4056b586ba934a2ba1a`; Integrator/Develop `2bc57c4c84a0ed13ca9adbbc61f8fd00fc87fb8f`.
+- Baseline reviewed: `develop/pathena-next@1cc7b8dceb5b4ff098442e9f17f89b8cc36cb390`.
+- Error branch mutation lineage remains on `postmerge/errors`; no `main` mutation, force-push or history rewrite.
+- Reviewed heads: Spec/Core `528ed7d3d7d80470a0fa78458ff2babd59bff20e`; Backend `2ea98794facffcae29d4f94b337fc84083028526`; Integrator/Develop `1cc7b8dceb5b4ff098442e9f17f89b8cc36cb390`.
 
 ## Current state
 
@@ -42,22 +42,22 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 ## ERR-0018 — Personal Memory context import block violates Ruff I001
 
 - first_seen: 2026-09-06; severity: P2; area: Spec/Core / Personal Memory / Quality formatting; status: `OPEN`.
-- evidence: `34044943935@4ebe23f510a0b36d8f87e027088de54a9809148a = failure`; `34048268758@e8f7199f70c56a79403026926430ea56a5177bec = failure`; `34051030897@b8858f986ec96e5973d47f8b74d2a120149a2037 = failure`; `34054516742@942d19f46a91af6672bb7639c1fca4cadf378ac7 = failure`.
-- exact current diagnostic: Ruff `I001 [*] Import block is un-sorted or un-formatted` at `src/athena/memory/context.py:3:1`.
-- exact fourth verification on `942d19f...`: Local install/Core-API restart PASS; Windows path safety PASS; Linux storage/API path-boundary PASS; Validator 63/63 PASS; mypy PASS; full pytest `4736 passed, 3 skipped, 2 warnings`; Ruff alone FAIL.
-- root_cause: three of four meaningful import forms are exact-run rejected: (A) `import uuid` before dataclasses + multiline local models import (`e8f7199f...`); (B) dataclasses before `import uuid` + single-line local import (`b8858f98...`); (C) dataclasses before `import uuid` + multiline local import (`942d19f4...`). The only remaining canonical candidate is `import uuid` before `from dataclasses import dataclass` plus single-line `from athena.memory.models import MemoryScopeKind, MemorySensitivity, PersonalMemorySnapshot`. Root cause and corrective shape are now bounded/finalized. This is formatting-only; semantic Personal Memory tests remain green.
+- evidence: `34044943935@4ebe23f510a0b36d8f87e027088de54a9809148a = failure`; `34048268758@e8f7199f70c56a79403026926430ea56a5177bec = failure`; `34051030897@b8858f986ec96e5973d47f8b74d2a120149a2037 = failure`; `34054516742@942d19f46a91af6672bb7639c1fca4cadf378ac7 = failure`; `34057610329@528ed7d3d7d80470a0fa78458ff2babd59bff20e = failure`.
+- exact current diagnostic: Ruff `I001 [*] Import block is un-sorted or un-formatted` at `src/athena/memory/context.py:3:1`; one fixable error.
+- exact current verification on `528ed7d...`: Local install/Core-API restart PASS; Windows path safety PASS; Linux storage/API path-boundary PASS; Validator 63/63 PASS; mypy PASS; full pytest `4736 passed, 3 skipped, 2 warnings`; Ruff alone FAIL. Focused Personal Memory context tests pass inside full pytest.
+- current import block: `from __future__ import annotations`, then `import uuid`, then `from dataclasses import dataclass`, then single-line `from athena.memory.models import MemoryScopeKind, MemorySensitivity, PersonalMemorySnapshot`.
+- root_cause: bounded to canonical Ruff import normalization in `src/athena/memory/context.py`; no semantic/runtime defect is evidenced. The prior manual-permutation conclusion was disproven by exact Quality `34057610329`: the previously claimed final candidate also fails. Root-cause resolution now requires using repository-pinned `ruff==0.15.22 --fix` output rather than further hand-written permutations.
 - files: `src/athena/memory/context.py`; focused regression `tests/unit/test_personal_memory_context.py`.
-- fix_sha: none verified; rejected `e8f7199f70c56a79403026926430ea56a5177bec`, `b8858f986ec96e5973d47f8b74d2a120149a2037`, `942d19f46a91af6672bb7639c1fca4cadf378ac7`.
-- verification requirement: corrected descendant must have Ruff PASS, focused Personal Memory context PASS, full pytest PASS and canonical Quality SUCCESS before `FIXED`.
-- risks: preserve `USER PREFERENCE`, active-only projection, duplicate/snapshot identity checks and fail-closed Protected Memory behavior. Develop/Error do not currently contain this unintegrated feature and must not import it as a lint workaround.
-- integrator_handoff: reject all three attempted correction SHAs. Spec/Core should apply only the remaining import layout and rerun exact verification.
+- fix_sha: none verified; rejected `e8f7199f70c56a79403026926430ea56a5177bec`, `b8858f986ec96e5973d47f8b74d2a120149a2037`, `942d19f46a91af6672bb7639c1fca4cadf378ac7`, `528ed7d3d7d80470a0fa78458ff2babd59bff20e`.
+- verification requirement: first fixer-generated corrected descendant must have Ruff PASS, focused Personal Memory context PASS, full pytest PASS and canonical Quality SUCCESS before `FIXED`.
+- risks: preserve `USER PREFERENCE`, active-only projection, duplicate/snapshot identity checks and fail-closed Protected Memory behavior. Develop/Error must not import the unintegrated feature as a lint workaround.
+- integrator_handoff: reject current Spec/Core head as ready. Require pinned Ruff `--fix` generated import-block correction and exact green verification; do not accept another guessed ordering/wrapping edit.
 
 ## Current scan evidence — 2026-09-06
 
-- Spec/Core `942d19f46a91af6672bb7639c1fca4cadf378ac7`: Quality `34054516742 = failure`, Ruff-only I001; all semantic/runtime jobs and full pytest green.
-- Backend `80bd67a2a0ad9b1b013635597f6cdaeca0f05cba`: Quality `34055313570` in progress; no confirmed independent primary failure at scan.
-- UI `38a28f61af16d0b12500b4056b586ba934a2ba1a`: Quality `34056114998` pending; no confirmed independent primary failure at scan.
-- Develop `2bc57c4c84a0ed13ca9adbbc61f8fd00fc87fb8f` has no exact completed canonical Quality verified this run; no promotion-ready claim.
+- Spec/Core `528ed7d3d7d80470a0fa78458ff2babd59bff20e`: Quality `34057610329 = failure`, Ruff-only I001; all semantic/runtime jobs and full pytest green.
+- Backend `2ea98794facffcae29d4f94b337fc84083028526`: current synchronized WAL-policy worker head; no confirmed independent primary failure at scan.
+- Develop `1cc7b8dceb5b4ff098442e9f17f89b8cc36cb390`: current baseline reviewed; no exact completed canonical Quality verified by Error this run; no promotion-ready claim.
 
 ## Persistent Beta/release regression knowledge
 
