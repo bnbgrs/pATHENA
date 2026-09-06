@@ -3,58 +3,56 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `86ab95c9bd31e52a8d65fd3b37f7c27556a6f3b9`.
+- Develop before this run: `b1537fc138560fe85d4d97cf76c887b92e63c8f4`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `f434f9f714f1453cac5fda8b1aa5b7f8684dedda`; spec-core `b62e08cac198fde7ce7c5f081dd577decdcc216d`; backend `c3b977b4016ddb8811cf521921aca672cc2cc33b`; ui `0019df3aca7598aaa810839b2418b744353356d1`.
-- `main` and `bnbgrs/ATHENA` were untouched.
+- Worker heads reviewed: errors `59a45e490f130199a6177416f2ac9a06332053d2`; spec-core `c995fd2c4c6c369359dbdb09cedb43a8e74f535c`; backend `a424e32621d2c7441a144ff3a1a3faecd32ea7c4`; ui `d955ccd53e3e2c7f98af0f6f3838be1ffa9b6fe6`.
+- `main` and `bnbgrs/ATHENA` were untouched; no force update, history rewrite or auto-merge was used.
 
-## Integrated this run — ERR-0017 Personal Memory proposal dependency
+## Integrated this run — corrected-lineage Local HTTP runtime boundaries
 
-READY Spec/Core lineage independently reviewed:
+Backend synchronized the current corrected Develop lineage through `54637682087b880622796ee0b618362f7ed802fe`. Exact canonical ATHENA Quality `34030367660` for that SHA completed `success`.
 
-- exact Core head `b62e08cac198fde7ce7c5f081dd577decdcc216d`;
-- canonical Quality `34026871459 = success`;
-- selected product blob `src/athena/memory/models.py` adds only the bounded `ModelInferredMemoryProposal` domain contract;
-- selected focused regression `tests/unit/test_personal_memory_inferred_provenance_validation.py` validates exact UUID provenance and an exact-true review gate.
+The Integrator did not merge the Backend worker history. Independent compare from exact Develop-before to the verified Backend synchronization showed a single bounded product surface, `src/athena/model/adapters/local_http.py`, plus five focused regression files. Only those six exact verified blobs were composed onto Develop in linear commit `3376fac0051483308d8c24e1e58d6b532bde702e`.
 
-Only those two exact verified blobs were composed onto Develop. Core documentation changes and unrelated worker history were excluded. The final code/test compare from Develop-before is ahead-only and changes exactly the two selected files: `src/athena/memory/models.py` +24 and `tests/unit/test_personal_memory_inferred_provenance_validation.py` +63.
+Integrated exact blobs:
 
-Develop commits:
+- `src/athena/model/adapters/local_http.py` blob `111a365d6f25e35d321bd82fd2206d126eb30d8a`;
+- `tests/unit/test_local_http_constructor_validation.py` blob `9489274094f9d2a574f1b54ba1ac0b202be5f4c4`;
+- `tests/unit/test_local_http_delegate_validation.py` blob `4891350ad5c1cf0e11229ea6480f666d1a1cfe5b`;
+- `tests/unit/test_local_http_lifecycle_validation.py` blob `7ab75ab4f8f82daa153b450250da1fa13d1f0dfe`;
+- `tests/unit/test_local_http_oversize_accounting.py` blob `da6d667226c51ebf0c3e3af96cd36048c211c35a`;
+- `tests/unit/test_local_http_zero_read.py` blob `e2d12725c34f3de3a3185f5615c9b913115029e4`.
 
-- product `a7a6301ec580492ee443d2c32e3d65ad624cdcc4`;
-- focused regression `dbfcd37e7411447cb6abb4be29731908deff909e`;
-- canonical product-blob normalization `bda6aed03fd928e19c8bac3e1f5751e55c833bcc`;
-- canonical test-blob normalization `8d56252a1c4da7ee2a59739659e6a4614fce7a2d`.
-
-The resulting product and test blobs exactly match the successful Core worker head.
+The 251-commit divergent Backend history and `docs/agent_handoffs/backend.md` were deliberately excluded.
 
 ## Validation and error state
 
-- Source worker exact head passed canonical Quality `34026871459 = success`.
-- Local exact-Develop execution could not be performed because checkout failed on DNS resolution; this is not treated as a durable blocker because GitHub connector reads, exact blob comparison and fast-forward repository mutations remained available.
-- Exact-current-Develop global green is therefore not claimed yet.
-- The structural root cause of `ERR-0017` is repaired on Develop: the previously missing `ModelInferredMemoryProposal` import target now exists with fail-closed provenance/review validation.
-- `ERR-0017` remains `FIXED_PENDING_VERIFY` until corrected-lineage focused Personal-Memory tests, mypy, full pytest, API/local-install regressions and canonical Quality are observed.
-- `ERR-0016` remains pending re-verification on this corrected lineage.
+- Corrected-lineage canonical Quality `34030367660@54637682087b880622796ee0b618362f7ed802fe = success`.
+- That run verifies current Develop's ERR-0017 structural import correction together with Backend Local HTTP constructor/delegate/lifecycle/zero-read/overflow-accounting behavior on the corrected lineage.
+- `ERR-0017` may now be advanced from `FIXED_PENDING_VERIFY` only after the Error worker consumes this exact corrected-lineage evidence; this Integrator does not rewrite the Error handoff independently.
+- `ERR-0016` poisoning/oversize-accounting semantics are green on the corrected lineage and are ready for Error-worker closure reconciliation.
+- Exact Quality for the newly composed Develop commit is not claimed because no workflow run is associated with that exact SHA yet.
 
 ## UI state
 
-- All eleven screens remain `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no pixel-level MATCH claim is valid while original references are pending.
-- UI work after UI-GAP-0036 remains deferred by the one-bounded-slice rule unless its own exact canonical green evidence is present.
+- All eleven screens remain `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no pixel-level `MATCH` claim is valid while original references remain pending.
+- UI handoff reports UI-GAP-0038 READY with exact Quality `34028122788 = success`; it was deliberately deferred by the one-bounded-progress rule.
+- UI-GAP-0039 remains pending its own canonical verification.
 
 ## Alpha/Beta progress
 
-`docs/development/ALPHA_BETA_PROGRESS.md` was read. Normal-Hybrid facade/application composition and the previously verified Core/Backend contracts remain recorded. No whole-file tracker replacement was attempted because connector retrieval is truncated; this run's evidence is preserved here rather than risking data loss.
+`docs/development/ALPHA_BETA_PROGRESS.md` was read. It already records the cumulative Local HTTP boundary lineage through prior verified steps. This run adds corrected-lineage canonical evidence for the consolidated constructor/delegate/lifecycle/zero-read/overflow-accounting boundary set. A whole-file tracker replacement was not attempted because connector retrieval is truncated and replacing an incompletely retrieved tracker would risk data loss; the new evidence is versioned here for safe later reconciliation.
 
 ## Next integration order
 
-1. Run or observe exact-current corrected-lineage verification for Personal Memory, mypy, full pytest and API/local-install collection; close `ERR-0017` only on exact green evidence.
-2. Reverify Backend `ERR-0016` poisoning/oversize-accounting semantics on the corrected import graph.
-3. Consume exactly one compatible READY Core/Backend/UI successor after independent baseline review.
+1. Consume Error-worker reconciliation of `ERR-0017` and `ERR-0016` against corrected-lineage Quality `34030367660`.
+2. Independently review and integrate exactly one compatible READY successor; UI-GAP-0038 is currently eligible.
+3. Prefer a newer exact-green Core successor if it is bounded, additive and compatible with current Develop; otherwise use one disjoint UI/Backend slice only.
+4. Obtain exact-current-Develop Quality before any promotion/readiness claim.
 
 ## Persistent release guards
 
-Retain explicit Beta/release regression acceptance for pypdf packaging metadata, fail-closed frozen argv routing and two-EXE split, one Desktop with bounded/non-growing workers, adaptive 2048-context DirectChat budgeting, the Windows lane-lock/SchedulerLaneOwnership/packaged-worker crash cluster, and storage-bootstrap/migration startup signatures.
+Retain explicit Beta/release regression acceptance for pypdf packaging metadata, fail-closed frozen argv routing and the Desktop/Worker two-EXE split, exactly one Desktop with bounded/non-growing workers, adaptive 2048-context DirectChat budgeting, the Windows lane-lock `PermissionError` -> `SchedulerLaneOwnershipError` -> packaged-worker `OSError` crash cluster, and storage-bootstrap/migration startup signatures.
 
 ## Rules retained
 
