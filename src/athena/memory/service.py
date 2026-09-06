@@ -18,6 +18,7 @@ from athena.memory.models import (
     MemoryLearningMode,
     MemoryScopeKind,
     MemorySensitivity,
+    ModelInferredMemoryProposal,
     PersonalMemoryDraft,
     PersonalMemoryResetResult,
     PersonalMemoryRevision,
@@ -35,8 +36,12 @@ class ExplicitMemoryCommandWrite:
     memory_revision: PersonalMemoryRevision
 
 
+class PersonalMemoryInferenceApprovalRequiredError(ValueError):
+    """Raised when inferred Memory requires explicit approval before persistence."""
+
+
 class PersonalMemoryService:
-    """Direct-user Personal Memory operations; no model is called in this slice."""
+    """Direct-user Personal Memory operations plus review-gated inference proposals."""
 
     def __init__(self, repository: PersonalMemoryRepository, chat: ChatService) -> None:
         self.repository = repository
@@ -79,6 +84,69 @@ class PersonalMemoryService:
                 last_confirmed_at_us=utc_now_us(),
             ),
             reason="explicit user Personal Memory write",
+        )
+
+    def propose_model_inferred(
+        self,
+        *,
+        content: str,
+        memory_kind: MemoryKind,
+        model_signature_id: uuid.UUID,
+        processing_run_id: uuid.UUID,
+        confidence: float,
+        scope_kind: MemoryScopeKind = MemoryScopeKind.GLOBAL,
+        scope_entity_id: uuid.UUID | None = None,
+        sensitivity: MemorySensitivity = MemorySensitivity.NORMAL,
+    ) -> ModelInferredMemoryProposal:
+        """Return a non-canonical inferred preference for explicit review.
+
+        The caller must supply real model/proccessing provenance IDs. The default
+        suggest path deliberately performs no Personal-Memory repository write.
+        Sensitive or protected inference fails closed until an explicit approval
+        workflow exists.
+        """
+        if sensitivity is not MemorySensitivity.NORMAL:
+            raise PersonalMemoryInferenceApprovalRequiredError(
+                "Sensitive model-inferred Personal Memory requires explicit user approval."
+            )
+        return ModelInferredMemoryProposal(
+            draft=PersonalMemoryDraft(
+                memory_kind=memory_kind,
+                content=content,
+                scope_kind=scope_kind,
+                scope_entity_id=scope_entity_id,
+                learning_mode=MemoryLearningMode.MODEL_INFERRED,
+                sensitivity=sensitivity,
+                confidence=confidence,
+                last_confirmed_at_us=None,
+            ),
+            model_signature_id=model_signature_id,
+            processing_run_id=processing_run_id,
+        )
+
+    def accept_model_inferred(
+        self,
+        proposal: ModelInferredMemoryProposal,
+    ) -> PersonalMemoryRevision:
+        """Canonize one reviewed model proposal only after explicit user acceptance."""
+        actor_id = self.chat.ensure_local_user()
+        draft = proposal.draft
+        accepted_draft = PersonalMemoryDraft(
+            memory_kind=draft.memory_kind,
+            content=draft.content,
+            scope_kind=draft.scope_kind,
+            scope_entity_id=draft.scope_entity_id,
+            learning_mode=MemoryLearningMode.MODEL_INFERRED,
+            sensitivity=draft.sensitivity,
+            confidence=draft.confidence,
+            last_confirmed_at_us=utc_now_us(),
+        )
+        return self.repository.create(
+            actor_id=actor_id,
+            draft=accepted_draft,
+            reason="explicit user acceptance of model-inferred Personal Memory",
+            model_signature_id=proposal.model_signature_id,
+            processing_run_id=proposal.processing_run_id,
         )
 
     def remember_explicit_chat_command(
@@ -237,10 +305,10 @@ class PersonalMemoryService:
     ) -> tuple[PersonalMemorySnapshot, ...]:
         """Return deterministic active Memory candidates for one model call.
 
-        Global core collaboration preferences are eligible everywhere. Scoped
-        entries are eligible only for an exact current scope match. Protected
-        entries cannot exist in the v1 plaintext repository, so this method never
-        silently unlocks protected content.
+        Exact scoped entries outrank global Memory for the active scope. Global
+        core collaboration preferences remain eligible everywhere as baseline
+        preferences. Protected entries cannot exist in the v1 plaintext
+        repository, so this method never silently unlocks protected content.
         """
         if not 1 <= limit <= 100:
             raise ValueError("Personal Memory context limit must be between 1 and 100.")
@@ -262,14 +330,14 @@ class PersonalMemoryService:
 
         def priority(snapshot: PersonalMemorySnapshot) -> tuple[int, int, str]:
             payload = snapshot.revision.payload
-            if payload.scope_kind is MemoryScopeKind.GLOBAL and payload.memory_kind in core_kinds:
-                tier = 0
-            elif (
+            if (
                 scope_kind is not None
                 and scope_kind is not MemoryScopeKind.GLOBAL
                 and payload.scope_kind is scope_kind
                 and payload.scope_entity_id == scope_entity_id
             ):
+                tier = 0
+            elif payload.scope_kind is MemoryScopeKind.GLOBAL and payload.memory_kind in core_kinds:
                 tier = 1
             elif payload.scope_kind is MemoryScopeKind.GLOBAL:
                 tier = 2

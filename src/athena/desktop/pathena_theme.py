@@ -52,6 +52,13 @@ QPushButton#topUtilityButton:hover {{
     background: transparent;
 }}
 
+QPushButton#topNavButton:focus,
+QPushButton#topUtilityButton:focus {{
+    color: {PALETTE.text};
+    background: {PALETTE.surface_hover};
+    border-bottom: 2px solid {PALETTE.accent};
+}}
+
 QPushButton#topNavButton:checked {{
     color: {PALETTE.accent};
     background: transparent;
@@ -96,6 +103,12 @@ QListWidget#navigation::item {{
 QListWidget#navigation::item:hover {{
     color: {PALETTE.text};
     background: {PALETTE.surface_hover};
+}}
+
+QListWidget#navigation:focus::item:current {{
+    color: {PALETTE.text};
+    background: {PALETTE.surface_hover};
+    border-left: 2px solid {PALETTE.accent};
 }}
 
 QListWidget#navigation::item:selected {{
@@ -219,6 +232,18 @@ QPushButton#groundButton:hover {{
     border-color: {PALETTE.border};
 }}
 
+QPushButton#detailsToggle:focus,
+QPushButton#contextToggle:focus,
+QPushButton#newChatButton:focus,
+QPushButton#deleteChatButton:focus,
+QPushButton#rememberMessageButton:focus,
+QPushButton#addKnowledgeButton:focus,
+QPushButton#groundButton:focus {{
+    color: {PALETTE.text};
+    background: {PALETTE.surface_hover};
+    border-color: {PALETTE.accent};
+}}
+
 QPushButton#detailsToggle:checked,
 QPushButton#contextToggle:checked,
 QPushButton#groundButton:checked {{
@@ -265,6 +290,11 @@ QPushButton#sendButton {{
 QPushButton#sendButton:hover {{
     background: {PALETTE.accent_hover};
     border-color: {PALETTE.accent_hover};
+}}
+
+QPushButton#sendButton:focus {{
+    background: {PALETTE.accent_hover};
+    border: 2px solid {PALETTE.text};
 }}
 
 QPushButton#sendButton:pressed {{

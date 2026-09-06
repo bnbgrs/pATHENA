@@ -6,7 +6,7 @@ import ipaddress
 import math
 from numbers import Real
 from time import monotonic
-from typing import Any, cast
+from typing import Any
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
@@ -104,6 +104,12 @@ class _BoundedLocalResponse:
                 "Local model response exceeded the configured byte limit."
             )
 
+    @staticmethod
+    def _require_bytes(raw: object) -> bytes:
+        if not isinstance(raw, bytes):
+            raise OSError("Local model response body must be bytes.")
+        return raw
+
     def readline(self) -> bytes:
         self._assert_before_deadline()
         self._assert_within_byte_budget()
@@ -111,7 +117,7 @@ class _BoundedLocalResponse:
         if readline is None:
             raise OSError("Local model streaming response does not support bounded lines.")
         remaining = self._max_bytes - self._bytes_read
-        raw = cast(bytes, readline(remaining + 1))
+        raw = self._require_bytes(readline(remaining + 1))
         self._bytes_read += len(raw)
         if self._bytes_read > self._max_bytes:
             raise LocalResponseTooLargeError(
@@ -121,6 +127,8 @@ class _BoundedLocalResponse:
         return raw
 
     def read(self, amt: int | None = None) -> bytes:
+        if amt is not None and (isinstance(amt, bool) or not isinstance(amt, int)):
+            raise TypeError("Local model response read size must be an integer or None.")
         self._assert_before_deadline()
         self._assert_within_byte_budget()
         remaining = self._max_bytes - self._bytes_read
@@ -129,7 +137,7 @@ class _BoundedLocalResponse:
             if amt is None or amt < 0
             else min(amt, remaining + 1)
         )
-        raw = cast(bytes, self._response.read(request_size))
+        raw = self._require_bytes(self._response.read(request_size))
         self._bytes_read += len(raw)
         if self._bytes_read > self._max_bytes:
             raise LocalResponseTooLargeError(
@@ -172,11 +180,16 @@ def _validated_timeout(value: object) -> float:
     return timeout
 
 
-def _bound_http_error_body(exc: HTTPError) -> None:
+def _bound_http_error_body(
+    exc: HTTPError,
+    *,
+    total_timeout_seconds: float,
+) -> None:
     if exc.fp is not None:
         bounded_fp: Any = _BoundedLocalResponse(
             exc.fp,
             max_bytes=MAX_LOCAL_RESPONSE_BYTES,
+            total_timeout_seconds=total_timeout_seconds,
         )
         error: Any = exc
         error.fp = bounded_fp
@@ -211,7 +224,10 @@ def open_local_request(request: Request, *, timeout: float) -> Any:
     try:
         response = opener.open(request, timeout=validated_timeout)
     except HTTPError as exc:
-        _bound_http_error_body(exc)
+        _bound_http_error_body(
+            exc,
+            total_timeout_seconds=validated_timeout,
+        )
         raise
     return _BoundedLocalResponse(
         response,

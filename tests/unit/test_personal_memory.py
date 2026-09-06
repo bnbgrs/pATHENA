@@ -233,7 +233,7 @@ def test_bulk_reset_does_not_modify_knowledge_or_raw_archive(tmp_path) -> None:
     database.stop()
 
 
-def test_context_candidates_include_global_and_exact_scope_only(tmp_path) -> None:
+def test_context_candidates_prioritize_exact_scope_over_global_and_exclude_other_scope(tmp_path) -> None:
     import uuid
 
     database, _chat, _repository, memory = _services(tmp_path)
@@ -243,6 +243,10 @@ def test_context_candidates_include_global_and_exact_scope_only(tmp_path) -> Non
     core = memory.remember(
         content="Prefer German.",
         memory_kind=MemoryKind.LANGUAGE_PREFERENCE,
+    )
+    global_fallback = memory.remember(
+        content="Prefer a stable default export path.",
+        memory_kind=MemoryKind.WORKFLOW_PREFERENCE,
     )
     exact = memory.remember(
         content="For project A, answer with implementation details.",
@@ -262,10 +266,12 @@ def test_context_candidates_include_global_and_exact_scope_only(tmp_path) -> Non
         scope_entity_id=project_a,
     )
     ids = tuple(item.memory_id for item in candidates)
-    assert ids[0] == core.memory_id
-    assert exact.memory_id in ids
+    assert ids == (exact.memory_id, core.memory_id, global_fallback.memory_id)
     assert other.memory_id not in ids
 
     global_only = memory.context_candidates()
-    assert tuple(item.memory_id for item in global_only) == (core.memory_id,)
+    assert tuple(item.memory_id for item in global_only) == (
+        core.memory_id,
+        global_fallback.memory_id,
+    )
     database.stop()

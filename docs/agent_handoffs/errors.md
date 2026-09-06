@@ -2,77 +2,63 @@
 
 ## Baseline
 
-- Baseline source: `develop/pathena-next@8236500a5ae0ae58e7dce5bb3cf0771eb534670d`.
-- Worker branch: `postmerge/errors`; pre-run head `90904477f4810d0580ca42f4be3b9290b703c1a4`.
-- Current Backend head: `a5904fc2078a8dec5eece17dd352436d14453d8f`.
-- Current UI head: `089a0e4b0b8fc43e37f00f8288f64cd62014fbb4`.
-- `main` and `bnbgrs/ATHENA` remain strictly read-only; no force update, rebase, history rewrite or merge to main was attempted.
+- Baseline source: `develop/pathena-next`
+- Baseline SHA: `7be496d2fcbb94ab81f5e520f2e45ee2820d3fd9`
+- Stable read-only parent: `main@0d4d621f8a38ddf8eccfa09622bf193687619943`
+- Worker branch: `postmerge/errors`
+- Worker synchronized history-preservingly and NON-FORCE with exact current Develop before mutation via `0c26f67871c871a39f0ee980aaa4c21a6e6b2892`.
 
 ## Current error state
 
-- OPEN: `ERR-0016`.
+- OPEN: none.
 - IN_PROGRESS: none.
 - FIXED_PENDING_VERIFY: none.
-- FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015`.
-- STALE: `ERR-0014`.
+- FIXED:
+  - `ERR-0001` P2 — deletion-ledger malformed runtime boundary acceptance; product fix `780d25d74ce2e310b6a4bc434f547a23163e8b78`.
+  - `ERR-0002` P2 — Ruff I001 deletion-boundary harness regression; fix `2f705d5e0fc1c77dd60612b5aeaa16d9380e46cd`.
+  - `ERR-0003` P1 — stale persistent-inspector harness contract; verified fix `6253577227d427c9bb00707c3e3e578a16c0f9d6`.
 - BLOCKED: none.
 
-## ERR-0016 — Local HTTP overflow no longer poisons the bounded response
+## Current evidence
 
-Canonical Backend Quality `34016515174@c991482a9f49dec50e69779f73e3a0939df5c73b` first established the failure. Windows path safety, Linux storage, local install smoke, specification Validator, Ruff and mypy all passed; full pytest failed exactly two poisoning tests with `2 failed, 4690 passed, 3 skipped`.
+- Backend canonical Quality run `33755878184` on `a4768d9b0ea57a1161c93f603a5101c28b555276` failed only at full pytest with two stale `tests/unit/test_pathena_window.py` assertions; validator, Ruff, mypy, Windows path safety, Linux storage and local-install smoke passed.
+- Diagnostics artifact `9894914799`: exactly `2 failed, 4488 passed, 3 skipped, 2 warnings`.
+- Product contract is `UI-GAP-0002`: Evidence & Activity is contextual, not permanently visible.
+- Initial candidate `ebcf0dc2a305e946aabd0309c95316d29a1ebd91` corrected the failing assertions but did not restore the complete previously verified state-transition coverage.
+- Final Error fix `6253577227d427c9bb00707c3e3e578a16c0f9d6` restores the exact canonical-green shell test blob `82f492814250536dd003857a4eec2d083e9e13d5` from UI head `ce959e148ddbe8f13952ca56f7d07e7a7ce1addb`.
+- Current Error lineage and canonical-green UI head share byte-identical directly relevant blobs:
+  - `src/athena/desktop/pathena_window.py@b683903cc6e6a1a99950bba168e6e314df545ca1`
+  - `tests/unit/test_pathena_window.py@82f492814250536dd003857a4eec2d083e9e13d5`
+  - `tests/unit/test_pathena_ui_presentation.py@171f209728831feb1ac7bb06172e30aee12973ae`
+- Canonical Quality run `33745885426` on exact UI head `ce959e148ddbe8f13952ca56f7d07e7a7ce1addb` completed `success`; this is exact-content verification of the affected product and focused harness state.
+- Fresh local execution was attempted again but checkout was blocked by DNS resolution of `github.com`; no fabricated separate local PASS is claimed.
 
-Current Backend Quality `34019237735@a5904fc2078a8dec5eece17dd352436d14453d8f` has now reproduced the same two failures with `2 failed, 4694 passed, 3 skipped`; all non-pytest canonical jobs and Validator/Ruff/mypy are green. The exact failing tests are:
+## Collision avoidance
 
-- `tests/unit/test_local_http_response_boundaries.py::test_size_overflow_poisoning_blocks_followup_read_before_underlying_io`
-- `tests/unit/test_local_http_response_boundaries.py::test_readline_overflow_poisoning_blocks_followup_io`
+- Error-owned active files for this closed root cause: `tests/unit/test_pathena_window.py`, `docs/agent_logs/ERROR_LEDGER.md`, `docs/agent_handoffs/errors.md`.
+- Integrator should preserve exact shell-test blob `82f492814250536dd003857a4eec2d083e9e13d5` while integrating ERR-0003.
+- UI may resume changes to `tests/unit/test_pathena_window.py` after integration, but should not reintroduce the persistent-inspector contract.
+- Product UI code was not changed by Error.
+- Core/Backend are non-overlapping.
 
-The first oversized `read()`/`readline()` correctly raises `LocalResponseTooLargeError`, but a subsequent body read reaches underlying I/O instead of failing immediately.
+## Fix commits
 
-Root cause is a product regression in the oversize-before-accounting lineage beginning at `5e6862fe9544465e3aed66840601a204d4d2cae5`. The implementation computes `next_bytes_read`, raises if it exceeds the cap, and only assigns `_bytes_read` after that check. This leaves `_bytes_read` within budget after rejection and removes the established poisoned-state marker consumed by `_assert_within_byte_budget()`. The new `tests/unit/test_local_http_oversize_accounting.py` expectation that `_bytes_read == 0` after rejection conflicts with the older fail-closed poisoning invariant when no separate poison state exists.
+- Synchronization merge: `0c26f67871c871a39f0ee980aaa4c21a6e6b2892`.
+- `ERR-0003` verified harness fix: `6253577227d427c9bb00707c3e3e578a16c0f9d6`.
+- Ledger closure: `05785eb84151eb841519980da94ff3ad02700383`.
 
-Previous synchronized Backend head `56a78635a8404ac4d7fb1aa2129d1ef2054040bb` passed canonical Quality `34016477844 = success`; the delta to the first failing head is bounded to Local HTTP oversize-accounting product/test changes plus handoff documentation. Current Backend `a5904fc2078a8dec5eece17dd352436d14453d8f` still contains the same non-poisoning implementation, and its exact canonical failure confirms the root cause is active.
+## Integrator-ready commits
 
-Required correction: preserve a distinct fail-closed poisoned state after any over-budget returned chunk, preferably via an explicit flag rather than treating rejected bytes as successfully consumed. `_assert_within_byte_budget()` or an equivalent pre-I/O guard must reject all subsequent bounded body access. Preserve `remaining + 1` overflow probing, cumulative byte limits, true-integer validation, total deadlines, bytes-only body validation, loopback-only/proxy-free/redirect-rejecting transport, Security, Storage and Recovery guards. The new oversize-accounting regression should assert that rejected bytes are not counted as successful consumption while also proving follow-up I/O is blocked.
+- READY: `6253577227d427c9bb00707c3e3e578a16c0f9d6` for ERR-0003, after/current with synchronization merge `0c26f67871c871a39f0ee980aaa4c21a6e6b2892`.
+- Preserve exact test blob `82f492814250536dd003857a4eec2d083e9e13d5`.
+- After integration, run canonical Quality on the resulting exact Develop SHA when available.
 
-No Error-branch product patch was made this run because the active defect is Backend-owned and the current Error branch does not contain that newer mutation. This run finalized, reproduced and versioned the root cause instead of duplicating an active worker mutation.
+## Blocked root causes
 
-## Current worker evidence
+None.
 
-- Backend `34019237735@a5904fc2078a8dec5eece17dd352436d14453d8f = failure`: Windows path safety PASS, Linux storage PASS, local install smoke PASS, Validator PASS, Ruff PASS, mypy PASS, full pytest `2 failed, 4694 passed, 3 skipped`, same two `ERR-0016` signatures.
-- UI `34017125454@bf7fadf849140697dc63c92c6a5c6c69335e3278 = success`.
-- Current UI `34019891561@089a0e4b0b8fc43e37f00f8288f64cd62014fbb4`: in progress; Windows path safety PASS, Linux storage PASS, local install smoke PASS, Validator PASS, Ruff PASS, mypy PASS, full pytest running at observation time.
-- Current Develop `8236500a5ae0ae58e7dce5bb3cf0771eb534670d` has no exact completed canonical Quality observed this run; do not claim repository-wide green for that exact head from older evidence.
+## Next scan / verification
 
-## Historical state retained
-
-- `ERR-0004` remains `FIXED`; exact startup/readiness Ruff evidence and exact canonical green verification remain recorded in the ledger.
-- `ERR-0014` remains `STALE`, not `FIXED`; reopen only on recurrence of the exact controller-refresh exit-139 signature on a current exact SHA.
-- `ERR-0015` remains `FIXED`; its finite/remaining-aware harness correction is independently verified and must not be confused with the new product poisoning regression.
-
-## Persistent Windows/runtime regression knowledge
-
-The following remain Beta/release acceptance knowledge and are not automatically OPEN without current exact-SHA reproduction:
-
-- missing `pypdf` distribution metadata / `PackageNotFoundError` plus supervisor relaunch behavior;
-- frozen child argv recursion: preserve fail-closed routing and two-EXE split;
-- exactly one Desktop and bounded/non-growing workers;
-- adaptive output reserve at 2048 LM-Studio context;
-- Windows lane-lock cluster: `_lock_nonblocking` `PermissionError [Errno 13]`, then `SchedulerLaneOwnershipError`, then packaged-worker `OSError [Errno 22]`;
-- `duplicate column name: source_processing_job_id`;
-- `ATHENA Core startup failed`;
-- `Failed to start service 'storage-bootstrap'`.
-
-Any recurrence on an exact Beta/release candidate blocks promotion until root cause is closed with real verification.
-
-## Integrator handoff
-
-- Reject the Backend oversize-before-accounting lineage beginning at `5e6862fe9544465e3aed66840601a204d4d2cae5`, including current descendant `a5904fc2078a8dec5eece17dd352436d14453d8f`, as READY while `ERR-0016` remains open.
-- Accept no fix claim until focused read/readline overflow-poisoning, exact-limit/EOF and `ERR-0015` negative-read regressions pass, Ruff and mypy remain green, and an exact canonical full Quality run succeeds.
-- Preserve all provider transport byte-budget, deadline, bytes-only, loopback-only/proxy-free, Storage, Security, Recovery, Qt, Windows path, Validator, Ruff and mypy guards.
-- `ERR-0001` through `ERR-0013` and `ERR-0015` remain fixed; `ERR-0014` remains stale.
-
-## Next scan
-
-1. Verify the first Backend correction on a new exact SHA against both poisoning and oversize-accounting semantics; do not accept a harness-only weakening.
-2. Consume current UI Quality `34019891561@089a0e4b0b8fc43e37f00f8288f64cd62014fbb4` for any unrelated concrete primary failure.
-3. After `ERR-0016` closure, immediately scan the next current canonical/runtime signal and allocate a new stable ID only for a concrete deduplicated primary failure.
+1. Continue scanning the Qt deleted-`QProcess` stderr warning; allocate a new ERR-ID only if a current-lineage runtime/test failure is reproducible.
+2. Inspect Packaging, Provider/Transport, Research/Jobs, Windows publication/path safety, Storage/Recovery and local install/start for fresh current-lineage signatures.
+3. Re-open historical errors only if their exact signatures recur on the then-current Develop SHA.

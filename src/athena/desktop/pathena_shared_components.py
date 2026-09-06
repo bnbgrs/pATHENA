@@ -283,8 +283,20 @@ QComboBox:focus,
 QSpinBox:focus,
 QDoubleSpinBox:focus,
 QListWidget:focus,
+QPlainTextEdit#persistentKnowledgeDetails:focus,
+QPlainTextEdit#persistentClaimDetails:focus,
+QPlainTextEdit#semanticReviewDetails:focus,
+QPlainTextEdit#researchDetails:focus,
 QWidget[pathenaKeyboardFocus="true"] {{
     border: 1px solid {PALETTE.accent};
+}}
+
+QListWidget#persistentKnowledgeList:focus::item:current,
+QListWidget#persistentClaimList:focus::item:current,
+QListWidget#semanticReviewList:focus::item:current {{
+    color: {PALETTE.text};
+    background: {PALETTE.surface_hover};
+    border-left: 2px solid {PALETTE.accent};
 }}
 
 QDialog#commandPalette,

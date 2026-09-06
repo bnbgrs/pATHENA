@@ -58,8 +58,15 @@ class PersonalMemoryRepository:
         actor_id: uuid.UUID,
         draft: PersonalMemoryDraft,
         reason: str | None = None,
+        model_signature_id: uuid.UUID | None = None,
+        processing_run_id: uuid.UUID | None = None,
     ) -> PersonalMemoryRevision:
         self._require_unprotected_payload(draft)
+        if (model_signature_id is None) != (processing_run_id is None):
+            raise ValueError(
+                "Personal Memory model provenance requires both model_signature_id "
+                "and processing_run_id."
+            )
         memory_id = new_uuid7()
         revision_id = new_uuid7()
         provenance_id = new_uuid7()
@@ -94,6 +101,8 @@ class PersonalMemoryRepository:
                 actor_id=actor_id,
                 created_at_us=created_at_us,
                 reason=reason,
+                model_signature_id=model_signature_id,
+                processing_run_id=processing_run_id,
             )
             self._insert_revision(
                 connection,
@@ -609,6 +618,8 @@ class PersonalMemoryRepository:
         actor_id: uuid.UUID,
         created_at_us: int,
         reason: str | None,
+        model_signature_id: uuid.UUID | None = None,
+        processing_run_id: uuid.UUID | None = None,
     ) -> None:
         connection.execute(
             """
@@ -616,7 +627,7 @@ class PersonalMemoryRepository:
                 provenance_id, subject_entity_id, subject_revision_id, operation,
                 actor_id, created_at_us, model_signature_id, processing_run_id,
                 reason, protection_scope_id
-            ) VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, ?, NULL)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)
             """,
             (
                 uuid_to_blob(provenance_id),
@@ -625,6 +636,12 @@ class PersonalMemoryRepository:
                 operation,
                 uuid_to_blob(actor_id),
                 created_at_us,
+                (
+                    uuid_to_blob(model_signature_id)
+                    if model_signature_id is not None
+                    else None
+                ),
+                uuid_to_blob(processing_run_id) if processing_run_id is not None else None,
                 reason,
             ),
         )

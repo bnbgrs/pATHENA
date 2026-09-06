@@ -3,64 +3,63 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `7710c7aaa82b4fe4725238cbe8f84d5be9ed3017`.
+- Develop before this run: `8236500a5ae0ae58e7dce5bb3cf0771eb534670d`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `eaa7e17d8425a05682e011639504d8266c32acb9`; spec-core `1bf7a9947a004b813924c91aad105fe2eacffa56`; backend `1cc0017d560a1534de1fc2c83989d26e05238236`; ui `77b3f9582d4530dbe081e3c81b8768ad00d3f050`.
-- Required worker handoffs and current Alpha/Beta tracker were reviewed.
-- `main` and `bnbgrs/ATHENA` remained untouched.
+- Worker heads reviewed: errors `0049ca90d1687b1c5ea8722895e1c9f2a1fe9e76`; spec-core `a43a471b611c78d24ebb8c67253b855b6a0642f3`; backend `d6fca835ad432e05aecbdc3c790a55ec2691a11b`; ui `8cbec3ef97a13caf626450a0111ee3dc50b262cc`.
+- `main` and `bnbgrs/ATHENA` were untouched.
 
-## Integrated this run — Scoped Project Research
+## Integrated this run — UI-GAP-0035 Research detail reader keyboard focus
 
-READY Core lineage independently reviewed:
+READY UI lineage independently reviewed:
 
-- exact verified worker product/test head `de0863e0c26f9d0c1474ef7c4f405cfc3ab6c79d`;
-- canonical ATHENA Quality `33960242573 = success`;
-- history-preserving Core synchronization `9416aa810c13c746c1d5e55545591477b00ef4c4` against prior Develop `8c2f08ef5a9dcafd9cf029da944527d97313cd2b` changed exactly three files.
+- product commit `f9d0a01de648ea806bfd725c3b35a68fc9eb425d`;
+- focused regression `4183addc10689496101c2b4d6ae7d45fcb4cf3d1`;
+- exact verified UI documentation head `089a0e4b0b8fc43e37f00f8288f64cd62014fbb4`;
+- canonical ATHENA Quality `34019891561 = success`.
 
-Collision review established that current Develop retained the same pre-slice blobs as `8c2f08ef...` for `src/athena/research/service.py` and `src/athena/jobs/payload_validation.py`, and `tests/unit/test_research_scoped_project.py` was still absent. Therefore the exact verified worker blobs were applied to the current Develop tree without copying an older worker tree or disturbing newer StorageHealth/integrator changes.
+Compatibility review against exact Develop showed `src/athena/desktop/pathena_shared_components.py` lacked the Research-detail focus selector and the focused test path did not exist. The worker product delta was exactly one selector addition and the focused test was exactly ten lines. To avoid importing divergent UI history, the semantic one-line product delta and exact focused regression were applied directly to the exact Develop tree.
 
-Integrated exact blobs:
+Develop product/test commit: `51e74e5cf294f54c4c2f29666af0fee6e89c0c61`.
 
-- `src/athena/research/service.py@ea69a4c2318da0f7faf2d6fc73d5022ae11ae8b3`;
-- `src/athena/jobs/payload_validation.py@c8dfae33147ec02b9589300324eb5ca26086552a`;
-- `tests/unit/test_research_scoped_project.py@dbdac1a7a87e94eba7825a741d9648decafffce8`.
+Independent compare `8236500a5ae0ae58e7dce5bb3cf0771eb534670d..51e74e5cf294f54c4c2f29666af0fee6e89c0c61` is ahead 1, behind 0, and changes exactly:
 
-Integration commit: `55f1c1638ad5032818ce156f97dc252f23ab3dc8`.
-Independent compare `7710c7aaa82b4fe4725238cbe8f84d5be9ed3017..55f1c1638ad5032818ce156f97dc252f23ab3dc8` is exactly one commit and exactly three files: payload validator `+9/-1`, ResearchService `+79/-1`, and one focused test file `+69`.
+- `src/athena/desktop/pathena_shared_components.py`: +1/-0;
+- `tests/unit/test_pathena_research_detail_focus.py`: +10/-0.
 
-## Product contract preserved
+## Contract now covered
 
-- `enqueue_scoped_project()` persists truthful `ResearchMode.SCOPED_PROJECT`.
-- Project scope is mandatory and must contain canonical UUIDs before durable persistence.
-- Durable `research.exhaustive` validation permits only `local_exhaustive` and `scoped_project`; scoped-project mode fails closed on empty `project_ids`.
-- Project IDs remain sorted/unique/canonical.
-- Query, source type, time range, coverage, snapshot, pinned model, candidate dedup and orchestration validation remain unchanged.
-- Scoped Project Research does not implicitly enable Internet; `internet_scope` remains null.
-- No synthetic source/claim/evidence/provenance/PALLAS data was introduced.
+- The read-only Research detail reader has an explicit canonical keyboard-focus presentation.
+- The focus border uses the existing `PALETTE.accent` token and shared focus block.
+- No Research content, selection routing, persistence, provenance, Backend, Storage, Security, Provider, Worker, Scheduler or Windows-runtime behavior changed.
 
 ## Validation state
 
-- Exact worker canonical Quality: `33960242573 = success`.
-- Exact worker focused acceptance used real AthenaApplication/SQLite persistence and verified truthful mode/project persistence plus empty-project fail-closed behavior.
-- Independent integration diff review: PASS, exactly the three expected files and no other tree changes.
-- No pull-request-triggered workflow run is currently bound to integration commit `55f1c1638ad5032818ce156f97dc252f23ab3dc8`; therefore no exact-current-Develop repository-wide global-green claim is made.
+- Exact UI source lineage passed canonical Quality `34019891561 = success`.
+- Independent Develop diff review confirms the integrated change is exactly the bounded one-line selector plus its focused regression.
+- Local checkout/test execution was unavailable because DNS resolution for `github.com` failed; this was treated as a tooling limitation rather than a product blocker because the GitHub connector provided complete blobs and safe repository mutation.
+- No workflow run is currently associated with exact Develop product/test SHA `51e74e5cf294f54c4c2f29666af0fee6e89c0c61`; exact-current-Develop repository-wide green is therefore not claimed.
 
 ## Other current inputs
 
-- Backend StorageHealth single-line-detail hardening is READY via exact green Backend head `f7913b50618998b9b16a48ae9a810ed9122b64bc`, Quality `33963593580`, but deferred by the single-bounded-slice rule.
-- Backend ASCII-control-detail hardening remains `FIXED_PENDING_VERIFY`.
-- UI current lineage has an Error-owned regression handoff: `ERR-0012` is `FIXED_PENDING_VERIFY`; corrected UI head has verification still pending and is not READY on that evidence.
-- Previously READY UI bounded slices remain deferred pending fresh dependency/collision review.
+- Core provenance-boundary handoff reports exact green Quality `34018695781`, but independent review found its isolated diff is not directly applicable to the exact Develop `models.py` shape without importing prerequisite Proposal structure; it is deferred pending a bounded compatible composition.
+- Backend `ERR-0016` is OPEN on the oversize-before-accounting lineage. The explicit poison-state fix exists but is `FIXED_PENDING_VERIFY`, so that lineage is rejected as READY until exact canonical green.
+- UI-GAP-0036 is implemented but remains pending canonical verification.
+- All eleven UI screens remain `IMPLEMENTED_PENDING_VISUAL_REVIEW`; pixel-level `MATCH` remains unclaimed without original references.
+- `ALPHA_BETA_PROGRESS.md` was read, but its connector response is truncated; no whole-file rewrite is attempted because that could discard tracker content. This integration evidence is preserved here until a safe complete-file update path is available.
+
+## Runtime/release guards retained
+
+Known Windows pypdf packaging, fail-closed frozen argv routing, bounded process tree, adaptive 2048-context DirectChat budgeting, lane-lock/SchedulerLaneOwnership packaged-worker crash cluster and storage-bootstrap/migration startup signatures remain explicit Beta/release regression requirements. This UI slice does not alter their owning semantics.
 
 ## Next integration order
 
-1. Consume any newer exact-green bounded Core successor only after independent compatibility review.
-2. Otherwise consume exactly one READY alternative; Backend StorageHealth single-line-detail hardening currently has exact green evidence.
-3. Do not integrate the UI corrected lineage for `ERR-0012` until its exact canonical Quality completes successfully.
-4. Preserve single-bounded-slice discipline and exact-head evidence before any repository-wide green claim.
+1. Prefer a bounded compatible Core provenance-boundary composition if a worker supplies exact-green evidence against the current Develop shape.
+2. Otherwise consume exactly one compatible READY UI/Backend successor; UI-GAP-0036 must first obtain exact canonical green, while Backend `ERR-0016` fix must close with exact poisoning + oversize-accounting evidence.
+3. Obtain exact-current-Develop Quality before repository-wide green or promotion-ready claims.
+4. Before Beta/release readiness, explicitly regress all retained Windows packaging/process-tree/startup/chat-context/lane-lock crash classes on the exact candidate SHA.
 
 ## Rules retained
 
 - No direct work on `main`; no main promotion.
 - No force-push, history rewrite or auto-merge.
-- No Skip/XFail, weaker assertion, Security/Storage/Windows/Recovery/validator relaxation, fake success or fabricated provenance.
+- No Skip/XFail, weaker assertions, Security/Storage/Windows/Recovery/validator relaxation, fake success or fabricated provenance.
