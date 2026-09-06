@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `859e1a68e8d9a207a5094462aefe189f6f276c9d`
+Baseline: `fd15a75212acac7f88886117835b8d754577ea91`
 Integration target: `develop/pathena-next`
 UI worker: `postmerge/ui`
 
@@ -144,7 +144,15 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Evidence: `KnowledgeWorkspace` creates read-only `QPlainTextEdit#persistentKnowledgeDetails`, `QPlainTextEdit#persistentClaimDetails`, and `QPlainTextEdit#semanticReviewDetails`. These surfaces are keyboard-focusable for reading/copying, but the shared explicit focus block previously covered only `QPlainTextEdit#helpText` among plain-text readers.
 - Product `4be86b946333e88160d4f7a11fe4199c23d2c0ec` adds only the three object-specific `:focus` selectors to the existing canonical accent-border focus block.
 - Focused regression `ebe9aaa0d465df78e52782ce0f2d4d5dab6a2086` verifies all three selectors and the canonical accent border. Read-only behavior, detail content, selection routing, provenance, persistence and backend/runtime semantics remain unchanged.
-- Verification evidence: exact UI head `062440397c9330ac23e9f8b3293d822f2451c902` passed ATHENA Quality Gate `34007202893` with conclusion `success`.
+- Verification evidence: exact UI head `062440397c9330ac23e9f8b3293d822f2451c902` passed ATHENA Quality Gate `34007202893` with conclusion `success`; documentation successor `3c5fe2e16293e9bfb8228e62b0f7a183b34a92f7` passed Quality `34009763554`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0033 — Library lists lacked row-level focused-current presentation
+- Screen: `02 — Library / Knowledge`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `FIXED`.
+- Evidence: `persistentKnowledgeList`, `persistentClaimList`, and `semanticReviewList` are keyboard-focusable. The shared foundation provided widget-level focus border but previously no object-specific `:focus::item:current` rule, so the active keyboard row was visually identical to the corresponding unfocused selected row.
+- Product `5b6f8a5740d463524daf4cfae14c0335b2207693` adds only the three object-specific focused-current selectors using canonical readable text, `surface_hover`, and the existing 2px accent left edge.
+- Focused regression `35dacd3fc1ef3e6aa37051cfa14fb751f03c726d` verifies all three selectors and canonical focus tokens. Selection routing, item content, refresh behavior, provenance, persistence and backend/runtime semantics are unchanged.
+- Verification evidence: exact UI head `644c3cd5e3fd9c646b5e9d881a821b25d55b70ea` passed ATHENA Quality Gate `34012079406` with conclusion `success`.
 - Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
 
 ## Evidence blocker
