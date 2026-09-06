@@ -60,8 +60,8 @@ def migrate_schema_candidate(candidate_db: Path, *, created_at_us: int) -> None:
             raise MigrationExecutorError("Migration candidate did not reach current schema.")
 
         checkpoint = connection.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
-        if checkpoint is None or len(checkpoint) < 3:
-            raise MigrationExecutorError("Migration candidate WAL checkpoint returned no status.")
+        if checkpoint is None or len(checkpoint) != 3:
+            raise MigrationExecutorError("Migration candidate WAL checkpoint returned invalid status.")
         busy = _require_sqlite_int(checkpoint[0], "Migration candidate checkpoint busy")
         log_frames = _require_sqlite_nonnegative_int(
             checkpoint[1],
