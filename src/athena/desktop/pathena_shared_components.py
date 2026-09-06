@@ -283,6 +283,7 @@ QComboBox:focus,
 QSpinBox:focus,
 QDoubleSpinBox:focus,
 QListWidget:focus,
+QPlainTextEdit#helpText:focus,
 QWidget[pathenaKeyboardFocus="true"] {{
     border: 1px solid {PALETTE.accent};
 }}
