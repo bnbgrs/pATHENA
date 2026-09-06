@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `8236500a5ae0ae58e7dce5bb3cf0771eb534670d`
+Baseline: `451b2f39377653b44fb178e58d86705b6026bef8`
 Integration target: `develop/pathena-next`
 UI worker: `postmerge/ui`
 
@@ -172,11 +172,19 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
 
 ## UI-GAP-0036 — Jobs detail reader lacks explicit keyboard-focus presentation
-- Screen: `04 — Jobs`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Screen: `04 — Jobs`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `FIXED`.
 - Evidence: `PathenaJobsExperience._configure_tab_order()` explicitly places `workspace.details` between the durable jobs list and Refresh control; `_configure_accessibility()` identifies it as `Durable job details`, and `_configure_details()` keeps the `QPlainTextEdit#jobDetails` reader presentation. The specialized `jobDetails` stylesheet had no focus state and the canonical reader-focus selector covered Help, Library and Research readers but omitted Jobs.
 - Product `605c63992e112a168ddeda403b561740d524c018` adds only `QPlainTextEdit#jobDetails:focus` to the existing canonical accent-border focus block. Focused regression `8ae0f51e0637e75d7619e7fb9c4fe65679c6f626` locks the selector and canonical accent border.
 - Durable job content, filtering, action enablement, transitions, scheduler behavior, read-only semantics and backend/storage/security/runtime behavior are unchanged.
-- Verification evidence: canonical Quality on the exact documentation successor is pending; no PASS is claimed yet.
+- Verification evidence: exact UI documentation head `8cbec3ef97a13caf626450a0111ee3dc50b262cc` passed canonical ATHENA Quality Gate `34022762486` with conclusion `success`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0037 — Durable jobs list lacks row-level focused-current presentation
+- Screen: `04 — Jobs`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Evidence: `JobsWorkspace` creates keyboard-focusable `QListWidget#durableJobList`, and the shared foundation provides widget-level focus plus selected-row presentation. Before this slice, the canonical focused-current selector block covered Library and Research lists but omitted the durable Jobs list, so the active keyboard row did not receive the same explicit row-level focus treatment.
+- Product `7a518d2ab2e7b0255187650ff961c6fa7132a284` adds only `QListWidget#durableJobList:focus::item:current` to the existing canonical focused-current block, using readable text, `surface_hover`, and the existing 2px accent left edge.
+- Focused regression `3f17c1e68be68e6f560cd27e70dfca9f3961db95` locks the selector and canonical focus tokens. Durable job content, selection routing, refresh, action availability/transitions, scheduler behavior and backend/storage/security/runtime semantics remain unchanged.
+- Verification evidence: canonical Quality on the exact product/test/documentation successor is pending; no PASS is claimed yet.
 - Visual status: `IMPLEMENTED_PENDING_VERIFY`; no screenshot-level `MATCH` claim.
 
 ## Evidence blocker
