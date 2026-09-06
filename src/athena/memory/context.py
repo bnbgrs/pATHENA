@@ -2,14 +2,10 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 import uuid
+from dataclasses import dataclass
 
-from athena.memory.models import (
-    MemoryScopeKind,
-    MemorySensitivity,
-    PersonalMemorySnapshot,
-)
+from athena.memory.models import MemoryScopeKind, MemorySensitivity, PersonalMemorySnapshot
 
 
 PERSONAL_MEMORY_CONTEXT_LABEL = "USER PREFERENCE"
