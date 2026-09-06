@@ -6,7 +6,7 @@ import ipaddress
 import math
 from numbers import Real
 from time import monotonic
-from typing import Any, cast
+from typing import Any
 from urllib.error import HTTPError
 from urllib.parse import urlsplit
 from urllib.request import HTTPRedirectHandler, ProxyHandler, Request, build_opener
@@ -104,6 +104,12 @@ class _BoundedLocalResponse:
                 "Local model response exceeded the configured byte limit."
             )
 
+    @staticmethod
+    def _require_bytes(raw: object) -> bytes:
+        if not isinstance(raw, bytes):
+            raise OSError("Local model response body must be bytes.")
+        return raw
+
     def readline(self) -> bytes:
         self._assert_before_deadline()
         self._assert_within_byte_budget()
@@ -111,7 +117,7 @@ class _BoundedLocalResponse:
         if readline is None:
             raise OSError("Local model streaming response does not support bounded lines.")
         remaining = self._max_bytes - self._bytes_read
-        raw = cast(bytes, readline(remaining + 1))
+        raw = self._require_bytes(readline(remaining + 1))
         self._bytes_read += len(raw)
         if self._bytes_read > self._max_bytes:
             raise LocalResponseTooLargeError(
@@ -131,7 +137,7 @@ class _BoundedLocalResponse:
             if amt is None or amt < 0
             else min(amt, remaining + 1)
         )
-        raw = cast(bytes, self._response.read(request_size))
+        raw = self._require_bytes(self._response.read(request_size))
         self._bytes_read += len(raw)
         if self._bytes_read > self._max_bytes:
             raise LocalResponseTooLargeError(
