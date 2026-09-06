@@ -104,6 +104,10 @@ class _PostureRow(QWidget):
         self.value.setAlignment(
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
         )
+        self.value.setTextInteractionFlags(
+            Qt.TextInteractionFlag.TextSelectableByMouse
+            | Qt.TextInteractionFlag.TextSelectableByKeyboard
+        )
         layout.addWidget(label)
         layout.addStretch(1)
         layout.addWidget(self.value)
