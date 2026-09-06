@@ -2,44 +2,44 @@
 
 ## Current baseline
 
-- Base reviewed: `develop/pathena-next@ef759aa0d6980da5adc3512b90e08512b7735082`.
+- Base reviewed: `develop/pathena-next@8de698904c98cb50de327e805ae8e9b600df11ea`.
 - Worker: `postmerge/ui`.
-- Current Develop was synchronized history-preservingly through two-parent NON-FORCE commit `f9d9b954dc6c5df50f2742eaa1359f28d9738958`; `main` and `bnbgrs/ATHENA` remain read-only and untouched.
+- Current Develop was synchronized history-preservingly through two-parent NON-FORCE commit `3e266e43a337598b3b087ea1633493c9308d0c35`; `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 - Original eleven reference images remain `VISUAL_REFERENCE_PENDING`; no pixel-level `MATCH` claim is made. A real current Windows implementation render was captured successfully by temporary snapshot run `34038626901`, but those implementation screenshots are not the original user references and therefore do not establish visual parity.
 
 ## Runtime/release regression guard
 
 Known Windows packaging/process-tree/startup/chat-context/lane-lock crash classes remain release-acceptance regressions only unless reproduced on the exact current SHA. This UI slice does not alter Desktop/Worker/Scheduler spawn ownership, backend/storage/security semantics, or claim Windows promotion readiness.
 
-## UI-GAP-0041 — System runtime status-value keyboard-focus presentation
+## UI-GAP-0042 — System Security posture keyboard selection/copy
 
 Status: `FIXED / INTEGRATOR_READY`, P1.
 
-- Evidence: `_SystemStatusRow` creates `QLabel#settingsValue`, and its live runtime value explicitly enables `TextSelectableByKeyboard`; the canonical focus contract previously omitted that object family.
-- Product `96b6f2525bf2572fe2eeaa09eda8cddc80ae18a1` adds only `QLabel#settingsValue:focus` to the existing canonical accent-border focus block.
-- Focused regression `36b3b9441f1202353cab42b867292ff292f8cb4a` locks the selector and canonical accent token.
-- Exact UI head `c249c0ec1c3a3a19617bcb5c6f3c2d4899d4a0fd` passed ATHENA Quality Gate `34036984000 = success`.
-- Runtime values, snapshot projection, refresh routing, selection behavior and Core/provider/storage/security semantics remain unchanged.
+- Evidence: `_PostureRow` renders snapshot-backed Loopback only, Local processing, Encrypted at rest and Tor status values through `QLabel#settingsValue`, but unlike major `_SystemStatusRow` values it previously had no text-selection flags.
+- Product `f7086b9838bdbb29a3fbfef7dd1eeb070ff4fead` adds only `TextSelectableByMouse | TextSelectableByKeyboard` to `_PostureRow.value`.
+- Focused regression `50c483a985053bb6450de93e6ddae3e03b6720ff` locks the `settingsValue` object family and both selection flags.
+- Exact final UI-GAP-0042 head `81b8d6c2c250a412bb2947b2b356d9111c10b995` passed canonical ATHENA Quality Gate `34040342678 = success`.
+- No security fact, state vocabulary, provider/Core projection, routing, storage or backend semantics changed.
 
-## UI-GAP-0042 — System Security posture keyboard selection/copy
+## UI-GAP-0043 — Settings checkbox lacks explicit keyboard-focus presentation
 
 Status: `IMPLEMENTED_PENDING_VERIFY`, P1.
 
-- Evidence: `_PostureRow` renders snapshot-backed Loopback only, Local processing, Encrypted at rest and Tor status values through `QLabel#settingsValue`, but unlike major `_SystemStatusRow` values it had no text-selection flags. Keyboard users could not focus/select/copy those truthful runtime facts.
-- Product `f7086b9838bdbb29a3fbfef7dd1eeb070ff4fead` adds only `TextSelectableByMouse | TextSelectableByKeyboard` to `_PostureRow.value`.
-- Focused regression `50c483a985053bb6450de93e6ddae3e03b6720ff` locks the `settingsValue` object family and both selection flags.
-- No security fact, state vocabulary, provider/Core projection, routing, storage or backend semantics changed.
+- Evidence: Settings exposes the keyboard-focusable reasoning/thinking control as a `QCheckBox`; the shared canonical focus block covers buttons, line edits, combo boxes, spin boxes, lists and reader controls but previously omitted `QCheckBox:focus`.
+- Product `05c9ee062ae29b3ba075521fc645bc63aea31b23` adds only `QCheckBox:focus` to the existing canonical accent-border focus selector family.
+- Focused regression `74f8d885a5a8ede339545f282bc42bdf1f1199e5` locks the selector within the canonical focus contract.
+- Checkbox value semantics, thinking/reasoning request routing, model persistence, provider/Core state and backend/storage/security behavior are unchanged.
 
 ## Develop synchronization
 
-Develop advanced from the previous `70f985ce7a28044824bfbfa53769b982fa152747` baseline by integrating verified UI-GAP-0040 and updating the Integrator handoff. The UI worker already superseded the exact one-selector product/test content and imported the current Integrator handoff, then joined both histories with two-parent NON-FORCE merge `f9d9b954dc6c5df50f2742eaa1359f28d9738958`. No force, rebase, history rewrite, `main` mutation or `bnbgrs/ATHENA` mutation occurred.
+Develop advanced from `ef759aa0d6980da5adc3512b90e08512b7735082` to `8de698904c98cb50de327e805ae8e9b600df11ea` with verified storage migration PRAGMA exact-runtime-type integration and the current Integrator handoff. The UI worker imported exactly those Develop-changed blobs and joined both histories with two-parent NON-FORCE merge `3e266e43a337598b3b087ea1633493c9308d0c35`. No force, rebase, history rewrite, `main` mutation or `bnbgrs/ATHENA` mutation occurred.
 
 ## Integrator handoff
 
-- UI-GAP-0041 is READY: product `96b6f2525bf2572fe2eeaa09eda8cddc80ae18a1`, focused regression `36b3b9441f1202353cab42b867292ff292f8cb4a`, exact verified head `c249c0ec1c3a3a19617bcb5c6f3c2d4899d4a0fd`, Quality `34036984000 = success`.
-- UI-GAP-0042 is NOT READY until canonical Quality succeeds on an exact candidate containing product, focused regression, manifest, ledger and this handoff.
+- UI-GAP-0042 is READY: product `f7086b9838bdbb29a3fbfef7dd1eeb070ff4fead`, focused regression `50c483a985053bb6450de93e6ddae3e03b6720ff`, exact verified head `81b8d6c2c250a412bb2947b2b356d9111c10b995`, Quality `34040342678 = success`.
+- UI-GAP-0043 is NOT READY until canonical Quality succeeds on the exact candidate containing product, focused regression, manifest and this handoff; `VISUAL_GAP_LEDGER.md` still requires reconciliation because safe whole-file replacement was not completed in this run.
 - No backend/storage/security/provider/worker/scheduler semantics changed by UI.
 
 ## Next UI step
 
-Consume canonical Quality on the exact final UI-GAP-0042 candidate. If green, promote UI-GAP-0042 to `FIXED / INTEGRATOR_READY`, return Screen 06 to `IMPLEMENTED_PENDING_VISUAL_REVIEW`, then inspect one distinct Settings accessibility/state/interaction inconsistency without reopening System detail, System status-value focus or Security-posture selection diagnoses.
+Consume canonical Quality on the exact final UI-GAP-0043 candidate. If green, promote UI-GAP-0043 to `FIXED / INTEGRATOR_READY`, return Screen 07 to `IMPLEMENTED_PENDING_VISUAL_REVIEW`, reconcile the stable ledger without dropping historical entries, then inspect one distinct Settings accessibility/state/interaction inconsistency without reopening prior Settings runtime-state or checkbox-focus diagnoses.
