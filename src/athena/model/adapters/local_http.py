@@ -156,6 +156,8 @@ class _BoundedLocalResponse:
         self._assert_before_deadline()
         self._assert_within_byte_budget()
         read = self._require_body_method("read")
+        if amt == 0:
+            return b""
         remaining = self._max_bytes - self._bytes_read
         request_size = (
             remaining + 1
