@@ -15,12 +15,12 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 
 ## Current baseline
 
-- Baseline: `develop/pathena-next@8de698904c98cb50de327e805ae8e9b600df11ea`.
-- Error branch pre-sync head: `61a65244ecd31797f47b7af1a454c3188193e2d5`.
-- History-preserving NON-FORCE synchronization: `71ffb960d2641a3c3aa4ca80adce66b8072008a9`, parents prior Error head + exact Develop; Error-owned canonical docs are restored immediately after synchronization.
-- Relevant Backend head: `e7e8d46e4d1011ec5586367f086c1571fe2a1267`.
-- Relevant Spec/Core head: `a4180a04a2e2f1e3abacdf62af954775c1bd5058`.
-- Relevant UI head: `81b8d6c2c250a412bb2947b2b356d9111c10b995`.
+- Baseline: `develop/pathena-next@6c7fdb4f2cf22215ac065ce6d2fad7b15e54b650`.
+- Error branch pre-sync head: `df0009ddc998216638ff63d426310138b34ddd2c`.
+- History-preserving NON-FORCE synchronization: `db5c45e40e9b7ab7b9114d7f07f4dc69b5f1ce65`, parents prior Error head + exact Develop; Error-owned canonical docs were preserved over the Develop tree.
+- Relevant Backend head: `22db94266d9219bdcf01a4567d0262f236f9fcad`.
+- Relevant Spec/Core head: `a47d4902c44d1a2126536cef65cb5f858aaa7fe9`.
+- Relevant UI head: `b021424a3d6b79786b695b00356c2f98fa7390dc`.
 - No force update, rebase, history rewrite, ATHENA mutation, or merge to `main` occurred.
 
 ## Current error state
@@ -171,10 +171,11 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 
 ## Current scan evidence — 2026-09-06
 
-- Backend `postmerge/backend@e7e8d46e4d1011ec5586367f086c1571fe2a1267`, canonical Quality `34039538125 = success`: Local install smoke PASS; Python 3.12 Validator PASS, Ruff PASS, mypy PASS, full pytest PASS; Linux storage and API runtime path-boundary regressions PASS; Windows locality/storage and API runtime path-boundary regressions PASS. No error-ledger signature is present.
-- Spec/Core `postmerge/spec-core@a4180a04a2e2f1e3abacdf62af954775c1bd5058`, canonical Quality `34038748816 = success`. No error-owned failure is established.
-- UI `postmerge/ui@81b8d6c2c250a412bb2947b2b356d9111c10b995`, canonical Quality `34040342678` is pending; no failure evidence exists yet.
-- Current Develop `8de698904c98cb50de327e805ae8e9b600df11ea` has no exact completed canonical Quality observed in this scan and is not promotion-ready by Error criteria.
+- Previously pending UI `81b8d6c2c250a412bb2947b2b356d9111c10b995` completed canonical Quality `34040342678 = success`; no ERR signature was present.
+- Spec/Core `postmerge/spec-core@a47d4902c44d1a2126536cef65cb5f858aaa7fe9`, canonical Quality `34041882996 = success`. No error-owned failure is established.
+- Backend `postmerge/backend@22db94266d9219bdcf01a4567d0262f236f9fcad`, canonical Quality `34042444478` is in progress. Windows path safety PASS; Linux storage and API runtime path boundaries PASS; local install/Core-API restart PASS; Validator PASS; Ruff PASS; mypy PASS; full pytest still running. No concrete failure evidence exists yet.
+- UI `postmerge/ui@b021424a3d6b79786b695b00356c2f98fa7390dc`, canonical Quality `34043271088` is in progress. Windows path safety PASS; Linux storage and API runtime path boundaries PASS; local install/Core-API restart PASS; Validator PASS; Ruff PASS; mypy PASS; full pytest still running. No concrete failure evidence exists yet.
+- Current Develop `6c7fdb4f2cf22215ac065ce6d2fad7b15e54b650` has no exact completed canonical Quality observed in this scan and is not promotion-ready by Error criteria.
 
 ## Persistent Beta/release regression matrix
 
