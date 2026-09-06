@@ -25,18 +25,22 @@ class PallasFullViewController(QObject):
         self._grounded_controller = grounded_controller
         self._dialog: QDialog | None = None
         self._workspace: PallasWorkspace | None = None
-        self._viewport = grounded_controller.field.canvas.viewport()
+        self._canvas = grounded_controller.field.canvas
+        self._viewport = self._canvas.viewport()
+        self._canvas.installEventFilter(self)
         self._viewport.installEventFilter(self)
 
         grounded_controller.target.setToolTip(
-            "PALLAS — double-click to open the synchronized full semantic workspace"
+            "PALLAS — double-click or press Ctrl+Enter to open the synchronized full "
+            "semantic workspace"
         )
         grounded_controller.target.setAccessibleName("PALLAS compact semantic field")
         grounded_controller.target.setAccessibleDescription(
-            "Double-click the compact PALLAS field to open the synchronized full workspace."
+            "Double-click the compact PALLAS field or press Ctrl+Enter while its canvas "
+            "is focused to open the synchronized full workspace."
         )
-        grounded_controller.field.canvas.setToolTip(
-            "Double-click to open full PALLAS. Select a node to inspect it."
+        self._canvas.setToolTip(
+            "Double-click or press Ctrl+Enter to open full PALLAS. Select a node to inspect it."
         )
 
     @property
@@ -51,6 +55,17 @@ class PallasFullViewController(QObject):
         if watched is self._viewport and event.type() == QEvent.Type.MouseButtonDblClick:
             button = getattr(event, "button", None)
             if callable(button) and button() == Qt.MouseButton.LeftButton:
+                self.open_workspace()
+                return True
+        if watched is self._canvas and event.type() == QEvent.Type.KeyPress:
+            key = getattr(event, "key", None)
+            modifiers = getattr(event, "modifiers", None)
+            if (
+                callable(key)
+                and callable(modifiers)
+                and key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter)
+                and modifiers() == Qt.KeyboardModifier.ControlModifier
+            ):
                 self.open_workspace()
                 return True
         return super().eventFilter(watched, event)
@@ -85,6 +100,9 @@ class PallasFullViewController(QObject):
 
     @Slot()
     def dispose(self) -> None:
+        canvas = self._canvas
+        if isValid(canvas):
+            canvas.removeEventFilter(self)
         viewport = self._viewport
         if isValid(viewport):
             viewport.removeEventFilter(self)
@@ -99,7 +117,7 @@ def install_pallas_full_view(
     window: QWidget,
     grounded_controller: PallasGroundedFieldController,
 ) -> PallasFullViewController:
-    """Install the quiet double-click affordance for the full synchronized PALLAS view."""
+    """Install the quiet pointer and keyboard affordance for full synchronized PALLAS."""
     existing = getattr(window, "_pathena_pallas_full_view_controller", None)
     if isinstance(existing, PallasFullViewController):
         existing.dispose()
