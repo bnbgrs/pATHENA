@@ -291,6 +291,7 @@ QPlainTextEdit#jobDetails:focus,
 QPlainTextEdit#sourceDetails:focus,
 QPlainTextEdit#helpText:focus,
 QLabel#systemDetail:focus,
+QLabel#settingsValue:focus,
 QWidget[pathenaKeyboardFocus="true"] {{
     border: 1px solid {PALETTE.accent};
 }}
