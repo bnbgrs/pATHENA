@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `3bd2b7f0bc25f9b3b756a1765b27db7ab787b789`
+Baseline: `8236500a5ae0ae58e7dce5bb3cf0771eb534670d`
 Integration target: `develop/pathena-next`
 UI worker: `postmerge/ui`
 
@@ -164,11 +164,19 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
 
 ## UI-GAP-0035 — Research detail reader lacks explicit keyboard-focus presentation
-- Screen: `03 — Research`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Screen: `03 — Research`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `FIXED`.
 - Evidence: `ResearchWorkspace` creates read-only `QPlainTextEdit#researchDetails`. The surface remains keyboard-focusable for reading/copying, but the shared explicit focus block covered the Help and Library detail readers while omitting `researchDetails`.
 - Product `f9d0a01de648ea806bfd725c3b35a68fc9eb425d` adds only `QPlainTextEdit#researchDetails:focus` to the existing canonical accent-border focus selector. Focused regression `4183addc10689496101c2b4d6ae7d45fcb4cf3d1` locks the selector and canonical accent border.
 - Durable research content, selection routing, cancellation, scheduler behavior, read-only semantics and backend/storage/security/runtime behavior are unchanged.
-- Verification evidence: canonical Quality `34019811058` is pending on exact product/test head `4183addc10689496101c2b4d6ae7d45fcb4cf3d1`; no PASS is claimed yet.
+- Verification evidence: exact UI head `089a0e4b0b8fc43e37f00f8288f64cd62014fbb4` passed canonical ATHENA Quality Gate `34019891561` with conclusion `success`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0036 — Jobs detail reader lacks explicit keyboard-focus presentation
+- Screen: `04 — Jobs`; Category: `ACCESSIBILITY / KEYBOARD / STATE`; Severity: `P1`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Evidence: `PathenaJobsExperience._configure_tab_order()` explicitly places `workspace.details` between the durable jobs list and Refresh control; `_configure_accessibility()` identifies it as `Durable job details`, and `_configure_details()` keeps the `QPlainTextEdit#jobDetails` reader presentation. The specialized `jobDetails` stylesheet had no focus state and the canonical reader-focus selector covered Help, Library and Research readers but omitted Jobs.
+- Product `605c63992e112a168ddeda403b561740d524c018` adds only `QPlainTextEdit#jobDetails:focus` to the existing canonical accent-border focus block. Focused regression `8ae0f51e0637e75d7619e7fb9c4fe65679c6f626` locks the selector and canonical accent border.
+- Durable job content, filtering, action enablement, transitions, scheduler behavior, read-only semantics and backend/storage/security/runtime behavior are unchanged.
+- Verification evidence: canonical Quality on the exact documentation successor is pending; no PASS is claimed yet.
 - Visual status: `IMPLEMENTED_PENDING_VERIFY`; no screenshot-level `MATCH` claim.
 
 ## Evidence blocker
