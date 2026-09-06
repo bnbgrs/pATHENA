@@ -1,6 +1,6 @@
 # pATHENA 11-Screen Reference Manifest
 
-Baseline: `859e1a68e8d9a207a5094462aefe189f6f276c9d`
+Baseline: `8ca3c7b87677a59b9d99d6a5b8703cfc78da6c28`
 Integration target: `develop/pathena-next`
 
 This manifest is the canonical inventory for the eleven user-provided pATHENA UI references. The original image payloads are still not available for direct visual opening in the current repository/tool path. Therefore all pixel/composition claims remain `VISUAL_REFERENCE_PENDING`. No slot may be promoted to `MATCH` without opening the actual reference and comparing it against a real rendered pATHENA state.
@@ -8,16 +8,16 @@ This manifest is the canonical inventory for the eleven user-provided pATHENA UI
 | Slot | Surface / state | Reference source | Evidence-backed intent available now | Implementation status | Last checked SHA |
 |---|---|---|---|---|---|
 | 01 | Workspace / Chat | `VISUAL_REFERENCE_PENDING` | Quiet central workspace; chat as work document; large composer; contextual evidence/activity inspector; glyph-only primary rail retains human destination names through explicit accessible item text; global top navigation, primary glyph rail, composer Send and Workspace action controls have explicit keyboard-focus treatments | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `a0ba6bd47f4b8a6e91e8f6c222334c99cbe1a3aa` |
-| 02 | Library / Knowledge | `VISUAL_REFERENCE_PENDING` | Reduced knowledge workspace with real durable knowledge/claim provenance; canonical memory tab focused-selected state and read-only Knowledge/Claim/Decision detail-reader focus states are technically verified | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `062440397c9330ac23e9f8b3293d822f2451c902` |
-| 03 | Research | `VISUAL_REFERENCE_PENDING` | Real research process/results with restrained hierarchy and provenance | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `859e1a68e8d9a207a5094462aefe189f6f276c9d` |
-| 04 | Jobs | `VISUAL_REFERENCE_PENDING` | Real durable-job state and controls; no fabricated queue state | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `859e1a68e8d9a207a5094462aefe189f6f276c9d` |
-| 05 | Sources / Files | `VISUAL_REFERENCE_PENDING` | Real source/file state with import and provenance surfaces | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `859e1a68e8d9a207a5094462aefe189f6f276c9d` |
-| 06 | System | `VISUAL_REFERENCE_PENDING` | Real local runtime/core/provider/storage/backup state | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `859e1a68e8d9a207a5094462aefe189f6f276c9d` |
+| 02 | Library / Knowledge | `VISUAL_REFERENCE_PENDING` | Reduced knowledge workspace with real durable knowledge/claim provenance; canonical memory tab and detail-reader focus states are verified; focused-current row presentation for Knowledge/Claim/Decision lists is implemented pending exact-head Quality | `IMPLEMENTED_PENDING_VERIFY` | `35dacd3fc1ef3e6aa37051cfa14fb751f03c726d` |
+| 03 | Research | `VISUAL_REFERENCE_PENDING` | Real research process/results with restrained hierarchy and provenance | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `8ca3c7b87677a59b9d99d6a5b8703cfc78da6c28` |
+| 04 | Jobs | `VISUAL_REFERENCE_PENDING` | Real durable-job state and controls; no fabricated queue state | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `8ca3c7b87677a59b9d99d6a5b8703cfc78da6c28` |
+| 05 | Sources / Files | `VISUAL_REFERENCE_PENDING` | Real source/file state with import and provenance surfaces | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `8ca3c7b87677a59b9d99d6a5b8703cfc78da6c28` |
+| 06 | System | `VISUAL_REFERENCE_PENDING` | Real local runtime/core/provider/storage/backup state | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `8ca3c7b87677a59b9d99d6a5b8703cfc78da6c28` |
 | 07 | Settings | `VISUAL_REFERENCE_PENDING` | Local-model/context/output/reasoning controls with reduced presentation; Local Core state is explicitly not Internet-access state; no-model and unsaved persistence states fail closed; provider identity/status remains truthful during non-fresh model snapshots; unavailable-provider and Core-failure detail copy is self-describing; empty/whitespace Core failure messages and Core health status cannot produce incomplete visible/accessibility errors; blank provider identity/status use self-describing presentation fallbacks; blank/whitespace provider detail uses a self-describing runtime fallback | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `77b3f9582d4530dbe081e3c81b8768ad00d3f050` |
-| 08 | PALLAS | `VISUAL_REFERENCE_PENDING` | Characteristic but non-dominant, data-driven semantic view based on real Sources/Claims/Knowledge/Research; lifecycle regression technically verified | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `859e1a68e8d9a207a5094462aefe189f6f276c9d` |
+| 08 | PALLAS | `VISUAL_REFERENCE_PENDING` | Characteristic but non-dominant, data-driven semantic view based on real Sources/Claims/Knowledge/Research; lifecycle regression technically verified | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `8ca3c7b87677a59b9d99d6a5b8703cfc78da6c28` |
 | 09 | Command Palette / Help | `VISUAL_REFERENCE_PENDING` | Keyboard-first command/search surface backed by real capabilities; command query inherits canonical `QLineEdit:focus`; F1 read-only help content deliberately receives focus and has explicit verified focus presentation (`UI-GAP-0030`) | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `f09406daab9440ee77a06e907add84280b3ae936` |
-| 10 | Grounded Chat / Evidence & Activity | `VISUAL_REFERENCE_PENDING` | Contextual evidence, claims, sources and activity without synthesized provenance; hierarchy/copy and contextual visibility technically verified | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `859e1a68e8d9a207a5094462aefe189f6f276c9d` |
-| 11 | Startup / Empty / Disconnected state | `VISUAL_REFERENCE_PENDING` | Quiet local-first startup and truthful unavailable/empty states | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `859e1a68e8d9a207a5094462aefe189f6f276c9d` |
+| 10 | Grounded Chat / Evidence & Activity | `VISUAL_REFERENCE_PENDING` | Contextual evidence, claims, sources and activity without synthesized provenance; hierarchy/copy and contextual visibility technically verified | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `8ca3c7b87677a59b9d99d6a5b8703cfc78da6c28` |
+| 11 | Startup / Empty / Disconnected state | `VISUAL_REFERENCE_PENDING` | Quiet local-first startup and truthful unavailable/empty states | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `8ca3c7b87677a59b9d99d6a5b8703cfc78da6c28` |
 
 ## Promotion rules
 
