@@ -290,6 +290,14 @@ QWidget[pathenaKeyboardFocus="true"] {{
     border: 1px solid {PALETTE.accent};
 }}
 
+QListWidget#persistentKnowledgeList:focus::item:current,
+QListWidget#persistentClaimList:focus::item:current,
+QListWidget#semanticReviewList:focus::item:current {{
+    color: {PALETTE.text};
+    background: {PALETTE.surface_hover};
+    border-left: 2px solid {PALETTE.accent};
+}}
+
 QDialog#commandPalette,
 QDialog#helpDialog {{
     color: {PALETTE.text};
