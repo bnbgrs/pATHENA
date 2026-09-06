@@ -3,53 +3,54 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `451b2f39377653b44fb178e58d86705b6026bef8`.
+- Develop before this run: `86ab95c9bd31e52a8d65fd3b37f7c27556a6f3b9`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `b8e050c9756299a70e8f5d4df0139ef54a5f08a0`; spec-core `96c8f17d99017060238da27b51f6e59b77b9eafc`; backend `bc622dcb0554d2449183afe2331669ab15c7c8ef`; ui `6558031bb31e5e35f5c8639bf4f5c8591f7fa250`.
+- Worker heads reviewed: errors `f434f9f714f1453cac5fda8b1aa5b7f8684dedda`; spec-core `b62e08cac198fde7ce7c5f081dd577decdcc216d`; backend `c3b977b4016ddb8811cf521921aca672cc2cc33b`; ui `0019df3aca7598aaa810839b2418b744353356d1`.
 - `main` and `bnbgrs/ATHENA` were untouched.
 
-## Integrated this run — UI-GAP-0036 Jobs detail reader keyboard focus
+## Integrated this run — ERR-0017 Personal Memory proposal dependency
 
-READY UI lineage independently reviewed:
+READY Spec/Core lineage independently reviewed:
 
-- product `605c63992e112a168ddeda403b561740d524c018`;
-- focused regression `8ae0f51e0637e75d7619e7fb9c4fe65679c6f626`;
-- exact verified documentation head `8cbec3ef97a13caf626450a0111ee3dc50b262cc`;
-- canonical ATHENA Quality `34022762486 = success`.
+- exact Core head `b62e08cac198fde7ce7c5f081dd577decdcc216d`;
+- canonical Quality `34026871459 = success`;
+- selected product blob `src/athena/memory/models.py` adds only the bounded `ModelInferredMemoryProposal` domain contract;
+- selected focused regression `tests/unit/test_personal_memory_inferred_provenance_validation.py` validates exact UUID provenance and an exact-true review gate.
 
-The product delta is exactly one selector: `QPlainTextEdit#jobDetails:focus` joins the existing canonical accent-border focus block. The regression is exactly one new 10-line focused test. Divergent UI worker history was not imported; the semantic delta and exact test were applied directly to exact Develop.
+Only those two exact verified blobs were composed onto Develop. Core documentation changes and unrelated worker history were excluded. The final code/test compare from Develop-before is ahead-only and changes exactly the two selected files: `src/athena/memory/models.py` +24 and `tests/unit/test_personal_memory_inferred_provenance_validation.py` +63.
 
 Develop commits:
 
-- product `c05bcee68b187fcb09ff1cf653e5df3f12ad8e41`;
-- focused test `d11284ee89336a059ad04f0b8086a452429a4d00`.
+- product `a7a6301ec580492ee443d2c32e3d65ad624cdcc4`;
+- focused regression `dbfcd37e7411447cb6abb4be29731908deff909e`;
+- canonical product-blob normalization `bda6aed03fd928e19c8bac3e1f5751e55c833bcc`;
+- canonical test-blob normalization `8d56252a1c4da7ee2a59739659e6a4614fce7a2d`.
 
-Independent compare `451b2f39377653b44fb178e58d86705b6026bef8..d11284ee89336a059ad04f0b8086a452429a4d00` is ahead 2, behind 0 and changes exactly `src/athena/desktop/pathena_shared_components.py` +1 and `tests/unit/test_pathena_jobs_detail_focus.py` +10.
+The resulting product and test blobs exactly match the successful Core worker head.
 
 ## Validation and error state
 
-- Worker exact lineage passed canonical Quality `34022762486 = success`.
-- Exact-current-Develop global green is not claimed because no post-integration workflow is associated with `d11284ee89336a059ad04f0b8086a452429a4d00` yet.
-- `ERR-0017` is OPEN: current Develop imports `ModelInferredMemoryProposal` from `athena.memory.models`, but the model class is missing. Error worker binds this single root cause to mypy failure, pytest collection abort and API/local-install smoke failures.
-- Spec/Core provides the bounded compatible exact-green correction: its verified provenance-boundary lineage includes `src/athena/memory/models.py` and focused validation, with Quality `34018695781 = success`; newer synchronized Core head also carries the dependency.
-- `ERR-0016` remains `FIXED_PENDING_VERIFY`; its Backend poisoning fix must be reverified after ERR-0017 is repaired.
+- Source worker exact head passed canonical Quality `34026871459 = success`.
+- Local exact-Develop execution could not be performed because checkout failed on DNS resolution; this is not treated as a durable blocker because GitHub connector reads, exact blob comparison and fast-forward repository mutations remained available.
+- Exact-current-Develop global green is therefore not claimed yet.
+- The structural root cause of `ERR-0017` is repaired on Develop: the previously missing `ModelInferredMemoryProposal` import target now exists with fail-closed provenance/review validation.
+- `ERR-0017` remains `FIXED_PENDING_VERIFY` until corrected-lineage focused Personal-Memory tests, mypy, full pytest, API/local-install regressions and canonical Quality are observed.
+- `ERR-0016` remains pending re-verification on this corrected lineage.
 
 ## UI state
 
-- UI-GAP-0036 is verified and integrated.
-- UI-GAP-0037 is implemented but not READY until its own canonical Quality succeeds.
 - All eleven screens remain `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no pixel-level MATCH claim is valid while original references are pending.
+- UI work after UI-GAP-0036 remains deferred by the one-bounded-slice rule unless its own exact canonical green evidence is present.
 
 ## Alpha/Beta progress
 
-`docs/development/ALPHA_BETA_PROGRESS.md` was read. It continues to show verified Normal-Hybrid facade/application composition and extensive verified Core/Backend contracts. No whole-file tracker rewrite was attempted because connector retrieval is truncated; this run's evidence is preserved here rather than risking data loss.
+`docs/development/ALPHA_BETA_PROGRESS.md` was read. Normal-Hybrid facade/application composition and the previously verified Core/Backend contracts remain recorded. No whole-file tracker replacement was attempted because connector retrieval is truncated; this run's evidence is preserved here rather than risking data loss.
 
 ## Next integration order
 
-1. Repair `ERR-0017` by composing only the bounded compatible `ModelInferredMemoryProposal` model dependency and its focused provenance validation from exact-green Spec/Core lineage; do not weaken the service import or review/provenance guards.
-2. Require focused Personal-Memory tests, mypy/full pytest/API/local-install regressions and canonical Quality on the corrected exact lineage before closing ERR-0017.
-3. Reverify Backend ERR-0016 poisoning/oversize semantics on that corrected lineage.
-4. Consume UI-GAP-0037 only after its own exact canonical green evidence.
+1. Run or observe exact-current corrected-lineage verification for Personal Memory, mypy, full pytest and API/local-install collection; close `ERR-0017` only on exact green evidence.
+2. Reverify Backend `ERR-0016` poisoning/oversize-accounting semantics on the corrected import graph.
+3. Consume exactly one compatible READY Core/Backend/UI successor after independent baseline review.
 
 ## Persistent release guards
 
