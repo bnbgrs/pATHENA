@@ -64,6 +64,19 @@ def test_action_availability_empty_selection_uses_product_language() -> None:
         assert "durable" not in reason.casefold()
 
 
+def test_unknown_job_state_fails_closed_for_every_visible_action() -> None:
+    availability = action_availability("future_state")
+
+    assert not availability.pause
+    assert not availability.resume
+    assert not availability.wake
+    assert not availability.cancel
+    for action in ("pause", "resume", "wake", "cancel"):
+        reason = availability.reason(action)
+        assert reason == "This job has an unrecognized state; actions are unavailable."
+        assert "future_state" not in reason
+
+
 def test_transition_receipt_is_bound_to_exact_job_and_operation() -> None:
     receipt = parse_transition_receipt(
         f"JOB_PAUSE {JOB_ID} paused\n",
