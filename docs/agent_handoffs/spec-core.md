@@ -2,59 +2,45 @@
 
 ## Current baseline
 
-- Current shared baseline reviewed: `develop/pathena-next@200648457ba647173376109d09f94725730ee659`.
+- Current shared baseline reviewed: `develop/pathena-next@51bd144aafc0fb1f50c00515c366442038a2c251`.
 - Worker branch: `postmerge/spec-core` only.
-- Current verified worker predecessor: `57e133507ab4b8edc78d4af8467f2320dce0e906`.
-- Exact canonical ATHENA Quality for that predecessor: `34121540987 = success`.
-- The verified predecessor carries the unchanged Beta §50 Reset acceptance introduced at `e6b6a5b1fe42ac612beb10e641a770be3e120b60`.
-- `main` and `bnbgrs/ATHENA` remain untouched/read-only; no force update or history rewrite is allowed.
+- Previous exact-green worker predecessor: `c6b4fdba485a1de249a93e99883fca4085b9fc48`, ATHENA Quality `34127196867 = success`.
+- `main` and `bnbgrs/ATHENA` remain untouched/read-only; no force update or history rewrite was used.
 
 ## Verified Core contracts
 
-Normal Hybrid Search remains exact-green on the verified Core lineage: one-time `attach_normal_search`, capability `search.normal.hybrid` only after attachment, exact `query/model_id/limit/entity_type` delegation, canonical `hybrid_search_result_response()` mapping, unchanged `SemanticRetrievalUnavailableError` propagation, and application identity `app.api._normal_search is app.hybrid_retrieval`. No Archive/Protected expansion or synthetic provenance is introduced.
+Normal Hybrid Search remains unchanged from the exact-green verified Core lineage: one-time `attach_normal_search`, capability `search.normal.hybrid` only after attachment, exact `query/model_id/limit/entity_type` delegation, canonical `hybrid_search_result_response()` mapping, unchanged `SemanticRetrievalUnavailableError` propagation, and application identity `app.api._normal_search is app.hybrid_retrieval`.
 
-Personal Memory Beta acceptance through §47 remains exact-green on the verified lineage. Covered contracts include domain routing, explicit save, inference provenance/review gating, sensitive/protected fail-closed inference, project-over-global scope priority, and current-turn instruction precedence over conflicting durable preference without mutating durable memory.
+Personal-Memory §42-§47 behavior and §50 Reset isolation remain inherited from prior exact-green Core evidence. §49 Protected Lock remains a documented cross-component dependency: Core preserves fail-closed plaintext refusal and does not fabricate passphrase/unlock/index/suggestion surfaces.
 
-Beta §50 Reset isolation is now verified by exact canonical Quality on the current worker predecessor. The real reset path deletes Personal Memory while preserving archived standard Chat, Knowledge and Sources; deleted Personal-Memory revisions remain inspectable only through the explicit deleted-state path. The normative Projects-unchanged clause remains unproven because no real Project persistence/repository contract has been established in the current runtime tree; Core must not fake one.
+## Current bounded slice — Exhaustive Research §68 Resume Test
 
-## Current bounded slice — Beta §49 Protected Lock boundary
+Normative §68 requires a five-source Exhaustive Research run to stop at 60%, restart from durable state, continue, retain all prior Findings, and avoid duplicates.
 
-Normative §49 requires protected personal information to remain inaccessible to indexing and AI suggestions without a passphrase, with the index locked.
+Product/test commit `6ad95079a114ea1d89517f7c299153caef66d3b5` added `tests/unit/test_exhaustive_research_resume.py` using the real `AthenaApplication` durable runtime, real Source capture/preprocessing, Research parent/child orchestration, persisted work items, SourceAnalysis artifacts, content hashes and Finding payloads.
 
-Current Core evidence establishes a strict fail-closed plaintext boundary but not the complete unlock/index contract:
+Canonical Quality `34155243750` on exact SHA `6ad95079a114ea1d89517f7c299153caef66d3b5` completed `failure` only in full pytest. Validator, Ruff, mypy, Local install smoke, Linux storage regressions and Windows path safety all passed. Error handoff allocated this exact failure as `ERR-0020` and correctly left product-vs-harness classification open because the diagnostics archive traceback is not exposed by the current connector.
 
-- `PersonalMemoryRepository.create()` and `.revise()` call `_require_unprotected_payload()` before any write.
-- `_require_unprotected_payload()` raises `PersonalMemoryProtectionError` for `MemorySensitivity.PROTECTED` and explicitly routes ownership to the Protected Content path instead of plaintext Personal-Memory storage.
-- `PersonalMemoryService.context_candidates()` reads only canonical Personal-Memory rows and documents that Protected entries cannot exist in the v1 plaintext repository; it performs no silent unlock.
-- Existing real regression `test_protected_memory_fails_closed_until_protected_content_path_exists` proves a protected explicit-memory write creates zero `personal_memory_entries`.
-- The Core Personal-Memory service/repository exposes no passphrase/unlock handle, no Protected Content materialization API, no FTS/HNSW attachment, and no AI-suggestion index adapter that could be safely exercised for a full §49 proof.
+A concrete deterministic harness defect was then identified directly in the only new test delta: `_successful_finding_snapshots()` sorts snapshots by random `work_item_id` UUID bytes, but the final assertion compared `final_snapshots[:3] == before_restart`. After two more successful work items are added, the original three persisted snapshots are not guaranteed to remain in the first three positions of the newly sorted five-item tuple. That assertion tested random ordering rather than durable identity preservation.
 
-Therefore full §49 cannot be honestly marked covered from the Core worker alone. Adding a fake protected row, fake index, synthetic unlock flag or mock passphrase would weaken the security contract. The required next integration contract is: a real Protected Content unlock/token boundary plus the concrete index/suggestion attachment point must be exposed to Core composition; then §49 can assert locked-without-passphrase across those real surfaces while retaining the existing plaintext refusal.
+Repair commit `8c1218e901767c48b4c1cd98e33e3b9fc72ac3ae` changes only this assertion to an identity-keyed check: each pre-restart snapshot must be present under its exact `work_item_id` with the complete tuple unchanged. All existing uniqueness, content-hash, artifact-id, analysis-job-id, Finding payload and coverage assertions remain intact. No assertion was weakened: the repaired test still proves exact pre-restart identity/payload preservation and five unique final durable results, but no longer relies on incidental UUID ordering.
 
-This is a concrete cross-component dependency, not a request to weaken assertions. Until that contract exists, Core preserves fail-closed behavior and must not expand protected content into Normal Search, Archive, PALLAS, FTS/HNSW or AI suggestions.
-
-## Ownership boundaries
-
-§48 Delete/Restore remains coupled to the existing lifecycle/storage deletion-marker path. Deep physical deletion, restore target registration and storage cleanup remain Backend/lifecycle-owned; Core must not duplicate that subsystem.
-
-§49 plaintext refusal and Core composition are Core-visible, but protected materialization/unlock and deep index locking require the actual Protected Content/index contract. Core must not persist protected plaintext or synthesize an unlocked representation to satisfy the test.
-
-For §50, Core owns the Personal-Memory reset composition/acceptance surface only. Knowledge, Raw Archive/Chat and Sources remain unchanged. Project preservation can only be proven once a real Project persistence contract exists in the current runtime tree.
+Canonical ATHENA Quality `34158934575` is currently running on exact repair SHA `8c1218e901767c48b4c1cd98e33e3b9fc72ac3ae`. No PASS or READY claim is made until it completes successfully.
 
 ## Coordination state
 
-- Error handoff reviewed before this run: OPEN none, IN_PROGRESS none, BLOCKED none; ERR-0019 is FIXED. It also records exact worker `57e133507ab4b8edc78d4af8467f2320dce0e906` Quality `34121540987 = success`.
-- Backend handoff reviewed; WAL/runtime/storage ownership is disjoint from the Core plaintext-refusal proof, while any deep Protected Content/index storage contract must remain coordinated rather than duplicated.
-- UI handoff reviewed; current startup/accessibility/keyboard-focus presentation work is disjoint from §49 Core security semantics.
-- Integrator handoff reviewed. Current Develop advanced to `200648457ba647173376109d09f94725730ee659`; the worker is not force-synchronized over that moving baseline and no Develop change was overwritten.
+- Error handoff reviewed at baseline `51bd144aafc0fb1f50c00515c366442038a2c251`: `ERR-0020` is IN_PROGRESS for exact red SHA `6ad95079...`; its evidence matches this repair path.
+- Backend handoff reviewed: WAL/scheduler/storage work is disjoint and was not modified.
+- UI handoff reviewed: current UI accessibility/Jobs work is disjoint and was not modified.
+- Integrator handoff reviewed at `develop/pathena-next@51bd144aafc0fb1f50c00515c366442038a2c251`; Spec/Core remains excluded until exact-green successor evidence exists.
+- Current worker remains non-force and no foreign branch/history was overwritten.
 
 ## Next Core action
 
-1. Treat `57e133507ab4b8edc78d4af8467f2320dce0e906` as exact-green verified predecessor via Quality `34121540987`.
-2. Preserve §49 fail-closed plaintext behavior. Do not claim full Protected Lock until a real Protected Content passphrase/unlock boundary and concrete index/suggestion attachment are available for acceptance.
-3. On the next safe synchronization, compare the moving Develop lineage and retain all foreign Backend/UI/Integrator changes using history-preserving, non-force integration only.
-4. Immediately take the highest remaining evidence-backed Core-owned CHAT/KNOWLEDGE/RESEARCH/PALLAS/Human-Control P0/P1/P2 gap that does not depend on the missing §49 cross-component contract; do not spend another run repeating this analysis.
-5. If a new exact-SHA failure appears, repair only its smallest proven root cause; no Skip/XFail, weakened assertions or synthetic provenance.
+1. Consume exact Quality `34158934575` on `8c1218e901767c48b4c1cd98e33e3b9fc72ac3ae`.
+2. If green, hand the exact verified §68 SHA lineage to Integrator, then history-preservingly synchronize against latest `develop/pathena-next` only if all foreign deltas can be retained.
+3. Immediately execute normative Exhaustive Research §69 Failure Test unless equivalent exact acceptance already exists; do not repeat §68 analysis.
+4. If `34158934575` is red, recover the new exact primary pytest failure and repair only that concrete root cause without Skip/XFail, weaker assertions, fake restart state or synthetic provenance.
 
 ## Release regression obligations
 
