@@ -71,9 +71,9 @@ class WalMaintenanceIntervalRunner:
             raise WalMaintenanceError(
                 "WAL maintenance monotonic time must not move backwards."
             )
+        self._last_observed_monotonic = now
 
         if self._next_due_monotonic is not None and now < self._next_due_monotonic:
-            self._last_observed_monotonic = now
             return None
 
         next_due = now + self.interval_seconds
@@ -87,6 +87,5 @@ class WalMaintenanceIntervalRunner:
             raise WalMaintenanceError(
                 "WAL maintenance orchestrator returned an invalid diagnosis."
             )
-        self._last_observed_monotonic = now
         self._next_due_monotonic = next_due
         return diagnosis
