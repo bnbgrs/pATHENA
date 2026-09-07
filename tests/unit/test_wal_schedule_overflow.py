@@ -5,6 +5,7 @@ import sys
 import pytest
 
 from athena.storage.wal_maintenance import (
+    WalMaintenanceDiagnosis,
     WalMaintenanceError,
     WalMaintenanceOrchestrator,
 )
@@ -15,7 +16,7 @@ class _NoSideEffectOrchestrator(WalMaintenanceOrchestrator):
     def __init__(self) -> None:
         pass
 
-    def run_cycle(self):  # type: ignore[no-untyped-def]
+    def run_cycle(self) -> WalMaintenanceDiagnosis:
         raise AssertionError("WAL maintenance must not run before deadline validation")
 
 
