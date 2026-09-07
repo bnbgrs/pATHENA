@@ -98,3 +98,44 @@ def test_project_detail_preference_outranks_conflicting_global_preference(tmp_pa
     assert candidates[1].revision.payload.content == "Answer briefly."
 
     database.stop()
+
+
+def test_current_instruction_outranks_conflicting_global_detail_preference(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    chat = ChatService(ChatRepository(database))
+    memory = PersonalMemoryService(PersonalMemoryRepository(database), chat)
+
+    durable_preference = memory.remember(
+        content="Answer briefly.",
+        memory_kind=MemoryKind.DETAIL_PREFERENCE,
+    )
+    before = memory.repository.get(durable_preference.memory_id)
+    candidates = memory.context_candidates()
+    bundle = ContextBuilderService().build_from_ranked(
+        query="This time answer in detail.",
+        results=(),
+        personal_memory=candidates,
+        max_estimated_tokens=900,
+        max_memory_items=8,
+    )
+
+    payload = json.loads(bundle.rendered_text)
+    preferences = payload["user_preferences"]
+    assert payload["query"] == "This time answer in detail."
+    assert preferences == [
+        {
+            "memory_id": str(durable_preference.memory_id),
+            "revision_id": str(durable_preference.revision.revision_id),
+            "revision_no": durable_preference.revision.revision_no,
+            "label": "USER PREFERENCE",
+            "memory_kind": MemoryKind.DETAIL_PREFERENCE.value,
+            "scope_kind": MemoryScopeKind.GLOBAL.value,
+            "scope_entity_id": None,
+            "content": "Answer briefly.",
+        }
+    ]
+    assert "Current user message overrides USER PREFERENCE" in payload["policy"]
+    assert memory.repository.get(durable_preference.memory_id) == before
+
+    database.stop()
