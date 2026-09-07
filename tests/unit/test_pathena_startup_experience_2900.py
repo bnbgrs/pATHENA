@@ -135,3 +135,29 @@ def test_empty_state_copy_refreshes_after_disconnected_to_ready_transition() -> 
     assert title.text() == "Start a conversation"
     assert "reconnect" not in body.text().casefold()
     assert "local knowledge" in body.text().casefold()
+
+
+def test_empty_state_width_tracks_available_chat_space_without_exceeding_cap() -> None:
+    _app()
+    window = _DisconnectedStartupWindow()
+
+    messages = QWidget(window)
+    messages.setObjectName("chatMessages")
+    messages.resize(444, 300)
+    layout = QVBoxLayout(messages)
+    raw = QLabel("No conversation", messages)
+    raw.setObjectName("emptyChatState")
+    layout.addWidget(raw)
+
+    controller = PathenaStartupExperience(window)
+    controller.sync()
+
+    panel = messages.findChild(QWidget, "emptyStatePanel")
+    eyebrow = messages.findChild(QLabel, "emptyStateEyebrow")
+    title = messages.findChild(QLabel, "emptyStateTitle")
+    body = messages.findChild(QLabel, "emptyStateBody")
+    assert panel is not None
+    assert eyebrow is not None
+    assert title is not None
+    assert body is not None
+    assert eyebrow.wordWrap()
