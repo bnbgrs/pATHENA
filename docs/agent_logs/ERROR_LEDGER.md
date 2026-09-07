@@ -8,10 +8,10 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 
 ## Current baseline
 
-- Baseline reviewed: `develop/pathena-next@7b9cc9ea78733e6df7f3cb0aa542064bbc8c934a`.
-- Error branch mutation lineage remains on `postmerge/errors`; current Develop history was synchronized history-preservingly and NON-FORCE through two-parent merge commit `9652c64cc91979193157056a2ca8131a7ac37a54`.
-- Reviewed heads: Spec/Core `7b575db376b94a0bf86a5491ef787e77891435cc`; Backend `a664ba7aba35c1865046b2db286a4ca883017d9c`; UI `4e20612024bc5ffe0289b5c8ecd541ea25b8b10b`; Integrator/Develop `7b9cc9ea78733e6df7f3cb0aa542064bbc8c934a`.
-- `spec-core.md`, `backend.md`, `ui.md`, and `integrator.md` were reviewed before this scan; worker branch heads and exact Quality state were independently rechecked.
+- Baseline reviewed: `develop/pathena-next@f4c7ecfdca3313f0418895e6e495459e091586fe`.
+- Error branch mutation lineage remains on `postmerge/errors`; synchronization for this scan is history-preserving, two-parent and NON-FORCE.
+- Reviewed heads: Spec/Core `8bb8822a3423ac4fa1ab2873ecf052d16c390199`; Backend `8ddd3f12dbf3eb34332b8b54ef06eccc3e0d35b8`; UI `2f98ef242107421770ed4573bea06532e052727b`; Integrator/Develop `f4c7ecfdca3313f0418895e6e495459e091586fe`.
+- `spec-core.md`, `backend.md`, `ui.md`, and `integrator.md` were reviewed before this scan; exact worker branch heads and canonical Quality state were independently rechecked.
 
 ## Current state
 
@@ -41,13 +41,13 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 - `ERR-0017` P1 FIXED — integrated Personal Memory service omitted `ModelInferredMemoryProposal`; corrected Quality `34030367660@54637682087b880622796ee0b618362f7ed802fe = success`; Error fixes `5ff326e39611a3aea5678e2151c300822ad593f9` + `281cedc6010617ce0aa60ea25ec497500225bb17`.
 - `ERR-0018` P2 FIXED — Personal Memory context Ruff I001; pinned Ruff fixer commit `61194be6eddf6fa7fe37c9c62690244a29414acd`; exact canonical success `34060875144@5714f3c7724cb82ccd75a7e852c668bfe78c6d5d`, later `34063688754@12e2e98d10c3fc11821ffa8f5edead80806da009 = success`.
 
-## Current scan evidence — 2026-09-07 08:00 CEST
+## Current scan evidence — 2026-09-07 09:09 CEST
 
-- Spec/Core exact `7b575db376b94a0bf86a5491ef787e77891435cc`: canonical Quality `34086427191 = in_progress`; specification validator PASS, Ruff PASS, mypy PASS, Windows path safety PASS, Linux storage regressions PASS, Local install smoke PASS; full pytest is still running. No confirmed primary failure.
-- Backend exact `a664ba7aba35c1865046b2db286a4ca883017d9c`: canonical Quality `34086812930 = in_progress`; specification validator PASS, Ruff PASS, mypy PASS, Windows path safety PASS, Linux storage regressions PASS, Local install smoke PASS; full pytest is still running. No confirmed primary failure.
-- UI exact `4e20612024bc5ffe0289b5c8ecd541ea25b8b10b`: canonical Quality `34088121637 = in_progress`; specification validator PASS, Ruff PASS, Linux storage regressions PASS, Local install smoke PASS; mypy and Windows path safety are still running and pytest has not yet completed. No confirmed primary failure.
-- Develop exact `7b9cc9ea78733e6df7f3cb0aa542064bbc8c934a`: no exact pull-request-triggered canonical Quality run was observed for this SHA; no promotion-ready claim.
-- No new deduplicated primary failure was confirmed. `ERR-0004` and `ERR-0018` remain closed; no historical runtime signature was reopened absent exact-SHA reproduction.
+- Spec/Core exact `8bb8822a3423ac4fa1ab2873ecf052d16c390199`: canonical Quality `34090530294 = success`. This exact head is canonical green; no Error-ledger objection.
+- Backend exact `8ddd3f12dbf3eb34332b8b54ef06eccc3e0d35b8`: canonical Quality `34091580477 = in_progress`; specification validator PASS, Ruff PASS, mypy PASS, Windows path safety PASS, Linux storage regressions PASS, Local install smoke PASS; full pytest remains in progress. No confirmed primary failure.
+- UI exact `2f98ef242107421770ed4573bea06532e052727b`: canonical Quality `34092357862 = in_progress`; specification validator PASS, Ruff PASS, mypy PASS, Windows path safety PASS, Linux storage regressions PASS, Local install smoke PASS; full pytest remains in progress. No confirmed primary failure.
+- Develop exact `f4c7ecfdca3313f0418895e6e495459e091586fe`: no exact pull-request-triggered canonical Quality run is currently associated with this SHA; no promotion-ready claim.
+- No new deduplicated primary failure was confirmed. `ERR-0004` and `ERR-0018` remain closed; no historical runtime signature is reopened absent exact-SHA reproduction.
 
 ## Persistent Beta/release regression knowledge
 
