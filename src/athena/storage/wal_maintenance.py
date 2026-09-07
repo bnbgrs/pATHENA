@@ -118,7 +118,7 @@ class WalCheckpointResult:
     wal_size_after_bytes: int
 
     def __post_init__(self) -> None:
-        if self.mode not in {"PASSIVE", "TRUNCATE"}:
+        if not isinstance(self.mode, str) or self.mode not in {"PASSIVE", "TRUNCATE"}:
             raise ValueError("WAL checkpoint mode is invalid.")
         if not isinstance(self.busy, bool):
             raise TypeError("WAL checkpoint busy must be boolean.")
