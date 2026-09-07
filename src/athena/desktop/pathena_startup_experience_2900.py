@@ -253,6 +253,14 @@ class PathenaStartupExperience(QObject):
                 prompt.setToolTip("Available when pATHENA and the selected model are ready")
             prompt.setAccessibleDescription(prompt.toolTip())
 
+        send = self.window.findChild(QPushButton, "sendButton")
+        if send is not None:
+            if core_ready:
+                send.setToolTip("Send message (Ctrl+Enter)")
+            else:
+                send.setToolTip("Available when pATHENA and the selected model are ready")
+            send.setAccessibleDescription(send.toolTip())
+
         self._polish_empty_state(core_ready=core_ready)
 
     @staticmethod
