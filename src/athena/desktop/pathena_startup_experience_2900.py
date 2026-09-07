@@ -169,7 +169,10 @@ class PathenaStartupExperience(QObject):
         QTimer.singleShot(0, self.sync)
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
-        if watched is self.chat_messages and event.type() == QEvent.Type.ChildAdded:
+        if watched is self.chat_messages and event.type() in {
+            QEvent.Type.ChildAdded,
+            QEvent.Type.Resize,
+        }:
             QTimer.singleShot(0, self.sync)
         return super().eventFilter(watched, event)
 
@@ -272,6 +275,12 @@ class PathenaStartupExperience(QObject):
                 "stay available on demand instead of occupying the workspace by default."
             )
 
+    @staticmethod
+    def _sync_empty_state_width(*, messages: QWidget, panel: QFrame, body: QLabel) -> None:
+        panel_width = max(1, min(560, messages.width() - 32))
+        panel.setFixedWidth(panel_width)
+        body.setFixedWidth(max(1, panel_width - 56))
+
     def _polish_empty_state(self, *, core_ready: bool) -> None:
         messages = self.chat_messages
         if messages is None:
@@ -282,9 +291,11 @@ class PathenaStartupExperience(QObject):
 
         raw_text = raw.text().strip()
         if bool(raw.property("pathenaStartupReplaced")):
+            panel = messages.findChild(QFrame, "emptyStatePanel")
             title = messages.findChild(QLabel, "emptyStateTitle")
             body = messages.findChild(QLabel, "emptyStateBody")
-            if title is not None and body is not None:
+            if panel is not None and title is not None and body is not None:
+                self._sync_empty_state_width(messages=messages, panel=panel, body=body)
                 self._sync_empty_state_copy(
                     title=title,
                     body=body,
@@ -298,7 +309,6 @@ class PathenaStartupExperience(QObject):
 
         panel = QFrame(messages)
         panel.setObjectName("emptyStatePanel")
-        panel.setFixedWidth(560)
         panel.setMinimumHeight(174)
         panel.setSizePolicy(
             QSizePolicy.Policy.Fixed,
@@ -323,9 +333,9 @@ class PathenaStartupExperience(QObject):
         body.setObjectName("emptyStateBody")
         body.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
         body.setWordWrap(True)
-        body.setFixedWidth(500)
         body.setMinimumHeight(50)
 
+        self._sync_empty_state_width(messages=messages, panel=panel, body=body)
         self._sync_empty_state_copy(
             title=title,
             body=body,
