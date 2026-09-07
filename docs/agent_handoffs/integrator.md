@@ -3,40 +3,43 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `af170f7307c2da454ab168a1993af3125868698a`.
+- Develop before this run: `7b9cc9ea78733e6df7f3cb0aa542064bbc8c934a`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `7c3949f989a25bf3b8e476ed8b3abf808ff3ff9b`; spec-core `7b575db376b94a0bf86a5491ef787e77891435cc`; backend `a664ba7aba35c1865046b2db286a4ca883017d9c`; UI `4e20612024bc5ffe0289b5c8ecd541ea25b8b10b`.
+- Worker heads reviewed: errors `22bc248f35f3d9d11aa4717356e3b3edd7a3d6de`; spec-core `8bb8822a3423ac4fa1ab2873ecf052d16c390199`; backend `8ddd3f12dbf3eb34332b8b54ef06eccc3e0d35b8`; UI `2f98ef242107421770ed4573bea06532e052727b`.
 - `main` and `bnbgrs/ATHENA` were untouched; no force update, rebase, history rewrite or auto-merge was used.
 
-## Integrated this run — Backend checkpoint-service mode runtime boundary
+## Integrated this run — UI-GAP-0053 responsive startup empty state
 
-Backend product lineage `f87efc903ffa3991ca3ab8bfd0eb4f811915b326` had already passed canonical Quality `34083238597 = success`. The Develop-compatible history-preserving synchronization commit `1d55c3f53f864e195fc0f8373df00328b882b405` then passed exact canonical Quality `34086769936 = success`.
+UI-GAP-0053 product `2885e2b3262879a2036246124196124d14f6629c` plus focused regression `252567394ce1f7059e5994b8d7cb800f34e692a2` passed exact canonical ATHENA Quality Gate `34080765557@7d5b99d4715352843b800253f67f50b56095aec2 = success`.
 
-Independent compare from pre-run Develop `af170f7307c2da454ab168a1993af3125868698a` to `1d55c3f53f864e195fc0f8373df00328b882b405` is fast-forward compatible and carries the bounded verified product/test application on top of exact Develop. The integrated product hardens `WalMaintenanceService._checkpoint(mode)` so malformed non-text or unhashable mode values fail as `WalMaintenanceError` before database access, transaction inspection or SQLite checkpoint side effects. Canonical `PASSIVE` / `TRUNCATE` behavior and all existing Storage/Recovery guards are preserved.
+Independent compatibility review showed current Develop still had the exact pre-UI-GAP-0053 startup structure. A later UI-GAP-0055 candidate was initially considered but rejected during the same run because its focused regression depends on the responsive-width test introduced by UI-GAP-0053. The provisional UI-GAP-0055 edits were neutralized by subsequent commits; the final Develop delta from the pre-run baseline contains only the bounded UI-GAP-0053 product/test semantics.
 
-Develop advanced NON-FORCE to `1d55c3f53f864e195fc0f8373df00328b882b405`; no main mutation occurred.
+Final product behavior: the existing startup empty-state panel now tracks available chat width up to the established 560px cap, keeps the body inset by 56px, and resynchronizes on chat resize. No Core readiness, chat routing, persistence, Backend, Storage, Security, Worker/Scheduler, packaging or Windows process semantics changed.
+
+Independent compare from pre-run Develop to the product/test successor reports exactly two modified files: `src/athena/desktop/pathena_startup_experience_2900.py` and `tests/unit/test_pathena_startup_experience_2900.py`; branch status is ahead-only with the pre-run Develop as merge base.
 
 ## Current readiness/error state
 
 - Error handoff reports no OPEN/BLOCKED current defect; `ERR-0004` and `ERR-0018` remain closed absent exact contradictory evidence.
-- UI-GAP-0053 is exact-green and Integrator-ready at UI head `7d5b99d4715352843b800253f67f50b56095aec2`, Quality `34080765557 = success`.
-- UI-GAP-0054 is exact-green and Integrator-ready at UI head `ae25b56b4499ae68f5bdd9121e4f4c41e9cff0fe`, Quality `34084045555 = success`.
-- UI-GAP-0055 remains `IMPLEMENTED_PENDING_VERIFY` on the current UI lineage.
-- Spec/Core current head is not consumed this run; the normal-Hybrid facade/application composition remains already VERIFIED on Develop.
-- Exact final Develop after documentation successors still requires its own completed canonical Quality before any promotion-ready claim.
+- UI-GAP-0053 is integrated from exact-green worker evidence.
+- UI-GAP-0054 remains exact-green and deferred as a separate bounded slice.
+- UI-GAP-0055 is exact-green on its later worker lineage but was not integrated because its focused regression depends on UI-GAP-0053; it may be reconsidered after an exact-current-Develop validation.
+- UI-GAP-0056 remains `IMPLEMENTED_PENDING_VERIFY`.
+- Backend WAL interval runner remains pending exact canonical success at the handoff reviewed this run.
+- Exact final Develop after integration/documentation still requires its own completed canonical Quality before any promotion-ready claim.
 
 ## UI / Alpha-Beta state
 
 - Eleven-screen implementation remains implemented pending original visual-reference review; no pixel-level `MATCH` claim is made.
 - UI-GAP-0051 and UI-GAP-0052 remain integrated/verified.
-- UI-GAP-0053 and UI-GAP-0054 are READY but deferred by the single-bounded-slice rule.
-- `docs/development/ALPHA_BETA_PROGRESS.md` is updated evidence-first with the checkpoint-service mode boundary; no percentage is invented.
+- UI-GAP-0053 is now integrated/verified from exact worker Quality evidence.
+- Visual reference images remain unavailable through the repository path; Screen 11 remains `IMPLEMENTED_PENDING_VISUAL_REVIEW` rather than `MATCH`.
 
 ## Next integration order
 
 1. Obtain exact-current-Develop canonical Quality for the final documentation successor when a run exists.
 2. Independently review exactly one compatible exact-green successor.
-3. UI-GAP-0053 is the clearest deferred READY input; UI-GAP-0054 is also READY but remains separate.
+3. Prefer UI-GAP-0054 or, after confirming dependency compatibility, UI-GAP-0055; keep UI-GAP-0056 excluded until exact canonical success.
 
 ## Persistent release guards
 
