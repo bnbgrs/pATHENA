@@ -312,6 +312,7 @@ class PathenaStartupExperience(QObject):
         eyebrow.setObjectName("emptyStateEyebrow")
         eyebrow.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         eyebrow.setMinimumHeight(16)
+        eyebrow.setWordWrap(True)
 
         title = QLabel(panel)
         title.setObjectName("emptyStateTitle")
