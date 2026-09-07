@@ -327,7 +327,7 @@ class PathenaStartupExperience(QObject):
         title.setObjectName("emptyStateTitle")
         title.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         title.setMinimumHeight(34)
-        title.setWordWrap(False)
+        title.setWordWrap(True)
 
         body = QLabel(panel)
         body.setObjectName("emptyStateBody")
