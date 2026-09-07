@@ -1,9 +1,16 @@
 from __future__ import annotations
 
+from pathlib import Path
+from typing import cast
+
 import pytest
 
 from athena.jobs.scheduler import SchedulerLane
-from athena.storage.wal_job_hook import WalJobSchedulerHook
+from athena.storage.database import SQLiteDatabase
+from athena.storage.wal_job_hook import (
+    WalJobSchedulerHook,
+    build_wal_job_scheduler_hook,
+)
 from athena.storage.wal_maintenance import (
     WalMaintenanceCycle,
     WalMaintenanceDiagnosis,
@@ -51,6 +58,10 @@ def _hook(tmp_path):
     runner._last_observed_monotonic = None
     adapter = WalMaintenanceSchedulerAdapter(runner)
     return WalJobSchedulerHook(adapter), orchestrator
+
+
+def _database(tmp_path: Path) -> SQLiteDatabase:
+    return SQLiteDatabase((tmp_path / "athena.db").resolve())
 
 
 def test_provider_lane_remains_wal_side_effect_free(tmp_path) -> None:
@@ -101,3 +112,48 @@ def test_nonfinite_monotonic_fails_before_wal_cycle(tmp_path) -> None:
 
     assert orchestrator.calls == 0
     assert hook.scheduler.runner.next_due_monotonic is None
+
+
+def test_hook_factory_composes_exact_runtime_identity_chain(tmp_path: Path) -> None:
+    database = _database(tmp_path)
+
+    hook = build_wal_job_scheduler_hook(
+        database,
+        interval_seconds=60.0,
+    )
+
+    runner = hook.scheduler.runner
+    orchestrator = runner.orchestrator
+    assert orchestrator.service.database is database
+    assert hook.scheduler.runner is runner
+    assert runner.orchestrator is orchestrator
+
+
+def test_hook_factory_construction_has_no_database_or_wal_side_effect(
+    tmp_path: Path,
+) -> None:
+    database = _database(tmp_path)
+
+    build_wal_job_scheduler_hook(
+        database,
+        interval_seconds=60.0,
+    )
+
+    assert not database.path.exists()
+    assert not database.path.with_name(f"{database.path.name}-wal").exists()
+
+
+@pytest.mark.parametrize("interval_seconds", [True, False])
+def test_hook_factory_rejects_boolean_interval_before_database_side_effect(
+    tmp_path: Path,
+    interval_seconds: object,
+) -> None:
+    database = _database(tmp_path)
+
+    with pytest.raises(WalMaintenanceError):
+        build_wal_job_scheduler_hook(
+            database,
+            interval_seconds=cast(float, interval_seconds),
+        )
+
+    assert not database.path.exists()
