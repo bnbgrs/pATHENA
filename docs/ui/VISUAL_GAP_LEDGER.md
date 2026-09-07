@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `78519f7c94df31b3c2374e5a1124fe799db28929`
+Baseline: `30dd27c97e948e59994e8cfbe01b1c77ce6c917b`
 Integration target: `develop/pathena-next`
 
 Only evidence-backed gaps belong here. The original 11 reference screenshots remain unavailable for direct visual comparison; therefore no pixel-level mismatch or `MATCH` claim is asserted.
@@ -124,11 +124,23 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Category: `ACCESSIBILITY`
 - Screen: `04 — Jobs`
 - Severity: `P2`
-- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Status: `FIXED`
 - Evidence: `_sync_action_buttons()` placed the established action-availability explanation only in each PAUSE/RESUME/WAKE/CANCEL tooltip; the same dynamic help was absent from `accessibleDescription`.
 - Product commit: `6543d82199f8f5360cc205f6303dc133f9468dd7`
 - Focused regression commit: `f823fe99c9c7ce78b3d0d70aaf257966ae692364`
+- Verification evidence: exact UI head `fd0780d23b081fddb8a236971c74f4cb3c565899` passed ATHENA Quality Gate `34148642145` with conclusion `success`.
 - Acceptance: mirror the existing truthful per-state action help into `accessibleDescription` without changing enabled/disabled state, lifecycle transitions, receipts, scheduler/worker/storage or backend semantics.
+
+## UI-GAP-0068 — Jobs receipt validation errors expose implementation-domain language
+
+- Category: `COPY`
+- Screen: `04 — Jobs`
+- Severity: `P2`
+- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Evidence: `parse_transition_receipt()` exceptions are surfaced by `JobsWorkspace` in the visible status tooltip and details failure state, but invalid/unsupported/unknown-state branches used `durable`, `lifecycle` and `receipt` terminology rather than user-facing job-action language.
+- Product commit: `998e28ccd9b3c4739e658c2efe55ba164f2bc98b`
+- Focused regression commit: `849b72a882f8d07a5678bc0e4770b55229c18723`
+- Acceptance: keep the exact fail-closed receipt binding and state validation semantics while expressing validation failures as unsupported/unverified job-action responses without durable/lifecycle/receipt implementation jargon.
 
 ## Evidence blocker
 
