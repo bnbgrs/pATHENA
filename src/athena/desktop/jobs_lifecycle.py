@@ -86,15 +86,15 @@ def parse_transition_receipt(
     """Bind a CLI transition receipt to the exact requested job and operation."""
     expected_label = _TRANSITION_LABELS.get(expected_operation)
     if expected_label is None:
-        raise JobLifecycleError("Unsupported lifecycle operation.")
+        raise JobLifecycleError("This job action is not supported.")
     parts = output.strip().split()
     if len(parts) != 3 or parts[0] != expected_label:
-        raise JobLifecycleError("Durable job transition receipt is invalid.")
+        raise JobLifecycleError("The job action response could not be verified.")
     if parts[1] != expected_job_id:
-        raise JobLifecycleError("Durable job transition receipt belongs to another job.")
+        raise JobLifecycleError("The job action response belongs to another job.")
     state = parts[2].casefold()
     if state not in _KNOWN_STATES:
-        raise JobLifecycleError("Durable job transition returned an unknown state.")
+        raise JobLifecycleError("The job action response returned an unrecognized state.")
     return JobTransitionReceipt(
         operation=expected_operation,
         job_id=expected_job_id,
