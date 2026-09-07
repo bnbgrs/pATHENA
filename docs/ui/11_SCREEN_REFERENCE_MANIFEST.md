@@ -1,6 +1,6 @@
 # pATHENA 11-Screen Reference Manifest
 
-Baseline: `9a7ae283ae8476c61f3a689e95bbc943a319939c`
+Baseline: `87aa3cebb13abb7b65bfc9aa64edf77cf257dd01`
 Integration target: `develop/pathena-next`
 
 This manifest is the canonical inventory for the eleven user-provided pATHENA UI references. The original image payloads are still not available for direct visual opening in the current repository/tool path. Therefore all pixel/composition claims remain `VISUAL_REFERENCE_PENDING`. No slot may be promoted to `MATCH` without opening the actual reference and comparing it against a real rendered pATHENA state.
@@ -17,7 +17,7 @@ This manifest is the canonical inventory for the eleven user-provided pATHENA UI
 | 08 | PALLAS | `VISUAL_REFERENCE_PENDING` | Characteristic but non-dominant, data-driven semantic view based on real Sources/Claims/Knowledge/Research; lifecycle regression technically verified; semantic-canvas focus is verified under `UI-GAP-0045`; full synchronized workspace has verified conflict-free keyboard opening via Ctrl+Enter while plain Enter/Space retain node-selection semantics under `UI-GAP-0046` | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `38a28f61af16d0b12500b4056b586ba934a2ba1a` |
 | 09 | Command Palette / Help | `VISUAL_REFERENCE_PENDING` | Keyboard-first command/search surface backed by real capabilities; command query inherits canonical `QLineEdit:focus`; F1 read-only help content deliberately receives focus and has explicit verified focus presentation (`UI-GAP-0030`); focused-current command result row is verified under `UI-GAP-0047`; F1 Help now disambiguates contextual Ctrl+Enter for Chat send versus PALLAS full-view opening | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `4be3a9c897313f63f8c49ddc6eb9ecfea9186ded` |
 | 10 | Grounded Chat / Evidence & Activity | `VISUAL_REFERENCE_PENDING` | Contextual evidence, claims, sources and activity without synthesized provenance; hierarchy/copy and contextual visibility technically verified | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `b1537fc138560fe85d4d97cf76c887b92e63c8f4` |
-| 11 | Startup / Empty / Disconnected state | `VISUAL_REFERENCE_PENDING` | Quiet local-first startup and truthful unavailable/empty states; disconnected composer readiness accessibility is verified under `UI-GAP-0049`; automatic-reconnect status accessibility is verified under `UI-GAP-0050`; ready-transition status accessibility is verified under `UI-GAP-0051`; existing empty-state Disconnect→Ready copy refresh is verified under `UI-GAP-0052` | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `23c03d06b333ec2156665bfaa65b0de5219f5ccd` |
+| 11 | Startup / Empty / Disconnected state | `VISUAL_REFERENCE_PENDING` | Quiet local-first startup and truthful unavailable/empty states; disconnected composer readiness accessibility is verified under `UI-GAP-0049`; automatic-reconnect status accessibility is verified under `UI-GAP-0050`; ready-transition status accessibility is verified under `UI-GAP-0051`; existing empty-state Disconnect→Ready copy refresh is verified under `UI-GAP-0052`; responsive empty-state width adaptation is implemented under `UI-GAP-0053` pending exact candidate Quality | `IMPLEMENTED_PENDING_VERIFY` | `252567394ce1f7059e5994b8d7cb800f34e692a2` |
 
 ## Promotion rules
 
