@@ -252,12 +252,45 @@ class PathenaStartupExperience(QObject):
 
         self._polish_empty_state(core_ready=core_ready)
 
+    @staticmethod
+    def _sync_empty_state_copy(
+        *, title: QLabel, body: QLabel, raw_text: str, core_ready: bool
+    ) -> None:
+        if not core_ready:
+            title.setText("Getting pATHENA ready")
+            body.setText(
+                "pATHENA reconnects automatically. Chat, knowledge, research and "
+                "files remain local while the workspace comes online."
+            )
+        elif raw_text.startswith("Conversation deleted"):
+            title.setText("Conversation deleted")
+            body.setText("The local workspace is ready for a new conversation.")
+        else:
+            title.setText("Start a conversation")
+            body.setText(
+                "Ask, explore, or work with your local knowledge. Sources and evidence "
+                "stay available on demand instead of occupying the workspace by default."
+            )
+
     def _polish_empty_state(self, *, core_ready: bool) -> None:
         messages = self.chat_messages
         if messages is None:
             return
         raw = messages.findChild(QLabel, "emptyChatState")
-        if raw is None or bool(raw.property("pathenaStartupReplaced")):
+        if raw is None:
+            return
+
+        raw_text = raw.text().strip()
+        if bool(raw.property("pathenaStartupReplaced")):
+            title = messages.findChild(QLabel, "emptyStateTitle")
+            body = messages.findChild(QLabel, "emptyStateBody")
+            if title is not None and body is not None:
+                self._sync_empty_state_copy(
+                    title=title,
+                    body=body,
+                    raw_text=raw_text,
+                    core_ready=core_ready,
+                )
             return
 
         raw.setProperty("pathenaStartupReplaced", True)
@@ -293,22 +326,12 @@ class PathenaStartupExperience(QObject):
         body.setFixedWidth(500)
         body.setMinimumHeight(50)
 
-        raw_text = raw.text().strip()
-        if not core_ready:
-            title.setText("Getting pATHENA ready")
-            body.setText(
-                "pATHENA reconnects automatically. Chat, knowledge, research and "
-                "files remain local while the workspace comes online."
-            )
-        elif raw_text.startswith("Conversation deleted"):
-            title.setText("Conversation deleted")
-            body.setText("The local workspace is ready for a new conversation.")
-        else:
-            title.setText("Start a conversation")
-            body.setText(
-                "Ask, explore, or work with your local knowledge. Sources and evidence "
-                "stay available on demand instead of occupying the workspace by default."
-            )
+        self._sync_empty_state_copy(
+            title=title,
+            body=body,
+            raw_text=raw_text,
+            core_ready=core_ready,
+        )
 
         panel_layout.addWidget(eyebrow)
         panel_layout.addWidget(title)
