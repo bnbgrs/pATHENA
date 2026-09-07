@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `15f4a439d15d4bb1414e7b54afee7a25ced36e61`
+Baseline: `f2cc85c31769fb78adc01b56f8673fcae186595f`
 Integration target: `develop/pathena-next`
 
 Only evidence-backed gaps belong here. The original 11 reference screenshots remain unavailable for direct visual comparison; therefore no pixel-level mismatch or `MATCH` claim is asserted.
@@ -64,11 +64,23 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Category: `COPY`
 - Screen: `04 — Jobs`
 - Severity: `P2`
-- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Status: `FIXED`
 - Evidence: `JobActionAvailability.reason()` surfaced the literal `cancel_requested` persistence token in visible action-help text when cancellation had already been persisted.
 - Product commit: `f82be0e672659ee74ce8aecae5a7b4f157cbe6a0`
 - Focused regression commit: `c37c8b17a5b33a68068c04c5b5b0fe41b53e927c`
+- Verification evidence: exact UI head `8bd74b266028ccfac5b06d286f84d805261ac9e6` passed ATHENA Quality Gate `34124133923` with conclusion `success`.
 - Acceptance: keep the persisted lifecycle state and all enabled/disabled action semantics unchanged while presenting a human-readable cancellation-requested explanation without the underscore-delimited internal token.
+
+## UI-GAP-0063 — Jobs action help exposes persistence/lifecycle implementation jargon
+
+- Category: `COPY`
+- Screen: `04 — Jobs`
+- Severity: `P2`
+- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Evidence: `JobActionAvailability.reason()` still described ordinary action availability as `persisted state ...` and terminal states as having no `lifecycle mutation`, exposing storage/domain implementation terminology in visible Jobs help after UI-GAP-0062 removed the raw cancellation token.
+- Product commit: `50eb723d18430735b5dcbb246563ae8e863c62a9`
+- Focused regression commit: `1a92d020d565424da147909f137779f7ce1e35fc`
+- Acceptance: preserve the durable-state action matrix and transition semantics exactly while expressing enabled, disabled and terminal action help in user-facing language without `persisted state` or `lifecycle mutation` jargon.
 
 ## Evidence blocker
 
