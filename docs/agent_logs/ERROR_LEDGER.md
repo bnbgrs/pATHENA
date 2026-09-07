@@ -8,9 +8,9 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 
 ## Current baseline
 
-- Baseline reviewed: `develop/pathena-next@7c784b77af3bc0ec0c2579cc89b6947aadaf701c`.
-- Error branch mutation lineage remains on `postmerge/errors`; last history-preserving NON-FORCE baseline synchronization commit remains `ce50a4754a1621cfe4c8d7e18df9c1068eb182ff`.
-- Reviewed heads: Spec/Core `57aa31ec49ddec2d68147e91ea6b3c311d33881a`; Backend `552209e005b82d31577d9f8a466af4dd97b99866`; UI `cf808b725fcd7ac6c302cf8a3f59c20e385f8f2c`; Integrator/Develop `7c784b77af3bc0ec0c2579cc89b6947aadaf701c`.
+- Baseline reviewed: `develop/pathena-next@9a7ae283ae8476c61f3a689e95bbc943a319939c`.
+- Error branch mutation lineage remains on `postmerge/errors`; this scan synchronizes current Develop history non-force while preserving Error-only ledger/handoff files.
+- Reviewed heads: Spec/Core `b6cd1383caf7d60b17ff5a9141c0fef8cafafbe9`; Backend `92493b4ae9e59eed2ce05586f1268f1a557272ae`; UI `23c03d06b333ec2156665bfaa65b0de5219f5ccd`; Integrator/Develop `9a7ae283ae8476c61f3a689e95bbc943a319939c`.
 - `spec-core.md`, `backend.md`, `ui.md`, and `integrator.md` were reviewed before this scan.
 
 ## Current state
@@ -52,14 +52,13 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 - risks: preserve `USER PREFERENCE`, active-only projection, duplicate/snapshot identity checks and fail-closed Protected Memory behavior. Temporary fixer workflow was removed; no permanent CI write path remains.
 - integrator_handoff: `ERR-0018` is closed. Do not re-edit import ordering/wrapping unless new exact contradictory Ruff evidence appears.
 
-## Current scan evidence — 2026-09-07 03:00 CEST
+## Current scan evidence — 2026-09-07 04:04 CEST
 
-- Previously pending Backend exact `35883180205c83cabc1d20ef2fad39d8ee691699`: canonical Quality `34067080370 = success`; no Error-ledger objection.
-- Previously pending UI exact `335d4b2ce2787677bd2d930efd7c12c325759f1f`: canonical Quality `34067696492 = success`; no Error-ledger objection.
-- Current Spec/Core exact `57aa31ec49ddec2d68147e91ea6b3c311d33881a`: canonical Quality `34069391378 = success`; no primary error signal.
-- Current Backend exact `552209e005b82d31577d9f8a466af4dd97b99866`: canonical Quality `34069825099` remains `in_progress`; no confirmed primary failure at this scan.
-- Current UI exact `cf808b725fcd7ac6c302cf8a3f59c20e385f8f2c`: canonical Quality `34070554735` remains `in_progress`; no confirmed primary failure at this scan.
-- Develop exact `7c784b77af3bc0ec0c2579cc89b6947aadaf701c`: no exact completed canonical Quality run was observed on this SHA; no promotion-ready claim.
+- Spec/Core exact `b6cd1383caf7d60b17ff5a9141c0fef8cafafbe9`: canonical Quality `34072430561 = success`; no primary error signal.
+- Backend exact `92493b4ae9e59eed2ce05586f1268f1a557272ae`: canonical Quality `34073089618 = success`; no primary error signal. The Develop-compatible WAL diagnosis synchronization `315ec37fc43c1030cd431217545d4512b5623155` was also exact green via `34073074552` and has since been integrated into Develop.
+- UI exact `23c03d06b333ec2156665bfaa65b0de5219f5ccd`: canonical Quality `34073855547` remains `in_progress`; no confirmed primary failure at this scan. Prior UI exact `cf808b725fcd7ac6c302cf8a3f59c20e385f8f2c` is green via `34070554735`.
+- Develop exact `9a7ae283ae8476c61f3a689e95bbc943a319939c`: no exact completed canonical Quality run observed on this SHA; no promotion-ready claim.
+- No new deduplicated primary failure was confirmed. `ERR-0004` and `ERR-0018` remain closed; no historical runtime signature was reopened absent exact-SHA reproduction.
 
 ## Persistent Beta/release regression knowledge
 

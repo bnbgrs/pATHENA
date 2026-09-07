@@ -188,8 +188,15 @@ class WalMaintenanceDiagnosis:
     consecutive_growth_cycles: int
 
     def __post_init__(self) -> None:
-        if self.level not in {"HEALTHY", "CHECKPOINTED", "BLOCKED", "ABNORMAL_GROWTH"}:
+        if not isinstance(self.level, str) or self.level not in {
+            "HEALTHY",
+            "CHECKPOINTED",
+            "BLOCKED",
+            "ABNORMAL_GROWTH",
+        }:
             raise ValueError("WAL maintenance diagnosis level is invalid.")
+        if not isinstance(self.cycle, WalMaintenanceCycle):
+            raise TypeError("WAL maintenance diagnosis cycle must be WalMaintenanceCycle.")
         _nonnegative_int(
             self.consecutive_blocked_cycles,
             "WAL diagnosis consecutive_blocked_cycles",
