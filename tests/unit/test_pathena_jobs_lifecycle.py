@@ -45,7 +45,12 @@ def test_action_availability_matches_durable_service_states(
         if getattr(availability, action)
     } == enabled
     for action in ("pause", "resume", "wake", "cancel"):
-        assert state in availability.reason(action)
+        reason = availability.reason(action)
+        if state == "cancel_requested":
+            assert "Cancellation has already been requested" in reason
+            assert "cancel_requested" not in reason
+        else:
+            assert state in reason
 
 
 def test_transition_receipt_is_bound_to_exact_job_and_operation() -> None:
