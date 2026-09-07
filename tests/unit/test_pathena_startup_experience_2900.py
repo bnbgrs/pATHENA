@@ -13,6 +13,10 @@ class _DisconnectedStartupWindow(QWidget):
     _core_transport_ready = False
 
 
+class _ReadyStartupWindow(QWidget):
+    _core_transport_ready = True
+
+
 def _app() -> QApplication:
     existing = QApplication.instance()
     if isinstance(existing, QApplication):
@@ -86,6 +90,23 @@ def test_disconnected_startup_copy_keeps_core_infrastructure_in_background() -> 
     title = messages.findChild(QLabel, "emptyStateTitle")
     assert title is not None
     assert title.text() == "Getting pATHENA ready"
+
+
+def test_ready_status_refreshes_accessibility_description_from_current_truth() -> None:
+    _app()
+    window = _ReadyStartupWindow()
+
+    status = QLabel("pATHENA ready", window)
+    status.setObjectName("localStatus")
+    status.setToolTip("Local workspace ready")
+    status.setAccessibleDescription("pATHENA reconnects automatically")
+
+    controller = PathenaStartupExperience(window)
+    controller.sync()
+
+    assert status.text() == "pATHENA ready"
+    assert status.toolTip() == "Local workspace ready"
+    assert status.accessibleDescription() == status.toolTip()
 
 
 def test_empty_state_copy_refreshes_after_disconnected_to_ready_transition() -> None:
