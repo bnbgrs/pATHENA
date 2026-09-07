@@ -236,9 +236,10 @@ class PathenaStartupExperience(QObject):
             session_controls.setVisible(core_ready)
 
         status = self.window.findChild(QLabel, "localStatus")
-        if status is not None and not core_ready:
-            status.setText("pATHENA reconnecting")
-            status.setToolTip("pATHENA reconnects automatically")
+        if status is not None:
+            if not core_ready:
+                status.setText("pATHENA reconnecting")
+                status.setToolTip("pATHENA reconnects automatically")
             status.setAccessibleDescription(status.toolTip())
 
         prompt = self.window.findChild(QWidget, "promptInput")
