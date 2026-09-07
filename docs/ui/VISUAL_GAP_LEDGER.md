@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `8ebb41102c1f1b59471ab6392e930af1c52fec31`
+Baseline: `4e18f75beeaa1c5b57bca28dcad5a062ac498051`
 Integration target: `develop/pathena-next`
 
 Only evidence-backed gaps belong here. The original 11 reference screenshots remain unavailable for direct visual comparison; therefore no pixel-level mismatch or `MATCH` claim is asserted.
@@ -171,11 +171,23 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Category: `COPY`
 - Screen: `04 — Jobs`
 - Severity: `P2`
-- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Status: `FIXED`
 - Evidence: the visible details placeholder and no-jobs state used `durable`, `persisted`, `checkpoints`, `leases` and `pinned state` terminology even though the user only needs selection and availability guidance.
 - Product commit: `b7e96e01e5690d914be62d489faae92bf0e59571`
 - Focused regression commit: `067983b6613a42526ac48cbd5d21b3e36d1e3e74`
+- Verification evidence: exact UI head `377d5494b8a6aa9d5a65447b7fe12b5851664914` passed ATHENA Quality Gate `34164101918` with conclusion `success`.
 - Acceptance: the placeholder says `Select a job to inspect its current state and activity.` and the empty state says `No jobs are available yet...`; no job lifecycle, persistence, storage, scheduler or worker semantics change.
+
+## UI-GAP-0072 — Jobs workspace intro exposes implementation architecture
+
+- Category: `COPY`
+- Screen: `04 — Jobs`
+- Severity: `P2`
+- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Evidence: the persistent Jobs heading/intro visibly exposed `DURABLE JOB CONTROL`, SQLite, leases/checkpoints, `DurableJobService transitions` and a `GUI-side queue` implementation distinction instead of explaining the product surface.
+- Product commit: `c3637e08e64a6c1f08438b477a940b073b504de3`
+- Focused regression commit: `b927515fb5371f02f5da4cf4a90aa3d596d34ed0`
+- Acceptance: heading is simply `JOBS`; intro explains that Research and Sources background work appears here and that the user can inspect/manage jobs. No queue, transition, persistence, scheduler, worker, storage or backend semantics change.
 
 ## Evidence blocker
 
