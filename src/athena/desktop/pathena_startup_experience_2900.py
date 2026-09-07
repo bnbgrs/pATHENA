@@ -220,6 +220,10 @@ class PathenaStartupExperience(QObject):
             new_chat.setMaximumWidth(62)
             new_chat.setAccessibleDescription(new_chat.toolTip())
 
+        context_toggle = self.window.findChild(QPushButton, "contextToggle")
+        if context_toggle is not None:
+            context_toggle.setAccessibleDescription(context_toggle.toolTip())
+
         prompt = self.window.findChild(QWidget, "promptInput")
         if prompt is not None:
             prompt.setMinimumHeight(46)
