@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `ed9dde599541dffe704a0810a9fa9debf1c8f74b`
+Baseline: `51bd144aafc0fb1f50c00515c366442038a2c251`
 Integration target: `develop/pathena-next`
 
 Only evidence-backed gaps belong here. The original 11 reference screenshots remain unavailable for direct visual comparison; therefore no pixel-level mismatch or `MATCH` claim is asserted.
@@ -148,10 +148,22 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Category: `COPY`
 - Screen: `04 — Jobs`
 - Severity: `P2`
-- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Status: `FIXED`
 - Evidence: after UI-GAP-0068 humanized parser exceptions, `JobsWorkspace._process_finished()` still rendered `receipt for job ... could not be verified` and `TRANSITION RECEIPT UNAVAILABLE` directly in the visible failure state.
 - Product/regression commit: `9ea12288a2e0363787c64fb8ded9a5302a4a52bd`
+- Verification evidence: exact UI head `535b2848643d8244d726e968c9ab9ed3e7620db4` passed ATHENA Quality Gate `34156844241` with conclusion `success`.
 - Acceptance: render the same fail-closed verification failure as `response for job ... could not be verified` and `JOB ACTION RESPONSE UNAVAILABLE`, preserve raw output for diagnosis, and leave parser binding, state transitions, scheduler/worker/storage/backend semantics unchanged.
+
+## UI-GAP-0070 — Jobs success state exposes transition/persistence implementation language
+
+- Category: `COPY`
+- Screen: `04 — Jobs`
+- Severity: `P2`
+- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Evidence: after a verified successful PAUSE/RESUME/WAKE/CANCEL response, `JobsWorkspace._process_finished()` visibly rendered `<ACTION> transition for job <id> persisted · <STATE>.`, exposing lifecycle/storage implementation terms in the primary success status.
+- Product commit: `869821057ee1af071f72e37d9aa8d593e3ba52f6`
+- Focused regression commit: `a91f9ecf06531ec6dd3bcf6424076096aee0651a`
+- Acceptance: render `<ACTION> completed for job <id> · <STATE>.` while preserving receipt parsing, selected-state update, action availability, refresh scheduling and backend/storage/scheduler/worker semantics; focused Qt coverage forbids `transition` and `persisted` in the visible success status.
 
 ## Evidence blocker
 
