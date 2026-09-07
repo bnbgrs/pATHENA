@@ -8,17 +8,17 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 
 ## Current baseline
 
-- Baseline reviewed: `develop/pathena-next@f4c7ecfdca3313f0418895e6e495459e091586fe`.
-- Error branch mutation lineage remains on `postmerge/errors`; synchronization for this scan is history-preserving, two-parent and NON-FORCE.
-- Reviewed heads: Spec/Core `8bb8822a3423ac4fa1ab2873ecf052d16c390199`; Backend `8ddd3f12dbf3eb34332b8b54ef06eccc3e0d35b8`; UI `2f98ef242107421770ed4573bea06532e052727b`; Integrator/Develop `f4c7ecfdca3313f0418895e6e495459e091586fe`.
+- Baseline reviewed: `develop/pathena-next@ef2e991d33539bb267b6744e878ac2ad24cd7266`.
+- Error branch mutation lineage remains on `postmerge/errors`; no main mutation, force-push or history rewrite.
+- Reviewed heads: Spec/Core `65b66db6b41bbb0c37ca26437b80bd50ccff1810`; Backend `2feb8be5988793e84f7d7d1c36a99aa8f4cb220f`; UI `27051b50f6e1eebb969232d10459bcf83d77210c`; Integrator/Develop `ef2e991d33539bb267b6744e878ac2ad24cd7266`.
 - `spec-core.md`, `backend.md`, `ui.md`, and `integrator.md` were reviewed before this scan; exact worker branch heads and canonical Quality state were independently rechecked.
 
 ## Current state
 
 - FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015`, `ERR-0016`, `ERR-0017`, `ERR-0018`.
 - STALE: `ERR-0014`.
+- BLOCKED: `ERR-0019`.
 - OPEN: none.
-- BLOCKED: none.
 
 ## Historical verified entries
 
@@ -41,13 +41,26 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 - `ERR-0017` P1 FIXED — integrated Personal Memory service omitted `ModelInferredMemoryProposal`; corrected Quality `34030367660@54637682087b880622796ee0b618362f7ed802fe = success`; Error fixes `5ff326e39611a3aea5678e2151c300822ad593f9` + `281cedc6010617ce0aa60ea25ec497500225bb17`.
 - `ERR-0018` P2 FIXED — Personal Memory context Ruff I001; pinned Ruff fixer commit `61194be6eddf6fa7fe37c9c62690244a29414acd`; exact canonical success `34060875144@5714f3c7724cb82ccd75a7e852c668bfe78c6d5d`, later `34063688754@12e2e98d10c3fc11821ffa8f5edead80806da009 = success`.
 
-## Current scan evidence — 2026-09-07 09:09 CEST
+## ERR-0019 — Spec/Core canonical pytest failure
 
-- Spec/Core exact `8bb8822a3423ac4fa1ab2873ecf052d16c390199`: canonical Quality `34090530294 = success`. This exact head is canonical green; no Error-ledger objection.
-- Backend exact `8ddd3f12dbf3eb34332b8b54ef06eccc3e0d35b8`: canonical Quality `34091580477 = in_progress`; specification validator PASS, Ruff PASS, mypy PASS, Windows path safety PASS, Linux storage regressions PASS, Local install smoke PASS; full pytest remains in progress. No confirmed primary failure.
-- UI exact `2f98ef242107421770ed4573bea06532e052727b`: canonical Quality `34092357862 = in_progress`; specification validator PASS, Ruff PASS, mypy PASS, Windows path safety PASS, Linux storage regressions PASS, Local install smoke PASS; full pytest remains in progress. No confirmed primary failure.
-- Develop exact `f4c7ecfdca3313f0418895e6e495459e091586fe`: no exact pull-request-triggered canonical Quality run is currently associated with this SHA; no promotion-ready claim.
-- No new deduplicated primary failure was confirmed. `ERR-0004` and `ERR-0018` remain closed; no historical runtime signature is reopened absent exact-SHA reproduction.
+- Severity: P2.
+- Status: `BLOCKED` pending exact failing-test diagnostic extraction.
+- Evidence: canonical ATHENA Quality Gate `34095098802` on exact Spec/Core SHA `65b66db6b41bbb0c37ca26437b80bd50ccff1810` completed `failure`; Linux storage, Local install smoke, Windows path safety, specification validator, Ruff and mypy all PASS; `Quality — pytest` is the sole failing canonical step.
+- Triggering worker delta: commit `65b66db6b41bbb0c37ca26437b80bd50ccff1810` adds `test_current_instruction_outranks_conflicting_global_detail_preference` in `tests/unit/test_personal_memory_context_priority.py` and asserts the current-message-overrides-durable-preference policy without mutating durable memory.
+- Root cause: not yet finalized. The canonical diagnostics artifact exists (`canonical-quality-diagnostics-65b66db6b41bbb0c37ca26437b80bd50ccff1810`, artifact `10008929300`), but the available GitHub connector exposes artifact metadata while not exposing the contained pytest traceback/log payload; no speculative test/product fix is permitted without the exact assertion/traceback.
+- Files: `tests/unit/test_personal_memory_context_priority.py`; exact product root-cause file unknown until traceback is recovered.
+- Fix SHA: none.
+- Verification: no PASS/FIXED claim.
+- Risk: do not attribute this to Windows, Storage, Ruff, mypy or Validator; those canonical jobs are green on the same SHA.
+- Integrator handoff: hold Spec/Core `65b66db6b41bbb0c37ca26437b80bd50ccff1810`; retrieve exact pytest diagnostic from run `34095098802`/artifact `10008929300`, then either correct the harness if expectation drift is proven or product code if behavior violates the current-message precedence contract.
+
+## Current scan evidence — 2026-09-07 10:00 CEST
+
+- Spec/Core exact `65b66db6b41bbb0c37ca26437b80bd50ccff1810`: canonical Quality `34095098802 = failure`; sole canonical failing step is full pytest. `ERR-0019` allocated and blocked on traceback extraction rather than guessed.
+- Backend exact `2feb8be5988793e84f7d7d1c36a99aa8f4cb220f`: canonical Quality `34095824663 = in_progress`; no confirmed primary failure yet.
+- UI exact `27051b50f6e1eebb969232d10459bcf83d77210c`: canonical Quality `34097034775 = pending`; no jobs/diagnostic failure established yet.
+- Develop exact `ef2e991d33539bb267b6744e878ac2ad24cd7266`: no exact pull-request-triggered canonical Quality run is currently associated with this SHA; no promotion-ready claim.
+- `ERR-0004` remains FIXED and is not reopened; the current concrete signal is `ERR-0019`.
 
 ## Persistent Beta/release regression knowledge
 
