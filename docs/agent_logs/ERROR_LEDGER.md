@@ -8,9 +8,9 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 
 ## Current baseline
 
-- Baseline reviewed: `develop/pathena-next@9a7ae283ae8476c61f3a689e95bbc943a319939c`.
+- Baseline reviewed: `develop/pathena-next@87aa3cebb13abb7b65bfc9aa64edf77cf257dd01`.
 - Error branch mutation lineage remains on `postmerge/errors`; this scan synchronizes current Develop history non-force while preserving Error-only ledger/handoff files.
-- Reviewed heads: Spec/Core `b6cd1383caf7d60b17ff5a9141c0fef8cafafbe9`; Backend `92493b4ae9e59eed2ce05586f1268f1a557272ae`; UI `23c03d06b333ec2156665bfaa65b0de5219f5ccd`; Integrator/Develop `9a7ae283ae8476c61f3a689e95bbc943a319939c`.
+- Reviewed heads: Spec/Core `ad0647e5659572737831456a28312a530150720f`; Backend `3a5cdd8c95007a0fba909910d9505871b1631fcf`; UI `0a257caf023b5babc0394d77264e5173fc417bc1`; Integrator/Develop `87aa3cebb13abb7b65bfc9aa64edf77cf257dd01`.
 - `spec-core.md`, `backend.md`, `ui.md`, and `integrator.md` were reviewed before this scan.
 
 ## Current state
@@ -39,25 +39,14 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 - `ERR-0015` P2 FIXED — fake bounded-response harness fabricated overflow byte; Backend `34009044381 = success`; fix `5abee1fb3cf9aa639a2600796036302ef63a773d`.
 - `ERR-0016` P1 FIXED — local HTTP overflow poisoning regression; corrected Quality `34030367660@54637682087b880622796ee0b618362f7ed802fe = success`; fix `d721846ea9524ab18336ba72eeb082cca7ee0fb8`, regression `44bf215b999e727514fc10ddb88eb8379a5358b6`.
 - `ERR-0017` P1 FIXED — integrated Personal Memory service omitted `ModelInferredMemoryProposal`; corrected Quality `34030367660@54637682087b880622796ee0b618362f7ed802fe = success`; Error fixes `5ff326e39611a3aea5678e2151c300822ad593f9` + `281cedc6010617ce0aa60ea25ec497500225bb17`.
+- `ERR-0018` P2 FIXED — Personal Memory context Ruff I001; pinned Ruff fixer commit `61194be6eddf6fa7fe37c9c62690244a29414acd`; exact canonical success `34060875144@5714f3c7724cb82ccd75a7e852c668bfe78c6d5d`, later `34063688754@12e2e98d10c3fc11821ffa8f5edead80806da009 = success`.
 
-## ERR-0018 — Personal Memory context import block violates Ruff I001
+## Current scan evidence — 2026-09-07 05:05 CEST
 
-- first_seen: 2026-09-06; severity: P2; area: Spec/Core / Personal Memory / Quality formatting; status: `FIXED`.
-- failing evidence: `34044943935@4ebe23f510a0b36d8f87e027088de54a9809148a`, `34048268758@e8f7199f70c56a79403026926430ea56a5177bec`, `34051030897@b8858f986ec96e5973d47f8b74d2a120149a2037`, `34054516742@942d19f46a91af6672bb7639c1fca4cadf378ac7`, `34057610329@528ed7d3d7d80470a0fa78458ff2babd59bff20e`; each failed solely Ruff `I001 [*] Import block is un-sorted or un-formatted` at `src/athena/memory/context.py:3:1` while semantic/runtime gates were green.
-- corrective evidence: pinned repository Ruff fixer produced commit `61194be6eddf6fa7fe37c9c62690244a29414acd` (`Fix Personal Memory imports with pinned Ruff`). Its only product-file change removes one extra blank line between the `athena.memory.models` import and `PERSONAL_MEMORY_CONTEXT_LABEL`; it does not reorder imports or alter behavior. Cleanup head `5714f3c7724cb82ccd75a7e852c668bfe78c6d5d` removes the temporary one-shot fixer workflow and retains the fixer output.
-- root_cause: an extra blank line after the third-party/local import block made the complete import section non-canonical under repository-pinned Ruff `0.15.22`; prior manual ordering/wrapping hypotheses were false. No Personal Memory semantic/runtime defect is evidenced.
-- verification: canonical Quality `34060875144@5714f3c7724cb82ccd75a7e852c668bfe78c6d5d` completed `success`, including Windows path safety, Linux storage/API path-boundary, local install/Core-API restart, Validator, Ruff, mypy and full pytest. Later exact Spec/Core head `12e2e98d10c3fc11821ffa8f5edead80806da009` also completed canonical Quality `34063688754 = success`.
-- files: `src/athena/memory/context.py`; focused regression `tests/unit/test_personal_memory_context.py`.
-- fix_sha: `61194be6eddf6fa7fe37c9c62690244a29414acd`; first exact green candidate SHA: `5714f3c7724cb82ccd75a7e852c668bfe78c6d5d`.
-- risks: preserve `USER PREFERENCE`, active-only projection, duplicate/snapshot identity checks and fail-closed Protected Memory behavior. Temporary fixer workflow was removed; no permanent CI write path remains.
-- integrator_handoff: `ERR-0018` is closed. Do not re-edit import ordering/wrapping unless new exact contradictory Ruff evidence appears.
-
-## Current scan evidence — 2026-09-07 04:04 CEST
-
-- Spec/Core exact `b6cd1383caf7d60b17ff5a9141c0fef8cafafbe9`: canonical Quality `34072430561 = success`; no primary error signal.
-- Backend exact `92493b4ae9e59eed2ce05586f1268f1a557272ae`: canonical Quality `34073089618 = success`; no primary error signal. The Develop-compatible WAL diagnosis synchronization `315ec37fc43c1030cd431217545d4512b5623155` was also exact green via `34073074552` and has since been integrated into Develop.
-- UI exact `23c03d06b333ec2156665bfaa65b0de5219f5ccd`: canonical Quality `34073855547` remains `in_progress`; no confirmed primary failure at this scan. Prior UI exact `cf808b725fcd7ac6c302cf8a3f59c20e385f8f2c` is green via `34070554735`.
-- Develop exact `9a7ae283ae8476c61f3a689e95bbc943a319939c`: no exact completed canonical Quality run observed on this SHA; no promotion-ready claim.
+- Spec/Core exact `ad0647e5659572737831456a28312a530150720f`: canonical Quality `34075688329 = success`; no primary error signal.
+- Backend exact `3a5cdd8c95007a0fba909910d9505871b1631fcf`: canonical Quality `34076469382 = success`; no primary error signal.
+- UI exact `0a257caf023b5babc0394d77264e5173fc417bc1`: canonical Quality `34077293629 = in_progress`; no confirmed primary failure at this scan. Its integrated predecessor `23c03d06b333ec2156665bfaa65b0de5219f5ccd` is exact green via `34073855547` and UI-GAP-0052 is integrated into Develop.
+- Develop exact `87aa3cebb13abb7b65bfc9aa64edf77cf257dd01`: no exact completed canonical Quality run observed on this SHA; no promotion-ready claim.
 - No new deduplicated primary failure was confirmed. `ERR-0004` and `ERR-0018` remain closed; no historical runtime signature was reopened absent exact-SHA reproduction.
 
 ## Persistent Beta/release regression knowledge
