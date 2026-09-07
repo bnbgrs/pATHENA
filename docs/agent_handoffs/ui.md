@@ -2,39 +2,37 @@
 
 ## Current baseline
 
-- Base: `develop/pathena-next@30dd27c97e948e59994e8cfbe01b1c77ce6c917b`
+- Base: `develop/pathena-next@ed9dde599541dffe704a0810a9fa9debf1c8f74b`
 - Worker: `postmerge/ui`
-- Non-force synchronization commit: `afacb251a99d74df77f7781810cd48b7cfa9dc29`.
+- History-preserving NON-FORCE synchronization commit: `7e4639371f25a927f09fbb0b20f255df6b41ef43`.
 - Original eleven reference images: `VISUAL_REFERENCE_PENDING`; no pixel-level parity or `MATCH` claim is made.
 
 ## Verified handoff
 
-- `UI-GAP-0067` is `FIXED_INTEGRATOR_READY`.
-- Product commit: `6543d82199f8f5360cc205f6303dc133f9468dd7`.
-- Focused regression: `f823fe99c9c7ce78b3d0d70aaf257966ae692364`.
-- Exact worker head `fd0780d23b081fddb8a236971c74f4cb3c565899` passed ATHENA Quality Gate `34148642145` with conclusion `success`.
-- Current Develop was synchronized into the UI worker with a history-preserving two-parent merge `afacb251a99d74df77f7781810cd48b7cfa9dc29`; Develop's UI-GAP-0066 integration handoff and the UI worker's verified UI-GAP-0067 lineage were both preserved.
+- `UI-GAP-0068` is `FIXED_INTEGRATOR_READY`.
+- Product commit: `998e28ccd9b3c4739e658c2efe55ba164f2bc98b`.
+- Focused regression: `849b72a882f8d07a5678bc0e4770b55229c18723`.
+- Exact worker head `81cf9ceffb1885943d82b80ab50f00eb3454eb9f` passed ATHENA Quality Gate `34152552680` with conclusion `success`.
+- Parser binding, exact job/operation matching, known-state validation and fail-closed behavior are unchanged.
 
 ## Active UI slice
 
-### UI-GAP-0068 — Jobs receipt validation errors expose implementation-domain language
+### UI-GAP-0069 — Jobs verification-failure surface still exposes receipt jargon
 
 Status: `IMPLEMENTED_PENDING_VERIFY`, P2.
 
-Evidence: `parse_transition_receipt()` validation failures are surfaced by `JobsWorkspace` in the visible status tooltip and details failure state. Unsupported operation, malformed response and unknown-state branches still used `durable`, `lifecycle` and `receipt` terms that describe implementation mechanics rather than the user's job action.
+Evidence: after UI-GAP-0068 humanized the parser exceptions, `JobsWorkspace._process_finished()` still visibly rendered `receipt for job ... could not be verified` and `TRANSITION RECEIPT UNAVAILABLE` when a job action response failed verification.
 
-Implementation: `998e28ccd9b3c4739e658c2efe55ba164f2bc98b` changes only those exception messages to human-facing job-action response language. Receipt binding, exact job/operation matching, state validation, fail-closed behavior and all scheduler/worker/storage/backend semantics remain unchanged.
+Implementation/regression commit: `9ea12288a2e0363787c64fb8ded9a5302a4a52bd` changes only the visible failure copy to `response for job ... could not be verified` and `JOB ACTION RESPONSE UNAVAILABLE`, while preserving raw command output for diagnosis. The focused Qt regression asserts the exact user-facing status/details copy, retained raw output, fail-closed state preservation, and absence of `receipt` in the rendered failure surface.
 
-Focused regression: `849b72a882f8d07a5678bc0e4770b55229c18723` keeps the existing exact-job/operation contract and adds invalid-response, unknown-state and unsupported-action assertions requiring user-facing wording without `durable`, `lifecycle` or `receipt` jargon.
-
-No lifecycle transition, receipt parsing semantics, persisted state, backend, storage, scheduler, worker, provider, transport, security or cancellation behavior changed.
+No parser semantics, lifecycle transition, persisted state, backend, storage, scheduler, worker, provider, transport, security or cancellation behavior changed.
 
 ## Coordination
 
 - Core: current `spec-core.md` reviewed; no UI-authored Core semantics changed.
 - Backend: current `backend.md` reviewed; no UI-authored backend/storage/scheduler/worker/provider/transport semantics changed.
-- Errors: current `errors.md` reviewed; no retained Windows crash signature was reopened without exact-SHA reproduction.
-- Integrator: UI-GAP-0067 may be integrated from exact worker head `fd0780d23b081fddb8a236971c74f4cb3c565899` backed by Quality `34148642145 = success`. Do not integrate UI-GAP-0068 until canonical Quality succeeds on an exact worker head carrying unchanged product `998e28ccd9b3c4739e658c2efe55ba164f2bc98b` and regression `849b72a882f8d07a5678bc0e4770b55229c18723`.
+- Errors: current `errors.md` reviewed; OPEN/IN_PROGRESS/BLOCKED are none and no historical Windows crash signature was reopened without exact-SHA reproduction.
+- Integrator: `UI-GAP-0068` may be integrated from exact worker head `81cf9ceffb1885943d82b80ab50f00eb3454eb9f` backed by Quality `34152552680 = success`. Do not integrate `UI-GAP-0069` until canonical Quality succeeds on an exact worker head carrying unchanged commit `9ea12288a2e0363787c64fb8ded9a5302a4a52bd`.
 
 ## Visual evidence
 
