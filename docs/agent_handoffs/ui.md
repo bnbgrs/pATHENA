@@ -2,39 +2,39 @@
 
 ## Current baseline
 
-- Base: `develop/pathena-next@591da5b99d2d8a7d24ba2c2cf866151bf362f4fb`
+- Base: `develop/pathena-next@b6c5c6181a5327d4ee436be518f4eebfacaf82bb`
 - Worker: `postmerge/ui`
-- Non-force synchronization commit: `527bc0010b8cbce1c2f381e01d30cb310754f4b4`
+- Non-force synchronization commit: `2b0c8afa2848ea405842193d8463e01bbb45410b`
 - Original eleven reference images: `VISUAL_REFERENCE_PENDING`; no pixel-level parity or `MATCH` claim is made.
 
 ## Verified handoff
 
-- `UI-GAP-0064` is `FIXED_INTEGRATOR_READY`.
-- Product commit: `717aee14e7a357bf1022dda5c4e5d9ac006ef0f8`.
-- Focused regression: `d294b7a0e96464d5700c00af3565895a526622f1`.
-- Exact worker head `b4297ae1e54e2bbf8b2f8d673018077590b029c8` passed ATHENA Quality Gate `34134425435` with conclusion `success`.
-- Current Develop, which already integrates UI-GAP-0063, was synchronized into the UI worker with a history-preserving two-parent merge; the UI-GAP-0064 product/test superset was preserved unchanged.
+- `UI-GAP-0065` is `FIXED_INTEGRATOR_READY`.
+- Product commit: `0ac91c9f471bb14aa6094f78d017cd59d529d868`.
+- Focused regression: `25f8c53cfef2f9524ec3ce2b696809bc1159893c`.
+- Exact worker head `89cea7ecfaeb75a694a0682ff39feb5172ffbcfa` passed ATHENA Quality Gate `34139713588` with conclusion `success`.
+- Current Develop was synchronized into the UI worker with a history-preserving two-parent merge; Develop's WAL runtime/integrator changes and the verified UI product/test lineage were both preserved.
 
 ## Active UI slice
 
-### UI-GAP-0065 — Empty Jobs action help exposes storage-domain terminology
+### UI-GAP-0066 — Unknown Jobs state leaves a visible destructive action fail-open
 
-Status: `IMPLEMENTED_PENDING_VERIFY`, P2.
+Status: `IMPLEMENTED_PENDING_VERIFY`, P1.
 
-Evidence: the no-selection branch of `JobActionAvailability.reason()` visibly said `Select a durable job first.`, exposing persistence-oriented terminology that is not needed to guide the user.
+Evidence: `action_availability()` treated any non-terminal state other than `cancel_requested` as cancellable. An unrecognized persisted/future state could therefore enable the visible `CANCEL` control despite having no established UI transition contract.
 
-Implementation: `0ac91c9f471bb14aa6094f78d017cd59d529d868` changes only that visible copy to `Select a job first.`.
+Implementation: `83c57b7898515085c7ba4f9441029165c3123890` gates every visible lifecycle action on membership in the existing `_KNOWN_STATES` contract and returns neutral help for unknown states.
 
-Focused regression: `25f8c53cfef2f9524ec3ce2b696809bc1159893c` verifies the same copy for pause/resume/wake/cancel with no selected job and explicitly rejects `durable` in that user-facing branch.
+Focused regression: `96891f1d68ee9e0242c41aa4b846fea39094ec54` proves pause/resume/wake/cancel all fail closed for an unknown state while known-state action availability remains covered by the existing matrix.
 
-No action availability, state normalization, transition receipt, backend, storage, scheduler, worker, provider, transport, security or cancellation semantics changed.
+No transition receipt, persisted state, backend, storage, scheduler, worker, provider, transport, security or cancellation semantics changed.
 
 ## Coordination
 
 - Core: no UI-authored core semantics changed.
-- Backend: no UI-authored backend/storage/scheduler/worker/provider/transport semantics changed.
+- Backend: no UI-authored backend/storage/scheduler/worker/provider/transport semantics changed; current Develop WAL runtime composition was preserved during synchronization.
 - Errors: no retained Windows crash signature was reopened without exact-SHA reproduction.
-- Integrator: UI-GAP-0064 may be integrated from exact worker head `b4297ae1e54e2bbf8b2f8d673018077590b029c8` backed by Quality `34134425435 = success`. Do not integrate UI-GAP-0065 until canonical Quality succeeds on an exact worker head containing unchanged product `0ac91c9f471bb14aa6094f78d017cd59d529d868` and regression `25f8c53cfef2f9524ec3ce2b696809bc1159893c`.
+- Integrator: UI-GAP-0065 may be integrated from exact worker head `89cea7ecfaeb75a694a0682ff39feb5172ffbcfa` backed by Quality `34139713588 = success`. Do not integrate UI-GAP-0066 until canonical Quality succeeds on an exact worker head carrying unchanged product `83c57b7898515085c7ba4f9441029165c3123890` and regression `96891f1d68ee9e0242c41aa4b846fea39094ec54`.
 
 ## Visual evidence
 
