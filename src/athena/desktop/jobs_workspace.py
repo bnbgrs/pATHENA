@@ -276,7 +276,9 @@ class JobsWorkspace(QWidget):
             ("cancel", self.cancel_button),
         ):
             button.setEnabled(bool(getattr(availability, action)))
-            button.setToolTip(availability.reason(action))
+            reason = availability.reason(action)
+            button.setToolTip(reason)
+            button.setAccessibleDescription(reason)
 
     def _operation_owns_details(self) -> bool:
         return self._operation_job_id == self._selected_job_id
