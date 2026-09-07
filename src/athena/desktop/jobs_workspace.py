@@ -153,7 +153,7 @@ class JobsWorkspace(QWidget):
     def refresh(self) -> None:
         if self._busy():
             return
-        self._start("list", ["list", "--limit", "150"], "Refreshing durable jobs")
+        self._start("list", ["list", "--limit", "150"], "Refreshing jobs")
 
     def pause_selected(self) -> None:
         self._transition("pause", "Pausing selected job")
@@ -165,7 +165,7 @@ class JobsWorkspace(QWidget):
         self._transition("wake", "Waking selected job")
 
     def cancel_selected(self) -> None:
-        self._transition("cancel", "Persisting cancellation request")
+        self._transition("cancel", "Requesting cancellation")
 
     def _transition(self, operation: str, label: str) -> None:
         job_id = self._selected_job_id
@@ -210,7 +210,7 @@ class JobsWorkspace(QWidget):
             self._start(
                 "show",
                 ["show", selected_job_id],
-                "Loading durable job details",
+                "Loading job details",
                 job_id=selected_job_id,
             )
 
@@ -320,12 +320,12 @@ class JobsWorkspace(QWidget):
 
         if operation == "list":
             self._render_job_list(output)
-            self.status.setText(f"Durable jobs refreshed: {self.jobs.count()} shown.")
+            self.status.setText(f"Jobs refreshed: {self.jobs.count()} shown.")
             set_pathena_ui_state(self.status, "success")
             return
 
         if operation == "show":
-            self.status.setText(f"Durable job {job_label} details loaded.")
+            self.status.setText(f"Job {job_label} details loaded.")
             set_pathena_ui_state(self.status, "success")
             if owns_details:
                 set_pathena_ui_state(self.details, "success")
