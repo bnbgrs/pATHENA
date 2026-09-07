@@ -14,7 +14,12 @@ from athena.storage.wal_maintenance import (
 def _finite_nonnegative_number(value: object, label: str) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise WalMaintenanceError(f"{label} must be a finite non-negative number.")
-    normalized = float(value)
+    try:
+        normalized = float(value)
+    except OverflowError as exc:
+        raise WalMaintenanceError(
+            f"{label} must be a finite non-negative number."
+        ) from exc
     if not math.isfinite(normalized) or normalized < 0:
         raise WalMaintenanceError(f"{label} must be a finite non-negative number.")
     return normalized
