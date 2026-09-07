@@ -8,9 +8,9 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 
 ## Current baseline
 
-- Baseline reviewed: `develop/pathena-next@af170f7307c2da454ab168a1993af3125868698a`.
-- Error branch mutation lineage remains on `postmerge/errors`; current Develop history was synchronized history-preservingly and NON-FORCE through two-parent merge commit `38a7ef250b1cc672c64e52eb33d2e79bb28f5d06`.
-- Reviewed heads: Spec/Core `35e5f46df9c81a918b274ea5e29f7a265b6f1791`; Backend `f87efc903ffa3991ca3ab8bfd0eb4f811915b326`; UI `ae25b56b4499ae68f5bdd9121e4f4c41e9cff0fe`; Integrator/Develop `af170f7307c2da454ab168a1993af3125868698a`.
+- Baseline reviewed: `develop/pathena-next@7b9cc9ea78733e6df7f3cb0aa542064bbc8c934a`.
+- Error branch mutation lineage remains on `postmerge/errors`; current Develop history was synchronized history-preservingly and NON-FORCE through two-parent merge commit `9652c64cc91979193157056a2ca8131a7ac37a54`.
+- Reviewed heads: Spec/Core `7b575db376b94a0bf86a5491ef787e77891435cc`; Backend `a664ba7aba35c1865046b2db286a4ca883017d9c`; UI `4e20612024bc5ffe0289b5c8ecd541ea25b8b10b`; Integrator/Develop `7b9cc9ea78733e6df7f3cb0aa542064bbc8c934a`.
 - `spec-core.md`, `backend.md`, `ui.md`, and `integrator.md` were reviewed before this scan; worker branch heads and exact Quality state were independently rechecked.
 
 ## Current state
@@ -41,13 +41,12 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 - `ERR-0017` P1 FIXED — integrated Personal Memory service omitted `ModelInferredMemoryProposal`; corrected Quality `34030367660@54637682087b880622796ee0b618362f7ed802fe = success`; Error fixes `5ff326e39611a3aea5678e2151c300822ad593f9` + `281cedc6010617ce0aa60ea25ec497500225bb17`.
 - `ERR-0018` P2 FIXED — Personal Memory context Ruff I001; pinned Ruff fixer commit `61194be6eddf6fa7fe37c9c62690244a29414acd`; exact canonical success `34060875144@5714f3c7724cb82ccd75a7e852c668bfe78c6d5d`, later `34063688754@12e2e98d10c3fc11821ffa8f5edead80806da009 = success`.
 
-## Current scan evidence — 2026-09-07 07:00 CEST
+## Current scan evidence — 2026-09-07 08:00 CEST
 
-- Previous UI exact `7d5b99d4715352843b800253f67f50b56095aec2`: canonical Quality `34080765557 = success`; prior pending state is consumed and no Error-ledger defect was emitted.
-- Spec/Core exact `35e5f46df9c81a918b274ea5e29f7a265b6f1791`: canonical Quality `34082461753 = success`; no confirmed primary failure.
-- Backend exact `f87efc903ffa3991ca3ab8bfd0eb4f811915b326`: canonical Quality `34083238597 = in_progress`; no confirmed primary failure at this scan.
-- UI exact `ae25b56b4499ae68f5bdd9121e4f4c41e9cff0fe`: canonical Quality `34084045555 = in_progress`; no confirmed primary failure at this scan.
-- Develop exact `af170f7307c2da454ab168a1993af3125868698a`: no exact completed canonical Quality run was observed for this SHA; no promotion-ready claim.
+- Spec/Core exact `7b575db376b94a0bf86a5491ef787e77891435cc`: canonical Quality `34086427191 = in_progress`; specification validator PASS, Ruff PASS, mypy PASS, Windows path safety PASS, Linux storage regressions PASS, Local install smoke PASS; full pytest is still running. No confirmed primary failure.
+- Backend exact `a664ba7aba35c1865046b2db286a4ca883017d9c`: canonical Quality `34086812930 = in_progress`; specification validator PASS, Ruff PASS, mypy PASS, Windows path safety PASS, Linux storage regressions PASS, Local install smoke PASS; full pytest is still running. No confirmed primary failure.
+- UI exact `4e20612024bc5ffe0289b5c8ecd541ea25b8b10b`: canonical Quality `34088121637 = in_progress`; specification validator PASS, Ruff PASS, Linux storage regressions PASS, Local install smoke PASS; mypy and Windows path safety are still running and pytest has not yet completed. No confirmed primary failure.
+- Develop exact `7b9cc9ea78733e6df7f3cb0aa542064bbc8c934a`: no exact pull-request-triggered canonical Quality run was observed for this SHA; no promotion-ready claim.
 - No new deduplicated primary failure was confirmed. `ERR-0004` and `ERR-0018` remain closed; no historical runtime signature was reopened absent exact-SHA reproduction.
 
 ## Persistent Beta/release regression knowledge
