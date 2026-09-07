@@ -3,47 +3,46 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `aed6afdfa23f1ef3d90abe05cbecd790727ed016`.
+- Develop before this run: `1bbbc693db781f1d56a7c75151fe9951a21363cc`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `875307fdbc3fcaa997d5e83d56f81ef778154c6a`; spec-core `c7cd4d9b1e0889a00b4599dfe76738442378b17b`; backend `cdb83418e98007c2fd041bba93793691516c65b0`; UI `70f8867a2645cd2795853745f54844efe8c70d0c`.
+- Worker heads reviewed: errors `9d761fa1e1c70a0c44f3158924fd358e6167a55d`; spec-core `6b164470eae5352e6d5c0a84ac32a8f80ac002bc`; backend `936843b32b42b25d818eda39d128180844b9e14a`; UI `8454d633810283e47d0b9bb9b93321536440cb45`.
 - `main` and `bnbgrs/ATHENA` were untouched; no force update, rebase, history rewrite or auto-merge was used.
 
-## Integrated this run — WAL scheduler control-lane adapter
+## Integrated this run — UI-GAP-0060 contextual evidence accessibility
 
-Backend source head `607319fa41abdea0e468523f2c653e1fd84cfc82` passed exact canonical ATHENA Quality Gate `34106290925 = success`. The Develop-compatible application `f5572368b9ad3aae7e0b8113227b8414fbefe34a` is ahead-only from the pre-run Develop baseline and differs in exactly two files:
+UI-GAP-0060 was independently reviewed from product commit `0565720d2d3b3349e6fc8556083dc035fa8c389f` and focused regression `70f8867a2645cd2795853745f54844efe8c70d0c`. Exact worker head `70f8867a2645cd2795853745f54844efe8c70d0c` passed canonical ATHENA Quality Gate `34113040437 = success`.
 
-- `src/athena/storage/wal_scheduler.py`
-- `tests/unit/test_wal_scheduler_adapter.py`
+The bounded product change mirrors the existing truthful `contextToggle` tooltip into `accessibleDescription`. The focused regression verifies exact tooltip/accessibility equivalence and requires the evidence-context wording. No inspector visibility, grounding/provenance behavior, model/chat routing, persistence, Core, Backend, Storage, Security, Worker/Scheduler, packaging or Windows runtime semantics were changed.
 
-Develop was advanced NON-FORCE to `f5572368b9ad3aae7e0b8113227b8414fbefe34a`.
-
-`WalMaintenanceSchedulerAdapter` bridges an existing scheduler lane to the already integrated `WalMaintenanceIntervalRunner`. Provider-only lanes are no-ops. Control-housekeeping ownership must be a real boolean. The adapter creates no scheduler, thread, timer, retry loop or TRUNCATE path.
+Develop carries the semantic transplant as product commit `ade06e96822e7ca1d66521d239255a46d065fe4f` and focused-test commit `a6a66dda6192df9943bd1cb2f886fa694bb3bfeb`.
 
 ## Verification state
 
-- Source worker exact Quality: `34106290925 = success` on `607319fa41abdea0e468523f2c653e1fd84cfc82`.
-- Develop-compatible application exact Quality: `34111813546 = success` on `f5572368b9ad3aae7e0b8113227b8414fbefe34a`.
-- Independent compare `aed6afdfa... -> f5572368...`: exactly two added files, no Core/UI/Error/Integrator product overwrite.
-- Automatic WAL maintenance remains PASSIVE-only; TRUNCATE remains explicit idle-confirmed only; WAL identity/no-follow safeguards are unchanged.
+- Exact worker Quality: `34113040437 = success` on `70f8867a2645cd2795853745f54844efe8c70d0c`.
+- Independent source diff: one production file and one focused test file only.
+- Existing Develop startup accessibility, ready/disconnected copy and responsive empty-state tests were preserved in the target test file.
+- Exact-current-Develop canonical Quality is not claimed until a workflow run exists for the post-integration head.
 
 ## Current readiness/error state
 
-- `ERR-0019` remains active on Spec/Core residual pytest evidence; Spec/Core current lineage remains held.
-- Current Backend head `cdb83418e...` is a later documentation/current-lineage follow-up and was not imported.
-- Current UI head `70f8867a...` has exact Quality pending; no current UI slice is integrated in this run.
+- Error worker head `9d761fa1e1c70a0c44f3158924fd358e6167a55d` reports verified ERR-0019 closure/synchronization; no speculative Core fix was taken here.
+- Spec/Core head `6b164470eae5352e6d5c0a84ac32a8f80ac002bc` is a verified search/memory-precedence handoff but was not consumed because this run integrated exactly one bounded slice.
+- Backend head `936843b32b42b25d818eda39d128180844b9e14a` is a WAL runtime-composition-root handoff and was not consumed.
+- UI-GAP-0061 remains `IMPLEMENTED_PENDING_VERIFY` and was explicitly excluded.
 - No retained Windows/runtime crash class is reopened absent exact-current reproduction.
 
 ## UI / Alpha-Beta state
 
 - Eleven-screen implementation remains implemented pending original visual review; no screenshot-level `MATCH` claim is made.
+- UI-GAP-0060 is integrated with exact-green worker evidence.
 - No percentage progress is inferred.
-- The WAL scheduler control-lane adapter is integrated and exact-green on the Develop-compatible product/test head.
 
 ## Next integration order
 
-1. Independently review exactly one compatible exact-green Core/Backend/UI successor.
-2. Hold Spec/Core mutation until `ERR-0019` exact residual pytest evidence is resolved.
-3. Preserve Beta/release runtime regression coverage before any Windows candidate or promotion claim.
+1. Obtain exact-current-Develop canonical Quality or a product-identical exact-green successor.
+2. Independently review exactly one compatible exact-green successor from Core/Backend/UI.
+3. Keep UI-GAP-0061 excluded until exact canonical Quality succeeds on a descendant carrying its unchanged product/test commits.
+4. Preserve Beta/release runtime regression coverage before any Windows candidate or promotion claim.
 
 ## Persistent release guards
 
