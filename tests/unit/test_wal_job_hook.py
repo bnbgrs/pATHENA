@@ -5,9 +5,15 @@ from typing import cast
 
 import pytest
 
-from athena.jobs.scheduler import DurableJobScheduler, SchedulerLane, SchedulerTickResult
+from athena.jobs.scheduler import (
+    DurableJobScheduler,
+    SchedulerLane,
+    SchedulerPolicy,
+    SchedulerTickResult,
+)
 from athena.storage.database import SQLiteDatabase
 from athena.storage.wal_job_hook import (
+    WalAwareDurableJobScheduler,
     WalJobSchedulerHook,
     build_wal_job_scheduler_hook,
     run_scheduler_tick_with_wal_housekeeping,
@@ -48,7 +54,7 @@ class _StubDurableScheduler:
         return self.result
 
 
-def _hook(tmp_path):
+def _hook(tmp_path: Path) -> tuple[WalJobSchedulerHook, _StubOrchestrator]:
     status = WalRuntimeStatus(
         wal_path=(tmp_path / "athena.db-wal").resolve(),
         present=False,
@@ -81,7 +87,20 @@ def _database(tmp_path: Path) -> SQLiteDatabase:
     return SQLiteDatabase((tmp_path / "athena.db").resolve())
 
 
-def test_provider_lane_remains_wal_side_effect_free(tmp_path) -> None:
+def _idle_tick_result() -> SchedulerTickResult:
+    return SchedulerTickResult(
+        recovered_jobs=0,
+        scheduled_retries=0,
+        woken_jobs=0,
+        selected_job_id=None,
+        selected_job_type=None,
+        action="idle",
+        final_state=None,
+        fencing_sequence=None,
+    )
+
+
+def test_provider_lane_remains_wal_side_effect_free(tmp_path: Path) -> None:
     hook, orchestrator = _hook(tmp_path)
 
     result = hook.run_for_lane(
@@ -95,7 +114,10 @@ def test_provider_lane_remains_wal_side_effect_free(tmp_path) -> None:
 
 
 @pytest.mark.parametrize("lane", [SchedulerLane.ALL, SchedulerLane.CONTROL])
-def test_control_owning_lanes_delegate_to_interval_gate(tmp_path, lane: SchedulerLane) -> None:
+def test_control_owning_lanes_delegate_to_interval_gate(
+    tmp_path: Path,
+    lane: SchedulerLane,
+) -> None:
     hook, orchestrator = _hook(tmp_path)
 
     result = hook.run_for_lane(lane=lane, now_monotonic=10.0)
@@ -105,7 +127,7 @@ def test_control_owning_lanes_delegate_to_interval_gate(tmp_path, lane: Schedule
     assert hook.scheduler.runner.next_due_monotonic == 70.0
 
 
-def test_invalid_lane_fails_before_wal_side_effect(tmp_path) -> None:
+def test_invalid_lane_fails_before_wal_side_effect(tmp_path: Path) -> None:
     hook, orchestrator = _hook(tmp_path)
 
     with pytest.raises(ValueError):
@@ -118,7 +140,7 @@ def test_invalid_lane_fails_before_wal_side_effect(tmp_path) -> None:
     assert hook.scheduler.runner.next_due_monotonic is None
 
 
-def test_nonfinite_monotonic_fails_before_wal_cycle(tmp_path) -> None:
+def test_nonfinite_monotonic_fails_before_wal_cycle(tmp_path: Path) -> None:
     hook, orchestrator = _hook(tmp_path)
 
     with pytest.raises(WalMaintenanceError):
@@ -237,3 +259,111 @@ def test_scheduler_tick_boundary_rejects_invalid_lane_before_scheduler_or_wal(
 
     assert orchestrator.calls == 0
     assert scheduler_impl.calls == []
+
+
+def test_scheduler_tick_boundary_rejects_blank_worker_before_wal(
+    tmp_path: Path,
+) -> None:
+    hook, orchestrator = _hook(tmp_path)
+    scheduler_impl = _StubDurableScheduler()
+    scheduler = cast(DurableJobScheduler, scheduler_impl)
+
+    with pytest.raises(ValueError, match="worker_id must not be empty"):
+        run_scheduler_tick_with_wal_housekeeping(
+            scheduler,
+            hook,
+            worker_id="   ",
+            lane=SchedulerLane.CONTROL,
+            now_us=789,
+            now_monotonic=10.0,
+        )
+
+    assert orchestrator.calls == 0
+    assert scheduler_impl.calls == []
+
+
+def test_wal_aware_scheduler_inherits_existing_run_loop_and_ticks_through_wal(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    hook, orchestrator = _hook(tmp_path)
+    scheduler = object.__new__(WalAwareDurableJobScheduler)
+    scheduler.policy = SchedulerPolicy(idle_poll_seconds=0.001)
+    scheduler.bind_wal_housekeeping(hook)
+    durable_calls: list[tuple[str, int | None, SchedulerLane]] = []
+
+    def durable_tick(
+        _self: DurableJobScheduler,
+        *,
+        worker_id: str,
+        now_us: int | None = None,
+        lane: SchedulerLane = SchedulerLane.ALL,
+    ) -> SchedulerTickResult:
+        durable_calls.append((worker_id, now_us, lane))
+        return _idle_tick_result()
+
+    monkeypatch.setattr(DurableJobScheduler, "tick", durable_tick)
+
+    result = scheduler.run_loop(
+        worker_id="control-loop",
+        max_ticks=1,
+        lane=SchedulerLane.CONTROL,
+    )
+
+    assert WalAwareDurableJobScheduler.run_loop is DurableJobScheduler.run_loop
+    assert result.ticks == 1
+    assert result.idle is True
+    assert orchestrator.calls == 1
+    assert durable_calls == [("control-loop", None, SchedulerLane.CONTROL)]
+
+
+def test_wal_aware_scheduler_provider_loop_remains_wal_side_effect_free(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    hook, orchestrator = _hook(tmp_path)
+    scheduler = object.__new__(WalAwareDurableJobScheduler)
+    scheduler.policy = SchedulerPolicy(idle_poll_seconds=0.001)
+    scheduler.bind_wal_housekeeping(hook)
+
+    monkeypatch.setattr(
+        DurableJobScheduler,
+        "tick",
+        lambda _self, *, worker_id, now_us=None, lane=SchedulerLane.ALL: _idle_tick_result(),
+    )
+
+    result = scheduler.run_loop(
+        worker_id="provider-loop",
+        max_ticks=1,
+        lane=SchedulerLane.PROVIDER,
+    )
+
+    assert result.ticks == 1
+    assert result.idle is True
+    assert orchestrator.calls == 0
+
+
+def test_wal_aware_scheduler_requires_binding_before_durable_tick(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    scheduler = object.__new__(WalAwareDurableJobScheduler)
+    durable_calls = 0
+
+    def durable_tick(
+        _self: DurableJobScheduler,
+        *,
+        worker_id: str,
+        now_us: int | None = None,
+        lane: SchedulerLane = SchedulerLane.ALL,
+    ) -> SchedulerTickResult:
+        nonlocal durable_calls
+        del worker_id, now_us, lane
+        durable_calls += 1
+        return _idle_tick_result()
+
+    monkeypatch.setattr(DurableJobScheduler, "tick", durable_tick)
+
+    with pytest.raises(RuntimeError, match="requires housekeeping binding"):
+        scheduler.tick(worker_id="control", lane=SchedulerLane.CONTROL)
+
+    assert durable_calls == 0

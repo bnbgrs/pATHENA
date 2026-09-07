@@ -79,13 +79,58 @@ def run_scheduler_tick_with_wal_housekeeping(
     maintenance failure aborts before durable job selection/dispatch, so the two
     control-plane effects cannot silently diverge.
     """
+    normalized_worker_id = worker_id.strip()
+    if not normalized_worker_id:
+        raise ValueError("Scheduler worker_id must not be empty.")
     normalized_lane = SchedulerLane(lane)
     hook.run_for_lane(
         lane=normalized_lane,
         now_monotonic=now_monotonic,
     )
     return scheduler.tick(
-        worker_id=worker_id,
+        worker_id=normalized_worker_id,
         now_us=now_us,
         lane=normalized_lane,
     )
+
+
+class WalAwareDurableJobScheduler(DurableJobScheduler):
+    """Use the existing durable scheduler loop with bounded WAL housekeeping.
+
+    This class intentionally inherits ``drain`` and ``run_loop`` unchanged. Their
+    existing ``self.tick(...)`` dispatch reaches this override, so WAL maintenance
+    is attached without introducing a second loop, timer, thread, or retry path.
+    A hook must be explicitly bound before the first tick.
+    """
+
+    _wal_housekeeping_hook: WalJobSchedulerHook | None = None
+
+    def bind_wal_housekeeping(self, hook: WalJobSchedulerHook) -> None:
+        """Bind the already-composed WAL hook without performing I/O."""
+        if not isinstance(hook, WalJobSchedulerHook):
+            raise TypeError("WAL-aware scheduler requires WalJobSchedulerHook.")
+        self._wal_housekeeping_hook = hook
+
+    def tick(
+        self,
+        *,
+        worker_id: str,
+        now_us: int | None = None,
+        lane: SchedulerLane = SchedulerLane.ALL,
+    ) -> SchedulerTickResult:
+        """Run bounded WAL housekeeping, then the canonical durable scheduler tick."""
+        normalized_worker_id = worker_id.strip()
+        if not normalized_worker_id:
+            raise ValueError("Scheduler worker_id must not be empty.")
+        normalized_lane = SchedulerLane(lane)
+        hook = self._wal_housekeeping_hook
+        if hook is None:
+            raise RuntimeError(
+                "WAL-aware scheduler requires housekeeping binding before tick."
+            )
+        hook.run_for_lane(lane=normalized_lane)
+        return super().tick(
+            worker_id=normalized_worker_id,
+            now_us=now_us,
+            lane=normalized_lane,
+        )
