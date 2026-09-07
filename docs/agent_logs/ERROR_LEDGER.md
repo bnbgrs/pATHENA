@@ -8,11 +8,11 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 
 ## Current baseline
 
-- Baseline reviewed: `develop/pathena-next@30dd27c97e948e59994e8cfbe01b1c77ce6c917b`.
+- Baseline reviewed: `develop/pathena-next@ed9dde599541dffe704a0810a9fa9debf1c8f74b`.
 - Error branch mutation lineage remains `postmerge/errors` only.
-- Previous Error head: `3e726c52fa9a509c6b5d88789272cff43d9bfc81`.
-- History-preserving NON-FORCE synchronization merge: `1dc57faec1206889066b8a9bfb91ffc64a91bfb5`, parents `3e726c52fa9a509c6b5d88789272cff43d9bfc81` and `30dd27c97e948e59994e8cfbe01b1c77ce6c917b`.
-- Reviewed worker heads: Spec/Core `c6b4fdba485a1de249a93e99883fca4085b9fc48`; Backend `a4696e2647c485465a82764b081562a5b34c6b08`; UI `fd0780d23b081fddb8a236971c74f4cb3c565899`; Integrator/Develop `30dd27c97e948e59994e8cfbe01b1c77ce6c917b`.
+- Previous Error head: `68ef04e969422829809c030c450cf321c5c74d50`.
+- History-preserving NON-FORCE synchronization merge: `3d5568a268d4f4ee4c3cfec780b544543a3de60e`, parents `68ef04e969422829809c030c450cf321c5c74d50` and `ed9dde599541dffe704a0810a9fa9debf1c8f74b`.
+- Reviewed worker heads: Spec/Core `c6b4fdba485a1de249a93e99883fca4085b9fc48`; Backend `a3765f1e55420ebb193d37228919aa9032760cd0`; UI `81cf9ceffb1885943d82b80ab50f00eb3454eb9f`; Integrator/Develop `ed9dde599541dffe704a0810a9fa9debf1c8f74b`.
 - Required `spec-core.md`, `backend.md`, `ui.md`, `integrator.md`, relevant worker branch heads and current canonical workflow state were reviewed before mutation.
 
 ## Current state
@@ -45,16 +45,15 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 - `ERR-0018` P2 FIXED — Personal Memory context Ruff I001; Ruff fixer `61194be6eddf6fa7fe37c9c62690244a29414acd`; exact canonical success `34060875144@5714f3c7724cb82ccd75a7e852c668bfe78c6d5d`, later `34063688754@12e2e98d10c3fc11821ffa8f5edead80806da009 = success`.
 - `ERR-0019` P2 FIXED — Personal Memory precedence harness drift across canonical serializer key, repository read API and persisted revision identity; complete fix `c7cd4d9b1e0889a00b4599dfe76738442378b17b`; exact canonical Quality `34110957854 = success` with Windows path safety, Linux storage, local install, Validator, Ruff, mypy and full pytest PASS.
 
-## Current scan evidence — 2026-09-07 20:03 CEST
+## Current scan evidence — 2026-09-07 21:01 CEST
 
-- Spec/Core head `c6b4fdba485a1de249a93e99883fca4085b9fc48`: prior exact canonical Quality `34127196867 = success`; no current error signal.
-- Backend Develop-compatible WAL lane-hook application `caf72c43cd84b208429f99982a8a0c291f61b67b`: exact canonical Quality `34147793827 = success`.
-- Backend current documentation descendant `a4696e2647c485465a82764b081562a5b34c6b08`: canonical Quality `34147831223` is in progress. Linux storage, local install, Windows path safety, Validator, Ruff and mypy are completed PASS; full pytest is still running. No confirmed primary failure.
-- UI predecessor `7fe5d44e4271dcbec6c0bfba92e0a01a0671b69f`: exact canonical Quality `34144645412 = success`; UI-GAP-0066 was subsequently integrated on Develop.
-- UI current `fd0780d23b081fddb8a236971c74f4cb3c565899`, carrying the UI-GAP-0067 accessibility candidate: canonical Quality `34148642145` is in progress. Linux storage, local install, Windows path safety, Validator, Ruff and mypy are completed PASS; full pytest is still running. No confirmed primary failure.
-- Develop exact `30dd27c97e948e59994e8cfbe01b1c77ce6c917b`: no pull-request-triggered workflow run is associated with this exact SHA in the current scan; no promotion-ready claim.
-- No current Quality/Runtime evidence reproduces retained Windows packaging/process-tree/chat-context/lane-lock/storage-bootstrap crash signatures; none is reopened.
-- `ERR-0004` remains FIXED; the historical startup/readiness Ruff signature did not recur in current exact worker evidence.
+- Spec/Core `c6b4fdba485a1de249a93e99883fca4085b9fc48`: prior exact canonical Quality `34127196867 = success`; no current error signal.
+- Backend current `a3765f1e55420ebb193d37228919aa9032760cd0`: canonical Quality `34152208000` is in progress. Local install smoke, Linux storage regressions and Windows path safety are completed PASS. In Python 3.12 quality, specification validator, Ruff and mypy are completed PASS; full pytest is in progress. No confirmed primary failure.
+- UI current `81cf9ceffb1885943d82b80ab50f00eb3454eb9f`: canonical Quality `34152552680` is in progress. Local install smoke, Linux storage regressions and Windows path safety are completed PASS. In Python 3.12 quality, specification validator, Ruff and mypy are completed PASS; full pytest is in progress. No confirmed primary failure.
+- UI-GAP-0067 exact worker `fd0780d23b081fddb8a236971c74f4cb3c565899` passed canonical Quality `34148642145 = success` and was integrated to Develop by `109598a95ec63a23d9692257e784c69aa601ab79`; current Develop documentation head is `ed9dde599541dffe704a0810a9fa9debf1c8f74b`.
+- Develop exact `ed9dde599541dffe704a0810a9fa9debf1c8f74b`: no exact-current promotion-ready claim is made without matching completed canonical evidence.
+- No current Quality/runtime evidence reproduces retained Windows packaging/process-tree/chat-context/lane-lock/storage-bootstrap crash signatures; none is reopened.
+- `ERR-0004` remains FIXED; current exact worker Ruff evidence is green and the historical startup/readiness Ruff signature has not recurred.
 
 ## Persistent Beta/release regression knowledge
 
