@@ -3,42 +3,42 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `87aa3cebb13abb7b65bfc9aa64edf77cf257dd01`.
+- Develop before this run: `3954ce3076f6f03d0d850834fbe33cc5deb57e6c`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `967cae4c329f77ed516466f6542a1237237a8e99`; spec-core `0e372962ae77e3d063ce6f00b82ba9bb8744b484`; backend `7db1e9864f0a0d0fbeafdc987963475f84701ab7`; UI `7d5b99d4715352843b800253f67f50b56095aec2`.
+- Worker heads reviewed: errors `9c480a9c7e7deb0362061ea7fecce4792542353e`; spec-core `35e5f46df9c81a918b274ea5e29f7a265b6f1791`; backend `f87efc903ffa3991ca3ab8bfd0eb4f811915b326`; UI `ae25b56b4499ae68f5bdd9121e4f4c41e9cff0fe`.
 - `main` and `bnbgrs/ATHENA` were untouched; no force update, rebase, history rewrite or auto-merge was used.
 
-## Integrated this run — Backend WAL checkpoint-result mode runtime boundary
+## Integrated this run — UI-GAP-0051 ready-transition accessibility refresh
 
-Backend product `f675fe4b384b5e20bde5a279df2bdafca463ace6` plus focused regression `deb251713acf103f994b0ba47954a778fe599867` was previously exact-green at worker head `3a5cdd8c95007a0fba909910d9505871b1631fcf` via canonical Quality `34076469382 = success`.
+UI product `c06e56f169096f6b59821e36b70b3a3baed4d668` plus focused regression `d890340b7f1d997e06cb38abd7f4a68365d50297` is carried unchanged in exact UI head `cf808b725fcd7ac6c302cf8a3f59c20e385f8f2c`. Canonical Quality `34070554735` on that exact head completed `success`.
 
-Backend then synchronized the verified slice onto exact Develop baseline `87aa3cebb13abb7b65bfc9aa64edf77cf257dd01` through two-parent NON-FORCE commit `cc79bd66687c05679fb391131a8565d099e08ec5`. Canonical Quality `34079695860` on that exact synchronization commit completed `success`.
+Independent review confirmed the product change is bounded to `PathenaStartupExperience.sync()`: `localStatus.accessibleDescription()` now mirrors the already-current tooltip on every sync, while disconnected text/tooltip assignment still occurs only when Core is not ready. This closes the stale reconnect accessibility metadata on a ready transition without changing readiness truth, reconnect behavior, prompt enablement, model/chat routing, persistence, Backend, Storage, Security, Worker/Scheduler or Windows process ownership.
 
-Independent Integrator comparison `87aa3ce...cc79bd6` confirmed the resulting tree delta is exactly two bounded files despite joined history: `src/athena/storage/wal_maintenance.py` (1 addition / 1 deletion) and new `tests/unit/test_wal_checkpoint_result_boundaries.py` (35 additions). No unrelated Backend product delta is present in the resulting Develop tree.
+The current Develop baseline already contained later compatible UI-GAP-0052 empty-state copy synchronization. The UI-GAP-0051 patch was therefore applied semantically rather than importing divergent UI history. Product integration commit `afedc2075aa88a5089b9b2a4c8526ea1d4ded212` changes only `src/athena/desktop/pathena_startup_experience_2900.py`; focused regression integration `343e4a9f5b7702788a7507c5f47db92900ee84f6` adds the exact ready-state accessibility assertion while retaining the later UI-GAP-0052 transition regression.
 
-The guard requires `WalCheckpointResult.mode` to be text before membership validation against `PASSIVE`/`TRUNCATE`, so malformed unhashable/non-text runtime values fail deterministically rather than escaping as Python `TypeError`. Valid checkpoint modes and all existing WAL maintenance semantics remain unchanged.
-
-Develop was fast-forwarded NON-FORCE to exact-green synchronization commit `cc79bd66687c05679fb391131a8565d099e08ec5`; no main mutation occurred.
+Independent comparison from pre-run Develop to `343e4a9f5b7702788a7507c5f47db92900ee84f6` is exactly two bounded files: the startup controller (+4/-3) and its unit test (+21). No divergent UI ledger/manifest, unrelated desktop files or worker history was imported.
 
 ## Current readiness/error state
 
-- Errors handoff reports `ERR-0001` through `ERR-0013` and `ERR-0015` through `ERR-0018` fixed, `ERR-0014` stale, and no OPEN/BLOCKED defect.
-- Backend synchronization `cc79bd66687c05679fb391131a8565d099e08ec5` is exact-canonical green via Quality `34079695860` and is integrated.
-- UI-GAP-0053 remains NOT READY: exact candidate Quality `34080701405` completed `cancelled`, not success.
-- No second worker slice was integrated this run.
-- This documentation-only handoff commit follows the exact-green product integration commit; promotion readiness is not claimed for the documentation successor without its own exact completed canonical Quality.
+- Error worker head `9c480a9c7e7deb0362061ea7fecce4792542353e` remains documentation-only and reports no confirmed OPEN/BLOCKED regression in the previously closed queue.
+- Backend current slice (WAL maintenance service checkpoint-mode runtime boundary) remains NOT READY while exact head Quality `34083238597` is still in progress.
+- UI-GAP-0053 remains NOT READY: exact candidate Quality `34080701405` completed `cancelled`; newer UI head Quality is pending.
+- Spec/Core current head is not consumed this run; the earlier normal-Hybrid facade/application composition is already present on Develop and marked VERIFIED in the Alpha/Beta tracker.
+- Current exact Develop after the documentation successor has no completed canonical Quality claimed yet.
 
 ## UI / Alpha-Beta state
 
-- Eleven-screen implementation state remains implemented pending original visual-reference review; no pixel-level `MATCH` claim is made.
-- UI-GAP-0052 remains integrated/verified. UI-GAP-0053 remains `IMPLEMENTED_PENDING_VERIFY` because its exact Quality was cancelled.
-- `docs/development/ALPHA_BETA_PROGRESS.md` was read. The connector response for the complete tracker remains truncated and mutation is whole-file replacement only, so it is not destructively rewritten from incomplete content. This exact integration evidence is versioned here instead; no percentage is invented.
+- Eleven-screen implementation remains implemented pending original visual-reference review; no pixel-level `MATCH` claim is made.
+- UI-GAP-0051 is now integrated on Develop from exact-green worker evidence.
+- UI-GAP-0052 remains integrated/verified.
+- UI-GAP-0053 remains `IMPLEMENTED_PENDING_VERIFY` until exact canonical success.
+- `docs/development/ALPHA_BETA_PROGRESS.md` was read. No percentage is invented; tracker mutation is attempted only if the complete existing file can be reconstructed safely without dropping prior evidence.
 
 ## Next integration order
 
-1. Obtain exact-current-Develop canonical Quality for the final documentation successor if available.
+1. Obtain exact-current-Develop canonical Quality for the new integration/documentation head when a run exists.
 2. Independently review exactly one compatible exact-green Core/Backend/UI successor.
-3. Do not consume UI-GAP-0053 unless an exact head carrying unchanged product/test blobs completes canonical Quality successfully.
+3. Backend WAL service checkpoint-mode boundary and UI-GAP-0053 remain excluded until exact successful canonical evidence exists.
 
 ## Persistent release guards
 
