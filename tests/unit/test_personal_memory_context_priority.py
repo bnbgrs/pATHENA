@@ -110,7 +110,7 @@ def test_current_instruction_outranks_conflicting_global_detail_preference(tmp_p
         content="Answer briefly.",
         memory_kind=MemoryKind.DETAIL_PREFERENCE,
     )
-    before = memory.repository.get(durable_preference.memory_id)
+    before = memory.repository.load_current(durable_preference.memory_id)
     candidates = memory.context_candidates()
     bundle = ContextBuilderService().build_from_ranked(
         query="This time answer in detail.",
@@ -136,6 +136,6 @@ def test_current_instruction_outranks_conflicting_global_detail_preference(tmp_p
         }
     ]
     assert "Current user message overrides USER PREFERENCE" in payload["policy"]
-    assert memory.repository.get(durable_preference.memory_id) == before
+    assert memory.repository.load_current(durable_preference.memory_id) == before
 
     database.stop()
