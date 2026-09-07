@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `591da5b99d2d8a7d24ba2c2cf866151bf362f4fb`
+Baseline: `b6c5c6181a5327d4ee436be518f4eebfacaf82bb`
 Integration target: `develop/pathena-next`
 
 Only evidence-backed gaps belong here. The original 11 reference screenshots remain unavailable for direct visual comparison; therefore no pixel-level mismatch or `MATCH` claim is asserted.
@@ -100,11 +100,23 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Category: `COPY`
 - Screen: `04 — Jobs`
 - Severity: `P2`
-- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Status: `FIXED`
 - Evidence: the no-selection branch of `JobActionAvailability.reason()` visibly said `Select a durable job first.`, exposing persistence-oriented terminology that is unnecessary for the user action.
 - Product commit: `0ac91c9f471bb14aa6094f78d017cd59d529d868`
 - Focused regression commit: `25f8c53cfef2f9524ec3ce2b696809bc1159893c`
+- Verification evidence: exact UI head `89cea7ecfaeb75a694a0682ff39feb5172ffbcfa` passed ATHENA Quality Gate `34139713588` with conclusion `success`.
 - Acceptance: empty-selection help says `Select a job first.`; action availability, state normalization, transition receipts and backend/storage/scheduler semantics remain unchanged.
+
+## UI-GAP-0066 — Unknown Jobs state leaves a visible destructive action fail-open
+
+- Category: `STATE`
+- Screen: `04 — Jobs`
+- Severity: `P1`
+- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Evidence: `action_availability()` treated every non-terminal, non-`cancel_requested` state as cancellable, so an unrecognized persisted/future state could enable the visible `CANCEL` control despite having no established UI transition contract.
+- Product commit: `83c57b7898515085c7ba4f9441029165c3123890`
+- Focused regression commit: `96891f1d68ee9e0242c41aa4b846fea39094ec54`
+- Acceptance: unknown states disable pause/resume/wake/cancel and expose neutral `unrecognized state` help; known-state action availability, receipt parsing, scheduler/worker/storage and backend semantics remain unchanged.
 
 ## Evidence blocker
 
