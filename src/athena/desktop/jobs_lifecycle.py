@@ -41,6 +41,8 @@ class JobActionAvailability:
             return f"{action.title()} is available while this job is {self.state}."
         if self.state is None:
             return "Select a job first."
+        if self.state not in _KNOWN_STATES:
+            return "This job has an unrecognized state; actions are unavailable."
         if self.state in _TERMINAL_STATES:
             return f"This job is {self.state}; no job action is available."
         if self.state == "cancel_requested":
@@ -61,13 +63,14 @@ class JobTransitionReceipt:
 def action_availability(state: str | None) -> JobActionAvailability:
     """Project only transitions implemented by ``DurableJobService``."""
     normalized = None if state is None else state.casefold().strip()
+    known = normalized in _KNOWN_STATES
     return JobActionAvailability(
         state=normalized,
-        pause=normalized in {"queued", "waiting"},
-        resume=normalized == "paused",
-        wake=normalized == "waiting",
+        pause=known and normalized in {"queued", "waiting"},
+        resume=known and normalized == "paused",
+        wake=known and normalized == "waiting",
         cancel=(
-            normalized is not None
+            known
             and normalized not in _TERMINAL_STATES
             and normalized != "cancel_requested"
         ),
