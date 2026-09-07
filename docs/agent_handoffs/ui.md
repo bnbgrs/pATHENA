@@ -2,10 +2,11 @@
 
 ## Current baseline
 
-- Base reviewed: `develop/pathena-next@87aa3cebb13abb7b65bfc9aa64edf77cf257dd01`.
+- Base reviewed: `develop/pathena-next@af170f7307c2da454ab168a1993af3125868698a`.
 - Worker: `postmerge/ui`.
-- Current Develop was synchronized history-preservingly through two-parent NON-FORCE commit `9f57584d608385270baec0159821e226307185fa`; `main` and `bnbgrs/ATHENA` remain read-only and untouched.
-- Original eleven reference images remain `VISUAL_REFERENCE_PENDING`; no pixel-level `MATCH` claim is made. A real current Windows implementation render was captured successfully by snapshot run `34038626901`, but those implementation screenshots are not the original user references and therefore do not establish visual parity.
+- Current Develop was synchronized history-preservingly through two-parent NON-FORCE commit `f17dcb97c9ba8e13089aa545875f411bed9c353b`; `main` and `bnbgrs/ATHENA` remain read-only and untouched.
+- The Develop synchronization imported current `docs/agent_handoffs/integrator.md` and `docs/development/ALPHA_BETA_PROGRESS.md` while preserving the verified UI-GAP-0053/UI-GAP-0054 startup product/test blobs on the UI side of the merge.
+- Original eleven reference images remain `VISUAL_REFERENCE_PENDING`; no pixel-level `MATCH` claim is made. A real current Windows implementation render exists from snapshot run `34038626901`, but those implementation screenshots are not the original user references and therefore do not establish visual parity.
 
 ## Runtime/release regression guard
 
@@ -15,42 +16,52 @@ Known Windows packaging/process-tree/startup/chat-context/lane-lock crash classe
 
 Status: `FIXED / INTEGRATED`, P1.
 
-- Evidence: `_polish_empty_state()` previously returned immediately once `emptyChatState` had been replaced. If Screen 11 initialized while disconnected, later readiness syncs could leave the already-visible title at `Getting pATHENA ready` and body copy describing reconnect even after `_core_transport_ready` became true.
-- Product `acacfd3a5d5172afdad13150ec40ffd2fba0c5b0` extracts the existing copy projection into `_sync_empty_state_copy()` and reuses it both during initial panel creation and subsequent syncs of the already-created panel.
-- Focused regression `4356258e6daf9a00dbb97705b76d949259a09f25` covers a real Disconnect→Ready transition and verifies the same existing title/body widgets move from reconnect copy to `Start a conversation` plus local-knowledge copy.
-- Exact final product/test/documentation head `23c03d06b333ec2156665bfaa65b0de5219f5ccd` passed canonical ATHENA Quality Gate `34073855547 = success`.
-- Later UI documentation head `0a257caf023b5babc0394d77264e5173fc417bc1` also passed canonical Quality `34077293629 = success`.
-- Integrator recorded the bounded product/test slice on current Develop via product integration `d64211d906ee3aae7dc1bd34e77e33cfdf9ab4f8` and handoff commit `87aa3cebb13abb7b65bfc9aa64edf77cf257dd01`.
-- No Core readiness source, reconnect behavior, transport, model, chat routing, persistence, backend/storage/security/runtime or process ownership semantics are changed; only the visible projection of already-existing UI state is refreshed.
+- Product `acacfd3a5d5172afdad13150ec40ffd2fba0c5b0`; focused regression `4356258e6daf9a00dbb97705b76d949259a09f25`.
+- Exact UI head `23c03d06b333ec2156665bfaa65b0de5219f5ccd` passed canonical ATHENA Quality Gate `34073855547 = success`; later synchronized UI head `0a257caf023b5babc0394d77264e5173fc417bc1` also passed Quality `34077293629 = success`.
+- Develop already carries the bounded product/test integration.
 
 ## UI-GAP-0053 — Startup empty-state fixed width can overflow a narrow workspace
 
-Status: `IMPLEMENTED_PENDING_VERIFY`, P1.
+Status: `FIXED / INTEGRATOR_READY`, P1.
 
-- Evidence: Screen 11 previously hard-coded `emptyStatePanel` to 560 px and `emptyStateBody` to 500 px. Because both widths were fixed, a narrow chat-document viewport could not shrink the centered first-run panel to available space.
-- Product `2885e2b3262879a2036246124196124d14f6629c` keeps the existing 560 px cap but derives panel width from the actual `chatMessages` width with 32 px breathing room and derives body width from the existing 28 px horizontal panel margins. Resize events schedule the same existing UI-only sync path.
-- Focused regression `252567394ce1f7059e5994b8d7cb800f34e692a2` proves a 420 px chat surface yields a 388 px panel / 332 px body and that a wide surface retains the 560 px cap / 504 px body.
+- Product `2885e2b3262879a2036246124196124d14f6629c` derives the existing first-run panel/body widths from actual `chatMessages` width while retaining the 560 px cap and existing horizontal margins.
+- Focused regression `252567394ce1f7059e5994b8d7cb800f34e692a2` locks the 420 px surface to a 388 px panel / 332 px body and a wide surface to the 560 px cap / 504 px body.
+- Exact UI head `7d5b99d4715352843b800253f67f50b56095aec2` passed canonical ATHENA Quality Gate `34080765557 = success`.
 - Core readiness, reconnect, model/chat routing, persistence, backend/storage/security/runtime and process ownership semantics are unchanged.
-- Canonical Quality `34080701405` is running on exact product/test head `252567394ce1f7059e5994b8d7cb800f34e692a2`; no PASS is claimed while pending. Documentation commits after that head do not change the product/test blobs.
 
-## Develop synchronization
+## UI-GAP-0054 — Startup empty-state title does not wrap on narrow workspaces
 
-Develop advanced to `87aa3cebb13abb7b65bfc9aa64edf77cf257dd01`, including bounded UI-GAP-0052 integration and current Integrator handoff. UI synchronized the exact current Integrator handoff and joined both histories through two-parent NON-FORCE merge `9f57584d608385270baec0159821e226307185fa`. No force, rebase, history rewrite, `main` mutation or `bnbgrs/ATHENA` mutation occurred.
+Status: `FIXED / INTEGRATOR_READY`, P2.
+
+- Product `0b4c32255c9d7ed4600deaa773f416216a38de5d` changes only `QLabel#emptyStateTitle` to `wordWrap(True)`.
+- Focused regression `67972d4a8fdcd4727e0dfd63ee29e4d9f280ca5d` locks title wrapping while retaining the UI-GAP-0053 responsive width assertions.
+- Exact UI head `ae25b56b4499ae68f5bdd9121e4f4c41e9cff0fe` passed canonical ATHENA Quality Gate `34084045555 = success`.
+- No copy, state source, runtime, backend/storage/security or process semantics changed.
+
+## UI-GAP-0055 — Startup empty-state eyebrow does not wrap on narrow workspaces
+
+Status: `IMPLEMENTED_PENDING_VERIFY`, P2.
+
+- Evidence: after responsive panel sizing and title wrapping, `QLabel#emptyStateEyebrow` still retained the default non-wrapping label behavior. The fixed `LOCAL-FIRST WORKSPACE` copy could therefore overflow a sufficiently narrow first-run panel.
+- Product `e105224b49caf17abecccc4bb5a5ae1085fa4f0e` enables only `wordWrap(True)` on the existing eyebrow label.
+- Focused regression `149a868f04b4a1781cfee164fb38431fe563a76b` locks eyebrow wrapping while retaining the verified panel/body width and title-wrap assertions.
+- Product copy, alignment, accent styling, Core readiness, reconnect, model/chat routing, persistence, backend/storage/security/runtime and process ownership semantics remain unchanged.
+- Canonical Quality was automatically started on the product/test lineage; later manifest/ledger/handoff documentation commits carry the same unchanged product/test blobs. Do not claim PASS until an exact final-lineage run completes successfully.
 
 ## Ledger / manifest coordination
 
-- `UI-GAP-0050` and `UI-GAP-0051` remain verified `FIXED`.
-- `UI-GAP-0052` is verified and integrated; its stale pre-verification line in `docs/ui/VISUAL_GAP_LEDGER.md` still requires exact safe reconciliation because the connector exposes existing-file mutation as whole-file replacement and prior ledger history must not be dropped.
-- `UI-GAP-0053` is the stable ID for the responsive Screen-11 candidate and is recorded in the exactly-11-slot manifest as `IMPLEMENTED_PENDING_VERIFY`.
-- Ledger registration of UI-GAP-0053 remains pending the same safe whole-ledger reconciliation; no duplicate ID may be allocated.
-- No screenshot-level `MATCH` claim is made.
+- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` remains exactly eleven slots.
+- `UI-GAP-0052`, `UI-GAP-0053` and `UI-GAP-0054` are reconciled to `FIXED` in `docs/ui/VISUAL_GAP_LEDGER.md` with exact canonical evidence.
+- `UI-GAP-0055` is registered once and only once as `IMPLEMENTED_PENDING_VERIFY`.
+- Screen 11 remains `IMPLEMENTED_PENDING_VERIFY` only because UI-GAP-0055 awaits canonical verification; no screenshot-level `MATCH` claim is made.
 
 ## Integrator handoff
 
-- UI-GAP-0052 is already integrated on Develop.
-- Do not integrate UI-GAP-0053 until canonical Quality succeeds on an exact head carrying unchanged product `2885e2b3262879a2036246124196124d14f6629c` and focused regression `252567394ce1f7059e5994b8d7cb800f34e692a2`.
+- UI-GAP-0053: READY — product `2885e2b3262879a2036246124196124d14f6629c`, regression `252567394ce1f7059e5994b8d7cb800f34e692a2`, exact Quality `34080765557 = success`.
+- UI-GAP-0054: READY — product `0b4c32255c9d7ed4600deaa773f416216a38de5d`, regression `67972d4a8fdcd4727e0dfd63ee29e4d9f280ca5d`, exact Quality `34084045555 = success`.
+- UI-GAP-0055: NOT READY until canonical Quality succeeds on an exact descendant carrying unchanged product `e105224b49caf17abecccc4bb5a5ae1085fa4f0e` and regression `149a868f04b4a1781cfee164fb38431fe563a76b`.
 - No backend/storage/security/provider/worker/scheduler semantics changed by UI.
 
 ## Next UI step
 
-Consume canonical Quality for the exact UI-GAP-0053 candidate lineage. If green, promote UI-GAP-0053 to `FIXED / INTEGRATOR_READY`, reconcile UI-GAP-0052 and UI-GAP-0053 in the Visual Gap Ledger without dropping any prior entries, return Screen 11 to `IMPLEMENTED_PENDING_VISUAL_REVIEW`, then inspect one distinct remaining 11-screen accessibility/state/interaction/responsive gap.
+Consume canonical Quality for the exact current UI-GAP-0055 documentation lineage. If green, promote UI-GAP-0055 to `FIXED / INTEGRATOR_READY`, return Screen 11 to `IMPLEMENTED_PENDING_VISUAL_REVIEW`, and then inspect one distinct remaining 11-screen accessibility/state/interaction/responsive gap without reopening empty-state width, title wrapping or eyebrow wrapping.
