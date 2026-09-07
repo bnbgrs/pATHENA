@@ -89,7 +89,7 @@ class JobsWorkspace(QWidget):
         self.details.setReadOnly(True)
         self.details.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
         self.details.setPlaceholderText(
-            "Select a durable job to inspect checkpoints, leases and pinned state."
+            "Select a job to inspect its current state and activity."
         )
         set_pathena_ui_state(self.details, "empty")
 
@@ -414,7 +414,7 @@ class JobsWorkspace(QWidget):
             job_label = self._job_label(selected)
             message = (
                 f"SELECTION CHANGED · Job {job_label} is no longer listed after refresh. "
-                "Select another durable job to inspect its current state."
+                "Select another job to inspect its current state."
             )
             self.details.setPlainText(message)
             self.jobs.setProperty("pathenaSelectionDisappeared", selected)
@@ -430,8 +430,8 @@ class JobsWorkspace(QWidget):
             self._selected_state = None
             self._sync_action_buttons()
             self.details.setPlainText(
-                "No durable jobs have been persisted yet. Research and Source operations "
-                "will appear here as soon as they are queued."
+                "No jobs are available yet. Research and Source operations will appear "
+                "here when they are queued."
             )
             set_pathena_ui_state(self.jobs, "empty")
             set_pathena_ui_state(self.details, "empty")
