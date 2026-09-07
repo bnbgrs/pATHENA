@@ -2,9 +2,9 @@
 
 ## Current baseline
 
-- Base reviewed: `develop/pathena-next@f4c7ecfdca3313f0418895e6e495459e091586fe`.
+- Base reviewed: `develop/pathena-next@ef2e991d33539bb267b6744e878ac2ad24cd7266`.
 - Worker: `postmerge/ui`.
-- Current Develop was synchronized history-preservingly and NON-FORCE through two-parent commit `3ec64eb80cedd0832f5777dc271de1b6cf6ad3f7`; current Develop is carried as the second parent and its current Integrator/Alpha-Beta documentation blobs were preserved.
+- Current Develop was synchronized history-preservingly and NON-FORCE through two-parent commit `60ca61ac54dadead5e5a806a49a39360e3ba31a5`; current Develop is carried as the second parent and its current Integrator/Alpha-Beta documentation blobs were preserved.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 - Original eleven reference images remain `VISUAL_REFERENCE_PENDING`; no pixel-level `MATCH` claim is made.
 
@@ -12,37 +12,37 @@
 
 Known Windows packaging/process-tree/startup/chat-context/lane-lock crash classes remain release-acceptance regressions only unless reproduced on the exact current SHA. This UI slice does not alter Desktop/Worker/Scheduler spawn ownership, backend/storage/security semantics, or claim Windows promotion readiness.
 
-## UI-GAP-0056 — Disconnected Send readiness metadata
+## UI-GAP-0057 — Disconnected Sources grounding readiness metadata
 
 Status: `FIXED / INTEGRATOR_READY`, P1.
 
-- Product `d97c9cbb9f5220ef436e8316d306315af5076971`; focused regression `5fb6eab2c6d68f7ca06bfd38b4b703f98c0f55bb`.
-- Exact UI head `2f98ef242107421770ed4573bea06532e052727b` passed canonical ATHENA Quality Gate `34092357862 = success`.
-- Disconnected Send now exposes the established selected-model readiness reason through tooltip/accessibility description and restores the established `Send message (Ctrl+Enter)` action copy when ready.
-- Send routing, enabled-state ownership, Core/model/chat semantics, persistence, backend/storage/security/runtime and process semantics are unchanged.
-
-## UI-GAP-0057 — Disconnected Sources grounding readiness metadata
-
-Status: `IMPLEMENTED_PENDING_VERIFY`, P1.
-
-- Evidence: `PathenaMainWindow` establishes `Ground this message in available sources` as the normal `groundButton` action tooltip. During disconnected startup the control is unavailable, while Prompt and Send already expose the established `Available when pATHENA and the selected model are ready` reason.
-- Product `00aac91cb037a41029cb5b66c04a40c51a6ae1db` projects that same readiness copy to Grounding tooltip/accessibility description only while disconnected and restores the existing grounding action tooltip when ready.
-- Focused regression `1e2fc01ca2209fed3c4e33057ce4366b3ad9c42b` covers disconnected readiness metadata and ready-state action-copy restoration while retaining the existing startup responsive/accessibility assertions.
+- Product `00aac91cb037a41029cb5b66c04a40c51a6ae1db`; focused regression `1e2fc01ca2209fed3c4e33057ce4366b3ad9c42b`.
+- Exact UI head `27051b50f6e1eebb969232d10459bcf83d77210c` passed canonical ATHENA Quality Gate `34097034775 = success`.
+- Disconnected Grounding now exposes the established selected-model readiness reason through tooltip/accessibility description and restores the established grounding action copy when ready.
 - Grounding behavior, source selection/provenance, enabled-state ownership, Core/model/chat routing, persistence, backend/storage/security/runtime and process semantics are unchanged.
+
+## UI-GAP-0058 — New chat shortcut help is not exposed through accessibility description
+
+Status: `IMPLEMENTED_PENDING_VERIFY`, P2.
+
+- Evidence: `newChatButton` already carries real keyboard shortcut help through its existing tooltip, while the startup refinement did not mirror that existing help to `accessibleDescription`.
+- Product `c42a77a54864ba8c37e2898ad1d236976590da1d` mirrors only the button's existing tooltip into its accessibility description during the existing static startup refinement.
+- Focused regression `da1d2d36b89e8f4799f66aadf6772e41411d5af1` proves the accessible description equals the pre-existing tooltip and carries the existing Ctrl+N shortcut.
+- New-chat routing, shortcut ownership, chat persistence, Core/model/backend/storage/security/runtime and process semantics are unchanged; this is accessibility metadata only.
+- Canonical ATHENA Quality Gate `34102155346` is running on exact product/test head `da1d2d36b89e8f4799f66aadf6772e41411d5af1`; no PASS is claimed until completion.
 
 ## Ledger / manifest coordination
 
-- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` remains exactly eleven slots.
-- Screen 11 records UI-GAP-0056 as verified and UI-GAP-0057 as `IMPLEMENTED_PENDING_VERIFY`.
-- `docs/ui/VISUAL_GAP_LEDGER.md` is reconciled history-preservingly: UI-GAP-0055 and UI-GAP-0056 are FIXED and UI-GAP-0057 is registered once as pending verification.
+- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` remains exactly eleven slots and is not yet advanced past its prior pending UI-GAP-0057 wording in this documentation successor.
+- `docs/ui/VISUAL_GAP_LEDGER.md` retains full prior history; UI-GAP-0057 closure and stable UI-GAP-0058 registration remain pending exact history-preserving reconciliation after candidate verification.
 - No screenshot-level `MATCH` claim is made.
 
 ## Integrator handoff
 
-- UI-GAP-0056: READY — product `d97c9cbb9f5220ef436e8316d306315af5076971`, regression `5fb6eab2c6d68f7ca06bfd38b4b703f98c0f55bb`, exact Quality `34092357862 = success`.
-- UI-GAP-0057: NOT READY until canonical Quality succeeds on an exact descendant carrying unchanged product `00aac91cb037a41029cb5b66c04a40c51a6ae1db` and regression `1e2fc01ca2209fed3c4e33057ce4366b3ad9c42b`.
+- UI-GAP-0057: READY — product `00aac91cb037a41029cb5b66c04a40c51a6ae1db`, regression `1e2fc01ca2209fed3c4e33057ce4366b3ad9c42b`, exact Quality `34097034775 = success`.
+- UI-GAP-0058: NOT READY until canonical Quality succeeds on an exact descendant carrying unchanged product `c42a77a54864ba8c37e2898ad1d236976590da1d` and regression `da1d2d36b89e8f4799f66aadf6772e41411d5af1`.
 - No backend/storage/security/provider/worker/scheduler semantics changed by UI.
 
 ## Next UI step
 
-Consume canonical Quality for the exact final UI documentation lineage. If green, promote UI-GAP-0057 to `FIXED / INTEGRATOR_READY`, return Screen 11 to `IMPLEMENTED_PENDING_VISUAL_REVIEW`, update ledger/manifest/handoff with the exact verified SHA, and then select one distinct remaining 11-screen accessibility/state/interaction gap without reopening Send or Grounding readiness metadata.
+Consume canonical Quality for the exact final UI lineage carrying UI-GAP-0058. If green, promote UI-GAP-0058 to `FIXED / INTEGRATOR_READY`, reconcile UI-GAP-0057/UI-GAP-0058 in ledger and the exactly-11-slot manifest without dropping history, then select one distinct remaining 11-screen accessibility/state/interaction/responsive gap without reopening Send, Grounding or New-chat shortcut metadata.
