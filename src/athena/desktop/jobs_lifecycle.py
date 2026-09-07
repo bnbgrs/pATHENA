@@ -45,8 +45,8 @@ class JobActionAvailability:
             return f"Job is terminal ({self.state}); no lifecycle mutation is available."
         if self.state == "cancel_requested":
             return (
-                "Cancellation is already persisted (cancel_requested) and awaits "
-                "worker acknowledgement."
+                "Cancellation has already been requested and is waiting for worker "
+                "acknowledgement."
             )
         return f"{action.title()} is not supported for persisted state {self.state}."
 
