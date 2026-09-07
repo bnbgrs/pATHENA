@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `51bd144aafc0fb1f50c00515c366442038a2c251`
+Baseline: `8ebb41102c1f1b59471ab6392e930af1c52fec31`
 Integration target: `develop/pathena-next`
 
 Only evidence-backed gaps belong here. The original 11 reference screenshots remain unavailable for direct visual comparison; therefore no pixel-level mismatch or `MATCH` claim is asserted.
@@ -159,11 +159,23 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Category: `COPY`
 - Screen: `04 — Jobs`
 - Severity: `P2`
-- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Status: `FIXED`
 - Evidence: after a verified successful PAUSE/RESUME/WAKE/CANCEL response, `JobsWorkspace._process_finished()` visibly rendered `<ACTION> transition for job <id> persisted · <STATE>.`, exposing lifecycle/storage implementation terms in the primary success status.
 - Product commit: `869821057ee1af071f72e37d9aa8d593e3ba52f6`
 - Focused regression commit: `a91f9ecf06531ec6dd3bcf6424076096aee0651a`
+- Verification evidence: exact UI head `9924a3ce6feddee22ed0e2257aa00cd056b1a995` passed ATHENA Quality Gate `34160631088` with conclusion `success`.
 - Acceptance: render `<ACTION> completed for job <id> · <STATE>.` while preserving receipt parsing, selected-state update, action availability, refresh scheduling and backend/storage/scheduler/worker semantics; focused Qt coverage forbids `transition` and `persisted` in the visible success status.
+
+## UI-GAP-0071 — Jobs empty-state guidance exposes storage implementation language
+
+- Category: `COPY`
+- Screen: `04 — Jobs`
+- Severity: `P2`
+- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Evidence: the visible details placeholder and no-jobs state used `durable`, `persisted`, `checkpoints`, `leases` and `pinned state` terminology even though the user only needs selection and availability guidance.
+- Product commit: `b7e96e01e5690d914be62d489faae92bf0e59571`
+- Focused regression commit: `067983b6613a42526ac48cbd5d21b3e36d1e3e74`
+- Acceptance: the placeholder says `Select a job to inspect its current state and activity.` and the empty state says `No jobs are available yet...`; no job lifecycle, persistence, storage, scheduler or worker semantics change.
 
 ## Evidence blocker
 
