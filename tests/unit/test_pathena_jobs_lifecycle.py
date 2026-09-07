@@ -48,6 +48,7 @@ def test_action_availability_matches_durable_service_states(
         reason = availability.reason(action)
         assert "persisted state" not in reason
         assert "lifecycle mutation" not in reason
+        assert "lifecycle action" not in reason
         if state == "cancel_requested":
             assert "Cancellation has already been requested" in reason
             assert "cancel_requested" not in reason
@@ -75,6 +76,32 @@ def test_unknown_job_state_fails_closed_for_every_visible_action() -> None:
         reason = availability.reason(action)
         assert reason == "This job has an unrecognized state; actions are unavailable."
         assert "future_state" not in reason
+
+
+def test_action_button_help_is_exposed_to_accessibility(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(JobsWorkspace, "refresh", lambda _self: None)
+    app = _app()
+    workspace = JobsWorkspace()
+    workspace._refresh_timer.stop()
+    workspace._scheduler_status_timer.stop()
+    app.processEvents()
+    try:
+        workspace._selected_state = "waiting"
+        workspace._sync_action_buttons()
+
+        for button in (
+            workspace.pause_button,
+            workspace.resume_button,
+            workspace.wake_button,
+            workspace.cancel_button,
+        ):
+            assert button.toolTip()
+            assert button.accessibleDescription() == button.toolTip()
+    finally:
+        workspace.close()
+        app.processEvents()
 
 
 def test_transition_receipt_is_bound_to_exact_job_and_operation() -> None:
