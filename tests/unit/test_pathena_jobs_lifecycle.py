@@ -48,6 +48,7 @@ def test_action_availability_matches_durable_service_states(
         reason = availability.reason(action)
         assert "persisted state" not in reason
         assert "lifecycle mutation" not in reason
+        assert "lifecycle action" not in reason
         if state == "cancel_requested":
             assert "Cancellation has already been requested" in reason
             assert "cancel_requested" not in reason
