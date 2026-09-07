@@ -2,49 +2,59 @@
 
 ## Current baseline
 
-- Current shared baseline reviewed: `develop/pathena-next@15f4a439d15d4bb1414e7b54afee7a25ced36e61`.
+- Current shared baseline reviewed: `develop/pathena-next@200648457ba647173376109d09f94725730ee659`.
 - Worker branch: `postmerge/spec-core` only.
-- Exact verified predecessor before the current Reset slice: `6b164470eae5352e6d5c0a84ac32a8f80ac002bc`.
-- Exact canonical ATHENA Quality for that predecessor: `34116431458 = success`.
+- Current verified worker predecessor: `57e133507ab4b8edc78d4af8467f2320dce0e906`.
+- Exact canonical ATHENA Quality for that predecessor: `34121540987 = success`.
+- The verified predecessor carries the unchanged Beta §50 Reset acceptance introduced at `e6b6a5b1fe42ac612beb10e641a770be3e120b60`.
 - `main` and `bnbgrs/ATHENA` remain untouched/read-only; no force update or history rewrite is allowed.
 
 ## Verified Core contracts
 
 Normal Hybrid Search remains exact-green on the verified Core lineage: one-time `attach_normal_search`, capability `search.normal.hybrid` only after attachment, exact `query/model_id/limit/entity_type` delegation, canonical `hybrid_search_result_response()` mapping, unchanged `SemanticRetrievalUnavailableError` propagation, and application identity `app.api._normal_search is app.hybrid_retrieval`. No Archive/Protected expansion or synthetic provenance is introduced.
 
-Personal Memory Beta acceptance through §47 remains exact-green on the verified lineage. Covered contracts include domain routing, explicit save, inference provenance/review gating, sensitive/protected fail-closed behavior, project-over-global scope priority, and current-turn instruction precedence over conflicting durable preference without mutating durable memory.
+Personal Memory Beta acceptance through §47 remains exact-green on the verified lineage. Covered contracts include domain routing, explicit save, inference provenance/review gating, sensitive/protected fail-closed inference, project-over-global scope priority, and current-turn instruction precedence over conflicting durable preference without mutating durable memory.
 
-## Current bounded slice — Beta §50 Reset Test
+Beta §50 Reset isolation is now verified by exact canonical Quality on the current worker predecessor. The real reset path deletes Personal Memory while preserving archived standard Chat, Knowledge and Sources; deleted Personal-Memory revisions remain inspectable only through the explicit deleted-state path. The normative Projects-unchanged clause remains unproven because no real Project persistence/repository contract has been established in the current runtime tree; Core must not fake one.
 
-Correction: the normative `docs/beta/06_Personal_Memory.md` defines §48 as Delete Test, §49 as Protected Lock Test and §50 as Reset Test. The previous handoff incorrectly described §50 as a provenance trace. That description is superseded; Core must not invent a `USED_MEMORY` edge as part of Personal-Memory §50.
+## Current bounded slice — Beta §49 Protected Lock boundary
 
-The existing product path already exposes `PersonalMemoryService.reset() -> PersonalMemoryRepository.reset_all()`. It marks active/inactive Personal-Memory entities deleted in one reset commit and records deletion markers, while the existing generic test already checks Knowledge and Sources counts.
+Normative §49 requires protected personal information to remain inaccessible to indexing and AI suggestions without a passphrase, with the index locked.
 
-Acceptance commit `e6b6a5b1fe42ac612beb10e641a770be3e120b60` adds a dedicated §50 isolation regression proving the real reset path deletes the two Personal-Memory entries while preserving the archived standard Chat, promoted Knowledge snapshot and captured Source exactly. No fake Project implementation or synthetic provenance was added. A repository-wide search did not establish a current `ProjectRepository` contract, so the normative “Projects unchanged” clause remains a concrete product-domain dependency rather than being simulated in Core.
+Current Core evidence establishes a strict fail-closed plaintext boundary but not the complete unlock/index contract:
 
-Exact canonical ATHENA Quality `34121459780` is in progress for `e6b6a5b1fe42ac612beb10e641a770be3e120b60` at this handoff update. Do not claim §50 READY until an exact completed success exists on a descendant carrying the unchanged acceptance test.
+- `PersonalMemoryRepository.create()` and `.revise()` call `_require_unprotected_payload()` before any write.
+- `_require_unprotected_payload()` raises `PersonalMemoryProtectionError` for `MemorySensitivity.PROTECTED` and explicitly routes ownership to the Protected Content path instead of plaintext Personal-Memory storage.
+- `PersonalMemoryService.context_candidates()` reads only canonical Personal-Memory rows and documents that Protected entries cannot exist in the v1 plaintext repository; it performs no silent unlock.
+- Existing real regression `test_protected_memory_fails_closed_until_protected_content_path_exists` proves a protected explicit-memory write creates zero `personal_memory_entries`.
+- The Core Personal-Memory service/repository exposes no passphrase/unlock handle, no Protected Content materialization API, no FTS/HNSW attachment, and no AI-suggestion index adapter that could be safely exercised for a full §49 proof.
+
+Therefore full §49 cannot be honestly marked covered from the Core worker alone. Adding a fake protected row, fake index, synthetic unlock flag or mock passphrase would weaken the security contract. The required next integration contract is: a real Protected Content unlock/token boundary plus the concrete index/suggestion attachment point must be exposed to Core composition; then §49 can assert locked-without-passphrase across those real surfaces while retaining the existing plaintext refusal.
+
+This is a concrete cross-component dependency, not a request to weaken assertions. Until that contract exists, Core preserves fail-closed behavior and must not expand protected content into Normal Search, Archive, PALLAS, FTS/HNSW or AI suggestions.
 
 ## Ownership boundaries
 
 §48 Delete/Restore remains coupled to the existing lifecycle/storage deletion-marker path. Deep physical deletion, restore target registration and storage cleanup remain Backend/lifecycle-owned; Core must not duplicate that subsystem.
 
-§49 Protected Lock requires the actual Protected-Content/index/UI-metadata contract. Core must not persist protected plaintext or synthesize an unlocked representation to satisfy the test.
+§49 plaintext refusal and Core composition are Core-visible, but protected materialization/unlock and deep index locking require the actual Protected Content/index contract. Core must not persist protected plaintext or synthesize an unlocked representation to satisfy the test.
 
-For §50, Core owns the Personal-Memory reset composition/acceptance surface only. Knowledge, Raw Archive/Chat and Sources must remain unchanged. Project preservation can only be proven once a real Project persistence contract exists in the current runtime tree.
+For §50, Core owns the Personal-Memory reset composition/acceptance surface only. Knowledge, Raw Archive/Chat and Sources remain unchanged. Project preservation can only be proven once a real Project persistence contract exists in the current runtime tree.
 
 ## Coordination state
 
-- Error handoff reviewed at current Develop baseline: OPEN none, IN_PROGRESS none, BLOCKED none; ERR-0019 is FIXED and exact Core predecessor `6b164470eae5352e6d5c0a84ac32a8f80ac002bc` is canonical-green.
-- Backend handoff reviewed; WAL/runtime work is disjoint from this Reset acceptance slice.
-- UI handoff reviewed; Settings/accessibility presentation work is disjoint from this Reset acceptance slice.
-- Integrator handoff reviewed at `develop/pathena-next@15f4a439d15d4bb1414e7b54afee7a25ced36e61`; current Core Reset work is not Integrator-ready until its exact canonical Quality succeeds.
+- Error handoff reviewed before this run: OPEN none, IN_PROGRESS none, BLOCKED none; ERR-0019 is FIXED. It also records exact worker `57e133507ab4b8edc78d4af8467f2320dce0e906` Quality `34121540987 = success`.
+- Backend handoff reviewed; WAL/runtime/storage ownership is disjoint from the Core plaintext-refusal proof, while any deep Protected Content/index storage contract must remain coordinated rather than duplicated.
+- UI handoff reviewed; current startup/accessibility/keyboard-focus presentation work is disjoint from §49 Core security semantics.
+- Integrator handoff reviewed. Current Develop advanced to `200648457ba647173376109d09f94725730ee659`; the worker is not force-synchronized over that moving baseline and no Develop change was overwritten.
 
 ## Next Core action
 
-1. Consume exact Quality `34121459780` for `e6b6a5b1fe42ac612beb10e641a770be3e120b60` or the exact descendant carrying this handoff only.
-2. If green, hand the exact verified Reset SHA to Integrator and then take the highest remaining bounded Core-owned Alpha/Beta P0/P1/P2 gap.
-3. If red, repair only the exact primary failure; do not weaken assertions, add Skip/XFail, or relax persistence/provenance/security invariants.
-4. Do not claim the Project portion of §50 covered until an actual Project persistence contract exists and can be proven unchanged.
+1. Treat `57e133507ab4b8edc78d4af8467f2320dce0e906` as exact-green verified predecessor via Quality `34121540987`.
+2. Preserve §49 fail-closed plaintext behavior. Do not claim full Protected Lock until a real Protected Content passphrase/unlock boundary and concrete index/suggestion attachment are available for acceptance.
+3. On the next safe synchronization, compare the moving Develop lineage and retain all foreign Backend/UI/Integrator changes using history-preserving, non-force integration only.
+4. Immediately take the highest remaining evidence-backed Core-owned CHAT/KNOWLEDGE/RESEARCH/PALLAS/Human-Control P0/P1/P2 gap that does not depend on the missing §49 cross-component contract; do not spend another run repeating this analysis.
+5. If a new exact-SHA failure appears, repair only its smallest proven root cause; no Skip/XFail, weakened assertions or synthetic provenance.
 
 ## Release regression obligations
 
