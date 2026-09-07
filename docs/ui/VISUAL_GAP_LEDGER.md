@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `af170f7307c2da454ab168a1993af3125868698a`
+Baseline: `f4c7ecfdca3313f0418895e6e495459e091586fe`
 Integration target: `develop/pathena-next`
 UI worker: `postmerge/ui`
 
@@ -324,11 +324,27 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
 
 ## UI-GAP-0055 — Empty-state eyebrow does not wrap on narrow workspaces
-- Screen: `11 — Startup / Empty / Disconnected state`; Category: `RESPONSIVE / LAYOUT`; Severity: `P2`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Screen: `11 — Startup / Empty / Disconnected state`; Category: `RESPONSIVE / LAYOUT`; Severity: `P2`; Status: `FIXED`.
 - Evidence: with responsive panel sizing and title wrapping already in place, `QLabel#emptyStateEyebrow` still used the default non-wrapping label behavior. The fixed `LOCAL-FIRST WORKSPACE` copy could therefore overflow the same narrow first-run panel that now adapts its width.
 - Product `e105224b49caf17abecccc4bb5a5ae1085fa4f0e` enables only `wordWrap(True)` on the existing eyebrow label. Focused regression `149a868f04b4a1781cfee164fb38431fe563a76b` locks eyebrow wrapping while retaining the existing responsive panel/body and title-wrap assertions.
 - Copy, alignment, accent styling, readiness, chat/model routing, persistence, backend/storage/security/runtime and process semantics are unchanged; this is bounded responsive presentation only.
-- Verification evidence: canonical Quality is pending on the current documentation successor carrying unchanged product/test content; no PASS is claimed yet.
+- Verification evidence: exact UI head `4e20612024bc5ffe0289b5c8ecd541ea25b8b10b` passed canonical ATHENA Quality Gate `34088121637` with conclusion `success`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0056 — Disconnected Send control exposes action copy instead of readiness reason
+- Screen: `11 — Startup / Empty / Disconnected state`; Category: `ACCESSIBILITY / STATE`; Severity: `P1`; Status: `FIXED`.
+- Evidence: the disabled disconnected `sendButton` retained the normal `Send message (Ctrl+Enter)` tooltip while the adjacent prompt already exposed the truthful selected-model readiness reason.
+- Product `d97c9cbb9f5220ef436e8316d306315af5076971` projects the existing readiness truth to the Send tooltip/accessibility description while restoring the established Send action copy when ready. Focused regression `5fb6eab2c6d68f7ca06bfd38b4b703f98c0f55bb` locks the disconnected readiness copy and tooltip/accessibility equivalence.
+- Enabled-state ownership, send routing, chat/model semantics, persistence, backend/storage/security/runtime and process semantics are unchanged; this is presentation metadata only.
+- Verification evidence: exact UI head `2f98ef242107421770ed4573bea06532e052727b` passed canonical ATHENA Quality Gate `34092357862` with conclusion `success`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0057 — Disconnected Sources grounding control exposes action copy instead of readiness reason
+- Screen: `11 — Startup / Empty / Disconnected state`; Category: `ACCESSIBILITY / STATE`; Severity: `P1`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Evidence: the disabled disconnected `groundButton` retained the normal `Ground this message in available sources` tooltip while Prompt and Send expose the truthful selected-model readiness reason. That leaves one composer action self-describing as available action intent even while startup readiness prevents use.
+- Product `00aac91cb037a41029cb5b66c04a40c51a6ae1db` projects the same established readiness copy to the Grounding tooltip/accessibility description while restoring the existing `Ground this message in available sources` action copy when ready. Focused regression `1e2fc01ca2209fed3c4e33057ce4366b3ad9c42b` locks disconnected readiness metadata and ready-state restoration.
+- Grounding behavior, source selection/provenance, enabled-state ownership, Core/model/chat routing, persistence, backend/storage/security/runtime and process semantics are unchanged; this is presentation metadata only.
+- Verification evidence: canonical Quality pending on an exact documentation successor carrying unchanged product/test content; no PASS is claimed yet.
 - Visual status: `IMPLEMENTED_PENDING_VERIFY`; no screenshot-level `MATCH` claim.
 
 ## Evidence blocker
