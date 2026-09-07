@@ -60,3 +60,41 @@ def test_exact_scoped_memory_priority_reaches_model_facing_context(tmp_path) -> 
     assert "Current user message overrides USER PREFERENCE" in payload["policy"]
 
     database.stop()
+
+
+def test_project_detail_preference_outranks_conflicting_global_preference(tmp_path) -> None:
+    database = SQLiteDatabase(tmp_path / "athena.db")
+    database.start()
+    chat = ChatService(ChatRepository(database))
+    memory = PersonalMemoryService(PersonalMemoryRepository(database), chat)
+    project_id = uuid.uuid4()
+
+    global_preference = memory.remember(
+        content="Answer briefly.",
+        memory_kind=MemoryKind.DETAIL_PREFERENCE,
+    )
+    project_preference = memory.remember(
+        content="For this project, answer in detail.",
+        memory_kind=MemoryKind.DETAIL_PREFERENCE,
+        scope_kind=MemoryScopeKind.PROJECT,
+        scope_entity_id=project_id,
+    )
+
+    candidates = memory.context_candidates(
+        scope_kind=MemoryScopeKind.PROJECT,
+        scope_entity_id=project_id,
+    )
+
+    assert [snapshot.memory_id for snapshot in candidates] == [
+        project_preference.memory_id,
+        global_preference.memory_id,
+    ]
+    assert candidates[0].revision.payload.memory_kind is MemoryKind.DETAIL_PREFERENCE
+    assert candidates[0].revision.payload.scope_kind is MemoryScopeKind.PROJECT
+    assert candidates[0].revision.payload.scope_entity_id == project_id
+    assert candidates[0].revision.payload.content == "For this project, answer in detail."
+    assert candidates[1].revision.payload.memory_kind is MemoryKind.DETAIL_PREFERENCE
+    assert candidates[1].revision.payload.scope_kind is MemoryScopeKind.GLOBAL
+    assert candidates[1].revision.payload.content == "Answer briefly."
+
+    database.stop()
