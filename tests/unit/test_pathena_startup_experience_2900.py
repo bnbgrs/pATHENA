@@ -71,6 +71,20 @@ def test_quiet_workspace_contract_remains_effect_free() -> None:
     assert "gradient" not in lowered
 
 
+def test_new_chat_shortcut_help_is_available_to_accessibility() -> None:
+    _app()
+    window = _ReadyStartupWindow()
+
+    new_chat = QPushButton(window)
+    new_chat.setObjectName("newChatButton")
+    new_chat.setToolTip("New chat (Ctrl+N)")
+
+    PathenaStartupExperience(window)
+
+    assert new_chat.accessibleDescription() == new_chat.toolTip()
+    assert "Ctrl+N" in new_chat.accessibleDescription()
+
+
 def test_disconnected_startup_copy_keeps_core_infrastructure_in_background() -> None:
     _app()
     window = _DisconnectedStartupWindow()
