@@ -8,16 +8,16 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 
 ## Current baseline
 
-- Baseline reviewed: `develop/pathena-next@ef2e991d33539bb267b6744e878ac2ad24cd7266`.
-- Error branch mutation lineage remains on `postmerge/errors`; no main mutation, force-push or history rewrite.
-- Reviewed heads: Spec/Core `65b66db6b41bbb0c37ca26437b80bd50ccff1810`; Backend `2feb8be5988793e84f7d7d1c36a99aa8f4cb220f`; UI `27051b50f6e1eebb969232d10459bcf83d77210c`; Integrator/Develop `ef2e991d33539bb267b6744e878ac2ad24cd7266`.
+- Baseline reviewed: `develop/pathena-next@0a19ab7fbd8944fbe38768dcba1d6c3710bfd656`.
+- Error branch synchronized history-preservingly and NON-FORCE through merge commit `1f085d098b0bb4ee33848b821da51e28a3cca6fc`; mutation lineage remains `postmerge/errors` only.
+- Reviewed heads: Spec/Core `a033f07472b7c32f932da37b4659b047d19e0482`; Backend `afd4fce6d4005a88bc3a4bdd3233531e041ffcbb`; UI `4a4efbe417809fe8cc5d7f1ecb3aa4f4861f63d7`; Integrator/Develop `0a19ab7fbd8944fbe38768dcba1d6c3710bfd656`.
 - `spec-core.md`, `backend.md`, `ui.md`, and `integrator.md` were reviewed before this scan; exact worker branch heads and canonical Quality state were independently rechecked.
 
 ## Current state
 
 - FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015`, `ERR-0016`, `ERR-0017`, `ERR-0018`.
 - STALE: `ERR-0014`.
-- BLOCKED: `ERR-0019`.
+- IN_PROGRESS: `ERR-0019`.
 - OPEN: none.
 
 ## Historical verified entries
@@ -44,23 +44,25 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 ## ERR-0019 — Spec/Core canonical pytest failure
 
 - Severity: P2.
-- Status: `BLOCKED` pending exact failing-test diagnostic extraction.
-- Evidence: canonical ATHENA Quality Gate `34095098802` on exact Spec/Core SHA `65b66db6b41bbb0c37ca26437b80bd50ccff1810` completed `failure`; Linux storage, Local install smoke, Windows path safety, specification validator, Ruff and mypy all PASS; `Quality — pytest` is the sole failing canonical step.
-- Triggering worker delta: commit `65b66db6b41bbb0c37ca26437b80bd50ccff1810` adds `test_current_instruction_outranks_conflicting_global_detail_preference` in `tests/unit/test_personal_memory_context_priority.py` and asserts the current-message-overrides-durable-preference policy without mutating durable memory.
-- Root cause: not yet finalized. The canonical diagnostics artifact exists (`canonical-quality-diagnostics-65b66db6b41bbb0c37ca26437b80bd50ccff1810`, artifact `10008929300`), but the available GitHub connector exposes artifact metadata while not exposing the contained pytest traceback/log payload; no speculative test/product fix is permitted without the exact assertion/traceback.
-- Files: `tests/unit/test_personal_memory_context_priority.py`; exact product root-cause file unknown until traceback is recovered.
-- Fix SHA: none.
-- Verification: no PASS/FIXED claim.
-- Risk: do not attribute this to Windows, Storage, Ruff, mypy or Validator; those canonical jobs are green on the same SHA.
-- Integrator handoff: hold Spec/Core `65b66db6b41bbb0c37ca26437b80bd50ccff1810`; retrieve exact pytest diagnostic from run `34095098802`/artifact `10008929300`, then either correct the harness if expectation drift is proven or product code if behavior violates the current-message precedence contract.
+- Status: `IN_PROGRESS`.
+- Initial evidence: canonical ATHENA Quality Gate `34095098802` on exact Spec/Core SHA `65b66db6b41bbb0c37ca26437b80bd50ccff1810` completed `failure`; Linux storage, Local install smoke, Windows path safety, specification validator, Ruff and mypy all PASS; `Quality — pytest` was the sole failing canonical step.
+- Initial triggering delta: commit `65b66db6b41bbb0c37ca26437b80bd50ccff1810` added only `test_current_instruction_outranks_conflicting_global_detail_preference` in `tests/unit/test_personal_memory_context_priority.py`.
+- Root-cause layer 1 CONFIRMED by owner mutation: the harness expected serialized `revision_no`, while the canonical model-facing serializer emits `context_id`; Spec/Core commit `a033f07472b7c32f932da37b4659b047d19e0482` replaced `revision_no` with `context_id: MEM-001` and changed no product file.
+- Residual evidence: exact canonical Quality `34099534536@a033f07472b7c32f932da37b4659b047d19e0482` still completed `failure`; Local install, Linux storage, Windows path safety, Validator, Ruff and mypy PASS again, and `Quality — pytest` alone FAILS. Therefore layer 1 was a real harness mismatch but is not sufficient to close `ERR-0019`.
+- Residual root cause: not finalized. The connector still does not expose the pytest traceback/log payload, so the remaining failure cannot safely be attributed to product behavior or another harness assertion.
+- Files: `tests/unit/test_personal_memory_context_priority.py`; exact residual product/root-cause file unknown until the failing assertion/traceback is recovered.
+- Fix SHA: none accepted as complete. `a033f07472b7c32f932da37b4659b047d19e0482` is a partial harness correction only and itself remains canonical-red.
+- Verification: NO PASS/FIXED claim.
+- Risk: do not attribute this to Windows, Storage, Ruff, mypy or Validator; all are green on both exact failing SHAs. Do not merge/speculate around the residual pytest failure.
+- Integrator handoff: HOLD Spec/Core `a033f07472b7c32f932da37b4659b047d19e0482`; recover the exact remaining pytest diagnostic from run `34099534536` and finish the same `ERR-0019` rather than allocating a duplicate error.
 
-## Current scan evidence — 2026-09-07 10:00 CEST
+## Current scan evidence — 2026-09-07 11:xx CEST
 
-- Spec/Core exact `65b66db6b41bbb0c37ca26437b80bd50ccff1810`: canonical Quality `34095098802 = failure`; sole canonical failing step is full pytest. `ERR-0019` allocated and blocked on traceback extraction rather than guessed.
-- Backend exact `2feb8be5988793e84f7d7d1c36a99aa8f4cb220f`: canonical Quality `34095824663 = in_progress`; no confirmed primary failure yet.
-- UI exact `27051b50f6e1eebb969232d10459bcf83d77210c`: canonical Quality `34097034775 = pending`; no jobs/diagnostic failure established yet.
-- Develop exact `ef2e991d33539bb267b6744e878ac2ad24cd7266`: no exact pull-request-triggered canonical Quality run is currently associated with this SHA; no promotion-ready claim.
-- `ERR-0004` remains FIXED and is not reopened; the current concrete signal is `ERR-0019`.
+- Spec/Core exact `a033f07472b7c32f932da37b4659b047d19e0482`: canonical Quality `34099534536 = failure`; sole canonical failing step remains full pytest after the serializer-expectation correction.
+- Backend exact `afd4fce6d4005a88bc3a4bdd3233531e041ffcbb`: canonical Quality `34100925468 = in_progress`; no confirmed primary failure yet.
+- UI exact `4a4efbe417809fe8cc5d7f1ecb3aa4f4861f63d7`: canonical Quality `34102329189 = pending`; no confirmed primary failure yet.
+- Develop exact `0a19ab7fbd8944fbe38768dcba1d6c3710bfd656`: no exact pull-request-triggered canonical Quality success was established in this scan; no promotion-ready claim.
+- `ERR-0004` remains FIXED and is not reopened; the current concrete signal remains `ERR-0019`.
 
 ## Persistent Beta/release regression knowledge
 
