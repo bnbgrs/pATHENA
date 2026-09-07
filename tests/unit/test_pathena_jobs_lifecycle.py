@@ -78,6 +78,32 @@ def test_unknown_job_state_fails_closed_for_every_visible_action() -> None:
         assert "future_state" not in reason
 
 
+def test_action_button_help_is_exposed_to_accessibility(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(JobsWorkspace, "refresh", lambda _self: None)
+    app = _app()
+    workspace = JobsWorkspace()
+    workspace._refresh_timer.stop()
+    workspace._scheduler_status_timer.stop()
+    app.processEvents()
+    try:
+        workspace._selected_state = "waiting"
+        workspace._sync_action_buttons()
+
+        for button in (
+            workspace.pause_button,
+            workspace.resume_button,
+            workspace.wake_button,
+            workspace.cancel_button,
+        ):
+            assert button.toolTip()
+            assert button.accessibleDescription() == button.toolTip()
+    finally:
+        workspace.close()
+        app.processEvents()
+
+
 def test_transition_receipt_is_bound_to_exact_job_and_operation() -> None:
     receipt = parse_transition_receipt(
         f"JOB_PAUSE {JOB_ID} paused\n",
