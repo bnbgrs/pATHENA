@@ -3,6 +3,7 @@ from PySide6.QtWidgets import (
     QFrame,
     QLabel,
     QLineEdit,
+    QPushButton,
     QVBoxLayout,
     QWidget,
 )
@@ -78,6 +79,9 @@ def test_disconnected_startup_copy_keeps_core_infrastructure_in_background() -> 
     status.setObjectName("localStatus")
     prompt = QLineEdit(window)
     prompt.setObjectName("promptInput")
+    send = QPushButton(window)
+    send.setObjectName("sendButton")
+    send.setToolTip("Send message (Ctrl+Enter)")
 
     messages = QWidget(window)
     messages.setObjectName("chatMessages")
@@ -94,6 +98,8 @@ def test_disconnected_startup_copy_keeps_core_infrastructure_in_background() -> 
     assert status.accessibleDescription() == status.toolTip()
     assert "core" not in prompt.toolTip().casefold()
     assert prompt.accessibleDescription() == prompt.toolTip()
+    assert "selected model" in send.toolTip().casefold()
+    assert send.accessibleDescription() == send.toolTip()
     title = messages.findChild(QLabel, "emptyStateTitle")
     assert title is not None
     assert title.text() == "Getting pATHENA ready"
