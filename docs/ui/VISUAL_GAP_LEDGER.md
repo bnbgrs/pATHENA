@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `4e18f75beeaa1c5b57bca28dcad5a062ac498051`
+Baseline: `d40dc421585193db7bda039d113d7d81ccfb9c03`
 Integration target: `develop/pathena-next`
 
 Only evidence-backed gaps belong here. The original 11 reference screenshots remain unavailable for direct visual comparison; therefore no pixel-level mismatch or `MATCH` claim is asserted.
@@ -183,11 +183,23 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Category: `COPY`
 - Screen: `04 — Jobs`
 - Severity: `P2`
-- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Status: `FIXED`
 - Evidence: the persistent Jobs heading/intro visibly exposed `DURABLE JOB CONTROL`, SQLite, leases/checkpoints, `DurableJobService transitions` and a `GUI-side queue` implementation distinction instead of explaining the product surface.
 - Product commit: `c3637e08e64a6c1f08438b477a940b073b504de3`
 - Focused regression commit: `b927515fb5371f02f5da4cf4a90aa3d596d34ed0`
+- Verification evidence: exact UI head `04b4a77b144fb1da1edfa0b0c155f8fe8b583d6c` passed ATHENA Quality Gate `34167675010` with conclusion `success`.
 - Acceptance: heading is simply `JOBS`; intro explains that Research and Sources background work appears here and that the user can inspect/manage jobs. No queue, transition, persistence, scheduler, worker, storage or backend semantics change.
+
+## UI-GAP-0073 — Jobs progress/status copy exposes persistence-oriented implementation terms
+
+- Category: `COPY`
+- Screen: `04 — Jobs`
+- Severity: `P2`
+- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Evidence: refresh/show/cancel progress and refresh/show success states still visibly used `durable` and `Persisting cancellation request`, despite these being user actions rather than storage architecture.
+- Product commit: `4315a744a097c35ab46be4df883f0853544446b9`
+- Focused regression commit: `cf777ca08ac0885c636aed95b5f6ddd6cd381386`
+- Acceptance: use `Refreshing jobs`, `Loading job details`, `Requesting cancellation`, `Jobs refreshed` and `Job … details loaded`; leave lifecycle transitions, persistence, scheduler, worker, storage, backend and cancellation semantics unchanged.
 
 ## Evidence blocker
 
