@@ -2,11 +2,11 @@
 
 ## Baseline
 
-- Current baseline reviewed: `develop/pathena-next@591da5b99d2d8a7d24ba2c2cf866151bf362f4fb`.
+- Current baseline reviewed: `develop/pathena-next@b6c5c6181a5327d4ee436be518f4eebfacaf82bb`.
 - Error worker: `postmerge/errors` only.
-- Previous Error head: `de488e7f956f817de9fe17c8edcb58378d4ccfce`.
-- History-preserving NON-FORCE synchronization merge: `72a9f67fe85ad8f1792e0cc4bd90487573fa83f4`.
-- Current worker heads reviewed: Spec/Core `c6b4fdba485a1de249a93e99883fca4085b9fc48`; Backend `69b5a7792f5b2087f857fe00c0828a209abff438`; UI `b4297ae1e54e2bbf8b2f8d673018077590b029c8`; Integrator/Develop `591da5b99d2d8a7d24ba2c2cf866151bf362f4fb`.
+- Previous Error head: `2b7aa1940d4807df5e4347fd030eae8d9c03da38`.
+- History-preserving NON-FORCE synchronization merge: `fc519540563d79d499e68e7def23cc722ae68bf6`.
+- Current worker heads reviewed: Spec/Core `c6b4fdba485a1de249a93e99883fca4085b9fc48`; Backend `05549d4cfc8a8cdd01f3f4cbbe83685d200c9795`; UI `89cea7ecfaeb75a694a0682ff39feb5172ffbcfa`; Integrator/Develop `b6c5c6181a5327d4ee436be518f4eebfacaf82bb`.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current error state
@@ -20,19 +20,18 @@
 
 ## Canonical evidence consumed this run
 
-- Backend exact `42a3397916a0b75091f2577bd02bf89b0082b4aa`: ATHENA Quality Gate `34128772157 = success`; no new Error-Ledger item.
-- UI exact `e4123e2085b9c7c20f5dffdc8faba19d14296c57`: ATHENA Quality Gate `34129349248 = success`; no new Error-Ledger item. Integrator already consumed this exact-green slice for UI-GAP-0063.
-- Spec/Core current documentation head `c6b4fdba485a1de249a93e99883fca4085b9fc48`: Quality `34127196867 = success`; no current failure signal.
-- Backend current exact `69b5a7792f5b2087f857fe00c0828a209abff438`: Quality `34133863835 = in_progress`; local install smoke, Windows path safety, Linux storage, specification validator, Ruff and mypy PASS; full pytest still running. No confirmed primary failure.
-- UI current exact `b4297ae1e54e2bbf8b2f8d673018077590b029c8`: Quality `34134425435 = in_progress`; local install smoke, Windows path safety, Linux storage, specification validator, Ruff and mypy PASS; full pytest still running. No confirmed primary failure.
-- Develop exact `591da5b99d2d8a7d24ba2c2cf866151bf362f4fb`: no exact completed pull-request-triggered canonical Quality evidence observed. No promotion-ready claim.
+- Spec/Core current head `c6b4fdba485a1de249a93e99883fca4085b9fc48`: prior exact Quality `34127196867 = success`; no current failure signal.
+- Backend current exact `05549d4cfc8a8cdd01f3f4cbbe83685d200c9795`: Quality `34138525799 = in_progress`; local install smoke, Windows path safety, Linux storage, specification validator, Ruff and mypy PASS; full pytest still running. No confirmed primary failure.
+- UI current exact `89cea7ecfaeb75a694a0682ff39feb5172ffbcfa`: Quality `34139713588 = in_progress`; local install smoke, Windows path safety, Linux storage, specification validator, Ruff and mypy PASS; full pytest still running. No confirmed primary failure.
+- Develop exact `b6c5c6181a5327d4ee436be518f4eebfacaf82bb`: integrator documentation records verified WAL runtime integration, but no exact completed pull-request-triggered canonical Quality evidence was established for this Develop SHA in this scan. No promotion-ready claim.
 - No current exact-SHA Quality/runtime evidence reproduces retained Windows packaging/process-tree/chat-context/lane-lock/storage-bootstrap crash signatures; none is reopened.
+- `ERR-0004` remains FIXED; current Ruff evidence is green on both active Backend/UI exact SHAs.
 
 ## Integrator handoff
 
-- No Error-Ledger hold exists for exact-green Backend `42a3397916a0b75091f2577bd02bf89b0082b4aa`, UI `e4123e2085b9c7c20f5dffdc8faba19d14296c57`, or Spec/Core `c6b4fdba485a1de249a93e99883fca4085b9fc48` based on the cited canonical evidence.
-- Do not treat current Backend `69b5a7792f5b2087f857fe00c0828a209abff438` or UI `b4297ae1e54e2bbf8b2f8d673018077590b029c8` as exact-green until `34133863835` and `34134425435` complete successfully.
-- Do not promote Develop `591da5b99d2d8a7d24ba2c2cf866151bf362f4fb` without its own exact completed canonical evidence or an explicitly accepted product-identical successor.
+- No Error-Ledger hold exists for Spec/Core `c6b4fdba485a1de249a93e99883fca4085b9fc48` based on prior exact canonical success.
+- Do not treat Backend `05549d4cfc8a8cdd01f3f4cbbe83685d200c9795` or UI `89cea7ecfaeb75a694a0682ff39feb5172ffbcfa` as exact-green until `34138525799` and `34139713588` complete successfully.
+- Do not promote Develop `b6c5c6181a5327d4ee436be518f4eebfacaf82bb` without its own exact completed canonical evidence or an explicitly accepted product-identical successor.
 - Preserve Windows path safety, Storage, Security, Provider/Transport, Recovery, Ruff, mypy, Validator and all release crash-regression guards.
 - `ERR-0004` and `ERR-0019` remain FIXED; reopen only on exact-current recurrence.
 
@@ -44,7 +43,7 @@ Before any Beta/release promotion, execute these known crash classes explicitly 
 
 ## Next scan
 
-1. Consume completion of Backend `34133863835` and UI `34134425435`; allocate/reopen only on concrete deduplicated primary failure evidence.
-2. Consume the next exact current Develop/runtime signal for `591da5b99d2d8a7d24ba2c2cf866151bf362f4fb` or successor.
+1. Consume completion of Backend `34138525799` and UI `34139713588`; allocate/reopen only on concrete deduplicated primary failure evidence.
+2. Consume the next exact current Develop/runtime signal for `b6c5c6181a5327d4ee436be518f4eebfacaf82bb` or successor.
 3. If a run turns red, isolate the exact diagnostic, separate cascade from primary root cause, then finalize root cause, make the minimal Error-owned fix, or concretely verify the owning worker mutation in the same run.
 4. If no real failure exists, keep the ledger clean rather than manufacturing work.
