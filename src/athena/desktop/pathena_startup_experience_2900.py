@@ -216,6 +216,7 @@ class PathenaStartupExperience(QObject):
         if new_chat is not None:
             new_chat.setMinimumWidth(52)
             new_chat.setMaximumWidth(62)
+            new_chat.setAccessibleDescription(new_chat.toolTip())
 
         prompt = self.window.findChild(QWidget, "promptInput")
         if prompt is not None:

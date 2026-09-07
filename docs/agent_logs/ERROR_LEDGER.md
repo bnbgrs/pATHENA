@@ -8,16 +8,16 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 
 ## Current baseline
 
-- Baseline reviewed: `develop/pathena-next@aed6afdfa23f1ef3d90abe05cbecd790727ed016`.
-- Error branch mutation lineage remains `postmerge/errors` only; no force, rebase, history rewrite or main mutation was performed.
-- Reviewed current worker heads: Spec/Core `cce6f200059d972958c9c971db2d7ad9d73ce2de`; Backend `607319fa41abdea0e468523f2c653e1fd84cfc82`; UI `1de30b1df309954399a3a47cc485b7517ecf9ce1`; Integrator/Develop `aed6afdfa23f1ef3d90abe05cbecd790727ed016`.
-- Required handoff files were reviewed; branch heads and canonical Quality state were independently rechecked.
+- Baseline reviewed: `develop/pathena-next@1bbbc693db781f1d56a7c75151fe9951a21363cc`.
+- Error branch mutation lineage remains `postmerge/errors` only; synchronization is history-preserving and NON-FORCE; no rebase, history rewrite or main mutation.
+- Reviewed worker heads: Spec/Core `c7cd4d9b1e0889a00b4599dfe76738442378b17b`; Backend `cdb83418e98007c2fd041bba93793691516c65b0`; UI `70f8867a2645cd2795853745f54844efe8c70d0c`; Integrator/Develop `1bbbc693db781f1d56a7c75151fe9951a21363cc`.
+- Required `spec-core.md`, `backend.md`, `ui.md`, `integrator.md` and relevant branch/workflow state were reviewed before mutation.
 
 ## Current state
 
-- FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015`, `ERR-0016`, `ERR-0017`, `ERR-0018`.
+- FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015`, `ERR-0016`, `ERR-0017`, `ERR-0018`, `ERR-0019`.
 - STALE: `ERR-0014`.
-- IN_PROGRESS: `ERR-0019`.
+- IN_PROGRESS: none.
 - OPEN: none.
 
 ## Historical verified entries
@@ -39,31 +39,32 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 - `ERR-0015` P2 FIXED — fake bounded-response harness fabricated overflow byte; Backend `34009044381 = success`; fix `5abee1fb3cf9aa639a2600796036302ef63a773d`.
 - `ERR-0016` P1 FIXED — local HTTP overflow poisoning regression; corrected Quality `34030367660@54637682087b880622796ee0b618362f7ed802fe = success`; fix `d721846ea9524ab18336ba72eeb082cca7ee0fb8`, regression `44bf215b999e727514fc10ddb88eb8379a5358b6`.
 - `ERR-0017` P1 FIXED — integrated Personal Memory service omitted `ModelInferredMemoryProposal`; corrected Quality `34030367660@54637682087b880622796ee0b618362f7ed802fe = success`; Error fixes `5ff326e39611a3aea5678e2151c300822ad593f9` + `281cedc6010617ce0aa60ea25ec497500225bb17`.
-- `ERR-0018` P2 FIXED — Personal Memory context Ruff I001; pinned Ruff fixer commit `61194be6eddf6fa7fe37c9c62690244a29414acd`; exact canonical success `34060875144@5714f3c7724cb82ccd75a7e852c668bfe78c6d5d`, later `34063688754@12e2e98d10c3fc11821ffa8f5edead80806da009 = success`.
+- `ERR-0018` P2 FIXED — Personal Memory context Ruff I001; Ruff fixer `61194be6eddf6fa7fe37c9c62690244a29414acd`; exact canonical success `34060875144@5714f3c7724cb82ccd75a7e852c668bfe78c6d5d`, later `34063688754@12e2e98d10c3fc11821ffa8f5edead80806da009 = success`.
 
-## ERR-0019 — Spec/Core canonical pytest failure
+## ERR-0019 — Spec/Core Personal Memory precedence harness drift
 
 - Severity: P2.
-- Status: `IN_PROGRESS`.
+- Status: `FIXED`.
 - Initial evidence: canonical Quality `34095098802@65b66db6b41bbb0c37ca26437b80bd50ccff1810 = failure`; Linux storage, Local install smoke, Windows path safety, Validator, Ruff and mypy PASS; full pytest sole failure.
-- Triggering delta: new `test_current_instruction_outranks_conflicting_global_detail_preference` in `tests/unit/test_personal_memory_context_priority.py`.
-- Root-cause layer 1 CONFIRMED: harness expected serialized `revision_no` although `_render_context()` canonically emits `context_id`; Spec/Core `a033f07472b7c32f932da37b4659b047d19e0482` corrected the expectation to `context_id: MEM-001` without product mutation.
-- Root-cause layer 2 CONFIRMED by subsequent owner correction: the same harness called nonexistent/noncanonical `PersonalMemoryRepository.get()` for state-before/state-after checks; Spec/Core `cce6f200059d972958c9c971db2d7ad9d73ce2de` replaced both calls with the repository's actual `load_current()` contract and changed no product file.
-- Exact verification after layer 2: canonical Quality `34105038031@cce6f200059d972958c9c971db2d7ad9d73ce2de = failure`; Linux storage PASS, Local install smoke PASS, Windows path safety PASS, Validator PASS, Ruff PASS, mypy PASS, and full pytest remains the sole failing step. Therefore layers 1 and 2 are real harness defects but remain insufficient to close `ERR-0019`.
-- Residual root cause: not finalized. Quality diagnostics artifact `10012806334` exists for exact run `34105038031`, but the available GitHub connector exposes artifact metadata rather than the text payload and rejects the job-log endpoint; local network cloning is unavailable in the automation runtime. No speculative third fix is permitted.
-- Files: `tests/unit/test_personal_memory_context_priority.py`; exact residual product/root-cause file remains unknown pending the failing traceback/assertion.
-- Fix SHA: none accepted as complete. `a033f074...` and `cce6f200...` are partial harness corrections only; both exact follow-up states remained canonical-red.
-- Verification: NO PASS/FIXED claim.
-- Risk: do not attribute the residual to Windows, Storage, Ruff, mypy or Validator because all are green on the exact current failing SHA. Do not allocate a duplicate error.
-- Integrator handoff: HOLD Spec/Core `cce6f200059d972958c9c971db2d7ad9d73ce2de`; recover the exact remaining pytest traceback/assertion from `34105038031`/job `101687991088`/artifact `10012806334` and finish this same `ERR-0019`.
+- Triggering test: `test_current_instruction_outranks_conflicting_global_detail_preference` in `tests/unit/test_personal_memory_context_priority.py`.
+- Root-cause layer 1: harness expected serialized `revision_no` although `_render_context()` canonically emits `context_id`; corrected at `a033f07472b7c32f932da37b4659b047d19e0482`.
+- Root-cause layer 2: harness used nonexistent/noncanonical repository `get()` rather than `load_current()` for state reads; corrected at `cce6f200059d972958c9c971db2d7ad9d73ce2de`.
+- Root-cause layer 3 / final harness correction: the test used the requested proposal revision identity rather than the persisted revision identity returned by the repository/service path; Spec/Core `c7cd4d9b1e0889a00b4599dfe76738442378b17b` changed the harness to use the returned revision identity. Product semantics were not weakened.
+- Exact verification: canonical ATHENA Quality Gate `34110957854@c7cd4d9b1e0889a00b4599dfe76738442378b17b = success`.
+- Verified gates on the exact SHA: Windows path safety PASS; Linux storage regressions PASS; Local install smoke PASS; specification Validator PASS; Ruff PASS; mypy PASS; full pytest PASS; canonical result enforcement PASS.
+- Fix SHA: `c7cd4d9b1e0889a00b4599dfe76738442378b17b` accepted as complete verified worker fix; prior `a033f074...` and `cce6f200...` remain partial correction lineage only.
+- Files: `tests/unit/test_personal_memory_context_priority.py`.
+- Risk: no product, Security, Storage, Recovery, Windows path, Ruff/mypy/Validator guard relaxation occurred. Integrator may review exact-green Spec/Core lineage independently before integration.
+- Integrator handoff: release the prior HOLD on Spec/Core `c7cd4d9b1e0889a00b4599dfe76738442378b17b` with respect to `ERR-0019`; integration still requires normal conflict/current-Develop review.
 
-## Current scan evidence — 2026-09-07 12:xx CEST
+## Current scan evidence — 2026-09-07 13:xx CEST
 
-- Spec/Core exact `cce6f200059d972958c9c971db2d7ad9d73ce2de`: canonical Quality `34105038031 = failure`; pytest only.
-- Backend exact `607319fa41abdea0e468523f2c653e1fd84cfc82`: canonical Quality `34106290925 = in_progress`; no confirmed primary failure yet.
-- UI exact `1de30b1df309954399a3a47cc485b7517ecf9ce1`: canonical Quality `34107416188 = in_progress`; no confirmed primary failure yet.
-- Develop exact `aed6afdfa23f1ef3d90abe05cbecd790727ed016`: no exact completed pull-request-triggered canonical Quality success established in this scan; no promotion-ready claim.
-- `ERR-0004` remains FIXED and is not reopened.
+- Spec/Core exact `c7cd4d9b1e0889a00b4599dfe76738442378b17b`: canonical Quality `34110957854 = success`; `ERR-0019` closed.
+- Backend exact `cdb83418e98007c2fd041bba93793691516c65b0`: canonical Quality `34111860691 = in_progress`; no confirmed primary failure.
+- Backend predecessor/application `f5572368b9ad3aae7e0b8113227b8414fbefe34a`: canonical Quality `34111813546 = success` and is recorded integrated on Develop lineage.
+- UI exact `70f8867a2645cd2795853745f54844efe8c70d0c`: canonical Quality `34113040437 = pending`; no diagnostic and no confirmed primary failure. Prior `0565720...` run `34113013136` was cancelled after head movement and is not treated as a product failure.
+- Develop exact `1bbbc693db781f1d56a7c75151fe9951a21363cc`: no exact completed canonical Quality success established in this scan; no promotion-ready claim.
+- No current Quality/Runtime evidence reproduces retained Windows packaging/process-tree/chat-context/lane-lock/storage-bootstrap crash signatures; none is reopened.
 
 ## Persistent Beta/release regression knowledge
 
