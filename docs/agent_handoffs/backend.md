@@ -2,35 +2,33 @@
 
 ## Baseline
 
-- Shared baseline reviewed: `develop/pathena-next@78519f7c94df31b3c2374e5a1124fe799db28929`.
+- Shared baseline reviewed: `develop/pathena-next@30dd27c97e948e59994e8cfbe01b1c77ce6c917b`.
 - Worker branch: `postmerge/backend` only.
-- Previous worker head: `8bbd0c0b1ff3bf48fde48ce3e1a8e235e0a83b2e`; exact canonical Quality `34143789976 = success`.
+- Previous worker head: `a4696e2647c485465a82764b081562a5b34c6b08`; exact canonical Quality is successful.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only and untouched.
+- Worker synchronization was history-preserving and non-force via PR #79 into `postmerge/backend`, merge commit `82f05823bb1004fd5799659873469aa23e24e675`.
 
 ## Current backend slice
 
 Area: BE-053 scheduler-lane WAL background orchestration.
 
-The exact-green `WalJobSchedulerHook` product/test pair from the previous Backend lineage was materially applied onto the exact current Develop tree rather than re-analysed or re-issued as a patch artifact.
+The exact-green `WalJobSchedulerHook` is now composed directly from the already verified side-effect-free WAL runtime stack through `build_wal_job_scheduler_hook()`. This removes the remaining duplicate/manual construction boundary between `SQLiteDatabase`, `WalMaintenanceRuntime`, and the scheduler-lane hook without modifying shared `DurableJobScheduler` or `AthenaApplication` files in this slice.
 
-History-preserving application commit: `caf72c43cd84b208429f99982a8a0c291f61b67b`, with parents previous Backend `8bbd0c0b1ff3bf48fde48ce3e1a8e235e0a83b2e` and current Develop `78519f7c94df31b3c2374e5a1124fe799db28929`.
+Product commit: `975e3147d205eaa786f29bce2a63b70c2c0edd36`.
+Focused regression commit: `109c5f6d07121e0d7e52ee35012394c84840285e`.
 
-Applied verified blobs:
-
-- `src/athena/storage/wal_job_hook.py` -> `4529c1b7ff7956184e1d01a208f24f8e37177d7a`;
-- `tests/unit/test_wal_job_hook.py` -> `65c87b1617a92b224280f38a2f67d41c64a741ab`.
-
-The hook maps existing `SchedulerLane` ownership into the already verified WAL scheduler adapter. `PROVIDER` remains WAL-side-effect-free; `ALL` and `CONTROL` may run the bounded PASSIVE interval gate. No scheduler, thread, timer, retry loop, automatic TRUNCATE or checkpoint-policy change is introduced.
+The factory delegates all validation to the verified runtime builder, preserves one identity chain, and remains construction-only: no database connection/open, filesystem creation, checkpoint, scheduler, thread, timer, retry loop, or automatic TRUNCATE is introduced.
 
 ## Verification state
 
-- Previous exact Backend head `8bbd0c0b1ff3bf48fde48ce3e1a8e235e0a83b2e`: ATHENA Quality Gate `34143789976 = success`.
-- Current exact application commit `caf72c43cd84b208429f99982a8a0c291f61b67b`: ATHENA Quality Gate `34147793827` was queued after the non-force branch advance.
-- No PASS is claimed for the current Develop-compatible application until exact canonical completion.
+- Previous exact Backend head `a4696e2647c485465a82764b081562a5b34c6b08`: canonical ATHENA Quality Gate = success.
+- Current product/test head `109c5f6d07121e0d7e52ee35012394c84840285e`: ATHENA Quality Gate `34152164630` pending at handoff time.
+- Focused regression coverage adds exact runtime identity-chain composition, construction with no DB/WAL side effect, and bool interval rejection before database side effect; existing provider/ALL/CONTROL/invalid-lane/nonfinite-monotonic coverage remains intact.
+- No PASS is claimed for the new slice until exact canonical completion.
 
 ## Call chain
 
-`existing durable scheduler lane -> WalJobSchedulerHook.run_for_lane -> SchedulerLane normalization -> PROVIDER no-op or ALL/CONTROL ownership -> WalMaintenanceSchedulerAdapter.run_tick -> WalMaintenanceIntervalRunner.run_due -> WalMaintenanceOrchestrator.run_cycle -> PASSIVE-only SQLite WAL maintenance/diagnosis`.
+`future AthenaApplication composition -> build_wal_job_scheduler_hook(database) -> build_wal_maintenance_runtime -> WalMaintenanceService -> WalMaintenanceOrchestrator -> WalMaintenanceIntervalRunner -> WalMaintenanceSchedulerAdapter -> WalJobSchedulerHook.run_for_lane -> PROVIDER no-op or ALL/CONTROL bounded PASSIVE maintenance`.
 
 ## Retained invariants
 
@@ -38,17 +36,18 @@ The hook maps existing `SchedulerLane` ownership into the already verified WAL s
 - automatic WAL checkpoint remains PASSIVE-only; TRUNCATE remains explicit idle-confirmation only; no manual WAL deletion.
 - provider-only scheduler lanes perform no WAL side effect.
 - invalid lane or invalid monotonic input fails before a WAL cycle.
+- runtime/hook construction performs no database or WAL filesystem side effect.
 - no second scheduler, thread, timer or retry loop is introduced.
 - schema, migration, recovery format, provenance, audit, fsync, Source finalization, packaging, Desktop/Worker topology, lane-lock behavior, DirectChat budgeting and cryptography are unchanged.
 - historical Windows crash signatures remain Beta/release regression obligations only absent exact-current reproduction.
 
 ## Coordination
 
-- Error handoff reviewed: OPEN none; current exact Backend predecessor is canonical green; no retained Windows crash signature is reopened.
-- Spec/Core handoff reviewed; Protected Lock / protected-content semantics remain separately owned and untouched.
-- UI handoff reviewed; UI Jobs/accessibility/product-language work remains separately owned and untouched.
-- Integrator handoff reviewed; current Develop had not imported this hook before the application commit above.
+- Error handoff reviewed at `68ef04e969422829809c030c450cf321c5c74d50`; no exact-current Backend crash signature is reopened.
+- Spec/Core handoff reviewed at `c6b4fdba485a1de249a93e99883fca4085b9fc48`; Protected Lock semantics remain separately owned and untouched.
+- UI handoff reviewed at `fd0780d23b081fddb8a236971c74f4cb3c565899`; Jobs/accessibility work remains separately owned and untouched.
+- Integrator handoff reviewed from exact Develop `30dd27c97e948e59994e8cfbe01b1c77ce6c917b`.
 
 ## Next backend slice
 
-Consume exact canonical Quality for `caf72c43cd84b208429f99982a8a0c291f61b67b` or the unchanged handoff descendant. If green, mark only this current-Develop-compatible hook VERIFIED/INTEGRATOR_READY. Then either wire the verified hook/runtime into the shared `DurableJobScheduler`/`AthenaApplication` composition point if those files are collision-safe, or select the next disjoint evidence-backed Recovery/Provider/Platform P1/P2 slice. Do not introduce a second scheduler/thread/timer/retry path or automatic TRUNCATE.
+Consume exact canonical Quality for `109c5f6d07121e0d7e52ee35012394c84840285e` or an unchanged handoff descendant. If green, wire the verified factory/hook into the existing `DurableJobScheduler` control-housekeeping tick and `AthenaApplication` construction only through a collision-safe, backwards-compatible injection point; preserve PROVIDER isolation and forbid a second scheduler/thread/timer/retry loop or automatic TRUNCATE. If shared files cannot be mutated safely with exact-current content, select a disjoint evidence-backed Recovery/Provider/Platform P1/P2 slice rather than repeating this composition analysis.
