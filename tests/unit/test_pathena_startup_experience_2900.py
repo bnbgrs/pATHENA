@@ -103,6 +103,22 @@ def test_session_selector_help_is_available_to_accessibility() -> None:
     assert model_selector.accessibleDescription() == model_selector.toolTip()
 
 
+def test_context_disclosure_help_is_available_to_accessibility() -> None:
+    _app()
+    window = _ReadyStartupWindow()
+
+    context_toggle = QPushButton(window)
+    context_toggle.setObjectName("contextToggle")
+    context_toggle.setToolTip(
+        "Show source and evidence context for the latest grounded response"
+    )
+
+    PathenaStartupExperience(window)
+
+    assert context_toggle.accessibleDescription() == context_toggle.toolTip()
+    assert "evidence context" in context_toggle.accessibleDescription().casefold()
+
+
 def test_disconnected_startup_copy_keeps_core_infrastructure_in_background() -> None:
     _app()
     window = _DisconnectedStartupWindow()
