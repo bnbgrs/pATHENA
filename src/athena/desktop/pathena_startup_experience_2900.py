@@ -206,11 +206,13 @@ class PathenaStartupExperience(QObject):
         if chat_selector is not None:
             chat_selector.setMinimumWidth(220)
             chat_selector.setMaximumWidth(360)
+            chat_selector.setAccessibleDescription(chat_selector.toolTip())
 
         model_selector = self.window.findChild(QWidget, "modelSelector")
         if model_selector is not None:
             model_selector.setMinimumWidth(190)
             model_selector.setMaximumWidth(280)
+            model_selector.setAccessibleDescription(model_selector.toolTip())
 
         new_chat = self.window.findChild(QPushButton, "newChatButton")
         if new_chat is not None:
