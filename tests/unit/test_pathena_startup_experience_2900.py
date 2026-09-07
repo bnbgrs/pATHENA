@@ -79,6 +79,9 @@ def test_disconnected_startup_copy_keeps_core_infrastructure_in_background() -> 
     status.setObjectName("localStatus")
     prompt = QLineEdit(window)
     prompt.setObjectName("promptInput")
+    ground = QPushButton(window)
+    ground.setObjectName("groundButton")
+    ground.setToolTip("Ground this message in available sources")
     send = QPushButton(window)
     send.setObjectName("sendButton")
     send.setToolTip("Send message (Ctrl+Enter)")
@@ -98,6 +101,8 @@ def test_disconnected_startup_copy_keeps_core_infrastructure_in_background() -> 
     assert status.accessibleDescription() == status.toolTip()
     assert "core" not in prompt.toolTip().casefold()
     assert prompt.accessibleDescription() == prompt.toolTip()
+    assert "selected model" in ground.toolTip().casefold()
+    assert ground.accessibleDescription() == ground.toolTip()
     assert "selected model" in send.toolTip().casefold()
     assert send.accessibleDescription() == send.toolTip()
     title = messages.findChild(QLabel, "emptyStateTitle")
@@ -113,6 +118,10 @@ def test_ready_status_refreshes_accessibility_description_from_current_truth() -
     status.setObjectName("localStatus")
     status.setToolTip("Local workspace ready")
     status.setAccessibleDescription("pATHENA reconnects automatically")
+    ground = QPushButton(window)
+    ground.setObjectName("groundButton")
+    ground.setToolTip("Available when pATHENA and the selected model are ready")
+    ground.setAccessibleDescription(ground.toolTip())
 
     controller = PathenaStartupExperience(window)
     controller.sync()
@@ -120,6 +129,8 @@ def test_ready_status_refreshes_accessibility_description_from_current_truth() -
     assert status.text() == "pATHENA ready"
     assert status.toolTip() == "Local workspace ready"
     assert status.accessibleDescription() == status.toolTip()
+    assert ground.toolTip() == "Ground this message in available sources"
+    assert ground.accessibleDescription() == ground.toolTip()
 
 
 def test_empty_state_copy_refreshes_after_disconnected_to_ready_transition() -> None:
