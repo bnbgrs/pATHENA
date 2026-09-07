@@ -8,11 +8,11 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 
 ## Current baseline
 
-- Baseline reviewed: `develop/pathena-next@51bd144aafc0fb1f50c00515c366442038a2c251`.
+- Baseline reviewed: `develop/pathena-next@8ebb41102c1f1b59471ab6392e930af1c52fec31`.
 - Error branch mutation lineage remains `postmerge/errors` only.
-- Previous Error head: `4c2295f9dd20550d3b2cead4769a9802b69cbb18`.
-- Reviewed worker heads: Spec/Core `6ad95079a114ea1d89517f7c299153caef66d3b5`; Backend `b01598b0d8980a2983f912917556b3bdf9af94ff`; UI `535b2848643d8244d726e968c9ab9ed3e7620db4`; Integrator/Develop `51bd144aafc0fb1f50c00515c366442038a2c251`.
-- Required `spec-core.md`, `backend.md`, `ui.md`, `integrator.md`, relevant worker branch heads and current canonical workflow state were reviewed before mutation.
+- Previous Error head: `6f38f8330a3a41bd80be3d4f95b9da07c8d466a0`.
+- Reviewed Spec/Core corrective head: `62e1f894d648b661f7e340167d4ac824de237dab`.
+- Required worker handoffs and canonical workflow state were reviewed before mutation.
 
 ## Current state
 
@@ -24,34 +24,32 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 
 ## Current primary error
 
-### ERR-0020 — Spec/Core exhaustive research resume full-pytest failure
+### ERR-0020 — Exhaustive research resume harness dispatch drift
 
 - Severity: P2.
 - Status: `IN_PROGRESS`.
-- Evidence: canonical ATHENA Quality run `34155243750` on exact Spec/Core SHA `6ad95079a114ea1d89517f7c299153caef66d3b5` completed FAILURE.
-- Gate split: Local install smoke PASS; Linux storage regressions PASS; Windows path safety PASS; specification validator PASS; Ruff PASS; mypy PASS; full pytest FAIL.
-- Delta isolation: exact parent `c6b4fdba485a1de249a93e99883fca4085b9fc48` was previously canonical green; commit `6ad95079a114ea1d89517f7c299153caef66d3b5` adds only `tests/unit/test_exhaustive_research_resume.py` (`test(research): cover restart after 60 percent`).
-- Root cause: not yet finalized. Available connector evidence identifies the failing gate but does not expose the uploaded diagnostic payload / pytest traceback. Therefore no product-vs-harness attribution is made and no speculative mutation is allowed.
-- Files currently implicated by exact delta: `tests/unit/test_exhaustive_research_resume.py`; product files remain unassigned until traceback/reproduction identifies the failing assertion/call-chain.
-- Repro: exact canonical run `34155243750`, Python 3.12 quality job `101845603936`, pytest step failed after Validator/Ruff/mypy passed.
-- Risk: a new restart-at-60%-coverage regression test may either reveal a real Research restart/persistence defect or contain harness sequencing assumptions inconsistent with the real worker lifecycle. Must distinguish before mutation.
-- Integrator handoff: HOLD Spec/Core `6ad95079a114ea1d89517f7c299153caef66d3b5`; do not integrate or call exact-green. Next run must consume exact traceback/diagnostics or an owner corrective successor and then finalize root cause in the same run.
+- Original evidence: canonical Quality `34155243750` on exact Spec/Core SHA `6ad95079a114ea1d89517f7c299153caef66d3b5`; Local install, Linux storage, Windows path safety, Validator, Ruff and mypy PASS; full pytest FAIL.
+- Corrective evidence: `8c1218e901767c48b4c1cd98e33e3b9fc72ac3ae` remained pytest-red; follow-up Spec/Core SHA `62e1f894d648b661f7e340167d4ac824de237dab` is exact-red in Quality `34158994436`, Python 3.12 quality job `101860654470`.
+- Exact failing assertion: `tests/unit/test_exhaustive_research_resume.py:251`, `assert len({item[4] for item in final_snapshots}) == 5`, observed `1 == 5` with `{('synthesis finding',)}`; suite result `1 failed, 4807 passed, 3 skipped`.
+- Root cause: test-harness provider phase-dispatch drift. `_ResearchProvider.generate_structured()` selected per-source map findings only when `"map" in schema_id`; the real source-analysis structured requests do not satisfy that fixture-only schema-id assumption, so all five source analyses fell through to the generic synthesis payload and produced the same `synthesis finding`. Product persistence/restart behavior is not implicated by the exact failure.
+- Minimal Error-scope fix: dispatch the fake map response from the source-specific prompt marker (`resume-source-*`) rather than a guessed schema-id substring. No product code, security/storage/recovery behavior, or assertion was weakened.
+- Files: `tests/unit/test_exhaustive_research_resume.py`, `docs/agent_logs/ERROR_LEDGER.md`, `docs/agent_handoffs/errors.md`.
+- Verification state: fix committed on `postmerge/errors`; exact focused/canonical verification required before `FIXED`.
+- Integrator handoff: HOLD ERR-0020 until the Error-branch fix SHA is verified. Do not integrate the red Spec/Core SHAs as exact-green.
 
 ## Historical verified entries
 
 - `ERR-0004` P2 FIXED — startup/readiness harness Ruff B010/I001; exact green `33804193396`.
 - `ERR-0014` P1 STALE — Qt Desktop controller SIGSEGV; later exact runs succeeded; reopen only on exact recurrence.
 - `ERR-0019` P2 FIXED — Personal Memory precedence harness drift; exact canonical Quality `34110957854 = success`.
-- All other `ERR-0001`..`ERR-0013`, `ERR-0015`..`ERR-0018` remain FIXED with their prior canonical evidence unchanged.
+- All other `ERR-0001`..`ERR-0013`, `ERR-0015`..`ERR-0018` remain FIXED with prior evidence unchanged.
 
-## Current scan evidence — 2026-09-07 22:06 CEST
+## Current scan evidence — 2026-09-07
 
-- Spec/Core `6ad95079a114ea1d89517f7c299153caef66d3b5`: Quality `34155243750 = failure`; only full pytest is red. `ERR-0020` allocated.
-- Backend `b01598b0d8980a2983f912917556b3bdf9af94ff`: Quality `34156185828` in progress; Local install, Linux storage, Windows path safety, Validator, Ruff and mypy PASS; full pytest in progress; no confirmed primary failure.
-- UI `535b2848643d8244d726e968c9ab9ed3e7620db4`: Quality `34156844241` in progress; Local install, Linux storage, Windows path safety, Validator, Ruff and mypy PASS; full pytest in progress; no confirmed primary failure.
-- Develop exact `51bd144aafc0fb1f50c00515c366442038a2c251`: no exact-current promotion-ready claim without matching completed canonical evidence.
-- No current exact-SHA Quality/runtime evidence reproduces retained Windows packaging/process-tree/chat-context/lane-lock/storage-bootstrap crash signatures; none is reopened.
-- `ERR-0004` remains FIXED; current Ruff evidence is green and the historical startup/readiness Ruff signature has not recurred.
+- Spec/Core `62e1f894d648b661f7e340167d4ac824de237dab`: Quality `34158994436 = failure`, only pytest red; exact traceback now classifies ERR-0020 as harness drift.
+- Develop `8ebb41102c1f1b59471ab6392e930af1c52fec31`: latest baseline reviewed; no promotion-ready claim without exact completed canonical evidence.
+- No current exact-SHA evidence reproduced retained Windows packaging/process-tree/chat-context/lane-lock/storage-bootstrap crash signatures; none reopened.
+- `ERR-0004` remains FIXED; current Ruff evidence on the ERR-0020 failing run is green.
 
 ## Persistent Beta/release regression knowledge
 

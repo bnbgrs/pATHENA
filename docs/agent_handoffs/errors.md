@@ -2,10 +2,10 @@
 
 ## Baseline
 
-- Current baseline reviewed: `develop/pathena-next@51bd144aafc0fb1f50c00515c366442038a2c251`.
+- Current baseline reviewed: `develop/pathena-next@8ebb41102c1f1b59471ab6392e930af1c52fec31`.
 - Error worker: `postmerge/errors` only.
-- Previous Error head: `4c2295f9dd20550d3b2cead4769a9802b69cbb18`.
-- Current worker heads reviewed: Spec/Core `6ad95079a114ea1d89517f7c299153caef66d3b5`; Backend `b01598b0d8980a2983f912917556b3bdf9af94ff`; UI `535b2848643d8244d726e968c9ab9ed3e7620db4`; Integrator/Develop `51bd144aafc0fb1f50c00515c366442038a2c251`.
+- Previous Error head: `6f38f8330a3a41bd80be3d4f95b9da07c8d466a0`.
+- Spec/Core corrective head reviewed: `62e1f894d648b661f7e340167d4ac824de237dab`.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current error state
@@ -17,43 +17,27 @@
 - STALE: `ERR-0014`.
 - BLOCKED: none.
 
-## New exact evidence
+## ERR-0020 exact diagnosis and fix
 
-`ERR-0020` is allocated from canonical Quality `34155243750` on exact Spec/Core SHA `6ad95079a114ea1d89517f7c299153caef66d3b5`.
+Canonical Quality `34158994436` on exact Spec/Core SHA `62e1f894d648b661f7e340167d4ac824de237dab` is red only in full pytest. Python quality job `101860654470` reports exactly one failing test, `test_exhaustive_research_restart_at_sixty_percent_preserves_findings_without_duplicates`, with `tests/unit/test_exhaustive_research_resume.py:251` asserting five distinct finding payloads but observing only `{('synthesis finding',)}`.
 
-- Local install smoke: PASS.
-- Linux storage regressions: PASS.
-- Windows path safety: PASS.
-- Validator: PASS.
-- Ruff: PASS.
-- mypy: PASS.
-- full pytest: FAIL.
-- Exact parent `c6b4fdba485a1de249a93e99883fca4085b9fc48` was previously canonical green.
-- The failing SHA's only new delta is `tests/unit/test_exhaustive_research_resume.py`, added by commit message `test(research): cover restart after 60 percent`.
-- The GitHub diagnostics artifact exists (`canonical-quality-diagnostics-6ad95079...`) but its archived traceback payload is not exposed by the current connector. Root cause therefore remains deliberately unclassified between product and harness; no speculative fix was made.
+Root cause is now finalized as harness dispatch drift: `_ResearchProvider.generate_structured()` guessed the request phase from `"map" in schema_id`. Real source-analysis requests do not satisfy that fixture assumption, so source-analysis calls received the generic synthesis fixture response. The failure does not establish a product persistence/restart defect.
 
-## Other current workers
-
-- Backend `b01598b0d8980a2983f912917556b3bdf9af94ff`: Quality `34156185828` remains in progress with Local install, Linux storage, Windows path safety, Validator, Ruff and mypy green; pytest still running.
-- UI `535b2848643d8244d726e968c9ab9ed3e7620db4`: Quality `34156844241` remains in progress with Local install, Linux storage, Windows path safety, Validator, Ruff and mypy green; pytest still running.
-- Develop `51bd144aafc0fb1f50c00515c366442038a2c251` has no exact-current promotion-ready evidence established.
+The Error worker applies the minimal fixture-only repair: detect the per-source `resume-source-*` marker in the actual request text and emit the corresponding unique map finding. Assertions and production guards remain unchanged.
 
 ## Integrator handoff
 
-- HOLD Spec/Core `6ad95079a114ea1d89517f7c299153caef66d3b5`; Quality `34155243750` is exact red via full pytest.
-- Do not label `ERR-0020` product or harness until the exact failing assertion/traceback is available or a focused exact reproduction identifies it.
-- Next Error run must consume the traceback/owner successor and either finalize root cause plus minimal fix, or verify the owning worker correction; repeating the same unknown hypothesis is not acceptable.
-- Do not treat Backend `b01598b0d8980a2983f912917556b3bdf9af94ff` or UI `535b2848643d8244d726e968c9ab9ed3e7620db4` as exact-green until their current Quality runs complete successfully.
+- HOLD ERR-0020 until the Error-branch fix SHA receives real verification; status remains `IN_PROGRESS`.
+- Do not call Spec/Core `6ad95079...`, `8c1218e...` or `62e1f894...` exact-green; their canonical pytest evidence is red.
+- After the fix SHA: run focused `tests/unit/test_exhaustive_research_resume.py`, Ruff for the touched test, then canonical Quality/full pytest. Only exact success may move ERR-0020 to `FIXED`.
 - Preserve Windows path safety, Storage, Security, Provider/Transport, Recovery, Ruff, mypy, Validator and all release crash-regression guards.
 
 ## Persistent Beta/release regression matrix
 
 Retain without reopening absent exact-current reproduction: Windows `pypdf` metadata/`PackageNotFoundError`; fail-closed frozen child argv and two-EXE split; exactly one Desktop with bounded/non-growing workers; adaptive 2048-context Chat reserve; lane-lock `PermissionError [Errno 13]` -> `SchedulerLaneOwnershipError` -> packaged-worker `OSError [Errno 22]`; `duplicate column name: source_processing_job_id`; `ATHENA Core startup failed`; `Failed to start service 'storage-bootstrap'`.
 
-Before any Beta/release promotion, execute these known crash classes explicitly on the exact candidate SHA. A reproducible known signature blocks promotion.
-
 ## Next scan
 
-1. Resolve `ERR-0020` from exact traceback/reproduction or verify an owner corrective successor.
-2. Consume Backend `34156185828` and UI `34156844241` completions and allocate only concrete deduplicated primary failures.
-3. Consume the next exact current Develop/runtime signal.
+1. Verify the Error-branch ERR-0020 fixture fix on exact SHA; close only on real evidence.
+2. Consume current Backend/UI Quality completions and deduplicate any shared harness cascade under ERR-0020.
+3. Consume next exact current Develop/runtime signal.
