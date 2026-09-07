@@ -3,39 +3,39 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `af09641cdf2b872688cb4b67c9815194af9e7621`.
+- Develop before this run: `7c784b77af3bc0ec0c2579cc89b6947aadaf701c`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `e9eb438d5c5b048a695bfc0dbdad7d0519a269d2`; spec-core `57aa31ec49ddec2d68147e91ea6b3c311d33881a`; backend `552209e005b82d31577d9f8a466af4dd97b99866`; UI `cf808b725fcd7ac6c302cf8a3f59c20e385f8f2c`.
+- Worker heads reviewed: errors `bf54a05a9ebccfe52a7087589fefce7446f58bbe`; spec-core `b6cd1383caf7d60b17ff5a9141c0fef8cafafbe9`; backend `92493b4ae9e59eed2ce05586f1268f1a557272ae`; UI `23c03d06b333ec2156665bfaa65b0de5219f5ccd`.
 - `main` and `bnbgrs/ATHENA` were untouched; no force update, history rewrite or auto-merge was used.
 
-## Integrated this run — UI-GAP-0050 startup reconnect status accessibility
+## Integrated this run — Backend WAL maintenance diagnosis runtime boundary
 
-UI exact verified head `335d4b2ce2787677bd2d930efd7c12c325759f1f` passed canonical ATHENA Quality Gate `34067696492 = success`. Independent review selected only product `0e6c31510abaaa9fe312c809565297b1aad785fa` and focused regression `ffeff123f868c5217b1592951e039c51347f156a`.
+Backend Develop-compatible synchronization `315ec37fc43c1030cd431217545d4512b5623155` passed canonical ATHENA Quality Gate `34073074552 = success`. Independent comparison against exact Develop baseline showed only two product/test files: `src/athena/storage/wal_maintenance.py` (+8/-1) and new `tests/unit/test_wal_maintenance_diagnosis_boundaries.py` (+58).
 
-Develop product commit: `cfe418d43bdfddf140ac108ea1cef8d8ad3d5bec`.
-Develop focused regression commit: `f1109d5e43570251a37e698f3fff06d87aa53a13`.
+Develop product commit: `e8af7ad546e2b79d91bddde6080270758cb33d36`.
+Develop focused regression commit: `1c30e9f7ebeac1a198f8cf8ea5af5f9b43e451f6`.
 
-The bounded contract mirrors the already-existing disconnected `localStatus` tooltip into `accessibleDescription()` without adding reconnect, readiness or runtime semantics. The focused regression locks disconnected tooltip/accessibility equivalence while preserving prompt-readiness accessibility. Core readiness, session controls, chat routing, persistence, Backend/Storage/Security, Worker/Scheduler, packaging and Windows process ownership remain unchanged. No test or guard was weakened.
+The bounded runtime contract now rejects non-text/unhashable/unknown `WalMaintenanceDiagnosis.level` values deterministically and rejects a non-`WalMaintenanceCycle` `cycle` before downstream diagnosis use. Canonical diagnosis values and existing `requires_attention` semantics are unchanged. Existing WAL positive/nonnegative true-int boundaries, exact policy/checkpoint status shapes, PASSIVE-only automatic checkpointing, explicit-idle TRUNCATE, no-follow WAL identity checks, Storage/Recovery/Security/provider/UI and Windows runtime ownership semantics remain unchanged. No test, guard or assertion was weakened.
 
 ## Current readiness/error state
 
-- Errors worker reports no newly opened current blocker in its current canonical scan.
-- Backend WAL maintenance diagnosis boundary is source-lineage green but its Develop-compatible synchronization remains pending exact canonical verification and was not consumed.
-- Spec/Core current learning-mode policy work was not consumed in this run.
-- UI-GAP-0051 remains `IMPLEMENTED_PENDING_VERIFY` and was not consumed.
+- Errors worker reports no OPEN/BLOCKED current defect; `ERR-0018` remains closed.
+- Backend current head `92493b4ae9e59eed2ce05586f1268f1a557272ae` is newer than the exact-green synchronization and its Quality `34073089618` was still in progress when reviewed; no newer Backend slice was consumed.
+- UI-GAP-0051 is independently exact-green on UI head `cf808b725fcd7ac6c302cf8a3f59c20e385f8f2c` via Quality `34070554735`, but was not consumed because this run integrates exactly one bounded slice.
+- Spec/Core exact-green work remains available for independent successor review; none was consumed this run.
 - Exact-current-Develop global Quality is not claimed after this composition unless a run is observed on the final head.
 
 ## UI / Alpha-Beta state
 
-- UI-GAP-0050 is integrated on Develop.
+- No UI product mutation occurred this run.
 - Eleven-screen implementation remains pending original visual-reference review; no pixel-level MATCH claim is made.
-- `docs/development/ALPHA_BETA_PROGRESS.md` remains canonical; no unsafe destructive whole-file rewrite was attempted in this run.
+- `docs/development/ALPHA_BETA_PROGRESS.md` was read as the canonical tracker; this WAL diagnosis runtime-boundary integration is recorded here because destructive whole-file replacement of the large tracker is not acceptable without complete safe content retrieval.
 
 ## Next integration order
 
 1. Obtain exact-current-Develop canonical Quality if available.
 2. Consume exactly one independently compatible bounded READY Core/Backend/UI successor.
-3. Do not consume Backend Develop-sync diagnosis boundary or UI-GAP-0051 until exact canonical verification is green.
+3. Prefer UI-GAP-0051 or another exact-green disjoint successor unless a newer Backend/Core candidate has stronger exact evidence.
 
 ## Persistent release guards
 
