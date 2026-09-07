@@ -38,17 +38,17 @@ class JobActionAvailability:
     def reason(self, action: str) -> str:
         enabled = bool(getattr(self, action))
         if enabled:
-            return f"{action.title()} is supported for persisted state {self.state}."
+            return f"{action.title()} is available while this job is {self.state}."
         if self.state is None:
             return "Select a durable job first."
         if self.state in _TERMINAL_STATES:
-            return f"Job is terminal ({self.state}); no lifecycle mutation is available."
+            return f"This job is {self.state}; no lifecycle action is available."
         if self.state == "cancel_requested":
             return (
                 "Cancellation has already been requested and is waiting for worker "
                 "acknowledgement."
             )
-        return f"{action.title()} is not supported for persisted state {self.state}."
+        return f"{action.title()} is unavailable while this job is {self.state}."
 
 
 @dataclass(frozen=True)
