@@ -8,11 +8,11 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 
 ## Current baseline
 
-- Baseline reviewed: `develop/pathena-next@b6c5c6181a5327d4ee436be518f4eebfacaf82bb`.
+- Baseline reviewed: `develop/pathena-next@78519f7c94df31b3c2374e5a1124fe799db28929`.
 - Error branch mutation lineage remains `postmerge/errors` only.
-- Previous Error head: `2b7aa1940d4807df5e4347fd030eae8d9c03da38`.
-- History-preserving NON-FORCE synchronization merge: `fc519540563d79d499e68e7def23cc722ae68bf6`, parents `2b7aa1940d4807df5e4347fd030eae8d9c03da38` and `b6c5c6181a5327d4ee436be518f4eebfacaf82bb`.
-- Reviewed worker heads: Spec/Core `c6b4fdba485a1de249a93e99883fca4085b9fc48`; Backend `05549d4cfc8a8cdd01f3f4cbbe83685d200c9795`; UI `89cea7ecfaeb75a694a0682ff39feb5172ffbcfa`; Integrator/Develop `b6c5c6181a5327d4ee436be518f4eebfacaf82bb`.
+- Previous Error head: `b63613d1bbd66a24f7e8c48af9fc8367b8ccb93f`.
+- History-preserving NON-FORCE synchronization merge: `54489a07e5c8fd49a0b4342de887b8cfc86b3719`, parents `b63613d1bbd66a24f7e8c48af9fc8367b8ccb93f` and `78519f7c94df31b3c2374e5a1124fe799db28929`.
+- Reviewed worker heads: Spec/Core `c6b4fdba485a1de249a93e99883fca4085b9fc48`; Backend `8bbd0c0b1ff3bf48fde48ce3e1a8e235e0a83b2e`; UI `7fe5d44e4271dcbec6c0bfba92e0a01a0671b69f`; Integrator/Develop `78519f7c94df31b3c2374e5a1124fe799db28929`.
 - Required `spec-core.md`, `backend.md`, `ui.md`, `integrator.md`, relevant worker branch heads and current canonical workflow state were reviewed before mutation.
 
 ## Current state
@@ -45,14 +45,16 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 - `ERR-0018` P2 FIXED — Personal Memory context Ruff I001; Ruff fixer `61194be6eddf6fa7fe37c9c62690244a29414acd`; exact canonical success `34060875144@5714f3c7724cb82ccd75a7e852c668bfe78c6d5d`, later `34063688754@12e2e98d10c3fc11821ffa8f5edead80806da009 = success`.
 - `ERR-0019` P2 FIXED — Personal Memory precedence harness drift across canonical serializer key, repository read API and persisted revision identity; complete fix `c7cd4d9b1e0889a00b4599dfe76738442378b17b`; exact canonical Quality `34110957854 = success` with Windows path safety, Linux storage, local install, Validator, Ruff, mypy and full pytest PASS.
 
-## Current scan evidence — 2026-09-07 18:04 CEST
+## Current scan evidence — 2026-09-07 19:04 CEST
 
+- Backend predecessor exact `05549d4cfc8a8cdd01f3f4cbbe83685d200c9795`: canonical Quality `34138525799 = success`.
+- UI predecessor exact `89cea7ecfaeb75a694a0682ff39feb5172ffbcfa`: canonical Quality `34139713588 = success`.
 - Spec/Core current head `c6b4fdba485a1de249a93e99883fca4085b9fc48`: prior exact canonical Quality `34127196867 = success`; no current error signal.
-- Backend current exact `05549d4cfc8a8cdd01f3f4cbbe83685d200c9795`: canonical Quality `34138525799 = in_progress`. Linux storage, local install, Windows path safety, specification validator, Ruff and mypy are PASS; full pytest is still in progress. No confirmed primary failure.
-- UI current exact `89cea7ecfaeb75a694a0682ff39feb5172ffbcfa`: canonical Quality `34139713588 = in_progress`. Linux storage, local install, Windows path safety, specification validator, Ruff and mypy are PASS; full pytest is still in progress. No confirmed primary failure.
-- Develop exact `b6c5c6181a5327d4ee436be518f4eebfacaf82bb`: current integrator documentation records verified WAL runtime integration, but no exact completed pull-request-triggered canonical Quality run was established for this Develop SHA in this scan; no promotion-ready claim.
+- Backend current exact `8bbd0c0b1ff3bf48fde48ce3e1a8e235e0a83b2e`: canonical Quality `34143789976` is in progress. Linux storage, local install and Windows path safety are completed PASS; Python 3.12 quality is still in progress. No confirmed primary failure.
+- UI current exact `7fe5d44e4271dcbec6c0bfba92e0a01a0671b69f`: canonical Quality `34144645412` is in progress. Linux storage, local install and Windows path safety are completed PASS; Python 3.12 quality is still in progress. No confirmed primary failure.
+- Develop exact `78519f7c94df31b3c2374e5a1124fe799db28929`: no pull-request-triggered workflow run is associated with this exact SHA in the current scan; no promotion-ready claim.
 - No current Quality/Runtime evidence reproduces retained Windows packaging/process-tree/chat-context/lane-lock/storage-bootstrap crash signatures; none is reopened.
-- `ERR-0004` remains FIXED; the historical forced-focus signature did not recur in current Ruff evidence.
+- `ERR-0004` remains FIXED; the historical startup/readiness Ruff signature did not recur in current confirmed evidence.
 
 ## Persistent Beta/release regression knowledge
 
