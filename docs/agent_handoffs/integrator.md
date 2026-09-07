@@ -3,43 +3,48 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `7b9cc9ea78733e6df7f3cb0aa542064bbc8c934a`.
+- Develop before this run: `ef2e991d33539bb267b6744e878ac2ad24cd7266`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `22bc248f35f3d9d11aa4717356e3b3edd7a3d6de`; spec-core `8bb8822a3423ac4fa1ab2873ecf052d16c390199`; backend `8ddd3f12dbf3eb34332b8b54ef06eccc3e0d35b8`; UI `2f98ef242107421770ed4573bea06532e052727b`.
+- Worker heads reviewed: errors `7d791836a9f024aa5a50ddb99b75e003c3804513`; spec-core `a033f07472b7c32f932da37b4659b047d19e0482`; backend `afd4fce6d4005a88bc3a4bdd3233531e041ffcbb`; UI `4a4efbe417809fe8cc5d7f1ecb3aa4f4861f63d7`.
 - `main` and `bnbgrs/ATHENA` were untouched; no force update, rebase, history rewrite or auto-merge was used.
 
-## Integrated this run — UI-GAP-0053 responsive startup empty state
+## Integrated this run — WAL scheduler-facing PASSIVE interval gate
 
-UI-GAP-0053 product `2885e2b3262879a2036246124196124d14f6629c` plus focused regression `252567394ce1f7059e5994b8d7cb800f34e692a2` passed exact canonical ATHENA Quality Gate `34080765557@7d5b99d4715352843b800253f67f50b56095aec2 = success`.
+Backend handoff identifies the bounded Develop-compatible application `592647f5d33be83110f4e512bc1a1b8bbda77075`. Independent compare against pre-run Develop is ahead-only and contains exactly two product/test files:
 
-Independent compatibility review showed current Develop still had the exact pre-UI-GAP-0053 startup structure. A later UI-GAP-0055 candidate was initially considered but rejected during the same run because its focused regression depends on the responsive-width test introduced by UI-GAP-0053. The provisional UI-GAP-0055 edits were neutralized by subsequent commits; the final Develop delta from the pre-run baseline contains only the bounded UI-GAP-0053 product/test semantics.
+- `src/athena/storage/wal_schedule.py`
+- `tests/unit/test_wal_maintenance_interval_runner.py`
 
-Final product behavior: the existing startup empty-state panel now tracks available chat width up to the established 560px cap, keeps the body inset by 56px, and resynchronizes on chat resize. No Core readiness, chat routing, persistence, Backend, Storage, Security, Worker/Scheduler, packaging or Windows process semantics changed.
+The exact application commit now has canonical ATHENA Quality Gate `34100854566 = success`. Develop therefore advanced NON-FORCE to `592647f5d33be83110f4e512bc1a1b8bbda77075`.
 
-Independent compare from pre-run Develop to the product/test successor reports exactly two modified files: `src/athena/desktop/pathena_startup_experience_2900.py` and `tests/unit/test_pathena_startup_experience_2900.py`; branch status is ahead-only with the pre-run Develop as merge base.
+The runner is scheduler-facing only: it validates finite/non-bool monotonic values and a finite positive non-bool interval, runs only when due, invokes the existing `WalMaintenanceOrchestrator.run_cycle()`, and advances next-due state only after a valid diagnosis. It creates no thread/timer/retry loop and introduces no automatic TRUNCATE path.
+
+## Verification state
+
+- Exact Develop-compatible product/test head: `592647f5d33be83110f4e512bc1a1b8bbda77075`.
+- Canonical Quality: `34100854566 = success`.
+- Compare `ef2e991d... -> 592647f5...`: exactly two added files, no Core/UI/Error/Integrator product overwrite.
+- Automatic WAL maintenance remains PASSIVE-only; TRUNCATE remains explicit idle-confirmed only; WAL identity/no-follow safeguards are unchanged.
 
 ## Current readiness/error state
 
-- Error handoff reports no OPEN/BLOCKED current defect; `ERR-0004` and `ERR-0018` remain closed absent exact contradictory evidence.
-- UI-GAP-0053 is integrated from exact-green worker evidence.
-- UI-GAP-0054 remains exact-green and deferred as a separate bounded slice.
-- UI-GAP-0055 is exact-green on its later worker lineage but was not integrated because its focused regression depends on UI-GAP-0053; it may be reconsidered after an exact-current-Develop validation.
-- UI-GAP-0056 remains `IMPLEMENTED_PENDING_VERIFY`.
-- Backend WAL interval runner remains pending exact canonical success at the handoff reviewed this run.
-- Exact final Develop after integration/documentation still requires its own completed canonical Quality before any promotion-ready claim.
+- Errors currently report `ERR-0019` BLOCKED on exact Spec/Core pytest traceback extraction; this is disjoint from the Storage slice and no speculative fix was imported.
+- UI-GAP-0057 is exact-green/Integrator-ready at UI Quality `34097034775 = success`, but deferred under the one-bounded-slice rule.
+- UI-GAP-0058 remains pending exact Quality completion in the current UI handoff.
+- Spec/Core current mutation is not consumed while ERR-0019/pytest evidence remains unresolved.
+- No retained Windows/runtime crash class is reopened absent exact-current reproduction.
 
 ## UI / Alpha-Beta state
 
-- Eleven-screen implementation remains implemented pending original visual-reference review; no pixel-level `MATCH` claim is made.
-- UI-GAP-0051 and UI-GAP-0052 remain integrated/verified.
-- UI-GAP-0053 is now integrated/verified from exact worker Quality evidence.
-- Visual reference images remain unavailable through the repository path; Screen 11 remains `IMPLEMENTED_PENDING_VISUAL_REVIEW` rather than `MATCH`.
+- Eleven-screen implementation remains `IMPLEMENTED_PENDING_VISUAL_REVIEW`; original references remain unavailable and no `MATCH` claim is made.
+- UI-GAP-0057 is READY but not integrated this run.
+- No percentage progress is inferred.
 
 ## Next integration order
 
-1. Obtain exact-current-Develop canonical Quality for the final documentation successor when a run exists.
-2. Independently review exactly one compatible exact-green successor.
-3. Prefer UI-GAP-0054 or, after confirming dependency compatibility, UI-GAP-0055; keep UI-GAP-0056 excluded until exact canonical success.
+1. Consume exact-current Develop workflow evidence for the documentation successor when available.
+2. Independently review exactly one compatible READY successor; UI-GAP-0057 is currently the clearest exact-green deferred input.
+3. Hold Spec/Core mutation until ERR-0019 exact pytest evidence is resolved; UI-GAP-0058 requires exact-green Quality before integration.
 
 ## Persistent release guards
 
