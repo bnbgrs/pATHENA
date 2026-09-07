@@ -2,39 +2,39 @@
 
 ## Current baseline
 
-- Base: `develop/pathena-next@78519f7c94df31b3c2374e5a1124fe799db28929`
+- Base: `develop/pathena-next@30dd27c97e948e59994e8cfbe01b1c77ce6c917b`
 - Worker: `postmerge/ui`
-- Non-force synchronization commit: `df912aecb8e6f5deb8f243659bc7cd6d90f811d0`.
+- Non-force synchronization commit: `afacb251a99d74df77f7781810cd48b7cfa9dc29`.
 - Original eleven reference images: `VISUAL_REFERENCE_PENDING`; no pixel-level parity or `MATCH` claim is made.
 
 ## Verified handoff
 
-- `UI-GAP-0066` is `FIXED_INTEGRATOR_READY`.
-- Product commit: `83c57b7898515085c7ba4f9441029165c3123890`.
-- Focused regression: `96891f1d68ee9e0242c41aa4b846fea39094ec54`.
-- Exact worker head `7fe5d44e4271dcbec6c0bfba92e0a01a0671b69f` passed ATHENA Quality Gate `34144645412` with conclusion `success`.
-- Current Develop was synchronized into the UI worker with a history-preserving two-parent merge; Develop's verified UI-GAP-0065 integration handoff and the UI worker's verified UI-GAP-0066 lineage were both preserved.
+- `UI-GAP-0067` is `FIXED_INTEGRATOR_READY`.
+- Product commit: `6543d82199f8f5360cc205f6303dc133f9468dd7`.
+- Focused regression: `f823fe99c9c7ce78b3d0d70aaf257966ae692364`.
+- Exact worker head `fd0780d23b081fddb8a236971c74f4cb3c565899` passed ATHENA Quality Gate `34148642145` with conclusion `success`.
+- Current Develop was synchronized into the UI worker with a history-preserving two-parent merge `afacb251a99d74df77f7781810cd48b7cfa9dc29`; Develop's UI-GAP-0066 integration handoff and the UI worker's verified UI-GAP-0067 lineage were both preserved.
 
 ## Active UI slice
 
-### UI-GAP-0067 — Jobs action help is visual-only instead of screen-reader available
+### UI-GAP-0068 — Jobs receipt validation errors expose implementation-domain language
 
 Status: `IMPLEMENTED_PENDING_VERIFY`, P2.
 
-Evidence: `JobsWorkspace._sync_action_buttons()` already computes truthful per-state help through `JobActionAvailability.reason()` and exposes it through PAUSE/RESUME/WAKE/CANCEL tooltips, but did not expose the same dynamic help through `accessibleDescription`.
+Evidence: `parse_transition_receipt()` validation failures are surfaced by `JobsWorkspace` in the visible status tooltip and details failure state. Unsupported operation, malformed response and unknown-state branches still used `durable`, `lifecycle` and `receipt` terms that describe implementation mechanics rather than the user's job action.
 
-Implementation: `6543d82199f8f5360cc205f6303dc133f9468dd7` mirrors the existing computed reason into each action button's `accessibleDescription` at the same point where the tooltip is assigned. It does not alter enabled/disabled state or any transition path.
+Implementation: `998e28ccd9b3c4739e658c2efe55ba164f2bc98b` changes only those exception messages to human-facing job-action response language. Receipt binding, exact job/operation matching, state validation, fail-closed behavior and all scheduler/worker/storage/backend semantics remain unchanged.
 
-Focused regression: `f823fe99c9c7ce78b3d0d70aaf257966ae692364` constructs the real Jobs workspace with refresh suppressed, projects the waiting state, and requires every PAUSE/RESUME/WAKE/CANCEL button to have non-empty tooltip help with `accessibleDescription == toolTip()`.
+Focused regression: `849b72a882f8d07a5678bc0e4770b55229c18723` keeps the existing exact-job/operation contract and adds invalid-response, unknown-state and unsupported-action assertions requiring user-facing wording without `durable`, `lifecycle` or `receipt` jargon.
 
-No lifecycle transition, receipt parsing, persisted state, backend, storage, scheduler, worker, provider, transport, security or cancellation semantics changed.
+No lifecycle transition, receipt parsing semantics, persisted state, backend, storage, scheduler, worker, provider, transport, security or cancellation behavior changed.
 
 ## Coordination
 
-- Core: no UI-authored core semantics changed.
-- Backend: no UI-authored backend/storage/scheduler/worker/provider/transport semantics changed.
-- Errors: no retained Windows crash signature was reopened without exact-SHA reproduction.
-- Integrator: UI-GAP-0066 may be integrated from exact worker head `7fe5d44e4271dcbec6c0bfba92e0a01a0671b69f` backed by Quality `34144645412 = success`. Do not integrate UI-GAP-0067 until canonical Quality succeeds on an exact worker head carrying unchanged product `6543d82199f8f5360cc205f6303dc133f9468dd7` and regression `f823fe99c9c7ce78b3d0d70aaf257966ae692364`.
+- Core: current `spec-core.md` reviewed; no UI-authored Core semantics changed.
+- Backend: current `backend.md` reviewed; no UI-authored backend/storage/scheduler/worker/provider/transport semantics changed.
+- Errors: current `errors.md` reviewed; no retained Windows crash signature was reopened without exact-SHA reproduction.
+- Integrator: UI-GAP-0067 may be integrated from exact worker head `fd0780d23b081fddb8a236971c74f4cb3c565899` backed by Quality `34148642145 = success`. Do not integrate UI-GAP-0068 until canonical Quality succeeds on an exact worker head carrying unchanged product `998e28ccd9b3c4739e658c2efe55ba164f2bc98b` and regression `849b72a882f8d07a5678bc0e4770b55229c18723`.
 
 ## Visual evidence
 
