@@ -3,45 +3,45 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `1bbbc693db781f1d56a7c75151fe9951a21363cc`.
+- Develop before this run: `15f4a439d15d4bb1414e7b54afee7a25ced36e61`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `9d761fa1e1c70a0c44f3158924fd358e6167a55d`; spec-core `6b164470eae5352e6d5c0a84ac32a8f80ac002bc`; backend `936843b32b42b25d818eda39d128180844b9e14a`; UI `8454d633810283e47d0b9bb9b93321536440cb45`.
+- Worker heads reviewed: errors `311215a589c6417b616e4bb44b234dac7f568598`; spec-core `57e133507ab4b8edc78d4af8467f2320dce0e906`; backend `c41a49cf0efa8f5b2f47bbfcb89f5e1bf133f7ed`; UI `8bd74b266028ccfac5b06d286f84d805261ac9e6`.
 - `main` and `bnbgrs/ATHENA` were untouched; no force update, rebase, history rewrite or auto-merge was used.
 
-## Integrated this run — UI-GAP-0060 contextual evidence accessibility
+## Integrated this run — UI-GAP-0061 Settings accessibility help
 
-UI-GAP-0060 was independently reviewed from product commit `0565720d2d3b3349e6fc8556083dc035fa8c389f` and focused regression `70f8867a2645cd2795853745f54844efe8c70d0c`. Exact worker head `70f8867a2645cd2795853745f54844efe8c70d0c` passed canonical ATHENA Quality Gate `34113040437 = success`.
+UI-GAP-0061 was independently reviewed from product commit `ffac0e737c3c3457a49ce4b830492f26ba7127d1` and focused regression `930dc168f5700f03720601664caf23b08ecd7603`. Exact worker head `8454d633810283e47d0b9bb9b93321536440cb45` passed canonical ATHENA Quality Gate `34118404763 = success`.
 
-The bounded product change mirrors the existing truthful `contextToggle` tooltip into `accessibleDescription`. The focused regression verifies exact tooltip/accessibility equivalence and requires the evidence-context wording. No inspector visibility, grounding/provenance behavior, model/chat routing, persistence, Core, Backend, Storage, Security, Worker/Scheduler, packaging or Windows runtime semantics were changed.
+The bounded product change mirrors existing truthful Settings help tooltips into `accessibleDescription` for context-window, maximum-response, temperature and reasoning controls. The focused regression requires every covered control to expose non-empty tooltip text and exact tooltip/accessibility equivalence. Model/provider selection, context budgeting, output limits, sampling, reasoning state, persistence, Core, Backend, Storage, Security, Worker/Scheduler, packaging and Windows runtime semantics remain unchanged.
 
-Develop carries the semantic transplant as product commit `ade06e96822e7ca1d66521d239255a46d065fe4f` and focused-test commit `a6a66dda6192df9943bd1cb2f886fa694bb3bfeb`.
+Develop carries the reviewed product/test blobs in integration commit `a9fc8fe0c2ddf6b8cfab8cb18a864fc309cce56f`. Independent comparison from pre-run Develop shows exactly two files changed: `src/athena/desktop/pathena_window.py` (+9) and `tests/unit/test_pathena_ui_presentation.py` (+10).
 
 ## Verification state
 
-- Exact worker Quality: `34113040437 = success` on `70f8867a2645cd2795853745f54844efe8c70d0c`.
-- Independent source diff: one production file and one focused test file only.
-- Existing Develop startup accessibility, ready/disconnected copy and responsive empty-state tests were preserved in the target test file.
+- Exact worker Quality: `34118404763 = success` on `8454d633810283e47d0b9bb9b93321536440cb45`.
+- Independent Develop diff: exactly one production file and one focused test file.
+- Current Develop startup accessibility, ready/disconnected copy and responsive empty-state behavior are preserved because the semantic transplant starts from exact pre-run Develop.
 - Exact-current-Develop canonical Quality is not claimed until a workflow run exists for the post-integration head.
 
 ## Current readiness/error state
 
-- Error worker head `9d761fa1e1c70a0c44f3158924fd358e6167a55d` reports verified ERR-0019 closure/synchronization; no speculative Core fix was taken here.
-- Spec/Core head `6b164470eae5352e6d5c0a84ac32a8f80ac002bc` is a verified search/memory-precedence handoff but was not consumed because this run integrated exactly one bounded slice.
-- Backend head `936843b32b42b25d818eda39d128180844b9e14a` is a WAL runtime-composition-root handoff and was not consumed.
-- UI-GAP-0061 remains `IMPLEMENTED_PENDING_VERIFY` and was explicitly excluded.
+- Error worker reports OPEN none, IN_PROGRESS none, BLOCKED none; `ERR-0019` is FIXED.
+- Spec/Core current Reset Test slice is `IMPLEMENTED_PENDING_VERIFY` until exact canonical Quality completes successfully on its current lineage.
+- Backend current WAL runtime-composition-root lineage is not Integrator-ready until exact canonical Quality succeeds on the Develop-compatible application commit/descendant.
+- UI-GAP-0062 is `IMPLEMENTED_PENDING_VERIFY`; do not integrate until exact canonical success exists on a descendant carrying unchanged product/test blobs.
 - No retained Windows/runtime crash class is reopened absent exact-current reproduction.
 
 ## UI / Alpha-Beta state
 
 - Eleven-screen implementation remains implemented pending original visual review; no screenshot-level `MATCH` claim is made.
-- UI-GAP-0060 is integrated with exact-green worker evidence.
+- UI-GAP-0061 is integrated with exact-green worker evidence.
 - No percentage progress is inferred.
 
 ## Next integration order
 
 1. Obtain exact-current-Develop canonical Quality or a product-identical exact-green successor.
 2. Independently review exactly one compatible exact-green successor from Core/Backend/UI.
-3. Keep UI-GAP-0061 excluded until exact canonical Quality succeeds on a descendant carrying its unchanged product/test commits.
+3. Prefer current Core/Backend only after their exact current-lineage Quality succeeds; keep UI-GAP-0062 excluded until exact canonical success.
 4. Preserve Beta/release runtime regression coverage before any Windows candidate or promotion claim.
 
 ## Persistent release guards
