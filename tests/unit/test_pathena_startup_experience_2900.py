@@ -1,4 +1,11 @@
-from PySide6.QtWidgets import QApplication, QLabel, QLineEdit, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QApplication,
+    QFrame,
+    QLabel,
+    QLineEdit,
+    QVBoxLayout,
+    QWidget,
+)
 
 from athena.desktop.pathena_startup_experience_2900 import (
     _STARTUP_REFINEMENTS,
@@ -139,11 +146,11 @@ def test_empty_state_copy_refreshes_after_disconnected_to_ready_transition() -> 
 
 def test_empty_state_width_tracks_available_chat_space_without_exceeding_cap() -> None:
     _app()
-    window = _DisconnectedStartupWindow()
+    window = _ReadyStartupWindow()
 
     messages = QWidget(window)
     messages.setObjectName("chatMessages")
-    messages.resize(444, 300)
+    messages.resize(420, 300)
     layout = QVBoxLayout(messages)
     raw = QLabel("No conversation", messages)
     raw.setObjectName("emptyChatState")
@@ -152,12 +159,15 @@ def test_empty_state_width_tracks_available_chat_space_without_exceeding_cap() -
     controller = PathenaStartupExperience(window)
     controller.sync()
 
-    panel = messages.findChild(QWidget, "emptyStatePanel")
-    eyebrow = messages.findChild(QLabel, "emptyStateEyebrow")
-    title = messages.findChild(QLabel, "emptyStateTitle")
+    panel = messages.findChild(QFrame, "emptyStatePanel")
     body = messages.findChild(QLabel, "emptyStateBody")
     assert panel is not None
-    assert eyebrow is not None
-    assert title is not None
     assert body is not None
-    assert eyebrow.wordWrap()
+    assert panel.width() == 388
+    assert body.width() == 332
+
+    messages.resize(900, 300)
+    controller.sync()
+
+    assert panel.width() == 560
+    assert body.width() == 504
