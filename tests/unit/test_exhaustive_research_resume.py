@@ -48,10 +48,11 @@ class _ResearchProvider:
         assert model_id == "research-primary"
         self.calls.append((schema_id, messages))
         text = "\n".join(message.content for message in messages)
-        if "map" in schema_id:
-            marker = next(
-                line for line in text.splitlines() if line.startswith("resume-source-")
-            )
+        marker = next(
+            (line for line in text.splitlines() if line.startswith("resume-source-")),
+            None,
+        )
+        if marker is not None:
             return {
                 "relevant": True,
                 "summary": f"map summary {marker}",
