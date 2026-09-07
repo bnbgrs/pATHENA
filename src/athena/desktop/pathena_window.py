@@ -428,6 +428,15 @@ class PathenaMainWindow(AthenaMainWindow):
         self.max_output_spin.setToolTip("Enter the maximum response length in tokens")
         self.temperature_spin.setToolTip("Adjust sampling temperature")
         self.thinking_checkbox.setToolTip("Allow model reasoning when the selected model supports it")
+        for control in (
+            self.context_slider,
+            self.context_spin,
+            self.max_output_slider,
+            self.max_output_spin,
+            self.temperature_spin,
+            self.thinking_checkbox,
+        ):
+            control.setAccessibleDescription(control.toolTip())
         self._humanize_model_settings_state()
 
     def _humanize_model_settings_state(self) -> None:
