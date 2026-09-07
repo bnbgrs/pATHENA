@@ -8,10 +8,10 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 
 ## Current baseline
 
-- Baseline reviewed: `develop/pathena-next@af09641cdf2b872688cb4b67c9815194af9e7621`.
-- Error branch mutation lineage remains on `postmerge/errors`; history-preserving NON-FORCE baseline synchronization commit: `ce50a4754a1621cfe4c8d7e18df9c1068eb182ff`.
-- Reviewed heads: Spec/Core `09341777eb56a77abf247190707b2cb189570a1b`; Backend `35883180205c83cabc1d20ef2fad39d8ee691699`; UI `335d4b2ce2787677bd2d930efd7c12c325759f1f`; Integrator/Develop `af09641cdf2b872688cb4b67c9815194af9e7621`.
-- `spec-core.md`, `backend.md`, `ui.md`, and `integrator.md` were reviewed on their current owning heads before this scan.
+- Baseline reviewed: `develop/pathena-next@7c784b77af3bc0ec0c2579cc89b6947aadaf701c`.
+- Error branch mutation lineage remains on `postmerge/errors`; last history-preserving NON-FORCE baseline synchronization commit remains `ce50a4754a1621cfe4c8d7e18df9c1068eb182ff`.
+- Reviewed heads: Spec/Core `57aa31ec49ddec2d68147e91ea6b3c311d33881a`; Backend `552209e005b82d31577d9f8a466af4dd97b99866`; UI `cf808b725fcd7ac6c302cf8a3f59c20e385f8f2c`; Integrator/Develop `7c784b77af3bc0ec0c2579cc89b6947aadaf701c`.
+- `spec-core.md`, `backend.md`, `ui.md`, and `integrator.md` were reviewed before this scan.
 
 ## Current state
 
@@ -52,13 +52,14 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 - risks: preserve `USER PREFERENCE`, active-only projection, duplicate/snapshot identity checks and fail-closed Protected Memory behavior. Temporary fixer workflow was removed; no permanent CI write path remains.
 - integrator_handoff: `ERR-0018` is closed. Do not re-edit import ordering/wrapping unless new exact contradictory Ruff evidence appears.
 
-## Current scan evidence — 2026-09-07
+## Current scan evidence — 2026-09-07 03:00 CEST
 
-- Spec/Core exact `09341777eb56a77abf247190707b2cb189570a1b`: canonical Quality `34066566253 = success`; no Error-ledger objection.
-- Backend exact `35883180205c83cabc1d20ef2fad39d8ee691699`: canonical Quality `34067080370` remains `in_progress`; Windows path safety, Linux storage/API path-boundary, local install/Core-API restart, Validator, Ruff and mypy are PASS; full pytest is still running. No primary failure has been confirmed.
-- UI exact `335d4b2ce2787677bd2d930efd7c12c325759f1f`: canonical Quality `34067696492` remains `in_progress`; Windows path safety, Linux storage/API path-boundary, local install/Core-API restart, Validator, Ruff and mypy are PASS; full pytest is still running. No primary failure has been confirmed.
-- Develop exact `af09641cdf2b872688cb4b67c9815194af9e7621`: no canonical Quality run was observed on this exact SHA; no promotion-ready claim.
-- Error branch synchronized history-preservingly and NON-FORCE to current Develop through `ce50a4754a1621cfe4c8d7e18df9c1068eb182ff`; Error-owned ledger/handoff were preserved.
+- Previously pending Backend exact `35883180205c83cabc1d20ef2fad39d8ee691699`: canonical Quality `34067080370 = success`; no Error-ledger objection.
+- Previously pending UI exact `335d4b2ce2787677bd2d930efd7c12c325759f1f`: canonical Quality `34067696492 = success`; no Error-ledger objection.
+- Current Spec/Core exact `57aa31ec49ddec2d68147e91ea6b3c311d33881a`: canonical Quality `34069391378 = success`; no primary error signal.
+- Current Backend exact `552209e005b82d31577d9f8a466af4dd97b99866`: canonical Quality `34069825099` remains `in_progress`; no confirmed primary failure at this scan.
+- Current UI exact `cf808b725fcd7ac6c302cf8a3f59c20e385f8f2c`: canonical Quality `34070554735` remains `in_progress`; no confirmed primary failure at this scan.
+- Develop exact `7c784b77af3bc0ec0c2579cc89b6947aadaf701c`: no exact completed canonical Quality run was observed on this SHA; no promotion-ready claim.
 
 ## Persistent Beta/release regression knowledge
 
