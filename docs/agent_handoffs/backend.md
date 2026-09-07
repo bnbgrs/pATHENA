@@ -1,45 +1,34 @@
 # pATHENA Backend & Systems Handoff
 
 ## Baseline
-
 - Shared baseline: `develop/pathena-next@4e18f75beeaa1c5b57bca28dcad5a062ac498051`.
-- Worker branch: `postmerge/backend`.
-- History-preserving NON-FORCE synchronization: `9976f6bdbdf9478db7a31c33aa0ae3dcf660f1be`, using the exact Develop tree as the content base and preserving the Backend-owned WAL scheduler files.
-- `main` and `bnbgrs/ATHENA` remain read-only and untouched.
+- Worker: `postmerge/backend`.
+- NON-FORCE history sync: `9976f6bdbdf9478db7a31c33aa0ae3dcf660f1be`, exact Develop tree plus Backend-owned WAL files only.
+- `main` and `bnbgrs/ATHENA` untouched/read-only.
 
-## Exact prior verification
+## Prior canonical evidence
+`Quality_34163784073@fa676f0d677bec1d69b2339bf030d57d12431d44` completed FAILURE: `1 failed, 4819 passed, 3 skipped, 2 warnings`. Sole failure is UI-owned completed-job copy containing `lifecycle action`. Backend-owned `test_wal_job_hook.py` is 16/16 PASS and requested ExternalAccessGateway boundary tests are green. Do not patch the UI failure from Backend.
 
-Canonical Quality run `34163784073` on Backend head `fa676f0d677bec1d69b2339bf030d57d12431d44` completed FAILURE with `1 failed, 4819 passed, 3 skipped, 2 warnings`.
+## Current real Backend slice
+Area: bounded WAL maintenance interval deadline arithmetic.
 
-The only failure is UI-owned: `tests/unit/test_pathena_jobs_lifecycle.py::test_action_availability_matches_durable_service_states[completed-enabled5]`, where completed-state copy contains the forbidden implementation phrase `lifecycle action`.
+- `380149a7963109f05ec531a09b86733d8ad84694`: add finite next-deadline validation before `orchestrator.run_cycle()`.
+- `32bd20e56721e3d2c1fe585f37a6128c30e8dd42`: add fail-before-WAL overflow regression.
+- `77a9ca573fa46bbdd13580c14d3441892a80eb49`: preserve pre-existing `_last_observed_monotonic` update semantics; only overflow behavior remains new.
+- `911fec154be2a895aa7021b27156a69feabc8c7f`: make the side-effect sentinel test fully typed without guard/assertion weakening.
 
-Backend evidence inside that exact run remains green: `tests/unit/test_wal_job_hook.py` is 16/16 PASS, the requested ExternalAccessGateway runtime-boundary tests pass, and no Backend-owned primary failure is present. Backend must not patch the UI copy failure.
-
-## Current Backend slice
-
-Area: bounded WAL maintenance interval scheduling.
-
-Product commit `380149a7963109f05ec531a09b86733d8ad84694` makes deadline arithmetic fail closed: before any WAL cycle, `run_due()` computes `now_monotonic + interval_seconds` and rejects a non-finite result. This prevents a finite-but-extreme monotonic timestamp/interval pair from silently storing `inf` as the next deadline and permanently suppressing future maintenance.
-
-Regression commit `32bd20e56721e3d2c1fe585f37a6128c30e8dd42` adds `tests/unit/test_wal_schedule_overflow.py`, proving overflow rejection occurs before `orchestrator.run_cycle()` and leaves `next_due_monotonic` unset.
-
-Canonical Quality run `34167424033` is pending for exact product/test head `32bd20e56721e3d2c1fe585f37a6128c30e8dd42`. No PASS is claimed until that exact run completes.
+The defect: individually finite `now_monotonic` and `interval_seconds` can sum to `inf`; storing that as `_next_due_monotonic` would silently suppress all future automatic WAL maintenance. The new check rejects non-finite deadline arithmetic before any WAL cycle and leaves `_next_due_monotonic` unset.
 
 ## Invariants
+PASSIVE-only automatic maintenance; explicit-idle-only TRUNCATE; no second scheduler/process/thread/timer/retry; PROVIDER zero-WAL behavior unchanged; existing monotonic-state semantics unchanged except fail-closed deadline overflow; no schema/migration/recovery/provenance/fsync/packaging/process-tree/lane-lock/DirectChat/security/crypto change. ExternalAccessGateway true-int TTL/max-bytes, finite non-bool timeout, no Tor-to-Direct fallback, redirect reauthorization, HTTPS/default-port, compressed-response and response-size hardening remain unchanged.
 
-- PASSIVE-only automatic WAL maintenance remains unchanged.
-- Automatic TRUNCATE remains forbidden; TRUNCATE still requires explicit idle confirmation.
-- No second scheduler loop, process, thread, timer, retry or new database side effect is introduced.
-- Overflow validation is fail-before-WAL-side-effect.
-- Existing PROVIDER-lane zero-WAL behavior and ALL/CONTROL ownership remain unchanged.
-- ExternalAccessGateway runtime boundaries already present on Develop remain untouched: genuine non-bool ints for TTL/max-bytes; finite numeric non-bool timeout; no silent Tor-to-Direct fallback; redirect reauthorization and response hardening preserved.
-- Persistence, recovery, provenance, fsync, schema, migration, packaging, process-tree and cryptographic semantics are unchanged.
-- Known Windows lane-lock/packaged-worker, pypdf/frozen argv, two-EXE topology and Direct-Chat context signatures remain release-regression knowledge only absent exact-current reproduction.
+Known Windows pypdf/frozen-argv, two-EXE bounded-worker, Direct-Chat small-context and lane-lock→scheduler-owner→packaged-worker crash signatures remain Beta/release regression knowledge only absent exact-current reproduction.
 
 ## Deferred shared composition
+`src/athena/core/application.py` still constructs `DurableJobScheduler`. The `WalAwareDurableJobScheduler` substitution point is known, but replacing the current 32KB shared Core composition file through a whole-file connector write was judged collision-prone. This run therefore executed the disjoint Backend-owned overflow hardening instead of repeating composition analysis.
 
-`src/athena/core/application.py` still constructs canonical `DurableJobScheduler`. The verified `WalAwareDurableJobScheduler` integration point is identifiable, but direct replacement of the 32KB shared Core composition file was not performed in this run because connector mutation requires full-file replacement and current Core/UI work makes that unnecessarily collision-prone. The run therefore advanced a disjoint real Backend-owned fail-closed slice instead of repeating analysis.
+## Verification
+Canonical Quality for the current exact lineage is not yet claimed green. Consume the newest exact workflow on the final handoff head before promotion/integration.
 
-## Next Backend slice
-
-First consume exact Quality `34167424033`. If green, mark only the WAL deadline-overflow boundary verified/integrator-ready. Then either perform the application scheduler substitution through a collision-safe exact-file mutation if the shared file is stable, or immediately select another disjoint evidence-backed Recovery/Provider/Platform Backend P1/P2 slice. Do not modify the UI-owned lifecycle-copy failure.
+## Next
+First consume exact canonical Quality on this final head. If green, mark only WAL deadline-overflow hardening VERIFIED/INTEGRATOR_READY. Then perform the shared application scheduler substitution only through a collision-safe exact mutation; otherwise immediately select a different disjoint evidence-backed Recovery/Provider/Platform Backend P1/P2 slice. Do not touch the UI-owned lifecycle-copy failure.
