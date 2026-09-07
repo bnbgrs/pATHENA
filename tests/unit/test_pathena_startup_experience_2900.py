@@ -160,11 +160,14 @@ def test_empty_state_width_tracks_available_chat_space_without_exceeding_cap() -
     controller.sync()
 
     panel = messages.findChild(QFrame, "emptyStatePanel")
+    title = messages.findChild(QLabel, "emptyStateTitle")
     body = messages.findChild(QLabel, "emptyStateBody")
     assert panel is not None
+    assert title is not None
     assert body is not None
     assert panel.width() == 388
     assert body.width() == 332
+    assert title.wordWrap()
 
     messages.resize(900, 300)
     controller.sync()
