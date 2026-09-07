@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `92eddff0bfdbdeeb7c8756240a1ed174265e2f65`
+Baseline: `591da5b99d2d8a7d24ba2c2cf866151bf362f4fb`
 Integration target: `develop/pathena-next`
 
 Only evidence-backed gaps belong here. The original 11 reference screenshots remain unavailable for direct visual comparison; therefore no pixel-level mismatch or `MATCH` claim is asserted.
@@ -88,11 +88,23 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Category: `COPY`
 - Screen: `04 — Jobs`
 - Severity: `P2`
-- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Status: `FIXED`
 - Evidence: after UI-GAP-0063, terminal-state help still used the visible phrase `no lifecycle action is available`, exposing the same internal lifecycle-domain vocabulary in a remaining branch of `JobActionAvailability.reason()`.
 - Product commit: `717aee14e7a357bf1022dda5c4e5d9ac006ef0f8`
 - Focused regression commit: `d294b7a0e96464d5700c00af3565895a526622f1`
+- Verification evidence: exact UI head `b4297ae1e54e2bbf8b2f8d673018077590b029c8` passed ATHENA Quality Gate `34134425435` with conclusion `success`.
 - Acceptance: terminal-state help says `no job action is available`; state normalization, enabled/disabled action matrix, transition receipts and backend/storage/scheduler semantics remain unchanged.
+
+## UI-GAP-0065 — Empty Jobs action help exposes storage-domain terminology
+
+- Category: `COPY`
+- Screen: `04 — Jobs`
+- Severity: `P2`
+- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Evidence: the no-selection branch of `JobActionAvailability.reason()` visibly said `Select a durable job first.`, exposing persistence-oriented terminology that is unnecessary for the user action.
+- Product commit: `0ac91c9f471bb14aa6094f78d017cd59d529d868`
+- Focused regression commit: `25f8c53cfef2f9524ec3ce2b696809bc1159893c`
+- Acceptance: empty-selection help says `Select a job first.`; action availability, state normalization, transition receipts and backend/storage/scheduler semantics remain unchanged.
 
 ## Evidence blocker
 
