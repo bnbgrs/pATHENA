@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -48,14 +49,20 @@ class _ResearchProvider:
         assert model_id == "research-primary"
         self.calls.append((schema_id, messages))
         text = "\n".join(message.content for message in messages)
-        marker = next(
-            (line for line in text.splitlines() if line.startswith("resume-source-")),
-            None,
-        )
-        if marker is not None:
+        marker_match = re.search(r"resume-source-\d+", text)
+        marker = marker_match.group(0) if marker_match is not None else None
+        if "map" in schema_id:
+            assert marker is not None
             return {
                 "relevant": True,
                 "summary": f"map summary {marker}",
+                "findings": [f"finding {marker}"],
+                "contradictions": [],
+                "uncertainty": "",
+            }
+        if marker is not None:
+            return {
+                "summary": f"synthesis summary {marker}",
                 "findings": [f"finding {marker}"],
                 "contradictions": [],
                 "uncertainty": "",
