@@ -1,23 +1,23 @@
 # pATHENA 11-Screen Reference Manifest
 
-Baseline: `4e18f75beeaa1c5b57bca28dcad5a062ac498051`
+Baseline: `d40dc421585193db7bda039d113d7d81ccfb9c03`
 Integration target: `develop/pathena-next`
 
 This manifest is the canonical inventory for the eleven user-provided pATHENA UI references. The original image payloads are still not available for direct visual opening in the current repository/tool path. Therefore all pixel/composition claims remain `VISUAL_REFERENCE_PENDING`. No slot may be promoted to `MATCH` without opening the actual reference and comparing it against a real rendered pATHENA state.
 
 | Slot | Surface / state | Reference source | Evidence-backed intent available now | Implementation status | Last checked SHA |
 |---|---|---|---|---|---|
-| 01 | Workspace / Chat | `VISUAL_REFERENCE_PENDING` | Quiet central workspace; chat as work document; large composer; contextual evidence/activity inspector | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `4e18f75beeaa1c5b57bca28dcad5a062ac498051` |
-| 02 | Library / Knowledge | `VISUAL_REFERENCE_PENDING` | Reduced knowledge workspace with real durable knowledge/claim provenance | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `4e18f75beeaa1c5b57bca28dcad5a062ac498051` |
-| 03 | Research | `VISUAL_REFERENCE_PENDING` | Real research process/results with restrained hierarchy and provenance | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `4e18f75beeaa1c5b57bca28dcad5a062ac498051` |
-| 04 | Jobs | `VISUAL_REFERENCE_PENDING` | Real job state and controls; UI-GAP-0071 empty-state copy is exact-green; UI-GAP-0072 humanizes the remaining implementation-heavy workspace intro | `IMPLEMENTED_PENDING_VERIFY` | `b927515fb5371f02f5da4cf4a90aa3d596d34ed0` |
-| 05 | Sources / Files | `VISUAL_REFERENCE_PENDING` | Real source/file state with import and provenance surfaces | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `4e18f75beeaa1c5b57bca28dcad5a062ac498051` |
-| 06 | System | `VISUAL_REFERENCE_PENDING` | Real local runtime/core/provider/storage/backup state | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `4e18f75beeaa1c5b57bca28dcad5a062ac498051` |
-| 07 | Settings | `VISUAL_REFERENCE_PENDING` | Local-model/context/output/reasoning controls with reduced presentation; UI-GAP-0061 accessibility help is exact-green | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `4e18f75beeaa1c5b57bca28dcad5a062ac498051` |
-| 08 | PALLAS | `VISUAL_REFERENCE_PENDING` | Characteristic but non-dominant, data-driven semantic view based on real Sources/Claims/Knowledge/Research; lifecycle regression technically verified | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `4e18f75beeaa1c5b57bca28dcad5a062ac498051` |
-| 09 | Command Palette / Help | `VISUAL_REFERENCE_PENDING` | Keyboard-first command/search surface backed by real capabilities | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `4e18f75beeaa1c5b57bca28dcad5a062ac498051` |
-| 10 | Grounded Chat / Evidence & Activity | `VISUAL_REFERENCE_PENDING` | Contextual evidence, claims, sources and activity without synthesized provenance; UI-GAP-0060 accessibility help is exact-green | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `4e18f75beeaa1c5b57bca28dcad5a062ac498051` |
-| 11 | Startup / Empty / Disconnected state | `VISUAL_REFERENCE_PENDING` | Quiet local-first startup and truthful unavailable/empty states | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `4e18f75beeaa1c5b57bca28dcad5a062ac498051` |
+| 01 | Workspace / Chat | `VISUAL_REFERENCE_PENDING` | Quiet central workspace; chat as work document; large composer; contextual evidence/activity inspector | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `d40dc421585193db7bda039d113d7d81ccfb9c03` |
+| 02 | Library / Knowledge | `VISUAL_REFERENCE_PENDING` | Reduced knowledge workspace with real durable knowledge/claim provenance | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `d40dc421585193db7bda039d113d7d81ccfb9c03` |
+| 03 | Research | `VISUAL_REFERENCE_PENDING` | Real research process/results with restrained hierarchy and provenance | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `d40dc421585193db7bda039d113d7d81ccfb9c03` |
+| 04 | Jobs | `VISUAL_REFERENCE_PENDING` | Real job state and controls; UI-GAP-0072 workspace intro is exact-green; UI-GAP-0073 humanizes remaining refresh/show/cancel progress and success status copy | `IMPLEMENTED_PENDING_VERIFY` | `cf777ca08ac0885c636aed95b5f6ddd6cd381386` |
+| 05 | Sources / Files | `VISUAL_REFERENCE_PENDING` | Real source/file state with import and provenance surfaces | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `d40dc421585193db7bda039d113d7d81ccfb9c03` |
+| 06 | System | `VISUAL_REFERENCE_PENDING` | Real local runtime/core/provider/storage/backup state | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `d40dc421585193db7bda039d113d7d81ccfb9c03` |
+| 07 | Settings | `VISUAL_REFERENCE_PENDING` | Local-model/context/output/reasoning controls with reduced presentation; UI-GAP-0061 accessibility help is exact-green | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `d40dc421585193db7bda039d113d7d81ccfb9c03` |
+| 08 | PALLAS | `VISUAL_REFERENCE_PENDING` | Characteristic but non-dominant, data-driven semantic view based on real Sources/Claims/Knowledge/Research; lifecycle regression technically verified | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `d40dc421585193db7bda039d113d7d81ccfb9c03` |
+| 09 | Command Palette / Help | `VISUAL_REFERENCE_PENDING` | Keyboard-first command/search surface backed by real capabilities | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `d40dc421585193db7bda039d113d7d81ccfb9c03` |
+| 10 | Grounded Chat / Evidence & Activity | `VISUAL_REFERENCE_PENDING` | Contextual evidence, claims, sources and activity without synthesized provenance; UI-GAP-0060 accessibility help is exact-green | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `d40dc421585193db7bda039d113d7d81ccfb9c03` |
+| 11 | Startup / Empty / Disconnected state | `VISUAL_REFERENCE_PENDING` | Quiet local-first startup and truthful unavailable/empty states | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `d40dc421585193db7bda039d113d7d81ccfb9c03` |
 
 ## Promotion rules
 
