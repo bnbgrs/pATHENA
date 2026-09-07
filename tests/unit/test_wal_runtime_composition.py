@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -49,7 +50,7 @@ def test_wal_runtime_rejects_boolean_interval_before_database_side_effect(
     with pytest.raises(WalMaintenanceError):
         build_wal_maintenance_runtime(
             database,
-            interval_seconds=interval_seconds,  # type: ignore[arg-type]
+            interval_seconds=cast(float, interval_seconds),
         )
 
     assert not database.path.exists()
