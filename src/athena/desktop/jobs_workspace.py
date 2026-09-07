@@ -340,13 +340,13 @@ class JobsWorkspace(QWidget):
             )
         except JobLifecycleError as exc:
             self.status.setText(
-                f"{operation.upper()} receipt for job {job_label} could not be verified."
+                f"{operation.upper()} response for job {job_label} could not be verified."
             )
             self.status.setToolTip(str(exc))
             set_pathena_ui_state(self.status, "error")
             if owns_details:
                 self.details.setPlainText(
-                    f"TRANSITION RECEIPT UNAVAILABLE\n{exc}\n\nRaw command output:\n{output}"
+                    f"JOB ACTION RESPONSE UNAVAILABLE\n{exc}\n\nRaw command output:\n{output}"
                 )
                 set_pathena_ui_state(self.details, "error")
             return
