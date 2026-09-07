@@ -107,3 +107,31 @@ def test_ready_status_refreshes_accessibility_description_from_current_truth() -
     assert status.text() == "pATHENA ready"
     assert status.toolTip() == "Local workspace ready"
     assert status.accessibleDescription() == status.toolTip()
+
+
+def test_empty_state_copy_refreshes_after_disconnected_to_ready_transition() -> None:
+    _app()
+    window = _DisconnectedStartupWindow()
+
+    messages = QWidget(window)
+    messages.setObjectName("chatMessages")
+    layout = QVBoxLayout(messages)
+    raw = QLabel("No conversation", messages)
+    raw.setObjectName("emptyChatState")
+    layout.addWidget(raw)
+
+    controller = PathenaStartupExperience(window)
+    controller.sync()
+
+    title = messages.findChild(QLabel, "emptyStateTitle")
+    body = messages.findChild(QLabel, "emptyStateBody")
+    assert title is not None
+    assert body is not None
+    assert title.text() == "Getting pATHENA ready"
+
+    window._core_transport_ready = True
+    controller.sync()
+
+    assert title.text() == "Start a conversation"
+    assert "reconnect" not in body.text().casefold()
+    assert "local knowledge" in body.text().casefold()
