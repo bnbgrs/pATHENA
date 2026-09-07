@@ -175,7 +175,9 @@ def test_successful_transition_updates_selected_persisted_state_and_controls(
         assert workspace._selected_state == "paused"
         assert workspace.resume_button.isEnabled()
         assert not workspace.pause_button.isEnabled()
-        assert "PAUSED" in workspace.status.text()
+        assert workspace.status.text() == "PAUSE completed for job 11111111 · PAUSED."
+        assert "transition" not in workspace.status.text().casefold()
+        assert "persisted" not in workspace.status.text().casefold()
     finally:
         workspace.close()
         app.processEvents()

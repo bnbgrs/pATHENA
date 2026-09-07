@@ -358,7 +358,7 @@ class JobsWorkspace(QWidget):
                 current.setData(Qt.ItemDataRole.UserRole + 1, receipt.state)
         self._sync_action_buttons()
         self.status.setText(
-            f"{operation.upper()} transition for job {job_label} persisted · "
+            f"{operation.upper()} completed for job {job_label} · "
             f"{receipt.state.upper()}."
         )
         self.status.setToolTip("")
