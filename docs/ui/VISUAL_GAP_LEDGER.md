@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `7c784b77af3bc0ec0c2579cc89b6947aadaf701c`
+Baseline: `af170f7307c2da454ab168a1993af3125868698a`
 Integration target: `develop/pathena-next`
 UI worker: `postmerge/ui`
 
@@ -300,11 +300,35 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
 
 ## UI-GAP-0052 — Existing empty-state panel can retain stale disconnected copy after reconnect
-- Screen: `11 — Startup / Empty / Disconnected state`; Category: `STATE / INTERACTION`; Severity: `P1`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Screen: `11 — Startup / Empty / Disconnected state`; Category: `STATE / INTERACTION`; Severity: `P1`; Status: `FIXED`.
 - Evidence: `_polish_empty_state()` previously returned immediately once `emptyChatState` had been replaced. When the panel was first created while disconnected, later readiness syncs therefore could leave visible `Getting pATHENA ready` and reconnect body copy after `_core_transport_ready` had become true.
 - Product `acacfd3a5d5172afdad13150ec40ffd2fba0c5b0` extracts the existing empty-state copy projection into `_sync_empty_state_copy()` and reuses it during both initial panel creation and subsequent syncs of the existing panel. Focused regression `4356258e6daf9a00dbb97705b76d949259a09f25` covers Disconnect→Ready and verifies the existing title/body move to `Start a conversation` and local-knowledge copy.
 - No Core readiness source, reconnect behavior, transport, model, chat routing, persistence, backend/storage/security/runtime or process ownership semantics are changed; only the visible projection of already-existing UI state is refreshed.
-- Verification evidence: canonical Quality on the exact final product/test/documentation successor is pending; no PASS is claimed yet.
+- Verification evidence: exact UI head `23c03d06b333ec2156665bfaa65b0de5219f5ccd` passed canonical ATHENA Quality Gate `34073855547` with conclusion `success`; later synchronized UI head `0a257caf023b5babc0394d77264e5173fc417bc1` also passed Quality `34077293629`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0053 — Empty-state panel width does not adapt to narrow chat workspaces
+- Screen: `11 — Startup / Empty / Disconnected state`; Category: `RESPONSIVE / LAYOUT`; Severity: `P1`; Status: `FIXED`.
+- Evidence: `emptyStatePanel` and `emptyStateBody` were fixed at 560px and 500px respectively, so the first-run/empty-state group could exceed a narrow `chatMessages` surface instead of preserving the central workspace hierarchy.
+- Product `2885e2b3262879a2036246124196124d14f6629c` caps the panel at 560px while deriving its actual width from `chatMessages.width() - 32`, derives the body width from the existing 28px horizontal margins, and resynchronizes on resize. Focused regression `252567394ce1f7059e5994b8d7cb800f34e692a2` locks a 420px surface to a 388px panel / 332px body and retains the 560px wide cap.
+- Chat content, empty-state copy, Core readiness, model routing, persistence, backend/storage/security/runtime and process semantics remain unchanged; this is bounded responsive presentation only.
+- Verification evidence: exact UI head `7d5b99d4715352843b800253f67f50b56095aec2` passed canonical ATHENA Quality Gate `34080765557` with conclusion `success`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0054 — Empty-state title does not wrap on narrow workspaces
+- Screen: `11 — Startup / Empty / Disconnected state`; Category: `RESPONSIVE / LAYOUT`; Severity: `P2`; Status: `FIXED`.
+- Evidence: after responsive panel sizing was added, `QLabel#emptyStateTitle` still explicitly used `wordWrap(False)`, so the title could break the same narrow-workspace contract even while its panel and body adapted correctly.
+- Product `0b4c32255c9d7ed4600deaa773f416216a38de5d` changes only the existing title label to `wordWrap(True)`. Focused regression `67972d4a8fdcd4727e0dfd63ee29e4d9f280ca5d` locks title wrapping while retaining the verified narrow/wide width assertions.
+- Empty-state copy, readiness, routing, persistence, backend/storage/security/runtime and process semantics are unchanged.
+- Verification evidence: exact UI head `ae25b56b4499ae68f5bdd9121e4f4c41e9cff0fe` passed canonical ATHENA Quality Gate `34084045555` with conclusion `success`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0055 — Empty-state eyebrow does not wrap on narrow workspaces
+- Screen: `11 — Startup / Empty / Disconnected state`; Category: `RESPONSIVE / LAYOUT`; Severity: `P2`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Evidence: with responsive panel sizing and title wrapping already in place, `QLabel#emptyStateEyebrow` still used the default non-wrapping label behavior. The fixed `LOCAL-FIRST WORKSPACE` copy could therefore overflow the same narrow first-run panel that now adapts its width.
+- Product `e105224b49caf17abecccc4bb5a5ae1085fa4f0e` enables only `wordWrap(True)` on the existing eyebrow label. Focused regression `149a868f04b4a1781cfee164fb38431fe563a76b` locks eyebrow wrapping while retaining the existing responsive panel/body and title-wrap assertions.
+- Copy, alignment, accent styling, readiness, chat/model routing, persistence, backend/storage/security/runtime and process semantics are unchanged; this is bounded responsive presentation only.
+- Verification evidence: canonical Quality is pending on the current documentation successor carrying unchanged product/test content; no PASS is claimed yet.
 - Visual status: `IMPLEMENTED_PENDING_VERIFY`; no screenshot-level `MATCH` claim.
 
 ## Evidence blocker
