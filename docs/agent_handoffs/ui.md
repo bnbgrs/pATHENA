@@ -35,17 +35,17 @@ Develop advanced to `7c784b77af3bc0ec0c2579cc89b6947aadaf701c` with UI-GAP-0050 
 
 ## Ledger / manifest coordination
 
-- `UI-GAP-0051` is verification-complete on exact UI head `cf808b725fcd7ac6c302cf8a3f59c20e385f8f2c` with Quality `34070554735 = success` and is ready for Integrator review.
-- `UI-GAP-0052` is the single new bounded Startup state-projection candidate and remains `IMPLEMENTED_PENDING_VERIFY` until exact-final-head canonical Quality succeeds.
+- `UI-GAP-0050` is reconciled `FIXED` with exact Quality `34067696492 = success`.
+- `UI-GAP-0051` is stably registered `FIXED` with exact UI head `cf808b725fcd7ac6c302cf8a3f59c20e385f8f2c` and Quality `34070554735 = success`.
+- `UI-GAP-0052` is stably registered `IMPLEMENTED_PENDING_VERIFY` with product `acacfd3a5d5172afdad13150ec40ffd2fba0c5b0` and regression `4356258e6daf9a00dbb97705b76d949259a09f25`.
 - The 11-slot manifest remains exactly eleven rows; Screen 11 stays `IMPLEMENTED_PENDING_VERIFY` only because UI-GAP-0052 is pending. No screenshot-level `MATCH` claim is made.
-- `docs/ui/VISUAL_GAP_LEDGER.md` remains history-preserved and still requires line-safe reconciliation for UI-GAP-0050/0051 plus stable UI-GAP-0052 registration; no destructive partial rewrite was performed.
 
 ## Integrator handoff
 
 - UI-GAP-0051 READY: product `c06e56f169096f6b59821e36b70b3a3baed4d668`, regression `d890340b7f1d997e06cb38abd7f4a68365d50297`, exact verified UI head `cf808b725fcd7ac6c302cf8a3f59c20e385f8f2c`, canonical Quality `34070554735 = success`.
-- UI-GAP-0052 is NOT READY until canonical Quality succeeds on the exact final candidate containing product, regression, manifest and this handoff, followed by line-preserving ledger reconciliation.
+- UI-GAP-0052 is NOT READY until canonical Quality succeeds on the exact final candidate containing product, regression, manifest, ledger and this handoff.
 - No backend/storage/security/provider/worker/scheduler semantics changed by UI.
 
 ## Next UI step
 
-Consume canonical Quality on the exact final UI-GAP-0052 candidate. If green, promote UI-GAP-0052 to `FIXED / INTEGRATOR_READY`, return Screen 11 to `IMPLEMENTED_PENDING_VISUAL_REVIEW`, reconcile the ledger without dropping history, and then inspect one distinct remaining 11-screen accessibility/state/interaction gap without reopening prompt-readiness, reconnect-status accessibility, or empty-state reconnect copy.
+Consume canonical Quality on the exact final UI-GAP-0052 candidate. If green, promote UI-GAP-0052 to `FIXED / INTEGRATOR_READY`, return Screen 11 to `IMPLEMENTED_PENDING_VISUAL_REVIEW`, update the exact verified SHA in manifest/ledger/handoff, and then inspect one distinct remaining 11-screen accessibility/state/interaction gap without reopening prompt-readiness, reconnect-status accessibility, or empty-state reconnect copy.
