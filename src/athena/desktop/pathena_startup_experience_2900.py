@@ -253,6 +253,14 @@ class PathenaStartupExperience(QObject):
                 prompt.setToolTip("Available when pATHENA and the selected model are ready")
             prompt.setAccessibleDescription(prompt.toolTip())
 
+        ground = self.window.findChild(QPushButton, "groundButton")
+        if ground is not None:
+            if core_ready:
+                ground.setToolTip("Ground this message in available sources")
+            else:
+                ground.setToolTip("Available when pATHENA and the selected model are ready")
+            ground.setAccessibleDescription(ground.toolTip())
+
         send = self.window.findChild(QPushButton, "sendButton")
         if send is not None:
             if core_ready:
