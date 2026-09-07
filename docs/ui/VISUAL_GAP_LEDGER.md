@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `30dd27c97e948e59994e8cfbe01b1c77ce6c917b`
+Baseline: `ed9dde599541dffe704a0810a9fa9debf1c8f74b`
 Integration target: `develop/pathena-next`
 
 Only evidence-backed gaps belong here. The original 11 reference screenshots remain unavailable for direct visual comparison; therefore no pixel-level mismatch or `MATCH` claim is asserted.
@@ -136,11 +136,22 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Category: `COPY`
 - Screen: `04 — Jobs`
 - Severity: `P2`
-- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Status: `FIXED`
 - Evidence: `parse_transition_receipt()` exceptions are surfaced by `JobsWorkspace` in the visible status tooltip and details failure state, but invalid/unsupported/unknown-state branches used `durable`, `lifecycle` and `receipt` terminology rather than user-facing job-action language.
 - Product commit: `998e28ccd9b3c4739e658c2efe55ba164f2bc98b`
 - Focused regression commit: `849b72a882f8d07a5678bc0e4770b55229c18723`
+- Verification evidence: exact UI head `81cf9ceffb1885943d82b80ab50f00eb3454eb9f` passed ATHENA Quality Gate `34152552680` with conclusion `success`.
 - Acceptance: keep the exact fail-closed receipt binding and state validation semantics while expressing validation failures as unsupported/unverified job-action responses without durable/lifecycle/receipt implementation jargon.
+
+## UI-GAP-0069 — Jobs verification-failure surface still exposes receipt jargon
+
+- Category: `COPY`
+- Screen: `04 — Jobs`
+- Severity: `P2`
+- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Evidence: after UI-GAP-0068 humanized parser exceptions, `JobsWorkspace._process_finished()` still rendered `receipt for job ... could not be verified` and `TRANSITION RECEIPT UNAVAILABLE` directly in the visible failure state.
+- Product/regression commit: `9ea12288a2e0363787c64fb8ded9a5302a4a52bd`
+- Acceptance: render the same fail-closed verification failure as `response for job ... could not be verified` and `JOB ACTION RESPONSE UNAVAILABLE`, preserve raw output for diagnosis, and leave parser binding, state transitions, scheduler/worker/storage/backend semantics unchanged.
 
 ## Evidence blocker
 
