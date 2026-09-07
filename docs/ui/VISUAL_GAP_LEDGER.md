@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `208efc473cbcbb30f7af08a2e5e1dc6956c557ce`
+Baseline: `7c784b77af3bc0ec0c2579cc89b6947aadaf701c`
 Integration target: `develop/pathena-next`
 UI worker: `postmerge/ui`
 
@@ -284,10 +284,26 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
 
 ## UI-GAP-0050 — Startup reconnect status detail is not exposed through accessibility description
-- Screen: `11 — Startup / Empty / Disconnected state`; Category: `ACCESSIBILITY / STATE`; Severity: `P1`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Screen: `11 — Startup / Empty / Disconnected state`; Category: `ACCESSIBILITY / STATE`; Severity: `P1`; Status: `FIXED`.
 - Evidence: disconnected `PathenaStartupExperience.sync()` exposes `pATHENA reconnecting` visibly and the truthful `pATHENA reconnects automatically` detail through the `localStatus` tooltip, but that automatic-reconnect explanation was not mirrored to `accessibleDescription` for assistive technology.
 - Product `0e6c31510abaaa9fe312c809565297b1aad785fa` mirrors only the existing disconnected `localStatus` tooltip into its accessibility description. Focused regression `ffeff123f868c5217b1592951e039c51347f156a` locks tooltip/accessibility equivalence while retaining the already-verified prompt readiness assertion.
 - Reconnect behavior, Core readiness, session-control visibility, prompt enablement, chat routing, persistence, backend/storage/security/runtime and relaunch/spawn behavior are unchanged; this is accessibility metadata only.
+- Verification evidence: exact UI head `335d4b2ce2787677bd2d930efd7c12c325759f1f` passed canonical ATHENA Quality Gate `34067696492` with conclusion `success`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0051 — Ready transition can retain stale reconnect accessibility metadata
+- Screen: `11 — Startup / Empty / Disconnected state`; Category: `ACCESSIBILITY / STATE`; Severity: `P1`; Status: `FIXED`.
+- Evidence: `PathenaStartupExperience.sync()` previously refreshed `localStatus.accessibleDescription()` only in the disconnected branch, so a ready transition could retain the stale `pATHENA reconnects automatically` assistive description even when the label already carried truthful ready text and tooltip.
+- Product `c06e56f169096f6b59821e36b70b3a3baed4d668` mirrors the current `localStatus.toolTip()` into `accessibleDescription()` on every sync while leaving ready-state text/tooltip ownership unchanged. Focused regression `d890340b7f1d997e06cb38abd7f4a68365d50297` locks ready text/tooltip preservation and stale-description refresh.
+- Core readiness, reconnect behavior, prompt enablement, chat routing, persistence, backend/storage/security/runtime and relaunch/spawn behavior are unchanged; this is accessibility metadata synchronization only.
+- Verification evidence: exact UI head `cf808b725fcd7ac6c302cf8a3f59c20e385f8f2c` passed canonical ATHENA Quality Gate `34070554735` with conclusion `success`.
+- Visual status: `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim.
+
+## UI-GAP-0052 — Existing empty-state panel can retain stale disconnected copy after reconnect
+- Screen: `11 — Startup / Empty / Disconnected state`; Category: `STATE / INTERACTION`; Severity: `P1`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Evidence: `_polish_empty_state()` previously returned immediately once `emptyChatState` had been replaced. When the panel was first created while disconnected, later readiness syncs therefore could leave visible `Getting pATHENA ready` and reconnect body copy after `_core_transport_ready` had become true.
+- Product `acacfd3a5d5172afdad13150ec40ffd2fba0c5b0` extracts the existing empty-state copy projection into `_sync_empty_state_copy()` and reuses it during both initial panel creation and subsequent syncs of the existing panel. Focused regression `4356258e6daf9a00dbb97705b76d949259a09f25` covers Disconnect→Ready and verifies the existing title/body move to `Start a conversation` and local-knowledge copy.
+- No Core readiness source, reconnect behavior, transport, model, chat routing, persistence, backend/storage/security/runtime or process ownership semantics are changed; only the visible projection of already-existing UI state is refreshed.
 - Verification evidence: canonical Quality on the exact final product/test/documentation successor is pending; no PASS is claimed yet.
 - Visual status: `IMPLEMENTED_PENDING_VERIFY`; no screenshot-level `MATCH` claim.
 
