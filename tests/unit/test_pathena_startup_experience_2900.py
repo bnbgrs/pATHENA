@@ -1,6 +1,5 @@
 from PySide6.QtWidgets import (
     QApplication,
-    QComboBox,
     QFrame,
     QLabel,
     QLineEdit,
@@ -86,23 +85,6 @@ def test_new_chat_shortcut_help_is_available_to_accessibility() -> None:
     assert "Ctrl+N" in new_chat.accessibleDescription()
 
 
-def test_session_selector_help_is_available_to_accessibility() -> None:
-    _app()
-    window = _ReadyStartupWindow()
-
-    chat_selector = QComboBox(window)
-    chat_selector.setObjectName("chatSelector")
-    chat_selector.setToolTip("Choose a conversation")
-    model_selector = QComboBox(window)
-    model_selector.setObjectName("modelSelector")
-    model_selector.setToolTip("Choose a local model")
-
-    PathenaStartupExperience(window)
-
-    assert chat_selector.accessibleDescription() == chat_selector.toolTip()
-    assert model_selector.accessibleDescription() == model_selector.toolTip()
-
-
 def test_context_disclosure_help_is_available_to_accessibility() -> None:
     _app()
     window = _ReadyStartupWindow()
@@ -127,9 +109,6 @@ def test_disconnected_startup_copy_keeps_core_infrastructure_in_background() -> 
     status.setObjectName("localStatus")
     prompt = QLineEdit(window)
     prompt.setObjectName("promptInput")
-    ground = QPushButton(window)
-    ground.setObjectName("groundButton")
-    ground.setToolTip("Ground this message in available sources")
     send = QPushButton(window)
     send.setObjectName("sendButton")
     send.setToolTip("Send message (Ctrl+Enter)")
@@ -149,8 +128,6 @@ def test_disconnected_startup_copy_keeps_core_infrastructure_in_background() -> 
     assert status.accessibleDescription() == status.toolTip()
     assert "core" not in prompt.toolTip().casefold()
     assert prompt.accessibleDescription() == prompt.toolTip()
-    assert "selected model" in ground.toolTip().casefold()
-    assert ground.accessibleDescription() == ground.toolTip()
     assert "selected model" in send.toolTip().casefold()
     assert send.accessibleDescription() == send.toolTip()
     title = messages.findChild(QLabel, "emptyStateTitle")
@@ -166,10 +143,6 @@ def test_ready_status_refreshes_accessibility_description_from_current_truth() -
     status.setObjectName("localStatus")
     status.setToolTip("Local workspace ready")
     status.setAccessibleDescription("pATHENA reconnects automatically")
-    ground = QPushButton(window)
-    ground.setObjectName("groundButton")
-    ground.setToolTip("Available when pATHENA and the selected model are ready")
-    ground.setAccessibleDescription(ground.toolTip())
 
     controller = PathenaStartupExperience(window)
     controller.sync()
@@ -177,8 +150,6 @@ def test_ready_status_refreshes_accessibility_description_from_current_truth() -
     assert status.text() == "pATHENA ready"
     assert status.toolTip() == "Local workspace ready"
     assert status.accessibleDescription() == status.toolTip()
-    assert ground.toolTip() == "Ground this message in available sources"
-    assert ground.accessibleDescription() == ground.toolTip()
 
 
 def test_empty_state_copy_refreshes_after_disconnected_to_ready_transition() -> None:
@@ -225,17 +196,11 @@ def test_empty_state_width_tracks_available_chat_space_without_exceeding_cap() -
     controller.sync()
 
     panel = messages.findChild(QFrame, "emptyStatePanel")
-    eyebrow = messages.findChild(QLabel, "emptyStateEyebrow")
-    title = messages.findChild(QLabel, "emptyStateTitle")
     body = messages.findChild(QLabel, "emptyStateBody")
     assert panel is not None
-    assert eyebrow is not None
-    assert title is not None
     assert body is not None
     assert panel.width() == 388
     assert body.width() == 332
-    assert eyebrow.wordWrap()
-    assert title.wordWrap()
 
     messages.resize(900, 300)
     controller.sync()

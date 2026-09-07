@@ -206,13 +206,11 @@ class PathenaStartupExperience(QObject):
         if chat_selector is not None:
             chat_selector.setMinimumWidth(220)
             chat_selector.setMaximumWidth(360)
-            chat_selector.setAccessibleDescription(chat_selector.toolTip())
 
         model_selector = self.window.findChild(QWidget, "modelSelector")
         if model_selector is not None:
             model_selector.setMinimumWidth(190)
             model_selector.setMaximumWidth(280)
-            model_selector.setAccessibleDescription(model_selector.toolTip())
 
         new_chat = self.window.findChild(QPushButton, "newChatButton")
         if new_chat is not None:
@@ -259,14 +257,6 @@ class PathenaStartupExperience(QObject):
             else:
                 prompt.setToolTip("Available when pATHENA and the selected model are ready")
             prompt.setAccessibleDescription(prompt.toolTip())
-
-        ground = self.window.findChild(QPushButton, "groundButton")
-        if ground is not None:
-            if core_ready:
-                ground.setToolTip("Ground this message in available sources")
-            else:
-                ground.setToolTip("Available when pATHENA and the selected model are ready")
-            ground.setAccessibleDescription(ground.toolTip())
 
         send = self.window.findChild(QPushButton, "sendButton")
         if send is not None:
@@ -345,13 +335,12 @@ class PathenaStartupExperience(QObject):
         eyebrow.setObjectName("emptyStateEyebrow")
         eyebrow.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         eyebrow.setMinimumHeight(16)
-        eyebrow.setWordWrap(True)
 
         title = QLabel(panel)
         title.setObjectName("emptyStateTitle")
         title.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         title.setMinimumHeight(34)
-        title.setWordWrap(True)
+        title.setWordWrap(False)
 
         body = QLabel(panel)
         body.setObjectName("emptyStateBody")
