@@ -8,52 +8,50 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 
 ## Current baseline
 
-- Baseline reviewed: `develop/pathena-next@ed9dde599541dffe704a0810a9fa9debf1c8f74b`.
+- Baseline reviewed: `develop/pathena-next@51bd144aafc0fb1f50c00515c366442038a2c251`.
 - Error branch mutation lineage remains `postmerge/errors` only.
-- Previous Error head: `68ef04e969422829809c030c450cf321c5c74d50`.
-- History-preserving NON-FORCE synchronization merge: `3d5568a268d4f4ee4c3cfec780b544543a3de60e`, parents `68ef04e969422829809c030c450cf321c5c74d50` and `ed9dde599541dffe704a0810a9fa9debf1c8f74b`.
-- Reviewed worker heads: Spec/Core `c6b4fdba485a1de249a93e99883fca4085b9fc48`; Backend `a3765f1e55420ebb193d37228919aa9032760cd0`; UI `81cf9ceffb1885943d82b80ab50f00eb3454eb9f`; Integrator/Develop `ed9dde599541dffe704a0810a9fa9debf1c8f74b`.
+- Previous Error head: `4c2295f9dd20550d3b2cead4769a9802b69cbb18`.
+- Reviewed worker heads: Spec/Core `6ad95079a114ea1d89517f7c299153caef66d3b5`; Backend `b01598b0d8980a2983f912917556b3bdf9af94ff`; UI `535b2848643d8244d726e968c9ab9ed3e7620db4`; Integrator/Develop `51bd144aafc0fb1f50c00515c366442038a2c251`.
 - Required `spec-core.md`, `backend.md`, `ui.md`, `integrator.md`, relevant worker branch heads and current canonical workflow state were reviewed before mutation.
 
 ## Current state
 
 - FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015`, `ERR-0016`, `ERR-0017`, `ERR-0018`, `ERR-0019`.
 - STALE: `ERR-0014`.
-- IN_PROGRESS: none.
+- IN_PROGRESS: `ERR-0020`.
 - OPEN: none.
 - BLOCKED: none.
 
+## Current primary error
+
+### ERR-0020 — Spec/Core exhaustive research resume full-pytest failure
+
+- Severity: P2.
+- Status: `IN_PROGRESS`.
+- Evidence: canonical ATHENA Quality run `34155243750` on exact Spec/Core SHA `6ad95079a114ea1d89517f7c299153caef66d3b5` completed FAILURE.
+- Gate split: Local install smoke PASS; Linux storage regressions PASS; Windows path safety PASS; specification validator PASS; Ruff PASS; mypy PASS; full pytest FAIL.
+- Delta isolation: exact parent `c6b4fdba485a1de249a93e99883fca4085b9fc48` was previously canonical green; commit `6ad95079a114ea1d89517f7c299153caef66d3b5` adds only `tests/unit/test_exhaustive_research_resume.py` (`test(research): cover restart after 60 percent`).
+- Root cause: not yet finalized. Available connector evidence identifies the failing gate but does not expose the uploaded diagnostic payload / pytest traceback. Therefore no product-vs-harness attribution is made and no speculative mutation is allowed.
+- Files currently implicated by exact delta: `tests/unit/test_exhaustive_research_resume.py`; product files remain unassigned until traceback/reproduction identifies the failing assertion/call-chain.
+- Repro: exact canonical run `34155243750`, Python 3.12 quality job `101845603936`, pytest step failed after Validator/Ruff/mypy passed.
+- Risk: a new restart-at-60%-coverage regression test may either reveal a real Research restart/persistence defect or contain harness sequencing assumptions inconsistent with the real worker lifecycle. Must distinguish before mutation.
+- Integrator handoff: HOLD Spec/Core `6ad95079a114ea1d89517f7c299153caef66d3b5`; do not integrate or call exact-green. Next run must consume exact traceback/diagnostics or an owner corrective successor and then finalize root cause in the same run.
+
 ## Historical verified entries
 
-- `ERR-0001` P2 FIXED — deletion-ledger malformed runtime boundaries; Backend `33749788522`; fix `780d25d74ce2e310b6a4bc434f547a23163e8b78`, harness `2f705d5e0fc1c77dd60612b5aeaa16d9380e46cd`.
-- `ERR-0002` P2 FIXED — deletion-boundary Ruff I001; corrected `33749788522`; fix `2f705d5e0fc1c77dd60612b5aeaa16d9380e46cd`.
-- `ERR-0003` P1 FIXED — stale permanent-inspector harness contract; Backend `33755878184`, UI `33745885426`; fix `6253577227d427c9bb00707c3e3e578a16c0f9d6`.
-- `ERR-0004` P2 FIXED — startup/readiness harness Ruff B010/I001; `33785726577`, `33792012599`, exact green `33804193396`; fixes `77e7b4c7d95202e6814226e2b4a2c4a54e3f5c8e`, `a5d9530525bd0b6bf0eae3945c23a6805f6b9669`.
-- `ERR-0005` P2 FIXED — system-tray QApplication ownership typing; UI `33822861477 = success`; fix `72e43bc18c28b5c92f6528919abf788f66924ba9`.
-- `ERR-0006` P2 FIXED — research UUID filter runtime container validation; Backend `33838658964 = success`; fix `462fba22637e0083c87df32f987134ce0fb3de00`.
-- `ERR-0007` P1 FIXED — missing contradiction-review dependency; `33838658964 = success`; fix `05bca268e2d2fc8e5b0f5ae59c564f2403605540`.
-- `ERR-0008` P2 FIXED — settings runtime/comprehension harness drift; `33854660676 = success`; fix `afa319f0ab1b12edccc4b649d4a1ca36bcd7ac39`.
-- `ERR-0009` P2 FIXED — local HTTP remaining-budget stale readline harness; Backend `33911612711 = success`; Error fix `67f3f447621c4544a5fb2fe321e76b62347290e0`.
-- `ERR-0010` P2 FIXED — total-deadline hardening timing harness drift; corrected `33936396203 = success`; fix `e62fcc2db49815e7d32579d0dc68a143f8af07b0`.
-- `ERR-0011` P2 FIXED — unavailable provider accessibility freshness leak; UI `33926653411 = success`; fix `9df9d7d46e3c4774aeea5439f91166a2092bd7fb`.
-- `ERR-0012` P1 FIXED — UI synchronization dropped StorageHealth database-path invariant; UI `33966822035 = success`; verified SHA `77b3f9582d4530dbe081e3c81b8768ad00d3f050`.
-- `ERR-0013` P2 FIXED — UI provider-detail Ruff I001; UI `33966822035 = success`; fix `77b3f9582d4530dbe081e3c81b8768ad00d3f050`.
-- `ERR-0014` P1 STALE — Qt Desktop controller SIGSEGV in `33975657049`/`33978563758`; later `33978582156`/`33981877292` succeeded; reopen only on exact recurrence.
-- `ERR-0015` P2 FIXED — fake bounded-response harness fabricated overflow byte; Backend `34009044381 = success`; fix `5abee1fb3cf9aa639a2600796036302ef63a773d`.
-- `ERR-0016` P1 FIXED — local HTTP overflow poisoning regression; corrected Quality `34030367660@54637682087b880622796ee0b618362f7ed802fe = success`; fix `d721846ea9524ab18336ba72eeb082cca7ee0fb8`, regression `44bf215b999e727514fc10ddb88eb8379a5358b6`.
-- `ERR-0017` P1 FIXED — integrated Personal Memory service omitted `ModelInferredMemoryProposal`; corrected Quality `34030367660@54637682087b880622796ee0b618362f7ed802fe = success`; Error fixes `5ff326e39611a3aea5678e2151c300822ad593f9` + `281cedc6010617ce0aa60ea25ec497500225bb17`.
-- `ERR-0018` P2 FIXED — Personal Memory context Ruff I001; Ruff fixer `61194be6eddf6fa7fe37c9c62690244a29414acd`; exact canonical success `34060875144@5714f3c7724cb82ccd75a7e852c668bfe78c6d5d`, later `34063688754@12e2e98d10c3fc11821ffa8f5edead80806da009 = success`.
-- `ERR-0019` P2 FIXED — Personal Memory precedence harness drift across canonical serializer key, repository read API and persisted revision identity; complete fix `c7cd4d9b1e0889a00b4599dfe76738442378b17b`; exact canonical Quality `34110957854 = success` with Windows path safety, Linux storage, local install, Validator, Ruff, mypy and full pytest PASS.
+- `ERR-0004` P2 FIXED — startup/readiness harness Ruff B010/I001; exact green `33804193396`.
+- `ERR-0014` P1 STALE — Qt Desktop controller SIGSEGV; later exact runs succeeded; reopen only on exact recurrence.
+- `ERR-0019` P2 FIXED — Personal Memory precedence harness drift; exact canonical Quality `34110957854 = success`.
+- All other `ERR-0001`..`ERR-0013`, `ERR-0015`..`ERR-0018` remain FIXED with their prior canonical evidence unchanged.
 
-## Current scan evidence — 2026-09-07 21:01 CEST
+## Current scan evidence — 2026-09-07 22:06 CEST
 
-- Spec/Core `c6b4fdba485a1de249a93e99883fca4085b9fc48`: prior exact canonical Quality `34127196867 = success`; no current error signal.
-- Backend current `a3765f1e55420ebb193d37228919aa9032760cd0`: canonical Quality `34152208000` is in progress. Local install smoke, Linux storage regressions and Windows path safety are completed PASS. In Python 3.12 quality, specification validator, Ruff and mypy are completed PASS; full pytest is in progress. No confirmed primary failure.
-- UI current `81cf9ceffb1885943d82b80ab50f00eb3454eb9f`: canonical Quality `34152552680` is in progress. Local install smoke, Linux storage regressions and Windows path safety are completed PASS. In Python 3.12 quality, specification validator, Ruff and mypy are completed PASS; full pytest is in progress. No confirmed primary failure.
-- UI-GAP-0067 exact worker `fd0780d23b081fddb8a236971c74f4cb3c565899` passed canonical Quality `34148642145 = success` and was integrated to Develop by `109598a95ec63a23d9692257e784c69aa601ab79`; current Develop documentation head is `ed9dde599541dffe704a0810a9fa9debf1c8f74b`.
-- Develop exact `ed9dde599541dffe704a0810a9fa9debf1c8f74b`: no exact-current promotion-ready claim is made without matching completed canonical evidence.
-- No current Quality/runtime evidence reproduces retained Windows packaging/process-tree/chat-context/lane-lock/storage-bootstrap crash signatures; none is reopened.
-- `ERR-0004` remains FIXED; current exact worker Ruff evidence is green and the historical startup/readiness Ruff signature has not recurred.
+- Spec/Core `6ad95079a114ea1d89517f7c299153caef66d3b5`: Quality `34155243750 = failure`; only full pytest is red. `ERR-0020` allocated.
+- Backend `b01598b0d8980a2983f912917556b3bdf9af94ff`: Quality `34156185828` in progress; Local install, Linux storage, Windows path safety, Validator, Ruff and mypy PASS; full pytest in progress; no confirmed primary failure.
+- UI `535b2848643d8244d726e968c9ab9ed3e7620db4`: Quality `34156844241` in progress; Local install, Linux storage, Windows path safety, Validator, Ruff and mypy PASS; full pytest in progress; no confirmed primary failure.
+- Develop exact `51bd144aafc0fb1f50c00515c366442038a2c251`: no exact-current promotion-ready claim without matching completed canonical evidence.
+- No current exact-SHA Quality/runtime evidence reproduces retained Windows packaging/process-tree/chat-context/lane-lock/storage-bootstrap crash signatures; none is reopened.
+- `ERR-0004` remains FIXED; current Ruff evidence is green and the historical startup/readiness Ruff signature has not recurred.
 
 ## Persistent Beta/release regression knowledge
 

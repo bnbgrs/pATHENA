@@ -120,6 +120,33 @@ def test_transition_receipt_is_bound_to_exact_job_and_operation() -> None:
         )
 
 
+@pytest.mark.parametrize(
+    ("output", "operation", "expected_fragment"),
+    (
+        ("not-a-receipt", "pause", "could not be verified"),
+        (f"JOB_PAUSE {JOB_ID} future_state", "pause", "unrecognized state"),
+        (f"JOB_PAUSE {JOB_ID} paused", "future", "not supported"),
+    ),
+)
+def test_transition_receipt_errors_use_human_product_language(
+    output: str,
+    operation: str,
+    expected_fragment: str,
+) -> None:
+    with pytest.raises(JobLifecycleError) as exc_info:
+        parse_transition_receipt(
+            output,
+            expected_operation=operation,
+            expected_job_id=JOB_ID,
+        )
+
+    message = str(exc_info.value)
+    assert expected_fragment in message
+    assert "durable" not in message.casefold()
+    assert "lifecycle" not in message.casefold()
+    assert "receipt" not in message.casefold()
+
+
 def test_successful_transition_updates_selected_persisted_state_and_controls(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
