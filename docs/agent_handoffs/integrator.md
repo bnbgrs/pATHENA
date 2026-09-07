@@ -22,14 +22,14 @@ Develop was advanced NON-FORCE to `f5572368b9ad3aae7e0b8113227b8414fbefe34a`.
 ## Verification state
 
 - Source worker exact Quality: `34106290925 = success` on `607319fa41abdea0e468523f2c653e1fd84cfc82`.
-- Develop-compatible application exact Quality: `34111813546` remains `in_progress` at this handoff update.
+- Develop-compatible application exact Quality: `34111813546 = success` on `f5572368b9ad3aae7e0b8113227b8414fbefe34a`.
 - Independent compare `aed6afdfa... -> f5572368...`: exactly two added files, no Core/UI/Error/Integrator product overwrite.
 - Automatic WAL maintenance remains PASSIVE-only; TRUNCATE remains explicit idle-confirmed only; WAL identity/no-follow safeguards are unchanged.
 
 ## Current readiness/error state
 
 - `ERR-0019` remains active on Spec/Core residual pytest evidence; Spec/Core current lineage remains held.
-- Current Backend head `cdb83418e...` is documentation/current-lineage follow-up and remains unconsumed while its exact Quality is pending.
+- Current Backend head `cdb83418e...` is a later documentation/current-lineage follow-up and was not imported.
 - Current UI head `70f8867a...` has exact Quality pending; no current UI slice is integrated in this run.
 - No retained Windows/runtime crash class is reopened absent exact-current reproduction.
 
@@ -37,13 +37,13 @@ Develop was advanced NON-FORCE to `f5572368b9ad3aae7e0b8113227b8414fbefe34a`.
 
 - Eleven-screen implementation remains implemented pending original visual review; no screenshot-level `MATCH` claim is made.
 - No percentage progress is inferred.
-- The WAL scheduler control-lane adapter is now integrated on Develop; `ALPHA_BETA_PROGRESS.md` must record it as VERIFIED only after exact current-lineage evidence is available, or explicitly cite the exact-green source lineage plus this bounded Develop compare.
+- The WAL scheduler control-lane adapter is integrated and exact-green on the Develop-compatible product/test head.
 
 ## Next integration order
 
-1. Consume exact Quality `34111813546` for `f5572368b9ad3aae7e0b8113227b8414fbefe34a`.
-2. Independently review exactly one compatible exact-green Core/Backend/UI successor.
-3. Hold Spec/Core mutation until `ERR-0019` exact residual pytest evidence is resolved.
+1. Independently review exactly one compatible exact-green Core/Backend/UI successor.
+2. Hold Spec/Core mutation until `ERR-0019` exact residual pytest evidence is resolved.
+3. Preserve Beta/release runtime regression coverage before any Windows candidate or promotion claim.
 
 ## Persistent release guards
 
