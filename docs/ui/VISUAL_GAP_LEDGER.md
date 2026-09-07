@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `df60ad0e0b3084da05a8b55d94a227798296a1ac`
+Baseline: `92eddff0bfdbdeeb7c8756240a1ed174265e2f65`
 Integration target: `develop/pathena-next`
 
 Only evidence-backed gaps belong here. The original 11 reference screenshots remain unavailable for direct visual comparison; therefore no pixel-level mismatch or `MATCH` claim is asserted.
@@ -36,7 +36,63 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Status: `FIXED`
 - Verification evidence: exact UI head `76cb122dbe7b58b0fa49bbcb36de2bd732922d4d` passed ATHENA Quality Gate `33751403354` with conclusion `success`.
 - Integration evidence: bounded equivalent product/test changes landed on Develop as `d149f6bbfd367f2999c8ee54e52326695aeb9f55` and `df60ad0e0b3084da05a8b55d94a227798296a1ac`; Backend changes were disjoint.
-- Acceptance: transient missing binding is an unhandled/no-op lifecycle state; existing ChildAdded resynchronization, action ordering, disabled-state preservation and composer return target remain unchanged.
+
+## UI-GAP-0060 — Context disclosure help was not exposed to accessibility
+
+- Category: `ACCESSIBILITY`
+- Screen: `10 — Grounded Chat / Evidence & Activity`
+- Severity: `P2`
+- Status: `FIXED`
+- Product commit: `0565720d2d3b3349e6fc8556083dc035fa8c389f`
+- Focused regression commit: `70f8867a2645cd2795853745f54844efe8c70d0c`
+- Verification evidence: exact UI head `70f8867a2645cd2795853745f54844efe8c70d0c` passed ATHENA Quality Gate `34113040437` with conclusion `success`.
+- Acceptance: the existing truthful context tooltip is mirrored into `accessibleDescription`; visibility, grounding, Evidence & Activity and backend semantics are unchanged.
+
+## UI-GAP-0061 — Settings control help is visual-only instead of screen-reader available
+
+- Category: `ACCESSIBILITY`
+- Screen: `07 — Settings`
+- Severity: `P2`
+- Status: `FIXED`
+- Product commit: `ffac0e737c3c3457a49ce4b830492f26ba7127d1`
+- Focused regression commit: `930dc168f5700f03720601664caf23b08ecd7603`
+- Verification evidence: exact UI head `8454d633810283e47d0b9bb9b93321536440cb45` passed ATHENA Quality Gate `34118404763` with conclusion `success`.
+- Acceptance: existing tooltip help is mirrored into `accessibleDescription`; context/output/temperature/reasoning values, model/provider routing and persistence semantics are unchanged.
+
+## UI-GAP-0062 — Cancellation-requested Jobs help leaks an internal persisted-state token
+
+- Category: `COPY`
+- Screen: `04 — Jobs`
+- Severity: `P2`
+- Status: `FIXED`
+- Evidence: `JobActionAvailability.reason()` surfaced the literal `cancel_requested` persistence token in visible action-help text when cancellation had already been persisted.
+- Product commit: `f82be0e672659ee74ce8aecae5a7b4f157cbe6a0`
+- Focused regression commit: `c37c8b17a5b33a68068c04c5b5b0fe41b53e927c`
+- Verification evidence: exact UI head `8bd74b266028ccfac5b06d286f84d805261ac9e6` passed ATHENA Quality Gate `34124133923` with conclusion `success`.
+- Acceptance: keep the persisted lifecycle state and all enabled/disabled action semantics unchanged while presenting a human-readable cancellation-requested explanation without the underscore-delimited internal token.
+
+## UI-GAP-0063 — Jobs action help exposes persistence/lifecycle implementation jargon
+
+- Category: `COPY`
+- Screen: `04 — Jobs`
+- Severity: `P2`
+- Status: `FIXED`
+- Evidence: `JobActionAvailability.reason()` described ordinary action availability as `persisted state ...` and terminal states as having no `lifecycle mutation`.
+- Product commit: `50eb723d18430735b5dcbb246563ae8e863c62a9`
+- Focused regression commit: `1a92d020d565424da147909f137779f7ce1e35fc`
+- Verification evidence: exact UI head `e4123e2085b9c7c20f5dffdc8faba19d14296c57` passed ATHENA Quality Gate `34129349248` with conclusion `success`.
+- Acceptance: preserve the durable-state action matrix and transition semantics exactly while expressing enabled, disabled and terminal action help without `persisted state` or `lifecycle mutation` jargon.
+
+## UI-GAP-0064 — Terminal Jobs help still uses lifecycle-domain jargon
+
+- Category: `COPY`
+- Screen: `04 — Jobs`
+- Severity: `P2`
+- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Evidence: after UI-GAP-0063, terminal-state help still used the visible phrase `no lifecycle action is available`, exposing the same internal lifecycle-domain vocabulary in a remaining branch of `JobActionAvailability.reason()`.
+- Product commit: `717aee14e7a357bf1022dda5c4e5d9ac006ef0f8`
+- Focused regression commit: `d294b7a0e96464d5700c00af3565895a526622f1`
+- Acceptance: terminal-state help says `no job action is available`; state normalization, enabled/disabled action matrix, transition receipts and backend/storage/scheduler semantics remain unchanged.
 
 ## Evidence blocker
 
