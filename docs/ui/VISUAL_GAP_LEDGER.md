@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `1bbbc693db781f1d56a7c75151fe9951a21363cc`
+Baseline: `15f4a439d15d4bb1414e7b54afee7a25ced36e61`
 Integration target: `develop/pathena-next`
 
 Only evidence-backed gaps belong here. The original 11 reference screenshots remain unavailable for direct visual comparison; therefore no pixel-level mismatch or `MATCH` claim is asserted.
@@ -53,11 +53,22 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Category: `ACCESSIBILITY`
 - Screen: `07 — Settings`
 - Severity: `P2`
-- Status: `IMPLEMENTED_PENDING_VERIFY`
-- Evidence: `PathenaMainWindow._apply_settings_presentation()` assigns truthful tooltips to context-window, maximum-response, temperature and reasoning controls, but the controls did not expose those instructions through `accessibleDescription`.
+- Status: `FIXED`
 - Product commit: `ffac0e737c3c3457a49ce4b830492f26ba7127d1`
 - Focused regression commit: `930dc168f5700f03720601664caf23b08ecd7603`
-- Acceptance: mirror existing tooltip help only; do not change context/output/temperature/reasoning values, model/provider routing or persistence semantics.
+- Verification evidence: exact UI head `8454d633810283e47d0b9bb9b93321536440cb45` passed ATHENA Quality Gate `34118404763` with conclusion `success`.
+- Acceptance: existing tooltip help is mirrored into `accessibleDescription`; context/output/temperature/reasoning values, model/provider routing and persistence semantics are unchanged.
+
+## UI-GAP-0062 — Cancellation-requested Jobs help leaks an internal persisted-state token
+
+- Category: `COPY`
+- Screen: `04 — Jobs`
+- Severity: `P2`
+- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Evidence: `JobActionAvailability.reason()` surfaced the literal `cancel_requested` persistence token in visible action-help text when cancellation had already been persisted.
+- Product commit: `f82be0e672659ee74ce8aecae5a7b4f157cbe6a0`
+- Focused regression commit: `c37c8b17a5b33a68068c04c5b5b0fe41b53e927c`
+- Acceptance: keep the persisted lifecycle state and all enabled/disabled action semantics unchanged while presenting a human-readable cancellation-requested explanation without the underscore-delimited internal token.
 
 ## Evidence blocker
 
