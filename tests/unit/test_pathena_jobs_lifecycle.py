@@ -55,6 +55,15 @@ def test_action_availability_matches_durable_service_states(
             assert state in reason
 
 
+def test_action_availability_empty_selection_uses_product_language() -> None:
+    availability = action_availability(None)
+
+    for action in ("pause", "resume", "wake", "cancel"):
+        reason = availability.reason(action)
+        assert reason == "Select a job first."
+        assert "durable" not in reason.casefold()
+
+
 def test_transition_receipt_is_bound_to_exact_job_and_operation() -> None:
     receipt = parse_transition_receipt(
         f"JOB_PAUSE {JOB_ID} paused\n",
