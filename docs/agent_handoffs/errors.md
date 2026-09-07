@@ -2,9 +2,10 @@
 
 ## Baseline
 
-- Current baseline reviewed: `develop/pathena-next@208efc473cbcbb30f7af08a2e5e1dc6956c557ce`.
-- Error branch mutation lineage: `postmerge/errors` only.
-- Worker heads reviewed: Spec/Core `12e2e98d10c3fc11821ffa8f5edead80806da009`; Backend `1509167f4458df90884697bea973f45fd57ceafc`; UI `a9c17d91f1c332e3ef0d9950dd858a5f8d7d7f3f`; Integrator/Develop `208efc473cbcbb30f7af08a2e5e1dc6956c557ce`.
+- Current baseline reviewed: `develop/pathena-next@af09641cdf2b872688cb4b67c9815194af9e7621`.
+- Error branch mutation lineage: `postmerge/errors` only; history-preserving NON-FORCE baseline synchronization commit: `ce50a4754a1621cfe4c8d7e18df9c1068eb182ff`.
+- Worker heads reviewed: Spec/Core `09341777eb56a77abf247190707b2cb189570a1b`; Backend `35883180205c83cabc1d20ef2fad39d8ee691699`; UI `335d4b2ce2787677bd2d930efd7c12c325759f1f`; Integrator/Develop `af09641cdf2b872688cb4b67c9815194af9e7621`.
+- Reviewed `spec-core.md`, `backend.md`, `ui.md`, and `integrator.md` on their owning current heads.
 - `main` and `bnbgrs/ATHENA` remain read-only. No force-push, rebase or history rewrite.
 
 ## Current state
@@ -17,21 +18,22 @@
 
 The repository-pinned Ruff fixer generated commit `61194be6eddf6fa7fe37c9c62690244a29414acd`. Its bounded product delta in `src/athena/memory/context.py` removes one extra blank line between the local import block and `PERSONAL_MEMORY_CONTEXT_LABEL`. It does not reorder imports and does not alter Personal Memory behavior.
 
-Canonical Quality `34060875144` on exact SHA `5714f3c7724cb82ccd75a7e852c668bfe78c6d5d` completed `success`, including full pytest. Therefore the previous `FIXED_PENDING_VERIFY` state is now promoted to `FIXED`. Later exact Spec/Core head `12e2e98d10c3fc11821ffa8f5edead80806da009` also completed canonical Quality `34063688754 = success`, providing an additional green descendant signal.
+Canonical Quality `34060875144` on exact SHA `5714f3c7724cb82ccd75a7e852c668bfe78c6d5d` completed `success`, including full pytest. Later exact Spec/Core head `12e2e98d10c3fc11821ffa8f5edead80806da009` also completed canonical Quality `34063688754 = success`.
 
 No semantic Personal Memory failure is evidenced. Preserve `USER PREFERENCE`, active-only projection, snapshot/duplicate identity checks and fail-closed Protected Memory behavior. Do not re-edit import ordering/wrapping without new exact contradictory evidence.
 
-## Other current evidence
+## Current canonical evidence
 
-- Backend `74df90dc3b189d397c7a9f18afd0929a25e372bc`: canonical Quality `34061317620 = success`. Current worker head advanced to `1509167f4458df90884697bea973f45fd57ceafc`; no independent primary failure was confirmed in this scan.
-- UI `4be3a9c897313f63f8c49ddc6eb9ecfea9186ded`: canonical Quality `34061905305 = success`. Current worker head advanced to `a9c17d91f1c332e3ef0d9950dd858a5f8d7d7f3f`; no independent primary failure was confirmed in this scan.
-- Develop `208efc473cbcbb30f7af08a2e5e1dc6956c557ce`: baseline advanced; no exact completed canonical Quality on this exact Develop SHA was independently verified in this run, therefore no promotion-ready claim.
+- Spec/Core exact head `09341777eb56a77abf247190707b2cb189570a1b`: canonical Quality `34066566253 = success`. No Error-ledger objection.
+- Backend exact head `35883180205c83cabc1d20ef2fad39d8ee691699`: canonical Quality `34067080370` is `in_progress`. Windows path safety, Linux storage/API path-boundary, local install/Core-API restart, Validator, Ruff and mypy are PASS; full pytest is still running. No primary failure is evidenced yet.
+- UI exact head `335d4b2ce2787677bd2d930efd7c12c325759f1f`: canonical Quality `34067696492` is `in_progress`. Windows path safety, Linux storage/API path-boundary, local install/Core-API restart, Validator, Ruff and mypy are PASS; full pytest is still running. No primary failure is evidenced yet.
+- Develop exact head `af09641cdf2b872688cb4b67c9815194af9e7621`: no exact canonical Quality run was observed on this SHA; no promotion-ready claim.
 
 ## Integrator handoff
 
-- `ERR-0018` is closed with fix SHA `61194be6eddf6fa7fe37c9c62690244a29414acd` and exact green Quality `34060875144@5714f3c7724cb82ccd75a7e852c668bfe78c6d5d`.
-- Spec/Core `12e2e98d10c3fc11821ffa8f5edead80806da009` also has exact canonical Quality `34063688754 = success`; no Error-ledger objection from this scan.
-- Backend/UI prior exact candidates `74df90dc...` and `4be3a9c...` completed success; current newer worker heads should be consumed on their own exact Quality evidence before promotion.
+- `ERR-0018` remains closed with fix SHA `61194be6eddf6fa7fe37c9c62690244a29414acd` and exact green Quality `34060875144@5714f3c7724cb82ccd75a7e852c668bfe78c6d5d`.
+- Spec/Core `09341777eb56a77abf247190707b2cb189570a1b` is exact-green via `34066566253` and has no Error-ledger objection.
+- Do not treat Backend `35883180205c83cabc1d20ef2fad39d8ee691699` or UI `335d4b2ce2787677bd2d930efd7c12c325759f1f` as exact-green until their current full pytest and workflows complete successfully.
 - Preserve Provider/Transport byte-budget/deadline/poisoning, Personal-Memory provenance/review, Windows path safety, Storage, Security and Recovery guards.
 - Current Develop still requires exact completed canonical evidence before any promotion-ready statement.
 
@@ -41,6 +43,6 @@ Retain without reopening absent exact-current reproduction: Windows `pypdf` meta
 
 ## Next scan
 
-1. Consume exact Quality for current Backend `1509167f...` and UI `a9c17d91...` heads and any newer worker heads.
+1. Consume completion of Backend `34067080370` and UI `34067696492` on their exact heads.
 2. Consume the next exact current Develop/Runtime signal; allocate or reopen an ERR only for concrete, deduplicated primary evidence.
 3. Keep the known Windows/runtime crash classes in the Beta/release regression matrix without promoting them to OPEN absent exact-current reproduction.
