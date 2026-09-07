@@ -1,4 +1,12 @@
-from PySide6.QtWidgets import QApplication, QLabel, QLineEdit, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QApplication,
+    QFrame,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 
 from athena.desktop.pathena_startup_experience_2900 import (
     _STARTUP_REFINEMENTS,
@@ -63,6 +71,20 @@ def test_quiet_workspace_contract_remains_effect_free() -> None:
     assert "gradient" not in lowered
 
 
+def test_new_chat_shortcut_help_is_available_to_accessibility() -> None:
+    _app()
+    window = _ReadyStartupWindow()
+
+    new_chat = QPushButton(window)
+    new_chat.setObjectName("newChatButton")
+    new_chat.setToolTip("New chat (Ctrl+N)")
+
+    PathenaStartupExperience(window)
+
+    assert new_chat.accessibleDescription() == new_chat.toolTip()
+    assert "Ctrl+N" in new_chat.accessibleDescription()
+
+
 def test_disconnected_startup_copy_keeps_core_infrastructure_in_background() -> None:
     _app()
     window = _DisconnectedStartupWindow()
@@ -71,6 +93,9 @@ def test_disconnected_startup_copy_keeps_core_infrastructure_in_background() -> 
     status.setObjectName("localStatus")
     prompt = QLineEdit(window)
     prompt.setObjectName("promptInput")
+    send = QPushButton(window)
+    send.setObjectName("sendButton")
+    send.setToolTip("Send message (Ctrl+Enter)")
 
     messages = QWidget(window)
     messages.setObjectName("chatMessages")
@@ -87,6 +112,8 @@ def test_disconnected_startup_copy_keeps_core_infrastructure_in_background() -> 
     assert status.accessibleDescription() == status.toolTip()
     assert "core" not in prompt.toolTip().casefold()
     assert prompt.accessibleDescription() == prompt.toolTip()
+    assert "selected model" in send.toolTip().casefold()
+    assert send.accessibleDescription() == send.toolTip()
     title = messages.findChild(QLabel, "emptyStateTitle")
     assert title is not None
     assert title.text() == "Getting pATHENA ready"
@@ -135,3 +162,32 @@ def test_empty_state_copy_refreshes_after_disconnected_to_ready_transition() -> 
     assert title.text() == "Start a conversation"
     assert "reconnect" not in body.text().casefold()
     assert "local knowledge" in body.text().casefold()
+
+
+def test_empty_state_width_tracks_available_chat_space_without_exceeding_cap() -> None:
+    _app()
+    window = _ReadyStartupWindow()
+
+    messages = QWidget(window)
+    messages.setObjectName("chatMessages")
+    messages.resize(420, 300)
+    layout = QVBoxLayout(messages)
+    raw = QLabel("No conversation", messages)
+    raw.setObjectName("emptyChatState")
+    layout.addWidget(raw)
+
+    controller = PathenaStartupExperience(window)
+    controller.sync()
+
+    panel = messages.findChild(QFrame, "emptyStatePanel")
+    body = messages.findChild(QLabel, "emptyStateBody")
+    assert panel is not None
+    assert body is not None
+    assert panel.width() == 388
+    assert body.width() == 332
+
+    messages.resize(900, 300)
+    controller.sync()
+
+    assert panel.width() == 560
+    assert body.width() == 504
