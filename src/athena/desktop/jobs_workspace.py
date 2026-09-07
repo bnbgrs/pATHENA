@@ -114,7 +114,7 @@ class JobsWorkspace(QWidget):
         layout.setSpacing(14)
 
         header = QHBoxLayout()
-        title = QLabel("DURABLE JOB CONTROL")
+        title = QLabel("JOBS")
         title.setObjectName("speaker")
         header.addWidget(title)
         header.addWidget(self.scheduler_status)
@@ -127,9 +127,8 @@ class JobsWorkspace(QWidget):
         layout.addLayout(header)
 
         intro = QLabel(
-            "Canonical pATHENA background work. Queue state, retries, leases and "
-            "checkpoints are persisted in SQLite; controls below invoke the existing "
-            "DurableJobService transitions rather than maintaining a GUI-side queue."
+            "Background work from Research and Sources appears here. Select a job to "
+            "inspect its state and activity, or use the available controls to manage it."
         )
         intro.setObjectName("settingsHelp")
         intro.setWordWrap(True)
