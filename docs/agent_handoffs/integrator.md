@@ -3,29 +3,31 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `208efc473cbcbb30f7af08a2e5e1dc6956c557ce`.
+- Develop before this run: `af09641cdf2b872688cb4b67c9815194af9e7621`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `5f2bf47b9a63d03d3558528fe373f5629fbf9d81`; spec-core `09341777eb56a77abf247190707b2cb189570a1b`; backend `35883180205c83cabc1d20ef2fad39d8ee691699`; UI `335d4b2ce2787677bd2d930efd7c12c325759f1f`.
+- Worker heads reviewed: errors `e9eb438d5c5b048a695bfc0dbdad7d0519a269d2`; spec-core `57aa31ec49ddec2d68147e91ea6b3c311d33881a`; backend `552209e005b82d31577d9f8a466af4dd97b99866`; UI `cf808b725fcd7ac6c302cf8a3f59c20e385f8f2c`.
 - `main` and `bnbgrs/ATHENA` were untouched; no force update, history rewrite or auto-merge was used.
 
-## Integrated this run — UI-GAP-0049 startup composer accessibility readiness
+## Integrated this run — UI-GAP-0050 startup reconnect status accessibility
 
-UI exact verified head `a9c17d91f1c332e3ef0d9950dd858a5f8d7d7f3f` passed canonical ATHENA Quality Gate `34064741852 = success`. Independent review selected only product `39f1e71db444302f7b4e08006a4a281727a0f919` and focused regression `eed8dff3923f415640517a96e8dd395d55c75ea0`.
+UI exact verified head `335d4b2ce2787677bd2d930efd7c12c325759f1f` passed canonical ATHENA Quality Gate `34067696492 = success`. Independent review selected only product `0e6c31510abaaa9fe312c809565297b1aad785fa` and focused regression `ffeff123f868c5217b1592951e039c51347f156a`.
 
-Develop product/test integration commit: `ca18016643776256d5607959c09bcd68d9cdfa99`.
+Develop product commit: `cfe418d43bdfddf140ac108ea1cef8d8ad3d5bec`.
+Develop focused regression commit: `f1109d5e43570251a37e698f3fff06d87aa53a13`.
 
-The bounded contract mirrors the already-derived startup prompt tooltip into `promptInput.accessibleDescription()` after readiness synchronization. It introduces no new readiness source, model state, chat route, Core behavior, Backend/Storage/Security behavior, process ownership, packaging path or Windows runtime behavior. The focused regression locks equality between the disconnected prompt tooltip and accessibility description. No test or guard was weakened.
+The bounded contract mirrors the already-existing disconnected `localStatus` tooltip into `accessibleDescription()` without adding reconnect, readiness or runtime semantics. The focused regression locks disconnected tooltip/accessibility equivalence while preserving prompt-readiness accessibility. Core readiness, session controls, chat routing, persistence, Backend/Storage/Security, Worker/Scheduler, packaging and Windows process ownership remain unchanged. No test or guard was weakened.
 
 ## Current readiness/error state
 
-- `ERR-0018` is closed on pinned-Ruff fix `61194be6eddf6fa7fe37c9c62690244a29414acd` with exact canonical Quality `34060875144` at `5714f3c7724cb82ccd75a7e852c668bfe78c6d5d`; later Spec/Core descendant `12e2e98d10c3fc11821ffa8f5edead80806da009` also passed Quality `34063688754`.
-- Current Backend diagnosis runtime-boundary candidate remains NOT READY until exact canonical Quality succeeds for its candidate/descendant.
-- UI-GAP-0050 remains IMPLEMENTED_PENDING_VERIFY and was not consumed.
+- Errors worker reports no newly opened current blocker in its current canonical scan.
+- Backend WAL maintenance diagnosis boundary is source-lineage green but its Develop-compatible synchronization remains pending exact canonical verification and was not consumed.
+- Spec/Core current learning-mode policy work was not consumed in this run.
+- UI-GAP-0051 remains `IMPLEMENTED_PENDING_VERIFY` and was not consumed.
 - Exact-current-Develop global Quality is not claimed after this composition unless a run is observed on the final head.
 
 ## UI / Alpha-Beta state
 
-- UI-GAP-0049 is integrated on Develop.
+- UI-GAP-0050 is integrated on Develop.
 - Eleven-screen implementation remains pending original visual-reference review; no pixel-level MATCH claim is made.
 - `docs/development/ALPHA_BETA_PROGRESS.md` remains canonical; no unsafe destructive whole-file rewrite was attempted in this run.
 
@@ -33,7 +35,7 @@ The bounded contract mirrors the already-derived startup prompt tooltip into `pr
 
 1. Obtain exact-current-Develop canonical Quality if available.
 2. Consume exactly one independently compatible bounded READY Core/Backend/UI successor.
-3. Prefer the next exact-green product slice; do not consume Backend diagnosis or UI-GAP-0050 while pending verification.
+3. Do not consume Backend Develop-sync diagnosis boundary or UI-GAP-0051 until exact canonical verification is green.
 
 ## Persistent release guards
 
