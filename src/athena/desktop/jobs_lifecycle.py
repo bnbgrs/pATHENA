@@ -40,7 +40,7 @@ class JobActionAvailability:
         if enabled:
             return f"{action.title()} is available while this job is {self.state}."
         if self.state is None:
-            return "Select a durable job first."
+            return "Select a job first."
         if self.state in _TERMINAL_STATES:
             return f"This job is {self.state}; no lifecycle action is available."
         if self.state == "cancel_requested":
