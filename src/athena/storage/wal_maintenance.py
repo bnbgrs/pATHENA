@@ -91,8 +91,12 @@ class WalRuntimeStatus:
             self.autocheckpoint_pages,
             "WAL status autocheckpoint_pages",
         )
+        checkpoint_bytes = _positive_int(
+            self.autocheckpoint_bytes,
+            "WAL status autocheckpoint_bytes",
+        )
         expected_bytes = page_size * checkpoint_pages
-        if self.autocheckpoint_bytes != expected_bytes:
+        if checkpoint_bytes != expected_bytes:
             raise ValueError(
                 "WAL status autocheckpoint_bytes must equal page_size * autocheckpoint_pages."
             )

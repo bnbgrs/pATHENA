@@ -3,38 +3,37 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `1cc7b8dceb5b4ff098442e9f17f89b8cc36cb390`.
+- Develop before this run: `208efc473cbcbb30f7af08a2e5e1dc6956c557ce`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed at run start: errors `d53cfd799fab60859f6e2b2fe76e4154fa4555bd`; spec-core `5714f3c7724cb82ccd75a7e852c668bfe78c6d5d`; backend `74df90dc3b189d397c7a9f18afd0929a25e372bc`; ui `4be3a9c897313f63f8c49ddc6eb9ecfea9186ded`.
+- Worker heads reviewed: errors `5f2bf47b9a63d03d3558528fe373f5629fbf9d81`; spec-core `09341777eb56a77abf247190707b2cb189570a1b`; backend `35883180205c83cabc1d20ef2fad39d8ee691699`; UI `335d4b2ce2787677bd2d930efd7c12c325759f1f`.
 - `main` and `bnbgrs/ATHENA` were untouched; no force update, history rewrite or auto-merge was used.
 
-## Integrated this run — Storage/WAL policy exact status shape
+## Integrated this run — UI-GAP-0049 startup composer accessibility readiness
 
-Backend BE-053 WAL-policy exact-status-shape lineage `2ea98794facffcae29d4f94b337fc84083028526` passed canonical ATHENA Quality Gate `34058195011 = success`. Independent review selected only product commit `76cda6717b15784d7d6722e07f0775179577c6eb` semantics and focused regression `978d67958bddf0e4e3a72f4b5bc2220146242a1f`; divergent Backend history and later `WalRuntimeStatus.autocheckpoint_bytes` work were excluded.
+UI exact verified head `a9c17d91f1c332e3ef0d9950dd858a5f8d7d7f3f` passed canonical ATHENA Quality Gate `34064741852 = success`. Independent review selected only product `39f1e71db444302f7b4e08006a4a281727a0f919` and focused regression `eed8dff3923f415640517a96e8dd395d55c75ea0`.
 
-Develop commits created this run:
-- `be2fbc3192e65fe62acb6e4ac0d760f3ca114e06` — require `PRAGMA page_size` and `PRAGMA wal_autocheckpoint` to each return exactly one status field before policy values are accepted.
-- `b037c6d4d25f699be85de9b8a48c88decff46c62` — exact focused regression for absent/empty/multi-field policy rows and canonical single-field acceptance, including fail-before-WAL-observation behavior.
+Develop product/test integration commit: `ca18016643776256d5607959c09bcd68d9cdfa99`.
 
-The integrated contract preserves positive true-int policy validation, no-follow/identity-checked WAL observation, PASSIVE-only automatic checkpointing, explicit-idle TRUNCATE, exact checkpoint result validation, Storage/Recovery invariants, and unrelated Core/UI/Security/Provider/Windows behavior. No test or guard was weakened.
+The bounded contract mirrors the already-derived startup prompt tooltip into `promptInput.accessibleDescription()` after readiness synchronization. It introduces no new readiness source, model state, chat route, Core behavior, Backend/Storage/Security behavior, process ownership, packaging path or Windows runtime behavior. The focused regression locks equality between the disconnected prompt tooltip and accessibility description. No test or guard was weakened.
 
 ## Current readiness/error state
 
-- Backend current handoff marks `WalRuntimeStatus.autocheckpoint_bytes` true-int boundary product `22fa292c2213e8dbeca4e0a6733d32e71f5141df` + regression `fcd0b9a453cdf15c8d13c9708ebc5cd206ccbdad` NOT READY pending exact canonical success.
-- Error worker tracks only Core-owned `ERR-0018` Ruff import-order rejection; no Backend defect is implicated.
-- Exact-current-Develop global Quality is not claimed after this composition.
+- `ERR-0018` is closed on pinned-Ruff fix `61194be6eddf6fa7fe37c9c62690244a29414acd` with exact canonical Quality `34060875144` at `5714f3c7724cb82ccd75a7e852c668bfe78c6d5d`; later Spec/Core descendant `12e2e98d10c3fc11821ffa8f5edead80806da009` also passed Quality `34063688754`.
+- Current Backend diagnosis runtime-boundary candidate remains NOT READY until exact canonical Quality succeeds for its candidate/descendant.
+- UI-GAP-0050 remains IMPLEMENTED_PENDING_VERIFY and was not consumed.
+- Exact-current-Develop global Quality is not claimed after this composition unless a run is observed on the final head.
 
 ## UI / Alpha-Beta state
 
-- Eleven-screen implementation remains pending visual-reference review; no pixel-level MATCH claim is made without original reference evidence.
-- `docs/development/ALPHA_BETA_PROGRESS.md` remains canonical. Its complete body was not safely writable through the connector in this run because retrieval was truncated; no destructive whole-file replacement was attempted. This integration evidence is versioned here until a safe line-preserving tracker update path is available.
+- UI-GAP-0049 is integrated on Develop.
+- Eleven-screen implementation remains pending original visual-reference review; no pixel-level MATCH claim is made.
+- `docs/development/ALPHA_BETA_PROGRESS.md` remains canonical; no unsafe destructive whole-file rewrite was attempted in this run.
 
 ## Next integration order
 
 1. Obtain exact-current-Develop canonical Quality if available.
 2. Consume exactly one independently compatible bounded READY Core/Backend/UI successor.
-3. Do not consume the Backend derived WAL-byte boundary without exact successful canonical evidence.
-4. Keep `ERR-0018` excluded from closure until exact corrected Core SHA is canonical-green.
+3. Prefer the next exact-green product slice; do not consume Backend diagnosis or UI-GAP-0050 while pending verification.
 
 ## Persistent release guards
 
