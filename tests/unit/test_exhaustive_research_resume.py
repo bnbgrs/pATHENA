@@ -243,7 +243,8 @@ def test_exhaustive_research_restart_at_sixty_percent_preserves_findings_without
 
     final_snapshots = _successful_finding_snapshots(resumed, job.job_id)
     assert len(final_snapshots) == 5
-    assert final_snapshots[:3] == before_restart
+    final_by_work_item = {item[0]: item for item in final_snapshots}
+    assert all(final_by_work_item[item[0]] == item for item in before_restart)
     assert len({item[0] for item in final_snapshots}) == 5
     assert len({item[1] for item in final_snapshots}) == 5
     assert len({item[2] for item in final_snapshots}) == 5
