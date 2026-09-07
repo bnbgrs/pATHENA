@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `b6c5c6181a5327d4ee436be518f4eebfacaf82bb`
+Baseline: `78519f7c94df31b3c2374e5a1124fe799db28929`
 Integration target: `develop/pathena-next`
 
 Only evidence-backed gaps belong here. The original 11 reference screenshots remain unavailable for direct visual comparison; therefore no pixel-level mismatch or `MATCH` claim is asserted.
@@ -112,11 +112,23 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Category: `STATE`
 - Screen: `04 — Jobs`
 - Severity: `P1`
-- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Status: `FIXED`
 - Evidence: `action_availability()` treated every non-terminal, non-`cancel_requested` state as cancellable, so an unrecognized persisted/future state could enable the visible `CANCEL` control despite having no established UI transition contract.
 - Product commit: `83c57b7898515085c7ba4f9441029165c3123890`
 - Focused regression commit: `96891f1d68ee9e0242c41aa4b846fea39094ec54`
+- Verification evidence: exact UI head `7fe5d44e4271dcbec6c0bfba92e0a01a0671b69f` passed ATHENA Quality Gate `34144645412` with conclusion `success`.
 - Acceptance: unknown states disable pause/resume/wake/cancel and expose neutral `unrecognized state` help; known-state action availability, receipt parsing, scheduler/worker/storage and backend semantics remain unchanged.
+
+## UI-GAP-0067 — Jobs action help is visual-only instead of screen-reader available
+
+- Category: `ACCESSIBILITY`
+- Screen: `04 — Jobs`
+- Severity: `P2`
+- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Evidence: `_sync_action_buttons()` placed the established action-availability explanation only in each PAUSE/RESUME/WAKE/CANCEL tooltip; the same dynamic help was absent from `accessibleDescription`.
+- Product commit: `6543d82199f8f5360cc205f6303dc133f9468dd7`
+- Focused regression commit: `f823fe99c9c7ce78b3d0d70aaf257966ae692364`
+- Acceptance: mirror the existing truthful per-state action help into `accessibleDescription` without changing enabled/disabled state, lifecycle transitions, receipts, scheduler/worker/storage or backend semantics.
 
 ## Evidence blocker
 
