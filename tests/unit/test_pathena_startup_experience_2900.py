@@ -1,5 +1,6 @@
 from PySide6.QtWidgets import (
     QApplication,
+    QComboBox,
     QFrame,
     QLabel,
     QLineEdit,
@@ -83,6 +84,23 @@ def test_new_chat_shortcut_help_is_available_to_accessibility() -> None:
 
     assert new_chat.accessibleDescription() == new_chat.toolTip()
     assert "Ctrl+N" in new_chat.accessibleDescription()
+
+
+def test_session_selector_help_is_available_to_accessibility() -> None:
+    _app()
+    window = _ReadyStartupWindow()
+
+    chat_selector = QComboBox(window)
+    chat_selector.setObjectName("chatSelector")
+    chat_selector.setToolTip("Choose a conversation")
+    model_selector = QComboBox(window)
+    model_selector.setObjectName("modelSelector")
+    model_selector.setToolTip("Choose a local model")
+
+    PathenaStartupExperience(window)
+
+    assert chat_selector.accessibleDescription() == chat_selector.toolTip()
+    assert model_selector.accessibleDescription() == model_selector.toolTip()
 
 
 def test_disconnected_startup_copy_keeps_core_infrastructure_in_background() -> None:
