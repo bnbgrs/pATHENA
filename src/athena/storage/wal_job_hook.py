@@ -5,7 +5,9 @@ from __future__ import annotations
 import time
 
 from athena.jobs.scheduler import SchedulerLane
+from athena.storage.database import SQLiteDatabase
 from athena.storage.wal_maintenance import WalMaintenanceDiagnosis
+from athena.storage.wal_runtime import build_wal_maintenance_runtime
 from athena.storage.wal_scheduler import WalMaintenanceSchedulerAdapter
 
 
@@ -36,3 +38,26 @@ class WalJobSchedulerHook:
             owns_control_housekeeping=normalized_lane is not SchedulerLane.PROVIDER,
             now_monotonic=observed_monotonic,
         )
+
+
+def build_wal_job_scheduler_hook(
+    database: SQLiteDatabase,
+    *,
+    interval_seconds: float,
+    abnormal_size_multiplier: int = 4,
+    blocked_cycle_threshold: int = 3,
+    growth_cycle_threshold: int = 3,
+) -> WalJobSchedulerHook:
+    """Compose one scheduler-lane hook from the bounded WAL runtime stack.
+
+    Construction is side-effect free: it starts no scheduler/thread/timer, opens no
+    database connection, performs no checkpoint, and exposes no automatic TRUNCATE.
+    """
+    runtime = build_wal_maintenance_runtime(
+        database,
+        interval_seconds=interval_seconds,
+        abnormal_size_multiplier=abnormal_size_multiplier,
+        blocked_cycle_threshold=blocked_cycle_threshold,
+        growth_cycle_threshold=growth_cycle_threshold,
+    )
+    return WalJobSchedulerHook(runtime.scheduler)
