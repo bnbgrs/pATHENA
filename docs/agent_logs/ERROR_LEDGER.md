@@ -8,10 +8,10 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 
 ## Current baseline
 
-- Baseline reviewed: `develop/pathena-next@15f4a439d15d4bb1414e7b54afee7a25ced36e61`.
+- Baseline reviewed: `develop/pathena-next@f2cc85c31769fb78adc01b56f8673fcae186595f`.
 - Error branch mutation lineage remains `postmerge/errors` only.
-- History-preserving NON-FORCE synchronization with current Develop: `e0796ebb84c65b0b24a767848f049222649b9662`, parents Error `9d761fa1e1c70a0c44f3158924fd358e6167a55d` and Develop `15f4a439d15d4bb1414e7b54afee7a25ced36e61`.
-- Reviewed worker heads: Spec/Core `6b164470eae5352e6d5c0a84ac32a8f80ac002bc`; Backend `936843b32b42b25d818eda39d128180844b9e14a`; UI `8454d633810283e47d0b9bb9b93321536440cb45`; Integrator/Develop `15f4a439d15d4bb1414e7b54afee7a25ced36e61`.
+- Current Error head before synchronization: `311215a589c6417b616e4bb44b234dac7f568598`.
+- Reviewed worker heads: Spec/Core `57e133507ab4b8edc78d4af8467f2320dce0e906`; Backend `c41a49cf0efa8f5b2f47bbfcb89f5e1bf133f7ed`; UI `8bd74b266028ccfac5b06d286f84d805261ac9e6`; Integrator/Develop `f2cc85c31769fb78adc01b56f8673fcae186595f`.
 - Required `spec-core.md`, `backend.md`, `ui.md`, `integrator.md`, worker branch heads and current workflow state were reviewed before mutation.
 
 ## Current state
@@ -20,6 +20,7 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 - STALE: `ERR-0014`.
 - IN_PROGRESS: none.
 - OPEN: none.
+- BLOCKED: none.
 
 ## Historical verified entries
 
@@ -43,12 +44,12 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 - `ERR-0018` P2 FIXED — Personal Memory context Ruff I001; Ruff fixer `61194be6eddf6fa7fe37c9c62690244a29414acd`; exact canonical success `34060875144@5714f3c7724cb82ccd75a7e852c668bfe78c6d5d`, later `34063688754@12e2e98d10c3fc11821ffa8f5edead80806da009 = success`.
 - `ERR-0019` P2 FIXED — Personal Memory precedence harness drift across canonical serializer key, repository read API and persisted revision identity; complete fix `c7cd4d9b1e0889a00b4599dfe76738442378b17b`; exact canonical Quality `34110957854 = success` with Windows path safety, Linux storage, local install, Validator, Ruff, mypy and full pytest PASS.
 
-## Current scan evidence — 2026-09-07 14:08 CEST
+## Current scan evidence — 2026-09-07 15:09 CEST
 
-- Spec/Core exact `6b164470eae5352e6d5c0a84ac32a8f80ac002bc`: canonical Quality `34116431458 = success`. No Error-Ledger objection.
-- Backend exact `936843b32b42b25d818eda39d128180844b9e14a`: canonical Quality `34116835252 = in_progress`; Local install smoke PASS, Windows path safety PASS, Linux storage PASS, Validator PASS, Ruff PASS, mypy PASS; full pytest still in progress. No confirmed primary failure.
-- UI exact `8454d633810283e47d0b9bb9b93321536440cb45`: canonical Quality `34118404763 = in_progress`; Local install smoke PASS, Windows path safety PASS, Linux storage PASS, Validator PASS, Ruff PASS, mypy PASS; full pytest still in progress. No confirmed primary failure.
-- Develop exact `15f4a439d15d4bb1414e7b54afee7a25ced36e61`: no exact pull-request-triggered canonical Quality run observed; no promotion-ready claim.
+- Spec/Core exact `57e133507ab4b8edc78d4af8467f2320dce0e906`: canonical Quality `34121540987 = success`. No Error-Ledger objection.
+- Backend exact `c41a49cf0efa8f5b2f47bbfcb89f5e1bf133f7ed`: canonical Quality `34122783316 = in_progress`. Linux storage, Windows path safety, local install, Validator, Ruff and mypy are PASS; full pytest remains in progress. No confirmed primary failure.
+- UI exact `8bd74b266028ccfac5b06d286f84d805261ac9e6`: canonical Quality `34124133923 = in_progress`. No confirmed primary failure at this scan.
+- Develop exact `f2cc85c31769fb78adc01b56f8673fcae186595f`: no exact pull-request-triggered canonical Quality run observed; no promotion-ready claim.
 - No current Quality/Runtime evidence reproduces retained Windows packaging/process-tree/chat-context/lane-lock/storage-bootstrap crash signatures; none is reopened.
 
 ## Persistent Beta/release regression knowledge
