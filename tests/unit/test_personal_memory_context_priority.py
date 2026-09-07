@@ -125,9 +125,9 @@ def test_current_instruction_outranks_conflicting_global_detail_preference(tmp_p
     assert payload["query"] == "This time answer in detail."
     assert preferences == [
         {
+            "context_id": "MEM-001",
             "memory_id": str(durable_preference.memory_id),
             "revision_id": str(durable_preference.revision.revision_id),
-            "revision_no": durable_preference.revision.revision_no,
             "label": "USER PREFERENCE",
             "memory_kind": MemoryKind.DETAIL_PREFERENCE.value,
             "scope_kind": MemoryScopeKind.GLOBAL.value,
