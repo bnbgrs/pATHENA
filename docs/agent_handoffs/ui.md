@@ -2,40 +2,54 @@
 
 ## Current baseline
 
-- Base: `develop/pathena-next@e9c931f5ae00e2db70e8a42ac6110b78cf35b789`
-- Worker: `postmerge/ui`
-- History-preserving NON-FORCE synchronization commit: `2e75b71ca469b2356d9443b7e4a271f75210262b`, with parents `352b4c72c39d5cafe866c604a050a1b93df71940` and `e9c931f5ae00e2db70e8a42ac6110b78cf35b789`.
+- Base: `develop/pathena-next@c775d37f50e332639007ba162b4ff7f591434f1c`.
+- Worker: `postmerge/ui`.
+- History-preserving NON-FORCE synchronization commit: `830d75fd30a775b3d13e7028c21e7bc412026b6f`, with parents `4d6d1f7b3bc99dbff3015ddb8c499af885859ac8` and `c775d37f50e332639007ba162b4ff7f591434f1c`.
+- `main` and `bnbgrs/ATHENA` remain untouched/read-only.
 - Original eleven reference images: `VISUAL_REFERENCE_PENDING`; no pixel-level parity or `MATCH` claim is made.
 
 ## Verified handoff
 
-- `UI-GAP-0073` is `FIXED_INTEGRATOR_READY`.
-- Product commit: `4315a744a097c35ab46be4df883f0853544446b9`.
-- Focused regression commit: `cf777ca08ac0885c636aed95b5f6ddd6cd381386`.
-- Harness correction: `352b4c72c39d5cafe866c604a050a1b93df71940` restores the real `refresh()` method immediately after constructor suppression; assertions and product behavior are unchanged.
-- Exact worker head `352b4c72c39d5cafe866c604a050a1b93df71940` passed ATHENA Quality Gate `34174030199` with conclusion `success`.
-- Jobs refresh/show/cancel progress plus refresh/show success text now uses product language (`Refreshing jobs`, `Loading job details`, `Requesting cancellation`, `Jobs refreshed`, `Job … details loaded`) instead of persistence-oriented wording.
-- No job lifecycle, transition receipt, persistence, storage, scheduler, worker, provider, transport, security or cancellation semantics changed.
+### UI-GAP-0074 — Jobs nonzero-exit status command jargon
+
+Status: `FIXED_INTEGRATOR_READY`, P2.
+
+- Product commit: `ee2dafc9453c8e3b5d67aed107a955b086111f68`.
+- Focused regression: `10ddf88043757628906480541e179323f5af7247`.
+- Exact descendant head `4d6d1f7b3bc99dbff3015ddb8c499af885859ac8` passed ATHENA Quality Gate `34187727628 = success` carrying the unchanged product/test commits.
+- Visible nonzero-exit copy now names the user operation instead of a Jobs command while retaining exit codes and background ownership.
+
+### UI-GAP-0075 — Jobs QProcess error surface command/process jargon
+
+Status: `FIXED_INTEGRATOR_READY`, P2.
+
+- Product commit: `86444c8a762f910d9929f50841f78376312a0afe`.
+- Focused regression: `9af7d23d2daccdee78236b6da335090d512d7fcd`.
+- Exact descendant head `4d6d1f7b3bc99dbff3015ddb8c499af885859ac8` passed ATHENA Quality Gate `34187727628 = success` carrying the unchanged product/test commits.
+- `_process_error()` now identifies `Jobs refresh`, `Job details`, or the actual job action instead of local/Jobs-command wording. QProcess classification and process-spawn/runtime behavior are unchanged.
+
+The previously demonstrated terminal-state action-copy blocker is also closed on that exact-green head: visible terminal help uses the current Develop wording `no actions are available`, with no action-availability or lifecycle-state semantic change.
 
 ## Active UI slice
 
-### UI-GAP-0074 — Jobs nonzero-exit status exposes command-oriented implementation language
+### UI-GAP-0076 — Cancellation-requested help exposes Worker architecture
 
 Status: `IMPLEMENTED_PENDING_VERIFY`, P2.
 
-Evidence: the common nonzero-exit path in `JobsWorkspace._process_finished()` rendered `Jobs command ... failed (exit N)` for refresh, detail loading and job actions, exposing the CLI/transport mechanism instead of the user operation.
+Evidence: `JobActionAvailability.reason()` visibly said cancellation was waiting for `worker acknowledgement`. Because the same reason is mirrored into tooltip and `accessibleDescription`, the implementation architecture was exposed visually and to assistive technology.
 
-Product commit `ee2dafc9453c8e3b5d67aed107a955b086111f68` changes only visible failure copy: list failures report that Jobs could not be refreshed; show failures report that job details could not be loaded; transition failures name the real action and preserve whether it completed in the background plus the exit code.
-Focused regression commit `10ddf88043757628906480541e179323f5af7247` exercises the real Qt Jobs workspace for list/show/transition/background nonzero exits and requires the human-facing copy without `command` jargon.
-
-No job lifecycle, transition receipt, persistence, storage, scheduler, worker, provider, transport, security, cancellation or process-spawn semantics changed.
+- Product commit `08d64fd4c9ffbbea428c4e18c8ffd784394adf0e` changes only the visible explanation to `Cancellation has already been requested and is waiting to complete.`
+- Focused regression commit `bcc471caef3b902f8cd4b07c969d896e9ae349cc` asserts the exact product-language reason and forbids `worker`, `acknowledgement`, `persist`, and `lifecycle` in that visible/help copy.
+- Enabled/disabled action matrix, `cancel_requested` state, transition receipts, scheduler, worker, storage, backend, security and cancellation semantics are unchanged.
+- Local checkout remains blocked by transient DNS resolution of `github.com`; no local PASS is fabricated. Canonical Quality on the final documented worker head is required before Integrator handoff.
 
 ## Coordination
 
-- Core: current `spec-core.md` reviewed; no UI-authored Core/Search semantics changed.
-- Backend: current `backend.md` reviewed; no UI-authored backend/storage/scheduler/worker/provider/transport semantics changed.
-- Errors: current `errors.md` reviewed; no historical Windows crash signature is reopened without exact-SHA reproduction.
-- Integrator: current Develop handoff and §68 acceptance test were preserved through synchronization commit `2e75b71ca469b2356d9443b7e4a271f75210262b`. `UI-GAP-0073` is ready for independent integration from exact verified worker head `352b4c72c39d5cafe866c604a050a1b93df71940`, backed by Quality `34174030199 = success`. Do not integrate `UI-GAP-0074` until canonical Quality succeeds on an exact worker head carrying unchanged product/test commits `ee2dafc9453c8e3b5d67aed107a955b086111f68` and `10ddf88043757628906480541e179323f5af7247`.
+- Core: `spec-core.md` reviewed; no UI-authored Core/Search/Knowledge/Research semantics changed.
+- Backend: `backend.md` reviewed; no UI-authored backend/storage/scheduler/worker/provider/transport semantics changed.
+- Errors: `errors.md` reviewed; no historical Windows crash signature is reopened without exact-SHA reproduction.
+- Integrator: current Develop handoff at `c775d37f50e332639007ba162b4ff7f591434f1c` was reviewed and imported only through the explicit two-parent NON-FORCE synchronization commit `830d75fd30a775b3d13e7028c21e7bc412026b6f`.
+- Integrator may review UI-GAP-0074 and UI-GAP-0075 from the exact-green lineage. Do not integrate UI-GAP-0076 until canonical Quality succeeds on an exact worker head carrying unchanged product/test commits `08d64fd4c9ffbbea428c4e18c8ffd784394adf0e` and `bcc471caef3b902f8cd4b07c969d896e9ae349cc`.
 
 ## Visual evidence
 
