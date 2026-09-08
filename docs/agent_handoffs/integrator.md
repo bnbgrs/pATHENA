@@ -3,42 +3,36 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `9fb4f005ebb34f835f5a6c362965ad35cd2f3efb`.
+- Develop before this run: `a60b067ebf93481d180065cdf3e85ad3da3a2a5e`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `84ab7ffc23771ff2be0392b0f8d3445fc6140a7d`; spec-core `56a6d0602361e0e7b3ad97e6ec52e2a35443dded`; backend `00b630e4915ec85abc08252d85e6403009b48858`; UI `b0c74459af0d6382f23106819f34778c86b6f18b`.
-- `main` and `bnbgrs/ATHENA` were untouched; no force update, rebase, history rewrite, auto-merge or main promotion was used.
+- Worker heads reviewed: errors `f282941ced3b0f8df5c2b92ee98b81c7152d5e0a`; spec-core `d8ee2c867b2670455d88433fd213f4217ac2389a`; backend `d2cc107a38b0ae56bd70191b9ac2149c19b2fb26`; UI `19924adc2881b3eff06a6c4c343abba7e635ecbc`.
+- `main` and `bnbgrs/ATHENA` were untouched; no force update, history rewrite, auto-merge or main promotion was used.
 
-## Progress this run — unblock Jobs status-copy regression execution
+## Progress this run — UI-GAP-0018 / ERR-0011 unavailable-provider freshness
 
-No current worker product slice was READY at review time. Backend exact v41 Quality `34239590519` on `200543ac78754664c2559bcc9a998ce558d62ef6` was cancelled and the current Backend head is under Quality `34239827573 = pending`. UI current head `b0c74459af0d6382f23106819f34778c86b6f18b` is under Quality `34240229731 = pending`. Spec/Core is waiting for the Backend §75 durable Delta prerequisite. Error remains diagnostic-only under `ERR-0025`.
+The Alpha/Beta tracker exposes `UI-GAP-0018` as a deferred exact-green Integrator-ready Settings slice. Corrective UI head `9df9d7d46e3c4774aeea5439f91166a2092bd7fb` passed canonical Quality `33926653411` and the Error handoff had already recorded `ERR-0011` fixed.
 
-The hard progress rule therefore used path C on a repeatedly tooling-blocked UI regression. Current Develop still contained `pytest.importorskip("PySide6")` at module scope in `tests/unit/test_pathena_jobs_status_copy.py`, which allowed the complete Jobs status-copy contract to be skipped instead of failing when the canonical Qt test dependency is absent. The current UI worker independently removed exactly those three lines in commit `b0c74459af0d6382f23106819f34778c86b6f18b` without changing assertions or product code.
+Independent current-Develop review confirmed the defect remained on `a60b067ebf93481d180065cdf3e85ad3da3a2a5e`: `apply_snapshot()` rendered an absent provider as unavailable/error but still copied `resolved_model_freshness` directly into provider and provider-detail runtime metadata. The worker product diff is bounded to `src/athena/desktop/pathena_settings_runtime.py`, three additions/two deletions, with no provider/Core/Storage/Security/scheduler/worker/runtime side effects.
 
-Develop commit `cbfe6d65e424f83b9c39d0d8ecf9af1aaffbf66a` applies exactly that bounded three-line deletion. Compare against the prior Develop head is ahead-only by one commit, one file, zero additions and three deletions. Existing Jobs status-copy assertions remain byte-for-byte unchanged. No product, scheduler, worker, persistence, Storage, Security, Recovery, packaging or Windows-runtime semantics changed.
+Develop product commit `e2142e4590cb09132b5359551477fd844a59979c` transplants the exact verified worker blob `89f9765d3955e639f7004c2d49b6f86f5485efe1`. It derives `provider_freshness = unavailable` whenever the provider snapshot is absent and applies that freshness consistently to both `settingsProviderState` and `settingsRuntimeDetail`. Existing visible copy, UI state, provider readiness logic, persistence, Local-Core/Internet truthfulness and connection-failure handling remain unchanged.
 
-## Verification state
+`docs/development/ALPHA_BETA_PROGRESS.md` was updated in `4076c290842a94f4d4465810600edc36951ad6eb` to mark UI-GAP-0018 verified on the integrated lineage and to reconcile the already-present UI-GAP-0017 semantics. No percentage or visual MATCH claim was introduced.
 
-- Source UI worker test commit: `b0c74459af0d6382f23106819f34778c86b6f18b`.
-- UI canonical Quality: `34240229731 = pending` at review time.
-- Develop unblocking commit: `cbfe6d65e424f83b9c39d0d8ecf9af1aaffbf66a`.
-- Exact Develop compare: one modified file, only removal of module-level `pytest.importorskip("PySide6")`.
-- No exact-current-Develop workflow run was associated yet; no global-green or promotion-ready claim is made.
+## Current quality/error state
 
-## Error / Alpha-Beta / UI state
-
-- ERR-0025 remains IN_PROGRESS. Backend now has exact Ruff/mypy/pytest diagnostics on its v41 lineage; speculative blame remains forbidden.
-- ERR-0023 remains FIXED_PENDING_VERIFY until exact Develop canonical green evidence exists.
-- Spec/Core §75 remains blocked on an exact-green integrated Backend durable Delta prerequisite.
-- All eleven screens remain `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim is made.
-- `ALPHA_BETA_PROGRESS.md` was read. No destructive whole-file rewrite was performed because the connector returned only truncated content for the large tracker.
+- UI-GAP-0018 exact worker evidence: head `9df9d7d46e3c4774aeea5439f91166a2092bd7fb`, canonical Quality `33926653411 = SUCCESS`.
+- Exact current Develop after documentation has no completed canonical Quality claim yet; promotion-ready remains false.
+- Backend current head `d2cc107a38b0ae56bd70191b9ac2149c19b2fb26` failed Quality `34263109322`; Backend v41 remains held while `ERR-0026` through `ERR-0029` are unresolved.
+- UI current head `19924adc2881b3eff06a6c4c343abba7e635ecbc` has Quality `34264917412` pending and is not consumed in this run.
+- Spec/Core §65 remains exact-green/integrated; §75 stays blocked on exact-green Backend durable Delta persistence.
+- Historical Windows/runtime crash signatures remain release-regression knowledge only absent exact-current reproduction.
 
 ## Next integration order
 
-1. Consume Backend Quality `34239827573` and UI Quality `34240229731` when completed.
-2. If Backend becomes exact-green, integrate the bounded §75 durable Delta prerequisite before Core implements `enqueue_delta` composition.
-3. If UI becomes exact-green, independently review the remaining two Jobs test-alignment commits before importing any additional test-only changes; do not weaken assertions or reintroduce skips.
-4. Obtain exact-current-Develop canonical Quality for the descendant carrying `cbfe6d65e424f83b9c39d0d8ecf9af1aaffbf66a`.
-5. Preserve the release crash-regression matrix before any Windows candidate or promotion claim.
+1. Obtain exact-current-Develop focused Settings regressions plus canonical Quality for the descendant carrying `e2142e4590cb09132b5359551477fd844a59979c`.
+2. Consume exact completed Backend/UI/Core Quality evidence; integrate exactly one compatible READY bounded successor.
+3. Prefer Backend durable Delta/§75 prerequisite only after Backend v41 is exact-green; otherwise independently review another deferred exact-green Settings slice such as UI-GAP-0020.
+4. Preserve the release crash-regression matrix before any Windows candidate or promotion claim.
 
 ## Persistent release guards
 
