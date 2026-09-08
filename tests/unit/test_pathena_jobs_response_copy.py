@@ -34,8 +34,9 @@ def test_unverified_job_action_uses_product_response_copy(monkeypatch) -> None:
             "CANCEL response for job 11111111 could not be verified."
         )
         details = workspace.details.toPlainText()
-        assert details.startswith("JOB ACTION RESPONSE UNAVAILABLE\n")
-        assert "Raw command output:\nnot-a-response" in details
+        assert details.startswith("JOB ACTION COULD NOT BE VERIFIED\n")
+        assert "Diagnostic details:\nnot-a-response" in details
+        assert "Raw command output" not in details
         assert "receipt" not in workspace.status.text().casefold()
         assert "receipt" not in details.casefold()
         assert workspace._selected_state == "queued"
