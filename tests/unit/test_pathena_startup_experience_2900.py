@@ -85,6 +85,23 @@ def test_new_chat_shortcut_help_is_available_to_accessibility() -> None:
     assert "Ctrl+N" in new_chat.accessibleDescription()
 
 
+def test_composer_control_help_is_available_to_accessibility() -> None:
+    _app()
+    window = _ReadyStartupWindow()
+
+    ground = QPushButton(window)
+    ground.setObjectName("groundButton")
+    ground.setToolTip("Ground with local sources")
+    details = QPushButton(window)
+    details.setObjectName("detailsToggle")
+    details.setToolTip("Show response details")
+
+    PathenaStartupExperience(window)
+
+    assert ground.accessibleDescription() == ground.toolTip()
+    assert details.accessibleDescription() == details.toolTip()
+
+
 def test_context_disclosure_help_is_available_to_accessibility() -> None:
     _app()
     window = _ReadyStartupWindow()
