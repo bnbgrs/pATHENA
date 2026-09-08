@@ -2,40 +2,35 @@
 
 ## Current baseline
 
-- Develop baseline checked: `develop/pathena-next@cdc9e8e0064db659f9eabbfdb5f3720a76114fd6`.
-- Pre-run Core worker: `postmerge/spec-core@e0e04088f95799a6aa94dde3f67e7aa1fc852a8b`.
-- History-preserving NON-FORCE synchronization: `ce75b255ab99e3db4a36a51bd820513037764b78`, parents prior Core head `e0e04088f95799a6aa94dde3f67e7aa1fc852a8b` and exact Develop `cdc9e8e0064db659f9eabbfdb5f3720a76114fd6`.
-- The synchronized tree uses current Develop as authoritative for product/tests/integrator state and preserves this Core-owned handoff.
-- `main` and `bnbgrs/ATHENA` remain strictly read-only and untouched. No force update, rebase or history rewrite occurred.
+- Develop baseline: `develop/pathena-next@3421bee8f1ed00f1473a930b759cb7f272345d7e`.
+- Pre-run Core worker: `postmerge/spec-core@de62eb6a657b500f6abd2b1909ff1452c611572a`.
+- `main` and `bnbgrs/ATHENA` remain strictly read-only and untouched.
+- This candidate uses current Develop product/tests as authoritative and preserves history with the prior Core worker as first parent and current Develop as second parent.
 
-## Required handoffs / active heads checked
+## Handoffs / dependencies checked
 
-- Error handoff is current on Develop `cdc9e8e0064db659f9eabbfdb5f3720a76114fd6`; `ERR-0026` through `ERR-0029` remain Backend-owned/in progress.
-- Backend active head: `postmerge/backend@0d579f718f97f7d0ba6d39d4cd8bcc6741beb72d`; canonical Quality `34269071606` completed FAILURE. Windows path safety, Local install smoke, Linux storage regressions, specification validator and mypy passed; Ruff and full pytest failed. Backend v41 / §75 persistence remains non-consumable.
-- Backend handoff itself is older than the active Backend head; Error handoff contains the newer exact failure evidence and requires exact Ruff/assertion diagnostics before another Backend mutation.
-- Integrator handoff on current Develop was checked through the baseline sync; current Develop-only deltas were Integrator/UI startup-accessibility changes and are authoritative.
+- Error handoff baseline is current Develop and keeps Backend `ERR-0026` through `ERR-0029` IN_PROGRESS.
+- Active Backend head reported by errors.md: `4495cab0492f0c70e6d0b5cbda1136c1d960ab86`; Quality `34281292370` is in progress with Ruff already red, so Backend v41 / Research §75 remains non-consumable.
+- UI and Integrator state were reviewed through current Develop. No UI/Backend-owned product file is changed by this Core candidate.
+
+## Core slice — adaptive DirectChat output reserve verification
+
+Current Develop contains bounded Core product commit `3421bee8f1ed00f1473a930b759cb7f272345d7e` for the known 2048-context DirectChat failure class. It keeps the configured output reserve as an upper bound, computes the effective reserve from loaded context minus estimated input and safety margin, records that effective reserve consistently in model signature / ContextPackage budget / total-token estimate, and still fails closed when input plus safety margin leaves no output token.
+
+Focused acceptance exists in `tests/unit/test_direct_chat_context_budget.py` and proves: 2048-context + 64 estimated input + 256 margin yields reserve 1728; large context preserves configured reserve 2048; exhausted input+margin raises `ContextBuilderError`. Local focused execution was attempted first but checkout/network DNS to github.com was unavailable in this runtime. GitHub connector access remained functional, so the exact current Develop product/test tree is carried unchanged into this worker candidate for canonical verification rather than treating DNS as a blocker.
+
+No provider, Storage, Recovery, Security, scheduler/worker, packaging, lane-lock, migration, PALLAS or provenance-source semantics are changed. No Skip/XFail or assertion weakening.
 
 ## Preserved Core contracts
 
-Normal Hybrid Search remains inherited and unchanged: one-time `attach_normal_search`; `search.normal.hybrid` only after attachment; exact `query/model_id/limit/entity_type` delegation; canonical `hybrid_search_result_response()` mapping; `SemanticRetrievalUnavailableError` propagates unchanged; `app.api._normal_search is app.hybrid_retrieval`.
+Normal Hybrid Search remains unchanged: one-time `attach_normal_search`; capability `search.normal.hybrid` only after attachment; exact `query/model_id/limit/entity_type` delegation; canonical `hybrid_search_result_response()` mapping; `SemanticRetrievalUnavailableError` propagation; `app.api._normal_search is app.hybrid_retrieval`.
 
-Research §68–§74 and verified §65 partial-result semantics remain preserved. No synthetic provenance, Archive/Protected expansion, fake PALLAS data, Skip/XFail, assertion weakening, force push, main mutation or ATHENA mutation.
+Research §68–§74 and verified §65 Partial Result remain preserved. Research §75 remains blocked until Backend v41 is exact-green; Core must not duplicate schema/migration/WAL work.
 
-## §75 Delta Research — blocked on exact-green Backend persistence
+## Candidate / next action
 
-The bounded Core contract remains unchanged: explicit completed `base_scope_id`, durable lower commit boundary, pinned upper `snapshot_commit_seq`, candidate freeze only in `(lower_commit_seq, snapshot_commit_seq]`, and restart-stable boundary/CandidateSet identity without wall-clock substitution.
+This handoff is included in the same history-preserving candidate as the DirectChat product/test tree so no docs-only successor may cancel its Quality run. After branch update, consume only the exact candidate Quality result before any further Core commit.
 
-Core must not consume Backend v41 while exact Backend Quality is red. Current Backend/Error evidence owns schema/migration/WAL recovery under `ERR-0026` through `ERR-0029`.
+If exact-green, mark the adaptive 2048-context DirectChat slice VERIFIED/READY and hand the exact candidate SHA to Integrator; then select the next highest independent Core-owned Alpha/Beta gap. If red, repair only the demonstrated exact failure while preserving fail-closed budgeting and all release guards.
 
-## Independent-gap scan
-
-The current Develop Alpha/Beta tracker remains evidence-backed: Normal Hybrid Search, contradiction composition, Exhaustive Research acceptance through §74, and §65 Partial Result are VERIFIED. The current READY Scout gaps remain Backend/Backend-primary where they require durable job/source schema, scheduler, transport or provider work. A current top-level source-tree scan also found no separate PALLAS Core module to mutate safely without first deriving a normative composition contract from the relevant spec/code path; no decorative/fake-data implementation is permitted.
-
-This run therefore made concrete non-repetitive progress by synchronizing the materially diverged Core branch from 181 commits behind / 2 ahead to the exact current Develop product tree while preserving Core handoff history, and by refreshing the exact Backend failure point to Quality `34269071606@0d579f718f97f7d0ba6d39d4cd8bcc6741beb72d` rather than reusing stale evidence.
-
-## Required next actions
-
-1. Consume the first exact-green Backend successor that closes the v41 prerequisite.
-2. Once verified persistence is available on the shared baseline, execute §75 immediately: `enqueue_delta`, one-time durable boundary binding, candidate selection over `(lower_commit_seq, snapshot_commit_seq]`, restart/resume identity acceptance, focused tests then canonical Quality.
-3. If Backend remains red, inspect newly versioned Alpha/Beta/Capability evidence for a genuinely independent Core-owned P0/P1/P2 gap and implement it; do not repeat §65/§75 analysis or duplicate Backend work.
-4. Preserve release regression matrix: pypdf/frozen argv/two-EXE routing, bounded worker tree, adaptive 2048-context reserve, lane-lock ownership cluster, duplicate-column startup, Core startup and storage-bootstrap signatures. Historical signatures become OPEN only on exact-SHA reproduction.
+Persistent Beta/release guards remain: pypdf metadata; frozen argv/two-EXE routing; bounded worker tree; adaptive 2048-context reserve; Windows lane-lock ownership cluster; duplicate-column/Core-startup/storage-bootstrap signatures.
