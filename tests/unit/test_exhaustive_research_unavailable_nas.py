@@ -37,19 +37,29 @@ def test_exhaustive_research_unavailable_scope_remains_unavailable_not_irrelevan
 
         work = app.research.work_items(job.job_id)
         assert len(work) == 3
+        work_by_source = {
+            app.research_repository.get_candidate(item.candidate_id).source_id: item
+            for item in work
+        }
+        assert set(work_by_source) == {source.source_id for source in sources}
+
+        online_a = work_by_source[sources[0].source_id]
+        online_b = work_by_source[sources[1].source_id]
+        nas_offline = work_by_source[sources[2].source_id]
 
         app.research.mark_work_state(
-            work[0].work_item_id,
+            online_a.work_item_id,
             state=ResearchWorkState.SUCCESSFUL,
         )
         app.research.mark_work_state(
-            work[1].work_item_id,
+            online_b.work_item_id,
             state=ResearchWorkState.IRRELEVANT,
         )
         unavailable = app.research.mark_work_state(
-            work[2].work_item_id,
+            nas_offline.work_item_id,
             state=ResearchWorkState.UNAVAILABLE,
         )
+        assert unavailable.work_item_id == nas_offline.work_item_id
         assert unavailable.state is ResearchWorkState.UNAVAILABLE
 
         coverage = app.research.coverage(job.job_id)
@@ -71,7 +81,7 @@ def test_exhaustive_research_unavailable_scope_remains_unavailable_not_irrelevan
         persisted = {
             item.work_item_id: item.state for item in app.research.work_items(job.job_id)
         }
-        assert persisted[work[2].work_item_id] is ResearchWorkState.UNAVAILABLE
-        assert persisted[work[2].work_item_id] is not ResearchWorkState.IRRELEVANT
+        assert persisted[nas_offline.work_item_id] is ResearchWorkState.UNAVAILABLE
+        assert persisted[nas_offline.work_item_id] is not ResearchWorkState.IRRELEVANT
     finally:
         app.close()
