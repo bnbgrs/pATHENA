@@ -2,47 +2,44 @@
 
 ## Baseline
 
-- Shared baseline reviewed: `develop/pathena-next@249c83ae7dc4a33ceb8491029af4bad09b452e92`.
-- Pre-run worker: `postmerge/backend@e4370a46bd42785aaea0f5c1806d8d79ced3eb7e`.
-- History-preserving NON-FORCE synchronization: `01b0da17db31283ab288b579a088796ab2b8d72b`, parents `e4370a46bd42785aaea0f5c1806d8d79ced3eb7e` and `249c83ae7dc4a33ceb8491029af4bad09b452e92`.
-- Develop-only delta consisted of `docs/agent_handoffs/integrator.md`, `docs/development/ALPHA_BETA_PROGRESS.md`, and `src/athena/desktop/pathena_settings_runtime.py`; their exact Develop blobs were overlaid onto the Backend tree.
+- Shared baseline reviewed: `develop/pathena-next@20619f1310bef9d7d2aa706cff11a974144c47e5`.
+- Pre-run worker: `postmerge/backend@73726422889bec6a43ad6d1b06f201d720b477d0`.
+- Previous exact Backend Quality: `34215906072 = failure`; Linux storage, Local install smoke, Windows path safety, specification validator, Ruff and mypy all passed; only canonical pytest failed under shared `ERR-0025`.
+- History-preserving NON-FORCE synchronization: `5703e0cfed3630661cc5831cd4866102cb43cc13`, parents `73726422889bec6a43ad6d1b06f201d720b477d0` and `20619f1310bef9d7d2aa706cff11a974144c47e5`.
+- Develop-only delta since the prior Backend merge-base consisted of `docs/agent_handoffs/integrator.md` and `src/athena/desktop/pathena_settings_runtime.py`; their exact Develop blobs were overlaid onto the Backend tree.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
-
-## Previous exact verification
-
-Quality `34211221630` on predecessor `e4370a46bd42785aaea0f5c1806d8d79ced3eb7e` completed FAILURE only in canonical pytest. Specification validator, Ruff, mypy, Windows path safety, Linux storage regressions and Local install smoke passed. Current Error handoff tracks the shared pytest failure as `ERR-0025`; no Backend-owned primary failure is established.
 
 ## ExternalAccessGateway priority
 
-Exact current Develop already contains the requested runtime boundaries and tests: `ttl_seconds` and `max_bytes` require genuine non-bool integers; `timeout_seconds` rejects bool, non-numeric, NaN and infinities before authorization/fetch side effects. No duplicate Gateway patch was created.
+Exact current Develop still contains the requested runtime boundaries and focused tests: `ttl_seconds` and `max_bytes` require genuine non-bool integers; `timeout_seconds` rejects bool, non-numeric, NaN and infinities before authorization/fetch side effects. The prepared Gateway patch was therefore not duplicated.
 
 ## Current Backend slice
 
-Product commit `85ea8aaf8129eb5bb0a02fa23d6d68d9458ce2a2` closes the next canonical WAL composition escape: `WalMaintenanceIntervalRunner` now requires the exact canonical `WalMaintenanceOrchestrator` rather than accepting subclasses. This prevents an overridden `run_cycle()` from bypassing the bounded PASSIVE maintenance contract after composition.
+Product commit `28b261900f37be248a5dc9a8045b9208226276ef` closes the remaining canonical-component escape in `WalMaintenanceRuntime`: runtime construction now requires the exact canonical `WalMaintenanceService`, `WalMaintenanceOrchestrator`, `WalMaintenanceIntervalRunner`, and `WalMaintenanceSchedulerAdapter`, rather than accepting subclasses that could override maintenance semantics after composition.
 
-Focused regression commit `34b9a86bccc1c6c1a8626008f79ffa142e9dcc42` adds a foreign orchestrator subclass with explosive state access and verifies constructor rejection before downstream state access. No assertion, guard, Skip or XFail was weakened.
+Focused regression commit `c08b9aaf9e9b401fee03e22c843042baac17bee3` adds `tests/unit/test_wal_runtime_canonical_boundary.py`. It builds the real side-effect-free WAL runtime stack, substitutes foreign subclasses one component at a time, and verifies rejection at the dataclass runtime boundary before component state is consumed. No Skip/XFail, assertion weakening, retry, or production safety relaxation was added.
 
 ## Retained invariants
 
 - no silent Tor-to-Direct fallback; Direct fallback explicit only;
-- no loopback/private proxy leak; redirect destinations re-authorized;
-- HTTPS/default-port, compressed-response and response-size fail-closed behavior unchanged;
+- no loopback/private proxy leak; redirect destinations re-authorized before fetch;
+- HTTPS/default-port, compressed-response and response-size behavior remains fail-closed;
 - Audit/Provenance/fsync/transactional Source finalization unchanged;
-- automatic WAL maintenance PASSIVE-only; TRUNCATE explicit idle-only;
-- PROVIDER lane WAL-side-effect-free;
-- canonical WAL orchestrator, interval runner, scheduler adapter and scheduler hook composition preserved;
+- automatic WAL maintenance remains PASSIVE-only; TRUNCATE remains explicit idle-only;
+- PROVIDER lane remains WAL-side-effect-free;
+- canonical WAL service/orchestrator/runner/adapter/hook composition is now fail-closed at each boundary;
 - no second scheduler process, loop, thread, timer or retry;
 - no schema, migration, recovery representation, packaging, lane-lock, process-tree, DirectChat, Security or cryptographic semantic change;
-- no Skip/XFail/assertion weakening, force update or history rewrite.
+- no force update, rebase, history rewrite or main mutation.
 
 ## Verification state
 
-The new product/test commits trigger canonical Quality asynchronously. No PASS/global-green/promotion-ready claim is made until an exact run completes.
+Previous exact Backend/system gates are green except the deduplicated shared canonical pytest failure under `ERR-0025`. No workflow run was yet returned for focused-test head `c08b9aaf9e9b401fee03e22c843042baac17bee3` at the time of this handoff update, so no PASS/global-green/promotion-ready claim is made.
 
 ## Platform / release knowledge
 
-No exact-current signal reopens retained Windows crash classes. Beta/release candidates still require explicit smokes for pypdf frozen metadata, fail-closed child argv/two-EXE routing, bounded Desktop/Worker process tree, adaptive small-context DirectChat reserve, lane-lock PermissionError -> SchedulerLaneOwnershipError -> packaged-worker OSError, duplicate-column startup, Core startup failure and storage-bootstrap failure.
+No exact-current evidence reopens retained Windows crash classes. Beta/release candidates still require explicit smokes for pypdf frozen metadata, fail-closed child argv/two-EXE routing, bounded Desktop/Worker process tree, adaptive small-context DirectChat reserve, lane-lock PermissionError -> SchedulerLaneOwnershipError -> packaged-worker OSError, duplicate-column startup, Core startup failure and storage-bootstrap failure.
 
 ## Next Backend action
 
-Consume exact canonical Quality for the current lineage. If Backend-owned gates are green, finish the real `AthenaApplication` DurableJobScheduler -> WalAwareDurableJobScheduler wiring only through a collision-safe targeted mutation binding exactly one `build_wal_job_scheduler_hook` with an explicitly reviewed maintenance interval while preserving supervisor/CLI `run_loop`, PROVIDER isolation, lane-lock and Windows process-tree semantics. If the shared-file mutation path remains unsafe, execute another genuinely disjoint evidence-backed Recovery/Provider/Platform slice rather than repeating the blocker.
+Consume exact canonical Quality for the current lineage. If Backend-owned gates are green, finish the real `AthenaApplication` DurableJobScheduler -> WalAwareDurableJobScheduler wiring using the now-available Git-data blob/tree mutation path rather than repeating the historical whole-file connector blocker: bind exactly one `build_wal_job_scheduler_hook` with an explicitly reviewed interval, preserve the existing supervisor/CLI `run_loop`, keep PROVIDER isolation and Windows process-tree/lane-lock semantics unchanged, add focused application-composition regressions, then run the smallest relevant WAL/ExternalAccessGateway/network-security set plus canonical Quality as available.
