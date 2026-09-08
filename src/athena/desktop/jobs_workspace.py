@@ -350,7 +350,7 @@ class JobsWorkspace(QWidget):
             set_pathena_ui_state(self.status, "error")
             if owns_details:
                 self.details.setPlainText(
-                    f"JOB ACTION RESPONSE UNAVAILABLE\n{exc}\n\nRaw command output:\n{output}"
+                    f"JOB ACTION COULD NOT BE VERIFIED\n{exc}\n\nDiagnostic details:\n{output}"
                 )
                 set_pathena_ui_state(self.details, "error")
             return
