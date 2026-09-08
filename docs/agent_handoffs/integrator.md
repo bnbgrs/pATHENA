@@ -3,35 +3,34 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `a60b067ebf93481d180065cdf3e85ad3da3a2a5e`.
+- Develop before this run: `9606fdf8f43e97136288b41be922f97477ffc102`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `f282941ced3b0f8df5c2b92ee98b81c7152d5e0a`; spec-core `d8ee2c867b2670455d88433fd213f4217ac2389a`; backend `d2cc107a38b0ae56bd70191b9ac2149c19b2fb26`; UI `19924adc2881b3eff06a6c4c343abba7e635ecbc`.
+- Worker heads reviewed: errors `3ec17ead449ba83d72f8846c8d7d307d864aae02`; spec-core `e0e04088f95799a6aa94dde3f67e7aa1fc852a8b`; backend `0d579f718f97f7d0ba6d39d4cd8bcc6741beb72d`; UI `4d128a864ecbb9463e54273d7f0d527910384591`.
 - `main` and `bnbgrs/ATHENA` were untouched; no force update, history rewrite, auto-merge or main promotion was used.
 
-## Progress this run — UI-GAP-0018 / ERR-0011 unavailable-provider freshness
+## Progress this run — bounded rail accessibility composition
 
-The Alpha/Beta tracker exposes `UI-GAP-0018` as a deferred exact-green Integrator-ready Settings slice. Corrective UI head `9df9d7d46e3c4774aeea5439f91166a2092bd7fb` passed canonical Quality `33926653411` and the Error handoff had already recorded `ERR-0011` fixed.
+No current worker head was READY at review time: Backend exact Quality `34269071606` on `0d579f718f97f7d0ba6d39d4cd8bcc6741beb72d` failed; UI exact Quality `34270643737` on `4d128a864ecbb9463e54273d7f0d527910384591` remained pending; Core explicitly held §75 on Backend red.
 
-Independent current-Develop review confirmed the defect remained on `a60b067ebf93481d180065cdf3e85ad3da3a2a5e`: `apply_snapshot()` rendered an absent provider as unavailable/error but still copied `resolved_model_freshness` directly into provider and provider-detail runtime metadata. The worker product diff is bounded to `src/athena/desktop/pathena_settings_runtime.py`, three additions/two deletions, with no provider/Core/Storage/Security/scheduler/worker/runtime side effects.
+Progress-rule B/C therefore consumed one collision-free UI-owned product path already isolated on the UI lineage: human page names for icon-only rail items are exposed through Qt `AccessibleTextRole` while the visible glyph, tooltip, navigation behavior, geometry and page identity remain unchanged. The bounded worker product commit is `319a0d7660bf7dc03e1a6c3550efd0e15b76e94b`; focused test commit is `19924adc2881b3eff06a6c4c343abba7e635ecbc`.
 
-Develop product commit `e2142e4590cb09132b5359551477fd844a59979c` transplants the exact verified worker blob `89f9765d3955e639f7004c2d49b6f86f5485efe1`. It derives `provider_freshness = unavailable` whenever the provider snapshot is absent and applies that freshness consistently to both `settingsProviderState` and `settingsRuntimeDetail`. Existing visible copy, UI state, provider readiness logic, persistence, Local-Core/Internet truthfulness and connection-failure handling remain unchanged.
+Independent compare from exact prior Develop to current UI showed only three functional files across the worker tree. This integration deliberately transplanted only `src/athena/desktop/pathena_startup_experience_2900.py` blob `b8d4c8021b929233870e7ec95de84dbe6c1db0e4` and `tests/unit/test_pathena_startup_experience_2900.py` blob `aa5f609d4bedf84dabf10f27ac18ebd625c576b4`. The separate pending `pathena_message_action_quiet_7000.py` lifecycle guard was excluded.
 
-`docs/development/ALPHA_BETA_PROGRESS.md` was updated in `4076c290842a94f4d4465810600edc36951ad6eb` to mark UI-GAP-0018 verified on the integrated lineage and to reconcile the already-present UI-GAP-0017 semantics. No percentage or visual MATCH claim was introduced.
+Develop commit `bf25017d37e88438a9644445b9f5da47c11098d0` applies exactly those two blobs on parent `9606fdf8f43e97136288b41be922f97477ffc102`. No Skip/XFail was introduced and existing assertions were not weakened.
 
 ## Current quality/error state
 
-- UI-GAP-0018 exact worker evidence: head `9df9d7d46e3c4774aeea5439f91166a2092bd7fb`, canonical Quality `33926653411 = SUCCESS`.
-- Exact current Develop after documentation has no completed canonical Quality claim yet; promotion-ready remains false.
-- Backend current head `d2cc107a38b0ae56bd70191b9ac2149c19b2fb26` failed Quality `34263109322`; Backend v41 remains held while `ERR-0026` through `ERR-0029` are unresolved.
-- UI current head `19924adc2881b3eff06a6c4c343abba7e635ecbc` has Quality `34264917412` pending and is not consumed in this run.
-- Spec/Core §65 remains exact-green/integrated; §75 stays blocked on exact-green Backend durable Delta persistence.
+- Backend current head `0d579f718f97f7d0ba6d39d4cd8bcc6741beb72d`: Quality `34269071606 = FAILURE`; Backend v41/§75 remains held.
+- UI current head `4d128a864ecbb9463e54273d7f0d527910384591`: Quality `34270643737 = PENDING` at review time; the pending Quiet Action lifecycle guard is not integrated.
+- Error handoff still holds `ERR-0026` through `ERR-0029` in progress and `ERR-0014`/`ERR-0025` stale.
+- Exact current Develop after this bounded integration has no completed canonical Quality claim yet; promotion-ready remains false.
 - Historical Windows/runtime crash signatures remain release-regression knowledge only absent exact-current reproduction.
 
 ## Next integration order
 
-1. Obtain exact-current-Develop focused Settings regressions plus canonical Quality for the descendant carrying `e2142e4590cb09132b5359551477fd844a59979c`.
-2. Consume exact completed Backend/UI/Core Quality evidence; integrate exactly one compatible READY bounded successor.
-3. Prefer Backend durable Delta/§75 prerequisite only after Backend v41 is exact-green; otherwise independently review another deferred exact-green Settings slice such as UI-GAP-0020.
+1. Obtain exact-current-Develop focused startup/accessibility regression plus canonical Quality for the descendant carrying `bf25017d37e88438a9644445b9f5da47c11098d0`.
+2. Consume exact completed UI Quality `34270643737` and Backend successor evidence; integrate exactly one compatible READY slice.
+3. Keep Backend durable Delta/Spec-Core §75 blocked until Backend v41 is exact-green and `ERR-0026` through `ERR-0029` are resolved.
 4. Preserve the release crash-regression matrix before any Windows candidate or promotion claim.
 
 ## Persistent release guards
