@@ -2,12 +2,13 @@
 
 ## Baseline
 
-- Baseline source: `develop/pathena-next@cdc9e8e0064db659f9eabbfdb5f3720a76114fd6`.
-- Stable read-only parent: `main@0d4d621f8a38ddf8eccfa09622bf193687619943`.
+- Baseline source: `develop/pathena-next@96297a9e1780021f5a515072a2075fea6566900f`.
 - Worker branch: `postmerge/errors` only.
-- Previous Error head: `3ec17ead449ba83d72f8846c8d7d307d864aae02`.
-- Current Backend worker: `postmerge/backend@0d579f718f97f7d0ba6d39d4cd8bcc6741beb72d`.
-- `bnbgrs/ATHENA` and `main` remain untouched.
+- History-preserving NON-FORCE synchronization onto current Develop: `7b8e94ed03a2560ef100df0cf58baf92382a81d8`.
+- Current Backend worker: `postmerge/backend@8fd7fd305d027f7367de01e53e95e255801a99f7`.
+- Current UI worker reviewed: `postmerge/ui@4e39464a5a08a34715344bdc7272b6d6658d3687`; its latest exact verified source fix remains separate from Backend v41 errors.
+- Spec/Core and Integrator handoffs were reviewed before mutation.
+- `main` and `bnbgrs/ATHENA` remain untouched/read-only.
 
 ## Current error state
 
@@ -16,40 +17,35 @@
 - FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015` through `ERR-0024`.
 - OPEN / FIXED_PENDING_VERIFY / BLOCKED: none.
 
-## Current exact evidence
+## Hard progress this run
 
-Canonical Backend Quality `34269071606` on exact SHA `0d579f718f97f7d0ba6d39d4cd8bcc6741beb72d` is completed FAILURE:
+`ERR-0026` root cause is now FINALIZED from exact diagnostics rather than another ordering hypothesis. The active Backend handoff records consumption of diagnostics artifact `10073791560` from canonical Quality `34269071606@0d579f718f97f7d0ba6d39d4cd8bcc6741beb72d`. Ruff's formatter requires `DatabaseCompatibilityError` to sort after the lowercase `_user_tables` / `assert_writable_schema` names in the consolidated `schema_contract` import block.
 
-- Windows path safety: PASS.
-- Local install smoke: PASS.
-- Linux storage regressions: PASS.
-- specification validator: PASS.
-- mypy: PASS.
-- Ruff: FAIL.
-- full pytest: FAIL.
-- canonical diagnostics upload: PASS.
+Direct inspection of current Backend `src/athena/storage/schema.py@8fd7fd305d027f7367de01e53e95e255801a99f7` confirms that exact correction has not landed yet: `DatabaseCompatibilityError` still sits between the `CONSOLIDATED_*` and `DELETION_*` re-exports. Therefore `ERR-0026` remains `IN_PROGRESS`; the next allowed mutation is import-order only, with no semantic change.
 
-This is a new exact successor verification point: Backend synchronization onto Develop did not clear `ERR-0026`, and unresolved pytest work remains. It does not justify marking `ERR-0027`, `ERR-0028`, or `ERR-0029` fixed without assertion-level evidence.
-
-Diagnostics artifact `canonical-quality-diagnostics-0d579f718f97f7d0ba6d39d4cd8bcc6741beb72d` exists as artifact `10073791560`; the current connector exposes artifact metadata but not the archive payload as readable UTF-8. Therefore no second import-order guess is permitted from summary evidence alone.
+The Backend worker also produced a bounded harness-only candidate for one `ERR-0029` dependency-boundary cluster: `c8b12bb2bd0362540c8a9474aecb27a6e168c6d1`. It uses a real canonical `DurableJobScheduler` with inert typed dependencies before testing the invalid WAL-hook boundary and keeps production exact-type guards unchanged. Its exact descendant Quality `34276050284@8fd7fd305d027f7367de01e53e95e255801a99f7` is still IN_PROGRESS, so no FIXED claim is permitted.
 
 ## Active root causes
 
 ### ERR-0026 — Backend v41 schema Ruff I001
 
-Original exact diagnostic: Quality `34245022980` on `4e61cba775a4b9b88cd40b33d9c0e33b4eb9fc66` reported one fixable `I001` in `src/athena/storage/schema.py`. The import-only corrective lineage through `01eccfe3b688115f85345e365078cb11c193b749` is concretely verified not to have cleared Ruff by exact successor Quality `34269071606@0d579f718f97f7d0ba6d39d4cd8bcc6741beb72d`. Obtain the exact current Ruff diagnostic/annotation or a successor proving Ruff green before another mutation.
+- Exact rule/file: Ruff `I001`, `src/athena/storage/schema.py`.
+- Finalized cause: `DatabaseCompatibilityError` is sorted too early in the consolidated `athena.storage.schema_contract` re-export block; Ruff formatter requires it after `_user_tables` / `assert_writable_schema`.
+- Required correction: import ordering only; no product semantics, migration logic, schema version, guard, or test behavior may change.
+- Required verification: Ruff PASS, focused v40→v41/restart/schema-contract coverage, then exact canonical Quality.
+- Current exact verification point: `34276050284@8fd7fd305d027f7367de01e53e95e255801a99f7` is still running.
 
 ### ERR-0027 — missing v41 schema-facade re-export
 
-Original failure: `tests/unit/test_schema_contract_boundary.py::test_schema_reexports_contract_constants` lacked `RESEARCH_DELTA_BOUNDARY_SCHEMA_VERSION`. Current Backend tree visibly exports both Research Delta contract constants. Treat as candidate-fixed only; Quality `34269071606` still has full pytest FAIL and the job summary does not prove this exact assertion green.
+Original failure: `tests/unit/test_schema_contract_boundary.py::test_schema_reexports_contract_constants` lacked `RESEARCH_DELTA_BOUNDARY_SCHEMA_VERSION`. Current Backend tree visibly exports both Research Delta contract constants. Treat as candidate-fixed only; require focused schema-contract or completed canonical pytest evidence before FIXED.
 
 ### ERR-0028 — stale v40-shaped schema fixtures/assertions
 
-Quality `34245022980` proved stale current-version expectations plus legacy fixture builders that already contained the v41-only `research_delta_boundaries` table. Required correction remains harness-only: update stale expectations and fixture construction without weakening the real additive/transactional v40→v41 migration. Current successor remains pytest-red; obtain assertion-level diagnostics before changing status.
+Quality `34245022980` proved stale current-version expectations plus legacy fixture builders that already contained the v41-only `research_delta_boundaries` table. Required correction remains harness-only: update truthful v41 expectations and strip v41-only state from legacy v30-v40 fixtures before the unchanged production migration. Do not make migration permissive.
 
 ### ERR-0029 — WAL harness collaborator drift
 
-The WAL cluster uses stale collaborators/diagnostic expectations that do not satisfy intentional exact-type fail-closed production contracts. Repair harness collaborators/expectations only; do not weaken `DurableJobScheduler` / `WalMaintenanceOrchestrator` exact-type guards. Current successor remains pytest-red; no independent clearing claim without focused/assertion-level evidence.
+One exact dependency-boundary cluster has candidate `c8b12bb2bd0362540c8a9474aecb27a6e168c6d1`; remaining WAL tests must use canonical concrete `DurableJobScheduler` / `WalMaintenanceOrchestrator` collaborators or assert the current fail-before-side-effect diagnostic where invalid dependency behavior is the subject. Production `type(...) is ...` guards must remain unchanged.
 
 ## Closed / cleared state relevant to integration
 
@@ -59,13 +55,13 @@ The WAL cluster uses stale collaborators/diagnostic expectations that do not sat
 
 ## Integrator handoff
 
-- HOLD Backend v41 integration while `ERR-0026` through `ERR-0029` remain unresolved.
-- Treat `34269071606@0d579f718f97f7d0ba6d39d4cd8bcc6741beb72d` as exact evidence that the existing `ERR-0026` corrective lineage is still Ruff-red after Backend's non-force Develop synchronization.
-- Require the exact current Ruff diagnostic before another import mutation; do not weaken Ruff configuration or alter unrelated product behavior.
-- Verify `ERR-0027` independently with the exact boundary assertion/focused schema suite when available.
-- For `ERR-0028` and `ERR-0029`, require focused harness repairs and exact canonical verification; preserve production migration strictness and WAL exact-type fail-closed guards.
-- Current Develop `cdc9e8e0064db659f9eabbfdb5f3720a76114fd6` has no PR-triggered canonical Quality run returned in this run; do not claim promotion-ready.
-- Preserve Windows path safety, Linux storage, Security, Provider/Transport, Recovery, Validator, Ruff, mypy and release crash-regression guards.
+- HOLD Backend v41 / §75 integration while `ERR-0026` through `ERR-0029` remain unresolved.
+- For `ERR-0026`, no further diagnosis is needed: apply or verify only the formatter-proven import-order correction, then require exact Ruff green.
+- Do not integrate the current Backend lineage merely because the root cause is known; current descendant Quality `34276050284` is still IN_PROGRESS.
+- Verify `ERR-0027` independently with the exact schema-contract assertion/focused suite.
+- Repair `ERR-0028` and remaining `ERR-0029` only in harness scope; preserve strict v40→v41 migration and WAL exact-type fail-closed production guards.
+- Preserve Windows path safety, Linux storage, local install/start, Security, Provider/Transport, Recovery, Validator, Ruff, mypy and release crash-regression guards.
+- No promotion-ready claim for current Develop `96297a9e1780021f5a515072a2075fea6566900f` without an exact completed canonical Quality result.
 
 ## Persistent Beta/release regression matrix
 
@@ -73,7 +69,7 @@ Retain without reopening absent exact-current reproduction: Windows `pypdf` meta
 
 ## Next verification
 
-1. Consume the exact Ruff diagnostic/annotation from Backend Quality `34269071606`, or the first Backend successor that targets it.
-2. If the exact diagnostic confirms the same single `src/athena/storage/schema.py` I001, finalize only the minimal import-order correction or verify the Backend worker correction; no unrelated edits.
-3. Independently verify `ERR-0027` with focused schema-contract evidence.
-4. Decompose current pytest failures against `ERR-0028` and `ERR-0029`; allocate a new stable ERR only for a genuinely distinct exact assertion/root cause.
+1. Consume completion of `34276050284@8fd7fd305d027f7367de01e53e95e255801a99f7`.
+2. If Ruff is still red with the same `schema.py` I001, require/apply exactly the formatter-proven `DatabaseCompatibilityError` move and nothing else; if green, record the exact fixing SHA and focused evidence.
+3. Verify `ERR-0027` independently with focused schema-contract evidence.
+4. Decompose remaining pytest failures against `ERR-0028` and `ERR-0029`; allocate a new stable ERR only for a genuinely distinct exact assertion/root cause.
