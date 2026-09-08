@@ -350,7 +350,7 @@ class SettingsRuntimeController(QObject):
                 self.persistence_value,
                 "Per-model settings · choose a model",
                 "idle",
-                freshness="fresh",
+                freshness="unavailable",
             )
             return
         stored = self._read_model(model.backend_model_id)
