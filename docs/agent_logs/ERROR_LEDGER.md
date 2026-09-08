@@ -12,7 +12,7 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 - Error branch mutation lineage: `postmerge/errors` only.
 - History-preserving NON-FORCE synchronization with current Develop: merge commit `51c3737bac87cb61a1089b38f2dd9a8a31de81fe`, parents prior Error head `4dd4fecf704302457e3aaf6219851c5cd28923c1` and Develop `a60b067ebf93481d180065cdf3e85ad3da3a2a5e`.
 - Exact Develop verification anchor: `270f97c36bd114036658e322f68d8011983ff150`, canonical Quality `34248696450 = SUCCESS`.
-- Backend current: `postmerge/backend@44e682048fd0e7fa990c46b385931a954ecc0189`; Quality `34258165867` is pending. Its exact product predecessor `01eccfe3b688115f85345e365078cb11c193b749` had run `34258124033` cancelled before verification.
+- Backend current: `postmerge/backend@44e682048fd0e7fa990c46b385931a954ecc0189`; canonical Quality `34258165867` is still in progress, but its exposed jobs already establish Windows path safety PASS, local install smoke PASS, Linux storage PASS, specification validator PASS, mypy PASS and Ruff FAIL. Full pytest remains in progress.
 - UI exact product head `b0c74459af0d6382f23106819f34778c86b6f18b` remains canonical green via `34240229731`.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
@@ -47,8 +47,8 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 - Status: `IN_PROGRESS`.
 - Exact red evidence: `34245022980` failed `tests/unit/test_schema_contract_boundary.py::test_schema_reexports_contract_constants` with missing `RESEARCH_DELTA_BOUNDARY_SCHEMA_VERSION`.
 - Root cause: `src/athena/storage/schema.py` wired v41 migration but omitted the established schema-facade re-export.
-- Candidate fix lineage now present on Backend: `69e2a4707bba544af5d2d2ae53daffc1dbf786a3` plus import-only corrective descendants through `01eccfe3b688115f85345e365078cb11c193b749`; current file visibly re-exports both real v41 constants.
-- Verification: not yet canonical PASS. `34258124033` was cancelled and current `34258165867` is pending; remain `IN_PROGRESS`.
+- Candidate fix lineage now present on Backend: `69e2a4707bba544af5d2d2ae53daffc1dbf786a3` plus import-only corrective descendants through `01eccfe3b688115f85345e365078cb11c193b749`; current exact Backend `44e682048fd0e7fa990c46b385931a954ecc0189` visibly re-exports both real v41 constants.
+- Verification: not yet canonical PASS. Current Quality `34258165867` has not completed full pytest; remain `IN_PROGRESS`.
 
 ## ERR-0026 — Backend v41 schema module canonical Ruff I001
 
@@ -56,8 +56,9 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 - Status: `IN_PROGRESS`.
 - Original exact diagnostic: Quality `34245022980` on `4e61cba775a4b9b88cd40b33d9c0e33b4eb9fc66` reported one fixable `I001` in `src/athena/storage/schema.py`.
 - Root cause: canonical import sorting in the consolidated `athena.storage.schema_contract` re-export block.
-- Backend corrective lineage: `69e2a4707bba544af5d2d2ae53daffc1dbf786a3`, then bounded import-only corrections `86d1577160e0bdc843faa3ebc55964bfa2da0196` and `01eccfe3b688115f85345e365078cb11c193b749`. Current worker `schema.py` places `DatabaseCompatibilityError` between the `CONSOLIDATED_*` and `DELETION_*` re-exports; no production behavior change is claimed.
-- Verification: run `34258124033` on exact product SHA `01eccfe3b688115f85345e365078cb11c193b749` was cancelled, not PASS. Documentation successor run `34258165867` on `44e682048fd0e7fa990c46b385931a954ecc0189` is pending with no jobs exposed yet. Therefore `ERR-0026` remains active; no false fixed claim.
+- Backend corrective lineage: `69e2a4707bba544af5d2d2ae53daffc1dbf786a3`, then bounded import-only corrections `86d1577160e0bdc843faa3ebc55964bfa2da0196` and `01eccfe3b688115f85345e365078cb11c193b749`.
+- Current exact recurrence: canonical Quality `34258165867` on Backend `44e682048fd0e7fa990c46b385931a954ecc0189` has completed Ruff with `failure` while specification validator and mypy pass; Windows path safety, Linux storage and local-install smoke also pass. Thus the import-only corrective lineage has not yet cleared `ERR-0026`.
+- Current file evidence: `src/athena/storage/schema.py` still carries `DatabaseCompatibilityError` inside the large `schema_contract` re-export block between `CONSOLIDATED_*` and `DELETION_*`; exact Ruff diagnostics from the current run are still required before any further mutation. No behavior-changing fix is justified.
 
 ## ERR-0025 — older shared-baseline canonical full-pytest failure family
 
