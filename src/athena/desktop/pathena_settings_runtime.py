@@ -125,6 +125,40 @@ class SettingsRuntimeController(QObject):
             self.detail,
         ):
             label.setTextFormat(Qt.TextFormat.PlainText)
+
+        self._set_state(
+            self.provider_value,
+            self.provider_value.text(),
+            "idle",
+            freshness="unavailable",
+        )
+        self._set_state(
+            self.network_value,
+            self.network_value.text(),
+            "idle",
+            freshness="unavailable",
+        )
+        self._set_state(
+            self.persistence_value,
+            self.persistence_value.text(),
+            "idle",
+            freshness="unavailable",
+        )
+        self._set_state(
+            self.detail,
+            self.detail.text(),
+            "idle",
+            freshness="unavailable",
+        )
+        initial_network_detail = (
+            "Local Core · awaiting connection. Internet access is not inferred before "
+            "a Core snapshot."
+        )
+        self.network_value.setProperty("pathenaNetworkScope", "unavailable")
+        self.network_value.setProperty("pathenaInternetStateInferred", False)
+        self.network_value.setToolTip(initial_network_detail)
+        self.network_value.setAccessibleDescription(initial_network_detail)
+
         self._install_panel()
         self._update_settings_copy()
 
@@ -235,14 +269,16 @@ class SettingsRuntimeController(QObject):
         detail = value.model_error
         if detail is None and provider is not None:
             detail = provider.detail
-        self.detail.setText(
+        detail_text = (
             detail
             or "Provider readiness is reported by the local Core; no remote status "
             "or unsupported capability is inferred."
         )
-        self.detail.setProperty(
-            "pathenaUiState",
+        self._set_state(
+            self.detail,
+            detail_text,
             "error" if value.model_error is not None else "idle",
+            freshness=freshness,
         )
         self.hydrate_selected_model()
 
@@ -269,8 +305,12 @@ class SettingsRuntimeController(QObject):
         self.network_value.setProperty("pathenaInternetStateInferred", False)
         self.network_value.setToolTip(network_detail)
         self.network_value.setAccessibleDescription(network_detail)
-        self.detail.setText(message)
-        self.detail.setProperty("pathenaUiState", "error")
+        self._set_state(
+            self.detail,
+            message,
+            "error",
+            freshness="unavailable",
+        )
 
     @staticmethod
     def _set_state(
@@ -361,7 +401,7 @@ class SettingsRuntimeController(QObject):
                 self.persistence_value,
                 f"{model.display_name} · defaults not yet saved",
                 "idle",
-                freshness="fresh",
+                freshness="unavailable",
             )
             return
         if all(
