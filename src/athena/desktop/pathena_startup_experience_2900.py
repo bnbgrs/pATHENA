@@ -196,7 +196,11 @@ class PathenaStartupExperience(QObject):
         if navigation is not None:
             navigation.setFixedHeight(224)
             for index in range(navigation.count()):
-                navigation.item(index).setSizeHint(QSize(164, 32))
+                item = navigation.item(index)
+                item.setSizeHint(QSize(164, 32))
+                tooltip = item.toolTip().strip()
+                if tooltip:
+                    item.setData(Qt.ItemDataRole.AccessibleTextRole, tooltip)
 
         pallas = self.window.findChild(QWidget, "pallasVisualPlaceholder")
         if pallas is not None:
