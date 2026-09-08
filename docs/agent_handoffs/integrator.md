@@ -3,47 +3,49 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `1b1b136b63824815f312cbc70e5376c68285dbc0`.
+- Develop before this run: `c775d37f50e332639007ba162b4ff7f591434f1c`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `e27bc49b44b7ccd9afec0615d68b06527d642700`; spec-core `3b425e527fd701a984ee723c310ac86be062022d`; backend `5df50d524d4177a2fe157cf18cb952ff15df65a4`; UI `4d6d1f7b3bc99dbff3015ddb8c499af885859ac8`.
+- Worker heads reviewed: errors `bfefb4fcd9f87e4587984e96689009366be77361`; spec-core `ac8dad2af4d5bb8b38c2fdcb6f4ea61b3deb5b00`; backend `5fb145df421059314b4d90f53b9fc69b1c4333ab`; UI `4c656c2c5dfb55e6d3f0078719183cbbad73a555`.
 - `main` and `bnbgrs/ATHENA` were untouched; no force update, rebase, history rewrite, auto-merge or main promotion was used.
 
-## Progress this run — ERR-0023 tooling-blocker removal
+## Progress this run — UI-GAP-0074
 
-No new Worker slice was fully READY at review time: Spec/Core §72 Quality `34186455107` completed failure; Backend current Quality `34187200684` remained in progress and its exact product/test predecessor run `34187167871` was cancelled; UI-GAP-0074 remained pending verification. The hard progress rule therefore used path (C) for the repeatedly tooling-blocked, collision-free ERR-0023 one-line product fix.
+UI-GAP-0074 was independently reviewed and integrated as the single bounded progress slice.
 
-- Exact Error-owned fix reviewed: `d0207d43dabd66406df630a2cdff89e6f56b259b`.
-- Exact demonstrated failure: Backend Quality `34177086068`, full pytest only, `tests/unit/test_pathena_jobs_lifecycle.py::test_action_availability_matches_durable_service_states[completed-enabled5]` rejected visible `lifecycle action` wording.
-- Independent diff review confirmed the fix changes only terminal-state user copy in `src/athena/desktop/jobs_lifecycle.py`: `no lifecycle action is available` -> `no actions are available`.
-- Current Develop carried the exact pre-fix line and no conflicting mutation in that function.
-- Develop product commit: `568d57a63bb2253d97ca63e92b52e1df66505ac9`.
-- No availability booleans, lifecycle state, transition receipts, scheduler/worker behavior, persistence, Security, Storage, Recovery, packaging or Windows runtime semantics changed.
+- Product commit: `ee2dafc9453c8e3b5d67aed107a955b086111f68`.
+- Focused regression: `10ddf88043757628906480541e179323f5af7247`.
+- Exact verified UI descendant: `4d6d1f7b3bc99dbff3015ddb8c499af885859ac8`, canonical Quality `34187727628 = success`.
+- Develop integration commit: `d06a1ef660c32df1315661f8b03648f0f8b807f5`.
+- Independent Develop compare is ahead-only by one commit and exactly two files: `src/athena/desktop/jobs_workspace.py` (+10/-5) and `tests/unit/test_pathena_jobs_status_copy.py` (+44).
+
+The visible nonzero-exit path no longer emits `Jobs command ... failed`. Refresh failures report `Jobs could not be refreshed`; show failures report that job details could not be loaded; action failures retain the exact operation, job label, background ownership and exit code. Process spawning, QProcess classification, receipt parsing, lifecycle state, scheduler/worker behavior, persistence, Security, Storage, Recovery and Windows runtime behavior are unchanged.
 
 ## Verification state
 
-- Local exact-Develop focused verification was attempted after the commit, but checkout failed solely because the runtime could not resolve `github.com`; no local PASS is fabricated.
-- ERR-0023 therefore moves from unintegrated tooling-blocked fix to INTEGRATED_PENDING_EXACT_VERIFY, not globally FIXED/promotion-ready.
-- Existing worker evidence remains strong and bounded: the prior canonical failure had every gate green except the single full-pytest product-copy assertion, and the applied diff is the exact one-line Error-owned correction.
+- Worker focused regression and canonical Quality are exact-green on the unchanged UI-GAP-0074 product/test lineage.
+- Develop received the exact product blob from the product commit and exact focused-test blob from its direct test successor; divergent UI history was not imported.
+- No exact-current-Develop canonical workflow is yet associated with `d06a1ef660c32df1315661f8b03648f0f8b807f5`; global-green/promotion-ready is not claimed.
 - No Skip/XFail, assertion weakening or guard relaxation was introduced.
 
 ## Other worker state
 
-- Spec/Core §72 unavailable-NAS acceptance `5fbe0dc8b3d7674a18c562e96c118ddf4e476985`: canonical Quality `34186455107 = failure`; not READY and not integrated.
-- Backend scheduler recomposition guard lineage: current head `5df50d524d4177a2fe157cf18cb952ff15df65a4`; Quality `34187200684` was still in progress at review, while `34187167871` on predecessor `a467bd3ec6a3ba06d3ca18e1a8d77af986964b06` was cancelled; not integrated.
-- UI current head `4d6d1f7b3bc99dbff3015ddb8c499af885859ac8` contains a terminal Jobs action language follow-up but UI-GAP-0074 remains pending canonical evidence; no UI slice was integrated.
+- UI-GAP-0075 is also exact-green on UI descendant `4d6d1f7b3bc99dbff3015ddb8c499af885859ac8` but was deliberately deferred to preserve the one-bounded-slice rule.
+- UI-GAP-0076 remains `IMPLEMENTED_PENDING_VERIFY`; do not integrate until exact canonical Quality succeeds.
+- Spec/Core §72 repair `124bdd9d789230d33452cfbc2452b307d410316c` remains `FIXED_PENDING_EXACT_VERIFY`; original `34186455107` was full-pytest red.
+- Backend canonical-scheduler wrapper guard `6ce79db5ed3a11cfc58a7bb92323ae5b98817da5` has no exact completed workflow in its current handoff; not READY.
+- ERR-0023 remains fixed pending exact Develop verification. ERR-0024 tracks the §72 pytest-only failure.
 
 ## UI / Alpha-Beta state
 
 - Eleven-screen status remains implemented pending visual review; no MATCH claim is made without original-reference evidence.
-- `docs/development/ALPHA_BETA_PROGRESS.md` was not destructively rewritten because a complete safe replacement body was not available through the current connector path; this handoff records exact evidence for later synchronization.
-- No percentage progress is inferred.
+- `docs/development/ALPHA_BETA_PROGRESS.md` was read; no percentage is inferred. The large tracker was not destructively rewritten because the connector response is truncated and a complete safe replacement body was not available.
 
 ## Next integration order
 
-1. Obtain exact-current-Develop focused Jobs lifecycle + Ruff and canonical Quality for the Develop descendant carrying `568d57a63bb2253d97ca63e92b52e1df66505ac9`; then close ERR-0023 only if exact-green.
-2. Recheck Backend `34187200684` and integrate its bounded scheduler recomposition guard only if completed exact-green and still compatible.
-3. Diagnose Spec/Core §72 failure `34186455107`; do not consume until repaired exact-green.
-4. Review UI-GAP-0074 only after exact canonical success on unchanged product/test commits.
+1. Obtain exact-current-Develop focused Jobs regressions + Ruff and canonical Quality for the descendant carrying `d06a1ef660c32df1315661f8b03648f0f8b807f5`.
+2. If compatibility remains unchanged, integrate UI-GAP-0075 as one bounded exact-green slice.
+3. Consume repaired Spec/Core §72 only after exact-green evidence; keep ERR-0024 open until then.
+4. Consume Backend scheduler wrapper guard only after exact canonical success.
 5. Preserve the release crash-regression matrix before any Windows candidate or promotion claim.
 
 ## Persistent release guards
