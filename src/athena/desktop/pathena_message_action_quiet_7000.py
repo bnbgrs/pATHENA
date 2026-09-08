@@ -38,7 +38,11 @@ class MessageActionQuietController(QObject):
         self.sync()
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
-        if watched is self.document and event.type() == QEvent.Type.ChildAdded:
+        # Qt may dispatch child events while a parent-owned controller is still
+        # being constructed or is already being torn down. Treat a temporarily
+        # unavailable document binding as a no-op lifecycle state.
+        document = getattr(self, "document", None)
+        if watched is document and event.type() == QEvent.Type.ChildAdded:
             QTimer.singleShot(0, self.sync)
         elif isinstance(watched, QWidget) and watched in self._containers:
             if event.type() in {QEvent.Type.Enter, QEvent.Type.Leave}:
