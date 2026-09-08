@@ -2,80 +2,67 @@
 
 ## Baseline
 
-- Shared baseline: `develop/pathena-next@eaab89bb4d7b08839517c40b622480bb1dc309f0`.
-- Worker branch: `postmerge/backend`.
-- History-preserving NON-FORCE synchronization with current Develop: merge commit `b7d2f5fd6ed3e1c35fd7458f84be62341e3938af`.
-- `main@0d4d621f8a38ddf8eccfa09622bf193687619943` remains strictly read-only and untouched.
+- Shared baseline reviewed: `develop/pathena-next@1b1b136b63824815f312cbc70e5376c68285dbc0`.
+- Worker branch: `postmerge/backend` only.
+- Pre-run worker head: `a2635b028d274553dd50a574bea99eb6bd9b02c7`.
+- History-preserving NON-FORCE synchronization: `a63c7d100a3bee69eee08dcc7cf5b5043e751d07`, parents `a2635b028d274553dd50a574bea99eb6bd9b02c7` and `1b1b136b63824815f312cbc70e5376c68285dbc0`.
+- `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
-## Selected backend slice
+## Previous exact verification
 
-Area: durable deletion-ledger runtime boundaries / recovery cursor.
+Backend Quality `34183552569` on exact SHA `a2635b028d274553dd50a574bea99eb6bd9b02c7` completed FAILURE only in canonical pytest. Local install smoke, Linux storage regressions, Windows path safety, specification validator, Ruff and mypy all passed. Current Error handoff keeps the terminal Jobs-copy defect as `ERR-0023 FIXED_PENDING_VERIFY`; no Backend-owned primary failure is established by that run.
 
-Spec/error anchor: `ERR-0001`, backend audit tasks 290-293, and the existing deletion/recovery invariants in `src/athena/lifecycle/deletion.py`.
+## ExternalAccessGateway priority
 
-Product commit `780d25d74ce2e310b6a4bc434f547a23163e8b78` adds fail-before-SQL runtime validation for malformed entity types and bool-as-int deletion values without changing persistence or recovery semantics. Ruff-only harness correction `2f705d5e0fc1c77dd60612b5aeaa16d9380e46cd` formats the new boundary test import block; assertions and product behavior are unchanged.
+Exact current Develop was rechecked. The requested runtime boundaries are already present: `ttl_seconds` and `max_bytes` require genuine non-bool integers, and `timeout_seconds` is numeric, non-bool and finite with NaN/Inf rejection before external side effects. No duplicate Gateway patch was created.
 
-## Exact verification evidence
+## Current Backend slice
 
-Canonical Quality run `33749788522` checked exact Backend head `1cfd18c69014390380bb960b86c8e1b81a5067ac`.
+Area: WAL-aware durable scheduler recomposition boundary.
 
-Backend-relevant results:
+The final AthenaApplication scheduler wiring point was re-located on exact Develop. The available connector write primitive would require replacing the complete shared `src/athena/core/application.py`, while the local checkout path again failed solely because `github.com` DNS resolution was unavailable. Because this identical tooling path cannot remain the blocker, the run executed a disjoint real Backend mutation instead.
 
-- specification validator: PASS;
-- Ruff: PASS;
-- mypy: PASS;
-- Windows path safety: PASS;
-- Linux storage regressions: PASS;
-- Local install smoke: PASS;
-- `tests/unit/test_deletion_ledger_boundaries.py`: all 22 tests PASS inside the full pytest run;
-- full pytest: `1 failed, 4489 passed, 3 skipped, 2 warnings`.
+Product commits `9f7ca4cb0b65f0df08b2790d00d35c13c12cd335` and `aa7ce164c16f84aa5d02d700994bac1b2d061e4a` harden `WalAwareDurableJobScheduler.from_scheduler()`: only the exact canonical `DurableJobScheduler` may be recomposed. A foreign subclass is rejected rather than silently losing overridden scheduler semantics. The pre-existing explicit rejection of an already WAL-aware scheduler remains preserved.
 
-The single pytest failure is exactly `tests/unit/test_pathena_pallas_full_view.py::test_open_workspace_reuses_one_synchronized_full_surface`, raising `AttributeError` in `MessageActionTabOrderController.eventFilter()` because `document` is transiently absent. This is the already UI-owned PALLAS lifecycle defect (`UI-GAP-0003`), not a deletion-ledger/backend failure. No new Backend-owned pytest failure appears in the exact log.
+Focused regression commit `a467bd3ec6a3ba06d3ca18e1a8d77af986964b06` adds `test_from_scheduler_rejects_noncanonical_scheduler_subclass` while retaining dependency/policy identity, side-effect-free conversion, already-aware rejection and invalid-hook coverage.
 
-UI independently corrected that exact lifecycle root cause and canonical Quality run `33751403354` on UI head `76cb122dbe7b58b0fa49bbcb36de2bd732922d4d` completed SUCCESS. Backend does not absorb or modify the UI fix.
+## Call chain and invariants
 
-## Product call-chain and invariants
+Future composition remains:
 
-`record_deletion(runtime input) -> exact runtime validation -> UUID materialization -> existing-marker SELECT -> identity reconciliation -> INSERT/readback`.
-
-`read_deletion_records(after_seq) -> exact runtime validation -> ordered ledger SELECT`.
+`AthenaApplication canonical scheduler -> build_wal_job_scheduler_hook once -> WalAwareDurableJobScheduler.from_scheduler -> inherited run_loop/drain -> WAL-aware tick -> bounded PASSIVE-only maintenance -> canonical DurableJobScheduler.tick`.
 
 Retained invariants:
 
-- malformed values fail before SQL;
-- bool is not accepted as deletion timestamp, commit sequence or cursor;
-- `deleted_at_us=0` and `after_seq=0` remain valid;
-- deletion commit sequence remains a positive genuine integer;
-- marker idempotency/reconciliation, restore replay, transaction boundaries, ordering, identity-conflict behavior, schema and persistence representation are unchanged;
-- no Security, TOR, Provider, UI or platform-path semantics changed.
+- no silent Tor-to-Direct fallback; explicit Direct fallback only;
+- no loopback/private proxy leak; redirects re-authorized before fetch;
+- HTTPS/default-port, compressed-response and response-size fail-closed behavior unchanged;
+- Audit/Provenance/fsync/transactional Source finalization unchanged;
+- automatic WAL maintenance remains PASSIVE-only; TRUNCATE remains explicit/idle-only;
+- PROVIDER lane remains WAL-side-effect-free;
+- no second scheduler loop, process, thread, timer or retry path;
+- scheduler subclass semantics cannot be silently discarded during recomposition;
+- no schema, migration, recovery representation, packaging, process-tree, lane-lock, DirectChat, Security or cryptographic semantic change;
+- no Skip/XFail, assertion weakening, force update or history rewrite.
 
-## Verification / readiness state
+## Platform / release knowledge
 
-- `ERR-0002` Ruff I001: FIXED and verified by canonical Ruff PASS in run `33749788522`.
-- `ERR-0001` Backend candidate: BACKEND_VERIFIED / INTEGRATOR_READY. Its focused boundary suite passes in the full canonical pytest execution, and every Backend/system canonical job is green. The only global failure is the independently owned UI/PALLAS lifecycle signature above.
-- Error worker should independently re-verify `ERR-0001` after integration before changing the canonical Error Ledger state to `FIXED`.
+No current exact evidence reopens the retained Windows crash classes. Before Beta/release promotion, continue explicit runtime smokes for pypdf frozen metadata, fail-closed child argv/two-EXE routing, bounded Desktop/Worker process tree, 2048-context adaptive DirectChat reserve, lane-lock PermissionError -> SchedulerLaneOwnershipError -> packaged-worker OSError, duplicate-column startup, Core startup failure and storage-bootstrap failure.
 
-## Failure / recovery impact
+## Verification state
 
-The product mutation is fail-before-SQL and side-effect reducing. No ledger rows, schema, transaction semantics, ordering, marker identity, restore replay, crash/restart behavior or recovery format changed. Invalid boundary inputs now terminate before any SQL operation.
-
-## Platform impact
-
-Platform-neutral Python runtime-boundary hardening only. Windows path safety, Linux storage regression and local-install smoke jobs are all green on the exact Backend lineage.
+- Previous exact Backend system gates: green as listed above on Quality `34183552569`.
+- Current product/test head: `a467bd3ec6a3ba06d3ca18e1a8d77af986964b06`.
+- No exact canonical workflow was associated with that new head at the final check; no PASS or promotion-ready claim is made.
+- Open draft verification PR remains `#54`, targeting `develop/pathena-next`; it is used for CI evidence only and is not to be merged by Backend.
 
 ## Coordination
 
-- `postmerge/errors`: exact pytest evidence gap is now closed; `ERR-0001` may be treated as Backend-verified, with final canonical Ledger closure after integration/reverification.
-- `postmerge/ui`: owns `UI-GAP-0003`; its exact corrective lineage is now canonical green. Backend must not modify this UI root cause.
-- `postmerge/spec-core`: normal-Hybrid Search facade/application wiring remains Core-owned and non-overlapping.
-- `develop/pathena-next`: integration target only; Backend never self-integrates.
+- Error handoff reviewed: OPEN none; `ERR-0023 FIXED_PENDING_VERIFY` remains Jobs-copy owned.
+- Spec/Core handoff reviewed: §72 unavailable-NAS acceptance is separately owned/pending exact verification.
+- UI handoff reviewed: UI-GAP-0074 remains UI-owned/pending verification.
+- Integrator handoff reviewed: Backend scheduler slice remains unintegrated pending exact green evidence.
 
-## Integrator handoff
+## Next Backend action
 
-READY for independent Integrator review/integration: product `780d25d74ce2e310b6a4bc434f547a23163e8b78` plus test/Ruff correction `2f705d5e0fc1c77dd60612b5aeaa16d9380e46cd`, carried on the history-preserving current-Develop Backend lineage beginning at merge `b7d2f5fd6ed3e1c35fd7458f84be62341e3938af`.
-
-The global red result of run `33749788522` must not be attributed to this Backend slice: its sole failure is the exact independently verified UI/PALLAS defect described above.
-
-## Next backend slice
-
-Select the highest currently unclaimed Backend/System P0/P1/P2 gap from current Alpha/Beta progress, Error Ledger and worker handoffs after excluding Core-owned normal-Hybrid Search and UI-owned PALLAS lifecycle work. Preserve deletion-ledger ownership only until Integrator imports the verified slice; do not broaden this root cause further.
+Consume exact canonical Quality for `a467bd3ec6a3ba06d3ca18e1a8d77af986964b06` or an unchanged descendant. If Backend-owned gates are green, mark only the noncanonical-scheduler recomposition guard VERIFIED/INTEGRATOR_READY. Then finish the real AthenaApplication WAL-aware scheduler wiring only through a collision-safe exact mutation binding one `build_wal_job_scheduler_hook` instance while preserving existing supervisor/CLI `run_loop`, PROVIDER isolation, lane-lock and Windows process-tree semantics. If shared-file mutation still cannot be made safely, execute a genuinely disjoint evidence-backed Recovery/Provider/Platform Backend slice rather than repeating the same blocker.
