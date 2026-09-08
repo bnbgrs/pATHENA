@@ -14,7 +14,7 @@ def test_large_archive_synthesis_splits_until_every_model_call_fits_pinned_conte
 ) -> None:
     app, provider, job, scope, lease_token, service = _prepare_research(
         tmp_path,
-        source_count=12,
+        source_count=40,
         context_capacity=2_048,
     )
 
@@ -27,7 +27,7 @@ def test_large_archive_synthesis_splits_until_every_model_call_fits_pinned_conte
             scope.scope_id
         )
     )
-    assert len(source_artifacts) == 12
+    assert len(source_artifacts) == 40
 
     first_final = service.plan_next_synthesis(
         scope,
