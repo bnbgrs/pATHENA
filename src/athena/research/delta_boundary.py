@@ -132,15 +132,15 @@ class ResearchDeltaBoundaryRepository:
                 (uuid_to_blob(scope_id),),
             ).fetchone()
             if existing is not None:
-                record = _delta_boundary_from_row(existing)
+                existing_record = _delta_boundary_from_row(existing)
                 if (
-                    record.base_scope_id != base_scope_id
-                    or record.lower_commit_seq != lower_commit_seq
+                    existing_record.base_scope_id != base_scope_id
+                    or existing_record.lower_commit_seq != lower_commit_seq
                 ):
                     raise ResearchStateError(
                         "Research Delta boundary is already bound to different provenance."
                     )
-                return record
+                return existing_record
 
             connection.execute(
                 """
@@ -156,7 +156,7 @@ class ResearchDeltaBoundaryRepository:
                 ),
             )
 
-        record = self.get(scope_id)
-        if record is None:
+        durable_record = self.get(scope_id)
+        if durable_record is None:
             raise ResearchStateError("Research Delta boundary persistence was not durable.")
-        return record
+        return durable_record
