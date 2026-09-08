@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `cdc9e8e0064db659f9eabbfdb5f3720a76114fd6`
+Baseline: `df60ad0e0b3084da05a8b55d94a227798296a1ac`
 Integration target: `develop/pathena-next`
 
 Only evidence-backed gaps belong here. The original 11 reference screenshots remain unavailable for direct visual comparison; therefore no pixel-level mismatch or `MATCH` claim is asserted.
@@ -37,31 +37,6 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Verification evidence: exact UI head `76cb122dbe7b58b0fa49bbcb36de2bd732922d4d` passed ATHENA Quality Gate `33751403354` with conclusion `success`.
 - Integration evidence: bounded equivalent product/test changes landed on Develop as `d149f6bbfd367f2999c8ee54e52326695aeb9f55` and `df60ad0e0b3084da05a8b55d94a227798296a1ac`; Backend changes were disjoint.
 - Acceptance: transient missing binding is an unhandled/no-op lifecycle state; existing ChildAdded resynchronization, action ordering, disabled-state preservation and composer return target remain unchanged.
-
-## UI-GAP-0004 — Icon-only global rail does not expose human page names to assistive technology
-
-- Category: `ACCESSIBILITY`
-- Screen: `01 — Workspace / Chat` and global navigation shared by all screens
-- Severity: `P1`
-- Evidence: rail `QListWidgetItem` visible text intentionally remains symbol glyphs while the existing tooltips contain the real human page names.
-- Product commit: `319a0d7660bf7dc03e1a6c3550efd0e15b76e94b`
-- Focused test commit: `19924adc2881b3eff06a6c4c343abba7e635ecbc`
-- Status: `FIXED`
-- Verification evidence: exact UI head `4d128a864ecbb9463e54273d7f0d527910384591` passed ATHENA Quality Gate `34270643737`; the run includes the rail accessibility product/test lineage.
-- Integration evidence: Integrator transplanted only the rail product/test blobs onto Develop as `bf25017d37e88438a9644445b9f5da47c11098d0`, then recorded the bounded integration in `cdc9e8e0064db659f9eabbfdb5f3720a76114fd6`.
-- Acceptance: visible glyphs, tooltips, page routing, geometry and page identity remain unchanged; existing human tooltip text is exposed via `Qt.ItemDataRole.AccessibleTextRole`.
-
-## UI-GAP-0005 — Quiet message-action controller can dereference a transiently absent document during Qt lifecycle churn
-
-- Category: `INTERACTION`
-- Screen: `08 — PALLAS` / shared chat-message action lifecycle
-- Severity: `P1`
-- Evidence: canonical Quality `34264917412` failed exactly at `tests/unit/test_pathena_pallas_full_view.py::test_open_workspace_reuses_one_synchronized_full_surface` through `MessageActionQuietController.eventFilter()` because `document` was transiently absent.
-- Product fix commit: `4d128a864ecbb9463e54273d7f0d527910384591`
-- Status: `FIXED_VERIFIED_PENDING_INTEGRATION`
-- Verification evidence: exact UI head `4d128a864ecbb9463e54273d7f0d527910384591` passed ATHENA Quality Gate `34270643737` with conclusion `success`.
-- Current synchronization: NON-FORCE two-parent merge `fc174c80f03c54fb23a68d18a281f5b4c80bacbf` carries the verified quiet-action blob on current Develop `cdc9e8e0064db659f9eabbfdb5f3720a76114fd6` without importing unrelated worker tree state.
-- Acceptance: a temporarily unavailable document binding is a no-op lifecycle state; action visibility, opacity policy, callbacks, focus behavior, layout and backend/runtime semantics remain unchanged.
 
 ## Evidence blocker
 

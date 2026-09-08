@@ -2,57 +2,48 @@
 
 ## Current baseline
 
-- Base: `develop/pathena-next@cdc9e8e0064db659f9eabbfdb5f3720a76114fd6`.
-- Worker: `postmerge/ui`.
-- History-preserving NON-FORCE synchronization: `fc174c80f03c54fb23a68d18a281f5b4c80bacbf`, with parents UI `4d128a864ecbb9463e54273d7f0d527910384591` and Develop `cdc9e8e0064db659f9eabbfdb5f3720a76114fd6`.
-- Original eleven reference images: `VISUAL_REFERENCE_PENDING`; no pixel parity or `MATCH` claim is made.
+- Base: `develop/pathena-next@7c15b44818e9ac5c3484ee30d4a20d6f0d56087e`
+- Worker: `postmerge/ui`
+- Worker synchronization commit: `7952eedcda8cc889e60ced3170e72a762245d00c`
+- UI product commit: `1f0fd548431be122d13a403fe9e2387087edf8fa`
+- UI focused-test commit: `d85d2a2e144abc9d3ef1008b80f74114c7fafe23`
+- Original eleven reference images: `VISUAL_REFERENCE_PENDING`; no pixel-level parity or `MATCH` claim is made.
 
-## Exact verification consumed this run
+## Work completed
 
-Canonical ATHENA Quality Gate `34270643737` completed `success` on exact UI head `4d128a864ecbb9463e54273d7f0d527910384591`.
+- Reconciled the UI worker with current Develop using a non-force, history-preserving two-parent merge. Develop changed only integrator/progress documentation plus the ResourceMode product/test files since the prior UI base; the UI delta changed only UI-owned files, so no foreign work was overwritten.
+- `UI-GAP-0001` product/test lineage remains unchanged: visible inspector copy and accessible name use `Evidence & Activity` without changing controller, provenance, persistence, visibility, focus or backend semantics.
+- Exact prior UI head `f31be028652095b18b8a98dfacd65b73be9af763` passed ATHENA Quality Gate run `33720745475` with conclusion `success`.
+- Because synchronization produced a new exact worker head, Quality run `33724577775` is currently verifying `7952eedcda8cc889e60ced3170e72a762245d00c`; `UI-GAP-0001` remains `FIXED_PENDING_VERIFY` until that current-head run succeeds.
+- Reviewed `UI-GAP-0002` call-chain: `_install_reference_shell()` and `_install_progressive_disclosure()` force the inspector visible; `_sync_progressive_chat_actions()` forces it visible again; `_set_context_available()` already exposes the truthful grounded-context state; grounded responses set that state true while new/loaded/ordinary sent chat paths clear it. This gives a real existing state signal for a later contextual-visibility slice, but no visibility mutation was bundled into this synchronization run.
 
-That exact lineage contains both currently relevant bounded UI deltas:
+## Active UI gaps
 
-1. Global icon-rail accessibility: product `319a0d7660bf7dc03e1a6c3550efd0e15b76e94b`, focused test `19924adc2881b3eff06a6c4c343abba7e635ecbc`.
-2. Quiet message-action lifecycle guard: product/fix `4d128a864ecbb9463e54273d7f0d527910384591`.
+### UI-GAP-0001 — Inspector hierarchy/copy
 
-No Skip/XFail, assertion weakening, backend/storage/security behavior, process spawning, scheduler ownership, provider/transport behavior or persistence semantics were changed.
+Status: `FIXED_PENDING_VERIFY`, P1.
 
-## UI-GAP-0004 — Global rail accessible page names
+Implementation: `1f0fd548431be122d13a403fe9e2387087edf8fa`; focused Qt contract: `d85d2a2e144abc9d3ef1008b80f74114c7fafe23`. Prior exact UI head is green; current synchronized head still requires successful Quality run `33724577775` before closure. This does not imply screenshot-level `MATCH`.
 
-Status: `FIXED / INTEGRATED`.
+### UI-GAP-0002 — Contextual inspector behavior
 
-The icon-only navigation keeps its existing visible glyphs and existing human tooltips. The human tooltip text is additionally exposed through `Qt.ItemDataRole.AccessibleTextRole`, so assistive technology receives the real page name without altering layout, routing or visual density.
+Status: `OPEN / CONTRACT_TRACED`, P1.
 
-Integrator already transplanted the bounded product/test blobs onto Develop as `bf25017d37e88438a9644445b9f5da47c11098d0` and recorded the integration in `cdc9e8e0064db659f9eabbfdb5f3720a76114fd6`.
+Evidence: chat grounded-context availability already has a truthful state transition through `_set_context_available()`. A safe bounded implementation should keep the inspector visible on non-chat surfaces, while Chat visibility should derive from real grounded-context availability instead of unconditional `show()` calls. Any implementation must preserve current non-chat details, immediate/no-animation reduced-motion behavior, and existing focus contracts. No product mutation for this gap was made in this run.
 
-## UI-GAP-0005 — Quiet message-action lifecycle guard
+## Collision / ownership guidance
 
-Status: `FIXED_VERIFIED_PENDING_INTEGRATION`.
+- UI owns inspector presentation/visibility state on `postmerge/ui`.
+- Core/Backend should not implement alternate inspector widgets or mutate its presentation state.
+- Backend/storage/security semantics remain untouched.
+- No verified UI root-cause error is handed to the error worker.
 
-Quality `34264917412` exposed one exact failure in `tests/unit/test_pathena_pallas_full_view.py::test_open_workspace_reuses_one_synchronized_full_surface`: `MessageActionQuietController.eventFilter()` could be invoked during Qt lifecycle churn before/after the controller had a usable `document` binding.
+## Verification
 
-Fix `4d128a864ecbb9463e54273d7f0d527910384591` uses `getattr(self, "document", None)` inside the event filter, matching the already established lifecycle-safe tab-order controller pattern. A transiently absent document is treated as a no-op. Visibility, opacity policy, callbacks, focus behavior and action layout remain unchanged.
-
-Exact verification: `34270643737 = success` on `4d128a864ecbb9463e54273d7f0d527910384591`.
-
-Current worker synchronization `fc174c80f03c54fb23a68d18a281f5b4c80bacbf` uses current Develop as the tree base and overlays only the verified quiet-action blob, so unrelated worker history is not imported into the current tree.
-
-## Manifest / visual evidence
-
-`docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` remains exactly eleven slots. Screen 01 records the technically verified rail accessibility closure; Screen 08 records the technically verified quiet-action lifecycle closure. All screens remain `IMPLEMENTED_PENDING_VISUAL_REVIEW` because the original user reference images are not available for direct opening in the current repository/tool path.
-
-## Runtime/release guard retention
-
-Historical Windows/runtime signatures remain regression/release knowledge only unless reproduced on an exact current SHA: frozen-child argv relaunch loops; two-EXE Desktop/Worker invariant; 2048-context DirectChat reserve/persisted assistant turn; lane-lock `PermissionError` -> `SchedulerLaneOwnershipError` -> packaged-worker `OSError`; duplicate-column/storage-bootstrap startup failures. This UI run did not modify those systems.
+- Prior exact UI head `f31be028652095b18b8a98dfacd65b73be9af763`: ATHENA Quality Gate `33720745475` = `success`.
+- Current synchronized head `7952eedcda8cc889e60ced3170e72a762245d00c`: ATHENA Quality Gate `33724577775` = `in_progress` at handoff update time.
+- No original reference screenshot was opened; `VISUAL_REFERENCE_PENDING` remains mandatory.
 
 ## Integrator handoff
 
-- `UI-GAP-0004`: already integrated; preserve the exact rail accessibility behavior.
-- `UI-GAP-0005`: READY for bounded Integrator review using verified fix `4d128a864ecbb9463e54273d7f0d527910384591`, with canonical Quality `34270643737 = success`.
-- The current synchronized/documentation descendant must receive its own canonical Quality result before any whole-lineage integration claim. Integrator may instead transplant only the verified quiet-action blob/fix after independent collision review.
-- Do not infer screenshot parity or `MATCH` from technical verification.
-
-## Next UI gap
-
-After consuming canonical Quality for the synchronized/documentation descendant, select at most one new evidence-backed accessibility/state/interaction/responsive/hierarchy/human-copy gap from the real UI. Do not reopen `UI-GAP-0004` or `UI-GAP-0005` absent exact-current regression evidence.
+Do not integrate the synchronized UI worker until Quality `33724577775` succeeds on exact head `7952eedcda8cc889e60ced3170e72a762245d00c` (or a later documentation-only head with equivalent successful verification). The bounded UI-GAP-0001 product/test lineage remains `1f0fd548431be122d13a403fe9e2387087edf8fa` + `d85d2a2e144abc9d3ef1008b80f74114c7fafe23`. `UI-GAP-0002` remains a separate subsequent interaction slice.
