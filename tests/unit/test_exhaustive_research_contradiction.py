@@ -30,19 +30,27 @@ def test_opposing_sources_remain_visible_in_final_research_contradiction(
         max_output_tokens: int | None = None,
     ):
         text = "\n".join(message.content for message in messages)
+        if schema_id.startswith("athena_research_synthesis_"):
+            return original_generate_structured(
+                model_id=model_id,
+                messages=messages,
+                schema_id=schema_id,
+                json_schema=json_schema,
+                max_output_tokens=max_output_tokens,
+            )
+        if "launch succeeded" in text:
+            finding = "The launch succeeded."
+        elif "launch failed" in text:
+            finding = "The launch failed."
+        else:
+            return original_generate_structured(
+                model_id=model_id,
+                messages=messages,
+                schema_id=schema_id,
+                json_schema=json_schema,
+                max_output_tokens=max_output_tokens,
+            )
         if "map" in schema_id:
-            if "launch succeeded" in text:
-                finding = "The launch succeeded."
-            elif "launch failed" in text:
-                finding = "The launch failed."
-            else:
-                return original_generate_structured(
-                    model_id=model_id,
-                    messages=messages,
-                    schema_id=schema_id,
-                    json_schema=json_schema,
-                    max_output_tokens=max_output_tokens,
-                )
             return {
                 "relevant": True,
                 "summary": finding,
@@ -50,13 +58,12 @@ def test_opposing_sources_remain_visible_in_final_research_contradiction(
                 "contradictions": [],
                 "uncertainty": "",
             }
-        return original_generate_structured(
-            model_id=model_id,
-            messages=messages,
-            schema_id=schema_id,
-            json_schema=json_schema,
-            max_output_tokens=max_output_tokens,
-        )
+        return {
+            "summary": finding,
+            "findings": [finding],
+            "contradictions": [],
+            "uncertainty": "",
+        }
 
     monkeypatch.setattr(provider, "generate_structured", generate_structured)
 
