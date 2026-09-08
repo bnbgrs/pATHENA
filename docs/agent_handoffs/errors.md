@@ -2,12 +2,12 @@
 
 ## Baseline
 
-- Current baseline reviewed: `develop/pathena-next@a9b04acc020218ac8991eed7457e4a9428e10bd5`.
+- Current baseline reviewed: `develop/pathena-next@1b1b136b63824815f312cbc70e5376c68285dbc0`.
 - Error worker: `postmerge/errors` only.
-- History-preserving NON-FORCE baseline synchronization: `b271ca3ece46e2bf02dea1183313040a3af8c19d`.
-- Current Spec/Core head reviewed: `71d49c94dde94616705ffb60010ff57fc0ec127e`.
-- Current Backend head reviewed: `43b16ec2b51e5d2f8f624ae2ff4c59e9facd8b08`.
-- Current UI head reviewed: `9af7d23d2daccdee78236b6da335090d512d7fcd`.
+- History-preserving NON-FORCE baseline synchronization: `2778583a47a0a123911d4cddb4c700d6a8e61ef2`.
+- Current Spec/Core head reviewed: `b6fab29930459642ab41b42970ca87b92f4e563d`.
+- Current Backend head reviewed: `a2635b028d274553dd50a574bea99eb6bd9b02c7`.
+- Current UI head reviewed: `c55d718d363862fc31b7801fda9c71a62845fa31`.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current error state
@@ -29,28 +29,31 @@ Root cause is product copy in `src/athena/desktop/jobs_lifecycle.py`, not the ha
 
 Minimal Error-owned fix `d0207d43dabd66406df630a2cdff89e6f56b259b` changes only the terminal-state sentence to `This job is {state}; no actions are available.`. Availability booleans, transition receipts, scheduler behavior, persistence, Security/Storage/Recovery/Windows semantics and all assertions remain unchanged.
 
-Status is `FIXED_PENDING_VERIFY`. Do not call ERR-0023 FIXED until focused Jobs lifecycle + Ruff and canonical Quality succeed on the exact fix SHA or a byte-identical successor.
+Status remains `FIXED_PENDING_VERIFY`. Current Develop `1b1b136b63824815f312cbc70e5376c68285dbc0` still carries the pre-fix `jobs_lifecycle.py` blob and therefore does not contain or verify the correction. Do not call ERR-0023 FIXED until focused Jobs lifecycle + Ruff and canonical Quality succeed on the exact fix SHA or a byte-identical successor.
 
 ## Current worker evidence
 
-- Backend failing lineage `076a0d1209fe1cb30c6cfe7f6735a39158036c28`: Quality `34177086068 = failure`, pytest-only, exact ERR-0023 assertion above.
-- Current Backend `43b16ec2b51e5d2f8f624ae2ff4c59e9facd8b08` is six commits ahead; compare shows no `src/athena/desktop/jobs_lifecycle.py` delta, so it does not independently correct ERR-0023.
-- Spec/Core `71d49c94dde94616705ffb60010ff57fc0ec127e` and UI `9af7d23d2daccdee78236b6da335090d512d7fcd` were reviewed for ownership/collision avoidance.
-- Develop `a9b04acc020218ac8991eed7457e4a9428e10bd5` still had the failing terminal copy before Error mutation; no global-green claim.
-- ERR-0021 and ERR-0022 remain closed on their previously recorded exact canonical evidence.
+- Spec/Core `b6fab29930459642ab41b42970ca87b92f4e563d`: Quality `34183001443 = success`; no new Error-ledger primary failure.
+- Backend `a2635b028d274553dd50a574bea99eb6bd9b02c7`: Quality `34183552569` remains in progress; no conclusion is inferred.
+- UI `c55d718d363862fc31b7801fda9c71a62845fa31`: Quality `34184326892 = failure`. Local install, Linux storage, Windows path safety, Validator, Ruff and mypy all passed; only full pytest failed. Diagnostics artifact `10040365284` exists, but the available connector does not expose its traceback payload. The UI branch does not modify `src/athena/desktop/jobs_lifecycle.py` relative to Develop, so it still carries the pre-fix ERR-0023 product code. Without the exact pytest assertion, this run does not allocate a new ERR ID or falsely claim the UI failure as verified ERR-0023 recurrence.
+- Error branch was synchronized non-force/history-preserving onto current Develop through `2778583a47a0a123911d4cddb4c700d6a8e61ef2`, retaining only Error-owned Ledger/Handoff and the one-line ERR-0023 product fix over the Develop tree.
+- Local focused test execution was attempted but the runtime could not resolve `github.com`; no false local PASS is recorded.
 - Historical Windows/runtime crash classes remain release-regression obligations only absent exact-current reproduction.
 
 ## Fix commits
 
-- NON-FORCE synchronization merge: `b271ca3ece46e2bf02dea1183313040a3af8c19d`.
 - ERR-0023 product-copy fix: `d0207d43dabd66406df630a2cdff89e6f56b259b`.
-- Ledger update: `537a9423335f74acf22a21ff8e979d88f4a6ea02`.
+- Current NON-FORCE synchronization merge: `2778583a47a0a123911d4cddb4c700d6a8e61ef2`.
+- Current Ledger refresh: `e143a8d51791ae2d9796d507babc50c6603de6e0`.
 
 ## Integrator handoff
 
 - HOLD ERR-0023 pending real verification of `d0207d43dabd66406df630a2cdff89e6f56b259b` or a byte-identical successor.
 - Verification target: `tests/unit/test_pathena_jobs_lifecycle.py`, Ruff, then canonical Quality/full pytest.
 - Do not weaken the existing product-language assertions or substitute a harness workaround.
+- Do not treat UI Quality `34184326892` as a distinct root cause until its exact pytest diagnostic is available; deduplicate if it proves to be ERR-0023.
+- Spec/Core head `b6fab29930459642ab41b42970ca87b92f4e563d` is exact-green via `34183001443`.
+- Consume Backend `34183552569` when complete.
 - Do not treat ERR-0023 correction as global Develop promotion readiness.
 - Preserve Windows path safety, Storage, Security, Provider/Transport, Recovery, Ruff, mypy, Validator and release crash-regression guards.
 
@@ -61,6 +64,6 @@ Retain without reopening absent exact-current reproduction: Windows `pypdf` meta
 ## Next scan
 
 1. Verify ERR-0023 on exact fix SHA or byte-identical owner successor with focused Jobs lifecycle, Ruff and canonical Quality.
-2. Consume the newest completed Backend/UI/Spec-Core Quality evidence and current Develop/runtime signals.
+2. Consume Backend `34183552569` when complete and obtain the exact UI `34184326892` pytest diagnostic if the connector exposes it later.
 3. Allocate or reopen only concrete deduplicated primary failures.
 4. Before Beta/release promotion, run the known-crash matrix on the exact candidate SHA.
