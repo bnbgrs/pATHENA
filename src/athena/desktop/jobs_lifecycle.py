@@ -44,7 +44,7 @@ class JobActionAvailability:
         if self.state not in _KNOWN_STATES:
             return "This job has an unrecognized state; actions are unavailable."
         if self.state in _TERMINAL_STATES:
-            return f"This job is {self.state}; no job actions are available."
+            return f"This job is {self.state}; no actions are available."
         if self.state == "cancel_requested":
             return (
                 "Cancellation has already been requested and is waiting for worker "
