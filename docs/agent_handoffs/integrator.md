@@ -3,31 +3,33 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `270f97c36bd114036658e322f68d8011983ff150`.
+- Develop before this run: `e6ed6eba803e4084b5e5aeaa2ad576dccdaf9961`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `7bfa470504a245889d21865831d75a73dcf9b068`; spec-core `374fb36ed5ecab2a23797e343a49e424ae394d21`; backend `75e45f99ce60b87e0b56ea024d3bed931ec461d4`; UI `8bf24a1d127df730ed563d15323c5a04118e62cb`.
+- Worker heads reviewed: errors `4dd4fecf704302457e3aaf6219851c5cd28923c1`; spec-core `4cb7b137164e411ba02d83ce53926aa615cf3a36`; backend `44e682048fd0e7fa990c46b385931a954ecc0189`; UI `59aa42824d4e7475af29403fb6bbc78fd9c58d08`.
 - `main` and `bnbgrs/ATHENA` were untouched; no force update, history rewrite, auto-merge or main promotion was used.
 
-## Progress this run — composer accessibility unblock
+## Progress this run — Beta Research §65 explicit post-cancel partial result
 
-No current worker product slice was READY at review time: Core §65 exact Quality `34250365477` was cancelled and its synchronized head run `34250419847` remained in progress; Backend exact v41 facade Quality `34251782009` was cancelled and current head run `34251875708` remained pending; UI current head Quality `34252450993` remained pending.
+Spec/Core became READY during independent review: exact current worker head `4cb7b137164e411ba02d83ce53926aa615cf3a36` has canonical ATHENA Quality Gate `34255843664 = success`. The worker lineage is highly divergent, so only the bounded §65 product/test blobs were transplanted; unrelated Personal Memory and cancellation-test files were not imported.
 
-Under progress rule C, the bounded UI accessibility slice from commits `7107fc5bf65fa184178713942d122c26e600aef8` + `8bf24a1d127df730ed563d15323c5a04118e62cb` was independently reviewed and transplanted onto Develop as `a7f91262df194bea0a3c8588bda062b75d4ce167`. Only `src/athena/desktop/pathena_startup_experience_2900.py` and `tests/unit/test_pathena_startup_experience_2900.py` changed: Ground and response-details controls now mirror their existing tooltips into `accessibleDescription`, with a focused regression asserting exact equality. No product copy, action behavior, Core, Backend, Storage, Security, scheduler/worker, packaging or Windows-runtime semantics changed.
+Develop product commit `eeb8a9f3c97c0cacc00c55af8d8a3260d1edccb0` adds `ResearchPartialResultService`. It is opt-in and post-cancel only: the job must be durable `research.exhaustive` in `CANCELLED`, its Research scope must remain durable `PARTIAL`, and an existing incompatible/final result fails closed. The service reuses only completed immutable synthesis artifacts, preserves exact artifact identity/hash/content and SourceAnalysis-artifact provenance, persists explicit `partial=true`, `result_status=partial`, `completion_reason=cancelled`, real coverage/problem-source fields, nullable `final_artifact_id`, and remains idempotent for the same partial representation. It makes no model call and does not fabricate missing evidence or a completed Final Result.
 
-Exact compare from the prior Develop head is ahead-only by one commit, two files, +25/-0. No Skip/XFail or assertion weakening was introduced. The current UI canonical run is still pending, so no global-green or promotion-ready claim is made.
+Develop acceptance commit `e10befce38259f15f2e06f06ab7b1ae38356305f` adds `tests/unit/test_exhaustive_research_partial_result.py`, byte-identical to the exact-green Core worker test blob. The acceptance drives four real captured Sources through processing/analysis, commits a real REDUCE artifact, cancels through the real Research worker, explicitly creates the partial report, checks confirmed artifact hash/provenance and real coverage, retains `PARTIAL`/`CANCELLED`, proves idempotency, and asserts no completed FINAL artifact exists. No Skip/XFail or assertion weakening is present.
+
+Local exact-Develop execution was attempted but the runtime could not resolve `github.com`, so no local pass is fabricated. No automatic workflow run is currently associated with exact Develop commit `e10befce38259f15f2e06f06ab7b1ae38356305f`; global-green/promotion-ready is therefore not claimed. Verification evidence is the exact-green worker head plus byte-identical bounded product/test contents.
 
 ## Current quality/error state
 
-- Error handoff now splits exact Backend v41 failures into `ERR-0026` schema import ordering, `ERR-0027` missing v41 schema facade re-export, `ERR-0028` stale v40-shaped fixtures/expectations, and `ERR-0029` WAL test collaborator drift; `ERR-0025` remains the older independent pytest-only family.
-- Backend v41 must remain held until exact Ruff/schema/WAL evidence is green; production migration and exact-type guards must not be weakened.
-- `ERR-0023` remains `FIXED_PENDING_VERIFY` until exact Develop canonical green evidence exists.
-- All eleven screens remain `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no pixel-level `MATCH` claim is made.
+- Exact Spec/Core head `4cb7b137164e411ba02d83ce53926aa615cf3a36`: Quality `34255843664 = SUCCESS`.
+- Backend exact Ruff-recovery product run `34258124033` was cancelled; documentation successor `44e682048fd0e7fa990c46b385931a954ecc0189` has Quality `34258165867` pending at review time. Backend v41 remains held for `ERR-0026` through `ERR-0029`.
+- Error handoff records `ERR-0023` fixed and older `ERR-0025` stale after exact Develop Quality `34248696450 = SUCCESS`; `ERR-0026` through `ERR-0029` remain in progress.
+- UI-GAP-0004 and UI-GAP-0005 remain technically closed in their exact-green UI lineage; all eleven reference screens remain `IMPLEMENTED_PENDING_VISUAL_REVIEW`, never `MATCH`, because original pixels are unavailable.
 
 ## Next integration order
 
-1. Consume UI Quality `34252450993`, Backend `34251875708`, and Core `34250419847` when completed; integrate exactly one compatible READY successor.
-2. Prefer exact-green Backend v41 recovery because it unblocks Spec/Core §75 durable Delta composition; do not integrate red schema/WAL lineage.
-3. Obtain exact-current-Develop canonical verification for the descendant carrying `a7f91262df194bea0a3c8588bda062b75d4ce167`.
+1. Obtain exact-current-Develop focused §65 plus relevant Research/Core regressions and canonical Quality for the descendant carrying `e10befce38259f15f2e06f06ab7b1ae38356305f`.
+2. Consume Backend Quality `34258165867`; do not integrate v41/schema/WAL work while Ruff/pytest evidence is cancelled, pending or red.
+3. Once Backend v41 is exact-green, prefer the durable Delta prerequisite needed by Spec/Core §75; otherwise consume exactly one independently reviewed exact-green Core/UI successor.
 4. Preserve the release crash-regression matrix before any Windows candidate or promotion claim.
 
 ## Persistent release guards
