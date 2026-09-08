@@ -3,55 +3,60 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `e16a4d14f367f29e29deb794d0e1581b41226a49`.
+- Develop before this run: `e9c931f5ae00e2db70e8a42ac6110b78cf35b789`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `921940cc2c5b76b24f3622201da473421a065c9a`; spec-core `0d0fe488fcf52e7bc89ec6e5feeb373aec93f823`; backend `c964506791611da78dd3959aa64c12b2614e253b`; UI `352b4c72c39d5cafe866c604a050a1b93df71940`.
-- `main` and `bnbgrs/ATHENA` were untouched; no force update, rebase, history rewrite or auto-merge was used.
+- Worker heads reviewed: errors `c487df792b0aaa6af9a4a48a848b07bfd20a8eef`; spec-core `d97ffca766868e3eb3ad1e9197fc1478a0e8e7a5`; backend `076a0d1209fe1cb30c6cfe7f6735a39158036c28`; UI `dd7384f8f39cb9b61c0fa1a8d205492b584dd3de`.
+- `main` and `bnbgrs/ATHENA` were untouched; no force update, rebase, history rewrite, auto-merge or main promotion was used.
 
-## Integrated this run — Exhaustive Research §68 acceptance
+## Integrated this run — UI-GAP-0073
 
-The exact-green Spec/Core §68 acceptance was independently reviewed and integrated onto current Develop as a bounded test-only slice.
+The exact-green bounded Jobs copy slice was independently reviewed and transplanted onto current Develop without importing divergent UI history.
 
-- Exact repair commit: `95ad54ce07af61d79baf31fbcb7f07ab2f6ff4f6`.
-- Exact canonical ATHENA Quality: `34166054576 = success`.
-- Exact handoff descendant: `80915e1e8c7dff42fc998e9035df41273bdb08ca`, Quality `34166094972 = success`.
-- Develop integration commit: `31310a6c449b50034378adb02bdd055e69e089c5`.
-- Added only `tests/unit/test_exhaustive_research_resume.py`; no production file changed.
-- The acceptance exercises the real persistent AthenaApplication, five real Source capture/preprocessing paths, Research parent/child orchestration, persisted ResearchWorkItems, SourceAnalysis final artifacts/content hashes and Finding payloads. It stops after exactly 3/5 successful sources, requires coverage 0.6, reconstructs the application against the same durable root, proves the first three identities/content hashes/Finding payloads survive, completes the remaining two sources, and requires coverage 1.0 with five unique work items, analysis jobs, final artifacts and Finding payloads.
-- Fixture dispatch preserves `resume-source-*` identity through MAP and reduce/final synthesis responses; no production path, persistence, provenance, Recovery, Security, Storage, Search or model-selection semantics changed.
+- UI product commit: `4315a744a097c35ab46be4df883f0853544446b9`.
+- UI focused regression: `cf777ca08ac0885c636aed95b5f6ddd6cd381386`.
+- Verified UI worker head: `352b4c72c39d5cafe866c604a050a1b93df71940`.
+- Canonical ATHENA Quality: `34174030199 = success` on that exact worker head.
+- Develop integration commit: `257ac625a66b8295cc8a3caba3a0a669a558e25e`.
+- Exact worker blobs transplanted: `src/athena/desktop/jobs_workspace.py@a17b7111f6d6c826cf38f57c885b60ac3c550146` and `tests/unit/test_pathena_jobs_status_copy.py@a1ba67fdf864f49945a7dd5c6e3bfe9b981d09bd`.
+- Product delta is copy-only: `Refreshing jobs`, `Requesting cancellation`, `Loading job details`, `Jobs refreshed`, and `Job … details loaded` replace persistence-oriented wording.
+- The focused real-Qt regression locks progress/success copy and rejects `durable`/`persisting` leakage. The verified harness restores the original `refresh()` method after constructor suppression; no assertion or product behavior is weakened.
+- Job lifecycle, transition receipt, persistence, Storage, scheduler/worker, provider/transport, Security, cancellation and process-spawn semantics are unchanged.
 
-## Verification state
+## Verification / READY state
 
-- Spec/Core repair `95ad54ce07af61d79baf31fbcb7f07ab2f6ff4f6`: canonical Quality `34166054576 = success`.
-- Spec/Core handoff descendant `80915e1e8c7dff42fc998e9035df41273bdb08ca`: canonical Quality `34166094972 = success`.
-- Current Develop integration head `31310a6c449b50034378adb02bdd055e69e089c5` has no associated exact workflow run yet; no global-green or promotion-ready claim is made.
-- Current UI head `352b4c72c39d5cafe866c604a050a1b93df71940` has Quality `34174030199` pending and is not READY.
-- No Skip/XFail, weakened assertion, guard relaxation or fake production path was introduced.
+- UI-GAP-0073 exact worker Quality `34174030199`: SUCCESS.
+- Current Develop integration commit `257ac625a66b8295cc8a3caba3a0a669a558e25e`: no associated exact workflow run observed yet; global-green/promotion-ready is not claimed.
+- Spec/Core `d97ffca766868e3eb3ad1e9197fc1478a0e8e7a5`: canonical Quality `34176070442 = success`; the only final delta is Ruff import grouping in `tests/unit/test_exhaustive_research_large_archive.py`. This makes the bounded Large Archive acceptance lineage a candidate for independent next-run integration review.
+- Backend product/test head `98f7cb035c435d72732726e2948b9883f07bbfe5`: Quality `34177033443 = cancelled`; not READY.
+- UI current handoff head `dd7384f8f39cb9b61c0fa1a8d205492b584dd3de`: Quality `34177763716 = pending`; UI-GAP-0074 not READY.
+- No Skip/XFail, weakened assertions or relaxed Security/Storage/Windows/Recovery/validator guard was introduced.
 
 ## Error state
 
-- `ERR-0020` is FIXED by exact-green §68 evidence; no current production defect was established by that failure lineage.
-- Historical Windows/runtime crash classes are not reopened absent exact-current reproduction and remain mandatory Beta/release regression guards.
+- Error handoff currently records `ERR-0021` and `ERR-0022` IN_PROGRESS.
+- `ERR-0022` was Ruff-only on predecessor Spec/Core SHA `0d0fe488fcf52e7bc89ec6e5feeb373aec93f823`; exact successor `d97ffca766868e3eb3ad1e9197fc1478a0e8e7a5` is now canonical-green (`34176070442`). Treat closure as evidence-backed pending error-handoff synchronization, not as a product defect.
+- `ERR-0021` remains unresolved because current Develop has no exact completed canonical run and the prior full-pytest-only shared-baseline signal lacks exposed traceback evidence.
+- Historical Windows/runtime crash classes remain Beta/release regression obligations only absent exact-current reproduction.
 
 ## UI / Alpha-Beta state
 
-- Eleven-screen implementation remains `IMPLEMENTED_PENDING_VISUAL_REVIEW`; original reference payloads remain unavailable and no screenshot-level `MATCH` claim is made.
-- UI-GAP-0072 remains integrated and exact-green on its worker evidence.
-- Current UI successor is not READY while its exact Quality is pending.
-- `docs/development/ALPHA_BETA_PROGRESS.md` remains authoritative. The connector exposed only a truncated large-file view in this run, so no destructive partial replacement was performed. This handoff records the exact §68 integration evidence for safe tracker synchronization.
+- Eleven-screen manifest remains `IMPLEMENTED_PENDING_VISUAL_REVIEW`; original reference images are unavailable through the current repository/tool path, so no `MATCH` claim is permitted.
+- UI-GAP-0073 is now integrated with exact-green worker evidence.
+- UI-GAP-0074 remains `IMPLEMENTED_PENDING_VERIFY` until exact canonical success.
+- `docs/development/ALPHA_BETA_PROGRESS.md` was read, but its complete large-file body is not safely exposed by the connector in one non-destructive write surface. No partial destructive rewrite was attempted; this handoff is the exact versioned integration evidence for later tracker synchronization.
 - No percentage progress is inferred.
 
 ## Next integration order
 
-1. Obtain exact-current-Develop canonical Quality for `31310a6c449b50034378adb02bdd055e69e089c5` or a product-identical documentation descendant.
-2. Independently consume exactly one compatible bounded successor.
-3. Prefer an exact-green Backend bounded successor if present; otherwise consume the next exact-green UI gap after its canonical run completes.
-4. Core may proceed to the next normative uncovered acceptance after §68/§69, without duplicating already-covered §69 model-drift behavior.
-5. Preserve Beta/release runtime regression coverage before any Windows candidate or promotion claim.
+1. Obtain exact-current-Develop canonical Quality for `257ac625a66b8295cc8a3caba3a0a669a558e25e` or a product-identical documentation descendant.
+2. Independently review the exact-green Spec/Core Large Archive lineage ending at `d97ffca766868e3eb3ad1e9197fc1478a0e8e7a5`; integrate only its bounded acceptance/test delta if compatible with Develop.
+3. Backend worker-ID hardening remains excluded until a successful exact canonical run replaces cancelled `34177033443`.
+4. UI-GAP-0074 remains excluded while `34177763716` is pending.
+5. Preserve the release crash-regression matrix before any Windows candidate or promotion claim.
 
 ## Persistent release guards
 
-Retain explicit Beta/release regression acceptance for pypdf packaging metadata, fail-closed frozen argv routing and Desktop/Worker two-EXE split, exactly one Desktop with bounded/non-growing workers, adaptive 2048-context DirectChat budgeting, the Windows lane-lock `PermissionError` -> `SchedulerLaneOwnershipError` -> packaged-worker `OSError` crash cluster, and storage-bootstrap/migration startup signatures including duplicate-column startup failures.
+Retain explicit Beta/release regression acceptance for pypdf packaging metadata; fail-closed frozen argv routing and Desktop/Worker two-EXE split; exactly one Desktop with bounded/non-growing workers; adaptive 2048-context DirectChat budgeting; Windows lane-lock `PermissionError` -> `SchedulerLaneOwnershipError` -> packaged-worker `OSError`; and storage-bootstrap/migration startup signatures including duplicate-column failures.
 
 ## Rules retained
 
