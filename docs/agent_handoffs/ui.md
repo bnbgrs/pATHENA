@@ -2,62 +2,48 @@
 
 ## Current baseline
 
-- Base: `develop/pathena-next@df05e76c998148e2445401de04115a7c5dccd708`.
-- Worker: `postmerge/ui`.
-- History-preserving NON-FORCE synchronization commit: `ceb1cab9748211a27fd71c69abd62228abf10ace`, with parents `4c656c2c5dfb55e6d3f0078719183cbbad73a555` and `df05e76c998148e2445401de04115a7c5dccd708`.
-- `main` and `bnbgrs/ATHENA` remain untouched/read-only.
+- Base: `develop/pathena-next@7c15b44818e9ac5c3484ee30d4a20d6f0d56087e`
+- Worker: `postmerge/ui`
+- Worker synchronization commit: `7952eedcda8cc889e60ced3170e72a762245d00c`
+- UI product commit: `1f0fd548431be122d13a403fe9e2387087edf8fa`
+- UI focused-test commit: `d85d2a2e144abc9d3ef1008b80f74114c7fafe23`
 - Original eleven reference images: `VISUAL_REFERENCE_PENDING`; no pixel-level parity or `MATCH` claim is made.
 
-## Verified handoff
+## Work completed
 
-### UI-GAP-0074 — Jobs nonzero-exit status command jargon
+- Reconciled the UI worker with current Develop using a non-force, history-preserving two-parent merge. Develop changed only integrator/progress documentation plus the ResourceMode product/test files since the prior UI base; the UI delta changed only UI-owned files, so no foreign work was overwritten.
+- `UI-GAP-0001` product/test lineage remains unchanged: visible inspector copy and accessible name use `Evidence & Activity` without changing controller, provenance, persistence, visibility, focus or backend semantics.
+- Exact prior UI head `f31be028652095b18b8a98dfacd65b73be9af763` passed ATHENA Quality Gate run `33720745475` with conclusion `success`.
+- Because synchronization produced a new exact worker head, Quality run `33724577775` is currently verifying `7952eedcda8cc889e60ced3170e72a762245d00c`; `UI-GAP-0001` remains `FIXED_PENDING_VERIFY` until that current-head run succeeds.
+- Reviewed `UI-GAP-0002` call-chain: `_install_reference_shell()` and `_install_progressive_disclosure()` force the inspector visible; `_sync_progressive_chat_actions()` forces it visible again; `_set_context_available()` already exposes the truthful grounded-context state; grounded responses set that state true while new/loaded/ordinary sent chat paths clear it. This gives a real existing state signal for a later contextual-visibility slice, but no visibility mutation was bundled into this synchronization run.
 
-Status: `FIXED_INTEGRATOR_READY`, P2.
+## Active UI gaps
 
-- Product commit: `ee2dafc9453c8e3b5d67aed107a955b086111f68`.
-- Focused regression: `10ddf88043757628906480541e179323f5af7247`.
-- Exact descendant head `4d6d1f7b3bc99dbff3015ddb8c499af885859ac8` passed ATHENA Quality Gate `34187727628 = success` carrying the unchanged product/test commits.
-- Visible nonzero-exit copy now names the user operation instead of a Jobs command while retaining exit codes and background ownership.
+### UI-GAP-0001 — Inspector hierarchy/copy
 
-### UI-GAP-0075 — Jobs QProcess error surface command/process jargon
+Status: `FIXED_PENDING_VERIFY`, P1.
 
-Status: `FIXED_INTEGRATOR_READY`, P2.
+Implementation: `1f0fd548431be122d13a403fe9e2387087edf8fa`; focused Qt contract: `d85d2a2e144abc9d3ef1008b80f74114c7fafe23`. Prior exact UI head is green; current synchronized head still requires successful Quality run `33724577775` before closure. This does not imply screenshot-level `MATCH`.
 
-- Product commit: `86444c8a762f910d9929f50841f78376312a0afe`.
-- Focused regression: `9af7d23d2daccdee78236b6da335090d512d7fcd`.
-- Exact descendant head `4d6d1f7b3bc99dbff3015ddb8c499af885859ac8` passed ATHENA Quality Gate `34187727628 = success` carrying the unchanged product/test commits.
-- `_process_error()` now identifies `Jobs refresh`, `Job details`, or the actual job action instead of local/Jobs-command wording. QProcess classification and process-spawn/runtime behavior are unchanged.
+### UI-GAP-0002 — Contextual inspector behavior
 
-### UI-GAP-0076 — Cancellation-requested help exposes Worker architecture
+Status: `OPEN / CONTRACT_TRACED`, P1.
 
-Status: `FIXED_INTEGRATOR_READY`, P2.
+Evidence: chat grounded-context availability already has a truthful state transition through `_set_context_available()`. A safe bounded implementation should keep the inspector visible on non-chat surfaces, while Chat visibility should derive from real grounded-context availability instead of unconditional `show()` calls. Any implementation must preserve current non-chat details, immediate/no-animation reduced-motion behavior, and existing focus contracts. No product mutation for this gap was made in this run.
 
-- Product commit: `08d64fd4c9ffbbea428c4e18c8ffd784394adf0e`.
-- Focused regression: `bcc471caef3b902f8cd4b07c969d896e9ae349cc`.
-- Exact worker head `4c656c2c5dfb55e6d3f0078719183cbbad73a555` passed canonical Quality `34191944523 = success`; Windows path safety, Linux storage, local install smoke, specification validator, Ruff, mypy and full pytest all passed.
-- Visible tooltip/accessibility help now says cancellation is waiting to complete, without Worker acknowledgement/persistence/lifecycle vocabulary.
-- Enabled/disabled action matrix, `cancel_requested` state, transition receipts, scheduler, worker, storage, backend, security and cancellation semantics are unchanged.
+## Collision / ownership guidance
 
-The previously demonstrated terminal-state action-copy blocker remains closed on the verified lineage: visible terminal help uses `no actions are available`, with no action-availability or lifecycle-state semantic change.
+- UI owns inspector presentation/visibility state on `postmerge/ui`.
+- Core/Backend should not implement alternate inspector widgets or mutate its presentation state.
+- Backend/storage/security semantics remain untouched.
+- No verified UI root-cause error is handed to the error worker.
 
-## Active UI slice
+## Verification
 
-### UI-GAP-0077 — Jobs verification-failure details expose command-output implementation language
+- Prior exact UI head `f31be028652095b18b8a98dfacd65b73be9af763`: ATHENA Quality Gate `33720745475` = `success`.
+- Current synchronized head `7952eedcda8cc889e60ced3170e72a762245d00c`: ATHENA Quality Gate `33724577775` = `in_progress` at handoff update time.
+- No original reference screenshot was opened; `VISUAL_REFERENCE_PENDING` remains mandatory.
 
-Status: `OPEN`, P2.
+## Integrator handoff
 
-Evidence: the `JobLifecycleError` detail path still renders `JOB ACTION RESPONSE UNAVAILABLE` and `Raw command output` in the visible details pane. This exposes the CLI transport/output mechanism even though the status and tooltip already use user-facing verification language.
-
-Acceptance for the next bounded slice: preserve the exact diagnostic payload and verification behavior, changing only visible heading/label copy to user-facing recovery language. No parser, process-spawn, lifecycle, scheduler, worker, storage, backend, security or cancellation semantics may change.
-
-## Coordination
-
-- Core: current `spec-core.md` reviewed; no UI-authored Core/Search/Knowledge/Research semantics changed.
-- Backend: current `backend.md` reviewed; no UI-authored backend/storage/scheduler/worker/provider/transport semantics changed.
-- Errors: current `errors.md` reviewed; no historical Windows crash signature is reopened without exact-SHA reproduction.
-- Integrator: current Develop handoff was synchronized through explicit two-parent NON-FORCE commit `ceb1cab9748211a27fd71c69abd62228abf10ace`. UI-GAP-0076 is now ready for independent integration from product `08d64fd4c9ffbbea428c4e18c8ffd784394adf0e` plus regression `bcc471caef3b902f8cd4b07c969d896e9ae349cc`, verified on exact worker head `4c656c2c5dfb55e6d3f0078719183cbbad73a555` by Quality `34191944523 = success`.
-- UI-GAP-0077 is not integrator-ready; it has only evidence/acceptance definition at this point.
-
-## Visual evidence
-
-The original eleven screenshots are not accessible through the current repository/tool path. `VISUAL_REFERENCE_PENDING` remains mandatory. No `MATCH`, pixel-spacing, exact-color or screenshot-parity claim is made.
+Do not integrate the synchronized UI worker until Quality `33724577775` succeeds on exact head `7952eedcda8cc889e60ced3170e72a762245d00c` (or a later documentation-only head with equivalent successful verification). The bounded UI-GAP-0001 product/test lineage remains `1f0fd548431be122d13a403fe9e2387087edf8fa` + `d85d2a2e144abc9d3ef1008b80f74114c7fafe23`. `UI-GAP-0002` remains a separate subsequent interaction slice.

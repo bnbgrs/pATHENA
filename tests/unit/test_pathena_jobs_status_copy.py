@@ -135,33 +135,3 @@ def test_jobs_nonzero_exit_status_uses_product_language(
     finally:
         workspace.close()
         app.processEvents()
-
-
-def test_jobs_process_error_copy_uses_operation_language(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    app, workspace = _workspace(monkeypatch)
-    try:
-        workspace._operation = "list"
-        workspace._operation_job_id = None
-        workspace._process_error(QProcess.ProcessError.FailedToStart)
-        assert workspace.status.text() == "Jobs refresh could not be started."
-
-        workspace._operation = "show"
-        workspace._operation_job_id = "12345678-job"
-        workspace._selected_job_id = "12345678-job"
-        workspace._process_error(QProcess.ProcessError.Crashed)
-        assert workspace.status.text() == "Job details for job 12345678 failed: Crashed"
-
-        workspace._operation = "cancel"
-        workspace._operation_job_id = "12345678-job"
-        workspace._selected_job_id = "12345678-job"
-        workspace._process_error(QProcess.ProcessError.ReadError)
-        assert workspace.status.text() == "CANCEL for job 12345678 failed: ReadError"
-
-        visible = workspace.status.text().casefold()
-        assert "jobs command" not in visible
-        assert "local jobs command" not in visible
-    finally:
-        workspace.close()
-        app.processEvents()

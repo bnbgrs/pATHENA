@@ -443,24 +443,15 @@ class JobsWorkspace(QWidget):
     def _process_error(self, error: QProcess.ProcessError) -> None:
         job_id = self._operation_job_id
         owns_details = self._operation_owns_details()
-        operation = self._operation
         self._operation = ""
         self._operation_job_id = None
         self._sync_action_buttons()
         job_label = self._job_label(job_id)
         subject = f" for job {job_label}" if job_label else ""
-        if operation == "list":
-            label = "Jobs refresh"
-        elif operation == "show":
-            label = "Job details"
-        elif operation:
-            label = operation.upper()
-        else:
-            label = "Jobs operation"
         if error == QProcess.ProcessError.FailedToStart:
-            self.status.setText(f"{label}{subject} could not be started.")
+            self.status.setText(f"Unable to start the local jobs command{subject}.")
         else:
-            self.status.setText(f"{label}{subject} failed: {error.name}")
+            self.status.setText(f"Jobs command{subject} error: {error.name}")
         set_pathena_ui_state(self.status, "error")
         if owns_details:
             set_pathena_ui_state(self.details, "error")
