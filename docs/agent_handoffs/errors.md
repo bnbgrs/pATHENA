@@ -2,12 +2,12 @@
 
 ## Baseline
 
-- Current baseline reviewed: `develop/pathena-next@df05e76c998148e2445401de04115a7c5dccd708`.
+- Current baseline reviewed: `develop/pathena-next@b5f824082fcd9d335ea55de76f88d23a3c0ee7e8`.
 - Error worker: `postmerge/errors` only.
-- History-preserving NON-FORCE sync this run: `e0c77705ad30102c612a1e8706e769f77f5d8951`.
-- Current Spec/Core head: `ac8dad2af4d5bb8b38c2fdcb6f4ea61b3deb5b00`.
-- Current Backend head: `5fb145df421059314b4d90f53b9fc69b1c4333ab`.
-- Current UI head: `4c656c2c5dfb55e6d3f0078719183cbbad73a555`.
+- History-preserving NON-FORCE sync this run: `0245da229e2a62b12b1d0404f34c729a5aa59319`.
+- Current Spec/Core head: `147d9527ff06ce772aa378e29befa00d77031e9e`.
+- Current Backend head: `ea601b96d681580c2e8f1f1af40c7d97c347511e`.
+- Current UI head: `bcce837f347f8b67f3b4de1ab465f3e80c750eea`.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current error state
@@ -22,31 +22,33 @@
 
 Initial exact failure: Spec/Core `5fbe0dc8b3d7674a18c562e96c118ddf4e476985`, Quality `34186455107`; only full pytest failed.
 
-Concrete owner-side root cause identified and repaired: the acceptance selected work items by list order, not exact source identity, so it did not prove that the item marked UNAVAILABLE belonged to the NAS source. Repair `124bdd9d789230d33452cfbc2452b307d410316c` maps persisted work items through candidate -> `source_id`, selects the actual NAS work item, and retains all unavailable-vs-irrelevant, 2/3 coverage and durability assertions.
+The first demonstrated harness defect is repaired: work-item identity is now resolved through candidate -> exact `source_id` instead of list position. Repair `124bdd9d789230d33452cfbc2452b307d410316c` retains the exact NAS source, UNAVAILABLE-not-IRRELEVANT semantics, processed=3, failed=0, 2/3 coverage and durable-state assertions.
 
-Verification materially advanced but remains red: exact Quality `34190083267` on `124bdd9d789230d33452cfbc2452b307d410316c` passed Local install, Windows path safety, Linux storage, Validator, Ruff and mypy, but full pytest still failed. The ordering/source-identity harness defect is therefore real and fixed, but does not explain the entire remaining full-suite failure. Current handoff descendant `ac8dad2af4d5bb8b38c2fdcb6f4ea61b3deb5b00` has Quality `34190114472` still in progress.
+That repair is conclusively insufficient to close the remaining canonical failure. Exact Quality `34190083267` on the repair failed only full pytest; unchanged handoff descendant `ac8dad2af4d5bb8b38c2fdcb6f4ea61b3deb5b00` failed `34190114472` only full pytest; current unchanged diagnostic descendant `147d9527ff06ce772aa378e29befa00d77031e9e` failed `34194199456` only full pytest. On the latest run, Local install, Windows path safety, Linux storage, specification validator, Ruff and mypy all passed.
 
-Integrator: HOLD §72. Next Error run must consume the exact remaining assertion/traceback or a concrete green/corrective successor; do not repeat the already-fixed list-order hypothesis.
+Root-cause progress this run: list-order/source-identity is explicitly closed as the remaining primary cause. The second failure persists independently after the repair. GitHub job metadata proves only `Quality — pytest` fails and diagnostics upload succeeds; the available connector still cannot expose the uploaded diagnostics payload or pytest traceback, and local direct reproduction remains blocked by transient `github.com` DNS resolution. No speculative product-vs-harness patch is permitted without the exact remaining assertion.
+
+Integrator: HOLD §72. Next Error run must consume the exact remaining pytest assertion/traceback or a concrete corrective successor and then finalize the second root cause or verify its minimal fix. Do not repeat the closed list-order hypothesis.
 
 ## ERR-0023 — terminal Jobs copy
 
-Root cause remains product copy in `src/athena/desktop/jobs_lifecycle.py`; Error fix `d0207d43dabd66406df630a2cdff89e6f56b259b` changed terminal wording to `This job is {state}; no actions are available.`. Develop integration `568d57a63bb2253d97ca63e92b52e1df66505ac9` is still present on current Develop.
+Root cause remains product copy in `src/athena/desktop/jobs_lifecycle.py`; Error fix `d0207d43dabd66406df630a2cdff89e6f56b259b` changed terminal wording to `This job is {state}; no actions are available.`. Develop integration `568d57a63bb2253d97ca63e92b52e1df66505ac9` is an ancestor of current Develop `b5f824082fcd9d335ea55de76f88d23a3c0ee7e8`.
 
-Status remains `FIXED_PENDING_VERIFY`: no completed canonical Quality on a Develop descendant specifically establishes exact verification of the integrated Error wording. Do not substitute equivalent UI wording for exact verification.
+Status remains `FIXED_PENDING_VERIFY`: no completed canonical Quality on the current Develop descendant establishes exact verification of the integrated Error wording. Equivalent UI wording is not substituted for exact Develop verification.
 
 ## Current worker evidence
 
-- Spec/Core: `124bdd9d789230d33452cfbc2452b307d410316c` -> Quality `34190083267 = failure`, pytest-only; `ac8dad2af4d5bb8b38c2fdcb6f4ea61b3deb5b00` -> `34190114472 = in_progress`.
-- Backend: `5df50d524d4177a2fe157cf18cb952ff15df65a4` -> Quality `34187200684 = failure`, pytest-only with all non-pytest gates green. No new ERR allocated without exact assertion; this may deduplicate to an existing shared/full-suite defect. Current Backend `5fb145df421059314b4d90f53b9fc69b1c4333ab` -> `34190743330 = in_progress`.
-- UI: current `4c656c2c5dfb55e6d3f0078719183cbbad73a555` -> Quality `34191944523 = pending`.
-- Develop `df05e76c998148e2445401de04115a7c5dccd708`: no exact completed canonical Quality success establishing global promotion readiness.
+- Spec/Core `147d9527ff06ce772aa378e29befa00d77031e9e` -> Quality `34194199456 = failure`, pytest-only with all non-pytest gates green; deduplicated to `ERR-0024`.
+- Backend product `efdae09dc71a661ea5c81f67b8e2b09ac90c0080` -> Quality `34195556143 = cancelled`; immediate handoff descendant `ea601b96d681580c2e8f1f1af40c7d97c347511e` -> Quality `34195601115 = in_progress`. Cancellation is not allocated as a defect.
+- UI current `bcce837f347f8b67f3b4de1ab465f3e80c750eea` -> Quality `34195898979 = in_progress`.
+- Develop `b5f824082fcd9d335ea55de76f88d23a3c0ee7e8`: no exact completed canonical Quality success establishing global promotion readiness.
 - No exact-current reproduction of historical Windows/runtime crash signatures.
 
 ## Integrator handoff
 
-- HOLD `ERR-0024` / Spec-Core §72 until the remaining full-pytest failure is exactly root-caused and a corrected exact successor is canonical green.
+- HOLD `ERR-0024` / Spec-Core §72 until the second full-pytest failure is exactly root-caused and a corrected exact successor is canonical green.
 - Keep `ERR-0023` at `FIXED_PENDING_VERIFY` until focused Jobs lifecycle + Ruff + canonical Quality succeed on a Develop descendant carrying the exact Error-owned wording.
-- Do not allocate a separate Backend error from `34187200684` until its exact pytest assertion is known and deduplicated.
+- Consume Backend `34195601115` and UI `34195898979` when complete; deduplicate any red signal before allocating a new ERR.
 - Preserve Windows path safety, Storage, Security, Provider/Transport, Recovery, Ruff, mypy, Validator and release crash-regression guards.
 - No global Develop promotion-ready claim.
 
@@ -56,7 +58,7 @@ Retain without reopening absent exact-current reproduction: Windows `pypdf` meta
 
 ## Next scan
 
-1. Consume `34190114472` and exact remaining §72 pytest evidence; finalize `ERR-0024` or verify a concrete owner correction.
-2. Consume Backend `34190743330` and UI `34191944523`; deduplicate any red signal before opening a new ERR.
+1. Consume exact remaining §72 pytest evidence or a concrete corrective Spec/Core successor; finalize the second `ERR-0024` root cause or verify its fix.
+2. Consume Backend `34195601115` and UI `34195898979`; deduplicate before opening any new ERR.
 3. Verify integrated `ERR-0023` on an exact Develop descendant.
 4. Before Beta/release promotion, execute the known-crash matrix on the exact candidate SHA.
