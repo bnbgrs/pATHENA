@@ -1,9 +1,6 @@
 from __future__ import annotations
 
 import pytest
-
-pytest.importorskip("PySide6")
-
 from PySide6.QtCore import QProcess, Qt
 from PySide6.QtWidgets import QApplication, QListWidgetItem
 
@@ -202,7 +199,9 @@ def test_unverified_receipt_fails_closed_and_preserves_raw_output(
         workspace._process_finished(0, QProcess.ExitStatus.NormalExit)
 
         assert workspace.status.property("pathenaUiState") == "error"
-        assert "Raw command output:\nnot-a-receipt" in workspace.details.toPlainText()
+        details = workspace.details.toPlainText()
+        assert "Diagnostic details:\nnot-a-receipt" in details
+        assert "raw command output" not in details.casefold()
         assert workspace._selected_state == "queued"
     finally:
         workspace.close()
