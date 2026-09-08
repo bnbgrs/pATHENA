@@ -393,7 +393,10 @@ class SettingsRuntimeController(QObject):
                 freshness="unavailable",
             )
             return
-        stored = self._read_model(model.backend_model_id)
+        stored = self._read_model(
+            model.backend_model_id,
+            display_name=model.display_name,
+        )
         if stored is None:
             if self.settings.status() != QSettings.Status.NoError:
                 return
@@ -457,7 +460,12 @@ class SettingsRuntimeController(QObject):
             freshness="fresh",
         )
 
-    def _read_model(self, model_id: str) -> StoredModelSettings | None:
+    def _read_model(
+        self,
+        model_id: str,
+        *,
+        display_name: str,
+    ) -> StoredModelSettings | None:
         group = model_storage_group(model_id)
         self.settings.beginGroup(group)
         try:
@@ -472,7 +480,7 @@ class SettingsRuntimeController(QObject):
         if self.settings.status() != QSettings.Status.NoError:
             self._set_state(
                 self.persistence_value,
-                f"{model_id} · local settings unreadable",
+                f"{display_name} · local settings unreadable",
                 "error",
                 freshness="unavailable",
             )
