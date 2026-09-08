@@ -128,6 +128,10 @@ from athena.storage.recovery import (
     DatabaseRecoveryRequiredError,
     inspect_database_read_only,
 )
+from athena.storage.wal_job_hook import (
+    WalAwareDurableJobScheduler,
+    build_wal_job_scheduler_hook,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -523,6 +527,14 @@ class AthenaApplication:
             backup_worker=self.backup_worker,
             resources=self.resources,
             news_worker=self.news,
+        )
+        self.wal_job_scheduler_hook = build_wal_job_scheduler_hook(
+            self.database,
+            interval_seconds=60.0,
+        )
+        self.job_scheduler = WalAwareDurableJobScheduler.from_scheduler(
+            self.job_scheduler,
+            self.wal_job_scheduler_hook,
         )
         self.source_proposal_acceptance = SourceProposalAcceptanceService(
             database=self.database,
