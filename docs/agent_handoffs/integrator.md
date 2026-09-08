@@ -3,33 +3,35 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `e6ed6eba803e4084b5e5aeaa2ad576dccdaf9961`.
+- Develop before this run: `a60b067ebf93481d180065cdf3e85ad3da3a2a5e`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `4dd4fecf704302457e3aaf6219851c5cd28923c1`; spec-core `4cb7b137164e411ba02d83ce53926aa615cf3a36`; backend `44e682048fd0e7fa990c46b385931a954ecc0189`; UI `59aa42824d4e7475af29403fb6bbc78fd9c58d08`.
+- Worker heads reviewed: errors `f282941ced3b0f8df5c2b92ee98b81c7152d5e0a`; spec-core `d8ee2c867b2670455d88433fd213f4217ac2389a`; backend `d2cc107a38b0ae56bd70191b9ac2149c19b2fb26`; UI `19924adc2881b3eff06a6c4c343abba7e635ecbc`.
 - `main` and `bnbgrs/ATHENA` were untouched; no force update, history rewrite, auto-merge or main promotion was used.
 
-## Progress this run — Beta Research §65 explicit post-cancel partial result
+## Progress this run — UI-GAP-0018 / ERR-0011 unavailable-provider freshness
 
-Spec/Core became READY during independent review: exact current worker head `4cb7b137164e411ba02d83ce53926aa615cf3a36` has canonical ATHENA Quality Gate `34255843664 = success`. The worker lineage is highly divergent, so only the bounded §65 product/test blobs were transplanted; unrelated Personal Memory and cancellation-test files were not imported.
+The Alpha/Beta tracker exposes `UI-GAP-0018` as a deferred exact-green Integrator-ready Settings slice. Corrective UI head `9df9d7d46e3c4774aeea5439f91166a2092bd7fb` passed canonical Quality `33926653411` and the Error handoff had already recorded `ERR-0011` fixed.
 
-Develop product commit `eeb8a9f3c97c0cacc00c55af8d8a3260d1edccb0` adds `ResearchPartialResultService`. It is opt-in and post-cancel only: the job must be durable `research.exhaustive` in `CANCELLED`, its Research scope must remain durable `PARTIAL`, and an existing incompatible/final result fails closed. The service reuses only completed immutable synthesis artifacts, preserves exact artifact identity/hash/content and SourceAnalysis-artifact provenance, persists explicit `partial=true`, `result_status=partial`, `completion_reason=cancelled`, real coverage/problem-source fields, nullable `final_artifact_id`, and remains idempotent for the same partial representation. It makes no model call and does not fabricate missing evidence or a completed Final Result.
+Independent current-Develop review confirmed the defect remained on `a60b067ebf93481d180065cdf3e85ad3da3a2a5e`: `apply_snapshot()` rendered an absent provider as unavailable/error but still copied `resolved_model_freshness` directly into provider and provider-detail runtime metadata. The worker product diff is bounded to `src/athena/desktop/pathena_settings_runtime.py`, three additions/two deletions, with no provider/Core/Storage/Security/scheduler/worker/runtime side effects.
 
-Develop acceptance commit `e10befce38259f15f2e06f06ab7b1ae38356305f` adds `tests/unit/test_exhaustive_research_partial_result.py`, byte-identical to the exact-green Core worker test blob. The acceptance drives four real captured Sources through processing/analysis, commits a real REDUCE artifact, cancels through the real Research worker, explicitly creates the partial report, checks confirmed artifact hash/provenance and real coverage, retains `PARTIAL`/`CANCELLED`, proves idempotency, and asserts no completed FINAL artifact exists. No Skip/XFail or assertion weakening is present.
+Develop product commit `e2142e4590cb09132b5359551477fd844a59979c` transplants the exact verified worker blob `89f9765d3955e639f7004c2d49b6f86f5485efe1`. It derives `provider_freshness = unavailable` whenever the provider snapshot is absent and applies that freshness consistently to both `settingsProviderState` and `settingsRuntimeDetail`. Existing visible copy, UI state, provider readiness logic, persistence, Local-Core/Internet truthfulness and connection-failure handling remain unchanged.
 
-Local exact-Develop execution was attempted but the runtime could not resolve `github.com`, so no local pass is fabricated. No automatic workflow run is currently associated with exact Develop commit `e10befce38259f15f2e06f06ab7b1ae38356305f`; global-green/promotion-ready is therefore not claimed. Verification evidence is the exact-green worker head plus byte-identical bounded product/test contents.
+`docs/development/ALPHA_BETA_PROGRESS.md` was updated in `4076c290842a94f4d4465810600edc36951ad6eb` to mark UI-GAP-0018 verified on the integrated lineage and to reconcile the already-present UI-GAP-0017 semantics. No percentage or visual MATCH claim was introduced.
 
 ## Current quality/error state
 
-- Exact Spec/Core head `4cb7b137164e411ba02d83ce53926aa615cf3a36`: Quality `34255843664 = SUCCESS`.
-- Backend exact Ruff-recovery product run `34258124033` was cancelled; documentation successor `44e682048fd0e7fa990c46b385931a954ecc0189` has Quality `34258165867` pending at review time. Backend v41 remains held for `ERR-0026` through `ERR-0029`.
-- Error handoff records `ERR-0023` fixed and older `ERR-0025` stale after exact Develop Quality `34248696450 = SUCCESS`; `ERR-0026` through `ERR-0029` remain in progress.
-- UI-GAP-0004 and UI-GAP-0005 remain technically closed in their exact-green UI lineage; all eleven reference screens remain `IMPLEMENTED_PENDING_VISUAL_REVIEW`, never `MATCH`, because original pixels are unavailable.
+- UI-GAP-0018 exact worker evidence: head `9df9d7d46e3c4774aeea5439f91166a2092bd7fb`, canonical Quality `33926653411 = SUCCESS`.
+- Exact current Develop after documentation has no completed canonical Quality claim yet; promotion-ready remains false.
+- Backend current head `d2cc107a38b0ae56bd70191b9ac2149c19b2fb26` failed Quality `34263109322`; Backend v41 remains held while `ERR-0026` through `ERR-0029` are unresolved.
+- UI current head `19924adc2881b3eff06a6c4c343abba7e635ecbc` has Quality `34264917412` pending and is not consumed in this run.
+- Spec/Core §65 remains exact-green/integrated; §75 stays blocked on exact-green Backend durable Delta persistence.
+- Historical Windows/runtime crash signatures remain release-regression knowledge only absent exact-current reproduction.
 
 ## Next integration order
 
-1. Obtain exact-current-Develop focused §65 plus relevant Research/Core regressions and canonical Quality for the descendant carrying `e10befce38259f15f2e06f06ab7b1ae38356305f`.
-2. Consume Backend Quality `34258165867`; do not integrate v41/schema/WAL work while Ruff/pytest evidence is cancelled, pending or red.
-3. Once Backend v41 is exact-green, prefer the durable Delta prerequisite needed by Spec/Core §75; otherwise consume exactly one independently reviewed exact-green Core/UI successor.
+1. Obtain exact-current-Develop focused Settings regressions plus canonical Quality for the descendant carrying `e2142e4590cb09132b5359551477fd844a59979c`.
+2. Consume exact completed Backend/UI/Core Quality evidence; integrate exactly one compatible READY bounded successor.
+3. Prefer Backend durable Delta/§75 prerequisite only after Backend v41 is exact-green; otherwise independently review another deferred exact-green Settings slice such as UI-GAP-0020.
 4. Preserve the release crash-regression matrix before any Windows candidate or promotion claim.
 
 ## Persistent release guards
