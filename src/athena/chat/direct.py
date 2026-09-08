@@ -76,6 +76,24 @@ def _optional_temperature(value: object | None) -> float | None:
     return normalized
 
 
+def _effective_output_reserve(
+    *,
+    context_limit: int,
+    estimated_input_tokens: int,
+    requested_output_reserve: int,
+    safety_margin: int,
+) -> int:
+    """Fit output reserve into the loaded context without consuming the safety margin."""
+
+    available_output_tokens = context_limit - estimated_input_tokens - safety_margin
+    if available_output_tokens < 1:
+        raise ContextBuilderError(
+            "Recent conversation plus current input and safety margin exhaust the active "
+            "model context before any output can be generated."
+        )
+    return min(requested_output_reserve, available_output_tokens)
+
+
 @dataclass(frozen=True, slots=True)
 class DirectChatGenerationResult:
     generation: ChatGenerationResult
@@ -158,16 +176,17 @@ class DirectChatService:
         conversation_tokens = _estimate_persisted_messages(recent_messages)
         current_user_tokens = estimate_tokens(content) + _MESSAGE_WRAPPER_ESTIMATE
         estimated_input_tokens = conversation_tokens + current_user_tokens
+        effective_output_reserve = _effective_output_reserve(
+            context_limit=context_limit,
+            estimated_input_tokens=estimated_input_tokens,
+            requested_output_reserve=validated_output_reserve,
+            safety_margin=validated_safety_margin,
+        )
         estimated_total_tokens = (
             estimated_input_tokens
-            + validated_output_reserve
+            + effective_output_reserve
             + validated_safety_margin
         )
-        if estimated_total_tokens > context_limit:
-            raise ContextBuilderError(
-                "Recent conversation plus current input, output reserve and safety "
-                "margin exceed the active model context."
-            )
 
         self.context_packages.assert_snapshot_current(
             retrieval_snapshot_commit_seq,
@@ -182,7 +201,7 @@ class DirectChatService:
             "safety_margin": validated_safety_margin,
         }
         generation_parameters: dict[str, object] = {
-            "max_output_tokens": validated_output_reserve,
+            "max_output_tokens": effective_output_reserve,
             "reasoning_mode": reasoning_mode,
         }
         if validated_temperature is not None:
@@ -243,7 +262,7 @@ class DirectChatService:
             budget=ContextPackageBudget(
                 effective_context_limit=context_limit,
                 context_budget=0,
-                output_reserve=validated_output_reserve,
+                output_reserve=effective_output_reserve,
                 safety_margin=validated_safety_margin,
             ),
             sections=sections,

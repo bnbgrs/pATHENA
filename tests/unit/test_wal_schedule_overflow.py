@@ -13,17 +13,23 @@ from athena.storage.wal_maintenance import (
 from athena.storage.wal_schedule import WalMaintenanceIntervalRunner
 
 
-class _NoSideEffectOrchestrator(WalMaintenanceOrchestrator):
-    def __init__(self) -> None:
-        pass
+def _no_side_effect_orchestrator(
+    monkeypatch: pytest.MonkeyPatch,
+) -> WalMaintenanceOrchestrator:
+    orchestrator = object.__new__(WalMaintenanceOrchestrator)
 
-    def run_cycle(self) -> WalMaintenanceDiagnosis:
+    def run_cycle(_self: WalMaintenanceOrchestrator) -> WalMaintenanceDiagnosis:
         raise AssertionError("WAL maintenance must not run before deadline validation")
 
+    monkeypatch.setattr(WalMaintenanceOrchestrator, "run_cycle", run_cycle)
+    return orchestrator
 
-def test_deadline_overflow_fails_before_wal_side_effect() -> None:
+
+def test_deadline_overflow_fails_before_wal_side_effect(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     runner = WalMaintenanceIntervalRunner(
-        _NoSideEffectOrchestrator(),
+        _no_side_effect_orchestrator(monkeypatch),
         interval_seconds=sys.float_info.max,
     )
 
@@ -36,9 +42,11 @@ def test_deadline_overflow_fails_before_wal_side_effect() -> None:
     assert runner.next_due_monotonic is None
 
 
-def test_monotonic_integer_overflow_fails_before_wal_side_effect() -> None:
+def test_monotonic_integer_overflow_fails_before_wal_side_effect(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     runner = WalMaintenanceIntervalRunner(
-        _NoSideEffectOrchestrator(),
+        _no_side_effect_orchestrator(monkeypatch),
         interval_seconds=60.0,
     )
 

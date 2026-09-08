@@ -2,48 +2,49 @@
 
 ## Baseline
 
-- Exact shared baseline reviewed and synchronized: `develop/pathena-next@96297a9e1780021f5a515072a2075fea6566900f`.
-- Pre-run Backend worker: `postmerge/backend@8fd7fd305d027f7367de01e53e95e255801a99f7`.
-- History-preserving NON-FORCE sync: `aa2b37446e1a9e13e252cb48d5a5408141a04806`, parents `8fd7fd305d027f7367de01e53e95e255801a99f7` and exact Develop `96297a9e1780021f5a515072a2075fea6566900f`. Develop-owned Integrator and quiet-message-action lifecycle blobs were imported byte-identically; Backend v41/WAL lineage was preserved.
-- `main` and `bnbgrs/ATHENA` remain untouched/read-only.
+- Exact Develop baseline reviewed: `develop/pathena-next@3421bee8f1ed00f1473a930b759cb7f272345d7e`.
+- Pre-run Backend worker: `postmerge/backend@4495cab0492f0c70e6d0b5cbda1136c1d960ab86`.
+- Candidate is history-preserving: first parent is the existing Backend worker and second parent is exact current Develop; only current Develop's three changed blobs are overlaid before this bounded Backend harness repair.
+- `main` and `bnbgrs/ATHENA` remain untouched/read-only; no force update or history rewrite.
 
 ## Handoffs and exact evidence consumed
 
-- Current Error handoff: `postmerge/errors@159fc680f6b883b60ed9b25a961c02afbd918ece`; it finalizes `ERR-0026` as Ruff I001 import ordering only.
-- Spec/Core, UI and Integrator handoffs were reviewed before mutation; exact Integrator baseline is `develop/pathena-next@96297a9e1780021f5a515072a2075fea6566900f`.
-- Exact predecessor Quality `34276050284` on `8fd7fd305d027f7367de01e53e95e255801a99f7` completed FAILURE: Windows path safety, Linux storage regressions and Local install smoke passed; Python quality had specification-validator PASS, mypy PASS, Ruff FAIL and pytest FAIL.
-- Diagnostics artifact `10077262563` was downloaded and consumed. Canonical pytest improved to `49 failed, 4799 passed, 3 skipped`; the previous dependency-boundary repair therefore removed two failures. Remaining classes are legacy-v41 fixture/current-schema drift and WAL collaborator drift.
+- `postmerge/errors` reports exact Backend Quality `34281292370@4495cab0492f0c70e6d0b5cbda1136c1d960ab86` completed FAILURE. Ruff I001 in `src/athena/storage/schema.py` remains separate and unresolved; specification validator, mypy, Local install smoke, Linux storage regressions and Windows path safety passed.
+- Canonical diagnostics remain split into independent root causes: schema/Ruff `ERR-0026`, schema fixture drift `ERR-0028`, and WAL harness collaborator drift `ERR-0029`.
+- Spec/Core, UI, Integrator and Alpha/Beta tracker were reviewed before mutation. Research §75 stays blocked on exact-green Backend persistence/WAL evidence.
 
-## ExternalAccessGateway priority
+## Develop synchronization
 
-Exact Develop already contains the requested fail-before-side-effect runtime boundaries and regressions: `ttl_seconds` and `max_bytes` require genuine non-bool ints; `timeout_seconds` is numeric, non-bool and finite, rejecting bool/NaN/Inf while preserving valid ranges. The prepared patch remains already executed in the shared lineage and was not duplicated.
+Current Develop advanced by one bounded DirectChat release-guard commit after the prior Backend baseline. This candidate imports byte-identically only:
 
-## Progress this run — exact ERR-0026 execution
+- `docs/agent_handoffs/integrator.md`
+- `src/athena/chat/direct.py`
+- `tests/unit/test_direct_chat_context_budget.py`
 
-The worker was first synchronized to exact current Develop through two-parent NON-FORCE commit `aa2b37446e1a9e13e252cb48d5a5408141a04806`.
+The adaptive 2048-context reserve behavior is therefore inherited without Backend-authored changes.
 
-Product commit `95b077af9e8e648f67863d36b5ddbbc2ec19051c` applies the formatter-proven `ERR-0026` correction only: `DatabaseCompatibilityError` moves from the uppercase section of the consolidated `schema_contract` import block to after `_user_tables`. Exact compare from synchronized baseline to product is one file, `+1/-1`; no schema version, migration, transaction, verification, runtime or error text changed.
+## Bounded progress — ERR-0029 canonical orchestrator harness cluster
 
-Canonical Quality `34281237072` for `95b077af9e8e648f67863d36b5ddbbc2ec19051c` is pending. Ruff PASS, pytest PASS, global-green and promotion-ready are not claimed before exact completion.
+This run closes one coherent harness root-cause cluster: `WalMaintenanceIntervalRunner` intentionally requires `type(orchestrator) is WalMaintenanceOrchestrator`, while `test_wal_maintenance_interval_runner.py` and `test_wal_schedule_overflow.py` supplied subclasses. Production fail-closed exact-type validation is correct and remains unchanged.
 
-## Remaining exact recovery
+The tests now construct exact `WalMaintenanceOrchestrator` instances with `object.__new__` and monkeypatch only `WalMaintenanceOrchestrator.run_cycle` per test. This preserves the test intent: invalid interval/monotonic/deadline inputs must fail before WAL side effects; normal due scheduling still invokes the orchestrator exactly when due; an invalid orchestrator result still fails without rescheduling. No production WAL code, checkpoint policy, scheduler topology or recovery guard changed.
 
-- `ERR-0026`: product fix `95b077af9e8e648f67863d36b5ddbbc2ec19051c`, pending exact Ruff verification.
-- `ERR-0027`: v41 schema-facade constants are present; require focused/canonical verification before FIXED.
-- `ERR-0028`: diagnostics confirm stale v40 expectations and reconstructed v30-v40 fixtures already containing v41-only `research_delta_boundaries`; repair harness only, keeping production migration fail-closed.
-- `ERR-0029`: diagnostics still show noncanonical collaborators in `test_wal_job_hook.py`, `test_wal_maintenance_interval_runner.py` and `test_wal_schedule_overflow.py`; use canonical concrete dependencies or assert the intended exact invalid-dependency boundary, without changing production type guards.
+The separate fake-`DurableJobScheduler` cases in `test_wal_job_hook.py` remain pending under `ERR-0029` and are deliberately not mixed into this bounded candidate.
+
+## ExternalAccessGateway status
+
+Exact Develop already contains the requested fail-before-side-effect runtime boundaries and regressions: `ttl_seconds` and `max_bytes` require genuine non-bool ints; `timeout_seconds` is numeric, non-bool and finite, rejecting bool/NaN/Inf while preserving valid ranges. No duplicate patch is applied.
 
 ## Invariants retained
 
-- v40→v41 remains additive, verified and transactional; Delta lower-bound provenance remains explicit and restart-durable.
-- production migration remains fail-closed for malformed legacy state.
-- production WAL exact-type guards remain unchanged; PASSIVE-only automatic maintenance and explicit-idle TRUNCATE remain unchanged.
-- no silent Tor→Direct fallback; Direct fallback explicit only; no loopback/private proxy leak; redirect re-authorization preserved; HTTPS/default-port/compression/response-size boundaries fail closed.
+- production WAL exact-type guards unchanged; PASSIVE-only automatic maintenance and explicit-idle TRUNCATE unchanged.
+- v40→v41 additive transactional migration and restart-durable Delta lower-bound provenance unchanged.
+- no silent Tor→Direct fallback; redirect/auth/HTTPS/compression/response-size boundaries remain fail-closed.
 - Audit/Provenance/fsync/transactional Source finalization unchanged.
-- no new retry, cryptography, scheduler process/loop/thread/timer, lane-lock, process-tree, packaging or DirectChat behavior.
-- persistent Windows release crash matrix retained without reopening absent exact-current reproduction.
-- no force push, history rewrite or main mutation.
+- no new retries, cryptography, scheduler process/loop/thread/timer, lane-lock, process-tree or packaging behavior.
+- pypdf/frozen argv/two-EXE/bounded worker tree/adaptive 2048-context reserve/Windows lane-lock/storage-bootstrap crash classes remain release-regression guards.
+- no Skip/XFail, assertion weakening, force push, history rewrite or main mutation.
 
-## Next Backend action
+## Verification / next action
 
-Consume exact Quality `34281237072`. If Ruff clears, mark only `ERR-0026` candidate-fixed and immediately repair `ERR-0028` harness fixtures/current expectations without production weakening; then continue `ERR-0029` canonical-collaborator conversion. Run focused v40→v41/restart/Research/WAL plus `tests/unit/test_external_access_gateway.py`, smallest Network/Security regressions and canonical Quality. Do not hand §75 to Core/Integrator until Backend-owned exact failures are green.
+Focused local execution is unavailable in this runtime because github.com DNS checkout fails, so no local PASS is claimed. The candidate must receive exact canonical Quality before any further Backend commit. Consume that exact result first next run. If this WAL subcluster clears, continue only the remaining exact `ERR-0029` fake-`DurableJobScheduler` harness cases or the independently demonstrated schema/Ruff/fixture root cause; do not mark Research §75 Integrator-ready while any Backend-owned exact root cause remains red.

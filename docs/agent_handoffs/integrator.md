@@ -3,45 +3,45 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `cdc9e8e0064db659f9eabbfdb5f3720a76114fd6`.
+- Develop before this run: `96297a9e1780021f5a515072a2075fea6566900f`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `44cfc7cc618fc884568bcb309f1b562b15f357da`; spec-core `de62eb6a657b500f6abd2b1909ff1452c611572a`; backend `8fd7fd305d027f7367de01e53e95e255801a99f7`; UI `4e39464a5a08a34715344bdc7272b6d6658d3687`.
+- Worker heads reviewed: errors `159fc680f6b883b60ed9b25a961c02afbd918ece`; spec-core `de62eb6a657b500f6abd2b1909ff1452c611572a`; backend `4495cab0492f0c70e6d0b5cbda1136c1d960ab86`; UI `90c4704d7ae5cad4c2fe15016ef1b0b73414d323`.
 - `main` and `bnbgrs/ATHENA` were untouched; no force update, history rewrite, auto-merge or main promotion was used.
 
-## Progress this run — UI-GAP-0005 quiet message-action lifecycle guard
+## Progress this run — adaptive DirectChat output reserve
 
-The current UI handoff supplies a bounded READY slice: product/fix `4d128a864ecbb9463e54273d7f0d527910384591` with exact canonical ATHENA Quality `34270643737 = SUCCESS`. The worker failure was an exact Qt lifecycle regression in `tests/unit/test_pathena_pallas_full_view.py::test_open_workspace_reuses_one_synchronized_full_surface`, where `MessageActionQuietController.eventFilter()` could run while the parent-owned controller had no usable `document` binding.
+No current worker was READY at mutation time. UI head `90c4704d7ae5cad4c2fe15016ef1b0b73414d323` had exact canonical Quality `34282327502` still pending, Backend remained in the v41/schema/WAL recovery chain, and Spec/Core remained dependency-held on Backend. The integrator therefore used the bounded cross-cutting rule on a current exact Develop release guard.
 
-Independent review of current Develop confirmed the unsafe direct `self.document` access was still present. The worker fix changes only `src/athena/desktop/pathena_message_action_quiet_7000.py`: the event filter obtains `document = getattr(self, "document", None)` and treats a transient missing binding as a no-op before preserving the existing ChildAdded resynchronization and all hover/focus/emphasis behavior.
+Current Develop still used a fixed 2048-token output reserve plus a 256-token safety margin. With a loaded LM Studio context of 2048 tokens, even a tiny prompt necessarily exceeded the preflight budget. The bounded fix keeps the configured reserve as an upper bound, computes the output actually available after persisted input and the safety margin, and reduces the effective reserve only when the loaded context requires it. If input plus safety margin leaves no token for output, DirectChat still fails closed with `ContextBuilderError`.
 
-Develop commit `7b3064524a2dbbae784458011d54fa9b70d0a59e` applies that bounded production change on exact parent `cdc9e8e0064db659f9eabbfdb5f3720a76114fd6`. The independent Develop compare is ahead-only by one commit, one file, +5/-1. No unrelated UI history, test weakening, Skip/XFail, Backend/Core/Storage/Security/Recovery/scheduler/worker/packaging/Windows mutation was imported.
+The effective reserve is recorded consistently in the model signature, ContextPackage budget and total-token estimate, so provenance reflects the generation budget actually authorized. No provider, Storage, Recovery, Security, scheduler/worker, packaging or Windows process behavior is changed.
+
+Focused regression coverage is added in `tests/unit/test_direct_chat_context_budget.py`: a 2048-token loaded context with a small input receives an adaptive 1728-token reserve; a larger context preserves the configured 2048 reserve; and an exhausted input+safety budget remains fail-closed. No Skip/XFail or assertion weakening was added.
 
 ## Current quality/error state
 
-- UI exact source fix `4d128a864ecbb9463e54273d7f0d527910384591`: canonical Quality `34270643737 = SUCCESS`.
-- Backend current worker head `8fd7fd305d027f7367de01e53e95e255801a99f7` records exact recovery state; Backend v41/§75 remains held until `ERR-0026` through `ERR-0029` are exact-green.
-- Error handoff keeps `ERR-0026` through `ERR-0029` IN_PROGRESS and `ERR-0014`/`ERR-0025` STALE.
-- Spec/Core remains blocked on exact-green Backend persistence before §75 Delta composition.
-- Exact current Develop after this integration has no completed canonical Quality claim yet; promotion-ready remains false.
-- Historical Windows/runtime crash signatures remain release-regression knowledge only absent exact-current reproduction.
+- UI exact head `90c4704d7ae5cad4c2fe15016ef1b0b73414d323`: canonical Quality `34282327502` was pending when Develop mutation was prepared and was therefore not consumed as READY evidence.
+- Backend head `4495cab0492f0c70e6d0b5cbda1136c1d960ab86` remains conservative hold while the current v41/schema/WAL error family is not exact-green.
+- Error head `159fc680f6b883b60ed9b25a961c02afbd918ece` records current formatter/root-cause evidence; historical runtime signatures are not reopened without exact-current reproduction.
+- Spec/Core head `de62eb6a657b500f6abd2b1909ff1452c611572a` remains dependency-held on Backend for the durable Delta chain.
+- Exact Develop canonical Quality must be obtained for the integration commit before any further Develop mutation.
 
 ## Tracker / visual state
 
-- `docs/development/ALPHA_BETA_PROGRESS.md` was read. It already contains a historical capability row keyed `UI-GAP-0005` for persistent desktop system tray, while the current UI handoff independently reuses `UI-GAP-0005` for the quiet message-action lifecycle guard. To avoid silently corrupting the versioned tracker with a numbering collision, no destructive whole-file replacement was made in this run; the collision is explicitly recorded here for later tracker normalization.
-- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` remains exactly eleven slots and all remain `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no `MATCH` claim is allowed without the original reference images.
-- `docs/ui/VISUAL_GAP_LEDGER.md` was read; its existing evidence-backed entries remain unchanged.
-- A separate repository `ERROR_LEDGER` artifact was searched but was not discoverable on the current connector/search surface; `errors.md` is the authoritative exact error handoff consumed this run.
+- `docs/development/ALPHA_BETA_PROGRESS.md` was read as current source of truth. No unsafe truncated whole-file rewrite was attempted; this DirectChat release-guard closure is recorded here until a safe targeted tracker update is available.
+- The 11-screen manifest and Visual-Gap ledger remain evidence sources for UI work; this run has no visual/UI mutation and makes no new `MATCH` claim.
+- Existing duplicate UI-GAP identifier history is not silently renumbered or overwritten.
 
 ## Next integration order
 
-1. Obtain exact-current-Develop focused lifecycle/PALLAS regression plus canonical Quality for the descendant carrying `7b3064524a2dbbae784458011d54fa9b70d0a59e`, or a product-identical successor.
-2. Consume Backend Quality on the current recovery lineage and integrate Backend v41/§75 only after `ERR-0026` through `ERR-0029` are exact-green; do not weaken migration or WAL exact-type guards.
-3. If Backend remains non-READY, choose exactly one collision-free exact-green UI/Core successor; normalize the duplicate `UI-GAP-0005` tracker identifier before relying on that number cross-document.
-4. Preserve the release crash-regression matrix before any Windows candidate or promotion claim.
+1. Do not mutate Develop while canonical Quality for this integration SHA is queued or in progress; first consume its exact result.
+2. If UI `90c4704d7ae5cad4c2fe15016ef1b0b73414d323` obtains exact-head green Quality without superseding commits, review and integrate its bounded black/orange palette slice.
+3. Keep Backend v41/schema/WAL prerequisites conservative; only unblock Spec/Core durable Delta after exact-green Backend evidence.
+4. Preserve the remaining Windows/Packaging/Runtime regression matrix before any Beta/release claim.
 
 ## Persistent release guards
 
-Retain explicit Beta/release regression acceptance for pypdf packaging metadata; fail-closed frozen argv routing and Desktop/Worker two-EXE split; exactly one Desktop with bounded/non-growing workers; adaptive 2048-context DirectChat budgeting; Windows lane-lock `PermissionError` -> `SchedulerLaneOwnershipError` -> packaged-worker `OSError`; and storage-bootstrap/migration startup signatures including duplicate-column failures.
+Retain explicit Beta/release acceptance for pypdf packaging metadata; fail-closed frozen argv routing and Desktop/Worker two-EXE split; exactly one Desktop with bounded/non-growing workers; adaptive 2048-context DirectChat budgeting; Windows lane-lock `PermissionError` -> `SchedulerLaneOwnershipError` -> packaged-worker `OSError`; and storage-bootstrap/migration startup signatures including duplicate-column failures.
 
 ## Rules retained
 
