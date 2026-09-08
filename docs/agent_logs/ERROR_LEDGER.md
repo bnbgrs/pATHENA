@@ -8,12 +8,12 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 
 ## Current baseline
 
-- Baseline reviewed: `develop/pathena-next@249c83ae7dc4a33ceb8491029af4bad09b452e92`.
+- Baseline reviewed: `develop/pathena-next@20619f1310bef9d7d2aa706cff11a974144c47e5`.
 - Error branch mutation lineage: `postmerge/errors` only.
-- History-preserving NON-FORCE synchronization this run: `93c5aaaf4a250b17e83007d510923e0d94a5abed`, parents prior Error head `92893883bb34aff3aea2478c177ce67ce87877da` and current Develop `249c83ae7dc4a33ceb8491029af4bad09b452e92`.
-- Current Spec/Core head reviewed: `af1f9da019fbee21984cf62fb77a2e8bbacaed5b`; Quality `34198712540 = success`.
-- Current Backend head reviewed: `e4370a46bd42785aaea0f5c1806d8d79ced3eb7e`; Quality `34211221630 = in_progress`.
-- Current UI head reviewed: `0bc6947afecd0def64c2cbc0f6bdc1c5b97fc723`; Quality `34211448894 = failure`, pytest-only.
+- History-preserving NON-FORCE synchronization this run: `eda1e559fceddd01ad006f474f987ae7460456bd`, parents prior Error head `234eafe907bfa8681dd8685bc2becd3f3174e95b` and current Develop `20619f1310bef9d7d2aa706cff11a974144c47e5`.
+- Current Spec/Core head reviewed: `a77c1a5c5ef95ebc852cecb80aa13ffec1ad4cb7`.
+- Current Backend head reviewed: `73726422889bec6a43ad6d1b06f201d720b477d0`; Quality `34215906072 = in_progress`.
+- Current UI head reviewed: `31ed3fcb4b13d1cc115c7eb1c7a19c451b3b29ff`; Quality `34216731239 = pending`.
 - `main` and `bnbgrs/ATHENA` remained read-only and untouched.
 
 ## Current state
@@ -30,15 +30,16 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 - Status: `IN_PROGRESS`.
 - Initial exact evidence: Backend Quality `34195601115` on `postmerge/backend@ea601b96d681580c2e8f1f1af40c7d97c347511e`; Local install, Windows path safety, Linux storage, Validator, Ruff and mypy PASS; only full pytest FAIL; diagnostics upload PASS.
 - Prior narrowing remains valid: Backend sync `8b04e8d5816fc908399d3e80a4407edd5fe50473` failed `34205822004` before WAL exact-type product commit `b90b96578146856f726208dcc1d562a26f6059b2`, excluding that product mutation as primary cause.
-- Hard progress this run: Backend descendant `8929474b6bdc4885c51e51de327816d5cf42137c` completed Quality `34206163937 = failure`; Local install, Windows path safety, Linux storage, Validator, Ruff and mypy all PASS and only full pytest FAIL. The failure therefore persists through a later Backend descendant rather than being a transient single-run artifact.
-- Independent persistence: UI synchronization descendant `0bc6947afecd0def64c2cbc0f6bdc1c5b97fc723` completed Quality `34211448894 = failure`; Local install, Windows path safety, Linux storage, Validator, Ruff and mypy PASS and only full pytest FAIL. This is a later independent UI reproduction after the earlier `6cd161d98a54ebfa0c356fe0a3c21660fc1a9812` red.
-- Deduplication remains mandatory: no separate Backend/UI ERR is allocated absent an exact distinct assertion. The repeated worker-lineage pattern strengthens classification as a shared-suite/shared-baseline failure.
-- Exact assertion/traceback is still unavailable through the connector surface; job metadata exposes the failing `Quality — pytest` step and successful diagnostics upload, but not the UTF-8 traceback payload. No speculative product-vs-harness mutation is permitted.
-- Current Backend `e4370a46bd42785aaea0f5c1806d8d79ced3eb7e` is under canonical run `34211221630`; consume it next. If green, diff the first clearing delta; if red, use it as another exact persistence point and continue seeking the exact assertion.
+- Backend descendant `8929474b6bdc4885c51e51de327816d5cf42137c` reproduced the same pytest-only pattern in Quality `34206163937`.
+- Independent UI descendant `0bc6947afecd0def64c2cbc0f6bdc1c5b97fc723` reproduced the same pytest-only pattern in Quality `34211448894`.
+- Hard progress this run: Backend exact SHA `e4370a46bd42785aaea0f5c1806d8d79ced3eb7e` completed Quality `34211221630 = failure`. Local install smoke PASS, Windows path safety PASS, Linux storage regressions PASS, specification validator PASS, Ruff PASS and mypy PASS; `Quality — pytest` alone failed; diagnostics upload PASS. This adds another exact persistence point and rules out treating the prior reds as a single transient worker-run artifact.
+- Root-cause boundary: still a shared-suite/shared-baseline pytest defect until exact assertion evidence proves otherwise. WAL exact-type hardening remains excluded as primary cause. No separate Backend/UI ERR is allocated without an exact distinct assertion.
+- Exact assertion/traceback remains unavailable through the readable connector surface. The canonical diagnostics artifact exists (`canonical-quality-diagnostics-e4370a46bd42785aaea0f5c1806d8d79ced3eb7e`, artifact `10051235357`) but its archive payload is not exposed as UTF-8 by the available GitHub connector. No speculative product-vs-harness mutation is permitted.
+- Current Backend `73726422889bec6a43ad6d1b06f201d720b477d0` is under Quality `34215906072`; consume its exact result next. If green, diff the first clearing delta against the nearest red. If red, continue to seek the exact assertion rather than repeating already-eliminated hypotheses.
 - Affected files: unknown until exact assertion or a concrete clearing delta identifies them.
 - Fix SHA: none.
 - Verification: none; no PASS claimed.
-- Integrator handoff: hold global promotion for `ERR-0025`; do not blame WAL exact-type hardening; deduplicate new pytest-only worker reds under `ERR-0025` unless exact evidence proves a distinct root cause.
+- Integrator handoff: hold global promotion for `ERR-0025`; deduplicate new pytest-only worker reds under this ID unless exact evidence proves a distinct root cause.
 
 ## ERR-0024 — Spec/Core §72 unavailable-NAS acceptance full-pytest failure
 
@@ -55,15 +56,15 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 - Root cause: product copy in `src/athena/desktop/jobs_lifecycle.py::JobActionAvailability.reason()`; harness assertion valid.
 - Minimal Error-owned fix: `d0207d43dabd66406df630a2cdff89e6f56b259b`, terminal copy -> `This job is {state}; no actions are available.`.
 - Develop integration: `568d57a63bb2253d97ca63e92b52e1df66505ac9`; current Develop retains the corrected product content.
-- Exact verification remains pending because current Develop `249c83ae7dc4a33ceb8491029af4bad09b452e92` has no completed exact canonical Quality run; worker pytest-only reds cannot be used as positive verification.
+- Exact verification remains pending because current Develop `20619f1310bef9d7d2aa706cff11a974144c47e5` has no completed exact canonical Quality run; worker pytest-only reds cannot be used as positive verification.
 
 ## Current worker evidence — 2026-09-08
 
-- Spec/Core `af1f9da019fbee21984cf62fb77a2e8bbacaed5b`: Quality `34198712540 = success`.
-- Backend `8929474b6bdc4885c51e51de327816d5cf42137c`: Quality `34206163937 = failure`, pytest-only.
-- Backend current `e4370a46bd42785aaea0f5c1806d8d79ced3eb7e`: Quality `34211221630 = in_progress`.
-- UI current `0bc6947afecd0def64c2cbc0f6bdc1c5b97fc723`: Quality `34211448894 = failure`, pytest-only; all non-pytest canonical gates PASS.
-- Develop `249c83ae7dc4a33ceb8491029af4bad09b452e92`: no exact completed canonical Quality run.
+- Spec/Core current: `a77c1a5c5ef95ebc852cecb80aa13ffec1ad4cb7`.
+- Backend `e4370a46bd42785aaea0f5c1806d8d79ced3eb7e`: Quality `34211221630 = failure`, pytest-only; all other canonical gates PASS.
+- Backend current `73726422889bec6a43ad6d1b06f201d720b477d0`: Quality `34215906072 = in_progress`.
+- UI current `31ed3fcb4b13d1cc115c7eb1c7a19c451b3b29ff`: Quality `34216731239 = pending`; predecessor `1d411da309bb562a019fa547d6e6712f8c3e5757` under `34216723953 = in_progress` at review time.
+- Develop `20619f1310bef9d7d2aa706cff11a974144c47e5`: no associated pull-request-triggered canonical Quality run returned by the connector.
 - No exact-current evidence reproduced retained Windows packaging/process-tree/chat-context/lane-lock/storage-bootstrap crash signatures; none reopened.
 
 ## Historical verified entries
