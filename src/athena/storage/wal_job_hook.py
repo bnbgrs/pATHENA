@@ -29,9 +29,9 @@ class WalJobSchedulerHook:
     """
 
     def __init__(self, scheduler: WalMaintenanceSchedulerAdapter) -> None:
-        if not isinstance(scheduler, WalMaintenanceSchedulerAdapter):
+        if type(scheduler) is not WalMaintenanceSchedulerAdapter:
             raise TypeError(
-                "WAL job scheduler hook requires WalMaintenanceSchedulerAdapter."
+                "WAL job scheduler hook requires canonical WalMaintenanceSchedulerAdapter."
             )
         self.scheduler = scheduler
 
