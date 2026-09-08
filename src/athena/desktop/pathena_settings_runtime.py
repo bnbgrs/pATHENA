@@ -227,6 +227,7 @@ class SettingsRuntimeController(QObject):
         self._last_snapshot = value
         freshness = value.resolved_model_freshness
         provider = value.provider
+        provider_freshness = "unavailable" if provider is None else freshness
 
         if provider is None or freshness == "unavailable":
             provider_text = "Model provider · unavailable"
@@ -241,7 +242,7 @@ class SettingsRuntimeController(QObject):
             self.provider_value,
             provider_text,
             provider_state,
-            freshness=freshness,
+            freshness=provider_freshness,
         )
 
         core_status = value.health.core_status
@@ -275,13 +276,19 @@ class SettingsRuntimeController(QObject):
             "or unsupported capability is inferred."
         )
         provider_detail_error = (
-            provider is not None and freshness == "fresh" and provider.status != "ready"
+            provider is None
+            or freshness == "unavailable"
+            or (
+                provider is not None
+                and freshness == "fresh"
+                and provider.status != "ready"
+            )
         )
         self._set_state(
             self.detail,
             detail_text,
             "error" if value.model_error is not None or provider_detail_error else "idle",
-            freshness=freshness,
+            freshness=provider_freshness,
         )
         self.hydrate_selected_model()
 
