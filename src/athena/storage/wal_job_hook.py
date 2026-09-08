@@ -105,6 +105,42 @@ class WalAwareDurableJobScheduler(DurableJobScheduler):
 
     _wal_housekeeping_hook: WalJobSchedulerHook | None = None
 
+    @classmethod
+    def from_scheduler(
+        cls,
+        scheduler: DurableJobScheduler,
+        hook: WalJobSchedulerHook,
+    ) -> WalAwareDurableJobScheduler:
+        """Recompose an existing scheduler with identical dependencies and policy.
+
+        The conversion performs no scheduler tick, WAL access, database open, thread
+        creation, or timer creation. It exists so application composition can replace
+        the scheduler atomically without duplicating its dependency list or changing
+        the inherited run-loop semantics.
+        """
+        if not isinstance(scheduler, DurableJobScheduler):
+            raise TypeError("WAL-aware scheduler source must be DurableJobScheduler.")
+        if isinstance(scheduler, WalAwareDurableJobScheduler):
+            raise ValueError("Scheduler is already WAL-aware.")
+        if not isinstance(hook, WalJobSchedulerHook):
+            raise TypeError("WAL-aware scheduler requires WalJobSchedulerHook.")
+
+        converted = cls(
+            jobs=scheduler.jobs,
+            source_worker=scheduler.source_worker,
+            embedding_worker=scheduler.embedding_worker,
+            analysis_worker=scheduler.analysis_worker,
+            extraction_worker=scheduler.extraction_worker,
+            research_worker=scheduler.research_worker,
+            archive_replication_worker=scheduler.archive_replication_worker,
+            backup_worker=scheduler.backup_worker,
+            resources=scheduler.resources,
+            news_worker=scheduler.news_worker,
+            policy=scheduler.policy,
+        )
+        converted.bind_wal_housekeeping(hook)
+        return converted
+
     def bind_wal_housekeeping(self, hook: WalJobSchedulerHook) -> None:
         """Bind the already-composed WAL hook without performing I/O."""
         if not isinstance(hook, WalJobSchedulerHook):
