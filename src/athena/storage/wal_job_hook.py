@@ -91,8 +91,10 @@ def run_scheduler_tick_with_wal_housekeeping(
     """
     normalized_worker_id = _normalize_worker_id(worker_id)
     normalized_lane = SchedulerLane(lane)
-    if not callable(getattr(scheduler, "tick", None)):
-        raise TypeError("WAL scheduler boundary requires a callable scheduler tick.")
+    if type(scheduler) is not DurableJobScheduler:
+        raise TypeError(
+            "WAL scheduler boundary requires the canonical DurableJobScheduler."
+        )
     if not isinstance(hook, WalJobSchedulerHook):
         raise TypeError("WAL scheduler boundary requires WalJobSchedulerHook.")
     hook.run_for_lane(
