@@ -4,106 +4,68 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 
 ## Rules
 
-- Stable IDs use `ERR-####`.
-- Only failures reproduced or evidenced on the stated SHA are opened.
-- Historical failures are not carried forward unless their signature recurs on the current baseline.
-- Cascades are deduplicated under their primary root cause.
-- `FIXED` requires observed verification; unverified fixes remain `FIXED_PENDING_VERIFY`.
-- Allowed states: `OPEN`, `IN_PROGRESS`, `FIXED_PENDING_VERIFY`, `FIXED`, `STALE`, `BLOCKED`.
+Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are opened; cascades are deduplicated. `FIXED` requires real verification. Allowed states: `OPEN`, `IN_PROGRESS`, `FIXED_PENDING_VERIFY`, `FIXED`, `STALE`, `BLOCKED`. No Skip/XFail, dummy success path, weakened assertion, Ruff/mypy/Validator relaxation, Security/Storage/Recovery/Windows guard weakening, main mutation, force-push or history rewrite.
 
 ## Current baseline
 
-- Baseline branch: `develop/pathena-next`
-- Baseline SHA: `7be496d2fcbb94ab81f5e520f2e45ee2820d3fd9`
-- Stable read-only parent: `main` at `0d4d621f8a38ddf8eccfa09622bf193687619943`
-- Worker branch: `postmerge/errors`
-- Worker synchronized history-preservingly and NON-FORCE with exact current Develop before mutation via merge commit `0c26f67871c871a39f0ee980aaa4c21a6e6b2892`.
+- Baseline reviewed: `develop/pathena-next@df05e76c998148e2445401de04115a7c5dccd708`.
+- Error branch mutation lineage: `postmerge/errors` only.
+- History-preserving NON-FORCE synchronization this run: `e0c77705ad30102c612a1e8706e769f77f5d8951`, parents prior Error head `bfefb4fcd9f87e4587984e96689009366be77361` and current Develop `df05e76c998148e2445401de04115a7c5dccd708`.
+- Current Spec/Core head reviewed: `ac8dad2af4d5bb8b38c2fdcb6f4ea61b3deb5b00`.
+- Current Backend head reviewed: `5fb145df421059314b4d90f53b9fc69b1c4333ab`.
+- Current UI head reviewed: `4c656c2c5dfb55e6d3f0078719183cbbad73a555`.
+- `main` and `bnbgrs/ATHENA` remained read-only and untouched.
 
-## Current error state
+## Current state
 
-- OPEN: none.
-- IN_PROGRESS: none.
-- FIXED_PENDING_VERIFY: none.
-- FIXED: `ERR-0001`, `ERR-0002`, `ERR-0003`.
-- BLOCKED: none.
+- FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015` through `ERR-0022`.
+- STALE: `ERR-0014`.
+- FIXED_PENDING_VERIFY: `ERR-0023`.
+- IN_PROGRESS: `ERR-0024`.
+- OPEN/BLOCKED: none.
 
-## Current scan
+## ERR-0024 — Spec/Core §72 unavailable-NAS acceptance full-pytest failure
 
-- Backend canonical Quality run `33755878184` on `a4768d9b0ea57a1161c93f603a5101c28b555276` completed `failure`: specification validator, Ruff, mypy, Windows path safety, Linux storage regressions and Local install smoke passed; only full pytest failed.
-- Diagnostics artifact `9894914799` shows exactly two failures: `tests/unit/test_pathena_window.py::test_reference_body_directly_owns_workspace_and_persistent_inspector` and `tests/unit/test_pathena_window.py::test_reference_inspector_is_persistent_and_composer_action_is_compact`; total result `2 failed, 4488 passed, 3 skipped, 2 warnings`.
-- Both failures assert that the Workspace inspector is permanently visible. The failing Backend lineage and current Develop use product blob `src/athena/desktop/pathena_window.py@b683903cc6e6a1a99950bba168e6e314df545ca1`; `UI-GAP-0002` establishes the intended contextual inspector contract.
-- The initial Error-worker candidate `ebcf0dc2a305e946aabd0309c95316d29a1ebd91` corrected the stale assertions but did not restore the complete previously verified state-transition coverage.
-- Root-cause fix commit `6253577227d427c9bb00707c3e3e578a16c0f9d6` therefore restores the exact canonical-green `tests/unit/test_pathena_window.py` blob `82f492814250536dd003857a4eec2d083e9e13d5` from UI head `ce959e148ddbe8f13952ca56f7d07e7a7ce1addb` rather than weakening coverage.
-- On the current Error head, all three directly relevant blobs are byte-identical to that canonical-green UI lineage: `src/athena/desktop/pathena_window.py@b683903cc6e6a1a99950bba168e6e314df545ca1`, `tests/unit/test_pathena_window.py@82f492814250536dd003857a4eec2d083e9e13d5`, and `tests/unit/test_pathena_ui_presentation.py@171f209728831feb1ac7bb06172e30aee12973ae`.
-- Canonical Quality run `33745885426` on exact UI head `ce959e148ddbe8f13952ca56f7d07e7a7ce1addb` completed `success`. This is observed exact-content verification for the affected product and focused Qt/UI harness blobs; no new local PASS is fabricated after DNS blocked a fresh clone.
-- Qt deleted-`QProcess` stderr remains a warning signal only because it has not produced a reproducible current-lineage failure; no new ERR-ID is allocated without failure evidence.
+- Severity: P2.
+- Status: `IN_PROGRESS`.
+- Initial exact evidence: canonical Quality `34186455107` on `postmerge/spec-core@5fbe0dc8b3d7674a18c562e96c118ddf4e476985`; Local install, Windows path safety, Linux storage, Validator, Ruff and mypy PASS; full pytest FAIL only.
+- Concrete root-cause progress: inspection proved the original acceptance bound SUCCESSFUL/IRRELEVANT/UNAVAILABLE to `work[0..2]` ordering and therefore did not prove the UNAVAILABLE work item belonged to the NAS source. Work-item list order is not source identity.
+- Owner repair: `124bdd9d789230d33452cfbc2452b307d410316c` changes only `tests/unit/test_exhaustive_research_unavailable_nas.py`, resolving each work item through candidate -> exact `source_id`, selecting the actual NAS work item, preserving all coverage/durability assertions.
+- Verification of repair: canonical Quality `34190083267` on exact `124bdd9d789230d33452cfbc2452b307d410316c` again failed only full pytest; Validator/Ruff/mypy/Windows path/Linux storage/local install all PASS. Therefore the demonstrated ordering defect is fixed but is not sufficient to close the canonical failure.
+- Current unchanged handoff descendant `ac8dad2af4d5bb8b38c2fdcb6f4ea61b3deb5b00` has Quality `34190114472` still in progress; no PASS inferred.
+- Exact remaining pytest assertion/traceback is still not exposed through the available diagnostics interface. No product-vs-second-harness classification is invented.
+- Integrator handoff: HOLD §72 until an exact repaired successor completes canonical green; do not weaken exact source identity, unavailable-vs-irrelevant, 2/3 coverage or persistence assertions.
 
-## Entries
+## ERR-0023 — Terminal Jobs action reason leaks implementation-oriented lifecycle wording
 
-### ERR-0001 — Deletion-ledger mutation/cursor boundaries accept malformed runtime types
+- Severity: P2.
+- Status: `FIXED_PENDING_VERIFY`.
+- Failing evidence: canonical Backend Quality `34177086068` on exact `076a0d1209fe1cb30c6cfe7f6735a39158036c28`; full pytest only failed at `tests/unit/test_pathena_jobs_lifecycle.py::test_action_availability_matches_durable_service_states[completed-enabled5]` because visible copy was `no lifecycle action is available`.
+- Root cause: product copy in `src/athena/desktop/jobs_lifecycle.py::JobActionAvailability.reason()` exposed implementation-oriented wording; harness assertion valid.
+- Minimal Error-owned fix: `d0207d43dabd66406df630a2cdff89e6f56b259b`, terminal copy -> `This job is {state}; no actions are available.`.
+- Develop integration: `568d57a63bb2253d97ca63e92b52e1df66505ac9`; current Develop `df05e76c998148e2445401de04115a7c5dccd708` still contains exact corrected line/blob.
+- Exact verification remains pending because no completed canonical Quality run is associated with a Develop descendant specifically verifying this integrated wording. Independent UI lineage previously cleared the same defect class but is not substituted for exact Error wording verification.
 
-- first_seen: 2026-09-03
-- last_seen: 2026-09-03
-- checked_sha: `58dbd4d80bc61c4cc8e9cd6d61adaa5b311ea4c3`
-- severity: P2
-- area: Storage / Persistence / Deletion Ledger / Recovery boundary
-- status: `FIXED`
-- exact evidence:
-  - Product fix `780d25d74ce2e310b6a4bc434f547a23163e8b78` is integrated into Develop.
-  - Canonical Backend run `33749788522` passed all 22 deletion-boundary tests plus validator, Ruff, mypy, Windows path safety, Linux storage and local-install smoke on the exact integrated product/test content.
-  - That run's only full-pytest failure was independently identified as UI/PALLAS and later fixed/verifiably green before bounded integration.
-- reproducible path before fix: malformed entity/runtime integer boundaries could cross validation before SQL because Python `bool` is an `int` subclass and annotations did not enforce runtime types.
-- primary root cause: deletion-ledger APIs lacked explicit bool-safe fail-before-SQL runtime validation.
-- affected files: `src/athena/lifecycle/deletion.py`; `tests/unit/test_deletion_ledger_boundaries.py`.
-- fix_commit: `780d25d74ce2e310b6a4bc434f547a23163e8b78`; harness correction `2f705d5e0fc1c77dd60612b5aeaa16d9380e46cd`.
-- verification executed: 22 focused boundary tests PASS inside canonical Backend run `33749788522`; validator/Ruff/mypy/Windows/Linux-storage/local-install PASS.
-- remaining risks: none for this signature absent recurrence.
-- integrator handoff: no action required.
+## Current worker evidence — 2026-09-08
 
-### ERR-0002 — Backend deletion-boundary test import block failed canonical Ruff I001
+- Spec/Core repair SHA `124bdd9d789230d33452cfbc2452b307d410316c`: Quality `34190083267 = failure`, pytest-only; current handoff SHA `ac8dad2af4d5bb8b38c2fdcb6f4ea61b3deb5b00`: Quality `34190114472 = in_progress`.
+- Backend `5df50d524d4177a2fe157cf18cb952ff15df65a4`: Quality `34187200684 = failure`, pytest-only; all non-pytest canonical gates PASS. This is not allocated as a new ERR without exact assertion and may still deduplicate to an existing shared/full-suite defect. Current Backend `5fb145df421059314b4d90f53b9fc69b1c4333ab`: Quality `34190743330 = in_progress`.
+- UI current `4c656c2c5dfb55e6d3f0078719183cbbad73a555`: Quality `34191944523 = pending`; no conclusion inferred.
+- Develop `df05e76c998148e2445401de04115a7c5dccd708` has no exact completed canonical Quality success establishing global promotion readiness.
+- No exact-current evidence reproduced retained Windows packaging/process-tree/chat-context/lane-lock/storage-bootstrap crash signatures; none reopened.
 
-- first_seen: 2026-09-03
-- last_seen: 2026-09-03
-- checked_sha: `58dbd4d80bc61c4cc8e9cd6d61adaa5b311ea4c3`
-- severity: P2
-- area: Quality / Python lint / Storage boundary test harness
-- status: `FIXED`
-- exact evidence: canonical Ruff failure in `33744816398`, import-format-only correction `2f705d5e0fc1c77dd60612b5aeaa16d9380e46cd`, canonical Ruff PASS in `33749788522`.
-- reproducible path: canonical Ruff on the previous Backend lineage reproduced I001.
-- primary root cause: import ordering/formatting defect in `tests/unit/test_deletion_ledger_boundaries.py`.
-- affected files: `tests/unit/test_deletion_ledger_boundaries.py` only.
-- fix_commit: `2f705d5e0fc1c77dd60612b5aeaa16d9380e46cd`.
-- verification executed: canonical Ruff PASS in run `33749788522`.
-- remaining risks: none for this signature.
-- integrator handoff: no action required.
+## Historical verified entries
 
-### ERR-0003 — Shell tests retain obsolete permanently-visible inspector contract
+- `ERR-0004` P2 FIXED — startup/readiness harness Ruff B010/I001; exact-green evidence retained.
+- `ERR-0014` P1 STALE — Qt Desktop controller SIGSEGV; reopen only on exact recurrence.
+- `ERR-0019` P2 FIXED — Personal Memory precedence harness drift.
+- `ERR-0020` P2 FIXED — exhaustive-research resume harness identity loss; verified green successor.
+- `ERR-0021` FIXED — Jobs status-copy constructor-refresh monkeypatch leak; exact red-to-green successor.
+- `ERR-0022` FIXED — Spec/Core Ruff import grouping; exact canonical green.
+- All other prior FIXED entries retain their recorded evidence.
 
-- first_seen: 2026-09-03
-- last_seen: 2026-09-03
-- checked_sha: `7be496d2fcbb94ab81f5e520f2e45ee2820d3fd9`
-- severity: P1
-- area: Qt/Desktop / UI contract harness / contextual Evidence & Activity inspector
-- status: `FIXED`
-- exact evidence:
-  - Canonical Backend Quality run `33755878184` failed only at full pytest with the two stale persistent-inspector assertions; all other canonical jobs/checks passed.
-  - Diagnostics artifact `9894914799` records exactly `2 failed, 4488 passed, 3 skipped, 2 warnings`.
-  - `docs/ui/VISUAL_GAP_LEDGER.md` defines `UI-GAP-0002`: inspector is context-sensitive rather than permanently visible.
-  - Current product blob is `src/athena/desktop/pathena_window.py@b683903cc6e6a1a99950bba168e6e314df545ca1`.
-  - Fix commit `6253577227d427c9bb00707c3e3e578a16c0f9d6` restores exact known-green shell-test blob `tests/unit/test_pathena_window.py@82f492814250536dd003857a4eec2d083e9e13d5`, including Workspace-hidden, context/non-Chat-visible, reset-hidden and return-to-Workspace-hidden state transitions.
-  - Relevant companion suite remains exact known-green blob `tests/unit/test_pathena_ui_presentation.py@171f209728831feb1ac7bb06172e30aee12973ae`.
-  - These exact three blobs match UI head `ce959e148ddbe8f13952ca56f7d07e7a7ce1addb`, whose canonical Quality run `33745885426` completed `success`.
-- reproducible path before fix:
-  1. Construct `PathenaMainWindow` on Workspace with no grounded context.
-  2. `_sync_inspector_visibility()` hides the inspector because `navigation.currentRow() == 0` and no context is available.
-  3. The stale integrated shell tests asserted permanent visibility and failed.
-- primary root cause: integration retained obsolete `test_pathena_window.py` coverage after the verified `UI-GAP-0002` product contract changed to contextual inspector visibility. This is test-harness/contract drift, not a product visibility regression.
-- affected files: `tests/unit/test_pathena_window.py`; product reference `src/athena/desktop/pathena_window.py` unchanged.
-- fix_commit: `6253577227d427c9bb00707c3e3e578a16c0f9d6`.
-- verification executed: canonical Quality run `33745885426` PASS on byte-identical affected product and focused harness blobs; current Error branch blob identities rechecked after fix. Fresh local execution attempted but blocked before checkout by DNS failure resolving `github.com`, so no separate local PASS is claimed.
-- remaining risks: final integration onto Develop should retain the exact restored test blob; Qt deleted-`QProcess` stderr remains scan-only until reproducible failure evidence appears.
-- integrator handoff: `6253577227d427c9bb00707c3e3e578a16c0f9d6` is integration-ready after the NON-FORCE synchronization merge `0c26f67871c871a39f0ee980aaa4c21a6e6b2892`; preserve the exact test blob and rerun canonical Quality on the resulting Develop SHA when available.
+## Persistent Beta/release regression knowledge
 
-## Historical/stale evidence
+Retain without reopening absent exact-current reproduction: Windows `pypdf` metadata/`PackageNotFoundError`; fail-closed frozen child argv and two-EXE split; exactly one Desktop with bounded/non-growing workers; adaptive 2048-context Chat reserve; lane-lock `PermissionError [Errno 13]` -> `SchedulerLaneOwnershipError` -> packaged-worker `OSError [Errno 22]`; `duplicate column name: source_processing_job_id`; `ATHENA Core startup failed`; `Failed to start service 'storage-bootstrap'`.
 
-Historical pre-consolidation and recovery/platform-parity failures remain stale unless their signature recurs on current `develop/pathena-next`.
+Before Beta/release promotion, explicitly execute the known-crash regression matrix on the exact candidate SHA. No promotion-ready claim is allowed while a known crash signature is reproducible on that candidate.
