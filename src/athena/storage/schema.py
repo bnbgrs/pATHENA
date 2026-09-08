@@ -496,7 +496,7 @@ def _physical_cleanup_operational_error_remnants(
     """Remove unreachable historical error bytes from SQLite storage."""
     if connection.in_transaction:
         raise RuntimeError(
-            "Operational-error physical-cleanup migration requires no active transaction."
+            "Operational-error physical cleanup requires no active transaction."
         )
 
     journal_row = connection.execute("PRAGMA journal_mode").fetchone()
