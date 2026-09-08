@@ -150,9 +150,11 @@ class WalAwareDurableJobScheduler(DurableJobScheduler):
         return converted
 
     def bind_wal_housekeeping(self, hook: WalJobSchedulerHook) -> None:
-        """Bind the already-composed WAL hook without performing I/O."""
+        """Bind the composed WAL hook exactly once without performing I/O."""
         if not isinstance(hook, WalJobSchedulerHook):
             raise TypeError("WAL-aware scheduler requires WalJobSchedulerHook.")
+        if self._wal_housekeeping_hook is not None:
+            raise RuntimeError("WAL-aware scheduler housekeeping is already bound.")
         self._wal_housekeeping_hook = hook
 
     def tick(
