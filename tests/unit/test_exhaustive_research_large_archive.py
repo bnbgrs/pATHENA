@@ -3,10 +3,10 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from test_exhaustive_research_synthesis_service import _prepare_research
 
 from athena.research.models import ResearchSynthesisStage
 from athena.research.synthesis_service import ResearchSynthesisInputTooLargeError
-from test_exhaustive_research_synthesis_service import _prepare_research
 
 
 def test_large_archive_synthesis_splits_until_every_model_call_fits_pinned_context(
