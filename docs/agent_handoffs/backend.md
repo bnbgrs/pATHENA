@@ -2,9 +2,9 @@
 
 ## Baseline
 
-- Shared baseline reviewed: `develop/pathena-next@9fb4f005ebb34f835f5a6c362965ad35cd2f3efb`.
-- Pre-run worker: `postmerge/backend@255e73eae28651c20ae1baa660c4087f4a62f128`.
-- History-preserving NON-FORCE sync: `dbf94e1d18ff6f69f84dff04659a8300596b7254`, parents `255e73eae28651c20ae1baa660c4087f4a62f128` and exact Develop `9fb4f005ebb34f835f5a6c362965ad35cd2f3efb`; only Develop-owned `integrator.md` and `pathena_settings_runtime.py` were overlaid byte-identically.
+- Shared baseline reviewed: `develop/pathena-next@4f077e36248a49d261f13d3f3838d62a376f506f`.
+- Pre-run worker: `postmerge/backend@00b630e4915ec85abc08252d85e6403009b48858`.
+- History-preserving NON-FORCE sync: `4e61cba775a4b9b88cd40b33d9c0e33b4eb9fc66`, parents `00b630e4915ec85abc08252d85e6403009b48858` and exact Develop `4f077e36248a49d261f13d3f3838d62a376f506f`; Develop-owned `docs/agent_handoffs/integrator.md` and `tests/unit/test_pathena_jobs_status_copy.py` were imported byte-identically while Backend work was preserved.
 - `main` and `bnbgrs/ATHENA` remain untouched/read-only.
 
 ## ExternalAccessGateway priority
@@ -13,26 +13,19 @@ Exact Develop still contains the requested fail-before-side-effect runtime bound
 
 ## Exact Quality recovery
 
-Completed Quality `34234185972` on exact prior worker `255e73eae28651c20ae1baa660c4087f4a62f128` exposed concrete Backend regressions rather than only the previously shared pytest failure:
+Quality `34239827573` on exact predecessor `00b630e4915ec85abc08252d85e6403009b48858` is now completed FAILURE. Exact job state:
 
-- Ruff: one `I001` import-order failure in `src/athena/storage/schema.py`.
-- mypy: unreachable rollback branch in `research_delta_migration.py` and a nullable-record assignment conflict in `research/delta_boundary.py`.
-- pytest: `51 failed, 4793 passed, 3 skipped`; diagnostics show v41 schema-expectation/legacy-fixture failures plus compatibility failures from previously hardened WAL exact-type composition tests.
-- Linux storage, Windows path safety and local-install smoke remained green on that exact SHA.
+- specification validator: PASS;
+- Ruff: FAIL;
+- mypy: PASS;
+- canonical pytest: FAIL;
+- Local install smoke: PASS;
+- Linux storage regressions: PASS;
+- Windows path safety: PASS.
 
-Two exact type-check regressions are repaired:
+`ERR-0026` identifies the remaining exact Ruff primary defect as import-order-only `I001` in `src/athena/storage/schema.py`. The two prior mypy regressions are confirmed cleared on this exact run. `ERR-0025` remains the broader pytest family and must be decomposed only from assertion-level evidence; the known v41 schema/legacy-fixture and WAL exact-type compatibility classes remain pending repair without guard weakening.
 
-- `6c983d3f5333e7b6f571b381d981080f85d04637`: replace the mypy-unreachable conditional rollback with unconditional sqlite rollback in the exception path.
-- `200543ac78754664c2559bcc9a998ce558d62ef6`: keep separate `existing_record` and `durable_record` identities so the repository result is correctly narrowed without changing persistence semantics.
-
-No guard, assertion, Skip/XFail, security boundary, WAL policy or migration invariant was weakened. Remaining Ruff and pytest failures are now exact diagnosed work, not speculative ERR-0025-only state.
-
-## Verification
-
-- Diagnostic artifact: `canonical-quality-diagnostics-255e73eae28651c20ae1baa660c4087f4a62f128`, artifact id `10060653294`.
-- Exact prior Quality: `34234185972 = FAILURE`.
-- Current functional head `200543ac78754664c2559bcc9a998ce558d62ef6`: Quality `34239590519 = PENDING` at handoff creation.
-- No PASS/global-green/promotion-ready claim.
+The worker was reconciled to current Develop before further mutation. Sync descendant `4e61cba775a4b9b88cd40b33d9c0e33b4eb9fc66` has canonical Quality `34245022980` in progress at this handoff. No PASS/global-green/promotion-ready claim is made.
 
 ## Invariants retained
 
@@ -46,4 +39,4 @@ No guard, assertion, Skip/XFail, security boundary, WAL policy or migration inva
 
 ## Next Backend action
 
-Consume exact Quality `34239590519` for `200543ac78754664c2559bcc9a998ce558d62ef6` or this documentation-only descendant. Confirm mypy clearing from the real run. Then repair the exact Ruff `I001` in `schema.py` and the v41 schema compatibility regressions without assertion/guard weakening: re-export the v41 contract as required, update current-schema expectations to the truthful v41 migration identity, and make legacy migration fixtures exclude v41-only objects before exercising v40→v41. Separately reconcile the pre-existing WAL exact-type hardening failures by preserving production fail-closed boundaries while adapting test dependencies to canonical concrete collaborators rather than loosening the guards. Run the smallest v40→v41/restart/Research/WAL set and canonical Quality; retain ExternalAccessGateway/network-security evidence.
+Consume exact Quality `34245022980` on the synchronized worker. Repair `ERR-0026` with an import-order-only `src/athena/storage/schema.py` change and real Ruff verification; do not change schema semantics. Then decompose and repair the v41 pytest compatibility failures with truthful v41 schema re-exports/current-version expectations and legacy fixtures that exclude v41-only objects before v40→v41 migration. Preserve production WAL exact-type fail-closed guards and adapt only test collaborators where required. Run the smallest v40→v41/restart/Research/WAL plus ExternalAccessGateway/network-security regressions and canonical Quality. Do not mark §75 Integrator-ready until Backend-owned exact failures are green.
