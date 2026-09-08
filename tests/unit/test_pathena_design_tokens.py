@@ -42,10 +42,11 @@ def test_quiet_text_remains_visually_below_subtle_metadata() -> None:
     assert _relative_luminance(PALETTE.text_subtle) < _relative_luminance(PALETTE.text_muted)
 
 
-def test_reference_palette_is_blue_led_not_legacy_orange() -> None:
-    assert PALETTE.canvas.startswith("#07")
-    assert PALETTE.accent == "#377DFF"
-    assert PALETTE.accent.lower() != "#f26a21"
+def test_reference_palette_is_deep_black_with_functional_orange() -> None:
+    assert PALETTE.canvas == "#060606"
+    assert PALETTE.surface == "#0A0A0A"
+    assert PALETTE.surface_raised == "#0F0F0F"
+    assert PALETTE.accent == "#F26A21"
     assert PALETTE.success != PALETTE.accent
     assert PALETTE.info != PALETTE.accent
     assert PALETTE.question != PALETTE.accent
