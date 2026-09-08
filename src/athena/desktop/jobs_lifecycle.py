@@ -46,10 +46,7 @@ class JobActionAvailability:
         if self.state in _TERMINAL_STATES:
             return f"This job is {self.state}; no actions are available."
         if self.state == "cancel_requested":
-            return (
-                "Cancellation has already been requested and is waiting for worker "
-                "acknowledgement."
-            )
+            return "Cancellation has already been requested and is waiting to complete."
         return f"{action.title()} is unavailable while this job is {self.state}."
 
 
