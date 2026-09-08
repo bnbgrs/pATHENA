@@ -3,50 +3,51 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `ee940a135e0859b3d880d44d873260f0617b17f4`.
+- Develop before this run: `cbc66ecbe8b6080e7e955471a5d7131e2ec84bf9`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `54abf5b205473c29b1c757442b9e6db09ee68e2c`; spec-core `af1f9da019fbee21984cf62fb77a2e8bbacaed5b`; backend `8929474b6bdc4885c51e51de327816d5cf42137c`; UI `6cd161d98a54ebfa0c356fe0a3c21660fc1a9812`.
+- Worker heads reviewed: errors `92893883bb34aff3aea2478c177ce67ce87877da`; spec-core `af1f9da019fbee21984cf62fb77a2e8bbacaed5b`; backend `e4370a46bd42785aaea0f5c1806d8d79ced3eb7e`; UI `0bc6947afecd0def64c2cbc0f6bdc1c5b97fc723`.
 - `main` and `bnbgrs/ATHENA` were untouched; no force update, rebase, history rewrite, auto-merge or main promotion was used.
 
-## Progress this run — UI-GAP-0075 Jobs process-error copy
+## Progress this run — UI-GAP-0014 no-model persistence freshness
 
-No current worker head was fully READY at review: Backend exact Quality on `9c458e2c4af09a54df234cd518f6e82b84ad34f8` was cancelled (`34206121680`), current UI merge-head Quality `34205607335` remained in progress, and predecessor UI Quality `34200490506` failed. The hard progress rule therefore used a previously deferred exact-green bounded UI slice.
+Current Backend Quality `34211221630` and current UI Quality `34211448894` were still pending/in-progress, so neither current worker head was READY. The hard progress rule therefore consumed one previously deferred exact-green bounded slice from the canonical Alpha/Beta tracker.
 
-- Product commit: `86444c8a762f910d9929f50841f78376312a0afe` (`fix(ui): humanize Jobs process errors`).
-- Focused-test commit: `9af7d23d2daccdee78236b6da335090d512d7fcd`.
-- Exact successful descendant: `4d6d1f7b3bc99dbff3015ddb8c499af885859ac8`; ATHENA Quality Gate `34187727628 = success`.
-- Git ancestry check proves `9af7d23d2daccdee78236b6da335090d512d7fcd` is an ancestor of that exact-green descendant (`ahead_by=6`, `behind_by=0`).
-- Develop integration commit: `06c837c59c499d20c26bbdd9467501849f88c09a`.
+- UI-GAP-0014 product lineage culminates at `e1218685577230fa6ad190291ad0f626912853ac`.
+- Focused test commit: `ce7ae251f5d7b8548a21abde6c67cbd2fafa9f24`.
+- Exact successful worker head: `3d3ac638ce35c2bd149cea2358ef726f243244f0`; ATHENA Quality Gate `33897120327 = success`.
+- Independent Develop review confirmed the current branch still reported `pathenaRuntimeFreshness=fresh` when `_selected_model()` returned `None`, while the verified worker contract requires fail-closed `unavailable` with unchanged visible copy and `idle` UI state.
+- Develop product integration commit: `50f80fada32bcf110a329e217a8878b2cdd55474`.
 
-The bounded change replaces implementation-facing QProcess error text with operation-facing product copy. List failures say `Jobs refresh ...`, show failures say `Job details ...`, and lifecycle actions retain the explicit operation/job/error identity. The focused Qt regression forbids visible `jobs command` / `local jobs command` wording. QProcess spawning, operation identity, action availability, receipts, scheduler/worker behavior, persistence, Storage, Security, Recovery, packaging and Windows runtime semantics are unchanged.
+The Develop mutation is exactly one semantic line in `src/athena/desktop/pathena_settings_runtime.py`: `Per-model settings · choose a model` now carries freshness `unavailable` rather than `fresh`. No persistence implementation, storage format, model selection, provider, transport, Security, Recovery, scheduler/worker, packaging or Windows-runtime semantics changed.
 
-The two imported blobs are exactly the worker product/test blobs. Comparing the exact-green descendant against the focused-test commit shows only later integrator docs, terminal Jobs lifecycle wording, and independent Spec/Core acceptance additions; the imported `jobs_workspace.py` and `test_pathena_jobs_status_copy.py` were unchanged after `9af7d23...` on that green lineage.
+The worker focused test itself was not imported because it contains `pytest.importorskip("PySide6")`, while Integrator policy forbids introducing Skip/XFail behavior. Its exact worker lineage nevertheless provides canonical green execution evidence for the product contract; no test or guard was weakened on Develop.
 
 ## Verification state
 
-- `UI-GAP-0075` exact worker lineage is green through Quality `34187727628` on `4d6d1f7b3bc99dbff3015ddb8c499af885859ac8`.
-- Current Develop after product/test integration is `06c837c59c499d20c26bbdd9467501849f88c09a` before this handoff documentation commit.
-- No exact-current-Develop canonical Quality has yet completed on the new descendant; global-green/promotion-ready is not claimed.
-- No Skip/XFail, assertion weakening or guard relaxation was introduced.
+- UI-GAP-0014 exact worker lineage: Quality `33897120327 = success` on exact `3d3ac638ce35c2bd149cea2358ef726f243244f0`.
+- Current Develop product descendant after integration: `50f80fada32bcf110a329e217a8878b2cdd55474` before this documentation commit.
+- Local checkout/test execution remained DNS-blocked (`Could not resolve host: github.com`), so no exact-current-Develop global-green claim is made.
+- No Skip/XFail, assertion weakening or guard relaxation was introduced on Develop.
 
 ## Other worker state
 
-- Error head `54abf5b205473c29b1c757442b9e6db09ee68e2c`: `ERR-0024` is closed; `ERR-0025` tracks the Backend pytest-only failure; `ERR-0023` remains FIXED_PENDING_VERIFY until exact Develop verification.
-- Spec/Core head `af1f9da019fbee21984cf62fb77a2e8bbacaed5b`: §72 exact-green repair already integrated previously; no additional Core slice consumed this run.
-- Backend head `8929474b6bdc4885c51e51de327816d5cf42137c`: canonical WAL-hook exact-type boundary lacks successful exact Quality because run `34206121680` was cancelled; not READY.
-- UI head `6cd161d98a54ebfa0c356fe0a3c21660fc1a9812`: synchronized with current Develop baseline, but run `34205607335` was still in progress at review; not consumed.
+- Error head `92893883bb34aff3aea2478c177ce67ce87877da`: ERR-0025 remains shared pytest-failure investigation; ERR-0023 remains FIXED_PENDING_VERIFY.
+- Spec/Core head `af1f9da019fbee21984cf62fb77a2e8bbacaed5b`: no new bounded Core slice consumed.
+- Backend head `e4370a46bd42785aaea0f5c1806d8d79ced3eb7e`: exact Quality `34211221630` pending at review; WAL runner/adapter changes held.
+- UI head `0bc6947afecd0def64c2cbc0f6bdc1c5b97fc723`: exact Quality `34211448894` in progress at review; current branch delta contains Jobs verification-failure copy but its new focused test uses `pytest.importorskip`, so it is not Integrator-ready under the no-Skip rule.
 
 ## UI / Alpha-Beta state
 
 - Eleven-screen status remains implemented pending visual review; no MATCH claim is made without original-reference evidence.
-- `docs/development/ALPHA_BETA_PROGRESS.md` remains the canonical tracker. No percentage is inferred. The connector does not expose a safe complete replacement body for the large tracker in this run, so no destructive partial rewrite was attempted; this handoff records the exact evidence for the next safe tracker update.
+- `UI-GAP-0014` is now integrated on Develop with exact-green worker evidence; the Alpha/Beta tracker should be updated from `IMPLEMENTED_PENDING_VERIFY` to `VERIFIED` with this integration SHA.
+- No completion percentage is inferred.
 - No historical Windows/runtime crash class is reopened without exact-current reproduction.
 
 ## Next integration order
 
-1. Obtain exact-current-Develop focused Jobs regressions, Ruff and canonical Quality on a descendant carrying `06c837c59c499d20c26bbdd9467501849f88c09a`.
-2. Close `ERR-0023` only if that exact Develop evidence is green; consume any concrete `ERR-0025` traceback/successor before attributing the Backend failure.
-3. Integrate exactly one compatible READY successor: prefer current UI only after exact-green completion, otherwise Backend WAL-hook boundary after exact-green evidence, otherwise a new bounded Core successor.
+1. Consume exact-current Backend/UI Quality results when completed and reject any slice that introduces Skip/XFail or weakens guards.
+2. Obtain exact-current-Develop canonical verification on a descendant carrying `50f80fada32bcf110a329e217a8878b2cdd55474`; close ERR-0023 only on exact green evidence.
+3. Independently review exactly one next deferred exact-green Settings slice (`UI-GAP-0011`, `0012`, `0015`, `0016`, `0017`, `0018`, or `0020`) or a current exact-green Worker successor.
 4. Preserve the release crash-regression matrix before any Windows candidate or promotion claim.
 
 ## Persistent release guards
