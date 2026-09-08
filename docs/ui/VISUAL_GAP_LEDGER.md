@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `d40dc421585193db7bda039d113d7d81ccfb9c03`
+Baseline: `e9c931f5ae00e2db70e8a42ac6110b78cf35b789`
 Integration target: `develop/pathena-next`
 
 Only evidence-backed gaps belong here. The original 11 reference screenshots remain unavailable for direct visual comparison; therefore no pixel-level mismatch or `MATCH` claim is asserted.
@@ -185,7 +185,7 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Severity: `P2`
 - Status: `FIXED`
 - Evidence: the persistent Jobs heading/intro visibly exposed `DURABLE JOB CONTROL`, SQLite, leases/checkpoints, `DurableJobService transitions` and a `GUI-side queue` implementation distinction instead of explaining the product surface.
-- Product commit: `c3637e08e64a6c1f08438b477a940b073b504de3`
+- Product commit: `c3637e08e64c1f08438b477a940b073b504de3`
 - Focused regression commit: `b927515fb5371f02f5da4cf4a90aa3d596d34ed0`
 - Verification evidence: exact UI head `04b4a77b144fb1da1edfa0b0c155f8fe8b583d6c` passed ATHENA Quality Gate `34167675010` with conclusion `success`.
 - Acceptance: heading is simply `JOBS`; intro explains that Research and Sources background work appears here and that the user can inspect/manage jobs. No queue, transition, persistence, scheduler, worker, storage or backend semantics change.
@@ -195,11 +195,24 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Category: `COPY`
 - Screen: `04 — Jobs`
 - Severity: `P2`
-- Status: `IMPLEMENTED_PENDING_VERIFY`
-- Evidence: refresh/show/cancel progress and refresh/show success states still visibly used `durable` and `Persisting cancellation request`, despite these being user actions rather than storage architecture.
+- Status: `FIXED`
+- Evidence: refresh/show/cancel progress and refresh/show success states visibly used `durable` and `Persisting cancellation request`, despite these being user actions rather than storage architecture.
 - Product commit: `4315a744a097c35ab46be4df883f0853544446b9`
 - Focused regression commit: `cf777ca08ac0885c636aed95b5f6ddd6cd381386`
+- Harness correction: `352b4c72c39d5cafe866c604a050a1b93df71940` restores the real `refresh()` method after constructor suppression without weakening assertions or changing product behavior.
+- Verification evidence: exact UI head `352b4c72c39d5cafe866c604a050a1b93df71940` passed ATHENA Quality Gate `34174030199` with conclusion `success`.
 - Acceptance: use `Refreshing jobs`, `Loading job details`, `Requesting cancellation`, `Jobs refreshed` and `Job … details loaded`; leave lifecycle transitions, persistence, scheduler, worker, storage, backend and cancellation semantics unchanged.
+
+## UI-GAP-0074 — Jobs nonzero-exit status exposes command-oriented implementation language
+
+- Category: `COPY`
+- Screen: `04 — Jobs`
+- Severity: `P2`
+- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Evidence: the common nonzero-exit path in `JobsWorkspace._process_finished()` visibly rendered `Jobs command ... failed (exit N)` for refresh, detail loading and job actions, describing the transport/CLI mechanism rather than the user operation.
+- Product commit: `ee2dafc9453c8e3b5d67aed107a955b086111f68`
+- Focused regression commit: `10ddf88043757628906480541e179323f5af7247`
+- Acceptance: list failure says `Jobs could not be refreshed`, show failure says `Job <id> details could not be loaded`, transition failure names the real action and preserves background ownership plus exit code; no command/lifecycle/storage/scheduler/worker/backend semantics change.
 
 ## Evidence blocker
 
