@@ -8,12 +8,12 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 
 ## Current baseline
 
-- Baseline reviewed: `develop/pathena-next@a9b04acc020218ac8991eed7457e4a9428e10bd5`.
+- Baseline reviewed: `develop/pathena-next@1b1b136b63824815f312cbc70e5376c68285dbc0`.
 - Error branch mutation lineage remains `postmerge/errors` only.
-- History-preserving NON-FORCE synchronization merge: `b271ca3ece46e2bf02dea1183313040a3af8c19d`, parents `d35beafc4c5844aae184ad98e619887ce567efe1` and `a9b04acc020218ac8991eed7457e4a9428e10bd5`.
-- Current Spec/Core head reviewed: `71d49c94dde94616705ffb60010ff57fc0ec127e`.
-- Current Backend head reviewed: `43b16ec2b51e5d2f8f624ae2ff4c59e9facd8b08`.
-- Current UI head reviewed: `9af7d23d2daccdee78236b6da335090d512d7fcd`.
+- History-preserving NON-FORCE synchronization merge: `2778583a47a0a123911d4cddb4c700d6a8e61ef2`, parents `226ba95aead51d42b723b787b444a9b001ab3293` and `1b1b136b63824815f312cbc70e5376c68285dbc0`.
+- Current Spec/Core head reviewed: `b6fab29930459642ab41b42970ca87b92f4e563d`.
+- Current Backend head reviewed: `a2635b028d274553dd50a574bea99eb6bd9b02c7`.
+- Current UI head reviewed: `c55d718d363862fc31b7801fda9c71a62845fa31`.
 - `main` and `bnbgrs/ATHENA` remained read-only and untouched.
 
 ## Current state
@@ -31,11 +31,13 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 - Status: `FIXED_PENDING_VERIFY`.
 - Failing evidence: canonical Backend Quality run `34177086068` on exact SHA `076a0d1209fe1cb30c6cfe7f6735a39158036c28`; Local install smoke PASS, Windows path safety PASS, Linux storage PASS, Validator PASS, Ruff PASS, mypy PASS, full pytest FAIL only.
 - Exact failure: `tests/unit/test_pathena_jobs_lifecycle.py::test_action_availability_matches_durable_service_states[completed-enabled5]` at line 51. Expected terminal-state reason not to contain `lifecycle action`; observed `This job is completed; no lifecycle action is available.`. Full suite result: `1 failed, 4821 passed, 3 skipped, 2 warnings`.
-- Root cause: product copy in `src/athena/desktop/jobs_lifecycle.py::JobActionAvailability.reason()` used implementation-oriented phrase `lifecycle action` for terminal states even though the existing UI contract explicitly forbids `persisted state`, `lifecycle mutation`, and `lifecycle action` wording in visible reason text.
+- Root cause: product copy in `src/athena/desktop/jobs_lifecycle.py::JobActionAvailability.reason()` used implementation-oriented phrase `lifecycle action` for terminal states even though the existing UI contract forbids implementation-oriented lifecycle wording in visible reason text.
 - Classification: product-copy defect in product code, not a harness defect. The assertion is retained unchanged.
 - Minimal fix: error-branch commit `d0207d43dabd66406df630a2cdff89e6f56b259b` changes only the terminal-state reason to `This job is {state}; no actions are available.`. State availability, transition routing, persistence, scheduler semantics and guards are unchanged.
 - Affected files: `src/athena/desktop/jobs_lifecycle.py`; verifier `tests/unit/test_pathena_jobs_lifecycle.py` unchanged.
 - Verification: pending. No PASS/FIXED claim until focused Jobs lifecycle + Ruff and canonical Quality succeed on the exact fix SHA or a byte-identical successor.
+- Current Develop `1b1b136b63824815f312cbc70e5376c68285dbc0` still carries the pre-fix product blob (`jobs_lifecycle.py` blob `d53a6b64f597090622b110a454d8bb8525aa27bb`), so Develop does not verify or contain the ERR-0023 correction.
+- Current UI `c55d718d363862fc31b7801fda9c71a62845fa31` differs from Develop only in UI-owned handoff/visual/jobs-workspace/status-copy files and does not modify `src/athena/desktop/jobs_lifecycle.py`; canonical Quality `34184326892` failed only in full pytest while Local install, Windows path safety, Linux storage, Validator, Ruff and mypy passed. The exact pytest traceback is not exposed by the available connector, so this run does not allocate a new error or falsely claim that run as ERR-0023 verification.
 - Integrator handoff: hold ERR-0023 until real verification; do not weaken the product-language assertion.
 
 ## ERR-0022 — Spec/Core Ruff import-grouping failure
@@ -72,10 +74,11 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 
 ## Current scan evidence — 2026-09-08
 
-- Develop `a9b04acc020218ac8991eed7457e4a9428e10bd5` still contains the failing terminal-state copy before the Error fix; no exact Develop-wide green claim is made.
-- Backend `076a0d1209fe1cb30c6cfe7f6735a39158036c28`: Quality `34177086068` completed with exactly one full-pytest failure, ERR-0023; all other canonical jobs/checks passed.
-- Current Backend head `43b16ec2b51e5d2f8f624ae2ff4c59e9facd8b08` is six commits ahead of the failing SHA; its delta does not modify `src/athena/desktop/jobs_lifecycle.py`, so it does not constitute a correction for ERR-0023.
-- Current Spec/Core head `71d49c94dde94616705ffb60010ff57fc0ec127e` and UI head `9af7d23d2daccdee78236b6da335090d512d7fcd` were reviewed for coordination; no matching exact-current historical crash signature was established.
+- Develop `1b1b136b63824815f312cbc70e5376c68285dbc0` is two commits beyond the previous Error baseline and still does not contain the ERR-0023 product-copy fix; no exact Develop-wide green claim is made.
+- Spec/Core `b6fab29930459642ab41b42970ca87b92f4e563d`: canonical Quality `34183001443 = success`; no new Error-ledger primary failure.
+- Backend `a2635b028d274553dd50a574bea99eb6bd9b02c7`: canonical Quality `34183552569` remains in progress at scan time; no PASS/FAIL is inferred before completion.
+- UI `c55d718d363862fc31b7801fda9c71a62845fa31`: canonical Quality `34184326892 = failure`; Local install, Windows path safety, Linux storage, Validator, Ruff and mypy PASS; full pytest FAIL. Diagnostics artifact `10040365284` exists, but the available connector does not expose the traceback payload. UI compare against current Develop shows no `jobs_lifecycle.py` delta. No new stable ERR ID is allocated without the exact failing assertion.
+- Local focused verification of the synchronized Error branch was attempted but environment DNS could not resolve `github.com`; no false local PASS is recorded.
 - No exact-current evidence reproduced retained Windows packaging/process-tree/chat-context/lane-lock/storage-bootstrap crash signatures; none reopened.
 
 ## Persistent Beta/release regression knowledge
