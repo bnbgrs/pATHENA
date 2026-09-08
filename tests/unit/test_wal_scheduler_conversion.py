@@ -8,6 +8,10 @@ from athena.jobs.scheduler import DurableJobScheduler, SchedulerPolicy
 from athena.storage.wal_job_hook import WalAwareDurableJobScheduler, WalJobSchedulerHook
 
 
+class _CustomDurableJobScheduler(DurableJobScheduler):
+    pass
+
+
 def _scheduler_with_sentinels() -> tuple[DurableJobScheduler, object]:
     dependency = object()
     opaque = cast(Any, dependency)
@@ -56,6 +60,27 @@ def test_from_scheduler_rejects_already_wal_aware_scheduler() -> None:
 
     with pytest.raises(ValueError, match="already WAL-aware"):
         WalAwareDurableJobScheduler.from_scheduler(converted, hook)
+
+
+def test_from_scheduler_rejects_noncanonical_scheduler_subclass() -> None:
+    scheduler, _ = _scheduler_with_sentinels()
+    custom = _CustomDurableJobScheduler(
+        jobs=scheduler.jobs,
+        source_worker=scheduler.source_worker,
+        embedding_worker=scheduler.embedding_worker,
+        analysis_worker=scheduler.analysis_worker,
+        extraction_worker=scheduler.extraction_worker,
+        research_worker=scheduler.research_worker,
+        archive_replication_worker=scheduler.archive_replication_worker,
+        backup_worker=scheduler.backup_worker,
+        resources=scheduler.resources,
+        news_worker=scheduler.news_worker,
+        policy=scheduler.policy,
+    )
+    hook = object.__new__(WalJobSchedulerHook)
+
+    with pytest.raises(TypeError, match="canonical DurableJobScheduler"):
+        WalAwareDurableJobScheduler.from_scheduler(custom, hook)
 
 
 def test_from_scheduler_rejects_invalid_hook_before_recomposition() -> None:
