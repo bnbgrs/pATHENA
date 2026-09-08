@@ -36,7 +36,7 @@ def test_invalid_scheduler_fails_before_wal_hook_side_effect() -> None:
 def test_invalid_hook_fails_before_scheduler_dispatch() -> None:
     scheduler = _canonical_scheduler()
 
-    with pytest.raises(TypeError, match="requires the canonical WalJobSchedulerHook"):
+    with pytest.raises(TypeError, match="requires canonical WalJobSchedulerHook"):
         run_scheduler_tick_with_wal_housekeeping(
             scheduler,
             cast(WalJobSchedulerHook, object()),
