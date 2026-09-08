@@ -2,12 +2,12 @@
 
 ## Baseline
 
-- Current baseline reviewed: `develop/pathena-next@cbc66ecbe8b6080e7e955471a5d7131e2ec84bf9`.
+- Current baseline reviewed: `develop/pathena-next@249c83ae7dc4a33ceb8491029af4bad09b452e92`.
 - Error worker: `postmerge/errors` only.
-- History-preserving NON-FORCE synchronization this run: `b560dfcfbae9313e06105829d1de027200a0f30d`.
+- History-preserving NON-FORCE synchronization this run: `93c5aaaf4a250b17e83007d510923e0d94a5abed`.
 - Current Spec/Core: `af1f9da019fbee21984cf62fb77a2e8bbacaed5b`, Quality `34198712540 = success`.
-- Current Backend: `8929474b6bdc4885c51e51de327816d5cf42137c`, Quality `34206163937 = in_progress`.
-- Current UI: `6cd161d98a54ebfa0c356fe0a3c21660fc1a9812`, Quality `34205607335 = failure` at full pytest only.
+- Current Backend: `e4370a46bd42785aaea0f5c1806d8d79ced3eb7e`, Quality `34211221630 = in_progress`.
+- Current UI: `0bc6947afecd0def64c2cbc0f6bdc1c5b97fc723`, Quality `34211448894 = failure` at full pytest only.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current error state
@@ -20,30 +20,32 @@
 
 ## ERR-0025 — shared canonical pytest failure — IN_PROGRESS
 
-Initial Backend Quality `34195601115` on `ea601b96d681580c2e8f1f1af40c7d97c347511e` is pytest-only red with Local install, Windows path safety, Linux storage, Validator, Ruff and mypy green.
+The shared failure is now confirmed persistent across additional exact descendants. Backend `8929474b6bdc4885c51e51de327816d5cf42137c` completed Quality `34206163937 = failure` with Local install, Windows path safety, Linux storage, Validator, Ruff and mypy green and only full pytest red. This extends the earlier Backend evidence and confirms the signal did not disappear on the next descendant.
 
-This run materially narrows root-cause ownership. Backend sync head `8b04e8d5816fc908399d3e80a4407edd5fe50473` also failed Quality `34205822004` before the WAL exact-type product mutation `b90b96578146856f726208dcc1d562a26f6059b2`; therefore that WAL mutation cannot be the primary cause of the already-existing failure. Independently, UI sync head `6cd161d98a54ebfa0c356fe0a3c21660fc1a9812` fails Quality `34205607335` only at full pytest while all non-pytest canonical gates pass and without the Backend WAL product mutation.
+Independent UI synchronization descendant `0bc6947afecd0def64c2cbc0f6bdc1c5b97fc723` likewise completed Quality `34211448894 = failure` with every non-pytest canonical gate green and only full pytest red. It follows the earlier UI red `6cd161d98a54ebfa0c356fe0a3c21660fc1a9812`, so the failure is not a single-run flake on either worker lineage.
 
-Deduplication result: treat these worker reds as one shared-suite/shared-baseline `ERR-0025` unless an exact distinct assertion proves otherwise. Do not allocate a separate UI error from `34205607335` yet. The uploaded diagnostics exist, but the exact traceback payload is not exposed by the available connector surface; no speculative product or harness mutation is allowed.
+Prior root-cause elimination remains binding: Backend sync `8b04e8d5816fc908399d3e80a4407edd5fe50473` failed before WAL exact-type product mutation `b90b96578146856f726208dcc1d562a26f6059b2`; do not blame that product slice. Deduplicate current Backend/UI pytest-only reds under `ERR-0025` unless an exact distinct assertion proves otherwise.
 
-Current Backend head `8929474b6bdc4885c51e51de327816d5cf42137c` is under canonical run `34206163937`; consume that result next. A green result would provide a concrete clearing lineage to diff; a red result must be deduplicated and its exact assertion obtained before mutation.
+The exact pytest traceback is still not exposed by the available GitHub connector surface. Job metadata proves `Quality — pytest` is the sole failing canonical quality step and diagnostics upload succeeds, but the uploaded payload itself is unavailable as readable evidence. Therefore no speculative product or harness mutation is authorized.
+
+Current Backend `e4370a46bd42785aaea0f5c1806d8d79ced3eb7e` is running Quality `34211221630`; consume it first next run. A green result becomes the first concrete clearing descendant and must be diffed narrowly. A red result further localizes persistence but still requires exact assertion evidence before mutation.
 
 ## ERR-0023 — terminal Jobs copy — FIXED_PENDING_VERIFY
 
-Error fix `d0207d43dabd66406df630a2cdff89e6f56b259b` changed terminal wording to `This job is {state}; no actions are available.`. Develop integration `568d57a63bb2253d97ca63e92b52e1df66505ac9` is retained by current Develop, whose exact product blob is `src/athena/desktop/jobs_lifecycle.py@a661beaa6cbcc4fe35178e24d1f56de8db7d9ff9`.
-
-Do not mark FIXED yet: current Develop `cbc66ecbe8b6080e7e955471a5d7131e2ec84bf9` has no completed exact canonical Quality run, and current UI is pytest-only red rather than a verification surface.
+Error fix `d0207d43dabd66406df630a2cdff89e6f56b259b` changed terminal wording to `This job is {state}; no actions are available.` and Develop integration `568d57a63bb2253d97ca63e92b52e1df66505ac9` remains present. Do not mark FIXED yet: current Develop `249c83ae7dc4a33ceb8491029af4bad09b452e92` has no completed exact canonical Quality run.
 
 ## ERR-0024 — §72 unavailable-NAS acceptance — FIXED
 
-Exact corrected Spec/Core head `772c2bfdc8767b7c0d032dbb8709120de635f6c0` passed Quality `34198674038`. Current documentation descendant `af1f9da019fbee21984cf62fb77a2e8bbacaed5b` independently completed Quality `34198712540 = success`. Keep the hold cleared and preserve exact source identity, UNAVAILABLE-not-IRRELEVANT semantics and durability assertions.
+Exact corrected Spec/Core head `772c2bfdc8767b7c0d032dbb8709120de635f6c0` passed Quality `34198674038`; current Spec/Core descendant `af1f9da019fbee21984cf62fb77a2e8bbacaed5b` passed `34198712540`.
 
 ## Integrator handoff
 
-- HOLD global promotion for `ERR-0025`, but do not pin blame on the WAL exact-type product slice: the canonical red predates it and independently recurs on UI synchronization lineage.
-- KEEP `ERR-0023` at `FIXED_PENDING_VERIFY` until focused Jobs lifecycle + Ruff + canonical Quality succeed on an exact Develop descendant carrying `a661beaa6cbcc4fe35178e24d1f56de8db7d9ff9` or byte-identical corrected content.
-- CLEAR `ERR-0024`; current Spec/Core is exact green via `34198712540`.
-- Consume Backend `34206163937` when complete and use its result to localize `ERR-0025`; deduplicate before allocating any new ERR.
+- HOLD global promotion for `ERR-0025`.
+- DO NOT assign primary blame to WAL exact-type hardening; the canonical failure predates it and independently persists on UI lineage.
+- DEDUPLICATE new worker pytest-only reds under `ERR-0025` unless an exact distinct assertion proves a separate root cause.
+- KEEP `ERR-0023` at `FIXED_PENDING_VERIFY` until canonical Quality succeeds on an exact Develop descendant carrying the corrected Jobs lifecycle wording.
+- CLEAR `ERR-0024`; Spec/Core remains exact green.
+- Consume Backend `34211221630` next; if green, diff only the clearing delta against the nearest red ancestor. If red, continue seeking the exact pytest assertion rather than repeating already-eliminated hypotheses.
 - Preserve Windows path safety, Storage, Security, Provider/Transport, Recovery, Ruff, mypy, Validator and known release crash-regression guards.
 - No global Develop promotion-ready claim.
 
@@ -53,7 +55,7 @@ Retain without reopening absent exact-current reproduction: Windows `pypdf` meta
 
 ## Next scan
 
-1. Consume Backend Quality `34206163937` on exact `8929474b6bdc4885c51e51de327816d5cf42137c`.
-2. If red, obtain the exact pytest assertion or identify a concrete first green descendant and diff only the clearing delta; do not repeat WAL-blame analysis.
-3. Verify `ERR-0023` on an exact Develop descendant with completed canonical Quality.
+1. Consume Backend Quality `34211221630` on exact `e4370a46bd42785aaea0f5c1806d8d79ced3eb7e`.
+2. If green, identify the first clearing delta from the nearest exact red; if red, obtain exact pytest assertion/traceback before mutation.
+3. Check for an exact Develop Quality run to verify `ERR-0023`.
 4. Before Beta/release promotion, execute the known-crash matrix on the exact candidate SHA.
