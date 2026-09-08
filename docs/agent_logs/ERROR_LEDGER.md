@@ -8,13 +8,13 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 
 ## Current baseline
 
-- Baseline reviewed: `develop/pathena-next@9606fdf8f43e97136288b41be922f97477ffc102`.
+- Baseline reviewed: `develop/pathena-next@cdc9e8e0064db659f9eabbfdb5f3720a76114fd6`.
 - Error branch mutation lineage: `postmerge/errors` only.
-- History-preserving NON-FORCE synchronization with current Develop: merge commit `9fa9936d4ad8f5b80c2f612ac197437534f9acc4`, parents prior Error head `f282941ced3b0f8df5c2b92ee98b81c7152d5e0a` and Develop `9606fdf8f43e97136288b41be922f97477ffc102`.
+- Previous Error head before this synchronization: `3ec17ead449ba83d72f8846c8d7d307d864aae02`.
 - Exact Develop green anchor remains `270f97c36bd114036658e322f68d8011983ff150`, canonical Quality `34248696450 = SUCCESS`.
-- Backend current: `postmerge/backend@d2cc107a38b0ae56bd70191b9ac2149c19b2fb26`; canonical Quality `34263109322 = FAILURE`.
-- On exact Backend `d2cc107a38b0ae56bd70191b9ac2149c19b2fb26`: Windows path safety PASS, Linux storage PASS, local install smoke PASS, specification validator PASS, mypy PASS, Ruff FAIL, full pytest FAIL, diagnostics upload PASS.
-- UI exact product head `b0c74459af0d6382f23106819f34778c86b6f18b` remains canonical green via `34240229731`.
+- Backend current: `postmerge/backend@0d579f718f97f7d0ba6d39d4cd8bcc6741beb72d`; canonical Quality `34269071606 = FAILURE`.
+- On exact Backend `0d579f718f97f7d0ba6d39d4cd8bcc6741beb72d`: Windows path safety PASS, Linux storage PASS, local install smoke PASS, specification validator PASS, mypy PASS, Ruff FAIL, full pytest FAIL, diagnostics upload PASS.
+- Current Develop `cdc9e8e0064db659f9eabbfdb5f3720a76114fd6` has no PR-triggered canonical Quality run returned by the connector in this run.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current state
@@ -29,7 +29,7 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 - Severity: P2.
 - Status: `IN_PROGRESS`.
 - Exact evidence: Backend canonical Quality `34245022980` on `4e61cba775a4b9b88cd40b33d9c0e33b4eb9fc66` failed a bounded WAL cluster while platform/install/static gates otherwise passed apart from independent Ruff `ERR-0026`.
-- Current successor evidence: Backend Quality `34263109322` on `d2cc107a38b0ae56bd70191b9ac2149c19b2fb26` still has full pytest FAIL. The available job summary does not expose assertion-level diagnostics, so `ERR-0029` is not marked fixed or independently re-attributed from that run.
+- Current successor evidence: Backend Quality `34269071606` on `0d579f718f97f7d0ba6d39d4cd8bcc6741beb72d` still has full pytest FAIL. The available job summary does not expose assertion-level diagnostics, so `ERR-0029` is not marked fixed or independently re-attributed from that run.
 - Root cause: harness collaborators/expectations drifted behind intentional exact-type fail-closed production contracts. Production guards must not be weakened.
 - Fix SHA: none verified.
 - Verification required: focused WAL suites plus Ruff/mypy and exact canonical Quality.
@@ -40,7 +40,7 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 - Status: `IN_PROGRESS`.
 - Exact evidence: Backend Quality `34245022980` on `4e61cba775a4b9b88cd40b33d9c0e33b4eb9fc66` completed with `51 failed, 4793 passed, 3 skipped`.
 - Root cause: stale fresh/current assertions still expect schema v40 / migration `0040_grounded_response_receipts`; multiple legacy v30-v40 fixture builders already include v41-only `research_delta_boundaries`, causing the real v40→v41 migration to correctly raise `sqlite3.OperationalError: table research_delta_boundaries already exists`.
-- Current successor evidence: Backend Quality `34263109322` on `d2cc107a38b0ae56bd70191b9ac2149c19b2fb26` still has full pytest FAIL; assertion-level diagnostics are required before changing scope or status.
+- Current successor evidence: Backend Quality `34269071606` on `0d579f718f97f7d0ba6d39d4cd8bcc6741beb72d` still has full pytest FAIL; assertion-level diagnostics are required before changing scope or status.
 - Required fix: repair only stale harness expectations and legacy fixture construction; keep the additive/transactional production migration strict.
 - Fix SHA: none verified.
 
@@ -50,8 +50,8 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 - Status: `IN_PROGRESS`.
 - Exact red evidence: `34245022980` failed `tests/unit/test_schema_contract_boundary.py::test_schema_reexports_contract_constants` with missing `RESEARCH_DELTA_BOUNDARY_SCHEMA_VERSION`.
 - Root cause: `src/athena/storage/schema.py` wired v41 migration but omitted the established schema-facade re-export.
-- Candidate fix lineage: `69e2a4707bba544af5d2d2ae53daffc1dbf786a3` plus import-only descendants through `01eccfe3b688115f85345e365078cb11c193b749`; current Backend tree at `d2cc107a38b0ae56bd70191b9ac2149c19b2fb26` visibly re-exports both `RESEARCH_DELTA_BOUNDARY_MIGRATION_ID` and `RESEARCH_DELTA_BOUNDARY_SCHEMA_VERSION`.
-- Verification: not promoted to FIXED. Canonical Quality `34263109322` still fails full pytest, and the available job summary does not prove that the exact boundary assertion passed.
+- Candidate fix lineage: `69e2a4707bba544af5d2d2ae53daffc1dbf786a3` plus import-only descendants through `01eccfe3b688115f85345e365078cb11c193b749`; current Backend tree at `0d579f718f97f7d0ba6d39d4cd8bcc6741beb72d` visibly re-exports both `RESEARCH_DELTA_BOUNDARY_MIGRATION_ID` and `RESEARCH_DELTA_BOUNDARY_SCHEMA_VERSION`.
+- Verification: not promoted to FIXED. Canonical Quality `34269071606` still fails full pytest, and the available job summary does not prove that the exact boundary assertion passed.
 
 ## ERR-0026 — Backend v41 schema module canonical Ruff I001
 
@@ -60,9 +60,10 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 - Original exact diagnostic: Quality `34245022980` on `4e61cba775a4b9b88cd40b33d9c0e33b4eb9fc66` reported one fixable `I001` in `src/athena/storage/schema.py`.
 - Root cause: canonical import sorting in the consolidated `athena.storage.schema_contract` re-export block.
 - Backend corrective lineage: `69e2a4707bba544af5d2d2ae53daffc1dbf786a3`, then bounded import-only corrections `86d1577160e0bdc843faa3ebc55964bfa2da0196` and `01eccfe3b688115f85345e365078cb11c193b749`.
-- Hard verification this run: successor canonical Quality `34263109322` on exact Backend `d2cc107a38b0ae56bd70191b9ac2149c19b2fb26` completed FAILURE with Ruff FAIL while specification validator, mypy, Windows path safety, Linux storage and local-install smoke all PASS. Therefore the corrective lineage is definitively not verified as clearing `ERR-0026`.
-- Current file evidence: `src/athena/storage/schema.py` keeps `DatabaseCompatibilityError` in the consolidated re-export block between `CONSOLIDATED_*` and `DELETION_*`, while both v41 Research Delta constants are present.
-- Next mutation rule: obtain the exact current Ruff diagnostic/annotation or an exact worker successor that clears Ruff before any additional import-only mutation. Do not guess a second ordering change.
+- Hard verification this run: exact current Backend `0d579f718f97f7d0ba6d39d4cd8bcc6741beb72d` completed canonical Quality `34269071606 = FAILURE`; Ruff still FAILS while specification validator, mypy, Windows path safety, Linux storage and local-install smoke all PASS. The existing corrective lineage therefore remains definitively unverified and does not clear `ERR-0026`.
+- Current file evidence: Backend `src/athena/storage/schema.py` keeps `DatabaseCompatibilityError` in the consolidated re-export block between `CONSOLIDATED_*` and `DELETION_*`, while both v41 Research Delta constants are present.
+- Exact diagnostics artifact exists as `canonical-quality-diagnostics-0d579f718f97f7d0ba6d39d4cd8bcc6741beb72d` (artifact id `10073791560`), but the available connector does not expose the archive payload as readable UTF-8. Do not guess another import order from the job summary alone.
+- Next mutation rule: consume the exact Ruff diagnostic/annotation or an exact worker successor that clears Ruff before any additional import-only mutation. Do not weaken Ruff or alter unrelated product behavior.
 
 ## ERR-0025 — older shared-baseline canonical full-pytest failure family
 
