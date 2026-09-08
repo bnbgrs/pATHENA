@@ -2,58 +2,57 @@
 
 ## Current baseline
 
-- Shared baseline checked before mutation: `develop/pathena-next@1e6b3b17117c938f5aee26c9797432959a4544c9`.
-- Pre-run worker: `postmerge/spec-core@25d3cf0a674086b3e8050bb730359674909288cc`.
-- §74 REDUCE-cancel handoff `25d3cf0a674086b3e8050bb730359674909288cc` is exact-green via canonical Quality `34226233986 = success`.
-- History-preserving NON-FORCE reconciliation commit `fbdeffadb8c23482946ae49269c128f2bd6cb8b3` has first parent the prior Spec/Core worker and second parent current Develop. It imports only the three current Develop deltas (`integrator.md`, `ALPHA_BETA_PROGRESS.md`, and UI-owned `pathena_settings_runtime.py`) while retaining Spec/Core-owned work. `main` and `bnbgrs/ATHENA` remain untouched.
+- Shared baseline checked before mutation: `develop/pathena-next@9fb4f005ebb34f835f5a6c362965ad35cd2f3efb`.
+- Pre-run worker: `postmerge/spec-core@ebb0c1f9a6c230395f0ea6468c167f9d61565938`.
+- §74 REDUCE-cancel remains exact-green via canonical Quality `34226233986 = success` on `25d3cf0a674086b3e8050bb730359674909288cc`.
+- History-preserving NON-FORCE reconciliation commit `8f1ec83739d959dbae3728714e8b154aae47c1fb` has first parent prior Spec/Core `ebb0c1f9a6c230395f0ea6468c167f9d61565938` and second parent exact Develop `9fb4f005ebb34f835f5a6c362965ad35cd2f3efb`. Current Develop copies of `docs/agent_handoffs/integrator.md` and UI-owned `src/athena/desktop/pathena_settings_runtime.py` were imported byte-identically; verified Spec/Core Memory/Research work was retained. `main` and `bnbgrs/ATHENA` remain untouched.
 
 ## Verified Core contracts
 
 Normal Hybrid Search remains preserved: one-time `attach_normal_search`; capability `search.normal.hybrid` only after attachment; exact `query/model_id/limit/entity_type` delegation; canonical `hybrid_search_result_response()` mapping; unchanged `SemanticRetrievalUnavailableError`; and `app.api._normal_search is app.hybrid_retrieval`.
 
-§68 durable restart, §69 model drift, §70 pinned 2048-context Large Archive, §71 opposing-source contradiction, §72 unavailable NAS, §73 external capture/no-refetch, and §74 REDUCE cancel/partial-result preservation remain exact-green on the verified Spec/Core lineage.
+§68 durable restart, §69 model drift, §70 pinned 2048-context Large Archive, §71 contradiction, §72 unavailable NAS, §73 external capture/no-refetch and §74 REDUCE cancel/partial-result preservation remain exact-green on the verified Core lineage.
 
 ## Exhaustive Research §75 — Delta Test
 
-Normative contract: after a completed snapshot, newly imported Sources must be the only relevant Sources processed by Delta Research.
+The prior persistence blocker has materially advanced. Backend now implements the required durable lower-bound representation on `postmerge/backend@255e73eae28651c20ae1baa660c4087f4a62f128`:
 
-### Exact implementation gap
+- schema v41 / migration `0041_research_delta_boundary`;
+- durable `research_delta_boundaries(scope_id, base_scope_id, lower_commit_seq, created_at_us)`;
+- `ResearchDeltaBoundaryRepository` requiring a completed baseline and exact `lower_commit_seq == base_scope.snapshot_commit_seq <= delta_scope.snapshot_commit_seq`;
+- restart/fresh-schema and exact row-mapping regression coverage;
+- no wall-clock or in-memory surrogate for the lower boundary.
 
-`ResearchMode.DELTA` exists in `src/athena/research/models.py`, but the current application/repository contract cannot represent a truthful delta lower bound:
+Exact Backend Quality `34234185972` is still `in_progress`; therefore Spec/Core does not consume or duplicate the persistence implementation yet.
 
-- `ResearchService` exposes enqueue methods for Local Exhaustive, Local+Web, Scoped Project and Historical Backfill, but no `enqueue_delta` contract.
-- `ResearchScopeRecord` persists only the upper `snapshot_commit_seq`; it has no previous-snapshot/lower-bound commit sequence or parent ResearchScope/ResearchResult identity.
-- `ResearchRepository.freeze_local_candidates()` explicitly supports only `LOCAL_EXHAUSTIVE`, `HISTORICAL_BACKFILL`, and `LOCAL_PLUS_WEB`; `DELTA` is rejected fail-closed.
-- `_select_sources_as_of()` filters active Sources at one pinned snapshot. Without a persisted lower commit boundary, it cannot distinguish Sources that already belonged to the prior snapshot from Sources added afterward without guessing from wall-clock acquisition time or other non-equivalent metadata.
+Once the Backend prerequisite is exact-green and integrated/available to the Core worker, the bounded Core product slice is now fully specified:
 
-Therefore §75 is a real persistence-representation gap, not merely a missing test. Implementing Delta by overloading `time_start_us`, `internet_scope`, or an implicit in-memory value would violate durable/reproducible Research provenance.
+1. add `ResearchService.enqueue_delta` with explicit completed `base_scope_id`;
+2. persist a new DELTA scope with an upper `snapshot_commit_seq` and bind it exactly once to the durable Backend delta boundary;
+3. extend candidate freezing for `ResearchMode.DELTA` to select only Sources canonically introduced in `(lower_commit_seq, snapshot_commit_seq]`, preserving normal source-type/project/time/protection filters and dedup semantics;
+4. restart/resume must recover the same lower/upper boundary and CandidateSet without reprocessing baseline Sources;
+5. acceptance must import baseline Sources, complete/freeze the baseline snapshot, import new Sources, enqueue Delta, freeze candidates and prove only the new relevant Sources are processed.
 
-### Ownership / next technical route
+No Storage/Migration code was modified by Spec/Core.
 
-Backend handoff required for the smallest durable representation: add an explicit persisted delta-base identity/lower commit boundary with migration/row-mapping validation while preserving recovery and startup migration invariants. After that representation is available, Spec/Core should add the bounded application/repository composition plus real §75 acceptance proving:
+## Independent next-gap scan while §75 Quality is pending
 
-1. baseline snapshot freezes existing Sources;
-2. new Sources are imported after that snapshot;
-3. Delta Research pins a new upper snapshot and the exact prior lower boundary;
-4. frozen candidates contain only Sources whose canonical appearance is after the lower boundary and at/before the new upper boundary, subject to normal scope filters/dedup;
-5. old Sources are not silently reprocessed;
-6. restart/resume preserves both boundaries and candidate identity.
+Beta Chapter 12 and the current feature-gap backlog were checked to avoid idle repetition. The first material B12 gap is generic durable parent/dependency policy plus bounded priority inheritance (`FG-021`, P1 READY). It requires new persistent dependency records/migration and scheduler semantics, so it is Backend-owned and not a safe Spec/Core mutation. Existing `DurableJobService` already exposes real human-control methods `request_cancel`, `pause`, and `resume`; Spec/Core will not duplicate the scheduler/state machine.
 
-No schema/storage mutation was made from Spec/Core in this run because deep persistence/migration ownership belongs Backend.
+The next Spec/Core scan should therefore remain in Core-owned Beta surfaces (Knowledge/Claims, Personal Memory, Provenance, Research composition, PALLAS data composition, controller/API composition) until §75 becomes consumable.
 
 ## Coordination state
 
-- Error handoff checked at current branch lineage; `ERR-0025` remains shared pytest-only investigation and no historical Windows/runtime crash signature is promoted to OPEN without exact-current reproduction.
-- Backend head checked at `55a6e95486c8b7501f27ed07748dc922803025ea`; §75 lower-bound persistence/migration is handed off as the required prerequisite.
-- UI head checked at `93367bc74dab77f8ffab65e7de538ee79fb5a72a`; UI-owned Settings delta was preserved from Develop during reconciliation and no UI file was otherwise mutated.
-- Error head checked at `476fb6f2360529ea330abc0ff9d310a8644e5b6c`.
-- Integrator handoff checked on Develop `1e6b3b17117c938f5aee26c9797432959a4544c9`.
+- Error handoff checked: `ERR-0025` remains shared canonical pytest-only investigation; no historical Windows/runtime crash signature is promoted to OPEN without exact-current reproduction.
+- Backend handoff checked: `postmerge/backend@255e73eae28651c20ae1baa660c4087f4a62f128`; §75 persistence prerequisite implemented, Quality `34234185972` still in progress.
+- UI handoff checked; UI remains presentation/interaction owner and no UI-owned mutation was introduced by Core.
+- Integrator handoff checked on exact Develop `9fb4f005ebb34f835f5a6c362965ad35cd2f3efb`.
 
 ## Next Core action
 
-1. Consume canonical Quality on reconciliation descendant `fbdeffadb8c23482946ae49269c128f2bd6cb8b3` / this documentation-only descendant.
-2. Once Backend provides the durable §75 delta-base representation, implement the smallest Core composition and real Delta acceptance; no synthetic lower-bound semantics.
-3. While that prerequisite is pending, continue to the next independent evidence-backed Alpha/Beta Core gap outside deep Storage/Transport/System ownership rather than repeating §75 analysis.
+1. Consume exact Backend Quality `34234185972` first on the next run.
+2. If green and the Backend prerequisite is integrated/available, implement §75 immediately with focused Delta acceptance and canonical Quality; do not re-analyze the already-defined contract.
+3. If still pending/red without a Backend-primary exact traceback, continue the next independent Core-owned Alpha/Beta gap rather than touching Backend schema/scheduler ownership.
 
 ## Release regression obligations
 
