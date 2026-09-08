@@ -8,109 +8,93 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 
 ## Current baseline
 
-- Baseline reviewed: `develop/pathena-next@270f97c36bd114036658e322f68d8011983ff150`.
+- Baseline reviewed: `develop/pathena-next@e6ed6eba803e4084b5e5aeaa2ad576dccdaf9961`.
 - Error branch mutation lineage: `postmerge/errors` only.
-- History-preserving NON-FORCE synchronization commit: `5eccd2683d3f1f975e4af5ac59aba14da7c5432f`, merging current Develop into the prior Error lineage without rebase/force/history rewrite.
-- Backend current: `postmerge/backend@ac9bf5c289b2979548cfabb9e45a0a9dce51be71`; exact synchronized product predecessor `4e61cba775a4b9b88cd40b33d9c0e33b4eb9fc66` failed canonical Quality `34245022980`.
-- UI current: `postmerge/ui@961786e5f8b65cb88acb415bf756f0905e13d814`; exact product head `b0c74459af0d6382f23106819f34778c86b6f18b` passed canonical Quality `34240229731` completely green.
+- Exact Develop verification anchor: `270f97c36bd114036658e322f68d8011983ff150`, canonical Quality `34248696450 = SUCCESS`.
+- Backend current: `postmerge/backend@75e45f99ce60b87e0b56ea024d3bed931ec461d4`; canonical Quality `34251875708` is in progress and already shows Validator PASS, Ruff FAIL, mypy PASS, Linux storage PASS, Local install PASS, Windows path safety PASS.
+- Backend v41 candidate product fix: `69e2a4707bba544af5d2d2ae53daffc1dbf786a3`; its first Quality run `34251782009` was cancelled before verification.
+- UI exact product head `b0c74459af0d6382f23106819f34778c86b6f18b` remains canonical green via `34240229731`.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current state
 
-- FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015` through `ERR-0022`, `ERR-0024`.
-- STALE: `ERR-0014`.
-- FIXED_PENDING_VERIFY: `ERR-0023`.
-- IN_PROGRESS: `ERR-0025`, `ERR-0026`, `ERR-0027`, `ERR-0028`, `ERR-0029`.
-- OPEN/BLOCKED: none.
+- FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015` through `ERR-0024`.
+- STALE: `ERR-0014`, `ERR-0025`.
+- IN_PROGRESS: `ERR-0026`, `ERR-0027`, `ERR-0028`, `ERR-0029`.
+- OPEN/BLOCKED/FIXED_PENDING_VERIFY: none.
 
 ## ERR-0029 — WAL test collaborators incompatible with canonical exact-type runtime guards
 
 - Severity: P2.
 - Status: `IN_PROGRESS`.
-- Exact evidence: Backend canonical Quality `34245022980` on `4e61cba775a4b9b88cd40b33d9c0e33b4eb9fc66` failed a bounded WAL cluster while Ruff independently failed and all platform/install/static gates otherwise passed.
-- Repro signatures include `tests/unit/test_wal_job_hook.py`, `test_wal_maintenance_interval_runner.py`, `test_wal_schedule_overflow.py`, and `test_wal_scheduler_dependency_boundary.py`. Failures are `TypeError: WAL scheduler boundary requires the canonical DurableJobScheduler.` or `TypeError: WAL interval runner requires canonical WalMaintenanceOrchestrator.`, plus two stale regex expectations for the prior dependency-error wording.
-- Root cause: harness collaborators/expectations still exercise structural or fake scheduler/orchestrator objects that no longer satisfy the production exact-type fail-closed contract. The production guard is intentional security/recovery hardening and must not be weakened to make tests pass.
-- Affected files: WAL unit harnesses named above; product WAL boundary files only for verification, not relaxation.
+- Exact evidence: Backend canonical Quality `34245022980` on `4e61cba775a4b9b88cd40b33d9c0e33b4eb9fc66` failed a bounded WAL cluster while platform/install/static gates otherwise passed apart from independent Ruff `ERR-0026`.
+- Repro signatures: `tests/unit/test_wal_job_hook.py`, `test_wal_maintenance_interval_runner.py`, `test_wal_schedule_overflow.py`, `test_wal_scheduler_dependency_boundary.py`; failures require canonical `DurableJobScheduler` / `WalMaintenanceOrchestrator` and include two stale dependency-error regex expectations.
+- Root cause: harness collaborators/expectations drifted behind intentional exact-type fail-closed production contracts. Production guards must not be weakened.
 - Fix SHA: none yet.
-- Required fix: adapt test collaborators to canonical `DurableJobScheduler`/`WalMaintenanceOrchestrator` instances or valid subclasses/fixtures as permitted by the product contract, and update assertions only where the asserted previous diagnostic text is no longer the contract. Preserve fail-before-side-effect behavior.
-- Verification required: focused WAL scheduler/interval/overflow/dependency suites plus Ruff/mypy and canonical Quality on the exact corrected Backend SHA.
-- Integrator handoff: hold WAL-related Backend integration until this harness drift is corrected without weakening exact-type runtime checks.
+- Verification required: focused WAL suites plus Ruff/mypy and exact canonical Quality.
 
-## ERR-0028 — v41 legacy schema fixtures and current-version assertions remain v40-shaped
+## ERR-0028 — v41 legacy schema fixtures/current-version assertions remain v40-shaped
 
 - Severity: P2.
 - Status: `IN_PROGRESS`.
-- Exact evidence: Backend canonical Quality `34245022980` on `4e61cba775a4b9b88cd40b33d9c0e33b4eb9fc66` completed with `51 failed, 4793 passed, 3 skipped`.
-- Repro cluster: multiple schema tests expect migration id `0040_grounded_response_receipts` or schema version `40` after the product has advanced to v41; multiple v30-v40 legacy fixtures already contain `research_delta_boundaries`, so the real v40→v41 migration correctly raises `sqlite3.OperationalError: table research_delta_boundaries already exists` when those fixtures are replayed.
-- Root cause: harness/fixture drift caused by advancing canonical schema to v41 without updating legacy fixture builders to exclude v41-only objects before the v40→v41 migration and without updating fresh/current-version expectations to the new canonical migration id/version.
-- Representative affected tests: `test_archive_replication.py`, `test_backup_retention.py`, `test_deletion_ledger.py`, `test_grounded_response_receipt.py`, `test_knowledge_schema.py`, `test_news_audit.py`, `test_operational_error_physical_cleanup.py`, `test_protected_content.py`, `test_protected_source_blob.py`, `test_protected_source_semantic_schema.py`, `test_protected_source_transition.py`.
-- Product v41 migration must remain additive/transactional; do not special-case duplicate tables to accommodate malformed legacy fixtures.
+- Exact evidence: Backend Quality `34245022980` on `4e61cba775a4b9b88cd40b33d9c0e33b4eb9fc66` completed with `51 failed, 4793 passed, 3 skipped`.
+- Root cause: stale fresh/current assertions still expect schema v40 / migration `0040_grounded_response_receipts`; multiple legacy v30-v40 fixture builders already include v41-only `research_delta_boundaries`, causing the real v40→v41 migration to correctly raise `sqlite3.OperationalError: table research_delta_boundaries already exists`.
+- Required fix: repair only stale harness expectations and legacy fixture construction; keep the additive/transactional production migration strict.
 - Fix SHA: none yet.
-- Required fix: repair legacy fixtures/current-version expectations only where they are stale, then run focused fresh-schema + representative v30/v35/v38/v39/v40→v41 migration/restart suites and canonical Quality.
-- Integrator handoff: hold v41 integration while this exact acceptance/fixture cluster remains red.
+- Verification required: representative fresh and v30/v35/v38/v39/v40→v41 migration/restart suites plus canonical Quality.
 
 ## ERR-0027 — v41 schema contract constant not re-exported by `athena.storage.schema`
 
 - Severity: P2.
 - Status: `IN_PROGRESS`.
-- Exact evidence: Backend canonical Quality `34245022980` on `4e61cba775a4b9b88cd40b33d9c0e33b4eb9fc66` failed `tests/unit/test_schema_contract_boundary.py::test_schema_reexports_contract_constants` with `AttributeError: module 'athena.storage.schema' has no attribute 'RESEARCH_DELTA_BOUNDARY_SCHEMA_VERSION'`.
-- Root cause: product module `src/athena/storage/schema.py` wires the v40→v41 migration but omits the new v41 contract constant re-export expected from the established schema facade.
-- Affected product file: `src/athena/storage/schema.py`; source constant remains owned by `src/athena/storage/schema_contract.py`.
-- Fix SHA: none yet.
-- Required minimal fix: re-export the real v41 schema/migration contract constants through the schema facade consistently with existing constants; no fabricated value and no assertion weakening.
-- Verification required: focused `test_schema_contract_boundary.py`, v40→v41 migration/restart checks, Ruff and canonical Quality.
-- Integrator handoff: consume with the same bounded Backend v41 correction, independently of the fixture-only `ERR-0028` repair.
+- Exact red evidence: `34245022980` failed `tests/unit/test_schema_contract_boundary.py::test_schema_reexports_contract_constants` with missing `RESEARCH_DELTA_BOUNDARY_SCHEMA_VERSION`.
+- Root cause: `src/athena/storage/schema.py` wired v41 migration but omitted the established schema-facade re-export.
+- Candidate product fix: `69e2a4707bba544af5d2d2ae53daffc1dbf786a3` re-exports the real v41 migration/schema constants. First exact run `34251782009` was cancelled; successor Quality `34251875708` on `75e45f99ce60b87e0b56ea024d3bed931ec461d4` is still running. Do not mark fixed until focused/full verification is available.
+- Fix SHA: candidate `69e2a4707bba544af5d2d2ae53daffc1dbf786a3`.
 
 ## ERR-0026 — Backend v41 schema module canonical Ruff I001
 
 - Severity: P2.
 - Status: `IN_PROGRESS`.
-- Exact evidence: canonical Backend Quality `34245022980` on `4e61cba775a4b9b88cd40b33d9c0e33b4eb9fc66` completed with specification validator PASS, mypy PASS, Local install PASS, Linux storage PASS, Windows path safety PASS, but Ruff FAIL and full pytest FAIL.
-- Exact Ruff diagnostic: one fixable `I001` import block error in `src/athena/storage/schema.py` beginning at line 3. The v41 `athena.storage.research_delta_migration` import is ordered before the large `schema_contract`/`schema_evolution`/`schema_verification` import family contrary to Ruff/isort's canonical grouping.
-- This is distinct from `ERR-0025` and not recurrence of historical UI `ERR-0004`.
-- Required minimal fix: import-order-only correction satisfying Ruff I001; no product semantics, schema invariants, tests or guards may be changed as part of this error.
-- Fix SHA: none yet.
-- Verification required: exact corrected Backend SHA with Ruff PASS plus focused v40→v41/restart/schema checks and canonical Quality.
-- Integrator handoff: do not integrate the v41 Backend slice while `ERR-0026` remains Ruff-red.
+- Original exact diagnostic: Quality `34245022980` on `4e61cba775a4b9b88cd40b33d9c0e33b4eb9fc66` reported one fixable `I001` in `src/athena/storage/schema.py`.
+- Candidate correction `69e2a4707bba544af5d2d2ae53daffc1dbf786a3` attempted canonical import consolidation/reordering.
+- Hard verification result this run: successor canonical Quality `34251875708` on exact Backend head `75e45f99ce60b87e0b56ea024d3bed931ec461d4` has already completed Ruff with `FAIL`; Validator and mypy are PASS, while Linux storage, Local install and Windows path safety are also PASS. Therefore the attempted correction is not verified and `ERR-0026` remains active. Exact successor Ruff diagnostic must be consumed before another mutation; do not assume it is the same I001 without diagnostic evidence.
+- Fix SHA: none verified.
 
 ## ERR-0025 — older shared-baseline canonical full-pytest failure family
 
 - Severity: P2.
-- Status: `IN_PROGRESS`.
-- Initial exact evidence: Backend Quality `34195601115` on `ea601b96d681580c2e8f1f1af40c7d97c347511e`; Local install, Windows path safety, Linux storage, Validator, Ruff and mypy PASS; only full pytest FAIL; diagnostics upload PASS.
-- Cross-lineage persistence was reproduced by multiple Backend and UI descendants through Backend `55a6e95486c8b7501f27ed07748dc922803025ea` / `34226856389` and UI `93367bc74dab77f8ffab65e7de538ee79fb5a72a` / `34227608407`.
-- The formerly opaque later v41 Backend failure is now assertion-level decomposed. Exact run `34245022980` proves three distinct current v41 primary clusters tracked separately as `ERR-0027`, `ERR-0028`, `ERR-0029`, plus Ruff `ERR-0026`. Do not attribute those exact v41 failures back to the older shared-baseline hypothesis.
-- WAL exact-type product hardening remains excluded as the original shared failure's primary cause because an earlier baseline failed before that mutation.
-- Fix SHA: none.
-- Next evidence rule: keep `ERR-0025` only for the older cross-lineage pytest-only signature until a readable exact assertion from that lineage identifies its own primary cause or an exact green descendant clears it. No repeated generic hypothesis counts as progress.
-- Integrator handoff: hold global promotion while this older unresolved exact failure family lacks a clearing green descendant or exact root cause.
+- Status: `STALE`.
+- Initial exact evidence: Backend `34195601115` on `ea601b96d681580c2e8f1f1af40c7d97c347511e`, later reproduced across independent Backend/UI lineages as pytest-only red.
+- The later v41 failures were decomposed separately into `ERR-0027` through `ERR-0029` and must not be folded back into this ID.
+- Clearing evidence: exact Develop descendant `270f97c36bd114036658e322f68d8011983ff150` completed canonical Quality `34248696450 = SUCCESS`, providing the required exact green descendant. No current shared-baseline pytest-only signature remains reproduced on that verified Develop SHA.
+- Root cause attribution remains non-unique because multiple accepted lineage changes occurred before the clearing run; this historical family is therefore `STALE`, not claimed as a uniquely root-caused product fix. Reopen only on a new exact-current reproduction.
 
 ## ERR-0024 — Spec/Core §72 unavailable-NAS acceptance full-pytest failure
 
 - Severity: P2.
 - Status: `FIXED`.
-- Exact corrected Spec/Core head `772c2bfdc8767b7c0d032dbb8709120de635f6c0` passed Quality `34198674038`; descendants `af1f9da019fbee21984cf62fb77a2e8bbacaed5b` / `34198712540` and `f4abb89d7538a11efa50d94a847b6f69139c602b` / `34220174847` remained green.
-- Root cause: harness identity/lifecycle acceptance drift; source-order repair plus final teardown/lifecycle repair. No product-code weakening.
+- Exact corrected Spec/Core head `772c2bfdc8767b7c0d032dbb8709120de635f6c0` passed Quality `34198674038`; later descendants remained green.
+- Root cause: harness identity/lifecycle acceptance drift; source-order repair plus final teardown/lifecycle repair.
 
 ## ERR-0023 — Terminal Jobs action reason leaks implementation-oriented lifecycle wording
 
 - Severity: P2.
-- Status: `FIXED_PENDING_VERIFY`.
-- Failing evidence: Backend Quality `34177086068` on `076a0d1209fe1cb30c6cfe7f6735a39158036c28` failed `tests/unit/test_pathena_jobs_lifecycle.py::test_action_availability_matches_durable_service_states[completed-enabled5]` because terminal visible copy exposed `lifecycle action` wording.
-- Root cause: product copy in `src/athena/desktop/jobs_lifecycle.py::JobActionAvailability.reason()`; harness assertion valid.
-- Minimal Error-owned fix: `d0207d43dabd66406df630a2cdff89e6f56b259b`, terminal copy -> `This job is {state}; no actions are available.`.
-- Develop integration: `568d57a63bb2253d97ca63e92b52e1df66505ac9`; current Develop retains the corrected product content.
-- UI exact product head `b0c74459af0d6382f23106819f34778c86b6f18b` passed Quality `34240229731`, but `ERR-0023` specifically requires exact Develop canonical success; retain `FIXED_PENDING_VERIFY` until that evidence exists.
+- Status: `FIXED`.
+- Failing evidence: Backend Quality `34177086068` on `076a0d1209fe1cb30c6cfe7f6735a39158036c28` failed the Jobs lifecycle terminal-copy assertion.
+- Root cause: product copy in `src/athena/desktop/jobs_lifecycle.py::JobActionAvailability.reason()`.
+- Minimal Error-owned fix: `d0207d43dabd66406df630a2cdff89e6f56b259b`; Develop integration `568d57a63bb2253d97ca63e92b52e1df66505ac9`.
+- Exact verification: Develop SHA `270f97c36bd114036658e322f68d8011983ff150` contains blob `a661beaa6cbcc4fe35178e24d1f56de8db7d9ff9` with terminal text `This job is {state}; no actions are available.` and canonical Quality `34248696450` completed `SUCCESS`. This satisfies the exact-Develop verification requirement.
 - Fix SHA: `d0207d43dabd66406df630a2cdff89e6f56b259b`.
 
 ## Historical verified entries
 
-- `ERR-0004` P2 FIXED — UI startup/readiness harness Ruff B010/I001; exact-green evidence retained. Current Backend Ruff defect is `ERR-0026`, not recurrence.
+- `ERR-0004` P2 FIXED — UI startup/readiness harness Ruff B010/I001; no current recurrence. Backend schema Ruff remains distinct `ERR-0026`.
 - `ERR-0014` P1 STALE — Qt Desktop controller SIGSEGV; reopen only on exact recurrence.
 - `ERR-0019` P2 FIXED — Personal Memory precedence harness drift.
-- `ERR-0020` P2 FIXED — exhaustive-research resume harness identity loss; verified green successor.
-- `ERR-0021` FIXED — Jobs status-copy constructor-refresh monkeypatch leak; exact red-to-green successor.
-- `ERR-0022` FIXED — Spec/Core Ruff import grouping; exact canonical green.
+- `ERR-0020` P2 FIXED — exhaustive-research resume harness identity loss.
+- `ERR-0021` FIXED — Jobs status-copy constructor-refresh monkeypatch leak.
+- `ERR-0022` FIXED — Spec/Core Ruff import grouping.
 
 ## Persistent Beta/release regression knowledge
 
