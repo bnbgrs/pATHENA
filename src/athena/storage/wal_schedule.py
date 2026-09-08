@@ -47,9 +47,9 @@ class WalMaintenanceIntervalRunner:
         *,
         interval_seconds: float,
     ) -> None:
-        if not isinstance(orchestrator, WalMaintenanceOrchestrator):
+        if type(orchestrator) is not WalMaintenanceOrchestrator:
             raise TypeError(
-                "WAL interval runner requires WalMaintenanceOrchestrator."
+                "WAL interval runner requires canonical WalMaintenanceOrchestrator."
             )
         self.orchestrator = orchestrator
         self.interval_seconds = _finite_positive_number(
