@@ -8,35 +8,44 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 
 ## Current baseline
 
-- Baseline reviewed: `develop/pathena-next@d40dc421585193db7bda039d113d7d81ccfb9c03`.
+- Baseline reviewed: `develop/pathena-next@e16a4d14f367f29e29deb794d0e1581b41226a49`.
 - Error branch mutation lineage remains `postmerge/errors` only.
-- History-preserving NON-FORCE synchronization merge: `68a72d5c70ed8d95e05679dc4769d140ee4839f4`, parents `94b66dec38f3c5ef287dc290b56abeebd48fe25f` and `d40dc421585193db7bda039d113d7d81ccfb9c03`.
-- Current Spec/Core head reviewed: `80915e1e8c7dff42fc998e9035df41273bdb08ca`.
-- Current Backend head reviewed: `aae2b6ef705db49eddcee501e872dd179889709e`.
-- Current UI head reviewed: `04b4a77b144fb1da1edfa0b0c155f8fe8b583d6c`.
-- Required worker handoffs and canonical workflow state were reviewed before mutation.
+- History-preserving NON-FORCE synchronization merge: `bfca8cbc3cb4abfda3858e5c23fc9095a7f90506`, parents `caccfcc8fdbd8add56d665ba0ef5e1e69d4b53f3` and `e16a4d14f367f29e29deb794d0e1581b41226a49`.
+- Current Spec/Core head reviewed: `d64c9fdfafe026e272857d36bd7a8aa90b859f55`.
+- Current Backend head reviewed: `d6fd803cae4e444f6cdc193d49c93197b457604e`.
+- Current UI head reviewed: `aa9a705bac548753be4adc0ee27a998c981dc93e`.
+- Required handoffs and current canonical workflow state were reviewed before mutation.
 
 ## Current state
 
 - FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015` through `ERR-0020`.
 - STALE: `ERR-0014`.
-- IN_PROGRESS: none.
+- IN_PROGRESS: `ERR-0021`.
 - OPEN: none.
 - BLOCKED: none.
+
+## ERR-0021 — Develop exact-SHA full-pytest failure after UI-GAP-0071 integration
+
+- Severity: P1 until exact failing assertion is classified.
+- Status: `IN_PROGRESS`.
+- Exact evidence: canonical ATHENA Quality Gate `34170211496` on exact Develop SHA `d40dc421585193db7bda039d113d7d81ccfb9c03` completed `failure`.
+- Gate split: Local install smoke PASS; Windows path safety PASS; Linux storage regressions PASS; specification Validator PASS; Ruff PASS; mypy PASS; full pytest FAIL; canonical result enforcement FAIL.
+- Diagnostics artifact: `canonical-quality-diagnostics-d40dc421585193db7bda039d113d7d81ccfb9c03`, artifact id `10035722162`, retained and unexpired when reviewed.
+- Repro: exact canonical CI on `d40dc421585193db7bda039d113d7d81ccfb9c03`; failure is isolated to the full pytest step. The connector exposes the artifact metadata but not the traceback payload, so no assertion/test-path or product-vs-harness root cause is invented.
+- Root cause: not finalized yet. This is a new exact Develop signal and is not deduplicated into a historical crash class without matching signature evidence.
+- Current-head relation: current Develop `e16a4d14f367f29e29deb794d0e1581b41226a49` descends from the failed Develop lineage, but no exact completed canonical run on `e16a4d14f367f29e29deb794d0e1581b41226a49` has yet been established. Therefore ERR-0021 is not marked FIXED or STALE.
+- Active-worker verification path: current UI head `aa9a705bac548753be4adc0ee27a998c981dc93e` runs Quality `34170876155`; Local install, Windows path safety, Linux storage, Validator, Ruff and mypy are already PASS and full pytest is in progress. Current Backend head `d6fd803cae4e444f6cdc193d49c93197b457604e` runs Quality `34170446906` with the same completed non-pytest gates green and full pytest in progress. These are concrete successor checks, not assumed fixes.
+- Files: exact failing file is not yet evidenced; do not mutate product or harness code until traceback/diagnostic evidence or a byte-identical verified corrective successor identifies the cause.
+- Integrator handoff: do not call Develop promotion-ready while ERR-0021 remains unresolved. Consume exact diagnostics or successor Quality results and finalize root cause on the next run rather than repeating an unknown hypothesis.
 
 ## ERR-0020 — Exhaustive research resume harness erased per-source identity at synthesis
 
 - Severity: P2.
 - Status: `FIXED`.
-- Original evidence: canonical Quality `34155243750` on exact Spec/Core SHA `6ad95079a114ea1d89517f7c299153caef66d3b5`; Local install, Linux storage, Windows path safety, Validator, Ruff and mypy PASS; full pytest FAIL.
-- Prior corrective evidence: `8c1218e901767c48b4c1cd98e33e3b9fc72ac3ae` remained pytest-red; Spec/Core SHA `62e1f894d648b661f7e340167d4ac824de237dab` was exact-red in Quality `34158994436` with the five-Findings assertion observing only `{('synthesis finding',)}`.
-- Failed first repair: Error/Core repair `6b873cf2f0e2a6361e34cd9d26bc0b497a8c252e` / `b50920a93a3815ceeaef069fb974c7ff5d8ce9ce` changed fixture dispatch but remained red in canonical Quality `34162505649` and `34162539987`; exact failure remained `tests/unit/test_exhaustive_research_resume.py:252`, one final Finding payload instead of five.
-- Root cause: the test snapshots each source-analysis job's `final_artifact_id`. Production correctly uses MAP followed by reduce/final synthesis. The fixture preserved source identity in MAP but returned one generic synthesis payload for all source-analysis jobs, erasing source identity in the final artifact. The initial repair also searched only line-start markers and missed markers embedded in synthesis/intermediate text.
-- Minimal fix: preserve real phase dispatch (`"map" in schema_id`), extract `resume-source-\d+` anywhere in request text, return MAP-shaped data for MAP and synthesis-shaped data carrying the same source marker for reduce/final. No product code, persistence semantics, assertions, security/storage/recovery behavior, or canonical guard changed.
-- Error fix commit: `ae44d44aef0ed6a8885a78738f8c316f35ac5fb9`; synchronized Error branch retained the same fixed test blob `ada5c2d762f9603e48e37790b0fbdcb73885e935`.
-- Verification: Spec/Core exact head `80915e1e8c7dff42fc998e9035df41273bdb08ca` contains the byte-identical fixed test blob `ada5c2d762f9603e48e37790b0fbdcb73885e935` and passed canonical ATHENA Quality Gate `34166094972 = success`. Jobs show Local install smoke PASS, Windows path safety PASS, Linux storage regressions PASS, Validator PASS, Ruff PASS, mypy PASS and full pytest PASS.
-- Files: `tests/unit/test_exhaustive_research_resume.py`, `docs/agent_logs/ERROR_LEDGER.md`, `docs/agent_handoffs/errors.md`.
-- Integrator handoff: ERR-0020 hold is cleared for the byte-identical verified harness fix. This does not imply current Develop promotion readiness; exact current-Develop canonical evidence is still required.
+- Root cause: fixture preserved source identity in MAP but collapsed reduce/final synthesis output to one generic Finding; production persistence/restart behavior was not implicated.
+- Minimal fix: preserve real phase dispatch, extract `resume-source-\d+` anywhere in request text and carry source identity through synthesis without product or assertion changes.
+- Error fix commit: `ae44d44aef0ed6a8885a78738f8c316f35ac5fb9`.
+- Verification: Spec/Core `80915e1e8c7dff42fc998e9035df41273bdb08ca` contained the byte-identical fixed test blob and passed canonical Quality `34166094972 = success`.
 
 ## Historical verified entries
 
@@ -47,12 +56,12 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 
 ## Current scan evidence — 2026-09-08
 
-- Spec/Core `80915e1e8c7dff42fc998e9035df41273bdb08ca`: Quality `34166094972 = success`; all four canonical jobs completed success including full pytest, Ruff, mypy, Validator, Windows path safety, Linux storage and local install smoke.
-- Backend `aae2b6ef705db49eddcee501e872dd179889709e`: Quality `34167555208` remains in progress; no current primary failure confirmed.
-- UI `04b4a77b144fb1da1edfa0b0c155f8fe8b583d6c`: Quality `34167675010` remains pending; no current primary failure confirmed.
-- Develop `d40dc421585193db7bda039d113d7d81ccfb9c03`: baseline reviewed; no promotion-ready claim without its own exact completed canonical evidence.
-- No current exact-SHA evidence reproduced retained Windows packaging/process-tree/chat-context/lane-lock/storage-bootstrap crash signatures; none reopened.
-- `ERR-0004` remains FIXED; Ruff is green on the exact verified ERR-0020 successor.
+- Spec/Core `d64c9fdfafe026e272857d36bd7a8aa90b859f55`: canonical Quality `34169356670 = success` on the exact current worker head.
+- Backend `d6fd803cae4e444f6cdc193d49c93197b457604e`: Quality `34170446906` in progress; Local install, Windows path safety, Linux storage, Validator, Ruff and mypy PASS; full pytest in progress.
+- UI `aa9a705bac548753be4adc0ee27a998c981dc93e`: Quality `34170876155` in progress; Local install, Windows path safety, Linux storage, Validator, Ruff and mypy PASS; full pytest in progress.
+- Develop exact SHA `d40dc421585193db7bda039d113d7d81ccfb9c03`: Quality `34170211496 = failure`, isolated to full pytest. Current Develop `e16a4d14f367f29e29deb794d0e1581b41226a49` has no exact completed canonical success established in this scan.
+- No exact-current evidence reproduced retained Windows packaging/process-tree/chat-context/lane-lock/storage-bootstrap crash signatures; none reopened.
+- `ERR-0004` remains FIXED; all observed current Ruff steps are green.
 
 ## Persistent Beta/release regression knowledge
 
