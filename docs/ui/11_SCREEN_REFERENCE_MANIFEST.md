@@ -1,6 +1,6 @@
 # pATHENA 11-Screen Reference Manifest
 
-Baseline: `c775d37f50e332639007ba162b4ff7f591434f1c`
+Baseline: `df05e76c998148e2445401de04115a7c5dccd708`
 Integration target: `develop/pathena-next`
 
 This manifest is the canonical inventory for the eleven user-provided pATHENA UI references. The original image payloads are still not available for direct visual opening in the current repository/tool path. Therefore all pixel/composition claims remain `VISUAL_REFERENCE_PENDING`. No slot may be promoted to `MATCH` without opening the actual reference and comparing it against a real rendered pATHENA state.
@@ -10,7 +10,7 @@ This manifest is the canonical inventory for the eleven user-provided pATHENA UI
 | 01 | Workspace / Chat | `VISUAL_REFERENCE_PENDING` | Quiet central workspace; chat as work document; large composer; contextual evidence/activity inspector | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `c775d37f50e332639007ba162b4ff7f591434f1c` |
 | 02 | Library / Knowledge | `VISUAL_REFERENCE_PENDING` | Reduced knowledge workspace with real durable knowledge/claim provenance | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `c775d37f50e332639007ba162b4ff7f591434f1c` |
 | 03 | Research | `VISUAL_REFERENCE_PENDING` | Real research process/results with restrained hierarchy and provenance | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `c775d37f50e332639007ba162b4ff7f591434f1c` |
-| 04 | Jobs | `VISUAL_REFERENCE_PENDING` | Real job state/controls; UI-GAP-0074 and UI-GAP-0075 are exact-green; UI-GAP-0076 humanizes cancellation-requested help | `IMPLEMENTED_PENDING_VERIFY` | `bcc471caef3b902f8cd4b07c969d896e9ae349cc` |
+| 04 | Jobs | `VISUAL_REFERENCE_PENDING` | Real job state/controls; UI-GAP-0074, UI-GAP-0075 and UI-GAP-0076 are exact-green; remaining visual parity awaits original reference access | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `4c656c2c5dfb55e6d3f0078719183cbbad73a555` |
 | 05 | Sources / Files | `VISUAL_REFERENCE_PENDING` | Real source/file state with import and provenance surfaces | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `c775d37f50e332639007ba162b4ff7f591434f1c` |
 | 06 | System | `VISUAL_REFERENCE_PENDING` | Real local runtime/core/provider/storage/backup state | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `c775d37f50e332639007ba162b4ff7f591434f1c` |
 | 07 | Settings | `VISUAL_REFERENCE_PENDING` | Local-model/context/output/reasoning controls with reduced presentation; UI-GAP-0061 accessibility help is exact-green | `IMPLEMENTED_PENDING_VISUAL_REVIEW` | `c775d37f50e332639007ba162b4ff7f591434f1c` |
