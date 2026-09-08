@@ -200,10 +200,24 @@ def test_hook_factory_rejects_boolean_interval_before_database_side_effect(
 
 def test_scheduler_tick_boundary_runs_control_housekeeping_before_scheduler(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     hook, orchestrator = _hook(tmp_path)
-    scheduler_impl = _StubDurableScheduler()
-    scheduler = cast(DurableJobScheduler, scheduler_impl)
+    scheduler = object.__new__(DurableJobScheduler)
+    scheduler_calls: list[tuple[str, int | None, SchedulerLane]] = []
+    scheduler_result = cast(SchedulerTickResult, object())
+
+    def durable_tick(
+        _self: DurableJobScheduler,
+        *,
+        worker_id: str,
+        now_us: int | None = None,
+        lane: SchedulerLane = SchedulerLane.ALL,
+    ) -> SchedulerTickResult:
+        scheduler_calls.append((worker_id, now_us, lane))
+        return scheduler_result
+
+    monkeypatch.setattr(DurableJobScheduler, "tick", durable_tick)
 
     result = run_scheduler_tick_with_wal_housekeeping(
         scheduler,
@@ -214,17 +228,31 @@ def test_scheduler_tick_boundary_runs_control_housekeeping_before_scheduler(
         now_monotonic=10.0,
     )
 
-    assert result is scheduler_impl.result
+    assert result is scheduler_result
     assert orchestrator.calls == 1
-    assert scheduler_impl.calls == [("control-1", 123, SchedulerLane.CONTROL)]
+    assert scheduler_calls == [("control-1", 123, SchedulerLane.CONTROL)]
 
 
 def test_scheduler_tick_boundary_keeps_provider_lane_wal_side_effect_free(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     hook, orchestrator = _hook(tmp_path)
-    scheduler_impl = _StubDurableScheduler()
-    scheduler = cast(DurableJobScheduler, scheduler_impl)
+    scheduler = object.__new__(DurableJobScheduler)
+    scheduler_calls: list[tuple[str, int | None, SchedulerLane]] = []
+    scheduler_result = cast(SchedulerTickResult, object())
+
+    def durable_tick(
+        _self: DurableJobScheduler,
+        *,
+        worker_id: str,
+        now_us: int | None = None,
+        lane: SchedulerLane = SchedulerLane.ALL,
+    ) -> SchedulerTickResult:
+        scheduler_calls.append((worker_id, now_us, lane))
+        return scheduler_result
+
+    monkeypatch.setattr(DurableJobScheduler, "tick", durable_tick)
 
     result = run_scheduler_tick_with_wal_housekeeping(
         scheduler,
@@ -235,9 +263,9 @@ def test_scheduler_tick_boundary_keeps_provider_lane_wal_side_effect_free(
         now_monotonic=10.0,
     )
 
-    assert result is scheduler_impl.result
+    assert result is scheduler_result
     assert orchestrator.calls == 0
-    assert scheduler_impl.calls == [("provider-1", 456, SchedulerLane.PROVIDER)]
+    assert scheduler_calls == [("provider-1", 456, SchedulerLane.PROVIDER)]
 
 
 def test_scheduler_tick_boundary_rejects_invalid_lane_before_scheduler_or_wal(
