@@ -11,6 +11,16 @@ from athena.storage.wal_runtime import build_wal_maintenance_runtime
 from athena.storage.wal_scheduler import WalMaintenanceSchedulerAdapter
 
 
+def _normalize_worker_id(worker_id: object) -> str:
+    """Validate scheduler worker identity before any WAL or job side effect."""
+    if not isinstance(worker_id, str):
+        raise TypeError("Scheduler worker_id must be text.")
+    normalized_worker_id = worker_id.strip()
+    if not normalized_worker_id:
+        raise ValueError("Scheduler worker_id must not be empty.")
+    return normalized_worker_id
+
+
 class WalJobSchedulerHook:
     """Invoke WAL maintenance from an existing durable scheduler tick.
 
@@ -79,9 +89,7 @@ def run_scheduler_tick_with_wal_housekeeping(
     maintenance failure aborts before durable job selection/dispatch, so the two
     control-plane effects cannot silently diverge.
     """
-    normalized_worker_id = worker_id.strip()
-    if not normalized_worker_id:
-        raise ValueError("Scheduler worker_id must not be empty.")
+    normalized_worker_id = _normalize_worker_id(worker_id)
     normalized_lane = SchedulerLane(lane)
     hook.run_for_lane(
         lane=normalized_lane,
@@ -155,9 +163,7 @@ class WalAwareDurableJobScheduler(DurableJobScheduler):
         lane: SchedulerLane = SchedulerLane.ALL,
     ) -> SchedulerTickResult:
         """Run bounded WAL housekeeping, then the canonical durable scheduler tick."""
-        normalized_worker_id = worker_id.strip()
-        if not normalized_worker_id:
-            raise ValueError("Scheduler worker_id must not be empty.")
+        normalized_worker_id = _normalize_worker_id(worker_id)
         normalized_lane = SchedulerLane(lane)
         hook = self._wal_housekeeping_hook
         if hook is None:
