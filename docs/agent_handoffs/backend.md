@@ -1,33 +1,81 @@
 # pATHENA Backend & Systems Handoff
 
 ## Baseline
-- Shared baseline: `develop/pathena-next@d40dc421585193db7bda039d113d7d81ccfb9c03`.
-- Worker: `postmerge/backend`.
-- History-preserving NON-FORCE synchronization: `f9ef23642407849d4da4d02cbb3294694539f3bc`, exact current Develop tree plus Backend-owned WAL files only.
-- Current worker peers reviewed: errors `caccfcc8fdbd8add56d665ba0ef5e1e69d4b53f3`; spec-core `d64c9fdfafe026e272857d36bd7a8aa90b859f55`; UI `04b4a77b144fb1da1edfa0b0c155f8fe8b583d6c`.
-- `main` and `bnbgrs/ATHENA` remain untouched/read-only.
 
-## Exact canonical evidence consumed
-`Quality_34167555208@aae2b6ef705db49eddcee501e872dd179889709e` completed FAILURE only because full pytest had one UI-owned Jobs copy assertion: completed-state reason still contained `lifecycle action`. Exact persisted diagnostics report `1 failed, 4812 passed, 3 skipped, 2 warnings`. Backend/system evidence on that exact SHA is green: specification validator PASS, Ruff PASS, mypy PASS, Windows path safety PASS, Linux storage regressions PASS, Local install smoke PASS, `tests/unit/test_wal_job_hook.py` PASS and requested ExternalAccessGateway runtime-boundary coverage PASS. Backend does not patch the UI failure.
+- Shared baseline: `develop/pathena-next@eaab89bb4d7b08839517c40b622480bb1dc309f0`.
+- Worker branch: `postmerge/backend`.
+- History-preserving NON-FORCE synchronization with current Develop: merge commit `b7d2f5fd6ed3e1c35fd7458f84be62341e3938af`.
+- `main@0d4d621f8a38ddf8eccfa09622bf193687619943` remains strictly read-only and untouched.
 
-## ExternalAccessGateway priority
-Exact current Develop already contains the requested runtime-boundary hardening: `ttl_seconds` and `max_bytes` require genuine non-bool ints; timeout requires numeric non-bool finite input and rejects NaN/Inf before authorization/fetch side effects. Existing Tor/direct, proxy-locality, redirect reauthorization, HTTPS/default-port, compressed-response, response-size, audit/provenance/fsync and transactional Source-finalization invariants remain unchanged. No duplicate Gateway patch was created.
+## Selected backend slice
 
-## Current real Backend slice
-Area: WAL scheduler numeric conversion fail-closed boundary.
+Area: durable deletion-ledger runtime boundaries / recovery cursor.
 
-`WalMaintenanceIntervalRunner` accepted Python ints as numeric inputs, but `_finite_nonnegative_number()` called `float(value)` without catching `OverflowError`. A finite Python integer such as `10**400` therefore escaped as raw `OverflowError` instead of the bounded `WalMaintenanceError` contract. Product commit `64dbb693e3f350dffde617e25784dab2993ecca6` catches that conversion overflow and re-raises the existing `WalMaintenanceError` message. Regression commit `5e8691a491a3fe3251e7502e9ed8fd7d140859d6` proves an oversized monotonic integer fails before any WAL side effect and leaves `next_due_monotonic` unset.
+Spec/error anchor: `ERR-0001`, backend audit tasks 290-293, and the existing deletion/recovery invariants in `src/athena/lifecycle/deletion.py`.
 
-## Invariants
-PASSIVE-only automatic maintenance; explicit-idle-only TRUNCATE; no manual WAL deletion; PROVIDER zero-WAL side effects; no second scheduler/process/thread/timer/retry; no schema/migration/recovery/provenance/fsync/packaging/process-tree/lane-lock/DirectChat/security/crypto change. Existing valid numeric ranges and prior deadline-overflow behavior remain unchanged. No Skip/XFail, assertion weakening or guard relaxation.
+Product commit `780d25d74ce2e310b6a4bc434f547a23163e8b78` adds fail-before-SQL runtime validation for malformed entity types and bool-as-int deletion values without changing persistence or recovery semantics. Ruff-only harness correction `2f705d5e0fc1c77dd60612b5aeaa16d9380e46cd` formats the new boundary test import block; assertions and product behavior are unchanged.
 
-Persistent Beta/release guards remain: pypdf/frozen-entrypoint metadata and fail-closed child argv; two-EXE Desktop/Worker split; one Desktop with bounded/non-growing workers; adaptive small-context DirectChat reserve; Windows lane-lock PermissionError -> SchedulerLaneOwnershipError -> packaged-worker OSError cluster; duplicate-column/core-start/storage-bootstrap signatures. Historical signatures remain closed absent exact-current reproduction.
+## Exact verification evidence
 
-## Shared composition
-Exact current `src/athena/core/application.py` still constructs `DurableJobScheduler` directly. The known `WalAwareDurableJobScheduler` substitution remains the next composition step, but this run did not replace the shared Core file through a destructive whole-file mutation. The new disjoint Backend-owned numeric-boundary fix is real product progress, not an analysis-only handoff.
+Canonical Quality run `33749788522` checked exact Backend head `1cfd18c69014390380bb960b86c8e1b81a5067ac`.
 
-## Verification
-Canonical ATHENA Quality `34170377043` was created for exact product/test head `5e8691a491a3fe3251e7502e9ed8fd7d140859d6` and was `pending` when this handoff was written. No PASS or promotion-ready claim is made for the new slice until exact completed evidence is consumed on this product-identical lineage.
+Backend-relevant results:
 
-## Next
-Consume exact canonical Quality for `5e8691a491a3fe3251e7502e9ed8fd7d140859d6` or this unchanged handoff descendant. If Backend-owned tests/gates are green, mark only the WAL numeric-conversion hardening VERIFIED/INTEGRATOR_READY. Then perform the known application scheduler substitution only via a collision-safe exact mutation; otherwise immediately execute another disjoint evidence-backed Recovery/Provider/Platform slice. Do not patch UI-owned Jobs copy from Backend.
+- specification validator: PASS;
+- Ruff: PASS;
+- mypy: PASS;
+- Windows path safety: PASS;
+- Linux storage regressions: PASS;
+- Local install smoke: PASS;
+- `tests/unit/test_deletion_ledger_boundaries.py`: all 22 tests PASS inside the full pytest run;
+- full pytest: `1 failed, 4489 passed, 3 skipped, 2 warnings`.
+
+The single pytest failure is exactly `tests/unit/test_pathena_pallas_full_view.py::test_open_workspace_reuses_one_synchronized_full_surface`, raising `AttributeError` in `MessageActionTabOrderController.eventFilter()` because `document` is transiently absent. This is the already UI-owned PALLAS lifecycle defect (`UI-GAP-0003`), not a deletion-ledger/backend failure. No new Backend-owned pytest failure appears in the exact log.
+
+UI independently corrected that exact lifecycle root cause and canonical Quality run `33751403354` on UI head `76cb122dbe7b58b0fa49bbcb36de2bd732922d4d` completed SUCCESS. Backend does not absorb or modify the UI fix.
+
+## Product call-chain and invariants
+
+`record_deletion(runtime input) -> exact runtime validation -> UUID materialization -> existing-marker SELECT -> identity reconciliation -> INSERT/readback`.
+
+`read_deletion_records(after_seq) -> exact runtime validation -> ordered ledger SELECT`.
+
+Retained invariants:
+
+- malformed values fail before SQL;
+- bool is not accepted as deletion timestamp, commit sequence or cursor;
+- `deleted_at_us=0` and `after_seq=0` remain valid;
+- deletion commit sequence remains a positive genuine integer;
+- marker idempotency/reconciliation, restore replay, transaction boundaries, ordering, identity-conflict behavior, schema and persistence representation are unchanged;
+- no Security, TOR, Provider, UI or platform-path semantics changed.
+
+## Verification / readiness state
+
+- `ERR-0002` Ruff I001: FIXED and verified by canonical Ruff PASS in run `33749788522`.
+- `ERR-0001` Backend candidate: BACKEND_VERIFIED / INTEGRATOR_READY. Its focused boundary suite passes in the full canonical pytest execution, and every Backend/system canonical job is green. The only global failure is the independently owned UI/PALLAS lifecycle signature above.
+- Error worker should independently re-verify `ERR-0001` after integration before changing the canonical Error Ledger state to `FIXED`.
+
+## Failure / recovery impact
+
+The product mutation is fail-before-SQL and side-effect reducing. No ledger rows, schema, transaction semantics, ordering, marker identity, restore replay, crash/restart behavior or recovery format changed. Invalid boundary inputs now terminate before any SQL operation.
+
+## Platform impact
+
+Platform-neutral Python runtime-boundary hardening only. Windows path safety, Linux storage regression and local-install smoke jobs are all green on the exact Backend lineage.
+
+## Coordination
+
+- `postmerge/errors`: exact pytest evidence gap is now closed; `ERR-0001` may be treated as Backend-verified, with final canonical Ledger closure after integration/reverification.
+- `postmerge/ui`: owns `UI-GAP-0003`; its exact corrective lineage is now canonical green. Backend must not modify this UI root cause.
+- `postmerge/spec-core`: normal-Hybrid Search facade/application wiring remains Core-owned and non-overlapping.
+- `develop/pathena-next`: integration target only; Backend never self-integrates.
+
+## Integrator handoff
+
+READY for independent Integrator review/integration: product `780d25d74ce2e310b6a4bc434f547a23163e8b78` plus test/Ruff correction `2f705d5e0fc1c77dd60612b5aeaa16d9380e46cd`, carried on the history-preserving current-Develop Backend lineage beginning at merge `b7d2f5fd6ed3e1c35fd7458f84be62341e3938af`.
+
+The global red result of run `33749788522` must not be attributed to this Backend slice: its sole failure is the exact independently verified UI/PALLAS defect described above.
+
+## Next backend slice
+
+Select the highest currently unclaimed Backend/System P0/P1/P2 gap from current Alpha/Beta progress, Error Ledger and worker handoffs after excluding Core-owned normal-Hybrid Search and UI-owned PALLAS lifecycle work. Preserve deletion-ledger ownership only until Integrator imports the verified slice; do not broaden this root cause further.
