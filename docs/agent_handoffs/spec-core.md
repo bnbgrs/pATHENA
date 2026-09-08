@@ -2,51 +2,44 @@
 
 ## Current baseline
 
-- Current shared baseline reviewed: `develop/pathena-next@d40dc421585193db7bda039d113d7d81ccfb9c03`.
+- Current shared baseline reviewed: `develop/pathena-next@a9b04acc020218ac8991eed7457e4a9428e10bd5`.
 - Worker branch: `postmerge/spec-core` only.
-- Current pre-handoff worker head: `80915e1e8c7dff42fc998e9035df41273bdb08ca`.
+- Pre-run worker head: `71d49c94dde94616705ffb60010ff57fc0ec127e`.
+- Current worker repair head: `cf48d89d414c37d7019b22802f0f2ff013b71b45` before this handoff update.
 - `main` and `bnbgrs/ATHENA` remain untouched/read-only; no force update, rebase or history rewrite was used.
 
 ## Verified Core contracts
 
 Normal Hybrid Search remains unchanged from the exact-green verified Core lineage: one-time `attach_normal_search`, capability `search.normal.hybrid` only after attachment, exact `query/model_id/limit/entity_type` delegation, canonical `hybrid_search_result_response()` mapping, unchanged `SemanticRetrievalUnavailableError` propagation, and application identity `app.api._normal_search is app.hybrid_retrieval`.
 
-Personal-Memory §42-§47 behavior and §50 Reset isolation remain inherited from prior exact-green Core evidence. §49 Protected Lock remains a documented cross-component dependency: Core preserves fail-closed plaintext refusal and does not fabricate passphrase/unlock/index/suggestion surfaces.
+§68 durable 60%-restart acceptance remains inherited from exact-green Spec/Core evidence. §69 model-drift fail-closed acceptance remains covered by the existing real orchestration test. §70 Large Archive / pinned 2048-context acceptance was integrated into current Develop by Integrator and remains preserved.
 
-## Exhaustive Research §68 — READY
+## Exhaustive Research §71 — contradiction acceptance repair pending exact verify
 
-Normative §68 requires a five-source Exhaustive Research run to stop at 60%, restart from durable state, continue, retain all prior Findings, and avoid duplicates.
+Normative §71 requires two actually opposing real Sources to remain explicitly visible as a final contradiction with precise provenance to both SourceAnalysis final artifacts.
 
-`tests/unit/test_exhaustive_research_resume.py` exercises the real persistent `AthenaApplication`, real Source capture/preprocessing, real Research parent/child orchestration, persisted ResearchWorkItems, SourceAnalysis final artifacts, content hashes and Finding payloads. The test stops after exactly three of five successful sources, requires coverage `0.6`, reconstructs the application against the same durable root, proves the first three persisted identities/content hashes/Finding payloads survive, completes the remaining two sources, and requires coverage `1.0` with five unique work items, analysis jobs, final artifacts and Finding payloads.
+`tests/unit/test_exhaustive_research_contradiction.py` was added in `71d49c94dde94616705ffb60010ff57fc0ec127e`. Canonical ATHENA Quality `34179449007` on that exact SHA completed `failure` only in full pytest; Validator, Ruff, mypy, Local install smoke, Linux storage regressions and Windows path safety all succeeded.
 
-The earlier ERR-0020 failures were harness-only and are now closed. Final repair commit `95ad54ce07af61d79baf31fbcb7f07ab2f6ff4f6` preserves the `resume-source-*` marker through MAP and reduce/final synthesis fixture responses without changing production code or weakening assertions. Canonical ATHENA Quality `34166054576` on that exact commit completed `success`.
+Direct test/provider inspection identified a harness-only source-analysis propagation defect. The fixture emitted distinct opposing findings only when `"map" in schema_id`; real SourceAnalysis then passed through non-MAP reduce/final synthesis calls, where the inherited provider returned generic source findings. As a result the §71 test could not reliably carry both opposing persisted SourceAnalysis findings into the prepared Research FINAL synthesis input.
 
-Current worker head `80915e1e8c7dff42fc998e9035df41273bdb08ca` carries the unchanged verified fixture plus the prior handoff, and exact canonical ATHENA Quality `34166094972` completed `success`. Error handoff therefore marks `ERR-0020` FIXED and clears the hold for this exact Spec/Core head.
+Minimal repair `cf48d89d414c37d7019b22802f0f2ff013b71b45` changes only the §71 test provider behavior: Research-synthesis schemas still delegate to the canonical shared synthesis fixture; SourceAnalysis calls containing exactly one launch outcome now preserve that outcome through MAP and non-MAP reduce/final responses. Production code, contradiction policy, provenance mapping, persistence semantics and all §71 assertions remain unchanged.
 
-Status: `§68 READY / INTEGRATOR_READY @ 80915e1e8c7dff42fc998e9035df41273bdb08ca / Quality 34166094972 = success`.
-
-## Exhaustive Research §69 — existing exact acceptance, no duplicate patch
-
-Normative §69 requires changing the primary model between pause/resume and detecting drift rather than silently mixing model configurations.
-
-Existing `tests/unit/test_exhaustive_research_orchestration.py::test_model_drift_between_candidates_waits_user_without_mixed_child` already uses the real Research orchestration path. It processes the first candidate under the pinned model signature, changes provider quantization from Q4 to Q5 before the next candidate, then requires the parent Research job to enter `WAITING` with `WaitingReason.USER` and proves only one successful work item / one analysis child exists. This is the required fail-closed model-drift behavior and prevents mixed-child processing.
-
-No duplicate §69 test was created. The next normative Core-owned gap is §70 Large Archive Test.
+Status: `§71 FIXED_PENDING_VERIFY @ cf48d89d414c37d7019b22802f0f2ff013b71b45`. No PASS/READY claim until focused/canonical execution succeeds on this SHA or an unchanged descendant.
 
 ## Coordination state
 
-- Error handoff reviewed on `develop/pathena-next@d40dc421585193db7bda039d113d7d81ccfb9c03`: OPEN none, IN_PROGRESS none, `ERR-0020` FIXED; Spec/Core `80915e1e8c7dff42fc998e9035df41273bdb08ca` is recorded exact-green via Quality `34166094972`.
-- Backend handoff reviewed; Backend WAL/deadline/storage work remains disjoint and no Backend file was modified by Core.
-- UI handoff reviewed; Jobs product-language/accessibility work remains disjoint and no UI file was modified by Core.
-- Integrator handoff reviewed from current Develop; its prior ERR-0020 hold is now superseded by exact-green Error/Core evidence above. Integrator should independently consume this exact READY SHA rather than infer readiness from divergent worker history.
+- Error handoff reviewed at `postmerge/errors@226ba95aead51d42b723b787b444a9b001ab3293`; ERR-0023 is a separate Jobs product-copy issue and does not own the §71 Research test repair.
+- Backend active head was reviewed via current Error coordination evidence; Backend storage/WAL/scheduler ownership remains disjoint and no Backend file was changed here.
+- UI active head was reviewed via current Error coordination evidence; UI Jobs/accessibility ownership remains disjoint and no UI file was changed here.
+- Integrator handoff/current Develop was reviewed at `develop/pathena-next@a9b04acc020218ac8991eed7457e4a9428e10bd5`; current Develop records prior Large Archive acceptance integration.
 - All Core mutations remain NON-FORCE and no foreign branch/history was overwritten.
 
 ## Next Core action
 
-1. Treat `80915e1e8c7dff42fc998e9035df41273bdb08ca` as exact §68 READY evidence for Integrator.
-2. Do not duplicate §69; existing real acceptance already covers model drift fail-closed behavior.
-3. Execute §70 Large Archive Test against the real SourceAnalysis/Research context-budget composition: CandidateSet materially larger than a single model context and explicit proof that no individual model call exceeds the pinned context budget. Do not simulate a fake budget surface or weaken the small-context safety contract.
-4. Before mutation, re-read latest Develop and all worker heads; synchronize only history-preservingly and only if every foreign delta is retained.
+1. Consume exact CI/Quality for `cf48d89d414c37d7019b22802f0f2ff013b71b45` or this unchanged handoff descendant.
+2. If green, mark §71 READY with exact SHA/Quality and hand to Integrator.
+3. Immediately inspect/execute normative §72 Unavailable NAS Test. Reuse existing unit accounting for unavailable sources but add only the missing real orchestration/NAS acceptance; do not duplicate unit-only coverage.
+4. If §71 remains red, repair only the new exact pytest primary failure without weakening the two-opposing-source or precise-provenance assertions.
 
 ## Release regression obligations
 
