@@ -12,6 +12,10 @@ class _CustomDurableJobScheduler(DurableJobScheduler):
     pass
 
 
+class _CustomWalJobSchedulerHook(WalJobSchedulerHook):
+    pass
+
+
 def _scheduler_with_sentinels() -> tuple[DurableJobScheduler, object]:
     dependency = object()
     opaque = cast(Any, dependency)
@@ -83,10 +87,20 @@ def test_from_scheduler_rejects_noncanonical_scheduler_subclass() -> None:
         WalAwareDurableJobScheduler.from_scheduler(custom, hook)
 
 
+def test_from_scheduler_rejects_noncanonical_hook_subclass_before_recomposition() -> None:
+    scheduler, dependency = _scheduler_with_sentinels()
+    hook = object.__new__(_CustomWalJobSchedulerHook)
+
+    with pytest.raises(TypeError, match="canonical WalJobSchedulerHook"):
+        WalAwareDurableJobScheduler.from_scheduler(scheduler, hook)
+
+    assert scheduler.jobs is dependency
+
+
 def test_from_scheduler_rejects_invalid_hook_before_recomposition() -> None:
     scheduler, _ = _scheduler_with_sentinels()
 
-    with pytest.raises(TypeError, match="requires WalJobSchedulerHook"):
+    with pytest.raises(TypeError, match="canonical WalJobSchedulerHook"):
         WalAwareDurableJobScheduler.from_scheduler(
             scheduler,
             cast(Any, object()),
