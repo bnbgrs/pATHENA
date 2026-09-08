@@ -218,6 +218,14 @@ class PathenaStartupExperience(QObject):
             new_chat.setMaximumWidth(62)
             new_chat.setAccessibleDescription(new_chat.toolTip())
 
+        ground = self.window.findChild(QPushButton, "groundButton")
+        if ground is not None:
+            ground.setAccessibleDescription(ground.toolTip())
+
+        details_toggle = self.window.findChild(QPushButton, "detailsToggle")
+        if details_toggle is not None:
+            details_toggle.setAccessibleDescription(details_toggle.toolTip())
+
         context_toggle = self.window.findChild(QPushButton, "contextToggle")
         if context_toggle is not None:
             context_toggle.setAccessibleDescription(context_toggle.toolTip())
