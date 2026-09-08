@@ -1,8 +1,11 @@
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QApplication,
     QFrame,
     QLabel,
     QLineEdit,
+    QListWidget,
+    QListWidgetItem,
     QPushButton,
     QVBoxLayout,
     QWidget,
@@ -55,6 +58,25 @@ def test_first_run_contract_covers_real_chat_start_surfaces() -> None:
         "sendButton",
         "pallasVisualPlaceholder",
     } <= keys
+
+
+def test_icon_navigation_exposes_human_page_names_to_accessibility() -> None:
+    _app()
+    window = _ReadyStartupWindow()
+    navigation = QListWidget(window)
+    navigation.setObjectName("navigation")
+    for symbol, page_name in (("◉", "Workspace"), ("◇", "Library"), ("⚙", "Settings")):
+        item = QListWidgetItem(symbol)
+        item.setToolTip(page_name)
+        navigation.addItem(item)
+
+    PathenaStartupExperience(window)
+
+    for index, page_name in enumerate(("Workspace", "Library", "Settings")):
+        item = navigation.item(index)
+        assert item.text() != page_name
+        assert item.toolTip() == page_name
+        assert item.data(Qt.ItemDataRole.AccessibleTextRole) == page_name
 
 
 def test_disabled_composer_no_longer_looks_primary() -> None:
