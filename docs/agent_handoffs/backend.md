@@ -2,44 +2,49 @@
 
 ## Baseline
 
-- Shared baseline reviewed: `develop/pathena-next@20619f1310bef9d7d2aa706cff11a974144c47e5`.
-- Pre-run worker: `postmerge/backend@73726422889bec6a43ad6d1b06f201d720b477d0`.
-- Previous exact Backend Quality: `34215906072 = failure`; Linux storage, Local install smoke, Windows path safety, specification validator, Ruff and mypy all passed; only canonical pytest failed under shared `ERR-0025`.
-- History-preserving NON-FORCE synchronization: `5703e0cfed3630661cc5831cd4866102cb43cc13`, parents `73726422889bec6a43ad6d1b06f201d720b477d0` and `20619f1310bef9d7d2aa706cff11a974144c47e5`.
-- Develop-only delta since the prior Backend merge-base consisted of `docs/agent_handoffs/integrator.md` and `src/athena/desktop/pathena_settings_runtime.py`; their exact Develop blobs were overlaid onto the Backend tree.
-- `main` and `bnbgrs/ATHENA` remain read-only and untouched.
+- Shared baseline: `develop/pathena-next@d5b4d1479416edd1cd55f8bff6190029f42d9289`.
+- Pre-run worker: `postmerge/backend@aa9cb18188bf070ac4b9f0e2763e2b31c643a54f`.
+- Previous exact Backend Quality: `34221259239 = failure`; Local install smoke, Linux storage, Windows path safety, specification validator, Ruff and mypy passed; canonical pytest alone failed under shared `ERR-0025`.
+- Current coordination heads reviewed: errors `36856ddf219895aacb58a3029c0f86736724caf6`; spec-core `25d3cf0a674086b3e8050bb730359674909288cc`; UI `b9936b6e404c224c47230ced5919f475760c013a`; integrator from exact Develop `d5b4d1479416edd1cd55f8bff6190029f42d9289`.
+- History-preserving NON-FORCE sync commit: `87629b8355417e94866d7052affcb3d51c127d99`, parents prior Backend and exact current Develop. Develop-only `integrator.md` and §73 external-capture acceptance test were imported byte-identically while all Backend-owned WAL work was preserved.
+- `main` and `bnbgrs/ATHENA` remain untouched/read-only.
 
 ## ExternalAccessGateway priority
 
-Exact current Develop still contains the requested runtime boundaries and focused tests: `ttl_seconds` and `max_bytes` require genuine non-bool integers; `timeout_seconds` rejects bool, non-numeric, NaN and infinities before authorization/fetch side effects. The prepared Gateway patch was therefore not duplicated.
+Exact current Develop already contains the requested fail-before-side-effect runtime boundaries and tests: `ttl_seconds` and `max_bytes` reject bool and require genuine ints; `timeout_seconds` rejects bool, non-numeric, NaN and infinities while preserving valid ranges. The prepared patch was not duplicated.
 
-## Current Backend slice
+## Current Backend slice — real application composition
 
-Product commit `28b261900f37be248a5dc9a8045b9208226276ef` closes the remaining canonical-component escape in `WalMaintenanceRuntime`: runtime construction now requires the exact canonical `WalMaintenanceService`, `WalMaintenanceOrchestrator`, `WalMaintenanceIntervalRunner`, and `WalMaintenanceSchedulerAdapter`, rather than accepting subclasses that could override maintenance semantics after composition.
+Product commit `de99a0d53483fa45a69fab73dea90e2a727e9387` wires the existing canonical `DurableJobScheduler` into the already-hardened bounded WAL stack inside `AthenaApplication` itself. Application construction now creates exactly one `WalJobSchedulerHook` from the existing `SQLiteDatabase` with an explicit 60-second interval, then recomposes the already-created canonical scheduler through `WalAwareDurableJobScheduler.from_scheduler()`.
 
-Focused regression commit `c08b9aaf9e9b401fee03e22c843042baac17bee3` adds `tests/unit/test_wal_runtime_canonical_boundary.py`. It builds the real side-effect-free WAL runtime stack, substitutes foreign subclasses one component at a time, and verifies rejection at the dataclass runtime boundary before component state is consumed. No Skip/XFail, assertion weakening, retry, or production safety relaxation was added.
+This preserves the inherited scheduler `run_loop`/`drain`, adds no thread/timer/retry/process, keeps PROVIDER WAL-side-effect-free, leaves automatic maintenance PASSIVE-only and leaves TRUNCATE explicit idle-only.
 
-## Retained invariants
+Focused regression commit `c4affb30cd3661aaa26724a9d31215fc2384af00` adds `tests/unit/test_application_wal_scheduler_composition.py`. It verifies exact WAL-aware scheduler/hook composition, single hook identity, and that the PROVIDER lane remains safe before application startup without opening/mutating the database.
 
-- no silent Tor-to-Direct fallback; Direct fallback explicit only;
-- no loopback/private proxy leak; redirect destinations re-authorized before fetch;
-- HTTPS/default-port, compressed-response and response-size behavior remains fail-closed;
+## Verification
+
+- Exact prior Quality `34221259239`: failure only in shared canonical pytest; all non-pytest system gates passed.
+- Current product/test head `c4affb30cd3661aaa26724a9d31215fc2384af00`: Quality `34226701474 = pending` at handoff creation.
+- No current-head PASS, global-green or promotion-ready claim is made.
+- No Skip/XFail, assertion weakening or safety-guard relaxation was introduced.
+
+## Invariants retained
+
+- no silent Tor→Direct fallback; Direct fallback explicit only;
+- no loopback/private proxy leak; redirects re-authorized before fetch;
+- HTTPS/default-port, compressed-response and response-size handling fail closed;
 - Audit/Provenance/fsync/transactional Source finalization unchanged;
-- automatic WAL maintenance remains PASSIVE-only; TRUNCATE remains explicit idle-only;
-- PROVIDER lane remains WAL-side-effect-free;
-- canonical WAL service/orchestrator/runner/adapter/hook composition is now fail-closed at each boundary;
-- no second scheduler process, loop, thread, timer or retry;
-- no schema, migration, recovery representation, packaging, lane-lock, process-tree, DirectChat, Security or cryptographic semantic change;
-- no force update, rebase, history rewrite or main mutation.
+- PASSIVE-only automatic WAL maintenance; explicit idle-only TRUNCATE; no manual WAL deletion;
+- PROVIDER lane has zero WAL housekeeping side effect;
+- exactly one canonical WAL hook is bound to exactly one WAL-aware scheduler;
+- no second scheduler process/loop/thread/timer/retry;
+- schema/migrations/recovery representation/packaging/lane-lock/process-tree/DirectChat/security/crypto semantics unchanged;
+- no force push, rebase, history rewrite or main mutation.
 
-## Verification state
+## Release regression knowledge
 
-Previous exact Backend/system gates are green except the deduplicated shared canonical pytest failure under `ERR-0025`. No workflow run was yet returned for focused-test head `c08b9aaf9e9b401fee03e22c843042baac17bee3` at the time of this handoff update, so no PASS/global-green/promotion-ready claim is made.
-
-## Platform / release knowledge
-
-No exact-current evidence reopens retained Windows crash classes. Beta/release candidates still require explicit smokes for pypdf frozen metadata, fail-closed child argv/two-EXE routing, bounded Desktop/Worker process tree, adaptive small-context DirectChat reserve, lane-lock PermissionError -> SchedulerLaneOwnershipError -> packaged-worker OSError, duplicate-column startup, Core startup failure and storage-bootstrap failure.
+Historical Windows/runtime signatures remain regression obligations only absent exact-current reproduction: pypdf metadata/frozen argv routing; two-EXE Desktop/Worker split and bounded process tree; adaptive small-context DirectChat reserve; lane-lock `PermissionError` → `SchedulerLaneOwnershipError` → packaged-worker `OSError`; duplicate-column startup; Core startup failure; storage-bootstrap failure.
 
 ## Next Backend action
 
-Consume exact canonical Quality for the current lineage. If Backend-owned gates are green, finish the real `AthenaApplication` DurableJobScheduler -> WalAwareDurableJobScheduler wiring using the now-available Git-data blob/tree mutation path rather than repeating the historical whole-file connector blocker: bind exactly one `build_wal_job_scheduler_hook` with an explicitly reviewed interval, preserve the existing supervisor/CLI `run_loop`, keep PROVIDER isolation and Windows process-tree/lane-lock semantics unchanged, add focused application-composition regressions, then run the smallest relevant WAL/ExternalAccessGateway/network-security set plus canonical Quality as available.
+Consume exact Quality for `c4affb30cd3661aaa26724a9d31215fc2384af00` or this documentation-only descendant. If the new application-composition slice is Backend-green, mark it VERIFIED/INTEGRATOR_READY and run/consume the narrow WAL plus ExternalAccessGateway/network-security regression evidence before any promotion claim. If red, repair only the exact Backend-owned assertion; keep shared pytest-only failures deduplicated under `ERR-0025` until an exact traceback proves otherwise. Then continue with the next evidence-backed Backend/Recovery/Provider/Platform gap rather than reworking the completed application wiring.
