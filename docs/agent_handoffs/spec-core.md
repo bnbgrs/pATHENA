@@ -2,32 +2,38 @@
 
 ## Current baseline
 
-- Develop baseline checked: `develop/pathena-next@4f077e36248a49d261f13d3f3838d62a376f506f`.
-- Pre-run Core worker: `postmerge/spec-core@56a6d0602361e0e7b3ad97e6ec52e2a35443dded`; canonical Quality `34237486353` = SUCCESS.
-- History-preserving reconciliation: `ddba8f12c0bfb06e3f38e1da2705781ae70f3f1a`, parents `56a6d0602361e0e7b3ad97e6ec52e2a35443dded` and `4f077e36248a49d261f13d3f3838d62a376f506f`. Develop-owned `docs/agent_handoffs/integrator.md` and `tests/unit/test_pathena_jobs_status_copy.py` were imported byte-identically; update was NON-FORCE.
-- Reconciliation Quality `34244127053` is still running in Python quality at this handoff; Local install smoke, Linux storage regressions and Windows path safety are already SUCCESS. No current-head PASS claim.
+- Develop baseline checked: `develop/pathena-next@270f97c36bd114036658e322f68d8011983ff150`.
+- Pre-run Core worker: `postmerge/spec-core@298bb61c07dd2fdedea0e8a24db30410442c6794`; canonical Quality `34244657010 = SUCCESS`.
+- Current Develop differs from the worker only in Integrator/UI-owned Jobs copy/test files relative to merge-base `4f077e36248a49d261f13d3f3838d62a376f506f`; no Core/Research file collision was found. No force update, history rewrite, main mutation or ATHENA mutation occurred.
+
+## Required handoffs checked
+
+- Errors: current handoff reviewed; Backend v41 remains split into ERR-0026 through ERR-0029 and is not consumable by Core while exact Backend Quality remains red.
+- Backend: current handoff reviewed; storage/schema/WAL ownership remains Backend-only.
+- UI: current handoff reviewed; UI-GAP-0004 is exact-green/integrated-lineage work and remains presentation-owned.
+- Integrator: current Develop handoff reviewed at `270f97c36bd114036658e322f68d8011983ff150`.
 
 ## Preserved Core contracts
 
-Normal Hybrid Search remains exact-green in inherited lineage: one-time `attach_normal_search`; `search.normal.hybrid` only after attachment; exact `query/model_id/limit/entity_type` delegation; canonical `hybrid_search_result_response()` mapping; `SemanticRetrievalUnavailableError` propagates unchanged; `app.api._normal_search is app.hybrid_retrieval`. Research §68-§74 accepted lineage is preserved. No synthetic provenance, Archive/Protected expansion, fake PALLAS data, skip/XFail, assertion weakening, force push, main mutation or ATHENA mutation.
+Normal Hybrid Search remains exact-green in inherited lineage: one-time `attach_normal_search`; `search.normal.hybrid` only after attachment; exact `query/model_id/limit/entity_type` delegation; canonical `hybrid_search_result_response()` mapping; `SemanticRetrievalUnavailableError` propagates unchanged; `app.api._normal_search is app.hybrid_retrieval`. Research §68-§74 accepted lineage remains preserved. No synthetic provenance, Archive/Protected expansion, fake PALLAS data, Skip/XFail, assertion weakening, force push, main mutation or ATHENA mutation.
 
-## §75 Delta Research — Backend prerequisite still blocked
+## §75 Delta Research
 
-Normative contract: Beta Research §57/§75 requires processing only Sources introduced since a previous committed snapshot while the old snapshot remains referencable. Core continuation remains bounded to an explicit completed `base_scope_id`, durable lower commit boundary, upper `snapshot_commit_seq`, and candidate freeze over `(lower_commit_seq, snapshot_commit_seq]`; restart/resume must preserve the same boundaries and CandidateSet identity. Wall-clock substitution is forbidden.
+Backend v41 remains unverified/red on its current lineage, so Core did not consume or duplicate schema/storage work. The bounded Core continuation remains: explicit completed `base_scope_id`, durable lower commit boundary, upper `snapshot_commit_seq`, and frozen candidates only in `(lower_commit_seq, snapshot_commit_seq]`, restart-stable without wall-clock substitution.
 
-Backend product `255e73eae28651c20ae1baa660c4087f4a62f128` implements schema v41 / migration `0041_research_delta_boundary` / durable `ResearchDeltaBoundaryRepository`. The first canonical red was narrowed to stale `test_main_schema` user_version=28 expectation and Backend corrected that in `72831adaf8c6b13f259921646c6153d4a7a78b68`, with handoff `00b630e4915ec85abc08252d85e6403009b48858`.
+## §65 Partial Result — implemented pending exact verification
 
-Canonical Backend Quality `34239827573` on `00b630e4915ec85abc08252d85e6403009b48858` completed FAILURE. Local install smoke, Linux storage regressions and Windows path safety are SUCCESS, but Python quality has both Ruff and pytest failures. Diagnostics artifact is `canonical-quality-diagnostics-00b630e4915ec85abc08252d85e6403009b48858`, artifact id `10063197080`, SHA256 `568aa8c0765aed96ee23e53ac6c31201def323b35d9e77c16301ac2c904aeaff`. Therefore Core must not consume the v41 prerequisite yet.
+Beta Research §64 requires cancellation to preserve confirmed intermediate results without a false complete Final Result; §65 permits an explicitly requested report that is clearly partial.
 
-## Independent Core gap while §75 is blocked — §65 Partial Result
+Product commit `47027ae91680765c6e9da640f90cad2566c77ae3` adds `ResearchPartialResultService`. It is deliberately post-cancel and opt-in: only `research.exhaustive` jobs in durable `CANCELLED` state with a durable `PARTIAL` Research scope are eligible. The service persists a `ResearchResult` with `final_artifact_id = NULL`, `partial = true`, `result_status = "partial"`, `completion_reason = "cancelled"`, real coverage/problem-source fields and the existing source-coverage composition. It reuses only already-completed immutable synthesis artifacts, records each artifact identity/hash/content plus its resolved SourceAnalysis artifact provenance, leaves the scope PARTIAL and job CANCELLED, and is idempotent for the same partial representation. It performs no model call and fabricates no missing sections/evidence.
 
-Beta Research §64 says cancel preserves confirmed intermediate results without falsely complete Final Result; §65 separately allows an aborted Research job, on request, to produce a report clearly marked partial. Existing exact §74 acceptance `tests/unit/test_exhaustive_research_cancel.py` deliberately proves confirmed REDUCE artifact survival and `research_results` count remains zero after cancellation. `ResearchResultRecord.final_artifact_id` is already nullable, while the current synthesis completion path requires a confirmed FINAL artifact. This establishes a concrete Core-owned composition gap: an explicit opt-in partial-result/report path is not represented by the current cancel acceptance/completion API.
+Acceptance commit `1165890634a3bef43e27eed3f262552e70f768a9` adds `tests/unit/test_exhaustive_research_partial_result.py`. The test drives four real captured Sources through Source processing/analysis, commits a real REDUCE artifact, cancels through the real Research worker, then explicitly creates the partial report. Assertions require nullable final artifact, explicit partial labeling, inclusion of the exact confirmed REDUCE artifact/content hash/source-analysis provenance, real persisted coverage, unchanged PARTIAL/CANCELLED state, idempotency, and absence of any completed FINAL artifact.
 
-Next bounded implementation must reuse only confirmed immutable synthesis artifacts and real coverage/provenance, produce a ResearchResult explicitly marked partial with `final_artifact_id=None` (or another already-canonical nullable partial representation if repository contracts require it), never call it complete, never fabricate missing sections/evidence, and remain opt-in after cancellation. Before mutation, inspect repository insertion/idempotency and API/controller exposure so the smallest existing representation is used rather than adding storage schema.
+Canonical Quality `34250365477` is PENDING on exact acceptance SHA `1165890634a3bef43e27eed3f262552e70f768a9`. No PASS/READY claim is made yet.
 
 ## Required next actions
 
-1. Consume exact reconciliation Quality `34244127053`; no READY unless exact current worker is green.
-2. Consume Backend's next exact diagnostic/fix. Only after Backend v41 is exact-green may Core implement `enqueue_delta` and the bounded `(lower, upper]` candidate-window acceptance.
-3. While Backend remains red, execute §65 Partial Result as the next independent Core slice: inspect existing result insertion/API composition, implement the smallest opt-in partial-result path with a real cancel/confirmed-artifact acceptance, run focused tests then canonical Quality.
+1. Consume exact Quality `34250365477`. If red, repair only the exact demonstrated §65 defect without weakening partial/provenance/cancellation assertions.
+2. If exact-green, mark §65 READY and hand the verified product/test SHA to Integrator; then inspect the next highest independent Alpha/Beta Core gap.
+3. Consume Backend §75 only after its v41/schema/WAL line is exact-green; do not absorb unverified persistence code.
 4. Preserve release regression matrix: pypdf/frozen argv/two-EXE routing, bounded worker tree, 2048-context reserve, lane-lock ownership cluster, duplicate-column startup, Core startup and storage-bootstrap signatures. Historical signatures become OPEN only on exact-SHA reproduction.
