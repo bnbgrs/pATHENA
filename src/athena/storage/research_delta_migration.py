@@ -75,6 +75,64 @@ def migrate_schema_v40_to_v41(connection: sqlite3.Connection) -> None:
         raise
 
 
+def _verify_grounded_receipts_v40_compatible(connection: sqlite3.Connection) -> None:
+    receipt_columns = {
+        str(row[1])
+        for row in connection.execute("PRAGMA table_info(grounded_response_receipts)")
+    }
+    if not {
+        "operation_id",
+        "chat_id",
+        "processing_run_id",
+        "payload_json",
+        "payload_sha256",
+        "format_version",
+        "created_at_us",
+    }.issubset(receipt_columns):
+        raise DatabaseCompatibilityError(
+            "ATHENA Grounded response receipt columns are incomplete."
+        )
+
+    receipt_indexes = {
+        str(row[0])
+        for row in connection.execute(
+            "SELECT name FROM sqlite_master WHERE type = 'index' "
+            "AND name = 'idx_grounded_response_receipts_chat'"
+        )
+    }
+    if receipt_indexes != {"idx_grounded_response_receipts_chat"}:
+        raise DatabaseCompatibilityError(
+            "ATHENA Grounded response receipt index is missing."
+        )
+
+    receipt_foreign_keys = {
+        (str(row[3]), str(row[2]), str(row[4]), str(row[6]).upper())
+        for row in connection.execute("PRAGMA foreign_key_list(grounded_response_receipts)")
+    }
+    if ("chat_id", "chats", "chat_id", "CASCADE") not in receipt_foreign_keys:
+        raise DatabaseCompatibilityError(
+            "ATHENA Grounded response receipt chat foreign key is missing."
+        )
+
+    invalid_receipts = connection.execute(
+        """
+        SELECT COUNT(*)
+        FROM grounded_response_receipts
+        WHERE length(operation_id) != 16
+           OR length(chat_id) != 16
+           OR length(processing_run_id) != 16
+           OR length(payload_json) <= 1
+           OR length(payload_sha256) != 64
+           OR format_version != 1
+           OR created_at_us < 0
+        """
+    ).fetchone()
+    if invalid_receipts is None or int(invalid_receipts[0]) != 0:
+        raise DatabaseCompatibilityError(
+            "ATHENA Grounded response receipt rows are invalid."
+        )
+
+
 def verify_schema_v41(connection: sqlite3.Connection) -> None:
     """Verify v41 plus every inherited v40 durability contract without mutation."""
     application_id = int(connection.execute("PRAGMA application_id").fetchone()[0])
@@ -114,22 +172,7 @@ def verify_schema_v41(connection: sqlite3.Connection) -> None:
             "ATHENA v41 schema is incomplete: " + ", ".join(sorted(missing)) + "."
         )
 
-    receipt_columns = {
-        str(row[1])
-        for row in connection.execute("PRAGMA table_info(grounded_response_receipts)")
-    }
-    if not {
-        "operation_id",
-        "chat_id",
-        "processing_run_id",
-        "payload_json",
-        "payload_sha256",
-        "format_version",
-        "created_at_us",
-    }.issubset(receipt_columns):
-        raise DatabaseCompatibilityError(
-            "ATHENA Grounded response receipt columns are incomplete."
-        )
+    _verify_grounded_receipts_v40_compatible(connection)
 
     delta_columns = {
         str(row[1])
