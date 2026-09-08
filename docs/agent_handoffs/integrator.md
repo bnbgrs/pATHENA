@@ -3,50 +3,38 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `d5b4d1479416edd1cd55f8bff6190029f42d9289`.
+- Develop before this run: `1e6b3b17117c938f5aee26c9797432959a4544c9`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `36856ddf219895aacb58a3029c0f86736724caf6`; spec-core `25d3cf0a674086b3e8050bb730359674909288cc`; backend `55a6e95486c8b7501f27ed07748dc922803025ea`; UI `93367bc74dab77f8ffab65e7de538ee79fb5a72a`.
+- Worker heads reviewed: errors `476fb6f2360529ea330abc0ff9d310a8644e5b6c`; spec-core `ebb0c1f9a6c230395f0ea6468c167f9d61565938`; backend `255e73eae28651c20ae1baa660c4087f4a62f128`; UI `932face973987d84a44c5d37fc61509285466279`.
 - `main` and `bnbgrs/ATHENA` were untouched; no force update, rebase, history rewrite, auto-merge or main promotion was used.
 
-## Progress this run — UI-GAP-0016 unreadable local-settings identity
+## Progress this run — UI-GAP-0017 fresh non-ready provider detail state
 
-No current worker supplied a new READY slice: Spec/Core §74 exact product/test run `34226175559` was cancelled and its documentation descendant `34226233986` remained in progress; Backend application WAL composition run `34226701474` was cancelled; current UI run `34227608407` remained in progress. The hard progress rule therefore consumed the already exact-green deferred UI-GAP-0016 slice after an independent current-Develop review.
+No current worker head was READY at review time: Spec/Core Quality `34231335801`, Backend Quality `34234185972`, and UI Quality `34233338360` were still in progress; Error remains diagnostic-only under ERR-0025. The hard progress rule therefore consumed the already exact-green deferred UI-GAP-0017 slice after independent current-Develop review.
 
-The verified worker product `b0bac270a461afdef3322550e6ddf3e49314653a` changes only Settings presentation identity on unreadable local per-model settings: `_read_model()` continues to use opaque `backend_model_id` for the storage group and persisted identity check, while the visible/accessibility error now receives and renders the selected model `display_name`. Exact UI head `f66a1cc2c80cf0cadc89ba1a4771345af79df934` passed canonical ATHENA Quality `33912482820 = success`.
+Verified worker product `a0c8ea842e6dfb4c029b7a722eeb4b43189941e5` changes only `src/athena/desktop/pathena_settings_runtime.py`: when provider data is fresh but provider status is not `ready`, `settingsRuntimeDetail` now reports `pathenaUiState=error`, matching the already-established provider error state. Ready, stale, explicit model-error, connection, persistence, provider contract, backend, storage, network and security semantics remain unchanged.
 
-Current Develop still contained the precise defect (`f"{model_id} · local settings unreadable"`) while already carrying the previously integrated fail-closed UI-GAP-0014/0015 freshness semantics. The bounded patch was applied as Develop commit `ae830c89bc4a1d122111bc50f5f07ab8aad58d1a`. The resulting product blob is `ca8a5f7e9af404ececdd1d3c14180e8852eeeea6`, byte-identical to the exact verified worker product blob, proving no unrelated product mutation was imported.
-
-The worker focused test `5d819895dfbfecc6c7a24f46251d0e3a07791409` was reviewed but not transplanted because its file contains `pytest.importorskip("PySide6")`, which violates the Integrator no-Skip rule. Its exact-green canonical lineage remains supporting evidence; no Skip/XFail was introduced on Develop.
-
-No persistence representation, QSettings storage-group identity, provider/Core behavior, network/security, Storage, Recovery, scheduler/worker, packaging or Windows-runtime semantics changed.
+Exact UI head `72c143fae1e339b254e5dc7be884c8efb79c7f84` passed canonical Quality `33917796701`. Current Develop carried UI-GAP-0014/0015/0016 semantics but still lacked the UI-GAP-0017 `provider_detail_error` condition. The exact verified worker product blob `644c8d50c79c0157bc7c2579d1d8c9b89ad72e5a` was transplanted over that one file using the current Develop tree, producing Develop product commit `cc64779b4122f1acf8585dd52ddd6dee9bc46d2e`. No divergent UI history or Skip-bearing worker test was imported.
 
 ## Verification state
 
-- Exact worker product: `b0bac270a461afdef3322550e6ddf3e49314653a`.
-- Exact canonical verified descendant: `f66a1cc2c80cf0cadc89ba1a4771345af79df934` / Quality `33912482820 = success`.
-- Develop integration: `ae830c89bc4a1d122111bc50f5f07ab8aad58d1a`.
-- Resulting Develop product blob equals verified worker product blob: `ca8a5f7e9af404ececdd1d3c14180e8852eeeea6`.
-- Local checkout/focused execution remained unavailable because local DNS could not resolve `github.com`; no fabricated local PASS is claimed.
+- Exact worker product: `a0c8ea842e6dfb4c029b7a722eeb4b43189941e5`.
+- Exact canonical verified descendant: `72c143fae1e339b254e5dc7be884c8efb79c7f84` / Quality `33917796701 = success`.
+- Develop integration: `cc64779b4122f1acf8585dd52ddd6dee9bc46d2e`.
 - Exact-current-Develop canonical Quality is not yet available; no global-green or promotion-ready claim is made.
 
-## Other worker state
+## Error / Alpha-Beta / UI state
 
-- Error head `36856ddf219895aacb58a3029c0f86736724caf6`: shared pytest evidence remains handoff-only; historical crash signatures are not reopened absent exact-current reproduction.
-- Spec/Core head `25d3cf0a674086b3e8050bb730359674909288cc`: §74 REDUCE-cancel acceptance remains not READY pending a successful exact canonical run.
-- Backend head `55a6e95486c8b7501f27ed07748dc922803025ea`: application WAL scheduler composition remains not READY after exact product/test Quality cancellation.
-- UI head `93367bc74dab77f8ffab65e7de538ee79fb5a72a`: current Quality `34227608407` remained in progress at review time.
-
-## Alpha/Beta and UI state
-
-- UI-GAP-0016 is integrated on Develop with exact-green worker evidence and byte-identical verified product content; tracker should move it from `IMPLEMENTED_PENDING_VERIFY` to `VERIFIED` once a safe non-destructive tracker edit is available.
-- Original eleven reference images remain unavailable; all eleven screen slots remain `IMPLEMENTED_PENDING_VISUAL_REVIEW` and zero `MATCH` claims are made.
-- No completion percentage is inferred.
+- ERR-0025 remains IN_PROGRESS pending an exact pytest assertion/traceback; do not speculate.
+- ERR-0023 remains FIXED_PENDING_VERIFY until exact Develop canonical green evidence exists.
+- UI-GAP-0017 is integrated with exact-green worker evidence; tracker should move it to `VERIFIED` on the next safe targeted tracker update.
+- All eleven screens remain `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot-level `MATCH` claim is made.
 
 ## Next integration order
 
-1. Obtain exact-current-Develop canonical Quality on the descendant carrying `ae830c89bc4a1d122111bc50f5f07ab8aad58d1a`.
-2. Consume current Core/Backend/UI exact Quality results when completed and integrate exactly one compatible bounded READY successor.
-3. If workers remain non-READY, independently review the next deferred exact-green Settings slice (`UI-GAP-0011`, `0012`, `0017`, `0018`, or `0020`) or actively unblock one collision-free worker slice.
+1. Obtain exact-current-Develop canonical Quality for the descendant carrying `cc64779b4122f1acf8585dd52ddd6dee9bc46d2e`.
+2. Consume current Core/Backend/UI Quality results when completed and integrate exactly one compatible bounded READY successor.
+3. If workers remain non-READY, independently review one deferred exact-green Settings slice (`UI-GAP-0011`, `0012`, `0018`, or `0020`) or actively unblock one collision-free worker slice.
 4. Preserve the release crash-regression matrix before any Windows candidate or promotion claim.
 
 ## Persistent release guards
