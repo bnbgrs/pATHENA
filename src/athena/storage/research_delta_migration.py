@@ -70,8 +70,7 @@ def migrate_schema_v40_to_v41(connection: sqlite3.Connection) -> None:
         )
         connection.execute("COMMIT")
     except BaseException:
-        if connection.in_transaction:
-            connection.execute("ROLLBACK")
+        connection.rollback()
         raise
 
 
