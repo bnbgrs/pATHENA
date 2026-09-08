@@ -2,13 +2,10 @@
 
 ## Baseline
 
-- Baseline source: `develop/pathena-next@3421bee8f1ed00f1473a930b759cb7f272345d7e`.
-- Worker branch: `postmerge/errors` only.
-- History-preserving NON-FORCE synchronization onto current Develop: `755f9ff9dcdebaf41297e471672cec207cfa287a`.
-- Current Backend worker: `postmerge/backend@4495cab0492f0c70e6d0b5cbda1136c1d960ab86`.
-- Current UI worker reviewed: `postmerge/ui@90c4704d7ae5cad4c2fe15016ef1b0b73414d323`.
-- Current Spec/Core worker reviewed: `postmerge/spec-core@de62eb6a657b500f6abd2b1909ff1452c611572a`.
-- `main` and `bnbgrs/ATHENA` remain untouched/read-only.
+- Develop source: `develop/pathena-next@b04b0107f55d8af8b0398e48066481a84d27775f`.
+- Error worker: `postmerge/errors` only; history-preserving NON-FORCE synchronization commit `46f3f7c35e2623c499d5c24735bf70219ac81443` carries current Develop plus canonical Error Ledger/Handoff.
+- Current workers reviewed: Backend `e3c96cbdb2b04b90179bcc743ccaf20c6f26b837`; Spec/Core `06b121edfcc80d0a9e50ffa4173baaea8060d3f9`; UI `2b54226815b0bb3b49832f1d64f1ac5b46716d41`.
+- Current Integrator handoff on Develop was reviewed. `main` and `bnbgrs/ATHENA` remain read-only/untouched.
 
 ## Current error state
 
@@ -17,60 +14,52 @@
 - FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015` through `ERR-0024`.
 - OPEN / FIXED_PENDING_VERIFY / BLOCKED: none.
 
-## Hard progress this run
+## Hard progress this run — ERR-0029 exact candidate result consumed
 
-`ERR-0026` received new exact verification evidence. Backend product commit `95b077af9e8e648f67863d36b5ddbbc2ec19051c` moved `DatabaseCompatibilityError` to immediately after `_user_tables` in `src/athena/storage/schema.py`. Its canonical Quality `34281237072` was cancelled because a docs-only successor was pushed immediately afterward.
+Backend advanced to exact candidate `e3c96cbdb2b04b90179bcc743ccaf20c6f26b837` with the bounded WAL orchestrator harness repair in `tests/unit/test_wal_maintenance_interval_runner.py` and `tests/unit/test_wal_schedule_overflow.py`. The tests use canonical concrete `WalMaintenanceOrchestrator` instances while preserving production exact-type fail-closed guards. Relative to predecessor `4495cab0492f0c70e6d0b5cbda1136c1d960ab86`, the candidate also history-preservingly carries current Develop DirectChat changes and updated handoffs; it does not weaken production WAL semantics.
 
-The exact successor `4495cab0492f0c70e6d0b5cbda1136c1d960ab86` differs from the product commit only in `docs/agent_handoffs/backend.md`; therefore its product tree contains the attempted import reorder unchanged. Canonical Quality `34281292370@4495cab0492f0c70e6d0b5cbda1136c1d960ab86` is currently IN_PROGRESS, but its Ruff step has already completed FAILURE. Validator and mypy passed; Local install smoke, Linux storage regressions and Windows path safety also passed.
+Canonical Quality `34286119711@e3c96cbdb2b04b90179bcc743ccaf20c6f26b837` is now completed `FAILURE`, replacing the previous pending state. Exact gate state: Windows path safety PASS; Local install smoke PASS; Linux storage regressions PASS; specification validator PASS; mypy PASS; Ruff FAIL; full pytest FAIL; diagnostics upload PASS. Artifact `10080190842` exists.
 
-This concretely disproves the prior claim that moving `DatabaseCompatibilityError` after `_user_tables` was the final formatter-proven fix. `ERR-0026` remains `IN_PROGRESS`. No second import-order guess is allowed: consume the exact current diagnostics after `34281292370` finishes, then apply only the formatter's actual diff/rule if the same `schema.py` I001 remains.
+Therefore this WAL candidate is not globally verified and `ERR-0029` remains `IN_PROGRESS`. The available GitHub connector exposes artifact metadata but not the binary diagnostics payload, so this handoff does not fabricate assertion-level PASS/FAIL for the two focused orchestrator test files. The next Backend/Error run must consume readable current diagnostics or focused exact evidence before deciding whether that subcluster cleared. Separate fake-`DurableJobScheduler` cases in `test_wal_job_hook.py` remain pending under the same ERR family.
 
-## Active root causes
+## Other active root causes
 
-### ERR-0026 — Backend v41 schema Ruff I001
+### ERR-0026 — Backend schema Ruff I001
 
-- Exact rule/file family: Ruff `I001`, `src/athena/storage/schema.py`.
-- Root-cause class: import ordering in the consolidated `athena.storage.schema_contract` re-export block; no product semantics are implicated.
-- Disproven candidate: `95b077af9e8e648f67863d36b5ddbbc2ec19051c`, preserved byte-identically for product code in exact successor `4495cab0492f0c70e6d0b5cbda1136c1d960ab86`.
-- Exact current evidence: Quality `34281292370` has Ruff = FAILURE, Validator = PASS, mypy = PASS; pytest remains in progress.
-- Required correction: none until the exact current diagnostics artifact is available. Then apply only the exact formatter output in Backend-owned scope.
-- CI discipline: do not push another Backend commit while `34281292370` is running.
+- Current exact Backend Quality `34286119711` again has Ruff FAILURE.
+- File/rule family remains `src/athena/storage/schema.py` / `I001`.
+- Prior import reorder candidate `95b077af9e8e648f67863d36b5ddbbc2ec19051c` remains disproven.
+- Do not guess another ordering change; require exact current formatter/diagnostic output first.
 
-### ERR-0027 — missing v41 schema-facade re-export
+### ERR-0027 — v41 schema-facade re-export
 
-Original failure: `tests/unit/test_schema_contract_boundary.py::test_schema_reexports_contract_constants` lacked `RESEARCH_DELTA_BOUNDARY_SCHEMA_VERSION`. Current Backend tree visibly exports both Research Delta contract constants. Treat as candidate-fixed only; require focused schema-contract or completed canonical pytest evidence before FIXED.
+Current Backend tree visibly carries both Research Delta constants, but no exact focused passing contract assertion is available in this run. Keep `IN_PROGRESS`; no false FIXED.
 
-### ERR-0028 — stale v40-shaped schema fixtures/assertions
+### ERR-0028 — stale v40 schema expectations/legacy fixtures
 
-Quality `34245022980` proved stale current-version expectations plus legacy fixture builders that already contained the v41-only `research_delta_boundaries` table. Backend handoff reports later `34276050284` improved to `49 failed, 4799 passed, 3 skipped` after an independent WAL harness repair, so this schema-fixture cluster remains distinct. Required correction remains harness-only: update truthful v41 expectations and strip v41-only state from legacy v30-v40 fixtures before the unchanged production migration. Do not make migration permissive.
-
-### ERR-0029 — WAL harness collaborator drift
-
-One exact dependency-boundary cluster has candidate `c8b12bb2bd0362540c8a9474aecb27a6e168c6d1`; Backend handoff reports it removed two pytest failures in the later exact lineage. Remaining WAL tests must use canonical concrete `DurableJobScheduler` / `WalMaintenanceOrchestrator` collaborators or assert the current fail-before-side-effect diagnostic where invalid dependency behavior is the subject. Production `type(...) is ...` guards must remain unchanged.
-
-## Closed / cleared state relevant to integration
-
-- `ERR-0023` is FIXED on exact Develop `270f97c36bd114036658e322f68d8011983ff150`, Quality `34248696450 = SUCCESS`.
-- Older cross-lineage `ERR-0025` is STALE after the same exact-green Develop descendant.
-- `ERR-0004` remains FIXED; current Ruff failure is Backend schema `ERR-0026`, not the historical UI startup/readiness harness defect.
+Root cause remains harness-owned: stale current-version expectations plus legacy fixtures precreating v41-only `research_delta_boundaries`. Repair fixtures/assertions only; keep production v40→v41 migration strict and transactional.
 
 ## Integrator handoff
 
-- HOLD Backend v41 / §75 integration while `ERR-0026` through `ERR-0029` remain unresolved.
-- For `ERR-0026`, treat `95b077af9e8e648f67863d36b5ddbbc2ec19051c` as a disproven candidate, not FIXED_PENDING_VERIFY. Current exact successor `4495cab0492f0c70e6d0b5cbda1136c1d960ab86` is Ruff-red with unchanged product code.
-- Wait for `34281292370` completion and consume its diagnostics before another Backend mutation; do not guess another import ordering.
-- Verify `ERR-0027` independently with the exact schema-contract assertion/focused suite.
-- Repair `ERR-0028` and remaining `ERR-0029` only in harness scope; preserve strict v40→v41 migration and WAL exact-type fail-closed production guards.
-- Preserve Windows path safety, Linux storage, local install/start, Security, Provider/Transport, Recovery, Validator, Ruff, mypy and release crash-regression guards.
-- Current Develop `3421bee8f1ed00f1473a930b759cb7f272345d7e` adds adaptive chat output reserve logic; it has no returned PR-triggered canonical Quality run, so no promotion-ready claim follows from this handoff.
+- HOLD Backend v41 / Research §75 integration while `ERR-0026` through `ERR-0029` remain unresolved.
+- Exact current Backend candidate: `e3c96cbdb2b04b90179bcc743ccaf20c6f26b837`, canonical Quality `34286119711 = FAILURE`.
+- `ERR-0029`: do not mark the orchestrator harness candidate FIXED from overall pytest-red evidence. Consume readable diagnostics/focused evidence next; continue remaining fake scheduler collaborator cases only if exact evidence still points there. Preserve production `type(...) is ...` fail-closed guards.
+- `ERR-0026`: Ruff remains red; require exact current I001 formatter diff before mutation.
+- `ERR-0027`: require focused schema-contract verification before closure.
+- `ERR-0028`: harness-only correction; no migration permissiveness.
+- Preserve Windows path safety, Linux storage, Local install/start, Security, Provider/Transport, Recovery, Validator, Ruff, mypy and release crash guards.
 
-## Persistent Beta/release regression matrix
+## Current non-Backend evidence
 
-Retain without reopening absent exact-current reproduction: Windows `pypdf` metadata / `PackageNotFoundError`; fail-closed frozen child argv and two-EXE split; exactly one Desktop with bounded/non-growing workers; adaptive 2048-context Chat reserve; Windows lane-lock `PermissionError [Errno 13]` -> `SchedulerLaneOwnershipError` -> packaged-worker `OSError [Errno 22]`; `duplicate column name: source_processing_job_id`; `ATHENA Core startup failed`; `Failed to start service 'storage-bootstrap'`.
+- Spec/Core `06b121edfcc80d0a9e50ffa4173baaea8060d3f9` is reported by current Integrator handoff as canonical Quality `34285298078 = SUCCESS`, independently verifying the adaptive DirectChat product/test tree inherited by Develop.
+- UI exact head `2b54226815b0bb3b49832f1d64f1ac5b46716d41` currently has Quality `34287102867` still `IN_PROGRESS`; it is not consumed as READY evidence here.
+
+## Persistent Beta/release matrix
+
+Retain without reopening absent exact-current reproduction: Windows `pypdf` metadata/`PackageNotFoundError`; fail-closed frozen argv; Desktop/Worker two-EXE split; exactly one Desktop with bounded workers; adaptive 2048-context reserve including one-token boundary; Windows lane-lock `PermissionError` -> `SchedulerLaneOwnershipError` -> packaged-worker `OSError`; duplicate-column/Core-startup/storage-bootstrap signatures.
 
 ## Next verification
 
-1. Consume completion and diagnostics of `34281292370@4495cab0492f0c70e6d0b5cbda1136c1d960ab86`.
-2. For `ERR-0026`, if the same `schema.py` I001 remains, apply exactly the current formatter diff and nothing else; verify focused Ruff first.
-3. Verify `ERR-0027` independently with focused schema-contract evidence.
-4. Decompose remaining pytest failures against `ERR-0028` and `ERR-0029`; allocate a new stable ERR only for a genuinely distinct exact assertion/root cause.
+1. Consume readable diagnostics or exact focused evidence for `34286119711@e3c96cbdb2b04b90179bcc743ccaf20c6f26b837` and classify the bounded `ERR-0029` orchestrator subcluster without relying on overall pytest status.
+2. If it is green, record that subcluster closure while keeping remaining `ERR-0029` fake scheduler cases active; if red, repair only the demonstrated harness defect.
+3. Then proceed to the highest remaining exact integration-impact root cause; do not reopen stale/historical issues without exact-current reproduction.
