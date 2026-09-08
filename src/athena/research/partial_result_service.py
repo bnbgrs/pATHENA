@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid
+from typing import Any, TypedDict
 
 from athena.common.ids import new_uuid7, uuid_from_blob, uuid_to_blob
 from athena.common.time import utc_now_us
@@ -25,6 +26,16 @@ from athena.research.validation import (
 )
 
 PARTIAL_REPORT_PIPELINE_VERSION = "exhaustive-research-partial-v1"
+
+
+class _ConfirmedIntermediate(TypedDict):
+    artifact_id: str
+    artifact_kind: str
+    level: int
+    ordinal: int
+    content_hash: str
+    content: Any
+    source_analysis_artifact_ids: list[str]
 
 
 class ResearchPartialResultService:
@@ -73,7 +84,7 @@ class ResearchPartialResultService:
                 "Research scope already has a non-partial or incompatible result."
             )
 
-        confirmed: list[dict[str, object]] = []
+        confirmed: list[_ConfirmedIntermediate] = []
         for work in self.repository.list_synthesis_work_items(scope.scope_id):
             if work.state is not ResearchSynthesisWorkState.COMPLETED:
                 continue
@@ -109,9 +120,9 @@ class ResearchPartialResultService:
 
         confirmed.sort(
             key=lambda item: (
-                int(item["level"]),
-                int(item["ordinal"]),
-                str(item["artifact_id"]),
+                item["level"],
+                item["ordinal"],
+                item["artifact_id"],
             )
         )
         semantic_content = {
