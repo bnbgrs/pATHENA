@@ -15,9 +15,9 @@ class WalMaintenanceSchedulerAdapter:
     """
 
     def __init__(self, runner: WalMaintenanceIntervalRunner) -> None:
-        if not isinstance(runner, WalMaintenanceIntervalRunner):
+        if type(runner) is not WalMaintenanceIntervalRunner:
             raise TypeError(
-                "WAL scheduler adapter requires WalMaintenanceIntervalRunner."
+                "WAL scheduler adapter requires canonical WalMaintenanceIntervalRunner."
             )
         self.runner = runner
 
