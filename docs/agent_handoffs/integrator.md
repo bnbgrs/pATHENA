@@ -3,50 +3,49 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `c775d37f50e332639007ba162b4ff7f591434f1c`.
+- Develop before this run: `df05e76c998148e2445401de04115a7c5dccd708`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `bfefb4fcd9f87e4587984e96689009366be77361`; spec-core `ac8dad2af4d5bb8b38c2fdcb6f4ea61b3deb5b00`; backend `5fb145df421059314b4d90f53b9fc69b1c4333ab`; UI `4c656c2c5dfb55e6d3f0078719183cbbad73a555`.
+- Worker heads reviewed: errors `df2c48216aab958219db0db868c58e53ddcd6d4a`; spec-core `147d9527ff06ce772aa378e29befa00d77031e9e`; backend `ea601b96d681580c2e8f1f1af40c7d97c347511e`; UI `bcce837f347f8b67f3b4de1ab465f3e80c750eea`.
 - `main` and `bnbgrs/ATHENA` were untouched; no force update, rebase, history rewrite, auto-merge or main promotion was used.
 
-## Progress this run — UI-GAP-0074
+## Progress this run — UI-GAP-0076
 
-UI-GAP-0074 was independently reviewed and integrated as the single bounded progress slice.
+UI-GAP-0076 was independently reviewed and integrated as the single bounded progress slice.
 
-- Product commit: `ee2dafc9453c8e3b5d67aed107a955b086111f68`.
-- Focused regression: `10ddf88043757628906480541e179323f5af7247`.
-- Exact verified UI descendant: `4d6d1f7b3bc99dbff3015ddb8c499af885859ac8`, canonical Quality `34187727628 = success`.
-- Develop integration commit: `d06a1ef660c32df1315661f8b03648f0f8b807f5`.
-- Independent Develop compare is ahead-only by one commit and exactly two files: `src/athena/desktop/jobs_workspace.py` (+10/-5) and `tests/unit/test_pathena_jobs_status_copy.py` (+44).
+- Worker product commit: `08d64fd4c9ffbbea428c4e18c8ffd784394adf0e`.
+- Worker focused regression: `bcc471caef3b902f8cd4b07c969d896e9ae349cc`.
+- Exact worker head `4c656c2c5dfb55e6d3f0078719183cbbad73a555` passed canonical Quality `34191944523 = success` with Windows path safety, Linux storage, local install smoke, specification validator, Ruff, mypy and full pytest green.
+- Develop product integration commit: `33988997abfc108f9d43416b2e523daa69226211`.
+- Develop focused-test integration commit: `28f6977081aabed3f63ef99da9e50eab83a67613`.
 
-The visible nonzero-exit path no longer emits `Jobs command ... failed`. Refresh failures report `Jobs could not be refreshed`; show failures report that job details could not be loaded; action failures retain the exact operation, job label, background ownership and exit code. Process spawning, QProcess classification, receipt parsing, lifecycle state, scheduler/worker behavior, persistence, Security, Storage, Recovery and Windows runtime behavior are unchanged.
+The cancellation-requested reason now says `Cancellation has already been requested and is waiting to complete.` instead of exposing worker acknowledgement. Enabled/disabled action semantics, `cancel_requested` lifecycle state, receipt parsing, scheduler/worker behavior, persistence, Storage, Security, Recovery, packaging and Windows runtime behavior are unchanged.
 
 ## Verification state
 
-- Worker focused regression and canonical Quality are exact-green on the unchanged UI-GAP-0074 product/test lineage.
-- Develop received the exact product blob from the product commit and exact focused-test blob from its direct test successor; divergent UI history was not imported.
-- No exact-current-Develop canonical workflow is yet associated with `d06a1ef660c32df1315661f8b03648f0f8b807f5`; global-green/promotion-ready is not claimed.
+- Exact worker focused/canonical evidence is green on the unchanged product/test lineage.
+- Develop received the same bounded product semantics and exact focused regression without importing divergent UI history.
+- No exact-current-Develop canonical workflow is yet associated with the post-integration descendant; global-green/promotion-ready is not claimed.
 - No Skip/XFail, assertion weakening or guard relaxation was introduced.
 
 ## Other worker state
 
-- UI-GAP-0075 is also exact-green on UI descendant `4d6d1f7b3bc99dbff3015ddb8c499af885859ac8` but was deliberately deferred to preserve the one-bounded-slice rule.
-- UI-GAP-0076 remains `IMPLEMENTED_PENDING_VERIFY`; do not integrate until exact canonical Quality succeeds.
-- Spec/Core §72 repair `124bdd9d789230d33452cfbc2452b307d410316c` remains `FIXED_PENDING_EXACT_VERIFY`; original `34186455107` was full-pytest red.
-- Backend canonical-scheduler wrapper guard `6ce79db5ed3a11cfc58a7bb92323ae5b98817da5` has no exact completed workflow in its current handoff; not READY.
-- ERR-0023 remains fixed pending exact Develop verification. ERR-0024 tracks the §72 pytest-only failure.
+- UI-GAP-0077 is OPEN only; verification-failure details still expose response/raw-output implementation labels and are not integrator-ready.
+- Spec/Core §72 remains blocked on an exact pytest diagnostic after two pytest-only red canonical runs; ERR-0024 remains in progress.
+- Backend canonical WAL scheduler-adapter boundary product `efdae09dc71a661ea5c81f67b8e2b09ac90c0080` has Quality `34195556143` pending; not READY.
+- ERR-0023 remains fixed pending exact Develop verification.
 
 ## UI / Alpha-Beta state
 
 - Eleven-screen status remains implemented pending visual review; no MATCH claim is made without original-reference evidence.
-- `docs/development/ALPHA_BETA_PROGRESS.md` was read; no percentage is inferred. The large tracker was not destructively rewritten because the connector response is truncated and a complete safe replacement body was not available.
+- `docs/development/ALPHA_BETA_PROGRESS.md` was read; no percentage is inferred. It was not destructively rewritten because the connector returned a truncated large body and no safe complete replacement was available.
+- Named ERROR_LEDGER, 11-Screen Manifest and Visual-Gap-Ledger artifacts were searched but are not discoverable by current repository search; no state is fabricated from absent files.
 
 ## Next integration order
 
-1. Obtain exact-current-Develop focused Jobs regressions + Ruff and canonical Quality for the descendant carrying `d06a1ef660c32df1315661f8b03648f0f8b807f5`.
-2. If compatibility remains unchanged, integrate UI-GAP-0075 as one bounded exact-green slice.
-3. Consume repaired Spec/Core §72 only after exact-green evidence; keep ERR-0024 open until then.
-4. Consume Backend scheduler wrapper guard only after exact canonical success.
-5. Preserve the release crash-regression matrix before any Windows candidate or promotion claim.
+1. Obtain exact-current-Develop focused Jobs regressions + Ruff and canonical Quality on a descendant carrying `28f6977081aabed3f63ef99da9e50eab83a67613`.
+2. Close ERR-0023 only after exact Develop verification.
+3. Consume one compatible exact-green successor: Backend WAL scheduler-adapter boundary if `34195556143` succeeds, otherwise the next UI slice only after exact READY evidence; hold Spec/Core §72 until exact remaining pytest diagnostics produce a green corrective successor.
+4. Preserve the release crash-regression matrix before any Windows candidate or promotion claim.
 
 ## Persistent release guards
 
