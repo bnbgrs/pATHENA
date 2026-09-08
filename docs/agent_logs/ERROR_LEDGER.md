@@ -8,12 +8,11 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 
 ## Current baseline
 
-- Baseline reviewed: `develop/pathena-next@1e6b3b17117c938f5aee26c9797432959a4544c9`.
+- Baseline reviewed: `develop/pathena-next@9fb4f005ebb34f835f5a6c362965ad35cd2f3efb`.
 - Error branch mutation lineage: `postmerge/errors` only.
-- History-preserving NON-FORCE synchronization: merge current Develop into prior Error head with both parents preserved.
-- Current Spec/Core head reviewed: `25d3cf0a674086b3e8050bb730359674909288cc`.
-- Current Backend head reviewed: `55a6e95486c8b7501f27ed07748dc922803025ea`; Quality `34226856389 = in_progress` at review time.
-- Current UI head reviewed: `93367bc74dab77f8ffab65e7de538ee79fb5a72a`; Quality `34227608407 = in_progress` at review time.
+- History-preserving NON-FORCE synchronization commit: `da6727cd60f56e6b88fbc7632712b04783637c84`, preserving prior Error head and exact Develop as two parents.
+- Backend current: `255e73eae28651c20ae1baa660c4087f4a62f128`; Quality `34234185972 = in_progress` at review time. Functional predecessor `e81957a388763d3b5931df694a06908a0ba29f75` / `34233916176` was cancelled by successor, not clearing evidence.
+- UI current reviewed: `932face973987d84a44c5d37fc61509285466279`.
 - `main` and `bnbgrs/ATHENA` remained read-only and untouched.
 
 ## Current state
@@ -28,14 +27,14 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 
 - Severity: P2.
 - Status: `IN_PROGRESS`.
-- Initial exact evidence: Backend Quality `34195601115` on `postmerge/backend@ea601b96d681580c2e8f1f1af40c7d97c347511e`; Local install, Windows path safety, Linux storage, Validator, Ruff and mypy PASS; only full pytest FAIL; diagnostics upload PASS.
-- Prior narrowing remains valid: Backend sync `8b04e8d5816fc908399d3e80a4407edd5fe50473` failed `34205822004` before WAL exact-type product commit `b90b96578146856f726208dcc1d562a26f6059b2`, excluding that product mutation as primary cause.
-- Backend descendants `8929474b6bdc4885c51e51de327816d5cf42137c` / `34206163937`, `e4370a46bd42785aaea0f5c1806d8d79ced3eb7e` / `34211221630`, and `aa9cb18188bf070ac4b9f0e2763e2b31c643a54f` / `34221259239` all reproduce the same pytest-only pattern.
-- Exact new evidence this run: Backend Quality `34221259239` completed FAILURE on `aa9cb18188bf070ac4b9f0e2763e2b31c643a54f`. Local install smoke PASS, Windows path safety PASS, Linux storage PASS, specification validator PASS, Ruff PASS, mypy PASS; only `Quality — pytest` failed; diagnostics upload PASS.
-- Independent UI descendants `0bc6947afecd0def64c2cbc0f6bdc1c5b97fc723` / `34211448894` and `b9936b6e404c224c47230ced5919f475760c013a` / `34221783638` reproduce the same pytest-only pattern.
+- Initial exact evidence: Backend Quality `34195601115` on `ea601b96d681580c2e8f1f1af40c7d97c347511e`; Local install, Windows path safety, Linux storage, Validator, Ruff and mypy PASS; only full pytest FAIL; diagnostics upload PASS.
+- Prior narrowing remains valid: Backend sync `8b04e8d5816fc908399d3e80a4407edd5fe50473` failed before WAL exact-type product commit `b90b96578146856f726208dcc1d562a26f6059b2`, excluding that mutation as primary cause.
+- Backend descendants `8929474b6bdc4885c51e51de327816d5cf42137c` / `34206163937`, `e4370a46bd42785aaea0f5c1806d8d79ced3eb7e` / `34211221630`, `aa9cb18188bf070ac4b9f0e2763e2b31c643a54f` / `34221259239`, and now `55a6e95486c8b7501f27ed07748dc922803025ea` / `34226856389` reproduce the pytest-only pattern.
+- Exact new Backend evidence this run: Quality `34226856389` completed FAILURE on `55a6e95486c8b7501f27ed07748dc922803025ea`. Windows path safety PASS, Local install smoke PASS, Linux storage PASS, specification validator PASS, Ruff PASS, mypy PASS; only `Quality — pytest` failed; diagnostics upload PASS.
+- Independent UI descendants `0bc6947afecd0def64c2cbc0f6bdc1c5b97fc723` / `34211448894`, `b9936b6e404c224c47230ced5919f475760c013a` / `34221783638`, and now `93367bc74dab77f8ffab65e7de538ee79fb5a72a` / `34227608407` reproduce the same canonical failure conclusion, strengthening cross-lineage deduplication rather than creating a new ERR.
 - Root-cause boundary: persistent shared-suite/shared-baseline pytest defect until exact assertion evidence proves otherwise. WAL exact-type hardening is excluded as primary cause. Historical `ERR-0004` Ruff is excluded because current red lineages have Ruff PASS.
-- Exact assertion/traceback remains unavailable through the readable connector surface. Job metadata exposes the exact failing pytest step but not the traceback payload; no speculative product-vs-harness mutation is permitted.
-- Current Backend successor `55a6e95486c8b7501f27ed07748dc922803025ea` is under Quality `34226856389`; current UI successor `93367bc74dab77f8ffab65e7de538ee79fb5a72a` is under Quality `34227608407`. Consume those next. If either turns green, diff the first clearing delta against its nearest exact red; if red, continue seeking the exact assertion rather than repeating eliminated hypotheses.
+- Exact assertion/traceback remains unavailable through the readable connector surface. No speculative product-vs-harness mutation is permitted.
+- Current Backend successor `255e73eae28651c20ae1baa660c4087f4a62f128` is under Quality `34234185972`; consume it next. If it turns green, diff the first clearing delta against nearest exact red. If red, obtain exact assertion evidence before mutation.
 - Affected files: unknown until exact assertion or concrete clearing delta identifies them.
 - Fix SHA: none.
 - Verification: none; no PASS claimed.
@@ -46,8 +45,7 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 
 - Severity: P2.
 - Status: `FIXED`.
-- Exact corrected Spec/Core head `772c2bfdc8767b7c0d032dbb8709120de635f6c0` passed Quality `34198674038`; descendant `af1f9da019fbee21984cf62fb77a2e8bbacaed5b` passed `34198712540`.
-- Later Spec/Core `f4abb89d7538a11efa50d94a847b6f69139c602b` also passed canonical Quality `34220174847`, so no recurrence is present on that verified Core lineage.
+- Exact corrected Spec/Core head `772c2bfdc8767b7c0d032dbb8709120de635f6c0` passed Quality `34198674038`; descendant `af1f9da019fbee21984cf62fb77a2e8bbacaed5b` passed `34198712540`; later `f4abb89d7538a11efa50d94a847b6f69139c602b` passed `34220174847`.
 - Root cause: harness identity/lifecycle acceptance drift; source-order repair plus final teardown/lifecycle repair. No product-code weakening.
 
 ## ERR-0023 — Terminal Jobs action reason leaks implementation-oriented lifecycle wording
@@ -58,24 +56,14 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 - Root cause: product copy in `src/athena/desktop/jobs_lifecycle.py::JobActionAvailability.reason()`; harness assertion valid.
 - Minimal Error-owned fix: `d0207d43dabd66406df630a2cdff89e6f56b259b`, terminal copy -> `This job is {state}; no actions are available.`.
 - Develop integration: `568d57a63bb2253d97ca63e92b52e1df66505ac9`; current Develop retains the corrected product content.
-- Exact verification remains pending because current Develop `1e6b3b17117c938f5aee26c9797432959a4544c9` has no completed exact canonical Quality run returned by the connector; worker pytest-only reds cannot be used as positive verification.
+- Exact verification remains pending because current Develop `9fb4f005ebb34f835f5a6c362965ad35cd2f3efb` has no completed exact canonical Quality success established in this run; worker pytest-only reds cannot be used as positive verification.
 - Affected files: `src/athena/desktop/jobs_lifecycle.py`, `tests/unit/test_pathena_jobs_lifecycle.py`.
 - Fix SHA: `d0207d43dabd66406df630a2cdff89e6f56b259b`.
-- Remaining risk: exact integrated Develop verification still absent.
 - Integrator handoff: keep pending until an exact Develop descendant carrying the corrected wording is canonical green.
-
-## Current worker evidence — 2026-09-08
-
-- Spec/Core current head reviewed: `25d3cf0a674086b3e8050bb730359674909288cc`.
-- Backend `aa9cb18188bf070ac4b9f0e2763e2b31c643a54f`: Quality `34221259239 = failure`, pytest-only; all sibling gates PASS.
-- Backend current `55a6e95486c8b7501f27ed07748dc922803025ea`: Quality `34226856389 = in_progress` at review time.
-- UI current `93367bc74dab77f8ffab65e7de538ee79fb5a72a`: Quality `34227608407 = in_progress` at review time; predecessor `b9936b6e404c224c47230ced5919f475760c013a` / `34221783638` was pytest-only red.
-- Develop `1e6b3b17117c938f5aee26c9797432959a4544c9`: no associated completed pull-request-triggered canonical Quality run returned by the connector.
-- No exact-current evidence reproduced retained Windows packaging/process-tree/chat-context/lane-lock/storage-bootstrap crash signatures; none reopened.
 
 ## Historical verified entries
 
-- `ERR-0004` P2 FIXED — startup/readiness harness Ruff B010/I001; exact-green evidence retained; current red worker lineages have Ruff PASS, so no recurrence.
+- `ERR-0004` P2 FIXED — startup/readiness harness Ruff B010/I001; exact-green evidence retained; current worker Ruff PASS evidence confirms no recurrence.
 - `ERR-0014` P1 STALE — Qt Desktop controller SIGSEGV; reopen only on exact recurrence.
 - `ERR-0019` P2 FIXED — Personal Memory precedence harness drift.
 - `ERR-0020` P2 FIXED — exhaustive-research resume harness identity loss; verified green successor.
