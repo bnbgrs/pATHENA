@@ -306,11 +306,16 @@ class JobsWorkspace(QWidget):
         job_label = self._job_label(operation_job_id)
 
         if exit_code != 0:
-            subject = f" for job {job_label}" if job_label else ""
-            location = " in the background" if subject and not owns_details else ""
-            self.status.setText(
-                f"Jobs command{subject} failed{location} (exit {exit_code})."
-            )
+            if operation == "list":
+                message = f"Jobs could not be refreshed (exit {exit_code})."
+            elif operation == "show" and job_label:
+                message = f"Job {job_label} details could not be loaded (exit {exit_code})."
+            else:
+                action = operation.upper() if operation else "JOB ACTION"
+                subject = f" for job {job_label}" if job_label else ""
+                location = " in the background" if subject and not owns_details else ""
+                message = f"{action} failed{subject}{location} (exit {exit_code})."
+            self.status.setText(message)
             set_pathena_ui_state(self.status, "error")
             if owns_details:
                 set_pathena_ui_state(self.details, "error")
