@@ -2,12 +2,11 @@
 
 ## Current baseline
 
-- Shared baseline reviewed before mutation: `develop/pathena-next@249c83ae7dc4a33ceb8491029af4bad09b452e92`.
-- Pre-run worker: `postmerge/spec-core@af1f9da019fbee21984cf62fb77a2e8bbacaed5b`.
-- Branch comparison proved material divergence: Spec/Core was 161 commits behind and 68 commits ahead of Develop.
-- Safe reconciliation commit: `6dac92f7db48284e494a6c515e44f1457cee6880`.
-- Reconciliation is an explicit two-parent, NON-FORCE commit: first parent the worker, second parent current Develop. Its tree uses Develop as authoritative baseline and preserves only verified worker-owned Memory/Core source files, personal-memory tests and this handoff; newer Develop Research/UI/Backend files win.
-- Canonical ATHENA Quality for the reconciliation: run `34214571520`, currently `IN_PROGRESS` at handoff-write time.
+- Shared baseline reviewed before mutation: `develop/pathena-next@20619f1310bef9d7d2aa706cff11a974144c47e5`.
+- Pre-run worker: `postmerge/spec-core@a77c1a5c5ef95ebc852cecb80aa13ffec1ad4cb7`.
+- Prior history-preserving reconciliation `6dac92f7db48284e494a6c515e44f1457cee6880` remains exact-green via Quality `34214571520 = success`; documentation descendant `a77c1a5c5ef95ebc852cecb80aa13ffec1ad4cb7` is exact-green via Quality `34214869692 = success`.
+- Develop has advanced by two disjoint changes since the reconciled baseline: `docs/agent_handoffs/integrator.md` and UI-owned `src/athena/desktop/pathena_settings_runtime.py`. No Core/Research file changed in that Develop delta.
+- A second two-parent synchronization commit was attempted through the connector but the multi-parent commit action was blocked before mutation. No ref moved, no history was rewritten, and no foreign worker content was overwritten. The verified green reconciled Worker therefore remained the mutation base for the bounded §73 Core-only test.
 - `main` and `bnbgrs/ATHENA` remain untouched/read-only; no force update or history rewrite was used.
 
 ## Verified Core contracts
@@ -18,29 +17,59 @@ Normal Hybrid Search remains preserved from the exact-green Core lineage: one-ti
 
 ## Exhaustive Research §73 — External Capture Test
 
-Normative Beta contract: search/capture external material, use the captured result inside Research, and ensure the final citation resolves to the captured snapshot rather than refetching live web. Claims must open pinned Source/Anchor snapshots rather than copied prose.
+Normative contract from Beta §73: a web source must exist as a Source Snapshot/provenance before it is used as durable evidence.
 
-Existing current-baseline coverage is substantial but split across layers:
+Existing coverage already proves the subcontracts separately: ExternalAccessGateway authorization/capture, durable `WEB_SNAPSHOT`, Local+Web explicit-source freezing, and Source provenance. The missing acceptance was a single real chain proving that Research consumes the captured immutable Source rather than re-fetching the live URL.
 
-- `tests/unit/test_external_access_gateway.py` proves an explicitly authorized external fetch becomes a durable `WEB_SNAPSHOT` Source and records redacted capture provenance.
-- `tests/unit/test_research_local_plus_web.py` proves Local+Web Research accepts only explicitly linked captured external Sources and freezes them into the candidate set without silently broadening scope.
-- `tests/unit/test_source_capture.py` proves durable Source/blob identity and provenance for local raw capture.
-- Existing synthesis acceptances prove precise final Research output provenance to terminal SourceAnalysis artifacts.
+### Implemented acceptance
 
-No exact single §73 acceptance was found that connects the complete chain external fetch -> captured immutable WEB_SNAPSHOT Source -> Research analysis/synthesis -> final provenance/citation resolution while proving Research does not refetch the live URL. Therefore §73 remains the next normative Core gap; do not duplicate the already-covered authorization/capture/freeze subcontracts.
+Test commit: `bb5806123097171598584166ff10f3b5e28d07ca`.
 
-Status: `§73 GAP_CONFIRMED / IMPLEMENTATION_NEXT`; no §73 PASS is claimed.
+New file: `tests/unit/test_exhaustive_research_external_capture.py`.
+
+The acceptance uses a real `AthenaApplication`, real `ExternalAccessGateway`, real durable `WEB_SNAPSHOT` capture, real external capture provenance rows and real Local+Web Research initialization/candidate freeze. It asserts:
+
+- exactly one transport fetch occurs, at capture time;
+- the captured Source is `WEB_SNAPSHOT`;
+- the capture row preserves authorization/event/source provenance;
+- immutable captured bytes are readable from the real Source blob before Research use;
+- Local+Web Research freezes exactly that captured Source as its candidate;
+- frozen candidate Source/blob identity and SHA remain identical to the captured snapshot;
+- reading the pinned Research Source yields the original captured bytes;
+- Research/candidate/source resolution performs zero additional external fetches.
+
+No production file changed, no synthetic provenance was introduced, no Archive/Protected scope was broadened, and no Skip/XFail/assertion weakening was added.
+
+### Verification
+
+Canonical ATHENA Quality run `34219791632` is running on exact SHA `bb5806123097171598584166ff10f3b5e28d07ca`.
+
+At this handoff update:
+
+- specification validator: SUCCESS;
+- Ruff: SUCCESS;
+- mypy: SUCCESS;
+- Local install smoke: SUCCESS;
+- Linux storage regressions: SUCCESS;
+- Windows path safety: SUCCESS;
+- canonical pytest: IN_PROGRESS;
+- global Quality conclusion: IN_PROGRESS.
+
+Therefore §73 is `IMPLEMENTED_PENDING_EXACT_VERIFY`; no PASS/READY claim is made until canonical pytest and the full exact run complete successfully.
 
 ## Coordination state
 
-Required Error, Backend, UI and Integrator handoffs were reviewed before reconciliation. Backend remains storage/WAL/scheduler-owned and disjoint; UI remains styling/accessibility-owned and disjoint. No historical Windows/runtime signature was promoted to OPEN without exact-current reproduction. No foreign worker branch was mutated.
+- Error handoff reviewed: `ERR-0025` remains the deduplicated shared pytest-only signal on other worker lineages; `ERR-0024` is fixed. No exact-current historical Windows/runtime crash signature was promoted to OPEN.
+- Backend handoff reviewed; Backend remains WAL/storage/scheduler-owned and no Backend file was modified.
+- UI handoff reviewed; UI remains presentation/accessibility-owned and no UI file was modified.
+- Integrator handoff reviewed on current Develop; no unverified §73 successor is offered READY.
 
 ## Next Core action
 
-1. Consume exact Quality `34214571520` for reconciliation SHA `6dac92f7db48284e494a6c515e44f1457cee6880` before claiming the synchronized baseline green.
-2. Implement the smallest §73 acceptance on `postmerge/spec-core`: use the real ExternalAccessGateway and durable `WEB_SNAPSHOT` Source, Local+Web Research and real Research provenance composition; instrument only the external transport boundary so the test proves exactly one external fetch occurs at capture time and no later Research/report/citation path refetches the URL.
-3. Require final precise Research provenance to resolve back through the real SourceAnalysis lineage to the captured external Source/snapshot bytes. No synthetic Source/provenance and no Archive/Protected expansion.
-4. Run the focused §73 acceptance and canonical Quality. Mark Integrator READY only on exact-green SHA and update this handoff with that evidence.
+1. Consume exact Quality `34219791632` on `bb5806123097171598584166ff10f3b5e28d07ca`.
+2. If exact-green, mark §73 READY with that SHA, hand it to Integrator, and immediately inspect/execute normative §74 Cancel Test without duplicating equivalent durable partial-result/cancel coverage.
+3. If canonical pytest is red, retrieve the exact assertion/traceback and repair only the demonstrated §73 defect; do not weaken the one-fetch/no-refetch, durable snapshot identity or provenance assertions.
+4. Reconcile later Develop-only changes only through a history-preserving NON-FORCE path when the connector permits it; do not overwrite the current verified Core/Memory lineage.
 
 ## Release regression obligations
 
