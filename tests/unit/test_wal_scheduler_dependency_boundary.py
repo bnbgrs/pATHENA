@@ -11,22 +11,21 @@ from athena.storage.wal_job_hook import (
 )
 
 
-class _ExplodingHook(WalJobSchedulerHook):
-    def run_for_lane(self, **kwargs: Any) -> None:  # type: ignore[override]
-        del kwargs
-        raise AssertionError("WAL hook must not run before scheduler validation")
-
-
-class _ExplodingScheduler:
-    def tick(self, **kwargs: Any) -> None:
-        del kwargs
-        raise AssertionError("scheduler must not run before hook validation")
+def _canonical_scheduler() -> DurableJobScheduler:
+    return DurableJobScheduler(
+        jobs=cast(Any, object()),
+        source_worker=cast(Any, object()),
+        embedding_worker=cast(Any, object()),
+    )
 
 
 def test_invalid_scheduler_fails_before_wal_hook_side_effect() -> None:
-    hook = object.__new__(_ExplodingHook)
+    hook = cast(WalJobSchedulerHook, object())
 
-    with pytest.raises(TypeError, match="callable scheduler tick"):
+    with pytest.raises(
+        TypeError,
+        match="requires the canonical DurableJobScheduler",
+    ):
         run_scheduler_tick_with_wal_housekeeping(
             cast(DurableJobScheduler, object()),
             hook,
@@ -35,9 +34,9 @@ def test_invalid_scheduler_fails_before_wal_hook_side_effect() -> None:
 
 
 def test_invalid_hook_fails_before_scheduler_dispatch() -> None:
-    scheduler = cast(DurableJobScheduler, _ExplodingScheduler())
+    scheduler = _canonical_scheduler()
 
-    with pytest.raises(TypeError, match="requires WalJobSchedulerHook"):
+    with pytest.raises(TypeError, match="requires the canonical WalJobSchedulerHook"):
         run_scheduler_tick_with_wal_housekeeping(
             scheduler,
             cast(WalJobSchedulerHook, object()),
