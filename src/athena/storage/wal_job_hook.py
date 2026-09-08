@@ -95,8 +95,8 @@ def run_scheduler_tick_with_wal_housekeeping(
         raise TypeError(
             "WAL scheduler boundary requires the canonical DurableJobScheduler."
         )
-    if not isinstance(hook, WalJobSchedulerHook):
-        raise TypeError("WAL scheduler boundary requires WalJobSchedulerHook.")
+    if type(hook) is not WalJobSchedulerHook:
+        raise TypeError("WAL scheduler boundary requires canonical WalJobSchedulerHook.")
     hook.run_for_lane(
         lane=normalized_lane,
         now_monotonic=now_monotonic,
@@ -138,8 +138,8 @@ class WalAwareDurableJobScheduler(DurableJobScheduler):
             raise TypeError(
                 "WAL-aware scheduler source must be the canonical DurableJobScheduler."
             )
-        if not isinstance(hook, WalJobSchedulerHook):
-            raise TypeError("WAL-aware scheduler requires WalJobSchedulerHook.")
+        if type(hook) is not WalJobSchedulerHook:
+            raise TypeError("WAL-aware scheduler requires canonical WalJobSchedulerHook.")
 
         converted = cls(
             jobs=scheduler.jobs,
@@ -159,8 +159,8 @@ class WalAwareDurableJobScheduler(DurableJobScheduler):
 
     def bind_wal_housekeeping(self, hook: WalJobSchedulerHook) -> None:
         """Bind the composed WAL hook exactly once without performing I/O."""
-        if not isinstance(hook, WalJobSchedulerHook):
-            raise TypeError("WAL-aware scheduler requires WalJobSchedulerHook.")
+        if type(hook) is not WalJobSchedulerHook:
+            raise TypeError("WAL-aware scheduler requires canonical WalJobSchedulerHook.")
         if self._wal_housekeeping_hook is not None:
             raise RuntimeError("WAL-aware scheduler housekeeping is already bound.")
         self._wal_housekeeping_hook = hook
