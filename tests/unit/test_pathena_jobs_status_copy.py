@@ -16,11 +16,13 @@ def _app() -> QApplication:
 
 
 def _workspace(monkeypatch: pytest.MonkeyPatch) -> tuple[QApplication, JobsWorkspace]:
+    original_refresh = JobsWorkspace.refresh
     monkeypatch.setattr(JobsWorkspace, "refresh", lambda _self: None)
     app = _app()
     workspace = JobsWorkspace()
     workspace._refresh_timer.stop()
     workspace._scheduler_status_timer.stop()
+    monkeypatch.setattr(JobsWorkspace, "refresh", original_refresh)
     app.processEvents()
     return app, workspace
 
