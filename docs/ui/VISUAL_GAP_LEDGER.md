@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `c775d37f50e332639007ba162b4ff7f591434f1c`
+Baseline: `df05e76c998148e2445401de04115a7c5dccd708`
 Integration target: `develop/pathena-next`
 
 Only evidence-backed gaps belong here. The original 11 reference screenshots remain unavailable for direct visual comparison; therefore no pixel-level mismatch or `MATCH` claim is asserted.
@@ -91,11 +91,16 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Verification: exact descendant head `4d6d1f7b3bc99dbff3015ddb8c499af885859ac8` passed Quality `34187727628 = success`; no process-spawn/relaunch/runtime semantics changed.
 
 ## UI-GAP-0076 — Cancellation-requested action help exposes Worker architecture
-- Category: `COPY`; Screen: `04`; Severity: `P2`; Status: `IMPLEMENTED_PENDING_VERIFY`.
+- Category: `COPY`; Screen: `04`; Severity: `P2`; Status: `FIXED_INTEGRATOR_READY`.
 - Evidence: `JobActionAvailability.reason()` visibly said cancellation was waiting for `worker acknowledgement`, exposing internal Worker architecture through tooltip/accessibility help.
-- Product commit: `08d64fd4c9ffbbea428c4e18c8ffd784394adf0e`.
-- Focused regression commit: `bcc471caef3b902f8cd4b07c969d896e9ae349cc`.
+- Product/Test: `08d64fd4c9ffbbea428c4e18c8ffd784394adf0e` / `bcc471caef3b902f8cd4b07c969d896e9ae349cc`.
+- Verification: exact head `4c656c2c5dfb55e6d3f0078719183cbbad73a555` passed canonical Quality `34191944523 = success` with Windows path safety, Linux storage, local install smoke, validator, Ruff, mypy and full pytest all green.
 - Acceptance: cancellation-requested help says it is waiting to complete and contains no Worker/persistence/lifecycle jargon; enabled/disabled action matrix, cancellation state, scheduler/worker/storage/backend semantics remain unchanged.
+
+## UI-GAP-0077 — Jobs verification-failure details still expose command-output implementation language
+- Category: `COPY`; Screen: `04`; Severity: `P2`; Status: `OPEN`.
+- Evidence: the `JobLifecycleError` detail path still renders `JOB ACTION RESPONSE UNAVAILABLE` followed by `Raw command output`, exposing the CLI transport/output mechanism in the visible details pane even though the status/tooltip already use product language.
+- Acceptance: preserve the exact diagnostic payload and verification semantics while replacing only the visible heading/label with user-facing recovery language; no parsing, process, lifecycle, storage, scheduler, worker, backend or security behavior may change.
 
 ## Evidence blocker
 
