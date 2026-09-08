@@ -91,3 +91,47 @@ def test_jobs_refresh_and_show_success_copy_is_human_facing(
     finally:
         workspace.close()
         app.processEvents()
+
+
+def test_jobs_nonzero_exit_status_uses_product_language(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    app, workspace = _workspace(monkeypatch)
+    monkeypatch.setattr(workspace, "_drain_output", lambda: None)
+    try:
+        workspace._operation = "list"
+        workspace._operation_job_id = None
+        workspace._selected_job_id = None
+        workspace._buffer = "list failed"
+        workspace._process_finished(17, QProcess.ExitStatus.NormalExit)
+        assert workspace.status.text() == "Jobs could not be refreshed (exit 17)."
+
+        workspace._operation = "show"
+        workspace._operation_job_id = "12345678-job"
+        workspace._selected_job_id = "12345678-job"
+        workspace._buffer = "show failed"
+        workspace._process_finished(18, QProcess.ExitStatus.NormalExit)
+        assert workspace.status.text() == (
+            "Job 12345678 details could not be loaded (exit 18)."
+        )
+
+        workspace._operation = "cancel"
+        workspace._operation_job_id = "12345678-job"
+        workspace._selected_job_id = "12345678-job"
+        workspace._buffer = "cancel failed"
+        workspace._process_finished(19, QProcess.ExitStatus.NormalExit)
+        assert workspace.status.text() == "CANCEL failed for job 12345678 (exit 19)."
+
+        workspace._operation = "pause"
+        workspace._operation_job_id = "12345678-job"
+        workspace._selected_job_id = "87654321-job"
+        workspace._buffer = "pause failed"
+        workspace._process_finished(20, QProcess.ExitStatus.NormalExit)
+        assert workspace.status.text() == (
+            "PAUSE failed for job 12345678 in the background (exit 20)."
+        )
+
+        assert "command" not in workspace.status.text().casefold()
+    finally:
+        workspace.close()
+        app.processEvents()
