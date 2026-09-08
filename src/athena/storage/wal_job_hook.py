@@ -130,6 +130,8 @@ class WalAwareDurableJobScheduler(DurableJobScheduler):
         the scheduler atomically without duplicating its dependency list or changing
         the inherited run-loop semantics.
         """
+        if isinstance(scheduler, WalAwareDurableJobScheduler):
+            raise ValueError("Scheduler is already WAL-aware.")
         if type(scheduler) is not DurableJobScheduler:
             raise TypeError(
                 "WAL-aware scheduler source must be the canonical DurableJobScheduler."
