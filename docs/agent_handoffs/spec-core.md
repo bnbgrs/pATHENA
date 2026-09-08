@@ -2,10 +2,10 @@
 
 ## Current baseline
 
-- Current shared baseline reviewed: `develop/pathena-next@c775d37f50e332639007ba162b4ff7f591434f1c`.
+- Current shared baseline reviewed: `develop/pathena-next@df05e76c998148e2445401de04115a7c5dccd708`.
 - Worker branch: `postmerge/spec-core` only.
-- Pre-run worker head: `3b425e527fd701a984ee723c310ac86be062022d`.
-- Current §72 acceptance repair: `124bdd9d789230d33452cfbc2452b307d410316c`.
+- Pre-run worker head: `ac8dad2af4d5bb8b38c2fdcb6f4ea61b3deb5b00`.
+- Current §72 acceptance repair lineage: `124bdd9d789230d33452cfbc2452b307d410316c` -> handoff descendant `ac8dad2af4d5bb8b38c2fdcb6f4ea61b3deb5b00`.
 - `main` and `bnbgrs/ATHENA` remain untouched/read-only; no force update, rebase or history rewrite was used.
 
 ## Verified Core contracts
@@ -20,30 +20,31 @@ Normative §72 requires an unavailable/offline part of the frozen Research scope
 
 Existing `tests/unit/test_research_coverage.py` already proves the pure coverage arithmetic: unavailable work is processed but not coverage-positive and cannot yield full coverage. That unit accounting is not duplicated.
 
-Initial real orchestration acceptance `5fbe0dc8b3d7674a18c562e96c118ddf4e476985` ran canonical ATHENA Quality `34186455107 = failure`. Validator, Ruff, mypy, Linux storage regressions, Windows path safety and local install smoke all passed; only canonical full pytest failed. Error handoff tracks this exact condition as `ERR-0024` and correctly makes no speculative product-vs-harness claim because the connector does not expose the traceback artifact.
+Initial orchestration acceptance `5fbe0dc8b3d7674a18c562e96c118ddf4e476985` failed canonical Quality `34186455107` only in full pytest. The source-identity repair `124bdd9d789230d33452cfbc2452b307d410316c` corrected a real acceptance defect by resolving persisted Research work through candidate -> exact `source_id` and marking the actual captured `nas-offline.txt` work item UNAVAILABLE instead of relying on list position.
 
-Independent test/code inspection established an additional concrete acceptance defect that must be corrected regardless of the hidden traceback: the original test assigned SUCCESSFUL/IRRELEVANT/UNAVAILABLE to `work[0]`, `work[1]`, `work[2]` and therefore never proved that the work item marked UNAVAILABLE actually belonged to the NAS source. Work-item listing order is not the normative source identity contract.
+Exact re-verification materially advanced and is still red: Quality `34190083267` on `124bdd9d789230d33452cfbc2452b307d410316c` completed FAILURE only in canonical full pytest; specification validator, Ruff, mypy, Local install smoke, Linux storage regressions and Windows path safety all succeeded. The unchanged handoff descendant `ac8dad2af4d5bb8b38c2fdcb6f4ea61b3deb5b00` likewise completed Quality `34190114472 = failure`, again only in full pytest with all other canonical gates green.
 
-Repair `124bdd9d789230d33452cfbc2452b307d410316c` strengthens the acceptance without touching production code or weakening any assertion. It resolves each persisted Research work item through its candidate to the exact captured `source_id`, proves the three captured source identities are represented, and then marks the exact `nas-offline.txt` source work item UNAVAILABLE. It retains the exact three-candidate, processed=3, success=1, irrelevant=1, unavailable=1, failed=0, coverage=2/3, persisted-scope parity and durable UNAVAILABLE-not-IRRELEVANT assertions.
+The canonical run uploaded diagnostics artifact `canonical-quality-diagnostics-ac8dad2af4d5bb8b38c2fdcb6f4ea61b3deb5b00` (artifact id `10042945285`, SHA-256 digest `56777ff40908e91e04e13eda76c8c90d3c608ae3f8506220d081752f4e6713a8`). The current GitHub connector can enumerate that artifact but does not permit downloading the artifact ZIP or job log endpoint, and the local runner still cannot resolve `github.com`; therefore the exact remaining pytest assertion/traceback could not be retrieved in this run. This is now the concrete blocker. The already-fixed list-order/source-identity hypothesis is explicitly closed and must not be repeated.
 
-No Storage/WAL behavior, provider/transport path, Search, UI, provenance semantics, Skip/XFail or release guards changed.
+No speculative product patch was made without the exact remaining assertion. The §72 acceptance still retains exact source identity, one SUCCESSFUL / one IRRELEVANT / one UNAVAILABLE, processed=3, failed=0, coverage=2/3, persisted scope parity and durable UNAVAILABLE-not-IRRELEVANT assertions. No production code, Storage/WAL behavior, provider/transport path, Search, UI, provenance semantics, Skip/XFail or release guards changed.
 
-Status: `§72 FIXED_PENDING_EXACT_VERIFY`. No PASS/READY claim exists yet for `124bdd9d789230d33452cfbc2452b307d410316c` or a descendant.
+Status: `§72 BLOCKED_ON_EXACT_PYTEST_DIAGNOSTIC`; `ERR-0024 IN_PROGRESS`. No PASS/READY claim exists for `124bdd9d789230d33452cfbc2452b307d410316c` or `ac8dad2af4d5bb8b38c2fdcb6f4ea61b3deb5b00`.
 
 ## Coordination state
 
-- Error handoff reviewed on current Develop: `ERR-0024 IN_PROGRESS` for the exact §72 pytest-only failure; no conflicting Error-owned product mutation exists.
-- Backend current work remains WAL/scheduler/storage-owned and disjoint from this Research acceptance.
-- UI current work remains Jobs/accessibility-owned and disjoint from this Research acceptance.
-- Integrator holds §72 until exact-green evidence and already preserves prior integrated §68-§71 Core work.
+- Error handoff reviewed at `postmerge/errors`: `ERR-0024 IN_PROGRESS`; it independently records both pytest-only reds and holds §72.
+- Backend current head recorded by Error coordination: `5fb145df421059314b4d90f53b9fc69b1c4333ab`; Backend remains WAL/scheduler/storage-owned and disjoint.
+- UI current head recorded by Error coordination: `4c656c2c5dfb55e6d3f0078719183cbbad73a555`; UI remains Jobs/accessibility-owned and disjoint.
+- Integrator current shared baseline is `develop/pathena-next@df05e76c998148e2445401de04115a7c5dccd708`; §72 remains held and prior §68-§71 Core work remains preserved.
 - All Core mutations remain NON-FORCE and no foreign branch/history was overwritten.
 
 ## Next Core action
 
-1. Consume the first exact canonical Quality run on `124bdd9d789230d33452cfbc2452b307d410316c` or an unchanged descendant.
-2. If green, mark §72 READY with exact SHA/Quality, hand it to Integrator, and immediately execute normative §73 External Capture Test unless equivalent real acceptance already exists.
-3. If red, use the new exact failure evidence to classify and repair only the demonstrated remaining §72 product/harness defect; do not weaken exact NAS-source identity, unavailable-vs-irrelevant, 2/3 coverage or durability assertions.
-4. Before any new mutation, re-check latest Develop/Error/Backend/UI heads and preserve all foreign deltas.
+1. Retrieve the exact remaining pytest assertion/traceback for Quality `34190114472` (or a later unchanged-descendant run) from canonical diagnostics; do not repeat source-order analysis.
+2. Apply the smallest demonstrated §72 product/harness correction on `postmerge/spec-core`, preserving exact NAS source identity, unavailable-vs-irrelevant distinction, 2/3 coverage and durability assertions.
+3. Run focused §72 verification and canonical Quality. Only an exact green successor may be marked READY and handed to Integrator.
+4. Once §72 is exact-green, immediately inspect/execute normative §73 External Capture Test unless equivalent real acceptance already exists.
+5. Before mutation re-check latest Develop/Error/Backend/UI heads and preserve all foreign deltas.
 
 ## Release regression obligations
 
