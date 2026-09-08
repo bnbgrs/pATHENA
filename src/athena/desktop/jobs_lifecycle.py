@@ -38,17 +38,16 @@ class JobActionAvailability:
     def reason(self, action: str) -> str:
         enabled = bool(getattr(self, action))
         if enabled:
-            return f"{action.title()} is supported for persisted state {self.state}."
+            return f"{action.title()} is available while this job is {self.state}."
         if self.state is None:
-            return "Select a durable job first."
+            return "Select a job first."
+        if self.state not in _KNOWN_STATES:
+            return "This job has an unrecognized state; actions are unavailable."
         if self.state in _TERMINAL_STATES:
-            return f"Job is terminal ({self.state}); no lifecycle mutation is available."
+            return f"This job is {self.state}; no actions are available."
         if self.state == "cancel_requested":
-            return (
-                "Cancellation is already persisted (cancel_requested) and awaits "
-                "worker acknowledgement."
-            )
-        return f"{action.title()} is not supported for persisted state {self.state}."
+            return "Cancellation has already been requested and is waiting to complete."
+        return f"{action.title()} is unavailable while this job is {self.state}."
 
 
 @dataclass(frozen=True)
@@ -61,13 +60,14 @@ class JobTransitionReceipt:
 def action_availability(state: str | None) -> JobActionAvailability:
     """Project only transitions implemented by ``DurableJobService``."""
     normalized = None if state is None else state.casefold().strip()
+    known = normalized in _KNOWN_STATES
     return JobActionAvailability(
         state=normalized,
-        pause=normalized in {"queued", "waiting"},
-        resume=normalized == "paused",
-        wake=normalized == "waiting",
+        pause=known and normalized in {"queued", "waiting"},
+        resume=known and normalized == "paused",
+        wake=known and normalized == "waiting",
         cancel=(
-            normalized is not None
+            known
             and normalized not in _TERMINAL_STATES
             and normalized != "cancel_requested"
         ),
@@ -83,15 +83,15 @@ def parse_transition_receipt(
     """Bind a CLI transition receipt to the exact requested job and operation."""
     expected_label = _TRANSITION_LABELS.get(expected_operation)
     if expected_label is None:
-        raise JobLifecycleError("Unsupported lifecycle operation.")
+        raise JobLifecycleError("This job action is not supported.")
     parts = output.strip().split()
     if len(parts) != 3 or parts[0] != expected_label:
-        raise JobLifecycleError("Durable job transition receipt is invalid.")
+        raise JobLifecycleError("The job action response could not be verified.")
     if parts[1] != expected_job_id:
-        raise JobLifecycleError("Durable job transition receipt belongs to another job.")
+        raise JobLifecycleError("The job action response belongs to another job.")
     state = parts[2].casefold()
     if state not in _KNOWN_STATES:
-        raise JobLifecycleError("Durable job transition returned an unknown state.")
+        raise JobLifecycleError("The job action response returned an unrecognized state.")
     return JobTransitionReceipt(
         operation=expected_operation,
         job_id=expected_job_id,

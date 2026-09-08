@@ -89,7 +89,7 @@ class JobsWorkspace(QWidget):
         self.details.setReadOnly(True)
         self.details.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
         self.details.setPlaceholderText(
-            "Select a durable job to inspect checkpoints, leases and pinned state."
+            "Select a job to inspect its current state and activity."
         )
         set_pathena_ui_state(self.details, "empty")
 
@@ -114,7 +114,7 @@ class JobsWorkspace(QWidget):
         layout.setSpacing(14)
 
         header = QHBoxLayout()
-        title = QLabel("DURABLE JOB CONTROL")
+        title = QLabel("JOBS")
         title.setObjectName("speaker")
         header.addWidget(title)
         header.addWidget(self.scheduler_status)
@@ -127,9 +127,8 @@ class JobsWorkspace(QWidget):
         layout.addLayout(header)
 
         intro = QLabel(
-            "Canonical pATHENA background work. Queue state, retries, leases and "
-            "checkpoints are persisted in SQLite; controls below invoke the existing "
-            "DurableJobService transitions rather than maintaining a GUI-side queue."
+            "Background work from Research and Sources appears here. Select a job to "
+            "inspect its state and activity, or use the available controls to manage it."
         )
         intro.setObjectName("settingsHelp")
         intro.setWordWrap(True)
@@ -154,7 +153,7 @@ class JobsWorkspace(QWidget):
     def refresh(self) -> None:
         if self._busy():
             return
-        self._start("list", ["list", "--limit", "150"], "Refreshing durable jobs")
+        self._start("list", ["list", "--limit", "150"], "Refreshing jobs")
 
     def pause_selected(self) -> None:
         self._transition("pause", "Pausing selected job")
@@ -166,7 +165,7 @@ class JobsWorkspace(QWidget):
         self._transition("wake", "Waking selected job")
 
     def cancel_selected(self) -> None:
-        self._transition("cancel", "Persisting cancellation request")
+        self._transition("cancel", "Requesting cancellation")
 
     def _transition(self, operation: str, label: str) -> None:
         job_id = self._selected_job_id
@@ -211,7 +210,7 @@ class JobsWorkspace(QWidget):
             self._start(
                 "show",
                 ["show", selected_job_id],
-                "Loading durable job details",
+                "Loading job details",
                 job_id=selected_job_id,
             )
 
@@ -276,7 +275,9 @@ class JobsWorkspace(QWidget):
             ("cancel", self.cancel_button),
         ):
             button.setEnabled(bool(getattr(availability, action)))
-            button.setToolTip(availability.reason(action))
+            reason = availability.reason(action)
+            button.setToolTip(reason)
+            button.setAccessibleDescription(reason)
 
     def _operation_owns_details(self) -> bool:
         return self._operation_job_id == self._selected_job_id
@@ -305,11 +306,16 @@ class JobsWorkspace(QWidget):
         job_label = self._job_label(operation_job_id)
 
         if exit_code != 0:
-            subject = f" for job {job_label}" if job_label else ""
-            location = " in the background" if subject and not owns_details else ""
-            self.status.setText(
-                f"Jobs command{subject} failed{location} (exit {exit_code})."
-            )
+            if operation == "list":
+                message = f"Jobs could not be refreshed (exit {exit_code})."
+            elif operation == "show" and job_label:
+                message = f"Job {job_label} details could not be loaded (exit {exit_code})."
+            else:
+                action = operation.upper() if operation else "JOB ACTION"
+                subject = f" for job {job_label}" if job_label else ""
+                location = " in the background" if subject and not owns_details else ""
+                message = f"{action} failed{subject}{location} (exit {exit_code})."
+            self.status.setText(message)
             set_pathena_ui_state(self.status, "error")
             if owns_details:
                 set_pathena_ui_state(self.details, "error")
@@ -319,12 +325,12 @@ class JobsWorkspace(QWidget):
 
         if operation == "list":
             self._render_job_list(output)
-            self.status.setText(f"Durable jobs refreshed: {self.jobs.count()} shown.")
+            self.status.setText(f"Jobs refreshed: {self.jobs.count()} shown.")
             set_pathena_ui_state(self.status, "success")
             return
 
         if operation == "show":
-            self.status.setText(f"Durable job {job_label} details loaded.")
+            self.status.setText(f"Job {job_label} details loaded.")
             set_pathena_ui_state(self.status, "success")
             if owns_details:
                 set_pathena_ui_state(self.details, "success")
@@ -338,13 +344,13 @@ class JobsWorkspace(QWidget):
             )
         except JobLifecycleError as exc:
             self.status.setText(
-                f"{operation.upper()} receipt for job {job_label} could not be verified."
+                f"{operation.upper()} response for job {job_label} could not be verified."
             )
             self.status.setToolTip(str(exc))
             set_pathena_ui_state(self.status, "error")
             if owns_details:
                 self.details.setPlainText(
-                    f"TRANSITION RECEIPT UNAVAILABLE\n{exc}\n\nRaw command output:\n{output}"
+                    f"JOB ACTION RESPONSE UNAVAILABLE\n{exc}\n\nRaw command output:\n{output}"
                 )
                 set_pathena_ui_state(self.details, "error")
             return
@@ -356,7 +362,7 @@ class JobsWorkspace(QWidget):
                 current.setData(Qt.ItemDataRole.UserRole + 1, receipt.state)
         self._sync_action_buttons()
         self.status.setText(
-            f"{operation.upper()} transition for job {job_label} persisted · "
+            f"{operation.upper()} completed for job {job_label} · "
             f"{receipt.state.upper()}."
         )
         self.status.setToolTip("")
@@ -412,7 +418,7 @@ class JobsWorkspace(QWidget):
             job_label = self._job_label(selected)
             message = (
                 f"SELECTION CHANGED · Job {job_label} is no longer listed after refresh. "
-                "Select another durable job to inspect its current state."
+                "Select another job to inspect its current state."
             )
             self.details.setPlainText(message)
             self.jobs.setProperty("pathenaSelectionDisappeared", selected)
@@ -428,8 +434,8 @@ class JobsWorkspace(QWidget):
             self._selected_state = None
             self._sync_action_buttons()
             self.details.setPlainText(
-                "No durable jobs have been persisted yet. Research and Source operations "
-                "will appear here as soon as they are queued."
+                "No jobs are available yet. Research and Source operations will appear "
+                "here when they are queued."
             )
             set_pathena_ui_state(self.jobs, "empty")
             set_pathena_ui_state(self.details, "empty")
@@ -437,15 +443,24 @@ class JobsWorkspace(QWidget):
     def _process_error(self, error: QProcess.ProcessError) -> None:
         job_id = self._operation_job_id
         owns_details = self._operation_owns_details()
+        operation = self._operation
         self._operation = ""
         self._operation_job_id = None
         self._sync_action_buttons()
         job_label = self._job_label(job_id)
         subject = f" for job {job_label}" if job_label else ""
-        if error == QProcess.ProcessError.FailedToStart:
-            self.status.setText(f"Unable to start the local jobs command{subject}.")
+        if operation == "list":
+            label = "Jobs refresh"
+        elif operation == "show":
+            label = "Job details"
+        elif operation:
+            label = operation.upper()
         else:
-            self.status.setText(f"Jobs command{subject} error: {error.name}")
+            label = "Jobs operation"
+        if error == QProcess.ProcessError.FailedToStart:
+            self.status.setText(f"{label}{subject} could not be started.")
+        else:
+            self.status.setText(f"{label}{subject} failed: {error.name}")
         set_pathena_ui_state(self.status, "error")
         if owns_details:
             set_pathena_ui_state(self.details, "error")

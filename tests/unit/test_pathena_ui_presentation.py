@@ -196,6 +196,16 @@ def test_pathena_model_settings_hide_inference_jargon() -> None:
         assert "THINKING" not in visible_labels
         assert all("reasoning_effort" not in text for text in visible_labels)
         assert window.thinking_checkbox.text() == "Off"
+        for control in (
+            window.context_slider,
+            window.context_spin,
+            window.max_output_slider,
+            window.max_output_spin,
+            window.temperature_spin,
+            window.thinking_checkbox,
+        ):
+            assert control.toolTip()
+            assert control.accessibleDescription() == control.toolTip()
     finally:
         window.close()
         app.processEvents()

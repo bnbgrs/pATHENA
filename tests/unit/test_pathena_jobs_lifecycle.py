@@ -45,7 +45,63 @@ def test_action_availability_matches_durable_service_states(
         if getattr(availability, action)
     } == enabled
     for action in ("pause", "resume", "wake", "cancel"):
-        assert state in availability.reason(action)
+        reason = availability.reason(action)
+        assert "persisted state" not in reason
+        assert "lifecycle mutation" not in reason
+        assert "lifecycle action" not in reason
+        if state == "cancel_requested":
+            assert "Cancellation has already been requested" in reason
+            assert "cancel_requested" not in reason
+        else:
+            assert state in reason
+
+
+def test_action_availability_empty_selection_uses_product_language() -> None:
+    availability = action_availability(None)
+
+    for action in ("pause", "resume", "wake", "cancel"):
+        reason = availability.reason(action)
+        assert reason == "Select a job first."
+        assert "durable" not in reason.casefold()
+
+
+def test_unknown_job_state_fails_closed_for_every_visible_action() -> None:
+    availability = action_availability("future_state")
+
+    assert not availability.pause
+    assert not availability.resume
+    assert not availability.wake
+    assert not availability.cancel
+    for action in ("pause", "resume", "wake", "cancel"):
+        reason = availability.reason(action)
+        assert reason == "This job has an unrecognized state; actions are unavailable."
+        assert "future_state" not in reason
+
+
+def test_action_button_help_is_exposed_to_accessibility(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(JobsWorkspace, "refresh", lambda _self: None)
+    app = _app()
+    workspace = JobsWorkspace()
+    workspace._refresh_timer.stop()
+    workspace._scheduler_status_timer.stop()
+    app.processEvents()
+    try:
+        workspace._selected_state = "waiting"
+        workspace._sync_action_buttons()
+
+        for button in (
+            workspace.pause_button,
+            workspace.resume_button,
+            workspace.wake_button,
+            workspace.cancel_button,
+        ):
+            assert button.toolTip()
+            assert button.accessibleDescription() == button.toolTip()
+    finally:
+        workspace.close()
+        app.processEvents()
 
 
 def test_transition_receipt_is_bound_to_exact_job_and_operation() -> None:
@@ -62,6 +118,33 @@ def test_transition_receipt_is_bound_to_exact_job_and_operation() -> None:
             expected_operation="pause",
             expected_job_id=JOB_ID,
         )
+
+
+@pytest.mark.parametrize(
+    ("output", "operation", "expected_fragment"),
+    (
+        ("not-a-receipt", "pause", "could not be verified"),
+        (f"JOB_PAUSE {JOB_ID} future_state", "pause", "unrecognized state"),
+        (f"JOB_PAUSE {JOB_ID} paused", "future", "not supported"),
+    ),
+)
+def test_transition_receipt_errors_use_human_product_language(
+    output: str,
+    operation: str,
+    expected_fragment: str,
+) -> None:
+    with pytest.raises(JobLifecycleError) as exc_info:
+        parse_transition_receipt(
+            output,
+            expected_operation=operation,
+            expected_job_id=JOB_ID,
+        )
+
+    message = str(exc_info.value)
+    assert expected_fragment in message
+    assert "durable" not in message.casefold()
+    assert "lifecycle" not in message.casefold()
+    assert "receipt" not in message.casefold()
 
 
 def test_successful_transition_updates_selected_persisted_state_and_controls(
@@ -92,7 +175,9 @@ def test_successful_transition_updates_selected_persisted_state_and_controls(
         assert workspace._selected_state == "paused"
         assert workspace.resume_button.isEnabled()
         assert not workspace.pause_button.isEnabled()
-        assert "PAUSED" in workspace.status.text()
+        assert workspace.status.text() == "PAUSE completed for job 11111111 · PAUSED."
+        assert "transition" not in workspace.status.text().casefold()
+        assert "persisted" not in workspace.status.text().casefold()
     finally:
         workspace.close()
         app.processEvents()
