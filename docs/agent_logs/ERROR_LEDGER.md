@@ -8,12 +8,12 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 
 ## Current baseline
 
-- Baseline reviewed: `develop/pathena-next@df05e76c998148e2445401de04115a7c5dccd708`.
+- Baseline reviewed: `develop/pathena-next@b5f824082fcd9d335ea55de76f88d23a3c0ee7e8`.
 - Error branch mutation lineage: `postmerge/errors` only.
-- History-preserving NON-FORCE synchronization this run: `e0c77705ad30102c612a1e8706e769f77f5d8951`, parents prior Error head `bfefb4fcd9f87e4587984e96689009366be77361` and current Develop `df05e76c998148e2445401de04115a7c5dccd708`.
-- Current Spec/Core head reviewed: `ac8dad2af4d5bb8b38c2fdcb6f4ea61b3deb5b00`.
-- Current Backend head reviewed: `5fb145df421059314b4d90f53b9fc69b1c4333ab`.
-- Current UI head reviewed: `4c656c2c5dfb55e6d3f0078719183cbbad73a555`.
+- History-preserving NON-FORCE synchronization this run: `0245da229e2a62b12b1d0404f34c729a5aa59319`, parents prior Error head `df2c48216aab958219db0db868c58e53ddcd6d4a` and current Develop `b5f824082fcd9d335ea55de76f88d23a3c0ee7e8`.
+- Current Spec/Core head reviewed: `147d9527ff06ce772aa378e29befa00d77031e9e`.
+- Current Backend head reviewed: `ea601b96d681580c2e8f1f1af40c7d97c347511e`.
+- Current UI head reviewed: `bcce837f347f8b67f3b4de1ab465f3e80c750eea`.
 - `main` and `bnbgrs/ATHENA` remained read-only and untouched.
 
 ## Current state
@@ -29,12 +29,12 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 - Severity: P2.
 - Status: `IN_PROGRESS`.
 - Initial exact evidence: canonical Quality `34186455107` on `postmerge/spec-core@5fbe0dc8b3d7674a18c562e96c118ddf4e476985`; Local install, Windows path safety, Linux storage, Validator, Ruff and mypy PASS; full pytest FAIL only.
-- Concrete root-cause progress: inspection proved the original acceptance bound SUCCESSFUL/IRRELEVANT/UNAVAILABLE to `work[0..2]` ordering and therefore did not prove the UNAVAILABLE work item belonged to the NAS source. Work-item list order is not source identity.
-- Owner repair: `124bdd9d789230d33452cfbc2452b307d410316c` changes only `tests/unit/test_exhaustive_research_unavailable_nas.py`, resolving each work item through candidate -> exact `source_id`, selecting the actual NAS work item, preserving all coverage/durability assertions.
-- Verification of repair: canonical Quality `34190083267` on exact `124bdd9d789230d33452cfbc2452b307d410316c` again failed only full pytest; Validator/Ruff/mypy/Windows path/Linux storage/local install all PASS. Therefore the demonstrated ordering defect is fixed but is not sufficient to close the canonical failure.
-- Current unchanged handoff descendant `ac8dad2af4d5bb8b38c2fdcb6f4ea61b3deb5b00` has Quality `34190114472` still in progress; no PASS inferred.
-- Exact remaining pytest assertion/traceback is still not exposed through the available diagnostics interface. No product-vs-second-harness classification is invented.
-- Integrator handoff: HOLD §72 until an exact repaired successor completes canonical green; do not weaken exact source identity, unavailable-vs-irrelevant, 2/3 coverage or persistence assertions.
+- Confirmed first harness defect: the original acceptance bound SUCCESSFUL/IRRELEVANT/UNAVAILABLE to work-list order, not exact source identity. Work-item list order is not source identity.
+- Owner repair: `124bdd9d789230d33452cfbc2452b307d410316c` changes only `tests/unit/test_exhaustive_research_unavailable_nas.py`, resolving each work item through candidate -> exact `source_id`, selecting the actual NAS item, and preserving unavailable-vs-irrelevant, processed=3, failed=0, 2/3 coverage and durable state assertions.
+- Exact verification proves that repair is insufficient to close the remaining failure: Quality `34190083267` on `124bdd9d789230d33452cfbc2452b307d410316c` failed only full pytest; unchanged handoff descendant `ac8dad2af4d5bb8b38c2fdcb6f4ea61b3deb5b00` failed Quality `34190114472` only in full pytest; current unchanged diagnostic descendant `147d9527ff06ce772aa378e29befa00d77031e9e` failed Quality `34194199456` only in full pytest. On `34194199456`, Local install, Windows path safety, Linux storage, specification validator, Ruff and mypy all PASS.
+- Root-cause boundary this run: the list-order/source-identity defect is CLOSED as the remaining primary cause. Three exact canonical pytest-only reds persist after that repair, including two unchanged descendants. The remaining failing assertion/traceback is still not exposed through the available GitHub connector: jobs expose the failing `Quality — pytest` step and successful diagnostics upload but not the diagnostics ZIP/log payload. Local direct reproduction is also blocked by transient DNS resolution of `github.com`.
+- No speculative product-vs-harness patch is made without the exact remaining assertion. Next admissible progress is the exact pytest diagnostic or a concrete corrective successor that identifies the second defect.
+- Integrator handoff: HOLD §72 until the second failure is exactly root-caused and a corrected exact successor is canonical green; do not weaken exact source identity, unavailable-vs-irrelevant, 2/3 coverage, persistence, Storage, Security, Recovery or Windows guards.
 
 ## ERR-0023 — Terminal Jobs action reason leaks implementation-oriented lifecycle wording
 
@@ -43,15 +43,15 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA evidenced failures are o
 - Failing evidence: canonical Backend Quality `34177086068` on exact `076a0d1209fe1cb30c6cfe7f6735a39158036c28`; full pytest only failed at `tests/unit/test_pathena_jobs_lifecycle.py::test_action_availability_matches_durable_service_states[completed-enabled5]` because visible copy was `no lifecycle action is available`.
 - Root cause: product copy in `src/athena/desktop/jobs_lifecycle.py::JobActionAvailability.reason()` exposed implementation-oriented wording; harness assertion valid.
 - Minimal Error-owned fix: `d0207d43dabd66406df630a2cdff89e6f56b259b`, terminal copy -> `This job is {state}; no actions are available.`.
-- Develop integration: `568d57a63bb2253d97ca63e92b52e1df66505ac9`; current Develop `df05e76c998148e2445401de04115a7c5dccd708` still contains exact corrected line/blob.
-- Exact verification remains pending because no completed canonical Quality run is associated with a Develop descendant specifically verifying this integrated wording. Independent UI lineage previously cleared the same defect class but is not substituted for exact Error wording verification.
+- Develop integration: `568d57a63bb2253d97ca63e92b52e1df66505ac9`; current Develop `b5f824082fcd9d335ea55de76f88d23a3c0ee7e8` descends from that integration and retains the corrected terminal-copy class.
+- Exact verification remains pending because no completed canonical Quality run is associated with the current Develop descendant specifically establishing the integrated Error wording. Equivalent UI green evidence is not substituted for exact Develop verification.
 
 ## Current worker evidence — 2026-09-08
 
-- Spec/Core repair SHA `124bdd9d789230d33452cfbc2452b307d410316c`: Quality `34190083267 = failure`, pytest-only; current handoff SHA `ac8dad2af4d5bb8b38c2fdcb6f4ea61b3deb5b00`: Quality `34190114472 = in_progress`.
-- Backend `5df50d524d4177a2fe157cf18cb952ff15df65a4`: Quality `34187200684 = failure`, pytest-only; all non-pytest canonical gates PASS. This is not allocated as a new ERR without exact assertion and may still deduplicate to an existing shared/full-suite defect. Current Backend `5fb145df421059314b4d90f53b9fc69b1c4333ab`: Quality `34190743330 = in_progress`.
-- UI current `4c656c2c5dfb55e6d3f0078719183cbbad73a555`: Quality `34191944523 = pending`; no conclusion inferred.
-- Develop `df05e76c998148e2445401de04115a7c5dccd708` has no exact completed canonical Quality success establishing global promotion readiness.
+- Spec/Core current `147d9527ff06ce772aa378e29befa00d77031e9e`: Quality `34194199456 = failure`, again pytest-only; all non-pytest canonical gates PASS. No new ERR allocated because this is the same unresolved `ERR-0024` lineage.
+- Backend product `efdae09dc71a661ea5c81f67b8e2b09ac90c0080`: Quality `34195556143 = cancelled`; it was immediately superseded by handoff descendant `ea601b96d681580c2e8f1f1af40c7d97c347511e`, whose Quality `34195601115` is in progress. Cancellation alone is not treated as a product error.
+- UI current `bcce837f347f8b67f3b4de1ab465f3e80c750eea`: Quality `34195898979` is in progress; no conclusion inferred.
+- Develop `b5f824082fcd9d335ea55de76f88d23a3c0ee7e8` has no exact completed canonical Quality success establishing global promotion readiness.
 - No exact-current evidence reproduced retained Windows packaging/process-tree/chat-context/lane-lock/storage-bootstrap crash signatures; none reopened.
 
 ## Historical verified entries
