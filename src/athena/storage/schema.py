@@ -26,6 +26,7 @@ from athena.storage.schema_contract import (
     BLOB_FORMAT_VERSION as BLOB_FORMAT_VERSION,
     CONSOLIDATED_OPERATIONS_MIGRATION_ID as CONSOLIDATED_OPERATIONS_MIGRATION_ID,
     CONSOLIDATED_OPERATIONS_SCHEMA_VERSION as CONSOLIDATED_OPERATIONS_SCHEMA_VERSION,
+    DatabaseCompatibilityError as DatabaseCompatibilityError,
     DELETION_LEDGER_MIGRATION_ID as DELETION_LEDGER_MIGRATION_ID,
     DELETION_LEDGER_SCHEMA_VERSION as DELETION_LEDGER_SCHEMA_VERSION,
     DURABLE_JOBS_MIGRATION_ID as DURABLE_JOBS_MIGRATION_ID,
@@ -103,7 +104,6 @@ from athena.storage.schema_contract import (
     SOURCE_REPRESENTATION_MIGRATION_ID as SOURCE_REPRESENTATION_MIGRATION_ID,
     SOURCE_REPRESENTATION_SCHEMA_VERSION as SOURCE_REPRESENTATION_SCHEMA_VERSION,
     STORAGE_LAYOUT_VERSION as STORAGE_LAYOUT_VERSION,
-    DatabaseCompatibilityError as DatabaseCompatibilityError,
     _user_tables as _user_tables,
 )
 from athena.storage.schema_error_sanitization import (
@@ -496,7 +496,7 @@ def _physical_cleanup_operational_error_remnants(
     """Remove unreachable historical error bytes from SQLite storage."""
     if connection.in_transaction:
         raise RuntimeError(
-            "Operational-error physical cleanup requires no active transaction."
+            "Operational-error physical-cleanup migration requires no active transaction."
         )
 
     journal_row = connection.execute("PRAGMA journal_mode").fetchone()
