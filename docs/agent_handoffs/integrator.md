@@ -3,53 +3,48 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `249c83ae7dc4a33ceb8491029af4bad09b452e92`.
+- Develop before this run: `20619f1310bef9d7d2aa706cff11a974144c47e5`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `234eafe907bfa8681dd8685bc2becd3f3174e95b`; spec-core `a77c1a5c5ef95ebc852cecb80aa13ffec1ad4cb7`; backend `73726422889bec6a43ad6d1b06f201d720b477d0`; UI `31ed3fcb4b13d1cc115c7eb1c7a19c451b3b29ff`.
+- Worker heads reviewed: errors `cdf10f83e43567ed2d3f7b2d2162e5aa7c6a6509`; spec-core `f4abb89d7538a11efa50d94a847b6f69139c602b`; backend `aa9cb18188bf070ac4b9f0e2763e2b31c643a54f`; UI `b9936b6e404c224c47230ced5919f475760c013a`.
 - `main` and `bnbgrs/ATHENA` were untouched; no force update, rebase, history rewrite, auto-merge or main promotion was used.
 
-## Progress this run — UI-GAP-0015 unsaved selected-model defaults freshness
+## Progress this run — Exhaustive Research §73 external capture acceptance
 
-No current worker head was READY at review time: Spec/Core reconciliation Quality remained in progress; Backend canonical Quality remained in progress; current UI Quality was pending; Error reported the shared pytest-only signal `ERR-0025` and no speculative mutation was authorized.
+Spec/Core §73 became READY during this run. Exact worker commit `bb5806123097171598584166ff10f3b5e28d07ca` completed canonical ATHENA Quality `34219791632 = success`. The bounded slice is test-only, contains no Skip/XFail or weakened assertion, and adds one real orchestration acceptance proving external evidence is durably captured and pinned before Research consumes it.
 
-The hard progress rule therefore consumed one previously deferred exact-green bounded Settings slice from the Alpha/Beta tracker.
+Independent Develop review confirmed `tests/unit/test_exhaustive_research_external_capture.py` was absent and that Develop-only changes since the worker's reconciled baseline were disjoint Settings/integrator changes. The exact verified test contents were integrated on Develop as commit `4dcf7eb9366a4323fa0bd199014068938cd64294`.
 
-- UI-GAP-0015 product: `e175de079fd30dc2fb1bc3c64065ebd40127cd0b`.
-- Focused test lineage: `0b0303e89c4fd358291e0fb180062212debdeff7`.
-- Exact successful worker head: `be55343dcaab9eb2afe80fe869000c139e6e2de1`; ATHENA Quality Gate `33902213148 = success`.
-- Independent Develop review confirmed the exact open semantic: `<model> · defaults not yet saved` still reported `pathenaRuntimeFreshness=fresh` on current Develop, while the verified worker contract requires fail-closed `unavailable` with unchanged visible copy and `idle` state.
-- Product integration commit on Develop: `6689d3b3b0edd24be68a6ac41bb2ec5b236563d5`.
+The acceptance uses a real `AthenaApplication`, real `ExternalAccessGateway`, real durable `WEB_SNAPSHOT` capture, real provenance rows, and real Local+Web Research candidate freezing. It locks exactly one external transport fetch at capture time, immutable Source/blob identity and SHA across Research use, and zero re-fetches during candidate/source resolution.
 
-The bounded mutation changes only the Settings presentation freshness for an unsaved selected model from `fresh` to `unavailable`. QSettings format/write behavior, selected-model identity, provider/Core behavior, Storage, Network, Security, Recovery, scheduler/worker, packaging and Windows-runtime semantics are unchanged.
-
-The worker focused test was not imported because its file contains `pytest.importorskip("PySide6")`, which violates the Integrator no-Skip rule. No test, assertion or guard was weakened on Develop. Exact canonical green worker evidence remains attached to the product contract.
+No production, Search, Storage, WAL, Security, Recovery, scheduler/worker, provider/transport, packaging or Windows-runtime semantics changed.
 
 ## Verification state
 
-- UI-GAP-0015 exact worker lineage: Quality `33902213148 = success` on exact `be55343dcaab9eb2afe80fe869000c139e6e2de1`.
-- Current Develop product descendant after integration: `6689d3b3b0edd24be68a6ac41bb2ec5b236563d5` before this handoff update.
+- Exact §73 worker commit: `bb5806123097171598584166ff10f3b5e28d07ca`.
+- Exact canonical Quality: `34219791632 = success`.
+- Validator, Ruff, mypy, Local install smoke, Linux storage regressions, Windows path safety and canonical pytest all completed successfully in that exact run.
+- Develop integration commit: `4dcf7eb9366a4323fa0bd199014068938cd64294`.
 - Exact-current-Develop canonical Quality is not yet available; no global-green or promotion-ready claim is made.
 - No Skip/XFail, assertion weakening or guard relaxation was introduced.
 
 ## Other worker state
 
-- Error head `234eafe907bfa8681dd8685bc2becd3f3174e95b`: `ERR-0025` remains IN_PROGRESS; `ERR-0023` remains FIXED_PENDING_VERIFY.
-- Spec/Core head `a77c1a5c5ef95ebc852cecb80aa13ffec1ad4cb7`: reconciliation Quality `34214869692` was still in progress; §73 external-capture acceptance remains next Core gap.
-- Backend head `73726422889bec6a43ad6d1b06f201d720b477d0`: Quality `34215906072` was still in progress; bounded canonical WAL-orchestrator exact-type hardening held pending exact result.
-- UI head `31ed3fcb4b13d1cc115c7eb1c7a19c451b3b29ff`: Quality `34216731239` was pending; current Jobs verification-copy successor was not consumed.
+- Error head `cdf10f83e43567ed2d3f7b2d2162e5aa7c6a6509`: `ERR-0025` remains IN_PROGRESS and `ERR-0023` remains FIXED_PENDING_VERIFY; repeated worker pytest-only reds remain deduplicated until an exact assertion is exposed.
+- Backend head `aa9cb18188bf070ac4b9f0e2763e2b31c643a54f`: current canonical WAL runtime-boundary Quality `34221259239` is pending and is not READY.
+- UI head `b9936b6e404c224c47230ced5919f475760c013a`: synchronized worker lineage is not consumed this run because §73 is the single bounded progress slice.
+- Spec/Core head `f4abb89d7538a11efa50d94a847b6f69139c602b`: documentation descendant of the integrated §73 test; §74 Cancel Test is the next Core gap.
 
 ## Alpha/Beta and UI state
 
-- `UI-GAP-0015` is integrated on Develop with exact-green worker evidence.
+- Exhaustive Research §73 external capture acceptance is integrated with exact-green evidence and should be tracked as `VERIFIED`.
 - The original eleven reference images remain unavailable; all eleven screen slots remain implemented pending visual review and zero `MATCH` claims are made.
-- `ALPHA_BETA_PROGRESS.md` should move UI-GAP-0015 from `IMPLEMENTED_PENDING_VERIFY` to `VERIFIED` with integration SHA `6689d3b3b0edd24be68a6ac41bb2ec5b236563d5`; safe targeted tracker replacement was not available in this connector run, so destructive whole-file rewriting was not attempted.
 - No completion percentage is inferred.
 
 ## Next integration order
 
-1. Obtain exact-current-Develop Quality on the descendant carrying `6689d3b3b0edd24be68a6ac41bb2ec5b236563d5`; close `ERR-0023` only on exact-green evidence.
-2. Consume completed current Backend/UI/Spec-Core Quality results and integrate exactly one compatible READY bounded successor.
-3. If current workers remain non-READY, independently review one further exact-green Settings slice (`UI-GAP-0011`, `0012`, `0016`, `0017`, `0018`, or `0020`) and reject any worker test introducing Skip/XFail.
+1. Obtain exact-current-Develop canonical Quality on the descendant carrying `4dcf7eb9366a4323fa0bd199014068938cd64294`; close `ERR-0023` only on exact-green Develop evidence.
+2. Consume Backend `34221259239` and the current UI exact Quality when completed; integrate exactly one compatible bounded READY successor.
+3. If workers remain non-READY, implement or unblock exactly one small unclaimed cross-cutting gap; Core §74 Cancel Test is the current Spec/Core successor.
 4. Preserve the release crash-regression matrix before any Windows candidate or promotion claim.
 
 ## Persistent release guards
