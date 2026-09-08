@@ -3,46 +3,50 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop before this run: `b5f824082fcd9d335ea55de76f88d23a3c0ee7e8`.
+- Develop before this run: `ee940a135e0859b3d880d44d873260f0617b17f4`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `d15f50e3e4197e247e1111e86aa33cd80d0e5309`; spec-core `af1f9da019fbee21984cf62fb77a2e8bbacaed5b`; backend `ea601b96d681580c2e8f1f1af40c7d97c347511e`; UI `de3ae27e58e41e478648a368d37d1bba160bfc7a`.
+- Worker heads reviewed: errors `54abf5b205473c29b1c757442b9e6db09ee68e2c`; spec-core `af1f9da019fbee21984cf62fb77a2e8bbacaed5b`; backend `8929474b6bdc4885c51e51de327816d5cf42137c`; UI `6cd161d98a54ebfa0c356fe0a3c21660fc1a9812`.
 - `main` and `bnbgrs/ATHENA` were untouched; no force update, rebase, history rewrite, auto-merge or main promotion was used.
 
-## Progress this run — Spec/Core §72 unavailable-NAS acceptance
+## Progress this run — UI-GAP-0075 Jobs process-error copy
 
-Spec/Core §72 was independently reviewed and integrated as the single bounded progress slice.
+No current worker head was fully READY at review: Backend exact Quality on `9c458e2c4af09a54df234cd518f6e82b84ad34f8` was cancelled (`34206121680`), current UI merge-head Quality `34205607335` remained in progress, and predecessor UI Quality `34200490506` failed. The hard progress rule therefore used a previously deferred exact-green bounded UI slice.
 
-- Worker acceptance repair lineage culminates at `772c2bfdc8767b7c0d032dbb8709120de635f6c0`.
-- Exact canonical Quality `34198674038` on `772c2bfdc8767b7c0d032dbb8709120de635f6c0` completed `success`.
-- The current Spec/Core head `af1f9da019fbee21984cf62fb77a2e8bbacaed5b` only adds handoff documentation after that exact-green parent; its newer Quality `34198712540` was still in progress during review and was not needed for the already exact-green bounded acceptance.
-- Develop integration commit: `7d39c25faf93068f3363b68e9bac7d4c4e93ac89`.
+- Product commit: `86444c8a762f910d9929f50841f78376312a0afe` (`fix(ui): humanize Jobs process errors`).
+- Focused-test commit: `9af7d23d2daccdee78236b6da335090d512d7fcd`.
+- Exact successful descendant: `4d6d1f7b3bc99dbff3015ddb8c499af885859ac8`; ATHENA Quality Gate `34187727628 = success`.
+- Git ancestry check proves `9af7d23d2daccdee78236b6da335090d512d7fcd` is an ancestor of that exact-green descendant (`ahead_by=6`, `behind_by=0`).
+- Develop integration commit: `06c837c59c499d20c26bbdd9467501849f88c09a`.
 
-The integrated test uses real `AthenaApplication.start()/stop()` lifecycle, captures three exact scoped Sources, resolves Research work items through candidate -> exact source identity, marks one SUCCESSFUL, one IRRELEVANT and the exact NAS source UNAVAILABLE, and locks processed=3, failed=0, unavailable=1, irrelevant=1, coverage=2/3 plus durable UNAVAILABLE-not-IRRELEVANT state. No production code, Search, Storage/WAL, Security, provider/transport, scheduler/worker, packaging or Windows runtime semantics changed.
+The bounded change replaces implementation-facing QProcess error text with operation-facing product copy. List failures say `Jobs refresh ...`, show failures say `Job details ...`, and lifecycle actions retain the explicit operation/job/error identity. The focused Qt regression forbids visible `jobs command` / `local jobs command` wording. QProcess spawning, operation identity, action availability, receipts, scheduler/worker behavior, persistence, Storage, Security, Recovery, packaging and Windows runtime semantics are unchanged.
+
+The two imported blobs are exactly the worker product/test blobs. Comparing the exact-green descendant against the focused-test commit shows only later integrator docs, terminal Jobs lifecycle wording, and independent Spec/Core acceptance additions; the imported `jobs_workspace.py` and `test_pathena_jobs_status_copy.py` were unchanged after `9af7d23...` on that green lineage.
 
 ## Verification state
 
-- Exact worker/canonical evidence for the integrated §72 acceptance is green at `772c2bfdc8767b7c0d032dbb8709120de635f6c0` / Quality `34198674038`.
-- Develop received only the exact verified acceptance file; divergent Spec/Core history and documentation were not imported.
-- No exact-current-Develop canonical workflow is yet associated with the post-integration descendant; global-green/promotion-ready is not claimed.
+- `UI-GAP-0075` exact worker lineage is green through Quality `34187727628` on `4d6d1f7b3bc99dbff3015ddb8c499af885859ac8`.
+- Current Develop after product/test integration is `06c837c59c499d20c26bbdd9467501849f88c09a` before this handoff documentation commit.
+- No exact-current-Develop canonical Quality has yet completed on the new descendant; global-green/promotion-ready is not claimed.
 - No Skip/XFail, assertion weakening or guard relaxation was introduced.
 
 ## Other worker state
 
-- UI current head `de3ae27e58e41e478648a368d37d1bba160bfc7a` adds focused coverage for Jobs verification-failure copy; Quality `34200490506` was pending at review, so it is not READY.
-- Backend product `efdae09dc71a661ea5c81f67b8e2b09ac90c0080` had Quality `34195556143 = cancelled`; current Backend handoff descendant is not exact-green and remains held.
-- Error handoff still records ERR-0024 IN_PROGRESS from pre-repair evidence and ERR-0023 FIXED_PENDING_VERIFY; the exact-green §72 successor should be consumed by Error on its next scan to close/reclassify ERR-0024 without reviving the now-fixed teardown defect.
+- Error head `54abf5b205473c29b1c757442b9e6db09ee68e2c`: `ERR-0024` is closed; `ERR-0025` tracks the Backend pytest-only failure; `ERR-0023` remains FIXED_PENDING_VERIFY until exact Develop verification.
+- Spec/Core head `af1f9da019fbee21984cf62fb77a2e8bbacaed5b`: §72 exact-green repair already integrated previously; no additional Core slice consumed this run.
+- Backend head `8929474b6bdc4885c51e51de327816d5cf42137c`: canonical WAL-hook exact-type boundary lacks successful exact Quality because run `34206121680` was cancelled; not READY.
+- UI head `6cd161d98a54ebfa0c356fe0a3c21660fc1a9812`: synchronized with current Develop baseline, but run `34205607335` was still in progress at review; not consumed.
 
 ## UI / Alpha-Beta state
 
 - Eleven-screen status remains implemented pending visual review; no MATCH claim is made without original-reference evidence.
-- `docs/development/ALPHA_BETA_PROGRESS.md` was read; no percentage is inferred. A destructive partial rewrite was not attempted because the connector returned a truncated large body.
+- `docs/development/ALPHA_BETA_PROGRESS.md` remains the canonical tracker. No percentage is inferred. The connector does not expose a safe complete replacement body for the large tracker in this run, so no destructive partial rewrite was attempted; this handoff records the exact evidence for the next safe tracker update.
 - No historical Windows/runtime crash class is reopened without exact-current reproduction.
 
 ## Next integration order
 
-1. Obtain exact-current-Develop canonical Quality on a descendant carrying `7d39c25faf93068f3363b68e9bac7d4c4e93ac89`.
-2. Error worker should consume exact-green §72 evidence and close/reclassify ERR-0024 accordingly; keep ERR-0023 pending until exact Develop verification.
-3. Consume exactly one compatible bounded successor: UI Jobs verification-failure copy if its exact canonical run succeeds; otherwise a later exact-green Backend/Core successor.
+1. Obtain exact-current-Develop focused Jobs regressions, Ruff and canonical Quality on a descendant carrying `06c837c59c499d20c26bbdd9467501849f88c09a`.
+2. Close `ERR-0023` only if that exact Develop evidence is green; consume any concrete `ERR-0025` traceback/successor before attributing the Backend failure.
+3. Integrate exactly one compatible READY successor: prefer current UI only after exact-green completion, otherwise Backend WAL-hook boundary after exact-green evidence, otherwise a new bounded Core successor.
 4. Preserve the release crash-regression matrix before any Windows candidate or promotion claim.
 
 ## Persistent release guards
