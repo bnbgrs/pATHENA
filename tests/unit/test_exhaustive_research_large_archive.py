@@ -43,9 +43,10 @@ def test_large_archive_synthesis_splits_until_every_model_call_fits_pinned_conte
         service.prepare_call(scope, first_final)
 
     synthesis_call_start = len(provider.calls)
+    prepared_input_tokens: list[int] = []
     final_artifact = None
 
-    def execute_or_split(work):
+    def execute_or_split(work) -> None:
         nonlocal final_artifact
         try:
             prepared = service.prepare_call(scope, work)
@@ -61,6 +62,7 @@ def test_large_archive_synthesis_splits_until_every_model_call_fits_pinned_conte
                 execute_or_split(child)
             return
 
+        prepared_input_tokens.append(prepared.estimated_input_tokens)
         artifact = service.execute_call_with_coverage_repair(
             scope=scope,
             parent_job_id=job.job_id,
@@ -83,23 +85,24 @@ def test_large_archive_synthesis_splits_until_every_model_call_fits_pinned_conte
     else:
         raise AssertionError("Large-archive synthesis did not converge to a final artifact.")
 
-    synthesis_calls = [
-        (schema_id, messages, output_limit)
-        for (schema_id, messages), output_limit in zip(
+    synthesis_output_limits = [
+        output_limit
+        for (schema_id, _messages), output_limit in zip(
             provider.calls[synthesis_call_start:],
             provider.max_output_limits[synthesis_call_start:],
             strict=True,
         )
         if schema_id.startswith("athena_research_synthesis_")
     ]
-    assert len(synthesis_calls) > 1
+    assert len(synthesis_output_limits) == len(prepared_input_tokens)
+    assert len(synthesis_output_limits) > 1
 
-    for schema_id, messages, output_limit in synthesis_calls:
+    for request_tokens, output_limit in zip(
+        prepared_input_tokens,
+        synthesis_output_limits,
+        strict=True,
+    ):
         assert output_limit is not None
-        request_tokens = service._estimate_request_tokens(
-            messages=messages,
-            schema_id=schema_id,
-        )
         assert (
             request_tokens + output_limit + scope.safety_margin
             <= scope.effective_context_limit
