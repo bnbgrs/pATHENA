@@ -2,14 +2,14 @@
 
 ## Baseline
 
-- Shared baseline reviewed: `develop/pathena-next@df05e76c998148e2445401de04115a7c5dccd708`.
-- Pre-run worker: `postmerge/backend@5fb145df421059314b4d90f53b9fc69b1c4333ab`.
-- History-preserving NON-FORCE synchronization: `0667e0d217e41adc3309ba13a0c7e50435fbae24`, parents `5fb145df421059314b4d90f53b9fc69b1c4333ab` and `df05e76c998148e2445401de04115a7c5dccd708`.
+- Shared baseline reviewed: `develop/pathena-next@ee940a135e0859b3d880d44d873260f0617b17f4`.
+- Pre-run worker: `postmerge/backend@ea601b96d681580c2e8f1f1af40c7d97c347511e`.
+- History-preserving NON-FORCE synchronization: `8b04e8d5816fc908399d3e80a4407edd5fe50473`, parents `ea601b96d681580c2e8f1f1af40c7d97c347511e` and `ee940a135e0859b3d880d44d873260f0617b17f4`.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Previous exact verification
 
-Quality `34190743330` on exact predecessor `5fb145df421059314b4d90f53b9fc69b1c4333ab` completed FAILURE only in canonical pytest. Specification validator, Ruff, mypy, Windows path safety, Linux storage regressions and Local install smoke passed. Current Error handoff has no Backend-owned primary failure; ERR-0023 and ERR-0024 remain separately owned/fixed-pending-verification.
+Quality `34195601115` on exact predecessor `ea601b96d681580c2e8f1f1af40c7d97c347511e` completed FAILURE only in canonical pytest. Specification validator, Ruff, mypy, Windows path safety, Linux storage regressions and Local install smoke passed. Current Error handoff exposes no Backend-owned primary failure.
 
 ## ExternalAccessGateway priority
 
@@ -17,11 +17,11 @@ Exact current Develop contains the requested runtime boundaries and focused test
 
 ## Current Backend slice
 
-The worker was synchronized to exact current Develop without force/rebase/history rewrite. The large shared `AthenaApplication` wiring remains a collision-sensitive whole-file mutation through the available connector surface, so this run executed a real disjoint Storage boundary slice rather than repeating that blocker.
+The worker was synchronized to exact current Develop through the Git-data API without force, rebase or history rewrite. The direct `AthenaApplication` whole-file edit remains unsafe through the available connector surface and local GitHub DNS remains unavailable, so the run did not repeat that blocker as a no-progress handoff.
 
-Product commit `efdae09dc71a661ea5c81f67b8e2b09ac90c0080` changes `WalJobSchedulerHook` construction to require the exact canonical `WalMaintenanceSchedulerAdapter`. Previously any subclass passed `isinstance`, allowing overridden `run_tick` semantics to bypass the bounded scheduler adapter contract after composition. The exact-type boundary rejects such foreign adapters before any adapter member or WAL runtime access.
+Product commit `b90b96578146856f726208dcc1d562a26f6059b2` closes an adjacent real composition hole: all runtime boundaries that accept `WalJobSchedulerHook` now require the exact canonical hook type. Previously a subclass passed `isinstance` and could override `run_for_lane`, bypassing the already-hardened canonical scheduler-adapter, PASSIVE-only and PROVIDER-lane contracts after composition.
 
-Focused regression `tests/unit/test_wal_scheduler_adapter_boundary.py::test_wal_hook_rejects_noncanonical_scheduler_adapter_before_access` constructs a foreign adapter subclass without initializing downstream state and verifies deterministic rejection at the composition boundary.
+Focused regression commit `9c458e2c4af09a54df234cd518f6e82b84ad34f8` adds `_CustomWalJobSchedulerHook` coverage and verifies `WalAwareDurableJobScheduler.from_scheduler()` rejects a foreign hook subclass before recomposition. Existing invalid-hook coverage was tightened to the canonical-hook contract; no assertion was weakened.
 
 ## Retained invariants
 
@@ -31,16 +31,16 @@ Focused regression `tests/unit/test_wal_scheduler_adapter_boundary.py::test_wal_
 - Audit/Provenance/fsync/transactional Source finalization unchanged;
 - automatic WAL maintenance PASSIVE-only; TRUNCATE explicit idle-only;
 - PROVIDER lane WAL-side-effect-free;
-- canonical WAL adapter semantics cannot be replaced by subclass override at hook composition;
+- canonical WAL scheduler adapter and canonical WAL hook semantics cannot be replaced by subclass override;
 - no second scheduler process, loop, thread, timer or retry;
 - no schema, migration, recovery representation, packaging, lane-lock, process-tree, DirectChat, Security or cryptographic semantic change;
 - no Skip/XFail/assertion weakening, force update or history rewrite.
 
 ## Verification state
 
-- Previous exact Backend/system gates are green except full pytest on `34190743330`, whose failure is not attributed to Backend by current handoffs.
-- Current product/test head: `efdae09dc71a661ea5c81f67b8e2b09ac90c0080`.
-- Exact Quality `34195556143` is pending for the product head; no PASS/global-green/promotion-ready claim is made.
+- Previous exact Backend/system gates are green except full pytest on `34195601115`, whose failure is not attributed to Backend by current handoffs.
+- Current product/test head: `9c458e2c4af09a54df234cd518f6e82b84ad34f8`.
+- No exact workflow was associated with that SHA at the final check; no PASS/global-green/promotion-ready claim is made.
 
 ## Platform / release knowledge
 
@@ -48,4 +48,4 @@ No exact-current signal reopens retained Windows crash classes. Beta/release can
 
 ## Next Backend action
 
-Consume exact canonical Quality for the current handoff/product lineage. If Backend-owned gates are green, finish the real `AthenaApplication` WAL-aware scheduler wiring only through a collision-safe exact mutation that binds exactly one `build_wal_job_scheduler_hook` and an explicit reviewed maintenance interval while preserving existing supervisor/CLI `run_loop`, PROVIDER isolation, lane-lock and Windows process-tree semantics. If the shared file remains unsafe through the available mutation surface, execute a genuinely disjoint evidence-backed Recovery/Provider/Platform slice instead of repeating the blocker.
+Consume exact canonical Quality for the current product/handoff lineage if available. If Backend-owned gates are green, finish the real `AthenaApplication` DurableJobScheduler -> WalAwareDurableJobScheduler wiring through a collision-safe exact mutation binding exactly one `build_wal_job_scheduler_hook` with an explicitly reviewed maintenance interval while preserving supervisor/CLI `run_loop`, PROVIDER isolation, lane-lock and Windows process-tree semantics. Do not spend another run only re-analyzing the shared-file mutation blocker; use a safe targeted mutation path or a genuinely disjoint evidence-backed Backend slice.
