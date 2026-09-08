@@ -2,38 +2,49 @@
 
 ## Current baseline
 
-- Develop baseline checked: `develop/pathena-next@270f97c36bd114036658e322f68d8011983ff150`.
-- Pre-run Core worker: `postmerge/spec-core@298bb61c07dd2fdedea0e8a24db30410442c6794`; canonical Quality `34244657010 = SUCCESS`.
-- Current Develop differs from the worker only in Integrator/UI-owned Jobs copy/test files relative to merge-base `4f077e36248a49d261f13d3f3838d62a376f506f`; no Core/Research file collision was found. No force update, history rewrite, main mutation or ATHENA mutation occurred.
+- Develop baseline checked: `develop/pathena-next@a60b067ebf93481d180065cdf3e85ad3da3a2a5e`.
+- Pre-run Core worker: `postmerge/spec-core@4cb7b137164e411ba02d83ce53926aa615cf3a36`.
+- Exact worker canonical Quality `34255843664 = SUCCESS`.
+- `main` and `bnbgrs/ATHENA` remain strictly read-only and untouched. No force update, rebase or history rewrite occurred.
 
-## Required handoffs checked
+## Required handoffs / active heads checked
 
-- Errors: current handoff reviewed; Backend v41 remains split into ERR-0026 through ERR-0029 and is not consumable by Core while exact Backend Quality remains red.
-- Backend: current handoff reviewed; storage/schema/WAL ownership remains Backend-only.
-- UI: current handoff reviewed; UI-GAP-0004 is exact-green/integrated-lineage work and remains presentation-owned.
-- Integrator: current Develop handoff reviewed at `270f97c36bd114036658e322f68d8011983ff150`.
+- Errors handoff: current baseline is Develop `a60b067ebf93481d180065cdf3e85ad3da3a2a5e`; `ERR-0026` through `ERR-0029` remain Backend-owned/in progress.
+- Backend handoff and active head: `postmerge/backend@44e682048fd0e7fa990c46b385931a954ecc0189`; exact Quality `34258165867` remains in progress with Ruff already red, so Backend v41 / §75 persistence remains non-consumable.
+- UI handoff and active head: `postmerge/ui@59aa42824d4e7475af29403fb6bbc78fd9c58d08`; UI work is disjoint and presentation-owned.
+- Integrator handoff: current Develop integrates the verified §65 product/test slice and records the exact worker evidence.
 
 ## Preserved Core contracts
 
-Normal Hybrid Search remains exact-green in inherited lineage: one-time `attach_normal_search`; `search.normal.hybrid` only after attachment; exact `query/model_id/limit/entity_type` delegation; canonical `hybrid_search_result_response()` mapping; `SemanticRetrievalUnavailableError` propagates unchanged; `app.api._normal_search is app.hybrid_retrieval`. Research §68-§74 accepted lineage remains preserved. No synthetic provenance, Archive/Protected expansion, fake PALLAS data, Skip/XFail, assertion weakening, force push, main mutation or ATHENA mutation.
+Normal Hybrid Search remains inherited and unchanged: one-time `attach_normal_search`; `search.normal.hybrid` only after attachment; exact `query/model_id/limit/entity_type` delegation; canonical `hybrid_search_result_response()` mapping; `SemanticRetrievalUnavailableError` propagates unchanged; `app.api._normal_search is app.hybrid_retrieval`.
 
-## §75 Delta Research
+Research §68–§74 accepted lineage remains preserved. No synthetic provenance, Archive/Protected expansion, fake PALLAS data, Skip/XFail, assertion weakening, force push, main mutation or ATHENA mutation.
 
-Backend v41 remains unverified/red on its current lineage, so Core did not consume or duplicate schema/storage work. The bounded Core continuation remains: explicit completed `base_scope_id`, durable lower commit boundary, upper `snapshot_commit_seq`, and frozen candidates only in `(lower_commit_seq, snapshot_commit_seq]`, restart-stable without wall-clock substitution.
+## §65 Partial Result — VERIFIED / INTEGRATED
 
-## §65 Partial Result — implemented pending exact verification
+The type-only repair at exact Core SHA `4cb7b137164e411ba02d83ce53926aa615cf3a36` passed canonical Quality `34255843664 = SUCCESS` with the §65 runtime semantics unchanged.
 
-Beta Research §64 requires cancellation to preserve confirmed intermediate results without a false complete Final Result; §65 permits an explicitly requested report that is clearly partial.
+Integrator independently transplanted the bounded verified slice to Develop:
 
-Product commit `47027ae91680765c6e9da640f90cad2566c77ae3` adds `ResearchPartialResultService`. It is deliberately post-cancel and opt-in: only `research.exhaustive` jobs in durable `CANCELLED` state with a durable `PARTIAL` Research scope are eligible. The service persists a `ResearchResult` with `final_artifact_id = NULL`, `partial = true`, `result_status = "partial"`, `completion_reason = "cancelled"`, real coverage/problem-source fields and the existing source-coverage composition. It reuses only already-completed immutable synthesis artifacts, records each artifact identity/hash/content plus its resolved SourceAnalysis artifact provenance, leaves the scope PARTIAL and job CANCELLED, and is idempotent for the same partial representation. It performs no model call and fabricates no missing sections/evidence.
+- product commit `eeb8a9f3c97c0cacc00c55af8d8a3260d1edccb0` adds `ResearchPartialResultService`;
+- acceptance commit `e10befce38259f15f2e06f06ab7b1ae38356305f` adds the byte-identical exact-green acceptance;
+- Develop handoff head `a60b067ebf93481d180065cdf3e85ad3da3a2a5e` records the integration.
 
-Acceptance commit `1165890634a3bef43e27eed3f262552e70f768a9` adds `tests/unit/test_exhaustive_research_partial_result.py`. The test drives four real captured Sources through Source processing/analysis, commits a real REDUCE artifact, cancels through the real Research worker, then explicitly creates the partial report. Assertions require nullable final artifact, explicit partial labeling, inclusion of the exact confirmed REDUCE artifact/content hash/source-analysis provenance, real persisted coverage, unchanged PARTIAL/CANCELLED state, idempotency, and absence of any completed FINAL artifact.
+Contract retained: explicit opt-in only after a real durable `research.exhaustive` job is `CANCELLED` and its Research scope is `PARTIAL`; `final_artifact_id = NULL`; explicit partial status/reason; confirmed immutable synthesis artifacts only; exact artifact hash/content and SourceAnalysis provenance; real coverage/problem-source composition; no new model call; no fabricated completeness; idempotent representation; no completed FINAL artifact required or invented.
 
-Canonical Quality `34250365477` is PENDING on exact acceptance SHA `1165890634a3bef43e27eed3f262552e70f768a9`. No PASS/READY claim is made yet.
+## §75 Delta Research — blocked on exact-green Backend persistence
+
+The bounded Core contract remains unchanged: explicit completed `base_scope_id`, durable lower commit boundary, pinned upper `snapshot_commit_seq`, candidate freeze only in `(lower_commit_seq, snapshot_commit_seq]`, and restart-stable boundary/CandidateSet identity without wall-clock substitution.
+
+Core must not consume Backend v41 while exact Backend Quality remains red/pending. Current Backend/Error evidence still owns schema/migration/WAL recovery under `ERR-0026` through `ERR-0029`.
+
+## Independent-gap scan
+
+The current evidence-backed progress tracker was re-read after §65 integration. Core-owned Normal Hybrid Search, contradiction composition and the completed Exhaustive Research acceptance chain through §74 are already VERIFIED. The currently listed READY P1 gaps in the Scout backlog (`FG-021`, `FG-022`, `FG-029`, `FG-031`, plus the primary side of `FG-030`) require deep job/source schema, scheduler, transport or representation-provider work and are Backend-owned or Backend-primary. Core therefore does not create a duplicate implementation merely to keep moving while §75 persistence is unverified.
 
 ## Required next actions
 
-1. Consume exact Quality `34250365477`. If red, repair only the exact demonstrated §65 defect without weakening partial/provenance/cancellation assertions.
-2. If exact-green, mark §65 READY and hand the verified product/test SHA to Integrator; then inspect the next highest independent Alpha/Beta Core gap.
-3. Consume Backend §75 only after its v41/schema/WAL line is exact-green; do not absorb unverified persistence code.
-4. Preserve release regression matrix: pypdf/frozen argv/two-EXE routing, bounded worker tree, 2048-context reserve, lane-lock ownership cluster, duplicate-column startup, Core startup and storage-bootstrap signatures. Historical signatures become OPEN only on exact-SHA reproduction.
+1. Consume completed Backend Quality `34258165867` and any exact successor evidence.
+2. If Backend v41 becomes exact-green and available on the shared baseline, execute §75 immediately: `enqueue_delta`, one-time durable boundary binding, candidate selection over `(lower_commit_seq, snapshot_commit_seq]`, restart/resume identity acceptance, focused tests then canonical Quality.
+3. If Backend remains red, inspect newly versioned Alpha/Beta/Capability evidence for a genuinely independent Core-owned P0/P1/P2 gap; do not repeat already-verified §65 or invent Backend work.
+4. Preserve release regression matrix: pypdf/frozen argv/two-EXE routing, bounded worker tree, adaptive 2048-context reserve, lane-lock ownership cluster, duplicate-column startup, Core startup and storage-bootstrap signatures. Historical signatures become OPEN only on exact-SHA reproduction.
