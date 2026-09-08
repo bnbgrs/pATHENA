@@ -23,10 +23,10 @@ pathena_theme = pytest.importorskip(
 
 
 def test_palette_matches_the_redesign_foundation() -> None:
-    assert PALETTE.canvas == "#07101F"
-    assert PALETTE.surface == "#0A1425"
-    assert PALETTE.text == "#F5F7FB"
-    assert PALETTE.accent == "#377DFF"
+    assert PALETTE.canvas == "#060606"
+    assert PALETTE.surface == "#0A0A0A"
+    assert PALETTE.text == "#F5F5F5"
+    assert PALETTE.accent == "#F26A21"
 
 
 def test_spacing_and_motion_are_small_bounded_scales() -> None:
