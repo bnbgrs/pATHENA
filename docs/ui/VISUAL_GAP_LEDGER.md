@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `4f077e36248a49d261f13d3f3838d62a376f506f`
+Baseline: `e6ed6eba803e4084b5e5aeaa2ad576dccdaf9961`
 Integration target: `develop/pathena-next`
 
 Only evidence-backed gaps belong here. The original 11 reference screenshots remain unavailable for direct visual comparison; therefore no pixel-level mismatch or `MATCH` claim is asserted.
@@ -43,13 +43,27 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Category: `COPY / FAILURE STATE`
 - Screen: `04 — Jobs`
 - Severity: `P1`
-- Status: `FIXED / INTEGRATOR_READY`
+- Status: `FIXED / INTEGRATED`
 - Evidence: the real `JobLifecycleError` failure path previously surfaced `JOB_ACTION_RESPONSE_UNAVAILABLE` and `Raw command output`, leaking command/transport implementation language into the visible Jobs workspace.
 - Product lineage: the bounded Jobs copy change uses `JOB ACTION COULD NOT BE VERIFIED` and `Diagnostic details` while preserving the exact diagnostic payload, lifecycle parsing, action availability and runtime behavior.
 - Regression coverage: `tests/unit/test_pathena_jobs_lifecycle.py`, `tests/unit/test_pathena_jobs_response_copy.py`, `tests/unit/test_pathena_jobs_status_copy.py`, and `tests/unit/test_pathena_jobs_verification_failure_copy.py` require the user-facing copy, preserve diagnostic payload evidence, and contain no UI-authored Skip/XFail relaxation.
 - Verification evidence: exact UI head `b0c74459af0d6382f23106819f34778c86b6f18b` passed canonical Quality `34240229731` with Windows path safety, Linux storage, local install smoke, specification validator, Ruff, mypy and full pytest all green.
-- Synchronization evidence: verified UI delta was carried onto current `develop/pathena-next@4f077e36248a49d261f13d3f3838d62a376f506f` by non-force two-parent worker merge `a8ac931976c59c12db459902174f008088d2f3c2`; no `main`, Backend, Storage or Security semantic mutation was made.
+- Integration evidence: verified UI delta was integrated on Develop before the current baseline; no `main`, Backend, Storage or Security semantic mutation was made.
 - Visual status: `VISUAL_REFERENCE_PENDING`; this technical closure is not a screenshot-level `MATCH` claim.
+
+## UI-GAP-0005 — Ground and response-details help is not exposed through accessibility metadata
+
+- Category: `ACCESSIBILITY / COMPOSER`
+- Screen: `01 — Workspace / Chat`
+- Severity: `P1`
+- Status: `FIXED / INTEGRATED`
+- Evidence: real `groundButton` and `detailsToggle` controls had user-facing tooltips but did not mirror that help into `accessibleDescription`, unlike adjacent composer controls.
+- Product commit: `7107fc5bf65fa184178713942d122c26e600aef8`.
+- Focused regression commit: `8bf24a1d127df730ed563d15323c5a04118e62cb`.
+- Acceptance: both controls expose their existing tooltip text as `accessibleDescription`; click paths, state, copy, Core, Backend, Storage, Security, scheduler/worker and runtime semantics remain unchanged.
+- Verification evidence: exact UI head `8bf24a1d127df730ed563d15323c5a04118e62cb` passed canonical Quality `34252450993` with conclusion `success`.
+- Integration evidence: current Develop already carries byte-identical product blob `f13c10673490327f662fb9a886f47a167c4c410b`; Integrator recorded the bounded product/test transplant as `a7f91262df194bea0a3c8588bda062b75d4ce167` before current Develop head `e6ed6eba803e4084b5e5aeaa2ad576dccdaf9961`.
+- Visual status: `VISUAL_REFERENCE_PENDING`; technical accessibility closure is not a screenshot-level `MATCH` claim.
 
 ## Evidence blocker
 
