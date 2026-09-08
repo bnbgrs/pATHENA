@@ -84,4 +84,4 @@ def test_exhaustive_research_unavailable_scope_remains_unavailable_not_irrelevan
         assert persisted[nas_offline.work_item_id] is ResearchWorkState.UNAVAILABLE
         assert persisted[nas_offline.work_item_id] is not ResearchWorkState.IRRELEVANT
     finally:
-        app.close()
+        app.stop()
