@@ -3,10 +3,11 @@
 ## Baseline
 
 - Develop source of truth: `develop/pathena-next@82aaef0caaa90599f530acc84d728b602dee6739`.
-- Error worker before this run: `postmerge/errors@c5a71183986c2bfe356f7737b853269edfc8045d`; ledger update commit in this run: `8de859ec4114f25bb708dab6f5e40909e62cec0b`.
-- Current workers reviewed: Backend `5fb8d5b7b5ee29af09bd70ccde8824633f0e0c8a`; Spec/Core `5dd790f9102bed6377b1d7e495ec5e831f64d9ae`; UI `3cbb2aee7fb3e3bc48b7d6a9fefe86ea3132cb9e`.
-- Current Develop `integrator.md`, worker `spec-core.md`, `backend.md`, `ui.md`, canonical ledger and this handoff were reviewed. `main` and `bnbgrs/ATHENA` remain read-only/untouched.
-- Backend exact canonical Quality `34311050843@5fb8d5b7b5ee29af09bd70ccde8824633f0e0c8a = FAILURE`; current UI Quality `34312166038@3cbb2aee7fb3e3bc48b7d6a9fefe86ea3132cb9e` remains `IN_PROGRESS`. No competing Quality was started.
+- Error worker synchronized non-force/history-preserving through `51e34888084bfbd67f20e6b11bb8ee3622879b27`; ledger correction commit this run: `c20cdf1f14a94693f5eaf5aafae10a4f5ea4da5d`.
+- Current workers reviewed: Backend `5fb8d5b7b5ee29af09bd70ccde8824633f0e0c8a`; Spec/Core `850b631007ba3f359b9b16c619c692d853d75663`; UI `41e05a7a8c22d9cd430ddb7f8a3518ee3b125af4`.
+- Backend canonical Quality `34311050843@5fb8d5b7b5ee29af09bd70ccde8824633f0e0c8a = FAILURE`; Windows path safety, Linux storage, Local install, specification validator and mypy passed; Ruff and full pytest failed.
+- UI canonical Quality `34315977802@41e05a7a8c22d9cd430ddb7f8a3518ee3b125af4` remains `IN_PROGRESS`; no competing run was started.
+- `main` and `bnbgrs/ATHENA` remain read-only/untouched.
 
 ## Current error state
 
@@ -15,21 +16,19 @@
 - FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015` through `ERR-0024`.
 - OPEN / FIXED_PENDING_VERIFY / BLOCKED: none.
 
-## Hard progress this run — ERR-0026 localized on exact Backend successor
+## Hard progress this run — ERR-0026 root-cause interpretation corrected
 
-Canonical Quality `34311050843` completed on exact Backend head `5fb8d5b7b5ee29af09bd70ccde8824633f0e0c8a`. Windows path safety, Linux storage regressions and Local install smoke passed; specification validator and mypy passed; Ruff and full pytest failed.
+Exact Backend Quality `34311050843` remains red on Ruff I001 in `src/athena/storage/schema.py`; the Python quality check has four annotations and exact diagnostics artifact `10088876913` for head `5fb8d5b7b5ee29af09bd70ccde8824633f0e0c8a`.
 
-The successor comparison from the prior Backend candidate `102aecd2c61415b0a428f6e69bba61bd3fb54f0b` to `5fb8d5b7b5ee29af09bd70ccde8824633f0e0c8a` contains only `docs/agent_handoffs/integrator.md`, `src/athena/chat/direct.py` and `tests/unit/test_direct_chat_context_budget.py`. `src/athena/storage/schema.py` is unchanged across that successor, yet canonical Ruff remains red. This is new exact evidence that the current `ERR-0026` I001 is not caused by the synchronized DirectChat/develop changes; it remains localized to the pre-existing `schema.py` import block.
+The important new evidence is historical-but-exact to the current schema blob: Backend commit `82d3d7d219a6fb4f122a10ffaa2a0c0e3e44f947` explicitly says its one-line `DatabaseCompatibilityError` / `_user_tables` reorder was taken from exact `ruff.txt`. That candidate nevertheless remained canonical Ruff-I001 red, and current Backend keeps the same `schema.py` blob `b5658c38ca061095a951bc85f3a2fbc88b53ee76` while Ruff is still red. Therefore the prior hand-transcribed two-symbol sort interpretation is not a sufficient root cause or fix and must not be retried in either direction.
 
-The currently visible `schema_contract` import already reflects the most recent attempted `DatabaseCompatibilityError` / `_user_tables` arrangement. Multiple manual reorder guesses have failed. Do not make another ordering guess. The next Backend mutation must be the exact Ruff 0.15.22 formatter/diagnostic diff, or an exact worker successor demonstrably applying that diff, followed by Ruff verification.
-
-Status remains `IN_PROGRESS`; no FIXED/FIXED_PENDING_VERIFY claim is justified.
+The defect remains localized to import normalization in `schema.py`, but the only authorized next mutation is the exact Ruff 0.15.22 autofix/annotation payload applied to the current blob, followed first by focused Ruff verification. No further manual order guess is acceptable.
 
 ## Other active root causes
 
 ### ERR-0028 — remaining v41 fixture/current-version drift
 
-The `tests/unit/test_grounded_response_receipt.py` subcluster remains CLOSED from exact six-test PASS evidence on `102aecd2c61415b0a428f6e69bba61bd3fb54f0b`. Other independent v41 fixture/current-version failures keep `ERR-0028` globally `IN_PROGRESS`. Preserve strict production v40→v41 migration semantics.
+The `tests/unit/test_grounded_response_receipt.py` subcluster stays CLOSED from exact six-test PASS evidence on `102aecd2c61415b0a428f6e69bba61bd3fb54f0b`. Other independent v41 fixture/current-version failures keep `ERR-0028` globally `IN_PROGRESS`. Preserve strict production v40→v41 migration semantics.
 
 ### ERR-0029 — WAL exact-type harness drift
 
@@ -43,11 +42,11 @@ Current Backend tree visibly carries both Research Delta constants, but no exact
 
 - HOLD Backend v41 / Research-dependent integration while `ERR-0026` through `ERR-0029` remain unresolved.
 - Exact current Backend: `5fb8d5b7b5ee29af09bd70ccde8824633f0e0c8a`, canonical Quality `34311050843 = FAILURE`.
-- `ERR-0026`: exact successor evidence proves the Ruff I001 survives with `schema.py` unchanged while only DirectChat/integrator files changed. Treat the fault as localized to the existing schema import block; require exact Ruff formatter-driven correction and real Ruff pass before integration.
-- `ERR-0028`: grounded-response-receipt subcluster stays closed; remaining independent v41 fixture failures remain active.
+- `ERR-0026`: do not accept either prior manual `DatabaseCompatibilityError` / `_user_tables` ordering as proven. Require exact Ruff 0.15.22 autofix/annotation-driven correction on the current schema blob plus real Ruff PASS before integration.
+- `ERR-0028`: grounded-response-receipt subcluster remains closed; independent v41 fixture failures remain active.
 - `ERR-0029`: preserve production WAL exact-type guards and require focused evidence before closure.
 - `ERR-0027`: require focused schema-contract verification before closure.
-- Do not consume the current UI synchronized candidate until exact Quality `34312166038` completes; it is unrelated to the active Backend root-cause cluster.
+- Do not consume current UI head until exact Quality `34315977802` completes.
 - Preserve Windows path safety, Linux storage, Local install/start, Security, Provider/Transport, Recovery, Validator, Ruff, mypy and release crash guards.
 
 ## Persistent Beta/release matrix
@@ -56,4 +55,4 @@ Retain without reopening absent exact-current reproduction: Windows `pypdf` meta
 
 ## Next verification
 
-Consume an exact Ruff 0.15.22 formatter/diagnostic diff for `src/athena/storage/schema.py` at `5fb8d5b7b5ee29af09bd70ccde8824633f0e0c8a` or the first Backend successor that applies it. Do not spend another run re-proving that the same unchanged import block is red.
+Obtain the exact Ruff 0.15.22 annotation/autofix payload for `src/athena/storage/schema.py@b5658c38ca061095a951bc85f3a2fbc88b53ee76` from Quality `34311050843` / artifact `10088876913`, or consume the first Backend successor demonstrably generated from that payload. Apply no additional hand-guessed import reorder.
