@@ -195,7 +195,10 @@ QLineEdit#promptInput:focus {{
 QPushButton#groundButton {{
     color: {PALETTE.text_muted};
     background: transparent;
-    border-color: transparent;
+    border: 1px solid transparent;
+    min-height: 34px;
+    max-height: 34px;
+    padding: 0 {SPACE.sm}px;
 }}
 
 QPushButton#groundButton:hover,
