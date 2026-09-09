@@ -8,12 +8,12 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 
 ## Current baseline
 
-- Develop source of truth: `develop/pathena-next@1078dfae061f2e02fda738af5145eea617616923`.
-- Error worker entered this run at `postmerge/errors@b670e3969c7ad30606f06aeacad5f853245812e8`.
-- Current workers reviewed: Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`; Backend `844d65a85ecb611d5060bf311c6346c810d2247e`; UI `5a168625987fe7096472d81df3261508ec6a1f56`.
-- Exact Develop canonical Quality `34391596966@10d36f23143afdf9050585b3cf7bb1139913fd86 = SUCCESS`; this closes `ERR-0030` on the exact repaired SHA.
-- Current Develop canonical Quality `34397927435@1078dfae061f2e02fda738af5145eea617616923 = IN_PROGRESS`; it was already running, so no competing run was started.
-- Current exact Backend canonical Quality remains `34378587885@844d65a85ecb611d5060bf311c6346c810d2247e = FAILURE`.
+- Develop source of truth: `develop/pathena-next@316a3733b9f1db5948255fd3469d0b3df5c1806a`.
+- Error worker entered this run at `postmerge/errors@11f4a4f1c5a5985ca52ec730168c545756b93ec2`.
+- Current workers reviewed: Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`; Backend `844d65a85ecb611d5060bf311c6346c810d2247e`; UI `3b28301b60bf8982b2a4be9a6eeaa1a1db8bd0ad`.
+- Exact Develop canonical Quality `34397927435@1078dfae061f2e02fda738af5145eea617616923 = SUCCESS`.
+- Current Develop canonical Quality `34403733459@316a3733b9f1db5948255fd3469d0b3df5c1806a = IN_PROGRESS`; it was already running, so no competing run was started.
+- Current exact Backend canonical Quality remains `34378587885@844d65a85ecb611d5060bf311c6346c810d2247e = FAILURE`; its exact diagnostics artifact is `10115789607`.
 - No canonical Quality exists on `postmerge/errors`; no competing run was started before documentation mutation.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
@@ -32,7 +32,7 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Root cause was bounded: `ResearchRepository.freeze_local_candidates()` omitted `ResearchMode.DELTA` from the supported-mode allowlist.
 - Spec/Core repaired exactly that boundary on `5cc59d3da5a8b2377403ad70706254023f7794eb`; canonical Quality `34387956663 = SUCCESS`.
 - Integrator applied the same one-line correction to Develop `10d36f23143afdf9050585b3cf7bb1139913fd86`; canonical Quality `34391596966 = SUCCESS`.
-- Closure evidence is therefore exact-SHA canonical full Quality PASS. Do not reopen absent a new exact-current reproduction.
+- Closure evidence is exact-SHA canonical full Quality PASS. Do not reopen absent a new exact-current reproduction.
 
 ## ERR-0026 — Backend v41 schema module canonical Ruff I001
 
@@ -45,9 +45,10 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 
 - Severity: P2.
 - Status: `IN_PROGRESS` overall.
-- Closed subclusters remain closed absent exact-current regression: grounded-response-receipt, backup-retention, operational-error physical-cleanup, deletion-ledger, protected-source-blob.
-- `knowledge-schema-current-version` remains `FIXED_PENDING_VERIFY` on exact Backend `844d65a85ecb611d5060bf311c6346c810d2247e`; aggregate Backend pytest failure is not assertion-level evidence for that bounded test.
-- Independent legacy migration-fixture collisions such as `sqlite3.OperationalError: table research_delta_boundaries already exists` remain separate ERR-0028 subclusters.
+- Closed subclusters remain closed absent exact-current regression: grounded-response-receipt, backup-retention, operational-error physical-cleanup, deletion-ledger, protected-source-blob, knowledge-schema-current-version.
+- `knowledge-schema-current-version` is now `FIXED`: on exact Backend `844d65a85ecb611d5060bf311c6346c810d2247e`, `tests/unit/test_knowledge_schema.py::test_fresh_database_contains_semantic_schema` uses `RESEARCH_DELTA_BOUNDARY_MIGRATION_ID`; exact canonical diagnostics artifact `10115789607` shows `test_knowledge_schema.py ...............F..FFFFFFF.FFF`, so the first test in that file completed before the later failures, and the complete short-failure summary does not list the fresh-schema test. The remaining failures are independent legacy-v41 assertions/collisions.
+- Exact Backend diagnostics still report stale v40 migration expectations in legacy upgrade tests (`v14`, `v17` through `v23`) and separate `sqlite3.OperationalError: table research_delta_boundaries already exists` fixture collisions (`v28`, `v29`, `v36`, archive/protected-content/transition fixtures). These remain active primaries under `ERR-0028`.
+- Cascade signatures such as `Failed to start service 'storage-bootstrap'` remain deduplicated when caused by the same migration-fixture failure.
 
 ## ERR-0029 — WAL harness collaborators incompatible with canonical exact-type runtime guards
 
