@@ -88,6 +88,31 @@ def test_json_formatter_redacts_basic_auth_cookie_and_json_secret_text() -> None
     assert '"safe":"ok"' in message
 
 
+def test_json_formatter_handles_escaped_quotes_in_quoted_sensitive_values() -> None:
+    encoded, payload = _format_record(
+        r'payload={"password":"two \"word\" secret",'
+        r'"prompt":"say \"hello\" privately","safe":"ok"}'
+    )
+
+    assert "two" not in encoded
+    assert "word" not in encoded
+    assert "secret" not in encoded
+    assert "privately" not in encoded
+    message = str(payload["message"])
+    assert '"password":"[REDACTED]"' in message
+    assert '"prompt":"[REDACTED_CONTENT]"' in message
+    assert '"safe":"ok"' in message
+
+
+def test_json_formatter_redacts_unquoted_multiword_secret_to_safe_delimiter() -> None:
+    encoded, payload = _format_record(
+        "password=two word secret; status=ok"
+    )
+
+    assert "two word secret" not in encoded
+    assert payload["message"] == "password=[REDACTED]; status=ok"
+
+
 def test_json_formatter_recursively_redacts_sensitive_extra_fields() -> None:
     encoded, payload = _format_record(
         "request metadata",

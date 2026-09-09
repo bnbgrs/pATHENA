@@ -105,20 +105,30 @@ _COOKIE_HEADER_RE = re.compile(
     r"\b(?P<key>set-cookie|cookie)(?P<sep>\s*:\s*)(?P<value>[^\r\n]+)",
     flags=re.IGNORECASE,
 )
-_JSON_SECRET_ASSIGNMENT_RE = re.compile(
+_JSON_SECRET_DOUBLE_ASSIGNMENT_RE = re.compile(
     rf"(?P<prefix>[\"'](?:{_TEXT_SECRET_KEY_PATTERN})[\"']\s*:\s*)"
-    r"(?P<quote>[\"'])(?P<value>.*?)(?P=quote)",
+    r'(?P<quote>")(?P<value>(?:\\.|[^"\\])*)(?P=quote)',
     flags=re.IGNORECASE,
 )
-_JSON_SEMANTIC_ASSIGNMENT_RE = re.compile(
+_JSON_SECRET_SINGLE_ASSIGNMENT_RE = re.compile(
+    rf"(?P<prefix>[\"'](?:{_TEXT_SECRET_KEY_PATTERN})[\"']\s*:\s*)"
+    r"(?P<quote>')(?P<value>(?:\\.|[^'\\])*)(?P=quote)",
+    flags=re.IGNORECASE,
+)
+_JSON_SEMANTIC_DOUBLE_ASSIGNMENT_RE = re.compile(
     rf"(?P<prefix>[\"'](?:{_SEMANTIC_PAYLOAD_TEXT_PATTERN})[\"']\s*:\s*)"
-    r"(?P<quote>[\"'])(?P<value>.*?)(?P=quote)",
+    r'(?P<quote>")(?P<value>(?:\\.|[^"\\])*)(?P=quote)',
+    flags=re.IGNORECASE,
+)
+_JSON_SEMANTIC_SINGLE_ASSIGNMENT_RE = re.compile(
+    rf"(?P<prefix>[\"'](?:{_SEMANTIC_PAYLOAD_TEXT_PATTERN})[\"']\s*:\s*)"
+    r"(?P<quote>')(?P<value>(?:\\.|[^'\\])*)(?P=quote)",
     flags=re.IGNORECASE,
 )
 _SECRET_ASSIGNMENT_RE = re.compile(
     rf"(?P<key>{_TEXT_SECRET_KEY_PATTERN})"
     r"(?P<sep>\s*[:=]\s*)"
-    r"(?P<value>[^\s,;&]+)",
+    r"(?P<value>[^\r\n,;&]*)",
     flags=re.IGNORECASE,
 )
 _SEMANTIC_ASSIGNMENT_RE = re.compile(
@@ -194,6 +204,23 @@ def _redact_url(raw_url: str) -> str:
     return urlunsplit((parts.scheme, netloc, parts.path, redacted_query, ""))
 
 
+def _redact_quoted_assignments(
+    text: str,
+    *,
+    patterns: tuple[re.Pattern[str], ...],
+    marker: str,
+) -> str:
+    for pattern in patterns:
+        text = pattern.sub(
+            lambda match: (
+                f"{match.group('prefix')}{match.group('quote')}"
+                f"{marker}{match.group('quote')}"
+            ),
+            text,
+        )
+    return text
+
+
 def _sanitize_text(value: str) -> str:
     text = _URL_RE.sub(lambda match: _redact_url(match.group(0)), value)
 
@@ -208,19 +235,21 @@ def _sanitize_text(value: str) -> str:
         text,
     )
     text = _BEARER_RE.sub(f"Bearer {_REDACTED}", text)
-    text = _JSON_SECRET_ASSIGNMENT_RE.sub(
-        lambda match: (
-            f"{match.group('prefix')}{match.group('quote')}"
-            f"{_REDACTED}{match.group('quote')}"
-        ),
+    text = _redact_quoted_assignments(
         text,
+        patterns=(
+            _JSON_SECRET_DOUBLE_ASSIGNMENT_RE,
+            _JSON_SECRET_SINGLE_ASSIGNMENT_RE,
+        ),
+        marker=_REDACTED,
     )
-    text = _JSON_SEMANTIC_ASSIGNMENT_RE.sub(
-        lambda match: (
-            f"{match.group('prefix')}{match.group('quote')}"
-            f"{_REDACTED_CONTENT}{match.group('quote')}"
-        ),
+    text = _redact_quoted_assignments(
         text,
+        patterns=(
+            _JSON_SEMANTIC_DOUBLE_ASSIGNMENT_RE,
+            _JSON_SEMANTIC_SINGLE_ASSIGNMENT_RE,
+        ),
+        marker=_REDACTED_CONTENT,
     )
 
     def replace_assignment(match: re.Match[str]) -> str:
