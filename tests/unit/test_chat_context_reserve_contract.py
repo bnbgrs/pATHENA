@@ -1,6 +1,5 @@
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 DIRECT_CHAT = REPO_ROOT / "src" / "athena" / "chat" / "direct.py"
 GENERATION = REPO_ROOT / "src" / "athena" / "chat" / "generation.py"
