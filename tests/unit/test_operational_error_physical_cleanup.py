@@ -77,6 +77,15 @@ def _set_version(
     try:
         if (
             version
+            < schema_module.RESEARCH_DELTA_BOUNDARY_SCHEMA_VERSION
+        ):
+            connection.execute(
+                "DROP TABLE IF EXISTS "
+                "research_delta_boundaries"
+            )
+
+        if (
+            version
             < schema_module.GROUNDED_RESPONSE_RECEIPT_SCHEMA_VERSION
         ):
             connection.execute(
@@ -394,7 +403,7 @@ def test_physical_cleanup_migration_removes_deleted_canary(
 
     assert metadata == (
         schema_module.SCHEMA_VERSION,
-        schema_module.GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID,
+        schema_module.RESEARCH_DELTA_BOUNDARY_MIGRATION_ID,
         schema_module.SCHEMA_VERSION,
     )
 
@@ -407,7 +416,7 @@ def test_physical_cleanup_migration_removes_deleted_canary(
         path
     )
 
-    v39_object_names = {
+    post_v38_object_names = {
         "source_protected_semantic_payloads",
         "source_protection_representation_blobs",
         "idx_source_protected_semantic_scope",
@@ -416,12 +425,14 @@ def test_physical_cleanup_migration_removes_deleted_canary(
         "idx_source_protection_representation_old_blob",
         "grounded_response_receipts",
         "idx_grounded_response_receipts_chat",
+        "research_delta_boundaries",
+        "idx_research_delta_boundaries_base",
     }
 
     preserved_objects_after = tuple(
         row
         for row in objects_after
-        if str(row[1]) not in v39_object_names
+        if str(row[1]) not in post_v38_object_names
     )
 
     assert preserved_objects_after == objects_before
@@ -432,7 +443,7 @@ def test_physical_cleanup_migration_removes_deleted_canary(
             str(row[1]),
         )
         for row in objects_after
-        if str(row[1]) in v39_object_names
+        if str(row[1]) in post_v38_object_names
     }
 
     assert added_objects == {
@@ -468,33 +479,43 @@ def test_physical_cleanup_migration_removes_deleted_canary(
             "index",
             "idx_grounded_response_receipts_chat",
         ),
+        (
+            "table",
+            "research_delta_boundaries",
+        ),
+        (
+            "index",
+            "idx_research_delta_boundaries_base",
+        ),
     }
 
     counts_after = _table_counts(
         path
     )
 
-    v39_tables = {
+    post_v38_tables = {
         "source_protected_semantic_payloads",
         "source_protection_representation_blobs",
         "grounded_response_receipts",
+        "research_delta_boundaries",
     }
 
     preserved_counts_after = {
         table: count
         for table, count in counts_after.items()
-        if table not in v39_tables
+        if table not in post_v38_tables
     }
 
     assert preserved_counts_after == counts_before
 
     assert {
         table: counts_after[table]
-        for table in v39_tables
+        for table in post_v38_tables
     } == {
         "source_protected_semantic_payloads": 0,
         "source_protection_representation_blobs": 0,
         "grounded_response_receipts": 0,
+        "research_delta_boundaries": 0,
     }
 
     _assert_integrity(
@@ -609,7 +630,7 @@ def test_v38_second_start_does_not_repeat_cleanup(
 
     assert metadata == (
         schema_module.SCHEMA_VERSION,
-        schema_module.GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID,
+        schema_module.RESEARCH_DELTA_BOUNDARY_MIGRATION_ID,
         schema_module.SCHEMA_VERSION,
     )
 

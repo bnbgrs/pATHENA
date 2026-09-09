@@ -2,45 +2,45 @@
 
 ## Baseline
 
-- Current Develop source of truth reviewed: `develop/pathena-next@ee7894b4644dd2ec7db4778f2d9650d59b312c50` (`ci(release): enforce pypdf packaging smoke`).
-- Backend predecessor: `postmerge/backend@0f07617e6982f029eb6210e7b7f5a28fab853ffe`.
-- Exact predecessor canonical Quality consumed: `34324159266@0f07617e6982f029eb6210e7b7f5a28fab853ffe = FAILURE`.
-- In that run, Windows path safety, Linux storage regressions and Local install smoke passed. Python quality had specification validator and mypy pass; Ruff and pytest remained red. Canonical diagnostics artifact: `10093816318`.
-- `main` and `bnbgrs/ATHENA` remain strict read-only. No force update or history rewrite.
+- Current Develop source of truth: `develop/pathena-next@0abc53a35e6c99bf7070875633d3f81f6bc09395`.
+- Exact Develop canonical Quality: `34331712073@0abc53a35e6c99bf7070875633d3f81f6bc09395 = SUCCESS`.
+- Backend predecessor: `postmerge/backend@5d8b73eeae04fb5d4a0f3c0bc7f31d767c30b82f`.
+- Exact predecessor canonical Quality: `34329321526@5d8b73eeae04fb5d4a0f3c0bc7f31d767c30b82f = FAILURE`; Python Quality remained red while Windows path safety, Linux storage regressions and Local install smoke passed.
+- Error handoff confirms the previous backup-retention v41 fixture slice is CLOSED and reports `23 failed, 4836 passed, 3 skipped` on the exact Backend predecessor. Ruff I001 remains an independent open root cause requiring exact Ruff 0.15.22 autofix evidence.
+- `main` and `bnbgrs/ATHENA` remain strict read-only; no force push/history rewrite.
 
-## Bounded Backend slice — backup-retention legacy fixture v41 drift
+## Bounded Backend slice — operational-error physical-cleanup legacy fixture v41 drift
 
-This run selected one independent schema-v41 harness root cause already evidenced by the current red schema-fixture cluster. `tests/unit/test_backup_retention.py` reconstructs a v34 predecessor from a freshly-created current database. The fixture removed v39/v40 additive state but still retained the v41-only `research_delta_boundaries` table, which makes the unchanged production v40->v41 migration correctly fail closed when it encounters future-schema state.
+`tests/unit/test_operational_error_physical_cleanup.py` reconstructs v37/v36 predecessor databases from a freshly-created current database. Its helper removed v39/v40 additive tables but retained the v41-only `research_delta_boundaries` table. The unchanged production v40->v41 migration is intentionally fail-closed and therefore must not receive future-schema state in a historical fixture.
 
-The same test also asserted the old v40 `GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID` as the current migration id after upgrade. Current schema is v41, so that expectation is stale.
+Harness repair in this candidate:
 
-Harness-only repair:
+- `_set_version()` now removes `research_delta_boundaries` whenever reconstructing a pre-v41 schema;
+- post-upgrade metadata assertions now require the truthful current `RESEARCH_DELTA_BOUNDARY_MIGRATION_ID` rather than stale v40 `GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID`;
+- the migration-preservation assertions explicitly classify `research_delta_boundaries` and `idx_research_delta_boundaries_base` as post-v38 additive objects and require the migrated table to exist empty;
+- production schema, migration, physical cleanup, WAL checkpoint and verification code are unchanged.
 
-- explicitly drop `research_delta_boundaries` before declaring the reconstructed v34 state;
-- assert `RESEARCH_DELTA_BOUNDARY_MIGRATION_ID` after the unchanged full migration chain;
-- keep historical v34 source-version and migration constants unchanged.
-
-Production schema, migration, verification, Storage, WAL and Recovery code are untouched. No assertion is weakened; the test remains stricter by requiring the truthful current migration id and a clean historical predecessor fixture.
+This is a harness-only correction. It does not weaken any assertion: the test still requires physical deletion of the canary, preservation of all pre-existing schema objects/counts, complete post-v38 additive reconstruction, foreign-key/integrity success, and fail-closed checkpoint behavior.
 
 ## Develop synchronization
 
-The candidate imports the current Develop-owned `.github/workflows/quality.yml` and `docs/agent_handoffs/integrator.md` byte-identically from `develop/pathena-next@ee7894b4644dd2ec7db4778f2d9650d59b312c50`. This carries the canonical fail-closed `athena-packaging-smoke --json` Local-install check without Backend-authored modification.
+The same candidate synchronizes current Develop-owned `.github/workflows/quality.yml` and `docs/agent_handoffs/integrator.md` byte-identically from `develop/pathena-next@0abc53a35e6c99bf7070875633d3f81f6bc09395` using a two-parent history-preserving commit.
 
 ## Verification state
 
-- Predecessor exact Quality is fully completed; no queued/in-progress run existed on `0f07617e6982f029eb6210e7b7f5a28fab853ffe` before constructing this candidate.
-- Focused local pytest remains unavailable because the execution runtime cannot resolve GitHub/PyPI and has no complete checkout; no focused PASS is fabricated.
-- Ruff I001 in `src/athena/storage/schema.py` remains a separate open root cause. Do not hand-sort that import block; exact Ruff 0.15.22 autofix evidence is still required.
-- Canonical Quality must be consumed on the exact final candidate before any Integrator-ready claim.
+- No queued/in-progress canonical run existed on Backend predecessor `5d8b73eeae04fb5d4a0f3c0bc7f31d767c30b82f` before candidate construction.
+- Focused local pytest remains unavailable because this runtime has no complete checkout and direct GitHub/PyPI DNS access is unavailable; no focused PASS is fabricated.
+- Exact canonical Quality on the final candidate is required before any readiness claim.
+- Ruff I001 remains a separate root cause and is not modified by this slice.
 
 ## Invariants retained
 
-- production schema/migration/verification remains fail-closed;
-- no Skip/XFail, assertion relaxation, fixture bypass, or migration guard weakening;
+- production Storage/schema/migration/Recovery remains fail-closed;
 - PASSIVE-only automatic WAL maintenance and explicit-idle TRUNCATE unchanged;
 - no silent Tor->Direct fallback; redirect/auth/HTTPS/compression/response-size boundaries unchanged;
-- pypdf/frozen argv/two-EXE/bounded worker tree/adaptive 2048-context reserve/Windows lane-lock/duplicate-column/Core-startup/storage-bootstrap signatures remain release guards.
+- pypdf packaging, frozen argv, two-EXE split, bounded worker tree, adaptive 2048-context reserve, Windows lane-lock and duplicate-column/Core-startup/storage-bootstrap release guards remain intact;
+- no Skip/XFail, assertion relaxation, guard weakening, force push or history rewrite.
 
 ## Integrator prerequisites
 
-HOLD Backend integration. Candidate must first complete exact canonical Quality. This slice closes only the bounded backup-retention v34 reconstruction/current-v41 expectation defect. Ruff I001 and other independent v41 fixture failures remain open until exact evidence clears them. Do not reopen previously absent WAL or grounded-response-receipt clusters without exact-current reproduction.
+HOLD Backend integration until the exact candidate Quality completes. If this physical-cleanup fixture cluster clears, close only that bounded subcluster. Independent Ruff I001 and any remaining current v41 fixture failures must be handled separately from exact-SHA evidence. Do not reopen already-closed backup-retention, grounded-response-receipt or earlier WAL subclusters without exact-current reproduction.
