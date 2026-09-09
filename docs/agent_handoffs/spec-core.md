@@ -2,26 +2,27 @@
 
 ## Current baseline
 
-- Current Develop: `develop/pathena-next@363d6ca497b12cf9f04d9c9392d945960eade3d3`.
-- Prior exact verified Core candidate: `postmerge/spec-core@9e0f1df1a0321c2568993f974a4b1dcf316e6b21`, canonical Quality `34302733044 = SUCCESS`.
-- Candidate for this run imports current Develop product/tests byte-identically and updates only this evidence handoff.
+- Current Develop reviewed: `develop/pathena-next@a32c63f39a2abca8a080ee78b97bd6b067eae52b`.
+- Exact verified Core candidate: `postmerge/spec-core@3b6b26015777e2c940e27900a3bdbf11236f180a`.
+- Canonical Quality: `34306400739 = SUCCESS` on that exact SHA.
+- Compare against current Develop is compatible for this bounded slice: the only net file difference is this `docs/agent_handoffs/spec-core.md`; no product/test divergence is introduced by the Core candidate.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only and untouched.
-- No force push, history rewrite, Skip/XFail, assertion weakening, Security/Storage/Recovery relaxation or fabricated provenance is permitted.
+- No force push, history rewrite, Skip/XFail, assertion weakening, Security/Storage/Recovery relaxation or fabricated provenance occurred.
 
-## Current bounded Core slice
+## Verified bounded Core slice
 
-Exact verification of the DirectChat budget-provenance slice added on current Develop. `send_message()` now records both `requested_output_reserve` and `effective_output_reserve` in the durable/auditable DirectChat context configuration while the provider generation parameter and ContextPackage continue to use only the effective reserve.
+DirectChat context-budget provenance is now exact-SHA verified. `send_message()` preserves the distinction between configured/requested output reserve and the effective reserve authorized by the current context budget while generation and `ContextPackage` continue to use the effective reserve.
 
-This preserves the adaptive 2048-context fail-closed budget contract while retaining the distinction between configured intent and runtime-authorized output budget for later audit/replay analysis. Focused unit coverage in `tests/unit/test_direct_chat_context_budget.py` locks the requested/effective distinction.
+The adaptive 2048-context contract remains fail-closed: configured reserve is an upper bound, runtime adaptation may reduce but never inflate it, one-token/zero-margin boundaries remain covered on Develop, and exhausted input-plus-margin budget must fail rather than fabricate capacity.
 
-Local focused execution was attempted before candidate creation but checkout was blocked by transient DNS resolution of `github.com`; no local PASS is claimed. GitHub connector access remained functional, so the existing product/test candidate is advanced for exact canonical verification rather than treating DNS as a blocker.
+This slice is CLOSED / VERIFIED. Do not reopen it without exact-current regression evidence.
 
 ## Dependency / ownership state
 
-- Current Error handoff reports no OPEN/IN_PROGRESS/FIXED_PENDING_VERIFY entries on its recorded lineage; historical runtime signatures remain release guards unless exactly reproduced.
-- Backend remains Backend-owned; Core does not duplicate Storage/WAL/schema/provider/system work.
+- Current Error handoff keeps `ERR-0026`, `ERR-0027`, `ERR-0028`, `ERR-0029` IN_PROGRESS on Backend v41 work; Research Delta / storage-dependent Core work remains non-consumable until exact-green Backend evidence exists.
+- Backend owns Storage/WAL/schema/provider/system work; Core does not duplicate it.
 - UI remains presentation/accessibility-owned and disjoint.
-- Major closed Core Search/Claims/Research slices remain closed and are not reopened.
+- Major closed Core Search/Claims/Research slices remain closed.
 
 ## Preserved Core contracts
 
@@ -29,8 +30,12 @@ Normal Hybrid Search remains unchanged: one-time `attach_normal_search`; capabil
 
 Verified Research and contradiction contracts remain preserved. No fake PALLAS data or synthetic provenance is permitted; PALLAS remains real-data-only from Sources/Claims/Knowledge/Research.
 
-## Verification discipline
+## Integrator handoff
 
-No READY claim until canonical Quality completes on the exact candidate SHA. Once that run starts, do not push any successor commit until it completes. On the next run consume the exact-SHA result first.
+`3b6b26015777e2c940e27900a3bdbf11236f180a` is exact canonical-green via Quality `34306400739`. Its product/test tree is compatible with current Develop; only this versioned handoff differs in the Core comparison. Integrator may treat the DirectChat budget-provenance slice as VERIFIED/CLOSED and should not transplant duplicate product code already present on Develop.
 
-Persistent Beta/release guards remain: pypdf metadata; frozen argv/two-EXE routing; bounded worker tree; adaptive 2048-context reserve including requested-vs-effective provenance and one-token boundaries; Windows lane-lock ownership cluster; duplicate-column/Core-startup/storage-bootstrap signatures.
+## Next Core selection
+
+On the next run, consume any exact-SHA CI attached to the current worker head first. Then select the highest newly evidenced independent Core-owned Alpha/Beta gap. Do not take Research Delta / v41 work while Backend prerequisites remain red, and do not reopen DirectChat budgeting absent new exact regression evidence.
+
+Persistent Beta/release guards remain: pypdf metadata; frozen argv/two-EXE routing; bounded worker tree; adaptive 2048-context reserve including requested-vs-effective provenance and boundary cases; Windows lane-lock ownership cluster; duplicate-column/Core-startup/storage-bootstrap signatures.
