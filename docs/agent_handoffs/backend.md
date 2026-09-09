@@ -1,49 +1,41 @@
-# pATHENA Backend & Systems Handoff
+# Backend & Systems Handoff
 
-## Baseline
+Generated: 2026-09-09
+Branch: `postmerge/backend`
 
-- Current Develop source of truth: `develop/pathena-next@5e7426e2fbf3f2b7008adaae1c1b5677d65e56ba`.
-- Exact Develop canonical Quality: `34353904087@5e7426e2fbf3f2b7008adaae1c1b5677d65e56ba = SUCCESS`.
-- Backend predecessor: `postmerge/backend@db0f5f440fab60b3e66c4d3843c42147a1937aba`.
-- Exact predecessor canonical Quality: `34340662717@db0f5f440fab60b3e66c4d3843c42147a1937aba = FAILURE`; Python Quality remained red while Windows path safety, Linux storage regressions and Local install smoke passed.
-- Develop remains schema v40; Backend carries the not-yet-integrated v41 `0041_research_delta_boundary` storage slice. Therefore stale current-schema expectations on Backend are worker-owned harness drift, not current Develop product failures.
-- `main` and `bnbgrs/ATHENA` remain strict read-only; no force push/history rewrite.
+## Current baseline
 
-## Bounded Backend slice — protected-source-blob current-schema v41 expectation
+- Develop baseline: `c830b96a12d25914c52a0abc7749a6724b19cfae`
+- Develop canonical Quality: `34360516307` — SUCCESS on the exact SHA.
+- Previous Backend HEAD: `b2a2a20873390098f98a9125222ae5594a9d6cc9`
+- Previous Backend canonical Quality: `34357920394` — FAILURE; exact diagnostics reported one Ruff I001 plus 19 pytest failures, while Windows path safety, Linux storage regressions, and Local-install smoke were green.
+- Product/harness merge candidate authored this run: `1fdf2a02fb44caec9c4434e0cc1e761bfccb0059` with parents `b2a2a20873390098f98a9125222ae5594a9d6cc9` and `c830b96a12d25914c52a0abc7749a6724b19cfae`.
 
-`tests/unit/test_protected_source_blob.py::test_fresh_schema_is_v33_and_allows_protected_blob_records` already requires the actual current `SCHEMA_VERSION`, but its metadata tuple still required the previous v40 `GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID`. On Backend v41 this is internally inconsistent with the unchanged schema contract, whose current migration id is `RESEARCH_DELTA_BOUNDARY_MIGRATION_ID`.
+## Closed bounded slice
 
-Harness repair in this candidate:
+`tests/unit/test_knowledge_schema.py::test_fresh_database_contains_semantic_schema` had a stale current-schema expectation: it compared the v41 database metadata against `GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID` (v40), while exact Backend diagnostics showed the correct current value `0041_research_delta_boundary`.
 
-- replace the stale v40 migration-id import with `RESEARCH_DELTA_BOUNDARY_MIGRATION_ID`;
-- require the fresh current-schema metadata tuple to match the actual v41 migration id;
-- leave all protected-source encryption, persistence, archive replication, restart-locking and fail-closed integrity assertions unchanged;
-- change no production schema, migration, Storage, Recovery, Network/TOR, packaging or runtime code.
+The harness now imports `RESEARCH_DELTA_BOUNDARY_MIGRATION_ID` and uses it only for that fresh-current-schema assertion. Historical v40 assertions still use `GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID`; no production schema or migration behavior was modified.
 
-## Develop synchronization
+Current Develop's Windows two-EXE contract delta was synchronized byte-identically in the same merge candidate via `docs/agent_handoffs/integrator.md` and `tests/unit/test_windows_packaging_contract.py`.
 
-The same candidate synchronizes the only two files changed on current Develop since the Backend merge base byte-identically:
+## Verification
 
-- `docs/agent_handoffs/integrator.md` blob `572b392271a0eddf4117b125a936bd50b17ea31d`;
-- `tests/unit/test_quality_workflow_contract.py` blob `54357459e3289ea9e51194c98a92ff271f4ebdc7`.
+Focused local execution was attempted before mutation but could not run because the execution environment cannot establish outbound GitHub connectivity even after a fresh DNS resolution attempt. No focused PASS is claimed. The slice is nevertheless assertion-level bound to the exact diagnostics from Backend Quality `34357920394` and is awaiting exact-SHA canonical Quality evidence on the final branch candidate.
 
-The candidate is a two-parent history-preserving commit with Backend predecessor first and exact current Develop second.
+## Preserved invariants
 
-## Verification state
-
-- No queued/in-progress canonical run existed on Backend predecessor before candidate construction; predecessor run `34340662717` was completed failure.
-- Direct local checkout/focused pytest remains unavailable because this runtime cannot resolve `github.com`; no focused PASS is fabricated.
-- Exact canonical Quality on the final candidate is required before any readiness claim.
-- Independent Backend v41 fixture failures and any Ruff failure remain separate root causes and are not modified by this slice.
-
-## Invariants retained
-
-- production Storage/schema/migration/Recovery remains fail-closed;
-- PASSIVE-only automatic WAL maintenance and explicit-idle TRUNCATE unchanged;
-- no silent Tor->Direct fallback; redirect/auth/HTTPS/compression/response-size boundaries unchanged;
-- pypdf packaging, frozen argv, two-EXE split, bounded worker tree, adaptive 2048-context reserve, Windows lane-lock and duplicate-column/Core-startup/storage-bootstrap release guards remain intact;
-- no Skip/XFail, assertion relaxation, guard weakening, force push or history rewrite.
+- No production schema/migration/storage/recovery/WAL code changed.
+- No test, assertion, guard, security, storage, or recovery weakening.
+- No Skip/XFail.
+- No silent Tor-to-Direct fallback changes; redirect/auth/HTTPS/response-size fail-closed paths untouched.
+- WAL maintenance guards, pypdf/Frozen argv/two-EXE topology, bounded worker tree, adaptive 2048-context reserve, Windows lane-lock, duplicate-column/Core-startup/storage-bootstrap release guards remain unchanged.
+- `main` and `bnbgrs/ATHENA` remain read-only; no force-push or history rewrite.
 
 ## Integrator prerequisites
 
-HOLD Backend integration until exact candidate Quality completes. If the protected-source-blob stale current-schema failure disappears, close only this bounded subcluster. Do not infer readiness for the broader v41 Backend slice until all remaining exact-SHA Backend reds are resolved and canonical Quality is complete on the final candidate.
+HOLD until canonical Quality has completed on the final `postmerge/backend` candidate. Do not treat `1fdf2a02fb44caec9c4434e0cc1e761bfccb0059` as globally ready without the exact run result. `ERR-0026` Ruff I001 remains a separate root cause and must not be hand-sorted; retain the exact Ruff-0.15.22 autofix requirement. Remaining v41 legacy-fixture drift remains separate from this bounded current-schema expectation slice.
+
+## Next Backend action
+
+At the next run, consume the exact-SHA canonical Quality result first. If the fresh knowledge-schema failure disappears, mark only this bounded subcluster closed, then choose one remaining exact-diagnostics-backed v41 legacy-fixture cluster. Do not add another commit while that candidate's Quality run is queued or in progress.
