@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from athena.chat.direct import _effective_output_reserve
+from athena.chat.direct import _direct_context_configuration, _effective_output_reserve
 from athena.retrieval.context import ContextBuilderError
 
 
@@ -59,3 +59,18 @@ def test_output_reserve_fails_closed_when_input_and_margin_exhaust_context() -> 
             requested_output_reserve=2048,
             safety_margin=256,
         )
+
+
+def test_direct_chat_configuration_records_requested_and_effective_reserve() -> None:
+    configuration = _direct_context_configuration(
+        context_limit=2048,
+        max_recent_conversation_turns=8,
+        requested_output_reserve=2048,
+        effective_output_reserve=1728,
+        safety_margin=256,
+    )
+
+    assert configuration["requested_output_reserve"] == 2048
+    assert configuration["effective_output_reserve"] == 1728
+    assert configuration["effective_context_limit"] == 2048
+    assert configuration["safety_margin"] == 256

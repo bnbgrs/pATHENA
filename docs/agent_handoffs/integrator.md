@@ -3,28 +3,30 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop baseline for this run: `8b7d83ba170a121414a26055f0c5df9acf97914e`.
+- Develop baseline for this run: `e1aca469e4e27356f7de14e59ee63171a0d7111b`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `76032cc170df2758d2ee7737bf919d619f67407a`; spec-core `48ed95dd1a667e58777599998e07751cb9a0e27c`; backend `82d3d7d219a6fb4f122a10ffaa2a0c0e3e44f947`; UI `f02642bda40feebb5c6c91803386ceb0f05e0e1a`.
+- Worker heads reviewed: errors `176c3069b16a389cf8d31b6ebe67fc8670ba5bc4`; spec-core `9e0f1df1a0321c2568993f974a4b1dcf316e6b21`; backend `102aecd2c61415b0a428f6e69bba61bd3fb54f0b`; UI `2cb2feb3685358f629095445554c9d04fd56efd1`.
 - `main` and `bnbgrs/ATHENA` remain untouched/read-only; no force update, history rewrite, auto-merge or main promotion was used.
 
 ## Exact evidence consumed
 
-- Exact Develop head `8b7d83ba170a121414a26055f0c5df9acf97914e` had no associated canonical Quality run and no queued/in-progress exact-head gate when mutation eligibility was checked.
-- Backend exact head `82d3d7d219a6fb4f122a10ffaa2a0c0e3e44f947` has canonical Quality `34299682340` still in progress. Windows path safety, Linux storage regressions and Local install smoke are green; specification validator and mypy are green; Ruff is already red and pytest is still running. Backend is therefore not Integrator-ready.
-- Spec/Core exact-green evidence only verifies the adaptive DirectChat product/test tree already on Develop; no new Core product slice requires pickup.
-- UI current head is a synchronization descendant after the already integrated black/orange foundation; no new bounded UI product slice is ready.
+- Exact Develop head `e1aca469e4e27356f7de14e59ee63171a0d7111b` had no associated canonical Quality run and no queued/in-progress exact-head gate when mutation eligibility was checked.
+- UI exact head `2cb2feb3685358f629095445554c9d04fd56efd1` has canonical Quality `34304620632` in progress. Windows path safety, Linux storage regressions, Local install smoke, specification validator, Ruff and mypy are green; full pytest remains in progress. UI is therefore not READY yet.
+- Backend exact head `102aecd2c61415b0a428f6e69bba61bd3fb54f0b` has canonical Quality `34303936995` in progress and remains conservative hold until exact completion.
+- Spec/Core current head verifies the already integrated DirectChat boundary lineage; no separate READY product slice was consumed.
 
-## Progress this run — adaptive DirectChat zero-margin boundary
+## Progress this run — DirectChat budget provenance
 
-No compatible Worker product slice was READY. A bounded Core-owned release regression was added to the existing adaptive DirectChat context-budget test family. With a 2048-token loaded context, 2047 estimated input tokens, requested output reserve 2048 and an explicit safety margin of zero, exactly one output token must remain available. This complements the existing 256-token safety-margin one-token boundary and the fail-closed exhaustion case.
+No current Worker product slice was READY. A bounded Core-owned cross-cutting provenance improvement records both the user/configuration-requested output reserve and the effective reserve actually authorized after loaded-context adaptation. The existing provider parameter and ContextPackage budget continue to use only the effective reserve, so generation limits and fail-closed context behavior are unchanged.
 
-Production code is unchanged. The slice adds no Skip/XFail, weakens no assertion, and changes no Provider, Backend, Storage, Security, Recovery, scheduler/worker, packaging, Windows process or migration semantics.
+The configuration recorded in the model signature and ProcessingRun now contains `requested_output_reserve` and `effective_output_reserve` alongside the existing context limit, recent-turn limit and safety margin. This prevents adaptive 2048-context runs from losing the distinction between configured intent and the reduced runtime authorization during later audit/replay analysis.
+
+Focused unit coverage locks the requested/effective distinction. No Skip/XFail was added; no assertion, Security, Storage, Recovery, validator, provider, scheduler/worker, packaging, Windows process or migration guard was weakened.
 
 ## Current quality/error state
 
-- Develop after this commit requires exact-current canonical/focused verification before any Beta or promotion-ready claim.
-- Backend remains conservative hold while exact head `82d3d7d219a6fb4f122a10ffaa2a0c0e3e44f947` has an in-progress canonical run with Ruff failure already observed.
+- Develop after this commit requires exact-current focused/canonical verification before any Beta or promotion-ready claim.
+- UI and Backend exact-head canonical runs remain in progress and were not consumed prematurely.
 - Historical Windows/runtime signatures remain release guards and are not reopened without exact-current reproduction.
 
 ## Tracker / visual state
@@ -35,14 +37,14 @@ Production code is unchanged. The slice adds no Skip/XFail, weakens no assertion
 ## Next integration order
 
 1. Re-check exact-current Develop CI before any further Develop mutation.
-2. Consume final exact Backend Quality `34299682340`; do not integrate its Storage/WAL/schema lineage while Ruff or independent pytest failures remain red.
-3. Prefer the first exact-green dependency-unblocking Backend prerequisite once all bounded storage/migration/runtime evidence is clean.
+2. Consume final exact UI Quality `34304620632`; integrate its bounded navigation successor only if the exact head finishes green without superseding commits.
+3. Consume final exact Backend Quality `34303936995` conservatively; prioritize dependency-unblocking Storage/WAL/schema work only after exact-green evidence.
 4. Otherwise consume exactly one new bounded Core/UI successor with non-superseded exact evidence.
 5. Preserve the Windows/Packaging/Runtime regression matrix before any Beta/release claim.
 
 ## Persistent release guards
 
-Retain explicit Beta/release acceptance for pypdf packaging metadata; fail-closed frozen argv routing and Desktop/Worker two-EXE split; exactly one Desktop with bounded/non-growing workers; adaptive 2048-context DirectChat budgeting including configured-upper-bound, one-token-with-margin and one-token-with-zero-margin behavior; Windows lane-lock `PermissionError` -> `SchedulerLaneOwnershipError` -> packaged-worker `OSError`; and storage-bootstrap/migration startup signatures including duplicate-column failures.
+Retain explicit Beta/release acceptance for pypdf packaging metadata; fail-closed frozen argv routing and Desktop/Worker two-EXE split; exactly one Desktop with bounded/non-growing workers; adaptive 2048-context DirectChat budgeting including configured-upper-bound, one-token-with-margin, one-token-with-zero-margin and requested-vs-effective provenance; Windows lane-lock `PermissionError` -> `SchedulerLaneOwnershipError` -> packaged-worker `OSError`; and storage-bootstrap/migration startup signatures including duplicate-column failures.
 
 ## Rules retained
 

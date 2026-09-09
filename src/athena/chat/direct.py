@@ -94,6 +94,27 @@ def _effective_output_reserve(
     return min(requested_output_reserve, available_output_tokens)
 
 
+def _direct_context_configuration(
+    *,
+    context_limit: int,
+    max_recent_conversation_turns: int,
+    requested_output_reserve: int,
+    effective_output_reserve: int,
+    safety_margin: int,
+) -> dict[str, object]:
+    """Record both requested and authorized DirectChat generation budgets."""
+
+    return {
+        "context_package_version": 1,
+        "mode": "direct_chat",
+        "effective_context_limit": context_limit,
+        "max_recent_conversation_turns": max_recent_conversation_turns,
+        "requested_output_reserve": requested_output_reserve,
+        "effective_output_reserve": effective_output_reserve,
+        "safety_margin": safety_margin,
+    }
+
+
 @dataclass(frozen=True, slots=True)
 class DirectChatGenerationResult:
     generation: ChatGenerationResult
@@ -193,13 +214,13 @@ class DirectChatService:
             phase="post-direct-context-build",
         )
 
-        context_configuration = {
-            "context_package_version": 1,
-            "mode": "direct_chat",
-            "effective_context_limit": context_limit,
-            "max_recent_conversation_turns": validated_turns,
-            "safety_margin": validated_safety_margin,
-        }
+        context_configuration = _direct_context_configuration(
+            context_limit=context_limit,
+            max_recent_conversation_turns=validated_turns,
+            requested_output_reserve=validated_output_reserve,
+            effective_output_reserve=effective_output_reserve,
+            safety_margin=validated_safety_margin,
+        )
         generation_parameters: dict[str, object] = {
             "max_output_tokens": effective_output_reserve,
             "reasoning_mode": reasoning_mode,

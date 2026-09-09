@@ -2,24 +2,26 @@
 
 ## Current baseline
 
-- Current Develop: `develop/pathena-next@e1aca469e4e27356f7de14e59ee63171a0d7111b`.
-- Prior exact verified Core candidate: `postmerge/spec-core@48ed95dd1a667e58777599998e07751cb9a0e27c`, canonical Quality `34298618087 = SUCCESS`.
-- Candidate for this run imports current Develop byte-identically except for this evidence handoff.
+- Current Develop: `develop/pathena-next@363d6ca497b12cf9f04d9c9392d945960eade3d3`.
+- Prior exact verified Core candidate: `postmerge/spec-core@9e0f1df1a0321c2568993f974a4b1dcf316e6b21`, canonical Quality `34302733044 = SUCCESS`.
+- Candidate for this run imports current Develop product/tests byte-identically and updates only this evidence handoff.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only and untouched.
 - No force push, history rewrite, Skip/XFail, assertion weakening, Security/Storage/Recovery relaxation or fabricated provenance is permitted.
 
 ## Current bounded Core slice
 
-Exact verification of the new DirectChat zero-safety-margin 2048-context boundary added on current Develop. With `context_limit=2048`, `estimated_input_tokens=2047`, `requested_output_reserve=2048`, and `safety_margin=0`, `_effective_output_reserve()` must return exactly `1`.
+Exact verification of the DirectChat budget-provenance slice added on current Develop. `send_message()` now records both `requested_output_reserve` and `effective_output_reserve` in the durable/auditable DirectChat context configuration while the provider generation parameter and ContextPackage continue to use only the effective reserve.
 
-Production code is unchanged. This acceptance complements the already verified configured-reserve ceiling, one-token-with-margin, and fail-closed exhaustion regressions. It does not broaden Provider, Backend, Storage, Security, Recovery, scheduler/worker, packaging, Windows-process or migration semantics.
+This preserves the adaptive 2048-context fail-closed budget contract while retaining the distinction between configured intent and runtime-authorized output budget for later audit/replay analysis. Focused unit coverage in `tests/unit/test_direct_chat_context_budget.py` locks the requested/effective distinction.
+
+Local focused execution was attempted before candidate creation but checkout was blocked by transient DNS resolution of `github.com`; no local PASS is claimed. GitHub connector access remained functional, so the existing product/test candidate is advanced for exact canonical verification rather than treating DNS as a blocker.
 
 ## Dependency / ownership state
 
 - Current Error handoff reports no OPEN/IN_PROGRESS/FIXED_PENDING_VERIFY entries on its recorded lineage; historical runtime signatures remain release guards unless exactly reproduced.
-- Current Backend worker remains Backend-owned and is not consumed by Core while its current v41/schema/WAL lineage lacks exact-global green evidence.
-- Current UI work remains presentation/accessibility-owned and disjoint.
-- Alpha/Beta progress marks the major Core Search/Claims/Research slices already verified; no closed slice is reopened by this acceptance-only candidate.
+- Backend remains Backend-owned; Core does not duplicate Storage/WAL/schema/provider/system work.
+- UI remains presentation/accessibility-owned and disjoint.
+- Major closed Core Search/Claims/Research slices remain closed and are not reopened.
 
 ## Preserved Core contracts
 
@@ -31,4 +33,4 @@ Verified Research and contradiction contracts remain preserved. No fake PALLAS d
 
 No READY claim until canonical Quality completes on the exact candidate SHA. Once that run starts, do not push any successor commit until it completes. On the next run consume the exact-SHA result first.
 
-Persistent Beta/release guards remain: pypdf metadata; frozen argv/two-EXE routing; bounded worker tree; adaptive 2048-context reserve including one-token-with-margin and one-token-with-zero-margin behavior; Windows lane-lock ownership cluster; duplicate-column/Core-startup/storage-bootstrap signatures.
+Persistent Beta/release guards remain: pypdf metadata; frozen argv/two-EXE routing; bounded worker tree; adaptive 2048-context reserve including requested-vs-effective provenance and one-token boundaries; Windows lane-lock ownership cluster; duplicate-column/Core-startup/storage-bootstrap signatures.
