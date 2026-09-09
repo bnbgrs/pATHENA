@@ -2,48 +2,37 @@
 
 ## Current source of truth
 
-- Current shared baseline: `develop/pathena-next@2a90e71bc2c604cd745766a608481fc14106ec07`.
-- Worker branch before this handoff update: `postmerge/spec-core@571ecf65e3892a424afe8cbc5393e3ef0679ef76`.
-- Stable read-only branch: `main@0d4d621f8a38ddf8eccfa09622bf193687619943` (unchanged).
-- `bnbgrs/ATHENA` remains strictly read-only and untouched.
-- Current Develop advanced after the worker candidate; the worker is therefore not claimed baseline-current or Integrator-ready solely by virtue of its prior green run.
+- Shared baseline reviewed this run: `develop/pathena-next@5e7426e2fbf3f2b7008adaae1c1b5677d65e56ba`.
+- Worker before this candidate: `postmerge/spec-core@6b833fdbe9066dbd17f8a54272b0543d7c5d5ece`.
+- `main` and `bnbgrs/ATHENA` remain strictly read-only and untouched.
+- Current Errors/Backend/UI/Integrator handoffs, Alpha/Beta Research spec, Research models/service, capability/test coverage and release guards were re-read before mutation.
 
-## Exact candidate verification consumed this run
+## Bounded Core slice: explicit-source Delta Research
 
-Canonical ATHENA Quality Gate run `34333900454` completed `success` on exact worker SHA `571ecf65e3892a424afe8cbc5393e3ef0679ef76`.
+Beta Exhaustive Research states that data arriving after a frozen snapshot is not silently absorbed and that new relevant data may create a Delta Research job. The current domain model already contains `ResearchMode.DELTA`, while the current Research service exposes Local Exhaustive, Local+Web, Scoped Project and Historical Backfill enqueue composition but no Delta enqueue path.
 
-This closes verification of that exact candidate. The candidate was a history-preserving NON-FORCE synchronization commit with parents `850b631007ba3f359b9b16c619c692d853d75663` and then-current Develop `0abc53a35e6c99bf7070875633d3f81f6bc09395`.
+This candidate adds `athena.research.delta.enqueue_delta()` as a bounded Core composition layer. It requires at least one real canonical Source UUID, creates a fresh `research.exhaustive` job in `ResearchMode.DELTA`, and restricts the scope to those explicit Source identities. It intentionally does not add a Storage migration or invent parent-Research provenance not represented by the current schema.
 
-No new product mutation is added in this run because the run's one bounded Core slice is the exact-SHA verification above.
+Acceptance coverage in `tests/unit/test_research_delta.py` proves that a Source captured after an original Research snapshot can be frozen into a new Delta scope without silently absorbing the original Source, and that an empty Source set fails before job persistence.
 
-## Current handoff evidence reviewed
+## Test / CI evidence
 
-- `errors.md`: no current OPEN / IN_PROGRESS / BLOCKED errors are recorded in the checked Develop handoff; historical signatures remain guards only until current-lineage reproduction.
-- `backend.md`: Backend owns deletion-ledger / storage-system boundaries; Core does not duplicate that work.
-- `ui.md`: inspector presentation/visibility remains UI-owned; Core does not mutate Qt/UI presentation state.
-- `integrator.md`: current integration policy preserves canonical Quality guards and reports no new promotion-qualified Core product delta; current Develop has since advanced to `2a90e71bc2c604cd745766a608481fc14106ec07`.
+- Focused local execution was attempted first, but the runner could not resolve `github.com`; no local PASS is claimed.
+- The candidate includes the focused acceptance tests above and is not Integrator-ready until exact-SHA canonical Quality completes successfully. If Quality is queued/in progress, no further worker commit is permitted.
 
-## Closed / retained Core contracts
+## Closed / retained contracts
 
-- Adaptive DirectChat output reserve and 2048-context behavior remain closed absent new exact-current regression evidence.
-- Normal Hybrid Search DTO/adapter work already verified on prior Core lineage is not reopened without a current demonstrated gap.
-- Contradiction review enqueue bypass remains unmodified unless a concrete current production caller bypassing the canonical gate is demonstrated.
-- No fake provenance, synthetic Sources/Claims/Knowledge, or synthetic PALLAS state is permitted.
+- Adaptive DirectChat 2048-context/output-reserve behavior remains closed absent new exact-current regression evidence.
+- Normal/Hybrid Search Core API composition remains closed absent new exact-current regression evidence.
+- Contradiction-review enqueue remains unchanged without a concrete current production bypass.
+- No fake Sources, Claims, Knowledge, Evidence, Provenance or PALLAS state is introduced.
 
-## Persistent release guards
+## Ownership boundaries / persistent guards
 
-The following remain binding acceptance guards but are not automatic Core priority absent current reproduction: pypdf/Frozen argv/two-EXE packaging, bounded worker tree, adaptive 2048-context Chat reserve, Windows lane-lock cluster, duplicate-column/Core-startup/storage-bootstrap signatures.
+- No Backend/Storage schema, WAL, transport, recovery, security or UI styling work is duplicated.
+- pypdf/Frozen argv/two-EXE, bounded worker tree, adaptive 2048-context Chat reserve, Windows lane-lock/path-safety and duplicate-column/Core-startup/storage-bootstrap guards remain unchanged and binding.
+- No force push, history rewrite, Skip/XFail or guard weakening.
 
 ## Readiness
 
-- Exact worker candidate `571ecf65e3892a424afe8cbc5393e3ef0679ef76`: `VERIFIED_EXACT_SHA` by Quality `34333900454 = success`.
-- Current worker lineage versus Develop: `BASELINE_STALE` because Develop is now `2a90e71bc2c604cd745766a608481fc14106ec07`.
-- Therefore no new Integrator-ready claim is made in this handoff update.
-
-## Next Alpha/Beta Core run
-
-1. Consume any exact-SHA Quality result for the then-current worker head before mutation.
-2. Re-read current Develop head, all worker handoffs, Alpha/Beta specs, Capability Coverage, ADRs and relevant focused tests.
-3. Select the highest evidenced independent Core gap in Chat, Knowledge, Research, PALLAS, Controller/ViewModel/API composition, Provenance, Claims/Evidence, Durable Knowledge or Human Control.
-4. If that gap depends on red/unverified Backend/Storage work, skip it and take the next independent Core gap.
-5. Advance exactly one bounded vertical product + acceptance-test slice, or exactly verify an existing candidate; do not reopen already verified slices without new regression evidence.
+`CANDIDATE_PENDING_EXACT_SHA`: bounded product + acceptance-test diff is based on current Develop and preserves prior worker history. Integrator-ready requires exact-SHA Quality success and a still-compatible Develop baseline.
