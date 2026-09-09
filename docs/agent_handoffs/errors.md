@@ -2,12 +2,12 @@
 
 ## Baseline
 
-- Develop source of truth: `develop/pathena-next@316a3733b9f1db5948255fd3469d0b3df5c1806a`.
-- Error worker pre-run head: `postmerge/errors@11f4a4f1c5a5985ca52ec730168c545756b93ec2`.
-- Current workers: Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`; Backend `844d65a85ecb611d5060bf311c6346c810d2247e`; UI `3b28301b60bf8982b2a4be9a6eeaa1a1db8bd0ad`.
-- Exact Develop Quality `34397927435@1078dfae061f2e02fda738af5145eea617616923 = SUCCESS`.
-- Current Develop Quality `34403733459@316a3733b9f1db5948255fd3469d0b3df5c1806a = IN_PROGRESS`; no competing run was started.
-- Current Backend Quality `34378587885@844d65a85ecb611d5060bf311c6346c810d2247e = FAILURE`; diagnostics artifact `10115789607` was consumed this run.
+- Develop source of truth: `develop/pathena-next@843466d00e67232aeac43da8c3797a5b1f0d65ef`.
+- Error worker pre-run head: `postmerge/errors@cac5d91212d8583e0db85c323e18996bf52e8ea7`.
+- Current workers: Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`; Backend `844d65a85ecb611d5060bf311c6346c810d2247e`; UI `8fae7273dbf61f2ab891c6b5e003e87a8d969c9a`.
+- Exact Develop Quality `34403733459@316a3733b9f1db5948255fd3469d0b3df5c1806a = SUCCESS`.
+- Current Develop Quality `34409340769@843466d00e67232aeac43da8c3797a5b1f0d65ef = IN_PROGRESS`; no competing run was started.
+- Current Backend Quality `34378587885@844d65a85ecb611d5060bf311c6346c810d2247e = FAILURE`; diagnostics artifact `10115789607` supplied new assertion-level Ruff evidence this run.
 - `postmerge/errors` had no canonical Quality run before mutation.
 - `main` and `bnbgrs/ATHENA` remain read-only/untouched.
 
@@ -18,25 +18,21 @@
 - STALE: `ERR-0014`, `ERR-0025`.
 - OPEN / BLOCKED: none at top level.
 
-## Hard progress this run — ERR-0028 knowledge-schema current-version closed
+## Hard progress this run — ERR-0026 exact Ruff root cause isolated
 
-Status of bounded subcluster: `FIXED`.
+Status: `IN_PROGRESS`.
 
-Backend `844d65a85ecb611d5060bf311c6346c810d2247e` contains the bounded harness correction in `tests/unit/test_knowledge_schema.py::test_fresh_database_contains_semantic_schema`: the current v41 metadata assertion uses `RESEARCH_DELTA_BOUNDARY_MIGRATION_ID` rather than the stale v40 grounded-response-receipt ID.
+Exact Backend canonical Quality `34378587885@844d65a85ecb611d5060bf311c6346c810d2247e` has one and only one Ruff finding. Diagnostics artifact `10115789607` reports `I001 [*] Import block is un-sorted or un-formatted` at `src/athena/storage/schema.py:3:1`, followed by `Found 1 error` and `1 fixable with the --fix option`.
 
-Exact canonical Backend diagnostics from run `34378587885`, artifact `10115789607`, now show `tests/unit/test_knowledge_schema.py ...............F..FFFFFFF.FFF`. The fresh-schema test is the first test in that file and completes successfully before the later failures; the complete short-test failure summary likewise does not list it. This provides the previously missing exact-SHA verification, so only this bounded subcluster moves from `FIXED_PENDING_VERIFY` to `FIXED`.
+Exact file comparison makes the formatter cause concrete. Backend `schema.py` blob `b5658c38ca061095a951bc85f3a2fbc88b53ee76` keeps the new `research_delta_migration` import ahead of one large grouped `schema_contract` re-export block. Current Develop `843466d00e67232aeac43da8c3797a5b1f0d65ef` already carries Ruff-normalized blob `9d6d9fd410662e7f1ec311a93a1e8ee135c51e5f`, where schema-contract re-exports are split into Ruff's canonical import form.
 
-Overall `ERR-0028` remains `IN_PROGRESS`. The same exact diagnostics still identify independent legacy-v41 root causes: stale v40 `last_migration_id` expectations in legacy upgrade tests (`v14`, `v17`–`v23`) plus legacy fixture collisions raising `sqlite3.OperationalError: table research_delta_boundaries already exists` in v28/v29/v36 and archive/protected-content/transition cases. `storage-bootstrap` startup failures are treated as cascades when rooted in those migration failures.
+This is therefore a bounded formatter-owned Backend branch drift, not a production schema/storage defect and not a current Develop blocker. Do not hand-sort imports or weaken Ruff. Backend owner should synchronize/apply pinned Ruff 0.15.22 autofix to this single import block, run focused Ruff first, and only then seek exact canonical closure.
 
 ## Other active root causes
 
-### ERR-0026 — Backend Ruff
-
-`IN_PROGRESS`, P2. Exact Backend Quality `34378587885@844d65a85ecb611d5060bf311c6346c810d2247e` remains Ruff-red. Preserve exact Ruff-0.15.22 autofix/focused-PASS closure requirement.
-
 ### ERR-0028 — remaining v41 legacy fixtures
 
-`IN_PROGRESS`, P2. Do not reopen closed bounded subclusters. Highest remaining exact evidence is the legacy migration/current-version fixture family described above; choose one primary cluster per run and deduplicate its startup cascades.
+`IN_PROGRESS`, P2. Closed bounded subclusters remain closed. Exact Backend diagnostics continue to show stale v40 `last_migration_id` expectations in legacy upgrade tests plus independent `research_delta_boundaries already exists` fixture collisions. Handle one primary cluster per run and deduplicate storage-bootstrap cascades.
 
 ### ERR-0029 — WAL exact-type harness drift
 
@@ -44,11 +40,11 @@ Overall `ERR-0028` remains `IN_PROGRESS`. The same exact diagnostics still ident
 
 ## Integrator handoff
 
-- `ERR-0028 / knowledge-schema-current-version = FIXED` on exact Backend `844d65a85ecb611d5060bf311c6346c810d2247e`, with assertion-level evidence from canonical Quality `34378587885` diagnostics artifact `10115789607`.
-- Overall Backend remains HOLD: `ERR-0026`, remaining `ERR-0028` legacy-fixture clusters, and `ERR-0029` are still active.
-- Current Develop `316a3733b9f1db5948255fd3469d0b3df5c1806a` already has canonical Quality `34403733459` in progress; consume it before any further Develop action.
+- `ERR-0026 = IN_PROGRESS`, but now precisely isolated to a single Backend formatter-owned Ruff I001 on `844d65a85ecb611d5060bf311c6346c810d2247e`; current Develop already carries formatter-clean `schema.py` blob `9d6d9fd410662e7f1ec311a93a1e8ee135c51e5f`.
+- Do not treat `ERR-0026` as a current Develop blocker. Keep Backend HOLD until its own exact Ruff/full-pytest evidence is green.
+- Current Develop `843466d00e67232aeac43da8c3797a5b1f0d65ef` already has canonical Quality `34409340769` in progress; consume it before any Develop action.
 - Preserve pypdf packaging, frozen argv, two-EXE split, bounded workers, adaptive 2048-context reserve, Windows lane-lock mapping and duplicate-column/Core-startup/storage-bootstrap release guards.
 
 ## Next verification
 
-First consume `34403733459@316a3733b9f1db5948255fd3469d0b3df5c1806a`. Then select the highest exact-current active primary. If Develop remains green, continue with exactly one remaining Backend legacy-v41 fixture/current-version root-cause cluster; do not reopen the now-closed fresh-schema assertion absent a new exact-current reproduction.
+First consume `34409340769@843466d00e67232aeac43da8c3797a5b1f0d65ef`. If Develop remains green, prefer exact Backend evidence produced by the owner for `ERR-0026`; absent that, continue exactly one remaining `ERR-0028` or `ERR-0029` primary cluster without duplicating active worker product changes.
