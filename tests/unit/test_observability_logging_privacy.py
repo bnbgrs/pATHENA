@@ -45,14 +45,47 @@ def test_json_formatter_redacts_secrets_in_message_and_url_query() -> None:
 def test_json_formatter_redacts_oauth_query_values_and_drops_fragments() -> None:
     encoded, payload = _format_record(
         "GET https://example.test/callback?code=oauth-code&state=oauth-state"
-        "&mode=safe#access_token=fragment-secret"
+        "&key=oauth-key&nonce=oauth-nonce&mode=safe#access_token=fragment-secret"
     )
 
     assert "oauth-code" not in encoded
     assert "oauth-state" not in encoded
+    assert "oauth-key" not in encoded
+    assert "oauth-nonce" not in encoded
     assert "fragment-secret" not in encoded
     assert "mode=safe" in str(payload["message"])
     assert "#" not in str(payload["message"])
+
+
+def test_json_formatter_preserves_generic_state_code_and_key_extra_fields() -> None:
+    encoded, payload = _format_record(
+        "diagnostic state",
+        extra={"state": "ready", "code": "E_OK", "key": "research"},
+    )
+
+    assert "ready" in encoded
+    assert "E_OK" in encoded
+    assert "research" in encoded
+    assert payload["state"] == "ready"
+    assert payload["code"] == "E_OK"
+    assert payload["key"] == "research"
+
+
+def test_json_formatter_redacts_basic_auth_cookie_and_json_secret_text() -> None:
+    encoded, payload = _format_record(
+        "Authorization: Basic dXNlcjpwYXNz\n"
+        "Cookie: session=cookie-secret; theme=dark\n"
+        'payload={"password":"hunter2","safe":"ok"}'
+    )
+
+    assert "dXNlcjpwYXNz" not in encoded
+    assert "cookie-secret" not in encoded
+    assert "hunter2" not in encoded
+    message = str(payload["message"])
+    assert "Authorization: Basic [REDACTED]" in message
+    assert "Cookie: [REDACTED]" in message
+    assert '"password":"[REDACTED]"' in message
+    assert '"safe":"ok"' in message
 
 
 def test_json_formatter_recursively_redacts_sensitive_extra_fields() -> None:

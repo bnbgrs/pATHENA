@@ -35,15 +35,13 @@ _SENSITIVE_KEY_NAMES = frozenset(
         "refreshtoken",
         "credential",
         "credentials",
-        "code",
-        "state",
         "sig",
         "signature",
         "session",
         "sessionid",
-        "key",
     }
 )
+_SENSITIVE_URL_QUERY_NAMES = frozenset({"code", "state", "key", "nonce"})
 _SENSITIVE_KEY_SUFFIXES = (
     "password",
     "passwd",
@@ -62,15 +60,33 @@ _NON_SECRET_TOKEN_KEYS = frozenset(
         "completiontokens",
     }
 )
+_TEXT_SECRET_KEY_PATTERN = (
+    r"api[-_ ]?key|password|passwd|client[-_ ]?secret|"
+    r"access[-_ ]?token|refresh[-_ ]?token|token|secret|credential(?:s)?|"
+    r"cookie|set[-_ ]?cookie"
+)
 
 _URL_RE = re.compile(r"https?://[^\s<>\"']+", flags=re.IGNORECASE)
 _BEARER_RE = re.compile(r"\bBearer\s+[A-Za-z0-9._~+/=-]+", flags=re.IGNORECASE)
+_AUTHORIZATION_HEADER_RE = re.compile(
+    r"\b(?P<key>authorization|proxy[-_ ]?authorization)"
+    r"(?P<sep>\s*[:=]\s*)"
+    r"(?:(?P<scheme>basic|bearer)(?P<scheme_space>\s+))?"
+    r"(?P<value>[^\s,;]+)",
+    flags=re.IGNORECASE,
+)
+_COOKIE_HEADER_RE = re.compile(
+    r"\b(?P<key>set-cookie|cookie)(?P<sep>\s*:\s*)(?P<value>[^\r\n]+)",
+    flags=re.IGNORECASE,
+)
+_JSON_SECRET_ASSIGNMENT_RE = re.compile(
+    rf"(?P<prefix>[\"'](?:{_TEXT_SECRET_KEY_PATTERN})[\"']\s*:\s*)"
+    r"(?P<quote>[\"'])(?P<value>.*?)(?P=quote)",
+    flags=re.IGNORECASE,
+)
 _SECRET_ASSIGNMENT_RE = re.compile(
-    r"(?P<key>"
-    r"authorization|proxy[-_ ]?authorization|api[-_ ]?key|password|passwd|"
-    r"client[-_ ]?secret|access[-_ ]?token|refresh[-_ ]?token|token|secret|"
-    r"credential(?:s)?"
-    r")(?P<sep>\s*[:=]\s*)"
+    rf"(?P<key>{_TEXT_SECRET_KEY_PATTERN})"
+    r"(?P<sep>\s*[:=]\s*)"
     r"(?P<value>[^\s,;&]+)",
     flags=re.IGNORECASE,
 )
@@ -87,6 +103,11 @@ def _is_sensitive_key(key: str) -> bool:
     if normalized in _SENSITIVE_KEY_NAMES:
         return True
     return normalized.endswith(_SENSITIVE_KEY_SUFFIXES)
+
+
+def _is_sensitive_url_query_key(key: str) -> bool:
+    normalized = _normalized_key(key)
+    return _is_sensitive_key(key) or normalized in _SENSITIVE_URL_QUERY_NAMES
 
 
 def _redact_url(raw_url: str) -> str:
@@ -111,7 +132,7 @@ def _redact_url(raw_url: str) -> str:
     query_pairs = parse_qsl(parts.query, keep_blank_values=True)
     redacted_query = urlencode(
         [
-            (key, _REDACTED if _is_sensitive_key(key) else value)
+            (key, _REDACTED if _is_sensitive_url_query_key(key) else value)
             for key, value in query_pairs
         ],
         doseq=True,
@@ -123,7 +144,25 @@ def _redact_url(raw_url: str) -> str:
 
 def _sanitize_text(value: str) -> str:
     text = _URL_RE.sub(lambda match: _redact_url(match.group(0)), value)
+
+    def replace_authorization(match: re.Match[str]) -> str:
+        scheme = match.group("scheme")
+        scheme_prefix = f"{scheme} " if scheme is not None else ""
+        return f"{match.group('key')}{match.group('sep')}{scheme_prefix}{_REDACTED}"
+
+    text = _AUTHORIZATION_HEADER_RE.sub(replace_authorization, text)
+    text = _COOKIE_HEADER_RE.sub(
+        lambda match: f"{match.group('key')}{match.group('sep')}{_REDACTED}",
+        text,
+    )
     text = _BEARER_RE.sub(f"Bearer {_REDACTED}", text)
+    text = _JSON_SECRET_ASSIGNMENT_RE.sub(
+        lambda match: (
+            f"{match.group('prefix')}{match.group('quote')}"
+            f"{_REDACTED}{match.group('quote')}"
+        ),
+        text,
+    )
 
     def replace_assignment(match: re.Match[str]) -> str:
         return f"{match.group('key')}{match.group('sep')}{_REDACTED}"
