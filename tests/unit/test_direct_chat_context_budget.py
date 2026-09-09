@@ -42,6 +42,15 @@ def test_output_reserve_preserves_safety_margin_at_one_token_boundary() -> None:
     ) == 1
 
 
+def test_output_reserve_preserves_one_token_with_zero_safety_margin() -> None:
+    assert _effective_output_reserve(
+        context_limit=2048,
+        estimated_input_tokens=2047,
+        requested_output_reserve=2048,
+        safety_margin=0,
+    ) == 1
+
+
 def test_output_reserve_fails_closed_when_input_and_margin_exhaust_context() -> None:
     with pytest.raises(ContextBuilderError, match="exhaust the active model context"):
         _effective_output_reserve(
