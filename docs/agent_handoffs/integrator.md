@@ -3,33 +3,38 @@
 ## Current source of truth
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop baseline reviewed before mutation: `363d6ca497b12cf9f04d9c9392d945960eade3d3`.
-- Worker heads reviewed: errors `9fb49a3195a6f8bf3ccbac60de39301cc01ffe6c`; spec-core `3b6b26015777e2c940e27900a3bdbf11236f180a`; backend `102aecd2c61415b0a428f6e69bba61bd3fb54f0b`; UI `e7cbdb70a3f061b6160eb10de8c3aaa8925b73f0`.
-- Exact Develop baseline had no associated queued/in-progress canonical Quality when mutation eligibility was checked.
-- Core exact head `3b6b26015777e2c940e27900a3bdbf11236f180a` passed canonical Quality `34306400739`, but its product tree is already present on Develop; its only net diff from Develop is `spec-core.md`.
-- Backend exact head `102aecd2c61415b0a428f6e69bba61bd3fb54f0b` failed canonical Quality `34303936995`; no Backend slice was integrated.
-- UI synchronized head `e7cbdb70a3f061b6160eb10de8c3aaa8925b73f0` has canonical Quality `34307975430` in progress; it was not consumed.
+- Develop baseline before this integration: `a32c63f39a2abca8a080ee78b97bd6b067eae52b`.
+- Worker heads reviewed: errors `3318f6cddd9a8d4b455531845ef3291b236839f0`; spec-core `3590faef81e4eabf440e8ed88be96d860a5eef37`; backend `5fb8d5b7b5ee29af09bd70ccde8824633f0e0c8a`; UI `3cbb2aee7fb3e3bc48b7d6a9fefe86ea3132cb9e`.
+- Exact Develop baseline had no queued/in-progress canonical Quality when mutation eligibility was checked.
+- UI current synchronized head has canonical Quality `34312166038` in progress and was not consumed as whole-candidate evidence.
+- Backend exact head Quality `34311050843` is red; Backend Storage/WAL/schema lineage remains held.
+- Spec/Core has no new product diff from Develop.
 
-## Progress this run — Settings provider identity on model-list failure
+## Progress this run — left-owned primary navigation
 
-No current worker supplied a new READY product slice. The current `ALPHA_BETA_PROGRESS.md` still records `UI-GAP-0020` as implemented with exact-green worker evidence but outstanding on shared Develop. That bounded deferred slice was independently re-reviewed against current Develop and integrated as the single progress action for this run.
+Integrated exactly one bounded, independently reviewed UI slice from exact-green predecessor `2cb2feb3685358f629095445554c9d04fd56efd1`, whose canonical Quality `34304620632` completed successfully. The subsequent UI synchronization commit did not cancel or invalidate that completed exact-source evidence.
 
-Exact source evidence: UI product `64b9956601f2ec21ee3624d27323221dc2aba10c` plus focused regression `7b4569dd55c93cb19b5dfe2d53ea0c2ccc34fe71` passed canonical Quality `33942660590` at exact head `9ca1cb04031d618bd6d34d2df4a46d331d110a82`. The product changes only `src/athena/desktop/pathena_settings_runtime.py`. When a provider identity is still present but model freshness becomes unavailable, Settings now renders that provider as `last known`/idle with unavailable freshness instead of incorrectly replacing known identity with `Model provider · unavailable`. A genuinely absent provider still fails closed as unavailable/error. The model error/detail remains error-state and unavailable freshness.
+The transplanted product blob `bc855803ca3531eafcfa4d80765eeae0c7a810d4` removes the duplicate Workspace/Library/Research/Jobs/Sources controls from the horizontal top bar. Primary product navigation remains solely in the existing left icon rail. The top bar is now explicitly `Status and utilities` and retains only System/Settings utility controls plus local/private status. Routing, page-title synchronization, accessibility names/tooltips, Backend, Storage, Security, Recovery, scheduler/worker, packaging and Windows-runtime behavior are unchanged.
 
-The worker focused test file contains an existing `pytest.importorskip("PySide6")`; it was reviewed for assertions but deliberately not imported, preserving the Integrator no-Skip/XFail rule. No production Security, Storage, Recovery, Network, scheduler/worker, packaging, migration or Windows-runtime semantics changed.
+The exact focused regression blob `3557539e4b91b03d09d311501b04ed43f3644d34` is integrated with the product. It requires zero `topNavButton` primary controls, preserves left-rail navigation and verifies System/Settings utilities and page routing. No Skip/XFail or assertion weakening was introduced.
 
 ## Quality / promotion state
 
-- The integrated product blob is byte-identical to the exact-green UI candidate blob `afa98f0334bb1fffa9d63b4016ca97d7e86213df` verified by Quality `33942660590`.
-- Exact-current Develop canonical Quality is still required before any Beta/release-ready or promotion-ready claim.
+- Source product/test pair: exact canonical Quality `34304620632 = success` at `2cb2feb3685358f629095445554c9d04fd56efd1`.
+- Current synchronized UI head remains in progress and was not treated as READY.
+- Exact-current Develop canonical Quality is required before any Beta/release-ready claim.
 - Historical Windows/runtime signatures remain release guards only unless reproduced on an exact current SHA.
+
+## Tracker / visual state
+
+The 11-screen manifest and Visual Gap Ledger were reviewed. This integration advances the reference-backed shell hierarchy only; it does not claim screenshot-level pixel `MATCH`. `ALPHA_BETA_PROGRESS.md` still needs evidence reconciliation after exact-current Develop CI so no follow-up docs commit can supersede a running gate.
 
 ## Next integration order
 
-1. Re-check exact-current Develop CI before any further mutation; if a canonical gate is queued/in-progress, keep Develop frozen until completion.
-2. Consume UI `34307975430` only if it completes green on exact `e7cbdb70a3f061b6160eb10de8c3aaa8925b73f0` without superseding commits.
-3. Keep Backend v41/schema/WAL work conservative while exact Backend Quality remains red.
-4. Reconcile the `ALPHA_BETA_PROGRESS.md` row for the now-integrated provider-identity slice only when this can be done without superseding a running Develop gate.
+1. Re-check exact-current Develop CI before any further mutation and keep Develop frozen while a gate is queued/in-progress.
+2. Reconcile `ALPHA_BETA_PROGRESS.md` only after that gate is complete.
+3. Consume the current UI synchronized descendant only if its exact-head Quality completes green and it contains a genuinely new bounded successor beyond this already integrated navigation slice.
+4. Keep Backend v41/schema/WAL integration conservative until exact-green evidence closes the current Ruff/pytest failures.
 5. Preserve explicit Beta/release acceptance for pypdf packaging metadata; fail-closed frozen argv; Desktop/Worker two-EXE split; one Desktop with bounded workers; adaptive 2048-context DirectChat budgeting; Windows lane-lock ownership cluster; and duplicate-column/Core-startup/storage-bootstrap signatures.
 
 ## Rules retained
