@@ -9,11 +9,11 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 ## Current baseline
 
 - Develop source of truth: `develop/pathena-next@c830b96a12d25914c52a0abc7749a6724b19cfae`.
-- Error worker entered this run at `postmerge/errors@1f9c41d7dd88945876ab0eb2a9893a05a3a1117e`.
-- Current workers reviewed: Backend `b2a2a20873390098f98a9125222ae5594a9d6cc9`; Spec/Core `a9b1cb8b3354c9afdc206fbf435af0d1bf5d451f`; UI `90a51e111851f80c5e2388c11c4026c6ec62fa09`.
+- Error worker entered this run at `postmerge/errors@8992467309bebb8b0ab2b58d5b191c8765e789a4`.
+- Current workers reviewed: Backend `b2a2a20873390098f98a9125222ae5594a9d6cc9`; Spec/Core `0c9189954047306cfea947209b51e1a4d0a50aa3`; UI `809eb707e874e11bd8f19a1426781ece541ab9a3`.
 - Exact current Develop canonical Quality `34360516307@c830b96a12d25914c52a0abc7749a6724b19cfae = SUCCESS`.
 - Exact current Backend canonical Quality `34357920394@b2a2a20873390098f98a9125222ae5594a9d6cc9 = FAILURE`; Windows path safety, Linux storage regressions and Local install smoke passed, while Python Quality remained red on Ruff and full pytest.
-- Backend diagnostics artifact `10108241562` was consumed at assertion level this run.
+- Current Spec/Core Quality `34370631502@0c9189954047306cfea947209b51e1a4d0a50aa3` and UI Quality `34372028677@809eb707e874e11bd8f19a1426781ece541ab9a3` were already in progress when reviewed; no competing run was started.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current state
@@ -36,8 +36,10 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Severity: P2.
 - Status: `IN_PROGRESS`.
 - Closed subclusters remain closed absent exact-current regression: grounded-response-receipt, backup-retention, operational-error physical-cleanup, deletion-ledger, protected-source-blob.
-- Protected-source-blob closure evidence: exact Backend `b2a2a20873390098f98a9125222ae5594a9d6cc9`, canonical Quality `34357920394`, diagnostics artifact `10108241562`, where `tests/unit/test_protected_source_blob.py ...... [78%]` shows all six tests passing. The candidate changed only the stale current-schema migration-id expectation from the v40 grounded-response receipt migration to `RESEARCH_DELTA_BOUNDARY_MIGRATION_ID`; production schema, Storage, Recovery, encryption, archive replication, restart locking and fail-closed integrity guards were not changed.
-- The same exact diagnostics still contain independent failures, including legacy migration fixtures that create `research_delta_boundaries` before v41 and stale v40 current-migration assertions in `test_knowledge_schema.py` / `test_protected_content.py`. Those are not cascaded into the now-closed protected-source-blob subcluster.
+- Protected-source-blob closure evidence remains exact Backend `b2a2a20873390098f98a9125222ae5594a9d6cc9`, canonical Quality `34357920394`, diagnostics artifact `10108241562`, where `tests/unit/test_protected_source_blob.py ...... [78%]` shows all six tests passing.
+- New exact-code diagnosis this run isolates a still-open current-version assertion in `tests/unit/test_knowledge_schema.py::test_fresh_database_contains_semantic_schema`: on exact Backend `b2a2a20873390098f98a9125222ae5594a9d6cc9`, `SCHEMA_VERSION` is `RESEARCH_DELTA_BOUNDARY_SCHEMA_VERSION = 41` and the current migration id is `RESEARCH_DELTA_BOUNDARY_MIGRATION_ID = "0041_research_delta_boundary"`, but the fresh-schema metadata assertion still imports and requires `GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID = "0040_grounded_response_receipts"` as `last_migration_id`.
+- This is a bounded stale harness expectation, not evidence for weakening production migration/storage behavior. Backend owns the v41 schema slice, so Error worker did not duplicate its test mutation. Closure requires Backend to align that assertion to the actual current migration id and obtain focused/exact PASS.
+- Independent legacy migration-fixture collisions such as `sqlite3.OperationalError: table research_delta_boundaries already exists` remain separate ERR-0028 subclusters and are not treated as cascades of this assertion.
 - Overall `ERR-0028` remains `IN_PROGRESS`.
 
 ## ERR-0029 — WAL harness collaborators incompatible with canonical exact-type runtime guards
