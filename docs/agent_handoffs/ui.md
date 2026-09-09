@@ -2,44 +2,50 @@
 
 ## Current baseline
 
-- Develop baseline reviewed: `develop/pathena-next@7617509e405c47fd872ad49f9a047e098c9f06a0`.
-- Worker prior exact-green head: `a426469b503c6276cd6d1fd3ed6d89be0af67948`.
+- Develop baseline reviewed: `develop/pathena-next@363d6ca497b12cf9f04d9c9392d945960eade3d3`.
+- Prior UI exact-green head: `2cb2feb3685358f629095445554c9d04fd56efd1`.
 - Worker branch: `postmerge/ui`.
 - `main` and `bnbgrs/ATHENA` remain read-only; no force push, history rewrite or main mutation occurred.
 
-## Exact evidence consumed
+## Source-of-truth review
 
-ATHENA Quality Gate `34291934346` completed `success` on exact UI head `a426469b503c6276cd6d1fd3ed6d89be0af67948`. The bounded worker delta against its Develop merge base consists only of the shared design-token palette plus four UI contract tests. Current Develop advanced one disjoint commit, `7617509e405c47fd872ad49f9a047e098c9f06a0`, adding only an adaptive DirectChat reserve regression and Integrator handoff update; those changes do not collide with the UI palette product/test files.
+Current `spec-core.md`, `backend.md`, `errors.md`, `integrator.md`, 11-screen manifest and Visual Gap Ledger were reviewed before mutation. Error handoff has no current OPEN UI error. Current Develop advanced from the prior UI merge base only through the DirectChat requested/effective context-budget provenance slice in `src/athena/chat/direct.py`, its focused test and Integrator handoff; these files are disjoint from the UI-GAP-0005 product/test pair.
 
-## UI-GAP-0004 — reference-backed black/orange visual foundation
+Actual user reference pixels were directly opened again for Workspace/Chat and Knowledge/PALLAS. They support left-owned primary navigation and restrained top status/context chrome. No pixel parity or screenshot-level `MATCH` is claimed.
 
-Status: `FIXED_ON_WORKER / INTEGRATOR_READY` pending verification of the synchronized documentation descendant.
+## UI-GAP-0004 — black/orange visual foundation
 
-The opened user references establish a consistent direction: near-black neutral canvas/panels, bright typography and sparse functional orange. The pre-fix design tokens were navy/blue-led and used `#377DFF` as the primary accent. The verified UI slice changes the shared visual foundation to deep neutral black surfaces and exact orange `#F26A21` while retaining semantic state colors, WCAG contrast, focus/accessibility and shell geometry contracts.
+Status: `FIXED / INTEGRATED`.
 
-Product/test files:
-- `src/athena/desktop/pathena_design_tokens.py`
-- `tests/unit/test_pathena_design_tokens.py`
-- `tests/unit/test_pathena_design_system.py`
-- `tests/unit/test_pathena_theme.py`
-- `tests/unit/test_pathena_window.py`
+Exact worker evidence: `a426469b503c6276cd6d1fd3ed6d89be0af67948` -> Quality `34291934346 = success`. Current Develop preserves the integrated deep-black / functional `#F26A21` foundation.
 
-Exact verification: `a426469b503c6276cd6d1fd3ed6d89be0af67948` -> Quality `34291934346 = success`.
+## UI-GAP-0005 — duplicate horizontal primary navigation
 
-No screenshot-level `MATCH` or pixel parity is claimed because a rendered current build has not yet been opened beside every original reference.
+Status: `VERIFIED_ON_WORKER / SYNCED_PENDING_EXACT_QUALITY`.
 
-## Reference evidence state
+The shared shell had five labeled Workspace/Library/Research/Jobs/Sources primary controls in the top bar while the same product destinations were already owned by the narrow left `iconRail`. The opened Workspace/Chat reference instead reserves the top region for quiet status/context and places primary destinations on the left.
 
-Actual user reference pixels have been directly opened for Workspace/Chat, Knowledge/PALLAS, Evidence/Inspector, Research and a multi-screen Chat/Knowledge/Research/Jobs composition. Per-slot manifest entries reflect only what was actually opened; remaining slots stay `VISUAL_REFERENCE_PENDING`.
+The bounded product slice removes those five `topNavButton` controls from `PathenaMainWindow._install_reference_shell()`. It preserves:
 
-## Collision / ownership
+- the actual left `iconRail` and existing navigation model;
+- System and Settings utility buttons in the top bar;
+- page routing and current-page title updates;
+- accessible names/tooltips;
+- `Local · Private` status;
+- all Backend, Storage, Security, scheduler/worker, provider, transport, process and recovery semantics.
 
-Current Develop's adaptive 2048-context DirectChat test remains Core/Integrator-owned and is preserved. UI changed no Backend, Storage, Security, Provider, scheduler/worker, process-spawn or recovery semantics. Historical runtime signatures remain Beta/release guards only unless reproduced on the current exact SHA.
+Focused contract `tests/unit/test_pathena_window.py` now requires zero horizontal primary `topNavButton` controls while proving the left primary rail remains present. No test guard was weakened, and no Skip/XFail was introduced.
+
+Exact worker verification: canonical Quality `34304620632 = success` on exact head `2cb2feb3685358f629095445554c9d04fd56efd1`.
+
+## Current synchronization
+
+The current candidate is built history-preservingly from current Develop's tree while reapplying only the exact verified UI product/test blobs and this versioned UI documentation. Current Develop DirectChat provenance changes are retained. A fresh exact-head canonical Quality run is required before whole-candidate Integrator-ready status.
 
 ## Integrator handoff
 
-Integrator may independently review/import UI-GAP-0004 from the exact-green worker lineage `a426469b503c6276cd6d1fd3ed6d89be0af67948`. The product/test delta is bounded to the five visual-token contract files listed above and is compatible with current Develop `7617509e405c47fd872ad49f9a047e098c9f06a0` by disjoint-file comparison. Preserve the current Develop adaptive DirectChat boundary regression.
+Do not integrate the synchronized descendant until its exact canonical Quality completes green. Once green, UI-GAP-0005 is bounded to `src/athena/desktop/pathena_window.py`, `tests/unit/test_pathena_window.py` and versioned UI coordination docs; the product behavior itself already has exact-green worker evidence at `2cb2feb3685358f629095445554c9d04fd56efd1`.
 
 ## Next UI gap
 
-After the synchronized current-Develop descendant is canonical green, use the opened reference pixels plus an actual current render to pick at most one highest visible hierarchy/spacing/typography/composer/inspector mismatch. Do not rework UI-GAP-0001 through UI-GAP-0004 unless a current exact-SHA regression reproduces them.
+Consume the synchronized candidate's exact Quality first. If green, mark UI-GAP-0005 Integrator-ready and then select at most one next visible reference-backed gap, preferably composer scale, workspace hierarchy, inspector behavior or typography, using a real current render where available. Do not reopen UI-GAP-0001 through UI-GAP-0005 without current exact-SHA regression evidence.
