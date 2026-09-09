@@ -178,17 +178,29 @@ class PathenaMainWindow(AthenaMainWindow):
         self.model_selector.setMaximumWidth(320)
         self.model_selector.setToolTip("Choose a local model")
 
+        composer = self.findChild(QFrame, "composer")
+        if composer is not None:
+            composer.setAccessibleName("Message composer")
+            composer.setFixedHeight(88)
+            composer_layout = composer.layout()
+            if composer_layout is not None:
+                composer_layout.setContentsMargins(10, 10, 8, 10)
+                composer_layout.setSpacing(10)
+
         self.prompt_input.setObjectName("promptInput")
         self.prompt_input.setPlaceholderText("Ask, explore, or work with your knowledge…")
+        self.prompt_input.setMinimumHeight(44)
 
         self.ground_button.setObjectName("groundButton")
         self.ground_button.setText("Sources")
         self.ground_button.setToolTip("Ground this message in available sources")
+        self.ground_button.setMinimumHeight(36)
 
         self.send_button.setObjectName("sendButton")
         self.send_button.setText("→")
         self.send_button.setToolTip("Send message (Ctrl+Enter)")
         self.send_button.setAccessibleName("Send message")
+        self.send_button.setFixedSize(44, 44)
 
         self.new_chat_button.setText("New")
         self.new_chat_button.setToolTip("Start a new conversation")

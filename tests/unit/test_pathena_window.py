@@ -125,6 +125,27 @@ def test_reference_shell_keeps_primary_navigation_in_rail_and_private_status_in_
         window.close()
 
 
+def test_reference_composer_uses_large_work_surface_and_send_target() -> None:
+    app = _app()
+    window = PathenaMainWindow()
+    app.processEvents()
+    try:
+        composer = window.findChild(QFrame, "composer")
+        assert composer is not None
+        assert composer.accessibleName() == "Message composer"
+        assert composer.height() == 88
+        assert window.prompt_input.minimumHeight() == 44
+        assert window.ground_button.minimumHeight() == 36
+        assert window.send_button.width() == 44
+        assert window.send_button.height() == 44
+        assert window.send_button.minimumWidth() == 44
+        assert window.send_button.maximumWidth() == 44
+        assert window.send_button.minimumHeight() == 44
+        assert window.send_button.maximumHeight() == 44
+    finally:
+        window.close()
+
+
 def test_reference_inspector_follows_grounding_and_non_chat_navigation() -> None:
     app = _app()
     window = PathenaMainWindow()

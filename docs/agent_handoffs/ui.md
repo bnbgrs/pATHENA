@@ -2,48 +2,47 @@
 
 ## Current baseline
 
-- Base: `develop/pathena-next@7c15b44818e9ac5c3484ee30d4a20d6f0d56087e`
-- Worker: `postmerge/ui`
-- Worker synchronization commit: `7952eedcda8cc889e60ced3170e72a762245d00c`
-- UI product commit: `1f0fd548431be122d13a403fe9e2387087edf8fa`
-- UI focused-test commit: `d85d2a2e144abc9d3ef1008b80f74114c7fafe23`
-- Original eleven reference images: `VISUAL_REFERENCE_PENDING`; no pixel-level parity or `MATCH` claim is made.
+- Develop source checked first: `develop/pathena-next@82aaef0caaa90599f530acc84d728b602dee6739`.
+- Worker before sync: `postmerge/ui@3cbb2aee7fb3e3bc48b7d6a9fefe86ea3132cb9e`.
+- Prior worker exact canonical Quality: `34312166038 = success`.
+- History-preserving NON-FORCE synchronization: `0c78b3e43cf7886efa6320c0354159498cc67b29`, using the current Develop tree with both UI and Develop histories retained.
+- `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
-## Work completed
+## Evidence consumed this run
 
-- Reconciled the UI worker with current Develop using a non-force, history-preserving two-parent merge. Develop changed only integrator/progress documentation plus the ResourceMode product/test files since the prior UI base; the UI delta changed only UI-owned files, so no foreign work was overwritten.
-- `UI-GAP-0001` product/test lineage remains unchanged: visible inspector copy and accessible name use `Evidence & Activity` without changing controller, provenance, persistence, visibility, focus or backend semantics.
-- Exact prior UI head `f31be028652095b18b8a98dfacd65b73be9af763` passed ATHENA Quality Gate run `33720745475` with conclusion `success`.
-- Because synchronization produced a new exact worker head, Quality run `33724577775` is currently verifying `7952eedcda8cc889e60ced3170e72a762245d00c`; `UI-GAP-0001` remains `FIXED_PENDING_VERIFY` until that current-head run succeeds.
-- Reviewed `UI-GAP-0002` call-chain: `_install_reference_shell()` and `_install_progressive_disclosure()` force the inspector visible; `_sync_progressive_chat_actions()` forces it visible again; `_set_context_available()` already exposes the truthful grounded-context state; grounded responses set that state true while new/loaded/ordinary sent chat paths clear it. This gives a real existing state signal for a later contextual-visibility slice, but no visibility mutation was bundled into this synchronization run.
+The user-library reference `pATHENA: Dunkles KI-Dashboard mit Wissenspanel.png` was actually opened. It shows a deep-black Workspace/Chat surface, narrow left-owned navigation, quiet top status chrome, a large central work area and a materially larger lower composer with a distinct arrow send target. No current-build screenshot was available side-by-side, so no `MATCH` or pixel-parity claim is made.
 
-## Active UI gaps
+Current Develop product code still inherits the legacy base composer geometry from `AthenaMainWindow._build_command_input()` (`composer.setFixedHeight(58)`). The visible pATHENA wrapper already reuses the real prompt input, grounding path and send route, making composer scale a bounded presentation-only gap rather than a need for a mock feature.
 
-### UI-GAP-0001 — Inspector hierarchy/copy
+## Active slice — UI-GAP-0004 Workspace composer scale
 
-Status: `FIXED_PENDING_VERIFY`, P1.
+Status: `IMPLEMENTED_PENDING_VERIFY`, P1.
 
-Implementation: `1f0fd548431be122d13a403fe9e2387087edf8fa`; focused Qt contract: `d85d2a2e144abc9d3ef1008b80f74114c7fafe23`. Prior exact UI head is green; current synchronized head still requires successful Quality run `33724577775` before closure. This does not imply screenshot-level `MATCH`.
+Candidate product blob `951d42436388539e0aa1f90760f33c6ef9ebe6fc` changes only `src/athena/desktop/pathena_window.py` presentation geometry:
 
-### UI-GAP-0002 — Contextual inspector behavior
+- composer fixed height: 88 px;
+- composer accessible name: `Message composer`;
+- prompt minimum height: 44 px;
+- real grounding control minimum height: 36 px;
+- existing send control fixed to 44×44 px while retaining the real send signal, tooltip, accessible name and Ctrl+Enter route;
+- modest composer margins/spacing to prevent the larger targets from crowding the workspace.
 
-Status: `OPEN / CONTRACT_TRACED`, P1.
+No Attach/Focus mock controls are added. Chat submission, grounded/direct routing, model/provider selection, persistence, Storage, Security, Recovery, worker/scheduler and backend semantics are unchanged.
 
-Evidence: chat grounded-context availability already has a truthful state transition through `_set_context_available()`. A safe bounded implementation should keep the inspector visible on non-chat surfaces, while Chat visibility should derive from real grounded-context availability instead of unconditional `show()` calls. Any implementation must preserve current non-chat details, immediate/no-animation reduced-motion behavior, and existing focus contracts. No product mutation for this gap was made in this run.
+Focused Qt contract blob `8e29fcfc5e8ac0ba4a402ae07f1f593783588063` extends `tests/unit/test_pathena_window.py` to assert the enlarged real composer, its accessible name and the 44×44 send target without weakening existing navigation, inspector, accessibility or routing assertions.
 
-## Collision / ownership guidance
+## Coordination
 
-- UI owns inspector presentation/visibility state on `postmerge/ui`.
-- Core/Backend should not implement alternate inspector widgets or mutate its presentation state.
-- Backend/storage/security semantics remain untouched.
-- No verified UI root-cause error is handed to the error worker.
+- Current Develop already contains the bounded left-owned primary-navigation integration at `82aaef0caaa90599f530acc84d728b602dee6739`; do not reopen that slice absent a current exact-SHA regression.
+- Core/Search work remains Core-owned.
+- Backend/Storage/Security semantics remain untouched.
+- Error handoff currently reports no OPEN error; no historical runtime signature is reopened here.
+- Slot 01 in the manifest now records direct reference availability; other slots remain `VISUAL_REFERENCE_PENDING` unless opened directly.
 
-## Verification
+## Verification / Integrator handoff
 
-- Prior exact UI head `f31be028652095b18b8a98dfacd65b73be9af763`: ATHENA Quality Gate `33720745475` = `success`.
-- Current synchronized head `7952eedcda8cc889e60ced3170e72a762245d00c`: ATHENA Quality Gate `33724577775` = `in_progress` at handoff update time.
-- No original reference screenshot was opened; `VISUAL_REFERENCE_PENDING` remains mandatory.
+Do not mark UI-GAP-0004 Integrator-ready until the focused Qt test and canonical Quality complete on the exact final candidate head containing product, test, manifest, ledger and this handoff. If the exact candidate is green and Develop remains compatible, the slice is bounded for Integrator review. A green code gate still does not imply screenshot-level `MATCH`.
 
-## Integrator handoff
+## Next gap
 
-Do not integrate the synchronized UI worker until Quality `33724577775` succeeds on exact head `7952eedcda8cc889e60ced3170e72a762245d00c` (or a later documentation-only head with equivalent successful verification). The bounded UI-GAP-0001 product/test lineage remains `1f0fd548431be122d13a403fe9e2387087edf8fa` + `d85d2a2e144abc9d3ef1008b80f74114c7fafe23`. `UI-GAP-0002` remains a separate subsequent interaction slice.
+After exact-green verification and Integrator handoff of UI-GAP-0004, select at most one further visible gap backed by an actually opened reference and a real current code/render state. Priority remains workspace hierarchy/spacing, typography or contextual Inspector composition rather than new decorative controls.
