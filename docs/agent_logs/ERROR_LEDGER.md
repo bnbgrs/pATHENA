@@ -9,10 +9,10 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 ## Current baseline
 
 - Develop source of truth: `develop/pathena-next@82aaef0caaa90599f530acc84d728b602dee6739`.
-- Error worker before this ledger update: `postmerge/errors@c5a71183986c2bfe356f7737b853269edfc8045d`.
-- Current workers reviewed: Backend `5fb8d5b7b5ee29af09bd70ccde8824633f0e0c8a`; Spec/Core `5dd790f9102bed6377b1d7e495ec5e831f64d9ae`; UI `3cbb2aee7fb3e3bc48b7d6a9fefe86ea3132cb9e`.
+- Error worker synchronized non-force/history-preserving through merge commit `51e34888084bfbd67f20e6b11bb8ee3622879b27`.
+- Current workers reviewed: Backend `5fb8d5b7b5ee29af09bd70ccde8824633f0e0c8a`; Spec/Core `850b631007ba3f359b9b16c619c692d853d75663`; UI `41e05a7a8c22d9cd430ddb7f8a3518ee3b125af4`.
 - Latest exact Backend canonical Quality: `34311050843@5fb8d5b7b5ee29af09bd70ccde8824633f0e0c8a = FAILURE`; Windows path safety PASS, Linux storage PASS, Local install smoke PASS, specification validator PASS, mypy PASS, Ruff FAIL, full pytest FAIL.
-- Current UI canonical Quality `34312166038@3cbb2aee7fb3e3bc48b7d6a9fefe86ea3132cb9e` is still `IN_PROGRESS`; no competing run was started.
+- Latest UI canonical Quality: `34315977802@41e05a7a8c22d9cd430ddb7f8a3518ee3b125af4` is `IN_PROGRESS`; predecessor `34315727050@0c78b3e43cf7886efa6320c0354159498cc67b29 = SUCCESS`.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current state
@@ -27,9 +27,9 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Severity: P2.
 - Status: `IN_PROGRESS`.
 - Exact rule/file family: Ruff `I001` in `src/athena/storage/schema.py`.
-- New exact successor evidence: canonical Quality `34311050843@5fb8d5b7b5ee29af09bd70ccde8824633f0e0c8a` completed `FAILURE`; Ruff remains red while validator, mypy and all three platform/install jobs are green.
-- Root-cause localization advanced this run: compare `102aecd2c61415b0a428f6e69bba61bd3fb54f0b...5fb8d5b7b5ee29af09bd70ccde8824633f0e0c8a` changes only `docs/agent_handoffs/integrator.md`, `src/athena/chat/direct.py` and `tests/unit/test_direct_chat_context_budget.py`. `src/athena/storage/schema.py` is byte-unchanged across that successor, yet Ruff remains red. Therefore the current I001 is independent of the DirectChat/develop synchronization and remains localized to the existing schema import block rather than a new cross-worker regression.
-- Current import block is already in the latest previously attempted `DatabaseCompatibilityError` / `_user_tables` arrangement; another manual ordering guess is prohibited. The next mutation must be driven by the exact Ruff 0.15.22 formatter/diagnostic diff or an exact Backend successor that applies it.
+- Exact current reproduction: canonical Quality `34311050843@5fb8d5b7b5ee29af09bd70ccde8824633f0e0c8a` completed `FAILURE`; Ruff remains red while validator, mypy and all three platform/install jobs are green. The Python quality check exposes four annotations and diagnostics artifact `10088876913` exists for this exact SHA.
+- New root-cause correction this run: Backend commit `82d3d7d219a6fb4f122a10ffaa2a0c0e3e44f947` explicitly states that its one-line `DatabaseCompatibilityError` / `_user_tables` reorder was derived from exact `ruff.txt`. Nevertheless its canonical successor remained Ruff-I001 red, and current Backend `5fb8d5b7b5ee29af09bd70ccde8824633f0e0c8a` keeps that same schema blob (`b5658c38ca061095a951bc85f3a2fbc88b53ee76`) while Ruff is still red. Therefore the prior hand-transcribed two-symbol ordering interpretation is disproven as a sufficient root cause/fix.
+- The defect remains localized to the import-normalization of `schema.py`, but another manual ordering guess is prohibited. The next mutation must be generated from the exact Ruff 0.15.22 autofix/annotation payload for the current blob, then verified with focused Ruff before any canonical Quality closure attempt.
 - Integrator handoff: HOLD Backend v41/Research-dependent integration until an exact successor is Ruff green.
 
 ## ERR-0029 — WAL harness collaborators incompatible with canonical exact-type runtime guards
@@ -47,10 +47,8 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Severity: P2.
 - Status: `IN_PROGRESS`.
 - Root cause: stale harness expectations treat v40 / `0040_grounded_response_receipts` as current, while reconstructed predecessor fixtures can retain the v41-only `research_delta_boundaries` table and collide with the strict real v40→v41 migration.
-- Bounded grounded-response-receipt repair: Backend `102aecd2c61415b0a428f6e69bba61bd3fb54f0b` changes only `tests/unit/test_grounded_response_receipt.py`: latest-schema assertions use `RESEARCH_DELTA_BOUNDARY_SCHEMA_VERSION` / `RESEARCH_DELTA_BOUNDARY_MIGRATION_ID`, and v39 reconstruction drops the v41-only `research_delta_boundaries` table before replaying unchanged production migrations.
-- Exact verification consumed from canonical Quality `34303936995@102aecd2c61415b0a428f6e69bba61bd3fb54f0b`: full pytest explicitly reports `tests/unit/test_grounded_response_receipt.py ...... [24%]`. All six tests in that focused file passed on the exact candidate SHA. The bounded grounded-response-receipt subcluster is CLOSED by real assertion-level evidence.
-- `ERR-0028` as a whole remains `IN_PROGRESS` because other independent v41 fixture/current-version failures remain. Do not conflate those failures with the closed grounded-response-receipt subcluster.
-- Production v40→v41 migration remains strict, additive, transactional and fail-closed; no production migration/schema/recovery code was changed for that closure.
+- Bounded grounded-response-receipt repair `102aecd2c61415b0a428f6e69bba61bd3fb54f0b` is CLOSED by exact canonical full-pytest evidence showing all six tests in `tests/unit/test_grounded_response_receipt.py` passed.
+- `ERR-0028` overall remains `IN_PROGRESS` because independent v41 fixture/current-version failures remain. Production v40→v41 migration stays strict/additive/transactional/fail-closed.
 
 ## ERR-0027 — v41 schema contract constant not re-exported by `athena.storage.schema`
 
