@@ -2,54 +2,56 @@
 
 ## Baseline
 
-- Develop source of truth: `develop/pathena-next@5e7426e2fbf3f2b7008adaae1c1b5677d65e56ba`.
-- Error worker pre-run head: `postmerge/errors@28dc066f04d90b5e942fd3cdd2f710db4bc9906c`.
-- Current workers: Spec/Core `6b833fdbe9066dbd17f8a54272b0543d7c5d5ece`; Backend `db0f5f440fab60b3e66c4d3843c42147a1937aba`; UI `0ba6811f939dc464f2ba78c4b8494da16f5eefab`.
-- Current Develop canonical Quality `34353904087@5e7426e2fbf3f2b7008adaae1c1b5677d65e56ba = IN_PROGRESS`; no competing run was started.
-- Immediate parent Develop `ee7803f9b73140a3789893c25919b011d4e8d23b` is exact canonical green by Quality `34343282932 = SUCCESS`.
-- Exact Backend canonical Quality `34340662717@db0f5f440fab60b3e66c4d3843c42147a1937aba = FAILURE`; diagnostics artifact `10100384616`.
-- `main` and `bnbgrs/ATHENA` remain read-only/untouched.
+- Develop source of truth: `develop/pathena-next@c830b96a12d25914c52a0abc7749a6724b19cfae`.
+- Error worker pre-run head: `postmerge/errors@4e31fec500e4b51dbaaf38ae7956afeec8354995`.
+- Current workers: Spec/Core `eb352369d5477c8b67fab5a76811916bfa28769b`; Backend `b2a2a20873390098f98a9125222ae5594a9d6cc9`; UI `3b0c11a16165036d5e8254ed59233408e077b782`.
+- Exact Develop parent `5e7426e2fbf3f2b7008adaae1c1b5677d65e56ba` is canonical green by Quality `34353904087 = SUCCESS`.
+- Current Develop Quality `34360516307@c830b96a12d25914c52a0abc7749a6724b19cfae = IN_PROGRESS`.
+- Current Backend Quality `34357920394@b2a2a20873390098f98a9125222ae5594a9d6cc9 = IN_PROGRESS`.
+- No competing canonical run was started. `main` and `bnbgrs/ATHENA` remain read-only/untouched.
 
 ## Current error state
 
 - IN_PROGRESS: `ERR-0026`, `ERR-0028`, `ERR-0029`.
 - STALE: `ERR-0014`, `ERR-0025`.
 - FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015` through `ERR-0024`, `ERR-0027`.
-- OPEN / FIXED_PENDING_VERIFY / BLOCKED: none.
+- OPEN / top-level FIXED_PENDING_VERIFY / BLOCKED: none.
 
-## Hard progress this run — ERR-0026 integration impact reclassified
+## Hard progress this run — ERR-0028 protected-source-blob subcluster
 
-`ERR-0026` remains `IN_PROGRESS` on exact Backend `db0f5f440fab60b3e66c4d3843c42147a1937aba`, but it no longer blocks the current Develop integration candidate.
+The current Backend worker owns a bounded harness-only repair on exact candidate `b2a2a20873390098f98a9125222ae5594a9d6cc9`.
 
-Exact Backend Quality `34340662717` reports one autofixable Ruff `I001` in `src/athena/storage/schema.py`; Backend still carries the old red file blob `b5658c38ca061095a951bc85f3a2fbc88b53ee76`.
+`tests/unit/test_protected_source_blob.py::test_fresh_schema_is_v33_and_allows_protected_blob_records` already followed the actual `SCHEMA_VERSION`, but its fresh-schema metadata tuple still expected the predecessor v40 `GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID`. Backend v41 makes the current migration `RESEARCH_DELTA_BOUNDARY_MIGRATION_ID`, so the harness assertion was internally stale while the production contract was consistent.
 
-New exact evidence resolves the integration ambiguity: exact-green Develop `ee7803f9b73140a3789893c25919b011d4e8d23b` carries Ruff-formatted `schema.py` blob `9d6d9fd410662e7f1ec311a93a1e8ee135c51e5f`. Compare `ee7803f9...` to current Develop `5e7426e2...` shows only `docs/agent_handoffs/integrator.md` and `tests/unit/test_quality_workflow_contract.py` changed. Therefore current Develop retains the exact-green formatter-clean `schema.py` and must not be held solely for Backend's stale branch-local I001.
+The Backend candidate replaces only that stale migration-id expectation. Its handoff explicitly preserves protected-source encryption, persistence, archive replication, restart locking, fail-closed integrity, production schema/migrations, Storage, Recovery, Network/TOR, packaging and runtime guards. This is therefore an Error-ledger-owned verification target, not a reason for this worker to duplicate Backend product changes.
 
-Do not mark the Backend defect itself `FIXED` yet. Its current branch still reproduces the I001. Closure requires Backend synchronization onto the formatter-clean source or exact Ruff 0.15.22 `--fix` output plus focused Ruff PASS. The Error worker runtime has no Ruff 0.15.22 binary/cache available, so no hand-sorted substitute was committed.
+Subcluster status is `FIXED_PENDING_VERIFY`: canonical Quality `34357920394@b2a2a20873390098f98a9125222ae5594a9d6cc9` is currently `IN_PROGRESS`. Do not promote to `FIXED` from commit intent or aggregate status; consume exact assertion-level PASS first. If it fails, repair only the demonstrated harness defect.
+
+Overall `ERR-0028` remains `IN_PROGRESS`; previously closed grounded-response-receipt, backup-retention, operational-error physical-cleanup and deletion-ledger subclusters remain closed absent exact-current regression.
 
 ## Other active root causes
 
-### ERR-0028 — v41 legacy fixtures/current-version assertions
+### ERR-0026 — Backend Ruff I001
 
-Grounded-response-receipt, backup-retention, operational-error physical-cleanup and deletion-ledger subclusters remain CLOSED from their exact passing evidence. Overall `ERR-0028` stays `IN_PROGRESS`: exact Backend diagnostics still report 19 independent failures, principally stale `0040_grounded_response_receipts` current-version assertions, legacy fixtures retaining v41-only `research_delta_boundaries`, and storage-bootstrap cascades from those fixture defects. Closed subclusters must not be reopened without exact-current regression.
+Still `IN_PROGRESS` on the Backend worker until exact Backend Ruff PASS exists. Exact-green Develop `5e7426e2fbf3f2b7008adaae1c1b5677d65e56ba` already carries the formatter-clean schema state, so this is not by itself a current Develop blocker.
 
 ### ERR-0029 — WAL exact-type harness drift
 
-Production exact-type fail-closed guards remain authoritative. No current focused/assertion-level PASS has been consumed for remaining WAL harness cases; keep `IN_PROGRESS`.
+Still `IN_PROGRESS`. Preserve production exact-type fail-closed guards; no new focused closure evidence was consumed this run.
 
 ### ERR-0027 — schema contract boundary
 
-Remains `FIXED` on exact Backend `db0f5f440fab60b3e66c4d3843c42147a1937aba`: canonical diagnostics show `tests/unit/test_schema_contract_boundary.py` 5/5 PASS, including dynamic verification of every uppercase schema-contract constant re-export. Do not reopen absent exact-current regression.
+Remains `FIXED` from exact Backend 5/5 PASS evidence. Do not reopen absent exact-current regression.
 
 ## Integrator handoff
 
-- Current Develop `5e7426e2fbf3f2b7008adaae1c1b5677d65e56ba` has canonical Quality `34353904087` already `IN_PROGRESS`; do not start a competing run or mutate Develop while it runs.
-- Parent Develop `ee7803f9b73140a3789893c25919b011d4e8d23b` is exact-green by Quality `34343282932 = SUCCESS`.
-- `ERR-0026`: `IN_PROGRESS` only on the stale Backend worker; **not a current Develop integration blocker** because the exact-green Develop parent contains formatter-clean `schema.py` and the current child does not modify that file. Backend should synchronize before its next integration candidate.
-- HOLD Backend v41 / Research-dependent integration for still-current independent `ERR-0028` / `ERR-0029` evidence, not for `ERR-0026` alone.
-- `ERR-0027`: `FIXED`; schema contract boundary 5/5 PASS on exact Backend.
-- Preserve pypdf packaging, frozen argv, two-EXE split, bounded workers, adaptive 2048-context reserve, Windows lane-lock mapping, duplicate-column/Core-startup/storage-bootstrap release guards.
+- Do not start a competing canonical Quality while `34360516307@c830b96a12d25914c52a0abc7749a6724b19cfae` or Backend `34357920394@b2a2a20873390098f98a9125222ae5594a9d6cc9` is running.
+- Develop parent `5e7426e2fbf3f2b7008adaae1c1b5677d65e56ba` is exact canonical green.
+- `ERR-0028/protected-source-blob`: `FIXED_PENDING_VERIFY` on exact Backend `b2a2a20873390098f98a9125222ae5594a9d6cc9`; require assertion-level exact PASS before closure.
+- Overall Backend v41 / Research-dependent integration remains held for remaining independent `ERR-0028` / `ERR-0029` reds until exact evidence clears them.
+- `ERR-0026` remains Backend-worker-local unless a current Develop regression reproduces it.
+- Preserve pypdf packaging, frozen argv, two-EXE split, bounded workers, adaptive 2048-context reserve, Windows lane-lock mapping and duplicate-column/Core-startup/storage-bootstrap release guards.
 
 ## Next verification
 
-First consume canonical Quality `34353904087@5e7426e2fbf3f2b7008adaae1c1b5677d65e56ba` when it completes. Then select the highest still-current independent Backend root cause. Do not spend another run re-proving `ERR-0026`'s integration impact unless Backend synchronizes or an exact-current Develop regression appears.
+First consume completed exact Backend Quality `34357920394@b2a2a20873390098f98a9125222ae5594a9d6cc9`. Close only the protected-source-blob subcluster if its focused/assertion-level evidence is green; otherwise keep it active and fix only the demonstrated harness failure. Also consume Develop `34360516307@c830b96a12d25914c52a0abc7749a6724b19cfae` before making any current-Develop readiness claim.
