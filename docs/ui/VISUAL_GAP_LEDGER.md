@@ -1,18 +1,16 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `df60ad0e0b3084da05a8b55d94a227798296a1ac`
+Baseline: `7617509e405c47fd872ad49f9a047e098c9f06a0`
 Integration target: `develop/pathena-next`
 
-Only evidence-backed gaps belong here. The original 11 reference screenshots remain unavailable for direct visual comparison; therefore no pixel-level mismatch or `MATCH` claim is asserted.
+Only evidence-backed gaps belong here. User reference pixels are now available for partial direct inspection through the connected file library. `MATCH` still requires an exact current rendered build to be opened beside the corresponding original reference; no pixel-parity claim is made here.
 
 ## UI-GAP-0001 — Inspector naming does not express the Evidence & Activity contract
 
 - Category: `HIERARCHY`
 - Screen: `10 — Grounded Chat / Evidence & Activity`
 - Severity: `P1`
-- Status: `FIXED`
-- Product commit: `1f0fd548431be122d13a403fe9e2387087edf8fa`
-- Test commit: `d85d2a2e144abc9d3ef1008b80f74114c7fafe23`
+- Status: `FIXED / INTEGRATED`
 - Verification evidence: exact UI head `f31be028652095b18b8a98dfacd65b73be9af763` passed ATHENA Quality Gate `33720745475`; lineage is integrated in Develop.
 
 ## UI-GAP-0002 — Inspector was forced permanently visible instead of remaining context-sensitive
@@ -20,24 +18,30 @@ Only evidence-backed gaps belong here. The original 11 reference screenshots rem
 - Category: `INTERACTION`
 - Screen: `01 — Workspace / Chat`, `10 — Grounded Chat / Evidence & Activity`
 - Severity: `P1`
-- Status: `FIXED`
-- Product commit: `177bef4dcdb4956f1df75bfcce9ee10c7a4bd1e2`
-- Test-contract commit: `1685221150c724deceb5d150a4d2dcff2bdd867b`
-- Verification evidence: exact corrected worker head `ce959e148ddbe8f13952ca56f7d07e7a7ce1addb` passed ATHENA Quality Gate `33745885426`; exact verified blobs were integrated into Develop in `93a9344d3902c920da5ff283eb51bbb1f0d815b8`.
+- Status: `FIXED / INTEGRATED`
+- Verification evidence: exact corrected worker head `ce959e148ddbe8f13952ca56f7d07e7a7ce1addb` passed ATHENA Quality Gate `33745885426`; verified blobs were integrated into Develop.
 
 ## UI-GAP-0003 — PALLAS full-view transition can hit a transient missing tab-order document binding
 
 - Category: `INTERACTION`
 - Screen: `08 — PALLAS`
 - Severity: `P1`
-- Evidence: canonical Backend run `33744816398` exposed `tests/unit/test_pathena_pallas_full_view.py::test_open_workspace_reuses_one_synchronized_full_surface` failing through `MessageActionTabOrderController.eventFilter()` when `document` was transiently absent during Qt lifecycle churn.
-- UI candidate product commit: `689da6c1dc2221f89825fffde947f792c7b503e7`
-- Focused regression commit: `034cb8d923d48bea708b48cac0ef0f6343511051`
-- Status: `FIXED`
-- Verification evidence: exact UI head `76cb122dbe7b58b0fa49bbcb36de2bd732922d4d` passed ATHENA Quality Gate `33751403354` with conclusion `success`.
-- Integration evidence: bounded equivalent product/test changes landed on Develop as `d149f6bbfd367f2999c8ee54e52326695aeb9f55` and `df60ad0e0b3084da05a8b55d94a227798296a1ac`; Backend changes were disjoint.
-- Acceptance: transient missing binding is an unhandled/no-op lifecycle state; existing ChildAdded resynchronization, action ordering, disabled-state preservation and composer return target remain unchanged.
+- Status: `FIXED / INTEGRATED`
+- Verification evidence: exact UI head `76cb122dbe7b58b0fa49bbcb36de2bd732922d4d` passed ATHENA Quality Gate `33751403354`; bounded equivalent changes are integrated in Develop.
 
-## Evidence blocker
+## UI-GAP-0004 — Global visual foundation used blue/navy surfaces instead of the reference-backed black/orange system
 
-`VISUAL_REFERENCE_PENDING`: until an original reference image and a real rendered current build can both be opened and inspected, spacing, exact proportions, pixel colors and screenshot-level `MATCH` claims remain prohibited.
+- Category: `VISUAL_FOUNDATION`
+- Screens: `01–11`
+- Severity: `P1`
+- Status: `FIXED_ON_WORKER / INTEGRATOR_READY`
+- Visual evidence: opened user references show near-black neutral canvases/panels, bright typography and sparse functional orange; the pre-fix token contract used navy surfaces and blue accent `#377DFF`.
+- Product: `src/athena/desktop/pathena_design_tokens.py` on worker lineage through `a426469b503c6276cd6d1fd3ed6d89be0af67948`.
+- Focused contracts: `tests/unit/test_pathena_design_tokens.py`, `tests/unit/test_pathena_design_system.py`, `tests/unit/test_pathena_theme.py`, `tests/unit/test_pathena_window.py`.
+- Exact verification: ATHENA Quality Gate `34291934346` = `success` on exact worker head `a426469b503c6276cd6d1fd3ed6d89be0af67948`.
+- Acceptance: deep neutral black surfaces and exact functional orange `#F26A21`; semantic success/info/question/warning/error colors, WCAG contrast, focus/accessibility and shell geometry contracts remain intact.
+- No `MATCH` claim: exact rendered current screenshots have not yet been opened beside every original reference.
+
+## Next visual priority
+
+After Integrator imports UI-GAP-0004, use actual reference pixels plus a real current render to select the highest remaining spacing/hierarchy/typography/composer/inspector mismatch. Do not infer pixel measurements from filenames or memory.

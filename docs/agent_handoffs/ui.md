@@ -2,48 +2,44 @@
 
 ## Current baseline
 
-- Base: `develop/pathena-next@7c15b44818e9ac5c3484ee30d4a20d6f0d56087e`
-- Worker: `postmerge/ui`
-- Worker synchronization commit: `7952eedcda8cc889e60ced3170e72a762245d00c`
-- UI product commit: `1f0fd548431be122d13a403fe9e2387087edf8fa`
-- UI focused-test commit: `d85d2a2e144abc9d3ef1008b80f74114c7fafe23`
-- Original eleven reference images: `VISUAL_REFERENCE_PENDING`; no pixel-level parity or `MATCH` claim is made.
+- Develop baseline reviewed: `develop/pathena-next@7617509e405c47fd872ad49f9a047e098c9f06a0`.
+- Worker prior exact-green head: `a426469b503c6276cd6d1fd3ed6d89be0af67948`.
+- Worker branch: `postmerge/ui`.
+- `main` and `bnbgrs/ATHENA` remain read-only; no force push, history rewrite or main mutation occurred.
 
-## Work completed
+## Exact evidence consumed
 
-- Reconciled the UI worker with current Develop using a non-force, history-preserving two-parent merge. Develop changed only integrator/progress documentation plus the ResourceMode product/test files since the prior UI base; the UI delta changed only UI-owned files, so no foreign work was overwritten.
-- `UI-GAP-0001` product/test lineage remains unchanged: visible inspector copy and accessible name use `Evidence & Activity` without changing controller, provenance, persistence, visibility, focus or backend semantics.
-- Exact prior UI head `f31be028652095b18b8a98dfacd65b73be9af763` passed ATHENA Quality Gate run `33720745475` with conclusion `success`.
-- Because synchronization produced a new exact worker head, Quality run `33724577775` is currently verifying `7952eedcda8cc889e60ced3170e72a762245d00c`; `UI-GAP-0001` remains `FIXED_PENDING_VERIFY` until that current-head run succeeds.
-- Reviewed `UI-GAP-0002` call-chain: `_install_reference_shell()` and `_install_progressive_disclosure()` force the inspector visible; `_sync_progressive_chat_actions()` forces it visible again; `_set_context_available()` already exposes the truthful grounded-context state; grounded responses set that state true while new/loaded/ordinary sent chat paths clear it. This gives a real existing state signal for a later contextual-visibility slice, but no visibility mutation was bundled into this synchronization run.
+ATHENA Quality Gate `34291934346` completed `success` on exact UI head `a426469b503c6276cd6d1fd3ed6d89be0af67948`. The bounded worker delta against its Develop merge base consists only of the shared design-token palette plus four UI contract tests. Current Develop advanced one disjoint commit, `7617509e405c47fd872ad49f9a047e098c9f06a0`, adding only an adaptive DirectChat reserve regression and Integrator handoff update; those changes do not collide with the UI palette product/test files.
 
-## Active UI gaps
+## UI-GAP-0004 — reference-backed black/orange visual foundation
 
-### UI-GAP-0001 — Inspector hierarchy/copy
+Status: `FIXED_ON_WORKER / INTEGRATOR_READY` pending verification of the synchronized documentation descendant.
 
-Status: `FIXED_PENDING_VERIFY`, P1.
+The opened user references establish a consistent direction: near-black neutral canvas/panels, bright typography and sparse functional orange. The pre-fix design tokens were navy/blue-led and used `#377DFF` as the primary accent. The verified UI slice changes the shared visual foundation to deep neutral black surfaces and exact orange `#F26A21` while retaining semantic state colors, WCAG contrast, focus/accessibility and shell geometry contracts.
 
-Implementation: `1f0fd548431be122d13a403fe9e2387087edf8fa`; focused Qt contract: `d85d2a2e144abc9d3ef1008b80f74114c7fafe23`. Prior exact UI head is green; current synchronized head still requires successful Quality run `33724577775` before closure. This does not imply screenshot-level `MATCH`.
+Product/test files:
+- `src/athena/desktop/pathena_design_tokens.py`
+- `tests/unit/test_pathena_design_tokens.py`
+- `tests/unit/test_pathena_design_system.py`
+- `tests/unit/test_pathena_theme.py`
+- `tests/unit/test_pathena_window.py`
 
-### UI-GAP-0002 — Contextual inspector behavior
+Exact verification: `a426469b503c6276cd6d1fd3ed6d89be0af67948` -> Quality `34291934346 = success`.
 
-Status: `OPEN / CONTRACT_TRACED`, P1.
+No screenshot-level `MATCH` or pixel parity is claimed because a rendered current build has not yet been opened beside every original reference.
 
-Evidence: chat grounded-context availability already has a truthful state transition through `_set_context_available()`. A safe bounded implementation should keep the inspector visible on non-chat surfaces, while Chat visibility should derive from real grounded-context availability instead of unconditional `show()` calls. Any implementation must preserve current non-chat details, immediate/no-animation reduced-motion behavior, and existing focus contracts. No product mutation for this gap was made in this run.
+## Reference evidence state
 
-## Collision / ownership guidance
+Actual user reference pixels have been directly opened for Workspace/Chat, Knowledge/PALLAS, Evidence/Inspector, Research and a multi-screen Chat/Knowledge/Research/Jobs composition. Per-slot manifest entries reflect only what was actually opened; remaining slots stay `VISUAL_REFERENCE_PENDING`.
 
-- UI owns inspector presentation/visibility state on `postmerge/ui`.
-- Core/Backend should not implement alternate inspector widgets or mutate its presentation state.
-- Backend/storage/security semantics remain untouched.
-- No verified UI root-cause error is handed to the error worker.
+## Collision / ownership
 
-## Verification
-
-- Prior exact UI head `f31be028652095b18b8a98dfacd65b73be9af763`: ATHENA Quality Gate `33720745475` = `success`.
-- Current synchronized head `7952eedcda8cc889e60ced3170e72a762245d00c`: ATHENA Quality Gate `33724577775` = `in_progress` at handoff update time.
-- No original reference screenshot was opened; `VISUAL_REFERENCE_PENDING` remains mandatory.
+Current Develop's adaptive 2048-context DirectChat test remains Core/Integrator-owned and is preserved. UI changed no Backend, Storage, Security, Provider, scheduler/worker, process-spawn or recovery semantics. Historical runtime signatures remain Beta/release guards only unless reproduced on the current exact SHA.
 
 ## Integrator handoff
 
-Do not integrate the synchronized UI worker until Quality `33724577775` succeeds on exact head `7952eedcda8cc889e60ced3170e72a762245d00c` (or a later documentation-only head with equivalent successful verification). The bounded UI-GAP-0001 product/test lineage remains `1f0fd548431be122d13a403fe9e2387087edf8fa` + `d85d2a2e144abc9d3ef1008b80f74114c7fafe23`. `UI-GAP-0002` remains a separate subsequent interaction slice.
+Integrator may independently review/import UI-GAP-0004 from the exact-green worker lineage `a426469b503c6276cd6d1fd3ed6d89be0af67948`. The product/test delta is bounded to the five visual-token contract files listed above and is compatible with current Develop `7617509e405c47fd872ad49f9a047e098c9f06a0` by disjoint-file comparison. Preserve the current Develop adaptive DirectChat boundary regression.
+
+## Next UI gap
+
+After the synchronized current-Develop descendant is canonical green, use the opened reference pixels plus an actual current render to pick at most one highest visible hierarchy/spacing/typography/composer/inspector mismatch. Do not rework UI-GAP-0001 through UI-GAP-0004 unless a current exact-SHA regression reproduces them.
