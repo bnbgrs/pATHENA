@@ -1,9 +1,9 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `82aaef0caaa90599f530acc84d728b602dee6739`
+Baseline: `2a90e71bc2c604cd745766a608481fc14106ec07`
 Integration target: `develop/pathena-next`
 
-Only evidence-backed gaps belong here. Slot 01 has direct pixel evidence in this run from the opened user-library reference `pATHENA: Dunkles KI-Dashboard mit Wissenspanel.png`. No screenshot-level `MATCH` claim is asserted because a real rendered current build from the exact candidate SHA has not yet been opened side-by-side with that reference.
+Only evidence-backed gaps belong here. Slot 01 has direct pixel evidence from the opened user reference `pATHENA: Dunkles KI-Dashboard mit Wissenspanel.png`. No screenshot-level `MATCH` claim is asserted because a real rendered current build from the exact candidate SHA has not yet been opened side-by-side with that reference.
 
 ## UI-GAP-0001 — Inspector naming does not express the Evidence & Activity contract
 
@@ -45,11 +45,13 @@ Only evidence-backed gaps belong here. Slot 01 has direct pixel evidence in this
 - Severity: `P1`
 - Status: `IMPLEMENTED_PENDING_VERIFY`
 - Pixel evidence: the opened user reference shows the composer as a large, prominent work surface near the lower center of the workspace, with a clearly separated arrow send target. Current Develop inherited the legacy `composer.setFixedHeight(58)` and compact controls.
-- Candidate behavior: keep the existing real chat input, grounding control and send route; enlarge the composer to 88 px, give the prompt a 44 px minimum interaction height, keep the real grounding control at 36 px minimum, and make the existing send control a 44×44 target with no new or decorative control.
-- Product blob candidate: `951d42436388539e0aa1f90760f33c6ef9ebe6fc`.
-- Focused Qt contract candidate: `8e29fcfc5e8ac0ba4a402ae07f1f593783588063`.
+- Candidate behavior: keep the existing real chat input, grounding control and send route; enlarge the composer to 88 px, fix the prompt interaction height at 44 px, keep the real grounding control at a polished fixed 36 px, and make the existing send control a 44×44 target with no new or decorative control.
+- Exact prior verification: canonical Quality `34336304734` on `04a4e5d29421dc786c4894fd2091726fdeb5813a` passed validator, Ruff, mypy, Windows path safety, Linux storage and local-install smoke. Full pytest had exactly one failure: after Qt event processing, `ground_button.minimumHeight()` materialized as 48 rather than the required 36; all preceding composer assertions passed. Summary: `1 failed, 4823 passed, 3 skipped`.
+- Current product blob candidate: `adce9a95e5e92a4d103277af88a811a677c59afe`; it applies `ensurePolished()` before `setFixedHeight(36)` to the existing grounding control, mirroring the already effective prompt lifecycle fix.
+- Shared foundation blob: `873990af3ec0c49e66af7e1bd688f7aead4a6aac`.
+- Focused Qt contract candidate: `8e29fcfc5e8ac0ba4a402ae07f1f593783588063`; assertions are unchanged and no Skip/XFail is introduced.
 - Acceptance: no chat submission, grounding, model/provider, persistence, focus, shortcut, accessibility-name or backend semantics change; no fake Attach/Focus controls are introduced.
-- Verification required: focused `tests/unit/test_pathena_window.py`, then canonical Quality on the exact candidate head. Screenshot-level parity remains unverified until a current render is opened against the reference.
+- Verification required: canonical Quality on the exact final synchronized candidate head. Screenshot-level parity remains unverified until a current render is opened against the reference.
 
 ## Evidence blocker
 

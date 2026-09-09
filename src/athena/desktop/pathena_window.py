@@ -195,7 +195,8 @@ class PathenaMainWindow(AthenaMainWindow):
         self.ground_button.setObjectName("groundButton")
         self.ground_button.setText("Sources")
         self.ground_button.setToolTip("Ground this message in available sources")
-        self.ground_button.setMinimumHeight(36)
+        self.ground_button.ensurePolished()
+        self.ground_button.setFixedHeight(36)
 
         self.send_button.setObjectName("sendButton")
         self.send_button.setText("→")

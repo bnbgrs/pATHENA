@@ -2,46 +2,52 @@
 
 ## Current baseline
 
-- Develop source checked first: `develop/pathena-next@82aaef0caaa90599f530acc84d728b602dee6739`.
-- Worker before sync: `postmerge/ui@3cbb2aee7fb3e3bc48b7d6a9fefe86ea3132cb9e`.
-- Prior worker exact canonical Quality: `34312166038 = success`.
-- History-preserving NON-FORCE synchronization: `0c78b3e43cf7886efa6320c0354159498cc67b29`, using the current Develop tree with both UI and Develop histories retained.
+- Develop source checked first: `develop/pathena-next@2a90e71bc2c604cd745766a608481fc14106ec07`.
+- Worker source checked first: `postmerge/ui@04a4e5d29421dc786c4894fd2091726fdeb5813a`.
+- Current Develop changes since the common baseline are limited to canonical Quality workflow/release-guard tests and the Integrator handoff; they are disjoint from the active Qt product/test slice.
+- The synchronized candidate is assembled history-preservingly with both UI and current Develop parents; branch movement remains NON-FORCE only.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Evidence consumed this run
 
-The user-library reference `pATHENA: Dunkles KI-Dashboard mit Wissenspanel.png` was actually opened. It shows a deep-black Workspace/Chat surface, narrow left-owned navigation, quiet top status chrome, a large central work area and a materially larger lower composer with a distinct arrow send target. No current-build screenshot was available side-by-side, so no `MATCH` or pixel-parity claim is made.
+The current required handoffs, 11-screen manifest and Visual Gap Ledger were reviewed before mutation. Error handoff reports no OPEN current error. Historical Core/Backend items are not reopened.
 
-Current Develop product code still inherits the legacy base composer geometry from `AthenaMainWindow._build_command_input()` (`composer.setFixedHeight(58)`). The visible pATHENA wrapper already reuses the real prompt input, grounding path and send route, making composer scale a bounded presentation-only gap rather than a need for a mock feature.
+Slot 01 remains the only directly opened pixel reference currently recorded: `pATHENA: Dunkles KI-Dashboard mit Wissenspanel.png`. It supports a deep-black Workspace/Chat surface, narrow left-owned navigation, quiet top status chrome, a large central work area and a materially larger lower composer. No current-build screenshot was opened side-by-side in this run, so no `MATCH` or pixel-parity claim is made.
 
 ## Active slice — UI-GAP-0004 Workspace composer scale
 
 Status: `IMPLEMENTED_PENDING_VERIFY`, P1.
 
-Candidate product blob `951d42436388539e0aa1f90760f33c6ef9ebe6fc` changes only `src/athena/desktop/pathena_window.py` presentation geometry:
+The real composer keeps the existing chat input, grounding route and send action. Candidate presentation contract:
 
 - composer fixed height: 88 px;
 - composer accessible name: `Message composer`;
-- prompt minimum height: 44 px;
-- real grounding control minimum height: 36 px;
+- prompt fixed interaction height: 44 px after Qt polish;
+- real `Sources` grounding control fixed interaction height: 36 px after Qt polish;
 - existing send control fixed to 44×44 px while retaining the real send signal, tooltip, accessible name and Ctrl+Enter route;
-- modest composer margins/spacing to prevent the larger targets from crowding the workspace.
+- no decorative/mock controls.
 
-No Attach/Focus mock controls are added. Chat submission, grounded/direct routing, model/provider selection, persistence, Storage, Security, Recovery, worker/scheduler and backend semantics are unchanged.
+No chat submission, grounding, model/provider, persistence, Storage, Security, Recovery, worker/scheduler or backend semantics changed.
 
-Focused Qt contract blob `8e29fcfc5e8ac0ba4a402ae07f1f593783588063` extends `tests/unit/test_pathena_window.py` to assert the enlarged real composer, its accessible name and the 44×44 send target without weakening existing navigation, inspector, accessibility or routing assertions.
+## Exact verification consumed
+
+Canonical Quality `34336304734` on exact prior UI head `04a4e5d29421dc786c4894fd2091726fdeb5813a` completed with only full pytest red. Specification validator, Ruff, mypy, Windows path safety, Linux storage and local-install smoke were green.
+
+Full pytest collected 4827 tests and ended `1 failed, 4823 passed, 3 skipped`. The only failure was `tests/unit/test_pathena_window.py::test_reference_composer_uses_large_work_surface_and_send_target`: after `app.processEvents()`, composer 88 px and prompt 44 px already passed, but the real grounding button materialized `minimumHeight() == 48` instead of the unchanged required 36 px.
+
+The current corrective product blob `adce9a95e5e92a4d103277af88a811a677c59afe` applies `ensurePolished()` before `setFixedHeight(36)` to the existing grounding control. This is presentation-only and mirrors the already working prompt lifecycle treatment. The focused Qt contract remains blob `8e29fcfc5e8ac0ba4a402ae07f1f593783588063`; assertions were not weakened and no Skip/XFail was introduced.
 
 ## Coordination
 
-- Current Develop already contains the bounded left-owned primary-navigation integration at `82aaef0caaa90599f530acc84d728b602dee6739`; do not reopen that slice absent a current exact-SHA regression.
+- Current Develop already owns the integrated left-primary-navigation slice; do not reopen it absent a current exact-SHA regression.
 - Core/Search work remains Core-owned.
 - Backend/Storage/Security semantics remain untouched.
-- Error handoff currently reports no OPEN error; no historical runtime signature is reopened here.
-- Slot 01 in the manifest now records direct reference availability; other slots remain `VISUAL_REFERENCE_PENDING` unless opened directly.
+- Error handoff currently reports no OPEN error.
+- Slot 01 remains reference-available; other slots remain `VISUAL_REFERENCE_PENDING` unless their original pixels are opened directly.
 
 ## Verification / Integrator handoff
 
-Do not mark UI-GAP-0004 Integrator-ready until the focused Qt test and canonical Quality complete on the exact final candidate head containing product, test, manifest, ledger and this handoff. If the exact candidate is green and Develop remains compatible, the slice is bounded for Integrator review. A green code gate still does not imply screenshot-level `MATCH`.
+Do not mark UI-GAP-0004 Integrator-ready until canonical Quality completes green on the exact final synchronized candidate containing product, test, manifest, ledger and this handoff. A green code gate still does not imply screenshot-level `MATCH`.
 
 ## Next gap
 
