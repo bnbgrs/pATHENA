@@ -8,10 +8,11 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 
 ## Current baseline
 
-- Develop source of truth: `develop/pathena-next@8b6023b64991489f3570f9c99a0feb89f5bbe500`.
-- Error worker entered this run at `postmerge/errors@7e83a9ad6045f547ef1670431d7af6775a21c0b3`.
-- Current workers reviewed: Backend `0f07617e6982f029eb6210e7b7f5a28fab853ffe`; Spec/Core `850b631007ba3f359b9b16c619c692d853d75663`; UI `4fad529c471c783e62d6029d6ea72a2147727196`.
-- Latest exact Backend canonical Quality consumed: `34324159266@0f07617e6982f029eb6210e7b7f5a28fab853ffe = FAILURE`; Windows path safety PASS, Linux storage PASS, Local install smoke PASS, specification validator PASS, mypy PASS, Ruff FAIL, full pytest FAIL. Diagnostics artifact: `10093816318`.
+- Develop source of truth: `develop/pathena-next@0abc53a35e6c99bf7070875633d3f81f6bc09395`.
+- Error worker entered this run at `postmerge/errors@72b6c7bf0ed148ce1f2f274ae6940a14053c6655`.
+- Current workers reviewed: Backend `5d8b73eeae04fb5d4a0f3c0bc7f31d767c30b82f`; Spec/Core `850b631007ba3f359b9b16c619c692d853d75663`; UI `24d703dd1711ad663779784f96119dade62fe732`.
+- Latest exact Backend canonical Quality consumed: `34329321526@5d8b73eeae04fb5d4a0f3c0bc7f31d767c30b82f = FAILURE`; Windows path safety PASS, Linux storage PASS, Local install smoke PASS including pypdf packaging metadata, specification validator PASS, mypy PASS, Ruff FAIL, full pytest FAIL (`23 failed, 4836 passed, 3 skipped`). Diagnostics artifact: `10096038673`.
+- Exact Develop Quality `34331712073@0abc53a35e6c99bf7070875633d3f81f6bc09395` is currently `IN_PROGRESS`; no competing run was started.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current state
@@ -26,8 +27,7 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Severity: P2.
 - Status: `IN_PROGRESS`.
 - Exact rule/file family: Ruff `I001` in `src/athena/storage/schema.py`.
-- Prior exact diagnostics established exactly one autofixable I001 covering the module import block. Manual two-symbol reorder hypotheses are superseded.
-- Exact current reproduction: canonical Quality `34324159266@0f07617e6982f029eb6210e7b7f5a28fab853ffe` remains Ruff red while validator, mypy and all three platform/install jobs are green.
+- Exact current reproduction: canonical Quality `34329321526@5d8b73eeae04fb5d4a0f3c0bc7f31d767c30b82f` reports exactly one import-block I001 and Ruff states it is fixable with `--fix`; validator, mypy and all platform/install jobs are green.
 - Next mutation prerequisite: exact Ruff 0.15.22 `--fix` output on the current schema blob, followed by focused Ruff PASS. Do not hand-guess ordering.
 - Integrator: HOLD Backend v41/Research-dependent integration.
 
@@ -37,9 +37,8 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Status: `IN_PROGRESS`.
 - Root cause: stale harness expectations treat v40 / `0040_grounded_response_receipts` as current, while reconstructed predecessors can retain the v41-only `research_delta_boundaries` table and collide with strict real v40→v41 migration.
 - Grounded-response-receipt subcluster remains CLOSED from exact six-test PASS evidence on `102aecd2c61415b0a428f6e69bba61bd3fb54f0b`.
-- New exact candidate consumed this run: Backend product commit `f3a0ca7f763ce554d60f5fd5ffa3fc05a6ec5f12`, handed off at `0f07617e6982f029eb6210e7b7f5a28fab853ffe`, changes only the protected-source semantic harness plus disjoint Develop synchronization/docs. The harness updates current schema expectations to v41 and removes `research_delta_boundaries` when reconstructing v38. Production schema/migration/Storage/WAL/Recovery code is untouched.
-- Canonical Quality `34324159266@0f07617e6982f029eb6210e7b7f5a28fab853ffe` completed FAILURE. Aggregate pytest red neither proves nor disproves the two protected-source tests. Therefore this bounded subcluster remains `IN_PROGRESS`, not FIXED, until assertion-level exact evidence is consumed.
-- Diagnostics artifact `10093816318` is the next evidence source.
+- Backup-retention v34 reconstruction/current-v41 expectation subcluster is now CLOSED on exact Backend candidate `5d8b73eeae04fb5d4a0f3c0bc7f31d767c30b82f`: canonical diagnostics artifact `10096038673` / Quality `34329321526` shows `tests/unit/test_backup_retention.py ..... [7%]`, i.e. all five tests in that file passed. The bounded repair drops v41-only `research_delta_boundaries` from the reconstructed v34 fixture and expects `RESEARCH_DELTA_BOUNDARY_MIGRATION_ID` after the unchanged migration chain. Production schema/migration/Storage/WAL/Recovery code is untouched.
+- Overall `ERR-0028` remains `IN_PROGRESS`: the same exact suite still has independent v41 fixture failures, including legacy migrations that retain `research_delta_boundaries` and current-version assertions still expecting `0040_grounded_response_receipts`. Do not reopen the closed backup-retention subcluster absent exact-current regression.
 
 ## ERR-0029 — WAL harness collaborators incompatible with canonical exact-type runtime guards
 
