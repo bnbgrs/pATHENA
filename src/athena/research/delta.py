@@ -30,11 +30,14 @@ def enqueue_delta(
     max_hierarchy_depth: int = DEFAULT_MAX_HIERARCHY_DEPTH,
 ) -> JobRecord:
     """Enqueue a new Delta Research job over explicit canonical Sources only."""
-    if (
-        isinstance(explicit_source_ids, (str, bytes, bytearray))
-        or not isinstance(explicit_source_ids, Sequence)
-        or any(not isinstance(item, uuid.UUID) for item in explicit_source_ids)
+    raw_source_ids: object = explicit_source_ids
+    if isinstance(raw_source_ids, (str, bytes, bytearray)) or not isinstance(
+        raw_source_ids, Sequence
     ):
+        raise ResearchConfigurationError(
+            "Delta Research explicit_source_ids must contain UUID values only."
+        )
+    if any(not isinstance(item, uuid.UUID) for item in raw_source_ids):
         raise ResearchConfigurationError(
             "Delta Research explicit_source_ids must contain UUID values only."
         )
