@@ -17,6 +17,7 @@ from uuid import UUID
 
 _HANDLER_MARKER = "_athena_console_handler"
 _REDACTED = "[REDACTED]"
+_REDACTED_CONTENT = "[REDACTED_CONTENT]"
 _MAX_SANITIZE_DEPTH = 8
 
 _SENSITIVE_KEY_NAMES = frozenset(
@@ -42,6 +43,25 @@ _SENSITIVE_KEY_NAMES = frozenset(
     }
 )
 _SENSITIVE_URL_QUERY_NAMES = frozenset({"code", "state", "key", "nonce"})
+_SEMANTIC_PAYLOAD_KEY_NAMES = frozenset(
+    {
+        "knowledgebody",
+        "prompt",
+        "modeloutput",
+        "sourcechunk",
+        "chattext",
+        "documentcontent",
+        "messagecontent",
+        "outputtext",
+        "knowledgecontent",
+        "sourcecontent",
+        "requestbody",
+        "responsebody",
+        "content",
+        "text",
+        "body",
+    }
+)
 _SENSITIVE_KEY_SUFFIXES = (
     "password",
     "passwd",
@@ -65,6 +85,12 @@ _TEXT_SECRET_KEY_PATTERN = (
     r"access[-_ ]?token|refresh[-_ ]?token|token|secret|credential(?:s)?|"
     r"cookie|set[-_ ]?cookie"
 )
+_SEMANTIC_PAYLOAD_TEXT_PATTERN = (
+    r"knowledge[-_ ]?body|prompt|model[-_ ]?output|source[-_ ]?chunk|"
+    r"chat[-_ ]?text|document[-_ ]?content|message[-_ ]?content|"
+    r"output[-_ ]?text|knowledge[-_ ]?content|source[-_ ]?content|"
+    r"request[-_ ]?body|response[-_ ]?body|content|text|body"
+)
 
 _URL_RE = re.compile(r"https?://[^\s<>\"']+", flags=re.IGNORECASE)
 _BEARER_RE = re.compile(r"\bBearer\s+[A-Za-z0-9._~+/=-]+", flags=re.IGNORECASE)
@@ -84,10 +110,21 @@ _JSON_SECRET_ASSIGNMENT_RE = re.compile(
     r"(?P<quote>[\"'])(?P<value>.*?)(?P=quote)",
     flags=re.IGNORECASE,
 )
+_JSON_SEMANTIC_ASSIGNMENT_RE = re.compile(
+    rf"(?P<prefix>[\"'](?:{_SEMANTIC_PAYLOAD_TEXT_PATTERN})[\"']\s*:\s*)"
+    r"(?P<quote>[\"'])(?P<value>.*?)(?P=quote)",
+    flags=re.IGNORECASE,
+)
 _SECRET_ASSIGNMENT_RE = re.compile(
     rf"(?P<key>{_TEXT_SECRET_KEY_PATTERN})"
     r"(?P<sep>\s*[:=]\s*)"
     r"(?P<value>[^\s,;&]+)",
+    flags=re.IGNORECASE,
+)
+_SEMANTIC_ASSIGNMENT_RE = re.compile(
+    rf"(?<![?&])\b(?P<key>{_SEMANTIC_PAYLOAD_TEXT_PATTERN})"
+    r"(?P<sep>\s*[:=]\s*)"
+    r"(?P<value>[^\r\n]*)",
     flags=re.IGNORECASE,
 )
 
@@ -105,9 +142,17 @@ def _is_sensitive_key(key: str) -> bool:
     return normalized.endswith(_SENSITIVE_KEY_SUFFIXES)
 
 
+def _is_semantic_payload_key(key: str) -> bool:
+    return _normalized_key(key) in _SEMANTIC_PAYLOAD_KEY_NAMES
+
+
 def _is_sensitive_url_query_key(key: str) -> bool:
     normalized = _normalized_key(key)
-    return _is_sensitive_key(key) or normalized in _SENSITIVE_URL_QUERY_NAMES
+    return (
+        _is_sensitive_key(key)
+        or _is_semantic_payload_key(key)
+        or normalized in _SENSITIVE_URL_QUERY_NAMES
+    )
 
 
 def _redact_url(raw_url: str) -> str:
@@ -132,7 +177,14 @@ def _redact_url(raw_url: str) -> str:
     query_pairs = parse_qsl(parts.query, keep_blank_values=True)
     redacted_query = urlencode(
         [
-            (key, _REDACTED if _is_sensitive_url_query_key(key) else value)
+            (
+                key,
+                _REDACTED_CONTENT
+                if _is_semantic_payload_key(key)
+                else _REDACTED
+                if _is_sensitive_url_query_key(key)
+                else value,
+            )
             for key, value in query_pairs
         ],
         doseq=True,
@@ -163,11 +215,22 @@ def _sanitize_text(value: str) -> str:
         ),
         text,
     )
+    text = _JSON_SEMANTIC_ASSIGNMENT_RE.sub(
+        lambda match: (
+            f"{match.group('prefix')}{match.group('quote')}"
+            f"{_REDACTED_CONTENT}{match.group('quote')}"
+        ),
+        text,
+    )
 
     def replace_assignment(match: re.Match[str]) -> str:
         return f"{match.group('key')}{match.group('sep')}{_REDACTED}"
 
-    return _SECRET_ASSIGNMENT_RE.sub(replace_assignment, text)
+    text = _SECRET_ASSIGNMENT_RE.sub(replace_assignment, text)
+    return _SEMANTIC_ASSIGNMENT_RE.sub(
+        lambda match: f"{match.group('key')}{match.group('sep')}{_REDACTED_CONTENT}",
+        text,
+    )
 
 
 def _safe_type_name(value: object) -> str:
@@ -183,6 +246,8 @@ def _sanitize_value(
 ) -> object:
     if key_hint is not None and _is_sensitive_key(key_hint):
         return _REDACTED
+    if key_hint is not None and _is_semantic_payload_key(key_hint):
+        return _REDACTED_CONTENT
     if depth >= _MAX_SANITIZE_DEPTH:
         return "<max-depth>"
 
@@ -251,7 +316,7 @@ def _sanitize_format_args(args: object) -> object:
 
 def _safe_log_message(record: logging.LogRecord) -> str:
     if isinstance(record.msg, str):
-        template = _sanitize_text(record.msg)
+        template = record.msg
     else:
         sanitized_message = _sanitize_value(record.msg)
         if isinstance(sanitized_message, str):
@@ -264,15 +329,16 @@ def _safe_log_message(record: logging.LogRecord) -> str:
         )
 
     if not record.args:
-        return template
+        return _sanitize_text(template)
 
     safe_args = _sanitize_format_args(record.args)
     try:
-        return _sanitize_text(template % safe_args)
+        rendered = template % safe_args
     except (KeyError, TypeError, ValueError):
         # Malformed format records still produce a useful event without
         # falling back to raw argument repr/str behavior.
-        return f"{template} [formatting-error]"
+        rendered = f"{template} [formatting-error]"
+    return _sanitize_text(rendered)
 
 
 def _safe_frame_filename(filename: str) -> str:
@@ -332,6 +398,7 @@ class JsonFormatter(logging.Formatter):
             ).isoformat(timespec="milliseconds"),
             "level": record.levelname,
             "logger": record.name,
+            "component": record.name,
             "message": _safe_log_message(record),
         }
 

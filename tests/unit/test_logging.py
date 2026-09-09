@@ -22,6 +22,7 @@ def test_json_formatter_produces_machine_readable_event() -> None:
 
     assert payload["level"] == "INFO"
     assert payload["logger"] == "athena.test"
+    assert payload["component"] == "athena.test"
     assert payload["message"] == "hello"
     assert payload["event"] == "test.event"
     assert payload["timestamp"].endswith("+00:00")
