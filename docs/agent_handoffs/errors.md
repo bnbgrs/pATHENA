@@ -3,29 +3,29 @@
 ## Baseline
 
 - Develop source of truth: `develop/pathena-next@ee7803f9b73140a3789893c25919b011d4e8d23b`.
-- Error worker pre-run head: `postmerge/errors@ebccfe6987f9f3a6f5ea2a9f56a0890227454ae1`.
-- Current workers: Spec/Core `6b833fdbe9066dbd17f8a54272b0543d7c5d5ece`; Backend `db0f5f440fab60b3e66c4d3843c42147a1937aba`; UI `21a5a1adb57023d57feae5c13ca247cba5e5cba4`.
-- Exact Develop canonical Quality `34337745698@2a90e71bc2c604cd745766a608481fc14106ec07 = FAILURE`, bounded to Ruff `I001` in `tests/unit/test_quality_workflow_contract.py`; Mypy, full Pytest, Windows path safety, Linux storage, Local install smoke and specification validator passed.
-- Current Develop `ee7803f9b73140a3789893c25919b011d4e8d23b` contains the bounded Integrator Ruff correction and already has canonical Quality `34343282932` queued; no competing canonical run was started.
+- Error worker pre-run head: `postmerge/errors@3993a24ae8c855fdcea11ef6f0deb1e7d0fcd4e9`.
+- Current workers: Spec/Core `6b833fdbe9066dbd17f8a54272b0543d7c5d5ece`; Backend `db0f5f440fab60b3e66c4d3843c42147a1937aba`; UI `a238f85a7e532afc762038610cc0ffafe04e1c00`.
+- Exact Develop canonical Quality `34343282932@ee7803f9b73140a3789893c25919b011d4e8d23b = SUCCESS`; the prior bounded Develop Ruff defect is superseded/closed.
 - Exact Backend canonical Quality `34340662717@db0f5f440fab60b3e66c4d3843c42147a1937aba = FAILURE`; diagnostics artifact `10100384616`.
+- No queued/in-progress canonical run existed on `postmerge/errors` before the documentation mutation.
 - `main` and `bnbgrs/ATHENA` remain read-only/untouched.
 
 ## Current error state
 
-- IN_PROGRESS: `ERR-0026`, `ERR-0027`, `ERR-0028`, `ERR-0029`.
+- IN_PROGRESS: `ERR-0026`, `ERR-0028`, `ERR-0029`.
 - STALE: `ERR-0014`, `ERR-0025`.
-- FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015` through `ERR-0024`.
+- FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015` through `ERR-0024`, `ERR-0027`.
 - OPEN / FIXED_PENDING_VERIFY / BLOCKED: none.
 
-## Hard progress this run — ERR-0028 deletion-ledger subcluster CLOSED
+## Hard progress this run — ERR-0027 CLOSED
 
-Backend exact head `db0f5f440fab60b3e66c4d3843c42147a1937aba` completed canonical Quality `34340662717 = FAILURE`. Windows path safety, Local install smoke, Linux storage regressions, specification validator and mypy passed; Ruff and full Pytest remained red. Canonical diagnostics end `19 failed, 4840 passed, 3 skipped`.
+`ERR-0027` is `FIXED` on exact Backend `db0f5f440fab60b3e66c4d3843c42147a1937aba`.
 
-Assertion-level evidence resolves the bounded deletion-ledger v41 fixture repair: canonical `pytest.txt` contains all three test families as fully green — `tests/unit/test_deletion_ledger.py ..... [15%]`, `tests/unit/test_deletion_ledger_boundaries.py ...................... [15%]`, and `tests/unit/test_deletion_ledger_targets.py ......... [15%]`. That is 36/36 tests passing on exact SHA `db0f5f440fab60b3e66c4d3843c42147a1937aba`.
+Canonical Quality `34340662717` diagnostics show `tests/unit/test_schema_contract_boundary.py ..... [86%]`, so all 5 schema-boundary tests pass on the exact worker SHA. This is sufficient assertion-level evidence rather than an aggregate-suite inference.
 
-The candidate commit is explicitly a harness repair for a v41 legacy fixture. No production schema, Storage, WAL, Recovery, Security or release guard is weakened. Therefore the deletion-ledger subcluster is `FIXED`/CLOSED. `ERR-0028` overall remains `IN_PROGRESS`: the same exact suite still reports independent v41 fixture/current-version failures such as `research_delta_boundaries already exists`, stale `0040_grounded_response_receipts` expectations, and resulting storage-bootstrap cascades in other test families.
+The relevant contract test is comprehensive: `test_schema_reexports_contract_constants()` dynamically enumerates every uppercase constant exported by `athena.storage.schema_contract` and asserts that `athena.storage.schema` exposes an equal value for every one. Therefore the Research Delta migration constants are covered by the current contract without a special-case assertion. The same exact-green module verifies `DatabaseCompatibilityError` identity/pickle compatibility, `_user_tables` identity, absence of duplicated contract implementation in the facade, and absence of a reverse import cycle.
 
-Do not reopen grounded-response-receipt, backup-retention, operational-error physical-cleanup, or deletion-ledger subclusters without exact-current regression evidence.
+No product mutation was needed. The previously suspected current schema-facade re-export gap is disproven/closed by exact current Backend evidence. Do not reopen `ERR-0027` absent an exact-current focused or canonical regression.
 
 ## Other active root causes
 
@@ -33,25 +33,24 @@ Do not reopen grounded-response-receipt, backup-retention, operational-error phy
 
 Exact Backend Quality `34340662717@db0f5f440fab60b3e66c4d3843c42147a1937aba` still contains exactly one Ruff `I001` in `src/athena/storage/schema.py`, reported fixable by `--fix`. Do not commit another hand-sorted import guess; require exact Ruff 0.15.22 `--fix` output plus focused Ruff PASS.
 
+### ERR-0028 — v41 legacy fixtures/current-version assertions
+
+Grounded-response-receipt, backup-retention, operational-error physical-cleanup and deletion-ledger subclusters remain CLOSED from their exact passing evidence. Overall `ERR-0028` stays `IN_PROGRESS`: exact Backend diagnostics still report 19 independent failures, principally stale `0040_grounded_response_receipts` current-version assertions, legacy fixtures retaining v41-only `research_delta_boundaries`, and storage-bootstrap cascades from those fixture defects. Closed subclusters must not be reopened without exact-current regression.
+
 ### ERR-0029 — WAL exact-type harness drift
 
 Production exact-type fail-closed guards remain authoritative. No current focused/assertion-level PASS has been consumed for remaining WAL harness cases; keep `IN_PROGRESS`.
 
-### ERR-0027 — v41 schema-facade re-export
-
-Current Backend lineage visibly carries both Research Delta constants, but no exact focused passing contract assertion has been consumed. Keep `IN_PROGRESS`.
-
 ## Integrator handoff
 
-- HOLD Backend v41 / Research-dependent integration.
-- Exact Backend head: `db0f5f440fab60b3e66c4d3843c42147a1937aba`; canonical Quality `34340662717 = FAILURE`; diagnostics artifact `10100384616`.
-- `ERR-0028` deletion-ledger subcluster: `FIXED`/CLOSED on exact `db0f5f440fab60b3e66c4d3843c42147a1937aba`, with 36/36 tests passing across the three deletion-ledger files. Overall `ERR-0028` remains `IN_PROGRESS` for other independent v41 fixture/current-version failures.
+- Develop exact head `ee7803f9b73140a3789893c25919b011d4e8d23b` is canonical green by Quality `34343282932 = SUCCESS`.
+- HOLD Backend v41 / Research-dependent integration because current Backend `db0f5f440fab60b3e66c4d3843c42147a1937aba` remains canonical red from independent Ruff/full-Pytest failures.
+- `ERR-0027`: `FIXED` on exact Backend `db0f5f440fab60b3e66c4d3843c42147a1937aba`; schema contract boundary is 5/5 PASS and dynamically verifies every uppercase contract constant re-export.
 - `ERR-0026`: still one autofixable Ruff I001; require formatter-generated fix and focused Ruff PASS.
-- `ERR-0027`: require focused schema-contract verification before closure.
+- `ERR-0028`: overall `IN_PROGRESS`; preserve all already-closed bounded fixture subclusters and address only exact-current remaining failures.
 - `ERR-0029`: preserve production WAL exact-type guards and require focused evidence before closure.
-- Develop `2a90e71bc2c604cd745766a608481fc14106ec07` failed only its bounded Quality-workflow Ruff formatting check; current Develop `ee7803f9b73140a3789893c25919b011d4e8d23b` carries the narrow correction and has canonical Quality `34343282932` queued. Do not supersede or infer its result.
 - Preserve pypdf packaging, frozen argv, two-EXE split, bounded workers, adaptive 2048-context reserve, Windows lane-lock mapping, duplicate-column/Core-startup/storage-bootstrap release guards.
 
 ## Next verification
 
-First consume completed exact-current Develop Quality `34343282932` when available. For Backend error work, select the highest still-active independent root cause from exact diagnostics; do not spend another run on the now-closed deletion-ledger subcluster. `ERR-0026` requires exact Ruff 0.15.22 autofix output before mutation; remaining `ERR-0028` fixture failures require bounded assertion-level evidence before repair/closure.
+Select the highest still-active independent Backend root cause from exact diagnostics. `ERR-0026` remains a small formatter-owned blocker but must use exact Ruff 0.15.22 autofix output before mutation; `ERR-0028` remains the larger integration-impact fixture family. Do not spend another run on `ERR-0027` unless new exact-current regression evidence appears.
