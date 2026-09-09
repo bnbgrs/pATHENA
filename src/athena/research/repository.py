@@ -92,16 +92,6 @@ from athena.storage.database import SQLiteDatabase
 PRECISE_SYNTHESIS_PROVENANCE_POLICY_ID = "terminal-source-output-v1"
 
 
-
-
-
-
-
-
-
-
-
-
 class ResearchRepository:
     """Own snapshot-frozen local CandidateSets and honest persisted coverage counters."""
 
@@ -263,6 +253,7 @@ class ResearchRepository:
                 ResearchMode.LOCAL_EXHAUSTIVE,
                 ResearchMode.HISTORICAL_BACKFILL,
                 ResearchMode.LOCAL_PLUS_WEB,
+                ResearchMode.DELTA,
             }:
                 raise ResearchScopeUnsupportedError(
                     f"Foundation discovery does not support Research mode {scope.mode.value!r}."
@@ -965,7 +956,6 @@ class ResearchRepository:
             raise ResearchNotFoundError(str(work_item_id))
         return _work_item_from_row(row)
 
-
     def successful_source_analysis_final_artifact_ids(
         self,
         scope_id: uuid.UUID,
@@ -1329,7 +1319,6 @@ class ResearchRepository:
         ).fetchall()
         return tuple(_synthesis_work_input_from_row(row) for row in rows)
 
-
     def split_synthesis_work_item_fenced(
         self,
         work_item_id: uuid.UUID,
@@ -1547,8 +1536,7 @@ class ResearchRepository:
                         child_ordinal,
                         child_inputs,
                     )
-                    for key, child_level, child_ordinal, child_inputs
-                    in normalized_children
+                    for key, child_level, child_ordinal, child_inputs in normalized_children
                 )
             if parent.state is not ResearchSynthesisWorkState.PENDING:
                 raise ResearchStateError(
@@ -1660,7 +1648,6 @@ class ResearchRepository:
                 )
             return tuple(created)
 
-
     def begin_synthesis_attempt_fenced(
         self,
         work_item_id: uuid.UUID,
@@ -1728,9 +1715,7 @@ class ResearchRepository:
         content: Mapping[str, Any],
         processing_run_id: uuid.UUID,
         evidence: Sequence[tuple[str, int, int]],
-        source_evidence: (
-            Sequence[tuple[str, int, uuid.UUID]] | None
-        ) = None,
+        source_evidence: Sequence[tuple[str, int, uuid.UUID]] | None = None,
     ) -> ResearchSynthesisArtifactRecord:
         content_json = _canonical_json_object(content)
         content_hash = hashlib.sha256(content_json.encode("utf-8")).digest()
@@ -1786,18 +1771,13 @@ class ResearchRepository:
 
             if any(
                 input_ordinal not in input_ordinals
-                for _kind, _output_ordinal, input_ordinal
-                in evidence_rows
+                for _kind, _output_ordinal, input_ordinal in evidence_rows
             ):
                 raise ResearchStateError(
-                    "Research synthesis output evidence references "
-                    "a missing work input."
+                    "Research synthesis output evidence references a missing work input."
                 )
 
-            allowed_sources_by_output: dict[
-                tuple[str, int],
-                set[uuid.UUID],
-            ] = {}
+            allowed_sources_by_output: dict[tuple[str, int], set[uuid.UUID]] = {}
             nested_input_was_cited = False
             for kind, output_ordinal, input_ordinal in evidence_rows:
                 input_item = work_inputs[input_ordinal]
@@ -1809,27 +1789,18 @@ class ResearchRepository:
                 ):
                     if input_item.source_analysis_artifact_id is None:
                         raise ResearchStateError(
-                            "Research synthesis direct source input "
-                            "lost its artifact ID."
+                            "Research synthesis direct source input lost its artifact ID."
                         )
-                    reachable = (
-                        input_item.source_analysis_artifact_id,
-                    )
+                    reachable = (input_item.source_analysis_artifact_id,)
                 else:
                     nested_input_was_cited = True
-                    if (
-                        input_item.research_synthesis_artifact_id
-                        is None
-                    ):
+                    if input_item.research_synthesis_artifact_id is None:
                         raise ResearchStateError(
-                            "Research synthesis nested input "
-                            "lost its artifact ID."
+                            "Research synthesis nested input lost its artifact ID."
                         )
-                    reachable = (
-                        self._source_analysis_artifact_ids_for_synthesis_artifact(
-                            connection,
-                            input_item.research_synthesis_artifact_id,
-                        )
+                    reachable = self._source_analysis_artifact_ids_for_synthesis_artifact(
+                        connection,
+                        input_item.research_synthesis_artifact_id,
                     )
 
                 allowed_sources_by_output.setdefault(
@@ -1840,62 +1811,47 @@ class ResearchRepository:
             if requested_source_evidence_rows is None:
                 if nested_input_was_cited:
                     raise ResearchStateError(
-                        "Nested Research synthesis commits require "
-                        "explicit precise terminal source evidence."
+                        "Nested Research synthesis commits require explicit precise "
+                        "terminal source evidence."
                     )
 
                 derived_source_evidence = tuple(
-                    (
-                        kind,
-                        output_ordinal,
-                        source_id,
-                    )
-                    for (kind, output_ordinal), source_ids
-                    in allowed_sources_by_output.items()
+                    (kind, output_ordinal, source_id)
+                    for (kind, output_ordinal), source_ids in allowed_sources_by_output.items()
                     for source_id in source_ids
                 )
 
-                source_evidence_rows = (
-                    _validated_synthesis_source_evidence(
-                        content,
-                        derived_source_evidence,
-                    )
+                source_evidence_rows = _validated_synthesis_source_evidence(
+                    content,
+                    derived_source_evidence,
                 )
             else:
-                source_evidence_rows = (
-                    requested_source_evidence_rows
-                )
+                source_evidence_rows = requested_source_evidence_rows
 
             expected_source_outputs = {
                 (kind, output_ordinal)
-                for kind, output_ordinal, _input_ordinal
-                in evidence_rows
+                for kind, output_ordinal, _input_ordinal in evidence_rows
             }
             actual_source_outputs = {
                 (kind, output_ordinal)
-                for kind, output_ordinal, _source_id
-                in source_evidence_rows
+                for kind, output_ordinal, _source_id in source_evidence_rows
             }
 
             if actual_source_outputs != expected_source_outputs:
                 raise ResearchStateError(
-                    "Research synthesis terminal source backlinks "
-                    "do not cover exactly the synthesized outputs."
+                    "Research synthesis terminal source backlinks do not cover exactly "
+                    "the synthesized outputs."
                 )
 
-            for (
-                kind,
-                output_ordinal,
-                source_artifact_id,
-            ) in source_evidence_rows:
+            for kind, output_ordinal, source_artifact_id in source_evidence_rows:
                 allowed = allowed_sources_by_output.get(
                     (kind, output_ordinal),
                     set(),
                 )
                 if source_artifact_id not in allowed:
                     raise ResearchStateError(
-                        "Research synthesis terminal source backlink "
-                        "escapes the cited input provenance graph."
+                        "Research synthesis terminal source backlink escapes the cited "
+                        "input provenance graph."
                     )
 
             existing = connection.execute(
@@ -1924,8 +1880,7 @@ class ResearchRepository:
                 )
                 if persisted_evidence != expected_evidence:
                     raise ResearchStateError(
-                        "Idempotent Research synthesis artifact "
-                        "disagrees on evidence."
+                        "Idempotent Research synthesis artifact disagrees on evidence."
                     )
 
                 persisted_source_rows = connection.execute(
@@ -1944,24 +1899,15 @@ class ResearchRepository:
                     (
                         str(source_row["output_kind"]),
                         int(source_row["output_ordinal"]),
-                        uuid_from_blob(
-                            bytes(
-                                source_row[
-                                    "source_analysis_artifact_id"
-                                ]
-                            )
-                        ),
+                        uuid_from_blob(bytes(source_row["source_analysis_artifact_id"])),
                     )
                     for source_row in persisted_source_rows
                 )
 
-                if (
-                    persisted_source_evidence
-                    != source_evidence_rows
-                ):
+                if persisted_source_evidence != source_evidence_rows:
                     raise ResearchStateError(
-                        "Idempotent Research synthesis artifact "
-                        "disagrees on terminal source evidence."
+                        "Idempotent Research synthesis artifact disagrees on terminal "
+                        "source evidence."
                     )
 
                 return artifact
@@ -2018,8 +1964,8 @@ class ResearchRepository:
 
                 if scope_signature is None or derived_signature is None:
                     raise ResearchStateError(
-                        "Research synthesis ProcessingRun references an "
-                        "unknown ModelSignature lineage."
+                        "Research synthesis ProcessingRun references an unknown "
+                        "ModelSignature lineage."
                     )
 
                 identity_fields = (
@@ -2033,58 +1979,37 @@ class ResearchRepository:
                     for field in identity_fields
                 ):
                     raise ResearchStateError(
-                        "Research synthesis derived ModelSignature changed "
-                        "the pinned model identity."
+                        "Research synthesis derived ModelSignature changed the pinned "
+                        "model identity."
                     )
 
                 try:
                     derived_context = json.loads(
-                        str(
-                            derived_signature[
-                                "context_configuration_json"
-                            ]
-                        )
+                        str(derived_signature["context_configuration_json"])
                     )
                     derived_generation = json.loads(
-                        str(
-                            derived_signature[
-                                "generation_parameters_json"
-                            ]
-                        )
+                        str(derived_signature["generation_parameters_json"])
                     )
                 except (TypeError, ValueError, json.JSONDecodeError) as exc:
                     raise ResearchStateError(
-                        "Research synthesis derived ModelSignature has "
-                        "invalid configuration JSON."
+                        "Research synthesis derived ModelSignature has invalid "
+                        "configuration JSON."
                     ) from exc
 
-                if (
-                    not isinstance(derived_context, Mapping)
-                    or not isinstance(derived_generation, Mapping)
+                if not isinstance(derived_context, Mapping) or not isinstance(
+                    derived_generation, Mapping
                 ):
                     raise ResearchStateError(
-                        "Research synthesis derived ModelSignature "
-                        "configuration must be JSON objects."
+                        "Research synthesis derived ModelSignature configuration must "
+                        "be JSON objects."
                     )
 
-                expected_base_signature_id = str(
-                    uuid_from_blob(bytes(signature_blob))
-                )
-                base_signature_id = derived_context.get(
-                    "base_model_signature_id"
-                )
-                capacity_policy_id = derived_context.get(
-                    "capacity_policy_id"
-                )
-                base_output_reserve = derived_context.get(
-                    "base_output_reserve"
-                )
-                output_reserve = derived_context.get(
-                    "output_reserve"
-                )
-                generation_output_reserve = (
-                    derived_generation.get("max_output_tokens")
-                )
+                expected_base_signature_id = str(uuid_from_blob(bytes(signature_blob)))
+                base_signature_id = derived_context.get("base_model_signature_id")
+                capacity_policy_id = derived_context.get("capacity_policy_id")
+                base_output_reserve = derived_context.get("base_output_reserve")
+                output_reserve = derived_context.get("output_reserve")
+                generation_output_reserve = derived_generation.get("max_output_tokens")
 
                 valid_capacity_derivation = (
                     base_signature_id == expected_base_signature_id
@@ -2097,27 +2022,21 @@ class ResearchRepository:
                     and not isinstance(output_reserve, bool)
                     and output_reserve > base_output_reserve
                     and isinstance(generation_output_reserve, int)
-                    and not isinstance(
-                        generation_output_reserve,
-                        bool,
-                    )
-                    and generation_output_reserve
-                    == output_reserve
-                    and derived_generation.get("structured_output")
-                    is True
+                    and not isinstance(generation_output_reserve, bool)
+                    and generation_output_reserve == output_reserve
+                    and derived_generation.get("structured_output") is True
                 )
                 if not valid_capacity_derivation:
                     raise ResearchStateError(
-                        "Research synthesis ProcessingRun has an "
-                        "unauthorized derived ModelSignature."
+                        "Research synthesis ProcessingRun has an unauthorized derived "
+                        "ModelSignature."
                     )
             if (
                 str(run["pipeline_version"]) != item.pipeline_version
                 or run["prompt_template_id"] is None
                 or str(run["prompt_template_id"]) != item.prompt_template_id
                 or run["prompt_template_version"] is None
-                or str(run["prompt_template_version"])
-                != item.prompt_template_version
+                or str(run["prompt_template_version"]) != item.prompt_template_version
             ):
                 raise ResearchStateError(
                     "Research synthesis ProcessingRun prompt/pipeline provenance drifted."
@@ -2162,11 +2081,7 @@ class ResearchRepository:
                         input_ordinal,
                     ),
                 )
-            for (
-                kind,
-                output_ordinal,
-                source_artifact_id,
-            ) in source_evidence_rows:
+            for kind, output_ordinal, source_artifact_id in source_evidence_rows:
                 connection.execute(
                     """
                     INSERT INTO research_synthesis_output_source_evidence (
@@ -2312,10 +2227,7 @@ class ResearchRepository:
         output_kind: str,
         output_ordinal: int,
     ) -> tuple[uuid.UUID, ...] | None:
-        if (
-            output_kind not in {"finding", "contradiction"}
-            or output_ordinal < 0
-        ):
+        if output_kind not in {"finding", "contradiction"} or output_ordinal < 0:
             raise ResearchStateError(
                 "Research synthesis output identity is invalid."
             )
@@ -2340,10 +2252,7 @@ class ResearchRepository:
             return None
 
         return tuple(
-            uuid_from_blob(
-                bytes(row["source_analysis_artifact_id"])
-            )
-            for row in rows
+            uuid_from_blob(bytes(row["source_analysis_artifact_id"])) for row in rows
         )
 
     def precise_source_analysis_artifact_ids_for_synthesis_output(
@@ -2353,20 +2262,17 @@ class ResearchRepository:
         output_kind: str,
         output_ordinal: int,
     ) -> tuple[uuid.UUID, ...]:
-        resolved = (
-            self._precise_source_analysis_artifact_ids_for_synthesis_output(
-                artifact_id,
-                output_kind=output_kind,
-                output_ordinal=output_ordinal,
-            )
+        resolved = self._precise_source_analysis_artifact_ids_for_synthesis_output(
+            artifact_id,
+            output_kind=output_kind,
+            output_ordinal=output_ordinal,
         )
 
         if resolved is None:
             raise ResearchStateError(
-                "Research synthesis output has no precise terminal "
-                "SourceAnalysis backlinks. Restart synthesis from "
-                "SourceAnalysis leaves instead of nesting this "
-                "legacy artifact."
+                "Research synthesis output has no precise terminal SourceAnalysis "
+                "backlinks. Restart synthesis from SourceAnalysis leaves instead of "
+                "nesting this legacy artifact."
             )
 
         return resolved
@@ -2378,12 +2284,10 @@ class ResearchRepository:
         output_kind: str,
         output_ordinal: int,
     ) -> tuple[uuid.UUID, ...]:
-        precise = (
-            self._precise_source_analysis_artifact_ids_for_synthesis_output(
-                artifact_id,
-                output_kind=output_kind,
-                output_ordinal=output_ordinal,
-            )
+        precise = self._precise_source_analysis_artifact_ids_for_synthesis_output(
+            artifact_id,
+            output_kind=output_kind,
+            output_ordinal=output_ordinal,
         )
 
         if precise is not None:
@@ -2406,49 +2310,36 @@ class ResearchRepository:
             )
 
         try:
-            run_snapshot = json.loads(
-                str(run_row["input_snapshot_json"])
-            )
+            run_snapshot = json.loads(str(run_row["input_snapshot_json"]))
         except json.JSONDecodeError as exc:
             raise ResearchStateError(
-                "Research synthesis ProcessingRun snapshot "
-                "contains invalid JSON."
+                "Research synthesis ProcessingRun snapshot contains invalid JSON."
             ) from exc
 
         if (
             isinstance(run_snapshot, Mapping)
-            and run_snapshot.get(
-                "precise_provenance_policy_id"
-            )
+            and run_snapshot.get("precise_provenance_policy_id")
             == PRECISE_SYNTHESIS_PROVENANCE_POLICY_ID
         ):
             raise ResearchStateError(
-                "A precise-provenance Research synthesis artifact "
-                "lost its terminal SourceAnalysis backlinks."
+                "A precise-provenance Research synthesis artifact lost its terminal "
+                "SourceAnalysis backlinks."
             )
 
-        # Explicit legacy fallback for pre-v29 / pre-policy artifacts.
         evidence = tuple(
             item
-            for item in self.synthesis_evidence_for_artifact(
-                artifact_id
-            )
-            if item.output_kind == output_kind
-            and item.output_ordinal == output_ordinal
+            for item in self.synthesis_evidence_for_artifact(artifact_id)
+            if item.output_kind == output_kind and item.output_ordinal == output_ordinal
         )
 
         if not evidence:
             raise ResearchStateError(
-                "Research synthesis output has no durable "
-                "evidence backlinks."
+                "Research synthesis output has no durable evidence backlinks."
             )
 
         inputs = {
             input_item.ordinal: input_item
-            for input_item
-            in self.synthesis_inputs_for_work_item(
-                artifact.work_item_id
-            )
+            for input_item in self.synthesis_inputs_for_work_item(artifact.work_item_id)
         }
 
         resolved: set[uuid.UUID] = set()
@@ -2458,39 +2349,24 @@ class ResearchRepository:
 
             if input_item is None:
                 raise ResearchStateError(
-                    "Research synthesis evidence points "
-                    "at a missing input."
+                    "Research synthesis evidence points at a missing input."
                 )
 
             if (
                 input_item.input_kind
                 is ResearchSynthesisInputKind.SOURCE_ANALYSIS_ARTIFACT
             ):
-                assert (
-                    input_item.source_analysis_artifact_id
-                    is not None
-                )
-                resolved.add(
-                    input_item.source_analysis_artifact_id
-                )
+                assert input_item.source_analysis_artifact_id is not None
+                resolved.add(input_item.source_analysis_artifact_id)
             else:
-                assert (
-                    input_item.research_synthesis_artifact_id
-                    is not None
-                )
+                assert input_item.research_synthesis_artifact_id is not None
                 resolved.update(
                     self.source_analysis_artifact_ids_for_synthesis_artifact(
                         input_item.research_synthesis_artifact_id
                     )
                 )
 
-        return tuple(
-            sorted(
-                resolved,
-                key=lambda item: item.bytes,
-            )
-        )
-
+        return tuple(sorted(resolved, key=lambda item: item.bytes))
 
     def get_result_for_scope(
         self,
@@ -2578,7 +2454,8 @@ class ResearchRepository:
             eligible_count = scope.candidate_total - scope.excluded_count
             if scope.processed_count != eligible_count:
                 raise ResearchStateError(
-                    "ResearchResult cannot finalize while eligible source work is nonterminal."
+                    "ResearchResult cannot finalize while eligible source work is "
+                    "nonterminal."
                 )
 
             expected_source_artifacts = set(
@@ -2608,14 +2485,13 @@ class ResearchRepository:
                 ).fetchone()
                 if (
                     final_row is None
-                    or str(final_row["artifact_kind"])
-                    != ResearchSynthesisStage.FINAL.value
+                    or str(final_row["artifact_kind"]) != ResearchSynthesisStage.FINAL.value
                     or str(final_row["state"])
                     != ResearchSynthesisWorkState.COMPLETED.value
                 ):
                     raise ResearchStateError(
-                        "ResearchResult final artifact is absent, cross-scope, "
-                        "or not a completed FINAL synthesis artifact."
+                        "ResearchResult final artifact is absent, cross-scope, or not "
+                        "a completed FINAL synthesis artifact."
                     )
                 actual_source_artifacts = set(
                     self._source_analysis_artifact_ids_for_synthesis_artifact(
@@ -2630,8 +2506,8 @@ class ResearchRepository:
                     )
             elif final_artifact_id is not None:
                 raise ResearchStateError(
-                    "Research with no successful source evidence must not invent "
-                    "a semantic FINAL artifact."
+                    "Research with no successful source evidence must not invent a "
+                    "semantic FINAL artifact."
                 )
 
             problem_rows = connection.execute(
@@ -2673,9 +2549,7 @@ class ResearchRepository:
             payload["problem_sources"] = problems
             payload["snapshot_commit_seq"] = scope.snapshot_commit_seq
             content_json = _canonical_json_object(payload)
-            content_hash = hashlib.sha256(
-                content_json.encode("utf-8")
-            ).digest()
+            content_hash = hashlib.sha256(content_json.encode("utf-8")).digest()
             problems_json = _canonical_json_value(problems)
             result_id = new_uuid7()
 
