@@ -3,45 +3,42 @@
 ## Current branch state
 
 - `main` remains strict read-only at `0d4d621f8a38ddf8eccfa09622bf193687619943`.
-- Develop baseline for this run: `b04b0107f55d8af8b0398e48066481a84d27775f`.
+- Develop baseline for this run: `7617509e405c47fd872ad49f9a047e098c9f06a0`.
 - Integration target: `develop/pathena-next` only.
-- Worker heads reviewed: errors `28028ffdecac12e296e5c6268b0a657934fc74a2`; spec-core `d7032f86adf79746ac73be19b1bcc4542b7e5689`; backend `3fbd8c238b8e926c5c175e37805c3033cb90e6b6`; UI `a426469b503c6276cd6d1fd3ed6d89be0af67948`.
+- Worker heads reviewed: errors `28028ffdecac12e296e5c6268b0a657934fc74a2`; spec-core `f8c06909a03a981464bf022ed6a4e30271225b93`; backend `3fbd8c238b8e926c5c175e37805c3033cb90e6b6`; UI `33dcfb65e386e5a230ca476f4d9be1f36b56853d`.
 - `main` and `bnbgrs/ATHENA` remain untouched/read-only; no force update, history rewrite, auto-merge or main promotion was used.
 
 ## Exact evidence consumed
 
-- Exact Develop head `b04b0107f55d8af8b0398e48066481a84d27775f` had no associated canonical Quality run and no queued/in-progress Develop exact-head gate when mutation eligibility was checked.
-- UI exact head `a426469b503c6276cd6d1fd3ed6d89be0af67948` has canonical Quality `34291934346` still `in_progress`; it was not consumed as READY evidence.
-- Backend exact head `3fbd8c238b8e926c5c175e37805c3033cb90e6b6` has canonical Quality `34290849093` still `in_progress`; it was not consumed as READY evidence.
-- Spec/Core current head is documentation-only over the already-integrated adaptive DirectChat lineage; no new product slice was selected.
-- Error handoff records completed WAL candidate evidence, but the current Backend exact-head gate is still running, so no storage/runtime prerequisite was integrated conservatively.
+- Exact Develop head `7617509e405c47fd872ad49f9a047e098c9f06a0` had no associated canonical Quality run and no queued/in-progress exact-head gate when mutation eligibility was checked.
+- UI product/test candidate `a426469b503c6276cd6d1fd3ed6d89be0af67948` completed canonical Quality `34291934346` with `success` and was not superseded by another product mutation; current UI head is a synchronized documentation descendant.
+- The UI delta against the Develop product baseline is bounded to `src/athena/desktop/pathena_design_tokens.py` plus four design-token/theme/window contract tests. The only Develop change since the worker merge base is the disjoint adaptive DirectChat reserve regression.
+- Backend remained non-READY for conservative Storage/WAL integration; no Backend/runtime mutation was consumed.
 
-## Progress this run — adaptive-reserve upper-bound regression
+## Progress this run — reference-backed black/orange foundation
 
-No current worker was READY at mutation time. A bounded Core-owned release-guard regression was added to `tests/unit/test_direct_chat_context_budget.py`: when the active loaded context is 2048 tokens and sufficient room remains, a smaller configured output reserve of 128 tokens must remain exactly 128 rather than being inflated by adaptive budgeting.
+Integrated the exact-green bounded UI palette slice without importing divergent worker history. The shared pATHENA foundation now uses near-black neutral surfaces, bright neutral typography and functional orange `#F26A21` instead of the prior navy/blue-led palette. Semantic success/info/question/warning/error colors remain distinct. Existing shell geometry, typography scales, motion contracts, navigation behavior and accessibility/focus contracts are preserved and covered by the exact-green worker tests.
 
-This locks the second half of the adaptive-reserve contract: adaptation may reduce the configured reserve to fit the loaded context, but must never increase the user/configured generation ceiling. Existing 2048-context adaptation, one-token boundary and fail-closed exhaustion assertions remain unchanged. No production behavior, provider contract, Storage, Recovery, Security, scheduler/worker, packaging or Windows process semantics changed. No Skip/XFail or assertion weakening was added.
-
-Local repository checkout remained blocked by DNS resolution of `github.com`; the focused pure-function boundary was independently evaluated against the exact current helper semantics and passed. Canonical repository Quality remains required before promotion/readiness claims.
+No new Skip/XFail was added; the pre-existing optional-desktop `pytest.importorskip` in `test_pathena_design_system.py` was unchanged by this slice. No Core, Backend, Storage, Security, Recovery, scheduler/worker, packaging or Windows-runtime semantics changed. No screenshot-level pixel `MATCH` is claimed.
 
 ## Current quality/error state
 
-- UI current exact Quality `34291934346`: `in_progress`.
-- Backend current exact Quality `34290849093`: `in_progress`.
-- Develop after this test/handoff commit has no completed canonical Quality claim yet; promotion-ready remains false.
+- UI source candidate `a426469b503c6276cd6d1fd3ed6d89be0af67948`: canonical Quality `34291934346 = success`.
+- Develop after this integration requires exact-current canonical/focused verification before any Beta/promotion-ready claim.
 - Historical Windows/runtime signatures remain release guards and are not reopened without exact-current reproduction.
 
 ## Tracker / visual state
 
-- `docs/development/ALPHA_BETA_PROGRESS.md` was read as current source-of-truth input. No percentage was invented and no unsafe truncated whole-file rewrite was attempted.
-- The 11-screen manifest and Visual-Gap ledger remain UI evidence sources; this run made no UI product mutation and no visual `MATCH` claim.
+- The 11-screen manifest and Visual-Gap ledger remain the authority for screenshot/reference status. This slice advances the shared reference-backed visual foundation only; it does not establish full-screen pixel parity.
+- `docs/development/ALPHA_BETA_PROGRESS.md` remains evidence source; no percentage was invented.
 
 ## Next integration order
 
 1. Re-check exact-current Develop CI before any further Develop mutation.
-2. Consume UI Quality `34291934346` only if it completes successfully on exact head `a426469b503c6276cd6d1fd3ed6d89be0af67948` without superseding worker commits, then independently review its bounded palette slice.
-3. Consume Backend Quality `34290849093`; keep Backend/Storage/WAL conservative until exact-green before unblocking dependent Core composition.
-4. Preserve the Windows/Packaging/Runtime regression matrix before any Beta/release claim.
+2. Obtain exact-current focused/canonical evidence for the integrated palette product tree.
+3. Re-evaluate current Backend exact-head evidence conservatively; only exact-green Storage/WAL prerequisites may unblock dependent Core composition.
+4. Otherwise consume one bounded exact-green Core/UI successor with disjoint ownership.
+5. Preserve the Windows/Packaging/Runtime regression matrix before any Beta/release claim.
 
 ## Persistent release guards
 
@@ -49,4 +46,4 @@ Retain explicit Beta/release acceptance for pypdf packaging metadata; fail-close
 
 ## Rules retained
 
-No direct work on `main`; no main promotion; no force-push/history rewrite/auto-merge; no Skip/XFail or weaker assertions; no Security/Storage/Windows/Recovery/validator relaxation; no fake success or fabricated provenance.
+No direct work on `main`; no main promotion; no force-push/history rewrite/auto-merge; no new Skip/XFail or weaker assertions; no Security/Storage/Windows/Recovery/validator relaxation; no fake success or fabricated provenance.
