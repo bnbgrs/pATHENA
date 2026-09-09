@@ -189,7 +189,7 @@ class PathenaMainWindow(AthenaMainWindow):
 
         self.prompt_input.setObjectName("promptInput")
         self.prompt_input.setPlaceholderText("Ask, explore, or work with your knowledge…")
-        self.prompt_input.setMinimumHeight(44)
+        self.prompt_input.setFixedHeight(44)
 
         self.ground_button.setObjectName("groundButton")
         self.ground_button.setText("Sources")
