@@ -24,6 +24,24 @@ def test_output_reserve_keeps_configured_reserve_when_context_allows_it() -> Non
     ) == 2048
 
 
+def test_output_reserve_does_not_inflate_smaller_requested_limit() -> None:
+    assert _effective_output_reserve(
+        context_limit=2048,
+        estimated_input_tokens=64,
+        requested_output_reserve=128,
+        safety_margin=256,
+    ) == 128
+
+
+def test_output_reserve_preserves_safety_margin_at_one_token_boundary() -> None:
+    assert _effective_output_reserve(
+        context_limit=2048,
+        estimated_input_tokens=1791,
+        requested_output_reserve=2048,
+        safety_margin=256,
+    ) == 1
+
+
 def test_output_reserve_fails_closed_when_input_and_margin_exhaust_context() -> None:
     with pytest.raises(ContextBuilderError, match="exhaust the active model context"):
         _effective_output_reserve(
