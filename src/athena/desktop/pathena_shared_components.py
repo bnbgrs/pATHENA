@@ -228,7 +228,6 @@ QPushButton:pressed {{
     border-color: {PALETTE.accent_pressed};
 }}
 
-QPushButton#sendButton,
 QPushButton[role="primary"],
 QPushButton[pathenaActionRole="primary"] {{
     color: {PALETTE.canvas};
@@ -238,6 +237,9 @@ QPushButton[pathenaActionRole="primary"] {{
 }}
 
 QPushButton#sendButton {{
+    color: {PALETTE.accent};
+    background: transparent;
+    border-color: transparent;
     min-width: 42px;
     max-width: 42px;
     min-height: 42px;
@@ -246,7 +248,12 @@ QPushButton#sendButton {{
     padding: 0;
 }}
 
-QPushButton#sendButton:hover,
+QPushButton#sendButton:hover {{
+    color: {PALETTE.accent_hover};
+    background: {PALETTE.accent_soft};
+    border-color: transparent;
+}}
+
 QPushButton[role="primary"]:hover,
 QPushButton[pathenaActionRole="primary"]:hover {{
     background: {PALETTE.accent_hover};

@@ -33,18 +33,25 @@ def test_reference_inspector_uses_real_evidence_card_hierarchy() -> None:
     assert f"border-left: 2px solid {PALETTE.accent};" in inspector_block
 
 
-def test_composer_is_prominent_blue_reference_action_area() -> None:
+def test_composer_uses_reference_arrow_send_affordance() -> None:
     composer_block = PATHENA_FOUNDATION_STYLESHEET.split(
         "QFrame#composer", maxsplit=1
     )[1].split("QPushButton {{", maxsplit=1)[0]
     send_block = PATHENA_FOUNDATION_STYLESHEET.split(
-        "QPushButton#sendButton,", maxsplit=1
+        "QPushButton#sendButton {{", maxsplit=1
     )[1].split("QPushButton#sendButton:hover", maxsplit=1)[0]
+    primary_block = PATHENA_FOUNDATION_STYLESHEET.split(
+        'QPushButton[role="primary"],', maxsplit=1
+    )[1].split("QPushButton#sendButton {{", maxsplit=1)[0]
 
     assert "QLineEdit#promptInput" in composer_block
     assert "QPushButton#groundButton" in composer_block
     assert f"background: {PALETTE.surface_raised};" in composer_block
-    assert f"background: {PALETTE.accent};" in send_block
+    assert f"color: {PALETTE.accent};" in send_block
+    assert "background: transparent;" in send_block
+    assert "border-color: transparent;" in send_block
+    assert f"background: {PALETTE.accent};" not in send_block
+    assert f"background: {PALETTE.accent};" in primary_block
     # Qt QSS width/height are content-box values. Together with the inherited
     # 1 px border on each side, 42 px materializes the required 44 px target.
     assert "min-width: 42px;" in send_block
