@@ -36,13 +36,13 @@ def test_reference_inspector_uses_real_evidence_card_hierarchy() -> None:
 def test_composer_uses_reference_arrow_send_affordance() -> None:
     composer_block = PATHENA_FOUNDATION_STYLESHEET.split(
         "QFrame#composer", maxsplit=1
-    )[1].split("QPushButton {{", maxsplit=1)[0]
+    )[1].split("QPushButton {", maxsplit=1)[0]
     send_block = PATHENA_FOUNDATION_STYLESHEET.split(
-        "QPushButton#sendButton {{", maxsplit=1
+        "QPushButton#sendButton {", maxsplit=1
     )[1].split("QPushButton#sendButton:hover", maxsplit=1)[0]
     primary_block = PATHENA_FOUNDATION_STYLESHEET.split(
         'QPushButton[role="primary"],', maxsplit=1
-    )[1].split("QPushButton#sendButton {{", maxsplit=1)[0]
+    )[1].split("QPushButton#sendButton {", maxsplit=1)[0]
 
     assert "QLineEdit#promptInput" in composer_block
     assert "QPushButton#groundButton" in composer_block
