@@ -38,15 +38,14 @@ Only evidence-backed gaps belong here. Slot 01 has direct pixel evidence from th
 - Category: `HIERARCHY / ACCESSIBILITY`
 - Screen: `01 — Workspace / Chat`
 - Severity: `P1`
-- Status: `IMPLEMENTED_PENDING_VERIFY`
+- Status: `FIXED / INTEGRATOR_READY_TECHNICAL`
 - Pixel evidence: the opened user reference shows the composer as a large, prominent work surface near the lower center of the workspace, with a clearly separated arrow send target. Current Develop inherited the legacy compact composer before this UI slice.
-- Candidate behavior: retain the real chat input, grounding control and send route; composer 88 px, prompt 44 px, real Sources control 36 px, send outer target 44×44 px.
-- Exact evidence consumed: canonical Quality `34358994989@3b0c11a16165036d5e8254ed59233408e077b782` passed specification validator, Ruff, mypy, Windows path safety, Linux storage and local-install smoke. Full pytest ended `1 failed, 4818 passed, 3 skipped, 2 warnings`.
-- Exact remaining failure was only `tests/unit/test_pathena_shared_components.py::test_composer_is_prominent_blue_reference_action_area`: the stylesheet-string test still required `min-width: 44px`, while the corrected Qt QSS intentionally uses a 42 px content box plus the inherited 1 px border on each side. The runtime Qt contract in `tests/unit/test_pathena_window.py` independently requires the materialized send control to remain exactly 44×44 px including min/max geometry.
-- Current corrective test contract therefore pins all four QSS content-box dimensions at 42 px plus zero padding, while retaining the existing runtime 44×44 outer-geometry assertions. This aligns the unit contract with Qt's box model rather than weakening the product requirement.
-- Product foundation blob on the failed exact SHA: `4e3165191ad36e72eca1cc5d116cbc3fec8aefb4`; runtime focused contract blob: `8e29fcfc5e8ac0ba4a402ae07f1f593783588063`.
-- Acceptance: no chat submission, grounding, model/provider, persistence, focus, shortcut, accessibility-name, backend, Storage or Security semantics change; no fake controls; no Skip/XFail.
-- Verification required: canonical Quality on the exact final synchronized candidate head. Screenshot-level parity remains unverified until a current render is opened against the reference.
+- Verified behavior: real chat input, grounding control and send route retained; composer 88 px, prompt 44 px, real Sources control 36 px, send outer target 44×44 px.
+- Exact verification: canonical ATHENA Quality Gate `34365616984` on exact synchronized UI head `90a51e111851f80c5e2388c11c4026c6ec62fa09` completed `success`.
+- The final QSS contract uses a 42×42 px send content box plus the inherited 1 px border per side; the runtime Qt contract independently verifies exact 44×44 outer width/height/min/max geometry.
+- Diff versus exact current Develop `c830b96a12d25914c52a0abc7749a6724b19cfae` is bounded to seven UI-owned files: three UI evidence docs, `pathena_shared_components.py`, `pathena_window.py`, and their two focused unit-test files. No Backend/Storage/Security product file is changed.
+- Acceptance preserved: no chat submission, grounding, model/provider, persistence, focus, shortcut, accessibility-name, backend, Storage or Security semantics change; no fake controls; no Skip/XFail.
+- Screenshot-level parity remains unverified until a current render from the exact implementation lineage is opened against the reference.
 
 ## Evidence blocker
 
