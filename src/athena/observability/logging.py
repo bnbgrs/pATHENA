@@ -4,10 +4,202 @@ from __future__ import annotations
 
 import json
 import logging
+import math
+import re
+import traceback
+from collections.abc import Mapping
 from datetime import datetime, timezone
+from types import TracebackType
 from typing import Any
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
+from uuid import UUID
 
 _HANDLER_MARKER = "_athena_console_handler"
+_REDACTED = "[REDACTED]"
+_MAX_SANITIZE_DEPTH = 8
+
+_SENSITIVE_KEY_NAMES = frozenset(
+    {
+        "authorization",
+        "proxyauthorization",
+        "cookie",
+        "setcookie",
+        "apikey",
+        "password",
+        "passwd",
+        "secret",
+        "clientsecret",
+        "token",
+        "accesstoken",
+        "refreshtoken",
+        "credential",
+        "credentials",
+    }
+)
+_SENSITIVE_KEY_SUFFIXES = (
+    "password",
+    "passwd",
+    "secret",
+    "token",
+    "apikey",
+    "credential",
+)
+_NON_SECRET_TOKEN_KEYS = frozenset(
+    {
+        "tokencount",
+        "maxtokens",
+        "inputtokens",
+        "outputtokens",
+        "prompttokens",
+        "completiontokens",
+    }
+)
+
+_URL_RE = re.compile(r"https?://[^\s<>\"']+", flags=re.IGNORECASE)
+_BEARER_RE = re.compile(r"\bBearer\s+[A-Za-z0-9._~+/=-]+", flags=re.IGNORECASE)
+_SECRET_ASSIGNMENT_RE = re.compile(
+    r"(?P<key>"
+    r"authorization|proxy[-_ ]?authorization|api[-_ ]?key|password|passwd|"
+    r"client[-_ ]?secret|access[-_ ]?token|refresh[-_ ]?token|token|secret|"
+    r"credential(?:s)?"
+    r")(?P<sep>\s*[:=]\s*)"
+    r"(?P<value>[^\s,;]+)",
+    flags=re.IGNORECASE,
+)
+
+
+def _normalized_key(key: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", key.casefold())
+
+
+def _is_sensitive_key(key: str) -> bool:
+    normalized = _normalized_key(key)
+    if normalized in _NON_SECRET_TOKEN_KEYS:
+        return False
+    if normalized in _SENSITIVE_KEY_NAMES:
+        return True
+    return normalized.endswith(_SENSITIVE_KEY_SUFFIXES)
+
+
+def _redact_url(raw_url: str) -> str:
+    try:
+        parts = urlsplit(raw_url)
+    except ValueError:
+        return _REDACTED
+
+    host = parts.hostname
+    if host is None:
+        return _REDACTED
+
+    try:
+        port = parts.port
+    except ValueError:
+        return _REDACTED
+
+    host_display = f"[{host}]" if ":" in host and not host.startswith("[") else host
+    host_port = f"{host_display}:{port}" if port is not None else host_display
+    netloc = f"{_REDACTED}@{host_port}" if parts.username is not None else host_port
+
+    query_pairs = parse_qsl(parts.query, keep_blank_values=True)
+    redacted_query = urlencode(
+        [
+            (key, _REDACTED if _is_sensitive_key(key) else value)
+            for key, value in query_pairs
+        ],
+        doseq=True,
+    )
+    return urlunsplit((parts.scheme, netloc, parts.path, redacted_query, parts.fragment))
+
+
+def _sanitize_text(value: str) -> str:
+    text = _URL_RE.sub(lambda match: _redact_url(match.group(0)), value)
+    text = _BEARER_RE.sub(f"Bearer {_REDACTED}", text)
+
+    def replace_assignment(match: re.Match[str]) -> str:
+        return f"{match.group('key')}{match.group('sep')}{_REDACTED}"
+
+    return _SECRET_ASSIGNMENT_RE.sub(replace_assignment, text)
+
+
+def _safe_type_name(value: object) -> str:
+    value_type = type(value)
+    return f"<{value_type.__module__}.{value_type.__qualname__}>"
+
+
+def _sanitize_value(
+    value: object,
+    *,
+    key_hint: str | None = None,
+    depth: int = 0,
+    seen: set[int] | None = None,
+) -> object:
+    if key_hint is not None and _is_sensitive_key(key_hint):
+        return _REDACTED
+    if depth >= _MAX_SANITIZE_DEPTH:
+        return "<max-depth>"
+
+    if value is None or isinstance(value, (bool, int)):
+        return value
+    if isinstance(value, float):
+        return value if math.isfinite(value) else "<non-finite-float>"
+    if isinstance(value, str):
+        return _sanitize_text(value)
+    if isinstance(value, UUID):
+        return str(value)
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, bytes):
+        return f"<bytes:{len(value)}>"
+
+    if seen is None:
+        seen = set()
+
+    if isinstance(value, Mapping):
+        identity = id(value)
+        if identity in seen:
+            return "<cycle>"
+        seen.add(identity)
+        try:
+            sanitized_mapping: dict[str, object] = {}
+            for raw_key, raw_value in value.items():
+                key = raw_key if isinstance(raw_key, str) else _safe_type_name(raw_key)
+                sanitized_mapping[key] = _sanitize_value(
+                    raw_value,
+                    key_hint=key,
+                    depth=depth + 1,
+                    seen=seen,
+                )
+            return sanitized_mapping
+        finally:
+            seen.remove(identity)
+
+    if isinstance(value, (list, tuple)):
+        identity = id(value)
+        if identity in seen:
+            return "<cycle>"
+        seen.add(identity)
+        try:
+            return [
+                _sanitize_value(item, depth=depth + 1, seen=seen)
+                for item in value
+            ]
+        finally:
+            seen.remove(identity)
+
+    return _safe_type_name(value)
+
+
+def _safe_exception(
+    exc_type: type[BaseException],
+    exc_tb: TracebackType | None,
+) -> dict[str, object]:
+    payload: dict[str, object] = {"type": exc_type.__name__}
+    if exc_tb is not None:
+        payload["frames"] = [
+            {"file": frame.filename, "line": frame.lineno, "function": frame.name}
+            for frame in traceback.extract_tb(exc_tb)
+        ]
+    return payload
 
 
 class JsonFormatter(logging.Formatter):
@@ -46,7 +238,7 @@ class JsonFormatter(logging.Formatter):
             ).isoformat(timespec="milliseconds"),
             "level": record.levelname,
             "logger": record.name,
-            "message": record.getMessage(),
+            "message": _sanitize_text(record.getMessage()),
         }
 
         for key, value in record.__dict__.items():
@@ -55,16 +247,18 @@ class JsonFormatter(logging.Formatter):
                 and not key.startswith("_")
                 and key not in payload
             ):
-                payload[key] = value
+                payload[key] = _sanitize_value(value, key_hint=key)
 
         if record.exc_info:
-            payload["exception"] = self.formatException(record.exc_info)
+            exc_type, _exc_value, exc_tb = record.exc_info
+            if exc_type is not None:
+                payload["exception"] = _safe_exception(exc_type, exc_tb)
 
         return json.dumps(
             payload,
             ensure_ascii=False,
             separators=(",", ":"),
-            default=str,
+            allow_nan=False,
         )
 
 
