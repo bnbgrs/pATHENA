@@ -3,13 +3,15 @@ from __future__ import annotations
 import json
 import logging
 import sys
+from collections.abc import Mapping
 
 from athena.observability.logging import JsonFormatter
 
 
 def _format_record(
-    message: str,
+    message: object,
     *,
+    args: tuple[object, ...] | Mapping[str, object] = (),
     extra: dict[str, object] | None = None,
     exc_info: tuple[type[BaseException], BaseException, object] | None = None,
 ) -> tuple[str, dict[str, object]]:
@@ -19,7 +21,7 @@ def _format_record(
         __file__,
         10,
         message,
-        (),
+        args,
         exc_info,
     )
     if extra is not None:
@@ -38,6 +40,19 @@ def test_json_formatter_redacts_secrets_in_message_and_url_query() -> None:
     assert "abc123" not in encoded
     assert "mode=fast" in str(payload["message"])
     assert "REDACTED" in str(payload["message"])
+
+
+def test_json_formatter_redacts_oauth_query_values_and_drops_fragments() -> None:
+    encoded, payload = _format_record(
+        "GET https://example.test/callback?code=oauth-code&state=oauth-state"
+        "&mode=safe#access_token=fragment-secret"
+    )
+
+    assert "oauth-code" not in encoded
+    assert "oauth-state" not in encoded
+    assert "fragment-secret" not in encoded
+    assert "mode=safe" in str(payload["message"])
+    assert "#" not in str(payload["message"])
 
 
 def test_json_formatter_recursively_redacts_sensitive_extra_fields() -> None:
@@ -71,10 +86,26 @@ def test_json_formatter_never_stringifies_unknown_extra_objects() -> None:
     encoded, payload = _format_record("opaque extra", extra={"opaque": OpaqueSecret()})
 
     assert "opaque-secret-value" not in encoded
-    assert "OpaqueSecret" in str(payload["opaque"])
+    assert payload["opaque"] == "<type:OpaqueSecret>"
 
 
-def test_json_formatter_exception_payload_omits_exception_message() -> None:
+def test_json_formatter_sanitizes_format_args_before_interpolation() -> None:
+    class OpaqueSecret:
+        stringified = False
+
+        def __str__(self) -> str:
+            self.stringified = True
+            return "format-arg-secret"
+
+    opaque = OpaqueSecret()
+    encoded, payload = _format_record("opaque=%s", args=(opaque,))
+
+    assert opaque.stringified is False
+    assert "format-arg-secret" not in encoded
+    assert payload["message"] == "opaque=<type:OpaqueSecret>"
+
+
+def test_json_formatter_exception_payload_omits_exception_message_and_paths() -> None:
     try:
         raise RuntimeError("password=hunter2")
     except RuntimeError:
@@ -86,7 +117,13 @@ def test_json_formatter_exception_payload_omits_exception_message() -> None:
     exception = payload["exception"]
     assert isinstance(exception, dict)
     assert exception["type"] == "RuntimeError"
-    assert exception["frames"]
+    frames = exception["frames"]
+    assert isinstance(frames, list)
+    assert frames
+    for frame in frames:
+        assert isinstance(frame, dict)
+        assert "/" not in str(frame["file"])
+        assert "\\" not in str(frame["file"])
 
 
 def test_json_formatter_handles_cycles_without_leaking_or_recursing_forever() -> None:

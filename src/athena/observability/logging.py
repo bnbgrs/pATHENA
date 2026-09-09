@@ -6,6 +6,7 @@ import json
 import logging
 import math
 import re
+import sys
 import traceback
 from collections.abc import Mapping
 from datetime import datetime, timezone
@@ -34,6 +35,13 @@ _SENSITIVE_KEY_NAMES = frozenset(
         "refreshtoken",
         "credential",
         "credentials",
+        "code",
+        "state",
+        "sig",
+        "signature",
+        "session",
+        "sessionid",
+        "key",
     }
 )
 _SENSITIVE_KEY_SUFFIXES = (
@@ -63,7 +71,7 @@ _SECRET_ASSIGNMENT_RE = re.compile(
     r"client[-_ ]?secret|access[-_ ]?token|refresh[-_ ]?token|token|secret|"
     r"credential(?:s)?"
     r")(?P<sep>\s*[:=]\s*)"
-    r"(?P<value>[^\s,;]+)",
+    r"(?P<value>[^\s,;&]+)",
     flags=re.IGNORECASE,
 )
 
@@ -108,7 +116,9 @@ def _redact_url(raw_url: str) -> str:
         ],
         doseq=True,
     )
-    return urlunsplit((parts.scheme, netloc, parts.path, redacted_query, parts.fragment))
+    # URL fragments can carry OAuth/session material and are not required for
+    # technical request diagnostics. Drop them unconditionally.
+    return urlunsplit((parts.scheme, netloc, parts.path, redacted_query, ""))
 
 
 def _sanitize_text(value: str) -> str:
@@ -122,8 +132,7 @@ def _sanitize_text(value: str) -> str:
 
 
 def _safe_type_name(value: object) -> str:
-    value_type = type(value)
-    return f"<{value_type.__module__}.{value_type.__qualname__}>"
+    return f"<type:{type(value).__name__}>"
 
 
 def _sanitize_value(
@@ -189,6 +198,48 @@ def _sanitize_value(
     return _safe_type_name(value)
 
 
+def _sanitize_format_args(args: object) -> object:
+    if isinstance(args, Mapping):
+        sanitized_mapping: dict[str, object] = {}
+        for raw_key, raw_value in args.items():
+            key = raw_key if isinstance(raw_key, str) else _safe_type_name(raw_key)
+            sanitized_mapping[key] = _sanitize_value(raw_value, key_hint=key)
+        return sanitized_mapping
+    if isinstance(args, tuple):
+        return tuple(_sanitize_value(item) for item in args)
+    return _sanitize_value(args)
+
+
+def _safe_log_message(record: logging.LogRecord) -> str:
+    if isinstance(record.msg, str):
+        template = _sanitize_text(record.msg)
+    else:
+        sanitized_message = _sanitize_value(record.msg)
+        if isinstance(sanitized_message, str):
+            return sanitized_message
+        return json.dumps(
+            sanitized_message,
+            ensure_ascii=False,
+            separators=(",", ":"),
+            allow_nan=False,
+        )
+
+    if not record.args:
+        return template
+
+    safe_args = _sanitize_format_args(record.args)
+    try:
+        return _sanitize_text(template % safe_args)
+    except (KeyError, TypeError, ValueError):
+        # Malformed format records still produce a useful event without
+        # falling back to raw argument repr/str behavior.
+        return f"{template} [formatting-error]"
+
+
+def _safe_frame_filename(filename: str) -> str:
+    return filename.rsplit("/", 1)[-1].rsplit("\\", 1)[-1]
+
+
 def _safe_exception(
     exc_type: type[BaseException],
     exc_tb: TracebackType | None,
@@ -196,7 +247,11 @@ def _safe_exception(
     payload: dict[str, object] = {"type": exc_type.__name__}
     if exc_tb is not None:
         payload["frames"] = [
-            {"file": frame.filename, "line": frame.lineno, "function": frame.name}
+            {
+                "file": _safe_frame_filename(frame.filename),
+                "line": frame.lineno,
+                "function": frame.name,
+            }
             for frame in traceback.extract_tb(exc_tb)
         ]
     return payload
@@ -238,7 +293,7 @@ class JsonFormatter(logging.Formatter):
             ).isoformat(timespec="milliseconds"),
             "level": record.levelname,
             "logger": record.name,
-            "message": _sanitize_text(record.getMessage()),
+            "message": _safe_log_message(record),
         }
 
         for key, value in record.__dict__.items():
@@ -284,7 +339,9 @@ def configure_logging(level: int | str = logging.INFO) -> None:
     """Configure exactly one ATHENA-owned console handler.
 
     Repeated calls update the handler and root log level without creating
-    duplicate log lines.
+    duplicate log lines. Rebind the owned console handler to the current
+    ``sys.stderr`` so application restarts do not retain a closed capture
+    stream from an earlier runtime/test phase.
     """
     numeric_level = _validated_log_level(level)
 
@@ -299,6 +356,10 @@ def configure_logging(level: int | str = logging.INFO) -> None:
 
     if athena_handlers:
         handler = athena_handlers[0]
+        if isinstance(handler, logging.StreamHandler):
+            # Assign directly rather than setStream(): setStream() flushes the
+            # old stream first, which is unsafe when it has already closed.
+            handler.stream = sys.stderr
         handler.setLevel(numeric_level)
         handler.setFormatter(JsonFormatter())
 

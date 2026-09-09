@@ -1,81 +1,140 @@
 # Independent Observability Privacy Handoff
 
 Generated: 2026-09-09
-Status: ACTIVE / PRODUCT SLICE IMPLEMENTED_PENDING_VERIFY
+Status: ACTIVE / FOLLOW-UP IMPLEMENTED_PENDING_VERIFY
 Branch: `independent/observability-privacy-20260909`
 Base: `develop/pathena-next@24364b858e15fd9e3b06a9ee2eaf1f580b51364c`
-Coordination predecessor: draft PR #85 (`independent/coordination-audit-20260909`)
+Draft PR: #86
+Superseded predecessor: PR #85 (`independent/coordination-audit-20260909`, closed without merge)
 
 ## Purpose
 
-Continue useful pATHENA work without entering active worker ownership. This lane owns only the existing Observability logging privacy boundary and its focused regression test. It does not introduce a second logging stack.
+Continue useful pATHENA work without entering active worker ownership. This lane owns only the existing Observability logging privacy/lifecycle boundary and focused regression coverage. It does not introduce a second logging stack and does not mutate Develop, Research, Storage, Backend, Errors, UI or packaging code.
 
-## Active worker collision map observed before mutation
+## Collision map refreshed before follow-up mutation
 
-- Integrator / shared Develop: `24364b858e15fd9e3b06a9ee2eaf1f580b51364c` — explicit-source Delta Research integration, Develop Quality / packaging guards.
-- Backend: `844d65a85ecb611d5060bf311c6346c810d2247e` — schema-v41 / knowledge-schema / WAL and migration evidence.
-- Errors: `f861634387527da1894c73b5edf84ccee30c3644` — ERR-0026 / ERR-0028 / ERR-0029 verification and classification.
-- Spec/Core: `0c9189954047306cfea947209b51e1a4d0a50aa3` — Research Delta contract/evidence.
-- UI: `24acfc2e45f513d273bbb8a7cf390e9d47abcab6` — Workspace composer/UI evidence.
+- Develop / Integrator: `24364b858e15fd9e3b06a9ee2eaf1f580b51364c`
+- Backend: `844d65a85ecb611d5060bf311c6346c810d2247e`
+- Errors: `f861634387527da1894c73b5edf84ccee30c3644`
+- Spec/Core: `0c9189954047306cfea947209b51e1a4d0a50aa3`
+- UI: `5a168625987fe7096472d81df3261508ec6a1f56`
 
-No active worker handoff claims `src/athena/observability/logging.py` or the new focused Observability privacy test. Refresh these heads before any subsequent implementation slice; this snapshot is evidence, not a lock.
+No active worker handoff claims `src/athena/observability/logging.py`, `tests/unit/test_logging.py`, or the focused Observability privacy test. Refresh heads before any later implementation slice; this snapshot is evidence, not a lock.
 
-## OBS-PRIV-001 — existing JsonFormatter secret boundary
+## Canonical Quality evidence for first privacy commit
+
+First product commit: `60c8a699ce7a064183e3e0b1f63d554fd9bc62b2`
+Canonical Quality Gate: #4758
+
+Results:
+
+- specification validator: PASS
+- Ruff: PASS
+- mypy: PASS (`418 source files`)
+- Linux storage regressions: PASS
+- Windows path safety: PASS
+- local install smoke: PASS
+- full pytest: FAIL (`2 failed, 4825 passed, 3 skipped`)
+
+The two pytest failures have different ownership and were root-caused separately.
+
+### Owned failure — OBS-PRIV-001
+
+`tests/unit/test_observability_logging_privacy.py::test_json_formatter_redacts_secrets_in_message_and_url_query`
+
+The free secret-assignment regex consumed the `&mode=fast` safe query suffix after URL redaction. Root cause: its value class stopped at whitespace/comma/semicolon but not `&`.
+
+Follow-up fix: stop assignment matching at `&` as well, preserving safe URL query context while keeping the secret value redacted.
+
+### Inherited Develop failure — Research Delta integration loss
+
+`tests/unit/test_research_delta.py::test_delta_research_freezes_only_new_explicit_sources`
+
+Develop rejects `ResearchMode.DELTA` in `ResearchRepository.freeze_local_candidates()`. The canonical-green Spec/Core head `0c9189954047306cfea947209b51e1a4d0a50aa3` contains exactly one additional required line in `src/athena/research/repository.py`: `ResearchMode.DELTA,` in the supported-mode set. The Develop integration contains the Delta module, payload validation and test but omitted that repository line.
+
+This is Spec/Core/Integrator ownership. This independent lane does not patch it. The exact diagnosis was posted to the relevant bot/PR conversation.
+
+## OBS-PRIV-001 — structured-log privacy boundary
+
+Status: FOLLOW-UP IMPLEMENTED_PENDING_VERIFY
+
+The existing canonical `athena.observability.logging.JsonFormatter` is retained and hardened in place.
+
+Current bounded behavior:
+
+- redact Authorization/Bearer, API key, password, secret, credential and token families;
+- preserve ordinary diagnostic counters such as `token_count`, `max_tokens`, input/output token counts;
+- recursively sanitize mappings/sequences with cycle and maximum-depth handling;
+- redact sensitive HTTP/HTTPS query values and URL userinfo while preserving safe route/query diagnostics;
+- treat OAuth/session-style `code`, `state`, `sig`, `signature`, `session`, `session_id` and `key` query fields as sensitive;
+- drop URL fragments unconditionally because they can carry OAuth/session material and are not needed for technical request diagnostics;
+- sanitize logging format arguments before interpolation so arbitrary argument `__str__`/`repr` methods are not invoked by `LogRecord.getMessage()`;
+- stop blind unknown-object stringification and emit only `<type:ClassName>`;
+- retain UUID/datetime structure and byte length without byte contents;
+- serialize non-finite floats as bounded markers;
+- retain exception type plus file basename/line/function frames while omitting exception messages and full local paths.
+
+Focused privacy coverage now checks:
+
+1. safe URL query context survives secret redaction;
+2. OAuth query fields are redacted and fragments removed;
+3. nested header/extra redaction and safe token counters;
+4. unknown objects are not stringified;
+5. message format arguments are sanitized before interpolation;
+6. exception messages and local path prefixes are omitted;
+7. cyclic nested context is bounded.
+
+## OBS-LIFE-001 — stale console stream lifecycle
 
 Status: IMPLEMENTED_PENDING_VERIFY
 
-### Baseline defect
+### Reproduced defect
 
-The existing canonical `athena.observability.logging.JsonFormatter` on Develop:
+Canonical Quality logs repeatedly showed:
 
-- emitted `record.getMessage()` without secret filtering;
-- copied arbitrary LogRecord extras directly into the JSON payload;
-- used `json.dumps(..., default=str)`, allowing arbitrary objects to expose contents through `__str__`;
-- emitted `formatException(...)`, which includes exception messages and can therefore persist request payloads, credentials or other sensitive values.
+`ValueError: I/O operation on closed file`
 
-### Bounded implementation
+from the ATHENA-owned `logging.StreamHandler` during later application starts.
 
-The existing formatter is retained and hardened in place:
+Root cause:
 
-- redact Authorization/Bearer, API key, password, secret, credential and token families;
-- preserve ordinary diagnostic token counters such as `token_count`, `max_tokens`, input/output token counts;
-- recursively sanitize mappings and sequences with cycle and maximum-depth handling;
-- redact sensitive HTTP/HTTPS query values and URL userinfo while preserving non-secret route/query diagnostics;
-- stop blind `default=str` serialization of unknown objects; retain only their type identity;
-- retain UUID and datetime as safe structured values and byte lengths without byte contents;
-- serialize non-finite floats as a bounded marker rather than non-standard JSON values;
-- replace exception text with exception type plus traceback file/line/function frames, omitting exception message payloads;
-- preserve `configure_logging`, handler ownership, root-level behavior and duplicate-handler semantics unchanged.
+1. `AthenaApplication.start()` calls `configure_logging()` repeatedly across application lifecycles.
+2. `configure_logging()` intentionally reuses the single ATHENA-owned console handler.
+3. Under pytest, the handler can remain bound to an earlier capture `sys.stderr` object after that capture stream is closed.
+4. Reconfiguration updated level/formatter but did not bind the reused handler to the current `sys.stderr`.
+5. A later log write therefore targeted the closed stream.
 
-### Focused regression coverage
+### Bounded fix
 
-New `tests/unit/test_observability_logging_privacy.py` covers:
+When the existing ATHENA handler is a `logging.StreamHandler`, rebind its `stream` directly to the current `sys.stderr` before reuse. Direct assignment is intentional: `StreamHandler.setStream()` flushes the previous stream first and is unsafe when that previous stream is already closed.
 
-1. message + URL query redaction while preserving safe query context;
-2. recursive nested extra/header redaction and preservation of `token_count`;
-3. proof that unknown-object `__str__` content is not serialized;
-4. exception type/frames retained while a secret-bearing exception message is omitted;
-5. cyclic nested context bounded without recursion failure.
+Regression coverage creates an ATHENA handler on stream A, closes stream A, switches `sys.stderr` to stream B, reconfigures logging, asserts there is still exactly one ATHENA handler, and verifies the next log event is written to stream B without error.
 
-### Files owned by this slice
+## B24 audit findings intentionally not patched here
+
+These are real gaps but cross active ownership boundaries:
+
+- persistent JSONL logs / `logs_root` / rotation / retention require Settings/Runtime/Integrator composition;
+- request correlation exists at the ASGI response boundary but is not propagated into logging/job context; correct implementation crosses API/Core/Jobs;
+- Health lifecycle states do not yet match the full B24 `ok/degraded/unavailable/error/recovery_required` capability-aware model; this crosses Core/API lifecycle semantics;
+- no dedicated local Metrics or crash-reporting runtime path was found in the current Develop tree.
+
+Do not implement these by inventing formatter dummy values or parallel infrastructure. They should remain explicit Integrator/Core/API/Jobs follow-ups.
+
+## Files owned by this follow-up
 
 - `src/athena/observability/logging.py`
 - `tests/unit/test_observability_logging_privacy.py`
+- `tests/unit/test_logging.py`
 - `docs/agent_handoffs/independent_observability.md`
 
-No Backend, Storage, migration, Research, UI, packaging, Security, worker handoff, `main`, or ATHENA repository file is modified.
+No Backend, Storage, migration, Research, UI, packaging, Security, `main`, or ATHENA-repository file is modified.
 
-## Verification state
+## Verification protocol
 
-- Implementation was syntax/behavior checked in isolation before publication for the key redaction cases.
-- No canonical pATHENA Quality PASS is claimed yet.
-- Treat this slice as `IMPLEMENTED_PENDING_VERIFY` until exact-head canonical Quality finishes.
-- If Quality fails, fix only a root cause owned by these three files; do not chase failures in active worker scopes.
-
-## Next action after verification
-
-1. Consume exact-head Quality for this branch before another implementation commit.
-2. Refresh Develop and all active worker heads.
-3. If OBS-PRIV-001 is green, audit the existing Observability `health.py` and logging call sites for another strictly unowned, bounded B24 gap.
-4. Do not add file sinks, retention/rotation, crash persistence or runtime composition if doing so enters Backend/Integrator ownership; report those as handoff findings instead.
-5. Keep `main` read-only; no auto-merge or force update.
+1. Run/consume focused logging regressions for the exact follow-up head.
+2. Consume canonical Quality for the exact follow-up head.
+3. Attribute the known Research Delta baseline failure to Spec/Core/Integrator unless Develop has already incorporated the missing repository line.
+4. Fix only failures introduced by the four owned files.
+5. Do not claim canonical green while an inherited Develop failure remains.
+6. Keep PR #86 draft; no auto-merge, no force update, no mutation of `main`.
