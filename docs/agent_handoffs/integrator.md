@@ -1,40 +1,36 @@
 # Post-Merge Feature Handoff - Integrator
 
-Generated: 2026-09-09T13:50Z
+Generated: 2026-09-09T22:51Z
 Branch: `develop/pathena-next`
-HEAD at run start: `5e7426e2fbf3f2b7008adaae1c1b5677d65e56ba`
+HEAD at run start: `843466d00e67232aeac43da8c3797a5b1f0d65ef`
 
 ## Current evidence
 
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
-- Exact Develop canonical Quality `34353904087@5e7426e2fbf3f2b7008adaae1c1b5677d65e56ba = SUCCESS`; no exact-current Develop Quality was queued or in progress immediately before mutation.
-- Current worker heads reviewed: Errors `4e31fec500e4b51dbaaf38ae7956afeec8354995`, Spec/Core `eb352369d5477c8b67fab5a76811916bfa28769b`, Backend `b2a2a20873390098f98a9125222ae5594a9d6cc9`, UI `3b0c11a16165036d5e8254ed59233408e077b782`.
-- UI is not READY while exact-head Quality `34358994989@3b0c11a16165036d5e8254ed59233408e077b782` is in progress.
-- Backend is not READY while exact-head Quality `34357920394@b2a2a20873390098f98a9125222ae5594a9d6cc9` is in progress; Storage/Migration/Runtime remains conservative.
-- No non-superseded exact-green worker slice was available for integration at mutation time.
+- Exact Develop canonical Quality `34409340769@843466d00e67232aeac43da8c3797a5b1f0d65ef = SUCCESS`; immediately before mutation no exact-current Develop Quality was queued or in progress.
+- Current worker heads reviewed: Errors `fe1b33827f477f16338dab2bb2b5596c664a74f2`, Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`, Backend `844d65a85ecb611d5060bf311c6346c810d2247e`, UI `af50dfb76b04e396a2dbf65ec1eeb265f30177fa`.
+- UI exact-head canonical Quality `34413496805@af50dfb76b04e396a2dbf65ec1eeb265f30177fa` remained in progress during qualification, so UI was not consumed.
+- Spec/Core exact-head Quality is green, but its current bounded Delta Research product slice is already integrated on Develop; it was not re-integrated.
+- Backend remains HOLD without exact-green evidence; no Backend/Storage/Migration/Runtime slice was promoted.
+- No Worker slice was READY under the current exact-head and no-reintegration rules.
 
-## Bounded cross-cutting slice
+## Cross-cutting slice — adaptive chat output-reserve contract
 
-- Added `tests/unit/test_windows_packaging_contract.py` as a release-policy regression guard for the supported Windows portable build.
-- The guard requires the package script to retain the Desktop/Worker two-EXE topology with distinct `packaged_app.py` and `packaged_worker.py` entry points, assembly of `pATHENA-Worker.exe` beside `pATHENA.exe`, and removal of the temporary worker dist tree after runtime merge.
-- It also pins existing packaging acceptance facts: PyInstaller `6.15.0`, `--collect-all pypdf`, and the `app_runtime` onedir contents directory.
-- This slice changes tests and Integrator evidence only. Runtime, UI, Storage, Recovery, Security, worker lifecycle, and packaging implementation semantics are unchanged.
+- Added `tests/unit/test_chat_context_reserve_contract.py` to contract-guard the existing adaptive chat output-budget invariant.
+- Direct Chat must retain a default requested output reserve of 2048 tokens, while `_effective_output_reserve()` must shrink that reserve to the tokens actually available after estimated input and the safety margin.
+- The compatibility and legacy-grounded ChatGeneration paths must continue to request the same 2048-token default when callers do not provide `max_output_tokens`.
+- This is a test-only cross-cutting release guard. Production code, workflow commands, Storage, Recovery, Security, Runtime, and UI behavior were not changed.
+- Existing pypdf packaging, fail-closed Frozen argv, Desktop/Worker two-EXE topology, bounded workers, Windows path/lane guards, storage-bootstrap/runtime-boundary guards, and full canonical pytest contracts remain unchanged.
 - No Skip/XFail, assertion weakening, force push, history rewrite, auto-merge, or main mutation.
 
-## Persistent release guards
+## Source-of-truth note
 
-- pypdf packaging metadata smoke remains fail-closed.
-- Frozen argv remains fail-closed.
-- Desktop/Worker two-EXE split is now additionally protected by a repository contract test.
-- Exactly one Desktop instance with bounded workers remains required.
-- Adaptive 2048-context Chat reserve remains required.
-- Windows lane-lock/path-safety cluster remains required.
-- Duplicate-column/Core-startup/storage-bootstrap signatures remain explicit Windows-Beta regression checks, not newly claimed open defects without current reproduction.
+- Current repository tree/code discovery still did not establish authoritative files named `ALPHA_BETA_PROGRESS.md` or `ERROR_LEDGER.md`; no tracker state was invented or overwritten.
+- Requested 11-screen/visual-gap state was treated as review evidence only; no historical UI-gap identifier was promoted to OPEN without current evidence.
 
 ## Next integration
 
-1. Treat the exact-head Develop canonical Quality triggered by this commit as authoritative and freeze Develop while it is queued/in progress.
+1. Treat the exact-head Develop canonical Quality triggered by this commit as authoritative and freeze Develop while queued/in progress.
 2. Consume that result before any further Develop mutation.
-3. Integrate UI only from a non-superseded exact-green current worker head.
-4. Keep Backend/Storage/Migration/Runtime conservative until exact-head Ruff and full-pytest lineage is green.
-5. Do not reopen closed historical signatures without current reproduction.
+3. Re-evaluate UI only after `af50dfb7...` completes non-superseded exact-head Quality.
+4. Keep Backend conservative until exact-green Ruff/full-pytest evidence exists for its current head.
