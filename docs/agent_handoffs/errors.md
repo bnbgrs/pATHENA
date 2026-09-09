@@ -2,62 +2,56 @@
 
 ## Baseline
 
-- Develop source of truth: `develop/pathena-next@10d36f23143afdf9050585b3cf7bb1139913fd86`.
-- Error worker pre-run head: `postmerge/errors@a2683bbdae850af4536baf1e872548b737b7d80b`.
-- Current workers: Spec/Core `5cc59d3da5a8b2377403ad70706254023f7794eb`; Backend `844d65a85ecb611d5060bf311c6346c810d2247e`; UI `5a168625987fe7096472d81df3261508ec6a1f56`.
-- Previous Develop Quality `34379757715@24364b858e15fd9e3b06a9ee2eaf1f580b51364c = FAILURE` after two attempts; only full pytest failed.
-- Current Develop Quality `34391596966@10d36f23143afdf9050585b3cf7bb1139913fd86 = IN_PROGRESS`; Local-install/pypdf, Windows path safety, Linux storage, spec-validator, Ruff and mypy are green; full pytest is still running.
+- Develop source of truth: `develop/pathena-next@1078dfae061f2e02fda738af5145eea617616923`.
+- Error worker pre-run head: `postmerge/errors@b670e3969c7ad30606f06aeacad5f853245812e8`.
+- Current workers: Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`; Backend `844d65a85ecb611d5060bf311c6346c810d2247e`; UI `5a168625987fe7096472d81df3261508ec6a1f56`.
+- Exact repaired Develop Quality `34391596966@10d36f23143afdf9050585b3cf7bb1139913fd86 = SUCCESS`.
+- Current Develop Quality `34397927435@1078dfae061f2e02fda738af5145eea617616923 = IN_PROGRESS`; no competing run was started.
 - Current Backend Quality `34378587885@844d65a85ecb611d5060bf311c6346c810d2247e = FAILURE`.
-- `postmerge/errors` had no canonical Quality run before mutation, so no competing run existed.
+- `postmerge/errors` had no canonical Quality run before mutation.
 - `main` and `bnbgrs/ATHENA` remain read-only/untouched.
 
 ## Current error state
 
-- FIXED_PENDING_VERIFY: `ERR-0030`.
+- FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015` through `ERR-0024`, `ERR-0027`, `ERR-0030`.
 - IN_PROGRESS: `ERR-0026`, `ERR-0028`, `ERR-0029`.
 - STALE: `ERR-0014`, `ERR-0025`.
-- FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015` through `ERR-0024`, `ERR-0027`.
 - OPEN / BLOCKED: none at top level.
 
-## Hard progress this run — ERR-0030 Delta freeze prerequisite
+## Hard progress this run — ERR-0030 closed
 
-Status: `FIXED_PENDING_VERIFY`; severity `P1` until current Develop Quality closes it.
+Status: `FIXED`.
 
-The previously aggregate-only failure is now assertion-level exact evidence. Develop `24364b858e15fd9e3b06a9ee2eaf1f580b51364c`, Quality `34379757715` attempt 2, had exactly one failure: `tests/unit/test_research_delta.py::test_delta_research_freezes_only_new_explicit_sources`, raising `ResearchScopeUnsupportedError: Foundation discovery does not support Research mode 'delta'`; suite summary `1 failed, 4821 passed, 3 skipped, 2 warnings`.
+Develop `24364b858e15fd9e3b06a9ee2eaf1f580b51364c`, Quality `34379757715` attempt 2, had exactly one failure: `tests/unit/test_research_delta.py::test_delta_research_freezes_only_new_explicit_sources`, raising `ResearchScopeUnsupportedError: Foundation discovery does not support Research mode 'delta'`.
 
-Root cause: `ResearchRepository.freeze_local_candidates()` omitted `ResearchMode.DELTA` from its existing supported-mode allowlist. Spec/Core exact candidate `5cc59d3da5a8b2377403ad70706254023f7794eb` restores only that additive line and is canonically green at `34387956663 = SUCCESS`.
+Root cause was the missing `ResearchMode.DELTA` entry in `ResearchRepository.freeze_local_candidates()`'s existing supported-mode allowlist. Spec/Core exact candidate `5cc59d3da5a8b2377403ad70706254023f7794eb` restored only that additive line and passed canonical Quality `34387956663`.
 
-Integrator applied that exact bounded correction to current Develop `10d36f23143afdf9050585b3cf7bb1139913fd86` (`fix(research): restore delta freeze prerequisite`). Current Develop Quality `34391596966` was already running before this Error-worker documentation update; no competing run was started. All completed lanes are green and full pytest remains in progress.
+Integrator carried the same bounded fix to Develop `10d36f23143afdf9050585b3cf7bb1139913fd86`. Its canonical Quality `34391596966` has now completed `SUCCESS`, providing the required exact-SHA closure evidence. `ERR-0030` must not be reopened absent a new exact-current reproduction.
 
-Do not mark `ERR-0030` FIXED until `34391596966` completes with exact pytest/overall PASS. If it fails, consume the new exact assertion before any further fix.
+The current Develop head `1078dfae061f2e02fda738af5145eea617616923` is a subsequent CI-contract test commit. Its canonical Quality `34397927435` was already `in_progress`; no competing run was started and Develop was not mutated.
 
 ## Other active root causes
 
 ### ERR-0026 — Backend Ruff
 
-`IN_PROGRESS`. Exact Backend Quality `34378587885@844d65a85ecb611d5060bf311c6346c810d2247e` remains Ruff-red. Preserve exact Ruff-0.15.22 autofix/focused-PASS closure requirement. This is P2 and subordinate to current Develop verification.
+`IN_PROGRESS`, P2. Exact Backend Quality `34378587885@844d65a85ecb611d5060bf311c6346c810d2247e` remains Ruff-red. Preserve exact Ruff-0.15.22 autofix/focused-PASS closure requirement.
 
 ### ERR-0028 — v41 fixtures/current-version
 
-Overall `IN_PROGRESS`. Closed bounded subclusters remain closed absent exact-current regression. `knowledge-schema-current-version` remains `FIXED_PENDING_VERIFY`; aggregate Backend pytest failure is not assertion-level evidence. Independent legacy `research_delta_boundaries already exists` fixtures remain separate primaries.
+Overall `IN_PROGRESS`, P2. Closed bounded subclusters remain closed absent exact-current regression. `knowledge-schema-current-version` remains `FIXED_PENDING_VERIFY`; independent legacy `research_delta_boundaries already exists` fixture collisions remain separate primaries.
 
 ### ERR-0029 — WAL exact-type harness drift
 
-`IN_PROGRESS`. Preserve production exact-type fail-closed guards; no new focused closure evidence was consumed this run.
-
-### ERR-0027 — schema contract boundary
-
-Remains `FIXED` from exact Backend 5/5 PASS evidence. Do not reopen absent exact-current regression.
+`IN_PROGRESS`, P2. Preserve production exact-type fail-closed guards; no new focused closure evidence was consumed this run.
 
 ## Integrator handoff
 
-- `ERR-0030` root cause is now exact and bounded: missing `ResearchMode.DELTA` at `freeze_local_candidates()`.
-- Exact-green source candidate: `postmerge/spec-core@5cc59d3da5a8b2377403ad70706254023f7794eb`, Quality `34387956663 = SUCCESS`.
-- Exact current Develop carrying the same one-line correction: `10d36f23143afdf9050585b3cf7bb1139913fd86`, Quality `34391596966 = IN_PROGRESS`.
-- Hold further Develop mutation until that run completes. If green, `ERR-0030` can close. If red, use the exact new assertion rather than reopening historical hypotheses.
+- `ERR-0030 = FIXED` with exact closure `34391596966@10d36f23143afdf9050585b3cf7bb1139913fd86 = SUCCESS`.
+- Do not reopen the Delta freeze prerequisite without a new exact-current reproduction.
+- Current Develop `1078dfae061f2e02fda738af5145eea617616923` already has canonical Quality `34397927435` in progress; consume it before any further Develop action.
 - Backend remains independently non-ready because `ERR-0026`, `ERR-0028`, and `ERR-0029` remain active on its worker line.
 - Preserve pypdf packaging, frozen argv, two-EXE split, bounded workers, adaptive 2048-context reserve, Windows lane-lock mapping and duplicate-column/Core-startup/storage-bootstrap release guards.
 
 ## Next verification
 
-First consume `34391596966@10d36f23143afdf9050585b3cf7bb1139913fd86`. Do not start a competing canonical run and do not reopen closed historical errors without exact-current evidence.
+First consume `34397927435@1078dfae061f2e02fda738af5145eea617616923`. Then select the highest exact-current active root cause; do not reopen historical errors without exact-current evidence.
