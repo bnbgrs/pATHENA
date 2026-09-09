@@ -28,13 +28,6 @@ _DISPLAY_NAVIGATION = (
     "System",
     "Settings",
 )
-_TOP_NAVIGATION = (
-    (0, "WORKSPACE"),
-    (1, "LIBRARY"),
-    (2, "RESEARCH"),
-    (3, "JOBS"),
-    (4, "SOURCES"),
-)
 _ICON_NAVIGATION = ("◉", "◇", "⌁", "▤", "▱", "◎", "⚙")
 
 
@@ -228,7 +221,7 @@ class PathenaMainWindow(AthenaMainWindow):
 
         top_bar = QFrame()
         top_bar.setObjectName("topBar")
-        top_bar.setAccessibleName("Global navigation")
+        top_bar.setAccessibleName("Status and utilities")
         top_bar.setFixedHeight(SHELL.top_bar_height)
         top_layout = QHBoxLayout(top_bar)
         top_layout.setContentsMargins(22, 0, 18, 0)
@@ -237,22 +230,8 @@ class PathenaMainWindow(AthenaMainWindow):
         wordmark = QLabel("pATHENA")
         wordmark.setObjectName("topWordmark")
         top_layout.addWidget(wordmark)
-
-        self.reference_top_nav_buttons: list[QPushButton] = []
-        for page_index, label in _TOP_NAVIGATION:
-            button = QPushButton(label)
-            button.setObjectName("topNavButton")
-            button.setCheckable(True)
-            button.setAutoExclusive(True)
-            button.setProperty("pageIndex", page_index)
-            button.setToolTip(f"Open {_DISPLAY_NAVIGATION[page_index]}")
-            button.clicked.connect(
-                lambda _checked=False, index=page_index: self.navigation.setCurrentRow(index)
-            )
-            self.reference_top_nav_buttons.append(button)
-            top_layout.addWidget(button)
-
         top_layout.addStretch(1)
+
         for page_index, symbol, label in ((5, "◎", "System"), (6, "⚙", "Settings")):
             button = QPushButton(symbol)
             button.setObjectName("topUtilityButton")
@@ -309,9 +288,6 @@ class PathenaMainWindow(AthenaMainWindow):
         self.setCentralWidget(shell)
 
     def _sync_reference_navigation(self, index: int) -> None:
-        for button in getattr(self, "reference_top_nav_buttons", ()):
-            page_index = button.property("pageIndex")
-            button.setChecked(page_index == index)
         if 0 <= index < len(_DISPLAY_NAVIGATION):
             self.page_title.setText(_DISPLAY_NAVIGATION[index])
         self._sync_inspector_visibility()
