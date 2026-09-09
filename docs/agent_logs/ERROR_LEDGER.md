@@ -8,13 +8,14 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 
 ## Current baseline
 
-- Develop source of truth: `develop/pathena-next@ee7803f9b73140a3789893c25919b011d4e8d23b`.
-- Error worker entered this run at `postmerge/errors@3993a24ae8c855fdcea11ef6f0deb1e7d0fcd4e9`.
-- Current workers reviewed: Backend `db0f5f440fab60b3e66c4d3843c42147a1937aba`; Spec/Core `6b833fdbe9066dbd17f8a54272b0543d7c5d5ece`; UI `a238f85a7e532afc762038610cc0ffafe04e1c00`.
-- Exact Develop canonical Quality `34343282932@ee7803f9b73140a3789893c25919b011d4e8d23b = SUCCESS`; the prior bounded Develop Ruff defect is closed on current exact SHA.
+- Develop source of truth: `develop/pathena-next@5e7426e2fbf3f2b7008adaae1c1b5677d65e56ba`.
+- Error worker entered this run at `postmerge/errors@28dc066f04d90b5e942fd3cdd2f710db4bc9906c`.
+- Current workers reviewed: Backend `db0f5f440fab60b3e66c4d3843c42147a1937aba`; Spec/Core `6b833fdbe9066dbd17f8a54272b0543d7c5d5ece`; UI `0ba6811f939dc464f2ba78c4b8494da16f5eefab`.
+- Current Develop canonical Quality `34353904087@5e7426e2fbf3f2b7008adaae1c1b5677d65e56ba = IN_PROGRESS`; no competing canonical run was started.
+- Immediate Develop parent `ee7803f9b73140a3789893c25919b011d4e8d23b` is exact canonical green by Quality `34343282932 = SUCCESS`.
 - Exact Backend canonical Quality `34340662717@db0f5f440fab60b3e66c4d3843c42147a1937aba = FAILURE`; Windows path safety PASS, Linux storage PASS, Local install smoke PASS, specification validator PASS, mypy PASS, Ruff FAIL, full Pytest FAIL. Diagnostics artifact: `10100384616`.
 - Backend diagnostics end `19 failed, 4840 passed, 3 skipped`; the remaining failures are independent v41 fixture/current-version families plus the existing Ruff I001.
-- No queued/in-progress canonical run existed on `postmerge/errors` before this documentation mutation.
+- `.github/workflows/quality.yml` triggers push Quality only for `main`, so documentation commits on `postmerge/errors` do not create a canonical Quality run.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current state
@@ -26,12 +27,14 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 
 ## ERR-0026 — Backend v41 schema module canonical Ruff I001
 
-- Severity: P2.
+- Severity: P2 on the Backend worker; no longer a current Develop integration blocker.
 - Status: `IN_PROGRESS`.
 - Exact rule/file family: Ruff `I001` in `src/athena/storage/schema.py`.
-- Exact current Backend reproduction persists on `db0f5f440fab60b3e66c4d3843c42147a1937aba`; diagnostics show exactly one error, fixable with `--fix`.
-- Prior exact diagnostics established one autofixable import-block I001. Next mutation prerequisite remains exact Ruff 0.15.22 `--fix` output followed by focused Ruff PASS; do not hand-guess ordering.
-- Integrator: HOLD Backend v41/Research-dependent integration.
+- Exact current Backend reproduction persists on `db0f5f440fab60b3e66c4d3843c42147a1937aba`; diagnostics show exactly one error, fixable with `--fix`; its `schema.py` blob is `b5658c38ca061095a951bc85f3a2fbc88b53ee76`.
+- New exact integration evidence: exact-green Develop `ee7803f9b73140a3789893c25919b011d4e8d23b` carries Ruff-formatted `schema.py` blob `9d6d9fd410662e7f1ec311a93a1e8ee135c51e5f`. Compare `ee7803f9...` → current Develop `5e7426e2...` changes only `docs/agent_handoffs/integrator.md` and `tests/unit/test_quality_workflow_contract.py`; `schema.py` is unchanged. Therefore the Backend I001 does not block the current Develop candidate.
+- Closure is still withheld because the current Backend worker itself remains on the old red blob. Backend must synchronize/rebase its candidate onto the formatter-clean source or independently produce exact Ruff 0.15.22 `--fix` output followed by focused Ruff PASS.
+- The execution environment for this Error worker does not have Ruff 0.15.22 cached/available, so no manual import-order guess was substituted for the pinned formatter.
+- Integrator: do **not** hold current Develop solely for `ERR-0026`; keep Backend-specific integration held only for still-current independent failures (`ERR-0028` / `ERR-0029`) until their evidence permits promotion.
 
 ## ERR-0028 — v41 legacy schema fixtures/current-version assertions remain v40-shaped
 
@@ -57,15 +60,14 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Status: `FIXED`.
 - Exact closure evidence: canonical Backend Quality `34340662717@db0f5f440fab60b3e66c4d3843c42147a1937aba` reports `tests/unit/test_schema_contract_boundary.py ..... [86%]`, i.e. all 5 tests pass on that exact SHA.
 - `test_schema_reexports_contract_constants()` derives every uppercase constant from `athena.storage.schema_contract` and asserts byte-for-value equality through `athena.storage.schema`; this covers the Research Delta contract constants without relying on a hand-picked assertion. The same module also verifies compatibility-error identity/pickling, `_user_tables` re-export identity, absence of duplicated contract implementation, and no schema import cycle.
-- No product mutation was needed in this run; current exact evidence proves the previously suspected facade re-export gap is not present on the Backend head.
 - Do not reopen absent an exact-current focused or canonical regression.
 
 ## Cleared historical state relevant to integration
 
-- Exact Develop `ee7803f9b73140a3789893c25919b011d4e8d23b` passed canonical Quality `34343282932 = SUCCESS`; historical Develop Ruff failure `34337745698@2a90e71bc2c604cd745766a608481fc14106ec07` is superseded by exact-green current Develop.
+- Exact Develop `ee7803f9b73140a3789893c25919b011d4e8d23b` passed canonical Quality `34343282932 = SUCCESS`; its current child `5e7426e2fbf3f2b7008adaae1c1b5677d65e56ba` does not modify `schema.py` and is undergoing canonical Quality `34353904087`.
 - `ERR-0023` FIXED: exact Develop `270f97c36bd114036658e322f68d8011983ff150`, Quality `34248696450 = SUCCESS`.
 - `ERR-0025` STALE after exact-green Develop descendants.
-- `ERR-0004` remains FIXED; current Backend Ruff red is `ERR-0026`, not the historical UI startup/readiness defect.
+- `ERR-0004` remains FIXED; Backend Ruff red is `ERR-0026`, not the historical UI startup/readiness defect.
 - `ERR-0014` remains STALE absent exact-current Qt SIGSEGV reproduction.
 
 ## Persistent Beta/release regression knowledge
