@@ -8,11 +8,12 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 
 ## Current baseline
 
-- Develop source of truth: `develop/pathena-next@24364b858e15fd9e3b06a9ee2eaf1f580b51364c`.
-- Error worker entered this run at `postmerge/errors@f861634387527da1894c73b5edf84ccee30c3644`.
-- Current workers reviewed: Backend `844d65a85ecb611d5060bf311c6346c810d2247e`; Spec/Core `0c9189954047306cfea947209b51e1a4d0a50aa3`; UI `5a168625987fe7096472d81df3261508ec6a1f56`.
-- Current exact Develop canonical Quality: `34379757715@24364b858e15fd9e3b06a9ee2eaf1f580b51364c = FAILURE` after two attempts. Both attempts have the Python 3.12 quality job red only at `Quality — pytest`; specification validator, Ruff and mypy pass. Local-install/pypdf packaging, Windows path safety and Linux storage regressions pass.
-- Current exact Backend canonical Quality: `34378587885@844d65a85ecb611d5060bf311c6346c810d2247e = FAILURE`; Ruff and pytest fail, while spec-validator/mypy plus Local-install, Windows path safety and Linux storage lanes pass.
+- Develop source of truth: `develop/pathena-next@10d36f23143afdf9050585b3cf7bb1139913fd86`.
+- Error worker entered this run at `postmerge/errors@a2683bbdae850af4536baf1e872548b737b7d80b`.
+- Current workers reviewed: Spec/Core `5cc59d3da5a8b2377403ad70706254023f7794eb`; Backend `844d65a85ecb611d5060bf311c6346c810d2247e`; UI `5a168625987fe7096472d81df3261508ec6a1f56`.
+- Previous exact Develop canonical Quality: `34379757715@24364b858e15fd9e3b06a9ee2eaf1f580b51364c = FAILURE` after two attempts; both failed only full pytest in the Python 3.12 quality job while specification validator, Ruff, mypy, Local-install/pypdf packaging, Windows path safety and Linux storage regressions passed.
+- Current Develop canonical Quality: `34391596966@10d36f23143afdf9050585b3cf7bb1139913fd86 = IN_PROGRESS`. Local-install/pypdf packaging, Windows path safety, Linux storage regressions, specification validator, Ruff and mypy are already green; full pytest is still running.
+- Current exact Backend canonical Quality remains `34378587885@844d65a85ecb611d5060bf311c6346c810d2247e = FAILURE`.
 - No canonical Quality exists on `postmerge/errors`; no competing run was started before documentation mutation.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
@@ -20,18 +21,21 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 
 - FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015` through `ERR-0024`, `ERR-0027`.
 - STALE: `ERR-0014`, `ERR-0025`.
-- IN_PROGRESS: `ERR-0026`, `ERR-0028`, `ERR-0029`, `ERR-0030`.
+- FIXED_PENDING_VERIFY: `ERR-0030`.
+- IN_PROGRESS: `ERR-0026`, `ERR-0028`, `ERR-0029`.
 - OPEN/BLOCKED at top-level: none.
 
-## ERR-0030 — current Develop post-integration full-pytest regression
+## ERR-0030 — Delta Research freeze prerequisite omitted on Develop
 
-- Severity: P1 integration blocker.
-- Status: `IN_PROGRESS`.
-- Exact current Develop `24364b858e15fd9e3b06a9ee2eaf1f580b51364c` has canonical Quality `34379757715 = FAILURE` on both attempt 1 and attempt 2. In both attempts, specification validator, Ruff and mypy pass; only full pytest fails in the Python 3.12 quality job. Separate Local-install/pypdf packaging, Windows path safety and Linux storage regression jobs pass.
-- Exact previous Develop `c830b96a12d25914c52a0abc7749a6724b19cfae` had canonical Quality `34360516307 = SUCCESS`.
-- The exact one-commit delta from that green parent to current Develop is bounded to `src/athena/jobs/payload_validation.py`, new `src/athena/research/delta.py`, new `tests/unit/test_research_delta.py`, and `docs/agent_handoffs/integrator.md`.
-- This establishes a reproducible post-integration pytest cluster, but not yet the individual failing assertion. Do not speculate that the new Delta acceptance test itself is the failure: Spec/Core had exact-green candidate evidence before integration and the current connector-visible job metadata does not expose assertion-level diagnostics.
-- Highest-priority next action: consume the exact `34379757715` diagnostics/assertion name if available to the Integrator/runner, run that focused test first, then the smallest Delta/Research regression set. No further Develop mutation should be made from this error worker; `develop/pathena-next` remains read-only here.
+- Severity: P1 integration blocker until exact-current Develop verification completes.
+- Status: `FIXED_PENDING_VERIFY`.
+- Exact failed Develop `24364b858e15fd9e3b06a9ee2eaf1f580b51364c`, canonical Quality `34379757715` attempt 2, has exactly one failing test: `tests/unit/test_research_delta.py::test_delta_research_freezes_only_new_explicit_sources`; summary `1 failed, 4821 passed, 3 skipped, 2 warnings`.
+- Exact failure: `ResearchScopeUnsupportedError: Foundation discovery does not support Research mode 'delta'`.
+- Root cause is bounded: `ResearchRepository.freeze_local_candidates()` allowed `LOCAL_EXHAUSTIVE`, `HISTORICAL_BACKFILL`, and `LOCAL_PLUS_WEB` but omitted `ResearchMode.DELTA`.
+- Spec/Core repaired exactly that boundary on `5cc59d3da5a8b2377403ad70706254023f7794eb`; its canonical Quality `34387956663 = SUCCESS`. The production delta relative to the failed Develop tree is one additive `ResearchMode.DELTA` allowlist line.
+- Integrator copied that exact-green bounded correction to current Develop `10d36f23143afdf9050585b3cf7bb1139913fd86` (`fix(research): restore delta freeze prerequisite`). No Storage, Recovery, Security, UI, source-selection or persistence guard was widened.
+- Current Develop canonical Quality `34391596966` is already in progress. Non-pytest lanes are green; full pytest remains authoritative for closure. Do not start a competing run or mutate Develop while it is running.
+- Closure condition: exact `34391596966` full-pytest PASS / overall SUCCESS. If it fails, consume the exact assertion before further mutation.
 
 ## ERR-0026 — Backend v41 schema module canonical Ruff I001
 
@@ -45,9 +49,7 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Severity: P2.
 - Status: `IN_PROGRESS` overall.
 - Closed subclusters remain closed absent exact-current regression: grounded-response-receipt, backup-retention, operational-error physical-cleanup, deletion-ledger, protected-source-blob.
-- `knowledge-schema-current-version` subcluster remains `FIXED_PENDING_VERIFY` on exact Backend `844d65a85ecb611d5060bf311c6346c810d2247e`.
-- Exact source evidence on that SHA shows `tests/unit/test_knowledge_schema.py::test_fresh_database_contains_semantic_schema` now imports `RESEARCH_DELTA_BOUNDARY_MIGRATION_ID` and asserts fresh metadata `(SCHEMA_VERSION, RESEARCH_DELTA_BOUNDARY_MIGRATION_ID, SCHEMA_VERSION)`. Production schema/migration/storage/recovery code is unchanged by this fix.
-- Canonical Backend Quality `34378587885` is now completed failure, but connector-visible job metadata establishes only aggregate pytest failure, not assertion-level status for this specific test. Therefore closure remains withheld rather than inferred.
+- `knowledge-schema-current-version` remains `FIXED_PENDING_VERIFY` on exact Backend `844d65a85ecb611d5060bf311c6346c810d2247e`; aggregate Backend pytest failure is not assertion-level evidence for that bounded test.
 - Independent legacy migration-fixture collisions such as `sqlite3.OperationalError: table research_delta_boundaries already exists` remain separate ERR-0028 subclusters.
 
 ## ERR-0029 — WAL harness collaborators incompatible with canonical exact-type runtime guards
