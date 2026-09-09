@@ -60,14 +60,14 @@ def test_reference_shell_owns_icon_rail_without_rewiring_navigation() -> None:
         window.close()
 
 
-def test_reference_shell_owns_cobalt_navigation_selection() -> None:
+def test_reference_shell_owns_orange_navigation_selection() -> None:
     _app()
     window = PathenaMainWindow()
     try:
         stylesheet = window.navigation.styleSheet()
         assert PALETTE.accent in stylesheet
         assert PALETTE.surface_selected in stylesheet
-        assert "#F26A21" not in stylesheet.upper()
+        assert "#377DFF" not in stylesheet.upper()
     finally:
         window.close()
 
