@@ -1,40 +1,39 @@
 # Post-Merge Feature Handoff - Integrator
 
-Generated: 2026-09-09T13:50Z
+Generated: 2026-09-09T16:52Z
 Branch: `develop/pathena-next`
-HEAD at run start: `5e7426e2fbf3f2b7008adaae1c1b5677d65e56ba`
+HEAD at run start: `c830b96a12d25914c52a0abc7749a6724b19cfae`
 
 ## Current evidence
 
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
-- Exact Develop canonical Quality `34353904087@5e7426e2fbf3f2b7008adaae1c1b5677d65e56ba = SUCCESS`; no exact-current Develop Quality was queued or in progress immediately before mutation.
-- Current worker heads reviewed: Errors `4e31fec500e4b51dbaaf38ae7956afeec8354995`, Spec/Core `eb352369d5477c8b67fab5a76811916bfa28769b`, Backend `b2a2a20873390098f98a9125222ae5594a9d6cc9`, UI `3b0c11a16165036d5e8254ed59233408e077b782`.
-- UI is not READY while exact-head Quality `34358994989@3b0c11a16165036d5e8254ed59233408e077b782` is in progress.
-- Backend is not READY while exact-head Quality `34357920394@b2a2a20873390098f98a9125222ae5594a9d6cc9` is in progress; Storage/Migration/Runtime remains conservative.
-- No non-superseded exact-green worker slice was available for integration at mutation time.
+- Exact Develop canonical Quality `34360516307@c830b96a12d25914c52a0abc7749a6724b19cfae = SUCCESS`; no exact-current Develop Quality was queued or in progress before mutation.
+- Worker heads reviewed: Errors `8afe90769b65661ea1128787c1ed5645a79e7fab`, Spec/Core `0c9189954047306cfea947209b51e1a4d0a50aa3`, Backend `844d65a85ecb611d5060bf311c6346c810d2247e`, UI `24acfc2e45f513d273bbb8a7cf390e9d47abcab6`.
+- Spec/Core exact-head Quality `34370631502@0c9189954047306cfea947209b51e1a4d0a50aa3 = SUCCESS` and is the only current READY product slice.
+- Backend Quality `34378587885@844d65a85ecb611d5060bf311c6346c810d2247e` and UI Quality `34378395724@24acfc2e45f513d273bbb8a7cf390e9d47abcab6` remain in progress and were not consumed.
+- Error handoff keeps Backend-owned ERR-0026/0028/0029 in progress; no competing Backend mutation was performed.
 
-## Bounded cross-cutting slice
+## Integrated bounded Core slice — explicit-source Delta Research
 
-- Added `tests/unit/test_windows_packaging_contract.py` as a release-policy regression guard for the supported Windows portable build.
-- The guard requires the package script to retain the Desktop/Worker two-EXE topology with distinct `packaged_app.py` and `packaged_worker.py` entry points, assembly of `pATHENA-Worker.exe` beside `pATHENA.exe`, and removal of the temporary worker dist tree after runtime merge.
-- It also pins existing packaging acceptance facts: PyInstaller `6.15.0`, `--collect-all pypdf`, and the `app_runtime` onedir contents directory.
-- This slice changes tests and Integrator evidence only. Runtime, UI, Storage, Recovery, Security, worker lifecycle, and packaging implementation semantics are unchanged.
-- No Skip/XFail, assertion weakening, force push, history rewrite, auto-merge, or main mutation.
+- Added `athena.research.delta.enqueue_delta()` for a fresh Delta Research job restricted to explicit canonical Source UUIDs; existing frozen snapshots are not mutated or silently widened.
+- Durable `research.exhaustive` payload validation now admits `mode=delta` only when canonical non-empty `explicit_source_ids` are present, preserving fail-closed persistence boundaries.
+- Added acceptance coverage proving a later Source freezes into a separate Delta scope without absorbing the original Source, and proving an empty Source set is rejected before job persistence.
+- Only the exact-green bounded product/test blobs were transplanted onto current Develop; Worker history and unrelated handoff/history commits were not merged.
+- No Backend schema/WAL/transport/recovery/security/UI mutation, no Skip/XFail, no assertion weakening, no force push/history rewrite/auto-merge.
 
 ## Persistent release guards
 
 - pypdf packaging metadata smoke remains fail-closed.
 - Frozen argv remains fail-closed.
-- Desktop/Worker two-EXE split is now additionally protected by a repository contract test.
+- Desktop/Worker two-EXE topology remains contract-guarded.
 - Exactly one Desktop instance with bounded workers remains required.
 - Adaptive 2048-context Chat reserve remains required.
 - Windows lane-lock/path-safety cluster remains required.
-- Duplicate-column/Core-startup/storage-bootstrap signatures remain explicit Windows-Beta regression checks, not newly claimed open defects without current reproduction.
+- Duplicate-column/Core-startup/storage-bootstrap signatures remain Windows-Beta regression checks unless exact-current reproduction reopens them.
 
 ## Next integration
 
-1. Treat the exact-head Develop canonical Quality triggered by this commit as authoritative and freeze Develop while it is queued/in progress.
+1. Treat the exact-head Develop canonical Quality triggered by this integration as authoritative and freeze Develop while queued/in progress.
 2. Consume that result before any further Develop mutation.
-3. Integrate UI only from a non-superseded exact-green current worker head.
-4. Keep Backend/Storage/Migration/Runtime conservative until exact-head Ruff and full-pytest lineage is green.
-5. Do not reopen closed historical signatures without current reproduction.
+3. UI/Backend remain non-READY until their current exact-head Quality completes without superseding commits; Backend remains conservative for Storage/Migration/Runtime.
+4. Do not reopen historical signatures without exact-current reproduction.
