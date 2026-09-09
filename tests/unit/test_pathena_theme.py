@@ -30,18 +30,18 @@ def test_specialized_theme_uses_canonical_palette() -> None:
     assert f"border-color: {PALETTE.accent};" in PATHENA_SPECIALIZED_STYLESHEET
 
 
-def test_specialized_theme_does_not_reintroduce_legacy_quiet_workspace_palette() -> None:
-    legacy_colors = {
+def test_specialized_theme_does_not_reintroduce_superseded_quiet_workspace_palette() -> None:
+    superseded_colors = {
         "#111315",
         "#15181b",
         "#262b30",
         "#64767a",
         "#707d81",
         "#e8ebed",
-        "#f26a21",
+        "#377dff",
     }
     lowered = PATHENA_SPECIALIZED_STYLESHEET.lower()
-    assert all(color not in lowered for color in legacy_colors)
+    assert all(color not in lowered for color in superseded_colors)
 
 
 def test_meaningful_small_metadata_uses_accessible_subtle_token() -> None:
@@ -100,7 +100,7 @@ def test_legacy_orange_primary_interactions_are_overridden_after_base_theme() ->
 
 
 def test_all_legacy_orange_theme_boundaries_have_later_pathena_overrides() -> None:
-    cobalt_overrides = {
+    accent_overrides = {
         'QLabel[accent="true"]': f"color: {PALETTE.accent};",
         "QLabel#objectId": f"color: {PALETTE.accent};",
         "QProgressBar#jobProgress::chunk": f"background: {PALETTE.accent};",
@@ -114,7 +114,7 @@ def test_all_legacy_orange_theme_boundaries_have_later_pathena_overrides() -> No
         "QPlainTextEdit#asciiPanel": f"selection-background-color: {PALETTE.accent_soft};",
         "QLabel": f"selection-background-color: {PALETTE.accent_soft};",
     }
-    for selector, declaration in cobalt_overrides.items():
+    for selector, declaration in accent_overrides.items():
         _assert_later_override(selector, declaration)
 
 
@@ -182,7 +182,7 @@ def test_send_button_has_explicit_keyboard_focus_treatment() -> None:
     assert "max-height: 48px;" in base_block
 
 
-def test_reference_title_and_composer_use_editorial_blue_contract() -> None:
+def test_reference_title_and_composer_use_editorial_orange_contract() -> None:
     assert "QLabel#pageTitle" in PATHENA_SPECIALIZED_STYLESHEET
     assert f"font-family: {TYPE.display_family};" in PATHENA_SPECIALIZED_STYLESHEET
     assert f"font-size: {TYPE.title_px}px;" in PATHENA_SPECIALIZED_STYLESHEET
