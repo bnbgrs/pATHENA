@@ -1,25 +1,25 @@
 # Post-Merge Feature Handoff - Integrator
 
-Generated: 2026-09-09T16:52Z
+Generated: 2026-09-09T19:52Z
 Branch: `develop/pathena-next`
-HEAD at run start: `c830b96a12d25914c52a0abc7749a6724b19cfae`
+HEAD at run start: `10d36f23143afdf9050585b3cf7bb1139913fd86`
 
 ## Current evidence
 
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
-- Exact Develop canonical Quality `34360516307@c830b96a12d25914c52a0abc7749a6724b19cfae = SUCCESS`; no exact-current Develop Quality was queued or in progress before mutation.
-- Worker heads reviewed: Errors `8afe90769b65661ea1128787c1ed5645a79e7fab`, Spec/Core `0c9189954047306cfea947209b51e1a4d0a50aa3`, Backend `844d65a85ecb611d5060bf311c6346c810d2247e`, UI `24acfc2e45f513d273bbb8a7cf390e9d47abcab6`.
-- Spec/Core exact-head Quality `34370631502@0c9189954047306cfea947209b51e1a4d0a50aa3 = SUCCESS` and is the only current READY product slice.
-- Backend Quality `34378587885@844d65a85ecb611d5060bf311c6346c810d2247e` and UI Quality `34378395724@24acfc2e45f513d273bbb8a7cf390e9d47abcab6` remain in progress and were not consumed.
-- Error handoff keeps Backend-owned ERR-0026/0028/0029 in progress; no competing Backend mutation was performed.
+- Exact Develop canonical Quality `34391596966@10d36f23143afdf9050585b3cf7bb1139913fd86 = SUCCESS`; no exact-current Develop Quality was queued or in progress immediately before mutation.
+- Current worker heads reviewed: Errors `b670e3969c7ad30606f06aeacad5f853245812e8`, Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`, Backend `844d65a85ecb611d5060bf311c6346c810d2247e`, UI `5a168625987fe7096472d81df3261508ec6a1f56`.
+- Spec/Core exact-head Quality `34394274771@b8df82b23583d42a8d5ae8f387aea0fbd0e7859e` is still in progress. The immediately preceding product head `775c8b8f2002ffc23c5f2771da2516d1928a8e4b` was exact-green, but the current docs-only head supersedes that evidence until its exact-head run completes.
+- UI exact-head Quality `34385040100@5a168625987fe7096472d81df3261508ec6a1f56 = FAILURE`.
+- Backend exact-head Quality `34378587885@844d65a85ecb611d5060bf311c6346c810d2247e = FAILURE`.
+- No Worker slice is therefore READY for promotion in this run.
 
-## Integrated bounded Core slice — explicit-source Delta Research
+## Cross-cutting slice — canonical full-pytest gate contract
 
-- Added `athena.research.delta.enqueue_delta()` for a fresh Delta Research job restricted to explicit canonical Source UUIDs; existing frozen snapshots are not mutated or silently widened.
-- Durable `research.exhaustive` payload validation now admits `mode=delta` only when canonical non-empty `explicit_source_ids` are present, preserving fail-closed persistence boundaries.
-- Added acceptance coverage proving a later Source freezes into a separate Delta scope without absorbing the original Source, and proving an empty Source set is rejected before job persistence.
-- Only the exact-green bounded product/test blobs were transplanted onto current Develop; Worker history and unrelated handoff/history commits were not merged.
-- No Backend schema/WAL/transport/recovery/security/UI mutation, no Skip/XFail, no assertion weakening, no force push/history rewrite/auto-merge.
+- Extended `tests/unit/test_quality_workflow_contract.py` with a regression contract that requires canonical Quality to keep the unfiltered full `python -m pytest` command and to continue enforcing Specification Validator, Ruff, mypy, and pytest outcomes together.
+- This protects against accidental future narrowing of the canonical gate without changing production behavior, workflow commands, Storage, Recovery, Security, Runtime, or UI semantics.
+- Existing pypdf packaging, exact-SHA checkout, Windows path/storage regression, and `cancel-in-progress: false` contracts remain unchanged.
+- No Skip/XFail, assertion weakening, force push, history rewrite, auto-merge, or main mutation.
 
 ## Persistent release guards
 
@@ -33,7 +33,7 @@ HEAD at run start: `c830b96a12d25914c52a0abc7749a6724b19cfae`
 
 ## Next integration
 
-1. Treat the exact-head Develop canonical Quality triggered by this integration as authoritative and freeze Develop while queued/in progress.
+1. Treat the exact-head Develop canonical Quality triggered by this commit as authoritative and freeze Develop while queued/in progress.
 2. Consume that result before any further Develop mutation.
-3. UI/Backend remain non-READY until their current exact-head Quality completes without superseding commits; Backend remains conservative for Storage/Migration/Runtime.
-4. Do not reopen historical signatures without exact-current reproduction.
+3. Re-evaluate Spec/Core only after `b8df82b2...` exact-head Quality completes; do not reuse the superseded `775c8b8f...` green result as current-head promotion evidence.
+4. Keep UI and Backend on HOLD until non-superseded exact-head evidence is green; remain conservative for Backend/Storage/Migration/Runtime.
