@@ -2,48 +2,26 @@
 
 ## Current source of truth
 
-- Current shared baseline reviewed this run: `develop/pathena-next@c830b96a12d25914c52a0abc7749a6724b19cfae`.
-- Worker at run start: `postmerge/spec-core@eb352369d5477c8b67fab5a76811916bfa28769b`.
+- Shared baseline reviewed: `develop/pathena-next@24364b858e15fd9e3b06a9ee2eaf1f580b51364c`.
+- Worker at run start: `postmerge/spec-core@0c9189954047306cfea947209b51e1a4d0a50aa3`.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only and untouched.
-- Current Errors/Backend/UI/Integrator handoffs, Beta Exhaustive Research, capability coverage, relevant Research/Job validation code and acceptance tests were re-read before repair.
-- Current Develop is one commit ahead of the prior Delta baseline and changes only Integrator evidence plus the Windows two-EXE packaging contract test; those Develop changes are preserved in this synchronized candidate.
+- Current Errors/Backend/UI/Integrator handoffs and the current Research implementation/acceptance path were re-read before mutation.
 
-## Bounded Core slice: explicit-source Delta Research repair
+## Bounded Core slice: restore Delta freeze support on current Develop
 
-Beta Exhaustive Research requires that Sources arriving after a frozen snapshot are not silently absorbed, permits a Delta Research job for newly relevant data, defines Delta Research as processing data added since an earlier snapshot, and requires a Delta acceptance test.
+The Delta Research product/test slice is already integrated on Develop, but exact-current canonical Quality `34379757715` failed twice in the full pytest step. Attempt 2 diagnostics show exactly one failure: `tests/unit/test_research_delta.py::test_delta_research_freezes_only_new_explicit_sources`, raising `ResearchScopeUnsupportedError: Foundation discovery does not support Research mode 'delta'`; summary: `1 failed, 4821 passed, 3 skipped, 2 warnings`.
 
-The first Delta candidate `eb352369d5477c8b67fab5a76811916bfa28769b` added `athena.research.delta.enqueue_delta()` and `tests/unit/test_research_delta.py`, but canonical Quality `34356969100` failed on exact SHA for two candidate-owned reasons:
+The root cause is precise: current Develop's `ResearchRepository.freeze_local_candidates()` allowlist contains `LOCAL_EXHAUSTIVE`, `HISTORICAL_BACKFILL`, and `LOCAL_PLUS_WEB`, but omitted `ResearchMode.DELTA`. The exact prior worker blob already contains only the required additive `ResearchMode.DELTA` entry at this boundary and previously passed canonical Quality `34370631502` on exact worker SHA `0c9189954047306cfea947209b51e1a4d0a50aa3`.
 
-- mypy rejected the runtime `str`/`bytes` sequence guard as statically unreachable because the public argument is typed `Sequence[UUID]`;
-- the fail-closed durable `research.exhaustive` payload validator had not yet admitted `mode=delta`, so the positive Delta acceptance path failed before persistence.
+This candidate therefore restores that one fail-closed product line onto the current Develop tree. Existing explicit-source selection, pinned snapshot semantics, missing-source rejection, durable payload validation, storage, transport, recovery, security, UI, and release guards are unchanged. No fake Sources, Claims, Evidence, Knowledge, Provenance, or PALLAS state is introduced.
 
-All other canonical lanes on that exact candidate were green: specification validator, Ruff, Linux storage regressions, Local install smoke and Windows path safety. Full pytest had exactly one failure: the new Delta positive-path acceptance test.
+## Verification discipline
 
-This repair keeps the runtime sequence/type guard while evaluating it through an `object` boundary so mypy can validate the defensive runtime check. The durable Research payload validator now explicitly admits `delta` and additionally requires a non-empty canonical `explicit_source_ids` list for Delta mode. This strengthens the fail-closed boundary rather than bypassing or weakening it.
-
-The existing acceptance coverage remains authoritative: it proves that a Source captured after an original Research snapshot is frozen into a fresh Delta scope without silently absorbing the original Source, and that an empty explicit Source set is rejected before job persistence.
-
-## Test / CI evidence
-
-- Focused local execution was attempted first, but the local runner still could not resolve `github.com`; no local PASS is claimed.
-- Exact failed evidence consumed first: Quality `34356969100@eb352369d5477c8b67fab5a76811916bfa28769b = FAILURE`, bounded to mypy plus the single Delta acceptance failure described above.
-- This repair candidate is not Integrator-ready until its own exact-SHA canonical Quality completes successfully.
-- Once canonical Quality starts on the repair candidate, no further `postmerge/spec-core` commit is permitted until that exact-SHA result is consumed.
-
-## Closed / retained contracts
-
-- Adaptive DirectChat 2048-context/output-reserve behavior remains closed absent new exact-current regression evidence.
-- Normal/Hybrid Search Core API composition remains closed absent new exact-current regression evidence.
-- Contradiction-review enqueue remains unchanged without a concrete current production bypass.
-- No fake Sources, Claims, Knowledge, Evidence, Provenance or PALLAS state is introduced.
-
-## Ownership boundaries / persistent guards
-
-- No Backend/Storage schema, WAL, transport, recovery, security or UI styling work is duplicated.
-- Current Develop's Windows two-EXE packaging contract is preserved unchanged.
-- pypdf/Frozen argv/two-EXE, bounded worker tree, adaptive 2048-context Chat reserve, Windows lane-lock/path-safety and duplicate-column/Core-startup/storage-bootstrap guards remain unchanged and binding.
-- No force push, history rewrite, Skip/XFail or guard weakening.
+- Existing focused acceptance remains authoritative: Delta freezes only explicitly selected later Sources into a separate scope and rejects an empty explicit Source set before persistence.
+- Exact-current Develop canonical failure was consumed before mutation; all non-pytest lanes were green.
+- Candidate requires its own exact-SHA canonical Quality before Integrator-ready status.
+- Once canonical Quality starts on this candidate, no further `postmerge/spec-core` commit is permitted until that result is consumed.
 
 ## Readiness
 
-`CANDIDATE_PENDING_EXACT_SHA`: bounded Delta product + acceptance-test repair is synchronized history-preservingly with current Develop. Integrator-ready requires exact-SHA Quality success and a still-compatible Develop baseline.
+`CANDIDATE_PENDING_EXACT_SHA`: bounded current-Develop repair for Delta candidate freezing. Integrator-ready only after exact-SHA canonical success and compatible Develop baseline.
