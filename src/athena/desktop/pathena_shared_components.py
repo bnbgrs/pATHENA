@@ -184,7 +184,7 @@ QFrame#composer {{
 QLineEdit#promptInput {{
     background: transparent;
     border: none;
-    min-height: 42px;
+    min-height: 44px;
     padding: 0 {SPACE.sm}px;
 }}
 
