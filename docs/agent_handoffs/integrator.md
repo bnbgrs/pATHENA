@@ -1,39 +1,33 @@
 # Post-Merge Feature Handoff - Integrator
 
-Generated: 2026-09-09T19:52Z
+Generated: 2026-09-09T20:51Z
 Branch: `develop/pathena-next`
-HEAD at run start: `10d36f23143afdf9050585b3cf7bb1139913fd86`
+HEAD at run start: `1078dfae061f2e02fda738af5145eea617616923`
 
 ## Current evidence
 
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
-- Exact Develop canonical Quality `34391596966@10d36f23143afdf9050585b3cf7bb1139913fd86 = SUCCESS`; no exact-current Develop Quality was queued or in progress immediately before mutation.
-- Current worker heads reviewed: Errors `b670e3969c7ad30606f06aeacad5f853245812e8`, Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`, Backend `844d65a85ecb611d5060bf311c6346c810d2247e`, UI `5a168625987fe7096472d81df3261508ec6a1f56`.
-- Spec/Core exact-head Quality `34394274771@b8df82b23583d42a8d5ae8f387aea0fbd0e7859e` is still in progress. The immediately preceding product head `775c8b8f2002ffc23c5f2771da2516d1928a8e4b` was exact-green, but the current docs-only head supersedes that evidence until its exact-head run completes.
-- UI exact-head Quality `34385040100@5a168625987fe7096472d81df3261508ec6a1f56 = FAILURE`.
-- Backend exact-head Quality `34378587885@844d65a85ecb611d5060bf311c6346c810d2247e = FAILURE`.
-- No Worker slice is therefore READY for promotion in this run.
+- Exact Develop canonical Quality `34397927435@1078dfae061f2e02fda738af5145eea617616923 = SUCCESS`; immediately before mutation there were zero queued and zero in-progress Develop runs.
+- Current worker heads reviewed: Errors `11f4a4f1c5a5985ca52ec730168c545756b93ec2`, Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`, Backend `844d65a85ecb611d5060bf311c6346c810d2247e`, UI `3b28301b60bf8982b2a4be9a6eeaa1a1db8bd0ad`.
+- UI exact-head canonical Quality `34402426243@3b28301b60bf8982b2a4be9a6eeaa1a1db8bd0ad` was still in progress during qualification, so UI was not consumed.
+- Backend remains HOLD without new exact-green evidence; no Backend/Storage/Migration/Runtime slice was promoted.
+- No Worker slice was READY under the non-superseded exact-head rule.
 
-## Cross-cutting slice — canonical full-pytest gate contract
+## Cross-cutting slice — storage bootstrap/runtime-boundary gate contract
 
-- Extended `tests/unit/test_quality_workflow_contract.py` with a regression contract that requires canonical Quality to keep the unfiltered full `python -m pytest` command and to continue enforcing Specification Validator, Ruff, mypy, and pytest outcomes together.
-- This protects against accidental future narrowing of the canonical gate without changing production behavior, workflow commands, Storage, Recovery, Security, Runtime, or UI semantics.
-- Existing pypdf packaging, exact-SHA checkout, Windows path/storage regression, and `cancel-in-progress: false` contracts remain unchanged.
+- Extended `tests/unit/test_quality_workflow_contract.py` with a regression contract requiring canonical Quality to keep the existing Linux `test_storage_bootstrap.py` coverage and both Linux/Windows `test_api_runtime_boundaries.py` executions.
+- This protects current release-signature coverage without changing workflow commands, production behavior, Storage, Recovery, Security, Runtime, or UI semantics.
+- Existing pypdf packaging, fail-closed Frozen argv, Desktop/Worker two-EXE topology, bounded workers, adaptive 2048-context reserve, Windows path/lane guards, and full canonical pytest contracts remain unchanged.
 - No Skip/XFail, assertion weakening, force push, history rewrite, auto-merge, or main mutation.
 
-## Persistent release guards
+## Source-of-truth note
 
-- pypdf packaging metadata smoke remains fail-closed.
-- Frozen argv remains fail-closed.
-- Desktop/Worker two-EXE topology remains contract-guarded.
-- Exactly one Desktop instance with bounded workers remains required.
-- Adaptive 2048-context Chat reserve remains required.
-- Windows lane-lock/path-safety cluster remains required.
-- Duplicate-column/Core-startup/storage-bootstrap signatures remain Windows-Beta regression checks unless exact-current reproduction reopens them.
+- Repository code search still did not return `ALPHA_BETA_PROGRESS.md` or `ERROR_LEDGER.md` by filename in this run; no tracker state was invented or overwritten.
+- Historical error/UI-gap identifiers were not promoted to current OPEN state without exact-current reproduction.
 
 ## Next integration
 
 1. Treat the exact-head Develop canonical Quality triggered by this commit as authoritative and freeze Develop while queued/in progress.
 2. Consume that result before any further Develop mutation.
-3. Re-evaluate Spec/Core only after `b8df82b2...` exact-head Quality completes; do not reuse the superseded `775c8b8f...` green result as current-head promotion evidence.
-4. Keep UI and Backend on HOLD until non-superseded exact-head evidence is green; remain conservative for Backend/Storage/Migration/Runtime.
+3. Re-evaluate UI only after `3b28301b...` has completed non-superseded exact-head Quality.
+4. Keep Backend conservative until exact-green Ruff/full-pytest evidence exists for the current Backend head.

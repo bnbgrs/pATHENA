@@ -44,3 +44,12 @@ def test_canonical_quality_keeps_full_pytest_and_enforces_all_core_checks() -> N
     assert 'MYPY_OUTCOME: ${{ steps.quality_mypy.outcome }}' in workflow
     assert 'PYTEST_OUTCOME: ${{ steps.quality_pytest.outcome }}' in workflow
     assert 'failures = [name for name, outcome in outcomes.items() if outcome != "success"]' in workflow
+
+
+def test_canonical_quality_keeps_storage_bootstrap_and_runtime_boundary_regressions() -> None:
+    workflow = _quality_workflow_text()
+
+    assert "  storage-regressions:\n" in workflow
+    assert "tests/unit/test_storage_bootstrap.py" in workflow
+    assert workflow.count("      - name: Run API runtime path-boundary regressions\n") == 2
+    assert workflow.count("tests/unit/test_api_runtime_boundaries.py") == 2
