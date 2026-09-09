@@ -45,7 +45,13 @@ def test_composer_is_prominent_blue_reference_action_area() -> None:
     assert "QPushButton#groundButton" in composer_block
     assert f"background: {PALETTE.surface_raised};" in composer_block
     assert f"background: {PALETTE.accent};" in send_block
-    assert "min-width: 44px;" in send_block
+    # Qt QSS width/height are content-box values. Together with the inherited
+    # 1 px border on each side, 42 px materializes the required 44 px target.
+    assert "min-width: 42px;" in send_block
+    assert "max-width: 42px;" in send_block
+    assert "min-height: 42px;" in send_block
+    assert "max-height: 42px;" in send_block
+    assert "padding: 0;" in send_block
     assert "border-radius: 22px;" in send_block
 
 

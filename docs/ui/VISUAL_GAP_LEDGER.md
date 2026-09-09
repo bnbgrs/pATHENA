@@ -1,6 +1,6 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `2a90e71bc2c604cd745766a608481fc14106ec07`
+Baseline: `c830b96a12d25914c52a0abc7749a6724b19cfae`
 Integration target: `develop/pathena-next`
 
 Only evidence-backed gaps belong here. Slot 01 has direct pixel evidence from the opened user reference `pATHENA: Dunkles KI-Dashboard mit Wissenspanel.png`. No screenshot-level `MATCH` claim is asserted because a real rendered current build from the exact candidate SHA has not yet been opened side-by-side with that reference.
@@ -30,13 +30,8 @@ Only evidence-backed gaps belong here. Slot 01 has direct pixel evidence from th
 - Category: `INTERACTION`
 - Screen: `08 — PALLAS`
 - Severity: `P1`
-- Evidence: canonical Backend run `33744816398` exposed `tests/unit/test_pathena_pallas_full_view.py::test_open_workspace_reuses_one_synchronized_full_surface` failing through `MessageActionTabOrderController.eventFilter()` when `document` was transiently absent during Qt lifecycle churn.
-- UI candidate product commit: `689da6c1dc2221f89825fffde947f792c7b503e7`
-- Focused regression commit: `034cb8d923d48bea708b48cac0ef0f6343511051`
 - Status: `FIXED`
-- Verification evidence: exact UI head `76cb122dbe7b58b0fa49bbcb36de2bd732922d4d` passed ATHENA Quality Gate `33751403354` with conclusion `success`.
-- Integration evidence: bounded equivalent product/test changes landed on Develop as `d149f6bbfd367f2999c8ee54e52326695aeb9f55` and `df60ad0e0b3084da05a8b55d94a227798296a1ac`; Backend changes were disjoint.
-- Acceptance: transient missing binding is an unhandled/no-op lifecycle state; existing ChildAdded resynchronization, action ordering, disabled-state preservation and composer return target remain unchanged.
+- Verification evidence: exact UI head `76cb122dbe7b58b0fa49bbcb36de2bd732922d4d` passed ATHENA Quality Gate `33751403354`; bounded equivalent product/test changes are integrated in Develop.
 
 ## UI-GAP-0004 — Workspace composer is materially underscaled relative to opened reference
 
@@ -44,13 +39,13 @@ Only evidence-backed gaps belong here. Slot 01 has direct pixel evidence from th
 - Screen: `01 — Workspace / Chat`
 - Severity: `P1`
 - Status: `IMPLEMENTED_PENDING_VERIFY`
-- Pixel evidence: the opened user reference shows the composer as a large, prominent work surface near the lower center of the workspace, with a clearly separated arrow send target. Current Develop inherited the legacy `composer.setFixedHeight(58)` and compact controls.
-- Candidate behavior: keep the existing real chat input, grounding control and send route; enlarge the composer to 88 px, fix the prompt interaction height at 44 px, keep the real grounding control at a polished fixed 36 px, and make the existing send control a 44×44 target with no new or decorative control.
-- Exact prior verification: canonical Quality `34336304734` on `04a4e5d29421dc786c4894fd2091726fdeb5813a` passed validator, Ruff, mypy, Windows path safety, Linux storage and local-install smoke. Full pytest had exactly one failure: after Qt event processing, `ground_button.minimumHeight()` materialized as 48 rather than the required 36; all preceding composer assertions passed. Summary: `1 failed, 4823 passed, 3 skipped`.
-- Current product blob candidate: `adce9a95e5e92a4d103277af88a811a677c59afe`; it applies `ensurePolished()` before `setFixedHeight(36)` to the existing grounding control, mirroring the already effective prompt lifecycle fix.
-- Shared foundation blob: `873990af3ec0c49e66af7e1bd688f7aead4a6aac`.
-- Focused Qt contract candidate: `8e29fcfc5e8ac0ba4a402ae07f1f593783588063`; assertions are unchanged and no Skip/XFail is introduced.
-- Acceptance: no chat submission, grounding, model/provider, persistence, focus, shortcut, accessibility-name or backend semantics change; no fake Attach/Focus controls are introduced.
+- Pixel evidence: the opened user reference shows the composer as a large, prominent work surface near the lower center of the workspace, with a clearly separated arrow send target. Current Develop inherited the legacy compact composer before this UI slice.
+- Candidate behavior: retain the real chat input, grounding control and send route; composer 88 px, prompt 44 px, real Sources control 36 px, send outer target 44×44 px.
+- Exact evidence consumed: canonical Quality `34358994989@3b0c11a16165036d5e8254ed59233408e077b782` passed specification validator, Ruff, mypy, Windows path safety, Linux storage and local-install smoke. Full pytest ended `1 failed, 4818 passed, 3 skipped, 2 warnings`.
+- Exact remaining failure was only `tests/unit/test_pathena_shared_components.py::test_composer_is_prominent_blue_reference_action_area`: the stylesheet-string test still required `min-width: 44px`, while the corrected Qt QSS intentionally uses a 42 px content box plus the inherited 1 px border on each side. The runtime Qt contract in `tests/unit/test_pathena_window.py` independently requires the materialized send control to remain exactly 44×44 px including min/max geometry.
+- Current corrective test contract therefore pins all four QSS content-box dimensions at 42 px plus zero padding, while retaining the existing runtime 44×44 outer-geometry assertions. This aligns the unit contract with Qt's box model rather than weakening the product requirement.
+- Product foundation blob on the failed exact SHA: `4e3165191ad36e72eca1cc5d116cbc3fec8aefb4`; runtime focused contract blob: `8e29fcfc5e8ac0ba4a402ae07f1f593783588063`.
+- Acceptance: no chat submission, grounding, model/provider, persistence, focus, shortcut, accessibility-name, backend, Storage or Security semantics change; no fake controls; no Skip/XFail.
 - Verification required: canonical Quality on the exact final synchronized candidate head. Screenshot-level parity remains unverified until a current render is opened against the reference.
 
 ## Evidence blocker
