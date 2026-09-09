@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - develop/pathena-next
   pull_request:
 
 permissions:
@@ -179,6 +180,9 @@ jobs:
 
       - name: Run disposable Core/API restart smoke
         run: uv run --locked --extra dev athena-local-smoke --restart-cycles 1
+
+      - name: Verify pypdf packaging metadata
+        run: uv run --locked --extra dev athena-packaging-smoke --json
 
   windows-path-safety:
     name: Windows path safety
