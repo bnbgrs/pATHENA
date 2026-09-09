@@ -238,10 +238,10 @@ QPushButton[pathenaActionRole="primary"] {{
 }}
 
 QPushButton#sendButton {{
-    min-width: 44px;
-    max-width: 44px;
-    min-height: 44px;
-    max-height: 44px;
+    min-width: 42px;
+    max-width: 42px;
+    min-height: 42px;
+    max-height: 42px;
     border-radius: 22px;
     padding: 0;
 }}
