@@ -103,8 +103,8 @@ from athena.storage.schema_contract import (
     SOURCE_REPRESENTATION_MIGRATION_ID as SOURCE_REPRESENTATION_MIGRATION_ID,
     SOURCE_REPRESENTATION_SCHEMA_VERSION as SOURCE_REPRESENTATION_SCHEMA_VERSION,
     STORAGE_LAYOUT_VERSION as STORAGE_LAYOUT_VERSION,
-    _user_tables as _user_tables,
     DatabaseCompatibilityError as DatabaseCompatibilityError,
+    _user_tables as _user_tables,
 )
 from athena.storage.schema_error_sanitization import (
     _PERSISTED_ERROR_CHECKPOINT_JOB_TYPES as _PERSISTED_ERROR_CHECKPOINT_JOB_TYPES,
