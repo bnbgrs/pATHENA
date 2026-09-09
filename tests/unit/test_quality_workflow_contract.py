@@ -22,3 +22,14 @@ def test_canonical_local_install_smoke_keeps_pypdf_packaging_guard() -> None:
     assert "    name: Local install smoke\n" in workflow
     assert "      - name: Verify pypdf packaging metadata\n" in workflow
     assert "        run: uv run --locked --extra dev athena-packaging-smoke --json\n" in workflow
+
+
+def test_canonical_windows_path_safety_keeps_exact_sha_and_storage_regressions() -> None:
+    workflow = _quality_workflow_text()
+
+    assert "  windows-path-safety:\n" in workflow
+    assert "    runs-on: windows-latest\n" in workflow
+    assert "          ref: ${{ env.CANDIDATE_SHA }}\n" in workflow
+    assert "      - name: Run deterministic Windows locality regressions\n" in workflow
+    assert "      - name: Run Windows storage path regressions\n" in workflow
+    assert "tests/unit/test_storage_safe_mode.py" in workflow
