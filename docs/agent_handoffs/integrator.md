@@ -1,41 +1,38 @@
-# pATHENA Feature Integrator Handoff
+# Post-Merge Feature Handoff - Integrator
 
-## Current source of truth
+Generated: 2026-09-09T10:48Z
+Branch: `develop/pathena-next`
+HEAD at run start: `2a90e71bc2c604cd745766a608481fc14106ec07`
 
-- Develop baseline before this integration: `0abc53a35e6c99bf7070875633d3f81f6bc09395`.
-- Exact Develop canonical Quality `34331712073@0abc53a35e6c99bf7070875633d3f81f6bc09395 = SUCCESS`; no exact-current queued/in-progress Develop run existed immediately before mutation.
-- Worker heads reviewed: errors `72b6c7bf0ed148ce1f2f274ae6940a14053c6655`; spec-core `850b631007ba3f359b9b16c619c692d853d75663`; backend `8dd0f50db0d593808093a8a0538097cc2e5c2d24`; UI `04a4e5d29421dc786c4894fd2091726fdeb5813a`.
-- UI exact-head Quality `34336304734` is `IN_PROGRESS`, so UI is not READY. The preceding UI candidate `24d703dd1711ad663779784f96119dade62fe732` failed exact-head Quality `34330894596`.
-- Backend exact-head canonical Quality is failed; schema/WAL/v41 work remains non-READY conservatively.
-- Spec/Core differs from current Develop only in its handoff document; no new product delta is available for integration.
-- Error evidence keeps Backend v41/schema/WAL root causes in progress; no historical release signature is reopened without current exact reproduction.
-- `main@0d4d621f8a38ddf8eccfa09622bf193687619943` and `bnbgrs/ATHENA` remain read-only and untouched.
+## Current evidence
 
-## Progress this run — canonical Quality policy regression guard
+- `main` remains read-only and untouched.
+- Develop exact canonical Quality `34337745698@2a90e71bc2c604cd745766a608481fc14106ec07 = FAILURE`.
+- The failure is bounded to Ruff `I001` in `tests/unit/test_quality_workflow_contract.py`; Mypy, full Pytest, Windows path safety, Linux storage regression, Local install smoke, and Spec validator passed on that exact SHA.
+- Backend remains HOLD: its current v41/schema/WAL lineage is not exact-green; current Error handoff retains `ERR-0026` through `ERR-0029` as in progress while closing only independently proven subclusters.
+- No Worker slice was promoted ahead of repairing the exact-current Develop root cause.
 
-No Worker slice was promotion-qualified. Exactly one collision-free cross-cutting test slice was implemented: `tests/unit/test_quality_workflow_contract.py` now locks the canonical CI policy that direct pushes to `develop/pathena-next` run Quality without cancellation and that the Local install smoke retains the fail-closed `athena-packaging-smoke --json` pypdf metadata check.
+## Bounded corrective slice
 
-This is a regression guard only. It does not alter workflow execution, product behavior, test selection, Storage, Recovery, Security, migration, Qt/UI, model/chat behavior, process topology, frozen argv, packaging, or Windows semantics. No Skip/XFail or assertion weakening is introduced.
+- Apply only Ruff's exact import-block formatting correction to `tests/unit/test_quality_workflow_contract.py` by removing the extra blank line after the sole import.
+- Test assertions and workflow policy are unchanged.
+- No production runtime, UI, Storage, Recovery, Security, packaging topology, worker lifecycle, or release guard is changed.
+- No Skip/XFail, assertion weakening, force push, history rewrite, auto-merge, or main mutation.
 
-## Current UI / visual state
+## Persistent release guards
 
-- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` on Develop still records all eleven real product surfaces as implemented pending visual review; no screenshot-level MATCH is claimed.
-- `docs/ui/VISUAL_GAP_LEDGER.md` on Develop retains only evidence-backed gaps and the `VISUAL_REFERENCE_PENDING` blocker for pixel/composition claims.
-- Current UI worker changes remain held until exact-head Quality completes successfully without superseding commits.
+- pypdf packaging metadata smoke remains fail-closed.
+- Frozen argv remains fail-closed.
+- Desktop/Worker two-EXE split remains unchanged.
+- Exactly one Desktop instance with bounded workers remains required.
+- Adaptive 2048-context Chat reserve remains required.
+- Windows lane-lock cluster remains required.
+- Duplicate-column/Core-startup/storage-bootstrap signatures remain explicit Windows-Beta regression checks, not newly claimed open defects without current reproduction.
 
-## Quality / promotion state
+## Next integration
 
-- Advancing Develop with this commit must trigger a new exact-SHA canonical Quality run.
-- Once that run is queued/in-progress, Develop is frozen until completion; no docs-only follow-up may supersede it.
-- Beta/release-ready remains false until exact-current Develop Quality and the known Windows/Packaging/Runtime regression matrix are green.
-
-## Next integration order
-
-1. Consume the exact-current Develop Quality for this commit before any further Develop mutation.
-2. Consume UI only if the current exact worker head finishes green without a superseding commit and its bounded delta remains compatible.
-3. Keep Backend schema/WAL/storage work conservative until its exact-current Ruff/full-pytest lineage is green.
-4. Preserve pypdf packaging; fail-closed Frozen argv; Desktop/Worker two-EXE split; exactly one Desktop with bounded workers; adaptive 2048-context Chat reserve; Windows lane-lock cluster; and duplicate-column/Core-startup/storage-bootstrap signatures as Beta/release acceptance guards.
-
-## Rules retained
-
-No `main` mutation or promotion; no force push/history rewrite/auto-merge; no Skip/XFail; no weaker assertions; no Security/Storage/Recovery/Windows/validator relaxation; no fabricated evidence or percentages.
+1. Treat the resulting exact-head canonical Quality as authoritative and freeze Develop while it is queued/in progress.
+2. Consume that exact-SHA result before any further Develop mutation.
+3. Integrate UI only from a non-superseded exact-green current worker head.
+4. Keep Backend/Storage/Migration/Runtime conservative until its exact-head Ruff and full-pytest lineage is green.
+5. `main` and `bnbgrs/ATHENA` remain read-only.

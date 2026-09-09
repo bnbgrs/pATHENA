@@ -196,8 +196,6 @@ QPushButton#groundButton {{
     color: {PALETTE.text_muted};
     background: transparent;
     border-color: transparent;
-    min-height: 36px;
-    max-height: 36px;
 }}
 
 QPushButton#groundButton:hover,
