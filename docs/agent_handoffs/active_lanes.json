@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "observed_at": "2026-09-09T16:39:52+02:00",
+  "informational_only": true,
+  "shared_baseline": {
+    "branch": "develop/pathena-next",
+    "head": "c830b96a12d25914c52a0abc7749a6724b19cfae"
+  },
+  "active_lanes": [
+    {
+      "name": "integrator",
+      "branch": "develop/pathena-next",
+      "head": "c830b96a12d25914c52a0abc7749a6724b19cfae",
+      "scope": [
+        "shared integration surface",
+        "Windows two-EXE packaging contract",
+        "integration evidence"
+      ]
+    },
+    {
+      "name": "backend",
+      "branch": "postmerge/backend",
+      "head": "b2a2a20873390098f98a9125222ae5594a9d6cc9",
+      "scope": [
+        "schema v41",
+        "Storage and migration fixtures",
+        "protected-source blob verification"
+      ]
+    },
+    {
+      "name": "errors",
+      "branch": "postmerge/errors",
+      "head": "1f9c41d7dd88945876ab0eb2a9893a05a3a1117e",
+      "scope": [
+        "ERR-0026",
+        "ERR-0028",
+        "ERR-0029",
+        "Backend failure classification"
+      ]
+    },
+    {
+      "name": "spec-core",
+      "branch": "postmerge/spec-core",
+      "head": "a9b1cb8b3354c9afdc206fbf435af0d1bf5d451f",
+      "scope": [
+        "Research Delta durable enqueue validation",
+        "Research and Core contracts"
+      ]
+    },
+    {
+      "name": "ui",
+      "branch": "postmerge/ui",
+      "head": "3b0c11a16165036d5e8254ed59233408e077b782",
+      "scope": [
+        "44 px send target",
+        "QSS box model",
+        "current UI evidence"
+      ]
+    }
+  ],
+  "independent_lane": {
+    "branch": "independent/coordination-audit-20260909",
+    "base": "c830b96a12d25914c52a0abc7749a6724b19cfae",
+    "status": "active",
+    "claimed_paths": [
+      "docs/agent_handoffs/independent.md",
+      "docs/agent_handoffs/active_lanes.json",
+      "docs/audits/independent-20260909.md"
+    ],
+    "product_code_changes": false,
+    "rules": [
+      "refresh worker heads before every new implementation slice",
+      "do not edit active worker-owned paths",
+      "report overlapping findings without patching them",
+      "do not mutate main or auto-merge"
+    ]
+  }
+}
