@@ -8,23 +8,35 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 
 ## Current baseline
 
-- Develop source of truth: `develop/pathena-next@29540b7a1f2cb09e3a1be9aee2a29e357c8a8724`.
-- Error worker entered this run at `postmerge/errors@6b3a9090f305201cd562312b928e41ad61ea78ed`.
-- Current workers: Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`; Backend `b411e75a3481649b33edc70b74c22f64ab71c6d4`; UI `6b1777ef181dc2f1b15f5a7f70c3cab84ff0b9dc`.
-- Latest exact current Develop canonical Quality: `34534330414@29540b7a1f2cb09e3a1be9aee2a29e357c8a8724 = IN_PROGRESS`; Windows path safety, Windows storage regressions, native-Windows durable-filesystem regressions, Linux storage, Local install/pypdf, specification validator, Ruff and mypy are already `SUCCESS`; full pytest remains in progress. No failure is claimed from the incomplete run.
-- Last completed exact Develop canonical Quality: `34529111566@cbd0f7036feebc92443b12dec79ac840834dea2d = SUCCESS`.
-- Exact diff `cbd0f703...29540b7` changes only `.github/workflows/ui-snapshot.yml` plus Integrator handoff documentation; no Storage/Recovery product source changed.
-- `postmerge/errors@6b3a9090f305201cd562312b928e41ad61ea78ed` had zero canonical Quality runs immediately before this mutation.
+- Develop source of truth: `develop/pathena-next@4634bdf28c98bc114e0369701122818d474f99d9`.
+- Error worker entered this run at `postmerge/errors@f7f8d1d2f86743dac87538ca4ce99d34f1c0d145`.
+- Current workers: Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`; Backend `b411e75a3481649b33edc70b74c22f64ab71c6d4`; UI `d55877cd353f7ee598df8213b9508fb143e51e15`.
+- Latest exact current Develop canonical Quality: `34539454111@4634bdf28c98bc114e0369701122818d474f99d9 = IN_PROGRESS`; no failure is inferred from the incomplete run.
+- Last completed exact Develop canonical Quality: `34534330414@29540b7a1f2cb09e3a1be9aee2a29e357c8a8724 = SUCCESS`.
+- Current Develop commit `4634bdf2...` changes the bounded UI typography hierarchy plus its focused test and Integrator handoff; Storage/Recovery product source is unchanged.
+- `postmerge/errors@f7f8d1d2f86743dac87538ca4ce99d34f1c0d145` had zero canonical Quality runs immediately before this mutation.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current state
 
-- OPEN: `ERR-0033`.
+- OPEN: `ERR-0033`, `ERR-0035`.
 - IN_PROGRESS: none.
 - FIXED_PENDING_VERIFY: none.
 - FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015` through `ERR-0024`, `ERR-0027`, `ERR-0030`, `ERR-0031`, `ERR-0032`, `ERR-0034`.
 - STALE: `ERR-0014`, `ERR-0025`, `ERR-0026`, `ERR-0028`, `ERR-0029`.
 - BLOCKED: none at top level.
+
+## ERR-0035 — SQLite preflight identity is not carried into live writer startup
+
+- Severity: P1.
+- Status: `OPEN`.
+- Specialist owner: Backend / BE-052. Errors does not parallel-mutate Backend product code while that worker owns the root cause.
+- New exact-current source verification: `src/athena/storage/database.py` at Develop `4634bdf28c98bc114e0369701122818d474f99d9` calls `inspect_database_read_only(self.path)` and then independently opens the writable connection with `sqlite3.connect(self.path, ...)`. No identity token, handle or verified descriptor from the preflight is carried into that writer open.
+- `src/athena/storage/recovery.py` at the same exact SHA confirms the preflight returns only path/existence/application/schema/WAL/SHM facts. It resolves and opens a read-only SQLite connection for integrity checks, closes that connection, and returns no filesystem identity capable of fencing the later writer open. A pathname can therefore be replaced between preflight completion and writer connection establishment without the preflight identity being cryptographically or handle-bound to the object subsequently opened for writes.
+- This is a distinct TOCTOU/root-identity cluster from `ERR-0033`: ERR-0033 concerns EmergencyReserve directory identity across create/release mutation; ERR-0035 concerns the canonical SQLite database object between startup preflight and live writer open.
+- Current Backend handoff independently marks BE-052 `OPEN / P1 / CURRENTLY REPRODUCED BY SOURCE TRACE` and has no bounded candidate. Errors therefore makes no parallel product mutation.
+- Preserve read-only preflight, application-id/schema/quick-check validation, locality, symlink/reparse rejection, WAL/SHM checks and fail-closed Recovery/Storage semantics. Do not replace this with a second pathname-only preflight.
+- Closure requires a bounded Backend candidate plus focused cross-platform identity-swap regression evidence showing the object accepted by preflight is the same object opened as the live writer, followed by exact-SHA canonical evidence when integration/closure requires it.
 
 ## ERR-0034 — native Windows durable-filesystem regression exposed by canonical coverage
 
@@ -42,8 +54,7 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Severity: P1.
 - Status: `OPEN`.
 - Specialist owner: Backend / BE-046. Errors does not parallel-mutate Backend product code while that worker owns the root cause.
-- New exact-current source verification: `src/athena/storage/emergency_reserve.py` at Develop `29540b7a1f2cb09e3a1be9aee2a29e357c8a8724` retains the gap. POSIX reserve creation/release opens `reserve_root`, carries `root_fd`, opens/unlinks `_RESERVE_FILENAME` relative to that descriptor, and repeatedly checks directory identity. The non-POSIX branch still creates with `os.open(self.path, ...)`, validates via `self.path.stat()`, and releases through `self.path.stat()` / `self.path.unlink()` followed by `fsync_directory(self.reserve_root)`; reserve-directory identity is therefore not carried as a bound handle across the Windows mutation/release operation.
-- Exact-current applicability is proven independently of historical queue text: the only Develop delta from the last completed green baseline `cbd0f7036feebc92443b12dec79ac840834dea2d` to current `29540b7a1f2cb09e3a1be9aee2a29e357c8a8724` is UI snapshot workflow/integrator documentation; `emergency_reserve.py` is unchanged. Current Windows canonical lanes are green so this is a source-trace safety gap, not a claimed canonical test failure.
+- Exact-current source verification remains applicable on current Develop because `src/athena/storage/emergency_reserve.py` is unchanged by `4634bdf2...`. POSIX reserve creation/release binds mutation to an opened parent directory FD; the non-POSIX branch still relies on pathname-based create/stat/unlink/fsync sequencing and does not carry reserve-directory identity as a bound handle across the Windows mutation/release operation.
 - Current Backend handoff marks BE-046 `OPEN / P1 / CURRENTLY REPRODUCED BY SOURCE TRACE` and has no bounded candidate. Errors therefore makes no parallel product mutation.
 - Preserve physical non-sparse allocation, exact release accounting and fail-closed Storage/Recovery semantics. Do not replace the requirement with weaker pathname-only checks.
 - Closure requires a bounded Backend candidate plus focused native-Windows regression evidence proving reserve-directory identity remains bound across create/release mutation, including an adversarial directory-swap boundary; then consume exact-SHA canonical evidence as appropriate.
