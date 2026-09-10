@@ -5,22 +5,30 @@ Branch: `postmerge/backend`
 
 ## Current source of truth
 
-- Develop consumed first: `develop/pathena-next@f29abc4341895f8ecd28ebeb0baa2e80b030fdf7`.
-- Backend worker head before this handoff refresh: `c8ee2b0b0152a646a63ad4116526a8ce1fdabf90`.
-- Exact Develop canonical Quality `34510755656@f29abc4341895f8ecd28ebeb0baa2e80b030fdf7 = SUCCESS`.
-- The exact Develop run completed Linux storage regressions, Python Quality (spec validator/Ruff/mypy/full pytest), Windows path safety and Local install smoke successfully.
+- Develop consumed first: `develop/pathena-next@7fa2108d820cfc5b48a9f92d42ffa61697b74818`.
+- Backend worker head before this handoff refresh: `baae5dd42195eea1e2a7320d1be813431a3beecf`.
+- Exact Develop canonical Quality `34522965434@7fa2108d820cfc5b48a9f92d42ffa61697b74818 = SUCCESS`.
+- The exact Develop run completed the canonical Windows durable-filesystem lane together with Linux storage, Python Quality and local-install coverage successfully.
 - No canonical Quality run was queued or in progress on the current Backend worker head when this refresh began.
 - Current Develop handoffs, Alpha/Beta/architecture/runtime/storage contracts and exact-SHA Quality evidence remain authoritative over historical queue text.
 
-## Closed verification cluster — Windows Core/API server lifecycle
+## Closed root-cause cluster — native Windows durable-FS lane / POSIX harness isolation
 
 Status: `CLOSED_ON_DEVELOP / EXACT_WINDOWS_EVIDENCE_GREEN`.
 
-Develop `f29abc4341895f8ecd28ebeb0baa2e80b030fdf7` adds the already-existing `tests/unit/test_api_server_lifecycle_boundaries.py` to the canonical Windows `Run Windows Core/API ownership lifecycle regressions` step. Exact run `34510755656` completed SUCCESS. The Windows step itself completed SUCCESS together with Windows storage path regressions, API runtime path-boundary regressions, packaged runtime contract regressions, adaptive chat reserve, Core/API restart smoke and pypdf packaging verification.
+Develop `effe7fb43246d4f3c4d9ac0f2f5d363c2135bb36` had introduced the complete durable-filesystem test module into the native Windows storage lane. Canonical run `34516879382` failed only because three explicitly POSIX durable-FS tests forced `_is_windows=False` while still executing on a Windows runner, then reached POSIX directory-FD semantics that Windows cannot provide. The real Windows durable-FS tests themselves passed. Root cause was therefore lane/harness drift, not product Storage behavior.
 
-The server lifecycle contract covers fail-fast port validation before runtime construction, complete cleanup ordering and exception propagation, duplicate/noncanonical Content-Length rejection, exact request-body reads and cleanup-failure translation. This provides direct native-Windows evidence for a Core/API startup/shutdown boundary participating in the one-Desktop / bounded-worker and Core-startup release guards. No API/server/process production code, tests, assertions, Storage, Recovery or Security semantics were weakened.
+The bounded Backend candidate `baae5dd42195eea1e2a7320d1be813431a3beecf` isolated the POSIX-only durable-FS cases from the Windows lane without deleting tests, adding Skip/XFail, weakening assertions, or changing Storage/Recovery product code. The equivalent fix is now integrated on Develop as `7fa2108d820cfc5b48a9f92d42ffa61697b74818` (`ci(windows): isolate POSIX durable fs contracts`). Exact canonical Quality run `34522965434` completed `SUCCESS`.
+
+The POSIX durable-FS contracts remain exercised by the Linux lane; native Windows continues to exercise its platform-appropriate durable-filesystem and path-safety contracts. No Backend cherry-pick is required for this cluster.
 
 ## Previously closed verification clusters
+
+### Windows Core/API server lifecycle
+
+Status: `CLOSED_ON_DEVELOP / EXACT_WINDOWS_EVIDENCE_GREEN`.
+
+Develop `f29abc4341895f8ecd28ebeb0baa2e80b030fdf7` added the already-existing `tests/unit/test_api_server_lifecycle_boundaries.py` to the canonical Windows ownership/lifecycle lane. Exact run `34510755656` completed SUCCESS.
 
 ### Windows Core/API ownership lifecycle
 
@@ -32,13 +40,13 @@ Develop `e316843d1f45fc2fd3733d4ae10ec0ad1ac90f58` added the existing Core/API p
 
 Status: `CLOSED_ON_DEVELOP / EXACT_WINDOWS_EVIDENCE_GREEN`.
 
-Develop `3330a0092eaddf58fd3a4fdcb7128f77f01b0301` added the existing adaptive chat reserve contract to the canonical Windows path-safety lane. Exact run `34492275924` completed SUCCESS. Windows step `Run Windows adaptive chat reserve contract` completed SUCCESS.
+Develop `3330a0092eaddf58fd3a4fdcb7128f77f01b0301` added the existing adaptive chat reserve contract to the canonical Windows path-safety lane. Exact run `34492275924` completed SUCCESS.
 
 ### Windows packaged runtime contracts
 
 Status: `CLOSED_ON_DEVELOP / EXACT_WINDOWS_EVIDENCE_GREEN`.
 
-Develop `0d3ca68731ded061b0720bd94d649f3dfed59a45` added the existing packaged runtime contract regressions to the canonical Windows path-safety lane. Exact run `34486592055` completed SUCCESS. Windows packaged runtime, Core/API restart smoke and pypdf packaging verification all completed SUCCESS.
+Develop `0d3ca68731ded061b0720bd94d649f3dfed59a45` added the existing packaged runtime contract regressions to the canonical Windows path-safety lane. Exact run `34486592055` completed SUCCESS.
 
 ## Highest current Backend gaps
 
@@ -54,10 +62,11 @@ Status: `OPEN / P1 / CURRENTLY REPRODUCED BY SOURCE TRACE`.
 
 Current Develop `SQLiteDatabase.start()` still calls `inspect_database_read_only(self.path)` and then independently opens the writer with `sqlite3.connect(self.path, ...)`. The identity verified by preflight is not carried into the writable SQLite connection. A second pathname preflight would not close the race; a cross-platform identity-bound writer strategy is still required.
 
-No product mutation was made for BE-046 or BE-052 in this run. The bounded work in this run was exact-SHA closure of the Windows Core/API server-lifecycle verification dependency. No fabricated focused PASS is claimed for either open product gap.
+No product mutation was made for BE-046 or BE-052 in this run. A fresh local checkout for required focused testing was attempted and failed transiently at DNS resolution (`Could not resolve host: github.com`). No fabricated focused PASS is claimed and no untested product commit was created.
 
 ## Previously closed dependency slices
 
+- Native Windows durable-FS POSIX harness-isolation cluster: `CLOSED_ON_DEVELOP / EXACT_WINDOWS_EVIDENCE_GREEN` at `7fa2108d820cfc5b48a9f92d42ffa61697b74818`, run `34522965434`.
 - BE-038 Windows HANDLE-bound durable filesystem publication: `CLOSED_ON_DEVELOP / QUEUE_EVIDENCE_STALE`.
 - Schema reinitialization harness regression: `CLOSED_ON_DEVELOP / CANONICAL_GREEN`.
 - BE-020 runtime ModelSignature drift guard: `CLOSED_ON_DEVELOP / QUEUE_EVIDENCE_STALE`.
@@ -79,14 +88,15 @@ Integrator has already required that broad Backend/Storage/Migration/Runtime his
 - Redirect/Auth/HTTPS/response-size boundaries remain fail-closed.
 - WAL maintenance safety remains intact.
 - pypdf packaging, Frozen argv and two-EXE topology remain guarded with exact Windows canonical evidence.
-- Exactly one Desktop instance / bounded worker ownership-lifecycle contracts, including the API server lifecycle boundary, now have direct exact Windows canonical evidence through `f29abc4341895f8ecd28ebeb0baa2e80b030fdf7` / run `34510755656`.
+- Exactly one Desktop instance / bounded worker ownership-lifecycle contracts, including the API server lifecycle boundary, retain direct exact Windows canonical evidence.
 - Adaptive 2048-context reserve remains guarded with direct exact Windows canonical evidence.
 - Windows lane-lock/path-safety, duplicate-column/Core-startup/storage-bootstrap signatures remain protected and are only OPEN when reproduced on current exact-SHA evidence.
 - No Skip/XFail, force push, history rewrite, main mutation, or mutation to `bnbgrs/ATHENA`.
 
 ## Integrator prerequisites
 
-- Core/API server lifecycle Windows verification: CLOSED on Develop `f29abc4341895f8ecd28ebeb0baa2e80b030fdf7`; canonical Quality `34510755656 = SUCCESS`; no Backend cherry-pick required.
+- Native Windows durable-FS harness-isolation cluster: CLOSED on Develop `7fa2108d820cfc5b48a9f92d42ffa61697b74818`; canonical Quality `34522965434 = SUCCESS`; no Backend cherry-pick required.
+- Core/API server lifecycle Windows verification: CLOSED on Develop; no Backend cherry-pick required.
 - Core/API ownership lifecycle Windows verification: CLOSED on Develop; no Backend cherry-pick required.
 - Adaptive 2048-context reserve Windows verification: CLOSED on Develop; no Backend cherry-pick required.
 - Windows packaged runtime verification cluster: CLOSED on Develop; no Backend cherry-pick required.
@@ -97,4 +107,4 @@ Integrator has already required that broad Backend/Storage/Migration/Runtime his
 
 ## Next Backend action
 
-Consume the then-current Develop and Backend exact-SHA results first. If Develop remains green, take exactly one bounded current gap, preferring BE-046 before BE-052 unless newer exact-SHA evidence raises a higher-priority Backend/System failure. Do not weaken Storage/Recovery/Security invariants to obtain green tests.
+Consume the then-current Develop and Backend exact-SHA results first. If Develop remains green, take exactly one bounded current gap, preferring BE-046 before BE-052 unless newer exact-SHA evidence raises a higher-priority Backend/System failure. Required focused tests must run before any product commit; do not weaken Storage/Recovery/Security invariants to obtain green tests.
