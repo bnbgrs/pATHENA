@@ -5,74 +5,67 @@ Branch: `postmerge/backend`
 
 ## Current source of truth
 
-- Develop consumed first: `develop/pathena-next@675166fbf1d47b5bf9fe86d3a6b59cb28ea84d17`.
-- Backend worker head before this handoff refresh: `7ef45c5e37d98f56ba9327353ec7f9a8b615a0f2`.
-- Exact Develop canonical Quality `34468185990@675166fbf1d47b5bf9fe86d3a6b59cb28ea84d17 = SUCCESS`.
-- Exact Backend canonical Quality `34455900467@7ef45c5e37d98f56ba9327353ec7f9a8b615a0f2 = FAILURE`; no worker Quality run was queued or in progress when this refresh began.
-- Current Develop handoffs/spec-core/UI/integrator handoffs and current Alpha/Beta/architecture/runtime/storage documentation were treated as authoritative over historical worker priorities.
+- Develop consumed first: `develop/pathena-next@0d3ca68731ded061b0720bd94d649f3dfed59a45`.
+- Backend worker head before this handoff refresh: `a5e28d3c9d3f215620fe69a7dfa9e024155037cf`.
+- Exact Develop canonical Quality `34486592055@0d3ca68731ded061b0720bd94d649f3dfed59a45 = SUCCESS`.
+- Exact Backend canonical Quality remains `34455900467@7ef45c5e37d98f56ba9327353ec7f9a8b615a0f2 = FAILURE`; no worker Quality run was queued or in progress when this refresh began.
+- Current Develop handoffs, Alpha/Beta/architecture/runtime/storage contracts and exact-SHA Quality evidence were treated as authoritative over historical queue text.
 
-## Closed dependency slice — BE-038 Windows HANDLE-bound durable filesystem publication
+## Closed verification cluster — Windows packaged runtime contracts
 
-Status: `CLOSED_ON_DEVELOP / QUEUE_EVIDENCE_STALE`.
+Status: `CLOSED_ON_DEVELOP / EXACT_WINDOWS_EVIDENCE_GREEN`.
 
-The persistent Backend queue still describes Windows durable publication as pathname-based `MoveFileExW` and marks BE-038 READY. That evidence is stale on current Develop.
+Develop `0d3ca68731ded061b0720bd94d649f3dfed59a45` adds the existing packaged runtime contract regressions to the canonical Windows path-safety lane. Exact run `34486592055` completed SUCCESS. Within that exact run, Windows steps `Run Windows packaged runtime contract regressions`, `Run Windows Core/API restart smoke`, and `Verify Windows pypdf packaging metadata` all completed SUCCESS. Linux storage regressions, full Python Quality (validator/Ruff/mypy/pytest), and Local install smoke also completed SUCCESS.
 
-On `675166fbf1d47b5bf9fe86d3a6b59cb28ea84d17`, `src/athena/storage/durable_fs.py` implements `_windows_open_bound_handle()` with `CreateFileW(..., FILE_FLAG_OPEN_REPARSE_POINT)` and validates reparse state, expected file/directory type, and final path identity before returning the HANDLE. `_windows_replace_write_through()` binds both the source object and destination parent to HANDLE identities, then `_windows_rename_relative()` performs the publication relative to the bound destination parent via `NtSetInformationFile(FileRenameInformation)`. The destination is constrained to one plain leaf name.
+This converts the previously inferred Windows evidence for Frozen argv, two-EXE topology and packaged process dispatch into direct canonical Windows evidence. No production packaging/runtime code, assertions, Storage, Recovery or Security guards were weakened.
 
-Therefore the pathname-based Windows publication gap described by BE-038 is already closed on authoritative Develop and must not cause another Backend implementation of the same primitive. The exact Develop canonical Quality for the inspected SHA is green.
+## Highest current Backend gaps
 
-No production code, test assertion, filesystem guard, Storage/Recovery behavior, or security boundary was changed for this closure.
+### BE-046 — Emergency Reserve Windows directory-identity binding
 
-## Closed dependency slice — schema reinitialization harness regression
+Status: `OPEN / P1 / CURRENTLY REPRODUCED BY SOURCE TRACE`.
 
-Status: `CLOSED_ON_DEVELOP / CANONICAL_GREEN`.
+Current Develop still binds POSIX reserve creation/release to an opened parent directory FD. The non-POSIX branch still creates via `os.open(self.path, ...)`, validates pathname/file identity after open, and later performs cleanup/release through `self.path.stat()` / `self.path.unlink()`. Therefore directory identity is not bound through the Windows mutation itself. Preserve physical non-sparse allocation and exact release accounting; do not substitute weaker pathname-only checks.
 
-The prior `test_schema_reinitialization_contract.py` harness regression is closed on Develop `675166fbf1d47b5bf9fe86d3a6b59cb28ea84d17`. The harness retains `sqlite3.Row` for named schema-verification access and compares `PRAGMA user_version` by scalar value. Canonical Quality `34468185990` completed SUCCESS. No production migration or schema guard change is required.
+### BE-052 — Preflight DB identity through live writer startup
 
-## Previously closed dependency slice — BE-020 runtime ModelSignature drift guard
+Status: `OPEN / P1 / CURRENTLY REPRODUCED BY SOURCE TRACE`.
 
-Status: `CLOSED_ON_DEVELOP / QUEUE_EVIDENCE_STALE`.
+Current Develop `SQLiteDatabase.start()` still calls `inspect_database_read_only(self.path)` and then independently opens the writer with `sqlite3.connect(self.path, ...)`. The identity verified by preflight is not carried into the writable SQLite connection. A second pathname preflight would not close the race; a cross-platform identity-bound writer strategy is still required.
 
-The persistent Backend queue still states that shared `chat/generation.py` uses an older inline signature comparison. That statement is stale on current Develop. The reusable revision-aware ModelSignature guard is already wired before provider dispatch. Do not duplicate it.
+No product mutation was made for BE-046 or BE-052 in this run because the required focused execution path is transiently unavailable: a fresh local checkout again failed with `Could not resolve host: github.com`. No fabricated focused PASS is claimed.
 
-## Previously closed root-cause cluster — Windows storage bootstrap reserve path
+## Previously closed dependency slices
 
-Status: `CLOSED_ON_DEVELOP / EXACT_LANE_VERIFIED`.
-
-The earlier Windows storage-bootstrap harness defect was fixed on authoritative Develop. The failing test stub used a POSIX-looking `/tmp/...` path that was not absolute on Windows; production `EmergencyReserveStatus` correctly rejected it fail-closed. The corrected test uses a platform-valid absolute path. No production Storage/Recovery behavior was weakened.
+- BE-038 Windows HANDLE-bound durable filesystem publication: `CLOSED_ON_DEVELOP / QUEUE_EVIDENCE_STALE`.
+- Schema reinitialization harness regression: `CLOSED_ON_DEVELOP / CANONICAL_GREEN`.
+- BE-020 runtime ModelSignature drift guard: `CLOSED_ON_DEVELOP / QUEUE_EVIDENCE_STALE`.
+- Windows storage bootstrap reserve-path harness cluster: `CLOSED_ON_DEVELOP / EXACT_LANE_VERIFIED`.
 
 ## Current Backend worker red state
 
-The broad historical worker branch remains non-authoritative relative to current Develop. Its last exact canonical run is red and contains worker-only schema-v41 / `research_delta_boundaries` history plus a separate Ruff import-order finding. Do not mechanically repair legacy fixtures to preserve that worker-only schema lineage.
+The broad historical worker branch remains non-authoritative relative to current Develop. Its last exact canonical run is red and contains worker-only schema-v41 / `research_delta_boundaries` history plus a separate Ruff import-order finding. Do not mechanically repair legacy fixtures to preserve that worker-only lineage.
 
 Integrator has already required that broad Backend/Storage/Migration/Runtime history not be absorbed as a unit. Any surviving worker delta must be re-proven as a small current-Develop gap before mutation or integration.
-
-## CI discipline / verification constraints
-
-- No Backend canonical Quality run was queued or in progress on `7ef45c5e37d98f56ba9327353ec7f9a8b615a0f2` when this handoff refresh began; `34455900467` is completed FAILURE.
-- A fresh local checkout was attempted again in this run and remains blocked by transient DNS resolution of `github.com`; focused local pytest/Ruff execution is therefore unavailable.
-- This run made no product/test mutation and claims no fabricated focused PASS. BE-038 closure is based on direct exact-SHA source inspection plus the completed exact-SHA green canonical Develop run.
-- Any future product/test mutation must begin with current Develop/worker/run re-check and obtain real focused verification before canonical Quality.
 
 ## Preserved release guards
 
 - No silent Tor-to-Direct fallback.
 - Redirect/Auth/HTTPS/response-size boundaries remain fail-closed.
 - WAL maintenance safety remains intact.
-- pypdf packaging, Frozen argv and two-EXE topology remain guarded.
+- pypdf packaging, Frozen argv and two-EXE topology remain guarded and now have exact Windows canonical evidence on `0d3ca68731ded061b0720bd94d649f3dfed59a45`.
 - Bounded worker tree and adaptive 2048-context reserve remain guarded.
 - Windows lane-lock/path-safety, duplicate-column/Core-startup/storage-bootstrap signatures remain protected and are only OPEN when reproduced on current exact-SHA evidence.
 - No Skip/XFail, force push, history rewrite, main mutation, or mutation to `bnbgrs/ATHENA`.
 
 ## Integrator prerequisites
 
-- BE-038: CLOSED on Develop `675166fbf1d47b5bf9fe86d3a6b59cb28ea84d17`; no Backend product cherry-pick is required.
-- Schema reinitialization harness cluster: CLOSED on Develop `675166fbf1d47b5bf9fe86d3a6b59cb28ea84d17`; canonical Quality `34468185990 = SUCCESS`.
-- BE-020: CLOSED on Develop; no Backend product cherry-pick is required.
-- Windows storage bootstrap reserve-path cluster: CLOSED on Develop; no further Backend action required.
+- Windows packaged runtime verification cluster: CLOSED on Develop `0d3ca68731ded061b0720bd94d649f3dfed59a45`; canonical Quality `34486592055 = SUCCESS`; no Backend cherry-pick required.
+- BE-038 / BE-020 / schema-reinitialization / Windows bootstrap harness: CLOSED on Develop; do not duplicate.
+- BE-046 and BE-052 remain OPEN but have no candidate because focused execution is currently infrastructure-blocked.
 - Broad Backend worker history: `HOLD / NOT READY`.
 - Do not integrate worker-only schema-v41/WAL/Runtime changes without a fresh bounded reconciliation against current Develop and exact focused/canonical evidence.
 
 ## Next Backend action
 
-Consume the then-current Develop and Backend exact-SHA results first. Ignore BE-038 and BE-020 as stale queue work. Select the highest still-authoritative Backend/System gap from current red exact-SHA evidence or current specs/contracts. Do not preserve historical worker-only behavior merely to make its old tests green.
+Consume the then-current Develop and Backend exact-SHA results first. If Develop remains green, retry real focused execution and take exactly one bounded current gap, preferring BE-046 before BE-052 unless newer exact-SHA evidence raises a higher-priority Backend/System failure. Do not weaken Storage/Recovery/Security invariants to obtain green tests.
