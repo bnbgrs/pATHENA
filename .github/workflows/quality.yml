@@ -221,6 +221,9 @@ jobs:
       - name: Run API runtime path-boundary regressions
         run: uv run --locked --extra dev pytest -q tests/unit/test_api_runtime_boundaries.py
 
+      - name: Run Windows packaged runtime contract regressions
+        run: uv run --locked --extra dev --extra desktop pytest -q tests/unit/test_packaged_app_dispatch.py tests/unit/test_packaged_process_launch.py tests/unit/test_windows_packaging_contract.py
+
       - name: Run Windows Core/API restart smoke
         run: uv run --locked --extra dev athena-local-smoke --restart-cycles 1
 
