@@ -14,10 +14,10 @@ def test_reinitializing_current_schema_does_not_reapply_column_migrations(
     connection.row_factory = sqlite3.Row
     try:
         initialize_schema(connection, created_at_us=1)
-        assert connection.execute("PRAGMA user_version").fetchone() == (SCHEMA_VERSION,)
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
 
         initialize_schema(connection, created_at_us=2)
 
-        assert connection.execute("PRAGMA user_version").fetchone() == (SCHEMA_VERSION,)
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
     finally:
         connection.close()
