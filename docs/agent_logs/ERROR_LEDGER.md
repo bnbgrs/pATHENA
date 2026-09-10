@@ -8,12 +8,13 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 
 ## Current baseline
 
-- Develop source of truth: `develop/pathena-next@fafbeabdde1207ebc97712aa61ee947410cbf691`.
+- Develop source of truth advanced during this run to `develop/pathena-next@4046459bf2b91f9d30efee1f9b726c40080e2408`.
 - Error worker entered this run at `postmerge/errors@a855aca00d090f6762fe1a47095b3a213653b130`.
 - Current workers reviewed: Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`; Backend `31752aefe0d5f79d8c305c531cc7584c0585e175`; UI `af50dfb76b04e396a2dbf65ec1eeb265f30177fa`.
-- Exact current Develop canonical Quality `34435069158@fafbeabdde1207ebc97712aa61ee947410cbf691 = FAILURE`. Python quality, Linux storage regressions and Local-install/pypdf are green; the only failed job is `Windows path safety`, specifically `Run Windows storage path regressions`.
+- Previous Develop `fafbeabdde1207ebc97712aa61ee947410cbf691` failed canonical Quality `34435069158` only in `Windows path safety -> Run Windows storage path regressions`; Python quality, Linux storage and Local-install/pypdf were green.
+- New current Develop `4046459bf2b91f9d30efee1f9b726c40080e2408` is the Integrator's bounded `test(storage): make bootstrap reserve stub Windows-safe` candidate. Canonical Quality `34439530635` is already `in_progress`; no competing Develop run was started and Develop was not mutated by Errors.
 - Exact current Backend canonical Quality `34437259339@31752aefe0d5f79d8c305c531cc7584c0585e175 = FAILURE` overall because of unrelated Python-quality failures, but its complete `Windows path safety` job is `SUCCESS`, including `Run Windows storage path regressions = SUCCESS` and the following API runtime path-boundary regressions.
-- `postmerge/errors` had no canonical Quality runs before this run's mutation.
+- `postmerge/errors` had no canonical Quality runs before or between this run's documentation mutations.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current state
@@ -29,13 +30,14 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 
 - Severity: P1 current Develop integration blocker until corrected Develop verification.
 - Status: `FIXED_PENDING_VERIFY`.
-- Exact Develop reproduction: canonical Quality `34435069158@fafbeabdde1207ebc97712aa61ee947410cbf691` completed `FAILURE`; `Windows path safety` fails at `Run Windows storage path regressions` while Python quality, Linux storage and Local-install/pypdf pass.
+- Exact failing Develop reproduction: canonical Quality `34435069158@fafbeabdde1207ebc97712aa61ee947410cbf691` completed `FAILURE`; `Windows path safety` failed at `Run Windows storage path regressions` while Python quality, Linux storage and Local-install/pypdf passed.
 - Assertion-level diagnostics deduplicate all four Windows failures to one harness root cause in `tests/unit/test_storage_bootstrap.py`: `_ReserveStub.ensure()` returns `EmergencyReserveStatus(path=Path("/tmp/bootstrap-emergency.reserve"), ...)`. On Windows this materializes as `WindowsPath('/tmp/bootstrap-emergency.reserve')`, which is drive-less and therefore fails `EmergencyReserveStatus.__post_init__()` with `ValueError: Emergency reserve status path must be absolute.`
 - The four affected tests are `test_bootstrap_current_database_orders_reserve_before_database_start`, `test_bootstrap_rechecks_pressure_before_live_writer_start`, `test_bootstrap_legacy_database_passes_real_reserve_requirement_to_runner`, and `test_bootstrap_binds_runtime_disk_pressure_gate_to_real_database`. They are one portability-stub cascade, not four Storage product defects.
-- Backend owns the same root cause and already contains the bounded one-line harness correction at `postmerge/backend@31752aefe0d5f79d8c305c531cc7584c0585e175`: replace the POSIX-only stub path with `Path.cwd() / "bootstrap-emergency.reserve"`. No assertion or production behavior changes.
-- Exact verification on that Backend SHA: canonical Quality `34437259339` has `Windows path safety = SUCCESS`; its `Run Windows storage path regressions` and subsequent API runtime path-boundary step both pass. The run is globally red only for unrelated Python-quality failures, so this establishes focused closure evidence but not Develop closure.
-- Do not duplicate the Backend-owned patch on Errors. Do not weaken `EmergencyReserveStatus` absolute-path validation, storage-bootstrap, Storage, Recovery, lane-lock, path-safety or fail-closed semantics.
-- Closure condition: integrate only the bounded test-path correction onto a current Develop candidate and require exact-SHA Develop canonical Quality/Windows path-safety PASS before changing `ERR-0031` to `FIXED`.
+- Backend owns the same root cause and contains the bounded one-line harness correction at `postmerge/backend@31752aefe0d5f79d8c305c531cc7584c0585e175`: replace the POSIX-only stub path with `Path.cwd() / "bootstrap-emergency.reserve"`. No assertion or production behavior changes.
+- Exact focused verification on that Backend SHA: canonical Quality `34437259339` has `Windows path safety = SUCCESS`; its `Run Windows storage path regressions` and subsequent API runtime path-boundary step both pass. The run is globally red only for unrelated Python-quality failures.
+- Integrator has now landed exactly this bounded correction on current Develop `4046459bf2b91f9d30efee1f9b726c40080e2408`; canonical Quality `34439530635` is in progress. Do not commit again to Develop until it completes.
+- Do not duplicate the patch on Errors. Do not weaken `EmergencyReserveStatus` absolute-path validation, storage-bootstrap, Storage, Recovery, lane-lock, path-safety or fail-closed semantics.
+- Closure condition: consume `34439530635@4046459bf2b91f9d30efee1f9b726c40080e2408`; only an exact-SHA Develop canonical/Windows-lane PASS permits `ERR-0031 = FIXED`.
 
 ## ERR-0030 — Delta Research freeze prerequisite omitted on Develop
 
