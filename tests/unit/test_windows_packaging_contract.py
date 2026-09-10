@@ -66,7 +66,7 @@ def test_windows_portable_output_cleanup_is_bounded_and_owned() -> None:
 
     boundary = script.index("$resolvedOutput = Assert-PathenaPackagingOutputBoundary")
     reparse = script.index("Assert-PathenaPackagingPathHasNoReparseAncestor -Path $resolvedOutput")
-    ownership = script.index("Initialize-PathenaPackagingOutputRoot")
+    ownership = script.index("\nInitialize-PathenaPackagingOutputRoot `\n    -OutputRoot")
     validation_exit = script.index("if ($ValidateOutputRootOnly)")
     resolver = script.index("$uv = Get-Command uv")
 
