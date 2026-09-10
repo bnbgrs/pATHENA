@@ -184,7 +184,7 @@ QFrame#composer {{
 QLineEdit#promptInput {{
     background: transparent;
     border: none;
-    min-height: 42px;
+    min-height: 44px;
     padding: 0 {SPACE.sm}px;
 }}
 
@@ -195,7 +195,10 @@ QLineEdit#promptInput:focus {{
 QPushButton#groundButton {{
     color: {PALETTE.text_muted};
     background: transparent;
-    border-color: transparent;
+    border: 1px solid transparent;
+    min-height: 34px;
+    max-height: 34px;
+    padding: 0 {SPACE.sm}px;
 }}
 
 QPushButton#groundButton:hover,
@@ -225,7 +228,6 @@ QPushButton:pressed {{
     border-color: {PALETTE.accent_pressed};
 }}
 
-QPushButton#sendButton,
 QPushButton[role="primary"],
 QPushButton[pathenaActionRole="primary"] {{
     color: {PALETTE.canvas};
@@ -235,15 +237,23 @@ QPushButton[pathenaActionRole="primary"] {{
 }}
 
 QPushButton#sendButton {{
-    min-width: 44px;
-    max-width: 44px;
-    min-height: 44px;
-    max-height: 44px;
+    color: {PALETTE.accent};
+    background: transparent;
+    border-color: transparent;
+    min-width: 42px;
+    max-width: 42px;
+    min-height: 42px;
+    max-height: 42px;
     border-radius: 22px;
     padding: 0;
 }}
 
-QPushButton#sendButton:hover,
+QPushButton#sendButton:hover {{
+    color: {PALETTE.accent_hover};
+    background: {PALETTE.accent_soft};
+    border-color: transparent;
+}}
+
 QPushButton[role="primary"]:hover,
 QPushButton[pathenaActionRole="primary"]:hover {{
     background: {PALETTE.accent_hover};
