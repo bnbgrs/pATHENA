@@ -8,12 +8,13 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 
 ## Current baseline
 
-- Develop source of truth: `develop/pathena-next@843466d00e67232aeac43da8c3797a5b1f0d65ef`.
-- Error worker entered this run at `postmerge/errors@fe1b33827f477f16338dab2bb2b5596c664a74f2`.
-- Current workers reviewed: Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`; Backend `844d65a85ecb611d5060bf311c6346c810d2247e`; UI `af50dfb76b04e396a2dbf65ec1eeb265f30177fa`.
-- Exact current Develop canonical Quality `34409340769@843466d00e67232aeac43da8c3797a5b1f0d65ef = SUCCESS`.
-- Current exact Backend canonical Quality remains `34378587885@844d65a85ecb611d5060bf311c6346c810d2247e = FAILURE`; diagnostics artifact `10115789607` was consumed for assertion-level evidence.
-- No canonical Quality exists on `postmerge/errors`; no competing run was started before documentation mutation.
+- Develop source of truth: `develop/pathena-next@c7b6a6e756f9d84a1f9e9e2b46261455b42a61a5`.
+- Error worker entered this run at `postmerge/errors@611d0e6a9a2681c832dd833009237b84b956c78e`.
+- Current workers reviewed: Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`; Backend `5b6e8226b316a8d0c943c71cab907d66360281a2`; UI `af50dfb76b04e396a2dbf65ec1eeb265f30177fa`.
+- Exact current Develop canonical Quality `34423135374@c7b6a6e756f9d84a1f9e9e2b46261455b42a61a5` is `in_progress`; no competing Develop run was started.
+- Exact current Backend canonical Quality `34417344758@5b6e8226b316a8d0c943c71cab907d66360281a2 = FAILURE`; diagnostics artifact `10130164077` was consumed for assertion-level evidence.
+- Backend Quality: specification validator, mypy, Windows path safety, Linux storage regressions and local-install/pypdf smoke passed; Ruff and full pytest failed. Pytest summary: `17 failed, 4845 passed, 3 skipped, 2 warnings`.
+- `postmerge/errors` had no canonical Quality run before this documentation mutation.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current state
@@ -35,40 +36,43 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 
 ## ERR-0026 — Backend v41 schema module canonical Ruff I001
 
-- Severity: P2 on the Backend worker; not a current Develop integration blocker.
+- Severity: P2 on the Backend worker; not a current proven Develop integration blocker.
 - Status: `IN_PROGRESS`.
-- Exact Backend Quality `34378587885@844d65a85ecb611d5060bf311c6346c810d2247e` has exactly one Ruff finding in diagnostics artifact `10115789607`: `I001 [*] Import block is un-sorted or un-formatted` at `src/athena/storage/schema.py:3:1`; Ruff reports `Found 1 error` and `1 fixable with the --fix option`.
-- Backend `schema.py` blob `b5658c38ca061095a951bc85f3a2fbc88b53ee76` differs from current Develop's Ruff-normalized blob `9d6d9fd410662e7f1ec311a93a1e8ee135c51e5f` only in formatter-relevant import grouping for this cause.
-- Do not hand-sort or weaken Ruff. Backend owner should apply pinned Ruff 0.15.22 autofix/synchronize the formatter-clean import form, then run focused Ruff first.
-- Closure remains withheld until the Backend worker itself has exact focused/canonical Ruff PASS after that bounded correction.
+- Reproduced again on exact current Backend Quality `34417344758@5b6e8226b316a8d0c943c71cab907d66360281a2`: Ruff reports `I001 [*] Import block is un-sorted or un-formatted` at `src/athena/storage/schema.py:3:1`.
+- This supersedes the older `34378587885@844d65a8...` evidence for current-worker status; the attempted Backend synchronization did not close this schema import-format failure.
+- Error worker's own `schema.py` is already formatter-clean and does not justify a parallel product rewrite. Backend remains owner of its current v41 schema candidate.
+- Do not weaken Ruff or hand-bypass the check. Closure requires exact focused/canonical Ruff PASS on a current Backend SHA.
 
 ## ERR-0028 — v41 legacy schema fixtures/current-version assertions
 
 - Severity: P2.
 - Status: `IN_PROGRESS` overall.
 - Closed subclusters remain closed absent exact-current regression: grounded-response-receipt, backup-retention, operational-error physical-cleanup, deletion-ledger, protected-source-blob, knowledge-schema-current-version.
-- `knowledge-schema-current-version` remains `FIXED`: exact Backend `844d65a85ecb611d5060bf311c6346c810d2247e` uses `RESEARCH_DELTA_BOUNDARY_MIGRATION_ID` for the fresh-current-schema assertion and exact diagnostics do not list that test as failing.
+- Current exact Backend evidence is `34417344758@5b6e8226b316a8d0c943c71cab907d66360281a2`, diagnostics artifact `10130164077`.
 
-### Active subcluster: legacy terminal-migration assertions
+### Active subcluster: stale terminal-current-schema migration-ID assertions
 
 - Status: `IN_PROGRESS`.
-- Exact Backend diagnostics artifact `10115789607` isolates one repeated assertion root cause across exactly eight `tests/unit/test_knowledge_schema.py` legacy-upgrade tests: `v14`, `v17`, `v18`, `v19`, `v20`, `v21`, `v22`, `v23`.
-- Each database successfully upgrades to `SCHEMA_VERSION`, then reads `schema_metadata.last_migration_id = '0041_research_delta_boundary'`, but the harness still asserts `GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID` (`0040_grounded_response_receipts`). The failures occur at lines 801, 978, 1041, 1111, 1184, 1266 and the corresponding later v22/v23 assertions in the same exact diagnostic.
-- These eight failures are one stale terminal-version expectation cluster, not eight independent migration/product failures. The bounded correction is to retain each historical pre-upgrade assertion but use `RESEARCH_DELTA_BOUNDARY_MIGRATION_ID` for the post-`database.start()` terminal-current-schema check.
-- No production schema/migration change is justified by this evidence. Backend owns the v41 branch and should apply/verify the harness correction there; Error worker does not duplicate Backend product/harness mutations while that worker remains the authoritative owner.
-- Closure requires focused PASS for these exact eight tests on a current Backend SHA, followed by the smallest relevant regression set/canonical Quality if needed for integration.
+- Current exact Backend diagnostics deduplicate **nine** failures to one harness root cause, superseding the previous eight-test inventory.
+- Eight failures are in `tests/unit/test_knowledge_schema.py`: legacy upgrades `v14`, `v17`, `v18`, `v19`, `v20`, `v21`, `v22`, `v23`. Each upgrade reaches `SCHEMA_VERSION` and reads `schema_metadata.last_migration_id = '0041_research_delta_boundary'`, but the terminal-current-schema assertion still expects `GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID` / `0040_grounded_response_receipts`.
+- The ninth identical terminal-version drift is `tests/unit/test_protected_content.py::test_fresh_schema_has_v32_security_tables_without_persistent_unlock_state`: actual metadata tuple is `(41, '0041_research_delta_boundary', 41)`, while the harness still expects `(41, '0040_grounded_response_receipts', 41)`.
+- These nine failures are one stale terminal-version expectation cluster, not nine production migration defects. Historical pre-upgrade assertions must remain historical; only assertions describing the final current schema may move to `RESEARCH_DELTA_BOUNDARY_MIGRATION_ID`.
+- No production schema/migration, Storage, Recovery or Security change is justified by this evidence. In particular, do not alter migration semantics to satisfy stale fixtures.
+- Backend remains the authoritative v41 owner; Error worker does not duplicate its current product/harness mutation while that worker is active.
+- Closure requires focused PASS for these nine exact assertions on a current Backend SHA, followed by the smallest relevant regression set/canonical Quality if needed.
 
 ### Separate active fixture-collision subcluster
 
-- Exact Backend diagnostics independently report `sqlite3.OperationalError: table research_delta_boundaries already exists` in v28, v29, v36 and archive/protected-content/transition legacy fixtures. Keep these separate from the eight stale assertions.
-- Cascade signatures such as `Failed to start service 'storage-bootstrap'` remain deduplicated when caused by the same migration-fixture failure.
+- Current exact Backend diagnostics independently report `sqlite3.OperationalError: table research_delta_boundaries already exists` in archive replication, knowledge-schema v28/v29/v36, protected-content v31 and protected-source-transition v33 fixtures.
+- `Failed to start service 'storage-bootstrap'` and `ATHENA Core startup failed` remain cascades where caused by the same migration-fixture collision.
+- Keep this cluster separate from stale terminal-ID assertions. Do not mask it with `IF NOT EXISTS` or any migration guard weakening.
 
 ## ERR-0029 — WAL harness collaborators incompatible with canonical exact-type runtime guards
 
 - Severity: P2.
 - Status: `IN_PROGRESS`.
 - Production exact-type fail-closed guards remain authoritative and must not be weakened.
-- No new exact focused/assertion-level closure evidence was consumed this run.
+- No new exact focused/assertion-level closure evidence was consumed for this cluster in this run.
 
 ## ERR-0027 — v41 schema contract constant re-export
 
