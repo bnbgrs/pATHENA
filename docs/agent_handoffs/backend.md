@@ -5,28 +5,34 @@ Branch: `postmerge/backend`
 
 ## Current source of truth
 
-- Develop consumed first: `develop/pathena-next@3330a0092eaddf58fd3a4fdcb7128f77f01b0301`.
-- Backend worker head before this handoff refresh: `64dc45191f4d099b098ddd0a8a19666d9af1215c`.
-- Exact Develop canonical Quality `34492275924@3330a0092eaddf58fd3a4fdcb7128f77f01b0301 = SUCCESS`.
+- Develop consumed first: `develop/pathena-next@e316843d1f45fc2fd3733d4ae10ec0ad1ac90f58`.
+- Backend worker head before this handoff refresh: `338e4514d144f4701e52515c0196e0f968f5db47`.
+- Exact Develop canonical Quality `34504620300@e316843d1f45fc2fd3733d4ae10ec0ad1ac90f58 = SUCCESS`.
 - The exact Develop run completed Linux storage regressions, Python Quality (spec validator/Ruff/mypy/full pytest), Windows path safety and Local install smoke successfully.
-- No canonical Quality run was queued or in progress on worker head `64dc45191f4d099b098ddd0a8a19666d9af1215c` when this refresh began.
+- No canonical Quality run was queued or in progress on the current Backend worker head when this refresh began.
 - Current Develop handoffs, Alpha/Beta/architecture/runtime/storage contracts and exact-SHA Quality evidence remain authoritative over historical queue text.
 
-## Closed verification cluster — Windows adaptive chat reserve
+## Closed verification cluster — Windows Core/API ownership lifecycle
 
 Status: `CLOSED_ON_DEVELOP / EXACT_WINDOWS_EVIDENCE_GREEN`.
 
-Develop `3330a0092eaddf58fd3a4fdcb7128f77f01b0301` adds the existing adaptive chat reserve contract to the canonical Windows path-safety lane. Exact run `34492275924` completed SUCCESS. Within that exact run, Windows step `Run Windows adaptive chat reserve contract` completed SUCCESS, alongside Windows storage path regressions, packaged runtime contract regressions, Core/API restart smoke and pypdf packaging verification.
+Develop `e316843d1f45fc2fd3733d4ae10ec0ad1ac90f58` adds the existing Core/API ownership lifecycle regression set to the canonical Windows path-safety lane. Exact run `34504620300` completed SUCCESS. Within that exact run, Windows step `Run Windows Core/API ownership lifecycle regressions` completed SUCCESS, alongside Windows storage path regressions, API runtime path-boundary regressions, packaged runtime contract regressions, adaptive chat reserve, Core/API restart smoke and pypdf packaging verification.
 
-This gives direct canonical Windows evidence for the persistent adaptive 2048-context reserve guard. The contract was verified without changing or weakening context-reserve behavior, runtime guards, Storage, Recovery or Security semantics.
+This provides direct canonical Windows evidence for process ownership/lifecycle boundaries relevant to the persistent one-Desktop / bounded-worker guard. No process/runtime production code, assertions, Storage, Recovery or Security semantics were weakened.
 
-## Previously closed verification cluster — Windows packaged runtime contracts
+## Previously closed verification clusters
+
+### Windows adaptive chat reserve
 
 Status: `CLOSED_ON_DEVELOP / EXACT_WINDOWS_EVIDENCE_GREEN`.
 
-Develop `0d3ca68731ded061b0720bd94d649f3dfed59a45` added the existing packaged runtime contract regressions to the canonical Windows path-safety lane. Exact run `34486592055` completed SUCCESS. Within that exact run, Windows steps `Run Windows packaged runtime contract regressions`, `Run Windows Core/API restart smoke`, and `Verify Windows pypdf packaging metadata` all completed SUCCESS. Linux storage regressions, full Python Quality (validator/Ruff/mypy/pytest), and Local install smoke also completed SUCCESS.
+Develop `3330a0092eaddf58fd3a4fdcb7128f77f01b0301` added the existing adaptive chat reserve contract to the canonical Windows path-safety lane. Exact run `34492275924` completed SUCCESS. Windows step `Run Windows adaptive chat reserve contract` completed SUCCESS.
 
-This converted the previously inferred Windows evidence for Frozen argv, two-EXE topology and packaged process dispatch into direct canonical Windows evidence. No production packaging/runtime code, assertions, Storage, Recovery or Security guards were weakened.
+### Windows packaged runtime contracts
+
+Status: `CLOSED_ON_DEVELOP / EXACT_WINDOWS_EVIDENCE_GREEN`.
+
+Develop `0d3ca68731ded061b0720bd94d649f3dfed59a45` added the existing packaged runtime contract regressions to the canonical Windows path-safety lane. Exact run `34486592055` completed SUCCESS. Windows packaged runtime, Core/API restart smoke and pypdf packaging verification all completed SUCCESS.
 
 ## Highest current Backend gaps
 
@@ -42,7 +48,7 @@ Status: `OPEN / P1 / CURRENTLY REPRODUCED BY SOURCE TRACE`.
 
 Current Develop `SQLiteDatabase.start()` still calls `inspect_database_read_only(self.path)` and then independently opens the writer with `sqlite3.connect(self.path, ...)`. The identity verified by preflight is not carried into the writable SQLite connection. A second pathname preflight would not close the race; a cross-platform identity-bound writer strategy is still required.
 
-No product mutation was made for BE-046 or BE-052 in this run. The higher-confidence bounded work in this run was exact-SHA closure of the adaptive chat reserve Windows verification dependency. No fabricated focused PASS is claimed for either open product gap.
+No product mutation was made for BE-046 or BE-052 in this run. The bounded work in this run was exact-SHA closure of the Windows Core/API ownership lifecycle verification dependency. No fabricated focused PASS is claimed for either open product gap.
 
 ## Previously closed dependency slices
 
@@ -52,6 +58,7 @@ No product mutation was made for BE-046 or BE-052 in this run. The higher-confid
 - Windows storage bootstrap reserve-path harness cluster: `CLOSED_ON_DEVELOP / EXACT_LANE_VERIFIED`.
 - Windows packaged runtime contracts (pypdf/Frozen argv/two-EXE/process dispatch): `CLOSED_ON_DEVELOP / EXACT_WINDOWS_EVIDENCE_GREEN`.
 - Adaptive 2048-context reserve Windows contract: `CLOSED_ON_DEVELOP / EXACT_WINDOWS_EVIDENCE_GREEN`.
+- Core/API ownership lifecycle Windows contract: `CLOSED_ON_DEVELOP / EXACT_WINDOWS_EVIDENCE_GREEN`.
 
 ## Current Backend worker red state
 
@@ -65,14 +72,15 @@ Integrator has already required that broad Backend/Storage/Migration/Runtime his
 - Redirect/Auth/HTTPS/response-size boundaries remain fail-closed.
 - WAL maintenance safety remains intact.
 - pypdf packaging, Frozen argv and two-EXE topology remain guarded with exact Windows canonical evidence.
-- Bounded worker tree remains guarded.
-- Adaptive 2048-context reserve remains guarded and now has direct exact Windows canonical evidence on `3330a0092eaddf58fd3a4fdcb7128f77f01b0301` / run `34492275924`.
+- Exactly one Desktop instance / bounded worker ownership-lifecycle contracts now have direct exact Windows canonical evidence on `e316843d1f45fc2fd3733d4ae10ec0ad1ac90f58` / run `34504620300`.
+- Adaptive 2048-context reserve remains guarded with direct exact Windows canonical evidence.
 - Windows lane-lock/path-safety, duplicate-column/Core-startup/storage-bootstrap signatures remain protected and are only OPEN when reproduced on current exact-SHA evidence.
 - No Skip/XFail, force push, history rewrite, main mutation, or mutation to `bnbgrs/ATHENA`.
 
 ## Integrator prerequisites
 
-- Adaptive 2048-context reserve Windows verification: CLOSED on Develop `3330a0092eaddf58fd3a4fdcb7128f77f01b0301`; canonical Quality `34492275924 = SUCCESS`; no Backend cherry-pick required.
+- Core/API ownership lifecycle Windows verification: CLOSED on Develop `e316843d1f45fc2fd3733d4ae10ec0ad1ac90f58`; canonical Quality `34504620300 = SUCCESS`; no Backend cherry-pick required.
+- Adaptive 2048-context reserve Windows verification: CLOSED on Develop; no Backend cherry-pick required.
 - Windows packaged runtime verification cluster: CLOSED on Develop; no Backend cherry-pick required.
 - BE-038 / BE-020 / schema-reinitialization / Windows bootstrap harness: CLOSED on Develop; do not duplicate.
 - BE-046 and BE-052 remain OPEN and have no candidate in this handoff.
