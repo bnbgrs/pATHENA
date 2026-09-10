@@ -17,15 +17,16 @@ from typing import Final
 class Palette:
     """Reference-family colors shared by all pATHENA desktop surfaces."""
 
-    # The eleven references consistently use a cool navy-black application
-    # canvas with subtly lifted blue-grey panels rather than neutral black.
-    canvas: str = "#050B12"
-    surface: str = "#08121D"
-    surface_raised: str = "#0D1926"
-    surface_hover: str = "#122336"
-    surface_selected: str = "#142B43"
-    border: str = "#203246"
-    border_strong: str = "#31506D"
+    # Direct sampling of the opened references places the main dark workspace
+    # around RGB 3–10 / 18–25 / 31–42. Keep the canvas visibly navy instead of
+    # letting legacy neutral-black layers dominate the application.
+    canvas: str = "#061421"
+    surface: str = "#06121F"
+    surface_raised: str = "#0D1A2A"
+    surface_hover: str = "#10263B"
+    surface_selected: str = "#12304E"
+    border: str = "#20364C"
+    border_strong: str = "#315675"
     text: str = "#F3F6F9"
     text_muted: str = "#B5C0CB"
     text_subtle: str = "#8797A7"
@@ -35,7 +36,7 @@ class Palette:
     accent: str = "#3B82F6"
     accent_hover: str = "#5594FA"
     accent_pressed: str = "#2869D8"
-    accent_soft: str = "#0E2744"
+    accent_soft: str = "#0D2B4D"
     success: str = "#45C58A"
     info: str = "#52B7E8"
     question: str = "#A98BFF"
