@@ -67,10 +67,17 @@ def _string(value: object, label: str) -> str:
     return value
 
 
-def _string_tuple(value: object, label: str) -> tuple[str, ...]:
-    if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
-        raise ValueError(f"{label} must be a JSON string array")
-    return tuple(value)
+def _path_tuple(value: object, label: str) -> tuple[str, ...]:
+    if not isinstance(value, list):
+        raise ValueError(f"{label} must be a JSON array")
+    if not value:
+        raise ValueError(f"{label} must contain at least one path")
+    paths: list[str] = []
+    for index, item in enumerate(value):
+        if not isinstance(item, str) or not item.strip():
+            raise ValueError(f"{label}[{index}] must be a non-empty string")
+        paths.append(item)
+    return tuple(paths)
 
 
 def load_candidate_diff(path: Path) -> CandidateDiff:
@@ -93,16 +100,30 @@ def load_candidate_diff(path: Path) -> CandidateDiff:
         commits.append(
             CommitDiff(
                 sha=_string(commit.get("sha"), f"diff.commits[{index}].sha"),
-                paths=_string_tuple(
-                    commit.get("paths"), f"diff.commits[{index}].paths"
-                ),
+                paths=_path_tuple(commit.get("paths"), f"diff.commits[{index}].paths"),
                 classification=classification,
             )
         )
 
+    base_sha = _string(payload.get("base_sha"), "diff.base_sha")
+    candidate_sha = _string(payload.get("candidate_sha"), "diff.candidate_sha")
+    if not commits:
+        if candidate_sha != base_sha:
+            raise ValueError(
+                "diff with a distinct candidate SHA must include at least one commit"
+            )
+    else:
+        if candidate_sha == base_sha:
+            raise ValueError("diff with commits must advance beyond the base SHA")
+        if commits[-1].sha != candidate_sha:
+            raise ValueError(
+                "diff.candidate_sha must match the final supplied commit SHA: "
+                f"candidate={candidate_sha!r}, final={commits[-1].sha!r}"
+            )
+
     return CandidateDiff(
-        base_sha=_string(payload.get("base_sha"), "diff.base_sha"),
-        candidate_sha=_string(payload.get("candidate_sha"), "diff.candidate_sha"),
+        base_sha=base_sha,
+        candidate_sha=candidate_sha,
         commits=tuple(commits),
     )
 
