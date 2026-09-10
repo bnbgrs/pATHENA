@@ -40,37 +40,60 @@ _PAGE_TITLES = (
 )
 
 _REFERENCE_PARITY_STYLESHEET = f"""
+/* Final screenshot-family layer. This intentionally follows all older UI passes. */
 QWidget#referenceShell,
-QFrame#referenceBody {{
+QFrame#referenceBody,
+QFrame#conversation,
+QWidget#pageChat,
+QWidget#pageKnowledge,
+QWidget#pageResearch,
+QWidget#pageJobs,
+QWidget#pageFiles,
+QWidget#pageSystem,
+QWidget#pageSettings,
+QWidget#knowledgeWorkspace,
+QWidget#researchWorkspace,
+QWidget#jobsWorkspace,
+QWidget#filesWorkspace,
+QWidget#systemWorkspace,
+QWidget#settingsSecondaryContent,
+QFrame#settingsSecondaryContainer {{
     background: {PALETTE.canvas};
+}}
+
+QScrollArea#chatScroll,
+QScrollArea#settingsSecondaryScroll,
+QScrollArea#chatScroll > QWidget > QWidget,
+QScrollArea#settingsSecondaryScroll > QWidget > QWidget,
+QWidget#chatMessages {{
+    background: {PALETTE.canvas};
+    border: 0;
 }}
 
 QFrame#topBar {{
     background: {PALETTE.surface};
+    border: 0;
     border-bottom: 1px solid {PALETTE.border};
 }}
-
 QLabel#topWordmark {{
     color: {PALETTE.text};
-    font-size: 17px;
+    font-size: 18px;
     font-weight: 700;
     padding-right: 22px;
 }}
-
 QFrame#topPrimaryNavigation {{
     background: transparent;
     border: 0;
 }}
-
 QPushButton#topPrimaryNavButton {{
     min-height: {SHELL.top_bar_height - 2}px;
-    padding: 0 12px;
+    padding: 0 13px;
     border: 0;
     border-bottom: 2px solid transparent;
     border-radius: 0;
     background: transparent;
     color: {PALETTE.text_subtle};
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
 }}
 QPushButton#topPrimaryNavButton:hover {{
@@ -118,8 +141,10 @@ QPushButton#topUtilityButton[selected="true"] {{
     background: {PALETTE.surface_selected};
 }}
 
-QFrame#iconRail {{
+QFrame#iconRail,
+QFrame#rail {{
     background: {PALETTE.surface};
+    border: 0;
     border-right: 1px solid {PALETTE.border};
 }}
 QListWidget#navigation {{
@@ -148,18 +173,70 @@ QListWidget#navigation::item:selected {{
     border-left: 2px solid {PALETTE.accent};
 }}
 
-QFrame#conversation {{
-    background: {PALETTE.canvas};
+QLabel#pageTitle {{
+    color: {PALETTE.text};
+    font-size: 26px;
+    font-weight: 500;
+    padding: 5px 0 8px 0;
 }}
+QLabel#keyboardHint {{
+    color: {PALETTE.text_quiet};
+    font-size: 11px;
+}}
+QFrame#rule,
+QFrame[role="rule"] {{
+    background: {PALETTE.border};
+    border: 0;
+    min-height: 1px;
+    max-height: 1px;
+}}
+
 QFrame#inspector {{
     background: {PALETTE.surface};
+    border: 0;
     border-left: 1px solid {PALETTE.border};
+}}
+
+/* The opened workspace references use a navy document field, not an inner black slab. */
+QFrame#emptyStatePanel {{
+    background: transparent;
+    border: 0;
+}}
+QLabel#emptyStateEyebrow {{
+    color: {PALETTE.accent};
+    font-size: 10px;
+    font-weight: 650;
+}}
+QLabel#emptyStateTitle {{
+    color: {PALETTE.text};
+    font-size: 22px;
+    font-weight: 600;
+}}
+QLabel#emptyStateBody {{
+    color: {PALETTE.text_subtle};
+    font-size: 13px;
 }}
 
 QFrame#composer {{
     background: {PALETTE.surface_raised};
     border: 1px solid {PALETTE.border_strong};
     border-radius: {RADII.composer}px;
+}}
+QLineEdit#promptInput,
+QLineEdit#promptInput:disabled {{
+    color: {PALETTE.text};
+    background: {PALETTE.surface};
+    border: 0;
+    border-radius: 16px;
+}}
+QLineEdit#promptInput:disabled {{
+    color: {PALETTE.text_quiet};
+}}
+QPushButton#groundButton,
+QPushButton#groundButton:disabled {{
+    color: {PALETTE.text_subtle};
+    background: transparent;
+    border: 0;
 }}
 QPushButton#sendButton {{
     min-width: 48px;
@@ -186,17 +263,159 @@ QPushButton#sendButton:pressed {{
 QPushButton#sendButton:disabled {{
     background: {PALETTE.surface_selected};
     color: {PALETTE.text_quiet};
+    border: 1px solid {PALETTE.border};
+}}
+
+/* Reassert the reference palette over older orange-centric refinement sheets. */
+QLineEdit,
+QComboBox,
+QSpinBox,
+QDoubleSpinBox,
+QPlainTextEdit {{
+    color: {PALETTE.text};
+    background: {PALETTE.surface_raised};
+    border: 1px solid {PALETTE.border};
+    border-radius: {RADII.control}px;
+    selection-color: {PALETTE.text};
+    selection-background-color: {PALETTE.accent_soft};
+}}
+QLineEdit:hover,
+QComboBox:hover,
+QSpinBox:hover,
+QDoubleSpinBox:hover,
+QPlainTextEdit:hover {{
+    border-color: {PALETTE.border_strong};
+}}
+QLineEdit:focus,
+QComboBox:focus,
+QSpinBox:focus,
+QDoubleSpinBox:focus,
+QPlainTextEdit:focus {{
+    border-color: {PALETTE.accent};
+}}
+QCheckBox {{
+    color: {PALETTE.text_muted};
+}}
+QCheckBox::indicator {{
+    border: 1px solid {PALETTE.border_strong};
+    background: {PALETTE.surface};
+}}
+QCheckBox::indicator:checked {{
+    border-color: {PALETTE.accent};
+    background: {PALETTE.accent};
+}}
+QSlider::groove:horizontal {{
+    background: {PALETTE.border};
+    height: 2px;
+}}
+QSlider::sub-page:horizontal {{
+    background: {PALETTE.accent};
+}}
+QSlider::handle:horizontal {{
+    background: {PALETTE.accent};
+    border: 0;
+}}
+QProgressBar::chunk {{
+    background: {PALETTE.accent};
+}}
+QWidget[pathenaStateSurface="true"] {{
+    border-color: {PALETTE.border};
+}}
+QWidget[pathenaUiState="busy"] {{
+    color: {PALETTE.text_muted};
+    border-color: {PALETTE.border_strong};
+}}
+QWidget[pathenaUiState="success"] {{
+    color: {PALETTE.success};
+    border-color: {PALETTE.success};
+}}
+QWidget[pathenaUiState="error"] {{
+    color: {PALETTE.error};
+    border-color: {PALETTE.error};
+}}
+QWidget[pathenaUiState="empty"],
+QWidget[pathenaUiState="idle"] {{
+    color: {PALETTE.text_subtle};
+    border-color: {PALETTE.border};
 }}
 
 QListWidget#settingsSecondaryNavigation {{
     background: {PALETTE.surface};
     border: 1px solid {PALETTE.border};
     border-radius: {RADII.panel}px;
+    padding: 8px;
+}}
+QListWidget#settingsSecondaryNavigation::item {{
+    color: {PALETTE.text_muted};
+    min-height: 40px;
+    padding: 0 10px;
+    border-radius: {RADII.control}px;
+}}
+QListWidget#settingsSecondaryNavigation::item:hover {{
+    color: {PALETTE.text};
+    background: {PALETTE.surface_hover};
 }}
 QListWidget#settingsSecondaryNavigation::item:selected {{
     color: {PALETTE.text};
     background: {PALETTE.surface_selected};
     border-left: 2px solid {PALETTE.accent};
+}}
+
+QDialog#commandPalette,
+QDialog#helpDialog {{
+    color: {PALETTE.text};
+    background: {PALETTE.surface_raised};
+    border: 1px solid {PALETTE.border_strong};
+}}
+QLabel#commandPaletteTitle,
+QLabel#helpDialogTitle {{
+    color: {PALETTE.text};
+    font-size: 18px;
+    font-weight: 600;
+}}
+QLabel#commandPaletteHint,
+QLabel#commandPaletteFooter,
+QLabel#helpDialogIntro {{
+    color: {PALETTE.text_subtle};
+}}
+QLineEdit#commandPaletteQuery {{
+    min-height: 42px;
+    background: {PALETTE.surface};
+    border: 1px solid {PALETTE.border_strong};
+    border-radius: {RADII.control}px;
+    padding: 0 12px;
+}}
+QLineEdit#commandPaletteQuery:focus {{
+    border-color: {PALETTE.accent};
+}}
+QListWidget#commandPaletteResults {{
+    background: {PALETTE.surface};
+    border: 1px solid {PALETTE.border};
+    outline: 0;
+}}
+QListWidget#commandPaletteResults::item {{
+    color: {PALETTE.text_muted};
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid {PALETTE.border};
+    min-height: 38px;
+    padding: 4px 12px;
+}}
+QListWidget#commandPaletteResults::item:hover {{
+    color: {PALETTE.text};
+    background: {PALETTE.surface_hover};
+}}
+QListWidget#commandPaletteResults::item:selected {{
+    color: {PALETTE.text};
+    background: {PALETTE.surface_selected};
+    border-left: 2px solid {PALETTE.accent};
+}}
+QPlainTextEdit#helpText {{
+    color: {PALETTE.text_muted};
+    background: {PALETTE.surface};
+    border: 1px solid {PALETTE.border};
+    border-radius: {RADII.panel}px;
+    padding: 14px;
 }}
 """
 
@@ -259,7 +478,6 @@ class ReferenceParityController(QObject):
             primary_layout.addWidget(button)
             self._primary_buttons[row] = button
 
-        # Insert directly after the wordmark and before the shell's stretch.
         top_layout.insertWidget(1, primary)
 
         search = QPushButton("⌕", top_bar)
@@ -338,6 +556,10 @@ class ReferenceParityController(QObject):
         self.window.ground_button.setMinimumHeight(36)
         self.window.ground_button.setMaximumHeight(40)
 
+        keyboard_hint = self.window.findChild(QWidget, "keyboardHint")
+        if keyboard_hint is not None:
+            keyboard_hint.hide()
+
     def _apply_reference_styles(self) -> None:
         self.window.setStyleSheet(self.window.styleSheet() + _REFERENCE_PARITY_STYLESHEET)
 
@@ -351,6 +573,12 @@ class ReferenceParityController(QObject):
         for index, button in self._utility_buttons.items():
             button.setProperty("selected", index == row)
             _repolish(button)
+
+        # The reference family reserves the work composer for the conversational
+        # workspace. Administrative pages use their own task-specific controls.
+        composer = self.window.findChild(QFrame, "composer")
+        if composer is not None:
+            composer.setVisible(row == 0)
 
         # The generic inspector is evidence-centric. Dedicated workspaces own their
         # detail panes, so showing this panel on every non-chat page creates a fourth
