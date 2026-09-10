@@ -41,9 +41,21 @@ def contains_all(text: str, values: Iterable[str]) -> bool:
     return all(value in text for value in values)
 
 
-def included_in_repository_scan(path: Path) -> bool:
-    relative = path.relative_to(ROOT)
-    return not relative.parts or relative.parts[0] not in IGNORED_SCAN_ROOTS
+def included_in_repository_scan(path: Path, *, root: Path = ROOT) -> bool:
+    """Return whether a scan candidate is lexically and physically contained by root."""
+    try:
+        relative = path.relative_to(root)
+    except ValueError:
+        return False
+    if relative.parts and relative.parts[0] in IGNORED_SCAN_ROOTS:
+        return False
+
+    resolved_root = root.resolve()
+    try:
+        path.resolve().relative_to(resolved_root)
+    except (OSError, RuntimeError, ValueError):
+        return False
+    return True
 
 
 def resolve_repository_link(
