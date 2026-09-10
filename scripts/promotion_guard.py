@@ -23,6 +23,11 @@ class PromotionGuardResult:
         return not self.errors
 
 
+def _exists_or_is_symlink(path: pathlib.Path) -> bool:
+    """Return true for real entries and broken symlinks alike."""
+    return path.exists() or path.is_symlink()
+
+
 def inspect_promotion_tree(
     root: pathlib.Path,
     *,
@@ -38,16 +43,21 @@ def inspect_promotion_tree(
         )
 
     for required in REQUIRED_PATHS:
-        if not (root / required).is_file():
-            errors.append(f"required promotion path is missing: {required.as_posix()}")
+        candidate = root / required
+        if candidate.is_symlink() or not candidate.is_file():
+            errors.append(
+                "required promotion path must be a non-symlink regular file: "
+                f"{required.as_posix()}"
+            )
 
     for forbidden in FORBIDDEN_PATHS:
-        if (root / forbidden).exists():
+        candidate = root / forbidden
+        if _exists_or_is_symlink(candidate):
             errors.append(f"legacy promotion path must stay absent: {forbidden.as_posix()}")
 
     for forbidden_tree in FORBIDDEN_TREES:
         candidate = root / forbidden_tree
-        if candidate.exists():
+        if _exists_or_is_symlink(candidate):
             errors.append(
                 "legacy bootstrap payload tree must stay absent: "
                 f"{forbidden_tree.as_posix()}"
