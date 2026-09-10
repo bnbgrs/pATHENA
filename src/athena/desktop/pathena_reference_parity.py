@@ -13,7 +13,6 @@ from PySide6.QtCore import QObject, Qt
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
-    QLabel,
     QListWidget,
     QPushButton,
     QVBoxLayout,
@@ -30,7 +29,15 @@ _PRIMARY_NAVIGATION: tuple[tuple[str, int], ...] = (
     ("JOBS", 3),
     ("SOURCES", 4),
 )
-_PAGE_TITLES = ("Chat", "Knowledge", "Research", "Jobs", "Sources", "System", "Settings")
+_PAGE_TITLES = (
+    "Chat",
+    "Knowledge",
+    "Research",
+    "Jobs",
+    "Sources",
+    "System",
+    "Settings",
+)
 
 _REFERENCE_PARITY_STYLESHEET = f"""
 QWidget#referenceShell,
@@ -47,7 +54,6 @@ QLabel#topWordmark {{
     color: {PALETTE.text};
     font-size: 17px;
     font-weight: 700;
-    letter-spacing: 0.4px;
     padding-right: 22px;
 }}
 
@@ -65,8 +71,7 @@ QPushButton#topPrimaryNavButton {{
     background: transparent;
     color: {PALETTE.text_subtle};
     font-size: 12px;
-    font-weight: 650;
-    letter-spacing: 0.7px;
+    font-weight: 600;
 }}
 QPushButton#topPrimaryNavButton:hover {{
     color: {PALETTE.text};
@@ -139,9 +144,6 @@ QFrame#composer {{
     background: {PALETTE.surface_raised};
     border: 1px solid {PALETTE.border_strong};
     border-radius: {RADII.composer}px;
-}}
-QFrame#composer:focus-within {{
-    border-color: {PALETTE.accent};
 }}
 QPushButton#sendButton {{
     min-width: 48px;
@@ -274,6 +276,11 @@ class ReferenceParityController(QObject):
         icon_rail = self.window.findChild(QFrame, "iconRail")
         if icon_rail is not None:
             icon_rail.setFixedWidth(SHELL.icon_rail_width)
+
+        for row, title in enumerate(_PAGE_TITLES):
+            if row >= self.window.navigation.count():
+                break
+            self.window.navigation.item(row).setToolTip(title)
 
         secondary_navigation = self.window.findChild(QListWidget, "settingsSecondaryNavigation")
         if secondary_navigation is not None:
