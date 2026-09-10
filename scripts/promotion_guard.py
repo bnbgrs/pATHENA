@@ -71,7 +71,7 @@ def _parser() -> argparse.ArgumentParser:
         description="Fail closed if candidate promotion could revive legacy bootstrap state."
     )
     parser.add_argument("--root", type=pathlib.Path, default=pathlib.Path.cwd())
-    parser.add_argument("--actual-ref")
+    parser.add_argument("--actual-ref", required=True)
     parser.add_argument("--expected-ref", default=CANDIDATE_REF)
     return parser
 
