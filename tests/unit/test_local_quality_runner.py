@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import subprocess
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -129,6 +130,23 @@ def test_missing_uv_fails_with_command_not_found_exit_code(
     monkeypatch.setattr(quality_script.subprocess, "run", fake_run)
 
     assert quality_script.main([]) == 127
+
+
+def test_dry_run_works_from_outside_repository(tmp_path: Path) -> None:
+    script = quality_script.REPO_ROOT / "scripts" / "quality.py"
+
+    result = subprocess.run(
+        [sys.executable, str(script), "--dry-run"],
+        cwd=tmp_path,
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert f"Repository root: {quality_script.REPO_ROOT}" in result.stdout
+    assert "uv lock --check" in result.stdout
+    assert "uv run --locked --extra dev --extra desktop python -m pytest" in result.stdout
 
 
 def test_dry_run_has_no_subprocess_side_effects(monkeypatch: pytest.MonkeyPatch) -> None:
