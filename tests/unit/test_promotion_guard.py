@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -16,7 +17,9 @@ def _valid_tree(root: Path) -> None:
     workflow.write_text("name: quality\n", encoding="utf-8")
 
 
-def _run_guard(root: Path, *, actual_ref: str = CANDIDATE_REF) -> subprocess.CompletedProcess[str]:
+def _run_guard(
+    root: Path, *, actual_ref: str = CANDIDATE_REF
+) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         [
             sys.executable,
@@ -30,6 +33,18 @@ def _run_guard(root: Path, *, actual_ref: str = CANDIDATE_REF) -> subprocess.Com
         capture_output=True,
         text=True,
     )
+
+
+def _symlink_or_skip(
+    target: str | Path,
+    link: Path,
+    *,
+    target_is_directory: bool = False,
+) -> None:
+    try:
+        link.symlink_to(target, target_is_directory=target_is_directory)
+    except (NotImplementedError, OSError) as exc:
+        pytest.skip(f"symlink creation unavailable on this platform: {exc}")
 
 
 def test_valid_candidate_tree_passes(tmp_path: Path) -> None:
@@ -87,3 +102,43 @@ def test_unexpected_ref_fails_closed(tmp_path: Path) -> None:
 
     assert result.returncode == 1
     assert "expected ref" in result.stdout
+
+
+def test_required_quality_workflow_symlink_fails_closed(tmp_path: Path) -> None:
+    workflow = tmp_path / ".github" / "workflows" / "quality.yml"
+    workflow.parent.mkdir(parents=True)
+    real_workflow = tmp_path / "quality-real.yml"
+    real_workflow.write_text("name: quality\n", encoding="utf-8")
+    _symlink_or_skip(real_workflow, workflow)
+
+    result = _run_guard(tmp_path)
+
+    assert result.returncode == 1
+    assert "non-symlink regular file" in result.stdout
+
+
+def test_broken_forbidden_symlink_fails_closed(tmp_path: Path) -> None:
+    _valid_tree(tmp_path)
+    forbidden = tmp_path / ".github" / "workflows" / "pathena-bootstrap.yml"
+    _symlink_or_skip("missing-target.yml", forbidden)
+    assert os.path.lexists(forbidden)
+    assert not forbidden.exists()
+
+    result = _run_guard(tmp_path)
+
+    assert result.returncode == 1
+    assert "pathena-bootstrap.yml" in result.stdout
+
+
+def test_broken_forbidden_tree_symlink_fails_closed(tmp_path: Path) -> None:
+    _valid_tree(tmp_path)
+    forbidden_tree = tmp_path / ".pathena" / "bootstrap"
+    forbidden_tree.parent.mkdir(parents=True)
+    _symlink_or_skip("missing-tree", forbidden_tree, target_is_directory=True)
+    assert os.path.lexists(forbidden_tree)
+    assert not forbidden_tree.exists()
+
+    result = _run_guard(tmp_path)
+
+    assert result.returncode == 1
+    assert ".pathena/bootstrap" in result.stdout
