@@ -177,7 +177,8 @@ class PathenaLayoutRefinement(QObject):
 
     def _install_top_navigation(self) -> tuple[QPushButton, ...]:
         top_bar = self.window.findChild(QFrame, "topBar")
-        if top_bar is None or self.navigation is None:
+        navigation = self.navigation
+        if top_bar is None or navigation is None:
             return ()
         layout = top_bar.layout()
         if not isinstance(layout, QHBoxLayout):
@@ -194,11 +195,12 @@ class PathenaLayoutRefinement(QObject):
             button = QPushButton(label, top_bar)
             button.setObjectName("topNavButton")
             button.setCheckable(True)
+            button.setProperty("pathenaNavRow", row)
             button.setAccessibleName(f"Open {label}")
             button.setToolTip(f"Open {label}")
             button.clicked.connect(
-                lambda _checked=False, target_row=row: self.navigation.setCurrentRow(
-                    target_row
+                lambda _checked=False, target_row=row, target_navigation=navigation: (
+                    target_navigation.setCurrentRow(target_row)
                 )
             )
             layout.insertWidget(insertion_index + offset, button)
@@ -288,12 +290,9 @@ class PathenaLayoutRefinement(QObject):
         return panel
 
     def _sync_reference_shell_context(self, index: int) -> None:
-        for (row, _label), button in zip(
-            _TOP_NAV_ROUTES,
-            self._top_nav_buttons,
-            strict=True,
-        ):
-            button.setChecked(index == row)
+        for button in self._top_nav_buttons:
+            row = button.property("pathenaNavRow")
+            button.setChecked(isinstance(row, int) and index == row)
 
         panel = self._context_inspector
         if panel is None:
