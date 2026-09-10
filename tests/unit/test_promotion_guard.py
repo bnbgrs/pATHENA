@@ -156,6 +156,20 @@ def test_broken_forbidden_tree_symlink_fails_closed(tmp_path: Path) -> None:
     assert ".pathena/bootstrap" in result.stdout
 
 
+def test_cli_requires_actual_ref(tmp_path: Path) -> None:
+    _valid_tree(tmp_path)
+
+    result = subprocess.run(
+        [sys.executable, str(SCRIPT), "--root", str(tmp_path)],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 2
+    assert "--actual-ref" in result.stderr
+
+
 def test_promotion_workflow_checks_out_exact_trigger_sha_without_credentials() -> None:
     workflow = _promotion_workflow_text()
 
