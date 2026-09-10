@@ -8,41 +8,41 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 
 ## Current baseline
 
-- Develop source of truth: `develop/pathena-next@effe7fb43246d4f3c4d9ac0f2f5d363c2135bb36`.
-- Error worker entered this run at `postmerge/errors@d6ef65e11106aa6d43eba8c22c4173ee9c63ce60`.
-- Current workers: Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`; Backend `49ff66eeb706695d0564bf87274a5f9087b8ef98`; UI `af50dfb76b04e396a2dbf65ec1eeb265f30177fa`.
-- Exact current Develop canonical Quality: `34516879382@effe7fb43246d4f3c4d9ac0f2f5d363c2135bb36 = IN_PROGRESS`; Windows path safety has already completed `FAILURE` at `Run Windows storage path regressions`, while Local install smoke and Linux storage regressions are `SUCCESS`, and Python spec-validator/Ruff/mypy are green with full pytest still running.
-- Previous exact Develop canonical Quality: `34510755656@f29abc4341895f8ecd28ebeb0baa2e80b030fdf7 = SUCCESS`.
-- The current Develop commit changes only `.github/workflows/quality.yml` plus `docs/agent_handoffs/integrator.md`; the workflow change adds `tests/unit/test_durable_fs.py` and `tests/unit/test_durable_fs_parent_identity.py` to the canonical Windows storage command. No production source or test assertion changed.
-- `tests/unit/test_durable_fs_parent_identity.py` skips every test when `os.name != "posix"`; therefore it contributes no executed Windows test. The newly exposed current Windows failure is confined to `tests/unit/test_durable_fs.py` or its native-Windows interaction with `src/athena/storage/durable_fs.py`.
-- `postmerge/errors@d6ef65e11106aa6d43eba8c22c4173ee9c63ce60` had zero canonical Quality runs immediately before mutation.
+- Develop source of truth: `develop/pathena-next@7fa2108d820cfc5b48a9f92d42ffa61697b74818`.
+- Error worker entered this run at `postmerge/errors@aa603d87200b937efce37fcabfa1195a338b78a5`.
+- Current workers: Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`; Backend `baae5dd42195eea1e2a7320d1be813431a3beecf`; UI `2ede7add4d70ee9f11ef2e05103504e9a1838a2a`.
+- Exact current Develop canonical Quality: `34522965434@7fa2108d820cfc5b48a9f92d42ffa61697b74818 = IN_PROGRESS`. Windows path safety is already `SUCCESS`, including `Run Windows storage path regressions` and the dedicated `Run Windows durable filesystem regressions`; Linux storage regressions and Local install smoke are `SUCCESS`; Python spec-validator/Ruff/mypy are green while full pytest is still running.
+- Previous exact Develop canonical Quality: `34516879382@effe7fb43246d4f3c4d9ac0f2f5d363c2135bb36 = FAILURE`, isolated to the Windows storage step after POSIX-only durable-fs contracts were added wholesale to the Windows command.
+- Current Develop changes no production Storage/Recovery/Security code and no test assertion. It restores the prior Windows-applicable storage set, runs `tests/unit/test_durable_fs.py -k "not test_posix"` in a dedicated native-Windows step, and leaves the entirely POSIX-gated parent-identity module to Linux coverage.
+- `postmerge/errors@aa603d87200b937efce37fcabfa1195a338b78a5` had zero canonical Quality runs immediately before mutation.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current state
 
-- OPEN: `ERR-0033`, `ERR-0034`.
+- OPEN: `ERR-0033`.
 - IN_PROGRESS: none.
+- FIXED_PENDING_VERIFY: `ERR-0034`.
 - FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015` through `ERR-0024`, `ERR-0027`, `ERR-0030`, `ERR-0031`, `ERR-0032`.
 - STALE: `ERR-0014`, `ERR-0025`, `ERR-0026`, `ERR-0028`, `ERR-0029`.
 - BLOCKED: none at top level.
 
 ## ERR-0034 — native Windows durable-filesystem regression exposed by canonical coverage
 
-- Severity: P1.
-- Status: `OPEN`.
-- First exact-current reproduction: canonical Quality `34516879382@effe7fb43246d4f3c4d9ac0f2f5d363c2135bb36`; Windows path safety completed `FAILURE` specifically at `Run Windows storage path regressions`. Linux storage regressions and Local install smoke are green on the same SHA; Python spec-validator/Ruff/mypy are green while full pytest is still running.
-- Isolation evidence: the single Develop commit over canonical-green `f29abc4341895f8ecd28ebeb0baa2e80b030fdf7` changes no production or assertion code. It only adds `tests/unit/test_durable_fs.py` and `tests/unit/test_durable_fs_parent_identity.py` to the Windows storage command plus Integrator documentation. Every test in `test_durable_fs_parent_identity.py` is POSIX-gated and therefore skipped on Windows. The newly executed failing surface is consequently `tests/unit/test_durable_fs.py` against native Windows behavior.
-- Exact failing test/exception is not yet claimed because the current canonical job does not expose its pytest log through the available exact-SHA evidence while the run is still active. Do not patch speculatively.
-- Preserve HANDLE-bound rename, reparse/symlink rejection, write-through durability, directory identity and Storage/Recovery fail-closed semantics. No Skip/XFail or assertion weakening.
-- Next: consume the completed `34516879382` result first; obtain exact failing-test/exception evidence if exposed, then apply only the smallest root-cause correction and focused Windows verification. Keep this cluster separate from ERR-0033 unless exact evidence proves the same root cause.
+- Severity: P1 when reproduced on canonical Develop.
+- Status: `FIXED_PENDING_VERIFY`.
+- Exact failing reproduction: canonical Quality `34516879382@effe7fb43246d4f3c4d9ac0f2f5d363c2135bb36 = FAILURE`, with Windows path safety failing at `Run Windows storage path regressions`; Linux storage, Local install and full Python quality were otherwise green.
+- Root cause: the CI-only Develop delta added `tests/unit/test_durable_fs.py` and `tests/unit/test_durable_fs_parent_identity.py` wholesale to `windows-latest`. `test_durable_fs.py` contains explicit `test_posix_*` contracts that force POSIX-only `dir_fd` / directory-fsync behavior, while `test_durable_fs_parent_identity.py` skips every test unless `os.name == "posix"`. The failing lane therefore mixed POSIX-specific contracts into native Windows coverage; no production regression was required to explain the failure.
+- Bounded correction: Develop `7fa2108d820cfc5b48a9f92d42ffa61697b74818` restores the prior Windows-applicable storage command, adds a dedicated `Run Windows durable filesystem regressions` step executing `tests/unit/test_durable_fs.py -k "not test_posix"`, and leaves the POSIX parent-identity module in Linux storage coverage. No Skip/XFail was added; no test assertion or product behavior changed.
+- Focused exact-SHA verification: in canonical Quality `34522965434@7fa2108d820cfc5b48a9f92d42ffa61697b74818`, Windows path safety completed `SUCCESS`; both `Run Windows storage path regressions` and `Run Windows durable filesystem regressions` completed `SUCCESS`. Linux storage and Local install are also `SUCCESS`; spec-validator, Ruff and mypy are green.
+- Closure is pending only the still-running full pytest / final canonical conclusion. If `34522965434` completes `SUCCESS`, promote to `FIXED`. If a different failure appears, open a separate root-cause cluster rather than reusing ERR-0034 unless the same platform-selection signature recurs.
+- Preserve HANDLE-bound rename, reparse/symlink rejection, write-through durability, directory identity and Storage/Recovery fail-closed semantics.
 
 ## ERR-0033 — Windows emergency-reserve directory-identity binding gap
 
 - Severity: P1.
 - Status: `OPEN`.
 - Specialist owner: Backend / BE-046. Errors does not parallel-mutate Backend product code while that worker owns the root cause.
-- Exact-current direct source evidence remains applicable on `develop/pathena-next@effe7fb43246d4f3c4d9ac0f2f5d363c2135bb36`: the current commit changes no Backend/Storage product source. `src/athena/storage/emergency_reserve.py` binds POSIX reserve creation to an opened reserve-directory FD and calls `os.open(_RESERVE_FILENAME, ..., dir_fd=root_fd)`; POSIX release similarly operates through the bound directory FD and checks directory identity around mutation. The non-POSIX branch still creates via `os.open(self.path, ...)`, validates the created file against a subsequent pathname stat, and performs cleanup/release through pathname-driven operations. The reserve-directory identity is therefore not carried as a bound handle across the Windows mutation/release operation.
-- Prior canonical baseline: `34510755656@f29abc4341895f8ecd28ebeb0baa2e80b030fdf7 = SUCCESS`. The new Windows durable-fs canonical failure is tracked separately as ERR-0034 and is not currently evidence that ERR-0033 itself failed.
+- Exact-current direct source evidence remains applicable on current Develop because the latest commits are CI/Handoff-only and do not change `src/athena/storage/emergency_reserve.py`. POSIX reserve creation/release binds to an opened reserve-directory FD; the non-POSIX branch still performs create/validation/release through pathname-driven operations, so reserve-directory identity is not carried as a bound handle across the Windows mutation/release operation.
 - Preserve physical non-sparse allocation, exact release accounting and fail-closed Storage/Recovery semantics. Do not replace the requirement with weaker pathname-only checks.
 - Closure requires a bounded Backend candidate plus focused native-Windows regression evidence proving reserve-directory identity remains bound across create/release mutation, including an adversarial directory-swap boundary; then consume exact-SHA canonical evidence as appropriate.
 
@@ -80,14 +80,14 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Severity: P2 on Backend when exactly reproduced; not a current proven Develop blocker.
 - Status: `STALE`.
 - Historical worker reproduction carried Ruff `I001` at `src/athena/storage/schema.py:3:1`, but that evidence is not on the current Backend exact SHA.
-- Current Backend `49ff66eeb706695d0564bf87274a5f9087b8ef98` has no exact-current canonical reproduction of that Ruff signature. No formatter/product mutation is justified on Errors. Reopen only if the Ruff signature is reproduced on a then-current exact Backend or Develop SHA.
+- Current Backend has no exact-current canonical reproduction of that Ruff signature. No formatter/product mutation is justified on Errors. Reopen only if the Ruff signature is reproduced on a then-current exact Backend or Develop SHA.
 
 ## ERR-0028 — v41 legacy schema fixtures/current-version assertions
 
 - Severity: P2 on Backend when exactly reproduced; not a current proven Develop blocker.
 - Status: `STALE`.
 - Historical Backend diagnostics decomposed old worker failures into terminal-current-schema assertions, duplicate-v41-table fixture collisions and downstream Storage-startup cascades on worker-only schema history.
-- Current Backend is `49ff66eeb706695d0564bf87274a5f9087b8ef98`; no ERR-0028 signature is reproduced on that exact SHA.
+- Current Backend has no ERR-0028 signature reproduced on its current exact SHA.
 - Never change production v40→v41 migration to `IF NOT EXISTS`, swallow `OperationalError`, or weaken Storage/Recovery fail-closed behavior.
 - Reopen only if a specific ERR-0028 signature is reproduced on a then-current exact Backend or Develop SHA.
 
@@ -96,7 +96,7 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Severity: P2 on Backend when exactly reproduced; not a current proven Develop blocker.
 - Status: `STALE`.
 - Historical worker diagnostics associated this cluster with WAL harness collaborators that did not satisfy production exact-type fail-closed guards. That historical worker evidence is not authoritative for the current exact worker head.
-- Current Backend `49ff66eeb706695d0564bf87274a5f9087b8ef98` has no current exact reproduction of the ERR-0029 signature.
+- Current Backend has no current exact reproduction of the ERR-0029 signature.
 - Production exact-type fail-closed guards remain authoritative and must not be weakened. Reopen only after the same signature is reproduced on a then-current exact Backend or Develop SHA.
 
 ## ERR-0027 — v41 schema contract constant re-export
