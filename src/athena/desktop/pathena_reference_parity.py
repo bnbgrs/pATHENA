@@ -77,6 +77,11 @@ QPushButton#topPrimaryNavButton:hover {{
     color: {PALETTE.text};
     background: {PALETTE.surface_hover};
 }}
+QPushButton#topPrimaryNavButton:focus {{
+    color: {PALETTE.text};
+    background: {PALETTE.surface_hover};
+    border-bottom: 2px solid {PALETTE.accent};
+}}
 QPushButton#topPrimaryNavButton[selected="true"] {{
     color: {PALETTE.text};
     border-bottom: 2px solid {PALETTE.accent};
@@ -99,6 +104,12 @@ QPushButton#topSearchButton:hover,
 QPushButton#topUtilityButton:hover {{
     color: {PALETTE.text};
     border-color: {PALETTE.border};
+    background: {PALETTE.surface_hover};
+}}
+QPushButton#topSearchButton:focus,
+QPushButton#topUtilityButton:focus {{
+    color: {PALETTE.text};
+    border-color: {PALETTE.accent};
     background: {PALETTE.surface_hover};
 }}
 QPushButton#topUtilityButton[selected="true"] {{
@@ -125,6 +136,11 @@ QListWidget#navigation::item {{
 QListWidget#navigation::item:hover {{
     color: {PALETTE.text};
     background: {PALETTE.surface_hover};
+}}
+QListWidget#navigation:focus::item:current {{
+    color: {PALETTE.text};
+    background: {PALETTE.surface_hover};
+    border-left: 2px solid {PALETTE.accent};
 }}
 QListWidget#navigation::item:selected {{
     color: {PALETTE.text};
@@ -159,6 +175,10 @@ QPushButton#sendButton {{
 }}
 QPushButton#sendButton:hover {{
     background: {PALETTE.accent_hover};
+}}
+QPushButton#sendButton:focus {{
+    background: {PALETTE.accent_hover};
+    border: 2px solid {PALETTE.text};
 }}
 QPushButton#sendButton:pressed {{
     background: {PALETTE.accent_pressed};
