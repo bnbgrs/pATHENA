@@ -1,16 +1,25 @@
 # Backend & Systems Handoff
 
-Generated: 2026-09-10
+Generated: 2026-09-11
 Branch: `postmerge/backend`
 
 ## Current source of truth
 
-- Develop consumed first: `develop/pathena-next@7fa2108d820cfc5b48a9f92d42ffa61697b74818`.
-- Backend worker head before this handoff refresh: `baae5dd42195eea1e2a7320d1be813431a3beecf`.
-- Exact Develop canonical Quality `34522965434@7fa2108d820cfc5b48a9f92d42ffa61697b74818 = SUCCESS`.
-- The exact Develop run completed the canonical Windows durable-filesystem lane together with Linux storage, Python Quality and local-install coverage successfully.
-- No canonical Quality run was queued or in progress on the current Backend worker head when this refresh began.
+- Develop consumed first: `develop/pathena-next@4634bdf28c98bc114e0369701122818d474f99d9`.
+- Backend worker head before this handoff refresh: `b411e75a3481649b33edc70b74c22f64ab71c6d4`.
+- Exact Develop canonical Quality `34539454111@4634bdf28c98bc114e0369701122818d474f99d9 = FAILURE`.
+- Failure scope is the canonical Python 3.12 full-pytest step. Specification validator, Ruff and mypy passed; native Windows path/storage/durable-FS/runtime/ownership/adaptive-reserve/pypdf lanes passed; Linux storage and Local-install passed.
+- The current Develop commit is the bounded UI typography hierarchy slice plus test/integrator handoff. Storage/Recovery/Backend product source is unchanged by that commit.
+- No canonical Quality run was queued or in progress on the current Backend worker head when this refresh began; visible Backend runs were completed historical runs.
 - Current Develop handoffs, Alpha/Beta/architecture/runtime/storage contracts and exact-SHA Quality evidence remain authoritative over historical queue text.
+
+## Current exact-SHA failure triage
+
+Status: `DEVELOP RED / PYTEST ONLY / NOT YET ATTRIBUTED TO BACKEND PRODUCT`.
+
+Canonical run `34539454111` on exact Develop `4634bdf28c98bc114e0369701122818d474f99d9` failed only in the full pytest step. The same run kept Windows storage/path safety, durable filesystem, API runtime boundaries, Core/API ownership and lifecycle, packaged runtime, adaptive 2048-context reserve, Core/API restart smoke, pypdf packaging, Linux storage and Local-install green.
+
+Because the Develop delta from the preceding canonical-green SHA is a bounded UI typography hierarchy change and Backend/Storage source is unchanged, no Backend product mutation is justified without failure diagnostics proving a Backend-owned signature. Backend therefore does not duplicate or speculate on the current pytest failure.
 
 ## Closed root-cause cluster — native Windows durable-FS lane / POSIX harness isolation
 
@@ -18,7 +27,7 @@ Status: `CLOSED_ON_DEVELOP / EXACT_WINDOWS_EVIDENCE_GREEN`.
 
 Develop `effe7fb43246d4f3c4d9ac0f2f5d363c2135bb36` had introduced the complete durable-filesystem test module into the native Windows storage lane. Canonical run `34516879382` failed only because three explicitly POSIX durable-FS tests forced `_is_windows=False` while still executing on a Windows runner, then reached POSIX directory-FD semantics that Windows cannot provide. The real Windows durable-FS tests themselves passed. Root cause was therefore lane/harness drift, not product Storage behavior.
 
-The bounded Backend candidate `baae5dd42195eea1e2a7320d1be813431a3beecf` isolated the POSIX-only durable-FS cases from the Windows lane without deleting tests, adding Skip/XFail, weakening assertions, or changing Storage/Recovery product code. The equivalent fix is now integrated on Develop as `7fa2108d820cfc5b48a9f92d42ffa61697b74818` (`ci(windows): isolate POSIX durable fs contracts`). Exact canonical Quality run `34522965434` completed `SUCCESS`.
+The bounded Backend candidate `baae5dd42195eea1e2a7320d1be813431a3beecf` isolated the POSIX-only durable-FS cases from the Windows lane without deleting tests, adding Skip/XFail, weakening assertions, or changing Storage/Recovery product code. The equivalent fix is integrated on Develop as `7fa2108d820cfc5b48a9f92d42ffa61697b74818` (`ci(windows): isolate POSIX durable fs contracts`). Exact canonical Quality run `34522965434` completed `SUCCESS`.
 
 The POSIX durable-FS contracts remain exercised by the Linux lane; native Windows continues to exercise its platform-appropriate durable-filesystem and path-safety contracts. No Backend cherry-pick is required for this cluster.
 
@@ -62,7 +71,7 @@ Status: `OPEN / P1 / CURRENTLY REPRODUCED BY SOURCE TRACE`.
 
 Current Develop `SQLiteDatabase.start()` still calls `inspect_database_read_only(self.path)` and then independently opens the writer with `sqlite3.connect(self.path, ...)`. The identity verified by preflight is not carried into the writable SQLite connection. A second pathname preflight would not close the race; a cross-platform identity-bound writer strategy is still required.
 
-No product mutation was made for BE-046 or BE-052 in this run. A fresh local checkout for required focused testing was attempted and failed transiently at DNS resolution (`Could not resolve host: github.com`). No fabricated focused PASS is claimed and no untested product commit was created.
+No product mutation was made for BE-046 or BE-052 in this run. A fresh local GitHub access probe for required focused testing failed transiently at DNS resolution (`Could not resolve host: github.com`). No fabricated focused PASS is claimed and no untested product commit was created.
 
 ## Previously closed dependency slices
 
@@ -95,7 +104,8 @@ Integrator has already required that broad Backend/Storage/Migration/Runtime his
 
 ## Integrator prerequisites
 
-- Native Windows durable-FS harness-isolation cluster: CLOSED on Develop `7fa2108d820cfc5b48a9f92d42ffa61697b74818`; canonical Quality `34522965434 = SUCCESS`; no Backend cherry-pick required.
+- Current Develop `4634bdf28c98bc114e0369701122818d474f99d9` is canonical-red only at full pytest (`34539454111`); do not attribute it to Backend unless diagnostics reproduce a Backend-owned signature.
+- Native Windows durable-FS harness-isolation cluster: CLOSED on Develop; no Backend cherry-pick required.
 - Core/API server lifecycle Windows verification: CLOSED on Develop; no Backend cherry-pick required.
 - Core/API ownership lifecycle Windows verification: CLOSED on Develop; no Backend cherry-pick required.
 - Adaptive 2048-context reserve Windows verification: CLOSED on Develop; no Backend cherry-pick required.
@@ -107,4 +117,4 @@ Integrator has already required that broad Backend/Storage/Migration/Runtime his
 
 ## Next Backend action
 
-Consume the then-current Develop and Backend exact-SHA results first. If Develop remains green, take exactly one bounded current gap, preferring BE-046 before BE-052 unless newer exact-SHA evidence raises a higher-priority Backend/System failure. Required focused tests must run before any product commit; do not weaken Storage/Recovery/Security invariants to obtain green tests.
+Consume the then-current Develop exact-SHA result first. If the current pytest failure is shown by diagnostics to be Backend-owned, fix that root cause before feature work. Otherwise take exactly one bounded current Backend gap, preferring BE-046 before BE-052 unless newer exact-SHA evidence raises a higher-priority Backend/System failure. Required focused tests must run before any product commit; do not weaken Storage/Recovery/Security invariants to obtain green tests.
