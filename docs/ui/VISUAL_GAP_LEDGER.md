@@ -3,69 +3,59 @@
 Integration target: `develop/pathena-next`
 UI worker: `postmerge/ui`
 
-## Current visual-evidence state — 2026-09-10
+## Current visual evidence — 2026-09-11
 
-The historical capture-access blocker is closed. All eleven user references were directly opened again, and workflow run `34528380154` produced a real native-Windows PySide6 artifact for `postmerge/ui@191c9cecd6edebe1744d66f0eae6bf9e96e519fe`. All eleven current images were downloaded and directly opened. The capture manifest reports 11 captures, zero capture errors and `PASS`.
+Develop source-of-truth check: `29540b7a1f2cb09e3a1be9aee2a29e357c8a8724`, canonical Quality `34534330414 = SUCCESS`.
 
-The workflow itself ends red after capture because the comparator generated a baseline proposal rather than validating a committed baseline. This does not invalidate the screenshots; it means screenshot-regression promotion remains unavailable until an approved baseline exists.
+Worker product candidate: `6b1777ef181dc2f1b15f5a7f70c3cab84ff0b9dc`. Native-Windows visual run `34533820471` produced artifact `pathena-visual-6b1777ef181dc2f1b15f5a7f70c3cab84ff0b9dc`. The artifact manifest proves 11 canonical PySide6 captures, zero capture errors and `PASS`. All 11 current images and all 11 user reference images were directly opened in this run.
 
-- References opened: `11/11`.
-- Exact rendered implementation: `postmerge/ui@191c9cecd6edebe1744d66f0eae6bf9e96e519fe`.
-- Current runtime renders opened: `11/11`.
-- Same-state/directly comparable pairs: `3/11`.
-- `MATCH`: `0/11`.
-- State/context-unverified slots: `8/11`.
+The final workflow verdict is still intentionally red because no generated baseline proposal is accepted as a design baseline. No `MATCH` is inferred from the capture or from code/QSS/tests.
 
-## VISUAL-GAP-0001 — shared shell and workspace hierarchy diverge from references
+- References opened: `11/11`
+- Exact worker current renders opened: `11/11`
+- Same-state/direct pairs: `3/11`
+- `MATCH`: `0/11`
+- `PAIRS_VERIFIED_3_OF_11`
+
+## VISUAL-GAP-0001 — shared shell / workspace hierarchy
 
 Category: `APP SHELL / GEOMETRY / HIERARCHY`
 Severity: `P0 visual`
 Status: `OPEN`
-Affected evidence: Settings, Chat/Workspace, Jobs, System, Research, Knowledge; also surrounding context missing from several standalone surfaces.
 
-Direct comparison shows a repeated product-level difference: current workspaces use a very sparse frame, small display hierarchy, large unused regions and no reference-style textual top navigation. Several pages expose a generic right `Evidence & Activity` pane with `CHAT / NONE` rather than page-specific context. The references repeatedly establish a stronger large-title hierarchy, ordered density, secondary navigation where appropriate, and contextual right-side information.
+The previous typography sub-slice is visibly present on `6b1777ef…`: title/body/metadata hierarchy is stronger. Direct pixel review now isolates the next highest repeated shell gap: the normal workspace top bar has the pATHENA wordmark, System/Settings utility icons and `Local · Private`, but no textual primary navigation. The user references repeatedly show top-level textual navigation above the slim icon rail and main workspace. This affects Chat/Workspace, Knowledge, Research, Jobs, Sources/Integrations, System and Settings framing.
 
-This gap is independent of whether Core is connected; do not fabricate data to fill space. The next implementation must change only presentation/layout around real existing product paths and explicit unavailable states.
+Current code already exposes the real navigation model and real routes; `pathena_theme.py` already contains `topNavButton` checked/focus/hover states. Therefore the next bounded product correction is to expose existing primary routes (`Chat`, `Knowledge`, `Research`, `Jobs`, `Sources`) as functional top-bar buttons synchronized with the current navigation row. It must not introduce a second routing model, fake page, or synthetic state.
 
-Next correction: bounded shared-shell/hierarchy slice affecting at most the common desktop shell plus one contextual-inspector integration. Re-render affected pages immediately and compare against the real references.
+### Remaining coupled inspector gap
 
-## VISUAL-GAP-0002 — standalone PALLAS / Help / ComfyUI lose reference product framing
+Several current workspaces still show generic `Evidence & Activity / CHAT / NONE`, while references use page-specific evidence, execution, security, connection or object context. This remains open, but should not be coupled to the top-navigation mutation unless the implementation can reuse an existing real page-specific data path without backend or semantic changes.
+
+## VISUAL-GAP-0002 — standalone PALLAS / Help / ComfyUI framing
 
 Category: `SURFACE INTEGRATION`
 Severity: `P1 visual`
 Status: `OPEN`
 
-The real PALLAS renderer, Help catalogue and ComfyUI controller all execute successfully in the current capture, but their visual presentation is substantially more isolated than the references:
+Exact `6b1777ef…` renders confirm the existing real controllers still present as standalone surfaces:
 
-- PALLAS: sparse standalone graph instead of graph workspace + contextual knowledge/provenance/history inspector.
-- Help: compact text dialog instead of navigable full Help workspace with search, capability rows and shortcut/status context.
-- ComfyUI: compact utility dialog instead of full integration workspace with prompt/workflow controls and Connection inspector.
+- PALLAS: semantic graph renderer works, but lacks the reference shell and contextual inspector.
+- Help: real capability catalogue works, but is a compact text-heavy dialog rather than the reference Help workspace.
+- ComfyUI: real loopback controller/queued-workflow path works, but is a compact utility rather than the reference full integration workspace.
 
-Do not replace working controllers with mock pages. Any correction must reuse the real controller/data paths and expose not-implemented states explicitly.
+Do not replace these controllers with mock pages or fabricated records.
 
 ## State-alignment blockers
 
-The following references cannot yet receive pixel-parity verdicts because the real current capture is a different data/context state: loaded Workspace/Evidence, running Jobs detail, command palette over full Knowledge backdrop, healthy System, loaded Research synthesis, light workspace variant, and populated local-memory Knowledge. These are evidence/capture-state blockers, not permission to invent fixtures that alter product semantics.
+Loaded Workspace/Evidence, running Jobs detail, palette-over-Knowledge backdrop, healthy System, loaded Research synthesis, light workspace variant and populated local-memory Knowledge remain state/context misaligned. Real current screenshots exist, but same-state parity is unverified.
 
-## Focused verification completed
+## Focused/canonical evidence
 
-The UI visual workflow was made runnable on `postmerge/ui`. First exact candidate `551b93b1d86baa4925c9536f3b3cecfcf72bdf2a` reproduced a harness defect: the font-safe wrapper executed as a script but imported `scripts.render_pathena_ui_snapshot`, causing `ModuleNotFoundError: scripts`. The wrapper import was corrected without product/backend/storage/security changes.
+- Current worker has no queued or in-progress workflow run at run start.
+- Existing exact worker visual run `34533820471` proves native-Windows 11-surface capture and artifact generation on `6b1777ef…`; final baseline-enforcement step alone is red.
+- The focused shared hierarchy token contract present on the worker was reproduced in this run against the worker token values: `5 passed` locally. This is useful focused evidence but is not represented as a canonical exact-SHA GitHub run.
+- Develop commit `29540b7…` adds this focused token test to the visual workflow for future candidates; Develop canonical Quality `34534330414` is green. That Develop change is READ-ONLY from the UI worker perspective and was not copied or merged here.
 
-Exact candidate `191c9cecd6edebe1744d66f0eae6bf9e96e519fe` then passed:
+## Readiness
 
-- exact SHA checkout/identity proof;
-- locked Windows desktop environment;
-- visual-harness Ruff;
-- comparator mypy;
-- comparator contract tests (`5 passed`);
-- capture of all eleven canonical surfaces;
-- baseline-proposal comparison step;
-- artifact upload.
-
-The final workflow verdict remains red only because an unapproved baseline proposal is intentionally not equivalent to an accepted visual baseline.
-
-## Previously closed technical UI gaps
-
-Historical closed technical slices remain closed unless a current exact-SHA regression reproduces them. They are not screenshot-level parity evidence.
-
-`PAIRS_VERIFIED_3_OF_11`.
+Technical/visual readiness are separate. Worker remains **not Integrator-ready** because current Git comparison is diverged from Develop (`ahead 655`, `behind 20` at this run) and no new bounded product candidate was created on a compatible current Develop baseline. Screenshot-level readiness remains `PAIRS_VERIFIED_3_OF_11`, `MATCH_0_OF_11`.

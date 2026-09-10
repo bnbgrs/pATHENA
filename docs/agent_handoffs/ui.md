@@ -1,53 +1,40 @@
 # pATHENA UI Handoff
 
-## Current baseline
+## Current baseline — 2026-09-11
 
-- Develop checked first and rechecked: `develop/pathena-next@7fa2108d820cfc5b48a9f92d42ffa61697b74818`.
-- Develop canonical `ATHENA Quality Gate` run `34522965434` is `success` on that exact SHA.
-- UI worker entered the run at `postmerge/ui@2ede7add4d70ee9f11ef2e05103504e9a1838a2a`.
+- Develop checked first: `develop/pathena-next@29540b7a1f2cb09e3a1be9aee2a29e357c8a8724`.
+- Develop canonical ATHENA Quality Gate `34534330414` on that exact SHA: `SUCCESS`.
+- UI worker product head at run start: `postmerge/ui@6b1777ef181dc2f1b15f5a7f70c3cab84ff0b9dc`.
 - `main` and `bnbgrs/ATHENA` remained READ-ONLY.
-- Required Core, Backend, Errors, Integrator, 11-screen manifest and Visual Gap Ledger sources were consumed before mutation.
+- Current Core, Backend, Errors, Integrator, 11-screen manifest and Visual Gap Ledger were consumed before any worker-side documentation mutation.
+- No worker workflow was queued or in progress at run start.
 
-## 11-screen evidence now real on both sides
+## 11-screen evidence
 
-All eleven user reference PNGs in `/pATHENA/Designreferenz – 11 Screenshots` were directly opened again. The worker visual regression workflow was then enabled for `postmerge/ui`, allowing a real exact-SHA Windows PySide6 capture instead of relying on code/QSS inference.
+All 11 user reference images were directly opened again. The exact native-Windows artifact from visual run `34533820471` for `6b1777ef…` was downloaded; all 11 real current PySide6 renderings were directly opened. Artifact manifest: candidate SHA `6b1777ef…`, platform `win32`, 11 captures, zero capture errors, `status=PASS`.
 
-The first candidate `551b93b1d86baa4925c9536f3b3cecfcf72bdf2a` failed during capture with `ModuleNotFoundError: No module named 'scripts'`. The root cause was the font-safe wrapper importing `scripts.render_pathena_ui_snapshot` while itself being executed from the `scripts` directory. The import was corrected to the sibling module form. No backend, storage or security semantics changed.
+No screenshot `MATCH` is claimed. Same-state/directly comparable pairs remain 3/11 (ComfyUI, PALLAS, Help). The other eight slots have real current screenshots but materially different data/context state or capture scope.
 
-The successor candidate `191c9cecd6edebe1744d66f0eae6bf9e96e519fe` produced and uploaded all eleven real runtime screenshots on native Windows. The capture manifest reports zero errors and `PASS`. All eleven current images were downloaded and directly opened in this run.
+`PAIRS_VERIFIED_3_OF_11` · `MATCH_0_OF_11`.
 
-Focused evidence on `191c9cec…`:
+## Exact visual finding after typography candidate
 
-- visual-harness Ruff: PASS;
-- comparator mypy: PASS;
-- comparator contract tests: `5 passed`;
-- exactly eleven canonical surfaces captured: PASS;
-- baseline proposal generation/comparison step: PASS as proposal;
-- artifact upload: PASS;
-- overall visual workflow: FAILURE only at final enforcement because a generated proposal is not an approved committed baseline.
+The typography hierarchy change on `6b1777ef…` is visible in the current renders. Direct reference/current review now isolates the next repeated P0 shell gap more precisely: normal workspace captures have the wordmark, slim icon rail, current large page-title tokens and bounded inspector, but **no textual top-level navigation**. The reference family repeatedly shows textual primary navigation across the top.
 
-## Visual verdict
+Current `PathenaMainWindow` already owns one real navigation model. Current `pathena_theme.py` already styles `QPushButton#topNavButton` including checked/focus/hover states, but `_install_reference_shell()` creates no such controls. The next safe product slice is therefore presentation-only: expose the existing real primary routes as top-bar buttons and synchronize their checked state with `self.navigation.currentRow()`. Proposed labels follow the user references and product semantics: `Chat`, `Knowledge`, `Research`, `Jobs`, `Sources`. System and Settings remain utility destinations.
 
-No `MATCH` is claimed.
+This must reuse the existing routing model and must not create a parallel navigation state, fake page, backend stub or fabricated status.
 
-- References opened: `11/11`.
-- Current runtime renders opened: `11/11`.
-- State-aligned/direct pairs: `3/11` (ComfyUI, PALLAS, Help).
-- Remaining slots have real current screenshots but different runtime data/context state or isolated capture scope, so pixel parity remains unverified.
-- `PAIRS_VERIFIED_3_OF_11`.
+## Focused evidence
 
-The largest repeated visible gap is shared shell/workspace hierarchy. Current surfaces are substantially sparser than the references, with smaller headings, large unused regions, missing reference-style textual top navigation and, on several workspaces, a generic `Evidence & Activity` inspector showing `CHAT / NONE` instead of page-specific context. This is now based on opened pixels, not memory or QSS inference.
+The current worker design-token contract was reproduced in this run against the worker values and completed `5 passed`. Exact native-Windows rendering for the candidate remains backed by run `34533820471`. The visual run itself predates Develop's new selection of `tests/unit/test_pathena_design_tokens.py`, so this local focused result is not misrepresented as canonical exact-SHA CI evidence.
 
-A second recurring gap is that real PALLAS, Help and ComfyUI controllers render in isolated/utility surfaces whereas their references place them inside richer pATHENA product framing. Any future integration must preserve the real controller paths and must not replace them with fake data or decorative mock features.
+Develop commit `29540b7…` adds the focused hierarchy-token test to future visual workflow candidates and is exact-SHA canonical green. That Develop workflow mutation remains READ-ONLY and was not merged/cherry-picked by UI.
 
-## Branch mutations this run
+## Readiness / collision state
 
-1. `551b93b1d86baa4925c9536f3b3cecfcf72bdf2a` — `ci(ui): capture visual surfaces on UI worker`
-2. `191c9cecd6edebe1744d66f0eae6bf9e96e519fe` — `fix(ui): make visual capture wrapper executable`
-3. Documentation-only evidence updates followed after the exact visual run completed.
-
-No force push, history rewrite, merge to main, test relaxation, skip or xfail was used.
+Current worker vs Develop is diverged (`ahead 655`, `behind 20` in this run). Therefore no `INTEGRATOR_READY` claim is made for the current broad lineage. No Backend/Storage/Security semantics were changed. Historical closed UI/error slices remain closed absent a current exact-SHA regression.
 
 ## Next visual slice
 
-Prioritize `VISUAL-GAP-0001`: a bounded shared-shell/hierarchy correction, then one contextual-inspector integration if tightly coupled. Do not create synthetic content merely to resemble the references. Re-render the affected actual pages through the now-working native-Windows harness and compare BEFORE -> AFTER. Separately improve the harness to capture state-aligned loaded Workspace/Jobs/System/Research/Knowledge states before any pixel-parity promotion.
+Implement the bounded functional textual top navigation in the shared shell, add focused Qt interaction/accessibility coverage, then produce a new exact-SHA 11-surface native-Windows capture. Open all 11 new renders and record `BEFORE 6b1777ef… -> AFTER <candidate>` against the same 11 references. Keep contextual inspector work separate unless it can reuse a real existing page-specific data path without semantic changes.
