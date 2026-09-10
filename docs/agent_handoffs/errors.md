@@ -2,44 +2,42 @@
 
 ## Baseline
 
-- Develop source of truth: `develop/pathena-next@7f4de6d99485972f2abf39e8e8c01fdeed513821`.
-- Error worker entered this run at `postmerge/errors@c6ff8849cd49badfb94688610bc9e01dda3b65c1`.
+- Develop source of truth: `develop/pathena-next@4d37a8276211ab9bb2d1f49ec17c8915d0ba95f3`.
+- Error worker entered this run at `postmerge/errors@418e331d11af8e8aae6f8a9f7414f20c077d9c87`.
 - Current workers: Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`; Backend `7ef45c5e37d98f56ba9327353ec7f9a8b615a0f2`; UI `af50dfb76b04e396a2dbf65ec1eeb265f30177fa`.
-- Previous Develop canonical Quality `34452334591@8c342e1b6ea07025983726ec24d48786759c28fa = SUCCESS`.
-- Current Develop canonical Quality `34457702662@7f4de6d99485972f2abf39e8e8c01fdeed513821` is still `IN_PROGRESS`; its `Windows path safety` job has already failed specifically at `Run Windows storage path regressions`.
-- Same current SHA already has Linux storage and Local-install/pypdf green; specification validator, Ruff and mypy are green; full pytest remains in progress.
-- `postmerge/errors` had no canonical Quality runs before mutation.
+- Previous Develop canonical Quality `34457702662@7f4de6d99485972f2abf39e8e8c01fdeed513821 = FAILURE`, with exactly one canonical pytest failure in `test_schema_reinitialization_contract.py` caused by tuple rows where schema verification requires named-row access.
+- Current Develop canonical Quality `34463015234@4d37a8276211ab9bb2d1f49ec17c8915d0ba95f3` is `IN_PROGRESS`. Its Windows path-safety job has already failed again specifically at `Run Windows storage path regressions`; Linux storage and Local-install/pypdf are green, and specification validator/Ruff/mypy are green while full pytest remains active.
+- `postmerge/errors` had zero canonical Quality runs before both documentation mutations in this run.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current error state
 
-- OPEN: `ERR-0032`.
-- IN_PROGRESS: `ERR-0026`, `ERR-0028`, `ERR-0029`.
+- IN_PROGRESS: `ERR-0032`, `ERR-0026`, `ERR-0028`, `ERR-0029`.
 - FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015` through `ERR-0024`, `ERR-0027`, `ERR-0030`, `ERR-0031`.
 - STALE: `ERR-0014`, `ERR-0025`.
 - BLOCKED: none.
 
-## Hard progress this run — ERR-0032 exact-current regression boundary
+## Hard progress this run — ERR-0032 remaining harness root cause
 
-### ERR-0032 — Windows schema-reinitialization contract lane regression
+### ERR-0032 — schema-reinitialization harness row-shape mismatch
 
-Status: `OPEN`, P1 current Develop integration blocker.
+Status: `IN_PROGRESS`, P1 current Develop integration blocker.
 
-The previous authoritative Develop `8c342e1b6ea07025983726ec24d48786759c28fa` is canonical-green via Quality `34452334591`. Current Develop `7f4de6d99485972f2abf39e8e8c01fdeed513821` is exactly one commit ahead. That commit changes no production source: it adds `tests/unit/test_schema_reinitialization_contract.py`, appends that test to the Windows storage regression command, and refreshes the Integrator handoff.
+The completed prior run `34457702662@7f4de6d99485972f2abf39e8e8c01fdeed513821` supplied the exact original exception: the raw test connection returned tuples, while `verify_news_schema_v26` accesses rows by column name, producing `TypeError: tuple indices must be integers or slices, not str`. Integrator applied the smallest test-only correction on `4d37a8276211ab9bb2d1f49ec17c8915d0ba95f3`: `connection.row_factory = sqlite3.Row`.
 
-Canonical Quality `34457702662` on exact current SHA `7f4de6d99485972f2abf39e8e8c01fdeed513821` provides new hard evidence: `Windows path safety` is already `FAILURE`; deterministic Windows locality passed, then `Run Windows storage path regressions` failed. Linux storage and Local-install/pypdf pass on the same SHA, as do specification validator, Ruff and mypy. Full pytest is still running.
+That correction is not yet sufficient. Current Quality `34463015234@4d37a8276211ab9bb2d1f49ec17c8915d0ba95f3` has already reproduced the Windows failure again at `Run Windows storage path regressions`. No production file changed between the failing SHA and this SHA.
 
-The newly introduced contract opens a fresh SQLite database, calls `initialize_schema()`, verifies `PRAGMA user_version == SCHEMA_VERSION`, calls `initialize_schema()` a second time on that same current-schema database, and verifies the version again. The contract is specifically meant to expose accidental additive-migration replay / duplicate-column startup behavior without making migrations idempotent or swallowing SQLite errors.
+The remaining inconsistency is inside the same test: after switching to `sqlite3.Row`, both existing assertions still compare `fetchone()` directly with `(SCHEMA_VERSION,)`. A `sqlite3.Row` containing the same scalar is not equal to a tuple, although indexing or converting the row yields the same value. Thus the row-factory correction fixes the named-access requirement but invalidates the tuple-shaped assertions.
 
-This exact delta and lane result localize the current regression to the newly introduced Windows execution surface of that contract or an interaction it exposes. The Windows job does not persist its stdout as canonical diagnostics, and the overall run is still active, so the exact assertion/exception is not yet available. Do not invent it and do not patch production behavior speculatively.
+Smallest permitted correction: retain `sqlite3.Row`; change only the two version assertions to compare the scalar value, e.g. `connection.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION`. Preserve the first and second `initialize_schema()` calls and the same version invariant. Do not catch SQLite exceptions, weaken duplicate-column detection, make migrations idempotent, or alter Storage/Recovery/startup behavior.
 
-Required next action: consume `34457702662@7f4de6d99485972f2abf39e8e8c01fdeed513821` first after completion. Isolate the exact failing Windows assertion/exception from the completed run or a focused reproduction before any fix. Preserve duplicate-column detection, Storage/Recovery/startup fail-closed behavior, and all persistent release guards. No competing Develop Quality while the current run is active.
+Do not claim `FIXED` yet. First consume the completed result of `34463015234`; then require real focused/exact-SHA PASS after the assertion-shape correction. Because current canonical Quality is active on Develop, Errors must not mutate Develop or start a competing run.
 
 ## Lower-priority worker clusters held
 
 ### ERR-0026 — Backend Ruff/import-layout drift
 
-`IN_PROGRESS`, P2 worker-local. Last exact red worker evidence remains `34441278497@c5e750a827de4b353da9873cb38d95b46a119d60`; current Backend head `7ef45c5e37d98f56ba9327353ec7f9a8b615a0f2` is later documentation/handoff state without new canonical evidence. Error/Develop already carry the normalized schema import layout. Do not create a duplicate Error-owned formatter patch.
+`IN_PROGRESS`, P2 worker-local. Last exact red evidence remains `34441278497@c5e750a827de4b353da9873cb38d95b46a119d60`; current Backend `7ef45c5e37d98f56ba9327353ec7f9a8b615a0f2` has no newer canonical evidence. Error/Develop already carry the normalized schema import layout. Do not create a duplicate Error-owned formatter patch.
 
 ### ERR-0028 — Backend v41 harness lineage
 
@@ -51,9 +49,11 @@ Required next action: consume `34457702662@7f4de6d99485972f2abf39e8e8c01fdeed513
 
 ## Integrator handoff
 
-- Current Develop: `7f4de6d99485972f2abf39e8e8c01fdeed513821`.
-- Current canonical Quality: `34457702662`, still active; Windows path safety already failed at Windows storage regressions.
-- `ERR-0032 = OPEN / P1`: regression boundary is the single commit from canonical-green `8c342e1b...` to `7f4de6d9...`; no production source changed, only the new schema-reinitialization contract plus its Windows-lane inclusion.
-- No exact exception is claimed yet. Consume the completed run first; then focused-reproduce and fix only the smallest root cause.
-- Keep lower-priority Backend v41/Ruff/WAL clusters on HOLD while this current Develop P1 exists.
+- Current Develop: `4d37a8276211ab9bb2d1f49ec17c8915d0ba95f3`.
+- Current canonical Quality: `34463015234`, active; Windows path safety already failed again at Windows storage regressions.
+- `ERR-0032 = IN_PROGRESS / P1`.
+- Original tuple-row `TypeError` is understood and the Row-factory correction is present, but the same test still uses two tuple-equality assertions that are incompatible with `sqlite3.Row`.
+- Smallest next patch is test-only scalar comparison at those two existing assertions. No production Storage/Migration/Recovery/Security mutation is justified.
+- Consume `34463015234` before any new Develop mutation; no competing canonical run while it is active.
+- Keep lower-priority Backend v41/Ruff/WAL clusters on HOLD while this Develop P1 exists.
 - Preserve pypdf packaging, Frozen argv, two-EXE topology, bounded workers, adaptive 2048-context reserve, Windows lane-lock mapping, duplicate-column/Core-startup/storage-bootstrap guards.
