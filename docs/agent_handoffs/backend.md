@@ -3,38 +3,65 @@
 Generated: 2026-09-10
 Branch: `postmerge/backend`
 
-## Current baseline
+## Current source of truth
 
-- Develop source-of-truth consumed: `develop/pathena-next@16336f99ebe7e294c352eb215bfb6c5543db1c64`.
-- Exact Develop canonical Quality: `34415180744` — FAILURE only at Ruff; specification validator, mypy, full pytest, Windows path safety, Linux storage regressions, and local-install smoke passed.
-- Exact Ruff diagnostic: `I001 Import block is un-sorted or un-formatted` at `tests/unit/test_chat_context_reserve_contract.py:1:1`.
-- Exact behavioral evidence on the same SHA: `tests/unit/test_chat_context_reserve_contract.py` passed and full pytest completed `4826 passed, 3 skipped`.
-- Previous Backend HEAD: `844d65a85ecb611d5060bf311c6346c810d2247e`; its earlier canonical Quality remains failed and is not READY evidence.
+- Develop consumed first: `develop/pathena-next@4046459bf2b91f9d30efee1f9b726c40080e2408`.
+- Current Backend worker head before this documentation refresh: `31752aefe0d5f79d8c305c531cc7584c0585e175`.
+- Exact Develop canonical Quality `34439530635@4046459bf2b91f9d30efee1f9b726c40080e2408 = FAILURE`, but the failure is isolated to one UI/PALLAS pytest (`tests/unit/test_pathena_pallas_full_view.py::test_open_workspace_reuses_one_synchronized_full_surface`). Ruff, mypy, Windows path safety, Linux storage regressions and local-install smoke are green on the same SHA.
+- Exact Backend canonical Quality `34437259339@31752aefe0d5f79d8c305c531cc7584c0585e175 = FAILURE`. Windows path safety, Linux storage regressions and local-install smoke are green; Python Quality is red at Ruff plus 17 pytest failures.
 
-## Bounded root-cause closure candidate
+## Closed root-cause cluster — Windows storage bootstrap reserve path
 
-The current Develop red exact-SHA root cause is harness-only Ruff formatting in the newly added adaptive-2048 reserve contract. The candidate synchronizes the six current Develop commits history-preservingly and changes only that new test's import-block spacing from two blank lines after the sole import to Ruff's canonical single blank separator before module constants. Assertions and product behavior are unchanged.
+Status: `CLOSED_ON_DEVELOP / EXACT_LANE_VERIFIED`.
 
-No production code was altered for the failure. Current Develop's disjoint Research/Jobs and release-contract files are synchronized byte-identically from the source-of-truth tree.
+The Windows storage-bootstrap failures on Develop `fafbeabdde1207ebc97712aa61ee947410cbf691` shared one harness root cause: `_ReserveStub.ensure()` returned `Path("/tmp/bootstrap-emergency.reserve")`, which is not absolute under Windows. Production `EmergencyReserveStatus` correctly rejected that path fail-closed.
 
-## Verification
+Backend candidate `31752aefe0d5f79d8c305c531cc7584c0585e175` changed only the test stub to a platform-valid absolute path using `Path.cwd() / "bootstrap-emergency.reserve"`. The Windows storage regression lane passed on that exact worker SHA. The bounded correction is now integrated on authoritative Develop as commit `4046459bf2b91f9d30efee1f9b726c40080e2408`, and the exact Develop Windows path-safety job in canonical Quality `34439530635` passes.
 
-- Before mutation, no `postmerge/backend` canonical Quality run was queued or in progress; latest worker Quality `34378587885` was completed FAILURE.
-- Focused behavioral evidence precedes this candidate through exact Develop Quality `34415180744`: the target test itself passed.
-- Exact Ruff failure is assertion/file bound from the decoded canonical job log and reports only I001 in the target file.
-- Local checkout remains unavailable because the execution environment cannot resolve `github.com`; no fabricated local Ruff PASS is claimed.
-- Candidate requires a new exact-SHA canonical Quality result before any READY handoff.
+No production Storage/Recovery behavior, assertion, fail-closed boundary or workflow command was weakened.
 
-## Preserved invariants
+## Current Backend worker red state
 
-- No product guard, test assertion, Security, Storage, Recovery, WAL, migration, TOR/network, packaging, worker-tree, context-reserve, Windows lane-lock, duplicate-column, Core-startup, or storage-bootstrap invariant was weakened.
-- No Skip/XFail, force push, history rewrite, or main mutation.
-- `bnbgrs/ATHENA` and `main` remain read-only.
+Exact diagnostics artifact `10137124325` for `31752aefe0d5f79d8c305c531cc7584c0585e175` reports:
+
+- Ruff: one `I001` import-block formatting failure in `src/athena/storage/schema.py`.
+- pytest: `17 failed, 4845 passed, 3 skipped`.
+- The pytest failures are concentrated in the worker-only schema-v41 / `research_delta_boundaries` lineage: legacy migration fixtures and stale expected final migration IDs interact with `0041_research_delta_boundary`.
+
+Do not repair those historical fixtures mechanically. Current Develop does not carry the worker-only v41 migration/storage delta, and Integrator explicitly says not to integrate broad Backend/Storage/Migration/Runtime history from this branch. Reconcile worker-only v41/WAL/Storage changes against current Develop/spec contracts before preserving or repairing them.
+
+## Current Develop red state
+
+The exact current Develop pytest failure is UI-owned:
+
+`tests/unit/test_pathena_pallas_full_view.py::test_open_workspace_reuses_one_synchronized_full_surface`
+
+with `AttributeError` on `MessageActionQuietController._containers` during Qt event filtering. This is not a Backend/System root cause and Backend must not mutate UI to make Develop green.
+
+## CI discipline / verification constraints
+
+- No Backend canonical Quality run was queued or in progress when this handoff refresh was prepared; `34437259339` is completed FAILURE.
+- The execution container still cannot resolve external package/Git hosts, so pinned Ruff 0.15.22 cannot be installed locally and a fresh focused Ruff run cannot currently be produced here.
+- Therefore no speculative Backend product/test mutation follows this documentation refresh. No fabricated focused PASS is claimed.
+- Any next Backend mutation must begin with current Develop/worker/run re-check and must have real focused verification before canonical Quality.
+
+## Preserved release guards
+
+- No silent Tor-to-Direct fallback.
+- Redirect/Auth/HTTPS/response-size boundaries remain fail-closed.
+- WAL maintenance safety remains intact.
+- pypdf packaging, Frozen argv and two-EXE topology remain guarded.
+- Bounded worker tree and adaptive 2048-context reserve remain guarded.
+- Windows lane-lock/path-safety, duplicate-column/Core-startup/storage-bootstrap signatures remain protected and are only OPEN when reproduced on current exact-SHA evidence.
+- No Skip/XFail, force push, history rewrite, main mutation, or mutation to `bnbgrs/ATHENA`.
 
 ## Integrator prerequisites
 
-HOLD until canonical Quality completes successfully on the exact final Backend candidate SHA. Do not treat the historical Backend v41 fixture work as globally READY while known worker red root causes remain. The older archive-replication v41 fixture drift remains a separate root-cause cluster and was not modified in this slice.
+- Windows storage bootstrap reserve-path cluster: CLOSED on Develop `4046459bf2b91f9d30efee1f9b726c40080e2408`; no further Backend action required for that slice.
+- Broad Backend worker history: HOLD / NOT READY.
+- Do not integrate worker-only schema-v41/WAL/Runtime changes without a fresh bounded reconciliation against current Develop and exact focused/canonical evidence.
+- Current Develop global red is UI-owned and must not be worked around in Backend.
 
 ## Next Backend action
 
-At the next run, consume the exact-SHA candidate Quality first. If Ruff is green, close only this current-lineage I001 cluster; then re-evaluate current Develop and choose the highest remaining exact-SHA Backend/System root cause without duplicating integrated work.
+On the next run, consume the then-current Develop and Backend exact-SHA Quality results first. If no current Backend candidate is running, choose the highest still-authoritative Backend/System gap. Prefer reconciliation/removal of obsolete worker-only history over patching fixtures to preserve non-authoritative schema-v41 behavior. Only mutate after real focused verification is available.
