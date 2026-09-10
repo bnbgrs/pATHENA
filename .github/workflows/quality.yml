@@ -220,3 +220,6 @@ jobs:
 
       - name: Run API runtime path-boundary regressions
         run: uv run --locked --extra dev pytest -q tests/unit/test_api_runtime_boundaries.py
+
+      - name: Run Windows Core/API restart smoke
+        run: uv run --locked --extra dev athena-local-smoke --restart-cycles 1

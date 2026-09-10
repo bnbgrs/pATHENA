@@ -1,24 +1,24 @@
 # Post-Merge Feature Handoff - Integrator
 
-Generated: 2026-09-10T04:52Z
+Generated: 2026-09-10T07:51Z
 Branch: `develop/pathena-next`
-HEAD at run start: `fafbeabdde1207ebc97712aa61ee947410cbf691`
+HEAD at run start: `c217747f73267842ebd26c10eb5affc4fbf7bc0d`
 
 ## Current evidence
 
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
-- Exact Develop canonical Quality `34435069158@fafbeabdde1207ebc97712aa61ee947410cbf691 = FAILURE`.
-- The failure is isolated to the Windows path-safety job, specifically `Run Windows storage path regressions`; canonical Python quality, Linux storage regressions, and local-install/pypdf smoke are green on the same Develop SHA.
-- Worker heads reviewed: Errors `a855aca00d090f6762fe1a47095b3a213653b130`, Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`, Backend `31752aefe0d5f79d8c305c531cc7584c0585e175`, UI `af50dfb76b04e396a2dbf65ec1eeb265f30177fa`.
-- No already-integrated product slice is being re-applied. Broad Backend/Storage/WAL/Runtime changes remain conservative HOLD.
+- Exact Develop canonical Quality `34443327522@c217747f73267842ebd26c10eb5affc4fbf7bc0d = SUCCESS`.
+- No queued or in-progress canonical Quality existed on Develop immediately before this mutation.
+- Worker heads reviewed: Errors `e1262766de39b06bbe43ea62b9497c3c0100f60e`, Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`, Backend `c5e750a827de4b353da9873cb38d95b46a119d60`, UI `af50dfb76b04e396a2dbf65ec1eeb265f30177fa`.
+- No new worker slice is promotion-ready: Backend remains broad HOLD with exact-head Ruff/pytest failures; Spec/Core and UI contain no new unintegrated product slice; Errors reports Backend-owned formatter drift rather than a Develop root cause.
+- No already-integrated product slice is being re-applied.
 
-## Corrective slice — Windows-safe storage bootstrap test path
+## Cross-cutting slice — Windows Core/API restart smoke
 
-- The newly exercised Windows storage-bootstrap test used a hard-coded POSIX path, `Path("/tmp/bootstrap-emergency.reserve")`, inside `_ReserveStub.ensure()`.
-- `postmerge/backend@31752aefe0d5f79d8c305c531cc7584c0585e175` contains a bounded one-line portability correction: `Path.cwd() / "bootstrap-emergency.reserve"`.
-- Only that test-path correction is integrated. Test assertions and production storage/recovery/runtime behavior are unchanged.
-- The relevant Windows path/storage lane is green on the Backend candidate head; unrelated global Backend failures are outside this bounded test-only diff and are not integrated.
-- No Skip/XFail, test weakening, storage/recovery/security relaxation, or workflow-command weakening is introduced.
+- The persistent Windows-Beta Core-startup signature was not explicitly exercised in the Windows lane: `athena-local-smoke --restart-cycles 1` existed only in the Ubuntu local-install job.
+- Canonical Quality now runs the same disposable Core/API restart smoke in the existing `windows-path-safety` job after Windows path/storage/runtime-boundary regressions.
+- This is CI coverage only. Production Core, runtime, storage, recovery, security, packaging and migration behavior are unchanged.
+- The change does not weaken, skip or xfail any test or guard. It adds Windows evidence for the existing Core/API restart contract.
 
 ## Persistent release guards
 
@@ -28,11 +28,14 @@ HEAD at run start: `fafbeabdde1207ebc97712aa61ee947410cbf691`
 - Exactly one Desktop instance with bounded workers remains a Windows-Beta requirement.
 - Adaptive 2048-context Chat reserve remains guarded.
 - Windows lane-lock/path-safety cluster remains guarded.
-- Duplicate-column/Core-startup/storage-bootstrap signatures remain explicit Windows-Beta regression checks unless exact-current evidence reopens them.
+- Storage-bootstrap is explicitly covered in the Windows lane.
+- Core-startup is now explicitly exercised by the Windows Core/API restart smoke.
+- Duplicate-column remains an explicit Windows-Beta regression signature requiring focused mapping before promotion.
 
 ## Next integration
 
-1. Run/consume canonical Quality on the resulting exact Develop SHA and freeze Develop while it is queued or in progress.
+1. Consume canonical Quality on the resulting exact Develop SHA and freeze Develop while it is queued or in progress.
 2. Do not integrate broad Backend/Storage/Migration/Runtime history from the worker branch.
 3. Resume READY qualification only after exact-current Develop Quality completes.
-4. Do not re-integrate already landed UI/Core slices.
+4. Identify the exact focused duplicate-column regression test before adding any further Windows-lane coverage; do not infer an OPEN defect without reproduction.
+5. Do not re-integrate already landed UI/Core slices.
