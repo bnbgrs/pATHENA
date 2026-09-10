@@ -9,32 +9,33 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 ## Current baseline
 
 - Develop source of truth: `develop/pathena-next@fafbeabdde1207ebc97712aa61ee947410cbf691`.
-- Error worker entered this run at `postmerge/errors@1a658432d623def854a726a954deadc256610545`.
-- Current workers reviewed: Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`; Backend `5b6e8226b316a8d0c943c71cab907d66360281a2`; UI `af50dfb76b04e396a2dbf65ec1eeb265f30177fa`.
-- Exact current Develop canonical Quality `34435069158@fafbeabdde1207ebc97712aa61ee947410cbf691` is still `in_progress`, but its `Windows path safety` job has already completed `FAILURE` specifically at step `Run Windows storage path regressions`.
-- The same exact-SHA run has completed `Linux storage regressions = SUCCESS` and `Local install smoke = SUCCESS`; specification validator, Ruff and mypy are also green while full pytest remains in progress. This establishes a Windows-specific current Develop regression without inventing assertion-level detail before diagnostics are available.
-- Commit `fafbeabdde1207ebc97712aa61ee947410cbf691` changes the Windows storage lane by adding `tests/unit/test_storage_bootstrap.py` to the existing regression command; no production Storage/Recovery code changed in that commit.
-- Exact current Backend canonical Quality remains `34417344758@5b6e8226b316a8d0c943c71cab907d66360281a2 = FAILURE`.
-- `postmerge/errors` had no canonical Quality runs before this ledger mutation.
+- Error worker entered this run at `postmerge/errors@a855aca00d090f6762fe1a47095b3a213653b130`.
+- Current workers reviewed: Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`; Backend `31752aefe0d5f79d8c305c531cc7584c0585e175`; UI `af50dfb76b04e396a2dbf65ec1eeb265f30177fa`.
+- Exact current Develop canonical Quality `34435069158@fafbeabdde1207ebc97712aa61ee947410cbf691 = FAILURE`. Python quality, Linux storage regressions and Local-install/pypdf are green; the only failed job is `Windows path safety`, specifically `Run Windows storage path regressions`.
+- Exact current Backend canonical Quality `34437259339@31752aefe0d5f79d8c305c531cc7584c0585e175 = FAILURE` overall because of unrelated Python-quality failures, but its complete `Windows path safety` job is `SUCCESS`, including `Run Windows storage path regressions = SUCCESS` and the following API runtime path-boundary regressions.
+- `postmerge/errors` had no canonical Quality runs before this run's mutation.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current state
 
 - FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015` through `ERR-0024`, `ERR-0027`, `ERR-0030`.
+- FIXED_PENDING_VERIFY: `ERR-0031`.
 - STALE: `ERR-0014`, `ERR-0025`.
-- OPEN: `ERR-0031`.
 - IN_PROGRESS: `ERR-0026`, `ERR-0028`, `ERR-0029`.
+- OPEN: none at top-level.
 - BLOCKED: none at top-level.
 
 ## ERR-0031 — Windows storage-bootstrap regression exposed by canonical lane coverage
 
-- Severity: P1 current Develop integration blocker.
-- Status: `OPEN`.
-- Exact reproduction: `34435069158@fafbeabdde1207ebc97712aa61ee947410cbf691`, completed job `Windows path safety = FAILURE`, failing step `Run Windows storage path regressions`.
-- The immediately preceding deterministic Windows locality regressions pass on the same job; the API runtime boundary step is skipped only because the storage-regression step failed.
-- Linux storage regressions pass on the same exact SHA. The integration commit adds only `tests/unit/test_storage_bootstrap.py` to the Windows storage regression command, so the newly exposed primary cluster is bounded to Windows execution of the storage-bootstrap test surface rather than a newly introduced production Storage mutation.
-- Do not claim the exact failing test/assertion until canonical diagnostics/log evidence is available. Do not weaken `storage-bootstrap`, Storage, Recovery, lane-lock, path-safety or fail-closed semantics.
-- Next evidence: consume the completed canonical diagnostics for `34435069158` first; reproduce the exact failing storage-bootstrap test/check focused on Windows semantics before any minimal fix.
+- Severity: P1 current Develop integration blocker until corrected Develop verification.
+- Status: `FIXED_PENDING_VERIFY`.
+- Exact Develop reproduction: canonical Quality `34435069158@fafbeabdde1207ebc97712aa61ee947410cbf691` completed `FAILURE`; `Windows path safety` fails at `Run Windows storage path regressions` while Python quality, Linux storage and Local-install/pypdf pass.
+- Assertion-level diagnostics deduplicate all four Windows failures to one harness root cause in `tests/unit/test_storage_bootstrap.py`: `_ReserveStub.ensure()` returns `EmergencyReserveStatus(path=Path("/tmp/bootstrap-emergency.reserve"), ...)`. On Windows this materializes as `WindowsPath('/tmp/bootstrap-emergency.reserve')`, which is drive-less and therefore fails `EmergencyReserveStatus.__post_init__()` with `ValueError: Emergency reserve status path must be absolute.`
+- The four affected tests are `test_bootstrap_current_database_orders_reserve_before_database_start`, `test_bootstrap_rechecks_pressure_before_live_writer_start`, `test_bootstrap_legacy_database_passes_real_reserve_requirement_to_runner`, and `test_bootstrap_binds_runtime_disk_pressure_gate_to_real_database`. They are one portability-stub cascade, not four Storage product defects.
+- Backend owns the same root cause and already contains the bounded one-line harness correction at `postmerge/backend@31752aefe0d5f79d8c305c531cc7584c0585e175`: replace the POSIX-only stub path with `Path.cwd() / "bootstrap-emergency.reserve"`. No assertion or production behavior changes.
+- Exact verification on that Backend SHA: canonical Quality `34437259339` has `Windows path safety = SUCCESS`; its `Run Windows storage path regressions` and subsequent API runtime path-boundary step both pass. The run is globally red only for unrelated Python-quality failures, so this establishes focused closure evidence but not Develop closure.
+- Do not duplicate the Backend-owned patch on Errors. Do not weaken `EmergencyReserveStatus` absolute-path validation, storage-bootstrap, Storage, Recovery, lane-lock, path-safety or fail-closed semantics.
+- Closure condition: integrate only the bounded test-path correction onto a current Develop candidate and require exact-SHA Develop canonical Quality/Windows path-safety PASS before changing `ERR-0031` to `FIXED`.
 
 ## ERR-0030 — Delta Research freeze prerequisite omitted on Develop
 
@@ -43,15 +44,14 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Failed Develop `24364b858e15fd9e3b06a9ee2eaf1f580b51364c`, canonical Quality `34379757715` attempt 2, had exactly one failure: `tests/unit/test_research_delta.py::test_delta_research_freezes_only_new_explicit_sources`; summary `1 failed, 4821 passed, 3 skipped, 2 warnings`.
 - Root cause was bounded: `ResearchRepository.freeze_local_candidates()` omitted `ResearchMode.DELTA` from the supported-mode allowlist.
 - Spec/Core repaired exactly that boundary on `5cc59d3da5a8b2377403ad70706254023f7794eb`; canonical Quality `34387956663 = SUCCESS`.
-- Integrator applied the same one-line correction to Develop `10d36f23143afdf9050585b3cf7bb1139913fd86`; canonical Quality `34391596966 = SUCCESS`.
+- Integrator applied the same one-line production prerequisite to Develop `10d36f23143afdf9050585b3cf7bb1139913fd86`; canonical Quality `34391596966 = SUCCESS`.
 - Closure evidence is exact-SHA canonical full Quality PASS. Do not reopen absent a new exact-current reproduction.
 
 ## ERR-0026 — Backend v41 schema module canonical Ruff I001
 
 - Severity: P2 on the Backend worker; not a current proven Develop integration blocker.
 - Status: `IN_PROGRESS`.
-- Reproduced on exact Backend Quality `34417344758@5b6e8226b316a8d0c943c71cab907d66360281a2`: Ruff reports `I001 [*] Import block is un-sorted or un-formatted` at `src/athena/storage/schema.py:3:1`.
-- Error worker's own `schema.py` is already formatter-clean and does not justify a parallel product rewrite. Backend remains owner of its current v41 schema candidate.
+- Historical Backend v41 candidates reproduced Ruff import-formatting drift. Current Backend `31752aefe0d5f79d8c305c531cc7584c0585e175` remains globally red in Python quality; do not infer closure without consuming its current exact diagnostics.
 - Do not weaken Ruff or hand-bypass the check. Closure requires exact focused/canonical Ruff PASS on a current Backend SHA.
 
 ## ERR-0028 — v41 legacy schema fixtures/current-version assertions
@@ -59,32 +59,25 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Severity: P2.
 - Status: `IN_PROGRESS` overall.
 - Closed subclusters remain closed absent exact-current regression: grounded-response-receipt, backup-retention, operational-error physical-cleanup, deletion-ledger, protected-source-blob, knowledge-schema-current-version.
-- Current exact Backend evidence is `34417344758@5b6e8226b316a8d0c943c71cab907d66360281a2`, diagnostics artifact `10130164077`.
-- Current Develop now has a higher-severity independent Windows storage-bootstrap regression (`ERR-0031`); do not confuse that with these Backend-only v41 harness failures.
+- Historical exact Backend evidence on `5b6e8226b316a8d0c943c71cab907d66360281a2` established two independent harness clusters below. Current Backend has advanced to `31752aefe0d5f79d8c305c531cc7584c0585e175`; consume current diagnostics before claiming either historical signature remains active there.
 
-### Active subcluster: stale terminal-current-schema migration-ID assertions
+### Historical active subcluster: stale terminal-current-schema migration-ID assertions
 
-- Status: `IN_PROGRESS`.
-- Current exact Backend diagnostics deduplicate nine failures to one harness root cause.
-- Eight failures are in `tests/unit/test_knowledge_schema.py`: legacy upgrades `v14`, `v17`, `v18`, `v19`, `v20`, `v21`, `v22`, `v23`. Each upgrade reaches `SCHEMA_VERSION` and reads `schema_metadata.last_migration_id = '0041_research_delta_boundary'`, but the terminal-current-schema assertion still expects `GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID` / `0040_grounded_response_receipts`.
-- The ninth identical terminal-version drift is `tests/unit/test_protected_content.py::test_fresh_schema_has_v32_security_tables_without_persistent_unlock_state`: actual metadata tuple is `(41, '0041_research_delta_boundary', 41)`, while the harness still expects `(41, '0040_grounded_response_receipts', 41)`.
-- These nine failures are one stale terminal-version expectation cluster, not nine production migration defects. Historical pre-upgrade assertions must remain historical; only assertions describing the final current schema may move to `RESEARCH_DELTA_BOUNDARY_MIGRATION_ID`.
-- Backend remains the authoritative v41 owner. Error avoids a parallel rewrite while ownership is unambiguous.
-- Closure requires focused PASS for these nine exact assertions on a current Backend SHA.
+- Prior exact diagnostics deduplicated nine failures to one harness root cause: final current-schema assertions expected migration `0040_grounded_response_receipts` after successful v41 upgrade instead of `0041_research_delta_boundary`.
+- Historical pre-upgrade assertions must remain historical; only assertions describing the final current schema may move to `RESEARCH_DELTA_BOUNDARY_MIGRATION_ID`.
+- Do not call this current on Backend `31752aef...` without fresh exact-SHA reproduction.
 
-### Active subcluster: current-schema-derived legacy fixtures retain the v41 Delta table
+### Historical active subcluster: current-schema-derived legacy fixtures retain the v41 Delta table
 
-- Status: `IN_PROGRESS`.
-- Exact Backend diagnostics reproduce `sqlite3.OperationalError: table research_delta_boundaries already exists` when `initialize_schema()` reaches the fail-closed v40→v41 migration and executes its plain `CREATE TABLE research_delta_boundaries`.
-- Root cause is bounded to legacy test-fixture reconstruction, not production migration semantics: affected fixtures first create a current `SQLiteDatabase`, then lower `schema_metadata` / `PRAGMA user_version` to an older version while removing selected newer objects. At least the exact v33 protected-source-transition fixture explicitly documents this pattern and removes v40 `grounded_response_receipts` plus v39 child state, but does not remove the v41 `research_delta_boundaries` table before declaring the v33 boundary.
-- The same exact traceback signature appears in archive-replication v30→v31, knowledge-schema v28/v29/v36, protected-content v31 and protected-source-transition v33 tests. `storage-bootstrap` / Core-startup failures downstream of the same candidate migration are cascades, not separate primary causes.
-- Correct repair boundary: update only current-schema-derived legacy fixtures so every object introduced after the declared historical boundary is removed before metadata/user_version are rewound. Do not change production `migrate_schema_v40_to_v41()` to `IF NOT EXISTS`, do not catch/ignore the `OperationalError`, and do not weaken Storage/Recovery fail-closed behavior.
-- Backend remains the active migration owner; the next meaningful evidence must be a focused Backend PASS or a new Backend candidate that supersedes this SHA.
+- Prior exact diagnostics reproduced `sqlite3.OperationalError: table research_delta_boundaries already exists` where current-schema-derived legacy fixtures rewound metadata/version but retained v41 objects.
+- Correct repair boundary remains test-fixture reconstruction only: remove every object introduced after the declared historical boundary before rewinding metadata/user_version.
+- Never change production `migrate_schema_v40_to_v41()` to `IF NOT EXISTS`, catch/ignore the `OperationalError`, or weaken Storage/Recovery fail-closed behavior.
+- Do not call this current on Backend `31752aef...` without fresh exact-SHA reproduction.
 
 ## ERR-0029 — WAL harness collaborators incompatible with canonical exact-type runtime guards
 
 - Severity: P2.
-- Status: `IN_PROGRESS`.
+- Status: `IN_PROGRESS` pending current Backend exact-diagnostic refresh.
 - Production exact-type fail-closed guards remain authoritative and must not be weakened.
 - No new exact focused/assertion-level closure evidence was consumed for this cluster in this run.
 
