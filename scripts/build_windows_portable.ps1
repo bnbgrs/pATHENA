@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
-    [string]$OutputRoot = ""
+    [string]$OutputRoot = "",
+    [switch]$ValidateOutputRootOnly
 )
 
 $ErrorActionPreference = "Stop"
@@ -11,10 +12,154 @@ if (-not $IsWindows) {
 }
 
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
+$defaultOutputRoot = [System.IO.Path]::GetFullPath((Join-Path $repoRoot "dist\windows-portable"))
+$packageOutputMarkerName = ".pathena-windows-package-root"
+$packageOutputMarkerContent = "pATHENA Windows portable package output v1"
 $python = Join-Path $repoRoot ".venv\Scripts\python.exe"
-$uv = Get-Command uv -ErrorAction SilentlyContinue
-if ($null -eq $uv) {
-    throw "uv is required to build the supported pATHENA Windows package."
+
+function Get-PathenaComparablePath {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path
+    )
+
+    $fullPath = [System.IO.Path]::GetFullPath($Path)
+    $rootPath = [System.IO.Path]::GetPathRoot($fullPath)
+    $trimChars = [char[]]@('\', '/')
+    if (
+        $null -ne $rootPath -and
+        [string]::Equals(
+            $fullPath.TrimEnd($trimChars),
+            $rootPath.TrimEnd($trimChars),
+            [System.StringComparison]::OrdinalIgnoreCase
+        )
+    ) {
+        return $rootPath
+    }
+    return $fullPath.TrimEnd($trimChars)
+}
+
+function Test-PathenaPathEqualOrInside {
+    param(
+        [Parameter(Mandatory = $true)][string]$Candidate,
+        [Parameter(Mandatory = $true)][string]$Parent
+    )
+
+    $candidatePath = Get-PathenaComparablePath -Path $Candidate
+    $parentPath = Get-PathenaComparablePath -Path $Parent
+    if ([string]::Equals($candidatePath, $parentPath, [System.StringComparison]::OrdinalIgnoreCase)) {
+        return $true
+    }
+    $trimChars = [char[]]@('\', '/')
+    $prefix = $parentPath.TrimEnd($trimChars) + [System.IO.Path]::DirectorySeparatorChar
+    return $candidatePath.StartsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase)
+}
+
+function Assert-PathenaPackagingOutputBoundary {
+    param(
+        [Parameter(Mandatory = $true)][string]$RepoRoot,
+        [Parameter(Mandatory = $true)][string]$OutputRoot,
+        [Parameter(Mandatory = $true)][string]$ControlledRoot
+    )
+
+    $resolvedOutput = [System.IO.Path]::GetFullPath($OutputRoot)
+    $volumeRoot = [System.IO.Path]::GetPathRoot($resolvedOutput)
+    $comparableOutput = Get-PathenaComparablePath -Path $resolvedOutput
+    $comparableVolume = Get-PathenaComparablePath -Path $volumeRoot
+
+    if ([string]::Equals($comparableOutput, $comparableVolume, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Refusing Windows package output at filesystem root: $resolvedOutput"
+    }
+    if (Test-PathenaPathEqualOrInside -Candidate $RepoRoot -Parent $resolvedOutput) {
+        throw "Refusing Windows package output that contains the repository checkout: $resolvedOutput"
+    }
+    if (
+        (Test-PathenaPathEqualOrInside -Candidate $resolvedOutput -Parent $RepoRoot) -and
+        -not (Test-PathenaPathEqualOrInside -Candidate $resolvedOutput -Parent $ControlledRoot)
+    ) {
+        throw "Refusing Windows package output inside the repository outside dist\windows-portable: $resolvedOutput"
+    }
+    return $resolvedOutput
+}
+
+function Assert-PathenaPackagingPathHasNoReparseAncestor {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path
+    )
+
+    $probe = [System.IO.Path]::GetFullPath($Path)
+    while (-not (Test-Path -LiteralPath $probe)) {
+        $parent = [System.IO.Directory]::GetParent($probe)
+        if ($null -eq $parent) {
+            return
+        }
+        $probe = $parent.FullName
+    }
+
+    while ($true) {
+        $item = Get-Item -LiteralPath $probe -Force
+        if (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+            throw "Refusing Windows package output through a reparse-point path: $($item.FullName)"
+        }
+        $parent = [System.IO.Directory]::GetParent($item.FullName)
+        if ($null -eq $parent) {
+            return
+        }
+        $probe = $parent.FullName
+    }
+}
+
+function Initialize-PathenaPackagingOutputRoot {
+    param(
+        [Parameter(Mandatory = $true)][string]$OutputRoot,
+        [Parameter(Mandatory = $true)][string]$ControlledRoot,
+        [Parameter(Mandatory = $true)][string]$MarkerName,
+        [Parameter(Mandatory = $true)][string]$MarkerContent
+    )
+
+    $isControlled = Test-PathenaPathEqualOrInside -Candidate $OutputRoot -Parent $ControlledRoot
+    $markerPath = Join-Path $OutputRoot $MarkerName
+
+    if (Test-Path -LiteralPath $OutputRoot) {
+        if (-not (Test-Path -LiteralPath $OutputRoot -PathType Container)) {
+            throw "Windows package output must be a directory: $OutputRoot"
+        }
+        if (Test-Path -LiteralPath $markerPath) {
+            if (-not (Test-Path -LiteralPath $markerPath -PathType Leaf)) {
+                throw "Windows package output ownership marker is not a file: $markerPath"
+            }
+            $existingMarker = (Get-Content -LiteralPath $markerPath -Raw).Trim()
+            if ($existingMarker -ne $MarkerContent) {
+                throw "Windows package output ownership marker has unexpected content: $markerPath"
+            }
+            return
+        }
+        if (-not $isControlled) {
+            $existingEntries = @(Get-ChildItem -LiteralPath $OutputRoot -Force)
+            if ($existingEntries.Count -ne 0) {
+                throw "Refusing non-empty custom Windows package output without pATHENA ownership marker: $OutputRoot"
+            }
+        }
+    }
+    else {
+        New-Item -ItemType Directory -Path $OutputRoot -Force | Out-Null
+    }
+
+    Set-Content -LiteralPath $markerPath -Value $MarkerContent -Encoding ASCII
+}
+
+function Remove-PathenaGeneratedDirectory {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path
+    )
+
+    if (-not (Test-Path -LiteralPath $Path)) {
+        return
+    }
+    $item = Get-Item -LiteralPath $Path -Force
+    if (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+        throw "Refusing recursive cleanup of reparse-point package directory: $($item.FullName)"
+    }
+    Remove-Item -LiteralPath $Path -Recurse -Force
 }
 
 function Invoke-PathenaPyInstaller {
@@ -52,6 +197,38 @@ function Invoke-PathenaPyInstaller {
     }
 }
 
+$resolvedOutput = if ([string]::IsNullOrWhiteSpace($OutputRoot)) {
+    $defaultOutputRoot
+}
+else {
+    [System.IO.Path]::GetFullPath($OutputRoot)
+}
+$resolvedOutput = Assert-PathenaPackagingOutputBoundary `
+    -RepoRoot $repoRoot `
+    -OutputRoot $resolvedOutput `
+    -ControlledRoot $defaultOutputRoot
+Assert-PathenaPackagingPathHasNoReparseAncestor -Path $resolvedOutput
+Initialize-PathenaPackagingOutputRoot `
+    -OutputRoot $resolvedOutput `
+    -ControlledRoot $defaultOutputRoot `
+    -MarkerName $packageOutputMarkerName `
+    -MarkerContent $packageOutputMarkerContent
+
+if ($ValidateOutputRootOnly) {
+    Write-Output $resolvedOutput
+    exit 0
+}
+
+$uv = Get-Command uv -ErrorAction SilentlyContinue
+if ($null -eq $uv) {
+    throw "uv is required to build the supported pATHENA Windows package."
+}
+
+$workRoot = Join-Path $repoRoot "build\windows-portable"
+$specRoot = Join-Path $repoRoot "build\windows-portable-spec"
+$workerDist = Join-Path $repoRoot "build\windows-portable-worker-dist"
+$packageRoot = Join-Path $resolvedOutput "pATHENA"
+
 Push-Location $repoRoot
 try {
     if (-not (Test-Path -LiteralPath $python -PathType Leaf)) {
@@ -68,22 +245,11 @@ try {
         throw "Pinned PyInstaller installation failed."
     }
 
-    $resolvedOutput = if ([string]::IsNullOrWhiteSpace($OutputRoot)) {
-        Join-Path $repoRoot "dist\windows-portable"
-    }
-    else {
-        [System.IO.Path]::GetFullPath($OutputRoot)
-    }
-    $workRoot = Join-Path $repoRoot "build\windows-portable"
-    $specRoot = Join-Path $repoRoot "build\windows-portable-spec"
-    $workerDist = Join-Path $repoRoot "build\windows-portable-worker-dist"
-
-    foreach ($path in @($resolvedOutput, $workRoot, $specRoot, $workerDist)) {
-        if (Test-Path -LiteralPath $path) {
-            Remove-Item -LiteralPath $path -Recurse -Force
-        }
+    foreach ($path in @($workRoot, $specRoot, $workerDist)) {
+        Remove-PathenaGeneratedDirectory -Path $path
         New-Item -ItemType Directory -Path $path -Force | Out-Null
     }
+    Remove-PathenaGeneratedDirectory -Path $packageRoot
 
     Invoke-PathenaPyInstaller `
         -Name "pATHENA" `
@@ -99,7 +265,6 @@ try {
         -WorkPath (Join-Path $workRoot "worker") `
         -SpecPath (Join-Path $specRoot "worker")
 
-    $packageRoot = Join-Path $resolvedOutput "pATHENA"
     $executable = Join-Path $packageRoot "pATHENA.exe"
     $workerSourceRoot = Join-Path $workerDist "pATHENA-Worker"
     $workerSource = Join-Path $workerSourceRoot "pATHENA-Worker.exe"
@@ -126,7 +291,7 @@ try {
     # worker executable beside pATHENA.exe.
     Copy-Item -LiteralPath $workerSource -Destination $workerTarget -Force
     Copy-Item -Path (Join-Path $workerRuntime "*") -Destination $runtime -Recurse -Force
-    Remove-Item -LiteralPath $workerDist -Recurse -Force
+    Remove-PathenaGeneratedDirectory -Path $workerDist
 
     if (-not (Test-Path -LiteralPath $workerTarget -PathType Leaf)) {
         throw "The assembled package is missing pATHENA-Worker.exe."
