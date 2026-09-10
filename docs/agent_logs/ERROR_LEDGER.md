@@ -8,20 +8,19 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 
 ## Current baseline
 
-- Develop source of truth: `develop/pathena-next@0d3ca68731ded061b0720bd94d649f3dfed59a45`.
-- Error worker entered this run at `postmerge/errors@df3f63e0c0c717f0bbd8a4388535c5cd645e83ee`.
-- Current workers: Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`; Backend `a5e28d3c9d3f215620fe69a7dfa9e024155037cf`; UI `af50dfb76b04e396a2dbf65ec1eeb265f30177fa`.
-- Latest exact current Develop canonical Quality: `34486592055@0d3ca68731ded061b0720bd94d649f3dfed59a45 = IN_PROGRESS`. At inspection time Linux storage regressions and Local install smoke/pypdf were green; Windows path safety and Python quality were still running. No failure was yet evidenced on that exact SHA.
-- Last completed Develop canonical Quality: `34473603186@38586782fd9b615ecd4226a4b0afe674d5520978 = SUCCESS`.
-- Current Backend head `a5e28d3c9d3f215620fe69a7dfa9e024155037cf` is a handoff-only descendant of the last red Backend worker lineage and has no exact-current canonical reproduction. Its handoff explicitly marks broad Storage/Migration/WAL history HOLD and non-authoritative relative to current Develop.
-- `postmerge/errors` had zero canonical Quality runs before mutation.
+- Develop source of truth: `develop/pathena-next@3330a0092eaddf58fd3a4fdcb7128f77f01b0301`.
+- Error worker entered this run at `postmerge/errors@6477760a9fd2e849d20d128e62390ba27458a710`.
+- Current workers: Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`; Backend `338e4514d144f4701e52515c0196e0f968f5db47`; UI `af50dfb76b04e396a2dbf65ec1eeb265f30177fa`.
+- Exact current Develop canonical Quality: `34492275924@3330a0092eaddf58fd3a4fdcb7128f77f01b0301 = SUCCESS`, including Linux storage regressions, Python Quality (spec validator/Ruff/mypy/full pytest), Windows path safety and Local install smoke.
+- Current Backend `338e4514d144f4701e52515c0196e0f968f5db47` has zero canonical Quality runs. Its current handoff marks broad historical schema-v41 / Storage / Migration / WAL worker history non-authoritative relative to current Develop and requires any surviving delta to be freshly re-proven as a bounded current-Develop gap.
+- `postmerge/errors@6477760a9fd2e849d20d128e62390ba27458a710` had zero canonical Quality runs before mutation.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current state
 
-- IN_PROGRESS: `ERR-0029`.
+- IN_PROGRESS: none.
 - FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015` through `ERR-0024`, `ERR-0027`, `ERR-0030`, `ERR-0031`, `ERR-0032`.
-- STALE: `ERR-0014`, `ERR-0025`, `ERR-0026`, `ERR-0028`.
+- STALE: `ERR-0014`, `ERR-0025`, `ERR-0026`, `ERR-0028`, `ERR-0029`.
 - BLOCKED: none at top level.
 
 ## ERR-0032 — schema-reinitialization harness row-shape mismatch
@@ -32,7 +31,7 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - First bounded correction: Develop `4d37a8276211ab9bb2d1f49ec17c8915d0ba95f3` added `connection.row_factory = sqlite3.Row`. Canonical Quality `34463015234` then exposed the remaining test-only shape mismatch: the two `PRAGMA user_version` assertions still compared `sqlite3.Row` directly with `(SCHEMA_VERSION,)`.
 - Final bounded correction: Develop `675166fbf1d47b5bf9fe86d3a6b59cb28ea84d17` changed only those two existing assertions to scalar comparison through `[0]`; both `initialize_schema()` calls and the same schema-version invariant remained intact.
 - Closure evidence: canonical Quality `34468185990@675166fbf1d47b5bf9fe86d3a6b59cb28ea84d17 = SUCCESS`, including full pytest and Windows path safety/storage regressions.
-- Newer completed Develop `38586782fd9b615ecd4226a4b0afe674d5520978` is also canonical-green at Quality `34473603186`; there is no exact-current recurrence of the ERR-0032 signature.
+- Newer Develop `3330a0092eaddf58fd3a4fdcb7128f77f01b0301` is also canonical-green at Quality `34492275924`; there is no exact-current recurrence.
 - No production schema, migration, Storage, Recovery, Runtime or Security behavior changed. No SQLite exception is swallowed; duplicate-column/additive-migration failures remain visible.
 - Do not reopen absent a new exact-current reproduction of this specific row-shape/schema-reinitialization signature.
 
@@ -60,8 +59,7 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Severity: P2 on Backend when exactly reproduced; not a current proven Develop blocker.
 - Status: `STALE`.
 - Historical worker reproduction carried Ruff `I001` at `src/athena/storage/schema.py:3:1`, but that evidence is not on the current Backend exact SHA.
-- Current Backend `a5e28d3c9d3f215620fe69a7dfa9e024155037cf` is a docs-only handoff refresh over the older red worker lineage and has no exact-current canonical failure. Under the current-evidence rule, the historical Ruff finding is therefore not active.
-- Last completed authoritative Develop `38586782fd9b615ecd4226a4b0afe674d5520978` is canonical-green at Quality `34473603186`, including Ruff; Develop/Error already carry the normalized schema import layout. Backend handoff explicitly says broad worker history is HOLD/non-authoritative against current Develop.
+- Current Backend `338e4514d144f4701e52515c0196e0f968f5db47` has no exact-current canonical run. Current authoritative Develop `3330a0092eaddf58fd3a4fdcb7128f77f01b0301` is canonical-green at Quality `34492275924`, including Ruff.
 - No formatter/product mutation is justified on Errors. Reopen only if the Ruff signature is reproduced on a then-current exact Backend or Develop SHA.
 
 ## ERR-0028 — v41 legacy schema fixtures/current-version assertions
@@ -69,18 +67,22 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Severity: P2 on Backend when exactly reproduced; not a current proven Develop blocker.
 - Status: `STALE`.
 - Historical Backend diagnostics decomposed old worker failures into terminal-current-schema assertions, duplicate-v41-table fixture collisions and downstream Storage-startup cascades on worker-only schema history.
-- Current Backend is `a5e28d3c9d3f215620fe69a7dfa9e024155037cf`. The newest Backend Quality is still `34455900467@7ef45c5e37d98f56ba9327353ec7f9a8b615a0f2 = FAILURE`; no canonical run reproduces the ERR-0028 signatures on current Backend head `a5e28d3c...`.
-- Backend's current handoff explicitly marks broad schema-v41 / Storage / Migration / WAL history `HOLD / NOT READY` and non-authoritative relative to current Develop.
-- Last completed authoritative Develop `38586782fd9b615ecd4226a4b0afe674d5520978` is canonical-green (`34473603186 = SUCCESS`), and the newer exact Develop run `34486592055@0d3ca68731ded061b0720bd94d649f3dfed59a45` had no evidenced failure at inspection time.
-- Therefore the old worker fixture failures do not remain active merely because they were once reproducible. No schema fixture or production migration mutation is justified on Errors in this run.
+- Current Backend is `338e4514d144f4701e52515c0196e0f968f5db47` and has zero canonical runs; no ERR-0028 signature is reproduced on that exact SHA.
+- Backend's current handoff explicitly marks broad schema-v41 / Storage / Migration / WAL history non-authoritative relative to current Develop.
+- Authoritative Develop `3330a0092eaddf58fd3a4fdcb7128f77f01b0301` is canonical-green (`34492275924 = SUCCESS`).
 - Never change production v40→v41 migration to `IF NOT EXISTS`, swallow `OperationalError`, or weaken Storage/Recovery fail-closed behavior.
 - Reopen only if a specific ERR-0028 signature is reproduced on a then-current exact Backend or Develop SHA.
 
 ## ERR-0029 — WAL harness collaborators incompatible with exact-type runtime guards
 
-- Severity: P2.
-- Status: `IN_PROGRESS` pending fresh exact-current Backend diagnostics.
-- Production exact-type fail-closed guards remain authoritative and must not be weakened.
+- Severity: P2 on Backend when exactly reproduced; not a current proven Develop blocker.
+- Status: `STALE`.
+- Historical worker diagnostics associated this cluster with WAL harness collaborators that did not satisfy production exact-type fail-closed guards. That historical worker evidence is not authoritative for the current exact worker head.
+- Current Backend `338e4514d144f4701e52515c0196e0f968f5db47` has zero canonical Quality runs, so no ERR-0029 signature is reproduced on the current Backend exact SHA.
+- Backend's current handoff explicitly places broad historical WAL/Storage/Migration worker history on HOLD/non-authoritative status and requires any surviving delta to be re-proven against current Develop before mutation or integration.
+- Current Develop `3330a0092eaddf58fd3a4fdcb7128f77f01b0301` is exact canonical-green at Quality `34492275924`, including full pytest and Windows path safety. No current Develop WAL/runtime-guard failure is evidenced.
+- Therefore the historical WAL harness cluster no longer qualifies as `IN_PROGRESS`. No harness, runtime guard, WAL maintenance, Storage or Recovery code was changed in this reclassification.
+- Production exact-type fail-closed guards remain authoritative and must not be weakened. Reopen only after the same WAL collaborator/runtime-guard signature is reproduced on a then-current exact Backend or Develop SHA.
 
 ## ERR-0027 — v41 schema contract constant re-export
 
