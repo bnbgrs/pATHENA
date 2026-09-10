@@ -43,9 +43,9 @@ def test_quiet_text_remains_visually_below_subtle_metadata() -> None:
 
 
 def test_reference_palette_is_cool_navy_with_cobalt_primary_action() -> None:
-    assert PALETTE.canvas == "#050B12"
-    assert PALETTE.surface == "#08121D"
-    assert PALETTE.surface_raised == "#0D1926"
+    assert PALETTE.canvas == "#061421"
+    assert PALETTE.surface == "#06121F"
+    assert PALETTE.surface_raised == "#0D1A2A"
     assert PALETTE.accent == "#3B82F6"
     assert PALETTE.warning != PALETTE.accent
     assert PALETTE.success != PALETTE.accent
