@@ -3,57 +3,59 @@
 ## Baseline
 
 - Develop source of truth: `develop/pathena-next@fafbeabdde1207ebc97712aa61ee947410cbf691`.
-- Error worker pre-run head: `postmerge/errors@1a658432d623def854a726a954deadc256610545`.
-- Current workers: Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`; Backend `5b6e8226b316a8d0c943c71cab907d66360281a2`; UI `af50dfb76b04e396a2dbf65ec1eeb265f30177fa`.
-- Exact current Develop Quality `34435069158@fafbeabdde1207ebc97712aa61ee947410cbf691` is still in progress, but `Windows path safety` has already completed `FAILURE` at `Run Windows storage path regressions`.
-- On the same exact SHA, `Linux storage regressions = SUCCESS` and `Local install smoke = SUCCESS`; specification validator, Ruff and mypy are green while full pytest remains in progress.
-- Exact current Backend Quality remains `34417344758@5b6e8226b316a8d0c943c71cab907d66360281a2 = FAILURE`.
-- `postmerge/errors` had no canonical Quality runs before the ledger update and still had none before this handoff mutation.
+- Error worker entered this run at `postmerge/errors@a855aca00d090f6762fe1a47095b3a213653b130`.
+- Current workers: Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`; Backend `31752aefe0d5f79d8c305c531cc7584c0585e175`; UI `af50dfb76b04e396a2dbf65ec1eeb265f30177fa`.
+- Exact current Develop Quality `34435069158@fafbeabdde1207ebc97712aa61ee947410cbf691 = FAILURE`; Python quality, Linux storage and Local-install/pypdf are green, while `Windows path safety` fails only at `Run Windows storage path regressions`.
+- Exact current Backend Quality `34437259339@31752aefe0d5f79d8c305c531cc7584c0585e175 = FAILURE` overall, but its full `Windows path safety` job is `SUCCESS`, including the storage path and API-runtime path-boundary steps.
+- `postmerge/errors` had no canonical Quality run before the first mutation and still had none before this handoff mutation.
 - `main` and `bnbgrs/ATHENA` remain read-only/untouched.
 
 ## Current error state
 
 - FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015` through `ERR-0024`, `ERR-0027`, `ERR-0030`.
-- OPEN: `ERR-0031`.
+- FIXED_PENDING_VERIFY: `ERR-0031`.
 - IN_PROGRESS: `ERR-0026`, `ERR-0028`, `ERR-0029`.
 - STALE: `ERR-0014`, `ERR-0025`.
-- BLOCKED: none at top level.
+- OPEN/BLOCKED: none at top level.
 
-## Hard progress this run — new current Develop Windows storage-bootstrap regression isolated
+## Hard progress this run — ERR-0031 assertion-level root cause and focused fix evidence
 
 ### ERR-0031 — Windows storage-bootstrap regression exposed by canonical lane coverage
 
-Status: `OPEN`, P1 current Develop integration blocker.
+Status: `FIXED_PENDING_VERIFY`, P1 until corrected Develop exact-SHA verification.
 
-Exact reproduction is canonical Quality `34435069158@fafbeabdde1207ebc97712aa61ee947410cbf691`. The completed `Windows path safety` job fails specifically at step `Run Windows storage path regressions`; the immediately preceding deterministic Windows-locality step succeeds. The later API-runtime step is skipped because that storage step failed.
+Canonical Develop Quality `34435069158@fafbeabdde1207ebc97712aa61ee947410cbf691` is complete. Its Windows storage lane reports four failures, all with the same traceback: `_ReserveStub.ensure()` in `tests/unit/test_storage_bootstrap.py` creates `EmergencyReserveStatus(path=Path("/tmp/bootstrap-emergency.reserve"), ...)`; under Windows the value is `WindowsPath('/tmp/bootstrap-emergency.reserve')`, which lacks a drive and correctly fails the production absolute-path guard with `ValueError: Emergency reserve status path must be absolute.`
 
-The same exact SHA completes `Linux storage regressions = SUCCESS`. Commit `fafbeabdde1207ebc97712aa61ee947410cbf691` adds `tests/unit/test_storage_bootstrap.py` to the existing Windows storage-regression command and otherwise changes only the Integrator handoff. No production Storage/Recovery implementation was changed by this commit. This bounds the newly exposed cluster to Windows execution of the storage-bootstrap test surface, but assertion-level root cause is not yet claimed because the canonical diagnostic/log payload is not yet available while full pytest is still running.
+The four affected tests are `test_bootstrap_current_database_orders_reserve_before_database_start`, `test_bootstrap_rechecks_pressure_before_live_writer_start`, `test_bootstrap_legacy_database_passes_real_reserve_requirement_to_runner`, and `test_bootstrap_binds_runtime_disk_pressure_gate_to_real_database`. This is one test-stub portability root cause, not four production Storage failures.
 
-Do not weaken `storage-bootstrap`, Storage, Recovery, lane-lock, path-safety or fail-closed behavior. Do not Skip/XFail. The next run must consume the completed exact-SHA canonical diagnostics first and identify the exact failing test/assertion before any minimal fix.
+Backend already owns and corrected exactly this root cause at `postmerge/backend@31752aefe0d5f79d8c305c531cc7584c0585e175` with the bounded one-line test-only change `Path.cwd() / "bootstrap-emergency.reserve"`. Assertions and production Storage/Recovery behavior are unchanged. Canonical Quality `34437259339` on that exact Backend SHA is globally red for unrelated Python-quality failures, but `Windows path safety = SUCCESS`, including `Run Windows storage path regressions = SUCCESS` and the subsequent API runtime boundary step. This is sufficient focused evidence to move the cluster from `OPEN` to `FIXED_PENDING_VERIFY`, not to `FIXED`.
 
-## Lower-priority active worker clusters
+Error worker therefore did not duplicate the Backend-owned patch. Do not weaken `EmergencyReserveStatus` validation, storage-bootstrap, Storage, Recovery, lane-lock, path-safety, or fail-closed behavior. Do not Skip/XFail.
+
+## Lower-priority worker clusters
+
+### ERR-0026 — Backend quality drift
+
+`IN_PROGRESS`, P2. Backend has advanced to `31752aefe0d5f79d8c305c531cc7584c0585e175`; consume that exact run's current Python diagnostics before carrying forward older Ruff signatures as current.
 
 ### ERR-0028 — Backend v41 harness lineage
 
-`IN_PROGRESS`, P2. Backend remains `5b6e8226b316a8d0c943c71cab907d66360281a2` with Quality `34417344758 = FAILURE`. Two independent harness root causes remain exact on that worker SHA: stale terminal-current-schema v40 expectations after successful v41 upgrade, and current-schema-derived legacy fixtures retaining the v41 Delta table before version rewind. These remain below the newly reproduced Develop P1.
-
-### ERR-0026 — Backend schema Ruff I001
-
-`IN_PROGRESS`, P2. Exact Backend `5b6e8226b316a8d0c943c71cab907d66360281a2` / Quality `34417344758` still reports Ruff `I001` at `src/athena/storage/schema.py:3:1`. Backend must produce real Ruff PASS; no Ruff weakening or bypass.
+`IN_PROGRESS`, P2. Prior exact evidence established stale final-v41 assertions and current-schema-derived legacy-fixture rewind defects. Backend has advanced beyond the SHA on which those signatures were last assertion-level evidenced, so they must be freshly reproduced before further mutation or closure claims.
 
 ### ERR-0029 — WAL exact-type harness drift
 
-`IN_PROGRESS`, P2. Preserve production exact-type fail-closed guards; no new focused closure evidence was consumed for this cluster in this run.
+`IN_PROGRESS`, P2 pending current exact Backend diagnostics. Preserve production exact-type fail-closed guards; no weakening.
 
 ## Integrator handoff
 
-- Develop `fafbeabdde1207ebc97712aa61ee947410cbf691` is currently **HOLD** because canonical Quality `34435069158` has a completed Windows-path-safety failure.
-- `ERR-0031 = OPEN`, P1. Exact completed evidence: `Windows path safety -> Run Windows storage path regressions = FAILURE`; Linux storage is green on the same SHA.
-- The triggering integration delta adds only `tests/unit/test_storage_bootstrap.py` to the Windows storage lane; no production Storage/Recovery code changed in that commit.
-- No assertion-level fix should be attempted until the exact canonical diagnostics are consumed. Preserve all existing fail-closed storage/recovery guards.
-- Backend `5b6e8226b316a8d0c943c71cab907d66360281a2` remains independently non-promotable; its P2 clusters remain active but lower priority than current Develop `ERR-0031`.
+- Develop `fafbeabdde1207ebc97712aa61ee947410cbf691` remains **HOLD** because exact canonical Quality `34435069158 = FAILURE`.
+- `ERR-0031 = FIXED_PENDING_VERIFY`, not `FIXED`.
+- Root cause is exact: hard-coded POSIX-only `Path("/tmp/bootstrap-emergency.reserve")` in the Storage-Bootstrap reserve test stub causes four Windows-only failures at the production absolute-path invariant.
+- Correct bounded candidate already exists on Backend `31752aefe0d5f79d8c305c531cc7584c0585e175`: `Path.cwd() / "bootstrap-emergency.reserve"`.
+- Focused exact evidence: Backend Quality `34437259339` has the entire `Windows path safety` job green, including Windows storage regressions and API runtime boundaries.
+- Integrate only this one-line test portability correction; do not absorb broad Backend history. Require exact current Develop canonical/Windows-lane PASS before `ERR-0031` becomes `FIXED`.
 - Preserve pypdf packaging, frozen argv, two-EXE split, bounded workers, adaptive 2048-context reserve, Windows lane-lock mapping and duplicate-column/Core-startup/storage-bootstrap release guards.
 
 ## Next verification
 
-Consume completed `34435069158@fafbeabdde1207ebc97712aa61ee947410cbf691` first. Extract the exact Windows `test_storage_bootstrap.py` failure/assertion, reproduce that focused check before any mutation, and then apply only the smallest root-cause fix on the responsible owner branch. Do not resume Backend P2 work while this current Develop P1 remains reproduced.
+First consume any new Develop exact-SHA candidate produced by the Integrator. If the bounded Windows-safe stub fix is present, verify canonical `Windows path safety` and overall Quality on that exact Develop SHA. Only then close `ERR-0031`. If no corrected Develop candidate exists, do not repeat this evidence as new progress; move to the highest independently current exact-SHA error after re-reading all worker heads and diagnostics.
