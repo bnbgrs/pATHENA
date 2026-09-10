@@ -62,25 +62,34 @@ The guard now:
 
 This is a fail-closed hardening only; it does not broaden allowed promotion state.
 
-### Regression coverage
+### Regression and workflow-contract coverage
 
-Three focused tests were added:
+Five focused tests were added on top of the prior guard suite:
 
 - required Quality workflow symlink is rejected;
 - broken forbidden legacy workflow symlink is rejected;
-- broken forbidden bootstrap-tree symlink is rejected.
+- broken forbidden bootstrap-tree symlink is rejected;
+- promotion workflow must check out the exact triggering SHA without persisted credentials and prove the checked-out identity;
+- promotion workflow must retain the pinned checkout/setup-python actions, Python 3.12, `check-latest: false`, pip `26.1.2`, uv `0.11.21` and `uv lock --check` contract.
 
-The helper skips only when the host platform cannot create symlinks at all; existing non-symlink tests remain unconditional.
+The symlink helper skips only when the host platform cannot create symlinks at all; existing non-symlink tests and workflow-contract tests remain unconditional.
 
-## Verification completed before GitHub mutation
+## Targeted verification
 
-An extracted local copy of the updated `promotion_guard.py` and its focused test module was syntax-compiled and executed with pytest:
+An extracted local copy of the updated workflow, `promotion_guard.py` and focused test module was verified after the final test-contract addition:
 
 - `python -m py_compile`: PASS
-- `pytest -q tests/unit/test_promotion_guard.py`: `10 passed`
+- `pytest -q tests/unit/test_promotion_guard.py`: `12 passed`
 - updated `promotion-readiness.yml`: YAML parse PASS
+- selected file line lengths remain within the repository's Ruff 100-character limit.
 
-This local evidence is targeted only. Canonical repository Quality on the exact branch head remains authoritative.
+This local evidence is targeted only. Canonical repository Quality on the exact final PR head remains authoritative.
+
+## Repository-wide observations from this manual run
+
+- `develop/pathena-next` was observed 1,010 commits ahead of `main` and 0 behind at audit time. Continue to treat Develop, not Main, as the integration basis.
+- A first canonical Quality run on the earlier PR head had already passed Local install smoke, Linux storage regressions, Specification Validator, Ruff and mypy; Windows Storage regressions had also passed while full pytest and the final Windows restart smoke were still running when the follow-up workflow-contract tests were added. Do not treat that earlier run as evidence for the final PR head.
+- Current exact-head CI must be consulted before integration; never transfer a green result from an older SHA.
 
 ## Explicit non-work / deferred items
 
@@ -89,6 +98,7 @@ This local evidence is targeted only. Canonical repository Quality on the exact 
 - `main` was not touched.
 - `develop/pathena-next` was not touched.
 - Issue #87 APT resilience was **not** patched because Backend currently changes `quality.yml`; do not duplicate that change until ownership is reconciled.
+- Existing older draft/validation PRs were observed but not closed, rebased or modified; ownership remains with their respective workers/integrator.
 - No merge is requested automatically.
 
 ## Bot consumption guidance
@@ -98,3 +108,4 @@ This local evidence is targeted only. Canonical repository Quality on the exact 
 3. If canonical Quality is green, Integrator may consume the slice as one unit after refreshing current Develop and checking for path drift.
 4. If canonical Quality is red outside the four owned files, report the inherited failure to the owning worker; do not widen this slice.
 5. If a failure is inside the owned files, repair only that bounded cause and update this handoff with exact-SHA evidence.
+6. Keep Issue #87 separate until `.github/workflows/quality.yml` ownership no longer overlaps Backend or an explicit coordinated integration decision is made.
