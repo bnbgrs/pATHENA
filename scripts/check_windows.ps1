@@ -62,6 +62,7 @@ if (-not $SkipRestartSmoke) {
     )
     if ($SmokeRoot.Trim()) {
         $resolvedSmokeRoot = [System.IO.Path]::GetFullPath($SmokeRoot.Trim())
+        $resolvedSmokeRoot = Assert-PathenaRuntimeRootOutsideRepository -RepoRoot $RepoRoot -RuntimeRoot $resolvedSmokeRoot
         $smokeArgs += @("--keep-root", $resolvedSmokeRoot)
         Write-Host "Running persistent Core/API restart smoke test: $resolvedSmokeRoot"
     } else {
