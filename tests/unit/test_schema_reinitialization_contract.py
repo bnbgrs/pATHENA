@@ -11,6 +11,7 @@ def test_reinitializing_current_schema_does_not_reapply_column_migrations(
 ) -> None:
     database = (tmp_path / "athena.db").absolute()
     connection = sqlite3.connect(database, autocommit=True)
+    connection.row_factory = sqlite3.Row
     try:
         initialize_schema(connection, created_at_us=1)
         assert connection.execute("PRAGMA user_version").fetchone() == (SCHEMA_VERSION,)

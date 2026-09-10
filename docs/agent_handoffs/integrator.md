@@ -1,25 +1,36 @@
 # Post-Merge Feature Handoff - Integrator
 
-Generated: 2026-09-10T08:50Z
+Generated: 2026-09-10T09:48Z
 Branch: `develop/pathena-next`
-HEAD at run start: `8c342e1b6ea07025983726ec24d48786759c28fa`
+HEAD at run start: `7f4de6d99485972f2abf39e8e8c01fdeed513821`
 
 ## Current evidence
 
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
-- Exact Develop canonical Quality `34452334591@8c342e1b6ea07025983726ec24d48786759c28fa = SUCCESS`.
-- No queued or in-progress canonical Quality existed on Develop immediately before this mutation.
-- Worker heads reviewed: Errors `c6ff8849cd49badfb94688610bc9e01dda3b65c1`, Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`, Backend `7ef45c5e37d98f56ba9327353ec7f9a8b615a0f2`, UI `af50dfb76b04e396a2dbf65ec1eeb265f30177fa`.
-- No new worker slice is promotion-ready. Backend's latest head is documentation-only over a previously red broad Storage/Migration lineage and has no equivalent exact-head green candidate evidence; Spec/Core and UI expose no new unintegrated bounded product slice; Errors reports worker-local v41 fixture/assertion clusters rather than a current Develop defect.
-- Current UI source-of-truth files are `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` and `docs/ui/VISUAL_GAP_LEDGER.md`. No already-integrated UI/Core slice is re-applied.
+- Current worker heads reviewed: Errors `418e331d11af8e8aae6f8a9f7414f20c077d9c87`, Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`, Backend `7ef45c5e37d98f56ba9327353ec7f9a8b615a0f2`, UI `af50dfb76b04e396a2dbf65ec1eeb265f30177fa`.
+- No worker slice is promotion-ready. Backend remains HOLD because its broad Storage/Migration lineage lacks fresh exact-head green candidate evidence; Spec/Core and UI expose no new unintegrated bounded product slice; Errors identifies the current Develop reinitialization regression and correctly keeps worker-local v41 history lower priority.
+- `ERROR_LEDGER.md` and `ALPHA_BETA_PROGRESS.md` are not present under those names in the current repository index; no status is invented from them.
+- UI source-of-truth remains `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` plus `docs/ui/VISUAL_GAP_LEDGER.md`; no already-integrated UI slice is reapplied.
 
-## Cross-cutting slice — duplicate-column startup regression contract
+## Exact Develop Quality result
 
-- Added `tests/unit/test_schema_reinitialization_contract.py`.
-- The contract initializes a fresh ATHENA database to the current schema and then invokes `initialize_schema()` again on the same current-schema database. The second initialization must complete while preserving `SCHEMA_VERSION`; any accidental reapplication of an additive column migration would surface as a SQLite duplicate-column failure rather than being masked.
-- Canonical Quality runs this test in the existing Windows storage-path job, giving the persistent duplicate-column/Core-startup class explicit Windows evidence.
-- This does not make schema migrations idempotent, catch/ignore `sqlite3.OperationalError`, or relax compatibility checks. Malformed partial legacy fixtures still fail closed.
-- Production storage, recovery, migration, runtime and security behavior are unchanged.
+Canonical Quality `34457702662@7f4de6d99485972f2abf39e8e8c01fdeed513821 = FAILURE`.
+
+- Windows path safety failed at `Run Windows storage path regressions`.
+- Python quality failed only at pytest; specification validator, Ruff and mypy passed.
+- Linux storage regressions passed.
+- Local install smoke and pypdf packaging passed.
+- Canonical pytest diagnostics report exactly `1 failed, 4830 passed, 3 skipped`.
+- The sole pytest failure is `tests/unit/test_schema_reinitialization_contract.py::test_reinitializing_current_schema_does_not_reapply_column_migrations`.
+- Exact traceback: first `initialize_schema()` reaches `verify_news_schema_v26`, whose contract accesses row values by name; the raw test connection returned a tuple and raised `TypeError: tuple indices must be integers or slices, not str`.
+
+## Bounded corrective slice - schema reinitialization harness
+
+- Preserve the duplicate-column/Core-startup regression guard and its Windows-lane coverage.
+- Configure the test-owned SQLite connection with `connection.row_factory = sqlite3.Row`, matching the row shape required by ATHENA schema verification.
+- No production schema, migration, Storage, Recovery, Runtime or Security behavior changes.
+- No SQLite error is caught or ignored; additive migration duplicate-column failures remain visible.
+- No assertion is weakened, removed, skipped or xfailed.
 
 ## Persistent release guards
 
@@ -29,12 +40,11 @@ HEAD at run start: `8c342e1b6ea07025983726ec24d48786759c28fa`
 - Exactly one Desktop instance with bounded workers remains a Windows-Beta requirement.
 - Adaptive 2048-context Chat reserve remains guarded.
 - Windows lane-lock/path-safety cluster remains guarded.
-- Storage-bootstrap and Core-startup are explicitly exercised in Windows canonical Quality.
-- Duplicate-column startup reinitialization is now explicitly exercised in Windows canonical Quality, pending exact-result consumption for the resulting Develop SHA.
+- Storage-bootstrap, Core-startup and duplicate-column/schema-reinitialization remain explicitly represented in Windows canonical Quality.
 
 ## Next integration
 
-1. Consume canonical Quality on the resulting exact Develop SHA; freeze Develop while queued/in progress.
-2. If the new contract fails, treat the exact failure as evidence and fix only its smallest current-Develop root cause; do not weaken schema safeguards.
+1. Consume canonical Quality on the resulting exact Develop SHA and freeze Develop while it is queued/in progress.
+2. If the exact run is red, use only its current diagnostics for the next root-cause decision.
 3. Keep broad Backend v41/WAL/Storage/Migration history on HOLD absent a fresh bounded exact-green candidate.
 4. Do not re-integrate already landed UI/Core slices.
