@@ -5,45 +5,42 @@ Branch: `postmerge/backend`
 
 ## Current source of truth
 
-- Develop consumed first: `develop/pathena-next@4046459bf2b91f9d30efee1f9b726c40080e2408`.
-- Current Backend worker head before this documentation refresh: `31752aefe0d5f79d8c305c531cc7584c0585e175`.
-- Exact Develop canonical Quality `34439530635@4046459bf2b91f9d30efee1f9b726c40080e2408 = FAILURE`, but the failure is isolated to one UI/PALLAS pytest (`tests/unit/test_pathena_pallas_full_view.py::test_open_workspace_reuses_one_synchronized_full_surface`). Ruff, mypy, Windows path safety, Linux storage regressions and local-install smoke are green on the same SHA.
-- Exact Backend canonical Quality `34437259339@31752aefe0d5f79d8c305c531cc7584c0585e175 = FAILURE`. Windows path safety, Linux storage regressions and local-install smoke are green; Python Quality is red at Ruff plus 17 pytest failures.
+- Develop consumed first: `develop/pathena-next@8c342e1b6ea07025983726ec24d48786759c28fa`.
+- Backend worker head before this handoff refresh: `c5e750a827de4b353da9873cb38d95b46a119d60`.
+- Exact Develop canonical Quality `34447189545@8c342e1b6ea07025983726ec24d48786759c28fa = SUCCESS`.
+- Exact Backend canonical Quality `34441278497@c5e750a827de4b353da9873cb38d95b46a119d60 = FAILURE`; no worker Quality run was queued or in progress when this refresh began.
+- Current Develop handoffs/spec-core/UI/integrator handoffs and current Alpha/Beta/architecture/runtime/storage documentation were treated as authoritative over historical worker priorities.
 
-## Closed root-cause cluster — Windows storage bootstrap reserve path
+## Closed dependency slice — BE-020 runtime ModelSignature drift guard
+
+Status: `CLOSED_ON_DEVELOP / QUEUE_EVIDENCE_STALE`.
+
+The persistent Backend queue still states that shared `chat/generation.py` uses an older inline signature comparison. That statement is stale on current Develop.
+
+On `8c342e1b6ea07025983726ec24d48786759c28fa`, `src/athena/chat/generation.py` imports the reusable `assert_runtime_model_matches_signature` guard from `athena.model.signature_guard`. `ChatGenerationService.send_context_package()` calls that guard against the pinned `ContextPackage` ModelSignature before entering `_generate_and_persist()`. Provider dispatch (`provider.stream_chat(...)`) occurs only later inside `_generate_and_persist()`. A `ModelSignatureDriftError` is converted to a fail-closed `ModelSelectionError` before provider dispatch.
+
+Therefore BE-020 must not cause another Backend product mutation or a duplicate signature-guard implementation. The implementation is already present on authoritative Develop and the exact Develop canonical Quality for the inspected SHA is green.
+
+No production code, test assertion, provider behavior, security boundary, storage/recovery behavior, or fail-closed guard was changed for this closure.
+
+## Previously closed root-cause cluster — Windows storage bootstrap reserve path
 
 Status: `CLOSED_ON_DEVELOP / EXACT_LANE_VERIFIED`.
 
-The Windows storage-bootstrap failures on Develop `fafbeabdde1207ebc97712aa61ee947410cbf691` shared one harness root cause: `_ReserveStub.ensure()` returned `Path("/tmp/bootstrap-emergency.reserve")`, which is not absolute under Windows. Production `EmergencyReserveStatus` correctly rejected that path fail-closed.
-
-Backend candidate `31752aefe0d5f79d8c305c531cc7584c0585e175` changed only the test stub to a platform-valid absolute path using `Path.cwd() / "bootstrap-emergency.reserve"`. The Windows storage regression lane passed on that exact worker SHA. The bounded correction is now integrated on authoritative Develop as commit `4046459bf2b91f9d30efee1f9b726c40080e2408`, and the exact Develop Windows path-safety job in canonical Quality `34439530635` passes.
-
-No production Storage/Recovery behavior, assertion, fail-closed boundary or workflow command was weakened.
+The earlier Windows storage-bootstrap harness defect was fixed on authoritative Develop. The failing test stub used a POSIX-looking `/tmp/...` path that was not absolute on Windows; production `EmergencyReserveStatus` correctly rejected it fail-closed. The corrected test uses a platform-valid absolute path. No production Storage/Recovery behavior was weakened.
 
 ## Current Backend worker red state
 
-Exact diagnostics artifact `10137124325` for `31752aefe0d5f79d8c305c531cc7584c0585e175` reports:
+The broad historical worker branch remains non-authoritative relative to current Develop. Its last exact canonical run is red and contains worker-only schema-v41 / `research_delta_boundaries` history plus a separate Ruff import-order finding. Do not mechanically repair legacy fixtures to preserve that worker-only schema lineage.
 
-- Ruff: one `I001` import-block formatting failure in `src/athena/storage/schema.py`.
-- pytest: `17 failed, 4845 passed, 3 skipped`.
-- The pytest failures are concentrated in the worker-only schema-v41 / `research_delta_boundaries` lineage: legacy migration fixtures and stale expected final migration IDs interact with `0041_research_delta_boundary`.
-
-Do not repair those historical fixtures mechanically. Current Develop does not carry the worker-only v41 migration/storage delta, and Integrator explicitly says not to integrate broad Backend/Storage/Migration/Runtime history from this branch. Reconcile worker-only v41/WAL/Storage changes against current Develop/spec contracts before preserving or repairing them.
-
-## Current Develop red state
-
-The exact current Develop pytest failure is UI-owned:
-
-`tests/unit/test_pathena_pallas_full_view.py::test_open_workspace_reuses_one_synchronized_full_surface`
-
-with `AttributeError` on `MessageActionQuietController._containers` during Qt event filtering. This is not a Backend/System root cause and Backend must not mutate UI to make Develop green.
+Integrator has already required that broad Backend/Storage/Migration/Runtime history not be absorbed as a unit. Any surviving worker delta must be re-proven as a small current-Develop gap before mutation or integration.
 
 ## CI discipline / verification constraints
 
-- No Backend canonical Quality run was queued or in progress when this handoff refresh was prepared; `34437259339` is completed FAILURE.
-- The execution container still cannot resolve external package/Git hosts, so pinned Ruff 0.15.22 cannot be installed locally and a fresh focused Ruff run cannot currently be produced here.
-- Therefore no speculative Backend product/test mutation follows this documentation refresh. No fabricated focused PASS is claimed.
-- Any next Backend mutation must begin with current Develop/worker/run re-check and must have real focused verification before canonical Quality.
+- No Backend canonical Quality run was queued or in progress on `c5e750a827de4b353da9873cb38d95b46a119d60` when this handoff refresh began; `34441278497` is completed FAILURE.
+- The local execution container still cannot resolve the Git mirror host, so a fresh checkout and focused local pytest/Ruff execution remain transiently unavailable.
+- This run therefore made no product/test mutation and claims no fabricated focused PASS. BE-020 closure is based on direct exact-SHA source inspection plus the completed exact-SHA green canonical Develop run.
+- Any future product/test mutation must begin with current Develop/worker/run re-check and obtain real focused verification before canonical Quality.
 
 ## Preserved release guards
 
@@ -57,11 +54,11 @@ with `AttributeError` on `MessageActionQuietController._containers` during Qt ev
 
 ## Integrator prerequisites
 
-- Windows storage bootstrap reserve-path cluster: CLOSED on Develop `4046459bf2b91f9d30efee1f9b726c40080e2408`; no further Backend action required for that slice.
-- Broad Backend worker history: HOLD / NOT READY.
+- BE-020: CLOSED on Develop `8c342e1b6ea07025983726ec24d48786759c28fa`; no Backend product cherry-pick is required.
+- Windows storage bootstrap reserve-path cluster: CLOSED on Develop; no further Backend action required.
+- Broad Backend worker history: `HOLD / NOT READY`.
 - Do not integrate worker-only schema-v41/WAL/Runtime changes without a fresh bounded reconciliation against current Develop and exact focused/canonical evidence.
-- Current Develop global red is UI-owned and must not be worked around in Backend.
 
 ## Next Backend action
 
-On the next run, consume the then-current Develop and Backend exact-SHA Quality results first. If no current Backend candidate is running, choose the highest still-authoritative Backend/System gap. Prefer reconciliation/removal of obsolete worker-only history over patching fixtures to preserve non-authoritative schema-v41 behavior. Only mutate after real focused verification is available.
+Consume the then-current Develop and Backend exact-SHA results first. Ignore BE-020 as stale queue work. Select the highest still-authoritative Backend/System gap from current red exact-SHA evidence or current specs/contracts. Do not preserve historical worker-only behavior merely to make its old tests green.
