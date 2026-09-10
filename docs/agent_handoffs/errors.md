@@ -2,36 +2,34 @@
 
 ## Baseline
 
-- Develop source of truth: `develop/pathena-next@4d37a8276211ab9bb2d1f49ec17c8915d0ba95f3`.
-- Error worker entered this run at `postmerge/errors@418e331d11af8e8aae6f8a9f7414f20c077d9c87`.
+- Develop source of truth: `develop/pathena-next@675166fbf1d47b5bf9fe86d3a6b59cb28ea84d17`.
+- Error worker entered this run at `postmerge/errors@6991008a2713c4b04f63d911acbcdf550a91cced`.
 - Current workers: Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`; Backend `7ef45c5e37d98f56ba9327353ec7f9a8b615a0f2`; UI `af50dfb76b04e396a2dbf65ec1eeb265f30177fa`.
-- Previous Develop canonical Quality `34457702662@7f4de6d99485972f2abf39e8e8c01fdeed513821 = FAILURE`, with exactly one canonical pytest failure in `test_schema_reinitialization_contract.py` caused by tuple rows where schema verification requires named-row access.
-- Current Develop canonical Quality `34463015234@4d37a8276211ab9bb2d1f49ec17c8915d0ba95f3` is `IN_PROGRESS`. Its Windows path-safety job has already failed again specifically at `Run Windows storage path regressions`; Linux storage and Local-install/pypdf are green, and specification validator/Ruff/mypy are green while full pytest remains active.
-- `postmerge/errors` had zero canonical Quality runs before both documentation mutations in this run.
+- Previous Develop canonical Quality `34463015234@4d37a8276211ab9bb2d1f49ec17c8915d0ba95f3 = FAILURE`; the remaining failure was the test-owned `sqlite3.Row` versus tuple equality mismatch in `test_schema_reinitialization_contract.py`.
+- Current Develop canonical Quality `34468185990@675166fbf1d47b5bf9fe86d3a6b59cb28ea84d17` is `IN_PROGRESS`. Windows path safety is already `SUCCESS`, including `Run Windows storage path regressions`; Linux storage, Local-install/pypdf, specification validator, Ruff and mypy are also `SUCCESS`; full pytest remains active.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current error state
 
-- IN_PROGRESS: `ERR-0032`, `ERR-0026`, `ERR-0028`, `ERR-0029`.
+- FIXED_PENDING_VERIFY: `ERR-0032`.
+- IN_PROGRESS: `ERR-0026`, `ERR-0028`, `ERR-0029`.
 - FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015` through `ERR-0024`, `ERR-0027`, `ERR-0030`, `ERR-0031`.
 - STALE: `ERR-0014`, `ERR-0025`.
 - BLOCKED: none.
 
-## Hard progress this run — ERR-0032 remaining harness root cause
+## Hard progress this run — ERR-0032 exact Windows-lane recovery
 
 ### ERR-0032 — schema-reinitialization harness row-shape mismatch
 
-Status: `IN_PROGRESS`, P1 current Develop integration blocker.
+Status: `FIXED_PENDING_VERIFY`, P1 when reproduced on Develop.
 
-The completed prior run `34457702662@7f4de6d99485972f2abf39e8e8c01fdeed513821` supplied the exact original exception: the raw test connection returned tuples, while `verify_news_schema_v26` accesses rows by column name, producing `TypeError: tuple indices must be integers or slices, not str`. Integrator applied the smallest test-only correction on `4d37a8276211ab9bb2d1f49ec17c8915d0ba95f3`: `connection.row_factory = sqlite3.Row`.
+The previous exact run `34463015234@4d37a8276211ab9bb2d1f49ec17c8915d0ba95f3` proved the residual harness problem after adding `sqlite3.Row`: both `PRAGMA user_version` assertions still compared the returned `sqlite3.Row` directly with `(SCHEMA_VERSION,)`, so the Windows storage regression remained red despite the scalar schema version being correct.
 
-That correction is not yet sufficient. Current Quality `34463015234@4d37a8276211ab9bb2d1f49ec17c8915d0ba95f3` has already reproduced the Windows failure again at `Run Windows storage path regressions`. No production file changed between the failing SHA and this SHA.
+Current Develop `675166fbf1d47b5bf9fe86d3a6b59cb28ea84d17` applies exactly the bounded correction previously required: both assertions now compare the scalar `[0]` value. The connection remains `sqlite3.Row`; both `initialize_schema()` calls remain; the same schema-version invariant remains. No production schema, migration, Storage, Recovery, Runtime or Security code changed.
 
-The remaining inconsistency is inside the same test: after switching to `sqlite3.Row`, both existing assertions still compare `fetchone()` directly with `(SCHEMA_VERSION,)`. A `sqlite3.Row` containing the same scalar is not equal to a tuple, although indexing or converting the row yields the same value. Thus the row-factory correction fixes the named-access requirement but invalidates the tuple-shaped assertions.
+New exact evidence from canonical Quality `34468185990@675166fb...`: the complete Windows path-safety job is `SUCCESS`, including the previously failing `Run Windows storage path regressions`; Linux storage and Local-install/pypdf are `SUCCESS`; specification validator, Ruff and mypy are `SUCCESS`. Full pytest is still running, so `FIXED` is not yet justified.
 
-Smallest permitted correction: retain `sqlite3.Row`; change only the two version assertions to compare the scalar value, e.g. `connection.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION`. Preserve the first and second `initialize_schema()` calls and the same version invariant. Do not catch SQLite exceptions, weaken duplicate-column detection, make migrations idempotent, or alter Storage/Recovery/startup behavior.
-
-Do not claim `FIXED` yet. First consume the completed result of `34463015234`; then require real focused/exact-SHA PASS after the assertion-shape correction. Because current canonical Quality is active on Develop, Errors must not mutate Develop or start a competing run.
+No competing canonical Quality was started. No Skip/XFail, exception swallowing, migration idempotency relaxation, assertion removal, Storage/Recovery weakening or main mutation occurred.
 
 ## Lower-priority worker clusters held
 
@@ -49,11 +47,11 @@ Do not claim `FIXED` yet. First consume the completed result of `34463015234`; t
 
 ## Integrator handoff
 
-- Current Develop: `4d37a8276211ab9bb2d1f49ec17c8915d0ba95f3`.
-- Current canonical Quality: `34463015234`, active; Windows path safety already failed again at Windows storage regressions.
-- `ERR-0032 = IN_PROGRESS / P1`.
-- Original tuple-row `TypeError` is understood and the Row-factory correction is present, but the same test still uses two tuple-equality assertions that are incompatible with `sqlite3.Row`.
-- Smallest next patch is test-only scalar comparison at those two existing assertions. No production Storage/Migration/Recovery/Security mutation is justified.
-- Consume `34463015234` before any new Develop mutation; no competing canonical run while it is active.
-- Keep lower-priority Backend v41/Ruff/WAL clusters on HOLD while this Develop P1 exists.
+- Current Develop: `675166fbf1d47b5bf9fe86d3a6b59cb28ea84d17`.
+- Current canonical Quality: `34468185990`, active.
+- `ERR-0032 = FIXED_PENDING_VERIFY / P1`.
+- Exact Windows path-safety verification is now green, including the previously failing storage regression, after the two test-only scalar comparisons landed.
+- Do not mutate Develop or start a competing canonical run while `34468185990` is active.
+- On the next run consume `34468185990` first. If canonical pytest and final run conclusion are green, close `ERR-0032 = FIXED`. If a distinct signature fails, classify it separately rather than reopening this root cause automatically.
+- Keep lower-priority Backend v41/Ruff/WAL clusters on HOLD while current canonical verification is incomplete.
 - Preserve pypdf packaging, Frozen argv, two-EXE topology, bounded workers, adaptive 2048-context reserve, Windows lane-lock mapping, duplicate-column/Core-startup/storage-bootstrap guards.
