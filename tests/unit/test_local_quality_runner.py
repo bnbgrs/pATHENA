@@ -37,6 +37,18 @@ def test_check_plan_matches_canonical_locked_environment() -> None:
     assert checks[4].command == (*prefix, "python", "-m", "pytest")
 
 
+def test_local_plan_is_present_in_canonical_quality_workflow() -> None:
+    workflow = (
+        quality_script.REPO_ROOT / ".github" / "workflows" / "quality.yml"
+    ).read_text(encoding="utf-8")
+
+    for check in quality_script.build_checks():
+        command = " ".join(check.command)
+        assert command in workflow
+
+    assert "QT_QPA_PLATFORM: offscreen" in workflow
+
+
 def test_main_runs_every_check_from_repo_root_with_offscreen_qt(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
