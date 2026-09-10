@@ -216,7 +216,7 @@ jobs:
         run: uv run --locked --extra dev pytest -q tests/unit/test_storage_locality.py -k windows
 
       - name: Run Windows storage path regressions
-        run: uv run --locked --extra dev pytest -q tests/unit/test_database_preflight_locality.py tests/unit/test_runtime_paths.py tests/unit/test_migration_clone.py tests/unit/test_migration_journal.py tests/unit/test_migration_activation.py tests/unit/test_migration_lock.py tests/unit/test_migration_executor.py tests/unit/test_migration_recovery.py tests/unit/test_emergency_reserve.py tests/unit/test_disk_pressure.py tests/unit/test_pressure_database.py tests/unit/test_read_only_database.py tests/unit/test_storage_safe_mode.py tests/unit/test_storage_bootstrap.py
+        run: uv run --locked --extra dev pytest -q tests/unit/test_database_preflight_locality.py tests/unit/test_runtime_paths.py tests/unit/test_migration_clone.py tests/unit/test_migration_journal.py tests/unit/test_migration_activation.py tests/unit/test_migration_lock.py tests/unit/test_migration_executor.py tests/unit/test_migration_recovery.py tests/unit/test_emergency_reserve.py tests/unit/test_disk_pressure.py tests/unit/test_pressure_database.py tests/unit/test_read_only_database.py tests/unit/test_storage_safe_mode.py tests/unit/test_storage_bootstrap.py tests/unit/test_schema_reinitialization_contract.py
 
       - name: Run API runtime path-boundary regressions
         run: uv run --locked --extra dev pytest -q tests/unit/test_api_runtime_boundaries.py
