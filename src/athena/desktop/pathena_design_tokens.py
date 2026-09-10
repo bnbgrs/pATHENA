@@ -17,38 +17,42 @@ from typing import Final
 class Palette:
     """Reference-family colors shared by all pATHENA desktop surfaces."""
 
-    canvas: str = "#060606"
-    surface: str = "#0A0A0A"
-    surface_raised: str = "#0F0F0F"
-    surface_hover: str = "#141414"
-    surface_selected: str = "#181818"
-    border: str = "#242424"
-    border_strong: str = "#343434"
-    text: str = "#F5F5F5"
-    text_muted: str = "#B5B5B5"
-    text_subtle: str = "#929292"
-    text_quiet: str = "#686868"
-    accent: str = "#F26A21"
-    accent_hover: str = "#FF7A2E"
-    accent_pressed: str = "#D85B18"
-    accent_soft: str = "#2A160D"
-    success: str = "#4BC486"
-    info: str = "#4CC9D8"
-    question: str = "#A887FF"
-    warning: str = "#E2AD5A"
-    error: str = "#F0706A"
+    # The eleven references consistently use a cool navy-black application
+    # canvas with subtly lifted blue-grey panels rather than neutral black.
+    canvas: str = "#050B12"
+    surface: str = "#08121D"
+    surface_raised: str = "#0D1926"
+    surface_hover: str = "#122336"
+    surface_selected: str = "#142B43"
+    border: str = "#203246"
+    border_strong: str = "#31506D"
+    text: str = "#F3F6F9"
+    text_muted: str = "#B5C0CB"
+    text_subtle: str = "#8797A7"
+    text_quiet: str = "#617182"
+    # Primary interaction in the reference family is cobalt blue. Orange is
+    # retained as semantic warning/highlight colour rather than global chrome.
+    accent: str = "#3B82F6"
+    accent_hover: str = "#5594FA"
+    accent_pressed: str = "#2869D8"
+    accent_soft: str = "#0E2744"
+    success: str = "#45C58A"
+    info: str = "#52B7E8"
+    question: str = "#A98BFF"
+    warning: str = "#E9A84D"
+    error: str = "#F06D6A"
 
 
 @dataclass(frozen=True, slots=True)
 class Typography:
-    """Editorial display + restrained sans-serif application hierarchy."""
+    """Compact modern application hierarchy visible across the references."""
 
-    content_family: str = '"Segoe UI Variable", "Segoe UI", sans-serif'
-    display_family: str = '"Georgia", "Times New Roman", serif'
+    content_family: str = '"Segoe UI Variable", "Segoe UI", "Inter", sans-serif'
+    display_family: str = '"Segoe UI Variable Display", "Segoe UI Variable", "Segoe UI", sans-serif'
     metadata_family: str = '"Cascadia Mono", "Consolas", monospace'
     body_px: int = 15
     metadata_px: int = 12
-    title_px: int = 42
+    title_px: int = 38
     section_px: int = 20
 
 
@@ -69,7 +73,7 @@ class Radii:
     control: int = 6
     panel: int = 8
     prominent: int = 14
-    composer: int = 22
+    composer: int = 24
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,11 +87,11 @@ class Motion:
 class ShellGeometry:
     """Stable geometry derived from the eleven-screen reference family."""
 
-    top_bar_height: int = 60
+    top_bar_height: int = 56
     icon_rail_width: int = 76
-    secondary_nav_width: int = 236
+    secondary_nav_width: int = 256
     inspector_width: int = 360
-    composer_min_height: int = 58
+    composer_min_height: int = 72
 
 
 PALETTE: Final = Palette()
