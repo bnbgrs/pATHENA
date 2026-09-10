@@ -46,6 +46,22 @@ def included_in_repository_scan(path: Path) -> bool:
     return not relative.parts or relative.parts[0] not in IGNORED_SCAN_ROOTS
 
 
+def resolve_repository_link(
+    source: Path,
+    path_part: str,
+    *,
+    root: Path = ROOT,
+) -> Path | None:
+    """Resolve a Markdown target only when its real destination stays inside root."""
+    resolved_root = root.resolve()
+    destination = (source.parent / path_part).resolve()
+    try:
+        destination.relative_to(resolved_root)
+    except ValueError:
+        return None
+    return destination
+
+
 all_files = [
     path
     for path in ROOT.rglob("*")
@@ -169,8 +185,12 @@ for path in markdown_files:
         if not path_part:
             continue
 
-        destination = (path.parent / path_part).resolve()
-        if not destination.exists():
+        destination = resolve_repository_link(path, path_part)
+        if destination is None:
+            broken_links.append(
+                f"{path.relative_to(ROOT)} -> {target} (outside repository root)"
+            )
+        elif not destination.exists():
             broken_links.append(f"{path.relative_to(ROOT)} -> {target}")
 check(
     "All relative Markdown links resolve",
