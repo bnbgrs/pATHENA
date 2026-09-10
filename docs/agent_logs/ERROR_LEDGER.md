@@ -9,11 +9,11 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 ## Current baseline
 
 - Develop source of truth: `develop/pathena-next@dc6227882dc044e681caa7a344cf2af80952ba36`.
-- Error worker entered this run at `postmerge/errors@4f601936e55e5004eae0d8c09f3c3bd63cb848d2`.
+- Error worker entered this run at `postmerge/errors@7e8f859f84154753c30d9200a966d5f23d3c89df`.
 - Current workers reviewed: Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`; Backend `5b6e8226b316a8d0c943c71cab907d66360281a2`; UI `af50dfb76b04e396a2dbf65ec1eeb265f30177fa`.
-- Exact current Develop canonical Quality `34427257978@dc6227882dc044e681caa7a344cf2af80952ba36` is `in_progress`; Local-install/pypdf, Linux storage, Windows path safety, spec-validator, Ruff and mypy have passed; full pytest is still in progress. No competing Develop run was started.
-- Exact current Backend canonical Quality remains `34417344758@5b6e8226b316a8d0c943c71cab907d66360281a2 = FAILURE`; diagnostics artifact `10130164077` was re-consumed for assertion/traceback-level evidence.
-- `postmerge/errors` had no canonical Quality run before this documentation mutation.
+- Exact current Develop canonical Quality `34427257978@dc6227882dc044e681caa7a344cf2af80952ba36 = SUCCESS`. The previously pending full pytest completed green; current Develop therefore has no reproduced P1 integration blocker from this run.
+- Exact current Backend canonical Quality remains `34417344758@5b6e8226b316a8d0c943c71cab907d66360281a2 = FAILURE`. No newer Backend head or Quality run exists; the worker still owns its v41 migration/harness candidate.
+- `postmerge/errors` has no canonical Quality runs, so this documentation mutation cannot supersede an Error-worker Quality result.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current state
@@ -47,6 +47,7 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Status: `IN_PROGRESS` overall.
 - Closed subclusters remain closed absent exact-current regression: grounded-response-receipt, backup-retention, operational-error physical-cleanup, deletion-ledger, protected-source-blob, knowledge-schema-current-version.
 - Current exact Backend evidence is `34417344758@5b6e8226b316a8d0c943c71cab907d66360281a2`, diagnostics artifact `10130164077`.
+- Current Develop `dc6227882dc044e681caa7a344cf2af80952ba36` is canonical-green via `34427257978`; this rules out treating these Backend-only v41 harness failures as a current Develop P1 blocker. They remain current on the exact Backend worker SHA until repaired or superseded.
 
 ### Active subcluster: stale terminal-current-schema migration-ID assertions
 
@@ -55,17 +56,17 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Eight failures are in `tests/unit/test_knowledge_schema.py`: legacy upgrades `v14`, `v17`, `v18`, `v19`, `v20`, `v21`, `v22`, `v23`. Each upgrade reaches `SCHEMA_VERSION` and reads `schema_metadata.last_migration_id = '0041_research_delta_boundary'`, but the terminal-current-schema assertion still expects `GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID` / `0040_grounded_response_receipts`.
 - The ninth identical terminal-version drift is `tests/unit/test_protected_content.py::test_fresh_schema_has_v32_security_tables_without_persistent_unlock_state`: actual metadata tuple is `(41, '0041_research_delta_boundary', 41)`, while the harness still expects `(41, '0040_grounded_response_receipts', 41)`.
 - These nine failures are one stale terminal-version expectation cluster, not nine production migration defects. Historical pre-upgrade assertions must remain historical; only assertions describing the final current schema may move to `RESEARCH_DELTA_BOUNDARY_MIGRATION_ID`.
-- Backend remains the authoritative v41 owner; Error worker does not duplicate its current harness mutation while that worker is active.
+- Backend remains the authoritative v41 owner. Its head and Quality have not advanced since the prior run, so Error still avoids a parallel rewrite while ownership is unambiguous.
 - Closure requires focused PASS for these nine exact assertions on a current Backend SHA.
 
 ### Active subcluster: current-schema-derived legacy fixtures retain the v41 Delta table
 
 - Status: `IN_PROGRESS`.
 - Exact Backend diagnostics reproduce `sqlite3.OperationalError: table research_delta_boundaries already exists` when `initialize_schema()` reaches the fail-closed v40→v41 migration and executes its plain `CREATE TABLE research_delta_boundaries`.
-- Root cause is now bounded to legacy test-fixture reconstruction, not production migration semantics: affected fixtures first create a current `SQLiteDatabase`, then lower `schema_metadata` / `PRAGMA user_version` to an older version while removing selected newer objects. At least the exact v33 protected-source-transition fixture explicitly documents this pattern and removes v40 `grounded_response_receipts` plus v39 child state, but does not remove the v41 `research_delta_boundaries` table before declaring the v33 boundary.
+- Root cause is bounded to legacy test-fixture reconstruction, not production migration semantics: affected fixtures first create a current `SQLiteDatabase`, then lower `schema_metadata` / `PRAGMA user_version` to an older version while removing selected newer objects. At least the exact v33 protected-source-transition fixture explicitly documents this pattern and removes v40 `grounded_response_receipts` plus v39 child state, but does not remove the v41 `research_delta_boundaries` table before declaring the v33 boundary.
 - The same exact traceback signature appears in archive-replication v30→v31, knowledge-schema v28/v29/v36, protected-content v31 and protected-source-transition v33 tests. `storage-bootstrap` / Core-startup failures downstream of the same candidate migration are cascades, not separate primary causes.
 - Correct repair boundary: update only current-schema-derived legacy fixtures so every object introduced after the declared historical boundary is removed before metadata/user_version are rewound. Do not change production `migrate_schema_v40_to_v41()` to `IF NOT EXISTS`, do not catch/ignore the `OperationalError`, and do not weaken Storage/Recovery fail-closed behavior.
-- This is newly isolated exact-SHA evidence; no `FIXED` claim until focused affected fixtures pass on a current Backend SHA.
+- Backend remains the active migration owner and has not produced a newer candidate/run since this root cause was isolated. Error does not duplicate the harness mutation; the next meaningful evidence must be a focused Backend PASS or a new Backend candidate that supersedes this SHA.
 
 ## ERR-0029 — WAL harness collaborators incompatible with canonical exact-type runtime guards
 
