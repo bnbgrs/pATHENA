@@ -8,20 +8,33 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 
 ## Current baseline
 
-- Develop source of truth: `develop/pathena-next@dc6227882dc044e681caa7a344cf2af80952ba36`.
-- Error worker entered this run at `postmerge/errors@7e8f859f84154753c30d9200a966d5f23d3c89df`.
+- Develop source of truth: `develop/pathena-next@fafbeabdde1207ebc97712aa61ee947410cbf691`.
+- Error worker entered this run at `postmerge/errors@1a658432d623def854a726a954deadc256610545`.
 - Current workers reviewed: Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`; Backend `5b6e8226b316a8d0c943c71cab907d66360281a2`; UI `af50dfb76b04e396a2dbf65ec1eeb265f30177fa`.
-- Exact current Develop canonical Quality `34427257978@dc6227882dc044e681caa7a344cf2af80952ba36 = SUCCESS`. The previously pending full pytest completed green; current Develop therefore has no reproduced P1 integration blocker from this run.
-- Exact current Backend canonical Quality remains `34417344758@5b6e8226b316a8d0c943c71cab907d66360281a2 = FAILURE`. No newer Backend head or Quality run exists; the worker still owns its v41 migration/harness candidate.
-- `postmerge/errors` has no canonical Quality runs, so this documentation mutation cannot supersede an Error-worker Quality result.
+- Exact current Develop canonical Quality `34435069158@fafbeabdde1207ebc97712aa61ee947410cbf691` is still `in_progress`, but its `Windows path safety` job has already completed `FAILURE` specifically at step `Run Windows storage path regressions`.
+- The same exact-SHA run has completed `Linux storage regressions = SUCCESS` and `Local install smoke = SUCCESS`; specification validator, Ruff and mypy are also green while full pytest remains in progress. This establishes a Windows-specific current Develop regression without inventing assertion-level detail before diagnostics are available.
+- Commit `fafbeabdde1207ebc97712aa61ee947410cbf691` changes the Windows storage lane by adding `tests/unit/test_storage_bootstrap.py` to the existing regression command; no production Storage/Recovery code changed in that commit.
+- Exact current Backend canonical Quality remains `34417344758@5b6e8226b316a8d0c943c71cab907d66360281a2 = FAILURE`.
+- `postmerge/errors` had no canonical Quality runs before this ledger mutation.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current state
 
 - FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015` through `ERR-0024`, `ERR-0027`, `ERR-0030`.
 - STALE: `ERR-0014`, `ERR-0025`.
+- OPEN: `ERR-0031`.
 - IN_PROGRESS: `ERR-0026`, `ERR-0028`, `ERR-0029`.
-- OPEN/BLOCKED at top-level: none.
+- BLOCKED: none at top-level.
+
+## ERR-0031 — Windows storage-bootstrap regression exposed by canonical lane coverage
+
+- Severity: P1 current Develop integration blocker.
+- Status: `OPEN`.
+- Exact reproduction: `34435069158@fafbeabdde1207ebc97712aa61ee947410cbf691`, completed job `Windows path safety = FAILURE`, failing step `Run Windows storage path regressions`.
+- The immediately preceding deterministic Windows locality regressions pass on the same job; the API runtime boundary step is skipped only because the storage-regression step failed.
+- Linux storage regressions pass on the same exact SHA. The integration commit adds only `tests/unit/test_storage_bootstrap.py` to the Windows storage regression command, so the newly exposed primary cluster is bounded to Windows execution of the storage-bootstrap test surface rather than a newly introduced production Storage mutation.
+- Do not claim the exact failing test/assertion until canonical diagnostics/log evidence is available. Do not weaken `storage-bootstrap`, Storage, Recovery, lane-lock, path-safety or fail-closed semantics.
+- Next evidence: consume the completed canonical diagnostics for `34435069158` first; reproduce the exact failing storage-bootstrap test/check focused on Windows semantics before any minimal fix.
 
 ## ERR-0030 — Delta Research freeze prerequisite omitted on Develop
 
@@ -47,7 +60,7 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Status: `IN_PROGRESS` overall.
 - Closed subclusters remain closed absent exact-current regression: grounded-response-receipt, backup-retention, operational-error physical-cleanup, deletion-ledger, protected-source-blob, knowledge-schema-current-version.
 - Current exact Backend evidence is `34417344758@5b6e8226b316a8d0c943c71cab907d66360281a2`, diagnostics artifact `10130164077`.
-- Current Develop `dc6227882dc044e681caa7a344cf2af80952ba36` is canonical-green via `34427257978`; this rules out treating these Backend-only v41 harness failures as a current Develop P1 blocker. They remain current on the exact Backend worker SHA until repaired or superseded.
+- Current Develop now has a higher-severity independent Windows storage-bootstrap regression (`ERR-0031`); do not confuse that with these Backend-only v41 harness failures.
 
 ### Active subcluster: stale terminal-current-schema migration-ID assertions
 
@@ -56,7 +69,7 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Eight failures are in `tests/unit/test_knowledge_schema.py`: legacy upgrades `v14`, `v17`, `v18`, `v19`, `v20`, `v21`, `v22`, `v23`. Each upgrade reaches `SCHEMA_VERSION` and reads `schema_metadata.last_migration_id = '0041_research_delta_boundary'`, but the terminal-current-schema assertion still expects `GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID` / `0040_grounded_response_receipts`.
 - The ninth identical terminal-version drift is `tests/unit/test_protected_content.py::test_fresh_schema_has_v32_security_tables_without_persistent_unlock_state`: actual metadata tuple is `(41, '0041_research_delta_boundary', 41)`, while the harness still expects `(41, '0040_grounded_response_receipts', 41)`.
 - These nine failures are one stale terminal-version expectation cluster, not nine production migration defects. Historical pre-upgrade assertions must remain historical; only assertions describing the final current schema may move to `RESEARCH_DELTA_BOUNDARY_MIGRATION_ID`.
-- Backend remains the authoritative v41 owner. Its head and Quality have not advanced since the prior run, so Error still avoids a parallel rewrite while ownership is unambiguous.
+- Backend remains the authoritative v41 owner. Error avoids a parallel rewrite while ownership is unambiguous.
 - Closure requires focused PASS for these nine exact assertions on a current Backend SHA.
 
 ### Active subcluster: current-schema-derived legacy fixtures retain the v41 Delta table
@@ -66,7 +79,7 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Root cause is bounded to legacy test-fixture reconstruction, not production migration semantics: affected fixtures first create a current `SQLiteDatabase`, then lower `schema_metadata` / `PRAGMA user_version` to an older version while removing selected newer objects. At least the exact v33 protected-source-transition fixture explicitly documents this pattern and removes v40 `grounded_response_receipts` plus v39 child state, but does not remove the v41 `research_delta_boundaries` table before declaring the v33 boundary.
 - The same exact traceback signature appears in archive-replication v30→v31, knowledge-schema v28/v29/v36, protected-content v31 and protected-source-transition v33 tests. `storage-bootstrap` / Core-startup failures downstream of the same candidate migration are cascades, not separate primary causes.
 - Correct repair boundary: update only current-schema-derived legacy fixtures so every object introduced after the declared historical boundary is removed before metadata/user_version are rewound. Do not change production `migrate_schema_v40_to_v41()` to `IF NOT EXISTS`, do not catch/ignore the `OperationalError`, and do not weaken Storage/Recovery fail-closed behavior.
-- Backend remains the active migration owner and has not produced a newer candidate/run since this root cause was isolated. Error does not duplicate the harness mutation; the next meaningful evidence must be a focused Backend PASS or a new Backend candidate that supersedes this SHA.
+- Backend remains the active migration owner; the next meaningful evidence must be a focused Backend PASS or a new Backend candidate that supersedes this SHA.
 
 ## ERR-0029 — WAL harness collaborators incompatible with canonical exact-type runtime guards
 
