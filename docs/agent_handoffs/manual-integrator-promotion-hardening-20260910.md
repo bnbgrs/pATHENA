@@ -47,48 +47,51 @@ Bots should treat these four paths as temporarily owned by this draft validation
 
 No candidate promotion semantics were relaxed.
 
-### Promotion Guard symlink fail-closed behavior
+### Promotion Guard fail-closed behavior
 
-The previous guard used `Path.is_file()` for the required Quality workflow and `Path.exists()` for forbidden legacy paths. Two edge cases could therefore evade the intended shape checks:
+The previous guard had three unnecessary permissive edges:
 
-1. a required `quality.yml` symlink could be followed and accepted when it resolved to a regular file;
-2. a broken symlink at a forbidden legacy file/tree path reports `exists() == False` and could be missed.
+1. `Path.is_file()` followed a required `quality.yml` symlink and could accept it when its target was a regular file;
+2. `Path.exists()` returns false for a broken symlink, so forbidden legacy file/tree symlinks could be missed;
+3. the CLI allowed `--actual-ref` to be omitted, which skipped the branch-identity check entirely for direct invocations.
 
 The guard now:
 
 - requires the canonical Quality workflow to be a non-symlink regular file;
 - treats both real filesystem entries and broken symlinks as present for all forbidden paths/trees;
-- preserves the existing ref check and legacy bootstrap prohibitions.
+- requires `--actual-ref` at the CLI boundary;
+- preserves the candidate ref constant, structural inspection API and existing legacy bootstrap prohibitions.
 
-This is a fail-closed hardening only; it does not broaden allowed promotion state.
+The product workflow already supplied `--actual-ref`; making it mandatory therefore hardens accidental/manual invocation without broadening runtime behavior.
 
 ### Regression and workflow-contract coverage
 
-Five focused tests were added on top of the prior guard suite:
+Six focused tests were added on top of the prior guard suite:
 
 - required Quality workflow symlink is rejected;
 - broken forbidden legacy workflow symlink is rejected;
 - broken forbidden bootstrap-tree symlink is rejected;
+- promotion CLI fails closed when `--actual-ref` is omitted;
 - promotion workflow must check out the exact triggering SHA without persisted credentials and prove the checked-out identity;
 - promotion workflow must retain the pinned checkout/setup-python actions, Python 3.12, `check-latest: false`, pip `26.1.2`, uv `0.11.21` and `uv lock --check` contract.
 
-The symlink helper skips only when the host platform cannot create symlinks at all; existing non-symlink tests and workflow-contract tests remain unconditional.
+The symlink helper skips only when the host platform cannot create symlinks at all; existing non-symlink, CLI and workflow-contract tests remain unconditional.
 
 ## Targeted verification
 
-An extracted local copy of the updated workflow, `promotion_guard.py` and focused test module was verified after the final test-contract addition:
+An extracted local copy of the updated workflow, `promotion_guard.py` and focused test module was verified after the final CLI-boundary hardening:
 
 - `python -m py_compile`: PASS
-- `pytest -q tests/unit/test_promotion_guard.py`: `12 passed`
+- `pytest -q tests/unit/test_promotion_guard.py`: `13 passed`
 - updated `promotion-readiness.yml`: YAML parse PASS
-- selected file line lengths remain within the repository's Ruff 100-character limit.
+- selected GitHub file formatting remains within the repository's Ruff 100-character limit.
 
 This local evidence is targeted only. Canonical repository Quality on the exact final PR head remains authoritative.
 
 ## Repository-wide observations from this manual run
 
 - `develop/pathena-next` was observed 1,010 commits ahead of `main` and 0 behind at audit time. Continue to treat Develop, not Main, as the integration basis.
-- A first canonical Quality run on the earlier PR head had already passed Local install smoke, Linux storage regressions, Specification Validator, Ruff and mypy; Windows Storage regressions had also passed while full pytest and the final Windows restart smoke were still running when the follow-up workflow-contract tests were added. Do not treat that earlier run as evidence for the final PR head.
+- A first canonical Quality run on an earlier PR head passed Local install smoke and Linux storage regressions; Specification Validator, Ruff and mypy were green, and Windows path safety completed green while full pytest was still running when follow-up test hardening changed the PR head. Never transfer that earlier green evidence to the final SHA.
 - Current exact-head CI must be consulted before integration; never transfer a green result from an older SHA.
 
 ## Explicit non-work / deferred items
