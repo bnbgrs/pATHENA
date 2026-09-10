@@ -2,32 +2,31 @@
 
 ## Baseline
 
-- Develop source of truth: `develop/pathena-next@675166fbf1d47b5bf9fe86d3a6b59cb28ea84d17`.
-- Error worker entered this run at `postmerge/errors@6991008a2713c4b04f63d911acbcdf550a91cced`.
-- Current workers: Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`; Backend `7ef45c5e37d98f56ba9327353ec7f9a8b615a0f2`; UI `af50dfb76b04e396a2dbf65ec1eeb265f30177fa`.
-- Previous Develop canonical Quality `34463015234@4d37a8276211ab9bb2d1f49ec17c8915d0ba95f3 = FAILURE`; the remaining failure was the test-owned `sqlite3.Row` versus tuple equality mismatch in `test_schema_reinitialization_contract.py`.
-- Current Develop canonical Quality `34468185990@675166fbf1d47b5bf9fe86d3a6b59cb28ea84d17` is `IN_PROGRESS`. Windows path safety is already `SUCCESS`, including `Run Windows storage path regressions`; Linux storage, Local-install/pypdf, specification validator, Ruff and mypy are also `SUCCESS`; full pytest remains active.
+- Develop source of truth: `develop/pathena-next@38586782fd9b615ecd4226a4b0afe674d5520978`.
+- Error worker entered this run at `postmerge/errors@567b61ccb36f5978c50568341318f43bea36fcce`.
+- Current workers: Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`; Backend `a5e28d3c9d3f215620fe69a7dfa9e024155037cf`; UI `af50dfb76b04e396a2dbf65ec1eeb265f30177fa`.
+- Exact Develop canonical Quality `34468185990@675166fbf1d47b5bf9fe86d3a6b59cb28ea84d17 = SUCCESS`; this is the closure evidence for `ERR-0032`.
+- Current Develop canonical Quality `34473603186@38586782fd9b615ecd4226a4b0afe674d5520978` is `IN_PROGRESS`. Windows path safety is already `SUCCESS`, including Windows storage regressions, Windows Core/API restart smoke and Windows pypdf packaging metadata verification; Linux storage and Local-install/pypdf are `SUCCESS`; specification validator, Ruff and mypy are `SUCCESS`; full pytest remains active.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current error state
 
-- FIXED_PENDING_VERIFY: `ERR-0032`.
 - IN_PROGRESS: `ERR-0026`, `ERR-0028`, `ERR-0029`.
-- FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015` through `ERR-0024`, `ERR-0027`, `ERR-0030`, `ERR-0031`.
+- FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015` through `ERR-0024`, `ERR-0027`, `ERR-0030`, `ERR-0031`, `ERR-0032`.
 - STALE: `ERR-0014`, `ERR-0025`.
 - BLOCKED: none.
 
-## Hard progress this run — ERR-0032 exact Windows-lane recovery
+## Hard progress this run — ERR-0032 exact closure
 
 ### ERR-0032 — schema-reinitialization harness row-shape mismatch
 
-Status: `FIXED_PENDING_VERIFY`, P1 when reproduced on Develop.
+Status: `FIXED`, P1 when reproduced on Develop.
 
-The previous exact run `34463015234@4d37a8276211ab9bb2d1f49ec17c8915d0ba95f3` proved the residual harness problem after adding `sqlite3.Row`: both `PRAGMA user_version` assertions still compared the returned `sqlite3.Row` directly with `(SCHEMA_VERSION,)`, so the Windows storage regression remained red despite the scalar schema version being correct.
+The bounded correction on Develop `675166fbf1d47b5bf9fe86d3a6b59cb28ea84d17` retained `sqlite3.Row`, both `initialize_schema()` calls and the schema-version invariant, while changing only the two `PRAGMA user_version` assertions to compare scalar `[0]` values.
 
-Current Develop `675166fbf1d47b5bf9fe86d3a6b59cb28ea84d17` applies exactly the bounded correction previously required: both assertions now compare the scalar `[0]` value. The connection remains `sqlite3.Row`; both `initialize_schema()` calls remain; the same schema-version invariant remains. No production schema, migration, Storage, Recovery, Runtime or Security code changed.
+New completed closure evidence: canonical Quality `34468185990@675166fbf1d47b5bf9fe86d3a6b59cb28ea84d17 = SUCCESS`, including full pytest and complete Windows path safety/storage regressions. This satisfies the prior `FIXED_PENDING_VERIFY` condition. No product schema, migration, Storage, Recovery, Runtime or Security behavior changed.
 
-New exact evidence from canonical Quality `34468185990@675166fb...`: the complete Windows path-safety job is `SUCCESS`, including the previously failing `Run Windows storage path regressions`; Linux storage and Local-install/pypdf are `SUCCESS`; specification validator, Ruff and mypy are `SUCCESS`. Full pytest is still running, so `FIXED` is not yet justified.
+Current Develop `38586782fd9b615ecd4226a4b0afe674d5520978` is one CI-only commit ahead. Its active canonical Quality `34473603186` already has the Windows storage lane green, so there is no exact-current recurrence of the `ERR-0032` signature. The new commit adds Windows pypdf packaging metadata verification; that Windows packaging smoke has also passed.
 
 No competing canonical Quality was started. No Skip/XFail, exception swallowing, migration idempotency relaxation, assertion removal, Storage/Recovery weakening or main mutation occurred.
 
@@ -35,11 +34,11 @@ No competing canonical Quality was started. No Skip/XFail, exception swallowing,
 
 ### ERR-0026 — Backend Ruff/import-layout drift
 
-`IN_PROGRESS`, P2 worker-local. Last exact red evidence remains `34441278497@c5e750a827de4b353da9873cb38d95b46a119d60`; current Backend `7ef45c5e37d98f56ba9327353ec7f9a8b615a0f2` has no newer canonical evidence. Error/Develop already carry the normalized schema import layout. Do not create a duplicate Error-owned formatter patch.
+`IN_PROGRESS`, P2 worker-local. Current Backend handoff marks broad worker history non-authoritative against current Develop. Error/Develop already carry the normalized schema import layout. Do not create a duplicate Error-owned formatter patch; require fresh exact-current Backend evidence before closure or reclassification.
 
 ### ERR-0028 — Backend v41 harness lineage
 
-`IN_PROGRESS`, P2 worker-local. Last exact diagnostics still decompose into nine stale terminal-v41 assertions, six duplicate-v41-table fixture collisions, and two downstream storage-bootstrap cascades. Broad v41 worker history remains HOLD and must not be integrated mechanically.
+`IN_PROGRESS`, P2 worker-local. Last worker diagnostics decompose into stale terminal-v41 assertions, duplicate-v41-table fixture collisions and downstream storage-bootstrap cascades, but the current Backend handoff explicitly places broad schema-v41 / Storage / Migration history on HOLD. Do not mechanically repair worker-only historical fixtures.
 
 ### ERR-0029 — WAL exact-type harness drift
 
@@ -47,11 +46,12 @@ No competing canonical Quality was started. No Skip/XFail, exception swallowing,
 
 ## Integrator handoff
 
-- Current Develop: `675166fbf1d47b5bf9fe86d3a6b59cb28ea84d17`.
-- Current canonical Quality: `34468185990`, active.
-- `ERR-0032 = FIXED_PENDING_VERIFY / P1`.
-- Exact Windows path-safety verification is now green, including the previously failing storage regression, after the two test-only scalar comparisons landed.
-- Do not mutate Develop or start a competing canonical run while `34468185990` is active.
-- On the next run consume `34468185990` first. If canonical pytest and final run conclusion are green, close `ERR-0032 = FIXED`. If a distinct signature fails, classify it separately rather than reopening this root cause automatically.
-- Keep lower-priority Backend v41/Ruff/WAL clusters on HOLD while current canonical verification is incomplete.
+- Current Develop: `38586782fd9b615ecd4226a4b0afe674d5520978`.
+- Previous exact closure Quality: `34468185990@675166fbf1d47b5bf9fe86d3a6b59cb28ea84d17 = SUCCESS`.
+- Current canonical Quality: `34473603186@38586782fd9b615ecd4226a4b0afe674d5520978`, active.
+- `ERR-0032 = FIXED / P1 when reproduced`; exact repaired SHA is canonical-green.
+- Current Windows path safety, storage regressions and Windows pypdf packaging metadata smoke are already green on `38586782...`; no new P1 is presently evidenced.
+- Do not mutate Develop or start a competing canonical run while `34473603186` is active.
+- On the next run consume `34473603186` first. If a distinct exact signature fails, classify it as a new/current cluster rather than reopening `ERR-0032` automatically.
+- Keep lower-priority Backend v41/Ruff/WAL clusters on HOLD absent fresh bounded exact-current evidence.
 - Preserve pypdf packaging, Frozen argv, two-EXE topology, bounded workers, adaptive 2048-context reserve, Windows lane-lock mapping, duplicate-column/Core-startup/storage-bootstrap guards.
