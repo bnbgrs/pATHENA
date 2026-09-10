@@ -1,28 +1,31 @@
 # Post-Merge Feature Handoff - Integrator
 
-Generated: 2026-09-10T20:51Z
+Generated: 2026-09-10T21:48Z
 Branch: `develop/pathena-next`
-HEAD at run start: `7fa2108d820cfc5b48a9f92d42ffa61697b74818`
+HEAD at run start: `cbd0f7036feebc92443b12dec79ac840834dea2d`
 
 ## Current evidence
 
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
-- Current worker heads reviewed: Errors `d6eee816789c8dc0fa421ac618b8793f80862099`, Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`, Backend `b411e75a3481649b33edc70b74c22f64ab71c6d4`, UI `191c9cecd6edebe1744d66f0eae6bf9e96e519fe`.
-- Exact Develop canonical Quality `34522965434@7fa2108d820cfc5b48a9f92d42ffa61697b74818 = SUCCESS`.
-- No queued or in-progress canonical Develop Quality run existed immediately before this mutation.
-- `ERROR_LEDGER.md` and `ALPHA_BETA_PROGRESS.md` are not present at repository root on current Develop and are not synthesized as source of truth.
-- UI source of truth remains `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` and `docs/ui/VISUAL_GAP_LEDGER.md`; screenshot-level `MATCH` remains unproven.
+- Current worker heads reviewed: Errors `6b3a9090f305201cd562312b928e41ad61ea78ed`, Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`, Backend `b411e75a3481649b33edc70b74c22f64ab71c6d4`, UI `6b1777ef181dc2f1b15f5a7f70c3cab84ff0b9dc`.
+- Exact Develop canonical Quality `34529111566@cbd0f7036feebc92443b12dec79ac840834dea2d = SUCCESS`.
+- Immediately before this mutation, Develop had zero queued and zero in-progress workflow runs.
+- `ERROR_LEDGER.md` and `ALPHA_BETA_PROGRESS.md` are not present at repository root on current Develop; no replacement percentages are synthesized.
+- Develop visual source of truth remains `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` and `docs/ui/VISUAL_GAP_LEDGER.md`; neither supports a screenshot-level `MATCH` claim yet.
 
-## Bounded tooling unblock — exact UI worker visual capture
+## Worker qualification
 
-No new bounded product worker slice was READY. The current UI worker instead produced a narrowly scoped visual-tooling improvement. On exact UI head `191c9cecd6edebe1744d66f0eae6bf9e96e519fe`, Windows visual run `34528380154` proved Ruff, comparator mypy, comparator contract tests, and capture of exactly eleven canonical surfaces all SUCCESS. Baseline comparison/proposal generation and artifact upload also succeeded. The final fail-closed visual verdict remained FAILURE because no accepted committed visual baseline exists; this is not treated as a UI `MATCH` or product-regression closure.
+- Errors has no new bounded product candidate and continues to leave the Windows emergency-reserve directory-identity gap Backend-owned.
+- Spec/Core has no new head.
+- Backend has no new bounded exact-verified product candidate.
+- UI advanced to `6b1777ef...` with a bounded typography hierarchy change in `pathena_design_tokens.py` plus focused assertions in `test_pathena_design_tokens.py`. Exact Windows visual run `34533820471` proved checkout identity, locked environment, Ruff, mypy comparator, comparator contract tests, eleven-surface native-font capture, comparison/proposal generation, and artifact upload. Its only failing step was the intentionally fail-closed visual verdict because no approved committed baseline exists.
+- The UI candidate therefore has useful exact render evidence, but its focused design-token unit test is not selected by the visual workflow. It is not promoted in this run.
 
-This integration carries only the two bounded tooling changes needed to make that exact capture path usable from the UI worker lineage:
+## Bounded tooling unblock - focused UI token evidence
 
-1. `.github/workflows/ui-snapshot.yml` also triggers for `postmerge/ui` and makes the workflow-dispatch candidate description branch-neutral.
-2. `scripts/render_pathena_ui_snapshot_fontsafe.py` imports the sibling renderer as `render_pathena_ui_snapshot`, matching direct script execution under `python scripts/...` on Windows.
+To make the next UI visual candidate independently promotion-qualifiable, `.github/workflows/ui-snapshot.yml` now executes `tests/unit/test_pathena_design_tokens.py` on the exact candidate SHA before the eleven-surface capture. This closes an evidence-selection gap only; it does not alter desktop product code, typography values, comparator thresholds, visual baselines, test assertions, or fail-closed enforcement.
 
-No desktop product code, visual baseline, comparator threshold, assertion, Storage/Recovery/Security behavior, Skip/XFail, or release guard is changed. The fail-closed `Enforce visual verdict` step remains unchanged.
+No Skip/XFail, Storage/Recovery/Security weakening, force push, history rewrite, auto-merge, or main mutation is introduced.
 
 ## Persistent release guards
 
@@ -37,6 +40,6 @@ No desktop product code, visual baseline, comparator threshold, assertion, Stora
 ## Next integration
 
 1. Consume canonical Quality on the resulting exact Develop SHA first and freeze Develop while it is queued/in progress.
-2. Keep the visual verdict fail-closed. Do not commit or bless a visual baseline without direct artifact/reference review.
-3. Use the now-executable UI-worker capture path to obtain exact-SHA renders, then perform evidence-backed 11-screen comparison before any visual `MATCH` claim.
-4. Do not absorb broad diverged worker history or re-integrate already landed Core/UI/runtime slices.
+2. Re-qualify the then-current UI head. Require exact-head focused design-token success plus real native-Windows capture before promoting any bounded hierarchy slice.
+3. Keep the visual verdict fail-closed and do not bless a generated baseline without direct reference/current-render review.
+4. Keep Backend-owned BE-046/ERR-0033 out of parallel Integrator mutation unless a bounded Backend candidate with focused native-Windows adversarial identity evidence becomes READY.

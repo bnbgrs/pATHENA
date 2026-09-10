@@ -106,6 +106,13 @@ jobs:
           uv run --locked --extra dev --extra desktop --no-sync pytest -q tests/qa/test_visual_snapshot_compare.py
           if ($LASTEXITCODE -ne 0) { throw "Visual comparator contract tests failed." }
 
+      - name: Run shared visual hierarchy token contract
+        shell: pwsh
+        run: |
+          $env:PYTHONPATH = (Get-Location).Path
+          uv run --locked --extra dev --extra desktop --no-sync pytest -q tests/unit/test_pathena_design_tokens.py
+          if ($LASTEXITCODE -ne 0) { throw "Shared visual hierarchy token contract failed." }
+
       - name: Capture exactly eleven canonical surfaces with native fonts
         shell: pwsh
         run: |
