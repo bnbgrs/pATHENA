@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - bot/pathena-candidate
+      - postmerge/ui
     paths:
       - ".github/workflows/ui-snapshot.yml"
       - "scripts/render_pathena_ui_snapshot.py"
@@ -17,7 +18,7 @@ on:
   workflow_dispatch:
     inputs:
       candidate_sha:
-        description: Exact bot/pathena-candidate SHA to verify
+        description: Exact candidate SHA to verify
         required: true
 
 permissions:
