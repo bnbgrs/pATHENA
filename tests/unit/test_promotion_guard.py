@@ -9,6 +9,14 @@ import pytest
 
 CANDIDATE_REF = "refs/heads/bot/pathena-candidate"
 SCRIPT = Path(__file__).resolve().parents[2] / "scripts" / "promotion_guard.py"
+PROMOTION_WORKFLOW = (
+    Path(__file__).resolve().parents[2]
+    / ".github"
+    / "workflows"
+    / "promotion-readiness.yml"
+)
+CHECKOUT_PIN = "d23441a48e516b6c34aea4fa41551a30e30af803"
+SETUP_PYTHON_PIN = "ece7cb06caefa5fff74198d8649806c4678c61a1"
 
 
 def _valid_tree(root: Path) -> None:
@@ -45,6 +53,10 @@ def _symlink_or_skip(
         link.symlink_to(target, target_is_directory=target_is_directory)
     except (NotImplementedError, OSError) as exc:
         pytest.skip(f"symlink creation unavailable on this platform: {exc}")
+
+
+def _promotion_workflow_text() -> str:
+    return PROMOTION_WORKFLOW.read_text(encoding="utf-8")
 
 
 def test_valid_candidate_tree_passes(tmp_path: Path) -> None:
@@ -142,3 +154,25 @@ def test_broken_forbidden_tree_symlink_fails_closed(tmp_path: Path) -> None:
 
     assert result.returncode == 1
     assert ".pathena/bootstrap" in result.stdout
+
+
+def test_promotion_workflow_checks_out_exact_trigger_sha_without_credentials() -> None:
+    workflow = _promotion_workflow_text()
+
+    assert "  CANDIDATE_SHA: ${{ github.sha }}\n" in workflow
+    assert f"uses: actions/checkout@{CHECKOUT_PIN}" in workflow
+    assert "          ref: ${{ env.CANDIDATE_SHA }}\n" in workflow
+    assert "          persist-credentials: false\n" in workflow
+    assert 'checked_out="$(git rev-parse HEAD)"' in workflow
+    assert '[ "$checked_out" != "$CANDIDATE_SHA" ]' in workflow
+
+
+def test_promotion_workflow_pins_runtime_inputs() -> None:
+    workflow = _promotion_workflow_text()
+
+    assert f"uses: actions/setup-python@{SETUP_PYTHON_PIN}" in workflow
+    assert '          python-version: "3.12"\n' in workflow
+    assert "          check-latest: false\n" in workflow
+    assert '"pip==26.1.2"' in workflow
+    assert '"uv==0.11.21"' in workflow
+    assert "        run: uv lock --check\n" in workflow
