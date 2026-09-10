@@ -1,48 +1,77 @@
 # pATHENA UI Handoff
 
-## Current baseline
+## 2026-09-11 — Eleven-reference parity run
 
-- Develop source checked first: `develop/pathena-next@c830b96a12d25914c52a0abc7749a6724b19cfae`.
-- Exact technically verified worker head: `postmerge/ui@90a51e111851f80c5e2388c11c4026c6ec62fa09`.
-- The worker is history-preservingly synchronized with current Develop; its merge parent includes exact Develop `c830b96a12d25914c52a0abc7749a6724b19cfae`.
-- `main` and `bnbgrs/ATHENA` remain read-only and untouched.
+### Branch isolation
 
-## Evidence consumed this run
+- Integration target: `develop/pathena-next`.
+- Branch created for this run: `agent/ui-11-reference-parity-20260911`.
+- Branch base: `develop/pathena-next@4634bdf28c98bc114e0369701122818d474f99d9`.
+- The run does not write to `main`, bot worker branches, Backend, Storage or Security product files.
 
-The required spec-core, backend, errors, integrator, 11-screen manifest and Visual Gap Ledger were reviewed before mutation. Error handoff reports no OPEN current error. Historical Core/Backend items are not reopened.
+### Reference evidence consumed
 
-Slot 01 remains the only directly opened pixel reference currently recorded: `pATHENA: Dunkles KI-Dashboard mit Wissenspanel.png`. It supports a deep-black Workspace/Chat surface, narrow left-owned navigation, quiet top status chrome, a large central work area and a materially larger lower composer. No current-build screenshot was opened side-by-side in this run, so no `MATCH` or pixel-parity claim is made.
+All eleven originals in the user Library folder `pATHENA/Designreferenz – 11 Screenshots` were opened before the implementation decisions below. The old manifest was stale because it recorded only one opened image. The corrected manifest now records the actual reference family: ComfyUI Integration, PALLAS, Settings, Help, evidence-rich Workspace, Jobs, command-palette/Knowledge overlay, System, two additional dark Workspace variants, and one light Workspace variant.
 
-## Verified slice — UI-GAP-0004 Workspace composer scale
+The repeated cross-screen visual contract is now treated as direct evidence:
 
-Status: `FIXED / INTEGRATOR_READY_TECHNICAL`, P1.
+- compact top bar with pATHENA wordmark;
+- visible textual `CHAT / KNOWLEDGE / RESEARCH / JOBS / SOURCES` primary navigation;
+- separate narrow icon rail;
+- secondary navigation for complex administrative surfaces;
+- cool navy-black canvas and blue-grey lifted surfaces;
+- cobalt blue primary interaction accent;
+- large rounded chat composer with circular blue send action;
+- contextual rather than globally persistent evidence inspector;
+- compact modern sans application hierarchy, mono only for technical metadata.
 
-The real composer keeps the existing chat input, grounding route and send action. Verified presentation contract:
+No screenshot-level `MATCH` is claimed until the exact candidate is rendered and opened side-by-side with the originals.
 
-- composer fixed height: 88 px;
-- composer accessible name: `Message composer`;
-- prompt fixed interaction height: 44 px after Qt polish;
-- real `Sources` grounding control fixed interaction height: 36 px after Qt polish;
-- existing send control materialized at 44×44 px, with QSS content-box dimensions 42×42 plus the inherited 1 px border per side;
-- real send signal, tooltip, accessible name and Ctrl+Enter route retained;
-- no decorative/mock controls.
+### Product changes in this run
 
-No chat submission, grounding, model/provider, persistence, Storage, Security, Recovery, worker/scheduler or backend semantics changed.
+`src/athena/desktop/pathena_reference_parity.py` is a new final presentation layer. It is deliberately installed after the functional/refinement controllers so late controllers cannot silently replace the shared screenshot-family geometry. It does not create a parallel navigation model: every top-nav button routes through the existing `window.navigation` state.
 
-## Exact verification
+The parity layer currently owns:
 
-Canonical ATHENA Quality Gate `34365616984` on exact worker head `90a51e111851f80c5e2388c11c4026c6ec62fa09` completed `success`.
+- textual top primary navigation for the five real primary workspaces;
+- visible top search/commands button wired to the existing Ctrl+K command palette;
+- selected-state synchronization between top navigation and the existing routed pages;
+- System/Settings selected utility state;
+- top-bar, icon-rail, secondary-nav and inspector geometry;
+- centered broad composer geometry and 48×48 real send target;
+- contextual generic inspector visibility so Jobs/System/Settings are not forced into a fourth evidence column;
+- final shared shell QSS selectors.
 
-The final raw-QSS test pins the 42 px content-box dimensions and zero padding, while `tests/unit/test_pathena_window.py::test_reference_composer_uses_large_work_surface_and_send_target` independently requires the real widget to materialize exactly 44×44 px and also requires composer 88 px, prompt 44 px and Sources 36 px. No Skip/XFail or assertion weakening.
+`src/athena/desktop/pathena_design_tokens.py` now reflects the opened dark reference family instead of the earlier inferred neutral-black/orange contract:
 
-Compare against current Develop confirms a bounded seven-file UI delta: three UI evidence docs, `src/athena/desktop/pathena_shared_components.py`, `src/athena/desktop/pathena_window.py`, `tests/unit/test_pathena_shared_components.py`, and `tests/unit/test_pathena_window.py`. No Backend/Storage/Security product file is in the delta.
+- canvas `#050B12`;
+- base surface `#08121D`;
+- raised surface `#0D1926`;
+- cobalt primary accent `#3B82F6`;
+- gold/orange preserved for warning semantics;
+- modern Segoe UI Variable display hierarchy;
+- 56 px top bar, 76 px icon rail, 256 px secondary nav, 360 px inspector;
+- 72 px canonical composer minimum token, with the final Workspace presentation constrained to 80–92 px.
 
-## Integrator handoff
+`src/athena/desktop/app.py` installs this layer only after the long functional/refinement chain and before the final primary-input accessibility binding. Teardown explicitly disposes its navigation signal.
 
-UI-GAP-0004 is technically Integrator-ready from exact verified head `90a51e111851f80c5e2388c11c4026c6ec62fa09`, subject to the Integrator's independent review and normal current-Develop compatibility check. A green code gate does not imply screenshot-level `MATCH`.
+### Test changes
 
-This documentation-refresh commit intentionally carries no product behavior change. If it triggers a new canonical Quality run, freeze `postmerge/ui` until that exact-doc-head run completes; do not supersede the already exact-green product evidence.
+- `tests/unit/test_pathena_design_tokens.py` now locks the screenshot-evidenced navy/cobalt palette, modern display family, contrast ordering and shell geometry.
+- `tests/unit/test_pathena_reference_parity.py` adds offscreen Qt coverage for the five textual top routes, route synchronization, visible command-palette affordance, shared geometry, contextual inspector behavior and 48×48 send target.
+- No Skip/XFail is added and no behavior assertion is weakened to hide an implementation failure.
 
-## Next gap
+### Safety / non-goals
 
-After Integrator consumption of UI-GAP-0004, select at most one further visible gap backed by an actually opened reference and a real current code/render state. Priority remains workspace hierarchy/spacing, typography or contextual Inspector composition rather than new decorative controls.
+- The ComfyUI and light-theme references contribute visual/structural evidence only. This run does not invent a ComfyUI integration route or a theme toggle where no real product capability exists.
+- Existing Jobs, Research, Knowledge, Sources, System, Settings and PALLAS controllers retain ownership of product behavior and persistence.
+- Existing command palette, source grounding and send actions are reused rather than replaced by decorative controls.
+- The repository's historical 11-surface visual regression baseline is not treated as proof of similarity to the user's eleven design references.
+
+### Required follow-up for UI bots / Integrator
+
+1. Run the canonical Quality gate on the exact branch head.
+2. Render the exact candidate with the 11-surface Windows snapshot harness.
+3. Open the actual candidate screenshots and compare them against the eleven user originals; record screenshot-specific residual gaps rather than declaring `MATCH` from code inspection.
+4. Keep follow-up patches in UI-owned files. Do not rewrite the new top-nav routing into a second state model.
+5. Preserve the screenshot-evidenced navy/cobalt foundation unless a direct reference comparison demonstrates a more accurate value.
