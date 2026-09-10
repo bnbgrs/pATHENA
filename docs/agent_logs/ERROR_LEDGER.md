@@ -9,10 +9,10 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 ## Current baseline
 
 - Develop source of truth: `develop/pathena-next@c217747f73267842ebd26c10eb5affc4fbf7bc0d`.
-- Error worker entered this run at `postmerge/errors@68e4312947c5468a8c9b109a2ac6b2149a444062`.
+- Error worker entered this run at `postmerge/errors@901377dbb247161ac2a4be578967a14c9c86741d`.
 - Current workers: Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`; Backend `c5e750a827de4b353da9873cb38d95b46a119d60`; UI `af50dfb76b04e396a2dbf65ec1eeb265f30177fa`.
-- Exact Develop canonical Quality `34439530635@4046459bf2b91f9d30efee1f9b726c40080e2408 = FAILURE`, but `Windows path safety = SUCCESS`, including `Run Windows storage path regressions = SUCCESS`; Linux storage and Local-install/pypdf also pass. The only failing canonical lane is Python pytest and Backend handoff identifies that failure as UI/PALLAS-owned.
-- Current Develop `c217747f73267842ebd26c10eb5affc4fbf7bc0d` carries `fix(ui): make message action event filter teardown-safe`; canonical Quality `34443327522` is already `in_progress`. No competing Develop run was started and Errors did not mutate Develop.
+- Exact Develop canonical Quality `34443327522@c217747f73267842ebd26c10eb5affc4fbf7bc0d = SUCCESS`; Python quality including full pytest, Windows path safety, Linux storage regressions, and Local-install/pypdf all pass on the exact current Develop SHA.
+- Exact current Backend canonical Quality `34441278497@c5e750a827de4b353da9873cb38d95b46a119d60 = FAILURE`; Linux storage, Windows path safety, Local-install/pypdf, specification validator and mypy pass, while Ruff and pytest fail.
 - `postmerge/errors` had no canonical Quality runs before this mutation.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
@@ -33,7 +33,8 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - The four affected tests were one harness-portability cascade, not four Storage product defects.
 - Bounded correction: `Path.cwd() / "bootstrap-emergency.reserve"`, test-only; no assertion or production Storage/Recovery semantics changed.
 - Backend exact focused evidence: `postmerge/backend@31752aefe0d5f79d8c305c531cc7584c0585e175`, canonical Quality `34437259339`, complete `Windows path safety = SUCCESS` including Windows storage regressions and API-runtime path-boundary regressions.
-- Develop exact verification is now complete: `4046459bf2b91f9d30efee1f9b726c40080e2408`, canonical Quality `34439530635`, complete `Windows path safety = SUCCESS`; `Run Windows storage path regressions = SUCCESS`. The global run failure is independent Python pytest/UI-PALLAS evidence and does not invalidate this bounded Windows Storage closure.
+- Develop exact verification: `4046459bf2b91f9d30efee1f9b726c40080e2408`, canonical Quality `34439530635`, complete `Windows path safety = SUCCESS`; `Run Windows storage path regressions = SUCCESS`.
+- Current Develop `c217747f73267842ebd26c10eb5affc4fbf7bc0d` is globally canonical-green via `34443327522`; no exact-current recurrence exists.
 - Therefore `ERR-0031 = FIXED`. Do not reopen absent a new exact-current reproduction of its Windows storage-bootstrap signature.
 - Do not weaken `EmergencyReserveStatus` absolute-path validation, storage-bootstrap, Storage, Recovery, lane-lock, path-safety or fail-closed semantics.
 
@@ -50,16 +51,20 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 ## ERR-0026 — Backend quality drift
 
 - Severity: P2 on Backend; not a current proven Develop blocker.
-- Status: `IN_PROGRESS` pending exact-current Backend diagnostic refresh.
-- Historical Backend v41 candidates reproduced Ruff import-formatting drift. Current Backend is `c5e750a827de4b353da9873cb38d95b46a119d60`; do not carry older Ruff signatures forward as current without exact evidence.
-- Do not weaken Ruff or bypass checks.
+- Status: `IN_PROGRESS`.
+- Exact-current reproduction is now refreshed: `postmerge/backend@c5e750a827de4b353da9873cb38d95b46a119d60`, canonical Quality `34441278497`, has `Quality — Ruff = FAILURE` while specification validator and mypy pass; the other platform/storage jobs are green.
+- The current Backend `src/athena/storage/schema.py` is blob `b5658c38ca061095a951bc85f3a2fbc88b53ee76` and retains the grouped `schema_contract` import layout plus the `research_delta_migration` import. The exact current Develop SHA is Ruff-green and carries the formatter-normalized `schema.py` blob `9d6d9fd410662e7f1ec311a93a1e8ee135c51e5f`.
+- Backend HEAD `c5e750a827de4b353da9873cb38d95b46a119d60` is documentation-only relative to its parent `31752aefe0d5f79d8c305c531cc7584c0585e175`; therefore the current exact Backend run revalidates the same formatter-owned source state rather than introducing a new product-code cause.
+- Root-cause classification: formatter/import-layout drift in Backend worker source. This is distinct from the v41 pytest failures and from all Storage/Recovery semantics.
+- Backend owns the affected source lineage, so Errors does not parallel-edit `schema.py`. Required worker action is the pinned Ruff-normalized import layout followed by focused Ruff and then the smallest relevant regression/canonical verification.
+- Do not mark FIXED until an exact Backend SHA has real Ruff PASS. Do not weaken Ruff or bypass checks.
 
 ## ERR-0028 — v41 legacy schema fixtures/current-version assertions
 
 - Severity: P2.
-- Status: `IN_PROGRESS` pending exact-current Backend diagnostic refresh.
+- Status: `IN_PROGRESS` pending exact-current Backend diagnostic decomposition.
+- Current Backend Quality `34441278497@c5e750a827de4b353da9873cb38d95b46a119d60` confirms pytest remains red on the current worker SHA, but this run intentionally advances only `ERR-0026`; no stale historical assertion/fixture signature is promoted without current assertion-level evidence.
 - Historical evidence established two harness clusters: stale terminal current-schema migration-ID assertions and current-schema-derived legacy fixtures retaining `research_delta_boundaries` after version rewind.
-- Current Backend has advanced; historical signatures are not authoritative until reproduced on its current exact SHA.
 - Never change production v40→v41 migration to `IF NOT EXISTS`, swallow `OperationalError`, or weaken Storage/Recovery fail-closed behavior.
 
 ## ERR-0029 — WAL harness collaborators incompatible with exact-type runtime guards
