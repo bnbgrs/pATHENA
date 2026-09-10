@@ -28,8 +28,10 @@ CheckResult = tuple[str, bool, str]
 checks: list[CheckResult] = []
 
 
-def read_text(path: Path) -> str:
-    """Read repository text deterministically on every operating system."""
+def read_text(path: Path, *, root: Path = ROOT) -> str:
+    """Read repository text only when its real target stays inside root."""
+    if resolve_repository_scan_target(path, root=root) is None:
+        raise ValueError(f"Refusing repository text outside root: {path}")
     return path.read_text(encoding=UTF8)
 
 
@@ -93,10 +95,10 @@ def resolve_repository_link(
 ) -> Path | None:
     """Resolve a Markdown target only when its real destination stays inside root."""
     resolved_root = root.resolve()
-    destination = (source.parent / path_part).resolve()
     try:
+        destination = (source.parent / path_part).resolve()
         destination.relative_to(resolved_root)
-    except ValueError:
+    except (OSError, RuntimeError, ValueError):
         return None
     return destination
 
