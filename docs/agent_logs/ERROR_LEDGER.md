@@ -9,13 +9,13 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 ## Current baseline
 
 - Develop source of truth: `develop/pathena-next@f29abc4341895f8ecd28ebeb0baa2e80b030fdf7`.
-- Error worker entered this run at `postmerge/errors@86a990c600643a25168013ee18dce62fa35b55e1`.
+- Error worker entered this run at `postmerge/errors@b07d493c5352b497b5ab873f6d2936665a29ce29`.
 - Current workers: Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`; Backend `c8ee2b0b0152a646a63ad4116526a8ce1fdabf90`; UI `af50dfb76b04e396a2dbf65ec1eeb265f30177fa`.
+- Exact current Develop canonical Quality: `34510755656@f29abc4341895f8ecd28ebeb0baa2e80b030fdf7 = SUCCESS`.
 - Previous exact Develop canonical Quality: `34504620300@e316843d1f45fc2fd3733d4ae10ec0ad1ac90f58 = SUCCESS`.
-- Exact current Develop canonical Quality: `34510755656@f29abc4341895f8ecd28ebeb0baa2e80b030fdf7 = IN_PROGRESS` at this checkpoint.
-- Exact compare `e316843d1f45fc2fd3733d4ae10ec0ad1ac90f58...f29abc4341895f8ecd28ebeb0baa2e80b030fdf7` is exactly one commit and changes only `.github/workflows/quality.yml` plus `docs/agent_handoffs/integrator.md`; no Backend/Storage product source changed.
-- Current Backend `c8ee2b0b0152a646a63ad4116526a8ce1fdabf90` handoff keeps BE-046 as `OPEN / P1 / CURRENTLY REPRODUCED BY SOURCE TRACE` and supplies no bounded product candidate.
-- `postmerge/errors@86a990c600643a25168013ee18dce62fa35b55e1` had zero check runs immediately before mutation.
+- Current Develop commit changes only `.github/workflows/quality.yml` plus `docs/agent_handoffs/integrator.md` relative to `e316843d1f45fc2fd3733d4ae10ec0ad1ac90f58`; no Backend/Storage product source changed.
+- Current Backend `c8ee2b0b0152a646a63ad4116526a8ce1fdabf90` still owns BE-046 and provides no bounded product candidate.
+- `postmerge/errors@b07d493c5352b497b5ab873f6d2936665a29ce29` had zero canonical Quality runs immediately before mutation.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current state
@@ -31,11 +31,11 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Severity: P1.
 - Status: `OPEN`.
 - Specialist owner: Backend / BE-046. Errors does not parallel-mutate Backend product code while that worker owns the root cause.
-- Exact-current direct source evidence: on `develop/pathena-next@f29abc4341895f8ecd28ebeb0baa2e80b030fdf7`, `src/athena/storage/emergency_reserve.py` binds POSIX reserve creation to an opened reserve-directory FD and calls `os.open(_RESERVE_FILENAME, ..., dir_fd=root_fd)`; POSIX release similarly opens and unlinks via the same `root_fd` and checks that directory identity remains current around mutation. The non-POSIX branch instead creates via `os.open(self.path, ...)`, verifies the created file against a subsequent pathname stat, and later performs cleanup/release through `self.path.stat()` / `self.path.unlink()` followed by pathname-based directory fsync. The reserve-directory identity is therefore not carried as a bound handle across the Windows mutation/release operation.
-- Freshness proof: exact compare from canonical-green Develop `e316843d1f45fc2fd3733d4ae10ec0ad1ac90f58` to current `f29abc4341895f8ecd28ebeb0baa2e80b030fdf7` changes only the Quality workflow and Integrator handoff. No relevant Backend/Storage product source changed.
-- Canonical state is not misrepresented as a failing test: current Quality `34510755656@f29abc4341895f8ecd28ebeb0baa2e80b030fdf7` is still running; previous Quality `34504620300@e316843d1f45fc2fd3733d4ae10ec0ad1ac90f58` completed SUCCESS. ERR-0033 stays OPEN because a current exact source trace establishes an uncovered identity-binding invariant, not because a canonical test failure was fabricated.
+- Exact-current direct source evidence on `develop/pathena-next@f29abc4341895f8ecd28ebeb0baa2e80b030fdf7`: `src/athena/storage/emergency_reserve.py` binds POSIX reserve creation to an opened reserve-directory FD and calls `os.open(_RESERVE_FILENAME, ..., dir_fd=root_fd)`; POSIX release similarly operates through the bound directory FD and checks directory identity around mutation. The non-POSIX branch still creates via `os.open(self.path, ...)`, validates the created file against a subsequent pathname stat, and performs cleanup/release through pathname-driven operations. The reserve-directory identity is therefore not carried as a bound handle across the Windows mutation/release operation.
+- New canonical evidence consumed this run: `34510755656@f29abc4341895f8ecd28ebeb0baa2e80b030fdf7 = SUCCESS`. This proves the current integrated baseline is otherwise canonical-green, but it does not close ERR-0033 because the existing Quality matrix has no adversarial Windows directory-swap regression for this invariant. No canonical failure is claimed.
+- Freshness proof: exact compare from previous canonical-green Develop `e316843d1f45fc2fd3733d4ae10ec0ad1ac90f58` to current `f29abc4341895f8ecd28ebeb0baa2e80b030fdf7` changes only Quality workflow and Integrator handoff. No relevant Backend/Storage product source changed.
 - Preserve physical non-sparse allocation, exact release accounting and fail-closed Storage/Recovery semantics. Do not replace the requirement with weaker pathname-only checks.
-- Closure requires a bounded Backend candidate plus focused Windows regression evidence proving reserve-directory identity remains bound across create/release mutation, including an adversarial directory-swap boundary; then consume exact-SHA canonical evidence as appropriate.
+- Closure requires a bounded Backend candidate plus focused native-Windows regression evidence proving reserve-directory identity remains bound across create/release mutation, including an adversarial directory-swap boundary; then consume exact-SHA canonical evidence as appropriate.
 
 ## ERR-0032 — schema-reinitialization harness row-shape mismatch
 
