@@ -2,47 +2,35 @@
 
 ## Current baseline
 
-- Develop source checked first: `develop/pathena-next@c830b96a12d25914c52a0abc7749a6724b19cfae`.
-- Exact technically verified worker head: `postmerge/ui@90a51e111851f80c5e2388c11c4026c6ec62fa09`.
-- The worker is history-preservingly synchronized with current Develop; its merge parent includes exact Develop `c830b96a12d25914c52a0abc7749a6724b19cfae`.
-- `main` and `bnbgrs/ATHENA` remain read-only and untouched.
+- Develop checked first: `develop/pathena-next@effe7fb43246d4f3c4d9ac0f2f5d363c2135bb36`.
+- UI worker checked: `postmerge/ui@af50dfb76b04e396a2dbf65ec1eeb265f30177fa`.
+- `main` and `bnbgrs/ATHENA` remain READ-ONLY.
+- Required Core, Backend, Errors, Integrator, 11-screen manifest and Visual Gap Ledger handoffs were consumed before this evidence refresh.
 
-## Evidence consumed this run
+## Major evidence correction this run
 
-The required spec-core, backend, errors, integrator, 11-screen manifest and Visual Gap Ledger were reviewed before mutation. Error handoff reports no OPEN current error. Historical Core/Backend items are not reopened.
+The complete Library folder `/pATHENA/Designreferenz – 11 Screenshots` was located. All eleven reference image payloads were directly opened. The prior manifest statement that only one user reference was available is obsolete.
 
-Slot 01 remains the only directly opened pixel reference currently recorded: `pATHENA: Dunkles KI-Dashboard mit Wissenspanel.png`. It supports a deep-black Workspace/Chat surface, narrow left-owned navigation, quiet top status chrome, a large central work area and a materially larger lower composer. No current-build screenshot was opened side-by-side in this run, so no `MATCH` or pixel-parity claim is made.
+The references include ComfyUI integration, PALLAS, Settings, Help, Workspace/Evidence, Jobs, Command Palette, System, an additional dark Workspace/research composition, a light Workspace variant, and a local-memory Workspace composition. Repeated visible anchors are narrow navigation, large central workspace, contextual right inspector, strong hierarchy, restrained paneling/separators and large lower composer where relevant.
 
-## Verified slice — UI-GAP-0004 Workspace composer scale
+## Runtime comparison state
 
-Status: `FIXED / INTEGRATOR_READY_TECHNICAL`, P1.
+No current runtime screenshot from exact `postmerge/ui@af50dfb76b04e396a2dbf65ec1eeb265f30177fa` could be opened. The local execution environment could not resolve `github.com`, so it could not clone/start the real PySide6 desktop. The repository's existing `pATHENA 11-Surface Visual Regression` workflow can capture eleven surfaces, but its push trigger targets `bot/pathena-candidate`; no workflow-dispatch mutation action was available in this run.
 
-The real composer keeps the existing chat input, grounding route and send action. Verified presentation contract:
+Consequently:
 
-- composer fixed height: 88 px;
-- composer accessible name: `Message composer`;
-- prompt fixed interaction height: 44 px after Qt polish;
-- real `Sources` grounding control fixed interaction height: 36 px after Qt polish;
-- existing send control materialized at 44×44 px, with QSS content-box dimensions 42×42 plus the inherited 1 px border per side;
-- real send signal, tooltip, accessible name and Ctrl+Enter route retained;
-- no decorative/mock controls.
+- references: `11/11 AVAILABLE_OPENED`;
+- current renders: `0/11 CURRENT_RENDER_UNAVAILABLE`;
+- paired visual comparisons: `PAIRS_VERIFIED_0_OF_11`;
+- no `MATCH`, `CLOSE`, or pixel-parity claim is made;
+- no speculative product/UI mutation was made from code or memory alone.
 
-No chat submission, grounding, model/provider, persistence, Storage, Security, Recovery, worker/scheduler or backend semantics changed.
+## CI / Develop state
 
-## Exact verification
+Current Develop canonical Quality run `34516879382@effe7fb43246d4f3c4d9ac0f2f5d363c2135bb36` is completed with overall failure. Full Python quality/pytest, Linux storage, and local install are green; failure is in the Windows storage-path regression lane, not a demonstrated Qt/UI regression. UI does not absorb or weaken that Storage/Windows contract.
 
-Canonical ATHENA Quality Gate `34365616984` on exact worker head `90a51e111851f80c5e2388c11c4026c6ec62fa09` completed `success`.
+The previous exact UI worker Quality run `34413496805@af50dfb76b04e396a2dbf65ec1eeb265f30177fa` is completed `success`.
 
-The final raw-QSS test pins the 42 px content-box dimensions and zero padding, while `tests/unit/test_pathena_window.py::test_reference_composer_uses_large_work_surface_and_send_target` independently requires the real widget to materialize exactly 44×44 px and also requires composer 88 px, prompt 44 px and Sources 36 px. No Skip/XFail or assertion weakening.
+## Next visual slice
 
-Compare against current Develop confirms a bounded seven-file UI delta: three UI evidence docs, `src/athena/desktop/pathena_shared_components.py`, `src/athena/desktop/pathena_window.py`, `tests/unit/test_pathena_shared_components.py`, and `tests/unit/test_pathena_window.py`. No Backend/Storage/Security product file is in the delta.
-
-## Integrator handoff
-
-UI-GAP-0004 is technically Integrator-ready from exact verified head `90a51e111851f80c5e2388c11c4026c6ec62fa09`, subject to the Integrator's independent review and normal current-Develop compatibility check. A green code gate does not imply screenshot-level `MATCH`.
-
-This documentation-refresh commit intentionally carries no product behavior change. If it triggers a new canonical Quality run, freeze `postmerge/ui` until that exact-doc-head run completes; do not supersede the already exact-green product evidence.
-
-## Next gap
-
-After Integrator consumption of UI-GAP-0004, select at most one further visible gap backed by an actually opened reference and a real current code/render state. Priority remains workspace hierarchy/spacing, typography or contextual Inspector composition rather than new decorative controls.
+First obtain/open an exact-SHA current 11-surface runtime capture. Then pair all eleven slots against the now-accessible originals and choose the largest recurring visible gap, prioritizing shell geometry -> workspace hierarchy/spacing -> typography -> navigation -> Evidence & Activity inspector -> composer -> interaction/state -> fine colors/borders. Maximum one or two tightly coupled gaps per product mutation.
