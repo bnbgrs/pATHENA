@@ -5,22 +5,28 @@ Branch: `postmerge/backend`
 
 ## Current source of truth
 
-- Develop consumed first: `develop/pathena-next@e316843d1f45fc2fd3733d4ae10ec0ad1ac90f58`.
-- Backend worker head before this handoff refresh: `338e4514d144f4701e52515c0196e0f968f5db47`.
-- Exact Develop canonical Quality `34504620300@e316843d1f45fc2fd3733d4ae10ec0ad1ac90f58 = SUCCESS`.
+- Develop consumed first: `develop/pathena-next@f29abc4341895f8ecd28ebeb0baa2e80b030fdf7`.
+- Backend worker head before this handoff refresh: `c8ee2b0b0152a646a63ad4116526a8ce1fdabf90`.
+- Exact Develop canonical Quality `34510755656@f29abc4341895f8ecd28ebeb0baa2e80b030fdf7 = SUCCESS`.
 - The exact Develop run completed Linux storage regressions, Python Quality (spec validator/Ruff/mypy/full pytest), Windows path safety and Local install smoke successfully.
 - No canonical Quality run was queued or in progress on the current Backend worker head when this refresh began.
 - Current Develop handoffs, Alpha/Beta/architecture/runtime/storage contracts and exact-SHA Quality evidence remain authoritative over historical queue text.
 
-## Closed verification cluster — Windows Core/API ownership lifecycle
+## Closed verification cluster — Windows Core/API server lifecycle
 
 Status: `CLOSED_ON_DEVELOP / EXACT_WINDOWS_EVIDENCE_GREEN`.
 
-Develop `e316843d1f45fc2fd3733d4ae10ec0ad1ac90f58` adds the existing Core/API ownership lifecycle regression set to the canonical Windows path-safety lane. Exact run `34504620300` completed SUCCESS. Within that exact run, Windows step `Run Windows Core/API ownership lifecycle regressions` completed SUCCESS, alongside Windows storage path regressions, API runtime path-boundary regressions, packaged runtime contract regressions, adaptive chat reserve, Core/API restart smoke and pypdf packaging verification.
+Develop `f29abc4341895f8ecd28ebeb0baa2e80b030fdf7` adds the already-existing `tests/unit/test_api_server_lifecycle_boundaries.py` to the canonical Windows `Run Windows Core/API ownership lifecycle regressions` step. Exact run `34510755656` completed SUCCESS. The Windows step itself completed SUCCESS together with Windows storage path regressions, API runtime path-boundary regressions, packaged runtime contract regressions, adaptive chat reserve, Core/API restart smoke and pypdf packaging verification.
 
-This provides direct canonical Windows evidence for process ownership/lifecycle boundaries relevant to the persistent one-Desktop / bounded-worker guard. No process/runtime production code, assertions, Storage, Recovery or Security semantics were weakened.
+The server lifecycle contract covers fail-fast port validation before runtime construction, complete cleanup ordering and exception propagation, duplicate/noncanonical Content-Length rejection, exact request-body reads and cleanup-failure translation. This provides direct native-Windows evidence for a Core/API startup/shutdown boundary participating in the one-Desktop / bounded-worker and Core-startup release guards. No API/server/process production code, tests, assertions, Storage, Recovery or Security semantics were weakened.
 
 ## Previously closed verification clusters
+
+### Windows Core/API ownership lifecycle
+
+Status: `CLOSED_ON_DEVELOP / EXACT_WINDOWS_EVIDENCE_GREEN`.
+
+Develop `e316843d1f45fc2fd3733d4ae10ec0ad1ac90f58` added the existing Core/API process ownership/lifecycle regression set to the canonical Windows path-safety lane. Exact run `34504620300` completed SUCCESS.
 
 ### Windows adaptive chat reserve
 
@@ -48,7 +54,7 @@ Status: `OPEN / P1 / CURRENTLY REPRODUCED BY SOURCE TRACE`.
 
 Current Develop `SQLiteDatabase.start()` still calls `inspect_database_read_only(self.path)` and then independently opens the writer with `sqlite3.connect(self.path, ...)`. The identity verified by preflight is not carried into the writable SQLite connection. A second pathname preflight would not close the race; a cross-platform identity-bound writer strategy is still required.
 
-No product mutation was made for BE-046 or BE-052 in this run. The bounded work in this run was exact-SHA closure of the Windows Core/API ownership lifecycle verification dependency. No fabricated focused PASS is claimed for either open product gap.
+No product mutation was made for BE-046 or BE-052 in this run. The bounded work in this run was exact-SHA closure of the Windows Core/API server-lifecycle verification dependency. No fabricated focused PASS is claimed for either open product gap.
 
 ## Previously closed dependency slices
 
@@ -59,6 +65,7 @@ No product mutation was made for BE-046 or BE-052 in this run. The bounded work 
 - Windows packaged runtime contracts (pypdf/Frozen argv/two-EXE/process dispatch): `CLOSED_ON_DEVELOP / EXACT_WINDOWS_EVIDENCE_GREEN`.
 - Adaptive 2048-context reserve Windows contract: `CLOSED_ON_DEVELOP / EXACT_WINDOWS_EVIDENCE_GREEN`.
 - Core/API ownership lifecycle Windows contract: `CLOSED_ON_DEVELOP / EXACT_WINDOWS_EVIDENCE_GREEN`.
+- Core/API server lifecycle Windows contract: `CLOSED_ON_DEVELOP / EXACT_WINDOWS_EVIDENCE_GREEN`.
 
 ## Current Backend worker red state
 
@@ -72,14 +79,15 @@ Integrator has already required that broad Backend/Storage/Migration/Runtime his
 - Redirect/Auth/HTTPS/response-size boundaries remain fail-closed.
 - WAL maintenance safety remains intact.
 - pypdf packaging, Frozen argv and two-EXE topology remain guarded with exact Windows canonical evidence.
-- Exactly one Desktop instance / bounded worker ownership-lifecycle contracts now have direct exact Windows canonical evidence on `e316843d1f45fc2fd3733d4ae10ec0ad1ac90f58` / run `34504620300`.
+- Exactly one Desktop instance / bounded worker ownership-lifecycle contracts, including the API server lifecycle boundary, now have direct exact Windows canonical evidence through `f29abc4341895f8ecd28ebeb0baa2e80b030fdf7` / run `34510755656`.
 - Adaptive 2048-context reserve remains guarded with direct exact Windows canonical evidence.
 - Windows lane-lock/path-safety, duplicate-column/Core-startup/storage-bootstrap signatures remain protected and are only OPEN when reproduced on current exact-SHA evidence.
 - No Skip/XFail, force push, history rewrite, main mutation, or mutation to `bnbgrs/ATHENA`.
 
 ## Integrator prerequisites
 
-- Core/API ownership lifecycle Windows verification: CLOSED on Develop `e316843d1f45fc2fd3733d4ae10ec0ad1ac90f58`; canonical Quality `34504620300 = SUCCESS`; no Backend cherry-pick required.
+- Core/API server lifecycle Windows verification: CLOSED on Develop `f29abc4341895f8ecd28ebeb0baa2e80b030fdf7`; canonical Quality `34510755656 = SUCCESS`; no Backend cherry-pick required.
+- Core/API ownership lifecycle Windows verification: CLOSED on Develop; no Backend cherry-pick required.
 - Adaptive 2048-context reserve Windows verification: CLOSED on Develop; no Backend cherry-pick required.
 - Windows packaged runtime verification cluster: CLOSED on Develop; no Backend cherry-pick required.
 - BE-038 / BE-020 / schema-reinitialization / Windows bootstrap harness: CLOSED on Develop; do not duplicate.
