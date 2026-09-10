@@ -223,3 +223,6 @@ jobs:
 
       - name: Run Windows Core/API restart smoke
         run: uv run --locked --extra dev athena-local-smoke --restart-cycles 1
+
+      - name: Verify Windows pypdf packaging metadata
+        run: uv run --locked --extra dev athena-packaging-smoke --json
