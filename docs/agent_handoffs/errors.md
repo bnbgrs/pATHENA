@@ -2,13 +2,12 @@
 
 ## Baseline
 
-- Develop source of truth: `develop/pathena-next@c7b6a6e756f9d84a1f9e9e2b46261455b42a61a5`.
-- Error worker pre-run head: `postmerge/errors@611d0e6a9a2681c832dd833009237b84b956c78e`.
+- Develop source of truth: `develop/pathena-next@dc6227882dc044e681caa7a344cf2af80952ba36`.
+- Error worker pre-run head: `postmerge/errors@4f601936e55e5004eae0d8c09f3c3bd63cb848d2`.
 - Current workers: Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`; Backend `5b6e8226b316a8d0c943c71cab907d66360281a2`; UI `af50dfb76b04e396a2dbf65ec1eeb265f30177fa`.
-- Exact current Develop Quality `34423135374@c7b6a6e756f9d84a1f9e9e2b46261455b42a61a5` is `in_progress`; do not supersede it.
-- Exact current Backend Quality `34417344758@5b6e8226b316a8d0c943c71cab907d66360281a2 = FAILURE`; diagnostics artifact `10130164077` supplied current assertion-level evidence.
-- Backend exact result: specification validator, mypy, Windows path safety, Linux storage regressions and local-install/pypdf smoke PASS; Ruff and full pytest FAIL; pytest summary `17 failed, 4845 passed, 3 skipped, 2 warnings`.
-- `postmerge/errors` had no canonical Quality run before mutation or after the ledger commit, so no competing run was superseded.
+- Exact current Develop Quality `34427257978@dc6227882dc044e681caa7a344cf2af80952ba36` is `in_progress`. Local-install/pypdf, Linux storage, Windows path safety, specification validator, Ruff and mypy have passed; full pytest is still running. Do not supersede it.
+- Exact current Backend Quality `34417344758@5b6e8226b316a8d0c943c71cab907d66360281a2 = FAILURE`; diagnostics artifact `10130164077` was re-consumed for traceback-level evidence.
+- `postmerge/errors` had no canonical Quality run before the ledger mutation or before this handoff mutation, so no running result was superseded.
 - `main` and `bnbgrs/ATHENA` remain read-only/untouched.
 
 ## Current error state
@@ -18,28 +17,27 @@
 - STALE: `ERR-0014`, `ERR-0025`.
 - OPEN / BLOCKED: none at top level.
 
-## Hard progress this run — ERR-0028 terminal-current-schema cluster expanded and deduplicated
+## Hard progress this run — ERR-0028 legacy-fixture collision root cause isolated
 
 Status: `IN_PROGRESS`, P2.
 
-The newer exact Backend candidate `5b6e8226b316a8d0c943c71cab907d66360281a2` is now authoritative for this worker. Canonical Quality `34417344758` completed FAILURE and its diagnostics artifact `10130164077` reproduces the stale terminal migration-ID root cause.
+The exact Backend artifact `10130164077` for `34417344758@5b6e8226b316a8d0c943c71cab907d66360281a2` was re-read beyond its failure summary. The repeated `sqlite3.OperationalError: table research_delta_boundaries already exists` is now bounded to a legacy-harness reconstruction pattern rather than a production migration defect.
 
-The root-cause inventory is now **nine failures, one cause**:
+Affected tests construct a current database, then reconstruct an older schema boundary by dropping selected newer objects and lowering `schema_metadata` / `PRAGMA user_version`. Exact source evidence in `test_v33_database_upgrades_additively_to_transition_v34` explicitly says the fixture starts from current schema and removes v40 and v39 child state before rewinding to v33, but it leaves the v41 `research_delta_boundaries` table present. When normal startup later advances v40→v41, the fail-closed migration correctly executes plain `CREATE TABLE research_delta_boundaries` and detects the impossible historical state.
 
-- `tests/unit/test_knowledge_schema.py`: `v14`, `v17`, `v18`, `v19`, `v20`, `v21`, `v22`, `v23` legacy-upgrade tests all reach current `SCHEMA_VERSION` and read `last_migration_id = '0041_research_delta_boundary'`, but still assert `GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID` / `0040_grounded_response_receipts` at the final-current-schema boundary.
-- `tests/unit/test_protected_content.py::test_fresh_schema_has_v32_security_tables_without_persistent_unlock_state` has the same root cause: actual `(41, '0041_research_delta_boundary', 41)` versus stale expected `(41, '0040_grounded_response_receipts', 41)`.
+The same exact traceback signature is reproduced in archive-replication v30→v31, knowledge-schema v28/v29/v36, protected-content v31 and protected-source-transition v33 fixtures. Downstream `Failed to start service 'storage-bootstrap'` / Core-startup failures from candidate migration are cascades and stay deduplicated under this root cause.
 
-These failures must not be treated as nine production migration defects. Historical pre-upgrade assertions remain unchanged; only terminal assertions describing the final current schema should use `RESEARCH_DELTA_BOUNDARY_MIGRATION_ID`. No production schema, migration, Storage, Recovery or Security relaxation is justified.
+Correct repair boundary: legacy fixtures derived from a current database must remove every object introduced after their declared historical boundary before rewriting schema metadata/user_version. Do **not** make v40→v41 idempotent with `IF NOT EXISTS`, catch/ignore the `OperationalError`, or weaken Storage/Recovery migration guards. Backend is the active migration owner, so Error did not duplicate its harness mutation. Closure requires focused PASS of the exact affected fixtures on a current Backend SHA.
 
-The current Backend diagnostics separately reproduce `research_delta_boundaries already exists` fixture collisions in archive replication, knowledge-schema v28/v29/v36, protected-content v31 and protected-source-transition v33. Their `storage-bootstrap`/Core-startup failures remain cascades and are not merged into the terminal-ID cluster. Do not mask fixture collisions with `IF NOT EXISTS` or weaker migration guards.
+## Other active ERR-0028 subcluster — terminal current-schema assertions
 
-Backend remains the authoritative v41 owner, so this run did not duplicate current Backend product/harness mutation on the Error branch. Closure of the terminal-ID cluster requires focused PASS for all nine exact assertions on a current Backend SHA.
+Still `IN_PROGRESS`: nine exact failures remain deduplicated to stale terminal expectations for migration `0040` after a successful upgrade to current v41 (`0041_research_delta_boundary`). Eight are knowledge-schema legacy upgrades v14/v17–v23 and one is the fresh protected-content security-table test. Only final-current-schema assertions should move; historical pre-upgrade expectations must not be rewritten. Backend remains owner; no duplicate Error-branch mutation.
 
 ## Other active root causes
 
 ### ERR-0026 — Backend schema Ruff I001
 
-`IN_PROGRESS`, P2. It is reproduced again on exact Backend `5b6e8226b316a8d0c943c71cab907d66360281a2` / Quality `34417344758` at `src/athena/storage/schema.py:3:1`. The attempted Backend synchronization did not close this schema import-format failure. Error worker's own schema file is already formatter-clean; Backend must produce real Ruff PASS on its current v41 candidate. No Ruff weakening or bypass.
+`IN_PROGRESS`, P2. Exact Backend `5b6e8226b316a8d0c943c71cab907d66360281a2` / Quality `34417344758` still reports Ruff `I001` at `src/athena/storage/schema.py:3:1`. Backend must produce real Ruff PASS; no Ruff weakening or bypass.
 
 ### ERR-0029 — WAL exact-type harness drift
 
@@ -47,13 +45,13 @@ Backend remains the authoritative v41 owner, so this run did not duplicate curre
 
 ## Integrator handoff
 
-- Current Develop `c7b6a6e756f9d84a1f9e9e2b46261455b42a61a5` has canonical Quality `34423135374` in progress. Freeze Develop until that exact result is consumed.
+- Current Develop `dc6227882dc044e681caa7a344cf2af80952ba36` has canonical Quality `34427257978` in progress. Freeze Develop until that exact result is consumed.
 - Backend `5b6e8226b316a8d0c943c71cab907d66360281a2` is not promotable: Quality `34417344758 = FAILURE`.
-- `ERR-0028 = IN_PROGRESS`: current exact evidence deduplicates nine stale terminal-current-schema migration-ID assertions to one harness root cause.
-- Keep the independent `research_delta_boundaries already exists` fixture collisions separate and fail-closed.
-- `ERR-0026 = IN_PROGRESS`: current Backend still fails canonical Ruff at `src/athena/storage/schema.py:3:1`.
+- `ERR-0028 = IN_PROGRESS`: two independent harness root causes are now explicit: stale terminal-current-schema v40 expectations, and current-schema-derived legacy fixtures that retain the v41 Delta table before rewinding schema version.
+- Keep production v40→v41 migration fail-closed. No `IF NOT EXISTS`, swallowed OperationalError, or Storage/Recovery guard relaxation.
+- `ERR-0026 = IN_PROGRESS`: Backend still fails canonical Ruff in `src/athena/storage/schema.py`.
 - Preserve pypdf packaging, frozen argv, two-EXE split, bounded workers, adaptive 2048-context reserve, Windows lane-lock mapping and duplicate-column/Core-startup/storage-bootstrap release guards.
 
 ## Next verification
 
-First consume `34423135374@c7b6a6e756f9d84a1f9e9e2b46261455b42a61a5` when complete. If no higher-severity Develop regression appears, require Backend focused evidence for the nine terminal-ID assertions before closing that `ERR-0028` subcluster; otherwise select the highest exact-current independent root cause without reopening closed historical IDs.
+First consume `34427257978@dc6227882dc044e681caa7a344cf2af80952ba36` when complete. If no higher-severity Develop regression appears, require Backend focused evidence that affected historical fixtures remove the v41 Delta table/state before version rewind; close only that fixture-collision subcluster after real PASS. Keep the separate nine terminal-ID assertions independently tracked.
