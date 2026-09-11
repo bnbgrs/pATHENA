@@ -17,11 +17,11 @@ _REQUIRED_WORKFLOW_TOKENS = (
 
 _REQUIRED_PACKAGING_TEST_TOKENS = (
     '-Name "pATHENA"',
-    'src\\\\athena\\\\desktop\\\\packaged_app.py',
+    "packaged_app.py",
     '-Name "pATHENA-Worker"',
-    'src\\\\athena\\\\desktop\\\\packaged_worker.py',
-    'pATHENA-Worker.exe',
-    '--collect-all pypdf',
+    "packaged_worker.py",
+    "pATHENA-Worker.exe",
+    "--collect-all pypdf",
 )
 
 
