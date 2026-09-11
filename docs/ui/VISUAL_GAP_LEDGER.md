@@ -3,29 +3,31 @@
 Integration target: `develop/pathena-next`
 UI worker: `postmerge/ui`
 
-## Current evidence — 2026-09-11 19:40 CEST
+## Current evidence — 2026-09-11 21:39 CEST
 
-Run-start Develop: `fec368f50307a9e24038baca3a80b10ee2a3c4fc`; run-start worker: `d71bf6951c10920eb709dbe5bb3e708c72b43c6a`. The previous exact worker UI Focused Candidate is green. Canonical Quality is red only at mypy for one UI-owned unreachable branch in `pathena_capability_help.py`; specification validation, Ruff, all 4854 executed tests and platform/storage smoke lanes passed.
+Run-start Develop: `c670d7809c9f0aa5e6c31956b57e897091f1b9d6`; run-start worker: `ecbc661224917f1793b122a94e269ae88b450bc2`. Exact worker canonical Quality `34635102754` and UI Focused Candidate `34635102820` are `SUCCESS`. Exact visual run `34635099776` produced all eleven Windows/PySide6 captures and the exact-SHA artifact; only its final fail-closed baseline verdict remains red.
 
-All 11 references and all 11 exact Windows/PySide6 runtime images for rendered product `b6aaaac887535bfcafa7e5784d0dc0b590758f36` were opened again. Help still clearly covers the full shell. This candidate keeps the seven-primary-page invariant while moving Help from the full reference shell into the existing central `conversation` workspace frame. The one Develop-only UI CI change is synchronized history-preservingly in the same candidate.
+All eleven user references and all eleven exact runtime captures were opened directly. Strict same-state accounting remains `PAIRS_VERIFIED_0_OF_11 · MATCH_0_OF_11`; the Light reference still has no real same-state runtime capture, and several other slots intentionally expose truthful empty/unavailable states instead of the populated references.
 
 ## VISUAL-GAP-0001 — shared shell / workspace hierarchy
 
 Category: `APP SHELL / GEOMETRY / HIERARCHY`
 Severity: `P0 visual`
-Status: `OPEN / HIGHEST PRIORITY`
+Status: `OPEN / HIGHEST RECURRING PRIORITY`
 
-References consistently preserve topbar, narrow rail, central workspace and contextual right column. The pre-mutation Help screenshot obscures that chrome because its transient widget is parented to the full `referenceShell`. This candidate instead parents Help to the real central workspace frame and sizes it to that frame, leaving shell chrome as siblings.
+The reference family consistently preserves a narrow rail, large central workspace and contextual right column. Exact Help AFTER evidence at `ecbc661…` now proves the Help surface no longer covers the full shell: topbar, rail, central Help and right inspector are all visible in one real MainWindow capture. That closes the Help-host-geometry subgap, not the overall hierarchy gap.
 
-Next evidence gate: exact AFTER Help rendering must visibly retain topbar, rail and inspector. Do not upgrade status from GAP from source/tests alone.
+Remaining recurrent examples are standalone ComfyUI, standalone/minimal PALLAS and standalone Command Palette, plus sparse/empty central compositions in state-mismatched core workspaces.
 
 ## VISUAL-GAP-0002 — contextual inspector
 
 Category: `INSPECTOR / PAGE CONTEXT`
 Severity: `P0/P1 visual`
-Status: `REDUCED / ROUTE-CONTEXT SUBGAP CLOSED`
+Status: `OPEN / HELP CONTEXT NOW REPRODUCED`
 
-The rendered baseline retains truthful contexts for Knowledge, Research, Jobs, Settings and Sources. System remains fail-closed and runtime-derived. Remaining deviations are primarily empty-vs-populated state and richer reference composition.
+Route-context work remains improved for Knowledge, Research, Jobs, Settings and Sources. The new exact Help MainWindow capture exposes a concrete remaining defect: Help is open while the right inspector still displays the previously active `SETTINGS / LOCAL` context. The reference instead presents Help-specific `Quick shortcuts` and `Help is current` status.
+
+Next bounded correction must use real installed shortcuts and live capability-catalogue state only. Do not fabricate shortcut availability or runtime health.
 
 ## VISUAL-GAP-0003 — standalone/shell-host framing
 
@@ -33,35 +35,42 @@ Category: `SURFACE INTEGRATION`
 Severity: `P1 visual`
 Status: `OPEN`
 
-- Help: shell-owned, seven-page invariant fixed; this candidate narrows its host to the central workspace body. Exact AFTER image still required.
+- Help: workspace-host framing is now visually verified; remaining gap is information hierarchy + Help contextual inspector.
 - ComfyUI: real local workflow controls, wrong standalone host and missing reference Connection framing.
 - PALLAS: real graph, wrong standalone/minimal framing and missing rich contextual inspector.
 - Command Palette: real commands, but standalone capture rather than overlay over active workspace.
 
 Do not combine these. Finish Help first.
 
+## Help BEFORE → AFTER
+
+- BEFORE evidence path: child-only Help capture could not prove persistent shell chrome.
+- AFTER exact `ecbc661224917f1793b122a94e269ae88b450bc2`: full MainWindow capture visibly retains topbar, rail and right inspector while Help is bounded to the central workspace.
+- Remaining visible Help deviations: no Help secondary nav; no search field; no structured capability rows/cards; flatter typography/spacing; right inspector is stale Settings context; no Help-specific shortcut/current-status panel.
+- Status remains `GAP`; no `CLOSE` or `MATCH` claim.
+
 ## Slot accounting
 
-| Slot | Status at last exact rendered product `b6aaaac…` |
+| Slot | Exact current status at `ecbc661…` |
 |---|---|
 | 01 ComfyUI | GAP |
 | 02 PALLAS | GAP |
 | 03 Settings | GAP / STATE_UNVERIFIED |
-| 04 Help | GAP — shell chrome obscured; bounded workspace-host correction now in candidate |
+| 04 Help | GAP — host geometry visually verified; hierarchy + inspector context remain |
 | 05 Workspace/Evidence | UNVERIFIED |
 | 06 Jobs | GAP / STATE_UNVERIFIED |
 | 07 Command Palette | GAP / CONTEXT_UNVERIFIED |
 | 08 System | GAP / STATE_UNVERIFIED |
 | 09 Research | GAP / STATE_UNVERIFIED |
-| 10 Light workspace | UNVERIFIED / CURRENT_RENDER_UNAVAILABLE for same-state Light |
+| 10 Light workspace | UNVERIFIED / CURRENT_RENDER_UNAVAILABLE |
 | 11 Local Memory/Knowledge | GAP / STATE_UNVERIFIED |
 
-References opened: `11/11`. Exact rendered runtime surfaces opened: `11/11`. Same-state/reference-equivalent pairs: `0/11`. `MATCH_0_OF_11`. `PAIRS_VERIFIED_0_OF_11`.
+References opened: `11/11`. Exact runtime surfaces opened: `11/11`. Same-state/reference-equivalent pairs: `0/11`. `MATCH_0_OF_11`. `PAIRS_VERIFIED_0_OF_11`.
 
-## CI blocker corrected in candidate
+## Develop synchronization
 
-Previous canonical Quality on `d71bf695…` ran full pytest successfully (`4854 passed, 3 skipped`) but mypy rejected `if shell is None: return` because the typed `PathenaMainWindow.centralWidget()` boundary is non-null after shell installation. The new Help-host helper instead queries the nullable `QFrame` workspace by object name, preserving a real fail-closed runtime boundary without an unreachable branch.
+Current Develop is one bounded Core/Knowledge commit beyond the worker merge base. This candidate imports the exact Develop Integrator handoff, Concept Note provenance/update source and their focused tests history-preservingly as the second parent. No UI product semantics, Backend/Storage/Security behavior or release guard is changed by that synchronization.
 
 ## Next visual slice
 
-First consume exact candidate gates and exact Windows 11-surface render. If Help now visibly preserves shell chrome, compare its remaining information hierarchy against the Help reference; only after that bounded slice is stable consider ComfyUI, PALLAS or Command Palette.
+After consuming exact CI for the synchronized worker, keep Help as the only UI slice. Preserve its verified workspace host and seven-primary-page invariant; implement a live-data Help hierarchy and honest Help contextual inspector. Then run focused Qt/UI tests, canonical Quality and a new exact 11-surface capture before touching ComfyUI, PALLAS or Command Palette.

@@ -1,39 +1,61 @@
 # pATHENA UI Handoff
 
-## Current baseline — 2026-09-11 19:40 CEST
+## Current baseline — 2026-09-11 21:39 CEST
 
-- Run-start Develop: `develop/pathena-next@fec368f50307a9e24038baca3a80b10ee2a3c4fc`.
-- Run-start worker: `postmerge/ui@d71bf6951c10920eb709dbe5bb3e708c72b43c6a`.
-- Exact worker UI Focused Candidate `34623811506 = SUCCESS`.
-- Exact worker canonical Quality `34623811497 = FAILURE` solely because mypy reports one UI-owned unreachable statement in `src/athena/desktop/pathena_capability_help.py`; specification validation, Ruff, full pytest (`4854 passed, 3 skipped`) and all platform/storage smoke lanes are green.
-- Last exact rendered UI product: `b6aaaac887535bfcafa7e5784d0dc0b590758f36`, with complete 11-surface Windows artifact.
+- Run-start Develop: `develop/pathena-next@c670d7809c9f0aa5e6c31956b57e897091f1b9d6`.
+- Run-start worker: `postmerge/ui@ecbc661224917f1793b122a94e269ae88b450bc2`.
+- Exact worker canonical Quality `34635102754 = SUCCESS`.
+- Exact worker UI Focused Candidate `34635102820 = SUCCESS`.
+- Exact Windows/PySide6 visual run `34635099776` produced all eleven captures and artifact `pathena-visual-ecbc661224917f1793b122a94e269ae88b450bc2`; the workflow remains red only at its fail-closed visual baseline verdict.
 - `main` and `bnbgrs/ATHENA` remain READ-ONLY and untouched.
-- Current Spec/Core, Backend, Errors, Integrator, 11-screen manifest and Visual Gap Ledger were consumed before product work.
+- Current Spec/Core, Backend, Errors, Integrator, 11-screen manifest and Visual Gap Ledger were consumed before work.
 
-## Current product slice — Help workspace geometry
+## Exact visual verification completed this run
 
-The existing transient Help host fixed the former `7 navigation / 8 primary pages` regression, but the exact `b6aaaac…` Help screenshot fills the entire `referenceShell` and hides topbar, icon rail and inspector. The canonical Help reference visibly keeps all of that shell chrome.
+All eleven canonical references were opened directly and all eleven exact runtime PNGs from the `ecbc661…` artifact were opened directly.
 
-This candidate changes only the host geometry: Help is parented to the existing real `QFrame#conversation` central workspace and fitted to that frame. Topbar, `QFrame#iconRail` and `QFrame#inspector` remain siblings and therefore visible. The live capability catalogue, F1 path, Esc behavior, focus, accessibility metadata, active primary route and seven-page invariant are retained. No capability facts or backend/storage/security state are synthesized.
+The corrected Help evidence path now provides the first real full-MainWindow AFTER capture for the workspace-hosted Help surface. It visibly proves:
 
-The focused Help contract now asserts workspace-body ownership and geometry, visible topbar/rail/inspector, unchanged primary route and `window.pages.count() == window.navigation.count() == 7`.
+- topbar remains visible;
+- icon rail remains visible;
+- Help is bounded to the central workspace rather than covering the shell;
+- the right inspector remains visible;
+- the seven-primary-page routing model is not replaced by an eighth page.
 
-## Previous exact visual evidence re-opened this run
+This closes the Help host-geometry evidence gap. It does not make Help visually ready. The same screenshot now exposes the next concrete Help gaps: the content remains a flat capability text catalogue, no Help secondary navigation or search is present, and the right inspector incorrectly retains the previous `SETTINGS / LOCAL` context instead of the reference’s Help-specific shortcuts/status.
 
-All eleven canonical references were enumerated and opened directly again. Artifact `pathena-visual-b6aaaac887535bfcafa7e5784d0dc0b590758f36` was downloaded again and all eleven runtime PNGs were opened directly. Strict visual accounting therefore remains `PAIRS_VERIFIED_0_OF_11 · MATCH_0_OF_11`; a new current exact render is required before the Help status can be raised.
+Strict accounting remains `PAIRS_VERIFIED_0_OF_11 · MATCH_0_OF_11`: slot 10 has no real same-state Light capture, and several real runtime states differ from the populated references.
 
-## Previous canonical blocker
+## Current source-of-truth collision check
 
-Canonical Quality `34623811497` on exact `d71bf695…` completed full pytest with `4854 passed, 3 skipped`; only mypy failed. The failure is the `centralWidget()` nullable guard in the Help host. The current correction removes that statically unreachable guard by resolving the actually nullable workspace `QFrame` instead.
+Develop advanced by one bounded Core/Knowledge commit while the UI exact candidate was being verified. Comparison shows only:
 
-## Develop synchronization
+- updated `docs/agent_handoffs/integrator.md`;
+- new `src/athena/knowledge/concept_note_provenance.py`;
+- new `src/athena/knowledge/concept_note_update.py`;
+- their two focused tests.
 
-Develop is exactly one UI-CI-only commit ahead of the worker merge base. This candidate imports that `.github/workflows/ui-focused-candidate.yml` version history-preservingly as a second parent while retaining all worker UI history. No main mutation, force update, rebase or history rewrite is used.
+No Help, Qt shell, visual harness, Backend, Storage or Security path overlaps. This candidate imports those exact Develop blobs history-preservingly as a second parent. No force update, rebase, history rewrite or `main` mutation is used.
+
+## Current Help slice status
+
+Product host geometry: `VERIFIED_ON_EXACT_RUNTIME`.
+
+Current remaining Help visual gap:
+
+1. information hierarchy: reference has Help secondary navigation, search and distinct capability rows; runtime has a flat text catalogue;
+2. contextual inspector: reference has Quick shortcuts + capability-current status; runtime retains prior Settings context.
+
+The existing live capability catalogue remains the only authority for capability availability. Existing `QShortcut`/command wiring must remain the authority for shortcut claims. Do not create decorative fake capabilities, healthy runtime state or non-existent shortcuts.
+
+## CI note
+
+The parallel Core Focused workflow on the UI SHA is not used as UI product evidence. Canonical Quality and the UI Focused Candidate are both green for exact `ecbc661…`.
 
 ## Next evidence sequence
 
-1. Run the focused UI contract on the exact candidate.
-2. If focused evidence is green, run/consume canonical Quality without stacking another commit while it is active.
-3. Run/consume an exact Windows/PySide6 11-surface capture and open every AFTER image.
-4. Require the Help AFTER image to retain topbar, rail and inspector before calling the geometry correction successful.
-5. Keep Help as the only visual slice until its remaining hierarchy gap is bounded; do not begin ComfyUI, PALLAS or Command Palette integration yet.
+1. Consume exact CI on the synchronized worker before a new product commit.
+2. Keep Help as the only visual slice.
+3. Implement bounded live-data Help hierarchy and Help-specific contextual inspector while preserving F1/Esc/Ctrl-K, focus/accessibility, active primary route, workspace-bounded geometry and `7 nav == 7 primary pages`.
+4. Run focused Qt/UI tests first, then canonical Quality without stacking commits while it runs.
+5. Produce/open all eleven exact Windows/PySide6 AFTER images and compare slot-by-slot before any status upgrade or move to ComfyUI/PALLAS/Palette.
