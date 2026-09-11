@@ -1,0 +1,74 @@
+name: pATHENA UI Focused Candidate
+
+on:
+  pull_request:
+    branches:
+      - develop/pathena-next
+    paths:
+      - "src/athena/desktop/**"
+      - "tests/unit/test_pathena_navigation_context_accessibility.py"
+      - ".github/workflows/ui-focused-candidate.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pathena-ui-focused-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: false
+
+jobs:
+  focused-navigation-contract:
+    name: Exact UI candidate navigation contract
+    runs-on: windows-2022
+    timeout-minutes: 15
+    env:
+      PYTHONUTF8: "1"
+      QT_QPA_PLATFORM: offscreen
+      QT_QUICK_BACKEND: software
+      QT_OPENGL: software
+
+    steps:
+      - name: Resolve exact worker head
+        shell: pwsh
+        run: |
+          $candidate = "${{ github.event.pull_request.head.sha }}".Trim().ToLowerInvariant()
+          if ($candidate -notmatch "^[0-9a-f]{40}$") {
+            throw "pull-request head SHA must be exactly 40 lowercase hexadecimal characters."
+          }
+          "CANDIDATE_SHA=$candidate" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Check out exact worker head
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          persist-credentials: false
+
+      - name: Prove immutable checked-out identity
+        shell: pwsh
+        run: |
+          $checkedOut = (git rev-parse HEAD).Trim().ToLowerInvariant()
+          if ($LASTEXITCODE -ne 0 -or $checkedOut -ne $env:CANDIDATE_SHA) {
+            throw "Checked out $checkedOut instead of exact candidate $env:CANDIDATE_SHA."
+          }
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+          check-latest: false
+
+      - name: Install locked focused-test environment
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check "uv==0.11.21"
+          uv lock --check
+          if ($LASTEXITCODE -ne 0) { throw "uv.lock is not current." }
+          uv sync --locked --extra dev --extra desktop
+          if ($LASTEXITCODE -ne 0) { throw "Locked environment sync failed." }
+
+      - name: Run exact navigation and inspector contract
+        shell: pwsh
+        run: |
+          $env:PYTHONPATH = (Get-Location).Path
+          uv run --locked --extra dev --extra desktop --no-sync pytest -q tests/unit/test_pathena_navigation_context_accessibility.py
+          if ($LASTEXITCODE -ne 0) { throw "Exact UI navigation/accessibility candidate contract failed." }
