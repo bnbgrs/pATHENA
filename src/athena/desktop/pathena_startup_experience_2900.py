@@ -169,7 +169,8 @@ class PathenaStartupExperience(QObject):
         QTimer.singleShot(0, self.sync)
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
-        if watched is self.chat_messages and event.type() in {
+        chat_messages = getattr(self, "chat_messages", None)
+        if chat_messages is not None and watched is chat_messages and event.type() in {
             QEvent.Type.ChildAdded,
             QEvent.Type.Resize,
         }:
