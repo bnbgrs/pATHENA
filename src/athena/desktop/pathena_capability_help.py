@@ -24,16 +24,18 @@ class CapabilityHelpController(QObject):
         self.palette = palette
         self.window = palette.window
         self._original_render: Callable[[], str] = palette._render_help_text
-        self._previous_page_index = self.window.pages.currentIndex()
         palette.__dict__["_render_help_text"] = self.render
         self._host_help_in_shell()
         self._publish_state(self.snapshot())
 
     def _host_help_in_shell(self) -> None:
-        """Embed the existing truthful help surface in the real workspace stack."""
+        """Host HELP as a transient shell surface without adding a primary page."""
         help_surface = self.palette.help_dialog
         help_surface.hide()
-        help_surface.setParent(self.window.pages)
+        shell = self.window.centralWidget()
+        if shell is None:
+            return
+        help_surface.setParent(shell)
         help_surface.setWindowFlags(Qt.WindowType.Widget)
         help_surface.setObjectName("helpWorkspace")
         help_surface.setAccessibleName("pATHENA help workspace")
@@ -41,31 +43,32 @@ class CapabilityHelpController(QObject):
             "Read-only capability guide hosted in the current pATHENA workspace shell."
         )
         help_surface.setProperty("pathenaShellHosted", True)
-        self.window.pages.addWidget(help_surface)
         help_surface.installEventFilter(self)
+        shell.installEventFilter(self)
+
+    def _fit_help_surface_to_shell(self) -> None:
+        help_surface = self.palette.help_dialog
+        shell = self.window.centralWidget()
+        if shell is None or help_surface.parent() is not shell:
+            return
+        help_surface.setGeometry(shell.rect())
+        help_surface.raise_()
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         if watched is self.palette.help_dialog:
             if event.type() == QEvent.Type.Show:
-                current = self.window.pages.currentIndex()
-                help_index = self.window.pages.indexOf(self.palette.help_dialog)
-                if current != help_index:
-                    self._previous_page_index = current
-                    self.window.pages.setCurrentWidget(self.palette.help_dialog)
+                self._fit_help_surface_to_shell()
                 self.window.page_title.setText("Help")
                 self.window.page_title.setAccessibleDescription("Current workspace: Help.")
                 self.window.setProperty("pathenaHelpWorkspaceVisible", True)
             elif event.type() == QEvent.Type.Hide:
-                help_index = self.window.pages.indexOf(self.palette.help_dialog)
-                if self.window.pages.currentIndex() == help_index:
-                    restore_index = self._previous_page_index
-                    if not 0 <= restore_index < help_index:
-                        restore_index = self.window.navigation.currentRow()
-                    self.window.pages.setCurrentIndex(restore_index)
-                    sync_navigation = getattr(self.window, "_sync_reference_navigation", None)
-                    if callable(sync_navigation):
-                        sync_navigation(self.window.navigation.currentRow())
+                sync_navigation = getattr(self.window, "_sync_reference_navigation", None)
+                if callable(sync_navigation):
+                    sync_navigation(self.window.navigation.currentRow())
                 self.window.setProperty("pathenaHelpWorkspaceVisible", False)
+        elif watched is self.window.centralWidget() and event.type() == QEvent.Type.Resize:
+            if self.palette.help_dialog.isVisible():
+                self._fit_help_surface_to_shell()
         return super().eventFilter(watched, event)
 
     def snapshot(self) -> CapabilityCatalogSnapshot:
