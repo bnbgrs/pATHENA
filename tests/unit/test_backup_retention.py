@@ -23,7 +23,7 @@ from athena.config.settings import AthenaSettings
 from athena.core.application import AthenaApplication
 from athena.storage.database import SQLiteDatabase
 from athena.storage.schema import (
-    GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID,
+    JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
     SCHEMA_VERSION,
     SOURCE_PROTECTION_TRANSITION_MIGRATION_ID,
     SOURCE_PROTECTION_TRANSITION_SCHEMA_VERSION,
@@ -67,9 +67,15 @@ def test_v34_to_v35_adds_backup_retention_schema(
 
     # This fixture starts from the current schema and
     # reconstructs an older boundary. Remove additive
-    # v39 child state before removing older parents or
+    # child state before removing older parents or
     # rewriting schema metadata. Production migration
     # behavior intentionally remains fail-closed.
+    legacy.execute(
+        "DROP TABLE IF EXISTS job_dependencies"
+    )
+    legacy.execute(
+        "DROP TABLE IF EXISTS job_parent_links"
+    )
     legacy.execute(
         "DROP TABLE IF EXISTS "
         "grounded_response_receipts"
@@ -174,7 +180,7 @@ def test_v34_to_v35_adds_backup_retention_schema(
             SCHEMA_VERSION
         )
         assert str(metadata[1]) == (
-            GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID
+            JOB_DEPENDENCY_GRAPH_MIGRATION_ID
         )
         assert int(metadata[2]) == (
             SCHEMA_VERSION
