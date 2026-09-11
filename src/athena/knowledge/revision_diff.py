@@ -5,12 +5,11 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 from enum import Enum
-from typing import TypeAlias
 
 from athena.knowledge.models import ClaimRevision
 
 
-DiffValue: TypeAlias = str | int | None
+DiffValue = str | int | None
 
 
 @dataclass(frozen=True, slots=True)
