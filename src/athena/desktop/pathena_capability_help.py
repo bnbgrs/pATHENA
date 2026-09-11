@@ -6,6 +6,7 @@ from collections import defaultdict
 from collections.abc import Callable
 
 from PySide6.QtCore import QEvent, QObject, Qt
+from PySide6.QtWidgets import QFrame
 
 from athena.desktop.command_palette import CommandPaletteController
 from athena.desktop.pathena_capability_catalog import (
@@ -28,36 +29,40 @@ class CapabilityHelpController(QObject):
         self._host_help_in_shell()
         self._publish_state(self.snapshot())
 
+    def _workspace_host(self) -> QFrame | None:
+        """Return the real central workspace frame used by the reference shell."""
+        return self.window.findChild(QFrame, "conversation")
+
     def _host_help_in_shell(self) -> None:
-        """Host HELP as a transient shell surface without adding a primary page."""
+        """Host HELP in the workspace body without adding a primary page."""
         help_surface = self.palette.help_dialog
         help_surface.hide()
-        shell = self.window.centralWidget()
-        if shell is None:
+        workspace = self._workspace_host()
+        if workspace is None:
             return
-        help_surface.setParent(shell)
+        help_surface.setParent(workspace)
         help_surface.setWindowFlags(Qt.WindowType.Widget)
         help_surface.setObjectName("helpWorkspace")
         help_surface.setAccessibleName("pATHENA help workspace")
         help_surface.setAccessibleDescription(
-            "Read-only capability guide hosted in the current pATHENA workspace shell."
+            "Read-only capability guide hosted in the current pATHENA workspace body."
         )
         help_surface.setProperty("pathenaShellHosted", True)
         help_surface.installEventFilter(self)
-        shell.installEventFilter(self)
+        workspace.installEventFilter(self)
 
-    def _fit_help_surface_to_shell(self) -> None:
+    def _fit_help_surface_to_workspace(self) -> None:
         help_surface = self.palette.help_dialog
-        shell = self.window.centralWidget()
-        if shell is None or help_surface.parent() is not shell:
+        workspace = self._workspace_host()
+        if workspace is None or help_surface.parent() is not workspace:
             return
-        help_surface.setGeometry(shell.rect())
+        help_surface.setGeometry(workspace.rect())
         help_surface.raise_()
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         if watched is self.palette.help_dialog:
             if event.type() == QEvent.Type.Show:
-                self._fit_help_surface_to_shell()
+                self._fit_help_surface_to_workspace()
                 self.window.page_title.setText("Help")
                 self.window.page_title.setAccessibleDescription("Current workspace: Help.")
                 self.window.setProperty("pathenaHelpWorkspaceVisible", True)
@@ -66,9 +71,9 @@ class CapabilityHelpController(QObject):
                 if callable(sync_navigation):
                     sync_navigation(self.window.navigation.currentRow())
                 self.window.setProperty("pathenaHelpWorkspaceVisible", False)
-        elif watched is self.window.centralWidget() and event.type() == QEvent.Type.Resize:
+        elif watched is self._workspace_host() and event.type() == QEvent.Type.Resize:
             if self.palette.help_dialog.isVisible():
-                self._fit_help_surface_to_shell()
+                self._fit_help_surface_to_workspace()
         return super().eventFilter(watched, event)
 
     def snapshot(self) -> CapabilityCatalogSnapshot:

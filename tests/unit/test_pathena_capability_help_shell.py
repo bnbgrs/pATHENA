@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QFrame
 
 from athena.desktop.app import create_application
 from athena.desktop.command_palette import CommandPaletteController
@@ -30,11 +30,22 @@ def test_help_is_shell_hosted_without_extending_primary_page_stack() -> None:
         app.processEvents()
 
         shell = window.centralWidget()
+        workspace = window.findChild(QFrame, "conversation")
+        top_bar = window.findChild(QFrame, "topBar")
+        icon_rail = window.findChild(QFrame, "iconRail")
+        inspector = window.findChild(QFrame, "inspector")
         assert shell is not None
-        assert palette.help_dialog.parent() is shell
+        assert workspace is not None
+        assert top_bar is not None
+        assert icon_rail is not None
+        assert inspector is not None
+        assert palette.help_dialog.parent() is workspace
         assert palette.help_dialog.property("pathenaShellHosted") is True
         assert palette.help_dialog.isVisible()
-        assert palette.help_dialog.geometry() == shell.rect()
+        assert palette.help_dialog.geometry() == workspace.rect()
+        assert top_bar.isVisible()
+        assert icon_rail.isVisible()
+        assert inspector.isVisible()
         assert window.pages.count() == primary_page_count
         assert window.pages.currentIndex() == 2
         assert window.navigation.currentRow() == 2
@@ -74,7 +85,10 @@ def test_f1_shortcut_uses_transient_shell_help_without_changing_route() -> None:
         palette.help_shortcut.activated.emit()
         app.processEvents()
 
+        workspace = window.findChild(QFrame, "conversation")
+        assert workspace is not None
         assert palette.help_dialog.isVisible()
+        assert palette.help_dialog.parent() is workspace
         assert palette.help_dialog.objectName() == "helpWorkspace"
         assert palette.help_dialog.accessibleName() == "pATHENA help workspace"
         assert window.page_title.accessibleDescription() == "Current workspace: Help."
