@@ -1,0 +1,255 @@
+name: pATHENA Windows Test EXE R3
+
+on:
+  push:
+    branches:
+      - independent/windows-exe-test-r3-20260905
+    paths:
+      - ".github/workflows/windows-test-exe-r3.yml"
+      - "scripts/pathena_frozen_entry.py"
+  pull_request:
+    paths:
+      - ".github/workflows/windows-test-exe-r3.yml"
+      - "scripts/pathena_frozen_entry.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pathena-windows-test-exe-r3-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SOURCE_SHA: d14aca9504021bdacadb89dc478ca41545ab4316
+  EXE_NAME: pATHENA-Test-d14aca95-r3.exe
+
+jobs:
+  build:
+    name: Build and process-tree-test Windows executable
+    runs-on: windows-2022
+    timeout-minutes: 35
+
+    steps:
+      - name: Check out exact packaging branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          persist-credentials: false
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+          check-latest: false
+
+      - name: Validate locked pATHENA environment
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check "uv==0.11.21"
+          uv lock --check
+          if ($LASTEXITCODE -ne 0) { throw "uv.lock is not current." }
+          uv sync --locked --extra desktop
+          if ($LASTEXITCODE -ne 0) { throw "Locked desktop environment sync failed." }
+
+      - name: Build fail-closed single-file executable
+        shell: pwsh
+        run: |
+          uv run --locked --extra desktop --with "pyinstaller==6.22.2" python -m PyInstaller `
+            --noconfirm `
+            --clean `
+            --onefile `
+            --windowed `
+            --noupx `
+            --name "pATHENA-Test-d14aca95-r3" `
+            --paths src `
+            --collect-submodules athena `
+            --collect-all usearch `
+            --copy-metadata pypdf `
+            --hidden-import athena.api.process `
+            --hidden-import athena.__main__ `
+            scripts/pathena_frozen_entry.py
+          if ($LASTEXITCODE -ne 0) { throw "PyInstaller build failed." }
+          if (-not (Test-Path "dist\$env:EXE_NAME")) { throw "Expected EXE was not produced." }
+
+      - name: Smoke-test explicit frozen roles in clean environment
+        shell: pwsh
+        run: |
+          $exe = (Resolve-Path "dist\$env:EXE_NAME").Path
+          $clean = Join-Path $env:RUNNER_TEMP "pathena-r3-clean"
+          $trace = Join-Path $env:RUNNER_TEMP "pathena-r3-role-smoke"
+          New-Item -ItemType Directory -Force -Path $clean, $trace | Out-Null
+
+          Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue
+          Remove-Item Env:PYTHONHOME -ErrorAction SilentlyContinue
+          Remove-Item Env:VIRTUAL_ENV -ErrorAction SilentlyContinue
+          $env:ATHENA_FROZEN_TRACE_DIR = $trace
+          $env:QT_QPA_PLATFORM = "offscreen"
+          $env:QT_QUICK_BACKEND = "software"
+          $env:QT_OPENGL = "software"
+
+          foreach ($arguments in @(
+            @("--pathena-build-info"),
+            @("--pathena-metadata-smoke"),
+            @("-m", "athena", "--help"),
+            @("-m", "athena.api.process", "--help")
+          )) {
+            $process = Start-Process -FilePath $exe -WorkingDirectory $clean -ArgumentList $arguments -Wait -PassThru -NoNewWindow
+            if ($process.ExitCode -ne 0) {
+              throw "Frozen role smoke failed with exit code $($process.ExitCode): $($arguments -join ' ')"
+            }
+          }
+
+          $unknown = Start-Process -FilePath $exe -WorkingDirectory $clean -ArgumentList @("--definitely-not-a-pathena-role") -Wait -PassThru -NoNewWindow
+          if ($unknown.ExitCode -ne 64) {
+            throw "Unknown frozen argv must fail closed with exit 64, got $($unknown.ExitCode)."
+          }
+          Start-Sleep -Seconds 1
+          $unexpectedDesktop = Get-CimInstance Win32_Process | Where-Object { $_.Name -ieq $env:EXE_NAME }
+          if (@($unexpectedDesktop).Count -ne 0) {
+            throw "Unknown frozen argv left pATHENA processes running."
+          }
+
+      - name: Exercise complete desktop Core scheduler process tree
+        shell: pwsh
+        run: |
+          $exe = (Resolve-Path "dist\$env:EXE_NAME").Path
+          $clean = Join-Path $env:RUNNER_TEMP "pathena-r3-full-clean"
+          $runtime = Join-Path $env:RUNNER_TEMP "pathena-r3-full-runtime"
+          $trace = Join-Path $env:RUNNER_TEMP "pathena-r3-full-trace"
+          New-Item -ItemType Directory -Force -Path $clean, $runtime, $trace | Out-Null
+
+          Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue
+          Remove-Item Env:PYTHONHOME -ErrorAction SilentlyContinue
+          Remove-Item Env:VIRTUAL_ENV -ErrorAction SilentlyContinue
+          $env:ATHENA_LOCAL_ROOT = $runtime
+          $env:ATHENA_FROZEN_TRACE_DIR = $trace
+          $env:QT_QPA_PLATFORM = "offscreen"
+          $env:QT_QUICK_BACKEND = "software"
+          $env:QT_OPENGL = "software"
+
+          $desktop = $null
+          try {
+            $desktop = Start-Process -FilePath $exe -WorkingDirectory $clean -PassThru -NoNewWindow
+
+            $deadline = (Get-Date).AddSeconds(30)
+            do {
+              Start-Sleep -Milliseconds 500
+              $desktop.Refresh()
+              if ($desktop.HasExited) {
+                throw "Real frozen desktop exited during process-tree startup with code $($desktop.ExitCode)."
+              }
+              $records = @(
+                Get-ChildItem -Path $trace -Filter "*.json" -ErrorAction SilentlyContinue |
+                  ForEach-Object { Get-Content $_.FullName -Raw | ConvertFrom-Json }
+              )
+              $roles = @($records | ForEach-Object { $_.role })
+              $ready = (
+                @($roles | Where-Object { $_ -eq "desktop" }).Count -eq 1 -and
+                @($roles | Where-Object { $_ -eq "core" }).Count -eq 1 -and
+                @($roles | Where-Object { $_ -eq "scheduler-supervisor" }).Count -eq 1 -and
+                @($roles | Where-Object { $_ -eq "scheduler-control" }).Count -eq 1 -and
+                @($roles | Where-Object { $_ -eq "scheduler-provider" }).Count -eq 1
+              )
+            } while (-not $ready -and (Get-Date) -lt $deadline)
+
+            if (-not $ready) {
+              $records | ConvertTo-Json -Depth 5 | Out-File -Encoding utf8 (Join-Path $env:RUNNER_TEMP "pathena-r3-process-tree.json")
+              throw "Frozen desktop did not establish the expected five logical roles within 30 seconds. Roles: $($roles -join ', ')"
+            }
+
+            foreach ($role in @("desktop", "core", "scheduler-supervisor", "scheduler-control", "scheduler-provider")) {
+              $count = @($roles | Where-Object { $_ -eq $role }).Count
+              if ($count -ne 1) { throw "Expected exactly one $role invocation, found $count." }
+            }
+            if (@($roles | Where-Object { $_ -eq "rejected-unknown" }).Count -ne 0) {
+              throw "Real process tree attempted an unknown frozen role."
+            }
+
+            $sample1 = @(Get-CimInstance Win32_Process | Where-Object { $_.Name -ieq $env:EXE_NAME })
+            Start-Sleep -Seconds 6
+            $sample2 = @(Get-CimInstance Win32_Process | Where-Object { $_.Name -ieq $env:EXE_NAME })
+            if ($sample2.Count -gt $sample1.Count) {
+              throw "Frozen process count grew from $($sample1.Count) to $($sample2.Count); refusing recursive build."
+            }
+            if ($sample2.Count -gt 14) {
+              throw "Frozen process count $($sample2.Count) exceeds the bounded one-file process-tree ceiling."
+            }
+
+            # Prove the packaging-level desktop singleton while the real desktop owns it.
+            $second = Start-Process -FilePath $exe -WorkingDirectory $clean -Wait -PassThru -NoNewWindow
+            if ($second.ExitCode -ne 0) {
+              throw "Second desktop invocation did not exit cleanly after singleton rejection."
+            }
+            Start-Sleep -Seconds 1
+            $duplicateRecords = @(
+              Get-ChildItem -Path $trace -Filter "*-desktop-duplicate-blocked.json" -ErrorAction SilentlyContinue
+            )
+            if ($duplicateRecords.Count -ne 1) {
+              throw "Desktop singleton did not record exactly one blocked duplicate."
+            }
+
+            $finalRecords = @(
+              Get-ChildItem -Path $trace -Filter "*.json" -ErrorAction SilentlyContinue |
+                ForEach-Object { Get-Content $_.FullName -Raw | ConvertFrom-Json }
+            )
+            $finalRecords | ConvertTo-Json -Depth 5 | Out-File -Encoding utf8 (Join-Path $env:RUNNER_TEMP "pathena-r3-process-tree.json")
+            Get-CimInstance Win32_Process |
+              Where-Object { $_.Name -ieq $env:EXE_NAME } |
+              Select-Object ProcessId, ParentProcessId, Name, CommandLine |
+              Format-List |
+              Out-File -Encoding utf8 (Join-Path $env:RUNNER_TEMP "pathena-r3-processes.txt")
+          }
+          finally {
+            if ($null -ne $desktop) {
+              taskkill /PID $desktop.Id /T /F 2>$null | Out-Null
+            }
+          }
+
+      - name: Write build provenance and SHA-256
+        shell: pwsh
+        run: |
+          $exe = "dist\$env:EXE_NAME"
+          $hash = (Get-FileHash -Algorithm SHA256 $exe).Hash.ToLowerInvariant()
+          "SHA256  $hash  $env:EXE_NAME" | Out-File -Encoding ascii "dist\SHA256.txt"
+          @"
+          pATHENA Windows R3 test executable
+          Source develop SHA: $env:SOURCE_SHA
+          Packaging branch SHA: $env:GITHUB_SHA
+          Python: 3.12
+          PyInstaller: 6.22.2
+
+          Safety changes after real-machine R2 process storm:
+          - unknown frozen argv fails closed and cannot open a desktop;
+          - one desktop is enforced by a Windows named mutex;
+          - pypdf distribution metadata is embedded;
+          - full Desktop + Core + Scheduler supervisor + control/provider lanes are exercised;
+          - process count is sampled twice and must remain bounded/non-growing.
+
+          This is an unsigned development/test build. Windows SmartScreen may warn on first launch.
+          Runtime data defaults to %LOCALAPPDATA%\ATHENA unless ATHENA_LOCAL_ROOT is explicitly set.
+          "@ | Out-File -Encoding utf8 "dist\README-TEST-BUILD.txt"
+
+      - name: Upload process-tree diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: pathena-r3-process-tree-diagnostics-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/pathena-r3-full-trace/**
+            ${{ runner.temp }}/pathena-r3-full-runtime/logs/**
+            ${{ runner.temp }}/pathena-r3-process-tree.json
+            ${{ runner.temp }}/pathena-r3-processes.txt
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Upload safe Windows test build
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: pathena-windows-test-d14aca95-r3
+          path: |
+            dist/pATHENA-Test-d14aca95-r3.exe
+            dist/SHA256.txt
+            dist/README-TEST-BUILD.txt
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
