@@ -1,0 +1,108 @@
+name: pATHENA Core Focused Candidate
+
+on:
+  pull_request:
+    branches:
+      - develop/pathena-next
+    paths:
+      - "src/athena/knowledge/**"
+      - "tests/unit/**"
+      - ".github/workflows/core-focused-candidate.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pathena-core-focused-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: false
+
+jobs:
+  focused-core-contract:
+    name: Exact Core candidate lint and focused tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONUTF8: "1"
+
+    steps:
+      - name: Resolve exact worker head and base
+        shell: pwsh
+        run: |
+          $candidate = "${{ github.event.pull_request.head.sha }}".Trim().ToLowerInvariant()
+          $base = "${{ github.event.pull_request.base.sha }}".Trim().ToLowerInvariant()
+          if ($candidate -notmatch "^[0-9a-f]{40}$") {
+            throw "pull-request head SHA must be exactly 40 lowercase hexadecimal characters."
+          }
+          if ($base -notmatch "^[0-9a-f]{40}$") {
+            throw "pull-request base SHA must be exactly 40 lowercase hexadecimal characters."
+          }
+          "CANDIDATE_SHA=$candidate" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "BASE_SHA=$base" | Out-File -FilePath $env:GITHUB_ENV -Append
+
+      - name: Check out exact worker head
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Prove immutable checked-out identity
+        shell: pwsh
+        run: |
+          $checkedOut = (git rev-parse HEAD).Trim().ToLowerInvariant()
+          if ($LASTEXITCODE -ne 0 -or $checkedOut -ne $env:CANDIDATE_SHA) {
+            throw "Checked out $checkedOut instead of exact candidate $env:CANDIDATE_SHA."
+          }
+          git cat-file -e "$env:BASE_SHA^{commit}"
+          if ($LASTEXITCODE -ne 0) {
+            throw "PR base commit $env:BASE_SHA is unavailable for exact diff selection."
+          }
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
+        with:
+          python-version: "3.12"
+          check-latest: false
+
+      - name: Install locked focused-test environment
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check "uv==0.11.21"
+          uv lock --check
+          if ($LASTEXITCODE -ne 0) { throw "uv.lock is not current." }
+          uv sync --locked --extra dev
+          if ($LASTEXITCODE -ne 0) { throw "Locked environment sync failed." }
+
+      - name: Ruff changed Core Python files
+        shell: pwsh
+        run: |
+          $changed = @(
+            git diff --name-only $env:BASE_SHA $env:CANDIDATE_SHA -- "*.py" |
+              Where-Object { $_ -match '^(src/athena/knowledge/|tests/unit/).*\.py$' }
+          )
+          if ($LASTEXITCODE -ne 0) { throw "Unable to resolve changed Core Python files." }
+          if ($changed.Count -eq 0) {
+            Write-Host "No changed Core Python files selected for Ruff."
+            exit 0
+          }
+          Write-Host "Ruff exact candidate files:"
+          $changed | ForEach-Object { Write-Host "  $_" }
+          uv run --locked --extra dev --no-sync ruff check @changed
+          if ($LASTEXITCODE -ne 0) { throw "Exact changed-file Ruff contract failed." }
+
+      - name: Run changed focused unit tests
+        shell: pwsh
+        run: |
+          $tests = @(
+            git diff --name-only $env:BASE_SHA $env:CANDIDATE_SHA -- "tests/unit/*.py" |
+              Where-Object { $_ -match '^tests/unit/test_.*\.py$' }
+          )
+          if ($LASTEXITCODE -ne 0) { throw "Unable to resolve changed focused unit tests." }
+          if ($tests.Count -eq 0) {
+            Write-Host "No changed unit-test files selected; lint evidence only."
+            exit 0
+          }
+          Write-Host "Pytest exact candidate files:"
+          $tests | ForEach-Object { Write-Host "  $_" }
+          uv run --locked --extra dev --no-sync pytest -q @tests
+          if ($LASTEXITCODE -ne 0) { throw "Exact changed-test Core candidate contract failed." }

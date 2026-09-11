@@ -106,16 +106,59 @@ jobs:
           uv run --locked --extra dev --extra desktop --no-sync pytest -q tests/qa/test_visual_snapshot_compare.py
           if ($LASTEXITCODE -ne 0) { throw "Visual comparator contract tests failed." }
 
+      - name: Run shared visual hierarchy token contract
+        shell: pwsh
+        run: |
+          $env:PYTHONPATH = (Get-Location).Path
+          uv run --locked --extra dev --extra desktop --no-sync pytest -q tests/unit/test_pathena_design_tokens.py
+          if ($LASTEXITCODE -ne 0) { throw "Shared visual hierarchy token contract failed." }
+
+      - name: Run primary navigation accessibility contract
+        shell: pwsh
+        run: |
+          $env:PYTHONPATH = (Get-Location).Path
+          uv run --locked --extra dev --extra desktop --no-sync pytest -q tests/unit/test_pathena_navigation_context_accessibility.py
+          if ($LASTEXITCODE -ne 0) { throw "Primary navigation accessibility contract failed." }
+
       - name: Capture exactly eleven canonical surfaces with native fonts
         shell: pwsh
         run: |
           $runtimeRoot = Join-Path $env:RUNNER_TEMP "pathena-visual-runtime"
           $actualRoot = Join-Path (Get-Location) "artifacts\visual-actual"
+          $manifestPath = Join-Path $actualRoot "manifest.json"
           uv run --locked --extra desktop --no-sync python scripts/render_pathena_ui_snapshot_fontsafe.py `
             --runtime-root $runtimeRoot `
             --screenshot-directory $actualRoot `
             --initial-delay-seconds 7
-          if ($LASTEXITCODE -ne 0) { throw "Eleven-surface capture failed." }
+          $captureExit = $LASTEXITCODE
+          if ($captureExit -ne 0) {
+            if (Test-Path $manifestPath) {
+              Write-Host "===== visual capture manifest ====="
+              Get-Content $manifestPath -Raw
+              Write-Host "===== end visual capture manifest ====="
+            } else {
+              Write-Host "Visual capture failed before manifest.json was written."
+            }
+            throw "Eleven-surface capture failed with exit code $captureExit."
+          }
+
+      - name: Verify captured workspace route identity
+        shell: pwsh
+        run: |
+          $manifestPath = Join-Path (Get-Location) "artifacts\visual-actual\manifest.json"
+          if (-not (Test-Path $manifestPath)) { throw "Visual manifest is missing." }
+          $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
+          if ($manifest.status -ne "PASS") { throw "Visual manifest did not report PASS." }
+          $expected = @("Chat", "Knowledge", "Research", "Jobs", "Files", "System", "Settings")
+          $workspace = @($manifest.captures | Where-Object { $_.kind -eq "workspace" })
+          if ($workspace.Count -ne 7) { throw "Expected exactly seven workspace captures, found $($workspace.Count)." }
+          for ($row = 0; $row -lt 7; $row++) {
+            $capture = $workspace | Where-Object { [int]$_.row -eq $row }
+            if (@($capture).Count -ne 1) { throw "Expected exactly one workspace capture for row $row." }
+            if ([int]$capture.page_index -ne $row) { throw "Workspace row $row captured page index $($capture.page_index)." }
+            if ([int]$capture.ordinal -ne ($row + 1)) { throw "Workspace row $row has ordinal $($capture.ordinal)." }
+            if ($capture.label -ne $expected[$row]) { throw "Workspace row $row label '$($capture.label)' != '$($expected[$row])'." }
+          }
 
       - name: Compare committed baseline or emit proposal
         id: visual
