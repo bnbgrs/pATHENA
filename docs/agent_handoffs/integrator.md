@@ -1,31 +1,27 @@
 # Post-Merge Feature Handoff - Integrator
 
-Generated: 2026-09-11T02:50Z
+Generated: 2026-09-11T05:53Z
 Branch: `develop/pathena-next`
-Run-start HEAD: `f729959c7b2b0f14b495f06779c790d6cd0d281d`
+Run-start HEAD: `95b636c982a800d75f7d219162a04f6c87976e9f`
 
 ## Current evidence
 
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
-- Current worker heads: Errors `d9a74db65557bb1db89641c3cbc910d6d1bf6ec1`; Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`; Backend `fa995bf462aa8135d24f4e9e7059bc24f6992622`; UI `8ba83c27fcfc19c94339908a42352617421556f8`.
-- Exact Develop canonical Quality `34552555541@f729959c7b2b0f14b495f06779c790d6cd0d281d = SUCCESS`.
+- Worker heads consumed: Errors `cb2ccb65217ff30bd9863ac77252f01e1318b5e9`; Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`; Backend `fa995bf462aa8135d24f4e9e7059bc24f6992622`; UI `c51ef04787ef6affa2e6acc3a902e138cf6b7409`.
+- Exact Develop canonical Quality `34560421777@95b636c982a800d75f7d219162a04f6c87976e9f = SUCCESS`.
+- Errors closes the startup event-filter lifecycle failure on that exact green Develop SHA. Remaining current P1 error gaps are Backend-owned BE-046/ERR-0033 and BE-052/ERR-0035.
+- Backend has no tested bounded candidate for BE-046 or BE-052; broad Backend history remains HOLD.
+- UI reports current exact pixels unavailable to its runtime and makes no visual MATCH or promotion claim.
 - `ERROR_LEDGER.md` and `ALPHA_BETA_PROGRESS.md` are not treated as authoritative unless present on current Develop; no synthetic completion percentage is recorded.
 - Visual source of truth remains the current 11-screen manifest plus Visual Gap Ledger; no screenshot-level `MATCH` is claimed.
 
-## Worker qualification
+## Cross-cutting guard slice
 
-- Errors current head is documentation-only and hands off current ERR-0033 evidence; no Error-owned product candidate is promoted.
-- Spec/Core has no newer product head.
-- Backend current head is documentation-only; Backend/Storage/Runtime prerequisites remain conservative HOLD without bounded exact-head candidate evidence.
-- UI exact native-Windows evidence confirms the serialized capture harness now records truthful row/page identity for all seven workspace routes, but the current UI head is a documentation handoff and no new product slice is integrator-ready.
+No Worker product slice is READY. This run therefore strengthens the exact regression contract for the lifecycle root cause just closed on Develop.
 
-## Cross-cutting tooling slice
+`tests/unit/test_pathena_startup_experience_2900.py` now directly removes `PathenaStartupExperience.chat_messages` after initialization and invokes the event filter with a resize event. The contract requires a normal false return rather than an `AttributeError`, explicitly guarding the partial-init/teardown state that caused the previous canonical failure.
 
-No bounded Worker product slice is READY. This run therefore adds one collision-free visual-harness guard.
-
-`.github/workflows/ui-snapshot.yml` now parses `artifacts/visual-actual/manifest.json` immediately after native Windows capture and fails closed unless exactly seven workspace captures exist with one-to-one row, page-index, ordinal and canonical label identity for Chat, Knowledge, Research, Jobs, Files, System and Settings.
-
-This turns the recently discovered mislabeled-route failure mode into an explicit CI invariant rather than relying on manual artifact inspection. It does not alter product rendering, baseline thresholds, comparator policy, visual verdict policy, Security, Storage, Recovery, Runtime or provider behavior. No Skip/XFail or assertion weakening is introduced.
+This is test-only hardening. It does not change product behavior, Qt routing, Storage, Recovery, Security, packaging, visual baselines or comparator thresholds. No Skip/XFail or assertion weakening is introduced.
 
 ## Persistent release guards
 
@@ -37,7 +33,7 @@ This turns the recently discovered mislabeled-route failure mode into an explici
 
 ## Next integration
 
-1. Consume the exact-current Develop canonical Quality before any further Develop mutation.
-2. Require exact candidate focused tests and native-Windows evidence for any UI product promotion.
-3. Do not promote visual `MATCH` without state-equivalent reference/current evidence.
-4. Keep Backend/Storage/Runtime prerequisites conservative until bounded exact-head evidence exists.
+1. Consume the exact-current canonical Quality for this guard commit before any further Develop mutation.
+2. Keep Backend BE-046/BE-052 HOLD until bounded focused adversarial evidence exists.
+3. Require fresh exact current pixels before promoting another UI visual slice.
+4. Never promote visual `MATCH` without state-equivalent reference/current evidence.
