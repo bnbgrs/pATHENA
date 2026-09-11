@@ -95,9 +95,6 @@ class NavigationContextAccessibility(QObject):
 
         self._install_contextual_inspector_overlay()
         navigation.currentRowChanged.connect(self.sync)
-        status_text = getattr(window, "status_text", None)
-        if isinstance(status_text, QLabel):
-            status_text.textChanged.connect(self._refresh_contextual_inspector)
         self.sync(navigation.currentRow())
 
     def _install_contextual_inspector_overlay(self) -> None:
@@ -153,9 +150,6 @@ class NavigationContextAccessibility(QObject):
             return
         self.inspector_context.setGeometry(self.inspector.rect())
         self.inspector_context.raise_()
-
-    def _refresh_contextual_inspector(self) -> None:
-        self._sync_contextual_inspector(self.navigation.currentRow())
 
     def _sync_contextual_inspector(self, index: int) -> None:
         panel = self.inspector_context

@@ -137,10 +137,6 @@ def test_jobs_and_settings_use_truthful_contextual_inspector_overlays() -> None:
         assert "No synthetic health state" in body.text()
         assert window.status_text.text() in body.text()
 
-        window.status_text.setText("Core unavailable")
-        app.processEvents()
-        assert "Core status: Core unavailable" in body.text()
-
         window.navigation.setCurrentRow(0)
         app.processEvents()
         assert panel.isHidden()
