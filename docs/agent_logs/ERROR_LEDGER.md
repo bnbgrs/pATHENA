@@ -8,45 +8,50 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 
 ## Current baseline
 
-- Develop source of truth: `develop/pathena-next@85bd5f19c8aca56273ad43ac708fe13ac4798415`.
-- Error worker entered this run at `postmerge/errors@d16707612361e46849b326e1a207612f9e3ba2ad`.
-- Current workers: Spec/Core `0d7e6281a584a302350a6b3aea0ac63e6eac744a`; Backend `fa995bf462aa8135d24f4e9e7059bc24f6992622`; UI `4ea0004fded7a169f18abc6fecd59461f86ee9bd`.
-- Exact-current Develop canonical Quality: `34591361659@85bd5f19c8aca56273ad43ac708fe13ac4798415 = IN_PROGRESS`; no PASS/FAIL is inferred until completion.
-- Previous exact Develop canonical: `34586893958@ccfbeb620cf009b75c6c53e5821438bf869ab114 = SUCCESS`.
-- The Develop delta from `ccfbeb620cf009b75c6c53e5821438bf869ab114` to `85bd5f19c8aca56273ad43ac708fe13ac4798415` is CI/test workflow work; EmergencyReserve product/tests are unchanged.
-- `postmerge/errors@d16707612361e46849b326e1a207612f9e3ba2ad` had zero canonical Quality runs immediately before this mutation.
+- Develop source of truth: `develop/pathena-next@b26eea46c89a8b628c2006d24d1fdac7492baa91`.
+- Error worker entered this run at `postmerge/errors@eaf707a9429b6c67b7d436d64d362b30fac97126`.
+- Current workers: Spec/Core `2a9b76dd3581cb13052741907d0fad8357553536`; Backend `fa995bf462aa8135d24f4e9e7059bc24f6992622`; UI `5e86bf3ab5cd8faaadc44e7dbe1bc2fe9fc76f5a`.
+- Exact-current Develop canonical Quality: `34601243038@b26eea46c89a8b628c2006d24d1fdac7492baa91 = IN_PROGRESS`; no PASS/FAIL is inferred until completion.
+- Previous completed Develop canonical: `34596386099@dfa4a81b4c650339a16be5f60f87804e7cf6a68b = SUCCESS`.
+- Current Spec/Core exact canonical: `34598764602@2a9b76dd3581cb13052741907d0fad8357553536 = FAILURE`, isolated to Ruff `I001` in `src/athena/knowledge/revision_diff.py`; specification validator, mypy, pytest, Linux storage, Windows path/storage/runtime/release guards and local-install smoke passed.
+- `postmerge/errors@eaf707a9429b6c67b7d436d64d362b30fac97126` had zero workflow runs immediately before this mutation.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current state
 
-- OPEN: `ERR-0033`, `ERR-0035`.
+- OPEN: `ERR-0038`, `ERR-0033`, `ERR-0035`.
 - IN_PROGRESS: none.
 - FIXED_PENDING_VERIFY: none.
 - FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015` through `ERR-0024`, `ERR-0027`, `ERR-0030`, `ERR-0031`, `ERR-0032`, `ERR-0034`, `ERR-0036`, `ERR-0037`.
 - STALE: `ERR-0014`, `ERR-0025`, `ERR-0026`, `ERR-0028`, `ERR-0029`.
 - BLOCKED: none at top level.
 
+## ERR-0038 — Spec/Core canonical Ruff import-order failure blocks integration
+
+- Severity: P1 integration blocker.
+- Status: `OPEN`.
+- Specialist owner: Spec/Core. Errors does not parallel-mutate Core product code while that worker owns the candidate.
+- Exact reproduction: canonical Quality `34598764602` checked out exact candidate `2a9b76dd3581cb13052741907d0fad8357553536` and failed only `Quality — Ruff`.
+- Root cause is bounded and concrete: Ruff reports `I001 [*] Import block is un-sorted or un-formatted` at `src/athena/knowledge/revision_diff.py:3:1`. The shown import block places `import uuid` before `from dataclasses import dataclass` / `from enum import Enum` / `from typing import TypeAlias`; Ruff requires the standard-library imports to be organized.
+- The failure is not a product-behavior regression: specification validator passed; mypy passed; full pytest passed with `4855 passed, 3 skipped`; Linux storage, Windows path safety/release guards, and local-install smoke also passed. Therefore the cascade is deduplicated to one formatting/lint root cause, not multiple failures.
+- Integration impact is current and direct: the Integrator explicitly holds the current Spec/Core candidate until exact-head lint evidence is green. This supersedes historical priority ordering for this run because it is a current exact-SHA canonical failure.
+- Minimal repair belongs to Spec/Core: organize only the import block in `src/athena/knowledge/revision_diff.py` (for example the Ruff-prescribed ordering), then run focused Ruff on the changed file and the smallest relevant revision-diff test set before exact-head/canonical verification as required by the worker workflow.
+- Errors intentionally made no Core product mutation and did not rerun canonical Quality while the specialist owns the same root cause.
+- Closure requirement: exact Spec/Core candidate evidence showing Ruff green for the corrected file and no regression in focused revision-diff tests; canonical exact-SHA success is required before promotion/`FIXED` because the defect was discovered by canonical Quality.
+
 ## ERR-0033 — Emergency-reserve filesystem-object identity and capacity-attestation gap
 
 - Severity: P1.
 - Status: `OPEN`.
 - Specialist owner: Backend / BE-046. Errors does not parallel-mutate Backend product code while that worker owns the root cause.
-- Exact-current source verification: `develop/pathena-next@85bd5f19c8aca56273ad43ac708fe13ac4798415`; EmergencyReserve product/tests are source-equivalent to the previous canonical-green `ccfbeb620cf009b75c6c53e5821438bf869ab114`.
+- Current source remains materially unchanged by the latest Develop CI/Core-only work; no new exact-SHA closure evidence exists from Backend.
 - Existing focused coverage contains adversarial parent-directory replacement tests only for POSIX. Native-Windows parent-swap coverage is absent.
 - POSIX creation/release binds `reserve_root` to a directory descriptor for relative create/unlink and directory fsync. Windows/non-POSIX creation instead opens `self.path` by pathname, compares opened-file `fstat` with pathname `stat`, then returns to pathname-based parent resolution for cleanup/durability; normal release is pathname-based.
 - Parent-directory binding alone is insufficient. Non-POSIX failure cleanup validates `self.path.stat()` against `created_identity`, then separately calls `self.path.unlink()`, leaving a same-parent filename-substitution window. Normal non-POSIX release has the wider `exists/is_file/stat -> unlink` pathname window.
-- POSIX release closes the opened reserve-file descriptor before `os.unlink(..., dir_fd=root_fd)`, so the directory identity is bound but the filename can be replaced inside that directory before unlink.
-- POSIX failure cleanup has the same target-identity discontinuity: after creation, the descriptor is closed before unconditional `os.unlink(_RESERVE_FILENAME, dir_fd=root_fd)` when `created` is true.
-- Non-POSIX `inspect()` does not attest one stable file identity: it can obtain size and allocation metadata through separate pathname observations, and `_wait_for_concurrent_creation()` can transition from one pathname observation to later inspection of a replacement object. Acceptance therefore needs the same single-object identity continuity as destructive mutation.
-- Admission and release do not reject a multiply-linked regular reserve file. The source contains no `st_nlink`/single-link invariant, so a hard-linked `emergency.reserve` can satisfy regular-file, exact-size and allocation checks; release can then unlink only one name and report logical bytes as released while another hardlink keeps the same allocation live.
-- POSIX inspection/acceptance also loses target identity before the status escapes. `_inspect_posix_with_root_fd()` opens `emergency.reserve` relative to bound `root_fd`, derives status from `fstat(descriptor)`, closes that descriptor, then verifies only that `reserve_root` still names the same directory. A same-directory filename substitution can therefore make returned status describe object A while `status.path` resolves to object B; the `O_EXCL` loser path can directly accept that status.
-- **New exact-current refinement this run — physical-capacity attestation can become unknown yet still be accepted.** `_allocated_bytes_from_stat()` returns `None` whenever the platform stat result does not provide a non-negative integer `st_blocks`. `EmergencyReserveStatus.__post_init__()` enforces `allocated_bytes >= required_bytes` only when `allocated_bytes is not None`. Non-POSIX `inspect()` passes `_allocated_bytes(self.path)` directly into that status, so an exact-size regular existing reserve is accepted when physical allocation metadata is unavailable; there is no alternate fail-closed allocation proof in that branch. This violates the reserve's recovery purpose because logical length alone does not prove that the promised disk capacity is actually committed/recoverable.
-- Existing focused coverage codifies the gap rather than closing it: `test_store_creates_small_physically_allocated_test_reserve` checks `allocated_bytes >= required` only conditionally when allocation metadata is present, and `test_store_inspect_detects_underallocated_file_when_platform_reports_blocks` explicitly verifies rejection only when allocation is observable. There is no focused test requiring unknown allocation metadata to fail closed or proving an equivalent platform-native capacity attestation.
-- This new capacity-attestation seam is deduplicated into BE-046/ERR-0033 because it concerns whether the filesystem object accepted as `emergency.reserve` is demonstrably the exact, physically recoverable object/capacity pATHENA claims to own. It does not justify a competing Errors product patch while Backend owns BE-046.
-- Consequence for closure: the bounded Backend fix must bind one reserve-file identity across inspection/acceptance/destructive release, require exclusive/safe ownership (including hardlink semantics), and never accept a reserve as physically recoverable when allocation is unknown. Where `st_blocks` is unavailable, use an equivalently strong platform-native allocation/capacity proof or fail closed; do not treat logical size as proof of physical reservation.
-- Backend handoff still marks BE-046 `OPEN / P1 / CURRENT SOURCE TRACE CONFIRMED` and has no tested bounded product candidate. No competing Errors product mutation is justified.
-- Preserve physical non-sparse allocation, exact release accounting and fail-closed Storage/Recovery semantics.
-- Closure requires a bounded Backend candidate plus focused adversarial tests for: native-Windows parent substitution over create-success/failure-cleanup/release; same-parent reserve-name substitution between identity validation and unlink in non-POSIX cleanup/release; POSIX same-parent filename substitution on release and `_ensure_posix()` failure cleanup; non-POSIX inspection/concurrent-creation substitution proving accepted metadata comes from one stable object; POSIX inspection/acceptance substitution proving the returned status still refers to the object named by `emergency.reserve`; hardlink admission/release proving a multiply-linked reserve is never accepted as uniquely recoverable capacity or reported as released while blocks remain referenced; and **unknown-allocation admission proving an exact-size file cannot be accepted merely because the platform cannot report `st_blocks`**. Then obtain exact-SHA canonical evidence as appropriate.
+- POSIX release closes the opened reserve-file descriptor before `os.unlink(..., dir_fd=root_fd)`, so the directory identity is bound but the filename can be replaced inside that directory before unlink. POSIX failure cleanup has the same target-identity discontinuity.
+- Inspection/acceptance can also lose object identity on both POSIX and non-POSIX paths, including concurrent creation. Admission/release do not establish exclusive ownership against hardlinks.
+- Physical-capacity attestation is incomplete where allocation metadata is unavailable: `_allocated_bytes_from_stat()` can return `None`, while `EmergencyReserveStatus` only enforces minimum allocation when allocation is known. Logical length alone must not be treated as proof of physically recoverable reserve capacity.
+- Closure requires a bounded Backend candidate with focused adversarial tests covering parent substitution, same-parent target substitution across inspection/cleanup/release, hardlink ownership/release accounting, and unknown-allocation fail-closed behavior, while preserving non-sparse allocation and Storage/Recovery semantics.
 
 ## ERR-0035 — SQLite preflight identity is not carried into live writer startup
 
@@ -55,7 +60,6 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Specialist owner: Backend / BE-052. Errors does not parallel-mutate Backend product code while that worker owns the root cause.
 - Current source evidence remains applicable: `SQLiteDatabase.start()` performs read-only preflight against the configured path and later independently opens the writable SQLite connection by pathname, without carrying an identity token/handle/descriptor from preflight into writer establishment.
 - Distinct from `ERR-0033`: ERR-0033 concerns EmergencyReserve filesystem-object identity/capacity across mutation and acceptance; ERR-0035 concerns the primary SQLite database object between startup preflight and live writer open.
-- Backend marks the same root cause BE-052 `OPEN / P1 / CURRENT SOURCE TRACE CONFIRMED`; Errors makes no parallel product mutation.
 - Preserve read-only preflight, application-id/schema/quick-check validation, locality, symlink/reparse rejection, WAL/SHM checks and fail-closed Recovery/Storage semantics. A second pathname-only preflight is insufficient.
 - Closure requires a bounded Backend candidate plus focused cross-platform identity-swap regression evidence, followed by exact-SHA canonical evidence when integration/closure requires it.
 
