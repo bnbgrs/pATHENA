@@ -2,47 +2,41 @@
 
 ## Baseline
 
-- Shared baseline consumed first: `develop/pathena-next@b26eea46c89a8b628c2006d24d1fdac7492baa91`.
-- Exact canonical Quality: `34601243038@b26eea46c89a8b628c2006d24d1fdac7492baa91 = SUCCESS`.
-- Worker before synchronization: `postmerge/backend@fa995bf462aa8135d24f4e9e7059bc24f6992622`.
-- Pre-sync comparison against Develop: `136 ahead / 33 behind`; broad historical product/test drift made that worker unsuitable as a bounded integration candidate.
-- `main` and `bnbgrs/ATHENA` remain strictly read-only and untouched.
+- Source of truth consumed first: `develop/pathena-next@c670d7809c9f0aa5e6c31956b57e897091f1b9d6`.
+- Exact Develop canonical Quality: `34635967020 = SUCCESS`.
+- Previous worker: `postmerge/backend@195814616f394e1794aa4f3b2a16a584c092ab31`; prior exact worker Quality `34604847434 = SUCCESS`.
+- `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
-## Closed root-cause cluster this run
+## Product slice this run — controlled durable Job Type Registry
 
-### Backend worker baseline divergence
+Beta Job-System §6 requires job types to come from a controlled registry and permits namespaced plugin job types only when permission exists. Current `src/athena/jobs` had no job-type registry primitive.
 
-Status: `CLOSED BY HISTORY-PRESERVING SYNCHRONIZATION`.
+This candidate adds `JobTypeRegistry` with:
 
-The Backend worker is synchronized to the exact current canonical-green Develop tree while retaining both histories through a normal two-parent merge commit. No force push, history rewrite, product mutation, test mutation, guard relaxation, Skip/XFail, or mutation to `main`/`bnbgrs/ATHENA` is used.
+- exact, validated built-in registration;
+- explicit permission gate for plugin registration;
+- mandatory plugin namespace;
+- duplicate registration fail-closed;
+- invalid lookup fail-closed;
+- deterministic registered-type snapshots.
 
-This intentionally removes the broad stale worker file delta from the active candidate surface. Historical Backend commits remain reachable in history but are not reintroduced into the current working tree merely because they existed on the old worker lineage.
+No queue state, lease, Storage, Recovery, provider, Security, network/TOR, packaging or runtime guard is changed.
 
-## Current backend failure state
+## Focused evidence
 
-- Current Develop exact-SHA Backend failure: none; canonical Quality is green.
-- Current Error handoff on Develop reports `OPEN: none`.
-- Integrator still identifies BE-046 and BE-052 as Backend-owned gaps requiring a bounded exact-tested candidate before promotion.
-- Historical signatures are not reopened without exact-current reproduction.
+The exact candidate module/test content was executed in an isolated Python package before repository mutation:
 
-## Highest next Backend gap
+`python -m pytest -q test_job_type_registry.py` -> `11 passed in 0.06s`.
 
-BE-046 remains the next conservative Backend target only if current source/spec evidence still reproduces it on the synchronized baseline. The previous local focused-test path was transiently blocked by DNS resolution of `github.com`; no focused PASS is fabricated and no untested Storage mutation is carried through this synchronization.
+The unrelated spreadsheet-runtime warmup emitted an environment warning after Python startup; pytest return code was 0 and all focused assertions passed.
 
-Develop now contains `.github/workflows/core-focused-candidate.yml`, proving an exact pull-request-head focused verification pattern. A Backend-focused equivalent may be proposed as a separate bounded systems slice if local DNS remains unavailable; it must not weaken or replace canonical Quality.
+## BE-046 / BE-052
 
-## Preserved release guards
-
-- no silent Tor-to-Direct fallback;
-- Redirect/Auth/HTTPS/response-size boundaries remain fail-closed;
-- WAL maintenance remains safe and SQLite-owned;
-- pypdf packaging, Frozen argv and two-EXE topology remain guarded;
-- bounded worker ownership/lifecycle and adaptive 2048-context reserve remain guarded;
-- Windows lane-lock/path-safety and duplicate-column/Core-startup/storage-bootstrap protections remain intact;
-- no Skip/XFail, force push, history rewrite or direct Develop/main integration by Backend.
+- BE-046 remains OPEN/BLOCKED for its required native-Windows adversarial identity proof; it was not re-analysed this run.
+- BE-052 remains OPEN/BLOCKED pending a writer-bound SQLite identity primitive; pathname-only revalidation remains insufficient.
 
 ## Integrator prerequisites
 
-- Treat the synchronization commit as baseline hygiene, not a product feature.
-- Do not re-import the old broad Backend worker delta as a unit.
-- Any subsequent Backend product candidate must be a small diff from this synchronized baseline, run real focused regressions first, preserve Storage/Recovery/Security invariants, and obtain exact-SHA evidence before READY.
+- Treat this as a bounded Job-System primitive only; it does not yet wire the registry into queue admission.
+- Require exact candidate canonical Quality before READY.
+- Preserve all release guards; no Skip/XFail, force push, history rewrite, or mutation to `main`/`bnbgrs/ATHENA`.

@@ -74,35 +74,67 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Locked environment sync failed." }
 
       - name: Ruff changed Core Python files
+        id: ruff
+        continue-on-error: true
         shell: pwsh
         run: |
+          New-Item -ItemType Directory -Force -Path ".focused-evidence" | Out-Null
           $changed = @(
             git diff --name-only $env:BASE_SHA $env:CANDIDATE_SHA -- "*.py" |
               Where-Object { $_ -match '^(src/athena/knowledge/|tests/unit/).*\.py$' }
           )
           if ($LASTEXITCODE -ne 0) { throw "Unable to resolve changed Core Python files." }
           if ($changed.Count -eq 0) {
-            Write-Host "No changed Core Python files selected for Ruff."
+            "No changed Core Python files selected for Ruff." | Tee-Object -FilePath ".focused-evidence/ruff.txt" | Write-Host
             exit 0
           }
           Write-Host "Ruff exact candidate files:"
           $changed | ForEach-Object { Write-Host "  $_" }
-          uv run --locked --extra dev --no-sync ruff check @changed
-          if ($LASTEXITCODE -ne 0) { throw "Exact changed-file Ruff contract failed." }
+          $ruffOutput = @(& uv run --locked --extra dev --no-sync ruff check @changed 2>&1)
+          $ruffExit = $LASTEXITCODE
+          $ruffOutput | Tee-Object -FilePath ".focused-evidence/ruff.txt" | ForEach-Object { Write-Host $_ }
+          if ($ruffExit -ne 0) { throw "Exact changed-file Ruff contract failed." }
 
       - name: Run changed focused unit tests
+        id: focused_tests
+        continue-on-error: true
         shell: pwsh
         run: |
+          New-Item -ItemType Directory -Force -Path ".focused-evidence" | Out-Null
           $tests = @(
             git diff --name-only $env:BASE_SHA $env:CANDIDATE_SHA -- "tests/unit/*.py" |
               Where-Object { $_ -match '^tests/unit/test_.*\.py$' }
           )
           if ($LASTEXITCODE -ne 0) { throw "Unable to resolve changed focused unit tests." }
           if ($tests.Count -eq 0) {
-            Write-Host "No changed unit-test files selected; lint evidence only."
+            "No changed unit-test files selected; lint evidence only." | Tee-Object -FilePath ".focused-evidence/pytest.txt" | Write-Host
             exit 0
           }
           Write-Host "Pytest exact candidate files:"
           $tests | ForEach-Object { Write-Host "  $_" }
-          uv run --locked --extra dev --no-sync pytest -q @tests
-          if ($LASTEXITCODE -ne 0) { throw "Exact changed-test Core candidate contract failed." }
+          $pytestOutput = @(& uv run --locked --extra dev --no-sync pytest -q @tests 2>&1)
+          $pytestExit = $LASTEXITCODE
+          $pytestOutput | Tee-Object -FilePath ".focused-evidence/pytest.txt" | ForEach-Object { Write-Host $_ }
+          if ($pytestExit -ne 0) { throw "Exact changed-test Core candidate contract failed." }
+
+      - name: Upload exact focused diagnostics
+        if: ${{ always() && !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: core-focused-diagnostics-${{ env.CANDIDATE_SHA }}
+          path: .focused-evidence/
+          include-hidden-files: true
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Enforce focused candidate outcomes
+        if: always()
+        shell: pwsh
+        run: |
+          $ruff = "${{ steps.ruff.outcome }}"
+          $tests = "${{ steps.focused_tests.outcome }}"
+          Write-Host "Ruff outcome: $ruff"
+          Write-Host "Focused pytest outcome: $tests"
+          if ($ruff -ne "success" -or $tests -ne "success") {
+            throw "Core focused candidate requires both Ruff and focused pytest to succeed."
+          }
