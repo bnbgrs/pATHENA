@@ -1,30 +1,32 @@
 # Post-Merge Feature Handoff - Integrator
 
-Generated: 2026-09-11T11:53Z
+Generated: 2026-09-11T12:49Z
 Branch: `develop/pathena-next`
-Run-start HEAD: `85bd5f19c8aca56273ad43ac708fe13ac4798415`
+Run-start HEAD: `dfa4a81b4c650339a16be5f60f87804e7cf6a68b`
 
 ## Current evidence
 
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
-- Exact Develop canonical Quality `34591361659@85bd5f19c8aca56273ad43ac708fe13ac4798415 = SUCCESS` before this mutation.
+- Exact Develop canonical Quality `34596386099@dfa4a81b4c650339a16be5f60f87804e7cf6a68b = SUCCESS` before this mutation.
 - Immediately before mutation, Develop had zero queued and zero in-progress workflow runs.
-- Worker heads reviewed: Errors `eaf707a9429b6c67b7d436d64d362b30fac97126`; Spec/Core `db8e7d1238320c5aff276472eeee586531530aef`; Backend `fa995bf462aa8135d24f4e9e7059bc24f6992622`; UI `8df01eef4d4c1b55f70e54f7fb99a542a9ebef33`.
-- Errors still reports Backend-owned `ERR-0033/BE-046` and `ERR-0035/BE-052`; no competing Storage mutation was taken.
-- `docs/agent_logs/ERROR_LEDGER.md` exists but its baseline metadata is historical/stale, so current error ownership comes from the latest Errors handoff and exact-current Quality evidence.
-- `ALPHA_BETA_PROGRESS.md` is absent at the requested repository path; no synthetic completion percentage is recorded.
-- Visual source of truth remains `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` plus `docs/ui/VISUAL_GAP_LEDGER.md`; all eleven slots remain `IMPLEMENTED_PENDING_VISUAL_REVIEW`, with no screenshot-level MATCH claim.
-- Current UI head is documentation-only over product head `199f123f893251b9fc6984e78c24f9ab5813cdc8`; its own handoff explicitly states the branch is not Integrator-ready because it is materially behind Develop and requires compatibility plus exact focused/canonical evidence for the next Help slice.
+- Worker heads reviewed: Errors `eaf707a9429b6c67b7d436d64d362b30fac97126`; Spec/Core `2a9b76dd3581cb13052741907d0fad8357553536`; Backend `fa995bf462aa8135d24f4e9e7059bc24f6992622`; UI `5e86bf3ab5cd8faaadc44e7dbe1bc2fe9fc76f5a`.
+- Current Spec/Core head is not READY: exact canonical Quality `34598764602@2a9b76dd3581cb13052741907d0fad8357553536 = FAILURE`. Full pytest, Linux storage, Windows path/storage/durable-fs/runtime/ownership/packaging/chat-reserve/restart/pypdf guards, and local-install smoke passed; Ruff failed.
+- The current Spec/Core delta after its previously exact-green `db8e7d1238320c5aff276472eeee586531530aef` includes the bounded `revision_diff.py` + `test_claim_revision_diff.py` product/test pair, but promotion is held until exact-head lint evidence is green.
+- Errors still reports Backend-owned `ERR-0033/BE-046` and `ERR-0035/BE-052`; Backend has no tested bounded product candidate. No Storage mutation is taken here.
+- `docs/agent_logs/ERROR_LEDGER.md` exists but its baseline metadata is historical/stale; current error ownership comes from current worker handoffs plus exact-current CI evidence.
+- `ALPHA_BETA_PROGRESS.md` remains absent at the requested repository path; no synthetic completion percentage is recorded.
+- Visual source of truth remains `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` plus `docs/ui/VISUAL_GAP_LEDGER.md`; all eleven surfaces remain `IMPLEMENTED_PENDING_VISUAL_REVIEW` and no screenshot-level `MATCH` is claimed without reference/current-render pairing.
+- Current UI lineage is not promoted: available exact Windows visual evidence remains fail-closed at the visual verdict without approved baseline/reference pairing, and the latest worker head is not a newly exact-qualified bounded product slice.
 
-## Product slice integrated this run
+## Cross-cutting tooling unblocker integrated this run
 
-Promoted the bounded Spec/Core slice from exact worker head `db8e7d1238320c5aff276472eeee586531530aef` after exact canonical Quality `34593157065 = SUCCESS`.
+Added `.github/workflows/core-focused-candidate.yml` as a Develop-owned exact-PR-head verification lane for Core Knowledge candidates.
 
-Added `src/athena/knowledge/user_override_policy.py` and `tests/unit/test_user_override_policy.py` only. The policy protects explicit user corrections from silent automatic reversal: identical/older evidence is blocked; genuinely new revision-level evidence can only route to semantic review; direct automatic commit remains forbidden in both states. Invalid non-UUID evidence fails closed.
+The lane resolves and validates the immutable pull-request head SHA and base SHA, checks out exactly the candidate SHA with full history, proves checkout identity, verifies the base commit is available, installs the locked Python 3.12 dev environment, then derives only changed Python files under `src/athena/knowledge/` and `tests/unit/` from the exact PR base-to-head diff.
 
-The worker product commit is a two-file additive slice whose parent already contains the previously integrated relation-registry lineage. Current Develop differs from that shared lineage only by later bounded integrations/CI work; these new paths did not exist on Develop, so the transplant is collision-free.
+It runs Ruff only on those changed candidate files and runs pytest on changed `tests/unit/test_*.py` files. This gives workers immediate exact-head focused lint/test diagnostics without replacing or weakening canonical Quality. `cancel-in-progress` is false, so a worker documentation commit must not erase evidence from an already-running candidate check.
 
-No Storage, Recovery, Transport, Runtime, Security, packaging, visual baseline, comparator threshold, test assertion, Skip/XFail, or release guard is weakened.
+No product behavior, Storage, Recovery, Transport, Runtime, Security, packaging, visual baseline, comparator threshold, canonical Quality gate, test assertion, Skip/XFail, or release guard is weakened.
 
 ## Persistent release guards
 
@@ -34,7 +36,7 @@ No Storage, Recovery, Transport, Runtime, Security, packaging, visual baseline, 
 ## Next integration
 
 1. Consume canonical Quality for the resulting Develop SHA before any further Develop mutation.
-2. Re-read all worker heads and current handoffs after that gate completes.
-3. Keep Backend/Storage/Migration/Runtime work conservative until exact focused current-head adversarial evidence exists.
-4. Requalify UI only after its current product slice is compatibility-checked against Develop and exact-head focused evidence exists.
-5. Keep visual MATCH claims fail-closed until approved reference/current-render evidence exists.
+2. Re-read all worker heads and handoffs after that gate completes.
+3. Use the new exact-head Core focused lane to qualify the current Spec/Core candidate; do not promote `revision_diff.py` until Ruff plus focused tests are green on an exact candidate head.
+4. Keep BE-046/BE-052 conservative until Backend provides a bounded exact-tested candidate.
+5. Keep all visual `MATCH` claims fail-closed until approved original-reference and exact-render evidence exists.
