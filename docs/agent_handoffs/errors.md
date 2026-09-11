@@ -2,60 +2,72 @@
 
 ## Baseline
 
-- Develop source of truth: `develop/pathena-next@17d06d258ec2f5841049227504034ef601cdcdf8`.
-- Error worker entered this run at `postmerge/errors@68fa85f7c6462b9454712b5d8dfb29fb9f49a2f7`.
-- Current workers: Spec/Core `8019ff39c2352e40513532814760804eaa3c2df4`; Backend `4482958c3540b865ccc38a3ba5802366433c838b`; UI `ecb91b302c700b625af9ecb9d70452c974513c06`.
-- Exact-current Develop canonical Quality: `34641291324@17d06d258ec2f5841049227504034ef601cdcdf8 = IN_PROGRESS`; do not infer PASS/FAIL while it is running.
-- Exact-current worker canonical Quality: Spec/Core `34636024267 = SUCCESS`; Backend `34638648498 = SUCCESS`; UI `34638680643 = SUCCESS`. Backend's exact-green candidate is unrelated job-type registry work and contains no bounded BE-052 storage/recovery fix.
+- Develop source of truth: `develop/pathena-next@0298f0c4f2d28e516a458390f8b462131ebaf17e`.
+- Error worker entered this run at `postmerge/errors@53d8a63e12f5010eed5e28498fe62cc36a617c78`.
+- Current workers: Spec/Core `58b8040f84d5cac2530aaaac349c695361a78996`; Backend `4feffb3492bcb656fd6d7a53818e61199f4e0d7a`; UI `854a0ada4b3663aa94e09083bf17017eebd68c50`.
+- Exact-current Develop canonical Quality: `34646579929@0298f0c4f2d28e516a458390f8b462131ebaf17e = IN_PROGRESS`; do not infer PASS/FAIL while it is running.
+- Previous Develop canonical Quality: `34641291324@17d06d258ec2f5841049227504034ef601cdcdf8 = SUCCESS`.
+- Exact-current Spec/Core canonical Quality: `34643507749@58b8040f84d5cac2530aaaac349c695361a78996 = FAILURE`.
+- Exact-current Backend canonical Quality: `34644399463@4feffb3492bcb656fd6d7a53818e61199f4e0d7a = FAILURE` because canonical mypy is red; Ruff, pytest, Windows path safety, Linux storage and local-install are green.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current error state
 
-- OPEN: `ERR-0033`, `ERR-0035`.
+- OPEN: `ERR-0033`, `ERR-0035`, `ERR-0039`.
 - IN_PROGRESS: none.
 - FIXED_PENDING_VERIFY: none.
-- FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015` through `ERR-0024`, `ERR-0027`, `ERR-0030`, `ERR-0031`, `ERR-0032`, `ERR-0034`, `ERR-0036`, `ERR-0037`.
-- STALE: `ERR-0014`, `ERR-0025`, `ERR-0026`, `ERR-0028`, `ERR-0029`, `ERR-0038`.
+- STALE includes historical `ERR-0038`; it is not reopened by the new current-file Ruff failure.
 - BLOCKED: none.
 
-## Hard progress this run — ERR-0035 whole SQLite file-set continuity
+## Hard progress this run — ERR-0039 exact Spec/Core Ruff isolation
 
-### ERR-0035 — SQLite preflight identity through live writer startup
+### ERR-0039 — Spec/Core exact-head Ruff import-format blocker
 
-Status: `OPEN / P1 / Backend BE-052 owned`.
+Status: `OPEN / P1 integration blocker / Spec-Core owned`.
 
-On exact-current Develop `17d06d258ec2f5841049227504034ef601cdcdf8`, `SQLiteDatabase.start()` first calls `inspect_database_read_only(self.path, ...)`, consumes its read-only inspection result and later opens a separate writable connection with `sqlite3.connect(self.path, check_same_thread=False)`.
+Exact reproducer: `postmerge/spec-core@58b8040f84d5cac2530aaaac349c695361a78996`.
 
-The important refinement is that this continuity gap is not limited to the primary database object. The read-only inspection also evaluates the current `-wal` and `-shm` sidecar state. Its read-only SQLite connection is closed before `SQLiteDatabase.start()` establishes the later writable connection, and no file-set identity token or equivalent binding carries the attested primary DB plus WAL/SHM snapshot across that transition.
+Canonical Quality `34643507749` is red. Its `Python 3.12 quality` job isolates the failure to Ruff: specification validator = SUCCESS, Ruff = FAILURE, mypy = SUCCESS and pytest = SUCCESS. The canonical Windows path-safety, Linux-storage and local-install jobs are also green. Therefore this is not a semantic Core regression, type failure, Windows release-guard regression, Storage regression or install failure.
 
-Consequently, the primary DB can remain unchanged while WAL or SHM appears, disappears or is replaced after the read-only inspection returns but before writer establishment. The writer can then observe a different SQLite file set from the one whose sidecar state the preflight accepted. This is an attestation-continuity defect; it is not a claim that SQLite necessarily accepts an arbitrary malformed or forged WAL/SHM file, because SQLite's own format/checksum handling remains independent.
+The downloaded exact-SHA canonical diagnostics artifact reports exactly one Ruff defect:
 
-Required focused regression shape: gate `SQLiteDatabase.start()` immediately after `inspect_database_read_only()` returns and before writable `sqlite3.connect()`; create/remove/replace WAL or SHM during that boundary; resume startup; prove the implementation detects the primary-plus-sidecar snapshot/identity mismatch and fails closed instead of relying on stale preflight state.
+`I001 Import block is un-sorted or un-formatted` at `tests/unit/test_identity_transition.py:1:1`.
 
-Closure therefore requires whole-file-set continuity, or an equivalent fail-closed revalidation mechanism tied to writer establishment, for the primary DB **and** WAL/SHM. A second ordinary pathname-only preflight that leaves the same race window is insufficient. Preserve read-only preflight, application-id/schema/quick-check validation, locality, symlink/reparse rejection, all sidecar checks and Storage/Recovery fail-closed semantics.
+The current file contains the standard-library `from uuid import UUID`, then third-party `import pytest` immediately followed by the first-party `from athena.knowledge.identity_transition import MergeTransition, SplitTransition`. Canonical Ruff explicitly requests `Organize imports` on that block.
 
-Backend continues to own BE-052 and has not supplied a bounded BE-052 product candidate, so Errors made no competing Database/Storage product mutation.
+Canonical pytest collected 4883 tests and records `tests/unit/test_identity_transition.py ......` green. Canonical mypy reports no issues in 425 source files. The root cause is therefore a one-file import-format/lint defect on the exact current Spec/Core candidate.
+
+The Core Focused Candidate `34643507760@58b8040f...` is also `FAILURE`. Its Ruff/test commands use continue-on-error capture and the final fail-closed enforcement step is red; individual step labels must not be interpreted as closure.
+
+Minimal Specialist closure path: organize only the import block in `tests/unit/test_identity_transition.py`, then run focused Ruff plus the exact identity-transition test on one SHA and canonical Quality on that same corrected SHA. Keep `OPEN` until real evidence exists; `FIXED_PENDING_VERIFY` requires exact focused green, and `FIXED` requires exact canonical Ruff green.
+
+Errors did not parallel-mutate the Spec/Core candidate because the active specialist owns this root cause.
 
 ### ERR-0033 — Emergency-reserve filesystem-object identity/capacity gap
 
-Status remains `OPEN / P1 / Backend BE-046 owned`. No new ERR-0033 evidence or product mutation was claimed this run; its existing physical-reclamation continuity requirements remain unchanged.
+Status remains `OPEN / P1 / Backend BE-046 owned`. No new ERR-0033 mutation or closure claim was made this run. Existing requirements for object-identity continuity, physical allocation/reclamation, hardlink insertion races and pre-opened descriptors remain binding.
 
-### ERR-0038 — historical Spec/Core Ruff failure
+### ERR-0035 — SQLite preflight-to-writer whole-file-set continuity
 
-Status remains `STALE`. No current exact Spec/Core SHA reproduced the historical `I001` defect; do not reopen it from older run IDs.
+Status remains `OPEN / P1 / Backend BE-052 owned`. No new ERR-0035 mutation or closure claim was made this run. Existing DB + WAL + SHM identity-continuity requirements remain binding.
+
+### ERR-0038 — historical revision-diff Ruff failure
+
+Status remains `STALE`. Its historical reproducer was in `src/athena/knowledge/revision_diff.py`; the current `ERR-0039` defect is in a different exact candidate/file and receives a new stable ID rather than reviving old priority.
 
 ## CI discipline
 
-- `postmerge/errors@68fa85f7c6462b9454712b5d8dfb29fb9f49a2f7` had zero workflow runs before the ledger mutation.
-- Ledger commit `e837623c721a786128d2e028e9b879d47787c441` also had zero workflow runs before this handoff mutation.
-- Errors started no canonical Quality run and did not mutate a branch with an active exact-head canonical run.
-- Develop canonical `34641291324@17d06d258ec2f5841049227504034ef601cdcdf8` remains in progress and was left untouched.
+- `postmerge/errors@53d8a63e12f5010eed5e28498fe62cc36a617c78` had zero workflow runs before the ledger mutation.
+- Ledger commit `101ee65d46dbccf09c85912fa9e858504cbac046` also had zero workflow runs before this handoff mutation.
+- Errors started no canonical Quality run and did not commit onto a branch with a queued/in-progress Error-worker run.
+- Develop canonical `34646579929@0298f0c4f2d28e516a458390f8b462131ebaf17e` remains in progress and was left untouched.
 
 ## Integrator handoff
 
-- Develop: `17d06d258ec2f5841049227504034ef601cdcdf8`; canonical `34641291324 = IN_PROGRESS` at this handoff. Consume it before deriving Develop integration status.
-- Backend: `4482958c3540b865ccc38a3ba5802366433c838b`; canonical `34638648498 = SUCCESS`, but this exact-green job-type-registry candidate does not contain a BE-052 fix.
-- `ERR-0035 = OPEN / P1`, Backend BE-052 owned. New exact-current evidence: read-only startup preflight attests sidecar state but does not bind primary DB + WAL + SHM file-set identity to the later independent writable open. Closure needs an adversarial post-inspection/pre-writer sidecar mutation test and whole-file-set continuity or equivalent fail-closed revalidation at writer establishment.
-- `ERR-0033 = OPEN / P1`, Backend BE-046 owned; unchanged this run.
-- `ERR-0038 = STALE`; do not reopen without current exact-SHA reproduction.
+- Develop: `0298f0c4f2d28e516a458390f8b462131ebaf17e`; canonical `34646579929 = IN_PROGRESS` at this handoff. Consume it before deriving Develop integration status.
+- Spec/Core: `58b8040f84d5cac2530aaaac349c695361a78996`; canonical `34643507749 = FAILURE`. `ERR-0039 = OPEN / P1`. Exact root cause is Ruff `I001` in `tests/unit/test_identity_transition.py:1:1`; all other canonical quality dimensions are green. Do not promote until one corrected exact SHA is focused-green and canonical-green.
+- Backend: `4feffb3492bcb656fd6d7a53818e61199f4e0d7a`; canonical `34644399463 = FAILURE` with canonical mypy as the isolated red quality step. This was observed but not advanced as this run's root-cause cluster.
+- `ERR-0033 = OPEN / P1`, Backend BE-046 owned.
+- `ERR-0035 = OPEN / P1`, Backend BE-052 owned.
+- `ERR-0038 = STALE`; do not reopen without its own current exact-SHA reproduction.
 - Preserve pypdf packaging, Frozen argv, two-EXE topology, bounded workers, adaptive 2048-context reserve, Windows lane-lock mapping, duplicate-column/Core-startup/storage-bootstrap guards and all Storage/Recovery/Security fail-closed invariants.
