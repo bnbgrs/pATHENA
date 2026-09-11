@@ -125,11 +125,22 @@ jobs:
         run: |
           $runtimeRoot = Join-Path $env:RUNNER_TEMP "pathena-visual-runtime"
           $actualRoot = Join-Path (Get-Location) "artifacts\visual-actual"
+          $manifestPath = Join-Path $actualRoot "manifest.json"
           uv run --locked --extra desktop --no-sync python scripts/render_pathena_ui_snapshot_fontsafe.py `
             --runtime-root $runtimeRoot `
             --screenshot-directory $actualRoot `
             --initial-delay-seconds 7
-          if ($LASTEXITCODE -ne 0) { throw "Eleven-surface capture failed." }
+          $captureExit = $LASTEXITCODE
+          if ($captureExit -ne 0) {
+            if (Test-Path $manifestPath) {
+              Write-Host "===== visual capture manifest ====="
+              Get-Content $manifestPath -Raw
+              Write-Host "===== end visual capture manifest ====="
+            } else {
+              Write-Host "Visual capture failed before manifest.json was written."
+            }
+            throw "Eleven-surface capture failed with exit code $captureExit."
+          }
 
       - name: Verify captured workspace route identity
         shell: pwsh
