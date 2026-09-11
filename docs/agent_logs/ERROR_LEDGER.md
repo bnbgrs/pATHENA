@@ -11,7 +11,7 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Develop source of truth: `develop/pathena-next@c670d7809c9f0aa5e6c31956b57e897091f1b9d6`.
 - Error worker entered this run at `postmerge/errors@6ada3662333696a2373f0b6eb30eff9e5367e373`.
 - Current workers: Spec/Core `8019ff39c2352e40513532814760804eaa3c2df4`; Backend `195814616f394e1794aa4f3b2a16a584c092ab31`; UI `4eeb75a6f5909fb1aa194c2c6df2d5ce1b431748`.
-- Exact-current Develop canonical Quality: `34639093541@c670d7809c9f0aa5e6c31956b57e897091f1b9d6 = IN_PROGRESS`; no Develop PASS/FAIL claim is derived while it is running.
+- Exact-current Develop canonical Quality: `34635967020@c670d7809c9f0aa5e6c31956b57e897091f1b9d6 = IN_PROGRESS`; no Develop PASS/FAIL claim is derived while it is running.
 - Latest Backend exact-head canonical Quality: `34604847434@195814616f394e1794aa4f3b2a16a584c092ab31 = SUCCESS`; this baseline-green run does not close BE-046 because no BE-046 product candidate exists on that SHA.
 - Current Spec/Core `8019ff39c2352e40513532814760804eaa3c2df4` and UI `4eeb75a6f5909fb1aa194c2c6df2d5ce1b431748` have no exact-head workflow run yet; older exact-green or in-progress evidence is not promoted to those newer SHAs.
 - `postmerge/errors@6ada3662333696a2373f0b6eb30eff9e5367e373` had zero workflow runs immediately before this mutation.
@@ -40,7 +40,7 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Severity: P1.
 - Status: `OPEN`.
 - Specialist owner: Backend / BE-046. Errors does not parallel-mutate Backend product code while that worker owns the root cause.
-- Exact-current source trace: `develop/pathena-next@c670d7809c9f0aa5e6c31956b57e897091f1b9d6`. Changes since the last Develop storage trace are UI/Core/docs-only; `src/athena/storage/emergency_reserve.py` remains the same storage implementation. Develop canonical `34639093541` is still in progress and cannot close this semantic Recovery gap.
+- Exact-current source trace: `develop/pathena-next@c670d7809c9f0aa5e6c31956b57e897091f1b9d6`. Changes since the last Develop storage trace are UI/Core/docs-only; `src/athena/storage/emergency_reserve.py` remains the same storage implementation. Develop canonical `34635967020` is still in progress and cannot close this semantic Recovery gap.
 - Existing focused coverage contains adversarial parent-directory replacement tests only for POSIX. Native-Windows parent-swap coverage is absent.
 - POSIX creation/release binds `reserve_root` to a directory descriptor for relative create/unlink and directory fsync. Windows/non-POSIX creation instead opens `self.path` by pathname, compares opened-file `fstat` with pathname `stat`, then returns to pathname-based parent resolution for cleanup/durability; normal release is pathname-based.
 - Parent-directory binding alone is insufficient. Non-POSIX failure cleanup validates `self.path.stat()` against `created_identity`, then separately calls `self.path.unlink()`, leaving a same-parent filename-substitution window. Normal non-POSIX release has the wider `exists/is_file/stat -> unlink` pathname window.
