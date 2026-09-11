@@ -1,32 +1,31 @@
 # Post-Merge Feature Handoff - Integrator
 
-Generated: 2026-09-11T00:52Z
+Generated: 2026-09-11T02:50Z
 Branch: `develop/pathena-next`
-Run-start HEAD: `7a6b9ee59f059202f1f3b5c5b8f7b70e319bec2c`
+Run-start HEAD: `f729959c7b2b0f14b495f06779c790d6cd0d281d`
 
 ## Current evidence
 
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
-- Current worker heads: Errors `f493a50e999fcea5811e86b22338b1fcaff137da`; Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`; Backend `fa995bf462aa8135d24f4e9e7059bc24f6992622`; UI `ac3d3c851186b8caa152d4a22815bd1390998e55`.
-- Exact Develop canonical Quality `34544225707@7a6b9ee59f059202f1f3b5c5b8f7b70e319bec2c = SUCCESS`.
-- Immediately before this mutation Develop had zero queued and zero in-progress workflow runs.
-- `ERROR_LEDGER.md` and `ALPHA_BETA_PROGRESS.md` are not present under those exact names on current Develop; no replacement percentages are synthesized.
-- Visual source of truth remains `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` plus `docs/ui/VISUAL_GAP_LEDGER.md`; no screenshot-level `MATCH` is supported.
+- Current worker heads: Errors `d9a74db65557bb1db89641c3cbc910d6d1bf6ec1`; Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`; Backend `fa995bf462aa8135d24f4e9e7059bc24f6992622`; UI `8ba83c27fcfc19c94339908a42352617421556f8`.
+- Exact Develop canonical Quality `34552555541@f729959c7b2b0f14b495f06779c790d6cd0d281d = SUCCESS`.
+- `ERROR_LEDGER.md` and `ALPHA_BETA_PROGRESS.md` are not treated as authoritative unless present on current Develop; no synthetic completion percentage is recorded.
+- Visual source of truth remains the current 11-screen manifest plus Visual Gap Ledger; no screenshot-level `MATCH` is claimed.
 
 ## Worker qualification
 
-- Errors current head is documentation-only; no Error-owned READY product slice is promoted.
-- Spec/Core has no new product head beyond already reviewed/integrated lineage.
-- Backend reports canonical Develop green but keeps BE-046 and BE-052 OPEN with no tested bounded product candidate. Storage/runtime ownership remains HOLD.
-- UI has a bounded textual top-navigation product/test lineage, but its own current handoff records the focused navigation test and exact-SHA runtime rendering as PENDING. It is therefore not READY for product integration.
+- Errors current head is documentation-only and hands off current ERR-0033 evidence; no Error-owned product candidate is promoted.
+- Spec/Core has no newer product head.
+- Backend current head is documentation-only; Backend/Storage/Runtime prerequisites remain conservative HOLD without bounded exact-head candidate evidence.
+- UI exact native-Windows evidence confirms the serialized capture harness now records truthful row/page identity for all seven workspace routes, but the current UI head is a documentation handoff and no new product slice is integrator-ready.
 
-## Cross-cutting tooling unblocker
+## Cross-cutting tooling slice
 
-No worker product slice is READY. This run therefore uses the permitted single tooling-unblocker fallback.
+No bounded Worker product slice is READY. This run therefore adds one collision-free visual-harness guard.
 
-`.github/workflows/ui-snapshot.yml` now executes `tests/unit/test_pathena_navigation_context_accessibility.py` on the exact candidate SHA before the native Windows eleven-surface capture. This supplies focused interaction/accessibility evidence on the same immutable candidate that is rendered, without changing product behavior or visual-verdict policy.
+`.github/workflows/ui-snapshot.yml` now parses `artifacts/visual-actual/manifest.json` immediately after native Windows capture and fails closed unless exactly seven workspace captures exist with one-to-one row, page-index, ordinal and canonical label identity for Chat, Knowledge, Research, Jobs, Files, System and Settings.
 
-The existing fail-closed baseline/verdict behavior, comparator thresholds, locked environment, exact checkout, token contract, eleven-surface capture and artifact upload remain unchanged. No test assertion is weakened; no Skip/XFail is added; no Backend, Storage, Recovery, Security, provider or runtime product code changes.
+This turns the recently discovered mislabeled-route failure mode into an explicit CI invariant rather than relying on manual artifact inspection. It does not alter product rendering, baseline thresholds, comparator policy, visual verdict policy, Security, Storage, Recovery, Runtime or provider behavior. No Skip/XFail or assertion weakening is introduced.
 
 ## Persistent release guards
 
@@ -38,7 +37,7 @@ The existing fail-closed baseline/verdict behavior, comparator thresholds, locke
 
 ## Next integration
 
-1. Consume exact-current Develop canonical Quality before any further Develop mutation.
-2. Re-qualify the then-current UI head only if the exact candidate focused navigation test and native Windows rendering execute on the same SHA.
-3. Do not promote visual `MATCH` without opened original references and exact-current rendered evidence.
-4. Keep BE-046/BE-052 out of Integrator mutation until Backend supplies bounded focused adversarial identity evidence.
+1. Consume the exact-current Develop canonical Quality before any further Develop mutation.
+2. Require exact candidate focused tests and native-Windows evidence for any UI product promotion.
+3. Do not promote visual `MATCH` without state-equivalent reference/current evidence.
+4. Keep Backend/Storage/Runtime prerequisites conservative until bounded exact-head evidence exists.

@@ -131,6 +131,24 @@ jobs:
             --initial-delay-seconds 7
           if ($LASTEXITCODE -ne 0) { throw "Eleven-surface capture failed." }
 
+      - name: Verify captured workspace route identity
+        shell: pwsh
+        run: |
+          $manifestPath = Join-Path (Get-Location) "artifacts\visual-actual\manifest.json"
+          if (-not (Test-Path $manifestPath)) { throw "Visual manifest is missing." }
+          $manifest = Get-Content $manifestPath -Raw | ConvertFrom-Json
+          if ($manifest.status -ne "PASS") { throw "Visual manifest did not report PASS." }
+          $expected = @("Chat", "Knowledge", "Research", "Jobs", "Files", "System", "Settings")
+          $workspace = @($manifest.captures | Where-Object { $_.kind -eq "workspace" })
+          if ($workspace.Count -ne 7) { throw "Expected exactly seven workspace captures, found $($workspace.Count)." }
+          for ($row = 0; $row -lt 7; $row++) {
+            $capture = $workspace | Where-Object { [int]$_.row -eq $row }
+            if (@($capture).Count -ne 1) { throw "Expected exactly one workspace capture for row $row." }
+            if ([int]$capture.page_index -ne $row) { throw "Workspace row $row captured page index $($capture.page_index)." }
+            if ([int]$capture.ordinal -ne ($row + 1)) { throw "Workspace row $row has ordinal $($capture.ordinal)." }
+            if ($capture.label -ne $expected[$row]) { throw "Workspace row $row label '$($capture.label)' != '$($expected[$row])'." }
+          }
+
       - name: Compare committed baseline or emit proposal
         id: visual
         continue-on-error: true
