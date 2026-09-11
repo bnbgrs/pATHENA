@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Callable
 
-from PySide6.QtCore import QObject
+from PySide6.QtCore import QEvent, QObject, Qt
 
 from athena.desktop.command_palette import CommandPaletteController
 from athena.desktop.pathena_capability_catalog import (
@@ -17,15 +17,56 @@ from athena.desktop.pathena_capability_catalog import (
 
 
 class CapabilityHelpController(QObject):
-    """Render F1 HELP from the exact live command list on every opening."""
+    """Render F1 HELP from live commands and host it inside the pATHENA shell."""
 
     def __init__(self, palette: CommandPaletteController) -> None:
         super().__init__(palette)
         self.palette = palette
         self.window = palette.window
         self._original_render: Callable[[], str] = palette._render_help_text
+        self._previous_page_index = self.window.pages.currentIndex()
         palette.__dict__["_render_help_text"] = self.render
+        self._host_help_in_shell()
         self._publish_state(self.snapshot())
+
+    def _host_help_in_shell(self) -> None:
+        """Embed the existing truthful help surface in the real workspace stack."""
+        help_surface = self.palette.help_dialog
+        help_surface.hide()
+        help_surface.setParent(self.window.pages)
+        help_surface.setWindowFlags(Qt.WindowType.Widget)
+        help_surface.setObjectName("helpWorkspace")
+        help_surface.setAccessibleName("pATHENA help workspace")
+        help_surface.setAccessibleDescription(
+            "Read-only capability guide hosted in the current pATHENA workspace shell."
+        )
+        help_surface.setProperty("pathenaShellHosted", True)
+        self.window.pages.addWidget(help_surface)
+        help_surface.installEventFilter(self)
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        if watched is self.palette.help_dialog:
+            if event.type() == QEvent.Type.Show:
+                current = self.window.pages.currentIndex()
+                help_index = self.window.pages.indexOf(self.palette.help_dialog)
+                if current != help_index:
+                    self._previous_page_index = current
+                    self.window.pages.setCurrentWidget(self.palette.help_dialog)
+                self.window.page_title.setText("Help")
+                self.window.page_title.setAccessibleDescription("Current workspace: Help.")
+                self.window.setProperty("pathenaHelpWorkspaceVisible", True)
+            elif event.type() == QEvent.Type.Hide:
+                help_index = self.window.pages.indexOf(self.palette.help_dialog)
+                if self.window.pages.currentIndex() == help_index:
+                    restore_index = self._previous_page_index
+                    if not 0 <= restore_index < help_index:
+                        restore_index = self.window.navigation.currentRow()
+                    self.window.pages.setCurrentIndex(restore_index)
+                    sync_navigation = getattr(self.window, "_sync_reference_navigation", None)
+                    if callable(sync_navigation):
+                        sync_navigation(self.window.navigation.currentRow())
+                self.window.setProperty("pathenaHelpWorkspaceVisible", False)
+        return super().eventFilter(watched, event)
 
     def snapshot(self) -> CapabilityCatalogSnapshot:
         return resolve_capability_catalog(self.window, self.palette._commands)
@@ -111,7 +152,7 @@ class CapabilityHelpController(QObject):
 def install_capability_help(
     palette: CommandPaletteController,
 ) -> CapabilityHelpController:
-    """Install OPS-002 without changing the shared shell or command actions."""
+    """Install live capability HELP in the existing pATHENA workspace shell."""
     controller = CapabilityHelpController(palette)
     palette.window.setProperty("pathenaCapabilityHelpController", controller)
     palette.window.setProperty("pathenaCapabilityHelpManaged", True)
