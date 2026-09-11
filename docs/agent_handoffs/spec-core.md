@@ -69,39 +69,25 @@ Therefore the minimal architecture-conforming Search exposure is an additive Sea
 
 ## Mutation state this run
 
-The previously blocked B07 revision-diff candidate was not re-analysed. To satisfy the anti-stagnation rule, Core switched to a disjoint B05 §42 Concept Note provenance slice on current Develop.
+No Search facade/application product mutation was applied after the trace. The available repository mutation interface for existing files requires complete-file replacement; both `src/athena/api/service.py` and `src/athena/core/application.py` are broad central composition files. Reconstructing either entire file from partial reads for a surgical attachment would create unnecessary overwrite risk. The worker therefore stopped at the verified architecture/acceptance contract rather than performing an unsafe broad replacement.
 
-History was synchronized without force or rewrite by creating a merge commit whose parents are the previous Core worker `53c3824e214b66e989cba1f425bfe7881190e12f` and current Develop `fec368f50307a9e24038baca3a80b10ee2a3c4fc`, with the resulting tree based on current Develop plus the new bounded slice.
-
-New product files:
-
-- `src/athena/knowledge/concept_note_provenance.py`
-- `tests/unit/test_concept_note_provenance.py`
-
-Contract:
-
-- Concept Note provenance records only caller-supplied real revision references; it creates no synthetic SourceAnchors, revisions, actors, model signatures, or processing runs.
-- User-origin provenance requires a user actor and rejects model provenance fields.
-- Model-origin provenance rejects user authorship and requires model signature, processing run, non-empty pipeline version, and at least one concrete input revision.
-- Duplicate input revision references fail closed.
-
-Spec anchor: Beta 05 §42 requires automatically generated Concept Notes to retain the Knowledge/Source revisions used, while manual edits retain User provenance.
-
-Focused acceptance covers user/model separation, complete model provenance, missing model-chain failures, and missing/duplicate revision references. No local PASS is claimed because this automation environment exposes repository mutation/CI evidence but no local checkout execution path.
-
-Current product commit: `47441d4a0265c645288edc9d9bd0e10204bc84ca`.
+This is not a product blocker: the verified DTO + adapter slice is independently READY for Integrator review now. The facade/application wiring remains the next Core-owned gap.
 
 ## Ownership / collision avoidance
 
-- Backend owns Storage/Recovery and deletion-ledger work; Core did not touch those components.
-- UI owns presentation and Qt lifecycle work; Core did not touch UI files.
-- The B07 revision-diff candidate remains blocked and is not the current hourly target.
-- No persistence schema, transport, protection policy, or model provider behavior changed.
+- Backend owns `ERR-0001` / deletion-ledger tasks 290-293 in `src/athena/lifecycle/deletion.py`; Core did not touch that component.
+- UI owns contextual Inspector visibility / `UI-GAP-0002`; Core did not touch Qt/UI files.
+- Error worker remains independent verifier for confirmed defects; no new Core-owned ERR root cause was identified.
+- No Archive or Protected Search adapter/wiring is added here because those result classes carry materially different provenance/authorization semantics.
 
 ## Integrator handoff
 
-Do not mark the Concept Note provenance slice READY until exact-head focused/canonical evidence exists on the final handoff SHA. The slice is intentionally two product files on top of current Develop with prior Core history retained as a merge parent.
+The Search DTO + normal-Hybrid adapter product/test slice at exact worker head `2951bac6edb0d6f52b104b374cc224c75b6977d3` is now backed by canonical Quality run `33722932411 = success` and was synchronised history-preservingly onto current Develop through `95b2daacb867e84102de0cc56eae01dc1085dbbe`.
+
+Integrator should independently review the bounded Search contract/adapter/test delta and may integrate it if current Develop remains conflict-free. The synchronization itself contains no new Search behavior beyond that already verified slice.
+
+Do not treat the traced facade/application wiring as implemented; it remains a separate future commit requiring focused API capability/delegation/application-composition tests.
 
 ## Next Alpha/Beta gap
 
-After consuming exact-SHA evidence for this candidate, select a distinct missing Core composition/API or Knowledge/Claims path from current Develop. Do not return to B07 unless new exact current evidence changes its blocked state.
+Implement the traced normal-Hybrid Search attachment/call through the existing `CoreApiFacade` and `AthenaApplication` composition using a safe patch-capable mutation path. Focused acceptance must cover: capability absent before attachment/present after attachment, double-attach rejection, exact delegation of query/model/limit/entity type, DTO mapping of returned ranked results, propagation of semantic retrieval failure, and application wiring identity (`api` uses the same `hybrid_retrieval` instance). Then run the relevant API/application regression set and canonical Quality before handoff.
