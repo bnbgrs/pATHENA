@@ -1,4 +1,5 @@
 name: pATHENA Core Focused Candidate
+# ERR-0039 diagnostic probe: force a unique exact-head check suite.
 
 on:
   pull_request:
