@@ -9,10 +9,10 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 ## Current baseline
 
 - Develop source of truth: `develop/pathena-next@95b636c982a800d75f7d219162a04f6c87976e9f`.
-- Error worker entered this run at `postmerge/errors@6cbe3505896fa7bcc1155491862cce09813a42ed`.
-- Current workers: Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`; Backend `fa995bf462aa8135d24f4e9e7059bc24f6992622`; UI `103feb7ca6b3513077ce47f83569c13cc626b600`.
-- Latest exact-current Develop canonical Quality: `34560421777@95b636c982a800d75f7d219162a04f6c87976e9f = IN_PROGRESS`; no final PASS/FAIL is inferred while it is running.
-- `postmerge/errors@6cbe3505896fa7bcc1155491862cce09813a42ed` had zero canonical Quality runs immediately before this mutation.
+- Error worker entered this run at `postmerge/errors@01f1ff53321f89c21aef06be32f1ce3ad9826e82`.
+- Current workers: Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`; Backend `fa995bf462aa8135d24f4e9e7059bc24f6992622`; UI `c51ef04787ef6affa2e6acc3a902e138cf6b7409`.
+- Latest exact-current Develop canonical Quality: `34560421777@95b636c982a800d75f7d219162a04f6c87976e9f = SUCCESS`.
+- `postmerge/errors@01f1ff53321f89c21aef06be32f1ce3ad9826e82` had zero canonical Quality runs immediately before this mutation.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current state
@@ -20,7 +20,7 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - OPEN: `ERR-0033`, `ERR-0035`.
 - IN_PROGRESS: none.
 - FIXED_PENDING_VERIFY: none.
-- FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015` through `ERR-0024`, `ERR-0027`, `ERR-0030`, `ERR-0031`, `ERR-0032`, `ERR-0034`, `ERR-0036`.
+- FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015` through `ERR-0024`, `ERR-0027`, `ERR-0030`, `ERR-0031`, `ERR-0032`, `ERR-0034`, `ERR-0036`, `ERR-0037`.
 - STALE: `ERR-0014`, `ERR-0025`, `ERR-0026`, `ERR-0028`, `ERR-0029`.
 - BLOCKED: none at top level.
 
@@ -30,11 +30,9 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Status: `OPEN`.
 - Specialist owner: Backend / BE-046. Errors does not parallel-mutate Backend product code while that worker owns the root cause.
 - Exact-current source verification: `develop/pathena-next@95b636c982a800d75f7d219162a04f6c87976e9f` still contains the non-POSIX parent-directory identity gap; the current Develop commit is UI-owned and does not change EmergencyReserve storage code.
-- New focused coverage evidence on exact current Develop: `tests/unit/test_emergency_reserve.py` contains adversarial parent-directory replacement tests only for POSIX. `test_posix_store_creation_does_not_publish_into_replaced_reserve_root` and `test_posix_store_release_does_not_unlink_replacement_root_file` both explicitly skip when `os.name != "posix"`. No corresponding native-Windows parent-swap regression exists in this test module.
-- This means current Windows canonical storage coverage can remain green while BE-046 is still source-trace OPEN: the exact adversarial condition needed to prove Windows directory-identity continuity is not exercised by the existing reserve test suite.
+- Focused coverage evidence on exact current Develop: `tests/unit/test_emergency_reserve.py` contains adversarial parent-directory replacement tests only for POSIX. `test_posix_store_creation_does_not_publish_into_replaced_reserve_root` and `test_posix_store_release_does_not_unlink_replacement_root_file` explicitly skip when `os.name != "posix"`. No corresponding native-Windows parent-swap regression exists in this test module.
 - POSIX creation/release opens `reserve_root` as `root_fd`, creates/unlinks `_RESERVE_FILENAME` relative to that descriptor, fsyncs the descriptor and checks the path still resolves to the same directory identity.
-- Windows/non-POSIX creation instead opens `self.path` by pathname and verifies only reserve-file identity with `fstat` versus pathname `stat`. That file fence is useful but does not bind the parent reserve directory across mutation and durability.
-- The non-POSIX create-success, failure-cleanup and release seams therefore remain the bounded target. Required focused evidence is a native-Windows adversarial parent swap that proves fail-closed behavior without deleting or fsyncing through a substituted parent.
+- Windows/non-POSIX creation instead opens `self.path` by pathname and verifies only reserve-file identity with `fstat` versus pathname `stat`; create-success, failure-cleanup and normal release use pathname-based parent resolution/durability and do not bind the parent reserve directory identity across mutation.
 - Backend handoff marks BE-046 `OPEN / P1 / CURRENT SOURCE TRACE CONFIRMED` and has no tested bounded product candidate. No competing Errors product mutation is justified.
 - Preserve physical non-sparse allocation, exact release accounting and fail-closed Storage/Recovery semantics.
 - Closure requires a bounded Backend candidate plus focused native-Windows adversarial directory-swap evidence over create/cleanup/release, then exact-SHA canonical evidence as appropriate.
@@ -50,6 +48,17 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Backend marks the same root cause BE-052 `OPEN / P1 / CURRENT SOURCE TRACE CONFIRMED`; Errors makes no parallel product mutation.
 - Preserve read-only preflight, application-id/schema/quick-check validation, locality, symlink/reparse rejection, WAL/SHM checks and fail-closed Recovery/Storage semantics. A second pathname-only preflight is insufficient.
 - Closure requires a bounded Backend candidate plus focused cross-platform identity-swap regression evidence, followed by exact-SHA canonical evidence when integration/closure requires it.
+
+## ERR-0037 — startup event filter teardown/partial-init lifecycle race
+
+- Severity: P1 while it blocked canonical Develop.
+- Status: `FIXED`.
+- Exact reproduction: canonical Quality `34556269271@b1e77f8a4b90c12fe75e257b96303cc137d760a9 = FAILURE`; Windows path safety, Linux storage and Local-install remained green, while Python quality failed only at pytest.
+- Diagnostic artifact `canonical-quality-diagnostics-b1e77f8a4b90c12fe75e257b96303cc137d760a9` records exactly `1 failed, 4830 passed, 3 skipped`; failing test `tests/unit/test_pathena_transient_dialog_shortcuts.py::test_tab_and_backtab_stay_inside_transient_surfaces` raised `AttributeError` from `PathenaStartupExperience.eventFilter()` because teardown/partial initialization could invoke the filter before `chat_messages` existed.
+- Root cause: `eventFilter()` directly dereferenced `self.chat_messages` during QObject lifecycle events, although Qt can dispatch a filter callback while the Python wrapper is only partially initialized or being torn down.
+- Bounded correction: adjacent Develop commit `95b636c982a800d75f7d219162a04f6c87976e9f` changes only `src/athena/desktop/pathena_startup_experience_2900.py`, guarding the lifecycle-sensitive attribute with `getattr(self, "chat_messages", None)` before identity comparison. No test, Storage, Recovery, Security or release guard was weakened.
+- Closure evidence: canonical Quality `34560421777@95b636c982a800d75f7d219162a04f6c87976e9f = SUCCESS`; Python pytest, Windows path safety, Windows storage/durable-fs/runtime/ownership/packaging/chat-reserve lanes, Linux storage and Local-install all completed successfully.
+- Reopen only if the same lifecycle signature is reproduced on a then-current exact SHA.
 
 ## ERR-0036 — stale UI typography assertion after intentional hierarchy promotion
 
