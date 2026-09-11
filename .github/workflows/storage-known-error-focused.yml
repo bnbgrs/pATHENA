@@ -1,0 +1,88 @@
+name: pATHENA Storage Known-Error Candidate
+
+on:
+  pull_request:
+    branches:
+      - develop/pathena-next
+    paths:
+      - "src/athena/storage/database.py"
+      - "src/athena/storage/recovery.py"
+      - "src/athena/storage/emergency_reserve.py"
+      - "tests/unit/test_database_preflight_continuity.py"
+      - "tests/unit/test_emergency_reserve.py"
+      - "tests/unit/test_migration_plan.py"
+      - ".github/workflows/storage-known-error-focused.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pathena-storage-known-errors-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: false
+
+env:
+  CANDIDATE_SHA: ${{ github.event.pull_request.head.sha }}
+
+jobs:
+  storage-known-error-contract:
+    name: Exact Storage known-error lint typecheck and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PYTHONUTF8: "1"
+
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          persist-credentials: false
+
+      - name: Prove exact candidate identity
+        shell: pwsh
+        run: |
+          $actual = (git rev-parse HEAD).Trim().ToLowerInvariant()
+          $expected = "$env:CANDIDATE_SHA".Trim().ToLowerInvariant()
+          if ($actual -ne $expected) {
+            throw "Checked out $actual instead of exact candidate $expected."
+          }
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install pinned environment
+        run: |
+          python -m pip install --disable-pip-version-check "pip==26.1.2"
+          python -m pip install --disable-pip-version-check "uv==0.11.21"
+          uv lock --check
+          uv sync --locked --extra dev
+
+      - name: Ruff storage repair surface
+        run: >-
+          uv run --locked --extra dev --no-sync ruff check
+          src/athena/storage/database.py
+          src/athena/storage/recovery.py
+          src/athena/storage/emergency_reserve.py
+          tests/unit/test_database_preflight_continuity.py
+          tests/unit/test_emergency_reserve.py
+          tests/unit/test_migration_plan.py
+
+      - name: Mypy storage repair surface
+        run: >-
+          uv run --locked --extra dev --no-sync python -m mypy
+          src/athena/storage/database.py
+          src/athena/storage/recovery.py
+          src/athena/storage/emergency_reserve.py
+
+      - name: Run adversarial storage repair tests
+        run: >-
+          uv run --locked --extra dev --no-sync pytest -q
+          tests/unit/test_database_preflight_continuity.py
+          tests/unit/test_database_preflight_locality.py
+          tests/unit/test_migration_plan.py
+          tests/unit/test_emergency_reserve.py
+          tests/unit/test_disk_pressure.py
+          tests/unit/test_pressure_database.py
