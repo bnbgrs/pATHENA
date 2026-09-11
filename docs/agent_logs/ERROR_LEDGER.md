@@ -8,61 +8,67 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 
 ## Current baseline
 
-- Develop source of truth: `develop/pathena-next@17d06d258ec2f5841049227504034ef601cdcdf8`.
-- Error worker entered this run at `postmerge/errors@68fa85f7c6462b9454712b5d8dfb29fb9f49a2f7`.
-- Current workers: Spec/Core `8019ff39c2352e40513532814760804eaa3c2df4`; Backend `4482958c3540b865ccc38a3ba5802366433c838b`; UI `ecb91b302c700b625af9ecb9d70452c974513c06`.
-- Exact-current Develop canonical Quality: `34641291324@17d06d258ec2f5841049227504034ef601cdcdf8 = IN_PROGRESS`; no Develop PASS/FAIL claim is derived while it is running.
-- Current worker canonical evidence: Spec/Core `34636024267@8019ff39c2352e40513532814760804eaa3c2df4 = SUCCESS`; Backend `34638648498@4482958c3540b865ccc38a3ba5802366433c838b = SUCCESS`; UI `34638680643@ecb91b302c700b625af9ecb9d70452c974513c06 = SUCCESS`. Backend's green candidate is unrelated job-type registry work and does not close the open storage/recovery clusters.
-- `postmerge/errors@68fa85f7c6462b9454712b5d8dfb29fb9f49a2f7` had zero workflow runs immediately before this mutation.
+- Develop source of truth: `develop/pathena-next@0298f0c4f2d28e516a458390f8b462131ebaf17e`.
+- Error worker entered this run at `postmerge/errors@53d8a63e12f5010eed5e28498fe62cc36a617c78`.
+- Current workers: Spec/Core `58b8040f84d5cac2530aaaac349c695361a78996`; Backend `4feffb3492bcb656fd6d7a53818e61199f4e0d7a`; UI `854a0ada4b3663aa94e09083bf17017eebd68c50`.
+- Exact-current Develop canonical Quality: `34646579929@0298f0c4f2d28e516a458390f8b462131ebaf17e = IN_PROGRESS`; no Develop PASS/FAIL claim is derived while it is running.
+- Previous Develop canonical Quality: `34641291324@17d06d258ec2f5841049227504034ef601cdcdf8 = SUCCESS`.
+- Exact-current Spec/Core canonical Quality: `34643507749@58b8040f84d5cac2530aaaac349c695361a78996 = FAILURE`.
+- Exact-current Backend canonical Quality: `34644399463@4feffb3492bcb656fd6d7a53818e61199f4e0d7a = FAILURE`; its isolated current failure is canonical mypy, while Ruff, pytest, Windows path safety, Linux storage and local-install are green. This is separate from the error cluster advanced in this run.
+- `postmerge/errors@53d8a63e12f5010eed5e28498fe62cc36a617c78` had zero workflow runs immediately before this mutation.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current state
 
-- OPEN: `ERR-0033`, `ERR-0035`.
+- OPEN: `ERR-0033`, `ERR-0035`, `ERR-0039`.
 - IN_PROGRESS: none.
 - FIXED_PENDING_VERIFY: none.
 - FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015` through `ERR-0024`, `ERR-0027`, `ERR-0030`, `ERR-0031`, `ERR-0032`, `ERR-0034`, `ERR-0036`, `ERR-0037`.
 - STALE: `ERR-0014`, `ERR-0025`, `ERR-0026`, `ERR-0028`, `ERR-0029`, `ERR-0038`.
 - BLOCKED: none at top level.
 
-## ERR-0038 — Spec/Core exact-head Ruff failure
+## ERR-0039 — Spec/Core exact-head Ruff import-format blocker
+
+- Severity: P1 integration blocker.
+- Status: `OPEN`.
+- Specialist owner: Spec/Core. Errors does not parallel-mutate Core product/test code while that worker owns the exact failing candidate.
+- Exact reproducer: `postmerge/spec-core@58b8040f84d5cac2530aaaac349c695361a78996`.
+- Canonical Quality `34643507749 = FAILURE`. In `Python 3.12 quality`, specification validator = SUCCESS, Ruff = FAILURE, mypy = SUCCESS and pytest = SUCCESS. Windows path safety, Linux storage regressions and Local install smoke are also SUCCESS. The failure is therefore isolated from semantic tests, typing, Windows release guards, storage regressions and install smoke.
+- Exact canonical diagnostics artifact `canonical-quality-diagnostics-58b8040f84d5cac2530aaaac349c695361a78996` reports one error: `I001 Import block is un-sorted or un-formatted` at `tests/unit/test_identity_transition.py:1:1`, with `Organize imports` as the fix hint.
+- The exact current file has `from uuid import UUID`, then `import pytest` immediately followed by the first-party `from athena.knowledge.identity_transition import MergeTransition, SplitTransition`. Canonical Ruff rejects that block on this SHA.
+- Full canonical pytest collected 4883 tests and includes `tests/unit/test_identity_transition.py ......` green. Mypy reports `Success: no issues found in 425 source files`. This is a lint-only integration blocker, not a product-behavior regression.
+- The Core Focused Candidate `34643507760@58b8040f... = FAILURE`; its individual Ruff/test steps are emitted under continue-on-error semantics and the final fail-closed enforcement step is red, so those step labels must not be misread as closure evidence.
+- Minimal owner fix: apply Ruff/isort-conformant grouping/order to `tests/unit/test_identity_transition.py` only, then verify focused Ruff plus `tests/unit/test_identity_transition.py` on one exact SHA, followed by canonical Quality. Do not mark `FIXED_PENDING_VERIFY` until the corrected exact SHA has real focused evidence; do not mark `FIXED` until exact canonical Ruff is green.
+
+## ERR-0038 — Historical Spec/Core exact-head Ruff failure
 
 - Severity: P1 integration blocker when reproduced.
 - Status: `STALE`.
 - Previous reproducer: `53c3824e214b66e989cba1f425bfe7881190e12f`, canonical `34609297666 = FAILURE`, with Ruff `I001` at `src/athena/knowledge/revision_diff.py:3:1`.
-- The superseding exact Spec/Core candidate `e9a6a1d28281e78c9b8ee0548582ed4a39d424b4` passed canonical Quality `34621318923` and focused candidate `34621318964`, and removed the file carrying the old reproducer. Current Spec/Core has advanced again to `8019ff39c2352e40513532814760804eaa3c2df4` without a new exact-head reproduction of the historical `I001` defect.
-- This remains `STALE`, not `FIXED`: the old revision-diff candidate was abandoned/superseded rather than repaired in place.
-- Reopen only if a current exact candidate reintroduces/reproduces the Ruff failure.
+- The old revision-diff candidate was superseded and removed. The new `ERR-0039` reproducer is a different exact file/candidate and is therefore not a reopening of `ERR-0038`.
 
 ## ERR-0033 — Emergency-reserve filesystem-object identity and capacity-attestation gap
 
 - Severity: P1.
 - Status: `OPEN`.
 - Specialist owner: Backend / BE-046. Errors does not parallel-mutate Backend product code while that worker owns the root cause.
-- Exact-current source trace remains applicable on `develop/pathena-next@17d06d258ec2f5841049227504034ef601cdcdf8`; the intervening job-type-registry change does not alter `src/athena/storage/emergency_reserve.py`.
-- Existing focused coverage contains adversarial parent-directory replacement tests only for POSIX. Native-Windows parent-swap coverage is absent.
-- POSIX creation/release binds `reserve_root` to a directory descriptor for relative create/unlink and directory fsync. Windows/non-POSIX creation instead opens `self.path` by pathname, compares opened-file `fstat` with pathname `stat`, then returns to pathname-based parent resolution for cleanup/durability; normal release is pathname-based.
-- Parent-directory binding alone is insufficient. Non-POSIX failure cleanup validates `self.path.stat()` against `created_identity`, then separately calls `self.path.unlink()`, leaving a same-parent filename-substitution window. Normal non-POSIX release has the wider `exists/is_file/stat -> unlink` pathname window.
-- POSIX release attests the opened reserve with `fstat`, captures its logical size, closes pATHENA's reserve descriptor, then re-validates only the parent-directory identity before `os.unlink(_RESERVE_FILENAME, dir_fd=root_fd)` and returns the previously captured size. The filename/object identity is not carried across the attestation-to-unlink boundary.
-- Inspection/acceptance can also lose object identity on both POSIX and non-POSIX paths, including concurrent creation. Admission/release do not establish exclusive ownership against hardlinks.
-- Physical-capacity attestation is incomplete where allocation metadata is unavailable: `_allocated_bytes_from_stat()` can return `None`, while `EmergencyReserveStatus` only enforces minimum allocation when allocation is known. Logical length alone must not be treated as proof of physically recoverable reserve capacity.
-- Previously established open-handle evidence remains: an independently pre-opened descriptor can survive unlink and keep the inode/data blocks referenced, so successful pathname removal does not prove physical reclamation; a writable second descriptor can also mutate the same inode after attestation.
-- A one-time `st_nlink == 1` or equivalent single-link check at attestation is insufficient. Because the validated file descriptor is closed before unlink and there is no object/namespace lock spanning that boundary, another actor can create a second hardlink to the already-attested inode after the check but before pATHENA unlinks the canonical name. The unlink can then succeed while the new hardlink retains the inode and blocks, yet `release()` would return the pre-race logical size as released bytes.
-- Current `tests/unit/test_emergency_reserve.py` covers stable release, POSIX parent-directory replacement, allocation under-reporting and creation cleanup, but has no adversarial hardlink insertion between release attestation and unlink. Therefore a static single-link admission assertion would not constitute closure evidence.
-- Closure requires a bounded Backend candidate with focused adversarial tests covering parent substitution, same-parent target substitution across inspection/cleanup/release, hardlink ownership/release accounting including the attestation-to-unlink hardlink-insertion race, unknown-allocation fail-closed behavior, and the pre-opened second-descriptor case. The release contract must maintain a bounded physical-reclamation guarantee across the entire attestation-to-accounting interval rather than sampling link count once. Preserve non-sparse allocation and all Storage/Recovery semantics.
+- Existing evidence remains applicable because current Develop changes do not close the EmergencyReserve invariants.
+- POSIX creation/release binds the reserve root to a directory descriptor, but release attests the reserve with `fstat`, captures logical size, closes pATHENA's reserve descriptor, then validates only parent identity before unlink and returns the captured size. Filename/object identity is not carried across the attestation-to-unlink boundary.
+- Non-POSIX creation/release and cleanup retain pathname-based substitution windows. Inspection/acceptance also has object-identity continuity gaps, and admission/release do not establish exclusive ownership against hardlinks.
+- Physical-capacity attestation remains incomplete where allocation metadata is unavailable: logical length alone is not proof of physically recoverable reserve capacity.
+- A pre-opened second descriptor can survive unlink and keep the inode/data blocks referenced. A one-time single-link check is insufficient because a hardlink can be inserted after attestation but before unlink.
+- Closure requires a bounded Backend candidate with focused adversarial coverage for parent substitution, same-parent target substitution, hardlink ownership and insertion races, unknown-allocation fail-closed behavior and pre-opened second-descriptor reclamation/accounting. Preserve non-sparse allocation and all Storage/Recovery semantics.
 
 ## ERR-0035 — SQLite preflight identity is not carried into live writer startup
 
 - Severity: P1.
 - Status: `OPEN`.
 - Specialist owner: Backend / BE-052. Errors does not parallel-mutate Backend product code while that worker owns the root cause.
-- Exact-current source evidence: `develop/pathena-next@17d06d258ec2f5841049227504034ef601cdcdf8`. `SQLiteDatabase.start()` calls `inspect_database_read_only(self.path, ...)`, consumes the returned preflight result, and only later establishes a separate writable connection with `sqlite3.connect(self.path, check_same_thread=False)`.
-- The continuity gap is broader than primary-database pathname identity. `inspect_database_read_only()` also inspects the current `-wal` and `-shm` sidecar state and performs its read-only quick-check through a connection that is closed before the later writer connection is opened. No file-set identity token or equivalent binding carries the attested primary database plus WAL/SHM snapshot across that transition.
-- Therefore WAL/SHM presence or filesystem-object identity can change after read-only inspection returns but before the writer connection is established, even if the primary database object itself remains unchanged. The live writer can consequently observe a different SQLite file set from the one whose sidecar state the preflight accepted.
-- This evidence does **not** assert that SQLite will accept an arbitrary malformed or forged WAL/SHM file; SQLite's own format/checksum validation remains independent. The defect is the absence of fail-closed attestation continuity between the preflight file set and the writer-open file set.
-- Distinct from `ERR-0033`: ERR-0033 concerns EmergencyReserve filesystem-object identity/capacity across mutation and acceptance; ERR-0035 concerns SQLite startup continuity between a validated read-only file-set snapshot and the live writable SQLite snapshot.
-- Preserve read-only preflight, application-id/schema/quick-check validation, locality, symlink/reparse rejection, WAL/SHM checks and fail-closed Recovery/Storage semantics. Merely repeating another pathname-only preflight is insufficient unless it is made atomic/equivalent with writer establishment.
-- Closure requires a bounded Backend candidate that binds or fail-closed revalidates the **whole SQLite file set** — primary DB, WAL and SHM — across preflight-to-writer establishment. Focused adversarial evidence must gate startup after `inspect_database_read_only()` returns and before writer `sqlite3.connect()`, then create/remove/replace a sidecar and prove startup detects the snapshot/identity mismatch rather than relying on stale sidecar preflight state. Exact-SHA canonical evidence follows when integration/closure requires it.
+- `SQLiteDatabase.start()` performs `inspect_database_read_only(self.path, ...)` and later establishes an independent writable `sqlite3.connect(self.path, check_same_thread=False)`.
+- The continuity gap covers the whole SQLite file set. Read-only inspection also evaluates current `-wal` and `-shm` sidecar state, but no file-set identity token or equivalent binding carries the attested primary DB plus WAL/SHM snapshot into writer establishment.
+- WAL/SHM presence or filesystem identity can therefore change after preflight returns while the primary database remains unchanged. The live writer can observe a different file set from the one whose sidecar state preflight accepted.
+- This does not assert SQLite accepts arbitrary malformed sidecars; the defect is the absence of fail-closed attestation continuity.
+- Closure requires a bounded Backend candidate that binds or fail-closed revalidates primary DB, WAL and SHM across preflight-to-writer establishment, with an adversarial post-inspection/pre-writer sidecar mutation test. Preserve read-only preflight, application-id/schema/quick-check validation, locality, symlink/reparse rejection and all Storage/Recovery semantics.
 
 ## Closed/stale historical clusters
 
