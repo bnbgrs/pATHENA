@@ -1,68 +1,98 @@
 # Independent Manual Release-Closure Handoff
 
 Generated: 2026-09-11
-Branch: `manual/independent-release-closure-20260911`
-Base: `develop/pathena-next@17d06d258ec2f5841049227504034ef601cdcdf8`
+Current continuation branch: `manual/independent-release-closure2-20260911`
+Parent evidence branch: `manual/independent-release-closure-20260911@a26b026a374ce88f2fb1d87ccdddfb0f15958b40`
+Develop baseline used for both: `develop/pathena-next@17d06d258ec2f5841049227504034ef601cdcdf8`
 
 ## Ownership / collision rule
 
-This work deliberately does **not** modify `main`, `develop/pathena-next`, `postmerge/errors`, `postmerge/spec-core`, `postmerge/backend`, or `postmerge/ui`. No Storage product code, Qt/UI product code, packaging product code, workflow, or release guard is changed. The branch contains only independent diagnostics/acceptance tooling and QA coverage. Active workers should selectively reuse/cherry-pick only the pieces they own after revalidating against their then-current base.
+This work deliberately does **not** modify `main`, `develop/pathena-next`, `postmerge/errors`, `postmerge/spec-core`, `postmerge/backend`, or `postmerge/ui`. No Storage product code, Qt/UI product code, packaging product code, workflow, or release guard is changed. The continuation contains only diagnostics, evidence contracts and QA coverage. Active workers should cherry-pick only the independent tooling they own after revalidating against their then-current base.
+
+The parent branch remains frozen while its canonical Quality run is in progress. This continuation was branched from that frozen exact head instead of stacking another commit onto an in-flight candidate.
 
 ## Storage identity — Backend + Fehlerjäger handoff
 
-Added `scripts/audit_storage_identity_contract.py` plus QA coverage.
+`scripts/audit_storage_identity_contract.py` is now strengthened beyond the first detector.
 
-On the branch base the audit is expected to reproduce three exact open identity boundaries:
+Current machine-readable findings on the inherited Develop baseline:
 
-- `BE-046_POSIX_FD_CLOSED_BEFORE_PATH_UNLINK`: `_unlink_reserve_posix` validates through the open FD, closes it, then performs destructive unlink through `record.path`.
-- `BE-046_NONPOSIX_PATHNAME_UNLINK_AFTER_IDENTITY_CHECK`: `_unlink_reserve_non_posix` captures pathname identity, then separately deletes by pathname.
-- `BE-052_PREFLIGHT_IDENTITY_NOT_BOUND_TO_WRITER_OPEN`: `SQLiteDatabase.start()` performs `inspect_database_read_only(self.path)` and later separately calls `sqlite3.connect(...)`.
+- `BE-046_POSIX_FD_CLOSED_BEFORE_PATH_UNLINK`
+- `BE-046_NONPOSIX_PATHNAME_UNLINK_AFTER_IDENTITY_CHECK`
+- `BE-052_PREFLIGHT_IDENTITY_NOT_BOUND_TO_WRITER_OPEN`
+- `BE-052_FILESET_SIDECAR_ATTESTATION_DROPPED_BEFORE_WRITER`
 
-The audit exits `2` while those known product gaps remain and `0` when none of its signatures remain. It is diagnostic evidence, **not** the BE-046/BE-052 product fix. Backend remains owner of the actual identity-preserving primitive and adversarial native-Windows/POSIX acceptance tests. Error bot can use the stable finding names for deduplication.
+The fourth finding incorporates the Fehlerjäger refinement from current ERR-0035 evidence: read-only recovery inspection attests WAL/SHM presence, but `SQLiteDatabase.start()` discards the preflight result and opens the later writer independently. The audit now returns source file/line evidence plus six explicit acceptance cases:
+
+1. POSIX same-parent target replacement after object validation;
+2. Windows same-parent target replacement;
+3. Windows parent-directory substitution;
+4. WAL appears after preflight;
+5. SHM is replaced after preflight;
+6. primary database is replaced after preflight.
+
+Required closure remains product-owned by Backend. BE-046 must bind actual filesystem object identity through the destructive release. BE-052 must preserve or fail-closed revalidate the identity/snapshot of the primary database plus WAL/SHM through writer establishment. This branch does not implement competing Storage code.
+
+Continuation Storage commit: `c673b539bd56aa8dc196cd9f9f43e7688abf7ba1`.
 
 ## 11-screen UI evidence — UI bot handoff
 
-Added `scripts/validate_ui_reference_evidence.py` plus QA coverage.
+The existing Markdown-manifest validator remains available. New continuation tool:
 
-The validator enforces:
+`scripts/validate_ui_pair_evidence.py`
 
-- exactly slots 01–11, exactly once and in canonical order;
-- malformed rows fail closed;
-- a `MATCH` claim is rejected if the original reference is not `AVAILABLE_OPENED`;
-- a `MATCH` claim is rejected while the reference is `VISUAL_REFERENCE_PENDING`;
-- machine-readable counts for opened references, pending references and MATCH claims.
+It defines the evidence contract for a real per-slot verdict rather than inferring visual status from QSS/code/tests:
 
-On the branch base the manifest is structurally valid but still reports zero MATCH claims. This validator does not claim visual parity and does not replace opening the real reference/runtime image pair. UI worker remains owner of Qt product changes and same-state visual comparison.
+- exactly slots 01–11 in order;
+- `MATCH`, `CLOSE` or `GAP` require both the original reference and exact runtime render to have been opened;
+- runtime render must carry an exact 40-character commit SHA;
+- reference and runtime must identify the same visible state;
+- `MATCH` cannot carry visible gaps;
+- `GAP` must carry at least one concrete visible gap;
+- `VISUAL_READY_11_OF_11` can only become true with eleven verified same-state pairs and no `GAP`/`UNVERIFIED` verdict.
 
-## Windows / packaging / runtime — Integrator/Backend handoff
+This intentionally does not touch Help/Qt/product presentation, where the UI worker is currently active. It only gives the worker a fail-closed acceptance format that prevents cross-state or stale-SHA visual claims.
 
-Added `scripts/validate_windows_release_contract.py` plus QA coverage.
+Continuation UI commit: `c692115f72b62723fcfc73d9473845f0b8db5093`.
 
-The validator checks the repository-level release contract for:
+## Windows / packaging / runtime — Integrator + Backend handoff
 
-- a `windows-latest` canonical lane;
-- packaged app dispatch/process/Windows packaging contract regressions in that lane;
-- Windows Core/API restart smoke;
-- packaging metadata smoke;
-- two-EXE desktop/worker contract assertions;
-- packaged worker artifact contract;
-- pypdf collection contract;
-- locked `pypdf` runtime dependency;
-- locked PySide6 desktop runtime dependency.
+The existing repository-level contract validator remains available. New continuation tool:
 
-This is a static release-contract gate, not evidence that a freshly built Windows EXE launches successfully. The final release still needs exact-SHA Windows build/runtime/packaging evidence.
+`scripts/validate_windows_exact_sha_evidence.py`
 
-## QA file
+It validates exported native-Windows Actions evidence and rejects:
 
-`tests/qa/test_manual_release_closure.py` executes all three validators against the exact branch tree. The Storage assertion is intentionally a diagnostic canary for the current base: once Backend closes BE-046/BE-052, that assertion must be updated/removed rather than preserving the vulnerability signature.
+- a run for any SHA other than the requested exact 40-character candidate SHA;
+- workflow status other than `completed`;
+- workflow conclusion other than `success`;
+- missing or non-success `Windows path safety` job;
+- missing/non-success required Windows release steps.
 
-## Commits
+Required Windows steps include native active-state locality, deterministic locality, Windows Storage paths, durable filesystem, API runtime boundaries, Core/API ownership, packaged runtime contracts, adaptive chat reserve, restart smoke, pypdf packaging and final release-guard enforcement.
 
-- `66c9537686c140005dcae953a8ad7aa7a410fb7f` — Storage identity-boundary audit.
-- `f8b94982e0ac6810850429fd7782e1af2a168dcb` — fail-closed 11-screen evidence validator.
-- `53d191782d8a3201b0f7e93030aa2add1a24025e` + `0a1f18f4b848a8a6fbea0c5002a8f87da0adcfa7` — Windows release-contract validator and token hardening.
-- `890399c3440711985bb9889ae40d752a1d1f66b4` — QA execution of all three validators.
+This closes an evidence-quality gap: a static packaging contract or a green historical Windows run can no longer be mistaken for native evidence for a different current candidate SHA. It does not itself build an EXE or replace real Windows runtime acceptance.
+
+Continuation Windows commit: `c3c1b933d797c736dc785da76b609174a901904c`.
+
+## QA coverage
+
+`tests/qa/test_manual_release_closure.py` now covers both generations of tooling. New assertions prove:
+
+- the refined BE-052 WAL/SHM continuity finding and acceptance-case set are emitted;
+- one valid same-state UI pair is counted without overstating 11/11 readiness;
+- a cross-state UI `MATCH` is rejected;
+- a complete native-Windows step set for an exact SHA is accepted;
+- an otherwise-green Windows evidence packet for the wrong SHA is rejected.
+
+QA coverage commit: `aafc3adb4db23ef8168ace0a6b1cc9940720c470`.
 
 ## Integration guidance
 
-Do not merge this branch wholesale merely because CI is green. Treat it as independent evidence/tooling. Backend/Error should consume the Storage detector or its stable finding names; UI should consume the manifest validator; Integrator/Backend can consume the Windows release-contract validator. Rebase/revalidate each selected slice against the current Develop/worker head before integration.
+Do not merge either manual branch wholesale merely because CI is green. Consume the pieces by ownership:
+
+- Backend/Error: Storage audit IDs, evidence lines and acceptance cases;
+- UI: pair-evidence validator/schema only; keep product Help/Qt work on `postmerge/ui`;
+- Integrator/Backend: static Windows contract validator and exact-SHA evidence validator.
+
+Revalidate every selected piece against the then-current Develop/worker head. Once Backend actually closes BE-046/BE-052, update or remove the diagnostic canary assertions rather than preserving signatures of the old defect.
