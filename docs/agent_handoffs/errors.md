@@ -5,7 +5,7 @@
 - Develop source of truth: `develop/pathena-next@c670d7809c9f0aa5e6c31956b57e897091f1b9d6`.
 - Error worker entered this run at `postmerge/errors@6ada3662333696a2373f0b6eb30eff9e5367e373`.
 - Current workers: Spec/Core `8019ff39c2352e40513532814760804eaa3c2df4`; Backend `195814616f394e1794aa4f3b2a16a584c092ab31`; UI `4eeb75a6f5909fb1aa194c2c6df2d5ce1b431748`.
-- Exact-current Develop canonical Quality: `34639093541@c670d7809c9f0aa5e6c31956b57e897091f1b9d6 = IN_PROGRESS`; do not infer PASS/FAIL while it is running.
+- Exact-current Develop canonical Quality: `34635967020@c670d7809c9f0aa5e6c31956b57e897091f1b9d6 = IN_PROGRESS`; do not infer PASS/FAIL while it is running.
 - Backend exact-head canonical Quality: `34604847434@195814616f394e1794aa4f3b2a16a584c092ab31 = SUCCESS`, but the SHA contains no BE-046 fix candidate and therefore does not close `ERR-0033`.
 - Current Spec/Core and UI heads have no exact-head workflow result yet; evidence from older SHAs is not promoted to them.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
@@ -46,13 +46,13 @@ Status remains `STALE`. No current exact Spec/Core SHA reproduced the historical
 ## CI discipline
 
 - `postmerge/errors@6ada3662333696a2373f0b6eb30eff9e5367e373` had zero workflow runs before the ledger mutation.
-- The resulting ledger commit `e63f35e3508afba3cc223c04b9c61031aa1c96fc` also had zero workflow runs before this handoff mutation.
+- The ledger update lineage remained at zero workflow runs before the handoff mutation and before the run-ID correction.
 - Errors started no canonical Quality run and did not mutate a branch with an active exact-head canonical run.
-- Develop canonical `34639093541@c670d7809c9f0aa5e6c31956b57e897091f1b9d6` remains in progress and was left untouched.
+- Develop canonical `34635967020@c670d7809c9f0aa5e6c31956b57e897091f1b9d6` remains in progress and was left untouched.
 
 ## Integrator handoff
 
-- Develop: `c670d7809c9f0aa5e6c31956b57e897091f1b9d6`; canonical `34639093541 = IN_PROGRESS` at this handoff. Consume it before deriving Develop integration status.
+- Develop: `c670d7809c9f0aa5e6c31956b57e897091f1b9d6`; canonical `34635967020 = IN_PROGRESS` at this handoff. Consume it before deriving Develop integration status.
 - Backend: `195814616f394e1794aa4f3b2a16a584c092ab31`; canonical `34604847434 = SUCCESS`, but no BE-046 candidate exists on that SHA.
 - `ERR-0033 = OPEN / P1`, Backend BE-046 owned. New evidence: a one-time single-link check does not close release accounting because a hardlink can be inserted after attestation and before unlink; closure requires an adversarial attestation-to-unlink hardlink-race test and a bounded physical-reclamation guarantee across that whole interval.
 - `ERR-0035 = OPEN / P1`, Backend BE-052 owned; unchanged this run.
