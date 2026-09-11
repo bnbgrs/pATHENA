@@ -6,42 +6,40 @@ Reference folder: `/pATHENA/Designreferenz – 11 Screenshots`
 
 ## Evidence state — 2026-09-11
 
-Current Develop was checked first at run start: `e6ba3d7557bd46094ad4e8f067a238e1c2375f8e`; exact canonical ATHENA Quality Gate `34567856833` completed `SUCCESS` on that SHA. Run-start worker HEAD was `c51ef04787ef6affa2e6acc3a902e138cf6b7409`.
+Run-start Develop was checked first at `69b16347bd4bab875c31b7a41830c6bab6a0bb7b`; exact canonical Quality run `34576900899` completed `SUCCESS`. Run-start worker HEAD was `69773c189cabca3400f66101934b82b0d80bb38e`.
 
-All 11 user reference PNGs were independently opened as images again. The previously blocked exact worker artifact for `103feb7ca6b3513077ce47f83569c13cc626b600` was also downloaded and all 11 native Windows/PySide6 runtime PNGs were opened. That fresh pixel review reproduced a repeated visual defect: Knowledge, Research, Jobs, Sources and Settings reused the Chat-oriented `CHAT / NONE` inspector even though the reference set requires route-specific context.
+All eleven files in the user-owned reference folder were enumerated and all eleven were opened as images in this run. The exact Windows/PySide6 visual artifact for worker `69773c189cabca3400f66101934b82b0d80bb38e` was downloaded and all eleven current runtime PNGs were opened. Knowledge and Research now visibly carry truthful route-specific no-selection inspector contexts; Jobs and Settings retain their previously added truthful contexts. Sources still visibly reuses `CHAT / NONE`, which is misleading for that route.
 
-This run intentionally bounded the product change to two contexts only: Jobs and Settings. Candidate `069dff56d64cd78e2ddd255460db375f8eeb3041` exposed a real Qt capture failure (`QLabel` has no `textChanged` signal); no visual claim was made from that failed capture. Follow-up candidate `75029071aa63dbaa73ef42da16fb709cc6d8ca99` removed that invalid signal dependency while preserving the route-driven presentation. Exact visual run `34571930149` then completed immutable checkout, environment install, Ruff, mypy, comparator contract tests, all 11 native-font captures, comparison/proposal and artifact upload successfully. Only the final visual verdict failed because no approved committed baseline exists.
-
-All 11 exact runtime PNGs from `75029071…` were downloaded and opened. Jobs now visibly presents `JOB / NONE`, `No job selected`, `EXECUTION` and `RESOURCES`; Settings visibly presents `SETTINGS / LOCAL`, `System status`, the actual captured core status and explicit no-synthetic-health-state copy. No job/resource/health values were fabricated. The product still has substantial reference gaps, so no MATCH is claimed.
+This candidate is bounded to that single remaining route-context defect: Sources gains `SOURCE / NONE`, `No source selected`, `DETAILS`, and `PROVENANCE` copy. It does not fabricate source metadata, processing state, provenance, or selection data and does not change routing, Backend, Storage, or Security semantics. The focused Qt contract is extended for Sources. Fresh exact-SHA AFTER pixels remain pending until CI runs this candidate, so no post-mutation visual claim is made in this document.
 
 | Slot | Reference | Current exact render | Checked branch + SHA | Status | Visible deviations / evidence limit | Concrete next correction |
 |---|---|---|---|---|---|---|
-| 01 ComfyUI | AVAILABLE_OPENED | AVAILABLE_OPENED (`11-comfyui.png`) | `postmerge/ui@75029071…` | GAP | Real utility is standalone; reference uses full shell, stronger workspace hierarchy and Connection inspector. | Preserve real ComfyUI path; address shell integration only after higher-repeat gaps. |
-| 02 PALLAS | AVAILABLE_OPENED | AVAILABLE_OPENED (`08-pallas.png`) | same | GAP | Real semantic graph exists, but reference adds shell framing and selected Knowledge/Provenance/History context. | Revisit after shared inspector work. |
-| 03 Settings | AVAILABLE_OPENED | AVAILABLE_OPENED (`07-settings.png`) | same | GAP / STATE_UNVERIFIED | BEFORE generic `CHAT / NONE`; AFTER now truthful `SETTINGS / LOCAL` + `System status`. Reference is a richer populated status composition. | Bind richer details only when real status data exists; no synthetic health. |
-| 04 Help | AVAILABLE_OPENED | AVAILABLE_OPENED (`10-help.png`) | same | GAP | Real capability surface remains standalone and text-heavy versus full Help workspace reference. | Defer behind repeated shell/inspector gaps. |
-| 05 Workspace/Evidence | AVAILABLE_OPENED | AVAILABLE_OPENED (`01-chat.png`) | same | UNVERIFIED | Current is real reconnecting/empty Chat; reference is populated grounded/synthesis state with inspector and richer composition. | Capture a real populated grounded state before parity claims. |
-| 06 Jobs | AVAILABLE_OPENED | AVAILABLE_OPENED (`04-jobs.png`) | same | GAP / STATE_UNVERIFIED | BEFORE generic Chat inspector; AFTER now truthful Job empty-state context with Execution/Resources. Reference shows an actual running job and populated resource detail. | Connect selected-job data only through existing real job state. |
-| 07 Command Palette | AVAILABLE_OPENED | AVAILABLE_OPENED (`09-command-palette.png`) | same | GAP / CONTEXT_UNVERIFIED | Real dialog remains standalone rather than overlay over the referenced Knowledge context. | Capture/compose real overlay context later. |
-| 08 System | AVAILABLE_OPENED | AVAILABLE_OPENED (`06-system.png`) | same | GAP / STATE_UNVERIFIED | Route already has real Runtime/Backup and Security posture hierarchy; captured state is unavailable/disconnected rather than healthy reference state. | Preserve fail-closed semantics; compare a real healthy state when available. |
-| 09 Dark research studio | AVAILABLE_OPENED | AVAILABLE_OPENED (`03-research.png`) | same | GAP / STATE_UNVERIFIED | Current route still exposes generic Chat inspector and failed/empty Research state; reference has research-specific synthesis/run context. | Next shared inspector candidate: truthful Research context from real selection/state. |
-| 10 Light workspace variant | AVAILABLE_OPENED | NO SAME-STATE LIGHT RENDER | same | UNVERIFIED | Eleven runtime surfaces were opened, but none is a same-state light equivalent. Dark/orange product direction remains authoritative. | Geometry-only comparison when a real equivalent state exists. |
-| 11 Local-memory workspace | AVAILABLE_OPENED | AVAILABLE_OPENED (`02-knowledge.png`) | same | GAP / STATE_UNVERIFIED | Current Knowledge still uses generic `CHAT / NONE`; reference requires selected Knowledge/Provenance/Evidence context and populated memory graph. | Next shared inspector candidate: truthful Knowledge context from real selection/state. |
+| 01 ComfyUI | AVAILABLE_OPENED | AVAILABLE_OPENED (`11-comfyui.png`) | `postmerge/ui@69773c18…` | GAP | Current real utility is standalone; reference is shell-integrated with Integration navigation and Connection inspector. | Defer until shared shell/surface-integration slice. |
+| 02 PALLAS | AVAILABLE_OPENED | AVAILABLE_OPENED (`08-pallas.png`) | same | GAP | Real graph exists, but current is standalone and lacks the reference shell plus rich Knowledge/Provenance/History inspector. | Revisit with shared surface integration. |
+| 03 Settings | AVAILABLE_OPENED | AVAILABLE_OPENED (`07-settings.png`) | same | GAP / STATE_UNVERIFIED | Truthful `SETTINGS / LOCAL` inspector is present; current core is reconnecting while reference shows populated healthy status. | Bind richer status only from real runtime data. |
+| 04 Help | AVAILABLE_OPENED | AVAILABLE_OPENED (`10-help.png`) | same | GAP | Current capability dialog is standalone; reference is a full Help workspace with navigation and shortcuts inspector. | Defer to shared surface integration. |
+| 05 Workspace/Evidence | AVAILABLE_OPENED | AVAILABLE_OPENED (`01-chat.png`) | same | UNVERIFIED | Current Chat is reconnecting/empty; reference is populated synthesis with graph, Evidence/Activity and larger composer. | Obtain a real populated grounded state before parity claims. |
+| 06 Jobs | AVAILABLE_OPENED | AVAILABLE_OPENED (`04-jobs.png`) | same | GAP / STATE_UNVERIFIED | Correct Job no-selection inspector exists, but reference shows a running job, steps, live log and populated resources. | Connect real selected-job state only when available. |
+| 07 Command Palette | AVAILABLE_OPENED | AVAILABLE_OPENED (`09-command-palette.png`) | same | GAP / CONTEXT_UNVERIFIED | Current palette is standalone; reference is an overlay over populated Knowledge. | Integrate overlay only through real shell path. |
+| 08 System | AVAILABLE_OPENED | AVAILABLE_OPENED (`06-system.png`) | same | GAP / STATE_UNVERIFIED | Current has real Runtime/Backup/Security semantics but captured state is unavailable; reference is healthy/populated. | Preserve fail-closed semantics; compare healthy real state later. |
+| 09 Dark research studio | AVAILABLE_OPENED | AVAILABLE_OPENED (`03-research.png`) | same | GAP / STATE_UNVERIFIED | Truthful `RESEARCH / NONE` inspector is present; current failed/empty state remains far simpler than reference synthesis/graph/evidence composition. | Address shared workspace hierarchy after route-context cleanup. |
+| 10 Light workspace variant | AVAILABLE_OPENED | NO SAME-STATE LIGHT RENDER | same | UNVERIFIED | No same-state real Light rendering exists. | Geometry-only comparison when a real equivalent exists. |
+| 11 Local-memory workspace | AVAILABLE_OPENED | AVAILABLE_OPENED (`02-knowledge.png`) | same | GAP / STATE_UNVERIFIED | Truthful `KNOWLEDGE / NONE` inspector is present; reference is populated synthesis/reasoning/evidence state. | Address shared workspace hierarchy after route-context cleanup. |
 
 ## Current verification accounting
 
 - References opened this run: `11/11`.
-- Exact final-candidate native runtime surfaces opened this run: `11/11`.
-- Final rendered product SHA: `75029071aa63dbaa73ef42da16fb709cc6d8ca99`.
-- Same-state/reference-equivalent pairs: `0/11` under the strict rule; state/framing differences remain.
-- `MATCH`: `0/11`.
+- Exact pre-mutation runtime surfaces opened this run: `11/11` at `69773c189cabca3400f66101934b82b0d80bb38e`.
+- Same-state/reference-equivalent pairs: `0/11` under the strict rule.
+- `MATCH_0_OF_11`.
 - `PAIRS_VERIFIED_0_OF_11`.
 
-## BEFORE -> AFTER for the bounded slice
+## BEFORE -> AFTER target for this bounded slice
 
-- Jobs: generic `CHAT / NONE` inspector -> truthful `JOB / NONE` context with explicit `EXECUTION` and `RESOURCES` empty-state guidance.
-- Settings: generic `CHAT / NONE` inspector -> truthful `SETTINGS / LOCAL` / `System status` context using the actually rendered core status and explicit no-synthetic-health-state wording.
+- Sources BEFORE at exact `69773c18…`: generic `CHAT / NONE`, `No conversation selected`, and Chat-specific inspector copy.
+- Sources AFTER target in this candidate: truthful `SOURCE / NONE`, `No source selected`, `DETAILS`, and `PROVENANCE`, with explicit no-selection wording only.
+- AFTER remains `CURRENT_RENDER_PENDING` until a fresh exact-SHA Windows/PySide6 capture is completed and opened.
 
 ## Highest-priority next visual slice
 
-The repeated contextual-inspector gap remains the largest verified cross-screen defect, but Jobs and Settings are no longer the generic-Chat cases. Next, at most two tightly coupled contexts should be addressed: Knowledge and Research, using only real selections/controller state or explicit none/unavailable states. Do not touch System's already real Security posture semantics.
+After exact visual verification of the Sources correction, `VISUAL-GAP-0002` route-context cleanup should be considered structurally reduced for Knowledge, Research, Jobs, Sources and Settings. The next priority should then be reassessed from fresh 11-screen pixels; current evidence points to shared shell/workspace hierarchy and standalone surface integration rather than further inspector copy.

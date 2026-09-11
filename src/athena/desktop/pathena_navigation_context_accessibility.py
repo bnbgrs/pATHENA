@@ -42,6 +42,12 @@ _CONTEXTUAL_INSPECTOR_COPY = {
         "EXECUTION\nSelect a job in the Jobs workspace to inspect its reported execution state.\n\n"
         "RESOURCES\nResource details appear only for a selected reported job.",
     ),
+    4: (
+        "SOURCE / NONE",
+        "No source selected",
+        "DETAILS\nSelect a source in the Sources workspace to inspect its reported metadata and processing state.\n\n"
+        "PROVENANCE\nSource provenance appears only for a selected reported source.",
+    ),
     6: (
         "SETTINGS / LOCAL",
         "System status",

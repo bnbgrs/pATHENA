@@ -147,6 +147,15 @@ def test_workspace_routes_use_truthful_contextual_inspector_overlays() -> None:
         assert "RESOURCES" in body.text()
         assert "Select a job" in body.text()
 
+        window.navigation.setCurrentRow(4)
+        app.processEvents()
+        assert panel.isVisible()
+        assert context_id.text() == "SOURCE / NONE"
+        assert heading.text() == "No source selected"
+        assert "DETAILS" in body.text()
+        assert "PROVENANCE" in body.text()
+        assert "Select a source" in body.text()
+
         window.navigation.setCurrentRow(6)
         app.processEvents()
         assert panel.isVisible()
