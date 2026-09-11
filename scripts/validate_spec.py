@@ -28,8 +28,10 @@ CheckResult = tuple[str, bool, str]
 checks: list[CheckResult] = []
 
 
-def read_text(path: Path) -> str:
-    """Read repository text deterministically on every operating system."""
+def read_text(path: Path, *, root: Path = ROOT) -> str:
+    """Read repository text only when its real target stays inside root."""
+    if resolve_repository_scan_target(path, root=root) is None:
+        raise ValueError(f"Refusing repository text outside root: {path}")
     return path.read_text(encoding=UTF8)
 
 
@@ -41,19 +43,72 @@ def contains_all(text: str, values: Iterable[str]) -> bool:
     return all(value in text for value in values)
 
 
-def included_in_repository_scan(path: Path) -> bool:
-    relative = path.relative_to(ROOT)
+def included_in_repository_scan(path: Path, *, root: Path = ROOT) -> bool:
+    relative = path.relative_to(root)
     return not relative.parts or relative.parts[0] not in IGNORED_SCAN_ROOTS
 
 
-all_files = [
-    path
-    for path in ROOT.rglob("*")
-    if path.is_file() and included_in_repository_scan(path)
-]
-markdown_files = [
-    path for path in ROOT.rglob("*.md") if included_in_repository_scan(path)
-]
+def resolve_repository_scan_target(
+    path: Path,
+    *,
+    root: Path = ROOT,
+) -> Path | None:
+    """Resolve a scan input only when its real target stays inside root."""
+    resolved_root = root.resolve()
+    try:
+        resolved = path.resolve()
+        resolved.relative_to(resolved_root)
+    except (OSError, RuntimeError, ValueError):
+        return None
+    return resolved
+
+
+def collect_repository_scan_files(
+    *,
+    root: Path = ROOT,
+) -> tuple[list[Path], list[Path], list[str]]:
+    """Collect repository files without admitting out-of-root real targets."""
+    all_files: list[Path] = []
+    markdown_files: list[Path] = []
+    unsafe_inputs: list[str] = []
+
+    for path in root.rglob("*"):
+        if not included_in_repository_scan(path, root=root):
+            continue
+        if resolve_repository_scan_target(path, root=root) is None:
+            unsafe_inputs.append(str(path.relative_to(root)))
+            continue
+        if not path.is_file():
+            continue
+        all_files.append(path)
+        if path.suffix == ".md":
+            markdown_files.append(path)
+
+    return all_files, markdown_files, unsafe_inputs
+
+
+def resolve_repository_link(
+    source: Path,
+    path_part: str,
+    *,
+    root: Path = ROOT,
+) -> Path | None:
+    """Resolve a Markdown target only when its real destination stays inside root."""
+    resolved_root = root.resolve()
+    try:
+        destination = (source.parent / path_part).resolve()
+        destination.relative_to(resolved_root)
+    except (OSError, RuntimeError, ValueError):
+        return None
+    return destination
+
+
+all_files, markdown_files, unsafe_scan_inputs = collect_repository_scan_files()
+check(
+    "Repository scan inputs stay inside root",
+    not unsafe_scan_inputs,
+    "; ".join(unsafe_scan_inputs[:30]),
+)
 
 non_ascii_files = [
     str(path.relative_to(ROOT))
@@ -169,8 +224,12 @@ for path in markdown_files:
         if not path_part:
             continue
 
-        destination = (path.parent / path_part).resolve()
-        if not destination.exists():
+        destination = resolve_repository_link(path, path_part)
+        if destination is None:
+            broken_links.append(
+                f"{path.relative_to(ROOT)} -> {target} (outside repository root)"
+            )
+        elif not destination.exists():
             broken_links.append(f"{path.relative_to(ROOT)} -> {target}")
 check(
     "All relative Markdown links resolve",

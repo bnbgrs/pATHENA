@@ -15,7 +15,11 @@ from athena.storage.connection_policy import (
     apply_and_verify_connection_policy,
     validated_busy_timeout_ms,
 )
-from athena.storage.recovery import inspect_database_read_only
+from athena.storage.recovery import (
+    assert_database_preflight_current,
+    assert_database_writer_bound,
+    inspect_database_read_only,
+)
 from athena.storage.schema import initialize_schema
 
 _ReadResultT = TypeVar("_ReadResultT")
@@ -36,6 +40,15 @@ def _nonnegative_int(value: object, field_name: str) -> int:
     if value < 0:
         raise ValueError(f"{field_name} must not be negative.")
     return value
+
+
+def _open_writer_connection(path: Path, *, busy_timeout_ms: int) -> sqlite3.Connection:
+    """Open the writable SQLite handle after preflight continuity is fenced."""
+    return sqlite3.connect(
+        path,
+        timeout=busy_timeout_ms / 1_000.0,
+        autocommit=True,
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -93,16 +106,17 @@ class SQLiteDatabase:
         if self._connection is not None:
             return
 
-        inspect_database_read_only(self.path)
+        preflight = inspect_database_read_only(self.path)
+        assert_database_preflight_current(preflight)
 
-        connection = sqlite3.connect(
+        connection = _open_writer_connection(
             self.path,
-            timeout=self.busy_timeout_ms / 1_000.0,
-            autocommit=True,
+            busy_timeout_ms=self.busy_timeout_ms,
         )
         connection.row_factory = sqlite3.Row
 
         try:
+            assert_database_writer_bound(preflight)
             initialize_schema(connection, created_at_us=utc_now_us())
             apply_and_verify_connection_policy(
                 connection,
