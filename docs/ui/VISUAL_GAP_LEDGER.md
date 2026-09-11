@@ -3,11 +3,11 @@
 Integration target: `develop/pathena-next`
 UI worker: `postmerge/ui`
 
-## Current evidence — 2026-09-11 14:38 CEST
+## Current evidence — 2026-09-11 18:41 CEST
 
-Develop: `dfa4a81b4c650339a16be5f60f87804e7cf6a68b`; exact canonical Quality `34596386099 = SUCCESS`. Worker before this evidence update: `8df01eef4d4c1b55f70e54f7fb99a542a9ebef33`. Exact rendered UI product head remains `199f123f893251b9fc6984e78c24f9ab5813cdc8`.
+Run-start Develop: `fec368f50307a9e24038baca3a80b10ee2a3c4fc`; run-start worker: `f94a6d1edaddd2c4fc009f60134fd1bce6440500`. Exact Quality for `f94a6d1…` is `SUCCESS`. Product correction `b6aaaac887535bfcafa7e5784d0dc0b590758f36` preserves the seven primary pages and hosts Help as a transient shell child.
 
-All 11 user reference images and all 11 exact Windows/PySide6 runtime images for `199f123f…` were opened directly again. Sources visibly retains the truthful `SOURCE / NONE` context; the prior `CHAT / NONE` mismatch remains closed. No same-state visual parity is claimed for any slot. Fresh source inspection confirms Help content is capability-derived but still hosted by a standalone `QDialog`.
+All 11 references and all 11 exact Windows/PySide6 runtime images for `b6aaaac…` were opened directly. Visual run `34623205385` passed immutable checkout, Ruff, mypy, comparator contracts, hierarchy tokens, primary-navigation accessibility, exactly-eleven capture, route identity, comparison/proposal and artifact upload; only the final fail-closed visual baseline verdict failed.
 
 ## VISUAL-GAP-0001 — shared shell / workspace hierarchy
 
@@ -15,9 +15,9 @@ Category: `APP SHELL / GEOMETRY / HIERARCHY`
 Severity: `P0 visual`
 Status: `OPEN / HIGHEST PRIORITY`
 
-Across the references the dominant composition is one integrated pATHENA shell: narrow rail, strong workspace hierarchy, contextual right column and consistent top navigation. Current Chat/Knowledge/Research/Jobs/System/Settings share that shell partially, while Help, ComfyUI and PALLAS remain visibly separate or much less integrated; the Command Palette is still presented as a standalone dialog rather than a shell overlay.
+The references consistently use one integrated shell: persistent topbar, narrow rail, central workspace and contextual right column. Normal workspaces partially follow this. Help is now technically shell-owned without altering the seven primary routes, but its current overlay fills the entire shell rectangle and therefore hides the chrome that should remain visible. ComfyUI and PALLAS remain standalone/minimal; Command Palette remains visually standalone.
 
-Next bounded correction: Help alone, after the Develop/worker baseline is reconciled history-preservingly. Its content is real and already capability-driven, so host that existing content inside the current shell without inventing capability state or altering backend/storage/security semantics.
+Next bounded correction: Help only. Host it inside the central workspace region rather than over the full shell while preserving the fixed `7 nav == 7 primary pages` invariant.
 
 ## VISUAL-GAP-0002 — contextual inspector
 
@@ -25,29 +25,29 @@ Category: `INSPECTOR / PAGE CONTEXT`
 Severity: `P0/P1 visual`
 Status: `REDUCED / ROUTE-CONTEXT SUBGAP CLOSED`
 
-Exact current pixels at `199f123f…` show truthful route identity for Knowledge, Research, Jobs, Settings and Sources. System retains its own real Runtime/Backup/Security path. Remaining differences are primarily populated-vs-empty runtime state and richer reference composition, not the previous generic Chat inspector defect.
+Exact `b6aaaac…` pixels retain truthful contexts for Knowledge, Research, Jobs, Settings and Sources. System remains fail-closed and runtime-derived. Remaining deviations are primarily empty-vs-populated state and richer reference composition.
 
-## VISUAL-GAP-0003 — standalone PALLAS / Help / ComfyUI / Palette framing
+## VISUAL-GAP-0003 — standalone/shell-host framing
 
 Category: `SURFACE INTEGRATION`
 Severity: `P1 visual`
 Status: `OPEN`
 
-- Help: real capability content, wrong standalone host.
+- Help: **structural invariant improved** — no longer an eighth primary page; full 11-surface capture succeeds. Visual framing still wrong because the transient Help surface covers shell chrome.
 - ComfyUI: real local workflow controls, wrong standalone host and missing reference Connection framing.
 - PALLAS: real graph, wrong standalone/minimal framing and missing rich contextual inspector.
-- Command Palette: real commands, but standalone capture rather than overlay over the active workspace.
+- Command Palette: real commands, but standalone capture rather than overlay over active workspace.
 
-Prioritize Help first because it is presentation-only and lowest semantic risk. Do not combine Help and ComfyUI in one mutation.
+Do not combine these. Finish Help first.
 
 ## Slot accounting
 
-| Slot | Status at exact `199f123f…` |
+| Slot | Status at exact `b6aaaac…` |
 |---|---|
 | 01 ComfyUI | GAP |
 | 02 PALLAS | GAP |
 | 03 Settings | GAP / STATE_UNVERIFIED |
-| 04 Help | GAP |
+| 04 Help | GAP — 7-page invariant fixed; shell chrome still obscured |
 | 05 Workspace/Evidence | UNVERIFIED |
 | 06 Jobs | GAP / STATE_UNVERIFIED |
 | 07 Command Palette | GAP / CONTEXT_UNVERIFIED |
@@ -60,8 +60,8 @@ References opened: `11/11`. Exact current runtime surfaces opened: `11/11`. Same
 
 ## Readiness
 
-Develop exact Quality is green, but the worker is now 33 commits behind current Develop and 674 commits ahead from the merge-base. Several shell/render/workflow paths overlap on both sides, including the shell host, so no blind merge and no technical or visual READY claim is made. `command_palette.py` is identical on current Develop and worker, but Help integration still depends on a trustworthy shell-host baseline. Exact visual run `34580743951` produced the 11 current surfaces and uploaded the exact-SHA artifact; its final baseline verdict is not promoted to MATCH evidence.
+The bounded product correction has exact Windows visual evidence that the former `7 nav / 8 pages` capture failure is removed. `b6aaaac…` captured all eleven surfaces successfully; workflow failure is only the final fail-closed baseline verdict. Run-start Develop remains one CI-only commit ahead from the worker merge-base, so no Integrator-ready claim is made. The Help-focused unit test is updated alongside this ledger but must receive exact candidate evidence before a PASS claim.
 
 ## Next visual slice
 
-History-preserving Develop compatibility first. Then Help shell integration only, followed by focused Qt/UI tests and a fresh exact-SHA 11-surface capture. Open all eleven AFTER images and compare slot-by-slot before any ComfyUI or PALLAS mutation.
+Help only: keep seven primary pages, retain real capability-derived data and keyboard/accessibility behavior, but constrain the Help transient surface to the shell workspace body so persistent shell chrome remains visible. Re-run focused Qt/UI tests and an exact-SHA 11-surface Windows capture, then open all eleven AFTER images before considering ComfyUI or PALLAS.

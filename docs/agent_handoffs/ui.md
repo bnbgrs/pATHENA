@@ -1,47 +1,50 @@
 # pATHENA UI Handoff
 
-## Current baseline — 2026-09-11 14:38 CEST
+## Current baseline — 2026-09-11 18:41 CEST
 
-- Develop: `develop/pathena-next@dfa4a81b4c650339a16be5f60f87804e7cf6a68b`.
-- Exact canonical Quality: `34596386099 = SUCCESS`.
-- Worker before this evidence update: `postmerge/ui@8df01eef4d4c1b55f70e54f7fb99a542a9ebef33`.
-- Exact rendered UI product head: `postmerge/ui@199f123f893251b9fc6984e78c24f9ab5813cdc8`.
+- Run-start Develop: `develop/pathena-next@fec368f50307a9e24038baca3a80b10ee2a3c4fc`.
+- Run-start worker: `postmerge/ui@f94a6d1edaddd2c4fc009f60134fd1bce6440500`.
+- Exact Quality for `f94a6d1…`: run `34617691648 = SUCCESS`.
+- Current bounded product correction: `b6aaaac887535bfcafa7e5784d0dc0b590758f36` (`ui: preserve primary pages when hosting help`).
 - `main` and `bnbgrs/ATHENA` remain READ-ONLY and untouched.
-- Current Spec/Core, Backend, Errors, Integrator, 11-screen manifest and Visual Gap Ledger were consumed before work.
+- Current Spec/Core, Backend, Errors, Integrator, 11-screen manifest and Visual Gap Ledger were consumed before product work.
 
-## Fresh 11-screen evidence
+## Product slice
 
-All eleven canonical user reference images were enumerated and opened directly again. The exact Windows/PySide6 artifact for `199f123f893251b9fc6984e78c24f9ab5813cdc8` from visual run `34580743951` was downloaded again and all eleven runtime PNGs were opened directly.
+The previous Help attempt reparented the truthful capability Help dialog into `window.pages` and called `addWidget()`, creating an eighth `QStackedWidget` page while primary navigation has seven routes. The real 11-surface harness correctly rejected that shape.
 
-Sources remains visually verified fixed: current `05-files.png` shows `SOURCE / NONE`, `No source selected`, `DETAILS`, and `PROVENANCE`. Knowledge, Research, Jobs and Settings retain truthful route-specific contexts; System retains its separate real Runtime/Backup/Security presentation.
+`b6aaaac…` removes Help from the primary page stack. Help is now a transient `Qt.Widget` child of the existing pATHENA shell, keeps the live capability catalogue, F1 path, focus/accessibility metadata and navigation state, and restores the existing route presentation when hidden. No backend, storage or security semantics changed.
 
-Strict accounting remains `PAIRS_VERIFIED_0_OF_11 · MATCH_0_OF_11`: the reference screenshots mostly show populated/healthy states while the exact runtime candidate is reconnecting, empty, unavailable or otherwise state-different, and slot 10 has no same-state real Light rendering.
+## Exact visual evidence
 
-## Current dominant visual gap
+Windows visual run `34623205385` on exact `b6aaaac…` completed:
 
-Fresh pixels keep priority on `APP SHELL / SURFACE INTEGRATION`.
+- immutable candidate checkout: PASS;
+- Ruff: PASS;
+- mypy comparator: PASS;
+- comparator contracts: PASS;
+- shared hierarchy token contract: PASS;
+- primary-navigation accessibility contract: PASS;
+- capture exactly eleven canonical surfaces: PASS;
+- captured workspace route identity: PASS;
+- comparison/proposal: PASS;
+- artifact upload: PASS;
+- final fail-closed visual verdict: FAIL because no approved committed visual baseline exists.
 
-- Help contains real capability-derived content but is still a standalone dialog.
-- ComfyUI contains real local workflow controls but remains a standalone surface.
-- PALLAS renders a real graph but remains standalone/minimal versus the reference shell and rich inspector.
-- Command Palette is a real command surface but is not yet presented as an overlay over the active workspace.
+Artifact `pathena-visual-b6aaaac887535bfcafa7e5784d0dc0b590758f36` is exact-SHA bound. All eleven runtime PNGs were downloaded and opened directly. All eleven canonical reference images were also opened directly.
 
-Current source inspection confirms `CommandPaletteController` still constructs Help as a separate non-modal `QDialog` and opens it through F1; `CapabilityHelpController` replaces only the text renderer with content derived from the live capability catalogue. `command_palette.py` is byte-identical at current Develop and worker, so the Help defect itself is stable across both refs. The shell host path is not equally safe: `pathena_window.py` is among the files changed on both sides of the current branch divergence.
+The structural regression is therefore fixed: 11/11 capture now proceeds. The visual Help result is still a `GAP`: `10-help.png` fills the shell rectangle and hides persistent topbar/rail/context, whereas the canonical Help reference keeps shell chrome, a Help sub-navigation column, central capability presentation and right shortcuts/status.
+
+Strict accounting remains `PAIRS_VERIFIED_0_OF_11 · MATCH_0_OF_11`; most reference states are populated/healthy while exact runtime states are empty/reconnecting/unavailable, and there is no same-state Light render for slot 10.
+
+## Test note
+
+The focused Help contract is updated to assert the corrected invariant: `window.pages.count() == window.navigation.count() == 7`, opening Help does not change the current primary page/route, the transient surface belongs to the shell, and hiding it restores the route title. This test change is in the same follow-up candidate as the evidence docs. Do not claim focused PASS until exact CI completes for that candidate.
 
 ## Branch / readiness
 
-Current compare reports `postmerge/ui` 33 commits behind current Develop and 674 commits ahead from the merge-base. Several shell/render/workflow files differ on both sides. A blind merge, synthetic merge commit, or a new shell-host mutation on the stale worker would not satisfy the compatible-baseline READY rule. No product mutation was stacked in this run.
+Run-start Develop is one CI-only commit ahead of the worker merge-base. The current product change does not touch CI/backend/storage/security paths, but the worker is not declared Integrator-ready until compatible Develop baseline and exact focused/canonical evidence are current.
 
-There are no queued or in-progress workflow runs on `postmerge/ui` at the time of this handoff. Develop exact canonical Quality is green at `dfa4a81b…`.
+## Next bounded visual slice
 
-## Next bounded product slice
-
-First reconcile `develop/pathena-next` into `postmerge/ui` history-preservingly with explicit conflict resolution limited to UI-owned semantics. Then run focused Qt/UI tests. On that compatible baseline, integrate Help alone into the existing pATHENA shell. Preserve F1 and Ctrl-K behavior, current capability-derived content, keyboard focus, accessibility, and existing navigation semantics. Do not create a second router. Do not synthesize capability, health, backend, storage or security facts. Do not combine ComfyUI or PALLAS changes into the same slice.
-
-Required verification after Help mutation:
-
-1. focused Qt/UI tests for F1 open/close, keyboard focus and accessibility;
-2. exact-SHA visual capture through the real Windows/PySide6 path;
-3. open all eleven AFTER PNGs;
-4. document Help BEFORE standalone -> AFTER shell-hosted, and verify no visual regressions in the other ten slots;
-5. only then consider ComfyUI or PALLAS.
+Stay on Help only. Preserve the fixed seven-page invariant and real capability content, but move the transient host from the full shell rectangle into the central workspace body so the persistent pATHENA chrome remains visible. Re-run focused Qt/UI tests and exact Windows 11-surface capture; open all eleven AFTER images. Do not start ComfyUI, PALLAS or Command Palette integration before that Help comparison is complete.

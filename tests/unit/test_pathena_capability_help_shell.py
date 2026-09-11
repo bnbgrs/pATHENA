@@ -12,7 +12,7 @@ def _app() -> QApplication:
     return create_application(["pathena-capability-help-shell-test"])
 
 
-def test_help_is_hosted_in_workspace_stack_and_restores_previous_workspace() -> None:
+def test_help_is_shell_hosted_without_extending_primary_page_stack() -> None:
     app = _app()
     window = PathenaMainWindow(api_controller=None)
     palette = CommandPaletteController(window)
@@ -22,14 +22,22 @@ def test_help_is_hosted_in_workspace_stack_and_restores_previous_workspace() -> 
     try:
         window.navigation.setCurrentRow(2)
         app.processEvents()
+        primary_page_count = window.pages.count()
+        assert primary_page_count == window.navigation.count() == 7
         assert window.pages.currentIndex() == 2
 
         palette.open_help()
         app.processEvents()
 
-        assert palette.help_dialog.parent() is window.pages
+        shell = window.centralWidget()
+        assert shell is not None
+        assert palette.help_dialog.parent() is shell
         assert palette.help_dialog.property("pathenaShellHosted") is True
-        assert window.pages.currentWidget() is palette.help_dialog
+        assert palette.help_dialog.isVisible()
+        assert palette.help_dialog.geometry() == shell.rect()
+        assert window.pages.count() == primary_page_count
+        assert window.pages.currentIndex() == 2
+        assert window.navigation.currentRow() == 2
         assert window.page_title.text() == "Help"
         assert window.property("pathenaHelpWorkspaceVisible") is True
         assert app.focusWidget() is palette.help_text
@@ -38,6 +46,7 @@ def test_help_is_hosted_in_workspace_stack_and_restores_previous_workspace() -> 
         palette.help_dialog.hide()
         app.processEvents()
 
+        assert window.pages.count() == primary_page_count
         assert window.pages.currentIndex() == 2
         assert window.navigation.currentRow() == 2
         assert window.page_title.text() == "Research"
@@ -49,7 +58,7 @@ def test_help_is_hosted_in_workspace_stack_and_restores_previous_workspace() -> 
         app.processEvents()
 
 
-def test_f1_shortcut_uses_the_shell_hosted_help_surface() -> None:
+def test_f1_shortcut_uses_transient_shell_help_without_changing_route() -> None:
     app = _app()
     window = PathenaMainWindow(api_controller=None)
     palette = CommandPaletteController(window)
@@ -57,13 +66,21 @@ def test_f1_shortcut_uses_the_shell_hosted_help_surface() -> None:
     window.show()
     app.processEvents()
     try:
+        window.navigation.setCurrentRow(1)
+        app.processEvents()
+        primary_page_count = window.pages.count()
+        current_page = window.pages.currentIndex()
+
         palette.help_shortcut.activated.emit()
         app.processEvents()
 
-        assert window.pages.currentWidget() is palette.help_dialog
+        assert palette.help_dialog.isVisible()
         assert palette.help_dialog.objectName() == "helpWorkspace"
         assert palette.help_dialog.accessibleName() == "pATHENA help workspace"
         assert window.page_title.accessibleDescription() == "Current workspace: Help."
+        assert window.pages.count() == primary_page_count == 7
+        assert window.pages.currentIndex() == current_page == 1
+        assert window.navigation.currentRow() == 1
     finally:
         controller.deleteLater()
         palette.deleteLater()
