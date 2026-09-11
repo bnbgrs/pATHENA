@@ -113,6 +113,13 @@ jobs:
           uv run --locked --extra dev --extra desktop --no-sync pytest -q tests/unit/test_pathena_design_tokens.py
           if ($LASTEXITCODE -ne 0) { throw "Shared visual hierarchy token contract failed." }
 
+      - name: Run primary navigation accessibility contract
+        shell: pwsh
+        run: |
+          $env:PYTHONPATH = (Get-Location).Path
+          uv run --locked --extra dev --extra desktop --no-sync pytest -q tests/unit/test_pathena_navigation_context_accessibility.py
+          if ($LASTEXITCODE -ne 0) { throw "Primary navigation accessibility contract failed." }
+
       - name: Capture exactly eleven canonical surfaces with native fonts
         shell: pwsh
         run: |
