@@ -2,13 +2,12 @@
 
 ## Baseline
 
-- Develop source of truth: `develop/pathena-next@fec368f50307a9e24038baca3a80b10ee2a3c4fc`.
-- Error worker entered this run at `postmerge/errors@d079c0d49392a58846b488a405d923ac82e5b1d7`.
-- Current workers: Spec/Core `e9a6a1d28281e78c9b8ee0548582ed4a39d424b4`; Backend `195814616f394e1794aa4f3b2a16a584c092ab31`; UI `58fac1d71d4e89cdb9d008e410b0d4da5ea2ebdf`.
-- Exact-current Develop canonical Quality: `34618898303@fec368f50307a9e24038baca3a80b10ee2a3c4fc = SUCCESS`.
-- Exact-current Spec/Core canonical Quality: `34621318923@e9a6a1d28281e78c9b8ee0548582ed4a39d424b4 = SUCCESS`.
-- Exact-current Spec/Core focused candidate: `34621318964@e9a6a1d28281e78c9b8ee0548582ed4a39d424b4 = SUCCESS`.
-- Exact-current UI canonical Quality: `34629561706@58fac1d71d4e89cdb9d008e410b0d4da5ea2ebdf = IN_PROGRESS`; do not infer UI PASS/FAIL while it is running.
+- Develop source of truth: `develop/pathena-next@c670d7809c9f0aa5e6c31956b57e897091f1b9d6`.
+- Error worker entered this run at `postmerge/errors@6ada3662333696a2373f0b6eb30eff9e5367e373`.
+- Current workers: Spec/Core `8019ff39c2352e40513532814760804eaa3c2df4`; Backend `195814616f394e1794aa4f3b2a16a584c092ab31`; UI `4eeb75a6f5909fb1aa194c2c6df2d5ce1b431748`.
+- Exact-current Develop canonical Quality: `34639093541@c670d7809c9f0aa5e6c31956b57e897091f1b9d6 = IN_PROGRESS`; do not infer PASS/FAIL while it is running.
+- Backend exact-head canonical Quality: `34604847434@195814616f394e1794aa4f3b2a16a584c092ab31 = SUCCESS`, but the SHA contains no BE-046 fix candidate and therefore does not close `ERR-0033`.
+- Current Spec/Core and UI heads have no exact-head workflow result yet; evidence from older SHAs is not promoted to them.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current error state
@@ -20,19 +19,21 @@
 - STALE: `ERR-0014`, `ERR-0025`, `ERR-0026`, `ERR-0028`, `ERR-0029`, `ERR-0038`.
 - BLOCKED: none.
 
-## Hard progress this run — ERR-0033 open-handle physical-reclamation gap
+## Hard progress this run — ERR-0033 hardlink insertion after attestation
 
 ### ERR-0033 — Emergency-reserve filesystem-object identity/capacity gap
 
 Status: `OPEN / P1 / Backend BE-046 owned`.
 
-The current exact Develop source (`fec368f50307a9e24038baca3a80b10ee2a3c4fc`) exposes an additional Recovery failure mode within the existing BE-046 root cause. In the POSIX `EmergencyReserveStore.release()` path, pATHENA opens and attests the reserve object with `fstat`, captures its size, then closes its own reserve-file descriptor before issuing `os.unlink(..., dir_fd=root_fd)`. It subsequently reports the previously captured size as released bytes.
+On exact-current Develop `c670d7809c9f0aa5e6c31956b57e897091f1b9d6`, the EmergencyReserve storage implementation is unchanged by the intervening UI/Core/docs commits. POSIX `release()` opens the reserve, obtains `file_stat = os.fstat(descriptor)` and captures `size`, closes that reserve descriptor, revalidates only the parent directory, unlinks `_RESERVE_FILENAME` relative to the directory FD, fsyncs the directory and returns the earlier logical size.
 
-That sequence does not prove physical reclamation. A second descriptor that was already open on the same inode can survive unlink and keep the inode/data blocks referenced after the canonical pathname has disappeared. No pathname substitution, parent swap, hardlink, or inode change is required. A writable second descriptor can additionally mutate or truncate that same inode after pATHENA's attestation, so the returned pre-unlink size can be stale even while object identity remains stable.
+This run closes an ambiguity in the previous BE-046 handoff: adding only a single-link admission check such as `st_nlink == 1` would not be a sufficient fix. Such a check is merely a snapshot. After that snapshot and after pATHENA closes its reserve descriptor, another actor can add a hardlink to the already-attested inode before the canonical name is unlinked. pATHENA can then successfully unlink the canonical name while the new hardlink continues to reference the same inode and its blocks; `release()` would nevertheless return the old logical size as if that emergency capacity had been reclaimed.
 
-This is therefore not a new error ID. It extends `ERR-0033 / BE-046` from pathname/object-identity continuity to open-handle ownership and physical-reclamation continuity. Directory-handle binding, same-inode validation, and a single-hardlink invariant are individually insufficient to close it.
+The existing unit coverage does not exercise this seam. It covers stable release and a POSIX parent-directory replacement at unlink time, but no adversarial hardlink insertion after file attestation and before unlink. Therefore BE-046 closure must prove continuity across the entire attestation-to-accounting interval, not merely add a static `st_nlink` check.
 
-Backend currently owns BE-046 and has not supplied a newer bounded exact-tested candidate, so Errors made no competing Storage product mutation. Closure now also requires a focused adversarial second-descriptor regression: pre-open the reserve inode independently, drive release through attestation/unlink, and prove pATHENA cannot report recoverable emergency bytes without a bounded guarantee that those blocks are actually reclaimable. Preserve all fail-closed Storage/Recovery semantics and non-sparse allocation guarantees.
+Required focused regression shape: provision a valid non-sparse reserve; intercept the release boundary after `fstat`/attestation but before unlink; create a second hardlink to that same inode; then prove the implementation fails closed or otherwise does not report those bytes as physically reclaimable while the second link still retains the object. This is deduplicated into the existing `ERR-0033 / BE-046` root cause alongside parent/target substitution, unknown allocation metadata and pre-opened descriptor reclamation.
+
+Backend continues to own BE-046 and has not supplied a bounded BE-046 product candidate, so Errors made no competing Storage product mutation.
 
 ### ERR-0035 — SQLite preflight identity through live writer startup
 
@@ -40,20 +41,20 @@ Status remains `OPEN / P1 / Backend BE-052 owned`. No newer bounded exact-tested
 
 ### ERR-0038 — historical Spec/Core Ruff failure
 
-Status remains `STALE`. Current Spec/Core `e9a6a1d28281e78c9b8ee0548582ed4a39d424b4` remains exact-green from the previously consumed canonical/focused evidence; no current exact SHA reproduced the old `I001` defect.
+Status remains `STALE`. No current exact Spec/Core SHA reproduced the historical `I001` defect; do not reopen it from older run IDs.
 
 ## CI discipline
 
-- `postmerge/errors@d079c0d49392a58846b488a405d923ac82e5b1d7` had zero workflow runs before the ledger mutation.
-- The resulting ledger commit `234ab802a870fcecf2e7b6354817b40839ddcc91` also had zero workflow runs before this handoff mutation.
+- `postmerge/errors@6ada3662333696a2373f0b6eb30eff9e5367e373` had zero workflow runs before the ledger mutation.
+- The resulting ledger commit `e63f35e3508afba3cc223c04b9c61031aa1c96fc` also had zero workflow runs before this handoff mutation.
 - Errors started no canonical Quality run and did not mutate a branch with an active exact-head canonical run.
+- Develop canonical `34639093541@c670d7809c9f0aa5e6c31956b57e897091f1b9d6` remains in progress and was left untouched.
 
 ## Integrator handoff
 
-- Develop: `fec368f50307a9e24038baca3a80b10ee2a3c4fc`; canonical `34618898303 = SUCCESS`.
-- UI `58fac1d71d4e89cdb9d008e410b0d4da5ea2ebdf`: canonical `34629561706 = IN_PROGRESS`; consume it before deriving UI integration status.
-- `ERR-0033 = OPEN / P1`, Backend BE-046 owned. New exact-current evidence: POSIX release can unlink the canonical reserve pathname yet still overstate immediately reclaimed emergency capacity because another already-open descriptor can pin or mutate the same inode. Closure requires second-descriptor physical-reclamation evidence in addition to the previously documented identity, hardlink and allocation-attestation cases.
+- Develop: `c670d7809c9f0aa5e6c31956b57e897091f1b9d6`; canonical `34639093541 = IN_PROGRESS` at this handoff. Consume it before deriving Develop integration status.
+- Backend: `195814616f394e1794aa4f3b2a16a584c092ab31`; canonical `34604847434 = SUCCESS`, but no BE-046 candidate exists on that SHA.
+- `ERR-0033 = OPEN / P1`, Backend BE-046 owned. New evidence: a one-time single-link check does not close release accounting because a hardlink can be inserted after attestation and before unlink; closure requires an adversarial attestation-to-unlink hardlink-race test and a bounded physical-reclamation guarantee across that whole interval.
 - `ERR-0035 = OPEN / P1`, Backend BE-052 owned; unchanged this run.
-- `ERR-0038 = STALE`; do not reopen without a current exact-SHA reproduction.
-- No closed/stale cluster was reopened without current exact-SHA evidence.
+- `ERR-0038 = STALE`; do not reopen without current exact-SHA reproduction.
 - Preserve pypdf packaging, Frozen argv, two-EXE topology, bounded workers, adaptive 2048-context reserve, Windows lane-lock mapping, duplicate-column/Core-startup/storage-bootstrap guards and all Storage/Recovery/Security fail-closed invariants.
