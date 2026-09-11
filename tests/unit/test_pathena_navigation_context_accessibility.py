@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QPushButton
 
 from athena.desktop.app import create_application
 from athena.desktop.pathena_navigation_context_accessibility import (
@@ -44,6 +44,40 @@ def test_navigation_context_tracks_existing_workspace_selection() -> None:
                 f"{label}; current workspace"
             )
             assert window.pages.widget(row).property("pathenaCurrentWorkspace") is True
+    finally:
+        controller.deleteLater()
+        window.close()
+        app.processEvents()
+
+
+def test_top_navigation_reuses_existing_router_and_tracks_checked_state() -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    controller = NavigationContextAccessibility(window)
+    window.show()
+    app.processEvents()
+    try:
+        buttons = window.findChildren(QPushButton, "topNavButton")
+        assert [button.text() for button in buttons] == [
+            "Chat",
+            "Knowledge",
+            "Research",
+            "Jobs",
+            "Sources",
+        ]
+
+        for row, button in enumerate(buttons):
+            button.click()
+            app.processEvents()
+
+            assert window.navigation.currentRow() == row
+            assert window.pages.currentIndex() == row
+            assert button.isChecked()
+            assert button.accessibleDescription() == f"{button.text()}; current workspace"
+            assert all(
+                other.isChecked() is (other is button)
+                for other in buttons
+            )
     finally:
         controller.deleteLater()
         window.close()
