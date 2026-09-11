@@ -1,27 +1,27 @@
 # Post-Merge Feature Handoff - Integrator
 
-Generated: 2026-09-11T06:51Z
+Generated: 2026-09-11T08:51Z
 Branch: `develop/pathena-next`
-Run-start HEAD: `e6ba3d7557bd46094ad4e8f067a238e1c2375f8e`
+Run-start HEAD: `69b16347bd4bab875c31b7a41830c6bab6a0bb7b`
 
 ## Current evidence
 
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
-- Worker heads consumed: Errors `4134bb4ff3ab48b7e57fbfa86d92d6fd0e38cc2b`; Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`; Backend `fa995bf462aa8135d24f4e9e7059bc24f6992622`; UI `069dff56d64cd78e2ddd255460db375f8eeb3041`.
-- Exact Develop canonical Quality `34567856833@e6ba3d7557bd46094ad4e8f067a238e1c2375f8e = SUCCESS`.
-- Current Errors lineage is documentation/ledger-only versus Develop and keeps Backend-owned ERR-0033/BE-046 and ERR-0035/BE-052 open without competing product mutation.
-- Backend still has no tested bounded candidate for BE-046 or BE-052; broad Backend history remains HOLD.
-- UI has a new bounded Jobs/Settings contextual-inspector product candidate at `069dff56…`, but its exact Windows visual workflow `34571754932` fails during native eleven-surface capture before comparison/verdict. It is NOT READY.
-- `docs/agent_logs/ERROR_LEDGER.md` exists on Develop but is historically stale relative to the current baseline; current Errors handoff/worker ledger evidence controls current open state. No `ALPHA_BETA_PROGRESS.md` is present on Develop and no synthetic completion percentage is recorded.
-- Visual source of truth remains the current 11-screen manifest plus Visual Gap Ledger; every slot remains pending visual review and no screenshot-level `MATCH` is claimed.
+- Exact Develop canonical Quality `34576900899@69b16347bd4bab875c31b7a41830c6bab6a0bb7b = SUCCESS` before this mutation.
+- Current worker review found one bounded Core candidate at `4620299ffbdfd5a598f06c61e52750027f6c8d77`: `src/athena/knowledge/interpretation.py` plus `tests/unit/test_interpretation_contract.py` only.
+- The Core candidate's exact Quality executed its Python quality/full pytest successfully. Its Windows lane failure was in Storage and is outside this two-file Knowledge diff, so the bounded candidate is acceptable under disjoint-slice promotion rules; no Backend/Storage prerequisite is being promoted.
+- No equivalent READY Backend or UI product slice outranks this Core slice. Backend-owned Storage/Recovery/Runtime work remains conservative HOLD without bounded current evidence. Visual parity remains unpromoted.
+- `docs/agent_logs/ERROR_LEDGER.md` exists on Develop but contains historical ledger state and is not used to reopen signatures without current reproduction.
+- No `ALPHA_BETA_PROGRESS.md` is present in the current Develop tree; no synthetic completion percentage is recorded.
+- Visual source of truth remains `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` plus `docs/ui/VISUAL_GAP_LEDGER.md`; all eleven surfaces remain pending visual review and no screenshot-level `MATCH` is claimed.
 
-## Cross-cutting tooling slice
+## Integrated Core slice
 
-No Worker product slice is READY. This run therefore adds one collision-free diagnostic hardening to the Windows visual workflow.
+This commit integrates the bounded Core interpretation provenance contract from worker candidate `4620299ffbdfd5a598f06c61e52750027f6c8d77` onto current Develop without merging worker history.
 
-When native eleven-surface capture exits non-zero, `.github/workflows/ui-snapshot.yml` now preserves the renderer exit code and emits the generated `artifacts/visual-actual/manifest.json` into the job log before failing. If capture dies before the manifest exists, that state is logged explicitly. The workflow remains fail-closed; no capture, comparator, baseline, product, Security, Storage, Recovery or runtime acceptance condition is weakened.
+The new contract keeps interpretations explicitly non-canonical: creating an `InterpretationProposal` does not create or mutate a `KnowledgeUnit` or `Claim`. User-authored interpretations require actor provenance and reject model provenance. Model-authored interpretations require exact model-signature and processing-run identifiers, immutable input revisions, and a non-empty pipeline version; incomplete or mixed-authority provenance fails closed. Independent proposals retain distinct UUIDv7 identities.
 
-This directly unblocks diagnosis of the current UI candidate, whose exact-SHA workflow fails inside the capture step while artifact metadata alone does not expose the renderer's recorded per-surface error.
+The focused test file verifies the user/model provenance boundaries, fail-closed incomplete provenance, authority separation, and non-overwriting proposal identity. No Storage, Recovery, Transport, Runtime, UI, Security, packaging, comparator, baseline, or existing guard behavior is changed.
 
 ## Persistent release guards
 
@@ -33,8 +33,7 @@ This directly unblocks diagnosis of the current UI candidate, whose exact-SHA wo
 
 ## Next integration
 
-1. Consume canonical Quality for this tooling commit before any further Develop mutation.
-2. Have the UI worker resynchronize from current Develop before producing its next candidate so the exact visual run includes current focused tests and capture diagnostics.
-3. Keep `069dff56…` NOT READY until a new exact-head run shows the native capture/focused contracts succeed; do not infer readiness from a failed capture.
-4. Keep Backend BE-046/BE-052 HOLD until bounded focused adversarial evidence exists.
-5. Never promote visual `MATCH` without state-equivalent reference/current evidence.
+1. Consume the canonical Quality for this integration commit before any further Develop mutation.
+2. If exact-current Quality is green, re-evaluate newly advanced Worker heads from source-of-truth evidence rather than historical IDs.
+3. Keep Backend/Storage/Migration/Runtime prerequisites conservative unless bounded exact-head evidence exists.
+4. Keep all visual `MATCH` claims fail-closed until approved reference/current-render evidence exists.
