@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Callable
 
-from PySide6.QtCore import QEvent, QObject, QTimer, Qt
+from PySide6.QtCore import QEvent, QObject, Qt, QTimer
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -34,6 +34,7 @@ class CapabilityHelpController(QObject):
         self.window = palette.window
         self._original_render: Callable[[], str] = palette._render_help_text
         self._saved_inspector_state: tuple[str, str, str] | None = None
+        self._saved_inspector_overlay_visible: bool | None = None
         palette.__dict__["_render_help_text"] = self.render
         self._host_help_in_shell()
         self._build_help_hierarchy()
@@ -257,6 +258,11 @@ class CapabilityHelpController(QObject):
                 self.window.inspector_heading.text(),
                 self.window.inspector_provenance.text(),
             )
+        route_overlay = self.window.findChild(QFrame, "inspectorRouteContext")
+        if route_overlay is not None:
+            if self._saved_inspector_overlay_visible is None:
+                self._saved_inspector_overlay_visible = route_overlay.isVisible()
+            route_overlay.hide()
         available = sum(
             capability.availability.value == "available"
             for capability in snapshot.capabilities
@@ -281,7 +287,13 @@ class CapabilityHelpController(QObject):
         self.window.inspector_object_id.setText(object_id)
         self.window.inspector_heading.setText(heading)
         self.window.inspector_provenance.setText(provenance)
+        route_overlay = self.window.findChild(QFrame, "inspectorRouteContext")
+        if route_overlay is not None and self._saved_inspector_overlay_visible is not None:
+            route_overlay.setVisible(self._saved_inspector_overlay_visible)
+            if self._saved_inspector_overlay_visible:
+                route_overlay.raise_()
         self._saved_inspector_state = None
+        self._saved_inspector_overlay_visible = None
 
     def render(self) -> str:
         snapshot = self.snapshot()

@@ -5,6 +5,9 @@ from PySide6.QtWidgets import QApplication, QFrame
 from athena.desktop.app import create_application
 from athena.desktop.command_palette import CommandPaletteController
 from athena.desktop.pathena_capability_help import CapabilityHelpController
+from athena.desktop.pathena_navigation_context_accessibility import (
+    install_navigation_context_accessibility,
+)
 from athena.desktop.pathena_window import PathenaMainWindow
 
 
@@ -15,6 +18,7 @@ def _app() -> QApplication:
 def test_help_is_shell_hosted_without_extending_primary_page_stack() -> None:
     app = _app()
     window = PathenaMainWindow(api_controller=None)
+    install_navigation_context_accessibility(window)
     palette = CommandPaletteController(window)
     controller = CapabilityHelpController(palette)
     window.show()
@@ -24,8 +28,11 @@ def test_help_is_shell_hosted_without_extending_primary_page_stack() -> None:
         app.processEvents()
         primary_page_count = window.pages.count()
         original_inspector_id = window.inspector_object_id.text()
+        route_overlay = window.findChild(QFrame, "inspectorRouteContext")
         assert primary_page_count == window.navigation.count() == 7
         assert window.pages.currentIndex() == 2
+        assert route_overlay is not None
+        assert route_overlay.isVisible()
 
         palette.open_help()
         app.processEvents()
@@ -47,6 +54,7 @@ def test_help_is_shell_hosted_without_extending_primary_page_stack() -> None:
         assert top_bar.isVisible()
         assert icon_rail.isVisible()
         assert inspector.isVisible()
+        assert not route_overlay.isVisible()
         assert window.pages.count() == primary_page_count
         assert window.pages.currentIndex() == 2
         assert window.navigation.currentRow() == 2
@@ -86,6 +94,7 @@ def test_help_is_shell_hosted_without_extending_primary_page_stack() -> None:
         assert window.page_title.text() == "Research"
         assert window.property("pathenaHelpWorkspaceVisible") is False
         assert window.inspector_object_id.text() == original_inspector_id
+        assert route_overlay.isVisible()
     finally:
         controller.deleteLater()
         palette.deleteLater()
