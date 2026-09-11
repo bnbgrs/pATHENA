@@ -49,7 +49,7 @@ Capability-dependent symlink creation skips explicitly when the host cannot crea
 
 ## Collision / worker review
 
-Observed live heads during this run:
+Observed live heads during this run before later drift:
 
 - Develop: `4634bdf28c98bc114e0369701122818d474f99d9`
 - Backend: `44201f9dd2c1378c98afccc9a30ddf18c98b2405` (latest commit documentation-only failure handoff)
@@ -65,6 +65,14 @@ Before this handoff commit, the delta versus the exact parent was 4 commits ahea
 - `scripts/validate_spec.py`
 - `tests/unit/test_validate_spec_scan_containment.py`
 - `tests/unit/test_validate_spec_read_boundary.py`
+
+## Concurrent Develop drift observed during this run
+
+Develop advanced independently after the isolation decision from `4634bdf28c98bc114e0369701122818d474f99d9` to `7a6b9ee59f059202f1f3b5c5b8f7b70e319bec2c` with `test(ui): align design-system typography contract`.
+
+The preceding exact Develop Quality run `34539454111` was inspected read-only. Its only failure was `tests/unit/test_pathena_design_system.py::test_spacing_and_motion_are_small_bounded_scales`: the test still expected typography `(14, 11, 34)` while the integrated UI token values were `(15, 12, 42)`. The run otherwise reported `4830 passed, 3 skipped`; specification validation, Ruff, mypy, native Windows path/storage/runtime lanes, Linux storage and local-install smoke were green. The new Develop commit updates that stale UI test expectation, so this manual branch deliberately does not duplicate or modify the UI fix.
+
+This drift does not alter the child slice ownership. Rebase/recreation onto current Develop remains an Integrator step only after the exact-green parent #91 is consumed.
 
 ## Verification boundary
 
