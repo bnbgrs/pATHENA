@@ -5,31 +5,37 @@ UI worker: `postmerge/ui`
 
 ## Current visual evidence — 2026-09-11
 
-Develop source-of-truth check: `29540b7a1f2cb09e3a1be9aee2a29e357c8a8724`, canonical Quality `34534330414 = SUCCESS`.
+Develop source-of-truth check: `7a6b9ee59f059202f1f3b5c5b8f7b70e319bec2c`; exact canonical Quality `34544225707 = SUCCESS`.
 
-Worker product candidate: `6b1777ef181dc2f1b15f5a7f70c3cab84ff0b9dc`. Native-Windows visual run `34533820471` produced artifact `pathena-visual-6b1777ef181dc2f1b15f5a7f70c3cab84ff0b9dc`. The artifact manifest proves 11 canonical PySide6 captures, zero capture errors and `PASS`. All 11 current images and all 11 user reference images were directly opened in this run.
+All 11 user reference PNGs were opened again. All 11 exact native-Windows BEFORE renders from `postmerge/ui@6b1777ef181dc2f1b15f5a7f70c3cab84ff0b9dc` / visual run `34533820471` were also opened again.
 
-The final workflow verdict is still intentionally red because no generated baseline proposal is accepted as a design baseline. No `MATCH` is inferred from the capture or from code/QSS/tests.
+New bounded product/test candidate: `1c298018b126c357a1c4f56ecbc07d629190964b` (product commit `2a726ff2155d41d256e244bc05dbbd01c7dd9809`). It exposes existing primary routes as top-bar controls through the already installed navigation-context layer; no parallel router or synthetic state is introduced.
+
+No exact AFTER rendering is available yet for this candidate. Exact-SHA GitHub Actions lookup returns no run for `1c298018…`, and local checkout/runtime verification was blocked by DNS resolution of `github.com`. The visual verdict therefore fails closed:
 
 - References opened: `11/11`
-- Exact worker current renders opened: `11/11`
-- Same-state/direct pairs: `3/11`
+- Exact BEFORE renders opened: `11/11`
+- Exact current-candidate renders opened: `0/11`
 - `MATCH`: `0/11`
-- `PAIRS_VERIFIED_3_OF_11`
+- `PAIRS_VERIFIED_0_OF_11`
 
 ## VISUAL-GAP-0001 — shared shell / workspace hierarchy
 
 Category: `APP SHELL / GEOMETRY / HIERARCHY`
 Severity: `P0 visual`
-Status: `OPEN`
+Status: `IN_PROGRESS / AFTER_RENDER_PENDING`
 
-The previous typography sub-slice is visibly present on `6b1777ef…`: title/body/metadata hierarchy is stronger. Direct pixel review now isolates the next highest repeated shell gap: the normal workspace top bar has the pATHENA wordmark, System/Settings utility icons and `Local · Private`, but no textual primary navigation. The user references repeatedly show top-level textual navigation above the slim icon rail and main workspace. This affects Chat/Workspace, Knowledge, Research, Jobs, Sources/Integrations, System and Settings framing.
+Direct BEFORE review isolated the repeated missing textual top navigation on normal workspaces. The candidate now adds five visible controls — `Chat`, `Knowledge`, `Research`, `Jobs`, `Sources` — into the existing `topBar`. Each control drives the existing `QListWidget#navigation` row and shares the existing page-selection path. `sync()` mirrors current-row state into checked/accessibility state. Existing `System` and `Settings` utility destinations are preserved.
 
-Current code already exposes the real navigation model and real routes; `pathena_theme.py` already contains `topNavButton` checked/focus/hover states. Therefore the next bounded product correction is to expose existing primary routes (`Chat`, `Knowledge`, `Research`, `Jobs`, `Sources`) as functional top-bar buttons synchronized with the current navigation row. It must not introduce a second routing model, fake page, or synthetic state.
+The implementation is presentation/routing reuse only. It does not add a page, backend stub, fake data, storage behavior, provider behavior or security behavior. Existing `topNavButton` hover/focus/checked QSS is reused.
+
+### Acceptance still required
+
+The candidate is not visually verified until real exact-SHA Qt pixels exist. Required next evidence is an exact native-Windows 11-surface capture of the candidate, direct opening of all 11 AFTER renders, and slot-by-slot `BEFORE 6b1777ef… -> AFTER <exact rendered SHA>` comparison. The Settings/PALLAS/reference-family top-nav vocabularies differ from the Chat/Knowledge family, so no cross-family parity claim may be inferred merely from adding controls.
 
 ### Remaining coupled inspector gap
 
-Several current workspaces still show generic `Evidence & Activity / CHAT / NONE`, while references use page-specific evidence, execution, security, connection or object context. This remains open, but should not be coupled to the top-navigation mutation unless the implementation can reuse an existing real page-specific data path without backend or semantic changes.
+BEFORE renders show generic `Evidence & Activity / CHAT / NONE` on several non-chat workspaces while references use page-specific evidence, execution, security, connection or object context. This remains a likely next repeated gap, but is not part of the current candidate and must not be promoted until AFTER pixels confirm the top-navigation slice and a real page-specific data path is identified.
 
 ## VISUAL-GAP-0002 — standalone PALLAS / Help / ComfyUI framing
 
@@ -37,25 +43,26 @@ Category: `SURFACE INTEGRATION`
 Severity: `P1 visual`
 Status: `OPEN`
 
-Exact `6b1777ef…` renders confirm the existing real controllers still present as standalone surfaces:
+Exact BEFORE renders still show:
 
-- PALLAS: semantic graph renderer works, but lacks the reference shell and contextual inspector.
-- Help: real capability catalogue works, but is a compact text-heavy dialog rather than the reference Help workspace.
-- ComfyUI: real loopback controller/queued-workflow path works, but is a compact utility rather than the reference full integration workspace.
+- PALLAS as a standalone semantic graph rather than the reference shell + contextual inspector.
+- Help as a compact standalone capability window rather than the reference full Help workspace.
+- ComfyUI as a compact utility using its real controller rather than the reference full integration workspace.
 
-Do not replace these controllers with mock pages or fabricated records.
+The current top-navigation candidate intentionally does not fake shell framing inside these standalone surfaces.
 
 ## State-alignment blockers
 
-Loaded Workspace/Evidence, running Jobs detail, palette-over-Knowledge backdrop, healthy System, loaded Research synthesis, light workspace variant and populated local-memory Knowledge remain state/context misaligned. Real current screenshots exist, but same-state parity is unverified.
+Loaded Workspace/Evidence, running Jobs detail, palette-over-Knowledge backdrop, healthy System, loaded Research synthesis, light workspace variant and populated local-memory Knowledge remain state/context misaligned. Existing BEFORE screenshots are valid runtime evidence but not same-state parity evidence.
 
-## Focused/canonical evidence
+## Focused / canonical evidence
 
-- Current worker has no queued or in-progress workflow run at run start.
-- Existing exact worker visual run `34533820471` proves native-Windows 11-surface capture and artifact generation on `6b1777ef…`; final baseline-enforcement step alone is red.
-- The focused shared hierarchy token contract present on the worker was reproduced in this run against the worker token values: `5 passed` locally. This is useful focused evidence but is not represented as a canonical exact-SHA GitHub run.
-- Develop commit `29540b7…` adds this focused token test to the visual workflow for future candidates; Develop canonical Quality `34534330414` is green. That Develop change is READ-ONLY from the UI worker perspective and was not copied or merged here.
+- Run start worker had no queued or in-progress workflow run.
+- Exact candidate `1c298018…` currently has no workflow run.
+- New focused Qt test exists in `tests/unit/test_pathena_navigation_context_accessibility.py` and exercises top-button labels, click-through to the existing navigation/page index, checked exclusivity and accessibility description. It has **not yet been executed on the exact candidate**, so no PASS is claimed.
+- Local execution attempt was blocked because the runtime cannot resolve `github.com`; this is an evidence-availability limitation, not a test failure.
+- Develop exact SHA `7a6b9ee…` canonical Quality `34544225707` is green.
 
 ## Readiness
 
-Technical/visual readiness are separate. Worker remains **not Integrator-ready** because current Git comparison is diverged from Develop (`ahead 655`, `behind 20` at this run) and no new bounded product candidate was created on a compatible current Develop baseline. Screenshot-level readiness remains `PAIRS_VERIFIED_3_OF_11`, `MATCH_0_OF_11`.
+Technical and visual readiness remain separate. `postmerge/ui` is strongly diverged from current Develop, so the candidate is **not Integrator-ready** despite its bounded two-file delta from the previous UI worker head. Screenshot-level readiness is fail-closed at `PAIRS_VERIFIED_0_OF_11` for the new candidate until exact AFTER images are opened.
