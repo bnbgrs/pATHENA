@@ -5,40 +5,52 @@ UI worker: `postmerge/ui`
 
 ## Current evidence — 2026-09-11
 
-Develop is now `95b636c982a800d75f7d219162a04f6c87976e9f`; exact canonical Quality run `34560421777` is `SUCCESS`. The UI worker starts this run at `103feb7ca6b3513077ce47f83569c13cc626b600`, whose teardown-safe lifecycle patch is therefore integrated and green on current Develop.
+Run-start Develop was `e6ba3d7557bd46094ad4e8f067a238e1c2375f8e` with exact canonical Quality `34567856833 = SUCCESS`. Run-start worker was `c51ef04787ef6affa2e6acc3a902e138cf6b7409`.
 
-All 11 user reference PNGs were opened directly again. Exact worker visual artifact metadata for `103feb7c…` is present, but the artifact PNG bytes could not be materialized/opened through the available runtime in this run. Hard 11-screen accounting is therefore fail-closed: `CURRENT_RENDER_UNAVAILABLE` for all slots, `PAIRS_VERIFIED_0_OF_11`, `MATCH_0_OF_11`.
+All 11 reference PNGs were opened directly. The previously inaccessible exact artifact for `103feb7c…` was successfully downloaded and all 11 native Windows/PySide6 runtime PNGs were opened. Fresh pixels reproduced the generic Chat-inspector defect on Knowledge, Research, Jobs, Sources and Settings.
 
-Source inspection resolves one apparent contradiction in older evidence: `PathenaMainWindow` itself creates only utility buttons in `topBar`, but the real application startup immediately calls `install_navigation_context_accessibility(window)`. That installer creates the visible `Chat`, `Knowledge`, `Research`, `Jobs`, `Sources` top-nav controls and routes them through the existing navigation list. Therefore there is no source-proven top-nav regression on the real startup path. This is not a screenshot-level parity claim.
+The bounded product slice addressed only Jobs and Settings. First candidate `069dff56…` failed native capture because a new path incorrectly treated `QLabel` as having a `textChanged` signal. The failure was consumed rather than ignored. Corrected candidate `75029071aa63dbaa73ef42da16fb709cc6d8ca99` removed that invalid dependency. Exact run `34571930149` then passed immutable checkout, install, Ruff, mypy, comparator tests, all 11 native captures, compare/proposal and upload. Final verdict remains fail-closed solely because no approved committed visual baseline exists.
+
+All 11 exact runtime PNGs from `75029071…` were opened. Jobs and Settings show the intended truthful contextual inspector overlays; no synthetic health, job, execution or resource values were introduced.
 
 ## VISUAL-GAP-0001 — shared shell / workspace hierarchy
 
 Category: `APP SHELL / GEOMETRY / HIERARCHY`
 Severity: `P0 visual`
-Status: `OPEN / FRESH PIXELS REQUIRED`
+Status: `OPEN`
 
-Reference geometry remains authoritative, but no new shell spacing or hierarchy adjustment is permitted from code inspection alone. Exact current pixels must be opened first.
+The shell is real and consistent, but several references still have stronger workspace hierarchy, richer proportions and more integrated secondary surfaces. Do not alter shell geometry ahead of the repeated inspector defect unless fresh comparisons show it has become dominant.
 
 ## VISUAL-GAP-0002 — contextual inspector
 
 Category: `INSPECTOR / PAGE CONTEXT`
 Severity: `P0/P1 visual`
-Status: `OPEN / CANDIDATE AFTER FRESH PIXEL REVIEW`
+Status: `OPEN / PARTIALLY REDUCED`
 
-Prior truthful captures showed generic chat-oriented inspector composition on non-chat routes while references use route-specific contexts: Knowledge/Provenance, Jobs Execution/Resources, Settings System status, System Security posture, and Evidence/Activity where appropriate. Current code also exposes real Jobs and other domain workspaces, so a future bounded inspector slice must bind only to real page/controller state or an explicit unavailable state. No fake evidence, health, job or resource values.
+Fresh exact pixels prove the issue remains current. BEFORE: Knowledge, Research, Jobs, Sources and Settings reused `CHAT / NONE`. AFTER candidate `75029071…`: Jobs now shows `JOB / NONE`, `No job selected`, `EXECUTION`, `RESOURCES`; Settings now shows `SETTINGS / LOCAL`, `System status`, actual captured core status and no-synthetic-health-state copy. Both remain GAP/STATE_UNVERIFIED against richer populated references, but the page-context mismatch is materially reduced without fabricated data.
+
+Remaining repeated cases are Knowledge, Research and Sources. Highest-impact next pair is Knowledge + Research because both have direct reference compositions and existing real workspace/selection semantics. Use explicit none/unavailable wording until actual selection data exists. System is not part of this generic-inspector defect in the current exact capture; it already presents Runtime/Backup and Security posture and must retain fail-closed semantics.
 
 ## VISUAL-GAP-0003 — standalone PALLAS / Help / ComfyUI framing
 
 Category: `SURFACE INTEGRATION`
 Severity: `P1 visual`
-Status: `OPEN / FRESH PIXELS REQUIRED`
+Status: `OPEN`
 
-References place these capabilities in richer shell compositions. Re-check exact current runtime framing before touching them.
+Exact current captures confirm these remain standalone diagnostic/utility surfaces while references place them inside richer shell compositions. They are still lower priority than the repeated inspector mismatch.
+
+## Verification accounting
+
+- Reference images opened: `11/11`.
+- Exact final-candidate runtime surfaces opened: `11/11`.
+- Same-state/reference-equivalent pairs: `0/11` under the strict rule.
+- `MATCH_0_OF_11`.
+- `PAIRS_VERIFIED_0_OF_11`.
 
 ## Readiness
 
-Technical lifecycle status improved: the exact teardown-safe UI change is now canonical-green on Develop. Visual readiness did not advance because fresh current pixels could not be opened in this runtime. `postmerge/ui` is not `VISUAL_READY_11_OF_11`.
+Technical slice verification is stronger: the final candidate completed real native Windows capture of all eleven surfaces after an initial Qt failure was corrected. The newly added focused Jobs/Settings inspector unit contract is committed but was not selected by the visual workflow, so no standalone focused-pytest PASS is claimed. Canonical worker Quality was not started. Visual readiness remains NOT READY because all reference-equivalent states are not yet available and material gaps remain.
 
 ## Next visual slice
 
-First reacquire/open the exact current eleven-surface artifact. Then perform all eleven reference/current comparisons. Only after that choose at most one or two tightly coupled product gaps, with contextual inspector composition remaining the leading historical candidate rather than an assumed current winner.
+Continue VISUAL-GAP-0002 with at most two contexts: Knowledge and Research. Bind only real selection/controller state or explicit none/unavailable presentation; then rerender all eleven exact surfaces and inspect BEFORE -> AFTER before any further mutation.
