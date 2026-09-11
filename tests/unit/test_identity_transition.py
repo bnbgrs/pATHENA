@@ -1,6 +1,7 @@
 from uuid import UUID
 
 import pytest
+
 from athena.knowledge.identity_transition import MergeTransition, SplitTransition
 
 
