@@ -2,53 +2,62 @@
 
 ## Current baseline — 2026-09-11
 
-- Develop checked first: `develop/pathena-next@7a6b9ee59f059202f1f3b5c5b8f7b70e319bec2c`.
-- Exact Develop ATHENA Quality Gate `34544225707`: `SUCCESS`.
-- UI worker run-start head: `postmerge/ui@d55877cd353f7ee598df8213b9508fb143e51e15`.
-- Last exact rendered product state before this run: `6b1777ef181dc2f1b15f5a7f70c3cab84ff0b9dc`.
+- Current Develop checked first: `develop/pathena-next@1b83466490291fe07dd3d99dd476d0cb6290d307`.
+- Exact Develop ATHENA Quality Gate `34548505498 = SUCCESS`.
+- UI worker run-start head: `postmerge/ui@ac3d3c851186b8caa152d4a22815bd1390998e55`.
+- Bounded top-navigation product commit: `2a726ff2155d41d256e244bc05dbbd01c7dd9809`.
 - `main` and `bnbgrs/ATHENA` remained READ-ONLY and untouched.
-- Current Spec/Core, Backend, Errors, Integrator, 11-screen manifest and Visual Gap Ledger were consumed before product mutation.
-- No worker workflow was queued or in progress before mutation.
+- Current Spec/Core, Backend, Errors, Integrator, 11-screen manifest and Visual Gap Ledger were consumed before deciding the run action.
 
 ## 11-screen evidence this run
 
-All 11 user reference images were directly opened again. The exact native-Windows artifact from visual run `34533820471` for `6b1777ef…` was downloaded and all 11 real PySide6 BEFORE renderings were directly opened again.
+All 11 user reference images were opened directly again. An exact native-Windows PySide6 visual run was discovered for product commit `2a726ff…`: run `34547920919`. Exact checkout, immutable identity verification, environment setup, Ruff, mypy comparator, comparator tests, eleven-surface capture, proposal generation and artifact upload all succeeded. The workflow's final verdict failed only because no committed approved visual baseline exists.
 
-After the product mutation, exact-SHA GitHub Actions lookup for `1c298018b126c357a1c4f56ecbc07d629190964b` returned no workflow run. Local checkout/runtime verification was also attempted, but the execution environment could not resolve `github.com`. Therefore no current-candidate pixels exist in this run and no AFTER/MATCH/CLOSE claim is made.
+The artifact was downloaded and all eleven current PNGs were opened. This supplied the missing AFTER pixels, but artifact inspection found a capture-identity defect:
 
-Current candidate accounting: `PAIRS_VERIFIED_0_OF_11` · `MATCH_0_OF_11`.
+- `03-research.png`: requested row 2, captured `page_index=2` — valid Research identity.
+- `02-knowledge.png`: requested row 1, captured `page_index=2` — invalid; actually Research.
+- `01-chat.png`: requested row 0, captured `page_index=2` — invalid; actually Research.
 
-## Product slice — functional textual primary navigation
+The renderer arms all seven workspace timers independently and calls `app.processEvents()` during each capture. Later timers can therefore run re-entrantly before the earlier screenshot is saved. The renderer records `page_index` but does not assert route/page identity before saving. Consequently its manifest can report `PASS` with mislabeled workspace pixels.
 
-Selected current gap: `VISUAL-GAP-0001`, specifically the repeated absence of textual top navigation in the normal workspace shell.
+All eleven files are real runtime images, but the hard same-state rule means no screenshot-level MATCH is inferred from them. Current accounting is `PAIRS_VERIFIED_0_OF_11 · MATCH_0_OF_11`.
 
-Product commit `2a726ff2155d41d256e244bc05dbbd01c7dd9809` updates the already installed `NavigationContextAccessibility` layer rather than creating a second router. It inserts five real `QPushButton#topNavButton` controls into the existing `topBar`: `Chat`, `Knowledge`, `Research`, `Jobs`, `Sources`. Each button routes by setting the existing `QListWidget#navigation` row. Existing row-change behavior remains authoritative for page selection; `sync()` mirrors that state back into button checked/accessibility state. Existing System/Settings utility buttons are untouched.
+## Product slice status — functional textual primary navigation
 
-No Backend, Storage, Security, provider, persistence or scheduler semantics changed. No page, fake record or mock state was added. Existing `topNavButton` theme states are reused.
+The current artifact visibly confirms that the normal shell now contains `Chat`, `Knowledge`, `Research`, `Jobs`, and `Sources` top-bar controls. The implementation still reuses the existing navigation row model and does not introduce a parallel router. This is a visible-existence confirmation only, not route-by-route reference parity.
 
-## Focused coverage
+No Backend, Storage, Security, provider, persistence or scheduler semantics were modified in this run.
 
-Focused-test commit/current product-test head before documentation: `1c298018b126c357a1c4f56ecbc07d629190964b`.
+## Newly isolated UI verification defect
 
-`tests/unit/test_pathena_navigation_context_accessibility.py` now preserves the previous selection/focus contracts and additionally verifies:
+Highest-priority next slice is now the capture harness, because invalid route identity prevents trustworthy visual iteration on the product. `scripts/render_pathena_ui_snapshot.py` must be hardened without weakening any guard:
 
-- exact visible labels `Chat`, `Knowledge`, `Research`, `Jobs`, `Sources`;
-- click-through to the existing navigation row and stacked page index;
-- mutually exclusive checked state;
-- current-workspace accessibility description.
+- serialize workspace captures;
+- after each route selection, fail unless both `navigation.currentRow()` and `pages.currentIndex()` equal the requested row;
+- keep all eleven real-controller captures and exact-SHA identity checks;
+- rerun Windows visual capture and open every new PNG before any further visual product patch.
 
-The test has not yet executed on exact candidate SHA, so it is recorded as **PENDING**, not PASS. No canonical Quality run is started from this handoff because focused execution/visual evidence must come first.
+This supersedes the previous assumption that the current candidate had no AFTER artifact. It also blocks promotion of the contextual-inspector slice until truthful Chat/Knowledge captures exist.
 
-## Visual status by slot
+## Slot status
 
-All eleven references are available/opened. All eleven BEFORE runtime captures at `6b1777ef…` are available/opened. Exact current-candidate renderings are unavailable for slots 01–11, so every current candidate slot remains `UNVERIFIED`. The manifest contains the explicit per-slot `CURRENT_RENDER_UNAVAILABLE` state and next action.
+01 ComfyUI — `GAP`: real standalone local integration dialog versus full reference workspace.
+02 PALLAS — `GAP`: real diagnostic full graph versus shell-integrated contextual reference.
+03 Settings — `GAP`: real route, but hierarchy/inspector/state differ.
+04 Help — `GAP`: real standalone capability window versus full Help workspace.
+05 Workspace/Evidence — `UNVERIFIED`: `01-chat.png` is mislabeled Research (`page_index=2`).
+06 Jobs — `GAP / STATE_UNVERIFIED`: correct route identity, wrong execution state.
+07 Command Palette — `GAP / CONTEXT_UNVERIFIED`: standalone palette rather than overlay-over-Knowledge.
+08 System — `GAP / STATE_UNVERIFIED`: correct route identity, runtime state differs.
+09 Research — `GAP / STATE_UNVERIFIED`: correct route identity, sparse state versus populated reference.
+10 Light workspace — `UNVERIFIED`: no same-state light current rendering.
+11 Local Memory/Knowledge — `UNVERIFIED`: `02-knowledge.png` is mislabeled Research (`page_index=2`).
 
-## Readiness / collision state
+## Readiness
 
-Current worker history is still strongly diverged from Develop. The new slice itself is bounded to two product/test files relative to run-start worker head, but it is **not Integrator-ready** without focused exact-SHA execution, exact-SHA runtime rendering and compatibility requalification against current Develop.
-
-No historical closed UI/error slice was reopened. The current change does not collide with Backend/Core ownership described in their handoffs.
+Technical and visual readiness remain separate. Current Develop is canonical green. The worker's product top navigation is visible in real Windows pixels, but the route capture harness must be corrected and rerun before the next product visual mutation or any visual-ready claim. Do not promote the worker as `VISUAL_READY_11_OF_11`.
 
 ## Next visual slice
 
-First consume or obtain exact-SHA focused execution and native-Windows 11-surface rendering for the current candidate lineage. Open every AFTER image and perform `BEFORE 6b1777ef… -> AFTER <exact SHA>` against every reference. Only after that visual review choose the next repeated correction. Based on BEFORE evidence, the contextual Inspector is the leading candidate, but it must remain uncommitted until the current top-navigation slice is visually verified and a real page-specific data path is confirmed.
+Repair the serialized exact-route capture contract, run the focused visual harness/Windows capture, inspect all eleven output images, and only then select the next product gap. The contextual page-specific inspector remains the leading candidate after capture reliability is restored.

@@ -5,17 +5,17 @@ UI worker: `postmerge/ui`
 
 ## Current visual evidence — 2026-09-11
 
-Develop source-of-truth check: `7a6b9ee59f059202f1f3b5c5b8f7b70e319bec2c`; exact canonical Quality `34544225707 = SUCCESS`.
+Current Develop: `1b83466490291fe07dd3d99dd476d0cb6290d307`; exact canonical Quality `34548505498 = SUCCESS`.
 
-All 11 user reference PNGs were opened again. All 11 exact native-Windows BEFORE renders from `postmerge/ui@6b1777ef181dc2f1b15f5a7f70c3cab84ff0b9dc` / visual run `34533820471` were also opened again.
+All 11 user reference PNGs were opened again. An exact native-Windows artifact was also discovered for the bounded top-navigation product commit `2a726ff2155d41d256e244bc05dbbd01c7dd9809` in visual run `34547920919`; all eleven current PNGs were opened.
 
-New bounded product/test candidate: `1c298018b126c357a1c4f56ecbc07d629190964b` (product commit `2a726ff2155d41d256e244bc05dbbd01c7dd9809`). It exposes existing primary routes as top-bar controls through the already installed navigation-context layer; no parallel router or synthetic state is introduced.
+The run's render/capture steps succeeded, but direct artifact inspection found that the visual harness mislabeled two normal workspace screenshots: `02-knowledge.png` records `row=1/page_index=2`, and `01-chat.png` records `row=0/page_index=2`. Both therefore show Research. `03-research.png` correctly records `row=2/page_index=2`. This is a fail-closed evidence defect: eleven PNG files exist, but eleven truthful route-to-pixel pairs do not.
 
-No exact AFTER rendering is available yet for this candidate. Exact-SHA GitHub Actions lookup returns no run for `1c298018…`, and local checkout/runtime verification was blocked by DNS resolution of `github.com`. The visual verdict therefore fails closed:
+Current accounting under the hard same-state rule:
 
 - References opened: `11/11`
-- Exact BEFORE renders opened: `11/11`
-- Exact current-candidate renders opened: `0/11`
+- Exact product artifact images opened: `11/11`
+- Valid same-state/reference-equivalent pairs: `0/11`
 - `MATCH`: `0/11`
 - `PAIRS_VERIFIED_0_OF_11`
 
@@ -23,46 +23,43 @@ No exact AFTER rendering is available yet for this candidate. Exact-SHA GitHub A
 
 Category: `APP SHELL / GEOMETRY / HIERARCHY`
 Severity: `P0 visual`
-Status: `IN_PROGRESS / AFTER_RENDER_PENDING`
+Status: `IN_PROGRESS / TOP_NAV_VISIBLE / ROUTE_CAPTURE_REPAIR_REQUIRED`
 
-Direct BEFORE review isolated the repeated missing textual top navigation on normal workspaces. The candidate now adds five visible controls — `Chat`, `Knowledge`, `Research`, `Jobs`, `Sources` — into the existing `topBar`. Each control drives the existing `QListWidget#navigation` row and shares the existing page-selection path. `sync()` mirrors current-row state into checked/accessibility state. Existing `System` and `Settings` utility destinations are preserved.
+The product slice at `2a726ff…` visibly adds the five real primary top-bar controls `Chat`, `Knowledge`, `Research`, `Jobs`, `Sources` to normal shell renderings and reuses the existing navigation model. This confirms the control's visible existence, not reference parity.
 
-The implementation is presentation/routing reuse only. It does not add a page, backend stub, fake data, storage behavior, provider behavior or security behavior. Existing `topNavButton` hover/focus/checked QSS is reused.
+The exact visual artifact invalidates route-specific review for Chat and Knowledge because the capture harness allowed later timers to run while `app.processEvents()` was nested inside an earlier capture. The renderer records the wrong page index but does not currently fail. A visual gate that can mark mislabeled route captures `PASS` is not sufficient evidence for further pixel tuning.
 
-### Acceptance still required
+### Required next verification slice
 
-The candidate is not visually verified until real exact-SHA Qt pixels exist. Required next evidence is an exact native-Windows 11-surface capture of the candidate, direct opening of all 11 AFTER renders, and slot-by-slot `BEFORE 6b1777ef… -> AFTER <exact rendered SHA>` comparison. The Settings/PALLAS/reference-family top-nav vocabularies differ from the Chat/Knowledge family, so no cross-family parity claim may be inferred merely from adding controls.
+Repair `scripts/render_pathena_ui_snapshot.py` only in the UI worker:
 
-### Remaining coupled inspector gap
+1. serialize the seven workspace captures rather than arming all seven timers concurrently;
+2. after selecting a route and processing events, require `navigation.currentRow() == row` and `pages.currentIndex() == row` before saving;
+3. preserve eleven-surface count and all existing real-controller checks;
+4. rerun the native-Windows visual workflow and inspect all eleven resulting images directly.
 
-BEFORE renders show generic `Evidence & Activity / CHAT / NONE` on several non-chat workspaces while references use page-specific evidence, execution, security, connection or object context. This remains a likely next repeated gap, but is not part of the current candidate and must not be promoted until AFTER pixels confirm the top-navigation slice and a real page-specific data path is identified.
+This is a visual-test harness correction, not a product semantics change. Do not weaken the final visual verdict or approve a baseline merely to make CI green.
 
-## VISUAL-GAP-0002 — standalone PALLAS / Help / ComfyUI framing
+## VISUAL-GAP-0002 — contextual inspector
+
+Category: `INSPECTOR / PAGE CONTEXT`
+Severity: `P0/P1 visual`
+Status: `OPEN / HOLD UNTIL CAPTURE REPAIR`
+
+Valid current renders continue to show a generic/shared inspector structure on routes where references use page-specific context: evidence/activity, execution/resources, security posture, model/system status, connection state, or selected-object knowledge. The next product slice should identify and reuse real page-specific data paths; no fake data or decorative inspector content is allowed.
+
+## VISUAL-GAP-0003 — standalone PALLAS / Help / ComfyUI framing
 
 Category: `SURFACE INTEGRATION`
 Severity: `P1 visual`
 Status: `OPEN`
 
-Exact BEFORE renders still show:
-
-- PALLAS as a standalone semantic graph rather than the reference shell + contextual inspector.
-- Help as a compact standalone capability window rather than the reference full Help workspace.
-- ComfyUI as a compact utility using its real controller rather than the reference full integration workspace.
-
-The current top-navigation candidate intentionally does not fake shell framing inside these standalone surfaces.
+Direct current/reference review confirms these real surfaces remain standalone dialogs/full-view windows while the references place them inside a richer application shell. Their real controllers and states must be preserved; no shell-shaped mock surface should substitute for product integration.
 
 ## State-alignment blockers
 
-Loaded Workspace/Evidence, running Jobs detail, palette-over-Knowledge backdrop, healthy System, loaded Research synthesis, light workspace variant and populated local-memory Knowledge remain state/context misaligned. Existing BEFORE screenshots are valid runtime evidence but not same-state parity evidence.
-
-## Focused / canonical evidence
-
-- Run start worker had no queued or in-progress workflow run.
-- Exact candidate `1c298018…` currently has no workflow run.
-- New focused Qt test exists in `tests/unit/test_pathena_navigation_context_accessibility.py` and exercises top-button labels, click-through to the existing navigation/page index, checked exclusivity and accessibility description. It has **not yet been executed on the exact candidate**, so no PASS is claimed.
-- Local execution attempt was blocked because the runtime cannot resolve `github.com`; this is an evidence-availability limitation, not a test failure.
-- Develop exact SHA `7a6b9ee…` canonical Quality `34544225707` is green.
+Running Jobs, palette-over-Knowledge, healthy System, loaded Research, populated Knowledge/local memory, and the light workspace variant still lack same-state current pairs. They remain `UNVERIFIED` for parity even where a real current route image exists.
 
 ## Readiness
 
-Technical and visual readiness remain separate. `postmerge/ui` is strongly diverged from current Develop, so the candidate is **not Integrator-ready** despite its bounded two-file delta from the previous UI worker head. Screenshot-level readiness is fail-closed at `PAIRS_VERIFIED_0_OF_11` for the new candidate until exact AFTER images are opened.
+Technical and visual readiness remain separate. The top-navigation product control is visibly present, but the current visual harness cannot yet prove truthful route-by-route pixels for all normal workspaces. `postmerge/ui` is therefore not `VISUAL_READY_11_OF_11` and no screenshot-level MATCH claim is valid.
