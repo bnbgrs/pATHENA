@@ -3,7 +3,23 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QObject, Qt
-from PySide6.QtWidgets import QLabel, QListWidget, QListWidgetItem, QStackedWidget, QWidget
+from PySide6.QtWidgets import (
+    QHBoxLayout,
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QPushButton,
+    QStackedWidget,
+    QWidget,
+)
+
+_PRIMARY_TOP_NAVIGATION = (
+    (0, "Chat"),
+    (1, "Knowledge"),
+    (2, "Research"),
+    (3, "Jobs"),
+    (4, "Sources"),
+)
 
 
 def _workspace_label(item: QListWidgetItem) -> str:
@@ -13,25 +29,47 @@ def _workspace_label(item: QListWidgetItem) -> str:
 
 
 class NavigationContextAccessibility(QObject):
-    """Mirror the existing selected workspace into assistive navigation context."""
+    """Mirror the existing selected workspace into visible and assistive navigation."""
 
     def __init__(self, window: QWidget) -> None:
         super().__init__(window)
         navigation = window.findChild(QListWidget, "navigation")
         page_title = window.findChild(QLabel, "pageTitle")
         pages = getattr(window, "pages", None)
-        if navigation is None or page_title is None or not isinstance(pages, QStackedWidget):
+        top_bar = window.findChild(QWidget, "topBar")
+        top_layout = top_bar.layout() if top_bar is not None else None
+        if (
+            navigation is None
+            or page_title is None
+            or not isinstance(pages, QStackedWidget)
+            or not isinstance(top_layout, QHBoxLayout)
+        ):
             raise RuntimeError("pATHENA navigation context is unavailable")
 
         self.navigation = navigation
         self.page_title = page_title
         self.pages = pages
+        self.top_buttons: dict[int, QPushButton] = {}
 
         navigation.setAccessibleName("Workspaces")
         navigation.setAccessibleDescription(
             "Primary pATHENA workspace navigation. Use the focused list to choose a workspace."
         )
         page_title.setAccessibleName("Current workspace")
+
+        for position, (row, label) in enumerate(_PRIMARY_TOP_NAVIGATION, start=1):
+            button = QPushButton(label)
+            button.setObjectName("topNavButton")
+            button.setCheckable(True)
+            button.setAutoExclusive(True)
+            button.setToolTip(f"Open {label}")
+            button.setAccessibleName(label)
+            button.clicked.connect(
+                lambda _checked=False, index=row: self.navigation.setCurrentRow(index)
+            )
+            top_layout.insertWidget(position, button)
+            self.top_buttons[row] = button
+
         navigation.currentRowChanged.connect(self.sync)
         self.sync(navigation.currentRow())
 
@@ -45,6 +83,15 @@ class NavigationContextAccessibility(QObject):
         self.navigation.setProperty("pathenaCurrentWorkspaceIndex", index)
         self.page_title.setAccessibleDescription(f"Current workspace: {current_label}.")
         self.page_title.setProperty("pathenaCurrentWorkspace", current_label)
+
+        for row, button in self.top_buttons.items():
+            current = row == index
+            button.setChecked(current)
+            button.setAccessibleDescription(
+                f"{button.text()}; current workspace"
+                if current
+                else f"{button.text()}; workspace"
+            )
 
         for row in range(self.navigation.count()):
             item = self.navigation.item(row)
@@ -73,5 +120,5 @@ class NavigationContextAccessibility(QObject):
 def install_navigation_context_accessibility(
     window: QWidget,
 ) -> NavigationContextAccessibility:
-    """Install accessible workspace context without changing navigation behavior."""
+    """Install visible and accessible navigation without introducing a second router."""
     return NavigationContextAccessibility(window)
