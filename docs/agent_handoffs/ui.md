@@ -2,62 +2,68 @@
 
 ## Current baseline — 2026-09-11
 
-- Current Develop checked first: `develop/pathena-next@1b83466490291fe07dd3d99dd476d0cb6290d307`.
-- Exact Develop ATHENA Quality Gate `34548505498 = SUCCESS`.
-- UI worker run-start head: `postmerge/ui@ac3d3c851186b8caa152d4a22815bd1390998e55`.
-- Bounded top-navigation product commit: `2a726ff2155d41d256e244bc05dbbd01c7dd9809`.
+- Current Develop checked first: `develop/pathena-next@f729959c7b2b0f14b495f06779c790d6cd0d281d`.
+- Exact Develop ATHENA Quality Gate `34552555541 = SUCCESS`.
+- UI worker run-start head: `postmerge/ui@b7906c4b7b0f4a4e9c6aac32b2bef0b60a34c097`.
 - `main` and `bnbgrs/ATHENA` remained READ-ONLY and untouched.
-- Current Spec/Core, Backend, Errors, Integrator, 11-screen manifest and Visual Gap Ledger were consumed before deciding the run action.
+- Current Spec/Core, Backend, Errors, Integrator, 11-screen manifest and Visual Gap Ledger were consumed before mutation.
 
-## 11-screen evidence this run
+## Product / harness slice this run
 
-All 11 user reference images were opened directly again. An exact native-Windows PySide6 visual run was discovered for product commit `2a726ff…`: run `34547920919`. Exact checkout, immutable identity verification, environment setup, Ruff, mypy comparator, comparator tests, eleven-surface capture, proposal generation and artifact upload all succeeded. The workflow's final verdict failed only because no committed approved visual baseline exists.
+The prior exact artifact showed two mislabeled workspace screenshots because independently armed timers could re-enter while `app.processEvents()` was running. Current Develop already contained the bounded correction `f729959…`; the UI worker imported that exact `scripts/render_pathena_ui_snapshot.py` blob only, creating worker candidate `2593a952c3f058204a50439b84e64c18d2cc7028`.
 
-The artifact was downloaded and all eleven current PNGs were opened. This supplied the missing AFTER pixels, but artifact inspection found a capture-identity defect:
+The correction serializes all seven workspace captures and fails closed unless both `navigation.currentRow()` and `pages.currentIndex()` still equal the requested row immediately before save. It preserves eleven surfaces, real controllers, immutable candidate identity and the existing fail-closed final visual verdict. No Backend, Storage, Security, provider, persistence or scheduler semantics changed.
 
-- `03-research.png`: requested row 2, captured `page_index=2` — valid Research identity.
-- `02-knowledge.png`: requested row 1, captured `page_index=2` — invalid; actually Research.
-- `01-chat.png`: requested row 0, captured `page_index=2` — invalid; actually Research.
+## Exact verification evidence
 
-The renderer arms all seven workspace timers independently and calls `app.processEvents()` during each capture. Later timers can therefore run re-entrantly before the earlier screenshot is saved. The renderer records `page_index` but does not assert route/page identity before saving. Consequently its manifest can report `PASS` with mislabeled workspace pixels.
+Native-Windows visual run `34555697866` checked out exact candidate `2593a952…`.
 
-All eleven files are real runtime images, but the hard same-state rule means no screenshot-level MATCH is inferred from them. Current accounting is `PAIRS_VERIFIED_0_OF_11 · MATCH_0_OF_11`.
+Successful steps: immutable candidate identity, locked environment, Ruff visual harness, mypy comparator, comparator contract tests, capture exactly eleven canonical surfaces with native fonts, baseline proposal and artifact upload. The workflow conclusion is `failure` only because `Enforce visual verdict` remains intentionally fail-closed without an approved committed baseline.
 
-## Product slice status — functional textual primary navigation
+The artifact was downloaded and all eleven current PNGs were opened directly. `manifest.json` reports `status: PASS`, `errors: []`, and exact workspace route/page identity:
 
-The current artifact visibly confirms that the normal shell now contains `Chat`, `Knowledge`, `Research`, `Jobs`, and `Sources` top-bar controls. The implementation still reuses the existing navigation row model and does not introduce a parallel router. This is a visible-existence confirmation only, not route-by-route reference parity.
+- Chat `row=0 page_index=0`
+- Knowledge `row=1 page_index=1`
+- Research `row=2 page_index=2`
+- Jobs `row=3 page_index=3`
+- Files `row=4 page_index=4`
+- System `row=5 page_index=5`
+- Settings `row=6 page_index=6`
 
-No Backend, Storage, Security, provider, persistence or scheduler semantics were modified in this run.
+The capture-identity blocker is therefore resolved on this exact worker candidate.
 
-## Newly isolated UI verification defect
+## 11-screen evidence
 
-Highest-priority next slice is now the capture harness, because invalid route identity prevents trustworthy visual iteration on the product. `scripts/render_pathena_ui_snapshot.py` must be hardened without weakening any guard:
+All 11 user reference images were opened directly again in this run. All 11 exact current candidate images were also opened. No screenshot-level MATCH is claimed because the reference states are mostly populated/healthy/active while the current runtime is reconnecting, empty or diagnostic.
 
-- serialize workspace captures;
-- after each route selection, fail unless both `navigation.currentRow()` and `pages.currentIndex()` equal the requested row;
-- keep all eleven real-controller captures and exact-SHA identity checks;
-- rerun Windows visual capture and open every new PNG before any further visual product patch.
+01 ComfyUI — `GAP`: compact real standalone dialog versus shell-integrated reference.
+02 PALLAS — `GAP`: real sparse diagnostic graph versus shell-integrated richer selected-object/provenance composition.
+03 Settings — `GAP / STATE_UNVERIFIED`: route truthful; current unavailable model state and generic inspector differ materially.
+04 Help — `GAP`: real standalone capability catalogue versus full Help workspace.
+05 Workspace/Evidence — `UNVERIFIED`: Chat route truthful now, but reconnecting empty state is not the populated synthesis/evidence reference.
+06 Jobs — `GAP / STATE_UNVERIFIED`: route truthful; no running job state.
+07 Command Palette — `GAP / CONTEXT_UNVERIFIED`: real palette remains standalone rather than overlay-over-Knowledge.
+08 System — `GAP / STATE_UNVERIFIED`: route truthful; unavailable/recovery state versus healthy reference.
+09 Research — `GAP / STATE_UNVERIFIED`: route truthful; failed/empty state versus populated synthesis/graph reference.
+10 Light workspace — `UNVERIFIED`: no same-state light current rendering; dark/orange direction remains authoritative.
+11 Local Memory/Knowledge — `UNVERIFIED`: Knowledge route truthful now, but empty Core-unavailable state is not the populated local-memory reference.
 
-This supersedes the previous assumption that the current candidate had no AFTER artifact. It also blocks promotion of the contextual-inspector slice until truthful Chat/Knowledge captures exist.
+Accounting: `PAIRS_VERIFIED_0_OF_11 · MATCH_0_OF_11`.
 
-## Slot status
+## Current highest visual gap
 
-01 ComfyUI — `GAP`: real standalone local integration dialog versus full reference workspace.
-02 PALLAS — `GAP`: real diagnostic full graph versus shell-integrated contextual reference.
-03 Settings — `GAP`: real route, but hierarchy/inspector/state differ.
-04 Help — `GAP`: real standalone capability window versus full Help workspace.
-05 Workspace/Evidence — `UNVERIFIED`: `01-chat.png` is mislabeled Research (`page_index=2`).
-06 Jobs — `GAP / STATE_UNVERIFIED`: correct route identity, wrong execution state.
-07 Command Palette — `GAP / CONTEXT_UNVERIFIED`: standalone palette rather than overlay-over-Knowledge.
-08 System — `GAP / STATE_UNVERIFIED`: correct route identity, runtime state differs.
-09 Research — `GAP / STATE_UNVERIFIED`: correct route identity, sparse state versus populated reference.
-10 Light workspace — `UNVERIFIED`: no same-state light current rendering.
-11 Local Memory/Knowledge — `UNVERIFIED`: `02-knowledge.png` is mislabeled Research (`page_index=2`).
+With route capture reliability restored, the leading repeated product gap is contextual inspector composition. Current truthful captures show generic `Evidence & Activity` on Knowledge, Research, Jobs and Settings while references use route-specific selected knowledge/provenance, execution/resources, system/security, connection or evidence context.
+
+Any implementation must bind to real existing page/controller state or clearly expose unavailable/not-implemented state. No fake evidence, fake job, fake health or decorative mock data.
 
 ## Readiness
 
-Technical and visual readiness remain separate. Current Develop is canonical green. The worker's product top navigation is visible in real Windows pixels, but the route capture harness must be corrected and rerun before the next product visual mutation or any visual-ready claim. Do not promote the worker as `VISUAL_READY_11_OF_11`.
+- Develop exact Quality: green at `f729959…`.
+- Worker exact visual capture harness: operational and truthful at `2593a952…`.
+- Final visual workflow verdict: intentionally red only because no approved baseline exists.
+- Visual readiness: NOT READY; no state-equivalent reference/current pair supports MATCH.
+- Integrator-ready claim: not made; the worker remains materially diverged from current Develop and this run focused on restoring trustworthy visual evidence.
 
 ## Next visual slice
 
-Repair the serialized exact-route capture contract, run the focused visual harness/Windows capture, inspect all eleven output images, and only then select the next product gap. The contextual page-specific inspector remains the leading candidate after capture reliability is restored.
+Use the now-trustworthy route captures to select one or at most two tightly coupled inspector contexts with real existing data paths, add focused Qt state/routing/accessibility tests, render the exact candidate on Windows, open all eleven outputs and document BEFORE -> AFTER only for genuinely comparable states.
