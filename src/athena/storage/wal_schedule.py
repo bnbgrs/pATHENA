@@ -14,12 +14,7 @@ from athena.storage.wal_maintenance import (
 def _finite_nonnegative_number(value: object, label: str) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise WalMaintenanceError(f"{label} must be a finite non-negative number.")
-    try:
-        normalized = float(value)
-    except OverflowError as exc:
-        raise WalMaintenanceError(
-            f"{label} must be a finite non-negative number."
-        ) from exc
+    normalized = float(value)
     if not math.isfinite(normalized) or normalized < 0:
         raise WalMaintenanceError(f"{label} must be a finite non-negative number.")
     return normalized
@@ -47,9 +42,9 @@ class WalMaintenanceIntervalRunner:
         *,
         interval_seconds: float,
     ) -> None:
-        if type(orchestrator) is not WalMaintenanceOrchestrator:
+        if not isinstance(orchestrator, WalMaintenanceOrchestrator):
             raise TypeError(
-                "WAL interval runner requires canonical WalMaintenanceOrchestrator."
+                "WAL interval runner requires WalMaintenanceOrchestrator."
             )
         self.orchestrator = orchestrator
         self.interval_seconds = _finite_positive_number(
@@ -81,16 +76,10 @@ class WalMaintenanceIntervalRunner:
         if self._next_due_monotonic is not None and now < self._next_due_monotonic:
             return None
 
-        next_due = now + self.interval_seconds
-        if not math.isfinite(next_due):
-            raise WalMaintenanceError(
-                "WAL maintenance next due monotonic time must remain finite."
-            )
-
         diagnosis = self.orchestrator.run_cycle()
         if not isinstance(diagnosis, WalMaintenanceDiagnosis):
             raise WalMaintenanceError(
                 "WAL maintenance orchestrator returned an invalid diagnosis."
             )
-        self._next_due_monotonic = next_due
+        self._next_due_monotonic = now + self.interval_seconds
         return diagnosis

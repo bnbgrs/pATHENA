@@ -1,77 +1,48 @@
-# Backend & Systems Handoff
+# pATHENA Backend & Systems Handoff
 
-Generated: 2026-09-11
-Branch: `postmerge/backend`
+## Baseline
 
-## Current source of truth
-
-- Develop consumed first: `develop/pathena-next@7a6b9ee59f059202f1f3b5c5b8f7b70e319bec2c`.
-- Backend worker head before this handoff refresh: `44201f9dd2c1378c98afccc9a30ddf18c98b2405`.
-- Exact Develop canonical Quality `34544225707@7a6b9ee59f059202f1f3b5c5b8f7b70e319bec2c = SUCCESS`.
-- The previous exact-SHA pytest-only failure at `4634bdf28c98bc114e0369701122818d474f99d9` is resolved on Develop by the bounded UI typography-contract test alignment. Backend does not duplicate or absorb that repair.
-- No canonical Quality run was queued or in progress on the current Backend worker head when this refresh began; visible Backend runs were completed historical runs.
+- Shared baseline consumed first: `develop/pathena-next@b26eea46c89a8b628c2006d24d1fdac7492baa91`.
+- Exact canonical Quality: `34601243038@b26eea46c89a8b628c2006d24d1fdac7492baa91 = SUCCESS`.
+- Worker before synchronization: `postmerge/backend@fa995bf462aa8135d24f4e9e7059bc24f6992622`.
+- Pre-sync comparison against Develop: `136 ahead / 33 behind`; broad historical product/test drift made that worker unsuitable as a bounded integration candidate.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only and untouched.
+
+## Closed root-cause cluster this run
+
+### Backend worker baseline divergence
+
+Status: `CLOSED BY HISTORY-PRESERVING SYNCHRONIZATION`.
+
+The Backend worker is synchronized to the exact current canonical-green Develop tree while retaining both histories through a normal two-parent merge commit. No force push, history rewrite, product mutation, test mutation, guard relaxation, Skip/XFail, or mutation to `main`/`bnbgrs/ATHENA` is used.
+
+This intentionally removes the broad stale worker file delta from the active candidate surface. Historical Backend commits remain reachable in history but are not reintroduced into the current working tree merely because they existed on the old worker lineage.
 
 ## Current backend failure state
 
-Status: `NO CURRENT EXACT-SHA BACKEND FAILURE / DEVELOP CANONICAL GREEN`.
+- Current Develop exact-SHA Backend failure: none; canonical Quality is green.
+- Current Error handoff on Develop reports `OPEN: none`.
+- Integrator still identifies BE-046 and BE-052 as Backend-owned gaps requiring a bounded exact-tested candidate before promotion.
+- Historical signatures are not reopened without exact-current reproduction.
 
-The latest authoritative Develop head is canonical green. No current exact-SHA evidence justifies reopening historical Backend failures or weakening any Storage, Recovery, Security, runtime or test invariant.
+## Highest next Backend gap
 
-## Highest current Backend gaps
+BE-046 remains the next conservative Backend target only if current source/spec evidence still reproduces it on the synchronized baseline. The previous local focused-test path was transiently blocked by DNS resolution of `github.com`; no focused PASS is fabricated and no untested Storage mutation is carried through this synchronization.
 
-### BE-046 — Emergency Reserve Windows directory-identity binding
-
-Status: `OPEN / P1 / CURRENT SOURCE TRACE CONFIRMED`.
-
-Current Develop preserves POSIX parent-directory-FD binding for reserve creation and release. The non-POSIX path still creates via `os.open(self.path, ...)`, validates file/path identity after opening, and performs failure cleanup and normal release via pathname `stat()` / `unlink()` operations. Therefore the reserve directory identity is not bound through the Windows mutation itself. Physical non-sparse allocation and exact release accounting must be preserved.
-
-No product mutation was made in this run. The required focused-test path was attempted again from a fresh local checkout and remains transiently blocked by DNS resolution of `github.com` (`Could not resolve host: github.com`). No fabricated focused PASS and no untested Storage commit are claimed.
-
-### BE-052 — Preflight DB identity through live writer startup
-
-Status: `OPEN / P1 / CURRENT SOURCE TRACE CONFIRMED`.
-
-Current `SQLiteDatabase.start()` still performs read-only preflight against the configured path and later opens the writable SQLite connection independently by pathname. The preflight filesystem identity is therefore not carried into the live writer. A second pathname preflight would not close the race; a cross-platform identity-bound writer strategy remains required.
-
-BE-052 was not mutated because BE-046 remains the higher current bounded Backend target and no newer exact-SHA Backend failure supersedes it.
-
-## Closed exact-evidence clusters
-
-- Native Windows durable-FS POSIX harness isolation: `CLOSED_ON_DEVELOP / EXACT_WINDOWS_EVIDENCE_GREEN`, integrated at `7fa2108d820cfc5b48a9f92d42ffa61697b74818`, canonical run `34522965434 = SUCCESS`.
-- Core/API server lifecycle Windows contract: `CLOSED_ON_DEVELOP / EXACT_WINDOWS_EVIDENCE_GREEN`, run `34510755656 = SUCCESS`.
-- Core/API ownership lifecycle Windows contract: `CLOSED_ON_DEVELOP / EXACT_WINDOWS_EVIDENCE_GREEN`, run `34504620300 = SUCCESS`.
-- Adaptive 2048-context reserve Windows contract: `CLOSED_ON_DEVELOP / EXACT_WINDOWS_EVIDENCE_GREEN`, run `34492275924 = SUCCESS`.
-- Windows packaged runtime contracts including pypdf/Frozen argv/two-EXE: `CLOSED_ON_DEVELOP / EXACT_WINDOWS_EVIDENCE_GREEN`, run `34486592055 = SUCCESS`.
-- BE-038 Windows HANDLE-bound durable filesystem publication: closed on current Develop; do not reopen without current exact-SHA reproduction.
-- BE-020 runtime ModelSignature drift guard, schema reinitialization and Windows storage-bootstrap historical signatures: closed/stale unless reproduced on current exact-SHA evidence.
-
-## Coordination
-
-- Current Develop Errors handoff has no current OPEN error assigned there; do not duplicate closed Error-worker slices.
-- Spec/Core owns normal-Hybrid Search facade/application composition and remains non-overlapping with BE-046/BE-052.
-- UI owns visual hierarchy/composer/PALLAS work and the repaired typography test contract; Backend does not mutate those paths.
-- Integrator explicitly keeps BE-046/BE-052 out of parallel integration until Backend produces a bounded candidate with focused adversarial identity evidence.
+Develop now contains `.github/workflows/core-focused-candidate.yml`, proving an exact pull-request-head focused verification pattern. A Backend-focused equivalent may be proposed as a separate bounded systems slice if local DNS remains unavailable; it must not weaken or replace canonical Quality.
 
 ## Preserved release guards
 
-- No silent Tor-to-Direct fallback.
-- Redirect/Auth/HTTPS/response-size boundaries remain fail-closed.
-- WAL maintenance remains SQLite-owned and safe.
-- pypdf packaging, Frozen argv and two-EXE topology remain guarded.
-- Exactly one Desktop instance / bounded worker ownership-lifecycle remains guarded.
-- Adaptive 2048-context reserve remains guarded.
-- Windows lane-lock/path-safety, duplicate-column/Core-startup/storage-bootstrap signatures remain protected.
-- No Skip/XFail, force push, history rewrite, `main` mutation or mutation to `bnbgrs/ATHENA`.
+- no silent Tor-to-Direct fallback;
+- Redirect/Auth/HTTPS/response-size boundaries remain fail-closed;
+- WAL maintenance remains safe and SQLite-owned;
+- pypdf packaging, Frozen argv and two-EXE topology remain guarded;
+- bounded worker ownership/lifecycle and adaptive 2048-context reserve remain guarded;
+- Windows lane-lock/path-safety and duplicate-column/Core-startup/storage-bootstrap protections remain intact;
+- no Skip/XFail, force push, history rewrite or direct Develop/main integration by Backend.
 
 ## Integrator prerequisites
 
-- Authoritative Develop: `7a6b9ee59f059202f1f3b5c5b8f7b70e319bec2c`, canonical Quality `34544225707 = SUCCESS`.
-- Previous pytest-only red state at `4634bdf28c98bc114e0369701122818d474f99d9` is resolved and is not Backend-owned.
-- BE-046 and BE-052 remain OPEN with no Backend product candidate in this handoff.
-- Broad historical Backend worker history remains `HOLD / NOT READY`; do not absorb it as a unit.
-- Any future Backend candidate must be a small current-Develop-compatible diff, pass real focused regressions first, preserve all Storage/Recovery/Security invariants, and obtain exact-SHA canonical evidence before READY.
-
-## Next Backend action
-
-Consume the then-current Develop head and exact-SHA Quality first. If still canonical green and no newer Backend failure exists, continue with exactly one bounded BE-046 closure attempt. Required focused tests must execute before a product commit; if the local test path remains transiently unavailable, do not create an untested Storage mutation. After BE-046 is safely closed, BE-052 is the next current P1 target unless newer exact-SHA evidence changes priority.
+- Treat the synchronization commit as baseline hygiene, not a product feature.
+- Do not re-import the old broad Backend worker delta as a unit.
+- Any subsequent Backend product candidate must be a small diff from this synchronized baseline, run real focused regressions first, preserve Storage/Recovery/Security invariants, and obtain exact-SHA evidence before READY.

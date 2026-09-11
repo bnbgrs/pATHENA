@@ -40,7 +40,7 @@ def test_spacing_and_motion_are_small_bounded_scales() -> None:
     )
     assert SPACE.workspace_ratio == pytest.approx(0.618)
     assert (MOTION.fast_ms, MOTION.standard_ms, MOTION.deliberate_ms) == (80, 140, 220)
-    assert (TYPE.body_px, TYPE.metadata_px, TYPE.title_px) == (14, 11, 34)
+    assert (TYPE.body_px, TYPE.metadata_px, TYPE.title_px) == (15, 12, 42)
 
 
 @pytest.mark.parametrize("value", ["1", "true", "YES", "on"])

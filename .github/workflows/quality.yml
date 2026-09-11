@@ -209,17 +209,93 @@ jobs:
       - name: Validate dependency lock
         run: uv lock --check
 
+      # Keep every Windows release guard independently observable. A failure in one
+      # guard must not hide the state of later, disjoint release contracts.
       - name: Probe native active-state locality
+        id: windows_active_state_locality
+        continue-on-error: true
         run: uv run --locked --extra dev python -c "from pathlib import Path; from athena.storage.locality import assert_active_state_root_local; assert_active_state_root_local(Path.cwd())"
 
       - name: Run deterministic Windows locality regressions
+        id: windows_locality
+        continue-on-error: true
         run: uv run --locked --extra dev pytest -q tests/unit/test_storage_locality.py -k windows
 
       - name: Run Windows storage path regressions
-        run: uv run --locked --extra dev pytest -q tests/unit/test_database_preflight_locality.py tests/unit/test_runtime_paths.py tests/unit/test_migration_clone.py tests/unit/test_migration_journal.py tests/unit/test_migration_activation.py tests/unit/test_migration_lock.py tests/unit/test_migration_executor.py tests/unit/test_migration_recovery.py tests/unit/test_emergency_reserve.py tests/unit/test_disk_pressure.py tests/unit/test_pressure_database.py tests/unit/test_read_only_database.py tests/unit/test_storage_safe_mode.py tests/unit/test_storage_bootstrap.py
+        id: windows_storage
+        continue-on-error: true
+        run: uv run --locked --extra dev pytest -q tests/unit/test_database_preflight_locality.py tests/unit/test_runtime_paths.py tests/unit/test_migration_clone.py tests/unit/test_migration_journal.py tests/unit/test_migration_activation.py tests/unit/test_migration_lock.py tests/unit/test_migration_executor.py tests/unit/test_migration_recovery.py tests/unit/test_emergency_reserve.py tests/unit/test_disk_pressure.py tests/unit/test_pressure_database.py tests/unit/test_read_only_database.py tests/unit/test_storage_safe_mode.py tests/unit/test_storage_bootstrap.py tests/unit/test_schema_reinitialization_contract.py
 
       - name: Run Windows durable filesystem regressions
+        id: windows_durable_fs
+        continue-on-error: true
         run: uv run --locked --extra dev pytest -q tests/unit/test_durable_fs.py -k "not test_posix"
 
       - name: Run API runtime path-boundary regressions
+        id: windows_api_runtime
+        continue-on-error: true
         run: uv run --locked --extra dev pytest -q tests/unit/test_api_runtime_boundaries.py
+
+      - name: Run Windows Core/API ownership lifecycle regressions
+        id: windows_ownership
+        continue-on-error: true
+        run: uv run --locked --extra dev pytest -q tests/unit/test_api_process_lock_boundaries.py tests/unit/test_api_process_lifecycle_boundaries.py tests/unit/test_api_server_lifecycle_boundaries.py
+
+      - name: Run Windows packaged runtime contract regressions
+        id: windows_packaged_runtime
+        continue-on-error: true
+        run: uv run --locked --extra dev --extra desktop pytest -q tests/unit/test_packaged_app_dispatch.py tests/unit/test_packaged_process_launch.py tests/unit/test_windows_packaging_contract.py
+
+      - name: Run Windows adaptive chat reserve contract
+        id: windows_chat_reserve
+        continue-on-error: true
+        run: uv run --locked --extra dev pytest -q tests/unit/test_chat_context_reserve_contract.py
+
+      - name: Run Windows Core/API restart smoke
+        id: windows_restart_smoke
+        continue-on-error: true
+        run: uv run --locked --extra dev athena-local-smoke --restart-cycles 1
+
+      - name: Verify Windows pypdf packaging metadata
+        id: windows_pypdf_packaging
+        continue-on-error: true
+        run: uv run --locked --extra dev athena-packaging-smoke --json
+
+      - name: Enforce Windows release-guard result
+        if: ${{ always() && !cancelled() }}
+        shell: pwsh
+        env:
+          ACTIVE_STATE_OUTCOME: ${{ steps.windows_active_state_locality.outcome }}
+          LOCALITY_OUTCOME: ${{ steps.windows_locality.outcome }}
+          STORAGE_OUTCOME: ${{ steps.windows_storage.outcome }}
+          DURABLE_FS_OUTCOME: ${{ steps.windows_durable_fs.outcome }}
+          API_RUNTIME_OUTCOME: ${{ steps.windows_api_runtime.outcome }}
+          OWNERSHIP_OUTCOME: ${{ steps.windows_ownership.outcome }}
+          PACKAGED_RUNTIME_OUTCOME: ${{ steps.windows_packaged_runtime.outcome }}
+          CHAT_RESERVE_OUTCOME: ${{ steps.windows_chat_reserve.outcome }}
+          RESTART_SMOKE_OUTCOME: ${{ steps.windows_restart_smoke.outcome }}
+          PYPDF_PACKAGING_OUTCOME: ${{ steps.windows_pypdf_packaging.outcome }}
+        run: |
+          $outcomes = [ordered]@{
+            "Active-state locality" = $env:ACTIVE_STATE_OUTCOME
+            "Deterministic locality" = $env:LOCALITY_OUTCOME
+            "Storage paths" = $env:STORAGE_OUTCOME
+            "Durable filesystem" = $env:DURABLE_FS_OUTCOME
+            "API runtime boundaries" = $env:API_RUNTIME_OUTCOME
+            "Core/API ownership" = $env:OWNERSHIP_OUTCOME
+            "Packaged runtime" = $env:PACKAGED_RUNTIME_OUTCOME
+            "Adaptive chat reserve" = $env:CHAT_RESERVE_OUTCOME
+            "Core/API restart smoke" = $env:RESTART_SMOKE_OUTCOME
+            "pypdf packaging" = $env:PYPDF_PACKAGING_OUTCOME
+          }
+          $failures = @()
+          foreach ($entry in $outcomes.GetEnumerator()) {
+            Write-Host "$($entry.Key): $($entry.Value)"
+            if ($entry.Value -ne "success") {
+              $failures += $entry.Key
+            }
+          }
+          if ($failures.Count -gt 0) {
+            throw "ATHENA WINDOWS RELEASE GUARDS: FAIL — $($failures -join ', ')"
+          }
+          Write-Host "ATHENA WINDOWS RELEASE GUARDS: PASS"

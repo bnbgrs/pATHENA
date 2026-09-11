@@ -23,18 +23,14 @@ class WalMaintenanceRuntime:
     scheduler: WalMaintenanceSchedulerAdapter
 
     def __post_init__(self) -> None:
-        if type(self.service) is not WalMaintenanceService:
-            raise TypeError("WAL runtime service must be canonical WalMaintenanceService.")
-        if type(self.orchestrator) is not WalMaintenanceOrchestrator:
-            raise TypeError(
-                "WAL runtime orchestrator must be canonical WalMaintenanceOrchestrator."
-            )
-        if type(self.runner) is not WalMaintenanceIntervalRunner:
-            raise TypeError("WAL runtime runner must be canonical WalMaintenanceIntervalRunner.")
-        if type(self.scheduler) is not WalMaintenanceSchedulerAdapter:
-            raise TypeError(
-                "WAL runtime scheduler must be canonical WalMaintenanceSchedulerAdapter."
-            )
+        if not isinstance(self.service, WalMaintenanceService):
+            raise TypeError("WAL runtime service must be WalMaintenanceService.")
+        if not isinstance(self.orchestrator, WalMaintenanceOrchestrator):
+            raise TypeError("WAL runtime orchestrator must be WalMaintenanceOrchestrator.")
+        if not isinstance(self.runner, WalMaintenanceIntervalRunner):
+            raise TypeError("WAL runtime runner must be WalMaintenanceIntervalRunner.")
+        if not isinstance(self.scheduler, WalMaintenanceSchedulerAdapter):
+            raise TypeError("WAL runtime scheduler must be WalMaintenanceSchedulerAdapter.")
         if self.orchestrator.service is not self.service:
             raise ValueError("WAL runtime orchestrator must use the runtime service.")
         if self.runner.orchestrator is not self.orchestrator:

@@ -20,7 +20,7 @@ from athena.storage.database import SQLiteDatabase
 from athena.storage.schema import (
     BACKUP_RETENTION_MIGRATION_ID,
     BACKUP_RETENTION_SCHEMA_VERSION,
-    RESEARCH_DELTA_BOUNDARY_MIGRATION_ID,
+    GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID,
     SCHEMA_VERSION,
 )
 
@@ -511,13 +511,9 @@ def test_v35_database_migrates_additively_to_v36(
 
     # This fixture starts from the current schema and
     # reconstructs an older boundary. Remove additive
-    # v41, v40 and v39 child state before removing older
-    # parents or rewriting schema metadata. Production
-    # migration behavior intentionally remains fail-closed.
-    legacy.execute(
-        "DROP TABLE IF EXISTS "
-        "research_delta_boundaries"
-    )
+    # v40 and v39 child state before removing older parents
+    # or rewriting schema metadata. Production migration
+    # behavior intentionally remains fail-closed.
     legacy.execute(
         "DROP TABLE IF EXISTS "
         "grounded_response_receipts"
@@ -606,7 +602,7 @@ def test_v35_database_migrates_additively_to_v36(
             metadata
         ) == (
             SCHEMA_VERSION,
-            RESEARCH_DELTA_BOUNDARY_MIGRATION_ID,
+            GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID,
             SCHEMA_VERSION,
         )
 

@@ -28,13 +28,6 @@ _DISPLAY_NAVIGATION = (
     "System",
     "Settings",
 )
-_TOP_NAVIGATION = (
-    (0, "WORKSPACE"),
-    (1, "LIBRARY"),
-    (2, "RESEARCH"),
-    (3, "JOBS"),
-    (4, "SOURCES"),
-)
 _ICON_NAVIGATION = ("◉", "◇", "⌁", "▤", "▱", "◎", "⚙")
 
 
@@ -185,17 +178,31 @@ class PathenaMainWindow(AthenaMainWindow):
         self.model_selector.setMaximumWidth(320)
         self.model_selector.setToolTip("Choose a local model")
 
+        composer = self.findChild(QFrame, "composer")
+        if composer is not None:
+            composer.setAccessibleName("Message composer")
+            composer.setFixedHeight(88)
+            composer_layout = composer.layout()
+            if composer_layout is not None:
+                composer_layout.setContentsMargins(10, 10, 8, 10)
+                composer_layout.setSpacing(10)
+
         self.prompt_input.setObjectName("promptInput")
         self.prompt_input.setPlaceholderText("Ask, explore, or work with your knowledge…")
+        self.prompt_input.ensurePolished()
+        self.prompt_input.setFixedHeight(44)
 
         self.ground_button.setObjectName("groundButton")
         self.ground_button.setText("Sources")
         self.ground_button.setToolTip("Ground this message in available sources")
+        self.ground_button.ensurePolished()
+        self.ground_button.setFixedHeight(36)
 
         self.send_button.setObjectName("sendButton")
         self.send_button.setText("→")
         self.send_button.setToolTip("Send message (Ctrl+Enter)")
         self.send_button.setAccessibleName("Send message")
+        self.send_button.setFixedSize(44, 44)
 
         self.new_chat_button.setText("New")
         self.new_chat_button.setToolTip("Start a new conversation")
@@ -228,7 +235,7 @@ class PathenaMainWindow(AthenaMainWindow):
 
         top_bar = QFrame()
         top_bar.setObjectName("topBar")
-        top_bar.setAccessibleName("Global navigation")
+        top_bar.setAccessibleName("Status and utilities")
         top_bar.setFixedHeight(SHELL.top_bar_height)
         top_layout = QHBoxLayout(top_bar)
         top_layout.setContentsMargins(22, 0, 18, 0)
@@ -237,22 +244,8 @@ class PathenaMainWindow(AthenaMainWindow):
         wordmark = QLabel("pATHENA")
         wordmark.setObjectName("topWordmark")
         top_layout.addWidget(wordmark)
-
-        self.reference_top_nav_buttons: list[QPushButton] = []
-        for page_index, label in _TOP_NAVIGATION:
-            button = QPushButton(label)
-            button.setObjectName("topNavButton")
-            button.setCheckable(True)
-            button.setAutoExclusive(True)
-            button.setProperty("pageIndex", page_index)
-            button.setToolTip(f"Open {_DISPLAY_NAVIGATION[page_index]}")
-            button.clicked.connect(
-                lambda _checked=False, index=page_index: self.navigation.setCurrentRow(index)
-            )
-            self.reference_top_nav_buttons.append(button)
-            top_layout.addWidget(button)
-
         top_layout.addStretch(1)
+
         for page_index, symbol, label in ((5, "◎", "System"), (6, "⚙", "Settings")):
             button = QPushButton(symbol)
             button.setObjectName("topUtilityButton")
@@ -309,9 +302,6 @@ class PathenaMainWindow(AthenaMainWindow):
         self.setCentralWidget(shell)
 
     def _sync_reference_navigation(self, index: int) -> None:
-        for button in getattr(self, "reference_top_nav_buttons", ()):
-            page_index = button.property("pageIndex")
-            button.setChecked(page_index == index)
         if 0 <= index < len(_DISPLAY_NAVIGATION):
             self.page_title.setText(_DISPLAY_NAVIGATION[index])
         self._sync_inspector_visibility()

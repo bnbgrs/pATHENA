@@ -229,15 +229,15 @@ class SettingsRuntimeController(QObject):
         provider = value.provider
         provider_freshness = "unavailable" if provider is None else freshness
 
-        if provider is None or freshness == "unavailable":
+        if provider is None:
             provider_text = "Model provider · unavailable"
             provider_state = "error"
-        elif freshness == "stale":
-            provider_text = f"{provider.provider} · last known {provider.status}"
-            provider_state = "idle"
-        else:
+        elif freshness == "fresh":
             provider_text = f"{provider.provider} · {provider.status}"
             provider_state = "success" if provider.status == "ready" else "error"
+        else:
+            provider_text = f"{provider.provider} · last known {provider.status}"
+            provider_state = "idle"
         self._set_state(
             self.provider_value,
             provider_text,
@@ -268,8 +268,11 @@ class SettingsRuntimeController(QObject):
         self.network_value.setAccessibleDescription(network_detail)
 
         detail = value.model_error
-        if detail is None and provider is not None:
-            detail = provider.detail
+        if detail is None:
+            if provider is None:
+                detail = "Model provider is unavailable in the local Core snapshot."
+            else:
+                detail = provider.detail
         detail_text = (
             detail
             or "Provider readiness is reported by the local Core; no remote status "

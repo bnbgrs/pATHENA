@@ -32,6 +32,7 @@ def test_reference_shell_owns_icon_rail_without_rewiring_navigation() -> None:
         top_bar = shell.findChild(QFrame, "topBar")
         assert top_bar is not None
         assert top_bar.height() == SHELL.top_bar_height
+        assert top_bar.accessibleName() == "Status and utilities"
 
         body = shell.findChild(QFrame, "referenceBody")
         assert body is not None
@@ -99,28 +100,48 @@ def test_reference_body_directly_owns_workspace_and_contextual_inspector() -> No
         window.close()
 
 
-def test_reference_shell_has_horizontal_primary_navigation_and_private_status() -> None:
+def test_reference_shell_keeps_primary_navigation_in_rail_and_private_status_in_top_bar() -> None:
     _app()
     window = PathenaMainWindow()
     try:
-        buttons = window.findChildren(QPushButton, "topNavButton")
-        assert [button.text() for button in buttons] == [
-            "WORKSPACE",
-            "LIBRARY",
-            "RESEARCH",
-            "JOBS",
-            "SOURCES",
-        ]
-        assert buttons[0].isChecked()
+        shell = window.centralWidget()
+        assert isinstance(shell, QWidget)
+        top_bar = shell.findChild(QFrame, "topBar")
+        assert top_bar is not None
+        assert top_bar.accessibleName() == "Status and utilities"
+        assert window.findChildren(QPushButton, "topNavButton") == []
 
-        buttons[1].click()
-        assert window.navigation.currentRow() == 1
+        utilities = window.findChildren(QPushButton, "topUtilityButton")
+        assert [button.accessibleName() for button in utilities] == ["System", "Settings"]
+
+        window.navigation.setCurrentRow(1)
         assert window.pages.currentIndex() == 1
-        assert buttons[1].isChecked()
+        assert window.page_title.text() == "Library"
 
         status = window.findChild(QLabel, "localPrivateStatus")
         assert status is not None
         assert status.text() == "Local · Private"
+    finally:
+        window.close()
+
+
+def test_reference_composer_uses_large_work_surface_and_send_target() -> None:
+    app = _app()
+    window = PathenaMainWindow()
+    app.processEvents()
+    try:
+        composer = window.findChild(QFrame, "composer")
+        assert composer is not None
+        assert composer.accessibleName() == "Message composer"
+        assert composer.height() == 88
+        assert window.prompt_input.minimumHeight() == 44
+        assert window.ground_button.minimumHeight() == 36
+        assert window.send_button.width() == 44
+        assert window.send_button.height() == 44
+        assert window.send_button.minimumWidth() == 44
+        assert window.send_button.maximumWidth() == 44
+        assert window.send_button.minimumHeight() == 44
+        assert window.send_button.maximumHeight() == 44
     finally:
         window.close()
 
