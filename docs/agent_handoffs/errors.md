@@ -5,10 +5,10 @@
 - Develop source of truth: `develop/pathena-next@85bd5f19c8aca56273ad43ac708fe13ac4798415`.
 - Error worker entered this run at `postmerge/errors@d16707612361e46849b326e1a207612f9e3ba2ad`.
 - Current workers: Spec/Core `0d7e6281a584a302350a6b3aea0ac63e6eac744a`; Backend `fa995bf462aa8135d24f4e9e7059bc24f6992622`; UI `4ea0004fded7a169f18abc6fecd59461f86ee9bd`.
-- Exact-current canonical Quality: `34591859521@85bd5f19c8aca56273ad43ac708fe13ac4798415 = IN_PROGRESS`; no PASS/FAIL is inferred until completion.
+- Exact-current canonical Quality: `34591361659@85bd5f19c8aca56273ad43ac708fe13ac4798415 = IN_PROGRESS`; no PASS/FAIL is inferred until completion.
 - Previous exact Develop canonical: `34586893958@ccfbeb620cf009b75c6c53e5821438bf869ab114 = SUCCESS`.
 - The current Develop delta is CI/test workflow work; EmergencyReserve product/tests are unchanged.
-- `postmerge/errors@d16707612361e46849b326e1a207612f9e3ba2ad` had zero canonical Quality runs before the ledger mutation; after ledger commit `d79dc921133e8a8efb5a909370b8cef0ac6f8a5c` there were still zero runs before this handoff update.
+- `postmerge/errors@d16707612361e46849b326e1a207612f9e3ba2ad` had zero canonical Quality runs before the ledger mutation; after ledger commit `d79dc921133e8a8efb5a909370b8cef0ac6f8a5c` there were still zero runs before the handoff update. Subsequent correction commits were also made only after confirming zero Quality runs on the then-current Error HEAD.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current error state
@@ -26,7 +26,7 @@
 
 Status remains `OPEN`, P1, Backend / BE-046 owned.
 
-The previously pending canonical Quality is now closed: `34586893958@ccfbeb620cf009b75c6c53e5821438bf869ab114 = SUCCESS`. Current Develop `85bd5f19c8aca56273ad43ac708fe13ac4798415` has canonical Quality `34591859521` still `IN_PROGRESS`; no result is inferred. The delta from `ccfbeb620…` is disjoint CI/test workflow work, so EmergencyReserve source/tests remain current.
+The previously pending canonical Quality is now closed: `34586893958@ccfbeb620cf009b75c6c53e5821438bf869ab114 = SUCCESS`. Current Develop `85bd5f19c8aca56273ad43ac708fe13ac4798415` has canonical Quality `34591361659` still `IN_PROGRESS`; no result is inferred. The delta from `ccfbeb620…` is disjoint CI/test workflow work, so EmergencyReserve source/tests remain current.
 
 New exact-current evidence extends BE-046 from object-identity continuity into **physical-capacity attestation**. `_allocated_bytes_from_stat()` returns `None` if `st_blocks` is absent or unusable. `EmergencyReserveStatus.__post_init__()` rejects under-allocation only when `allocated_bytes is not None`; unknown allocation is accepted. Non-POSIX `inspect()` passes `_allocated_bytes(self.path)` directly into the status and has no alternate fail-closed proof of physical allocation.
 
@@ -50,7 +50,7 @@ Status remains `OPEN`, P1, Backend / BE-052 owned. It remains distinct from ERR-
 ## Integrator handoff
 
 - Current Develop: `85bd5f19c8aca56273ad43ac708fe13ac4798415`.
-- Current canonical Quality: `34591859521 = IN_PROGRESS`; no PASS/FAIL is inferred until completion.
+- Current canonical Quality: `34591361659 = IN_PROGRESS`; no PASS/FAIL is inferred until completion.
 - Previous completed canonical: `34586893958@ccfbeb620cf009b75c6c53e5821438bf869ab114 = SUCCESS`.
 - `ERR-0033 = OPEN / P1`, Backend BE-046 owned. New exact-current closure scope adds fail-closed physical-capacity attestation: `allocated_bytes=None` cannot be treated as proof that an exact-size reserve is physically committed.
 - `ERR-0035 = OPEN / P1`, Backend BE-052 owned; no Errors product mutation.
