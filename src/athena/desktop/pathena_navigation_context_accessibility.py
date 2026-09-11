@@ -24,6 +24,18 @@ _PRIMARY_TOP_NAVIGATION = (
 )
 
 _CONTEXTUAL_INSPECTOR_COPY = {
+    1: (
+        "KNOWLEDGE / NONE",
+        "No knowledge selected",
+        "PROVENANCE\nSelect a knowledge item to inspect provenance reported by pATHENA.\n\n"
+        "EVIDENCE\nEvidence appears only for a selected knowledge item.",
+    ),
+    2: (
+        "RESEARCH / NONE",
+        "No research run selected",
+        "SYNTHESIS\nSelect a research run to inspect its reported synthesis state.\n\n"
+        "EVIDENCE\nResearch evidence appears only for a selected reported run.",
+    ),
     3: (
         "JOB / NONE",
         "No job selected",

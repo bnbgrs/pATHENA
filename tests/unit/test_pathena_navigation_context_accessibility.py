@@ -104,7 +104,7 @@ def test_navigation_context_does_not_move_existing_focus() -> None:
         app.processEvents()
 
 
-def test_jobs_and_settings_use_truthful_contextual_inspector_overlays() -> None:
+def test_workspace_routes_use_truthful_contextual_inspector_overlays() -> None:
     app = _app()
     window = PathenaMainWindow(api_controller=None)
     controller = NavigationContextAccessibility(window)
@@ -119,6 +119,24 @@ def test_jobs_and_settings_use_truthful_contextual_inspector_overlays() -> None:
         assert context_id is not None
         assert heading is not None
         assert body is not None
+
+        window.navigation.setCurrentRow(1)
+        app.processEvents()
+        assert panel.isVisible()
+        assert context_id.text() == "KNOWLEDGE / NONE"
+        assert heading.text() == "No knowledge selected"
+        assert "PROVENANCE" in body.text()
+        assert "EVIDENCE" in body.text()
+        assert "Select a knowledge item" in body.text()
+
+        window.navigation.setCurrentRow(2)
+        app.processEvents()
+        assert panel.isVisible()
+        assert context_id.text() == "RESEARCH / NONE"
+        assert heading.text() == "No research run selected"
+        assert "SYNTHESIS" in body.text()
+        assert "EVIDENCE" in body.text()
+        assert "Select a research run" in body.text()
 
         window.navigation.setCurrentRow(3)
         app.processEvents()
