@@ -6,39 +6,37 @@ Reference folder: `/pATHENA/Designreferenz – 11 Screenshots`
 
 ## Evidence state — 2026-09-11
 
-Current Develop checked first: `f729959c7b2b0f14b495f06779c790d6cd0d281d`; exact ATHENA Quality Gate `34552555541 = SUCCESS`.
+Current Develop checked first: `95b636c982a800d75f7d219162a04f6c87976e9f`. Exact canonical ATHENA Quality Gate `34560421777` completed `SUCCESS` on that SHA. This proves the preceding teardown-safe Qt lifecycle fix has reached Develop and is canonical-green.
 
-Run-start worker head: `b7906c4b7b0f4a4e9c6aac32b2bef0b60a34c097`. The prior exact artifact exposed route-identity drift for Chat/Knowledge. The current worker therefore imported only the bounded serialized exact-route capture correction already present on current Develop, producing candidate `2593a952c3f058204a50439b84e64c18d2cc7028`. No Backend, Storage or Security product semantics changed.
+Run-start worker HEAD: `103feb7ca6b3513077ce47f83569c13cc626b600`. Exact worker visual run `34559783835` exists for this SHA and uploaded artifact `pathena-visual-103feb7ca6b3513077ce47f83569c13cc626b600`; the workflow conclusion remains fail-closed because no approved committed visual baseline exists. In this run the artifact metadata was reachable but its binary PNG payload could not be materialized through the available GitHub connector/runtime. Therefore no current runtime pixels are claimed as opened this run.
 
-All 11 user reference PNGs were opened directly again in this run. Native-Windows PySide6 visual run `34555697866` checked out exact candidate `2593a952…`; immutable checkout, environment setup, Ruff harness check, mypy comparator, comparator tests, eleven-surface capture, proposal generation and artifact upload all succeeded. The final visual verdict remained fail-closed only because no approved committed baseline exists.
+All 11 user reference PNGs were independently opened directly again in this run. Source inspection also confirmed that the primary text top navigation still exists on the real desktop startup path: `install_navigation_context_accessibility(window)` installs `Chat`, `Knowledge`, `Research`, `Jobs`, `Sources` buttons into the real `topBar` and routes them through the existing `navigation.setCurrentRow(...)`; no second router is introduced. This is code/path evidence only, not screenshot parity.
 
-The downloaded artifact was opened directly for all eleven current PNGs. Its `manifest.json` is `PASS`, has `errors: []`, and now records truthful exact workspace route identity for all seven shell captures: Chat `row/page=0/0`, Knowledge `1/1`, Research `2/2`, Jobs `3/3`, Files `4/4`, System `5/5`, Settings `6/6`. The prior mislabeled Chat/Knowledge defect is therefore resolved for this exact candidate.
+Under the hard same-state rule, no previous screenshot pair is carried forward into this run. Every slot is therefore fail-closed as `CURRENT_RENDER_UNAVAILABLE` until exact current pixels can be opened again.
 
-No screenshot-level MATCH is inferred. The reference states are generally richer/populated while the exact current runtime is reconnecting, empty or diagnostic; those are not the same application state under the hard same-state rule.
-
-| Slot | Reference | Current exact render | Checked branch + SHA | Status | Visible deviation / evidence limit | Concrete next correction |
+| Slot | Reference | Current exact render this run | Checked branch + SHA | Status | Evidence limit / visible reference requirement | Concrete next correction |
 |---|---|---|---|---|---|---|
-| 01 ComfyUI | AVAILABLE_OPENED | AVAILABLE_OPENED `11-comfyui.png` | `postmerge/ui@2593a952…` | GAP | Current real ComfyUI surface is a compact standalone dialog; reference is a full shell-integrated workspace with connection inspector and workflow hierarchy. | Preserve real controller/state; later integrate framing without fake data. |
-| 02 PALLAS | AVAILABLE_OPENED | AVAILABLE_OPENED `08-pallas.png` | same | GAP | Real diagnostic semantic graph is sparse and standalone; reference uses shell, richer graph hierarchy, selected-object context and provenance inspector. | Preserve real semantic renderer; address shell/context framing with real data. |
-| 03 Settings | AVAILABLE_OPENED | AVAILABLE_OPENED `07-settings.png` (`row=6/page=6`) | same | GAP / STATE_UNVERIFIED | Correct route now proven. Current reconnecting model settings are visually much flatter and the inspector remains generic versus reference System status. | Bind page-specific real status into inspector; do not fabricate healthy state. |
-| 04 Help | AVAILABLE_OPENED | AVAILABLE_OPENED `10-help.png` | same | GAP | Current Help is a standalone capability catalogue; reference is a full workspace with left navigation and shortcut/status inspector. | Reuse live capability catalogue in shell composition. |
-| 05 Workspace/Evidence | AVAILABLE_OPENED | AVAILABLE_OPENED `01-chat.png` (`row=0/page=0`) | same | UNVERIFIED | Route identity is now truthful, but current reconnecting empty Chat state is not the populated synthesis/evidence state in the reference. | Obtain a real grounded/populated Chat state; then compare shell/workspace geometry. |
-| 06 Jobs | AVAILABLE_OPENED | AVAILABLE_OPENED `04-jobs.png` (`row=3/page=3`) | same | GAP / STATE_UNVERIFIED | Correct route. Current scheduler-reconnecting/empty state versus running six-step job with execution/resources inspector. | Capture a real active job when available; no fake job data. |
-| 07 Command Palette | AVAILABLE_OPENED | AVAILABLE_OPENED `09-command-palette.png` | same | GAP / CONTEXT_UNVERIFIED | Real command list exists, but capture is standalone instead of overlaying the Knowledge workspace shown in reference. | Capture palette over real Knowledge context. |
-| 08 System | AVAILABLE_OPENED | AVAILABLE_OPENED `06-system.png` (`row=5/page=5`) | same | GAP / STATE_UNVERIFIED | Correct route. Current unavailable/recovery state is materially sparser than healthy reference and has weaker hierarchy. | Capture healthy real state when available; preserve fail-closed semantics. |
-| 09 Dark research studio | AVAILABLE_OPENED | AVAILABLE_OPENED `03-research.png` (`row=2/page=2`) | same | GAP / STATE_UNVERIFIED | Correct route. Current failed/empty research state lacks synthesis/graph/evidence composition of reference. | Obtain a real loaded research result; then compare hierarchy. |
-| 10 Light workspace variant | AVAILABLE_OPENED | no same-state light current render | same | UNVERIFIED | Product direction remains dark/orange; no equivalent light-state current rendering exists. | Compare geometry only if an equivalent real state becomes available; do not copy light palette. |
-| 11 Local-memory workspace | AVAILABLE_OPENED | AVAILABLE_OPENED `02-knowledge.png` (`row=1/page=1`) | same | UNVERIFIED | Route identity is now truthful. Current Core-unavailable empty Knowledge state is not the populated local-memory/evidence state in reference. | Obtain real populated Knowledge/local-memory state; then compare composition and inspector. |
+| 01 ComfyUI | AVAILABLE_OPENED | CURRENT_RENDER_UNAVAILABLE | `postmerge/ui@103feb7c…` | UNVERIFIED | Reference requires full shell integration, central workflow controls and Connection inspector. | Re-open exact runtime capture before any ComfyUI visual mutation. |
+| 02 PALLAS | AVAILABLE_OPENED | CURRENT_RENDER_UNAVAILABLE | same | UNVERIFIED | Reference requires semantic field plus selected-object Knowledge/Provenance/History context. | Re-open exact runtime capture before mutation. |
+| 03 Settings | AVAILABLE_OPENED | CURRENT_RENDER_UNAVAILABLE | same | UNVERIFIED | Reference requires full settings hierarchy and System status inspector. | Re-open exact runtime capture; then bind only real status. |
+| 04 Help | AVAILABLE_OPENED | CURRENT_RENDER_UNAVAILABLE | same | UNVERIFIED | Reference requires Help workspace, contextual navigation and shortcut/status inspector. | Re-open exact runtime capture before mutation. |
+| 05 Workspace/Evidence | AVAILABLE_OPENED | CURRENT_RENDER_UNAVAILABLE | same | UNVERIFIED | Reference requires large synthesis/reasoning workspace, Evidence/Activity inspector and large composer. | Obtain/open a real current populated state before geometry claims. |
+| 06 Jobs | AVAILABLE_OPENED | CURRENT_RENDER_UNAVAILABLE | same | UNVERIFIED | Reference requires real running-job hierarchy with Execution/Resources context. | Open exact runtime state; never synthesize a job. |
+| 07 Command Palette | AVAILABLE_OPENED | CURRENT_RENDER_UNAVAILABLE | same | UNVERIFIED | Reference requires palette over a real Knowledge workspace. | Capture/open palette in real context. |
+| 08 System | AVAILABLE_OPENED | CURRENT_RENDER_UNAVAILABLE | same | UNVERIFIED | Reference requires runtime/storage/connectivity/background-work hierarchy and Security posture. | Re-open exact runtime state; preserve fail-closed health semantics. |
+| 09 Dark research studio | AVAILABLE_OPENED | CURRENT_RENDER_UNAVAILABLE | same | UNVERIFIED | Reference requires populated synthesis/graph/Evidence composition. | Open a real current loaded Research state. |
+| 10 Light workspace variant | AVAILABLE_OPENED | CURRENT_RENDER_UNAVAILABLE | same | UNVERIFIED | Product direction remains dark/orange; light palette is not authoritative. | Compare geometry only when a real equivalent state exists. |
+| 11 Local-memory workspace | AVAILABLE_OPENED | CURRENT_RENDER_UNAVAILABLE | same | UNVERIFIED | Reference requires populated local-memory graph and Evidence/Activity. | Open a real populated current Knowledge state. |
 
 ## Current verification accounting
 
 - References opened this run: `11/11`.
-- Exact current candidate images opened: `11/11` (`2593a952…`).
-- Truthful workspace route identities: `7/7`.
-- Valid same-state/reference-equivalent pairs: `0/11` under the hard same-state rule.
+- Exact current candidate images opened this run: `0/11`.
+- Exact artifact metadata available: `11-surface artifact exists for 103feb7c…`, bytes unavailable to this runtime.
+- Valid same-state/reference-equivalent pairs: `0/11`.
 - `MATCH`: `0/11`.
 - `PAIRS_VERIFIED_0_OF_11`.
 
 ## Highest-priority next visual slice
 
-The capture-identity blocker is resolved. The largest repeated product-level visual gap visible across valid current renders is now contextual page composition, especially the generic `Evidence & Activity` inspector appearing on Knowledge, Research, Jobs and Settings while the references use page-specific evidence, execution, system/security or selected-object context. The next product mutation must reuse actual page-specific data/state and must not synthesize fake content. After mutation, rerun the exact eleven-surface Windows capture and reopen all eleven outputs for BEFORE -> AFTER review.
+Do not mutate another visual surface until the exact worker runtime PNGs can be opened again. Once pixels are available, re-evaluate the largest repeated gap using the actual current render. The prior evidence points to contextual inspector composition, but that priority is not promoted from historical screenshots without fresh current pixels.

@@ -3,59 +3,42 @@
 Integration target: `develop/pathena-next`
 UI worker: `postmerge/ui`
 
-## Current visual evidence — 2026-09-11
+## Current evidence — 2026-09-11
 
-Current Develop: `f729959c7b2b0f14b495f06779c790d6cd0d281d`; exact canonical Quality `34552555541 = SUCCESS`.
+Develop is now `95b636c982a800d75f7d219162a04f6c87976e9f`; exact canonical Quality run `34560421777` is `SUCCESS`. The UI worker starts this run at `103feb7ca6b3513077ce47f83569c13cc626b600`, whose teardown-safe lifecycle patch is therefore integrated and green on current Develop.
 
-All 11 user reference PNGs were opened directly again. Exact native-Windows visual run `34555697866` checked out worker candidate `2593a952c3f058204a50439b84e64c18d2cc7028`, passed Ruff, mypy comparator, comparator tests and the eleven-surface capture, uploaded the artifact, and failed only at the final fail-closed visual verdict because no approved committed baseline exists.
+All 11 user reference PNGs were opened directly again. Exact worker visual artifact metadata for `103feb7c…` is present, but the artifact PNG bytes could not be materialized/opened through the available runtime in this run. Hard 11-screen accounting is therefore fail-closed: `CURRENT_RENDER_UNAVAILABLE` for all slots, `PAIRS_VERIFIED_0_OF_11`, `MATCH_0_OF_11`.
 
-The artifact was downloaded and all eleven current PNGs were opened. `manifest.json` reports `PASS`, no capture errors and exact route/page identity for all seven workspace captures: 0/0 through 6/6. The prior Chat/Knowledge mislabeling defect is therefore closed on exact candidate `2593a952…`.
-
-Current accounting under the hard same-state rule:
-
-- References opened: `11/11`
-- Exact candidate artifact images opened: `11/11`
-- Truthful workspace route identities: `7/7`
-- Valid same-state/reference-equivalent pairs: `0/11`
-- `MATCH`: `0/11`
-- `PAIRS_VERIFIED_0_OF_11`
+Source inspection resolves one apparent contradiction in older evidence: `PathenaMainWindow` itself creates only utility buttons in `topBar`, but the real application startup immediately calls `install_navigation_context_accessibility(window)`. That installer creates the visible `Chat`, `Knowledge`, `Research`, `Jobs`, `Sources` top-nav controls and routes them through the existing navigation list. Therefore there is no source-proven top-nav regression on the real startup path. This is not a screenshot-level parity claim.
 
 ## VISUAL-GAP-0001 — shared shell / workspace hierarchy
 
 Category: `APP SHELL / GEOMETRY / HIERARCHY`
 Severity: `P0 visual`
-Status: `IN_PROGRESS / TOP_NAV_VISIBLE / CAPTURE_IDENTITY_VERIFIED`
+Status: `OPEN / FRESH PIXELS REQUIRED`
 
-The primary top navigation `Chat`, `Knowledge`, `Research`, `Jobs`, `Sources` is visibly present in the real shell. Exact-route capture is now trustworthy for all seven workspace rows on `2593a952…`.
-
-The remaining shared shell difference is not safely reducible to one spacing token because most current routes are in reconnecting/empty states while the references are populated. Any next shell/layout mutation must be evaluated on an actual state-equivalent surface rather than extrapolated from empty-state whitespace.
+Reference geometry remains authoritative, but no new shell spacing or hierarchy adjustment is permitted from code inspection alone. Exact current pixels must be opened first.
 
 ## VISUAL-GAP-0002 — contextual inspector
 
 Category: `INSPECTOR / PAGE CONTEXT`
 Severity: `P0/P1 visual`
-Status: `OPEN / NEXT PRODUCT CANDIDATE`
+Status: `OPEN / CANDIDATE AFTER FRESH PIXEL REVIEW`
 
-Truthful current captures show the generic `Evidence & Activity` inspector on Knowledge, Research, Jobs and Settings even when the selected page has no active conversation. The references instead use page-specific right-column context: selected knowledge/provenance, execution/resources, system/security status, connection state or evidence/activity depending on route.
-
-The next bounded product slice should reuse existing real page-specific state already exposed by each page/controller and switch inspector composition with the existing navigation state. No fake healthy status, fake evidence, fake job or synthetic backend object may be introduced. A clearly unavailable/not-implemented state is preferable to invented data.
+Prior truthful captures showed generic chat-oriented inspector composition on non-chat routes while references use route-specific contexts: Knowledge/Provenance, Jobs Execution/Resources, Settings System status, System Security posture, and Evidence/Activity where appropriate. Current code also exposes real Jobs and other domain workspaces, so a future bounded inspector slice must bind only to real page/controller state or an explicit unavailable state. No fake evidence, health, job or resource values.
 
 ## VISUAL-GAP-0003 — standalone PALLAS / Help / ComfyUI framing
 
 Category: `SURFACE INTEGRATION`
 Severity: `P1 visual`
-Status: `OPEN`
+Status: `OPEN / FRESH PIXELS REQUIRED`
 
-Direct reference/current review confirms these real surfaces remain standalone dialogs/full-view windows while references place them in richer application-shell compositions. Their real controllers, capabilities and states must be preserved. Do not substitute shell-shaped mock surfaces.
-
-## State-alignment blockers
-
-Running Jobs, palette-over-Knowledge, healthy System, loaded Research, populated grounded Chat, populated Knowledge/local memory and the light workspace variant still lack same-state current pairs. They remain `UNVERIFIED` for parity despite truthful current route captures.
+References place these capabilities in richer shell compositions. Re-check exact current runtime framing before touching them.
 
 ## Readiness
 
-Technical and visual readiness remain separate. The exact-route capture defect is fixed and verified, but no reference/current pair is yet state-equivalent enough for screenshot-level MATCH. `postmerge/ui` is not `VISUAL_READY_11_OF_11`.
+Technical lifecycle status improved: the exact teardown-safe UI change is now canonical-green on Develop. Visual readiness did not advance because fresh current pixels could not be opened in this runtime. `postmerge/ui` is not `VISUAL_READY_11_OF_11`.
 
 ## Next visual slice
 
-Select one or at most two tightly coupled contextual-inspector routes using only real existing page state, add focused Qt state/routing/accessibility coverage, then produce a fresh exact-SHA native-Windows eleven-surface artifact. Open every resulting PNG and document BEFORE -> AFTER only where the route/state is genuinely comparable.
+First reacquire/open the exact current eleven-surface artifact. Then perform all eleven reference/current comparisons. Only after that choose at most one or two tightly coupled product gaps, with contextual inspector composition remaining the leading historical candidate rather than an assumed current winner.
