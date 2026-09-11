@@ -8,44 +8,43 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 
 ## Current baseline
 
-- Develop source of truth: `develop/pathena-next@7a6b9ee59f059202f1f3b5c5b8f7b70e319bec2c`.
-- Error worker entered this run at `postmerge/errors@298bbf8ab08a680cb5157651ffa293ce544c62e1`.
-- Current workers: Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`; Backend `44201f9dd2c1378c98afccc9a30ddf18c98b2405`; UI `d55877cd353f7ee598df8213b9508fb143e51e15`.
-- Latest exact current Develop canonical Quality: `34544225707@7a6b9ee59f059202f1f3b5c5b8f7b70e319bec2c = IN_PROGRESS`; Windows path safety, Linux storage and Local-install are already `SUCCESS`; Python 3.12 quality is still in full pytest. No final PASS/FIXED is inferred.
-- Last completed Develop canonical Quality: `34539454111@4634bdf28c98bc114e0369701122818d474f99d9 = FAILURE`, isolated to full pytest with `1 failed, 4830 passed, 3 skipped`; all other canonical jobs passed.
-- Exact failing test on `4634bdf2...`: `tests/unit/test_pathena_design_system.py::test_spacing_and_motion_are_small_bounded_scales`, whose stale typography tuple `(14, 11, 34)` contradicted the intentionally integrated design-token contract `(15, 12, 42)`.
-- Current Develop `7a6b9ee5...` is exactly one commit ahead and changes only `tests/unit/test_pathena_design_system.py` plus `docs/agent_handoffs/integrator.md`; the failing assertion is updated to the integrated tuple `(15, 12, 42)` without removing/generalizing the assertion or changing product code.
-- `postmerge/errors@298bbf8ab08a680cb5157651ffa293ce544c62e1` had zero canonical Quality runs immediately before this mutation.
+- Develop source of truth: `develop/pathena-next@1b83466490291fe07dd3d99dd476d0cb6290d307`.
+- Error worker entered this run at `postmerge/errors@f493a50e999fcea5811e86b22338b1fcaff137da`.
+- Current workers: Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`; Backend `fa995bf462aa8135d24f4e9e7059bc24f6992622`; UI `ac3d3c851186b8caa152d4a22815bd1390998e55`.
+- Latest exact current Develop canonical Quality: `34548505498@1b83466490291fe07dd3d99dd476d0cb6290d307 = IN_PROGRESS`; no final PASS/FAIL is inferred while it is running.
+- Last completed Develop canonical Quality: `34544225707@7a6b9ee59f059202f1f3b5c5b8f7b70e319bec2c = SUCCESS`.
+- That completed exact-SHA run closes `ERR-0036`: the bounded typography-contract repair on `7a6b9ee5...` passed the full canonical gate, including full pytest and the Windows/Linux/local-install lanes.
+- `postmerge/errors@f493a50e999fcea5811e86b22338b1fcaff137da` had zero canonical Quality runs immediately before this mutation.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current state
 
 - OPEN: `ERR-0033`, `ERR-0035`.
 - IN_PROGRESS: none.
-- FIXED_PENDING_VERIFY: `ERR-0036`.
-- FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015` through `ERR-0024`, `ERR-0027`, `ERR-0030`, `ERR-0031`, `ERR-0032`, `ERR-0034`.
+- FIXED_PENDING_VERIFY: none.
+- FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015` through `ERR-0024`, `ERR-0027`, `ERR-0030`, `ERR-0031`, `ERR-0032`, `ERR-0034`, `ERR-0036`.
 - STALE: `ERR-0014`, `ERR-0025`, `ERR-0026`, `ERR-0028`, `ERR-0029`.
 - BLOCKED: none at top level.
 
 ## ERR-0036 — stale UI typography assertion after intentional hierarchy promotion
 
 - Severity: P1 while it blocked canonical Develop.
-- Status: `FIXED_PENDING_VERIFY`.
+- Status: `FIXED`.
 - Exact reproduction: canonical Quality `34539454111@4634bdf28c98bc114e0369701122818d474f99d9 = FAILURE`; only `Python 3.12 quality -> Quality — pytest` failed. Diagnostics: `1 failed, 4830 passed, 3 skipped`; failing test `tests/unit/test_pathena_design_system.py::test_spacing_and_motion_are_small_bounded_scales` asserted the pre-hierarchy tuple `(14, 11, 34)` while the integrated product/design-token contract is `(15, 12, 42)`.
 - Root cause: duplicate test-contract drift after the intentional UI typography hierarchy promotion, not a Backend/Storage/Recovery regression and not a reason to revert the product hierarchy.
-- Bounded repair already on current Develop: `7a6b9ee59f059202f1f3b5c5b8f7b70e319bec2c` changes only the stale exact tuple in `tests/unit/test_pathena_design_system.py` plus Integrator documentation. No assertion is removed or generalized; no Skip/XFail and no product/runtime/Security/Storage/Recovery code changes.
-- Exact-current verification: canonical Quality `34544225707@7a6b9ee59f059202f1f3b5c5b8f7b70e319bec2c` is still `IN_PROGRESS`. Windows path safety, Linux storage and Local-install have completed `SUCCESS`; Python specification validator, Ruff and mypy are green and full pytest is still running.
-- Closure rule: advance to `FIXED` only if `34544225707` completes `SUCCESS`. If full pytest exposes another signature, create/deduplicate a separate current root-cause cluster rather than weakening this assertion.
+- Bounded repair: Develop `7a6b9ee59f059202f1f3b5c5b8f7b70e319bec2c` changed only the stale exact tuple in `tests/unit/test_pathena_design_system.py` plus Integrator documentation. No assertion was removed or generalized; no Skip/XFail and no product/runtime/Security/Storage/Recovery code changes.
+- Closure evidence: canonical Quality `34544225707@7a6b9ee59f059202f1f3b5c5b8f7b70e319bec2c = SUCCESS`.
+- Reopen only if this same typography-contract signature is reproduced on a then-current exact SHA.
 
 ## ERR-0035 — SQLite preflight identity is not carried into live writer startup
 
 - Severity: P1.
 - Status: `OPEN`.
 - Specialist owner: Backend / BE-052. Errors does not parallel-mutate Backend product code while that worker owns the root cause.
-- Exact-current source evidence remains applicable because current Develop `7a6b9ee5...` changes only the UI design-system test and Integrator handoff. `src/athena/storage/database.py` still calls `inspect_database_read_only(self.path)` and then independently opens the writable connection with `sqlite3.connect(self.path, ...)`; no identity token, handle or verified descriptor from preflight is carried into writer establishment.
+- Current source evidence remains applicable: `SQLiteDatabase.start()` performs read-only preflight against the configured path and later independently opens the writable SQLite connection by pathname, without carrying an identity token/handle/descriptor from preflight into writer establishment.
 - `src/athena/storage/recovery.py` preflight returns path/existence/application/schema/WAL/SHM facts but no filesystem identity capable of fencing the later writer open. A pathname replacement between preflight and writer establishment therefore remains an identity-continuity gap.
 - Distinct from `ERR-0033`: ERR-0033 concerns EmergencyReserve directory identity across create/release; ERR-0035 concerns the primary SQLite database object between startup preflight and live writer open.
-- Backend marks the same root cause BE-052 `OPEN / P1 / CURRENTLY REPRODUCED BY SOURCE TRACE`; Errors makes no parallel product mutation.
+- Backend marks the same root cause BE-052 `OPEN / P1 / CURRENT SOURCE TRACE CONFIRMED`; Errors makes no parallel product mutation.
 - Preserve read-only preflight, application-id/schema/quick-check validation, locality, symlink/reparse rejection, WAL/SHM checks and fail-closed Recovery/Storage semantics. A second pathname-only preflight is insufficient.
 - Closure requires a bounded Backend candidate plus focused cross-platform identity-swap regression evidence, followed by exact-SHA canonical evidence when integration/closure requires it.
 
@@ -64,8 +63,8 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Severity: P1.
 - Status: `OPEN`.
 - Specialist owner: Backend / BE-046. Errors does not parallel-mutate Backend product code while that worker owns the root cause.
-- Exact-current source verification remains applicable because current Develop does not modify `src/athena/storage/emergency_reserve.py`. POSIX reserve creation/release binds mutation to an opened parent directory FD; the non-POSIX branch still relies on pathname-based create/stat/unlink/fsync sequencing and does not carry reserve-directory identity as a bound handle across Windows mutation/release.
-- Backend marks BE-046 `OPEN / P1 / CURRENTLY REPRODUCED BY SOURCE TRACE` and has no bounded candidate.
+- Current source verification remains applicable: POSIX reserve creation/release binds mutation to an opened parent directory FD; the non-POSIX branch still relies on pathname-based create/stat/unlink/fsync sequencing and does not carry reserve-directory identity as a bound handle across Windows mutation/release.
+- Backend marks BE-046 `OPEN / P1 / CURRENT SOURCE TRACE CONFIRMED` and has no tested bounded product candidate in the current handoff.
 - Preserve physical non-sparse allocation, exact release accounting and fail-closed Storage/Recovery semantics. Do not substitute weaker pathname-only checks.
 - Closure requires a bounded Backend candidate plus focused native-Windows adversarial directory-swap evidence over create/release, then exact-SHA canonical evidence as appropriate.
 
