@@ -5,16 +5,17 @@ UI worker: `postmerge/ui`
 
 ## Current visual evidence — 2026-09-11
 
-Current Develop: `1b83466490291fe07dd3d99dd476d0cb6290d307`; exact canonical Quality `34548505498 = SUCCESS`.
+Current Develop: `f729959c7b2b0f14b495f06779c790d6cd0d281d`; exact canonical Quality `34552555541 = SUCCESS`.
 
-All 11 user reference PNGs were opened again. An exact native-Windows artifact was also discovered for the bounded top-navigation product commit `2a726ff2155d41d256e244bc05dbbd01c7dd9809` in visual run `34547920919`; all eleven current PNGs were opened.
+All 11 user reference PNGs were opened directly again. Exact native-Windows visual run `34555697866` checked out worker candidate `2593a952c3f058204a50439b84e64c18d2cc7028`, passed Ruff, mypy comparator, comparator tests and the eleven-surface capture, uploaded the artifact, and failed only at the final fail-closed visual verdict because no approved committed baseline exists.
 
-The run's render/capture steps succeeded, but direct artifact inspection found that the visual harness mislabeled two normal workspace screenshots: `02-knowledge.png` records `row=1/page_index=2`, and `01-chat.png` records `row=0/page_index=2`. Both therefore show Research. `03-research.png` correctly records `row=2/page_index=2`. This is a fail-closed evidence defect: eleven PNG files exist, but eleven truthful route-to-pixel pairs do not.
+The artifact was downloaded and all eleven current PNGs were opened. `manifest.json` reports `PASS`, no capture errors and exact route/page identity for all seven workspace captures: 0/0 through 6/6. The prior Chat/Knowledge mislabeling defect is therefore closed on exact candidate `2593a952…`.
 
 Current accounting under the hard same-state rule:
 
 - References opened: `11/11`
-- Exact product artifact images opened: `11/11`
+- Exact candidate artifact images opened: `11/11`
+- Truthful workspace route identities: `7/7`
 - Valid same-state/reference-equivalent pairs: `0/11`
 - `MATCH`: `0/11`
 - `PAIRS_VERIFIED_0_OF_11`
@@ -23,30 +24,21 @@ Current accounting under the hard same-state rule:
 
 Category: `APP SHELL / GEOMETRY / HIERARCHY`
 Severity: `P0 visual`
-Status: `IN_PROGRESS / TOP_NAV_VISIBLE / ROUTE_CAPTURE_REPAIR_REQUIRED`
+Status: `IN_PROGRESS / TOP_NAV_VISIBLE / CAPTURE_IDENTITY_VERIFIED`
 
-The product slice at `2a726ff…` visibly adds the five real primary top-bar controls `Chat`, `Knowledge`, `Research`, `Jobs`, `Sources` to normal shell renderings and reuses the existing navigation model. This confirms the control's visible existence, not reference parity.
+The primary top navigation `Chat`, `Knowledge`, `Research`, `Jobs`, `Sources` is visibly present in the real shell. Exact-route capture is now trustworthy for all seven workspace rows on `2593a952…`.
 
-The exact visual artifact invalidates route-specific review for Chat and Knowledge because the capture harness allowed later timers to run while `app.processEvents()` was nested inside an earlier capture. The renderer records the wrong page index but does not currently fail. A visual gate that can mark mislabeled route captures `PASS` is not sufficient evidence for further pixel tuning.
-
-### Required next verification slice
-
-Repair `scripts/render_pathena_ui_snapshot.py` only in the UI worker:
-
-1. serialize the seven workspace captures rather than arming all seven timers concurrently;
-2. after selecting a route and processing events, require `navigation.currentRow() == row` and `pages.currentIndex() == row` before saving;
-3. preserve eleven-surface count and all existing real-controller checks;
-4. rerun the native-Windows visual workflow and inspect all eleven resulting images directly.
-
-This is a visual-test harness correction, not a product semantics change. Do not weaken the final visual verdict or approve a baseline merely to make CI green.
+The remaining shared shell difference is not safely reducible to one spacing token because most current routes are in reconnecting/empty states while the references are populated. Any next shell/layout mutation must be evaluated on an actual state-equivalent surface rather than extrapolated from empty-state whitespace.
 
 ## VISUAL-GAP-0002 — contextual inspector
 
 Category: `INSPECTOR / PAGE CONTEXT`
 Severity: `P0/P1 visual`
-Status: `OPEN / HOLD UNTIL CAPTURE REPAIR`
+Status: `OPEN / NEXT PRODUCT CANDIDATE`
 
-Valid current renders continue to show a generic/shared inspector structure on routes where references use page-specific context: evidence/activity, execution/resources, security posture, model/system status, connection state, or selected-object knowledge. The next product slice should identify and reuse real page-specific data paths; no fake data or decorative inspector content is allowed.
+Truthful current captures show the generic `Evidence & Activity` inspector on Knowledge, Research, Jobs and Settings even when the selected page has no active conversation. The references instead use page-specific right-column context: selected knowledge/provenance, execution/resources, system/security status, connection state or evidence/activity depending on route.
+
+The next bounded product slice should reuse existing real page-specific state already exposed by each page/controller and switch inspector composition with the existing navigation state. No fake healthy status, fake evidence, fake job or synthetic backend object may be introduced. A clearly unavailable/not-implemented state is preferable to invented data.
 
 ## VISUAL-GAP-0003 — standalone PALLAS / Help / ComfyUI framing
 
@@ -54,12 +46,16 @@ Category: `SURFACE INTEGRATION`
 Severity: `P1 visual`
 Status: `OPEN`
 
-Direct current/reference review confirms these real surfaces remain standalone dialogs/full-view windows while the references place them inside a richer application shell. Their real controllers and states must be preserved; no shell-shaped mock surface should substitute for product integration.
+Direct reference/current review confirms these real surfaces remain standalone dialogs/full-view windows while references place them in richer application-shell compositions. Their real controllers, capabilities and states must be preserved. Do not substitute shell-shaped mock surfaces.
 
 ## State-alignment blockers
 
-Running Jobs, palette-over-Knowledge, healthy System, loaded Research, populated Knowledge/local memory, and the light workspace variant still lack same-state current pairs. They remain `UNVERIFIED` for parity even where a real current route image exists.
+Running Jobs, palette-over-Knowledge, healthy System, loaded Research, populated grounded Chat, populated Knowledge/local memory and the light workspace variant still lack same-state current pairs. They remain `UNVERIFIED` for parity despite truthful current route captures.
 
 ## Readiness
 
-Technical and visual readiness remain separate. The top-navigation product control is visibly present, but the current visual harness cannot yet prove truthful route-by-route pixels for all normal workspaces. `postmerge/ui` is therefore not `VISUAL_READY_11_OF_11` and no screenshot-level MATCH claim is valid.
+Technical and visual readiness remain separate. The exact-route capture defect is fixed and verified, but no reference/current pair is yet state-equivalent enough for screenshot-level MATCH. `postmerge/ui` is not `VISUAL_READY_11_OF_11`.
+
+## Next visual slice
+
+Select one or at most two tightly coupled contextual-inspector routes using only real existing page state, add focused Qt state/routing/accessibility coverage, then produce a fresh exact-SHA native-Windows eleven-surface artifact. Open every resulting PNG and document BEFORE -> AFTER only where the route/state is genuinely comparable.
