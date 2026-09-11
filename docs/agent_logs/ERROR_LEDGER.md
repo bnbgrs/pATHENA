@@ -8,12 +8,12 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 
 ## Current baseline
 
-- Develop source of truth: `develop/pathena-next@f729959c7b2b0f14b495f06779c790d6cd0d281d`.
-- Error worker entered this run at `postmerge/errors@0823fb007ee3bae3f07adf55834533a9bbd0373f`.
-- Current workers: Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`; Backend `fa995bf462aa8135d24f4e9e7059bc24f6992622`; UI `b7906c4b7b0f4a4e9c6aac32b2bef0b60a34c097`.
-- Latest exact-current Develop canonical Quality: `34552555541@f729959c7b2b0f14b495f06779c790d6cd0d281d = IN_PROGRESS`; no final PASS/FAIL is inferred while it is running.
-- Last completed Develop canonical Quality: `34548505498@1b83466490291fe07dd3d99dd476d0cb6290d307 = SUCCESS`.
-- `postmerge/errors@0823fb007ee3bae3f07adf55834533a9bbd0373f` had zero canonical Quality runs immediately before this mutation.
+- Develop source of truth: `develop/pathena-next@b1e77f8a4b90c12fe75e257b96303cc137d760a9`.
+- Error worker entered this run at `postmerge/errors@d9a74db65557bb1db89641c3cbc910d6d1bf6ec1`.
+- Current workers: Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`; Backend `fa995bf462aa8135d24f4e9e7059bc24f6992622`; UI `8ba83c27fcfc19c94339908a42352617421556f8`.
+- Latest exact-current Develop canonical Quality: `34556269271@b1e77f8a4b90c12fe75e257b96303cc137d760a9 = IN_PROGRESS`; no final PASS/FAIL is inferred while it is running.
+- Last completed Develop canonical Quality: `34552555541@f729959c7b2b0f14b495f06779c790d6cd0d281d = SUCCESS`.
+- `postmerge/errors@d9a74db65557bb1db89641c3cbc910d6d1bf6ec1` had zero canonical Quality runs immediately before this mutation.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current state
@@ -30,13 +30,15 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Severity: P1.
 - Status: `OPEN`.
 - Specialist owner: Backend / BE-046. Errors does not parallel-mutate Backend product code while that worker owns the root cause.
-- New exact-current source verification: `develop/pathena-next@f729959c7b2b0f14b495f06779c790d6cd0d281d` still contains the gap. The only file changed by the current Develop commit is `scripts/render_pathena_ui_snapshot.py`; `src/athena/storage/emergency_reserve.py` is unchanged from its parent.
+- New exact-current source verification: `develop/pathena-next@b1e77f8a4b90c12fe75e257b96303cc137d760a9` still contains the gap. The exact delta from its canonical-green parent `f729959c7b2b0f14b495f06779c790d6cd0d281d` changes only `.github/workflows/ui-snapshot.yml` and `docs/agent_handoffs/integrator.md`; `src/athena/storage/emergency_reserve.py` is unchanged.
 - POSIX creation/release opens `reserve_root` as `root_fd`, creates/unlinks `_RESERVE_FILENAME` relative to that descriptor, fsyncs the descriptor and checks the path still resolves to the same directory identity.
-- Windows/non-POSIX creation instead opens `self.path` by pathname, verifies only the reserve-file identity with `fstat` versus pathname `stat`, then performs directory durability through `fsync_directory(self.reserve_root)` by pathname. Failure cleanup also does pathname `stat`/`unlink` after file-identity comparison.
-- Windows/non-POSIX release performs `self.path.stat()` -> `self.path.unlink()` -> `fsync_directory(self.reserve_root)` without carrying a bound reserve-directory handle. Thus the parent directory identity itself is not held across create/cleanup/release mutation.
+- Windows/non-POSIX creation instead opens `self.path` by pathname and verifies only the reserve-file identity with `fstat` versus pathname `stat`. That file-identity fence prevents cleanup from deleting an unrelated replacement file, but it does not bind the identity of the parent reserve directory across the mutation.
+- The non-POSIX create success path closes the file descriptor and then calls `fsync_directory(self.reserve_root)` by pathname; failure cleanup re-resolves `self.path`, conditionally unlinks by pathname, then fsyncs `self.reserve_root` by pathname. A parent-directory substitution can therefore occur after the file-identity check without a bound directory handle proving the fsync/cleanup target is still the validated reserve directory.
+- The non-POSIX `release()` seam is stricter evidence: it performs `self.path.stat(follow_symlinks=False)` -> `self.path.unlink()` -> `fsync_directory(self.reserve_root)` with neither a held reserve-file descriptor nor a held reserve-directory handle. Size accounting is derived before unlink, but object/directory identity is not carried through unlink and durability.
+- This narrows the adversarial regression target for BE-046: native Windows tests must force a reserve-parent swap at the create-success, cleanup and release seams and prove fail-closed behavior without deleting or fsyncing through a substituted parent. A pathname-only recheck is insufficient to establish handle-bound continuity.
 - Backend handoff independently marks BE-046 `OPEN / P1 / CURRENT SOURCE TRACE CONFIRMED` and has no tested bounded product candidate. No competing Errors product mutation is justified.
-- Preserve physical non-sparse allocation, exact release accounting and fail-closed Storage/Recovery semantics. Do not substitute weaker pathname-only checks.
-- Closure requires a bounded Backend candidate plus focused native-Windows adversarial directory-swap evidence over create/release, then exact-SHA canonical evidence as appropriate.
+- Preserve physical non-sparse allocation, exact release accounting and fail-closed Storage/Recovery semantics.
+- Closure requires a bounded Backend candidate plus focused native-Windows adversarial directory-swap evidence over create/cleanup/release, then exact-SHA canonical evidence as appropriate.
 
 ## ERR-0035 — SQLite preflight identity is not carried into live writer startup
 
