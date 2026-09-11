@@ -1,32 +1,29 @@
 # Post-Merge Feature Handoff - Integrator
 
-Generated: 2026-09-11T12:49Z
+Generated: 2026-09-11T13:52Z
 Branch: `develop/pathena-next`
-Run-start HEAD: `dfa4a81b4c650339a16be5f60f87804e7cf6a68b`
+Run-start HEAD: `b26eea46c89a8b628c2006d24d1fdac7492baa91`
 
 ## Current evidence
 
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
-- Exact Develop canonical Quality `34596386099@dfa4a81b4c650339a16be5f60f87804e7cf6a68b = SUCCESS` before this mutation.
-- Immediately before mutation, Develop had zero queued and zero in-progress workflow runs.
-- Worker heads reviewed: Errors `eaf707a9429b6c67b7d436d64d362b30fac97126`; Spec/Core `2a9b76dd3581cb13052741907d0fad8357553536`; Backend `fa995bf462aa8135d24f4e9e7059bc24f6992622`; UI `5e86bf3ab5cd8faaadc44e7dbe1bc2fe9fc76f5a`.
-- Current Spec/Core head is not READY: exact canonical Quality `34598764602@2a9b76dd3581cb13052741907d0fad8357553536 = FAILURE`. Full pytest, Linux storage, Windows path/storage/durable-fs/runtime/ownership/packaging/chat-reserve/restart/pypdf guards, and local-install smoke passed; Ruff failed.
-- The current Spec/Core delta after its previously exact-green `db8e7d1238320c5aff276472eeee586531530aef` includes the bounded `revision_diff.py` + `test_claim_revision_diff.py` product/test pair, but promotion is held until exact-head lint evidence is green.
-- Errors still reports Backend-owned `ERR-0033/BE-046` and `ERR-0035/BE-052`; Backend has no tested bounded product candidate. No Storage mutation is taken here.
-- `docs/agent_logs/ERROR_LEDGER.md` exists but its baseline metadata is historical/stale; current error ownership comes from current worker handoffs plus exact-current CI evidence.
+- Exact Develop canonical Quality `34601243038@b26eea46c89a8b628c2006d24d1fdac7492baa91 = SUCCESS` before this mutation.
+- Worker heads reviewed: Errors `685db6e76d68b32c620192d123edcb902e9b267a`; Spec/Core `5cbd31a5cf46c7cfcb75411d8216b3890aa5dec4`; Backend `195814616f394e1794aa4f3b2a16a584c092ab31`; UI `7f33ae92ec84d6a82052e4196bdd74c829fdf079`.
+- Backend and UI workers have synchronized current Develop into their worker histories; no new bounded exact-qualified product slice was promoted from either worker in this run.
+- Current Spec/Core PR #56 is exactly two files versus its PR base: `src/athena/knowledge/revision_diff.py` and `tests/unit/test_claim_revision_diff.py`.
+- Spec/Core exact head `5cbd31a5cf46c7cfcb75411d8216b3890aa5dec4` is not READY: canonical Quality run `34603615414` failed, and exact-head focused run `34603615415` also failed at Ruff. The focused pytest step was skipped only because the workflow stopped after Ruff; therefore no exact-head focused-test PASS exists yet for this candidate.
+- The current Core candidate remains held. No product cherry-pick is taken while lint/test evidence is incomplete.
+- `docs/agent_logs/ERROR_LEDGER.md` is retained but historical baseline entries are not treated as current OPEN truth without current reproduction or worker evidence.
 - `ALPHA_BETA_PROGRESS.md` remains absent at the requested repository path; no synthetic completion percentage is recorded.
-- Visual source of truth remains `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` plus `docs/ui/VISUAL_GAP_LEDGER.md`; all eleven surfaces remain `IMPLEMENTED_PENDING_VISUAL_REVIEW` and no screenshot-level `MATCH` is claimed without reference/current-render pairing.
-- Current UI lineage is not promoted: available exact Windows visual evidence remains fail-closed at the visual verdict without approved baseline/reference pairing, and the latest worker head is not a newly exact-qualified bounded product slice.
+- Visual source of truth remains `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` plus `docs/ui/VISUAL_GAP_LEDGER.md`; no screenshot-level `MATCH` is claimed without approved reference/current-render pairing.
 
 ## Cross-cutting tooling unblocker integrated this run
 
-Added `.github/workflows/core-focused-candidate.yml` as a Develop-owned exact-PR-head verification lane for Core Knowledge candidates.
+Updated `.github/workflows/core-focused-candidate.yml` so exact-head Ruff and changed focused unit tests are independently observable in a single run.
 
-The lane resolves and validates the immutable pull-request head SHA and base SHA, checks out exactly the candidate SHA with full history, proves checkout identity, verifies the base commit is available, installs the locked Python 3.12 dev environment, then derives only changed Python files under `src/athena/knowledge/` and `tests/unit/` from the exact PR base-to-head diff.
+Ruff and focused pytest now each use explicit step IDs and `continue-on-error: true` only to permit the sibling evidence step to execute. A final `if: always()` enforcement step reads both outcomes and fails the job unless **both** are `success`. Environment setup, immutable SHA validation, locked dependency setup, candidate/base identity, file selection, Ruff rules, pytest assertions, and canonical Quality remain unchanged.
 
-It runs Ruff only on those changed candidate files and runs pytest on changed `tests/unit/test_*.py` files. This gives workers immediate exact-head focused lint/test diagnostics without replacing or weakening canonical Quality. `cancel-in-progress` is false, so a worker documentation commit must not erase evidence from an already-running candidate check.
-
-No product behavior, Storage, Recovery, Transport, Runtime, Security, packaging, visual baseline, comparator threshold, canonical Quality gate, test assertion, Skip/XFail, or release guard is weakened.
+This does not weaken CI. It prevents an earlier lint failure from hiding whether the bounded product tests pass or fail, while preserving a fail-closed overall job result whenever either contract fails.
 
 ## Persistent release guards
 
@@ -37,6 +34,6 @@ No product behavior, Storage, Recovery, Transport, Runtime, Security, packaging,
 
 1. Consume canonical Quality for the resulting Develop SHA before any further Develop mutation.
 2. Re-read all worker heads and handoffs after that gate completes.
-3. Use the new exact-head Core focused lane to qualify the current Spec/Core candidate; do not promote `revision_diff.py` until Ruff plus focused tests are green on an exact candidate head.
-4. Keep BE-046/BE-052 conservative until Backend provides a bounded exact-tested candidate.
+3. Re-qualify Spec/Core only after an exact candidate run exposes both Ruff and focused pytest outcomes; do not promote while either is red or missing.
+4. Keep Backend Storage/Recovery prerequisites conservative until a bounded exact-tested candidate exists.
 5. Keep all visual `MATCH` claims fail-closed until approved original-reference and exact-render evidence exists.
