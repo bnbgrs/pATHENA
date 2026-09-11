@@ -8,15 +8,15 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 
 ## Current baseline
 
-- Develop source of truth: `develop/pathena-next@8f320658368633dc8b2c586f4e5ec1c25a86d704`.
-- Error worker entered this run at `postmerge/errors@f488ca1a72a7c2a14acd95447274d2ae71eee583`.
-- Current workers: Spec/Core `53c3824e214b66e989cba1f425bfe7881190e12f`; Backend `195814616f394e1794aa4f3b2a16a584c092ab31`; UI `88c85225c63f98f891ca2c068473c2abf3c0239b`.
-- Exact-current Develop canonical Quality: `34612944150@8f320658368633dc8b2c586f4e5ec1c25a86d704 = IN_PROGRESS`; no PASS/FAIL is inferred until completion.
-- Previous completed Develop canonical: `34607013250@2ac4a605853fdc82b320f97b96494f3e17eaffa7 = SUCCESS`.
-- Current Spec/Core exact canonical: `34609297666@53c3824e214b66e989cba1f425bfe7881190e12f = FAILURE`.
-- Current Spec/Core exact focused candidate: `34609297743@53c3824e214b66e989cba1f425bfe7881190e12f = FAILURE`.
-- Exact canonical diagnostic artifact `canonical-quality-diagnostics-53c3824e214b66e989cba1f425bfe7881190e12f` proves Ruff `I001` at `src/athena/knowledge/revision_diff.py:3:1`; specification validator and mypy are green, and pytest is green including `tests/unit/test_claim_revision_diff.py`.
-- `postmerge/errors@f488ca1a72a7c2a14acd95447274d2ae71eee583` had zero workflow runs immediately before this mutation.
+- Develop source of truth: `develop/pathena-next@fec368f50307a9e24038baca3a80b10ee2a3c4fc`.
+- Error worker entered this run at `postmerge/errors@aa4ebda2d09fdaa3a7622f1cd2f514c670a9e0b4`.
+- Current workers: Spec/Core `53c3824e214b66e989cba1f425bfe7881190e12f`; Backend `195814616f394e1794aa4f3b2a16a584c092ab31`; UI `f94a6d1edaddd2c4fc009f60134fd1bce6440500`.
+- Exact-current Develop canonical Quality: `34618898303@fec368f50307a9e24038baca3a80b10ee2a3c4fc = IN_PROGRESS`; no PASS/FAIL is inferred until completion.
+- Previous completed Develop canonical: `34612944150@8f320658368633dc8b2c586f4e5ec1c25a86d704 = SUCCESS`.
+- Current Spec/Core exact canonical remains `34609297666@53c3824e214b66e989cba1f425bfe7881190e12f = FAILURE`; no newer Spec/Core worker head exists in this run.
+- Current Spec/Core exact focused candidate remains `34609297743@53c3824e214b66e989cba1f425bfe7881190e12f = FAILURE`.
+- Fresh exact job-level verification of `34609297666` proves the failure is isolated inside the `Python 3.12 quality` job: `Quality — Ruff = failure`, while specification validator, mypy and pytest are success; the separate Windows path safety, Linux storage regressions and Local install smoke jobs are success. This confirms a single lint blocker rather than a platform, storage, install or semantic-test cascade.
+- `postmerge/errors@aa4ebda2d09fdaa3a7622f1cd2f514c670a9e0b4` had zero workflow runs immediately before this mutation.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current state
@@ -33,13 +33,12 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Severity: P1 integration blocker.
 - Status: `OPEN`.
 - Specialist owner: Spec/Core. Errors does not parallel-mutate Core product code while that worker owns the candidate.
-- Prior exact reproduction: canonical Quality `34598764602@2a9b76dd3581cb13052741907d0fad8357553536 = FAILURE`, isolated to Ruff `I001` in `src/athena/knowledge/revision_diff.py` while specification validator, mypy, pytest and platform lanes were otherwise green.
-- Spec/Core advanced to exact head `53c3824e214b66e989cba1f425bfe7881190e12f` with `fix(core): satisfy revision diff import lint`. The delta from the previous attempted repair `5cbd31a5...` is only `revision_diff.py`: it removes `typing.TypeAlias` and changes `DiffValue: TypeAlias = ...` to `DiffValue = ...`; it does not reorganize the remaining import block.
-- New completed exact evidence: canonical Quality `34609297666@53c3824e... = FAILURE`. Its uploaded canonical diagnostic states exactly `I001 [*] Import block is un-sorted or un-formatted` at `src/athena/knowledge/revision_diff.py:3:1`, spanning `from __future__ import annotations`, `import uuid`, `from dataclasses import dataclass`, `from enum import Enum`, and `from athena.knowledge.models import ClaimRevision`.
-- The same canonical artifact proves specification validator `63/63 PASS`, mypy `Success: no issues found in 422 source files`, and pytest green with `4858` collected tests; `tests/unit/test_claim_revision_diff.py` passes. This narrows the active blocker to import formatting/lint, not revision-diff behavior or a broader product cascade.
-- Exact focused run `34609297743@53c3824e... = FAILURE`. GitHub's step conclusions show the Ruff and focused-test steps as successful because they are `continue-on-error`; the final fail-closed enforcement step is red. Do not reinterpret those displayed step conclusions as proof that Ruff's underlying outcome was green. Canonical exact diagnostics remain authoritative and show Ruff red.
-- Current Develop `8f320658...` only improves persistence/observability of focused-candidate diagnostics; it does not retroactively qualify the failed Spec/Core SHA.
-- Errors intentionally made no Core product mutation and did not start canonical Quality while Develop already has `34612944150` in progress.
+- Exact current worker head is still `53c3824e214b66e989cba1f425bfe7881190e12f`; its source file `src/athena/knowledge/revision_diff.py` still contains the import block beginning `from __future__ import annotations`, then `import uuid`, `from dataclasses import dataclass`, `from enum import Enum`, and the first-party `ClaimRevision` import.
+- Exact canonical Quality `34609297666@53c3824e... = FAILURE` remains authoritative. Its diagnostic states `I001 [*] Import block is un-sorted or un-formatted` at `src/athena/knowledge/revision_diff.py:3:1`.
+- New completed job-level evidence from the same exact run: `Windows path safety = success`, `Linux storage regressions = success`, `Local install smoke = success`; inside `Python 3.12 quality`, specification validator = success, Ruff = failure, mypy = success, pytest = success. This removes ambiguity about any hidden platform/release-guard cascade and leaves Ruff as the sole failing gate on the exact candidate.
+- The current Spec/Core handoff is stale relative to the worker head and still documents an older verified Search slice; it is not used to override exact branch/run evidence for ERR-0038.
+- Current Develop `fec368f5...` changes CI/UI candidate verification only and has its own canonical run `34618898303` in progress; it does not qualify or invalidate the red Spec/Core exact SHA.
+- Errors intentionally made no Core product mutation and did not start canonical Quality while Develop already has `34618898303` in progress.
 - Closure requirement: a newer exact Spec/Core SHA with the import block actually Ruff-clean, relevant revision-diff focused tests green, and canonical exact-SHA success before `ERR-0038 = FIXED`.
 
 ## ERR-0033 — Emergency-reserve filesystem-object identity and capacity-attestation gap
@@ -47,7 +46,7 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Severity: P1.
 - Status: `OPEN`.
 - Specialist owner: Backend / BE-046. Errors does not parallel-mutate Backend product code while that worker owns the root cause.
-- Current source remains materially unchanged by the latest Develop CI/Core-only work; no new exact-SHA closure evidence exists from Backend.
+- Current source remains materially unchanged by the latest Develop CI/UI-only work; no new exact-SHA closure evidence exists from Backend.
 - Existing focused coverage contains adversarial parent-directory replacement tests only for POSIX. Native-Windows parent-swap coverage is absent.
 - POSIX creation/release binds `reserve_root` to a directory descriptor for relative create/unlink and directory fsync. Windows/non-POSIX creation instead opens `self.path` by pathname, compares opened-file `fstat` with pathname `stat`, then returns to pathname-based parent resolution for cleanup/durability; normal release is pathname-based.
 - Parent-directory binding alone is insufficient. Non-POSIX failure cleanup validates `self.path.stat()` against `created_identity`, then separately calls `self.path.unlink()`, leaving a same-parent filename-substitution window. Normal non-POSIX release has the wider `exists/is_file/stat -> unlink` pathname window.
