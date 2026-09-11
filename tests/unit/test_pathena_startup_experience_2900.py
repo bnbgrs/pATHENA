@@ -1,4 +1,4 @@
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QEvent, Qt
 from PySide6.QtWidgets import (
     QApplication,
     QFrame,
@@ -246,3 +246,16 @@ def test_empty_state_width_tracks_available_chat_space_without_exceeding_cap() -
 
     assert panel.width() == 560
     assert body.width() == 504
+
+
+def test_event_filter_is_safe_after_chat_messages_attribute_is_torn_down() -> None:
+    _app()
+    window = _ReadyStartupWindow()
+    messages = QWidget(window)
+    messages.setObjectName("chatMessages")
+    controller = PathenaStartupExperience(window)
+
+    del controller.chat_messages
+
+    event = QEvent(QEvent.Type.Resize)
+    assert controller.eventFilter(messages, event) is False

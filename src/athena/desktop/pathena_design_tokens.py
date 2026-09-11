@@ -46,10 +46,10 @@ class Typography:
     content_family: str = '"Segoe UI Variable", "Segoe UI", sans-serif'
     display_family: str = '"Georgia", "Times New Roman", serif'
     metadata_family: str = '"Cascadia Mono", "Consolas", monospace'
-    body_px: int = 14
-    metadata_px: int = 11
-    title_px: int = 34
-    section_px: int = 18
+    body_px: int = 15
+    metadata_px: int = 12
+    title_px: int = 42
+    section_px: int = 20
 
 
 @dataclass(frozen=True, slots=True)
