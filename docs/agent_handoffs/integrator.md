@@ -1,33 +1,33 @@
 # Post-Merge Feature Handoff - Integrator
 
-Generated: 2026-09-11T18:52Z
+Generated: 2026-09-11T19:52Z
 Branch: `develop/pathena-next`
-Run-start HEAD: `fec368f50307a9e24038baca3a80b10ee2a3c4fc`
+Run-start HEAD: `c670d7809c9f0aa5e6c31956b57e897091f1b9d6`
 
 ## Current evidence
 
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
-- Exact Develop canonical Quality `34618898303@fec368f50307a9e24038baca3a80b10ee2a3c4fc = SUCCESS` before mutation.
+- Exact Develop canonical Quality `34635967020@c670d7809c9f0aa5e6c31956b57e897091f1b9d6 = SUCCESS` before mutation.
 - Immediately before mutation, Develop had zero queued and zero in-progress workflow runs.
-- Worker heads reviewed: Errors `6ada3662333696a2373f0b6eb30eff9e5367e373`; Spec/Core `caed29fd445eeca5dec560a5e02d808c88dc6659`; Backend `195814616f394e1794aa4f3b2a16a584c092ab31`; UI `ecbc661224917f1793b122a94e269ae88b450bc2`.
-- Spec/Core exact head `caed29fd445eeca5dec560a5e02d808c88dc6659` passed canonical Quality `34632509027` and exact focused Candidate `34632508992`.
-- The bounded Core dependency chain consists of Concept Note provenance plus Concept Note update policy and their focused unit tests. It touches only `src/athena/knowledge/` and `tests/unit/` and does not alter Storage, Recovery, Runtime, Transport, UI, Security, Packaging, or release guards.
-- UI exact head `ecbc661224917f1793b122a94e269ae88b450bc2` still had canonical Quality `34635102754` in progress at review time, so no UI product slice was promoted.
+- Worker heads reviewed: Errors `68fa85f7c6462b9454712b5d8dfb29fb9f49a2f7`; Spec/Core `23cb05b5ac6887f62723e350e188243edd39ad8a`; Backend `fb393e628a6bd126b59d252c85dc123d57871b6a`; UI `908f14a3d11ca3d25ca7db43378dbccd99f38b77`.
+- Backend exact head `fb393e628a6bd126b59d252c85dc123d57871b6a` passed canonical Quality `34638962515` and focused Candidate `34638962473`.
+- The bounded Backend product delta versus current Develop is exactly `src/athena/jobs/job_type_registry.py` plus `tests/unit/test_job_type_registry.py`; no Storage, Recovery, Transport, Security, UI, Packaging or release-guard path is changed.
+- Spec/Core exact head has a focused Candidate failure and canonical Quality was still in progress at review time; no Core slice was promoted.
+- UI current head is a post-verification synchronization/docs head. Earlier exact `ecbc661224917f1793b122a94e269ae88b450bc2` passed canonical Quality and UI focused evidence, but the immediately newer head is not promoted without equal exact-head evidence.
 - Current Error handoff keeps `ERR-0033 / BE-046` and `ERR-0035 / BE-052` OPEN and Backend-owned; no competing Storage/Recovery mutation was taken.
-- `docs/agent_logs/ERROR_LEDGER.md` remains historical relative to current Develop and is not used as sole current OPEN truth without current worker/exact-SHA evidence.
-- `ALPHA_BETA_PROGRESS.md` is absent at the requested repository path; no synthetic percentage is recorded.
+- `docs/agent_logs/ERROR_LEDGER.md` remains historical relative to current Develop and is not used as sole current OPEN truth.
+- `ALPHA_BETA_PROGRESS.md` is absent from repository search; no synthetic percentage is recorded.
 - Visual source of truth remains `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` plus `docs/ui/VISUAL_GAP_LEDGER.md`; all eleven manifest slots remain `IMPLEMENTED_PENDING_VISUAL_REVIEW` and no `MATCH` is claimed without approved reference/current-render pairing.
 
 ## Product slice integrated this run
 
-Integrated the bounded Spec/Core Concept Note provenance + update-policy dependency chain onto current Develop without merging worker history.
+Integrated the bounded Backend controlled durable Job Type Registry onto current Develop without merging worker history.
 
-- `ConceptNoteProvenance` records immutable caller-supplied revision references and fails closed on missing/duplicate inputs or mixed user/model provenance.
-- Model provenance requires model signature, processing run and non-empty pipeline version; user provenance requires a user actor and rejects model provenance fields.
-- `ConceptNoteUpdatePolicy` never auto-writes a Concept Note. No new revision or unconfirmed relevance keeps the current note; only confirmed relevant new revision references produce a `PROPOSE_UPDATE` decision.
-- Duplicate or invalid revision references fail closed.
-
-The integrated source/test content is byte-for-byte taken from exact-green Spec/Core head `caed29fd445eeca5dec560a5e02d808c88dc6659`.
+- Built-in job types are validated, registered explicitly and exposed in deterministic order.
+- Plugin job types require explicit permission and a namespace.
+- Duplicate registration and invalid lookup/registration inputs fail closed.
+- This slice is a registry primitive only; it does not yet wire registry admission into queue execution.
+- The integrated source/test blobs are byte-for-byte taken from exact-green Backend head `fb393e628a6bd126b59d252c85dc123d57871b6a`.
 
 ## Persistent release guards
 
@@ -38,6 +38,6 @@ The integrated source/test content is byte-for-byte taken from exact-green Spec/
 
 1. Consume canonical Quality for the resulting Develop SHA before any further Develop mutation.
 2. Re-read all worker heads and exact-SHA evidence after that gate completes.
-3. Re-qualify UI only after exact current canonical Quality completes; do not treat the parallel non-UI focused workflow as product evidence.
+3. Re-qualify UI only on exact current-head evidence; do not inherit evidence across a newer docs/synchronization commit.
 4. Keep Backend Storage/Recovery prerequisites conservative until bounded exact-tested BE-046/BE-052 candidates exist.
 5. Keep all visual `MATCH` claims fail-closed until approved original-reference and exact-render evidence exists.
