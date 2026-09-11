@@ -2,11 +2,11 @@
 
 ## Baseline
 
-- Develop source of truth: `develop/pathena-next@95b636c982a800d75f7d219162a04f6c87976e9f`.
-- Error worker entered this run at `postmerge/errors@01f1ff53321f89c21aef06be32f1ce3ad9826e82`.
+- Develop source of truth: `develop/pathena-next@e6ba3d7557bd46094ad4e8f067a238e1c2375f8e`.
+- Error worker entered this run at `postmerge/errors@cb2ccb65217ff30bd9863ac77252f01e1318b5e9`.
 - Current workers: Spec/Core `b8df82b23583d42a8d5ae8f387aea0fbd0e7859e`; Backend `fa995bf462aa8135d24f4e9e7059bc24f6992622`; UI `c51ef04787ef6affa2e6acc3a902e138cf6b7409`.
-- Latest exact-current canonical Quality: `34560421777@95b636c982a800d75f7d219162a04f6c87976e9f = SUCCESS`.
-- `postmerge/errors@01f1ff53321f89c21aef06be32f1ce3ad9826e82` had zero canonical Quality runs before the ledger mutation; after ledger commit `0fe9d684c2b366f900f002b6d3af35272953d694` there were still zero runs before this handoff update.
+- Exact-current canonical Quality: `34567856833@e6ba3d7557bd46094ad4e8f067a238e1c2375f8e = IN_PROGRESS`; Windows path safety, Linux storage and Local-install are already `SUCCESS`, while Python quality remains in pytest. Last completed Develop canonical: `34560421777@95b636c982a800d75f7d219162a04f6c87976e9f = SUCCESS`.
+- `postmerge/errors@cb2ccb65217ff30bd9863ac77252f01e1318b5e9` had zero canonical Quality runs before the ledger mutation; after ledger commit `3b6ebb2e3802febbda1aef5fdc55076e3d255aa2` there were still zero runs before this handoff update.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current error state
@@ -18,42 +18,46 @@
 - STALE: `ERR-0014`, `ERR-0025`, `ERR-0026`, `ERR-0028`, `ERR-0029`.
 - BLOCKED: none.
 
-## Hard progress this run — ERR-0037 closed with exact failure and exact repair evidence
+## Hard progress this run — ERR-0033 root cause narrowed beyond parent-directory identity
 
-### ERR-0037 — startup event filter teardown/partial-init lifecycle race
-
-Status: `FIXED`, P1 when it blocked canonical Develop.
-
-The immediately previous Develop SHA `b1e77f8a4b90c12fe75e257b96303cc137d760a9` failed canonical Quality `34556269271`. Windows path safety, Linux storage and Local-install were green; Python quality failed only at pytest.
-
-The canonical diagnostics artifact records exactly `1 failed, 4830 passed, 3 skipped`. The sole failing test was `tests/unit/test_pathena_transient_dialog_shortcuts.py::test_tab_and_backtab_stay_inside_transient_surfaces`, with `AttributeError` from `PathenaStartupExperience.eventFilter()` because `self.chat_messages` did not yet exist during a Qt lifecycle callback.
-
-The root cause is therefore bounded to event-filter lifecycle safety: the filter directly dereferenced an attribute that Qt may access while the Python wrapper is partially initialized or being torn down.
-
-The adjacent current Develop commit `95b636c982a800d75f7d219162a04f6c87976e9f` changes only `src/athena/desktop/pathena_startup_experience_2900.py`, replacing the direct dereference with `chat_messages = getattr(self, "chat_messages", None)` and checking the object only when present. No test or guard was loosened.
-
-Closure is exact: canonical Quality `34560421777@95b636c982a800d75f7d219162a04f6c87976e9f = SUCCESS`. The pytest job and all Windows path-safety/storage/durable-fs/runtime/ownership/packaging/chat-reserve, Linux-storage and Local-install lanes completed successfully.
-
-No Error-branch product mutation was required because the bounded repair was already integrated on current Develop and exact-SHA canonical green.
-
-### ERR-0033 — Windows emergency-reserve directory-identity binding gap
+### ERR-0033 — Emergency-reserve mutation identity binding gap
 
 Status remains `OPEN`, P1, Backend / BE-046 owned.
 
-Current source still leaves the non-POSIX parent-directory identity unbound across create-success, failure-cleanup and release. Existing adversarial parent-replacement tests are POSIX-only. Backend still owns the product root cause and has no tested bounded candidate in its current handoff, so Errors does not parallel-mutate Storage code.
+Current Develop changes only the direct ERR-0037 teardown regression test plus Integrator handoff, so EmergencyReserve product source is unchanged from the last canonical-green Develop. The previously recorded native-Windows parent-directory identity gap therefore remains current.
 
-Required proof remains native-Windows adversarial parent substitution across create-success, failure-cleanup and release, with fail-closed behavior and no delete/durability action through a substituted parent.
+New exact-source diagnosis: a directory-handle fix alone is insufficient. The destructive target file itself is not carried continuously through validation to unlink.
+
+On non-POSIX failure cleanup the code performs `self.path.stat()` and validates that result against the originally created descriptor identity, but then executes a separate pathname `self.path.unlink()`. A same-parent substitution of `emergency.reserve` after the successful identity comparison and before `unlink()` can therefore redirect deletion to a different file. Normal non-POSIX `release()` has a still wider pathname sequence (`exists/is_file/stat -> unlink -> fsync_directory`) and never holds a file identity across the destructive boundary.
+
+POSIX release binds the parent directory correctly with `root_fd`, but it opens the reserve file, reads its metadata, closes that descriptor, and only afterward executes `os.unlink(_RESERVE_FILENAME, dir_fd=root_fd)`. A replacement of that filename inside the same bound directory between close and unlink can therefore cause deletion of a different file while still passing all parent-directory identity checks.
+
+This is deduplicated into ERR-0033 rather than creating another ID: the primary defect is incomplete filesystem-object identity continuity across EmergencyReserve mutation. BE-046 closure must bind both parent directory and destructive target identity, not merely repeat pathname checks.
+
+Focused closure evidence now required from Backend:
+
+1. Native-Windows adversarial parent substitution across create-success, failure-cleanup and release.
+2. Same-parent `emergency.reserve` substitution between identity validation and unlink for non-POSIX cleanup and release.
+3. Same-parent filename substitution during POSIX release after file inspection but before unlink.
+4. Proof that no replacement file is deleted and that the operation fails closed while preserving physical allocation, exact release accounting and Storage/Recovery durability semantics.
+
+Backend still owns BE-046 and has no tested bounded candidate in its current handoff, so Errors made no competing Storage product mutation.
 
 ### ERR-0035 — SQLite preflight identity is not carried into live writer startup
 
 Status remains `OPEN`, P1, Backend / BE-052 owned. It remains distinct from ERR-0033 and has no current tested Backend candidate. No parallel product mutation was made.
 
+### ERR-0037 — startup event-filter lifecycle race
+
+Status remains `FIXED`. The completed closure evidence is canonical `34560421777@95b636c982a800d75f7d219162a04f6c87976e9f = SUCCESS`. Current Develop `e6ba3d7557bd46094ad4e8f067a238e1c2375f8e` adds a direct teardown regression test, but its canonical run is still in progress, so no new PASS is claimed and the closed cluster is not reopened.
+
 ## Integrator handoff
 
-- Current Develop: `95b636c982a800d75f7d219162a04f6c87976e9f`.
-- Current canonical Quality: `34560421777 = SUCCESS`.
-- `ERR-0037 = FIXED`: exact red predecessor `b1e77f8a…` / run `34556269271`; exact repair `95b636c…`; exact green closure `34560421777`.
-- `ERR-0033 = OPEN / P1`, Backend BE-046 owned; native-Windows parent-identity closure evidence is still missing.
+- Current Develop: `e6ba3d7557bd46094ad4e8f067a238e1c2375f8e`.
+- Current canonical Quality: `34567856833 = IN_PROGRESS`; already-green jobs include Windows path safety, Linux storage and Local-install; Python pytest remains running.
+- Last completed canonical: `34560421777@95b636c982a800d75f7d219162a04f6c87976e9f = SUCCESS`.
+- `ERR-0033 = OPEN / P1`, Backend BE-046 owned. Root-cause closure now explicitly requires target-file identity continuity as well as parent-directory identity continuity.
 - `ERR-0035 = OPEN / P1`, Backend BE-052 owned; no Errors product mutation.
+- `ERR-0037 = FIXED`; current additional regression guard is awaiting canonical completion.
 - No closed/stale cluster was reopened without exact-current reproduction.
 - Preserve pypdf packaging, Frozen argv, two-EXE topology, bounded workers, adaptive 2048-context reserve, Windows lane-lock mapping, duplicate-column/Core-startup/storage-bootstrap guards, WAL exact-type fail-closed semantics, durable HANDLE-bound rename and reparse/path-safety invariants.
