@@ -1,27 +1,28 @@
 # Post-Merge Feature Handoff - Integrator
 
-Generated: 2026-09-11T08:51Z
+Generated: 2026-09-11T09:54Z
 Branch: `develop/pathena-next`
-Run-start HEAD: `69b16347bd4bab875c31b7a41830c6bab6a0bb7b`
+Run-start HEAD: `deafa0531504a9cb34bff5cb29be7247c084cd16`
 
 ## Current evidence
 
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
-- Exact Develop canonical Quality `34576900899@69b16347bd4bab875c31b7a41830c6bab6a0bb7b = SUCCESS` before this mutation.
-- Current worker review found one bounded Core candidate at `4620299ffbdfd5a598f06c61e52750027f6c8d77`: `src/athena/knowledge/interpretation.py` plus `tests/unit/test_interpretation_contract.py` only.
-- The Core candidate's exact Quality executed its Python quality/full pytest successfully. Its Windows lane failure was in Storage and is outside this two-file Knowledge diff, so the bounded candidate is acceptable under disjoint-slice promotion rules; no Backend/Storage prerequisite is being promoted.
-- No equivalent READY Backend or UI product slice outranks this Core slice. Backend-owned Storage/Recovery/Runtime work remains conservative HOLD without bounded current evidence. Visual parity remains unpromoted.
-- `docs/agent_logs/ERROR_LEDGER.md` exists on Develop but contains historical ledger state and is not used to reopen signatures without current reproduction.
-- No `ALPHA_BETA_PROGRESS.md` is present in the current Develop tree; no synthetic completion percentage is recorded.
-- Visual source of truth remains `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` plus `docs/ui/VISUAL_GAP_LEDGER.md`; all eleven surfaces remain pending visual review and no screenshot-level `MATCH` is claimed.
+- Exact Develop canonical Quality `34581635106@deafa0531504a9cb34bff5cb29be7247c084cd16 = SUCCESS` before this mutation.
+- Immediately before mutation, Develop had zero queued and zero in-progress workflow runs.
+- Current worker heads reviewed: Errors `186ab37da98042512d2c7bb7b3e82d69ff4af598`; Spec/Core `0d7e6281a584a302350a6b3aea0ac63e6eac744a`; Backend `fa995bf462aa8135d24f4e9e7059bc24f6992622`; UI `199f123f893251b9fc6984e78c24f9ab5813cdc8`.
+- The Spec/Core net diff versus exact Develop is bounded to `src/athena/knowledge/relation_registry.py` and `tests/unit/test_relation_registry_contract.py`; exact-head canonical Quality `34583939813@0d7e6281a584a302350a6b3aea0ac63e6eac744a = SUCCESS`.
+- Errors reports BE-046/ERR-0033 and BE-052/ERR-0035 as Backend-owned OPEN gaps and makes no competing product mutation. Backend has no tested bounded candidate. UI's Sources-inspector candidate remains explicitly not Integrator-ready pending exact AFTER visual evidence.
+- `docs/agent_logs/ERROR_LEDGER.md` exists but its Develop baseline metadata is historical/stale; it is not used to reopen signatures without current reproduction.
+- No root-level `ALPHA_BETA_PROGRESS.md` exists on current Develop; no synthetic completion percentage is recorded.
+- Visual source of truth remains `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` plus `docs/ui/VISUAL_GAP_LEDGER.md`; all eleven surfaces remain `IMPLEMENTED_PENDING_VISUAL_REVIEW` and no screenshot-level `MATCH` is claimed.
 
 ## Integrated Core slice
 
-This commit integrates the bounded Core interpretation provenance contract from worker candidate `4620299ffbdfd5a598f06c61e52750027f6c8d77` onto current Develop without merging worker history.
+This commit integrates the bounded versioned relation registry from worker candidate `0d7e6281a584a302350a6b3aea0ac63e6eac744a` onto exact current Develop without merging worker history.
 
-The new contract keeps interpretations explicitly non-canonical: creating an `InterpretationProposal` does not create or mutate a `KnowledgeUnit` or `Claim`. User-authored interpretations require actor provenance and reject model provenance. Model-authored interpretations require exact model-signature and processing-run identifiers, immutable input revisions, and a non-empty pipeline version; incomplete or mixed-authority provenance fails closed. Independent proposals retain distinct UUIDv7 identities.
+The registry defines a curated versioned relation-type set, rejects duplicate definitions, prevents ad-hoc ontology growth by resolving unknown/deprecated relation names to a declared fallback, preserves directed relation semantics, supports domain-pair constraints, and canonicalizes symmetric UUID endpoints deterministically. The focused contract test covers fallback without registry growth, symmetric canonicalization, directed ordering, domain constraints, and duplicate-name rejection.
 
-The focused test file verifies the user/model provenance boundaries, fail-closed incomplete provenance, authority separation, and non-overwriting proposal identity. No Storage, Recovery, Transport, Runtime, UI, Security, packaging, comparator, baseline, or existing guard behavior is changed.
+No Storage, Recovery, Transport, Runtime, UI, Security, packaging, comparator, baseline, or existing release-guard behavior is changed. No Skip/XFail is introduced.
 
 ## Persistent release guards
 
@@ -33,7 +34,7 @@ The focused test file verifies the user/model provenance boundaries, fail-closed
 
 ## Next integration
 
-1. Consume the canonical Quality for this integration commit before any further Develop mutation.
-2. If exact-current Quality is green, re-evaluate newly advanced Worker heads from source-of-truth evidence rather than historical IDs.
-3. Keep Backend/Storage/Migration/Runtime prerequisites conservative unless bounded exact-head evidence exists.
-4. Keep all visual `MATCH` claims fail-closed until approved reference/current-render evidence exists.
+1. Consume canonical Quality for this integration SHA before any further Develop mutation.
+2. If exact-current Quality is green, re-read all worker heads and current handoffs before selecting the next bounded slice.
+3. Keep Backend/Storage/Migration/Runtime work conservative until focused current-head evidence exists.
+4. Keep visual `MATCH` claims fail-closed until approved reference/current-render evidence exists.
