@@ -1,7 +1,8 @@
 from uuid import UUID
 
-from athena.knowledge.identity_transition import MergeTransition, SplitTransition
 import pytest
+
+from athena.knowledge.identity_transition import MergeTransition, SplitTransition
 
 
 A = UUID("00000000-0000-0000-0000-000000000001")
