@@ -2,13 +2,13 @@
 
 ## Baseline
 
-- Develop source of truth: `develop/pathena-next@0298f0c4f2d28e516a458390f8b462131ebaf17e`.
-- Error worker entered this run at `postmerge/errors@53d8a63e12f5010eed5e28498fe62cc36a617c78`.
-- Current workers: Spec/Core `58b8040f84d5cac2530aaaac349c695361a78996`; Backend `4feffb3492bcb656fd6d7a53818e61199f4e0d7a`; UI `854a0ada4b3663aa94e09083bf17017eebd68c50`.
-- Exact-current Develop canonical Quality: `34646579929@0298f0c4f2d28e516a458390f8b462131ebaf17e = IN_PROGRESS`; do not infer PASS/FAIL while it is running.
-- Previous Develop canonical Quality: `34641291324@17d06d258ec2f5841049227504034ef601cdcdf8 = SUCCESS`.
-- Exact-current Spec/Core canonical Quality: `34643507749@58b8040f84d5cac2530aaaac349c695361a78996 = FAILURE`.
-- Exact-current Backend canonical Quality: `34644399463@4feffb3492bcb656fd6d7a53818e61199f4e0d7a = FAILURE` because canonical mypy is red; Ruff, pytest, Windows path safety, Linux storage and local-install are green.
+- Develop source of truth: `develop/pathena-next@e008e0fbf595da64bea64eb557dddeb2cd78bed0`.
+- Error worker entered this run at `postmerge/errors@d58378fb92b90fee5c338b0a23a3b334510394d5`.
+- Current workers: Spec/Core `229a46dd7d91d2c4518379db781c7e5e800c2811`; Backend `04c1609279297fb6b829cb8a96939eca5187c8ab`; UI `bffde469086fb011d36adbab61f7faa1a7b89d34`.
+- Exact-current Develop canonical Quality: `34651263616@e008e0fbf595da64bea64eb557dddeb2cd78bed0 = IN_PROGRESS`; do not infer PASS/FAIL while it is running.
+- Previous Develop canonical Quality: `34646579929@0298f0c4f2d28e516a458390f8b462131ebaf17e = SUCCESS`.
+- Exact-current Spec/Core canonical Quality: `34648338237@229a46dd7d91d2c4518379db781c7e5e800c2811 = FAILURE`.
+- Exact-current Spec/Core focused Candidate: `34648337671@229a46dd7d91d2c4518379db781c7e5e800c2811 = FAILURE`.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current error state
@@ -16,32 +16,28 @@
 - OPEN: `ERR-0033`, `ERR-0035`, `ERR-0039`.
 - IN_PROGRESS: none.
 - FIXED_PENDING_VERIFY: none.
-- STALE includes historical `ERR-0038`; it is not reopened by the new current-file Ruff failure.
+- STALE includes historical `ERR-0038`.
 - BLOCKED: none.
 
-## Hard progress this run — ERR-0039 exact Spec/Core Ruff isolation
+## Hard progress this run — ERR-0039 failed remediation isolated
 
 ### ERR-0039 — Spec/Core exact-head Ruff import-format blocker
 
 Status: `OPEN / P1 integration blocker / Spec-Core owned`.
 
-Exact reproducer: `postmerge/spec-core@58b8040f84d5cac2530aaaac349c695361a78996`.
+The previous reproducer was `58b8040f84d5cac2530aaaac349c695361a78996`, where canonical Ruff reported `I001` at `tests/unit/test_identity_transition.py:1:1` while specification validation, mypy, pytest, Windows path safety, Linux storage and local-install were green.
 
-Canonical Quality `34643507749` is red. Its `Python 3.12 quality` job isolates the failure to Ruff: specification validator = SUCCESS, Ruff = FAILURE, mypy = SUCCESS and pytest = SUCCESS. The canonical Windows path-safety, Linux-storage and local-install jobs are also green. Therefore this is not a semantic Core regression, type failure, Windows release-guard regression, Storage regression or install failure.
+Spec/Core has now supplied an explicit owner remediation candidate: `229a46dd7d91d2c4518379db781c7e5e800c2811`, commit message `fix(core): align identity transition test import groups`. Compared with the prior reproducer, the only Python mutation is one added blank line between `import pytest` and the first-party `athena.knowledge.identity_transition` import. The exact current file therefore has three visually separated import groups.
 
-The downloaded exact-SHA canonical diagnostics artifact reports exactly one Ruff defect:
+That remediation did **not** close the blocker. Canonical Quality `34648338237@229a46dd... = FAILURE`: specification validator = SUCCESS, Ruff = FAILURE, mypy = SUCCESS, pytest = SUCCESS; Windows path safety, Linux storage regressions and Local install smoke are also SUCCESS. The Core Focused Candidate `34648337671@229a46dd... = FAILURE` too. The candidate therefore remains `OPEN`, not `FIXED_PENDING_VERIFY`.
 
-`I001 Import block is un-sorted or un-formatted` at `tests/unit/test_identity_transition.py:1:1`.
+This is meaningful new evidence rather than a repetition of the old handoff: a concrete owner fix was tested on an exact new SHA and falsified. The failure remains Ruff-only, so no semantic/type/platform/storage cascade was introduced by the attempted fix.
 
-The current file contains the standard-library `from uuid import UUID`, then third-party `import pytest` immediately followed by the first-party `from athena.knowledge.identity_transition import MergeTransition, SplitTransition`. Canonical Ruff explicitly requests `Organize imports` on that block.
+Canonical diagnostics artifact `canonical-quality-diagnostics-229a46dd7d91d2c4518379db781c7e5e800c2811` exists for this exact failed SHA (artifact id `10283234918`). The available repository connector exposes the artifact metadata/digest but not its ZIP contents; no unseen Ruff text is asserted.
 
-Canonical pytest collected 4883 tests and records `tests/unit/test_identity_transition.py ......` green. Canonical mypy reports no issues in 425 source files. The root cause is therefore a one-file import-format/lint defect on the exact current Spec/Core candidate.
+Current Develop now contains an Integrator-authored extension to the Core focused workflow that emits an exact-candidate Ruff remediation diff after a Ruff failure and then hard-resets to the candidate SHA without weakening fail-closed enforcement. The next Spec/Core run should consume that generated diff rather than guessing another grouping change, then verify focused Ruff + focused pytest and canonical Quality on one exact corrected SHA.
 
-The Core Focused Candidate `34643507760@58b8040f...` is also `FAILURE`. Its Ruff/test commands use continue-on-error capture and the final fail-closed enforcement step is red; individual step labels must not be interpreted as closure.
-
-Minimal Specialist closure path: organize only the import block in `tests/unit/test_identity_transition.py`, then run focused Ruff plus the exact identity-transition test on one SHA and canonical Quality on that same corrected SHA. Keep `OPEN` until real evidence exists; `FIXED_PENDING_VERIFY` requires exact focused green, and `FIXED` requires exact canonical Ruff green.
-
-Errors did not parallel-mutate the Spec/Core candidate because the active specialist owns this root cause.
+Errors did not parallel-mutate Spec/Core code because the active specialist owns this root cause.
 
 ### ERR-0033 — Emergency-reserve filesystem-object identity/capacity gap
 
@@ -53,21 +49,21 @@ Status remains `OPEN / P1 / Backend BE-052 owned`. No new ERR-0035 mutation or c
 
 ### ERR-0038 — historical revision-diff Ruff failure
 
-Status remains `STALE`. Its historical reproducer was in `src/athena/knowledge/revision_diff.py`; the current `ERR-0039` defect is in a different exact candidate/file and receives a new stable ID rather than reviving old priority.
+Status remains `STALE`. Do not reopen without its own current exact-SHA reproduction.
 
 ## CI discipline
 
-- `postmerge/errors@53d8a63e12f5010eed5e28498fe62cc36a617c78` had zero workflow runs before the ledger mutation.
-- Ledger commit `101ee65d46dbccf09c85912fa9e858504cbac046` also had zero workflow runs before this handoff mutation.
+- `postmerge/errors@d58378fb92b90fee5c338b0a23a3b334510394d5` had zero workflow runs before the ledger mutation.
+- Ledger commit `184e266251ac13b620786588945b375c61f85f1f` also had zero workflow runs before this handoff mutation.
 - Errors started no canonical Quality run and did not commit onto a branch with a queued/in-progress Error-worker run.
-- Develop canonical `34646579929@0298f0c4f2d28e516a458390f8b462131ebaf17e` remains in progress and was left untouched.
+- Develop canonical `34651263616@e008e0fbf595da64bea64eb557dddeb2cd78bed0` remains in progress and was left untouched.
 
 ## Integrator handoff
 
-- Develop: `0298f0c4f2d28e516a458390f8b462131ebaf17e`; canonical `34646579929 = IN_PROGRESS` at this handoff. Consume it before deriving Develop integration status.
-- Spec/Core: `58b8040f84d5cac2530aaaac349c695361a78996`; canonical `34643507749 = FAILURE`. `ERR-0039 = OPEN / P1`. Exact root cause is Ruff `I001` in `tests/unit/test_identity_transition.py:1:1`; all other canonical quality dimensions are green. Do not promote until one corrected exact SHA is focused-green and canonical-green.
-- Backend: `4feffb3492bcb656fd6d7a53818e61199f4e0d7a`; canonical `34644399463 = FAILURE` with canonical mypy as the isolated red quality step. This was observed but not advanced as this run's root-cause cluster.
+- Develop: `e008e0fbf595da64bea64eb557dddeb2cd78bed0`; canonical `34651263616 = IN_PROGRESS`. Consume before deriving integration status.
+- Spec/Core: `229a46dd7d91d2c4518379db781c7e5e800c2811`; canonical `34648338237 = FAILURE`, focused `34648337671 = FAILURE`. `ERR-0039 = OPEN / P1`. The attempted one-blank-line import-group remediation did not close canonical Ruff; all other canonical dimensions remain green. Do not promote.
+- Next Spec/Core action: use the exact Ruff remediation artifact path now available on Develop, apply only the generated import/lint diff needed for the failing candidate, then require focused Ruff + focused pytest + canonical green on one exact SHA.
 - `ERR-0033 = OPEN / P1`, Backend BE-046 owned.
 - `ERR-0035 = OPEN / P1`, Backend BE-052 owned.
-- `ERR-0038 = STALE`; do not reopen without its own current exact-SHA reproduction.
+- `ERR-0038 = STALE`.
 - Preserve pypdf packaging, Frozen argv, two-EXE topology, bounded workers, adaptive 2048-context reserve, Windows lane-lock mapping, duplicate-column/Core-startup/storage-bootstrap guards and all Storage/Recovery/Security fail-closed invariants.
