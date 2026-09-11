@@ -84,7 +84,7 @@ class DatabaseFileIdentity:
         elif any(value is not None for value in values):
             raise ValueError("Missing database file identity must not carry metadata.")
 
-    def same_object(self, other: DatabaseFileIdentity) -> bool:
+    def same_object(self, other: object) -> bool:
         if not isinstance(other, DatabaseFileIdentity):
             return False
         return (
