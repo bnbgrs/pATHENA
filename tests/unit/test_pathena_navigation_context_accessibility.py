@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QPushButton
+from PySide6.QtWidgets import QApplication, QFrame, QLabel, QPushButton
 
 from athena.desktop.app import create_application
 from athena.desktop.pathena_navigation_context_accessibility import (
@@ -74,10 +74,7 @@ def test_top_navigation_reuses_existing_router_and_tracks_checked_state() -> Non
             assert window.pages.currentIndex() == row
             assert button.isChecked()
             assert button.accessibleDescription() == f"{button.text()}; current workspace"
-            assert all(
-                other.isChecked() is (other is button)
-                for other in buttons
-            )
+            assert all(other.isChecked() is (other is button) for other in buttons)
     finally:
         controller.deleteLater()
         window.close()
@@ -101,6 +98,52 @@ def test_navigation_context_does_not_move_existing_focus() -> None:
 
         assert window.pages.currentIndex() == 1
         assert app.focusWidget() is window.prompt_input
+    finally:
+        controller.deleteLater()
+        window.close()
+        app.processEvents()
+
+
+def test_jobs_and_settings_use_truthful_contextual_inspector_overlays() -> None:
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    controller = NavigationContextAccessibility(window)
+    window.show()
+    app.processEvents()
+    try:
+        panel = window.findChild(QFrame, "inspectorRouteContext")
+        assert panel is not None
+        context_id = panel.findChild(QLabel, "objectId")
+        heading = panel.findChild(QLabel, "inspectorHeading")
+        body = panel.findChild(QLabel, "inspectorBody")
+        assert context_id is not None
+        assert heading is not None
+        assert body is not None
+
+        window.navigation.setCurrentRow(3)
+        app.processEvents()
+        assert panel.isVisible()
+        assert context_id.text() == "JOB / NONE"
+        assert heading.text() == "No job selected"
+        assert "EXECUTION" in body.text()
+        assert "RESOURCES" in body.text()
+        assert "Select a job" in body.text()
+
+        window.navigation.setCurrentRow(6)
+        app.processEvents()
+        assert panel.isVisible()
+        assert context_id.text() == "SETTINGS / LOCAL"
+        assert heading.text() == "System status"
+        assert "No synthetic health state" in body.text()
+        assert window.status_text.text() in body.text()
+
+        window.status_text.setText("Core unavailable")
+        app.processEvents()
+        assert "Core status: Core unavailable" in body.text()
+
+        window.navigation.setCurrentRow(0)
+        app.processEvents()
+        assert panel.isHidden()
     finally:
         controller.deleteLater()
         window.close()
