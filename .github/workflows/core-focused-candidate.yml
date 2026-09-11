@@ -117,6 +117,37 @@ jobs:
           $pytestOutput | Tee-Object -FilePath ".focused-evidence/pytest.txt" | ForEach-Object { Write-Host $_ }
           if ($pytestExit -ne 0) { throw "Exact changed-test Core candidate contract failed." }
 
+      - name: Generate Ruff remediation diff
+        if: ${{ always() && steps.ruff.outcome == 'failure' }}
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path ".focused-evidence" | Out-Null
+          $changed = @(
+            git diff --name-only $env:BASE_SHA $env:CANDIDATE_SHA -- "*.py" |
+              Where-Object { $_ -match '^(src/athena/knowledge/|tests/unit/).*\.py$' }
+          )
+          if ($LASTEXITCODE -ne 0) { throw "Unable to resolve changed Core Python files for remediation." }
+          if ($changed.Count -eq 0) {
+            "No changed Core Python files available for Ruff remediation." | Out-File -FilePath ".focused-evidence/ruff-fix.txt" -Encoding utf8
+            exit 0
+          }
+          if ((git status --porcelain).Count -ne 0) {
+            throw "Candidate worktree must be clean before diagnostic Ruff remediation."
+          }
+          $fixOutput = @(& uv run --locked --extra dev --no-sync ruff check --fix @changed 2>&1)
+          $fixExit = $LASTEXITCODE
+          $fixOutput | Out-File -FilePath ".focused-evidence/ruff-fix.txt" -Encoding utf8
+          git diff --binary -- @changed | Out-File -FilePath ".focused-evidence/ruff-fix.diff" -Encoding utf8
+          $diffExit = $LASTEXITCODE
+          git reset --hard $env:CANDIDATE_SHA
+          if ($LASTEXITCODE -ne 0) { throw "Unable to restore exact candidate after diagnostic Ruff remediation." }
+          if ($diffExit -ne 0) { throw "Unable to capture Ruff remediation diff." }
+          "Ruff fix exit code: $fixExit" | Add-Content -Path ".focused-evidence/ruff-fix.txt"
+          $restored = (git rev-parse HEAD).Trim().ToLowerInvariant()
+          if ($restored -ne $env:CANDIDATE_SHA -or (git status --porcelain).Count -ne 0) {
+            throw "Diagnostic remediation did not restore the immutable candidate worktree."
+          }
+
       - name: Upload exact focused diagnostics
         if: ${{ always() && !cancelled() }}
         uses: actions/upload-artifact@v4
