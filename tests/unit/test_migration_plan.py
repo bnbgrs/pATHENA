@@ -5,18 +5,40 @@ from pathlib import Path
 import pytest
 
 from athena.storage.migration_plan import MigrationPlanError, plan_database_migration
-from athena.storage.recovery import DatabasePreflightReport
+from athena.storage.recovery import (
+    DatabaseFileIdentity,
+    DatabaseFileSetIdentity,
+    DatabasePreflightReport,
+)
 from athena.storage.schema_contract import ATHENA_APPLICATION_ID, SCHEMA_VERSION
 
 
+def _identity(path: Path, *, exists: bool) -> DatabaseFileIdentity:
+    return DatabaseFileIdentity(
+        path=path,
+        exists=exists,
+        device=1 if exists else None,
+        inode=1 if exists else None,
+        size=4096 if exists else None,
+        mtime_ns=1 if exists else None,
+        ctime_ns=1 if exists else None,
+    )
+
+
 def _report(*, exists: bool, schema_version: int | None) -> DatabasePreflightReport:
+    path = Path("/tmp/athena.db")
     return DatabasePreflightReport(
-        path=Path("/tmp/athena.db"),
+        path=path,
         exists=exists,
         application_id=ATHENA_APPLICATION_ID if exists else None,
         schema_version=schema_version,
         wal_present=False,
         shm_present=False,
+        file_set=DatabaseFileSetIdentity(
+            primary=_identity(path, exists=exists),
+            wal=_identity(path.with_name(f"{path.name}-wal"), exists=False),
+            shm=_identity(path.with_name(f"{path.name}-shm"), exists=False),
+        ),
     )
 
 
