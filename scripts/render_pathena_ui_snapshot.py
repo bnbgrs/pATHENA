@@ -333,6 +333,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     def capture_help() -> None:
         try:
+            window = find_window()
             controller = palette_controller()
             controller.open_help()
             app.processEvents()
@@ -341,7 +342,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             help_text = controller.help_text.toPlainText()
             if "pATHENA capabilities" not in help_text or "Open ComfyUI" not in help_text:
                 raise RuntimeError("Help did not render the live ComfyUI capability.")
-            save_widget(controller.help_dialog, ordinal=10, label="Help", kind="help")
+            save_widget(window, ordinal=10, label="Help", kind="help-shell")
             captures[-1]["catalog_version"] = str(
                 controller.help_text.property("pathenaCapabilityCatalogVersion") or ""
             )
