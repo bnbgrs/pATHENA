@@ -98,19 +98,24 @@ class RegistryBackedJobAdmission:
         if not isinstance(job_type, str) or not self.registry.contains(job_type):
             raise JobAdmissionError("job type is not registered.")
 
-        kwargs = {
-            "job_type": job_type,
-            "priority": priority,
-            "requested_scope": requested_scope,
-            "pinned_configuration": pinned_configuration,
-            "next_run_at_us": next_run_at_us,
-        }
         if job_type in self._builtin_job_types:
-            return self.builtin_service.create(**kwargs)
+            return self.builtin_service.create(
+                job_type=job_type,
+                priority=priority,
+                requested_scope=requested_scope,
+                pinned_configuration=pinned_configuration,
+                next_run_at_us=next_run_at_us,
+            )
 
         handler = self._plugin_handlers.get(job_type)
         if handler is None:
             raise UnboundPluginJobTypeError(
                 f"registered plugin job type {job_type!r} has no admission handler."
             )
-        return handler.create(**kwargs)
+        return handler.create(
+            job_type=job_type,
+            priority=priority,
+            requested_scope=requested_scope,
+            pinned_configuration=pinned_configuration,
+            next_run_at_us=next_run_at_us,
+        )
