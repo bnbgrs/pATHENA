@@ -8,13 +8,12 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 
 ## Current baseline
 
-- Develop source of truth: `develop/pathena-next@c670d7809c9f0aa5e6c31956b57e897091f1b9d6`.
-- Error worker entered this run at `postmerge/errors@6ada3662333696a2373f0b6eb30eff9e5367e373`.
-- Current workers: Spec/Core `8019ff39c2352e40513532814760804eaa3c2df4`; Backend `195814616f394e1794aa4f3b2a16a584c092ab31`; UI `4eeb75a6f5909fb1aa194c2c6df2d5ce1b431748`.
-- Exact-current Develop canonical Quality: `34635967020@c670d7809c9f0aa5e6c31956b57e897091f1b9d6 = IN_PROGRESS`; no Develop PASS/FAIL claim is derived while it is running.
-- Latest Backend exact-head canonical Quality: `34604847434@195814616f394e1794aa4f3b2a16a584c092ab31 = SUCCESS`; this baseline-green run does not close BE-046 because no BE-046 product candidate exists on that SHA.
-- Current Spec/Core `8019ff39c2352e40513532814760804eaa3c2df4` and UI `4eeb75a6f5909fb1aa194c2c6df2d5ce1b431748` have no exact-head workflow run yet; older exact-green or in-progress evidence is not promoted to those newer SHAs.
-- `postmerge/errors@6ada3662333696a2373f0b6eb30eff9e5367e373` had zero workflow runs immediately before this mutation.
+- Develop source of truth: `develop/pathena-next@17d06d258ec2f5841049227504034ef601cdcdf8`.
+- Error worker entered this run at `postmerge/errors@68fa85f7c6462b9454712b5d8dfb29fb9f49a2f7`.
+- Current workers: Spec/Core `8019ff39c2352e40513532814760804eaa3c2df4`; Backend `4482958c3540b865ccc38a3ba5802366433c838b`; UI `ecb91b302c700b625af9ecb9d70452c974513c06`.
+- Exact-current Develop canonical Quality: `34641291324@17d06d258ec2f5841049227504034ef601cdcdf8 = IN_PROGRESS`; no Develop PASS/FAIL claim is derived while it is running.
+- Current worker canonical evidence: Spec/Core `34636024267@8019ff39c2352e40513532814760804eaa3c2df4 = SUCCESS`; Backend `34638648498@4482958c3540b865ccc38a3ba5802366433c838b = SUCCESS`; UI `34638680643@ecb91b302c700b625af9ecb9d70452c974513c06 = SUCCESS`. Backend's green candidate is unrelated job-type registry work and does not close the open storage/recovery clusters.
+- `postmerge/errors@68fa85f7c6462b9454712b5d8dfb29fb9f49a2f7` had zero workflow runs immediately before this mutation.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current state
@@ -40,7 +39,7 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Severity: P1.
 - Status: `OPEN`.
 - Specialist owner: Backend / BE-046. Errors does not parallel-mutate Backend product code while that worker owns the root cause.
-- Exact-current source trace: `develop/pathena-next@c670d7809c9f0aa5e6c31956b57e897091f1b9d6`. Changes since the last Develop storage trace are UI/Core/docs-only; `src/athena/storage/emergency_reserve.py` remains the same storage implementation. Develop canonical `34635967020` is still in progress and cannot close this semantic Recovery gap.
+- Exact-current source trace remains applicable on `develop/pathena-next@17d06d258ec2f5841049227504034ef601cdcdf8`; the intervening job-type-registry change does not alter `src/athena/storage/emergency_reserve.py`.
 - Existing focused coverage contains adversarial parent-directory replacement tests only for POSIX. Native-Windows parent-swap coverage is absent.
 - POSIX creation/release binds `reserve_root` to a directory descriptor for relative create/unlink and directory fsync. Windows/non-POSIX creation instead opens `self.path` by pathname, compares opened-file `fstat` with pathname `stat`, then returns to pathname-based parent resolution for cleanup/durability; normal release is pathname-based.
 - Parent-directory binding alone is insufficient. Non-POSIX failure cleanup validates `self.path.stat()` against `created_identity`, then separately calls `self.path.unlink()`, leaving a same-parent filename-substitution window. Normal non-POSIX release has the wider `exists/is_file/stat -> unlink` pathname window.
@@ -48,7 +47,7 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Inspection/acceptance can also lose object identity on both POSIX and non-POSIX paths, including concurrent creation. Admission/release do not establish exclusive ownership against hardlinks.
 - Physical-capacity attestation is incomplete where allocation metadata is unavailable: `_allocated_bytes_from_stat()` can return `None`, while `EmergencyReserveStatus` only enforces minimum allocation when allocation is known. Logical length alone must not be treated as proof of physically recoverable reserve capacity.
 - Previously established open-handle evidence remains: an independently pre-opened descriptor can survive unlink and keep the inode/data blocks referenced, so successful pathname removal does not prove physical reclamation; a writable second descriptor can also mutate the same inode after attestation.
-- New exact-current closure evidence: a one-time `st_nlink == 1` or equivalent single-link check at attestation would still be insufficient. Because the validated file descriptor is closed before unlink and there is no object/namespace lock spanning that boundary, another actor can create a second hardlink to the already-attested inode after the check but before pATHENA unlinks the canonical name. The unlink can then succeed while the new hardlink retains the inode and blocks, yet `release()` would return the pre-race logical size as released bytes. This is the same BE-046 physical-reclamation root cause, not a new error ID.
+- A one-time `st_nlink == 1` or equivalent single-link check at attestation is insufficient. Because the validated file descriptor is closed before unlink and there is no object/namespace lock spanning that boundary, another actor can create a second hardlink to the already-attested inode after the check but before pATHENA unlinks the canonical name. The unlink can then succeed while the new hardlink retains the inode and blocks, yet `release()` would return the pre-race logical size as released bytes.
 - Current `tests/unit/test_emergency_reserve.py` covers stable release, POSIX parent-directory replacement, allocation under-reporting and creation cleanup, but has no adversarial hardlink insertion between release attestation and unlink. Therefore a static single-link admission assertion would not constitute closure evidence.
 - Closure requires a bounded Backend candidate with focused adversarial tests covering parent substitution, same-parent target substitution across inspection/cleanup/release, hardlink ownership/release accounting including the attestation-to-unlink hardlink-insertion race, unknown-allocation fail-closed behavior, and the pre-opened second-descriptor case. The release contract must maintain a bounded physical-reclamation guarantee across the entire attestation-to-accounting interval rather than sampling link count once. Preserve non-sparse allocation and all Storage/Recovery semantics.
 
@@ -57,10 +56,13 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Severity: P1.
 - Status: `OPEN`.
 - Specialist owner: Backend / BE-052. Errors does not parallel-mutate Backend product code while that worker owns the root cause.
-- Current source evidence remains applicable: `SQLiteDatabase.start()` performs read-only preflight against the configured path and later independently opens the writable SQLite connection by pathname, without carrying an identity token/handle/descriptor from preflight into writer establishment.
-- Distinct from `ERR-0033`: ERR-0033 concerns EmergencyReserve filesystem-object identity/capacity across mutation and acceptance; ERR-0035 concerns the primary SQLite database object between startup preflight and live writer open.
-- Preserve read-only preflight, application-id/schema/quick-check validation, locality, symlink/reparse rejection, WAL/SHM checks and fail-closed Recovery/Storage semantics. A second pathname-only preflight is insufficient.
-- Closure requires a bounded Backend candidate plus focused cross-platform identity-swap regression evidence, followed by exact-SHA canonical evidence when integration/closure requires it.
+- Exact-current source evidence: `develop/pathena-next@17d06d258ec2f5841049227504034ef601cdcdf8`. `SQLiteDatabase.start()` calls `inspect_database_read_only(self.path, ...)`, consumes the returned preflight result, and only later establishes a separate writable connection with `sqlite3.connect(self.path, check_same_thread=False)`.
+- The continuity gap is broader than primary-database pathname identity. `inspect_database_read_only()` also inspects the current `-wal` and `-shm` sidecar state and performs its read-only quick-check through a connection that is closed before the later writer connection is opened. No file-set identity token or equivalent binding carries the attested primary database plus WAL/SHM snapshot across that transition.
+- Therefore WAL/SHM presence or filesystem-object identity can change after read-only inspection returns but before the writer connection is established, even if the primary database object itself remains unchanged. The live writer can consequently observe a different SQLite file set from the one whose sidecar state the preflight accepted.
+- This evidence does **not** assert that SQLite will accept an arbitrary malformed or forged WAL/SHM file; SQLite's own format/checksum validation remains independent. The defect is the absence of fail-closed attestation continuity between the preflight file set and the writer-open file set.
+- Distinct from `ERR-0033`: ERR-0033 concerns EmergencyReserve filesystem-object identity/capacity across mutation and acceptance; ERR-0035 concerns SQLite startup continuity between a validated read-only file-set snapshot and the live writable SQLite snapshot.
+- Preserve read-only preflight, application-id/schema/quick-check validation, locality, symlink/reparse rejection, WAL/SHM checks and fail-closed Recovery/Storage semantics. Merely repeating another pathname-only preflight is insufficient unless it is made atomic/equivalent with writer establishment.
+- Closure requires a bounded Backend candidate that binds or fail-closed revalidates the **whole SQLite file set** — primary DB, WAL and SHM — across preflight-to-writer establishment. Focused adversarial evidence must gate startup after `inspect_database_read_only()` returns and before writer `sqlite3.connect()`, then create/remove/replace a sidecar and prove startup detects the snapshot/identity mismatch rather than relying on stale sidecar preflight state. Exact-SHA canonical evidence follows when integration/closure requires it.
 
 ## Closed/stale historical clusters
 
