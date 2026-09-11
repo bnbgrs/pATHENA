@@ -4,7 +4,12 @@ import uuid
 
 import pytest
 
-from athena.knowledge.models import ClaimDraft, ClaimKind, ClaimRevision, EpistemicStatus
+from athena.knowledge.models import (
+    ClaimDraft,
+    ClaimKind,
+    ClaimRevision,
+    EpistemicStatus,
+)
 from athena.knowledge.revision_diff import diff_claim_revisions
 
 

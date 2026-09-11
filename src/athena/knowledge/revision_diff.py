@@ -32,19 +32,6 @@ class ClaimRevisionDiff:
     changes: tuple[ClaimFieldChange, ...]
 
 
-_FIELDS = (
-    "claim_kind",
-    "statement",
-    "epistemic_status",
-    "subject_entity_id",
-    "predicate",
-    "object_entity_id",
-    "attributed_to_entity_id",
-    "valid_from_us",
-    "valid_to_us",
-)
-
-
 def diff_claim_revisions(
     before: ClaimRevision,
     after: ClaimRevision,
@@ -52,7 +39,7 @@ def diff_claim_revisions(
     """Return a stable semantic diff for two forward revisions of one Claim.
 
     Metadata such as actor, provenance and timestamps is intentionally excluded:
-    the history surface presents those independently.  This function compares
+    the history surface presents those independently. This function compares
     only canonical Claim payload fields and does not write or infer state.
     """
     if not isinstance(before, ClaimRevision) or not isinstance(after, ClaimRevision):
@@ -62,14 +49,41 @@ def diff_claim_revisions(
     if after.revision_no <= before.revision_no:
         raise ValueError("after must be a later Claim revision than before.")
 
+    semantic_fields: tuple[tuple[str, object, object], ...] = (
+        ("claim_kind", before.payload.claim_kind, after.payload.claim_kind),
+        ("statement", before.payload.statement, after.payload.statement),
+        (
+            "epistemic_status",
+            before.payload.epistemic_status,
+            after.payload.epistemic_status,
+        ),
+        (
+            "subject_entity_id",
+            before.payload.subject_entity_id,
+            after.payload.subject_entity_id,
+        ),
+        ("predicate", before.payload.predicate, after.payload.predicate),
+        (
+            "object_entity_id",
+            before.payload.object_entity_id,
+            after.payload.object_entity_id,
+        ),
+        (
+            "attributed_to_entity_id",
+            before.payload.attributed_to_entity_id,
+            after.payload.attributed_to_entity_id,
+        ),
+        ("valid_from_us", before.payload.valid_from_us, after.payload.valid_from_us),
+        ("valid_to_us", before.payload.valid_to_us, after.payload.valid_to_us),
+    )
     changes = tuple(
         ClaimFieldChange(
             field=field,
-            before=_diff_value(getattr(before.payload, field)),
-            after=_diff_value(getattr(after.payload, field)),
+            before=_diff_value(before_value),
+            after=_diff_value(after_value),
         )
-        for field in _FIELDS
-        if getattr(before.payload, field) != getattr(after.payload, field)
+        for field, before_value, after_value in semantic_fields
+        if before_value != after_value
     )
     return ClaimRevisionDiff(
         claim_id=before.claim_id,
