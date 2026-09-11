@@ -74,6 +74,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Locked environment sync failed." }
 
       - name: Ruff changed Core Python files
+        id: ruff
+        continue-on-error: true
         shell: pwsh
         run: |
           $changed = @(
@@ -91,6 +93,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw "Exact changed-file Ruff contract failed." }
 
       - name: Run changed focused unit tests
+        id: focused_tests
+        continue-on-error: true
         shell: pwsh
         run: |
           $tests = @(
@@ -106,3 +110,15 @@ jobs:
           $tests | ForEach-Object { Write-Host "  $_" }
           uv run --locked --extra dev --no-sync pytest -q @tests
           if ($LASTEXITCODE -ne 0) { throw "Exact changed-test Core candidate contract failed." }
+
+      - name: Enforce focused candidate outcomes
+        if: always()
+        shell: pwsh
+        run: |
+          $ruff = "${{ steps.ruff.outcome }}"
+          $tests = "${{ steps.focused_tests.outcome }}"
+          Write-Host "Ruff outcome: $ruff"
+          Write-Host "Focused pytest outcome: $tests"
+          if ($ruff -ne "success" -or $tests -ne "success") {
+            throw "Core focused candidate requires both Ruff and focused pytest to succeed."
+          }
