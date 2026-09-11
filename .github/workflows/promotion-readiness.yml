@@ -13,6 +13,9 @@ concurrency:
   group: promotion-readiness-${{ github.ref }}
   cancel-in-progress: false
 
+env:
+  CANDIDATE_SHA: ${{ github.sha }}
+
 jobs:
   promotion-guard:
     name: Candidate promotion guard
@@ -20,17 +23,32 @@ jobs:
     timeout-minutes: 5
 
     steps:
-      - name: Check out candidate
-        uses: actions/checkout@v6
+      - name: Check out exact candidate
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          persist-credentials: false
+
+      - name: Prove immutable checked-out identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          checked_out="$(git rev-parse HEAD)"
+          if [ "$checked_out" != "$CANDIDATE_SHA" ]; then
+            echo "Checked out $checked_out instead of exact candidate $CANDIDATE_SHA." >&2
+            exit 1
+          fi
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v6
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: "3.12"
+          check-latest: false
           cache: "pip"
 
       - name: Install pinned resolver
         run: |
+          python -m pip install --disable-pip-version-check "pip==26.1.2"
           python -m pip install --disable-pip-version-check "uv==0.11.21"
 
       - name: Validate dependency lock
