@@ -1,8 +1,7 @@
 from uuid import UUID
 
-import pytest
-
 from athena.knowledge.identity_transition import MergeTransition, SplitTransition
+import pytest
 
 
 A = UUID("00000000-0000-0000-0000-000000000001")
@@ -50,4 +49,4 @@ def test_split_rejects_insufficient_or_duplicate_results() -> None:
         SplitTransition(source_entity_id=A, result_entity_ids=(B,))
 
     with pytest.raises(ValueError, match="unique"):
-        SplitTransition(source_entity_id=A, result_entity_ids=(B, B))
+        SplitTransition(source_entity_ids=(B, B))
