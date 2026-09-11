@@ -2,13 +2,13 @@
 
 ## Baseline
 
-- Develop source of truth: `develop/pathena-next@ccfbeb620cf009b75c6c53e5821438bf869ab114`.
-- Error worker entered this run at `postmerge/errors@186ab37da98042512d2c7bb7b3e82d69ff4af598`.
-- Current workers: Spec/Core `0d7e6281a584a302350a6b3aea0ac63e6eac744a`; Backend `fa995bf462aa8135d24f4e9e7059bc24f6992622`; UI `199f123f893251b9fc6984e78c24f9ab5813cdc8`.
-- Exact-current canonical Quality: `34586893958@ccfbeb620cf009b75c6c53e5821438bf869ab114 = IN_PROGRESS`; no PASS/FAIL is inferred until completion.
-- Previous exact Develop canonical: `34581635106@deafa0531504a9cb34bff5cb29be7247c084cd16 = SUCCESS`.
-- The current Develop delta is one bounded Core relation-registry integration plus focused tests and `integrator.md`; EmergencyReserve product/tests are unchanged.
-- `postmerge/errors@186ab37da98042512d2c7bb7b3e82d69ff4af598` had zero canonical Quality runs before the ledger mutation; after ledger commit `75930c1ba6f9f28aa34e6de198b0dd9b8ecd7f56` there were still zero runs before this handoff update.
+- Develop source of truth: `develop/pathena-next@85bd5f19c8aca56273ad43ac708fe13ac4798415`.
+- Error worker entered this run at `postmerge/errors@d16707612361e46849b326e1a207612f9e3ba2ad`.
+- Current workers: Spec/Core `0d7e6281a584a302350a6b3aea0ac63e6eac744a`; Backend `fa995bf462aa8135d24f4e9e7059bc24f6992622`; UI `4ea0004fded7a169f18abc6fecd59461f86ee9bd`.
+- Exact-current canonical Quality: `34591859521@85bd5f19c8aca56273ad43ac708fe13ac4798415 = IN_PROGRESS`; no PASS/FAIL is inferred until completion.
+- Previous exact Develop canonical: `34586893958@ccfbeb620cf009b75c6c53e5821438bf869ab114 = SUCCESS`.
+- The current Develop delta is CI/test workflow work; EmergencyReserve product/tests are unchanged.
+- `postmerge/errors@d16707612361e46849b326e1a207612f9e3ba2ad` had zero canonical Quality runs before the ledger mutation; after ledger commit `d79dc921133e8a8efb5a909370b8cef0ac6f8a5c` there were still zero runs before this handoff update.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current error state
@@ -20,31 +20,28 @@
 - STALE: `ERR-0014`, `ERR-0025`, `ERR-0026`, `ERR-0028`, `ERR-0029`.
 - BLOCKED: none.
 
-## Hard progress this run — ERR-0033 POSIX acceptance identity discontinuity
+## Hard progress this run — ERR-0033 unknown physical-allocation acceptance
 
-### ERR-0033 — Emergency-reserve filesystem-object identity continuity gap
+### ERR-0033 — Emergency-reserve filesystem-object identity and capacity-attestation gap
 
 Status remains `OPEN`, P1, Backend / BE-046 owned.
 
-Current Develop is exact-source-equivalent to the previous green Develop for EmergencyReserve: `ccfbeb620…` changes only a disjoint Core relation-registry slice, focused tests and integrator documentation relative to `deafa053…`. The previously documented parent/target mutation, non-POSIX acceptance and hardlink ownership seams remain current.
+The previously pending canonical Quality is now closed: `34586893958@ccfbeb620cf009b75c6c53e5821438bf869ab114 = SUCCESS`. Current Develop `85bd5f19c8aca56273ad43ac708fe13ac4798415` has canonical Quality `34591859521` still `IN_PROGRESS`; no result is inferred. The delta from `ccfbeb620…` is disjoint CI/test workflow work, so EmergencyReserve source/tests remain current.
 
-New exact-current evidence extends the same identity-continuity root cause into **POSIX inspection/acceptance**. `_inspect_posix_with_root_fd()` opens `emergency.reserve` relative to the bound reserve-directory FD, derives size/allocation status from `fstat(descriptor)`, closes the file descriptor, and only afterwards verifies that the parent directory identity is still current. It never proves that the pathname still names the same opened file object when the status is returned.
+New exact-current evidence extends BE-046 from object-identity continuity into **physical-capacity attestation**. `_allocated_bytes_from_stat()` returns `None` if `st_blocks` is absent or unusable. `EmergencyReserveStatus.__post_init__()` rejects under-allocation only when `allocated_bytes is not None`; unknown allocation is accepted. Non-POSIX `inspect()` passes `_allocated_bytes(self.path)` directly into the status and has no alternate fail-closed proof of physical allocation.
 
-Therefore a same-directory replacement of `emergency.reserve` after the open/fstat and before return can make the function return a valid `EmergencyReserveStatus` for object A while `status.path` already resolves to object B. This is materially different from the already-recorded POSIX release/cleanup unlink races: it is an **acceptance** race. The `O_EXCL` loser path in `_ensure_posix()` can directly return this status, so an existing reserve can be accepted without preserving target identity through the acceptance boundary.
+Consequently an exact-size regular existing `emergency.reserve` can satisfy inspection/ensure even when pATHENA cannot establish that the promised reserve bytes are physically committed. This matters directly to recovery semantics: the reserve exists to guarantee recoverable disk capacity under pressure, and logical file length alone is not an allocation guarantee.
 
-Existing focused tests do not exercise this seam. `test_store_reuses_matching_existing_reserve` validates a stable non-adversarial reuse. The two adversarial POSIX tests replace the parent directory during creation/release; neither swaps only `emergency.reserve` while keeping the same bound parent directory during inspection.
+The focused tests expose the missing contract. `test_store_creates_small_physically_allocated_test_reserve` asserts physical allocation only if `status.allocated_bytes is not None`. `test_store_inspect_detects_underallocated_file_when_platform_reports_blocks` deliberately tests rejection only when block allocation is observable. There is no test requiring an unknown-allocation state to fail closed or proving a platform-native equivalent allocation attestation.
 
-Focused closure evidence now required from Backend includes:
+This is deduplicated into `ERR-0033 / BE-046`, not opened as a separate cluster: it is another way the accepted reserve object fails to prove the filesystem identity/capacity pATHENA claims as recovery reserve. Backend still owns BE-046 and has no tested bounded candidate, so Errors made no competing Storage product mutation.
 
-1. Native-Windows adversarial parent substitution across create-success, failure-cleanup and release.
-2. Same-parent `emergency.reserve` substitution between identity validation and unlink for non-POSIX cleanup and release.
-3. Same-parent filename substitution during POSIX release and POSIX `_ensure_posix()` failure cleanup.
-4. Non-POSIX inspection/concurrent-creation substitution proving size and allocation acceptance are derived from one stable filesystem object.
-5. **POSIX inspection/acceptance substitution proving `_inspect_posix_with_root_fd()` cannot return success if the named reserve changes after open/fstat but before acceptance.**
-6. Hardlink admission/release regression proving a multiply-linked reserve is not accepted as uniquely recoverable capacity and cannot yield a successful released-byte report while blocks remain referenced.
-7. Preserve physical non-sparse allocation, exact release accounting and fail-closed Storage/Recovery durability semantics.
+Focused closure evidence now required from Backend includes the previously recorded parent/target substitution, POSIX/non-POSIX acceptance, hardlink ownership and release-accounting cases, plus:
 
-Backend still owns BE-046 and its current handoff has no tested bounded candidate, so Errors made no competing Storage product mutation.
+1. A focused unknown-allocation admission regression: an exact-size existing reserve must not be accepted solely because allocation metadata is unavailable.
+2. Where `st_blocks` is unavailable, a platform-native allocation/capacity proof at least as strong as the POSIX block-allocation check, or fail-closed behavior.
+3. Creation/reuse/release accounting must continue to preserve physical non-sparse allocation and must never report reserve capacity as available/recovered without proof that those bytes were actually committed and then released.
+4. No weakening of Storage/Recovery/Windows guards to obtain portability.
 
 ### ERR-0035 — SQLite preflight identity is not carried into live writer startup
 
@@ -52,10 +49,10 @@ Status remains `OPEN`, P1, Backend / BE-052 owned. It remains distinct from ERR-
 
 ## Integrator handoff
 
-- Current Develop: `ccfbeb620cf009b75c6c53e5821438bf869ab114`.
-- Current canonical Quality: `34586893958 = IN_PROGRESS`; no PASS/FAIL is inferred until completion.
-- Previous completed canonical: `34581635106@deafa0531504a9cb34bff5cb29be7247c084cd16 = SUCCESS`.
-- `ERR-0033 = OPEN / P1`, Backend BE-046 owned. New exact-current closure scope adds POSIX acceptance identity continuity: a status derived from an opened object must not be accepted after `emergency.reserve` has been substituted inside the same bound parent directory.
+- Current Develop: `85bd5f19c8aca56273ad43ac708fe13ac4798415`.
+- Current canonical Quality: `34591859521 = IN_PROGRESS`; no PASS/FAIL is inferred until completion.
+- Previous completed canonical: `34586893958@ccfbeb620cf009b75c6c53e5821438bf869ab114 = SUCCESS`.
+- `ERR-0033 = OPEN / P1`, Backend BE-046 owned. New exact-current closure scope adds fail-closed physical-capacity attestation: `allocated_bytes=None` cannot be treated as proof that an exact-size reserve is physically committed.
 - `ERR-0035 = OPEN / P1`, Backend BE-052 owned; no Errors product mutation.
-- No closed/stale cluster was reopened without exact-current reproduction.
+- No closed/stale cluster was reopened without exact-current evidence.
 - Preserve pypdf packaging, Frozen argv, two-EXE topology, bounded workers, adaptive 2048-context reserve, Windows lane-lock mapping, duplicate-column/Core-startup/storage-bootstrap guards, WAL exact-type fail-closed semantics, durable HANDLE-bound rename and reparse/path-safety invariants.
