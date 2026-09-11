@@ -175,6 +175,12 @@ def main(argv: Sequence[str] | None = None) -> int:
                 )
             navigation.setCurrentRow(row)
             app.processEvents()
+            if navigation.currentRow() != row or pages.currentIndex() != row:
+                raise RuntimeError(
+                    "Workspace route identity drifted before capture: "
+                    f"requested row {row}, navigation row {navigation.currentRow()}, "
+                    f"page index {pages.currentIndex()}."
+                )
             label = WORKSPACE_SURFACE_LABELS[row]
             save_widget(window, ordinal=row + 1, label=label, kind="workspace")
             captures[-1]["navigation_label"] = navigation.item(row).text()
@@ -182,6 +188,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             captures[-1]["page_index"] = pages.currentIndex()
         except Exception as exc:  # noqa: BLE001
             errors.append(f"workspace row {row}: {type(exc).__name__}: {exc}")
+
+    def capture_workspaces() -> None:
+        for row in range(7):
+            capture_row(row)
+            if errors:
+                return
 
     def diagnostic_pallas_snapshot() -> PallasGraphSnapshot:
         focus = PallasSemanticNode(
@@ -380,15 +392,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         except Exception as exc:  # noqa: BLE001
             errors.append(f"ComfyUI: {type(exc).__name__}: {exc}")
 
-    interval_ms = 500
     first_capture_ms = args.initial_delay_seconds * 1_000
-    for row in range(7):
-        QTimer.singleShot(
-            first_capture_ms + row * interval_ms,
-            lambda selected_row=row: capture_row(selected_row),
-        )
+    QTimer.singleShot(first_capture_ms, capture_workspaces)
 
-    after_workspaces_ms = first_capture_ms + 7 * interval_ms + 500
+    after_workspaces_ms = first_capture_ms + 1_000
     QTimer.singleShot(after_workspaces_ms, capture_pallas)
     QTimer.singleShot(after_workspaces_ms + 1_000, capture_commands)
     QTimer.singleShot(after_workspaces_ms + 2_000, capture_help)
