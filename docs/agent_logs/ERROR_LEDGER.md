@@ -11,7 +11,7 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Develop source of truth: `develop/pathena-next@85bd5f19c8aca56273ad43ac708fe13ac4798415`.
 - Error worker entered this run at `postmerge/errors@d16707612361e46849b326e1a207612f9e3ba2ad`.
 - Current workers: Spec/Core `0d7e6281a584a302350a6b3aea0ac63e6eac744a`; Backend `fa995bf462aa8135d24f4e9e7059bc24f6992622`; UI `4ea0004fded7a169f18abc6fecd59461f86ee9bd`.
-- Exact-current Develop canonical Quality: `34591859521@85bd5f19c8aca56273ad43ac708fe13ac4798415 = IN_PROGRESS`; no PASS/FAIL is inferred until completion.
+- Exact-current Develop canonical Quality: `34591361659@85bd5f19c8aca56273ad43ac708fe13ac4798415 = IN_PROGRESS`; no PASS/FAIL is inferred until completion.
 - Previous exact Develop canonical: `34586893958@ccfbeb620cf009b75c6c53e5821438bf869ab114 = SUCCESS`.
 - The Develop delta from `ccfbeb620cf009b75c6c53e5821438bf869ab114` to `85bd5f19c8aca56273ad43ac708fe13ac4798415` is CI/test workflow work; EmergencyReserve product/tests are unchanged.
 - `postmerge/errors@d16707612361e46849b326e1a207612f9e3ba2ad` had zero canonical Quality runs immediately before this mutation.
