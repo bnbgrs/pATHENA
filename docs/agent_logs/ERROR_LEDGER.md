@@ -9,12 +9,13 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 ## Current baseline
 
 - Develop source of truth: `develop/pathena-next@fec368f50307a9e24038baca3a80b10ee2a3c4fc`.
-- Error worker entered this run at `postmerge/errors@d212c92f5d139c8c2d5c03c1985e497ffd4671a1`.
-- Current workers: Spec/Core `e9a6a1d28281e78c9b8ee0548582ed4a39d424b4`; Backend `195814616f394e1794aa4f3b2a16a584c092ab31`; UI `d71bf6951c10920eb709dbe5bb3e708c72b43c6a`.
+- Error worker entered this run at `postmerge/errors@d079c0d49392a58846b488a405d923ac82e5b1d7`.
+- Current workers: Spec/Core `e9a6a1d28281e78c9b8ee0548582ed4a39d424b4`; Backend `195814616f394e1794aa4f3b2a16a584c092ab31`; UI `58fac1d71d4e89cdb9d008e410b0d4da5ea2ebdf`.
 - Exact-current Develop canonical Quality: `34618898303@fec368f50307a9e24038baca3a80b10ee2a3c4fc = SUCCESS`.
 - Exact-current Spec/Core canonical Quality: `34621318923@e9a6a1d28281e78c9b8ee0548582ed4a39d424b4 = SUCCESS`.
 - Exact-current Spec/Core focused candidate: `34621318964@e9a6a1d28281e78c9b8ee0548582ed4a39d424b4 = SUCCESS`.
-- `postmerge/errors@d212c92f5d139c8c2d5c03c1985e497ffd4671a1` had zero workflow runs immediately before this mutation.
+- Exact-current UI canonical Quality: `34629561706@58fac1d71d4e89cdb9d008e410b0d4da5ea2ebdf = IN_PROGRESS`; no UI PASS/FAIL claim is derived while it is running.
+- `postmerge/errors@d079c0d49392a58846b488a405d923ac82e5b1d7` had zero workflow runs immediately before this mutation.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current state
@@ -41,14 +42,16 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Severity: P1.
 - Status: `OPEN`.
 - Specialist owner: Backend / BE-046. Errors does not parallel-mutate Backend product code while that worker owns the root cause.
-- Current source evidence remains applicable; no new exact-SHA closure evidence exists from Backend.
+- Exact-current source trace: `develop/pathena-next@fec368f50307a9e24038baca3a80b10ee2a3c4fc`; Develop canonical `34618898303 = SUCCESS` does not close this semantic Recovery gap.
 - Existing focused coverage contains adversarial parent-directory replacement tests only for POSIX. Native-Windows parent-swap coverage is absent.
 - POSIX creation/release binds `reserve_root` to a directory descriptor for relative create/unlink and directory fsync. Windows/non-POSIX creation instead opens `self.path` by pathname, compares opened-file `fstat` with pathname `stat`, then returns to pathname-based parent resolution for cleanup/durability; normal release is pathname-based.
 - Parent-directory binding alone is insufficient. Non-POSIX failure cleanup validates `self.path.stat()` against `created_identity`, then separately calls `self.path.unlink()`, leaving a same-parent filename-substitution window. Normal non-POSIX release has the wider `exists/is_file/stat -> unlink` pathname window.
 - POSIX release closes the opened reserve-file descriptor before `os.unlink(..., dir_fd=root_fd)`, so the directory identity is bound but the filename can be replaced inside that directory before unlink. POSIX failure cleanup has the same target-identity discontinuity.
 - Inspection/acceptance can also lose object identity on both POSIX and non-POSIX paths, including concurrent creation. Admission/release do not establish exclusive ownership against hardlinks.
 - Physical-capacity attestation is incomplete where allocation metadata is unavailable: `_allocated_bytes_from_stat()` can return `None`, while `EmergencyReserveStatus` only enforces minimum allocation when allocation is known. Logical length alone must not be treated as proof of physically recoverable reserve capacity.
-- Closure requires a bounded Backend candidate with focused adversarial tests covering parent substitution, same-parent target substitution across inspection/cleanup/release, hardlink ownership/release accounting, and unknown-allocation fail-closed behavior, while preserving non-sparse allocation and Storage/Recovery semantics.
+- New exact-current evidence: POSIX `release()` attests the opened reserve with `fstat`, captures its size, then closes pATHENA's reserve descriptor before unlinking the pathname and returning the earlier size as released bytes. An independently pre-opened descriptor to the same inode survives pathname unlink and can keep that inode's blocks referenced; therefore successful unlink does not itself prove that the reported emergency capacity has been physically reclaimed. The same second descriptor can also mutate/truncate the same inode after pATHENA's attestation, making the pre-unlink returned size stale without any pathname or inode substitution.
+- This open-handle reclamation gap survives directory binding, filename/inode identity continuity, and single-hardlink checks. It is deduplicated into BE-046 rather than opened as a new error ID.
+- Closure requires a bounded Backend candidate with focused adversarial tests covering parent substitution, same-parent target substitution across inspection/cleanup/release, hardlink ownership/release accounting, unknown-allocation fail-closed behavior, and a pre-opened second-descriptor case proving that release never reports recoverable bytes without a bounded physical-reclamation guarantee. Preserve non-sparse allocation and all Storage/Recovery semantics.
 
 ## ERR-0035 — SQLite preflight identity is not carried into live writer startup
 
