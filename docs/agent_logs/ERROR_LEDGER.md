@@ -8,13 +8,14 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 
 ## Current baseline
 
-- Develop source of truth: `develop/pathena-next@b26eea46c89a8b628c2006d24d1fdac7492baa91`.
-- Error worker entered this run at `postmerge/errors@eaf707a9429b6c67b7d436d64d362b30fac97126`.
-- Current workers: Spec/Core `2a9b76dd3581cb13052741907d0fad8357553536`; Backend `fa995bf462aa8135d24f4e9e7059bc24f6992622`; UI `5e86bf3ab5cd8faaadc44e7dbe1bc2fe9fc76f5a`.
-- Exact-current Develop canonical Quality: `34601243038@b26eea46c89a8b628c2006d24d1fdac7492baa91 = IN_PROGRESS`; no PASS/FAIL is inferred until completion.
-- Previous completed Develop canonical: `34596386099@dfa4a81b4c650339a16be5f60f87804e7cf6a68b = SUCCESS`.
-- Current Spec/Core exact canonical: `34598764602@2a9b76dd3581cb13052741907d0fad8357553536 = FAILURE`, isolated to Ruff `I001` in `src/athena/knowledge/revision_diff.py`; specification validator, mypy, pytest, Linux storage, Windows path/storage/runtime/release guards and local-install smoke passed.
-- `postmerge/errors@eaf707a9429b6c67b7d436d64d362b30fac97126` had zero workflow runs immediately before this mutation.
+- Develop source of truth: `develop/pathena-next@2ac4a605853fdc82b320f97b96494f3e17eaffa7`.
+- Error worker entered this run at `postmerge/errors@685db6e76d68b32c620192d123edcb902e9b267a`.
+- Current workers: Spec/Core `5cbd31a5cf46c7cfcb75411d8216b3890aa5dec4`; Backend `195814616f394e1794aa4f3b2a16a584c092ab31`; UI `7f33ae92ec84d6a82052e4196bdd74c829fdf079`.
+- Exact-current Develop canonical Quality: `34607013250@2ac4a605853fdc82b320f97b96494f3e17eaffa7 = IN_PROGRESS`; no PASS/FAIL is inferred until completion.
+- Previous completed Develop canonical: `34601243038@b26eea46c89a8b628c2006d24d1fdac7492baa91 = SUCCESS`.
+- Current Spec/Core exact canonical: `34603615414@5cbd31a5cf46c7cfcb75411d8216b3890aa5dec4 = FAILURE`.
+- Current Spec/Core exact focused candidate: `34603615415@5cbd31a5cf46c7cfcb75411d8216b3890aa5dec4 = FAILURE`; the exact-head Ruff job failed, so no exact-head focused-test closure exists.
+- `postmerge/errors@685db6e76d68b32c620192d123edcb902e9b267a` had zero check runs immediately before this mutation.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current state
@@ -26,18 +27,18 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - STALE: `ERR-0014`, `ERR-0025`, `ERR-0026`, `ERR-0028`, `ERR-0029`.
 - BLOCKED: none at top level.
 
-## ERR-0038 — Spec/Core canonical Ruff import-order failure blocks integration
+## ERR-0038 — Spec/Core exact-head Ruff failure blocks integration
 
 - Severity: P1 integration blocker.
 - Status: `OPEN`.
 - Specialist owner: Spec/Core. Errors does not parallel-mutate Core product code while that worker owns the candidate.
-- Exact reproduction: canonical Quality `34598764602` checked out exact candidate `2a9b76dd3581cb13052741907d0fad8357553536` and failed only `Quality — Ruff`.
-- Root cause is bounded and concrete: Ruff reports `I001 [*] Import block is un-sorted or un-formatted` at `src/athena/knowledge/revision_diff.py:3:1`. The shown import block places `import uuid` before `from dataclasses import dataclass` / `from enum import Enum` / `from typing import TypeAlias`; Ruff requires the standard-library imports to be organized.
-- The failure is not a product-behavior regression: specification validator passed; mypy passed; full pytest passed with `4855 passed, 3 skipped`; Linux storage, Windows path safety/release guards, and local-install smoke also passed. Therefore the cascade is deduplicated to one formatting/lint root cause, not multiple failures.
-- Integration impact is current and direct: the Integrator explicitly holds the current Spec/Core candidate until exact-head lint evidence is green. This supersedes historical priority ordering for this run because it is a current exact-SHA canonical failure.
-- Minimal repair belongs to Spec/Core: organize only the import block in `src/athena/knowledge/revision_diff.py` (for example the Ruff-prescribed ordering), then run focused Ruff on the changed file and the smallest relevant revision-diff test set before exact-head/canonical verification as required by the worker workflow.
-- Errors intentionally made no Core product mutation and did not rerun canonical Quality while the specialist owns the same root cause.
-- Closure requirement: exact Spec/Core candidate evidence showing Ruff green for the corrected file and no regression in focused revision-diff tests; canonical exact-SHA success is required before promotion/`FIXED` because the defect was discovered by canonical Quality.
+- Prior exact reproduction: canonical Quality `34598764602@2a9b76dd3581cb13052741907d0fad8357553536 = FAILURE`, isolated to Ruff `I001` in `src/athena/knowledge/revision_diff.py` while specification validator, mypy, pytest and platform lanes were otherwise green.
+- New completed evidence: Spec/Core advanced to `5cbd31a5cf46c7cfcb75411d8216b3890aa5dec4` with commit message `fix(core): close revision diff lint regression`, but exact canonical `34603615414` still failed and exact focused candidate `34603615415` also failed its Ruff job. Therefore the attempted repair is not closure evidence and `ERR-0038` remains current.
+- Source inspection of exact head `5cbd31a5...` shows the same standard-library import shape at the top of `revision_diff.py`: `import uuid` followed by `from dataclasses import dataclass`, `from enum import Enum`, and `from typing import TypeAlias`. Because the exact focused Ruff job still rejects this candidate, the specialist must consume the exact Ruff diagnostic rather than treating the commit message as proof of a fix.
+- The candidate is bounded to `src/athena/knowledge/revision_diff.py` plus `tests/unit/test_claim_revision_diff.py`; no broad cross-worker cascade is inferred.
+- Integrator evidence explicitly holds this Spec/Core candidate until exact-head Ruff and focused pytest are both observable and green. The focused workflow was subsequently improved on Develop to make Ruff and focused pytest independently observable while preserving a fail-closed aggregate result, but that workflow change does not retroactively qualify `5cbd31a5...`.
+- Errors intentionally made no Core product mutation and did not start canonical Quality while Develop already has `34607013250` in progress.
+- Closure requirement: a newer exact Spec/Core SHA with Ruff green for the bounded diff, relevant revision-diff focused tests green, and canonical exact-SHA success before `ERR-0038 = FIXED`.
 
 ## ERR-0033 — Emergency-reserve filesystem-object identity and capacity-attestation gap
 
