@@ -21,6 +21,13 @@ def _create_valid_database(path: Path) -> None:
     database.stop()
 
 
+def _remove_sidecars(path: Path) -> None:
+    for suffix in ("-wal", "-shm"):
+        sidecar = path.with_name(f"{path.name}{suffix}")
+        if sidecar.exists() or os.path.lexists(sidecar):
+            sidecar.unlink()
+
+
 def test_preflight_report_binds_primary_wal_and_shm_snapshot(tmp_path: Path) -> None:
     path = tmp_path / "athena.db"
     _create_valid_database(path)
@@ -40,6 +47,7 @@ def test_writer_start_rejects_sidecar_mutation_after_preflight(
 ) -> None:
     path = tmp_path / "athena.db"
     _create_valid_database(path)
+    _remove_sidecars(path)
     real_preflight = inspect_database_read_only
     injected = False
 
@@ -47,8 +55,6 @@ def test_writer_start_rejects_sidecar_mutation_after_preflight(
         nonlocal injected
         report = real_preflight(candidate)
         wal = candidate.with_name(f"{candidate.name}-wal")
-        if wal.exists() or os.path.lexists(wal):
-            wal.unlink()
         wal.write_bytes(b"post-preflight sidecar substitution")
         injected = True
         return report
@@ -71,18 +77,19 @@ def test_writer_start_rejects_primary_replacement_during_connect(
     path = tmp_path / "athena.db"
     replacement = tmp_path / "replacement.db"
     _create_valid_database(path)
+    _remove_sidecars(path)
     shutil.copy2(path, replacement)
-    real_connect = database_module.sqlite3.connect
+    real_open_writer = database_module._open_writer_connection
     replaced = False
 
-    def replacing_connect(*args: object, **kwargs: object):
+    def replacing_writer(candidate: Path, *, busy_timeout_ms: int):
         nonlocal replaced
         if not replaced:
-            os.replace(replacement, path)
+            os.replace(replacement, candidate)
             replaced = True
-        return real_connect(*args, **kwargs)  # type: ignore[arg-type]
+        return real_open_writer(candidate, busy_timeout_ms=busy_timeout_ms)
 
-    monkeypatch.setattr(database_module.sqlite3, "connect", replacing_connect)
+    monkeypatch.setattr(database_module, "_open_writer_connection", replacing_writer)
     database = SQLiteDatabase(path)
 
     with pytest.raises(DatabaseRecoveryRequiredError, match="primary filesystem identity changed"):
