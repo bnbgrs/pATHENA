@@ -116,6 +116,9 @@ function Get-PathenaUvVersion {
     if (-not $version) {
         return $null
     }
+    if ($version -match '^uv\s+(?<version>[0-9]+\.[0-9]+\.[0-9]+)(?:\s+\([^\r\n]*\))?$') {
+        return "uv $($Matches.version)"
+    }
     return $version
 }
 
