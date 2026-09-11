@@ -42,6 +42,15 @@ def _nonnegative_int(value: object, field_name: str) -> int:
     return value
 
 
+def _open_writer_connection(path: Path, *, busy_timeout_ms: int) -> sqlite3.Connection:
+    """Open the writable SQLite handle after preflight continuity is fenced."""
+    return sqlite3.connect(
+        path,
+        timeout=busy_timeout_ms / 1_000.0,
+        autocommit=True,
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class DatabaseReadSnapshot:
     data_version: int
@@ -100,10 +109,9 @@ class SQLiteDatabase:
         preflight = inspect_database_read_only(self.path)
         assert_database_preflight_current(preflight)
 
-        connection = sqlite3.connect(
+        connection = _open_writer_connection(
             self.path,
-            timeout=self.busy_timeout_ms / 1_000.0,
-            autocommit=True,
+            busy_timeout_ms=self.busy_timeout_ms,
         )
         connection.row_factory = sqlite3.Row
 
