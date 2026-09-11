@@ -23,6 +23,7 @@ def test_help_is_shell_hosted_without_extending_primary_page_stack() -> None:
         window.navigation.setCurrentRow(2)
         app.processEvents()
         primary_page_count = window.pages.count()
+        original_inspector_id = window.inspector_object_id.text()
         assert primary_page_count == window.navigation.count() == 7
         assert window.pages.currentIndex() == 2
 
@@ -51,8 +52,30 @@ def test_help_is_shell_hosted_without_extending_primary_page_stack() -> None:
         assert window.navigation.currentRow() == 2
         assert window.page_title.text() == "Help"
         assert window.property("pathenaHelpWorkspaceVisible") is True
-        assert app.focusWidget() is palette.help_text
+        assert app.focusWidget() is controller.help_query
+        assert controller.help_sections.count() > 1
+        assert controller.help_capabilities.count() == len(controller.snapshot().capabilities)
+        assert controller.help_query.placeholderText() == "Search help…"
+        assert window.inspector_object_id.text() == "HELP / LIVE"
+        assert window.inspector_heading.text() == "Quick shortcuts"
+        assert "Ctrl K" in window.inspector_provenance.text()
+        assert "F1" in window.inspector_provenance.text()
+        assert "generated from active capabilities" in window.inspector_provenance.text()
         assert "pATHENA capabilities" in palette.help_text.toPlainText()
+
+        first_capability = controller.snapshot().capabilities[0]
+        controller.help_query.setText(first_capability.label)
+        app.processEvents()
+        visible_items = [
+            controller.help_capabilities.item(index)
+            for index in range(controller.help_capabilities.count())
+            if not controller.help_capabilities.item(index).isHidden()
+        ]
+        assert visible_items
+        assert all(
+            first_capability.label.casefold() in item.text().casefold()
+            for item in visible_items
+        )
 
         palette.help_dialog.hide()
         app.processEvents()
@@ -62,6 +85,7 @@ def test_help_is_shell_hosted_without_extending_primary_page_stack() -> None:
         assert window.navigation.currentRow() == 2
         assert window.page_title.text() == "Research"
         assert window.property("pathenaHelpWorkspaceVisible") is False
+        assert window.inspector_object_id.text() == original_inspector_id
     finally:
         controller.deleteLater()
         palette.deleteLater()
@@ -95,6 +119,9 @@ def test_f1_shortcut_uses_transient_shell_help_without_changing_route() -> None:
         assert window.pages.count() == primary_page_count == 7
         assert window.pages.currentIndex() == current_page == 1
         assert window.navigation.currentRow() == 1
+        assert controller.help_query.isVisible()
+        assert controller.help_capabilities.isVisible()
+        assert window.inspector_object_id.text() == "HELP / LIVE"
     finally:
         controller.deleteLater()
         palette.deleteLater()
