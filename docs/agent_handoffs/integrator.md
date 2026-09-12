@@ -3,26 +3,31 @@
 ## Current integration
 
 - Integration target: `develop/pathena-next`.
-- Develop parent before this integration: `452547ab46c5d8c678c22c3e1fb9d34652b653fd`.
-- Exact parent canonical Quality: `34703645964 = SUCCESS`.
-- Worker heads checked: Errors `93be775e26a73a57a67fc3ca6d94a65348793e00`; Spec/Core `39360af3da29101e3038447121ad8d80d11b9f07`; Backend `c98263ffd225d62525b859b041652922b3f07c69`; UI `8f28414d1d8649796f1e6ea2e82abf43370e7328`.
+- Develop parent before this integration: `b8afe9661387c4a1a3d65f539c39ca772f37329c`.
+- Exact parent canonical Quality: `34710920451 = SUCCESS`.
+- Worker heads checked: Errors `3e3915d5cb0c3964661db1fcef100f98664915c1`; Spec/Core `f86df7dc1b4f4be5aeb2000986eb7965cafa8dcb`; Backend `956cffa5dca29cbf5af71fd6e06bd87f2a79b4cc`; UI `460e35e74d8c529a5880356bf30b9099d80e39de`.
 
 ## Worker qualification
 
-- Backend exact `c98263ffd225d62525b859b041652922b3f07c69`: Backend Focused Candidate `34705432550 = SUCCESS`; canonical Quality `34705432539 = SUCCESS`. Compared with current Develop, the bounded product delta is only `src/athena/jobs/schedule_recovery.py` and `tests/unit/test_schedule_recovery.py`. READY and integrated.
-- Spec/Core exact `39360af3da29101e3038447121ad8d80d11b9f07`: Core Focused Candidate `34704710587 = FAILURE`; canonical Quality `34704710609 = FAILURE`. NOT READY.
-- UI exact `8f28414d1d8649796f1e6ea2e82abf43370e7328`: Core Focused Candidate is red and canonical Quality was still running at qualification time. NOT READY.
-- Errors current head is evidence/handoff maintenance; no independent Error-owned product mutation is imported.
+- Spec/Core exact `f86df7dc1b4f4be5aeb2000986eb7965cafa8dcb`: NOT READY. Core Focused remains red on one Ruff I001 while six focused behavior tests pass.
+- Backend exact `956cffa5dca29cbf5af71fd6e06bd87f2a79b4cc`: NOT READY. Backend Focused is green but Storage Focused is red on the sidecar identity-continuity guard; Storage/Recovery promotion remains conservative.
+- UI exact `460e35e74d8c529a5880356bf30b9099d80e39de`: UI Focused Candidate is green; canonical Quality is still active at qualification time, so no UI slice is promoted yet.
+- Errors current handoff reports `ERR-0042`, `ERR-0043`, and `ERR-0044`; its baselines are older than current Develop and are treated as diagnostic evidence, not sole current truth.
 
-## Integrated bounded slice
+## Cross-cutting integration
 
-Integrated durable schedule recovery enumeration. Recovery first derives due occurrences, reconciles them against the deterministic persisted occurrence job identity, fails closed if an existing identity is bound to another job type or actor, then applies the configured missed-run policy only to still-missing occurrences. Disabled schedules return no recoverable work; future occurrences are excluded by the existing schedule-policy boundary.
+This integration adds a regression test for the Core Focused candidate workflow repair already present on Develop. The test locks the exact non-deletion diff selection and tracked-worktree remediation invariants so `ERR-0044` cannot silently regress:
 
-The slice does not change schema, migration, transaction ownership, materialization identity, retry/fencing, Security, UI, packaging or runtime topology.
+- all three Core Python diff selections must use `--diff-filter=ACMR`;
+- the former deletion-inclusive selector is forbidden;
+- remediation cleanliness must ignore untracked evidence only, while tracked mutations remain visible;
+- immutable reset and exact candidate restoration remain required.
+
+No Product, Storage, Recovery, Security, UI, packaging, runtime-topology, Skip/XFail, assertion, or canonical-gate semantics are relaxed.
 
 ## Current evidence rules
 
-- `docs/agent_logs/ERROR_LEDGER.md` remains historical relative to current Develop and is not the sole authority for current OPEN state.
+- `docs/agent_logs/ERROR_LEDGER.md` is historical relative to current Develop and is not the sole authority for current OPEN state.
 - `docs/agent_logs/ALPHA_BETA_PROGRESS.md` is maintained without invented completion percentages.
 - Historical signatures are not reopened without current exact-SHA reproduction.
 - `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` and `docs/ui/VISUAL_GAP_LEDGER.md` remain fail-closed; no screenshot `MATCH` is inferred without opened original reference plus a real exact-SHA render.

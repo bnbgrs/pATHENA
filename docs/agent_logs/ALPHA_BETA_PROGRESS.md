@@ -4,28 +4,28 @@ Evidence-only progress register for `develop/pathena-next`. This file intentiona
 
 ## Current baseline
 
-- Develop parent before the current integration: `452547ab46c5d8c678c22c3e1fb9d34652b653fd`.
-- Exact parent canonical Quality: `34703645964 = SUCCESS`.
+- Develop parent before the current integration: `b8afe9661387c4a1a3d65f539c39ca772f37329c`.
+- Exact parent canonical Quality: `34710920451 = SUCCESS`.
 - Current worker heads checked:
-  - Errors: `93be775e26a73a57a67fc3ca6d94a65348793e00`
-  - Spec/Core: `39360af3da29101e3038447121ad8d80d11b9f07`
-  - Backend: `c98263ffd225d62525b859b041652922b3f07c69`
-  - UI: `8f28414d1d8649796f1e6ea2e82abf43370e7328`
+  - Errors: `3e3915d5cb0c3964661db1fcef100f98664915c1`
+  - Spec/Core: `f86df7dc1b4f4be5aeb2000986eb7965cafa8dcb`
+  - Backend: `956cffa5dca29cbf5af71fd6e06bd87f2a79b4cc`
+  - UI: `460e35e74d8c529a5880356bf30b9099d80e39de`
 
 ## Current integration state
 
-- Durable schedule identity primitives and scheduled-job materialization remain integrated on Develop.
+- Durable schedule identity primitives, scheduled-job materialization, and durable schedule recovery remain integrated on Develop.
 - Source-free user Knowledge, user-correction conflict visibility, and truthful Knowledge provenance explanation remain integrated.
 - Fail-closed release-readiness assessment remains integrated.
-- Current integration adds durable schedule recovery enumeration from Backend exact `c98263ffd225d62525b859b041652922b3f07c69`, backed by Backend Focused Candidate `34705432550 = SUCCESS` and canonical Quality `34705432539 = SUCCESS`.
-- Recovery reconciles deterministic occurrence IDs against durable jobs before applying missed-run policy; identity collisions fail closed.
+- Core Focused candidate selection already excludes deleted paths and preserves tracked-worktree remediation guards.
+- Current cross-cutting slice adds a repository regression test that locks those workflow invariants against silent reintroduction of deletion-inclusive selection or dirty tracked remediation.
 
 ## Worker readiness snapshot
 
-- Backend schedule-recovery slice is exact-green and integrated here.
-- Spec/Core current head is blocked by exact red focused and canonical runs.
-- UI current head is not READY: focused evidence is red and canonical evidence was incomplete at qualification time.
-- Errors current head is evidence/handoff maintenance only.
+- Spec/Core exact `f86df7dc1b4f4be5aeb2000986eb7965cafa8dcb` is NOT READY: focused behavior tests pass but exact Ruff I001 remains.
+- Backend exact `956cffa5dca29cbf5af71fd6e06bd87f2a79b4cc` is NOT READY: Backend Focused is green while Storage Focused is red on sidecar identity continuity.
+- UI exact `460e35e74d8c529a5880356bf30b9099d80e39de` has green UI Focused evidence but canonical Quality is still active, so no stale READY classification is made.
+- Errors evidence remains useful for root-cause classification but its documented baseline trails current Develop.
 
 ## Error and visual truth rules
 
