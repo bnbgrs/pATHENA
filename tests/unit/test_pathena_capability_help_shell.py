@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QApplication, QFrame
+from PySide6.QtWidgets import QApplication, QFrame, QLabel
 
 from athena.desktop.app import create_application
 from athena.desktop.command_palette import CommandPaletteController
@@ -64,6 +64,7 @@ def test_help_is_shell_hosted_without_extending_primary_page_stack() -> None:
         assert controller.help_sections.count() > 1
         assert controller.help_capabilities.count() == len(controller.snapshot().capabilities)
         assert controller.help_query.placeholderText() == "Search help…"
+        assert controller.help_capabilities.spacing() == 6
         assert window.inspector_object_id.text() == "HELP / LIVE"
         assert window.inspector_heading.text() == "Quick shortcuts"
         assert "Ctrl K" in window.inspector_provenance.text()
@@ -72,6 +73,26 @@ def test_help_is_shell_hosted_without_extending_primary_page_stack() -> None:
         assert "pATHENA capabilities" in palette.help_text.toPlainText()
 
         first_capability = controller.snapshot().capabilities[0]
+        first_item = controller.help_capabilities.item(0)
+        first_row = controller.help_capabilities.itemWidget(first_item)
+        assert first_row is not None
+        assert first_row.objectName() == "helpCapabilityRow"
+        assert first_item.sizeHint().height() >= 76
+        row_title = first_row.findChild(QLabel, "helpCapabilityTitle")
+        row_summary = first_row.findChild(QLabel, "helpCapabilitySummary")
+        row_state = first_row.findChild(QLabel, "helpCapabilityState")
+        assert row_title is not None
+        assert row_summary is not None
+        assert row_state is not None
+        assert row_title.text() == first_capability.label
+        assert row_summary.text() == first_capability.summary
+        assert row_state.text() == first_capability.availability.value.replace(
+            "_", " "
+        ).upper()
+        assert first_row.property("pathenaCapabilityAvailability") == (
+            first_capability.availability.value
+        )
+
         controller.help_query.setText(first_capability.label)
         app.processEvents()
         visible_items = [

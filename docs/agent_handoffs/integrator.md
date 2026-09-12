@@ -1,30 +1,31 @@
 # Post-Merge Feature Handoff - Integrator
 
-Generated: 2026-09-12T00:53+02:00
+Generated: 2026-09-12T01:49+02:00
 Branch: `develop/pathena-next`
-Run-start HEAD: `e008e0fbf595da64bea64eb557dddeb2cd78bed0`
+Run-start HEAD: `c0f523921a460137aef7b59d9d703a3f8ce94225`
 
 ## Current evidence
 
 - `main` and `bnbgrs/ATHENA` remain strictly read-only and untouched.
-- Exact Develop canonical Quality `34651263616@e008e0fbf595da64bea64eb557dddeb2cd78bed0 = SUCCESS` before mutation; no queued/in-progress Develop Quality blocked this integration.
-- Worker heads reviewed: Errors `3e2e7fa777ac448385846a5855c0bc98e5bd687d`; Spec/Core `d47634453d63cad0b21fb6d370c95602b0d0a286`; Backend `32485db642d71ec2caef8b49adc35ac2132aa651`; UI `e5801b57ca2c4bc62929382427ded0d0e51d55fd`.
-- Backend handoff identifies bounded Job-admission product/test files with exact product-fix Quality `34649389103 = SUCCESS`, Backend Focused `34649389152 = SUCCESS`, and synchronized worker verification `04c1609279297fb6b829cb8a96939eca5187c8ab` with Quality `34649415338 = SUCCESS`.
-- Current Error handoff keeps `ERR-0033 / BE-046`, `ERR-0035 / BE-052`, and Spec/Core `ERR-0039` open; this integration does not touch their Storage/Recovery/Core root causes.
+- Exact Develop canonical Quality `34656021355@c0f523921a460137aef7b59d9d703a3f8ce94225 = SUCCESS` before mutation; no queued/in-progress Develop Quality blocked this integration.
+- Worker heads reviewed: Errors `06069895fc703b1258b2d2cfe54fab96bc0a2769`; Spec/Core `d47634453d63cad0b21fb6d370c95602b0d0a286`; Backend `32485db642d71ec2caef8b49adc35ac2132aa651`; UI `4772c6aaf16a6eb570b891eae4fa8323d32b54ce`.
+- Current Error handoff reclassifies historical Core Ruff `ERR-0039` as STALE and keeps `ERR-0033 / BE-046` plus `ERR-0035 / BE-052` Backend-owned OPEN.
+- Spec/Core exact head `d47634453d63cad0b21fb6d370c95602b0d0a286` has canonical Quality `34653170296 = SUCCESS` and Core Focused Candidate `34653170251 = SUCCESS`.
+- The bounded current Core product commit modifies only `src/athena/knowledge/service.py` and `tests/unit/test_knowledge_service.py`; current Develop `knowledge/service.py` is byte-identical to the worker parent for that file, establishing compatible baseline for this slice.
 - `docs/agent_logs/ERROR_LEDGER.md` remains historical relative to current Develop and is not used as sole current OPEN truth.
 - Root `ALPHA_BETA_PROGRESS.md` was not found on current Develop; no synthetic completion percentage is recorded.
 - Visual source of truth remains `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` plus `docs/ui/VISUAL_GAP_LEDGER.md`; all eleven manifest slots remain `IMPLEMENTED_PENDING_VISUAL_REVIEW`, with no screenshot-level `MATCH` claim absent approved reference/current-render pairing.
 
 ## Product slice integrated this run
 
-Integrated only the bounded registry-backed durable Job admission slice from the exact-green Backend lineage:
+Integrated only the bounded Knowledge reclassification revision slice from exact-green Spec/Core lineage:
 
-- `src/athena/jobs/job_admission.py`
-- `tests/unit/test_job_admission.py`
+- `src/athena/knowledge/service.py`
+- `tests/unit/test_knowledge_service.py`
 
-The admission layer binds the already-integrated controlled Job Type Registry to durable admission while preserving existing validators and persistence boundaries. Built-ins delegate to the existing durable service; plugin types require registry membership plus an explicit handler. Unregistered types, built-in shadowing, duplicate handler binding, and registered plugins without handlers fail closed.
+`KnowledgeService.reclassify()` preserves the stable Knowledge identity and all payload fields except `knowledge_kind`, creates a new user-authored revision through the existing repository revision boundary, rejects invalid runtime kind values, and rejects no-op reclassification without creating a revision. The implementation keeps optimistic expected-revision enforcement and existing provenance/storage behavior through `KnowledgeRepository.revise_knowledge_unit()`.
 
-No Backend branch-history merge was performed. No Storage, Recovery, Security, Provider, TOR, filesystem or migration behavior changed.
+No Core branch-history merge was performed. No Backend, Storage, Recovery, Security, Provider, TOR, filesystem, migration or UI behavior changed.
 
 ## Persistent release guards
 
@@ -36,6 +37,6 @@ No Backend branch-history merge was performed. No Storage, Recovery, Security, P
 
 1. Consume canonical Quality for the resulting exact Develop SHA before any further Develop mutation.
 2. Re-read all worker heads and exact-SHA evidence after that gate completes.
-3. Keep Spec/Core blocked until its current exact candidate has acceptable focused + canonical evidence.
-4. Keep BE-046/BE-052 conservative until bounded exact-tested current candidates exist.
+3. Keep BE-046/BE-052 conservative until bounded exact-tested current candidates exist.
+4. Re-qualify UI after its current Develop-baseline synchronization; do not transfer older exact evidence onto the sync head without equivalent verification.
 5. Preserve visual `MATCH` fail-closed requirements.

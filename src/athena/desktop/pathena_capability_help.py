@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Callable
 
-from PySide6.QtCore import QEvent, QObject, Qt, QTimer
+from PySide6.QtCore import QEvent, QObject, QSize, Qt, QTimer
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -134,6 +134,7 @@ class CapabilityHelpController(QObject):
         self.help_capabilities.setHorizontalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
+        self.help_capabilities.setSpacing(6)
         content_layout.addWidget(self.help_capabilities, 1)
 
         body_layout.addWidget(navigation)
@@ -147,6 +148,53 @@ class CapabilityHelpController(QObject):
         self.help_query.textChanged.connect(self._apply_help_filter)
         self.help_sections.currentRowChanged.connect(self._apply_help_filter)
         self._refresh_hierarchy(self.snapshot())
+
+    def _build_capability_row(self, capability: ResolvedCapability) -> QFrame:
+        """Build one spacious read-only row from a resolved live capability."""
+        state = capability.availability.value
+        row = QFrame(self.help_capabilities)
+        row.setObjectName("helpCapabilityRow")
+        row.setProperty("pathenaCapabilityAvailability", state)
+        row.setMinimumHeight(76)
+        row.setAccessibleName(capability.label)
+        row.setAccessibleDescription(
+            f"{capability.summary} Availability: {state.replace('_', ' ')}."
+        )
+
+        row_layout = QVBoxLayout(row)
+        row_layout.setContentsMargins(14, 10, 14, 10)
+        row_layout.setSpacing(5)
+
+        title_line = QHBoxLayout()
+        title_line.setContentsMargins(0, 0, 0, 0)
+        title_line.setSpacing(12)
+
+        title = QLabel(capability.label, row)
+        title.setObjectName("helpCapabilityTitle")
+        title_font = title.font()
+        title_font.setBold(True)
+        title.setFont(title_font)
+        title.setAccessibleName(capability.label)
+        title_line.addWidget(title, 1)
+
+        availability = QLabel(state.replace("_", " ").upper(), row)
+        availability.setObjectName("helpCapabilityState")
+        availability.setProperty("pathenaUiState", state)
+        availability.setAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
+        availability.setAccessibleName(
+            f"Availability: {state.replace('_', ' ')}"
+        )
+        title_line.addWidget(availability)
+        row_layout.addLayout(title_line)
+
+        summary = QLabel(capability.summary, row)
+        summary.setObjectName("helpCapabilitySummary")
+        summary.setWordWrap(True)
+        summary.setAccessibleName(f"{capability.label} description")
+        row_layout.addWidget(summary)
+        return row
 
     def _fit_help_surface_to_workspace(self) -> None:
         help_surface = self.palette.help_dialog
@@ -225,6 +273,9 @@ class CapabilityHelpController(QObject):
                 capability.summary if state == "available" else capability.explanation
             )
             self.help_capabilities.addItem(item)
+            row = self._build_capability_row(capability)
+            item.setSizeHint(QSize(0, max(76, row.sizeHint().height())))
+            self.help_capabilities.setItemWidget(item, row)
 
         self.help_summary.setText(
             f"{len(snapshot.capabilities)} live commands · Catalogue {snapshot.version} · "
