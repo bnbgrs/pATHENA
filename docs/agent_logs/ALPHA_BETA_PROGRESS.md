@@ -4,25 +4,25 @@ Evidence-only progress register for `develop/pathena-next`. This file intentiona
 
 ## Current baseline
 
-- Develop parent before the current integration: `d8236b74e69d1eedfdd2b05a52ed767520246671`.
-- Exact parent canonical Quality: `34692305368 = SUCCESS`.
+- Develop parent before the current integration: `cfdcac0bd51973bc18343006a9fb02f6c098a3c0`.
+- Exact parent canonical Quality: `34694827693 = SUCCESS`.
 - Current worker heads checked:
-  - Errors: `531f78037fdb1d6c89e77393b5be0a53a63ac0b3`
-  - Spec/Core: `3f864f5dd02db350b8b0df3103e6cc9c09725a37`
-  - Backend: `359b675a37b5b59210399bee1506afddc6ccee13`
-  - UI: `dd0ad210baf9125d03b532cbac6c807e56e1e558`
+  - Errors: `82590b517a736f3b90709ee16a85e5ac15aeb911`
+  - Spec/Core: `23dc4c79f1e44cd099992eb23636b2c95014c790`
+  - Backend: `51ab9c428bfd69a6aa6fde5e8be6241de7873dca`
+  - UI: `11890ef6216ae44b9e4c222bc8d9016784792e74`
 
 ## Current integration state
 
-- Durable schedule identity primitives remain integrated on Develop.
-- Spec/Core user-correction conflict visibility remains integrated.
-- Backend scheduled-job materialization is integrated from exact head `359b675a37b5b59210399bee1506afddc6ccee13`, backed by Backend Focused `34693685313 = SUCCESS` and canonical Quality `34693685375 = SUCCESS`.
-- The ERR-0040 fixture root cause is repaired by using a file-backed canonical-schema SQLite fixture; no production journal-mode guard is relaxed.
-- UI current head remains unpromoted while its exact canonical/visual evidence is incomplete.
+- Durable schedule identity primitives and scheduled-job materialization remain integrated on Develop.
+- Spec/Core user-correction conflict visibility and source-free user Knowledge remain integrated.
+- No current worker head met the complete READY bar during this integration: Core focused gate failed at Ruff remediation despite focused unit tests passing; Backend canonical Quality remained in progress; UI canonical Quality remained in progress and cumulative Core Focused failed.
+- Added a cross-cutting fail-closed release-readiness assessment keyed to exact SHA and explicit guard evidence. Missing evidence remains a blocker rather than being inferred green.
 
 ## Error and visual truth rules
 
 - `docs/agent_logs/ERROR_LEDGER.md` is historical relative to current Develop and is not the sole authority for current OPEN state.
+- The Errors handoff had `ERR-0040 = FIXED_PENDING_VERIFY`; exact integrated Develop canonical Quality `34694827693` has now completed SUCCESS, so the historical fixture signature is not treated as OPEN absent a fresh reproduction.
 - Historical release-guard signatures are not reopened without current exact-SHA reproduction.
 - `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` and `docs/ui/VISUAL_GAP_LEDGER.md` remain fail-closed until an original reference and real exact-SHA render establish a truthful comparison. No `MATCH` is inferred from worker prose or metadata.
 
