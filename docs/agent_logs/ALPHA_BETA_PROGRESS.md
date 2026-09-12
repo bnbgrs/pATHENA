@@ -4,27 +4,28 @@ Evidence-only progress register for `develop/pathena-next`. This file intentiona
 
 ## Current baseline
 
-- Develop parent before the current integration: `5eecb5f937de9325a9673df5f1a23d2f1b5e87cf`.
-- Exact parent canonical Quality: `34706615596 = SUCCESS`.
+- Develop parent before the current integration: `b8afe9661387c4a1a3d65f539c39ca772f37329c`.
+- Exact parent canonical Quality: `34710920451 = SUCCESS`.
 - Current worker heads checked:
   - Errors: `3e3915d5cb0c3964661db1fcef100f98664915c1`
   - Spec/Core: `f86df7dc1b4f4be5aeb2000986eb7965cafa8dcb`
   - Backend: `956cffa5dca29cbf5af71fd6e06bd87f2a79b4cc`
-  - UI: `1c6c3475945c7ee0ba4d7514b81dd4d444d843e6`
+  - UI: `460e35e74d8c529a5880356bf30b9099d80e39de`
 
 ## Current integration state
 
 - Durable schedule identity primitives, scheduled-job materialization, and durable schedule recovery remain integrated on Develop.
 - Source-free user Knowledge, user-correction conflict visibility, and truthful Knowledge provenance explanation remain integrated.
 - Fail-closed release-readiness assessment remains integrated.
-- Current cross-cutting integration repairs the Core Focused candidate harness for deleted-path selection and diagnostic Ruff-remediation cleanliness while retaining exact-SHA, Ruff, focused-pytest, immutable-reset, and outcome-enforcement guards.
+- Core Focused candidate selection already excludes deleted paths and preserves tracked-worktree remediation guards.
+- Current cross-cutting slice adds a repository regression test that locks those workflow invariants against silent reintroduction of deletion-inclusive selection or dirty tracked remediation.
 
 ## Worker readiness snapshot
 
-- Spec/Core exact `f86df7dc1b4f4be5aeb2000986eb7965cafa8dcb` is NOT READY: Core Focused `34709904332 = FAILURE`; focused behavior tests pass but Ruff I001 remains current.
-- Backend exact `956cffa5dca29cbf5af71fd6e06bd87f2a79b4cc` is NOT READY: Backend Focused `34710537347 = SUCCESS`, Storage Focused `34710537370 = FAILURE`, and canonical Quality was still active at qualification time.
-- UI exact `1c6c3475945c7ee0ba4d7514b81dd4d444d843e6` is not imported: its lineage is broad/diverged and its Core Focused failure is attributable to the now-repaired deleted-path harness defect, not independently sufficient UI promotion evidence.
-- Errors reports current open clusters `ERR-0042`, `ERR-0043`, and `ERR-0044`; this integration addresses the repository-side `ERR-0044` workflow root cause but does not mark it verified until exact post-change evidence exists.
+- Spec/Core exact `f86df7dc1b4f4be5aeb2000986eb7965cafa8dcb` is NOT READY: focused behavior tests pass but exact Ruff I001 remains.
+- Backend exact `956cffa5dca29cbf5af71fd6e06bd87f2a79b4cc` is NOT READY: Backend Focused is green while Storage Focused is red on sidecar identity continuity.
+- UI exact `460e35e74d8c529a5880356bf30b9099d80e39de` has green UI Focused evidence but canonical Quality is still active, so no stale READY classification is made.
+- Errors evidence remains useful for root-cause classification but its documented baseline trails current Develop.
 
 ## Error and visual truth rules
 

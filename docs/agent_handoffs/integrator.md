@@ -3,28 +3,27 @@
 ## Current integration
 
 - Integration target: `develop/pathena-next`.
-- Develop parent before this integration: `5eecb5f937de9325a9673df5f1a23d2f1b5e87cf`.
-- Exact parent canonical Quality: `34706615596 = SUCCESS`.
-- Worker heads checked: Errors `3e3915d5cb0c3964661db1fcef100f98664915c1`; Spec/Core `f86df7dc1b4f4be5aeb2000986eb7965cafa8dcb`; Backend `956cffa5dca29cbf5af71fd6e06bd87f2a79b4cc`; UI `1c6c3475945c7ee0ba4d7514b81dd4d444d843e6`.
+- Develop parent before this integration: `b8afe9661387c4a1a3d65f539c39ca772f37329c`.
+- Exact parent canonical Quality: `34710920451 = SUCCESS`.
+- Worker heads checked: Errors `3e3915d5cb0c3964661db1fcef100f98664915c1`; Spec/Core `f86df7dc1b4f4be5aeb2000986eb7965cafa8dcb`; Backend `956cffa5dca29cbf5af71fd6e06bd87f2a79b4cc`; UI `460e35e74d8c529a5880356bf30b9099d80e39de`.
 
 ## Worker qualification
 
-- Spec/Core exact `f86df7dc1b4f4be5aeb2000986eb7965cafa8dcb`: Core Focused Candidate `34709904332 = FAILURE`; exact focused pytest passed six tests but Ruff still reports one I001. Canonical Quality `34709904327` was active at qualification time. NOT READY.
-- Backend exact `956cffa5dca29cbf5af71fd6e06bd87f2a79b4cc`: Backend Focused Candidate `34710537347 = SUCCESS`, but Storage Focused Candidate `34710537370 = FAILURE`; canonical Quality `34710537369` was active. Storage remains conservatively blocked. NOT READY.
-- UI exact `1c6c3475945c7ee0ba4d7514b81dd4d444d843e6`: UI Focused Candidate succeeded, but Core Focused failed because deleted Core/test paths were selected and the worker lineage is broad/diverged. No UI product slice is imported from this branch in this integration.
-- Errors handoff identifies current open clusters `ERR-0042` Core Ruff formatting, `ERR-0043` Storage sidecar identity continuity, and `ERR-0044` Core Focused workflow deleted-path/remediation harness behavior.
+- Spec/Core exact `f86df7dc1b4f4be5aeb2000986eb7965cafa8dcb`: NOT READY. Core Focused remains red on one Ruff I001 while six focused behavior tests pass.
+- Backend exact `956cffa5dca29cbf5af71fd6e06bd87f2a79b4cc`: NOT READY. Backend Focused is green but Storage Focused is red on the sidecar identity-continuity guard; Storage/Recovery promotion remains conservative.
+- UI exact `460e35e74d8c529a5880356bf30b9099d80e39de`: UI Focused Candidate is green; canonical Quality is still active at qualification time, so no UI slice is promoted yet.
+- Errors current handoff reports `ERR-0042`, `ERR-0043`, and `ERR-0044`; its baselines are older than current Develop and are treated as diagnostic evidence, not sole current truth.
 
 ## Cross-cutting integration
 
-This integration closes the repository-side root cause of `ERR-0044` in `.github/workflows/core-focused-candidate.yml` without weakening any test or gate:
+This integration adds a regression test for the Core Focused candidate workflow repair already present on Develop. The test locks the exact non-deletion diff selection and tracked-worktree remediation invariants so `ERR-0044` cannot silently regress:
 
-- changed Core Python selection now uses `git diff --diff-filter=ACMR --name-only`, excluding deleted paths while retaining added/copied/modified/renamed paths;
-- changed focused-test selection uses the same fail-closed non-deletion filter;
-- Ruff remediation selection uses the same filter;
-- remediation cleanliness checks now ignore only untracked files via `--untracked-files=no`, so the workflow's own `.focused-evidence` artifacts no longer block diagnostic remediation while tracked candidate mutations still fail the cleanliness guard;
-- the exact candidate SHA identity check, Ruff requirement, focused pytest requirement, immutable reset, diagnostics upload, and final outcome enforcement remain intact.
+- all three Core Python diff selections must use `--diff-filter=ACMR`;
+- the former deletion-inclusive selector is forbidden;
+- remediation cleanliness must ignore untracked evidence only, while tracked mutations remain visible;
+- immutable reset and exact candidate restoration remain required.
 
-No Product, Storage, Recovery, Security, UI, packaging, runtime-topology, Skip/XFail, or assertion semantics are relaxed.
+No Product, Storage, Recovery, Security, UI, packaging, runtime-topology, Skip/XFail, assertion, or canonical-gate semantics are relaxed.
 
 ## Current evidence rules
 
