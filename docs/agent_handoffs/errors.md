@@ -2,11 +2,11 @@
 
 ## Baseline
 
-- Develop: `915668a376390d86fb333291f555eb804dfa4358` (`feat(backend): integrate schedule codec and startup identity hardening`).
-- Develop canonical Quality `34718446158@915668a376390d86fb333291f555eb804dfa4358 = IN_PROGRESS`; no competing run started by Errors.
-- Previous Develop `54c990285503e5076d31f46408ef530b9f02de28` canonical `34715466882 = SUCCESS`.
-- Errors worker entered this run at `cbcb9f60981484554d39f614308b32b67f378787`; before mutation that exact SHA had zero workflow runs.
-- Current workers: Spec/Core `47053f798bae152f676e9ff4be22ca4c6c06a6a8`; Backend `c40be5764e600fe961bc3aeaf39c17f91100e34f`; UI `8b38c1a501789cbfb7c76b1ee1acef999270fa13`.
+- Develop: `1213c49a391f4ffed6f64d63bcf1527a21adf071` (`fix(storage): accept validated WAL sidecar withdrawal`).
+- Develop canonical Quality `34721255765@1213c49a391f4ffed6f64d63bcf1527a21adf071 = IN_PROGRESS`; no competing run started by Errors.
+- Superseded Develop `915668a376390d86fb333291f555eb804dfa4358` canonical `34718446158 = FAILURE`; all static checks, Linux Storage, Local Install and Windows release guards passed, while Full Pytest exposed the legitimate complete WAL+SHM withdrawal false positive now handled by current Develop.
+- Errors worker entered this run at `5907ea74435c0529fe93da00febc63b9a40ae23d`; exact branch had zero workflow runs before mutation.
+- Current workers: Spec/Core `2d92eec5c63234ab2af85ac8a06617043723a707`; Backend `c185967474ebd603a21fb697caa9f9aa1cd43034`; UI `0e5e03b6c3885d700f4d9f34b45e20b834e5796e`.
 - `main` and `bnbgrs/ATHENA` remain read-only.
 
 ## Current error state
@@ -17,85 +17,80 @@
 - FIXED: `ERR-0044`, `ERR-0041`, `ERR-0040`, `ERR-0035`, `ERR-0033` and prior closed clusters.
 - STALE: `ERR-0038`, `ERR-0039` and prior stale clusters.
 
-## ITERATION-1 — ERR-0042 owner repair verified
-
-`ERR-0042 = FIXED_PENDING_VERIFY / P1`.
-
-Spec/Core advanced from the historical red revision-change candidate to exact `47053f798bae152f676e9ff4be22ca4c6c06a6a8` (`fix(core): normalize revision explanation test import block`). Exact owner verification is now complete:
-
-- Core Focused `34716645679 = SUCCESS`.
-- canonical Quality `34716645678 = SUCCESS`.
-
-The historical one-line Ruff `I001` is therefore repaired owner-side. Do not keep it OPEN from older runs. It is not `FIXED` yet because current Develop does not contain proven integration of this Spec/Core repair. Integrate the exact verified repair, then require canonical success on the resulting Develop SHA.
-
-## ITERATION-2 — ERR-0043 integrated, waiting only Develop canonical
+## ITERATION-1 — ERR-0043 root-cause boundary refined on integrated exact SHA
 
 `ERR-0043 = FIXED_PENDING_VERIFY / P1`.
 
-Backend synchronized to exact `c40be5764e600fe961bc3aeaf39c17f91100e34f`; exact qualification is fully green:
+The superseded integrated Develop exact `915668a376390d86fb333291f555eb804dfa4358` did not fail on the historical foreign-sidecar replacement reproducer. Its canonical `34718446158` failed only in Full Pytest, specifically `test_two_scheduler_processes_consume_one_retry_budget_slot`: concurrent startup rejected a legitimate lifecycle where a previously validated complete WAL+SHM pair disappeared together while the primary DB identity stayed unchanged. The exception propagated as `DatabaseStartupIdentityChangedError` through storage bootstrap and caused both scheduler processes to exit.
 
-- Backend Focused `34717283972 = SUCCESS`.
-- Storage Focused `34717283988 = SUCCESS`.
-- canonical Quality `34717283963 = SUCCESS`.
+Backend isolated and fixed that adjacent false positive on exact `0ca66fceb78bf7744f12029430780c7cb20be72f`:
 
-Integrator handoff for Develop `915668a376390d86fb333291f555eb804dfa4358` explicitly states that `src/athena/storage/database.py` now accepts only a complete concurrent WAL+SHM publication for the same primary identity, re-inspects before acceptance, and keeps partial/foreign changes fail-closed. The bounded tests were integrated with it. No Storage/Recovery guard is relaxed.
+- Storage Focused `34720329575 = SUCCESS`.
+- canonical Quality `34720329568 = SUCCESS`.
 
-Only final integrated canonical verification remains: `34718446158@915668a...` is still running. Mark `FIXED` only if it completes SUCCESS.
+Integrator copied the bounded two-file delta into current Develop `1213c49a391f4ffed6f64d63bcf1527a21adf071`. The accepted case is only complete WAL+SHM withdrawal with unchanged primary identity; partial changes, foreign replacement, primary replacement and unstable revalidation remain fail-closed.
 
-## ITERATION-3 — ERR-0045 integrated, waiting only Develop canonical
+Current Develop canonical `34721255765` is still running. Linux Storage, Local Install and Windows release-guard jobs are already green. Do not mark `FIXED` until the exact whole run is SUCCESS.
+
+## ITERATION-2 — ERR-0045 advances on current integration
 
 `ERR-0045 = FIXED_PENDING_VERIFY / P2`.
 
-The valid sidecar-free test fixture is carried through the same fully green Backend exact `c40be5764e600fe961bc3aeaf39c17f91100e34f` and included in the bounded Develop integration `915668a...`. Backend Focused, Storage Focused and canonical are all green on the owner head.
+The absent-sidecar fixture repair remains carried by the same storage lineage, and current Develop `1213c49a...` has its Linux Storage job green. No Storage/Recovery guard was loosened. The only remaining closure condition is whole canonical SUCCESS on `34721255765@1213c49a...`.
 
-Only `34718446158@915668a...` remains before final closure. No test, Storage, Recovery or startup guard was weakened.
+## ITERATION-3 — ERR-0042 owner current-exact green, integration still absent
 
-## ITERATION-4 — ERR-0046 re-reproduced on newest UI exact SHA
+`ERR-0042 = FIXED_PENDING_VERIFY / P1`.
+
+Current Spec/Core exact is now `2d92eec5c63234ab2af85ac8a06617043723a707` and is fully owner-green:
+
+- Core Focused `34719455494 = SUCCESS`.
+- canonical Quality `34719455510 = SUCCESS`.
+
+The historical revision-change Ruff `I001` is not reproduced on this current owner SHA. However, current Develop `1213c49a...` does not contain `tests/unit/test_revision_change_explanation.py`; compare shows that revision-change slice is still added only on Spec/Core. Therefore owner repair is verified but not integrated. Keep `FIXED_PENDING_VERIFY`, not `FIXED` and not `OPEN`.
+
+## ITERATION-4 — ERR-0046 re-reproduced more strongly on newest UI exact
 
 `ERR-0046 = OPEN / P2`.
 
-The previous UI reproducer is superseded by newer exact `postmerge/ui@8b38c1a501789cbfb7c76b1ee1acef999270fa13`:
+Newest exact reproducer is `postmerge/ui@0e5e03b6c3885d700f4d9f34b45e20b834e5796e`:
 
-- UI Focused `34717682781 = SUCCESS`.
-- canonical Quality `34717682751 = SUCCESS`.
-- Core Focused `34717682759 = FAILURE`.
+- UI Focused `34721263621 = SUCCESS`.
+- Core Focused `34721263642 = FAILURE`.
+- UI canonical `34721263617 = IN_PROGRESS`.
 
-Downloaded exact Core diagnostics show:
+Downloaded exact Core-Focused diagnostics strengthen the same harness root cause:
 
-- Ruff: `All checks passed!`.
-- focused pytest selects only `tests/unit/test_pathena_comfyui_shell.py` and `tests/unit/test_pathena_pallas_full_view.py`.
-- both modules are skipped at collection because `PySide6` is absent.
-- result: `2 skipped`, then the final outcome gate correctly refuses SUCCESS.
+- `test_pathena_layout_refinement_2200.py` is selected by Core Focused and fails during collection with `ModuleNotFoundError: No module named 'PySide6'`.
+- `test_pathena_comfyui_shell.py` and `test_pathena_pallas_full_view.py` are selected and skipped because the same UI runtime is absent.
+- A separate Ruff `I001` is present in `test_pathena_layout_refinement_2200.py`; do not open another cluster unless the current UI canonical reproduces it as a canonical blocker after completion.
 
-This is stronger deduplication evidence than the prior run: the same exact UI SHA is fully green in both UI Focused and canonical Quality, so no UI product regression should be opened.
+This is not a reason to weaken the final Core lane outcome gate. The safe repair remains ownership-correct selection: Core Focused must select only Core-owned test patterns, while preserving deleted-file filtering, tracked-worktree fail-closed Ruff remediation and genuine Core-failure propagation.
 
-Current Develop `core-focused-candidate.yml` still selects every changed `tests/unit/test_*.py` for focused pytest while the workflow trigger itself is Core-scoped and the lane installs only `--extra dev`. The root cause is therefore still current harness ownership selection.
+## ITERATION-5 — current worker/canonical discipline
 
-Safe repair remains narrow: make focused pytest selection mirror explicit Core-owned patterns (claim, knowledge, concept-note, identity-transition, temporal) or another explicit Core allowlist. Preserve deleted-file filtering, tracked-worktree fail-closed Ruff remediation, and final outcome enforcement. Never treat skipped-only execution as success.
+Backend has advanced to exact `c185967474ebd603a21fb697caa9f9aa1cd43034`: Backend Focused `34721362133 = SUCCESS`, canonical `34721361998 = IN_PROGRESS`. No parallel Backend mutation or competing canonical was started.
 
-Closure requires both: (1) an exact UI-only change where these UI tests are no longer selected by Core Focused, and (2) a negative-control Core test failure that still makes the lane fail, followed by integrated canonical success.
-
-## ITERATION-5 — current Develop gate discipline
-
-Current Develop `915668a...` canonical `34718446158` remains `IN_PROGRESS`. No duplicate canonical run was started. The run is the closure gate for integrated `ERR-0043` and `ERR-0045`; it must be consumed before another Develop-side closure claim.
+UI canonical `34721263617` and Develop canonical `34721255765` are also still running. Their wait time was used read-only to refine `ERR-0043`, verify current Spec/Core, and strengthen `ERR-0046` evidence.
 
 ## Integrator handoff
 
-- `ERR-0042 = FIXED_PENDING_VERIFY / P1`: Spec/Core `47053f798...` exact Core Focused + canonical SUCCESS; integrate this exact verified one-line repair lineage and require resulting Develop canonical SUCCESS.
-- `ERR-0043 = FIXED_PENDING_VERIFY / P1`: Backend product guard is integrated into Develop `915668a...`; close only if canonical `34718446158` succeeds.
-- `ERR-0045 = FIXED_PENDING_VERIFY / P2`: test-fixture repair is integrated into the same Develop SHA; close only if canonical `34718446158` succeeds.
-- `ERR-0046 = OPEN / P2`: newest UI exact `8b38c1a...` has UI Focused + canonical SUCCESS but Core Focused FAILURE with only two PySide6-dependent UI tests skipped. Repair Core ownership selection, never skip-to-green.
+- `ERR-0043 = FIXED_PENDING_VERIFY / P1`: current Develop `1213c49a...` contains exact-green bounded Backend repair for complete validated WAL+SHM withdrawal; close only after `34721255765 = SUCCESS`.
+- `ERR-0045 = FIXED_PENDING_VERIFY / P2`: storage fixture lineage remains green and integrated; close on the same Develop canonical SUCCESS.
+- `ERR-0042 = FIXED_PENDING_VERIFY / P1`: current Spec/Core `2d92eec...` Core Focused + canonical SUCCESS, but revision-change slice is not yet in current Develop; integrate then require resulting Develop canonical SUCCESS.
+- `ERR-0046 = OPEN / P2`: current UI exact `0e5e03b...` again proves Core-Focused over-selection, now with a direct missing-PySide6 collection error. Repair test ownership selection, never skip-to-green.
 
 ## CI discipline
 
-- `postmerge/errors@cbcb9f60981484554d39f614308b32b67f378787` had zero workflow runs before the ledger mutation.
-- Ledger commit `f677fa0039ac19a847af903b6fa12d733b26f881` also had zero workflow runs before this handoff mutation.
+- `postmerge/errors@5907ea74435c0529fe93da00febc63b9a40ae23d` had zero workflow runs before ledger mutation.
+- Ledger commit `1b74648c71d87d7c34b4bf2d2d6ef0aafe6ca815` also had zero workflow runs before this handoff mutation.
 - No canonical run was started or duplicated by Errors.
 - No product code or foreign worker branch was mutated.
 
 ## NEXT_ROOT_CAUSE
 
-1. Consume `34718446158@develop/915668a...`; if SUCCESS, close `ERR-0043` and `ERR-0045` immediately with exact evidence; if FAILURE, classify only the exact failing signature.
-2. Follow integration of Spec/Core `47053f798...`; `ERR-0042` closes only after integrated Develop canonical success.
-3. Follow a harness successor for `ERR-0046`; require both the UI-only non-selection proof and a genuine Core-failure negative control.
-4. After those transitions, scan current exact worker/canonical results for the next independent highest-impact cluster rather than reopening stale historical IDs.
+1. Consume `34721255765@develop/1213c49a...`; on SUCCESS close `ERR-0043` and `ERR-0045`, on FAILURE classify only the exact new signature.
+2. Consume UI canonical `34721263617`; if it fails on `test_pathena_layout_refinement_2200.py` Ruff `I001`, open a separate current UI-owned cluster; otherwise keep that finding subordinate to current exact outcome.
+3. Follow a Core-Focused harness successor for `ERR-0046`; require UI-only non-selection plus a genuine Core-failure negative control.
+4. Follow integration of current-green Spec/Core `2d92eec...`; close `ERR-0042` only after integrated Develop canonical success.
+5. Consume Backend canonical `34721361998` before classifying any current Backend successor.
