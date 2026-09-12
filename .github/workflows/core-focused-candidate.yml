@@ -84,7 +84,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path ".focused-evidence" | Out-Null
           $changed = @(
-            git diff --name-only $env:BASE_SHA $env:CANDIDATE_SHA -- "*.py" |
+            git diff --name-only --diff-filter=ACMRT $env:BASE_SHA $env:CANDIDATE_SHA -- "*.py" |
               Where-Object { $_ -match '^(src/athena/knowledge/|tests/unit/).*\.py$' }
           )
           if ($LASTEXITCODE -ne 0) { throw "Unable to resolve changed Core Python files." }
@@ -106,7 +106,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path ".focused-evidence" | Out-Null
           $tests = @(
-            git diff --name-only $env:BASE_SHA $env:CANDIDATE_SHA -- "tests/unit/*.py" |
+            git diff --name-only --diff-filter=ACMRT $env:BASE_SHA $env:CANDIDATE_SHA -- "tests/unit/*.py" |
               Where-Object { $_ -match '^tests/unit/test_.*\.py$' }
           )
           if ($LASTEXITCODE -ne 0) { throw "Unable to resolve changed focused unit tests." }
@@ -127,7 +127,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path ".focused-evidence" | Out-Null
           $changed = @(
-            git diff --name-only $env:BASE_SHA $env:CANDIDATE_SHA -- "*.py" |
+            git diff --name-only --diff-filter=ACMRT $env:BASE_SHA $env:CANDIDATE_SHA -- "*.py" |
               Where-Object { $_ -match '^(src/athena/knowledge/|tests/unit/).*\.py$' }
           )
           if ($LASTEXITCODE -ne 0) { throw "Unable to resolve changed Core Python files for remediation." }
@@ -135,8 +135,8 @@ jobs:
             "No changed Core Python files available for Ruff remediation." | Out-File -FilePath ".focused-evidence/ruff-fix.txt" -Encoding utf8
             exit 0
           }
-          if ((git status --porcelain).Count -ne 0) {
-            throw "Candidate worktree must be clean before diagnostic Ruff remediation."
+          if ((git status --porcelain --untracked-files=no).Count -ne 0) {
+            throw "Candidate tracked worktree must be clean before diagnostic Ruff remediation."
           }
           $fixOutput = @(& uv run --locked --extra dev --no-sync ruff check --fix @changed 2>&1)
           $fixExit = $LASTEXITCODE
@@ -148,8 +148,8 @@ jobs:
           if ($diffExit -ne 0) { throw "Unable to capture Ruff remediation diff." }
           "Ruff fix exit code: $fixExit" | Add-Content -Path ".focused-evidence/ruff-fix.txt"
           $restored = (git rev-parse HEAD).Trim().ToLowerInvariant()
-          if ($restored -ne $env:CANDIDATE_SHA -or (git status --porcelain).Count -ne 0) {
-            throw "Diagnostic remediation did not restore the immutable candidate worktree."
+          if ($restored -ne $env:CANDIDATE_SHA -or (git status --porcelain --untracked-files=no).Count -ne 0) {
+            throw "Diagnostic remediation did not restore the immutable candidate tracked worktree."
           }
 
       - name: Upload exact focused diagnostics
