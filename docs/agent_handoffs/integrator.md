@@ -1,31 +1,38 @@
 # Post-Merge Feature Handoff - Integrator
 
-Generated: 2026-09-12T01:49+02:00
+Generated: 2026-09-12T02:48+02:00
 Branch: `develop/pathena-next`
-Run-start HEAD: `c0f523921a460137aef7b59d9d703a3f8ce94225`
+Run-start HEAD: `5db4c92f40d5d14119a991796be38fb9248072de`
 
 ## Current evidence
 
 - `main` and `bnbgrs/ATHENA` remain strictly read-only and untouched.
-- Exact Develop canonical Quality `34656021355@c0f523921a460137aef7b59d9d703a3f8ce94225 = SUCCESS` before mutation; no queued/in-progress Develop Quality blocked this integration.
-- Worker heads reviewed: Errors `06069895fc703b1258b2d2cfe54fab96bc0a2769`; Spec/Core `d47634453d63cad0b21fb6d370c95602b0d0a286`; Backend `32485db642d71ec2caef8b49adc35ac2132aa651`; UI `4772c6aaf16a6eb570b891eae4fa8323d32b54ce`.
-- Current Error handoff reclassifies historical Core Ruff `ERR-0039` as STALE and keeps `ERR-0033 / BE-046` plus `ERR-0035 / BE-052` Backend-owned OPEN.
-- Spec/Core exact head `d47634453d63cad0b21fb6d370c95602b0d0a286` has canonical Quality `34653170296 = SUCCESS` and Core Focused Candidate `34653170251 = SUCCESS`.
-- The bounded current Core product commit modifies only `src/athena/knowledge/service.py` and `tests/unit/test_knowledge_service.py`; current Develop `knowledge/service.py` is byte-identical to the worker parent for that file, establishing compatible baseline for this slice.
+- Exact Develop canonical Quality `34659583545@5db4c92f40d5d14119a991796be38fb9248072de = SUCCESS` before mutation.
+- Immediately before mutation, Develop had zero queued and zero in-progress workflow runs.
+- Worker heads reviewed: Errors `4c21173a2bdd9f1a55ad41959ccb06069dd6a65b`; Spec/Core `acacc2da478d7f7afad4cd44681201268d5b13b3`; Backend `b595c960a747d9805b0865ea9f7237094318b706`; UI `4772c6aaf16a6eb570b891eae4fa8323d32b54ce`.
+- Error evidence freshly reproduces `ERR-0033 / BE-046` on exact current Develop: emergency-reserve unlink does not prove physical reclamation while foreign descriptors or alternate links can retain the inode. `ERR-0035 / BE-052` remains Backend-owned but was not freshly revalidated in the Error run.
+- Spec/Core exact head has Core Focused Candidate `34661219526 = SUCCESS`, but canonical Quality `34661219465` remained in progress at review time; it was not promoted.
+- Backend exact head has a canonical Quality run `34662086156` in progress at review time; it was not promoted despite the new bounded emergency-reserve candidate.
+- UI head is a Develop-baseline synchronization head; older product evidence is not transferred onto it without equivalent exact-head evidence.
 - `docs/agent_logs/ERROR_LEDGER.md` remains historical relative to current Develop and is not used as sole current OPEN truth.
-- Root `ALPHA_BETA_PROGRESS.md` was not found on current Develop; no synthetic completion percentage is recorded.
+- Root `ALPHA_BETA_PROGRESS.md` is absent on current Develop; no synthetic completion percentage is recorded.
 - Visual source of truth remains `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` plus `docs/ui/VISUAL_GAP_LEDGER.md`; all eleven manifest slots remain `IMPLEMENTED_PENDING_VISUAL_REVIEW`, with no screenshot-level `MATCH` claim absent approved reference/current-render pairing.
 
-## Product slice integrated this run
+## Cross-cutting slice implemented this run
 
-Integrated only the bounded Knowledge reclassification revision slice from exact-green Spec/Core lineage:
+No worker product slice met the exact-head READY rule at mutation time because the two active product candidates still had canonical Quality in progress.
 
-- `src/athena/knowledge/service.py`
-- `tests/unit/test_knowledge_service.py`
+Added `.github/workflows/storage-focused-candidate.yml` as a bounded, fail-closed qualification lane for Storage candidates. It:
 
-`KnowledgeService.reclassify()` preserves the stable Knowledge identity and all payload fields except `knowledge_kind`, creates a new user-authored revision through the existing repository revision boundary, rejects invalid runtime kind values, and rejects no-op reclassification without creating a revision. The implementation keeps optimistic expected-revision enforcement and existing provenance/storage behavior through `KnowledgeRepository.revise_knowledge_unit()`.
+- binds exact pull-request head and base SHAs and verifies the immutable checkout identity;
+- runs Ruff only on changed Storage/emergency-reserve candidate Python files;
+- type-checks the Storage package with mypy;
+- always runs the persistent `tests/unit/test_emergency_reserve.py` invariant and additionally runs changed `test_storage*.py` tests;
+- persists Ruff, mypy and pytest diagnostics for seven days;
+- requires all three focused outcomes to succeed;
+- uses `cancel-in-progress: false`, so documentation or subsequent worker commits must not silently replace evidence.
 
-No Core branch-history merge was performed. No Backend, Storage, Recovery, Security, Provider, TOR, filesystem, migration or UI behavior changed.
+This does not relax canonical Quality, tests, assertions, Security, Storage, Recovery, packaging or Windows guards. It provides exact-head focused evidence for the freshly reproduced BE-046 family without modifying Backend-owned product code.
 
 ## Persistent release guards
 
@@ -37,6 +44,6 @@ No Core branch-history merge was performed. No Backend, Storage, Recovery, Secur
 
 1. Consume canonical Quality for the resulting exact Develop SHA before any further Develop mutation.
 2. Re-read all worker heads and exact-SHA evidence after that gate completes.
-3. Keep BE-046/BE-052 conservative until bounded exact-tested current candidates exist.
-4. Re-qualify UI after its current Develop-baseline synchronization; do not transfer older exact evidence onto the sync head without equivalent verification.
+3. If Backend's BE-046 candidate becomes exact-green, qualify its bounded diff conservatively under the new Storage lane or equivalent exact evidence before integration.
+4. Keep BE-052 Backend-owned and conservative until freshly reproduced or bounded exact-tested current evidence closes it.
 5. Preserve visual `MATCH` fail-closed requirements.
