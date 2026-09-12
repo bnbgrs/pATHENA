@@ -8,37 +8,47 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 
 ## Current baseline
 
-- Develop source of truth: `develop/pathena-next@cfdcac0bd51973bc18343006a9fb02f6c098a3c0` (`feat(jobs): integrate scheduled materialization`).
-- Error worker entered this run at `postmerge/errors@531f78037fdb1d6c89e77393b5be0a53a63ac0b3`.
-- Current workers: Spec/Core `3f864f5dd02db350b8b0df3103e6cc9c09725a37`; Backend `359b675a37b5b59210399bee1506afddc6ccee13`; UI `dd0ad210baf9125d03b532cbac6c807e56e1e558`.
-- Exact-current Develop canonical Quality: `34694827693@cfdcac0bd51973bc18343006a9fb02f6c098a3c0 = IN_PROGRESS` at observation time. No competing canonical run was started.
-- Exact parent Develop canonical Quality: `34692305368@d8236b74e69d1eedfdd2b05a52ed767520246671 = SUCCESS`.
-- Backend exact `359b675a37b5b59210399bee1506afddc6ccee13`: Backend Focused `34693685313 = SUCCESS`; canonical Quality `34693685375 = SUCCESS`.
-- Integrator has imported the bounded scheduled-materialization slice from that Backend exact head into current Develop. The integrated test fixture is file-backed and initialized through the canonical schema path; the Storage journal-mode guard remains unchanged.
-- Spec/Core exact `3f864f5dd02db350b8b0df3103e6cc9c09725a37`: canonical Quality `34693360045 = SUCCESS`; synchronization head contributes no new bounded product delta to current Develop.
-- UI exact `dd0ad210baf9125d03b532cbac6c807e56e1e558`: not Error-owned; no promotion claim is made here.
-- `postmerge/errors@531f78037fdb1d6c89e77393b5be0a53a63ac0b3` had zero workflow runs immediately before this mutation.
+- Develop source of truth: `develop/pathena-next@146fb7280dbfe30f2bec129aec8ee77f015ce040` (`feat(release): add fail-closed readiness assessment`).
+- Error worker entered this run at `postmerge/errors@82590b517a736f3b90709ee16a85e5ac15aeb911`.
+- Current workers: Spec/Core `23dc4c79f1e44cd099992eb23636b2c95014c790`; Backend `51ab9c428bfd69a6aa6fde5e8be6241de7873dca`; UI `11890ef6216ae44b9e4c222bc8d9016784792e74`.
+- Exact-current Develop canonical Quality: `34697870543@146fb7280dbfe30f2bec129aec8ee77f015ce040 = IN_PROGRESS`; no competing canonical run was started.
+- Exact integrated parent Develop canonical Quality: `34694827693@cfdcac0bd51973bc18343006a9fb02f6c098a3c0 = SUCCESS`.
+- Backend exact `51ab9c428bfd69a6aa6fde5e8be6241de7873dca`: Backend Focused `34696535725 = SUCCESS`; canonical Quality `34696535722 = SUCCESS`.
+- Spec/Core exact `23dc4c79f1e44cd099992eb23636b2c95014c790`: Core Focused `34696122597 = FAILURE`; canonical Quality `34696122599 = FAILURE`.
+- UI exact `11890ef6216ae44b9e4c222bc8d9016784792e74`: UI Focused `34697505423 = SUCCESS`; canonical Quality `34697505416 = IN_PROGRESS` at observation time.
+- `postmerge/errors@82590b517a736f3b90709ee16a85e5ac15aeb911` had zero workflow runs immediately before this mutation.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current state
 
-- OPEN: none.
+- OPEN: `ERR-0041`.
 - IN_PROGRESS: none.
-- FIXED_PENDING_VERIFY: `ERR-0040`.
-- FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015` through `ERR-0024`, `ERR-0027`, `ERR-0030`, `ERR-0031`, `ERR-0032`, `ERR-0033`, `ERR-0034`, `ERR-0035`, `ERR-0036`, `ERR-0037`.
+- FIXED_PENDING_VERIFY: none.
+- FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015` through `ERR-0024`, `ERR-0027`, `ERR-0030`, `ERR-0031`, `ERR-0032`, `ERR-0033`, `ERR-0034`, `ERR-0035`, `ERR-0036`, `ERR-0037`, `ERR-0040`.
 - STALE: `ERR-0014`, `ERR-0025`, `ERR-0026`, `ERR-0028`, `ERR-0029`, `ERR-0038`, `ERR-0039`.
 - BLOCKED: none at top level.
+
+## ERR-0041 — Spec/Core provenance explanation import-order Ruff blocker
+
+- Severity: P1 integration blocker.
+- Status: `OPEN`.
+- Current exact reproducer: `postmerge/spec-core@23dc4c79f1e44cd099992eb23636b2c95014c790`.
+- Exact CI evidence: Core Focused Candidate `34696122597 = FAILURE`; canonical Quality `34696122599 = FAILURE`.
+- Canonical Quality isolates the failure to Ruff: specification validator `SUCCESS`, mypy `SUCCESS`, full pytest `SUCCESS` with `4973 passed, 17 skipped`, Windows Path Safety `SUCCESS`, Linux Storage Regressions `SUCCESS`, Local Install Smoke `SUCCESS`.
+- Exact root cause from canonical job log: Ruff `I001` reports an unsorted/unformatted import block at `src/athena/knowledge/provenance_explanation.py:3:1`. The file places `import uuid` after `from dataclasses import dataclass` and `from datetime import UTC, datetime`; Ruff requires the standard-library import block to be organized.
+- This is a bounded Spec/Core-owned formatting defect, not a product-runtime, Storage, Recovery, Security or test failure. Spec/Core owns the current code slice, so Errors must not mutate that product file in parallel.
+- Minimal owner repair: organize the imports in `src/athena/knowledge/provenance_explanation.py` without behavioral changes, run focused Ruff for that file first, then the smallest relevant provenance test set, then exact-head Core Focused/canonical Quality if needed for promotion.
+- Closure requirement: exact current or superseding Spec/Core SHA with the import-order repair and successful relevant verification. Do not mark `FIXED` from a different branch or historical green run.
 
 ## ERR-0040 — Scheduled-materialization test fixture violates canonical SQLite journal-mode invariant
 
 - Severity: P1 integration blocker.
-- Status: `FIXED_PENDING_VERIFY`.
+- Status: `FIXED`.
 - Historical exact reproducer: `postmerge/backend@e4aacf8004e08fddacb41cebe687453a759444cf`; canonical Quality `34691380019 = FAILURE` with five setup errors in `tests/unit/test_scheduled_materialization.py` caused by a `sqlite3.connect(":memory:")` fixture hitting the fail-closed v37->v38 physical-cleanup journal-mode invariant.
-- Root-cause repair exact worker SHA: `postmerge/backend@359b675a37b5b59210399bee1506afddc6ccee13` (`test(jobs): use file-backed scheduled materialization fixture`). The fixture now uses a temporary file-backed SQLite database and still initializes through `athena.storage.schema.initialize_schema()`; no production Storage, migration, Recovery, Security or guard behavior was relaxed.
-- Exact worker verification: Backend Focused `34693685313 = SUCCESS`; canonical Quality `34693685375 = SUCCESS` on the same SHA.
-- Integration evidence: current Develop commit `cfdcac0bd51973bc18343006a9fb02f6c098a3c0` explicitly integrates Backend exact `359b675a37b5b59210399bee1506afddc6ccee13` and carries the file-backed canonical-schema fixture plus scheduled-materialization product slice.
-- Current integrated verification: canonical Quality `34694827693@cfdcac0bd51973bc18343006a9fb02f6c098a3c0` is still `IN_PROGRESS`; therefore `FIXED` is not yet justified.
-- Closure requirement: consume exact Develop canonical result for `cfdcac0bd51973bc18343006a9fb02f6c098a3c0`. Promote to `FIXED` only if that integrated exact-SHA verification succeeds without a current reproduction of the cluster; otherwise reclassify from the exact failing evidence.
+- Root-cause repair exact worker SHA: `postmerge/backend@359b675a37b5b59210399bee1506afddc6ccee13`; file-backed temporary SQLite fixture, canonical schema initializer retained, no Storage/Recovery/Security guard relaxation.
+- Exact worker verification: Backend Focused `34693685313 = SUCCESS`; canonical Quality `34693685375 = SUCCESS`.
+- Integrated closure SHA: `develop/pathena-next@cfdcac0bd51973bc18343006a9fb02f6c098a3c0`.
+- Exact integrated canonical closure: `34694827693@cfdcac0bd51973bc18343006a9fb02f6c098a3c0 = SUCCESS`. Reopen only with a new current exact-SHA reproduction.
 
 ## ERR-0035 — SQLite preflight-to-writer file-set identity continuity
 
