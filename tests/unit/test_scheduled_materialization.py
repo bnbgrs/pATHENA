@@ -9,7 +9,7 @@ from athena.jobs.models import JobPriority
 from athena.jobs.schedule_definition import ScheduleDefinition, occurrence_id
 from athena.jobs.schedule_policy import MissedRunPolicy
 from athena.jobs.scheduled_materialization import materialize_scheduled_job
-from athena.storage.schema_evolution import initialize_schema
+from athena.storage.schema import initialize_schema
 
 
 @pytest.fixture
