@@ -4,28 +4,27 @@ Evidence-only progress register for `develop/pathena-next`. This file intentiona
 
 ## Current baseline
 
-- Develop parent before the current integration: `db159a068a5de1ca8cd302a5ea436f3f07889d9f`.
-- Exact parent canonical Quality: `34700628139 = SUCCESS`.
+- Develop parent before the current integration: `5eecb5f937de9325a9673df5f1a23d2f1b5e87cf`.
+- Exact parent canonical Quality: `34706615596 = SUCCESS`.
 - Current worker heads checked:
-  - Errors: `9c634dccc829b1a822288afc99ab0339d77efbb1`
-  - Spec/Core: `1f61104959dc6a7d7fcff6051fb013f5f6894706`
-  - Backend: `6fcfdf8a71abcabad7e3b4a661ad35ee1f6603f8`
-  - UI: `4898bceb9a5af98e1a044eb656714ce03be5e2a4`
+  - Errors: `3e3915d5cb0c3964661db1fcef100f98664915c1`
+  - Spec/Core: `f86df7dc1b4f4be5aeb2000986eb7965cafa8dcb`
+  - Backend: `956cffa5dca29cbf5af71fd6e06bd87f2a79b4cc`
+  - UI: `1c6c3475945c7ee0ba4d7514b81dd4d444d843e6`
 
 ## Current integration state
 
-- Durable schedule identity primitives and scheduled-job materialization remain integrated on Develop.
-- Spec/Core source-free user Knowledge and user-correction conflict visibility remain integrated.
-- Fail-closed release-readiness assessment and its Ruff repair remain integrated.
-- Current integration adds truthful Knowledge provenance explanation from exact-green Spec/Core head `1f61104959dc6a7d7fcff6051fb013f5f6894706`, backed by Core Focused Candidate `34701843776 = SUCCESS` and canonical Quality `34701843759 = SUCCESS`.
-- The new projection does not invent source metadata: revisions with no recorded provenance inputs state that explicitly.
+- Durable schedule identity primitives, scheduled-job materialization, and durable schedule recovery remain integrated on Develop.
+- Source-free user Knowledge, user-correction conflict visibility, and truthful Knowledge provenance explanation remain integrated.
+- Fail-closed release-readiness assessment remains integrated.
+- Current cross-cutting integration repairs the Core Focused candidate harness for deleted-path selection and diagnostic Ruff-remediation cleanliness while retaining exact-SHA, Ruff, focused-pytest, immutable-reset, and outcome-enforcement guards.
 
 ## Worker readiness snapshot
 
-- Spec/Core provenance explanation is the current bounded READY slice and is integrated here.
-- Errors current head is evidence/handoff maintenance; no independent Error-owned product mutation is required for this slice.
-- Backend current head does not present a higher-priority new verified prerequisite for this integration.
-- UI current head is synchronized before further workspace hierarchy work; visual and candidate readiness remain separate from this Core slice.
+- Spec/Core exact `f86df7dc1b4f4be5aeb2000986eb7965cafa8dcb` is NOT READY: Core Focused `34709904332 = FAILURE`; focused behavior tests pass but Ruff I001 remains current.
+- Backend exact `956cffa5dca29cbf5af71fd6e06bd87f2a79b4cc` is NOT READY: Backend Focused `34710537347 = SUCCESS`, Storage Focused `34710537370 = FAILURE`, and canonical Quality was still active at qualification time.
+- UI exact `1c6c3475945c7ee0ba4d7514b81dd4d444d843e6` is not imported: its lineage is broad/diverged and its Core Focused failure is attributable to the now-repaired deleted-path harness defect, not independently sufficient UI promotion evidence.
+- Errors reports current open clusters `ERR-0042`, `ERR-0043`, and `ERR-0044`; this integration addresses the repository-side `ERR-0044` workflow root cause but does not mark it verified until exact post-change evidence exists.
 
 ## Error and visual truth rules
 
