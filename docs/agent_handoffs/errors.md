@@ -2,74 +2,49 @@
 
 ## Baseline
 
-- Develop source of truth: `develop/pathena-next@146fb7280dbfe30f2bec129aec8ee77f015ce040`.
-- Error worker entered this run at `postmerge/errors@82590b517a736f3b90709ee16a85e5ac15aeb911`.
-- Current workers: Spec/Core `23dc4c79f1e44cd099992eb23636b2c95014c790`; Backend `51ab9c428bfd69a6aa6fde5e8be6241de7873dca`; UI `11890ef6216ae44b9e4c222bc8d9016784792e74`.
-- Develop canonical Quality `34697870543@146fb7280dbfe30f2bec129aec8ee77f015ce040 = IN_PROGRESS`; exact integrated parent `34694827693@cfdcac0bd51973bc18343006a9fb02f6c098a3c0 = SUCCESS`.
-- Backend exact `51ab9c428bfd69a6aa6fde5e8be6241de7873dca`: Backend Focused `34696535725 = SUCCESS`; canonical Quality `34696535722 = SUCCESS`.
-- Spec/Core exact `23dc4c79f1e44cd099992eb23636b2c95014c790`: Core Focused `34696122597 = FAILURE`; canonical Quality `34696122599 = FAILURE`.
-- UI exact `11890ef6216ae44b9e4c222bc8d9016784792e74`: UI Focused `34697505423 = SUCCESS`; canonical Quality `34697505416 = IN_PROGRESS` at observation time.
-- `main` and `bnbgrs/ATHENA` remain read-only and untouched.
+- Develop: `db159a068a5de1ca8cd302a5ea436f3f07889d9f`.
+- Errors worker entered at `e33839260e5582e972aa6e311c9631afbe08fe24`.
+- Current workers: Spec/Core `a35a67f1afe2789d8a568fa3484ef5fe29f46de9`; Backend `6fcfdf8a71abcabad7e3b4a661ad35ee1f6603f8`; UI `9e9227dc722d7d771ae4ce4e45a75983330fed97`.
+- Develop canonical `34700628139@db159a068a5de1ca8cd302a5ea436f3f07889d9f = IN_PROGRESS`; no competing canonical run started.
+- `main` and `bnbgrs/ATHENA` remain read-only.
 
 ## Current error state
 
-- OPEN: `ERR-0041`.
+- OPEN: none.
 - IN_PROGRESS: none.
-- FIXED_PENDING_VERIFY: none.
-- `ERR-0040 = FIXED` after exact integrated Develop canonical success.
-- `ERR-0033` and `ERR-0035 = FIXED`.
-- `ERR-0038` and `ERR-0039 = STALE`.
-- BLOCKED: none.
+- FIXED_PENDING_VERIFY: `ERR-0041`.
+- FIXED: `ERR-0040`, `ERR-0035`, `ERR-0033` and prior closed clusters.
+- STALE: `ERR-0038`, `ERR-0039` and prior stale clusters.
 
-## Hard progress this run — ERR-0041 root cause isolated on current exact Spec/Core SHA
+## Hard progress — ERR-0041 reclassified from OPEN to FIXED_PENDING_VERIFY
 
-### ERR-0041 — provenance explanation import-order Ruff blocker
+The original current-exact reproducer was `postmerge/spec-core@23dc4c79f1e44cd099992eb23636b2c95014c790`, where Ruff `I001` reported the import block in `src/athena/knowledge/provenance_explanation.py:3:1`.
 
-Status: `OPEN / P1 integration blocker`.
+Spec/Core has now repaired that exact file on `a35a67f1afe2789d8a568fa3484ef5fe29f46de9`. The standard-library block is ordered with `import uuid` before the `dataclasses` and `datetime` imports. Core Focused run `34698818610 = SUCCESS` on that exact SHA.
 
-Current exact reproducer is `postmerge/spec-core@23dc4c79f1e44cd099992eb23636b2c95014c790`.
+Canonical Quality `34698818608@a35a67f1afe2789d8a568fa3484ef5fe29f46de9 = FAILURE`, but exact-SHA diagnostics were downloaded and inspected. Ruff reports exactly two remaining `I001` errors:
 
-Exact CI evidence:
+1. `src/athena/release_readiness.py:3:1`
+2. `tests/unit/test_release_readiness.py:1:1`
 
-- Core Focused Candidate `34696122597 = FAILURE`;
-- canonical ATHENA Quality Gate `34696122599 = FAILURE`;
-- both runs are on exact Spec/Core SHA `23dc4c79f1e44cd099992eb23636b2c95014c790`.
+`provenance_explanation.py` is no longer present in Ruff diagnostics. Therefore the remaining canonical failure is not ERR-0041's provenance root cause; it is inherited release-readiness formatting drift from the Develop baseline.
 
-Canonical Quality isolates the failure to Ruff. Specification validation succeeds, mypy succeeds, full pytest succeeds with `4973 passed, 17 skipped`, Windows Path Safety succeeds, Linux Storage Regressions succeeds, and Local Install Smoke succeeds.
-
-The canonical job log gives the exact root cause: Ruff `I001` at `src/athena/knowledge/provenance_explanation.py:3:1` reports an unsorted/unformatted import block. The standard-library imports place `import uuid` after `from dataclasses import dataclass` and `from datetime import UTC, datetime`, so Ruff requires the import block to be organized.
-
-This is a small, bounded Spec/Core-owned formatting defect. The active specialist worker owns the exact file/slice, so Errors did not mutate product code in parallel.
-
-### Required owner fix and verification
-
-1. Organize only the imports in `src/athena/knowledge/provenance_explanation.py`; no behavioral changes.
-2. Run focused Ruff on that file first.
-3. Run the smallest relevant provenance explanation regression set.
-4. Use exact-head Core Focused/canonical Quality for promotion evidence when appropriate.
-5. Mark `FIXED` only from a current or superseding exact Spec/Core SHA carrying the repair and successful relevant verification.
-
-Do not weaken Ruff, tests, quality enforcement, Storage, Recovery, Security or release guards.
-
-## Consumed prior verification — ERR-0040
-
-The pending integrated verification has completed: canonical Quality `34694827693@cfdcac0bd51973bc18343006a9fb02f6c098a3c0 = SUCCESS`. This is the exact Develop SHA that integrated Backend repair `359b675a37b5b59210399bee1506afddc6ccee13`. `ERR-0040` is therefore `FIXED`; reopen only with a new current exact-SHA reproduction.
-
-## CI discipline
-
-- `postmerge/errors@82590b517a736f3b90709ee16a85e5ac15aeb911` had zero workflow runs before the ledger mutation.
-- After ledger commit `8290d0857b5ab5e63a15bb13522e18ab3f819376`, the Error branch again had zero workflow runs before this handoff mutation.
-- No canonical Quality run was started by Errors.
-- The running Develop and UI canonical jobs were not duplicated or disturbed.
-- No mutation was made to Develop, Backend, Spec/Core, UI, `main`, or `bnbgrs/ATHENA`.
+Current Develop `db159a068a5de1ca8cd302a5ea436f3f07889d9f` is a bounded repair for those two release-readiness Ruff blocks. Its canonical run `34700628139` remains in progress, so no `FIXED` claim is made yet.
 
 ## Integrator handoff
 
-- Current Develop: `146fb7280dbfe30f2bec129aec8ee77f015ce040`; canonical `34697870543 = IN_PROGRESS` at observation time.
-- `ERR-0041 = OPEN / P1` on Spec/Core exact `23dc4c79f1e44cd099992eb23636b2c95014c790`.
-- Root cause: Ruff `I001`, unsorted/unformatted import block in `src/athena/knowledge/provenance_explanation.py:3:1`.
-- Exact evidence: Core Focused `34696122597 = FAILURE`; canonical `34696122599 = FAILURE`; canonical full pytest itself is green (`4973 passed, 17 skipped`).
-- Do not integrate that Spec/Core head until owner remediation has current exact-SHA evidence.
-- Backend `51ab9c428bfd69a6aa6fde5e8be6241de7873dca` is focused+canonical green.
-- `ERR-0040 = FIXED` by exact integrated Develop canonical `34694827693@cfdcac0bd51973bc18343006a9fb02f6c098a3c0 = SUCCESS`.
-- Preserve pypdf packaging, Frozen argv, two-EXE topology, bounded workers, adaptive 2048-context reserve, Windows lane-lock mapping, duplicate-column/Core-startup/storage-bootstrap guards and all Storage/Recovery/Security fail-closed invariants.
+- `ERR-0041 = FIXED_PENDING_VERIFY / P1`.
+- Owner repair: Spec/Core `a35a67f1afe2789d8a568fa3484ef5fe29f46de9`.
+- Focused evidence: Core Focused `34698818610 = SUCCESS`.
+- Canonical `34698818608` is red only because of the separate inherited release-readiness Ruff blocks listed above; do not attribute that failure back to provenance.
+- Current Develop repair `db159a068a5de1ca8cd302a5ea436f3f07889d9f` has canonical `34700628139 = IN_PROGRESS` at observation time.
+- Closure requires an integrated exact SHA carrying the provenance repair with successful canonical verification.
+- Backend current head `6fcfdf8a71abcabad7e3b4a661ad35ee1f6603f8`: focused `34700396671 = SUCCESS`; canonical `34700396666` was still in progress at observation.
+- UI current head `9e9227dc722d7d771ae4ce4e45a75983330fed97`: UI Focused `34699977144 = SUCCESS`; cumulative Core Focused `34699977166 = FAILURE`.
+
+## CI discipline
+
+- Errors branch had zero workflow runs before the ledger mutation and again after commit `8a9a4784a33ca0d7741241d75efcee9904d254b8` before this handoff mutation.
+- No canonical run was started or duplicated by Errors.
+- No product code or foreign worker branch was mutated.
+- Preserve pypdf packaging, Frozen argv, separate Desktop/Worker EXEs, exactly-one-Desktop bounded-worker topology, adaptive 2048-context reserve, Windows lane-lock mapping, duplicate-column/Core-startup/storage-bootstrap guards, and all Storage/Recovery/Security fail-closed invariants.
