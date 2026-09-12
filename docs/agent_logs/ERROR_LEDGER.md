@@ -8,12 +8,14 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 
 ## Current baseline
 
-- Develop source of truth: `develop/pathena-next@bfee081ff63e849b5d024299f0a7b9286dc737e7` (`feat(core): integrate contradiction resolution`).
-- Error worker entered this run at `postmerge/errors@be3d01227f4d60678b4ab803fd515a2fddd26fec`.
-- Current workers: Spec/Core `ea4211fe5a375698c72dbfdd1d2a5778ea2df0dd`; Backend `7c1af4402aed6c86c41fcc5eddbaab6a845445a8`; UI `dce6d463b17474ec2da702a14b7a4365123df45d`.
-- Exact-current Develop canonical Quality: `34671556177@bfee081ff63e849b5d024299f0a7b9286dc737e7 = IN_PROGRESS`; no Develop PASS/FAIL claim is derived while it is running and no competing canonical run was started.
-- Backend exact `7c1af4402aed6c86c41fcc5eddbaab6a845445a8`: Storage Focused Candidate `34670367115 = SUCCESS`; canonical Quality `34670367093 = FAILURE`. Canonical specification validator, Ruff, mypy, Linux storage regressions, Windows path safety and Local install are green; only full pytest is red with two storage-bootstrap startup failures.
-- `postmerge/errors@be3d01227f4d60678b4ab803fd515a2fddd26fec` had zero workflow runs immediately before this mutation.
+- Develop source of truth: `develop/pathena-next@4dbefe2167b28bffab2c6b69b7a8df4b43770a6f` (`feat(ui): integrate deterministic Help focus targets`).
+- Error worker entered this run at `postmerge/errors@a2ab7e0a59edf2ad45695effd23b1b47a428f6b1`.
+- Current workers: Spec/Core `58d76e1e3d7ce1723ca4a75a8cc0608185fae7e8`; Backend `a8b30e42a22225728c3b9f6efcb3fceba3ee2315`; UI `dce6d463b17474ec2da702a14b7a4365123df45d`.
+- Exact-current Develop canonical Quality: `34674406807@4dbefe2167b28bffab2c6b69b7a8df4b43770a6f = IN_PROGRESS`; no Develop PASS/FAIL claim is derived while it is running and no competing canonical run was started.
+- Spec/Core exact `58d76e1e3d7ce1723ca4a75a8cc0608185fae7e8`: Core Focused `34672548118 = SUCCESS`; canonical Quality `34672548120 = SUCCESS`.
+- UI exact `dce6d463b17474ec2da702a14b7a4365123df45d`: UI Focused `34671153433 = SUCCESS`; canonical Quality `34671153472 = SUCCESS`.
+- Backend exact `a8b30e42a22225728c3b9f6efcb3fceba3ee2315`: Backend Focused `34673089208 = FAILURE`; canonical Quality `34673089183 = FAILURE`. Canonical full pytest, mypy, Windows path safety, Linux storage regressions and Local install are green; Ruff is red.
+- `postmerge/errors@a2ab7e0a59edf2ad45695effd23b1b47a428f6b1` had zero workflow runs immediately before this mutation.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current state
@@ -25,28 +27,26 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - STALE: `ERR-0014`, `ERR-0025`, `ERR-0026`, `ERR-0028`, `ERR-0029`, `ERR-0038`, `ERR-0039`.
 - BLOCKED: none at top level.
 
+## ERR-0035 — SQLite preflight-to-writer file-set identity continuity regressed on current Backend head
+
+- Severity: P1.
+- Status: `OPEN`.
+- Specialist owner: Backend / BE-052.
+- Previous Backend exact `7c1af4402aed6c86c41fcc5eddbaab6a845445a8` carried an identity-bearing startup preflight into `SQLiteDatabase.start()`, asserted DB/WAL/SHM identity before writer open, created a missing primary exclusively, then asserted identity again after writer establishment.
+- Current exact Backend head `a8b30e42a22225728c3b9f6efcb3fceba3ee2315` has regressed that protection: `src/athena/storage/database.py` no longer stores or binds `DatabasePreflightReport`, no longer imports/calls the file-set identity helpers, and `start()` now performs only an independent `inspect_database_read_only(self.path)` followed by `sqlite3.connect()`.
+- Exact branch comparison from `7c1af440...` to `a8b30e42...` confirms 65 deletions in `src/athena/storage/database.py`, 133 deletions in `src/athena/storage/recovery.py`, and complete removal of `tests/unit/test_database_startup_identity.py` (127 lines), while `src/athena/storage/bootstrap.py` also changes in the same startup cluster.
+- Therefore the earlier BE-052 failure mode is current again on an exact active worker SHA: the accepted read-only snapshot is not identity-bound across the preflight-to-writer transition. The current full pytest PASS cannot close this root cause because the dedicated adversarial startup-identity test file was removed in the same candidate.
+- This is release-guard weakening and must not be integrated. The current Backend candidate is not integration-ready even aside from its separate Ruff failure.
+- Required owner correction: restore identity-bearing DB/WAL/SHM preflight continuity, including fail-closed assertions before and after writer establishment and exclusive missing-primary creation; then fix the controlled-migration orchestration by reacquiring a fresh identity-bearing preflight after an authorized migration rather than deleting the guard. Restore the adversarial startup-identity regression coverage. No Skip/XFail or guard/test removal is acceptable.
+- Required verification: focused startup-identity tests including primary replacement and WAL/SHM sidecar creation/replacement, the two controlled-migration regressions previously exposed by canonical Quality, smallest storage/bootstrap regression set, then canonical Quality on one unchanged exact Backend SHA.
+- Error worker did not mutate Backend product code because Backend actively owns BE-052 and is changing the same Storage/Recovery files.
+
 ## ERR-0033 — Emergency-reserve filesystem-object identity and physical-reclamation gap
 
 - Severity: P1.
 - Status: `FIXED`.
 - Specialist owner: Backend / BE-046.
-- Backend exact candidate `b595c960a747d9805b0865ea9f7237094318b706` was canonical-green (`34662086156 = SUCCESS`) and was integrated into `develop/pathena-next@ca87e42c8820c47db7d6626feb17698560cd3b49`.
-- Integrated source keeps the POSIX reserve descriptor identity-bound through release, rejects alternate-link ownership, and does not claim unproven physical reclamation merely from logical file length.
-- Closure evidence is complete: exact integrated Develop canonical Quality `34666307002@ca87e42c8820c47db7d6626feb17698560cd3b49 = SUCCESS`. Reopen only with a new current exact-SHA reproduction.
-
-## ERR-0035 — SQLite preflight identity is not carried safely across migration into live writer startup
-
-- Severity: P1.
-- Status: `OPEN`.
-- Specialist owner: Backend / BE-052.
-- Current exact Backend candidate: `7c1af4402aed6c86c41fcc5eddbaab6a845445a8`.
-- Focused Storage evidence is green: `34670367115 = SUCCESS`.
-- Canonical Quality is red: `34670367093 = FAILURE`; the only canonical Python-quality failure is pytest, with exactly two failures: `tests/unit/test_archive_replication.py::test_v30_migration_backfills_existing_spool_blob` and `tests/unit/test_news_audit.py::test_v29_migration_backfills_legacy_event_assessment_without_model`. Both fail as `StartupError: Failed to start service 'storage-bootstrap'`, caused by `DatabaseStartupIdentityChangedError`.
-- Root cause is now exact: `StorageBootstrapService.start()` captures the read-only preflight, may then execute a required controlled migration that legitimately replaces/changes the SQLite primary file, but afterwards binds the original pre-migration `preflight` into `SQLiteDatabase.start()`. The writer correctly rejects that stale identity at its first `assert_database_file_set_identity()`.
-- This is not evidence that the identity guard should be weakened. The guard is detecting a real identity transition; the orchestration is wrong because the accepted identity token is stale after an authorized migration.
-- Required minimal owner fix: after a successful controlled migration, acquire a fresh identity-bearing read-only preflight for the migrated DB/WAL/SHM file set and use that post-migration preflight for writer binding. Preserve all existing fail-closed checks before migration, migration-recovery checks, before-writer identity assertion, after-writer identity assertion, missing-primary exclusive creation, and sidecar race detection.
-- Required focused regression: both failing legacy migration tests must pass while adversarial replacement/sidecar-creation tests remain red-before-fix/green-after-fix as appropriate; then run the smallest storage/bootstrap regression set followed by canonical Quality on one unchanged exact Backend SHA.
-- No Error-worker product mutation was made because Backend owns BE-052 and is actively changing the same root-cause area.
+- Exact integrated Develop closure remains `34666307002@ca87e42c8820c47db7d6626feb17698560cd3b49 = SUCCESS`. Reopen only with a new current exact-SHA reproduction.
 
 ## ERR-0039 — Historical Spec/Core exact-head Ruff import-format blocker
 
@@ -64,4 +64,4 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 
 All previously recorded FIXED and STALE clusters remain unchanged. Reopen only with current exact-SHA reproduction. Persistent Beta/release guards remain binding: Windows `pypdf` metadata/`PackageNotFoundError`; fail-closed frozen child argv and two-EXE split; exactly one Desktop with bounded/non-growing workers; adaptive 2048-context Chat reserve including requested-vs-effective provenance and boundary cases; lane-lock `PermissionError [Errno 13]` -> `SchedulerLaneOwnershipError` -> packaged-worker `OSError [Errno 22]`; `duplicate column name: source_processing_job_id`; `ATHENA Core startup failed`; `Failed to start service 'storage-bootstrap'`.
 
-Before Beta/release promotion, execute the known-crash regression matrix on the exact candidate SHA. No promotion-ready claim while a known crash signature is reproducible.
+Before Beta/release promotion, execute the known-crash regression matrix on the exact candidate SHA. No promotion-ready claim while a known crash signature or a removed release guard is current.
