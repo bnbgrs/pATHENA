@@ -2,59 +2,56 @@
 
 ## Current baseline
 
-- Develop inspected first: `develop/pathena-next@4dbefe2167b28bffab2c6b69b7a8df4b43770a6f`.
-- Worker BEFORE candidate: `postmerge/ui@dce6d463b17474ec2da702a14b7a4365123df45d`.
-- Exact BEFORE UI Focused Candidate `34671153433`: `SUCCESS`.
-- Exact BEFORE canonical Quality `34671153472`: `SUCCESS`.
-- Exact BEFORE native visual artifact `pathena-visual-dce6d463b17474ec2da702a14b7a4365123df45d` was downloaded; all eleven PNGs were opened.
-- `main` and `bnbgrs/ATHENA` remain read-only and untouched.
+- Develop inspected first: `develop/pathena-next@d173bd714b5f7de9242e1d0b2fff567c439d1ac0`.
+- Worker synchronized history-preservingly before mutation: `postmerge/ui@aafd5face59441c2af7a693ed78a40d71b0e17b5`, parents `f1b29a76d6a30268fa11b7e013a8f7953898477d` + current Develop.
+- Prior exact UI head `f1b29a76d6a30268fa11b7e013a8f7953898477d`: UI Focused `SUCCESS`, canonical Quality `SUCCESS`.
+- `main` and `bnbgrs/ATHENA` remain strictly read-only and untouched.
 
-## Evidence consumed before mutation
+## Source of truth consumed
 
-The current `spec-core.md`, `backend.md`, `errors.md`, `integrator.md`, `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` and `docs/ui/VISUAL_GAP_LEDGER.md` were read before product work. Develop already contains the prior bounded Help/accessibility product slice, so that closed slice was not reopened.
+Current `spec-core.md`, `backend.md`, `errors.md`, `integrator.md`, `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` and `docs/ui/VISUAL_GAP_LEDGER.md` were read first. Historical UI-GAP IDs were not used as authority.
 
-All eleven original reference PNGs in the user's `pATHENA/Designreferenz – 11 Screenshots` collection were opened directly this run. All eleven real native BEFORE captures from exact worker `dce6d463…` were also opened directly. Strict evidence is `PAIRS_VERIFIED_1_OF_11`, `MATCH_0_OF_11`: Help is the only corresponding state pair; empty/unavailable/diagnostic runtime states are not promoted to same-state evidence merely because a PNG exists.
+The run actively searched the user Library for the eleven original design references. The authoritative PALLAS, Settings, Jobs and ComfyUI images were resolved directly, with the remaining reference set also present in the same Library collection/search surface. Exact candidate runtime images do not yet exist at commit creation, so no old runtime PNG is relabeled as current evidence.
 
-## Active visual slice — PALLAS shell integration
+## Active slice — ComfyUI shell visual evidence
 
-The largest recurring visible gap is detached surface hosting. Exact BEFORE PALLAS is the real semantic renderer in a standalone window, while the original PALLAS reference is one pATHENA composition with top navigation, narrow rail, central semantic field and contextual right inspector.
+Product state before this candidate already includes `ComfyUiShellController`, which reuses the real local-only `ComfyUiController` surface, reparents it to `referenceBody`, changes it to widget hosting, publishes `pathenaComfyUiShellHosted=True`, preserves the existing seven primary routes and uses `pathenaComfyUiShellOpen` on the MainWindow.
 
-Root cause is UI-owned and explicit: `PallasFullViewController` created a modeless `QDialog`. No renderer or semantic-model replacement is required.
+The visual harness was stale: `capture_comfyui()` opened the real controller but then saved `controller.dialog` itself. That necessarily omitted the pATHENA top bar, narrow rail and shared shell from Screen 01, so the native artifact could not prove the actual product hosting path.
 
-The candidate in this commit:
+This candidate changes only `scripts/render_pathena_ui_snapshot.py` plus evidence docs:
 
-- keeps the real `PallasGroundedFieldController` and real `PallasWorkspace`;
-- creates one synchronized full workspace parented to the existing `referenceBody`;
-- inserts it in the real center slot between icon rail and shared inspector;
-- hides the normal `conversation` center only while PALLAS is open;
-- closes PALLAS and restores the routed center when primary navigation changes;
-- preserves exactly seven primary navigation items and seven routed pages;
-- preserves real node selection propagation into the existing shared PALLAS inspector;
-- exposes explicit shell-host state solely for UI verification;
-- removes the detached full-view dialog host;
-- changes no Backend, Storage, Security, persistence, transport or semantic graph behavior.
+- resolve the real visible MainWindow;
+- require the installed ComfyUI shell controller;
+- require exactly seven navigation items and seven primary pages;
+- require the ComfyUI surface parent to be `referenceBody`;
+- require `pathenaComfyUiShellHosted=True` and MainWindow `pathenaComfyUiShellOpen=True`;
+- retain local-only, loopback diagnostic endpoint, exact workflow payload and prompt-id verification;
+- save the whole MainWindow as Screen 01 (`kind=shell-comfyui`);
+- close through the real shell controller after capture.
 
-Focused tests in the same candidate verify reuse, shell parentage, route restoration, double-click entry, seven-route invariants and shared-inspector selection.
+No ComfyUI client behavior, endpoint validation, queue semantics, workflow semantics, VRAM handling, Backend, Storage, Security or persistence semantics changed. No test/guard weakening, Skip or XFail is introduced.
 
-The native visual harness in the same candidate is updated so Screen 02 is captured from the real main window while PALLAS is open. It now fails if a detached dialog exists, if shell-host state is absent, or if the real renderer does not reach its ready five-node diagnostic presentation fixture. No static mockup is introduced; the existing deterministic renderer fixture remains presentation-only verification.
+## BEFORE -> candidate target
 
-## BEFORE → candidate target
+- BEFORE visual artifact on the prior ComfyUI product lineage: Screen 01 showed only the embedded ComfyUI surface because the harness captured the child widget.
+- Candidate target: exact native Screen 01 must simultaneously show the real pATHENA MainWindow shell and the real shell-hosted ComfyUI workspace.
+- AFTER at commit creation: `CURRENT_RENDER_PENDING_EXACT_CANDIDATE`; no `MATCH` or `CLOSE` claim is permitted yet.
 
-- BEFORE: exact `dce6d463…` Screen 02 = standalone PALLAS renderer, no pATHENA top bar, primary rail or shared inspector in the captured frame.
-- Candidate target: same real renderer hosted inside `referenceBody`, with top bar + rail + central PALLAS + shared inspector in one native MainWindow render.
-- AFTER status at commit creation: `CURRENT_RENDER_PENDING_EXACT_CANDIDATE`. Do not claim closure, `CLOSE` or `MATCH` until the candidate visual artifact is produced and opened.
+## Strict 11-screen state at candidate creation
 
-## Remaining visual order
+`PAIRS_VERIFIED_0_OF_11`, `MATCH_0_OF_11` for the new exact candidate until its native artifact is produced and opened. Each slot is `UNVERIFIED` or `CURRENT_RENDER_UNAVAILABLE`; Light Workspace remains explicitly unavailable as a truthful same-state target.
 
-1. Consume focused UI and native visual evidence for this PALLAS candidate.
-2. If exact-green and shell hosting is visibly proven, keep PALLAS status `GAP` unless all remaining reference geometry/state differences are actually closed.
-3. Next broad recurring shell gap: ComfyUI detached utility hosting.
-4. Then Command Palette workspace-overlay context.
-5. Populated-state work for Workspace/Knowledge/Research/Jobs/System must remain grounded in real state; never generate fake provenance, health or job data for screenshot parity.
+## Next order
+
+1. Consume exact UI Focused, canonical Quality and 11-surface Visual run for this candidate.
+2. Download/open the exact artifact and compare Screen 01 against the original ComfyUI reference.
+3. If shell hosting is proven, keep Screen 01 `GAP` unless secondary navigation, Connection inspector, typography, spacing, proportions, controls and state genuinely align.
+4. Reopen all other exact candidate PNGs and reference images; do not infer same-state evidence from file existence.
+5. Next broad recurring shell/context gap after ComfyUI evidence is correct: Command Palette as a real Workspace overlay rather than an isolated capture.
 
 ## Ready state
 
-- Technical candidate readiness: `PENDING_EXACT_SHA_TESTS`.
+- Technical readiness: `PENDING_EXACT_SHA_TESTS`.
 - Visual readiness: `NO`.
-- BEFORE evidence: `PAIRS_VERIFIED_1_OF_11`, `MATCH_0_OF_11`.
-- Exact AFTER evidence must be consumed before an Integrator-ready claim.
+- Integrator-ready: `NO` until exact focused/Quality evidence is complete and the Develop baseline remains compatible.

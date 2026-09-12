@@ -364,10 +364,24 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     def capture_comfyui() -> None:
         try:
+            window = find_window()
             palette = palette_controller()
             controller = getattr(palette, "_pathena_comfyui_controller", None)
+            shell = getattr(palette, "_pathena_comfyui_shell_controller", None)
             if controller is None:
                 raise RuntimeError("Real ComfyUI controller is unavailable.")
+            if shell is None or not callable(getattr(shell, "close_workspace", None)):
+                raise RuntimeError("Real ComfyUI shell controller is unavailable.")
+            navigation = getattr(window, "navigation", None)
+            pages = getattr(window, "pages", None)
+            reference_body = window.findChild(QWidget, "referenceBody")
+            if navigation is None or pages is None or reference_body is None:
+                raise RuntimeError("ComfyUI shell capture cannot resolve the reference shell.")
+            if navigation.count() != 7 or pages.count() != 7:
+                raise RuntimeError(
+                    "ComfyUI shell capture requires seven primary routes; "
+                    f"found {navigation.count()} nav items and {pages.count()} pages."
+                )
             controller.load_workflow(comfy_workflow)
             if not controller.check_connection():
                 raise RuntimeError("ComfyUI local diagnostic endpoint did not become ready.")
@@ -375,10 +389,16 @@ def main(argv: Sequence[str] | None = None) -> int:
                 raise RuntimeError("ComfyUI diagnostic workflow did not queue.")
             controller.open()
             app.processEvents()
-            dialog = getattr(controller, "dialog", None)
-            if not isinstance(dialog, QWidget) or not dialog.isVisible():
-                raise RuntimeError("ComfyUI dialog did not become visible.")
-            if dialog.property("pathenaComfyUiLocalOnly") is not True:
+            surface = getattr(controller, "dialog", None)
+            if not isinstance(surface, QWidget) or not surface.isVisible():
+                raise RuntimeError("ComfyUI shell surface did not become visible.")
+            if surface.parentWidget() is not reference_body:
+                raise RuntimeError("ComfyUI surface is not parented by the reference shell body.")
+            if surface.property("pathenaComfyUiShellHosted") is not True:
+                raise RuntimeError("ComfyUI surface is not marked as shell-hosted.")
+            if window.property("pathenaComfyUiShellOpen") is not True:
+                raise RuntimeError("ComfyUI shell-open state was not published on the main window.")
+            if surface.property("pathenaComfyUiLocalOnly") is not True:
                 raise RuntimeError("ComfyUI surface lost its local-only contract.")
             prompt_id = controller.receipt.property("pathenaComfyUiPromptId")
             if prompt_id != "visual-regression-prompt":
@@ -394,11 +414,13 @@ def main(argv: Sequence[str] | None = None) -> int:
                 }
             ]:
                 raise RuntimeError("ComfyUI local server did not receive the exact API workflow.")
-            save_widget(dialog, ordinal=11, label="ComfyUI", kind="comfyui")
+            save_widget(window, ordinal=11, label="ComfyUI", kind="shell-comfyui")
             captures[-1]["endpoint"] = controller.endpoint.text()
             captures[-1]["prompt_id"] = prompt_id
             captures[-1]["transport"] = "loopback HTTP; proxy bypassed"
-            dialog.hide()
+            captures[-1]["shell_hosted"] = True
+            shell.close_workspace()
+            app.processEvents()
         except Exception as exc:  # noqa: BLE001
             errors.append(f"ComfyUI: {type(exc).__name__}: {exc}")
 
