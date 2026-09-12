@@ -4,27 +4,35 @@ Evidence-only progress register for `develop/pathena-next`. This file intentiona
 
 ## Current baseline
 
-- Develop parent before the current integration: `cfdcac0bd51973bc18343006a9fb02f6c098a3c0`.
-- Exact parent canonical Quality: `34694827693 = SUCCESS`.
+- Develop parent before the current integration: `db159a068a5de1ca8cd302a5ea436f3f07889d9f`.
+- Exact parent canonical Quality: `34700628139 = SUCCESS`.
 - Current worker heads checked:
-  - Errors: `82590b517a736f3b90709ee16a85e5ac15aeb911`
-  - Spec/Core: `23dc4c79f1e44cd099992eb23636b2c95014c790`
-  - Backend: `51ab9c428bfd69a6aa6fde5e8be6241de7873dca`
-  - UI: `11890ef6216ae44b9e4c222bc8d9016784792e74`
+  - Errors: `9c634dccc829b1a822288afc99ab0339d77efbb1`
+  - Spec/Core: `1f61104959dc6a7d7fcff6051fb013f5f6894706`
+  - Backend: `6fcfdf8a71abcabad7e3b4a661ad35ee1f6603f8`
+  - UI: `4898bceb9a5af98e1a044eb656714ce03be5e2a4`
 
 ## Current integration state
 
 - Durable schedule identity primitives and scheduled-job materialization remain integrated on Develop.
-- Spec/Core user-correction conflict visibility and source-free user Knowledge remain integrated.
-- No current worker head met the complete READY bar during this integration: Core focused gate failed at Ruff remediation despite focused unit tests passing; Backend canonical Quality remained in progress; UI canonical Quality remained in progress and cumulative Core Focused failed.
-- Added a cross-cutting fail-closed release-readiness assessment keyed to exact SHA and explicit guard evidence. Missing evidence remains a blocker rather than being inferred green.
+- Spec/Core source-free user Knowledge and user-correction conflict visibility remain integrated.
+- Fail-closed release-readiness assessment and its Ruff repair remain integrated.
+- Current integration adds truthful Knowledge provenance explanation from exact-green Spec/Core head `1f61104959dc6a7d7fcff6051fb013f5f6894706`, backed by Core Focused Candidate `34701843776 = SUCCESS` and canonical Quality `34701843759 = SUCCESS`.
+- The new projection does not invent source metadata: revisions with no recorded provenance inputs state that explicitly.
+
+## Worker readiness snapshot
+
+- Spec/Core provenance explanation is the current bounded READY slice and is integrated here.
+- Errors current head is evidence/handoff maintenance; no independent Error-owned product mutation is required for this slice.
+- Backend current head does not present a higher-priority new verified prerequisite for this integration.
+- UI current head is synchronized before further workspace hierarchy work; visual and candidate readiness remain separate from this Core slice.
 
 ## Error and visual truth rules
 
-- `docs/agent_logs/ERROR_LEDGER.md` is historical relative to current Develop and is not the sole authority for current OPEN state.
-- The Errors handoff had `ERR-0040 = FIXED_PENDING_VERIFY`; exact integrated Develop canonical Quality `34694827693` has now completed SUCCESS, so the historical fixture signature is not treated as OPEN absent a fresh reproduction.
+- `docs/agent_logs/ERROR_LEDGER.md` remains historical relative to current Develop and is not the sole authority for current OPEN state.
 - Historical release-guard signatures are not reopened without current exact-SHA reproduction.
-- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` and `docs/ui/VISUAL_GAP_LEDGER.md` remain fail-closed until an original reference and real exact-SHA render establish a truthful comparison. No `MATCH` is inferred from worker prose or metadata.
+- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` remains fail-closed; no `MATCH` is inferred without an opened original reference plus a real exact-SHA render.
+- `docs/ui/VISUAL_GAP_LEDGER.md` likewise makes no screenshot-level `MATCH` claim.
 
 ## Persistent release guards
 
