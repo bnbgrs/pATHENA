@@ -2,13 +2,11 @@
 
 ## Baseline
 
-- Develop source of truth: `develop/pathena-next@712376f561e10ea8d579fa316e8deca19ce3a7a1` (`ci(core): scope focused candidate triggers`).
-- Error worker entered this run at `postmerge/errors@9b51bc0cea8f3d32eb9fd232a1711a848d74af39`.
-- Current workers: Spec/Core `ea4211fe5a375698c72dbfdd1d2a5778ea2df0dd`; Backend `736fb66085084f3d0080c0918cdfba00d63558fc`; UI `626c7e0dead504b57f331c9b011d99c96cee6c4d`.
-- Exact-current Develop canonical Quality: `34668822579@712376f561e10ea8d579fa316e8deca19ce3a7a1 = IN_PROGRESS`; no PASS/FAIL claim is derived while it runs and no competing run was started.
-- Spec/Core exact canonical `34667286138@ea4211fe5a375698c72dbfdd1d2a5778ea2df0dd = SUCCESS`.
-- Backend exact Storage Focused Candidate `34668097963@736fb66085084f3d0080c0918cdfba00d63558fc = SUCCESS`; Backend canonical `34668098022` remains `IN_PROGRESS`.
-- UI exact canonical `34668610457@626c7e0dead504b57f331c9b011d99c96cee6c4d = IN_PROGRESS`.
+- Develop source of truth: `develop/pathena-next@bfee081ff63e849b5d024299f0a7b9286dc737e7` (`feat(core): integrate contradiction resolution`).
+- Error worker entered this run at `postmerge/errors@be3d01227f4d60678b4ab803fd515a2fddd26fec`.
+- Current workers: Spec/Core `ea4211fe5a375698c72dbfdd1d2a5778ea2df0dd`; Backend `7c1af4402aed6c86c41fcc5eddbaab6a845445a8`; UI `dce6d463b17474ec2da702a14b7a4365123df45d`.
+- Exact-current Develop canonical Quality: `34671556177@bfee081ff63e849b5d024299f0a7b9286dc737e7 = IN_PROGRESS`; no PASS/FAIL claim is derived while it runs and no competing canonical run was started.
+- Backend exact Storage Focused Candidate `34670367115@7c1af4402aed6c86c41fcc5eddbaab6a845445a8 = SUCCESS`; Backend canonical Quality `34670367093 = FAILURE`.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current error state
@@ -16,50 +14,61 @@
 - OPEN: `ERR-0035`.
 - IN_PROGRESS: none.
 - FIXED_PENDING_VERIFY: none.
-- FIXED now includes `ERR-0033`.
+- FIXED includes `ERR-0033`.
 - STALE includes historical `ERR-0038` and `ERR-0039`.
 - BLOCKED: none.
 
-## Hard progress this run — ERR-0033 closure
+## Hard progress this run — ERR-0035 exact canonical root-cause isolation
 
-### ERR-0033 — Emergency-reserve physical-reclamation/accounting continuity
+### ERR-0035 — SQLite preflight-to-writer whole-file-set continuity across controlled migration
 
-Status: `FIXED / P1 / Backend BE-046`.
+Status: `OPEN / P1 / Backend BE-052 owned`.
 
-The previously canonical-green Backend fix `b595c960a747d9805b0865ea9f7237094318b706` was integrated into `develop/pathena-next@ca87e42c8820c47db7d6626feb17698560cd3b49`. Its fail-closed behavior keeps reserve identity bound through POSIX release, rejects alternate-link ownership and avoids claiming unproven physical reclamation from logical file size.
+Current Backend candidate is `7c1af4402aed6c86c41fcc5eddbaab6a845445a8`. Its Storage Focused Candidate is green (`34670367115 = SUCCESS`), but canonical Quality `34670367093` is red.
 
-New completed closure evidence consumed this run: exact integrated Develop canonical Quality `34666307002@ca87e42c8820c47db7d6626feb17698560cd3b49 = SUCCESS`. This closes the final verification condition that previously kept the cluster at `FIXED_PENDING_VERIFY`.
+Canonical job isolation is clean: specification validator, Ruff, mypy, Linux storage regressions, Windows path safety and Local install all pass. Only full pytest fails, with exactly two tests:
 
-`ERR-0033` is therefore `FIXED`. Do not reopen it without a new current exact-SHA reproduction.
+- `tests/unit/test_archive_replication.py::test_v30_migration_backfills_existing_spool_blob`
+- `tests/unit/test_news_audit.py::test_v29_migration_backfills_legacy_event_assessment_without_model`
 
-### ERR-0035 — SQLite preflight-to-writer whole-file-set continuity
+Both terminate in `StartupError: Failed to start service 'storage-bootstrap'`, whose direct storage cause is `DatabaseStartupIdentityChangedError: ATHENA SQLite database/WAL/SHM identity changed after startup preflight.`
 
-Status remains `OPEN / P1 / Backend BE-052 owned` in this run.
+### Exact root cause
 
-Backend has now produced bounded candidate `736fb66085084f3d0080c0918cdfba00d63558fc` (`fix(storage): bind SQLite preflight identity to live writer`). Exact source inspection shows that it adds a `DatabaseFileSetIdentity` for DB/WAL/SHM, carries the accepted preflight into `SQLiteDatabase.start()`, validates the file-set identity before writer open and again after the writer is established, and binds the preflight from `StorageBootstrapService` into the database service.
+`StorageBootstrapService.start()` obtains the read-only preflight and plans migration. If migration is required, it then runs the authorized migration before live DB startup. After that migration succeeds, the service still calls `database.bind_startup_preflight(preflight)` with the original pre-migration identity token. `SQLiteDatabase.start()` correctly performs `assert_database_file_set_identity()` before writer open, sees that the controlled migration changed the database file identity, and fails closed.
 
-The candidate adds adversarial focused coverage for each member replacement, primary substitution during writer open, missing-primary creation before writer start, and sidecar creation before writer open. Relevant exact Storage Focused Candidate `34668097963` is `SUCCESS`.
+Therefore the new BE-052 identity guard is not itself too strict. The orchestration is stale: a successful authorized migration invalidates the pre-migration DB/WAL/SHM identity by design, yet that stale token is passed to the writer.
 
-Do not promote `ERR-0035` yet: canonical Quality `34668098022@736fb66085084f3d0080c0918cdfba00d63558fc` is still `IN_PROGRESS`. CI discipline requires consuming that existing exact run first; no competing run was started and no Backend mutation was made by Errors.
+### Minimal owner correction
+
+After a successful controlled migration, Backend should reacquire a fresh identity-bearing read-only preflight for the migrated DB/WAL/SHM file set and bind that post-migration preflight into `SQLiteDatabase.start()`. Preserve all existing pre-migration recovery checks and all before/after-writer identity assertions. Do not weaken the sidecar race guard, missing-primary exclusive creation, migration-recovery semantics, Storage fail-closed behavior, or tests.
+
+Focused verification must include both canonical failures above plus the existing BE-052 adversarial replacement/sidecar-creation suite. Only after the smallest relevant storage/bootstrap regression set passes should canonical Quality run on one unchanged Backend exact SHA.
+
+Errors did not patch Backend product code because BE-052 is actively Backend-owned and the same storage/bootstrap files are under active worker mutation.
+
+### ERR-0033
+
+`ERR-0033 = FIXED / P1`; integrated closure evidence remains `34666307002@ca87e42c8820c47db7d6626feb17698560cd3b49 = SUCCESS`. Reopen only with a new current exact-SHA reproduction.
 
 ### ERR-0039 and ERR-0038
 
-Both remain `STALE`; do not reopen without their own current exact-SHA reproductions.
+Both remain `STALE`; do not reopen without current exact-SHA reproduction.
 
 ## CI discipline
 
-- `postmerge/errors@9b51bc0cea8f3d32eb9fd232a1711a848d74af39` had zero workflow runs immediately before the ledger mutation.
-- After ledger commit `d6e094325d7923f4320b15620cefc58e3dda2b11`, `postmerge/errors` again had zero workflow runs before this handoff mutation.
-- Errors started no canonical Quality run and did not mutate a branch with a queued/in-progress Error-worker run.
-- Running canonical jobs on Develop, Backend and UI were left untouched.
+- `postmerge/errors@be3d01227f4d60678b4ab803fd515a2fddd26fec` had zero workflow runs immediately before the ledger mutation.
+- After ledger commit `a0dd972fea4116f4057f1ba9c35310513f4463bb`, `postmerge/errors` again had zero workflow runs before this handoff mutation.
+- Errors started no canonical Quality run and did not mutate Develop, Backend, Spec/Core, UI, `main`, or `bnbgrs/ATHENA`.
+- Develop canonical `34671556177` was left running untouched.
 
 ## Integrator handoff
 
-- Develop: `712376f561e10ea8d579fa316e8deca19ce3a7a1`; canonical `34668822579 = IN_PROGRESS`.
-- Spec/Core: `ea4211fe5a375698c72dbfdd1d2a5778ea2df0dd`; canonical `34667286138 = SUCCESS`.
-- Backend: `736fb66085084f3d0080c0918cdfba00d63558fc`; Storage Focused `34668097963 = SUCCESS`; canonical `34668098022 = IN_PROGRESS`.
-- UI: `626c7e0dead504b57f331c9b011d99c96cee6c4d`; canonical `34668610457 = IN_PROGRESS`.
-- `ERR-0033 = FIXED / P1`: exact integrated closure evidence is `34666307002@ca87e42c8820c47db7d6626feb17698560cd3b49 = SUCCESS`.
-- `ERR-0035 = OPEN / P1`: bounded Backend fix exists at `736fb660...` with exact Storage Focused success; consume its running canonical `34668098022` before any status promotion or integration claim.
+- Develop: `bfee081ff63e849b5d024299f0a7b9286dc737e7`; canonical `34671556177 = IN_PROGRESS`.
+- Spec/Core: `ea4211fe5a375698c72dbfdd1d2a5778ea2df0dd`.
+- Backend: `7c1af4402aed6c86c41fcc5eddbaab6a845445a8`; Storage Focused `34670367115 = SUCCESS`; canonical `34670367093 = FAILURE` due exactly two migration/startup pytest failures.
+- UI: `dce6d463b17474ec2da702a14b7a4365123df45d`.
+- `ERR-0035 = OPEN / P1`: current Backend candidate is not integration-ready. Exact root cause is stale pre-migration DB/WAL/SHM identity being bound to writer startup after the controlled migration has legitimately changed that file set.
+- `ERR-0033 = FIXED / P1`.
 - `ERR-0039 = STALE`; `ERR-0038 = STALE`.
 - Preserve pypdf packaging, Frozen argv, two-EXE topology, bounded workers, adaptive 2048-context reserve, Windows lane-lock mapping, duplicate-column/Core-startup/storage-bootstrap guards and all Storage/Recovery/Security fail-closed invariants.
