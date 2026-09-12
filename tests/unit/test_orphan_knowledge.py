@@ -55,7 +55,7 @@ def test_orphan_user_knowledge_rejects_malformed_boundaries_before_write(tmp_pat
     try:
         chat = ChatService(ChatRepository(database))
         repository = KnowledgeRepository(database)
-        actor_id = chat.ensure_local_user()
+        chat.ensure_local_user()
         draft = KnowledgeUnitDraft(
             knowledge_kind=KnowledgeKind.DECISION,
             body="Keep this decision source-free but attributable to the user.",
