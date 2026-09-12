@@ -8,14 +8,14 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 
 ## Current baseline
 
-- Develop source of truth: `develop/pathena-next@4dbefe2167b28bffab2c6b69b7a8df4b43770a6f` (`feat(ui): integrate deterministic Help focus targets`).
-- Error worker entered this run at `postmerge/errors@a2ab7e0a59edf2ad45695effd23b1b47a428f6b1`.
-- Current workers: Spec/Core `58d76e1e3d7ce1723ca4a75a8cc0608185fae7e8`; Backend `a8b30e42a22225728c3b9f6efcb3fceba3ee2315`; UI `dce6d463b17474ec2da702a14b7a4365123df45d`.
-- Exact-current Develop canonical Quality: `34674406807@4dbefe2167b28bffab2c6b69b7a8df4b43770a6f = IN_PROGRESS`; no Develop PASS/FAIL claim is derived while it is running and no competing canonical run was started.
-- Spec/Core exact `58d76e1e3d7ce1723ca4a75a8cc0608185fae7e8`: Core Focused `34672548118 = SUCCESS`; canonical Quality `34672548120 = SUCCESS`.
-- UI exact `dce6d463b17474ec2da702a14b7a4365123df45d`: UI Focused `34671153433 = SUCCESS`; canonical Quality `34671153472 = SUCCESS`.
-- Backend exact `a8b30e42a22225728c3b9f6efcb3fceba3ee2315`: Backend Focused `34673089208 = FAILURE`; canonical Quality `34673089183 = FAILURE`. Canonical full pytest, mypy, Windows path safety, Linux storage regressions and Local install are green; Ruff is red.
-- `postmerge/errors@a2ab7e0a59edf2ad45695effd23b1b47a428f6b1` had zero workflow runs immediately before this mutation.
+- Develop source of truth: `develop/pathena-next@cec77b6f8b64ec0bdf29cb546d8db4e1cf16ae80` (`feat(core): integrate stale knowledge maintenance policy`).
+- Error worker entered this run at `postmerge/errors@a762c0e5aebb7e015b8bfe66856de8ea5e35c48a`.
+- Current workers: Spec/Core `58d76e1e3d7ce1723ca4a75a8cc0608185fae7e8`; Backend `f99f352050cbbcda889cd2a528d95c415992f3ec`; UI `67994fd72ba9f496b50aa407b36d789a4edfb804`.
+- Exact-current Develop canonical Quality: `34676594675@cec77b6f8b64ec0bdf29cb546d8db4e1cf16ae80 = IN_PROGRESS`; no Develop PASS/FAIL claim is derived while it is running and no competing canonical run was started.
+- Previous Develop exact `4dbefe2167b28bffab2c6b69b7a8df4b43770a6f`: canonical Quality `34674406807 = SUCCESS`.
+- Backend exact `f99f352050cbbcda889cd2a528d95c415992f3ec`: Backend Focused `34675706783 = SUCCESS`; canonical Quality `34675706788 = FAILURE`. Canonical specification validator, Ruff, mypy, Windows path safety, Linux storage regressions and Local install are green; the full pytest step is the sole failing canonical job step.
+- Backend `f99f3520...` is exactly one commit ahead of prior reproducer `a8b30e42...`; that commit changes only `src/athena/jobs/schedule_policy.py`, so the Storage/Recovery regression described below is unchanged on the current Backend head.
+- `postmerge/errors@a762c0e5aebb7e015b8bfe66856de8ea5e35c48a` had zero workflow runs immediately before this mutation.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current state
@@ -32,14 +32,14 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Severity: P1.
 - Status: `OPEN`.
 - Specialist owner: Backend / BE-052.
-- Previous Backend exact `7c1af4402aed6c86c41fcc5eddbaab6a845445a8` carried an identity-bearing startup preflight into `SQLiteDatabase.start()`, asserted DB/WAL/SHM identity before writer open, created a missing primary exclusively, then asserted identity again after writer establishment.
-- Current exact Backend head `a8b30e42a22225728c3b9f6efcb3fceba3ee2315` has regressed that protection: `src/athena/storage/database.py` no longer stores or binds `DatabasePreflightReport`, no longer imports/calls the file-set identity helpers, and `start()` now performs only an independent `inspect_database_read_only(self.path)` followed by `sqlite3.connect()`.
-- Exact branch comparison from `7c1af440...` to `a8b30e42...` confirms 65 deletions in `src/athena/storage/database.py`, 133 deletions in `src/athena/storage/recovery.py`, and complete removal of `tests/unit/test_database_startup_identity.py` (127 lines), while `src/athena/storage/bootstrap.py` also changes in the same startup cluster.
-- Therefore the earlier BE-052 failure mode is current again on an exact active worker SHA: the accepted read-only snapshot is not identity-bound across the preflight-to-writer transition. The current full pytest PASS cannot close this root cause because the dedicated adversarial startup-identity test file was removed in the same candidate.
-- This is release-guard weakening and must not be integrated. The current Backend candidate is not integration-ready even aside from its separate Ruff failure.
-- Required owner correction: restore identity-bearing DB/WAL/SHM preflight continuity, including fail-closed assertions before and after writer establishment and exclusive missing-primary creation; then fix the controlled-migration orchestration by reacquiring a fresh identity-bearing preflight after an authorized migration rather than deleting the guard. Restore the adversarial startup-identity regression coverage. No Skip/XFail or guard/test removal is acceptable.
-- Required verification: focused startup-identity tests including primary replacement and WAL/SHM sidecar creation/replacement, the two controlled-migration regressions previously exposed by canonical Quality, smallest storage/bootstrap regression set, then canonical Quality on one unchanged exact Backend SHA.
-- Error worker did not mutate Backend product code because Backend actively owns BE-052 and is changing the same Storage/Recovery files.
+- Current exact Backend head `f99f352050cbbcda889cd2a528d95c415992f3ec` still has the startup identity protection removed. `src/athena/storage/database.py` performs `inspect_database_read_only(self.path)` and then independently opens `sqlite3.connect()`; it does not persist or bind an identity-bearing DB/WAL/SHM preflight token and does not assert that file-set identity before or after writer establishment.
+- Direct current-head lookup confirms `tests/unit/test_database_startup_identity.py` is absent (`404 Not Found`). Therefore full-pytest success or failure cannot by itself close BE-052 because the dedicated adversarial startup-identity coverage remains removed.
+- The current Backend head is exactly one commit ahead of prior exact reproducer `a8b30e42a22225728c3b9f6efcb3fceba3ee2315`; that one commit only adds `strict=True` to a `zip()` call in `src/athena/jobs/schedule_policy.py`. No Storage/Recovery file changed, so the current exact head inherits the same BE-052 regression without inference across unrelated Storage code.
+- CI has materially changed since the prior run: Backend Focused `34675706783@f99f3520... = SUCCESS`; canonical Quality `34675706788@f99f3520... = FAILURE`. In canonical Quality, specification validator, Ruff, mypy, Windows path safety, Linux storage regressions and Local install are green; the full pytest step alone fails. Canonical diagnostics artifact `canonical-quality-diagnostics-f99f352050cbbcda889cd2a528d95c415992f3ec` exists. No unobserved failing-test name is asserted here.
+- This remains release-guard weakening and is not integration-ready regardless of whether the current canonical pytest failure is related or unrelated to BE-052.
+- Required owner correction remains: restore identity-bearing DB/WAL/SHM preflight continuity; assert exact file-set identity before writer open; retain exclusive fail-closed missing-primary creation; assert identity again after writer establishment; after a successful controlled migration, acquire a fresh post-migration identity-bearing preflight and bind that fresh token to writer startup; restore adversarial startup-identity coverage for primary replacement and WAL/SHM sidecar creation/replacement races.
+- Required verification: restored startup-identity suite first, then the two controlled-migration regressions previously exposed by canonical Quality, the smallest storage/bootstrap regression set, Backend Focused, and canonical Quality on one unchanged exact Backend SHA.
+- Error worker did not mutate Backend product code because Backend actively owns BE-052 and is changing the same worker lineage.
 
 ## ERR-0033 — Emergency-reserve filesystem-object identity and physical-reclamation gap
 
