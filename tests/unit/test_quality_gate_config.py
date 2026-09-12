@@ -1,6 +1,8 @@
 import tomllib
 from pathlib import Path
 
+from scripts import quality
+
 
 def test_quality_gate_tools_are_pinned() -> None:
     config = tomllib.loads(Path("pyproject.toml").read_text(encoding="utf-8"))
@@ -19,11 +21,20 @@ def test_project_remains_pinned_to_python_312() -> None:
     assert config["tool"]["mypy"]["python_version"] == "3.12"
 
 
+def test_quality_gate_invokes_ruff_through_locked_uv_environment() -> None:
+    ruff = next(check for check in quality.build_checks() if check.name == "Ruff")
 
-def test_quality_gate_invokes_ruff_via_current_python_interpreter() -> None:
+    assert ruff.command[:7] == quality.UV_RUN_PREFIX
+    assert ruff.command[7:] == (
+        "python",
+        "-m",
+        "ruff",
+        "check",
+        "src",
+        "tests",
+        "scripts",
+    )
+
     source = Path("scripts/quality.py").read_text(encoding="utf-8")
-
-    assert 'sys.executable,' in source
-    assert '"-m",' in source
-    assert '"ruff",' in source
+    assert "sys.executable" not in source
     assert 'shutil.which("ruff")' not in source

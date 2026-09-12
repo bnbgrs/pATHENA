@@ -15,6 +15,7 @@ def test_quality_gate_is_fail_fast_by_default() -> None:
 
 def test_quality_gate_keep_going_runs_every_check() -> None:
     results = [
+        CompletedProcess(args=("lock",), returncode=0),
         CompletedProcess(args=("spec",), returncode=0),
         CompletedProcess(args=("ruff",), returncode=0),
         CompletedProcess(args=("mypy",), returncode=7),
@@ -24,4 +25,7 @@ def test_quality_gate_keep_going_runs_every_check() -> None:
     with patch.object(quality.subprocess, "run", side_effect=results) as run:
         assert quality.main(["--keep-going"]) == 7
 
-    assert run.call_count == 4
+    assert run.call_count == len(quality.build_checks())
+    assert [call.args[0] for call in run.call_args_list] == [
+        check.command for check in quality.build_checks()
+    ]
