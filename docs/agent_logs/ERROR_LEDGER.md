@@ -8,15 +8,14 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 
 ## Current baseline
 
-- Develop source of truth: `develop/pathena-next@db159a068a5de1ca8cd302a5ea436f3f07889d9f` (`fix(release): normalize readiness Ruff formatting`).
-- Error worker entered this run at `postmerge/errors@e33839260e5582e972aa6e311c9631afbe08fe24`.
-- Current workers: Spec/Core `a35a67f1afe2789d8a568fa3484ef5fe29f46de9`; Backend `6fcfdf8a71abcabad7e3b4a661ad35ee1f6603f8`; UI `9e9227dc722d7d771ae4ce4e45a75983330fed97`.
-- Develop canonical Quality: `34700628139@db159a068a5de1ca8cd302a5ea436f3f07889d9f = IN_PROGRESS`; no competing canonical run was started.
-- Parent Develop `146fb7280dbfe30f2bec129aec8ee77f015ce040`: canonical `34697870543 = FAILURE`, isolated to Ruff in the release-readiness slice; specification validator, mypy, full pytest, Windows path safety/release guards, Linux storage regressions and local install passed.
-- Spec/Core exact `a35a67f1afe2789d8a568fa3484ef5fe29f46de9`: Core Focused `34698818610 = SUCCESS`; canonical `34698818608 = FAILURE`.
-- Backend exact `6fcfdf8a71abcabad7e3b4a661ad35ee1f6603f8`: Backend Focused `34700396671 = SUCCESS`; canonical `34700396666 = IN_PROGRESS` at observation time.
-- UI exact `9e9227dc722d7d771ae4ce4e45a75983330fed97`: UI Focused `34699977144 = SUCCESS`; cumulative Core Focused `34699977166 = FAILURE`.
-- `postmerge/errors@e33839260e5582e972aa6e311c9631afbe08fe24` had zero workflow runs immediately before this mutation.
+- Develop source of truth: `develop/pathena-next@452547ab46c5d8c678c22c3e1fb9d34652b653fd` (`feat(core): integrate knowledge provenance explanation`).
+- Error worker entered this run at `postmerge/errors@9c634dccc829b1a822288afc99ab0339d77efbb1`.
+- Current workers: Spec/Core `1f61104959dc6a7d7fcff6051fb013f5f6894706`; Backend `6fcfdf8a71abcabad7e3b4a661ad35ee1f6603f8`; UI `4898bceb9a5af98e1a044eb656714ce03be5e2a4`.
+- Develop canonical Quality: `34703645964@452547ab46c5d8c678c22c3e1fb9d34652b653fd = IN_PROGRESS`; no competing canonical run was started.
+- Parent Develop `db159a068a5de1ca8cd302a5ea436f3f07889d9f`: canonical `34700628139 = SUCCESS`.
+- Spec/Core exact `1f61104959dc6a7d7fcff6051fb013f5f6894706`: Core Focused Candidate `34701843776 = SUCCESS`; canonical Quality `34701843759 = SUCCESS`.
+- Integrator handoff records that this exact-green Spec/Core provenance slice is the bounded product delta integrated into current Develop.
+- `postmerge/errors@9c634dccc829b1a822288afc99ab0339d77efbb1` had zero workflow runs immediately before this mutation.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current state
@@ -33,12 +32,12 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Severity: P1 integration blocker.
 - Status: `FIXED_PENDING_VERIFY`.
 - Historical reproducer: `postmerge/spec-core@23dc4c79f1e44cd099992eb23636b2c95014c790`; Core Focused `34696122597 = FAILURE`, canonical `34696122599 = FAILURE`; exact root cause was Ruff `I001` at `src/athena/knowledge/provenance_explanation.py:3:1`.
-- Owner repair exact SHA: `postmerge/spec-core@a35a67f1afe2789d8a568fa3484ef5fe29f46de9`. The file now has the standard-library import block ordered with `import uuid` before `dataclasses`/`datetime` imports.
-- Focused owner verification: Core Focused `34698818610 = SUCCESS` on exact repair SHA.
-- Canonical `34698818608@a35a67f1afe2789d8a568fa3484ef5fe29f46de9 = FAILURE`, but downloaded exact-SHA diagnostics show the remaining two Ruff `I001` failures are exclusively `src/athena/release_readiness.py:3:1` and `tests/unit/test_release_readiness.py:1:1`; the provenance file is no longer reported.
-- Therefore the original ERR-0041 root cause is repaired on its owning worker and is not the cause of that canonical failure. Do not conflate the inherited release-readiness Ruff drift with ERR-0041.
-- Current Develop `db159a068a5de1ca8cd302a5ea436f3f07889d9f` contains a bounded repair for those release-readiness Ruff blocks; its canonical `34700628139` is still running.
-- Closure requirement: a current/superseding integrated exact SHA carrying the provenance repair with successful canonical verification. Until then retain `FIXED_PENDING_VERIFY`, not `FIXED`.
+- First owner repair: `postmerge/spec-core@a35a67f1afe2789d8a568fa3484ef5fe29f46de9`; focused Core run `34698818610 = SUCCESS`. Its remaining canonical Ruff failures were separately isolated to release-readiness files, not provenance.
+- Superseding owner exact SHA: `postmerge/spec-core@1f61104959dc6a7d7fcff6051fb013f5f6894706`.
+- New completed owner evidence: Core Focused Candidate `34701843776 = SUCCESS` and canonical Quality `34701843759 = SUCCESS` on that exact SHA.
+- Integrator imported that exact-green bounded provenance slice into current Develop `452547ab46c5d8c678c22c3e1fb9d34652b653fd`.
+- Current Develop canonical `34703645964` is still `IN_PROGRESS`, so integrated closure is not yet proven and `FIXED` is not claimed.
+- Closure requirement: successful canonical verification on current or superseding integrated exact Develop SHA carrying this provenance repair.
 
 ## ERR-0040 — Scheduled-materialization test fixture violates canonical SQLite journal-mode invariant
 
