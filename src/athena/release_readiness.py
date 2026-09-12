@@ -1,7 +1,8 @@
 """Fail-closed release-readiness assessment for exact pATHENA build evidence."""
 
-from dataclasses import dataclass
+from __future__ import annotations
 
+from dataclasses import dataclass
 
 _REQUIRED_GUARDS = (
     "canonical_quality",
