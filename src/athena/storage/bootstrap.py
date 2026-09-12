@@ -117,6 +117,7 @@ class StorageBootstrapService:
         self._ensure_migration_root()
 
         preflight = inspect_database_read_only(self.paths.database_path)
+        writer_preflight = preflight
         plan = plan_database_migration(preflight)
         recovery = assess_migration_recovery(
             source_db=self.paths.database_path,
@@ -156,6 +157,13 @@ class StorageBootstrapService:
                 started_at_us=utc_now_us(),
                 executor=self._executor,
             )
+            # An authorized clone migration intentionally replaces the primary
+            # database object. The pre-migration identity is therefore stale by
+            # design and must never be carried into the live writer. Re-run the
+            # full read-only integrity/application/schema and DB/WAL/SHM identity
+            # preflight against the activated database, then bind that fresh
+            # snapshot across writer establishment.
+            writer_preflight = inspect_database_read_only(self.paths.database_path)
 
         self.disk_pressure.check()
         if self.disk_pressure.read_only_safe_mode:
@@ -167,9 +175,9 @@ class StorageBootstrapService:
         self.database.configure_noncritical_write_gate(
             self.disk_pressure.assert_noncritical_write_allowed
         )
-        self.database.bind_startup_preflight(preflight)
+        self.database.bind_startup_preflight(writer_preflight)
         self.database.start()
-        self.preflight = preflight
+        self.preflight = writer_preflight
         self.migration_plan = plan
         self.recovery = recovery
         self.reserve = reserve
