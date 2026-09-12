@@ -1,39 +1,42 @@
-# Post-Merge Feature Handoff - Integrator
+# pATHENA Feature Integrator Handoff
 
-Generated: 2026-09-12T05:52+02:00
-Branch: `develop/pathena-next`
-Run-start HEAD: `712376f561e10ea8d579fa316e8deca19ce3a7a1`
+## Current integration
 
-## Current evidence
-
-- `main` and `bnbgrs/ATHENA` remained strictly read-only and untouched.
-- Exact Develop canonical Quality `34668822579@712376f561e10ea8d579fa316e8deca19ce3a7a1 = SUCCESS` before mutation.
-- Worker heads reviewed: Errors `be3d01227f4d60678b4ab803fd515a2fddd26fec`; Spec/Core `ea4211fe5a375698c72dbfdd1d2a5778ea2df0dd`; Backend `7c1af4402aed6c86c41fcc5eddbaab6a845445a8`; UI `dce6d463b17474ec2da702a14b7a4365123df45d`.
-- Fresh Error handoff closes `ERR-0033 / BE-046` as FIXED and keeps `ERR-0035 / BE-052` OPEN/P1/Backend-owned; no Storage/Recovery root-cause was mutated here.
-- Root `ALPHA_BETA_PROGRESS.md` remains absent; no synthetic completion percentage is recorded.
-- Visual source of truth remains the 11-screen manifest plus Visual-Gap ledger; no screenshot-level MATCH is asserted without approved reference/current-render evidence.
+- Integration target: `develop/pathena-next`
+- Develop parent before this integration: `bfee081ff63e849b5d024299f0a7b9286dc737e7`
+- Parent canonical Quality: `34671556177` = `SUCCESS`
+- Promoted worker candidate: `postmerge/ui` exact SHA `dce6d463b17474ec2da702a14b7a4365123df45d`
+- Exact UI Focused Candidate: `34671153433` = `SUCCESS`
+- Exact canonical Quality on candidate: `34671153472` = `SUCCESS`
 
 ## Integrated bounded slice
 
-Spec/Core exact `ea4211fe5a375698c72dbfdd1d2a5778ea2df0dd` is READY with canonical Quality `34667286138 = SUCCESS` and Core Focused Candidate `34667286211 = SUCCESS`.
+The integration takes only the self-contained UI Help/accessibility product slice and its direct focused tests from the verified candidate:
 
-The current delta from Develop is exactly:
-- `src/athena/knowledge/claim_service.py`
-- `tests/unit/test_claim_contradiction_resolution.py`
+- `src/athena/desktop/pathena_capability_help.py`
+- `src/athena/desktop/pathena_navigation_context_accessibility.py`
+- `tests/unit/test_pathena_capability_help_shell.py`
+- `tests/unit/test_pathena_navigation_context_accessibility.py`
 
-The slice adds explicit user-driven contradiction resolution. A claim must carry concrete `CONTRADICTS` evidence; the requested target must be a valid non-CONTRADICTED `EpistemicStatus`; no-op status revisions are rejected. Resolution creates a new revision while preserving claim identity, statement, semantic fields, temporal bounds and the existing contradiction evidence history.
+Worker handoff text, visual ledgers, and snapshot-renderer evidence are deliberately not promoted with this product slice. Current Develop documentation remains the source of truth for visual status.
 
-No Worker history is merged. Only the two bounded files above plus this handoff are placed on the current Develop tree.
+The slice keeps Help inside the existing workspace shell, derives its capability hierarchy from live capability data, preserves the primary navigation/router invariant, exposes deterministic focus targets for Help options, and keeps contextual inspector/accessibility behavior UI-owned. No Core, Backend, Storage, Recovery, Security, packaging, runtime, or release-guard behavior is changed.
+
+The candidate also had an unrelated Core Focused result caused by the historical broad Core test trigger. Current Develop already contains the narrowed Core trigger. That unrelated cross-trigger result is not used as evidence for this bounded UI promotion; the exact UI Focused Candidate and exact canonical Quality are both green.
+
+## Current evidence rules
+
+- `docs/agent_logs/ERROR_LEDGER.md` is historical evidence and is not authoritative by itself for current OPEN state.
+- Root `ALPHA_BETA_PROGRESS.md` is absent on the current Develop baseline.
+- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` and `docs/ui/VISUAL_GAP_LEDGER.md` remain fail-closed: all eleven reference slots stay pending real visual review. No `MATCH` is claimed without an original reference plus a real exact-SHA render.
+- Backend/Storage/Recovery candidates remain conservative and require their own exact-head evidence before promotion.
 
 ## Persistent release guards
 
-- pypdf packaging, fail-closed Frozen argv, Desktop/Worker two-EXE topology, one Desktop instance with bounded workers, adaptive 2048-context Chat reserve, Windows lane-lock/path-safety, duplicate-column/Core-startup/storage-bootstrap protections remain unchanged.
-- No Skip/XFail, assertion relaxation, Storage/Recovery/Security weakening, canonical Quality reduction or visual threshold reduction was introduced.
-- Historical signatures are not reopened without exact-current reproduction.
+Retain without relaxation: pypdf packaging; fail-closed Frozen argv; Desktop/Worker two-EXE split; exactly one Desktop instance with bounded workers; adaptive 2048-context Chat reserve; Windows lane-lock cluster; duplicate-column, Core-startup, and storage-bootstrap regression signatures.
 
-## Next integration
+## Promotion state
 
-1. Consume canonical Quality for the resulting exact Develop SHA before any further Develop mutation.
-2. Re-read all worker heads after that gate completes; do not reuse stale worker SHAs.
-3. Prefer the highest-impact exact-verified prerequisite, conservatively treating Backend Storage/Recovery candidates.
-4. Keep visual MATCH fail-closed and all persistent release guards intact.
+`PROMOTION_READY=NO`
+
+Develop must not be mutated again while canonical Quality for the integration commit is queued or in progress. `main` and `bnbgrs/ATHENA` remain read-only.
