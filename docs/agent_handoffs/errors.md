@@ -2,94 +2,88 @@
 
 ## Baseline
 
-- Develop: `5eecb5f937de9325a9673df5f1a23d2f1b5e87cf`.
-- Errors worker entered at `3f7f5e35b2248688de4203c1f072e8a9cda92dbc`; current ledger commit: `718a54123ca8f8759d594fe65aa14ac2b9453f14`.
-- Current workers: Spec/Core `f86df7dc1b4f4be5aeb2000986eb7965cafa8dcb`; Backend `c5151466928dbe751a2e62c210717d0858a74bd3`; UI `1c6c3475945c7ee0ba4d7514b81dd4d444d843e6`.
-- Develop canonical `34706615596@5eecb5f937de9325a9673df5f1a23d2f1b5e87cf = IN_PROGRESS`; no competing run started by Errors.
+- Develop: `522a01050dba5b4dafa81d60573bd185a8e7e15b` (`test(ci): lock core focused candidate invariants`).
+- Exact Develop parent `b8afe9661387c4a1a3d65f539c39ca772f37329c` canonical Quality `34710920451 = SUCCESS`.
+- Current Develop canonical `34712404459@522a01050dba5b4dafa81d60573bd185a8e7e15b = IN_PROGRESS`; no competing run started by Errors.
+- Errors worker entered this run at `3e3915d5cb0c3964661db1fcef100f98664915c1`; ledger update commit: `fd7905d08df53946e8f884698c145872bc299b32`.
+- Current workers: Spec/Core `f86df7dc1b4f4be5aeb2000986eb7965cafa8dcb`; Backend `956cffa5dca29cbf5af71fd6e06bd87f2a79b4cc`; UI `460e35e74d8c529a5880356bf30b9099d80e39de`.
 - `main` and `bnbgrs/ATHENA` remain read-only.
 
 ## Current error state
 
-- OPEN: `ERR-0042`, `ERR-0043`, `ERR-0044`.
+- OPEN: `ERR-0042`, `ERR-0045`.
 - IN_PROGRESS: none.
-- FIXED_PENDING_VERIFY: none.
-- FIXED: `ERR-0041`, `ERR-0040`, `ERR-0035`, `ERR-0033` and prior closed clusters.
+- FIXED_PENDING_VERIFY: `ERR-0043`.
+- FIXED: `ERR-0044`, `ERR-0041`, `ERR-0040`, `ERR-0035`, `ERR-0033` and prior closed clusters.
 - STALE: `ERR-0038`, `ERR-0039` and prior stale clusters.
 
-## ITERATION-1 — ERR-0042 exact owner repair diagnostics consumed
+## ITERATION-1 — ERR-0044 integrated harness repair verified
 
-`ERR-0042` remains `OPEN / P1`.
+`ERR-0044 = FIXED / P2`.
 
-Current Spec/Core exact head is `f86df7dc1b4f4be5aeb2000986eb7965cafa8dcb`. Exact Core-focused diagnostics from run `34709904332` were downloaded and inspected:
+The repository-side Core Focused harness repair is already present on Develop parent `b8afe9661387c4a1a3d65f539c39ca772f37329c` and exact canonical Quality `34710920451 = SUCCESS`.
 
-- `ruff.txt`: exactly one `I001` at `tests/unit/test_revision_change_explanation.py:1:1`, `Import block is un-sorted or un-formatted`.
-- `pytest.txt`: `6 passed in 0.17s`.
+The repaired workflow uses `git diff --diff-filter=ACMR --name-only` for all three relevant Core path selections, excluding deleted paths while preserving added/copied/modified/renamed candidates. Ruff remediation cleanliness now uses `git status --porcelain --untracked-files=no`, so only the workflow's own untracked evidence is ignored; tracked candidate mutations remain fail-closed. Exact candidate reset and outcome enforcement remain intact.
 
-The owner commit `fix(core): normalize revision change import` therefore did not fix the Ruff blocker, but the revision-change behavior tests remain fully green. Canonical `34709904327` is still active; canonical Ruff is already failed while specification validator and the available platform/storage jobs are green.
+Current Develop `522a01050dba5b4dafa81d60573bd185a8e7e15b` adds dedicated regression tests locking these invariants. Its canonical Quality `34712404459` is still running, but the root repair itself already has integrated exact-SHA canonical success on its parent.
 
-A second harness defect was isolated in the same workflow: the Ruff-remediation step requires a completely clean worktree after earlier steps have created `.focused-evidence/ruff.txt` and `.focused-evidence/pytest.txt`. Thus the remediation step itself fails instead of returning the auto-fix diff. This does not change the product diagnosis; the real `I001` remains current.
+No UI product defect is associated with this cluster.
 
-Owner action: run the pinned Ruff fixer outside that dirty evidence state or make the remediation cleanliness check ignore its own evidence files, then apply only the exact formatting correction. Require Core Focused and canonical Quality green on one unchanged exact Spec/Core SHA before reclassification.
+## ITERATION-2 — ERR-0043 owner guard repair isolated from successor fixture failure
 
-## ITERATION-2 — ERR-0043 opened: foreign SQLite sidecar accepted
+`ERR-0043 = FIXED_PENDING_VERIFY / P1`.
 
-New cluster: `ERR-0043 = OPEN / P1`.
+Current Backend exact head is `956cffa5dca29cbf5af71fd6e06bd87f2a79b4cc` (`fix(storage): preserve sidecar identity guard during WAL publication`). Exact runs:
 
-Current Backend exact reproducer: `c5151466928dbe751a2e62c210717d0858a74bd3`.
+- Backend Focused `34710537347 = SUCCESS`.
+- Storage Focused `34710537370 = FAILURE`.
+- canonical Quality `34710537369 = FAILURE`.
 
-Exact Storage-focused artifact from `34708379880` was downloaded and inspected:
+The exact Storage artifact was downloaded. Results are Ruff PASS, mypy PASS for 35 source files, and pytest `2 failed, 30 passed`.
 
-- Ruff: all checks passed.
-- mypy: success, 35 source files.
-- pytest: `2 failed, 29 passed`.
+Crucially, the original `ERR-0043` negative guard test `test_bound_preflight_rejects_sidecar_mutation_before_writer_open` is no longer among the failures. The repair now rejects identity changes unless the primary database identity is unchanged and the preflight had both sidecars absent while the current state has both sidecars present; that exceptional transition is then re-inspected and exact-identity checked. Replacement of a sidecar that existed at preflight therefore remains fail-closed.
 
-Failure 1 is a current Storage release-guard regression: `test_bound_preflight_rejects_sidecar_mutation_before_writer_open` replaces the preflight WAL sidecar with literal foreign bytes and expects `DatabaseStartupIdentityChangedError`; current `SQLiteDatabase.start()` raises nothing. The candidate `_revalidate_existing_identity()` verifies only that the primary database identity is unchanged and then accepts the refreshed file-set identity, so a replaced existing WAL/SHM sidecar can be admitted.
+Canonical Linux storage regressions, Windows path/release guards, Ruff, mypy, specification validator and Local Install are all green. The current global red result is caused by the two new fixture tests in `ERR-0045`, so the foreign-existing-sidecar acceptance root cause has current corrective evidence but cannot be marked `FIXED` until the owner candidate is globally green and integrated.
 
-Failure 2 invalidates the new positive test setup: `test_bound_preflight_accepts_valid_concurrent_sidecar_publication` expects a newly published sidecar identity, but `published_identity == original_identity`. `_create_current_database()` already left WAL/SHM present, so this fixture never demonstrates the intended absent-to-published transition.
+## ITERATION-3 — ERR-0045 opened from exact Storage diagnostics
 
-Safe owner repair is bounded: retain fail-closed rejection of any replacement for a sidecar that existed at preflight. If absent-at-preflight sidecar publication must be supported, construct that state explicitly, prove the sidecar was absent, and validate only the legitimate publication transition. Do not weaken the negative substitution test or existing Storage/Recovery guards.
+`ERR-0045 = OPEN / P2`.
 
-Backend canonical `34708379877` remains active; its canonical Ruff, mypy, Linux storage regressions, Windows release guards and local install are green, but that does not override this exact focused regression.
+Both remaining failures on Backend `956cffa5...` occur inside `_inspect_without_sidecars()` before the intended publication guard is exercised:
 
-## ITERATION-3 — ERR-0044 opened: Core Focused selects deleted files
+- `test_bound_preflight_rejects_partial_sidecar_publication`
+- `test_bound_preflight_accepts_valid_concurrent_sidecar_publication`
 
-New cluster: `ERR-0044 = OPEN / P2`.
+The helper checkpoints the database, closes the checkpoint connection, unlinks `athena.db-wal` and `athena.db-shm`, then calls `inspect_database_read_only(database_path)`. On the exact Linux runner, after that read-only SQLite inspection `identity.wal.exists` is already true (and SHM is published as well), so the helper fails at `assert not identity.wal.exists`.
 
-Current exact reproducer is Core Focused `34709115243` on UI head `1c6c3475945c7ee0ba4d7514b81dd4d444d843e6`. Downloaded diagnostics show:
+The code explains the observation: `inspect_database_read_only()` opens the existing database with SQLite URI `mode=ro`, enables `PRAGMA query_only`, reads metadata/quick-check, and captures the file-set identity before closing. For this WAL-mode fixture SQLite recreates/publishes sidecars during that preflight. The test therefore cannot manufacture a genuine absent-sidecar preflight merely by deleting WAL/SHM immediately before calling the normal inspector.
 
-- Ruff `E902` only for missing `src/athena/knowledge/orphan_knowledge.py` and `tests/unit/test_orphan_knowledge.py`.
-- Pytest runs zero tests and errors because `tests/unit/test_orphan_knowledge.py` does not exist.
+Safe owner action: construct a valid state whose journal mode genuinely permits a sidecar-absent preflight, prove both sidecars are absent in the returned preflight identity, then exercise partial and complete publication. Do not mock away identity enforcement or weaken Storage/Recovery checks. Also determine whether the implementation's absent-at-preflight publication exception is reachable through a genuine production preflight; if not, prefer stricter/simpler fail-closed behavior over an unprovable exception path.
 
-This is not an independent UI product defect. The Core-focused workflow uses `git diff --name-only BASE CANDIDATE` and then sends every selected Core/test path to Ruff/Pytest, including files deleted by the candidate lineage. Minimal harness repair is to exclude deletions consistently, e.g. `--diff-filter=ACMR`, in changed Core Python selection, focused-test selection and remediation selection.
+## ITERATION-4 — current independent workers classified
 
-Errors did not create a duplicate workflow file: `.github/workflows/core-focused-candidate.yml` is absent from the current divergent `postmerge/errors` lineage, so there is no safe surgical in-place mutation there without importing unrelated workflow history. The exact fix is handed to the current workflow/integration lineage.
+Spec/Core remains independently blocked by `ERR-0042`: exact head `f86df7dc1b4f4be5aeb2000986eb7965cafa8dcb`, Core Focused `34709904332 = FAILURE`, canonical `34709904327 = FAILURE`; exact blocker remains one Ruff `I001`, while six focused behavior tests pass. Develop's `ERR-0044` harness repair removes the remediation-worktree side issue but does not format the owner-held test import block.
 
-## ITERATION-4 — release-guard and ownership classification
-
-Current exact evidence separates the clusters cleanly:
-
-- `ERR-0042`: Core-owned Ruff formatting defect; behavior tests green.
-- `ERR-0043`: Backend-owned Storage identity-continuity regression; real negative Storage test fails and must block integration.
-- `ERR-0044`: CI harness deleted-path selection defect; not UI product behavior.
-
-No historical closed error was reopened merely because of an old ID. No product code outside Errors was mutated. No canonical run was duplicated. Windows packaged/runtime guards and Linux storage regression jobs available on the Backend canonical remain green, but `ERR-0043` still blocks that Backend candidate because its exact changed Storage contract is red.
+UI current head is `460e35e74d8c529a5880356bf30b9099d80e39de`; UI Focused `34712289041 = SUCCESS`, canonical `34712289012 = IN_PROGRESS` at observation time. No current exact UI failure is opened from this state.
 
 ## Integrator handoff
 
-- `ERR-0042 = OPEN / P1`; Spec/Core `f86df7dc1b4f4be5aeb2000986eb7965cafa8dcb`; exact Core Focused `34709904332 = FAILURE`, one I001, six focused tests pass; canonical `34709904327` active with Ruff failed.
-- `ERR-0043 = OPEN / P1`; Backend `c5151466928dbe751a2e62c210717d0858a74bd3`; Storage Focused `34708379880 = FAILURE`, exact pytest `2 failed, 29 passed`; foreign existing sidecar replacement is currently accepted. Do not integrate this Backend Storage change.
-- `ERR-0044 = OPEN / P2`; Core Focused harness on UI exact `1c6c3475945c7ee0ba4d7514b81dd4d444d843e6`; deleted orphan-knowledge paths are passed to Ruff/Pytest. Fix diff selection, not UI product code.
-- Develop `5eecb5f937de9325a9673df5f1a23d2f1b5e87cf` canonical `34706615596` remains active.
+- `ERR-0042 = OPEN / P1`; Spec/Core `f86df7dc1b4f4be5aeb2000986eb7965cafa8dcb`; exact Core Focused `34709904332 = FAILURE`, canonical `34709904327 = FAILURE`; one Ruff I001, six focused tests pass.
+- `ERR-0043 = FIXED_PENDING_VERIFY / P1`; Backend `956cffa5dca29cbf5af71fd6e06bd87f2a79b4cc`; former foreign-sidecar negative test now passes, but candidate remains red due `ERR-0045`. Do not integrate until exact Storage Focused and canonical are green.
+- `ERR-0045 = OPEN / P2`; Backend same exact SHA; Storage Focused `34710537370 = FAILURE`, exact pytest `2 failed, 30 passed`; both failures are invalid absent-sidecar fixture setup because normal read-only preflight republishes WAL/SHM before the absence assertion.
+- `ERR-0044 = FIXED / P2`; integrated harness fix at `b8afe9661387c4a1a3d65f539c39ca772f37329c`, canonical `34710920451 = SUCCESS`; current `522a010...` adds invariant regression tests and is still under canonical verification.
+- UI `460e35e74d8c529a5880356bf30b9099d80e39de`: UI Focused success; canonical still active, so no promotion claim yet.
 
 ## CI discipline
 
-- Errors heads checked before each mutation had zero workflow runs, including `261fc5213330c7abdd12c29c11677437604806fc`, `a9f5d1783fe99d95af954eca8f66bb0e9e3cedee`, and `718a54123ca8f8759d594fe65aa14ac2b9453f14`.
+- Before the first Errors mutation, `postmerge/errors@3e3915d5cb0c3964661db1fcef100f98664915c1` had zero queued and zero in-progress workflow runs.
+- After ledger commit `fd7905d08df53946e8f884698c145872bc299b32`, Errors again had zero queued and zero in-progress workflow runs before this handoff commit.
 - No canonical run was started or duplicated by Errors.
 - No product code or foreign worker branch was mutated.
 
 ## NEXT_ROOT_CAUSE
 
-1. Consume current Spec/Core successor/final canonical and close only when exact Ruff + canonical are green.
-2. Consume Backend successor/final canonical; verify `ERR-0043` first because it is a Storage/release invariant regression.
-3. Verify a workflow-lineage fix for `ERR-0044` with a candidate that deletes Core/test paths and another that modifies normal Core/test files.
-4. Consume UI and Develop canonical results and classify only exact remaining failures.
+1. Consume the next Backend successor first: verify `ERR-0045` fixture repair and ensure `ERR-0043` remains fail-closed; require Storage Focused + canonical success before owner readiness.
+2. Consume the next Spec/Core successor for `ERR-0042`; require exact Ruff and canonical success.
+3. Consume Develop `34712404459@522a010...`; if green it strengthens the already closed `ERR-0044` with dedicated invariant tests, but a failure must be classified by its exact signature rather than reopening the old root automatically.
+4. Consume UI canonical `34712289012@460e35e...` and open a UI error only if a current exact failure exists.
