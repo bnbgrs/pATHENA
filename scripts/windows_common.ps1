@@ -27,6 +27,31 @@ function Resolve-PathenaEffectiveLocalRoot {
     return Resolve-PathenaDefaultLocalRoot
 }
 
+function Test-PathenaWindowsReparsePointInExistingChain {
+    param([Parameter(Mandatory = $true)][string]$Path)
+
+    $comparison = [System.StringComparison]::OrdinalIgnoreCase
+    $current = [System.IO.Path]::GetFullPath($Path)
+    while ($true) {
+        if (Test-Path -LiteralPath $current) {
+            $item = Get-Item -LiteralPath $current -Force -ErrorAction Stop
+            if (($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0) {
+                return $true
+            }
+        }
+
+        $parent = [System.IO.Path]::GetDirectoryName($current)
+        if ([string]::IsNullOrWhiteSpace($parent)) {
+            return $false
+        }
+        $parent = [System.IO.Path]::GetFullPath($parent)
+        if ($parent.Equals($current, $comparison)) {
+            return $false
+        }
+        $current = $parent
+    }
+}
+
 function Assert-PathenaRuntimeRootOutsideRepository {
     param(
         [Parameter(Mandatory = $true)][string]$RepoRoot,
@@ -38,6 +63,13 @@ function Assert-PathenaRuntimeRootOutsideRepository {
     $runtime = [System.IO.Path]::GetFullPath($RuntimeRoot).TrimEnd($trimChars)
     $comparison = [System.StringComparison]::OrdinalIgnoreCase
     $repoPrefix = $repo + [System.IO.Path]::DirectorySeparatorChar
+
+    if (Test-PathenaWindowsReparsePointInExistingChain -Path $repo) {
+        throw "pATHENA repository root must not traverse a junction or reparse point while validating runtime separation: $repo. Use the real checkout path."
+    }
+    if (Test-PathenaWindowsReparsePointInExistingChain -Path $runtime) {
+        throw "pATHENA runtime root must not traverse a junction or reparse point: $runtime. Choose a real local directory outside the repository."
+    }
 
     if ($runtime.Equals($repo, $comparison) -or $runtime.StartsWith($repoPrefix, $comparison)) {
         throw "pATHENA runtime root must be outside the repository: $runtime. Choose -LocalRoot in AppData or a separate data directory."
@@ -83,6 +115,9 @@ function Get-PathenaUvVersion {
     $version = ($output -join [Environment]::NewLine).Trim()
     if (-not $version) {
         return $null
+    }
+    if ($version -match '^uv\s+(?<version>[0-9]+\.[0-9]+\.[0-9]+)(?:\s+\([^\r\n]*\))?$') {
+        return "uv $($Matches.version)"
     }
     return $version
 }
