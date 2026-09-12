@@ -1,35 +1,31 @@
 # Post-Merge Feature Handoff - Integrator
 
-Generated: 2026-09-11T21:48Z
+Generated: 2026-09-12T01:49+02:00
 Branch: `develop/pathena-next`
-Run-start HEAD: `0298f0c4f2d28e516a458390f8b462131ebaf17e`
+Run-start HEAD: `c0f523921a460137aef7b59d9d703a3f8ce94225`
 
 ## Current evidence
 
 - `main` and `bnbgrs/ATHENA` remain strictly read-only and untouched.
-- Exact Develop canonical Quality `34646579929@0298f0c4f2d28e516a458390f8b462131ebaf17e = SUCCESS` before mutation.
-- Worker heads reviewed: Errors `d58378fb92b90fee5c338b0a23a3b334510394d5`; Spec/Core `229a46dd7d91d2c4518379db781c7e5e800c2811`; Backend `04c1609279297fb6b829cb8a96939eca5187c8ab`; UI `bffde469086fb011d36adbab61f7faa1a7b89d34`.
-- Spec/Core exact head has canonical Quality `34648338237 = FAILURE` and Core-focused Candidate `34648337671 = FAILURE`. Canonical specification validation, mypy, full pytest, Linux storage, Windows release guards and local-install are green; canonical Ruff remains the isolated red quality step on the bounded identity-transition candidate.
-- Backend exact head has focused evidence green but canonical Quality `34649415338` is still pending, so no Backend product slice is promoted.
-- UI exact head canonical Quality `34650987626` is still in progress; no UI product slice is promoted while exact-head Quality is incomplete.
-- Current Error handoff keeps `ERR-0033 / BE-046` and `ERR-0035 / BE-052` OPEN and Backend-owned, and identifies the current Spec/Core Ruff cluster separately; no competing Storage/Recovery mutation is taken.
+- Exact Develop canonical Quality `34656021355@c0f523921a460137aef7b59d9d703a3f8ce94225 = SUCCESS` before mutation; no queued/in-progress Develop Quality blocked this integration.
+- Worker heads reviewed: Errors `06069895fc703b1258b2d2cfe54fab96bc0a2769`; Spec/Core `d47634453d63cad0b21fb6d370c95602b0d0a286`; Backend `32485db642d71ec2caef8b49adc35ac2132aa651`; UI `4772c6aaf16a6eb570b891eae4fa8323d32b54ce`.
+- Current Error handoff reclassifies historical Core Ruff `ERR-0039` as STALE and keeps `ERR-0033 / BE-046` plus `ERR-0035 / BE-052` Backend-owned OPEN.
+- Spec/Core exact head `d47634453d63cad0b21fb6d370c95602b0d0a286` has canonical Quality `34653170296 = SUCCESS` and Core Focused Candidate `34653170251 = SUCCESS`.
+- The bounded current Core product commit modifies only `src/athena/knowledge/service.py` and `tests/unit/test_knowledge_service.py`; current Develop `knowledge/service.py` is byte-identical to the worker parent for that file, establishing compatible baseline for this slice.
 - `docs/agent_logs/ERROR_LEDGER.md` remains historical relative to current Develop and is not used as sole current OPEN truth.
-- Root `ALPHA_BETA_PROGRESS.md` is absent on current Develop; no synthetic percentage is recorded.
-- Visual source of truth remains `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` plus `docs/ui/VISUAL_GAP_LEDGER.md`; all eleven manifest slots remain `IMPLEMENTED_PENDING_VISUAL_REVIEW`, and no screenshot-level `MATCH` is claimed without approved reference/current-render pairing.
+- Root `ALPHA_BETA_PROGRESS.md` was not found on current Develop; no synthetic completion percentage is recorded.
+- Visual source of truth remains `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` plus `docs/ui/VISUAL_GAP_LEDGER.md`; all eleven manifest slots remain `IMPLEMENTED_PENDING_VISUAL_REVIEW`, with no screenshot-level `MATCH` claim absent approved reference/current-render pairing.
 
-## Cross-cutting slice integrated this run
+## Product slice integrated this run
 
-Extended `.github/workflows/core-focused-candidate.yml` with an exact-candidate Ruff remediation artifact.
+Integrated only the bounded Knowledge reclassification revision slice from exact-green Spec/Core lineage:
 
-When the existing changed-file Ruff check fails, the focused lane now:
+- `src/athena/knowledge/service.py`
+- `tests/unit/test_knowledge_service.py`
 
-- re-selects only Python files changed between the immutable PR base SHA and exact candidate SHA;
-- runs Ruff auto-fix only as a diagnostic operation after focused tests have completed;
-- records Ruff's output plus a binary-safe `ruff-fix.diff` in the existing seven-day focused diagnostics artifact;
-- hard-resets to the immutable candidate SHA immediately after producing the diagnostic patch and verifies a clean worktree;
-- leaves the existing fail-closed enforcement unchanged: the candidate still requires both the original Ruff check and focused pytest to succeed.
+`KnowledgeService.reclassify()` preserves the stable Knowledge identity and all payload fields except `knowledge_kind`, creates a new user-authored revision through the existing repository revision boundary, rejects invalid runtime kind values, and rejects no-op reclassification without creating a revision. The implementation keeps optimistic expected-revision enforcement and existing provenance/storage behavior through `KnowledgeRepository.revise_knowledge_unit()`.
 
-This does not promote, modify or silently repair a worker candidate. It gives the owning Spec/Core worker a directly actionable exact-SHA remediation patch for import-order/lint-only failures while preserving candidate identity and canonical Quality authority.
+No Core branch-history merge was performed. No Backend, Storage, Recovery, Security, Provider, TOR, filesystem, migration or UI behavior changed.
 
 ## Persistent release guards
 
@@ -39,9 +35,8 @@ This does not promote, modify or silently repair a worker candidate. It gives th
 
 ## Next integration
 
-1. Consume canonical Quality for the resulting Develop SHA before any further Develop mutation.
+1. Consume canonical Quality for the resulting exact Develop SHA before any further Develop mutation.
 2. Re-read all worker heads and exact-SHA evidence after that gate completes.
-3. Do not promote Spec/Core until a corrected exact head has focused Ruff + focused pytest green and acceptable exact canonical evidence.
-4. Do not promote Backend or UI while their exact-current canonical runs remain incomplete.
-5. Keep Backend Storage/Recovery prerequisites conservative until bounded exact-tested BE-046/BE-052 candidates exist.
-6. Keep all visual `MATCH` claims fail-closed until approved original-reference and exact-render evidence exists.
+3. Keep BE-046/BE-052 conservative until bounded exact-tested current candidates exist.
+4. Re-qualify UI after its current Develop-baseline synchronization; do not transfer older exact evidence onto the sync head without equivalent verification.
+5. Preserve visual `MATCH` fail-closed requirements.
