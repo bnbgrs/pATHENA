@@ -24,20 +24,26 @@ class PallasFullViewController(QObject):
         self._window = window
         self._grounded_controller = grounded_controller
         self._workspace: PallasWorkspace | None = None
-        self._center = window.findChild(QFrame, "conversation")
-        self._reference_body = window.findChild(QFrame, "referenceBody")
-        self._body_layout = (
-            self._reference_body.layout() if self._reference_body is not None else None
-        )
-        self._navigation = getattr(window, "navigation", None)
+        center = window.findChild(QFrame, "conversation")
+        reference_body = window.findChild(QFrame, "referenceBody")
+        body_layout = reference_body.layout() if reference_body is not None else None
+        navigation = getattr(window, "navigation", None)
+        if (
+            reference_body is None
+            or center is None
+            or not isinstance(body_layout, QHBoxLayout)
+        ):
+            raise RuntimeError(
+                "PALLAS full view requires the reference shell body and conversation host."
+            )
+        self._center: QFrame = center
+        self._reference_body: QFrame = reference_body
+        self._body_layout: QHBoxLayout = body_layout
+        self._navigation = navigation
         self._open = False
         self._viewport = grounded_controller.field.canvas.viewport()
         self._viewport.installEventFilter(self)
 
-        if not isinstance(self._body_layout, QHBoxLayout) or self._center is None:
-            raise RuntimeError(
-                "PALLAS full view requires the reference shell body and conversation host."
-            )
         if isinstance(self._navigation, QListWidget):
             self._navigation.currentRowChanged.connect(self._on_navigation_changed)
 
@@ -78,7 +84,6 @@ class PallasFullViewController(QObject):
         """Show the single full workspace inside the shared shell and shared inspector."""
         workspace = self._workspace
         if workspace is None or not isValid(workspace):
-            assert self._reference_body is not None
             workspace = self._grounded_controller.create_workspace(self._reference_body)
             workspace.setObjectName("pallasShellWorkspace")
             workspace.setAccessibleName("PALLAS full semantic workspace")
@@ -86,7 +91,6 @@ class PallasFullViewController(QObject):
             self._body_layout.insertWidget(1, workspace, 1)
             self._workspace = workspace
 
-        assert self._center is not None
         self._center.hide()
         workspace.show()
         self._open = True
@@ -99,7 +103,7 @@ class PallasFullViewController(QObject):
         workspace = self._workspace
         if workspace is not None and isValid(workspace):
             workspace.hide()
-        if self._center is not None and isValid(self._center):
+        if isValid(self._center):
             self._center.show()
         self._open = False
         self._window.setProperty("pathenaPallasShellOpen", False)
