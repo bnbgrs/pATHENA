@@ -1,31 +1,33 @@
 # Post-Merge Feature Handoff - Integrator
 
-Generated: 2026-09-12T01:49+02:00
+Generated: 2026-09-12T03:53+02:00
 Branch: `develop/pathena-next`
-Run-start HEAD: `c0f523921a460137aef7b59d9d703a3f8ce94225`
+Run-start HEAD: `eab481a0901423ee5821e9d4101f0a0bbf804ef8`
 
 ## Current evidence
 
 - `main` and `bnbgrs/ATHENA` remain strictly read-only and untouched.
-- Exact Develop canonical Quality `34656021355@c0f523921a460137aef7b59d9d703a3f8ce94225 = SUCCESS` before mutation; no queued/in-progress Develop Quality blocked this integration.
-- Worker heads reviewed: Errors `06069895fc703b1258b2d2cfe54fab96bc0a2769`; Spec/Core `d47634453d63cad0b21fb6d370c95602b0d0a286`; Backend `32485db642d71ec2caef8b49adc35ac2132aa651`; UI `4772c6aaf16a6eb570b891eae4fa8323d32b54ce`.
-- Current Error handoff reclassifies historical Core Ruff `ERR-0039` as STALE and keeps `ERR-0033 / BE-046` plus `ERR-0035 / BE-052` Backend-owned OPEN.
-- Spec/Core exact head `d47634453d63cad0b21fb6d370c95602b0d0a286` has canonical Quality `34653170296 = SUCCESS` and Core Focused Candidate `34653170251 = SUCCESS`.
-- The bounded current Core product commit modifies only `src/athena/knowledge/service.py` and `tests/unit/test_knowledge_service.py`; current Develop `knowledge/service.py` is byte-identical to the worker parent for that file, establishing compatible baseline for this slice.
-- `docs/agent_logs/ERROR_LEDGER.md` remains historical relative to current Develop and is not used as sole current OPEN truth.
-- Root `ALPHA_BETA_PROGRESS.md` was not found on current Develop; no synthetic completion percentage is recorded.
-- Visual source of truth remains `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` plus `docs/ui/VISUAL_GAP_LEDGER.md`; all eleven manifest slots remain `IMPLEMENTED_PENDING_VISUAL_REVIEW`, with no screenshot-level `MATCH` claim absent approved reference/current-render pairing.
+- Exact Develop canonical Quality `34662951154@eab481a0901423ee5821e9d4101f0a0bbf804ef8 = SUCCESS` before mutation; no newer canonical Develop run was queued or in progress immediately before integration.
+- Current worker heads reviewed: Errors `5da815914dae88dd21d62794fd3dd21bb14562ec`; Spec/Core `acacc2da478d7f7afad4cd44681201268d5b13b3`; Backend `96d31e7bbe9818dfc38123f935b082ca0f622649`; UI `d3de1c9884cf8464dfcadea3d07e352b864a8cbd`.
+- Current Error handoff marks `ERR-0033 / BE-046` as `FIXED_PENDING_VERIFY` and `ERR-0035 / BE-052` as the remaining OPEN Backend-owned P1. Historical `ERR-0038` and `ERR-0039` remain STALE.
+- `docs/agent_logs/ERROR_LEDGER.md` is historical relative to current Develop and is not used as sole current OPEN truth.
+- Root `ALPHA_BETA_PROGRESS.md` remains absent; no synthetic completion percentage is recorded.
+- Visual source of truth remains `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` plus `docs/ui/VISUAL_GAP_LEDGER.md`; all eleven slots remain `IMPLEMENTED_PENDING_VISUAL_REVIEW`, with no screenshot-level `MATCH` claim absent approved reference/current-render pairing.
 
-## Product slice integrated this run
+## Integrated bounded slice — BE-046 POSIX emergency reserve reclamation
 
-Integrated only the bounded Knowledge reclassification revision slice from exact-green Spec/Core lineage:
+Selected exact product candidate `b595c960a747d9805b0865ea9f7237094318b706` (`fix(storage): fail closed on unproven emergency reserve reclamation`). Its exact canonical Quality `34662086156` completed SUCCESS and focused candidate `34662086028` completed SUCCESS. The later Backend head `96d31e7bbe9818dfc38123f935b082ca0f622649` is documentation-only and explicitly promotes this exact-green candidate.
 
-- `src/athena/knowledge/service.py`
-- `tests/unit/test_knowledge_service.py`
+Only these product/test files are imported:
 
-`KnowledgeService.reclassify()` preserves the stable Knowledge identity and all payload fields except `knowledge_kind`, creates a new user-authored revision through the existing repository revision boundary, rejects invalid runtime kind values, and rejects no-op reclassification without creating a revision. The implementation keeps optimistic expected-revision enforcement and existing provenance/storage behavior through `KnowledgeRepository.revise_knowledge_unit()`.
+- `src/athena/storage/emergency_reserve.py`
+- `tests/unit/test_emergency_reserve.py`
 
-No Core branch-history merge was performed. No Backend, Storage, Recovery, Security, Provider, TOR, filesystem, migration or UI behavior changed.
+Baseline compatibility is explicit: comparing `5db4c92f40d5d14119a991796be38fb9248072de` to candidate `b595c960...` yields only those two modified files. Current Develop differs from that same base only by `.github/workflows/storage-focused-candidate.yml` and this Integrator handoff, so the candidate does not overwrite intervening product code.
+
+The POSIX release path now fails closed on physical-reclamation accounting: it binds the reserve pathname and open descriptor to the same regular-file identity, rejects additional hardlinks, preserves directory identity across unlink, and returns zero reclaimed bytes where portable proof of physical reclamation is unavailable because another process may retain the unlinked inode. Adversarial tests cover a foreign open descriptor, extra hardlinks, and reserve-leaf substitution.
+
+No Storage/Recovery/Security guard, assertion, packaging invariant, Windows lane or test was weakened. BE-052 remains Backend-owned and untouched.
 
 ## Persistent release guards
 
@@ -36,7 +38,7 @@ No Core branch-history merge was performed. No Backend, Storage, Recovery, Secur
 ## Next integration
 
 1. Consume canonical Quality for the resulting exact Develop SHA before any further Develop mutation.
-2. Re-read all worker heads and exact-SHA evidence after that gate completes.
-3. Keep BE-046/BE-052 conservative until bounded exact-tested current candidates exist.
-4. Re-qualify UI after its current Develop-baseline synchronization; do not transfer older exact evidence onto the sync head without equivalent verification.
+2. If exact Develop verification is green, ERR-0033 may advance from `FIXED_PENDING_VERIFY` based on fresh Error-worker evidence; do not predeclare it FIXED here.
+3. Re-read all worker heads and exact-SHA evidence before selecting the next slice.
+4. Keep `ERR-0035 / BE-052` Backend-owned and conservative.
 5. Preserve visual `MATCH` fail-closed requirements.
