@@ -8,14 +8,12 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 
 ## Current baseline
 
-- Develop source of truth: `develop/pathena-next@712376f561e10ea8d579fa316e8deca19ce3a7a1` (`ci(core): scope focused candidate triggers`).
-- Error worker entered this run at `postmerge/errors@9b51bc0cea8f3d32eb9fd232a1711a848d74af39`.
-- Current workers: Spec/Core `ea4211fe5a375698c72dbfdd1d2a5778ea2df0dd`; Backend `736fb66085084f3d0080c0918cdfba00d63558fc`; UI `626c7e0dead504b57f331c9b011d99c96cee6c4d`.
-- Exact-current Develop canonical Quality: `34668822579@712376f561e10ea8d579fa316e8deca19ce3a7a1 = IN_PROGRESS`; no Develop PASS/FAIL claim is derived while it is running and no competing canonical run was started.
-- Spec/Core exact `ea4211fe5a375698c72dbfdd1d2a5778ea2df0dd`: canonical `34667286138 = SUCCESS`; Core Focused Candidate `34667286211 = SUCCESS`.
-- Backend exact `736fb66085084f3d0080c0918cdfba00d63558fc`: Storage Focused Candidate `34668097963 = SUCCESS`; canonical `34668098022 = IN_PROGRESS`. A parallel Core Focused Candidate failure on this Backend SHA is not used as Storage evidence.
-- UI exact `626c7e0dead504b57f331c9b011d99c96cee6c4d`: canonical `34668610457 = IN_PROGRESS`.
-- `postmerge/errors@9b51bc0cea8f3d32eb9fd232a1711a848d74af39` had zero workflow runs immediately before this mutation.
+- Develop source of truth: `develop/pathena-next@bfee081ff63e849b5d024299f0a7b9286dc737e7` (`feat(core): integrate contradiction resolution`).
+- Error worker entered this run at `postmerge/errors@be3d01227f4d60678b4ab803fd515a2fddd26fec`.
+- Current workers: Spec/Core `ea4211fe5a375698c72dbfdd1d2a5778ea2df0dd`; Backend `7c1af4402aed6c86c41fcc5eddbaab6a845445a8`; UI `dce6d463b17474ec2da702a14b7a4365123df45d`.
+- Exact-current Develop canonical Quality: `34671556177@bfee081ff63e849b5d024299f0a7b9286dc737e7 = IN_PROGRESS`; no Develop PASS/FAIL claim is derived while it is running and no competing canonical run was started.
+- Backend exact `7c1af4402aed6c86c41fcc5eddbaab6a845445a8`: Storage Focused Candidate `34670367115 = SUCCESS`; canonical Quality `34670367093 = FAILURE`. Canonical specification validator, Ruff, mypy, Linux storage regressions, Windows path safety and Local install are green; only full pytest is red with two storage-bootstrap startup failures.
+- `postmerge/errors@be3d01227f4d60678b4ab803fd515a2fddd26fec` had zero workflow runs immediately before this mutation.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current state
@@ -34,17 +32,21 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Specialist owner: Backend / BE-046.
 - Backend exact candidate `b595c960a747d9805b0865ea9f7237094318b706` was canonical-green (`34662086156 = SUCCESS`) and was integrated into `develop/pathena-next@ca87e42c8820c47db7d6626feb17698560cd3b49`.
 - Integrated source keeps the POSIX reserve descriptor identity-bound through release, rejects alternate-link ownership, and does not claim unproven physical reclamation merely from logical file length.
-- Closure evidence is now complete: exact integrated Develop canonical Quality `34666307002@ca87e42c8820c47db7d6626feb17698560cd3b49 = SUCCESS`. This satisfies the required integrated exact-SHA verification; `ERR-0033` is closed and must not be reopened without a new current exact-SHA reproduction.
+- Closure evidence is complete: exact integrated Develop canonical Quality `34666307002@ca87e42c8820c47db7d6626feb17698560cd3b49 = SUCCESS`. Reopen only with a new current exact-SHA reproduction.
 
-## ERR-0035 — SQLite preflight identity is not carried into live writer startup
+## ERR-0035 — SQLite preflight identity is not carried safely across migration into live writer startup
 
 - Severity: P1.
 - Status: `OPEN`.
 - Specialist owner: Backend / BE-052.
-- Fresh exact reproduction remains `develop/pathena-next@ca87e42c8820c47db7d6626feb17698560cd3b49` until the Backend fix is integrated and independently verified.
-- Backend now has a bounded candidate at `736fb66085084f3d0080c0918cdfba00d63558fc` (`fix(storage): bind SQLite preflight identity to live writer`). The candidate carries a DB/WAL/SHM identity token from accepted preflight into writer startup, checks it before and after writer establishment, binds the preflight through `StorageBootstrapService`, and adds adversarial replacement/creation coverage.
-- Relevant exact focused evidence is green: Storage Focused Candidate `34668097963 = SUCCESS` on `736fb66085084f3d0080c0918cdfba00d63558fc`.
-- Status remains `OPEN`, not `FIXED_PENDING_VERIFY`, in this run because Backend canonical Quality `34668098022` is still `IN_PROGRESS`; do not start a competing run or promote the candidate before that exact canonical result is consumed.
+- Current exact Backend candidate: `7c1af4402aed6c86c41fcc5eddbaab6a845445a8`.
+- Focused Storage evidence is green: `34670367115 = SUCCESS`.
+- Canonical Quality is red: `34670367093 = FAILURE`; the only canonical Python-quality failure is pytest, with exactly two failures: `tests/unit/test_archive_replication.py::test_v30_migration_backfills_existing_spool_blob` and `tests/unit/test_news_audit.py::test_v29_migration_backfills_legacy_event_assessment_without_model`. Both fail as `StartupError: Failed to start service 'storage-bootstrap'`, caused by `DatabaseStartupIdentityChangedError`.
+- Root cause is now exact: `StorageBootstrapService.start()` captures the read-only preflight, may then execute a required controlled migration that legitimately replaces/changes the SQLite primary file, but afterwards binds the original pre-migration `preflight` into `SQLiteDatabase.start()`. The writer correctly rejects that stale identity at its first `assert_database_file_set_identity()`.
+- This is not evidence that the identity guard should be weakened. The guard is detecting a real identity transition; the orchestration is wrong because the accepted identity token is stale after an authorized migration.
+- Required minimal owner fix: after a successful controlled migration, acquire a fresh identity-bearing read-only preflight for the migrated DB/WAL/SHM file set and use that post-migration preflight for writer binding. Preserve all existing fail-closed checks before migration, migration-recovery checks, before-writer identity assertion, after-writer identity assertion, missing-primary exclusive creation, and sidecar race detection.
+- Required focused regression: both failing legacy migration tests must pass while adversarial replacement/sidecar-creation tests remain red-before-fix/green-after-fix as appropriate; then run the smallest storage/bootstrap regression set followed by canonical Quality on one unchanged exact Backend SHA.
+- No Error-worker product mutation was made because Backend owns BE-052 and is actively changing the same root-cause area.
 
 ## ERR-0039 — Historical Spec/Core exact-head Ruff import-format blocker
 
