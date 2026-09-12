@@ -64,7 +64,7 @@ def test_help_is_shell_hosted_without_extending_primary_page_stack() -> None:
         assert controller.help_sections.count() > 1
         assert controller.help_capabilities.count() == len(controller.snapshot().capabilities)
         assert controller.help_query.placeholderText() == "Search help…"
-        assert controller.help_capabilities.spacing() == 6
+        assert controller.help_capabilities.spacing() == 8
         assert window.inspector_object_id.text() == "HELP / LIVE"
         assert window.inspector_heading.text() == "Quick shortcuts"
         assert "Ctrl K" in window.inspector_provenance.text()
