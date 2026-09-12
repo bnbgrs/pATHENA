@@ -114,7 +114,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         encoding="utf-8",
     )
 
-    from PySide6.QtCore import QTimer
+    from PySide6.QtCore import QPoint, QTimer
+    from PySide6.QtGui import QPainter
     from PySide6.QtWidgets import QMainWindow, QWidget
 
     from athena.desktop.app import create_application
@@ -157,6 +158,56 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "file": output.name,
                 "width": widget.width(),
                 "height": widget.height(),
+            }
+        )
+        return output.name
+
+    def save_window_with_overlay(
+        window: QMainWindow,
+        overlay: QWidget,
+        *,
+        ordinal: int,
+        label: str,
+        kind: str,
+    ) -> str:
+        if overlay.parentWidget() is not window:
+            raise RuntimeError("Overlay is not parented by the pATHENA main window.")
+        if not window.isVisible() or not overlay.isVisible():
+            raise RuntimeError("Shell overlay capture requires visible window and overlay.")
+
+        window_pixmap = window.grab()
+        overlay_pixmap = overlay.grab()
+        if window_pixmap.isNull() or overlay_pixmap.isNull():
+            raise RuntimeError("Qt returned a null pixmap for shell overlay capture.")
+
+        overlay_origin = window.mapFromGlobal(overlay.mapToGlobal(QPoint(0, 0)))
+        if (
+            overlay_origin.x() < 0
+            or overlay_origin.y() < 0
+            or overlay_origin.x() + overlay.width() > window.width()
+            or overlay_origin.y() + overlay.height() > window.height()
+        ):
+            raise RuntimeError("Overlay escaped the visible pATHENA shell bounds.")
+
+        painter = QPainter(window_pixmap)
+        painter.drawPixmap(overlay_origin, overlay_pixmap)
+        painter.end()
+
+        output = screenshot_directory / f"{ordinal:02d}-{_safe_name(label)}.png"
+        if not window_pixmap.save(str(output), "PNG"):
+            raise RuntimeError(f"Qt failed to save {output.name}.")
+        captures.append(
+            {
+                "ordinal": ordinal,
+                "label": label,
+                "kind": kind,
+                "file": output.name,
+                "width": window.width(),
+                "height": window.height(),
+                "overlay_x": overlay_origin.x(),
+                "overlay_y": overlay_origin.y(),
+                "overlay_width": overlay.width(),
+                "overlay_height": overlay.height(),
             }
         )
         return output.name
@@ -322,7 +373,24 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     def capture_commands() -> None:
         try:
+            window = find_window()
+            navigation = getattr(window, "navigation", None)
+            pages = getattr(window, "pages", None)
+            if navigation is None or pages is None:
+                raise RuntimeError("Command Palette shell context is unavailable.")
+            if navigation.count() != 7 or pages.count() != 7:
+                raise RuntimeError(
+                    "Command Palette shell capture requires seven primary routes; "
+                    f"found {navigation.count()} nav items and {pages.count()} pages."
+                )
+            navigation.setCurrentRow(1)
+            app.processEvents()
+            if navigation.currentRow() != 1 or pages.currentIndex() != 1:
+                raise RuntimeError("Command Palette did not enter the Knowledge workspace.")
+
             controller = palette_controller()
+            if controller.dialog.parentWidget() is not window:
+                raise RuntimeError("Command Palette is not parented by the pATHENA shell.")
             controller.open()
             app.processEvents()
             if not controller.dialog.isVisible():
@@ -330,14 +398,20 @@ def main(argv: Sequence[str] | None = None) -> int:
             labels = {command.label for command in controller._commands}
             if "Open ComfyUI" not in labels:
                 raise RuntimeError("Command Palette does not expose the ComfyUI integration.")
-            save_widget(
+            save_window_with_overlay(
+                window,
                 controller.dialog,
                 ordinal=9,
                 label="Command Palette",
-                kind="command-palette",
+                kind="shell-command-palette",
             )
             captures[-1]["result_count"] = controller.results.count()
+            captures[-1]["context_navigation_label"] = navigation.item(1).text()
+            captures[-1]["context_row"] = 1
+            captures[-1]["context_page_index"] = pages.currentIndex()
+            captures[-1]["shell_overlay"] = True
             controller.dialog.hide()
+            app.processEvents()
         except Exception as exc:  # noqa: BLE001
             errors.append(f"Command Palette: {type(exc).__name__}: {exc}")
 
@@ -464,7 +538,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 "System",
                 "Settings",
                 "interactive PALLAS",
-                "standalone search/command palette reference state",
+                "shell-hosted command palette over Knowledge",
                 "Help",
                 "ComfyUI",
             ],
