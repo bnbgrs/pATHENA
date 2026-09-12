@@ -1,76 +1,62 @@
 # pATHENA Visual Gap Ledger
 
-Integration target: `develop/pathena-next`
-UI worker: `postmerge/ui`
+Current Develop inspected: `develop/pathena-next@4dbefe2167b28bffab2c6b69b7a8df4b43770a6f`.
+Current exact BEFORE render: `postmerge/ui@dce6d463b17474ec2da702a14b7a4365123df45d`.
 
-## Current evidence — 2026-09-11 21:39 CEST
+All eleven original user references and all eleven real native BEFORE runtime PNGs were opened in the current UI run. Strict same-state evidence remains `PAIRS_VERIFIED_1_OF_11`, `MATCH_0_OF_11`; technical PNG existence is not treated as a same-state pair.
 
-Run-start Develop: `c670d7809c9f0aa5e6c31956b57e897091f1b9d6`; run-start worker: `ecbc661224917f1793b122a94e269ae88b450bc2`. Exact worker canonical Quality `34635102754` and UI Focused Candidate `34635102820` are `SUCCESS`. Exact visual run `34635099776` produced all eleven Windows/PySide6 captures and the exact-SHA artifact; only its final fail-closed baseline verdict remains red.
+## Highest recurring open visual gap — detached product surfaces break the app shell
 
-All eleven user references and all eleven exact runtime captures were opened directly. Strict same-state accounting remains `PAIRS_VERIFIED_0_OF_11 · MATCH_0_OF_11`; the Light reference still has no real same-state runtime capture, and several other slots intentionally expose truthful empty/unavailable states instead of the populated references.
+- Category: `APP_SHELL / GEOMETRY`
+- Severity: `P0 VISUAL`
+- Affected opened references: PALLAS, ComfyUI, Command Palette; the same shared-shell geometry also frames Help, Settings, Jobs, System, Research and Workspace references.
+- Evidence: exact BEFORE `08-pallas.png` is the real PALLAS renderer in a detached window with no pATHENA top bar, narrow primary rail or shared right inspector. Exact BEFORE `11-comfyui.png` is likewise a detached local-tool dialog. Exact BEFORE `09-command-palette.png` is captured without its workspace context.
+- Reference evidence: the opened PALLAS reference requires one app composition with top navigation, narrow rail, central semantic field and a right Knowledge/Provenance/Connections/History context. The opened ComfyUI reference uses the same app shell with integrations navigation and a Connection inspector. The opened palette reference is an overlay over Knowledge, not a standalone product window.
+- Prioritization: PALLAS first because a real `PallasWorkspace` and real shared PALLAS inspector already exist, so this structural correction does not require synthetic product semantics.
 
-## VISUAL-GAP-0001 — shared shell / workspace hierarchy
+### Current candidate — PALLAS shell host
 
-Category: `APP SHELL / GEOMETRY / HIERARCHY`
-Severity: `P0 visual`
-Status: `OPEN / HIGHEST RECURRING PRIORITY`
+Status: `CANDIDATE_PENDING_EXACT_AFTER`.
 
-The reference family consistently preserves a narrow rail, large central workspace and contextual right column. Exact Help AFTER evidence at `ecbc661…` now proves the Help surface no longer covers the full shell: topbar, rail, central Help and right inspector are all visible in one real MainWindow capture. That closes the Help-host-geometry subgap, not the overall hierarchy gap.
+Product change in this commit:
 
-Remaining recurrent examples are standalone ComfyUI, standalone/minimal PALLAS and standalone Command Palette, plus sparse/empty central compositions in state-mismatched core workspaces.
+- removes the full PALLAS `QDialog` host;
+- reuses the real synchronized `PallasWorkspace` inside the existing `referenceBody`;
+- inserts it between the real icon rail and the real shared inspector;
+- temporarily hides only the normal routed `conversation` center while PALLAS is open;
+- restores the routed center when any of the existing seven primary navigation items is selected;
+- keeps `navigation.count() == 7` and `pages.count() == 7`;
+- keeps real renderer selection and shared Inspector behavior;
+- adds no eighth route, no mock graph, no synthetic provenance and no Backend/Storage/Security behavior.
 
-## VISUAL-GAP-0002 — contextual inspector
+Focused contract change in this commit requires one reused shell-hosted PALLAS workspace, route restoration, double-click opening and continued shared-inspector selection propagation. The native visual harness now fails if PALLAS is detached and captures the real main window with PALLAS hosted in-shell.
 
-Category: `INSPECTOR / PAGE CONTEXT`
-Severity: `P0/P1 visual`
-Status: `OPEN / HELP CONTEXT NOW REPRODUCED`
+Acceptance for visual closure: exact candidate Screen 02 must be opened after native Windows/PySide6 capture. The shell-host gap can be closed only if top bar, primary rail, full PALLAS workspace and shared inspector are simultaneously visible. That still does **not** imply `MATCH`; semantic-state richness, geometry, typography, spacing, provenance/history and reference-specific composition remain separately judged.
 
-Route-context work remains improved for Knowledge, Research, Jobs, Settings and Sources. The new exact Help MainWindow capture exposes a concrete remaining defect: Help is open while the right inspector still displays the previously active `SETTINGS / LOCAL` context. The reference instead presents Help-specific `Quick shortcuts` and `Help is current` status.
+## Other current open gaps
 
-Next bounded correction must use real installed shortcuts and live capability-catalogue state only. Do not fabricate shortcut availability or runtime health.
+### ComfyUI shell integration
 
-## VISUAL-GAP-0003 — standalone/shell-host framing
+Status: `OPEN`.
 
-Category: `SURFACE INTEGRATION`
-Severity: `P1 visual`
-Status: `OPEN`
+Exact BEFORE is a detached real local-only utility while the original reference is shell-hosted with an Integrations secondary navigation and right Connection inspector. Do not address until the PALLAS candidate is exact-green and visually opened.
 
-- Help: workspace-host framing is now visually verified; remaining gap is information hierarchy + Help contextual inspector.
-- ComfyUI: real local workflow controls, wrong standalone host and missing reference Connection framing.
-- PALLAS: real graph, wrong standalone/minimal framing and missing rich contextual inspector.
-- Command Palette: real commands, but standalone capture rather than overlay over active workspace.
+### Command Palette workspace context
 
-Do not combine these. Finish Help first.
+Status: `OPEN`.
 
-## Help BEFORE → AFTER
+Exact BEFORE is an isolated dialog capture; original reference is an overlay over the Knowledge workspace. Real keyboard and capability semantics already exist. Future work should preserve those semantics and correct only hosting/composition.
 
-- BEFORE evidence path: child-only Help capture could not prove persistent shell chrome.
-- AFTER exact `ecbc661224917f1793b122a94e269ae88b450bc2`: full MainWindow capture visibly retains topbar, rail and right inspector while Help is bounded to the central workspace.
-- Remaining visible Help deviations: no Help secondary nav; no search field; no structured capability rows/cards; flatter typography/spacing; right inspector is stale Settings context; no Help-specific shortcut/current-status panel.
-- Status remains `GAP`; no `CLOSE` or `MATCH` claim.
+### Populated-state gaps
 
-## Slot accounting
+Status: `STATE_UNVERIFIED` for Workspace, Knowledge/Local Memory, Research, Jobs, System and Settings where the exact current runtime is empty, reconnecting or unavailable but the reference is populated/healthy/running. No fake data may be introduced merely to satisfy screenshots.
 
-| Slot | Exact current status at `ecbc661…` |
-|---|---|
-| 01 ComfyUI | GAP |
-| 02 PALLAS | GAP |
-| 03 Settings | GAP / STATE_UNVERIFIED |
-| 04 Help | GAP — host geometry visually verified; hierarchy + inspector context remain |
-| 05 Workspace/Evidence | UNVERIFIED |
-| 06 Jobs | GAP / STATE_UNVERIFIED |
-| 07 Command Palette | GAP / CONTEXT_UNVERIFIED |
-| 08 System | GAP / STATE_UNVERIFIED |
-| 09 Research | GAP / STATE_UNVERIFIED |
-| 10 Light workspace | UNVERIFIED / CURRENT_RENDER_UNAVAILABLE |
-| 11 Local Memory/Knowledge | GAP / STATE_UNVERIFIED |
+### Light Workspace
 
-References opened: `11/11`. Exact runtime surfaces opened: `11/11`. Same-state/reference-equivalent pairs: `0/11`. `MATCH_0_OF_11`. `PAIRS_VERIFIED_0_OF_11`.
+Status: `CURRENT_RENDER_UNAVAILABLE`.
 
-## Develop synchronization
+The original light Workspace reference was opened, but the real native harness has no equivalent light same-state product rendering. No visual pair is claimed.
 
-Current Develop is one bounded Core/Knowledge commit beyond the worker merge base. This candidate imports the exact Develop Integrator handoff, Concept Note provenance/update source and their focused tests history-preservingly as the second parent. No UI product semantics, Backend/Storage/Security behavior or release guard is changed by that synchronization.
+## Historical closed technical gaps
 
-## Next visual slice
-
-After consuming exact CI for the synchronized worker, keep Help as the only UI slice. Preserve its verified workspace host and seven-primary-page invariant; implement a live-data Help hierarchy and honest Help contextual inspector. Then run focused Qt/UI tests, canonical Quality and a new exact 11-surface capture before touching ComfyUI, PALLAS or Command Palette.
+Older numbered UI-GAP entries remain historical evidence only. This ledger's current priority is derived from the opened originals plus the exact BEFORE runtime, not old IDs or run numbers.

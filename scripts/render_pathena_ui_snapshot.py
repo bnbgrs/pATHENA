@@ -280,19 +280,29 @@ def main(argv: Sequence[str] | None = None) -> int:
                 raise RuntimeError("Real PALLAS full-view controller is unavailable.")
             full_view.open_workspace()
             app.processEvents()
-            dialog = getattr(full_view, "dialog", None)
             workspace = getattr(full_view, "workspace", None)
-            if not isinstance(dialog, QWidget) or not dialog.isVisible() or workspace is None:
-                raise RuntimeError("PALLAS full workspace did not become visible.")
+            if not isinstance(workspace, QWidget) or not workspace.isVisible():
+                raise RuntimeError("PALLAS shell workspace did not become visible.")
+            if getattr(full_view, "dialog", None) is not None:
+                raise RuntimeError("PALLAS unexpectedly escaped into a detached dialog.")
+            if window.property("pathenaPallasShellOpen") is not True:
+                raise RuntimeError("PALLAS shell-open state was not published on the main window.")
+            if workspace.property("pathenaPallasShellHosted") is not True:
+                raise RuntimeError("PALLAS workspace is not hosted by the reference shell.")
             if workspace.field.property("pathenaPallasMode") != "full":
                 raise RuntimeError("PALLAS reference capture is not using the full renderer.")
             if workspace.field.property("pathenaUiState") != "ready":
                 raise RuntimeError("PALLAS reference capture did not reach ready state.")
             if int(workspace.field.property("pathenaPallasNodeCount") or 0) != 5:
                 raise RuntimeError("PALLAS reference graph did not render all diagnostic nodes.")
-            save_widget(dialog, ordinal=8, label="PALLAS", kind="full-pallas")
+            save_widget(window, ordinal=8, label="PALLAS", kind="shell-pallas")
             captures[-1]["fixture"] = "diagnostic semantic graph; presentation only"
-            dialog.hide()
+            captures[-1]["shell_hosted"] = True
+            close_workspace = getattr(full_view, "close_workspace", None)
+            if not callable(close_workspace):
+                raise RuntimeError("PALLAS shell controller cannot restore routed workspace.")
+            close_workspace()
+            app.processEvents()
         except Exception as exc:  # noqa: BLE001
             errors.append(f"PALLAS: {type(exc).__name__}: {exc}")
 
@@ -333,7 +343,6 @@ def main(argv: Sequence[str] | None = None) -> int:
 
     def capture_help() -> None:
         try:
-            window = find_window()
             controller = palette_controller()
             controller.open_help()
             app.processEvents()
@@ -342,7 +351,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             help_text = controller.help_text.toPlainText()
             if "pATHENA capabilities" not in help_text or "Open ComfyUI" not in help_text:
                 raise RuntimeError("Help did not render the live ComfyUI capability.")
-            save_widget(window, ordinal=10, label="Help", kind="help-shell")
+            save_widget(controller.help_dialog, ordinal=10, label="Help", kind="help")
             captures[-1]["catalog_version"] = str(
                 controller.help_text.property("pathenaCapabilityCatalogVersion") or ""
             )

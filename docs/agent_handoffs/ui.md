@@ -1,61 +1,60 @@
 # pATHENA UI Handoff
 
-## Current baseline — 2026-09-11 21:39 CEST
+## Current baseline
 
-- Run-start Develop: `develop/pathena-next@c670d7809c9f0aa5e6c31956b57e897091f1b9d6`.
-- Run-start worker: `postmerge/ui@ecbc661224917f1793b122a94e269ae88b450bc2`.
-- Exact worker canonical Quality `34635102754 = SUCCESS`.
-- Exact worker UI Focused Candidate `34635102820 = SUCCESS`.
-- Exact Windows/PySide6 visual run `34635099776` produced all eleven captures and artifact `pathena-visual-ecbc661224917f1793b122a94e269ae88b450bc2`; the workflow remains red only at its fail-closed visual baseline verdict.
-- `main` and `bnbgrs/ATHENA` remain READ-ONLY and untouched.
-- Current Spec/Core, Backend, Errors, Integrator, 11-screen manifest and Visual Gap Ledger were consumed before work.
+- Develop inspected first: `develop/pathena-next@4dbefe2167b28bffab2c6b69b7a8df4b43770a6f`.
+- Worker BEFORE candidate: `postmerge/ui@dce6d463b17474ec2da702a14b7a4365123df45d`.
+- Exact BEFORE UI Focused Candidate `34671153433`: `SUCCESS`.
+- Exact BEFORE canonical Quality `34671153472`: `SUCCESS`.
+- Exact BEFORE native visual artifact `pathena-visual-dce6d463b17474ec2da702a14b7a4365123df45d` was downloaded; all eleven PNGs were opened.
+- `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
-## Exact visual verification completed this run
+## Evidence consumed before mutation
 
-All eleven canonical references were opened directly and all eleven exact runtime PNGs from the `ecbc661…` artifact were opened directly.
+The current `spec-core.md`, `backend.md`, `errors.md`, `integrator.md`, `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` and `docs/ui/VISUAL_GAP_LEDGER.md` were read before product work. Develop already contains the prior bounded Help/accessibility product slice, so that closed slice was not reopened.
 
-The corrected Help evidence path now provides the first real full-MainWindow AFTER capture for the workspace-hosted Help surface. It visibly proves:
+All eleven original reference PNGs in the user's `pATHENA/Designreferenz – 11 Screenshots` collection were opened directly this run. All eleven real native BEFORE captures from exact worker `dce6d463…` were also opened directly. Strict evidence is `PAIRS_VERIFIED_1_OF_11`, `MATCH_0_OF_11`: Help is the only corresponding state pair; empty/unavailable/diagnostic runtime states are not promoted to same-state evidence merely because a PNG exists.
 
-- topbar remains visible;
-- icon rail remains visible;
-- Help is bounded to the central workspace rather than covering the shell;
-- the right inspector remains visible;
-- the seven-primary-page routing model is not replaced by an eighth page.
+## Active visual slice — PALLAS shell integration
 
-This closes the Help host-geometry evidence gap. It does not make Help visually ready. The same screenshot now exposes the next concrete Help gaps: the content remains a flat capability text catalogue, no Help secondary navigation or search is present, and the right inspector incorrectly retains the previous `SETTINGS / LOCAL` context instead of the reference’s Help-specific shortcuts/status.
+The largest recurring visible gap is detached surface hosting. Exact BEFORE PALLAS is the real semantic renderer in a standalone window, while the original PALLAS reference is one pATHENA composition with top navigation, narrow rail, central semantic field and contextual right inspector.
 
-Strict accounting remains `PAIRS_VERIFIED_0_OF_11 · MATCH_0_OF_11`: slot 10 has no real same-state Light capture, and several real runtime states differ from the populated references.
+Root cause is UI-owned and explicit: `PallasFullViewController` created a modeless `QDialog`. No renderer or semantic-model replacement is required.
 
-## Current source-of-truth collision check
+The candidate in this commit:
 
-Develop advanced by one bounded Core/Knowledge commit while the UI exact candidate was being verified. Comparison shows only:
+- keeps the real `PallasGroundedFieldController` and real `PallasWorkspace`;
+- creates one synchronized full workspace parented to the existing `referenceBody`;
+- inserts it in the real center slot between icon rail and shared inspector;
+- hides the normal `conversation` center only while PALLAS is open;
+- closes PALLAS and restores the routed center when primary navigation changes;
+- preserves exactly seven primary navigation items and seven routed pages;
+- preserves real node selection propagation into the existing shared PALLAS inspector;
+- exposes explicit shell-host state solely for UI verification;
+- removes the detached full-view dialog host;
+- changes no Backend, Storage, Security, persistence, transport or semantic graph behavior.
 
-- updated `docs/agent_handoffs/integrator.md`;
-- new `src/athena/knowledge/concept_note_provenance.py`;
-- new `src/athena/knowledge/concept_note_update.py`;
-- their two focused tests.
+Focused tests in the same candidate verify reuse, shell parentage, route restoration, double-click entry, seven-route invariants and shared-inspector selection.
 
-No Help, Qt shell, visual harness, Backend, Storage or Security path overlaps. This candidate imports those exact Develop blobs history-preservingly as a second parent. No force update, rebase, history rewrite or `main` mutation is used.
+The native visual harness in the same candidate is updated so Screen 02 is captured from the real main window while PALLAS is open. It now fails if a detached dialog exists, if shell-host state is absent, or if the real renderer does not reach its ready five-node diagnostic presentation fixture. No static mockup is introduced; the existing deterministic renderer fixture remains presentation-only verification.
 
-## Current Help slice status
+## BEFORE → candidate target
 
-Product host geometry: `VERIFIED_ON_EXACT_RUNTIME`.
+- BEFORE: exact `dce6d463…` Screen 02 = standalone PALLAS renderer, no pATHENA top bar, primary rail or shared inspector in the captured frame.
+- Candidate target: same real renderer hosted inside `referenceBody`, with top bar + rail + central PALLAS + shared inspector in one native MainWindow render.
+- AFTER status at commit creation: `CURRENT_RENDER_PENDING_EXACT_CANDIDATE`. Do not claim closure, `CLOSE` or `MATCH` until the candidate visual artifact is produced and opened.
 
-Current remaining Help visual gap:
+## Remaining visual order
 
-1. information hierarchy: reference has Help secondary navigation, search and distinct capability rows; runtime has a flat text catalogue;
-2. contextual inspector: reference has Quick shortcuts + capability-current status; runtime retains prior Settings context.
+1. Consume focused UI and native visual evidence for this PALLAS candidate.
+2. If exact-green and shell hosting is visibly proven, keep PALLAS status `GAP` unless all remaining reference geometry/state differences are actually closed.
+3. Next broad recurring shell gap: ComfyUI detached utility hosting.
+4. Then Command Palette workspace-overlay context.
+5. Populated-state work for Workspace/Knowledge/Research/Jobs/System must remain grounded in real state; never generate fake provenance, health or job data for screenshot parity.
 
-The existing live capability catalogue remains the only authority for capability availability. Existing `QShortcut`/command wiring must remain the authority for shortcut claims. Do not create decorative fake capabilities, healthy runtime state or non-existent shortcuts.
+## Ready state
 
-## CI note
-
-The parallel Core Focused workflow on the UI SHA is not used as UI product evidence. Canonical Quality and the UI Focused Candidate are both green for exact `ecbc661…`.
-
-## Next evidence sequence
-
-1. Consume exact CI on the synchronized worker before a new product commit.
-2. Keep Help as the only visual slice.
-3. Implement bounded live-data Help hierarchy and Help-specific contextual inspector while preserving F1/Esc/Ctrl-K, focus/accessibility, active primary route, workspace-bounded geometry and `7 nav == 7 primary pages`.
-4. Run focused Qt/UI tests first, then canonical Quality without stacking commits while it runs.
-5. Produce/open all eleven exact Windows/PySide6 AFTER images and compare slot-by-slot before any status upgrade or move to ComfyUI/PALLAS/Palette.
+- Technical candidate readiness: `PENDING_EXACT_SHA_TESTS`.
+- Visual readiness: `NO`.
+- BEFORE evidence: `PAIRS_VERIFIED_1_OF_11`, `MATCH_0_OF_11`.
+- Exact AFTER evidence must be consumed before an Integrator-ready claim.
