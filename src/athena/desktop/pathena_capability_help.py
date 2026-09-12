@@ -138,6 +138,7 @@ class CapabilityHelpController(QObject):
         self.help_summary.setFont(summary_font)
         self.help_summary.setWordWrap(True)
         content_layout.addWidget(self.help_summary)
+        self.help_summary.hide()
 
         self.help_capabilities = QListWidget(content)
         self.help_capabilities.setObjectName("helpCapabilities")
@@ -256,12 +257,14 @@ class CapabilityHelpController(QObject):
 
     def _refresh_hierarchy(self, snapshot: CapabilityCatalogSnapshot) -> None:
         current_section = self.help_sections.currentItem()
-        current_text = current_section.text() if current_section is not None else "All"
+        current_text = (
+            current_section.text() if current_section is not None else "Getting started"
+        )
         areas = sorted({capability.area for capability in snapshot.capabilities})
 
         self.help_sections.blockSignals(True)
         self.help_sections.clear()
-        self.help_sections.addItem("All")
+        self.help_sections.addItem("Getting started")
         for area in areas:
             self.help_sections.addItem(area)
         matches = self.help_sections.findItems(
@@ -307,13 +310,13 @@ class CapabilityHelpController(QObject):
     def _apply_help_filter(self, *_args: object) -> None:
         query = self.help_query.text().strip().casefold()
         selected = self.help_sections.currentItem()
-        area = selected.text() if selected is not None else "All"
+        area = selected.text() if selected is not None else "Getting started"
         visible = 0
         for index in range(self.help_capabilities.count()):
             item = self.help_capabilities.item(index)
             item_area = str(item.data(Qt.ItemDataRole.UserRole))
             search_text = str(item.data(Qt.ItemDataRole.UserRole + 1))
-            matches = (area == "All" or item_area == area) and (
+            matches = (area == "Getting started" or item_area == area) and (
                 not query or query in search_text
             )
             item.setHidden(not matches)
