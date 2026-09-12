@@ -8,14 +8,14 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 
 ## Current baseline
 
-- Develop source of truth: `develop/pathena-next@c0f523921a460137aef7b59d9d703a3f8ce94225`.
+- Develop source of truth: `develop/pathena-next@5db4c92f40d5d14119a991796be38fb9248072de`.
 - Error worker entered this run at `postmerge/errors@06069895fc703b1258b2d2cfe54fab96bc0a2769`.
 - Current workers: Spec/Core `d47634453d63cad0b21fb6d370c95602b0d0a286`; Backend `32485db642d71ec2caef8b49adc35ac2132aa651`; UI `e5801b57ca2c4bc62929382427ded0d0e51d55fd`.
-- Exact-current Develop canonical Quality: `34656021355@c0f523921a460137aef7b59d9d703a3f8ce94225 = IN_PROGRESS`; no Develop PASS/FAIL claim is derived while it is running.
-- Previous Develop canonical Quality: `34651263616@e008e0fbf595da64bea64eb557dddeb2cd78bed0 = SUCCESS`.
+- Exact-current Develop canonical Quality: `34659583545@5db4c92f40d5d14119a991796be38fb9248072de = IN_PROGRESS`; no Develop PASS/FAIL claim is derived while it is running.
+- Previous Develop canonical Quality: `34656021355@c0f523921a460137aef7b59d9d703a3f8ce94225 = SUCCESS`.
 - Exact-current Spec/Core canonical Quality: `34653170296@d47634453d63cad0b21fb6d370c95602b0d0a286 = SUCCESS`.
 - Exact-current Spec/Core focused candidate: `34653170251@d47634453d63cad0b21fb6d370c95602b0d0a286 = SUCCESS`.
-- `postmerge/errors@06069895fc703b1258b2d2cfe54fab96bc0a2769` had zero workflow runs immediately before this mutation.
+- `postmerge/errors@06069895fc703b1258b2d2cfe54fab96bc0a2769` had zero workflow runs immediately before the first mutation; intermediate Error-worker commits were also checked before further mutation and had zero workflow runs.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current state
@@ -47,9 +47,10 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 ## ERR-0033 — Emergency-reserve filesystem-object identity and physical-reclamation gap
 
 - Severity: P1.
-- Status: `OPEN` — freshly reproduced on current Develop exact SHA `c0f523921a460137aef7b59d9d703a3f8ce94225`.
+- Status: `OPEN` — freshly reproduced on current Develop exact SHA `5db4c92f40d5d14119a991796be38fb9248072de`.
 - Specialist owner: Backend / BE-046. Errors does not parallel-mutate Backend product code while that worker owns the root cause.
 - Current-exact source evidence: `src/athena/storage/emergency_reserve.py` POSIX `release()` opens the reserve, obtains `file_stat = os.fstat(descriptor)`, stores `size = file_stat.st_size`, then closes pATHENA's reserve descriptor *before* `_assert_posix_directory_current(...)`, `os.unlink(_RESERVE_FILENAME, dir_fd=root_fd)`, directory fsync/revalidation, and finally `return size`.
+- The source blob at current Develop is `bf06e386ba54492ee67bf6fda6d4645f75a48297`, preserving the same release sequence across the intervening Develop advance.
 - This sequence binds the parent directory but does not prove physical reclamation of the attested reserve blocks. A second descriptor opened by another process before release can survive the pathname unlink and continue to reference the inode/data blocks while pATHENA returns the full captured logical size as released.
 - The same exact sequence also leaves link-ownership continuity relevant: a pathname unlink is not equivalent to block reclamation if another hardlink or already-open file description retains the inode.
 - This is current exact-SHA reproduction of the existing BE-046 root-cause family, not a new error ID. Historical evidence is no longer needed to keep `ERR-0033` active.
