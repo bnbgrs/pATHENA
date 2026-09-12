@@ -3,27 +3,27 @@
 ## Current integration
 
 - Integration target: `develop/pathena-next`.
-- Develop parent before this integration: `8d34591f08ab1f1a42dbb032963769968aefab2e`.
-- Parent canonical Quality: `34689663093 = SUCCESS`.
-- Worker heads checked: Errors `983a57ca2005ad231a8896fc24e77cfd48b971a7`; Spec/Core `008345141aac276f9723b536a70497e2dec74b20`; Backend `e4aacf8004e08fddacb41cebe687453a759444cf`; UI `2e39818797e9c13ab20ac929f5377ae9888181df`.
+- Develop parent before this integration: `d8236b74e69d1eedfdd2b05a52ed767520246671`.
+- Exact parent canonical Quality: `34692305368 = SUCCESS`.
+- Worker heads checked: Errors `531f78037fdb1d6c89e77393b5be0a53a63ac0b3`; Spec/Core `3f864f5dd02db350b8b0df3103e6cc9c09725a37`; Backend `359b675a37b5b59210399bee1506afddc6ccee13`; UI `dd0ad210baf9125d03b532cbac6c807e56e1e558`.
 
 ## Worker qualification
 
-- Spec/Core: exact Core Focused Candidate `34688220222 = SUCCESS` and exact canonical Quality `34688220225 = SUCCESS`. The bounded current commit changes only `src/athena/knowledge/user_override_policy.py` and `tests/unit/test_user_override_policy.py`; current Develop retained the same pre-slice versions of both files, so the slice is compatible and READY.
-- Backend: current exact head `e4aacf8004e08fddacb41cebe687453a759444cf` has Backend Focused `34691379970 = SUCCESS`, while canonical `34691380019` is still running. `ERR-0040` remains Backend-owned until exact-head canonical evidence closes it.
-- UI: current head `2e39818797e9c13ab20ac929f5377ae9888181df` is a synchronization merge onto current Develop before further palette work; no bounded new UI product slice is promoted from that head in this integration.
-- Errors: current handoff identifies `ERR-0040 = OPEN / P1` on the Backend scheduled-materialization lineage; no parallel Error-owned product mutation is taken.
+- Backend exact `359b675a37b5b59210399bee1506afddc6ccee13`: Backend Focused Candidate `34693685313 = SUCCESS`; canonical Quality `34693685375 = SUCCESS`. Diff against current Develop is bounded to `src/athena/jobs/scheduled_materialization.py` and `tests/unit/test_scheduled_materialization.py`. READY.
+- Spec/Core exact `3f864f5dd02db350b8b0df3103e6cc9c09725a37`: canonical Quality `34693360045 = SUCCESS`, but its synchronization head has the same tree as current Develop and therefore contributes no new bounded product delta.
+- UI exact `dd0ad210baf9125d03b532cbac6c807e56e1e558`: canonical Quality is still running and a Core Focused check is failed on the cumulative PR lineage; not READY.
+- Errors: current handoff diagnoses `ERR-0040` as the scheduled-materialization test fixture using unsupported SQLite `:memory:` journal mode. Backend's current exact head replaces that fixture with a file-backed canonical-schema database without relaxing Storage guards.
 
 ## Integrated bounded slice
 
-Integrated the Spec/Core user-correction conflict policy. Explicit `EvidenceRole.CONTRADICTS` evidence remains visible after a user correction, duplicate contradiction revisions deduplicate deterministically, non-contradictory evidence does not fabricate conflicts, and the policy never authorizes deletion of contrary source evidence. Malformed runtime evidence fails closed. Existing user-override behavior remains intact.
+Integrated durable scheduled-job materialization. A deterministic schedule occurrence UUID is used directly as the durable `jobs.job_id`; retries therefore converge on the same row through the existing primary-key boundary. Materialization requires an existing write transaction, rejects disabled schedules and malformed runtime values fail-closed, and refuses an existing occurrence identity already bound to a different job. The focused regression fixture uses a file-backed SQLite database initialized through the canonical schema path, preserving the v37->v38 journal-mode invariant instead of weakening it.
 
 ## Current evidence rules
 
 - `docs/agent_logs/ERROR_LEDGER.md` remains historical relative to current Develop and is not the sole authority for current OPEN state.
 - `docs/agent_logs/ALPHA_BETA_PROGRESS.md` is maintained without invented completion percentages.
 - Historical signatures are not reopened without current exact-SHA reproduction.
-- The eleven-screen visual state remains fail-closed; `MATCH` requires an opened original reference and a real exact-SHA render.
+- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` and `docs/ui/VISUAL_GAP_LEDGER.md` remain fail-closed; no visual `MATCH` is inferred without opened original reference plus real exact-SHA render.
 - Worker candidate evidence superseded by later commits is not accepted without equivalent exact-head evidence.
 
 ## Persistent release guards
