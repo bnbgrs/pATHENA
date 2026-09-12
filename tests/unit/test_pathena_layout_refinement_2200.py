@@ -1,6 +1,14 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QLabel, QListWidget, QPushButton, QWidget
+from PySide6.QtWidgets import (
+    QApplication,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QListWidget,
+    QPushButton,
+    QWidget,
+)
 
 from athena.desktop import pathena_layout_refinement_2200 as refinement
 
@@ -48,7 +56,15 @@ def test_top_navigation_mirrors_existing_primary_routes_without_adding_pages() -
     window = QWidget()
     window.resize(1480, 900)
     navigation = QListWidget(window)
-    for label in ("Workspace", "Library", "Research", "Jobs", "Sources", "System", "Settings"):
+    for label in (
+        "Workspace",
+        "Library",
+        "Research",
+        "Jobs",
+        "Sources",
+        "System",
+        "Settings",
+    ):
         navigation.addItem(label)
     window.navigation = navigation  # type: ignore[attr-defined]
 
@@ -78,5 +94,6 @@ def test_top_navigation_mirrors_existing_primary_routes_without_adding_pages() -
     app.processEvents()
     assert buttons[4].isChecked()
     assert not buttons[2].isChecked()
+
     controller.deleteLater()
     window.deleteLater()
