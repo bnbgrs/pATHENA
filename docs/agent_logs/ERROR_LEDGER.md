@@ -8,25 +8,37 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 
 ## Current baseline
 
-- Develop source of truth: `develop/pathena-next@8c885669ce3a3d718588d0327828341684c88c71` (`Integrator: combine all current Develop repair candidates`).
-- Error worker entered this run at `postmerge/errors@df2e1a552e9151b46a7c54d86746c30fe22d45da`.
-- Current workers: Spec/Core `1cef32d5f1479872d2f78cca29b2ed80fce05076`; Backend `2213d007266ac50c0500d61cb8d91fededbfda40`; UI `07721cfc86cb7e6c4137f7a5aa3396495a21cd8c`.
-- Exact-current Develop canonical Quality: `34680853488@8c885669ce3a3d718588d0327828341684c88c71 = SUCCESS`.
-- Exact-current Develop Windows Runtime Boundary: `34680853496@8c885669ce3a3d718588d0327828341684c88c71 = SUCCESS`.
-- Backend exact `2213d007266ac50c0500d61cb8d91fededbfda40`: Backend Focused `34680797071 = SUCCESS`; canonical Quality `34680797081 = SUCCESS`.
-- Spec/Core exact `1cef32d5f1479872d2f78cca29b2ed80fce05076`: Core Focused `34680250793 = FAILURE`; canonical Quality `34680250851 = FAILURE`.
-- UI exact `07721cfc86cb7e6c4137f7a5aa3396495a21cd8c`: UI Focused `34681610012 = SUCCESS`; canonical Quality `34681610023 = IN_PROGRESS` at observation time.
-- `postmerge/errors@df2e1a552e9151b46a7c54d86746c30fe22d45da` had zero workflow runs immediately before this mutation.
+- Develop source of truth: `develop/pathena-next@8d34591f08ab1f1a42dbb032963769968aefab2e` (`docs(integrator): record exact worker qualification`).
+- Error worker entered this run at `postmerge/errors@23b0c22e2b219fd28a44feb94296c883fab75327`.
+- Current workers: Spec/Core `008345141aac276f9723b536a70497e2dec74b20`; Backend `38a61d5f6b41bd151c3662bd1ef2a5a35f240a87`; UI `51c109f6a0e31f82392be6c5bfe1d7d167377499`.
+- Exact-current Develop canonical Quality: `34689663093@8d34591f08ab1f1a42dbb032963769968aefab2e = IN_PROGRESS` at observation time. No competing canonical run was started.
+- Latest completed Develop canonical Quality: `34687050578@63423bccaf9bf5b4049e55998e2d3303f59ecaf7 = SUCCESS`.
+- Backend exact `38a61d5f6b41bd151c3662bd1ef2a5a35f240a87`: Backend Focused `34689028510 = SUCCESS`; canonical Quality `34689028433 = FAILURE`. Canonical jobs show Specification Validator, Ruff, mypy, Windows Path Safety, Linux Storage Regressions and Local Install green; only full pytest failed.
+- Spec/Core exact `008345141aac276f9723b536a70497e2dec74b20`: Core Focused `34688220222 = SUCCESS`; canonical Quality `34688220225 = IN_PROGRESS` at observation time.
+- UI exact `51c109f6a0e31f82392be6c5bfe1d7d167377499`: UI Focused `34686843794 = SUCCESS`; Integrator reports exact canonical SUCCESS but exact visual regression FAILURE; no UI product mutation is owned here.
+- `postmerge/errors@23b0c22e2b219fd28a44feb94296c883fab75327` had zero workflow runs immediately before this mutation.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current state
 
-- OPEN: none.
+- OPEN: `ERR-0040`.
 - IN_PROGRESS: none.
 - FIXED_PENDING_VERIFY: none.
 - FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015` through `ERR-0024`, `ERR-0027`, `ERR-0030`, `ERR-0031`, `ERR-0032`, `ERR-0033`, `ERR-0034`, `ERR-0035`, `ERR-0036`, `ERR-0037`.
 - STALE: `ERR-0014`, `ERR-0025`, `ERR-0026`, `ERR-0028`, `ERR-0029`, `ERR-0038`, `ERR-0039`.
 - BLOCKED: none at top level.
+
+## ERR-0040 — Backend scheduled-materialization candidate full-suite regression
+
+- Severity: P1 integration blocker.
+- Status: `OPEN`.
+- Exact reproducer: `postmerge/backend@38a61d5f6b41bd151c3662bd1ef2a5a35f240a87`.
+- Exact canonical evidence: ATHENA Quality Gate `34689028433 = FAILURE`; Python 3.12 quality fails only at `Quality — pytest`. Specification Validator, Ruff and mypy pass; Windows Path Safety, Linux Storage Regressions and Local Install all pass.
+- Exact focused evidence: Backend Focused Candidate `34689028510 = SUCCESS` on the same SHA.
+- Parent/integration discriminator: the Develop parent `63423bccaf9bf5b4049e55998e2d3303f59ecaf7` is canonical-green via `34687050578 = SUCCESS`. The exact Backend candidate adds the scheduled-occurrence materialization slice, including `src/athena/jobs/scheduled_materialization.py` and `tests/unit/test_scheduled_materialization.py`, while its focused lane remains green.
+- Current diagnosis: this is a real full-suite-only integration regression on the exact Backend candidate, but the failing pytest node/root cause is not exposed by the available workflow metadata. The canonical diagnostics artifact `canonical-quality-diagnostics-38a61d5f6b41bd151c3662bd1ef2a5a35f240a87` exists and must be consumed by the Backend owner before product mutation. Do not guess the failing test and do not attribute the failure to a historical UI or Storage signature without exact diagnostic evidence.
+- Ownership: Backend owns the candidate and should consume the canonical diagnostics, reproduce the exact failing test first, then apply the smallest root-cause fix. Errors will not parallel-edit the product while Backend owns this active slice.
+- Closure requirement: named failing test/check reproduced on the exact lineage, minimal fix, focused regression set, then exact canonical Quality success. No guard/test weakening, Skip/XFail, or test deletion.
 
 ## ERR-0035 — SQLite preflight-to-writer file-set identity continuity
 
