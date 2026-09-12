@@ -10,7 +10,6 @@ from athena.knowledge.models import (
 )
 from athena.knowledge.revision_change_explanation import explain_knowledge_revision_change
 
-
 KNOWLEDGE_ID = uuid.UUID("00000000-0000-7000-8000-000000000001")
 ACTOR_ID = uuid.UUID("00000000-0000-7000-8000-000000000010")
 
