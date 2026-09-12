@@ -3,26 +3,32 @@
 ## Current integration
 
 - Integration target: `develop/pathena-next`.
-- Develop parent before this integration: `452547ab46c5d8c678c22c3e1fb9d34652b653fd`.
-- Exact parent canonical Quality: `34703645964 = SUCCESS`.
-- Worker heads checked: Errors `93be775e26a73a57a67fc3ca6d94a65348793e00`; Spec/Core `39360af3da29101e3038447121ad8d80d11b9f07`; Backend `c98263ffd225d62525b859b041652922b3f07c69`; UI `8f28414d1d8649796f1e6ea2e82abf43370e7328`.
+- Develop parent before this integration: `5eecb5f937de9325a9673df5f1a23d2f1b5e87cf`.
+- Exact parent canonical Quality: `34706615596 = SUCCESS`.
+- Worker heads checked: Errors `3e3915d5cb0c3964661db1fcef100f98664915c1`; Spec/Core `f86df7dc1b4f4be5aeb2000986eb7965cafa8dcb`; Backend `956cffa5dca29cbf5af71fd6e06bd87f2a79b4cc`; UI `1c6c3475945c7ee0ba4d7514b81dd4d444d843e6`.
 
 ## Worker qualification
 
-- Backend exact `c98263ffd225d62525b859b041652922b3f07c69`: Backend Focused Candidate `34705432550 = SUCCESS`; canonical Quality `34705432539 = SUCCESS`. Compared with current Develop, the bounded product delta is only `src/athena/jobs/schedule_recovery.py` and `tests/unit/test_schedule_recovery.py`. READY and integrated.
-- Spec/Core exact `39360af3da29101e3038447121ad8d80d11b9f07`: Core Focused Candidate `34704710587 = FAILURE`; canonical Quality `34704710609 = FAILURE`. NOT READY.
-- UI exact `8f28414d1d8649796f1e6ea2e82abf43370e7328`: Core Focused Candidate is red and canonical Quality was still running at qualification time. NOT READY.
-- Errors current head is evidence/handoff maintenance; no independent Error-owned product mutation is imported.
+- Spec/Core exact `f86df7dc1b4f4be5aeb2000986eb7965cafa8dcb`: Core Focused Candidate `34709904332 = FAILURE`; exact focused pytest passed six tests but Ruff still reports one I001. Canonical Quality `34709904327` was active at qualification time. NOT READY.
+- Backend exact `956cffa5dca29cbf5af71fd6e06bd87f2a79b4cc`: Backend Focused Candidate `34710537347 = SUCCESS`, but Storage Focused Candidate `34710537370 = FAILURE`; canonical Quality `34710537369` was active. Storage remains conservatively blocked. NOT READY.
+- UI exact `1c6c3475945c7ee0ba4d7514b81dd4d444d843e6`: UI Focused Candidate succeeded, but Core Focused failed because deleted Core/test paths were selected and the worker lineage is broad/diverged. No UI product slice is imported from this branch in this integration.
+- Errors handoff identifies current open clusters `ERR-0042` Core Ruff formatting, `ERR-0043` Storage sidecar identity continuity, and `ERR-0044` Core Focused workflow deleted-path/remediation harness behavior.
 
-## Integrated bounded slice
+## Cross-cutting integration
 
-Integrated durable schedule recovery enumeration. Recovery first derives due occurrences, reconciles them against the deterministic persisted occurrence job identity, fails closed if an existing identity is bound to another job type or actor, then applies the configured missed-run policy only to still-missing occurrences. Disabled schedules return no recoverable work; future occurrences are excluded by the existing schedule-policy boundary.
+This integration closes the repository-side root cause of `ERR-0044` in `.github/workflows/core-focused-candidate.yml` without weakening any test or gate:
 
-The slice does not change schema, migration, transaction ownership, materialization identity, retry/fencing, Security, UI, packaging or runtime topology.
+- changed Core Python selection now uses `git diff --diff-filter=ACMR --name-only`, excluding deleted paths while retaining added/copied/modified/renamed paths;
+- changed focused-test selection uses the same fail-closed non-deletion filter;
+- Ruff remediation selection uses the same filter;
+- remediation cleanliness checks now ignore only untracked files via `--untracked-files=no`, so the workflow's own `.focused-evidence` artifacts no longer block diagnostic remediation while tracked candidate mutations still fail the cleanliness guard;
+- the exact candidate SHA identity check, Ruff requirement, focused pytest requirement, immutable reset, diagnostics upload, and final outcome enforcement remain intact.
+
+No Product, Storage, Recovery, Security, UI, packaging, runtime-topology, Skip/XFail, or assertion semantics are relaxed.
 
 ## Current evidence rules
 
-- `docs/agent_logs/ERROR_LEDGER.md` remains historical relative to current Develop and is not the sole authority for current OPEN state.
+- `docs/agent_logs/ERROR_LEDGER.md` is historical relative to current Develop and is not the sole authority for current OPEN state.
 - `docs/agent_logs/ALPHA_BETA_PROGRESS.md` is maintained without invented completion percentages.
 - Historical signatures are not reopened without current exact-SHA reproduction.
 - `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` and `docs/ui/VISUAL_GAP_LEDGER.md` remain fail-closed; no screenshot `MATCH` is inferred without opened original reference plus a real exact-SHA render.

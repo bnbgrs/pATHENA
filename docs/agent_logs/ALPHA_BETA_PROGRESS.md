@@ -4,28 +4,27 @@ Evidence-only progress register for `develop/pathena-next`. This file intentiona
 
 ## Current baseline
 
-- Develop parent before the current integration: `452547ab46c5d8c678c22c3e1fb9d34652b653fd`.
-- Exact parent canonical Quality: `34703645964 = SUCCESS`.
+- Develop parent before the current integration: `5eecb5f937de9325a9673df5f1a23d2f1b5e87cf`.
+- Exact parent canonical Quality: `34706615596 = SUCCESS`.
 - Current worker heads checked:
-  - Errors: `93be775e26a73a57a67fc3ca6d94a65348793e00`
-  - Spec/Core: `39360af3da29101e3038447121ad8d80d11b9f07`
-  - Backend: `c98263ffd225d62525b859b041652922b3f07c69`
-  - UI: `8f28414d1d8649796f1e6ea2e82abf43370e7328`
+  - Errors: `3e3915d5cb0c3964661db1fcef100f98664915c1`
+  - Spec/Core: `f86df7dc1b4f4be5aeb2000986eb7965cafa8dcb`
+  - Backend: `956cffa5dca29cbf5af71fd6e06bd87f2a79b4cc`
+  - UI: `1c6c3475945c7ee0ba4d7514b81dd4d444d843e6`
 
 ## Current integration state
 
-- Durable schedule identity primitives and scheduled-job materialization remain integrated on Develop.
+- Durable schedule identity primitives, scheduled-job materialization, and durable schedule recovery remain integrated on Develop.
 - Source-free user Knowledge, user-correction conflict visibility, and truthful Knowledge provenance explanation remain integrated.
 - Fail-closed release-readiness assessment remains integrated.
-- Current integration adds durable schedule recovery enumeration from Backend exact `c98263ffd225d62525b859b041652922b3f07c69`, backed by Backend Focused Candidate `34705432550 = SUCCESS` and canonical Quality `34705432539 = SUCCESS`.
-- Recovery reconciles deterministic occurrence IDs against durable jobs before applying missed-run policy; identity collisions fail closed.
+- Current cross-cutting integration repairs the Core Focused candidate harness for deleted-path selection and diagnostic Ruff-remediation cleanliness while retaining exact-SHA, Ruff, focused-pytest, immutable-reset, and outcome-enforcement guards.
 
 ## Worker readiness snapshot
 
-- Backend schedule-recovery slice is exact-green and integrated here.
-- Spec/Core current head is blocked by exact red focused and canonical runs.
-- UI current head is not READY: focused evidence is red and canonical evidence was incomplete at qualification time.
-- Errors current head is evidence/handoff maintenance only.
+- Spec/Core exact `f86df7dc1b4f4be5aeb2000986eb7965cafa8dcb` is NOT READY: Core Focused `34709904332 = FAILURE`; focused behavior tests pass but Ruff I001 remains current.
+- Backend exact `956cffa5dca29cbf5af71fd6e06bd87f2a79b4cc` is NOT READY: Backend Focused `34710537347 = SUCCESS`, Storage Focused `34710537370 = FAILURE`, and canonical Quality was still active at qualification time.
+- UI exact `1c6c3475945c7ee0ba4d7514b81dd4d444d843e6` is not imported: its lineage is broad/diverged and its Core Focused failure is attributable to the now-repaired deleted-path harness defect, not independently sufficient UI promotion evidence.
+- Errors reports current open clusters `ERR-0042`, `ERR-0043`, and `ERR-0044`; this integration addresses the repository-side `ERR-0044` workflow root cause but does not mark it verified until exact post-change evidence exists.
 
 ## Error and visual truth rules
 
