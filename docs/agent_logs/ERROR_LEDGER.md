@@ -8,38 +8,37 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 
 ## Current baseline
 
-- Develop source of truth: `develop/pathena-next@28b9585b49bf632401340735f05de20d95a70ead` (`feat(core): integrate stale claim revalidation planning`).
-- Error worker entered this run at `postmerge/errors@2ca073c51acb726918cfe396ad4baa75a65ee80e`.
-- Current workers: Spec/Core `8ee183e14ed2527d254def4946ce0b79104f1afa`; Backend `0ce1a70d421b41cd0ca4441399d97c82b9849285`; UI `f37b923b6f64f9c75d63febe64aef6c29147069f`.
-- Exact-current Develop canonical Quality: `34679217397@28b9585b49bf632401340735f05de20d95a70ead = IN_PROGRESS`; no Develop PASS/FAIL claim is derived while it is running and no competing canonical run was started.
-- Previous Develop exact `cec77b6f8b64ec0bdf29cb546d8db4e1cf16ae80`: canonical Quality `34676594675 = SUCCESS`.
-- Backend exact `0ce1a70d421b41cd0ca4441399d97c82b9849285`: Backend Focused `34678280408 = SUCCESS`; canonical Quality `34678280400 = SUCCESS`.
-- Spec/Core exact `8ee183e14ed2527d254def4946ce0b79104f1afa`: Core Focused `34677902970 = SUCCESS`; canonical Quality `34677903014 = IN_PROGRESS` at observation time.
-- UI exact `f37b923b6f64f9c75d63febe64aef6c29147069f`: UI Focused `34678773685 = SUCCESS`; canonical Quality `34678773688 = PENDING` at observation time.
-- `postmerge/errors@2ca073c51acb726918cfe396ad4baa75a65ee80e` had zero workflow runs immediately before this mutation.
+- Develop source of truth: `develop/pathena-next@8c885669ce3a3d718588d0327828341684c88c71` (`Integrator: combine all current Develop repair candidates`).
+- Error worker entered this run at `postmerge/errors@df2e1a552e9151b46a7c54d86746c30fe22d45da`.
+- Current workers: Spec/Core `1cef32d5f1479872d2f78cca29b2ed80fce05076`; Backend `2213d007266ac50c0500d61cb8d91fededbfda40`; UI `07721cfc86cb7e6c4137f7a5aa3396495a21cd8c`.
+- Exact-current Develop canonical Quality: `34680853488@8c885669ce3a3d718588d0327828341684c88c71 = SUCCESS`.
+- Exact-current Develop Windows Runtime Boundary: `34680853496@8c885669ce3a3d718588d0327828341684c88c71 = SUCCESS`.
+- Backend exact `2213d007266ac50c0500d61cb8d91fededbfda40`: Backend Focused `34680797071 = SUCCESS`; canonical Quality `34680797081 = SUCCESS`.
+- Spec/Core exact `1cef32d5f1479872d2f78cca29b2ed80fce05076`: Core Focused `34680250793 = FAILURE`; canonical Quality `34680250851 = FAILURE`.
+- UI exact `07721cfc86cb7e6c4137f7a5aa3396495a21cd8c`: UI Focused `34681610012 = SUCCESS`; canonical Quality `34681610023 = IN_PROGRESS` at observation time.
+- `postmerge/errors@df2e1a552e9151b46a7c54d86746c30fe22d45da` had zero workflow runs immediately before this mutation.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current state
 
-- OPEN: `ERR-0035`.
+- OPEN: none.
 - IN_PROGRESS: none.
 - FIXED_PENDING_VERIFY: none.
-- FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015` through `ERR-0024`, `ERR-0027`, `ERR-0030`, `ERR-0031`, `ERR-0032`, `ERR-0033`, `ERR-0034`, `ERR-0036`, `ERR-0037`.
+- FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015` through `ERR-0024`, `ERR-0027`, `ERR-0030`, `ERR-0031`, `ERR-0032`, `ERR-0033`, `ERR-0034`, `ERR-0035`, `ERR-0036`, `ERR-0037`.
 - STALE: `ERR-0014`, `ERR-0025`, `ERR-0026`, `ERR-0028`, `ERR-0029`, `ERR-0038`, `ERR-0039`.
 - BLOCKED: none at top level.
 
-## ERR-0035 — SQLite preflight-to-writer file-set identity continuity absent on current Backend head
+## ERR-0035 — SQLite preflight-to-writer file-set identity continuity
 
 - Severity: P1.
-- Status: `OPEN`.
-- Specialist owner: Backend / BE-052.
-- Current exact Backend head `0ce1a70d421b41cd0ca4441399d97c82b9849285` still lacks the startup identity protection. `src/athena/storage/database.py` executes `inspect_database_read_only(self.path)` and then independently opens `sqlite3.connect()`; no identity-bearing DB/WAL/SHM preflight token is retained across that transition and no file-set identity assertion occurs immediately before or after writer establishment.
-- Direct current-head lookup confirms `tests/unit/test_database_startup_identity.py` is still absent (`404 Not Found`).
-- New exact-SHA evidence materially sharpens the cluster: Backend Focused `34678280408@0ce1a70d... = SUCCESS` and canonical Quality `34678280400@0ce1a70d... = SUCCESS` even though the product guard and dedicated adversarial coverage remain absent on that same exact SHA. Therefore a green current canonical Quality is not BE-052 closure evidence; the current gate does not exercise this removed release invariant.
-- This remains a release-guard regression despite canonical green. Do not reclassify `FIXED_PENDING_VERIFY` or `FIXED` without restoring the invariant and adversarial coverage.
-- Required owner correction remains: restore identity-bearing DB/WAL/SHM preflight continuity; assert exact file-set identity before writer open; retain exclusive fail-closed missing-primary creation; assert identity again after writer establishment; after a successful controlled migration, acquire a fresh post-migration identity-bearing preflight and bind that fresh token to writer startup; restore adversarial startup-identity coverage for primary replacement and WAL/SHM sidecar creation/replacement races.
-- Required verification: restored startup-identity suite first, then controlled-migration regressions, smallest storage/bootstrap regression set, Backend Focused, and canonical Quality on one unchanged exact Backend SHA.
-- Error worker did not mutate Backend product code because Backend actively owns BE-052.
+- Status: `FIXED`.
+- Specialist owner: Backend / BE-052; integrated repair by Integrator.
+- Integrated closure SHA: `develop/pathena-next@8c885669ce3a3d718588d0327828341684c88c71`.
+- The integrated `SQLiteDatabase.start()` now consumes an identity-bearing `DatabasePreflightReport`, validates primary DB/WAL/SHM identity before writer open, creates a missing primary exclusively, forces an initial SQLite read, and validates the same accepted identity again before schema initialization or connection-policy mutation.
+- Controlled migration is not handled by weakening the guard. `StorageBootstrapService` reacquires a fresh read-only identity-bearing preflight after authorized migration activation and binds that fresh post-migration identity to the live writer transition.
+- Exact integrated adversarial coverage exists in `tests/unit/test_storage_database_startup_identity.py` for primary replacement, file-set member replacement, missing-primary foreign creation, sidecar mutation, and replacement during writer establishment.
+- Exact integrated controlled-migration coverage exists in `tests/unit/test_storage_bootstrap_identity.py`; it proves a migration receives a fresh activated-database identity and rejects another replacement after that refreshed preflight but before writer startup.
+- Exact integrated canonical Quality `34680853488@8c885669ce3a3d718588d0327828341684c88c71 = SUCCESS`. This satisfies the required post-integration exact-SHA verification. Reopen only with a new current exact-SHA reproduction.
 
 ## ERR-0033 — Emergency-reserve filesystem-object identity and physical-reclamation gap
 
