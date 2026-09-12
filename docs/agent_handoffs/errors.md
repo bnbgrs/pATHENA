@@ -2,69 +2,74 @@
 
 ## Baseline
 
-- Develop source of truth: `develop/pathena-next@cfdcac0bd51973bc18343006a9fb02f6c098a3c0`.
-- Error worker entered this run at `postmerge/errors@531f78037fdb1d6c89e77393b5be0a53a63ac0b3`.
-- Current workers: Spec/Core `3f864f5dd02db350b8b0df3103e6cc9c09725a37`; Backend `359b675a37b5b59210399bee1506afddc6ccee13`; UI `dd0ad210baf9125d03b532cbac6c807e56e1e558`.
-- Develop canonical Quality `34694827693@cfdcac0bd51973bc18343006a9fb02f6c098a3c0 = IN_PROGRESS` at observation time; exact parent Develop `34692305368@d8236b74e69d1eedfdd2b05a52ed767520246671 = SUCCESS`.
-- Backend exact `359b675a37b5b59210399bee1506afddc6ccee13`: Backend Focused `34693685313 = SUCCESS`; canonical Quality `34693685375 = SUCCESS`.
-- Spec/Core exact `3f864f5dd02db350b8b0df3103e6cc9c09725a37`: canonical Quality `34693360045 = SUCCESS`; current synchronization head contributes no new bounded product delta to Develop.
-- UI exact `dd0ad210baf9125d03b532cbac6c807e56e1e558`: not Error-owned; no promotion claim here.
+- Develop source of truth: `develop/pathena-next@146fb7280dbfe30f2bec129aec8ee77f015ce040`.
+- Error worker entered this run at `postmerge/errors@82590b517a736f3b90709ee16a85e5ac15aeb911`.
+- Current workers: Spec/Core `23dc4c79f1e44cd099992eb23636b2c95014c790`; Backend `51ab9c428bfd69a6aa6fde5e8be6241de7873dca`; UI `11890ef6216ae44b9e4c222bc8d9016784792e74`.
+- Develop canonical Quality `34697870543@146fb7280dbfe30f2bec129aec8ee77f015ce040 = IN_PROGRESS`; exact integrated parent `34694827693@cfdcac0bd51973bc18343006a9fb02f6c098a3c0 = SUCCESS`.
+- Backend exact `51ab9c428bfd69a6aa6fde5e8be6241de7873dca`: Backend Focused `34696535725 = SUCCESS`; canonical Quality `34696535722 = SUCCESS`.
+- Spec/Core exact `23dc4c79f1e44cd099992eb23636b2c95014c790`: Core Focused `34696122597 = FAILURE`; canonical Quality `34696122599 = FAILURE`.
+- UI exact `11890ef6216ae44b9e4c222bc8d9016784792e74`: UI Focused `34697505423 = SUCCESS`; canonical Quality `34697505416 = IN_PROGRESS` at observation time.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current error state
 
-- OPEN: none.
+- OPEN: `ERR-0041`.
 - IN_PROGRESS: none.
-- FIXED_PENDING_VERIFY: `ERR-0040`.
-- FIXED includes `ERR-0033` and `ERR-0035`.
-- STALE includes historical `ERR-0038` and `ERR-0039`.
+- FIXED_PENDING_VERIFY: none.
+- `ERR-0040 = FIXED` after exact integrated Develop canonical success.
+- `ERR-0033` and `ERR-0035 = FIXED`.
+- `ERR-0038` and `ERR-0039 = STALE`.
 - BLOCKED: none.
 
-## Hard progress this run — ERR-0040 repaired on owner SHA and integrated
+## Hard progress this run — ERR-0041 root cause isolated on current exact Spec/Core SHA
 
-### ERR-0040 — scheduled-materialization test fixture violates canonical SQLite journal-mode invariant
+### ERR-0041 — provenance explanation import-order Ruff blocker
 
-Status: `FIXED_PENDING_VERIFY / P1`.
+Status: `OPEN / P1 integration blocker`.
 
-The historical exact reproducer remains `postmerge/backend@e4aacf8004e08fddacb41cebe687453a759444cf`, where canonical Quality `34691380019 = FAILURE` produced five setup errors in `tests/unit/test_scheduled_materialization.py`: its `sqlite3.connect(":memory:")` fixture reached the canonical v37->v38 physical-cleanup path, which correctly rejects SQLite journal mode `memory`.
+Current exact reproducer is `postmerge/spec-core@23dc4c79f1e44cd099992eb23636b2c95014c790`.
 
-Backend has now applied exactly the minimal owner repair on `postmerge/backend@359b675a37b5b59210399bee1506afddc6ccee13`: `test_scheduled_materialization.py` uses a temporary file-backed SQLite database while retaining `athena.storage.schema.initialize_schema()`. The production journal-mode invariant and Storage/Recovery/Security guards are unchanged.
+Exact CI evidence:
 
-Exact worker verification is complete:
+- Core Focused Candidate `34696122597 = FAILURE`;
+- canonical ATHENA Quality Gate `34696122599 = FAILURE`;
+- both runs are on exact Spec/Core SHA `23dc4c79f1e44cd099992eb23636b2c95014c790`.
 
-- Backend Focused Candidate `34693685313 = SUCCESS`;
-- canonical ATHENA Quality Gate `34693685375 = SUCCESS`;
-- both runs are on exact Backend SHA `359b675a37b5b59210399bee1506afddc6ccee13`.
+Canonical Quality isolates the failure to Ruff. Specification validation succeeds, mypy succeeds, full pytest succeeds with `4973 passed, 17 skipped`, Windows Path Safety succeeds, Linux Storage Regressions succeeds, and Local Install Smoke succeeds.
 
-Integrator has already imported that exact bounded slice into current Develop `cfdcac0bd51973bc18343006a9fb02f6c098a3c0` (`feat(jobs): integrate scheduled materialization`). The integration handoff explicitly records Backend exact `359b675a...` as focused+canonical green and states that the integrated fixture is file-backed and canonical-schema initialized without Storage guard relaxation.
+The canonical job log gives the exact root cause: Ruff `I001` at `src/athena/knowledge/provenance_explanation.py:3:1` reports an unsorted/unformatted import block. The standard-library imports place `import uuid` after `from dataclasses import dataclass` and `from datetime import UTC, datetime`, so Ruff requires the import block to be organized.
 
-Current Develop canonical Quality `34694827693@cfdcac0bd51973bc18343006a9fb02f6c098a3c0` is still `IN_PROGRESS`. Therefore Errors must not claim `FIXED` yet. This run advances the cluster from `OPEN` to `FIXED_PENDING_VERIFY` based on new exact owner verification plus concrete integration evidence.
+This is a small, bounded Spec/Core-owned formatting defect. The active specialist worker owns the exact file/slice, so Errors did not mutate product code in parallel.
 
-### Closure condition
+### Required owner fix and verification
 
-On the next run, consume `34694827693` first. If it completes `SUCCESS` on exact Develop SHA `cfdcac0bd51973bc18343006a9fb02f6c098a3c0` and there is no current reproduction of this cluster, promote `ERR-0040` to `FIXED`. If it fails, diagnose only the exact current failure and reclassify accordingly; do not infer that the historical fixture failure returned without evidence.
+1. Organize only the imports in `src/athena/knowledge/provenance_explanation.py`; no behavioral changes.
+2. Run focused Ruff on that file first.
+3. Run the smallest relevant provenance explanation regression set.
+4. Use exact-head Core Focused/canonical Quality for promotion evidence when appropriate.
+5. Mark `FIXED` only from a current or superseding exact Spec/Core SHA carrying the repair and successful relevant verification.
 
-### Other clusters
+Do not weaken Ruff, tests, quality enforcement, Storage, Recovery, Security or release guards.
 
-`ERR-0035 = FIXED / P1`; integrated closure remains `34680853488@8c885669ce3a3d718588d0327828341684c88c71 = SUCCESS`.
+## Consumed prior verification — ERR-0040
 
-`ERR-0033 = FIXED / P1`; integrated closure remains `34666307002@ca87e42c8820c47db7d6626feb17698560cd3b49 = SUCCESS`.
-
-`ERR-0038` and `ERR-0039` remain `STALE`; reopen only with current exact-SHA reproduction.
+The pending integrated verification has completed: canonical Quality `34694827693@cfdcac0bd51973bc18343006a9fb02f6c098a3c0 = SUCCESS`. This is the exact Develop SHA that integrated Backend repair `359b675a37b5b59210399bee1506afddc6ccee13`. `ERR-0040` is therefore `FIXED`; reopen only with a new current exact-SHA reproduction.
 
 ## CI discipline
 
-- `postmerge/errors@531f78037fdb1d6c89e77393b5be0a53a63ac0b3` had zero workflow runs before the ledger mutation.
-- After ledger commit `c8e0c3831fd88f1629bf41b33bac0ffbb9bd2211`, the Error branch again had zero workflow runs before this handoff mutation.
+- `postmerge/errors@82590b517a736f3b90709ee16a85e5ac15aeb911` had zero workflow runs before the ledger mutation.
+- After ledger commit `8290d0857b5ab5e63a15bb13522e18ab3f819376`, the Error branch again had zero workflow runs before this handoff mutation.
 - No canonical Quality run was started by Errors.
+- The running Develop and UI canonical jobs were not duplicated or disturbed.
 - No mutation was made to Develop, Backend, Spec/Core, UI, `main`, or `bnbgrs/ATHENA`.
 
 ## Integrator handoff
 
-- Develop: `cfdcac0bd51973bc18343006a9fb02f6c098a3c0`; canonical `34694827693 = IN_PROGRESS` at observation time.
-- `ERR-0040 = FIXED_PENDING_VERIFY / P1`.
-- Repair owner SHA: Backend `359b675a37b5b59210399bee1506afddc6ccee13`.
-- Exact owner evidence: Backend Focused `34693685313 = SUCCESS`; canonical `34693685375 = SUCCESS`.
-- Integration evidence: current Develop `cfdcac0bd51973bc18343006a9fb02f6c098a3c0` imports the scheduled-materialization slice and file-backed canonical-schema fixture. Storage journal-mode guard remains fail-closed and unchanged.
-- Final closure waits only on exact integrated Develop canonical Quality `34694827693`.
+- Current Develop: `146fb7280dbfe30f2bec129aec8ee77f015ce040`; canonical `34697870543 = IN_PROGRESS` at observation time.
+- `ERR-0041 = OPEN / P1` on Spec/Core exact `23dc4c79f1e44cd099992eb23636b2c95014c790`.
+- Root cause: Ruff `I001`, unsorted/unformatted import block in `src/athena/knowledge/provenance_explanation.py:3:1`.
+- Exact evidence: Core Focused `34696122597 = FAILURE`; canonical `34696122599 = FAILURE`; canonical full pytest itself is green (`4973 passed, 17 skipped`).
+- Do not integrate that Spec/Core head until owner remediation has current exact-SHA evidence.
+- Backend `51ab9c428bfd69a6aa6fde5e8be6241de7873dca` is focused+canonical green.
+- `ERR-0040 = FIXED` by exact integrated Develop canonical `34694827693@cfdcac0bd51973bc18343006a9fb02f6c098a3c0 = SUCCESS`.
 - Preserve pypdf packaging, Frozen argv, two-EXE topology, bounded workers, adaptive 2048-context reserve, Windows lane-lock mapping, duplicate-column/Core-startup/storage-bootstrap guards and all Storage/Recovery/Security fail-closed invariants.
