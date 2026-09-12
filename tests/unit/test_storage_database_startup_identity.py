@@ -125,3 +125,27 @@ def test_bound_preflight_rejects_sidecar_mutation_before_writer_open(
         database.start()
 
     assert target.read_bytes() == foreign_bytes
+
+
+def test_bound_preflight_accepts_valid_concurrent_sidecar_publication(
+    tmp_path: Path,
+) -> None:
+    database_path = tmp_path / "athena.db"
+    _create_current_database(database_path)
+    preflight = inspect_database_read_only(database_path)
+    original_identity = preflight.file_set_identity
+    assert original_identity is not None
+
+    concurrent = sqlite3.connect(database_path, autocommit=True)
+    try:
+        concurrent.execute("SELECT name FROM sqlite_schema LIMIT 1").fetchone()
+        published_identity = capture_database_file_set_identity(database_path)
+        assert published_identity.database == original_identity.database
+        assert published_identity != original_identity
+
+        database = SQLiteDatabase(database_path)
+        database.bind_startup_preflight(preflight)
+        database.start()
+        database.stop()
+    finally:
+        concurrent.close()
