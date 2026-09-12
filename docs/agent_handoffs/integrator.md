@@ -3,29 +3,30 @@
 ## Current integration
 
 - Integration target: `develop/pathena-next`.
-- Develop parent before this integration: `cfdcac0bd51973bc18343006a9fb02f6c098a3c0`.
-- Exact parent canonical Quality: `34694827693 = SUCCESS`.
-- Worker heads checked: Errors `82590b517a736f3b90709ee16a85e5ac15aeb911`; Spec/Core `23dc4c79f1e44cd099992eb23636b2c95014c790`; Backend `51ab9c428bfd69a6aa6fde5e8be6241de7873dca`; UI `11890ef6216ae44b9e4c222bc8d9016784792e74`.
+- Develop parent before this repair: `146fb7280dbfe30f2bec129aec8ee77f015ce040`.
+- Exact parent canonical Quality: `34697870543 = FAILURE`; failure is isolated to canonical Ruff. Specification validation, mypy, full pytest, Windows path safety/release guards, Linux storage regressions and local install smoke all passed on the same SHA.
+- Worker heads checked: Errors `e33839260e5582e972aa6e311c9631afbe08fe24`; Spec/Core `a35a67f1afe2789d8a568fa3484ef5fe29f46de9`; Backend `6fcfdf8a71abcabad7e3b4a661ad35ee1f6603f8`; UI `9e9227dc722d7d771ae4ce4e45a75983330fed97`.
+
+## Develop repair
+
+No worker feature slice is promoted in this run. The previous Integrator-owned release-readiness slice left Ruff-formatting drift at the import/module-constant boundary in `src/athena/release_readiness.py` and `tests/unit/test_release_readiness.py`. The current Backend lineage independently carries an equivalent `fix(release): normalize readiness import blocks` correction. This repair applies only that formatting normalization to Develop; product behavior, assertions and release guards are unchanged.
+
+The repair is deliberately bounded to the two release-readiness Python files plus this handoff and the Alpha/Beta progress register. It does not modify Storage, Recovery, Security, runtime topology, packaging, migrations, worker scheduling or UI.
 
 ## Worker qualification
 
-- Spec/Core exact `23dc4c79f1e44cd099992eb23636b2c95014c790`: changed focused unit tests passed, but Core Focused Candidate `34696122597 = FAILURE` because the Ruff remediation diff step failed; canonical Quality `34696122599` was still running at qualification time. Not READY.
-- Backend exact `51ab9c428bfd69a6aa6fde5e8be6241de7873dca`: Backend Focused Candidate `34696535725 = SUCCESS`; canonical Quality `34696535722` was still running at qualification time. Conservative Backend promotion therefore remains blocked until exact-head canonical completion.
-- UI exact `11890ef6216ae44b9e4c222bc8d9016784792e74`: canonical Quality `34697505416` was still running and Core Focused Candidate `34697505428 = FAILURE` on the cumulative PR lineage. Not READY.
-- Errors exact `82590b517a736f3b90709ee16a85e5ac15aeb911`: no exact-head workflow runs; current handoff had `ERR-0040 = FIXED_PENDING_VERIFY`, and parent Develop canonical Quality has since completed SUCCESS. No Error-owned product mutation is taken here.
-
-## Cross-cutting slice
-
-No worker met the required READY bar. Added `athena.release_readiness`, a fail-closed exact-SHA promotion assessment primitive. Promotion is READY only when every persistent release guard represented by the policy is explicitly `True`; `False` and missing (`None`) evidence both remain blockers. The primitive validates a lowercase 40-character exact Git SHA and returns the precise blocking guard names without mutating product/runtime state.
-
-Focused unit coverage proves all-green readiness, every individual negative guard, missing-evidence fail-closed behavior, exact-SHA validation and wrong-runtime-type rejection. The slice does not weaken tests, Storage, Recovery, Security, packaging, worker topology or runtime invariants.
+- Errors exact `e33839260e5582e972aa6e311c9631afbe08fe24` identifies `ERR-0041` as a Spec/Core Ruff import-order blocker on an older Spec/Core SHA; Errors does not own the Core file.
+- Spec/Core exact `a35a67f1afe2789d8a568fa3484ef5fe29f46de9` contains an owner-side Ruff correction and is not promoted while Develop itself requires repair/reverification.
+- Backend exact `6fcfdf8a71abcabad7e3b4a661ad35ee1f6603f8` contains the equivalent release-readiness formatting normalization; Backend Focused Candidate `34700396671 = SUCCESS`, while its canonical Quality was still in progress at qualification time. No Backend product slice is promoted.
+- UI exact `9e9227dc722d7d771ae4ce4e45a75983330fed97` is a synchronization head; no UI product slice is promoted in this repair run.
 
 ## Current evidence rules
 
 - `docs/agent_logs/ERROR_LEDGER.md` remains historical relative to current Develop and is not the sole authority for current OPEN state.
 - `docs/agent_logs/ALPHA_BETA_PROGRESS.md` is maintained without invented completion percentages.
 - Historical signatures are not reopened without current exact-SHA reproduction.
-- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` and `docs/ui/VISUAL_GAP_LEDGER.md` remain fail-closed; no visual `MATCH` is inferred without opened original reference plus real exact-SHA render.
+- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` still has all eleven slots at `IMPLEMENTED_PENDING_VISUAL_REVIEW`; `MATCH` requires an opened original reference plus a real render from the exact implementation SHA.
+- `docs/ui/VISUAL_GAP_LEDGER.md` likewise asserts no screenshot-level `MATCH` without exact render evidence.
 - Worker candidate evidence superseded by later commits is not accepted without equivalent exact-head evidence.
 
 ## Persistent release guards
@@ -36,4 +37,4 @@ Retain without relaxation: pypdf packaging; fail-closed Frozen argv; Desktop/Wor
 
 `PROMOTION_READY=NO`
 
-Consume canonical Quality for the resulting exact Develop SHA before any further Develop mutation. `main` and `bnbgrs/ATHENA` remain read-only.
+Consume canonical Quality for the resulting exact Develop repair SHA before any further Develop mutation. `main` and `bnbgrs/ATHENA` remain read-only.

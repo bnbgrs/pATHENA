@@ -4,27 +4,34 @@ Evidence-only progress register for `develop/pathena-next`. This file intentiona
 
 ## Current baseline
 
-- Develop parent before the current integration: `cfdcac0bd51973bc18343006a9fb02f6c098a3c0`.
-- Exact parent canonical Quality: `34694827693 = SUCCESS`.
+- Develop parent before the current repair: `146fb7280dbfe30f2bec129aec8ee77f015ce040`.
+- Exact parent canonical Quality `34697870543 = FAILURE`, isolated to canonical Ruff. Specification validation, mypy, full pytest, Windows path safety/release guards, Linux storage regressions and local install smoke passed on the same SHA.
 - Current worker heads checked:
-  - Errors: `82590b517a736f3b90709ee16a85e5ac15aeb911`
-  - Spec/Core: `23dc4c79f1e44cd099992eb23636b2c95014c790`
-  - Backend: `51ab9c428bfd69a6aa6fde5e8be6241de7873dca`
-  - UI: `11890ef6216ae44b9e4c222bc8d9016784792e74`
+  - Errors: `e33839260e5582e972aa6e311c9631afbe08fe24`
+  - Spec/Core: `a35a67f1afe2789d8a568fa3484ef5fe29f46de9`
+  - Backend: `6fcfdf8a71abcabad7e3b4a661ad35ee1f6603f8`
+  - UI: `9e9227dc722d7d771ae4ce4e45a75983330fed97`
 
 ## Current integration state
 
 - Durable schedule identity primitives and scheduled-job materialization remain integrated on Develop.
 - Spec/Core user-correction conflict visibility and source-free user Knowledge remain integrated.
-- No current worker head met the complete READY bar during this integration: Core focused gate failed at Ruff remediation despite focused unit tests passing; Backend canonical Quality remained in progress; UI canonical Quality remained in progress and cumulative Core Focused failed.
-- Added a cross-cutting fail-closed release-readiness assessment keyed to exact SHA and explicit guard evidence. Missing evidence remains a blocker rather than being inferred green.
+- The fail-closed release-readiness assessment remains integrated and behaviorally unchanged.
+- Current repair only normalizes Ruff-sensitive formatting in `src/athena/release_readiness.py` and `tests/unit/test_release_readiness.py`; no worker feature slice is promoted until the repaired exact Develop SHA is canonically verified.
+
+## Worker readiness snapshot
+
+- Errors reports `ERR-0041` on the older Spec/Core provenance-explanation import ordering and correctly leaves the Core-owned mutation to Spec/Core.
+- Spec/Core current head contains an owner-side Ruff correction, but Develop repair/reverification takes precedence before any further integration.
+- Backend current head carries an equivalent release-readiness formatting normalization; exact Backend Focused Candidate `34700396671 = SUCCESS`, with canonical Quality still in progress at observation time.
+- UI current head is synchronized with Develop before further workspace-hierarchy work; no UI product slice is promoted in this repair run.
 
 ## Error and visual truth rules
 
-- `docs/agent_logs/ERROR_LEDGER.md` is historical relative to current Develop and is not the sole authority for current OPEN state.
-- The Errors handoff had `ERR-0040 = FIXED_PENDING_VERIFY`; exact integrated Develop canonical Quality `34694827693` has now completed SUCCESS, so the historical fixture signature is not treated as OPEN absent a fresh reproduction.
+- `docs/agent_logs/ERROR_LEDGER.md` remains historical relative to current Develop and is not the sole authority for current OPEN state.
 - Historical release-guard signatures are not reopened without current exact-SHA reproduction.
-- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` and `docs/ui/VISUAL_GAP_LEDGER.md` remain fail-closed until an original reference and real exact-SHA render establish a truthful comparison. No `MATCH` is inferred from worker prose or metadata.
+- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` keeps all eleven slots at `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no `MATCH` is inferred without an opened original reference plus a real exact-SHA render.
+- `docs/ui/VISUAL_GAP_LEDGER.md` likewise makes no screenshot-level `MATCH` claim.
 
 ## Persistent release guards
 
