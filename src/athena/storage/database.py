@@ -143,7 +143,7 @@ class SQLiteDatabase:
         self,
         expected: DatabaseFileSetIdentity,
     ) -> DatabaseFileSetIdentity:
-        """Refresh only valid concurrent WAL/SHM publication for the same primary DB."""
+        """Refresh only complete concurrent WAL/SHM publication for the same primary DB."""
         current = capture_database_file_set_identity(self.path)
         if current == expected:
             return expected
@@ -152,15 +152,25 @@ class SQLiteDatabase:
                 "ATHENA SQLite primary database identity changed after startup preflight."
             )
 
+        expected_sidecars_absent = not expected.wal.exists and not expected.shm.exists
+        complete_sidecar_publication = current.wal.exists and current.shm.exists
+        if not expected_sidecars_absent or not complete_sidecar_publication:
+            raise DatabaseStartupIdentityChangedError(
+                "ATHENA SQLite database/WAL/SHM identity changed after startup preflight."
+            )
+
         refreshed = inspect_database_read_only(self.path)
         refreshed_identity = refreshed.file_set_identity
         if (
             not refreshed.exists
             or refreshed_identity is None
             or refreshed_identity.database != expected.database
+            or not refreshed_identity.wal.exists
+            or not refreshed_identity.shm.exists
+            or refreshed_identity != current
         ):
             raise DatabaseStartupIdentityChangedError(
-                "ATHENA SQLite primary database identity changed during startup revalidation."
+                "ATHENA SQLite database/WAL/SHM identity changed during startup revalidation."
             )
         return refreshed_identity
 

@@ -23,6 +23,23 @@ def _create_current_database(path: Path) -> None:
     database.stop()
 
 
+def _inspect_without_sidecars(path: Path):
+    checkpoint = sqlite3.connect(path, autocommit=True)
+    try:
+        checkpoint.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
+    finally:
+        checkpoint.close()
+    for suffix in ("-wal", "-shm"):
+        path.with_name(f"{path.name}{suffix}").unlink(missing_ok=True)
+    preflight = inspect_database_read_only(path)
+    identity = preflight.file_set_identity
+    assert identity is not None
+    assert identity.database.exists
+    assert not identity.wal.exists
+    assert not identity.shm.exists
+    return preflight
+
+
 def test_file_set_identity_detects_each_member_replacement(tmp_path: Path) -> None:
     database_path = tmp_path / "athena.db"
     wal_path = tmp_path / "athena.db-wal"
@@ -127,25 +144,44 @@ def test_bound_preflight_rejects_sidecar_mutation_before_writer_open(
     assert target.read_bytes() == foreign_bytes
 
 
+def test_bound_preflight_rejects_partial_sidecar_publication(tmp_path: Path) -> None:
+    database_path = tmp_path / "athena.db"
+    _create_current_database(database_path)
+    preflight = _inspect_without_sidecars(database_path)
+    wal_path = database_path.with_name(f"{database_path.name}-wal")
+    wal_path.write_bytes(b"foreign-sidecar")
+
+    database = SQLiteDatabase(database_path)
+    database.bind_startup_preflight(preflight)
+
+    with pytest.raises(DatabaseStartupIdentityChangedError, match="identity changed"):
+        database.start()
+
+    assert wal_path.read_bytes() == b"foreign-sidecar"
+
+
 def test_bound_preflight_accepts_valid_concurrent_sidecar_publication(
     tmp_path: Path,
 ) -> None:
     database_path = tmp_path / "athena.db"
     _create_current_database(database_path)
-    preflight = inspect_database_read_only(database_path)
+    preflight = _inspect_without_sidecars(database_path)
     original_identity = preflight.file_set_identity
     assert original_identity is not None
 
     concurrent = sqlite3.connect(database_path, autocommit=True)
     try:
-        concurrent.execute("SELECT name FROM sqlite_schema LIMIT 1").fetchone()
+        concurrent.execute("BEGIN IMMEDIATE")
         published_identity = capture_database_file_set_identity(database_path)
         assert published_identity.database == original_identity.database
-        assert published_identity != original_identity
+        assert published_identity.wal.exists
+        assert published_identity.shm.exists
 
         database = SQLiteDatabase(database_path)
         database.bind_startup_preflight(preflight)
         database.start()
         database.stop()
     finally:
+        if concurrent.in_transaction:
+            concurrent.execute("ROLLBACK")
         concurrent.close()
