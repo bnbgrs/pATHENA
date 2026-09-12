@@ -4,67 +4,61 @@ Canonical post-merge error register for `bnbgrs/pATHENA`.
 
 ## Rules
 
-Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are active; cascades are deduplicated. `FIXED` requires real verification. Allowed states: `OPEN`, `IN_PROGRESS`, `FIXED_PENDING_VERIFY`, `FIXED`, `STALE`, `BLOCKED`. No Skip/XFail, dummy success path, assertion/static-check weakening, Security/Storage/Recovery/Windows guard weakening, main mutation, force-push or history rewrite.
+Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are active; cascades are deduplicated. `FIXED` requires real verification on the relevant integrated exact SHA. Allowed states: `OPEN`, `IN_PROGRESS`, `FIXED_PENDING_VERIFY`, `FIXED`, `STALE`, `BLOCKED`. No Skip/XFail, dummy success path, assertion/static-check weakening, Security/Storage/Recovery/Windows guard weakening, main mutation, force-push or history rewrite.
 
 ## Current baseline
 
-- Develop source of truth: `develop/pathena-next@5db4c92f40d5d14119a991796be38fb9248072de`.
-- Error worker entered this run at `postmerge/errors@06069895fc703b1258b2d2cfe54fab96bc0a2769`.
-- Current workers: Spec/Core `d47634453d63cad0b21fb6d370c95602b0d0a286`; Backend `32485db642d71ec2caef8b49adc35ac2132aa651`; UI `e5801b57ca2c4bc62929382427ded0d0e51d55fd`.
-- Exact-current Develop canonical Quality: `34659583545@5db4c92f40d5d14119a991796be38fb9248072de = IN_PROGRESS`; no Develop PASS/FAIL claim is derived while it is running.
-- Previous Develop canonical Quality: `34656021355@c0f523921a460137aef7b59d9d703a3f8ce94225 = SUCCESS`.
-- Exact-current Spec/Core canonical Quality: `34653170296@d47634453d63cad0b21fb6d370c95602b0d0a286 = SUCCESS`.
-- Exact-current Spec/Core focused candidate: `34653170251@d47634453d63cad0b21fb6d370c95602b0d0a286 = SUCCESS`.
-- `postmerge/errors@06069895fc703b1258b2d2cfe54fab96bc0a2769` had zero workflow runs immediately before the first mutation; intermediate Error-worker commits were also checked before further mutation and had zero workflow runs.
+- Develop source of truth: `develop/pathena-next@eab481a0901423ee5821e9d4101f0a0bbf804ef8`.
+- Error worker entered this run at `postmerge/errors@4c21173a2bdd9f1a55ad41959ccb06069dd6a65b`.
+- Current workers: Spec/Core `acacc2da478d7f7afad4cd44681201268d5b13b3`; Backend `b595c960a747d9805b0865ea9f7237094318b706`; UI `cc0ff61cb6d90b05368e4e1c112c217b5889a5d5`.
+- Exact-current Develop canonical Quality: `34662951154@eab481a0901423ee5821e9d4101f0a0bbf804ef8 = IN_PROGRESS`; no Develop PASS/FAIL claim is derived while it is running.
+- Previous Develop canonical Quality: `34659583545@5db4c92f40d5d14119a991796be38fb9248072de = SUCCESS`.
+- Exact-current Spec/Core canonical Quality: `34661219465@acacc2da478d7f7afad4cd44681201268d5b13b3 = SUCCESS`; focused candidate `34661219526 = SUCCESS`.
+- Exact-current Backend canonical Quality: `34662086156@b595c960a747d9805b0865ea9f7237094318b706 = SUCCESS`. Canonical jobs including Windows path safety, Linux storage regressions, Local install smoke, specification validator, Ruff, mypy and full pytest are green.
+- Exact-current UI canonical Quality: `34662871880@cc0ff61cb6d90b05368e4e1c112c217b5889a5d5 = IN_PROGRESS`; no UI canonical verdict is inferred while running.
+- `postmerge/errors@4c21173a2bdd9f1a55ad41959ccb06069dd6a65b` had zero workflow runs immediately before this mutation.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current state
 
-- OPEN: `ERR-0033`, `ERR-0035`.
+- OPEN: `ERR-0035`.
 - IN_PROGRESS: none.
-- FIXED_PENDING_VERIFY: none.
+- FIXED_PENDING_VERIFY: `ERR-0033`.
 - FIXED: `ERR-0001` through `ERR-0013`, `ERR-0015` through `ERR-0024`, `ERR-0027`, `ERR-0030`, `ERR-0031`, `ERR-0032`, `ERR-0034`, `ERR-0036`, `ERR-0037`.
 - STALE: `ERR-0014`, `ERR-0025`, `ERR-0026`, `ERR-0028`, `ERR-0029`, `ERR-0038`, `ERR-0039`.
 - BLOCKED: none at top level.
+
+## ERR-0033 — Emergency-reserve filesystem-object identity and physical-reclamation gap
+
+- Severity: P1.
+- Status: `FIXED_PENDING_VERIFY`.
+- Specialist owner: Backend / BE-046.
+- Fresh reproducer on Develop was `5db4c92f40d5d14119a991796be38fb9248072de`: POSIX `release()` captured logical size, closed pATHENA's descriptor before unlink and then returned that size although a foreign open descriptor or alternate hardlink could retain the inode/blocks.
+- Backend exact candidate: `b595c960a747d9805b0865ea9f7237094318b706` (`fix(storage): fail closed on unproven emergency reserve reclamation`).
+- Candidate implementation keeps the POSIX reserve descriptor open through identity revalidation and unlink, rejects `st_nlink != 1`, revalidates directory and leaf identity around mutation, and returns `0` after successful POSIX unlink because POSIX cannot portably prove that another process is not retaining the unlinked inode. This removes the prior overstatement of recovered capacity without weakening recovery/storage guards.
+- Focused adversarial coverage now includes `test_posix_release_never_overstates_reclamation_with_foreign_descriptor`, which keeps a second descriptor open through release and requires `released == 0` while the foreign descriptor still observes the 4096-byte inode; hardlink ownership and same-parent leaf substitution are also fail-closed covered.
+- Exact candidate canonical Quality `34662086156@b595c960a747d9805b0865ea9f7237094318b706 = SUCCESS`; Linux storage regressions and full pytest are green, together with Windows path safety and the remaining canonical jobs.
+- Classification is therefore advanced from `OPEN` to `FIXED_PENDING_VERIFY`, not `FIXED`: the bounded owner candidate is exact-green, but the fix is not yet verified after integration onto a current Develop exact SHA. Integrator may review/import this exact candidate; final closure requires integrated exact-SHA verification that preserves the same semantics and gates.
+
+## ERR-0035 — SQLite preflight identity is not carried into live writer startup
+
+- Severity: P1.
+- Status: `OPEN` in the carried ledger; this cluster was not revalidated or advanced in this run.
+- Specialist owner: Backend / BE-052.
+- `SQLiteDatabase.start()` historically performs read-only inspection and later establishes an independent writable SQLite connection without carrying an identity token for the primary DB plus WAL/SHM file set across that interval.
+- Closure still requires a bounded Backend candidate that binds or fail-closed revalidates primary DB, WAL and SHM across preflight-to-writer establishment, with adversarial post-inspection/pre-writer mutation coverage and all existing locality/schema/quick-check/Storage/Recovery guards preserved.
 
 ## ERR-0039 — Historical Spec/Core exact-head Ruff import-format blocker
 
 - Severity: P1 integration blocker when reproduced.
 - Status: `STALE`.
-- Previous exact reproducer: `postmerge/spec-core@58b8040f84d5cac2530aaaac349c695361a78996`, canonical `34643507749 = FAILURE`, isolated to Ruff `I001` at `tests/unit/test_identity_transition.py:1:1`.
-- Attempted owner remediation `229a46dd7d91d2c4518379db781c7e5e800c2811` remained canonical/focused red and therefore never qualified as fixed.
-- Current Spec/Core head `d47634453d63cad0b21fb6d370c95602b0d0a286` is exact green in both canonical Quality `34653170296 = SUCCESS` and Core Focused Candidate `34653170251 = SUCCESS`.
-- The original failing path `tests/unit/test_identity_transition.py` is no longer present at the current exact worker head. Therefore the historical exact-SHA reproducer has been superseded rather than directly verified fixed in place.
-- Per ledger policy, a historical error is not active merely because it was previously P1. `ERR-0039` is reclassified to `STALE`; reopen only if the same root cause is reproduced on a current exact SHA.
+- Historical exact reproducer `58b8040f84d5cac2530aaaac349c695361a78996` is superseded. Reopen only with a current exact-SHA reproduction.
 
 ## ERR-0038 — Historical Spec/Core exact-head Ruff failure
 
 - Severity: P1 integration blocker when reproduced.
 - Status: `STALE`.
-- Previous reproducer: `53c3824e214b66e989cba1f425bfe7881190e12f`, canonical `34609297666 = FAILURE`, with Ruff `I001` at `src/athena/knowledge/revision_diff.py:3:1`.
-- The old revision-diff candidate was superseded and removed. Reopen only with its own current exact-SHA reproduction.
-
-## ERR-0033 — Emergency-reserve filesystem-object identity and physical-reclamation gap
-
-- Severity: P1.
-- Status: `OPEN` — freshly reproduced on current Develop exact SHA `5db4c92f40d5d14119a991796be38fb9248072de`.
-- Specialist owner: Backend / BE-046. Errors does not parallel-mutate Backend product code while that worker owns the root cause.
-- Current-exact source evidence: `src/athena/storage/emergency_reserve.py` POSIX `release()` opens the reserve, obtains `file_stat = os.fstat(descriptor)`, stores `size = file_stat.st_size`, then closes pATHENA's reserve descriptor *before* `_assert_posix_directory_current(...)`, `os.unlink(_RESERVE_FILENAME, dir_fd=root_fd)`, directory fsync/revalidation, and finally `return size`.
-- The source blob at current Develop is `bf06e386ba54492ee67bf6fda6d4645f75a48297`, preserving the same release sequence across the intervening Develop advance.
-- This sequence binds the parent directory but does not prove physical reclamation of the attested reserve blocks. A second descriptor opened by another process before release can survive the pathname unlink and continue to reference the inode/data blocks while pATHENA returns the full captured logical size as released.
-- The same exact sequence also leaves link-ownership continuity relevant: a pathname unlink is not equivalent to block reclamation if another hardlink or already-open file description retains the inode.
-- This is current exact-SHA reproduction of the existing BE-046 root-cause family, not a new error ID. Historical evidence is no longer needed to keep `ERR-0033` active.
-- Closure requires a bounded Backend candidate with focused adversarial proof that release accounting never confirms bytes that remain referenced through a pre-opened foreign descriptor or alternate link, while preserving non-sparse allocation, parent/target identity guards and all Storage/Recovery fail-closed semantics. If portable proof of immediate physical reclamation is impossible, accounting must remain conservative/fail-closed rather than claiming the logical file length as recovered capacity.
-
-## ERR-0035 — SQLite preflight identity is not carried into live writer startup
-
-- Severity: P1.
-- Status: `OPEN` in the carried ledger; this cluster was not revalidated or advanced in this run and must not outrank a freshly reproduced current-exact failure merely from historical evidence.
-- Specialist owner: Backend / BE-052. Errors does not parallel-mutate Backend product code while that worker owns the root cause.
-- `SQLiteDatabase.start()` performs `inspect_database_read_only(self.path, ...)` and later establishes an independent writable `sqlite3.connect(self.path, check_same_thread=False)`.
-- The continuity gap covers the whole SQLite file set. Read-only inspection also evaluates current `-wal` and `-shm` sidecar state, but no file-set identity token or equivalent binding carries the attested primary DB plus WAL/SHM snapshot into writer establishment.
-- WAL/SHM presence or filesystem identity can therefore change after preflight returns while the primary database remains unchanged. The live writer can observe a different file set from the one whose sidecar state preflight accepted.
-- Closure requires a bounded Backend candidate that binds or fail-closed revalidates primary DB, WAL and SHM across preflight-to-writer establishment, with an adversarial post-inspection/pre-writer sidecar mutation test. Preserve read-only preflight, application-id/schema/quick-check validation, locality, symlink/reparse rejection and all Storage/Recovery semantics.
+- Historical exact reproducer `53c3824e214b66e989cba1f425bfe7881190e12f` is superseded. Reopen only with a current exact-SHA reproduction.
 
 ## Closed/stale historical clusters
 
