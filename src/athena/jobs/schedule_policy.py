@@ -29,7 +29,7 @@ def _canonical_occurrences(values: Iterable[int]) -> tuple[int, ...]:
     )
     if any(
         left >= right
-        for left, right in zip(occurrences, occurrences[1:], strict=True)
+        for left, right in zip(occurrences, occurrences[1:], strict=False)
     ):
         raise ValueError("Scheduled occurrences must be strictly increasing and unique.")
     return occurrences

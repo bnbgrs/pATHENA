@@ -1,39 +1,39 @@
-# Post-Merge Feature Handoff - Integrator
+# pATHENA Feature Integrator Handoff
 
-Generated: 2026-09-12T05:52+02:00
-Branch: `develop/pathena-next`
-Run-start HEAD: `712376f561e10ea8d579fa316e8deca19ce3a7a1`
+## Current integration
 
-## Current evidence
-
-- `main` and `bnbgrs/ATHENA` remained strictly read-only and untouched.
-- Exact Develop canonical Quality `34668822579@712376f561e10ea8d579fa316e8deca19ce3a7a1 = SUCCESS` before mutation.
-- Worker heads reviewed: Errors `be3d01227f4d60678b4ab803fd515a2fddd26fec`; Spec/Core `ea4211fe5a375698c72dbfdd1d2a5778ea2df0dd`; Backend `7c1af4402aed6c86c41fcc5eddbaab6a845445a8`; UI `dce6d463b17474ec2da702a14b7a4365123df45d`.
-- Fresh Error handoff closes `ERR-0033 / BE-046` as FIXED and keeps `ERR-0035 / BE-052` OPEN/P1/Backend-owned; no Storage/Recovery root-cause was mutated here.
-- Root `ALPHA_BETA_PROGRESS.md` remains absent; no synthetic completion percentage is recorded.
-- Visual source of truth remains the 11-screen manifest plus Visual-Gap ledger; no screenshot-level MATCH is asserted without approved reference/current-render evidence.
+- Integration target: `develop/pathena-next`
+- Develop parent before this integration: `4dbefe2167b28bffab2c6b69b7a8df4b43770a6f`
+- Parent canonical Quality: `34674406807` = `SUCCESS`
+- Promoted worker candidate: `postmerge/spec-core` exact SHA `58d76e1e3d7ce1723ca4a75a8cc0608185fae7e8`
+- Exact Core Focused Candidate: `34672548118` = `SUCCESS`
+- Exact canonical Quality on candidate: `34672548120` = `SUCCESS`
 
 ## Integrated bounded slice
 
-Spec/Core exact `ea4211fe5a375698c72dbfdd1d2a5778ea2df0dd` is READY with canonical Quality `34667286138 = SUCCESS` and Core Focused Candidate `34667286211 = SUCCESS`.
+The integration takes only the self-contained stale-Knowledge maintenance policy and its direct focused tests from the verified Spec/Core candidate:
 
-The current delta from Develop is exactly:
-- `src/athena/knowledge/claim_service.py`
-- `tests/unit/test_claim_contradiction_resolution.py`
+- `src/athena/knowledge/stale_policy.py`
+- `tests/unit/test_stale_knowledge_policy.py`
 
-The slice adds explicit user-driven contradiction resolution. A claim must carry concrete `CONTRADICTS` evidence; the requested target must be a valid non-CONTRADICTED `EpistemicStatus`; no-op status revisions are rejected. Resolution creates a new revision while preserving claim identity, statement, semantic fields, temporal bounds and the existing contradiction evidence history.
+The candidate is one commit-lineage step behind current Develop because Develop subsequently integrated a disjoint UI Help slice. Exact comparison against current Develop shows only these two Core files differ, so no UI, Backend, Storage, Recovery, Security, CI, visual-ledger, or worker-history mutation is imported.
 
-No Worker history is merged. Only the two bounded files above plus this handoff are placed on the current Develop tree.
+The policy emits a deterministic maintenance signal when a Knowledge validity window has ended or when a fully specified source-age threshold is exceeded. Missing maintenance evidence remains current-or-unknown rather than inventing staleness. The policy does not mutate Knowledge, Claims, provenance, epistemic truth/status, persistence, or retrieval behavior. Invalid timestamp/duration inputs and incomplete source-age pairs fail closed.
+
+## Current evidence rules
+
+- Current Error handoff keeps `ERR-0035 / BE-052` OPEN/P1/Backend-owned and reports a Backend candidate that removed startup DB/WAL/SHM identity protection and its adversarial regression test. That Backend lineage is not integration-ready and was not touched here.
+- `docs/agent_logs/ERROR_LEDGER.md` remains historical evidence rather than sole authority for current OPEN state.
+- Root `ALPHA_BETA_PROGRESS.md` remains absent on the current Develop baseline.
+- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` and `docs/ui/VISUAL_GAP_LEDGER.md` remain fail-closed; no visual `MATCH` is asserted without the original reference and a real exact-SHA render.
+- Backend/Storage/Recovery candidates remain conservative and require their own exact-head evidence before promotion.
 
 ## Persistent release guards
 
-- pypdf packaging, fail-closed Frozen argv, Desktop/Worker two-EXE topology, one Desktop instance with bounded workers, adaptive 2048-context Chat reserve, Windows lane-lock/path-safety, duplicate-column/Core-startup/storage-bootstrap protections remain unchanged.
-- No Skip/XFail, assertion relaxation, Storage/Recovery/Security weakening, canonical Quality reduction or visual threshold reduction was introduced.
-- Historical signatures are not reopened without exact-current reproduction.
+Retain without relaxation: pypdf packaging; fail-closed Frozen argv; Desktop/Worker two-EXE split; exactly one Desktop instance with bounded workers; adaptive 2048-context Chat reserve; Windows lane-lock cluster; duplicate-column, Core-startup, and storage-bootstrap regression signatures. No Skip/XFail, assertion weakening, test deletion, Security/Storage/Recovery guard relaxation, or history rewrite is introduced.
 
-## Next integration
+## Promotion state
 
-1. Consume canonical Quality for the resulting exact Develop SHA before any further Develop mutation.
-2. Re-read all worker heads after that gate completes; do not reuse stale worker SHAs.
-3. Prefer the highest-impact exact-verified prerequisite, conservatively treating Backend Storage/Recovery candidates.
-4. Keep visual MATCH fail-closed and all persistent release guards intact.
+`PROMOTION_READY=NO`
+
+Consume canonical Quality for the resulting exact Develop SHA before any further Develop mutation. `main` and `bnbgrs/ATHENA` remain read-only.
