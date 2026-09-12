@@ -3,40 +3,37 @@
 ## Current integration
 
 - Integration target: `develop/pathena-next`
-- Develop parent before this integration: `bfee081ff63e849b5d024299f0a7b9286dc737e7`
-- Parent canonical Quality: `34671556177` = `SUCCESS`
-- Promoted worker candidate: `postmerge/ui` exact SHA `dce6d463b17474ec2da702a14b7a4365123df45d`
-- Exact UI Focused Candidate: `34671153433` = `SUCCESS`
-- Exact canonical Quality on candidate: `34671153472` = `SUCCESS`
+- Develop parent before this integration: `4dbefe2167b28bffab2c6b69b7a8df4b43770a6f`
+- Parent canonical Quality: `34674406807` = `SUCCESS`
+- Promoted worker candidate: `postmerge/spec-core` exact SHA `58d76e1e3d7ce1723ca4a75a8cc0608185fae7e8`
+- Exact Core Focused Candidate: `34672548118` = `SUCCESS`
+- Exact canonical Quality on candidate: `34672548120` = `SUCCESS`
 
 ## Integrated bounded slice
 
-The integration takes only the self-contained UI Help/accessibility product slice and its direct focused tests from the verified candidate:
+The integration takes only the self-contained stale-Knowledge maintenance policy and its direct focused tests from the verified Spec/Core candidate:
 
-- `src/athena/desktop/pathena_capability_help.py`
-- `src/athena/desktop/pathena_navigation_context_accessibility.py`
-- `tests/unit/test_pathena_capability_help_shell.py`
-- `tests/unit/test_pathena_navigation_context_accessibility.py`
+- `src/athena/knowledge/stale_policy.py`
+- `tests/unit/test_stale_knowledge_policy.py`
 
-Worker handoff text, visual ledgers, and snapshot-renderer evidence are deliberately not promoted with this product slice. Current Develop documentation remains the source of truth for visual status.
+The candidate is one commit-lineage step behind current Develop because Develop subsequently integrated a disjoint UI Help slice. Exact comparison against current Develop shows only these two Core files differ, so no UI, Backend, Storage, Recovery, Security, CI, visual-ledger, or worker-history mutation is imported.
 
-The slice keeps Help inside the existing workspace shell, derives its capability hierarchy from live capability data, preserves the primary navigation/router invariant, exposes deterministic focus targets for Help options, and keeps contextual inspector/accessibility behavior UI-owned. No Core, Backend, Storage, Recovery, Security, packaging, runtime, or release-guard behavior is changed.
-
-The candidate also had an unrelated Core Focused result caused by the historical broad Core test trigger. Current Develop already contains the narrowed Core trigger. That unrelated cross-trigger result is not used as evidence for this bounded UI promotion; the exact UI Focused Candidate and exact canonical Quality are both green.
+The policy emits a deterministic maintenance signal when a Knowledge validity window has ended or when a fully specified source-age threshold is exceeded. Missing maintenance evidence remains current-or-unknown rather than inventing staleness. The policy does not mutate Knowledge, Claims, provenance, epistemic truth/status, persistence, or retrieval behavior. Invalid timestamp/duration inputs and incomplete source-age pairs fail closed.
 
 ## Current evidence rules
 
-- `docs/agent_logs/ERROR_LEDGER.md` is historical evidence and is not authoritative by itself for current OPEN state.
-- Root `ALPHA_BETA_PROGRESS.md` is absent on the current Develop baseline.
-- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` and `docs/ui/VISUAL_GAP_LEDGER.md` remain fail-closed: all eleven reference slots stay pending real visual review. No `MATCH` is claimed without an original reference plus a real exact-SHA render.
+- Current Error handoff keeps `ERR-0035 / BE-052` OPEN/P1/Backend-owned and reports a Backend candidate that removed startup DB/WAL/SHM identity protection and its adversarial regression test. That Backend lineage is not integration-ready and was not touched here.
+- `docs/agent_logs/ERROR_LEDGER.md` remains historical evidence rather than sole authority for current OPEN state.
+- Root `ALPHA_BETA_PROGRESS.md` remains absent on the current Develop baseline.
+- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` and `docs/ui/VISUAL_GAP_LEDGER.md` remain fail-closed; no visual `MATCH` is asserted without the original reference and a real exact-SHA render.
 - Backend/Storage/Recovery candidates remain conservative and require their own exact-head evidence before promotion.
 
 ## Persistent release guards
 
-Retain without relaxation: pypdf packaging; fail-closed Frozen argv; Desktop/Worker two-EXE split; exactly one Desktop instance with bounded workers; adaptive 2048-context Chat reserve; Windows lane-lock cluster; duplicate-column, Core-startup, and storage-bootstrap regression signatures.
+Retain without relaxation: pypdf packaging; fail-closed Frozen argv; Desktop/Worker two-EXE split; exactly one Desktop instance with bounded workers; adaptive 2048-context Chat reserve; Windows lane-lock cluster; duplicate-column, Core-startup, and storage-bootstrap regression signatures. No Skip/XFail, assertion weakening, test deletion, Security/Storage/Recovery guard relaxation, or history rewrite is introduced.
 
 ## Promotion state
 
 `PROMOTION_READY=NO`
 
-Develop must not be mutated again while canonical Quality for the integration commit is queued or in progress. `main` and `bnbgrs/ATHENA` remain read-only.
+Consume canonical Quality for the resulting exact Develop SHA before any further Develop mutation. `main` and `bnbgrs/ATHENA` remain read-only.
