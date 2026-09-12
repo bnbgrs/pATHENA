@@ -1,44 +1,42 @@
 # Post-Merge Feature Handoff - Integrator
 
-Generated: 2026-09-12T03:53+02:00
+Generated: 2026-09-12T04:49+02:00
 Branch: `develop/pathena-next`
-Run-start HEAD: `eab481a0901423ee5821e9d4101f0a0bbf804ef8`
+Run-start HEAD: `ca87e42c8820c47db7d6626feb17698560cd3b49`
 
 ## Current evidence
 
 - `main` and `bnbgrs/ATHENA` remain strictly read-only and untouched.
-- Exact Develop canonical Quality `34662951154@eab481a0901423ee5821e9d4101f0a0bbf804ef8 = SUCCESS` before mutation; no newer canonical Develop run was queued or in progress immediately before integration.
-- Current worker heads reviewed: Errors `5da815914dae88dd21d62794fd3dd21bb14562ec`; Spec/Core `acacc2da478d7f7afad4cd44681201268d5b13b3`; Backend `96d31e7bbe9818dfc38123f935b082ca0f622649`; UI `d3de1c9884cf8464dfcadea3d07e352b864a8cbd`.
-- Current Error handoff marks `ERR-0033 / BE-046` as `FIXED_PENDING_VERIFY` and `ERR-0035 / BE-052` as the remaining OPEN Backend-owned P1. Historical `ERR-0038` and `ERR-0039` remain STALE.
+- Exact Develop canonical Quality `34666307002@ca87e42c8820c47db7d6626feb17698560cd3b49 = SUCCESS` before mutation; no newer canonical Develop run was queued or in progress immediately before mutation.
+- Current worker heads reviewed: Errors `9b51bc0cea8f3d32eb9fd232a1711a848d74af39`; Spec/Core `ea4211fe5a375698c72dbfdd1d2a5778ea2df0dd`; Backend `736fb66085084f3d0080c0918cdfba00d63558fc`; UI `626c7e0dead504b57f331c9b011d99c96cee6c4d`.
+- Fresh Error evidence keeps `ERR-0035 / BE-052` OPEN/P1/Backend-owned: accepted SQLite DB/WAL/SHM preflight identity is not yet proven continuous through live writer establishment on Develop. `ERR-0033 / BE-046` is integrated and its exact Develop canonical Quality is now green; final Error-ledger closure remains Error-worker owned.
 - `docs/agent_logs/ERROR_LEDGER.md` is historical relative to current Develop and is not used as sole current OPEN truth.
 - Root `ALPHA_BETA_PROGRESS.md` remains absent; no synthetic completion percentage is recorded.
 - Visual source of truth remains `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` plus `docs/ui/VISUAL_GAP_LEDGER.md`; all eleven slots remain `IMPLEMENTED_PENDING_VISUAL_REVIEW`, with no screenshot-level `MATCH` claim absent approved reference/current-render pairing.
 
-## Integrated bounded slice — BE-046 POSIX emergency reserve reclamation
+## Worker qualification this run
 
-Selected exact product candidate `b595c960a747d9805b0865ea9f7237094318b706` (`fix(storage): fail closed on unproven emergency reserve reclamation`). Its exact canonical Quality `34662086156` completed SUCCESS and focused candidate `34662086028` completed SUCCESS. The later Backend head `96d31e7bbe9818dfc38123f935b082ca0f622649` is documentation-only and explicitly promotes this exact-green candidate.
+- Backend exact `736fb66085084f3d0080c0918cdfba00d63558fc`: Storage Focused Candidate `34668097963 = SUCCESS`; canonical Quality `34668098022` is still pending. Because this is the conservative Storage/Recovery prerequisite for BE-052, it is not promoted before exact canonical completion.
+- Spec/Core exact `ea4211fe5a375698c72dbfdd1d2a5778ea2df0dd`: Core Focused Candidate `34667286211 = SUCCESS`; canonical Quality `34667286138` remains in progress. The bounded current diff from Develop is `src/athena/knowledge/claim_service.py` plus `tests/unit/test_claim_contradiction_resolution.py`, but it is not promoted while exact canonical verification is still running.
+- UI exact `626c7e0dead504b57f331c9b011d99c96cee6c4d`: canonical Quality `34668610457` remains in progress. A Core Focused Candidate run was also triggered by UI-only `tests/unit/**` changes and failed even though the UI delta contains no `src/athena/knowledge/**` product file; that cross-lane trigger is tooling noise, not current Core product evidence.
 
-Only these product/test files are imported:
+## Cross-cutting tooling unblocker
 
-- `src/athena/storage/emergency_reserve.py`
-- `tests/unit/test_emergency_reserve.py`
+No worker product slice met the conservative promotion threshold at mutation time, so this run implements exactly one collision-free tooling slice in `.github/workflows/core-focused-candidate.yml`.
 
-Baseline compatibility is explicit: comparing `5db4c92f40d5d14119a991796be38fb9248072de` to candidate `b595c960...` yields only those two modified files. Current Develop differs from that same base only by `.github/workflows/storage-focused-candidate.yml` and this Integrator handoff, so the candidate does not overwrite intervening product code.
+The Core-focused PR trigger no longer treats every `tests/unit/**` file as Core-owned. It remains triggered by any `src/athena/knowledge/**` product change and by the current Core/Knowledge test families (`test_claim*`, `test_knowledge*`, `test_concept_note*`, `test_identity_transition*`, `test_temporal*`) plus changes to the workflow itself.
 
-The POSIX release path now fails closed on physical-reclamation accounting: it binds the reserve pathname and open descriptor to the same regular-file identity, rejects additional hardlinks, preserves directory identity across unlink, and returns zero reclaimed bytes where portable proof of physical reclamation is unavailable because another process may retain the unlinked inode. Adversarial tests cover a foreign open descriptor, extra hardlinks, and reserve-leaf substitution.
-
-No Storage/Recovery/Security guard, assertion, packaging invariant, Windows lane or test was weakened. BE-052 remains Backend-owned and untouched.
+This prevents UI-only unit-test patches from creating an unrelated red Core-focused check while preserving focused evidence for current Knowledge/Core slices. The job body, immutable exact-head binding, Ruff enforcement, focused pytest enforcement, remediation evidence, `cancel-in-progress: false`, and canonical Quality workflow are unchanged. No test, guard, security, storage, recovery or release invariant is weakened.
 
 ## Persistent release guards
 
 - pypdf packaging, fail-closed Frozen argv, Desktop/Worker two-EXE topology, one Desktop instance with bounded workers, adaptive 2048-context Chat reserve, Windows lane-lock/path-safety, duplicate-column/Core-startup/storage-bootstrap protections remain unchanged.
-- No Skip/XFail, assertion relaxation, Storage/Recovery/Security weakening or visual threshold reduction was introduced.
+- No Skip/XFail, assertion relaxation, Storage/Recovery/Security weakening, canonical Quality reduction or visual threshold reduction was introduced.
 - Historical signatures are not reopened without exact-current reproduction.
 
 ## Next integration
 
 1. Consume canonical Quality for the resulting exact Develop SHA before any further Develop mutation.
-2. If exact Develop verification is green, ERR-0033 may advance from `FIXED_PENDING_VERIFY` based on fresh Error-worker evidence; do not predeclare it FIXED here.
-3. Re-read all worker heads and exact-SHA evidence before selecting the next slice.
-4. Keep `ERR-0035 / BE-052` Backend-owned and conservative.
-5. Preserve visual `MATCH` fail-closed requirements.
+2. Re-read worker heads after that gate completes; do not reuse the SHAs above if workers have advanced.
+3. Prefer BE-052 once its exact Backend canonical Quality is green because it closes the remaining current Backend-owned P1 prerequisite; otherwise choose the highest-impact exact-verified bounded slice.
+4. Keep visual `MATCH` fail-closed requirements and all persistent release guards intact.
