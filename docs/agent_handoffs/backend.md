@@ -2,68 +2,80 @@
 
 ## Baseline
 
-- Shared baseline checked first: `develop/pathena-next@d173bd714b5f7de9242e1d0b2fff567c439d1ac0`.
-- Exact canonical Quality on that Develop SHA: `34684497701 = SUCCESS`.
-- Worker before synchronization: `postmerge/backend@ef2e5ca7468de3b32e19f877934fad228412e8ec`.
-- `main` and `bnbgrs/ATHENA` remain strictly read-only and untouched.
+- Shared baseline: `develop/pathena-next@eaab89bb4d7b08839517c40b622480bb1dc309f0`.
+- Worker branch: `postmerge/backend`.
+- History-preserving NON-FORCE synchronization with current Develop: merge commit `b7d2f5fd6ed3e1c35fd7458f84be62341e3938af`.
+- `main@0d4d621f8a38ddf8eccfa09622bf193687619943` remains strictly read-only and untouched.
 
-## Current backend slice
+## Selected backend slice
 
-Area: durable scheduled-job definition and deterministic one-job-per-occurrence identity.
+Area: durable deletion-ledger runtime boundaries / recovery cursor.
 
-Spec anchors: Beta chapter 12 §§23-28 and §39-42. A recurring task owns a persistent ScheduleDefinition separate from job instances; every occurrence creates its own job instance with `scheduled_for`; missed-run policies are `skip`, `run_once`, `backfill_all`, and `backfill_bounded`; retries/recovery must not duplicate the same canonical effect.
+Spec/error anchor: `ERR-0001`, backend audit tasks 290-293, and the existing deletion/recovery invariants in `src/athena/lifecycle/deletion.py`.
 
-Product candidate `ef2e5ca7468de3b32e19f877934fad228412e8ec` adds:
-
-- `src/athena/jobs/schedule_policy.py`
-- `src/athena/jobs/schedule_definition.py`
-
-Focused tests:
-
-- `tests/unit/test_schedule_policy.py`
-- `tests/unit/test_schedule_definition.py`
-
-`ScheduleDefinition` is immutable, validates stable schedule/job/timezone/policy metadata and exposes a stable operational schedule URI. `occurrence_id(schedule_id, scheduled_at_us)` is deterministic UUID5 identity for one logical schedule occurrence so restart/recovery/retry can address the same occurrence without conflating different schedules or scheduled instants. The missed-run selector deterministically implements all four normative policies and excludes future occurrences.
-
-This slice intentionally does not add queue persistence, leases, fencing, scheduler dispatch or DB schema changes.
+Product commit `780d25d74ce2e310b6a4bc434f547a23163e8b78` adds fail-before-SQL runtime validation for malformed entity types and bool-as-int deletion values without changing persistence or recovery semantics. Ruff-only harness correction `2f705d5e0fc1c77dd60612b5aeaa16d9380e46cd` formats the new boundary test import block; assertions and product behavior are unchanged.
 
 ## Exact verification evidence
 
-Exact worker candidate `ef2e5ca7468de3b32e19f877934fad228412e8ec`:
+Canonical Quality run `33749788522` checked exact Backend head `1cfd18c69014390380bb960b86c8e1b81a5067ac`.
 
-- Backend Focused Candidate `34683635290 = SUCCESS`.
-- ATHENA Quality Gate `34683635273 = SUCCESS`.
+Backend-relevant results:
 
-The newer Develop commit `d173bd714b5f7de9242e1d0b2fff567c439d1ac0` is canonical-green via `34684497701 = SUCCESS` and is disjoint from the Jobs slice: it adds only `src/athena/knowledge/orphan_knowledge.py`, its focused test, and updates `docs/agent_handoffs/integrator.md`.
+- specification validator: PASS;
+- Ruff: PASS;
+- mypy: PASS;
+- Windows path safety: PASS;
+- Linux storage regressions: PASS;
+- Local install smoke: PASS;
+- `tests/unit/test_deletion_ledger_boundaries.py`: all 22 tests PASS inside the full pytest run;
+- full pytest: `1 failed, 4489 passed, 3 skipped, 2 warnings`.
 
-## Readiness
+The single pytest failure is exactly `tests/unit/test_pathena_pallas_full_view.py::test_open_workspace_reuses_one_synchronized_full_surface`, raising `AttributeError` in `MessageActionTabOrderController.eventFilter()` because `document` is transiently absent. This is the already UI-owned PALLAS lifecycle defect (`UI-GAP-0003`), not a deletion-ledger/backend failure. No new Backend-owned pytest failure appears in the exact log.
 
-Status: `BACKEND_VERIFIED / INTEGRATOR_READY`.
+UI independently corrected that exact lifecycle root cause and canonical Quality run `33751403354` on UI head `76cb122dbe7b58b0fa49bbcb36de2bd732922d4d` completed SUCCESS. Backend does not absorb or modify the UI fix.
 
-The product/test delta is bounded to the four Jobs files above. No current Error handoff entry is OPEN. No historical BE-046 or BE-052 signature is reopened without a fresh current exact-SHA reproduction.
+## Product call-chain and invariants
 
-Integrator should review/import only the bounded Jobs product/test delta onto current Develop. The broad worker ancestry is not the integration unit.
+`record_deletion(runtime input) -> exact runtime validation -> UUID materialization -> existing-marker SELECT -> identity reconciliation -> INSERT/readback`.
 
-## Invariants retained
+`read_deletion_records(after_seq) -> exact runtime validation -> ordered ledger SELECT`.
 
-- no Security, TOR, Provider, Storage, Recovery or UI guard weakened;
-- no Skip/XFail or assertion weakening;
-- durable jobs remain distinct from threads;
-- UTC remains the internal scheduled timestamp domain while timezone metadata is retained for deterministic DST-aware recurrence generation;
-- occurrence identity is deterministic but does not claim exactly-once process execution; correctness still depends on durable uniqueness/idempotency and fencing in later persistence slices.
+Retained invariants:
 
-## Next distinct backend gap
+- malformed values fail before SQL;
+- bool is not accepted as deletion timestamp, commit sequence or cursor;
+- `deleted_at_us=0` and `after_seq=0` remain valid;
+- deletion commit sequence remains a positive genuine integer;
+- marker idempotency/reconciliation, restore replay, transaction boundaries, ordering, identity-conflict behavior, schema and persistence representation are unchanged;
+- no Security, TOR, Provider, UI or platform-path semantics changed.
 
-After Integrator consumes this exact-green primitive, the next bounded Jobs slice is durable persistence/materialization wiring: persist ScheduleDefinition and use a uniqueness boundary derived from `(schedule_id, scheduled_for)` / `occurrence_id` when creating the one Job instance for an occurrence. Do not broaden that slice into lease/fencing or scheduler dispatch unless required by the current authoritative schema/runtime contract.
+## Verification / readiness state
 
-## Run result
+- `ERR-0002` Ruff I001: FIXED and verified by canonical Ruff PASS in run `33749788522`.
+- `ERR-0001` Backend candidate: BACKEND_VERIFIED / INTEGRATOR_READY. Its focused boundary suite passes in the full canonical pytest execution, and every Backend/system canonical job is green. The only global failure is the independently owned UI/PALLAS lifecycle signature above.
+- Error worker should independently re-verify `ERR-0001` after integration before changing the canonical Error Ledger state to `FIXED`.
 
-- `RUN_RESULT=NEW_READY_EVIDENCE`
-- `SELECTED_GAP=ScheduleDefinition + deterministic schedule-occurrence identity exact-SHA verification`
-- `WHY_NOT_PREVIOUS_GAP=The candidate now has completed exact-SHA Backend-Focused and canonical SUCCESS; current Develop is newer but disjoint and canonical-green, so the correct action is READY promotion rather than reworking a green slice.`
-- `PRODUCT_FILES_CHANGED=none in this run; verified product delta remains src/athena/jobs/schedule_policy.py and src/athena/jobs/schedule_definition.py`
-- `TESTS=34683635290 SUCCESS; 34683635273 SUCCESS; current Develop 34684497701 SUCCESS`
-- `CONSECUTIVE_RUNS_WITHOUT_PRODUCT_MUTATION=1`
-- `NEXT_DISTINCT_BACKEND_GAP=durable ScheduleDefinition/occurrence materialization persistence with uniqueness/idempotency boundary after integration`
-- `BE046_STATUS=CLOSED / no fresh current exact-SHA regression`
-- `BE052_STATUS=CLOSED / no fresh current exact-SHA regression`
+## Failure / recovery impact
+
+The product mutation is fail-before-SQL and side-effect reducing. No ledger rows, schema, transaction semantics, ordering, marker identity, restore replay, crash/restart behavior or recovery format changed. Invalid boundary inputs now terminate before any SQL operation.
+
+## Platform impact
+
+Platform-neutral Python runtime-boundary hardening only. Windows path safety, Linux storage regression and local-install smoke jobs are all green on the exact Backend lineage.
+
+## Coordination
+
+- `postmerge/errors`: exact pytest evidence gap is now closed; `ERR-0001` may be treated as Backend-verified, with final canonical Ledger closure after integration/reverification.
+- `postmerge/ui`: owns `UI-GAP-0003`; its exact corrective lineage is now canonical green. Backend must not modify this UI root cause.
+- `postmerge/spec-core`: normal-Hybrid Search facade/application wiring remains Core-owned and non-overlapping.
+- `develop/pathena-next`: integration target only; Backend never self-integrates.
+
+## Integrator handoff
+
+READY for independent Integrator review/integration: product `780d25d74ce2e310b6a4bc434f547a23163e8b78` plus test/Ruff correction `2f705d5e0fc1c77dd60612b5aeaa16d9380e46cd`, carried on the history-preserving current-Develop Backend lineage beginning at merge `b7d2f5fd6ed3e1c35fd7458f84be62341e3938af`.
+
+The global red result of run `33749788522` must not be attributed to this Backend slice: its sole failure is the exact independently verified UI/PALLAS defect described above.
+
+## Next backend slice
+
+Select the highest currently unclaimed Backend/System P0/P1/P2 gap from current Alpha/Beta progress, Error Ledger and worker handoffs after excluding Core-owned normal-Hybrid Search and UI-owned PALLAS lifecycle work. Preserve deletion-ledger ownership only until Integrator imports the verified slice; do not broaden this root cause further.
