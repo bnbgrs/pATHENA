@@ -15,12 +15,17 @@ from athena.knowledge.models import (
     ClaimRevision,
     ClaimSnapshot,
     EpistemicStatus,
+    EvidenceRole,
     ProvenanceInputRef,
 )
 from athena.knowledge.service import (
     ChatMessageSequenceError,
     UnsupportedKnowledgeSourceError,
 )
+
+
+class ContradictionResolutionError(ValueError):
+    """Raised when a Claim contradiction cannot be resolved safely."""
 
 
 class ClaimService:
@@ -139,6 +144,57 @@ class ClaimService:
             left_claim_id=left_claim_id,
             right_claim_id=right_claim_id,
             reason="explicit user-confirmed contradiction",
+        )
+
+    def resolve_contradiction(
+        self,
+        *,
+        claim_id: uuid.UUID,
+        epistemic_status: EpistemicStatus,
+    ) -> ClaimRevision:
+        """Resolve a contradicted Claim by revision while preserving its history.
+
+        Resolution is deliberately explicit and user-driven. The Claim must have
+        concrete contradiction evidence, and resolution cannot keep the semantic
+        state as ``contradicted``. Existing evidence links remain untouched so the
+        historical conflict stays auditable.
+        """
+        if not isinstance(epistemic_status, EpistemicStatus):
+            raise TypeError("epistemic_status must be an EpistemicStatus.")
+        if epistemic_status is EpistemicStatus.CONTRADICTED:
+            raise ContradictionResolutionError(
+                "Contradiction resolution requires a non-contradicted target status."
+            )
+
+        current = self.repository.load_current(claim_id)
+        payload = current.revision.payload
+        evidence = self.repository.list_evidence(claim_id)
+        if not any(ref.evidence_role is EvidenceRole.CONTRADICTS for ref in evidence):
+            raise ContradictionResolutionError(
+                "Claim has no contradiction evidence to resolve."
+            )
+        if payload.epistemic_status is epistemic_status:
+            raise ContradictionResolutionError(
+                "Contradiction resolution must create a semantic status change."
+            )
+
+        actor_id = self.chat.ensure_local_user()
+        return self.repository.revise_claim(
+            actor_id=actor_id,
+            claim_id=claim_id,
+            expected_revision_id=current.revision.revision_id,
+            draft=ClaimDraft(
+                claim_kind=payload.claim_kind,
+                statement=payload.statement,
+                epistemic_status=epistemic_status,
+                subject_entity_id=payload.subject_entity_id,
+                predicate=payload.predicate,
+                object_entity_id=payload.object_entity_id,
+                attributed_to_entity_id=payload.attributed_to_entity_id,
+                valid_from_us=payload.valid_from_us,
+                valid_to_us=payload.valid_to_us,
+            ),
+            reason="explicit user contradiction resolution",
         )
 
     def load(self, claim_id: uuid.UUID) -> ClaimSnapshot:
