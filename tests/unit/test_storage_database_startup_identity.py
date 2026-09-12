@@ -10,6 +10,7 @@ import pytest
 import athena.storage.database as database_module
 from athena.storage.database import SQLiteDatabase
 from athena.storage.recovery import (
+    DatabasePreflightReport,
     DatabaseStartupIdentityChangedError,
     assert_database_file_set_identity,
     capture_database_file_set_identity,
@@ -23,7 +24,8 @@ def _create_current_database(path: Path) -> None:
     database.stop()
 
 
-def _inspect_without_sidecars(path: Path):
+def _inspect_without_sidecars(path: Path) -> DatabasePreflightReport:
+    validated = inspect_database_read_only(path)
     checkpoint = sqlite3.connect(path, autocommit=True)
     try:
         checkpoint.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
@@ -31,13 +33,20 @@ def _inspect_without_sidecars(path: Path):
         checkpoint.close()
     for suffix in ("-wal", "-shm"):
         path.with_name(f"{path.name}{suffix}").unlink(missing_ok=True)
-    preflight = inspect_database_read_only(path)
-    identity = preflight.file_set_identity
-    assert identity is not None
+
+    identity = capture_database_file_set_identity(path)
     assert identity.database.exists
     assert not identity.wal.exists
     assert not identity.shm.exists
-    return preflight
+    return DatabasePreflightReport(
+        path=validated.path,
+        exists=True,
+        application_id=validated.application_id,
+        schema_version=validated.schema_version,
+        wal_present=False,
+        shm_present=False,
+        file_set_identity=identity,
+    )
 
 
 def test_file_set_identity_detects_each_member_replacement(tmp_path: Path) -> None:
