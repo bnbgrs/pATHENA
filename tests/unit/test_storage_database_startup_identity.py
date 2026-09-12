@@ -153,6 +153,44 @@ def test_bound_preflight_rejects_sidecar_mutation_before_writer_open(
     assert target.read_bytes() == foreign_bytes
 
 
+def test_bound_preflight_accepts_complete_sidecar_withdrawal_before_writer_open(
+    tmp_path: Path,
+) -> None:
+    database_path = tmp_path / "athena.db"
+    _create_current_database(database_path)
+
+    concurrent = sqlite3.connect(database_path, autocommit=True)
+    try:
+        concurrent.execute("BEGIN IMMEDIATE")
+        preflight = inspect_database_read_only(database_path)
+        expected = preflight.file_set_identity
+        assert expected is not None
+        assert expected.wal.exists
+        assert expected.shm.exists
+    finally:
+        if concurrent.in_transaction:
+            concurrent.execute("ROLLBACK")
+        concurrent.close()
+
+    checkpoint = sqlite3.connect(database_path, autocommit=True)
+    try:
+        checkpoint.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
+    finally:
+        checkpoint.close()
+    for suffix in ("-wal", "-shm"):
+        database_path.with_name(f"{database_path.name}{suffix}").unlink(missing_ok=True)
+
+    withdrawn = capture_database_file_set_identity(database_path)
+    assert withdrawn.database == expected.database
+    assert not withdrawn.wal.exists
+    assert not withdrawn.shm.exists
+
+    database = SQLiteDatabase(database_path)
+    database.bind_startup_preflight(preflight)
+    database.start()
+    database.stop()
+
+
 def test_bound_preflight_rejects_partial_sidecar_publication(tmp_path: Path) -> None:
     database_path = tmp_path / "athena.db"
     _create_current_database(database_path)
