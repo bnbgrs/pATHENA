@@ -3,29 +3,29 @@
 ## Current integration
 
 - Integration target: `develop/pathena-next`.
-- Develop parent before this repair: `146fb7280dbfe30f2bec129aec8ee77f015ce040`.
-- Exact parent canonical Quality: `34697870543 = FAILURE`; failure is isolated to canonical Ruff. Specification validation, mypy, full pytest, Windows path safety/release guards, Linux storage regressions and local install smoke all passed on the same SHA.
-- Worker heads checked: Errors `e33839260e5582e972aa6e311c9631afbe08fe24`; Spec/Core `a35a67f1afe2789d8a568fa3484ef5fe29f46de9`; Backend `6fcfdf8a71abcabad7e3b4a661ad35ee1f6603f8`; UI `9e9227dc722d7d771ae4ce4e45a75983330fed97`.
-
-## Develop repair
-
-No worker feature slice is promoted in this run. The previous Integrator-owned release-readiness slice left Ruff-formatting drift at the import/module-constant boundary in `src/athena/release_readiness.py` and `tests/unit/test_release_readiness.py`. The current Backend lineage independently carries an equivalent `fix(release): normalize readiness import blocks` correction. This repair applies only that formatting normalization to Develop; product behavior, assertions and release guards are unchanged.
-
-The repair is deliberately bounded to the two release-readiness Python files plus this handoff and the Alpha/Beta progress register. It does not modify Storage, Recovery, Security, runtime topology, packaging, migrations, worker scheduling or UI.
+- Develop parent before this integration: `db159a068a5de1ca8cd302a5ea436f3f07889d9f`.
+- Exact parent canonical Quality: `34700628139 = SUCCESS`.
+- Worker heads checked: Errors `9c634dccc829b1a822288afc99ab0339d77efbb1`; Spec/Core `1f61104959dc6a7d7fcff6051fb013f5f6894706`; Backend `6fcfdf8a71abcabad7e3b4a661ad35ee1f6603f8`; UI `4898bceb9a5af98e1a044eb656714ce03be5e2a4`.
 
 ## Worker qualification
 
-- Errors exact `e33839260e5582e972aa6e311c9631afbe08fe24` identifies `ERR-0041` as a Spec/Core Ruff import-order blocker on an older Spec/Core SHA; Errors does not own the Core file.
-- Spec/Core exact `a35a67f1afe2789d8a568fa3484ef5fe29f46de9` contains an owner-side Ruff correction and is not promoted while Develop itself requires repair/reverification.
-- Backend exact `6fcfdf8a71abcabad7e3b4a661ad35ee1f6603f8` contains the equivalent release-readiness formatting normalization; Backend Focused Candidate `34700396671 = SUCCESS`, while its canonical Quality was still in progress at qualification time. No Backend product slice is promoted.
-- UI exact `9e9227dc722d7d771ae4ce4e45a75983330fed97` is a synchronization head; no UI product slice is promoted in this repair run.
+- Spec/Core exact `1f61104959dc6a7d7fcff6051fb013f5f6894706`: Core Focused Candidate `34701843776 = SUCCESS`; canonical Quality `34701843759 = SUCCESS`. The bounded product delta is `src/athena/knowledge/provenance_explanation.py` plus `tests/unit/test_provenance_explanation.py`. READY.
+- Errors current head is documentation/evidence reclassification only; no Error-owned product mutation is imported.
+- Backend current head is a release-readiness formatting repair lineage rather than a higher-priority new Backend prerequisite; no Backend product mutation is imported.
+- UI current head is synchronized with current Develop before workspace hierarchy work; its handoff remains non-integrator-ready for the pending UI candidate. No UI product mutation is imported.
+
+## Integrated bounded slice
+
+Integrated truthful, transport-neutral Knowledge provenance explanations. The policy projects only provenance already recorded on the canonical Knowledge revision, sorts inputs by their recorded ordinal, retains entity/revision/role identity, and exposes the recorded actor and timestamp. Source-free user Knowledge is represented explicitly as having no recorded provenance inputs instead of fabricating a source.
+
+The boundary rejects non-tuple inputs, wrong input element types, provenance inputs belonging to another provenance record, and duplicate ordinals. The slice is read-only projection logic and does not mutate Knowledge, Storage, Recovery, Security, runtime topology, packaging, migrations, scheduling or UI.
 
 ## Current evidence rules
 
 - `docs/agent_logs/ERROR_LEDGER.md` remains historical relative to current Develop and is not the sole authority for current OPEN state.
 - `docs/agent_logs/ALPHA_BETA_PROGRESS.md` is maintained without invented completion percentages.
 - Historical signatures are not reopened without current exact-SHA reproduction.
-- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` still has all eleven slots at `IMPLEMENTED_PENDING_VISUAL_REVIEW`; `MATCH` requires an opened original reference plus a real render from the exact implementation SHA.
+- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` remains fail-closed; no screenshot `MATCH` is inferred without opened original reference plus a real exact-SHA render.
 - `docs/ui/VISUAL_GAP_LEDGER.md` likewise asserts no screenshot-level `MATCH` without exact render evidence.
 - Worker candidate evidence superseded by later commits is not accepted without equivalent exact-head evidence.
 
@@ -37,4 +37,4 @@ Retain without relaxation: pypdf packaging; fail-closed Frozen argv; Desktop/Wor
 
 `PROMOTION_READY=NO`
 
-Consume canonical Quality for the resulting exact Develop repair SHA before any further Develop mutation. `main` and `bnbgrs/ATHENA` remain read-only.
+Consume canonical Quality for the resulting exact Develop SHA before any further Develop mutation. `main` and `bnbgrs/ATHENA` remain read-only.
