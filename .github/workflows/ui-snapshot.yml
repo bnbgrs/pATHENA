@@ -5,6 +5,7 @@ on:
     branches:
       - bot/pathena-candidate
       - postmerge/ui
+      - agent/ui-11-reference-parity-20260911
     paths:
       - ".github/workflows/ui-snapshot.yml"
       - "scripts/render_pathena_ui_snapshot.py"
