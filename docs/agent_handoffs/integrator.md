@@ -2,25 +2,26 @@
 
 ## Current integration
 
-- Integration target: `develop/pathena-next`
-- Develop parent before this integration: `63423bccaf9bf5b4049e55998e2d3303f59ecaf7`
-- Parent canonical Quality: `34687050578 = SUCCESS`
-- Worker heads checked: Errors `23b0c22e2b219fd28a44feb94296c883fab75327`; Spec/Core `008345141aac276f9723b536a70497e2dec74b20`; Backend `38a61d5f6b41bd151c3662bd1ef2a5a35f240a87`; UI `51c109f6a0e31f82392be6c5bfe1d7d167377499`.
+- Integration target: `develop/pathena-next`.
+- Develop parent before this integration: `8d34591f08ab1f1a42dbb032963769968aefab2e`.
+- Parent canonical Quality: `34689663093 = SUCCESS`.
+- Worker heads checked: Errors `983a57ca2005ad231a8896fc24e77cfd48b971a7`; Spec/Core `008345141aac276f9723b536a70497e2dec74b20`; Backend `e4aacf8004e08fddacb41cebe687453a759444cf`; UI `2e39818797e9c13ab20ac929f5377ae9888181df`.
 
 ## Worker qualification
 
-- Spec/Core: exact Core Focused Candidate is SUCCESS, but exact canonical Quality remains in progress. Not READY.
-- Backend: exact Backend Focused Candidate is SUCCESS, but exact canonical Quality is FAILURE. Conservative Backend/Jobs promotion is blocked.
-- UI: exact UI Focused Candidate and canonical Quality are SUCCESS, but the branch is heavily diverged from current Develop and exact visual regression is FAILURE. No bounded promotion is asserted from that head.
-- Errors: no new current exact-SHA reproduced blocker is promoted from the historical ledger.
+- Spec/Core: exact Core Focused Candidate `34688220222 = SUCCESS` and exact canonical Quality `34688220225 = SUCCESS`. The bounded current commit changes only `src/athena/knowledge/user_override_policy.py` and `tests/unit/test_user_override_policy.py`; current Develop retained the same pre-slice versions of both files, so the slice is compatible and READY.
+- Backend: current exact head `e4aacf8004e08fddacb41cebe687453a759444cf` has Backend Focused `34691379970 = SUCCESS`, while canonical `34691380019` is still running. `ERR-0040` remains Backend-owned until exact-head canonical evidence closes it.
+- UI: current head `2e39818797e9c13ab20ac929f5377ae9888181df` is a synchronization merge onto current Develop before further palette work; no bounded new UI product slice is promoted from that head in this integration.
+- Errors: current handoff identifies `ERR-0040 = OPEN / P1` on the Backend scheduled-materialization lineage; no parallel Error-owned product mutation is taken.
 
-## Cross-cutting slice
+## Integrated bounded slice
 
-No worker slice met the current conservative READY bar. This run therefore establishes `docs/agent_logs/ALPHA_BETA_PROGRESS.md` as an evidence-only progress register. It records exact heads/gates and promotion blockers without invented completion percentages. No product, test, guard, Security, Storage, Recovery, Runtime, or UI behavior is changed.
+Integrated the Spec/Core user-correction conflict policy. Explicit `EvidenceRole.CONTRADICTS` evidence remains visible after a user correction, duplicate contradiction revisions deduplicate deterministically, non-contradictory evidence does not fabricate conflicts, and the policy never authorizes deletion of contrary source evidence. Malformed runtime evidence fails closed. Existing user-override behavior remains intact.
 
 ## Current evidence rules
 
-- `docs/agent_logs/ERROR_LEDGER.md` is historical relative to current Develop and is not the sole authority for current OPEN state.
+- `docs/agent_logs/ERROR_LEDGER.md` remains historical relative to current Develop and is not the sole authority for current OPEN state.
+- `docs/agent_logs/ALPHA_BETA_PROGRESS.md` is maintained without invented completion percentages.
 - Historical signatures are not reopened without current exact-SHA reproduction.
 - The eleven-screen visual state remains fail-closed; `MATCH` requires an opened original reference and a real exact-SHA render.
 - Worker candidate evidence superseded by later commits is not accepted without equivalent exact-head evidence.
