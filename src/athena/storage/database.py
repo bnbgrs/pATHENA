@@ -139,6 +139,41 @@ class SQLiteDatabase:
             )
         return created
 
+    def _revalidate_existing_identity(
+        self,
+        expected: DatabaseFileSetIdentity,
+    ) -> DatabaseFileSetIdentity:
+        """Refresh only complete concurrent WAL/SHM publication for the same primary DB."""
+        current = capture_database_file_set_identity(self.path)
+        if current == expected:
+            return expected
+        if current.database != expected.database:
+            raise DatabaseStartupIdentityChangedError(
+                "ATHENA SQLite primary database identity changed after startup preflight."
+            )
+
+        expected_sidecars_absent = not expected.wal.exists and not expected.shm.exists
+        complete_sidecar_publication = current.wal.exists and current.shm.exists
+        if not expected_sidecars_absent or not complete_sidecar_publication:
+            raise DatabaseStartupIdentityChangedError(
+                "ATHENA SQLite database/WAL/SHM identity changed after startup preflight."
+            )
+
+        refreshed = inspect_database_read_only(self.path)
+        refreshed_identity = refreshed.file_set_identity
+        if (
+            not refreshed.exists
+            or refreshed_identity is None
+            or refreshed_identity.database != expected.database
+            or not refreshed_identity.wal.exists
+            or not refreshed_identity.shm.exists
+            or refreshed_identity != current
+        ):
+            raise DatabaseStartupIdentityChangedError(
+                "ATHENA SQLite database/WAL/SHM identity changed during startup revalidation."
+            )
+        return refreshed_identity
+
     def start(self) -> None:
         if self._connection is not None:
             return
@@ -149,9 +184,11 @@ class SQLiteDatabase:
             raise DatabaseStartupIdentityChangedError(
                 "SQLite writer startup requires an identity-bearing preflight."
             )
-        assert_database_file_set_identity(self.path, expected_identity)
 
-        if not preflight.exists:
+        if preflight.exists:
+            expected_identity = self._revalidate_existing_identity(expected_identity)
+        else:
+            assert_database_file_set_identity(self.path, expected_identity)
             expected_identity = self._create_missing_primary_exclusively(expected_identity)
 
         connection = sqlite3.connect(
@@ -163,7 +200,7 @@ class SQLiteDatabase:
 
         try:
             connection.execute("PRAGMA schema_version").fetchone()
-            assert_database_file_set_identity(self.path, expected_identity)
+            expected_identity = self._revalidate_existing_identity(expected_identity)
 
             initialize_schema(connection, created_at_us=utc_now_us())
             apply_and_verify_connection_policy(
