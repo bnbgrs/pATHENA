@@ -1,43 +1,42 @@
 # Post-Merge Feature Handoff - Integrator
 
-Generated: 2026-09-11T19:52Z
+Generated: 2026-09-12T01:49+02:00
 Branch: `develop/pathena-next`
-Run-start HEAD: `c670d7809c9f0aa5e6c31956b57e897091f1b9d6`
+Run-start HEAD: `c0f523921a460137aef7b59d9d703a3f8ce94225`
 
 ## Current evidence
 
-- `main` and `bnbgrs/ATHENA` remain read-only and untouched.
-- Exact Develop canonical Quality `34635967020@c670d7809c9f0aa5e6c31956b57e897091f1b9d6 = SUCCESS` before mutation.
-- Immediately before mutation, Develop had zero queued and zero in-progress workflow runs.
-- Worker heads reviewed: Errors `68fa85f7c6462b9454712b5d8dfb29fb9f49a2f7`; Spec/Core `23cb05b5ac6887f62723e350e188243edd39ad8a`; Backend `fb393e628a6bd126b59d252c85dc123d57871b6a`; UI `908f14a3d11ca3d25ca7db43378dbccd99f38b77`.
-- Backend exact head `fb393e628a6bd126b59d252c85dc123d57871b6a` passed canonical Quality `34638962515` and focused Candidate `34638962473`.
-- The bounded Backend product delta versus current Develop is exactly `src/athena/jobs/job_type_registry.py` plus `tests/unit/test_job_type_registry.py`; no Storage, Recovery, Transport, Security, UI, Packaging or release-guard path is changed.
-- Spec/Core exact head has a focused Candidate failure and canonical Quality was still in progress at review time; no Core slice was promoted.
-- UI current head is a post-verification synchronization/docs head. Earlier exact `ecbc661224917f1793b122a94e269ae88b450bc2` passed canonical Quality and UI focused evidence, but the immediately newer head is not promoted without equal exact-head evidence.
-- Current Error handoff keeps `ERR-0033 / BE-046` and `ERR-0035 / BE-052` OPEN and Backend-owned; no competing Storage/Recovery mutation was taken.
+- `main` and `bnbgrs/ATHENA` remain strictly read-only and untouched.
+- Exact Develop canonical Quality `34656021355@c0f523921a460137aef7b59d9d703a3f8ce94225 = SUCCESS` before mutation; no queued/in-progress Develop Quality blocked this integration.
+- Worker heads reviewed: Errors `06069895fc703b1258b2d2cfe54fab96bc0a2769`; Spec/Core `d47634453d63cad0b21fb6d370c95602b0d0a286`; Backend `32485db642d71ec2caef8b49adc35ac2132aa651`; UI `4772c6aaf16a6eb570b891eae4fa8323d32b54ce`.
+- Current Error handoff reclassifies historical Core Ruff `ERR-0039` as STALE and keeps `ERR-0033 / BE-046` plus `ERR-0035 / BE-052` Backend-owned OPEN.
+- Spec/Core exact head `d47634453d63cad0b21fb6d370c95602b0d0a286` has canonical Quality `34653170296 = SUCCESS` and Core Focused Candidate `34653170251 = SUCCESS`.
+- The bounded current Core product commit modifies only `src/athena/knowledge/service.py` and `tests/unit/test_knowledge_service.py`; current Develop `knowledge/service.py` is byte-identical to the worker parent for that file, establishing compatible baseline for this slice.
 - `docs/agent_logs/ERROR_LEDGER.md` remains historical relative to current Develop and is not used as sole current OPEN truth.
-- `ALPHA_BETA_PROGRESS.md` is absent from repository search; no synthetic percentage is recorded.
-- Visual source of truth remains `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` plus `docs/ui/VISUAL_GAP_LEDGER.md`; all eleven manifest slots remain `IMPLEMENTED_PENDING_VISUAL_REVIEW` and no `MATCH` is claimed without approved reference/current-render pairing.
+- Root `ALPHA_BETA_PROGRESS.md` was not found on current Develop; no synthetic completion percentage is recorded.
+- Visual source of truth remains `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` plus `docs/ui/VISUAL_GAP_LEDGER.md`; all eleven manifest slots remain `IMPLEMENTED_PENDING_VISUAL_REVIEW`, with no screenshot-level `MATCH` claim absent approved reference/current-render pairing.
 
 ## Product slice integrated this run
 
-Integrated the bounded Backend controlled durable Job Type Registry onto current Develop without merging worker history.
+Integrated only the bounded Knowledge reclassification revision slice from exact-green Spec/Core lineage:
 
-- Built-in job types are validated, registered explicitly and exposed in deterministic order.
-- Plugin job types require explicit permission and a namespace.
-- Duplicate registration and invalid lookup/registration inputs fail closed.
-- This slice is a registry primitive only; it does not yet wire registry admission into queue execution.
-- The integrated source/test blobs are byte-for-byte taken from exact-green Backend head `fb393e628a6bd126b59d252c85dc123d57871b6a`.
+- `src/athena/knowledge/service.py`
+- `tests/unit/test_knowledge_service.py`
+
+`KnowledgeService.reclassify()` preserves the stable Knowledge identity and all payload fields except `knowledge_kind`, creates a new user-authored revision through the existing repository revision boundary, rejects invalid runtime kind values, and rejects no-op reclassification without creating a revision. The implementation keeps optimistic expected-revision enforcement and existing provenance/storage behavior through `KnowledgeRepository.revise_knowledge_unit()`.
+
+No Core branch-history merge was performed. No Backend, Storage, Recovery, Security, Provider, TOR, filesystem, migration or UI behavior changed.
 
 ## Persistent release guards
 
 - pypdf packaging, fail-closed Frozen argv, Desktop/Worker two-EXE topology, one Desktop instance with bounded workers, adaptive 2048-context Chat reserve, Windows lane-lock/path-safety, duplicate-column/Core-startup/storage-bootstrap protections remain unchanged.
+- No Skip/XFail, assertion relaxation, Storage/Recovery/Security weakening or visual threshold reduction was introduced.
 - Historical signatures are not reopened without exact-current reproduction.
 
 ## Next integration
 
-1. Consume canonical Quality for the resulting Develop SHA before any further Develop mutation.
+1. Consume canonical Quality for the resulting exact Develop SHA before any further Develop mutation.
 2. Re-read all worker heads and exact-SHA evidence after that gate completes.
-3. Re-qualify UI only on exact current-head evidence; do not inherit evidence across a newer docs/synchronization commit.
-4. Keep Backend Storage/Recovery prerequisites conservative until bounded exact-tested BE-046/BE-052 candidates exist.
-5. Keep all visual `MATCH` claims fail-closed until approved original-reference and exact-render evidence exists.
+3. Keep BE-046/BE-052 conservative until bounded exact-tested current candidates exist.
+4. Re-qualify UI after its current Develop-baseline synchronization; do not transfer older exact evidence onto the sync head without equivalent verification.
+5. Preserve visual `MATCH` fail-closed requirements.
