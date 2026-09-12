@@ -3,73 +3,65 @@
 ## Baseline
 
 - Develop source of truth: `develop/pathena-next@146fb7280dbfe30f2bec129aec8ee77f015ce040`.
-- Error worker entered this run at `postmerge/errors@82590b517a736f3b90709ee16a85e5ac15aeb911`.
-- Current workers: Spec/Core `23dc4c79f1e44cd099992eb23636b2c95014c790`; Backend `51ab9c428bfd69a6aa6fde5e8be6241de7873dca`; UI `11890ef6216ae44b9e4c222bc8d9016784792e74`.
-- Develop canonical Quality `34697870543@146fb7280dbfe30f2bec129aec8ee77f015ce040 = IN_PROGRESS`; exact integrated parent `34694827693@cfdcac0bd51973bc18343006a9fb02f6c098a3c0 = SUCCESS`.
-- Backend exact `51ab9c428bfd69a6aa6fde5e8be6241de7873dca`: Backend Focused `34696535725 = SUCCESS`; canonical Quality `34696535722 = SUCCESS`.
-- Spec/Core exact `23dc4c79f1e44cd099992eb23636b2c95014c790`: Core Focused `34696122597 = FAILURE`; canonical Quality `34696122599 = FAILURE`.
-- UI exact `11890ef6216ae44b9e4c222bc8d9016784792e74`: UI Focused `34697505423 = SUCCESS`; canonical Quality `34697505416 = IN_PROGRESS` at observation time.
+- Reconciliation source: `postmerge/errors@e33839260e5582e972aa6e311c9631afbe08fe24`; active Errors branch is not mutated directly.
+- Current workers: Spec/Core `a35a67f1afe2789d8a568fa3484ef5fe29f46de9`; Backend `6fcfdf8a71abcabad7e3b4a661ad35ee1f6603f8`; UI `9e9227dc722d7d771ae4ce4e45a75983330fed97`.
+- Develop canonical `34697870543@146fb7280dbfe30f2bec129aec8ee77f015ce040 = FAILURE`, isolated to ERR-0042 Ruff; full pytest itself is green (`4982 passed, 17 skipped`).
+- Spec/Core current Core Focused `34698818610 = SUCCESS`; canonical `34698818608 = FAILURE` only from inherited ERR-0042, with full pytest `4989 passed, 17 skipped` and all other canonical lanes green.
+- Backend current Focused `34700396671 = SUCCESS`; canonical `34700396666` had Spec/Ruff/mypy/Windows/Linux/install green with full pytest running at observation.
+- UI current UI Focused `34699977144 = SUCCESS`; Core Focused `34699977166 = FAILURE` from ERR-0043; canonical inherits ERR-0042.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current error state
 
-- OPEN: `ERR-0041`.
-- IN_PROGRESS: none.
-- FIXED_PENDING_VERIFY: none.
-- `ERR-0040 = FIXED` after exact integrated Develop canonical success.
-- `ERR-0033` and `ERR-0035 = FIXED`.
-- `ERR-0038` and `ERR-0039 = STALE`.
-- BLOCKED: none.
+- `ERR-0041 = FIXED_PENDING_VERIFY` — Spec/Core provenance import order repaired on current worker and Core Focused green; final canonical recheck awaits repaired Develop baseline sync.
+- `ERR-0042 = IN_PROGRESS` — current Develop release-readiness Ruff baseline; repair PR #121.
+- `ERR-0043 = IN_PROGRESS` — Core Focused deleted-file selector / untracked diagnostic-worktree defect; repair PR #122.
+- `ERR-0040`, `ERR-0035`, `ERR-0033 = FIXED`.
+- `ERR-0038`, `ERR-0039 = STALE`.
+- No other top-level current cluster is reproduced at this reconciliation point.
 
-## Hard progress this run — ERR-0041 root cause isolated on current exact Spec/Core SHA
+## ERR-0042 — current Develop Ruff baseline
 
-### ERR-0041 — provenance explanation import-order Ruff blocker
+Exact reproducer: `develop/pathena-next@146fb7280dbfe30f2bec129aec8ee77f015ce040`, canonical `34697870543 = FAILURE`.
 
-Status: `OPEN / P1 integration blocker`.
+The failure is exactly two Ruff `I001` import-format errors:
 
-Current exact reproducer is `postmerge/spec-core@23dc4c79f1e44cd099992eb23636b2c95014c790`.
+- `src/athena/release_readiness.py:3:1`;
+- `tests/unit/test_release_readiness.py:1:1`.
 
-Exact CI evidence:
+Everything else on that exact Develop SHA is green: specification validator, mypy, Windows Path Safety, Linux Storage Regressions, Local Install Smoke and full pytest (`4982 passed, 17 skipped`). The release-readiness tests themselves pass.
 
-- Core Focused Candidate `34696122597 = FAILURE`;
-- canonical ATHENA Quality Gate `34696122599 = FAILURE`;
-- both runs are on exact Spec/Core SHA `23dc4c79f1e44cd099992eb23636b2c95014c790`.
+Repair PR #121 is deliberately bounded to the two Ruff-green formatting blobs plus a bot handoff. It does not consume Backend Schedule Recovery. Exact candidate head `22f7b640cccad1a65ccc6a32e46778b47e2a697e`; canonical `34700566097` already has Spec/Ruff/mypy/Windows/Linux/install green while full pytest runs.
 
-Canonical Quality isolates the failure to Ruff. Specification validation succeeds, mypy succeeds, full pytest succeeds with `4973 passed, 17 skipped`, Windows Path Safety succeeds, Linux Storage Regressions succeeds, and Local Install Smoke succeeds.
+Promotion sequence: exact-head #121 canonical SUCCESS -> refresh Develop and worker drift -> merge with expected head -> post-merge canonical SUCCESS on resulting Develop SHA -> mark ERR-0042 FIXED.
 
-The canonical job log gives the exact root cause: Ruff `I001` at `src/athena/knowledge/provenance_explanation.py:3:1` reports an unsorted/unformatted import block. The standard-library imports place `import uuid` after `from dataclasses import dataclass` and `from datetime import UTC, datetime`, so Ruff requires the import block to be organized.
+## ERR-0043 — Core Focused deleted-file harness defect
 
-This is a small, bounded Spec/Core-owned formatting defect. The active specialist worker owns the exact file/slice, so Errors did not mutate product code in parallel.
+Exact reproducer: `postmerge/ui@9e9227dc722d7d771ae4ce4e45a75983330fed97`, Core Focused `34699977166 = FAILURE`.
 
-### Required owner fix and verification
+Root cause is workflow selection, not UI/Core product semantics:
 
-1. Organize only the imports in `src/athena/knowledge/provenance_explanation.py`; no behavioral changes.
-2. Run focused Ruff on that file first.
-3. Run the smallest relevant provenance explanation regression set.
-4. Use exact-head Core Focused/canonical Quality for promotion evidence when appropriate.
-5. Mark `FIXED` only from a current or superseding exact Spec/Core SHA carrying the repair and successful relevant verification.
+- `git diff --name-only` selected candidate-deleted `src/athena/knowledge/orphan_knowledge.py` and `tests/unit/test_orphan_knowledge.py`;
+- Ruff failed `E902 No such file or directory`;
+- focused pytest failed `file or directory not found`;
+- remediation then failed because its own untracked `.focused-evidence/` made `git status --porcelain` non-empty.
 
-Do not weaken Ruff, tests, quality enforcement, Storage, Recovery, Security or release guards.
+Repair PR #122 updates all three selectors to `--diff-filter=ACMRT`, preserving added/copied/modified/renamed/type-changed candidate coverage while excluding deleted paths. The remediation cleanliness check becomes tracked-only via `--untracked-files=no`, and final dual Ruff+pytest enforcement is unchanged. Static contract tests lock the behavior.
 
-## Consumed prior verification — ERR-0040
+#122 is stacked on #121 only to avoid current Develop ERR-0042 polluting its verification. After #121 integrates, retarget/recreate the bounded #122 delta on current Develop and obtain fresh exact-head evidence before integration.
 
-The pending integrated verification has completed: canonical Quality `34694827693@cfdcac0bd51973bc18343006a9fb02f6c098a3c0 = SUCCESS`. This is the exact Develop SHA that integrated Backend repair `359b675a37b5b59210399bee1506afddc6ccee13`. `ERR-0040` is therefore `FIXED`; reopen only with a new current exact-SHA reproduction.
+## ERR-0041 — current Spec/Core repair state
 
-## CI discipline
+Historical reproducer `23dc4c79f1e44cd099992eb23636b2c95014c790` failed Ruff in `provenance_explanation.py`.
 
-- `postmerge/errors@82590b517a736f3b90709ee16a85e5ac15aeb911` had zero workflow runs before the ledger mutation.
-- After ledger commit `8290d0857b5ab5e63a15bb13522e18ab3f819376`, the Error branch again had zero workflow runs before this handoff mutation.
-- No canonical Quality run was started by Errors.
-- The running Develop and UI canonical jobs were not duplicated or disturbed.
-- No mutation was made to Develop, Backend, Spec/Core, UI, `main`, or `bnbgrs/ATHENA`.
+Current `postmerge/spec-core@a35a67f1afe2789d8a568fa3484ef5fe29f46de9` contains the organized standard-library import block. Core Focused `34698818610 = SUCCESS`. Canonical `34698818608` no longer reports the provenance import defect; it fails only on inherited ERR-0042, with specification validator, mypy, full pytest (`4989 passed, 17 skipped`), Windows, Linux storage and local install all green.
 
-## Integrator handoff
+Keep ERR-0041 at FIXED_PENDING_VERIFY until Spec/Core is refreshed against the repaired Develop baseline and an exact-current canonical run confirms no recurrence.
 
-- Current Develop: `146fb7280dbfe30f2bec129aec8ee77f015ce040`; canonical `34697870543 = IN_PROGRESS` at observation time.
-- `ERR-0041 = OPEN / P1` on Spec/Core exact `23dc4c79f1e44cd099992eb23636b2c95014c790`.
-- Root cause: Ruff `I001`, unsorted/unformatted import block in `src/athena/knowledge/provenance_explanation.py:3:1`.
-- Exact evidence: Core Focused `34696122597 = FAILURE`; canonical `34696122599 = FAILURE`; canonical full pytest itself is green (`4973 passed, 17 skipped`).
-- Do not integrate that Spec/Core head until owner remediation has current exact-SHA evidence.
-- Backend `51ab9c428bfd69a6aa6fde5e8be6241de7873dca` is focused+canonical green.
-- `ERR-0040 = FIXED` by exact integrated Develop canonical `34694827693@cfdcac0bd51973bc18343006a9fb02f6c098a3c0 = SUCCESS`.
-- Preserve pypdf packaging, Frozen argv, two-EXE topology, bounded workers, adaptive 2048-context reserve, Windows lane-lock mapping, duplicate-column/Core-startup/storage-bootstrap guards and all Storage/Recovery/Security fail-closed invariants.
+## Bot ownership rules
+
+- Backend: continue bounded Schedule Recovery work; do not merge it merely to obtain the two ERR-0042 formatting blobs already isolated in #121.
+- Spec/Core: do not patch release-readiness files for inherited ERR-0042; sync after Develop repair. Do not recreate deleted files to work around ERR-0043.
+- UI: UI Focused is green; do not change UI product code for inherited ERR-0042 or Core workflow ERR-0043.
+- Errors: consume this reconciliation only after rechecking exact current heads; do not mark ERR-0042/0043 FIXED before integrated exact-SHA evidence.
+- Integrator: preserve pypdf packaging, frozen argv, two-EXE topology, bounded workers, adaptive 2048-context reserve, Windows lane-lock mapping, duplicate-column/Core-startup/storage-bootstrap guards and all Storage/Recovery/Security fail-closed invariants.
