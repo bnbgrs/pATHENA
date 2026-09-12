@@ -72,7 +72,8 @@ def test_decoder_rejects_duplicate_json_fields() -> None:
 
 def test_decoder_rejects_noncanonical_uuid_text() -> None:
     payload = json.loads(encode_schedule_definition(_schedule()))
-    payload["schedule_id"] = payload["schedule_id"].upper()
+    canonical = "abcdefab-cdef-7abc-8def-abcdefabcdef"
+    payload["schedule_id"] = canonical.upper()
 
     with pytest.raises(ValueError, match="canonical lowercase UUID"):
         decode_schedule_definition(json.dumps(payload))
