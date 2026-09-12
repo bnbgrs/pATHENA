@@ -2,33 +2,29 @@
 
 ## Current integration
 
-- Integration target: `develop/pathena-next`
-- Develop parent before this integration: `d173bd714b5f7de9242e1d0b2fff567c439d1ac0`
-- Parent canonical Quality: `34684497701 = SUCCESS`
-- Promoted worker product candidate: `postmerge/backend@ef2e5ca7468de3b32e19f877934fad228412e8ec`
-- Exact Backend Focused Candidate: `34683635290 = SUCCESS`
-- Exact canonical Quality: `34683635273 = SUCCESS`
+- Integration target: `develop/pathena-next`.
+- Develop parent before this integration: `d8236b74e69d1eedfdd2b05a52ed767520246671`.
+- Exact parent canonical Quality: `34692305368 = SUCCESS`.
+- Worker heads checked: Errors `531f78037fdb1d6c89e77393b5be0a53a63ac0b3`; Spec/Core `3f864f5dd02db350b8b0df3103e6cc9c09725a37`; Backend `359b675a37b5b59210399bee1506afddc6ccee13`; UI `dd0ad210baf9125d03b532cbac6c807e56e1e558`.
+
+## Worker qualification
+
+- Backend exact `359b675a37b5b59210399bee1506afddc6ccee13`: Backend Focused Candidate `34693685313 = SUCCESS`; canonical Quality `34693685375 = SUCCESS`. Diff against current Develop is bounded to `src/athena/jobs/scheduled_materialization.py` and `tests/unit/test_scheduled_materialization.py`. READY.
+- Spec/Core exact `3f864f5dd02db350b8b0df3103e6cc9c09725a37`: canonical Quality `34693360045 = SUCCESS`, but its synchronization head has the same tree as current Develop and therefore contributes no new bounded product delta.
+- UI exact `dd0ad210baf9125d03b532cbac6c807e56e1e558`: canonical Quality is still running and a Core Focused check is failed on the cumulative PR lineage; not READY.
+- Errors: current handoff diagnoses `ERR-0040` as the scheduled-materialization test fixture using unsupported SQLite `:memory:` journal mode. Backend's current exact head replaces that fixture with a file-backed canonical-schema database without relaxing Storage guards.
 
 ## Integrated bounded slice
 
-Only the verified durable schedule-definition and deterministic occurrence-identity primitive is integrated:
-
-- `src/athena/jobs/schedule_policy.py`
-- `src/athena/jobs/schedule_definition.py`
-- `tests/unit/test_schedule_policy.py`
-- `tests/unit/test_schedule_definition.py`
-
-The slice defines immutable `ScheduleDefinition`, deterministic `occurrence_id(schedule_id, scheduled_at_us)`, and the four normative missed-run policies `skip`, `run_once`, `backfill_all`, and `backfill_bounded`. It remains persistence-agnostic: no queue persistence, lease/fencing, scheduler dispatch, Storage/Recovery schema, or UI behavior is introduced.
-
-The current Develop parent is canonical-green and disjoint from this Jobs slice. No worker history is merged; only the four bounded product/test blobs are imported.
+Integrated durable scheduled-job materialization. A deterministic schedule occurrence UUID is used directly as the durable `jobs.job_id`; retries therefore converge on the same row through the existing primary-key boundary. Materialization requires an existing write transaction, rejects disabled schedules and malformed runtime values fail-closed, and refuses an existing occurrence identity already bound to a different job. The focused regression fixture uses a file-backed SQLite database initialized through the canonical schema path, preserving the v37->v38 journal-mode invariant instead of weakening it.
 
 ## Current evidence rules
 
-- Current Error handoff reports no OPEN, IN_PROGRESS, or FIXED_PENDING_VERIFY error clusters; historical signatures are not reopened without current exact-SHA reproduction.
-- `docs/agent_logs/ERROR_LEDGER.md` is historical relative to current Develop and is not the sole authority for current OPEN state.
-- `ALPHA_BETA_PROGRESS.md` is not present at the checked root or `docs/agent_logs` locations; no completion percentage is invented.
-- The eleven-screen manifest remains fail-closed: all eleven slots are `IMPLEMENTED_PENDING_VISUAL_REVIEW`; `MATCH` requires an opened original reference and a real exact-SHA render.
-- UI visual-harness work is not promoted without exact focused/canonical evidence plus truthful visual evidence.
+- `docs/agent_logs/ERROR_LEDGER.md` remains historical relative to current Develop and is not the sole authority for current OPEN state.
+- `docs/agent_logs/ALPHA_BETA_PROGRESS.md` is maintained without invented completion percentages.
+- Historical signatures are not reopened without current exact-SHA reproduction.
+- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` and `docs/ui/VISUAL_GAP_LEDGER.md` remain fail-closed; no visual `MATCH` is inferred without opened original reference plus real exact-SHA render.
+- Worker candidate evidence superseded by later commits is not accepted without equivalent exact-head evidence.
 
 ## Persistent release guards
 
