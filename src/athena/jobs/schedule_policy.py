@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from enum import Enum
+from itertools import pairwise
 from typing import Iterable
 
 
@@ -27,10 +28,7 @@ def _canonical_occurrences(values: Iterable[int]) -> tuple[int, ...]:
     occurrences = tuple(
         _timestamp_us(value, field_name="scheduled occurrence") for value in values
     )
-    if any(
-        left >= right
-        for left, right in zip(occurrences, occurrences[1:], strict=True)
-    ):
+    if any(left >= right for left, right in pairwise(occurrences)):
         raise ValueError("Scheduled occurrences must be strictly increasing and unique.")
     return occurrences
 
