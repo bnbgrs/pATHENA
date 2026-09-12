@@ -7,7 +7,7 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 pytest.importorskip("PySide6")
 
-from PySide6.QtWidgets import QApplication, QFrame
+from PySide6.QtWidgets import QFrame
 
 from athena.desktop.app import create_application
 from athena.desktop.command_palette import install_command_palette
