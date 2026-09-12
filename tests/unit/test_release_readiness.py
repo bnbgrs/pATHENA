@@ -5,7 +5,6 @@ from athena.release_readiness import (
     assess_release_readiness,
 )
 
-
 _EXACT_SHA = "0123456789abcdef0123456789abcdef01234567"
 
 
