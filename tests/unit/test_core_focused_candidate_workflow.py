@@ -15,6 +15,18 @@ def test_core_focused_candidate_excludes_deleted_python_paths() -> None:
     assert "git diff --name-only $env:BASE_SHA $env:CANDIDATE_SHA" not in text
 
 
+def test_core_focused_pytest_selects_only_core_owned_test_families() -> None:
+    text = _workflow_text()
+    selector = (
+        "^tests/unit/(test_claim.*|test_knowledge.*|test_concept_note.*|"
+        "test_identity_transition.*|test_temporal.*)\\.py$"
+    )
+
+    assert selector in text
+    assert "^tests/unit/test_.*\\.py$" not in text
+    assert "No changed Core-owned unit-test files selected" in text
+
+
 def test_core_focused_remediation_ignores_only_untracked_evidence() -> None:
     text = _workflow_text()
 
