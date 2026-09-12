@@ -9,13 +9,13 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 ## Current baseline
 
 - Develop source of truth: `develop/pathena-next@c0f523921a460137aef7b59d9d703a3f8ce94225`.
-- Error worker entered this run at `postmerge/errors@3e2e7fa777ac448385846a5855c0bc98e5bd687d`.
+- Error worker entered this run at `postmerge/errors@06069895fc703b1258b2d2cfe54fab96bc0a2769`.
 - Current workers: Spec/Core `d47634453d63cad0b21fb6d370c95602b0d0a286`; Backend `32485db642d71ec2caef8b49adc35ac2132aa651`; UI `e5801b57ca2c4bc62929382427ded0d0e51d55fd`.
 - Exact-current Develop canonical Quality: `34656021355@c0f523921a460137aef7b59d9d703a3f8ce94225 = IN_PROGRESS`; no Develop PASS/FAIL claim is derived while it is running.
 - Previous Develop canonical Quality: `34651263616@e008e0fbf595da64bea64eb557dddeb2cd78bed0 = SUCCESS`.
 - Exact-current Spec/Core canonical Quality: `34653170296@d47634453d63cad0b21fb6d370c95602b0d0a286 = SUCCESS`.
 - Exact-current Spec/Core focused candidate: `34653170251@d47634453d63cad0b21fb6d370c95602b0d0a286 = SUCCESS`.
-- `postmerge/errors@3e2e7fa777ac448385846a5855c0bc98e5bd687d` had zero workflow runs immediately before this mutation.
+- `postmerge/errors@06069895fc703b1258b2d2cfe54fab96bc0a2769` had zero workflow runs immediately before this mutation.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current state
@@ -44,21 +44,21 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Previous reproducer: `53c3824e214b66e989cba1f425bfe7881190e12f`, canonical `34609297666 = FAILURE`, with Ruff `I001` at `src/athena/knowledge/revision_diff.py:3:1`.
 - The old revision-diff candidate was superseded and removed. Reopen only with its own current exact-SHA reproduction.
 
-## ERR-0033 — Emergency-reserve filesystem-object identity and capacity-attestation gap
+## ERR-0033 — Emergency-reserve filesystem-object identity and physical-reclamation gap
 
 - Severity: P1.
-- Status: `OPEN`.
+- Status: `OPEN` — freshly reproduced on current Develop exact SHA `c0f523921a460137aef7b59d9d703a3f8ce94225`.
 - Specialist owner: Backend / BE-046. Errors does not parallel-mutate Backend product code while that worker owns the root cause.
-- POSIX creation/release binds the reserve root to a directory descriptor, but release attests the reserve with `fstat`, captures logical size, closes pATHENA's reserve descriptor, then validates only parent identity before unlink and returns the captured size. Filename/object identity is not carried across the attestation-to-unlink boundary.
-- Non-POSIX creation/release and cleanup retain pathname-based substitution windows. Inspection/acceptance also has object-identity continuity gaps, and admission/release do not establish exclusive ownership against hardlinks.
-- Physical-capacity attestation remains incomplete where allocation metadata is unavailable: logical length alone is not proof of physically recoverable reserve capacity.
-- A pre-opened second descriptor can survive unlink and keep inode/data blocks referenced. A one-time single-link check is insufficient because a hardlink can be inserted after attestation but before unlink.
-- Closure requires a bounded Backend candidate with focused adversarial coverage for parent substitution, same-parent target substitution, hardlink ownership and insertion races, unknown-allocation fail-closed behavior and pre-opened second-descriptor reclamation/accounting. Preserve non-sparse allocation and all Storage/Recovery semantics.
+- Current-exact source evidence: `src/athena/storage/emergency_reserve.py` POSIX `release()` opens the reserve, obtains `file_stat = os.fstat(descriptor)`, stores `size = file_stat.st_size`, then closes pATHENA's reserve descriptor *before* `_assert_posix_directory_current(...)`, `os.unlink(_RESERVE_FILENAME, dir_fd=root_fd)`, directory fsync/revalidation, and finally `return size`.
+- This sequence binds the parent directory but does not prove physical reclamation of the attested reserve blocks. A second descriptor opened by another process before release can survive the pathname unlink and continue to reference the inode/data blocks while pATHENA returns the full captured logical size as released.
+- The same exact sequence also leaves link-ownership continuity relevant: a pathname unlink is not equivalent to block reclamation if another hardlink or already-open file description retains the inode.
+- This is current exact-SHA reproduction of the existing BE-046 root-cause family, not a new error ID. Historical evidence is no longer needed to keep `ERR-0033` active.
+- Closure requires a bounded Backend candidate with focused adversarial proof that release accounting never confirms bytes that remain referenced through a pre-opened foreign descriptor or alternate link, while preserving non-sparse allocation, parent/target identity guards and all Storage/Recovery fail-closed semantics. If portable proof of immediate physical reclamation is impossible, accounting must remain conservative/fail-closed rather than claiming the logical file length as recovered capacity.
 
 ## ERR-0035 — SQLite preflight identity is not carried into live writer startup
 
 - Severity: P1.
-- Status: `OPEN`.
+- Status: `OPEN` in the carried ledger; this cluster was not revalidated or advanced in this run and must not outrank a freshly reproduced current-exact failure merely from historical evidence.
 - Specialist owner: Backend / BE-052. Errors does not parallel-mutate Backend product code while that worker owns the root cause.
 - `SQLiteDatabase.start()` performs `inspect_database_read_only(self.path, ...)` and later establishes an independent writable `sqlite3.connect(self.path, check_same_thread=False)`.
 - The continuity gap covers the whole SQLite file set. Read-only inspection also evaluates current `-wal` and `-shm` sidecar state, but no file-set identity token or equivalent binding carries the attested primary DB plus WAL/SHM snapshot into writer establishment.
