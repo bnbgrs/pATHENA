@@ -4,25 +4,26 @@ Evidence-only progress register for `develop/pathena-next`. This file intentiona
 
 ## Current baseline
 
-- Develop SHA: `63423bccaf9bf5b4049e55998e2d3303f59ecaf7`
-- Exact canonical Quality: `34687050578 = SUCCESS`
-- Current worker heads checked in this integrator run:
-  - Errors: `23b0c22e2b219fd28a44feb94296c883fab75327`
+- Develop parent before the current integration: `8d34591f08ab1f1a42dbb032963769968aefab2e`.
+- Exact parent canonical Quality: `34689663093 = SUCCESS`.
+- Current worker heads checked:
+  - Errors: `983a57ca2005ad231a8896fc24e77cfd48b971a7`
   - Spec/Core: `008345141aac276f9723b536a70497e2dec74b20`
-  - Backend: `38a61d5f6b41bd151c3662bd1ef2a5a35f240a87`
-  - UI: `51c109f6a0e31f82392be6c5bfe1d7d167377499`
+  - Backend: `e4aacf8004e08fddacb41cebe687453a759444cf`
+  - UI: `2e39818797e9c13ab20ac929f5377ae9888181df`
 
 ## Current integration state
 
-- Durable schedule identity primitives are integrated on Develop.
-- Spec/Core exact focused candidate on `008345141aac276f9723b536a70497e2dec74b20` is green, but exact canonical Quality remains in progress; not READY yet.
-- Backend exact focused candidate on `38a61d5f6b41bd151c3662bd1ef2a5a35f240a87` is green, but exact canonical Quality is failed; not READY.
-- UI exact focused and canonical Quality on `51c109f6a0e31f82392be6c5bfe1d7d167377499` are green, but the worker is heavily diverged from current Develop and exact visual regression is failed; no bounded promotion is asserted from that head.
+- Durable schedule identity primitives remain integrated on Develop.
+- Spec/Core user-correction conflict visibility is integrated from exact head `008345141aac276f9723b536a70497e2dec74b20`, backed by Core Focused `34688220222 = SUCCESS` and canonical Quality `34688220225 = SUCCESS`.
+- Backend current head `e4aacf8004e08fddacb41cebe687453a759444cf` has focused SUCCESS while canonical Quality is still running; the scheduled-materialization lineage therefore remains blocked from promotion until exact-head canonical evidence completes.
+- Errors currently classify `ERR-0040 = OPEN / P1` on that Backend lineage. Earlier fixed or stale signatures are not reopened without current reproduction.
+- UI current head is synchronized with current Develop before further palette work; no new UI product slice is promoted in this integration.
 
 ## Error and visual truth rules
 
-- `docs/agent_logs/ERROR_LEDGER.md` is historical relative to the current Develop SHA and is not the sole authority for current OPEN state.
-- Historical release-guard signatures are not reopened without current reproduction.
+- `docs/agent_logs/ERROR_LEDGER.md` is historical relative to current Develop and is not the sole authority for current OPEN state.
+- Historical release-guard signatures are not reopened without current exact-SHA reproduction.
 - Eleven-screen visual status remains fail-closed until an original reference and real exact-SHA render establish a truthful comparison. No `MATCH` is inferred from worker prose or metadata.
 
 ## Persistent release guards
