@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sqlite3
 import uuid
+from pathlib import Path
 
 import pytest
 
@@ -13,8 +14,8 @@ from athena.storage.schema import initialize_schema
 
 
 @pytest.fixture
-def connection() -> sqlite3.Connection:
-    conn = sqlite3.connect(":memory:", autocommit=True)
+def connection(tmp_path: Path) -> sqlite3.Connection:
+    conn = sqlite3.connect(tmp_path / "scheduled-materialization.sqlite3", autocommit=True)
     conn.row_factory = sqlite3.Row
     initialize_schema(conn, created_at_us=1)
     conn.execute("PRAGMA foreign_keys = ON")
