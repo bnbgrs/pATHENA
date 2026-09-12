@@ -6,6 +6,7 @@ from collections import defaultdict
 from collections.abc import Callable
 
 from PySide6.QtCore import QEvent, QObject, QSize, Qt, QTimer
+from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -77,17 +78,21 @@ class CapabilityHelpController(QObject):
         self.help_body = QFrame(self.palette.help_dialog)
         self.help_body.setObjectName("helpBody")
         body_layout = QHBoxLayout(self.help_body)
-        body_layout.setContentsMargins(0, 2, 0, 2)
-        body_layout.setSpacing(24)
+        body_layout.setContentsMargins(4, 6, 4, 6)
+        body_layout.setSpacing(32)
 
         navigation = QFrame(self.help_body)
         navigation.setObjectName("helpSecondaryNavigation")
-        navigation.setFixedWidth(184)
+        navigation.setFixedWidth(208)
         navigation_layout = QVBoxLayout(navigation)
         navigation_layout.setContentsMargins(0, 0, 0, 0)
-        navigation_layout.setSpacing(10)
+        navigation_layout.setSpacing(14)
         navigation_title = QLabel("Help", navigation)
         navigation_title.setObjectName("helpSecondaryTitle")
+        navigation_title_font = navigation_title.font()
+        navigation_title_font.setPixelSize(16)
+        navigation_title_font.setWeight(QFont.Weight.DemiBold)
+        navigation_title.setFont(navigation_title_font)
         navigation_layout.addWidget(navigation_title)
 
         self.help_sections = QListWidget(navigation)
@@ -99,21 +104,27 @@ class CapabilityHelpController(QObject):
         self.help_sections.setHorizontalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
+        self.help_sections.setSpacing(3)
         navigation_layout.addWidget(self.help_sections, 1)
 
         content = QFrame(self.help_body)
         content.setObjectName("helpCapabilityContent")
         content_layout = QVBoxLayout(content)
         content_layout.setContentsMargins(0, 0, 0, 0)
-        content_layout.setSpacing(12)
+        content_layout.setSpacing(16)
 
         headline = QLabel("What can pATHENA do?", content)
         headline.setObjectName("helpHeadline")
+        headline_font = headline.font()
+        headline_font.setPixelSize(28)
+        headline_font.setWeight(QFont.Weight.DemiBold)
+        headline.setFont(headline_font)
         content_layout.addWidget(headline)
 
         self.help_query = QLineEdit(content)
         self.help_query.setObjectName("helpSearch")
         self.help_query.setPlaceholderText("Search help…")
+        self.help_query.setMinimumHeight(42)
         self.help_query.setAccessibleName("Search help")
         self.help_query.setAccessibleDescription(
             "Filter the live pATHENA capabilities shown below."
@@ -122,6 +133,9 @@ class CapabilityHelpController(QObject):
 
         self.help_summary = QLabel(content)
         self.help_summary.setObjectName("helpSummary")
+        summary_font = self.help_summary.font()
+        summary_font.setPixelSize(11)
+        self.help_summary.setFont(summary_font)
         self.help_summary.setWordWrap(True)
         content_layout.addWidget(self.help_summary)
 
@@ -134,7 +148,7 @@ class CapabilityHelpController(QObject):
         self.help_capabilities.setHorizontalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
-        self.help_capabilities.setSpacing(6)
+        self.help_capabilities.setSpacing(8)
         content_layout.addWidget(self.help_capabilities, 1)
 
         body_layout.addWidget(navigation)
@@ -155,24 +169,25 @@ class CapabilityHelpController(QObject):
         row = QFrame(self.help_capabilities)
         row.setObjectName("helpCapabilityRow")
         row.setProperty("pathenaCapabilityAvailability", state)
-        row.setMinimumHeight(76)
+        row.setMinimumHeight(88)
         row.setAccessibleName(capability.label)
         row.setAccessibleDescription(
             f"{capability.summary} Availability: {state.replace('_', ' ')}."
         )
 
         row_layout = QVBoxLayout(row)
-        row_layout.setContentsMargins(14, 10, 14, 10)
-        row_layout.setSpacing(5)
+        row_layout.setContentsMargins(18, 12, 18, 12)
+        row_layout.setSpacing(7)
 
         title_line = QHBoxLayout()
         title_line.setContentsMargins(0, 0, 0, 0)
-        title_line.setSpacing(12)
+        title_line.setSpacing(16)
 
         title = QLabel(capability.label, row)
         title.setObjectName("helpCapabilityTitle")
         title_font = title.font()
-        title_font.setBold(True)
+        title_font.setPixelSize(14)
+        title_font.setWeight(QFont.Weight.DemiBold)
         title.setFont(title_font)
         title.setAccessibleName(capability.label)
         title_line.addWidget(title, 1)
@@ -180,6 +195,9 @@ class CapabilityHelpController(QObject):
         availability = QLabel(state.replace("_", " ").upper(), row)
         availability.setObjectName("helpCapabilityState")
         availability.setProperty("pathenaUiState", state)
+        availability_font = availability.font()
+        availability_font.setPixelSize(10)
+        availability.setFont(availability_font)
         availability.setAlignment(
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
         )
@@ -191,6 +209,9 @@ class CapabilityHelpController(QObject):
 
         summary = QLabel(capability.summary, row)
         summary.setObjectName("helpCapabilitySummary")
+        summary_font = summary.font()
+        summary_font.setPixelSize(12)
+        summary.setFont(summary_font)
         summary.setWordWrap(True)
         summary.setAccessibleName(f"{capability.label} description")
         row_layout.addWidget(summary)
@@ -274,7 +295,7 @@ class CapabilityHelpController(QObject):
             )
             self.help_capabilities.addItem(item)
             row = self._build_capability_row(capability)
-            item.setSizeHint(QSize(0, max(76, row.sizeHint().height())))
+            item.setSizeHint(QSize(0, max(88, row.sizeHint().height())))
             self.help_capabilities.setItemWidget(item, row)
 
         self.help_summary.setText(
