@@ -90,28 +90,33 @@ def test_bound_missing_preflight_rejects_file_created_before_writer_start(
     assert database_path.read_bytes() == b"foreign"
 
 
-def test_bound_preflight_rejects_sidecar_creation_before_writer_open(
+def test_bound_preflight_rejects_sidecar_mutation_before_writer_open(
     tmp_path: Path,
 ) -> None:
     database_path = tmp_path / "athena.db"
     _create_current_database(database_path)
     preflight = inspect_database_read_only(database_path)
-    assert preflight.file_set_identity is not None
+    file_set_identity = preflight.file_set_identity
+    assert file_set_identity is not None
 
     sidecars = (
-        database_path.with_name(f"{database_path.name}-wal"),
-        database_path.with_name(f"{database_path.name}-shm"),
+        (
+            database_path.with_name(f"{database_path.name}-wal"),
+            file_set_identity.wal,
+        ),
+        (
+            database_path.with_name(f"{database_path.name}-shm"),
+            file_set_identity.shm,
+        ),
     )
-    target = next(
-        path
-        for path, identity in zip(
-            sidecars,
-            (preflight.file_set_identity.wal, preflight.file_set_identity.shm),
-            strict=True,
-        )
-        if not identity.exists
-    )
-    target.write_bytes(b"foreign-sidecar")
+    target, target_identity = sidecars[0]
+    foreign_bytes = b"foreign-sidecar"
+    if target_identity.exists:
+        replacement = tmp_path / f"{target.name}.replacement"
+        replacement.write_bytes(foreign_bytes)
+        os.replace(replacement, target)
+    else:
+        target.write_bytes(foreign_bytes)
 
     database = SQLiteDatabase(database_path)
     database.bind_startup_preflight(preflight)
@@ -119,4 +124,4 @@ def test_bound_preflight_rejects_sidecar_creation_before_writer_open(
     with pytest.raises(DatabaseStartupIdentityChangedError, match="identity changed"):
         database.start()
 
-    assert target.read_bytes() == b"foreign-sidecar"
+    assert target.read_bytes() == foreign_bytes
