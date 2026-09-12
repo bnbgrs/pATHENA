@@ -2,62 +2,60 @@
 
 ## Baseline
 
-- Develop source of truth: `develop/pathena-next@8c885669ce3a3d718588d0327828341684c88c71`.
-- Error worker entered this run at `postmerge/errors@df2e1a552e9151b46a7c54d86746c30fe22d45da`.
-- Current workers: Spec/Core `1cef32d5f1479872d2f78cca29b2ed80fce05076`; Backend `2213d007266ac50c0500d61cb8d91fededbfda40`; UI `07721cfc86cb7e6c4137f7a5aa3396495a21cd8c`.
-- Develop canonical Quality `34680853488@8c885669ce3a3d718588d0327828341684c88c71 = SUCCESS`.
-- Develop Windows Runtime Boundary `34680853496@8c885669ce3a3d718588d0327828341684c88c71 = SUCCESS`.
-- Backend exact `2213d007266ac50c0500d61cb8d91fededbfda40`: Backend Focused `34680797071 = SUCCESS`; canonical `34680797081 = SUCCESS`.
-- Spec/Core exact `1cef32d5f1479872d2f78cca29b2ed80fce05076`: Core Focused `34680250793 = FAILURE`; canonical `34680250851 = FAILURE`.
-- UI exact `07721cfc86cb7e6c4137f7a5aa3396495a21cd8c`: UI Focused `34681610012 = SUCCESS`; canonical `34681610023 = IN_PROGRESS` at observation time.
+- Develop source of truth: `develop/pathena-next@8d34591f08ab1f1a42dbb032963769968aefab2e`.
+- Error worker entered this run at `postmerge/errors@23b0c22e2b219fd28a44feb94296c883fab75327`.
+- Current workers: Spec/Core `008345141aac276f9723b536a70497e2dec74b20`; Backend `38a61d5f6b41bd151c3662bd1ef2a5a35f240a87`; UI `51c109f6a0e31f82392be6c5bfe1d7d167377499`.
+- Develop canonical Quality `34689663093@8d34591f08ab1f1a42dbb032963769968aefab2e = IN_PROGRESS` at observation time; latest completed Develop canonical is `34687050578@63423bccaf9bf5b4049e55998e2d3303f59ecaf7 = SUCCESS`.
+- Backend exact `38a61d5f6b41bd151c3662bd1ef2a5a35f240a87`: Backend Focused `34689028510 = SUCCESS`; canonical `34689028433 = FAILURE`, isolated by job metadata to full pytest while all other canonical lanes pass.
+- Spec/Core exact `008345141aac276f9723b536a70497e2dec74b20`: Core Focused `34688220222 = SUCCESS`; canonical `34688220225 = IN_PROGRESS` at observation time.
+- UI exact `51c109f6a0e31f82392be6c5bfe1d7d167377499`: UI Focused `34686843794 = SUCCESS`; Integrator reports canonical SUCCESS but exact visual regression FAILURE.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current error state
 
-- OPEN: none.
+- OPEN: `ERR-0040`.
 - IN_PROGRESS: none.
 - FIXED_PENDING_VERIFY: none.
 - FIXED includes `ERR-0033` and `ERR-0035`.
 - STALE includes historical `ERR-0038` and `ERR-0039`.
 - BLOCKED: none.
 
-## Hard progress this run — ERR-0035 closed on integrated exact Develop
+## Hard progress this run — current Backend canonical failure classified
 
-### ERR-0035 — SQLite preflight-to-writer DB/WAL/SHM identity continuity
+### ERR-0040 — scheduled-materialization candidate full-suite regression
 
-Status: `FIXED / P1`.
+Status: `OPEN / P1`.
 
-The repair is now integrated on exact Develop SHA `8c885669ce3a3d718588d0327828341684c88c71`. The Integrator commit explicitly includes `ERR-0035 / BE-052` and the exact integrated canonical Quality run `34680853488` completed `SUCCESS`.
+Exact reproducer is `postmerge/backend@38a61d5f6b41bd151c3662bd1ef2a5a35f240a87`.
 
-Direct exact-SHA source verification shows that `SQLiteDatabase.start()` now requires an identity-bearing preflight, revalidates primary DB/WAL/SHM before writer establishment, uses exclusive creation for a missing primary, forces an initial SQLite read, and validates the same accepted identity again before schema initialization or connection-policy mutation.
+Exact canonical Quality `34689028433` is `FAILURE`. The Python 3.12 quality job passes specification validation, Ruff and mypy, then fails only in `Quality — pytest`; Windows Path Safety, Linux Storage Regressions and Local Install are all green. The same SHA passes Backend Focused Candidate `34689028510`.
 
-Controlled migration preserves the guard rather than bypassing it. After an authorized migration replaces the database object, bootstrap reacquires a fresh read-only identity-bearing preflight and binds that post-migration identity to writer startup.
+The latest completed Develop parent used by this Backend lineage, `63423bccaf9bf5b4049e55998e2d3303f59ecaf7`, is canonical-green via `34687050578 = SUCCESS`. The candidate adds the scheduled-occurrence materialization slice, including `src/athena/jobs/scheduled_materialization.py` and `tests/unit/test_scheduled_materialization.py`.
 
-Exact integrated adversarial coverage is present:
+This proves a real full-suite-only regression on the current Backend exact SHA and blocks promotion. It does **not** yet prove which pytest node is the root cause. The canonical diagnostics artifact `canonical-quality-diagnostics-38a61d5f6b41bd151c3662bd1ef2a5a35f240a87` exists, but the available workflow metadata does not expose its text payload. Therefore no historical UI, Storage or Recovery signature is being guessed or reopened.
 
-- `tests/unit/test_storage_database_startup_identity.py` covers DB replacement, DB/WAL/SHM file-set member identity mismatch, missing-primary foreign creation, sidecar mutation and replacement during writer establishment.
-- `tests/unit/test_storage_bootstrap_identity.py` proves successful migration re-preflights the activated database and proves another replacement after that fresh preflight is rejected fail-closed with `DatabaseStartupIdentityChangedError`.
-
-This satisfies the required closure condition: restored invariant + adversarial coverage + exact integrated Develop canonical success. Reopen only with a new current exact-SHA reproduction.
+Backend already owns this active product slice. Required next owner action: consume the canonical diagnostics, reproduce the named failing pytest node first, then apply the smallest fix and rerun the relevant regression set followed by exact canonical Quality. Error worker should verify that evidence rather than parallel-editing Backend product code.
 
 ### Other clusters
 
-`ERR-0033 = FIXED / P1`; integrated closure evidence remains `34666307002@ca87e42c8820c47db7d6626feb17698560cd3b49 = SUCCESS`.
+`ERR-0035 = FIXED / P1`; integrated closure remains `34680853488@8c885669ce3a3d718588d0327828341684c88c71 = SUCCESS`.
+
+`ERR-0033 = FIXED / P1`; integrated closure remains `34666307002@ca87e42c8820c47db7d6626feb17698560cd3b49 = SUCCESS`.
 
 `ERR-0038` and `ERR-0039` remain `STALE`; reopen only with current exact-SHA reproduction.
 
 ## CI discipline
 
-- `postmerge/errors@df2e1a552e9151b46a7c54d86746c30fe22d45da` had zero workflow runs before the ledger mutation.
-- After ledger commit `90b16e6d81675bc11d5b4bab0ddeaeb85dfb3ab4`, the Error branch again had zero workflow runs before this handoff mutation.
-- Errors started no canonical Quality run and did not mutate Develop, Backend, Spec/Core, UI, `main`, or `bnbgrs/ATHENA`.
+- `postmerge/errors@23b0c22e2b219fd28a44feb94296c883fab75327` had zero workflow runs before the ledger mutation.
+- After ledger commit `5572c42c5f0d7fcb8b731839eef822721d80539f`, the Error branch again had zero workflow runs before this handoff mutation.
+- No canonical Quality run was started by Errors.
+- No mutation was made to Develop, Backend, Spec/Core, UI, `main`, or `bnbgrs/ATHENA`.
 
 ## Integrator handoff
 
-- Develop: `8c885669ce3a3d718588d0327828341684c88c71`; canonical `34680853488 = SUCCESS`; Windows Runtime Boundary `34680853496 = SUCCESS`.
-- `ERR-0035 = FIXED / P1`: integrated DB/WAL/SHM identity continuity and controlled-migration re-preflight are exact-SHA verified.
-- Backend: `2213d007266ac50c0500d61cb8d91fededbfda40`; canonical and Backend Focused both `SUCCESS`. Its current handoff is stale with respect to the now-integrated ERR-0035 closure and should not be used to reopen BE-052 absent a new reproduction.
-- Spec/Core: `1cef32d5f1479872d2f78cca29b2ed80fce05076`; current focused and canonical runs are `FAILURE`; this is not an Error-Ledger cluster until a concrete current root cause is reproduced and classified.
-- UI: `07721cfc86cb7e6c4137f7a5aa3396495a21cd8c`; UI Focused `SUCCESS`, canonical still `IN_PROGRESS` at observation time.
-- `ERR-0033 = FIXED / P1`; `ERR-0038 = STALE`; `ERR-0039 = STALE`.
+- Develop: `8d34591f08ab1f1a42dbb032963769968aefab2e`; canonical `34689663093 = IN_PROGRESS`. Do not treat the current Develop SHA as qualified until that run completes.
+- `ERR-0040 = OPEN / P1`: Backend exact `38a61d5f6b41bd151c3662bd1ef2a5a35f240a87`; Backend Focused `34689028510 = SUCCESS`; canonical `34689028433 = FAILURE`, isolated to full pytest by job metadata.
+- The Backend candidate is not promotion-ready until the exact failing pytest node is identified, reproduced and fixed with exact canonical SUCCESS.
+- Spec/Core: `008345141aac276f9723b536a70497e2dec74b20`; focused SUCCESS, canonical still IN_PROGRESS at observation time.
+- UI: `51c109f6a0e31f82392be6c5bfe1d7d167377499`; focused SUCCESS; Integrator records canonical SUCCESS but visual regression FAILURE, so no UI promotion is implied here.
 - Preserve pypdf packaging, Frozen argv, two-EXE topology, bounded workers, adaptive 2048-context reserve, Windows lane-lock mapping, duplicate-column/Core-startup/storage-bootstrap guards and all Storage/Recovery/Security fail-closed invariants.
