@@ -43,6 +43,7 @@ class StorageHealthSnapshot:
     database_size_bytes: int | None
     wal_size_bytes: int | None
     observed_at_us: int
+    shm_size_bytes: int | None = None
     detail: str | None = None
 
     def __post_init__(self) -> None:
@@ -70,6 +71,10 @@ class StorageHealthSnapshot:
             self.wal_size_bytes,
             "Storage health WAL size",
         )
+        shm_size = _optional_nonnegative_int(
+            self.shm_size_bytes,
+            "Storage health SHM size",
+        )
 
         if self.status == "available":
             if not self.database_open:
@@ -82,7 +87,7 @@ class StorageHealthSnapshot:
                 raise ValueError("Available storage health cannot carry an error detail.")
             return
 
-        if database_size is not None or wal_size is not None:
+        if database_size is not None or wal_size is not None or shm_size is not None:
             raise ValueError(
                 "Non-available storage health cannot expose partial measured sizes."
             )
@@ -123,6 +128,7 @@ class StorageHealthService:
                 database_path=str(database_path),
                 database_size_bytes=None,
                 wal_size_bytes=None,
+                shm_size_bytes=None,
                 observed_at_us=observed_at_us,
                 detail="SQLite database service is not started.",
             )
@@ -130,6 +136,7 @@ class StorageHealthService:
         try:
             database_size_bytes = _file_size(database_path)
             wal_size_bytes = _optional_file_size(_wal_path(database_path))
+            shm_size_bytes = _optional_file_size(_shm_path(database_path))
         except OSError as exc:
             return StorageHealthSnapshot(
                 status="error",
@@ -137,6 +144,7 @@ class StorageHealthService:
                 database_path=str(database_path),
                 database_size_bytes=None,
                 wal_size_bytes=None,
+                shm_size_bytes=None,
                 observed_at_us=observed_at_us,
                 detail=f"Storage telemetry read failed: {type(exc).__name__}.",
             )
@@ -147,6 +155,7 @@ class StorageHealthService:
             database_path=str(database_path),
             database_size_bytes=database_size_bytes,
             wal_size_bytes=wal_size_bytes,
+            shm_size_bytes=shm_size_bytes,
             observed_at_us=observed_at_us,
             detail=None,
         )
@@ -154,6 +163,10 @@ class StorageHealthService:
 
 def _wal_path(database_path: Path) -> Path:
     return database_path.with_name(database_path.name + "-wal")
+
+
+def _shm_path(database_path: Path) -> Path:
+    return database_path.with_name(database_path.name + "-shm")
 
 
 def _file_size(path: Path) -> int:
