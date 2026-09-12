@@ -3,32 +3,28 @@
 ## Current integration
 
 - Integration target: `develop/pathena-next`.
-- Develop parent before this integration: `54c990285503e5076d31f46408ef530b9f02de28`.
-- Exact parent canonical Quality: `34715466882 = SUCCESS`.
-- Worker heads checked: Errors `cbcb9f60981484554d39f614308b32b67f378787`; Spec/Core `47053f798bae152f676e9ff4be22ca4c6c06a6a8`; Backend `c40be5764e600fe961bc3aeaf39c17f91100e34f`; UI `8b38c1a501789cbfb7c76b1ee1acef999270fa13`.
+- Develop parent before this integration: `915668a376390d86fb333291f555eb804dfa4358`.
+- Exact parent canonical Quality: `34718446158 = FAILURE`; Windows path safety, Linux storage regressions and Local install smoke passed; Python quality failed only in full pytest after specification validator, Ruff and mypy passed.
+- Worker heads checked: Errors `58922ab89a6ce6f7d5bf24b9012d9a0fa8c48018`; Spec/Core `2d92eec5c63234ab2af85ac8a06617043723a707`; Backend `0ca66fceb78bf7744f12029430780c7cb20be72f`; UI `8b38c1a501789cbfb7c76b1ee1acef999270fa13`.
 
-## Iteration 1 — bounded Backend promotion
+## Iteration 1 — close current integrated storage regression
 
-Backend exact `c40be5764e600fe961bc3aeaf39c17f91100e34f` has Backend Focused `34717283972 = SUCCESS`, Storage Focused `34717283988 = SUCCESS`, and canonical Quality `34717283963 = SUCCESS`. The effective content delta versus current Develop is bounded to four files; the Worker history itself is not imported.
+Backend exact `0ca66fceb78bf7744f12029430780c7cb20be72f` is based on current Develop content and its effective delta versus Develop is bounded to two files: `src/athena/storage/database.py` and `tests/unit/test_storage_database_startup_identity.py`. Exact Storage Focused `34720329575 = SUCCESS` and canonical Quality `34720329568 = SUCCESS`.
 
-Integrated product content:
+The correction preserves fail-closed startup identity handling while accepting one legitimate SQLite lifecycle transition that the previous Develop hardening rejected: a previously validated complete WAL+SHM pair may be withdrawn together while the primary database identity remains unchanged. Partial sidecar changes, primary replacement and unstable revalidation remain rejected. A focused regression test covers the complete-withdrawal transition.
 
-- `src/athena/jobs/schedule_codec.py`: deterministic, versioned durable JSON serialization for `ScheduleDefinition`, with strict schema, duplicate-field rejection, canonical lowercase UUIDs, explicit policy decoding, and reuse of existing schedule invariants.
-- `src/athena/storage/database.py`: startup identity revalidation now only accepts a complete concurrent WAL+SHM publication for the same primary identity and re-inspects read-only before accepting it; partial or foreign changes remain fail-closed.
-- corresponding focused tests in `tests/unit/test_schedule_codec.py` and `tests/unit/test_storage_database_startup_identity.py`.
-
-No Security, Storage, Recovery, packaging, runtime-topology, assertion, Skip/XFail, or canonical-gate guard is relaxed.
+No Security, Storage, Recovery, packaging, runtime-topology, assertion, Skip/XFail or canonical-gate guard is relaxed.
 
 ## Worker qualification
 
-- Spec/Core exact `47053f798bae152f676e9ff4be22ca4c6c06a6a8`: Core Focused is green, canonical Quality was still in progress at qualification time; not promoted in this iteration.
-- Backend exact `c40be5764e600fe961bc3aeaf39c17f91100e34f`: READY and bounded content integrated.
-- UI exact `8b38c1a501789cbfb7c76b1ee1acef999270fa13`: synchronization head only; require exact bounded UI evidence before promotion.
-- Errors exact `cbcb9f60981484554d39f614308b32b67f378787`: diagnostic/advisory; newer exact-SHA CI takes precedence.
+- Backend `0ca66fceb78bf7744f12029430780c7cb20be72f`: READY for this two-file regression closure; Storage Focused and canonical Quality are exact-head green.
+- Spec/Core `2d92eec5c63234ab2af85ac8a06617043723a707`: newer product head; requalify exact Core/canonical evidence after current Develop recovery before promotion.
+- UI `8b38c1a501789cbfb7c76b1ee1acef999270fa13`: synchronization head; not imported as a product slice.
+- Errors `58922ab89a6ce6f7d5bf24b9012d9a0fa8c48018`: diagnostic handoff is newer than the repository Error Ledger and records `ERR-0046` as the current harness-owned issue; exact CI evidence remains authoritative.
 
 ## Current evidence rules
 
-- `docs/agent_logs/ERROR_LEDGER.md` is not the sole authority for current OPEN state when newer exact-SHA evidence exists.
+- `docs/agent_logs/ERROR_LEDGER.md` remains historical relative to current Develop and is not the sole authority for OPEN state when newer exact-SHA evidence exists.
 - `docs/agent_logs/ALPHA_BETA_PROGRESS.md` contains no invented completion percentage.
 - Historical signatures are not reopened without current exact-SHA reproduction.
 - `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` and `docs/ui/VISUAL_GAP_LEDGER.md` remain fail-closed: no screenshot `MATCH` without opened original reference plus real exact-SHA render.

@@ -143,7 +143,7 @@ class SQLiteDatabase:
         self,
         expected: DatabaseFileSetIdentity,
     ) -> DatabaseFileSetIdentity:
-        """Refresh only complete concurrent WAL/SHM publication for the same primary DB."""
+        """Refresh only validated complete WAL/SHM lifecycle transitions."""
         current = capture_database_file_set_identity(self.path)
         if current == expected:
             return expected
@@ -153,8 +153,12 @@ class SQLiteDatabase:
             )
 
         expected_sidecars_absent = not expected.wal.exists and not expected.shm.exists
-        complete_sidecar_publication = current.wal.exists and current.shm.exists
-        if not expected_sidecars_absent or not complete_sidecar_publication:
+        expected_sidecars_complete = expected.wal.exists and expected.shm.exists
+        current_sidecars_absent = not current.wal.exists and not current.shm.exists
+        current_sidecars_complete = current.wal.exists and current.shm.exists
+        complete_publication = expected_sidecars_absent and current_sidecars_complete
+        complete_withdrawal = expected_sidecars_complete and current_sidecars_absent
+        if not complete_publication and not complete_withdrawal:
             raise DatabaseStartupIdentityChangedError(
                 "ATHENA SQLite database/WAL/SHM identity changed after startup preflight."
             )
@@ -165,14 +169,27 @@ class SQLiteDatabase:
             not refreshed.exists
             or refreshed_identity is None
             or refreshed_identity.database != expected.database
-            or not refreshed_identity.wal.exists
-            or not refreshed_identity.shm.exists
-            or refreshed_identity != current
         ):
             raise DatabaseStartupIdentityChangedError(
                 "ATHENA SQLite database/WAL/SHM identity changed during startup revalidation."
             )
-        return refreshed_identity
+
+        after_refresh = capture_database_file_set_identity(self.path)
+        if after_refresh.database != expected.database:
+            raise DatabaseStartupIdentityChangedError(
+                "ATHENA SQLite primary database identity changed during startup revalidation."
+            )
+        after_sidecars_absent = not after_refresh.wal.exists and not after_refresh.shm.exists
+        after_sidecars_complete = after_refresh.wal.exists and after_refresh.shm.exists
+        if not after_sidecars_absent and not after_sidecars_complete:
+            raise DatabaseStartupIdentityChangedError(
+                "ATHENA SQLite sidecars changed partially during startup revalidation."
+            )
+        if after_sidecars_complete and refreshed_identity != after_refresh:
+            raise DatabaseStartupIdentityChangedError(
+                "ATHENA SQLite database/WAL/SHM identity changed during startup revalidation."
+            )
+        return after_refresh
 
     def start(self) -> None:
         if self._connection is not None:

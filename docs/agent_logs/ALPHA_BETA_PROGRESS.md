@@ -4,28 +4,27 @@ Evidence-only progress register for `develop/pathena-next`. This file intentiona
 
 ## Current baseline
 
-- Develop parent before current integration: `54c990285503e5076d31f46408ef530b9f02de28`.
-- Exact parent canonical Quality: `34715466882 = SUCCESS`.
-- Worker heads checked: Errors `cbcb9f60981484554d39f614308b32b67f378787`; Spec/Core `47053f798bae152f676e9ff4be22ca4c6c06a6a8`; Backend `c40be5764e600fe961bc3aeaf39c17f91100e34f`; UI `8b38c1a501789cbfb7c76b1ee1acef999270fa13`.
+- Develop parent before current integration: `915668a376390d86fb333291f555eb804dfa4358`.
+- Exact parent canonical Quality `34718446158 = FAILURE`; Windows path safety, Linux storage regressions and Local install smoke were green, while Python quality failed only in full pytest after specification validator, Ruff and mypy passed.
+- Worker heads checked: Errors `58922ab89a6ce6f7d5bf24b9012d9a0fa8c48018`; Spec/Core `2d92eec5c63234ab2af85ac8a06617043723a707`; Backend `0ca66fceb78bf7744f12029430780c7cb20be72f`; UI `8b38c1a501789cbfb7c76b1ee1acef999270fa13`.
 
 ## Current integration state
 
-- Durable schedule identity, materialization and recovery remain integrated.
-- This iteration adds deterministic versioned `ScheduleDefinition` serialization with strict decode validation.
-- This iteration also hardens SQLite startup identity continuity: only complete concurrent WAL+SHM publication for the same primary database may be revalidated; partial or foreign identity changes remain rejected.
+- Durable schedule identity, materialization, recovery and deterministic versioned schedule serialization remain integrated.
+- Current regression closure carries the Backend correction for validated complete WAL+SHM withdrawal while retaining fail-closed rejection of partial sidecar changes, foreign identities and primary replacement.
 - Source-free user Knowledge, correction conflict visibility, truthful provenance explanation and fail-closed release-readiness assessment remain integrated.
 - Core Focused candidate selection/regression guards remain integrated.
 
 ## Exact Worker evidence
 
-- Backend `c40be5764e600fe961bc3aeaf39c17f91100e34f`: Backend Focused `34717283972 = SUCCESS`; Storage Focused `34717283988 = SUCCESS`; canonical Quality `34717283963 = SUCCESS`. Its four-file effective content delta is integrated without importing Worker merge history.
-- Spec/Core `47053f798bae152f676e9ff4be22ca4c6c06a6a8`: Core Focused `34716645679 = SUCCESS`; canonical Quality still in progress when this integration was prepared, therefore not READY yet.
+- Backend `0ca66fceb78bf7744f12029430780c7cb20be72f`: effective content delta versus current Develop is only `src/athena/storage/database.py` plus `tests/unit/test_storage_database_startup_identity.py`; Storage Focused `34720329575 = SUCCESS`; canonical Quality `34720329568 = SUCCESS`.
+- Spec/Core `2d92eec5c63234ab2af85ac8a06617043723a707`: newer product head; exact-current Core/canonical qualification must be consumed before promotion.
 - UI `8b38c1a501789cbfb7c76b1ee1acef999270fa13`: synchronization head is not itself a bounded product candidate.
-- Errors remains diagnostic and does not override newer exact-SHA workflow evidence.
+- Errors `58922ab89a6ce6f7d5bf24b9012d9a0fa8c48018`: current handoff is diagnostic; newer exact-SHA workflow evidence takes precedence over historical ledger state.
 
 ## Error and visual truth rules
 
-- `docs/agent_logs/ERROR_LEDGER.md` is not the sole authority where newer exact-SHA evidence exists.
+- `docs/agent_logs/ERROR_LEDGER.md` is historical relative to current Develop and is not the sole authority where newer exact-SHA evidence exists.
 - Historical release-guard signatures are not reopened without current exact-SHA reproduction.
 - Eleven-screen status remains fail-closed; no visual `MATCH` without opened original reference plus real exact-SHA render.
 
