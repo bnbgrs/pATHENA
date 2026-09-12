@@ -15,6 +15,7 @@ from athena.storage.emergency_reserve import EmergencyReserveStatus
 from athena.storage.migration_coordinator import MigrationCoordinatorResult
 from athena.storage.paths import RuntimePaths
 from athena.storage.recovery import (
+    DatabaseFileSetIdentity,
     DatabasePreflightReport,
     DatabaseStartupIdentityChangedError,
     capture_database_file_set_identity,
@@ -110,7 +111,7 @@ def test_bootstrap_repreflights_activated_database_before_writer_start(
     _create_legacy_database(paths.database_path)
     original = inspect_database_read_only(paths.database_path).file_set_identity
     assert original is not None
-    observed: dict[str, object] = {}
+    observed: dict[str, DatabaseFileSetIdentity] = {}
 
     def runner(**kwargs: Any) -> MigrationCoordinatorResult:
         source = kwargs["source_db"]
@@ -134,8 +135,12 @@ def test_bootstrap_repreflights_activated_database_before_writer_start(
         assert service.migration_plan.migration_required is True
         assert service.preflight is not None
         assert service.preflight.schema_version == SCHEMA_VERSION
-        assert service.preflight.file_set_identity == observed["activated_identity"]
-        assert service.preflight.file_set_identity != original
+        assert service.preflight.file_set_identity is not None
+        assert (
+            service.preflight.file_set_identity.database
+            == observed["activated_identity"].database
+        )
+        assert service.preflight.file_set_identity.database != original.database
         assert database.connection.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
     finally:
         service.stop()
