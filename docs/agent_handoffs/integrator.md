@@ -3,30 +3,32 @@
 ## Current integration
 
 - Integration target: `develop/pathena-next`
-- Develop parent before this integration: `cec77b6f8b64ec0bdf29cb546d8db4e1cf16ae80`
-- Parent canonical Quality: `34676594675` = `SUCCESS`
-- Promoted worker candidate: `postmerge/spec-core` exact SHA `8ee183e14ed2527d254def4946ce0b79104f1afa`
-- Exact Core Focused Candidate: `34677902970` = `SUCCESS`
-- Exact canonical Quality on the worker candidate was still running when this bounded slice was selected; no later worker commit superseded the exact-head focused evidence.
+- Develop parent before this integration: `d173bd714b5f7de9242e1d0b2fff567c439d1ac0`
+- Parent canonical Quality: `34684497701 = SUCCESS`
+- Promoted worker product candidate: `postmerge/backend@ef2e5ca7468de3b32e19f877934fad228412e8ec`
+- Exact Backend Focused Candidate: `34683635290 = SUCCESS`
+- Exact canonical Quality: `34683635273 = SUCCESS`
 
 ## Integrated bounded slice
 
-Only the self-contained stale-claim revalidation planning slice and its direct focused tests are integrated:
+Only the verified durable schedule-definition and deterministic occurrence-identity primitive is integrated:
 
-- `src/athena/knowledge/revalidation_job.py`
-- `tests/unit/test_revalidation_job.py`
+- `src/athena/jobs/schedule_policy.py`
+- `src/athena/jobs/schedule_definition.py`
+- `tests/unit/test_schedule_policy.py`
+- `tests/unit/test_schedule_definition.py`
 
-The worker was synchronized to exact current Develop immediately before this product commit. Comparison against current Develop is exactly these two added Core-owned files. No Worker history, Backend, Storage, Recovery, Security, Qt/UI, CI, visual-ledger, or unrelated documentation mutation is imported.
+The slice defines immutable `ScheduleDefinition`, deterministic `occurrence_id(schedule_id, scheduled_at_us)`, and the four normative missed-run policies `skip`, `run_once`, `backfill_all`, and `backfill_bounded`. It remains persistence-agnostic: no queue persistence, lease/fencing, scheduler dispatch, Storage/Recovery schema, or UI behavior is introduced.
 
-`RevalidationPlanner` creates immutable work only for important claims carrying an active stale signal. Jobs are pinned to the historical Claim revision and baseline evidence revisions. Result assessment never rewrites or deletes the Claim: absence of genuinely new evidence keeps the historical Claim unchanged, while newly discovered evidence requires explicit review. UUID, tuple uniqueness, bool-safe timestamp and runtime-type boundaries fail closed.
+The current Develop parent is canonical-green and disjoint from this Jobs slice. No worker history is merged; only the four bounded product/test blobs are imported.
 
 ## Current evidence rules
 
-- Current Error handoff keeps `ERR-0035 / BE-052` `OPEN / P1 / Backend-owned`; Storage/Recovery is not mutated here.
-- `docs/agent_logs/ERROR_LEDGER.md` remains historical relative to current Develop and is not the sole authority for current OPEN state.
-- Root `ALPHA_BETA_PROGRESS.md` is absent on current Develop; no completion percentage is invented.
-- The eleven-screen manifest remains `IMPLEMENTED_PENDING_VISUAL_REVIEW`; `MATCH` still requires an opened original reference and a real exact-SHA render.
-- Current Backend and UI canonical worker gates were still running/pending during selection and were not promoted.
+- Current Error handoff reports no OPEN, IN_PROGRESS, or FIXED_PENDING_VERIFY error clusters; historical signatures are not reopened without current exact-SHA reproduction.
+- `docs/agent_logs/ERROR_LEDGER.md` is historical relative to current Develop and is not the sole authority for current OPEN state.
+- `ALPHA_BETA_PROGRESS.md` is not present at the checked root or `docs/agent_logs` locations; no completion percentage is invented.
+- The eleven-screen manifest remains fail-closed: all eleven slots are `IMPLEMENTED_PENDING_VISUAL_REVIEW`; `MATCH` requires an opened original reference and a real exact-SHA render.
+- UI visual-harness work is not promoted without exact focused/canonical evidence plus truthful visual evidence.
 
 ## Persistent release guards
 
