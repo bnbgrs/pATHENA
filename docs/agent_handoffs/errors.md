@@ -2,13 +2,13 @@
 
 ## Baseline
 
-- Develop source of truth: `develop/pathena-next@8d34591f08ab1f1a42dbb032963769968aefab2e`.
-- Error worker entered this run at `postmerge/errors@23b0c22e2b219fd28a44feb94296c883fab75327`.
-- Current workers: Spec/Core `008345141aac276f9723b536a70497e2dec74b20`; Backend `38a61d5f6b41bd151c3662bd1ef2a5a35f240a87`; UI `51c109f6a0e31f82392be6c5bfe1d7d167377499`.
-- Develop canonical Quality `34689663093@8d34591f08ab1f1a42dbb032963769968aefab2e = IN_PROGRESS` at observation time; latest completed Develop canonical is `34687050578@63423bccaf9bf5b4049e55998e2d3303f59ecaf7 = SUCCESS`.
-- Backend exact `38a61d5f6b41bd151c3662bd1ef2a5a35f240a87`: Backend Focused `34689028510 = SUCCESS`; canonical `34689028433 = FAILURE`, isolated by job metadata to full pytest while all other canonical lanes pass.
-- Spec/Core exact `008345141aac276f9723b536a70497e2dec74b20`: Core Focused `34688220222 = SUCCESS`; canonical `34688220225 = IN_PROGRESS` at observation time.
-- UI exact `51c109f6a0e31f82392be6c5bfe1d7d167377499`: UI Focused `34686843794 = SUCCESS`; Integrator reports canonical SUCCESS but exact visual regression FAILURE.
+- Develop source of truth: `develop/pathena-next@d8236b74e69d1eedfdd2b05a52ed767520246671`.
+- Error worker entered this run at `postmerge/errors@983a57ca2005ad231a8896fc24e77cfd48b971a7`.
+- Current workers: Spec/Core `008345141aac276f9723b536a70497e2dec74b20`; Backend `e4aacf8004e08fddacb41cebe687453a759444cf`; UI `2e39818797e9c13ab20ac929f5377ae9888181df`.
+- Develop canonical Quality `34692305368@d8236b74e69d1eedfdd2b05a52ed767520246671 = IN_PROGRESS` at observation time; latest completed Develop canonical is `34689663093@8d34591f08ab1f1a42dbb032963769968aefab2e = SUCCESS`.
+- Backend exact `e4aacf8004e08fddacb41cebe687453a759444cf`: Backend Focused `34691379970 = SUCCESS`; canonical `34691380019 = FAILURE`, isolated to full pytest while all other canonical lanes pass.
+- Spec/Core exact `008345141aac276f9723b536a70497e2dec74b20`: Core Focused `34688220222 = SUCCESS`; canonical `34688220225 = SUCCESS`.
+- UI exact `2e39818797e9c13ab20ac929f5377ae9888181df`: current Integrator handoff treats this as a synchronization head with no bounded promoted product slice from that head.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current error state
@@ -20,21 +20,42 @@
 - STALE includes historical `ERR-0038` and `ERR-0039`.
 - BLOCKED: none.
 
-## Hard progress this run — current Backend canonical failure classified
+## Hard progress this run — ERR-0040 root cause identified from exact canonical diagnostics
 
-### ERR-0040 — scheduled-materialization candidate full-suite regression
+### ERR-0040 — scheduled-materialization test fixture violates canonical SQLite journal-mode invariant
 
 Status: `OPEN / P1`.
 
-Exact reproducer is `postmerge/backend@38a61d5f6b41bd151c3662bd1ef2a5a35f240a87`.
+Current exact reproducer is `postmerge/backend@e4aacf8004e08fddacb41cebe687453a759444cf`.
 
-Exact canonical Quality `34689028433` is `FAILURE`. The Python 3.12 quality job passes specification validation, Ruff and mypy, then fails only in `Quality — pytest`; Windows Path Safety, Linux Storage Regressions and Local Install are all green. The same SHA passes Backend Focused Candidate `34689028510`.
+Exact canonical Quality `34691380019` is `FAILURE`; Backend Focused `34691379970` is `SUCCESS`. Canonical Specification Validator, Ruff, mypy, Windows Path Safety, Linux Storage Regressions and Local Install all pass. Only full pytest fails.
 
-The latest completed Develop parent used by this Backend lineage, `63423bccaf9bf5b4049e55998e2d3303f59ecaf7`, is canonical-green via `34687050578 = SUCCESS`. The candidate adds the scheduled-occurrence materialization slice, including `src/athena/jobs/scheduled_materialization.py` and `tests/unit/test_scheduled_materialization.py`.
+The exact diagnostics artifact `canonical-quality-diagnostics-e4aacf8004e08fddacb41cebe687453a759444cf` was consumed. It reports `4955 passed, 17 skipped, 5 errors`; every error is a setup error in `tests/unit/test_scheduled_materialization.py`:
 
-This proves a real full-suite-only regression on the current Backend exact SHA and blocks promotion. It does **not** yet prove which pytest node is the root cause. The canonical diagnostics artifact `canonical-quality-diagnostics-38a61d5f6b41bd151c3662bd1ef2a5a35f240a87` exists, but the available workflow metadata does not expose its text payload. Therefore no historical UI, Storage or Recovery signature is being guessed or reopened.
+- `test_same_occurrence_materializes_once_across_retry`
+- `test_distinct_occurrences_materialize_distinct_jobs`
+- `test_materialization_requires_existing_write_transaction`
+- `test_disabled_schedule_fails_closed_without_row`
+- `test_existing_foreign_binding_fails_closed`
 
-Backend already owns this active product slice. Required next owner action: consume the canonical diagnostics, reproduce the named failing pytest node first, then apply the smallest fix and rerun the relevant regression set followed by exact canonical Quality. Error worker should verify that evidence rather than parallel-editing Backend product code.
+All five fail before scheduled-materialization behavior executes. The fixture creates `sqlite3.connect(":memory:", autocommit=True)` and invokes the canonical `athena.storage.schema.initialize_schema()`. During v37->v38 migration, physical cleanup intentionally accepts only journal modes `wal` or `delete`. SQLite `:memory:` reports journal mode `memory`, so initialization correctly fails closed with `DatabaseCompatibilityError: ATHENA physical cleanup encountered unsupported SQLite journal mode 'memory'`.
+
+The current one-line Backend correction from `athena.storage.schema_evolution.initialize_schema` to `athena.storage.schema.initialize_schema` therefore exposed the actual incompatibility rather than closing it.
+
+### Ownership and minimal repair
+
+This is now a precisely diagnosed Backend harness root cause, not evidence that the Storage physical-cleanup guard is wrong. Backend owns `test_scheduled_materialization.py`; Errors must not parallel-edit that active slice.
+
+Minimal owner fix: replace the in-memory fixture with a temporary file-backed SQLite database initialized through the canonical schema path so the existing `wal`/`delete` migration contract remains intact. Do **not** broaden production schema acceptance to journal mode `memory`, bypass physical cleanup, mock away the guard, delete tests, or use Skip/XFail.
+
+Verification order required for closure:
+
+1. reproduce the five setup errors on the exact Backend lineage;
+2. apply the file-backed fixture repair;
+3. run those five named tests first;
+4. run the smallest scheduled-materialization regression set;
+5. obtain exact Backend canonical Quality `SUCCESS`;
+6. after integration, obtain relevant exact-Develop verification before `FIXED`.
 
 ### Other clusters
 
@@ -46,16 +67,17 @@ Backend already owns this active product slice. Required next owner action: cons
 
 ## CI discipline
 
-- `postmerge/errors@23b0c22e2b219fd28a44feb94296c883fab75327` had zero workflow runs before the ledger mutation.
-- After ledger commit `5572c42c5f0d7fcb8b731839eef822721d80539f`, the Error branch again had zero workflow runs before this handoff mutation.
+- `postmerge/errors@983a57ca2005ad231a8896fc24e77cfd48b971a7` had zero workflow runs before the ledger mutation.
+- After ledger commit `e4494eecfdc0d7af707932d7bdf822e46d34644d`, the Error branch again had zero workflow runs before this handoff mutation.
 - No canonical Quality run was started by Errors.
 - No mutation was made to Develop, Backend, Spec/Core, UI, `main`, or `bnbgrs/ATHENA`.
 
 ## Integrator handoff
 
-- Develop: `8d34591f08ab1f1a42dbb032963769968aefab2e`; canonical `34689663093 = IN_PROGRESS`. Do not treat the current Develop SHA as qualified until that run completes.
-- `ERR-0040 = OPEN / P1`: Backend exact `38a61d5f6b41bd151c3662bd1ef2a5a35f240a87`; Backend Focused `34689028510 = SUCCESS`; canonical `34689028433 = FAILURE`, isolated to full pytest by job metadata.
-- The Backend candidate is not promotion-ready until the exact failing pytest node is identified, reproduced and fixed with exact canonical SUCCESS.
-- Spec/Core: `008345141aac276f9723b536a70497e2dec74b20`; focused SUCCESS, canonical still IN_PROGRESS at observation time.
-- UI: `51c109f6a0e31f82392be6c5bfe1d7d167377499`; focused SUCCESS; Integrator records canonical SUCCESS but visual regression FAILURE, so no UI promotion is implied here.
+- Develop: `d8236b74e69d1eedfdd2b05a52ed767520246671`; canonical `34692305368 = IN_PROGRESS`. Do not treat the current Develop SHA as qualified until that run completes.
+- `ERR-0040 = OPEN / P1`: Backend exact `e4aacf8004e08fddacb41cebe687453a759444cf`; Backend Focused `34691379970 = SUCCESS`; canonical `34691380019 = FAILURE`.
+- Exact root cause is now known: `test_scheduled_materialization.py` uses an in-memory SQLite fixture that cannot satisfy the canonical v37->v38 physical-cleanup journal-mode invariant. All five canonical errors are fixture setup failures with journal mode `memory`.
+- Required Backend repair is a file-backed canonical-schema fixture, followed by the five named tests, scheduled-materialization regression set and exact canonical success. Storage migration guards must remain unchanged.
+- Spec/Core: `008345141aac276f9723b536a70497e2dec74b20`; focused and canonical both `SUCCESS`.
+- UI: `2e39818797e9c13ab20ac929f5377ae9888181df`; no Error-owned UI mutation or promotion claim.
 - Preserve pypdf packaging, Frozen argv, two-EXE topology, bounded workers, adaptive 2048-context reserve, Windows lane-lock mapping, duplicate-column/Core-startup/storage-bootstrap guards and all Storage/Recovery/Security fail-closed invariants.
