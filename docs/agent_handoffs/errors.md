@@ -3,7 +3,7 @@
 ## Baseline
 
 - Develop source of truth: `develop/pathena-next@c0f523921a460137aef7b59d9d703a3f8ce94225`.
-- Error worker entered this run at `postmerge/errors@3e2e7fa777ac448385846a5855c0bc98e5bd687d`.
+- Error worker entered this run at `postmerge/errors@06069895fc703b1258b2d2cfe54fab96bc0a2769`.
 - Current workers: Spec/Core `d47634453d63cad0b21fb6d370c95602b0d0a286`; Backend `32485db642d71ec2caef8b49adc35ac2132aa651`; UI `e5801b57ca2c4bc62929382427ded0d0e51d55fd`.
 - Exact-current Develop canonical Quality: `34656021355@c0f523921a460137aef7b59d9d703a3f8ce94225 = IN_PROGRESS`; do not infer PASS/FAIL while it is running.
 - Previous Develop canonical Quality: `34651263616@e008e0fbf595da64bea64eb557dddeb2cd78bed0 = SUCCESS`.
@@ -19,29 +19,31 @@
 - STALE includes historical `ERR-0038` and `ERR-0039`.
 - BLOCKED: none.
 
-## Hard progress this run — ERR-0039 reclassified from OPEN to STALE
+## Hard progress this run — ERR-0033 freshly reproduced on current exact Develop
 
-### ERR-0039 — historical Spec/Core exact-head Ruff import-format blocker
+### ERR-0033 — Emergency-reserve physical-reclamation/accounting continuity
 
-Status: `STALE / previously P1 integration blocker / Spec-Core owned`.
+Status: `OPEN / P1 / Backend BE-046 owned`.
 
-The previous reproducer was `58b8040f84d5cac2530aaaac349c695361a78996`, where canonical Ruff reported `I001` at `tests/unit/test_identity_transition.py:1:1`. Attempted remediation `229a46dd7d91d2c4518379db781c7e5e800c2811` remained canonical/focused red, so it never qualified as fixed.
+The previous Backend handoff correctly treats BE-046 as a historical design concern unless current-lineage evidence reopens it. This run supplied that evidence on exact current Develop `c0f523921a460137aef7b59d9d703a3f8ce94225`.
 
-Current Spec/Core has advanced to exact head `d47634453d63cad0b21fb6d370c95602b0d0a286`. Both authoritative current checks are green: canonical Quality `34653170296 = SUCCESS` and Core Focused Candidate `34653170251 = SUCCESS`.
+Current source `src/athena/storage/emergency_reserve.py` still implements POSIX `EmergencyReserveStore.release()` as follows: open/attest the reserve, obtain `file_stat = os.fstat(descriptor)`, capture `size = file_stat.st_size`, close pATHENA's reserve descriptor, revalidate only the reserve directory, unlink `emergency.reserve`, fsync/revalidate the directory, and return the captured logical size.
 
-Crucially, the original failing path `tests/unit/test_identity_transition.py` is no longer present at the current exact worker head. The old reproducer was therefore superseded rather than directly repaired and verified in place. Per the Error Ledger rule, historical error priority is not authoritative without a current exact-SHA reproduction.
+That exact-current sequence does not prove that the returned bytes were physically reclaimed. A second descriptor already opened by another process can remain attached to the unlinked inode and continue to retain its blocks. Likewise, another link to the inode defeats the inference that pathname removal equals capacity recovery. pATHENA can therefore report the entire logical reserve size as released even though the underlying storage can still be referenced.
 
-`ERR-0039` is reclassified `OPEN -> STALE`. Reopen only if the same import-format/root-cause failure is reproduced on a current exact SHA.
+This is a current exact-SHA reproduction of the existing BE-046 root-cause family, not a new error ID. `ERR-0033` remains `OPEN` based on fresh current evidence rather than historical priority.
 
-This is a real closure/reclassification step: the previously highest active P1 integration blocker no longer qualifies as active current evidence, so it must not continue to consume hourly priority.
+Required owner closure: a bounded Backend candidate plus focused adversarial coverage where a foreign descriptor is opened before release and remains open through unlink, together with alternate-link ownership coverage. The result must prove that release accounting never confirms bytes that remain referenced; if portable immediate-reclamation proof is unavailable, accounting must remain conservative/fail-closed. Preserve physical non-sparse reserve allocation, directory/target identity guards, Storage/Recovery semantics and all existing guards.
 
-### ERR-0033 — Emergency-reserve filesystem-object identity/capacity gap
-
-Status remains `OPEN / P1 / Backend BE-046 owned`. No new ERR-0033 mutation or closure claim was made this run. Existing requirements for object-identity continuity, physical allocation/reclamation, hardlink insertion races and pre-opened descriptors remain binding.
+No Backend product code was changed on `postmerge/errors` because Backend owns BE-046.
 
 ### ERR-0035 — SQLite preflight-to-writer whole-file-set continuity
 
-Status remains `OPEN / P1 / Backend BE-052 owned`. No new ERR-0035 mutation or closure claim was made this run. Existing DB + WAL + SHM identity-continuity requirements remain binding.
+Status remains carried as `OPEN / P1 / Backend BE-052 owned`, but this cluster was deliberately not revalidated or advanced in this run. It must not outrank a freshly reproduced current-exact failure merely because of historical evidence.
+
+### ERR-0039 — historical Spec/Core Ruff blocker
+
+Status remains `STALE`. Current Spec/Core exact head is green and the old failing path is absent; do not reopen without a new exact-SHA reproduction.
 
 ### ERR-0038 — historical revision-diff Ruff failure
 
@@ -49,8 +51,8 @@ Status remains `STALE`. Do not reopen without its own current exact-SHA reproduc
 
 ## CI discipline
 
-- `postmerge/errors@3e2e7fa777ac448385846a5855c0bc98e5bd687d` had zero workflow runs before the ledger mutation.
-- Ledger commit `93baa934ed3916c5480502ad5ae67336d7c8a925` also had zero workflow runs before this handoff mutation.
+- `postmerge/errors@06069895fc703b1258b2d2cfe54fab96bc0a2769` had zero workflow runs before the ledger mutation.
+- Ledger commit `3e6e4143c73201929d5d01569c1dbd06dd86046b` also had zero workflow runs before this handoff mutation.
 - Errors started no canonical Quality run and did not commit onto a branch with a queued/in-progress Error-worker run.
 - Develop canonical `34656021355@c0f523921a460137aef7b59d9d703a3f8ce94225` remains in progress and was left untouched.
 
@@ -58,8 +60,10 @@ Status remains `STALE`. Do not reopen without its own current exact-SHA reproduc
 
 - Develop: `c0f523921a460137aef7b59d9d703a3f8ce94225`; canonical `34656021355 = IN_PROGRESS`. Consume before deriving integration status.
 - Spec/Core: `d47634453d63cad0b21fb6d370c95602b0d0a286`; canonical `34653170296 = SUCCESS`, focused `34653170251 = SUCCESS`.
-- `ERR-0039 = STALE`: the previous failing file is absent from current exact Spec/Core, and no current exact Ruff reproduction exists. Do not treat the historical P1 as an active blocker.
-- `ERR-0033 = OPEN / P1`, Backend BE-046 owned.
-- `ERR-0035 = OPEN / P1`, Backend BE-052 owned.
+- Backend: `32485db642d71ec2caef8b49adc35ac2132aa651`.
+- UI: `e5801b57ca2c4bc62929382427ded0d0e51d55fd`.
+- `ERR-0033 = OPEN / P1`: freshly reproduced on exact current Develop by the POSIX release sequence described above; Backend BE-046 owns remediation.
+- `ERR-0035 = OPEN / P1` remains carried but was not current-exact revalidated this run.
+- `ERR-0039 = STALE`.
 - `ERR-0038 = STALE`.
 - Preserve pypdf packaging, Frozen argv, two-EXE topology, bounded workers, adaptive 2048-context reserve, Windows lane-lock mapping, duplicate-column/Core-startup/storage-bootstrap guards and all Storage/Recovery/Security fail-closed invariants.
