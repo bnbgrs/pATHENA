@@ -3,30 +3,32 @@
 ## Current integration
 
 - Integration target: `develop/pathena-next`
-- Develop parent before this integration: `8c885669ce3a3d718588d0327828341684c88c71`
-- Parent canonical Quality: `34680853488` = `SUCCESS`
-- Parent Windows Runtime Boundary: `34680853496` = `SUCCESS`
-- Promoted worker candidate: `postmerge/spec-core` exact SHA `3fff3f25d6545fcbef664d0c1a5029fda14a78f8`
-- Exact Core Focused Candidate: `34682890614` = `SUCCESS`
-- Exact canonical Quality: `34682890592` = `SUCCESS`
+- Develop parent before this integration: `d173bd714b5f7de9242e1d0b2fff567c439d1ac0`
+- Parent canonical Quality: `34684497701 = SUCCESS`
+- Promoted worker product candidate: `postmerge/backend@ef2e5ca7468de3b32e19f877934fad228412e8ec`
+- Exact Backend Focused Candidate: `34683635290 = SUCCESS`
+- Exact canonical Quality: `34683635273 = SUCCESS`
 
 ## Integrated bounded slice
 
-Only the self-contained direct-user orphan Knowledge slice and its direct focused tests are integrated:
+Only the verified durable schedule-definition and deterministic occurrence-identity primitive is integrated:
 
-- `src/athena/knowledge/orphan_knowledge.py`
-- `tests/unit/test_orphan_knowledge.py`
+- `src/athena/jobs/schedule_policy.py`
+- `src/athena/jobs/schedule_definition.py`
+- `tests/unit/test_schedule_policy.py`
+- `tests/unit/test_schedule_definition.py`
 
-The current worker head is exactly the verified candidate. Comparison against current Develop is exactly these two added Core-owned files; no worker history, Backend, Storage, Recovery, Security, Qt/UI, CI, visual-ledger, or unrelated documentation mutation is imported.
+The slice defines immutable `ScheduleDefinition`, deterministic `occurrence_id(schedule_id, scheduled_at_us)`, and the four normative missed-run policies `skip`, `run_once`, `backfill_all`, and `backfill_bounded`. It remains persistence-agnostic: no queue persistence, lease/fencing, scheduler dispatch, Storage/Recovery schema, or UI behavior is introduced.
 
-`create_orphan_user_knowledge()` supports canonical direct-user Knowledge such as decisions without fabricating an external Source. It still uses the normal Knowledge repository and provenance record, leaves provenance inputs explicitly empty, attributes the revision to the real actor, and rejects malformed repository/actor/draft runtime boundaries before a write.
+The current Develop parent is canonical-green and disjoint from this Jobs slice. No worker history is merged; only the four bounded product/test blobs are imported.
 
 ## Current evidence rules
 
+- Current Error handoff reports no OPEN, IN_PROGRESS, or FIXED_PENDING_VERIFY error clusters; historical signatures are not reopened without current exact-SHA reproduction.
 - `docs/agent_logs/ERROR_LEDGER.md` is historical relative to current Develop and is not the sole authority for current OPEN state.
-- `ALPHA_BETA_PROGRESS.md` is not present at the checked root or `docs/agent_logs` locations on current Develop; no completion percentage is invented.
+- `ALPHA_BETA_PROGRESS.md` is not present at the checked root or `docs/agent_logs` locations; no completion percentage is invented.
 - The eleven-screen manifest remains fail-closed: all eleven slots are `IMPLEMENTED_PENDING_VISUAL_REVIEW`; `MATCH` requires an opened original reference and a real exact-SHA render.
-- Backend and UI candidates were not promoted without complete current exact-head canonical evidence.
+- UI visual-harness work is not promoted without exact focused/canonical evidence plus truthful visual evidence.
 
 ## Persistent release guards
 
