@@ -16,6 +16,11 @@ $uv = Get-Command uv -ErrorAction SilentlyContinue
 if ($null -eq $uv) {
     throw "uv is required to build the supported pATHENA Windows package."
 }
+$packagingSafety = Join-Path $PSScriptRoot "windows_packaging_safety.ps1"
+if (-not (Test-Path -LiteralPath $packagingSafety -PathType Leaf)) {
+    throw "Windows packaging safety helper is missing: $packagingSafety"
+}
+. $packagingSafety
 
 function Invoke-PathenaPyInstaller {
     param(
@@ -54,6 +59,18 @@ function Invoke-PathenaPyInstaller {
 
 Push-Location $repoRoot
 try {
+    $defaultOutput = Join-Path $repoRoot "dist\windows-portable"
+    $resolvedOutput = if ([string]::IsNullOrWhiteSpace($OutputRoot)) {
+        $defaultOutput
+    }
+    else {
+        [System.IO.Path]::GetFullPath($OutputRoot)
+    }
+    $resolvedOutput = Assert-PathenaPortableOutputRoot `
+        -RepoRoot $repoRoot `
+        -OutputRoot $resolvedOutput `
+        -DefaultOutputRoot $defaultOutput
+
     if (-not (Test-Path -LiteralPath $python -PathType Leaf)) {
         & $uv.Source sync --locked --extra desktop
         if ($LASTEXITCODE -ne 0) {
@@ -68,12 +85,6 @@ try {
         throw "Pinned PyInstaller installation failed."
     }
 
-    $resolvedOutput = if ([string]::IsNullOrWhiteSpace($OutputRoot)) {
-        Join-Path $repoRoot "dist\windows-portable"
-    }
-    else {
-        [System.IO.Path]::GetFullPath($OutputRoot)
-    }
     $workRoot = Join-Path $repoRoot "build\windows-portable"
     $specRoot = Join-Path $repoRoot "build\windows-portable-spec"
     $workerDist = Join-Path $repoRoot "build\windows-portable-worker-dist"
@@ -84,6 +95,7 @@ try {
         }
         New-Item -ItemType Directory -Path $path -Force | Out-Null
     }
+    Set-PathenaPortableOutputOwnershipMarker -OutputRoot $resolvedOutput
 
     Invoke-PathenaPyInstaller `
         -Name "pATHENA" `
