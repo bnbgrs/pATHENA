@@ -8,7 +8,9 @@ from athena.knowledge.models import (
     KnowledgeUnitDraft,
     KnowledgeUnitRevision,
 )
-from athena.knowledge.revision_change_explanation import explain_knowledge_revision_change
+from athena.knowledge.revision_change_explanation import (
+    explain_knowledge_revision_change,
+)
 
 
 KNOWLEDGE_ID = uuid.UUID("00000000-0000-7000-8000-000000000001")

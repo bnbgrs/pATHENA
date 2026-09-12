@@ -4,28 +4,28 @@ Evidence-only progress register for `develop/pathena-next`. This file intentiona
 
 ## Current baseline
 
-- Develop parent before the current integration: `db159a068a5de1ca8cd302a5ea436f3f07889d9f`.
-- Exact parent canonical Quality: `34700628139 = SUCCESS`.
+- Develop parent before the current integration: `452547ab46c5d8c678c22c3e1fb9d34652b653fd`.
+- Exact parent canonical Quality: `34703645964 = SUCCESS`.
 - Current worker heads checked:
-  - Errors: `9c634dccc829b1a822288afc99ab0339d77efbb1`
-  - Spec/Core: `1f61104959dc6a7d7fcff6051fb013f5f6894706`
-  - Backend: `6fcfdf8a71abcabad7e3b4a661ad35ee1f6603f8`
-  - UI: `4898bceb9a5af98e1a044eb656714ce03be5e2a4`
+  - Errors: `93be775e26a73a57a67fc3ca6d94a65348793e00`
+  - Spec/Core: `39360af3da29101e3038447121ad8d80d11b9f07`
+  - Backend: `c98263ffd225d62525b859b041652922b3f07c69`
+  - UI: `8f28414d1d8649796f1e6ea2e82abf43370e7328`
 
 ## Current integration state
 
 - Durable schedule identity primitives and scheduled-job materialization remain integrated on Develop.
-- Spec/Core source-free user Knowledge and user-correction conflict visibility remain integrated.
-- Fail-closed release-readiness assessment and its Ruff repair remain integrated.
-- Current integration adds truthful Knowledge provenance explanation from exact-green Spec/Core head `1f61104959dc6a7d7fcff6051fb013f5f6894706`, backed by Core Focused Candidate `34701843776 = SUCCESS` and canonical Quality `34701843759 = SUCCESS`.
-- The new projection does not invent source metadata: revisions with no recorded provenance inputs state that explicitly.
+- Source-free user Knowledge, user-correction conflict visibility, and truthful Knowledge provenance explanation remain integrated.
+- Fail-closed release-readiness assessment remains integrated.
+- Current integration adds durable schedule recovery enumeration from Backend exact `c98263ffd225d62525b859b041652922b3f07c69`, backed by Backend Focused Candidate `34705432550 = SUCCESS` and canonical Quality `34705432539 = SUCCESS`.
+- Recovery reconciles deterministic occurrence IDs against durable jobs before applying missed-run policy; identity collisions fail closed.
 
 ## Worker readiness snapshot
 
-- Spec/Core provenance explanation is the current bounded READY slice and is integrated here.
-- Errors current head is evidence/handoff maintenance; no independent Error-owned product mutation is required for this slice.
-- Backend current head does not present a higher-priority new verified prerequisite for this integration.
-- UI current head is synchronized before further workspace hierarchy work; visual and candidate readiness remain separate from this Core slice.
+- Backend schedule-recovery slice is exact-green and integrated here.
+- Spec/Core current head is blocked by exact red focused and canonical runs.
+- UI current head is not READY: focused evidence is red and canonical evidence was incomplete at qualification time.
+- Errors current head is evidence/handoff maintenance only.
 
 ## Error and visual truth rules
 
