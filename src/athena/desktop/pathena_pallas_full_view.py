@@ -26,7 +26,7 @@ class PallasFullViewController(QObject):
         self._workspace: PallasWorkspace | None = None
         self._center = window.findChild(QFrame, "conversation")
         self._reference_body = window.findChild(QFrame, "referenceBody")
-        self._body_layout = (
+        body_layout = (
             self._reference_body.layout() if self._reference_body is not None else None
         )
         self._navigation = getattr(window, "navigation", None)
@@ -34,10 +34,11 @@ class PallasFullViewController(QObject):
         self._viewport = grounded_controller.field.canvas.viewport()
         self._viewport.installEventFilter(self)
 
-        if not isinstance(self._body_layout, QHBoxLayout) or self._center is None:
+        if not isinstance(body_layout, QHBoxLayout) or self._center is None:
             raise RuntimeError(
                 "PALLAS full view requires the reference shell body and conversation host."
             )
+        self._body_layout = body_layout
         if isinstance(self._navigation, QListWidget):
             self._navigation.currentRowChanged.connect(self._on_navigation_changed)
 
