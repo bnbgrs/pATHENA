@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import os
 import sqlite3
 from collections.abc import Callable, Iterator
 from contextlib import contextmanager
@@ -16,14 +15,7 @@ from athena.storage.connection_policy import (
     apply_and_verify_connection_policy,
     validated_busy_timeout_ms,
 )
-from athena.storage.recovery import (
-    DatabaseFileSetIdentity,
-    DatabasePreflightReport,
-    DatabaseStartupIdentityChangedError,
-    assert_database_file_set_identity,
-    capture_database_file_set_identity,
-    inspect_database_read_only,
-)
+from athena.storage.recovery import inspect_database_read_only
 from athena.storage.schema import initialize_schema
 
 _ReadResultT = TypeVar("_ReadResultT")
@@ -80,7 +72,6 @@ class SQLiteDatabase:
         self.busy_timeout_ms = validated_busy_timeout_ms(busy_timeout_ms)
         self._connection: sqlite3.Connection | None = None
         self._noncritical_write_gate: _WriteGate | None = None
-        self._startup_preflight: DatabasePreflightReport | None = None
 
     @property
     def connection(self) -> sqlite3.Connection:
@@ -98,61 +89,11 @@ class SQLiteDatabase:
             )
         self._noncritical_write_gate = gate
 
-    def bind_startup_preflight(self, preflight: DatabasePreflightReport) -> None:
-        """Carry one accepted bootstrap preflight into the live-writer transition."""
-        if not isinstance(preflight, DatabasePreflightReport):
-            raise TypeError("SQLiteDatabase startup preflight must be DatabasePreflightReport.")
-        if self._connection is not None:
-            raise RuntimeError(
-                "SQLiteDatabase startup preflight must be bound before startup."
-            )
-        if preflight.path != self.path.expanduser().absolute():
-            raise ValueError("SQLiteDatabase startup preflight path does not match database path.")
-        self._startup_preflight = preflight
-
-    def _create_missing_primary_exclusively(
-        self,
-        expected: DatabaseFileSetIdentity,
-    ) -> DatabaseFileSetIdentity:
-        """Materialize an absent primary without permitting an intervening adopter."""
-        assert_database_file_set_identity(self.path, expected)
-        flags = os.O_RDWR | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
-        try:
-            descriptor = os.open(self.path, flags, 0o600)
-        except FileExistsError as exc:
-            raise DatabaseStartupIdentityChangedError(
-                "ATHENA database appeared after startup preflight."
-            ) from exc
-        try:
-            os.fsync(descriptor)
-        finally:
-            os.close(descriptor)
-
-        created = capture_database_file_set_identity(self.path)
-        if not created.database.exists:
-            raise DatabaseStartupIdentityChangedError(
-                "ATHENA could not bind the newly created database identity."
-            )
-        if created.wal.exists or created.shm.exists:
-            raise DatabaseStartupIdentityChangedError(
-                "SQLite sidecar appeared while creating the canonical database."
-            )
-        return created
-
     def start(self) -> None:
         if self._connection is not None:
             return
 
-        preflight = self._startup_preflight or inspect_database_read_only(self.path)
-        expected_identity = preflight.file_set_identity
-        if expected_identity is None:
-            raise DatabaseStartupIdentityChangedError(
-                "SQLite writer startup requires an identity-bearing preflight."
-            )
-        assert_database_file_set_identity(self.path, expected_identity)
-
-        if not preflight.exists:
-            expected_identity = self._create_missing_primary_exclusively(expected_identity)
+        inspect_database_read_only(self.path)
 
         connection = sqlite3.connect(
             self.path,
@@ -162,9 +103,6 @@ class SQLiteDatabase:
         connection.row_factory = sqlite3.Row
 
         try:
-            connection.execute("PRAGMA schema_version").fetchone()
-            assert_database_file_set_identity(self.path, expected_identity)
-
             initialize_schema(connection, created_at_us=utc_now_us())
             apply_and_verify_connection_policy(
                 connection,

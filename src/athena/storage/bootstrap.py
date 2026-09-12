@@ -157,6 +157,12 @@ class StorageBootstrapService:
                 executor=self._executor,
             )
 
+        # Disk pressure can worsen after reserve provisioning, especially while
+        # a clone migration temporarily consumes additional bytes. Reassess at
+        # the last possible point before the live SQLite writer is opened. An
+        # EMERGENCY observation releases only the reserve and latches the
+        # controller's read-only safe mode; writable startup must still stop
+        # even if the release raises free space above the threshold.
         self.disk_pressure.check()
         if self.disk_pressure.read_only_safe_mode:
             raise StorageBootstrapReadOnlyRequiredError(
@@ -167,7 +173,6 @@ class StorageBootstrapService:
         self.database.configure_noncritical_write_gate(
             self.disk_pressure.assert_noncritical_write_allowed
         )
-        self.database.bind_startup_preflight(preflight)
         self.database.start()
         self.preflight = preflight
         self.migration_plan = plan

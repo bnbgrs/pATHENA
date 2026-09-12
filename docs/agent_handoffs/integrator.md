@@ -1,44 +1,39 @@
 # Post-Merge Feature Handoff - Integrator
 
-Generated: 2026-09-12T03:53+02:00
+Generated: 2026-09-12T05:52+02:00
 Branch: `develop/pathena-next`
-Run-start HEAD: `eab481a0901423ee5821e9d4101f0a0bbf804ef8`
+Run-start HEAD: `712376f561e10ea8d579fa316e8deca19ce3a7a1`
 
 ## Current evidence
 
-- `main` and `bnbgrs/ATHENA` remain strictly read-only and untouched.
-- Exact Develop canonical Quality `34662951154@eab481a0901423ee5821e9d4101f0a0bbf804ef8 = SUCCESS` before mutation; no newer canonical Develop run was queued or in progress immediately before integration.
-- Current worker heads reviewed: Errors `5da815914dae88dd21d62794fd3dd21bb14562ec`; Spec/Core `acacc2da478d7f7afad4cd44681201268d5b13b3`; Backend `96d31e7bbe9818dfc38123f935b082ca0f622649`; UI `d3de1c9884cf8464dfcadea3d07e352b864a8cbd`.
-- Current Error handoff marks `ERR-0033 / BE-046` as `FIXED_PENDING_VERIFY` and `ERR-0035 / BE-052` as the remaining OPEN Backend-owned P1. Historical `ERR-0038` and `ERR-0039` remain STALE.
-- `docs/agent_logs/ERROR_LEDGER.md` is historical relative to current Develop and is not used as sole current OPEN truth.
+- `main` and `bnbgrs/ATHENA` remained strictly read-only and untouched.
+- Exact Develop canonical Quality `34668822579@712376f561e10ea8d579fa316e8deca19ce3a7a1 = SUCCESS` before mutation.
+- Worker heads reviewed: Errors `be3d01227f4d60678b4ab803fd515a2fddd26fec`; Spec/Core `ea4211fe5a375698c72dbfdd1d2a5778ea2df0dd`; Backend `7c1af4402aed6c86c41fcc5eddbaab6a845445a8`; UI `dce6d463b17474ec2da702a14b7a4365123df45d`.
+- Fresh Error handoff closes `ERR-0033 / BE-046` as FIXED and keeps `ERR-0035 / BE-052` OPEN/P1/Backend-owned; no Storage/Recovery root-cause was mutated here.
 - Root `ALPHA_BETA_PROGRESS.md` remains absent; no synthetic completion percentage is recorded.
-- Visual source of truth remains `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` plus `docs/ui/VISUAL_GAP_LEDGER.md`; all eleven slots remain `IMPLEMENTED_PENDING_VISUAL_REVIEW`, with no screenshot-level `MATCH` claim absent approved reference/current-render pairing.
+- Visual source of truth remains the 11-screen manifest plus Visual-Gap ledger; no screenshot-level MATCH is asserted without approved reference/current-render evidence.
 
-## Integrated bounded slice — BE-046 POSIX emergency reserve reclamation
+## Integrated bounded slice
 
-Selected exact product candidate `b595c960a747d9805b0865ea9f7237094318b706` (`fix(storage): fail closed on unproven emergency reserve reclamation`). Its exact canonical Quality `34662086156` completed SUCCESS and focused candidate `34662086028` completed SUCCESS. The later Backend head `96d31e7bbe9818dfc38123f935b082ca0f622649` is documentation-only and explicitly promotes this exact-green candidate.
+Spec/Core exact `ea4211fe5a375698c72dbfdd1d2a5778ea2df0dd` is READY with canonical Quality `34667286138 = SUCCESS` and Core Focused Candidate `34667286211 = SUCCESS`.
 
-Only these product/test files are imported:
+The current delta from Develop is exactly:
+- `src/athena/knowledge/claim_service.py`
+- `tests/unit/test_claim_contradiction_resolution.py`
 
-- `src/athena/storage/emergency_reserve.py`
-- `tests/unit/test_emergency_reserve.py`
+The slice adds explicit user-driven contradiction resolution. A claim must carry concrete `CONTRADICTS` evidence; the requested target must be a valid non-CONTRADICTED `EpistemicStatus`; no-op status revisions are rejected. Resolution creates a new revision while preserving claim identity, statement, semantic fields, temporal bounds and the existing contradiction evidence history.
 
-Baseline compatibility is explicit: comparing `5db4c92f40d5d14119a991796be38fb9248072de` to candidate `b595c960...` yields only those two modified files. Current Develop differs from that same base only by `.github/workflows/storage-focused-candidate.yml` and this Integrator handoff, so the candidate does not overwrite intervening product code.
-
-The POSIX release path now fails closed on physical-reclamation accounting: it binds the reserve pathname and open descriptor to the same regular-file identity, rejects additional hardlinks, preserves directory identity across unlink, and returns zero reclaimed bytes where portable proof of physical reclamation is unavailable because another process may retain the unlinked inode. Adversarial tests cover a foreign open descriptor, extra hardlinks, and reserve-leaf substitution.
-
-No Storage/Recovery/Security guard, assertion, packaging invariant, Windows lane or test was weakened. BE-052 remains Backend-owned and untouched.
+No Worker history is merged. Only the two bounded files above plus this handoff are placed on the current Develop tree.
 
 ## Persistent release guards
 
 - pypdf packaging, fail-closed Frozen argv, Desktop/Worker two-EXE topology, one Desktop instance with bounded workers, adaptive 2048-context Chat reserve, Windows lane-lock/path-safety, duplicate-column/Core-startup/storage-bootstrap protections remain unchanged.
-- No Skip/XFail, assertion relaxation, Storage/Recovery/Security weakening or visual threshold reduction was introduced.
+- No Skip/XFail, assertion relaxation, Storage/Recovery/Security weakening, canonical Quality reduction or visual threshold reduction was introduced.
 - Historical signatures are not reopened without exact-current reproduction.
 
 ## Next integration
 
 1. Consume canonical Quality for the resulting exact Develop SHA before any further Develop mutation.
-2. If exact Develop verification is green, ERR-0033 may advance from `FIXED_PENDING_VERIFY` based on fresh Error-worker evidence; do not predeclare it FIXED here.
-3. Re-read all worker heads and exact-SHA evidence before selecting the next slice.
-4. Keep `ERR-0035 / BE-052` Backend-owned and conservative.
-5. Preserve visual `MATCH` fail-closed requirements.
+2. Re-read all worker heads after that gate completes; do not reuse stale worker SHAs.
+3. Prefer the highest-impact exact-verified prerequisite, conservatively treating Backend Storage/Recovery candidates.
+4. Keep visual MATCH fail-closed and all persistent release guards intact.
