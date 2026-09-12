@@ -2,12 +2,14 @@
 
 ## Baseline
 
-- Develop source of truth: `develop/pathena-next@cec77b6f8b64ec0bdf29cb546d8db4e1cf16ae80`.
-- Error worker entered this run at `postmerge/errors@a762c0e5aebb7e015b8bfe66856de8ea5e35c48a`.
-- Current workers: Spec/Core `58d76e1e3d7ce1723ca4a75a8cc0608185fae7e8`; Backend `f99f352050cbbcda889cd2a528d95c415992f3ec`; UI `67994fd72ba9f496b50aa407b36d789a4edfb804`.
-- Exact-current Develop canonical Quality `34676594675@cec77b6f8b64ec0bdf29cb546d8db4e1cf16ae80 = IN_PROGRESS`; no competing canonical run was started.
-- Previous Develop exact `4dbefe2167b28bffab2c6b69b7a8df4b43770a6f`: canonical `34674406807 = SUCCESS`.
-- Backend exact `f99f352050cbbcda889cd2a528d95c415992f3ec`: Backend Focused `34675706783 = SUCCESS`; canonical `34675706788 = FAILURE` with specification validator, Ruff, mypy, Windows path safety, Linux storage regressions and Local install green, and full pytest red.
+- Develop source of truth: `develop/pathena-next@28b9585b49bf632401340735f05de20d95a70ead`.
+- Error worker entered this run at `postmerge/errors@2ca073c51acb726918cfe396ad4baa75a65ee80e`.
+- Current workers: Spec/Core `8ee183e14ed2527d254def4946ce0b79104f1afa`; Backend `0ce1a70d421b41cd0ca4441399d97c82b9849285`; UI `f37b923b6f64f9c75d63febe64aef6c29147069f`.
+- Exact-current Develop canonical Quality `34679217397@28b9585b49bf632401340735f05de20d95a70ead = IN_PROGRESS`; no competing canonical run was started.
+- Previous Develop exact `cec77b6f8b64ec0bdf29cb546d8db4e1cf16ae80`: canonical `34676594675 = SUCCESS`.
+- Backend exact `0ce1a70d421b41cd0ca4441399d97c82b9849285`: Backend Focused `34678280408 = SUCCESS`; canonical `34678280400 = SUCCESS`.
+- Spec/Core exact `8ee183e14ed2527d254def4946ce0b79104f1afa`: Core Focused `34677902970 = SUCCESS`; canonical `34677903014 = IN_PROGRESS` when observed.
+- UI exact `f37b923b6f64f9c75d63febe64aef6c29147069f`: UI Focused `34678773685 = SUCCESS`; canonical `34678773688 = PENDING` when observed.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current error state
@@ -19,25 +21,23 @@
 - STALE includes historical `ERR-0038` and `ERR-0039`.
 - BLOCKED: none.
 
-## Hard progress this run — ERR-0035 remains current on a newer exact Backend SHA
+## Hard progress this run — ERR-0035 is now proven outside current canonical coverage
 
 ### ERR-0035 — SQLite preflight-to-writer DB/WAL/SHM identity continuity
 
 Status: `OPEN / P1 / Backend BE-052 owned`.
 
-The active Backend head advanced to `f99f352050cbbcda889cd2a528d95c415992f3ec`. Direct source inspection still shows the BE-052 protection absent: `SQLiteDatabase.start()` calls `inspect_database_read_only(self.path)` and then opens `sqlite3.connect()` independently. No identity-bearing DB/WAL/SHM token is retained across that transition, and no before/after writer identity assertion is present.
+The active Backend head advanced to `0ce1a70d421b41cd0ca4441399d97c82b9849285`. Direct exact-head source inspection still shows the BE-052 protection absent: `SQLiteDatabase.start()` calls `inspect_database_read_only(self.path)` and then opens `sqlite3.connect()` independently. No identity-bearing DB/WAL/SHM token is retained across that transition, and no before/after writer identity assertion is present.
 
-The dedicated adversarial regression file `tests/unit/test_database_startup_identity.py` is still absent on the current exact Backend head (`404 Not Found`). Therefore canonical pytest cannot be treated as BE-052 closure evidence until equivalent exact startup-identity coverage is restored.
+The dedicated adversarial regression file `tests/unit/test_database_startup_identity.py` is still absent on this exact Backend head (`404 Not Found`).
 
-The exact comparison from prior reproducer `a8b30e42a22225728c3b9f6efcb3fceba3ee2315` to current `f99f3520...` is one commit and changes only `src/athena/jobs/schedule_policy.py` by adding `strict=True` to `zip()`. No Storage/Recovery file changed. This makes the current reproduction stronger than a stale historical inference: the same missing startup guard is present on the active Backend SHA, unchanged by the only intervening commit.
+### New closure-relevant evidence
 
-### CI interpretation
+Backend Focused `34678280408@0ce1a70d... = SUCCESS` and canonical Quality `34678280400@0ce1a70d... = SUCCESS`.
 
-Backend Focused `34675706783@f99f3520... = SUCCESS`.
+This is not closure for BE-052. It is stronger evidence about the current validation gap: the same exact SHA is canonical green while both the startup identity guard and its dedicated adversarial test are absent. Therefore current canonical Quality does not cover this release invariant and must not be used to promote `ERR-0035` to `FIXED_PENDING_VERIFY` or `FIXED`.
 
-Canonical Quality `34675706788@f99f3520... = FAILURE`. In its Python quality job, specification validator, Ruff and mypy are green; only the full pytest step fails. Windows path safety, Linux storage regressions and Local install are independently green. The run uploaded `canonical-quality-diagnostics-f99f352050cbbcda889cd2a528d95c415992f3ec`. This run does not assert an unobserved failing-test name.
-
-This means the previous Ruff-only integration blocker was corrected, but BE-052 is still independently OPEN because the exact source guard and its adversarial test coverage remain absent. The candidate is not integration-ready.
+This run makes no claim that the canonical workflow itself is defective in general; the precise claim is narrower: current exact-SHA canonical success is insufficient evidence for this particular removed DB/WAL/SHM startup-identity invariant.
 
 ### Required owner correction
 
@@ -50,7 +50,7 @@ Backend should restore, not weaken, the startup identity invariant:
 5. after an authorized controlled migration, acquire a fresh post-migration identity-bearing preflight and bind that fresh token to writer startup;
 6. restore adversarial startup-identity tests for primary replacement and WAL/SHM sidecar creation/replacement races.
 
-Focused verification must start with the restored startup-identity suite and the two controlled-migration regressions previously exposed by canonical Quality, followed by the smallest storage/bootstrap set, Backend Focused, then canonical Quality on one unchanged exact Backend SHA.
+Focused verification must start with the restored startup-identity suite and controlled-migration regressions, followed by the smallest storage/bootstrap set, Backend Focused, then canonical Quality on one unchanged exact Backend SHA.
 
 Errors did not patch Backend product code because Backend actively owns BE-052.
 
@@ -62,17 +62,17 @@ Errors did not patch Backend product code because Backend actively owns BE-052.
 
 ## CI discipline
 
-- `postmerge/errors@a762c0e5aebb7e015b8bfe66856de8ea5e35c48a` had zero workflow runs before the ledger mutation.
-- After ledger commit `a398d5b5ce118fdb560fad1d027a5221244c4703`, the Error branch again had zero workflow runs before this handoff mutation.
+- `postmerge/errors@2ca073c51acb726918cfe396ad4baa75a65ee80e` had zero workflow runs before the ledger mutation.
+- After ledger commit `3af8ee0311cfa8d9de85036d2d25ad03799fef39`, the Error branch again had zero workflow runs before this handoff mutation.
 - Errors started no canonical Quality run and did not mutate Develop, Backend, Spec/Core, UI, `main`, or `bnbgrs/ATHENA`.
-- Develop canonical `34676594675` was left running untouched.
+- Develop canonical `34679217397` was left running untouched.
 
 ## Integrator handoff
 
-- Develop: `cec77b6f8b64ec0bdf29cb546d8db4e1cf16ae80`; canonical `34676594675 = IN_PROGRESS`.
-- Spec/Core: `58d76e1e3d7ce1723ca4a75a8cc0608185fae7e8`.
-- Backend: `f99f352050cbbcda889cd2a528d95c415992f3ec`; canonical `34675706788 = FAILURE`; Backend Focused `34675706783 = SUCCESS`; **NOT integration-ready** because BE-052 startup identity protection and its dedicated regression test remain absent on the current exact head.
-- UI: `67994fd72ba9f496b50aa407b36d789a4edfb804`.
+- Develop: `28b9585b49bf632401340735f05de20d95a70ead`; canonical `34679217397 = IN_PROGRESS` at observation time.
+- Spec/Core: `8ee183e14ed2527d254def4946ce0b79104f1afa`; focused green, canonical still running when observed.
+- Backend: `0ce1a70d421b41cd0ca4441399d97c82b9849285`; canonical `34678280400 = SUCCESS`; Backend Focused `34678280408 = SUCCESS`; **NOT integration-ready for BE-052 closure** because the startup identity protection and its dedicated regression test remain absent on the same exact green head.
+- UI: `f37b923b6f64f9c75d63febe64aef6c29147069f`; focused green, canonical pending when observed.
 - `ERR-0035 = OPEN / P1`: current exact Backend source still lacks preflight→writer DB/WAL/SHM identity binding. Restore the guard and solve controlled migration with a fresh post-migration identity token.
 - `ERR-0033 = FIXED / P1`.
 - `ERR-0039 = STALE`; `ERR-0038 = STALE`.
