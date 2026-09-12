@@ -1,0 +1,82 @@
+name: pATHENA Windows Runtime Boundary
+
+on:
+  push:
+    branches:
+      - develop/pathena-next
+    paths:
+      - "scripts/windows_common.ps1"
+      - "scripts/check_windows.ps1"
+      - "tests/unit/test_windows_runtime_root_boundary.py"
+      - "tests/unit/test_windows_check_script_contract.py"
+      - ".github/workflows/windows-runtime-boundary.yml"
+  pull_request:
+    paths:
+      - "scripts/windows_common.ps1"
+      - "scripts/check_windows.ps1"
+      - "tests/unit/test_windows_runtime_root_boundary.py"
+      - "tests/unit/test_windows_check_script_contract.py"
+      - ".github/workflows/windows-runtime-boundary.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pathena-windows-runtime-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: false
+
+env:
+  CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+
+jobs:
+  windows-runtime-boundary:
+    name: Native Windows runtime boundary and wrapper
+    runs-on: windows-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Check out exact candidate
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ env.CANDIDATE_SHA }}
+          persist-credentials: false
+
+      - name: Prove checked-out identity
+        shell: pwsh
+        run: |
+          $actual = (git rev-parse HEAD).Trim().ToLowerInvariant()
+          $expected = "$env:CANDIDATE_SHA".Trim().ToLowerInvariant()
+          if ($actual -ne $expected) {
+            throw "Checked out $actual instead of exact candidate $expected."
+          }
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install pinned resolver
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check "pip==26.1.2"
+          python -m pip install --disable-pip-version-check "uv==0.11.21"
+
+      - name: Validate dependency lock
+        run: uv lock --check
+
+      - name: Synchronize locked diagnostic environment
+        run: uv sync --locked --extra dev --extra desktop
+
+      - name: Run native runtime-root boundary regressions
+        run: uv run --locked --extra dev --extra desktop --no-sync pytest -q tests/unit/test_windows_runtime_root_boundary.py tests/unit/test_windows_check_script_contract.py
+
+      - name: Execute supported Windows diagnostic wrapper
+        shell: pwsh
+        run: |
+          $env:ATHENA_LOCAL_ROOT = Join-Path $env:RUNNER_TEMP "pathena-quality-state"
+          $smokeRoot = Join-Path $env:RUNNER_TEMP "pathena-quality-wrapper-smoke"
+          & .\scripts\check_windows.ps1 -NoSync -SmokeRoot $smokeRoot -RestartCycles 1
+          if ($LASTEXITCODE -ne 0) {
+            throw "check_windows.ps1 failed with exit code $LASTEXITCODE."
+          }
