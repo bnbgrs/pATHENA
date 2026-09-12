@@ -4,23 +4,24 @@ Evidence-only progress register for `develop/pathena-next`. This file intentiona
 
 ## Current baseline
 
-- Develop parent before current integration: `915668a376390d86fb333291f555eb804dfa4358`.
-- Exact parent canonical Quality `34718446158 = FAILURE`; Windows path safety, Linux storage regressions and Local install smoke were green, while Python quality failed only in full pytest after specification validator, Ruff and mypy passed.
-- Worker heads checked: Errors `58922ab89a6ce6f7d5bf24b9012d9a0fa8c48018`; Spec/Core `2d92eec5c63234ab2af85ac8a06617043723a707`; Backend `0ca66fceb78bf7744f12029430780c7cb20be72f`; UI `8b38c1a501789cbfb7c76b1ee1acef999270fa13`.
+- Develop parent before current integration: `1213c49a391f4ffed6f64d63bcf1527a21adf071`.
+- Exact parent canonical Quality `34721255765 = SUCCESS`.
+- Worker heads checked: Errors `6cc64cb75cf1e419051de7384a2c45ffcf834881`; Spec/Core `bd97e30adbd2a5fd2e41dbd4dcaa79e3d099943e`; Backend `e4103c5b29e610dcda7618082cb77eaab0850264`; UI `c7422f47c18fba9ad3dd8b1e49eb64448aa23c24`.
 
 ## Current integration state
 
 - Durable schedule identity, materialization, recovery and deterministic versioned schedule serialization remain integrated.
-- Current regression closure carries the Backend correction for validated complete WAL+SHM withdrawal while retaining fail-closed rejection of partial sidecar changes, foreign identities and primary replacement.
-- Source-free user Knowledge, correction conflict visibility, truthful provenance explanation and fail-closed release-readiness assessment remain integrated.
-- Core Focused candidate selection/regression guards remain integrated.
+- Validated complete WAL+SHM withdrawal remains accepted only with unchanged primary database identity; partial or foreign identity changes remain fail-closed.
+- Truthful Knowledge provenance explanation is integrated and now gains a transport-neutral API projection backed only by the recorded current revision and its provenance inputs.
+- Direct Knowledge revision-change explanation is integrated with explicit adjacency, identity and timestamp invariants and without fabricated reasons.
+- Source-free user Knowledge, correction conflict visibility, fail-closed release-readiness assessment and Core-Focused candidate regression guards remain integrated.
 
 ## Exact Worker evidence
 
-- Backend `0ca66fceb78bf7744f12029430780c7cb20be72f`: effective content delta versus current Develop is only `src/athena/storage/database.py` plus `tests/unit/test_storage_database_startup_identity.py`; Storage Focused `34720329575 = SUCCESS`; canonical Quality `34720329568 = SUCCESS`.
-- Spec/Core `2d92eec5c63234ab2af85ac8a06617043723a707`: newer product head; exact-current Core/canonical qualification must be consumed before promotion.
-- UI `8b38c1a501789cbfb7c76b1ee1acef999270fa13`: synchronization head is not itself a bounded product candidate.
-- Errors `58922ab89a6ce6f7d5bf24b9012d9a0fa8c48018`: current handoff is diagnostic; newer exact-SHA workflow evidence takes precedence over historical ledger state.
+- Spec/Core `bd97e30adbd2a5fd2e41dbd4dcaa79e3d099943e`: Core Focused `34722264650 = SUCCESS`; canonical Quality `34722264705 = SUCCESS`; effective product/test delta versus current Develop is four additive files covering Knowledge provenance API projection and revision-change explanation.
+- Backend `e4103c5b29e610dcda7618082cb77eaab0850264`: current synchronization head; no independent Backend product delta selected in this integration.
+- UI `c7422f47c18fba9ad3dd8b1e49eb64448aa23c24`: synchronization head; visual parity remains separately evidence-gated.
+- Errors `6cc64cb75cf1e419051de7384a2c45ffcf834881`: current handoff keeps `ERR-0042` pending integrated verification and `ERR-0046` open as a Core-Focused ownership-selection issue; newer exact-SHA workflow evidence takes precedence over the historical ledger.
 
 ## Error and visual truth rules
 
@@ -36,4 +37,4 @@ Do not relax: pypdf packaging; fail-closed Frozen argv; Desktop/Worker two-EXE s
 
 `PROMOTION_READY=NO`
 
-Develop becomes Beta/Release-ready only after exact-current canonical Quality plus the known Windows/Packaging/Runtime regression matrix are green.
+The newly integrated Core slices require exact-current Develop canonical Quality before they are considered integrated-green. Develop becomes Beta/Release-ready only after exact-current canonical Quality plus the known Windows/Packaging/Runtime regression matrix are green.
