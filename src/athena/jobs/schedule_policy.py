@@ -27,7 +27,10 @@ def _canonical_occurrences(values: Iterable[int]) -> tuple[int, ...]:
     occurrences = tuple(
         _timestamp_us(value, field_name="scheduled occurrence") for value in values
     )
-    if any(left >= right for left, right in zip(occurrences, occurrences[1:])):
+    if any(
+        left >= right
+        for left, right in zip(occurrences, occurrences[1:], strict=True)
+    ):
         raise ValueError("Scheduled occurrences must be strictly increasing and unique.")
     return occurrences
 
