@@ -3,29 +3,31 @@
 ## Current integration
 
 - Integration target: `develop/pathena-next`.
-- Develop parent before this integration: `452547ab46c5d8c678c22c3e1fb9d34652b653fd`.
-- Exact parent canonical Quality: `34703645964 = SUCCESS`.
-- Worker heads checked: Errors `93be775e26a73a57a67fc3ca6d94a65348793e00`; Spec/Core `39360af3da29101e3038447121ad8d80d11b9f07`; Backend `c98263ffd225d62525b859b041652922b3f07c69`; UI `8f28414d1d8649796f1e6ea2e82abf43370e7328`.
+- Develop parent before this integration: `522a01050dba5b4dafa81d60573bd185a8e7e15b`.
+- Exact parent canonical Quality: `34712404459 = FAILURE`.
+- Exact failure classification: Windows path safety, Linux storage regressions, Local install smoke and full pytest passed; Python quality failed only at Ruff with `I001` in `tests/unit/test_core_focused_candidate_workflow.py`.
+- Worker heads checked: Errors `cc856567b5e7c05c8b36e919cddb7808476f366a`; Spec/Core `9f2052b9c10668ad9eeeb2857dbcbb25145cc832`; Backend `365df03a040cb9dffddf6f942ae61a2cdb8dc375`; UI `6bc46a2464344d56ca00461df30ba4a619437498`.
+
+## Iteration 1 — current Develop regression closure
+
+The previous integration added a regression test for the Core Focused candidate workflow. Canonical Ruff identified one exact import-block formatting defect in that new test. This integration changes formatting only: the extra blank line after the sole import is removed so the file satisfies Ruff I001. Test assertions and workflow guard semantics are unchanged.
+
+No Product, Storage, Recovery, Security, UI, packaging, runtime-topology, Skip/XFail, assertion, or canonical-gate semantics are relaxed.
 
 ## Worker qualification
 
-- Backend exact `c98263ffd225d62525b859b041652922b3f07c69`: Backend Focused Candidate `34705432550 = SUCCESS`; canonical Quality `34705432539 = SUCCESS`. Compared with current Develop, the bounded product delta is only `src/athena/jobs/schedule_recovery.py` and `tests/unit/test_schedule_recovery.py`. READY and integrated.
-- Spec/Core exact `39360af3da29101e3038447121ad8d80d11b9f07`: Core Focused Candidate `34704710587 = FAILURE`; canonical Quality `34704710609 = FAILURE`. NOT READY.
-- UI exact `8f28414d1d8649796f1e6ea2e82abf43370e7328`: Core Focused Candidate is red and canonical Quality was still running at qualification time. NOT READY.
-- Errors current head is evidence/handoff maintenance; no independent Error-owned product mutation is imported.
-
-## Integrated bounded slice
-
-Integrated durable schedule recovery enumeration. Recovery first derives due occurrences, reconciles them against the deterministic persisted occurrence job identity, fails closed if an existing identity is bound to another job type or actor, then applies the configured missed-run policy only to still-missing occurrences. Disabled schedules return no recoverable work; future occurrences are excluded by the existing schedule-policy boundary.
-
-The slice does not change schema, migration, transaction ownership, materialization identity, retry/fencing, Security, UI, packaging or runtime topology.
+- Spec/Core exact `9f2052b9c10668ad9eeeb2857dbcbb25145cc832`: NOT READY. Exact Core Focused and canonical Quality are both red; no stale READY classification is accepted.
+- Backend exact `365df03a040cb9dffddf6f942ae61a2cdb8dc375`: current successor specifically targets the sidecar-free preflight fixture/Storage line. Treat conservatively until exact Storage Focused plus canonical Quality are green on this head.
+- UI exact `6bc46a2464344d56ca00461df30ba4a619437498`: synchronization/head movement alone is not a bounded READY product slice; require exact current UI evidence for any later promotion.
+- Errors exact `cc856567b5e7c05c8b36e919cddb7808476f366a`: diagnostic handoff trails the now-completed Develop run and remains advisory rather than sole truth.
 
 ## Current evidence rules
 
 - `docs/agent_logs/ERROR_LEDGER.md` remains historical relative to current Develop and is not the sole authority for current OPEN state.
 - `docs/agent_logs/ALPHA_BETA_PROGRESS.md` is maintained without invented completion percentages.
 - Historical signatures are not reopened without current exact-SHA reproduction.
-- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` and `docs/ui/VISUAL_GAP_LEDGER.md` remain fail-closed; no screenshot `MATCH` is inferred without opened original reference plus a real exact-SHA render.
+- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` keeps all eleven slots fail-closed at `IMPLEMENTED_PENDING_VISUAL_REVIEW`; no screenshot `MATCH` is inferred without opened original reference plus a real exact-SHA render.
+- `docs/ui/VISUAL_GAP_LEDGER.md` likewise asserts no screenshot-level `MATCH`.
 - Worker candidate evidence superseded by later commits is not accepted without equivalent exact-head evidence.
 
 ## Persistent release guards
