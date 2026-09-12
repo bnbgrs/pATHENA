@@ -9,14 +9,13 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 ## Current baseline
 
 - Develop source of truth: `develop/pathena-next@5eecb5f937de9325a9673df5f1a23d2f1b5e87cf` (`feat(jobs): integrate durable schedule recovery`).
-- Error worker entered this run at `postmerge/errors@93be775e26a73a57a67fc3ca6d94a65348793e00`.
-- Current workers: Spec/Core `39360af3da29101e3038447121ad8d80d11b9f07`; Backend `005dc50b64f72fa143601e6f8d08b2bf39ab701b`; UI `8f28414d1d8649796f1e6ea2e82abf43370e7328`.
-- Current Develop canonical Quality: `34706615596@5eecb5f937de9325a9673df5f1a23d2f1b5e87cf = IN_PROGRESS`; no competing canonical run was started by Errors.
-- Integrated provenance parent `452547ab46c5d8c678c22c3e1fb9d34652b653fd`: canonical Quality `34703645964 = SUCCESS`.
-- Spec/Core exact `39360af3da29101e3038447121ad8d80d11b9f07`: Core Focused Candidate `34704710587 = FAILURE`; canonical Quality `34704710609 = FAILURE`.
-- Backend exact `005dc50b64f72fa143601e6f8d08b2bf39ab701b`: Backend Focused Candidate `34706838538 = SUCCESS`; canonical Quality `34706838573 = IN_PROGRESS` at observation time.
-- UI exact `8f28414d1d8649796f1e6ea2e82abf43370e7328`: UI Focused Candidate `34706004022 = SUCCESS`; canonical Quality `34706004033 = SUCCESS`. The separate Core Focused workflow on this UI SHA is not treated as a UI product failure.
-- `postmerge/errors` had zero workflow runs immediately before this mutation.
+- Error worker entered this run at `postmerge/errors@3f7f5e35b2248688de4203c1f072e8a9cda92dbc`.
+- Current workers: Spec/Core `f86df7dc1b4f4be5aeb2000986eb7965cafa8dcb`; Backend `c5151466928dbe751a2e62c210717d0858a74bd3`; UI `1c6c3475945c7ee0ba4d7514b81dd4d444d843e6`.
+- Current Develop canonical Quality: `34706615596@5eecb5f937de9325a9673df5f1a23d2f1b5e87cf = IN_PROGRESS`; Errors started no competing canonical run.
+- Spec/Core exact `f86df7dc1b4f4be5aeb2000986eb7965cafa8dcb`: Core Focused Candidate `34709904332 = FAILURE`; canonical Quality `34709904327 = IN_PROGRESS` at observation time, with canonical Ruff already failed while specification validator, Windows path safety, Linux storage regressions and Local Install were green.
+- Backend exact `c5151466928dbe751a2e62c210717d0858a74bd3`: Backend Focused Candidate `34708379912 = SUCCESS`; Storage Focused Candidate `34708379880 = FAILURE`; canonical Quality `34708379877 = IN_PROGRESS`. On that canonical run, specification validator, Ruff, mypy, Linux storage regressions, Windows path safety/release guards and Local Install were green while full pytest remained running.
+- UI exact `1c6c3475945c7ee0ba4d7514b81dd4d444d843e6`: canonical Quality `34709115225 = IN_PROGRESS`; a separate Core Focused Candidate `34709115243 = FAILURE`. The Core-focused failure is not classified as an independent UI product defect without exact diagnostics.
+- `postmerge/errors@3f7f5e35b2248688de4203c1f072e8a9cda92dbc` had zero workflow runs immediately before this mutation.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current state
@@ -28,18 +27,30 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - STALE: `ERR-0014`, `ERR-0025`, `ERR-0026`, `ERR-0028`, `ERR-0029`, `ERR-0038`, `ERR-0039`.
 - BLOCKED: none at top level.
 
-## ERR-0042 — Spec/Core revision-change explanation test import-order Ruff blocker
+## ERR-0042 — current Spec/Core Ruff blocker in revision-change slice
 
 - Severity: P1 integration blocker.
 - Status: `OPEN`.
-- Current exact reproducer: `postmerge/spec-core@39360af3da29101e3038447121ad8d80d11b9f07`.
-- Exact CI: Core Focused Candidate `34704710587 = FAILURE`; canonical Quality `34704710609 = FAILURE`.
-- Focused workflow evidence: changed-file Ruff and changed focused unit tests both pass, but the exact remediation-diff guard fails because Ruff would modify the candidate.
-- Canonical diagnostics identify exactly one Ruff error: `I001` at `tests/unit/test_revision_change_explanation.py:1:1`, unsorted/unformatted import block. Canonical specification validation, mypy and full pytest are green; full pytest is `4995 passed, 17 skipped`.
-- Root cause is therefore bounded test-harness formatting drift in the current Core-owned slice, not a runtime, Storage, Recovery, Windows, packaging or Security regression.
-- Ownership: Spec/Core currently owns the slice. Errors must not parallel-edit the Core test while that worker is active.
-- Minimal owner repair: organize only the import block in `tests/unit/test_revision_change_explanation.py`, preserve assertions and product behavior, then rerun Core Focused and canonical Quality on the resulting exact SHA.
-- Closure requirement: exact worker SHA with both Core Focused and canonical Quality `SUCCESS`; after integration, exact Develop canonical `SUCCESS` carrying the repair before `FIXED`.
+- Historical current-run reproducer predecessor: `postmerge/spec-core@39360af3da29101e3038447121ad8d80d11b9f07`, where canonical diagnostics identified Ruff `I001` at `tests/unit/test_revision_change_explanation.py:1:1` and full pytest was `4995 passed, 17 skipped`.
+- Owner attempted repair: `postmerge/spec-core@f86df7dc1b4f4be5aeb2000986eb7965cafa8dcb` (`fix(core): normalize revision change import`). The commit changed only `tests/unit/test_revision_change_explanation.py`, expanding the `revision_change_explanation` import into a parenthesized multiline import and leaving product behavior/assertions unchanged.
+- Exact successor evidence: Core Focused Candidate `34709904332 = FAILURE`. The changed focused unit tests themselves complete successfully, but Ruff outcome remains failure; the remediation-diff step therefore executes and the final focused enforcement fails. This proves the first owner formatting repair is insufficient on the exact successor SHA.
+- Canonical exact successor `34709904327` was still running at observation time, but canonical Ruff had already failed; specification validator, Windows path safety, Linux storage regressions and Local Install were green. No `FIXED_PENDING_VERIFY` or `FIXED` claim is permitted.
+- Current net diff from the PR base `5eecb5f937de9325a9673df5f1a23d2f1b5e87cf` is bounded to `src/athena/knowledge/revision_change_explanation.py` and `tests/unit/test_revision_change_explanation.py`. This remains Core-owned; Errors must not parallel-edit while the worker owns the slice.
+- Required next evidence: consume the exact Ruff diagnostics/remediation for `f86df7dc...`, apply only the exact Ruff-required import correction on Spec/Core, then require Core Focused and canonical Quality `SUCCESS` on one unchanged exact worker SHA; after integration require exact Develop canonical `SUCCESS` before `FIXED`.
+
+## Current exact failures not yet promoted to ERR IDs
+
+### Backend Storage Focused `34708379880@c5151466928dbe751a2e62c210717d0858a74bd3`
+
+- Current and exact, but not yet root-caused enough for a new stable `ERR-*`.
+- The workflow's final enforcement is red while its displayed Ruff, mypy and Storage-test steps are all marked completed/success because those steps use `continue-on-error`; exact step outcome must be taken from the focused diagnostics rather than inferred from display conclusions.
+- Canonical evidence on the same SHA already has Ruff, mypy, Linux storage regressions, Windows release guards and Local Install green; full pytest was still running. Therefore do not classify this as a general Storage/Recovery guard regression without the exact hidden sub-outcome/diagnostic artifact.
+- The candidate product delta is bounded to validated concurrent WAL/SHM publication revalidation plus a focused startup-identity test; no guard weakening may be used to clear the focused failure.
+
+### UI Core Focused `34709115243@1c6c3475945c7ee0ba4d7514b81dd4d444d843e6`
+
+- Current and exact, but not a proven UI product root cause. The Core-focused workflow's Ruff outcome is failure and remediation runs, while focused tests complete; canonical Quality on the same UI SHA remains in progress.
+- UI branch net changes include UI/harness work plus Core-path history relative to its PR base, so the red Core-focused workflow must be diagnosed from exact remediation evidence before creating a UI or Core error ID. Do not duplicate `ERR-0042` without proving the same Ruff signature.
 
 ## ERR-0041 — Spec/Core provenance explanation import-order Ruff blocker
 
@@ -47,8 +58,7 @@ Stable IDs use `ERR-####`. Only reproduced or exact-SHA-evidenced failures are a
 - Status: `FIXED`.
 - Historical reproducer: `postmerge/spec-core@23dc4c79f1e44cd099992eb23636b2c95014c790`; exact root cause was Ruff `I001` at `src/athena/knowledge/provenance_explanation.py:3:1`.
 - Owner repair lineage culminated at `postmerge/spec-core@1f61104959dc6a7d7fcff6051fb013f5f6894706`, with Core Focused Candidate `34701843776 = SUCCESS` and canonical Quality `34701843759 = SUCCESS`.
-- Integrated closure is now real: `34703645964@develop/pathena-next@452547ab46c5d8c678c22c3e1fb9d34652b653fd = SUCCESS`.
-- Do not reopen from older Ruff evidence; require a new current exact-SHA reproduction.
+- Integrated closure: `34703645964@develop/pathena-next@452547ab46c5d8c678c22c3e1fb9d34652b653fd = SUCCESS`.
 
 ## ERR-0040 — Scheduled-materialization test fixture violates canonical SQLite journal-mode invariant
 
