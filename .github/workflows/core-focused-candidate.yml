@@ -6,7 +6,11 @@ on:
       - develop/pathena-next
     paths:
       - "src/athena/knowledge/**"
-      - "tests/unit/**"
+      - "tests/unit/test_claim*.py"
+      - "tests/unit/test_knowledge*.py"
+      - "tests/unit/test_concept_note*.py"
+      - "tests/unit/test_identity_transition*.py"
+      - "tests/unit/test_temporal*.py"
       - ".github/workflows/core-focused-candidate.yml"
 
 permissions:
