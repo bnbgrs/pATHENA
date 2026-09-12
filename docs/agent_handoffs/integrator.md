@@ -3,32 +3,27 @@
 ## Current integration
 
 - Integration target: `develop/pathena-next`
-- Develop parent before this integration: `d173bd714b5f7de9242e1d0b2fff567c439d1ac0`
-- Parent canonical Quality: `34684497701 = SUCCESS`
-- Promoted worker product candidate: `postmerge/backend@ef2e5ca7468de3b32e19f877934fad228412e8ec`
-- Exact Backend Focused Candidate: `34683635290 = SUCCESS`
-- Exact canonical Quality: `34683635273 = SUCCESS`
+- Develop parent before this integration: `63423bccaf9bf5b4049e55998e2d3303f59ecaf7`
+- Parent canonical Quality: `34687050578 = SUCCESS`
+- Worker heads checked: Errors `23b0c22e2b219fd28a44feb94296c883fab75327`; Spec/Core `008345141aac276f9723b536a70497e2dec74b20`; Backend `38a61d5f6b41bd151c3662bd1ef2a5a35f240a87`; UI `51c109f6a0e31f82392be6c5bfe1d7d167377499`.
 
-## Integrated bounded slice
+## Worker qualification
 
-Only the verified durable schedule-definition and deterministic occurrence-identity primitive is integrated:
+- Spec/Core: exact Core Focused Candidate is SUCCESS, but exact canonical Quality remains in progress. Not READY.
+- Backend: exact Backend Focused Candidate is SUCCESS, but exact canonical Quality is FAILURE. Conservative Backend/Jobs promotion is blocked.
+- UI: exact UI Focused Candidate and canonical Quality are SUCCESS, but the branch is heavily diverged from current Develop and exact visual regression is FAILURE. No bounded promotion is asserted from that head.
+- Errors: no new current exact-SHA reproduced blocker is promoted from the historical ledger.
 
-- `src/athena/jobs/schedule_policy.py`
-- `src/athena/jobs/schedule_definition.py`
-- `tests/unit/test_schedule_policy.py`
-- `tests/unit/test_schedule_definition.py`
+## Cross-cutting slice
 
-The slice defines immutable `ScheduleDefinition`, deterministic `occurrence_id(schedule_id, scheduled_at_us)`, and the four normative missed-run policies `skip`, `run_once`, `backfill_all`, and `backfill_bounded`. It remains persistence-agnostic: no queue persistence, lease/fencing, scheduler dispatch, Storage/Recovery schema, or UI behavior is introduced.
-
-The current Develop parent is canonical-green and disjoint from this Jobs slice. No worker history is merged; only the four bounded product/test blobs are imported.
+No worker slice met the current conservative READY bar. This run therefore establishes `docs/agent_logs/ALPHA_BETA_PROGRESS.md` as an evidence-only progress register. It records exact heads/gates and promotion blockers without invented completion percentages. No product, test, guard, Security, Storage, Recovery, Runtime, or UI behavior is changed.
 
 ## Current evidence rules
 
-- Current Error handoff reports no OPEN, IN_PROGRESS, or FIXED_PENDING_VERIFY error clusters; historical signatures are not reopened without current exact-SHA reproduction.
 - `docs/agent_logs/ERROR_LEDGER.md` is historical relative to current Develop and is not the sole authority for current OPEN state.
-- `ALPHA_BETA_PROGRESS.md` is not present at the checked root or `docs/agent_logs` locations; no completion percentage is invented.
-- The eleven-screen manifest remains fail-closed: all eleven slots are `IMPLEMENTED_PENDING_VISUAL_REVIEW`; `MATCH` requires an opened original reference and a real exact-SHA render.
-- UI visual-harness work is not promoted without exact focused/canonical evidence plus truthful visual evidence.
+- Historical signatures are not reopened without current exact-SHA reproduction.
+- The eleven-screen visual state remains fail-closed; `MATCH` requires an opened original reference and a real exact-SHA render.
+- Worker candidate evidence superseded by later commits is not accepted without equivalent exact-head evidence.
 
 ## Persistent release guards
 
