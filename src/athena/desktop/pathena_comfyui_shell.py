@@ -7,7 +7,11 @@ from PySide6.QtWidgets import QDialog, QFrame, QHBoxLayout, QListWidget, QSizePo
 from shiboken6 import isValid
 
 from athena.desktop.command_palette import CommandPaletteController, _Command
-from athena.desktop.pathena_comfyui import ComfyUiController
+from athena.desktop.pathena_comfyui import (
+    ComfyUiController,
+    ComfyUiError,
+    install_comfyui_integration,
+)
 
 
 class ComfyUiShellController(QObject):
@@ -90,6 +94,10 @@ class ComfyUiShellController(QObject):
         """Present the real ComfyUI controller surface in the shared shell."""
         if not isValid(self._surface) or not isValid(self._center):
             return
+        pallas = getattr(self._window, "_pathena_pallas_full_view_controller", None)
+        close_pallas = getattr(pallas, "close_workspace", None)
+        if callable(close_pallas):
+            close_pallas()
         self._center.hide()
         self._surface.show()
         self._surface.raise_()
@@ -141,3 +149,19 @@ def install_comfyui_shell(
     controller = ComfyUiShellController(palette, comfyui)
     palette.__dict__["_pathena_comfyui_shell_controller"] = controller
     return controller
+
+
+def install_comfyui_workspace(
+    palette: CommandPaletteController,
+) -> tuple[ComfyUiController | None, ComfyUiShellController | None]:
+    """Install optional ComfyUI UI without allowing bad configuration to kill pATHENA."""
+    try:
+        comfyui = install_comfyui_integration(palette)
+    except ComfyUiError as exc:
+        palette.window.setProperty("pathenaComfyUiInstalled", False)
+        palette.window.setProperty("pathenaComfyUiUnavailableReason", str(exc))
+        return None, None
+
+    shell = install_comfyui_shell(palette, comfyui)
+    palette.window.setProperty("pathenaComfyUiUnavailableReason", None)
+    return comfyui, shell
