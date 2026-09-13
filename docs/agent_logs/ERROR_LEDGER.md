@@ -8,76 +8,63 @@ Stable IDs use `ERR-####`. Only current exact-SHA reproduced or verified failure
 
 ## Current baseline
 
-- Develop: `7b4779b7be8c19b9ca0acaa57f826d0da8478592` (`fix(ci): cover user-correction focused tests`). Canonical Quality `34758273159 = FAILURE`.
-- Exact Develop diagnostics: Ruff-only failure `I001` at `tests/unit/test_core_focused_candidate_workflow.py:1:1`; isolated desktop-controller pytest `6 passed`; remaining canonical suite `5063 passed, 17 skipped`; Linux Storage, Local Install and Windows release guards all `SUCCESS`.
-- Error worker before current fixes: `a1f6b796c6d9cb7b5aab3e2b36e663d872569f6d`.
-- Spec/Core: `77048de78be4dd7ca2555ed1b09e00d088f9c624`; canonical Quality `34756815221 = SUCCESS`.
-- Backend: `e76bfbe266107a781e3602246d143ee8e9e849b3`; canonical Quality `34757222993 = SUCCESS`.
-- UI: `d351dba17b69c3f5b55a1447f2ac088b929a1b48`; UI Focused `34757680126 = SUCCESS`, Core Focused `34757680108 = SUCCESS`, canonical Quality `34757680127 = SUCCESS`.
+- Develop: `bd30daaece42a2177fcd71d093f0ab3167da3f40` (`fix(ci): restore core focused workflow contracts`). Canonical Quality `34761173299 = IN_PROGRESS`.
+- Exact Develop partial evidence: specification validator, Ruff, mypy, Linux Storage, Local Install and Windows release guards are `SUCCESS`; full pytest is still running. The previously exact `ERR-0057` Ruff signature is no longer reproduced on this integrated SHA.
+- Error worker before current ledger update: `8400089c41ebcd0dc2b2dc86124cbe59f623f098`; it has no workflow runs.
+- Spec/Core: `69e4eeb74e459edcbf0ab83936152822e25dcf00`; Core Focused `34759513429 = SUCCESS`, canonical Quality `34759513450 = FAILURE` solely in Ruff while pytest/Storage/Windows/Local Install are green. Its inherited pre-repair CI test file is the existing `ERR-0057` cascade, not a new Core root cause.
+- Backend: `d0693efea6067eb32c3edb2ecac3a7ed4ab36974`; canonical Quality `34759878389 = FAILURE` solely in Ruff while pytest/Linux Storage/Windows/Local Install are green. This synchronized lineage inherits the same pre-repair `ERR-0057` baseline; no new Backend/Storage root cause is opened.
+- UI: `662f4a2d8da02e4497f141cac938193cf08e9361`; UI Focused `34760594261 = SUCCESS`, Core Focused `34760594285 = SUCCESS`, canonical Quality `34760594290 = FAILURE` solely in Ruff while pytest/Linux Storage/Windows/Local Install are green. The branch still carries the pre-repair `ERR-0057` test replacement. Visual Regression `34760592091 = FAILURE` independently reproduces `ERR-0054` because the committed Windows visual baseline is absent.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current state
 
-- OPEN: `ERR-0057`.
+- OPEN: `ERR-0054`.
 - IN_PROGRESS: none.
-- FIXED_PENDING_VERIFY: `ERR-0053`, `ERR-0056`.
+- FIXED_PENDING_VERIFY: `ERR-0053`, `ERR-0056`, `ERR-0057`.
 - FIXED: prior closures plus `ERR-0049`, `ERR-0047`, `ERR-0050`, `ERR-0051`, `ERR-0052`, `ERR-0055`.
-- STALE: `ERR-0014`, `ERR-0025`, `ERR-0026`, `ERR-0028`, `ERR-0029`, `ERR-0038`, `ERR-0039`, `ERR-0054`.
+- STALE: `ERR-0014`, `ERR-0025`, `ERR-0026`, `ERR-0028`, `ERR-0029`, `ERR-0038`, `ERR-0039`.
 - BLOCKED: none.
-
-## ERR-0049 — concurrent SQLite writer startup vs fail-closed sidecar identity continuity
-
-- Severity: P1 Storage/Recovery integration blocker.
-- Status: `FIXED`.
-- Integrated Develop SHA `09d43c348420dc5ad0eb2be80ebf8681ae8f25c5` passed canonical Quality `34753048193 = SUCCESS`.
-- Do not reopen from historical sidecar signatures; require a new current exact-SHA reproduction.
-
-## ERR-0055 — Spec/Core user-correction-policy Ruff import-block failure
-
-- Severity: P2 integration blocker.
-- Status: `FIXED`.
-- Current Spec/Core successor `77048de78be4dd7ca2555ed1b09e00d088f9c624` is canonical-green (`34756815221 = SUCCESS`).
-- The bounded user-correction product slice was integrated into Develop parent `9e607472ba65ce86b795cf8f6926a0809700a2cd`, whose canonical Quality `34755721026 = SUCCESS`.
-- The historical Ruff-only signature is closed. Current Develop Ruff failure on `7b4779b7...` is a distinct CI-harness integration regression tracked as `ERR-0057`.
 
 ## ERR-0056 — Core-Focused harness omits user-correction tests
 
 - Severity: P2 verification/harness blocker.
 - Status: `FIXED_PENDING_VERIFY`.
-- Develop `7b4779b7be8c19b9ca0acaa57f826d0da8478592` contains both missing contracts: `tests/unit/test_user_correction*.py` in the PR path trigger and `test_user_correction.*` in focused selection.
-- Canonical pytest is green on this exact Develop SHA, but canonical Quality is red because of the independent Ruff/guard-regression cluster `ERR-0057`.
-- Closure requires exact integrated canonical success after the `ERR-0057` repair; no competing run was started.
+- Develop `bd30daaece42a2177fcd71d093f0ab3167da3f40` contains both required user-correction trigger/selection contracts plus the restored regression contracts.
+- On exact Develop canonical `34761173299`, specification validator, Ruff and mypy are already green; pytest is still running. Closure requires terminal exact canonical `SUCCESS`.
 
 ## ERR-0057 — Core-Focused regression-test replacement removed existing guard coverage
 
 - Severity: P2 verification/harness blocker.
-- Status: `OPEN`.
-- Exact Develop SHA `7b4779b7be8c19b9ca0acaa57f826d0da8478592` has canonical Quality `34758273159 = FAILURE` with exact Ruff diagnostic `I001 Import block is un-sorted or un-formatted` at `tests/unit/test_core_focused_candidate_workflow.py:1:1`. Ruff proposes `Organize imports`.
-- Exact canonical pytest is otherwise green: isolated desktop controller `6 passed`; remaining suite `5063 passed, 17 skipped, 2 warnings`.
-- The same integration replaced the pre-existing four workflow-contract tests with one user-correction-only test (`38 deletions`, `7 additions` in this file). Removed guard coverage includes deleted-path filtering, narrow Core-owned pytest selection, knowledge API lint selection, and remediation worktree restoration.
-- Error-owned repair on `postmerge/errors`: `ebcb67f065b7cd890c55897c3e9b9d74f0da10f8` restores all four previous contracts, adds user-correction trigger/selection coverage, and removes the Ruff-offending future-import layout by returning to the previously canonical-green import shape.
-- The repaired contract assertions were additionally smoke-evaluated against the current workflow shape and all pass. Integrated exact canonical verification is still required before `FIXED`.
+- Status: `FIXED_PENDING_VERIFY`.
+- Historical exact reproduction: Develop `7b4779b7be8c19b9ca0acaa57f826d0da8478592`, canonical `34758273159 = FAILURE`, Ruff `I001` in `tests/unit/test_core_focused_candidate_workflow.py`, with four established workflow-contract tests accidentally replaced.
+- Error-owned repair `ebcb67f065b7cd890c55897c3e9b9d74f0da10f8` restored all four prior contracts, retained user-correction coverage, and restored the canonical-green import shape.
+- Integrator incorporated the bounded repair as Develop `bd30daaece42a2177fcd71d093f0ab3167da3f40`.
+- Current exact canonical `34761173299` has already passed Ruff, specification validation and mypy; pytest remains in progress. Therefore the old Ruff signature is no longer reproduced, but `FIXED` waits for terminal canonical success.
+- Current Spec/Core, Backend and UI canonical Ruff failures are deduplicated into this same pre-repair lineage: their exact branches were based on/carry the old replacement file and their product/focused/runtime lanes are otherwise green. Do not open parallel Core/Backend/UI Ruff IDs for the same root cause.
 
 ## ERR-0053 — UI send-button shell geometry mismatch
 
 - Severity: P2 integration blocker.
 - Status: `FIXED_PENDING_VERIFY`.
-- Current UI SHA `d351dba17b69c3f5b55a1447f2ac088b929a1b48` is exact-green: UI Focused `34757680126 = SUCCESS`, Core Focused `34757680108 = SUCCESS`, canonical Quality `34757680127 = SUCCESS`.
-- Current Develop still lacks `ShellGeometry.composer_action_size`; current UI adds `composer_action_size: int = 48` and carries the related shared-component/test lineage.
-- UI is broadly divergent from current Develop, so broad branch promotion is unsafe. Closure still requires a bounded current-baseline token + component + focused-test slice followed by exact Develop canonical success.
+- Current UI `662f4a2d8da02e4497f141cac938193cf08e9361` has exact-green UI Focused and Core Focused gates. Its canonical failure is Ruff from inherited `ERR-0057`, not a new geometry failure.
+- UI remains broadly divergent from Develop. Closure still requires a bounded current-baseline geometry token + component + focused-test slice followed by exact Develop canonical success; do not promote the broad UI branch.
 
-## ERR-0054 — historical visual-baseline absence on superseded UI SHA
+## ERR-0054 — missing committed Windows 11-surface visual baseline
 
-- Severity: P2 visual-evidence blocker when reproduced.
-- Status: `STALE`.
-- Reopen only on a current exact visual reproduction; do not weaken comparator tolerance or blindly accept generated baselines.
+- Severity: P2 visual-evidence blocker.
+- Status: `OPEN`.
+- Reproduced on current exact UI SHA `662f4a2d8da02e4497f141cac938193cf08e9361` by Visual Regression `34760592091 = FAILURE`.
+- The visual run passed exact-SHA checkout, visual-harness Ruff, comparator mypy/tests, shared hierarchy-token contract, navigation accessibility, all eleven native captures, route-identity verification and artifact upload. Failure occurs only at the fail-closed final visual verdict.
+- The workflow requires `tests/qa/visual-baseline-windows.json`; that file is absent on the current UI SHA. In its absence the workflow creates a baseline proposal, uploads it with the actual renders, and deliberately fails.
+- Exact artifact `pathena-visual-662f4a2d8da02e4497f141cac938193cf08e9361` exists for visual review.
+- Do not commit the generated proposal blindly, weaken comparator tolerances, or bypass the verdict. UI/visual review must compare the exact eleven renders with the authoritative references before any baseline is accepted.
 
-## Current worker requalification
+## Current cascade requalification
 
-- Spec/Core exact current candidate is canonical-green; no current Core product failure is reproduced.
-- Backend exact current candidate is canonical-green; no current Backend/Storage failure is reproduced.
-- UI exact current candidate is focused- and canonical-green; no new UI error is opened.
-- Develop current exact candidate has one current Ruff failure in the CI-harness integration delta; canonical pytest and all other release lanes are green.
+- Spec/Core exact current product-focused gate is green; its canonical Ruff failure is inherited `ERR-0057` evidence and not a distinct Core product defect.
+- Backend exact current Storage/runtime/release lanes and full pytest are green; its canonical Ruff failure is inherited `ERR-0057` evidence and not a distinct Backend/Storage defect.
+- UI exact current Focused gates are green. Its canonical Ruff failure is inherited `ERR-0057`; its separate exact visual failure is `ERR-0054`.
+- Develop current exact candidate contains the `ERR-0057` repair and is partially green through Ruff/mypy/release guards; no new exact Develop root cause is established while pytest remains active.
 
 ## Persistent release guards
 
@@ -88,5 +75,6 @@ Closed historical signatures reopen only on a current exact-SHA reproduction. Cu
 - No competing canonical run was started by the Error worker.
 - No Backend/UI/Spec-Core product branch was mutated by the Error worker.
 - Error-owned mutations remain only on `postmerge/errors`.
+- Active Develop canonical `34761173299` and worker candidates were not superseded.
 - `main` and `bnbgrs/ATHENA` remain read-only.
 - No force push, history rewrite, Skip/XFail, guard weakening, visual-tolerance relaxation, or Security/Storage/Recovery relaxation occurred.
