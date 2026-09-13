@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from athena.desktop.pathena_design_tokens import PALETTE, SHELL
+from athena.desktop.pathena_design_tokens import PALETTE, SHELL, TYPE
 from athena.desktop.pathena_window import PathenaMainWindow
 
 
@@ -102,15 +102,30 @@ class SettingsSecondaryNavigation(QObject):
         self.rail.setObjectName("settingsSecondaryRail")
         self.rail.setAccessibleName("Settings navigation")
         self.rail.setFixedWidth(SHELL.secondary_nav_width)
+        self.rail.setStyleSheet(
+            f"""
+            QFrame#settingsSecondaryRail {{
+                background: transparent;
+                border: none;
+                border-right: 1px solid {PALETTE.border};
+            }}
+            QLabel#settingsSecondaryTitle {{
+                color: {PALETTE.text};
+                font-family: {TYPE.display_family};
+                font-size: {TYPE.section_px}px;
+                font-weight: 600;
+            }}
+            """
+        )
         rail_layout = QVBoxLayout(self.rail)
         rail_layout.setContentsMargins(0, 14, 0, 0)
         rail_layout.setSpacing(8)
 
-        rail_heading = QLabel("Settings")
-        rail_heading.setObjectName("settingsSecondaryTitle")
-        rail_heading.setAccessibleName("Settings")
-        rail_heading.setContentsMargins(16, 0, 8, 4)
-        rail_layout.addWidget(rail_heading)
+        self.rail_heading = QLabel("Settings")
+        self.rail_heading.setObjectName("settingsSecondaryTitle")
+        self.rail_heading.setAccessibleName("Settings")
+        self.rail_heading.setContentsMargins(16, 0, 8, 4)
+        rail_layout.addWidget(self.rail_heading)
         rail_layout.addWidget(self.navigation, 1)
 
         self.content = QWidget()
