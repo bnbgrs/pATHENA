@@ -11,8 +11,13 @@ from PySide6.QtWidgets import QFrame
 
 from athena.desktop.app import create_application
 from athena.desktop.command_palette import install_command_palette
-from athena.desktop.pathena_comfyui import install_comfyui_integration
-from athena.desktop.pathena_comfyui_shell import install_comfyui_shell
+from athena.desktop.pathena_comfyui import COMFYUI_URL_ENV, install_comfyui_integration
+from athena.desktop.pathena_comfyui_shell import (
+    install_comfyui_shell,
+    install_comfyui_workspace,
+)
+from athena.desktop.pathena_pallas_field import install_pallas_grounded_field
+from athena.desktop.pathena_pallas_full_view import install_pallas_full_view
 from athena.desktop.pathena_window import PathenaMainWindow
 
 
@@ -90,4 +95,64 @@ def test_open_comfyui_command_targets_shell_host() -> None:
     assert window.property("pathenaComfyUiShellOpen") is True
 
     shell.dispose()
+    window.close()
+
+
+def test_invalid_optional_comfyui_configuration_does_not_break_desktop(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(COMFYUI_URL_ENV, "https://example.com:8188")
+    app = create_application(["pathena-comfyui-optional-test"])
+    window = PathenaMainWindow(api_controller=None)
+    palette = install_command_palette(window)
+
+    comfyui, shell = install_comfyui_workspace(palette)
+    app.processEvents()
+
+    assert comfyui is None
+    assert shell is None
+    assert window.property("pathenaComfyUiInstalled") is False
+    assert "local HTTP" in str(window.property("pathenaComfyUiUnavailableReason"))
+    assert all(command.label != "Open ComfyUI" for command in palette._commands)
+
+    window.close()
+
+
+def test_pallas_and_comfyui_shell_workspaces_are_mutually_exclusive() -> None:
+    app = create_application(["pathena-shell-exclusivity-test"])
+    window = PathenaMainWindow(api_controller=None)
+    grounded = install_pallas_grounded_field(window)
+    pallas = install_pallas_full_view(window, grounded)
+    palette = install_command_palette(window)
+    comfyui = install_comfyui_integration(palette)
+    shell = install_comfyui_shell(palette, comfyui)
+    center = window.findChild(QFrame, "conversation")
+    assert center is not None
+    window.resize(1480, 900)
+    window.show()
+    app.processEvents()
+
+    pallas.open_workspace()
+    app.processEvents()
+    assert pallas.is_open
+    assert not shell.is_open
+
+    comfyui.open()
+    app.processEvents()
+    assert shell.is_open
+    assert not pallas.is_open
+    assert pallas.workspace is not None and not pallas.workspace.isVisible()
+    assert shell.surface.isVisible()
+    assert not center.isVisible()
+
+    pallas.open_workspace()
+    app.processEvents()
+    assert pallas.is_open
+    assert not shell.is_open
+    assert pallas.workspace is not None and pallas.workspace.isVisible()
+    assert not shell.surface.isVisible()
+    assert not center.isVisible()
+
+    shell.dispose()
+    pallas.dispose()
     window.close()
