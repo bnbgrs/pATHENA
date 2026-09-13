@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Final
 
-from athena.desktop.pathena_design_tokens import PALETTE, RADII, SPACE, TYPE
+from athena.desktop.pathena_design_tokens import PALETTE, RADII, SHELL, SPACE, TYPE
 
 SHARED_OBJECT_NAMES: Final = (
     "athenaMainWindow",
@@ -240,11 +240,11 @@ QPushButton#sendButton {{
     color: {PALETTE.accent};
     background: transparent;
     border-color: transparent;
-    min-width: 42px;
-    max-width: 42px;
-    min-height: 42px;
-    max-height: 42px;
-    border-radius: 22px;
+    min-width: {SHELL.composer_action_size - 2}px;
+    max-width: {SHELL.composer_action_size - 2}px;
+    min-height: {SHELL.composer_action_size - 2}px;
+    max-height: {SHELL.composer_action_size - 2}px;
+    border-radius: {SHELL.composer_action_size // 2}px;
     padding: 0;
 }}
 
