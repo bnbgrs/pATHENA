@@ -4,7 +4,7 @@
 
 - Develop: `f301540eb707013e7b88c08ef248ea98edc1564d`; exact canonical Quality `34741552444 = IN_PROGRESS`. Previous integrated parent `a26e2c03be10342476e406a18fbfb917a5a47ffe` has canonical `34739022121 = SUCCESS`.
 - Workers: Spec/Core `3e3dc4d3f4777b083d9ef2b09819cbad51ab9034`; Backend `517ca6ebd98ee2ff719827b043e2eee7ddd1e2e1`; UI `718d9002d5300afce74b04b0e4e8d40a9d00642e`.
-- Error worker entered at `f73625ea0b3e42ef298bd1d09fc49e95b4c6f528`; no workflow runs existed on `postmerge/errors` before mutation or before the second documentation commit.
+- Error worker entered at `f73625ea0b3e42ef298bd1d09fc49e95b4c6f528`; no workflow runs existed on `postmerge/errors` before mutation or before checked follow-up documentation commits.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current error state
@@ -52,11 +52,15 @@ The worker delta against the last green integrated parent contains only the new 
 
 Required closure: apply only the Ruff-safe import-block formatting correction on Spec/Core, obtain exact green Core Focused + canonical, then integrate the bounded Knowledge Read slice and require integrated canonical success before `FIXED`.
 
-## ITERATION-3 — current UI candidate remains free of a proven error cluster
+## ITERATION-3 — current UI candidate exact-green
 
-Current UI `718d9002d5300afce74b04b0e4e8d40a9d00642e` has UI Focused `34741192757 = SUCCESS` and Core Focused `34741192744 = SUCCESS`. Its canonical `34741192787` was still active at classification time.
+Current UI `718d9002d5300afce74b04b0e4e8d40a9d00642e` is now fully exact-green:
 
-No current UI error is opened from an in-progress canonical run, and historical UI signatures remain closed unless a current exact-SHA failure reproduces them.
+- UI Focused `34741192757 = SUCCESS`
+- Core Focused `34741192744 = SUCCESS`
+- canonical `34741192787 = SUCCESS`
+
+No current UI product error cluster exists. Historical UI signatures remain closed unless a newer exact-SHA failure reproduces them.
 
 ## ITERATION-4 — current Develop candidate left under its existing canonical verification
 
@@ -68,13 +72,13 @@ The immediately preceding integrated parent `a26e2c03...` is canonical-green. Th
 
 - Backend's exact red canonical is isolated to the one `ERR-0049` pytest failure; Windows release guards, Linux Storage, Local Install/pypdf, Ruff, mypy and Specification Validator all pass on that same SHA.
 - Spec/Core's exact red is isolated to `ERR-0052`; both focused and full pytest behavior are green.
-- UI's completed focused lanes are green; canonical remains pending.
+- UI is exact-green across UI Focused, Core Focused and canonical; no UI handoff is required from Errors.
 - No historical pypdf, Frozen argv, Desktop/Worker split, one-Desktop/bounded-worker, adaptive 2048 reserve, Windows lane-lock, duplicate-column, Core-startup or storage-bootstrap signature is reopened without a current exact reproduction.
 
 ## CI discipline
 
 - No competing canonical run was started.
-- `postmerge/errors` had zero workflow runs before the first mutation and before this second mutation.
+- `postmerge/errors` had zero workflow runs before the first mutation and before each checked follow-up mutation.
 - No product code or foreign worker branch was mutated.
 - No force push, history rewrite, main mutation, Skip/XFail, guard weakening, or Security/Storage/Recovery relaxation occurred.
 
@@ -82,11 +86,11 @@ The immediately preceding integrated parent `a26e2c03...` is canonical-green. Th
 
 - `ERR-0049 = OPEN / P1` -> Backend/Storage. Hold the current Storage delta until fail-closed paired-sidecar continuity and legitimate concurrent startup are both proven on one exact SHA.
 - `ERR-0052 = OPEN / P2` -> Spec/Core. One Ruff-only import-block correction is required; behavior already passes.
-- UI `718d9002...` -> no Error-owned action while canonical is active.
+- UI `718d9002...` -> exact-green; no Error-owned action.
 - Develop `f301540e...` -> consume existing canonical `34741552444`; do not duplicate it.
 
 ## NEXT_ROOT_CAUSE
 
 1. Consume the next Backend `ERR-0049` successor; require the paired foreign WAL+SHM regression and legitimate two-process startup to pass together.
 2. Consume the next Spec/Core successor for `ERR-0052`; if Ruff-only correction is exact-green, reclassify to `FIXED_PENDING_VERIFY` pending integration.
-3. Consume the already-running canonical results for Develop `f301540e...` and UI `718d9002...`; open a new ID only for a genuinely new exact-SHA failure.
+3. Consume the already-running Develop canonical `34741552444`; open a new ID only for a genuinely new exact-SHA failure.
