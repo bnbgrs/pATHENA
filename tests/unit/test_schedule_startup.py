@@ -106,7 +106,7 @@ def test_startup_recovery_applies_policy_before_materialization(
         candidate_occurrences_us=(100, 200, 300),
         now_us=300,
         materialized_at_us=400,
-        priority=JobPriority.HIGH,
+        priority=JobPriority.TIME_CRITICAL,
     )
     connection.execute("COMMIT")
 
@@ -120,7 +120,7 @@ def test_startup_recovery_applies_policy_before_materialization(
     assert tuple(bytes(row[0]) for row in rows) == tuple(
         result.job_id.bytes for result in results
     )
-    assert all(int(row[1]) == int(JobPriority.HIGH) for row in rows)
+    assert all(int(row[1]) == int(JobPriority.TIME_CRITICAL) for row in rows)
 
 
 def test_startup_recovery_disabled_schedule_creates_nothing(

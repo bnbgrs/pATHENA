@@ -107,14 +107,14 @@ jobs:
           New-Item -ItemType Directory -Force -Path ".focused-evidence" | Out-Null
           $tests = @(
             git diff --diff-filter=ACMR --name-only $env:BASE_SHA $env:CANDIDATE_SHA -- "tests/unit/*.py" |
-              Where-Object { $_ -match '^tests/unit/test_.*\.py$' }
+              Where-Object { $_ -match '^tests/unit/(test_claim.*|test_knowledge.*|test_concept_note.*|test_identity_transition.*|test_temporal.*)\.py$' }
           )
           if ($LASTEXITCODE -ne 0) { throw "Unable to resolve changed focused unit tests." }
           if ($tests.Count -eq 0) {
-            "No changed unit-test files selected; lint evidence only." | Tee-Object -FilePath ".focused-evidence/pytest.txt" | Write-Host
+            "No changed Core-owned unit-test files selected; lint evidence only." | Tee-Object -FilePath ".focused-evidence/pytest.txt" | Write-Host
             exit 0
           }
-          Write-Host "Pytest exact candidate files:"
+          Write-Host "Pytest exact candidate Core-owned files:"
           $tests | ForEach-Object { Write-Host "  $_" }
           $pytestOutput = @(& uv run --locked --extra dev --no-sync pytest -q @tests 2>&1)
           $pytestExit = $LASTEXITCODE

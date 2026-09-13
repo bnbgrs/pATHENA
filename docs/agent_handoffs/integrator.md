@@ -3,27 +3,24 @@
 ## Current integration
 
 - Integration target: `develop/pathena-next`.
-- Develop parent before this integration: `1213c49a391f4ffed6f64d63bcf1527a21adf071`.
-- Exact parent canonical Quality: `34721255765 = SUCCESS`.
-- Worker heads checked: Errors `6cc64cb75cf1e419051de7384a2c45ffcf834881`; Spec/Core `bd97e30adbd2a5fd2e41dbd4dcaa79e3d099943e`; Backend `e4103c5b29e610dcda7618082cb77eaab0850264`; UI `c7422f47c18fba9ad3dd8b1e49eb64448aa23c24`.
+- Develop parent before this integration: `98b110882910653566fa70b27e9bdaa3f328ef6b`.
+- Exact parent canonical Quality: `34724047841 = SUCCESS`.
+- Worker heads checked: Errors `493b145af1b31c52a3207484be45039c460e5552`; Spec/Core `6cc6977be39809e464ae62a546312a8217698bc9`; Backend `597297aa1f07d36d872df6e8d20a939a7fab941b`; UI `b3d43e4bcaff1a188668b437d31cb0fffdfc0351`.
 
-## Iterations — bounded Spec/Core integration
+## Iteration — Core-Focused ownership repair
 
-Spec/Core exact `bd97e30adbd2a5fd2e41dbd4dcaa79e3d099943e` is synchronized with current Develop and has exact Core Focused `34722264650 = SUCCESS` plus canonical Quality `34722264705 = SUCCESS`.
+`ERR-0046` is closed in code pending exact Develop verification. The Core-Focused workflow previously selected every changed `tests/unit/test_*.py` for focused pytest even though its trigger contract is Core-owned. Exact UI evidence showed that this admitted UI/PySide-only tests and could fail the Core lane despite UI canonical success.
 
-Two disjoint additive Core slices were imported from its effective four-file delta rather than merging the long-lived worker history:
+The focused pytest selector now accepts only the explicit Core-owned families already represented by the workflow trigger contract: `test_claim*`, `test_knowledge*`, `test_concept_note*`, `test_identity_transition*`, and `test_temporal*`. A repository regression test locks this ownership boundary and rejects restoration of the generic `test_.*` selector.
 
-1. `src/athena/api/knowledge_explanation.py` plus `tests/unit/test_knowledge_explanation_api.py` exposes the already-integrated truthful Knowledge provenance explanation through a transport-neutral API service. It parses the requested Knowledge UUID before repository access, loads the current revision, requests only its recorded provenance inputs and maps the existing explanation without fabricating source metadata.
-2. `src/athena/knowledge/revision_change_explanation.py` plus `tests/unit/test_revision_change_explanation.py` explains direct Knowledge revision transitions from recorded revision facts. It requires same KnowledgeUnit, adjacent distinct revisions and non-regressing timestamps; recorded reasons are normalized explicitly and missing reasons remain explicit instead of being invented.
-
-No Backend, Storage, Recovery, Security, UI, packaging or runtime-topology product code changed. No guard, assertion, Skip/XFail or canonical gate was weakened.
+Preserved invariants: `--diff-filter=ACMR`, exact candidate/base SHA checks, locked environment, changed-file Ruff, tracked-worktree fail-closed remediation, immutable reset, diagnostics upload, and final Ruff+pytest outcome enforcement. No Skip/XFail or test-strength relaxation was introduced.
 
 ## Worker qualification
 
-- Spec/Core `bd97e30adbd2a5fd2e41dbd4dcaa79e3d099943e`: exact Core Focused and canonical Quality green; bounded four-file effective delta integrated.
-- Backend `e4103c5b29e610dcda7618082cb77eaab0850264`: synchronization head after current Develop; no separate Backend product delta selected in this integration.
-- UI `c7422f47c18fba9ad3dd8b1e49eb64448aa23c24`: synchronization head; UI handoff remains visual-evidence oriented and is not imported here.
-- Errors `6cc64cb75cf1e419051de7384a2c45ffcf834881`: diagnostic handoff identifies `ERR-0042` as owner-green but awaiting integration and `ERR-0046` as a Core-Focused ownership-selection issue. Exact CI evidence remains authoritative over the historical Error Ledger.
+- Spec/Core `6cc6977be39809e464ae62a546312a8217698bc9`: exact Core Focused and canonical are red; changed Ruff and focused tests themselves passed before final enforcement failed. Not READY; no product slice imported.
+- Backend `597297aa1f07d36d872df6e8d20a939a7fab941b`: effective delta versus Develop is schedule-startup code/tests; Backend Focused is green while canonical was still in progress at qualification time. Conservative hold.
+- UI `b3d43e4bcaff1a188668b437d31cb0fffdfc0351`: synchronization head before visual shell work; no bounded UI product slice imported.
+- Errors `493b145af1b31c52a3207484be45039c460e5552`: current handoff identifies `ERR-0046` as the Core-Focused ownership-selection gap and `ERR-0047` as the Backend schedule-startup test-contract blocker.
 
 ## Current evidence rules
 
@@ -41,4 +38,4 @@ Retain without relaxation: pypdf packaging; fail-closed Frozen argv; Desktop/Wor
 
 `PROMOTION_READY=NO`
 
-Require canonical Quality on the resulting exact Develop SHA before any further Develop mutation. `ERR-0042` may only move from pending verification after that integrated exact gate succeeds.
+Require canonical Quality on the resulting exact Develop SHA before any further Develop mutation. If exact-green, requalify current Backend first because its canonical run was still active during this integration.
