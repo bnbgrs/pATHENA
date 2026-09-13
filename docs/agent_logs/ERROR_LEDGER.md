@@ -4,37 +4,38 @@ Evidence-first ledger for current exact-SHA failures. Historical IDs, old runs a
 
 ## Current source of truth
 
-- `develop/pathena-next@1530c1e8f17f53a6cbfbda7b7c53b8ee50afe2b5`; canonical Quality `34785279278 = IN_PROGRESS`. Specification validator, Ruff, mypy, Linux Storage, Windows release guards and Local Install/pypdf are already green; full pytest is still running.
-- `postmerge/errors@db47bc9d89633034d2897367caee86b96f945fd8`; latest exact canonical `34783072166 = FAILURE` on the inherited historical 48-vs-44 Send-button geometry of this diverged worker baseline. No Error-worker run is queued/in-progress before this ledger update.
-- `postmerge/spec-core@93358a1c7a310a2da4279fb51b1e99a1bde505ab`; Core Focused `34783221743 = SUCCESS`, canonical Quality `34783221804 = FAILURE` solely in mypy. Full pytest and persistent release-guard lanes are green.
-- `postmerge/backend@dda2dd74c0989f7ec453e8a2b7d8122f85a9251c`; canonical Quality `34784000745 = SUCCESS`.
-- `postmerge/ui@de4efa5d3814948d47d83484c4a27ac0c2daf64c`; Core Focused `34779940800 = SUCCESS`, UI Focused `34779940824 = SUCCESS`; no new matching canonical failure signature is current. Visual review remains separately fail-closed.
+- `develop/pathena-next@1530c1e8f17f53a6cbfbda7b7c53b8ee50afe2b5`; canonical Quality `34785279278 = SUCCESS`.
+- `postmerge/errors@ac049c2bd02c1ed0f78e299df2fd1e56c77c9770` before this ledger update; exact canonical `34785825895 = FAILURE` only on the inherited historical 48-vs-44 Send-button geometry of this diverged worker baseline. No Error-worker run is queued/in-progress before this mutation.
+- `postmerge/spec-core@36452888894de49fdcd9b1968d1eaf83bc4412b0`; canonical Quality `34786426851 = SUCCESS`; Core Focused `34786426823 = FAILURE` in the new mypy-enforced focused contract.
+- `postmerge/backend@e4e1244e8482ac7d78e557ded5f91252cccc0347`; canonical Quality `34786818234 = SUCCESS`.
+- `postmerge/ui@de4efa5d3814948d47d83484c4a27ac0c2daf64c`; Core Focused `34779940800 = SUCCESS`, UI Focused `34779940824 = SUCCESS`, canonical Quality `34779940794 = SUCCESS`. Visual review remains separately fail-closed.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
 ## OPEN
 
-### ERR-0060 — P2 — Spec/Core merge-split planner mypy tuple inference
+### ERR-0062 — P2 — Core Merge/Split negative-runtime tests violate focused mypy contract
 
 Status: `OPEN`
 
-Owner: Spec/Core. Error worker is evidence-only for this cluster and must not parallel-edit the product file while the owner branch holds the slice.
+Owner: Spec/Core. Error worker is evidence-only for this cluster and must not parallel-edit the owner test slice while Spec/Core holds it.
 
-Exact reproduction: `postmerge/spec-core@93358a1c7a310a2da4279fb51b1e99a1bde505ab`, canonical Quality `34783221804 = FAILURE`.
+Exact reproduction: `postmerge/spec-core@36452888894de49fdcd9b1968d1eaf83bc4412b0`, Core Focused `34786426823 = FAILURE`; exact canonical Quality on the same SHA is `34786426851 = SUCCESS`.
 
-Exact diagnostic artifact `canonical-quality-diagnostics-93358a1c7a310a2da4279fb51b1e99a1bde505ab` reports:
+Focused diagnostic artifact `core-focused-diagnostics-36452888894de49fdcd9b1968d1eaf83bc4412b0` reports four mypy errors in `tests/unit/test_knowledge_merge_split_policy.py` while Ruff and the focused pytest slice pass (`9 passed`):
 
-- `src/athena/knowledge/merge_split_policy.py:83: error: Incompatible types in assignment`
-- expression type: `tuple[UUID, UUID]`
-- variable type: `tuple[UUID]`
-- `Found 1 error in 1 file (checked 445 source files)`.
+- line 113: unused `# type: ignore[arg-type]` on the `plan_knowledge_merge(` call line;
+- line 114: `left_entity_id="not-a-uuid"` has incompatible type `str`; expected `UUID`;
+- line 120: unused `# type: ignore[arg-type]` on the `plan_knowledge_split(` call line;
+- line 122: `result_entity_ids=[...]` has incompatible type `list[UUID]`; expected `tuple[UUID, ...]`.
 
-Current code still assigns `superseded = (right,)` or `(left,)` before the two-element `(left, right)` branch, so mypy infers a one-element tuple type. Runtime semantics are not failing: canonical pytest is green, as are Ruff, Specification Validator, Linux Storage, Windows release guards and Local Install/pypdf.
+The tests intentionally exercise fail-closed runtime validation with statically invalid values. The existing call-level ignores do not cover argument diagnostics under current mypy and are themselves rejected as unused.
 
 Bounded owner fix:
 
-1. Explicitly type `superseded` as a variable-length UUID tuple, e.g. `superseded: tuple[uuid.UUID, ...]`, without changing planner semantics.
-2. Run the merge/split policy focused tests plus mypy.
-3. Require exact-SHA Core Focused and canonical Quality success on the Spec/Core successor before marking `FIXED`.
+1. Keep both negative runtime assertions unchanged.
+2. Move/narrow `# type: ignore[arg-type]` to the exact invalid argument expressions (`left_entity_id=...` and `result_entity_ids=...`) or use an equally narrow typed cast/fixture that preserves the intentionally invalid runtime values.
+3. Do not disable mypy, remove the negative tests, broaden ignores, weaken signatures, or alter Merge/Split runtime validation.
+4. Require exact-SHA Core Focused success and retain canonical Quality success before marking `FIXED`.
 
 ### ERR-0054 — P2 — Windows visual baseline review incomplete
 
@@ -44,36 +45,31 @@ Owner: UI/Visual Review. Error worker is evidence-only for this cluster.
 
 Current state:
 
-- `postmerge/ui@de4efa5d3814948d47d83484c4a27ac0c2daf64c` remains focused-green with no new matching technical failure signature.
-- Current UI handoff remains fail-closed at `PAIRS_VERIFIED_0_OF_11` for its candidate evidence and does not establish eleven approved reference/render pairs.
+- `postmerge/ui@de4efa5d3814948d47d83484c4a27ac0c2daf64c` remains Core-Focused, UI-Focused and canonical-green.
+- Current UI handoff still records `PAIRS_VERIFIED_0_OF_11` for its exact-candidate visual evidence; eleven approved reference/render pairs are not established.
 - No baseline may be created or accepted by the Error worker.
 
 Required closure: exact current render evidence for all eleven surfaces, visual review of all eleven authoritative reference/render pairs, reviewed baseline only after approval, then exact-SHA 11-Surface Visual final verdict success. Never relax comparator tolerances, route identity, capture truth or verdict enforcement.
 
-## FIXED_PENDING_VERIFY
+## FIXED
+
+### ERR-0060 — P2 — Spec/Core merge-split planner mypy tuple inference
+
+Status: `FIXED`
+
+Spec/Core successor `36452888894de49fdcd9b1968d1eaf83bc4412b0` contains the bounded tuple-typing repair and exact canonical Quality `34786426851 = SUCCESS`. The prior planner mypy failure is not current. The remaining red Core Focused run is a distinct test-typing cluster (`ERR-0062`), not a recurrence of `ERR-0060`.
 
 ### ERR-0061 — P2 — Core Focused omitted mypy and could report false-green candidates
 
-Status: `FIXED_PENDING_VERIFY`
+Status: `FIXED`
 
-Owner: Integrator/Harness; the bounded harness fix is already on current Develop `1530c1e8f17f53a6cbfbda7b7c53b8ee50afe2b5`.
-
-Current evidence:
-
-- Spec/Core `93358a1c...` proves the qualification blind spot: Core Focused `34783221743 = SUCCESS` while canonical `34783221804 = FAILURE` solely in mypy.
-- Develop commit `1530c1e8...` changes `.github/workflows/core-focused-candidate.yml` so exact changed Core Python files run mypy, stores `.focused-evidence/mypy.txt`, and requires Ruff + mypy + focused pytest in the final outcome.
-- The accompanying regression test was updated; no selector, test, Security, Storage, Recovery or release guard was weakened.
-- Develop canonical `34785279278` is still in progress; validator/Ruff/mypy and persistent release-guard lanes are already green.
-
-Closure: mark `FIXED` only if exact Develop canonical `34785279278` terminates `SUCCESS`. Do not mutate Develop while that run is active.
-
-## FIXED
+Develop `1530c1e8f17f53a6cbfbda7b7c53b8ee50afe2b5` is exact canonical-green (`34785279278 = SUCCESS`). More importantly, Spec/Core run `34786426823` on current SHA executes the new `Mypy changed Core Python files` step and fails closed in final enforcement when mypy evidence is not successful. The qualification blind spot is therefore closed without selector/test/Security/Storage/Recovery/release-guard relaxation.
 
 ### ERR-0059 — P2 — visual manifest falsely reported full capture after partial failure
 
 Status: `FIXED`
 
-Integrated and canonical-green on Develop `ba6bc224cc152c144d13ca21730dad6620610abe`; do not revisit unless a new exact-SHA manifest-truth regression reproduces.
+Integrated and canonical-green on Develop; do not revisit unless a new exact-SHA manifest-truth regression reproduces.
 
 Also fixed and retained: `ERR-0058`, `ERR-0053`, `ERR-0055`, `ERR-0056`, `ERR-0057`, `ERR-0049`.
 
@@ -87,13 +83,12 @@ The Error-worker baseline remains diverged and red on inherited 48px Send geomet
 
 ## Persistent release guards
 
-No current exact evidence reopens pypdf packaging, fail-closed Frozen argv, Desktop/Worker executable separation, single Desktop with bounded workers, adaptive 2048-context reserve, Windows lane-lock escalation, duplicate-column, Core-startup or storage-bootstrap failures. Current exact Develop has Linux Storage, Windows release guards and Local Install/pypdf green while its full canonical pytest finishes.
+No current exact evidence reopens pypdf packaging, fail-closed Frozen argv, Desktop/Worker executable separation, single Desktop with bounded workers, adaptive 2048-context reserve, Windows lane-lock escalation, duplicate-column, Core-startup or storage-bootstrap failures. Current Develop, Backend and UI exact canonical runs are green.
 
 ## Next root cause
 
-1. `ERR-0060` remains the highest current product failure, but it is Spec/Core-owned. Consume the owner successor; do not parallel-edit its product code.
-2. `ERR-0061` is harness-fixed on Develop and awaits only terminal exact canonical verification.
-3. `ERR-0054` remains UI/Visual-review-owned; do not create or accept a baseline in parallel.
-4. Backend is canonical green and is not a diagnosis target.
-5. `ERR-0059` remains closed; do not revisit without a new exact-SHA manifest regression.
-6. If no new Error-owned exact-SHA failure appears, do not manufacture work from historical red runs.
+1. `ERR-0062` is the highest current technical failure but is Spec/Core-owned; consume the owner successor and do not parallel-edit its tests.
+2. `ERR-0054` remains UI/Visual-review-owned; do not create or accept a baseline in parallel.
+3. Backend, Develop and UI canonical-green clusters are not diagnosis targets without a new exact-SHA matching failure.
+4. `ERR-0059`, `ERR-0060` and `ERR-0061` are closed; do not revisit absent a new exact-SHA regression.
+5. If no new Error-owned exact-SHA failure appears, do not manufacture work from historical red runs.
