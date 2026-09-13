@@ -3,28 +3,35 @@
 ## Current integration
 
 - Integration target: `develop/pathena-next`.
-- Develop head before this repair: `7b4779b7be8c19b9ca0acaa57f826d0da8478592`.
-- Exact canonical Quality `34758273159 = FAILURE` solely because Ruff reported `I001` in `tests/unit/test_core_focused_candidate_workflow.py`; canonical pytest, Linux Storage, Local Install and Windows release guards were green.
+- Develop head before this integration: `1c20496e5e91c800050a9586dce7a903f9d86a6c`.
+- Exact canonical Quality `34764344711 = SUCCESS` on that head.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
-## Iteration 1 — ERR-0057 Core-Focused regression repair
+## Iteration 1 — consolidate Knowledge temporal staleness decisions
 
-The prior user-correction harness integration accidentally replaced the existing workflow-contract test file instead of extending it. That removed four established regression contracts and introduced an unsorted import block. Error-owned repair `ebcb67f065b7cd890c55897c3e9b9d74f0da10f8` restores the prior contracts, retains the new user-correction assertions, and restores the canonical-green import shape.
+Current Spec/Core head `d2569f97607566e241443622ec1f11370aebb880` has exact-green Core Focused `34762195665` and canonical Quality `34762195648`. The worker branch is historically divergent, so only the bounded product/test slice is integrated; worker history and handoff files are not promoted wholesale.
 
-This integration changes only `tests/unit/test_core_focused_candidate_workflow.py` plus this evidence documentation. The already-integrated workflow trigger/selector changes remain intact. No test, guard, Security, Storage, Recovery or release invariant is weakened; no Skip/XFail is introduced.
+Integrated files:
+- `src/athena/knowledge/stale_policy.py`
+- `src/athena/knowledge/staleness_policy.py`
+- `tests/unit/test_knowledge_stale_policy_compat.py`
 
-## Current worker state before mutation
+The legacy `StaleKnowledgePolicy` now delegates temporal decisions to the canonical `_assess_temporal_staleness` evaluator while retaining its public value-validation and result contract. `KnowledgeStalenessPolicy` uses the same evaluator. Validity expiry, source-age expiry, combined signals, exact boundaries, unknown evidence, future source observations and malformed values remain explicitly covered. No truth verdict or replacement revision is invented.
 
-- Errors: `8400089c41ebcd0dc2b2dc86124cbe59f623f098`; exact handoff identifies `ERR-0057` and bounded repair `ebcb67f065b7cd890c55897c3e9b9d74f0da10f8`.
-- Spec/Core: `69e4eeb74e459edcbf0ab83936152822e25dcf00`.
-- Backend: `d0693efea6067eb32c3edb2ecac3a7ed4ab36974`; synchronized tree with current Develop before this repair.
-- UI: `662f4a2d8da02e4497f141cac938193cf08e9361`; broad UI-owned delta remains separately qualified and is not promoted with this repair.
+## Current worker truth at integration time
 
-## Visual/source-of-truth notes
+- Errors: `1d5a922b6387c24e818b43559466da823caa9d97`.
+- Spec/Core: `d2569f97607566e241443622ec1f11370aebb880`.
+- Backend: `b7a1358caa1c5ae97066ea8075fcde4285b47882`.
+- UI: `4322820fd02e15e30626e42107291360d5f79b18`.
 
-- `docs/agent_logs/ERROR_LEDGER.md` is historical where newer exact-SHA evidence exists.
-- Eleven-screen parity remains fail-closed: no `MATCH` without an opened original reference plus a real exact-SHA render.
-- `docs/ui/VISUAL_GAP_LEDGER.md` remains the visual-gap source of truth; no screenshot-level parity is inferred from code-only evidence.
+Backend and UI have newer product commits and require their own exact-head qualification; neither is included in this integration.
+
+## Source-of-truth notes
+
+- `docs/agent_logs/ERROR_LEDGER.md` is historical on baseline `7be496d2...`; current exact-SHA CI and worker evidence take precedence.
+- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` and `docs/ui/VISUAL_GAP_LEDGER.md` remain fail-closed: no `MATCH` without an opened original reference and a real rendered exact-SHA state.
+- The verified Send target remains 44×44 outer geometry.
 
 ## Persistent release guards
 
@@ -34,4 +41,4 @@ Retain without relaxation: pypdf packaging; fail-closed Frozen argv; Desktop/Wor
 
 `PROMOTION_READY=NO`
 
-Require canonical Quality on the resulting exact Develop SHA before any further Develop mutation. Exact success closes the integration regression and allows re-qualification of the next bounded worker slice.
+Require canonical Quality on the resulting exact Develop SHA before any further Develop mutation.
