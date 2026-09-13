@@ -82,6 +82,11 @@ class PallasFullViewController(QObject):
     @Slot()
     def open_workspace(self) -> None:
         """Show the single full workspace inside the shared shell and shared inspector."""
+        comfyui_shell = self._window.property("pathenaComfyUiShellController")
+        close_comfyui = getattr(comfyui_shell, "close_workspace", None)
+        if callable(close_comfyui):
+            close_comfyui()
+
         workspace = self._workspace
         if workspace is None or not isValid(workspace):
             workspace = self._grounded_controller.create_workspace(self._reference_body)
