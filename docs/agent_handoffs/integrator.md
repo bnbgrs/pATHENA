@@ -3,27 +3,22 @@
 ## Current integration
 
 - Integration target: `develop/pathena-next`.
-- Develop parent: `a26e2c03be10342476e406a18fbfb917a5a47ffe`.
-- Exact parent canonical Quality `34739022121 = SUCCESS`.
-- Worker heads checked: Errors `f73625ea0b3e42ef298bd1d09fc49e95b4c6f528`; Spec/Core `3e3dc4d3f4777b083d9ef2b09819cbad51ab9034`; Backend `517ca6ebd98ee2ff719827b043e2eee7ddd1e2e1`; UI `718d9002d5300afce74b04b0e4e8d40a9d00642e`.
+- Develop parent before this integration: `f301540eb707013e7b88c08ef248ea98edc1564d`.
+- Exact parent canonical Quality `34741552444 = SUCCESS`.
+- Selected Core source candidate: `bd5b0497a8c220e2a3a238f974109d060d7256e5`.
+- Exact candidate Core Focused `34742250322 = SUCCESS`; canonical Quality `34742250297 = SUCCESS`.
 
-## Iteration 1 — bounded Help secondary-navigation styling integrated
+## Iteration 1 — bounded Knowledge read API integrated
 
-UI commit `b7b779a5e43768344ee6b6f9e2903c414229ad2c` is bounded to the Help capability surface plus its focused test. Exact UI Focused `34735699933 = SUCCESS` and canonical `34735699924 = SUCCESS`. The slice adds the established dark shell selection language and verifies border/accent/selected-state styling without changing command, capability, Backend, Storage or Security behavior.
+The integration adds only `src/athena/api/knowledge_read.py` and `tests/unit/test_knowledge_read_api.py` from the exact-green Core candidate. `KnowledgeReadApiService` composes the already-integrated truthful provenance-explanation and immutable revision-history boundaries without bypassing or weakening either one. Identity/history failures are propagated rather than downgraded or reinterpreted.
 
-## Iteration 2 — Help hierarchy aligned to shared shell tokens
+The worker branch history is not merged. The product slice is extracted as bounded content onto the exact Develop parent.
 
-UI commit `2f003f7de2cc9b9499b1853cc8e4869b404488eb` changes only `pathena_capability_help.py`. Exact UI Focused `34738565588 = SUCCESS` and canonical `34738565572 = SUCCESS`. Hard-coded secondary-nav width and title sizes are replaced with existing `SHELL` and `TYPE` tokens; no new visual `MATCH` claim is made.
+## Blocked and deferred work
 
-## Iteration 3 — Core Focused Knowledge API coverage hardened
-
-The Core Focused workflow now treats `src/athena/api/knowledge_*.py` as Core-owned source for trigger and changed-file Ruff selection. The workflow-contract test prevents this coverage from silently disappearing. Existing exact-SHA identity, ACMR selection, locked environment, focused pytest, remediation reset, and final fail-closed outcome enforcement remain intact.
-
-## Blocked candidates
-
-- Spec/Core `3e3dc4d3...`: Core Focused `34740030025 = FAILURE`; focused pytest passed but the exact run is not READY. canonical `34740029996` was still active during qualification. No Core product integration.
-- Backend `517ca6eb...`: Storage Focused `34740393786 = FAILURE` and canonical `34740393790 = FAILURE`; `ERR-0049` remains the sole current Storage blocker.
-- UI current sync head `718d9002...`: UI Focused is green while canonical `34741192787` was still active. Only the independently exact-green bounded UI slices above were selected.
+- Backend/Storage remains conservative: no Storage, Recovery, Transport or Runtime mutation is included here. Any current candidate must be re-qualified on its latest exact SHA before integration.
+- UI work already integrated on the parent is not re-integrated. Any newer UI candidate requires its own bounded exact-head evidence.
+- Error-worker findings are diagnostic unless reproduced by current exact-SHA evidence.
 
 ## Persistent release guards
 
