@@ -118,6 +118,7 @@ class PathenaLayoutRefinement(QObject):
         existing = top_bar.findChildren(QPushButton, "topNavButton")
         if existing:
             self._top_navigation_buttons = existing
+            self._link_top_navigation_tab_order()
             return
 
         insert_at = 1
@@ -142,6 +143,16 @@ class PathenaLayoutRefinement(QObject):
             layout.insertWidget(insert_at, button)
             insert_at += 1
             self._top_navigation_buttons.append(button)
+        self._link_top_navigation_tab_order()
+
+    def _link_top_navigation_tab_order(self) -> None:
+        """Keep keyboard traversal aligned with the visible primary-route order."""
+        for previous, following in zip(
+            self._top_navigation_buttons,
+            self._top_navigation_buttons[1:],
+            strict=False,
+        ):
+            QWidget.setTabOrder(previous, following)
 
     def _activate_top_navigation_route(self, row: int) -> None:
         """Route through the real navigation and keep repeated clicks visually stable."""

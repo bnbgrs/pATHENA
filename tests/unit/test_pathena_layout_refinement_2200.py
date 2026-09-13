@@ -85,6 +85,8 @@ def test_top_navigation_mirrors_existing_primary_routes_without_adding_pages() -
         "SOURCES",
     ]
     assert navigation.count() == 7
+    for previous, following in zip(buttons, buttons[1:], strict=False):
+        assert previous.nextInFocusChain() is following
     buttons[2].click()
     app.processEvents()
     assert navigation.currentRow() == 2
