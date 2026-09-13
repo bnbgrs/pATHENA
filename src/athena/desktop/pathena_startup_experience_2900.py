@@ -115,11 +115,6 @@ QLabel#localStatus {
     color: #777777;
     font-size: 9px;
 }
-QLabel#pageTitle {
-    color: #EDEDED;
-    font-size: 15px;
-    font-weight: 600;
-}
 QLabel#keyboardHint {
     color: #626262;
     font-size: 9px;
