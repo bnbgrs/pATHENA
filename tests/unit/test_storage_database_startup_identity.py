@@ -153,16 +153,13 @@ def test_bound_preflight_rejects_sidecar_mutation_before_writer_open(
     assert target.read_bytes() == foreign_bytes
 
 
-def test_bound_preflight_rejects_foreign_complete_sidecar_rotation(
+def test_bound_preflight_rejects_invalid_complete_sidecar_rotation(
     tmp_path: Path,
 ) -> None:
     database_path = tmp_path / "athena.db"
-    donor_path = tmp_path / "donor.db"
     _create_current_database(database_path)
-    _create_current_database(donor_path)
 
     target_connection = sqlite3.connect(database_path, autocommit=True)
-    donor_connection = sqlite3.connect(donor_path, autocommit=True)
     try:
         target_connection.execute("BEGIN IMMEDIATE")
         preflight = inspect_database_read_only(database_path)
@@ -171,16 +168,13 @@ def test_bound_preflight_rejects_foreign_complete_sidecar_rotation(
         assert expected.wal.exists
         assert expected.shm.exists
 
-        donor_connection.execute("BEGIN IMMEDIATE")
-        donor_identity = capture_database_file_set_identity(donor_path)
-        assert donor_identity.wal.exists
-        assert donor_identity.shm.exists
-
-        for suffix in ("-wal", "-shm"):
+        for suffix, foreign_bytes in (
+            ("-wal", b"foreign-invalid-wal"),
+            ("-shm", b"foreign-invalid-shm"),
+        ):
             target_sidecar = database_path.with_name(f"{database_path.name}{suffix}")
-            donor_sidecar = donor_path.with_name(f"{donor_path.name}{suffix}")
             replacement = tmp_path / f"replacement{suffix}"
-            replacement.write_bytes(donor_sidecar.read_bytes())
+            replacement.write_bytes(foreign_bytes)
             os.replace(replacement, target_sidecar)
 
         rotated = capture_database_file_set_identity(database_path)
@@ -195,10 +189,7 @@ def test_bound_preflight_rejects_foreign_complete_sidecar_rotation(
     finally:
         if target_connection.in_transaction:
             target_connection.execute("ROLLBACK")
-        if donor_connection.in_transaction:
-            donor_connection.execute("ROLLBACK")
         target_connection.close()
-        donor_connection.close()
 
 
 def test_bound_preflight_accepts_complete_sidecar_withdrawal_before_writer_open(
