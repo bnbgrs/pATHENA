@@ -4,31 +4,29 @@ Evidence-only progress register for `develop/pathena-next`. No invented completi
 
 ## Current baseline
 
-- Develop before this integration: `1c20496e5e91c800050a9586dce7a903f9d86a6c`.
-- Exact canonical Quality `34764344711 = SUCCESS`.
+- Develop before this integration: `ba6bc224cc152c144d13ca21730dad6620610abe`.
+- Exact canonical Quality `34781654173 = SUCCESS`.
 - Persistent release guards remain mandatory and unchanged.
 
 ## Current integration state
 
-Integrated product capabilities retained on Develop include the paired WAL/SHM identity guard, truthful Knowledge temporal staleness signals, explicit user-correction guard, repaired Core-Focused workflow coverage, and the restored 44×44 Send-target contract.
+Develop retains the bounded product capabilities integrated through the current baseline, including temporal staleness consolidation, explicit user-correction and semantic-identity guards, ScheduleDefinition IANA timezone validation, configurable backup quiet hour, truthful visual-capture metadata, and the canonical 44×44 Send-target/title hierarchy contracts.
 
-This integration consolidates the two public Knowledge stale-policy surfaces onto one shared temporal decision evaluator. The legacy compatibility surface keeps its established validation/result semantics while no longer owning a second independent stale-rule implementation. Exact Core Focused `34762195665` and canonical Quality `34762195648` passed on candidate `d2569f97607566e241443622ec1f11370aebb880`.
+This integration strengthens Core worker qualification rather than changing Core product semantics. Exact changed Core Python files now run mypy inside the Core Focused workflow alongside Ruff and focused pytest. The final focused gate requires all three checks to succeed and persists mypy diagnostics. This prevents a candidate-owned type regression from appearing focused-green while canonical Quality is red.
 
-Bounded integrated files are `src/athena/knowledge/stale_policy.py`, `src/athena/knowledge/staleness_policy.py`, and `tests/unit/test_knowledge_stale_policy_compat.py`. No Backend, Storage, Security, Recovery or UI product file is changed by this slice.
+The trigger/selectors and existing fail-closed behavior are retained; no test, security, storage, recovery, packaging or runtime guard is relaxed.
 
 ## Current worker truth
 
-- Errors `1d5a922b6387c24e818b43559466da823caa9d97`.
-- Spec/Core `d2569f97607566e241443622ec1f11370aebb880`.
-- Backend `b7a1358caa1c5ae97066ea8075fcde4285b47882`.
-- UI `4322820fd02e15e30626e42107291360d5f79b18`.
-
-No broad worker branch is promoted. Backend and UI contain newer work that must be independently exact-qualified before any bounded extraction.
+- Errors `db47bc9d89633034d2897367caee86b96f945fd8`.
+- Spec/Core `93358a1c7a310a2da4279fb51b1e99a1bde505ab`: focused green but canonical red solely on candidate-owned mypy; not READY.
+- Backend `dda2dd74c0989f7ec453e8a2b7d8122f85a9251c`: tree-synchronized with the pre-integration Develop baseline; no bounded product delta.
+- UI `de4efa5d3814948d47d83484c4a27ac0c2daf64c`: canonical/focused evidence does not override the outstanding 11-screen visual-review requirement.
 
 ## Error and visual truth rules
 
 - `docs/agent_logs/ERROR_LEDGER.md` remains historical wherever newer exact-SHA evidence exists.
-- Eleven-screen status remains fail-closed; no visual `MATCH` without opened original reference plus real exact-SHA render.
+- Eleven-screen status remains fail-closed; no visual `MATCH` without opened original reference plus real exact-SHA render and reviewed baseline.
 - The current verified Send target remains 44×44 outer geometry.
 
 ## Persistent release guards
