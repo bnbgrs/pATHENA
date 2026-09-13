@@ -8,6 +8,7 @@ from PySide6.QtCore import QObject, QSize, Qt
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
+    QLabel,
     QLayout,
     QListWidget,
     QListWidgetItem,
@@ -64,16 +65,15 @@ class SettingsSecondaryNavigation(QObject):
         self.navigation.setStyleSheet(
             f"""
             QListWidget#settingsSecondaryNavigation {{
-                background: {PALETTE.surface};
-                border: 1px solid {PALETTE.border};
-                border-radius: 8px;
-                padding: 8px;
+                background: transparent;
+                border: none;
+                padding: 0 8px 8px 8px;
                 color: {PALETTE.text_muted};
             }}
             QListWidget#settingsSecondaryNavigation::item {{
-                min-height: 38px;
-                padding: 0 10px;
-                border-radius: 6px;
+                min-height: 42px;
+                padding: 0 14px;
+                border-radius: 4px;
             }}
             QListWidget#settingsSecondaryNavigation::item:selected {{
                 background: {PALETTE.surface_selected};
@@ -95,13 +95,28 @@ class SettingsSecondaryNavigation(QObject):
                 f"Open {section.label} settings",
             )
             nav_item.setToolTip(f"Open {section.label} settings")
-            nav_item.setSizeHint(QSize(SHELL.secondary_nav_width - 34, 40))
+            nav_item.setSizeHint(QSize(SHELL.secondary_nav_width - 34, 42))
             self.navigation.addItem(nav_item)
+
+        self.rail = QFrame()
+        self.rail.setObjectName("settingsSecondaryRail")
+        self.rail.setAccessibleName("Settings navigation")
+        self.rail.setFixedWidth(SHELL.secondary_nav_width)
+        rail_layout = QVBoxLayout(self.rail)
+        rail_layout.setContentsMargins(0, 14, 0, 0)
+        rail_layout.setSpacing(8)
+
+        rail_heading = QLabel("Settings")
+        rail_heading.setObjectName("settingsSecondaryTitle")
+        rail_heading.setAccessibleName("Settings")
+        rail_heading.setContentsMargins(16, 0, 8, 4)
+        rail_layout.addWidget(rail_heading)
+        rail_layout.addWidget(self.navigation, 1)
 
         self.content = QWidget()
         self.content.setObjectName("settingsSecondaryContent")
         content_layout = QVBoxLayout(self.content)
-        content_layout.setContentsMargins(4, 0, 12, 28)
+        content_layout.setContentsMargins(28, 0, 12, 28)
         content_layout.setSpacing(18)
         while page_layout.count():
             layout_item = page_layout.takeAt(0)
@@ -127,8 +142,8 @@ class SettingsSecondaryNavigation(QObject):
         self.container.setObjectName("settingsSecondaryContainer")
         container_layout = QHBoxLayout(self.container)
         container_layout.setContentsMargins(0, 0, 0, 0)
-        container_layout.setSpacing(24)
-        container_layout.addWidget(self.navigation)
+        container_layout.setSpacing(0)
+        container_layout.addWidget(self.rail)
         container_layout.addWidget(self.scroll, 1)
         page_layout.addWidget(self.container, 1)
 
