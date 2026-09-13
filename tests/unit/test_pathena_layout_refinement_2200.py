@@ -95,5 +95,10 @@ def test_top_navigation_mirrors_existing_primary_routes_without_adding_pages() -
     assert buttons[4].isChecked()
     assert not buttons[2].isChecked()
 
+    buttons[4].click()
+    app.processEvents()
+    assert navigation.currentRow() == 4
+    assert buttons[4].isChecked()
+
     controller.deleteLater()
     window.deleteLater()

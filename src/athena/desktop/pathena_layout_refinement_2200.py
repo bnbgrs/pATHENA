@@ -131,11 +131,22 @@ class PathenaLayoutRefinement(QObject):
             button.setToolTip(f"Open {label.title()}")
             button.setProperty("pathenaRouteRow", row)
             button.clicked.connect(
-                lambda _checked=False, route=row: navigation.setCurrentRow(route)
+                lambda _checked=False, route=row: self._activate_top_navigation_route(
+                    route
+                )
             )
             layout.insertWidget(insert_at, button)
             insert_at += 1
             self._top_navigation_buttons.append(button)
+
+    def _activate_top_navigation_route(self, row: int) -> None:
+        """Route through the real navigation and keep repeated clicks visually stable."""
+        navigation = getattr(self.window, "navigation", None)
+        if navigation is None or not hasattr(navigation, "setCurrentRow"):
+            return
+        navigation.setCurrentRow(row)
+        current_row = navigation.currentRow() if hasattr(navigation, "currentRow") else row
+        self._sync_top_navigation(current_row)
 
     def _sync_top_navigation(self, row: int) -> None:
         for button in self._top_navigation_buttons:
