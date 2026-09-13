@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
 )
 
 from athena.desktop.pathena_ui_refinement_600 import set_pathena_ui_state
+from athena.desktop.workspace_detail_presenter import format_research_show
 
 _JOB_QUEUED_RE = re.compile(r"^JOB_QUEUED\s+([0-9a-fA-F-]{36})$", re.MULTILINE)
 _TERMINAL_STATES = frozenset({"cancelled", "failed", "completed"})
@@ -154,6 +155,7 @@ class ResearchWorkspace(QWidget):
         self._selected_job_state = str(state) if state else None
         self._sync_cancel_button()
         if self._selected_job_id and not self._busy():
+            self.details.clear()
             set_pathena_ui_state(self.details, "busy")
             self._start(
                 "show",
@@ -221,7 +223,7 @@ class ResearchWorkspace(QWidget):
         if not chunk:
             return
         self._buffer += chunk
-        if self._operation in {"show", "enqueue", "cancel"}:
+        if self._operation in {"enqueue", "cancel"}:
             self.details.moveCursor(QTextCursor.MoveOperation.End)
             self.details.insertPlainText(chunk)
 
@@ -236,7 +238,7 @@ class ResearchWorkspace(QWidget):
             self.status.setText(f"Research command failed (exit {exit_code}).")
             set_pathena_ui_state(self.status, "error")
             set_pathena_ui_state(self.details, "error")
-            if operation == "list":
+            if operation in {"list", "show"}:
                 self.details.setPlainText(output)
             return
 
@@ -268,6 +270,7 @@ class ResearchWorkspace(QWidget):
             return
 
         if operation == "show":
+            self.details.setPlainText(format_research_show(output))
             self.status.setText("Research details loaded.")
             set_pathena_ui_state(self.status, "success")
             set_pathena_ui_state(self.details, "success")
