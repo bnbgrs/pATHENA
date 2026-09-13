@@ -3,32 +3,34 @@
 ## Current integration
 
 - Integration target: `develop/pathena-next`.
-- Develop parent before this integration: `305703362d539ed467dec27cbc7300a495b3ca03`.
-- Exact parent canonical Quality: `34728645613 = SUCCESS` (also push Quality `34726544110 = SUCCESS`).
-- Worker heads checked: Errors `4d56cdbde52af238917568948daf86bd7c112930`; Spec/Core `78d51621cbdfa3282cd236b5d0c7f5984abedcae`; Backend `a709c229d6994c159490c2c1eaf3f2549f12cf56`; UI `031f291bbbb215e6319bb30e7aed92768e6aac18`.
+- Develop parent before this integration: `b4cba3d5cba31213e789cb2cbbc91f651e465e71`.
+- Exact parent canonical Quality: `34731514082 = SUCCESS`.
+- Worker heads checked: Errors `fe507864e1f02c418d1120e68bbc4b23a39244ec`; Spec/Core `78d51621cbdfa3282cd236b5d0c7f5984abedcae`; Backend `ff9988a4b8db84593552a26266213d5ec871ef62`; UI `704ccd243ba2edb4f71e27d402d83b91724c0b30`.
 
-## Iterations — bounded Core integration
+## Iteration — bounded schedule-startup integration
 
-Spec/Core exact `78d51621cbdfa3282cd236b5d0c7f5984abedcae` is a strict descendant of current Develop. Its effective product/test delta is four Knowledge files only. Core Focused `34730134596 = SUCCESS` and canonical Quality `34730134589 = SUCCESS` on that exact SHA.
+Backend owner lineage `a709c229d6994c159490c2c1eaf3f2549f12cf56` had exact Backend Focused `34730587835 = SUCCESS`, Storage Focused `34730587918 = SUCCESS`, and canonical Quality `34730587873 = SUCCESS`. Its schedule-startup slice is separable from the unresolved paired-sidecar Storage mutation.
 
-1. `src/athena/api/knowledge_history.py` plus `tests/unit/test_knowledge_history_api.py` exposes immutable Knowledge revision history through a transport-neutral API. It rejects malformed UUIDs before repository access, empty histories, non-contiguous revisions, foreign-entity revisions and timestamp regressions. Diffs are derived only from adjacent recorded revisions.
-2. `src/athena/knowledge/revision_change_explanation.py` plus its focused test corrects truth wording: absence of a supplied reason is reported as unsupplied to this explanation, not falsely claimed unavailable in persistence.
+Integrated only:
+- `src/athena/jobs/schedule_startup.py`
+- `tests/unit/test_schedule_startup.py`
 
-No Backend, Storage, Recovery, Security, UI, packaging or runtime-topology behavior changed. No guard, assertion, Skip/XFail or canonical gate was weakened.
+The slice requires an active caller transaction, reconciles durable missing occurrences before writes, applies the configured missed-run policy before materialization, uses deterministic occurrence identities, creates nothing for disabled schedules, and fails before partial inserts on a foreign identity collision.
+
+The current Backend sync head `ff9988a4...` is not broadly promotable: Backend Focused and Storage Focused are green, but canonical `34733130192 = FAILURE`; additionally Error handoff `ERR-0049` keeps the separate `database.py` complete-sidecar-rotation mutation blocked pending paired foreign WAL+SHM replacement rejection coverage. No `database.py` change is included here.
 
 ## Worker qualification
 
-- Spec/Core `78d51621...`: READY and integrated as the bounded four-file delta; exact focused and canonical green.
-- Backend `a709c229...`: Storage Focused is green but exact canonical Quality was still in progress during qualification; because the delta touches SQLite startup identity, it remains conservatively held.
-- UI `031f291b...`: broad 14-file delta including UI shell/render docs plus removal of Core-owned orphan Knowledge files; not suitable for broad promotion. Requalify only bounded UI-owned slices.
-- Errors `4d56cdbd...`: current handoff identifies the concurrent SQLite sidecar lifecycle as the active storage cluster and keeps historical closures closed absent current reproduction.
+- Spec/Core `78d51621...`: previously integrated bounded Knowledge history/reason-truth delta; no new product delta selected.
+- Backend `ff9988a4...`: broad promotion blocked; bounded schedule-startup slice integrated from its exact-green owner lineage. Storage rotation remains excluded.
+- UI `704ccd24...`: current sync head before further visual evidence; no broad UI promotion.
+- Errors `fe507864...`: current handoff owns `ERR-0049` paired-sidecar guard gap and supersedes historical ledger state where newer exact evidence differs.
 
-## Current evidence rules
+## Evidence rules
 
-- `docs/agent_logs/ERROR_LEDGER.md` is historical relative to current Develop and is not sole authority where newer exact-SHA evidence exists.
-- `docs/agent_logs/ALPHA_BETA_PROGRESS.md` contains no invented completion percentage.
+- `docs/agent_logs/ERROR_LEDGER.md` is historical (baseline `7be496d2...`) and is not sole authority where newer exact-SHA evidence exists.
 - Eleven-screen parity remains fail-closed: no `MATCH` without opened original reference plus real exact-SHA render.
-- Superseded Worker CI is not accepted without equivalent exact-head evidence.
+- Superseded or cancelled Worker CI is not accepted without equivalent exact-head evidence.
 
 ## Persistent release guards
 
@@ -38,4 +40,4 @@ Retain without relaxation: pypdf packaging; fail-closed Frozen argv; Desktop/Wor
 
 `PROMOTION_READY=NO`
 
-Require canonical Quality on the resulting exact Develop SHA before any further Develop mutation. If green, requalify the current Backend successor first; integrate storage only with exact canonical success and preserved fail-closed sidecar guards.
+Require canonical Quality on the resulting exact Develop SHA before any further Develop mutation. If green, consume the next Backend successor for `ERR-0049` only if paired foreign WAL+SHM replacement is explicitly rejected while the legitimate process-separated race remains green.
