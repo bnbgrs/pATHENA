@@ -30,9 +30,8 @@ from athena.desktop.pathena_backup_details_provenance import (
 from athena.desktop.pathena_backup_target_context import install_backup_target_context
 from athena.desktop.pathena_capability_help import install_capability_help
 from athena.desktop.pathena_chat_scroll_stability_6600 import install_chat_scroll_stability
+from athena.desktop.pathena_comfyui_shell import install_comfyui_workspace
 from athena.desktop.pathena_command_palette_truth_6500 import install_command_palette_truth
-from athena.desktop.pathena_comfyui import install_comfyui_integration
-from athena.desktop.pathena_comfyui_shell import install_comfyui_shell
 from athena.desktop.pathena_detail_provenance_6300 import apply_detail_provenance
 from athena.desktop.pathena_dialog_focus_return_7200 import install_dialog_focus_return
 from athena.desktop.pathena_empty_search_comprehension_7100 import (
@@ -229,8 +228,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     apply_workspace_presentation(window)
     install_navigation_context_accessibility(window)
     command_palette = install_command_palette(window)
-    comfyui = install_comfyui_integration(command_palette)
-    comfyui_shell = install_comfyui_shell(command_palette, comfyui)
+    comfyui, comfyui_shell = install_comfyui_workspace(command_palette)
     transient_dialog_shortcuts = install_transient_dialog_shortcut_continuity(command_palette)
     command_palette_truth = install_command_palette_truth(command_palette)
     capability_help = install_capability_help(command_palette)
@@ -335,9 +333,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     capability_help.deleteLater()
     command_palette_truth.deleteLater()
     transient_dialog_shortcuts.deleteLater()
-    comfyui_shell.dispose()
-    comfyui_shell.deleteLater()
-    comfyui.deleteLater()
+    if comfyui_shell is not None:
+        comfyui_shell.dispose()
+        comfyui_shell.deleteLater()
+    if comfyui is not None:
+        comfyui.deleteLater()
     command_palette.deleteLater()
     chat_grounding.deleteLater()
     pallas_context_inspector.deleteLater()
