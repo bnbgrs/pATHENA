@@ -6,3 +6,5 @@ def test_visual_manifest_reports_actual_capture_count_and_surfaces() -> None:
 
     assert '"captured_reference_count": len(captures)' in source
     assert '"captured_reference_surfaces": [capture["label"] for capture in captures]' in source
+    assert '"captured_reference_count": expected_capture_count' not in source
+    assert '"captured_reference_surfaces": [\n                "Chat"' not in source
