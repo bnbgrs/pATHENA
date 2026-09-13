@@ -2,63 +2,52 @@
 
 ## Current exact state
 
-- Develop: `c1847b26941ff83d9b80b2839435a6079dc19dea`; canonical Quality `34766898131 = SUCCESS`.
-- Spec/Core: `d2569f97607566e241443622ec1f11370aebb880`; Core Focused `34762195665 = SUCCESS`, canonical `34762195648 = SUCCESS`.
-- Backend: `fa019ac6017ce24ce826f4ae3cfb3b14a418b5c4`; Backend Focused `34768709243 = SUCCESS`, canonical `34768709258 = SUCCESS`. The older exit-143 canonical interruption is stale infrastructure evidence.
-- UI: `4322820fd02e15e30626e42107291360d5f79b18`; exact 11-Surface Visual run `34766501013 = FAILURE` at workspace row 5 route identity.
-- `main` and `bnbgrs/ATHENA` remain read-only. Error-worker mutations remain confined to `postmerge/errors`.
+- Develop: `a9aaf5f414b7a030598d1735244bcbf6407e6bcb`; canonical Quality `34772777276 = IN_PROGRESS`.
+- Error worker: latest mutation lineage starts at `cf8203ba11c205825363a57a424db8f3a9db2f42` and includes this handoff/ledger refresh only.
+- Spec/Core: `7a04a10a6f20b7a780a2f6d2db1d15f7608c08b0`; canonical Quality `34771164034 = SUCCESS`.
+- Backend: `fa019ac6017ce24ce826f4ae3cfb3b14a418b5c4`; latest exact canonical remains `34768709258 = SUCCESS`.
+- UI: `b3066df5be557047c59331476ea1de4e79045e67`; UI Focused `34770820473 = SUCCESS`, Core Focused `34770820365 = SUCCESS`, canonical Quality `34770820352 = SUCCESS`, Visual `34770817654 = FAILURE` only at final verdict.
+- `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
-## ITERATION-1 — Develop/backend terminal outcomes consumed
+## ITERATION-1 — ERR-0058 closed on current exact UI SHA
 
-Develop canonical `34766898131` completed `SUCCESS`. Backend synchronized to exact successor `fa019ac6017ce24ce826f4ae3cfb3b14a418b5c4` and both Backend Focused `34768709243` and canonical `34768709258` completed `SUCCESS`.
+Status: `FIXED`
 
-No Backend product Error ID is opened. The previous runner shutdown/exit-143 event is not a current exact-SHA product failure.
+Visual run `34770817654` on `b3066df5be557047c59331476ea1de4e79045e67` now succeeds at both native eleven-surface capture and workspace route-identity verification. It continues through baseline comparison/proposal and artifact upload. The older row-5 fallback therefore does not reproduce on the current exact SHA and must not remain OPEN.
 
-## ITERATION-2 — ERR-0058 exact artifact inspected
+No Error-worker UI product patch was made.
 
-Status: `OPEN`
-
-Exact UI artifact from Visual run `34766501013` was downloaded and inspected. The route failure is real and occurs before System workspace capture:
-
-`Workspace route identity drifted before capture: requested row 5, navigation row 1, page index 1.`
-
-Actual workspace files exist only for Chat, Knowledge, Research, Jobs and Files. System and Settings workspace PNGs are absent. PALLAS, Command Palette, Help and ComfyUI later capture because their timers continue independently.
-
-UI owns the navigation/product slice. Do not parallel-change `pathena_layout_refinement_2200.py` or other UI route code from Error worker while UI owns it. Required UI successor must preserve the route-identity guard and make rows 5 and 6 remain selected through capture.
-
-## ITERATION-3 — ERR-0059 opened: manifest evidence is internally false
+## ITERATION-2 — ERR-0054 reopened on current exact UI SHA
 
 Status: `OPEN`
 
-The same artifact exposes an independent harness-owned root cause. Only nine PNG captures exist, but `manifest.json` reports `captured_reference_count: 11` and lists all eleven assigned surfaces as captured.
+The current visual run now reaches the baseline stage and fails only at `Enforce visual verdict`. `tests/qa/visual-baseline-windows.json` is absent on the exact UI SHA. This is the current exact-SHA reproduction of the missing-reviewed-baseline cluster.
 
-Exact harness cause in `scripts/render_pathena_ui_snapshot.py`:
+Do not auto-accept the generated proposal. Review all eleven exact renderings against the authoritative references first. Comparator tolerances and final verdict enforcement remain fail-closed.
 
-- `captured_reference_count` is assigned from constant `expected_capture_count` rather than `len(captures)`;
-- `captured_reference_surfaces` is a hard-coded eleven-item list rather than actual capture records.
+## ITERATION-3 — ERR-0059 remains current and Error-owned
 
-This does not weaken the current gate because top-level status is `FAIL`, but the evidence is untruthful and can mislead review. Error worker added regression contract `tests/qa/test_visual_capture_manifest_truth.py` in commit `464b85b0365c955bf0670b016b8b7a3baa5eaa58` requiring actual count and actual labels.
+Status: `OPEN`
 
-The script itself still needs the bounded harness change before `ERR-0059` can move to `FIXED_PENDING_VERIFY`:
+Current UI harness still writes `captured_reference_count` from `expected_capture_count` and hard-codes the full eleven-surface list. That remains diagnostically false under partial capture.
 
-- use `"captured_reference_surfaces": [capture["label"] for capture in captures]`;
-- use `"captured_reference_count": len(captures)`;
-- retain `assigned_reference_count = 11`;
-- retain the existing PASS condition requiring all eleven captures;
-- do not weaken route identity, baseline handling, comparator tolerances, Skip/XFail or any release guard.
+Error worker hardened the existing regression contract in commit `cf8203ba11c205825363a57a424db8f3a9db2f42` so it now both requires actual `captures` derivation and explicitly rejects the two stale constant forms.
 
-## ITERATION-4 — ERR-0054 remains stale
+Implementation closure remains bounded to two manifest fields:
 
-Status: `STALE`
+- `"captured_reference_surfaces": [capture["label"] for capture in captures]`
+- `"captured_reference_count": len(captures)`
 
-The current visual run fails before baseline comparison, so the historical missing-baseline root cause is not currently reproduced. Reopen only on a future exact SHA that reaches comparison and reproduces that verdict.
+Keep `assigned_reference_count = 11` and the existing PASS requirement for all eleven captures. No route/baseline/tolerance/guard weakening.
 
-## Persistent release guards
+## ITERATION-4 — current non-visual workers requalified
 
-No current exact canonical evidence reopens pypdf packaging, Frozen argv, Desktop/Worker split, single Desktop/bounded workers, adaptive 2048-context reserve, Windows lane-lock escalation, duplicate-column, Core-startup or storage-bootstrap failures.
+Spec/Core current exact SHA is canonical green. Backend current exact SHA remains canonical green. Develop has a newer exact canonical run in progress; no new Develop error is opened before terminal evidence exists.
+
+Persistent release-guard signatures remain closed unless a current exact SHA reproduces them.
 
 ## Next root cause
 
-1. Finish `ERR-0059` with the two-field harness correction and run its focused regression contract.
-2. Consume the next exact UI successor for `ERR-0058`; if UI fixes route row 5/6, close the Error-side parallel path immediately.
-3. After those, scan fresh exact-SHA canonical failures only; do not resurrect historical IDs without current reproduction.
+1. Finish `ERR-0059` with the bounded harness implementation and focused verification.
+2. For `ERR-0054`, consume the exact eleven-surface artifact and perform deliberate visual review before any baseline commit.
+3. Consume Develop canonical `34772777276` when terminal and re-prioritize only from fresh exact-SHA failures.
