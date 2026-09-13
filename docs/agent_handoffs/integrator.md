@@ -1,41 +1,93 @@
 # pATHENA Feature Integrator Handoff
 
-## Current integration
+## Current integration baseline
 
 - Integration target: `develop/pathena-next`.
-- Develop parent before this integration: `98b110882910653566fa70b27e9bdaa3f328ef6b`.
-- Exact parent canonical Quality: `34724047841 = SUCCESS`.
-- Worker heads checked: Errors `493b145af1b31c52a3207484be45039c460e5552`; Spec/Core `6cc6977be39809e464ae62a546312a8217698bc9`; Backend `597297aa1f07d36d872df6e8d20a939a7fab941b`; UI `b3d43e4bcaff1a188668b437d31cb0fffdfc0351`.
+- Exact current Develop: `305703362d539ed467dec27cbc7300a495b3ca03`.
+- Exact Develop canonical Quality: `34726544110 = SUCCESS`.
+- `main` and `bnbgrs/ATHENA` remain read-only and untouched.
+- Current worker heads observed during this integrator run: Errors `4d56cdbde52af238917568948daf86bd7c112930`; Spec/Core `78d51621cbdfa3282cd236b5d0c7f5984abedcae`; Backend `185662aafe7ab539fafd698e021635debfcc2a60`; UI `722ca4fd3afa6af9b2eecc3c82700efe287e77ed`.
 
-## Iteration — Core-Focused ownership repair
+## Manual bounded UI candidate
 
-`ERR-0046` is closed in code pending exact Develop verification. The Core-Focused workflow previously selected every changed `tests/unit/test_*.py` for focused pytest even though its trigger contract is Core-owned. Exact UI evidence showed that this admitted UI/PySide-only tests and could fail the Core lane despite UI canonical success.
+A separate integrator-owned branch exists at `manual/longrun-20260913@03ab0b813cdf489502a8ac08bb69c7d25878634a`, Draft PR `#127`, based exactly on current green Develop. It does not mutate any worker branch.
 
-The focused pytest selector now accepts only the explicit Core-owned families already represented by the workflow trigger contract: `test_claim*`, `test_knowledge*`, `test_concept_note*`, `test_identity_transition*`, and `test_temporal*`. A repository regression test locks this ownership boundary and rejects restoration of the generic `test_.*` selector.
+Bounded product behavior in that candidate:
 
-Preserved invariants: `--diff-filter=ACMR`, exact candidate/base SHA checks, locked environment, changed-file Ruff, tracked-worktree fail-closed remediation, immutable reset, diagnostics upload, and final Ruff+pytest outcome enforcement. No Skip/XFail or test-strength relaxation was introduced.
+- the existing local-only ComfyUI controller is hosted inside the shared pATHENA workspace shell rather than a detached dialog;
+- invalid optional `PATHENA_COMFYUI_URL` configuration fails closed without preventing the desktop from starting;
+- Command Palette truth no longer installs ComfyUI as a side effect and instead reports only already-registered capabilities;
+- full PALLAS is hosted in the shared center workspace rather than a detached dialog while preserving synchronized PALLAS state;
+- PALLAS and ComfyUI shell workspaces are mutually exclusive so two center surfaces cannot remain visible concurrently;
+- Settings secondary navigation uses the existing Settings destinations in a dedicated quiet rail;
+- focused Qt regressions cover shell hosting, optional ComfyUI failure, PALLAS/ComfyUI exclusivity, navigation restoration and Settings secondary navigation.
 
-## Worker qualification
+Exact evidence:
 
-- Spec/Core `6cc6977be39809e464ae62a546312a8217698bc9`: exact Core Focused and canonical are red; changed Ruff and focused tests themselves passed before final enforcement failed. Not READY; no product slice imported.
-- Backend `597297aa1f07d36d872df6e8d20a939a7fab941b`: effective delta versus Develop is schedule-startup code/tests; Backend Focused is green while canonical was still in progress at qualification time. Conservative hold.
-- UI `b3d43e4bcaff1a188668b437d31cb0fffdfc0351`: synchronization head before visual shell work; no bounded UI product slice imported.
-- Errors `493b145af1b31c52a3207484be45039c460e5552`: current handoff identifies `ERR-0046` as the Core-Focused ownership-selection gap and `ERR-0047` as the Backend schedule-startup test-contract blocker.
+- pATHENA UI Focused Candidate `34729288667 = SUCCESS` on exact head `03ab0b813cdf489502a8ac08bb69c7d25878634a`.
+- Exact-head canonical Quality `34729288659`: Linux Storage `SUCCESS`, Local Install `SUCCESS`, Windows Path Safety/release guards `SUCCESS`; in Python 3.12 quality, Specification Validator `SUCCESS`, Ruff `SUCCESS`, mypy `SUCCESS`, while full pytest was still running at the last observation in this run.
+- Do not promote PR `#127` from stale earlier-head evidence. Only exact-head canonical completion is promotion-relevant.
+
+The UI worker itself is currently only synchronized to Develop at `722ca4fd3afa6af9b2eecc3c82700efe287e77ed`; no newer worker product slice was observed after that synchronization during this run.
+
+## Current worker qualification
+
+### Spec/Core
+
+Current worker head moved to `78d51621cbdfa3282cd236b5d0c7f5984abedcae` (`fix(core): distinguish unsupplied revision reason`) after the previously canonical-green `80e7c8f8bb3c15c41ec8483dd0a57687016ba99c` revision-history candidate.
+
+Do not integrate the older `80e7c8f8...` merely because its canonical evidence is green while the owner is actively mutating the same Knowledge-History files. Requalify the current exact Spec/Core head or consume a later owner handoff first.
+
+### Backend
+
+Current Backend head `185662aafe7ab539fafd698e021635debfcc2a60` remains bounded versus Develop to `src/athena/jobs/schedule_startup.py` and `tests/unit/test_schedule_startup.py`.
+
+Evidence:
+
+- Backend Focused `34728206760 = SUCCESS`.
+- Canonical `34728206821 = FAILURE`, but downloaded exact diagnostics show the schedule-startup owner failure is gone.
+- Full pytest result is `1 failed, 5029 passed, 17 skipped` and the sole failure is the independent process-separated storage-startup race now tracked as `ERR-0049`.
+- Specification Validator, Ruff, mypy, Linux Storage, Windows Path Safety/release guards and Local Install are green on that Backend exact run.
+
+Do not integrate Backend until `ERR-0049` has an owner-green successor and exact canonical evidence.
+
+### Errors / ERR-0049
+
+Errors handoff `postmerge/errors@4d56cdbde52af238917568948daf86bd7c112930` classifies `ERR-0049 = OPEN / P1`.
+
+The failure is in concurrent startup against the same SQLite runtime. `SQLiteDatabase._revalidate_existing_identity()` currently accepts exact identity, complete absent→complete WAL/SHM publication and complete→absent withdrawal, but rejects a complete→complete WAL/SHM object-identity transition even when the primary DB identity is unchanged.
+
+The existing recovery inspection is intentionally strong: read-only validation rejects symlink/reparse or invalid file types, validates ATHENA SQLite identity/schema, runs `PRAGMA quick_check`, and re-captures filesystem identity. Any repair must preserve the immediate fail-closed primary DB identity guard, partial-sidecar rejection and foreign/tamper protections.
+
+Ownership remains Backend/Storage. This integrator run deliberately did not parallel-modify the storage guard because the Error handoff explicitly assigns the product repair to Backend/Storage and asks Error to verify/close rather than compete on the mutation.
+
+## Collision avoidance
+
+- Manual UI candidate touches only desktop UI files/tests listed in PR `#127`.
+- Backend effective product delta is schedule-startup code/tests and does not overlap the manual UI candidate.
+- Spec/Core current effective product delta is Knowledge-History code/tests and does not overlap the manual UI candidate.
+- The P1 storage race was investigated read-only here and left to its declared owner.
+- No force push, history rewrite, Skip/XFail, release-guard relaxation, worker-branch mutation or `main` mutation occurred.
 
 ## Current evidence rules
 
-- `docs/agent_logs/ERROR_LEDGER.md` remains historical relative to current Develop and is not the sole authority where newer exact-SHA evidence exists.
+- `docs/agent_logs/ERROR_LEDGER.md` remains historical where newer exact-SHA evidence exists.
 - `docs/agent_logs/ALPHA_BETA_PROGRESS.md` contains no invented completion percentage.
 - Historical release-guard signatures are not reopened without current exact-SHA reproduction.
-- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` and `docs/ui/VISUAL_GAP_LEDGER.md` remain fail-closed: no screenshot `MATCH` without opened original reference plus real exact-SHA render.
-- Superseded Worker CI is not accepted without equivalent exact-head evidence.
+- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` and `docs/ui/VISUAL_GAP_LEDGER.md` remain fail-closed: no screenshot `MATCH` without opened original reference plus a real exact-SHA render.
+- Superseded Worker CI is not accepted as evidence for a newer worker head.
 
 ## Persistent release guards
 
-Retain without relaxation: pypdf packaging; fail-closed Frozen argv; Desktop/Worker two-EXE split; exactly one Desktop instance with bounded workers; adaptive 2048-context Chat reserve; Windows lane-lock cluster; duplicate-column, Core-startup and storage-bootstrap regression signatures. `main` and `bnbgrs/ATHENA` remain read-only.
+Retain without relaxation: pypdf packaging; fail-closed Frozen argv; Desktop/Worker two-EXE split; exactly one Desktop instance with bounded workers; adaptive 2048-context Chat reserve; Windows lane-lock cluster; duplicate-column, Core-startup and storage-bootstrap regression signatures.
 
 ## Promotion state
 
 `PROMOTION_READY=NO`
 
-Require canonical Quality on the resulting exact Develop SHA before any further Develop mutation. If exact-green, requalify current Backend first because its canonical run was still active during this integration.
+Next integrator actions, in order:
+
+1. Consume exact-head completion of manual UI canonical `34729288659`; only if all jobs are green may PR `#127` advance from Draft/integration review.
+2. Requalify the current Spec/Core head rather than importing its older exact-green predecessor while the same owner files are moving.
+3. Wait for an owner-green Backend/Storage successor that closes `ERR-0049`; then re-run/consume exact Backend canonical before integrating schedule-startup.
+4. After any integration into Develop, require canonical Quality on the resulting exact Develop SHA before the next Develop mutation.
