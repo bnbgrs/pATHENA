@@ -54,9 +54,11 @@ def test_command_palette_search_stays_flat_and_activation_keeps_real_route() -> 
 
     controller._refresh_results("open research")
 
-    assert controller.results.count() == 1
-    assert controller.results.item(0).text() == "Open Research"
-    assert tuple(controller._row_commands) == (0,)
+    labels = [controller.results.item(row).text() for row in range(controller.results.count())]
+    assert labels[0] == "Open Research"
+    assert "Open Research result & promotion" in labels
+    assert tuple(controller._row_commands) == tuple(range(controller.results.count()))
+    assert all(label not in {"Workspaces", "Knowledge", "Actions"} for label in labels)
 
     controller._activate_current()
     assert window.navigation.currentRow() == 2

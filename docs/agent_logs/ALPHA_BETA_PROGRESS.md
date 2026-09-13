@@ -4,16 +4,26 @@ Evidence-only progress register for `develop/pathena-next`. No invented completi
 
 ## Current baseline
 
-- Develop parent before this integration: `ae6ca984040c36a52c96c3e578cb0fee1e64136f`.
-- Exact parent canonical Quality `34748637687 = SUCCESS`.
-- Backend source candidate `aab04d0c4564a07f9af5c12e6fa496a5e1038ff7`: Storage Focused `34749553305 = SUCCESS`; canonical `34749553299 = SUCCESS`.
+- Develop parent before this integration: `09d43c348420dc5ad0eb2be80ebf8681ae8f25c5`.
+- Exact parent canonical Quality `34753048193 = SUCCESS`.
+- Persistent release guards remain mandatory and unchanged.
 
 ## Current integration state
 
-- Added the bounded fail-closed startup guard for complete simultaneous WAL+SHM identity replacement.
-- Validated complete sidecar publication and withdrawal remain allowed; partial transitions and primary replacement remain rejected.
-- Only the Backend-owned product/test files are extracted from the worker; branch history is not merged.
-- Previously integrated truthful stale-Knowledge policy, Knowledge read/provenance/model-disclosure/history surfaces, Help hierarchy, transactional schedule startup, canonical Qt isolation, Core-Focused coverage and release guards remain unchanged.
+- Integrating the bounded B05 §63 source-age stale signal from exact-green Core candidate `60b82913ed64f13a92c52bb52448011ac208dacf`: Core Focused `34749319038 = SUCCESS`; canonical `34749319064 = SUCCESS`.
+- Integrating the bounded B07 §34-35 explicit user-correction guard from exact-green Core candidate `367bf6ee879450373cde5f116ca78fbe28a2dbac`: Core Focused `34754120108 = SUCCESS`; canonical `34754120154 = SUCCESS`.
+- Worker branch histories are not merged; only the four bounded Core-owned product/test files are extracted onto current Develop.
+- Previously integrated paired WAL/SHM identity protection, stale-Knowledge validity policy, Knowledge read/provenance/model-disclosure/history surfaces, transactional schedule startup, Help hierarchy, canonical Qt isolation and focused/release gates remain preserved.
+
+## Truthfulness behavior added
+
+- Staleness can be signaled from explicit recorded validity and explicit source-age evidence without equating stale with false.
+- Missing source-age inputs are not invented; paired inputs, boundaries and malformed temporal values fail conservatively.
+- Explicit user corrections cannot be silently overwritten by automation. Newer evidence requires human review, while a later explicit user decision may revise the prior correction.
+
+## Blocked UI candidate
+
+The historical send-button stylesheet tokenization remains blocked on current Develop because `ShellGeometry` does not currently define the referenced `composer_action_size` token. Integrating only the stylesheet would create an incompatible attribute dependency. A bounded token+stylesheet+focused-test candidate on a current compatible baseline is required; the broad UI branch is not eligible for promotion.
 
 ## Error and visual truth rules
 
@@ -28,4 +38,4 @@ Do not relax: pypdf packaging; fail-closed Frozen argv; Desktop/Worker two-EXE s
 
 `PROMOTION_READY=NO`
 
-The new bounded Backend slice requires exact-current Develop canonical Quality before any further Develop mutation.
+The resulting exact Develop SHA requires canonical Quality before any additional Develop mutation.
