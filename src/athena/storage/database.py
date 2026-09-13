@@ -19,6 +19,7 @@ from athena.storage.connection_policy import (
 from athena.storage.recovery import (
     DatabaseFileSetIdentity,
     DatabasePreflightReport,
+    DatabaseRecoveryRequiredError,
     DatabaseStartupIdentityChangedError,
     assert_database_file_set_identity,
     capture_database_file_set_identity,
@@ -169,7 +170,12 @@ class SQLiteDatabase:
                 "ATHENA SQLite database/WAL/SHM identity changed after startup preflight."
             )
 
-        refreshed = inspect_database_read_only(self.path)
+        try:
+            refreshed = inspect_database_read_only(self.path)
+        except DatabaseRecoveryRequiredError as exc:
+            raise DatabaseStartupIdentityChangedError(
+                "ATHENA SQLite database/WAL/SHM replacement failed startup revalidation."
+            ) from exc
         refreshed_identity = refreshed.file_set_identity
         if (
             not refreshed.exists
