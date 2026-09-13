@@ -2,59 +2,46 @@
 
 ## Exact source of truth
 
-- Develop: `ba6bc224cc152c144d13ca21730dad6620610abe`; canonical `34781654173 = SUCCESS`.
-- Error worker before this handoff update: `20b489a739b64e276affa2cf2d6490ee4183b614`; latest exact canonical `34779840281 = FAILURE` only on stale inherited 48px Send-button geometry.
-- Spec/Core: `b35033657b2809febb491235bb284b6219975cb2`; Core Focused `34780613663 = SUCCESS`, canonical `34780613667 = FAILURE` only in mypy.
-- Backend: `82321f9acb6e542b11afa6b0b64568818f2432d1`; canonical `34780789750 = SUCCESS`.
-- UI: `de4efa5d3814948d47d83484c4a27ac0c2daf64c`; current Core/UI focused and canonical lanes are green. UI handoff still reports `PAIRS_VERIFIED_0_OF_11` and visual integration readiness `NO`.
+- Develop: `1530c1e8f17f53a6cbfbda7b7c53b8ee50afe2b5`; canonical `34785279278 = IN_PROGRESS`. Validator, Ruff, mypy, Linux Storage, Windows release guards and Local Install/pypdf are already green; full pytest is still running.
+- Error worker before this handoff update: `db47bc9d89633034d2897367caee86b96f945fd8`; latest exact canonical `34783072166 = FAILURE` only on stale inherited 48px Send-button geometry. No queued/in-progress Error-worker run existed before this mutation.
+- Spec/Core: `93358a1c7a310a2da4279fb51b1e99a1bde505ab`; Core Focused `34783221743 = SUCCESS`, canonical `34783221804 = FAILURE` solely in mypy.
+- Backend: `dda2dd74c0989f7ec453e8a2b7d8122f85a9251c`; canonical `34784000745 = SUCCESS`.
+- UI: `de4efa5d3814948d47d83484c4a27ac0c2daf64c`; current focused lanes are green and visual review remains fail-closed.
 
 ## ERR-0060 — OPEN — Spec/Core-owned
 
-Exact current failure:
+Exact current failure from canonical diagnostics on `93358a1c...`:
 
-`src/athena/knowledge/merge_split_policy.py:77`
+`src/athena/knowledge/merge_split_policy.py:83`
 
-mypy reports that `(left, right)` has type `tuple[UUID, UUID]` while `superseded` was inferred from the one-element branch as `tuple[UUID]`.
+mypy reports `tuple[UUID, UUID]` assigned to a variable inferred as `tuple[UUID]`; exactly one mypy error is reported across 445 checked source files. Current code still permits the one-element tuple inference before the two-element branch.
 
-Evidence around the failure is otherwise green:
+Everything else relevant is green: Specification Validator, Ruff, Core Focused, canonical pytest, Linux Storage, Windows release guards and Local Install/pypdf.
 
-- Specification Validator: success.
-- Ruff: success.
-- Core Focused: success.
-- canonical pytest: `5109 passed, 17 skipped`.
-- Linux Storage: success.
-- Windows release guards: success.
-- Local Install/pypdf: success.
+Bounded owner action: type `superseded` explicitly as `tuple[uuid.UUID, ...]` without semantic changes, run focused merge/split tests plus mypy, then require exact-SHA Core Focused and canonical success. Error worker must not parallel-edit this Spec/Core product slice.
 
-Bounded owner action: annotate `superseded` as a variable-length UUID tuple such as `tuple[UUID, ...]` without semantic changes, run the merge/split focused tests and mypy, then require exact-SHA Core Focused plus canonical success. Error worker must not parallel-edit this Spec/Core product slice while the owner branch remains active.
+## ERR-0061 — FIXED_PENDING_VERIFY — Harness-owned qualification blind spot
+
+The previous Core Focused workflow could be green while canonical failed solely in mypy. Develop `1530c1e8...` now runs mypy over exact changed Core Python files, retains `.focused-evidence/mypy.txt`, and requires Ruff + mypy + focused pytest before focused success.
+
+This is a bounded harness fix with no selector/test/Security/Storage/Recovery/release-guard relaxation. Develop canonical `34785279278` is still running; mark `FIXED` only after terminal `SUCCESS`.
 
 ## ERR-0054 — OPEN — UI/Visual Review-owned
 
-Do not create or accept a baseline from the Error worker.
-
-Current UI handoff still has `PAIRS_VERIFIED_0_OF_11`, visual readiness `NO`, integrator readiness `NO`. The older visual verdict failures are historical for older SHAs; current UI is technically canonical green but the eleven reference/render pairs are not approved.
-
-Required UI closure: capture the exact current candidate, review all 11 reference/render pairs, approve a baseline only after review, and then require the exact-SHA 11-Surface Visual final verdict to pass. Do not relax comparator tolerances, route identity, manifest truth or verdict enforcement.
+Do not create or accept a baseline from the Error worker. Current UI handoff still does not prove 11/11 approved exact reference/render pairs. Closure requires all eleven pairs reviewed, a baseline accepted only after review, and an exact-SHA 11-Surface Visual final verdict success. No comparator, route identity, manifest truth or verdict relaxation.
 
 ## ERR-0059 — FIXED
 
-Do not revisit unless a new exact-SHA manifest-truth regression reproduces.
-
-Current Develop `ba6bc224...` contains the bounded fix:
-
-- `captured_reference_surfaces = [capture["label"] for capture in captures]`
-- `captured_reference_count = len(captures)`
-- `assigned_reference_count = 11` unchanged
-- fail-closed capture/verdict behavior retained
-
-Develop canonical `34781654173 = SUCCESS`, so the integrated implementation is green.
+Do not revisit unless a new exact-SHA manifest-truth regression reproduces. The bounded capture-manifest fix is integrated and canonical-green on prior Develop.
 
 ## Stale cascade
 
-The Error worker's own canonical red on inherited 48px Send geometry remains `STALE`; current Develop is canonical green with the authoritative 44px contract. Do not patch this stale UI baseline on the Error worker.
+The Error worker's own canonical red on inherited 48px Send geometry remains `STALE`; current Develop preserves the authoritative 44px contract. Do not patch this stale UI baseline on `postmerge/errors`.
 
 ## Next root cause
 
-1. Consume Spec/Core successor evidence for `ERR-0060`; no parallel product mutation.
-2. Keep `ERR-0054` handed to UI/Visual Review until 11/11 pairs are actually reviewed and exact visual verdict is green.
-3. Scan only for new current exact-SHA Error-owned failures. Green Develop/Backend/UI clusters are not diagnosis targets.
+1. Consume the Spec/Core successor for `ERR-0060`; no parallel product mutation.
+2. Consume Develop canonical `34785279278`; if `SUCCESS`, close `ERR-0061` and do not revisit absent regression.
+3. Keep `ERR-0054` handed to UI/Visual Review until 11/11 pairs are actually reviewed and the exact visual verdict is green.
+4. Backend is canonical green; do not reopen it without a new matching failure signature.
+5. Scan only for new current exact-SHA Error-owned failures. Green clusters and historical red runs are not diagnosis targets.
