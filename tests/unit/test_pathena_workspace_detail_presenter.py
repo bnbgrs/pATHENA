@@ -38,6 +38,14 @@ def test_format_research_show_groups_scope_and_work_items_without_losing_values(
     assert "FUTURE_FIELD future-value" in rendered
 
 
+def test_format_research_show_keeps_pending_scope_visible() -> None:
+    rendered = format_research_show(
+        "JOB 11111111-1111-1111-1111-111111111111\nSCOPE pending initialization\n"
+    )
+
+    assert "\nSCOPE\nScope: pending initialization" in rendered
+
+
 def test_format_job_show_preserves_multiline_json_and_checkpoint_diagnostics() -> None:
     raw = "\n".join(
         (
@@ -86,6 +94,17 @@ def test_format_job_show_preserves_multiline_json_and_checkpoint_diagnostics() -
     assert '  Progress: {"chunks": 4}' in rendered
     assert '  Resume: {"offset": 4}' in rendered
     assert "FUTURE_JOB_FIELD retained" in rendered
+
+
+def test_format_job_show_keeps_empty_json_fields_explicit() -> None:
+    rendered = format_job_show(
+        "JOB aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa\n"
+        "REQUESTED_SCOPE -\nPINNED_CONFIGURATION -\nCHECKPOINTS 0\n"
+    )
+
+    assert "\nREQUESTED SCOPE\n-" in rendered
+    assert "\nPINNED CONFIGURATION\n-" in rendered
+    assert "\nCHECKPOINTS\nCheckpoints: 0" in rendered
 
 
 def test_format_source_show_groups_retrieval_and_processing_without_losing_values() -> None:
