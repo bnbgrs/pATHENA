@@ -3,7 +3,12 @@ from __future__ import annotations
 from PySide6.QtWidgets import QApplication, QFrame, QLabel
 
 from athena.desktop.app import create_application
-from athena.desktop.system_workspace import SystemWorkspace, _presentation_state
+from athena.desktop.pathena_window import PathenaMainWindow
+from athena.desktop.system_workspace import (
+    SystemWorkspace,
+    _presentation_state,
+    install_system_workspace,
+)
 
 
 def _app() -> QApplication:
@@ -92,3 +97,20 @@ def test_system_workspace_failure_keeps_unprobed_states_unavailable() -> None:
     assert workspace.security_posture.loopback.value.text() == "Unavailable"
     assert workspace.security_posture.encrypted.value.text() == "Unavailable"
     assert workspace.security_posture.tor.value.text() == "Unavailable"
+
+
+def test_system_route_identity_survives_event_loop_settle() -> None:
+    app = _app()
+    window = PathenaMainWindow()
+    install_system_workspace(window, None)
+    window.show()
+    app.processEvents()
+
+    window.navigation.setCurrentRow(5)
+    app.processEvents()
+
+    assert window.navigation.currentRow() == 5
+    assert window.pages.currentIndex() == 5
+
+    window.close()
+    app.processEvents()

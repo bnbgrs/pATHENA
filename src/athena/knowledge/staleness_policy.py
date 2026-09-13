@@ -46,6 +46,14 @@ class KnowledgeStalenessAssessment:
         return bool(self.reasons)
 
 
+@dataclass(frozen=True, slots=True)
+class _TemporalStalenessSignals:
+    """Shared temporal decision result used by all Knowledge stale-policy adapters."""
+
+    reasons: tuple[KnowledgeStalenessReason, ...]
+    has_recorded_temporal_evidence: bool
+
+
 class KnowledgeStalenessPolicy:
     """Apply Beta stale-Knowledge semantics using only explicit recorded evidence.
 
@@ -65,43 +73,29 @@ class KnowledgeStalenessPolicy:
     ) -> KnowledgeStalenessAssessment:
         if not isinstance(revision, KnowledgeUnitRevision):
             raise TypeError("Staleness assessment requires a KnowledgeUnitRevision.")
-        _require_non_negative_int("assessed_at_us", assessed_at_us)
-
-        if (source_observed_at_us is None) != (max_source_age_us is None):
-            raise ValueError(
-                "source_observed_at_us and max_source_age_us must be supplied together."
-            )
-        if source_observed_at_us is not None and max_source_age_us is not None:
-            _require_non_negative_int("source_observed_at_us", source_observed_at_us)
-            _require_non_negative_int("max_source_age_us", max_source_age_us)
-            if source_observed_at_us > assessed_at_us:
-                raise ValueError("source_observed_at_us must not be in the future.")
 
         valid_to_us = revision.payload.valid_to_us
-        reasons: list[KnowledgeStalenessReason] = []
-        if valid_to_us is not None and valid_to_us < assessed_at_us:
-            reasons.append(KnowledgeStalenessReason.VALIDITY_ENDED)
+        signals = _assess_temporal_staleness(
+            assessed_at_us=assessed_at_us,
+            valid_to_us=valid_to_us,
+            source_observed_at_us=source_observed_at_us,
+            max_source_age_us=max_source_age_us,
+        )
 
-        if source_observed_at_us is not None and max_source_age_us is not None:
-            source_age_us = assessed_at_us - source_observed_at_us
-            if source_age_us > max_source_age_us:
-                reasons.append(KnowledgeStalenessReason.SOURCE_AGE_EXCEEDED)
-
-        reason_tuple = tuple(reasons)
-        if len(reason_tuple) > 1:
+        if len(signals.reasons) > 1:
             state = KnowledgeStalenessState.STALE_BY_MULTIPLE_SIGNALS
-        elif reason_tuple == (KnowledgeStalenessReason.VALIDITY_ENDED,):
+        elif signals.reasons == (KnowledgeStalenessReason.VALIDITY_ENDED,):
             state = KnowledgeStalenessState.STALE_BY_VALIDITY
-        elif reason_tuple == (KnowledgeStalenessReason.SOURCE_AGE_EXCEEDED,):
+        elif signals.reasons == (KnowledgeStalenessReason.SOURCE_AGE_EXCEEDED,):
             state = KnowledgeStalenessState.STALE_BY_SOURCE_AGE
-        elif valid_to_us is None and source_observed_at_us is None:
+        elif not signals.has_recorded_temporal_evidence:
             state = KnowledgeStalenessState.INSUFFICIENT_TEMPORAL_EVIDENCE
         else:
             state = KnowledgeStalenessState.NOT_STALE_BY_RECORDED_EVIDENCE
 
         return KnowledgeStalenessAssessment(
             state=state,
-            reasons=reason_tuple,
+            reasons=signals.reasons,
             knowledge_id=str(revision.knowledge_id),
             revision_id=str(revision.revision_id),
             valid_from_us=revision.payload.valid_from_us,
@@ -110,6 +104,41 @@ class KnowledgeStalenessPolicy:
             max_source_age_us=max_source_age_us,
             assessed_at_us=assessed_at_us,
         )
+
+
+def _assess_temporal_staleness(
+    *,
+    assessed_at_us: int,
+    valid_to_us: int | None,
+    source_observed_at_us: int | None,
+    max_source_age_us: int | None,
+) -> _TemporalStalenessSignals:
+    """Evaluate stale-maintenance signals once for all Knowledge policy surfaces."""
+
+    _require_non_negative_int("assessed_at_us", assessed_at_us)
+    if (source_observed_at_us is None) != (max_source_age_us is None):
+        raise ValueError(
+            "source_observed_at_us and max_source_age_us must be supplied together."
+        )
+    if source_observed_at_us is not None and max_source_age_us is not None:
+        _require_non_negative_int("source_observed_at_us", source_observed_at_us)
+        _require_non_negative_int("max_source_age_us", max_source_age_us)
+        if source_observed_at_us > assessed_at_us:
+            raise ValueError("source_observed_at_us must not be in the future.")
+
+    reasons: list[KnowledgeStalenessReason] = []
+    if valid_to_us is not None and valid_to_us < assessed_at_us:
+        reasons.append(KnowledgeStalenessReason.VALIDITY_ENDED)
+    if source_observed_at_us is not None and max_source_age_us is not None:
+        if assessed_at_us - source_observed_at_us > max_source_age_us:
+            reasons.append(KnowledgeStalenessReason.SOURCE_AGE_EXCEEDED)
+
+    return _TemporalStalenessSignals(
+        reasons=tuple(reasons),
+        has_recorded_temporal_evidence=(
+            valid_to_us is not None or source_observed_at_us is not None
+        ),
+    )
 
 
 def _require_non_negative_int(name: str, value: object) -> None:
