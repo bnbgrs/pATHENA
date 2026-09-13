@@ -6,7 +6,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
-from PySide6.QtWidgets import QApplication, QFrame, QVBoxLayout
+from PySide6.QtWidgets import QApplication, QFrame, QLabel, QVBoxLayout
 
 from athena.desktop.pathena_design_tokens import SHELL
 from athena.desktop.pathena_secondary_navigation import (
@@ -45,6 +45,12 @@ def test_settings_secondary_navigation_wraps_only_real_sections() -> None:
         assert 210 <= controller.navigation.width() <= 280
         assert controller.navigation.currentRow() == 0
         assert controller.navigation.accessibleName() == "Settings sections"
+        assert controller.rail.objectName() == "settingsSecondaryRail"
+        assert controller.rail.accessibleName() == "Settings navigation"
+        assert controller.rail.width() == SHELL.secondary_nav_width
+        heading = controller.rail.findChild(QLabel, "settingsSecondaryTitle")
+        assert heading is not None
+        assert heading.text() == "Settings"
         assert controller.content.isAncestorOf(window.context_spin)
         assert controller.content.isAncestorOf(runtime_panel)
         assert controller.navigation.item(0).data(Qt.ItemDataRole.UserRole) == "model"
@@ -125,6 +131,7 @@ def test_settings_secondary_navigation_install_is_idempotent() -> None:
         settings_page = window.pages.widget(6)
         assert settings_page is not None
         assert len(settings_page.findChildren(QFrame, "settingsSecondaryContainer")) == 1
+        assert len(settings_page.findChildren(QFrame, "settingsSecondaryRail")) == 1
         assert first.parent() is window
     finally:
         window.close()
