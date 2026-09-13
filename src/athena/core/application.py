@@ -268,6 +268,7 @@ class AthenaApplication:
         self.backup_worker = DurableBackupWorker(
             jobs=self.jobs,
             backup=self.backup,
+            quiet_hour_utc=self.settings.backup_quiet_hour_utc,
         )
         self.external_access = ExternalAccessGateway(
             database=self.database,

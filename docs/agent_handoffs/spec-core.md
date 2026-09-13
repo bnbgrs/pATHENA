@@ -2,46 +2,50 @@
 
 ## Current source of truth
 
-- Integration target: `develop/pathena-next@a9aaf5f414b7a030598d1735244bcbf6407e6bcb`.
-- Worker before this slice: `postmerge/spec-core@af5283d7a6c6c5f1e256af1b2f07678ab52cd87b`.
+- Integration target: `develop/pathena-next@72ab7085f40afa74c0334b698dffc3462665d366`.
+- Worker before this slice: `postmerge/spec-core@97bb3c13d6c6a1911b631f0b9d511d0c10c5cc71`.
+- Current Develop canonical Quality `34779068839` completed SUCCESS before mutation.
+- The semantic-identity guard from the previous worker is integrated in Develop and is CLOSED.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
-- Exact worker Quality run `34774353839` completed SUCCESS before this mutation.
-- Current Error handoff reports no OPEN error; Backend/UI historical priorities are non-authoritative unless their signatures recur on current Develop.
 
 ## Current gap selection
 
-The highest central composition gap remains exposing the existing `KnowledgeInspectionService` through `CoreApiFacade` and `AthenaApplication`. The available mutation interface for those broad central files is complete-file replacement only, so this run does not risk a non-surgical reconstruction.
+The highest composition gap remains exposing the existing `KnowledgeInspectionService` through `CoreApiFacade` and `AthenaApplication`. It touches broad central files and was not selected for this atomic slice because a smaller independent normative B05 gap can be completed without introducing a parallel API or unsafe partial composition.
 
-The next independent B05 gap is the semantic-identity guard from Beta 05 §§37-38: `same_as` is strong and string similarity alone is insufficient; confirmed `different_from` must prevent accidental identity collapse. The existing `RelationTypeRegistry` defines and canonicalizes both relation types but does not decide whether evidence is sufficient to materialize `same_as`.
+Beta 05 §§51-52 require explicit identity/supersession behavior for Merge and Split: an authorized merge may retain one existing identity or use a new ID while absorbed/original IDs remain historically superseded; a split creates new independently addressable IDs while retaining the source historically as superseded. Current deduplication produces merge candidates but does not encode these identity consequences as a reusable Core invariant.
 
-## Product slice — identity relation evidence gate
+## Product slice — Merge/Split identity planning
 
-Added `src/athena/knowledge/identity_relation_policy.py` as a deterministic, persistence-neutral policy. It never creates relations, provenance or truth state.
+Added `src/athena/knowledge/merge_split_policy.py` as a deterministic, persistence-neutral planning boundary.
 
 Rules:
 
-- string similarity alone -> `REQUIRE_REVIEW`;
-- explicit semantic identity without conflicting distinction -> `ALLOW_SAME_AS`;
-- explicit `different_from` -> `KEEP_DISTINCT`;
-- conflicting explicit identity/distinction -> `REQUIRE_REVIEW`;
-- no identity evidence -> `REQUIRE_REVIEW`;
-- runtime signals must be genuine booleans.
+- merge requires two distinct canonical entity IDs;
+- retaining the left identity supersedes only the right identity;
+- retaining the right identity supersedes only the left identity;
+- using a new merge identity supersedes both originals;
+- split requires at least two unique result IDs;
+- split result IDs must be new relative to the source ID;
+- a valid split always marks the source ID as historically superseded;
+- all identity inputs fail closed unless they are UUIDs;
+- the planner does not authorize semantic merges, generate IDs, persist entities, fabricate provenance, or perform Storage work.
 
-Focused acceptance is `tests/unit/test_knowledge_identity_relation_policy.py` and covers all branches plus fail-closed input validation.
+Focused acceptance is `tests/unit/test_knowledge_merge_split_policy.py` and covers both retained-identity merge paths, new-identity merge, same-ID rejection, valid split, insufficient/duplicate/source-ID split rejection, and fail-closed runtime identity validation.
 
 ## Ownership boundaries
 
 - No UI files changed.
 - No Storage/Recovery/Transport/Security semantics changed.
 - No job/scheduler implementation duplicated.
-- No provenance, Source, Claim or Relation is fabricated.
-- Durable B05 revalidation execution remains Backend/System-owned beyond the existing Core planning semantics.
+- No Source, Claim, Relation, provenance record, audit record, or canonical entity is fabricated by this planner.
+- Actual atomic persistence of merge/split plus provenance remains repository/service integration work and must reuse existing durable transaction boundaries.
+- Durable B05 revalidation execution remains Backend/System-owned beyond existing Core planning semantics.
 - Persisted Knowledge -> ProcessingRun -> ModelSignature linkage remains dependent on real Backend/Storage provenance.
 
 ## Qualification state
 
-Fresh exact-SHA focused and canonical evidence is required for the new candidate. Do not claim READY until both complete without a candidate-specific regression.
+Fresh exact-SHA focused and canonical evidence is required for this candidate. Do not claim READY until both complete without a candidate-specific regression.
 
 ## Next distinct Core gap
 
-After qualification of this slice, re-read then-current Develop. Prefer the existing `KnowledgeInspectionService` central Facade/Application composition if a safe surgical mutation path is available; otherwise take the next independent Alpha/Beta Core gap backed by current specs/code rather than revisiting closed stale-knowledge work.
+After qualification, re-read current Develop and handoffs. Prefer `KnowledgeInspectionService` central Facade/Application composition if it can be performed atomically and safely. Otherwise continue B05 with actual merge/split persistence integration or another independent current Alpha/Beta Core gap; do not revisit CLOSED stale-knowledge or semantic-identity slices.

@@ -99,6 +99,30 @@ def _parse_positive_float(raw_value: str | None, *, setting_name: str, default: 
         ) from exc
 
 
+def _parse_bounded_int(
+    raw_value: str | None,
+    *,
+    setting_name: str,
+    default: int,
+    minimum: int,
+    maximum: int,
+) -> int:
+    value = raw_value.strip() if raw_value is not None else ""
+    if not value:
+        return default
+    try:
+        parsed = int(value)
+    except ValueError as exc:
+        raise ConfigurationError(
+            f"{setting_name} must be an integer between {minimum} and {maximum}, got {value!r}."
+        ) from exc
+    if not minimum <= parsed <= maximum:
+        raise ConfigurationError(
+            f"{setting_name} must be an integer between {minimum} and {maximum}, got {value!r}."
+        )
+    return parsed
+
+
 def _path_value(value: object, *, setting_name: str) -> Path:
     if not isinstance(value, Path):
         raise ConfigurationError(f"{setting_name} must be a pathlib.Path value.")
@@ -114,6 +138,7 @@ class AthenaSettings:
     archive_root: Path | None = None
     backup_root: Path | None = None
     projection_root: Path | None = None
+    backup_quiet_hour_utc: int = 3
     lm_studio_base_url: str = "http://127.0.0.1:1234"
     model_request_timeout_seconds: float = 2.0
     model_generation_timeout_seconds: float = 300.0
@@ -154,6 +179,15 @@ class AthenaSettings:
                     f"got {str(normalized_path)!r}."
                 )
             object.__setattr__(self, field_name, normalized_path)
+
+        if (
+            isinstance(self.backup_quiet_hour_utc, bool)
+            or not isinstance(self.backup_quiet_hour_utc, int)
+            or not 0 <= self.backup_quiet_hour_utc <= 23
+        ):
+            raise ConfigurationError(
+                "ATHENA backup_quiet_hour_utc must be an integer between 0 and 23."
+            )
 
         if not isinstance(self.lm_studio_base_url, str):
             raise ConfigurationError("ATHENA LM Studio base URL must be a string.")
@@ -243,6 +277,13 @@ class AthenaSettings:
             projection_root=_parse_absolute_path(
                 os.getenv("ATHENA_PROJECTION_ROOT"),
                 setting_name="ATHENA_PROJECTION_ROOT",
+            ),
+            backup_quiet_hour_utc=_parse_bounded_int(
+                os.getenv("ATHENA_BACKUP_QUIET_HOUR_UTC"),
+                setting_name="ATHENA_BACKUP_QUIET_HOUR_UTC",
+                default=3,
+                minimum=0,
+                maximum=23,
             ),
             lm_studio_base_url=os.getenv(
                 "ATHENA_LMSTUDIO_BASE_URL", "http://127.0.0.1:1234"
