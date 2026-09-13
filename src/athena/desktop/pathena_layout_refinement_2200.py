@@ -128,8 +128,10 @@ class PathenaLayoutRefinement(QObject):
             button.setObjectName("topNavButton")
             button.setCheckable(True)
             button.setAutoExclusive(False)
+            button.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
             button.setCursor(Qt.CursorShape.PointingHandCursor)
             button.setAccessibleName(f"Open {label.title()} workspace")
+            button.setAccessibleDescription("Primary workspace route.")
             button.setToolTip(f"Open {label.title()}")
             button.setProperty("pathenaRouteRow", row)
             button.clicked.connect(
@@ -153,7 +155,11 @@ class PathenaLayoutRefinement(QObject):
     def _sync_top_navigation(self, row: int) -> None:
         for button in self._top_navigation_buttons:
             route = button.property("pathenaRouteRow")
-            button.setChecked(route == row)
+            active = route == row
+            button.setChecked(active)
+            button.setAccessibleDescription(
+                "Current workspace route." if active else "Primary workspace route."
+            )
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         if watched is self.window and event.type() == QEvent.Type.Resize:
@@ -253,13 +259,27 @@ class PathenaLayoutRefinement(QObject):
         ground = self.window.findChild(QPushButton, "groundButton")
         send = self.window.findChild(QPushButton, "sendButton")
 
+        if compact:
+            prompt_min_height = SHELL.composer_action_size
+            prompt_max_height = SHELL.composer_min_height
+        elif wide:
+            prompt_min_height = SHELL.composer_min_height + 6
+            prompt_max_height = SHELL.composer_min_height + 14
+        else:
+            prompt_min_height = SHELL.composer_min_height
+            prompt_max_height = SHELL.composer_min_height + 8
+
         if prompt is not None:
-            prompt.setMinimumHeight(38 if compact else 46 if wide else 42)
-            prompt.setMaximumHeight(50)
+            prompt.setMinimumHeight(prompt_min_height)
+            prompt.setMaximumHeight(prompt_max_height)
         if ground is not None:
             ground.setMinimumWidth(62 if compact else 72)
             ground.setMaximumWidth(82)
+            ground.setMinimumHeight(SHELL.composer_action_size)
             ground.setText("Source" if compact else "Sources")
+            ground.setAccessibleDescription(
+                "Use grounded sources for the next response."
+            )
         if send is not None:
             send.setFixedSize(SHELL.composer_action_size, SHELL.composer_action_size)
 
