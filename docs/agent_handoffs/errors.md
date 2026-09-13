@@ -2,101 +2,91 @@
 
 ## Baseline
 
-- Develop: `a26e2c03be10342476e406a18fbfb917a5a47ffe`; canonical Quality `34739022121 = SUCCESS`.
-- Workers: Spec/Core `fc253bd8646028a4226aa603d7188830daf54d7d`; Backend `7063801bcefc7153f4ef5de4b3d82669861b4208`; UI `2f003f7de2cc9b9499b1853cc8e4869b404488eb`.
-- Current Develop has Specification Validator, Ruff, mypy, full pytest, Linux Storage, Local Install/pypdf and all Windows release guards `SUCCESS`.
-- Error worker entered at `2a777c98dd10d22cefc487e0f76d0552415efdf5`; zero workflow runs existed before the first mutation and on every intermediate Error head explicitly checked before subsequent mutation.
+- Develop: `f301540eb707013e7b88c08ef248ea98edc1564d`; exact canonical Quality `34741552444 = IN_PROGRESS`. Previous integrated parent `a26e2c03be10342476e406a18fbfb917a5a47ffe` has canonical `34739022121 = SUCCESS`.
+- Workers: Spec/Core `3e3dc4d3f4777b083d9ef2b09819cbad51ab9034`; Backend `517ca6ebd98ee2ff719827b043e2eee7ddd1e2e1`; UI `718d9002d5300afce74b04b0e4e8d40a9d00642e`.
+- Error worker entered at `f73625ea0b3e42ef298bd1d09fc49e95b4c6f528`; no workflow runs existed on `postmerge/errors` before mutation or before the second documentation commit.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current error state
 
-- OPEN: `ERR-0049`.
+- OPEN: `ERR-0049`, `ERR-0052`.
 - IN_PROGRESS: none.
 - FIXED_PENDING_VERIFY: none.
 - FIXED: prior closures plus `ERR-0047`, `ERR-0050`, `ERR-0051`.
+- BLOCKED: none.
 
-## ITERATION-1 — ERR-0047 closed with integrated runtime evidence
-
-`ERR-0047 = FIXED / P2`.
-
-Develop successor `d7a5bcf6d836c47588b907d666b5541386ca0678` uses the bounded schedule-startup repair and its canonical diagnostics reach `tests/unit/test_schedule_startup.py .....`: all five integrated schedule-startup tests pass.
-
-The remainder canonical suite reached completion at `1 failed, 5029 passed, 17 skipped`; the sole failure was the unrelated stale workflow-contract assertion for the Qt controller isolation command. Current Develop `a26e2c03...` is now canonical-green as an additional successor. Do not reopen without a new current exact-SHA reproduction.
-
-## ITERATION-2 — ERR-0050 closed after exact integrated canonical success
-
-`ERR-0050 = FIXED / P1`.
-
-The native Qt crash was bounded to process-global PySide state left by earlier Qt tests. The canonical harness keeps `tests/unit/test_desktop_api_controller.py` mandatory but runs its six tests in a dedicated interpreter, then runs every other canonical test exactly once with only that already-executed module ignored from the second invocation. Both PIPESTATUS values are enforced fail-closed; there is no Skip/XFail, blind retry, assertion weakening or dropped test coverage.
-
-Intermediate Develop `d7a5bcf6d836c47588b907d666b5541386ca0678` proved the crash boundary: isolated controller tests were `6 passed`; the remaining suite completed without native crash and had exactly one ordinary assertion failure in the stale workflow-contract test.
-
-Current Develop `a26e2c03be10342476e406a18fbfb917a5a47ffe` updates that contract test to require the fail-closed two-interpreter structure. canonical `34739022121 = SUCCESS`. Current UI `2f003f7de2cc9b9499b1853cc8e4869b404488eb` is independently canonical-green. Closure is complete.
-
-## ITERATION-3 — ERR-0051 closed after owner and integrated success
-
-`ERR-0051 = FIXED / P2`.
-
-Current Spec/Core `fc253bd8646028a4226aa603d7188830daf54d7d` is exact green:
-
-- Core Focused `34737394852 = SUCCESS`
-- canonical `34737394871 = SUCCESS`
-
-The prior single Ruff `I001` is no longer current. The corrected Knowledge model-disclosure product/test slice is integrated into current Develop, whose canonical `34739022121 = SUCCESS`, including Ruff and full pytest. Closure is complete.
-
-## ITERATION-4 — ERR-0049 remains the sole current P1 product blocker
+## ITERATION-1 — ERR-0049 reproduced on current Backend successor
 
 `ERR-0049 = OPEN / P1`.
 
-Current Backend `7063801bcefc7153f4ef5de4b3d82669861b4208` has Storage Focused `34738082478 = FAILURE` and canonical `34738082465 = FAILURE`. Canonical full pytest is `1 failed, 5030 passed, 17 skipped`; every non-pytest canonical family, Linux Storage lane, Windows release guards and Local Install/pypdf are green.
+Current Backend `517ca6ebd98ee2ff719827b043e2eee7ddd1e2e1` remains exact-red:
 
-The sole full-suite failure is:
+- Storage Focused `34740393786 = FAILURE`
+- canonical `34740393790 = FAILURE`
+- canonical Specification Validator, Ruff and mypy: PASS
+- Linux Storage: PASS
+- Local Install/pypdf: PASS
+- complete Windows release-guard lane: PASS
+- full pytest: `1 failed, 5037 passed, 17 skipped`
 
-`tests/unit/test_storage_database_startup_identity.py::test_bound_preflight_rejects_invalid_complete_sidecar_rotation`
+The one failure is still `tests/unit/test_storage_database_startup_identity.py::test_bound_preflight_rejects_invalid_complete_sidecar_rotation`: simultaneous replacement of an already-present WAL+SHM pair is accepted instead of failing closed with `DatabaseStartupIdentityChangedError`.
 
-The test holds the primary DB identity stable, replaces both already-present WAL and SHM objects, proves both filesystem identities changed, then expects startup revalidation to fail closed. `SQLiteDatabase.start()` does not raise.
+The current Backend delta versus the last integrated parent remains bounded to `src/athena/storage/database.py` and `tests/unit/test_storage_database_startup_identity.py`. This is therefore the same current Storage root cause, not a new ExternalAccess, Windows, Packaging or general Backend cascade.
 
-The current implementation admits any complete->complete transition where both sidecar `device/inode` identities changed as `complete_rotation`, then uses `inspect_database_read_only()` to validate the resulting file set. That proves the new pair is readable/compatible; it does not prove continuity with the accepted preflight pair.
+Do not integrate the current Storage mutation. The next useful Backend change must provide positive continuity or safe bounded startup ownership; another broad complete-rotation exception is not acceptable. Same-SHA promotion evidence must prove both the legitimate two-process startup and rejection of a paired foreign WAL+SHM replacement, plus the existing single/partial/publication/withdrawal regressions and green Storage Focused + canonical.
 
-The deeper contract gap is explicit: `DatabaseFileSetIdentity` stores only presence plus filesystem object identity. Once both sidecars are replaced, this token contains no positive same-generation provenance that can distinguish a legitimate same-database sidecar lifecycle rotation from an arbitrary coherent replacement.
+## ITERATION-2 — new ERR-0052 isolated on current Spec/Core exact SHA
 
-The process-separated positive regression also exposes the race window that forced broad rotation acceptance. Two `AthenaApplication` children start concurrently against one runtime. `StorageBootstrapService.start()` performs read-only preflight, migration/recovery/disk-pressure work, then binds that earlier snapshot and establishes the live writer. No cross-process startup ownership fence spans that interval, so the other legitimate starter can rotate pathname-visible WAL/SHM after preflight and before writer establishment.
+`ERR-0052 = OPEN / P2`.
 
-Safe Backend design space is now narrow: either provide positive same-generation continuity, or serialize a fresh preflight through writer establishment with a safe bounded cross-process startup ownership mechanism and re-preflight after ownership. A nonblocking lock that simply fails the second legitimate starter is not sufficient because the current process-separated race contract requires both children to start and complete normally. Existing migration locking is only a hardening pattern; it is migration-specific and nonblocking and must not be copied blindly.
+Current Spec/Core `3e3dc4d3f4777b083d9ef2b09819cbad51ab9034` has:
 
-Required same-SHA evidence before promotion:
+- Core Focused `34740030025 = FAILURE`
+- canonical `34740029996 = FAILURE`
+- focused behavior tests: `4 passed`
+- canonical full pytest: `5041 passed, 17 skipped`
 
-1. foreign simultaneous WAL+SHM replacement raises `DatabaseStartupIdentityChangedError`;
-2. legitimate process-separated/concurrent writer startup still succeeds for both children;
-3. single-sidecar replacement remains rejected;
-4. partial publication/withdrawal remains rejected;
-5. complete publication and complete withdrawal remain accepted where already specified;
-6. Storage Focused and canonical Quality are green.
+Both red lanes isolate the same single Ruff `I001` at `tests/unit/test_knowledge_read_api.py:1:1`. The exact Ruff remediation removes one excess blank line before `KNOWLEDGE_ID`; no product logic or assertion changes.
 
-## ITERATION-5 — current cascade and release-guard classification
+The worker delta against the last green integrated parent contains only the new `src/athena/api/knowledge_read.py` and `tests/unit/test_knowledge_read_api.py`, so this is Spec/Core-owned. Error worker deliberately did not duplicate the feature worker's mutation.
 
-- Current Develop `a26e2c03...` is canonical-green. No additional Develop blocker is exposed after `ERR-0050` and `ERR-0051` closure.
-- Current UI has UI Focused `34738565588 = SUCCESS` and canonical `34738565572 = SUCCESS`; no current UI product cluster exists.
-- Current Spec/Core is owner-green; no active Spec/Core error remains.
-- Current Backend red is deduplicated to `ERR-0049`; no second Backend failure is evidenced by its exact canonical diagnostics.
-- No historical release-guard signature is reopened. Current Develop Linux Storage, pypdf packaging, Windows path/storage/durable-filesystem, packaged runtime, adaptive reserve and Core/API restart guards are green.
+Required closure: apply only the Ruff-safe import-block formatting correction on Spec/Core, obtain exact green Core Focused + canonical, then integrate the bounded Knowledge Read slice and require integrated canonical success before `FIXED`.
+
+## ITERATION-3 — current UI candidate remains free of a proven error cluster
+
+Current UI `718d9002d5300afce74b04b0e4e8d40a9d00642e` has UI Focused `34741192757 = SUCCESS` and Core Focused `34741192744 = SUCCESS`. Its canonical `34741192787` was still active at classification time.
+
+No current UI error is opened from an in-progress canonical run, and historical UI signatures remain closed unless a current exact-SHA failure reproduces them.
+
+## ITERATION-4 — current Develop candidate left under its existing canonical verification
+
+Current Develop `f301540eb707013e7b88c08ef248ea98edc1564d` already had canonical `34741552444` in progress. No duplicate canonical was started and no Develop mutation was made by the Error worker.
+
+The immediately preceding integrated parent `a26e2c03...` is canonical-green. Therefore no historical Develop/root-cause signature is reopened while `34741552444` is still incomplete. Its final result must be consumed on the next evidence pass.
+
+## ITERATION-5 — release-guard/cascade classification
+
+- Backend's exact red canonical is isolated to the one `ERR-0049` pytest failure; Windows release guards, Linux Storage, Local Install/pypdf, Ruff, mypy and Specification Validator all pass on that same SHA.
+- Spec/Core's exact red is isolated to `ERR-0052`; both focused and full pytest behavior are green.
+- UI's completed focused lanes are green; canonical remains pending.
+- No historical pypdf, Frozen argv, Desktop/Worker split, one-Desktop/bounded-worker, adaptive 2048 reserve, Windows lane-lock, duplicate-column, Core-startup or storage-bootstrap signature is reopened without a current exact reproduction.
 
 ## CI discipline
 
 - No competing canonical run was started.
-- `postmerge/errors` had zero workflow runs on every explicitly checked Error head before mutation.
+- `postmerge/errors` had zero workflow runs before the first mutation and before this second mutation.
 - No product code or foreign worker branch was mutated.
-- No force push, history rewrite, main mutation, Skip/XFail, recovery/storage/security weakening or guard relaxation occurred.
+- No force push, history rewrite, main mutation, Skip/XFail, guard weakening, or Security/Storage/Recovery relaxation occurred.
 
-## Integrator handoff
+## Integrator / worker handoff
 
-- `ERR-0049 = OPEN / P1`: hold Backend Storage mutation until a positive continuity/startup-ownership mechanism rejects paired foreign WAL+SHM replacement without regressing the legitimate two-process startup race.
-- `ERR-0050 = FIXED / P1`: exact integrated Develop canonical is green; Qt native crash is closed.
-- `ERR-0051 = FIXED / P2`: owner and integrated canonical are green; Ruff blocker is closed.
-- `ERR-0047 = FIXED / P2`: integrated schedule-startup tests ran and passed.
+- `ERR-0049 = OPEN / P1` -> Backend/Storage. Hold the current Storage delta until fail-closed paired-sidecar continuity and legitimate concurrent startup are both proven on one exact SHA.
+- `ERR-0052 = OPEN / P2` -> Spec/Core. One Ruff-only import-block correction is required; behavior already passes.
+- UI `718d9002...` -> no Error-owned action while canonical is active.
+- Develop `f301540e...` -> consume existing canonical `34741552444`; do not duplicate it.
 
 ## NEXT_ROOT_CAUSE
 
-1. Consume the next Backend successor for `ERR-0049`; require both legitimate concurrent startup and paired foreign replacement behavior to be proved on the same exact SHA.
-2. If Backend remains on `7063801b...`, do not churn the current complete-rotation heuristic. The next useful slice is a bounded startup-ownership or positive-continuity design plus focused regressions, not another permissive identity special case.
-3. Any new Develop/Spec/UI issue must be opened only from a new exact-SHA reproduction; historical closed IDs remain closed.
+1. Consume the next Backend `ERR-0049` successor; require the paired foreign WAL+SHM regression and legitimate two-process startup to pass together.
+2. Consume the next Spec/Core successor for `ERR-0052`; if Ruff-only correction is exact-green, reclassify to `FIXED_PENDING_VERIFY` pending integration.
+3. Consume the already-running canonical results for Develop `f301540e...` and UI `718d9002...`; open a new ID only for a genuinely new exact-SHA failure.
