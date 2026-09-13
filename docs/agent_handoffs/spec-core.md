@@ -2,28 +2,18 @@
 
 ## Current source of truth
 
-- Current integration target checked first: `develop/pathena-next@ba6bc224cc152c144d13ca21730dad6620610abe`.
-- Worker before this regression repair: `postmerge/spec-core@b35033657b2809febb491235bb284b6219975cb2`.
-- Prior Develop parent `72ab7085f40afa74c0334b698dffc3462665d366` has canonical Quality `34779068839 = SUCCESS`.
+- Integration target checked first: `develop/pathena-next@1530c1e8f17f53a6cbfbda7b7c53b8ee50afe2b5`.
+- Worker before this repair: `postmerge/spec-core@36452888894de49fdcd9b1968d1eaf83bc4412b0`.
+- Canonical Quality `34786426851 = SUCCESS` on exact worker `36452888...`.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
-## Iteration — B05 Merge/Split planner qualification regression
+## Iteration — exact Focused mypy diagnostic repair
 
-Candidate `b35033657b2809febb491235bb284b6219975cb2` introduced the persistence-neutral merge/split identity planner and its focused acceptance tests. Core Focused `34780613663 = SUCCESS`, while canonical Quality `34780613667 = FAILURE`.
+The exact diagnostics artifact from Core Focused `34786426823` proves the Merge/Split product code, Ruff and focused pytest were green (`9 passed`). The only failure was changed-file mypy on `tests/unit/test_knowledge_merge_split_policy.py`: two intentional invalid-argument tests placed `# type: ignore[arg-type]` on the call line rather than the offending keyword-argument line. Strict mypy therefore emitted two `unused-ignore` errors plus the two un-suppressed `arg-type` errors.
 
-Exact canonical lane evidence:
+This repair moves each narrow ignore to the exact intentionally invalid argument. Assertions and runtime validation remain unchanged: the tests still prove fail-closed rejection of a string entity ID and a list used where a tuple is required. No Skip/XFail, strictness reduction, workflow weakening, or product-semantics change is introduced.
 
-- specification validator: PASS;
-- Ruff: PASS;
-- mypy: FAIL;
-- full pytest: PASS;
-- Linux storage regressions: PASS;
-- Local install smoke: PASS;
-- Windows path safety and persistent release guards: PASS.
-
-Because exact parent Develop `72ab7085...` was canonical-green and the candidate's only failing canonical step was mypy, this is candidate-specific. The planner used a direct runtime `isinstance(result_entity_ids, tuple)` guard on a parameter statically declared `tuple[UUID, ...]`; repository mypy is strict with `warn_unreachable = true`. The repair preserves the strict public function signature and moves runtime container validation into `_require_uuid_tuple(value: object, ...)`, matching the existing `_require_uuid(value: object, ...)` fail-closed pattern. No Merge/Split semantics or acceptance assertions are weakened.
-
-The repaired product/test slice is carried on current Develop content in one history-preserving product commit; there is no sync-only commit.
+The current Develop CI hardening commit is included history-preservingly in the same candidate lineage; there is no sync-only productless commit.
 
 ## Product invariants retained
 
@@ -45,4 +35,4 @@ The repaired product/test slice is carried on current Develop content in one his
 
 ## Next distinct Core gap
 
-After exact-SHA focused and canonical qualification of this repair, re-read current Develop and handoffs. Highest known independent composition target remains exposing the existing `KnowledgeInspectionService` through `CoreApiFacade` and `AthenaApplication` without introducing a parallel API. If that cross-file composition is unsafe or blocked, select the next independent current Alpha/Beta Core product gap rather than revisiting CLOSED temporal-staleness or semantic-identity work.
+After exact-SHA focused and canonical qualification, re-read current Develop and current handoffs. Highest known independent composition target remains exposing the existing `KnowledgeInspectionService` through `CoreApiFacade` and `AthenaApplication` without introducing a parallel API. If that composition is blocked, select the next independent current Alpha/Beta Core product gap rather than revisiting CLOSED temporal-staleness or semantic-identity work.

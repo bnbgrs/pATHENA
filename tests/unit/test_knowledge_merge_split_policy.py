@@ -110,14 +110,14 @@ def test_split_rejects_source_identity_as_result() -> None:
 
 def test_planner_fails_closed_on_non_uuid_identity() -> None:
     with pytest.raises(TypeError, match="left_entity_id must be a UUID"):
-        plan_knowledge_merge(  # type: ignore[arg-type]
-            left_entity_id="not-a-uuid",
+        plan_knowledge_merge(
+            left_entity_id="not-a-uuid",  # type: ignore[arg-type]
             right_entity_id=uuid.uuid4(),
             result_entity_id=uuid.uuid4(),
         )
 
     with pytest.raises(TypeError, match="tuple of UUIDs"):
-        plan_knowledge_split(  # type: ignore[arg-type]
+        plan_knowledge_split(
             source_entity_id=uuid.uuid4(),
-            result_entity_ids=[uuid.uuid4(), uuid.uuid4()],
+            result_entity_ids=[uuid.uuid4(), uuid.uuid4()],  # type: ignore[arg-type]
         )

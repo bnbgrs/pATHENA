@@ -3,33 +3,28 @@
 ## Current integration
 
 - Integration target: `develop/pathena-next`.
-- Develop head before this integration: `1c20496e5e91c800050a9586dce7a903f9d86a6c`.
-- Exact canonical Quality `34764344711 = SUCCESS` on that head.
+- Develop head before this integration: `ba6bc224cc152c144d13ca21730dad6620610abe`.
+- Exact canonical Quality `34781654173 = SUCCESS` on that head.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
-## Iteration 1 — consolidate Knowledge temporal staleness decisions
+## Iteration — strengthen Core candidate exact qualification
 
-Current Spec/Core head `d2569f97607566e241443622ec1f11370aebb880` has exact-green Core Focused `34762195665` and canonical Quality `34762195648`. The worker branch is historically divergent, so only the bounded product/test slice is integrated; worker history and handoff files are not promoted wholesale.
+Current Spec/Core `93358a1c7a310a2da4279fb51b1e99a1bde505ab` has Core Focused `34783221743 = SUCCESS` but canonical Quality `34783221804 = FAILURE` solely because mypy rejects a candidate-owned tuple inference in `merge_split_policy.py`; full pytest and all persistent release-guard lanes passed. The product root cause remains Core-owned and is not parallel-patched here.
 
-Integrated files:
-- `src/athena/knowledge/stale_policy.py`
-- `src/athena/knowledge/staleness_policy.py`
-- `tests/unit/test_knowledge_stale_policy_compat.py`
+The cross-cutting integration fix strengthens `.github/workflows/core-focused-candidate.yml`: exact changed Core Python files now run mypy in addition to Ruff before a focused candidate can be considered green. Mypy evidence is retained in `.focused-evidence/mypy.txt`, and the final focused outcome requires Ruff, mypy and focused pytest all to succeed. `tests/unit/test_core_focused_candidate_workflow.py` locks this contract without weakening any existing selector, test, security, storage, recovery or release guard.
 
-The legacy `StaleKnowledgePolicy` now delegates temporal decisions to the canonical `_assess_temporal_staleness` evaluator while retaining its public value-validation and result contract. `KnowledgeStalenessPolicy` uses the same evaluator. Validity expiry, source-age expiry, combined signals, exact boundaries, unknown evidence, future source observations and malformed values remain explicitly covered. No truth verdict or replacement revision is invented.
+This closes the qualification blind spot that allowed a candidate-specific typing regression to present as focused-green while canonical Quality was red. It does not change Core product semantics and does not claim the current Merge/Split candidate READY.
 
 ## Current worker truth at integration time
 
-- Errors: `1d5a922b6387c24e818b43559466da823caa9d97`.
-- Spec/Core: `d2569f97607566e241443622ec1f11370aebb880`.
-- Backend: `b7a1358caa1c5ae97066ea8075fcde4285b47882`.
-- UI: `4322820fd02e15e30626e42107291360d5f79b18`.
-
-Backend and UI have newer product commits and require their own exact-head qualification; neither is included in this integration.
+- Errors: `db47bc9d89633034d2897367caee86b96f945fd8`.
+- Spec/Core: `93358a1c7a310a2da4279fb51b1e99a1bde505ab`.
+- Backend: `dda2dd74c0989f7ec453e8a2b7d8122f85a9251c`; tree-synchronized with Develop before this integration.
+- UI: `de4efa5d3814948d47d83484c4a27ac0c2daf64c`; visual review remains fail-closed.
 
 ## Source-of-truth notes
 
-- `docs/agent_logs/ERROR_LEDGER.md` is historical on baseline `7be496d2...`; current exact-SHA CI and worker evidence take precedence.
+- `docs/agent_logs/ERROR_LEDGER.md` is historical wherever newer exact-SHA evidence exists.
 - `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` and `docs/ui/VISUAL_GAP_LEDGER.md` remain fail-closed: no `MATCH` without an opened original reference and a real rendered exact-SHA state.
 - The verified Send target remains 44×44 outer geometry.
 
