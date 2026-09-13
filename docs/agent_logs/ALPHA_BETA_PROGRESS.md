@@ -4,26 +4,21 @@ Evidence-only progress register for `develop/pathena-next`. No invented completi
 
 ## Current baseline
 
-- Develop parent before this integration: `09d43c348420dc5ad0eb2be80ebf8681ae8f25c5`.
-- Exact parent canonical Quality `34753048193 = SUCCESS`.
+- Develop parent before this integration: `9e607472ba65ce86b795cf8f6926a0809700a2cd`.
+- Exact parent canonical Quality `34755721026 = SUCCESS`.
 - Persistent release guards remain mandatory and unchanged.
 
 ## Current integration state
 
-- Integrating the bounded B05 §63 source-age stale signal from exact-green Core candidate `60b82913ed64f13a92c52bb52448011ac208dacf`: Core Focused `34749319038 = SUCCESS`; canonical `34749319064 = SUCCESS`.
-- Integrating the bounded B07 §34-35 explicit user-correction guard from exact-green Core candidate `367bf6ee879450373cde5f116ca78fbe28a2dbac`: Core Focused `34754120108 = SUCCESS`; canonical `34754120154 = SUCCESS`.
-- Worker branch histories are not merged; only the four bounded Core-owned product/test files are extracted onto current Develop.
-- Previously integrated paired WAL/SHM identity protection, stale-Knowledge validity policy, Knowledge read/provenance/model-disclosure/history surfaces, transactional schedule startup, Help hierarchy, canonical Qt isolation and focused/release gates remain preserved.
+- The source-age staleness and explicit user-correction product guards are integrated and exact-Develop verified.
+- Current Spec/Core `77048de78be4dd7ca2555ed1b09e00d088f9c624` and Backend `e76bfbe266107a781e3602246d143ee8e9e849b3` are canonical green and tree-synchronized with the current Develop baseline; there is no additional product delta to promote from those sync heads.
+- UI `d351dba17b69c3f5b55a1447f2ac088b929a1b48` retains a broad UI delta and its current canonical was active during this integration, so it is not promoted.
 
-## Truthfulness behavior added
+## Cross-cutting quality coverage
 
-- Staleness can be signaled from explicit recorded validity and explicit source-age evidence without equating stale with false.
-- Missing source-age inputs are not invented; paired inputs, boundaries and malformed temporal values fail conservatively.
-- Explicit user corrections cannot be silently overwritten by automation. Newer evidence requires human review, while a later explicit user decision may revise the prior correction.
-
-## Blocked UI candidate
-
-The historical send-button stylesheet tokenization remains blocked on current Develop because `ShellGeometry` does not currently define the referenced `composer_action_size` token. Integrating only the stylesheet would create an incompatible attribute dependency. A bounded token+stylesheet+focused-test candidate on a current compatible baseline is required; the broad UI branch is not eligible for promotion.
+- `ERR-0056` identified that the Core-Focused candidate workflow did not trigger on or select `tests/unit/test_user_correction*.py`.
+- This integration adds that pattern to the PR path trigger and focused pytest selector and adds a workflow regression test that requires both contracts.
+- This is a stricter quality gate, not a guard relaxation. No test is skipped or xfailed.
 
 ## Error and visual truth rules
 
