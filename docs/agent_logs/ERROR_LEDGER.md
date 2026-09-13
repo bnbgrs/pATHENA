@@ -9,11 +9,11 @@ Stable IDs use `ERR-####`. Only current exact-SHA reproduced or verified failure
 ## Current baseline
 
 - Develop: `f301540eb707013e7b88c08ef248ea98edc1564d`; exact canonical Quality `34741552444 = IN_PROGRESS`. The immediately preceding integrated parent `a26e2c03be10342476e406a18fbfb917a5a47ffe` has canonical `34739022121 = SUCCESS`.
-- Error worker entered this run at `f73625ea0b3e42ef298bd1d09fc49e95b4c6f528`; zero workflow runs existed on that exact branch before mutation.
+- Error worker entered this run at `f73625ea0b3e42ef298bd1d09fc49e95b4c6f528`; zero workflow runs existed on that exact branch before mutation and before each checked follow-up mutation.
 - Workers: Spec/Core `3e3dc4d3f4777b083d9ef2b09819cbad51ab9034`; Backend `517ca6ebd98ee2ff719827b043e2eee7ddd1e2e1`; UI `718d9002d5300afce74b04b0e4e8d40a9d00642e`.
 - Spec/Core exact: Core Focused `34740030025 = FAILURE`; canonical `34740029996 = FAILURE`. Focused behavior is `4 passed`; full canonical pytest is `5041 passed, 17 skipped`. Both failing lanes reduce to one Ruff `I001` in `tests/unit/test_knowledge_read_api.py`.
 - Backend exact: Storage Focused `34740393786 = FAILURE`; canonical `34740393790 = FAILURE`. Canonical full pytest is `1 failed, 5037 passed, 17 skipped`; the sole failure is `test_bound_preflight_rejects_invalid_complete_sidecar_rotation`. Specification Validator, Ruff, mypy, Linux Storage, Local Install/pypdf and the complete Windows release-guard lane are green on the same exact SHA.
-- UI exact: UI Focused `34741192757 = SUCCESS`; Core Focused `34741192744 = SUCCESS`; canonical `34741192787 = IN_PROGRESS`. No current UI product error is evidenced by the completed focused lanes.
+- UI exact: UI Focused `34741192757 = SUCCESS`; Core Focused `34741192744 = SUCCESS`; canonical `34741192787 = SUCCESS`. No current UI product error cluster exists on this exact SHA.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current state
@@ -59,12 +59,12 @@ Stable IDs use `ERR-####`. Only current exact-SHA reproduced or verified failure
 
 ## Persistent release guards
 
-Closed/stale historical signatures reopen only on current exact-SHA reproduction. Binding guards remain: Windows pypdf packaging; fail-closed Frozen argv; separate Desktop/Worker EXEs; exactly one Desktop with bounded workers; adaptive 2048-context Chat reserve; Windows lane-lock `PermissionError` -> `SchedulerLaneOwnershipError` -> packaged-worker `OSError`; duplicate-column/Core-startup/storage-bootstrap signatures. On current Backend `517ca6e...`, all Windows release-guard steps, Linux Storage and Local Install/pypdf are green despite the isolated canonical pytest failure. Current Develop `f301540e...` remains under its already-running exact canonical verification; no competing run is permitted.
+Closed/stale historical signatures reopen only on current exact-SHA reproduction. Binding guards remain: Windows pypdf packaging; fail-closed Frozen argv; separate Desktop/Worker EXEs; exactly one Desktop with bounded workers; adaptive 2048-context Chat reserve; Windows lane-lock `PermissionError` -> `SchedulerLaneOwnershipError` -> packaged-worker `OSError`; duplicate-column/Core-startup/storage-bootstrap signatures. On current Backend `517ca6e...`, all Windows release-guard steps, Linux Storage and Local Install/pypdf are green despite the isolated canonical pytest failure. Current UI `718d9002...` is exact canonical-green. Current Develop `f301540e...` remains under its already-running exact canonical verification; no competing run is permitted.
 
 ## CI discipline
 
 - No competing canonical run was started by the Error worker.
-- `postmerge/errors` had zero workflow runs before this run's first mutation.
-- Current Develop and UI exact canonical runs were already active and were left untouched.
+- `postmerge/errors` had zero workflow runs before this run's first mutation and before each checked follow-up mutation.
+- Current Develop exact canonical was already active and was left untouched; UI's already-running exact canonical completed successfully during this run.
 - No product code or foreign worker branch was mutated.
 - No force push, history rewrite, main mutation, Skip/XFail, guard relaxation, or Security/Storage/Recovery weakening occurred.
