@@ -26,6 +26,7 @@ from PySide6.QtWidgets import (
 )
 
 from athena.desktop.pathena_ui_refinement_600 import set_pathena_ui_state
+from athena.desktop.workspace_detail_presenter import format_source_show
 
 _SOURCE_CAPTURED_RE = re.compile(r"^SOURCE_CAPTURED\s+([0-9a-fA-F-]{36})$", re.MULTILINE)
 _ACTIVE_READINESS = frozenset({"queued", "waiting", "running", "paused", "cancel_requested"})
@@ -279,7 +280,10 @@ class FilesWorkspace(QWidget):
         if not chunk:
             return
         self._buffer += chunk
-        if self._operation != "list" and self._operation_owns_details():
+        if (
+            self._operation not in {"list", "show"}
+            and self._operation_owns_details()
+        ):
             self.details.moveCursor(QTextCursor.MoveOperation.End)
             self.details.insertPlainText(chunk)
 
@@ -306,6 +310,8 @@ class FilesWorkspace(QWidget):
             )
             set_pathena_ui_state(self.status, "error")
             if owns_details:
+                if operation == "show":
+                    self.details.setPlainText(output)
                 set_pathena_ui_state(self.details, "error")
             if operation == "list":
                 self.details.setPlainText(output)
@@ -321,6 +327,7 @@ class FilesWorkspace(QWidget):
             self.status.setText(f"Source {source_label} details loaded.")
             set_pathena_ui_state(self.status, "success")
             if owns_details:
+                self.details.setPlainText(format_source_show(output))
                 set_pathena_ui_state(self.details, "success")
             return
 
