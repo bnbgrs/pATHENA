@@ -83,7 +83,25 @@ jobs:
         run: |
           set -o pipefail
           mkdir -p .quality-evidence
-          uv run --locked --extra dev --extra desktop python -m pytest 2>&1 | tee .quality-evidence/pytest.txt
+
+          # PySide owns process-global native state. Keep the controller's real
+          # off-UI-thread regression fully mandatory, but execute it in its own
+          # interpreter so prior Qt tests cannot poison its native event-loop state.
+          set +e
+          uv run --locked --extra dev --extra desktop python -m pytest tests/unit/test_desktop_api_controller.py 2>&1 | tee .quality-evidence/pytest-desktop-api-controller.txt
+          controller_status=${PIPESTATUS[0]}
+
+          # Run every remaining test in the canonical suite exactly once. The
+          # isolated controller module above is the only excluded path here.
+          uv run --locked --extra dev --extra desktop python -m pytest --ignore=tests/unit/test_desktop_api_controller.py 2>&1 | tee .quality-evidence/pytest.txt
+          suite_status=${PIPESTATUS[0]}
+          set -e
+
+          if [ "$controller_status" -ne 0 ] || [ "$suite_status" -ne 0 ]; then
+            echo "ATHENA PYTEST: FAIL — controller=$controller_status suite=$suite_status" >&2
+            exit 1
+          fi
+          echo "ATHENA PYTEST: PASS — isolated controller and remaining canonical suite"
 
       - name: Upload canonical quality diagnostics
         if: ${{ always() && !cancelled() }}

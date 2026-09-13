@@ -1,31 +1,30 @@
 # pATHENA Alpha/Beta Progress
 
-Evidence-only progress register for `develop/pathena-next`. This file intentionally contains no invented completion percentage.
+Evidence-only progress register for `develop/pathena-next`. No invented completion percentage.
 
 ## Current baseline
 
-- Develop parent before current integration: `305703362d539ed467dec27cbc7300a495b3ca03`.
-- Exact parent canonical Quality `34728645613 = SUCCESS`.
-- Worker heads checked: Errors `4d56cdbde52af238917568948daf86bd7c112930`; Spec/Core `78d51621cbdfa3282cd236b5d0c7f5984abedcae`; Backend `a709c229d6994c159490c2c1eaf3f2549f12cf56`; UI `031f291bbbb215e6319bb30e7aed92768e6aac18`.
+- Develop parent before current integration: `d7a5bcf6d836c47588b907d666b5541386ca0678`.
+- Exact parent canonical Quality `34737035739 = FAILURE` only in pytest contract enforcement after native Qt controller isolation; controller module itself passed 6/6 and the remaining suite completed with `1 failed, 5029 passed, 17 skipped`.
+- Worker heads checked: Errors `2a777c98dd10d22cefc487e0f76d0552415efdf5`; Spec/Core `fc253bd8646028a4226aa603d7188830daf54d7d`; Backend `7063801bcefc7153f4ef5de4b3d82669861b4208`; UI `2f003f7de2cc9b9499b1853cc8e4869b404488eb`.
 
 ## Current integration state
 
-- Durable schedule identity/materialization/recovery and deterministic versioned schedule serialization remain integrated.
-- SQLite startup identity remains fail-closed for partial or foreign sidecar changes; Backend's newer complete-sidecar rotation work is not yet integrated because its exact canonical gate was still active at qualification time.
-- Truthful Knowledge provenance explanation, transport-neutral current-revision explanation API, adjacent revision-change explanation and Knowledge revision-history projection are integrated.
-- Revision-change wording now distinguishes an unsupplied reason from a persisted reason proven unavailable.
-- Core-Focused candidate selection remains restricted to Core-owned focused test families with its regression guard intact.
+- Canonical Qt-controller isolation remains mandatory and fail-closed. Its repository contract now verifies both mandatory pytest invocations and their combined failure enforcement instead of requiring the superseded single-process command string.
+- Truthful Knowledge provenance/current-revision/revision-history/revision-change surfaces remain integrated.
+- Knowledge model disclosure is selected from exact-green Spec/Core `fc253bd8...`: user revisions cannot claim fabricated model provenance; primary-model disclosure requires a matching succeeded ProcessingRun/ModelSignature pair.
+- Transactional schedule-startup recovery remains integrated.
+- Backend paired-sidecar startup identity work remains excluded while Storage Focused is red.
 
-## Exact Worker evidence
+## Exact evidence
 
-- Spec/Core `78d51621cbdfa3282cd236b5d0c7f5984abedcae`: Core Focused `34730134596 = SUCCESS`; canonical Quality `34730134589 = SUCCESS`; effective delta versus Develop is four Knowledge product/test files and is selected for integration.
-- Backend `a709c229d6994c159490c2c1eaf3f2549f12cf56`: effective delta versus Develop is schedule-startup code/tests plus SQLite startup-identity hardening; Storage Focused is green, canonical Quality `34730587873` was still in progress at qualification time. Conservative hold.
-- UI `031f291bbbb215e6319bb30e7aed92768e6aac18`: broad UI/render/evidence delta also removes Core-owned orphan Knowledge files; no broad promotion.
-- Errors `4d56cdbde52af238917568948daf86bd7c112930`: current diagnostic handoff supersedes the historical repository Error Ledger where exact-SHA evidence differs.
+- Develop `d7a5bcf6...`: canonical `34737035739 = FAILURE`; Linux Storage, Windows path/recovery/package guards, Local Install and pypdf are green; isolated controller 6/6 passes; remaining suite sole failure is `test_quality_workflow_contract.py::test_canonical_quality_keeps_full_pytest_and_enforces_all_core_checks`.
+- Spec/Core `fc253bd8...`: Core Focused `34737394852 = SUCCESS`; canonical `34737394871 = SUCCESS`.
+- Backend `7063801b...`: Storage Focused `34738082478 = FAILURE`; no Storage promotion.
 
 ## Error and visual truth rules
 
-- `docs/agent_logs/ERROR_LEDGER.md` remains historical relative to current Develop; historical signatures are not reopened without current reproduction.
+- `docs/agent_logs/ERROR_LEDGER.md` remains historical where newer exact-SHA evidence exists.
 - Eleven-screen status remains fail-closed; no visual `MATCH` without opened original reference plus real exact-SHA render.
 
 ## Persistent release guards
@@ -36,4 +35,4 @@ Do not relax: pypdf packaging; fail-closed Frozen argv; Desktop/Worker two-EXE s
 
 `PROMOTION_READY=NO`
 
-The newly integrated Knowledge history/reason-truth slices require exact-current Develop canonical Quality before they are integrated-green. Develop becomes Beta/Release-ready only after exact-current canonical Quality plus the known Windows/Packaging/Runtime regression matrix are green.
+The integrated regression fix and Knowledge disclosure slice require exact-current Develop canonical Quality before any further Develop mutation.
