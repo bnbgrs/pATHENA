@@ -27,6 +27,14 @@ def test_core_focused_pytest_selects_only_core_owned_test_families() -> None:
     assert "No changed Core-owned unit-test files selected" in text
 
 
+def test_core_focused_lints_knowledge_api_sources() -> None:
+    text = _workflow_text()
+    selector = "^(src/athena/knowledge/.*|src/athena/api/knowledge_.*|tests/unit/.*)\\.py$"
+
+    assert '"src/athena/api/knowledge_*.py"' in text
+    assert text.count(selector) == 2
+
+
 def test_core_focused_remediation_ignores_only_untracked_evidence() -> None:
     text = _workflow_text()
 

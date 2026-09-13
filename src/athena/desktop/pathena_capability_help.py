@@ -24,6 +24,7 @@ from athena.desktop.pathena_capability_catalog import (
     ResolvedCapability,
     resolve_capability_catalog,
 )
+from athena.desktop.pathena_design_tokens import PALETTE, SHELL, TYPE
 
 
 class CapabilityHelpController(QObject):
@@ -83,14 +84,18 @@ class CapabilityHelpController(QObject):
 
         navigation = QFrame(self.help_body)
         navigation.setObjectName("helpSecondaryNavigation")
-        navigation.setFixedWidth(208)
+        navigation.setFixedWidth(SHELL.secondary_nav_width)
+        navigation.setStyleSheet(
+            f"QFrame#helpSecondaryNavigation {{ background: transparent; "
+            f"border: none; border-right: 1px solid {PALETTE.border}; }}"
+        )
         navigation_layout = QVBoxLayout(navigation)
-        navigation_layout.setContentsMargins(0, 0, 0, 0)
+        navigation_layout.setContentsMargins(0, 0, 10, 0)
         navigation_layout.setSpacing(14)
         navigation_title = QLabel("Help", navigation)
         navigation_title.setObjectName("helpSecondaryTitle")
         navigation_title_font = navigation_title.font()
-        navigation_title_font.setPixelSize(16)
+        navigation_title_font.setPixelSize(TYPE.section_px)
         navigation_title_font.setWeight(QFont.Weight.DemiBold)
         navigation_title.setFont(navigation_title_font)
         navigation_layout.addWidget(navigation_title)
@@ -105,6 +110,31 @@ class CapabilityHelpController(QObject):
             Qt.ScrollBarPolicy.ScrollBarAlwaysOff
         )
         self.help_sections.setSpacing(3)
+        self.help_sections.setStyleSheet(
+            f"""
+            QListWidget#helpSections {{
+                background: transparent;
+                border: none;
+                outline: none;
+            }}
+            QListWidget#helpSections::item {{
+                color: {PALETTE.text_muted};
+                background: transparent;
+                border: none;
+                border-left: 2px solid transparent;
+                padding: 7px 10px;
+            }}
+            QListWidget#helpSections::item:hover {{
+                color: {PALETTE.text};
+                background: {PALETTE.surface_hover};
+            }}
+            QListWidget#helpSections::item:selected {{
+                color: {PALETTE.text};
+                background: {PALETTE.surface_selected};
+                border-left: 2px solid {PALETTE.accent};
+            }}
+            """
+        )
         navigation_layout.addWidget(self.help_sections, 1)
 
         content = QFrame(self.help_body)
@@ -116,7 +146,7 @@ class CapabilityHelpController(QObject):
         headline = QLabel("What can pATHENA do?", content)
         headline.setObjectName("helpHeadline")
         headline_font = headline.font()
-        headline_font.setPixelSize(28)
+        headline_font.setPixelSize(TYPE.title_px)
         headline_font.setWeight(QFont.Weight.DemiBold)
         headline.setFont(headline_font)
         content_layout.addWidget(headline)
