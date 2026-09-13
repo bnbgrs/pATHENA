@@ -354,6 +354,7 @@ def _validate_research_exhaustive(
         "scoped_project",
         "local_plus_web",
         "historical_backfill",
+        "delta",
     }:
         raise BuiltinJobPayloadValidationError(
             "research.exhaustive field 'mode' has an unsupported value."
@@ -373,6 +374,10 @@ def _validate_research_exhaustive(
     explicit_source_ids = _canonical_uuid_list(
         scope, "explicit_source_ids", label=label
     )
+    if mode == "delta" and not explicit_source_ids:
+        raise BuiltinJobPayloadValidationError(
+            "research.exhaustive delta mode requires explicit_source_ids."
+        )
     start = _optional_integer(scope, "time_start_us", minimum=0, label=label)
     end = _optional_integer(scope, "time_end_us", minimum=0, label=label)
     if mode == "historical_backfill" and (start is None or end is None):
@@ -646,6 +651,7 @@ def _canonical_uuid_list(
             f"{label} field {field!r} must be sorted and unique."
         )
     return canonical
+
 
 def _equal_text(
     value: Mapping[str, Any],

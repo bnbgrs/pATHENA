@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import sqlite3
+import stat
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -18,6 +19,10 @@ from athena.storage.schema import (
 
 class DatabaseRecoveryRequiredError(DatabaseCompatibilityError):
     """Raised when normal writer startup must stop and recovery is required."""
+
+
+class DatabaseStartupIdentityChangedError(DatabaseRecoveryRequiredError):
+    """Accepted preflight objects changed before the live writer was established."""
 
 
 def _require_path(value: object) -> Path:
@@ -55,6 +60,104 @@ def _optional_nonnegative_int(value: object, field_name: str) -> int | None:
 
 
 @dataclass(frozen=True, slots=True)
+class DatabaseFileIdentity:
+    """Stable filesystem-object identity for one member of the SQLite file set."""
+
+    exists: bool
+    device: int | None
+    inode: int | None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.exists, bool):
+            raise TypeError("Database file identity exists must be bool.")
+        if self.exists:
+            if self.device is None or self.inode is None:
+                raise ValueError("Existing database file identity requires device and inode.")
+        elif self.device is not None or self.inode is not None:
+            raise ValueError("Missing database file identity must not carry device/inode.")
+
+
+@dataclass(frozen=True, slots=True)
+class DatabaseFileSetIdentity:
+    """Identity token carried from accepted preflight to live-writer establishment."""
+
+    database: DatabaseFileIdentity
+    wal: DatabaseFileIdentity
+    shm: DatabaseFileIdentity
+
+
+def _capture_regular_file_identity(
+    path: Path,
+    *,
+    required: bool,
+    label: str,
+) -> DatabaseFileIdentity:
+    if is_link_boundary(path):
+        raise DatabaseRecoveryRequiredError(
+            f"{label} is a symbolic link or reparse point; recovery review is required."
+        )
+    if not os.path.lexists(path):
+        if required:
+            raise DatabaseStartupIdentityChangedError(
+                f"{label} disappeared after startup preflight."
+            )
+        return DatabaseFileIdentity(exists=False, device=None, inode=None)
+    try:
+        result = os.stat(path, follow_symlinks=False)
+    except OSError as exc:
+        raise DatabaseStartupIdentityChangedError(
+            f"{label} identity could not be read during startup."
+        ) from exc
+    if not stat.S_ISREG(result.st_mode):
+        raise DatabaseRecoveryRequiredError(f"{label} is not a regular file.")
+    return DatabaseFileIdentity(
+        exists=True,
+        device=int(result.st_dev),
+        inode=int(result.st_ino),
+    )
+
+
+def capture_database_file_set_identity(path: Path) -> DatabaseFileSetIdentity:
+    """Capture primary DB plus WAL/SHM object identities without following links."""
+
+    requested = _require_path(path).expanduser().absolute()
+    wal_path = requested.with_name(f"{requested.name}-wal")
+    shm_path = requested.with_name(f"{requested.name}-shm")
+    return DatabaseFileSetIdentity(
+        database=_capture_regular_file_identity(
+            requested,
+            required=False,
+            label="ATHENA database",
+        ),
+        wal=_capture_regular_file_identity(
+            wal_path,
+            required=False,
+            label="SQLite WAL sidecar",
+        ),
+        shm=_capture_regular_file_identity(
+            shm_path,
+            required=False,
+            label="SQLite SHM sidecar",
+        ),
+    )
+
+
+def assert_database_file_set_identity(
+    path: Path,
+    expected: DatabaseFileSetIdentity,
+) -> None:
+    """Fail closed unless the exact accepted SQLite filesystem objects remain published."""
+
+    if not isinstance(expected, DatabaseFileSetIdentity):
+        raise TypeError("Expected database file-set identity must be DatabaseFileSetIdentity.")
+    current = capture_database_file_set_identity(path)
+    if current != expected:
+        raise DatabaseStartupIdentityChangedError(
+            "ATHENA SQLite database/WAL/SHM identity changed after startup preflight."
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class DatabasePreflightReport:
     """Read-only facts established before the live database is opened for writes."""
 
@@ -64,6 +167,7 @@ class DatabasePreflightReport:
     schema_version: int | None
     wal_present: bool
     shm_present: bool
+    file_set_identity: DatabaseFileSetIdentity | None = None
 
     def __post_init__(self) -> None:
         _require_path(self.path)
@@ -73,19 +177,40 @@ class DatabasePreflightReport:
         _optional_nonnegative_int(self.schema_version, "Database preflight schema_version")
         if not isinstance(self.wal_present, bool) or not isinstance(self.shm_present, bool):
             raise TypeError("Database preflight sidecar flags must be bool.")
+        if self.file_set_identity is not None and not isinstance(
+            self.file_set_identity, DatabaseFileSetIdentity
+        ):
+            raise TypeError(
+                "Database preflight file_set_identity must be DatabaseFileSetIdentity or None."
+            )
         if self.exists:
             if self.application_id is None or self.schema_version is None:
                 raise ValueError(
                     "Existing database preflight requires application_id and schema_version."
                 )
+            if (
+                self.file_set_identity is not None
+                and not self.file_set_identity.database.exists
+            ):
+                raise ValueError(
+                    "Existing database preflight identity must include the primary database."
+                )
         elif self.application_id is not None or self.schema_version is not None:
             raise ValueError(
                 "Missing database preflight must not carry application/schema metadata."
+            )
+        elif (
+            self.file_set_identity is not None
+            and self.file_set_identity.database.exists
+        ):
+            raise ValueError(
+                "Missing database preflight must not carry a primary database identity."
             )
 
 
 def inspect_database_read_only(path: Path) -> DatabasePreflightReport:
     """Validate an existing ATHENA database before any normal writer connection."""
+
     requested = _require_path(path).expanduser().absolute()
     try:
         assert_active_state_root_local(requested.parent)
@@ -115,6 +240,7 @@ def inspect_database_read_only(path: Path) -> DatabasePreflightReport:
             raise DatabaseRecoveryRequiredError(
                 "SQLite WAL/SHM sidecar exists without the primary ATHENA database."
             )
+        identity = capture_database_file_set_identity(requested)
         return DatabasePreflightReport(
             path=requested,
             exists=False,
@@ -122,6 +248,7 @@ def inspect_database_read_only(path: Path) -> DatabasePreflightReport:
             schema_version=None,
             wal_present=False,
             shm_present=False,
+            file_set_identity=identity,
         )
 
     if not requested.is_file():
@@ -182,6 +309,7 @@ def inspect_database_read_only(path: Path) -> DatabasePreflightReport:
             raise DatabaseRecoveryRequiredError(
                 f"SQLite startup quick_check failed: {detail}"
             )
+        file_set_identity = capture_database_file_set_identity(requested)
     except DatabaseRecoveryRequiredError:
         raise
     except (sqlite3.Error, TypeError, ValueError, IndexError) as exc:
@@ -191,11 +319,14 @@ def inspect_database_read_only(path: Path) -> DatabasePreflightReport:
     finally:
         connection.close()
 
+    assert_database_file_set_identity(requested, file_set_identity)
+
     return DatabasePreflightReport(
         path=requested,
         exists=True,
         application_id=application_id,
         schema_version=schema_version,
-        wal_present=os.path.lexists(wal_path),
-        shm_present=os.path.lexists(shm_path),
+        wal_present=file_set_identity.wal.exists,
+        shm_present=file_set_identity.shm.exists,
+        file_set_identity=file_set_identity,
     )

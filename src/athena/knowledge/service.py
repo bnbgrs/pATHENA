@@ -133,6 +133,42 @@ class KnowledgeService:
             reason="direct user revision",
         )
 
+    def reclassify(
+        self,
+        *,
+        knowledge_id: uuid.UUID,
+        knowledge_kind: KnowledgeKind,
+    ) -> KnowledgeUnitRevision:
+        """Reclassify one stable Knowledge identity through a new user revision.
+
+        Reclassification is deliberately narrower than ``revise``: only
+        ``knowledge_kind`` may change. The canonical body, title, temporal range,
+        epistemic status, and stable Knowledge identity are retained exactly.
+        """
+        if not isinstance(knowledge_kind, KnowledgeKind):
+            raise TypeError("knowledge_kind must be a KnowledgeKind.")
+
+        current = self.repository.load_current(knowledge_id)
+        current_payload = current.revision.payload
+        if current_payload.knowledge_kind is knowledge_kind:
+            raise ValueError("KnowledgeUnit already has the requested knowledge_kind.")
+
+        actor_id = self.chat.ensure_local_user()
+        return self.repository.revise_knowledge_unit(
+            actor_id=actor_id,
+            knowledge_id=knowledge_id,
+            expected_revision_id=current.revision.revision_id,
+            draft=KnowledgeUnitDraft(
+                knowledge_kind=knowledge_kind,
+                title=current_payload.title,
+                body=current_payload.body,
+                valid_from_us=current_payload.valid_from_us,
+                valid_to_us=current_payload.valid_to_us,
+                epistemic_status=current_payload.epistemic_status,
+            ),
+            reason="direct user reclassification",
+        )
+
     def load(self, knowledge_id: uuid.UUID) -> KnowledgeUnitSnapshot:
         return self.repository.load_current(knowledge_id)
 

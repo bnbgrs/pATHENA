@@ -44,7 +44,7 @@ class _ReserveStub:
     ) -> EmergencyReserveStatus:
         self.ensure_calls += 1
         return EmergencyReserveStatus(
-            path=Path("/tmp/bootstrap-emergency.reserve"),
+            path=Path.cwd() / "bootstrap-emergency.reserve",
             required_bytes=required_bytes,
             file_size_bytes=required_bytes,
             allocated_bytes=required_bytes,

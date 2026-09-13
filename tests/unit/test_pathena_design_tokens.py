@@ -56,7 +56,11 @@ def test_reference_palette_is_deep_black_with_functional_orange() -> None:
 def test_reference_typography_uses_editorial_display_family() -> None:
     assert "serif" in TYPE.display_family.lower()
     assert "Segoe UI" in TYPE.content_family
-    assert TYPE.title_px >= 32
+    assert TYPE.title_px >= 40
+    assert TYPE.section_px >= 20
+    assert TYPE.body_px >= 15
+    assert TYPE.metadata_px >= 12
+    assert TYPE.title_px >= TYPE.section_px * 2
 
 
 def test_reference_shell_geometry_excludes_legacy_wide_sidebar() -> None:

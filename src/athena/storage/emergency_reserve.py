@@ -130,6 +130,30 @@ def _assert_posix_directory_current(path: Path, descriptor: int) -> None:
         )
 
 
+def _assert_posix_reserve_current(root_fd: int, descriptor: int) -> os.stat_result:
+    """Bind the published reserve leaf to the already-open file descriptor."""
+    try:
+        handle_stat = os.fstat(descriptor)
+        path_stat = os.stat(
+            _RESERVE_FILENAME,
+            dir_fd=root_fd,
+            follow_symlinks=False,
+        )
+    except OSError as exc:
+        raise EmergencyReserveError(
+            "Emergency reserve file identity could not be verified for release."
+        ) from exc
+    if not stat.S_ISREG(handle_stat.st_mode) or not stat.S_ISREG(path_stat.st_mode):
+        raise EmergencyReserveError(
+            "Emergency reserve path is not a regular file."
+        )
+    if not os.path.samestat(handle_stat, path_stat):
+        raise EmergencyReserveError(
+            "Emergency reserve file changed during release."
+        )
+    return handle_stat
+
+
 def _write_allocated_bytes(
     descriptor: int,
     *,
@@ -221,9 +245,6 @@ class EmergencyReserveStore:
             try:
                 durable_mkdir(self.reserve_root, parents=False, exist_ok=False)
             except FileExistsError as exc:
-                # Another local process may have created the same durable directory
-                # after our exists() check. Accept only the safe real directory that
-                # now occupies the expected pathname; all redirecting boundaries fail.
                 if is_link_boundary(self.reserve_root) or not self.reserve_root.is_dir():
                     raise EmergencyReserveError(
                         "Emergency reserve directory could not be created safely."
@@ -255,17 +276,9 @@ class EmergencyReserveStore:
             raise EmergencyReserveError(str(exc)) from exc
 
     def _wait_for_concurrent_creation(self, *, required: int) -> EmergencyReserveStatus:
-        """Wait only while an incomplete reserve is demonstrably making progress.
-
-        A second core/scheduler process can observe the O_EXCL winner after the file
-        has been published but before its physical allocation write completes. That
-        partial file is not corruption. Conversely, a stable wrong-sized file must
-        still fail closed rather than becoming silently accepted.
-        """
         deadline = time.monotonic() + _CONCURRENT_CREATION_TIMEOUT_SECONDS
         last_size: int | None = None
         last_progress = time.monotonic()
-
         while True:
             if is_link_boundary(self.path):
                 raise EmergencyReserveError(
@@ -281,23 +294,16 @@ class EmergencyReserveStore:
                 raise EmergencyReserveError(
                     "Emergency reserve metadata could not be read during concurrent creation."
                 ) from exc
-
             if not stat.S_ISREG(current.st_mode):
-                raise EmergencyReserveError(
-                    "Emergency reserve path is not a regular file."
-                )
-            if current.st_size == required:
+                raise EmergencyReserveError("Emergency reserve path is not a regular file.")
+            if current.st_size >= required:
                 return self.inspect(required_bytes=required)
-            if current.st_size > required:
-                return self.inspect(required_bytes=required)
-
             now = time.monotonic()
             if last_size is None or current.st_size > last_size:
                 last_size = current.st_size
                 last_progress = now
             elif now - last_progress >= _CONCURRENT_CREATION_STAGNANT_SECONDS:
                 return self.inspect(required_bytes=required)
-
             if now >= deadline:
                 return self.inspect(required_bytes=required)
             time.sleep(_CONCURRENT_CREATION_POLL_SECONDS)
@@ -312,19 +318,13 @@ class EmergencyReserveStore:
         try:
             descriptor = os.open(_RESERVE_FILENAME, flags, dir_fd=root_fd)
         except FileNotFoundError as exc:
-            raise EmergencyReserveError(
-                "Emergency reserve file is missing or unsafe."
-            ) from exc
+            raise EmergencyReserveError("Emergency reserve file is missing or unsafe.") from exc
         except OSError as exc:
-            raise EmergencyReserveError(
-                "Emergency reserve file could not be opened safely."
-            ) from exc
+            raise EmergencyReserveError("Emergency reserve file could not be opened safely.") from exc
         try:
             file_stat = os.fstat(descriptor)
             if not stat.S_ISREG(file_stat.st_mode):
-                raise EmergencyReserveError(
-                    "Emergency reserve path is not a regular file."
-                )
+                raise EmergencyReserveError("Emergency reserve path is not a regular file.")
             status = self._status_from_stat(required=required, stat_result=file_stat)
         finally:
             os.close(descriptor)
@@ -344,19 +344,11 @@ class EmergencyReserveStore:
             _assert_posix_directory_current(self.reserve_root, root_fd)
             flags = os.O_RDWR | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
             try:
-                descriptor = os.open(
-                    _RESERVE_FILENAME,
-                    flags,
-                    0o600,
-                    dir_fd=root_fd,
-                )
+                descriptor = os.open(_RESERVE_FILENAME, flags, 0o600, dir_fd=root_fd)
                 created = True
             except FileExistsError:
                 try:
-                    return self._inspect_posix_with_root_fd(
-                        root_fd=root_fd,
-                        required=required,
-                    )
+                    return self._inspect_posix_with_root_fd(root_fd=root_fd, required=required)
                 except EmergencyReserveError as exc:
                     if "file size must exactly match required bytes" not in str(exc):
                         raise
@@ -369,13 +361,8 @@ class EmergencyReserveStore:
                 raise EmergencyReserveError(
                     "Emergency reserve could not be opened for allocation."
                 ) from exc
-
             os.fchmod(descriptor, 0o600)
-            _write_allocated_bytes(
-                descriptor,
-                size_bytes=required,
-                chunk_bytes=chunk_bytes,
-            )
+            _write_allocated_bytes(descriptor, size_bytes=required, chunk_bytes=chunk_bytes)
             os.fsync(descriptor)
             file_stat = os.fstat(descriptor)
             if not stat.S_ISREG(file_stat.st_mode):
@@ -419,17 +406,11 @@ class EmergencyReserveStore:
         required_bytes: int,
         write_chunk_bytes: int = _DEFAULT_WRITE_CHUNK_BYTES,
     ) -> EmergencyReserveStatus:
-        """Ensure one physically allocated reserve file of exactly the target size."""
         required = _positive_int(required_bytes, "Emergency reserve required_bytes")
-        chunk_bytes = _positive_int(
-            write_chunk_bytes,
-            "Emergency reserve write_chunk_bytes",
-        )
+        chunk_bytes = _positive_int(write_chunk_bytes, "Emergency reserve write_chunk_bytes")
         self._prepare_root()
-
         if os.name == "posix":
             return self._ensure_posix(required=required, chunk_bytes=chunk_bytes)
-
         if self.path.exists():
             try:
                 return self.inspect(required_bytes=required)
@@ -437,7 +418,6 @@ class EmergencyReserveStore:
                 if "file size must exactly match required bytes" not in str(exc):
                     raise
                 return self._wait_for_concurrent_creation(required=required)
-
         flags = os.O_RDWR | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
         descriptor = -1
         created = False
@@ -447,10 +427,7 @@ class EmergencyReserveStore:
                 descriptor = os.open(self.path, flags, 0o600)
                 created = True
             except FileExistsError:
-                # Losing O_EXCL means another process owns creation. Never enter
-                # our cleanup path for that file; wait for the winner to finish.
                 return self._wait_for_concurrent_creation(required=required)
-
             try:
                 created_identity = os.fstat(descriptor)
                 path_stat = self.path.stat(follow_symlinks=False)
@@ -458,18 +435,11 @@ class EmergencyReserveStore:
                 raise EmergencyReserveError(
                     "Emergency reserve file identity could not be verified."
                 ) from exc
-            if is_link_boundary(self.path) or not os.path.samestat(
-                path_stat,
-                created_identity,
-            ):
+            if is_link_boundary(self.path) or not os.path.samestat(path_stat, created_identity):
                 raise EmergencyReserveError(
                     "Emergency reserve pathname changed during creation."
                 )
-            _write_allocated_bytes(
-                descriptor,
-                size_bytes=required,
-                chunk_bytes=chunk_bytes,
-            )
+            _write_allocated_bytes(descriptor, size_bytes=required, chunk_bytes=chunk_bytes)
             os.fsync(descriptor)
         except BaseException as exc:
             if descriptor >= 0:
@@ -478,10 +448,6 @@ class EmergencyReserveStore:
                 except OSError:
                     pass
                 descriptor = -1
-
-            # Only remove the exact file identity created by this process. A lost
-            # O_EXCL race or pathname replacement must never delete another
-            # process's completed reserve or an attacker-controlled replacement.
             if created and created_identity is not None:
                 try:
                     current = self.path.stat(follow_symlinks=False)
@@ -493,7 +459,6 @@ class EmergencyReserveStore:
                         fsync_directory(self.reserve_root)
                 except OSError:
                     pass
-
             if isinstance(exc, EmergencyReserveError):
                 raise
             if isinstance(exc, OSError):
@@ -504,7 +469,6 @@ class EmergencyReserveStore:
         finally:
             if descriptor >= 0:
                 os.close(descriptor)
-
         fsync_directory(self.reserve_root)
         return self.inspect(required_bytes=required)
 
@@ -514,17 +478,11 @@ class EmergencyReserveStore:
         if os.name == "posix":
             root_fd = _open_posix_directory(self.reserve_root)
             try:
-                return self._inspect_posix_with_root_fd(
-                    root_fd=root_fd,
-                    required=required,
-                )
+                return self._inspect_posix_with_root_fd(root_fd=root_fd, required=required)
             finally:
                 os.close(root_fd)
-
         if is_link_boundary(self.path) or not self.path.is_file():
-            raise EmergencyReserveError(
-                "Emergency reserve file is missing or unsafe."
-            )
+            raise EmergencyReserveError("Emergency reserve file is missing or unsafe.")
         try:
             file_size = self.path.stat(follow_symlinks=False).st_size
         except OSError as exc:
@@ -543,7 +501,7 @@ class EmergencyReserveStore:
             raise EmergencyReserveError(str(exc)) from exc
 
     def release(self) -> int:
-        """Delete only the reserve file, returning the logical bytes released."""
+        """Remove the reserve and return only bytes whose reclamation is provable."""
         self._prepare_root()
         if os.name == "posix":
             root_fd = _open_posix_directory(self.reserve_root)
@@ -563,19 +521,23 @@ class EmergencyReserveStore:
                     raise EmergencyReserveError(
                         "Emergency reserve file could not be opened safely for release."
                     ) from exc
-                file_stat = os.fstat(descriptor)
-                if not stat.S_ISREG(file_stat.st_mode):
+
+                file_stat = _assert_posix_reserve_current(root_fd, descriptor)
+                if file_stat.st_nlink != 1:
                     raise EmergencyReserveError(
-                        "Emergency reserve path is not a regular file."
+                        "Emergency reserve has additional hard links; physical reclamation cannot be proven."
                     )
-                size = file_stat.st_size
-                os.close(descriptor)
-                descriptor = -1
+
                 _assert_posix_directory_current(self.reserve_root, root_fd)
+                _assert_posix_reserve_current(root_fd, descriptor)
                 os.unlink(_RESERVE_FILENAME, dir_fd=root_fd)
                 os.fsync(root_fd)
                 _assert_posix_directory_current(self.reserve_root, root_fd)
-                return size
+
+                # POSIX offers no portable way to prove that another process does not
+                # still hold the now-unlinked inode open. Returning the logical size
+                # would overstate reclaimed capacity, so accounting remains fail-closed.
+                return 0
             except OSError as exc:
                 raise EmergencyReserveError(
                     "Emergency reserve could not be released durably."
@@ -592,9 +554,7 @@ class EmergencyReserveStore:
         if not self.path.exists():
             return 0
         if not self.path.is_file():
-            raise EmergencyReserveError(
-                "Emergency reserve path is not a regular file."
-            )
+            raise EmergencyReserveError("Emergency reserve path is not a regular file.")
         try:
             size = self.path.stat(follow_symlinks=False).st_size
             self.path.unlink()

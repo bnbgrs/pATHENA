@@ -40,7 +40,7 @@ jobs:
             throw "pull-request head SHA must be exactly 40 lowercase hexadecimal characters."
           }
           if ($base -notmatch "^[0-9a-f]{40}$") {
-            throw "PR base SHA must be exactly 40 lowercase hexadecimal characters."
+            throw "pull-request base SHA must be exactly 40 lowercase hexadecimal characters."
           }
           "CANDIDATE_SHA=$candidate" | Out-File -FilePath $env:GITHUB_ENV -Append
           "BASE_SHA=$base" | Out-File -FilePath $env:GITHUB_ENV -Append

@@ -100,7 +100,7 @@ def test_store_releases_only_reserve_file(tmp_path: Path) -> None:
 
     released = store.release()
 
-    assert released == 4096
+    assert released == (0 if os.name == "posix" else 4096)
     assert not store.path.exists()
     assert sibling.read_text(encoding="utf-8") == "keep"
     assert store.release() == 0
@@ -286,6 +286,91 @@ def test_posix_store_release_does_not_unlink_replacement_root_file(
 
     assert (reserve_root / "emergency.reserve").read_bytes() == b"attacker"
     assert not (displaced / "emergency.reserve").exists()
+
+
+def test_posix_release_rejects_hardlinked_reserve_without_unlink(tmp_path: Path) -> None:
+    if os.name != "posix":
+        pytest.skip("POSIX hard-link accounting regression")
+
+    state_root = (tmp_path / "state").absolute()
+    state_root.mkdir()
+    store = EmergencyReserveStore(state_root)
+    store.ensure(required_bytes=4096, write_chunk_bytes=1024)
+    alias = store.reserve_root / "reserve-alias"
+    os.link(store.path, alias)
+
+    with pytest.raises(EmergencyReserveError, match="additional hard links"):
+        store.release()
+
+    assert store.path.is_file()
+    assert alias.is_file()
+    assert os.path.samestat(store.path.stat(), alias.stat())
+
+
+def test_posix_release_never_overstates_reclamation_with_foreign_descriptor(tmp_path: Path) -> None:
+    if os.name != "posix":
+        pytest.skip("POSIX open-descriptor accounting regression")
+
+    state_root = (tmp_path / "state").absolute()
+    state_root.mkdir()
+    store = EmergencyReserveStore(state_root)
+    store.ensure(required_bytes=4096, write_chunk_bytes=1024)
+    foreign_descriptor = os.open(store.path, os.O_RDONLY)
+    try:
+        released = store.release()
+
+        assert released == 0
+        assert not store.path.exists()
+        assert os.fstat(foreign_descriptor).st_size == 4096
+    finally:
+        os.close(foreign_descriptor)
+
+
+def test_posix_release_fails_closed_on_same_parent_leaf_substitution(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    if os.name != "posix":
+        pytest.skip("POSIX reserve-leaf identity regression")
+
+    state_root = (tmp_path / "state").absolute()
+    state_root.mkdir()
+    store = EmergencyReserveStore(state_root)
+    store.ensure(required_bytes=4096, write_chunk_bytes=1024)
+    displaced = store.reserve_root / "expected.reserve"
+    real_stat = os.stat
+    substituted = False
+
+    def racing_stat(
+        path: str | bytes | os.PathLike[str] | os.PathLike[bytes],
+        *,
+        dir_fd: int | None = None,
+        follow_symlinks: bool = True,
+    ) -> os.stat_result:
+        nonlocal substituted
+        if path == "emergency.reserve" and dir_fd is not None and not substituted:
+            substituted = True
+            os.rename("emergency.reserve", displaced.name, src_dir_fd=dir_fd, dst_dir_fd=dir_fd)
+            attacker_fd = os.open(
+                "emergency.reserve",
+                os.O_WRONLY | os.O_CREAT | os.O_EXCL,
+                0o600,
+                dir_fd=dir_fd,
+            )
+            try:
+                os.write(attacker_fd, b"attacker")
+                os.fsync(attacker_fd)
+            finally:
+                os.close(attacker_fd)
+        return real_stat(path, dir_fd=dir_fd, follow_symlinks=follow_symlinks)
+
+    monkeypatch.setattr(reserve_module.os, "stat", racing_stat)
+
+    with pytest.raises(EmergencyReserveError, match="file changed during release"):
+        store.release()
+
+    assert store.path.read_bytes() == b"attacker"
+    assert displaced.stat().st_size == 4096
 
 
 def test_service_uses_beta_volume_sizing_and_persists_on_stop(tmp_path: Path) -> None:

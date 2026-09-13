@@ -263,6 +263,7 @@ class ResearchRepository:
                 ResearchMode.LOCAL_EXHAUSTIVE,
                 ResearchMode.HISTORICAL_BACKFILL,
                 ResearchMode.LOCAL_PLUS_WEB,
+                ResearchMode.DELTA,
             }:
                 raise ResearchScopeUnsupportedError(
                     f"Foundation discovery does not support Research mode {scope.mode.value!r}."
