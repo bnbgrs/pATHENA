@@ -3,28 +3,28 @@
 ## Current integration
 
 - Integration target: `develop/pathena-next`.
-- Develop parent before this integration: `9e607472ba65ce86b795cf8f6926a0809700a2cd`.
-- Exact parent canonical Quality `34755721026 = SUCCESS`.
+- Develop head before this repair: `7b4779b7be8c19b9ca0acaa57f826d0da8478592`.
+- Exact canonical Quality `34758273159 = FAILURE` solely because Ruff reported `I001` in `tests/unit/test_core_focused_candidate_workflow.py`; canonical pytest, Linux Storage, Local Install and Windows release guards were green.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
-## Iteration 1 — Core-Focused user-correction harness coverage
+## Iteration 1 — ERR-0057 Core-Focused regression repair
 
-The Error handoff identified a generic CI omission after the user-correction product slice had to be renamed into the existing `test_knowledge*.py` selector. Current Develop still omitted `tests/unit/test_user_correction*.py` from both the PR path trigger and changed-test selection.
+The prior user-correction harness integration accidentally replaced the existing workflow-contract test file instead of extending it. That removed four established regression contracts and introduced an unsorted import block. Error-owned repair `ebcb67f065b7cd890c55897c3e9b9d74f0da10f8` restores the prior contracts, retains the new user-correction assertions, and restores the canonical-green import shape.
 
-This bounded cross-cutting fix adds only the missing trigger/selector and a regression contract in `tests/unit/test_core_focused_candidate_workflow.py`. It expands mandatory coverage; it does not skip, xfail, relax, or remove any check. Exact worker commits used as implementation evidence: `4b723fe7202c841e0c768aaf3a62600eaadf02ff` and `ef1e9d4cb40f1c17d8c28439312fdcdeb15baa4e`.
+This integration changes only `tests/unit/test_core_focused_candidate_workflow.py` plus this evidence documentation. The already-integrated workflow trigger/selector changes remain intact. No test, guard, Security, Storage, Recovery or release invariant is weakened; no Skip/XFail is introduced.
 
 ## Current worker state before mutation
 
-- Errors: `a1f6b796c6d9cb7b5aab3e2b36e663d872569f6d`.
-- Spec/Core: `77048de78be4dd7ca2555ed1b09e00d088f9c624`; canonical `34756815221 = SUCCESS` and tree synchronized with Develop.
-- Backend: `e76bfbe266107a781e3602246d143ee8e9e849b3`; canonical `34757222993 = SUCCESS` and tree synchronized with Develop.
-- UI: `d351dba17b69c3f5b55a1447f2ac088b929a1b48`; current canonical was still active during qualification, so no UI slice was promoted.
+- Errors: `8400089c41ebcd0dc2b2dc86124cbe59f623f098`; exact handoff identifies `ERR-0057` and bounded repair `ebcb67f065b7cd890c55897c3e9b9d74f0da10f8`.
+- Spec/Core: `69e4eeb74e459edcbf0ab83936152822e25dcf00`.
+- Backend: `d0693efea6067eb32c3edb2ecac3a7ed4ab36974`; synchronized tree with current Develop before this repair.
+- UI: `662f4a2d8da02e4497f141cac938193cf08e9361`; broad UI-owned delta remains separately qualified and is not promoted with this repair.
 
 ## Visual/source-of-truth notes
 
 - `docs/agent_logs/ERROR_LEDGER.md` is historical where newer exact-SHA evidence exists.
 - Eleven-screen parity remains fail-closed: no `MATCH` without an opened original reference plus a real exact-SHA render.
-- `docs/ui/VISUAL_GAP_LEDGER.md` still records screenshot-level parity as unverified.
+- `docs/ui/VISUAL_GAP_LEDGER.md` remains the visual-gap source of truth; no screenshot-level parity is inferred from code-only evidence.
 
 ## Persistent release guards
 
@@ -34,4 +34,4 @@ Retain without relaxation: pypdf packaging; fail-closed Frozen argv; Desktop/Wor
 
 `PROMOTION_READY=NO`
 
-Require canonical Quality on the resulting exact Develop SHA before any further Develop mutation.
+Require canonical Quality on the resulting exact Develop SHA before any further Develop mutation. Exact success closes the integration regression and allows re-qualification of the next bounded worker slice.
