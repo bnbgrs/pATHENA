@@ -1,52 +1,86 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `c830b96a12d25914c52a0abc7749a6724b19cfae`
 Integration target: `develop/pathena-next`
+Reference-parity branch: `agent/ui-11-reference-parity-20260911`
 
-Only evidence-backed gaps belong here. Slot 01 has direct pixel evidence from the opened user reference `pATHENA: Dunkles KI-Dashboard mit Wissenspanel.png`. No screenshot-level `MATCH` claim is asserted because a real rendered current build from the exact candidate SHA has not yet been opened side-by-side with that reference.
+All eleven originals in `pATHENA/Designreferenz – 11 Screenshots` were opened directly on 2026-09-11. This ledger therefore separates three things that had previously been mixed together: direct reference evidence, implementation status, and rendered parity proof.
 
-## UI-GAP-0001 — Inspector naming does not express the Evidence & Activity contract
+No screenshot-level `MATCH` claim is asserted here. A code change can close a structural gap while still requiring an exact current-build render and human side-by-side review.
+
+## UI-GAP-0001 — Inspector naming did not express the Evidence & Activity contract
 
 - Category: `HIERARCHY`
-- Screen: `10 — Grounded Chat / Evidence & Activity`
 - Severity: `P1`
-- Status: `FIXED`
-- Product commit: `1f0fd548431be122d13a403fe9e2387087edf8fa`
-- Test commit: `d85d2a2e144abc9d3ef1008b80f74114c7fafe23`
-- Verification evidence: exact UI head `f31be028652095b18b8a98dfacd65b73be9af763` passed ATHENA Quality Gate `33720745475`; lineage is integrated in Develop.
+- Status: `FIXED / INTEGRATED BEFORE THIS RUN`
+- Current contract: the right-hand generic pane is named `Evidence & Activity` and remains evidence-oriented.
 
 ## UI-GAP-0002 — Inspector was forced permanently visible instead of remaining context-sensitive
 
-- Category: `INTERACTION`
-- Screen: `01 — Workspace / Chat`, `10 — Grounded Chat / Evidence & Activity`
+- Category: `INTERACTION / LAYOUT`
 - Severity: `P1`
-- Status: `FIXED`
-- Product commit: `177bef4dcdb4956f1df75bfcce9ee10c7a4bd1e2`
-- Test-contract commit: `1685221150c724deceb5d150a4d2dcff2bdd867b`
-- Verification evidence: exact corrected worker head `ce959e148ddbe8f13952ca56f7d07e7a7ce1addb` passed ATHENA Quality Gate `33745885426`; exact verified blobs were integrated into Develop in `93a9344d3902c920da5ff283eb51bbb1f0d815b8`.
+- Status: `FIXED / STRENGTHENED IN THIS RUN`
+- Direct reference evidence: evidence-heavy Workspace references contain a right inspector; Settings, Jobs and System references do not require the same generic evidence pane as a permanent fourth column.
+- Current response: the final reference-parity layer hides the generic inspector outside Chat and shows it on Chat only when grounded context is available. Dedicated workspaces keep ownership of their own detail panes.
+- Verification status: focused unit coverage added; exact branch Quality gate pending.
 
-## UI-GAP-0003 — PALLAS full-view transition can hit a transient missing tab-order document binding
+## UI-GAP-0003 — PALLAS full-view transition could hit a transient missing tab-order document binding
 
 - Category: `INTERACTION`
-- Screen: `08 — PALLAS`
 - Severity: `P1`
-- Status: `FIXED`
-- Verification evidence: exact UI head `76cb122dbe7b58b0fa49bbcb36de2bd732922d4d` passed ATHENA Quality Gate `33751403354`; bounded equivalent product/test changes are integrated in Develop.
+- Status: `FIXED / INTEGRATED BEFORE THIS RUN`
+- Current response: this run does not alter PALLAS semantic behavior; it only lets the existing PALLAS surfaces inherit the common screenshot-family visual foundation.
 
-## UI-GAP-0004 — Workspace composer is materially underscaled relative to opened reference
+## UI-GAP-0004 — Workspace composer was materially underscaled relative to the reference family
 
 - Category: `HIERARCHY / ACCESSIBILITY`
-- Screen: `01 — Workspace / Chat`
 - Severity: `P1`
-- Status: `FIXED / INTEGRATOR_READY_TECHNICAL`
-- Pixel evidence: the opened user reference shows the composer as a large, prominent work surface near the lower center of the workspace, with a clearly separated arrow send target. Current Develop inherited the legacy compact composer before this UI slice.
-- Verified behavior: real chat input, grounding control and send route retained; composer 88 px, prompt 44 px, real Sources control 36 px, send outer target 44×44 px.
-- Exact verification: canonical ATHENA Quality Gate `34365616984` on exact synchronized UI head `90a51e111851f80c5e2388c11c4026c6ec62fa09` completed `success`.
-- The final QSS contract uses a 42×42 px send content box plus the inherited 1 px border per side; the runtime Qt contract independently verifies exact 44×44 outer width/height/min/max geometry.
-- Diff versus exact current Develop `c830b96a12d25914c52a0abc7749a6724b19cfae` is bounded to seven UI-owned files: three UI evidence docs, `pathena_shared_components.py`, `pathena_window.py`, and their two focused unit-test files. No Backend/Storage/Security product file is changed.
-- Acceptance preserved: no chat submission, grounding, model/provider, persistence, focus, shortcut, accessibility-name, backend, Storage or Security semantics change; no fake controls; no Skip/XFail.
-- Screenshot-level parity remains unverified until a current render from the exact implementation lineage is opened against the reference.
+- Status: `FIXED / REFINED IN THIS RUN / PENDING RENDER COMPARE`
+- Direct reference evidence: multiple Workspace references use a broad rounded lower work surface with a prominent circular send target.
+- Current response: final composer geometry is constrained to 80–92 px high, centered up to 980 px wide, with 48 px message input height and a real 48×48 circular send target. The existing Sources action and submission route are retained.
+- Verification status: runtime geometry unit coverage added; exact branch Quality gate pending.
 
-## Evidence blocker
+## UI-GAP-0005 — Ten of eleven reference images were incorrectly treated as unavailable
 
-`VISUAL_REFERENCE_PENDING` still applies to any slot whose original image has not been opened and to all screenshot-level `MATCH` claims until a real rendered current build can also be inspected.
+- Category: `EVIDENCE / PROCESS`
+- Severity: `P0` for visual work
+- Status: `FIXED`
+- Problem: the previous manifest permitted only one opened reference to influence concrete visual decisions and left the rest as `VISUAL_REFERENCE_PENDING`.
+- Current response: all eleven originals were opened before this run's cross-screen design contract was written. The manifest now identifies the actual reference states and records implementation response per image.
+
+## UI-GAP-0006 — Visible textual primary navigation was missing from the current shared shell
+
+- Category: `STRUCTURE / NAVIGATION`
+- Severity: `P0`
+- Status: `FIXED IN CANDIDATE / PENDING QUALITY + RENDER`
+- Direct reference evidence: the reference family repeatedly places textual primary routes across the top while retaining a separate narrow icon rail.
+- Previous implementation: primary route names were collapsed into icon-only entries in the left rail; the top bar contained only wordmark, System/Settings utilities and local/private status.
+- Current response: a functional `CHAT / KNOWLEDGE / RESEARCH / JOBS / SOURCES` top navigation is installed after all workspace refinements and routes through the existing navigation model. System and Settings remain utility buttons. A visible top search button opens the existing Ctrl+K command palette.
+- Safety: no duplicate navigation state or new product destination is introduced.
+
+## UI-GAP-0007 — Foundation color system was neutral black + global orange instead of the opened navy/cobalt family
+
+- Category: `COLOR / HIERARCHY`
+- Severity: `P1`
+- Status: `FIXED IN CANDIDATE / PENDING RENDER`
+- Direct reference evidence: the dark references use cool navy-black surfaces with blue-grey lift and cobalt primary interactions. Orange/gold appears better suited to semantic warning/highlight than global selection chrome.
+- Current response: canonical shared tokens now use navy-black canvas/surfaces and cobalt primary accent. Warning remains gold/orange; success/error/information stay semantically distinct.
+- Accessibility: the subtle metadata token retains WCAG AA contrast on all canonical dark surfaces; the existing token contract is updated accordingly.
+
+## UI-GAP-0008 — Header hierarchy used an editorial serif treatment not present across the opened application references
+
+- Category: `TYPOGRAPHY`
+- Severity: `P1`
+- Status: `FIXED IN CANDIDATE / PENDING RENDER`
+- Current response: display hierarchy now uses Segoe UI Variable Display / Segoe UI and a 38 px page-title token, while monospaced typography remains reserved for technical metadata.
+
+## UI-GAP-0009 — Shared geometry could be overwritten by later refinement controllers
+
+- Category: `ARCHITECTURE / VISUAL CONSISTENCY`
+- Severity: `P1`
+- Status: `FIXED IN CANDIDATE / PENDING QUALITY`
+- Problem: pATHENA's desktop is composed by many sequential workspace/refinement controllers, so early shell tuning can be silently superseded later in startup.
+- Current response: `pathena_reference_parity.py` is installed after functional and progressive workspace refinements. It owns only shared screenshot-family chrome, geometry and state styling; product behavior remains in the existing controllers.
+
+## Remaining proof gap
+
+The repository's 11-surface snapshot workflow can prove regression relative to its committed historical baseline, but that baseline is not the same thing as the user's eleven design-reference images. Final `MATCH` requires a render of this exact candidate SHA and direct side-by-side review against the opened originals. Until then the correct status is `IMPLEMENTED_PENDING_RENDER_COMPARE`.

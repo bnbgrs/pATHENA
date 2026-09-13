@@ -72,6 +72,7 @@ from athena.desktop.pathena_progressive_workspace_2300 import (
     install_progressive_workspace_refinement,
 )
 from athena.desktop.pathena_quiet_success_decay_6400 import apply_quiet_success_decay
+from athena.desktop.pathena_reference_parity import install_reference_parity
 from athena.desktop.pathena_research_experience_2500 import install_research_experience
 from athena.desktop.pathena_research_knowledge_transition_2700 import (
     install_research_knowledge_transition,
@@ -279,6 +280,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         system_backup.backup,
         research_results_extension,
     )
+    reference_parity = install_reference_parity(window, command_palette.open)
     install_primary_input_accessibility(
         window,
         chat_prompt=window.prompt_input,
@@ -291,6 +293,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     window.show()
     exit_code = app.exec()
     heartbeat.stop()
+    reference_parity.dispose()
+    reference_parity.deleteLater()
     selection_disappearance_handoff.deleteLater()
     background_completion_accessibility.deleteLater()
     research_knowledge_transition.deleteLater()
