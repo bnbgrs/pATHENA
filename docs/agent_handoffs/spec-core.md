@@ -2,50 +2,47 @@
 
 ## Current source of truth
 
-- Integration target: `develop/pathena-next@72ab7085f40afa74c0334b698dffc3462665d366`.
-- Worker before this slice: `postmerge/spec-core@97bb3c13d6c6a1911b631f0b9d511d0c10c5cc71`.
-- Current Develop canonical Quality `34779068839` completed SUCCESS before mutation.
-- The semantic-identity guard from the previous worker is integrated in Develop and is CLOSED.
+- Current integration target checked first: `develop/pathena-next@ba6bc224cc152c144d13ca21730dad6620610abe`.
+- Worker before this regression repair: `postmerge/spec-core@b35033657b2809febb491235bb284b6219975cb2`.
+- Prior Develop parent `72ab7085f40afa74c0334b698dffc3462665d366` has canonical Quality `34779068839 = SUCCESS`.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
-## Current gap selection
+## Iteration — B05 Merge/Split planner qualification regression
 
-The highest composition gap remains exposing the existing `KnowledgeInspectionService` through `CoreApiFacade` and `AthenaApplication`. It touches broad central files and was not selected for this atomic slice because a smaller independent normative B05 gap can be completed without introducing a parallel API or unsafe partial composition.
+Candidate `b35033657b2809febb491235bb284b6219975cb2` introduced the persistence-neutral merge/split identity planner and its focused acceptance tests. Core Focused `34780613663 = SUCCESS`, while canonical Quality `34780613667 = FAILURE`.
 
-Beta 05 §§51-52 require explicit identity/supersession behavior for Merge and Split: an authorized merge may retain one existing identity or use a new ID while absorbed/original IDs remain historically superseded; a split creates new independently addressable IDs while retaining the source historically as superseded. Current deduplication produces merge candidates but does not encode these identity consequences as a reusable Core invariant.
+Exact canonical lane evidence:
 
-## Product slice — Merge/Split identity planning
+- specification validator: PASS;
+- Ruff: PASS;
+- mypy: FAIL;
+- full pytest: PASS;
+- Linux storage regressions: PASS;
+- Local install smoke: PASS;
+- Windows path safety and persistent release guards: PASS.
 
-Added `src/athena/knowledge/merge_split_policy.py` as a deterministic, persistence-neutral planning boundary.
+Because exact parent Develop `72ab7085...` was canonical-green and the candidate's only failing canonical step was mypy, this is candidate-specific. The planner used a direct runtime `isinstance(result_entity_ids, tuple)` guard on a parameter statically declared `tuple[UUID, ...]`; repository mypy is strict with `warn_unreachable = true`. The repair preserves the strict public function signature and moves runtime container validation into `_require_uuid_tuple(value: object, ...)`, matching the existing `_require_uuid(value: object, ...)` fail-closed pattern. No Merge/Split semantics or acceptance assertions are weakened.
 
-Rules:
+The repaired product/test slice is carried on current Develop content in one history-preserving product commit; there is no sync-only commit.
+
+## Product invariants retained
 
 - merge requires two distinct canonical entity IDs;
-- retaining the left identity supersedes only the right identity;
-- retaining the right identity supersedes only the left identity;
-- using a new merge identity supersedes both originals;
+- retaining one existing merge identity supersedes only the absorbed identity;
+- a new merge identity supersedes both originals;
 - split requires at least two unique result IDs;
-- split result IDs must be new relative to the source ID;
-- a valid split always marks the source ID as historically superseded;
-- all identity inputs fail closed unless they are UUIDs;
+- split result IDs cannot recycle the source identity;
+- source identity remains historically superseded after split;
+- non-UUID identities and non-tuple split result containers fail closed at runtime;
 - the planner does not authorize semantic merges, generate IDs, persist entities, fabricate provenance, or perform Storage work.
-
-Focused acceptance is `tests/unit/test_knowledge_merge_split_policy.py` and covers both retained-identity merge paths, new-identity merge, same-ID rejection, valid split, insufficient/duplicate/source-ID split rejection, and fail-closed runtime identity validation.
 
 ## Ownership boundaries
 
-- No UI files changed.
-- No Storage/Recovery/Transport/Security semantics changed.
-- No job/scheduler implementation duplicated.
-- No Source, Claim, Relation, provenance record, audit record, or canonical entity is fabricated by this planner.
-- Actual atomic persistence of merge/split plus provenance remains repository/service integration work and must reuse existing durable transaction boundaries.
-- Durable B05 revalidation execution remains Backend/System-owned beyond existing Core planning semantics.
-- Persisted Knowledge -> ProcessingRun -> ModelSignature linkage remains dependent on real Backend/Storage provenance.
-
-## Qualification state
-
-Fresh exact-SHA focused and canonical evidence is required for this candidate. Do not claim READY until both complete without a candidate-specific regression.
+- No UI, Storage, Recovery, Transport or Security semantics changed.
+- Durable transaction execution and provenance for actual Merge/Split persistence must reuse existing repository/service boundaries.
+- Durable B05 revalidation execution remains Backend/System-owned beyond current Core planning semantics.
+- Persisted Knowledge -> ProcessingRun -> ModelSignature remains dependent on real Backend/Storage provenance.
 
 ## Next distinct Core gap
 
-After qualification, re-read current Develop and handoffs. Prefer `KnowledgeInspectionService` central Facade/Application composition if it can be performed atomically and safely. Otherwise continue B05 with actual merge/split persistence integration or another independent current Alpha/Beta Core gap; do not revisit CLOSED stale-knowledge or semantic-identity slices.
+After exact-SHA focused and canonical qualification of this repair, re-read current Develop and handoffs. Highest known independent composition target remains exposing the existing `KnowledgeInspectionService` through `CoreApiFacade` and `AthenaApplication` without introducing a parallel API. If that cross-file composition is unsafe or blocked, select the next independent current Alpha/Beta Core product gap rather than revisiting CLOSED temporal-staleness or semantic-identity work.

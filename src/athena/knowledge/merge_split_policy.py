@@ -21,6 +21,12 @@ def _require_uuid(value: object, label: str) -> uuid.UUID:
     return value
 
 
+def _require_uuid_tuple(value: object, label: str) -> tuple[uuid.UUID, ...]:
+    if not isinstance(value, tuple):
+        raise TypeError(f"{label} must be a tuple of UUIDs.")
+    return tuple(_require_uuid(item, f"{label} item") for item in value)
+
+
 @dataclass(frozen=True, slots=True)
 class KnowledgeMergePlan:
     """Identity consequences of one authorized semantic merge."""
@@ -55,9 +61,9 @@ def plan_knowledge_merge(
 ) -> KnowledgeMergePlan:
     """Plan merge identity without deciding whether a semantic merge is justified.
 
-    The caller must already have an authorized semantic merge decision.  If the
+    The caller must already have an authorized semantic merge decision. If the
     result keeps one existing identity, only the absorbed identity becomes
-    superseded.  If the result uses a new identity, both originals remain as
+    superseded. If the result uses a new identity, both originals remain as
     superseded historical entities.
     """
 
@@ -92,12 +98,7 @@ def plan_knowledge_split(
     """Plan a split into independently addressable new canonical identities."""
 
     source = _require_uuid(source_entity_id, "source_entity_id")
-    if not isinstance(result_entity_ids, tuple):
-        raise TypeError("result_entity_ids must be a tuple of UUIDs.")
-    results = tuple(
-        _require_uuid(entity_id, "result_entity_ids item")
-        for entity_id in result_entity_ids
-    )
+    results = _require_uuid_tuple(result_entity_ids, "result_entity_ids")
     if len(results) < 2:
         raise KnowledgeIdentityPlanError(
             "A split requires at least two result entity IDs."
