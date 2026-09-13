@@ -12,7 +12,6 @@ from athena.knowledge.models import (
     KnowledgeUnitRevision,
 )
 
-
 KNOWLEDGE_ID = uuid.UUID("018f0000-0000-7000-8000-000000000001")
 ACTOR_ID = uuid.UUID("018f0000-0000-7000-8000-000000000002")
 
