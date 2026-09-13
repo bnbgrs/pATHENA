@@ -3,26 +3,32 @@
 ## Current integration
 
 - Integration target: `develop/pathena-next`.
-- Develop head before this repair: `7b4779b7be8c19b9ca0acaa57f826d0da8478592`.
-- Exact canonical Quality `34758273159 = FAILURE` solely because Ruff reported `I001` in `tests/unit/test_core_focused_candidate_workflow.py`; canonical pytest, Linux Storage, Local Install and Windows release guards were green.
+- Develop head before this integration: `bd30daaece42a2177fcd71d093f0ab3167da3f40`.
+- Exact canonical Quality `34761173299 = SUCCESS` on that head.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
-## Iteration 1 — ERR-0057 Core-Focused regression repair
+## Iteration 1 — bounded send-button geometry contract
 
-The prior user-correction harness integration accidentally replaced the existing workflow-contract test file instead of extending it. That removed four established regression contracts and introduced an unsorted import block. Error-owned repair `ebcb67f065b7cd890c55897c3e9b9d74f0da10f8` restores the prior contracts, retains the new user-correction assertions, and restores the canonical-green import shape.
+Integrated the current bounded UI-owned geometry contract from exact UI SHA `662f4a2d8da02e4497f141cac938193cf08e9361` without promoting the broad UI branch. The slice is exactly:
 
-This integration changes only `tests/unit/test_core_focused_candidate_workflow.py` plus this evidence documentation. The already-integrated workflow trigger/selector changes remain intact. No test, guard, Security, Storage, Recovery or release invariant is weakened; no Skip/XFail is introduced.
+- `src/athena/desktop/pathena_design_tokens.py`: adds `SHELL.composer_action_size = 48`.
+- `src/athena/desktop/pathena_shared_components.py`: derives the Send button content-box size and radius from that token.
+- `tests/unit/test_pathena_shared_components.py`: verifies the tokenized outer target and shared stylesheet contract.
 
-## Current worker state before mutation
+Exact UI Focused `34760594261 = SUCCESS`. UI canonical `34760594290 = FAILURE` only on inherited pre-repair `ERR-0057` Ruff evidence outside this three-file slice; current Develop already closes that defect with exact canonical success. No stale broad UI promotion is used.
 
-- Errors: `8400089c41ebcd0dc2b2dc86124cbe59f623f098`; exact handoff identifies `ERR-0057` and bounded repair `ebcb67f065b7cd890c55897c3e9b9d74f0da10f8`.
-- Spec/Core: `69e4eeb74e459edcbf0ab83936152822e25dcf00`.
-- Backend: `d0693efea6067eb32c3edb2ecac3a7ed4ab36974`; synchronized tree with current Develop before this repair.
-- UI: `662f4a2d8da02e4497f141cac938193cf08e9361`; broad UI-owned delta remains separately qualified and is not promoted with this repair.
+The contract intentionally accounts for the inherited 1 px Qt QSS border: a 48 px outer target is represented by 46 px content-box width/height with a 24 px radius token. No controller, route, Backend, Storage, Security, persistence or recovery semantics change.
+
+## Worker state at qualification
+
+- Errors: `4077cd850a1bd93ec379876195eb04bfa9e3264b`.
+- Spec/Core: `d2569f97607566e241443622ec1f11370aebb880`.
+- Backend: `d0693efea6067eb32c3edb2ecac3a7ed4ab36974`.
+- UI: `662f4a2d8da02e4497f141cac938193cf08e9361`.
 
 ## Visual/source-of-truth notes
 
-- `docs/agent_logs/ERROR_LEDGER.md` is historical where newer exact-SHA evidence exists.
+- `docs/agent_logs/ERROR_LEDGER.md` remains historical where newer exact-SHA evidence exists.
 - Eleven-screen parity remains fail-closed: no `MATCH` without an opened original reference plus a real exact-SHA render.
 - `docs/ui/VISUAL_GAP_LEDGER.md` remains the visual-gap source of truth; no screenshot-level parity is inferred from code-only evidence.
 
@@ -34,4 +40,4 @@ Retain without relaxation: pypdf packaging; fail-closed Frozen argv; Desktop/Wor
 
 `PROMOTION_READY=NO`
 
-Require canonical Quality on the resulting exact Develop SHA before any further Develop mutation. Exact success closes the integration regression and allows re-qualification of the next bounded worker slice.
+Require canonical Quality on the resulting exact Develop SHA before any further Develop mutation.

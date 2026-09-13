@@ -88,6 +88,7 @@ class ShellGeometry:
     secondary_nav_width: int = 236
     inspector_width: int = 360
     composer_min_height: int = 58
+    composer_action_size: int = 48
 
 
 PALETTE: Final = Palette()

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from athena.desktop.pathena_design_tokens import PALETTE
+from athena.desktop.pathena_design_tokens import PALETTE, SHELL
 from athena.desktop.pathena_shared_components import PATHENA_FOUNDATION_STYLESHEET
 
 
@@ -53,13 +53,14 @@ def test_composer_uses_reference_arrow_send_affordance() -> None:
     assert f"background: {PALETTE.accent};" not in send_block
     assert f"background: {PALETTE.accent};" in primary_block
     # Qt QSS width/height are content-box values. Together with the inherited
-    # 1 px border on each side, 42 px materializes the required 44 px target.
-    assert "min-width: 42px;" in send_block
-    assert "max-width: 42px;" in send_block
-    assert "min-height: 42px;" in send_block
-    assert "max-height: 42px;" in send_block
+    # 1 px border on each side, the shared token materializes the outer target.
+    content_size = SHELL.composer_action_size - 2
+    assert f"min-width: {content_size}px;" in send_block
+    assert f"max-width: {content_size}px;" in send_block
+    assert f"min-height: {content_size}px;" in send_block
+    assert f"max-height: {content_size}px;" in send_block
     assert "padding: 0;" in send_block
-    assert "border-radius: 22px;" in send_block
+    assert f"border-radius: {SHELL.composer_action_size // 2}px;" in send_block
 
 
 def test_disabled_and_decorative_states_remain_quiet() -> None:
