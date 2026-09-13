@@ -4,48 +4,46 @@
 
 - Develop checked first: `develop/pathena-next@ae6ca984040c36a52c96c3e578cb0fee1e64136f`.
 - Exact Develop canonical Quality `34748637687 = SUCCESS`.
-- Previous stale-Knowledge candidate `12a2c2a4ac14c14a28f3bcfda9429d4db7a61830` is integrated into Develop and therefore CLOSED.
-- Worker synchronized history-preservingly and non-force at `4a5700fdcd4d7717e75535a0b7a01c7904422cfd` with parents `12a2c2a4...` and `ae6ca984...`.
+- Worker entered this run at `60b82913ed64f13a92c52bb52448011ac208dacf`.
+- Exact worker evidence for B05 §63 source-age stale signal: Core Focused `34749319038 = SUCCESS`; canonical Quality `34749319064 = SUCCESS`.
+- B05 §63 source-age slice is therefore READY evidence at exact SHA `60b82913...`; it is not yet integrated into Develop.
 - `main` and `bnbgrs/ATHENA` remain read-only.
 
-## Current Core slice — B05 §63 source-age stale signal
+## Current Core slice — B07 §34-35 explicit user-correction guard
 
-Normative anchor: Beta 05 §63. Stale Knowledge may be signaled when recorded validity or source age suggests possible obsolescence; stale remains a maintenance signal and never an automatic falsehood.
-
-The existing `KnowledgeStalenessPolicy` is extended rather than creating a second policy. Source-age evaluation is accepted only from explicit caller-supplied `source_observed_at_us` plus `max_source_age_us`; the Core does not invent a source timestamp or freshness threshold.
+Normative anchors: Beta 07 §34-35. Later automation must treat an explicit user correction as strong existing evidence, but the correction is not an eternal lock: genuinely newer evidence or a later explicit user decision may lead to another revision.
 
 Product/test files:
 
-- `src/athena/knowledge/staleness_policy.py`
-- `tests/unit/test_stale_knowledge_policy.py`
+- `src/athena/knowledge/user_correction_policy.py`
+- `tests/unit/test_user_correction_policy.py`
 
-Truthfulness and fail-closed rules:
+The policy is deliberately deterministic and evidence-conservative:
 
-- expired recorded validity can signal stale;
-- explicitly recorded source age exceeding an explicitly supplied maximum age can signal stale;
-- simultaneous validity/source-age signals are preserved deterministically;
-- exact age/validity boundaries are not stale;
-- missing source-age evidence is not synthesized;
-- source timestamp and age threshold must be supplied together;
-- future source observations and malformed/negative timestamps fail closed;
-- no epistemic status, source record, Knowledge revision, replacement claim, or model provenance is mutated or fabricated.
+- revisions not authored by the designated user actor receive no special user-correction lock;
+- an explicit user correction is preserved against silent automatic replacement when no newer evidence is supplied;
+- evidence recorded at or before the correction does not weaken it;
+- genuinely newer evidence opens a human-review-required state rather than silently replacing the correction;
+- a later explicit user decision is permitted to revise the previous correction;
+- malformed actor IDs and malformed/negative evidence timestamps fail closed;
+- no evidence, source, provenance, truth status, or replacement revision is synthesized.
 
-Exact-SHA Focused/canonical evidence is required before READY.
+This is a Human-Control Core policy only. It does not bypass repositories or write a revision itself; service-level integration must use real persisted actor/provenance/evidence data.
 
 ## Higher-priority composition gap
 
-`KnowledgeReadApiService` is integrated, while central `CoreApiFacade` / `AthenaApplication` attachment remains absent. Current code confirms the established attach/capability pattern and real application composition path. With the available connector mutation interface, modifying those broad central files still requires complete-file replacement and creates unnecessary overwrite risk. No parallel facade or alternate composition path is permitted. The gap remains OPEN for a safe patch-capable mutation path.
+`KnowledgeReadApiService` is integrated, while central `CoreApiFacade` / `AthenaApplication` attachment remains absent. Current code confirms the established attach/capability pattern and real application composition path. The active connector exposes whole-file replacement for those broad central files but no surgical patch action; reconstructing them from partial reads remains an unnecessary overwrite risk. No parallel facade or alternate composition path is permitted. The gap remains OPEN for a safe patch-capable mutation path.
 
 ## Ownership / blockers
 
 - Full persisted Knowledge -> ProcessingRun -> ModelSignature linkage remains Backend/Storage-owned; Core must not fabricate it.
 - UI owns styling and visual parity.
-- B05 §64 Revalidation Job requires durable job/service composition; this slice only supplies the truthful deterministic stale signal consumed by such orchestration.
+- B05 §64 Revalidation Job requires durable job/service composition and remains broader Backend/Jobs orchestration.
 - Persistent release guards remain mandatory: pypdf/Frozen argv/two-EXE, bounded worker tree, adaptive 2048-context Chat reserve, Windows lane-lock cluster, duplicate-column/Core-startup/storage-bootstrap signatures.
 
 ## Next distinct Core gaps
 
-1. Qualify the B05 §63 source-age extension on its exact worker SHA; if green, preserve as READY for Integrator consumption.
+1. Qualify the B07 §34-35 user-correction policy with focused tests and exact-SHA canonical evidence.
 2. When a safe surgical mutation path is available, attach `KnowledgeReadApiService` through the existing `CoreApiFacade` and `AthenaApplication` pattern with capability, double-attach, delegation and application-identity coverage.
-3. After §63 integration, inspect §64 Revalidation orchestration against the real durable Job API; do not invent source/job evidence.
-4. Continue B05/B07 truthfulness work only where current persisted evidence supports it.
+3. After user-correction policy qualification, inspect current Knowledge write/review composition for a truthful integration point using persisted actors/evidence; do not add parallel write paths.
+4. Keep persisted model-provenance linkage delegated to Backend/Storage until a real Knowledge -> ProcessingRun -> ModelSignature relation exists.
