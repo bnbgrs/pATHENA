@@ -165,7 +165,11 @@ class SQLiteDatabase:
             and current.wal != expected.wal
             and current.shm != expected.shm
         )
-        if not complete_publication and not complete_withdrawal and not complete_rotation:
+        if complete_rotation:
+            raise DatabaseStartupIdentityChangedError(
+                "ATHENA SQLite complete WAL/SHM replacement failed startup revalidation."
+            )
+        if not complete_publication and not complete_withdrawal:
             raise DatabaseStartupIdentityChangedError(
                 "ATHENA SQLite database/WAL/SHM identity changed after startup preflight."
             )
@@ -184,10 +188,6 @@ class SQLiteDatabase:
         ):
             raise DatabaseStartupIdentityChangedError(
                 "ATHENA SQLite database/WAL/SHM identity changed during startup revalidation."
-            )
-        if complete_rotation and refreshed_identity != current:
-            raise DatabaseStartupIdentityChangedError(
-                "ATHENA SQLite complete sidecar rotation changed during startup revalidation."
             )
 
         after_refresh = capture_database_file_set_identity(self.path)
