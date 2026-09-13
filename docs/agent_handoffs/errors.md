@@ -2,82 +2,64 @@
 
 ## Current exact state
 
-- Develop: `a9aaf5f414b7a030598d1735244bcbf6407e6bcb`; canonical Quality `34772777276 = SUCCESS`; second exact-SHA Quality run `34774341613 = SUCCESS`.
-- Error worker: implementation candidate lineage now includes `ed1ea5c9aadcb06f1b71e5ae9eec2173080a7e72` plus the subsequent ledger/handoff refresh commits only.
-- Spec/Core: `af5283d7a6c6c5f1e256af1b2f07678ab52cd87b`; canonical Quality `34774353839 = SUCCESS`.
-- Backend: `7516c67e1c19fded96239639aa2182c65b236b69`; Backend Focused `34774634769 = SUCCESS`, canonical Quality `34774634757 = SUCCESS`.
-- UI: `b3066df5be557047c59331476ea1de4e79045e67`; UI Focused `34770820473 = SUCCESS`, Core Focused and canonical Quality green; Visual `34770817654 = FAILURE` only at final verdict.
+- Develop: `72ab7085f40afa74c0334b698dffc3462665d366`; canonical Quality `34779068839` is `IN_PROGRESS`; validator/Ruff/mypy, Linux Storage, Windows release guards and Local Install/pypdf are already green, full pytest still running.
+- Error worker: `7d8cab5a231353b9ca2ba3e47ad22a91f2afea9f`; canonical `34778491220 = FAILURE`, but the bounded `ERR-0059` regression passes on this exact SHA.
+- Spec/Core: `97bb3c13d6c6a1911b631f0b9d511d0c10c5cc71`; Core Focused `34777239256 = SUCCESS`, canonical `34777239238 = SUCCESS`.
+- Backend: `7516c67e1c19fded96239639aa2182c65b236b69`; Backend Focused `34774634769 = SUCCESS`, canonical `34774634757 = SUCCESS`.
+- UI: `b3066df5be557047c59331476ea1de4e79045e67`; UI Focused/canonical green; Visual `34770817654 = FAILURE` only at final verdict because reviewed Windows baseline evidence is absent.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
-## ITERATION-1 — ERR-0059 bounded implementation completed
+## ITERATION-1 — ERR-0059 exact verification consumed
 
-Status: `FIXED_PENDING_VERIFY`
+Status: `FIXED`.
 
-Commit `ed1ea5c9aadcb06f1b71e5ae9eec2173080a7e72` modifies only `scripts/render_pathena_ui_snapshot.py` and only the two false manifest fields:
+Bounded implementation remains commit `ed1ea5c9aadcb06f1b71e5ae9eec2173080a7e72` and is present in exact worker SHA `7d8cab5...`:
 
-- `"captured_reference_surfaces": [capture["label"] for capture in captures]`
-- `"captured_reference_count": len(captures)`
+- `captured_reference_surfaces = [capture["label"] for capture in captures]`;
+- `captured_reference_count = len(captures)`;
+- `assigned_reference_count = 11` unchanged;
+- PASS remains `not errors and len(captures) == expected_capture_count`;
+- post-capture mismatch/error guard unchanged.
 
-The commit preserves:
+Canonical run `34778491220` executed `tests/qa/test_visual_capture_manifest_truth.py` and it passed. Therefore the actual manifest root cause is exact-SHA verified and closed.
 
-- `assigned_reference_count = 11`;
-- the existing fail-closed PASS predicate requiring no capture errors and exactly eleven captures;
-- route-identity enforcement;
-- baseline handling and final visual verdict;
-- comparator behavior;
-- all Test, Security, Storage and Recovery guards.
+Do not modify `ERR-0059` again unless a new exact-SHA manifest-truth regression appears.
 
-Exact commit diff confirms no unrelated product change.
+## ITERATION-2 — Error-worker canonical red deduplicated
 
-## ITERATION-2 — ERR-0059 verification boundary
+The same exact canonical run is globally red for one unrelated pytest only:
 
-The existing regression test `tests/qa/test_visual_capture_manifest_truth.py` already requires both actual-capture expressions and rejects both stale constant forms. Exact source inspection on `ed1ea5c9...` satisfies that contract.
+`tests/unit/test_pathena_window.py::test_reference_composer_uses_large_work_surface_and_send_target`
 
-However, `postmerge/errors` has no open PR and no workflow run on the candidate SHA. Therefore there is not yet executed focused/canonical evidence and the status must remain `FIXED_PENDING_VERIFY`, not `FIXED`.
+The stale Error-worker baseline renders the Send button at 48px while the retained contract asserts 44px. This is an inherited historical UI geometry state, not a manifest regression. Current Develop source has `composer_action_size = 44`, so do not reopen or re-fix the old geometry root cause on `postmerge/errors`.
 
-Integrator/next runner should execute the focused regression on this exact candidate or on a bounded successor containing exactly this harness diff. After a real green execution, close `ERR-0059`; do not modify the implementation again unless a new regression reproduces.
+The exact Error-worker run has green Specification Validator, Ruff, mypy, Windows release guards, Linux Storage and Local Install/pypdf.
 
-## ITERATION-3 — Develop/Spec-Core/Backend requalification
+## ITERATION-3 — current green workers
 
-No new independent Error-owned failure is present on these current exact heads:
+Spec/Core `97bb3c13...` is exact Core-Focused and canonical green. Backend `7516c67e...` is exact Backend-Focused and canonical green. Per green-stays-green, neither is a diagnosis target.
 
-- Develop `a9aaf5f4...`: exact canonical Quality is terminal `SUCCESS`.
-- Spec/Core `af5283d7...`: exact canonical Quality is `SUCCESS`.
-- Backend `7516c67e...`: exact Backend Focused and canonical Quality are both `SUCCESS`.
-
-Per green-stays-green, none is a diagnosis target this run.
-
-## ITERATION-4 — ERR-0054 review ownership retained
+## ITERATION-4 — ERR-0054 ownership
 
 Status: `OPEN`, UI/Visual-review-owned.
 
-Current UI exact SHA remains `b3066df5...`. Its visual run reaches all eleven captures, route identity, compare/proposal and artifact upload, then fails only at final visual verdict because a reviewed Windows baseline is absent.
+Current UI exact SHA remains `b3066df5...`. Its visual run reaches all eleven captures, route identity, compare/proposal and artifact upload, then fails only at final visual verdict. No current evidence proves that all eleven authoritative reference/render pairs have been manually reviewed and approved.
 
-Error worker must not generate or accept a baseline in parallel. UI/Visual owner must review all eleven exact reference/render pairs first; only then may a reviewed baseline be committed and exact-SHA Visual Regression rerun.
+Error worker must not generate, accept or commit a baseline. UI/Visual owner must review the eleven real pairs, then run exact-SHA Visual Regression after any reviewed baseline commit.
 
-## ITERATION-5 — next-error scan
+## ITERATION-5 — Develop candidate
 
-No fresh exact-SHA canonical failure on current Develop, Spec/Core, Backend or UI establishes another independent Error-owned root cause. Persistent release-guard signatures remain closed without a current reproduction.
-
-Do not manufacture work from historical red runs. Consume only new exact-SHA failure evidence.
+Current Develop exact SHA is `72ab7085...`. Canonical `34779068839` is already running; no competing run may be started and no diagnosis is authoritative until it terminates. Current completed jobs/steps are green except the still-running full pytest.
 
 ## Integrator handoff
 
-For `ERR-0059`, the bounded implementation commit is:
+`ERR-0059` implementation is bounded to the actual-capture manifest derivation plus its regression guard. It is now exact-SHA verified on the Error worker. Integration may carry only the bounded manifest/test slice; do not import the stale Error-worker UI geometry or broad branch history.
 
-`ed1ea5c9aadcb06f1b71e5ae9eec2173080a7e72`
-
-Required verification before closure:
-
-1. run `tests/qa/test_visual_capture_manifest_truth.py` on the exact candidate or bounded successor;
-2. keep all assertions unchanged;
-3. if integrated elsewhere, require relevant exact-SHA regression/canonical evidence;
-4. then set `ERR-0059 → FIXED` and stop touching it unless a new exact-SHA regression appears.
-
-For `ERR-0054`, remain UI/Visual-review-owned. No automatic baseline acceptance.
+`ERR-0054` remains UI/Visual review only. No automatic baseline acceptance.
 
 ## Next root cause
 
-1. `ERR-0059` verification only; implementation is complete.
-2. `ERR-0054` closure evidence only, no Error-worker mutation.
-3. Otherwise wait for the next fresh exact-SHA Error-owned failure and prioritize by severity/integration impact.
+1. Consume terminal Develop canonical `34779068839`.
+2. If green, do not reopen Develop/Core/Backend/UI canonical clusters without new exact failure evidence.
+3. If red, isolate only the new current exact-SHA root cause and deduplicate cascades.
+4. Keep `ERR-0054` with UI/Visual Review and do not revisit fixed `ERR-0059` without a new regression.
