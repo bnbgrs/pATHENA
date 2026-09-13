@@ -2,48 +2,39 @@
 
 ## Current baseline
 
-- Develop checked first: `develop/pathena-next@ae6ca984040c36a52c96c3e578cb0fee1e64136f`.
-- Exact Develop canonical Quality `34748637687 = SUCCESS`.
-- Worker entered this run at `60b82913ed64f13a92c52bb52448011ac208dacf`.
-- Exact worker evidence for B05 §63 source-age stale signal: Core Focused `34749319038 = SUCCESS`; canonical Quality `34749319064 = SUCCESS`.
-- B05 §63 source-age slice is therefore READY evidence at exact SHA `60b82913...`; it is not yet integrated into Develop.
+- Develop checked first: `develop/pathena-next@09d43c348420dc5ad0eb2be80ebf8681ae8f25c5`.
+- Develop adds the paired sidecar replacement guard after the previous Core baseline; Core does not modify that Storage slice.
+- Worker before this correction: `e361ef5f365d7afd1d1b5d4b9fa242aeebfdee38`.
+- B05 §63 source-age stale signal remains exact-SHA green at `60b82913ed64f13a92c52bb52448011ac208dacf`: Core Focused `34749319038 = SUCCESS`; canonical Quality `34749319064 = SUCCESS`.
 - `main` and `bnbgrs/ATHENA` remain read-only.
 
 ## Current Core slice — B07 §34-35 explicit user-correction guard
 
-Normative anchors: Beta 07 §34-35. Later automation must treat an explicit user correction as strong existing evidence, but the correction is not an eternal lock: genuinely newer evidence or a later explicit user decision may lead to another revision.
+Product code: `src/athena/knowledge/user_correction_policy.py`.
+Acceptance coverage is now named `tests/unit/test_knowledge_user_correction_policy.py` so the existing Core-focused `test_knowledge*.py` selector executes it.
 
-Product/test files:
+The policy remains deterministic and evidence-conservative: direct user corrections are protected from silent automation; older/equal evidence does not weaken them; genuinely newer evidence requires human review; a later explicit user decision may revise them; non-user revisions receive no synthetic user lock; malformed actor/timestamp inputs fail closed; no source, evidence, provenance, truth status, or revision is synthesized.
 
-- `src/athena/knowledge/user_correction_policy.py`
-- `tests/unit/test_user_correction_policy.py`
+## Exact regression diagnosis and correction
 
-The policy is deliberately deterministic and evidence-conservative:
-
-- revisions not authored by the designated user actor receive no special user-correction lock;
-- an explicit user correction is preserved against silent automatic replacement when no newer evidence is supplied;
-- evidence recorded at or before the correction does not weaken it;
-- genuinely newer evidence opens a human-review-required state rather than silently replacing the correction;
-- a later explicit user decision is permitted to revise the previous correction;
-- malformed actor IDs and malformed/negative evidence timestamps fail closed;
-- no evidence, source, provenance, truth status, or replacement revision is synthesized.
-
-This is a Human-Control Core policy only. It does not bypass repositories or write a revision itself; service-level integration must use real persisted actor/provenance/evidence data.
+The first exact-SHA qualification of `e361ef5f...` produced Core Focused `34751831134 = FAILURE` and canonical Quality `34751831135 = FAILURE`.
+Two bounded harness defects were identified: Ruff I001 from one extra blank line before module constants, and a filename outside the focused selector. Product semantics did not need changing.
+This correction removes only that blank line and renames the test into the existing focused selector. No lint/test/config weakening, Skip, XFail, or guard relaxation is used.
 
 ## Higher-priority composition gap
 
-`KnowledgeReadApiService` is integrated, while central `CoreApiFacade` / `AthenaApplication` attachment remains absent. Current code confirms the established attach/capability pattern and real application composition path. The active connector exposes whole-file replacement for those broad central files but no surgical patch action; reconstructing them from partial reads remains an unnecessary overwrite risk. No parallel facade or alternate composition path is permitted. The gap remains OPEN for a safe patch-capable mutation path.
+`KnowledgeReadApiService` is integrated, while central `CoreApiFacade` / `AthenaApplication` attachment remains absent. The established attach/capability pattern should be extended when a safe surgical mutation path is available; no parallel facade is permitted.
 
 ## Ownership / blockers
 
-- Full persisted Knowledge -> ProcessingRun -> ModelSignature linkage remains Backend/Storage-owned; Core must not fabricate it.
-- UI owns styling and visual parity.
-- B05 §64 Revalidation Job requires durable job/service composition and remains broader Backend/Jobs orchestration.
+- Persisted Knowledge -> ProcessingRun -> ModelSignature linkage remains Backend/Storage-owned; Core must not fabricate it.
+- B05 §64 revalidation orchestration crosses durable Jobs/Backend ownership.
+- UI owns styling/visual parity.
 - Persistent release guards remain mandatory: pypdf/Frozen argv/two-EXE, bounded worker tree, adaptive 2048-context Chat reserve, Windows lane-lock cluster, duplicate-column/Core-startup/storage-bootstrap signatures.
 
 ## Next distinct Core gaps
 
-1. Qualify the B07 §34-35 user-correction policy with focused tests and exact-SHA canonical evidence.
-2. When a safe surgical mutation path is available, attach `KnowledgeReadApiService` through the existing `CoreApiFacade` and `AthenaApplication` pattern with capability, double-attach, delegation and application-identity coverage.
-3. After user-correction policy qualification, inspect current Knowledge write/review composition for a truthful integration point using persisted actors/evidence; do not add parallel write paths.
-4. Keep persisted model-provenance linkage delegated to Backend/Storage until a real Knowledge -> ProcessingRun -> ModelSignature relation exists.
+1. Obtain fresh exact-SHA focused and canonical evidence for the corrected B07 §34-35 candidate.
+2. If green, preserve the exact candidate for Integrator consumption.
+3. After integration, attach `KnowledgeReadApiService` through the existing `CoreApiFacade` / `AthenaApplication` pattern when a safe surgical patch path is available.
+4. Otherwise inspect the real Knowledge write/review path for the next independent truthful Core gap backed by persisted actors/evidence.

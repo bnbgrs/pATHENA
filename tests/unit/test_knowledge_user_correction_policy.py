@@ -15,7 +15,6 @@ from athena.knowledge.user_correction_policy import (
     UserCorrectionState,
 )
 
-
 USER_ID = uuid.UUID("10000000-0000-0000-0000-000000000001")
 MODEL_ID = uuid.UUID("20000000-0000-0000-0000-000000000002")
 SYSTEM_ID = uuid.UUID("30000000-0000-0000-0000-000000000003")
