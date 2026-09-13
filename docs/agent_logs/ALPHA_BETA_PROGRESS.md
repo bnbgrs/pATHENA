@@ -4,26 +4,34 @@ Evidence-only progress register for `develop/pathena-next`. No invented completi
 
 ## Current baseline
 
-- Develop parent before this integration: `9e607472ba65ce86b795cf8f6926a0809700a2cd`.
-- Exact parent canonical Quality `34755721026 = SUCCESS`.
+- Develop before this repair: `99af9923903644e1f36b1db235d3ef97b53ff909`.
+- Exact canonical Quality `34762510125 = FAILURE` solely in full pytest.
+- On that exact SHA, specification validation, Ruff, mypy, Linux Storage, Local Install including pypdf metadata, and Windows release guards passed.
 - Persistent release guards remain mandatory and unchanged.
 
 ## Current integration state
 
-- The source-age staleness and explicit user-correction product guards are integrated and exact-Develop verified.
-- Current Spec/Core `77048de78be4dd7ca2555ed1b09e00d088f9c624` and Backend `e76bfbe266107a781e3602246d143ee8e9e849b3` are canonical green and tree-synchronized with the current Develop baseline; there is no additional product delta to promote from those sync heads.
-- UI `d351dba17b69c3f5b55a1447f2ac088b929a1b48` retains a broad UI delta and its current canonical was active during this integration, so it is not promoted.
+The source-age staleness guard, explicit user-correction guard, repaired Core-Focused workflow contracts and paired WAL/SHM identity guard remain integrated.
 
-## Cross-cutting quality coverage
+The prior UI integration centralized Send-button geometry in `SHELL.composer_action_size` but introduced a 48 px outer target. Canonical pytest caught the mismatch against the established 44×44 shell/visual contract: `test_reference_composer_uses_large_work_surface_and_send_target` was the only failure; the remaining canonical suite reported `5066 passed, 17 skipped` and the isolated desktop-controller suite passed 6/6.
 
-- `ERR-0056` identified that the Core-Focused candidate workflow did not trigger on or select `tests/unit/test_user_correction*.py`.
-- This integration adds that pattern to the PR path trigger and focused pytest selector and adds a workflow regression test that requires both contracts.
-- This is a stricter quality gate, not a guard relaxation. No test is skipped or xfailed.
+This repair corrects only `SHELL.composer_action_size` from 48 to 44. Shared styling remains token-derived, so its content box returns to 42 px and the inherited 1 px border produces the required 44 px outer geometry. The existing window-level regression assertion is preserved unchanged; no test contract is weakened.
+
+## Current worker truth
+
+- Errors `4077cd850a1bd93ec379876195eb04bfa9e3264b`.
+- Spec/Core `d2569f97607566e241443622ec1f11370aebb880`.
+- Backend `d0693efea6067eb32c3edb2ecac3a7ed4ab36974`.
+- UI `662f4a2d8da02e4497f141cac938193cf08e9361`.
+
+No broad worker branch is promoted by this repair.
 
 ## Error and visual truth rules
 
 - `docs/agent_logs/ERROR_LEDGER.md` remains historical wherever newer exact-SHA evidence exists; current worker heads and exact CI take precedence.
+- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` and `docs/ui/VISUAL_GAP_LEDGER.md` remain aligned on the verified 44×44 outer Send target.
 - Eleven-screen status remains fail-closed; no visual `MATCH` without opened original reference plus real exact-SHA render.
+- Visual Regression still requires deliberate reference review; no baseline is auto-accepted and comparator tolerance is not relaxed.
 
 ## Persistent release guards
 

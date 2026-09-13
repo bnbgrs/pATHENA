@@ -3,28 +3,32 @@
 ## Current integration
 
 - Integration target: `develop/pathena-next`.
-- Develop parent before this integration: `9e607472ba65ce86b795cf8f6926a0809700a2cd`.
-- Exact parent canonical Quality `34755721026 = SUCCESS`.
+- Develop head before this repair: `99af9923903644e1f36b1db235d3ef97b53ff909`.
+- Exact canonical Quality `34762510125 = FAILURE` on that head.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
-## Iteration 1 — Core-Focused user-correction harness coverage
+## Iteration 1 — send-button geometry regression repair
 
-The Error handoff identified a generic CI omission after the user-correction product slice had to be renamed into the existing `test_knowledge*.py` selector. Current Develop still omitted `tests/unit/test_user_correction*.py` from both the PR path trigger and changed-test selection.
+The prior bounded UI integration correctly centralized Send-button geometry in `SHELL.composer_action_size`, but set the token to `48`. Current visual source-of-truth still specifies the verified outer Send target as 44×44 px, with a 42 px QSS content box plus the inherited 1 px border on each side.
 
-This bounded cross-cutting fix adds only the missing trigger/selector and a regression contract in `tests/unit/test_core_focused_candidate_workflow.py`. It expands mandatory coverage; it does not skip, xfail, relax, or remove any check. Exact worker commits used as implementation evidence: `4b723fe7202c841e0c768aaf3a62600eaadf02ff` and `ef1e9d4cb40f1c17d8c28439312fdcdeb15baa4e`.
+Canonical Quality `34762510125` reproduced exactly one failure on `99af9923903644e1f36b1db235d3ef97b53ff909`: `tests/unit/test_pathena_window.py::test_reference_composer_uses_large_work_surface_and_send_target` observed runtime width `48` where the established shell contract requires `44`. The isolated desktop-controller suite passed 6/6; the remaining canonical suite was `1 failed, 5066 passed, 17 skipped`. Specification validation, Ruff, mypy, Linux Storage, Local Install/pypdf and Windows release guards all passed.
 
-## Current worker state before mutation
+The repair changes only `src/athena/desktop/pathena_design_tokens.py`: `SHELL.composer_action_size` is corrected from 48 to 44. Existing tokenized shared-component styling remains intact and therefore resolves back to the established 42 px content box / 44 px outer target. The existing `test_pathena_window.py` assertion is intentionally retained as a guard rather than weakened to accept the regression.
 
-- Errors: `a1f6b796c6d9cb7b5aab3e2b36e663d872569f6d`.
-- Spec/Core: `77048de78be4dd7ca2555ed1b09e00d088f9c624`; canonical `34756815221 = SUCCESS` and tree synchronized with Develop.
-- Backend: `e76bfbe266107a781e3602246d143ee8e9e849b3`; canonical `34757222993 = SUCCESS` and tree synchronized with Develop.
-- UI: `d351dba17b69c3f5b55a1447f2ac088b929a1b48`; current canonical was still active during qualification, so no UI slice was promoted.
+## Worker state at qualification
+
+- Errors: `4077cd850a1bd93ec379876195eb04bfa9e3264b`.
+- Spec/Core: `d2569f97607566e241443622ec1f11370aebb880`.
+- Backend: `d0693efea6067eb32c3edb2ecac3a7ed4ab36974`.
+- UI: `662f4a2d8da02e4497f141cac938193cf08e9361`.
+
+Current worker handoffs are not promoted wholesale. Historical IDs remain subordinate to exact current evidence.
 
 ## Visual/source-of-truth notes
 
-- `docs/agent_logs/ERROR_LEDGER.md` is historical where newer exact-SHA evidence exists.
+- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` and `docs/ui/VISUAL_GAP_LEDGER.md` retain the 44×44 outer Send-target contract and remain consistent with this repair.
 - Eleven-screen parity remains fail-closed: no `MATCH` without an opened original reference plus a real exact-SHA render.
-- `docs/ui/VISUAL_GAP_LEDGER.md` still records screenshot-level parity as unverified.
+- `docs/agent_logs/ERROR_LEDGER.md` remains historical where newer exact-SHA evidence exists.
 
 ## Persistent release guards
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from athena.jobs.schedule_policy import MissedRunPolicy
 
@@ -22,6 +23,17 @@ def _require_text(value: object, label: str) -> None:
         raise ValueError(f"{label} must not be empty.")
     if value != value.strip():
         raise ValueError(f"{label} must use canonical trimmed text.")
+
+
+def _require_timezone_name(value: object) -> None:
+    _require_text(value, "ScheduleDefinition timezone_name")
+    assert isinstance(value, str)
+    try:
+        ZoneInfo(value)
+    except ZoneInfoNotFoundError as exc:
+        raise ValueError(
+            "ScheduleDefinition timezone_name must identify an available IANA timezone."
+        ) from exc
 
 
 def _require_timestamp_us(value: object, label: str) -> None:
@@ -57,7 +69,7 @@ class ScheduleDefinition:
             self.schedule_expression,
             "ScheduleDefinition schedule_expression",
         )
-        _require_text(self.timezone_name, "ScheduleDefinition timezone_name")
+        _require_timezone_name(self.timezone_name)
         _require_timestamp_us(
             self.created_at_us,
             "ScheduleDefinition created_at_us",
