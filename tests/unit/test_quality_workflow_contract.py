@@ -38,7 +38,21 @@ def test_canonical_windows_path_safety_keeps_exact_sha_and_storage_regressions()
 def test_canonical_quality_keeps_full_pytest_and_enforces_all_core_checks() -> None:
     workflow = _quality_workflow_text()
 
-    assert "uv run --locked --extra dev --extra desktop python -m pytest 2>&1 | tee .quality-evidence/pytest.txt" in workflow
+    controller_command = (
+        "uv run --locked --extra dev --extra desktop python -m pytest "
+        "tests/unit/test_desktop_api_controller.py 2>&1 | tee "
+        ".quality-evidence/pytest-desktop-api-controller.txt"
+    )
+    remaining_suite_command = (
+        "uv run --locked --extra dev --extra desktop python -m pytest "
+        "--ignore=tests/unit/test_desktop_api_controller.py 2>&1 | tee "
+        ".quality-evidence/pytest.txt"
+    )
+    assert controller_command in workflow
+    assert remaining_suite_command in workflow
+    assert 'controller_status=${PIPESTATUS[0]}' in workflow
+    assert 'suite_status=${PIPESTATUS[0]}' in workflow
+    assert 'if [ "$controller_status" -ne 0 ] || [ "$suite_status" -ne 0 ]; then' in workflow
     assert 'SPEC_OUTCOME: ${{ steps.quality_spec.outcome }}' in workflow
     assert 'RUFF_OUTCOME: ${{ steps.quality_ruff.outcome }}' in workflow
     assert 'MYPY_OUTCOME: ${{ steps.quality_mypy.outcome }}' in workflow

@@ -3,41 +3,36 @@
 ## Current integration
 
 - Integration target: `develop/pathena-next`.
-- Develop parent before this integration: `b4cba3d5cba31213e789cb2cbbc91f651e465e71`.
-- Exact parent canonical Quality: `34731514082 = SUCCESS`.
-- Worker heads checked: Errors `fe507864e1f02c418d1120e68bbc4b23a39244ec`; Spec/Core `78d51621cbdfa3282cd236b5d0c7f5984abedcae`; Backend `ff9988a4b8db84593552a26266213d5ec871ef62`; UI `704ccd243ba2edb4f71e27d402d83b91724c0b30`.
+- Develop parent before this integration: `d7a5bcf6d836c47588b907d666b5541386ca0678`.
+- Exact parent canonical Quality `34737035739 = FAILURE`: controller isolation itself is green (`6 passed`), the remaining canonical suite reaches completion with `1 failed, 5029 passed, 17 skipped`; the sole failure is the stale workflow-contract assertion expecting the pre-isolation one-process pytest command.
+- Worker heads checked: Errors `2a777c98dd10d22cefc487e0f76d0552415efdf5`; Spec/Core `fc253bd8646028a4226aa603d7188830daf54d7d`; Backend `7063801bcefc7153f4ef5de4b3d82669861b4208`; UI `2f003f7de2cc9b9499b1853cc8e4869b404488eb`.
 
-## Iteration — bounded schedule-startup integration
+## Iteration 1 — exact Develop regression closed
 
-Backend owner lineage `a709c229d6994c159490c2c1eaf3f2549f12cf56` had exact Backend Focused `34730587835 = SUCCESS`, Storage Focused `34730587918 = SUCCESS`, and canonical Quality `34730587873 = SUCCESS`. Its schedule-startup slice is separable from the unresolved paired-sidecar Storage mutation.
+`tests/unit/test_quality_workflow_contract.py` now guards the actual fail-closed canonical structure: the mandatory desktop-controller module runs in its own interpreter, every remaining test runs exactly once with only that module ignored in the second invocation, both PIPESTATUS values are captured, and either nonzero status fails the canonical pytest step. This updates the contract to the already-integrated native Qt isolation without Skip/XFail, retry, test removal, or gate weakening.
 
-Integrated only:
-- `src/athena/jobs/schedule_startup.py`
-- `tests/unit/test_schedule_startup.py`
+## Iteration 2 — bounded Knowledge model disclosure integrated
 
-The slice requires an active caller transaction, reconciles durable missing occurrences before writes, applies the configured missed-run policy before materialization, uses deterministic occurrence identities, creates nothing for disabled schedules, and fails before partial inserts on a foreign identity collision.
+Spec/Core `fc253bd8646028a4226aa603d7188830daf54d7d` has exact Core Focused `34737394852 = SUCCESS` and canonical `34737394871 = SUCCESS`. Its effective product delta against current Develop is only `src/athena/api/knowledge_model_disclosure.py` plus `tests/unit/test_knowledge_model_disclosure.py`.
 
-The current Backend sync head `ff9988a4...` is not broadly promotable: Backend Focused and Storage Focused are green, but canonical `34733130192 = FAILURE`; additionally Error handoff `ERR-0049` keeps the separate `database.py` complete-sidecar-rotation mutation blocked pending paired foreign WAL+SHM replacement rejection coverage. No `database.py` change is included here.
+The slice exposes recorded model/run provenance for a Knowledge revision without fabricating model participation. User-authored revisions reject supplied model provenance; primary-model revisions require a matching succeeded `ProcessingRun` and `ModelSignature`; mismatched or partial provenance fails closed.
 
-## Worker qualification
+## Blocked candidates
 
-- Spec/Core `78d51621...`: previously integrated bounded Knowledge history/reason-truth delta; no new product delta selected.
-- Backend `ff9988a4...`: broad promotion blocked; bounded schedule-startup slice integrated from its exact-green owner lineage. Storage rotation remains excluded.
-- UI `704ccd24...`: current sync head before further visual evidence; no broad UI promotion.
-- Errors `fe507864...`: current handoff owns `ERR-0049` paired-sidecar guard gap and supersedes historical ledger state where newer exact evidence differs.
-
-## Evidence rules
-
-- `docs/agent_logs/ERROR_LEDGER.md` is historical (baseline `7be496d2...`) and is not sole authority where newer exact-SHA evidence exists.
-- Eleven-screen parity remains fail-closed: no `MATCH` without opened original reference plus real exact-SHA render.
-- Superseded or cancelled Worker CI is not accepted without equivalent exact-head evidence.
+- Backend `7063801b...`: Storage Focused `34738082478 = FAILURE`; hold all Storage mutation. `ERR-0049` remains current until paired foreign WAL+SHM replacement is rejected while legitimate rotation/race behavior remains green.
+- UI `2f003f7d...`: newer UI-owned work exists, but no broad branch promotion; re-qualify bounded UI slices only after exact Develop quality completes.
+- Historical `ERROR_LEDGER.md` is not authoritative over newer exact-SHA evidence.
 
 ## Persistent release guards
 
-Retain without relaxation: pypdf packaging; fail-closed Frozen argv; Desktop/Worker two-EXE split; exactly one Desktop instance with bounded workers; adaptive 2048-context Chat reserve; Windows lane-lock cluster; duplicate-column/Core-startup/storage-bootstrap signatures. `main` and `bnbgrs/ATHENA` remain read-only.
+Retain without relaxation: pypdf packaging; fail-closed Frozen argv; Desktop/Worker two-EXE split; exactly one Desktop instance with bounded workers; adaptive 2048-context Chat reserve; Windows lane-lock cluster; duplicate-column/Core-startup/storage-bootstrap signatures; Security/Storage/Recovery guards; no Skip/XFail. `main` and `bnbgrs/ATHENA` remain read-only.
+
+## Visual truth
+
+Eleven-screen parity remains fail-closed: no `MATCH` without opened original reference plus real exact-SHA render.
 
 ## Promotion state
 
 `PROMOTION_READY=NO`
 
-Require canonical Quality on the resulting exact Develop SHA before any further Develop mutation. If green, consume the next Backend successor for `ERR-0049` only if paired foreign WAL+SHM replacement is explicitly rejected while the legitimate process-separated race remains green.
+Require canonical Quality on the resulting exact Develop SHA before any further Develop mutation.
