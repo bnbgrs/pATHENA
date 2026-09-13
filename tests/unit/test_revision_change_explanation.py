@@ -68,7 +68,7 @@ def test_explains_adjacent_revision_from_recorded_reason_and_payload_diff() -> N
     assert "1970-01-01T00:00:02+00:00" in explanation.text
 
 
-def test_missing_reason_is_explicit_and_not_fabricated() -> None:
+def test_unsupplied_reason_does_not_claim_persisted_reason_is_unavailable() -> None:
     previous = _revision(1, body="same")
     current = _revision(2, body="same")
 
@@ -76,7 +76,8 @@ def test_missing_reason_is_explicit_and_not_fabricated() -> None:
 
     assert explanation.recorded_reason is None
     assert explanation.changes == ()
-    assert "No recorded reason is available." in explanation.text
+    assert "No recorded reason was supplied to this explanation." in explanation.text
+    assert "No recorded reason is available." not in explanation.text
     assert "No payload fields changed." in explanation.text
 
 
