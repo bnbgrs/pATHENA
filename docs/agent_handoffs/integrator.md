@@ -3,22 +3,23 @@
 ## Current integration
 
 - Integration target: `develop/pathena-next`.
-- Develop parent before this integration: `f301540eb707013e7b88c08ef248ea98edc1564d`.
-- Exact parent canonical Quality `34741552444 = SUCCESS`.
-- Selected Core source candidate: `bd5b0497a8c220e2a3a238f974109d060d7256e5`.
-- Exact candidate Core Focused `34742250322 = SUCCESS`; canonical Quality `34742250297 = SUCCESS`.
+- Develop parent before this integration: `8c2dda7794ef4949844feb30d265d34248aa4660`.
+- Exact parent canonical Quality `34744264489 = SUCCESS`.
+- Selected Core source candidate: `12a2c2a4ac14c14a28f3bcfda9429d4db7a61830`.
+- Exact candidate Core Focused `34745747874 = SUCCESS`; canonical Quality `34745747939 = SUCCESS`.
 
-## Iteration 1 — bounded Knowledge read API integrated
+## Iteration 1 — truthful stale-Knowledge policy integrated
 
-The integration adds only `src/athena/api/knowledge_read.py` and `tests/unit/test_knowledge_read_api.py` from the exact-green Core candidate. `KnowledgeReadApiService` composes the already-integrated truthful provenance-explanation and immutable revision-history boundaries without bypassing or weakening either one. Identity/history failures are propagated rather than downgraded or reinterpreted.
+The integration adds only `src/athena/knowledge/staleness_policy.py` and `tests/unit/test_stale_knowledge_policy.py` from the exact-green Core candidate. The policy treats recorded `valid_to_us` as a maintenance signal only: expired validity may signal stale, the exact boundary is not yet stale, and missing end-validity remains insufficient temporal evidence rather than an invented permanently-current claim. It does not mutate epistemic status, infer source age, claim falsity or fabricate replacement revisions.
 
-The worker branch history is not merged. The product slice is extracted as bounded content onto the exact Develop parent.
+The worker branch history is not merged. The bounded product/test slice is extracted onto the exact Develop parent.
 
-## Blocked and deferred work
+## Current worker state observed before mutation
 
-- Backend/Storage remains conservative: no Storage, Recovery, Transport or Runtime mutation is included here. Any current candidate must be re-qualified on its latest exact SHA before integration.
-- UI work already integrated on the parent is not re-integrated. Any newer UI candidate requires its own bounded exact-head evidence.
-- Error-worker findings are diagnostic unless reproduced by current exact-SHA evidence.
+- Errors: `0e90f96d3819a37a5143e2d9c58495eace67c586`.
+- Spec/Core: `12a2c2a4ac14c14a28f3bcfda9429d4db7a61830`.
+- Backend: `2182382b8aa4a2c37cbf698c51b9de8f7c148287`; new paired-sidecar fix requires its own exact focused plus canonical qualification before any Storage integration.
+- UI: `402d80180d29a4a9ddf1d678bc9f75c808bbbb16`; no UI slice is promoted without current exact evidence.
 
 ## Persistent release guards
 
@@ -26,7 +27,7 @@ Retain without relaxation: pypdf packaging; fail-closed Frozen argv; Desktop/Wor
 
 ## Visual truth
 
-Eleven-screen parity remains fail-closed: no `MATCH` without opened original reference plus real exact-SHA render.
+Eleven-screen parity remains fail-closed: no `MATCH` without opened original reference plus real exact-SHA render. Historical `ERROR_LEDGER.md` state does not override current exact-SHA evidence.
 
 ## Promotion state
 
