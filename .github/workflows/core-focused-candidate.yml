@@ -24,7 +24,7 @@ concurrency:
 
 jobs:
   focused-core-contract:
-    name: Exact Core candidate lint and focused tests
+    name: Exact Core candidate lint, typing and focused tests
     runs-on: ubuntu-latest
     timeout-minutes: 20
     env:
@@ -101,6 +101,28 @@ jobs:
           $ruffOutput | Tee-Object -FilePath ".focused-evidence/ruff.txt" | ForEach-Object { Write-Host $_ }
           if ($ruffExit -ne 0) { throw "Exact changed-file Ruff contract failed." }
 
+      - name: Mypy changed Core Python files
+        id: mypy
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path ".focused-evidence" | Out-Null
+          $changed = @(
+            git diff --diff-filter=ACMR --name-only $env:BASE_SHA $env:CANDIDATE_SHA -- "*.py" |
+              Where-Object { $_ -match '^(src/athena/knowledge/.*|src/athena/api/knowledge_.*|tests/unit/.*)\.py$' }
+          )
+          if ($LASTEXITCODE -ne 0) { throw "Unable to resolve changed Core Python files for mypy." }
+          if ($changed.Count -eq 0) {
+            "No changed Core Python files selected for mypy." | Tee-Object -FilePath ".focused-evidence/mypy.txt" | Write-Host
+            exit 0
+          }
+          Write-Host "Mypy exact candidate files:"
+          $changed | ForEach-Object { Write-Host "  $_" }
+          $mypyOutput = @(& uv run --locked --extra dev --no-sync mypy @changed 2>&1)
+          $mypyExit = $LASTEXITCODE
+          $mypyOutput | Tee-Object -FilePath ".focused-evidence/mypy.txt" | ForEach-Object { Write-Host $_ }
+          if ($mypyExit -ne 0) { throw "Exact changed-file mypy contract failed." }
+
       - name: Run changed focused unit tests
         id: focused_tests
         continue-on-error: true
@@ -113,7 +135,7 @@ jobs:
           )
           if ($LASTEXITCODE -ne 0) { throw "Unable to resolve changed focused unit tests." }
           if ($tests.Count -eq 0) {
-            "No changed Core-owned unit-test files selected; lint evidence only." | Tee-Object -FilePath ".focused-evidence/pytest.txt" | Write-Host
+            "No changed Core-owned unit-test files selected; lint/type evidence only." | Tee-Object -FilePath ".focused-evidence/pytest.txt" | Write-Host
             exit 0
           }
           Write-Host "Pytest exact candidate Core-owned files:"
@@ -169,9 +191,11 @@ jobs:
         shell: pwsh
         run: |
           $ruff = "${{ steps.ruff.outcome }}"
+          $mypy = "${{ steps.mypy.outcome }}"
           $tests = "${{ steps.focused_tests.outcome }}"
           Write-Host "Ruff outcome: $ruff"
+          Write-Host "Mypy outcome: $mypy"
           Write-Host "Focused pytest outcome: $tests"
-          if ($ruff -ne "success" -or $tests -ne "success") {
-            throw "Core focused candidate requires both Ruff and focused pytest to succeed."
+          if ($ruff -ne "success" -or $mypy -ne "success" -or $tests -ne "success") {
+            throw "Core focused candidate requires Ruff, mypy and focused pytest to succeed."
           }

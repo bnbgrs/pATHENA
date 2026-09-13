@@ -11,7 +11,7 @@ def test_core_focused_candidate_excludes_deleted_python_paths() -> None:
     text = _workflow_text()
     selector = "git diff --diff-filter=ACMR --name-only $env:BASE_SHA $env:CANDIDATE_SHA"
 
-    assert text.count(selector) == 3
+    assert text.count(selector) == 4
     assert "git diff --name-only $env:BASE_SHA $env:CANDIDATE_SHA" not in text
 
 
@@ -27,12 +27,17 @@ def test_core_focused_pytest_selects_only_core_owned_test_families() -> None:
     assert "No changed Core-owned unit-test files selected" in text
 
 
-def test_core_focused_lints_knowledge_api_sources() -> None:
+def test_core_focused_lints_and_types_knowledge_api_sources() -> None:
     text = _workflow_text()
     selector = "^(src/athena/knowledge/.*|src/athena/api/knowledge_.*|tests/unit/.*)\\.py$"
 
     assert '"src/athena/api/knowledge_*.py"' in text
-    assert text.count(selector) == 2
+    assert text.count(selector) == 3
+    assert "Mypy changed Core Python files" in text
+    assert "mypy @changed" in text
+    assert 'id: mypy' in text
+    assert 'steps.mypy.outcome' in text
+    assert "requires Ruff, mypy and focused pytest to succeed" in text
 
 
 def test_core_focused_remediation_ignores_only_untracked_evidence() -> None:
