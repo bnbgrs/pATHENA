@@ -61,12 +61,27 @@ The existing recovery inspection is intentionally strong: read-only validation r
 
 Ownership remains Backend/Storage. This integrator run deliberately did not parallel-modify the storage guard because the Error handoff explicitly assigns the product repair to Backend/Storage and asks Error to verify/close rather than compete on the mutation.
 
+## Requalified stale boundary handoff
+
+`docs/agent_handoffs/manual-open-boundaries-current-20260912.md` still describes issues `#92`, `#93`, `#95`, and `#96` as awaiting integration, but that text is stale and must not be used to schedule another port.
+
+Read-only requalification in this run established:
+
+- old candidate `manual/open-boundaries-current-20260912@b03c27a1521923d319bb2d17ce0ebff110f3a402` had exact canonical Quality `34677566133 = SUCCESS` and dedicated `pATHENA Windows Runtime Boundary` `34677566055 = SUCCESS`;
+- current Develop contains the same boundary implementation lineage;
+- representative owned blobs are byte-identical between the old candidate and current Develop: `scripts/validate_spec.py@86425b26305b0e067bd2d24417548d84194e6243`, `scripts/windows_packaging_safety.ps1@8c2735d6f829bb36fc540c460055988bba3bc236`, and `.github/workflows/windows-runtime-boundary.yml@5ebf22b6361ddc66658a10718f5d8e999585c512`;
+- current Develop canonical `34726544110 = SUCCESS` is later exact integrated evidence;
+- GitHub issues `#92`, `#93`, `#95`, and `#96` are already `closed / completed`.
+
+Therefore these four boundary repairs are **already integrated and closed**. Do not recreate, re-port, reopen, or merge the historical boundary candidate unless a new current exact-SHA reproducer establishes a distinct regression.
+
 ## Collision avoidance
 
 - Manual UI candidate touches only desktop UI files/tests listed in PR `#127`.
 - Backend effective product delta is schedule-startup code/tests and does not overlap the manual UI candidate.
 - Spec/Core current effective product delta is Knowledge-History code/tests and does not overlap the manual UI candidate.
 - The P1 storage race was investigated read-only here and left to its declared owner.
+- Historical Boundary issues `#92/#93/#95/#96` are integrated/closed and are not work items.
 - No force push, history rewrite, Skip/XFail, release-guard relaxation, worker-branch mutation or `main` mutation occurred.
 
 ## Current evidence rules
@@ -90,4 +105,5 @@ Next integrator actions, in order:
 1. Consume exact-head completion of manual UI canonical `34729288659`; only if all jobs are green may PR `#127` advance from Draft/integration review.
 2. Requalify the current Spec/Core head rather than importing its older exact-green predecessor while the same owner files are moving.
 3. Wait for an owner-green Backend/Storage successor that closes `ERR-0049`; then re-run/consume exact Backend canonical before integrating schedule-startup.
-4. After any integration into Develop, require canonical Quality on the resulting exact Develop SHA before the next Develop mutation.
+4. Do not spend worker or integrator cycles on already closed boundary issues `#92/#93/#95/#96` absent a new reproducer.
+5. After any integration into Develop, require canonical Quality on the resulting exact Develop SHA before the next Develop mutation.
