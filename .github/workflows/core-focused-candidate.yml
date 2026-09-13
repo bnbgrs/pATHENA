@@ -12,6 +12,7 @@ on:
       - "tests/unit/test_concept_note*.py"
       - "tests/unit/test_identity_transition*.py"
       - "tests/unit/test_temporal*.py"
+      - "tests/unit/test_user_correction*.py"
       - ".github/workflows/core-focused-candidate.yml"
 
 permissions:
@@ -108,7 +109,7 @@ jobs:
           New-Item -ItemType Directory -Force -Path ".focused-evidence" | Out-Null
           $tests = @(
             git diff --diff-filter=ACMR --name-only $env:BASE_SHA $env:CANDIDATE_SHA -- "tests/unit/*.py" |
-              Where-Object { $_ -match '^tests/unit/(test_claim.*|test_knowledge.*|test_concept_note.*|test_identity_transition.*|test_temporal.*)\.py$' }
+              Where-Object { $_ -match '^tests/unit/(test_claim.*|test_knowledge.*|test_concept_note.*|test_identity_transition.*|test_temporal.*|test_user_correction.*)\.py$' }
           )
           if ($LASTEXITCODE -ne 0) { throw "Unable to resolve changed focused unit tests." }
           if ($tests.Count -eq 0) {
