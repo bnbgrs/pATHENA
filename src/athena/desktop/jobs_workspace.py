@@ -25,6 +25,7 @@ from athena.desktop.jobs_lifecycle import (
 )
 from athena.desktop.pathena_ui_refinement_600 import set_pathena_ui_state
 from athena.desktop.scheduler_supervisor import DesktopJobSchedulerSupervisor
+from athena.desktop.workspace_detail_presenter import format_job_show
 
 
 class JobsWorkspace(QWidget):
@@ -206,6 +207,7 @@ class JobsWorkspace(QWidget):
         self.details.setProperty("pathenaBackgroundOperationOwner", "")
         if self._selected_job_id:
             selected_job_id = self._selected_job_id
+            self.details.clear()
             set_pathena_ui_state(self.details, "busy")
             self._start(
                 "show",
@@ -290,7 +292,10 @@ class JobsWorkspace(QWidget):
         if not chunk:
             return
         self._buffer += chunk
-        if self._operation != "list" and self._operation_owns_details():
+        if (
+            self._operation not in {"list", "show"}
+            and self._operation_owns_details()
+        ):
             self.details.moveCursor(QTextCursor.MoveOperation.End)
             self.details.insertPlainText(chunk)
 
@@ -318,6 +323,8 @@ class JobsWorkspace(QWidget):
             self.status.setText(message)
             set_pathena_ui_state(self.status, "error")
             if owns_details:
+                if operation == "show":
+                    self.details.setPlainText(output)
                 set_pathena_ui_state(self.details, "error")
             if operation == "list":
                 self.details.setPlainText(output)
@@ -333,6 +340,7 @@ class JobsWorkspace(QWidget):
             self.status.setText(f"Job {job_label} details loaded.")
             set_pathena_ui_state(self.status, "success")
             if owns_details:
+                self.details.setPlainText(format_job_show(output))
                 set_pathena_ui_state(self.details, "success")
             return
 
