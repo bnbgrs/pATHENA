@@ -1,9 +1,14 @@
-"""Deterministic maintenance policy for stale Knowledge signals."""
+"""Compatibility surface for stale Knowledge maintenance signals."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+
+from athena.knowledge.staleness_policy import (
+    KnowledgeStalenessReason,
+    _assess_temporal_staleness,
+)
 
 
 class StaleKnowledgeState(str, Enum):
@@ -18,6 +23,12 @@ class StaleKnowledgeReason(str, Enum):
 
     VALIDITY_ENDED = "validity_ended"
     SOURCE_AGE_EXCEEDED = "source_age_exceeded"
+
+
+_REASON_MAP = {
+    KnowledgeStalenessReason.VALIDITY_ENDED: StaleKnowledgeReason.VALIDITY_ENDED,
+    KnowledgeStalenessReason.SOURCE_AGE_EXCEEDED: StaleKnowledgeReason.SOURCE_AGE_EXCEEDED,
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,11 +46,11 @@ class StaleKnowledgeAssessment:
 
 
 class StaleKnowledgePolicy:
-    """Evaluate Beta §63 stale signals without changing canonical truth/status.
+    """Preserve the legacy stale-policy API on the canonical decision engine.
 
-    A passed validity end or sufficiently old source observation can request
-    maintenance. Missing information remains unknown/current and never invents
-    staleness. This policy does not mutate Knowledge, Claims, or provenance.
+    This adapter keeps its established value-validation and result contract, but
+    stale-maintenance decisions are delegated to ``KnowledgeStalenessPolicy``'s
+    shared temporal evaluator. No second stale-rule implementation is retained.
     """
 
     @staticmethod
@@ -69,23 +80,19 @@ class StaleKnowledgePolicy:
         if source_observed_at_us is not None and source_observed_at_us > now_us:
             raise ValueError("source_observed_at_us cannot be later than now_us.")
 
-        reasons: list[StaleKnowledgeReason] = []
-        if valid_to_us is not None and valid_to_us < now_us:
-            reasons.append(StaleKnowledgeReason.VALIDITY_ENDED)
-        if (
-            source_observed_at_us is not None
-            and max_source_age_us is not None
-            and now_us - source_observed_at_us > max_source_age_us
-        ):
-            reasons.append(StaleKnowledgeReason.SOURCE_AGE_EXCEEDED)
-
-        frozen_reasons = tuple(reasons)
+        signals = _assess_temporal_staleness(
+            assessed_at_us=now_us,
+            valid_to_us=valid_to_us,
+            source_observed_at_us=source_observed_at_us,
+            max_source_age_us=max_source_age_us,
+        )
+        reasons = tuple(_REASON_MAP[reason] for reason in signals.reasons)
         state = (
             StaleKnowledgeState.STALE_SIGNAL
-            if frozen_reasons
+            if reasons
             else StaleKnowledgeState.CURRENT_OR_UNKNOWN
         )
-        return StaleKnowledgeAssessment(state=state, reasons=frozen_reasons)
+        return StaleKnowledgeAssessment(state=state, reasons=reasons)
 
     @staticmethod
     def _validate_non_negative(name: str, value: object) -> None:

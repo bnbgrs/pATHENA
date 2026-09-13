@@ -4,34 +4,32 @@ Evidence-only progress register for `develop/pathena-next`. No invented completi
 
 ## Current baseline
 
-- Develop before this repair: `99af9923903644e1f36b1db235d3ef97b53ff909`.
-- Exact canonical Quality `34762510125 = FAILURE` solely in full pytest.
-- On that exact SHA, specification validation, Ruff, mypy, Linux Storage, Local Install including pypdf metadata, and Windows release guards passed.
+- Develop before this integration: `1c20496e5e91c800050a9586dce7a903f9d86a6c`.
+- Exact canonical Quality `34764344711 = SUCCESS`.
 - Persistent release guards remain mandatory and unchanged.
 
 ## Current integration state
 
-The source-age staleness guard, explicit user-correction guard, repaired Core-Focused workflow contracts and paired WAL/SHM identity guard remain integrated.
+Integrated product capabilities retained on Develop include the paired WAL/SHM identity guard, truthful Knowledge temporal staleness signals, explicit user-correction guard, repaired Core-Focused workflow coverage, and the restored 44×44 Send-target contract.
 
-The prior UI integration centralized Send-button geometry in `SHELL.composer_action_size` but introduced a 48 px outer target. Canonical pytest caught the mismatch against the established 44×44 shell/visual contract: `test_reference_composer_uses_large_work_surface_and_send_target` was the only failure; the remaining canonical suite reported `5066 passed, 17 skipped` and the isolated desktop-controller suite passed 6/6.
+This integration consolidates the two public Knowledge stale-policy surfaces onto one shared temporal decision evaluator. The legacy compatibility surface keeps its established validation/result semantics while no longer owning a second independent stale-rule implementation. Exact Core Focused `34762195665` and canonical Quality `34762195648` passed on candidate `d2569f97607566e241443622ec1f11370aebb880`.
 
-This repair corrects only `SHELL.composer_action_size` from 48 to 44. Shared styling remains token-derived, so its content box returns to 42 px and the inherited 1 px border produces the required 44 px outer geometry. The existing window-level regression assertion is preserved unchanged; no test contract is weakened.
+Bounded integrated files are `src/athena/knowledge/stale_policy.py`, `src/athena/knowledge/staleness_policy.py`, and `tests/unit/test_knowledge_stale_policy_compat.py`. No Backend, Storage, Security, Recovery or UI product file is changed by this slice.
 
 ## Current worker truth
 
-- Errors `4077cd850a1bd93ec379876195eb04bfa9e3264b`.
+- Errors `1d5a922b6387c24e818b43559466da823caa9d97`.
 - Spec/Core `d2569f97607566e241443622ec1f11370aebb880`.
-- Backend `d0693efea6067eb32c3edb2ecac3a7ed4ab36974`.
-- UI `662f4a2d8da02e4497f141cac938193cf08e9361`.
+- Backend `b7a1358caa1c5ae97066ea8075fcde4285b47882`.
+- UI `4322820fd02e15e30626e42107291360d5f79b18`.
 
-No broad worker branch is promoted by this repair.
+No broad worker branch is promoted. Backend and UI contain newer work that must be independently exact-qualified before any bounded extraction.
 
 ## Error and visual truth rules
 
-- `docs/agent_logs/ERROR_LEDGER.md` remains historical wherever newer exact-SHA evidence exists; current worker heads and exact CI take precedence.
-- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` and `docs/ui/VISUAL_GAP_LEDGER.md` remain aligned on the verified 44×44 outer Send target.
+- `docs/agent_logs/ERROR_LEDGER.md` remains historical wherever newer exact-SHA evidence exists.
 - Eleven-screen status remains fail-closed; no visual `MATCH` without opened original reference plus real exact-SHA render.
-- Visual Regression still requires deliberate reference review; no baseline is auto-accepted and comparator tolerance is not relaxed.
+- The current verified Send target remains 44×44 outer geometry.
 
 ## Persistent release guards
 
