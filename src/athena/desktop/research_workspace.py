@@ -6,7 +6,6 @@ import re
 import sys
 
 from PySide6.QtCore import QProcess, Qt, QTimer
-from PySide6.QtGui import QTextCursor
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -27,6 +26,14 @@ _JOB_QUEUED_RE = re.compile(r"^JOB_QUEUED\s+([0-9a-fA-F-]{36})$", re.MULTILINE)
 _TERMINAL_STATES = frozenset({"cancelled", "failed", "completed"})
 
 
+def _operation_owns_selected_job(
+    operation_job_id: str | None,
+    selected_job_id: str | None,
+) -> bool:
+    """Return whether job-scoped async output still belongs to the visible selection."""
+    return operation_job_id is not None and operation_job_id == selected_job_id
+
+
 class ResearchWorkspace(QWidget):
     """Queue, inspect and cancel durable exhaustive research without blocking Qt."""
 
@@ -34,6 +41,7 @@ class ResearchWorkspace(QWidget):
         super().__init__()
         self.setObjectName("researchWorkspace")
         self._operation = ""
+        self._operation_job_id: str | None = None
         self._buffer = ""
         self._selected_job_id: str | None = None
         self._selected_job_state: str | None = None
@@ -121,6 +129,10 @@ class ResearchWorkspace(QWidget):
 
         QTimer.singleShot(0, self.refresh)
 
+    @staticmethod
+    def _job_label(job_id: str | None) -> str:
+        return job_id[:8].upper() if job_id else ""
+
     def enqueue(self) -> None:
         query = self.query_input.text().strip()
         if not query or self._busy():
@@ -138,10 +150,12 @@ class ResearchWorkspace(QWidget):
         if self._busy() or not self._cancel_available():
             return
         assert self._selected_job_id is not None
+        job_id = self._selected_job_id
         self._start(
             "cancel",
-            ["cancel", self._selected_job_id],
+            ["cancel", job_id],
             "Requesting research cancellation",
+            job_id=job_id,
         )
 
     def _selection_changed(
@@ -154,17 +168,50 @@ class ResearchWorkspace(QWidget):
         self._selected_job_id = str(job_id) if job_id else None
         self._selected_job_state = str(state) if state else None
         self._sync_cancel_button()
-        if self._selected_job_id and not self._busy():
+
+        if self._busy():
+            if current is not None and not self._operation_owns_details():
+                owner_label = self._job_label(self._operation_job_id)
+                selected_label = self._job_label(self._selected_job_id)
+                if self._operation_job_id is None:
+                    background = f"{self._operation.upper()} is still running."
+                    owner = self._operation or "background"
+                else:
+                    background = (
+                        f"{self._operation.upper()} for research run {owner_label} is still "
+                        "running in the background."
+                    )
+                    owner = self._operation_job_id
+                self.details.setPlainText(
+                    f"BACKGROUND · {background}\n"
+                    f"CURRENT · Research run {selected_label} remains selected; background "
+                    "output will not be written into this pane.\n\n"
+                    f"{current.toolTip()}"
+                )
+                self.details.setProperty("pathenaBackgroundOperationOwner", owner)
+                set_pathena_ui_state(self.details, "idle")
+            return
+
+        self.details.setProperty("pathenaBackgroundOperationOwner", "")
+        if self._selected_job_id:
+            selected_job_id = self._selected_job_id
             self.details.clear()
             set_pathena_ui_state(self.details, "busy")
             self._start(
                 "show",
-                ["show", self._selected_job_id],
+                ["show", selected_job_id],
                 "Loading research details",
+                job_id=selected_job_id,
             )
 
     def _busy(self) -> bool:
         return self._process.state() != QProcess.ProcessState.NotRunning
+
+    def _operation_owns_details(self) -> bool:
+        return _operation_owns_selected_job(
+            self._operation_job_id,
+            self._selected_job_id,
+        )
 
     def _cancel_available(self) -> bool:
         return (
@@ -177,9 +224,7 @@ class ResearchWorkspace(QWidget):
     def _sync_cancel_button(self) -> None:
         enabled = not self._busy() and self._cancel_available()
         self.cancel_button.setEnabled(enabled)
-        job_label = (
-            self._selected_job_id[:8].upper() if self._selected_job_id is not None else "none"
-        )
+        job_label = self._job_label(self._selected_job_id) or "none"
         state = self._selected_job_state or "none"
         if enabled:
             reason = f"Request cancellation for research run {job_label} ({state})."
@@ -196,9 +241,20 @@ class ResearchWorkspace(QWidget):
         self.cancel_button.setProperty("pathenaResearchJobState", state)
         self.cancel_button.setProperty("pathenaResearchCancelAvailable", enabled)
 
-    def _start(self, operation: str, arguments: list[str], label: str) -> None:
+    def _start(
+        self,
+        operation: str,
+        arguments: list[str],
+        label: str,
+        *,
+        job_id: str | None = None,
+    ) -> None:
         self._operation = operation
+        self._operation_job_id = job_id
         self._buffer = ""
+        job_label = self._job_label(job_id)
+        if job_label:
+            label = f"{label} · {job_label}"
         self.status.setText(label + " …")
         set_pathena_ui_state(self.status, "busy")
         self._set_controls_enabled(False)
@@ -223,23 +279,34 @@ class ResearchWorkspace(QWidget):
         if not chunk:
             return
         self._buffer += chunk
-        if self._operation in {"enqueue", "cancel"}:
-            self.details.moveCursor(QTextCursor.MoveOperation.End)
-            self.details.insertPlainText(chunk)
+        if self._operation == "cancel" and self._operation_owns_details():
+            self.details.appendPlainText(chunk.rstrip("\n"))
 
     def _process_finished(self, exit_code: int, _exit_status: QProcess.ExitStatus) -> None:
         self._drain_output()
         operation = self._operation
+        operation_job_id = self._operation_job_id
+        owns_details = self._operation_owns_details()
         output = self._buffer
         self._operation = ""
+        self._operation_job_id = None
         self._set_controls_enabled(True)
+        job_label = self._job_label(operation_job_id)
 
         if exit_code != 0:
-            self.status.setText(f"Research command failed (exit {exit_code}).")
+            subject = f" for research run {job_label}" if job_label else ""
+            location = " in the background" if subject and not owns_details else ""
+            self.status.setText(
+                f"Research command{subject} failed{location} (exit {exit_code})."
+            )
             set_pathena_ui_state(self.status, "error")
-            set_pathena_ui_state(self.details, "error")
-            if operation in {"list", "show"}:
+            if operation == "list":
                 self.details.setPlainText(output)
+                set_pathena_ui_state(self.details, "error")
+            elif owns_details:
+                if operation == "show":
+                    self.details.setPlainText(output)
+                set_pathena_ui_state(self.details, "error")
             return
 
         if operation == "list":
@@ -261,19 +328,29 @@ class ResearchWorkspace(QWidget):
             return
 
         if operation == "cancel":
-            self._selected_job_state = "cancel_requested"
-            self._sync_cancel_button()
-            self.status.setText("Cancellation request persisted.")
+            if owns_details:
+                self._selected_job_state = "cancel_requested"
+                self._sync_cancel_button()
+                set_pathena_ui_state(self.details, "success")
+            subject = f" for research run {job_label}" if job_label else ""
+            location = " in the background" if subject and not owns_details else ""
+            self.status.setText(f"Cancellation request persisted{subject}{location}.")
             set_pathena_ui_state(self.status, "success")
-            set_pathena_ui_state(self.details, "success")
             QTimer.singleShot(120, self.refresh)
             return
 
         if operation == "show":
-            self.details.setPlainText(format_research_show(output))
-            self.status.setText("Research details loaded.")
+            subject = f"Research run {job_label}" if job_label else "Research"
+            if owns_details:
+                self.details.setPlainText(format_research_show(output))
+                self.details.setProperty("pathenaBackgroundOperationOwner", "")
+                set_pathena_ui_state(self.details, "success")
+                self.status.setText(f"{subject} details loaded.")
+            else:
+                self.status.setText(
+                    f"{subject} details loaded in the background; selection changed."
+                )
             set_pathena_ui_state(self.status, "success")
-            set_pathena_ui_state(self.details, "success")
 
     def _render_job_list(self, output: str) -> None:
         selected = self._selected_job_id
@@ -337,13 +414,21 @@ class ResearchWorkspace(QWidget):
             set_pathena_ui_state(self.details, "empty")
 
     def _process_error(self, error: QProcess.ProcessError) -> None:
+        operation = self._operation
+        operation_job_id = self._operation_job_id
+        owns_details = self._operation_owns_details()
+        self._operation = ""
+        self._operation_job_id = None
         self._set_controls_enabled(True)
+        job_label = self._job_label(operation_job_id)
+        subject = f" for research run {job_label}" if job_label else ""
         if error == QProcess.ProcessError.FailedToStart:
-            self.status.setText("Unable to start the local pATHENA research command.")
+            self.status.setText(f"Unable to start the local pATHENA research command{subject}.")
         else:
-            self.status.setText(f"Research command error: {error.name}")
+            self.status.setText(f"Research command{subject} error: {error.name}")
         set_pathena_ui_state(self.status, "error")
-        set_pathena_ui_state(self.details, "error")
+        if operation == "list" or owns_details:
+            set_pathena_ui_state(self.details, "error")
 
 
 def install_research_workspace(window: object) -> ResearchWorkspace:
