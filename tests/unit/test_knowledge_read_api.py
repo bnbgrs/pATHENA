@@ -8,7 +8,6 @@ from athena.api.knowledge_explanation import KnowledgeProvenanceExplanationRespo
 from athena.api.knowledge_history import KnowledgeHistoryResponse
 from athena.api.knowledge_read import KnowledgeReadApiService
 
-
 KNOWLEDGE_ID = "11111111-1111-4111-8111-111111111111"
 
 

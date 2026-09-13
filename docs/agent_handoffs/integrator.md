@@ -3,25 +3,27 @@
 ## Current integration
 
 - Integration target: `develop/pathena-next`.
-- Develop parent before this integration: `d7a5bcf6d836c47588b907d666b5541386ca0678`.
-- Exact parent canonical Quality `34737035739 = FAILURE`: controller isolation itself is green (`6 passed`), the remaining canonical suite reaches completion with `1 failed, 5029 passed, 17 skipped`; the sole failure is the stale workflow-contract assertion expecting the pre-isolation one-process pytest command.
-- Worker heads checked: Errors `2a777c98dd10d22cefc487e0f76d0552415efdf5`; Spec/Core `fc253bd8646028a4226aa603d7188830daf54d7d`; Backend `7063801bcefc7153f4ef5de4b3d82669861b4208`; UI `2f003f7de2cc9b9499b1853cc8e4869b404488eb`.
+- Develop parent: `a26e2c03be10342476e406a18fbfb917a5a47ffe`.
+- Exact parent canonical Quality `34739022121 = SUCCESS`.
+- Worker heads checked: Errors `f73625ea0b3e42ef298bd1d09fc49e95b4c6f528`; Spec/Core `3e3dc4d3f4777b083d9ef2b09819cbad51ab9034`; Backend `517ca6ebd98ee2ff719827b043e2eee7ddd1e2e1`; UI `718d9002d5300afce74b04b0e4e8d40a9d00642e`.
 
-## Iteration 1 — exact Develop regression closed
+## Iteration 1 — bounded Help secondary-navigation styling integrated
 
-`tests/unit/test_quality_workflow_contract.py` now guards the actual fail-closed canonical structure: the mandatory desktop-controller module runs in its own interpreter, every remaining test runs exactly once with only that module ignored in the second invocation, both PIPESTATUS values are captured, and either nonzero status fails the canonical pytest step. This updates the contract to the already-integrated native Qt isolation without Skip/XFail, retry, test removal, or gate weakening.
+UI commit `b7b779a5e43768344ee6b6f9e2903c414229ad2c` is bounded to the Help capability surface plus its focused test. Exact UI Focused `34735699933 = SUCCESS` and canonical `34735699924 = SUCCESS`. The slice adds the established dark shell selection language and verifies border/accent/selected-state styling without changing command, capability, Backend, Storage or Security behavior.
 
-## Iteration 2 — bounded Knowledge model disclosure integrated
+## Iteration 2 — Help hierarchy aligned to shared shell tokens
 
-Spec/Core `fc253bd8646028a4226aa603d7188830daf54d7d` has exact Core Focused `34737394852 = SUCCESS` and canonical `34737394871 = SUCCESS`. Its effective product delta against current Develop is only `src/athena/api/knowledge_model_disclosure.py` plus `tests/unit/test_knowledge_model_disclosure.py`.
+UI commit `2f003f7de2cc9b9499b1853cc8e4869b404488eb` changes only `pathena_capability_help.py`. Exact UI Focused `34738565588 = SUCCESS` and canonical `34738565572 = SUCCESS`. Hard-coded secondary-nav width and title sizes are replaced with existing `SHELL` and `TYPE` tokens; no new visual `MATCH` claim is made.
 
-The slice exposes recorded model/run provenance for a Knowledge revision without fabricating model participation. User-authored revisions reject supplied model provenance; primary-model revisions require a matching succeeded `ProcessingRun` and `ModelSignature`; mismatched or partial provenance fails closed.
+## Iteration 3 — Core Focused Knowledge API coverage hardened
+
+The Core Focused workflow now treats `src/athena/api/knowledge_*.py` as Core-owned source for trigger and changed-file Ruff selection. The workflow-contract test prevents this coverage from silently disappearing. Existing exact-SHA identity, ACMR selection, locked environment, focused pytest, remediation reset, and final fail-closed outcome enforcement remain intact.
 
 ## Blocked candidates
 
-- Backend `7063801b...`: Storage Focused `34738082478 = FAILURE`; hold all Storage mutation. `ERR-0049` remains current until paired foreign WAL+SHM replacement is rejected while legitimate rotation/race behavior remains green.
-- UI `2f003f7d...`: newer UI-owned work exists, but no broad branch promotion; re-qualify bounded UI slices only after exact Develop quality completes.
-- Historical `ERROR_LEDGER.md` is not authoritative over newer exact-SHA evidence.
+- Spec/Core `3e3dc4d3...`: Core Focused `34740030025 = FAILURE`; focused pytest passed but the exact run is not READY. canonical `34740029996` was still active during qualification. No Core product integration.
+- Backend `517ca6eb...`: Storage Focused `34740393786 = FAILURE` and canonical `34740393790 = FAILURE`; `ERR-0049` remains the sole current Storage blocker.
+- UI current sync head `718d9002...`: UI Focused is green while canonical `34741192787` was still active. Only the independently exact-green bounded UI slices above were selected.
 
 ## Persistent release guards
 

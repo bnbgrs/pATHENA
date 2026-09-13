@@ -9,7 +9,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 pytest.importorskip("PySide6")
 
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QFrame
 
 from athena.desktop.app import create_application
 from athena.desktop.command_palette import CommandPaletteController
@@ -20,6 +20,7 @@ from athena.desktop.pathena_capability_catalog import (
     resolve_capability_catalog,
 )
 from athena.desktop.pathena_capability_help import install_capability_help
+from athena.desktop.pathena_design_tokens import PALETTE
 from athena.desktop.pathena_window import PathenaMainWindow
 
 
@@ -158,6 +159,24 @@ def test_open_help_re_resolves_runtime_state_and_publishes_accessible_metadata()
         assert "live commands" in palette.help_text.accessibleDescription()
     finally:
         palette.help_dialog.hide()
+        palette.deleteLater()
+        window.close()
+        app.processEvents()
+
+
+def test_help_secondary_navigation_uses_reference_dark_selection_language() -> None:
+    app, window, palette = _surface()
+    controller = install_capability_help(palette)
+    try:
+        navigation = palette.help_dialog.findChild(QFrame, "helpSecondaryNavigation")
+        assert navigation is not None
+        assert f"border-right: 1px solid {PALETTE.border}" in navigation.styleSheet()
+
+        sections_style = controller.help_sections.styleSheet()
+        assert f"background: {PALETTE.surface_selected}" in sections_style
+        assert f"border-left: 2px solid {PALETTE.accent}" in sections_style
+        assert "outline: none" in sections_style
+    finally:
         palette.deleteLater()
         window.close()
         app.processEvents()
