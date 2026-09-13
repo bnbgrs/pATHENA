@@ -185,6 +185,10 @@ class SQLiteDatabase:
             raise DatabaseStartupIdentityChangedError(
                 "ATHENA SQLite database/WAL/SHM identity changed during startup revalidation."
             )
+        if complete_rotation and refreshed_identity != current:
+            raise DatabaseStartupIdentityChangedError(
+                "ATHENA SQLite complete sidecar rotation changed during startup revalidation."
+            )
 
         after_refresh = capture_database_file_set_identity(self.path)
         if after_refresh.database != expected.database:
