@@ -2,96 +2,97 @@
 
 ## Baseline
 
-- Develop: `305703362d539ed467dec27cbc7300a495b3ca03`; canonical Quality `34726544110 = IN_PROGRESS`.
-- Previous integrated Develop: `98b110882910653566fa70b27e9bdaa3f328ef6b`; canonical `34724047841 = SUCCESS`.
-- Workers: Spec/Core `6cc6977be39809e464ae62a546312a8217698bc9`; Backend `597297aa1f07d36d872df6e8d20a939a7fab941b`; UI `b3d43e4bcaff1a188668b437d31cb0fffdfc0351`.
-- Error worker entered this run at `493b145af1b31c52a3207484be45039c460e5552`; zero workflow runs existed before both mutations.
+- Develop: `305703362d539ed467dec27cbc7300a495b3ca03`; canonical Quality `34726544110 = SUCCESS`; exact PR-triggered canonical `34728645613 = SUCCESS`.
+- Workers: Spec/Core `80e7c8f8bb3c15c41ec8483dd0a57687016ba99c`; Backend `185662aafe7ab539fafd698e021635debfcc2a60`; UI `722ca4fd3afa6af9b2eecc3c82700efe287e77ed`.
+- Error worker entered at `f8333575c7d93938c03aec7e61039b6293112058`; no workflow runs existed before either mutation.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current error state
 
-- OPEN: `ERR-0047`, `ERR-0048`.
+- OPEN: `ERR-0049`.
 - IN_PROGRESS: none.
-- FIXED_PENDING_VERIFY: `ERR-0046`.
-- FIXED this run: `ERR-0042`.
-- Prior closures remain closed unless a current exact-SHA reproducer reopens them.
+- FIXED_PENDING_VERIFY: `ERR-0047`, `ERR-0048`.
+- FIXED this run: `ERR-0046`.
+- Prior closures remain closed unless a current exact-SHA reproducer proves the same root cause again.
 
-## ITERATION-1 — ERR-0042 integrated closure
+## ITERATION-1 — ERR-0046 closed
 
-`ERR-0042 = FIXED / P1`.
+`ERR-0046 = FIXED / P2`.
 
-Develop `98b110882910653566fa70b27e9bdaa3f328ef6b` canonical `34724047841 = SUCCESS`. The bounded revision-change explanation slice is integrated and the previous Ruff blocker no longer has an active current reproducer.
+Develop `305703362d539ed467dec27cbc7300a495b3ca03` contains the bounded Core-Focused ownership selector fix and canonical `34726544110 = SUCCESS`. The required successor UI proof now exists too: `postmerge/ui@722ca4fd3afa6af9b2eecc3c82700efe287e77ed` synchronized this Develop lineage and Core Focused `34728654619 = SUCCESS`; UI Focused `34728654616 = SUCCESS`. The former PySide-only UI test contamination no longer reproduces, while the existing exact-SHA, deleted-file, tracked-worktree and final-outcome guards remain intact.
 
-## ITERATION-2 — ERR-0046 bounded harness fix landed
+## ITERATION-2 — ERR-0048 owner fix verified
 
-`ERR-0046 = FIXED_PENDING_VERIFY / P2`.
+`ERR-0048 = FIXED_PENDING_VERIFY / P2`.
 
-The newest pre-fix UI exact remains useful negative evidence:
+Spec/Core successor `80e7c8f8bb3c15c41ec8483dd0a57687016ba99c` (`fix(core): normalize revision history candidate`) replaces the prior exact reproducer `6cc6977b...`.
 
-- `postmerge/ui@b3d43e4bcaff1a188668b437d31cb0fffdfc0351`
-- UI Focused `34726150439 = SUCCESS`
-- UI canonical `34726150445 = SUCCESS`
-- Core Focused `34726150459 = FAILURE`
+Exact evidence:
 
-Current Develop `305703362d539ed467dec27cbc7300a495b3ca03` is dedicated commit `fix(ci): scope core focused pytest ownership`. Its workflow now limits focused pytest to Core-owned test patterns instead of all `tests/unit/test_*.py`.
+- Core Focused `34727449865 = SUCCESS`;
+- canonical Quality `34727449740 = SUCCESS`.
 
-Safeguards were preserved: exact SHA validation, `--diff-filter=ACMR`, tracked-worktree fail-closed Ruff remediation, and final Ruff+pytest outcome enforcement. Develop canonical `34726544110` is still running. Do not call `FIXED` until exact success and a successor Core-Focused run proves UI-only non-selection without weakening real Core-failure detection.
+The previous sole Ruff `I001` in `tests/unit/test_knowledge_history_api.py` is no longer current. Final closure requires bounded integration into Develop plus exact integrated canonical success.
 
-## ITERATION-3 — ERR-0047 current Backend reproducer
+## ITERATION-3 — ERR-0047 original root cause removed
 
-`ERR-0047 = OPEN / P2`.
+`ERR-0047 = FIXED_PENDING_VERIFY / P2`.
 
-Current Backend exact is `597297aa1f07d36d872df6e8d20a939a7fab941b`:
+Backend successor `185662aafe7ab539fafd698e021635debfcc2a60` (`fix(jobs): use stable schedule priority contract`) now uses `JobPriority.TIME_CRITICAL` both when materializing and when asserting the persisted priority. Backend Focused `34728206760 = SUCCESS`.
 
-- Backend Focused `34725622702 = SUCCESS`
-- canonical `34725622698 = FAILURE`
-- Linux Storage = PASS
-- Local Install/pypdf = PASS
-- Windows release guards = PASS
-- canonical Ruff/mypy/specification validation = PASS
-- only full pytest blocks
+Canonical `34728206821` is still red, but downloaded exact diagnostics prove the schedule-startup failure is gone. Full pytest reports `1 failed, 5029 passed, 17 skipped`; its sole failure is the independent storage-startup race now tracked as `ERR-0049`. Therefore do not keep `ERR-0047` OPEN merely because the whole canonical run is red for another root cause.
 
-Downloaded exact canonical diagnostics reproduce the same sole root cause: `tests/unit/test_schedule_startup.py::test_startup_recovery_applies_policy_before_materialization` uses nonexistent `JobPriority.HIGH` and raises `AttributeError`. The current worker file still contains both the call-site and persisted-value assertion against `JobPriority.HIGH`.
+## ITERATION-4 — new ERR-0049 concurrent writer startup race
 
-Safe repair remains test-only: select the intended existing enum member and retain the persisted priority equality assertion. Do not add a production `HIGH` alias solely for the test.
+`ERR-0049 = OPEN / P1`.
 
-## ITERATION-4 — new ERR-0048 Spec/Core Ruff blocker
+Exact reproducer:
 
-`ERR-0048 = OPEN / P2`.
+- `postmerge/backend@185662aafe7ab539fafd698e021635debfcc2a60`;
+- canonical `34728206821 = FAILURE`;
+- Backend Focused `34728206760 = SUCCESS`;
+- Linux Storage, Windows Path Safety/release guards, Local Install/pypdf, Ruff, mypy and Specification Validator all PASS.
 
-Current Spec/Core exact `6cc6977be39809e464ae62a546312a8217698bc9`:
+Downloaded full-pytest diagnostics isolate one failure:
 
-- Core Focused `34725178727 = FAILURE`
-- canonical `34725178701 = FAILURE`
-- focused behavior tests: `6 passed`
-- full canonical pytest: `5030 passed, 17 skipped`
-- mypy and Specification Validator: PASS
+`tests/integration/test_deletion_process_reliability.py::test_process_separated_public_delete_offline_sync_purge_and_restore`
 
-Both failing lanes isolate one Ruff `I001` at `tests/unit/test_knowledge_history_api.py:1:1`. The generated focused remediation diff removes exactly one redundant blank line between the imports and `KNOWLEDGE_ID`; no assertion or behavior change is required.
+The second legitimate race process exits because storage bootstrap raises `DatabaseStartupIdentityChangedError: ATHENA SQLite database/WAL/SHM identity changed after startup preflight` from `SQLiteDatabase._revalidate_existing_identity()`.
 
-Spec/Core owns this slice, so Error worker did not parallel-edit its worker code. Required successor evidence: the one-line formatting fix, focused Ruff/tests green, and exact canonical success.
+Current code permits only: exact unchanged identity, complete absent→complete sidecar publication, or complete→absent sidecar withdrawal. If WAL+SHM remain complete but their object identities transition while another legitimate writer is active, the guard currently rejects the startup as a generic identity change.
 
-## ITERATION-5 — current UI/cascade classification
+Important deduplication: Backend differs from Develop `305703362...` only in `src/athena/jobs/schedule_startup.py` and `tests/unit/test_schedule_startup.py`; storage/recovery code is shared. Develop canonical on the same shared storage code is green, so this is a concurrency-sensitive current storage race, not evidence that the schedule-startup change caused it.
 
-Current UI exact `b3d43e4bcaff1a188668b437d31cb0fffdfc0351` is product-green: UI Focused `34726150439 = SUCCESS` and canonical `34726150445 = SUCCESS`. The only red workflow is the known pre-fix Core-Focused harness lane already tracked as `ERR-0046`; no independent UI product error is opened.
+Safe repair requirements:
+
+1. Reproduce the process-separated reliability test first.
+2. Distinguish legitimate concurrent sidecar lifecycle from replacement/tamper using stable evidence; do not accept arbitrary complete→complete identity replacement.
+3. Preserve fail-closed foreign sidecar replacement and partial publication/withdrawal behavior from `ERR-0043`/`ERR-0045`.
+4. Re-run storage-startup identity tests plus the process-separated reliability reproducer before canonical.
+
+Ownership: Backend/Storage should own this product repair. Error worker should verify, deduplicate and close; it should not parallel-modify the guard while Backend is active.
+
+## ITERATION-5 — current cascade/release-guard classification
+
+No persistent historical release-guard signature was reopened by the current canonical failure. On Backend `185662aa...`, Windows Path Safety including packaged-runtime, adaptive reserve and pypdf checks is green; Linux Storage and Local Install are green. `ERR-0049` is specifically the current process-separated storage-bootstrap race and must be repaired without loosening those existing guards.
 
 ## CI discipline
 
 - No competing canonical run was started.
 - `postmerge/errors` had zero workflow runs before the Ledger commit and again before this Handoff commit.
 - No product code or foreign worker branch was mutated.
-- Current Develop canonical already existed and remains in progress; it was not duplicated or superseded.
+- No force push, history rewrite, main mutation, Skip/XFail or guard relaxation occurred.
 
 ## Integrator handoff
 
-- `ERR-0042 = FIXED / P1`: integrated canonical `34724047841@98b110882910653566fa70b27e9bdaa3f328ef6b = SUCCESS`.
-- `ERR-0046 = FIXED_PENDING_VERIFY / P2`: bounded selector fix is `305703362d539ed467dec27cbc7300a495b3ca03`; canonical `34726544110` still running.
-- `ERR-0047 = OPEN / P2`: current Backend exact still fails only because `test_schedule_startup.py` references nonexistent `JobPriority.HIGH`.
-- `ERR-0048 = OPEN / P2`: current Spec/Core exact fails only Ruff `I001`; generated remediation is one blank-line deletion and behavior suites are green.
+- `ERR-0046 = FIXED / P2`: Develop canonical `34726544110@305703362d539ed467dec27cbc7300a495b3ca03 = SUCCESS`; successor UI Core Focused `34728654619@722ca4fd3afa6af9b2eecc3c82700efe287e77ed = SUCCESS`.
+- `ERR-0048 = FIXED_PENDING_VERIFY / P2`: Spec/Core `80e7c8f8bb3c15c41ec8483dd0a57687016ba99c`; Core Focused `34727449865 = SUCCESS`; canonical `34727449740 = SUCCESS`; integrate bounded revision-history fix before closure.
+- `ERR-0047 = FIXED_PENDING_VERIFY / P2`: Backend `185662aafe7ab539fafd698e021635debfcc2a60`; Backend Focused `34728206760 = SUCCESS`; the previous `JobPriority.HIGH` failure is absent from exact canonical diagnostics.
+- `ERR-0049 = OPEN / P1`: same Backend exact SHA; canonical `34728206821 = FAILURE` only at the process-separated concurrent startup identity race. Treat this as the highest current error cluster before selecting Backend for integration.
 
 ## NEXT_ROOT_CAUSE
 
-1. Consume `34726544110@develop/30570336...`; if successful, require the next Core-Focused worker run after rebasing/syncing onto this harness to prove UI-only tests are not selected before closing `ERR-0046`.
-2. Consume the next Backend successor for `ERR-0047`; require exact focused/canonical success with the real existing priority member.
-3. Consume the next Spec/Core successor for `ERR-0048`; require the exact one-line Ruff correction plus focused and canonical success.
-4. After each closure, immediately inspect the latest current worker/canonical failures for the next independent root-cause cluster rather than recycling historical IDs.
+1. Consume the next Backend successor for `ERR-0049`; focused process-separated reliability must pass without weakening foreign/partial-sidecar identity guards.
+2. If `ERR-0049` is owner-green, re-run/consume exact Backend canonical; then `ERR-0047` can close after integration evidence.
+3. Consume the next Develop integration of Spec/Core `80e7c8f8...`; close `ERR-0048` only on exact integrated canonical success.
+4. Immediately inspect any remaining current exact worker/canonical failure for a new independent root cause rather than recycling historical IDs.
