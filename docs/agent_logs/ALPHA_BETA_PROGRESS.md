@@ -4,17 +4,16 @@ Evidence-only progress register for `develop/pathena-next`. No invented completi
 
 ## Current baseline
 
-- Develop parent before this integration: `8c2dda7794ef4949844feb30d265d34248aa4660`.
-- Exact parent canonical Quality `34744264489 = SUCCESS`.
-- Core source candidate `12a2c2a4ac14c14a28f3bcfda9429d4db7a61830`: Core Focused `34745747874 = SUCCESS`; canonical `34745747939 = SUCCESS`.
+- Develop parent before this integration: `ae6ca984040c36a52c96c3e578cb0fee1e64136f`.
+- Exact parent canonical Quality `34748637687 = SUCCESS`.
+- Backend source candidate `aab04d0c4564a07f9af5c12e6fa496a5e1038ff7`: Storage Focused `34749553305 = SUCCESS`; canonical `34749553299 = SUCCESS`.
 
 ## Current integration state
 
-- Added a bounded deterministic stale-Knowledge assessment over persisted revision validity.
-- Expired recorded validity may signal stale without reclassifying truth; exact validity boundary is not stale; missing `valid_to_us` remains insufficient temporal evidence.
-- The policy does not infer source age, falsity, replacement revisions or model involvement and rejects malformed assessment inputs fail-closed.
-- Only the Core-owned product/test files are extracted from the worker; branch history is not merged.
-- Previously integrated Knowledge read/provenance/model-disclosure/history surfaces, Help hierarchy, transactional schedule startup, canonical Qt isolation, Core-Focused coverage and release guards remain unchanged.
+- Added the bounded fail-closed startup guard for complete simultaneous WAL+SHM identity replacement.
+- Validated complete sidecar publication and withdrawal remain allowed; partial transitions and primary replacement remain rejected.
+- Only the Backend-owned product/test files are extracted from the worker; branch history is not merged.
+- Previously integrated truthful stale-Knowledge policy, Knowledge read/provenance/model-disclosure/history surfaces, Help hierarchy, transactional schedule startup, canonical Qt isolation, Core-Focused coverage and release guards remain unchanged.
 
 ## Error and visual truth rules
 
@@ -29,4 +28,4 @@ Do not relax: pypdf packaging; fail-closed Frozen argv; Desktop/Worker two-EXE s
 
 `PROMOTION_READY=NO`
 
-The new bounded Core slice requires exact-current Develop canonical Quality before any further Develop mutation.
+The new bounded Backend slice requires exact-current Develop canonical Quality before any further Develop mutation.
