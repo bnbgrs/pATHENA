@@ -3,21 +3,17 @@
 ## Current integration
 
 - Integration target: `develop/pathena-next`.
-- Develop head before this integration: `bd30daaece42a2177fcd71d093f0ab3167da3f40`.
-- Exact canonical Quality `34761173299 = SUCCESS` on that head.
+- Develop head before this repair: `99af9923903644e1f36b1db235d3ef97b53ff909`.
+- Exact canonical Quality `34762510125 = FAILURE` on that head.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
-## Iteration 1 — bounded send-button geometry contract
+## Iteration 1 — send-button geometry regression repair
 
-Integrated the current bounded UI-owned geometry contract from exact UI SHA `662f4a2d8da02e4497f141cac938193cf08e9361` without promoting the broad UI branch. The slice is exactly:
+The prior bounded UI integration correctly centralized Send-button geometry in `SHELL.composer_action_size`, but set the token to `48`. Current visual source-of-truth still specifies the verified outer Send target as 44×44 px, with a 42 px QSS content box plus the inherited 1 px border on each side.
 
-- `src/athena/desktop/pathena_design_tokens.py`: adds `SHELL.composer_action_size = 48`.
-- `src/athena/desktop/pathena_shared_components.py`: derives the Send button content-box size and radius from that token.
-- `tests/unit/test_pathena_shared_components.py`: verifies the tokenized outer target and shared stylesheet contract.
+Canonical Quality `34762510125` reproduced exactly one failure on `99af9923903644e1f36b1db235d3ef97b53ff909`: `tests/unit/test_pathena_window.py::test_reference_composer_uses_large_work_surface_and_send_target` observed runtime width `48` where the established shell contract requires `44`. The isolated desktop-controller suite passed 6/6; the remaining canonical suite was `1 failed, 5066 passed, 17 skipped`. Specification validation, Ruff, mypy, Linux Storage, Local Install/pypdf and Windows release guards all passed.
 
-Exact UI Focused `34760594261 = SUCCESS`. UI canonical `34760594290 = FAILURE` only on inherited pre-repair `ERR-0057` Ruff evidence outside this three-file slice; current Develop already closes that defect with exact canonical success. No stale broad UI promotion is used.
-
-The contract intentionally accounts for the inherited 1 px Qt QSS border: a 48 px outer target is represented by 46 px content-box width/height with a 24 px radius token. No controller, route, Backend, Storage, Security, persistence or recovery semantics change.
+The repair changes only `src/athena/desktop/pathena_design_tokens.py`: `SHELL.composer_action_size` is corrected from 48 to 44. Existing tokenized shared-component styling remains intact and therefore resolves back to the established 42 px content box / 44 px outer target. The existing `test_pathena_window.py` assertion is intentionally retained as a guard rather than weakened to accept the regression.
 
 ## Worker state at qualification
 
@@ -26,11 +22,13 @@ The contract intentionally accounts for the inherited 1 px Qt QSS border: a 48 p
 - Backend: `d0693efea6067eb32c3edb2ecac3a7ed4ab36974`.
 - UI: `662f4a2d8da02e4497f141cac938193cf08e9361`.
 
+Current worker handoffs are not promoted wholesale. Historical IDs remain subordinate to exact current evidence.
+
 ## Visual/source-of-truth notes
 
-- `docs/agent_logs/ERROR_LEDGER.md` remains historical where newer exact-SHA evidence exists.
+- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` and `docs/ui/VISUAL_GAP_LEDGER.md` retain the 44×44 outer Send-target contract and remain consistent with this repair.
 - Eleven-screen parity remains fail-closed: no `MATCH` without an opened original reference plus a real exact-SHA render.
-- `docs/ui/VISUAL_GAP_LEDGER.md` remains the visual-gap source of truth; no screenshot-level parity is inferred from code-only evidence.
+- `docs/agent_logs/ERROR_LEDGER.md` remains historical where newer exact-SHA evidence exists.
 
 ## Persistent release guards
 
