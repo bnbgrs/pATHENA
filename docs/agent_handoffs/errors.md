@@ -2,68 +2,86 @@
 
 ## Baseline
 
-- Develop: `e2a0ead528d24f48d79c16fa4e93c43c5f589d8a`; canonical Quality `34734032423 = FAILURE`.
-- Workers: Spec/Core `78d51621cbdfa3282cd236b5d0c7f5984abedcae`; Backend `ff9988a4b8db84593552a26266213d5ec871ef62`; UI `704ccd243ba2edb4f71e27d402d83b91724c0b30`.
-- Error worker entered at `fe507864e1f02c418d1120e68bbc4b23a39244ec`; zero workflow runs existed before mutation and again after the Ledger commit.
+- Develop: `e2a0ead528d24f48d79c16fa4e93c43c5f589d8a`; canonical Quality `34734032423 = FAILURE` in full pytest on both run attempts.
+- Workers: Spec/Core `660980b23526477d9a22f660247039d856e2ea08`; Backend `7ebdb3843a6622e493214f6eb959206c23673ee6`; UI `b7b779a5e43768344ee6b6f9e2903c414229ad2c`.
+- Error worker entered at `de1b9558106c2c25679c6ce9623f3ae03f9d87ea`; zero workflow runs existed before the Ledger mutation and again before this handoff mutation.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current error state
 
-- OPEN: `ERR-0049`.
+- OPEN: `ERR-0049`, `ERR-0050`, `ERR-0051`.
 - IN_PROGRESS: none.
 - FIXED_PENDING_VERIFY: `ERR-0047`.
-- FIXED this run: `ERR-0048`.
-- Prior closures remain closed absent current exact-SHA reproduction.
+- FIXED: prior closures including `ERR-0048` remain closed absent current exact-SHA reproduction.
 
-## ITERATION-1 — ERR-0048 closed
-
-`ERR-0048 = FIXED / P2`.
-
-Spec/Core `78d51621cbdfa3282cd236b5d0c7f5984abedcae` remains exact-green: Core Focused `34730134596 = SUCCESS`, canonical `34730134589 = SUCCESS`. The bounded Knowledge revision-history/revision-change repair was integrated into Develop `b4cba3d5cba31213e789cb2cbbc91f651e465e71`, and exact integrated canonical Quality `34731514082 = SUCCESS`. The historical Ruff/import blocker is therefore closed.
-
-## ITERATION-2 — ERR-0049 revalidated on current Backend head
+## ITERATION-1 — ERR-0049 now has the required failing paired-sidecar reproducer
 
 `ERR-0049 = OPEN / P1`.
 
-Current Backend `ff9988a4b8db84593552a26266213d5ec871ef62` has Backend Focused `34733130191 = SUCCESS` and Storage Focused `34733130198 = SUCCESS`, but canonical `34733130192 = FAILURE` in full pytest. Linux Storage, Windows release guards and Local Install/pypdf are green.
+Current Backend `7ebdb3843a6622e493214f6eb959206c23673ee6` added the previously missing simultaneous foreign WAL+SHM replacement regression. It is red in Storage Focused `34735560726` and canonical `34735560723`.
 
-More importantly, the exact current storage identity regression file still does not contain the required simultaneous foreign WAL+SHM replacement test. It tests single-member replacement, partial publication, complete publication and complete withdrawal only. The `complete_rotation` acceptance path therefore still lacks evidence that arbitrary paired complete->complete foreign replacement remains fail-closed.
+Canonical full pytest is `1 failed, 5036 passed, 17 skipped`. The sole failure is `tests/unit/test_storage_database_startup_identity.py::test_bound_preflight_rejects_foreign_complete_sidecar_rotation`: after replacing both target sidecars with donor sidecars while preserving primary DB identity, `SQLiteDatabase.start()` does not raise `DatabaseStartupIdentityChangedError`.
 
-Do not integrate the Backend `database.py` mutation. Required owner proof remains unchanged: paired foreign WAL+SHM replacement must raise `DatabaseStartupIdentityChangedError` while the legitimate process-separated writer race remains green.
+The product reason is now exact rather than hypothetical. `_revalidate_existing_identity()` still treats any complete->complete transition where both WAL and SHM identities changed as `complete_rotation`. The newly added catch translating `DatabaseRecoveryRequiredError` cannot distinguish a coherent donor pair that passes read-only inspection. Therefore current `database.py` remains fail-open for the paired foreign replacement case.
 
-## ITERATION-3 — ERR-0047 integrated but not yet closed
+Backend must not promote this Storage mutation. The next fix needs a positive continuity proof for legitimate concurrent complete rotation; it must not classify complete->complete as safe merely because both identities changed. The legitimate process-separated writer race and existing fail-closed single/partial sidecar guards must remain green.
+
+## ITERATION-2 — ERR-0050 opened from exact Develop diagnostics
+
+`ERR-0050 = OPEN / P1`.
+
+Develop canonical `34734032423@e2a0ead528d24f48d79c16fa4e93c43c5f589d8a` was rerun. Attempt 1 and attempt 2 both end with native exit code 139 at exactly the same point:
+
+`tests/unit/test_desktop_api_controller.py::test_controller_refresh_runs_gateway_off_ui_thread`
+
+The fatal stack points to line 109, `app.processEvents()`, after `pool.waitForDone(2_000)`. Extension modules include Shiboken/PySide6 QtCore, QtGui, QtWidgets and QtTest. All non-pytest canonical gate families remain green.
+
+The current UI head `b7b779a5e43768344ee6b6f9e2903c414229ad2c` contains the exact same test blob as Develop, while UI canonical `34735699924 = SUCCESS`, UI Focused `34735699933 = SUCCESS`, and Core Focused `34735700086 = SUCCESS`. This rules out treating the test body itself as a deterministic assertion failure and points to suite-order/lifecycle-sensitive native Qt state.
+
+Do not Skip/XFail, remove the test, add a blind retry, or weaken the off-UI-thread assertion. First reproduce the smallest predecessor sequence that makes the test crash; then identify the concrete Qt lifetime boundary (QApplication/QThreadPool/controller/queued signal or another proven owner) and apply the minimal lifecycle/harness fix. Ownership is UI/test-harness unless a narrower independent harness owner is proven.
+
+## ITERATION-3 — ERR-0051 opened on current Spec/Core
+
+`ERR-0051 = OPEN / P2`.
+
+Current Spec/Core `660980b23526477d9a22f660247039d856e2ea08` has Core Focused `34735100362 = FAILURE` and canonical `34735100369 = FAILURE`.
+
+Focused behavior is healthy: `tests/unit/test_knowledge_model_disclosure.py` reports `7 passed`. Ruff alone reports one `I001` import-block formatting error at line 1 and marks it auto-fixable. This is a bounded Spec/Core-owned test-formatting defect, not a knowledge-model behavior failure.
+
+Required owner action: apply only the Ruff import normalization, then require exact Core Focused and canonical success. Do not change assertions or weaken lint.
+
+## ITERATION-4 — ERR-0047 kept separate from current Develop red
 
 `ERR-0047 = FIXED_PENDING_VERIFY / P2`.
 
-Integrator imported only the bounded schedule-startup product/test files into current Develop `e2a0ead528d24f48d79c16fa4e93c43c5f589d8a`; the unresolved `ERR-0049` `database.py` mutation was excluded. Current source uses `JobPriority.TIME_CRITICAL`, so the old nonexistent `JobPriority.HIGH` contract defect is absent.
+The bounded schedule-startup integration remains present in Develop and the old nonexistent `JobPriority.HIGH` contract is absent. The current Develop canonical red is now precisely attributed to `ERR-0050`, not to schedule startup.
 
-Exact integrated canonical `34734032423` is nevertheless red in full pytest. Specification validator, Ruff, mypy, Linux Storage, Windows release guards and Local Install are green. The exact diagnostics artifact exists, but the currently available connector surface exposes its metadata rather than its contained pytest text. Do not attribute this red run to `ERR-0047` and do not close `ERR-0047` until the exact failing test is consumed or a successor exact SHA is green.
+However both canonical attempts abort around 15% of the suite on the Qt segfault, before later schedule-startup tests provide integrated runtime verification. Therefore `ERR-0047` cannot yet move to `FIXED`; it also must not be reopened as the cause of the current red run.
 
-## ITERATION-4 — UI cascade check
+## ITERATION-5 — current cascade and release-guard classification
 
-UI `704ccd243ba2edb4f71e27d402d83b91724c0b30` is exact-green: Core Focused `34733651263 = SUCCESS` and canonical `34733651287 = SUCCESS`. No current UI error cluster is evidenced.
-
-## ITERATION-5 — current canonical failure classification
-
-Develop `e2a0ead528d24f48d79c16fa4e93c43c5f589d8a` has exactly one red canonical job family: `Quality — pytest`. The other canonical gates are green. No new ERR ID is opened without the exact failing test/root cause. This prevents guessing from the two-file integration delta and preserves the rule that historical errors become current only on exact reproduction.
+- UI current exact runs are green; no current deterministic UI product failure is evidenced. `ERR-0050` is a suite-order/lifecycle native crash requiring focused isolation.
+- Develop and Backend Linux Storage release lane, Windows path/recovery/package guards, Local Install and pypdf checks remain green where observed.
+- No historical persistent release-guard signature is reopened without current exact-SHA reproduction.
+- `ERR-0049` is separately current because its new exact fail-closed regression is red.
 
 ## CI discipline
 
 - No competing canonical run was started.
-- `postmerge/errors` had zero workflow runs on entry and again after the Ledger commit.
+- `postmerge/errors` had zero workflow runs before both mutations.
 - No product code or foreign worker branch was mutated.
-- No force push, history rewrite, main mutation, Skip/XFail or guard relaxation occurred.
+- No force push, history rewrite, main mutation, Skip/XFail, recovery/storage/security weakening or guard relaxation occurred.
 
 ## Integrator handoff
 
-- `ERR-0048 = FIXED / P2`: integrated Knowledge history/revision-change repair is exact-canonical-green at `34731514082@b4cba3d5cba31213e789cb2cbbc91f651e465e71`.
-- `ERR-0049 = OPEN / P1`: hold Backend `database.py`; current exact tests still lack paired foreign WAL+SHM replacement rejection coverage despite focused/storage green.
-- `ERR-0047 = FIXED_PENDING_VERIFY / P2`: bounded schedule-startup slice is integrated at `e2a0ead5...`; exact Develop canonical `34734032423` fails full pytest, but exact failing-test text is not yet available from the connector surface. Do not infer recurrence.
-- UI current exact canonical is green; no UI error handoff.
+- `ERR-0049 = OPEN / P1`: hold Backend `database.py`. The required paired foreign WAL+SHM regression now exists and fails, proving the current complete-rotation logic remains too broad.
+- `ERR-0050 = OPEN / P1`: Develop full pytest segfaults reproducibly on both attempts at `test_controller_refresh_runs_gateway_off_ui_thread` / `app.processEvents()`. Isolate Qt suite-order/lifecycle root cause; do not mask the native crash.
+- `ERR-0051 = OPEN / P2`: Spec/Core current head needs only the exact Ruff import normalization after 7/7 focused behavior tests pass.
+- `ERR-0047 = FIXED_PENDING_VERIFY / P2`: do not blame it for current Develop red; integrated verification is still prevented by the earlier Qt crash.
 
 ## NEXT_ROOT_CAUSE
 
-1. Consume the exact pytest diagnostics or next Develop successor for `34734032423@e2a0ead5...`; classify the real failing test before assigning a new ERR ID.
-2. Consume the next Backend successor for `ERR-0049`; require both legitimate process-separated startup success and explicit simultaneous foreign WAL+SHM replacement rejection.
-3. If Develop successor is exact-green and no old schedule-startup failure reappears, close `ERR-0047`.
-4. Continue immediately with the highest new exact-SHA failure rather than recycling historical IDs.
+1. Consume the next Backend successor for `ERR-0049`; require simultaneous foreign WAL+SHM rejection plus the legitimate concurrent/process-separated startup race green on the same exact SHA.
+2. Consume the next UI/harness or Develop successor for `ERR-0050`; require a concrete lifecycle root cause and full canonical without native crash, not a retry/skip workaround.
+3. Consume the next Spec/Core successor for `ERR-0051`; require Ruff plus focused pytest and canonical success.
+4. Once canonical reaches the schedule-startup portion on integrated Develop, close `ERR-0047` only with real passing evidence.
