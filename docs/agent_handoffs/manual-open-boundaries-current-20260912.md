@@ -1,5 +1,15 @@
 # Open boundary issues current-Develop handoff — 2026-09-12
 
+## Current status — HISTORICAL / DO NOT RE-PORT
+
+This handoff described the pre-integration state of issues #92, #93, #95 and #96. It is retained for provenance only.
+
+Requalification on 2026-09-13 established that the boundary implementation is already present in current `develop/pathena-next@305703362d539ed467dec27cbc7300a495b3ca03`, representative owned blobs are byte-identical to the verified candidate, current Develop canonical Quality `34726544110` is green, and GitHub issues #92/#93/#95/#96 are already closed with state reason `completed`.
+
+Do **not** create another port, merge the historical candidate, reopen these issues, or schedule worker work from the older wording below unless a new current exact-SHA reproducer establishes a distinct regression.
+
+The remainder of this document is the historical handoff as it existed before that integration was recognized.
+
 ## Exact lineage
 
 - Source Develop at branch creation: `develop/pathena-next@cec77b6f8b64ec0bdf29cb546d8db4e1cf16ae80`.
@@ -7,7 +17,7 @@
 - Product/test/workflow port commit: `02558f94c0819f3c726b2c4cd62331bebe5a8ab9`.
 - `main`, `bnbgrs/ATHENA`, and every `postmerge/*` worker branch remain untouched.
 
-## Purpose
+## Purpose — historical wording
 
 The repository still has exactly four open GitHub issues that describe concrete boundary/evidence defects: #92, #93, #95 and #96. Their fixes were already implemented and validated on older isolated candidates, but those candidates were never integrated into Develop and have since drifted behind the current branch.
 
@@ -85,7 +95,7 @@ Owned files:
 
 Provenance: dedicated native Windows run `34651538082@158ad7313b5363daaf13d1321862c55f1ad26d26` succeeded on the final older candidate.
 
-## Bot coordination rules
+## Historical bot coordination rules
 
 1. Treat this branch as the current integration candidate for issues #92/#93/#95/#96. Do not independently copy the same old PR #94/#97/#102/#106/#108 changes into active worker branches.
 2. Do not close the issues from provenance alone. Require current exact-head canonical Quality and native Windows runtime/wrapper success, then actual Develop integration and exact integrated verification.
@@ -95,7 +105,7 @@ Provenance: dedicated native Windows run `34651538082@158ad7313b5363daaf13d13218
 6. Old PRs #94/#97/#102/#106/#108 are provenance only once this current candidate is verified and integrated; do not merge equivalent historical candidates again.
 7. Keep this boundary branch separate from the current `ERR-0035 / BE-052` Storage repair PR #114 so failures remain attributable.
 
-## Required evidence
+## Historical required evidence
 
 Before integration:
 
