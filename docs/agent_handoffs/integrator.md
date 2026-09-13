@@ -3,39 +3,41 @@
 ## Current integration
 
 - Integration target: `develop/pathena-next`.
-- Develop parent before this integration: `98b110882910653566fa70b27e9bdaa3f328ef6b`.
-- Exact parent canonical Quality: `34724047841 = SUCCESS`.
-- Worker heads checked: Errors `493b145af1b31c52a3207484be45039c460e5552`; Spec/Core `6cc6977be39809e464ae62a546312a8217698bc9`; Backend `597297aa1f07d36d872df6e8d20a939a7fab941b`; UI `b3d43e4bcaff1a188668b437d31cb0fffdfc0351`.
+- Develop parent before this integration: `b4cba3d5cba31213e789cb2cbbc91f651e465e71`.
+- Exact parent canonical Quality: `34731514082 = SUCCESS`.
+- Worker heads checked: Errors `fe507864e1f02c418d1120e68bbc4b23a39244ec`; Spec/Core `78d51621cbdfa3282cd236b5d0c7f5984abedcae`; Backend `ff9988a4b8db84593552a26266213d5ec871ef62`; UI `704ccd243ba2edb4f71e27d402d83b91724c0b30`.
 
-## Iteration — Core-Focused ownership repair
+## Iteration — bounded schedule-startup integration
 
-`ERR-0046` is closed in code pending exact Develop verification. The Core-Focused workflow previously selected every changed `tests/unit/test_*.py` for focused pytest even though its trigger contract is Core-owned. Exact UI evidence showed that this admitted UI/PySide-only tests and could fail the Core lane despite UI canonical success.
+Backend owner lineage `a709c229d6994c159490c2c1eaf3f2549f12cf56` had exact Backend Focused `34730587835 = SUCCESS`, Storage Focused `34730587918 = SUCCESS`, and canonical Quality `34730587873 = SUCCESS`. Its schedule-startup slice is separable from the unresolved paired-sidecar Storage mutation.
 
-The focused pytest selector now accepts only the explicit Core-owned families already represented by the workflow trigger contract: `test_claim*`, `test_knowledge*`, `test_concept_note*`, `test_identity_transition*`, and `test_temporal*`. A repository regression test locks this ownership boundary and rejects restoration of the generic `test_.*` selector.
+Integrated only:
+- `src/athena/jobs/schedule_startup.py`
+- `tests/unit/test_schedule_startup.py`
 
-Preserved invariants: `--diff-filter=ACMR`, exact candidate/base SHA checks, locked environment, changed-file Ruff, tracked-worktree fail-closed remediation, immutable reset, diagnostics upload, and final Ruff+pytest outcome enforcement. No Skip/XFail or test-strength relaxation was introduced.
+The slice requires an active caller transaction, reconciles durable missing occurrences before writes, applies the configured missed-run policy before materialization, uses deterministic occurrence identities, creates nothing for disabled schedules, and fails before partial inserts on a foreign identity collision.
+
+The current Backend sync head `ff9988a4...` is not broadly promotable: Backend Focused and Storage Focused are green, but canonical `34733130192 = FAILURE`; additionally Error handoff `ERR-0049` keeps the separate `database.py` complete-sidecar-rotation mutation blocked pending paired foreign WAL+SHM replacement rejection coverage. No `database.py` change is included here.
 
 ## Worker qualification
 
-- Spec/Core `6cc6977be39809e464ae62a546312a8217698bc9`: exact Core Focused and canonical are red; changed Ruff and focused tests themselves passed before final enforcement failed. Not READY; no product slice imported.
-- Backend `597297aa1f07d36d872df6e8d20a939a7fab941b`: effective delta versus Develop is schedule-startup code/tests; Backend Focused is green while canonical was still in progress at qualification time. Conservative hold.
-- UI `b3d43e4bcaff1a188668b437d31cb0fffdfc0351`: synchronization head before visual shell work; no bounded UI product slice imported.
-- Errors `493b145af1b31c52a3207484be45039c460e5552`: current handoff identifies `ERR-0046` as the Core-Focused ownership-selection gap and `ERR-0047` as the Backend schedule-startup test-contract blocker.
+- Spec/Core `78d51621...`: previously integrated bounded Knowledge history/reason-truth delta; no new product delta selected.
+- Backend `ff9988a4...`: broad promotion blocked; bounded schedule-startup slice integrated from its exact-green owner lineage. Storage rotation remains excluded.
+- UI `704ccd24...`: current sync head before further visual evidence; no broad UI promotion.
+- Errors `fe507864...`: current handoff owns `ERR-0049` paired-sidecar guard gap and supersedes historical ledger state where newer exact evidence differs.
 
-## Current evidence rules
+## Evidence rules
 
-- `docs/agent_logs/ERROR_LEDGER.md` remains historical relative to current Develop and is not the sole authority where newer exact-SHA evidence exists.
-- `docs/agent_logs/ALPHA_BETA_PROGRESS.md` contains no invented completion percentage.
-- Historical release-guard signatures are not reopened without current exact-SHA reproduction.
-- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` and `docs/ui/VISUAL_GAP_LEDGER.md` remain fail-closed: no screenshot `MATCH` without opened original reference plus real exact-SHA render.
-- Superseded Worker CI is not accepted without equivalent exact-head evidence.
+- `docs/agent_logs/ERROR_LEDGER.md` is historical (baseline `7be496d2...`) and is not sole authority where newer exact-SHA evidence exists.
+- Eleven-screen parity remains fail-closed: no `MATCH` without opened original reference plus real exact-SHA render.
+- Superseded or cancelled Worker CI is not accepted without equivalent exact-head evidence.
 
 ## Persistent release guards
 
-Retain without relaxation: pypdf packaging; fail-closed Frozen argv; Desktop/Worker two-EXE split; exactly one Desktop instance with bounded workers; adaptive 2048-context Chat reserve; Windows lane-lock cluster; duplicate-column, Core-startup and storage-bootstrap regression signatures. `main` and `bnbgrs/ATHENA` remain read-only.
+Retain without relaxation: pypdf packaging; fail-closed Frozen argv; Desktop/Worker two-EXE split; exactly one Desktop instance with bounded workers; adaptive 2048-context Chat reserve; Windows lane-lock cluster; duplicate-column/Core-startup/storage-bootstrap signatures. `main` and `bnbgrs/ATHENA` remain read-only.
 
 ## Promotion state
 
 `PROMOTION_READY=NO`
 
-Require canonical Quality on the resulting exact Develop SHA before any further Develop mutation. If exact-green, requalify current Backend first because its canonical run was still active during this integration.
+Require canonical Quality on the resulting exact Develop SHA before any further Develop mutation. If green, consume the next Backend successor for `ERR-0049` only if paired foreign WAL+SHM replacement is explicitly rejected while the legitimate process-separated race remains green.
