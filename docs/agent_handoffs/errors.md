@@ -22,7 +22,9 @@
 
 The bounded two-file Storage fix from the exact-green Backend lineage has now been integrated into Develop. Resulting exact Develop SHA: `09d43c348420dc5ad0eb2be80ebf8681ae8f25c5`.
 
-Canonical Quality `34753048193` is already running for that exact SHA. Do not start a competing run and do not mutate Develop while it is active. Promote `ERR-0049` to `FIXED` only if that exact canonical completes `SUCCESS`. If it fails, classify the exact new signature before attributing it to Storage.
+Canonical Quality `34753048193` is already running for that exact SHA. Current job-level evidence is strong but not final: Linux Storage regressions = `SUCCESS`; Windows path safety/release guards = `SUCCESS`; Local install + pypdf packaging = `SUCCESS`; Specification Validator = `SUCCESS`; Ruff = `SUCCESS`; mypy = `SUCCESS`. Full pytest remains `IN_PROGRESS`.
+
+Do not start a competing run and do not mutate Develop while it is active. Promote `ERR-0049` to `FIXED` only if that exact canonical completes `SUCCESS`. If it fails, classify the exact new signature before attributing it to Storage.
 
 ## ERR-0055 — OPEN / P2
 
@@ -34,7 +36,9 @@ Ownership remains Spec/Core. Error worker does not edit the worker-owned test in
 
 ## ERR-0053 — FIXED_PENDING_VERIFY / P2
 
-UI successor `3dfd310c06f3a6b3e34db0d524bf752269fe8bcc` remains owner-side exact green in current consumed evidence. No current deterministic UI failure is reproduced. Integrated Develop verification is still required before `FIXED`.
+UI successor `3dfd310c06f3a6b3e34db0d524bf752269fe8bcc` remains owner-side exact green in current consumed evidence. No current deterministic UI failure is reproduced.
+
+Important integration requalification: current UI and Develop now diverge at merge-base `ae6ca984...`; the current UI tree contains many additional UI/evidence changes beyond the historical send-button geometry slice. Therefore the whole current UI branch must not be promoted as `ERR-0053`. Integrator must extract only the bounded geometry product/test change from the verified lineage and then require exact Develop canonical success.
 
 ## ERR-0054 — STALE
 
@@ -55,5 +59,6 @@ Current Backend and UI handoff files themselves contain older baseline narrative
 
 1. Consume Develop canonical `34753048193` on `09d43c348...`; `SUCCESS` closes `ERR-0049`, while any failure must be classified from exact evidence.
 2. Consume the next Spec/Core successor for `ERR-0055`; expected bounded fix is Ruff-only and behavior-neutral.
-3. Keep `ERR-0053` pending integrated Develop verification; do not reopen `ERR-0054` without a current exact visual reproduction.
-4. After each closure, immediately inspect the newest exact worker/develop run set for the next independent current root cause rather than recycling historical IDs.
+3. Keep `ERR-0053` pending integrated Develop verification; extract only its bounded historical geometry slice, not the full current UI branch.
+4. Do not reopen `ERR-0054` without a current exact visual reproduction.
+5. After each closure, immediately inspect the newest exact worker/develop run set for the next independent current root cause rather than recycling historical IDs.
