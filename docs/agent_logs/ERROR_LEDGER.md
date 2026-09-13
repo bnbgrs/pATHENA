@@ -8,54 +8,61 @@ Stable IDs use `ERR-####`. Only current exact-SHA reproduced or verified failure
 
 ## Current baseline
 
-- Develop: `8c2dda7794ef4949844feb30d265d34248aa4660` (`feat(core): integrate knowledge read API`). canonical Quality `34744264489 = IN_PROGRESS`; Linux Storage, Local Install/pypdf and Windows release guards are already SUCCESS, with Python full pytest still running at the latest check. Parent `f301540eb707013e7b88c08ef248ea98edc1564d` has canonical `34741552444 = SUCCESS`.
-- Error worker before this update: `0d3fb6fc85f6d45f864166d8e758e5eb2a3d04c7`; zero workflow runs exist on `postmerge/errors`.
-- Spec/Core: `bd5b0497a8c220e2a3a238f974109d060d7256e5`; Core Focused `34742250322 = SUCCESS`, canonical `34742250297 = SUCCESS`.
-- Backend: `d23e8d841810e7551e38734948d3ee234314d761`; Storage Focused `34742857035 = FAILURE`, canonical `34742857005 = FAILURE`.
-- UI: `8e0e27a430267dd266ab0d06b81376c4a3eddd4d`; UI Focused `34743903719 = FAILURE`, canonical `34743903695 = IN_PROGRESS`.
+- Develop: `8c2dda7794ef4949844feb30d265d34248aa4660` (`feat(core): integrate knowledge read API`). canonical Quality `34744264489 = SUCCESS`.
+- Error worker before this update: `61aa174d46d57a73546f9cbc9f785a39e763dd2f`; zero workflow runs exist on `postmerge/errors`.
+- Spec/Core: `12a2c2a4ac14c14a28f3bcfda9429d4db7a61830`; Core Focused `34745747874 = SUCCESS`, canonical `34745747939 = SUCCESS`.
+- Backend: `2182382b8aa4a2c37cbf698c51b9de8f7c148287`; Storage Focused `34746286422 = SUCCESS`, canonical `34746286425 = PENDING`.
+- UI: `541c367547c698489ad548cc791f72dd27d141b4`; UI Focused `34746344232 = SUCCESS`, Core Focused `34746344239 = SUCCESS`, canonical `34746344225 = PENDING`; 11-Surface Visual Regression `34746342711 = FAILURE` for fail-closed baseline absence.
 - `main` and `bnbgrs/ATHENA` remain read-only and untouched.
 
 ## Current state
 
-- OPEN: `ERR-0049`, `ERR-0053`.
+- OPEN: `ERR-0054`.
 - IN_PROGRESS: none.
-- FIXED_PENDING_VERIFY: `ERR-0052`.
-- FIXED: prior closures plus `ERR-0047`, `ERR-0050`, `ERR-0051`.
+- FIXED_PENDING_VERIFY: `ERR-0049`, `ERR-0053`.
+- FIXED: prior closures plus `ERR-0047`, `ERR-0050`, `ERR-0051`, `ERR-0052`.
 - STALE: `ERR-0014`, `ERR-0025`, `ERR-0026`, `ERR-0028`, `ERR-0029`, `ERR-0038`, `ERR-0039`.
 - BLOCKED: none.
 
-## ERR-0053 — current UI composer-square candidate fails exact UI Focused gate
+## ERR-0054 — exact UI visual gate has no committed Windows baseline
+
+- Severity: P2 visual-evidence / integration blocker.
+- Status: `OPEN`.
+- Exact reproducer: `postmerge/ui@541c367547c698489ad548cc791f72dd27d141b4`, 11-Surface Visual Regression `34746342711 = FAILURE`.
+- The visual job successfully resolves and proves the exact SHA, installs the locked desktop environment, passes Ruff, mypy, comparator contract tests, shared hierarchy-token contract and navigation accessibility contract, captures all eleven surfaces, verifies route identity and uploads the artifact. Only `Enforce visual verdict` fails.
+- Workflow contract explains the failure: if `tests/qa/visual-baseline-windows.json` is absent, it generates `artifacts/visual-baseline-proposal.json` and deliberately throws `Committed visual baseline is absent; proposal uploaded for review.` The final gate then fails closed. This is not evidence of a deterministic UI-product assertion regression.
+- Exact artifact `pathena-visual-541c367547c698489ad548cc791f72dd27d141b4` reports `manifest.status = PASS`, captured 11/11 assigned surfaces, and no capture errors.
+- Do not silence this by adding Skip/XFail, weakening tolerance, changing `continue-on-error` semantics, or blindly committing the generated baseline proposal. A committed baseline is promotion evidence and requires the UI worker's prescribed visual review against the authoritative references before acceptance.
+- Ownership: UI / visual-evidence harness. Error worker documents and hands off; no parallel UI mutation.
+
+## ERR-0053 — UI send-button shell geometry mismatch
 
 - Severity: P2 integration blocker.
-- Status: `OPEN`.
-- Exact current reproducer: `postmerge/ui@8e0e27a430267dd266ab0d06b81376c4a3eddd4d`, UI Focused `34743903719 = FAILURE` in `Run exact changed UI tests plus navigation invariant`.
-- Previous exact parent `718d9002d5300afce74b04b0e4e8d40a9d00642e` was UI Focused and canonical green.
-- The one-commit delta from that green parent is bounded to `src/athena/desktop/pathena_design_tokens.py`, `src/athena/desktop/pathena_layout_refinement_2200.py`, and `tests/unit/test_pathena_layout_refinement_2200.py`; the added acceptance specifically requires `sendButton` to remain square at compact, comfortable and wide widths.
-- canonical `34743903695` is still active. Its Specification Validator, Ruff, mypy, Linux Storage, Local Install/pypdf and Windows release-guard jobs are green so far; full pytest remains in progress.
-- Do not guess the exact assertion from the red focused job. UI owns this bounded candidate and must consume its exact failing test output, apply the minimal presentation/test correction if needed, then rerun UI Focused and canonical. No Skip/XFail or navigation/test removal.
+- Status: `FIXED_PENDING_VERIFY`.
+- Former exact failure was resolved by UI fix `541c367547c698489ad548cc791f72dd27d141b4`, deriving the foundation send-button content box from the 48px shell action-size token while accounting for the existing 1px border.
+- Exact same-SHA UI Focused `34746344232 = SUCCESS` with changed UI tests/navigation contract green; Core Focused `34746344239 = SUCCESS`.
+- canonical `34746344225` remains pending. Do not mutate or supersede this UI candidate until that run finishes.
+- The separate visual-baseline absence is tracked as `ERR-0054`; it does not reopen the send-button product root cause.
 
 ## ERR-0052 — Spec/Core Knowledge Read API Ruff/import blocker
 
 - Severity: P2 integration blocker.
-- Status: `FIXED_PENDING_VERIFY`.
-- Former reproducer `postmerge/spec-core@3e3dc4d3f4777b083d9ef2b09819cbad51ab9034` had Ruff `I001` in `tests/unit/test_knowledge_read_api.py`.
-- Current successor `bd5b0497a8c220e2a3a238f974109d060d7256e5` is exact green: Core Focused `34742250322 = SUCCESS`, canonical `34742250297 = SUCCESS`.
-- Integrator imported only `src/athena/api/knowledge_read.py` and `tests/unit/test_knowledge_read_api.py` into Develop `8c2dda7794ef4949844feb30d265d34248aa4660`.
-- Integrated canonical `34744264489` is still running. `FIXED` requires that exact Develop run to finish SUCCESS.
+- Status: `FIXED`.
+- Owner-side successor `bd5b0497a8c220e2a3a238f974109d060d7256e5` was exact green, and the bounded Knowledge Read API slice was integrated into Develop `8c2dda7794ef4949844feb30d265d34248aa4660`.
+- Integrated canonical Quality `34744264489 = SUCCESS`. The historical Ruff `I001` is therefore closed and must not be reopened without a new exact-SHA reproduction.
 
 ## ERR-0049 — concurrent SQLite writer startup vs fail-closed sidecar identity continuity
 
 - Severity: P1 Storage/Recovery integration blocker.
-- Status: `OPEN`.
-- Current Backend exact SHA `d23e8d841810e7551e38734948d3ee234314d761` remains red: Storage Focused `34742857035 = FAILURE`; canonical `34742857005 = FAILURE`.
-- `d23e8d...` is a history-preserving sync descendant of prior reproducer `517ca6ebd98ee2ff719827b043e2eee7ddd1e2e1`; the sync adds no `src/athena/storage/**` or `tests/unit/test_storage*.py` changes. Therefore the current exact failure remains the same Storage-owned candidate, not a new Develop cascade.
-- Storage Focused Ruff and mypy steps succeed; the candidate is rejected by the focused outcome enforcement after the invariant/changed-test phase. No evidence supports relaxing any sidecar identity guard.
-- Required same-SHA promotion evidence remains: paired foreign WAL+SHM replacement rejected fail-closed; legitimate two-process startup succeeds; single-sidecar replacement and partial transitions remain rejected; legitimate complete publication/withdrawal behavior remains intact; Storage Focused and canonical both SUCCESS.
-- Do not integrate the current Storage delta until those conditions hold.
+- Status: `FIXED_PENDING_VERIFY`.
+- Backend fix `2182382b8aa4a2c37cbf698c51b9de8f7c148287` rejects direct complete WAL+SHM identity replacement during the bound startup window while preserving complete publication and withdrawal transitions.
+- Exact same-SHA Storage Focused `34746286422 = SUCCESS`; changed Storage Ruff and mypy are green; focused Storage pytest reports `34 passed`, including the paired foreign WAL+SHM replacement case.
+- canonical Quality `34746286425` remains pending. Do not mutate or supersede this Backend candidate until that exact run finishes.
+- Promote to `FIXED` only on exact worker canonical SUCCESS and later integrated Develop verification; any new failure must be classified from its exact job evidence rather than by weakening Storage/Recovery guards.
 
 ## Persistent release guards
 
-Closed historical signatures reopen only on a current exact-SHA reproduction. Current Develop `8c2dda...` has already passed Linux Storage, Local Install/pypdf and the Windows path/storage/durable-filesystem, packaged-runtime, adaptive 2048-context reserve and Core/API restart guard jobs while its full pytest continues. Current UI `8e0e27...` has likewise passed those non-pytest guard lanes. No persistent release-guard signature is reopened.
+Closed historical signatures reopen only on a current exact-SHA reproduction. Current Develop `8c2dda...` is canonical green. No current evidence reopens pypdf Packaging, fail-closed Frozen argv, Desktop/Worker two-EXE split, bounded worker tree, adaptive 2048-context Chat reserve, Windows lane-lock, duplicate-column/Core-startup/storage-bootstrap, Security, Storage or Recovery guards.
 
 ## CI discipline
 
