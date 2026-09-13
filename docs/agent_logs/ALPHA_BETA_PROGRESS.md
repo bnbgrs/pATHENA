@@ -4,21 +4,35 @@ Evidence-only progress register for `develop/pathena-next`. No invented completi
 
 ## Current baseline
 
-- Develop parent before this integration: `9e607472ba65ce86b795cf8f6926a0809700a2cd`.
-- Exact parent canonical Quality `34755721026 = SUCCESS`.
+- Develop head before this repair: `7b4779b7be8c19b9ca0acaa57f826d0da8478592`.
+- Exact canonical Quality `34758273159 = FAILURE` solely on Ruff `I001` in the newly replaced Core-Focused workflow-contract test file.
+- On that same exact SHA, canonical pytest, Linux Storage, Local Install including pypdf metadata, and Windows release guards succeeded.
 - Persistent release guards remain mandatory and unchanged.
 
 ## Current integration state
 
-- The source-age staleness and explicit user-correction product guards are integrated and exact-Develop verified.
-- Current Spec/Core `77048de78be4dd7ca2555ed1b09e00d088f9c624` and Backend `e76bfbe266107a781e3602246d143ee8e9e849b3` are canonical green and tree-synchronized with the current Develop baseline; there is no additional product delta to promote from those sync heads.
-- UI `d351dba17b69c3f5b55a1447f2ac088b929a1b48` retains a broad UI delta and its current canonical was active during this integration, so it is not promoted.
+- The source-age staleness and explicit user-correction product guards remain integrated.
+- The Core-Focused workflow already contains the new `tests/unit/test_user_correction*.py` trigger and selector.
+- This repair restores four pre-existing workflow-contract tests that were accidentally dropped, preserves the new user-correction assertions, and corrects the Ruff import-order regression using bounded Error-worker evidence `ebcb67f065b7cd890c55897c3e9b9d74f0da10f8`.
 
 ## Cross-cutting quality coverage
 
-- `ERR-0056` identified that the Core-Focused candidate workflow did not trigger on or select `tests/unit/test_user_correction*.py`.
-- This integration adds that pattern to the PR path trigger and focused pytest selector and adds a workflow regression test that requires both contracts.
-- This is a stricter quality gate, not a guard relaxation. No test is skipped or xfailed.
+The repaired contract test again enforces:
+
+1. `--diff-filter=ACMR` and deleted-path exclusion;
+2. narrow Core-owned pytest-family selection;
+3. Knowledge API Ruff-source selection;
+4. remediation reset/worktree cleanliness;
+5. user-correction trigger and focused-test selection.
+
+This strengthens/restores mandatory quality coverage. No test is skipped or xfailed and no guard is relaxed.
+
+## Current worker truth before mutation
+
+- Errors `8400089c41ebcd0dc2b2dc86124cbe59f623f098` owns the bounded harness repair.
+- Spec/Core `69e4eeb74e459edcbf0ab83936152822e25dcf00` has newer Core work requiring fresh exact qualification before promotion.
+- Backend `d0693efea6067eb32c3edb2ecac3a7ed4ab36974` is tree-synchronized with the pre-repair Develop baseline.
+- UI `662f4a2d8da02e4497f141cac938193cf08e9361` contains a broad UI delta and is not promoted wholesale.
 
 ## Error and visual truth rules
 
