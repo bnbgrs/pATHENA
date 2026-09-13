@@ -2,77 +2,68 @@
 
 ## Baseline
 
-- Develop: `09d43c348420dc5ad0eb2be80ebf8681ae8f25c5`; bounded paired-sidecar guard integrated; canonical Quality `34753048193 = IN_PROGRESS`.
-- Error worker current harness lineage: `ef1e9d4cb40f1c17d8c28439312fdcdeb15baa4e` before final docs updates; exact workflow count = 0.
-- Spec/Core: `e361ef5f365d7afd1d1b5d4b9fa242aeebfdee38`; Core Focused `34751831134 = FAILURE`; canonical `34751831135 = FAILURE`.
-- Backend: `aab04d0c4564a07f9af5c12e6fa496a5e1038ff7`; owner-side Storage Focused/canonical exact-green; bounded Storage slice now integrated into Develop.
-- UI: `3dfd310c06f3a6b3e34db0d524bf752269fe8bcc`; last exact UI Focused/Core Focused/canonical all green.
+- Develop: `9e607472ba65ce86b795cf8f6926a0809700a2cd`; bounded source-age and user-correction guards integrated; canonical Quality `34755721026 = IN_PROGRESS`.
+- Error worker before current docs updates: `0786a8dca2f5d27c443d91a9d281a11b7e3b767c`.
+- Spec/Core: `367bf6ee879450373cde5f116ca78fbe28a2dbac`; Core Focused `34754120108 = SUCCESS`; canonical `34754120154 = SUCCESS`; Storage Focused `34754120185 = SUCCESS`.
+- Backend: `21f6276bbd62bc5a918da040ddbd2d9865a67092`; canonical `34754571928 = SUCCESS`.
+- UI: `da52341488a365f999bbbb949acbe7f186c894ae`; Core Focused `34755623489 = SUCCESS`; canonical `34755623363 = IN_PROGRESS`.
 - `main` and `bnbgrs/ATHENA` remain untouched.
 
 ## Current error state
 
-- OPEN: `ERR-0055`.
+- OPEN: none.
 - IN_PROGRESS: none.
-- FIXED_PENDING_VERIFY: `ERR-0049`, `ERR-0053`, `ERR-0056`.
-- FIXED: prior closures plus `ERR-0047`, `ERR-0050`, `ERR-0051`, `ERR-0052`.
+- FIXED_PENDING_VERIFY: `ERR-0053`, `ERR-0055`, `ERR-0056`.
+- FIXED: prior closures plus `ERR-0049`, `ERR-0047`, `ERR-0050`, `ERR-0051`, `ERR-0052`.
 - STALE: prior stale IDs plus `ERR-0054`.
 - BLOCKED: none.
 
-## ERR-0049 — FIXED_PENDING_VERIFY / P1
+## ITERATION-1 — ERR-0049 / FIXED / P1
 
-The bounded two-file Storage fix from the exact-green Backend lineage is integrated into Develop at `09d43c348420dc5ad0eb2be80ebf8681ae8f25c5`.
+The integrated paired-sidecar guard is now closed. Develop SHA `09d43c348420dc5ad0eb2be80ebf8681ae8f25c5` completed canonical Quality `34753048193 = SUCCESS`. The integrated slice remained bounded to `src/athena/storage/database.py` and `tests/unit/test_storage_database_startup_identity.py`.
 
-Canonical Quality `34753048193` is already running for that exact SHA. Current job evidence: Linux Storage regressions = `SUCCESS`; Windows path safety/release guards = `SUCCESS`; Local Install + pypdf packaging = `SUCCESS`; Specification Validator = `SUCCESS`; Ruff = `SUCCESS`; mypy = `SUCCESS`; full pytest remains `IN_PROGRESS`.
+Do not reopen from historical Storage signatures. A new current exact-SHA reproduction is required.
 
-Do not start a competing run and do not mutate Develop while it is active. Promote `ERR-0049` to `FIXED` only if that exact canonical completes `SUCCESS`. If it fails, classify the exact new signature before attributing it to Storage.
+## ITERATION-2 — ERR-0055 / FIXED_PENDING_VERIFY / P2
 
-## ERR-0055 — OPEN / P2
+The historical Ruff-only Spec/Core failure is no longer current. Exact successor `367bf6ee879450373cde5f116ca78fbe28a2dbac` is owner-side fully green: Core Focused `34754120108 = SUCCESS`, canonical `34754120154 = SUCCESS`, Storage Focused `34754120185 = SUCCESS`.
 
-Current Spec/Core SHA `e361ef5f365d7afd1d1b5d4b9fa242aeebfdee38` has a single exact lint blocker: Ruff `I001` in `tests/unit/test_user_correction_policy.py:1:1`.
+Integrator extracted only `src/athena/knowledge/user_correction_policy.py` and `tests/unit/test_knowledge_user_correction_policy.py` into current Develop `9e607472...`. Develop canonical `34755721026` is still running. On exact SUCCESS this error may become `FIXED`; any failure must be classified from the new signature rather than the historical Ruff ID.
 
-Core Focused `34751831134` and canonical `34751831135` are both red. Diagnostics show one behavior-neutral Ruff remediation: remove the extra blank line immediately before `USER_ID`. Canonical full pytest, Linux Storage, Windows path/release guards and Local Install all pass on the same SHA.
+## ITERATION-3 — ERR-0056 / FIXED_PENDING_VERIFY / P2 harness
 
-Ownership remains Spec/Core. Error worker does not edit the worker-owned policy/test in parallel. Consume the next exact Spec/Core successor; require both Core Focused and canonical `SUCCESS` before owner-side closure.
+The Error-owned harness fix remains real but unintegrated:
 
-## ERR-0056 — FIXED_PENDING_VERIFY / P2 harness
+- `4b723fe7202c841e0c768aaf3a62600eaadf02ff`: adds `tests/unit/test_user_correction*.py` to the Core-Focused PR path trigger and `test_user_correction.*` to focused selection.
+- `ef1e9d4cb40f1c17d8c28439312fdcdeb15baa4e`: adds `tests/unit/test_core_focused_candidate_workflow.py` guarding both contracts.
 
-The same exact Core-Focused diagnostics exposed an independent harness gap: `tests/unit/test_user_correction_policy.py` was changed but the workflow reported `No changed Core-owned unit-test files selected; lint evidence only`.
+Current Develop workflow inspection proves those selectors are still absent. Spec/Core worked around the harness gap by renaming the acceptance test into the existing `test_knowledge*.py` selection. That validates the product slice but does not fix the generic harness omission.
 
-Root cause: `.github/workflows/core-focused-candidate.yml` omitted `tests/unit/test_user_correction*.py` from the pull-request path trigger and omitted `test_user_correction.*` from its focused-test selector.
+Integrator should consume only this Error-owned workflow + regression-test slice after active canonical candidates finish. This expands mandatory test coverage and must not be treated as a guard relaxation.
 
-Error-owned fix on `postmerge/errors`:
+## ITERATION-4 — ERR-0053 / FIXED_PENDING_VERIFY / P2
 
-- `4b723fe7202c841e0c768aaf3a62600eaadf02ff` adds both selector entries.
-- `ef1e9d4cb40f1c17d8c28439312fdcdeb15baa4e` adds `tests/unit/test_core_focused_candidate_workflow.py` to guard those contracts.
+Integrator correctly rejected the historical one-file UI extraction: current Develop `ShellGeometry` does not provide `composer_action_size`, while the historical stylesheet fix expects it. A one-file promotion would therefore create an invalid dependency.
 
-This expands mandatory test coverage; it does not weaken or skip anything. The exact Error-worker SHA has no workflow run, so no CI PASS is claimed. Integrate/exercise this bounded harness slice and require exact evidence that a changed user-correction test is selected and passes before `FIXED`.
+Current UI has advanced to `da52341488a365f999bbbb949acbe7f186c894ae`; its canonical `34755623363` is still running. Do not mutate or supersede that candidate. Closure requires a bounded current-baseline geometry-token + shared-component/test slice with exact UI evidence and then exact Develop canonical success.
 
-## ERR-0053 — FIXED_PENDING_VERIFY / P2
+## ITERATION-5 — current branch/cascade state
 
-UI successor `3dfd310c06f3a6b3e34db0d524bf752269fe8bcc` remains owner-side exact green in current consumed evidence. No current deterministic UI failure is reproduced.
+Backend current SHA `21f6276...` is canonical green; no current Backend/Storage error cluster is reproduced. Current UI and Develop canonicals are active, so neither receives a new Error ID without an exact failure. `ERR-0054` remains `STALE` because no current exact visual reproduction exists.
 
-The bounded historical product fix is `541c367547c698489ad548cc791f72dd27d141b4`, changing only `src/athena/desktop/pathena_shared_components.py` to derive the rendered send-button geometry from `SHELL.composer_action_size`. Current UI and Develop have since diverged with many unrelated UI/evidence changes, so the whole current UI branch must not be promoted for `ERR-0053`. Extract only the bounded verified geometry slice plus relevant tests, then require exact Develop canonical success.
-
-## ERR-0054 — STALE
-
-The historical visual-baseline failure remains non-authoritative because it was last reproduced on superseded UI SHA `541c367...`. Reopen only from a current exact-SHA visual failure. Do not weaken visual gates or accept generated baselines blindly.
-
-## Source-of-truth note
-
-Backend/UI handoff files contain older baseline narratives and are not authoritative over current branch heads/runs. Current exact SHAs and run outcomes above take precedence; historical handoff content is retained only as ownership/context evidence.
+Persistent release guards remain fail-closed and unchanged: pypdf packaging, Frozen argv, Desktop/Worker split, bounded worker tree, adaptive 2048-context Chat reserve, Windows lane-lock cluster, duplicate-column/Core-startup/storage-bootstrap, Security, Storage and Recovery guards.
 
 ## CI discipline
 
-- No competing canonical run was started.
-- No Backend/UI/Spec-Core product branch was mutated by Error worker.
-- Error worker only changed its own docs plus Error-owned Core-Focused workflow/test harness.
+- No competing canonical run started.
+- No foreign worker product branch mutated by Error worker.
+- No force-push, history rewrite, Skip/XFail, guard weakening, visual-tolerance relaxation, or Security/Storage/Recovery relaxation.
 - `main` and `bnbgrs/ATHENA` stayed read-only.
-- No force push, history rewrite, Skip/XFail, guard weakening, visual-tolerance relaxation, or Security/Storage/Recovery relaxation occurred.
 
 ## NEXT_ROOT_CAUSE
 
-1. Consume Develop canonical `34753048193` on `09d43c348...`; `SUCCESS` closes `ERR-0049`, while any failure must be classified from exact evidence.
-2. Consume the next Spec/Core successor for `ERR-0055`; expected bounded fix is Ruff-only and behavior-neutral.
-3. Qualify/integrate Error-owned `ERR-0056` harness coverage so user-correction tests cannot silently fall out of Core Focused.
-4. Keep `ERR-0053` pending integrated Develop verification; extract only its bounded historical geometry slice, not the full current UI branch.
-5. Do not reopen `ERR-0054` without a current exact visual reproduction.
+1. Consume Develop canonical `34755721026`; SUCCESS closes `ERR-0055`.
+2. Consume UI canonical `34755623363`; classify only an exact current failure if one exists.
+3. After active candidates finish, integrate/qualify the bounded Error-owned `ERR-0056` Core-Focused harness coverage slice.
+4. Require a current-baseline bounded geometry-token/component/test slice before any `ERR-0053` integration.
+5. Do not reopen `ERR-0054` or persistent release-guard signatures without current exact reproduction.
