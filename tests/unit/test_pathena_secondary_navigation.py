@@ -8,7 +8,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication, QFrame, QVBoxLayout
 
-from athena.desktop.pathena_design_tokens import SHELL
+from athena.desktop.pathena_design_tokens import PALETTE, SHELL, TYPE
 from athena.desktop.pathena_secondary_navigation import (
     install_settings_secondary_navigation,
 )
@@ -49,6 +49,25 @@ def test_settings_secondary_navigation_wraps_only_real_sections() -> None:
         assert controller.content.isAncestorOf(runtime_panel)
         assert controller.navigation.item(0).data(Qt.ItemDataRole.UserRole) == "model"
         assert controller.navigation.item(1).data(Qt.ItemDataRole.UserRole) == "runtime"
+    finally:
+        window.close()
+
+
+def test_settings_secondary_navigation_exposes_reference_rail_hierarchy() -> None:
+    _app()
+    window, _runtime_panel = _window_with_runtime_panel()
+    try:
+        controller = install_settings_secondary_navigation(window)
+
+        rail_style = controller.rail.styleSheet()
+        assert controller.rail.objectName() == "settingsSecondaryRail"
+        assert controller.rail.width() == SHELL.secondary_nav_width
+        assert f"border-right: 1px solid {PALETTE.border};" in rail_style
+        assert controller.rail_heading.objectName() == "settingsSecondaryTitle"
+        assert controller.rail_heading.text() == "Settings"
+        assert controller.rail_heading.accessibleName() == "Settings"
+        assert f"font-family: {TYPE.display_family};" in rail_style
+        assert f"font-size: {TYPE.section_px}px;" in rail_style
     finally:
         window.close()
 

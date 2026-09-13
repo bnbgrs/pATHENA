@@ -1,5 +1,15 @@
 from __future__ import annotations
 
+from PySide6.QtWidgets import (
+    QApplication,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QListWidget,
+    QPushButton,
+    QWidget,
+)
+
 from athena.desktop import pathena_layout_refinement_2200 as refinement
 
 
@@ -39,3 +49,56 @@ def test_layout_breakpoints_and_task_range_are_stable() -> None:
     )
     assert tuple(range(2101, 2201))[0] == 2101
     assert tuple(range(2101, 2201))[-1] == 2200
+
+
+def test_top_navigation_mirrors_existing_primary_routes_without_adding_pages() -> None:
+    app = QApplication.instance() or QApplication([])
+    window = QWidget()
+    window.resize(1480, 900)
+    navigation = QListWidget(window)
+    for label in (
+        "Workspace",
+        "Library",
+        "Research",
+        "Jobs",
+        "Sources",
+        "System",
+        "Settings",
+    ):
+        navigation.addItem(label)
+    window.navigation = navigation  # type: ignore[attr-defined]
+
+    top_bar = QFrame(window)
+    top_bar.setObjectName("topBar")
+    layout = QHBoxLayout(top_bar)
+    layout.addWidget(QLabel("pATHENA", top_bar))
+    layout.addStretch(1)
+
+    controller = refinement.PathenaLayoutRefinement(window)
+    buttons = top_bar.findChildren(QPushButton, "topNavButton")
+
+    assert [button.text() for button in buttons] == [
+        "CHAT",
+        "KNOWLEDGE",
+        "RESEARCH",
+        "JOBS",
+        "SOURCES",
+    ]
+    assert navigation.count() == 7
+    buttons[2].click()
+    app.processEvents()
+    assert navigation.currentRow() == 2
+    assert buttons[2].isChecked()
+
+    navigation.setCurrentRow(4)
+    app.processEvents()
+    assert buttons[4].isChecked()
+    assert not buttons[2].isChecked()
+
+    buttons[4].click()
+    app.processEvents()
+    assert navigation.currentRow() == 4
+    assert buttons[4].isChecked()
+
+    controller.deleteLater()
+    window.deleteLater()
