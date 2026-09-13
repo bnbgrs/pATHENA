@@ -75,6 +75,7 @@ def plan_knowledge_merge(
             "A merge requires two distinct canonical entity IDs."
         )
 
+    superseded: tuple[uuid.UUID, ...]
     if result == left:
         superseded = (right,)
     elif result == right:
