@@ -102,3 +102,22 @@ def test_top_navigation_mirrors_existing_primary_routes_without_adding_pages() -
 
     controller.deleteLater()
     window.deleteLater()
+
+
+def test_send_action_remains_square_across_layout_densities() -> None:
+    app = QApplication.instance() or QApplication([])
+    window = QWidget()
+    send = QPushButton("Send", window)
+    send.setObjectName("sendButton")
+
+    controller = refinement.PathenaLayoutRefinement(window)
+    for width in (1100, 1400, 1800):
+        controller.apply_for_width(width)
+        app.processEvents()
+        assert send.width() == refinement.SHELL.composer_action_size
+        assert send.height() == refinement.SHELL.composer_action_size
+        assert send.minimumWidth() == send.maximumWidth()
+        assert send.minimumHeight() == send.maximumHeight()
+
+    controller.deleteLater()
+    window.deleteLater()

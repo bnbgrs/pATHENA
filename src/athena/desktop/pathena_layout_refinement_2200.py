@@ -22,6 +22,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from athena.desktop.pathena_design_tokens import SHELL
+
 _COMPACT = 1260
 _WIDE = 1540
 _TOP_NAVIGATION: tuple[tuple[str, int], ...] = (
@@ -259,8 +261,7 @@ class PathenaLayoutRefinement(QObject):
             ground.setMaximumWidth(82)
             ground.setText("Source" if compact else "Sources")
         if send is not None:
-            send.setMinimumWidth(58 if compact else 68)
-            send.setMaximumWidth(84)
+            send.setFixedSize(SHELL.composer_action_size, SHELL.composer_action_size)
 
     def _tune_tabs(self, *, compact: bool) -> None:
         tabs = self.window.findChild(QTabWidget, "canonicalMemoryTabs")
