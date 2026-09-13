@@ -3,23 +3,23 @@
 ## Current integration
 
 - Integration target: `develop/pathena-next`.
-- Develop parent before this integration: `8c2dda7794ef4949844feb30d265d34248aa4660`.
-- Exact parent canonical Quality `34744264489 = SUCCESS`.
-- Selected Core source candidate: `12a2c2a4ac14c14a28f3bcfda9429d4db7a61830`.
-- Exact candidate Core Focused `34745747874 = SUCCESS`; canonical Quality `34745747939 = SUCCESS`.
+- Develop parent before this integration: `ae6ca984040c36a52c96c3e578cb0fee1e64136f`.
+- Exact parent canonical Quality `34748637687 = SUCCESS`.
+- Selected Backend source candidate: `aab04d0c4564a07f9af5c12e6fa496a5e1038ff7`.
+- Exact candidate Storage Focused `34749553305 = SUCCESS`; canonical Quality `34749553299 = SUCCESS`.
 
-## Iteration 1 — truthful stale-Knowledge policy integrated
+## Iteration 1 — paired WAL/SHM startup identity guard integrated
 
-The integration adds only `src/athena/knowledge/staleness_policy.py` and `tests/unit/test_stale_knowledge_policy.py` from the exact-green Core candidate. The policy treats recorded `valid_to_us` as a maintenance signal only: expired validity may signal stale, the exact boundary is not yet stale, and missing end-validity remains insufficient temporal evidence rather than an invented permanently-current claim. It does not mutate epistemic status, infer source age, claim falsity or fabricate replacement revisions.
+Only `src/athena/storage/database.py` and `tests/unit/test_storage_database_startup_identity.py` are extracted from the exact-green Backend candidate. A complete simultaneous WAL+SHM identity rotation is rejected fail-closed before live-writer startup, while validated complete publication and withdrawal transitions remain permitted. Partial sidecar transitions, primary replacement, and invalid replacement remain rejected.
 
 The worker branch history is not merged. The bounded product/test slice is extracted onto the exact Develop parent.
 
 ## Current worker state observed before mutation
 
-- Errors: `0e90f96d3819a37a5143e2d9c58495eace67c586`.
-- Spec/Core: `12a2c2a4ac14c14a28f3bcfda9429d4db7a61830`.
-- Backend: `2182382b8aa4a2c37cbf698c51b9de8f7c148287`; new paired-sidecar fix requires its own exact focused plus canonical qualification before any Storage integration.
-- UI: `402d80180d29a4a9ddf1d678bc9f75c808bbbb16`; no UI slice is promoted without current exact evidence.
+- Errors: `c64e6be7d2c4b1bde22426c610925564684652c6`.
+- Spec/Core: `e361ef5f365d7afd1d1b5d4b9fa242aeebfdee38`; current Core Focused and canonical runs are red, so no Core promotion.
+- Backend: `aab04d0c4564a07f9af5c12e6fa496a5e1038ff7`; bounded Storage delta exact-green and selected.
+- UI: `3dfd310c06f3a6b3e34db0d524bf752269fe8bcc`; sync head only, no UI promotion without current exact evidence.
 
 ## Persistent release guards
 
