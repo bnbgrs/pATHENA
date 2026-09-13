@@ -169,3 +169,22 @@ def test_full_view_selection_updates_compact_view_and_shared_inspector() -> None
     inspector.dispose()
     full_view.dispose()
     window.close()
+
+
+def test_explicit_close_restores_previous_keyboard_focus() -> None:
+    app, window, _grounded, full_view = _surface()
+    window.navigation.setFocus(Qt.FocusReason.OtherFocusReason)
+    app.processEvents()
+    assert window.navigation.hasFocus()
+
+    full_view.open_workspace()
+    app.processEvents()
+    assert full_view.workspace is not None
+    assert not window.navigation.hasFocus()
+
+    full_view.close_workspace()
+    app.processEvents()
+    assert window.navigation.hasFocus()
+
+    full_view.dispose()
+    window.close()

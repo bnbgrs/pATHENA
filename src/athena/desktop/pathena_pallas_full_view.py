@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QEvent, QObject, Qt, Slot
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QListWidget, QWidget
+from PySide6.QtWidgets import QApplication, QFrame, QHBoxLayout, QListWidget, QWidget
 from shiboken6 import isValid
 
 from athena.desktop.pathena_pallas_field import (
@@ -41,6 +41,8 @@ class PallasFullViewController(QObject):
         self._body_layout: QHBoxLayout = body_layout
         self._navigation = navigation
         self._open = False
+        self._restore_focus_widget: QWidget | None = None
+        self._opened_navigation_row: int | None = None
         self._viewport = grounded_controller.field.canvas.viewport()
         self._viewport.installEventFilter(self)
 
@@ -79,6 +81,42 @@ class PallasFullViewController(QObject):
                 return True
         return super().eventFilter(watched, event)
 
+    def _capture_focus_restore_target(self) -> None:
+        """Remember the in-shell focus owner before PALLAS takes keyboard focus."""
+        focused = QApplication.focusWidget()
+        self._restore_focus_widget = None
+        self._opened_navigation_row = (
+            self._navigation.currentRow()
+            if isinstance(self._navigation, QListWidget)
+            else None
+        )
+        if (
+            focused is not None
+            and isValid(focused)
+            and (focused is self._window or self._window.isAncestorOf(focused))
+        ):
+            self._restore_focus_widget = focused
+
+    def _restore_previous_focus(self) -> None:
+        """Restore focus only when the user is still on the route that opened PALLAS."""
+        target = self._restore_focus_widget
+        opened_row = self._opened_navigation_row
+        self._restore_focus_widget = None
+        self._opened_navigation_row = None
+        if target is None or not isValid(target):
+            return
+        if (
+            isinstance(self._navigation, QListWidget)
+            and opened_row is not None
+            and self._navigation.currentRow() != opened_row
+        ):
+            return
+        if not target.isVisible() or not target.isEnabled():
+            return
+        if target.focusPolicy() == Qt.FocusPolicy.NoFocus:
+            return
+        target.setFocus(Qt.FocusReason.OtherFocusReason)
+
     @Slot()
     def open_workspace(self) -> None:
         """Show the single full workspace inside the shared shell and shared inspector."""
@@ -91,6 +129,8 @@ class PallasFullViewController(QObject):
             self._body_layout.insertWidget(1, workspace, 1)
             self._workspace = workspace
 
+        if not self._open:
+            self._capture_focus_restore_target()
         self._center.hide()
         workspace.show()
         self._open = True
@@ -107,6 +147,7 @@ class PallasFullViewController(QObject):
             self._center.show()
         self._open = False
         self._window.setProperty("pathenaPallasShellOpen", False)
+        self._restore_previous_focus()
 
     @Slot(int)
     def _on_navigation_changed(self, _row: int) -> None:
