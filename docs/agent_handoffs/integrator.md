@@ -3,31 +3,34 @@
 ## Current integration
 
 - Integration target: `develop/pathena-next`.
-- Develop parent before this integration: `ae6ca984040c36a52c96c3e578cb0fee1e64136f`.
-- Exact parent canonical Quality `34748637687 = SUCCESS`.
-- Selected Backend source candidate: `aab04d0c4564a07f9af5c12e6fa496a5e1038ff7`.
-- Exact candidate Storage Focused `34749553305 = SUCCESS`; canonical Quality `34749553299 = SUCCESS`.
+- Develop parent before this integration: `09d43c348420dc5ad0eb2be80ebf8681ae8f25c5`.
+- Exact parent canonical Quality `34753048193 = SUCCESS`.
+- `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
-## Iteration 1 — paired WAL/SHM startup identity guard integrated
+## Iteration 1 — truthful source-age stale signal
 
-Only `src/athena/storage/database.py` and `tests/unit/test_storage_database_startup_identity.py` are extracted from the exact-green Backend candidate. A complete simultaneous WAL+SHM identity rotation is rejected fail-closed before live-writer startup, while validated complete publication and withdrawal transitions remain permitted. Partial sidecar transitions, primary replacement, and invalid replacement remain rejected.
+Bounded source candidate: `60b82913ed64f13a92c52bb52448011ac208dacf`.
+Exact evidence: Core Focused `34749319038 = SUCCESS`; canonical Quality `34749319064 = SUCCESS`.
+Only `src/athena/knowledge/staleness_policy.py` and `tests/unit/test_stale_knowledge_policy.py` are extracted. The existing staleness policy now accepts only explicit caller-supplied source observation time plus maximum age, preserves simultaneous validity/source-age reasons deterministically, treats exact boundaries as not stale, and fails closed on partial, malformed, negative or future temporal evidence. It does not synthesize source age, truth status, provenance, replacement revisions or jobs.
 
-The worker branch history is not merged. The bounded product/test slice is extracted onto the exact Develop parent.
+## Iteration 2 — explicit user-correction guard
 
-## Current worker state observed before mutation
+Bounded source candidate: `367bf6ee879450373cde5f116ca78fbe28a2dbac`.
+Exact evidence: Core Focused `34754120108 = SUCCESS`; canonical Quality `34754120154 = SUCCESS`.
+Only `src/athena/knowledge/user_correction_policy.py` and `tests/unit/test_knowledge_user_correction_policy.py` are extracted. Explicit user corrections cannot be silently replaced by automation; absent, older or equal evidence preserves them; genuinely newer evidence opens human review; a later explicit user decision can revise them; malformed actors/timestamps fail closed. No source, evidence, provenance, truth status or revision is fabricated.
 
-- Errors: `c64e6be7d2c4b1bde22426c610925564684652c6`.
-- Spec/Core: `e361ef5f365d7afd1d1b5d4b9fa242aeebfdee38`; current Core Focused and canonical runs are red, so no Core promotion.
-- Backend: `aab04d0c4564a07f9af5c12e6fa496a5e1038ff7`; bounded Storage delta exact-green and selected.
-- UI: `3dfd310c06f3a6b3e34db0d524bf752269fe8bcc`; sync head only, no UI promotion without current exact evidence.
+## Candidate intentionally blocked
+
+The historical send-button tokenization is not safe as a one-file Develop integration. Current `develop/pathena-next` `ShellGeometry` does not define `composer_action_size`, while the UI candidate stylesheet references it. Therefore the stylesheet-only ERR-0053 extraction would introduce an invalid attribute dependency. UI must provide a bounded current-baseline slice that includes the compatible geometry token plus focused tests and exact-head evidence; no broad UI branch promotion is allowed.
+
+## Source-of-truth notes
+
+- `docs/agent_logs/ERROR_LEDGER.md` remains historical where newer exact-SHA evidence exists.
+- Eleven-screen parity remains fail-closed: no visual `MATCH` without an opened original reference plus a real rendered state from the exact implementation SHA.
 
 ## Persistent release guards
 
-Retain without relaxation: pypdf packaging; fail-closed Frozen argv; Desktop/Worker two-EXE split; exactly one Desktop instance with bounded workers; adaptive 2048-context Chat reserve; Windows lane-lock cluster; duplicate-column/Core-startup/storage-bootstrap signatures; Security/Storage/Recovery guards; no Skip/XFail. `main` and `bnbgrs/ATHENA` remain read-only.
-
-## Visual truth
-
-Eleven-screen parity remains fail-closed: no `MATCH` without opened original reference plus real exact-SHA render. Historical `ERROR_LEDGER.md` state does not override current exact-SHA evidence.
+Retain without relaxation: pypdf packaging; fail-closed Frozen argv; Desktop/Worker two-EXE split; exactly one Desktop instance with bounded workers; adaptive 2048-context Chat reserve; Windows lane-lock cluster; duplicate-column/Core-startup/storage-bootstrap signatures; Security/Storage/Recovery guards; no Skip/XFail.
 
 ## Promotion state
 
