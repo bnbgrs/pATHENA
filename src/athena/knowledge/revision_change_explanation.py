@@ -42,7 +42,7 @@ def explain_knowledge_revision_change(
     *,
     recorded_reason: str | None = None,
 ) -> KnowledgeRevisionChangeExplanation:
-    """Explain an adjacent revision transition using only recorded revision facts."""
+    """Explain an adjacent revision transition using only supplied recorded facts."""
     if not isinstance(previous, KnowledgeUnitRevision):
         raise TypeError("previous must be a KnowledgeUnitRevision.")
     if not isinstance(current, KnowledgeUnitRevision):
@@ -61,7 +61,11 @@ def explain_knowledge_revision_change(
     changed_at = datetime.fromtimestamp(current.created_at_us / 1_000_000, tz=UTC).isoformat()
     fields = ", ".join(change.field for change in changes)
     change_text = f"Changed payload fields: {fields}." if changes else "No payload fields changed."
-    reason_text = f"Recorded reason: {reason}." if reason is not None else "No recorded reason is available."
+    reason_text = (
+        f"Recorded reason: {reason}."
+        if reason is not None
+        else "No recorded reason was supplied to this explanation."
+    )
     text = (
         f"Knowledge revision {current.revision_no} replaced revision {previous.revision_no} "
         f"at {changed_at} by actor {current.created_by_actor_id}. {reason_text} {change_text}"

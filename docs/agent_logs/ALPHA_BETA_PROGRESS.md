@@ -4,29 +4,28 @@ Evidence-only progress register for `develop/pathena-next`. This file intentiona
 
 ## Current baseline
 
-- Develop parent before current integration: `98b110882910653566fa70b27e9bdaa3f328ef6b`.
-- Exact parent canonical Quality `34724047841 = SUCCESS`.
-- Worker heads checked: Errors `493b145af1b31c52a3207484be45039c460e5552`; Spec/Core `6cc6977be39809e464ae62a546312a8217698bc9`; Backend `597297aa1f07d36d872df6e8d20a939a7fab941b`; UI `b3d43e4bcaff1a188668b437d31cb0fffdfc0351`.
+- Develop parent before current integration: `305703362d539ed467dec27cbc7300a495b3ca03`.
+- Exact parent canonical Quality `34728645613 = SUCCESS`.
+- Worker heads checked: Errors `4d56cdbde52af238917568948daf86bd7c112930`; Spec/Core `78d51621cbdfa3282cd236b5d0c7f5984abedcae`; Backend `a709c229d6994c159490c2c1eaf3f2549f12cf56`; UI `031f291bbbb215e6319bb30e7aed92768e6aac18`.
 
 ## Current integration state
 
-- Durable schedule identity, materialization, recovery and deterministic versioned schedule serialization remain integrated.
-- Validated complete WAL+SHM withdrawal remains accepted only with unchanged primary database identity; partial or foreign identity changes remain fail-closed.
-- Truthful Knowledge provenance explanation, its transport-neutral API projection, and direct Knowledge revision-change explanation remain integrated.
-- Core-Focused candidate selection now limits focused pytest to explicit Core-owned test families instead of every changed unit test. The generic cross-ownership selector is regression-tested against reintroduction.
-- Source-free user Knowledge, correction conflict visibility, fail-closed release-readiness assessment and Core-Focused candidate integrity guards remain integrated.
+- Durable schedule identity/materialization/recovery and deterministic versioned schedule serialization remain integrated.
+- SQLite startup identity remains fail-closed for partial or foreign sidecar changes; Backend's newer complete-sidecar rotation work is not yet integrated because its exact canonical gate was still active at qualification time.
+- Truthful Knowledge provenance explanation, transport-neutral current-revision explanation API, adjacent revision-change explanation and Knowledge revision-history projection are integrated.
+- Revision-change wording now distinguishes an unsupplied reason from a persisted reason proven unavailable.
+- Core-Focused candidate selection remains restricted to Core-owned focused test families with its regression guard intact.
 
 ## Exact Worker evidence
 
-- Spec/Core `6cc6977be39809e464ae62a546312a8217698bc9`: Core Focused `34725178727 = FAILURE`; canonical `34725178701 = FAILURE`. Ruff and changed focused tests individually passed before the final focused enforcement step failed, therefore no product slice is promoted from this head.
-- Backend `597297aa1f07d36d872df6e8d20a939a7fab941b`: effective delta versus Develop is schedule-startup code/tests; Backend Focused `34725622702 = SUCCESS`; canonical was still in progress at qualification time, so the Backend slice remains held conservatively.
-- UI `b3d43e4bcaff1a188668b437d31cb0fffdfc0351`: synchronization head before visual shell work; visual parity remains separately evidence-gated.
-- Errors `493b145af1b31c52a3207484be45039c460e5552`: current handoff identifies `ERR-0046` as the Core-Focused ownership selector defect and `ERR-0047` as a Backend schedule-startup test-contract blocker.
+- Spec/Core `78d51621cbdfa3282cd236b5d0c7f5984abedcae`: Core Focused `34730134596 = SUCCESS`; canonical Quality `34730134589 = SUCCESS`; effective delta versus Develop is four Knowledge product/test files and is selected for integration.
+- Backend `a709c229d6994c159490c2c1eaf3f2549f12cf56`: effective delta versus Develop is schedule-startup code/tests plus SQLite startup-identity hardening; Storage Focused is green, canonical Quality `34730587873` was still in progress at qualification time. Conservative hold.
+- UI `031f291bbbb215e6319bb30e7aed92768e6aac18`: broad UI/render/evidence delta also removes Core-owned orphan Knowledge files; no broad promotion.
+- Errors `4d56cdbde52af238917568948daf86bd7c112930`: current diagnostic handoff supersedes the historical repository Error Ledger where exact-SHA evidence differs.
 
 ## Error and visual truth rules
 
-- `docs/agent_logs/ERROR_LEDGER.md` is historical relative to current Develop and is not the sole authority where newer exact-SHA evidence exists.
-- Historical release-guard signatures are not reopened without current exact-SHA reproduction.
+- `docs/agent_logs/ERROR_LEDGER.md` remains historical relative to current Develop; historical signatures are not reopened without current reproduction.
 - Eleven-screen status remains fail-closed; no visual `MATCH` without opened original reference plus real exact-SHA render.
 
 ## Persistent release guards
@@ -37,4 +36,4 @@ Do not relax: pypdf packaging; fail-closed Frozen argv; Desktop/Worker two-EXE s
 
 `PROMOTION_READY=NO`
 
-The Core-Focused ownership repair requires exact-current Develop canonical Quality before it is considered integrated-green. Develop becomes Beta/Release-ready only after exact-current canonical Quality plus the known Windows/Packaging/Runtime regression matrix are green.
+The newly integrated Knowledge history/reason-truth slices require exact-current Develop canonical Quality before they are integrated-green. Develop becomes Beta/Release-ready only after exact-current canonical Quality plus the known Windows/Packaging/Runtime regression matrix are green.
