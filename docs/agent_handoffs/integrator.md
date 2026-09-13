@@ -3,25 +3,22 @@
 ## Current integration
 
 - Integration target: `develop/pathena-next`.
-- Develop parent before this integration: `d7a5bcf6d836c47588b907d666b5541386ca0678`.
-- Exact parent canonical Quality `34737035739 = FAILURE`: controller isolation itself is green (`6 passed`), the remaining canonical suite reaches completion with `1 failed, 5029 passed, 17 skipped`; the sole failure is the stale workflow-contract assertion expecting the pre-isolation one-process pytest command.
-- Worker heads checked: Errors `2a777c98dd10d22cefc487e0f76d0552415efdf5`; Spec/Core `fc253bd8646028a4226aa603d7188830daf54d7d`; Backend `7063801bcefc7153f4ef5de4b3d82669861b4208`; UI `2f003f7de2cc9b9499b1853cc8e4869b404488eb`.
+- Develop parent before this integration: `f301540eb707013e7b88c08ef248ea98edc1564d`.
+- Exact parent canonical Quality `34741552444 = SUCCESS`.
+- Selected Core source candidate: `bd5b0497a8c220e2a3a238f974109d060d7256e5`.
+- Exact candidate Core Focused `34742250322 = SUCCESS`; canonical Quality `34742250297 = SUCCESS`.
 
-## Iteration 1 — exact Develop regression closed
+## Iteration 1 — bounded Knowledge read API integrated
 
-`tests/unit/test_quality_workflow_contract.py` now guards the actual fail-closed canonical structure: the mandatory desktop-controller module runs in its own interpreter, every remaining test runs exactly once with only that module ignored in the second invocation, both PIPESTATUS values are captured, and either nonzero status fails the canonical pytest step. This updates the contract to the already-integrated native Qt isolation without Skip/XFail, retry, test removal, or gate weakening.
+The integration adds only `src/athena/api/knowledge_read.py` and `tests/unit/test_knowledge_read_api.py` from the exact-green Core candidate. `KnowledgeReadApiService` composes the already-integrated truthful provenance-explanation and immutable revision-history boundaries without bypassing or weakening either one. Identity/history failures are propagated rather than downgraded or reinterpreted.
 
-## Iteration 2 — bounded Knowledge model disclosure integrated
+The worker branch history is not merged. The product slice is extracted as bounded content onto the exact Develop parent.
 
-Spec/Core `fc253bd8646028a4226aa603d7188830daf54d7d` has exact Core Focused `34737394852 = SUCCESS` and canonical `34737394871 = SUCCESS`. Its effective product delta against current Develop is only `src/athena/api/knowledge_model_disclosure.py` plus `tests/unit/test_knowledge_model_disclosure.py`.
+## Blocked and deferred work
 
-The slice exposes recorded model/run provenance for a Knowledge revision without fabricating model participation. User-authored revisions reject supplied model provenance; primary-model revisions require a matching succeeded `ProcessingRun` and `ModelSignature`; mismatched or partial provenance fails closed.
-
-## Blocked candidates
-
-- Backend `7063801b...`: Storage Focused `34738082478 = FAILURE`; hold all Storage mutation. `ERR-0049` remains current until paired foreign WAL+SHM replacement is rejected while legitimate rotation/race behavior remains green.
-- UI `2f003f7d...`: newer UI-owned work exists, but no broad branch promotion; re-qualify bounded UI slices only after exact Develop quality completes.
-- Historical `ERROR_LEDGER.md` is not authoritative over newer exact-SHA evidence.
+- Backend/Storage remains conservative: no Storage, Recovery, Transport or Runtime mutation is included here. Any current candidate must be re-qualified on its latest exact SHA before integration.
+- UI work already integrated on the parent is not re-integrated. Any newer UI candidate requires its own bounded exact-head evidence.
+- Error-worker findings are diagnostic unless reproduced by current exact-SHA evidence.
 
 ## Persistent release guards
 

@@ -4,27 +4,20 @@ Evidence-only progress register for `develop/pathena-next`. No invented completi
 
 ## Current baseline
 
-- Develop parent before current integration: `d7a5bcf6d836c47588b907d666b5541386ca0678`.
-- Exact parent canonical Quality `34737035739 = FAILURE` only in pytest contract enforcement after native Qt controller isolation; controller module itself passed 6/6 and the remaining suite completed with `1 failed, 5029 passed, 17 skipped`.
-- Worker heads checked: Errors `2a777c98dd10d22cefc487e0f76d0552415efdf5`; Spec/Core `fc253bd8646028a4226aa603d7188830daf54d7d`; Backend `7063801bcefc7153f4ef5de4b3d82669861b4208`; UI `2f003f7de2cc9b9499b1853cc8e4869b404488eb`.
+- Develop parent before this integration: `f301540eb707013e7b88c08ef248ea98edc1564d`.
+- Exact parent canonical Quality `34741552444 = SUCCESS`.
+- Core source candidate `bd5b0497a8c220e2a3a238f974109d060d7256e5`: Core Focused `34742250322 = SUCCESS`; canonical `34742250297 = SUCCESS`.
 
 ## Current integration state
 
-- Canonical Qt-controller isolation remains mandatory and fail-closed. Its repository contract now verifies both mandatory pytest invocations and their combined failure enforcement instead of requiring the superseded single-process command string.
-- Truthful Knowledge provenance/current-revision/revision-history/revision-change surfaces remain integrated.
-- Knowledge model disclosure is selected from exact-green Spec/Core `fc253bd8...`: user revisions cannot claim fabricated model provenance; primary-model disclosure requires a matching succeeded ProcessingRun/ModelSignature pair.
-- Transactional schedule-startup recovery remains integrated.
-- Backend paired-sidecar startup identity work remains excluded while Storage Focused is red.
-
-## Exact evidence
-
-- Develop `d7a5bcf6...`: canonical `34737035739 = FAILURE`; Linux Storage, Windows path/recovery/package guards, Local Install and pypdf are green; isolated controller 6/6 passes; remaining suite sole failure is `test_quality_workflow_contract.py::test_canonical_quality_keeps_full_pytest_and_enforces_all_core_checks`.
-- Spec/Core `fc253bd8...`: Core Focused `34737394852 = SUCCESS`; canonical `34737394871 = SUCCESS`.
-- Backend `7063801b...`: Storage Focused `34738082478 = FAILURE`; no Storage promotion.
+- A bounded transport-neutral `KnowledgeReadApiService` composes the existing truthful Knowledge provenance explanation and immutable revision-history surfaces.
+- The focused regression verifies exact delegation and that explanation/history errors are propagated instead of being hidden, downgraded or reinterpreted.
+- Only the two Core-owned product/test files are extracted from the worker; its long branch history is not merged.
+- Previously integrated Help hierarchy, Knowledge provenance/model-disclosure/history surfaces, transactional schedule startup, Qt controller isolation, Core-Focused API coverage and all release guards remain unchanged.
 
 ## Error and visual truth rules
 
-- `docs/agent_logs/ERROR_LEDGER.md` remains historical where newer exact-SHA evidence exists.
+- `docs/agent_logs/ERROR_LEDGER.md` is historical wherever newer exact-SHA evidence exists; current worker heads and exact CI take precedence.
 - Eleven-screen status remains fail-closed; no visual `MATCH` without opened original reference plus real exact-SHA render.
 
 ## Persistent release guards
@@ -35,4 +28,4 @@ Do not relax: pypdf packaging; fail-closed Frozen argv; Desktop/Worker two-EXE s
 
 `PROMOTION_READY=NO`
 
-The integrated regression fix and Knowledge disclosure slice require exact-current Develop canonical Quality before any further Develop mutation.
+The new bounded Core slice requires exact-current Develop canonical Quality before any further Develop mutation.
