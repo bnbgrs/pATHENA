@@ -2,34 +2,34 @@
 
 ## Exact source of truth
 
-- Develop: `ca8a213932d59c4e90dc573c4a3a970f10cc3c51`; canonical Quality `34890132641 = IN_PROGRESS`. Direct parent `f8a25be7fd7df9f2a8ca281a1567f79ddaabcfb6` completed canonical `34883442620 = SUCCESS`.
-- Error worker before this handoff refresh: `21277f23da593c2768580f05551ab09dad44e46c`; no queued/in-progress Error-worker workflow existed on that exact SHA.
+- Develop: `3a8120805e41d0fe9d283fc948d6e52b327a8e58`; canonical Quality `34893392725 = SUCCESS`. Parent `ca8a213932d59c4e90dc573c4a3a970f10cc3c51` also completed canonical `34890132641 = SUCCESS`.
+- Error worker before this handoff refresh: `6a7b6db0223c6934bb12c75089bf5e1149315add`; no queued/in-progress Error-worker workflow existed on the pre-refresh Error lineage.
 - Spec/Core: `9fe5dd44473ae200941d40ba37d14bc8816fdcdf`; Core Focused `34886553609 = SUCCESS`; canonical `34886553447 = SUCCESS`.
-- Backend: `764f99c2949a7ff5eeee2199a9a65e4f71f06f13`; Backend Focused `34887122024 = SUCCESS`; canonical `34887121977 = SUCCESS`.
+- Backend: `44057bf0d93104992a825b0b611f04c2161d57fb`; Backend Focused `34893078182 = SUCCESS`; canonical `34893078134 = SUCCESS`.
 - UI: `e149515870b773548a164658775159f29de323af`; exact Visual `34888542153 = FAILURE`, with exact-eleven capture, route identity, compare/proposal and artifact upload all `SUCCESS`; only final `Enforce visual verdict` is `FAILURE`.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
-## ITERATION-1 — Develop active candidate
+## ITERATION-1 — Develop successor closed
 
-Status: `IN_PROGRESS`
+Status: `FIXED`
 
-Develop advanced from canonical-green parent `f8a25be7...` to `ca8a2139...` for the integrated application Knowledge-read wiring. Exact canonical `34890132641` is active. No competing canonical run was started and no Develop mutation was performed by the Error worker.
+Develop advanced to `3a812080...`. Exact canonical `34893392725` completed `SUCCESS`; the previously active `ca8a2139...` candidate also completed `SUCCESS`. No Develop-owned failure cluster is current.
 
-## ITERATION-2 — Spec/Core exact green
+## ITERATION-2 — Spec/Core held green
 
 Status: `FIXED`
 
 Current Spec/Core exact Core Focused and canonical are both `SUCCESS`. No current Core/Error root cause is reproduced. Prior Core clusters remain closed.
 
-## ITERATION-3 — Backend exact green
+## ITERATION-3 — Backend successor held green
 
 Status: `FIXED`
 
-Current Backend exact focused and canonical are both `SUCCESS`. The checked-in backend handoff is historically stale relative to current CI evidence; it does not reopen any Storage/Recovery/backup error cluster.
+Current Backend `44057bf0...` completed exact Backend Focused `34893078182 = SUCCESS` and canonical Quality `34893078134 = SUCCESS`. No Backend/Storage/Recovery root cause is current; stale checked-in backend narrative does not override exact CI evidence.
 
-## ITERATION-4 — current UI exact requalification
+## ITERATION-4 — current UI exact state
 
-Current UI head is a new exact SHA, `e1495158...`. It has current exact Visual evidence but no current canonical/focused assertion evidence reproducing the three prior product failures from parent `a6298adb...`.
+Current UI head remains `e1495158...`. It has current exact Visual evidence but no current canonical/focused assertion evidence reproducing the three prior product failures from parent `a6298adb...`.
 
 Therefore:
 
@@ -55,8 +55,8 @@ Persistent release guards remain unchanged. No current exact evidence reopens py
 
 ## Next root cause
 
-1. Consume terminal Develop canonical `34890132641` without superseding it.
-2. Consume current-SHA UI canonical/focused evidence if/when produced for `e1495158...`; only direct current assertions may move `ERR-0067/0068/0069` back to `OPEN`, otherwise close/stale them as supported.
-3. Keep `ERR-0054` strictly UI/Visual-Review-owned and do not accept a baseline.
-4. Keep Spec/Core and Backend closed while exact current evidence stays green.
-5. Keep `ERR-0059` and prior technical harness/Core clusters closed absent a new exact regression.
+1. Consume current-SHA UI canonical/focused evidence if/when produced for `e1495158...`; only direct current assertions may move `ERR-0067/0068/0069` back to `OPEN`, otherwise close/stale them as supported.
+2. Keep `ERR-0054` strictly UI/Visual-Review-owned and do not accept a baseline.
+3. Keep Develop, Spec/Core and Backend closed while exact current evidence stays green.
+4. Keep `ERR-0059` and prior technical harness/Core clusters closed absent a new exact regression.
+5. Qualify any new worker successor from its own exact SHA before acting on historical failures.
