@@ -80,6 +80,16 @@ def test_control_tick_runs_existing_interval_gate(tmp_path) -> None:
     assert adapter.runner.next_due_monotonic == 70.0
 
 
+def test_control_housekeeping_entrypoint_runs_existing_interval_gate(tmp_path) -> None:
+    adapter, orchestrator = _adapter(tmp_path)
+
+    result = adapter.run_control_housekeeping(now_monotonic=10.0)
+
+    assert isinstance(result, WalMaintenanceDiagnosis)
+    assert orchestrator.calls == 1
+    assert adapter.runner.next_due_monotonic == 70.0
+
+
 def test_non_boolean_lane_ownership_fails_before_runner(tmp_path) -> None:
     adapter, orchestrator = _adapter(tmp_path)
 
@@ -107,6 +117,27 @@ def test_control_tick_uses_injected_monotonic_clock(tmp_path) -> None:
     )
 
     result = adapter.run_tick(owns_control_housekeeping=True)
+
+    assert isinstance(result, WalMaintenanceDiagnosis)
+    assert clock_calls == [True]
+    assert orchestrator.calls == 1
+    assert adapter.runner.next_due_monotonic == 102.5
+
+
+def test_control_housekeeping_entrypoint_uses_injected_clock(tmp_path) -> None:
+    adapter, orchestrator = _adapter(tmp_path)
+    clock_calls: list[bool] = []
+
+    def clock() -> float:
+        clock_calls.append(True)
+        return 42.5
+
+    adapter = WalMaintenanceSchedulerAdapter(
+        adapter.runner,
+        monotonic_clock=clock,
+    )
+
+    result = adapter.run_control_housekeeping()
 
     assert isinstance(result, WalMaintenanceDiagnosis)
     assert clock_calls == [True]
@@ -147,6 +178,24 @@ def test_explicit_monotonic_timestamp_bypasses_clock(tmp_path) -> None:
         owns_control_housekeeping=True,
         now_monotonic=7.0,
     )
+
+    assert isinstance(result, WalMaintenanceDiagnosis)
+    assert orchestrator.calls == 1
+    assert adapter.runner.next_due_monotonic == 67.0
+
+
+def test_control_housekeeping_explicit_timestamp_bypasses_clock(tmp_path) -> None:
+    adapter, orchestrator = _adapter(tmp_path)
+
+    def clock() -> float:
+        raise AssertionError("explicit timestamp must bypass injected clock")
+
+    adapter = WalMaintenanceSchedulerAdapter(
+        adapter.runner,
+        monotonic_clock=clock,
+    )
+
+    result = adapter.run_control_housekeeping(now_monotonic=7.0)
 
     assert isinstance(result, WalMaintenanceDiagnosis)
     assert orchestrator.calls == 1

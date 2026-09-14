@@ -32,6 +32,17 @@ class WalMaintenanceSchedulerAdapter:
         self.runner = runner
         self._monotonic_clock = monotonic_clock
 
+    def run_control_housekeeping(
+        self,
+        *,
+        now_monotonic: float | None = None,
+    ) -> WalMaintenanceDiagnosis | None:
+        """Run the WAL interval gate for a scheduler-owned control tick."""
+        return self.run_tick(
+            owns_control_housekeeping=True,
+            now_monotonic=now_monotonic,
+        )
+
     def run_tick(
         self,
         *,
