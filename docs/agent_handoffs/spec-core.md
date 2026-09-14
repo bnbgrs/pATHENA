@@ -1,26 +1,53 @@
-# ALPHA/BETA Core handoff
+# pATHENA Alpha/Beta Core Handoff
 
 ## Current source of truth
 
-- Develop baseline inspected: `0ea74a990f8375039769c7726a327fd9142d5985` (`develop/pathena-next`).
-- Worker candidate before this repair: `f5013995078ce355e64fe4dd7bd7c2a549a30ef9`.
-- `main` and `bnbgrs/ATHENA` remain read-only.
-- Current Develop adds only the independently integrated PALLAS semantic-token cache relative to this Core candidate's prior Develop baseline; the merge is disjoint from the Knowledge supersession slice.
+- Integration target: `develop/pathena-next@b0bb67755ccd1e0df04c9988fa0a9416b9abd7c8`.
+- Worker before this slice: `postmerge/spec-core@7719c3f18de715fe1343980bdc466a2d12cdb286`.
+- `main` and `bnbgrs/ATHENA` remain strictly read-only.
+- The previous Knowledge supersession slice represented by the worker lineage is already present on Develop and is CLOSED as a Core work target.
+- Develop canonical Quality `34854516653` is still running on exact `b0bb67755ccd1e0df04c9988fa0a9416b9abd7c8`; Specification Validator, Ruff, mypy, Linux Storage, Local-install/Core restart/pypdf and the Windows release-guard lane are green, while full pytest is still active at handoff preparation time.
+- Previous exact worker `7719c3f18de715fe1343980bdc466a2d12cdb286` has completed Core Focused `34843539383 = SUCCESS` and canonical Quality `34843539369 = SUCCESS`.
 
-## Selected Core gap: canonical Knowledge supersession relation
+## Current Core slice — canonical Knowledge read composition
 
-Beta Knowledge lifecycle requires a superseded entity to remain addressable in history and to be linked explicitly to its successor. Merge/Split already calculates `superseded_entity_ids`, but the versioned Core relation registry had no `superseded_by` relation and therefore no fail-closed canonical edge plan for persisting that identity consequence.
+Beta 07 requires immutable revision history, derived predecessor diffs, and a truthful user-visible explanation of why a Knowledge item is known. Existing product boundaries already implement these semantics:
 
-The candidate registers directed `superseded_by` for Knowledge-to-Knowledge only and adds a persistence-neutral supersession-edge planner. It preserves predecessor identities and order, rejects empty, duplicate, self-superseding and malformed plans, and refuses silent fallback to `related_to`. No storage write, transaction path, audit path, fake data or synthetic provenance is introduced.
+- `KnowledgeExplanationApiService` reads the current Knowledge revision and its recorded provenance inputs and does not invent source metadata.
+- `KnowledgeHistoryApiService` reads immutable revision history, validates entity/sequence integrity and derives predecessor diffs on demand.
+- `KnowledgeReadApiService` is the existing unified transport-neutral delegation surface over those two readers.
 
-## Canonical regression and repair
+This slice adds only the missing canonical composition boundary:
 
-- Core Focused Candidate `34838026579` on exact `f5013995078ce355e64fe4dd7bd7c2a549a30ef9`: SUCCESS.
-- Canonical Quality `34838026561` on the same SHA: FAILURE only in full pytest.
-- Exact canonical log: `5164 passed, 17 skipped`; the sole failure was `tests/unit/test_relation_registry_contract.py::test_unknown_relation_type_falls_back_without_ontology_growth`.
-- Root cause: the pre-existing contract test hard-coded the old four canonical relation names, so adding the intentional fifth canonical relation `superseded_by` made that stale expectation fail. The new supersession-policy tests themselves passed.
-- Repair: the contract now snapshots registry definitions before resolving an unknown relation and requires the definitions to remain byte-for-byte semantically unchanged afterward; it also requires `superseded_by` to be present in the canonical registry. This strengthens the actual anti-ontology-growth invariant rather than weakening or skipping it.
+- `src/athena/api/knowledge_read_composition.py` defines `KnowledgeReadSource`, combining the two existing reader protocols, and `build_knowledge_read_api()`.
+- Both read projections receive the same caller-supplied canonical Knowledge source.
+- The builder returns the existing `KnowledgeReadApiService`; it does not introduce another DTO surface, repository, cache, persistence path, actor identity, audit store or provenance representation.
+- No fake data or synthetic provenance is created.
+
+Focused acceptance in `tests/unit/test_knowledge_read_composition.py` proves that both Why-known and revision-history paths reach the same canonical source and that malformed identities still fail before source access.
+
+## Qualification state
+
+The slice is prepared as one history-preserving worker candidate containing current Develop as an additional parent. There is no sync-only intermediate worker head. Exact candidate SHA and CI evidence are determined after publishing this single candidate. Do not claim READY until exact Core Focused and canonical Quality both complete successfully.
+
+The current Core Focused selector covers `src/athena/api/knowledge_*.py` and `tests/unit/test_knowledge*.py`, so both new files are inside the existing focused gate without changing or weakening CI.
+
+## Ownership / collision avoidance
+
+- Backend owns deep Storage/transaction/recovery/backup execution. This slice is read-only API composition and does not duplicate those paths.
+- UI owns PALLAS/Qt presentation and styling. No UI file is changed.
+- Protected Search remains authorization-first and is not mixed into this Knowledge read path.
+- Persistent release guards remain binding: pypdf/Frozen argv/two-EXE, bounded worker tree, adaptive 2048-context Chat reserve, Windows lane-lock cluster and duplicate-column/Core-startup/storage-bootstrap signatures.
 
 ## Next distinct Core gap
 
-After exact-SHA Focused and canonical qualification/integration, re-read current Develop first. If still absent, prioritize central composition of the existing `KnowledgeReadApiService` through `CoreApiFacade` and `AthenaApplication`, reusing the existing `KnowledgeService` as the real provenance/history reader. Do not create a parallel read API, repository, provenance model or synthetic source metadata.
+After exact qualification and integration of this builder slice, re-read current Develop/Handoffs/Coverage and, if still absent, expose the existing `KnowledgeReadApiService` through `CoreApiFacade` and `AthenaApplication` with:
+
+1. strict single attach;
+2. fail-closed access before attachment;
+3. capabilities only when the real service is attached;
+4. direct Why-known and revision-history delegation;
+5. `AthenaApplication` composition from its existing `self.knowledge` instance;
+6. exact service-instance identity and truthful provenance/history acceptance tests.
+
+Do not introduce a parallel API, repository bypass, synthetic provenance or new persistence architecture.

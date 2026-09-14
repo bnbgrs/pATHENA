@@ -4,30 +4,30 @@ Evidence-only progress register for `develop/pathena-next`. No invented completi
 
 ## Current baseline
 
-- Develop parent before this integration: `3231615650473fd549a7d852fb3bbe215f7b721f`.
-- Exact canonical Quality on that parent: `34811112376 = SUCCESS`.
+- Develop parent before this integration: `5048e8f2e88c1ac0553d3052db48c9c3be22bff1`.
+- Exact canonical Quality on that parent: `34851187301 = SUCCESS`.
 - Persistent release guards remain mandatory and unchanged.
 
 ## Current integration state
 
-Develop already contains persistence-neutral Knowledge merge/split planning, application-facing planning, Core API authentication-readiness ordering, deterministic project Knowledge membership, the transport-neutral canonical Claim inspection adapter, and facade exposure for Claim inspection/contradiction review.
+A single bounded Backend slice adds deterministic planning for periodic Deep backup verification. Exact source head `d0da4ca3677ebcda1e65e1637fd0d447810fb7fb`; Backend Focused `34851416776 = SUCCESS`; canonical Quality `34851416765 = SUCCESS`.
 
-This integration adds a bounded Core composition helper for that Claim-inspection chain. The helper consumes the existing canonical `ClaimRepository`, `ReviewService`, and actor provider, constructs `KnowledgeInspectionService`, and wraps it in `KnowledgeInspectionApiService`. It creates no second persistence, repository, review, actor, or DTO path.
+The integrated delta is restricted to a new planner module and focused unit tests. It selects only active, completed, non-pruned restore points whose Deep verification is due; excludes failed/offline/not-due snapshots; emits deterministic occurrence/idempotency identity; and performs no backup creation, verification execution, schema, migration or recovery mutation. The worker history itself is not merged.
 
-Focused regression coverage verifies exact dependency reuse by identity, including the actor provider. No Security, Storage, Recovery, packaging, runtime-locality, visual, test-strength, or Skip/XFail guard is relaxed.
+`BUNDLED_SLICES=NONE` because this slice is Storage/Recovery-adjacent and is intentionally integrated alone.
 
 ## Current worker truth
 
-- Errors `35871d5e32dd49306b433374de9b2693048eb24f`: current UI-capture diagnosis/documentation; no selected product fix.
-- Spec/Core `ae82147ab8de6d3805bb5f2299497296af8ff19f`: previous facade product slice is already represented in Develop; no new selected delta.
-- Backend `52eb61de9ecfde4074778a1bab2966e18aab526d`: no new selected product delta.
-- UI `5c2f066a9542569f8f23398e10cd7187c4722882`: new navigation-rail presentation work remains unpromoted pending exact qualification and fail-closed visual review.
+- Errors `a80e39b8b1669086d8db00deea10a7d37041507f`: evidence refresh only.
+- Spec/Core `7719c3f18de715fe1343980bdc466a2d12cdb286`: previously integrated supersession work.
+- Backend `d0da4ca3677ebcda1e65e1637fd0d447810fb7fb`: selected bounded Deep-verification planner.
+- UI `575b8de0a4f25f512e423c78623bfa5b398c379d`: not selected in this candidate.
 
 ## Error and visual truth rules
 
-- `docs/agent_logs/ERROR_LEDGER.md` remains historical wherever newer exact-SHA evidence exists.
-- Eleven-screen status remains fail-closed; no visual `MATCH` without opened original reference plus real exact-SHA render and reviewed baseline.
-- Current verified Send target remains 44×44 outer geometry.
+- Historical Error-Ledger signatures are not OPEN without current reproduction.
+- Eleven-screen status remains fail-closed; no visual `MATCH` without opened original reference plus real exact-SHA render and reviewed comparison.
+- Verified Send target remains 44×44 outer geometry.
 
 ## Persistent release guards
 
@@ -37,4 +37,4 @@ Do not relax: pypdf packaging; fail-closed Frozen argv; Desktop/Worker two-EXE s
 
 `PROMOTION_READY=NO`
 
-The resulting exact Develop SHA requires canonical Quality before any additional Develop mutation. Once green, the next bounded step is `AthenaApplication` wiring of the new composition helper using `ChatService.ensure_local_user` as the sole local actor provider, followed by attachment to `CoreApiFacade`.
+Require terminal canonical Quality `SUCCESS` on the resulting exact Develop SHA before any further Develop mutation.
