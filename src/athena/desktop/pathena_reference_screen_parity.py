@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Final, cast
 
-from PySide6.QtCore import QObject, Slot
+from PySide6.QtCore import QObject, QTimer, Slot
 from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QLineEdit, QPushButton
 
 
@@ -57,6 +57,11 @@ class ReferenceScreenParity(QObject):
         current_row = getattr(navigation, "currentRow", None)
         index = current_row() if callable(current_row) else 0
         self._sync_navigation(index)
+
+        # The palette is installed later during desktop composition. A zero-delay
+        # handoff runs only after startup composition has completed, avoiding any
+        # import-order or application-shell coupling.
+        QTimer.singleShot(0, self._bind_installed_command_palette)
 
     def _apply_static_presentation(self) -> None:
         window = self._window
@@ -134,6 +139,17 @@ class ReferenceScreenParity(QObject):
         layout.insertWidget(max(0, layout.count() - 4), button)
         self._search_button = button
         return button
+
+    def _bind_installed_command_palette(self) -> None:
+        """Find the real palette after startup composition and bind it once."""
+        from athena.desktop.command_palette import CommandPaletteController
+
+        find_child = getattr(self._window, "findChild", None)
+        if not callable(find_child):
+            return
+        command_palette = find_child(CommandPaletteController)
+        if isinstance(command_palette, CommandPaletteController):
+            self.bind_command_palette(command_palette)
 
     @Slot(int)
     def _sync_navigation(self, index: int) -> None:
