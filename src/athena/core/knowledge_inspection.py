@@ -11,6 +11,7 @@ import uuid
 from collections.abc import Callable
 
 from athena.api.knowledge_inspection import KnowledgeInspectionApiService
+from athena.api.service import CoreApiFacade
 from athena.knowledge.inspection_service import ClaimReader, KnowledgeInspectionService
 from athena.knowledge.review_service import ReviewService
 
@@ -31,3 +32,21 @@ def build_knowledge_inspection_api(
         inspection=inspection,
         actor_id_provider=actor_id_provider,
     )
+
+
+def attach_knowledge_inspection_api(
+    *,
+    facade: CoreApiFacade,
+    claims: ClaimReader,
+    reviews: ReviewService,
+    actor_id_provider: Callable[[], uuid.UUID],
+) -> KnowledgeInspectionApiService:
+    """Build and attach one canonical Claim-inspection API instance."""
+
+    inspection_api = build_knowledge_inspection_api(
+        claims=claims,
+        reviews=reviews,
+        actor_id_provider=actor_id_provider,
+    )
+    facade.attach_knowledge_inspection(inspection_api)
+    return inspection_api
