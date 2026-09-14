@@ -206,10 +206,28 @@ def validate_pair_evidence(rows: list[dict[str, Any]]) -> dict[str, object]:
     }
 
 
+def evidence_exit_code(
+    report: dict[str, object],
+    *,
+    require_ready: bool = False,
+) -> int:
+    """Separate evidence-shape validity from an explicit 11/11 release gate."""
+    if report.get("errors"):
+        return 1
+    if require_ready and report.get("visual_ready_11_of_11") is not True:
+        return 2
+    return 0
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("evidence", type=Path)
     parser.add_argument("--json", action="store_true")
+    parser.add_argument(
+        "--require-ready",
+        action="store_true",
+        help="Exit non-zero unless all eleven authoritative same-state pairs are MATCH.",
+    )
     args = parser.parse_args()
     try:
         rows = _load(args.evidence)
@@ -231,7 +249,7 @@ def main() -> int:
         )
         for error in report["errors"]:
             print(f"ERROR: {error}")
-    return 1 if report["errors"] else 0
+    return evidence_exit_code(report, require_ready=args.require_ready)
 
 
 if __name__ == "__main__":
