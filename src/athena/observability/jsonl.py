@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import stat
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
@@ -53,6 +54,38 @@ def _validated_log_path(log_path: object) -> Path:
     return log_path.absolute()
 
 
+def _rotated_backup_index(path: Path, candidate: Path) -> int | None:
+    prefix = f"{path.name}."
+    if not candidate.name.startswith(prefix):
+        return None
+    suffix = candidate.name[len(prefix) :]
+    if not suffix.isascii() or not suffix.isdigit():
+        return None
+    index = int(suffix)
+    return index if index >= 1 else None
+
+
+def _prune_stale_rotated_files(path: Path, backup_count: int) -> None:
+    """Remove numeric rotated files outside the configured retention window."""
+    for candidate in path.parent.glob(f"{path.name}.*"):
+        index = _rotated_backup_index(path, candidate)
+        if index is None or index <= backup_count:
+            continue
+
+        try:
+            mode = candidate.lstat().st_mode
+        except FileNotFoundError:
+            continue
+        if not (stat.S_ISREG(mode) or stat.S_ISLNK(mode)):
+            raise ValueError(
+                "stale rotated log path must be a regular file or symbolic link."
+            )
+        try:
+            candidate.unlink()
+        except FileNotFoundError:
+            continue
+
+
 def configure_jsonl_logging(
     log_path: Path,
     *,
@@ -69,7 +102,8 @@ def configure_jsonl_logging(
 
     Repeated calls with the same configuration reuse the owned handler instead
     of duplicating persisted events. A changed path or rotation policy replaces
-    the previous ATHENA-owned JSONL handler deterministically.
+    the previous ATHENA-owned JSONL handler deterministically. Numeric backups
+    outside a reduced retention window are pruned before the new handler opens.
     """
     path = _validated_log_path(log_path)
     numeric_level = _validated_log_level(level)
@@ -77,9 +111,6 @@ def configure_jsonl_logging(
     validated_backup_count = _validated_positive_int(backup_count, "backup_count")
 
     root_logger = logging.getLogger()
-    if root_logger.level != logging.NOTSET and root_logger.level > numeric_level:
-        root_logger.setLevel(numeric_level)
-
     owned_handlers = [
         handler
         for handler in root_logger.handlers
@@ -99,6 +130,11 @@ def configure_jsonl_logging(
             continue
         root_logger.removeHandler(handler)
         handler.close()
+
+    _prune_stale_rotated_files(path, validated_backup_count)
+
+    if root_logger.level != logging.NOTSET and root_logger.level > numeric_level:
+        root_logger.setLevel(numeric_level)
 
     if reusable is not None:
         reusable.setLevel(numeric_level)
