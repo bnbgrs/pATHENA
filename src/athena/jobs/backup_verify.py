@@ -19,11 +19,13 @@ class BackupVerificationPlanningError(RuntimeError):
 
 
 class _DatabaseLike(Protocol):
-    connection: sqlite3.Connection
+    @property
+    def connection(self) -> sqlite3.Connection: ...
 
 
 class _BackupLike(Protocol):
-    database: _DatabaseLike
+    @property
+    def database(self) -> _DatabaseLike: ...
 
 
 @dataclass(frozen=True, slots=True)
