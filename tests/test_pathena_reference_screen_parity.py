@@ -34,6 +34,7 @@ from athena.desktop.pathena_reference_screen_parity import (  # noqa: E402
 class _ReferenceWindow(QWidget):
     def __init__(self) -> None:
         super().__init__()
+        self._core_transport_ready = False
         self.navigation = QListWidget(self)
         for label in (
             "Chat",
@@ -82,6 +83,13 @@ class _ReferenceWindow(QWidget):
         self.inspector.setObjectName("inspector")
         self.inspector_title = QLabel("DETAILS", self.inspector)
         self.inspector_title.setObjectName("inspectorTitle")
+
+        self.empty_eyebrow = QLabel("LOCAL-FIRST WORKSPACE", self)
+        self.empty_eyebrow.setObjectName("emptyStateEyebrow")
+        self.empty_title = QLabel("Waiting for the local core", self)
+        self.empty_title.setObjectName("emptyStateTitle")
+        self.empty_body = QLabel("Reconnecting…", self)
+        self.empty_body.setObjectName("emptyStateBody")
 
         self.pallas_canvas = QGraphicsView(self)
         self.pallas_canvas.setObjectName("pallasSemanticCanvas")
@@ -160,6 +168,9 @@ def test_parity_adapter_normalizes_live_shell_copy_and_navigation() -> None:
     assert window.local_status.text() == "Local · Private"
     assert window.page_title.text() == "Chat"
     assert window.inspector_title.text() == "KNOWLEDGE"
+    assert window.empty_eyebrow.text() == "LOCAL CORE · CONNECTING"
+    assert window.empty_title.text() == "Getting pATHENA ready"
+    assert window.empty_body.text() == "What shall we explore today?"
 
     window.navigation.setCurrentRow(1)
     app.processEvents()
