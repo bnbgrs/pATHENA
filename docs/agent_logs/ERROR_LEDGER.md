@@ -5,10 +5,10 @@ Evidence-first ledger for current exact-SHA failures. Historical IDs, old runs a
 ## Current source of truth
 
 - `develop/pathena-next@ee8aa791742f7cbdd056532e66a50da14c461c4a`; canonical Quality `34818856565 = SUCCESS`.
-- `postmerge/errors@e1b6e00f375fa5ceab143d01ee9c01ab598cd133` before this repair; canonical `34816691363 = FAILURE`, with validator/Ruff/mypy/Linux Storage/Windows release guards/Local Install green and exactly one inherited stale 48px UI pytest failure.
+- `postmerge/errors@158d62e9a1eb9ddaf3e0b5ff3112e75e4ec9d6cb` before this ledger refresh; carries the bounded `ERR-0064` harness fix. No exact workflow run had started on that SHA at refresh time.
 - `postmerge/spec-core@6c7f417a53428f496d7b31e330917d4a53c85189`; canonical `34818641155 = SUCCESS`.
 - `postmerge/backend@52eb61de9ecfde4074778a1bab2966e18aab526d`; canonical `34796053576 = SUCCESS`.
-- `postmerge/ui@a88eac5f05db4128ae21b7c747e95c16a91191c4`; Visual `34819309682 = FAILURE` only at final visual verdict after eleven captures and route identity pass. Canonical `34819314295` is still running at this ledger update.
+- `postmerge/ui@a88eac5f05db4128ae21b7c747e95c16a91191c4`; Visual `34819309682 = FAILURE` only at final visual verdict after eleven captures and route identity pass. Canonical `34819314295 = FAILURE`: Windows release guards, Linux Storage, Local Install, validator, Ruff and mypy are green; full pytest alone is red with three UI-specific assertions.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
 ## OPEN
@@ -19,11 +19,9 @@ Status: `IN_PROGRESS`
 
 Owner: Error/Harness.
 
-Exact reproduction: Core Focused `34819314380` on `postmerge/ui@a88eac5f05db4128ae21b7c747e95c16a91191c4`. Ruff and focused pytest are clean, but mypy diagnostics contain 61 errors in unrelated UI tests such as `test_pathena_window.py`, `test_system_workspace.py`, `test_pathena_comfyui_shell.py`, and other desktop tests. The focused pytest selector reports no changed Core-owned test files. Root cause is the Ruff/mypy selector in `core-focused-candidate.yml`: it accepts all `tests/unit/*.py`, while the workflow's declared Core ownership and focused pytest selector are limited to claim/knowledge/concept-note/identity-transition/temporal/user-correction test families.
+Exact reproduction: Core Focused `34819314380` on `postmerge/ui@a88eac5f05db4128ae21b7c747e95c16a91191c4`. Ruff and focused pytest are clean, but mypy diagnostics contain 61 errors in unrelated UI tests such as `test_pathena_window.py`, `test_system_workspace.py`, `test_pathena_comfyui_shell.py`, and other desktop tests. Focused pytest reports no changed Core-owned test files. Root cause: Ruff/mypy selection accepts all `tests/unit/*.py`, while the workflow's declared Core ownership is claim/knowledge/concept-note/identity-transition/temporal/user-correction test families.
 
-Bounded repair in this Error-worker candidate: keep `src/athena/knowledge/**` and `src/athena/api/knowledge_*.py`, but make Ruff, mypy and Ruff-remediation test selection use the same Core-owned test-family regex already used by focused pytest. No canonical test/type guard is weakened; repository-wide canonical Quality remains unchanged.
-
-Closure requires exact focused success on a candidate exercising the repaired workflow, followed by canonical qualification as applicable.
+Bounded repair committed on `postmerge/errors`: preserve `src/athena/knowledge/**` and `src/athena/api/knowledge_*.py`; make Ruff, mypy and Ruff-remediation use the same Core-owned test-family regex as focused pytest. Repository-wide canonical Quality remains unchanged. Closure requires exact focused success on a candidate exercising the repaired workflow and canonical qualification as applicable.
 
 ### ERR-0054 — P2 — Windows visual baseline review incomplete
 
@@ -31,7 +29,13 @@ Status: `OPEN`
 
 Owner: UI / Visual Review.
 
-Current exact Visual `34819309682` on `a88eac5f...` now captures all eleven surfaces, verifies route identity, compares/emits proposal, and uploads artifacts; only `Enforce visual verdict` fails. The current UI handoff still says `PAIRS_VERIFIED_0_OF_11` / `MATCH_0_OF_11`. No Error-worker baseline creation or acceptance. UI must open the eleven exact reference/render pairs and record truthful review states before closure.
+Current exact Visual `34819309682` now captures all eleven surfaces, verifies route identity, compares/emits proposal and uploads artifacts; only `Enforce visual verdict` fails. Current UI handoff remains `PAIRS_VERIFIED_0_OF_11` / `MATCH_0_OF_11`. No Error-worker baseline creation or acceptance. UI must open all eleven exact reference/render pairs and record truthful review states before closure.
+
+### Current UI canonical regression handoff — P2 — UI-owned
+
+Status: `OPEN`
+
+Exact canonical `34819314295` on `a88eac5f...` fails only full pytest with three current UI signatures: `test_pathena_design_system.py::test_spacing_and_motion_are_small_bounded_scales` expected `(15, 12, 42)`, observed `(15, 11, 30)`; `test_pathena_offline_comprehension.py::test_readiness_copy_tracks_real_local_state` expected `pATHENA reconnecting`, observed `Ask anything…`; `test_pathena_shell_density.py::test_shell_density_converges_real_shell_to_reference_geometry` expected composer height `94`, observed `118`. Release/storage/package/type lanes remain green. These are UI-owned candidate regressions; Error worker does not patch UI product code in parallel. UI must root-cause/split them on its successor.
 
 ## FIXED / HELD CLOSED
 
@@ -45,7 +49,7 @@ Exact current UI Visual `34819309682` passes `Capture exactly eleven canonical s
 
 Status: `FIXED`
 
-The exact current UI artifact `pathena-visual-a88eac5f...` contains eleven real captures, `errors=[]`, `status=PASS`, `assigned_reference_count=11`, `captured_reference_count=11`, and `captured_reference_surfaces` equal to the actual capture labels. The manifest therefore proves the bounded fix on an exact current SHA while preserving the fail-closed exact-eleven PASS contract. Do not touch again absent a new exact regression.
+The exact current UI artifact `pathena-visual-a88eac5f...` contains eleven real captures, `errors=[]`, `status=PASS`, `assigned_reference_count=11`, `captured_reference_count=11`, and `captured_reference_surfaces` equal to the actual capture labels. This proves the bounded fix on an exact current SHA while preserving the fail-closed exact-eleven PASS contract. Do not touch again absent a new exact regression.
 
 - `ERR-0062` — `FIXED`; no current matching Core failure.
 - `ERR-0060` — `FIXED`; no current matching Core failure.
@@ -66,8 +70,8 @@ No current exact evidence reopens pypdf packaging, fail-closed Frozen argv, Desk
 
 ## Next root cause
 
-1. Qualify this `ERR-0064` harness repair on its exact Error-worker SHA; do not supersede while canonical/focused checks are active.
-2. Consume terminal UI canonical result for `a88eac5f...`; open only a newly reproduced exact failure.
+1. Qualify `ERR-0064` on the exact Error-worker successor; do not supersede once its checks start.
+2. UI owns the three exact canonical pytest regressions on `a88eac5f...`; root-cause/split and verify its successor without Error-worker product mutation.
 3. UI owns `ERR-0054`: perform real 11/11 visual review; no baseline acceptance by Error worker.
 4. Keep `ERR-0059` and `ERR-0063` closed absent new exact regression.
 5. Keep Spec/Core and Backend closed while exact canonical-green.
