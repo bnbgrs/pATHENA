@@ -12,10 +12,17 @@ from athena.jobs.models import JobPriority, JobState
 class ResearchJobLike(Protocol):
     """Minimal durable job projection returned by the existing Research service."""
 
-    job_id: uuid.UUID
-    job_type: str
-    priority: JobPriority
-    state: JobState
+    @property
+    def job_id(self) -> uuid.UUID: ...
+
+    @property
+    def job_type(self) -> str: ...
+
+    @property
+    def priority(self) -> JobPriority: ...
+
+    @property
+    def state(self) -> JobState: ...
 
 
 class LocalResearchEnqueuer(Protocol):

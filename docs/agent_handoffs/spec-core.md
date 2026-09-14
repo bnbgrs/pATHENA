@@ -2,40 +2,42 @@
 
 ## Current source of truth
 
-- Develop checked first: `develop/pathena-next@3a8120805e41d0fe9d283fc948d6e52b327a8e58`.
-- Develop canonical Quality `34893392725 = SUCCESS`.
-- Worker before repair: `postmerge/spec-core@95a60521bb06cb883e14bdc5803181b224f53f64`.
+- Develop checked first: `develop/pathena-next@6a7280ef9847c61c3c3b532c1e3a14068ae14583`.
+- Develop canonical Quality `34907353758` is still `IN_PROGRESS`; no Develop sync is performed until that exact baseline is terminal green.
+- Worker before this repair: `postmerge/spec-core@1ae84717c80b31664cfecf35d614cb4450076c44`.
 - The Knowledge-read application chain is integrated in Develop and CLOSED.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
-## Current Core slice — Research API projection
+## Current Core slice — Research API projection qualification repair
 
-Current Develop contains a real durable `ResearchService` with local Exhaustive Research enqueue semantics. `athena.api.research.ResearchApiService` is a transport-neutral adapter over that existing enqueue boundary.
+Current worker contains `athena.api.research.ResearchApiService`, a transport-neutral adapter over the existing durable local Exhaustive Research enqueue boundary. The adapter delegates query, priority, coverage target, and requested model identity directly and projects only the durable job identity, type, priority, and state.
 
-Product contract:
+The exact prior worker `1ae84717c80b31664cfecf35d614cb4450076c44` produced two candidate-owned qualification defects:
 
-- local Exhaustive Research remains owned by the existing durable Research orchestrator;
-- the API adapter delegates query, priority, coverage target, and requested model identity without reimplementing Research scheduling;
-- the returned API response projects the durable job's exact identity, type, priority, and state;
-- no fake Research data, synthetic provenance, repository bypass, storage path, scheduler duplicate, or new Research engine is introduced.
+1. Core Focused `34903109878` selected `src/athena/api/research.py` correctly after the selector repair, but mypy rejected the mutable-attribute Protocol contract against the real immutable/frozen durable job projection. The repair changes `ResearchJobLike` to read-only Protocol properties; no cast, ignore, skip, XFail, or mypy relaxation is introduced.
+2. Canonical Quality `34903109969` passed specification validation, Ruff, mypy, Windows release guards, Linux storage, and local-install/Core-restart/pypdf, then failed full pytest only in stale Core-focused workflow contract expectations that still described the pre-Research selector. Those tests are updated to require the restrictive Research-inclusive selector and explicit Research trigger paths.
 
-`tests/unit/test_api_research.py` verifies exact delegation and durable job identity/type projection.
+Product invariants remain unchanged:
 
-## Current regression evidence
+- the existing durable Research orchestrator remains authoritative;
+- no fake Research data or synthetic provenance;
+- no repository, scheduler, transaction, or storage bypass;
+- no parallel Research engine;
+- persistent release guards remain unchanged;
+- no Skip/XFail or guard weakening.
 
-Exact worker `95a60521bb06cb883e14bdc5803181b224f53f64` produced two separate qualification findings:
+## Current Develop compatibility
 
-- Core Focused run `34898273973`: immutable checkout, Ruff, mypy, and changed focused pytest all completed successfully; only the final outcome-enforcer step failed. The changed-file selector contained a double `.py` suffix requirement for `src/athena/api/(knowledge_.*|research)`, so the selector contract itself was malformed. The repair removes the inner suffix and retains the single outer `\.py$`; no lint/type/test guard is relaxed.
-- Canonical Quality run `34898274002`: Windows path/storage/API/lifecycle/packaging guards, Linux storage, local-install/Core-restart/pypdf, specification validator, Ruff, and mypy succeeded. Only full pytest failed. Canonical diagnostics artifact `10370332645` exists for exact SHA `95a60521bb06cb883e14bdc5803181b224f53f64`; its exact failing-test signature must be consumed before any candidate-owned pytest repair is attempted.
+Develop moved from the worker's last green parent to `6a7280ef9847c61c3c3b532c1e3a14068ae14583` through the Backend-owned durable Deep verification pipeline. Its canonical Quality is still active. This worker repair intentionally does not merge or rewrite that unqualified Develop baseline. Once Develop is exact-SHA green, compatibility must be rechecked and incorporated history-preservingly together with the next real Core product slice rather than as a sync-only published head.
 
 ## Collision discipline
 
-Backend retains Storage/transaction/recovery ownership. UI retains Qt/PALLAS presentation. Security/Protection authorization semantics are unchanged. Persistent release guards and no-Skip/XFail remain binding.
+Backend retains Storage/transaction/recovery ownership, including the new durable Deep verification pipeline. UI retains Qt/PALLAS presentation. Security/Protection authorization semantics are unchanged. Core owns the Research transport-neutral API/facade/application composition only.
 
 ## Qualification state
 
-The focused selector repair is a guard correction, not a guard relaxation. After the repaired exact SHA is published, consume its Core Focused evidence first. Because canonical Quality is also expected to start automatically, do not publish another worker commit until that canonical run is terminal. If canonical full pytest remains red, repair only an exact candidate-owned failure; otherwise hand off unrelated regressions to their owner.
+After this atomic repair is published, consume exact-SHA Core Focused first. Do not publish any further worker commit once canonical Quality starts for the repaired candidate until that run is terminal. Integrator-ready remains forbidden until both exact focused and canonical evidence are green on a current-compatible Develop lineage.
 
 ## Next distinct Core gap
 
-After the Research adapter and guard are exact-SHA green and integrated, re-read current Develop and attach the existing `ResearchApiService` to `CoreApiFacade` with strict single-attach/capability gating, then compose the same real `ResearchService` instance in `AthenaApplication`. Do not reopen the closed Knowledge-read chain without a new exact regression.
+After the Research adapter/qualification repair is exact-SHA green and current Develop is terminal green, re-read current handoffs/specs/coverage and history-preservingly incorporate exact Develop in the same candidate as the next real product mutation. Highest verified next gap remains `ResearchApiService -> CoreApiFacade`: strict single attach, fail closed before attachment, truthful capability gating, and direct `start_local` delegation. Then compose that exact API service from the existing `AthenaApplication.self.research`. Do not reopen Knowledge-read without a new exact regression.
