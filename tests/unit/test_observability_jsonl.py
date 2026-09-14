@@ -41,6 +41,14 @@ def _remove_owned_console_handlers(root: logging.Logger) -> None:
         handler.close()
 
 
+def _replace_with_file_symlink_or_skip(link: Path, target: Path) -> None:
+    link.unlink(missing_ok=True)
+    try:
+        link.symlink_to(target)
+    except (NotImplementedError, OSError) as exc:
+        pytest.skip(f"file symlink creation is unavailable: {exc}")
+
+
 def test_configure_jsonl_logging_is_idempotent_and_uses_shared_redaction(
     tmp_path: Path,
 ) -> None:
@@ -268,3 +276,86 @@ def test_jsonl_logging_rejects_missing_parent_and_non_path(tmp_path: Path) -> No
 
     with pytest.raises(TypeError, match="pathlib.Path"):
         configure_jsonl_logging(cast(Path, str(tmp_path / "athena.jsonl")))
+
+
+def test_jsonl_logging_rejects_symlink_swap_before_delayed_first_open(
+    tmp_path: Path,
+) -> None:
+    root = logging.getLogger()
+    athena = logging.getLogger("athena")
+    original_root_level = root.level
+    original_athena_level = athena.level
+    original_raise_exceptions = logging.raiseExceptions
+    log_path = tmp_path / "athena.jsonl"
+    substituted_target = tmp_path / "substituted-target.txt"
+    substituted_target.write_text("sentinel", encoding="utf-8")
+
+    try:
+        _remove_owned_jsonl_handlers()
+        configure_jsonl_logging(log_path, level=logging.INFO)
+        handlers = _owned_jsonl_handlers(athena)
+        assert len(handlers) == 1
+        assert getattr(handlers[0], "stream", None) is None
+
+        _replace_with_file_symlink_or_skip(log_path, substituted_target)
+        logging.raiseExceptions = False
+        logging.getLogger("athena.open-safety").info(
+            "must not follow replaced log target",
+            extra={"event": "test.open_safety"},
+        )
+
+        assert substituted_target.read_text(encoding="utf-8") == "sentinel"
+        assert getattr(handlers[0], "stream", None) is None
+    finally:
+        logging.raiseExceptions = original_raise_exceptions
+        _remove_owned_jsonl_handlers()
+        root.setLevel(original_root_level)
+        athena.setLevel(original_athena_level)
+
+
+def test_jsonl_logging_revalidates_symlink_target_after_rollover(
+    tmp_path: Path,
+) -> None:
+    root = logging.getLogger()
+    athena = logging.getLogger("athena")
+    original_root_level = root.level
+    original_athena_level = athena.level
+    original_raise_exceptions = logging.raiseExceptions
+    log_path = tmp_path / "athena.jsonl"
+    substituted_target = tmp_path / "rollover-target.txt"
+    substituted_target.write_text("sentinel", encoding="utf-8")
+
+    try:
+        _remove_owned_jsonl_handlers()
+        configure_jsonl_logging(
+            log_path,
+            level=logging.INFO,
+            max_bytes=512,
+            backup_count=1,
+        )
+        logger = logging.getLogger("athena.rollover-open-safety")
+        logger.info(
+            "establish active log",
+            extra={"event": "test.rollover_open_safety"},
+        )
+
+        handler = _owned_jsonl_handlers(athena)[0]
+        assert isinstance(handler, RotatingFileHandler)
+        handler.flush()
+        handler.doRollover()
+        assert getattr(handler, "stream", None) is None
+
+        _replace_with_file_symlink_or_skip(log_path, substituted_target)
+        logging.raiseExceptions = False
+        logger.info(
+            "must not follow rollover replacement",
+            extra={"event": "test.rollover_open_safety"},
+        )
+
+        assert substituted_target.read_text(encoding="utf-8") == "sentinel"
+        assert getattr(handler, "stream", None) is None
+    finally:
+        logging.raiseExceptions = original_raise_exceptions
+        _remove_owned_jsonl_handlers()
+        root.setLevel(original_root_level)
+        athena.setLevel(original_athena_level)
