@@ -54,12 +54,11 @@ def test_reference_palette_is_navy_black_with_cobalt_interaction_accent() -> Non
     assert PALETTE.error != PALETTE.accent
 
 
-def test_reference_typography_uses_compact_modern_display_family() -> None:
-    assert "Segoe UI" in TYPE.display_family
+def test_reference_typography_uses_editorial_display_and_modern_body() -> None:
+    assert "Georgia" in TYPE.display_family
+    assert "serif" in TYPE.display_family.lower()
     assert "Segoe UI" in TYPE.content_family
-    assert "Georgia" not in TYPE.display_family
-    assert "Times New Roman" not in TYPE.display_family
-    assert TYPE.title_px >= 36
+    assert TYPE.title_px >= 40
     assert TYPE.section_px >= 20
     assert TYPE.body_px >= 15
     assert TYPE.metadata_px >= 12
@@ -72,3 +71,4 @@ def test_reference_shell_geometry_excludes_legacy_wide_sidebar() -> None:
     assert 330 <= SHELL.inspector_width <= 390
     assert 240 <= SHELL.secondary_nav_width <= 280
     assert SHELL.composer_min_height >= 72
+    assert SHELL.composer_action_size >= 48
