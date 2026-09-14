@@ -18,7 +18,9 @@ This slice intentionally excludes `src/athena/desktop/pathena_pallas_full_view.p
 - `tests/unit/test_pathena_pallas_living.py` — `42cb45920a0d862217f4423313ca64068312b0e0`
 - `docs/ui/PALLAS_LIVING_FIELD.md` — `3dfc7b804ad7ce7284322715dd2a5cb1406e8cb6`
 
-These blobs are copied unchanged from the source feature head after its isolated Ruff import-order repair.
+These feature blobs are copied unchanged from the source feature head after its isolated Ruff import-order repair.
+
+A current-base regression module, `tests/unit/test_pathena_pallas_living_qt.py`, was then added after Integrator review identified that the documented Qt lifecycle invariant was not directly exercised by the source candidate.
 
 ## Foundation behavior
 
@@ -36,7 +38,14 @@ These blobs are copied unchanged from the source feature head after its isolated
 
 `test_pathena_pallas_living.py` proves determinism, semantic attraction without edge creation, contradiction repulsion, age-glyph progression, reconciliation survival pulse and edge-bounded vitality diffusion.
 
-The test module does not depend on the full-view controller.
+`test_pathena_pallas_living_qt.py` uses the real `PallasGroundedFieldController` and offscreen Qt to prove:
+
+- one living tick changes presentation state without mutating `PallasGraphSnapshot.nodes` or `.edges`;
+- semantic, age and vitality lens changes remain presentation-only;
+- unknown lenses fail closed;
+- disposing the primary semantic field causes the living controller to stop its timer and clear runtime state.
+
+Neither test module depends on or mutates the competing full-view controller.
 
 ## Integration boundary
 
@@ -49,4 +58,4 @@ Do not reintroduce the source feature's detached/full-view behavior by copying i
 
 ## Qualification
 
-Require fresh current-base canonical Quality and UI Focused evidence. No visual MATCH claim is made by this foundation slice. No Skip/XFail or comparator relaxation.
+Require fresh current-base canonical Quality and UI Focused evidence on the exact current head after the added Qt lifecycle regression. No visual MATCH claim is made by this foundation slice. No Skip/XFail or comparator relaxation.
