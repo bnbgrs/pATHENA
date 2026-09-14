@@ -29,6 +29,7 @@ jobs:
     timeout-minutes: 20
     env:
       PYTHONUTF8: "1"
+      QT_QPA_PLATFORM: "offscreen"
 
     steps:
       - name: Resolve exact worker head and base
@@ -76,7 +77,7 @@ jobs:
           python -m pip install --disable-pip-version-check "uv==0.11.21"
           uv lock --check
           if ($LASTEXITCODE -ne 0) { throw "uv.lock is not current." }
-          uv sync --locked --extra dev
+          uv sync --locked --extra dev --extra desktop
           if ($LASTEXITCODE -ne 0) { throw "Locked environment sync failed." }
 
       - name: Ruff changed Core Python files
@@ -86,8 +87,8 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path ".focused-evidence" | Out-Null
           $changed = @(
-            git diff --diff-filter=ACMR --name-only $env:BASE_SHA $env:CANDIDATE_SHA -- "*.py" |
-              Where-Object { $_ -match '^(src/athena/knowledge/.*|src/athena/api/knowledge_.*|tests/unit/.*)\.py$' }
+            git diff --diff-filter=ACMRT --name-only $env:BASE_SHA $env:CANDIDATE_SHA -- "*.py" |
+              Where-Object { $_ -match '^(src/athena/knowledge/.*|src/athena/api/knowledge_.*|tests/unit/(test_claim.*|test_knowledge.*|test_concept_note.*|test_identity_transition.*|test_temporal.*|test_user_correction.*))\.py$' }
           )
           if ($LASTEXITCODE -ne 0) { throw "Unable to resolve changed Core Python files." }
           if ($changed.Count -eq 0) {
@@ -96,7 +97,7 @@ jobs:
           }
           Write-Host "Ruff exact candidate files:"
           $changed | ForEach-Object { Write-Host "  $_" }
-          $ruffOutput = @(& uv run --locked --extra dev --no-sync ruff check @changed 2>&1)
+          $ruffOutput = @(& uv run --locked --extra dev --extra desktop --no-sync ruff check @changed 2>&1)
           $ruffExit = $LASTEXITCODE
           $ruffOutput | Tee-Object -FilePath ".focused-evidence/ruff.txt" | ForEach-Object { Write-Host $_ }
           if ($ruffExit -ne 0) { throw "Exact changed-file Ruff contract failed." }
@@ -108,8 +109,8 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path ".focused-evidence" | Out-Null
           $changed = @(
-            git diff --diff-filter=ACMR --name-only $env:BASE_SHA $env:CANDIDATE_SHA -- "*.py" |
-              Where-Object { $_ -match '^(src/athena/knowledge/.*|src/athena/api/knowledge_.*|tests/unit/.*)\.py$' }
+            git diff --diff-filter=ACMRT --name-only $env:BASE_SHA $env:CANDIDATE_SHA -- "*.py" |
+              Where-Object { $_ -match '^(src/athena/knowledge/.*|src/athena/api/knowledge_.*|tests/unit/(test_claim.*|test_knowledge.*|test_concept_note.*|test_identity_transition.*|test_temporal.*|test_user_correction.*))\.py$' }
           )
           if ($LASTEXITCODE -ne 0) { throw "Unable to resolve changed Core Python files for mypy." }
           if ($changed.Count -eq 0) {
@@ -118,7 +119,7 @@ jobs:
           }
           Write-Host "Mypy exact candidate files:"
           $changed | ForEach-Object { Write-Host "  $_" }
-          $mypyOutput = @(& uv run --locked --extra dev --no-sync mypy @changed 2>&1)
+          $mypyOutput = @(& uv run --locked --extra dev --extra desktop --no-sync mypy @changed 2>&1)
           $mypyExit = $LASTEXITCODE
           $mypyOutput | Tee-Object -FilePath ".focused-evidence/mypy.txt" | ForEach-Object { Write-Host $_ }
           if ($mypyExit -ne 0) { throw "Exact changed-file mypy contract failed." }
@@ -130,7 +131,7 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path ".focused-evidence" | Out-Null
           $tests = @(
-            git diff --diff-filter=ACMR --name-only $env:BASE_SHA $env:CANDIDATE_SHA -- "tests/unit/*.py" |
+            git diff --diff-filter=ACMRT --name-only $env:BASE_SHA $env:CANDIDATE_SHA -- "tests/unit/*.py" |
               Where-Object { $_ -match '^tests/unit/(test_claim.*|test_knowledge.*|test_concept_note.*|test_identity_transition.*|test_temporal.*|test_user_correction.*)\.py$' }
           )
           if ($LASTEXITCODE -ne 0) { throw "Unable to resolve changed focused unit tests." }
@@ -140,7 +141,7 @@ jobs:
           }
           Write-Host "Pytest exact candidate Core-owned files:"
           $tests | ForEach-Object { Write-Host "  $_" }
-          $pytestOutput = @(& uv run --locked --extra dev --no-sync pytest -q @tests 2>&1)
+          $pytestOutput = @(& uv run --locked --extra dev --extra desktop --no-sync pytest -q @tests 2>&1)
           $pytestExit = $LASTEXITCODE
           $pytestOutput | Tee-Object -FilePath ".focused-evidence/pytest.txt" | ForEach-Object { Write-Host $_ }
           if ($pytestExit -ne 0) { throw "Exact changed-test Core candidate contract failed." }
@@ -151,8 +152,8 @@ jobs:
         run: |
           New-Item -ItemType Directory -Force -Path ".focused-evidence" | Out-Null
           $changed = @(
-            git diff --diff-filter=ACMR --name-only $env:BASE_SHA $env:CANDIDATE_SHA -- "*.py" |
-              Where-Object { $_ -match '^(src/athena/knowledge/.*|src/athena/api/knowledge_.*|tests/unit/.*)\.py$' }
+            git diff --diff-filter=ACMRT --name-only $env:BASE_SHA $env:CANDIDATE_SHA -- "*.py" |
+              Where-Object { $_ -match '^(src/athena/knowledge/.*|src/athena/api/knowledge_.*|tests/unit/(test_claim.*|test_knowledge.*|test_concept_note.*|test_identity_transition.*|test_temporal.*|test_user_correction.*))\.py$' }
           )
           if ($LASTEXITCODE -ne 0) { throw "Unable to resolve changed Core Python files for remediation." }
           if ($changed.Count -eq 0) {
@@ -162,7 +163,7 @@ jobs:
           if ((git status --porcelain --untracked-files=no).Count -ne 0) {
             throw "Candidate tracked worktree must be clean before diagnostic Ruff remediation."
           }
-          $fixOutput = @(& uv run --locked --extra dev --no-sync ruff check --fix @changed 2>&1)
+          $fixOutput = @(& uv run --locked --extra dev --extra desktop --no-sync ruff check --fix @changed 2>&1)
           $fixExit = $LASTEXITCODE
           $fixOutput | Out-File -FilePath ".focused-evidence/ruff-fix.txt" -Encoding utf8
           git diff --binary -- @changed | Out-File -FilePath ".focused-evidence/ruff-fix.diff" -Encoding utf8

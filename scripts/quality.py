@@ -1,16 +1,26 @@
-"""Run ATHENA's local quality gate.
+"""Run ATHENA's local canonical Python quality gate.
 
-This script intentionally mirrors the checks used by GitHub Actions so a
-developer can reproduce CI failures locally before pushing a commit.
+The command plan mirrors the primary Python quality job in GitHub Actions:
+validate the dependency lock, then run the specification validator, Ruff,
+mypy, the isolated Desktop API controller regression, and the remaining
+pytest suite through the locked project environment with development and
+desktop extras enabled.
 """
 
 from __future__ import annotations
 
 import argparse
+import os
+import shlex
 import subprocess
 import sys
 from collections.abc import Sequence
 from dataclasses import dataclass
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+UV_RUN_PREFIX = ("uv", "run", "--locked", "--extra", "dev", "--extra", "desktop")
+_DESKTOP_API_CONTROLLER_TEST = "tests/unit/test_desktop_api_controller.py"
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,27 +29,19 @@ class Check:
     command: tuple[str, ...]
 
 
-def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Run the ATHENA quality gate.")
-    parser.add_argument(
-        "--keep-going",
-        action="store_true",
-        help="run every check and report all failures instead of stopping at the first failure",
-    )
-    return parser.parse_args(argv)
-
-
-def main(argv: Sequence[str] | None = None) -> int:
-    args = _parse_args(argv)
-    checks = (
+def build_checks() -> tuple[Check, ...]:
+    """Return the current canonical local Python quality command plan."""
+    return (
+        Check(name="Dependency lock", command=("uv", "lock", "--check")),
         Check(
             name="Specification validator",
-            command=(sys.executable, "scripts/validate_spec.py"),
+            command=(*UV_RUN_PREFIX, "python", "scripts/validate_spec.py"),
         ),
         Check(
             name="Ruff",
             command=(
-                sys.executable,
+                *UV_RUN_PREFIX,
+                "python",
                 "-m",
                 "ruff",
                 "check",
@@ -50,26 +52,89 @@ def main(argv: Sequence[str] | None = None) -> int:
         ),
         Check(
             name="mypy",
-            command=(sys.executable, "-m", "mypy", "src/athena"),
+            command=(*UV_RUN_PREFIX, "python", "-m", "mypy", "src/athena"),
         ),
         Check(
-            name="pytest",
-            command=(sys.executable, "-m", "pytest"),
+            name="pytest — Desktop API controller",
+            command=(
+                *UV_RUN_PREFIX,
+                "python",
+                "-m",
+                "pytest",
+                _DESKTOP_API_CONTROLLER_TEST,
+            ),
+        ),
+        Check(
+            name="pytest — remaining canonical suite",
+            command=(
+                *UV_RUN_PREFIX,
+                "python",
+                "-m",
+                "pytest",
+                f"--ignore={_DESKTOP_API_CONTROLLER_TEST}",
+            ),
         ),
     )
 
+
+def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Run the ATHENA canonical local Python quality gate."
+    )
+    parser.add_argument(
+        "--keep-going",
+        action="store_true",
+        help="run every check and report all failures instead of stopping at the first failure",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="print the exact locked command plan without executing it",
+    )
+    return parser.parse_args(argv)
+
+
+def _quality_environment() -> dict[str, str]:
+    env = os.environ.copy()
+    env.setdefault("QT_QPA_PLATFORM", "offscreen")
+    return env
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = _parse_args(argv)
+    checks = build_checks()
+
     print("ATHENA QUALITY GATE")
     print("=" * 60)
+    print(f"Repository root: {REPO_ROOT}")
 
+    if args.dry_run:
+        print("\n[DRY RUN] Locked command plan")
+        for check in checks:
+            print(f"- {check.name}: {shlex.join(check.command)}")
+        return 0
+
+    env = _quality_environment()
     failures: list[tuple[str, int]] = []
+
     for check in checks:
         print(f"\n[RUN] {check.name}")
-        print(" ".join(check.command))
+        print(shlex.join(check.command))
 
-        completed = subprocess.run(
-            check.command,
-            check=False,
-        )
+        try:
+            completed = subprocess.run(
+                check.command,
+                check=False,
+                cwd=REPO_ROOT,
+                env=env,
+            )
+        except FileNotFoundError as exc:
+            print(
+                f"\n[FAIL] {check.name} could not start: {exc}. "
+                "Install the same pinned uv resolver used by canonical CI first.",
+                file=sys.stderr,
+            )
+            return 127
 
         if completed.returncode != 0:
             print(

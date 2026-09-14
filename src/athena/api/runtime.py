@@ -86,6 +86,11 @@ class LocalApiRuntime:
 
         try:
             _write_private_text(self.token_path, token + "\n")
+            # Discovery is the client-visible readiness barrier. Install the
+            # in-memory authenticator before publishing that barrier so a
+            # client can never observe a valid bootstrap file while the
+            # server still rejects its freshly issued token.
+            self._token = token
             _write_private_text(
                 self.discovery_path,
                 json.dumps(
@@ -104,7 +109,6 @@ class LocalApiRuntime:
                 pass
             raise
 
-        self._token = token
         return discovery
 
     def authenticate(self, presented_token: str) -> bool:

@@ -7,11 +7,12 @@ def _workflow_text() -> str:
     return WORKFLOW.read_text(encoding="utf-8")
 
 
-def test_core_focused_candidate_excludes_deleted_python_paths() -> None:
+def test_core_focused_candidate_excludes_deleted_but_keeps_type_changed_python_paths() -> None:
     text = _workflow_text()
-    selector = "git diff --diff-filter=ACMR --name-only $env:BASE_SHA $env:CANDIDATE_SHA"
+    selector = "git diff --diff-filter=ACMRT --name-only $env:BASE_SHA $env:CANDIDATE_SHA"
 
     assert text.count(selector) == 4
+    assert "--diff-filter=ACMR --name-only" not in text
     assert "git diff --name-only $env:BASE_SHA $env:CANDIDATE_SHA" not in text
 
 
@@ -27,17 +28,31 @@ def test_core_focused_pytest_selects_only_core_owned_test_families() -> None:
     assert "No changed Core-owned unit-test files selected" in text
 
 
-def test_core_focused_lints_and_types_knowledge_api_sources() -> None:
+def test_core_focused_lints_and_types_only_core_owned_python() -> None:
     text = _workflow_text()
-    selector = "^(src/athena/knowledge/.*|src/athena/api/knowledge_.*|tests/unit/.*)\\.py$"
+    selector = (
+        "^(src/athena/knowledge/.*|src/athena/api/knowledge_.*|tests/unit/("
+        "test_claim.*|test_knowledge.*|test_concept_note.*|test_identity_transition.*|"
+        "test_temporal.*|test_user_correction.*))\\.py$"
+    )
 
     assert '"src/athena/api/knowledge_*.py"' in text
     assert text.count(selector) == 3
+    assert "src/athena/api/knowledge_.*|tests/unit/.*" not in text
     assert "Mypy changed Core Python files" in text
     assert "mypy @changed" in text
     assert 'id: mypy' in text
     assert 'steps.mypy.outcome' in text
     assert "requires Ruff, mypy and focused pytest to succeed" in text
+
+
+def test_core_focused_supports_qt_backed_knowledge_contracts() -> None:
+    text = _workflow_text()
+
+    assert 'QT_QPA_PLATFORM: "offscreen"' in text
+    assert "uv sync --locked --extra dev --extra desktop" in text
+    assert text.count("uv run --locked --extra dev --extra desktop --no-sync") == 4
+    assert "uv sync --locked --extra dev\n" not in text
 
 
 def test_core_focused_remediation_ignores_only_untracked_evidence() -> None:

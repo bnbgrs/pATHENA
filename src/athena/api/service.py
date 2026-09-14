@@ -9,12 +9,15 @@ from typing import Protocol
 
 from athena.api.contracts import (
     API_VERSION,
+    CanonicalClaimResponse,
+    CanonicalClaimRevisionResponse,
     CanonicalMergeReviewResponse,
     CapabilitiesResponse,
     ChatMessageResponse,
     ChatSummaryResponse,
     ChatThreadResponse,
     ClaimProposalResponse,
+    ContradictionReviewResponse,
     DedupDecisionResponse,
     DeletionDependencyResponse,
     DeletionPreviewResponse,
@@ -34,6 +37,7 @@ from athena.api.contracts import (
     RelationProposalResponse,
     RememberedChatMessageResponse,
 )
+from athena.api.knowledge_inspection import KnowledgeInspectionApiService
 from athena.api.search_adapter import hybrid_search_result_response
 from athena.api.search_contracts import SearchResultResponse
 from athena.chat.models import ChatMessage, ChatSummary, ChatThread
@@ -91,6 +95,7 @@ class DirectChatSender(Protocol):
         temperature: float | None = None,
         reasoning_mode: str | None = "off",
     ) -> object: ...
+
 
 class PersonalMemoryWriter(Protocol):
     """Minimal explicit Personal Memory boundary used by message actions."""
@@ -230,6 +235,7 @@ class CoreApiFacade:
         self._extraction_snapshots: ExtractionSnapshotLoader | None = None
         self._proposal_review_planner: ProposalReviewPlanner | None = None
         self._knowledge_reviews: KnowledgeReviewQueue | None = None
+        self._knowledge_inspection: KnowledgeInspectionApiService | None = None
         self._normal_search: NormalSearch | None = None
 
     def attach_normal_search(self, search: NormalSearch) -> None:
@@ -238,6 +244,16 @@ class CoreApiFacade:
         if self._normal_search is not None:
             raise RuntimeError("Normal Hybrid Search is already attached to the Core API.")
         self._normal_search = search
+
+    def attach_knowledge_inspection(
+        self,
+        inspection: KnowledgeInspectionApiService,
+    ) -> None:
+        """Attach canonical Claim inspection exactly once."""
+
+        if self._knowledge_inspection is not None:
+            raise RuntimeError("Knowledge inspection is already attached to the Core API.")
+        self._knowledge_inspection = inspection
 
     def attach_unified_local_chat(
         self,
@@ -319,12 +335,64 @@ class CoreApiFacade:
                 "knowledge.review.preflight",
                 "knowledge.review.merge",
             )
+        if self._knowledge_inspection is not None:
+            features = (
+                *features,
+                "knowledge.claim.inspect",
+                "knowledge.review.contradiction",
+            )
         if self._normal_search is not None:
             features = (*features, "search.normal.hybrid")
         return CapabilitiesResponse(
             api_version=API_VERSION,
             features=features,
         )
+
+    def list_claims(self, *, limit: int = 100) -> tuple[CanonicalClaimResponse, ...]:
+        return self._knowledge_inspection_service().list_claims(limit=limit)
+
+    def load_claim(self, claim_id: str) -> CanonicalClaimResponse:
+        return self._knowledge_inspection_service().load_claim(claim_id)
+
+    def claim_history(
+        self,
+        claim_id: str,
+    ) -> tuple[CanonicalClaimRevisionResponse, ...]:
+        return self._knowledge_inspection_service().claim_history(claim_id)
+
+    def list_pending_contradictions(
+        self,
+        *,
+        limit: int = 100,
+    ) -> tuple[ContradictionReviewResponse, ...]:
+        return self._knowledge_inspection_service().list_pending_contradictions(
+            limit=limit
+        )
+
+    def load_contradiction_review(
+        self,
+        review_id: str,
+    ) -> ContradictionReviewResponse:
+        return self._knowledge_inspection_service().load_contradiction_review(review_id)
+
+    def resolve_contradiction_review(
+        self,
+        review_id: str,
+        *,
+        decision: str,
+    ) -> ContradictionReviewResponse:
+        return self._knowledge_inspection_service().resolve_contradiction_review(
+            review_id,
+            decision=decision,
+        )
+
+    def _knowledge_inspection_service(self) -> KnowledgeInspectionApiService:
+        inspection = self._knowledge_inspection
+        if inspection is None:
+            raise RuntimeError(
+                "Knowledge inspection is unavailable in this Core process."
+            )
+        return inspection
 
     def list_chats(
         self,
@@ -1328,7 +1396,6 @@ def _grounded_chat_response(
             else result.embedding_model.backend_model_id
         ),
     )
-
 
 
 def _deletion_preview(preview: DeletionPreview) -> DeletionPreviewResponse:

@@ -4,30 +4,30 @@ Evidence-only progress register for `develop/pathena-next`. No invented completi
 
 ## Current baseline
 
-- Develop parent before this integration: `1530c1e8f17f53a6cbfbda7b7c53b8ee50afe2b5`.
-- Exact canonical Quality on that parent: `34785279278 = SUCCESS`.
+- Develop parent before this integration: `3231615650473fd549a7d852fb3bbe215f7b721f`.
+- Exact canonical Quality on that parent: `34811112376 = SUCCESS`.
 - Persistent release guards remain mandatory and unchanged.
 
 ## Current integration state
 
-Develop retains the bounded product capabilities integrated through the current baseline, including temporal staleness consolidation, explicit user-correction and semantic-identity guards, ScheduleDefinition IANA timezone validation, configurable backup quiet hour, truthful visual-capture metadata, canonical 44×44 Send-target/title hierarchy contracts, and Core focused-candidate mypy qualification.
+Develop already contains persistence-neutral Knowledge merge/split planning, application-facing planning, Core API authentication-readiness ordering, deterministic project Knowledge membership, the transport-neutral canonical Claim inspection adapter, and facade exposure for Claim inspection/contradiction review.
 
-This integration adds bounded Knowledge merge/split identity planning from exact worker `52b4e322041547e9039a0f3026f6747583605914`, verified by Core Focused `34789228532 = SUCCESS` and canonical Quality `34789228473 = SUCCESS`. Merge planning explicitly records which canonical IDs are retained or superseded; split planning requires at least two unique new UUID identities and supersedes the source identity. The planner remains persistence-neutral and fail-closed on malformed runtime identity values.
+This integration adds a bounded Core composition helper for that Claim-inspection chain. The helper consumes the existing canonical `ClaimRepository`, `ReviewService`, and actor provider, constructs `KnowledgeInspectionService`, and wraps it in `KnowledgeInspectionApiService`. It creates no second persistence, repository, review, actor, or DTO path.
 
-No worker history is merged, and no Security, Storage, Recovery, packaging, runtime, visual, test-strength, or Skip/XFail guard is relaxed.
+Focused regression coverage verifies exact dependency reuse by identity, including the actor provider. No Security, Storage, Recovery, packaging, runtime-locality, visual, test-strength, or Skip/XFail guard is relaxed.
 
 ## Current worker truth
 
-- Errors `e8247f46fd2bc685fae10d5bfbd2efceb5a19904`.
-- Spec/Core `52b4e322041547e9039a0f3026f6747583605914`: bounded merge/split slice exact green and promoted in this integration.
-- Backend `e4e1244e8482ac7d78e557ded5f91252cccc0347`: tree-equivalent to the pre-integration Develop parent; no product delta.
-- UI `05d640fd13212f8671bff0f0ca49a673df4f10c1`: latest visual run `34793863216 = FAILURE`; not READY.
+- Errors `35871d5e32dd49306b433374de9b2693048eb24f`: current UI-capture diagnosis/documentation; no selected product fix.
+- Spec/Core `ae82147ab8de6d3805bb5f2299497296af8ff19f`: previous facade product slice is already represented in Develop; no new selected delta.
+- Backend `52eb61de9ecfde4074778a1bab2966e18aab526d`: no new selected product delta.
+- UI `5c2f066a9542569f8f23398e10cd7187c4722882`: new navigation-rail presentation work remains unpromoted pending exact qualification and fail-closed visual review.
 
 ## Error and visual truth rules
 
 - `docs/agent_logs/ERROR_LEDGER.md` remains historical wherever newer exact-SHA evidence exists.
 - Eleven-screen status remains fail-closed; no visual `MATCH` without opened original reference plus real exact-SHA render and reviewed baseline.
-- The current verified Send target remains 44×44 outer geometry.
+- Current verified Send target remains 44×44 outer geometry.
 
 ## Persistent release guards
 
@@ -37,4 +37,4 @@ Do not relax: pypdf packaging; fail-closed Frozen argv; Desktop/Worker two-EXE s
 
 `PROMOTION_READY=NO`
 
-The resulting exact Develop SHA requires canonical Quality before any additional Develop mutation.
+The resulting exact Develop SHA requires canonical Quality before any additional Develop mutation. Once green, the next bounded step is `AthenaApplication` wiring of the new composition helper using `ChatService.ensure_local_user` as the sole local actor provider, followed by attachment to `CoreApiFacade`.
