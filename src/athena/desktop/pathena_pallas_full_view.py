@@ -147,6 +147,23 @@ class PallasFullViewController(QObject):
             return
         target.setFocus(Qt.FocusReason.OtherFocusReason)
 
+    def _pallas_inspector(self) -> object | None:
+        return getattr(self._window, "_pathena_pallas_inspector_controller", None)
+
+    def _claim_inspector_context(self) -> None:
+        inspector = self._pallas_inspector()
+        set_selection = getattr(inspector, "set_selection", None)
+        if not callable(set_selection):
+            return
+        selection = getattr(self._grounded_controller, "_selection", None)
+        set_selection(selection)
+
+    def _release_inspector_context(self) -> None:
+        inspector = self._pallas_inspector()
+        clear_selection = getattr(inspector, "clear_selection", None)
+        if callable(clear_selection):
+            clear_selection()
+
     def _create_shell_surface(self) -> PallasWorkspace:
         host = QFrame(self._reference_body)
         host.setObjectName("pallasShellWorkspaceHost")
@@ -222,6 +239,7 @@ class PallasFullViewController(QObject):
         workspace.show()
         self._open = True
         self._window.setProperty("pathenaPallasShellOpen", True)
+        self._claim_inspector_context()
         workspace.field.canvas.setFocus(Qt.FocusReason.OtherFocusReason)
         if opening:
             self.workspace_opened.emit()
@@ -237,6 +255,8 @@ class PallasFullViewController(QObject):
             self._center.show()
         self._open = False
         self._window.setProperty("pathenaPallasShellOpen", False)
+        if was_open:
+            self._release_inspector_context()
         self._restore_previous_focus()
         if was_open:
             self.workspace_closed.emit()
