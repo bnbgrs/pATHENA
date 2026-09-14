@@ -10,7 +10,11 @@ from typing import Any, cast
 
 import pytest
 
-from athena.backup.service import BackupRestoreError, BackupService, BackupSnapshotRecord
+from athena.backup.service import (
+    BackupRestoreError,
+    BackupService,
+    BackupSnapshotRecord,
+)
 from athena.jobs.backup_verify_worker import (
     BACKUP_DEEP_VERIFY_JOB_TYPE,
     BackupDeepVerifyJobError,
