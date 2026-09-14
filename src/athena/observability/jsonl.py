@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import os
 import stat
+from io import TextIOWrapper
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
@@ -48,9 +49,7 @@ def _validate_open_file(path: Path, file_descriptor: int) -> None:
 class _SecureRotatingFileHandler(RotatingFileHandler):
     """Rotating handler that revalidates path identity at every real open."""
 
-    def _open(self):  # type: ignore[no-untyped-def]
-        path = Path(self.baseFilename)
-
+    def _open(self) -> TextIOWrapper:
         def opener(filename: str, flags: int) -> int:
             secure_flags = flags
             no_follow = getattr(os, "O_NOFOLLOW", 0)
