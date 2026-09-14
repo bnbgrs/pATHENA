@@ -95,6 +95,18 @@ QWidget[pathenaProgressiveRole="decision"] {{
 QWidget[pathenaProgressiveRole="decision"]:focus {{
     border: 1px solid {PALETTE.accent};
 }}
+QLineEdit[pathenaPrimaryInput="true"] {{
+    background: {PALETTE.surface_raised};
+    border: 1px solid {PALETTE.border};
+    color: {PALETTE.text};
+}}
+QLineEdit[pathenaPrimaryInput="true"]:hover {{
+    border-color: {PALETTE.border_strong};
+}}
+QLineEdit[pathenaPrimaryInput="true"]:focus {{
+    background: {PALETTE.surface_raised};
+    border: 1px solid {PALETTE.accent};
+}}
 """
 
 
