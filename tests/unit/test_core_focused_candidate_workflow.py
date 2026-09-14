@@ -7,11 +7,12 @@ def _workflow_text() -> str:
     return WORKFLOW.read_text(encoding="utf-8")
 
 
-def test_core_focused_candidate_excludes_deleted_python_paths() -> None:
+def test_core_focused_candidate_excludes_deleted_but_keeps_type_changed_python_paths() -> None:
     text = _workflow_text()
-    selector = "git diff --diff-filter=ACMR --name-only $env:BASE_SHA $env:CANDIDATE_SHA"
+    selector = "git diff --diff-filter=ACMRT --name-only $env:BASE_SHA $env:CANDIDATE_SHA"
 
     assert text.count(selector) == 4
+    assert "--diff-filter=ACMR --name-only" not in text
     assert "git diff --name-only $env:BASE_SHA $env:CANDIDATE_SHA" not in text
 
 
