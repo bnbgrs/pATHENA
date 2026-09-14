@@ -287,7 +287,7 @@ class PathenaLayoutRefinement(QObject):
             ground.setMinimumWidth(62 if compact else 72)
             ground.setMaximumWidth(82)
             ground.setMinimumHeight(SHELL.composer_action_size)
-            ground.setText("Source" if compact else "Sources")
+            ground.setText("Ground")
             ground.setAccessibleDescription(
                 "Use grounded sources for the next response."
             )
