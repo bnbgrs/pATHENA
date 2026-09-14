@@ -3,7 +3,14 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QEvent, QObject, Qt, Slot
-from PySide6.QtWidgets import QDialog, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QDialog,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 from shiboken6 import isValid
 
 from athena.desktop.pathena_pallas_field import (
@@ -30,17 +37,24 @@ class PallasFullViewController(QObject):
         self._viewport = grounded_controller.field.canvas.viewport()
         self._viewport.installEventFilter(self)
         self._living_controller = PallasLivingQtController(grounded_controller, self)
-        self._living_controller.diagnostics_changed.connect(self._apply_living_diagnostics)
+        self._living_controller.diagnostics_changed.connect(
+            self._apply_living_diagnostics
+        )
 
         grounded_controller.target.setToolTip(
             "PALLAS — double-click to open the synchronized living semantic workspace"
         )
-        grounded_controller.target.setAccessibleName("PALLAS compact living semantic field")
+        grounded_controller.target.setAccessibleName(
+            "PALLAS compact living semantic field"
+        )
         grounded_controller.target.setAccessibleDescription(
-            "The grounded graph self-organizes visually at 30 FPS. Double-click to open the full workspace."
+            "The grounded graph self-organizes visually at 30 FPS. "
+            "Double-click to open the full workspace."
         )
         grounded_controller.target.setProperty("pathenaPallasLiving", True)
-        grounded_controller.target.setProperty("pathenaPallasLivingRenderer", "force-ca-v1")
+        grounded_controller.target.setProperty(
+            "pathenaPallasLivingRenderer", "force-ca-v1"
+        )
         grounded_controller.field.canvas.setToolTip(
             "Double-click to open full PALLAS. Select a node to inspect it."
         )
@@ -58,7 +72,10 @@ class PallasFullViewController(QObject):
         return self._living_controller
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
-        if watched is self._viewport and event.type() == QEvent.Type.MouseButtonDblClick:
+        if (
+            watched is self._viewport
+            and event.type() == QEvent.Type.MouseButtonDblClick
+        ):
             button = getattr(event, "button", None)
             if callable(button) and button() == Qt.MouseButton.LeftButton:
                 self.open_workspace()
@@ -67,10 +84,15 @@ class PallasFullViewController(QObject):
 
     @Slot()
     def open_workspace(self) -> None:
-        """Show or raise the single full workspace synchronized by the grounded controller."""
+        """Show or raise the single full workspace synchronized by the controller."""
         dialog = self._dialog
         workspace = self._workspace
-        if dialog is None or workspace is None or not isValid(dialog) or not isValid(workspace):
+        if (
+            dialog is None
+            or workspace is None
+            or not isValid(dialog)
+            or not isValid(workspace)
+        ):
             dialog = QDialog(self._window)
             dialog.setObjectName("pallasFullViewDialog")
             dialog.setWindowTitle("PALLAS")
@@ -95,7 +117,9 @@ class PallasFullViewController(QObject):
                 button.setObjectName(f"pallasLens{lens.title()}Button")
                 button.setAccessibleName(f"PALLAS {lens} lens")
                 button.clicked.connect(
-                    lambda _checked=False, value=lens: self._living_controller.set_lens(value)
+                    lambda _checked=False, value=lens: (
+                        self._living_controller.set_lens(value)
+                    )
                 )
                 toolbar.addWidget(button)
             outer.addLayout(toolbar)
@@ -115,7 +139,11 @@ class PallasFullViewController(QObject):
     @Slot(object)
     def _apply_living_diagnostics(self, diagnostics: object) -> None:
         status = self._living_status
-        if status is None or not isValid(status) or not isinstance(diagnostics, dict):
+        if (
+            status is None
+            or not isValid(status)
+            or not isinstance(diagnostics, dict)
+        ):
             return
         fps = diagnostics.get("fps_target", 30)
         active = diagnostics.get("active", 0)
