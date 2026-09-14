@@ -22,11 +22,14 @@ pathena_theme = pytest.importorskip(
 )
 
 
-def test_palette_matches_the_redesign_foundation() -> None:
-    assert PALETTE.canvas == "#060606"
-    assert PALETTE.surface == "#0A0A0A"
-    assert PALETTE.text == "#F5F5F5"
-    assert PALETTE.accent == "#F26A21"
+def test_palette_matches_the_eleven_screen_reference_foundation() -> None:
+    assert PALETTE.canvas == "#061421"
+    assert PALETTE.surface == "#06121F"
+    assert PALETTE.text == "#F3F6F9"
+    assert PALETTE.accent == "#3B82F6"
+    assert PALETTE.success != PALETTE.accent
+    assert PALETTE.warning != PALETTE.accent
+    assert PALETTE.error != PALETTE.accent
 
 
 def test_spacing_and_motion_are_small_bounded_scales() -> None:
