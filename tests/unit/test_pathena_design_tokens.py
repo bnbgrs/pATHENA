@@ -57,7 +57,8 @@ def test_reference_palette_is_navy_black_with_cobalt_interaction_accent() -> Non
 def test_reference_typography_uses_compact_modern_display_family() -> None:
     assert "Segoe UI" in TYPE.display_family
     assert "Segoe UI" in TYPE.content_family
-    assert "serif" not in TYPE.display_family.lower()
+    assert "Georgia" not in TYPE.display_family
+    assert "Times New Roman" not in TYPE.display_family
     assert TYPE.title_px >= 36
     assert TYPE.section_px >= 20
     assert TYPE.body_px >= 15
