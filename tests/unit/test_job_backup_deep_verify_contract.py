@@ -11,8 +11,8 @@ from athena.jobs.payload_validation import (
 )
 from athena.jobs.service import DurableJobService
 
-_SNAPSHOT_ID = uuid.UUID("10000000-0000-0000-0000-000000000001")
-_TARGET_ID = uuid.UUID("20000000-0000-0000-0000-000000000002")
+_SNAPSHOT_ID = uuid.UUID("a0000000-0000-0000-0000-00000000000a")
+_TARGET_ID = uuid.UUID("b0000000-0000-0000-0000-00000000000b")
 
 
 def _scope() -> dict[str, object]:
