@@ -44,6 +44,7 @@ class DurableJobService:
         {
             "archive.replicate",
             "backup.create",
+            "backup.verify_deep",
             "source.process",
             "source.analyze",
             "source.extract",
