@@ -4,13 +4,13 @@ Evidence-first ledger for current exact-SHA failures. Historical IDs, old runs a
 
 ## Current source of truth
 
-- `develop/pathena-next@3a8120805e41d0fe9d283fc948d6e52b327a8e58`; exact canonical Quality `34893392725 = SUCCESS`. Its parent `ca8a213932d59c4e90dc573c4a3a970f10cc3c51` also completed canonical Quality `34890132641 = SUCCESS`.
-- `postmerge/errors@4d0dce9be0cde1c9d91343394f4f3d91da7512f1` before this refresh; no queued/in-progress Error-worker workflow exists on that exact SHA.
-- `postmerge/spec-core@9fe5dd44473ae200941d40ba37d14bc8816fdcdf`; exact Core Focused `34886553609 = SUCCESS`, exact canonical Quality `34886553447 = SUCCESS`.
-- `postmerge/backend@44057bf0d93104992a825b0b611f04c2161d57fb`; exact Backend Focused `34893078182 = SUCCESS`, exact canonical Quality `34893078134 = SUCCESS`.
+- `develop/pathena-next@3a8120805e41d0fe9d283fc948d6e52b327a8e58`; exact canonical Quality `34893392725 = SUCCESS`.
+- `postmerge/errors@44930e07f8cb422a13da9b4036c6187aa4a770eb` before this refresh; no queued/in-progress Error-worker workflow exists on that exact lineage.
+- `postmerge/spec-core@95a60521bb06cb883e14bdc5803181b224f53f64`; exact Core Focused `34898273973 = FAILURE`; exact canonical Quality `34898274002 = FAILURE`.
+- `postmerge/backend@13ccd56eb7c4451e0b5b06532e98a67ec989c774`; exact Backend Focused `34899421459 = SUCCESS`; exact canonical Quality `34899421431 = SUCCESS`.
 - `postmerge/ui@e149515870b773548a164658775159f29de323af`; latest exact current-SHA evidence remains Visual run `34888542153 = FAILURE`, with all technical stages through exact-eleven capture, route identity, compare/proposal and artifact upload `SUCCESS`; only `Enforce visual verdict` is `FAILURE`.
 - The prior UI parent `a6298adb68af02537b87b26433003d830adb569d` reproduced product assertions `ERR-0067/0068/0069`; no canonical/focused run on current UI SHA `e1495158...` has reproduced those assertions.
-- No current exact evidence reproduces the persistent pypdf/Frozen-argv/two-EXE/bounded-worker/adaptive-2048/lane-lock/duplicate-column/Core-startup/storage-bootstrap guards.
+- Current Spec/Core canonical Windows release guards, Linux storage regressions, local install/pypdf, specification validator, Ruff and mypy are green. No current exact evidence reproduces the persistent pypdf/Frozen-argv/two-EXE/bounded-worker/adaptive-2048/lane-lock/duplicate-column/Core-startup/storage-bootstrap guards.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
 ## OPEN
@@ -22,6 +22,22 @@ Status: `OPEN`
 Owner: UI / Visual Review.
 
 Current exact UI Visual run `34888542153` on `e1495158...` proves the technical pipeline is healthy through exact-eleven native capture, route identity, comparator/proposal and artifact upload, then fails only at the fail-closed visual verdict. Current UI handoff remains `PAIRS_VERIFIED_0_OF_11` / `MATCH_0_OF_11` and Visual readiness `NO`. Error worker must not create or accept a baseline. Closure requires UI to open original references and exact-SHA render pairs and review all eleven truthfully.
+
+### ERR-0070 — P2 — Core focused selector contract drift after Research expansion
+
+Status: `OPEN`
+
+Owner: Spec/Core.
+
+Exact canonical Quality `34898274002` on `postmerge/spec-core@95a60521...` completed with exactly two pytest failures and otherwise `5257 passed, 17 skipped`. Both failures are in `tests/unit/test_core_focused_candidate_workflow.py`: the contract still expects the pre-Research pytest selector and pre-Research lint/type selector counts, while commit `95a60521...` intentionally expanded `.github/workflows/core-focused-candidate.yml` to include `src/athena/api/research.py` and `tests/unit/test_api_research.py`. This is a stale harness-contract assertion, not a product regression. Spec/Core must update the focused-workflow contract to assert the intended expanded ownership boundary without loosening the selector.
+
+### ERR-0071 — P2 — Core focused mypy target crosses installed-package typing boundary
+
+Status: `OPEN`
+
+Owner: Spec/Core.
+
+Exact Core Focused `34898273973` on the same SHA has Ruff `SUCCESS`, focused pytest `SUCCESS` (`2 passed`), but mypy `FAILURE`. The uploaded exact diagnostics show only `tests/unit/test_api_research.py` failing with two `import-untyped` errors for `athena.api.research` and `athena.jobs.models`. The enforcement step is red solely because mypy is red. The Research selector expansion must retain Research coverage while making the focused typing target/package-resolution strategy consistent with the repository's typed-source boundary; no `ignore_missing_imports`, blanket error-code suppression, Skip/XFail, or gate weakening is permitted.
 
 ## IN_PROGRESS
 
@@ -55,13 +71,13 @@ The assertion was reproduced on prior UI SHA `a6298adb...`, not on current exact
 
 Status: `FIXED`
 
-Current Develop `3a812080...` canonical Quality `34893392725 = SUCCESS`; the previously active parent candidate `ca8a2139...` also closed canonical green. No Develop-owned error cluster is current.
+Current Develop `3a812080...` canonical Quality `34893392725 = SUCCESS`. No Develop-owned error cluster is current.
 
 ### Backend current successor
 
 Status: `FIXED`
 
-Current Backend `44057bf0...` has exact Backend Focused `34893078182 = SUCCESS` and canonical Quality `34893078134 = SUCCESS`. No Backend/Storage/Recovery root cause is current.
+Current Backend `13ccd56e...` has exact Backend Focused `34899421459 = SUCCESS` and canonical Quality `34899421431 = SUCCESS`. No Backend/Storage/Recovery root cause is current.
 
 ### ERR-0059 — P2 — manifest capture truth
 
@@ -79,19 +95,19 @@ Current exact UI Visual run explicitly passes exact-eleven capture and route ide
 
 Status: `FIXED`
 
-Current Spec/Core exact focused and canonical evidence is green. No matching current regression.
+No current matching regression. The new Spec/Core red state is separately isolated as `ERR-0070/ERR-0071`.
 
 ### ERR-0065 — P2 — prior Core Focused enforcement failure
 
-Status: `FIXED`
+Status: `STALE`
 
-Current Spec/Core exact focused and canonical evidence is green.
+The historical generic enforcement signature is superseded by exact current root causes `ERR-0070` and `ERR-0071`; do not reopen the old aggregate ID.
 
 ### ERR-0064 — P2 — Core Focused selector crossed ownership boundary
 
 Status: `FIXED`
 
-Bounded selector repair remains integrated; no current matching regression.
+The current Research expansion is intentional Spec/Core ownership, not a recurrence of the prior cross-ownership selector defect. Current failure is contract drift plus focused-mypy package resolution, isolated as `ERR-0070/ERR-0071`.
 
 - `ERR-0062` — `FIXED`.
 - `ERR-0060` — `FIXED`.
@@ -106,14 +122,20 @@ Status: `STALE`
 
 The aggregate red state on `a6298adb...` was decomposed into `ERR-0067/0068/0069`. On current UI SHA `e1495158...`, current evidence is only the Visual review verdict failure. Do not create a new cascade ID from that verdict.
 
+### Generic Spec/Core focused enforcement failure
+
+Status: `STALE`
+
+Core Focused `34898273973` has changed tests and Ruff green; its final enforcement failure is a cascade of the exact mypy root cause `ERR-0071`. Canonical `34898274002` independently identifies `ERR-0070`. Do not add a third aggregate error for the red workflow conclusions.
+
 ## Persistent release guards
 
-Develop, Spec/Core and Backend are current exact canonical green. Current UI Visual evidence preserves exact-eleven capture and route identity. Keep pypdf packaging, fail-closed Frozen argv, Desktop/Worker executable separation, single Desktop with bounded workers, adaptive 2048-context reserve, Windows lane-lock escalation, duplicate-column, Core-startup and storage-bootstrap protections unchanged.
+Develop and Backend are current exact canonical green. Spec/Core current canonical is red only in pytest for the two `test_core_focused_candidate_workflow.py` assertions; Windows release guards, Linux storage, local install/pypdf, validator, Ruff and canonical mypy are green. Current UI Visual evidence preserves exact-eleven capture and route identity. Keep pypdf packaging, fail-closed Frozen argv, Desktop/Worker executable separation, single Desktop with bounded workers, adaptive 2048-context reserve, Windows lane-lock escalation, duplicate-column, Core-startup and storage-bootstrap protections unchanged.
 
 ## Next root cause
 
-1. Consume the next current-SHA UI canonical/focused evidence when produced for `e1495158...`; reclassify `ERR-0067/0068/0069` independently from direct exact assertions.
-2. Keep `ERR-0054` UI/Visual-Review-owned; no Error-worker baseline acceptance.
-3. Keep Develop, Spec/Core and Backend closed while their current exact evidence remains green.
-4. Keep `ERR-0059`, `ERR-0063`, `ERR-0064`, `ERR-0065` and `ERR-0066` closed absent new exact regression.
-5. If a new worker successor appears, qualify its exact focused/canonical state before using historical IDs or priorities.
+1. Spec/Core owns `ERR-0070`: synchronize the focused-workflow contract with the intentional Research selector expansion, preserving the exact ownership boundary.
+2. Spec/Core owns `ERR-0071`: retain Research coverage but correct focused mypy target/package-resolution semantics without suppression or gate weakening; then require both exact Core Focused and canonical Quality green on the same successor SHA.
+3. Consume the next current-SHA UI canonical/focused evidence when produced for `e1495158...`; reclassify `ERR-0067/0068/0069` independently from direct exact assertions.
+4. Keep `ERR-0054` UI/Visual-Review-owned; no Error-worker baseline acceptance.
+5. Keep Develop and Backend closed while current exact evidence remains green; keep `ERR-0059` and `ERR-0063` closed absent a new exact regression.
