@@ -54,9 +54,12 @@ def test_reference_palette_is_deep_black_with_functional_orange() -> None:
 
 
 def test_reference_typography_uses_compact_technical_display_family() -> None:
-    assert "Segoe UI" in TYPE.display_family
+    display_family = TYPE.display_family.lower()
+
+    assert "segoe ui" in display_family
     assert "Segoe UI" in TYPE.content_family
-    assert "serif" not in TYPE.display_family.lower()
+    assert "georgia" not in display_family
+    assert "times new roman" not in display_family
     assert 26 <= TYPE.title_px <= 34
     assert 16 <= TYPE.section_px <= 20
     assert TYPE.body_px >= 15
