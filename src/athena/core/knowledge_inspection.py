@@ -11,18 +11,17 @@ import uuid
 from collections.abc import Callable
 
 from athena.api.knowledge_inspection import KnowledgeInspectionApiService
-from athena.knowledge.claim_service import ClaimService
-from athena.knowledge.inspection_service import KnowledgeInspectionService
+from athena.knowledge.inspection_service import ClaimReader, KnowledgeInspectionService
 from athena.knowledge.review_service import ReviewService
 
 
 def build_knowledge_inspection_api(
     *,
-    claims: ClaimService,
+    claims: ClaimReader,
     reviews: ReviewService,
     actor_id_provider: Callable[[], uuid.UUID],
 ) -> KnowledgeInspectionApiService:
-    """Build the canonical Claim inspection chain from existing app services."""
+    """Build Claim inspection from the application's existing canonical services."""
 
     inspection = KnowledgeInspectionService(
         claims=claims,
