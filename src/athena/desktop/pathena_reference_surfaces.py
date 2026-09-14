@@ -9,7 +9,17 @@ shared navy/cobalt design system.
 from __future__ import annotations
 
 from PySide6.QtGui import QBrush, QColor
-from PySide6.QtWidgets import QDialog, QGraphicsView, QPushButton, QWidget
+from PySide6.QtWidgets import (
+    QDialog,
+    QFrame,
+    QGraphicsView,
+    QHBoxLayout,
+    QLabel,
+    QLayout,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 
 from athena.desktop import pathena_pallas_field as pallas_field
 from athena.desktop.pathena_design_tokens import PALETTE, RADII, SPACE, TYPE
@@ -38,6 +48,16 @@ _REFERENCE_WORKSPACE_STYLESHEET = f"""
 QWidget {{
     color: {PALETTE.text};
     background: transparent;
+}}
+QWidget#pageChat,
+QWidget#knowledgeWorkspace,
+QWidget#researchWorkspace,
+QWidget#jobsWorkspace,
+QWidget#filesWorkspace,
+QWidget#systemWorkspace,
+QWidget#pageSettings {{
+    color: {PALETTE.text};
+    background: {PALETTE.canvas};
 }}
 QFrame {{
     background: transparent;
@@ -183,6 +203,13 @@ QSplitter::handle:horizontal {{
 QScrollArea,
 QWidget#chatMessages {{
     background: transparent;
+    border: none;
+}}
+QScrollArea#chatScroll,
+QScrollArea#chatScroll QWidget,
+QScrollArea#knowledgeWorkspaceScroll,
+QScrollArea#knowledgeWorkspaceScroll QWidget {{
+    background: {PALETTE.canvas};
     border: none;
 }}
 QFrame#emptyStatePanel {{
@@ -379,6 +406,42 @@ QLabel#helpCapabilityTitle {{
 QLabel#helpCapabilitySummary {{
     color: {PALETTE.text_subtle};
 }}
+QFrame#comfyUiStudio,
+QFrame#comfyUiCenter {{
+    background: {PALETTE.canvas};
+    border: none;
+}}
+QFrame#comfyUiIntegrationNav {{
+    background: {PALETTE.surface};
+    border: none;
+    border-right: 1px solid {PALETTE.border};
+}}
+QFrame#comfyUiConnectionPanel {{
+    background: {PALETTE.surface};
+    border: none;
+    border-left: 1px solid {PALETTE.border};
+}}
+QLabel#comfyUiNavTitle {{
+    color: {PALETTE.text};
+    font-size: 14px;
+    font-weight: 600;
+}}
+QLabel#comfyUiNavItem {{
+    min-height: 30px;
+    padding: 4px 9px;
+    color: {PALETTE.text_subtle};
+    border-radius: {RADII.control}px;
+}}
+QLabel#comfyUiNavItem[selected="true"] {{
+    color: {PALETTE.text};
+    background: {PALETTE.surface_selected};
+    border-left: 2px solid {PALETTE.accent};
+}}
+QLabel#comfyUiPanelTitle {{
+    color: {PALETTE.text};
+    font-size: 14px;
+    font-weight: 600;
+}}
 QPushButton#comfyUiCheckConnection,
 QPushButton#comfyUiBrowseWorkflow,
 QPushButton#comfyUiQueueWorkflow,
@@ -475,6 +538,171 @@ def _mark_primary_actions(root: QWidget) -> None:
         button.update()
 
 
+def _clear_layout(layout: QLayout) -> None:
+    """Detach visual layout items without deleting the controls they contain."""
+    while layout.count():
+        item = layout.takeAt(0)
+        child_layout = item.layout()
+        if child_layout is not None:
+            _clear_layout(child_layout)
+            child_layout.deleteLater()
+
+
+def _label_with_text(root: QWidget, text: str) -> QLabel | None:
+    normalized = text.casefold()
+    return next(
+        (
+            label
+            for label in root.findChildren(QLabel)
+            if label.text().strip().casefold() == normalized
+        ),
+        None,
+    )
+
+
+def _compose_comfyui_studio(dialog: QDialog) -> None:
+    """Reflow existing real ComfyUI controls into the three-column reference studio."""
+    if dialog.findChild(QFrame, "comfyUiStudio") is not None:
+        return
+    outer = dialog.layout()
+    if not isinstance(outer, QVBoxLayout):
+        return
+
+    title = dialog.findChild(QLabel, "comfyUiTitle")
+    intro = next(
+        (
+            label
+            for label in dialog.findChildren(QLabel)
+            if label.text().startswith("Local image + video workflow")
+        ),
+        None,
+    )
+    endpoint = dialog.findChild(QWidget, "comfyUiEndpoint")
+    workflow = dialog.findChild(QWidget, "comfyUiWorkflowPath")
+    check = dialog.findChild(QPushButton, "comfyUiCheckConnection")
+    browse = dialog.findChild(QPushButton, "comfyUiBrowseWorkflow")
+    queue = dialog.findChild(QPushButton, "comfyUiQueueWorkflow")
+    refresh = dialog.findChild(QPushButton, "comfyUiRefreshJob")
+    release = dialog.findChild(QPushButton, "comfyUiReleaseVram")
+    status = dialog.findChild(QLabel, "comfyUiStatus")
+    resources = dialog.findChild(QLabel, "comfyUiResourceStatus")
+    receipt = dialog.findChild(QLabel, "comfyUiQueueReceipt")
+    job_status = dialog.findChild(QLabel, "comfyUiJobStatus")
+    required = (
+        title,
+        intro,
+        endpoint,
+        workflow,
+        check,
+        browse,
+        queue,
+        refresh,
+        release,
+        status,
+        resources,
+        receipt,
+        job_status,
+    )
+    if any(widget is None for widget in required):
+        return
+
+    _clear_layout(outer)
+    outer.setContentsMargins(0, 0, 0, 0)
+    outer.setSpacing(0)
+
+    studio = QFrame(dialog)
+    studio.setObjectName("comfyUiStudio")
+    studio.setProperty("pathenaReferenceStudio", True)
+    studio.setAccessibleName("ComfyUI integration studio")
+    studio_layout = QHBoxLayout(studio)
+    studio_layout.setContentsMargins(0, 0, 0, 0)
+    studio_layout.setSpacing(0)
+
+    nav = QFrame(studio)
+    nav.setObjectName("comfyUiIntegrationNav")
+    nav.setFixedWidth(196)
+    nav_layout = QVBoxLayout(nav)
+    nav_layout.setContentsMargins(18, 24, 16, 20)
+    nav_layout.setSpacing(8)
+    nav_title = QLabel("Integrations", nav)
+    nav_title.setObjectName("comfyUiNavTitle")
+    nav_layout.addWidget(nav_title)
+    nav_layout.addSpacing(8)
+    for text, selected in (
+        ("LM Studio", False),
+        ("Obsidian", False),
+        ("ComfyUI", True),
+    ):
+        item = QLabel(text, nav)
+        item.setObjectName("comfyUiNavItem")
+        item.setProperty("selected", selected)
+        item.setAccessibleName(f"Integration: {text}")
+        if not selected:
+            item.setToolTip("Configured from its existing pATHENA surface")
+        nav_layout.addWidget(item)
+    nav_layout.addStretch(1)
+
+    center = QFrame(studio)
+    center.setObjectName("comfyUiCenter")
+    center_layout = QVBoxLayout(center)
+    center_layout.setContentsMargins(30, 24, 30, 24)
+    center_layout.setSpacing(12)
+    center_layout.addWidget(title)
+    center_layout.addWidget(intro)
+    center_layout.addSpacing(10)
+
+    workflow_heading = QLabel("Workflow", center)
+    workflow_heading.setObjectName("comfyUiPanelTitle")
+    center_layout.addWidget(workflow_heading)
+    workflow_row = QHBoxLayout()
+    workflow_row.setSpacing(8)
+    workflow_row.addWidget(workflow, 1)
+    workflow_row.addWidget(browse)
+    center_layout.addLayout(workflow_row)
+    center_layout.addWidget(queue, 0)
+    center_layout.addWidget(receipt)
+    center_layout.addSpacing(10)
+
+    activity_heading = QLabel("Activity", center)
+    activity_heading.setObjectName("comfyUiPanelTitle")
+    center_layout.addWidget(activity_heading)
+    center_layout.addWidget(job_status)
+    activity_actions = QHBoxLayout()
+    activity_actions.setSpacing(8)
+    activity_actions.addWidget(refresh)
+    activity_actions.addWidget(release)
+    activity_actions.addStretch(1)
+    center_layout.addLayout(activity_actions)
+    center_layout.addStretch(1)
+
+    connection = QFrame(studio)
+    connection.setObjectName("comfyUiConnectionPanel")
+    connection.setFixedWidth(310)
+    connection_layout = QVBoxLayout(connection)
+    connection_layout.setContentsMargins(22, 24, 22, 20)
+    connection_layout.setSpacing(10)
+    connection_title = QLabel("Connection", connection)
+    connection_title.setObjectName("comfyUiPanelTitle")
+    connection_layout.addWidget(connection_title)
+    endpoint_label = QLabel("Endpoint", connection)
+    endpoint_label.setProperty("role", "muted")
+    connection_layout.addWidget(endpoint_label)
+    connection_layout.addWidget(endpoint)
+    connection_layout.addWidget(check)
+    connection_layout.addWidget(status)
+    connection_layout.addSpacing(8)
+    resource_heading = QLabel("Resources", connection)
+    resource_heading.setObjectName("comfyUiPanelTitle")
+    connection_layout.addWidget(resource_heading)
+    connection_layout.addWidget(resources)
+    connection_layout.addStretch(1)
+
+    studio_layout.addWidget(nav)
+    studio_layout.addWidget(center, 1)
+    studio_layout.addWidget(connection)
+    outer.addWidget(studio, 1)
+
+
 def _apply_pallas_palette(window: QWidget) -> None:
     """Update renderer presentation constants before future graph items are built."""
     pallas_field._CANVAS = QColor(PALETTE.canvas)  # noqa: SLF001
@@ -517,8 +745,9 @@ def apply_reference_surface_styles(window: QWidget) -> None:
 
     comfyui = window.findChild(QDialog, "comfyUiDialog")
     if comfyui is not None:
+        _compose_comfyui_studio(comfyui)
         comfyui.setStyleSheet(comfyui.styleSheet() + _REFERENCE_DIALOG_STYLESHEET)
-        comfyui.resize(980, 680)
+        comfyui.resize(1180, 700)
         _mark_primary_actions(comfyui)
 
     _apply_pallas_palette(window)
