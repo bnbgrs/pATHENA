@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import logging
+import os
 import stat
+from io import TextIOWrapper
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
@@ -17,6 +19,63 @@ _ATHENA_LOGGER_NAME = "athena"
 _ATHENA_RECORD_FLOOR = 1
 DEFAULT_JSONL_MAX_BYTES = 8 * 1024 * 1024
 DEFAULT_JSONL_BACKUP_COUNT = 5
+
+
+def _is_link_or_junction(path: Path) -> bool:
+    if path.is_symlink():
+        return True
+    is_junction = getattr(path, "is_junction", None)
+    return bool(is_junction is not None and is_junction())
+
+
+def _validate_open_file(path: Path, file_descriptor: int) -> None:
+    """Prove that an opened log descriptor still names one regular path."""
+
+    parent = path.parent
+    try:
+        parent_stat = os.lstat(parent)
+        path_stat = os.lstat(path)
+        opened_stat = os.fstat(file_descriptor)
+    except OSError as exc:
+        raise ValueError("ATHENA JSONL log identity changed during open.") from exc
+
+    if not stat.S_ISDIR(parent_stat.st_mode) or _is_link_or_junction(parent):
+        raise ValueError("log_path parent directory must not be a symbolic link or junction.")
+    if (
+        not stat.S_ISREG(path_stat.st_mode)
+        or _is_link_or_junction(path)
+        or not stat.S_ISREG(opened_stat.st_mode)
+    ):
+        raise ValueError("log_path must identify one regular non-link file.")
+    if not os.path.samestat(opened_stat, path_stat):
+        raise ValueError("ATHENA JSONL log identity changed during open.")
+
+
+class _SecureRotatingFileHandler(RotatingFileHandler):
+    """Rotating handler that revalidates path identity at every real open."""
+
+    def _open(self) -> TextIOWrapper:
+        def opener(filename: str, flags: int) -> int:
+            secure_flags = flags
+            no_follow = getattr(os, "O_NOFOLLOW", 0)
+            close_on_exec = getattr(os, "O_CLOEXEC", 0)
+            secure_flags |= no_follow | close_on_exec
+
+            descriptor = os.open(filename, secure_flags, 0o600)
+            try:
+                _validate_open_file(Path(filename), descriptor)
+            except Exception:
+                os.close(descriptor)
+                raise
+            return descriptor
+
+        return self._builtin_open(
+            self.baseFilename,
+            self.mode,
+            encoding=self.encoding,
+            errors=self.errors,
+            opener=opener,
+        )
 
 
 def _validated_log_level(level: object) -> int:
@@ -46,16 +105,16 @@ def _validated_positive_int(value: object, name: str) -> int:
 def _validated_log_path(log_path: object) -> Path:
     if not isinstance(log_path, Path):
         raise TypeError("log_path must be a pathlib.Path.")
-    if log_path.is_symlink():
-        raise ValueError("log_path must not be a symbolic link.")
+    if _is_link_or_junction(log_path):
+        raise ValueError("log_path must not be a symbolic link or junction.")
     if log_path.exists() and not log_path.is_file():
         raise ValueError("log_path must identify a regular file.")
 
     parent = log_path.parent
     if not parent.exists() or not parent.is_dir():
         raise ValueError("log_path parent directory must already exist.")
-    if parent.is_symlink():
-        raise ValueError("log_path parent directory must not be a symbolic link.")
+    if _is_link_or_junction(parent):
+        raise ValueError("log_path parent directory must not be a symbolic link or junction.")
     return log_path.absolute()
 
 
@@ -111,9 +170,12 @@ def configure_jsonl_logging(
     """Configure one ATHENA-owned rotating JSONL file handler.
 
     The caller owns the directory lifecycle and containment policy. This function
-    refuses missing directories and direct symbolic-link targets, emits one JSON
-    object per line through the shared privacy-preserving formatter, and retains
-    at most ``backup_count`` rotated files plus the active file.
+    refuses missing directories and link/junction targets, emits one JSON object
+    per line through the shared privacy-preserving formatter, and retains at most
+    ``backup_count`` rotated files plus the active file. Every delayed first open
+    and rollover reopen revalidates the actual file descriptor against the path,
+    so a link substitution after configuration fails closed before bytes are
+    written through that substituted path.
 
     The file handler is attached to the ``athena`` namespace rather than root.
     That namespace uses a permissive explicit record threshold while Console and
@@ -145,7 +207,7 @@ def configure_jsonl_logging(
     for handler in owned_handlers:
         if (
             reusable is None
-            and isinstance(handler, RotatingFileHandler)
+            and isinstance(handler, _SecureRotatingFileHandler)
             and Path(handler.baseFilename) == path
             and handler.maxBytes == validated_max_bytes
             and handler.backupCount == validated_backup_count
@@ -166,7 +228,7 @@ def configure_jsonl_logging(
         reusable.setFormatter(JsonFormatter())
         return
 
-    handler = RotatingFileHandler(
+    handler = _SecureRotatingFileHandler(
         path,
         maxBytes=validated_max_bytes,
         backupCount=validated_backup_count,
