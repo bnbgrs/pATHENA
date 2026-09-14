@@ -13,7 +13,18 @@ from __future__ import annotations
 from typing import Final, cast
 
 from PySide6.QtCore import QObject, QTimer, Slot
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QLineEdit, QPushButton
+from PySide6.QtGui import QBrush, QColor
+from PySide6.QtWidgets import (
+    QFrame,
+    QGraphicsView,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QWidget,
+)
+
+from athena.desktop.pathena_design_tokens import PALETTE
 
 
 REFERENCE_FAMILY: Final = "11-screen-2026-08-24"
@@ -35,6 +46,7 @@ TOP_NAV_LABELS: Final = {
 }
 COMPOSER_PLACEHOLDER: Final = "Ask, explore, or build…"
 SEARCH_PLACEHOLDER: Final = "Search anything…"
+_JOBS_REFERENCE_OVERRIDE_MARKER: Final = "/* 11-screen jobs parity */"
 
 
 class ReferenceScreenParity(QObject):
@@ -58,10 +70,9 @@ class ReferenceScreenParity(QObject):
         index = current_row() if callable(current_row) else 0
         self._sync_navigation(index)
 
-        # The palette is installed later during desktop composition. A zero-delay
-        # handoff runs only after startup composition has completed, avoiding any
-        # import-order or application-shell coupling.
-        QTimer.singleShot(0, self._bind_installed_command_palette)
+        # Presentation extensions are installed later during desktop composition.
+        # A zero-delay handoff runs only after startup composition has completed.
+        QTimer.singleShot(0, self._finish_startup_parity)
 
     def _apply_static_presentation(self) -> None:
         window = self._window
@@ -140,16 +151,68 @@ class ReferenceScreenParity(QObject):
         self._search_button = button
         return button
 
+    def _finish_startup_parity(self) -> None:
+        """Bind late-installed real controls and remove safe legacy surface drift."""
+        self._bind_installed_command_palette()
+        self._apply_pallas_canvas_palette()
+        self._apply_jobs_reference_palette()
+
     def _bind_installed_command_palette(self) -> None:
         """Find the real palette after startup composition and bind it once."""
         from athena.desktop.command_palette import CommandPaletteController
 
-        find_child = getattr(self._window, "findChild", None)
-        if not callable(find_child):
-            return
-        command_palette = find_child(CommandPaletteController)
+        window = cast(QObject, self._window)
+        command_palette = window.findChild(CommandPaletteController)
         if isinstance(command_palette, CommandPaletteController):
             self.bind_command_palette(command_palette)
+
+    def _apply_pallas_canvas_palette(self) -> None:
+        """Align live PALLAS canvases without replacing renderer behavior."""
+        window = cast(QObject, self._window)
+        for canvas in window.findChildren(QGraphicsView, "pallasSemanticCanvas"):
+            canvas.setBackgroundBrush(QBrush(QColor(PALETTE.canvas)))
+            canvas.viewport().update()
+
+    def _apply_jobs_reference_palette(self) -> None:
+        """Override the Jobs refinement's pre-reference local black/orange stylesheet."""
+        window = cast(QObject, self._window)
+        workspace = window.findChild(QWidget, "jobsWorkspace")
+        if not isinstance(workspace, QWidget):
+            return
+        current = workspace.styleSheet()
+        if _JOBS_REFERENCE_OVERRIDE_MARKER in current:
+            return
+        override = f"""
+{_JOBS_REFERENCE_OVERRIDE_MARKER}
+QLineEdit#jobsFilter {{
+    background: {PALETTE.surface};
+    color: {PALETTE.text};
+    border: 1px solid {PALETTE.border};
+}}
+QLineEdit#jobsFilter:focus {{
+    border-color: {PALETTE.accent};
+}}
+QPlainTextEdit#jobDetails {{
+    background: {PALETTE.surface};
+    color: {PALETTE.text_muted};
+    border: 1px solid {PALETTE.border};
+}}
+QPushButton[pathenaJobsSecondary="true"] {{
+    background: transparent;
+    color: {PALETTE.text_subtle};
+    border-color: transparent;
+}}
+QPushButton[pathenaJobsSecondary="true"]:hover {{
+    color: {PALETTE.text};
+    border-color: {PALETTE.border_strong};
+}}
+QPushButton[pathenaJobsDestructive="true"] {{
+    background: transparent;
+    color: {PALETTE.error};
+    border-color: {PALETTE.border};
+}}
+"""
+        workspace.setStyleSheet(f"{current}\n{override}")
 
     @Slot(int)
     def _sync_navigation(self, index: int) -> None:
