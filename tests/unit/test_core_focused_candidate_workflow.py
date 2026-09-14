@@ -20,7 +20,8 @@ def test_core_focused_pytest_selects_only_core_owned_test_families() -> None:
     text = _workflow_text()
     selector = (
         "^tests/unit/(test_claim.*|test_knowledge.*|test_concept_note.*|"
-        "test_identity_transition.*|test_temporal.*|test_user_correction.*)\\.py$"
+        "test_identity_transition.*|test_temporal.*|test_user_correction.*|"
+        "test_api_research)\\.py$"
     )
 
     assert selector in text
@@ -31,12 +32,13 @@ def test_core_focused_pytest_selects_only_core_owned_test_families() -> None:
 def test_core_focused_lints_and_types_only_core_owned_python() -> None:
     text = _workflow_text()
     selector = (
-        "^(src/athena/knowledge/.*|src/athena/api/knowledge_.*|tests/unit/("
+        "^(src/athena/knowledge/.*|src/athena/api/(knowledge_.*|research)|tests/unit/("
         "test_claim.*|test_knowledge.*|test_concept_note.*|test_identity_transition.*|"
-        "test_temporal.*|test_user_correction.*))\\.py$"
+        "test_temporal.*|test_user_correction.*|test_api_research))\\.py$"
     )
 
     assert '"src/athena/api/knowledge_*.py"' in text
+    assert '"src/athena/api/research.py"' in text
     assert text.count(selector) == 3
     assert "src/athena/api/knowledge_.*|tests/unit/.*" not in text
     assert "Mypy changed Core Python files" in text
@@ -69,3 +71,11 @@ def test_user_correction_tests_are_triggered_and_selected() -> None:
 
     assert '"tests/unit/test_user_correction*.py"' in text
     assert "test_user_correction.*" in text
+
+
+def test_research_api_tests_are_triggered_and_selected() -> None:
+    text = _workflow_text()
+
+    assert '"src/athena/api/research.py"' in text
+    assert '"tests/unit/test_api_research.py"' in text
+    assert "test_api_research" in text
