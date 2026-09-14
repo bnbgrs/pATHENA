@@ -4,12 +4,13 @@ Evidence-first ledger for current exact-SHA failures. Historical IDs, old runs a
 
 ## Current source of truth
 
-- `develop/pathena-next@42614da4d235c2613b7a683d357a5af17a271817`; exact canonical Quality `34876523610 = IN_PROGRESS`. Do not mutate or supersede while active.
-- `postmerge/errors@6eb07f7aec9a109f6f3875540a013c01afc9e7fa` before this refresh; no workflow exists on that exact Error-worker SHA.
+- `develop/pathena-next@f8a25be7fd7df9f2a8ca281a1567f79ddaabcfb6`; exact canonical Quality `34883442620 = IN_PROGRESS`. Windows release guards, Linux storage regressions, Local install/pypdf, specification validator, Ruff and mypy are already `SUCCESS`; only canonical pytest remains active. Do not mutate or supersede this Develop candidate while active.
+- `postmerge/errors@5b9788db2c3375c90967bf9633b82c5891827c78` before this refresh; no workflow exists on that exact Error-worker SHA.
 - `postmerge/spec-core@63457beb6e96fb4dc48b3b1b217bcefab90c4a22`; exact Core Focused `34867476719 = SUCCESS`, exact canonical Quality `34867476727 = SUCCESS`.
-- `postmerge/backend@379b968f63e42e293ded342fa65bac557f1ef993`; exact Backend Focused `34875026423 = SUCCESS`, exact canonical Quality `34875026503 = SUCCESS`.
-- `postmerge/ui@a6298adb68af02537b87b26433003d830adb569d`; exact Core Focused `34864146634 = SUCCESS`, exact UI Focused `34864146677 = FAILURE`, exact canonical Quality `34864146660 = FAILURE`.
-- Current UI canonical diagnostics artifact `canonical-quality-diagnostics-a6298adb68af02537b87b26433003d830adb569d` reproduces exactly three failures: typography `(15, 11, 30) != (15, 12, 42)`; offline-readiness placeholder `Ask anything… != pATHENA reconnecting`; shell-density composer height `118 != 94`. Full result: `3 failed, 5089 passed, 17 skipped`.
+- `postmerge/backend@bef909bf9097000142822e210cec5407e5f4f77b`; exact Backend Focused `34881627018 = SUCCESS`, exact canonical Quality `34881627010 = SUCCESS`.
+- `postmerge/ui@a6298adb68af02537b87b26433003d830adb569d`; exact Core Focused `34864146634 = SUCCESS`, exact UI Focused remains `FAILURE`, exact canonical Quality `34864146660 = FAILURE`.
+- Current UI canonical diagnostics on `a6298adb...` reproduce exactly three UI failures: typography `(15, 11, 30) != (15, 12, 42)`; offline-readiness placeholder `Ask anything… != pATHENA reconnecting`; shell-density composer height `118 != 94`. Full result: `3 failed, 5089 passed, 17 skipped`.
+- No current exact evidence reproduces the persistent pypdf/Frozen-argv/two-EXE/bounded-worker/adaptive-2048/lane-lock/duplicate-column/Core-startup/storage-bootstrap guards.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
 ## OPEN
@@ -20,7 +21,7 @@ Status: `OPEN`
 
 Owner: UI / Visual Review.
 
-No trustworthy current exact UI Visual 11/11 review closes this item. Error worker must not create or accept a baseline. Closure requires opened original references and real exact-SHA render pairs reviewed truthfully by UI. The technical capture/route cluster remains separate and closed absent a new exact Visual reproduction.
+No trustworthy current exact UI Visual 11/11 review closes this item. Error worker must not create or accept a baseline. Closure requires opened original references and real exact-SHA render pairs reviewed truthfully by UI. No new UI Visual successor exists on the current UI head, so the technical capture/route cluster remains separately closed absent new exact reproduction.
 
 ### ERR-0067 — P2 — typography-token contract mismatch
 
@@ -28,7 +29,7 @@ Status: `OPEN`
 
 Owner: UI.
 
-Exact current-SHA canonical diagnostics on `a6298adb...` reproduce `tests/unit/test_pathena_design_system.py::test_spacing_and_motion_are_small_bounded_scales`: actual `(TYPE.body_px, TYPE.metadata_px, TYPE.title_px) = (15, 11, 30)`, required `(15, 12, 42)`. This is current evidence, not a historical carry-forward. Error worker must not patch UI product code in parallel while UI owns the same root cause.
+Exact current-SHA canonical diagnostics on `a6298adb...` reproduce `tests/unit/test_pathena_design_system.py::test_spacing_and_motion_are_small_bounded_scales`: actual `(TYPE.body_px, TYPE.metadata_px, TYPE.title_px) = (15, 11, 30)`, required `(15, 12, 42)`. UI still owns the product correction; Error worker must not parallel-patch it.
 
 ### ERR-0068 — P2 — offline-readiness copy mismatch
 
@@ -36,7 +37,7 @@ Status: `OPEN`
 
 Owner: UI.
 
-Exact current-SHA canonical diagnostics on `a6298adb...` reproduce `tests/unit/test_pathena_offline_comprehension.py::test_readiness_copy_tracks_real_local_state`: actual placeholder `Ask anything…`, required `pATHENA reconnecting`. Static/storage/install/release-guard lanes remain green, so this is isolated to UI/readiness behavior rather than a release-guard cascade.
+Exact current-SHA canonical diagnostics on `a6298adb...` reproduce `tests/unit/test_pathena_offline_comprehension.py::test_readiness_copy_tracks_real_local_state`: actual placeholder `Ask anything…`, required `pATHENA reconnecting`. Static/storage/install/release-guard lanes are not implicated.
 
 ### ERR-0069 — P2 — shell-density composer geometry mismatch
 
@@ -44,7 +45,7 @@ Status: `OPEN`
 
 Owner: UI.
 
-Exact current-SHA canonical diagnostics on `a6298adb...` reproduce `tests/unit/test_pathena_shell_density.py::test_shell_density_converges_real_shell_to_reference_geometry`: composer height `118`, required `94`. This signature also explains the currently red UI-focused lineage; deduplicate it as one root cause rather than opening a second cascade ID.
+Exact current-SHA canonical diagnostics on `a6298adb...` reproduce `tests/unit/test_pathena_shell_density.py::test_shell_density_converges_real_shell_to_reference_geometry`: composer height `118`, required `94`. This signature also explains the red UI-focused lineage; keep it deduplicated as one root cause.
 
 ## IN_PROGRESS
 
@@ -52,7 +53,7 @@ Exact current-SHA canonical diagnostics on `a6298adb...` reproduce `tests/unit/t
 
 Status: `IN_PROGRESS`
 
-Current Develop `42614da4...` canonical Quality `34876523610` is active. No Error-owned classification until terminal exact-SHA evidence exists.
+Current Develop `f8a25be7...` canonical Quality `34883442620` is active. Windows path safety/release guards, Linux storage regressions, Local install/pypdf, validator, Ruff and mypy are already green. Canonical pytest is the only active lane. Do not classify a new Error-owned cluster until terminal exact-SHA evidence exists.
 
 ## FIXED / HELD CLOSED
 
@@ -97,15 +98,15 @@ No current exact evidence reopens the prior capture/route failure. Do not reopen
 
 Status: `STALE`
 
-Older Error-worker canonical red belongs to UI geometry and is not a new Error-owned root cause.
+Older Error-worker canonical red belongs to the currently isolated UI geometry/readiness failures and is not a new Error-owned root cause.
 
 ## Persistent release guards
 
-Current Spec/Core and Backend exact focused/canonical evidence is green. Current Develop canonical is still running. Current UI canonical diagnostics isolate only the three UI assertions above after storage, Windows release guards, Local install/pypdf, validator, Ruff and mypy passed. No current exact evidence reopens pypdf packaging, fail-closed Frozen argv, Desktop/Worker executable separation, single Desktop with bounded workers, adaptive 2048-context reserve, Windows lane-lock escalation, duplicate-column, Core-startup or storage-bootstrap failures. Keep all guards unchanged.
+Current Spec/Core and Backend exact focused/canonical evidence is green. Current Develop already has successful Windows release guards, Linux storage, Local install/pypdf, validator, Ruff and mypy while pytest is still running. Current UI canonical diagnostics isolate only the three UI assertions above after guard/static/storage/install lanes passed. Keep pypdf packaging, fail-closed Frozen argv, Desktop/Worker executable separation, single Desktop with bounded workers, adaptive 2048-context reserve, Windows lane-lock escalation, duplicate-column, Core-startup and storage-bootstrap protections unchanged.
 
 ## Next root cause
 
-1. Consume terminal Develop canonical `34876523610`; only exact current-SHA failure evidence may open a new Error-owned cluster.
+1. Consume terminal Develop canonical `34883442620`; only exact current-SHA failure evidence may open a new Error-owned cluster.
 2. Consume the next UI successor and verify `ERR-0067`, `ERR-0068`, `ERR-0069` independently; do not parallel-patch UI-owned product code while UI owns those root causes.
 3. Consume the next current UI Visual candidate when one exists; UI owns truthful 11/11 review for `ERR-0054`.
 4. Keep Spec/Core and Backend closed while current exact evidence stays green.
