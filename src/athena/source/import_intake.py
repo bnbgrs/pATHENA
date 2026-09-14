@@ -1,8 +1,8 @@
 """Deterministic file and folder intake orchestration for Raw Archive imports.
 
-This module deliberately stops at the Raw Archive boundary.  It performs
-request validation, deterministic discovery and preflight, then delegates the
-actual durable Source/Blob commit to :class:`SourceCaptureService`.
+This module deliberately stops at the Raw Archive boundary. It performs request
+validation, deterministic discovery and preflight, then delegates the actual
+durable Source/Blob commit to :class:`SourceCaptureService`.
 """
 
 from __future__ import annotations
@@ -73,26 +73,21 @@ class ImportRequest:
             raise ImportRequestError(
                 "roots must be a non-empty tuple of absolute path strings."
             )
-        normalized: list[str] = []
-        for value in self.roots:
-            normalized.append(_canonical_absolute_path_text(value))
-        if tuple(normalized) != self.roots:
+        normalized = tuple(
+            _canonical_absolute_path_text(value) for value in self.roots
+        )
+        if normalized != self.roots:
             raise ImportRequestError(
                 "Import roots must already be normalized absolute paths."
             )
         if not isinstance(self.origin, ImportOrigin):
             raise ImportRequestError("origin must be an ImportOrigin value.")
         if not isinstance(self.symlink_policy, SymlinkPolicy):
-            raise ImportRequestError(
-                "symlink_policy must be a SymlinkPolicy value."
-            )
+            raise ImportRequestError("symlink_policy must be a SymlinkPolicy value.")
         _require_exact_bool(self.recursive, "recursive")
         _require_exact_bool(self.temporary, "temporary")
         _require_exact_bool(self.do_not_store, "do_not_store")
-        _require_exact_bool(
-            self.include_system_metadata,
-            "include_system_metadata",
-        )
+        _require_exact_bool(self.include_system_metadata, "include_system_metadata")
         if self.max_file_bytes is not None:
             _nonnegative_int(self.max_file_bytes, "max_file_bytes")
         if self.expected_count is not None:
@@ -125,9 +120,7 @@ class ImportRequest:
                     "paths must contain pathlib.Path values."
                 )
             expanded = value.expanduser()
-            roots.append(
-                os.path.normpath(os.path.abspath(os.fspath(expanded)))
-            )
+            roots.append(os.path.normpath(os.path.abspath(os.fspath(expanded))))
         return cls(
             roots=tuple(roots),
             origin=origin,
@@ -186,14 +179,9 @@ class ImportRequest:
             raise ImportRequestError(
                 "Import request roots must be a JSON string array."
             )
-        roots = tuple(
-            _required_text(item, "roots item") for item in roots_value
-        )
+        roots = tuple(_required_text(item, "roots item") for item in roots_value)
         origin_text = _required_text(payload["origin"], "origin")
-        symlink_text = _required_text(
-            payload["symlink_policy"],
-            "symlink_policy",
-        )
+        symlink_text = _required_text(payload["symlink_policy"], "symlink_policy")
         try:
             origin = ImportOrigin(origin_text)
             symlink_policy = SymlinkPolicy(symlink_text)
@@ -229,8 +217,13 @@ class ImportRequest:
 
 @dataclass(frozen=True, slots=True)
 class ImportCandidate:
+    """One display path plus the verified regular-file target captured later."""
+
     path: Path
     byte_length: int
+    capture_path: Path | None = None
+    boundary: Path | None = None
+    max_file_bytes: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -361,12 +354,12 @@ class ImportIntakeService:
         for candidate in preflight.candidates:
             try:
                 captures.append(
-                    self._capture_candidate(candidate.path, scope_id=scope_id)
+                    self._capture_candidate(candidate, scope_id=scope_id)
                 )
             except SourceChangedDuringCaptureError:
                 try:
                     captures.append(
-                        self._capture_candidate(candidate.path, scope_id=scope_id)
+                        self._capture_candidate(candidate, scope_id=scope_id)
                     )
                 except Exception as exc:  # noqa: BLE001
                     failures.append(
@@ -397,16 +390,56 @@ class ImportIntakeService:
 
     def _capture_candidate(
         self,
-        path: Path,
+        candidate: ImportCandidate,
         *,
         scope_id: uuid.UUID | None,
     ) -> SourceCaptureResult:
+        capture_path = self._validated_capture_path(candidate)
         if scope_id is None:
-            return self.sources.capture_file(path)
+            return self.sources.capture_file(capture_path)
         return self.sources.capture_protected_file(
-            path,
+            capture_path,
             protection_scope_id=scope_id,
         )
+
+    def _validated_capture_path(self, candidate: ImportCandidate) -> Path:
+        """Recheck preflight target identity before handing bytes to capture."""
+        expected = candidate.capture_path
+        try:
+            current = candidate.path.resolve(strict=True)
+        except OSError as exc:
+            raise SourceChangedDuringCaptureError(
+                "Import candidate became unavailable after preflight."
+            ) from exc
+        if expected is not None and current != expected:
+            raise SourceChangedDuringCaptureError(
+                "Import candidate target changed after preflight."
+            )
+        if candidate.boundary is not None and not _is_within(
+            current,
+            candidate.boundary,
+        ):
+            raise SourceChangedDuringCaptureError(
+                "Import candidate escaped the selected root after preflight."
+            )
+        try:
+            stat = current.stat()
+        except OSError as exc:
+            raise SourceChangedDuringCaptureError(
+                "Import candidate became unreadable after preflight."
+            ) from exc
+        if not current.is_file():
+            raise SourceChangedDuringCaptureError(
+                "Import candidate is no longer a regular file."
+            )
+        if (
+            candidate.max_file_bytes is not None
+            and stat.st_size > candidate.max_file_bytes
+        ):
+            raise SourceChangedDuringCaptureError(
+                "Import candidate exceeds its preflight size bound."
+            )
+        return current
 
     def _enumerate_root(
         self,
@@ -430,6 +463,7 @@ class ImportIntakeService:
         if root.is_file():
             self._consider_file(
                 root,
+                boundary=None,
                 request=request,
                 candidates=candidates,
                 issues=issues,
@@ -453,6 +487,7 @@ class ImportIntakeService:
             candidates=candidates,
             issues=issues,
             visited_dirs=set(),
+            active_dirs=set(),
         )
 
     def _walk_directory(
@@ -465,90 +500,126 @@ class ImportIntakeService:
         candidates: dict[Path, ImportCandidate],
         issues: list[ImportIssue],
         visited_dirs: set[Path],
+        active_dirs: set[Path],
     ) -> None:
         try:
             resolved_directory = directory.resolve(strict=True)
         except OSError:
             issues.append(ImportIssue("directory_unreadable", directory, True))
             return
-        if resolved_directory in visited_dirs:
+        if not _is_within(resolved_directory, boundary):
+            issues.append(
+                ImportIssue("link_outside_selected_root", directory, True)
+            )
+            return
+        if resolved_directory in active_dirs:
             issues.append(ImportIssue("directory_cycle", directory, True))
             return
-        visited_dirs.add(resolved_directory)
-        try:
-            entries = sorted(directory.iterdir(), key=_path_sort_key)
-        except OSError:
-            issues.append(ImportIssue("directory_unreadable", directory, True))
+        if resolved_directory in visited_dirs:
+            issues.append(
+                ImportIssue("duplicate_directory_target", directory, False)
+            )
             return
-        for entry in entries:
-            if _is_system_metadata(entry):
-                if not request.include_system_metadata:
+
+        visited_dirs.add(resolved_directory)
+        active_dirs.add(resolved_directory)
+        try:
+            try:
+                entries = sorted(directory.iterdir(), key=_path_sort_key)
+            except OSError:
+                issues.append(ImportIssue("directory_unreadable", directory, True))
+                return
+
+            for entry in entries:
+                if _is_system_metadata(entry) and not request.include_system_metadata:
                     issues.append(
                         ImportIssue("filtered_system_metadata", entry, False)
                     )
                     continue
-            is_link = _is_link_or_junction(entry)
-            if is_link:
-                if request.symlink_policy is SymlinkPolicy.DO_NOT_FOLLOW:
-                    issues.append(ImportIssue("link_not_followed", entry, False))
-                    continue
-                try:
-                    resolved = entry.resolve(strict=True)
-                except OSError:
-                    issues.append(ImportIssue("link_target_unreadable", entry, True))
-                    continue
-                if not _is_within(resolved, boundary):
-                    issues.append(ImportIssue("link_outside_selected_root", entry, True))
-                    continue
-                if resolved.is_dir():
-                    if not recursive:
+
+                is_link = _is_link_or_junction(entry)
+                if is_link:
+                    if request.symlink_policy is SymlinkPolicy.DO_NOT_FOLLOW:
+                        issues.append(
+                            ImportIssue("link_not_followed", entry, False)
+                        )
                         continue
-                    self._walk_directory(
-                        entry,
-                        boundary=boundary,
-                        recursive=recursive,
-                        request=request,
-                        candidates=candidates,
-                        issues=issues,
-                        visited_dirs=visited_dirs,
+                    try:
+                        resolved = entry.resolve(strict=True)
+                    except OSError:
+                        issues.append(
+                            ImportIssue("link_target_unreadable", entry, True)
+                        )
+                        continue
+                    if not _is_within(resolved, boundary):
+                        issues.append(
+                            ImportIssue(
+                                "link_outside_selected_root",
+                                entry,
+                                True,
+                            )
+                        )
+                        continue
+                    if resolved.is_dir():
+                        if recursive:
+                            self._walk_directory(
+                                entry,
+                                boundary=boundary,
+                                recursive=recursive,
+                                request=request,
+                                candidates=candidates,
+                                issues=issues,
+                                visited_dirs=visited_dirs,
+                                active_dirs=active_dirs,
+                            )
+                        continue
+                    if resolved.is_file():
+                        self._consider_file(
+                            entry,
+                            boundary=boundary,
+                            request=request,
+                            candidates=candidates,
+                            issues=issues,
+                        )
+                        continue
+                    issues.append(
+                        ImportIssue("link_target_not_regular", entry, True)
                     )
                     continue
-                if resolved.is_file():
+
+                if entry.is_dir():
+                    if recursive:
+                        self._walk_directory(
+                            entry,
+                            boundary=boundary,
+                            recursive=recursive,
+                            request=request,
+                            candidates=candidates,
+                            issues=issues,
+                            visited_dirs=visited_dirs,
+                            active_dirs=active_dirs,
+                        )
+                    continue
+                if entry.is_file():
                     self._consider_file(
                         entry,
+                        boundary=boundary,
                         request=request,
                         candidates=candidates,
                         issues=issues,
                     )
                     continue
-                issues.append(ImportIssue("link_target_not_regular", entry, True))
-                continue
-            if entry.is_dir():
-                if recursive:
-                    self._walk_directory(
-                        entry,
-                        boundary=boundary,
-                        recursive=recursive,
-                        request=request,
-                        candidates=candidates,
-                        issues=issues,
-                        visited_dirs=visited_dirs,
-                    )
-                continue
-            if entry.is_file():
-                self._consider_file(
-                    entry,
-                    request=request,
-                    candidates=candidates,
-                    issues=issues,
+                issues.append(
+                    ImportIssue("non_regular_entry_skipped", entry, False)
                 )
-                continue
-            issues.append(ImportIssue("non_regular_entry_skipped", entry, False))
+        finally:
+            active_dirs.remove(resolved_directory)
 
     def _consider_file(
         self,
         path: Path,
         *,
+        boundary: Path | None,
         request: ImportRequest,
         candidates: dict[Path, ImportCandidate],
         issues: list[ImportIssue],
@@ -557,22 +628,39 @@ class ImportIntakeService:
             issues.append(ImportIssue("filtered_system_metadata", path, False))
             return
         try:
-            stat = path.stat()
             resolved = path.resolve(strict=True)
+            stat = resolved.stat()
         except OSError:
             issues.append(ImportIssue("file_unreadable", path, True))
+            return
+        if boundary is not None and not _is_within(resolved, boundary):
+            issues.append(
+                ImportIssue("link_outside_selected_root", path, True)
+            )
+            return
+        if not resolved.is_file():
+            issues.append(ImportIssue("link_target_not_regular", path, True))
             return
         byte_length = stat.st_size
         if byte_length < 0:
             issues.append(ImportIssue("invalid_file_size", path, True))
             return
-        if request.max_file_bytes is not None and byte_length > request.max_file_bytes:
+        if (
+            request.max_file_bytes is not None
+            and byte_length > request.max_file_bytes
+        ):
             issues.append(ImportIssue("max_file_size_exceeded", path, True))
             return
         if resolved in candidates:
             issues.append(ImportIssue("duplicate_file_target", path, False))
             return
-        candidates[resolved] = ImportCandidate(path=path, byte_length=byte_length)
+        candidates[resolved] = ImportCandidate(
+            path=path,
+            byte_length=byte_length,
+            capture_path=resolved,
+            boundary=boundary,
+            max_file_bytes=request.max_file_bytes,
+        )
 
 
 def _canonical_absolute_path_text(value: object) -> str:
@@ -590,7 +678,9 @@ def _canonical_uuid_text(value: object, field_name: str) -> str:
     try:
         parsed = uuid.UUID(text)
     except (TypeError, ValueError, AttributeError) as exc:
-        raise ImportRequestError(f"{field_name} must be canonical UUID text.") from exc
+        raise ImportRequestError(
+            f"{field_name} must be canonical UUID text."
+        ) from exc
     if str(parsed) != text:
         raise ImportRequestError(f"{field_name} must be canonical UUID text.")
     return text
@@ -598,7 +688,9 @@ def _canonical_uuid_text(value: object, field_name: str) -> str:
 
 def _required_text(value: object, field_name: str) -> str:
     if not isinstance(value, str) or not value or value != value.strip():
-        raise ImportRequestError(f"{field_name} must be non-empty canonical text.")
+        raise ImportRequestError(
+            f"{field_name} must be non-empty canonical text."
+        )
     return value
 
 
@@ -620,7 +712,9 @@ def _exact_bool(value: object, field_name: str) -> bool:
 
 def _nonnegative_int(value: object, field_name: str) -> int:
     if type(value) is not int or value < 0:
-        raise ImportRequestError(f"{field_name} must be a non-negative integer.")
+        raise ImportRequestError(
+            f"{field_name} must be a non-negative integer."
+        )
     return value
 
 
