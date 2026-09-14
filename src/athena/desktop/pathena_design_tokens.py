@@ -86,7 +86,7 @@ class ShellGeometry:
     top_bar_height: int = 60
     icon_rail_width: int = 248
     secondary_nav_width: int = 220
-    inspector_width: int = 360
+    inspector_width: int = 390
     composer_min_height: int = 58
     composer_action_size: int = 44
 
