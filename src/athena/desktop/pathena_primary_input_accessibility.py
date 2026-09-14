@@ -36,6 +36,7 @@ class PrimaryInputAccessibility(QObject):
         control.setAccessibleDescription(
             f"{target.purpose} {target.keyboard_context}"
         )
+        control.setProperty("pathenaPrimaryInput", True)
         control.setProperty("pathenaPrimaryInputPurpose", target.purpose)
         control.setProperty("pathenaPrimaryInputKeyboardContext", target.keyboard_context)
 
