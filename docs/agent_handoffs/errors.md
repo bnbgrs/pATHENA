@@ -2,56 +2,42 @@
 
 ## Exact source of truth
 
-- Develop: `1530c1e8f17f53a6cbfbda7b7c53b8ee50afe2b5`; canonical `34785279278 = SUCCESS`.
-- Error worker before this handoff update: `ac049c2bd02c1ed0f78e299df2fd1e56c77c9770`; exact canonical `34785825895 = FAILURE` only on stale inherited 48px Send-button geometry. No queued/in-progress Error-worker run existed before this mutation.
-- Spec/Core: `36452888894de49fdcd9b1968d1eaf83bc4412b0`; canonical `34786426851 = SUCCESS`, Core Focused `34786426823 = FAILURE` on the new focused mypy contract.
-- Backend: `e4e1244e8482ac7d78e557ded5f91252cccc0347`; canonical `34786818234 = SUCCESS`.
-- UI: `de4efa5d3814948d47d83484c4a27ac0c2daf64c`; Core Focused `34779940800 = SUCCESS`, UI Focused `34779940824 = SUCCESS`, canonical `34779940794 = SUCCESS`; visual review remains fail-closed.
+- Develop: `e818ade900545e788c72cbd24bb6761880470148`; canonical `34794066456 = IN_PROGRESS`. Validator/Ruff/mypy, Linux Storage, Windows release guards and Local Install/pypdf are already green; full pytest remains active.
+- Error worker: `e8247f46fd2bc685fae10d5bfbd2efceb5a19904`; exact canonical `34788816387 = FAILURE` attempt 3 solely on inherited 48px Send-button geometry. Manifest-truth regression test passes; all non-pytest canonical lanes pass.
+- Spec/Core: `52b4e322041547e9039a0f3026f6747583605914`; Core Focused `34789228532 = SUCCESS`, canonical `34789228473 = SUCCESS`.
+- Backend: `e4e1244e8482ac7d78e557ded5f91252cccc0347`; no new matching failure evidence; keep green cluster closed.
+- UI: `9c03ce6bb2c4cb9913cf0dafcaa2336fdb6dd82c`; Visual `34794418240 = FAILURE` only at final verdict after all eleven captures and route verification succeed.
 
-## ERR-0062 — OPEN — Spec/Core-owned test typing
+## ERR-0062 — FIXED — Spec/Core negative-runtime test typing
 
-Current Spec/Core product fix for the prior planner tuple inference is canonical-green, but the strengthened focused gate now exposes a distinct test-typing failure.
+The owner successor is exact focused- and canonical-green. Narrow `arg-type` accommodations now sit on the intentionally invalid argument expressions; assertions and runtime fail-closed semantics are unchanged. Do not revisit without new exact-SHA reproduction.
 
-Exact Core Focused run `34786426823` on `36452888894de49fdcd9b1968d1eaf83bc4412b0` executes Ruff, mypy and focused pytest. Ruff and pytest pass; the downloaded exact diagnostics report four mypy errors in `tests/unit/test_knowledge_merge_split_policy.py`:
+## ERR-0059 — FIXED — manifest capture truth
 
-- the call-line ignores on `plan_knowledge_merge(` and `plan_knowledge_split(` are unused;
-- `left_entity_id="not-a-uuid"` is intentionally a `str` where `UUID` is declared;
-- `result_entity_ids=[...]` is intentionally a `list[UUID]` where `tuple[UUID, ...]` is declared.
+Exact Error-worker canonical attempt 3 runs `tests/qa/test_visual_capture_manifest_truth.py` successfully. The only pytest failure is unrelated stale Send-button geometry. Do not revisit `ERR-0059` absent a new manifest-truth regression.
 
-The tests are valid negative-runtime tests; the ignore placement is wrong for current mypy.
+## Error-worker canonical red — STALE branch divergence
 
-Bounded Spec/Core action: keep runtime-invalid values and assertions unchanged, move/narrow `# type: ignore[arg-type]` onto the exact invalid argument expressions (or equivalent narrow typing accommodation), then require exact Core Focused success while preserving canonical success. Do not disable mypy, remove tests, broaden ignores, weaken signatures or change planner runtime semantics.
+Run `34788816387` attempt 3 on exact `e8247f46...` reports `1 failed, 5067 passed, 17 skipped`. Sole failure: `test_reference_composer_uses_large_work_surface_and_send_target`, where runtime width is 48 and the authoritative assertion is 44. Ruff, mypy, specification validator, Linux Storage, Windows release guards and Local Install/pypdf all pass.
 
-## ERR-0060 — FIXED — planner tuple inference
-
-Spec/Core successor `36452888894de49fdcd9b1968d1eaf83bc4412b0` is exact canonical-green (`34786426851 = SUCCESS`). The old planner mypy failure is closed. The current Focused red is `ERR-0062`, not a recurrence.
-
-## ERR-0061 — FIXED — focused mypy qualification blind spot
-
-Develop `1530c1e8f17f53a6cbfbda7b7c53b8ee50afe2b5` is exact canonical-green (`34785279278 = SUCCESS`). Current Spec/Core Core Focused run `34786426823` proves the added mypy step is active and fail-closed: final enforcement rejects the candidate when mypy evidence is not successful. No guard relaxation was introduced.
+Do not reopen `ERR-0053`, weaken the 44px guard, or patch UI code on the Error branch. This branch is behind current integration/UI history. A history-preserving sync is only reasonable after the selected Develop SHA is terminal canonical-green; do not sync from an in-progress Develop candidate.
 
 ## ERR-0054 — OPEN — UI/Visual Review-owned
 
-Do not create or accept a baseline from the Error worker. Current UI handoff remains `PAIRS_VERIFIED_0_OF_11`; closure still requires all eleven exact reference/render pairs reviewed and an exact-SHA 11-Surface Visual final verdict success.
+Exact current UI Visual `34794418240` proves the harness and capture path through all eleven surfaces: Ruff, comparator mypy/tests, hierarchy/accessibility, capture, route identity, compare/proposal and artifact upload all succeed. Only `Enforce visual verdict` fails.
 
-## ERR-0059 — FIXED
+No Error-worker baseline creation or acceptance. UI/Visual Review must actually open the eleven exact reference/render pairs, record truthful pair status, approve a reviewed baseline only where justified, and obtain exact-SHA final visual verdict success.
 
-Do not revisit unless a new exact-SHA manifest-truth regression reproduces.
+## Green / held clusters
 
-## Green clusters
-
-- Develop canonical: SUCCESS.
-- Backend current exact canonical: SUCCESS.
-- UI current exact Core Focused, UI Focused and canonical: SUCCESS.
-
-Do not reopen these clusters without a new matching exact-SHA failure signature.
-
-## Stale cascade
-
-The Error worker's own canonical red on inherited 48px Send geometry remains `STALE`; current Develop preserves the authoritative 44px contract. Do not patch this stale UI baseline on `postmerge/errors`.
+- Spec/Core current exact focused + canonical: SUCCESS.
+- Backend: no new matching current failure evidence; do not reopen.
+- Develop: current canonical is still running; its completed release/storage/install lanes are green.
+- UI technical capture path: all eleven captures + route identity succeed; visual verdict remains review-owned.
 
 ## Next root cause
 
-1. Consume the Spec/Core successor for `ERR-0062`; no parallel test mutation.
-2. Keep `ERR-0054` handed to UI/Visual Review until 11/11 pairs are actually reviewed and the exact visual verdict is green.
-3. Scan only for new current exact-SHA Error-owned failures. `ERR-0059`, `ERR-0060` and `ERR-0061` are closed and remain untouched absent a new regression.
+1. Consume Develop `34794066456` terminal result. If success, the integrated Merge/Split slice is closed at integration level; if failure, open only the exact new signature actually reproduced.
+2. Keep `ERR-0054` with UI/Visual Review until 11/11 pairs are genuinely reviewed and final visual verdict is green.
+3. Do not revisit `ERR-0059`, `ERR-0062`, `ERR-0060` or `ERR-0061` without new exact-SHA evidence.
+4. Do not mutate the stale Error-worker 48px UI geometry; preserve the 44px contract and wait for a canonical-green Develop baseline before any history-preserving branch synchronization.
