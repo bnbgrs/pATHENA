@@ -6,6 +6,7 @@ on:
       - bot/pathena-candidate
       - postmerge/ui
       - manual/ui-11screen-longrun-20260915
+      - ui/11-screen-longrun-r2-20260915
     paths:
       - ".github/workflows/ui-snapshot.yml"
       - "scripts/render_pathena_ui_snapshot.py"
