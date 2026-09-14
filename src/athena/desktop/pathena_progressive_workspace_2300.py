@@ -81,7 +81,6 @@ QLabel[pathenaSectionHeading="true"] {
 QWidget[pathenaProgressiveRole="detail"] {
     background: #080808;
     border: none;
-    border-radius: 0;
     color: #D7D7D7;
 }
 QWidget[pathenaProgressiveRole="secondary"] {
@@ -93,38 +92,6 @@ QWidget[pathenaProgressiveRole="decision"] {
 }
 QWidget[pathenaProgressiveRole="decision"]:focus {
     border: 1px solid #F26A21;
-}
-QListWidget#researchJobList,
-QListWidget#durableJobList,
-QListWidget#sourceList {
-    background: #080808;
-    border: none;
-    border-right: 1px solid #202020;
-    border-radius: 0;
-    outline: none;
-}
-QListWidget#researchJobList::item,
-QListWidget#durableJobList::item,
-QListWidget#sourceList::item {
-    min-height: 36px;
-    padding: 4px 10px;
-    border-radius: 2px;
-}
-QListWidget#researchJobList::item:selected,
-QListWidget#durableJobList::item:selected,
-QListWidget#sourceList::item:selected {
-    background: #151515;
-    border-left: 2px solid #F26A21;
-}
-QPlainTextEdit#researchDetails,
-QPlainTextEdit#jobDetails,
-QPlainTextEdit#sourceDetails {
-    background: #080808;
-    border: none;
-    border-radius: 0;
-}
-QSplitter::handle {
-    background: #202020;
 }
 """
 
@@ -141,10 +108,8 @@ class PathenaProgressiveWorkspaceRefinement(QObject):
         self._quiet_detail_editors()
         self._configure_tabs()
         self._connect_progressive_lists()
-        self._connect_reference_inspector_policy()
         self._sync_research_proposals()
         self._sync_claim_relations()
-        self._sync_reference_inspector()
         if _PROGRESSIVE_STYLESHEET not in window.styleSheet():
             window.setStyleSheet(f"{window.styleSheet()}\n{_PROGRESSIVE_STYLESHEET}")
 
@@ -170,8 +135,6 @@ class PathenaProgressiveWorkspaceRefinement(QObject):
             "persistentClaimDetails",
             "semanticReviewDetails",
             "researchDetails",
-            "jobDetails",
-            "sourceDetails",
         ):
             editor = self.window.findChild(QPlainTextEdit, name)
             if editor is None:
@@ -202,29 +165,6 @@ class PathenaProgressiveWorkspaceRefinement(QObject):
             model.rowsRemoved.connect(self._sync_claim_relations)
             model.modelReset.connect(self._sync_claim_relations)
             relations.currentItemChanged.connect(self._sync_claim_relations)
-
-    def _connect_reference_inspector_policy(self) -> None:
-        navigation = getattr(self.window, "navigation", None)
-        if isinstance(navigation, QListWidget):
-            navigation.currentRowChanged.connect(self._sync_reference_inspector)
-
-    def _sync_reference_inspector(self, row: int | None = None) -> None:
-        inspector = self.window.findChild(QWidget, "inspector")
-        navigation = getattr(self.window, "navigation", None)
-        if inspector is None or not isinstance(navigation, QListWidget):
-            return
-        current_row = navigation.currentRow() if row is None else row
-        if current_row == 6:
-            inspector.hide()
-            return
-        if current_row == 0:
-            context_button = getattr(self.window, "context_button", None)
-            context_available = (
-                isinstance(context_button, QPushButton) and not context_button.isHidden()
-            )
-            inspector.setVisible(context_available)
-            return
-        inspector.show()
 
     def _sync_research_proposals(self, *_args: object) -> None:
         try:
