@@ -4,25 +4,26 @@ Evidence-only progress register for `develop/pathena-next`. No invented completi
 
 ## Current baseline
 
-- Develop parent before this integration: `e48442210d98ca98a086dd7e4f3e5b3dd26e65bb`.
-- Exact canonical Quality on that parent: `34797268583 = FAILURE`.
-- Failure is isolated to full pytest: `test_dedicated_core_process_serves_until_desktop_requests_stop` can observe published discovery before the server-side runtime token is installed. Validator, Ruff, mypy, Linux Storage, Windows release guards and Local Install/pypdf are green on the same SHA.
+- Develop parent before this integration: `8a8f7e716075e6248214b15563a0e282aba7723c`.
+- Exact canonical Quality on that parent: `34800785441 = SUCCESS`.
 - Persistent release guards remain mandatory and unchanged.
 
 ## Current integration state
 
-Develop retains the bounded product capabilities integrated through the current baseline, including temporal staleness consolidation, explicit user-correction and semantic-identity guards, ScheduleDefinition IANA timezone validation, configurable backup quiet hour, truthful visual-capture metadata, canonical 44×44 Send-target/title hierarchy contracts, Core focused-candidate mypy qualification, persistence-neutral Knowledge merge/split identity planning, and application-facing read-only merge/split planning.
+Develop retains the bounded product capabilities integrated through the current baseline, including temporal staleness consolidation, explicit user-correction and semantic-identity guards, ScheduleDefinition IANA timezone validation, configurable backup quiet hour, truthful visual-capture metadata, canonical 44×44 Send-target/title hierarchy contracts, Core focused-candidate mypy qualification, persistence-neutral Knowledge merge/split identity planning, application-facing read-only merge/split planning, and the Core API discovery/authentication readiness barrier.
 
-This integration closes the reproduced Core API bootstrap readiness race. `LocalApiRuntime.publish()` now installs the in-memory authentication token before publishing `core-api.json`, making discovery the true readiness barrier. A focused boundary test proves that the freshly written token authenticates before discovery becomes visible. Failure cleanup remains fail-closed and continues to clear both bootstrap files plus in-memory token state.
+This integration adds deterministic project Knowledge membership planning. One canonical Knowledge entity can plan membership in multiple canonical Project Knowledge targets through the established `belongs_to_project` relation contract; duplicate targets collapse without inventing edges, invalid targets fail closed, and registry fallback/drift is rejected. The planner is deliberately persistence-neutral and does not fabricate relation IDs, provenance, or Storage writes.
 
-No worker history is merged, and no Security, Storage, Recovery, packaging, runtime locality, visual, test-strength, or Skip/XFail guard is relaxed.
+Worker evidence on `postmerge/spec-core@2c1aef57d1ffd5ab53283a05843c912c9e3e93ad` is exact: Core Focused `34802608287 = SUCCESS` and canonical Quality `34802608283 = SUCCESS`. Only the bounded product/test blobs are promoted; worker history is not merged.
+
+No Security, Storage, Recovery, packaging, runtime locality, visual, test-strength, or Skip/XFail guard is relaxed.
 
 ## Current worker truth
 
-- Errors `80ffef405415a9dfde9bff8b1f54764224652ef7`: exact-SHA source-of-truth refresh; no competing product mutation selected.
-- Spec/Core `52b4e322041547e9039a0f3026f6747583605914`: previously promoted merge/split policy; no new selected delta.
-- Backend `52eb61de9ecfde4074778a1bab2966e18aab526d`: synchronized with the prior Develop baseline; no new selected delta.
-- UI `6fce1d686f43d4cb8e3ea060055f4a871147df82`: presentation/visual work remains owner-side and unpromoted here.
+- Errors `80ffef405415a9dfde9bff8b1f54764224652ef7`.
+- Spec/Core `2c1aef57d1ffd5ab53283a05843c912c9e3e93ad`: project-membership planner selected and exact-qualified.
+- Backend `52eb61de9ecfde4074778a1bab2966e18aab526d`.
+- UI `5922cdca385ad622b9e97f4e17b32edb00c847b8`: presentation/visual work remains owner-side and unpromoted here.
 
 ## Error and visual truth rules
 
