@@ -168,6 +168,27 @@ QPushButton#chatKnowledgePallasButton:focus {{
     color: #FFFFFF;
     background: transparent;
 }}
+QLabel#chatKnowledgeTab {{
+    min-height: 30px;
+    padding-bottom: 10px;
+}}
+QLabel#chatKnowledgeSection {{
+    margin-top: 10px;
+    margin-bottom: 5px;
+}}
+QLabel#chatKnowledgeMetricName,
+QLabel[pathenaMetricValue="true"] {{
+    min-height: 30px;
+    padding: 3px 0;
+}}
+QLabel#chatKnowledgeRecentItem {{
+    min-height: 22px;
+    margin-top: 5px;
+}}
+QLabel#chatKnowledgeRecentMeta {{
+    min-height: 17px;
+    margin-bottom: 5px;
+}}
 QLabel#pageTitle {{
     color: #F1F1F1;
     font-family: "Segoe UI Variable Display", "Segoe UI", sans-serif;
