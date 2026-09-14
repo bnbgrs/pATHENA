@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
+from numbers import Real
 from pathlib import Path
 from typing import Protocol
 
@@ -47,8 +49,8 @@ class SpeechTranscriptSegment:
     def __post_init__(self) -> None:
         if not self.text.strip():
             raise ValueError("text must not be blank")
-        if self.start_time_ms < 0:
-            raise ValueError("start_time_ms must be >= 0")
+        _validate_time_ms(self.start_time_ms, "start_time_ms")
+        _validate_time_ms(self.end_time_ms, "end_time_ms")
         if self.end_time_ms <= self.start_time_ms:
             raise ValueError("end_time_ms must be greater than start_time_ms")
         _validate_confidence(self.confidence)
@@ -109,5 +111,16 @@ class SpeechToTextProvider(Protocol):
 
 
 def _validate_confidence(confidence: float | None) -> None:
-    if confidence is not None and not 0.0 <= confidence <= 1.0:
+    if confidence is None:
+        return
+    if isinstance(confidence, bool) or not isinstance(confidence, Real):
+        raise TypeError("confidence must be a real number or None")
+    if not math.isfinite(float(confidence)) or not 0.0 <= confidence <= 1.0:
         raise ValueError("confidence must be between 0.0 and 1.0")
+
+
+def _validate_time_ms(value: int, field_name: str) -> None:
+    if type(value) is not int:
+        raise TypeError(f"{field_name} must be an integer")
+    if value < 0:
+        raise ValueError(f"{field_name} must be >= 0")
