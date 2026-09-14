@@ -269,6 +269,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         )
 
     def capture_pallas() -> None:
+        full_view = None
         try:
             window = find_window()
             grounded = window.property("pathenaPallasGroundedController")
@@ -280,21 +281,30 @@ def main(argv: Sequence[str] | None = None) -> int:
                 raise RuntimeError("Real PALLAS full-view controller is unavailable.")
             full_view.open_workspace()
             app.processEvents()
-            dialog = getattr(full_view, "dialog", None)
             workspace = getattr(full_view, "workspace", None)
-            if not isinstance(dialog, QWidget) or not dialog.isVisible() or workspace is None:
-                raise RuntimeError("PALLAS full workspace did not become visible.")
+            host = getattr(full_view, "_host", None)
+            if (
+                workspace is None
+                or not isinstance(host, QWidget)
+                or not host.isVisible()
+                or getattr(full_view, "is_open", False) is not True
+            ):
+                raise RuntimeError("PALLAS shell workspace did not become visible.")
             if workspace.field.property("pathenaPallasMode") != "full":
                 raise RuntimeError("PALLAS reference capture is not using the full renderer.")
             if workspace.field.property("pathenaUiState") != "ready":
                 raise RuntimeError("PALLAS reference capture did not reach ready state.")
             if int(workspace.field.property("pathenaPallasNodeCount") or 0) != 5:
                 raise RuntimeError("PALLAS reference graph did not render all diagnostic nodes.")
-            save_widget(dialog, ordinal=8, label="PALLAS", kind="full-pallas")
+            save_widget(window, ordinal=8, label="PALLAS", kind="full-pallas")
             captures[-1]["fixture"] = "diagnostic semantic graph; presentation only"
-            dialog.hide()
+            captures[-1]["shell_hosted"] = True
         except Exception as exc:  # noqa: BLE001
             errors.append(f"PALLAS: {type(exc).__name__}: {exc}")
+        finally:
+            if full_view is not None and callable(getattr(full_view, "close_workspace", None)):
+                full_view.close_workspace()
+                app.processEvents()
 
     def palette_controller() -> CommandPaletteController:
         window = find_window()
