@@ -10,10 +10,10 @@ from PySide6.QtWidgets import QApplication
 
 from athena.desktop.app import create_application
 from athena.desktop.command_palette import install_command_palette
+from athena.desktop.pathena_comfyui import COMFYUI_URL_ENV
 from athena.desktop.pathena_command_palette_truth_6500 import (
     install_command_palette_truth,
 )
-from athena.desktop.pathena_comfyui import COMFYUI_URL_ENV
 from athena.desktop.pathena_external_workspaces import install_external_workspaces
 from athena.desktop.pathena_pallas_field import install_pallas_grounded_field
 from athena.desktop.pathena_pallas_full_view import install_pallas_full_view
