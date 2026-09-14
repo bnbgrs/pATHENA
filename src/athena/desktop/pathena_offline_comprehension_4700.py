@@ -25,7 +25,7 @@ class ReadinessPresentation:
 
 
 class OfflineComprehensionController(QObject):
-    """Keep local readiness meaning consistent across the chat interaction surface."""
+    """Keep local readiness meaning consistent without replacing workspace identity."""
 
     def __init__(self, window: QWidget) -> None:
         super().__init__(window)
@@ -77,10 +77,10 @@ class OfflineComprehensionController(QObject):
         if self.ground is not None:
             self.ground.setStatusTip(presentation.summary)
 
-        if presentation.state == "core-offline":
-            empty_title = self.window.findChild(QLabel, "emptyStateTitle")
-            if empty_title is not None:
-                empty_title.setText("Getting pATHENA ready")
+        # Readiness remains visible in status, tooltips, accessibility metadata and
+        # actual control enablement. It must not replace the stable empty-workspace
+        # identity ("Hello, Commander.") with an implementation-state headline.
+        self.window.setProperty("pathenaReferenceWelcomePreserved", True)
 
     def _presentation(self) -> ReadinessPresentation:
         core_transport_ready = bool(
@@ -95,41 +95,41 @@ class OfflineComprehensionController(QObject):
                 "core-offline",
                 "pATHENA is reconnecting; chat submission is temporarily unavailable.",
                 "keep pATHENA open while it reconnects",
-                "pATHENA reconnecting",
+                "Ask anything…",
             )
         if last_model_error is not None:
             return ReadinessPresentation(
                 "model-error",
                 "The selected local model reported an error.",
                 "inspect System status or select another available local model",
-                "Local model error — choose or recover a model",
+                "Ask anything…",
             )
         if not provider_ready:
             return ReadinessPresentation(
                 "provider-unavailable",
                 "The local model service is unavailable.",
                 "recover it in System or select another available local model",
-                "Local model service unavailable",
+                "Ask anything…",
             )
         if selected_model is None:
             return ReadinessPresentation(
                 "model-required",
                 "No local model is selected.",
                 "choose an available local model",
-                "Choose a local model to chat",
+                "Ask anything…",
             )
         if not bool(getattr(selected_model, "loaded", False)):
             return ReadinessPresentation(
                 "model-not-loaded",
                 "The selected local model is not currently loaded.",
                 "load the model in the provider or select a loaded model",
-                "Selected local model is not loaded",
+                "Ask anything…",
             )
         return ReadinessPresentation(
             "ready",
             "pATHENA and the selected local model are ready.",
             "type a message",
-            "Ask ATHENA",
+            "Ask anything…",
         )
 
     def _selected_model(self) -> object | None:

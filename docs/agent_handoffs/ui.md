@@ -2,47 +2,56 @@
 
 ## Current baseline
 
-- Develop source checked first: `develop/pathena-next@c830b96a12d25914c52a0abc7749a6724b19cfae`.
-- Exact technically verified worker head: `postmerge/ui@90a51e111851f80c5e2388c11c4026c6ec62fa09`.
-- The worker is history-preservingly synchronized with current Develop; its merge parent includes exact Develop `c830b96a12d25914c52a0abc7749a6724b19cfae`.
-- `main` and `bnbgrs/ATHENA` remain read-only and untouched.
+- Develop inspected first: `develop/pathena-next@d173bd714b5f7de9242e1d0b2fff567c439d1ac0`.
+- Worker synchronized history-preservingly before mutation: `postmerge/ui@aafd5face59441c2af7a693ed78a40d71b0e17b5`, parents `f1b29a76d6a30268fa11b7e013a8f7953898477d` + current Develop.
+- Prior exact UI head `f1b29a76d6a30268fa11b7e013a8f7953898477d`: UI Focused `SUCCESS`, canonical Quality `SUCCESS`.
+- `main` and `bnbgrs/ATHENA` remain strictly read-only and untouched.
 
-## Evidence consumed this run
+## Source of truth consumed
 
-The required spec-core, backend, errors, integrator, 11-screen manifest and Visual Gap Ledger were reviewed before mutation. Error handoff reports no OPEN current error. Historical Core/Backend items are not reopened.
+Current `spec-core.md`, `backend.md`, `errors.md`, `integrator.md`, `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` and `docs/ui/VISUAL_GAP_LEDGER.md` were read first. Historical UI-GAP IDs were not used as authority.
 
-Slot 01 remains the only directly opened pixel reference currently recorded: `pATHENA: Dunkles KI-Dashboard mit Wissenspanel.png`. It supports a deep-black Workspace/Chat surface, narrow left-owned navigation, quiet top status chrome, a large central work area and a materially larger lower composer. No current-build screenshot was opened side-by-side in this run, so no `MATCH` or pixel-parity claim is made.
+The run actively searched the user Library for the eleven original design references. The authoritative PALLAS, Settings, Jobs and ComfyUI images were resolved directly, with the remaining reference set also present in the same Library collection/search surface. Exact candidate runtime images do not yet exist at commit creation, so no old runtime PNG is relabeled as current evidence.
 
-## Verified slice — UI-GAP-0004 Workspace composer scale
+## Active slice — ComfyUI shell visual evidence
 
-Status: `FIXED / INTEGRATOR_READY_TECHNICAL`, P1.
+Product state before this candidate already includes `ComfyUiShellController`, which reuses the real local-only `ComfyUiController` surface, reparents it to `referenceBody`, changes it to widget hosting, publishes `pathenaComfyUiShellHosted=True`, preserves the existing seven primary routes and uses `pathenaComfyUiShellOpen` on the MainWindow.
 
-The real composer keeps the existing chat input, grounding route and send action. Verified presentation contract:
+The visual harness was stale: `capture_comfyui()` opened the real controller but then saved `controller.dialog` itself. That necessarily omitted the pATHENA top bar, narrow rail and shared shell from Screen 01, so the native artifact could not prove the actual product hosting path.
 
-- composer fixed height: 88 px;
-- composer accessible name: `Message composer`;
-- prompt fixed interaction height: 44 px after Qt polish;
-- real `Sources` grounding control fixed interaction height: 36 px after Qt polish;
-- existing send control materialized at 44×44 px, with QSS content-box dimensions 42×42 plus the inherited 1 px border per side;
-- real send signal, tooltip, accessible name and Ctrl+Enter route retained;
-- no decorative/mock controls.
+This candidate changes only `scripts/render_pathena_ui_snapshot.py` plus evidence docs:
 
-No chat submission, grounding, model/provider, persistence, Storage, Security, Recovery, worker/scheduler or backend semantics changed.
+- resolve the real visible MainWindow;
+- require the installed ComfyUI shell controller;
+- require exactly seven navigation items and seven primary pages;
+- require the ComfyUI surface parent to be `referenceBody`;
+- require `pathenaComfyUiShellHosted=True` and MainWindow `pathenaComfyUiShellOpen=True`;
+- retain local-only, loopback diagnostic endpoint, exact workflow payload and prompt-id verification;
+- save the whole MainWindow as Screen 01 (`kind=shell-comfyui`);
+- close through the real shell controller after capture.
 
-## Exact verification
+No ComfyUI client behavior, endpoint validation, queue semantics, workflow semantics, VRAM handling, Backend, Storage, Security or persistence semantics changed. No test/guard weakening, Skip or XFail is introduced.
 
-Canonical ATHENA Quality Gate `34365616984` on exact worker head `90a51e111851f80c5e2388c11c4026c6ec62fa09` completed `success`.
+## BEFORE -> candidate target
 
-The final raw-QSS test pins the 42 px content-box dimensions and zero padding, while `tests/unit/test_pathena_window.py::test_reference_composer_uses_large_work_surface_and_send_target` independently requires the real widget to materialize exactly 44×44 px and also requires composer 88 px, prompt 44 px and Sources 36 px. No Skip/XFail or assertion weakening.
+- BEFORE visual artifact on the prior ComfyUI product lineage: Screen 01 showed only the embedded ComfyUI surface because the harness captured the child widget.
+- Candidate target: exact native Screen 01 must simultaneously show the real pATHENA MainWindow shell and the real shell-hosted ComfyUI workspace.
+- AFTER at commit creation: `CURRENT_RENDER_PENDING_EXACT_CANDIDATE`; no `MATCH` or `CLOSE` claim is permitted yet.
 
-Compare against current Develop confirms a bounded seven-file UI delta: three UI evidence docs, `src/athena/desktop/pathena_shared_components.py`, `src/athena/desktop/pathena_window.py`, `tests/unit/test_pathena_shared_components.py`, and `tests/unit/test_pathena_window.py`. No Backend/Storage/Security product file is in the delta.
+## Strict 11-screen state at candidate creation
 
-## Integrator handoff
+`PAIRS_VERIFIED_0_OF_11`, `MATCH_0_OF_11` for the new exact candidate until its native artifact is produced and opened. Each slot is `UNVERIFIED` or `CURRENT_RENDER_UNAVAILABLE`; Light Workspace remains explicitly unavailable as a truthful same-state target.
 
-UI-GAP-0004 is technically Integrator-ready from exact verified head `90a51e111851f80c5e2388c11c4026c6ec62fa09`, subject to the Integrator's independent review and normal current-Develop compatibility check. A green code gate does not imply screenshot-level `MATCH`.
+## Next order
 
-This documentation-refresh commit intentionally carries no product behavior change. If it triggers a new canonical Quality run, freeze `postmerge/ui` until that exact-doc-head run completes; do not supersede the already exact-green product evidence.
+1. Consume exact UI Focused, canonical Quality and 11-surface Visual run for this candidate.
+2. Download/open the exact artifact and compare Screen 01 against the original ComfyUI reference.
+3. If shell hosting is proven, keep Screen 01 `GAP` unless secondary navigation, Connection inspector, typography, spacing, proportions, controls and state genuinely align.
+4. Reopen all other exact candidate PNGs and reference images; do not infer same-state evidence from file existence.
+5. Next broad recurring shell/context gap after ComfyUI evidence is correct: Command Palette as a real Workspace overlay rather than an isolated capture.
 
-## Next gap
+## Ready state
 
-After Integrator consumption of UI-GAP-0004, select at most one further visible gap backed by an actually opened reference and a real current code/render state. Priority remains workspace hierarchy/spacing, typography or contextual Inspector composition rather than new decorative controls.
+- Technical readiness: `PENDING_EXACT_SHA_TESTS`.
+- Visual readiness: `NO`.
+- Integrator-ready: `NO` until exact focused/Quality evidence is complete and the Develop baseline remains compatible.

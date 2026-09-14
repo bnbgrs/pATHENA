@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QHideEvent, QShowEvent
 from PySide6.QtWidgets import (
     QFrame,
@@ -309,7 +309,6 @@ class SystemWorkspace(QWidget):
     def showEvent(self, event: QShowEvent) -> None:  # noqa: N802
         super().showEvent(event)
         self._hide_shell_inspector()
-        QTimer.singleShot(0, self._hide_shell_inspector)
 
     def hideEvent(self, event: QHideEvent) -> None:  # noqa: N802
         if self._shell_inspector is not None:

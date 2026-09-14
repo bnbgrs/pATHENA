@@ -1,10 +1,8 @@
-"""First-run and empty-chat presentation refinements 2801-2900 for pATHENA.
+"""Reference-driven first-run presentation for the real pATHENA desktop.
 
-The exact offscreen render exposed several real presentation issues: disconnected
-session controls looked like empty boxes, the empty chat message was stranded at the
-top of a large canvas, disabled composer actions still looked active, and PALLAS used
-more rail space than its importance justified. This controller fixes those issues
-without changing Core, model, chat or persistence behavior.
+This controller changes presentation only. It keeps the existing Core, chat,
+knowledge and persistence paths intact while making an empty local workspace read
+like the eleven-screen reference family.
 """
 
 from __future__ import annotations
@@ -14,6 +12,7 @@ from dataclasses import dataclass
 from PySide6.QtCore import QEvent, QObject, QSize, Qt, QTimer
 from PySide6.QtWidgets import (
     QFrame,
+    QHBoxLayout,
     QLabel,
     QListWidget,
     QPushButton,
@@ -68,33 +67,91 @@ UI_REFINEMENT_TASKS_2801_2900: tuple[str, ...] = tuple(
 
 _STARTUP_STYLESHEET = r"""
 QFrame#composer {
-    background: transparent;
-    border: none;
+    background: #0A0A0A;
+    border: 1px solid #252525;
+    border-radius: 16px;
 }
 QLabel#emptyStateEyebrow {
     color: #F26A21;
+    font-family: "Cascadia Mono", "Consolas", monospace;
     font-size: 9px;
-    font-weight: 600;
+    font-weight: 500;
     letter-spacing: 1px;
 }
 QLabel#emptyStateTitle {
     color: #F2F2F2;
-    font-size: 20px;
-    font-weight: 600;
+    font-family: "Segoe UI Variable Display", "Segoe UI", sans-serif;
+    font-size: 38px;
+    font-weight: 300;
 }
 QLabel#emptyStateBody {
-    color: #858585;
-    font-size: 12px;
+    color: #8D8D8D;
+    font-size: 15px;
 }
-QFrame#emptyStatePanel {
+QFrame#emptyStatePanel,
+QFrame#composerBottomBreathingRoom {
     background: transparent;
     border: none;
 }
-QPushButton#sendButton:disabled {
-    color: #555555;
-    background: #121212;
-    border: 1px solid #202020;
+QFrame#emptyStateOrbit {
+    min-width: 72px;
+    max-width: 72px;
+    min-height: 72px;
+    max-height: 72px;
+    background: transparent;
+    border: 3px solid #F26A21;
+    border-radius: 36px;
 }
+QLabel#emptyStateOrbitDot {
+    background: #060606;
+    border: 1px solid #F26A21;
+    border-radius: 8px;
+}
+QFrame#chatKnowledgeOverview {
+    background: #0A0A0A;
+    border: none;
+}
+QLabel#chatKnowledgeTitle {
+    color: #F26A21;
+    font-family: "Cascadia Mono", "Consolas", monospace;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1px;
+}
+QLabel#chatKnowledgeTab {
+    color: #F26A21;
+    border: none;
+    border-bottom: 1px solid #F26A21;
+    padding: 0 0 10px 0;
+    font-family: "Cascadia Mono", "Consolas", monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+}
+QLabel#chatKnowledgeSection {
+    color: #737373;
+    font-family: "Cascadia Mono", "Consolas", monospace;
+    font-size: 9px;
+    letter-spacing: 1px;
+}
+QLabel#chatKnowledgeMetricName {
+    color: #A8A8A8;
+    font-size: 13px;
+}
+QLabel[pathenaMetricValue="true"] {
+    color: #E4E4E4;
+    font-family: "Cascadia Mono", "Consolas", monospace;
+    font-size: 11px;
+}
+QLabel#chatKnowledgeRecentItem {
+    color: #C7C7C7;
+    font-size: 12px;
+}
+QLabel#chatKnowledgeRecentMeta {
+    color: #707070;
+    font-family: "Cascadia Mono", "Consolas", monospace;
+    font-size: 9px;
+}
+QPushButton#sendButton:disabled,
 QPushButton#groundButton:disabled {
     color: #555555;
     background: transparent;
@@ -102,8 +159,8 @@ QPushButton#groundButton:disabled {
 }
 QLineEdit#promptInput:disabled {
     color: #666666;
-    background: #090909;
-    border-color: #1D1D1D;
+    background: transparent;
+    border: none;
 }
 QComboBox#chatSelector:disabled,
 QComboBox#modelSelector:disabled {
@@ -159,6 +216,10 @@ class PathenaStartupExperience(QObject):
         if new_chat is not None:
             new_chat.clicked.connect(self._schedule_sync)
 
+        navigation = window.findChild(QListWidget, "navigation")
+        if navigation is not None:
+            navigation.currentRowChanged.connect(self._schedule_sync)
+
         self._apply_static_geometry()
         self._install_stylesheet()
         QTimer.singleShot(0, self.sync)
@@ -190,13 +251,16 @@ class PathenaStartupExperience(QObject):
 
         navigation = self.window.findChild(QListWidget, "navigation")
         if navigation is not None:
-            navigation.setFixedHeight(224)
-            for index in range(navigation.count()):
-                item = navigation.item(index)
-                item.setSizeHint(QSize(164, 32))
-                tooltip = item.toolTip().strip()
-                if tooltip:
-                    item.setData(Qt.ItemDataRole.AccessibleTextRole, tooltip)
+            if self.window.findChild(QFrame, "convergenceHost") is None:
+                navigation.setFixedHeight(224)
+                for index in range(navigation.count()):
+                    item = navigation.item(index)
+                    item.setSizeHint(QSize(164, 32))
+                    tooltip = item.toolTip().strip()
+                    if tooltip:
+                        item.setData(Qt.ItemDataRole.AccessibleTextRole, tooltip)
+            else:
+                navigation.setFixedHeight(270)
 
         pallas = self.window.findChild(QWidget, "pallasVisualPlaceholder")
         if pallas is not None:
@@ -218,24 +282,17 @@ class PathenaStartupExperience(QObject):
             new_chat.setMaximumWidth(62)
             new_chat.setAccessibleDescription(new_chat.toolTip())
 
-        ground = self.window.findChild(QPushButton, "groundButton")
-        if ground is not None:
-            ground.setAccessibleDescription(ground.toolTip())
-
-        details_toggle = self.window.findChild(QPushButton, "detailsToggle")
-        if details_toggle is not None:
-            details_toggle.setAccessibleDescription(details_toggle.toolTip())
-
-        context_toggle = self.window.findChild(QPushButton, "contextToggle")
-        if context_toggle is not None:
-            context_toggle.setAccessibleDescription(context_toggle.toolTip())
+        for object_name in ("groundButton", "detailsToggle", "contextToggle"):
+            button = self.window.findChild(QPushButton, object_name)
+            if button is not None:
+                button.setAccessibleDescription(button.toolTip())
 
         prompt = self.window.findChild(QWidget, "promptInput")
         if prompt is not None:
             prompt.setMinimumHeight(46)
 
         send = self.window.findChild(QPushButton, "sendButton")
-        if send is not None:
+        if send is not None and self.window.findChild(QFrame, "convergenceHost") is None:
             send.setMinimumWidth(66)
             send.setMaximumWidth(78)
 
@@ -260,45 +317,47 @@ class PathenaStartupExperience(QObject):
 
         prompt = self.window.findChild(QWidget, "promptInput")
         if prompt is not None:
-            if core_ready:
-                prompt.setToolTip("Message the selected local model")
-            else:
-                prompt.setToolTip("Available when pATHENA and the selected model are ready")
+            prompt.setToolTip(
+                "Message the selected local model"
+                if core_ready
+                else "Available when pATHENA and the selected model are ready"
+            )
             prompt.setAccessibleDescription(prompt.toolTip())
 
         send = self.window.findChild(QPushButton, "sendButton")
         if send is not None:
-            if core_ready:
-                send.setToolTip("Send message (Ctrl+Enter)")
-            else:
-                send.setToolTip("Available when pATHENA and the selected model are ready")
+            send.setToolTip(
+                "Send message (Ctrl+Enter)"
+                if core_ready
+                else "Available when pATHENA and the selected model are ready"
+            )
             send.setAccessibleDescription(send.toolTip())
 
         self._polish_empty_state(core_ready=core_ready)
+        self._polish_composer_placement()
+        self._polish_chat_inspector()
 
     @staticmethod
     def _sync_empty_state_copy(
-        *, title: QLabel, body: QLabel, raw_text: str, core_ready: bool
+        *,
+        eyebrow: QLabel,
+        title: QLabel,
+        body: QLabel,
+        raw_text: str,
+        core_ready: bool,
     ) -> None:
-        if not core_ready:
-            title.setText("Getting pATHENA ready")
-            body.setText(
-                "pATHENA reconnects automatically. Chat, knowledge, research and "
-                "files remain local while the workspace comes online."
-            )
-        elif raw_text.startswith("Conversation deleted"):
+        if raw_text.startswith("Conversation deleted"):
+            eyebrow.setText("LOCAL WORKSPACE")
             title.setText("Conversation deleted")
-            body.setText("The local workspace is ready for a new conversation.")
-        else:
-            title.setText("Start a conversation")
-            body.setText(
-                "Ask, explore, or work with your local knowledge. Sources and evidence "
-                "stay available on demand instead of occupying the workspace by default."
-            )
+            body.setText("Ready for a new conversation.")
+            return
+        eyebrow.setText("LOCAL CORE · READY" if core_ready else "LOCAL CORE · CONNECTING")
+        title.setText("Hello, Commander.")
+        body.setText("What shall we explore today?")
 
     @staticmethod
     def _sync_empty_state_width(*, messages: QWidget, panel: QFrame, body: QLabel) -> None:
-        panel_width = max(1, min(560, messages.width() - 32))
+        panel_width = max(1, min(720, messages.width() - 32))
         panel.setFixedWidth(panel_width)
         body.setFixedWidth(max(1, panel_width - 56))
 
@@ -313,11 +372,13 @@ class PathenaStartupExperience(QObject):
         raw_text = raw.text().strip()
         if bool(raw.property("pathenaStartupReplaced")):
             panel = messages.findChild(QFrame, "emptyStatePanel")
+            eyebrow = messages.findChild(QLabel, "emptyStateEyebrow")
             title = messages.findChild(QLabel, "emptyStateTitle")
             body = messages.findChild(QLabel, "emptyStateBody")
-            if panel is not None and title is not None and body is not None:
+            if panel is not None and eyebrow is not None and title is not None and body is not None:
                 self._sync_empty_state_width(messages=messages, panel=panel, body=body)
                 self._sync_empty_state_copy(
+                    eyebrow=eyebrow,
                     title=title,
                     body=body,
                     raw_text=raw_text,
@@ -330,16 +391,21 @@ class PathenaStartupExperience(QObject):
 
         panel = QFrame(messages)
         panel.setObjectName("emptyStatePanel")
-        panel.setMinimumHeight(174)
-        panel.setSizePolicy(
-            QSizePolicy.Policy.Fixed,
-            QSizePolicy.Policy.Minimum,
-        )
+        panel.setMinimumHeight(250)
+        panel.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
         panel_layout = QVBoxLayout(panel)
-        panel_layout.setContentsMargins(28, 26, 28, 26)
-        panel_layout.setSpacing(10)
+        panel_layout.setContentsMargins(28, 24, 28, 24)
+        panel_layout.setSpacing(12)
 
-        eyebrow = QLabel("LOCAL-FIRST WORKSPACE", panel)
+        orbit = QFrame(panel)
+        orbit.setObjectName("emptyStateOrbit")
+        orbit.setFixedSize(72, 72)
+        orbit_dot = QLabel("", orbit)
+        orbit_dot.setObjectName("emptyStateOrbitDot")
+        orbit_dot.setFixedSize(16, 16)
+        orbit_dot.move(54, 2)
+
+        eyebrow = QLabel(panel)
         eyebrow.setObjectName("emptyStateEyebrow")
         eyebrow.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         eyebrow.setMinimumHeight(16)
@@ -347,32 +413,184 @@ class PathenaStartupExperience(QObject):
         title = QLabel(panel)
         title.setObjectName("emptyStateTitle")
         title.setAlignment(Qt.AlignmentFlag.AlignHCenter)
-        title.setMinimumHeight(34)
-        title.setWordWrap(False)
+        title.setMinimumHeight(52)
 
         body = QLabel(panel)
         body.setObjectName("emptyStateBody")
         body.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
         body.setWordWrap(True)
-        body.setMinimumHeight(50)
+        body.setMinimumHeight(36)
 
         self._sync_empty_state_width(messages=messages, panel=panel, body=body)
         self._sync_empty_state_copy(
+            eyebrow=eyebrow,
             title=title,
             body=body,
             raw_text=raw_text,
             core_ready=core_ready,
         )
 
+        panel_layout.addWidget(orbit, 0, Qt.AlignmentFlag.AlignHCenter)
         panel_layout.addWidget(eyebrow)
         panel_layout.addWidget(title)
         panel_layout.addWidget(body, 0, Qt.AlignmentFlag.AlignHCenter)
 
         layout = messages.layout()
+        if isinstance(layout, QVBoxLayout):
+            layout.insertStretch(0, 1)
+            layout.insertWidget(1, panel, 0, Qt.AlignmentFlag.AlignHCenter)
+
+    def _polish_composer_placement(self) -> None:
+        center = self.window.findChild(QFrame, "conversation")
+        composer = self.window.findChild(QFrame, "composer")
+        if center is None or composer is None:
+            return
+        layout = center.layout()
         if not isinstance(layout, QVBoxLayout):
             return
-        layout.insertStretch(0, 1)
-        layout.insertWidget(1, panel, 0, Qt.AlignmentFlag.AlignHCenter)
+
+        status_bar = center.findChild(QFrame, "workspaceStatusBar")
+        spacer = center.findChild(QFrame, "composerBottomBreathingRoom")
+        if spacer is None:
+            spacer = QFrame(center)
+            spacer.setObjectName("composerBottomBreathingRoom")
+            spacer.setFixedHeight(72)
+
+        if status_bar is not None:
+            layout.removeWidget(status_bar)
+        layout.removeWidget(spacer)
+        composer_index = layout.indexOf(composer)
+        if composer_index < 0:
+            return
+        layout.insertWidget(composer_index + 1, spacer)
+        if status_bar is not None:
+            layout.insertWidget(composer_index + 2, status_bar)
+
+        navigation = self.window.findChild(QListWidget, "navigation")
+        chat_active = navigation is None or navigation.currentRow() == 0
+        spacer.setVisible(chat_active)
+        if status_bar is not None:
+            status_bar.setVisible(chat_active)
+
+    def _polish_chat_inspector(self) -> None:
+        inspector = self.window.findChild(QFrame, "inspector")
+        navigation = self.window.findChild(QListWidget, "navigation")
+        if inspector is None:
+            return
+        chat_active = navigation is None or navigation.currentRow() == 0
+
+        panel = inspector.findChild(QFrame, "chatKnowledgeOverview")
+        if panel is None:
+            panel = self._build_chat_knowledge_overview(inspector)
+
+        panel.setGeometry(0, 0, inspector.width(), inspector.height())
+        panel.setVisible(chat_active)
+        if not chat_active:
+            return
+        panel.raise_()
+        self._refresh_chat_knowledge_overview(panel)
+
+    def _build_chat_knowledge_overview(self, inspector: QFrame) -> QFrame:
+        panel = QFrame(inspector)
+        panel.setObjectName("chatKnowledgeOverview")
+        panel.setAccessibleName("Knowledge overview")
+        panel_layout = QVBoxLayout(panel)
+        panel_layout.setContentsMargins(22, 28, 24, 26)
+        panel_layout.setSpacing(16)
+
+        header = QHBoxLayout()
+        title = QLabel("KNOWLEDGE", panel)
+        title.setObjectName("chatKnowledgeTitle")
+        header.addWidget(title)
+        header.addStretch(1)
+        panel_layout.addLayout(header)
+
+        tab = QLabel("OVERVIEW", panel)
+        tab.setObjectName("chatKnowledgeTab")
+        tab.setFixedWidth(72)
+        panel_layout.addWidget(tab)
+
+        section = QLabel("LOCAL KNOWLEDGE", panel)
+        section.setObjectName("chatKnowledgeSection")
+        panel_layout.addWidget(section)
+
+        for key, name in (
+            ("knowledge", "Knowledge"),
+            ("claims", "Claims"),
+            ("sources", "Sources"),
+            ("decisions", "Decisions"),
+        ):
+            row = QFrame(panel)
+            row_layout = QHBoxLayout(row)
+            row_layout.setContentsMargins(0, 0, 0, 0)
+            metric_name = QLabel(name, row)
+            metric_name.setObjectName("chatKnowledgeMetricName")
+            metric_value = QLabel("0", row)
+            metric_value.setObjectName(f"chatKnowledgeMetric_{key}")
+            metric_value.setProperty("pathenaMetricValue", True)
+            row_layout.addWidget(metric_name)
+            row_layout.addStretch(1)
+            row_layout.addWidget(metric_value)
+            panel_layout.addWidget(row)
+
+        recent_section = QLabel("RECENTLY ADDED", panel)
+        recent_section.setObjectName("chatKnowledgeSection")
+        panel_layout.addWidget(recent_section)
+
+        for slot in range(3):
+            recent = QLabel(panel)
+            recent.setObjectName("chatKnowledgeRecentItem")
+            recent.setProperty("pathenaRecentSlot", slot)
+            recent.setWordWrap(True)
+            panel_layout.addWidget(recent)
+            meta = QLabel(panel)
+            meta.setObjectName("chatKnowledgeRecentMeta")
+            meta.setProperty("pathenaRecentMetaSlot", slot)
+            panel_layout.addWidget(meta)
+
+        panel_layout.addStretch(1)
+        return panel
+
+    def _refresh_chat_knowledge_overview(self, panel: QFrame) -> None:
+        list_names = {
+            "knowledge": "persistentKnowledgeList",
+            "claims": "persistentClaimList",
+            "sources": "sourceList",
+            "decisions": "semanticReviewList",
+        }
+        lists: dict[str, QListWidget | None] = {}
+        for key, object_name in list_names.items():
+            source_list = self.window.findChild(QListWidget, object_name)
+            lists[key] = source_list
+            value = panel.findChild(QLabel, f"chatKnowledgeMetric_{key}")
+            if value is not None:
+                value.setText(str(source_list.count() if source_list is not None else 0))
+
+        knowledge_list = lists["knowledge"]
+        recent_texts: list[str] = []
+        if knowledge_list is not None:
+            for index in range(min(3, knowledge_list.count())):
+                item = knowledge_list.item(index)
+                if item is not None and item.text().strip():
+                    recent_texts.append(item.text().strip().splitlines()[0])
+        if not recent_texts:
+            recent_texts = ["No canonical knowledge yet"]
+
+        recent_labels = panel.findChildren(QLabel, "chatKnowledgeRecentItem")
+        recent_meta = panel.findChildren(QLabel, "chatKnowledgeRecentMeta")
+        recent_labels.sort(key=lambda label: int(label.property("pathenaRecentSlot") or 0))
+        recent_meta.sort(key=lambda label: int(label.property("pathenaRecentMetaSlot") or 0))
+        for slot in range(3):
+            text = recent_texts[slot] if slot < len(recent_texts) else ""
+            recent_labels[slot].setText(text)
+            recent_labels[slot].setVisible(bool(text))
+            if text and knowledge_list is not None and knowledge_list.count() > slot:
+                recent_meta[slot].setText("canonical · local")
+            elif text:
+                recent_meta[slot].setText("Explicitly accepted knowledge appears here")
+            else:
+                recent_meta[slot].clear()
+            recent_meta[slot].setVisible(bool(text))
 
 
 def install_startup_experience(window: QWidget) -> PathenaStartupExperience:

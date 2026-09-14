@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Callable
 
 from PySide6.QtCore import QObject, Qt
-from PySide6.QtGui import QKeySequence, QShortcut, QTextCursor
+from PySide6.QtGui import QFont, QKeySequence, QShortcut, QTextCursor
 from PySide6.QtWidgets import (
     QComboBox,
     QDialog,
@@ -107,9 +107,7 @@ class CommandPaletteController(QObject):
             "Available pATHENA commands matching the current search. Use Up and Down to move, "
             "then Enter to run the selected command."
         )
-        self.results.setHorizontalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
-        )
+        self.results.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.results.setMinimumHeight(280)
 
         self.help_dialog = QDialog(window)
@@ -133,6 +131,7 @@ class CommandPaletteController(QObject):
 
         self._commands = self._build_commands()
         self._filtered_commands: list[_Command] = []
+        self._row_commands: dict[int, _Command] = {}
         self._build_dialog()
         self._build_help_dialog()
 
@@ -228,76 +227,20 @@ class CommandPaletteController(QObject):
 
         commands.extend(
             (
-                _Command(
-                    label="New conversation",
-                    keywords=("chat", "conversation", "create"),
-                    action=self.window.new_chat_button.click,
-                ),
-                _Command(
-                    label="Focus message field",
-                    keywords=("chat", "compose", "message", "input"),
-                    action=self._focus_prompt,
-                ),
-                _Command(
-                    label="Use sources for next response",
-                    keywords=("chat", "research", "ground", "sources", "evidence"),
-                    action=self._ground_prompt,
-                ),
-                _Command(
-                    label="Browse canonical Knowledge",
-                    keywords=("knowledge", "canonical", "memory", "units"),
-                    action=lambda: self._open_knowledge_tab(0),
-                ),
-                _Command(
-                    label="Browse canonical Claims",
-                    keywords=("knowledge", "claims", "canonical", "facts", "evidence"),
-                    action=lambda: self._open_knowledge_tab(1),
-                ),
-                _Command(
-                    label="Review contradiction decisions",
-                    keywords=("knowledge", "claims", "contradiction", "decisions", "review"),
-                    action=lambda: self._open_decision_mode("contradiction"),
-                ),
-                _Command(
-                    label="Review canonical merge candidates",
-                    keywords=("knowledge", "merge", "duplicate", "dedup", "decisions"),
-                    action=lambda: self._open_decision_mode("merge_candidate"),
-                ),
-                _Command(
-                    label="Browse selected Claim relations",
-                    keywords=("knowledge", "claim", "relations", "evidence", "contradiction"),
-                    action=self._focus_claim_relations,
-                ),
-                _Command(
-                    label="Open current knowledge review",
-                    keywords=("knowledge", "session", "proposal", "preflight", "accept"),
-                    action=lambda: self._open_knowledge_tab(3),
-                ),
-                _Command(
-                    label="Filter canonical memory",
-                    keywords=("knowledge", "claims", "search", "filter", "find"),
-                    action=self._focus_knowledge_filter,
-                ),
-                _Command(
-                    label="Open Research result & promotion",
-                    keywords=("research", "result", "proposals", "promotion", "evidence"),
-                    action=self._open_research_promotion,
-                ),
-                _Command(
-                    label="Open Backup & Recovery",
-                    keywords=("system", "backup", "restore", "verify", "recovery"),
-                    action=self._open_backup,
-                ),
-                _Command(
-                    label="Open model settings",
-                    keywords=("model", "context", "temperature", "thinking"),
-                    action=lambda: self.window.navigation.setCurrentRow(6),
-                ),
-                _Command(
-                    label="Open help",
-                    keywords=("help", "capabilities", "features", "shortcuts", "f1"),
-                    action=self.open_help,
-                ),
+                _Command("New conversation", ("chat", "conversation", "create"), self.window.new_chat_button.click),
+                _Command("Focus message field", ("chat", "compose", "message", "input"), self._focus_prompt),
+                _Command("Use sources for next response", ("chat", "research", "ground", "sources", "evidence"), self._ground_prompt),
+                _Command("Browse canonical Knowledge", ("knowledge", "canonical", "memory", "units"), lambda: self._open_knowledge_tab(0)),
+                _Command("Browse canonical Claims", ("knowledge", "claims", "canonical", "facts", "evidence"), lambda: self._open_knowledge_tab(1)),
+                _Command("Review contradiction decisions", ("knowledge", "claims", "contradiction", "decisions", "review"), lambda: self._open_decision_mode("contradiction")),
+                _Command("Review canonical merge candidates", ("knowledge", "merge", "duplicate", "dedup", "decisions"), lambda: self._open_decision_mode("merge_candidate")),
+                _Command("Browse selected Claim relations", ("knowledge", "claim", "relations", "evidence", "contradiction"), self._focus_claim_relations),
+                _Command("Open current knowledge review", ("knowledge", "session", "proposal", "preflight", "accept"), lambda: self._open_knowledge_tab(3)),
+                _Command("Filter canonical memory", ("knowledge", "claims", "search", "filter", "find"), self._focus_knowledge_filter),
+                _Command("Open Research result & promotion", ("research", "result", "proposals", "promotion", "evidence"), self._open_research_promotion),
+                _Command("Open Backup & Recovery", ("system", "backup", "restore", "verify", "recovery"), self._open_backup),
+                _Command("Open model settings", ("model", "context", "temperature", "thinking"), lambda: self.window.navigation.setCurrentRow(6)),
+                _Command("Open help", ("help", "capabilities", "features", "shortcuts", "f1"), self.open_help),
             )
         )
         return tuple(commands)
@@ -306,59 +249,39 @@ class CommandPaletteController(QObject):
         lines = ["Workspaces", ""]
         for name, description in _WORKSPACE_HELP:
             lines.extend((name, f"  {description}", ""))
-
-        lines.extend(
-            (
-                "Canonical memory",
-                "",
-                "Knowledge       Durable KnowledgeUnits and immutable revision history",
-                "Claims          Canonical statements with evidence, relations and provenance",
-                "Decisions       Contradiction reviews and near-duplicate merge decisions",
-                "Session review  Extracted proposals before canonical acceptance",
-                "",
-                "Research completion",
-                "",
-                "ResearchResult  Immutable result plus evidence/provenance view",
-                "Proposals       Frozen Knowledge/Claim promotion candidates",
-                "Accept/Reject   Explicit per-proposal canonicalization decision",
-                "",
-                "Backup & recovery",
-                "",
-                "Create          Verified snapshot to an explicitly selected target",
-                "Verify          Light verification of a completed snapshot",
-                "Deep verify     Object hashing plus isolated restore smoke",
-                "Restore         Always into a new isolated runtime root; never overwrite live data",
-                "",
-                "Keyboard",
-                "",
-                "Ctrl K       Commands",
-                "Ctrl+Enter   Send message",
-                "Ctrl+F       Filter canonical memory while Knowledge is active",
-                "F1           Help",
-                "Esc          Close commands or help",
-                "",
-                "Available commands",
-                "",
-            )
-        )
+        lines.extend((
+            "Canonical memory", "",
+            "Knowledge       Durable KnowledgeUnits and immutable revision history",
+            "Claims          Canonical statements with evidence, relations and provenance",
+            "Decisions       Contradiction reviews and near-duplicate merge decisions",
+            "Session review  Extracted proposals before canonical acceptance", "",
+            "Research completion", "",
+            "ResearchResult  Immutable result plus evidence/provenance view",
+            "Proposals       Frozen Knowledge/Claim promotion candidates",
+            "Accept/Reject   Explicit per-proposal canonicalization decision", "",
+            "Backup & recovery", "",
+            "Create          Verified snapshot to an explicitly selected target",
+            "Verify          Light verification of a completed snapshot",
+            "Deep verify     Object hashing plus isolated restore smoke",
+            "Restore         Always into a new isolated runtime root; never overwrite live data", "",
+            "Keyboard", "",
+            "Ctrl K       Commands", "Ctrl+Enter   Send message",
+            "Ctrl+F       Filter canonical memory while Knowledge is active",
+            "F1           Help", "Esc          Close commands or help", "",
+            "Available commands", "",
+        ))
         lines.extend(command.label for command in self._commands)
-        lines.extend(
-            (
-                "",
-                "Availability",
-                "",
-                "Commands reflect controls currently available in the desktop. Actions that "
-                "depend on local services or a selected entity remain governed by the same "
-                "readiness and safety checks as their visible controls.",
-                "",
-                "pATHENA keeps chat history, canonical memory and captured source state local. "
-                "Imported files enter the Raw Archive before derived representations or retrieval "
-                "chunks are produced.",
-                "",
-                "Model-reported contradictions and near-duplicate merges are not canonicalized "
-                "automatically. They remain review decisions until the user explicitly acts.",
-            )
-        )
+        lines.extend((
+            "", "Availability", "",
+            "Commands reflect controls currently available in the desktop. Actions that "
+            "depend on local services or a selected entity remain governed by the same "
+            "readiness and safety checks as their visible controls.", "",
+            "pATHENA keeps chat history, canonical memory and captured source state local. "
+            "Imported files enter the Raw Archive before derived representations or retrieval "
+            "chunks are produced.", "",
+            "Model-reported contradictions and near-duplicate merges are not canonicalized "
+            "automatically. They remain review decisions until the user explicitly acts.",
+        ))
         return "\n".join(lines)
 
     def open(self) -> None:
@@ -366,14 +289,10 @@ class CommandPaletteController(QObject):
         self.query.clear()
         self._refresh_results("")
         self.dialog.adjustSize()
-
         parent_rect = self.window.geometry()
         dialog_size = self.dialog.sizeHint()
         x = parent_rect.x() + max(0, (parent_rect.width() - dialog_size.width()) // 2)
-        y = parent_rect.y() + max(
-            0,
-            min(170, (parent_rect.height() - dialog_size.height()) // 3),
-        )
+        y = parent_rect.y() + max(0, min(170, (parent_rect.height() - dialog_size.height()) // 3))
         self.dialog.move(x, y)
         self.dialog.show()
         self.dialog.raise_()
@@ -398,52 +317,90 @@ class CommandPaletteController(QObject):
         if self.dialog.isVisible():
             self.dialog.hide()
 
+    @staticmethod
+    def _group_for(command: _Command) -> str:
+        if "workspace" in command.keywords:
+            return "Workspaces"
+        if "knowledge" in command.keywords:
+            return "Knowledge"
+        return "Actions"
+
+    def _add_group_header(self, label: str) -> None:
+        item = QListWidgetItem(label)
+        item.setFlags(Qt.ItemFlag.NoItemFlags)
+        item.setData(Qt.ItemDataRole.AccessibleTextRole, f"{label} commands")
+        font = QFont(item.font())
+        font.setBold(True)
+        item.setFont(font)
+        self.results.addItem(item)
+
+    def _add_command_item(self, command: _Command) -> None:
+        item = QListWidgetItem(command.label)
+        self.results.addItem(item)
+        self._row_commands[self.results.count() - 1] = command
+
     def _refresh_results(self, text: str) -> None:
         terms = tuple(part for part in text.casefold().split() if part)
         self.results.clear()
+        self._row_commands.clear()
         self._filtered_commands = [
             command
             for command in self._commands
             if all(term in command.search_text for term in terms)
         ]
 
-        for command in self._filtered_commands:
-            item = QListWidgetItem(command.label)
-            self.results.addItem(item)
+        if terms:
+            for command in self._filtered_commands:
+                self._add_command_item(command)
+        else:
+            for group in ("Workspaces", "Knowledge", "Actions"):
+                commands = [
+                    command
+                    for command in self._filtered_commands
+                    if self._group_for(command) == group
+                ]
+                if not commands:
+                    continue
+                self._add_group_header(group)
+                for command in commands:
+                    self._add_command_item(command)
 
-        count = self.results.count()
-        if count > 0:
-            self.results.setCurrentRow(0)
+        actionable_rows = tuple(self._row_commands)
+        if actionable_rows:
+            self.results.setCurrentRow(actionable_rows[0])
+        count = len(self._filtered_commands)
         if terms:
             scope = f"{count} matching command{'s' if count != 1 else ''}."
         else:
-            scope = f"{count} available command{'s' if count != 1 else ''}."
+            scope = f"{count} available command{'s' if count != 1 else ''} in grouped sections."
         self.results.setAccessibleDescription(
             f"{scope} Use Up and Down to move, then Enter to run the selected command."
         )
 
     def _move_selection(self, delta: int) -> None:
-        count = self.results.count()
-        if count <= 0:
+        rows = tuple(self._row_commands)
+        if not rows:
             return
         current = self.results.currentRow()
-        if current < 0:
-            current = 0
-        self.results.setCurrentRow((current + delta) % count)
+        if current not in self._row_commands:
+            self.results.setCurrentRow(rows[0 if delta >= 0 else -1])
+            return
+        index = rows.index(current)
+        self.results.setCurrentRow(rows[(index + delta) % len(rows)])
 
     def _activate_current(self) -> None:
         row = self.results.currentRow()
-        if row < 0 and self.results.count() > 0:
-            row = 0
+        if row not in self._row_commands and self._row_commands:
+            row = next(iter(self._row_commands))
         self._run_row(row)
 
     def _activate_item(self, item: QListWidgetItem) -> None:
         self._run_row(self.results.row(item))
 
     def _run_row(self, row: int) -> None:
-        if not 0 <= row < len(self._filtered_commands):
+        command = self._row_commands.get(row)
+        if command is None:
             return
-        command = self._filtered_commands[row]
         self.dialog.hide()
         command.action()
 

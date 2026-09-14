@@ -53,19 +53,23 @@ def test_reference_palette_is_deep_black_with_functional_orange() -> None:
     assert PALETTE.error != PALETTE.accent
 
 
-def test_reference_typography_uses_editorial_display_family() -> None:
-    assert "serif" in TYPE.display_family.lower()
+def test_reference_typography_uses_compact_technical_display_family() -> None:
+    display_family = TYPE.display_family.lower()
+
+    assert "segoe ui" in display_family
     assert "Segoe UI" in TYPE.content_family
-    assert TYPE.title_px >= 40
-    assert TYPE.section_px >= 20
+    assert "georgia" not in display_family
+    assert "times new roman" not in display_family
+    assert 26 <= TYPE.title_px <= 34
+    assert 16 <= TYPE.section_px <= 20
     assert TYPE.body_px >= 15
-    assert TYPE.metadata_px >= 12
-    assert TYPE.title_px >= TYPE.section_px * 2
+    assert 10 <= TYPE.metadata_px <= 12
+    assert TYPE.title_px > TYPE.section_px
 
 
-def test_reference_shell_geometry_excludes_legacy_wide_sidebar() -> None:
-    assert 68 <= SHELL.icon_rail_width <= 82
+def test_reference_shell_geometry_uses_full_height_left_navigation() -> None:
+    assert 230 <= SHELL.icon_rail_width <= 270
     assert 54 <= SHELL.top_bar_height <= 64
     assert 330 <= SHELL.inspector_width <= 390
-    assert 210 <= SHELL.secondary_nav_width <= 280
+    assert 200 <= SHELL.secondary_nav_width <= 280
     assert SHELL.composer_min_height >= 56

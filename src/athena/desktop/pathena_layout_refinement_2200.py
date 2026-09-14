@@ -9,9 +9,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from PySide6.QtCore import QEvent, QObject
+from PySide6.QtCore import QEvent, QObject, Qt
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QHBoxLayout,
     QLabel,
     QLineEdit,
     QPushButton,
@@ -21,8 +22,17 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from athena.desktop.pathena_design_tokens import SHELL
+
 _COMPACT = 1260
 _WIDE = 1540
+_TOP_NAVIGATION: tuple[tuple[str, int], ...] = (
+    ("CHAT", 0),
+    ("KNOWLEDGE", 1),
+    ("RESEARCH", 2),
+    ("JOBS", 3),
+    ("SOURCES", 4),
+)
 
 
 @dataclass(frozen=True)
@@ -86,8 +96,81 @@ class PathenaLayoutRefinement(QObject):
     def __init__(self, window: QWidget) -> None:
         super().__init__(window)
         self.window = window
+        self._top_navigation_buttons: list[QPushButton] = []
+        self._install_top_navigation()
+        navigation = getattr(window, "navigation", None)
+        if navigation is not None and hasattr(navigation, "currentRowChanged"):
+            navigation.currentRowChanged.connect(self._sync_top_navigation)
+            self._sync_top_navigation(navigation.currentRow())
         window.installEventFilter(self)
         self.apply_for_width(window.width())
+
+    def _install_top_navigation(self) -> None:
+        """Mirror real primary routes in the reference top bar without creating routes."""
+        top_bar = self.window.findChild(QWidget, "topBar")
+        navigation = getattr(self.window, "navigation", None)
+        if top_bar is None or navigation is None:
+            return
+        layout = top_bar.layout()
+        if not isinstance(layout, QHBoxLayout):
+            return
+
+        existing = top_bar.findChildren(QPushButton, "topNavButton")
+        if existing:
+            self._top_navigation_buttons = existing
+            self._link_top_navigation_tab_order()
+            return
+
+        insert_at = 1
+        for label, row in _TOP_NAVIGATION:
+            if row >= navigation.count():
+                continue
+            button = QPushButton(label, top_bar)
+            button.setObjectName("topNavButton")
+            button.setCheckable(True)
+            button.setAutoExclusive(False)
+            button.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
+            button.setAccessibleName(f"Open {label.title()} workspace")
+            button.setAccessibleDescription("Primary workspace route.")
+            button.setToolTip(f"Open {label.title()}")
+            button.setProperty("pathenaRouteRow", row)
+            button.clicked.connect(
+                lambda _checked=False, route=row: self._activate_top_navigation_route(
+                    route
+                )
+            )
+            layout.insertWidget(insert_at, button)
+            insert_at += 1
+            self._top_navigation_buttons.append(button)
+        self._link_top_navigation_tab_order()
+
+    def _link_top_navigation_tab_order(self) -> None:
+        """Keep keyboard traversal aligned with the visible primary-route order."""
+        for previous, following in zip(
+            self._top_navigation_buttons,
+            self._top_navigation_buttons[1:],
+            strict=False,
+        ):
+            QWidget.setTabOrder(previous, following)
+
+    def _activate_top_navigation_route(self, row: int) -> None:
+        """Route through the real navigation and keep repeated clicks visually stable."""
+        navigation = getattr(self.window, "navigation", None)
+        if navigation is None or not hasattr(navigation, "setCurrentRow"):
+            return
+        navigation.setCurrentRow(row)
+        current_row = navigation.currentRow() if hasattr(navigation, "currentRow") else row
+        self._sync_top_navigation(current_row)
+
+    def _sync_top_navigation(self, row: int) -> None:
+        for button in self._top_navigation_buttons:
+            route = button.property("pathenaRouteRow")
+            active = route == row
+            button.setChecked(active)
+            button.setAccessibleDescription(
+                "Current workspace route." if active else "Primary workspace route."
+            )
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         if watched is self.window and event.type() == QEvent.Type.Resize:
@@ -187,16 +270,29 @@ class PathenaLayoutRefinement(QObject):
         ground = self.window.findChild(QPushButton, "groundButton")
         send = self.window.findChild(QPushButton, "sendButton")
 
+        if compact:
+            prompt_min_height = SHELL.composer_action_size
+            prompt_max_height = SHELL.composer_min_height
+        elif wide:
+            prompt_min_height = SHELL.composer_min_height + 6
+            prompt_max_height = SHELL.composer_min_height + 14
+        else:
+            prompt_min_height = SHELL.composer_min_height
+            prompt_max_height = SHELL.composer_min_height + 8
+
         if prompt is not None:
-            prompt.setMinimumHeight(38 if compact else 46 if wide else 42)
-            prompt.setMaximumHeight(50)
+            prompt.setMinimumHeight(prompt_min_height)
+            prompt.setMaximumHeight(prompt_max_height)
         if ground is not None:
             ground.setMinimumWidth(62 if compact else 72)
             ground.setMaximumWidth(82)
-            ground.setText("Source" if compact else "Sources")
+            ground.setMinimumHeight(SHELL.composer_action_size)
+            ground.setText("Ground")
+            ground.setAccessibleDescription(
+                "Use grounded sources for the next response."
+            )
         if send is not None:
-            send.setMinimumWidth(58 if compact else 68)
-            send.setMaximumWidth(84)
+            send.setFixedSize(SHELL.composer_action_size, SHELL.composer_action_size)
 
     def _tune_tabs(self, *, compact: bool) -> None:
         tabs = self.window.findChild(QTabWidget, "canonicalMemoryTabs")

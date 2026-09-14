@@ -193,7 +193,7 @@ class PathenaMainWindow(AthenaMainWindow):
         self.prompt_input.setFixedHeight(44)
 
         self.ground_button.setObjectName("groundButton")
-        self.ground_button.setText("Sources")
+        self.ground_button.setText("Ground")
         self.ground_button.setToolTip("Ground this message in available sources")
         self.ground_button.ensurePolished()
         self.ground_button.setFixedHeight(36)

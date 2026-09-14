@@ -79,9 +79,9 @@ def test_icon_navigation_exposes_human_page_names_to_accessibility() -> None:
         assert item.data(Qt.ItemDataRole.AccessibleTextRole) == page_name
 
 
-def test_disabled_composer_no_longer_looks_primary() -> None:
+def test_disabled_composer_remains_visually_quiet_without_fake_primary_button() -> None:
     assert "QPushButton#sendButton:disabled" in _STARTUP_STYLESHEET
-    assert "background: #121212" in _STARTUP_STYLESHEET
+    assert "background: transparent" in _STARTUP_STYLESHEET
     assert "QLineEdit#promptInput:disabled" in _STARTUP_STYLESHEET
 
 
@@ -140,7 +140,7 @@ def test_context_disclosure_help_is_available_to_accessibility() -> None:
     assert "evidence context" in context_toggle.accessibleDescription().casefold()
 
 
-def test_disconnected_startup_copy_keeps_core_infrastructure_in_background() -> None:
+def test_disconnected_startup_uses_reference_welcome_without_faking_readiness() -> None:
     _app()
     window = _DisconnectedStartupWindow()
 
@@ -169,9 +169,18 @@ def test_disconnected_startup_copy_keeps_core_infrastructure_in_background() -> 
     assert prompt.accessibleDescription() == prompt.toolTip()
     assert "selected model" in send.toolTip().casefold()
     assert send.accessibleDescription() == send.toolTip()
+
+    eyebrow = messages.findChild(QLabel, "emptyStateEyebrow")
     title = messages.findChild(QLabel, "emptyStateTitle")
+    body = messages.findChild(QLabel, "emptyStateBody")
+    orbit = messages.findChild(QFrame, "emptyStateOrbit")
+    assert eyebrow is not None
     assert title is not None
-    assert title.text() == "Getting pATHENA ready"
+    assert body is not None
+    assert orbit is not None
+    assert eyebrow.text() == "LOCAL CORE · CONNECTING"
+    assert title.text() == "Hello, Commander."
+    assert body.text() == "What shall we explore today?"
 
 
 def test_ready_status_refreshes_accessibility_description_from_current_truth() -> None:
@@ -191,7 +200,7 @@ def test_ready_status_refreshes_accessibility_description_from_current_truth() -
     assert status.accessibleDescription() == status.toolTip()
 
 
-def test_empty_state_copy_refreshes_after_disconnected_to_ready_transition() -> None:
+def test_empty_state_copy_refreshes_connecting_to_ready_without_changing_identity() -> None:
     _app()
     window = _DisconnectedStartupWindow()
 
@@ -205,18 +214,21 @@ def test_empty_state_copy_refreshes_after_disconnected_to_ready_transition() -> 
     controller = PathenaStartupExperience(window)
     controller.sync()
 
+    eyebrow = messages.findChild(QLabel, "emptyStateEyebrow")
     title = messages.findChild(QLabel, "emptyStateTitle")
     body = messages.findChild(QLabel, "emptyStateBody")
+    assert eyebrow is not None
     assert title is not None
     assert body is not None
-    assert title.text() == "Getting pATHENA ready"
+    assert eyebrow.text() == "LOCAL CORE · CONNECTING"
+    assert title.text() == "Hello, Commander."
 
     window._core_transport_ready = True
     controller.sync()
 
-    assert title.text() == "Start a conversation"
-    assert "reconnect" not in body.text().casefold()
-    assert "local knowledge" in body.text().casefold()
+    assert eyebrow.text() == "LOCAL CORE · READY"
+    assert title.text() == "Hello, Commander."
+    assert body.text() == "What shall we explore today?"
 
 
 def test_empty_state_width_tracks_available_chat_space_without_exceeding_cap() -> None:
@@ -244,8 +256,8 @@ def test_empty_state_width_tracks_available_chat_space_without_exceeding_cap() -
     messages.resize(900, 300)
     controller.sync()
 
-    assert panel.width() == 560
-    assert body.width() == 504
+    assert panel.width() == 720
+    assert body.width() == 664
 
 
 def test_event_filter_is_safe_after_chat_messages_attribute_is_torn_down() -> None:

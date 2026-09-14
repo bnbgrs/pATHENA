@@ -1,52 +1,62 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `c830b96a12d25914c52a0abc7749a6724b19cfae`
-Integration target: `develop/pathena-next`
+Current Develop inspected: `develop/pathena-next@d173bd714b5f7de9242e1d0b2fff567c439d1ac0`.
+Current UI baseline before this candidate: `postmerge/ui@aafd5face59441c2af7a693ed78a40d71b0e17b5`, history-preservingly synchronized with current Develop. Prior exact UI head `f1b29a76d6a30268fa11b7e013a8f7953898477d` passed canonical Quality and UI Focused.
 
-Only evidence-backed gaps belong here. Slot 01 has direct pixel evidence from the opened user reference `pATHENA: Dunkles KI-Dashboard mit Wissenspanel.png`. No screenshot-level `MATCH` claim is asserted because a real rendered current build from the exact candidate SHA has not yet been opened side-by-side with that reference.
+Strict current exact-candidate visual evidence is `PAIRS_VERIFIED_0_OF_11`, `MATCH_0_OF_11` until the new native artifact is produced and its PNGs are actually opened. Older exact-SHA screenshots are not relabeled as current evidence.
 
-## UI-GAP-0001 — Inspector naming does not express the Evidence & Activity contract
+## Highest recurring gap — shell/context fidelity
 
-- Category: `HIERARCHY`
-- Screen: `10 — Grounded Chat / Evidence & Activity`
-- Severity: `P1`
-- Status: `FIXED`
-- Product commit: `1f0fd548431be122d13a403fe9e2387087edf8fa`
-- Test commit: `d85d2a2e144abc9d3ef1008b80f74114c7fafe23`
-- Verification evidence: exact UI head `f31be028652095b18b8a98dfacd65b73be9af763` passed ATHENA Quality Gate `33720745475`; lineage is integrated in Develop.
+Category: `APP_SHELL / GEOMETRY / CONTEXT`
 
-## UI-GAP-0002 — Inspector was forced permanently visible instead of remaining context-sensitive
+Affected references: ComfyUI, PALLAS, Command Palette, with the same shell geometry framing Help, Settings, Jobs, System, Research and Workspace.
 
-- Category: `INTERACTION`
-- Screen: `01 — Workspace / Chat`, `10 — Grounded Chat / Evidence & Activity`
-- Severity: `P1`
-- Status: `FIXED`
-- Product commit: `177bef4dcdb4956f1df75bfcce9ee10c7a4bd1e2`
-- Test-contract commit: `1685221150c724deceb5d150a4d2dcff2bdd867b`
-- Verification evidence: exact corrected worker head `ce959e148ddbe8f13952ca56f7d07e7a7ce1addb` passed ATHENA Quality Gate `33745885426`; exact verified blobs were integrated into Develop in `93a9344d3902c920da5ff283eb51bbb1f0d815b8`.
+### ComfyUI visual-evidence defect — candidate in this commit
 
-## UI-GAP-0003 — PALLAS full-view transition can hit a transient missing tab-order document binding
+Status: `CANDIDATE_PENDING_EXACT_AFTER`.
 
-- Category: `INTERACTION`
-- Screen: `08 — PALLAS`
-- Severity: `P1`
-- Status: `FIXED`
-- Verification evidence: exact UI head `76cb122dbe7b58b0fa49bbcb36de2bd732922d4d` passed ATHENA Quality Gate `33751403354`; bounded equivalent product/test changes are integrated in Develop.
+The product already contains a bounded `ComfyUiShellController` that reparents the real local-only ComfyUI surface into `referenceBody`, sets `pathenaComfyUiShellHosted=True`, preserves seven primary routes and publishes `pathenaComfyUiShellOpen`. However, the native visual harness still captured only `controller.dialog`. That made Screen 01 visually appear detached even when the product path was shell-hosted.
 
-## UI-GAP-0004 — Workspace composer is materially underscaled relative to opened reference
+Candidate correction:
 
-- Category: `HIERARCHY / ACCESSIBILITY`
-- Screen: `01 — Workspace / Chat`
-- Severity: `P1`
-- Status: `FIXED / INTEGRATOR_READY_TECHNICAL`
-- Pixel evidence: the opened user reference shows the composer as a large, prominent work surface near the lower center of the workspace, with a clearly separated arrow send target. Current Develop inherited the legacy compact composer before this UI slice.
-- Verified behavior: real chat input, grounding control and send route retained; composer 88 px, prompt 44 px, real Sources control 36 px, send outer target 44×44 px.
-- Exact verification: canonical ATHENA Quality Gate `34365616984` on exact synchronized UI head `90a51e111851f80c5e2388c11c4026c6ec62fa09` completed `success`.
-- The final QSS contract uses a 42×42 px send content box plus the inherited 1 px border per side; the runtime Qt contract independently verifies exact 44×44 outer width/height/min/max geometry.
-- Diff versus exact current Develop `c830b96a12d25914c52a0abc7749a6724b19cfae` is bounded to seven UI-owned files: three UI evidence docs, `pathena_shared_components.py`, `pathena_window.py`, and their two focused unit-test files. No Backend/Storage/Security product file is changed.
-- Acceptance preserved: no chat submission, grounding, model/provider, persistence, focus, shortcut, accessibility-name, backend, Storage or Security semantics change; no fake controls; no Skip/XFail.
-- Screenshot-level parity remains unverified until a current render from the exact implementation lineage is opened against the reference.
+- resolve the visible MainWindow before ComfyUI capture;
+- require the real ComfyUI shell controller;
+- require exactly 7 navigation items and 7 primary pages;
+- require the real surface parent to be `referenceBody`;
+- require `pathenaComfyUiShellHosted=True` and main-window `pathenaComfyUiShellOpen=True`;
+- retain `pathenaComfyUiLocalOnly=True`, loopback workflow queue and exact prompt-id checks;
+- capture the whole MainWindow as `kind=shell-comfyui`;
+- close through the shell controller after capture.
 
-## Evidence blocker
+This is an evidence-path correction only. It changes no ComfyUI endpoint restriction, transport, workflow queueing, VRAM handling, Backend, Storage, Security or persistence semantics.
 
-`VISUAL_REFERENCE_PENDING` still applies to any slot whose original image has not been opened and to all screenshot-level `MATCH` claims until a real rendered current build can also be inspected.
+Acceptance: Screen 01 remains `UNVERIFIED` until the exact candidate native Windows/PySide6 artifact is complete and both the original reference and `11-comfyui.png` are opened. Shell-host evidence can close only if top bar, primary rail and real ComfyUI workspace are simultaneously visible. That still does not imply `MATCH`; secondary integrations navigation, Connection inspector, typography, spacing, controls, proportions, colors, borders and state must then be judged separately.
+
+## Other open visual gaps
+
+### PALLAS
+
+Product shell hosting is already implemented and the harness captures MainWindow. Remaining visual gap is richer provenance/connections/history composition and same-state semantic richness. Do not regress the seven-primary-route invariant.
+
+### Command Palette
+
+Status: `OPEN / CONTEXT_UNVERIFIED`.
+
+The current capture remains the isolated dialog. The reference is an overlay over the real Knowledge workspace. This is the next likely shell/context slice after ComfyUI exact evidence is consumed.
+
+### Populated-state gaps
+
+Workspace/Evidence, Local Memory, Research, Jobs, System and Settings remain `STATE_UNVERIFIED` whenever runtime is empty, reconnecting or unavailable but the reference is populated/healthy/running. Do not manufacture data to satisfy screenshots.
+
+### Light Workspace
+
+Status: `CURRENT_RENDER_UNAVAILABLE`.
+
+The original light reference exists, but the product/harness still has no truthful same-state Light target. No pair or MATCH may be claimed.
+
+## Priority after this candidate
+
+1. Consume exact candidate UI Focused, canonical Quality and native visual artifact.
+2. Open all eleven original references and all available exact candidate PNGs.
+3. If Screen 01 proves correct shell hosting, compare its remaining real visual gaps and then prioritize Command Palette workspace-overlay context ahead of fine Help cosmetics.
+4. If Screen 01 fails shell-host checks, fix only the reproduced UI-owned root cause.
