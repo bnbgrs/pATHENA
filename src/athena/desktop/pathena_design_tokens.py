@@ -28,10 +28,15 @@ class Palette:
     text_muted: str = "#B5B5B5"
     text_subtle: str = "#929292"
     text_quiet: str = "#686868"
-    accent: str = "#F26A21"
-    accent_hover: str = "#FF7A2E"
-    accent_pressed: str = "#D85B18"
-    accent_soft: str = "#2A160D"
+    # The eleven-screen reference family consistently uses cobalt blue for
+    # primary selection and commit actions. Keep the warm pATHENA orange as a
+    # secondary signal rather than letting it dominate every active control.
+    accent: str = "#3478F6"
+    accent_hover: str = "#4D89FF"
+    accent_pressed: str = "#255FD0"
+    accent_soft: str = "#10254D"
+    warm_accent: str = "#F26A21"
+    warm_accent_soft: str = "#2A160D"
     success: str = "#4BC486"
     info: str = "#4CC9D8"
     question: str = "#A887FF"
@@ -87,7 +92,7 @@ class ShellGeometry:
     icon_rail_width: int = 76
     secondary_nav_width: int = 236
     inspector_width: int = 360
-    composer_min_height: int = 58
+    composer_min_height: int = 72
     composer_action_size: int = 44
 
 
