@@ -67,7 +67,7 @@ class PallasSnapshotDelta:
 
 
 class PallasActivityTracker:
-    """Keep one in-memory baseline and emit a delta for each later observation."""
+    """Keep one valid baseline and emit a delta for each later observation."""
 
     def __init__(self) -> None:
         self._previous: PallasGraphSnapshot | None = None
@@ -81,10 +81,13 @@ class PallasActivityTracker:
 
     def observe(self, snapshot: PallasGraphSnapshot) -> PallasSnapshotDelta | None:
         previous = self._previous
-        self._previous = snapshot
         if previous is None:
+            _validate_snapshot(snapshot)
+            self._previous = snapshot
             return None
-        return compare_pallas_snapshots(previous, snapshot)
+        delta = compare_pallas_snapshots(previous, snapshot)
+        self._previous = snapshot
+        return delta
 
 
 def compare_pallas_snapshots(
@@ -129,6 +132,11 @@ def compare_pallas_snapshots(
         before_status_detail=before.status_detail,
         after_status_detail=after.status_detail,
     )
+
+
+def _validate_snapshot(snapshot: PallasGraphSnapshot) -> None:
+    _node_index(snapshot)
+    _edge_set(snapshot)
 
 
 def _node_index(snapshot: PallasGraphSnapshot) -> dict[str, PallasSemanticNode]:
