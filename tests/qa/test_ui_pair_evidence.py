@@ -74,11 +74,16 @@ def test_light_workspace_slot_rejects_files_capture_identity() -> None:
     report = validate_pair_evidence(rows)
 
     assert report["visual_ready_11_of_11"] is False
+    assert report["verified_pairs"] == 0
     errors = report["errors"]
     assert any("slot 10: reference_id" in error for error in errors)
     assert any("slot 10: reference_file" in error for error in errors)
     assert any("slot 10: reference_state" in error for error in errors)
-    assert any("slot 10: MATCH requires canonical same-state render 'light-workspace'" in error for error in errors)
+    assert any(
+        "slot 10: MATCH requires canonical same-state render 'light-workspace'"
+        in error
+        for error in errors
+    )
     assert evidence_exit_code(report) == 1
     assert evidence_exit_code(report, require_ready=True) == 1
 
@@ -91,7 +96,11 @@ def test_cross_state_match_fails_closed() -> None:
     report = validate_pair_evidence(rows)
 
     assert report["visual_ready_11_of_11"] is False
-    assert any("slot 05: MATCH requires canonical same-state render" in error for error in report["errors"])
+    assert report["verified_pairs"] == 0
+    assert any(
+        "slot 05: MATCH requires canonical same-state render" in error
+        for error in report["errors"]
+    )
 
 
 def test_opened_render_requires_exact_lowercase_sha() -> None:
@@ -102,7 +111,46 @@ def test_opened_render_requires_exact_lowercase_sha() -> None:
     report = validate_pair_evidence(rows)
 
     assert report["visual_ready_11_of_11"] is False
-    assert any("exact lowercase 40-char SHA" in error for error in report["errors"])
+    assert report["verified_pairs"] == 0
+    assert any(
+        "exact lowercase 40-char SHA" in error for error in report["errors"]
+    )
+
+
+def test_opened_render_requires_nonblank_identity() -> None:
+    rows = _rows()
+    _open_pair(rows[0])
+    rows[0]["render_id"] = "  "
+
+    report = validate_pair_evidence(rows)
+
+    assert report["verified_pairs"] == 0
+    assert report["visual_ready_11_of_11"] is False
+    assert any("non-blank render_id" in error for error in report["errors"])
+    assert evidence_exit_code(report) == 1
+
+
+def test_gap_descriptions_must_be_nonblank_text_list() -> None:
+    rows = _rows()
+    _open_pair(rows[0], verdict="GAP")
+    rows[0]["visible_gaps"] = "not-a-list"
+
+    report = validate_pair_evidence(rows)
+
+    assert report["visual_ready_11_of_11"] is False
+    assert any(
+        "visible_gaps must be a list of non-blank strings" in error
+        for error in report["errors"]
+    )
+
+    blank_rows = _rows()
+    _open_pair(blank_rows[0], verdict="CLOSE")
+    blank_rows[0]["visible_gaps"] = ["   "]
+    blank_report = validate_pair_evidence(blank_rows)
+    assert any(
+        "visible_gaps must be a list of non-blank strings" in error
+        for error in blank_report["errors"]
+    )
 
 
 def test_unicode_normalization_does_not_break_authoritative_filename_identity() -> None:
