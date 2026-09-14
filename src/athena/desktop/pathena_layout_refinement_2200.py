@@ -3,6 +3,7 @@
 This presentation-only controller improves real desktop geometry: workspace splitters,
 list/detail proportions, header density, composer sizing and compact-mode spacing.
 It does not alter controller signals, durable state, APIs, persistence or job behavior.
+Exact-SHA visual captures exercise this same real presentation controller.
 """
 
 from __future__ import annotations
