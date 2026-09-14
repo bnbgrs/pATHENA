@@ -165,12 +165,16 @@ class DurableBackupDeepVerifyWorker:
                 "Backup verification job target does not match snapshot provenance."
             )
 
+        # Retention or another maintenance action may have made a queued
+        # occurrence obsolete.  It must not resurrect a pruned restore point.
         if record.state != "complete" or record.pruned_at_us is not None:
             return self.jobs.complete(
                 job.job_id,
                 lease_token=lease_token,
             )
 
+        # A manual Deep verification may have satisfied this occurrence while
+        # the durable job was still queued.  Treat that as idempotent success.
         if (
             record.verification_status == "verified_deep"
             and record.last_verified_at_us is not None
@@ -228,6 +232,9 @@ class DurableBackupDeepVerifyWorker:
                 target_id=target_id,
             )
         except BackupRestoreError as exc:
+            # ``verify_deep`` records a real integrity failure when the target
+            # remains active.  Environment/offline failures deliberately keep
+            # the restore point retryable and are translated into WAITING.
             try:
                 refreshed_target = self.backup.target_status(target_id)
             except BackupTargetBusyError:
