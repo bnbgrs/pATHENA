@@ -77,7 +77,7 @@ class _SecureRotatingFileHandler(RotatingFileHandler):
         # value locally instead of declaring a synthetic subclass attribute.
         builtin_open = cast(
             Callable[..., TextIOWrapper],
-            getattr(self, "_builtin_open"),
+            object.__getattribute__(self, "_builtin_open"),
         )
         return builtin_open(
             self.baseFilename,
