@@ -2,42 +2,37 @@
 
 ## Current source of truth
 
-- Develop checked first: `develop/pathena-next@b2063a274984448d5f0db5d1c917c7ee93ae80be`.
-- Worker before this run: `postmerge/spec-core@1d1334d82af52f8055d7da06b2afa3db575eac4b`.
+- Develop checked first: `develop/pathena-next@f8a25be7fd7df9f2a8ca281a1567f79ddaabcfb6`.
+- Develop canonical Quality `34883442620 = SUCCESS`.
+- Worker before this candidate: `postmerge/spec-core@63457beb6e96fb4dc48b3b1b217bcefab90c4a22`.
+- The previous Knowledge-read build+attach slice is integrated in Develop and is CLOSED.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
-- Worker `1d1334d82af52f8055d7da06b2afa3db575eac4b` has exact-SHA Core Focused `34861762468 = SUCCESS` and canonical Quality `34861762425 = SUCCESS`.
-- Current Develop adds only the integrated PR-only Quality concurrency fix over the prior Develop baseline; the verified Knowledge-read worker changes are still not represented in Develop.
 
-## Current Core slice — canonical Knowledge-read build+attach composition
+## Current Core slice — AthenaApplication Knowledge-read wiring
 
-The existing `build_knowledge_read_api()` already composes truthful provenance explanation and immutable revision history over one canonical Knowledge reader. `CoreApiFacade` already provides strict `attach_knowledge_read()` semantics from the prior verified slice. This run closes the remaining composition seam between those two established boundaries without adding a parallel reader, repository, cache, provenance representation, storage path or transport layer.
+This candidate consumes the already integrated `attach_knowledge_read_api()` boundary from current Develop and wires it into `AthenaApplication` using the existing canonical `self.knowledge` and `self.api` instances.
 
-Product change in `src/athena/api/knowledge_read_composition.py`:
+Product contract:
 
-- add a minimal `KnowledgeReadFacade` protocol exposing only `attach_knowledge_read()`;
-- add `attach_knowledge_read_api()` which builds exactly one `KnowledgeReadApiService`, attaches that exact instance to the supplied facade, and returns the same instance;
-- preserve the existing canonical Knowledge source for both Why-known and revision-history projections;
-- preserve facade-owned single-attach/fail-closed semantics rather than duplicating them in the composition helper.
+- `AthenaApplication` retains the exact `KnowledgeReadApiService` returned by `attach_knowledge_read_api()` as `self.knowledge_read`;
+- `CoreApiFacade` receives that exact same service instance;
+- capability disclosure for `knowledge.read.why_known` and `knowledge.read.revision_history` therefore comes from a real attached service, not synthetic feature flags;
+- Why-known reads use the existing persisted Knowledge provenance inputs;
+- revision history uses the existing immutable Knowledge revisions and derives predecessor diffs on read;
+- no new repository, storage, DTO, audit or provenance architecture is introduced.
 
-Focused acceptance in `tests/unit/test_knowledge_read_composition.py` now additionally proves:
+Focused acceptance in `tests/unit/test_knowledge_application_read.py` starts a real temporary SQLite-backed Core, promotes a persisted chat message into canonical Knowledge, proves exact service identity and capability exposure, validates recorded source provenance, creates a direct user revision, and validates immutable two-revision history plus the derived body diff.
 
-- the helper returns the exact service instance attached to the facade;
-- reads still route through the same canonical source;
-- a second attach fails and does not replace the originally attached service;
-- malformed Knowledge identity remains fail-closed before source access.
+## Baseline / collision discipline
 
-## History-preserving baseline integration
+The candidate tree is based on exact current Develop and is committed with the previous worker plus exact current Develop as parents. This is a history-preserving NON-FORCE synchronization and product mutation in one candidate; no sync-only intermediate head is published.
 
-The candidate tree is built from current Develop so its CI-concurrency fix is retained, while all verified worker Knowledge-read files are overlaid unchanged except for the composition/test changes above. The commit has both prior worker and current Develop as parents. No force-push, rebase or history rewrite is used.
+Ownership remains unchanged: Backend owns deep Storage/transaction/recovery; UI owns Qt/PALLAS presentation; protected-search authorization semantics are not approximated; persistent release guards and no-Skip/XFail policy remain binding.
 
-## Ownership / collision avoidance
+## Qualification state
 
-- Backend retains deep Storage/transaction/recovery/backup ownership.
-- UI retains Qt/PALLAS presentation and styling ownership.
-- Protected Search remains authorization-first and is not approximated through normal Search.
-- Persistent release guards remain binding: pypdf/Frozen argv/two-EXE, bounded worker tree, adaptive 2048-context Chat reserve, Windows lane-lock cluster, duplicate-column/Core-startup/storage-bootstrap signatures.
-- No Skip/XFail or guard relaxation.
+Fresh exact-SHA Core Focused and canonical Quality are required. Until they complete, this candidate is not Integrator-ready and `postmerge/spec-core` must remain frozen after publication.
 
 ## Next distinct Core gap
 
-After exact qualification and integration, wire `attach_knowledge_read_api(facade=self.api, knowledge=self.knowledge)` into `AthenaApplication`, retain the exact returned service instance, and add application acceptance proving exact-instance identity plus repository-backed Why-known/revision-history behavior. If central application mutation is unsafe with the available mutation interface, select another independent current Alpha/Beta Core gap rather than publishing a sync-only or docs-only follow-up.
+After exact qualification and integration, re-read current Develop/Handoffs/coverage and select the highest remaining independent Core composition gap. Do not revisit the closed Knowledge-read attachment/application sequence unless a new exact regression appears.

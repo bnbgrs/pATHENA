@@ -4,24 +4,24 @@ Evidence-only progress register for `develop/pathena-next`. No invented completi
 
 ## Current baseline
 
-- Develop parent before this integration: `5048e8f2e88c1ac0553d3052db48c9c3be22bff1`.
-- Exact canonical Quality on that parent: `34851187301 = SUCCESS`.
+- Develop parent before this integration: `240dc90eb61c4ec69362a5a6b28d9a1072c93813`.
+- Exact canonical Quality on that parent: `34879225369 = SUCCESS`.
 - Persistent release guards remain mandatory and unchanged.
 
 ## Current integration state
 
-A single bounded Backend slice adds deterministic planning for periodic Deep backup verification. Exact source head `d0da4ca3677ebcda1e65e1637fd0d447810fb7fb`; Backend Focused `34851416776 = SUCCESS`; canonical Quality `34851416765 = SUCCESS`.
+A bounded Core slice integrates canonical Knowledge-read composition from source head `63457beb6e96fb4dc48b3b1b217bcefab90c4a22`; Core Focused `34867476719 = SUCCESS`; canonical Quality `34867476727 = SUCCESS`.
 
-The integrated delta is restricted to a new planner module and focused unit tests. It selects only active, completed, non-pruned restore points whose Deep verification is due; excludes failed/offline/not-due snapshots; emits deterministic occurrence/idempotency identity; and performs no backup creation, verification execution, schema, migration or recovery mutation. The worker history itself is not merged.
+The integrated delta is restricted to four product/test blobs. It builds Why-known and revision-history projections over one canonical Knowledge source, attaches exactly one read service to the Core facade, exposes capabilities only after attachment, and preserves fail-closed malformed-ID and duplicate-attachment semantics. Divergent worker history is not merged.
 
-`BUNDLED_SLICES=NONE` because this slice is Storage/Recovery-adjacent and is intentionally integrated alone.
+`BUNDLED_SLICES=NONE` because the selected integration is a single Core-owned bounded slice. The current Backend worker is Deep-backup/Recovery-adjacent and is intentionally not bundled.
 
 ## Current worker truth
 
-- Errors `a80e39b8b1669086d8db00deea10a7d37041507f`: evidence refresh only.
-- Spec/Core `7719c3f18de715fe1343980bdc466a2d12cdb286`: previously integrated supersession work.
-- Backend `d0da4ca3677ebcda1e65e1637fd0d447810fb7fb`: selected bounded Deep-verification planner.
-- UI `575b8de0a4f25f512e423c78623bfa5b398c379d`: not selected in this candidate.
+- Errors `5b9788db2c3375c90967bf9633b82c5891827c78`: UI-regression evidence/handoff only.
+- Spec/Core `63457beb6e96fb4dc48b3b1b217bcefab90c4a22`: selected bounded Knowledge-read attachment.
+- Backend `bef909bf9097000142822e210cec5407e5f4f77b`: Deep-verify payload enforcement; requires separate conservative qualification/integration.
+- UI `a6298adb68af02537b87b26433003d830adb569d`: no selected current bounded integration.
 
 ## Error and visual truth rules
 
