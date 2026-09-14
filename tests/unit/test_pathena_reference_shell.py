@@ -65,8 +65,9 @@ def test_reference_shell_uses_reference_family_geometry() -> None:
         assert icon_rail is not None
         assert composer is not None
         assert inspector is not None
-        assert top_bar.minimumHeight() == SHELL.top_bar_height
-        assert top_bar.maximumHeight() == SHELL.top_bar_height
+        # Qt includes the 1 px bottom divider in the styled frame's box metric.
+        assert top_bar.minimumHeight() == SHELL.top_bar_height + 1
+        assert top_bar.maximumHeight() == SHELL.top_bar_height + 1
         assert icon_rail.width() == SHELL.icon_rail_width
         assert inspector.width() >= SHELL.inspector_width
         assert composer.minimumHeight() == 80
