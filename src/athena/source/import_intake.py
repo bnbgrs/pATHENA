@@ -16,7 +16,10 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
-from athena.source.blob_store import SourceChangedDuringCaptureError
+from athena.source.blob_store import (
+    SourceChangedDuringCaptureError,
+    SourceFileTooLargeError,
+)
 from athena.source.models import SourceCaptureResult
 from athena.source.service import SourceCaptureService
 from athena.storage.paths import RuntimePaths
@@ -396,10 +399,14 @@ class ImportIntakeService:
     ) -> SourceCaptureResult:
         capture_path = self._validated_capture_path(candidate)
         if scope_id is None:
-            return self.sources.capture_file(capture_path)
+            return self.sources.capture_file(
+                capture_path,
+                max_file_bytes=candidate.max_file_bytes,
+            )
         return self.sources.capture_protected_file(
             capture_path,
             protection_scope_id=scope_id,
+            max_file_bytes=candidate.max_file_bytes,
         )
 
     def _validated_capture_path(self, candidate: ImportCandidate) -> Path:
@@ -436,8 +443,8 @@ class ImportIntakeService:
             candidate.max_file_bytes is not None
             and stat.st_size > candidate.max_file_bytes
         ):
-            raise SourceChangedDuringCaptureError(
-                "Import candidate exceeds its preflight size bound."
+            raise SourceFileTooLargeError(
+                "Import candidate exceeds its configured capture size bound."
             )
         return current
 
