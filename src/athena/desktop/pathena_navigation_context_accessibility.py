@@ -98,6 +98,9 @@ class NavigationContextAccessibility(QObject):
         )
         page_title.setAccessibleName("Current workspace")
 
+        # Keep the legacy accessibility proxy buttons available to existing
+        # contracts, but remove them from the visible shell. The final
+        # eleven-screen parity layer owns the one visible textual navigation.
         for position, (row, label) in enumerate(_PRIMARY_TOP_NAVIGATION, start=1):
             button = QPushButton(label)
             button.setObjectName("topNavButton")
@@ -109,6 +112,7 @@ class NavigationContextAccessibility(QObject):
                 lambda _checked=False, index=row: self.navigation.setCurrentRow(index)
             )
             top_layout.insertWidget(position, button)
+            button.hide()
             self.top_buttons[row] = button
 
         self._install_contextual_inspector_overlay()
@@ -158,7 +162,7 @@ class NavigationContextAccessibility(QObject):
         self.inspector_context_body = body
         self._resize_contextual_inspector()
 
-    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
         if watched is self.inspector and event.type() == QEvent.Type.Resize:
             self._resize_contextual_inspector()
         return super().eventFilter(watched, event)
