@@ -1,12 +1,9 @@
 """Durable execution primitive for periodic Deep backup verification.
 
 This worker deliberately sits on top of the existing deterministic planner and
-``BackupService.verify_deep``.  It does not duplicate backup verification,
-restore-smoke, target locking, or persistence semantics.
-
-Runtime registration and scheduler composition are intentionally separate from
-this bounded worker slice.  Until ``backup.verify_deep`` is registered in the
-canonical durable-job boundary, this module remains inert in production.
+``BackupService.verify_deep``. It does not duplicate backup verification,
+restore-smoke, target locking, or persistence semantics. Runtime registration
+and scheduler composition are provided by the surrounding durable-job stack.
 """
 
 from __future__ import annotations
@@ -191,6 +188,7 @@ class DurableBackupDeepVerifyWorker:
                 f"Backup verification job {job.job_id} is not running."
             )
 
+        self._validate_job_configuration(job)
         snapshot_id, target_id, occurrence_slot_us = self._job_scope(job)
 
         try:
@@ -355,6 +353,43 @@ class DurableBackupDeepVerifyWorker:
             ):
                 return True
         return False
+
+    def _validate_job_configuration(self, job: JobRecord) -> None:
+        raw = job.pinned_configuration_json
+        if raw is None:
+            raise BackupDeepVerifyJobError(
+                f"Backup verification job {job.job_id} has no pinned configuration."
+            )
+
+        try:
+            payload = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise BackupDeepVerifyJobError(
+                f"Backup verification job {job.job_id} has invalid configuration JSON."
+            ) from exc
+
+        if not isinstance(payload, dict) or set(payload) != {
+            "interval_seconds",
+            "pipeline_version",
+        }:
+            raise BackupDeepVerifyJobError(
+                f"Backup verification job {job.job_id} has invalid configuration fields."
+            )
+
+        interval_seconds = payload.get("interval_seconds")
+        if (
+            isinstance(interval_seconds, bool)
+            or not isinstance(interval_seconds, int)
+            or interval_seconds < 1
+        ):
+            raise BackupDeepVerifyJobError(
+                f"Backup verification job {job.job_id} has invalid verification interval."
+            )
+
+        if payload.get("pipeline_version") != _PIPELINE_VERSION:
+            raise BackupDeepVerifyJobError(
+                f"Backup verification job {job.job_id} has incompatible pipeline version."
+            )
 
     def _job_scope(
         self,
