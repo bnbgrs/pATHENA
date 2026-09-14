@@ -8,11 +8,18 @@ def _quality_workflow_text() -> str:
     return _QUALITY_WORKFLOW.read_text(encoding="utf-8")
 
 
-def test_canonical_quality_runs_on_develop_without_cancelling_in_progress() -> None:
+def test_canonical_quality_cancels_superseded_prs_but_not_pushes() -> None:
     workflow = _quality_workflow_text()
 
     assert "      - develop/pathena-next\n" in workflow
-    assert "  cancel-in-progress: false\n" in workflow
+    assert (
+        "  group: ${{ github.workflow }}-${{ github.event_name }}-"
+        "${{ github.event.pull_request.number || github.ref }}\n"
+    ) in workflow
+    assert (
+        "  cancel-in-progress: ${{ github.event_name == 'pull_request' }}\n"
+        in workflow
+    )
     assert '  CANDIDATE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}\n' in workflow
 
 
