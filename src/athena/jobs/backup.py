@@ -11,6 +11,10 @@ from athena.backup.service import BackupRestoreError, BackupService
 from athena.backup.target_lock import BackupTargetBusyError, backup_target_lock
 from athena.common.ids import uuid_from_blob
 from athena.common.time import utc_now_us
+from athena.jobs.backup_verify_worker import (
+    BACKUP_DEEP_VERIFY_JOB_TYPE,
+    DurableBackupDeepVerifyWorker,
+)
 from athena.jobs.models import JobPriority, JobRecord, JobState, WaitingReason
 from athena.jobs.service import DurableJobService
 
@@ -68,7 +72,7 @@ def daily_backup_slot_us(
 
 
 class DurableBackupWorker:
-    """Schedule and execute one verified daily backup per active target."""
+    """Schedule and execute durable backup-maintenance work."""
 
     def __init__(
         self,
@@ -94,13 +98,17 @@ class DurableBackupWorker:
 
         self.jobs = jobs
         self.backup = backup
+        self.deep_verify_worker = DurableBackupDeepVerifyWorker(
+            jobs=jobs,
+            backup=backup,
+        )
 
     def schedule_due(
         self,
         *,
         now_us: int | None = None,
     ) -> tuple[JobRecord, ...]:
-        """Persist catch-up work for every due and currently available target."""
+        """Persist catch-up backup and periodic Deep-verification work."""
         now = (
             utc_now_us()
             if now_us is None
@@ -178,13 +186,21 @@ class DurableBackupWorker:
                 # re-evaluates whether a catch-up backup is still required.
                 continue
 
+        scheduled.extend(
+            self.deep_verify_worker.schedule_due(
+                now_us=now,
+            )
+        )
         return tuple(scheduled)
 
     def process_leased(
         self,
         job: JobRecord,
     ) -> JobRecord:
-        """Execute one idempotent scheduled backup job."""
+        """Execute one idempotent backup-maintenance job."""
+        if job.job_type == BACKUP_DEEP_VERIFY_JOB_TYPE:
+            return self.deep_verify_worker.process_leased(job)
+
         if job.job_type != BACKUP_CREATE_JOB_TYPE:
             raise BackupJobError(
                 f"Unexpected backup job type {job.job_type!r}."

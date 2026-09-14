@@ -20,6 +20,10 @@ from athena.jobs.backup import (
     BACKUP_CREATE_JOB_TYPE,
     DurableBackupWorker,
 )
+from athena.jobs.backup_verify_worker import (
+    BACKUP_DEEP_VERIFY_JOB_TYPE,
+    BackupDeepVerifyJobError,
+)
 from athena.jobs.capabilities import CONTROL_LANE_JOB_TYPES
 from athena.jobs.embedding_processing import (
     DurableEmbeddingRebuildWorker,
@@ -206,6 +210,7 @@ class DurableJobScheduler:
                 | frozenset(
                     {
                         BACKUP_CREATE_JOB_TYPE,
+                        BACKUP_DEEP_VERIFY_JOB_TYPE,
                     }
                 )
             )
@@ -599,7 +604,10 @@ class DurableJobScheduler:
             )
 
         try:
-            if leased.job_type == BACKUP_CREATE_JOB_TYPE:
+            if leased.job_type in {
+                BACKUP_CREATE_JOB_TYPE,
+                BACKUP_DEEP_VERIFY_JOB_TYPE,
+            }:
                 return self._dispatch_backup(
                     leased
                 )
@@ -683,6 +691,7 @@ class DurableJobScheduler:
 
         except (
             ArchiveReplicationJobError,
+            BackupDeepVerifyJobError,
             SourceProcessingJobError,
             EmbeddingRebuildJobError,
             SourceAnalysisJobError,
@@ -722,7 +731,7 @@ class DurableJobScheduler:
 
         if worker is None:
             raise JobSchedulerError(
-                "No backup.create worker is configured."
+                "No backup maintenance worker is configured."
             )
 
         current = worker.process_leased(

@@ -40,6 +40,10 @@ def _job(
         "snapshot_id": str(snapshot_id),
         "target_id": str(target_id),
     }
+    configuration = {
+        "interval_seconds": 5,
+        "pipeline_version": "backup-deep-verify-v1",
+    }
     return JobRecord(
         job_id=uuid.uuid4(),
         job_type=BACKUP_DEEP_VERIFY_JOB_TYPE,
@@ -54,7 +58,11 @@ def _job(
         retry_count=0,
         next_run_at_us=None,
         blocked_reason=None,
-        pinned_configuration_json=None,
+        pinned_configuration_json=json.dumps(
+            configuration,
+            sort_keys=True,
+            separators=(",", ":"),
+        ),
         protection_scope_id=None,
         protected_payload_id=None,
         worker_id="test-worker" if lease_token is not None else None,
@@ -402,8 +410,8 @@ def test_deep_verify_worker_surfaces_integrity_failure_on_active_target() -> Non
 
 
 def test_deep_verify_worker_rejects_noncanonical_scope_uuid() -> None:
-    snapshot_id = uuid.uuid4()
-    target_id = uuid.uuid4()
+    snapshot_id = uuid.UUID("a0000000-0000-0000-0000-00000000000a")
+    target_id = uuid.UUID("b0000000-0000-0000-0000-00000000000b")
     backup = _FakeBackup(
         _snapshot(snapshot_id=snapshot_id, target_id=target_id)
     )
@@ -428,3 +436,37 @@ def test_deep_verify_worker_rejects_noncanonical_scope_uuid() -> None:
         worker.process_leased(running)
 
     assert backup.verify_calls == 0
+
+
+def test_deep_verify_worker_rejects_incompatible_pinned_configuration() -> None:
+    snapshot_id = uuid.uuid4()
+    target_id = uuid.uuid4()
+    backup = _FakeBackup(
+        _snapshot(snapshot_id=snapshot_id, target_id=target_id)
+    )
+    jobs = _FakeJobs()
+    running = _job(
+        state=JobState.RUNNING,
+        snapshot_id=snapshot_id,
+        target_id=target_id,
+        occurrence_slot_us=10_000_000,
+        lease_token=_LEASE,
+    )
+    configuration = json.loads(cast(str, running.pinned_configuration_json))
+    configuration["pipeline_version"] = "backup-deep-verify-v2"
+    running = replace(
+        running,
+        pinned_configuration_json=json.dumps(
+            configuration,
+            sort_keys=True,
+            separators=(",", ":"),
+        ),
+    )
+    jobs.jobs.append(running)
+    worker = _worker(jobs, backup)
+
+    with pytest.raises(BackupDeepVerifyJobError):
+        worker.process_leased(running)
+
+    assert backup.verify_calls == 0
+    assert jobs.heartbeat_calls == 0
