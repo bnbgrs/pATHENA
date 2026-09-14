@@ -529,21 +529,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         "captures": captures,
         "errors": errors,
         "target_coverage": {
-            "captured_reference_surfaces": [
-                "Chat",
-                "Knowledge",
-                "Research",
-                "Jobs",
-                "Files",
-                "System",
-                "Settings",
-                "interactive PALLAS",
-                "shell-hosted command palette over Knowledge",
-                "Help",
-                "ComfyUI",
-            ],
+            "captured_reference_surfaces": [capture["label"] for capture in captures],
             "not_implemented_as_target_screens": [],
-            "captured_reference_count": expected_capture_count,
+            "captured_reference_count": len(captures),
             "assigned_reference_count": 11,
         },
     }
