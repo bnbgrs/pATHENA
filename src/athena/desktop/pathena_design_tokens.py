@@ -83,8 +83,8 @@ class Motion:
 class ShellGeometry:
     """Stable geometry derived from the eleven-screen reference family."""
 
-    top_bar_height: int = 82
-    icon_rail_width: int = 196
+    top_bar_height: int = 64
+    icon_rail_width: int = 230
     secondary_nav_width: int = 220
     inspector_width: int = 390
     composer_min_height: int = 58
