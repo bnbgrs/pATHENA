@@ -36,6 +36,7 @@ from athena.desktop.pathena_dialog_focus_return_7200 import install_dialog_focus
 from athena.desktop.pathena_empty_search_comprehension_7100 import (
     install_empty_search_comprehension,
 )
+from athena.desktop.pathena_external_workspaces import install_external_workspaces
 from athena.desktop.pathena_inspector_scanability_6700 import apply_inspector_scanability
 from athena.desktop.pathena_interaction_refinement import install_interaction_refinement
 from athena.desktop.pathena_jobs_experience_2800 import install_jobs_experience
@@ -227,6 +228,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     apply_workspace_presentation(window)
     install_navigation_context_accessibility(window)
     command_palette = install_command_palette(window)
+    external_workspaces = install_external_workspaces(
+        window,
+        command_palette,
+        pallas_full_view,
+    )
     transient_dialog_shortcuts = install_transient_dialog_shortcut_continuity(command_palette)
     command_palette_truth = install_command_palette_truth(command_palette)
     capability_help = install_capability_help(command_palette)
@@ -331,9 +337,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     capability_help.deleteLater()
     command_palette_truth.deleteLater()
     transient_dialog_shortcuts.deleteLater()
+    external_workspaces.dispose()
+    external_workspaces.deleteLater()
     command_palette.deleteLater()
     chat_grounding.deleteLater()
     pallas_context_inspector.deleteLater()
+    pallas_full_view.dispose()
     pallas_full_view.deleteLater()
     pallas_grounded_field.deleteLater()
     settings_runtime.deleteLater()

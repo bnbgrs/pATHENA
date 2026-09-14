@@ -1,19 +1,32 @@
-"""On-demand full PALLAS workspace bound to the compact semantic field."""
+"""On-demand living PALLAS workspace hosted by the existing pATHENA shell."""
 
 from __future__ import annotations
 
-from PySide6.QtCore import QEvent, QObject, Qt, Slot
-from PySide6.QtWidgets import QDialog, QVBoxLayout, QWidget
+from PySide6.QtCore import QEvent, QObject, Qt, Signal, Slot
+from PySide6.QtWidgets import (
+    QApplication,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QListWidget,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 from shiboken6 import isValid
 
 from athena.desktop.pathena_pallas_field import (
     PallasGroundedFieldController,
     PallasWorkspace,
 )
+from athena.desktop.pathena_pallas_living_qt import PallasLivingQtController
 
 
 class PallasFullViewController(QObject):
-    """Open one modeless full PALLAS view without duplicating semantic state."""
+    """Host one synchronized living PALLAS workspace inside the real app shell."""
+
+    workspace_opened = Signal()
+    workspace_closed = Signal()
 
     def __init__(
         self,
@@ -23,29 +36,74 @@ class PallasFullViewController(QObject):
         super().__init__(window)
         self._window = window
         self._grounded_controller = grounded_controller
-        self._dialog: QDialog | None = None
         self._workspace: PallasWorkspace | None = None
+        self._host: QFrame | None = None
+        self._living_status: QLabel | None = None
+        self._lens_buttons: dict[str, QPushButton] = {}
+        center = window.findChild(QFrame, "conversation")
+        reference_body = window.findChild(QFrame, "referenceBody")
+        body_layout = reference_body.layout() if reference_body is not None else None
+        navigation = getattr(window, "navigation", None)
+        if (
+            reference_body is None
+            or center is None
+            or not isinstance(body_layout, QHBoxLayout)
+        ):
+            raise RuntimeError(
+                "PALLAS full view requires the reference shell body and conversation host."
+            )
+        self._center: QFrame = center
+        self._reference_body: QFrame = reference_body
+        self._body_layout: QHBoxLayout = body_layout
+        self._navigation = navigation
+        self._open = False
+        self._restore_focus_widget: QWidget | None = None
+        self._opened_navigation_row: int | None = None
         self._viewport = grounded_controller.field.canvas.viewport()
         self._viewport.installEventFilter(self)
+        self._living_controller = PallasLivingQtController(grounded_controller, self)
+        self._living_controller.diagnostics_changed.connect(
+            self._apply_living_diagnostics
+        )
+
+        if isinstance(self._navigation, QListWidget):
+            self._navigation.currentRowChanged.connect(self._on_navigation_changed)
 
         grounded_controller.target.setToolTip(
-            "PALLAS — double-click to open the synchronized full semantic workspace"
+            "PALLAS — double-click to open the synchronized living semantic workspace"
         )
-        grounded_controller.target.setAccessibleName("PALLAS compact semantic field")
+        grounded_controller.target.setAccessibleName(
+            "PALLAS compact living semantic field"
+        )
         grounded_controller.target.setAccessibleDescription(
-            "Double-click the compact PALLAS field to open the synchronized full workspace."
+            "The grounded graph self-organizes visually at 30 FPS. "
+            "Double-click to open it in the main pATHENA workspace."
+        )
+        grounded_controller.target.setProperty("pathenaPallasLiving", True)
+        grounded_controller.target.setProperty(
+            "pathenaPallasLivingRenderer", "force-ca-v1"
         )
         grounded_controller.field.canvas.setToolTip(
             "Double-click to open full PALLAS. Select a node to inspect it."
         )
+        self._window.setProperty("pathenaPallasShellOpen", False)
 
     @property
-    def dialog(self) -> QDialog | None:
-        return self._dialog
+    def dialog(self) -> None:
+        """Legacy compatibility: PALLAS no longer owns a detached dialog."""
+        return None
 
     @property
     def workspace(self) -> PallasWorkspace | None:
         return self._workspace
+
+    @property
+    def is_open(self) -> bool:
+        return self._open
+
+    @property
+    def living_controller(self) -> PallasLivingQtController:
+        return self._living_controller
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
         if watched is self._viewport and event.type() == QEvent.Type.MouseButtonDblClick:
@@ -55,51 +113,181 @@ class PallasFullViewController(QObject):
                 return True
         return super().eventFilter(watched, event)
 
+    def _capture_focus_restore_target(self) -> None:
+        focused = QApplication.focusWidget()
+        self._restore_focus_widget = None
+        self._opened_navigation_row = (
+            self._navigation.currentRow()
+            if isinstance(self._navigation, QListWidget)
+            else None
+        )
+        if (
+            focused is not None
+            and isValid(focused)
+            and (focused is self._window or self._window.isAncestorOf(focused))
+        ):
+            self._restore_focus_widget = focused
+
+    def _restore_previous_focus(self) -> None:
+        target = self._restore_focus_widget
+        opened_row = self._opened_navigation_row
+        self._restore_focus_widget = None
+        self._opened_navigation_row = None
+        if target is None or not isValid(target):
+            return
+        if (
+            isinstance(self._navigation, QListWidget)
+            and opened_row is not None
+            and self._navigation.currentRow() != opened_row
+        ):
+            return
+        if not target.isVisible() or not target.isEnabled():
+            return
+        if target.focusPolicy() == Qt.FocusPolicy.NoFocus:
+            return
+        target.setFocus(Qt.FocusReason.OtherFocusReason)
+
+    def _create_shell_surface(self) -> PallasWorkspace:
+        host = QFrame(self._reference_body)
+        host.setObjectName("pallasShellWorkspaceHost")
+        host.setProperty("pathenaPallasShellHosted", True)
+        host.setAccessibleName("PALLAS living workspace host")
+
+        outer = QVBoxLayout(host)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+
+        toolbar = QHBoxLayout()
+        toolbar.setContentsMargins(18, 10, 18, 8)
+        toolbar.setSpacing(6)
+        status = QLabel("LIVING • 30 FPS • SEMANTIC", host)
+        status.setObjectName("pallasLivingStatus")
+        status.setProperty("role", "dim")
+        status.setAccessibleName("PALLAS living field status")
+        toolbar.addWidget(status, 1)
+
+        buttons: dict[str, QPushButton] = {}
+        for lens in ("semantic", "age", "vitality"):
+            button = QPushButton(lens.upper(), host)
+            button.setObjectName(f"pallasLens{lens.title()}Button")
+            button.setAccessibleName(f"PALLAS {lens} lens")
+            button.setCheckable(True)
+            button.setChecked(lens == self._living_controller.lens)
+            button.clicked.connect(
+                lambda _checked=False, value=lens: self._set_lens(value)
+            )
+            toolbar.addWidget(button)
+            buttons[lens] = button
+        outer.addLayout(toolbar)
+
+        workspace = self._grounded_controller.create_workspace(host)
+        workspace.setObjectName("pallasShellWorkspace")
+        workspace.setAccessibleName("PALLAS full living semantic workspace")
+        workspace.setProperty("pathenaPallasShellHosted", True)
+        outer.addWidget(workspace, 1)
+        self._body_layout.insertWidget(1, host, 1)
+
+        self._host = host
+        self._workspace = workspace
+        self._living_status = status
+        self._lens_buttons = buttons
+        return workspace
+
+    def _set_lens(self, lens: str) -> None:
+        self._living_controller.set_lens(lens)
+        for name, button in self._lens_buttons.items():
+            if isValid(button):
+                button.setChecked(name == self._living_controller.lens)
+
     @Slot()
     def open_workspace(self) -> None:
-        """Show or raise the single full workspace synchronized by Core's controller."""
-        dialog = self._dialog
+        """Show the single living workspace inside the shared shell and inspector."""
         workspace = self._workspace
-        if dialog is None or workspace is None or not isValid(dialog) or not isValid(workspace):
-            dialog = QDialog(self._window)
-            dialog.setObjectName("pallasFullViewDialog")
-            dialog.setWindowTitle("PALLAS")
-            dialog.setModal(False)
-            dialog.setMinimumSize(820, 560)
-            dialog.resize(1120, 760)
-            dialog.setAccessibleName("PALLAS full semantic workspace")
+        host = self._host
+        if (
+            workspace is None
+            or host is None
+            or not isValid(workspace)
+            or not isValid(host)
+        ):
+            workspace = self._create_shell_surface()
+            host = self._host
 
-            layout = QVBoxLayout(dialog)
-            layout.setContentsMargins(0, 0, 0, 0)
-            layout.setSpacing(0)
-            workspace = self._grounded_controller.create_workspace(dialog)
-            layout.addWidget(workspace, 1)
-
-            self._dialog = dialog
-            self._workspace = workspace
-
-        dialog.show()
-        dialog.raise_()
-        dialog.activateWindow()
+        opening = not self._open
+        if opening:
+            self._capture_focus_restore_target()
+        self._center.hide()
+        if host is not None and isValid(host):
+            host.show()
+        workspace.show()
+        self._open = True
+        self._window.setProperty("pathenaPallasShellOpen", True)
         workspace.field.canvas.setFocus(Qt.FocusReason.OtherFocusReason)
+        if opening:
+            self.workspace_opened.emit()
+
+    @Slot()
+    def close_workspace(self) -> None:
+        """Restore the normal route without destroying shared living PALLAS state."""
+        was_open = self._open
+        host = self._host
+        if host is not None and isValid(host):
+            host.hide()
+        if isValid(self._center):
+            self._center.show()
+        self._open = False
+        self._window.setProperty("pathenaPallasShellOpen", False)
+        self._restore_previous_focus()
+        if was_open:
+            self.workspace_closed.emit()
+
+    @Slot(int)
+    def _on_navigation_changed(self, _row: int) -> None:
+        if self._open:
+            self.close_workspace()
+
+    @Slot(object)
+    def _apply_living_diagnostics(self, diagnostics: object) -> None:
+        status = self._living_status
+        if (
+            status is None
+            or not isValid(status)
+            or not isinstance(diagnostics, dict)
+        ):
+            return
+        fps = diagnostics.get("fps_target", 30)
+        active = diagnostics.get("active", 0)
+        nodes = diagnostics.get("nodes", 0)
+        lens = str(diagnostics.get("lens", "semantic")).upper()
+        status.setText(f"LIVING • {fps} FPS • {active}/{nodes} ACTIVE • {lens}")
 
     @Slot()
     def dispose(self) -> None:
+        self._living_controller.stop()
         viewport = self._viewport
         if isValid(viewport):
             viewport.removeEventFilter(self)
-        dialog = self._dialog
-        if dialog is not None and isValid(dialog):
-            dialog.close()
-        self._dialog = None
+        if isinstance(self._navigation, QListWidget):
+            try:
+                self._navigation.currentRowChanged.disconnect(self._on_navigation_changed)
+            except (RuntimeError, TypeError):
+                pass
+        self.close_workspace()
+        host = self._host
+        if host is not None and isValid(host):
+            self._body_layout.removeWidget(host)
+            host.deleteLater()
         self._workspace = None
+        self._host = None
+        self._living_status = None
+        self._lens_buttons.clear()
 
 
 def install_pallas_full_view(
     window: QWidget,
     grounded_controller: PallasGroundedFieldController,
 ) -> PallasFullViewController:
-    """Install the quiet double-click affordance for the full synchronized PALLAS view."""
+    """Install shell-hosted PALLAS plus one provenance-safe living controller."""
     existing = getattr(window, "_pathena_pallas_full_view_controller", None)
     if isinstance(existing, PallasFullViewController):
         existing.dispose()
