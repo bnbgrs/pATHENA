@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import cast
 
 import pytest
 
@@ -46,7 +47,11 @@ def test_ocr_result_rejects_non_numeric_or_boolean_confidence(
     provider = ProviderIdentity(provider_id="ocr", provider_version="1")
 
     with pytest.raises(TypeError, match="confidence"):
-        OCRResult(text="text", provider=provider, confidence=confidence)  # type: ignore[arg-type]
+        OCRResult(
+            text="text",
+            provider=provider,
+            confidence=cast(float, confidence),
+        )
 
 
 def test_speech_segment_validates_text_and_time_range() -> None:
@@ -80,8 +85,8 @@ def test_speech_segment_rejects_non_integer_or_boolean_time_values(
     with pytest.raises(TypeError, match=field_name):
         SpeechTranscriptSegment(
             text="text",
-            start_time_ms=start_time_ms,  # type: ignore[arg-type]
-            end_time_ms=end_time_ms,  # type: ignore[arg-type]
+            start_time_ms=cast(int, start_time_ms),
+            end_time_ms=cast(int, end_time_ms),
         )
 
 
