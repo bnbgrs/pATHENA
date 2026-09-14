@@ -9,6 +9,7 @@ import pytest
 
 from athena.backup.service import BackupRestoreError
 from athena.backup.target_lock import BackupTargetBusyError
+from athena.jobs.backup_verify_payload import BACKUP_VERIFY_DEEP_PIPELINE_VERSION
 from athena.jobs.backup_verify_worker import (
     BACKUP_VERIFY_DEEP_JOB_TYPE,
     BackupDeepVerifyJobError,
@@ -73,7 +74,14 @@ class FakeBackup:
         )
 
 
-def _case(*, outcome="ok", target_status="active", state=JobState.RUNNING):
+def _case(
+    *,
+    outcome="ok",
+    target_status="active",
+    state=JobState.RUNNING,
+    requested_scope=None,
+    pinned_configuration=None,
+):
     snapshot_id = uuid.uuid4()
     target_id = uuid.uuid4()
     jobs = FakeJobs()
@@ -88,12 +96,22 @@ def _case(*, outcome="ok", target_status="active", state=JobState.RUNNING):
         backup=backup,
         retry_seconds=5,
     )
+    if requested_scope is None:
+        requested_scope = {
+            "snapshot_id": str(snapshot_id),
+            "occurrence_slot_us": 123_000_000,
+        }
+    if pinned_configuration is None:
+        pinned_configuration = {
+            "pipeline_version": BACKUP_VERIFY_DEEP_PIPELINE_VERSION,
+        }
     job = SimpleNamespace(
         job_id=uuid.uuid4(),
         job_type=BACKUP_VERIFY_DEEP_JOB_TYPE,
         state=state,
         lease_token=b"lease",
-        requested_scope_json=json.dumps({"snapshot_id": str(snapshot_id)}),
+        requested_scope_json=json.dumps(requested_scope),
+        pinned_configuration_json=json.dumps(pinned_configuration),
     )
     return worker, job, jobs, backup
 
@@ -104,6 +122,9 @@ def test_success_checkpoints_and_completes_without_backup_creation() -> None:
     assert result.state is JobState.COMPLETED
     assert backup.verify_calls == [backup.snapshot_id]
     assert [name for name, _ in jobs.calls] == ["heartbeat", "checkpoint", "complete"]
+    checkpoint = jobs.calls[1][1]
+    assert checkpoint["progress_state"]["occurrence_slot_us"] == 123_000_000
+    assert checkpoint["last_confirmed_output"]["occurrence_slot_us"] == 123_000_000
 
 
 def test_busy_target_waits_with_backoff() -> None:
@@ -135,8 +156,49 @@ def test_corrupt_active_snapshot_fails_closed() -> None:
     assert [name for name, _ in jobs.calls] == ["heartbeat"]
 
 
-def test_cancel_is_acknowledged_before_verification() -> None:
-    worker, job, _, backup = _case(state=JobState.CANCEL_REQUESTED)
+def test_cancel_is_acknowledged_before_payload_validation() -> None:
+    worker, job, _, backup = _case(
+        state=JobState.CANCEL_REQUESTED,
+        requested_scope={},
+    )
     result = worker.process_leased(job)
     assert result.state is JobState.CANCELLED
+    assert backup.verify_calls == []
+
+
+@pytest.mark.parametrize(
+    "requested_scope",
+    [
+        {"snapshot_id": str(uuid.uuid4())},
+        {"snapshot_id": str(uuid.uuid4()), "occurrence_slot_us": True},
+        {
+            "snapshot_id": str(uuid.uuid4()),
+            "occurrence_slot_us": 0,
+            "extra": "x",
+        },
+    ],
+)
+def test_malformed_requested_scope_fails_before_backup_access(
+    requested_scope,
+) -> None:
+    worker, job, _, backup = _case(requested_scope=requested_scope)
+    with pytest.raises(BackupDeepVerifyJobError):
+        worker.process_leased(job)
+    assert backup.verify_calls == []
+
+
+def test_wrong_pipeline_version_fails_before_backup_access() -> None:
+    worker, job, _, backup = _case(
+        pinned_configuration={"pipeline_version": "backup-deep-verify-v0"},
+    )
+    with pytest.raises(BackupDeepVerifyJobError):
+        worker.process_leased(job)
+    assert backup.verify_calls == []
+
+
+def test_missing_pinned_configuration_fails_before_backup_access() -> None:
+    worker, job, _, backup = _case()
+    job.pinned_configuration_json = None
+    with pytest.raises(BackupDeepVerifyJobError):
+        worker.process_leased(job)
     assert backup.verify_calls == []

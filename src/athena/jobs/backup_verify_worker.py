@@ -3,15 +3,18 @@
 from __future__ import annotations
 
 import json
-import uuid
 
 from athena.backup.service import BackupRestoreError, BackupService
 from athena.backup.target_lock import BackupTargetBusyError
 from athena.common.time import utc_now_us
+from athena.jobs.backup_verify_payload import (
+    BACKUP_VERIFY_DEEP_JOB_TYPE,
+    BackupDeepVerifyPayload,
+    BackupDeepVerifyPayloadError,
+    validate_backup_deep_verify_payload,
+)
 from athena.jobs.models import JobRecord, JobState, WaitingReason
 from athena.jobs.service import DurableJobService
-
-BACKUP_VERIFY_DEEP_JOB_TYPE = "backup.verify_deep"
 
 _DEFAULT_RETRY_SECONDS = 5 * 60
 _DEFAULT_LEASE_EXTENSION_SECONDS = 15 * 60
@@ -70,7 +73,8 @@ class DurableBackupDeepVerifyWorker:
                 f"Deep verify job {job.job_id} is not running."
             )
 
-        snapshot_id = self._snapshot_id(job)
+        payload = self._payload(job)
+        snapshot_id = payload.snapshot_id
         try:
             snapshot = self.backup.get_snapshot(snapshot_id)
             target = self.backup.target_status(snapshot.target_id)
@@ -144,11 +148,13 @@ class DurableBackupDeepVerifyWorker:
             current_stage="backup_deep_verify_complete",
             progress_state={
                 "snapshot_id": str(snapshot_id),
+                "occurrence_slot_us": payload.occurrence_slot_us,
                 "target_id": str(verified.target_id),
                 "verification_status": verified.verification_status,
             },
             last_confirmed_output={
                 "snapshot_id": str(snapshot_id),
+                "occurrence_slot_us": payload.occurrence_slot_us,
                 "verification_status": verified.verification_status,
             },
         )
@@ -157,33 +163,49 @@ class DurableBackupDeepVerifyWorker:
             lease_token=lease_token,
         )
 
-    def _snapshot_id(self, job: JobRecord) -> uuid.UUID:
-        raw = job.requested_scope_json
+    def _payload(self, job: JobRecord) -> BackupDeepVerifyPayload:
+        requested_scope = self._json_object(
+            job.requested_scope_json,
+            label="requested scope",
+            job_id=job.job_id,
+        )
+        pinned_configuration = self._json_object(
+            job.pinned_configuration_json,
+            label="pinned configuration",
+            job_id=job.job_id,
+        )
+        try:
+            return validate_backup_deep_verify_payload(
+                requested_scope=requested_scope,
+                pinned_configuration=pinned_configuration,
+            )
+        except BackupDeepVerifyPayloadError as exc:
+            raise BackupDeepVerifyJobError(
+                f"Deep verify job {job.job_id} has invalid durable payload."
+            ) from exc
+
+    @staticmethod
+    def _json_object(
+        raw: str | None,
+        *,
+        label: str,
+        job_id: object,
+    ) -> dict[str, object]:
         if raw is None:
             raise BackupDeepVerifyJobError(
-                f"Deep verify job {job.job_id} has no requested scope."
+                f"Deep verify job {job_id} has no {label}."
             )
         try:
             payload = json.loads(raw)
         except json.JSONDecodeError as exc:
             raise BackupDeepVerifyJobError(
-                f"Deep verify job {job.job_id} has invalid scope JSON."
+                f"Deep verify job {job_id} has invalid {label} JSON."
             ) from exc
         if not isinstance(payload, dict):
             raise BackupDeepVerifyJobError(
-                f"Deep verify job {job.job_id} scope must be an object."
+                f"Deep verify job {job_id} {label} must be an object."
             )
-        snapshot_raw = payload.get("snapshot_id")
-        if not isinstance(snapshot_raw, str):
-            raise BackupDeepVerifyJobError(
-                f"Deep verify job {job.job_id} has no snapshot_id."
-            )
-        try:
-            return uuid.UUID(snapshot_raw)
-        except ValueError as exc:
-            raise BackupDeepVerifyJobError(
-                f"Deep verify job {job.job_id} has invalid snapshot_id."
-            ) from exc
+        return payload
 
     def _wait(
         self,
