@@ -13,6 +13,7 @@ from PySide6.QtCore import QObject, Qt
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
+    QLineEdit,
     QListWidget,
     QPushButton,
     QVBoxLayout,
@@ -56,6 +57,15 @@ _LEGACY_INLINE_STYLE_OBJECTS = (
     "researchDetails",
     "durableJobList",
     "jobDetails",
+)
+
+_REFERENCE_WORKSPACE_OBJECTS = (
+    "knowledgeWorkspace",
+    "researchWorkspace",
+    "jobsWorkspace",
+    "filesWorkspace",
+    "systemWorkspace",
+    "settingsSecondaryContent",
 )
 
 _REFERENCE_PARITY_STYLESHEET = f"""
@@ -496,6 +506,36 @@ QLabel#researchStatus,
 QLabel#schedulerStatus,
 QLabel#jobsStatus {{ color: {PALETTE.text_subtle}; }}
 
+/* Sources use the same master-detail language rather than base-theme black. */
+QListWidget#sourceList {{
+    color: {PALETTE.text_muted};
+    background: {PALETTE.surface};
+    border: 1px solid {PALETTE.border};
+    border-radius: {RADII.panel}px;
+    outline: 0;
+}}
+QListWidget#sourceList::item {{
+    color: {PALETTE.text_muted};
+    background: transparent;
+    min-height: 42px;
+    padding: 4px 9px;
+    border: 0;
+    border-bottom: 1px solid {PALETTE.border};
+}}
+QListWidget#sourceList::item:selected {{
+    color: {PALETTE.text};
+    background: {PALETTE.accent_soft};
+    border-left: 2px solid {PALETTE.accent};
+}}
+QPlainTextEdit#sourceDetails {{
+    color: {PALETTE.text_muted};
+    background: {PALETTE.surface};
+    border: 1px solid {PALETTE.border};
+    border-radius: {RADII.panel}px;
+    padding: 12px;
+}}
+QLabel#sourceStatus {{ color: {PALETTE.text_subtle}; }}
+
 /* Settings reference: quiet secondary rail + broad configuration surface. */
 QListWidget#settingsSecondaryNavigation {{
     background: {PALETTE.surface};
@@ -766,6 +806,11 @@ class ReferenceParityController(QObject):
                 self._utility_buttons[6] = button
 
     def _apply_shared_geometry(self) -> None:
+        for object_name in _REFERENCE_WORKSPACE_OBJECTS:
+            surface = self.window.findChild(QWidget, object_name)
+            if surface is not None:
+                surface.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+
         top_bar = self.window.findChild(QFrame, "topBar")
         if top_bar is not None:
             top_bar.setFixedHeight(SHELL.top_bar_height)
@@ -832,6 +877,28 @@ class ReferenceParityController(QObject):
         self.window.setStyleSheet(
             self.window.styleSheet() + _REFERENCE_PARITY_STYLESHEET
         )
+        # Child-local styling wins Qt's cascade. Force the two real Research
+        # text inputs onto the shared cobalt focus contract after all legacy
+        # presentation layers have installed their styles.
+        for object_name in ("researchQuestionInput", "researchJobFilter"):
+            field = self.window.findChild(QLineEdit, object_name)
+            if field is None:
+                continue
+            field.setStyleSheet(
+                f"""
+                QLineEdit {{
+                    color: {PALETTE.text};
+                    background: {PALETTE.surface};
+                    border: 1px solid {PALETTE.border};
+                    border-radius: {RADII.control}px;
+                    padding: 6px 10px;
+                    selection-color: {PALETTE.text};
+                    selection-background-color: {PALETTE.accent_soft};
+                }}
+                QLineEdit:hover {{ border-color: {PALETTE.border_strong}; }}
+                QLineEdit:focus {{ border-color: {PALETTE.accent}; }}
+                """
+            )
 
     def _sync_navigation(self, row: int) -> None:
         if 0 <= row < len(_PAGE_TITLES):
