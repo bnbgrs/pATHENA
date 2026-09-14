@@ -21,6 +21,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from athena.desktop.pathena_design_tokens import SHELL
+
 _COMPACT = 1260
 _WIDE = 1540
 
@@ -68,6 +70,22 @@ UI_REFINEMENT_TASKS_2101_2200: tuple[str, ...] = tuple(
     for refinement in _LAYOUT_REFINEMENTS
 )
 
+_REFERENCE_BROWSER_RATIOS = {
+    "knowledgeWorkspace": 0.28,
+    "researchWorkspace": 0.27,
+    "jobsWorkspace": 0.30,
+    "filesWorkspace": 0.28,
+}
+
+_REFERENCE_LIST_WIDTHS = {
+    "persistentKnowledgeList": 268,
+    "persistentClaimList": 268,
+    "semanticReviewList": 284,
+    "researchJobList": 276,
+    "durableJobList": 304,
+    "sourceList": 276,
+}
+
 
 def apply_ui_refinements_2101_2200(window: QWidget) -> tuple[int, ...]:
     """Register the 100 adaptive-layout tasks in the shared integrity accounting."""
@@ -109,14 +127,14 @@ class PathenaLayoutRefinement(QObject):
 
     def _tune_workspace_margins(self, *, compact: bool, wide: bool) -> None:
         if compact:
-            margins = (6, 0, 10, 16)
-            spacing = 9
+            margins = (8, 8, 12, 16)
+            spacing = 8
         elif wide:
-            margins = (12, 0, 24, 30)
-            spacing = 14
-        else:
-            margins = (8, 0, 18, 24)
+            margins = (18, 14, 24, 24)
             spacing = 12
+        else:
+            margins = (14, 10, 20, 20)
+            spacing = 10
 
         for name in (
             "knowledgeWorkspace",
@@ -144,43 +162,30 @@ class PathenaLayoutRefinement(QObject):
                 continue
             for label in workspace.findChildren(QLabel, "settingsHelp"):
                 if label.wordWrap():
-                    label.setMaximumHeight(34 if compact else 64 if wide else 52)
+                    label.setMaximumHeight(34 if compact else 48 if wide else 42)
 
     def _tune_splitters(self, *, compact: bool, wide: bool) -> None:
-        for workspace_name in (
-            "knowledgeWorkspace",
-            "researchWorkspace",
-            "jobsWorkspace",
-            "filesWorkspace",
-        ):
+        for workspace_name, reference_ratio in _REFERENCE_BROWSER_RATIOS.items():
             workspace = self.window.findChild(QWidget, workspace_name)
             if workspace is None:
                 continue
             for splitter in workspace.findChildren(QSplitter):
                 splitter.setChildrenCollapsible(False)
-                splitter.setHandleWidth(1 if compact else 2)
-                total = max(600, splitter.width())
-                if compact:
-                    left = max(220, int(total * 0.38))
-                elif wide:
-                    left = max(300, int(total * 0.31))
-                else:
-                    left = max(260, int(total * 0.34))
-                splitter.setSizes([left, max(300, total - left)])
+                splitter.setHandleWidth(1)
+                total = max(720, splitter.width())
+                ratio = reference_ratio + (0.03 if compact else -0.01 if wide else 0.0)
+                left = max(236, int(total * ratio))
+                right = max(420, total - left)
+                splitter.setSizes([left, right])
 
     def _tune_lists(self, *, compact: bool, wide: bool) -> None:
-        minimum = 220 if compact else 320 if wide else 280
-        for name in (
-            "persistentKnowledgeList",
-            "persistentClaimList",
-            "semanticReviewList",
-            "researchJobList",
-            "durableJobList",
-            "sourceList",
-        ):
+        for name, reference_width in _REFERENCE_LIST_WIDTHS.items():
             view = self.window.findChild(QAbstractItemView, name)
-            if view is not None:
-                view.setMinimumWidth(minimum)
+            if view is None:
+                continue
+            minimum = reference_width - 28 if compact else reference_width + 12 if wide else reference_width
+            view.setMinimumWidth(max(228, minimum))
+            view.setMaximumWidth(reference_width + (76 if compact else 112 if wide else 92))
 
     def _tune_composer(self, *, compact: bool, wide: bool) -> None:
         prompt = self.window.findChild(QLineEdit, "promptInput")
@@ -188,15 +193,17 @@ class PathenaLayoutRefinement(QObject):
         send = self.window.findChild(QPushButton, "sendButton")
 
         if prompt is not None:
-            prompt.setMinimumHeight(38 if compact else 46 if wide else 42)
-            prompt.setMaximumHeight(50)
+            prompt.setMinimumHeight(SHELL.composer_min_height)
+            prompt.setMaximumHeight(SHELL.composer_min_height)
         if ground is not None:
-            ground.setMinimumWidth(62 if compact else 72)
-            ground.setMaximumWidth(82)
+            ground.setMinimumWidth(62 if compact else 70)
+            ground.setMaximumWidth(78)
             ground.setText("Source" if compact else "Sources")
         if send is not None:
-            send.setMinimumWidth(58 if compact else 68)
-            send.setMaximumWidth(84)
+            send.setMinimumWidth(SHELL.composer_action_size)
+            send.setMaximumWidth(SHELL.composer_action_size)
+            send.setMinimumHeight(SHELL.composer_action_size)
+            send.setMaximumHeight(SHELL.composer_action_size)
 
     def _tune_tabs(self, *, compact: bool) -> None:
         tabs = self.window.findChild(QTabWidget, "canonicalMemoryTabs")
