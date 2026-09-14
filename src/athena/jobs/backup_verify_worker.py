@@ -1,12 +1,9 @@
 """Durable execution primitive for periodic Deep backup verification.
 
 This worker deliberately sits on top of the existing deterministic planner and
-``BackupService.verify_deep``.  It does not duplicate backup verification,
-restore-smoke, target locking, or persistence semantics.
-
-Runtime registration and scheduler composition are intentionally separate from
-this bounded worker slice.  Until ``backup.verify_deep`` is registered in the
-canonical durable-job boundary, this module remains inert in production.
+``BackupService.verify_deep``. It does not duplicate backup verification,
+restore-smoke, target locking, or persistence semantics. Runtime registration
+and scheduler composition are provided by the surrounding durable-job stack.
 """
 
 from __future__ import annotations
