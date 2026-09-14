@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QApplication, QLabel, QTabWidget, QWidget
+from PySide6.QtWidgets import QApplication, QLabel, QPushButton, QTabWidget, QWidget
 
 from athena.desktop.app import create_application
 from athena.desktop.pathena_design_tokens import PALETTE
@@ -25,6 +25,20 @@ def test_shell_density_hides_redundant_labels_but_keeps_control_semantics() -> N
 
         apply_shell_density(window)
         app.processEvents()
+
+        top_buttons = window.findChildren(QPushButton, "topNavButton")
+        assert [button.text() for button in top_buttons] == [
+            "Workspace",
+            "Library",
+            "Research",
+            "Jobs",
+            "Sources",
+        ]
+        assert top_buttons[window.navigation.currentRow()].isChecked()
+        window.navigation.setCurrentRow(2)
+        app.processEvents()
+        assert top_buttons[2].isChecked()
+        assert sum(button.isChecked() for button in top_buttons) == 1
 
         assert all(label.isHidden() for label in labels)
         assert window.chat_selector.accessibleName() == "Conversation"
