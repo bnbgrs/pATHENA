@@ -9,6 +9,7 @@ on:
     paths:
       - ".github/workflows/ui-snapshot.yml"
       - "scripts/render_pathena_ui_snapshot.py"
+      - "scripts/render_pathena_ui_snapshot_sequential.py"
       - "scripts/render_pathena_ui_snapshot_fontsafe.py"
       - "scripts/compare_pathena_ui_snapshots.py"
       - "tests/qa/**"
@@ -89,6 +90,7 @@ jobs:
         run: |
           uv run --locked --extra dev --extra desktop --no-sync ruff check `
             scripts/render_pathena_ui_snapshot.py `
+            scripts/render_pathena_ui_snapshot_sequential.py `
             scripts/render_pathena_ui_snapshot_fontsafe.py `
             scripts/compare_pathena_ui_snapshots.py `
             tests/qa/test_visual_snapshot_compare.py
