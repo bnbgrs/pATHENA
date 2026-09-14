@@ -1,7 +1,7 @@
 """Final shared-shell alignment for the eleven pATHENA UI references.
 
 The functional workspaces are deliberately left in charge of their own state,
-controllers and detail panes.  This module runs after those controllers and
+controllers and detail panes. This module runs after those controllers and
 owns only the cross-workspace visual shell: textual primary navigation,
 reference-family geometry and the last presentation stylesheet.
 """
@@ -11,7 +11,14 @@ from __future__ import annotations
 from collections.abc import Callable
 
 from PySide6.QtCore import QObject, Qt
-from PySide6.QtWidgets import QFrame, QHBoxLayout, QListWidget, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QFrame,
+    QHBoxLayout,
+    QListWidget,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 
 from athena.desktop.pathena_design_tokens import PALETTE, RADII, SHELL, TYPE
 from athena.desktop.pathena_window import PathenaMainWindow
@@ -66,7 +73,7 @@ QFrame#topPrimaryNavigation {{
     border: 0;
 }}
 QPushButton#topPrimaryNavButton {{
-    min-height: {SHELL.top_bar_height - 2}px;
+    min-height: {SHELL.top_bar_height - 3}px;
     padding: 0 13px;
     border: 0;
     border-bottom: 2px solid transparent;
@@ -425,7 +432,9 @@ class ReferenceShellController(QObject):
         if icon_rail is not None:
             icon_rail.setFixedWidth(SHELL.icon_rail_width)
 
-        secondary_navigation = self.window.findChild(QListWidget, "settingsSecondaryNavigation")
+        secondary_navigation = self.window.findChild(
+            QListWidget, "settingsSecondaryNavigation"
+        )
         if secondary_navigation is not None:
             secondary_navigation.setFixedWidth(SHELL.secondary_nav_width)
 
