@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Protocol
 
 
@@ -78,11 +79,11 @@ class OCRProvider(Protocol):
 
     def recognize(
         self,
-        content: bytes,
+        source_path: Path,
         *,
         media_type: str | None = None,
     ) -> OCRResult:
-        """Recognize text without mutating the captured source payload."""
+        """Recognize verified local source bytes without mutating them."""
 
         ...
 
@@ -98,11 +99,11 @@ class SpeechToTextProvider(Protocol):
 
     def transcribe(
         self,
-        content: bytes,
+        source_path: Path,
         *,
         media_type: str | None = None,
     ) -> SpeechToTextResult:
-        """Transcribe speech without mutating the captured source payload."""
+        """Transcribe verified local source bytes without mutating them."""
 
         ...
 
