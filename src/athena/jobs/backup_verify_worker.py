@@ -15,9 +15,12 @@ import json
 import uuid
 
 from athena.backup.service import BackupRestoreError, BackupService
-from athena.backup.target_lock import BackupTargetBusyError
+from athena.backup.target_lock import BackupTargetBusyError, backup_target_lock
 from athena.common.time import utc_now_us
-from athena.jobs.backup_verify import select_deep_verify_candidate
+from athena.jobs.backup_verify import (
+    BackupDeepVerifyCandidate,
+    select_deep_verify_candidate,
+)
 from athena.jobs.models import JobPriority, JobRecord, JobState, WaitingReason
 from athena.jobs.service import DurableJobService
 
@@ -83,11 +86,13 @@ class DurableBackupDeepVerifyWorker:
         *,
         now_us: int | None = None,
     ) -> tuple[JobRecord, ...]:
-        """Persist at most one deterministic due verification occurrence.
+        """Persist at most one target-serialized due verification occurrence.
 
-        The planner intentionally selects one oldest-due restore point.  This
-        keeps periodic verification bounded and avoids a restart-triggered job
-        storm.  Subsequent scheduler ticks can enqueue the next due snapshot.
+        The unlocked selection identifies the target whose cross-process lock
+        must be acquired.  The authoritative candidate selection and all
+        duplicate checks are repeated while that target lock is held through
+        durable job creation.  This prevents concurrent scheduler processes
+        from reserving the same target/occurrence twice.
         """
         now = (
             utc_now_us()
@@ -102,6 +107,41 @@ class DurableBackupDeepVerifyWorker:
         if candidate is None:
             return ()
 
+        try:
+            target = self.backup.get_target(candidate.target_id)
+        except BackupRestoreError:
+            return ()
+        if target.status != "active" or not target.root_path.is_dir():
+            return ()
+
+        try:
+            with backup_target_lock(target.root_path):
+                locked_candidate = select_deep_verify_candidate(
+                    self.backup,
+                    now_us=now,
+                    interval_seconds=self.interval_seconds,
+                )
+                if (
+                    locked_candidate is None
+                    or locked_candidate.target_id != candidate.target_id
+                ):
+                    return ()
+
+                current_target = self.backup.get_target(locked_candidate.target_id)
+                if (
+                    current_target.status != "active"
+                    or current_target.root_path != target.root_path
+                ):
+                    return ()
+
+                return self._reserve_candidate_locked(locked_candidate)
+        except BackupTargetBusyError:
+            return ()
+
+    def _reserve_candidate_locked(
+        self,
+        candidate: BackupDeepVerifyCandidate,
+    ) -> tuple[JobRecord, ...]:
         if self._has_active_target_job(candidate.target_id):
             return ()
 
