@@ -8,6 +8,7 @@ from PySide6.QtCore import QObject, QSize, Qt
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
+    QLabel,
     QLayout,
     QListWidget,
     QListWidgetItem,
@@ -16,7 +17,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from athena.desktop.pathena_design_tokens import PALETTE, RADII, SHELL, SPACE
+from athena.desktop.pathena_design_tokens import PALETTE, RADII, SHELL, SPACE, TYPE
 from athena.desktop.pathena_window import PathenaMainWindow
 
 
@@ -51,6 +52,7 @@ class SettingsSecondaryNavigation(QObject):
         if runtime_target is not None:
             sections.append(SecondarySection("runtime", "Local runtime", runtime_target))
         self.sections = tuple(sections)
+        self.runtime_target = runtime_target
 
         self.navigation = QListWidget()
         self.navigation.setObjectName("settingsSecondaryNavigation")
@@ -107,15 +109,6 @@ class SettingsSecondaryNavigation(QObject):
             QWidget#settingsSecondaryContent {{
                 background: {PALETTE.canvas};
             }}
-            QWidget#settingsRuntimePanel {{
-                background: {PALETTE.surface_raised};
-                border: 1px solid {PALETTE.border};
-                border-radius: {RADII.panel}px;
-                color: {PALETTE.text_muted};
-            }}
-            QWidget#settingsRuntimePanel QLabel {{
-                background: transparent;
-            }}
             """
         )
         content_layout = QVBoxLayout(self.content)
@@ -141,6 +134,45 @@ class SettingsSecondaryNavigation(QObject):
         self.scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.scroll.setWidget(self.content)
 
+        self.status_panel: QFrame | None = None
+        if runtime_target is not None:
+            self.status_panel = QFrame()
+            self.status_panel.setObjectName("settingsStatusPanel")
+            self.status_panel.setAccessibleName("System status")
+            self.status_panel.setFixedWidth(SHELL.inspector_width)
+            self.status_panel.setStyleSheet(
+                f"""
+                QFrame#settingsStatusPanel {{
+                    background: {PALETTE.surface};
+                    border: 0;
+                    border-left: 1px solid {PALETTE.border};
+                }}
+                QLabel#settingsStatusTitle {{
+                    color: {PALETTE.text};
+                    font-family: {TYPE.display_family};
+                    font-size: {TYPE.section_px}px;
+                    font-weight: 500;
+                }}
+                QWidget#settingsRuntimePanel {{
+                    background: {PALETTE.surface_raised};
+                    border: 1px solid {PALETTE.border};
+                    border-radius: {RADII.panel}px;
+                    color: {PALETTE.text_muted};
+                }}
+                QWidget#settingsRuntimePanel QLabel {{
+                    background: transparent;
+                }}
+                """
+            )
+            status_layout = QVBoxLayout(self.status_panel)
+            status_layout.setContentsMargins(SPACE.lg, SPACE.lg, SPACE.lg, SPACE.xl)
+            status_layout.setSpacing(SPACE.md)
+            status_title = QLabel("System status")
+            status_title.setObjectName("settingsStatusTitle")
+            status_layout.addWidget(status_title)
+            status_layout.addWidget(runtime_target)
+            status_layout.addStretch(1)
+
         self.container = QFrame()
         self.container.setObjectName("settingsSecondaryContainer")
         container_layout = QHBoxLayout(self.container)
@@ -148,6 +180,8 @@ class SettingsSecondaryNavigation(QObject):
         container_layout.setSpacing(0)
         container_layout.addWidget(self.navigation)
         container_layout.addWidget(self.scroll, 1)
+        if self.status_panel is not None:
+            container_layout.addWidget(self.status_panel)
         page_layout.addWidget(self.container, 1)
 
         self.navigation.currentRowChanged.connect(self._activate_row)
@@ -162,7 +196,10 @@ class SettingsSecondaryNavigation(QObject):
         if not 0 <= row < len(self.sections):
             return
         section = self.sections[row]
-        self.scroll.ensureWidgetVisible(section.target, 24, 36)
+        if section.key == "model":
+            self.scroll.ensureWidgetVisible(section.target, 24, 36)
+        elif section.key == "runtime" and self.status_panel is not None:
+            self.status_panel.setAccessibleDescription("Selected section: Local runtime")
         self.navigation.setAccessibleDescription(f"Selected section: {section.label}")
 
 
