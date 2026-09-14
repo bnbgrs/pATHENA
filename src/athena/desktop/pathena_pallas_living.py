@@ -20,7 +20,9 @@ from athena.desktop.pathena_pallas_semantic import (
 
 _TOKEN_RE = re.compile(r"[\w-]+", re.UNICODE)
 _AGE = ("·", ":", "+", "o", "O", "░", "▒", "▓", "█")
-_CONFLICT_REL = frozenset({"conflict", "conflicts", "contradicts", "contradiction", "opposes"})
+_CONFLICT_REL = frozenset(
+    {"conflict", "conflicts", "contradicts", "contradiction", "opposes"}
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,11 +67,13 @@ class PallasLivingEngine:
         self.config = config or PallasLivingConfig()
         self.snapshot: PallasGraphSnapshot | None = None
         self.states: dict[str, PallasLivingNodeState] = {}
+        self._semantic_tokens: dict[str, frozenset[str]] = {}
         self.tick = 0
 
     def clear(self) -> None:
         self.snapshot = None
         self.states.clear()
+        self._semantic_tokens.clear()
         self.tick = 0
 
     def reconcile(
@@ -98,6 +102,9 @@ class PallasLivingEngine:
                 float(y),
                 vitality=1.0 if node.node_id == snapshot.focus_id else 0.82,
             )
+        self._semantic_tokens = {
+            node.node_id: _tokens(node) for node in snapshot.nodes
+        }
         self.snapshot = snapshot
         if not had_state:
             self.tick = 0
@@ -136,7 +143,10 @@ class PallasLivingEngine:
                     else 1.0
                 )
                 self._pair_force(left.node_id, right.node_id, force, repulsion=ratio)
-                similarity = semantic_similarity(left, right)
+                similarity = _token_similarity(
+                    self._semantic_tokens.get(left.node_id, frozenset()),
+                    self._semantic_tokens.get(right.node_id, frozenset()),
+                )
                 if similarity >= c.semantic_threshold:
                     self._pair_force(
                         left.node_id,
@@ -286,8 +296,7 @@ class PallasLivingEngine:
 
 
 def semantic_similarity(left: PallasSemanticNode, right: PallasSemanticNode) -> float:
-    a, b = _tokens(left), _tokens(right)
-    return 0.0 if not a or not b else len(a & b) / len(a | b)
+    return _token_similarity(_tokens(left), _tokens(right))
 
 
 def age_glyph(age_seconds: float, horizon_seconds: float = 300.0) -> str:
@@ -296,6 +305,10 @@ def age_glyph(age_seconds: float, horizon_seconds: float = 300.0) -> str:
         1.0,
     )
     return _AGE[min(int(progress * len(_AGE)), len(_AGE) - 1)]
+
+
+def _token_similarity(left: frozenset[str], right: frozenset[str]) -> float:
+    return 0.0 if not left or not right else len(left & right) / len(left | right)
 
 
 def _tokens(node: PallasSemanticNode) -> frozenset[str]:
