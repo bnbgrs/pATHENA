@@ -6,7 +6,7 @@
 - Foundation commit before this handoff: `8c6b28c15721aeb542da13d7179e0357d9e0b0fc`.
 - Source qualification vehicle: PR #149 exact head `0417410e2fdff9dc4ce953951b451bad01fa2361`.
 - Source UI-Focused run `34820947441 = SUCCESS`.
-- Source canonical run `34820947425` must finish successfully before this current-base branch is opened for integration.
+- Source canonical run `34820947425 = SUCCESS` including full pytest, Specification Validator, Ruff, mypy, Windows path safety, Linux storage regressions, and Local install smoke.
 
 ## Exact functional blobs carried forward
 
@@ -22,13 +22,17 @@ This slice intentionally excludes `src/athena/desktop/pathena_pallas_full_view.p
 
 The Qt regression uses the real `PallasGroundedFieldController` and locks graph immutability across ticks/lenses, fail-closed unknown lenses, and timer/state cleanup after actual field disposal.
 
+## Review notes
+
+- `graph_id` for normal grounded-chat snapshots is derived from `processing_run_id`, so the Qt bridge's graph-id reconciliation boundary is aligned with immutable grounded-run snapshots.
+- The current engine intentionally performs pairwise force/similarity work. Semantic token caching is a later performance optimization, not part of this foundation integration.
+
 ## Integration rule
 
 Do not merge historically. Require:
 
 1. post-#150 Develop canonical Quality on `b3766e0...` = SUCCESS;
-2. source #149 canonical run = SUCCESS or an explained inherited failure unrelated to this slice;
-3. fresh exact-head UI-Focused + canonical Quality on the current-base branch;
-4. final collision review against the latest `postmerge/ui` before merge.
+2. fresh exact-head UI-Focused + canonical Quality on the current-base branch;
+3. final collision review against the latest `postmerge/ui` before merge.
 
 No Skip/XFail, no visual MATCH claim, no provenance weakening, no auto-merge.
