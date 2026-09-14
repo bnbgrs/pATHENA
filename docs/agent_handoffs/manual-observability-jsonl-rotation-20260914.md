@@ -16,7 +16,7 @@ This slice adds an opt-in persistent JSONL sink only. It deliberately does **not
 - byte-bounded rotation and count-bounded retention;
 - default 8 MiB active-file rollover threshold and 5 retained rotated files;
 - numeric rotated backups outside a later-reduced retention window are removed before the new handler opens;
-- unrelated sibling files are never treated as rotated backups;
+- unrelated sibling files are never treated as rotated backups, including when the selected log filename contains glob metacharacters such as `[`;
 - unexpected non-file objects in a stale numeric backup slot fail closed instead of silently weakening retention;
 - exact positive-integer validation for `max_bytes` and `backup_count`, with booleans rejected;
 - strict log-level validation matching the existing console configuration contract;
@@ -44,6 +44,7 @@ The new tests cover:
 - valid JSON for every retained line;
 - bounded rotation with active file plus exactly two configured backups in the focused case;
 - deterministic removal of numeric backups outside a reduced retention window;
+- literal sibling matching for log filenames containing glob metacharacters;
 - preservation of unrelated sibling files;
 - fail-closed non-file objects occupying a stale numeric backup slot;
 - replacement when path/rotation policy changes;
@@ -59,6 +60,12 @@ This does not claim runtime persistence is enabled. A later composition slice mu
 Current `AthenaApplication.start()` intentionally performs the canonical database read-only integrity preflight before `StorageBootstrapService.start()` is allowed to create or probe runtime directories. `RuntimeLayoutService`, reached through storage bootstrap, is the existing owner that creates and validates `RuntimePaths.log_root`, rejects symlink boundaries, and proves that directory writable.
 
 Therefore do **not** call `configure_jsonl_logging()` beside the existing early `configure_logging()` call. Opening the JSONL file there would introduce a filesystem write before the canonical database read-only preflight. A later runtime-wiring slice must preserve that ordering: first complete the read-only database preflight, then establish the safe runtime layout through the existing storage lifecycle, and only then attach the JSONL sink at an application-owned path such as `paths.log_root / "athena.jsonl"`. Any startup failure before that point must remain console-only.
+
+### Required shared root-level policy before runtime wiring
+
+The current console `configure_logging()` contract owns the root logging level and intentionally resets it on every console reconfiguration. The JSONL primitive can lower the root threshold when it needs a more verbose file level, which is correct for the present startup order because console configuration happens first. However, a later call to `configure_logging()` could raise the root threshold again and suppress records that a more-verbose JSONL handler still needs.
+
+Runtime composition must therefore **not** claim reconfiguration-order independence yet. Before persistent JSONL is enabled in production, Console and JSONL configuration must share a deterministic root-level policy: after either owned handler changes, the root threshold must be the minimum level required by all currently active ATHENA-owned handlers. Add focused regressions for both configuration orders and for raising/lowering either handler level. Do not solve this by writing the log file before database preflight or by silently forcing Console and JSONL to use the same level.
 
 ## Integration rule
 
