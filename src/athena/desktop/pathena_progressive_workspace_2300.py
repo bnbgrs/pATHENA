@@ -19,6 +19,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from athena.desktop.pathena_design_tokens import PALETTE
+
 
 @dataclass(frozen=True)
 class ProgressiveTarget:
@@ -71,28 +73,28 @@ _WORKSPACE_TITLE_COPY = {
     "LOCAL RUNTIME / SYSTEM",
 }
 
-_PROGRESSIVE_STYLESHEET = r"""
-QLabel[pathenaSectionHeading="true"] {
-    color: #969696;
+_PROGRESSIVE_STYLESHEET = f"""
+QLabel[pathenaSectionHeading="true"] {{
+    color: {PALETTE.text_subtle};
     font-size: 10px;
     font-weight: 600;
     letter-spacing: 0.4px;
-}
-QWidget[pathenaProgressiveRole="detail"] {
-    background: #080808;
+}}
+QWidget[pathenaProgressiveRole="detail"] {{
+    background: {PALETTE.surface};
     border: none;
-    color: #D7D7D7;
-}
-QWidget[pathenaProgressiveRole="secondary"] {
+    color: {PALETTE.text_muted};
+}}
+QWidget[pathenaProgressiveRole="secondary"] {{
     background: transparent;
-    border-color: #1E1E1E;
-}
-QWidget[pathenaProgressiveRole="decision"] {
+    border-color: {PALETTE.border};
+}}
+QWidget[pathenaProgressiveRole="decision"] {{
     background: transparent;
-}
-QWidget[pathenaProgressiveRole="decision"]:focus {
-    border: 1px solid #F26A21;
-}
+}}
+QWidget[pathenaProgressiveRole="decision"]:focus {{
+    border: 1px solid {PALETTE.accent};
+}}
 """
 
 
@@ -135,6 +137,8 @@ class PathenaProgressiveWorkspaceRefinement(QObject):
             "persistentClaimDetails",
             "semanticReviewDetails",
             "researchDetails",
+            "jobDetails",
+            "sourceDetails",
         ):
             editor = self.window.findChild(QPlainTextEdit, name)
             if editor is None:
