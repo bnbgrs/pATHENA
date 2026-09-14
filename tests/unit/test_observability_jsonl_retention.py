@@ -51,6 +51,29 @@ def test_jsonl_logging_prunes_backups_outside_reduced_retention(
         root.setLevel(original_level)
 
 
+def test_jsonl_retention_matches_metacharacters_as_literal_filename(
+    tmp_path: Path,
+) -> None:
+    root = logging.getLogger()
+    original_level = root.level
+    log_path = tmp_path / "athena[1].jsonl"
+    own_stale_backup = tmp_path / "athena[1].jsonl.3"
+    unrelated_pattern_match = tmp_path / "athena1.jsonl.9"
+
+    try:
+        _remove_owned_jsonl_handlers(root)
+        own_stale_backup.write_text("stale", encoding="utf-8")
+        unrelated_pattern_match.write_text("foreign", encoding="utf-8")
+
+        configure_jsonl_logging(log_path, backup_count=2)
+
+        assert not own_stale_backup.exists()
+        assert unrelated_pattern_match.read_text(encoding="utf-8") == "foreign"
+    finally:
+        _remove_owned_jsonl_handlers(root)
+        root.setLevel(original_level)
+
+
 def test_jsonl_logging_fails_closed_on_non_file_stale_backup(
     tmp_path: Path,
 ) -> None:
