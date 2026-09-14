@@ -23,6 +23,7 @@ from athena.desktop.pathena_design_tokens import PALETTE  # noqa: E402
 from athena.desktop.pathena_reference_screen_parity import (  # noqa: E402
     COMPOSER_PLACEHOLDER,
     PAGE_LABELS,
+    PAGE_TITLES,
     REFERENCE_FAMILY,
     SEARCH_PLACEHOLDER,
     TOP_NAV_LABELS,
@@ -35,8 +36,8 @@ class _ReferenceWindow(QWidget):
         super().__init__()
         self.navigation = QListWidget(self)
         for label in (
-            "Workspace",
-            "Library",
+            "Chat",
+            "Knowledge",
             "Research",
             "Jobs",
             "Sources",
@@ -46,7 +47,7 @@ class _ReferenceWindow(QWidget):
             self.navigation.addItem(label)
         self.navigation.setCurrentRow(0)
 
-        self.page_title = QLabel("Workspace", self)
+        self.page_title = QLabel("Chat", self)
         self.prompt_input = QLineEdit(self)
         self.prompt_input.setPlaceholderText("Ask, explore, or work with your knowledge…")
         self.send_button = QPushButton("→", self)
@@ -61,6 +62,7 @@ class _ReferenceWindow(QWidget):
             ("WORKSPACE", "LIBRARY", "RESEARCH", "JOBS", "SOURCES")
         ):
             button = QPushButton(label, self.top_bar)
+            button.setObjectName("topNavButton")
             button.setCheckable(True)
             button.setProperty("pageIndex", index)
             self.reference_top_nav_buttons.append(button)
@@ -73,6 +75,13 @@ class _ReferenceWindow(QWidget):
         self.local_status = QLabel("LOCAL / PRIVATE", self.top_bar)
         self.local_status.setObjectName("localPrivateStatus")
         top_layout.addWidget(self.local_status)
+
+        self.icon_rail = QFrame(self)
+        self.icon_rail.setObjectName("iconRail")
+        self.inspector = QFrame(self)
+        self.inspector.setObjectName("inspector")
+        self.inspector_title = QLabel("DETAILS", self.inspector)
+        self.inspector_title.setObjectName("inspectorTitle")
 
         self.pallas_canvas = QGraphicsView(self)
         self.pallas_canvas.setObjectName("pallasSemanticCanvas")
@@ -111,6 +120,15 @@ def test_reference_contract_matches_selected_eleven_screen_family() -> None:
         "System",
         "Settings",
     )
+    assert PAGE_TITLES == (
+        "Chat",
+        "Library",
+        "Research",
+        "Jobs",
+        "Sources",
+        "System",
+        "Settings",
+    )
     assert TOP_NAV_LABELS == {
         0: "CHAT",
         1: "KNOWLEDGE",
@@ -119,13 +137,14 @@ def test_reference_contract_matches_selected_eleven_screen_family() -> None:
         4: "SOURCES",
     }
     assert COMPOSER_PLACEHOLDER == "Ask, explore, or build…"
-    assert SEARCH_PLACEHOLDER == "Search anything…"
+    assert SEARCH_PLACEHOLDER == "Search commands or workspaces…"
 
 
 def test_parity_adapter_normalizes_live_shell_copy_and_navigation() -> None:
     app = _application()
     window = _ReferenceWindow()
     parity = install_reference_screen_parity(window)
+    app.processEvents()
 
     assert window.property("referenceFamily") == REFERENCE_FAMILY
     assert [button.text() for button in window.reference_top_nav_buttons] == [
@@ -137,13 +156,15 @@ def test_parity_adapter_normalizes_live_shell_copy_and_navigation() -> None:
     ]
     assert window.prompt_input.placeholderText() == COMPOSER_PLACEHOLDER
     assert window.prompt_input.accessibleName() == "Ask pATHENA"
-    assert window.send_button.text() == "↑"
+    assert window.send_button.text() == "→"
     assert window.local_status.text() == "Local · Private"
     assert window.page_title.text() == "Chat"
+    assert window.inspector_title.text() == "KNOWLEDGE"
 
     window.navigation.setCurrentRow(1)
     app.processEvents()
-    assert window.page_title.text() == "Knowledge"
+    assert window.page_title.text() == "Library"
+    assert window.inspector_title.text() == "EVIDENCE & ACTIVITY"
     assert window.reference_top_nav_buttons[1].isChecked()
     assert not window.reference_top_nav_buttons[0].isChecked()
 
@@ -159,6 +180,9 @@ def test_parity_adapter_normalizes_live_shell_copy_and_navigation() -> None:
     jobs_style = window.jobs_workspace.styleSheet()
     assert "/* 11-screen jobs parity */" in jobs_style
     assert f"border-color: {PALETTE.accent};" in jobs_style
+    shell_style = window.styleSheet()
+    assert "/* 11-screen shell parity */" in shell_style
+    assert f"border-left: 2px solid {PALETTE.accent};" in shell_style
 
     parity.deleteLater()
     window.deleteLater()
