@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from PySide6.QtCore import QTimer, Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -66,8 +66,8 @@ QFrame#workspaceColumn {{
     border: none;
 }}
 QFrame#iconRail {{
-    min-width: {SHELL.icon_rail_width}px;
-    max-width: {SHELL.icon_rail_width}px;
+    min-width: {SHELL.icon_rail_width - 1}px;
+    max-width: {SHELL.icon_rail_width - 1}px;
     background: #090909;
     border: none;
     border-right: 1px solid #202020;
@@ -332,13 +332,13 @@ def _configure_rail(window: QWidget) -> None:
 
     navigation.setFixedWidth(SHELL.icon_rail_width - 34)
     navigation.setFixedHeight(270)
-    for index, (symbol, label) in enumerate(_NAVIGATION):
+    for index, (symbol, nav_label) in enumerate(_NAVIGATION):
         if index >= navigation.count():
             break
         item = navigation.item(index)
-        item.setText(f"{symbol}   {label}")
-        item.setToolTip(label.title())
-        item.setData(Qt.ItemDataRole.AccessibleTextRole, label.title())
+        item.setText(f"{symbol}   {nav_label}")
+        item.setToolTip(nav_label.title())
+        item.setData(Qt.ItemDataRole.AccessibleTextRole, nav_label.title())
         item.setSizeHint(item.sizeHint().expandedTo(item.sizeHint()))
         item.setHidden(index >= 5)
 
@@ -377,9 +377,11 @@ def _configure_top_bar(window: QWidget) -> None:
     if cluster is None:
         while layout.count():
             item = layout.takeAt(0)
-            widget = item.widget()
-            if widget is not None:
-                widget.hide()
+            if item is None:
+                continue
+            child = item.widget()
+            if child is not None:
+                child.hide()
 
         cluster = QFrame(top_bar)
         cluster.setObjectName("shellStatusCluster")
@@ -402,8 +404,16 @@ def _configure_top_bar(window: QWidget) -> None:
         clock = QLabel("--:--", cluster)
         clock.setObjectName("shellClock")
 
-        for widget in (core_dot, core_label, sep_one, pallas_label, pallas_dot, sep_two, clock):
-            cluster_layout.addWidget(widget)
+        for status_widget in (
+            core_dot,
+            core_label,
+            sep_one,
+            pallas_label,
+            pallas_dot,
+            sep_two,
+            clock,
+        ):
+            cluster_layout.addWidget(status_widget)
 
         layout.setContentsMargins(18, 0, 18, 0)
         layout.addStretch(1)
@@ -441,8 +451,8 @@ def _configure_workspace_footer(window: QWidget) -> None:
         context_value.setObjectName("workspaceContextValue")
         context_value.setProperty("role", "workspaceStatusValue")
 
-        for widget in (model_key, model_value, separator, context_key, context_value):
-            status_layout.addWidget(widget)
+        for status_widget in (model_key, model_value, separator, context_key, context_value):
+            status_layout.addWidget(status_widget)
         status_layout.addStretch(1)
         composer_index = layout.indexOf(composer)
         layout.insertWidget(max(0, composer_index), status_bar)
@@ -457,8 +467,6 @@ def _configure_workspace_footer(window: QWidget) -> None:
     send = window.findChild(QPushButton, "sendButton")
     if prompt is not None:
         prompt.setMinimumHeight(46)
-        if hasattr(prompt, "setPlaceholderText"):
-            prompt.setPlaceholderText("Ask anything…")
     if ground is not None:
         ground.setText("Ground")
 
@@ -470,9 +478,9 @@ def _configure_workspace_footer(window: QWidget) -> None:
     composer_layout = composer.layout()
     content = composer.findChild(QFrame, "composerContent")
     if isinstance(composer_layout, QHBoxLayout) and content is None:
-        for widget in (prompt, ground, send):
-            if widget is not None:
-                composer_layout.removeWidget(widget)
+        for composer_widget in (prompt, ground, send):
+            if composer_widget is not None:
+                composer_layout.removeWidget(composer_widget)
 
         composer_layout.setContentsMargins(14, 8, 10, 8)
         composer_layout.setSpacing(0)
@@ -544,9 +552,9 @@ def _sync_reference_state(window: QWidget) -> None:
     for button in window.findChildren(QPushButton, "topUtilityButton"):
         button.hide()
     for name in ("topWordmark", "localPrivateDot", "localPrivateStatus"):
-        label = window.findChild(QLabel, name)
-        if label is not None:
-            label.hide()
+        state_label = window.findChild(QLabel, name)
+        if state_label is not None:
+            state_label.hide()
 
     core_dot = window.findChild(QLabel, "coreStateDot")
     if core_dot is not None:
@@ -610,19 +618,19 @@ def _sync_reference_state(window: QWidget) -> None:
     if navigation is not None:
         navigation.setFixedWidth(SHELL.icon_rail_width - 34)
         navigation.setFixedHeight(270)
-        for index, (symbol, label) in enumerate(_NAVIGATION):
+        for index, (symbol, nav_label) in enumerate(_NAVIGATION):
             if index >= navigation.count():
                 break
             item = navigation.item(index)
-            item.setText(f"{symbol}   {label}")
+            item.setText(f"{symbol}   {nav_label}")
             item.setHidden(index >= 5)
             item.setSizeHint(item.sizeHint().expandedTo(item.sizeHint()))
 
 
 def apply_shell_density(window: QWidget) -> None:
     """Converge the real installed shell toward the eleven-screen reference geometry."""
-    for label in window.findChildren(QLabel, "sessionLabel"):
-        label.hide()
+    for session_label in window.findChildren(QLabel, "sessionLabel"):
+        session_label.hide()
 
     chat_selector = getattr(window, "chat_selector", None)
     if chat_selector is not None:
@@ -668,5 +676,5 @@ def apply_shell_density(window: QWidget) -> None:
     timer.setInterval(1000)
     timer.timeout.connect(lambda: _sync_reference_state(window))
     timer.start()
-    setattr(window, "_visual_convergence_timer", timer)
+    window.__dict__["_visual_convergence_timer"] = timer
     _sync_reference_state(window)
