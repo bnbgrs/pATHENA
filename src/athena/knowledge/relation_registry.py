@@ -83,6 +83,15 @@ _DEFAULT_RELATION_TYPES = (
         semantics="The source entity is assigned to the target project.",
         allowed_domain_pairs=(("knowledge", "project"),),
     ),
+    RelationTypeDefinition(
+        name="superseded_by",
+        direction=RelationDirection.DIRECTED,
+        semantics=(
+            "The historical source Knowledge identity is superseded by the target "
+            "Knowledge identity without erasing the source history."
+        ),
+        allowed_domain_pairs=(("knowledge", "knowledge"),),
+    ),
 )
 
 

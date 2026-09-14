@@ -13,16 +13,14 @@ from athena.knowledge.relation_registry import (
 
 def test_unknown_relation_type_falls_back_without_ontology_growth() -> None:
     registry = RelationTypeRegistry()
+    definitions_before = tuple(item.name for item in registry.definitions())
 
     resolved = registry.definition("model_invented_relation")
+    definitions_after = tuple(item.name for item in registry.definitions())
 
     assert resolved.name == "related_to"
-    assert tuple(item.name for item in registry.definitions()) == (
-        "related_to",
-        "same_as",
-        "different_from",
-        "belongs_to_project",
-    )
+    assert "superseded_by" in definitions_before
+    assert definitions_after == definitions_before
 
 
 def test_symmetric_relation_has_one_deterministic_edge_representation() -> None:
