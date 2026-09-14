@@ -760,4 +760,4 @@ class AthenaApplication:
 
         self.state = ApplicationState.STOPPED
         self.health.mark_stopped()
-        logger.info("ATHENA Core stopped", extra={"event": "core.stopped")
+        logger.info("ATHENA Core stopped", extra={"event": "core.stopped"})
