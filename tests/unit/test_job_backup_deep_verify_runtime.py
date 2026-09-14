@@ -14,6 +14,7 @@ from athena.jobs.capabilities import (
     requires_provider_isolation,
 )
 from athena.jobs.models import JobPriority, JobRecord, JobState
+from athena.jobs.scheduler import DurableJobScheduler, SchedulerLane
 from athena.jobs.service import DurableJobService
 
 _ACTOR_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
@@ -58,6 +59,14 @@ class _Connection:
         return _Rows()
 
 
+def _scheduler(backup_worker: DurableBackupWorker) -> DurableJobScheduler:
+    scheduler = object.__new__(DurableJobScheduler)
+    scheduler.archive_replication_worker = None
+    scheduler.backup_worker = backup_worker
+    scheduler.news_worker = None
+    return scheduler
+
+
 def test_deep_verify_is_explicitly_control_lane() -> None:
     assert BACKUP_DEEP_VERIFY_JOB_TYPE in CONTROL_LANE_JOB_TYPES
     assert not requires_provider_isolation(BACKUP_DEEP_VERIFY_JOB_TYPE)
@@ -96,3 +105,30 @@ def test_backup_worker_includes_deep_verify_due_work() -> None:
 
     assert result == (due,)
     deep_worker.schedule_due.assert_called_once_with(now_us=20_000_000)
+
+
+def test_scheduler_supports_deep_verify_only_on_control_lane() -> None:
+    backup_worker = cast(DurableBackupWorker, Mock())
+    scheduler = _scheduler(backup_worker)
+
+    assert BACKUP_DEEP_VERIFY_JOB_TYPE in scheduler.supported_job_types
+    assert BACKUP_DEEP_VERIFY_JOB_TYPE in scheduler.job_types_for_lane(
+        SchedulerLane.CONTROL
+    )
+    assert BACKUP_DEEP_VERIFY_JOB_TYPE not in scheduler.job_types_for_lane(
+        SchedulerLane.PROVIDER
+    )
+
+
+def test_scheduler_dispatches_deep_verify_to_backup_worker() -> None:
+    backup_worker = cast(DurableBackupWorker, Mock())
+    scheduler = _scheduler(backup_worker)
+    leased = _deep_job()
+    completed = replace(leased, state=JobState.COMPLETED, lease_token=None)
+    backup_worker.process_leased.return_value = completed
+
+    action, current = scheduler._dispatch(leased)
+
+    assert action == "completed"
+    assert current is completed
+    backup_worker.process_leased.assert_called_once_with(leased)
