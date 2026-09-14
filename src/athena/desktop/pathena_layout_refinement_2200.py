@@ -215,7 +215,9 @@ class PathenaLayoutRefinement(QObject):
                 else reference_width
             )
             view.setMinimumWidth(max(228, minimum))
-            view.setMaximumWidth(reference_width + (76 if compact else 112 if wide else 92))
+            view.setMaximumWidth(
+                reference_width + (76 if compact else 112 if wide else 92)
+            )
 
     def _tune_composer(self, *, compact: bool, wide: bool) -> None:
         prompt = self.window.findChild(QLineEdit, "promptInput")
