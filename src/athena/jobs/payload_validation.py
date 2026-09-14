@@ -62,6 +62,8 @@ def validate_builtin_job_payload(
         _validate_research_exhaustive(requested_scope, pinned_configuration)
     elif job_type == "backup.create":
         _validate_backup_create(requested_scope, pinned_configuration)
+    elif job_type == "backup.verify_deep":
+        _validate_backup_verify_deep(requested_scope, pinned_configuration)
     elif job_type == "archive.replicate":
         _validate_archive_replicate(requested_scope, pinned_configuration)
     elif job_type in _NON_EXECUTABLE_BUILTIN_JOB_TYPES:
@@ -518,6 +520,35 @@ def _validate_backup_create(
         raise BuiltinJobPayloadValidationError(
             "backup.create quiet_hour_utc must be between 0 and 23."
         )
+
+
+def _validate_backup_verify_deep(
+    scope: Mapping[str, Any] | None,
+    config: Mapping[str, Any] | None,
+) -> None:
+    label = "backup.verify_deep"
+    _require_exact_keys(
+        scope,
+        {"occurrence_slot_us", "snapshot_id", "target_id"},
+        label=f"{label} requested_scope",
+    )
+    assert scope is not None
+    snapshot_id = _uuid_text(scope, "snapshot_id", label=label)
+    target_id = _uuid_text(scope, "target_id", label=label)
+    if scope["snapshot_id"] != str(snapshot_id) or scope["target_id"] != str(target_id):
+        raise BuiltinJobPayloadValidationError(
+            "backup.verify_deep UUID fields must use canonical lowercase UUID text."
+        )
+    _integer(scope, "occurrence_slot_us", minimum=0, label=label)
+
+    _require_exact_keys(
+        config,
+        {"interval_seconds", "pipeline_version"},
+        label=f"{label} pinned_configuration",
+    )
+    assert config is not None
+    _integer(config, "interval_seconds", minimum=1, label=label)
+    _equal_text(config, "pipeline_version", "backup-deep-verify-v1", label=label)
 
 
 def _validate_archive_replicate(
