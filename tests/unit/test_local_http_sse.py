@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from email.message import Message
 from io import BytesIO
 
 import pytest
@@ -9,27 +10,40 @@ from athena.model.adapters.lm_studio import LMStudioProvider
 from athena.model.domain import ModelChatMessage
 
 
+class _FakeResponse(BytesIO):
+    def __init__(self, body: bytes, *, content_type: str) -> None:
+        super().__init__(body)
+        self.headers = Message()
+        self.headers["Content-Type"] = content_type
+
+
 class _FakeOpener:
-    def __init__(self, body: bytes) -> None:
+    def __init__(self, body: bytes, *, content_type: str) -> None:
         self._body = body
+        self._content_type = content_type
 
-    def open(self, request, *, timeout: float) -> BytesIO:
+    def open(self, request, *, timeout: float) -> _FakeResponse:
         del request, timeout
-        return BytesIO(self._body)
+        return _FakeResponse(self._body, content_type=self._content_type)
 
 
-def _install_body(monkeypatch: pytest.MonkeyPatch, body: bytes) -> None:
+def _install_body(
+    monkeypatch: pytest.MonkeyPatch,
+    body: bytes,
+    *,
+    content_type: str = "text/event-stream; charset=utf-8",
+) -> None:
     monkeypatch.setattr(
         local_http,
         "build_opener",
-        lambda *handlers: _FakeOpener(body),
+        lambda *handlers: _FakeOpener(body, content_type=content_type),
     )
 
 
-def _request(*, accept: str = "text/event-stream") -> local_http.Request:
+def _request() -> local_http.Request:
     return local_http.Request(
         "http://127.0.0.1:1234/v1/chat/completions",
-        headers={"Accept": accept},
+        headers={"Accept": "text/event-stream"},
     )
 
 
@@ -73,16 +87,13 @@ def test_sse_event_without_data_yields_nothing(
     assert tuple(response) == ()
 
 
-def test_non_sse_iteration_remains_physical_lines(
+def test_non_sse_iteration_remains_physical_lines_even_when_requested_as_sse(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     body = b"data: one\ndata: two\n\n"
-    _install_body(monkeypatch, body)
+    _install_body(monkeypatch, body, content_type="application/json")
 
-    response = local_http.open_local_request(
-        _request(accept="application/json"),
-        timeout=2.0,
-    )
+    response = local_http.open_local_request(_request(), timeout=2.0)
 
     assert tuple(response) == (b"data: one\n", b"data: two\n", b"\n")
 
