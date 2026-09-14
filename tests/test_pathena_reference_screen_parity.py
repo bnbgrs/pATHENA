@@ -176,7 +176,7 @@ def test_parity_adapter_normalizes_live_shell_copy_and_navigation() -> None:
     # Screen 01 uses its own wide, full-height navigation treatment while the
     # local core is unavailable. This must collapse back to the shared shell as
     # soon as another workbench destination is selected.
-    assert not window.top_bar.isVisible()
+    assert window.top_bar.isHidden()
     assert window.icon_rail.width() == 248
     assert window.navigation.item(0).text() == "›  CHAT"
     assert window.navigation.item(4).text() == "▱  SOURCES"
@@ -189,7 +189,7 @@ def test_parity_adapter_normalizes_live_shell_copy_and_navigation() -> None:
     assert window.inspector_title.text() == "EVIDENCE & ACTIVITY"
     assert window.reference_top_nav_buttons[1].isChecked()
     assert not window.reference_top_nav_buttons[0].isChecked()
-    assert window.top_bar.isVisible()
+    assert not window.top_bar.isHidden()
     assert window.icon_rail.width() == SHELL.icon_rail_width
     assert window.navigation.item(0).text() == "Chat"
     assert not window.navigation.item(5).isHidden()
