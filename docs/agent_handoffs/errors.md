@@ -2,53 +2,61 @@
 
 ## Exact source of truth
 
-- Develop: `f8a25be7fd7df9f2a8ca281a1567f79ddaabcfb6`; canonical Quality `34883442620 = IN_PROGRESS`. Windows release guards, Linux storage, Local install/pypdf, validator, Ruff and mypy are already `SUCCESS`; canonical pytest remains active.
-- Error worker before this handoff refresh: `d4687c945df1c14f1e47321ef8f04d48a2a537e0`; no workflow existed on that exact SHA before this commit.
-- Spec/Core: `63457beb6e96fb4dc48b3b1b217bcefab90c4a22`; Core Focused `34867476719 = SUCCESS`; canonical `34867476727 = SUCCESS`.
-- Backend: `bef909bf9097000142822e210cec5407e5f4f77b`; Backend Focused `34881627018 = SUCCESS`; canonical `34881627010 = SUCCESS`.
-- UI: `a6298adb68af02537b87b26433003d830adb569d`; Core Focused `34864146634 = SUCCESS`; UI Focused remains `FAILURE`; canonical `34864146660 = FAILURE`.
-- Exact UI canonical diagnostics reproduce exactly three assertions: typography `(15, 11, 30)` versus `(15, 12, 42)`; offline placeholder `Ask anything…` versus `pATHENA reconnecting`; composer height `118` versus `94`. Full pytest result remains `3 failed, 5089 passed, 17 skipped`.
+- Develop: `ca8a213932d59c4e90dc573c4a3a970f10cc3c51`; canonical Quality `34890132641 = IN_PROGRESS`. Direct parent `f8a25be7fd7df9f2a8ca281a1567f79ddaabcfb6` completed canonical `34883442620 = SUCCESS`.
+- Error worker before this handoff refresh: `21277f23da593c2768580f05551ab09dad44e46c`; no queued/in-progress Error-worker workflow existed on that exact SHA.
+- Spec/Core: `9fe5dd44473ae200941d40ba37d14bc8816fdcdf`; Core Focused `34886553609 = SUCCESS`; canonical `34886553447 = SUCCESS`.
+- Backend: `764f99c2949a7ff5eeee2199a9a65e4f71f06f13`; Backend Focused `34887122024 = SUCCESS`; canonical `34887121977 = SUCCESS`.
+- UI: `e149515870b773548a164658775159f29de323af`; exact Visual `34888542153 = FAILURE`, with exact-eleven capture, route identity, compare/proposal and artifact upload all `SUCCESS`; only final `Enforce visual verdict` is `FAILURE`.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
-## Develop — IN_PROGRESS
+## ITERATION-1 — Develop active candidate
 
-Exact canonical Quality `34883442620` is active on current Develop. No competing canonical run was started. All visible guard/static/storage/install lanes are green; only full pytest remains active. Do not supersede or classify from historical signatures before terminal evidence.
+Status: `IN_PROGRESS`
 
-## Spec/Core — held closed
+Develop advanced from canonical-green parent `f8a25be7...` to `ca8a2139...` for the integrated application Knowledge-read wiring. Exact canonical `34890132641` is active. No competing canonical run was started and no Develop mutation was performed by the Error worker.
 
-Current Spec/Core exact Core Focused and canonical are both green. Prior Core error clusters remain closed.
+## ITERATION-2 — Spec/Core exact green
 
-## Backend — held closed
+Status: `FIXED`
 
-Current Backend successor `bef909bf...` is exact Backend Focused and canonical green. No current Storage/Recovery/backup root cause is reproduced. The older backend handoff text is historical relative to the current exact CI evidence and must not override these current runs.
+Current Spec/Core exact Core Focused and canonical are both `SUCCESS`. No current Core/Error root cause is reproduced. Prior Core clusters remain closed.
+
+## ITERATION-3 — Backend exact green
+
+Status: `FIXED`
+
+Current Backend exact focused and canonical are both `SUCCESS`. The checked-in backend handoff is historically stale relative to current CI evidence; it does not reopen any Storage/Recovery/backup error cluster.
+
+## ITERATION-4 — current UI exact requalification
+
+Current UI head is a new exact SHA, `e1495158...`. It has current exact Visual evidence but no current canonical/focused assertion evidence reproducing the three prior product failures from parent `a6298adb...`.
+
+Therefore:
+
+- `ERR-0067 = IN_PROGRESS` — prior typography assertion not yet reproduced on current exact UI SHA.
+- `ERR-0068 = IN_PROGRESS` — prior offline-readiness assertion not yet reproduced on current exact UI SHA.
+- `ERR-0069 = IN_PROGRESS` — prior shell-density assertion not yet reproduced on current exact UI SHA.
+
+Do not infer any of these from the current Visual failure. The current Visual job passes all technical capture/comparator/route stages and fails only at the final review verdict.
 
 ## ERR-0059 — FIXED
 
-No new exact manifest-truth regression. Capture-derived manifest fields, `assigned_reference_count = 11`, and fail-closed exact-eleven PASS remain held.
-
-## Current UI exact regressions — OPEN / UI-owned
-
-Current exact UI canonical diagnostics on `a6298adb...` still directly reproduce:
-
-- `ERR-0067 = OPEN`: `test_pathena_design_system.py::test_spacing_and_motion_are_small_bounded_scales` — actual `(15, 11, 30)` versus required `(15, 12, 42)`.
-- `ERR-0068 = OPEN`: `test_pathena_offline_comprehension.py::test_readiness_copy_tracks_real_local_state` — actual `Ask anything…` versus required `pATHENA reconnecting`.
-- `ERR-0069 = OPEN`: `test_pathena_shell_density.py::test_shell_density_converges_real_shell_to_reference_geometry` — composer height `118` versus required `94`.
-
-The red UI-focused lineage remains deduplicated under `ERR-0069` rather than opening another shell-density ID. Error worker must not parallel-patch UI-owned product code while UI owns these fixes.
+Current exact UI Visual run `34888542153` proves exactly eleven native captures and successful workspace route identity. No new manifest-truth regression exists. Capture-derived manifest fields, `assigned_reference_count = 11`, and fail-closed exact-eleven PASS remain held unchanged.
 
 ## ERR-0054 — OPEN — UI/Visual Review
 
-No newer UI Visual run exists on the current UI head and no trustworthy current exact 11/11 review closes this item. Error worker does not create or accept a baseline. UI must provide current exact native artifacts and truthful reference/render review before closure.
+Current exact UI Visual run reaches and passes artifact production, then fails only at `Enforce visual verdict`. The current UI handoff remains `PAIRS_VERIFIED_0_OF_11`, `MATCH_0_OF_11`, with Visual readiness `NO`. Error worker must not create or accept a baseline. UI must open current exact render artifacts against the original references and review all eleven truthfully before closure.
 
-## Persistent guards
+## Current technical closure
 
-No current exact evidence reopens pypdf/Frozen-argv/two-EXE/bounded-worker/adaptive-2048/lane-lock/duplicate-column/Core-startup/storage-bootstrap clusters. Current Develop has already passed Windows release guards, Linux storage, Local install/pypdf, validator, Ruff and mypy. Keep all guards unchanged.
+`ERR-0063 = FIXED`: current exact Visual capture and route-identity steps both pass on `e1495158...`. Do not reopen the old capture/route cluster because the later review verdict is red.
+
+Persistent release guards remain unchanged. No current exact evidence reopens pypdf/Frozen-argv/two-EXE/bounded-worker/adaptive-2048/lane-lock/duplicate-column/Core-startup/storage-bootstrap clusters.
 
 ## Next root cause
 
-1. Consume terminal Develop canonical `34883442620` without superseding the candidate.
-2. If Develop is green, keep its integrated Knowledge-read slice closed and move immediately to the next current exact failure cluster.
-3. Consume the next UI successor and requalify `ERR-0067`, `ERR-0068`, `ERR-0069` independently from exact assertion evidence.
-4. Keep Spec/Core and Backend closed while their current exact evidence remains green.
-5. Keep `ERR-0059` and prior closed harness/Core clusters closed absent exact regression.
-6. `ERR-0054` remains strictly UI/Visual-Review-owned until truthful current 11/11 review evidence exists.
+1. Consume terminal Develop canonical `34890132641` without superseding it.
+2. Consume current-SHA UI canonical/focused evidence if/when produced for `e1495158...`; only direct current assertions may move `ERR-0067/0068/0069` back to `OPEN`, otherwise close/stale them as supported.
+3. Keep `ERR-0054` strictly UI/Visual-Review-owned and do not accept a baseline.
+4. Keep Spec/Core and Backend closed while exact current evidence stays green.
+5. Keep `ERR-0059` and prior technical harness/Core clusters closed absent a new exact regression.
