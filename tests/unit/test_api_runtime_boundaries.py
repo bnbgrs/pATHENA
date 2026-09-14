@@ -31,6 +31,29 @@ def test_authenticate_rejects_non_string_token_without_exception(tmp_path: Path)
     assert runtime.authenticate(1234) is False  # type: ignore[arg-type]
 
 
+def test_publish_installs_authenticator_before_discovery_is_visible(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    runtime = LocalApiRuntime(tmp_path / "api")
+    original_write = api_runtime._write_private_text
+    discovery_observed = False
+
+    def observe_write(path: Path, content: str) -> None:
+        nonlocal discovery_observed
+        if path == runtime.discovery_path:
+            token = runtime.token_path.read_text(encoding="utf-8").strip()
+            assert runtime.authenticate(token) is True
+            discovery_observed = True
+        original_write(path, content)
+
+    monkeypatch.setattr(api_runtime, "_write_private_text", observe_write)
+
+    runtime.publish(port=1234)
+
+    assert discovery_observed is True
+
+
 def test_publish_fails_closed_when_identity_bound_writer_rejects_parent(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
