@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 from typing import cast
 
@@ -126,7 +127,8 @@ def test_jsonl_logging_replaces_owned_handler_when_policy_changes(
 
         assert len(handlers) == 1
         assert handlers[0] is not first_handler
-        assert Path(cast(str, getattr(handlers[0], "baseFilename"))) == second_path
+        assert isinstance(handlers[0], RotatingFileHandler)
+        assert Path(handlers[0].baseFilename) == second_path
     finally:
         _remove_owned_jsonl_handlers(root)
         root.setLevel(original_level)
