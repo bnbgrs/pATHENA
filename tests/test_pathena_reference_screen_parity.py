@@ -7,7 +7,7 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 pytest.importorskip("PySide6")
 
-from PySide6.QtWidgets import (
+from PySide6.QtWidgets import (  # noqa: E402
     QApplication,
     QFrame,
     QHBoxLayout,
@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from athena.desktop.pathena_reference_screen_parity import (
+from athena.desktop.pathena_reference_screen_parity import (  # noqa: E402
     COMPOSER_PLACEHOLDER,
     PAGE_LABELS,
     REFERENCE_FAMILY,
