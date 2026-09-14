@@ -4,26 +4,24 @@ Evidence-only progress register for `develop/pathena-next`. No invented completi
 
 ## Current baseline
 
-- Develop parent before this integration: `5bfa74e47ee9874b9df2055a0d50d46bc82d3cbb`.
-- Exact canonical Quality on that parent: `34808031326 = SUCCESS`.
+- Develop parent before this integration: `3231615650473fd549a7d852fb3bbe215f7b721f`.
+- Exact canonical Quality on that parent: `34811112376 = SUCCESS`.
 - Persistent release guards remain mandatory and unchanged.
 
 ## Current integration state
 
-Develop retains the bounded capabilities integrated through the current baseline, including persistence-neutral Knowledge merge/split planning, application-facing planning, Core API authentication-readiness ordering, deterministic project Knowledge membership, and the transport-neutral canonical Claim inspection adapter.
+Develop already contains persistence-neutral Knowledge merge/split planning, application-facing planning, Core API authentication-readiness ordering, deterministic project Knowledge membership, the transport-neutral canonical Claim inspection adapter, and facade exposure for Claim inspection/contradiction review.
 
-This integration exposes that existing Claim-inspection adapter through `CoreApiFacade` using a strict single-attach boundary. Capabilities are advertised only while the real adapter is attached; Claim list/load/history and contradiction-review list/load/resolve calls are delegated unchanged. Calls fail closed before attachment. No second repository, persistence, actor, or DTO path is introduced.
+This integration adds a bounded Core composition helper for that Claim-inspection chain. The helper consumes the existing canonical `ClaimRepository`, `ReviewService`, and actor provider, constructs `KnowledgeInspectionService`, and wraps it in `KnowledgeInspectionApiService`. It creates no second persistence, repository, review, actor, or DTO path.
 
-Focused regression coverage in `tests/unit/test_api_knowledge_inspection_facade.py` verifies capability gating, duplicate attachment rejection, fail-closed unavailable calls, exact argument delegation, and return-object preservation.
-
-No Security, Storage, Recovery, packaging, runtime locality, visual, test-strength, or Skip/XFail guard is relaxed.
+Focused regression coverage verifies exact dependency reuse by identity, including the actor provider. No Security, Storage, Recovery, packaging, runtime-locality, visual, test-strength, or Skip/XFail guard is relaxed.
 
 ## Current worker truth
 
-- Errors `60e53eca416724c6cb8c3bc43c78ef057561ac53`: evidence/documentation update only.
-- Spec/Core `ae82147ab8de6d3805bb5f2299497296af8ff19f`: canonical Quality `34809576476 = SUCCESS`; no exact current-head Core Focused run, so worker READY is not claimed.
-- Backend `52eb61de9ecfde4074778a1bab2966e18aab526d`: no selected product delta.
-- UI `2c79759b3544b23f9dfb902eaf7b29c05bec893f`: UI/PALLAS delta remains unpromoted pending exact qualification and fail-closed visual review.
+- Errors `35871d5e32dd49306b433374de9b2693048eb24f`: current UI-capture diagnosis/documentation; no selected product fix.
+- Spec/Core `ae82147ab8de6d3805bb5f2299497296af8ff19f`: previous facade product slice is already represented in Develop; no new selected delta.
+- Backend `52eb61de9ecfde4074778a1bab2966e18aab526d`: no new selected product delta.
+- UI `5c2f066a9542569f8f23398e10cd7187c4722882`: new navigation-rail presentation work remains unpromoted pending exact qualification and fail-closed visual review.
 
 ## Error and visual truth rules
 
@@ -39,4 +37,4 @@ Do not relax: pypdf packaging; fail-closed Frozen argv; Desktop/Worker two-EXE s
 
 `PROMOTION_READY=NO`
 
-The resulting exact Develop SHA requires canonical Quality before any additional Develop mutation.
+The resulting exact Develop SHA requires canonical Quality before any additional Develop mutation. Once green, the next bounded step is `AthenaApplication` wiring of the new composition helper using `ChatService.ensure_local_user` as the sole local actor provider, followed by attachment to `CoreApiFacade`.
