@@ -174,8 +174,10 @@ def test_followed_file_link_target_swap_fails_before_source_capture(
 ) -> None:
     root = tmp_path / "input"
     root.mkdir()
-    first = root / "z-first.txt"
-    second = root / "z-second.txt"
+    targets = root / "targets"
+    targets.mkdir()
+    first = targets / "first.txt"
+    second = targets / "second.txt"
     first.write_text("first", encoding="utf-8")
     second.write_text("second", encoding="utf-8")
     link = root / "a-link.txt"
@@ -184,9 +186,11 @@ def test_followed_file_link_target_swap_fails_before_source_capture(
     request = ImportRequest.from_paths(
         [root],
         symlink_policy=SymlinkPolicy.FOLLOW_INSIDE_ROOT,
+        recursive=False,
     )
     preflight = service.preflight(request)
     assert not preflight.blocked
+    assert len(preflight.candidates) == 1
     assert preflight.candidates[0].capture_path == first.resolve()
 
     link.unlink()
