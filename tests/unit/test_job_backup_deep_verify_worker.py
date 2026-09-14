@@ -122,15 +122,17 @@ class _FakeBackup:
         record: BackupSnapshotRecord,
         *,
         target_status: str = "active",
+        target_root: Path | None = None,
     ) -> None:
         self.database = _Database()
         self.record = record
         self.current_target_status = target_status
+        self.target_root = target_root or Path("backup-target")
         self.verify_calls = 0
         self.verify_error: BaseException | None = None
         self.database.connection.execute(
             "INSERT INTO backup_targets VALUES (?, ?, ?)",
-            (record.target_id.bytes, str(Path("backup-target")), target_status),
+            (record.target_id.bytes, str(self.target_root), target_status),
         )
         self.database.connection.execute(
             "INSERT INTO backup_snapshots VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -149,6 +151,14 @@ class _FakeBackup:
         if snapshot_id != self.record.snapshot_id:
             raise BackupRestoreError("snapshot not found")
         return self.record
+
+    def get_target(self, target_id: uuid.UUID) -> Any:
+        if target_id != self.record.target_id:
+            raise BackupRestoreError("target not found")
+        return SimpleNamespace(
+            status=self.current_target_status,
+            root_path=self.target_root,
+        )
 
     def target_status(self, target_id: uuid.UUID) -> Any:
         if target_id != self.record.target_id:
@@ -260,15 +270,20 @@ def _worker(
     )
 
 
-def test_deep_verify_worker_schedules_one_bounded_durable_occurrence() -> None:
+def test_deep_verify_worker_schedules_one_bounded_durable_occurrence(
+    tmp_path: Path,
+) -> None:
     snapshot_id = uuid.uuid4()
     target_id = uuid.uuid4()
+    target_root = tmp_path / "backup-target"
+    target_root.mkdir()
     backup = _FakeBackup(
         _snapshot(
             snapshot_id=snapshot_id,
             target_id=target_id,
             last_verified_at_us=1,
-        )
+        ),
+        target_root=target_root,
     )
     jobs = _FakeJobs()
     worker = _worker(jobs, backup)
