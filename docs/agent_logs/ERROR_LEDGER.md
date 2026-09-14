@@ -4,11 +4,11 @@ Evidence-first ledger for current exact-SHA failures. Historical IDs, old runs a
 
 ## Current source of truth
 
-- `develop/pathena-next@e818ade900545e788c72cbd24bb6761880470148`; canonical Quality `34794066456 = IN_PROGRESS`. Specification validator, Ruff, mypy, Linux Storage, Windows release guards and Local Install/pypdf are green; full pytest is still running.
-- `postmerge/errors@e8247f46fd2bc685fae10d5bfbd2efceb5a19904`; exact canonical Quality `34788816387 = FAILURE` on attempt 3. Specification validator, Ruff, mypy, Linux Storage, Windows release guards and Local Install/pypdf pass. Full pytest is `1 failed, 5067 passed, 17 skipped`; the sole failure is inherited 48px Send-button geometry versus the authoritative 44px test contract. `tests/qa/test_visual_capture_manifest_truth.py` passes on the same exact SHA.
-- `postmerge/spec-core@52b4e322041547e9039a0f3026f6747583605914`; Core Focused `34789228532 = SUCCESS` and canonical Quality `34789228473 = SUCCESS`.
-- `postmerge/backend@e4e1244e8482ac7d78e557ded5f91252cccc0347`; no new matching current failure evidence; retain last exact canonical-green qualification and do not reopen absent a new current signature.
-- `postmerge/ui@9c03ce6bb2c4cb9913cf0dafcaa2336fdb6dd82c`; exact 11-Surface Visual `34794418240 = FAILURE`. Harness Ruff, comparator mypy/tests, hierarchy/accessibility contracts, all eleven native captures, route identity, compare/proposal and artifact upload pass; only final visual verdict fails.
+- `develop/pathena-next@e48442210d98ca98a086dd7e4f3e5b3dd26e65bb`; canonical Quality `34797268583 = IN_PROGRESS`. Specification validator, Ruff and mypy are green; Linux Storage, Windows release guards, packaged-runtime contracts, adaptive chat reserve and Local Install/pypdf are green. Full pytest remains in progress. No Develop failure is current until this exact run is terminal.
+- `postmerge/errors@e90c89d4759d7c6ad1be09edf43c992c46159d92`; exact canonical Quality `34794695826 = FAILURE`. Linux Storage, Windows release guards and Local Install/pypdf are green; Python quality reaches pytest and fails there. The exact diagnostic artifact exists. Do not infer a new Error-owned root cause from an older run without current diagnostic reproduction.
+- `postmerge/spec-core@52b4e322041547e9039a0f3026f6747583605914`; Core Focused `34789228532 = SUCCESS`, canonical Quality `34789228473 = SUCCESS`.
+- `postmerge/backend@52eb61de9ecfde4074778a1bab2966e18aab526d`; exact canonical Quality `34796053576 = SUCCESS` after history-preserving synchronization with Develop. Keep closed absent a new matching exact-SHA failure.
+- `postmerge/ui@9c03ce6bb2c4cb9913cf0dafcaa2336fdb6dd82c`; exact 11-Surface Visual `34794418240 = FAILURE` at final visual verdict after the capture/route path succeeds.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
 ## OPEN
@@ -19,11 +19,9 @@ Status: `OPEN`
 
 Owner: UI/Visual Review. Error worker is evidence-only for this cluster.
 
-Exact current reproduction: `postmerge/ui@9c03ce6bb2c4cb9913cf0dafcaa2336fdb6dd82c`, 11-Surface Visual `34794418240 = FAILURE`. The run proves all eleven native surfaces can be captured and route identity is stable; failure occurs only at `Enforce visual verdict` after compare/proposal and artifact upload succeed.
+Exact current reproduction remains `postmerge/ui@9c03ce6bb2c4cb9913cf0dafcaa2336fdb6dd82c`, Visual `34794418240 = FAILURE`. The UI handoff for the candidate remains fail-closed at `PAIRS_VERIFIED_0_OF_11` / `MATCH_0_OF_11`; no Error-worker baseline may be created or accepted.
 
-Current UI handoff remains fail-closed and does not establish eleven reviewed authoritative reference/render pairs. No baseline may be created or accepted by the Error worker.
-
-Required closure: UI/Visual Review must open and review all eleven authoritative reference/render pairs for the exact candidate, approve only a reviewed baseline, and then produce an exact-SHA 11-Surface Visual final verdict success. Never relax comparator tolerances, route identity, capture truth, manifest truth or verdict enforcement.
+Required closure: UI/Visual Review opens all eleven exact reference/render pairs, records truthful pair status, accepts only a reviewed baseline where justified, then obtains exact-SHA final visual-verdict success. Never relax comparator tolerances, route identity, capture truth, manifest truth or verdict enforcement.
 
 ## FIXED
 
@@ -31,13 +29,13 @@ Required closure: UI/Visual Review must open and review all eleven authoritative
 
 Status: `FIXED`
 
-Spec/Core successor `52b4e322041547e9039a0f3026f6747583605914` moves the narrow `arg-type` accommodations onto the intentionally invalid argument expressions without changing negative-runtime assertions or planner semantics. Exact Core Focused `34789228532 = SUCCESS` and exact canonical Quality `34789228473 = SUCCESS`. The prior test-typing signature is not current and must not be reopened absent a new exact-SHA reproduction.
+Retained closed. Current Spec/Core is exact focused- and canonical-green.
 
 ### ERR-0060 — P2 — Spec/Core merge-split planner mypy tuple inference
 
 Status: `FIXED`
 
-Retained closed. The current Spec/Core successor is focused- and canonical-green.
+Retained closed. Current Spec/Core is exact focused- and canonical-green.
 
 ### ERR-0061 — P2 — Core Focused omitted mypy and could report false-green candidates
 
@@ -49,7 +47,7 @@ Retained closed. Current Core Focused qualification executes and enforces mypy.
 
 Status: `FIXED`
 
-Retained closed. Exact Error-worker canonical attempt 3 executes `tests/qa/test_visual_capture_manifest_truth.py` successfully. Do not revisit unless a new exact-SHA manifest-truth regression reproduces.
+Retained closed. The manifest fields derive from actual `captures`, while `assigned_reference_count = 11` and the fail-closed eleven-capture PASS contract remain intact. Do not revisit without a new exact-SHA manifest-truth regression.
 
 Also fixed and retained: `ERR-0058`, `ERR-0053`, `ERR-0055`, `ERR-0056`, `ERR-0057`, `ERR-0049`.
 
@@ -59,18 +57,16 @@ Also fixed and retained: `ERR-0058`, `ERR-0053`, `ERR-0055`, `ERR-0056`, `ERR-00
 
 Status: `STALE`
 
-Exact current Error-worker canonical `34788816387` attempt 3 reproduces only `tests/unit/test_pathena_window.py::test_reference_composer_uses_large_work_surface_and_send_target`: runtime Send-button width is 48 while the test correctly requires 44. The same run has `5067 passed`, and all release/storage/install lanes are green.
-
-This does not reopen `ERR-0053`: the Error branch is materially behind the current integration target in UI history, while the authoritative product contract remains 44px. It is branch-divergence evidence, not a new Error-owned UI root cause. Do not weaken the 44px test and do not parallel-edit UI product code on `postmerge/errors`. A future history-preserving Error-branch synchronization may remove the stale divergence only after the chosen Develop exact SHA is terminal canonical-green.
+The older Error-worker exact run reproduced the branch-divergent 48px Send-button against the authoritative 44px contract. Do not reopen `ERR-0053`, weaken the 44px guard or patch UI product code in parallel. The current Error-worker run is red in pytest, but its diagnostic signature must be consumed from the current exact artifact before assigning any new OPEN ID.
 
 ## Persistent release guards
 
-No current exact evidence reopens pypdf packaging, fail-closed Frozen argv, Desktop/Worker executable separation, single Desktop with bounded workers, adaptive 2048-context reserve, Windows lane-lock escalation, duplicate-column, Core-startup or storage-bootstrap failures. On current Develop candidate `e818ade...`, Windows release guards, Linux Storage and Local Install/pypdf are already green while canonical full pytest remains in progress.
+No current exact evidence reopens pypdf packaging, fail-closed Frozen argv, Desktop/Worker executable separation, single Desktop with bounded workers, adaptive 2048-context reserve, Windows lane-lock escalation, duplicate-column, Core-startup or storage-bootstrap failures. Current Develop `e4844221...` already has Storage, Windows release guards and Local Install/pypdf green while full pytest remains active.
 
 ## Next root cause
 
-1. Consume terminal canonical result for `develop/pathena-next@e818ade900545e788c72cbd24bb6761880470148`; do not create a competing Develop run or mutate Develop.
-2. `ERR-0054` remains UI/Visual-review-owned; do not create or accept a baseline in parallel.
-3. Do not reopen `ERR-0062`, `ERR-0059`, `ERR-0060` or `ERR-0061` absent a new exact-SHA matching regression.
-4. The Error-worker 48px failure is `STALE` branch divergence. Do not weaken the 44px guard or patch UI product code here.
-5. Scan for a new current Error-/Harness-owned failure only after excluding ownership-held and canonical-green clusters.
+1. Consume terminal canonical result for `develop/pathena-next@e48442210d98ca98a086dd7e4f3e5b3dd26e65bb`; do not create a competing run or mutate Develop.
+2. Consume the exact diagnostics for Error-worker canonical `34794695826` before opening any new Error-owned root cause. Historical 48px evidence is insufficient by itself for the new exact SHA.
+3. `ERR-0054` remains UI/Visual-review-owned; do not create or accept a baseline in parallel.
+4. Keep Spec/Core and Backend closed while exact canonical-green.
+5. Do not revisit `ERR-0059`, `ERR-0062`, `ERR-0060` or `ERR-0061` absent new matching exact-SHA reproduction.

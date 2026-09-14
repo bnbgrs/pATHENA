@@ -2,42 +2,38 @@
 
 ## Exact source of truth
 
-- Develop: `e818ade900545e788c72cbd24bb6761880470148`; canonical `34794066456 = IN_PROGRESS`. Validator/Ruff/mypy, Linux Storage, Windows release guards and Local Install/pypdf are already green; full pytest remains active.
-- Error worker: `e8247f46fd2bc685fae10d5bfbd2efceb5a19904`; exact canonical `34788816387 = FAILURE` attempt 3 solely on inherited 48px Send-button geometry. Manifest-truth regression test passes; all non-pytest canonical lanes pass.
+- Develop: `e48442210d98ca98a086dd7e4f3e5b3dd26e65bb`; canonical `34797268583 = IN_PROGRESS`. Validator/Ruff/mypy, Linux Storage, Windows release guards and Local Install/pypdf are green; full pytest remains active.
+- Error worker: `e90c89d4759d7c6ad1be09edf43c992c46159d92`; exact canonical `34794695826 = FAILURE`. Non-pytest release/storage/install lanes are green; Python quality fails at pytest. Current diagnostics must be consumed before assigning a new root-cause ID.
 - Spec/Core: `52b4e322041547e9039a0f3026f6747583605914`; Core Focused `34789228532 = SUCCESS`, canonical `34789228473 = SUCCESS`.
-- Backend: `e4e1244e8482ac7d78e557ded5f91252cccc0347`; no new matching failure evidence; keep green cluster closed.
-- UI: `9c03ce6bb2c4cb9913cf0dafcaa2336fdb6dd82c`; Visual `34794418240 = FAILURE` only at final verdict after all eleven captures and route verification succeed.
-
-## ERR-0062 — FIXED — Spec/Core negative-runtime test typing
-
-The owner successor is exact focused- and canonical-green. Narrow `arg-type` accommodations now sit on the intentionally invalid argument expressions; assertions and runtime fail-closed semantics are unchanged. Do not revisit without new exact-SHA reproduction.
+- Backend: `52eb61de9ecfde4074778a1bab2966e18aab526d`; canonical `34796053576 = SUCCESS`.
+- UI: `9c03ce6bb2c4cb9913cf0dafcaa2336fdb6dd82c`; Visual `34794418240 = FAILURE` only at the fail-closed visual-verdict stage after capture/route path success.
 
 ## ERR-0059 — FIXED — manifest capture truth
 
-Exact Error-worker canonical attempt 3 runs `tests/qa/test_visual_capture_manifest_truth.py` successfully. The only pytest failure is unrelated stale Send-button geometry. Do not revisit `ERR-0059` absent a new manifest-truth regression.
+Retained closed. Manifest coverage derives from real `captures`; `assigned_reference_count = 11` and the fail-closed eleven-capture PASS contract remain unchanged. Do not revisit without a new exact-SHA regression.
 
-## Error-worker canonical red — STALE branch divergence
+## ERR-0062 / ERR-0060 / ERR-0061 — FIXED
 
-Run `34788816387` attempt 3 on exact `e8247f46...` reports `1 failed, 5067 passed, 17 skipped`. Sole failure: `test_reference_composer_uses_large_work_surface_and_send_target`, where runtime width is 48 and the authoritative assertion is 44. Ruff, mypy, specification validator, Linux Storage, Windows release guards and Local Install/pypdf all pass.
+Current Spec/Core is exact focused- and canonical-green. Do not reopen these historical Core typing/gate clusters without new exact-SHA reproduction.
 
-Do not reopen `ERR-0053`, weaken the 44px guard, or patch UI code on the Error branch. This branch is behind current integration/UI history. A history-preserving sync is only reasonable after the selected Develop SHA is terminal canonical-green; do not sync from an in-progress Develop candidate.
+## Error-worker pytest red — evidence pending exact diagnostic consumption
+
+Canonical `34794695826` on exact `e90c89d4759d7c6ad1be09edf43c992c46159d92` has green Linux Storage, Windows release guards and Local Install/pypdf, but Python quality fails at pytest. A canonical diagnostics artifact exists for this exact SHA. Do not reuse the older 48px explanation as authority until this artifact reproduces that same signature. If it does, keep it `STALE` branch divergence; if it contains a new Error-/Harness-owned failure, open only that exact cluster.
 
 ## ERR-0054 — OPEN — UI/Visual Review-owned
 
-Exact current UI Visual `34794418240` proves the harness and capture path through all eleven surfaces: Ruff, comparator mypy/tests, hierarchy/accessibility, capture, route identity, compare/proposal and artifact upload all succeed. Only `Enforce visual verdict` fails.
-
-No Error-worker baseline creation or acceptance. UI/Visual Review must actually open the eleven exact reference/render pairs, record truthful pair status, approve a reviewed baseline only where justified, and obtain exact-SHA final visual verdict success.
+The current UI candidate remains fail-closed at `PAIRS_VERIFIED_0_OF_11` / `MATCH_0_OF_11`. No Error-worker baseline creation or acceptance. UI/Visual Review must open all eleven exact reference/render pairs, record truthful status and obtain exact-SHA final visual-verdict success before closure.
 
 ## Green / held clusters
 
-- Spec/Core current exact focused + canonical: SUCCESS.
-- Backend: no new matching current failure evidence; do not reopen.
-- Develop: current canonical is still running; its completed release/storage/install lanes are green.
-- UI technical capture path: all eleven captures + route identity succeed; visual verdict remains review-owned.
+- Spec/Core exact focused + canonical: SUCCESS.
+- Backend current exact canonical: SUCCESS.
+- Develop current canonical is still running; completed release/storage/install lanes are green.
+- UI capture/route path is technically working; visual verdict remains review-owned.
 
 ## Next root cause
 
-1. Consume Develop `34794066456` terminal result. If success, the integrated Merge/Split slice is closed at integration level; if failure, open only the exact new signature actually reproduced.
-2. Keep `ERR-0054` with UI/Visual Review until 11/11 pairs are genuinely reviewed and final visual verdict is green.
-3. Do not revisit `ERR-0059`, `ERR-0062`, `ERR-0060` or `ERR-0061` without new exact-SHA evidence.
-4. Do not mutate the stale Error-worker 48px UI geometry; preserve the 44px contract and wait for a canonical-green Develop baseline before any history-preserving branch synchronization.
+1. Consume Develop `34797268583` terminal result; open only a newly reproduced exact failure.
+2. Consume Error-worker diagnostic artifact for `34794695826` before assigning any new OPEN ID.
+3. Keep `ERR-0054` with UI/Visual Review until genuine 11/11 review and final-verdict green.
+4. Do not revisit `ERR-0059`, `ERR-0062`, `ERR-0060` or `ERR-0061` without new exact-SHA evidence.
