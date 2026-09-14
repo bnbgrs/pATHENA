@@ -2,52 +2,49 @@
 
 ## Exact source of truth
 
-- Develop: `0ea74a990f8375039769c7726a327fd9142d5985`; canonical `34839249527 = SUCCESS`.
-- Error worker before this refresh: `c12664dd5cb8393bf65f782a9e89637f5f16a336`; no exact workflow run exists on that documentation-only SHA.
-- Spec/Core: `f5013995078ce355e64fe4dd7bd7c2a549a30ef9`; Core Focused `34838026579 = SUCCESS`; canonical `34838026561 = FAILURE`.
-- Backend: `ef5a00fb79ebbbcbae0f77c826975068e7ec629f`; Storage Focused `34839202950 = SUCCESS`; canonical `34839202948 = SUCCESS`.
-- UI: `a88eac5f05db4128ae21b7c747e95c16a91191c4`; no newer exact UI successor exists.
+- Develop: `fef85f3d53c9e3d13f20c515ed2bbb0558383f4c`; canonical `34847605826 = IN_PROGRESS`. Windows path safety, Linux storage, Local install/pypdf, validator, Ruff and mypy are green; full pytest is still running.
+- Error worker before this refresh: `22d7a2534ff7c256bcf95f9caeb386de4d9c5a61`; no workflow run exists on that SHA.
+- Spec/Core: `7719c3f18de715fe1343980bdc466a2d12cdb286`; Core Focused `34843539383 = SUCCESS`; canonical `34843539369 = SUCCESS`.
+- Backend: `8d2b07d4015f34328541ef035a155fd65d13dbf8`; Storage Focused `34844716718 = SUCCESS`; canonical `34844716724 = SUCCESS`.
+- UI: `575b8de0a4f25f512e423c78623bfa5b398c379d`; Core Focused `34845670246 = SUCCESS`; UI Focused `34845670143 = FAILURE`; canonical `34845670362 = FAILURE`; Visual `34845664472 = FAILURE`.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
-## ERR-0066 — OPEN — Spec/Core-owned canonical supersession registry-contract regression
+## ERR-0066 — FIXED
 
-Exact diagnostics for canonical run `34838026561` were opened. Full pytest reports `1 failed, 5164 passed, 17 skipped`; the sole failure is `tests/unit/test_relation_registry_contract.py::test_unknown_relation_type_falls_back_without_ontology_growth`.
-
-The candidate intentionally adds directed Knowledge-to-Knowledge `superseded_by` to the default relation registry. The failing test still expects only `related_to`, `same_as`, `different_from`, and `belongs_to_project`. Unknown relation resolution still falls back to `related_to`; the stale assertion is only the default-definition tuple. Exact Core Focused on the same SHA is green.
-
-Spec/Core owns this supersession slice. Make the smallest candidate-owned contract correction, do not weaken fallback semantics or enforcement, and require exact Core Focused plus canonical success on the successor. Error worker must not patch the same Core-owned product/test slice in parallel.
-
-## ERR-0065 — FIXED
-
-Current Spec/Core successor has exact Core Focused `34838026579 = SUCCESS`, so the previous candidate-specific focused enforcement failure is closed. Do not conflate it with ERR-0066.
+The current Spec/Core successor repairs the stale relation-registry contract while preserving the actual anti-ontology-growth invariant and unknown-relation fallback. Exact Core Focused and canonical Quality are both green on `7719c3f18de715fe1343980bdc466a2d12cdb286`. Do not reopen absent a new exact matching regression.
 
 ## ERR-0059 — FIXED
 
-No new exact manifest-truth regression. Capture-derived fields, `assigned_reference_count=11`, and fail-closed exact-eleven PASS contract remain held.
+No new exact manifest-truth regression. Capture-derived fields, `assigned_reference_count = 11`, and fail-closed exact-eleven PASS contract remain held.
 
-## ERR-0063 / ERR-0064 — FIXED
+## ERR-0063 / ERR-0064 / ERR-0065 — FIXED
 
-No new exact matching capture-route or Core-focused selector-contamination regression.
+No new exact matching capture-route, Core-selector contamination, or prior focused-enforcement regression.
 
 ## Backend — held closed
 
-Current Backend SHA `ef5a00fb...` is exact Storage Focused and canonical green. Do not reopen a Backend/Storage cluster without a new matching exact failure.
+Current Backend SHA `8d2b07d4...` is exact Storage Focused and canonical green. The WAL scheduler control-housekeeping slice is already independently qualified. Do not reopen a Backend/Storage cluster without a new matching exact failure.
+
+## Current Develop — IN_PROGRESS
+
+Develop `fef85f3d...` bundles the exact-green Spec/Core supersession and Backend WAL-housekeeping slices. Canonical `34847605826` is still in progress. Windows release guards, Linux storage, Local install/pypdf, validator, Ruff and mypy are green; full pytest is the only currently running quality step. Do not start a competing run or mutate this Develop candidate.
 
 ## Current UI failures — OPEN / UI-owned
 
-Latest exact UI SHA remains `a88eac5f...`; no newer UI successor exists. Do not patch UI product code from `postmerge/errors`; consume the next successor and classify only new exact evidence.
+Exact UI SHA `575b8de0...` has Core Focused green, but UI Focused, canonical Quality and 11-Surface Visual are red. This is a current UI-owned candidate. Error worker must not patch UI product code in parallel; consume the next exact UI successor and classify only its new evidence.
 
 ## ERR-0054 — OPEN — UI/Visual Review
 
-No baseline creation or acceptance by Error worker. Closure still requires truthful UI-owned 11/11 reference/render review and final visual-verdict success.
+No baseline creation or acceptance by Error worker. The current UI handoff remains fail-closed for exact candidate review; closure still requires truthful UI-owned 11/11 reference/render review and final visual-verdict success.
 
 ## Persistent guards
 
-Current Develop canonical is green. Persistent pypdf/Frozen-argv/two-EXE/bounded-worker/adaptive-2048/lane-lock/duplicate-column/Core-startup/storage-bootstrap guards remain unchanged.
+No current exact evidence reopens pypdf/Frozen-argv/two-EXE/bounded-worker/adaptive-2048/lane-lock/duplicate-column/Core-startup/storage-bootstrap clusters. Keep all guards unchanged.
 
 ## Next root cause
 
-1. Consume the Spec/Core successor for ERR-0066; require exact Core Focused and canonical success on the same candidate lineage.
-2. Keep ERR-0065, ERR-0064, ERR-0059 and ERR-0063 closed absent exact regression.
+1. Consume terminal Develop canonical `34847605826`; only a newly reproduced exact-SHA failure may open a new Error cluster.
+2. Keep ERR-0066, ERR-0065, ERR-0064, ERR-0059 and ERR-0063 closed absent exact regression.
 3. Keep Backend closed while exact Focused and canonical remain green.
-4. Consume the next exact UI successor; ERR-0054 remains strictly UI/Visual-Review-owned until truthful 11/11 review evidence exists.
+4. Consume the next exact UI successor; current UI failures remain UI-owned.
+5. ERR-0054 remains strictly UI/Visual-Review-owned until truthful 11/11 review evidence exists.
