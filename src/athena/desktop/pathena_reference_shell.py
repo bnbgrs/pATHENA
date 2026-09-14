@@ -73,7 +73,7 @@ QFrame#topPrimaryNavigation {{
     border: 0;
 }}
 QPushButton#topPrimaryNavButton {{
-    min-height: {SHELL.top_bar_height - 3}px;
+    min-height: 48px;
     padding: 0 13px;
     border: 0;
     border-bottom: 2px solid transparent;
