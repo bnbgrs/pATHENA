@@ -18,10 +18,12 @@ class ProviderIdentity:
     provider_version: str
 
     def __post_init__(self) -> None:
-        if not self.provider_id.strip():
-            raise ValueError("provider_id must not be blank")
-        if not self.provider_version.strip():
-            raise ValueError("provider_version must not be blank")
+        _validate_text(self.provider_id, "provider_id", allow_blank=False)
+        _validate_text(
+            self.provider_version,
+            "provider_version",
+            allow_blank=False,
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -33,6 +35,8 @@ class OCRResult:
     confidence: float | None = None
 
     def __post_init__(self) -> None:
+        _validate_text(self.text, "text", allow_blank=True)
+        _validate_provider(self.provider)
         _validate_confidence(self.confidence)
 
 
@@ -46,8 +50,7 @@ class SpeechTranscriptSegment:
     confidence: float | None = None
 
     def __post_init__(self) -> None:
-        if not self.text.strip():
-            raise ValueError("text must not be blank")
+        _validate_text(self.text, "text", allow_blank=False)
         _validate_time_ms(self.start_time_ms, "start_time_ms")
         _validate_time_ms(self.end_time_ms, "end_time_ms")
         if self.end_time_ms <= self.start_time_ms:
@@ -61,6 +64,16 @@ class SpeechToTextResult:
 
     segments: tuple[SpeechTranscriptSegment, ...]
     provider: ProviderIdentity
+
+    def __post_init__(self) -> None:
+        if type(self.segments) is not tuple:
+            raise TypeError("segments must be an immutable tuple")
+        for segment in self.segments:
+            if not isinstance(segment, SpeechTranscriptSegment):
+                raise TypeError(
+                    "segments must contain SpeechTranscriptSegment values"
+                )
+        _validate_provider(self.provider)
 
     @property
     def text(self) -> str:
@@ -107,6 +120,18 @@ class SpeechToTextProvider(Protocol):
         """Transcribe verified local source bytes without mutating them."""
 
         ...
+
+
+def _validate_text(value: str, field_name: str, *, allow_blank: bool) -> None:
+    if not isinstance(value, str):
+        raise TypeError(f"{field_name} must be a string")
+    if not allow_blank and not value.strip():
+        raise ValueError(f"{field_name} must not be blank")
+
+
+def _validate_provider(provider: ProviderIdentity) -> None:
+    if not isinstance(provider, ProviderIdentity):
+        raise TypeError("provider must be a ProviderIdentity")
 
 
 def _validate_confidence(confidence: float | None) -> None:
