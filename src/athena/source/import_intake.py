@@ -399,9 +399,16 @@ class ImportIntakeService:
     ) -> SourceCaptureResult:
         capture_path = self._validated_capture_path(candidate)
         if scope_id is None:
+            if candidate.max_file_bytes is None:
+                return self.sources.capture_file(capture_path)
             return self.sources.capture_file(
                 capture_path,
                 max_file_bytes=candidate.max_file_bytes,
+            )
+        if candidate.max_file_bytes is None:
+            return self.sources.capture_protected_file(
+                capture_path,
+                protection_scope_id=scope_id,
             )
         return self.sources.capture_protected_file(
             capture_path,
