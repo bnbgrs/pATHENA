@@ -2,46 +2,55 @@
 
 ## Purpose
 
-This handoff records the bounded fix for GitHub issue #181. The deterministic import-intake slice in PR #188 validates `max_file_bytes` during discovery/preflight, but that alone cannot enforce the bound after preflight: the selected file may grow or otherwise expose more bytes before or while Raw Archive capture is streaming it.
+This handoff records the bounded fix for GitHub issue #181. PR #188 validates `max_file_bytes` during discovery/preflight, but a selected file can still grow or expose more bytes before or while Raw Archive capture is streaming it.
 
-The hardening is intentionally stacked on PR #188 rather than current Develop because `src/athena/source/import_intake.py` is owned by that still-unmerged slice.
+The hardening remains stacked on PR #188 because `src/athena/source/import_intake.py` belongs to that still-unmerged slice.
 
 ## Stack
 
 - base PR: #188 `Source: reconstruct hardened import intake on current Develop`
 - base branch: `manual/source-import-intake-current-develop-20260914`
-- base SHA used for this slice: `50b98f0de12ecdda1b2d129b6a5b5a0a5f9cdaae`
+- base SHA: `50b98f0de12ecdda1b2d129b6a5b5a0a5f9cdaae`
 - hardening PR: #201 `Source: enforce import byte limits at capture boundary`
 - hardening branch: `manual/source-import-stream-limit-20260914`
 
-Do not merge #201 independently ahead of #188. If #188 is reconstructed on a newer Develop head, reconstruct this bounded delta on top of that result and requalify the exact new head.
+Do not merge #201 independently ahead of #188. If #188 is reconstructed on newer Develop, reconstruct this bounded delta on top and requalify the exact new head.
 
-## Invariant
+## Required invariant
 
-When `max_file_bytes` is configured, no normal or Protected Source capture may publish a Raw Archive blob whose plaintext input exceeds that limit, even if preflight previously observed a smaller file.
+When `max_file_bytes` is configured, no normal or Protected Source capture initiated by that import may publish more plaintext bytes than the limit, regardless of mutation after preflight.
 
-Enforcement occurs at all relevant boundaries:
+The boundary is enforced at four levels:
 
-1. import preflight rejects files already larger than the configured bound;
-2. immediately before capture, intake resolves/re-stats the candidate and rejects current oversize state;
-3. raw BlobStore capture checks the initial stat before staging;
-4. raw BlobStore capture checks cumulative plaintext bytes before every staging write;
-5. Protected Blob capture checks initial plaintext stat before encrypted staging;
-6. Protected Blob capture checks cumulative plaintext bytes before encrypting/writing every chunk.
+1. intake preflight rejects an already-oversize file;
+2. immediate pre-capture re-resolution/re-stat rejects later oversize state;
+3. normal BlobStore capture checks capture-time stat and bounds every read to at most `min(chunk_size, remaining_budget + 1)` before write/hash;
+4. Protected Blob capture applies the same rule to plaintext before encryption/write.
 
-A size-bound violation is permanent for that capture attempt and is represented by `SourceFileTooLargeError`. It is not retried through the one-time transient `SourceChangedDuringCaptureError` retry path.
+The `+1` probe is deliberate: a growing/malicious source costs at most the configured budget plus one plaintext byte to detect, rather than one arbitrary full extra chunk.
+
+A bound violation reuses `SourceChangedDuringCaptureError`, preserving the existing import contract of exactly one controlled retry. If the source remains invalid on the retry, the aggregate import result reports the existing sanitized failure; no new persisted error vocabulary is introduced.
+
+## Boundary cases
+
+- `len == max_file_bytes` succeeds;
+- `max_file_bytes == 0` permits an empty file;
+- `max_file_bytes == 0` rejects a one-byte file;
+- non-canonical bounds, including negative values and `bool`, are rejected;
+- omitted bounds preserve existing behavior and call shape.
 
 ## Cleanup and confidentiality
 
-- normal capture removes its partial staging file in `finally`;
+- normal capture removes partial staging in `finally`;
 - Protected capture removes partial ciphertext staging in `finally`;
 - Protected capture still wipes the in-memory DEK in `finally`;
-- the max bound is evaluated against Protected Source plaintext size, not ciphertext expansion;
-- no persistent plaintext staging is introduced.
+- Protected limits are measured against plaintext, not ciphertext expansion;
+- no persistent plaintext staging is introduced;
+- no immutable oversized blob is published before the violating byte is rejected.
 
 ## Compatibility
 
-`max_file_bytes` remains optional. When it is `None`, both `ImportIntakeService` and `SourceCaptureService` preserve the previous call shape instead of forwarding a new `max_file_bytes=None` keyword to downstream adapters/test doubles. This keeps the unbounded path behavior-compatible while allowing bounded calls to propagate the explicit value to the physical reader.
+`max_file_bytes` is optional. With `None`, both `ImportIntakeService` and `SourceCaptureService` keep the prior downstream call shape instead of forwarding `max_file_bytes=None`. With a configured bound, the explicit value is propagated to the physical reader.
 
 ## Product files
 
@@ -54,34 +63,26 @@ A size-bound violation is permanent for that capture attempt and is represented 
 
 `tests/unit/test_import_capture_limits.py` covers:
 
-- rejection of an already-oversize raw file before staging;
-- a source whose stat is initially within the bound but whose read stream yields excess bytes;
-- cleanup/no immutable publication after raw stream-bound violation;
-- the equivalent Protected Source plaintext-stream violation before encryption/commit;
-- Protected staging cleanup;
+- pre-staging rejection of an already-oversize raw file;
+- normal stream growth with an asserted `remaining + 1` read request;
+- Protected plaintext stream growth with the same bounded probe;
+- staging cleanup and absence of immutable publication on rejection;
+- exact-bound success for normal and Protected capture;
+- zero-limit empty success and one-byte failure for normal and Protected capture;
+- strict non-negative exact-integer validation;
 - legacy unbounded intake call-shape compatibility;
-- explicit limit propagation to normal and Protected capture boundaries;
-- growth between preflight and immediate pre-capture validation;
-- no retry for permanent `SourceFileTooLargeError`.
+- explicit bound propagation to normal and Protected capture;
+- growth between preflight and immediate capture validation;
+- exactly one controlled retry for a stream-bound violation.
 
 ## Qualification discipline
 
-Require exact-head canonical ATHENA Quality success before promotion. In particular retain:
-
-- specification validator;
-- Ruff;
-- mypy;
-- full pytest;
-- Linux storage regressions;
-- Windows path-safety/release-guard regressions;
-- local-install smoke.
-
-Earlier green runs on predecessor SHAs are evidence only after any later commit. Use the latest exact branch SHA for the merge decision.
+Require exact-head canonical ATHENA Quality success before promotion, including specification validator, Ruff, mypy, full pytest, Linux storage regressions, Windows path-safety/release guards and local-install smoke. Earlier green predecessor SHAs are evidence only after a later commit.
 
 ## Deliberate non-goals
 
-This slice does not change UI, PALLAS, backup, scheduler, OCR/STT provider orchestration, JSONL observability, schema, database migrations, retention policy, or default import-size policy. It only makes an already-configured `max_file_bytes` authoritative at the actual byte-stream boundary.
+No UI, PALLAS, backup, scheduler, OCR/STT provider orchestration, JSONL observability, schema, migration, retention-policy or default import-size-policy change belongs in this slice.
 
 ## Issue closure
 
-Do not close #181 merely because #201 is green while stacked. #181 is resolved only when the hardening reaches the integration line containing #188 (or an equivalent reconstructed intake slice) and the resulting Develop head is requalified.
+Do not close #181 merely because #201 is green while stacked. #181 is resolved only after the hardening reaches the integration line containing #188 (or an equivalent reconstruction) and the resulting Develop head is requalified.
