@@ -290,6 +290,7 @@ def test_deep_verify_worker_schedules_one_bounded_durable_occurrence() -> None:
         "pipeline_version": "backup-deep-verify-v1",
     }
 
+    # The same occurrence is restart-safe and cannot be duplicated.
     assert worker.schedule_due(now_us=10_000_000) == ()
     assert len(jobs.created) == 1
 
