@@ -112,6 +112,42 @@ class TextRepresentationStore:
             content_sha256=digest.digest(),
         )
 
+    def prepare_text(self, text: str) -> PreparedTextRepresentation:
+        """Stage provider-produced text using the retained-text byte contract."""
+
+        if not isinstance(text, str):
+            raise TypeError("Provider representation text must be a string.")
+
+        staging_dir = self.paths.spool_root / "representations" / "staging"
+        staging_dir.mkdir(parents=True, exist_ok=True)
+        staging_path = staging_dir / f"provider-text-{secrets.token_hex(16)}.partial"
+        digest = hashlib.sha256()
+        canonical_text = text[1:] if text.startswith("\ufeff") else text
+        normalized = canonical_text.replace("\r\n", "\n").replace("\r", "\n")
+
+        try:
+            with staging_path.open("xb") as target:
+                byte_length = _write_text(target, normalized, digest)
+                target.flush()
+                os.fsync(target.fileno())
+        except UnicodeEncodeError as exc:
+            staging_path.unlink(missing_ok=True)
+            raise TextRepresentationError(
+                "Provider representation text must be encodable as strict UTF-8."
+            ) from exc
+        except OSError as exc:
+            staging_path.unlink(missing_ok=True)
+            raise TextRepresentationError("Cannot stage provider-produced text.") from exc
+        except Exception:
+            staging_path.unlink(missing_ok=True)
+            raise
+
+        return PreparedTextRepresentation(
+            staging_path=staging_path,
+            byte_length=byte_length,
+            content_sha256=digest.digest(),
+        )
+
     def discard(self, prepared: PreparedTextRepresentation) -> None:
         prepared.staging_path.unlink(missing_ok=True)
 
