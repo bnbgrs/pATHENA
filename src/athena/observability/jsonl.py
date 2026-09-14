@@ -56,12 +56,6 @@ def _validate_open_file(path: Path, file_descriptor: int) -> None:
 class _SecureRotatingFileHandler(RotatingFileHandler):
     """Rotating handler that revalidates path identity at every real open."""
 
-    # logging.FileHandler stores the builtin open callable on each instance so
-    # delayed reopen remains available during interpreter shutdown. Typeshed
-    # intentionally does not expose that private runtime attribute, so declare
-    # the inherited runtime contract here rather than bypassing it.
-    _builtin_open: Callable[..., TextIOWrapper]
-
     def _open(self) -> TextIOWrapper:
         def opener(filename: str, flags: int) -> int:
             secure_flags = flags
@@ -77,14 +71,21 @@ class _SecureRotatingFileHandler(RotatingFileHandler):
                 raise
             return descriptor
 
-        stream = self._builtin_open(
+        # logging.FileHandler installs `_builtin_open` dynamically at runtime so
+        # delayed reopen remains available during interpreter shutdown. Its stub
+        # does not expose that private hook, therefore type the retrieved runtime
+        # value locally instead of declaring a synthetic subclass attribute.
+        builtin_open = cast(
+            Callable[..., TextIOWrapper],
+            getattr(self, "_builtin_open"),
+        )
+        return builtin_open(
             self.baseFilename,
             self.mode,
             encoding=self.encoding,
             errors=self.errors,
             opener=opener,
         )
-        return cast(TextIOWrapper, stream)
 
 
 def _validated_log_level(level: object) -> int:
