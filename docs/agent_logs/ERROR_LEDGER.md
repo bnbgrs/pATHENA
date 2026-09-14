@@ -4,11 +4,12 @@ Evidence-first ledger for current exact-SHA failures. Historical IDs, old runs a
 
 ## Current source of truth
 
-- `develop/pathena-next@b0bb67755ccd1e0df04c9988fa0a9416b9abd7c8`; exact canonical Quality `34854516653 = SUCCESS`.
-- `postmerge/errors@a80e39b8b1669086d8db00deea10a7d37041507f` before this refresh; no workflow run exists on that exact SHA.
-- `postmerge/spec-core@fb7e923763cd9d376953a977281c3e7377fdd3cc`; exact Core Focused `34856366095 = SUCCESS`, exact canonical Quality `34856370276 = SUCCESS`.
-- `postmerge/backend@b6cc4cf5a91816d946ca24f8f911a0470a13c280`; exact Backend Focused `34857759374 = SUCCESS`; canonical Quality `34857759296 = IN_PROGRESS`. Windows release guards, Linux storage, Local install/pypdf, validator, Ruff and mypy are green; full pytest is still active.
-- `postmerge/ui@575b8de0a4f25f512e423c78623bfa5b398c379d`; Core Focused `34845670246 = SUCCESS`, UI Focused `34845670143 = FAILURE`, canonical Quality `34845670362 = FAILURE`, Visual `34845664472 = FAILURE`.
+- `develop/pathena-next@b2063a274984448d5f0db5d1c917c7ee93ae80be`; exact canonical Quality `34862330981 = SUCCESS`.
+- `postmerge/errors@9511f2eea99264c6bca84fa1fd46558c7da041c8` before this refresh; no workflow run exists on that exact SHA.
+- `postmerge/spec-core@1d1334d82af52f8055d7da06b2afa3db575eac4b`; exact Core Focused `34861762468 = SUCCESS`, exact canonical Quality `34861762425 = SUCCESS`.
+- `postmerge/backend@b6cc4cf5a91816d946ca24f8f911a0470a13c280`; exact Backend Focused `34857759374 = SUCCESS`, exact canonical Quality `34857759296 = SUCCESS`.
+- `postmerge/ui@a6298adb68af02537b87b26433003d830adb569d`; exact Core Focused `34864146634 = SUCCESS`, exact UI Focused `34864146677 = FAILURE`, exact canonical Quality `34864146660 = IN_PROGRESS`.
+- On current UI canonical, Linux storage, Windows release guards including pypdf packaging, Local install/pypdf, specification validator, Ruff and mypy are already `SUCCESS`; full pytest remains active.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
 ## OPEN
@@ -19,39 +20,35 @@ Status: `OPEN`
 
 Owner: UI / Visual Review.
 
-Exact Visual run `34845664472` passes the visual harness Ruff/mypy/contracts, captures exactly eleven native surfaces, verifies route identity, completes compare/proposal and uploads artifacts. It fails only at `Enforce visual verdict`. The UI handoff remains fail-closed at `PAIRS_VERIFIED_0_OF_11` / `MATCH_0_OF_11`. Error worker must not create or accept a baseline. Closure requires truthful UI-owned 11/11 reference/render review and final visual-verdict success.
-
-### ERR-0067 — P2 — UI typography token contract mismatch
-
-Status: `OPEN`
-
-Owner: UI.
-
-Exact canonical Quality `34845670362` reproduces `tests/unit/test_pathena_design_system.py::test_spacing_and_motion_are_small_bounded_scales`: actual `(TYPE.body_px, TYPE.metadata_px, TYPE.title_px) = (15, 11, 30)` while the binding contract expects `(15, 12, 42)`. This is an exact UI product/contract mismatch, not an Error-worker harness failure. UI owns the repair or explicit contract-preserving product reconciliation; Error worker must not patch UI code in parallel.
-
-### ERR-0068 — P2 — offline readiness copy does not reflect core-offline state
-
-Status: `OPEN`
-
-Owner: UI.
-
-Exact canonical Quality `34845670362` reproduces `tests/unit/test_pathena_offline_comprehension.py::test_readiness_copy_tracks_real_local_state`: `pathenaReadinessState` is correctly `core-offline`, but the prompt placeholder is `Ask anything…` instead of the required `pATHENA reconnecting`. The state is truthful while the user-visible copy is stale. UI owns this presentation/state-binding root cause.
-
-### ERR-0069 — P2 — shell composer density geometry mismatch
-
-Status: `OPEN`
-
-Owner: UI.
-
-Exact UI Focused `34845670143` reproduces one failure only: `tests/unit/test_pathena_shell_density.py::test_shell_density_converges_real_shell_to_reference_geometry`, with composer height `118` against the required `94`. Exact canonical `34845670362` reproduces the same signature. This single root cause explains the focused failure and one of the three canonical failures; it is deduplicated rather than counted twice.
+No new Visual run exists yet on current UI SHA `a6298adb...`. The last exact reviewed UI Visual lineage proved the technical eleven-capture and route-identity pipeline but failed closed at the final visual verdict with `PAIRS_VERIFIED_0_OF_11` / `MATCH_0_OF_11`. Error worker must not create or accept a baseline. Closure still requires truthful UI-owned 11/11 reference/render review on a current exact candidate.
 
 ## IN_PROGRESS
 
-### Backend current candidate qualification
+### Current UI exact candidate qualification
 
 Status: `IN_PROGRESS`
 
-Exact Backend Focused `34857759374 = SUCCESS`. Canonical `34857759296` is still active; Windows release guards, Linux storage, Local install/pypdf, validator, Ruff and mypy are green and full pytest is the only active quality step. No Backend error is opened until terminal exact-SHA evidence exists. Do not start a competing canonical run or supersede this candidate.
+Owner: UI.
+
+Current UI SHA `a6298adb...` is a successor of the prior red UI lineage. Exact Core Focused is green, UI Focused is red at `Run exact changed UI tests plus navigation invariant`, and canonical Quality is still running full pytest after all static/storage/install/release-guard lanes passed. Do not infer the old `ERR-0067`, `ERR-0068` or `ERR-0069` signatures onto this new SHA until exact current-SHA failure evidence identifies them.
+
+### ERR-0067 — prior typography-token mismatch
+
+Status: `IN_PROGRESS`
+
+The prior UI SHA reproduced the `(15, 11, 30)` versus `(15, 12, 42)` typography-contract mismatch. Current UI `pathena_design_tokens.py` still contains `body_px=15`, `metadata_px=11`, `title_px=30`, but the current canonical pytest result is not terminal. Per exact-SHA policy, retain this only as a candidate signature pending current-run reproduction; do not call it current `OPEN` yet.
+
+### ERR-0068 — prior offline-readiness copy mismatch
+
+Status: `IN_PROGRESS`
+
+The prior UI SHA reproduced `core-offline` with stale `Ask anything…` copy instead of `pATHENA reconnecting`. Current contract test still requires `pATHENA reconnecting`; current canonical pytest is still active. Await exact current-SHA failure/pass evidence before reclassifying.
+
+### ERR-0069 — prior shell-density geometry mismatch
+
+Status: `IN_PROGRESS`
+
+The prior UI SHA reproduced composer height `118` against required `94`. Current UI Focused is exact red, but the available workflow job evidence only identifies the failing aggregate step, not the assertion. The current UI successor changes the adaptive layout refinement and its tests, so do not equate the red focused run with `ERR-0069` without exact assertion evidence.
 
 ## FIXED / HELD CLOSED
 
@@ -59,7 +56,7 @@ Exact Backend Focused `34857759374 = SUCCESS`. Canonical `34857759296` is still 
 
 Status: `FIXED`
 
-Capture-derived manifest fields, `assigned_reference_count = 11`, and exact-eleven fail-closed PASS contract remain held. Current UI Visual again proves exactly eleven captures and route identity; no matching manifest-truth regression is reproduced.
+Capture-derived manifest fields, `assigned_reference_count = 11`, and exact-eleven fail-closed PASS contract remain held. No current exact evidence reproduces the manifest-truth defect.
 
 ### ERR-0066 — P2 — supersession registry contract regression
 
@@ -83,7 +80,7 @@ Bounded selector repair remains integrated; no current matching regression.
 
 Status: `FIXED`
 
-Exact current UI Visual captures all eleven canonical surfaces and verifies route identity, so the prior capture/route failure is not reproduced.
+No current exact evidence reopens the prior capture/route failure. Do not reopen until a current Visual run reproduces it.
 
 - `ERR-0062` — `FIXED`.
 - `ERR-0060` — `FIXED`.
@@ -100,11 +97,11 @@ Older Error-worker canonical red is inherited UI geometry against the authoritat
 
 ## Persistent release guards
 
-Current Develop canonical is fully green. Current Spec/Core focused and canonical are fully green. Current Backend focused is green and its still-running canonical has Windows release guards, Linux storage, Local install/pypdf, validator, Ruff and mypy green. On current UI, Windows release guards, Linux storage, Local install/pypdf, validator, Ruff and mypy are green; canonical red is isolated to three UI pytest signatures. No current exact evidence reopens pypdf packaging, fail-closed Frozen argv, Desktop/Worker executable separation, single Desktop with bounded workers, adaptive 2048-context reserve, Windows lane-lock escalation, duplicate-column, Core-startup or storage-bootstrap failures. Keep all guards unchanged.
+Current Develop canonical is fully green. Current Spec/Core focused and canonical are fully green. Current Backend focused and canonical are fully green. On current UI, Linux storage, Windows release guards, Local install/pypdf, validator, Ruff and mypy are green while full pytest remains active. No current exact evidence reopens pypdf packaging, fail-closed Frozen argv, Desktop/Worker executable separation, single Desktop with bounded workers, adaptive 2048-context reserve, Windows lane-lock escalation, duplicate-column, Core-startup or storage-bootstrap failures. Keep all guards unchanged.
 
 ## Next root cause
 
-1. Consume terminal Backend canonical `34857759296`; open a Backend error only if a new exact terminal failure is reproduced.
-2. Consume the next exact UI successor. Close or reclassify `ERR-0067`, `ERR-0068` and `ERR-0069` only from new exact evidence; do not patch UI product code in parallel while UI owns the slice.
-3. Keep ERR-0059, ERR-0063, ERR-0064, ERR-0065 and ERR-0066 closed absent new exact regression.
-4. UI owns ERR-0054: perform real 11/11 visual review; no baseline creation or acceptance by Error worker.
+1. Consume terminal current UI canonical `34864146660`; identify exact failing assertion(s) before reopening `ERR-0067`, `ERR-0068`, `ERR-0069` or creating a new UI cluster.
+2. Consume the next current UI Visual candidate when one exists; UI owns truthful 11/11 review for `ERR-0054`.
+3. Keep Develop, Spec/Core and Backend closed while their current exact evidence stays green.
+4. Keep `ERR-0059`, `ERR-0063`, `ERR-0064`, `ERR-0065` and `ERR-0066` closed absent new exact regression.
