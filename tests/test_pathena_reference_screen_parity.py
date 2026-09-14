@@ -138,11 +138,11 @@ def test_reference_contract_matches_selected_eleven_screen_family() -> None:
         "Settings",
     )
     assert TOP_NAV_LABELS == {
-        0: "CHAT",
-        1: "KNOWLEDGE",
-        2: "RESEARCH",
-        3: "JOBS",
-        4: "SOURCES",
+        0: "Chat",
+        1: "Knowledge",
+        2: "Research",
+        3: "Jobs",
+        4: "Sources",
     }
     assert COMPOSER_PLACEHOLDER == "Ask, explore, or build…"
     assert SEARCH_PLACEHOLDER == "Search commands or workspaces…"
@@ -156,11 +156,11 @@ def test_parity_adapter_normalizes_live_shell_copy_and_navigation() -> None:
 
     assert window.property("referenceFamily") == REFERENCE_FAMILY
     assert [button.text() for button in window.reference_top_nav_buttons] == [
-        "CHAT",
-        "KNOWLEDGE",
-        "RESEARCH",
-        "JOBS",
-        "SOURCES",
+        "Chat",
+        "Knowledge",
+        "Research",
+        "Jobs",
+        "Sources",
     ]
     assert window.prompt_input.placeholderText() == COMPOSER_PLACEHOLDER
     assert window.prompt_input.accessibleName() == "Ask pATHENA"
