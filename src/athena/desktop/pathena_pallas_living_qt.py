@@ -25,7 +25,6 @@ from athena.desktop.pathena_pallas_field import (
 from athena.desktop.pathena_pallas_living import PallasLivingEngine
 from athena.desktop.pathena_pallas_semantic import (
     PallasGraphSnapshot,
-    PallasNodeKind,
     PallasSemanticNode,
     deterministic_layout,
 )
@@ -332,13 +331,5 @@ def _set_main_glyph(
 
 
 def _display_glyph(node: PallasSemanticNode) -> str:
-    return {
-        PallasNodeKind.SOURCE: "■",
-        PallasNodeKind.CLAIM: "△",
-        PallasNodeKind.KNOWLEDGE: "△",
-        PallasNodeKind.HYPOTHESIS: "◆",
-        PallasNodeKind.MEMORY: "●",
-        PallasNodeKind.FOCUS: "◉",
-        PallasNodeKind.CONFLICT: "×",
-        PallasNodeKind.UNCERTAIN: "?",
-    }[node.kind]
+    """Preserve the canonical semantic glyph owned by the grounded node."""
+    return node.glyph
