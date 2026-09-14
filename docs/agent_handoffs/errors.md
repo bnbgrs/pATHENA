@@ -2,42 +2,41 @@
 
 ## Exact source of truth
 
-- Develop: `ee8aa791742f7cbdd056532e66a50da14c461c4a`; canonical `34818856565 = SUCCESS`.
-- Error worker: harness repair ancestor `158d62e9a1eb9ddaf3e0b5ff3112e75e4ec9d6cb`; no exact workflow had started on it at this refresh.
-- Spec/Core: `6c7f417a53428f496d7b31e330917d4a53c85189`; canonical `34818641155 = SUCCESS`.
-- Backend: `52eb61de9ecfde4074778a1bab2966e18aab526d`; canonical `34796053576 = SUCCESS`.
-- UI: `a88eac5f05db4128ae21b7c747e95c16a91191c4`; Visual `34819309682 = FAILURE` only at final verdict after 11-capture and route-identity success. Canonical `34819314295 = FAILURE` only in full pytest; release/storage/install/validator/Ruff/mypy lanes are green.
+- Develop: `b3766e0c690aac4db0567c63a3e2886f8fbce368`; canonical `34823250897 = SUCCESS`.
+- Error worker before this refresh: `206cd50938da4da3f19f7eda6e870718b94f7226`; carries the bounded `ERR-0064` selector repair in its ancestry.
+- Spec/Core: `6c7f417a53428f496d7b31e330917d4a53c85189`; held closed absent a new exact matching failure.
+- Backend: `52eb61de9ecfde4074778a1bab2966e18aab526d`; held closed absent a new exact matching failure.
+- UI: `a88eac5f05db4128ae21b7c747e95c16a91191c4`; Visual reaches final verdict after 11 captures and route identity; canonical remains red only in the isolated UI pytest slice.
 
-## ERR-0064 — IN_PROGRESS — Core Focused selector contamination
+## ERR-0064 — FIXED
 
-Core Focused `34819314380` on current UI produces 61 mypy errors from unrelated desktop/UI tests while focused pytest selects no Core-owned test files. The Error-worker repair aligns Ruff, mypy and Ruff-remediation with the existing Core-owned test-family selector, without changing repository-wide canonical Quality or product/test contracts.
+Current Develop contains the bounded Core-focused selector repair. Ruff, mypy and Ruff remediation now use the same Core-owned test-family boundary as focused pytest rather than all `tests/unit/*.py`. Current Develop canonical `34823250897 = SUCCESS`. No test or canonical guard was weakened.
 
 ## Current UI canonical regressions — OPEN / UI-owned
 
-Exact canonical `34819314295` reports three candidate-specific UI failures: design-system bounded-scale tuple `(15, 11, 30)` vs `(15, 12, 42)`, readiness placeholder `Ask anything…` vs required `pATHENA reconnecting`, and converged composer height `118` vs `94`. These are not Error-owned and are not patched from `postmerge/errors`; UI must root-cause/split them on its successor.
+The latest exact UI SHA remains `a88eac5f...`; its canonical red is UI-specific full-pytest evidence, not Error-owned. Do not patch those product files from `postmerge/errors`. Reclassify only from a newer exact UI successor.
 
 ## ERR-0063 — FIXED
 
-Current UI Visual `34819309682` captures all eleven canonical surfaces and passes workspace route identity. The previous capture/route blocker is closed on the exact current UI SHA.
+Exact current UI visual evidence captures all eleven canonical surfaces and passes workspace route identity.
 
 ## ERR-0059 — FIXED
 
-The exact current UI visual artifact was opened. Its manifest reports the eleven actual capture labels, `captured_reference_count=11`, `assigned_reference_count=11`, no errors and `status=PASS`. This verifies the capture-derived manifest fix and preserves the exact-eleven fail-closed PASS contract.
+Exact current UI artifact evidence verifies capture-derived manifest fields and preserves `assigned_reference_count=11` plus the exact-eleven fail-closed PASS contract.
 
 ## ERR-0054 — OPEN — UI/Visual Review
 
-Technical capture is complete again, so review is no longer blocked. The current UI handoff remains `PAIRS_VERIFIED_0_OF_11` / `MATCH_0_OF_11`; Error worker must not create or accept a baseline. UI must open and assess all eleven exact reference/render pairs and obtain final visual-verdict success.
+Technical capture is complete, but truthful 11/11 pair-review evidence is still absent. Error worker must not create or accept a baseline. UI owns pair review and final visual verdict.
 
 ## Green / held clusters
 
-- Spec/Core and Backend remain exact canonical-green; do not reopen without a new matching signature.
-- Develop is canonical-green on current exact SHA.
+- Current Develop canonical is green.
+- Spec/Core and Backend remain held closed absent a new matching exact-SHA failure.
 - Persistent pypdf/Frozen-argv/two-EXE/bounded-worker/adaptive-2048/lane-lock/duplicate-column/Core-startup/storage-bootstrap guards remain unchanged.
 - Error-worker 48px Send geometry remains `STALE`, not a new product root cause.
 
 ## Next root cause
 
-1. Consume exact CI for `ERR-0064` and do not supersede its candidate while checks run.
-2. UI consumes and repairs/splits the three exact canonical pytest regressions; Error worker remains evidence-only for that product slice.
-3. Keep `ERR-0059` and `ERR-0063` closed.
-4. `ERR-0054` remains strictly UI/Visual-Review-owned until truthful 11/11 review evidence exists.
+1. Consume the next exact UI successor and classify only newly reproduced signatures.
+2. Keep `ERR-0064`, `ERR-0059` and `ERR-0063` closed absent exact regression.
+3. `ERR-0054` remains strictly UI/Visual-Review-owned until truthful 11/11 review evidence exists.
