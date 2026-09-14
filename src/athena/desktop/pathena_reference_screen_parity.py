@@ -28,7 +28,7 @@ from athena.desktop.pathena_design_tokens import PALETTE
 
 
 REFERENCE_FAMILY: Final = "11-screen-2026-08-24"
-PAGE_LABELS: Final = (
+PAGE_DESTINATIONS: Final = (
     "Chat",
     "Knowledge",
     "Research",
@@ -37,6 +37,17 @@ PAGE_LABELS: Final = (
     "System",
     "Settings",
 )
+PAGE_TITLES: Final = (
+    "Chat",
+    "Library",
+    "Research",
+    "Jobs",
+    "Sources",
+    "System",
+    "Settings",
+)
+# Kept as a compatibility alias for tests/extensions that only need page count.
+PAGE_LABELS: Final = PAGE_DESTINATIONS
 TOP_NAV_LABELS: Final = {
     0: "CHAT",
     1: "KNOWLEDGE",
@@ -45,8 +56,9 @@ TOP_NAV_LABELS: Final = {
     4: "SOURCES",
 }
 COMPOSER_PLACEHOLDER: Final = "Ask, explore, or build…"
-SEARCH_PLACEHOLDER: Final = "Search anything…"
+SEARCH_PLACEHOLDER: Final = "Search commands or workspaces…"
 _JOBS_REFERENCE_OVERRIDE_MARKER: Final = "/* 11-screen jobs parity */"
+_SHELL_REFERENCE_OVERRIDE_MARKER: Final = "/* 11-screen shell parity */"
 
 
 class ReferenceScreenParity(QObject):
@@ -90,8 +102,8 @@ class ReferenceScreenParity(QObject):
             if label is None:
                 continue
             button.setText(label)
-            button.setToolTip(f"Open {PAGE_LABELS[raw_index]}")
-            button.setAccessibleName(PAGE_LABELS[raw_index])
+            button.setToolTip(f"Open {PAGE_DESTINATIONS[raw_index]}")
+            button.setAccessibleName(PAGE_DESTINATIONS[raw_index])
 
         prompt_input = getattr(window, "prompt_input", None)
         set_placeholder = getattr(prompt_input, "setPlaceholderText", None)
@@ -103,7 +115,7 @@ class ReferenceScreenParity(QObject):
 
         send_button = getattr(window, "send_button", None)
         if isinstance(send_button, QPushButton):
-            send_button.setText("↑")
+            send_button.setText("→")
             send_button.setToolTip("Send message (Ctrl+Enter)")
             send_button.setAccessibleName("Send message")
 
@@ -154,8 +166,13 @@ class ReferenceScreenParity(QObject):
     def _finish_startup_parity(self) -> None:
         """Bind late-installed real controls and remove safe legacy surface drift."""
         self._bind_installed_command_palette()
+        self._apply_shell_reference_palette()
         self._apply_pallas_canvas_palette()
         self._apply_jobs_reference_palette()
+        navigation = getattr(self._window, "navigation", None)
+        current_row = getattr(navigation, "currentRow", None)
+        index = current_row() if callable(current_row) else 0
+        self._sync_inspector_title(index)
 
     def _bind_installed_command_palette(self) -> None:
         """Find the real palette after startup composition and bind it once."""
@@ -165,6 +182,46 @@ class ReferenceScreenParity(QObject):
         command_palette = window.findChild(CommandPaletteController)
         if isinstance(command_palette, CommandPaletteController):
             self.bind_command_palette(command_palette)
+
+    def _apply_shell_reference_palette(self) -> None:
+        """Apply the final low-risk shell selectors after all startup refinements."""
+        window = cast(QWidget, self._window)
+        current = window.styleSheet()
+        if _SHELL_REFERENCE_OVERRIDE_MARKER in current:
+            return
+        override = f"""
+{_SHELL_REFERENCE_OVERRIDE_MARKER}
+QFrame#topBar {{
+    background: {PALETTE.surface};
+    border: none;
+    border-bottom: 1px solid {PALETTE.border};
+}}
+QFrame#iconRail {{
+    background: {PALETTE.surface_raised};
+    border: none;
+    border-right: 1px solid {PALETTE.border};
+}}
+QFrame#inspector {{
+    background: {PALETTE.canvas};
+    border: none;
+    border-left: 1px solid {PALETTE.border};
+}}
+QPushButton#topNavButton:checked {{
+    color: {PALETTE.text};
+    background: transparent;
+    border-bottom: 1px solid {PALETTE.border_strong};
+}}
+QListWidget#navigation::item:selected {{
+    color: {PALETTE.text};
+    background: {PALETTE.surface_selected};
+    border-left: 2px solid {PALETTE.accent};
+}}
+QLineEdit:focus,
+QPlainTextEdit:focus {{
+    border-color: {PALETTE.accent};
+}}
+"""
+        window.setStyleSheet(f"{current}\n{override}")
 
     def _apply_pallas_canvas_palette(self) -> None:
         """Align live PALLAS canvases without replacing renderer behavior."""
@@ -214,14 +271,23 @@ QPushButton[pathenaJobsDestructive="true"] {{
 """
         workspace.setStyleSheet(f"{current}\n{override}")
 
+    def _sync_inspector_title(self, index: int) -> None:
+        window = cast(QObject, self._window)
+        title = window.findChild(QLabel, "inspectorTitle")
+        if not isinstance(title, QLabel):
+            return
+        # The chat reference is knowledge-oriented; all workbench screens use the
+        # persistent evidence/activity rail heading.
+        title.setText("KNOWLEDGE" if index == 0 else "EVIDENCE & ACTIVITY")
+
     @Slot(int)
     def _sync_navigation(self, index: int) -> None:
-        if not 0 <= index < len(PAGE_LABELS):
+        if not 0 <= index < len(PAGE_TITLES):
             return
 
         page_title = getattr(self._window, "page_title", None)
         if isinstance(page_title, QLabel):
-            page_title.setText(PAGE_LABELS[index])
+            page_title.setText(PAGE_TITLES[index])
 
         for button in getattr(self._window, "reference_top_nav_buttons", ()):
             if not isinstance(button, QPushButton):
@@ -229,6 +295,8 @@ QPushButton[pathenaJobsDestructive="true"] {{
             raw_index = button.property("pageIndex")
             if isinstance(raw_index, int):
                 button.setChecked(raw_index == index)
+
+        self._sync_inspector_title(index)
 
 
 def install_reference_screen_parity(window: object) -> ReferenceScreenParity:
