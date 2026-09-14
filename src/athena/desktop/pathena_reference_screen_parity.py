@@ -2,17 +2,18 @@
 
 The August 24 reference family converged on a stable visible information
 architecture: CHAT, KNOWLEDGE, RESEARCH, JOBS and SOURCES in the top bar,
-with SYSTEM and SETTINGS remaining utility destinations.  The underlying
+with SYSTEM and SETTINGS remaining utility destinations. The underlying
 legacy page indexes are intentionally left untouched here; this module only
-normalizes user-facing labels, composer copy, and accessibility text.
+normalizes user-facing presentation and wires reference affordances to real
+existing actions.
 """
 
 from __future__ import annotations
 
-from typing import Final, Protocol, cast
+from typing import Final, cast
 
 from PySide6.QtCore import QObject, Slot
-from PySide6.QtWidgets import QLabel, QPushButton
+from PySide6.QtWidgets import QFrame, QHBoxLayout, QLabel, QLineEdit, QPushButton
 
 
 REFERENCE_FAMILY: Final = "11-screen-2026-08-24"
@@ -33,12 +34,7 @@ TOP_NAV_LABELS: Final = {
     4: "SOURCES",
 }
 COMPOSER_PLACEHOLDER: Final = "Ask, explore, or build…"
-
-
-class _Navigation(Protocol):
-    currentRowChanged: object
-
-    def currentRow(self) -> int: ...
+SEARCH_PLACEHOLDER: Final = "Search anything…"
 
 
 class ReferenceScreenParity(QObject):
@@ -48,6 +44,7 @@ class ReferenceScreenParity(QObject):
         parent = cast(QObject, window)
         super().__init__(parent)
         self._window = window
+        self._search_button: QPushButton | None = None
         self.setObjectName("referenceScreenParity")
         self._apply_static_presentation()
 
@@ -101,6 +98,42 @@ class ReferenceScreenParity(QObject):
         if isinstance(local_status, QLabel):
             local_status.setText("Local · Private")
             local_status.setAccessibleName("Local and private")
+
+    def bind_command_palette(self, command_palette: object) -> QPushButton | None:
+        """Expose the existing command palette as the reference top-bar search control."""
+        open_palette = getattr(command_palette, "open", None)
+        if not callable(open_palette):
+            return None
+
+        query = getattr(command_palette, "query", None)
+        if isinstance(query, QLineEdit):
+            query.setPlaceholderText(SEARCH_PLACEHOLDER)
+
+        if self._search_button is not None:
+            return self._search_button
+
+        find_child = getattr(self._window, "findChild", None)
+        if not callable(find_child):
+            return None
+        top_bar = find_child(QFrame, "topBar")
+        if not isinstance(top_bar, QFrame):
+            return None
+        layout = top_bar.layout()
+        if not isinstance(layout, QHBoxLayout):
+            return None
+
+        button = QPushButton("⌕", top_bar)
+        button.setObjectName("topUtilityButton")
+        button.setProperty("referenceRole", "globalSearch")
+        button.setToolTip("Search and commands (Ctrl+K)")
+        button.setAccessibleName("Search and commands")
+        button.clicked.connect(lambda _checked=False: open_palette())
+
+        # The reference shell ends with System, Settings, status dot, and status text.
+        # Insert immediately before those four items so Search remains a global utility.
+        layout.insertWidget(max(0, layout.count() - 4), button)
+        self._search_button = button
+        return button
 
     @Slot(int)
     def _sync_navigation(self, index: int) -> None:
