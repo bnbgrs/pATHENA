@@ -95,8 +95,8 @@ def compare_pallas_snapshots(
     after: PallasGraphSnapshot,
 ) -> PallasSnapshotDelta:
     """Compare exact snapshot facts without creating new semantic relationships."""
-    before_nodes = _node_index(before)
-    after_nodes = _node_index(after)
+    before_nodes, before_edges = _validate_snapshot(before)
+    after_nodes, after_edges = _validate_snapshot(after)
     before_ids = set(before_nodes)
     after_ids = set(after_nodes)
 
@@ -114,8 +114,6 @@ def compare_pallas_snapshots(
         if old.revision_id != new.revision_id:
             revision_changed.append(node_id)
 
-    before_edges = _edge_set(before)
-    after_edges = _edge_set(after)
     return PallasSnapshotDelta(
         before_graph_id=before.graph_id,
         after_graph_id=after.graph_id,
@@ -134,9 +132,18 @@ def compare_pallas_snapshots(
     )
 
 
-def _validate_snapshot(snapshot: PallasGraphSnapshot) -> None:
-    _node_index(snapshot)
-    _edge_set(snapshot)
+def _validate_snapshot(
+    snapshot: PallasGraphSnapshot,
+) -> tuple[dict[str, PallasSemanticNode], set[EdgeKey]]:
+    nodes = _node_index(snapshot)
+    node_ids = set(nodes)
+    edges = _edge_set(snapshot)
+    for source_id, target_id, _relation in edges:
+        if source_id not in node_ids or target_id not in node_ids:
+            raise ValueError("PALLAS edge references a missing node")
+    if snapshot.focus_id is not None and snapshot.focus_id not in node_ids:
+        raise ValueError("PALLAS focus ID references a missing node")
+    return nodes, edges
 
 
 def _node_index(snapshot: PallasGraphSnapshot) -> dict[str, PallasSemanticNode]:
