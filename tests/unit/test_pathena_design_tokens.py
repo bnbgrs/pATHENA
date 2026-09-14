@@ -60,7 +60,7 @@ def test_reference_palette_is_deep_black_with_functional_orange() -> None:
 def test_reference_typography_uses_quiet_sans_hierarchy() -> None:
     assert "Segoe UI" in TYPE.content_family
     assert TYPE.display_family == TYPE.content_family
-    assert "serif" not in TYPE.display_family.lower()
+    assert "sans-serif" in TYPE.display_family.lower()
     assert 28 <= TYPE.title_px <= 34
     assert 17 <= TYPE.section_px <= 20
     assert 13 <= TYPE.body_px <= 15
