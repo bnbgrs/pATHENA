@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (  # noqa: E402
     QWidget,
 )
 
-from athena.desktop.pathena_design_tokens import PALETTE  # noqa: E402
+from athena.desktop.pathena_design_tokens import PALETTE, SHELL  # noqa: E402
 from athena.desktop.pathena_reference_screen_parity import (  # noqa: E402
     COMPOSER_PLACEHOLDER,
     PAGE_LABELS,
@@ -36,6 +36,7 @@ class _ReferenceWindow(QWidget):
         super().__init__()
         self._core_transport_ready = False
         self.navigation = QListWidget(self)
+        self.navigation.setObjectName("navigation")
         for label in (
             "Chat",
             "Knowledge",
@@ -172,12 +173,26 @@ def test_parity_adapter_normalizes_live_shell_copy_and_navigation() -> None:
     assert window.empty_title.text() == "Getting pATHENA ready"
     assert window.empty_body.text() == "What shall we explore today?"
 
+    # Screen 01 uses its own wide, full-height navigation treatment while the
+    # local core is unavailable. This must collapse back to the shared shell as
+    # soon as another workbench destination is selected.
+    assert not window.top_bar.isVisible()
+    assert window.icon_rail.width() == 248
+    assert window.navigation.item(0).text() == "›  CHAT"
+    assert window.navigation.item(4).text() == "▱  SOURCES"
+    assert window.navigation.item(5).isHidden()
+    assert window.navigation.item(6).isHidden()
+
     window.navigation.setCurrentRow(1)
     app.processEvents()
     assert window.page_title.text() == "Library"
     assert window.inspector_title.text() == "EVIDENCE & ACTIVITY"
     assert window.reference_top_nav_buttons[1].isChecked()
     assert not window.reference_top_nav_buttons[0].isChecked()
+    assert window.top_bar.isVisible()
+    assert window.icon_rail.width() == SHELL.icon_rail_width
+    assert window.navigation.item(0).text() == "Chat"
+    assert not window.navigation.item(5).isHidden()
 
     window.navigation.setCurrentRow(5)
     app.processEvents()
