@@ -19,11 +19,13 @@ def test_project_remains_pinned_to_python_312() -> None:
     assert config["tool"]["mypy"]["python_version"] == "3.12"
 
 
-
-def test_quality_gate_invokes_ruff_via_current_python_interpreter() -> None:
+def test_quality_gate_invokes_ruff_through_locked_project_environment() -> None:
     source = Path("scripts/quality.py").read_text(encoding="utf-8")
 
-    assert 'sys.executable,' in source
-    assert '"-m",' in source
+    assert (
+        'UV_RUN_PREFIX = ("uv", "run", "--locked", "--extra", "dev", "--extra", "desktop")'
+        in source
+    )
     assert '"ruff",' in source
+    assert "sys.executable" not in source
     assert 'shutil.which("ruff")' not in source
