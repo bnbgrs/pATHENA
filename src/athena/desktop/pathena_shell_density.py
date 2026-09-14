@@ -9,34 +9,39 @@ from __future__ import annotations
 
 from PySide6.QtWidgets import QLabel, QTabWidget, QWidget
 
-_SYSTEM_TABS_STYLESHEET = r"""
-QTabWidget#systemOperationsTabs::pane {
+from athena.desktop.pathena_design_tokens import PALETTE, SPACE, TYPE
+
+_SYSTEM_TABS_STYLESHEET = f"""
+QTabWidget#systemOperationsTabs::pane {{
     background: transparent;
     border: none;
-    border-top: 1px solid #252a2e;
+    border-top: 1px solid {PALETTE.border};
     top: -1px;
-}
+}}
 
-QTabWidget#systemOperationsTabs QTabBar::tab {
-    color: #7e888f;
+QTabWidget#systemOperationsTabs QTabBar::tab {{
+    color: {PALETTE.text_subtle};
     background: transparent;
     border: none;
     border-bottom: 2px solid transparent;
-    min-height: 30px;
-    padding: 0 11px;
-    margin-right: 5px;
-    font-size: 10px;
+    min-height: 32px;
+    padding: 0 {SPACE.sm}px;
+    margin-right: {SPACE.xxs}px;
+    font-family: {TYPE.metadata_family};
+    font-size: {TYPE.metadata_px}px;
     font-weight: 500;
-}
+}}
 
-QTabWidget#systemOperationsTabs QTabBar::tab:hover {
-    color: #cbd1d5;
-}
+QTabWidget#systemOperationsTabs QTabBar::tab:hover {{
+    color: {PALETTE.text};
+    background: {PALETTE.surface_hover};
+}}
 
-QTabWidget#systemOperationsTabs QTabBar::tab:selected {
-    color: #eef1f2;
-    border-bottom-color: #707d81;
-}
+QTabWidget#systemOperationsTabs QTabBar::tab:selected {{
+    color: {PALETTE.text};
+    background: transparent;
+    border-bottom-color: {PALETTE.accent};
+}}
 """
 
 
@@ -49,8 +54,8 @@ def apply_shell_density(window: QWidget) -> None:
     if chat_selector is not None:
         chat_selector.setAccessibleName("Conversation")
         chat_selector.setToolTip("Conversation · choose a local conversation")
-        chat_selector.setMinimumWidth(280)
-        chat_selector.setMaximumWidth(440)
+        chat_selector.setMinimumWidth(250)
+        chat_selector.setMaximumWidth(360)
 
     model_selector = getattr(window, "model_selector", None)
     if model_selector is not None:
