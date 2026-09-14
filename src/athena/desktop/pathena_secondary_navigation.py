@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from athena.desktop.pathena_design_tokens import PALETTE, SHELL
+from athena.desktop.pathena_design_tokens import PALETTE, SHELL, SPACE
 from athena.desktop.pathena_window import PathenaMainWindow
 
 
@@ -65,15 +65,17 @@ class SettingsSecondaryNavigation(QObject):
             f"""
             QListWidget#settingsSecondaryNavigation {{
                 background: {PALETTE.surface};
-                border: 1px solid {PALETTE.border};
-                border-radius: 8px;
-                padding: 8px;
-                color: {PALETTE.text_muted};
+                border: 0;
+                border-right: 1px solid {PALETTE.border};
+                border-radius: 0;
+                padding: {SPACE.md}px {SPACE.sm}px;
+                color: {PALETTE.text_subtle};
+                outline: 0;
             }}
             QListWidget#settingsSecondaryNavigation::item {{
-                min-height: 38px;
+                min-height: 34px;
                 padding: 0 10px;
-                border-radius: 6px;
+                border-radius: 3px;
             }}
             QListWidget#settingsSecondaryNavigation::item:selected {{
                 background: {PALETTE.surface_selected};
@@ -95,14 +97,14 @@ class SettingsSecondaryNavigation(QObject):
                 f"Open {section.label} settings",
             )
             nav_item.setToolTip(f"Open {section.label} settings")
-            nav_item.setSizeHint(QSize(SHELL.secondary_nav_width - 34, 40))
+            nav_item.setSizeHint(QSize(SHELL.secondary_nav_width - 24, 36))
             self.navigation.addItem(nav_item)
 
         self.content = QWidget()
         self.content.setObjectName("settingsSecondaryContent")
         content_layout = QVBoxLayout(self.content)
-        content_layout.setContentsMargins(4, 0, 12, 28)
-        content_layout.setSpacing(18)
+        content_layout.setContentsMargins(SPACE.xl, SPACE.sm, SPACE.lg, SPACE.xl)
+        content_layout.setSpacing(SPACE.md)
         while page_layout.count():
             layout_item = page_layout.takeAt(0)
             if layout_item is None:
@@ -127,7 +129,7 @@ class SettingsSecondaryNavigation(QObject):
         self.container.setObjectName("settingsSecondaryContainer")
         container_layout = QHBoxLayout(self.container)
         container_layout.setContentsMargins(0, 0, 0, 0)
-        container_layout.setSpacing(24)
+        container_layout.setSpacing(0)
         container_layout.addWidget(self.navigation)
         container_layout.addWidget(self.scroll, 1)
         page_layout.addWidget(self.container, 1)
