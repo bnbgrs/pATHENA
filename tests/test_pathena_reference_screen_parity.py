@@ -10,6 +10,7 @@ pytest.importorskip("PySide6")
 from PySide6.QtWidgets import (  # noqa: E402
     QApplication,
     QFrame,
+    QGraphicsView,
     QHBoxLayout,
     QLabel,
     QLineEdit,
@@ -18,6 +19,7 @@ from PySide6.QtWidgets import (  # noqa: E402
     QWidget,
 )
 
+from athena.desktop.pathena_design_tokens import PALETTE  # noqa: E402
 from athena.desktop.pathena_reference_screen_parity import (  # noqa: E402
     COMPOSER_PLACEHOLDER,
     PAGE_LABELS,
@@ -71,6 +73,15 @@ class _ReferenceWindow(QWidget):
         self.local_status = QLabel("LOCAL / PRIVATE", self.top_bar)
         self.local_status.setObjectName("localPrivateStatus")
         top_layout.addWidget(self.local_status)
+
+        self.pallas_canvas = QGraphicsView(self)
+        self.pallas_canvas.setObjectName("pallasSemanticCanvas")
+
+        self.jobs_workspace = QWidget(self)
+        self.jobs_workspace.setObjectName("jobsWorkspace")
+        self.jobs_workspace.setStyleSheet(
+            "QLineEdit#jobsFilter:focus { border-color: #F26A21; }"
+        )
 
 
 class _CommandPalette:
@@ -140,6 +151,14 @@ def test_parity_adapter_normalizes_live_shell_copy_and_navigation() -> None:
     app.processEvents()
     assert window.page_title.text() == "System"
     assert not any(button.isChecked() for button in window.reference_top_nav_buttons)
+
+    assert (
+        window.pallas_canvas.backgroundBrush().color().name().casefold()
+        == PALETTE.canvas.casefold()
+    )
+    jobs_style = window.jobs_workspace.styleSheet()
+    assert "/* 11-screen jobs parity */" in jobs_style
+    assert f"border-color: {PALETTE.accent};" in jobs_style
 
     parity.deleteLater()
     window.deleteLater()
