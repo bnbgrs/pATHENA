@@ -152,6 +152,22 @@ QFrame#inspector {{
     border: none;
     border-left: 1px solid #202020;
 }}
+QPushButton#chatKnowledgePallasButton {{
+    color: {PALETTE.accent};
+    background: transparent;
+    border: none;
+    border-top: 1px solid #202020;
+    padding: 14px 0 2px 0;
+    text-align: left;
+    font-family: "Segoe UI Variable", "Segoe UI", sans-serif;
+    font-size: 12px;
+    font-weight: 500;
+}}
+QPushButton#chatKnowledgePallasButton:hover,
+QPushButton#chatKnowledgePallasButton:focus {{
+    color: #FFFFFF;
+    background: transparent;
+}}
 QLabel#pageTitle {{
     color: #F1F1F1;
     font-family: "Segoe UI Variable Display", "Segoe UI", sans-serif;
@@ -469,6 +485,35 @@ def _configure_workspace_footer(window: QWidget) -> None:
         composer_layout.addWidget(content, 1)
 
 
+def _open_pallas_workspace(window: QWidget) -> None:
+    controller = getattr(window, "_pathena_pallas_full_view_controller", None)
+    opener = getattr(controller, "open_workspace", None)
+    if callable(opener):
+        opener()
+
+
+def _configure_chat_inspector_link(window: QWidget) -> None:
+    panel = window.findChild(QFrame, "chatKnowledgeOverview")
+    if panel is None:
+        return
+    layout = panel.layout()
+    if not isinstance(layout, QVBoxLayout):
+        return
+
+    controller = getattr(window, "_pathena_pallas_full_view_controller", None)
+    opener = getattr(controller, "open_workspace", None)
+    button = panel.findChild(QPushButton, "chatKnowledgePallasButton")
+    if button is None:
+        button = QPushButton("Open in PALLAS    →", panel)
+        button.setObjectName("chatKnowledgePallasButton")
+        button.setAccessibleName("Open Knowledge in PALLAS")
+        button.setToolTip("Open the synchronized PALLAS semantic workspace")
+        button.clicked.connect(lambda _checked=False: _open_pallas_workspace(window))
+        layout.addWidget(button)
+    button.setVisible(callable(opener))
+    button.setEnabled(callable(opener))
+
+
 def _sync_reference_state(window: QWidget) -> None:
     navigation = getattr(window, "navigation", None)
     row = navigation.currentRow() if navigation is not None else 0
@@ -513,6 +558,8 @@ def _sync_reference_state(window: QWidget) -> None:
     if inspector is not None:
         inspector.setFixedWidth(SHELL.inspector_width)
         inspector.show()
+
+    _configure_chat_inspector_link(window)
 
     composer = window.findChild(QFrame, "composer")
     status_bar = window.findChild(QFrame, "workspaceStatusBar")
