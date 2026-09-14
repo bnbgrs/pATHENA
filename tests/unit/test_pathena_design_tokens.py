@@ -38,12 +38,8 @@ def test_subtle_metadata_meets_wcag_aa_on_canonical_dark_surfaces() -> None:
 
 
 def test_quiet_text_remains_visually_below_subtle_metadata() -> None:
-    assert _relative_luminance(PALETTE.text_quiet) < _relative_luminance(
-        PALETTE.text_subtle
-    )
-    assert _relative_luminance(PALETTE.text_subtle) < _relative_luminance(
-        PALETTE.text_muted
-    )
+    assert _relative_luminance(PALETTE.text_quiet) < _relative_luminance(PALETTE.text_subtle)
+    assert _relative_luminance(PALETTE.text_subtle) < _relative_luminance(PALETTE.text_muted)
 
 
 def test_reference_palette_is_deep_black_with_functional_orange() -> None:
@@ -57,21 +53,19 @@ def test_reference_palette_is_deep_black_with_functional_orange() -> None:
     assert PALETTE.error != PALETTE.accent
 
 
-def test_reference_typography_uses_quiet_sans_hierarchy() -> None:
+def test_reference_typography_uses_editorial_display_family() -> None:
+    assert "serif" in TYPE.display_family.lower()
     assert "Segoe UI" in TYPE.content_family
-    assert TYPE.display_family == TYPE.content_family
-    assert "sans-serif" in TYPE.display_family.lower()
-    assert 28 <= TYPE.title_px <= 34
-    assert 17 <= TYPE.section_px <= 20
-    assert 13 <= TYPE.body_px <= 15
-    assert 10 <= TYPE.metadata_px <= 12
-    assert TYPE.title_px > TYPE.section_px > TYPE.body_px > TYPE.metadata_px
+    assert TYPE.title_px >= 40
+    assert TYPE.section_px >= 20
+    assert TYPE.body_px >= 15
+    assert TYPE.metadata_px >= 12
+    assert TYPE.title_px >= TYPE.section_px * 2
 
 
-def test_reference_shell_geometry_is_compact_and_workspace_first() -> None:
-    assert 52 <= SHELL.icon_rail_width <= 60
-    assert 50 <= SHELL.top_bar_height <= 56
-    assert 330 <= SHELL.inspector_width <= 360
-    assert 250 <= SHELL.secondary_nav_width <= 280
-    assert 42 <= SHELL.composer_min_height <= 48
-    assert SHELL.composer_action_size == 44
+def test_reference_shell_geometry_excludes_legacy_wide_sidebar() -> None:
+    assert 68 <= SHELL.icon_rail_width <= 82
+    assert 54 <= SHELL.top_bar_height <= 64
+    assert 330 <= SHELL.inspector_width <= 390
+    assert 210 <= SHELL.secondary_nav_width <= 280
+    assert SHELL.composer_min_height >= 56
