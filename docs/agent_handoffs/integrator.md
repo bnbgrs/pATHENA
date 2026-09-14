@@ -3,31 +3,32 @@
 ## Current integration
 
 - Integration target: `develop/pathena-next`.
-- Exact Develop parent: `f8a25be7fd7df9f2a8ca281a1567f79ddaabcfb6`.
-- Exact canonical Quality on that parent: `34883442620 = SUCCESS`.
+- Exact Develop parent before this integration: `3a8120805e41d0fe9d283fc948d6e52b327a8e58`.
+- Exact canonical Quality on that parent: `34893392725 = SUCCESS`.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
-- `BUNDLED_SLICES=NONE` — single bounded Core-owned application Knowledge-read wiring slice.
+- `BUNDLED_SLICES=NONE` — the selected Backend slice is Backup/Recovery-adjacent and is integrated conservatively as a single bounded extraction.
 
-## Iteration — AthenaApplication canonical Knowledge-read wiring
+## Iteration — durable Deep backup verification pipeline
 
-Source head: `9fe5dd44473ae200941d40ba37d14bc8816fdcdf`.
-Exact evidence: Core Focused `34886553609 = SUCCESS`; canonical Quality `34886553447 = SUCCESS`.
+Source head: `13ccd56eb7c4451e0b5b06532e98a67ec989c774`.
+Exact evidence: Backend Focused `34899421459 = SUCCESS`; canonical Quality `34899421431 = SUCCESS`.
 
-The effective delta versus the exact Develop parent is bounded to `src/athena/core/application.py`, `tests/unit/test_knowledge_application_read.py`, and the Core worker handoff. No Backend, Storage, Security, Recovery, migration, schema, Qt/UI, or persistence-format file is changed.
+The extracted product/test scope is restricted to the Deep-verify payload, registration, worker, occurrence materializer, admission boundary, and their five focused unit-test files. Worker history is not merged.
 
-`AthenaApplication` now consumes the already integrated `attach_knowledge_read_api()` boundary using the existing canonical `self.knowledge` and `self.api` instances, retains the exact returned service as `self.knowledge_read`, and exposes real Why-known/revision-history capabilities through the attached service rather than synthetic flags. The focused acceptance test starts a real temporary SQLite-backed Core, promotes persisted chat into canonical Knowledge, verifies service identity/capabilities/provenance, creates a direct user revision, and verifies immutable revision history plus the derived body diff.
+The pipeline keeps backup verification separate from backup creation: payloads use exact keys, canonical UUID text, non-negative true integers and a pinned pipeline version; registration is CONTROL-lane-safe and explicitly forbids retry through `backup.create`; occurrence materialization is side-effect-free and deterministic; admission revalidates job type, payload identity, occurrence identity and idempotency before durable write; execution operates only on an existing snapshot, honors lease/cancel/RUNNING state, waits safely on busy/offline storage, heartbeats before Deep verification, checkpoints confirmed output, and fails closed on an active corrupt snapshot. No schema, migration, Security guard, Recovery guard or backup-create behavior is relaxed.
 
 ## Current worker truth at integration time
 
-- Errors: `f7f61c3dd543f8650b8bfc7c41eaa6a05ecb2a66` — evidence/handoff refresh; current reproduced product failures remain UI-owned.
-- Spec/Core: `9fe5dd44473ae200941d40ba37d14bc8816fdcdf` — selected bounded application Knowledge-read wiring slice.
-- Backend: `764f99c2949a7ff5eeee2199a9a65e4f71f06f13` — Deep-verify registration-boundary lineage; Backup/Recovery-adjacent, never bundled with this Core slice, and its checked-in handoff is stale relative to current exact worker evidence.
-- UI: `e149515870b773548a164658775159f29de323af` — current handoff explicitly `Integrator-ready: NO` pending exact visual/technical evidence.
+- Errors: `44930e07f8cb422a13da9b4036c6187aa4a770eb` — evidence/handoff lineage; no independent selected product slice.
+- Spec/Core: `95a60521bb06cb883e14bdc5803181b224f53f64` — current head is not selected for this integration.
+- Backend: `13ccd56eb7c4451e0b5b06532e98a67ec989c774` — selected exact-green bounded Deep-verify pipeline.
+- UI: `e149515870b773548a164658775159f29de323af` — no exact-green bounded UI slice selected.
 
 ## Source-of-truth notes
 
-- `docs/agent_logs/ERROR_LEDGER.md` is historical where newer exact-SHA evidence exists; historical signatures are not OPEN without current reproduction.
-- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` and `docs/ui/VISUAL_GAP_LEDGER.md` remain fail-closed: only Slot 01 has directly opened reference-pixel evidence in the checked-in manifest, and no screenshot-level `MATCH` is valid without an opened original reference plus a real exact-SHA render. The verified Send target remains 44×44 outer geometry.
+- Historical Error-Ledger signatures are not OPEN without current reproduction.
+- Eleven-screen visual status remains fail-closed; no screenshot-level `MATCH` may be claimed without opened original-reference evidence plus a real exact-SHA render and reviewed comparison.
+- Persistent release guards remain mandatory and unchanged.
 
 ## Persistent release guards
 
@@ -37,4 +38,4 @@ Retain without relaxation: pypdf packaging; fail-closed Frozen argv; Desktop/Wor
 
 `PROMOTION_READY=NO`
 
-Require complete canonical Quality `SUCCESS` on the resulting exact Develop SHA before any further Develop mutation. Backend remains a separate conservative candidate only after that new exact Develop gate is terminal green.
+Require complete canonical Quality `SUCCESS` on the resulting exact Develop SHA before any further Develop mutation.
