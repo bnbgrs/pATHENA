@@ -79,22 +79,36 @@ def test_open_workspace_reuses_one_synchronized_full_surface() -> None:
 
     full_view.open_workspace()
     app.processEvents()
-    first_dialog = full_view.dialog
     first_workspace = full_view.workspace
+    first_host = window.findChild(QFrame, "pallasShellWorkspaceHost")
+    conversation = window.findChild(QFrame, "conversation")
 
-    assert first_dialog is not None and first_dialog.isVisible()
-    assert first_dialog.objectName() == "pallasFullViewDialog"
-    assert first_workspace is not None
+    assert full_view.dialog is None
+    assert full_view.is_open
+    assert first_workspace is not None and first_workspace.isVisible()
+    assert first_host is not None and first_host.isVisible()
+    assert first_host.property("pathenaPallasShellHosted") is True
+    assert first_workspace.property("pathenaPallasShellHosted") is True
     assert first_workspace.field.property("pathenaPallasMode") == "full"
     assert first_workspace.field.snapshot == grounded.field.snapshot
+    assert window.property("pathenaPallasShellOpen") is True
+    assert conversation is not None and not conversation.isVisible()
 
-    first_dialog.close()
+    full_view.close_workspace()
+    app.processEvents()
+    assert not full_view.is_open
+    assert not first_host.isVisible()
+    assert conversation.isVisible()
+
     full_view.open_workspace()
     app.processEvents()
 
-    assert full_view.dialog is first_dialog
+    assert full_view.dialog is None
     assert full_view.workspace is first_workspace
-    assert first_dialog.isVisible()
+    assert window.findChild(QFrame, "pallasShellWorkspaceHost") is first_host
+    assert first_host.isVisible()
+    assert first_workspace.isVisible()
+    assert full_view.is_open
     full_view.dispose()
     window.close()
 
@@ -108,8 +122,13 @@ def test_double_click_on_compact_canvas_opens_full_pallas() -> None:
     )
     app.processEvents()
 
-    assert full_view.dialog is not None
-    assert full_view.dialog.isVisible()
+    workspace = full_view.workspace
+    host = window.findChild(QFrame, "pallasShellWorkspaceHost")
+    assert full_view.dialog is None
+    assert full_view.is_open
+    assert workspace is not None and workspace.isVisible()
+    assert host is not None and host.isVisible()
+    assert window.property("pathenaPallasShellOpen") is True
     assert "double-click" in grounded.target.toolTip().casefold()
     full_view.dispose()
     window.close()
