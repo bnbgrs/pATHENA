@@ -317,6 +317,8 @@ def open_local_request(
             total_timeout_seconds=validated_timeout,
         )
         raise
+    if request.get_header("Accept") == "text/event-stream":
+        stream_sse = True
     return _BoundedLocalResponse(
         response,
         max_bytes=MAX_LOCAL_RESPONSE_BYTES,
