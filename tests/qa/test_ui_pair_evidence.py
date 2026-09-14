@@ -4,6 +4,7 @@ import copy
 
 from scripts.validate_ui_pair_evidence import (
     AUTHORITATIVE_REFERENCES,
+    evidence_exit_code,
     validate_pair_evidence,
 )
 
@@ -43,6 +44,8 @@ def test_unverified_authoritative_inventory_is_truthful_but_not_visual_ready() -
     assert report["verified_pairs"] == 0
     assert report["verdict_counts"]["UNVERIFIED"] == 11
     assert report["visual_ready_11_of_11"] is False
+    assert evidence_exit_code(report) == 0
+    assert evidence_exit_code(report, require_ready=True) == 2
 
 
 def test_exact_same_state_gap_is_evidence_eligible_but_not_visual_ready() -> None:
@@ -55,6 +58,8 @@ def test_exact_same_state_gap_is_evidence_eligible_but_not_visual_ready() -> Non
     assert report["verified_pairs"] == 1
     assert report["verdict_counts"]["GAP"] == 1
     assert report["visual_ready_11_of_11"] is False
+    assert evidence_exit_code(report) == 0
+    assert evidence_exit_code(report, require_ready=True) == 2
 
 
 def test_light_workspace_slot_rejects_files_capture_identity() -> None:
@@ -74,6 +79,8 @@ def test_light_workspace_slot_rejects_files_capture_identity() -> None:
     assert any("slot 10: reference_file" in error for error in errors)
     assert any("slot 10: reference_state" in error for error in errors)
     assert any("slot 10: MATCH requires canonical same-state render 'light-workspace'" in error for error in errors)
+    assert evidence_exit_code(report) == 1
+    assert evidence_exit_code(report, require_ready=True) == 1
 
 
 def test_cross_state_match_fails_closed() -> None:
@@ -118,6 +125,8 @@ def test_all_eleven_exact_same_state_matches_are_required_for_visual_ready() -> 
     assert report["verified_pairs"] == 11
     assert report["verdict_counts"]["MATCH"] == 11
     assert report["visual_ready_11_of_11"] is True
+    assert evidence_exit_code(report) == 0
+    assert evidence_exit_code(report, require_ready=True) == 0
 
     close_rows = copy.deepcopy(rows)
     close_rows[0]["verdict"] = "CLOSE"
@@ -125,3 +134,5 @@ def test_all_eleven_exact_same_state_matches_are_required_for_visual_ready() -> 
     close_report = validate_pair_evidence(close_rows)
     assert close_report["errors"] == []
     assert close_report["visual_ready_11_of_11"] is False
+    assert evidence_exit_code(close_report) == 0
+    assert evidence_exit_code(close_report, require_ready=True) == 2
