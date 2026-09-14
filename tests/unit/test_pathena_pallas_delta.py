@@ -196,3 +196,38 @@ def test_activity_tracker_keeps_last_valid_baseline_after_rejected_update() -> N
     assert delta.before_graph_id == "first"
     assert delta.after_graph_id == "later"
     assert delta.added_node_ids == ("b",)
+
+
+def test_activity_tracker_preserves_identity_across_removal_and_reappearance() -> None:
+    tracker = PallasActivityTracker()
+    first = _snapshot("first", (_node("a", entity_id="entity-1"),))
+    absent = _snapshot("absent", ())
+    rebound = _snapshot("rebound", (_node("a", entity_id="entity-2"),))
+    original = _snapshot("original", (_node("a", entity_id="entity-1"),))
+
+    assert tracker.observe(first) is None
+    removed = tracker.observe(absent)
+    assert removed is not None
+    assert removed.removed_node_ids == ("a",)
+
+    with pytest.raises(ValueError, match="node identity changed"):
+        tracker.observe(rebound)
+
+    restored = tracker.observe(original)
+    assert restored is not None
+    assert restored.before_graph_id == "absent"
+    assert restored.after_graph_id == "original"
+    assert restored.added_node_ids == ("a",)
+
+
+def test_activity_tracker_reset_starts_a_new_identity_epoch() -> None:
+    tracker = PallasActivityTracker()
+    first = _snapshot("first", (_node("a", entity_id="entity-1"),))
+    rebound = _snapshot("rebound", (_node("a", entity_id="entity-2"),))
+
+    assert tracker.observe(first) is None
+    tracker.reset()
+
+    assert tracker.has_baseline is False
+    assert tracker.observe(rebound) is None
+    assert tracker.has_baseline is True
