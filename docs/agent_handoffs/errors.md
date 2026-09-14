@@ -2,27 +2,23 @@
 
 ## Exact source of truth
 
-- Develop: `3231615650473fd549a7d852fb3bbe215f7b721f`; canonical `34811112376 = IN_PROGRESS`. Do not supersede the active Develop candidate.
-- Error worker: `60e53eca416724c6cb8c3bc43c78ef057561ac53`; latest exact canonical is red only on inherited stale UI geometry, with no new Error-owned release/storage root cause established.
-- Spec/Core: `ae82147ab8de6d3805bb5f2299497296af8ff19f`; canonical `34809576476 = SUCCESS`.
+- Develop: `5024a7c2b60c80083d1650ae924c89cb3085019e`; canonical `34815625453 = IN_PROGRESS`.
+- Error worker before this handoff commit: `35871d5e32dd49306b433374de9b2693048eb24f`; canonical `34812544236 = FAILURE`, but Storage, Windows release guards including pypdf, Local Install, validator, Ruff and mypy are green. The red pytest remains inherited stale UI geometry, not a new Error-owned release/storage root cause.
+- Spec/Core: `ae82147ab8de6d3805bb5f2299497296af8ff19f`; keep closed absent a new exact matching failure.
 - Backend: `52eb61de9ecfde4074778a1bab2966e18aab526d`; keep closed absent a new exact matching failure.
-- UI: `e8b8eb716efea4d8780d0487e26f5d7b9ebab230`; exact Visual `34811244977` attempt 2 = `FAILURE` during native capture.
+- UI: `ec05db2214680cbfb4c5112d7b42c24e389c7ea6`; exact Visual `34816280825 = FAILURE` during native capture; canonical `34816284933 = IN_PROGRESS`.
 
-## ERR-0063 — OPEN — UI route identity drift during exact visual capture
+## ERR-0063 — OPEN — UI capture still fails before eleven surfaces
 
-The current UI visual run passes harness Ruff, comparator mypy/tests, hierarchy-token and navigation-accessibility checks, then fails at `Capture exactly eleven canonical surfaces with native fonts`.
-
-Exact artifact evidence: rows 0-3 capture successfully; row 4 fails with `requested row 4, navigation row 1, page index 1`. The artifact contains eight PNGs total because later shell captures still execute, but Files/System/Settings are missing. Route identity verification and baseline comparison are skipped.
+Exact Visual `34816280825` passes visual-harness Ruff, comparator mypy/tests, hierarchy-token and navigation-accessibility checks, then fails at `Capture exactly eleven canonical surfaces with native fonts`. Route-identity verification, baseline compare/proposal and final verdict are skipped. The current UI commit changes manifest reporting only, so it does not close the route/capture root cause.
 
 Ownership stays with UI. Error worker must not patch UI product code in parallel. Closure requires a real seven-route capture followed by all eleven surfaces, with the existing route identity guard intact.
 
-## ERR-0059 — BLOCKED on current UI lineage — manifest truth regression
+## ERR-0059 — FIXED_PENDING_VERIFY — bounded fix now on current UI successor
 
-The same exact UI artifact contains eight `captures` but falsely reports all eleven captured surfaces and `captured_reference_count = 11`. This is a real current-SHA reproduction of the historical manifest-truth defect.
+Current UI commit `ec05db2214680cbfb4c5112d7b42c24e389c7ea6` changes the manifest to derive `captured_reference_surfaces` from the real `captures` and `captured_reference_count` from `len(captures)`, preserving `assigned_reference_count = 11`. This is the exact bounded fix requested and matches the already-fixed Error/Develop lineage.
 
-The bounded fix already exists on Develop and `postmerge/errors`: derive captured surfaces/count from actual `captures`, preserve `assigned_reference_count = 11`, and keep PASS fail-closed at exactly eleven captures. UI still carries the old constant implementation, so the correct action is UI synchronization/port of the existing harness fix, not a duplicate Error-branch product change.
-
-Do not claim current-UI `FIXED` until an exact UI artifact demonstrates truthful partial-capture metadata.
+The exact Visual run executed this SHA and uploaded `pathena-visual-ec05db2214680cbfb4c5112d7b42c24e389c7ea6`, but the binary artifact manifest was not directly inspected in this run. Because capture still aborts on `ERR-0063`, keep `ERR-0059` at `FIXED_PENDING_VERIFY`, not `FIXED`, until exact artifact evidence proves truthful partial-capture metadata and the unchanged fail-closed eleven-capture PASS contract.
 
 ## ERR-0054 — BLOCKED — UI/Visual Review
 
@@ -30,15 +26,15 @@ Visual review cannot truthfully proceed while `ERR-0063` prevents eleven exact r
 
 ## Green / held clusters
 
-- Spec/Core current exact canonical: SUCCESS.
-- Backend remains held closed absent new matching evidence.
-- Develop current integration candidate is still running and must not be superseded.
+- Spec/Core remains held closed absent new exact matching evidence.
+- Backend remains held closed absent new exact matching evidence.
+- Develop current integration candidate is running and must not be superseded.
 - Persistent pypdf/Frozen-argv/two-EXE/bounded-worker/adaptive-2048/lane-lock/duplicate-column/Core-startup/storage-bootstrap guards remain unchanged.
 - Error-worker 48px Send geometry remains `STALE`, not a new product root cause.
 
 ## Next root cause
 
-1. Consume Develop `34811112376` terminal result.
-2. UI fixes `ERR-0063` without weakening route identity.
-3. Verify that the UI successor also carries the existing `ERR-0059` manifest-truth fix; otherwise keep it blocked and hand back to UI.
+1. Consume Develop `34815625453` terminal result.
+2. UI closes `ERR-0063` without weakening route identity.
+3. Inspect exact UI manifest evidence and close `ERR-0059` only after truthful partial/full capture metadata is proven.
 4. Only after truthful eleven-surface capture does `ERR-0054` return to active visual-review ownership.
