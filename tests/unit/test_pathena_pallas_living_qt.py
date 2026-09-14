@@ -101,6 +101,42 @@ def test_qt_bridge_updates_presentation_without_mutating_semantic_snapshot(
         delete(window)
 
 
+def test_qt_bridge_moves_real_edge_with_living_node_positions(
+    qapp: QApplication,
+) -> None:
+    window = QWidget()
+    grounded = _grounded_controller(window)
+    living = PallasLivingQtController(grounded)
+    living._timer.stop()  # noqa: SLF001 - deterministic frame ownership
+    try:
+        living._tick()  # noqa: SLF001 - bind and advance one living frame
+        qapp.processEvents()
+
+        binding = living._bindings[id(grounded.field)]  # noqa: SLF001
+        assert len(binding.edge_items) == 1
+        line_item, source_id, target_id = binding.edge_items[0]
+        source = living.engine.position(source_id)
+        target = living.engine.position(target_id)
+        assert source is not None
+        assert target is not None
+
+        line = line_item.line()
+        assert line.x1() == pytest.approx(source[0])
+        assert line.y1() == pytest.approx(source[1])
+        assert line.x2() == pytest.approx(target[0])
+        assert line.y2() == pytest.approx(target[1])
+
+        source_item = grounded.field._items[source_id]  # noqa: SLF001
+        target_item = grounded.field._items[target_id]  # noqa: SLF001
+        assert source_item.x() == pytest.approx(source[0])
+        assert source_item.y() == pytest.approx(source[1])
+        assert target_item.x() == pytest.approx(target[0])
+        assert target_item.y() == pytest.approx(target[1])
+    finally:
+        living.stop()
+        delete(window)
+
+
 def test_qt_bridge_rejects_unknown_lens(qapp: QApplication) -> None:
     del qapp
     window = QWidget()
