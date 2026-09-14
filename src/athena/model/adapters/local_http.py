@@ -47,6 +47,7 @@ class _BoundedLocalResponse:
         *,
         max_bytes: int,
         total_timeout_seconds: float | None = None,
+        stream_sse: bool = False,
     ) -> None:
         if isinstance(max_bytes, bool) or not isinstance(max_bytes, int) or max_bytes <= 0:
             raise ValueError("Local model response byte limit must be a positive integer.")
@@ -59,6 +60,7 @@ class _BoundedLocalResponse:
         self._max_bytes = max_bytes
         self._bytes_read = 0
         self._byte_budget_poisoned = False
+        self._stream_sse = stream_sse
         self._deadline = (
             monotonic() + validated_total_timeout
             if validated_total_timeout is not None
@@ -81,6 +83,10 @@ class _BoundedLocalResponse:
         return None
 
     def __iter__(self) -> Any:
+        if self._stream_sse:
+            yield from self._iter_sse_events()
+            return
+
         while True:
             self._assert_before_deadline()
             raw_line = self.readline()
@@ -88,6 +94,52 @@ class _BoundedLocalResponse:
             if not raw_line:
                 return
             yield raw_line
+
+    def _iter_sse_events(self) -> Any:
+        data_lines: list[bytes] = []
+        first_line = True
+        while True:
+            self._assert_before_deadline()
+            raw_line = self.readline()
+            self._assert_before_deadline()
+            if not raw_line:
+                if data_lines:
+                    yield self._render_sse_data_event(data_lines)
+                return
+
+            line = self._strip_sse_line_ending(raw_line)
+            if first_line:
+                first_line = False
+                if line.startswith(b"\xef\xbb\xbf"):
+                    line = line[3:]
+
+            if not line:
+                if data_lines:
+                    yield self._render_sse_data_event(data_lines)
+                    data_lines.clear()
+                continue
+            if line.startswith(b":"):
+                continue
+
+            field, separator, value = line.partition(b":")
+            if not separator:
+                value = b""
+            elif value.startswith(b" "):
+                value = value[1:]
+            if field == b"data":
+                data_lines.append(value)
+
+    @staticmethod
+    def _strip_sse_line_ending(raw_line: bytes) -> bytes:
+        if raw_line.endswith(b"\r\n"):
+            return raw_line[:-2]
+        if raw_line.endswith((b"\n", b"\r")):
+            return raw_line[:-1]
+        return raw_line
+
+    @staticmethod
+    def _render_sse_data_event(data_lines: list[bytes]) -> bytes:
+        return b"data:" + b"\n".join(data_lines) + b"\n"
 
     def __getattr__(self, name: str) -> Any:
         if name in _BLOCKED_RESPONSE_READ_APIS:
@@ -225,7 +277,12 @@ def _bound_http_error_body(
         error.file = bounded_fp
 
 
-def open_local_request(request: Request, *, timeout: float) -> Any:
+def open_local_request(
+    request: Request,
+    *,
+    timeout: float,
+    stream_sse: bool = False,
+) -> Any:
     """Open a loopback provider request without proxies or redirect traversal.
 
     Explicitly installing an empty ``ProxyHandler`` keeps local model traffic
@@ -240,10 +297,12 @@ def open_local_request(request: Request, *, timeout: float) -> Any:
     ``readline()`` calls, a cumulative byte cap, and a monotonic total deadline
     in addition to the socket inactivity timeout, preventing giant SSE lines,
     many-small-event floods, and indefinitely active local streams from bypassing
-    the configured transport and generation bounds. HTTP error bodies use the
-    same byte and total-time bounds before provider-specific error parsing.
-    Alternative raw response read APIs and body-handle escape attributes are
-    rejected so callers cannot bypass the bounded read/readline paths accidentally.
+    the configured transport and generation bounds. In SSE mode, physical lines
+    pass through those bounds before logical ``data:`` fields are framed into
+    complete events. HTTP error bodies use the same byte and total-time bounds
+    before provider-specific error parsing. Alternative raw response read APIs
+    and body-handle escape attributes are rejected so callers cannot bypass the
+    bounded read/readline paths accidentally.
     """
     if not isinstance(request, Request):
         raise TypeError("Local model transport requires urllib.request.Request.")
@@ -262,4 +321,5 @@ def open_local_request(request: Request, *, timeout: float) -> Any:
         response,
         max_bytes=MAX_LOCAL_RESPONSE_BYTES,
         total_timeout_seconds=validated_timeout,
+        stream_sse=stream_sse,
     )
