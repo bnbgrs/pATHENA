@@ -3,31 +3,31 @@
 ## Current integration
 
 - Integration target: `develop/pathena-next`.
-- Develop parent before this integration: `240dc90eb61c4ec69362a5a6b28d9a1072c93813`.
-- Exact canonical Quality on that parent: `34879225369 = SUCCESS`.
+- Exact Develop parent: `f8a25be7fd7df9f2a8ca281a1567f79ddaabcfb6`.
+- Exact canonical Quality on that parent: `34883442620 = SUCCESS`.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
-- `BUNDLED_SLICES=NONE` — single bounded Core-owned Knowledge-read composition slice.
+- `BUNDLED_SLICES=NONE` — single bounded Core-owned application Knowledge-read wiring slice.
 
-## Iteration — canonical Knowledge read attachment
+## Iteration — AthenaApplication canonical Knowledge-read wiring
 
-Source head: `63457beb6e96fb4dc48b3b1b217bcefab90c4a22`.
-Exact evidence: Core Focused `34867476719 = SUCCESS`; canonical Quality `34867476727 = SUCCESS`.
+Source head: `9fe5dd44473ae200941d40ba37d14bc8816fdcdf`.
+Exact evidence: Core Focused `34886553609 = SUCCESS`; canonical Quality `34886553447 = SUCCESS`.
 
-Only four bounded product/test blobs are extracted from the divergent worker lineage: `src/athena/api/knowledge_read_composition.py`, `src/athena/api/service.py`, `tests/unit/test_api_knowledge_read_facade.py`, and `tests/unit/test_knowledge_read_composition.py`. Worker history and worker handoff are not merged.
+The effective delta versus the exact Develop parent is bounded to `src/athena/core/application.py`, `tests/unit/test_knowledge_application_read.py`, and the Core worker handoff. No Backend, Storage, Security, Recovery, migration, schema, Qt/UI, or persistence-format file is changed.
 
-The slice composes Why-known and revision-history reads over one canonical Knowledge source, attaches exactly one `KnowledgeReadApiService` to `CoreApiFacade`, exposes capabilities only after attachment, delegates without rewriting returned domain projections, and preserves fail-closed malformed-ID and duplicate-attachment behavior.
+`AthenaApplication` now consumes the already integrated `attach_knowledge_read_api()` boundary using the existing canonical `self.knowledge` and `self.api` instances, retains the exact returned service as `self.knowledge_read`, and exposes real Why-known/revision-history capabilities through the attached service rather than synthetic flags. The focused acceptance test starts a real temporary SQLite-backed Core, promotes persisted chat into canonical Knowledge, verifies service identity/capabilities/provenance, creates a direct user revision, and verifies immutable revision history plus the derived body diff.
 
 ## Current worker truth at integration time
 
-- Errors: `5b9788db2c3375c90967bf9633b82c5891827c78` — documentation of exact UI regressions; no independent product slice selected.
-- Spec/Core: `63457beb6e96fb4dc48b3b1b217bcefab90c4a22` — bounded Knowledge-read attachment selected here.
-- Backend: `bef909bf9097000142822e210cec5407e5f4f77b` — newer Deep-verify payload enforcement; Recovery-adjacent and not bundled.
-- UI: `a6298adb68af02537b87b26433003d830adb569d` — no current integrator-ready bounded slice selected.
+- Errors: `f7f61c3dd543f8650b8bfc7c41eaa6a05ecb2a66` — evidence/handoff refresh; current reproduced product failures remain UI-owned.
+- Spec/Core: `9fe5dd44473ae200941d40ba37d14bc8816fdcdf` — selected bounded application Knowledge-read wiring slice.
+- Backend: `764f99c2949a7ff5eeee2199a9a65e4f71f06f13` — Deep-verify registration-boundary lineage; Backup/Recovery-adjacent, never bundled with this Core slice, and its checked-in handoff is stale relative to current exact worker evidence.
+- UI: `e149515870b773548a164658775159f29de323af` — current handoff explicitly `Integrator-ready: NO` pending exact visual/technical evidence.
 
 ## Source-of-truth notes
 
-- `docs/agent_logs/ERROR_LEDGER.md` remains historical where newer exact-SHA evidence exists; historical signatures are not OPEN without current reproduction.
-- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` and `docs/ui/VISUAL_GAP_LEDGER.md` remain fail-closed: no `MATCH` without opened original reference and real exact-SHA render. Verified Send target remains 44×44 outer geometry.
+- `docs/agent_logs/ERROR_LEDGER.md` is historical where newer exact-SHA evidence exists; historical signatures are not OPEN without current reproduction.
+- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` and `docs/ui/VISUAL_GAP_LEDGER.md` remain fail-closed: only Slot 01 has directly opened reference-pixel evidence in the checked-in manifest, and no screenshot-level `MATCH` is valid without an opened original reference plus a real exact-SHA render. The verified Send target remains 44×44 outer geometry.
 
 ## Persistent release guards
 
@@ -37,4 +37,4 @@ Retain without relaxation: pypdf packaging; fail-closed Frozen argv; Desktop/Wor
 
 `PROMOTION_READY=NO`
 
-Require complete canonical Quality `SUCCESS` on the resulting exact Develop SHA before any further Develop mutation.
+Require complete canonical Quality `SUCCESS` on the resulting exact Develop SHA before any further Develop mutation. Backend remains a separate conservative candidate only after that new exact Develop gate is terminal green.

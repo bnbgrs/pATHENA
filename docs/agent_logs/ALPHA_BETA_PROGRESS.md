@@ -4,29 +4,29 @@ Evidence-only progress register for `develop/pathena-next`. No invented completi
 
 ## Current baseline
 
-- Develop parent before this integration: `240dc90eb61c4ec69362a5a6b28d9a1072c93813`.
-- Exact canonical Quality on that parent: `34879225369 = SUCCESS`.
+- Exact Develop parent before this integration: `f8a25be7fd7df9f2a8ca281a1567f79ddaabcfb6`.
+- Exact canonical Quality on that parent: `34883442620 = SUCCESS`.
 - Persistent release guards remain mandatory and unchanged.
 
 ## Current integration state
 
-A bounded Core slice integrates canonical Knowledge-read composition from source head `63457beb6e96fb4dc48b3b1b217bcefab90c4a22`; Core Focused `34867476719 = SUCCESS`; canonical Quality `34867476727 = SUCCESS`.
+A bounded Core slice integrates AthenaApplication-level canonical Knowledge-read wiring from source head `9fe5dd44473ae200941d40ba37d14bc8816fdcdf`; Core Focused `34886553609 = SUCCESS`; canonical Quality `34886553447 = SUCCESS`.
 
-The integrated delta is restricted to four product/test blobs. It builds Why-known and revision-history projections over one canonical Knowledge source, attaches exactly one read service to the Core facade, exposes capabilities only after attachment, and preserves fail-closed malformed-ID and duplicate-attachment semantics. Divergent worker history is not merged.
+The effective product/test delta is restricted to `src/athena/core/application.py` and new `tests/unit/test_knowledge_application_read.py`, plus the worker handoff. It reuses the already integrated canonical Knowledge-read attachment boundary, retains exact service identity in `AthenaApplication`, and validates real persisted Knowledge provenance plus immutable revision-history behavior through the running application. No alternate repository, DTO, provenance, persistence, Storage, Recovery or UI architecture is introduced.
 
-`BUNDLED_SLICES=NONE` because the selected integration is a single Core-owned bounded slice. The current Backend worker is Deep-backup/Recovery-adjacent and is intentionally not bundled.
+`BUNDLED_SLICES=NONE`. The current Backend worker is Deep-backup/Recovery-adjacent and therefore remains a separate conservative candidate even when independently exact-green.
 
 ## Current worker truth
 
-- Errors `5b9788db2c3375c90967bf9633b82c5891827c78`: UI-regression evidence/handoff only.
-- Spec/Core `63457beb6e96fb4dc48b3b1b217bcefab90c4a22`: selected bounded Knowledge-read attachment.
-- Backend `bef909bf9097000142822e210cec5407e5f4f77b`: Deep-verify payload enforcement; requires separate conservative qualification/integration.
-- UI `a6298adb68af02537b87b26433003d830adb569d`: no selected current bounded integration.
+- Errors `f7f61c3dd543f8650b8bfc7c41eaa6a05ecb2a66`: evidence/handoff refresh; reproduced product failures remain UI-owned.
+- Spec/Core `9fe5dd44473ae200941d40ba37d14bc8816fdcdf`: selected exact-green application Knowledge-read wiring slice.
+- Backend `764f99c2949a7ff5eeee2199a9a65e4f71f06f13`: Deep-verify registration-boundary lineage; must be requalified from exact current evidence and integrated separately because it is Backup/Recovery-adjacent.
+- UI `e149515870b773548a164658775159f29de323af`: visual-evidence lineage; current handoff states `Integrator-ready: NO`.
 
 ## Error and visual truth rules
 
 - Historical Error-Ledger signatures are not OPEN without current reproduction.
-- Eleven-screen status remains fail-closed; no visual `MATCH` without opened original reference plus real exact-SHA render and reviewed comparison.
+- Eleven-screen status remains fail-closed; checked-in manifest gives direct opened-reference evidence only for Slot 01, and no visual `MATCH` is valid without the opened original reference plus a real exact-SHA render and reviewed comparison.
 - Verified Send target remains 44×44 outer geometry.
 
 ## Persistent release guards

@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from enum import Enum
 
+from athena.api.knowledge_read_composition import attach_knowledge_read_api
 from athena.api.service import CoreApiFacade
 from athena.backup.service import BackupService
 from athena.chat.adaptive import (
@@ -318,6 +319,10 @@ class AthenaApplication:
             model_provider=self.model_provider,
             direct_chat=self.direct_chat,
             lifecycle_deletion=self.lifecycle_deletion,
+        )
+        self.knowledge_read = attach_knowledge_read_api(
+            facade=self.api,
+            knowledge=self.knowledge,
         )
         self.prior_research_search = PriorResearchSearchService(
             self.database
