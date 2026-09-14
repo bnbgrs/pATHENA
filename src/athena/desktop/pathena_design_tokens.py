@@ -41,15 +41,15 @@ class Palette:
 
 @dataclass(frozen=True, slots=True)
 class Typography:
-    """Quiet sans-serif hierarchy with compact monospaced metadata."""
+    """Editorial display + restrained sans-serif application hierarchy."""
 
     content_family: str = '"Segoe UI Variable", "Segoe UI", sans-serif'
-    display_family: str = '"Segoe UI Variable", "Segoe UI", sans-serif'
+    display_family: str = '"Georgia", "Times New Roman", serif'
     metadata_family: str = '"Cascadia Mono", "Consolas", monospace'
-    body_px: int = 14
-    metadata_px: int = 11
-    title_px: int = 30
-    section_px: int = 18
+    body_px: int = 15
+    metadata_px: int = 12
+    title_px: int = 42
+    section_px: int = 20
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,10 +66,10 @@ class Spacing:
 
 @dataclass(frozen=True, slots=True)
 class Radii:
-    control: int = 5
-    panel: int = 5
-    prominent: int = 8
-    composer: int = 14
+    control: int = 6
+    panel: int = 8
+    prominent: int = 14
+    composer: int = 22
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,11 +83,11 @@ class Motion:
 class ShellGeometry:
     """Stable geometry derived from the eleven-screen reference family."""
 
-    top_bar_height: int = 52
-    icon_rail_width: int = 56
-    secondary_nav_width: int = 268
-    inspector_width: int = 344
-    composer_min_height: int = 44
+    top_bar_height: int = 60
+    icon_rail_width: int = 76
+    secondary_nav_width: int = 236
+    inspector_width: int = 360
+    composer_min_height: int = 58
     composer_action_size: int = 44
 
 
