@@ -4,24 +4,25 @@ Evidence-only progress register for `develop/pathena-next`. No invented completi
 
 ## Current baseline
 
-- Develop before this integration: `ba6bc224cc152c144d13ca21730dad6620610abe`.
-- Exact canonical Quality `34781654173 = SUCCESS`.
+- Develop parent before this integration: `e48442210d98ca98a086dd7e4f3e5b3dd26e65bb`.
+- Exact canonical Quality on that parent: `34797268583 = FAILURE`.
+- Failure is isolated to full pytest: `test_dedicated_core_process_serves_until_desktop_requests_stop` can observe published discovery before the server-side runtime token is installed. Validator, Ruff, mypy, Linux Storage, Windows release guards and Local Install/pypdf are green on the same SHA.
 - Persistent release guards remain mandatory and unchanged.
 
 ## Current integration state
 
-Develop retains the bounded product capabilities integrated through the current baseline, including temporal staleness consolidation, explicit user-correction and semantic-identity guards, ScheduleDefinition IANA timezone validation, configurable backup quiet hour, truthful visual-capture metadata, and the canonical 44×44 Send-target/title hierarchy contracts.
+Develop retains the bounded product capabilities integrated through the current baseline, including temporal staleness consolidation, explicit user-correction and semantic-identity guards, ScheduleDefinition IANA timezone validation, configurable backup quiet hour, truthful visual-capture metadata, canonical 44×44 Send-target/title hierarchy contracts, Core focused-candidate mypy qualification, persistence-neutral Knowledge merge/split identity planning, and application-facing read-only merge/split planning.
 
-This integration strengthens Core worker qualification rather than changing Core product semantics. Exact changed Core Python files now run mypy inside the Core Focused workflow alongside Ruff and focused pytest. The final focused gate requires all three checks to succeed and persists mypy diagnostics. This prevents a candidate-owned type regression from appearing focused-green while canonical Quality is red.
+This integration closes the reproduced Core API bootstrap readiness race. `LocalApiRuntime.publish()` now installs the in-memory authentication token before publishing `core-api.json`, making discovery the true readiness barrier. A focused boundary test proves that the freshly written token authenticates before discovery becomes visible. Failure cleanup remains fail-closed and continues to clear both bootstrap files plus in-memory token state.
 
-The trigger/selectors and existing fail-closed behavior are retained; no test, security, storage, recovery, packaging or runtime guard is relaxed.
+No worker history is merged, and no Security, Storage, Recovery, packaging, runtime locality, visual, test-strength, or Skip/XFail guard is relaxed.
 
 ## Current worker truth
 
-- Errors `db47bc9d89633034d2897367caee86b96f945fd8`.
-- Spec/Core `93358a1c7a310a2da4279fb51b1e99a1bde505ab`: focused green but canonical red solely on candidate-owned mypy; not READY.
-- Backend `dda2dd74c0989f7ec453e8a2b7d8122f85a9251c`: tree-synchronized with the pre-integration Develop baseline; no bounded product delta.
-- UI `de4efa5d3814948d47d83484c4a27ac0c2daf64c`: canonical/focused evidence does not override the outstanding 11-screen visual-review requirement.
+- Errors `80ffef405415a9dfde9bff8b1f54764224652ef7`: exact-SHA source-of-truth refresh; no competing product mutation selected.
+- Spec/Core `52b4e322041547e9039a0f3026f6747583605914`: previously promoted merge/split policy; no new selected delta.
+- Backend `52eb61de9ecfde4074778a1bab2966e18aab526d`: synchronized with the prior Develop baseline; no new selected delta.
+- UI `6fce1d686f43d4cb8e3ea060055f4a871147df82`: presentation/visual work remains owner-side and unpromoted here.
 
 ## Error and visual truth rules
 

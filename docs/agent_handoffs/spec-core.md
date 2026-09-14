@@ -2,37 +2,51 @@
 
 ## Current source of truth
 
-- Integration target checked first: `develop/pathena-next@1530c1e8f17f53a6cbfbda7b7c53b8ee50afe2b5`.
-- Worker before this repair: `postmerge/spec-core@36452888894de49fdcd9b1968d1eaf83bc4412b0`.
-- Canonical Quality `34786426851 = SUCCESS` on exact worker `36452888...`.
-- `main` and `bnbgrs/ATHENA` remain strictly read-only.
+- Develop baseline used for this slice: `develop/pathena-next@8a8f7e716075e6248214b15563a0e282aba7723c`.
+- Worker before this slice: `postmerge/spec-core@52b4e322041547e9039a0f3026f6747583605914`.
+- Develop exact canonical Quality `34800785441` is `success`.
+- `main` and `bnbgrs/ATHENA` remain read-only.
 
-## Iteration — exact Focused mypy diagnostic repair
+Historical Search/Merge-Split worker notes in earlier handoffs are not authoritative for current priority. Merge/Split is integrated/closed; normal Hybrid Search composition already exists on current Develop.
 
-The exact diagnostics artifact from Core Focused `34786426823` proves the Merge/Split product code, Ruff and focused pytest were green (`9 passed`). The only failure was changed-file mypy on `tests/unit/test_knowledge_merge_split_policy.py`: two intentional invalid-argument tests placed `# type: ignore[arg-type]` on the call line rather than the offending keyword-argument line. Strict mypy therefore emitted two `unused-ignore` errors plus the two un-suppressed `arg-type` errors.
+## Selected current Core gap
 
-This repair moves each narrow ignore to the exact intentionally invalid argument. Assertions and runtime validation remain unchanged: the tests still prove fail-closed rejection of a string entity ID and a list used where a tuple is required. No Skip/XFail, strictness reduction, workflow weakening, or product-semantics change is introduced.
+Beta chapter 05 §§39-40 requires Project to remain a Knowledge entity and permits one KnowledgeUnit to belong to multiple projects through `belongs_to_project` or an equivalent relational link.
 
-The current Develop CI hardening commit is included history-preservingly in the same candidate lineage; there is no sync-only productless commit.
+Current Develop already has:
 
-## Product invariants retained
+- `KnowledgeKind.PROJECT_KNOWLEDGE`;
+- the curated `belongs_to_project` relation definition;
+- a directed `knowledge -> project` domain constraint in `RelationTypeRegistry`.
 
-- merge requires two distinct canonical entity IDs;
-- retaining one existing merge identity supersedes only the absorbed identity;
-- a new merge identity supersedes both originals;
-- split requires at least two unique result IDs;
-- split result IDs cannot recycle the source identity;
-- source identity remains historically superseded after split;
-- non-UUID identities and non-tuple split result containers fail closed at runtime;
-- the planner does not authorize semantic merges, generate IDs, persist entities, fabricate provenance, or perform Storage work.
+The missing Core behavior is a deterministic membership planner that validates canonical project targets, preserves multiple distinct project memberships, collapses duplicate targets without inventing edges, and fails closed if the registry silently falls back away from `belongs_to_project`.
 
-## Ownership boundaries
+## Product slice
 
-- No UI, Storage, Recovery, Transport or Security semantics changed.
-- Durable transaction execution and provenance for actual Merge/Split persistence must reuse existing repository/service boundaries.
-- Durable B05 revalidation execution remains Backend/System-owned beyond current Core planning semantics.
-- Persisted Knowledge -> ProcessingRun -> ModelSignature remains dependent on real Backend/Storage provenance.
+`src/athena/knowledge/project_membership.py` adds `ProjectMembershipPlan` and `plan_project_memberships()`.
+
+The planner:
+
+- accepts canonical `KnowledgeUnitSnapshot` values only;
+- requires at least one target;
+- requires every target to use `KnowledgeKind.PROJECT_KNOWLEDGE`;
+- uses the existing `RelationTypeRegistry` and its established `belongs_to_project` definition;
+- preserves multiple distinct project memberships in first-seen order;
+- collapses duplicate target IDs to a single edge;
+- rejects missing/deprecated/fallback membership semantics;
+- does not persist relations, synthesize IDs, create provenance, or bypass repository/storage ownership.
+
+`tests/unit/test_knowledge_project_membership.py` covers multi-project membership, duplicate collapse, non-project rejection, empty input, wrong collection type, and registry fallback rejection.
+
+A local focused logic harness using the same planner/registry contract completed `6 passed`; exact repository focused and canonical evidence must be taken from the candidate SHA after publication.
+
+## Ownership and collision avoidance
+
+- KnowledgeInspection -> `CoreApiFacade` -> `AthenaApplication` remains the higher-priority composition gap, but the available mutation interface still makes safe surgical replacement of the broad existing facade/application files impractical in this run. No parallel facade or domain-object leakage was introduced.
+- Durable relation persistence/provenance remains bound to existing repository/storage transaction paths; this slice only plans validated Core edges.
+- UI/PALLAS visual lifecycle work remains UI-owned.
+- Deep storage/system work remains Backend-owned.
 
 ## Next distinct Core gap
 
-After exact-SHA focused and canonical qualification, re-read current Develop and current handoffs. Highest known independent composition target remains exposing the existing `KnowledgeInspectionService` through `CoreApiFacade` and `AthenaApplication` without introducing a parallel API. If that composition is blocked, select the next independent current Alpha/Beta Core product gap rather than revisiting CLOSED temporal-staleness or semantic-identity work.
+After exact focused/canonical qualification of this candidate and Integrator consumption, re-read current Develop and handoffs. Prefer safe central composition of the existing `KnowledgeInspectionService` if a surgical path is available; otherwise continue with the next independent Alpha/Beta Core functionality gap without revisiting closed Merge/Split or stale historical Search work.

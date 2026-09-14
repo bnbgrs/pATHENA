@@ -7,6 +7,12 @@ import uuid
 from athena.chat.models import MessageType
 from athena.chat.provenance import strip_canonical_promotion_trace
 from athena.chat.service import ChatService
+from athena.knowledge.merge_split_policy import (
+    KnowledgeMergePlan,
+    KnowledgeSplitPlan,
+    plan_knowledge_merge,
+    plan_knowledge_split,
+)
 from athena.knowledge.models import (
     EpistemicStatus,
     KnowledgeKind,
@@ -167,6 +173,45 @@ class KnowledgeService:
                 epistemic_status=current_payload.epistemic_status,
             ),
             reason="direct user reclassification",
+        )
+
+    def plan_merge(
+        self,
+        *,
+        left_knowledge_id: uuid.UUID,
+        right_knowledge_id: uuid.UUID,
+        result_knowledge_id: uuid.UUID,
+    ) -> KnowledgeMergePlan:
+        """Plan identity consequences for two existing canonical KnowledgeUnits.
+
+        This application boundary deliberately performs no merge write. It first
+        proves that both source identities currently exist, then delegates the
+        fail-closed identity rules to the persistence-neutral planner. A later
+        explicit semantic-merge use case can consume the returned plan atomically.
+        """
+        self.repository.load_current(left_knowledge_id)
+        self.repository.load_current(right_knowledge_id)
+        return plan_knowledge_merge(
+            left_entity_id=left_knowledge_id,
+            right_entity_id=right_knowledge_id,
+            result_entity_id=result_knowledge_id,
+        )
+
+    def plan_split(
+        self,
+        *,
+        source_knowledge_id: uuid.UUID,
+        result_knowledge_ids: tuple[uuid.UUID, ...],
+    ) -> KnowledgeSplitPlan:
+        """Plan identity consequences for one existing canonical KnowledgeUnit.
+
+        No persistence occurs here. The current source identity must exist before
+        the persistence-neutral split planner validates the proposed new IDs.
+        """
+        self.repository.load_current(source_knowledge_id)
+        return plan_knowledge_split(
+            source_entity_id=source_knowledge_id,
+            result_entity_ids=result_knowledge_ids,
         )
 
     def load(self, knowledge_id: uuid.UUID) -> KnowledgeUnitSnapshot:
