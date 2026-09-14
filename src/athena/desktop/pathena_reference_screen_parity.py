@@ -1,8 +1,8 @@
 """Presentation-only parity layer for the eleven pATHENA reference screens.
 
 The August 24 reference family converged on a stable visible information
-architecture: CHAT, KNOWLEDGE, RESEARCH, JOBS and SOURCES in the top bar,
-with SYSTEM and SETTINGS remaining utility destinations. The underlying
+architecture: Chat, Knowledge, Research, Jobs and Sources in the top bar,
+with System and Settings remaining utility destinations. The underlying
 legacy page indexes are intentionally left untouched here; this module only
 normalizes user-facing presentation and wires reference affordances to real
 existing actions.
@@ -49,11 +49,11 @@ PAGE_TITLES: Final = (
 # Kept as a compatibility alias for tests/extensions that only need page count.
 PAGE_LABELS: Final = PAGE_DESTINATIONS
 TOP_NAV_LABELS: Final = {
-    0: "CHAT",
-    1: "KNOWLEDGE",
-    2: "RESEARCH",
-    3: "JOBS",
-    4: "SOURCES",
+    0: "Chat",
+    1: "Knowledge",
+    2: "Research",
+    3: "Jobs",
+    4: "Sources",
 }
 COMPOSER_PLACEHOLDER: Final = "Ask, explore, or build…"
 SEARCH_PLACEHOLDER: Final = "Search commands or workspaces…"
