@@ -42,11 +42,14 @@ def test_quiet_text_remains_visually_below_subtle_metadata() -> None:
     assert _relative_luminance(PALETTE.text_subtle) < _relative_luminance(PALETTE.text_muted)
 
 
-def test_reference_palette_is_deep_black_with_functional_orange() -> None:
+def test_reference_palette_is_deep_black_with_cobalt_primary_and_warm_signal() -> None:
     assert PALETTE.canvas == "#060606"
     assert PALETTE.surface == "#0A0A0A"
     assert PALETTE.surface_raised == "#0F0F0F"
-    assert PALETTE.accent == "#F26A21"
+    assert PALETTE.accent == "#3478F6"
+    assert PALETTE.warm_accent == "#F26A21"
+    assert PALETTE.accent_soft != PALETTE.accent
+    assert PALETTE.warm_accent_soft != PALETTE.warm_accent
     assert PALETTE.success != PALETTE.accent
     assert PALETTE.info != PALETTE.accent
     assert PALETTE.question != PALETTE.accent
@@ -68,4 +71,5 @@ def test_reference_shell_geometry_excludes_legacy_wide_sidebar() -> None:
     assert 54 <= SHELL.top_bar_height <= 64
     assert 330 <= SHELL.inspector_width <= 390
     assert 210 <= SHELL.secondary_nav_width <= 280
-    assert SHELL.composer_min_height >= 56
+    assert SHELL.composer_min_height >= 68
+    assert SHELL.composer_action_size == 44
