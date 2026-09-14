@@ -3,32 +3,32 @@
 ## Current integration
 
 - Integration target: `develop/pathena-next`.
-- Develop parent before this integration: `5048e8f2e88c1ac0553d3052db48c9c3be22bff1`.
-- Exact canonical Quality on that parent: `34851187301 = SUCCESS`.
+- Exact Develop parent before this integration: `3a8120805e41d0fe9d283fc948d6e52b327a8e58`.
+- Exact canonical Quality on that parent: `34893392725 = SUCCESS`.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
-- `BUNDLED_SLICES=NONE` — this is a single Backend-owned bounded slice; Storage/Recovery-adjacent work is not bundled.
+- `BUNDLED_SLICES=NONE` — the selected Backend slice is Backup/Recovery-adjacent and is integrated conservatively as a single bounded extraction.
 
-## Iteration — periodic Deep backup verification planner
+## Iteration — durable Deep backup verification pipeline
 
-Source head: `d0da4ca3677ebcda1e65e1637fd0d447810fb7fb`.
-Exact evidence: Backend Focused `34851416776 = SUCCESS`; canonical Quality `34851416765 = SUCCESS`.
+Source head: `13ccd56eb7c4451e0b5b06532e98a67ec989c774`.
+Exact evidence: Backend Focused `34899421459 = SUCCESS`; canonical Quality `34899421431 = SUCCESS`.
 
-Only two bounded blobs are integrated from the worker lineage: `src/athena/jobs/backup_verify.py` and `tests/unit/test_backup_deep_verify_planner.py`. No worker history is merged.
+The extracted product/test scope is restricted to the Deep-verify payload, registration, worker, occurrence materializer, admission boundary, and their five focused unit-test files. Worker history is not merged.
 
-The new planner deterministically selects the oldest active completed backup snapshot whose Deep verification is due. It excludes failed, pruned, offline and not-due snapshots, uses a deterministic occurrence slot and idempotency key, leaves retryable environment/busy failures due for later orchestration, and fails closed on invalid runtime types or negative timestamps. It performs no backup creation, verification execution, schema change, migration or recovery mutation.
+The pipeline keeps backup verification separate from backup creation: payloads use exact keys, canonical UUID text, non-negative true integers and a pinned pipeline version; registration is CONTROL-lane-safe and explicitly forbids retry through `backup.create`; occurrence materialization is side-effect-free and deterministic; admission revalidates job type, payload identity, occurrence identity and idempotency before durable write; execution operates only on an existing snapshot, honors lease/cancel/RUNNING state, waits safely on busy/offline storage, heartbeats before Deep verification, checkpoints confirmed output, and fails closed on an active corrupt snapshot. No schema, migration, Security guard, Recovery guard or backup-create behavior is relaxed.
 
 ## Current worker truth at integration time
 
-- Errors: `a80e39b8b1669086d8db00deea10a7d37041507f` — documentation/evidence refresh only.
-- Spec/Core: `7719c3f18de715fe1343980bdc466a2d12cdb286` — supersession slice already represented in Develop.
-- Backend: `d0da4ca3677ebcda1e65e1637fd0d447810fb7fb` — bounded Deep verification planner selected here.
-- UI: `575b8de0a4f25f512e423c78623bfa5b398c379d` — not selected; separate PALLAS candidate qualification remains UI-owned.
+- Errors: `44930e07f8cb422a13da9b4036c6187aa4a770eb` — evidence/handoff lineage; no independent selected product slice.
+- Spec/Core: `95a60521bb06cb883e14bdc5803181b224f53f64` — current head is not selected for this integration.
+- Backend: `13ccd56eb7c4451e0b5b06532e98a67ec989c774` — selected exact-green bounded Deep-verify pipeline.
+- UI: `e149515870b773548a164658775159f29de323af` — no exact-green bounded UI slice selected.
 
 ## Source-of-truth notes
 
-- `docs/agent_logs/ERROR_LEDGER.md` remains historical wherever newer exact-SHA evidence exists; historical signatures are not OPEN without current reproduction.
-- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` and `docs/ui/VISUAL_GAP_LEDGER.md` remain fail-closed: no `MATCH` without opened original reference and real exact-SHA render. Verified Send target remains 44×44 outer geometry.
-- The Backend worker handoff is stale relative to its current head, so this integration relies only on the bounded current-head code/test delta plus exact-head focused and canonical evidence; no broader Backend claims are imported.
+- Historical Error-Ledger signatures are not OPEN without current reproduction.
+- Eleven-screen visual status remains fail-closed; no screenshot-level `MATCH` may be claimed without opened original-reference evidence plus a real exact-SHA render and reviewed comparison.
+- Persistent release guards remain mandatory and unchanged.
 
 ## Persistent release guards
 

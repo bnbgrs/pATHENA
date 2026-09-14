@@ -4,30 +4,29 @@ Evidence-only progress register for `develop/pathena-next`. No invented completi
 
 ## Current baseline
 
-- Develop parent before this integration: `5048e8f2e88c1ac0553d3052db48c9c3be22bff1`.
-- Exact canonical Quality on that parent: `34851187301 = SUCCESS`.
+- Exact Develop parent before this integration: `3a8120805e41d0fe9d283fc948d6e52b327a8e58`.
+- Exact canonical Quality on that parent: `34893392725 = SUCCESS`.
 - Persistent release guards remain mandatory and unchanged.
 
 ## Current integration state
 
-A single bounded Backend slice adds deterministic planning for periodic Deep backup verification. Exact source head `d0da4ca3677ebcda1e65e1637fd0d447810fb7fb`; Backend Focused `34851416776 = SUCCESS`; canonical Quality `34851416765 = SUCCESS`.
+A bounded Backend slice integrates the durable Deep backup verification pipeline from source head `13ccd56eb7c4451e0b5b06532e98a67ec989c774`; Backend Focused `34899421459 = SUCCESS`; canonical Quality `34899421431 = SUCCESS`.
 
-The integrated delta is restricted to a new planner module and focused unit tests. It selects only active, completed, non-pruned restore points whose Deep verification is due; excludes failed/offline/not-due snapshots; emits deterministic occurrence/idempotency identity; and performs no backup creation, verification execution, schema, migration or recovery mutation. The worker history itself is not merged.
+The extracted scope is exactly five product modules — payload, registration, worker, occurrence materializer and admission boundary — plus their five focused unit-test files. Worker history is not merged. Payload/configuration are exact and fail-closed; occurrence/idempotency identity is deterministic; admission revalidates identity before durable write; the worker verifies only existing snapshots and never creates/replaces a backup. No schema, migration, alternate persistence path, Security/Storage/Recovery guard relaxation, Skip or XFail is introduced.
 
-`BUNDLED_SLICES=NONE` because this slice is Storage/Recovery-adjacent and is intentionally integrated alone.
+`BUNDLED_SLICES=NONE`. This slice is Backup/Recovery-adjacent and is therefore integrated as an isolated candidate despite independent exact-green evidence.
 
 ## Current worker truth
 
-- Errors `a80e39b8b1669086d8db00deea10a7d37041507f`: evidence refresh only.
-- Spec/Core `7719c3f18de715fe1343980bdc466a2d12cdb286`: previously integrated supersession work.
-- Backend `d0da4ca3677ebcda1e65e1637fd0d447810fb7fb`: selected bounded Deep-verification planner.
-- UI `575b8de0a4f25f512e423c78623bfa5b398c379d`: not selected in this candidate.
+- Errors `44930e07f8cb422a13da9b4036c6187aa4a770eb`: evidence/handoff lineage; no selected independent product slice.
+- Spec/Core `95a60521bb06cb883e14bdc5803181b224f53f64`: not selected for this integration.
+- Backend `13ccd56eb7c4451e0b5b06532e98a67ec989c774`: selected exact-green bounded Deep-verify pipeline.
+- UI `e149515870b773548a164658775159f29de323af`: no selected exact-green bounded UI slice.
 
 ## Error and visual truth rules
 
 - Historical Error-Ledger signatures are not OPEN without current reproduction.
-- Eleven-screen status remains fail-closed; no visual `MATCH` without opened original reference plus real exact-SHA render and reviewed comparison.
-- Verified Send target remains 44×44 outer geometry.
+- Eleven-screen status remains fail-closed; no visual `MATCH` is valid without opened original-reference evidence plus a real exact-SHA render and reviewed comparison.
 
 ## Persistent release guards
 

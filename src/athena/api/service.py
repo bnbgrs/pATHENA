@@ -37,7 +37,10 @@ from athena.api.contracts import (
     RelationProposalResponse,
     RememberedChatMessageResponse,
 )
+from athena.api.knowledge_explanation import KnowledgeProvenanceExplanationResponse
+from athena.api.knowledge_history import KnowledgeHistoryResponse
 from athena.api.knowledge_inspection import KnowledgeInspectionApiService
+from athena.api.knowledge_read import KnowledgeReadApiService
 from athena.api.search_adapter import hybrid_search_result_response
 from athena.api.search_contracts import SearchResultResponse
 from athena.chat.models import ChatMessage, ChatSummary, ChatThread
@@ -236,6 +239,7 @@ class CoreApiFacade:
         self._proposal_review_planner: ProposalReviewPlanner | None = None
         self._knowledge_reviews: KnowledgeReviewQueue | None = None
         self._knowledge_inspection: KnowledgeInspectionApiService | None = None
+        self._knowledge_read: KnowledgeReadApiService | None = None
         self._normal_search: NormalSearch | None = None
 
     def attach_normal_search(self, search: NormalSearch) -> None:
@@ -254,6 +258,13 @@ class CoreApiFacade:
         if self._knowledge_inspection is not None:
             raise RuntimeError("Knowledge inspection is already attached to the Core API.")
         self._knowledge_inspection = inspection
+
+    def attach_knowledge_read(self, knowledge_read: KnowledgeReadApiService) -> None:
+        """Attach truthful Knowledge provenance/history reads exactly once."""
+
+        if self._knowledge_read is not None:
+            raise RuntimeError("Knowledge read is already attached to the Core API.")
+        self._knowledge_read = knowledge_read
 
     def attach_unified_local_chat(
         self,
@@ -341,12 +352,30 @@ class CoreApiFacade:
                 "knowledge.claim.inspect",
                 "knowledge.review.contradiction",
             )
+        if self._knowledge_read is not None:
+            features = (
+                *features,
+                "knowledge.read.why_known",
+                "knowledge.read.revision_history",
+            )
         if self._normal_search is not None:
             features = (*features, "search.normal.hybrid")
         return CapabilitiesResponse(
             api_version=API_VERSION,
             features=features,
         )
+
+    def why_known(self, knowledge_id: str) -> KnowledgeProvenanceExplanationResponse:
+        return self._knowledge_read_service().why_known(knowledge_id)
+
+    def knowledge_revision_history(self, knowledge_id: str) -> KnowledgeHistoryResponse:
+        return self._knowledge_read_service().revision_history(knowledge_id)
+
+    def _knowledge_read_service(self) -> KnowledgeReadApiService:
+        knowledge_read = self._knowledge_read
+        if knowledge_read is None:
+            raise RuntimeError("Knowledge read is unavailable in this Core process.")
+        return knowledge_read
 
     def list_claims(self, *, limit: int = 100) -> tuple[CanonicalClaimResponse, ...]:
         return self._knowledge_inspection_service().list_claims(limit=limit)
