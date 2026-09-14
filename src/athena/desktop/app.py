@@ -72,6 +72,7 @@ from athena.desktop.pathena_progressive_workspace_2300 import (
     install_progressive_workspace_refinement,
 )
 from athena.desktop.pathena_quiet_success_decay_6400 import apply_quiet_success_decay
+from athena.desktop.pathena_reference_screen_parity import install_reference_screen_parity
 from athena.desktop.pathena_research_experience_2500 import install_research_experience
 from athena.desktop.pathena_research_knowledge_transition_2700 import (
     install_research_knowledge_transition,
@@ -225,6 +226,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     backup_details_provenance = install_backup_details_provenance(system_backup.backup)
     apply_shell_density(window)
     apply_workspace_presentation(window)
+    reference_screen_parity = install_reference_screen_parity(window)
     install_navigation_context_accessibility(window)
     command_palette = install_command_palette(window)
     transient_dialog_shortcuts = install_transient_dialog_shortcut_continuity(command_palette)
@@ -336,6 +338,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     pallas_context_inspector.deleteLater()
     pallas_full_view.deleteLater()
     pallas_grounded_field.deleteLater()
+    reference_screen_parity.deleteLater()
     settings_runtime.deleteLater()
     return exit_code
 
