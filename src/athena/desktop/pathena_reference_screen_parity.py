@@ -173,6 +173,15 @@ class ReferenceScreenParity(QObject):
         current_row = getattr(navigation, "currentRow", None)
         index = current_row() if callable(current_row) else 0
         self._sync_inspector_title(index)
+        # StartupExperience also uses a zero-delay sync. Queue one final copy pass
+        # behind it so the reference copy wins without owning startup behavior.
+        QTimer.singleShot(0, self._sync_deferred_startup_copy)
+
+    def _sync_deferred_startup_copy(self) -> None:
+        navigation = getattr(self._window, "navigation", None)
+        current_row = getattr(navigation, "currentRow", None)
+        index = current_row() if callable(current_row) else 0
+        self._sync_startup_copy(index)
 
     def _bind_installed_command_palette(self) -> None:
         """Find the real palette after startup composition and bind it once."""
@@ -219,6 +228,21 @@ QListWidget#navigation::item:selected {{
 QLineEdit:focus,
 QPlainTextEdit:focus {{
     border-color: {PALETTE.accent};
+}}
+QLabel#emptyStateEyebrow {{
+    color: {PALETTE.accent};
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 1px;
+}}
+QLabel#emptyStateTitle {{
+    color: {PALETTE.text};
+    font-size: 34px;
+    font-weight: 400;
+}}
+QLabel#emptyStateBody {{
+    color: {PALETTE.text_subtle};
+    font-size: 14px;
 }}
 """
         window.setStyleSheet(f"{current}\n{override}")
@@ -280,6 +304,20 @@ QPushButton[pathenaJobsDestructive="true"] {{
         # persistent evidence/activity rail heading.
         title.setText("KNOWLEDGE" if index == 0 else "EVIDENCE & ACTIVITY")
 
+    def _sync_startup_copy(self, index: int) -> None:
+        if index != 0 or bool(getattr(self._window, "_core_transport_ready", False)):
+            return
+        window = cast(QObject, self._window)
+        eyebrow = window.findChild(QLabel, "emptyStateEyebrow")
+        title = window.findChild(QLabel, "emptyStateTitle")
+        body = window.findChild(QLabel, "emptyStateBody")
+        if isinstance(eyebrow, QLabel):
+            eyebrow.setText("LOCAL CORE · CONNECTING")
+        if isinstance(title, QLabel):
+            title.setText("Getting pATHENA ready")
+        if isinstance(body, QLabel):
+            body.setText("What shall we explore today?")
+
     @Slot(int)
     def _sync_navigation(self, index: int) -> None:
         if not 0 <= index < len(PAGE_TITLES):
@@ -297,6 +335,7 @@ QPushButton[pathenaJobsDestructive="true"] {{
                 button.setChecked(raw_index == index)
 
         self._sync_inspector_title(index)
+        self._sync_startup_copy(index)
 
 
 def install_reference_screen_parity(window: object) -> ReferenceScreenParity:
