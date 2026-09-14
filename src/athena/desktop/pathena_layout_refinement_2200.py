@@ -12,8 +12,10 @@ from dataclasses import dataclass
 from PySide6.QtCore import QEvent, QObject
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QFrame,
     QLabel,
     QLineEdit,
+    QListWidget,
     QPushButton,
     QSplitter,
     QTabWidget,
@@ -115,6 +117,7 @@ class PathenaLayoutRefinement(QObject):
     def apply_for_width(self, width: int) -> None:
         compact = width < _COMPACT
         wide = width >= _WIDE
+        self._tune_shell()
         self._tune_workspace_margins(compact=compact, wide=wide)
         self._tune_splitters(compact=compact, wide=wide)
         self._tune_lists(compact=compact, wide=wide)
@@ -124,6 +127,27 @@ class PathenaLayoutRefinement(QObject):
             "pathenaLayoutDensity",
             "compact" if compact else "wide" if wide else "comfortable",
         )
+
+    def _tune_shell(self) -> None:
+        navigation = getattr(self.window, "navigation", None)
+        if isinstance(navigation, QListWidget):
+            navigation.setFixedWidth(SHELL.icon_rail_width)
+
+        icon_rail = self.window.findChild(QFrame, "iconRail")
+        if icon_rail is not None:
+            icon_rail.setFixedWidth(SHELL.icon_rail_width)
+
+        top_bar = self.window.findChild(QFrame, "topBar")
+        if top_bar is not None:
+            top_bar.setFixedHeight(SHELL.top_bar_height)
+
+        inspector = self.window.findChild(QFrame, "inspector")
+        if inspector is not None:
+            inspector.setFixedWidth(SHELL.inspector_width)
+
+        composer = self.window.findChild(QFrame, "composer")
+        if composer is not None:
+            composer.setFixedHeight(68)
 
     def _tune_workspace_margins(self, *, compact: bool, wide: bool) -> None:
         if compact:
@@ -183,7 +207,13 @@ class PathenaLayoutRefinement(QObject):
             view = self.window.findChild(QAbstractItemView, name)
             if view is None:
                 continue
-            minimum = reference_width - 28 if compact else reference_width + 12 if wide else reference_width
+            minimum = (
+                reference_width - 28
+                if compact
+                else reference_width + 12
+                if wide
+                else reference_width
+            )
             view.setMinimumWidth(max(228, minimum))
             view.setMaximumWidth(reference_width + (76 if compact else 112 if wide else 92))
 
