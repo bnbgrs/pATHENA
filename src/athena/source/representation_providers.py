@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass
-from numbers import Real
 from pathlib import Path
 from typing import Protocol
 
@@ -113,9 +112,10 @@ class SpeechToTextProvider(Protocol):
 def _validate_confidence(confidence: float | None) -> None:
     if confidence is None:
         return
-    if isinstance(confidence, bool) or not isinstance(confidence, Real):
+    if isinstance(confidence, bool) or not isinstance(confidence, (int, float)):
         raise TypeError("confidence must be a real number or None")
-    if not math.isfinite(float(confidence)) or not 0.0 <= confidence <= 1.0:
+    numeric_confidence = float(confidence)
+    if not math.isfinite(numeric_confidence) or not 0.0 <= numeric_confidence <= 1.0:
         raise ValueError("confidence must be between 0.0 and 1.0")
 
 
