@@ -2,37 +2,33 @@
 
 ## Current source of truth
 
-- Develop checked first: `develop/pathena-next@f8a25be7fd7df9f2a8ca281a1567f79ddaabcfb6`.
-- Develop canonical Quality `34883442620 = SUCCESS`.
-- Worker before this candidate: `postmerge/spec-core@63457beb6e96fb4dc48b3b1b217bcefab90c4a22`.
-- The previous Knowledge-read build+attach slice is integrated in Develop and is CLOSED.
+- Develop checked first: `develop/pathena-next@3a8120805e41d0fe9d283fc948d6e52b327a8e58`.
+- Develop canonical Quality `34893392725 = SUCCESS`.
+- Worker before this candidate: `postmerge/spec-core@9fe5dd44473ae200941d40ba37d14bc8816fdcdf`.
+- The Knowledge-read application chain is integrated in Develop and CLOSED.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
-## Current Core slice — AthenaApplication Knowledge-read wiring
+## Current Core slice — Research API projection
 
-This candidate consumes the already integrated `attach_knowledge_read_api()` boundary from current Develop and wires it into `AthenaApplication` using the existing canonical `self.knowledge` and `self.api` instances.
+Current Develop contains a real durable `ResearchService` with local Exhaustive Research enqueue semantics, but the API layer has no Research-facing projection. This slice adds `athena.api.research.ResearchApiService` as a transport-neutral adapter over the existing enqueue boundary.
 
 Product contract:
 
-- `AthenaApplication` retains the exact `KnowledgeReadApiService` returned by `attach_knowledge_read_api()` as `self.knowledge_read`;
-- `CoreApiFacade` receives that exact same service instance;
-- capability disclosure for `knowledge.read.why_known` and `knowledge.read.revision_history` therefore comes from a real attached service, not synthetic feature flags;
-- Why-known reads use the existing persisted Knowledge provenance inputs;
-- revision history uses the existing immutable Knowledge revisions and derives predecessor diffs on read;
-- no new repository, storage, DTO, audit or provenance architecture is introduced.
+- local Exhaustive Research remains owned by the existing durable Research orchestrator;
+- the API adapter delegates query, priority, coverage target, and requested model identity without reimplementing Research scheduling;
+- the returned API response projects the durable job's exact identity, type, priority, and state;
+- no fake Research data, synthetic provenance, repository bypass, storage path, scheduler duplicate, or new Research engine is introduced.
 
-Focused acceptance in `tests/unit/test_knowledge_application_read.py` starts a real temporary SQLite-backed Core, promotes a persisted chat message into canonical Knowledge, proves exact service identity and capability exposure, validates recorded source provenance, creates a direct user revision, and validates immutable two-revision history plus the derived body diff.
+Focused acceptance in `tests/unit/test_api_research.py` verifies exact delegation and proves that durable job identity/type are projected rather than regenerated or rewritten.
 
-## Baseline / collision discipline
+## Collision discipline
 
-The candidate tree is based on exact current Develop and is committed with the previous worker plus exact current Develop as parents. This is a history-preserving NON-FORCE synchronization and product mutation in one candidate; no sync-only intermediate head is published.
-
-Ownership remains unchanged: Backend owns deep Storage/transaction/recovery; UI owns Qt/PALLAS presentation; protected-search authorization semantics are not approximated; persistent release guards and no-Skip/XFail policy remain binding.
+Backend retains Storage/transaction/recovery ownership. UI retains Qt/PALLAS presentation. Security/Protection authorization semantics are unchanged. Persistent release guards and no-Skip/XFail remain binding.
 
 ## Qualification state
 
-Fresh exact-SHA Core Focused and canonical Quality are required. Until they complete, this candidate is not Integrator-ready and `postmerge/spec-core` must remain frozen after publication.
+Fresh exact-SHA Core Focused must pass before canonical Quality is treated as candidate evidence. Until canonical terminal success, no further `postmerge/spec-core` commit may be published.
 
 ## Next distinct Core gap
 
-After exact qualification and integration, re-read current Develop/Handoffs/coverage and select the highest remaining independent Core composition gap. Do not revisit the closed Knowledge-read attachment/application sequence unless a new exact regression appears.
+After this adapter is exact-SHA green, re-read current Develop and attach the existing `ResearchApiService` to `CoreApiFacade` with strict single-attach/capability gating, then compose the same real `ResearchService` instance in `AthenaApplication`. Do not reopen the closed Knowledge-read chain without a new exact regression.
