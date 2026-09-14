@@ -68,32 +68,51 @@ UI_REFINEMENT_TASKS_2801_2900: tuple[str, ...] = tuple(
 
 _STARTUP_STYLESHEET = r"""
 QFrame#composer {
-    background: transparent;
-    border: none;
+    background: #0A0A0A;
+    border: 1px solid #252525;
+    border-radius: 16px;
 }
 QLabel#emptyStateEyebrow {
     color: #F26A21;
+    font-family: "Cascadia Mono", "Consolas", monospace;
     font-size: 9px;
-    font-weight: 600;
+    font-weight: 500;
     letter-spacing: 1px;
 }
 QLabel#emptyStateTitle {
     color: #F2F2F2;
-    font-size: 20px;
-    font-weight: 600;
+    font-family: "Segoe UI Variable Display", "Segoe UI", sans-serif;
+    font-size: 38px;
+    font-weight: 300;
 }
 QLabel#emptyStateBody {
-    color: #858585;
-    font-size: 12px;
+    color: #8D8D8D;
+    font-size: 15px;
 }
 QFrame#emptyStatePanel {
     background: transparent;
     border: none;
 }
+QFrame#emptyStateOrbit {
+    min-width: 72px;
+    max-width: 72px;
+    min-height: 72px;
+    max-height: 72px;
+    background: transparent;
+    border: 3px solid #F26A21;
+    border-radius: 36px;
+}
+QLabel#emptyStateOrbitDot {
+    color: #F26A21;
+    background: #060606;
+    border: 1px solid #F26A21;
+    border-radius: 8px;
+    font-size: 9px;
+}
 QPushButton#sendButton:disabled {
     color: #555555;
-    background: #121212;
-    border: 1px solid #202020;
+    background: transparent;
+    border: none;
 }
 QPushButton#groundButton:disabled {
     color: #555555;
@@ -102,8 +121,8 @@ QPushButton#groundButton:disabled {
 }
 QLineEdit#promptInput:disabled {
     color: #666666;
-    background: #090909;
-    border-color: #1D1D1D;
+    background: transparent;
+    border: none;
 }
 QComboBox#chatSelector:disabled,
 QComboBox#modelSelector:disabled {
@@ -190,13 +209,16 @@ class PathenaStartupExperience(QObject):
 
         navigation = self.window.findChild(QListWidget, "navigation")
         if navigation is not None:
-            navigation.setFixedHeight(224)
-            for index in range(navigation.count()):
-                item = navigation.item(index)
-                item.setSizeHint(QSize(164, 32))
-                tooltip = item.toolTip().strip()
-                if tooltip:
-                    item.setData(Qt.ItemDataRole.AccessibleTextRole, tooltip)
+            if self.window.findChild(QFrame, "convergenceHost") is None:
+                navigation.setFixedHeight(224)
+                for index in range(navigation.count()):
+                    item = navigation.item(index)
+                    item.setSizeHint(QSize(164, 32))
+                    tooltip = item.toolTip().strip()
+                    if tooltip:
+                        item.setData(Qt.ItemDataRole.AccessibleTextRole, tooltip)
+            else:
+                navigation.setFixedHeight(270)
 
         pallas = self.window.findChild(QWidget, "pallasVisualPlaceholder")
         if pallas is not None:
@@ -235,7 +257,7 @@ class PathenaStartupExperience(QObject):
             prompt.setMinimumHeight(46)
 
         send = self.window.findChild(QPushButton, "sendButton")
-        if send is not None:
+        if send is not None and self.window.findChild(QFrame, "convergenceHost") is None:
             send.setMinimumWidth(66)
             send.setMaximumWidth(78)
 
@@ -278,27 +300,25 @@ class PathenaStartupExperience(QObject):
 
     @staticmethod
     def _sync_empty_state_copy(
-        *, title: QLabel, body: QLabel, raw_text: str, core_ready: bool
+        *,
+        eyebrow: QLabel,
+        title: QLabel,
+        body: QLabel,
+        raw_text: str,
+        core_ready: bool,
     ) -> None:
-        if not core_ready:
-            title.setText("Getting pATHENA ready")
-            body.setText(
-                "pATHENA reconnects automatically. Chat, knowledge, research and "
-                "files remain local while the workspace comes online."
-            )
-        elif raw_text.startswith("Conversation deleted"):
+        if raw_text.startswith("Conversation deleted"):
+            eyebrow.setText("LOCAL WORKSPACE")
             title.setText("Conversation deleted")
-            body.setText("The local workspace is ready for a new conversation.")
-        else:
-            title.setText("Start a conversation")
-            body.setText(
-                "Ask, explore, or work with your local knowledge. Sources and evidence "
-                "stay available on demand instead of occupying the workspace by default."
-            )
+            body.setText("Ready for a new conversation.")
+            return
+        eyebrow.setText("LOCAL CORE · READY" if core_ready else "LOCAL CORE · CONNECTING")
+        title.setText("Hello, Commander.")
+        body.setText("What shall we explore today?")
 
     @staticmethod
     def _sync_empty_state_width(*, messages: QWidget, panel: QFrame, body: QLabel) -> None:
-        panel_width = max(1, min(560, messages.width() - 32))
+        panel_width = max(1, min(720, messages.width() - 32))
         panel.setFixedWidth(panel_width)
         body.setFixedWidth(max(1, panel_width - 56))
 
@@ -313,11 +333,18 @@ class PathenaStartupExperience(QObject):
         raw_text = raw.text().strip()
         if bool(raw.property("pathenaStartupReplaced")):
             panel = messages.findChild(QFrame, "emptyStatePanel")
+            eyebrow = messages.findChild(QLabel, "emptyStateEyebrow")
             title = messages.findChild(QLabel, "emptyStateTitle")
             body = messages.findChild(QLabel, "emptyStateBody")
-            if panel is not None and title is not None and body is not None:
+            if (
+                panel is not None
+                and eyebrow is not None
+                and title is not None
+                and body is not None
+            ):
                 self._sync_empty_state_width(messages=messages, panel=panel, body=body)
                 self._sync_empty_state_copy(
+                    eyebrow=eyebrow,
                     title=title,
                     body=body,
                     raw_text=raw_text,
@@ -330,16 +357,24 @@ class PathenaStartupExperience(QObject):
 
         panel = QFrame(messages)
         panel.setObjectName("emptyStatePanel")
-        panel.setMinimumHeight(174)
+        panel.setMinimumHeight(250)
         panel.setSizePolicy(
             QSizePolicy.Policy.Fixed,
             QSizePolicy.Policy.Minimum,
         )
         panel_layout = QVBoxLayout(panel)
-        panel_layout.setContentsMargins(28, 26, 28, 26)
-        panel_layout.setSpacing(10)
+        panel_layout.setContentsMargins(28, 24, 28, 24)
+        panel_layout.setSpacing(12)
 
-        eyebrow = QLabel("LOCAL-FIRST WORKSPACE", panel)
+        orbit = QFrame(panel)
+        orbit.setObjectName("emptyStateOrbit")
+        orbit.setFixedSize(72, 72)
+        orbit_dot = QLabel("", orbit)
+        orbit_dot.setObjectName("emptyStateOrbitDot")
+        orbit_dot.setFixedSize(16, 16)
+        orbit_dot.move(54, 2)
+
+        eyebrow = QLabel(panel)
         eyebrow.setObjectName("emptyStateEyebrow")
         eyebrow.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         eyebrow.setMinimumHeight(16)
@@ -347,23 +382,25 @@ class PathenaStartupExperience(QObject):
         title = QLabel(panel)
         title.setObjectName("emptyStateTitle")
         title.setAlignment(Qt.AlignmentFlag.AlignHCenter)
-        title.setMinimumHeight(34)
+        title.setMinimumHeight(52)
         title.setWordWrap(False)
 
         body = QLabel(panel)
         body.setObjectName("emptyStateBody")
         body.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
         body.setWordWrap(True)
-        body.setMinimumHeight(50)
+        body.setMinimumHeight(36)
 
         self._sync_empty_state_width(messages=messages, panel=panel, body=body)
         self._sync_empty_state_copy(
+            eyebrow=eyebrow,
             title=title,
             body=body,
             raw_text=raw_text,
             core_ready=core_ready,
         )
 
+        panel_layout.addWidget(orbit, 0, Qt.AlignmentFlag.AlignHCenter)
         panel_layout.addWidget(eyebrow)
         panel_layout.addWidget(title)
         panel_layout.addWidget(body, 0, Qt.AlignmentFlag.AlignHCenter)

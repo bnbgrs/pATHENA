@@ -41,15 +41,15 @@ class Palette:
 
 @dataclass(frozen=True, slots=True)
 class Typography:
-    """Editorial display + restrained sans-serif application hierarchy."""
+    """Compact technical hierarchy shared by the eleven-screen reference family."""
 
     content_family: str = '"Segoe UI Variable", "Segoe UI", sans-serif'
-    display_family: str = '"Georgia", "Times New Roman", serif'
+    display_family: str = '"Segoe UI Variable Display", "Segoe UI Variable", "Segoe UI", sans-serif'
     metadata_family: str = '"Cascadia Mono", "Consolas", monospace'
     body_px: int = 15
-    metadata_px: int = 12
-    title_px: int = 42
-    section_px: int = 20
+    metadata_px: int = 11
+    title_px: int = 30
+    section_px: int = 18
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,7 +69,7 @@ class Radii:
     control: int = 6
     panel: int = 8
     prominent: int = 14
-    composer: int = 22
+    composer: int = 18
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,8 +84,8 @@ class ShellGeometry:
     """Stable geometry derived from the eleven-screen reference family."""
 
     top_bar_height: int = 60
-    icon_rail_width: int = 76
-    secondary_nav_width: int = 236
+    icon_rail_width: int = 248
+    secondary_nav_width: int = 220
     inspector_width: int = 360
     composer_min_height: int = 58
     composer_action_size: int = 44
