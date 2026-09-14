@@ -4,31 +4,29 @@ Evidence-only progress register for `develop/pathena-next`. No invented completi
 
 ## Current baseline
 
-- Develop parent before this integration: `cbe5854e35f6914cc785a2397718f6faff44eb03`.
-- Exact canonical Quality on that parent: `34843863295 = SUCCESS`.
+- Develop parent before this integration: `5048e8f2e88c1ac0553d3052db48c9c3be22bff1`.
+- Exact canonical Quality on that parent: `34851187301 = SUCCESS`.
 - Persistent release guards remain mandatory and unchanged.
 
 ## Current integration state
 
-This candidate bundles two independently verified, disjoint bounded slices to reduce Full-Gate idle time without weakening gate discipline.
+A single bounded Backend slice adds deterministic planning for periodic Deep backup verification. Exact source head `d0da4ca3677ebcda1e65e1637fd0d447810fb7fb`; Backend Focused `34851416776 = SUCCESS`; canonical Quality `34851416765 = SUCCESS`.
 
-Core adds deterministic canonical Knowledge supersession planning through the curated relation registry. `superseded_by` is directed Knowledge-to-Knowledge semantics; the planner is persistence-neutral, preserves historical identities, rejects malformed/duplicate/self-supersession inputs and fails closed on registry fallback or semantic drift. Exact source evidence: `7719c3f18de715fe1343980bdc466a2d12cdb286`, Core Focused `34843539383 = SUCCESS`, canonical Quality `34843539369 = SUCCESS`.
+The integrated delta is restricted to a new planner module and focused unit tests. It selects only active, completed, non-pruned restore points whose Deep verification is due; excludes failed/offline/not-due snapshots; emits deterministic occurrence/idempotency identity; and performs no backup creation, verification execution, schema, migration or recovery mutation. The worker history itself is not merged.
 
-Backend adds a scheduler-owned WAL control-housekeeping entrypoint around the existing interval runner. It preserves provider-lane side-effect freedom, injected monotonic-clock behavior, bounded scheduling and existing no-thread/no-retry/no-TRUNCATE constraints. It introduces no schema or migration. Exact source evidence: `8d2b07d4015f34328541ef035a155fd65d13dbf8`, Storage Focused `34844716718 = SUCCESS`, canonical Quality `34844716724 = SUCCESS`.
-
-The two slices share no product/test files and no migration, schema, Security or Recovery prerequisite. Current Develop changes after their compatible bases are outside both slices. A fresh canonical Quality run on the resulting exact Develop SHA is required before any further Develop mutation.
+`BUNDLED_SLICES=NONE` because this slice is Storage/Recovery-adjacent and is intentionally integrated alone.
 
 ## Current worker truth
 
-- Errors `22d7a2534ff7c256bcf95f9caeb386de4d9c5a61`: classification/documentation only; no separate product slice.
-- Spec/Core `7719c3f18de715fe1343980bdc466a2d12cdb286`: supersession slice included in this candidate.
-- Backend `8d2b07d4015f34328541ef035a155fd65d13dbf8`: WAL control-housekeeping slice included in this candidate.
-- UI `575b8de0a4f25f512e423c78623bfa5b398c379d`: exact canonical Quality was still running at qualification time; not READY for this bundle.
+- Errors `a80e39b8b1669086d8db00deea10a7d37041507f`: evidence refresh only.
+- Spec/Core `7719c3f18de715fe1343980bdc466a2d12cdb286`: previously integrated supersession work.
+- Backend `d0da4ca3677ebcda1e65e1637fd0d447810fb7fb`: selected bounded Deep-verification planner.
+- UI `575b8de0a4f25f512e423c78623bfa5b398c379d`: not selected in this candidate.
 
 ## Error and visual truth rules
 
-- `docs/agent_logs/ERROR_LEDGER.md` is historical wherever newer exact-SHA evidence exists; no historical signature is treated as OPEN without current reproduction.
-- Eleven-screen status remains fail-closed. Only slot 01 has direct opened reference evidence. No visual `MATCH` without opened original reference plus a real exact-SHA render and reviewed comparison.
+- Historical Error-Ledger signatures are not OPEN without current reproduction.
+- Eleven-screen status remains fail-closed; no visual `MATCH` without opened original reference plus real exact-SHA render and reviewed comparison.
 - Verified Send target remains 44×44 outer geometry.
 
 ## Persistent release guards
@@ -39,4 +37,4 @@ Do not relax: pypdf packaging; fail-closed Frozen argv; Desktop/Worker two-EXE s
 
 `PROMOTION_READY=NO`
 
-Require terminal canonical Quality `SUCCESS` on the resulting exact Develop SHA. After success, reload current worker heads and exact evidence before any subsequent integration.
+Require terminal canonical Quality `SUCCESS` on the resulting exact Develop SHA before any further Develop mutation.
