@@ -3,32 +3,31 @@
 ## Current integration
 
 - Integration target: `develop/pathena-next`.
-- Develop parent before this integration: `5048e8f2e88c1ac0553d3052db48c9c3be22bff1`.
-- Exact canonical Quality on that parent: `34851187301 = SUCCESS`.
+- Develop parent before this integration: `240dc90eb61c4ec69362a5a6b28d9a1072c93813`.
+- Exact canonical Quality on that parent: `34879225369 = SUCCESS`.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
-- `BUNDLED_SLICES=NONE` — this is a single Backend-owned bounded slice; Storage/Recovery-adjacent work is not bundled.
+- `BUNDLED_SLICES=NONE` — single bounded Core-owned Knowledge-read composition slice.
 
-## Iteration — periodic Deep backup verification planner
+## Iteration — canonical Knowledge read attachment
 
-Source head: `d0da4ca3677ebcda1e65e1637fd0d447810fb7fb`.
-Exact evidence: Backend Focused `34851416776 = SUCCESS`; canonical Quality `34851416765 = SUCCESS`.
+Source head: `63457beb6e96fb4dc48b3b1b217bcefab90c4a22`.
+Exact evidence: Core Focused `34867476719 = SUCCESS`; canonical Quality `34867476727 = SUCCESS`.
 
-Only two bounded blobs are integrated from the worker lineage: `src/athena/jobs/backup_verify.py` and `tests/unit/test_backup_deep_verify_planner.py`. No worker history is merged.
+Only four bounded product/test blobs are extracted from the divergent worker lineage: `src/athena/api/knowledge_read_composition.py`, `src/athena/api/service.py`, `tests/unit/test_api_knowledge_read_facade.py`, and `tests/unit/test_knowledge_read_composition.py`. Worker history and worker handoff are not merged.
 
-The new planner deterministically selects the oldest active completed backup snapshot whose Deep verification is due. It excludes failed, pruned, offline and not-due snapshots, uses a deterministic occurrence slot and idempotency key, leaves retryable environment/busy failures due for later orchestration, and fails closed on invalid runtime types or negative timestamps. It performs no backup creation, verification execution, schema change, migration or recovery mutation.
+The slice composes Why-known and revision-history reads over one canonical Knowledge source, attaches exactly one `KnowledgeReadApiService` to `CoreApiFacade`, exposes capabilities only after attachment, delegates without rewriting returned domain projections, and preserves fail-closed malformed-ID and duplicate-attachment behavior.
 
 ## Current worker truth at integration time
 
-- Errors: `a80e39b8b1669086d8db00deea10a7d37041507f` — documentation/evidence refresh only.
-- Spec/Core: `7719c3f18de715fe1343980bdc466a2d12cdb286` — supersession slice already represented in Develop.
-- Backend: `d0da4ca3677ebcda1e65e1637fd0d447810fb7fb` — bounded Deep verification planner selected here.
-- UI: `575b8de0a4f25f512e423c78623bfa5b398c379d` — not selected; separate PALLAS candidate qualification remains UI-owned.
+- Errors: `5b9788db2c3375c90967bf9633b82c5891827c78` — documentation of exact UI regressions; no independent product slice selected.
+- Spec/Core: `63457beb6e96fb4dc48b3b1b217bcefab90c4a22` — bounded Knowledge-read attachment selected here.
+- Backend: `bef909bf9097000142822e210cec5407e5f4f77b` — newer Deep-verify payload enforcement; Recovery-adjacent and not bundled.
+- UI: `a6298adb68af02537b87b26433003d830adb569d` — no current integrator-ready bounded slice selected.
 
 ## Source-of-truth notes
 
-- `docs/agent_logs/ERROR_LEDGER.md` remains historical wherever newer exact-SHA evidence exists; historical signatures are not OPEN without current reproduction.
+- `docs/agent_logs/ERROR_LEDGER.md` remains historical where newer exact-SHA evidence exists; historical signatures are not OPEN without current reproduction.
 - `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` and `docs/ui/VISUAL_GAP_LEDGER.md` remain fail-closed: no `MATCH` without opened original reference and real exact-SHA render. Verified Send target remains 44×44 outer geometry.
-- The Backend worker handoff is stale relative to its current head, so this integration relies only on the bounded current-head code/test delta plus exact-head focused and canonical evidence; no broader Backend claims are imported.
 
 ## Persistent release guards
 
