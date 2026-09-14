@@ -4,8 +4,9 @@ import sqlite3
 from pathlib import Path
 
 from athena.storage.schema import (
-    GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID,
     GROUNDED_RESPONSE_RECEIPT_SCHEMA_VERSION,
+    JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
+    JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION,
     OPERATIONAL_ERROR_PHYSICAL_CLEANUP_MIGRATION_ID,
     OPERATIONAL_ERROR_PHYSICAL_CLEANUP_SCHEMA_VERSION,
     PROTECTED_SOURCE_SEMANTIC_SCHEMA_VERSION,
@@ -70,10 +71,11 @@ def test_fresh_database_reaches_protected_source_semantic_schema(
             == 39
         )
 
+        assert GROUNDED_RESPONSE_RECEIPT_SCHEMA_VERSION == 40
         assert (
             SCHEMA_VERSION
-            == GROUNDED_RESPONSE_RECEIPT_SCHEMA_VERSION
-            == 40
+            == JOB_DEPENDENCY_GRAPH_SCHEMA_VERSION
+            == 41
         )
 
         assert int(
@@ -98,7 +100,7 @@ def test_fresh_database_reaches_protected_source_semantic_schema(
                     "last_migration_id"
                 ]
             )
-            == GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID
+            == JOB_DEPENDENCY_GRAPH_MIGRATION_ID
         )
 
         assert int(
@@ -129,6 +131,11 @@ def test_fresh_database_reaches_protected_source_semantic_schema(
             in tables
         )
 
+        assert {
+            "job_parent_links",
+            "job_dependencies",
+        }.issubset(tables)
+
         assert (
             connection.execute(
                 "PRAGMA foreign_key_check"
@@ -154,7 +161,7 @@ def test_realistic_v38_database_migrates_additively_to_v39(
 
     try:
         # Build the complete current schema first,
-        # then remove only the additive v39 state and
+        # then remove later additive state and
         # restore v38 metadata. This yields an exact
         # structural v38 predecessor using the same
         # local schema implementation.
@@ -163,6 +170,8 @@ def test_realistic_v38_database_migrates_additively_to_v39(
             created_at_us=1,
         )
 
+        connection.execute("DROP TABLE job_dependencies")
+        connection.execute("DROP TABLE job_parent_links")
         connection.execute(
             """
             DROP TABLE
@@ -239,7 +248,7 @@ def test_realistic_v38_database_migrates_additively_to_v39(
                     "last_migration_id"
                 ]
             )
-            == GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID
+            == JOB_DEPENDENCY_GRAPH_MIGRATION_ID
         )
 
         assert (

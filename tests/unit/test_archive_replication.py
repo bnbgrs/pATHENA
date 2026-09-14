@@ -11,7 +11,7 @@ from athena.jobs.models import JobPriority, JobState, WaitingReason
 from athena.source.models import BlobStorageArea
 from athena.storage.database import SQLiteDatabase
 from athena.storage.schema import (
-    GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID,
+    JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
     NEWS_EVENT_ELIGIBILITY_MIGRATION_ID,
     NEWS_EVENT_ELIGIBILITY_SCHEMA_VERSION,
     SCHEMA_VERSION,
@@ -680,6 +680,12 @@ def test_v30_to_v31_migration_creates_replication_schema(
     # rewriting schema metadata. Production migration
     # behavior intentionally remains fail-closed.
     legacy.execute(
+        "DROP TABLE IF EXISTS job_dependencies"
+    )
+    legacy.execute(
+        "DROP TABLE IF EXISTS job_parent_links"
+    )
+    legacy.execute(
         "DROP TABLE IF EXISTS "
         "grounded_response_receipts"
     )
@@ -816,7 +822,7 @@ def test_v30_to_v31_migration_creates_replication_schema(
 
         assert tuple(metadata) == (
             SCHEMA_VERSION,
-            GROUNDED_RESPONSE_RECEIPT_MIGRATION_ID,
+            JOB_DEPENDENCY_GRAPH_MIGRATION_ID,
             SCHEMA_VERSION,
         )
 
@@ -870,6 +876,12 @@ def test_v30_migration_backfills_existing_spool_blob(
     # fixture declares the database to be an
     # older schema boundary. Production migration
     # behavior remains intentionally fail-closed.
+    legacy.execute(
+        "DROP TABLE IF EXISTS job_dependencies"
+    )
+    legacy.execute(
+        "DROP TABLE IF EXISTS job_parent_links"
+    )
     legacy.execute(
         "DROP TABLE IF EXISTS "
         "grounded_response_receipts"
