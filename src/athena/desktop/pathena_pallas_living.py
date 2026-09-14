@@ -3,6 +3,7 @@
 This module changes presentation state only. It never mutates semantic graph
 membership or invents provenance edges.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -11,7 +12,11 @@ import re
 from dataclasses import dataclass
 from typing import Mapping
 
-from athena.desktop.pathena_pallas_semantic import PallasGraphSnapshot, PallasNodeKind, PallasSemanticNode
+from athena.desktop.pathena_pallas_semantic import (
+    PallasGraphSnapshot,
+    PallasNodeKind,
+    PallasSemanticNode,
+)
 
 _TOKEN_RE = re.compile(r"[\w-]+", re.UNICODE)
 _AGE = ("·", ":", "+", "o", "O", "░", "▒", "▓", "█")
@@ -74,7 +79,11 @@ class PallasLivingEngine:
     ) -> None:
         seeds = seed_positions or {}
         ids = {node.node_id for node in snapshot.nodes}
-        self.states = {node_id: state for node_id, state in self.states.items() if node_id in ids}
+        self.states = {
+            node_id: state
+            for node_id, state in self.states.items()
+            if node_id in ids
+        }
         had_state = bool(self.states)
         for node in sorted(snapshot.nodes, key=lambda item: item.node_id):
             state = self.states.get(node.node_id)
@@ -84,7 +93,9 @@ class PallasLivingEngine:
                 continue
             x, y = seeds.get(node.node_id, _stable_seed(node.node_id))
             self.states[node.node_id] = PallasLivingNodeState(
-                node.node_id, float(x), float(y),
+                node.node_id,
+                float(x),
+                float(y),
                 vitality=1.0 if node.node_id == snapshot.focus_id else 0.82,
             )
         self.snapshot = snapshot
@@ -99,8 +110,12 @@ class PallasLivingEngine:
         dt = 1.0 / c.fps if dt is None else min(max(float(dt), 1 / 240), 0.1)
         nodes = tuple(sorted(graph.nodes, key=lambda item: item.node_id))
         by_id = {node.node_id: node for node in nodes}
-        force = {node.node_id: [0.0, 0.0] for node in nodes}
-        neighbors = {node.node_id: set() for node in nodes}
+        force: dict[str, list[float]] = {
+            node.node_id: [0.0, 0.0] for node in nodes
+        }
+        neighbors: dict[str, set[str]] = {
+            node.node_id: set() for node in nodes
+        }
         conflict_pairs: set[frozenset[str]] = set()
 
         for edge in graph.edges:
@@ -113,21 +128,35 @@ class PallasLivingEngine:
             self._pair_force(edge.source_id, edge.target_id, force, spring=True)
 
         for index, left in enumerate(nodes):
-            for right in nodes[index + 1:]:
+            for right in nodes[index + 1 :]:
                 pair = frozenset((left.node_id, right.node_id))
-                ratio = c.contradiction_repulsion / max(c.global_repulsion, 1e-9) if pair in conflict_pairs else 1.0
+                ratio = (
+                    c.contradiction_repulsion / max(c.global_repulsion, 1e-9)
+                    if pair in conflict_pairs
+                    else 1.0
+                )
                 self._pair_force(left.node_id, right.node_id, force, repulsion=ratio)
                 similarity = semantic_similarity(left, right)
                 if similarity >= c.semantic_threshold:
-                    self._pair_force(left.node_id, right.node_id, force, attraction=similarity)
+                    self._pair_force(
+                        left.node_id,
+                        right.node_id,
+                        force,
+                        attraction=similarity,
+                    )
 
-        conflict_ids = {node.node_id for node in nodes if node.kind is PallasNodeKind.CONFLICT}
+        conflict_ids = {
+            node.node_id for node in nodes if node.kind is PallasNodeKind.CONFLICT
+        }
         for conflict_id in conflict_ids:
             for node in nodes:
-                if node.node_id != conflict_id and frozenset((conflict_id, node.node_id)) not in conflict_pairs:
+                pair = frozenset((conflict_id, node.node_id))
+                if node.node_id != conflict_id and pair not in conflict_pairs:
                     self._pair_force(conflict_id, node.node_id, force, repulsion=1.55)
 
-        previous = {node_id: state.vitality for node_id, state in self.states.items()}
+        previous = {
+            node_id: state.vitality for node_id, state in self.states.items()
+        }
         active = {node_id: state.active for node_id, state in self.states.items()}
         damping = c.damping ** (dt * c.fps)
         for node in nodes:
@@ -135,23 +164,42 @@ class PallasLivingEngine:
             pull = c.focus_pull if node.node_id == graph.focus_id else c.center_pull
             phase = _phase(node.node_id)
             temporal = state.age_seconds * 0.13 + self.tick * 0.021
-            force[node.node_id][0] += -state.x * pull / 100 + math.sin(phase + temporal) * c.temporal_drift
-            force[node.node_id][1] += -state.y * pull / 100 + math.cos(phase * 0.71 + temporal) * c.temporal_drift
+            force[node.node_id][0] += (
+                -state.x * pull / 100
+                + math.sin(phase + temporal) * c.temporal_drift
+            )
+            force[node.node_id][1] += (
+                -state.y * pull / 100
+                + math.cos(phase * 0.71 + temporal) * c.temporal_drift
+            )
 
             linked = neighbors[node.node_id]
             alive = sum(1 for other in linked if active.get(other, False))
-            target = (0.72 if 1 <= alive <= 5 else 0.42) if state.active else (0.62 if alive >= 2 else 0.08)
+            if state.active:
+                target = 0.72 if 1 <= alive <= 5 else 0.42
+            else:
+                target = 0.62 if alive >= 2 else 0.08
             target += 0.12 if node.cited else 0.0
             target += 0.14 if node.node_id == graph.focus_id else 0.0
-            target += 0.10 * max(0.0, min(1.0, node.confidence)) if node.confidence is not None else 0.0
+            if node.confidence is not None:
+                target += 0.10 * max(0.0, min(1.0, node.confidence))
             if linked:
                 mean = sum(previous[other] for other in linked) / len(linked)
                 diffusion = (mean - previous[node.node_id]) * c.vitality_diffusion
             else:
                 diffusion = 0.0
-            age_factor = 1 + min(state.age_seconds / max(c.aging_horizon_seconds, 1), 2) * 0.25
-            delta = ((min(target, 1.0) - previous[node.node_id]) * c.vitality_relaxation + diffusion - c.vitality_decay * age_factor) * dt
-            state.vitality = min(1.0, max(0.03, previous[node.node_id] + delta))
+            age_factor = 1 + min(
+                state.age_seconds / max(c.aging_horizon_seconds, 1), 2
+            ) * 0.25
+            delta = (
+                (min(target, 1.0) - previous[node.node_id]) * c.vitality_relaxation
+                + diffusion
+                - c.vitality_decay * age_factor
+            ) * dt
+            state.vitality = min(
+                1.0,
+                max(0.03, previous[node.node_id] + delta),
+            )
             state.active = state.vitality >= c.active_threshold
             state.age_seconds += dt
 
@@ -197,7 +245,11 @@ class PallasLivingEngine:
         ux, uy = dx / distance, dy / distance
         magnitude = 0.0
         if spring:
-            magnitude += c.edge_spring * (distance - c.edge_rest_length) / max(c.edge_rest_length, 1)
+            magnitude += (
+                c.edge_spring
+                * (distance - c.edge_rest_length)
+                / max(c.edge_rest_length, 1)
+            )
         if attraction:
             magnitude += c.semantic_attraction * attraction
         if repulsion:
@@ -215,14 +267,20 @@ class PallasLivingEngine:
 
     def age_glyph(self, node_id: str) -> str:
         state = self.states.get(node_id)
-        return age_glyph(0.0 if state is None else state.age_seconds, self.config.aging_horizon_seconds)
+        age = 0.0 if state is None else state.age_seconds
+        return age_glyph(age, self.config.aging_horizon_seconds)
 
     def diagnostics(self) -> dict[str, float | int]:
         values = tuple(self.states.values())
+        mean_vitality = (
+            0.0
+            if not values
+            else sum(state.vitality for state in values) / len(values)
+        )
         return {
             "nodes": len(values),
             "active": sum(state.active for state in values),
-            "mean_vitality": 0.0 if not values else sum(state.vitality for state in values) / len(values),
+            "mean_vitality": mean_vitality,
             "tick": self.tick,
         }
 
@@ -233,12 +291,18 @@ def semantic_similarity(left: PallasSemanticNode, right: PallasSemanticNode) -> 
 
 
 def age_glyph(age_seconds: float, horizon_seconds: float = 300.0) -> str:
-    progress = min(max(float(age_seconds) / max(float(horizon_seconds), 1e-6), 0.0), 1.0)
+    progress = min(
+        max(float(age_seconds) / max(float(horizon_seconds), 1e-6), 0.0),
+        1.0,
+    )
     return _AGE[min(int(progress * len(_AGE)), len(_AGE) - 1)]
 
 
 def _tokens(node: PallasSemanticNode) -> frozenset[str]:
-    return frozenset(token for token in _TOKEN_RE.findall(f"{node.title} {node.summary}".casefold()) if len(token) > 2)
+    text = f"{node.title} {node.summary}".casefold()
+    return frozenset(
+        token for token in _TOKEN_RE.findall(text) if len(token) > 2
+    )
 
 
 def _phase(value: str) -> float:
@@ -247,6 +311,7 @@ def _phase(value: str) -> float:
 
 
 def _stable_seed(value: str) -> tuple[float, float]:
+    digest = hashlib.sha256(value.encode()).digest()
     phase = _phase(value)
-    radius = 90 + int.from_bytes(hashlib.sha256(value.encode()).digest()[:2], "big") / 65535 * 120
+    radius = 90 + int.from_bytes(digest[:2], "big") / 65535 * 120
     return math.cos(phase) * radius, math.sin(phase) * radius
