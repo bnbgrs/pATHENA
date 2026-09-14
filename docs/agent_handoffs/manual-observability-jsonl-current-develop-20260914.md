@@ -6,7 +6,7 @@ Supersedes integration use of old draft #187; the old branch remains provenance 
 
 ## Purpose
 
-Reconstruct the already-reviewed Observability JSONL primitive on the post-#200 Develop line without entering Backend/WAL, Source/OCR, Spec/Core/Knowledge, UI/PALLAS, Security, backup, or packaging ownership.
+Reconstruct and harden the Observability JSONL primitive on the post-#200 Develop line without entering Backend/WAL, Source/OCR, Spec/Core/Knowledge, UI/PALLAS, Security, backup, or packaging ownership.
 
 This slice adds an opt-in persistent JSONL sink only. It deliberately does **not** wire the sink into `AthenaApplication` or any runtime layout, so application startup behavior and existing console logging remain unchanged.
 
@@ -14,6 +14,11 @@ This slice adds an opt-in persistent JSONL sink only. It deliberately does **not
 
 - `configure_jsonl_logging()` uses the standard-library rotating file handler;
 - one privacy-preserving JSON object per line through the already-qualified shared `JsonFormatter`;
+- JSONL is attached to the `athena` logger namespace rather than Root;
+- the `athena` namespace uses explicit level `1`, the lowest practical non-`NOTSET` threshold, so handler thresholds own output routing for normal/custom positive levels;
+- Console may continue to own/reset the Root level without suppressing more-verbose `athena.*` records before JSONL sees them;
+- Console and JSONL can therefore use different levels in either configuration order;
+- any legacy Root-owned ATHENA JSONL handler is removed before the namespace-owned handler is installed;
 - byte-bounded rotation and count-bounded retention;
 - default 8 MiB active-file rollover threshold and 5 retained rotated files;
 - numeric rotated backups outside a later-reduced retention window are removed before the new handler opens;
@@ -24,8 +29,7 @@ This slice adds an opt-in persistent JSONL sink only. It deliberately does **not
 - missing parent directories fail before file creation rather than silently creating filesystem structure;
 - direct symbolic-link log targets and symbolic-link immediate parents fail closed;
 - exactly one ATHENA-owned JSONL handler; repeated equivalent configuration is idempotent;
-- changed path or rotation policy replaces the previous owned file handler deterministically;
-- file configuration lowers the root threshold when necessary so a more-verbose file level can flow in the supported startup order.
+- changed path or rotation policy replaces the previous owned file handler deterministically.
 
 ## Files
 
@@ -42,7 +46,8 @@ No pre-existing product file is changed.
 
 Coverage includes:
 
-- idempotent handler ownership;
+- idempotent namespace-owned handler ownership;
+- no Root-owned JSONL handler after configuration;
 - shared secret and semantic-payload redaction in persisted JSONL;
 - valid JSON for every retained line;
 - bounded rotation;
@@ -51,12 +56,14 @@ Coverage includes:
 - preservation of unrelated siblings;
 - fail-closed non-file stale backup slots;
 - deterministic handler replacement when file path or rotation policy changes;
+- JSONL `DEBUG` remains persisted after later Console `INFO` reconfiguration;
+- Console `DEBUG` can coexist with JSONL `INFO` without leaking DEBUG into the file;
 - fail-closed invalid rotation bounds;
 - fail-closed missing parent and non-`Path` input.
 
 ## Deliberate runtime boundary
 
-This does **not** claim runtime persistence is enabled.
+This still does **not** claim runtime persistence is enabled.
 
 Current `AthenaApplication.start()` performs canonical database read-only integrity preflight before `StorageBootstrapService.start()` is allowed to create or probe runtime directories. `RuntimeLayoutService`, reached through storage bootstrap, owns creation/validation of `RuntimePaths.log_root`.
 
@@ -69,11 +76,7 @@ Do not call `configure_jsonl_logging()` beside the existing early `configure_log
 
 Startup failures before step 4 remain console-only.
 
-## Shared root-level policy still required before production wiring
-
-The current console `configure_logging()` resets the root logger level whenever Console is reconfigured. The JSONL primitive can lower that threshold for a more-verbose file handler, which is correct for the current one-way startup order. A later Console reconfiguration could raise the root threshold again and suppress records that JSONL still needs.
-
-Before persistent JSONL is enabled in production, Console and JSONL configuration must therefore gain one shared deterministic root-level policy: after either ATHENA-owned handler changes, the root threshold must equal the minimum level required by all active ATHENA-owned handlers. Add regressions for both configuration orders and for raising/lowering either handler level. Do not solve this by writing before database preflight or by forcing both outputs to the same level.
+The previous Root-level reconfiguration blocker from #187 is closed by namespace-owned JSONL routing. A later runtime-wiring slice no longer needs to modify the existing Console `configure_logging()` contract merely to support independent Console/JSONL levels.
 
 Cross-layer request/job/model-run correlation remains a separate Observability slice.
 
