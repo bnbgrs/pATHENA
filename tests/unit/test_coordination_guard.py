@@ -39,10 +39,16 @@ def _ledger(*, last_known: str = BASE_SHA) -> dict[str, Any]:
     }
 
 
-def _diff(commits: list[dict[str, object]]) -> dict[str, object]:
+def _diff(
+    commits: list[dict[str, object]],
+    *,
+    candidate_sha: str | None = None,
+) -> dict[str, object]:
+    if candidate_sha is None:
+        candidate_sha = str(commits[-1]["sha"]) if commits else BASE_SHA
     return {
         "base_sha": BASE_SHA,
-        "candidate_sha": CANDIDATE_SHA,
+        "candidate_sha": candidate_sha,
         "commits": commits,
     }
 
@@ -137,7 +143,10 @@ def test_candidate_already_recorded_requires_empty_diff(tmp_path: Path) -> None:
     result = _run_guard(
         tmp_path,
         ledger=_ledger(last_known=CANDIDATE_SHA),
-        diff=_diff([{"sha": "d" * 40, "paths": ["src/athena/storage/x.py"]}]),
+        diff=_diff(
+            [{"sha": CANDIDATE_SHA, "paths": ["src/athena/storage/x.py"]}],
+            candidate_sha=CANDIDATE_SHA,
+        ),
     )
 
     assert result.returncode == 1
@@ -257,3 +266,64 @@ def test_malformed_ledger_arrays_fail_cleanly(tmp_path: Path, field: str) -> Non
     assert result.returncode == 1
     assert f"ledger.{field} must be a JSON array" in result.stdout
     assert "Traceback" not in result.stderr
+
+
+def test_commit_with_empty_paths_fails_closed(tmp_path: Path) -> None:
+    result = _run_guard(
+        tmp_path,
+        ledger=_ledger(),
+        diff=_diff([{"sha": CANDIDATE_SHA, "paths": []}]),
+    )
+
+    assert result.returncode == 1
+    assert "must contain at least one path" in result.stdout
+
+
+def test_commit_with_blank_path_fails_closed(tmp_path: Path) -> None:
+    result = _run_guard(
+        tmp_path,
+        ledger=_ledger(),
+        diff=_diff([{"sha": CANDIDATE_SHA, "paths": ["   "]}]),
+    )
+
+    assert result.returncode == 1
+    assert "must be a non-empty string" in result.stdout
+
+
+def test_changed_candidate_without_commits_fails_closed(tmp_path: Path) -> None:
+    result = _run_guard(
+        tmp_path,
+        ledger=_ledger(),
+        diff=_diff([], candidate_sha=CANDIDATE_SHA),
+    )
+
+    assert result.returncode == 1
+    assert "distinct candidate SHA" in result.stdout
+
+
+def test_candidate_sha_must_match_final_supplied_commit(tmp_path: Path) -> None:
+    result = _run_guard(
+        tmp_path,
+        ledger=_ledger(),
+        diff=_diff(
+            [{"sha": "d" * 40, "paths": ["src/athena/storage/x.py"]}],
+            candidate_sha=CANDIDATE_SHA,
+        ),
+    )
+
+    assert result.returncode == 1
+    assert "must match the final supplied commit SHA" in result.stdout
+
+
+def test_diff_with_commits_must_advance_candidate_sha(tmp_path: Path) -> None:
+    result = _run_guard(
+        tmp_path,
+        ledger=_ledger(),
+        diff=_diff(
+            [{"sha": BASE_SHA, "paths": ["src/athena/storage/x.py"]}],
+            candidate_sha=BASE_SHA,
+        ),
+    )
+
+    assert result.returncode == 1
+    assert "must advance beyond the base SHA" in result.stdout
