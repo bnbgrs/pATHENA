@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 
 from athena.source.representation_providers import (
@@ -97,11 +99,11 @@ class _OCRProvider:
 
     def recognize(
         self,
-        content: bytes,
+        source_path: Path,
         *,
         media_type: str | None = None,
     ) -> OCRResult:
-        del content, media_type
+        del source_path, media_type
         return OCRResult(text="recognized", provider=self.identity)
 
 
@@ -112,11 +114,11 @@ class _SpeechToTextProvider:
 
     def transcribe(
         self,
-        content: bytes,
+        source_path: Path,
         *,
         media_type: str | None = None,
     ) -> SpeechToTextResult:
-        del content, media_type
+        del source_path, media_type
         return SpeechToTextResult(segments=(), provider=self.identity)
 
 
@@ -128,9 +130,11 @@ def _accept_speech_provider(provider: SpeechToTextProvider) -> SpeechToTextProvi
     return provider
 
 
-def test_protocols_accept_structural_provider_implementations() -> None:
+def test_protocols_accept_structural_provider_implementations(tmp_path: Path) -> None:
     ocr_provider = _accept_ocr_provider(_OCRProvider())
     speech_provider = _accept_speech_provider(_SpeechToTextProvider())
+    source_path = tmp_path / "source.bin"
+    source_path.write_bytes(b"source")
 
-    assert ocr_provider.recognize(b"image").text == "recognized"
-    assert speech_provider.transcribe(b"audio").segments == ()
+    assert ocr_provider.recognize(source_path).text == "recognized"
+    assert speech_provider.transcribe(source_path).segments == ()
