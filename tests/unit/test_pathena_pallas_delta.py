@@ -131,6 +131,22 @@ def test_delta_rejects_duplicate_nodes_and_edges() -> None:
         compare_pallas_snapshots(duplicate_edges, clean)
 
 
+def test_delta_rejects_dangling_edge_and_focus_references() -> None:
+    node = _node("a")
+    clean = _snapshot("clean", (node,))
+    dangling_edge = _snapshot(
+        "dangling-edge",
+        (node,),
+        (PallasSemanticEdge("a", "missing", "supports"),),
+    )
+    with pytest.raises(ValueError, match="edge references a missing node"):
+        compare_pallas_snapshots(clean, dangling_edge)
+
+    dangling_focus = _snapshot("dangling-focus", (node,), focus_id="missing")
+    with pytest.raises(ValueError, match="focus ID references a missing node"):
+        compare_pallas_snapshots(clean, dangling_focus)
+
+
 def test_activity_tracker_uses_first_snapshot_as_baseline_and_can_reset() -> None:
     tracker = PallasActivityTracker()
     first = _snapshot("first", (_node("a"),))
@@ -147,6 +163,16 @@ def test_activity_tracker_uses_first_snapshot_as_baseline_and_can_reset() -> Non
     tracker.reset()
     assert tracker.has_baseline is False
     assert tracker.observe(second) is None
+
+
+def test_activity_tracker_rejects_invalid_initial_baseline() -> None:
+    tracker = PallasActivityTracker()
+    invalid = _snapshot("invalid", (_node("a"),), focus_id="missing")
+
+    with pytest.raises(ValueError, match="focus ID references a missing node"):
+        tracker.observe(invalid)
+
+    assert tracker.has_baseline is False
 
 
 def test_activity_tracker_keeps_last_valid_baseline_after_rejected_update() -> None:
