@@ -23,6 +23,7 @@ from athena.source.blob_store import (
     PreparedBlob,
     SourceChangedDuringCaptureError,
     SourceFileNotReadableError,
+    SourceFileTooLargeError,
 )
 from athena.source.models import BlobRecord, SourceType
 
@@ -44,6 +45,25 @@ def _nonnegative_exact_int(value: object) -> int:
     if isinstance(value, bool) or not isinstance(value, int) or value < 0:
         raise _metadata_integrity_error()
     return value
+
+
+def _validated_max_file_bytes(value: int | None) -> int | None:
+    if value is None:
+        return None
+    if type(value) is not int or value < 0:
+        raise ValueError("max_file_bytes must be a non-negative integer or None.")
+    return value
+
+
+def _ensure_within_capture_limit(
+    *,
+    prospective_size: int,
+    max_file_bytes: int | None,
+) -> None:
+    if max_file_bytes is not None and prospective_size > max_file_bytes:
+        raise SourceFileTooLargeError(
+            "Protected Source exceeds the configured maximum capture size."
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -193,7 +213,9 @@ class ProtectedBlobStore:
         *,
         protection_scope_id: uuid.UUID,
         source_type: SourceType = SourceType.FILE,
+        max_file_bytes: int | None = None,
     ) -> PreparedProtectedBlob:
+        max_file_bytes = _validated_max_file_bytes(max_file_bytes)
         if not isinstance(path, Path):
             raise SourceFileNotReadableError(
                 "Protected Source path must be a pathlib.Path value."
@@ -218,6 +240,10 @@ class ProtectedBlobStore:
             raise SourceFileNotReadableError(
                 "Protected Source path is not a regular file."
             )
+        _ensure_within_capture_limit(
+            prospective_size=before.st_size,
+            max_file_bytes=max_file_bytes,
+        )
 
         blob_id = new_uuid7()
         nonce_prefix = secrets.token_bytes(8)
@@ -253,6 +279,11 @@ class ProtectedBlobStore:
                         chunk = source.read(PROTECTED_BLOB_CHUNK_SIZE)
                         if not chunk:
                             break
+                        next_plaintext_length = plaintext_length + len(chunk)
+                        _ensure_within_capture_limit(
+                            prospective_size=next_plaintext_length,
+                            max_file_bytes=max_file_bytes,
+                        )
                         if chunk_index > 0xFFFFFFFF:
                             raise ValueError(
                                 "Protected Blob exceeds the v1 chunk-index range."
@@ -274,7 +305,7 @@ class ProtectedBlobStore:
                         target.write(encrypted.ciphertext)
                         digest.update(frame_header)
                         digest.update(encrypted.ciphertext)
-                        plaintext_length += len(chunk)
+                        plaintext_length = next_plaintext_length
                         ciphertext_length += len(frame_header) + len(encrypted.ciphertext)
                         chunk_index += 1
 
