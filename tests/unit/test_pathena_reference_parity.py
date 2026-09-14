@@ -66,8 +66,9 @@ def test_reference_parity_applies_shared_reference_geometry() -> None:
         assert icon_rail is not None
         assert composer is not None
         assert inspector is not None
-        assert top_bar.minimumHeight() == SHELL.top_bar_height
-        assert top_bar.maximumHeight() == SHELL.top_bar_height
+        # Qt includes the styled 1 px frame in the effective fixed geometry.
+        assert top_bar.minimumHeight() == SHELL.top_bar_height + top_bar.frameWidth()
+        assert top_bar.maximumHeight() == SHELL.top_bar_height + top_bar.frameWidth()
         assert icon_rail.width() == SHELL.icon_rail_width
         assert inspector.width() == SHELL.inspector_width + inspector.frameWidth()
         assert composer.minimumHeight() == 80
