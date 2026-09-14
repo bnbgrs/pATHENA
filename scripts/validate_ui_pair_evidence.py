@@ -1,10 +1,9 @@
-"""Fail closed unless pATHENA visual evidence is paired to the authoritative 11 references.
+"""Validate visual evidence against the authoritative pATHENA 11-screen set.
 
-This validator is intentionally independent of rendering. It decides only whether a
-human visual verdict is evidence-eligible: every slot has a canonical original
-reference identity/state, both original and exact-SHA runtime render must have been
-opened for a substantive verdict, and cross-state/cross-reference comparisons are
-rejected.
+The validator is intentionally independent of rendering. It decides whether a
+human visual verdict is evidence-eligible: every slot must identify the canonical
+original state, and substantive verdicts require an opened exact-SHA runtime render
+of that same state.
 """
 
 from __future__ import annotations
@@ -19,6 +18,7 @@ from typing import Any
 
 _SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 _ALLOWED_VERDICTS = frozenset({"MATCH", "CLOSE", "GAP", "UNVERIFIED"})
+_SUBSTANTIVE_VERDICTS = frozenset({"MATCH", "CLOSE", "GAP"})
 
 
 @dataclass(frozen=True, slots=True)
@@ -103,6 +103,14 @@ def _normalized(value: str) -> str:
     return unicodedata.normalize("NFC", value)
 
 
+def _nonblank_text(value: object) -> bool:
+    return isinstance(value, str) and bool(value.strip())
+
+
+def _valid_gap_descriptions(value: object) -> bool:
+    return isinstance(value, list) and all(_nonblank_text(item) for item in value)
+
+
 def _load(path: Path) -> list[dict[str, Any]]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(payload, list):
@@ -139,19 +147,26 @@ def validate_pair_evidence(rows: list[dict[str, Any]]) -> dict[str, object]:
         reference_id = row.get("reference_id")
         reference_file = row.get("reference_file")
         reference_state = row.get("reference_state")
-        if reference_id != reference.reference_id:
+        reference_id_matches = reference_id == reference.reference_id
+        reference_file_matches = (
+            isinstance(reference_file, str)
+            and _normalized(reference_file) == _normalized(reference.filename)
+        )
+        reference_state_matches = reference_state == reference.state
+
+        if not reference_id_matches:
             errors.append(
-                f"slot {slot}: reference_id {reference_id!r} != {reference.reference_id!r}"
+                f"slot {slot}: reference_id {reference_id!r} != "
+                f"{reference.reference_id!r}"
             )
-        if not isinstance(reference_file, str) or _normalized(reference_file) != _normalized(
-            reference.filename
-        ):
+        if not reference_file_matches:
             errors.append(
                 f"slot {slot}: reference_file does not identify authoritative original"
             )
-        if reference_state != reference.state:
+        if not reference_state_matches:
             errors.append(
-                f"slot {slot}: reference_state {reference_state!r} != {reference.state!r}"
+                f"slot {slot}: reference_state {reference_state!r} != "
+                f"{reference.state!r}"
             )
 
         reference_opened = row.get("reference_opened") is True
@@ -160,35 +175,55 @@ def validate_pair_evidence(rows: list[dict[str, Any]]) -> dict[str, object]:
         render_sha = row.get("render_sha")
         render_state = row.get("render_state")
         exact_sha = isinstance(render_sha, str) and _SHA_RE.fullmatch(render_sha) is not None
-        same_state = reference_state == reference.state and render_state == reference.state
+        render_id_valid = _nonblank_text(render_id)
+        same_state = reference_state_matches and render_state == reference.state
 
-        if reference_opened and not isinstance(reference_file, str):
-            errors.append(f"slot {slot}: opened reference requires reference_file")
-        if render_opened and not isinstance(render_id, str):
-            errors.append(f"slot {slot}: opened render requires render_id")
+        if render_opened and not render_id_valid:
+            errors.append(f"slot {slot}: opened render requires non-blank render_id")
         if render_opened and not exact_sha:
-            errors.append(f"slot {slot}: opened render requires exact lowercase 40-char SHA")
+            errors.append(
+                f"slot {slot}: opened render requires exact lowercase 40-char SHA"
+            )
 
-        pair_verified = reference_opened and render_opened and exact_sha and same_state
+        identity_matches = (
+            reference_id_matches and reference_file_matches and reference_state_matches
+        )
+        pair_verified = (
+            identity_matches
+            and reference_opened
+            and render_opened
+            and render_id_valid
+            and exact_sha
+            and same_state
+        )
         if pair_verified:
             verified_pairs += 1
 
-        if verdict in {"MATCH", "CLOSE", "GAP"}:
+        if verdict in _SUBSTANTIVE_VERDICTS:
             if not reference_opened:
                 errors.append(f"slot {slot}: {verdict} requires opened original reference")
             if not render_opened:
                 errors.append(f"slot {slot}: {verdict} requires opened exact runtime render")
+            if not render_id_valid:
+                errors.append(f"slot {slot}: {verdict} requires non-blank render_id")
             if not exact_sha:
                 errors.append(f"slot {slot}: {verdict} requires exact runtime SHA")
             if not same_state:
                 errors.append(
-                    f"slot {slot}: {verdict} requires canonical same-state render {reference.state!r}"
+                    f"slot {slot}: {verdict} requires canonical same-state render "
+                    f"{reference.state!r}"
                 )
 
         visible_gaps = row.get("visible_gaps")
+        if visible_gaps is not None and not _valid_gap_descriptions(visible_gaps):
+            errors.append(
+                f"slot {slot}: visible_gaps must be a list of non-blank strings"
+            )
         if verdict == "MATCH" and visible_gaps not in ([], None):
             errors.append(f"slot {slot}: MATCH cannot carry visible_gaps")
-        if verdict in {"CLOSE", "GAP"} and not visible_gaps:
+        if verdict in {"CLOSE", "GAP"} and (
+            not _valid_gap_descriptions(visible_gaps) or not visible_gaps
+        ):
             errors.append(f"slot {slot}: {verdict} requires visible_gaps")
 
     visual_ready = (
