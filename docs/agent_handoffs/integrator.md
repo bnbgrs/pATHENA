@@ -3,24 +3,22 @@
 ## Current integration
 
 - Integration target: `develop/pathena-next`.
-- Develop parent before this integration: `1530c1e8f17f53a6cbfbda7b7c53b8ee50afe2b5`.
-- Authoritative exact canonical Quality on that parent: `34785279278 = SUCCESS`.
+- Develop parent before this integration: `e818ade900545e788c72cbd24bb6761880470148`.
+- Authoritative exact canonical Quality on that parent: `34794066456 = SUCCESS`.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
-## Iteration — integrate bounded Knowledge merge/split identity planning
+## Iteration — application-facing Knowledge merge/split planning
 
-Spec/Core candidate `52b4e322041547e9039a0f3026f6747583605914` is exact-verified by Core Focused `34789228532 = SUCCESS` and canonical Quality `34789228473 = SUCCESS`. Against the current Develop parent, the effective worker delta is bounded to `src/athena/knowledge/merge_split_policy.py`, `tests/unit/test_knowledge_merge_split_policy.py`, and worker handoff documentation. Only the product/test files are promoted; worker history is not merged.
+The previously integrated persistence-neutral Knowledge merge/split planner is now reachable through `KnowledgeService` without inventing merge persistence. `plan_merge` requires both source Knowledge identities to exist before delegating to the fail-closed planner; `plan_split` requires the source identity to exist before validating proposed child IDs. Both methods are read-only and return explicit identity/supersession plans for a later authorized atomic semantic write.
 
-The planner is persistence-neutral and makes identity consequences explicit before an atomic repository write. A merge may retain either existing canonical ID or create a new result ID while explicitly listing superseded IDs. A split requires at least two unique new UUID identities, rejects reuse of the source identity, and records the source as superseded. Runtime type validation is fail-closed.
-
-No test, guard, Security, Storage, Recovery, packaging, runtime, or visual invariant is relaxed. After this integration, the resulting exact Develop SHA must pass canonical Quality before any further Develop mutation.
+Focused regression coverage verifies existing-source enforcement, missing-source rejection, retained/superseded IDs, and that planning creates no Knowledge revisions. No repository schema, storage transaction, provenance write, Security/Storage/Recovery behavior, visual contract, or release guard is relaxed.
 
 ## Current worker truth at integration time
 
-- Errors: `e8247f46fd2bc685fae10d5bfbd2efceb5a19904`.
-- Spec/Core: `52b4e322041547e9039a0f3026f6747583605914` — bounded merge/split slice exact green and promoted here.
-- Backend: `e4e1244e8482ac7d78e557ded5f91252cccc0347` — tree-equivalent to the pre-integration Develop parent; no product delta.
-- UI: `05d640fd13212f8671bff0f0ca49a673df4f10c1` — current visual run `34793863216 = FAILURE`; not READY.
+- Errors: `e90c89d4759d7c6ad1be09edf43c992c46159d92` — documentation/requalification only; no bounded product fix to promote.
+- Spec/Core: `52b4e322041547e9039a0f3026f6747583605914` — merge/split planner already promoted; no new product delta selected.
+- Backend: `52eb61de9ecfde4074778a1bab2966e18aab526d` — tree-equivalent to current Develop parent after history-preserving sync; no product delta.
+- UI: `9c03ce6bb2c4cb9913cf0dafcaa2336fdb6dd82c` — Visual `34794418240 = FAILURE` only at final visual verdict; not READY and no baseline is auto-accepted.
 
 ## Source-of-truth notes
 
