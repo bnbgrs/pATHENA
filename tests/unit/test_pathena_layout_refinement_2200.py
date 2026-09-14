@@ -123,3 +123,19 @@ def test_send_action_remains_square_across_layout_densities() -> None:
 
     controller.deleteLater()
     window.deleteLater()
+
+
+def test_ground_action_label_remains_semantically_stable_across_layout_densities() -> None:
+    app = QApplication.instance() or QApplication([])
+    window = QWidget()
+    ground = QPushButton("Sources", window)
+    ground.setObjectName("groundButton")
+
+    controller = refinement.PathenaLayoutRefinement(window)
+    for width in (1100, 1400, 1800):
+        controller.apply_for_width(width)
+        app.processEvents()
+        assert ground.text() == "Ground"
+
+    controller.deleteLater()
+    window.deleteLater()
