@@ -71,6 +71,7 @@ class PallasActivityTracker:
 
     def __init__(self) -> None:
         self._previous: PallasGraphSnapshot | None = None
+        self._identity_history: dict[str, tuple[str, str]] = {}
 
     @property
     def has_baseline(self) -> bool:
@@ -78,14 +79,30 @@ class PallasActivityTracker:
 
     def reset(self) -> None:
         self._previous = None
+        self._identity_history.clear()
 
     def observe(self, snapshot: PallasGraphSnapshot) -> PallasSnapshotDelta | None:
+        snapshot_nodes, _snapshot_edges = _validate_snapshot(snapshot)
+        for node_id, node in snapshot_nodes.items():
+            identity = (node.entity_type, node.entity_id)
+            previous_identity = self._identity_history.get(node_id)
+            if previous_identity is not None and previous_identity != identity:
+                raise ValueError(f"PALLAS node identity changed for {node_id!r}")
+
         previous = self._previous
-        if previous is None:
-            _validate_snapshot(snapshot)
-            self._previous = snapshot
-            return None
-        delta = compare_pallas_snapshots(previous, snapshot)
+        delta = (
+            None
+            if previous is None
+            else compare_pallas_snapshots(previous, snapshot)
+        )
+
+        # Identity history advances only after the complete observation is valid.
+        # A removed node intentionally remains registered for this tracker epoch.
+        for node_id, node in snapshot_nodes.items():
+            self._identity_history.setdefault(
+                node_id,
+                (node.entity_type, node.entity_id),
+            )
         self._previous = snapshot
         return delta
 
