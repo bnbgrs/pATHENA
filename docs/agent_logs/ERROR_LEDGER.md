@@ -1,55 +1,58 @@
 # pATHENA Error Ledger
 
-Evidence-first ledger for current exact-SHA failures. Historical IDs, old runs and old priorities are non-authoritative unless reproduced on the current exact SHA.
+Evidence-first ledger for current exact-SHA failures. Historical IDs, old runs and priorities are non-authoritative unless reproduced on a current exact SHA.
 
 ## Current source of truth
 
-- `develop/pathena-next@5bfa74e47ee9874b9df2055a0d50d46bc82d3cbb`; canonical Quality `34808031326 = IN_PROGRESS`. This candidate adds the canonical Claim inspection API adapter. Its parent `099eae91912e423ed5aa85064b0b7d081a9d4a47` was exact canonical-green in `34804219596 = SUCCESS`. Do not mutate Develop or start a competing canonical run while `34808031326` is active.
-- Error-worker documented candidate before this ledger commit: `postmerge/errors@a34ac8890f90736669b6284667e99fb1fad6dd08`; exact canonical `34804743350 = FAILURE`. Specification validator, Ruff, mypy, Linux Storage, Windows release guards and Local Install/pypdf are green. Full pytest is `1 failed, 5067 passed, 17 skipped`; the sole failure is `tests/unit/test_pathena_window.py::test_reference_composer_uses_large_work_surface_and_send_target`, where the inherited Error-branch UI reports `send_button.width() == 48` against the authoritative `44` guard. This is a confirmed stale branch-divergence cascade, not a new Error-owned product defect. `tests/qa/test_visual_capture_manifest_truth.py` passes on the same exact SHA, so `ERR-0059` remains closed.
-- `postmerge/spec-core@2c1aef57d1ffd5ab53283a05843c912c9e3e93ad`; Core Focused `34802608287 = SUCCESS`, canonical Quality `34802608283 = SUCCESS`. Keep closed absent a new matching exact-SHA failure.
-- `postmerge/backend@52eb61de9ecfde4074778a1bab2966e18aab526d`; exact canonical Quality `34796053576 = SUCCESS`. Keep closed absent a new matching exact-SHA failure.
-- `postmerge/ui@aefc78f4d0c10c2ddedbca3451e0955013ec99df`; exact 11-Surface Visual `34807531051 = FAILURE`. Current UI handoff remains fail-closed at `PAIRS_VERIFIED_0_OF_11` / `MATCH_0_OF_11` until real reference/render inspection is completed; its current product slice is UI-owned.
+- `develop/pathena-next@3231615650473fd549a7d852fb3bbe215f7b721f`; canonical Quality `34811112376 = IN_PROGRESS`. Do not mutate Develop or start a competing canonical run.
+- `postmerge/errors@60e53eca416724c6cb8c3bc43c78ef057561ac53`; exact canonical `34808200586 = FAILURE`. This branch still carries inherited stale 48px UI geometry; no current Error-owned release/storage failure is established.
+- `postmerge/spec-core@ae82147ab8de6d3805bb5f2299497296af8ff19f`; exact canonical `34809576476 = SUCCESS`. No current matching Core failure is open.
+- `postmerge/backend@52eb61de9ecfde4074778a1bab2966e18aab526d`; latest known exact canonical remains green. Keep closed absent a new exact matching failure.
+- `postmerge/ui@e8b8eb716efea4d8780d0487e26f5d7b9ebab230`; exact 11-Surface Visual `34811244977`, attempt 2, `FAILURE`.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
 ## OPEN
 
-### ERR-0054 — P2 — Windows visual baseline review incomplete
+### ERR-0063 — P2 — current UI visual capture route identity drifts before Files capture
 
 Status: `OPEN`
 
-Owner: UI/Visual Review. Error worker is evidence-only for this cluster.
+Owner: UI / visual harness-product boundary. Error worker is evidence-only; do not patch UI product code in parallel.
 
-Current exact reproduction is `postmerge/ui@aefc78f4d0c10c2ddedbca3451e0955013ec99df`, Visual `34807531051 = FAILURE`. The current UI handoff explicitly keeps the candidate at `PAIRS_VERIFIED_0_OF_11` / `MATCH_0_OF_11` until actual pair review. No Error-worker baseline may be created or accepted.
+Exact reproduction: `postmerge/ui@e8b8eb716efea4d8780d0487e26f5d7b9ebab230`, Visual `34811244977` attempt 2. Harness Ruff, comparator mypy/tests, hierarchy-token and navigation-accessibility contracts all pass. Step `Capture exactly eleven canonical surfaces with native fonts` fails. The uploaded exact artifact contains only eight PNGs and `capture-wrapper-error.txt` with:
 
-Required closure: UI/Visual Review opens all eleven exact reference/render pairs, records truthful pair status, accepts only a reviewed baseline where justified, then obtains exact-SHA final visual-verdict success. Never relax comparator tolerances, route identity, capture truth, manifest truth or verdict enforcement.
+`workspace row 4: RuntimeError: Workspace route identity drifted before capture: requested row 4, navigation row 1, page index 1.`
 
-## FIXED
+The capture loop sets each of seven primary rows and fail-closes if `navigation.currentRow()` or `pages.currentIndex()` differs. Rows 0-3 capture successfully; row 4 reverts to Knowledge (row/page 1). Route-identity verification and baseline comparison are therefore skipped.
 
-### ERR-0062 — P2 — Core Merge/Split negative-runtime tests violated focused mypy contract
+Required closure: UI reproduces and fixes the row-4 route transition without weakening the seven-page route identity contract, then obtains an exact-SHA capture with all eleven real surfaces. No comparator, route, baseline or verdict relaxation.
 
-Status: `FIXED`
+### ERR-0054 — P2 — Windows visual baseline review incomplete
 
-Retained closed. Current Spec/Core is exact focused- and canonical-green.
+Status: `BLOCKED`
 
-### ERR-0060 — P2 — Spec/Core merge-split planner mypy tuple inference
+Owner: UI / Visual Review.
 
-Status: `FIXED`
+The current UI candidate cannot reach truthful 11-pair review because `ERR-0063` aborts native capture before Files/System/Settings are produced. Do not create or accept a baseline. After `ERR-0063` closes, UI must open all eleven exact reference/render pairs, record truthful pair states, and obtain exact-SHA final visual-verdict success.
 
-Retained closed. Current Spec/Core is exact focused- and canonical-green.
+## CURRENT REPRODUCTION / OWNERSHIP HANDOFF
 
-### ERR-0061 — P2 — Core Focused omitted mypy and could report false-green candidates
+### ERR-0059 — P2 — manifest capture truth reappears on stale UI harness lineage
 
-Status: `FIXED`
+Status: `BLOCKED`
 
-Retained closed. Current Core Focused qualification executes and enforces mypy.
+The exact UI artifact for `e8b8eb716efea4d8780d0487e26f5d7b9ebab230` contains only eight `captures`, but its manifest falsely reports `captured_reference_count = 11` and all eleven surface names. This exactly reproduces the historical manifest-truth defect on the current UI worker SHA.
 
-### ERR-0059 — P2 — visual manifest falsely reported full capture after partial failure
+However, authoritative Develop and `postmerge/errors` already contain the bounded fix: `captured_reference_surfaces = [capture["label"] for capture in captures]`, `captured_reference_count = len(captures)`, `assigned_reference_count = 11`, with PASS still requiring exactly eleven captures. The UI branch is heavily diverged from current Develop and still carries the old constant manifest implementation. Therefore no duplicate Error-branch patch is permitted. UI must synchronize/port the already-fixed harness truth before its next visual candidate.
 
-Status: `FIXED`
+Do not mark this `FIXED` for the current UI exact SHA until an exact UI artifact demonstrates truthful partial capture metadata; do not weaken the fail-closed eleven-capture contract.
 
-Exact Error-worker canonical `34804743350` runs `tests/qa/test_visual_capture_manifest_truth.py` successfully. Manifest coverage derives from actual `captures`, while `assigned_reference_count = 11` and the fail-closed eleven-capture PASS contract remain intact. Do not revisit without a new exact-SHA manifest-truth regression.
+## FIXED / HELD CLOSED
 
-Also fixed and retained: `ERR-0058`, `ERR-0053`, `ERR-0055`, `ERR-0056`, `ERR-0057`, `ERR-0049`.
+- `ERR-0062` — `FIXED`; current Spec/Core canonical is green.
+- `ERR-0060` — `FIXED`; current Spec/Core canonical is green.
+- `ERR-0061` — `FIXED`; Core Focused enforces mypy.
+- Historical `ERR-0058`, `ERR-0053`, `ERR-0055`, `ERR-0056`, `ERR-0057`, `ERR-0049` remain closed absent new exact reproduction.
 
 ## STALE / DEDUPLICATED CASCADES
 
@@ -57,16 +60,16 @@ Also fixed and retained: `ERR-0058`, `ERR-0053`, `ERR-0055`, `ERR-0056`, `ERR-00
 
 Status: `STALE`
 
-Exact diagnostics for `postmerge/errors@a34ac8890f90736669b6284667e99fb1fad6dd08`, canonical `34804743350`, prove the only pytest failure is `test_reference_composer_uses_large_work_surface_and_send_target`: actual Send width `48`, authoritative guard `44`. All other 5067 tests pass and 17 platform-specific tests skip; validator, Ruff, mypy, Storage, Windows release guards and pypdf/install are green. This is inherited Error-branch UI divergence. Do not reopen `ERR-0053`, weaken the 44px guard or patch UI product code in parallel.
+The Error-worker lineage still carries the inherited Send-button 48px geometry against the authoritative 44px guard. Do not reopen the UI product defect, weaken the 44px guard, or patch UI in parallel from `postmerge/errors`.
 
 ## Persistent release guards
 
-No current exact evidence reopens pypdf packaging, fail-closed Frozen argv, Desktop/Worker executable separation, single Desktop with bounded workers, adaptive 2048-context reserve, Windows lane-lock escalation, duplicate-column, Core-startup or storage-bootstrap failures. Current Error-worker exact release/storage/install lanes are green; current Develop integration remains under canonical qualification.
+No current exact evidence reopens pypdf packaging, fail-closed Frozen argv, Desktop/Worker executable separation, single Desktop with bounded workers, adaptive 2048-context reserve, Windows lane-lock escalation, duplicate-column, Core-startup or storage-bootstrap failures. Keep guards unchanged.
 
 ## Next root cause
 
-1. Consume terminal canonical result for `develop/pathena-next@5bfa74e47ee9874b9df2055a0d50d46bc82d3cbb`; do not create a competing run or mutate Develop.
-2. Treat Error-worker canonical `34804743350` as a deduplicated stale 48px branch-divergence cascade; no new Error ID is warranted from that run.
-3. `ERR-0054` remains UI/Visual-review-owned; do not create or accept a baseline in parallel.
-4. Keep Spec/Core and Backend closed while exact canonical-green.
-5. Do not revisit `ERR-0059`, `ERR-0062`, `ERR-0060` or `ERR-0061` absent new matching exact-SHA reproduction.
+1. Consume terminal canonical result for `develop/pathena-next@3231615650473fd549a7d852fb3bbe215f7b721f`; open only a newly reproduced exact failure.
+2. UI owns `ERR-0063`: fix the row-4 route drift and rerun the exact 11-surface capture.
+3. On that UI successor, verify manifest truth; current UI reproduction of `ERR-0059` remains `BLOCKED` until the already-fixed harness logic is present and exact evidence is truthful.
+4. `ERR-0054` remains `BLOCKED` behind technical capture completion; no baseline acceptance in parallel.
+5. Keep Spec/Core and Backend closed while exact canonical-green.

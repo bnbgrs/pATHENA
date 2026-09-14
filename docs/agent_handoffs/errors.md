@@ -2,39 +2,43 @@
 
 ## Exact source of truth
 
-- Develop: `5bfa74e47ee9874b9df2055a0d50d46bc82d3cbb`; canonical `34808031326 = IN_PROGRESS`. Parent `099eae91912e423ed5aa85064b0b7d081a9d4a47` is exact canonical `34804219596 = SUCCESS`. Do not supersede the active Develop candidate.
-- Error worker candidate before this documentation commit: `a34ac8890f90736669b6284667e99fb1fad6dd08`; exact canonical `34804743350 = FAILURE`, but its only pytest failure is now exactly identified as inherited 48px Send-button geometry against the authoritative 44px guard. Validator/Ruff/mypy, Linux Storage, Windows release guards and Local Install/pypdf are green. Full pytest is `1 failed, 5067 passed, 17 skipped`.
-- Spec/Core: `2c1aef57d1ffd5ab53283a05843c912c9e3e93ad`; Core Focused `34802608287 = SUCCESS`, canonical `34802608283 = SUCCESS`.
-- Backend: `52eb61de9ecfde4074778a1bab2966e18aab526d`; canonical `34796053576 = SUCCESS`.
-- UI: `aefc78f4d0c10c2ddedbca3451e0955013ec99df`; exact 11-Surface Visual `34807531051 = FAILURE`. UI handoff remains fail-closed at `PAIRS_VERIFIED_0_OF_11` / `MATCH_0_OF_11` until actual pair review occurs.
+- Develop: `3231615650473fd549a7d852fb3bbe215f7b721f`; canonical `34811112376 = IN_PROGRESS`. Do not supersede the active Develop candidate.
+- Error worker: `60e53eca416724c6cb8c3bc43c78ef057561ac53`; latest exact canonical is red only on inherited stale UI geometry, with no new Error-owned release/storage root cause established.
+- Spec/Core: `ae82147ab8de6d3805bb5f2299497296af8ff19f`; canonical `34809576476 = SUCCESS`.
+- Backend: `52eb61de9ecfde4074778a1bab2966e18aab526d`; keep closed absent a new exact matching failure.
+- UI: `e8b8eb716efea4d8780d0487e26f5d7b9ebab230`; exact Visual `34811244977` attempt 2 = `FAILURE` during native capture.
 
-## ERR-0059 — FIXED — manifest capture truth
+## ERR-0063 — OPEN — UI route identity drift during exact visual capture
 
-Retained closed. Exact Error-worker canonical `34804743350` passes `tests/qa/test_visual_capture_manifest_truth.py`; manifest coverage derives from real `captures`, while `assigned_reference_count = 11` and the fail-closed eleven-capture PASS contract remain unchanged. Do not revisit without a new exact-SHA regression.
+The current UI visual run passes harness Ruff, comparator mypy/tests, hierarchy-token and navigation-accessibility checks, then fails at `Capture exactly eleven canonical surfaces with native fonts`.
 
-## ERR-0062 / ERR-0060 / ERR-0061 — FIXED
+Exact artifact evidence: rows 0-3 capture successfully; row 4 fails with `requested row 4, navigation row 1, page index 1`. The artifact contains eight PNGs total because later shell captures still execute, but Files/System/Settings are missing. Route identity verification and baseline comparison are skipped.
 
-Current Spec/Core is exact focused- and canonical-green. Do not reopen these historical Core typing/gate clusters without new exact-SHA reproduction.
+Ownership stays with UI. Error worker must not patch UI product code in parallel. Closure requires a real seven-route capture followed by all eleven surfaces, with the existing route identity guard intact.
 
-## Error-worker 48px pytest red — STALE
+## ERR-0059 — BLOCKED on current UI lineage — manifest truth regression
 
-Canonical `34804743350` on exact `a34ac8890f90736669b6284667e99fb1fad6dd08` is now fully diagnosed. The only failure is `tests/unit/test_pathena_window.py::test_reference_composer_uses_large_work_surface_and_send_target`: actual `send_button.width() == 48`, required `44`. Full result is `1 failed, 5067 passed, 17 skipped`; validator, Ruff, mypy, Linux Storage, Windows release guards and Local Install/pypdf are green. This is inherited Error-branch UI divergence, not a current Error-owned product root cause. Keep it `STALE`; do not reopen `ERR-0053`, weaken the 44px test or patch UI code in parallel.
+The same exact UI artifact contains eight `captures` but falsely reports all eleven captured surfaces and `captured_reference_count = 11`. This is a real current-SHA reproduction of the historical manifest-truth defect.
 
-## ERR-0054 — OPEN — UI/Visual Review-owned
+The bounded fix already exists on Develop and `postmerge/errors`: derive captured surfaces/count from actual `captures`, preserve `assigned_reference_count = 11`, and keep PASS fail-closed at exactly eleven captures. UI still carries the old constant implementation, so the correct action is UI synchronization/port of the existing harness fix, not a duplicate Error-branch product change.
 
-Exact current UI candidate `aefc78f4d0c10c2ddedbca3451e0955013ec99df` has Visual `34807531051 = FAILURE`. Current UI handoff starts the candidate at `PAIRS_VERIFIED_0_OF_11` / `MATCH_0_OF_11`. No Error-worker baseline creation or acceptance. UI/Visual Review must open all eleven exact reference/render pairs, record truthful status and obtain exact-SHA final visual-verdict success before closure.
+Do not claim current-UI `FIXED` until an exact UI artifact demonstrates truthful partial-capture metadata.
+
+## ERR-0054 — BLOCKED — UI/Visual Review
+
+Visual review cannot truthfully proceed while `ERR-0063` prevents eleven exact renders. No Error-worker baseline creation or acceptance. After capture is technically complete, UI/Visual Review must open all eleven reference/render pairs and obtain final-verdict success.
 
 ## Green / held clusters
 
-- Spec/Core exact focused + canonical: SUCCESS.
-- Backend current exact canonical: SUCCESS.
-- Develop parent is canonical green; current integration candidate is still running and must not be superseded.
-- UI visual lifecycle remains review-owned and currently red.
-- Persistent pypdf/Frozen-argv/two-EXE/bounded-worker/adaptive-2048/lane-lock/duplicate-column/Core-startup/storage-bootstrap guards show no current reopening evidence.
+- Spec/Core current exact canonical: SUCCESS.
+- Backend remains held closed absent new matching evidence.
+- Develop current integration candidate is still running and must not be superseded.
+- Persistent pypdf/Frozen-argv/two-EXE/bounded-worker/adaptive-2048/lane-lock/duplicate-column/Core-startup/storage-bootstrap guards remain unchanged.
+- Error-worker 48px Send geometry remains `STALE`, not a new product root cause.
 
 ## Next root cause
 
-1. Consume Develop `34808031326` terminal result; open only a newly reproduced exact failure.
-2. Treat Error-worker `34804743350` as `STALE` 48px branch divergence; no new Error ID.
-3. Keep `ERR-0054` with UI/Visual Review until genuine 11/11 review and final-verdict green.
-4. Do not revisit `ERR-0059`, `ERR-0062`, `ERR-0060` or `ERR-0061` without new exact-SHA evidence.
+1. Consume Develop `34811112376` terminal result.
+2. UI fixes `ERR-0063` without weakening route identity.
+3. Verify that the UI successor also carries the existing `ERR-0059` manifest-truth fix; otherwise keep it blocked and hand back to UI.
+4. Only after truthful eleven-surface capture does `ERR-0054` return to active visual-review ownership.
