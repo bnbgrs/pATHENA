@@ -1,9 +1,9 @@
 """Final shared-shell alignment for the eleven pATHENA UI references.
 
-The functional workspaces are deliberately left in charge of their own state,
-controllers and detail panes. This module runs after those controllers and
-owns only the cross-workspace visual shell: textual primary navigation,
-reference-family geometry and the last presentation stylesheet.
+The functional workspaces remain in charge of their own state, controllers and
+detail panes. This module runs after those controllers and owns only the common
+visual shell. It deliberately reuses the existing primary navigation router
+instead of adding a second set of workspace buttons.
 """
 
 from __future__ import annotations
@@ -21,15 +21,9 @@ from PySide6.QtWidgets import (
 )
 
 from athena.desktop.pathena_design_tokens import PALETTE, RADII, SHELL, TYPE
+from athena.desktop.pathena_reference_surfaces import apply_reference_surface_styles
 from athena.desktop.pathena_window import PathenaMainWindow
 
-_PRIMARY_NAVIGATION: tuple[tuple[str, int], ...] = (
-    ("CHAT", 0),
-    ("KNOWLEDGE", 1),
-    ("RESEARCH", 2),
-    ("JOBS", 3),
-    ("SOURCES", 4),
-)
 _PAGE_TITLES = (
     "Chat",
     "Knowledge",
@@ -39,6 +33,7 @@ _PAGE_TITLES = (
     "System",
     "Settings",
 )
+_PRIMARY_LABELS = ("CHAT", "KNOWLEDGE", "RESEARCH", "JOBS", "SOURCES")
 
 _REFERENCE_SHELL_STYLESHEET = f"""
 /* Last layer: common DNA visible across the eleven opened references. */
@@ -68,11 +63,7 @@ QLabel#topWordmark {{
     font-weight: 650;
     padding-right: 18px;
 }}
-QFrame#topPrimaryNavigation {{
-    background: transparent;
-    border: 0;
-}}
-QPushButton#topPrimaryNavButton {{
+QPushButton#topNavButton {{
     min-height: 48px;
     padding: 0 13px;
     border: 0;
@@ -81,19 +72,19 @@ QPushButton#topPrimaryNavButton {{
     background: transparent;
     color: {PALETTE.text_subtle};
     font-family: {TYPE.content_family};
-    font-size: 13px;
+    font-size: 12px;
     font-weight: 600;
 }}
-QPushButton#topPrimaryNavButton:hover {{
+QPushButton#topNavButton:hover {{
     color: {PALETTE.text};
     background: {PALETTE.surface_hover};
 }}
-QPushButton#topPrimaryNavButton[selected="true"] {{
+QPushButton#topNavButton:checked {{
     color: {PALETTE.text};
     border-bottom: 2px solid {PALETTE.accent};
     background: {PALETTE.accent_soft};
 }}
-QPushButton#topPrimaryNavButton:focus {{
+QPushButton#topNavButton:focus {{
     color: {PALETTE.text};
     border-bottom: 2px solid {PALETTE.accent};
 }}
@@ -232,7 +223,6 @@ QPushButton#sendButton:disabled {{
     border: 1px solid {PALETTE.border};
 }}
 
-/* Reassert the reference palette over older page-specific orange/black sheets. */
 QLineEdit,
 QComboBox,
 QSpinBox,
@@ -279,61 +269,6 @@ QSlider::handle:horizontal,
 QProgressBar::chunk {{
     background: {PALETTE.accent};
 }}
-
-QDialog#commandPalette,
-QDialog#helpDialog {{
-    color: {PALETTE.text};
-    background: {PALETTE.surface_raised};
-    border: 1px solid {PALETTE.border_strong};
-}}
-QLabel#commandPaletteTitle,
-QLabel#helpDialogTitle {{
-    color: {PALETTE.text};
-    font-family: {TYPE.display_family};
-    font-size: 22px;
-    font-weight: 500;
-}}
-QLabel#commandPaletteHint,
-QLabel#commandPaletteFooter,
-QLabel#helpDialogIntro {{
-    color: {PALETTE.text_subtle};
-}}
-QLineEdit#commandPaletteQuery {{
-    min-height: 42px;
-    background: {PALETTE.surface};
-    border: 1px solid {PALETTE.border_strong};
-    border-radius: {RADII.control}px;
-    padding: 0 12px;
-}}
-QListWidget#commandPaletteResults {{
-    background: {PALETTE.surface};
-    border: 1px solid {PALETTE.border};
-    outline: 0;
-}}
-QListWidget#commandPaletteResults::item {{
-    color: {PALETTE.text_muted};
-    background: transparent;
-    border: 0;
-    border-bottom: 1px solid {PALETTE.border};
-    min-height: 38px;
-    padding: 4px 12px;
-}}
-QListWidget#commandPaletteResults::item:hover {{
-    color: {PALETTE.text};
-    background: {PALETTE.surface_hover};
-}}
-QListWidget#commandPaletteResults::item:selected {{
-    color: {PALETTE.text};
-    background: {PALETTE.surface_selected};
-    border-left: 2px solid {PALETTE.accent};
-}}
-QPlainTextEdit#helpText {{
-    color: {PALETTE.text_muted};
-    background: {PALETTE.surface};
-    border: 1px solid {PALETTE.border};
-    border-radius: {RADII.panel}px;
-    padding: 14px;
-}}
 """
 
 
@@ -357,60 +292,27 @@ class ReferenceShellController(QObject):
         self._open_command_palette = open_command_palette
         self._primary_buttons: dict[int, QPushButton] = {}
         self._utility_buttons: dict[int, QPushButton] = {}
-        self._install_top_navigation()
+        self._bind_existing_top_navigation()
+        self._install_search_action()
         self._apply_shared_geometry()
         self._apply_reference_styles()
+        apply_reference_surface_styles(self.window)
         self.window.navigation.currentRowChanged.connect(self._sync_navigation)
         self._sync_navigation(self.window.navigation.currentRow())
 
-    def _install_top_navigation(self) -> None:
-        top_bar = self.window.findChild(QFrame, "topBar")
+    def _top_bar(self) -> QFrame | None:
+        return self.window.findChild(QFrame, "topBar")
+
+    def _bind_existing_top_navigation(self) -> None:
+        top_bar = self._top_bar()
         if top_bar is None:
             return
-        top_layout = top_bar.layout()
-        if not isinstance(top_layout, QHBoxLayout):
-            return
-
-        existing = top_bar.findChild(QFrame, "topPrimaryNavigation")
-        if existing is not None:
-            existing.deleteLater()
-
-        primary = QFrame(top_bar)
-        primary.setObjectName("topPrimaryNavigation")
-        primary.setAccessibleName("Primary workspace navigation")
-        primary_layout = QHBoxLayout(primary)
-        primary_layout.setContentsMargins(0, 0, 0, 0)
-        primary_layout.setSpacing(0)
-
-        for label, row in _PRIMARY_NAVIGATION:
-            button = QPushButton(label, primary)
-            button.setObjectName("topPrimaryNavButton")
-            button.setFlat(True)
-            button.setCursor(Qt.CursorShape.PointingHandCursor)
-            button.setAccessibleName(label.title())
+        buttons = top_bar.findChildren(QPushButton, "topNavButton")
+        for row, button in enumerate(buttons[: len(_PRIMARY_LABELS)]):
+            label = _PRIMARY_LABELS[row]
+            button.setText(label)
             button.setToolTip(f"Open {label.title()}")
-            button.clicked.connect(
-                lambda _checked=False, index=row: self.window.navigation.setCurrentRow(index)
-            )
-            primary_layout.addWidget(button)
             self._primary_buttons[row] = button
-
-        top_layout.insertWidget(1, primary)
-
-        search = QPushButton("⌕", top_bar)
-        search.setObjectName("topSearchButton")
-        search.setAccessibleName("Search and commands")
-        search.setToolTip("Search and commands (Ctrl+K)")
-        search.clicked.connect(self._open_command_palette)
-
-        first_utility_index = top_layout.count()
-        for index in range(top_layout.count()):
-            item = top_layout.itemAt(index)
-            widget = item.widget() if item is not None else None
-            if isinstance(widget, QPushButton) and widget.objectName() == "topUtilityButton":
-                first_utility_index = index
-                break
-        top_layout.insertWidget(first_utility_index, search)
 
         for button in top_bar.findChildren(QPushButton, "topUtilityButton"):
             name = button.accessibleName().casefold()
@@ -419,8 +321,36 @@ class ReferenceShellController(QObject):
             elif name == "settings":
                 self._utility_buttons[6] = button
 
+    def _install_search_action(self) -> None:
+        top_bar = self._top_bar()
+        if top_bar is None:
+            return
+        top_layout = top_bar.layout()
+        if not isinstance(top_layout, QHBoxLayout):
+            return
+
+        search = top_bar.findChild(QPushButton, "topSearchButton")
+        if search is None:
+            search = QPushButton("⌕", top_bar)
+            search.setObjectName("topSearchButton")
+            search.setAccessibleName("Search and commands")
+            search.setToolTip("Search and commands (Ctrl+K)")
+            search.clicked.connect(self._open_command_palette)
+
+            first_utility_index = top_layout.count()
+            for index in range(top_layout.count()):
+                item = top_layout.itemAt(index)
+                widget = item.widget() if item is not None else None
+                if (
+                    isinstance(widget, QPushButton)
+                    and widget.objectName() == "topUtilityButton"
+                ):
+                    first_utility_index = index
+                    break
+            top_layout.insertWidget(first_utility_index, search)
+
     def _apply_shared_geometry(self) -> None:
-        top_bar = self.window.findChild(QFrame, "topBar")
+        top_bar = self._top_bar()
         if top_bar is not None:
             top_bar.setFixedHeight(SHELL.top_bar_height)
             layout = top_bar.layout()
@@ -479,9 +409,6 @@ class ReferenceShellController(QObject):
         if 0 <= row < len(_PAGE_TITLES):
             self.window.page_title.setText(_PAGE_TITLES[row])
 
-        for index, button in self._primary_buttons.items():
-            button.setProperty("selected", index == row)
-            _repolish(button)
         for index, button in self._utility_buttons.items():
             button.setProperty("selected", index == row)
             _repolish(button)
