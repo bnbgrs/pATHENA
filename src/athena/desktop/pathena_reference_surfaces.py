@@ -1,7 +1,7 @@
 """Late presentation layer for the eleven pATHENA visual references.
 
 The long-lived workspace controllers remain authoritative for data, actions and
-state.  This module runs after the refinement stack and only normalizes visual
+state. This module runs after the refinement stack and only normalizes visual
 presentation where older component-local styles would otherwise win over the
 shared navy/cobalt design system.
 """
@@ -15,6 +15,7 @@ from athena.desktop import pathena_pallas_field as pallas_field
 from athena.desktop.pathena_design_tokens import PALETTE, RADII, SPACE, TYPE
 
 _WORKSPACE_ROOTS = (
+    "pageChat",
     "knowledgeWorkspace",
     "researchWorkspace",
     "jobsWorkspace",
@@ -36,6 +37,15 @@ _PRIMARY_ACTION_TEXT = frozenset(
 _REFERENCE_WORKSPACE_STYLESHEET = f"""
 QWidget {{
     color: {PALETTE.text};
+    background: transparent;
+}}
+QFrame {{
+    background: transparent;
+    border: none;
+}}
+QSplitter {{
+    background: transparent;
+    border: none;
 }}
 QLabel#speaker,
 QLabel[role="section"] {{
@@ -67,10 +77,10 @@ QDoubleSpinBox {{
 }}
 QLineEdit {{
     min-height: 36px;
-    padding: 0 11px;
+    padding: 0 {SPACE.sm}px;
 }}
 QPlainTextEdit {{
-    padding: 10px 12px;
+    padding: {SPACE.xs}px {SPACE.sm}px;
 }}
 QListWidget {{
     outline: none;
@@ -108,13 +118,13 @@ QDoubleSpinBox:focus {{
     border-color: {PALETTE.accent};
 }}
 QTabWidget::pane {{
-    background: {PALETTE.canvas};
+    background: transparent;
     border: none;
     border-top: 1px solid {PALETTE.border};
 }}
 QTabBar::tab {{
     min-height: 30px;
-    padding: 0 12px;
+    padding: 0 {SPACE.sm}px;
     margin-right: 3px;
     color: {PALETTE.text_subtle};
     background: transparent;
@@ -168,11 +178,48 @@ QSplitter::handle {{
 }}
 QSplitter::handle:horizontal {{
     width: 1px;
-    margin: 0 8px;
+    margin: 0 {SPACE.xs}px;
 }}
-QScrollArea {{
-    background: {PALETTE.canvas};
+QScrollArea,
+QWidget#chatMessages {{
+    background: transparent;
     border: none;
+}}
+QFrame#emptyStatePanel {{
+    background: {PALETTE.surface};
+    border: 1px solid {PALETTE.border};
+    border-radius: {RADII.prominent}px;
+}}
+QLabel#emptyStateEyebrow {{
+    color: {PALETTE.accent};
+    font-size: 10px;
+    font-weight: 650;
+}}
+QLabel#emptyStateTitle {{
+    color: {PALETTE.text};
+    font-family: {TYPE.display_family};
+    font-size: 24px;
+    font-weight: 500;
+}}
+QLabel#emptyStateBody {{
+    color: {PALETTE.text_subtle};
+    font-size: 12px;
+}}
+QLineEdit#promptInput:disabled {{
+    color: {PALETTE.text_quiet};
+    background: {PALETTE.surface};
+    border: 1px solid {PALETTE.border};
+}}
+QPushButton#sendButton:disabled {{
+    color: {PALETTE.text_quiet};
+    background: {PALETTE.surface_selected};
+    border: 1px solid {PALETTE.border};
+}}
+QComboBox#chatSelector:disabled,
+QComboBox#modelSelector:disabled {{
+    color: {PALETTE.text_quiet};
+    background: {PALETTE.surface};
+    border-color: {PALETTE.border};
 }}
 QFrame#systemStatusRow {{
     background: {PALETTE.surface};
@@ -200,7 +247,7 @@ QFrame#systemSubnav {{
 }}
 QLabel#systemSubnavItem {{
     min-height: 30px;
-    padding: 4px 8px;
+    padding: 4px {SPACE.xs}px;
     color: {PALETTE.text_subtle};
     border-radius: {RADII.control}px;
 }}
@@ -220,13 +267,13 @@ QListWidget#settingsSecondaryNavigation {{
 }}
 QListWidget#settingsSecondaryNavigation::item {{
     border-bottom: none;
-    margin: 2px 8px 2px 0;
+    margin: 2px {SPACE.xs}px 2px 0;
 }}
 QFrame#settingsRuntimePanel {{
     background: {PALETTE.surface};
     border: 1px solid {PALETTE.border};
     border-radius: {RADII.panel}px;
-    padding: 12px;
+    padding: {SPACE.sm}px;
 }}
 QLabel#settingsRuntimeTitle {{
     color: {PALETTE.text};
@@ -247,6 +294,7 @@ QDialog#commandPalette QLabel,
 QWidget#helpWorkspace QLabel,
 QDialog#comfyUiDialog QLabel {{
     color: {PALETTE.text_muted};
+    background: transparent;
 }}
 QLabel#commandPaletteTitle,
 QLabel#helpHeadline,
@@ -268,7 +316,7 @@ QLineEdit#helpSearch,
 QLineEdit#comfyUiEndpoint,
 QLineEdit#comfyUiWorkflowPath {{
     min-height: 40px;
-    padding: 0 12px;
+    padding: 0 {SPACE.sm}px;
     color: {PALETTE.text};
     background: {PALETTE.surface};
     border: 1px solid {PALETTE.border_strong};
@@ -337,7 +385,7 @@ QPushButton#comfyUiQueueWorkflow,
 QPushButton#comfyUiRefreshJob,
 QPushButton#comfyUiReleaseVram {{
     min-height: 34px;
-    padding: 0 12px;
+    padding: 0 {SPACE.sm}px;
     color: {PALETTE.text_muted};
     background: {PALETTE.surface_raised};
     border: 1px solid {PALETTE.border};
@@ -429,14 +477,14 @@ def _mark_primary_actions(root: QWidget) -> None:
 
 def _apply_pallas_palette(window: QWidget) -> None:
     """Update renderer presentation constants before future graph items are built."""
-    pallas_field._CANVAS = QColor(PALETTE.canvas)  # type: ignore[attr-defined]
-    pallas_field._TEXT = QColor(PALETTE.text)  # type: ignore[attr-defined]
-    pallas_field._MUTED = QColor(PALETTE.text_muted)  # type: ignore[attr-defined]
-    pallas_field._QUIET = QColor(PALETTE.text_quiet)  # type: ignore[attr-defined]
-    pallas_field._BORDER = QColor(PALETTE.border)  # type: ignore[attr-defined]
-    pallas_field._ACCENT = QColor(PALETTE.accent)  # type: ignore[attr-defined]
-    pallas_field._CONFLICT = QColor(PALETTE.error)  # type: ignore[attr-defined]
-    pallas_field._UNCERTAIN = QColor(PALETTE.warning)  # type: ignore[attr-defined]
+    pallas_field._CANVAS = QColor(PALETTE.canvas)  # noqa: SLF001
+    pallas_field._TEXT = QColor(PALETTE.text)  # noqa: SLF001
+    pallas_field._MUTED = QColor(PALETTE.text_muted)  # noqa: SLF001
+    pallas_field._QUIET = QColor(PALETTE.text_quiet)  # noqa: SLF001
+    pallas_field._BORDER = QColor(PALETTE.border)  # noqa: SLF001
+    pallas_field._ACCENT = QColor(PALETTE.accent)  # noqa: SLF001
+    pallas_field._CONFLICT = QColor(PALETTE.error)  # noqa: SLF001
+    pallas_field._UNCERTAIN = QColor(PALETTE.warning)  # noqa: SLF001
     for canvas in window.findChildren(QGraphicsView, "pallasSemanticCanvas"):
         canvas.setBackgroundBrush(QBrush(QColor(PALETTE.canvas)))
     for root_name in ("pallasShellWorkspaceHost", "pallasWorkspace"):
