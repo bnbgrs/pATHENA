@@ -1,10 +1,8 @@
-"""First-run and empty-chat presentation refinements 2801-2900 for pATHENA.
+"""Reference-driven first-run presentation for the real pATHENA desktop.
 
-The exact offscreen render exposed several real presentation issues: disconnected
-session controls looked like empty boxes, the empty chat message was stranded at the
-top of a large canvas, disabled composer actions still looked active, and PALLAS used
-more rail space than its importance justified. This controller fixes those issues
-without changing Core, model, chat or persistence behavior.
+This controller changes presentation only. It keeps the existing Core, chat,
+knowledge and persistence paths intact while making an empty local workspace read
+like the eleven-screen reference family.
 """
 
 from __future__ import annotations
@@ -90,7 +88,8 @@ QLabel#emptyStateBody {
     color: #8D8D8D;
     font-size: 15px;
 }
-QFrame#emptyStatePanel {
+QFrame#emptyStatePanel,
+QFrame#composerBottomBreathingRoom {
     background: transparent;
     border: none;
 }
@@ -104,15 +103,9 @@ QFrame#emptyStateOrbit {
     border-radius: 36px;
 }
 QLabel#emptyStateOrbitDot {
-    color: #F26A21;
     background: #060606;
     border: 1px solid #F26A21;
     border-radius: 8px;
-    font-size: 9px;
-}
-QFrame#composerBottomBreathingRoom {
-    background: transparent;
-    border: none;
 }
 QFrame#chatKnowledgeOverview {
     background: #0A0A0A;
@@ -144,7 +137,7 @@ QLabel#chatKnowledgeMetricName {
     color: #A8A8A8;
     font-size: 13px;
 }
-QLabel#chatKnowledgeMetricValue {
+QLabel[pathenaMetricValue="true"] {
     color: #E4E4E4;
     font-family: "Cascadia Mono", "Consolas", monospace;
     font-size: 11px;
@@ -158,25 +151,7 @@ QLabel#chatKnowledgeRecentMeta {
     font-family: "Cascadia Mono", "Consolas", monospace;
     font-size: 9px;
 }
-QPushButton#chatKnowledgeOpenButton {
-    color: #F26A21;
-    background: transparent;
-    border: none;
-    border-top: 1px solid #242424;
-    padding: 12px 0 0 0;
-    text-align: left;
-    font-size: 12px;
-}
-QPushButton#chatKnowledgeOpenButton:hover,
-QPushButton#chatKnowledgeOpenButton:focus {
-    color: #FF843E;
-    background: transparent;
-}
-QPushButton#sendButton:disabled {
-    color: #555555;
-    background: transparent;
-    border: none;
-}
+QPushButton#sendButton:disabled,
 QPushButton#groundButton:disabled {
     color: #555555;
     background: transparent;
@@ -247,10 +222,6 @@ class PathenaStartupExperience(QObject):
 
         self._apply_static_geometry()
         self._install_stylesheet()
-        self._reference_sync_timer = QTimer(self)
-        self._reference_sync_timer.setInterval(1_500)
-        self._reference_sync_timer.timeout.connect(self.sync)
-        self._reference_sync_timer.start()
         QTimer.singleShot(0, self.sync)
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
@@ -311,17 +282,10 @@ class PathenaStartupExperience(QObject):
             new_chat.setMaximumWidth(62)
             new_chat.setAccessibleDescription(new_chat.toolTip())
 
-        ground = self.window.findChild(QPushButton, "groundButton")
-        if ground is not None:
-            ground.setAccessibleDescription(ground.toolTip())
-
-        details_toggle = self.window.findChild(QPushButton, "detailsToggle")
-        if details_toggle is not None:
-            details_toggle.setAccessibleDescription(details_toggle.toolTip())
-
-        context_toggle = self.window.findChild(QPushButton, "contextToggle")
-        if context_toggle is not None:
-            context_toggle.setAccessibleDescription(context_toggle.toolTip())
+        for object_name in ("groundButton", "detailsToggle", "contextToggle"):
+            button = self.window.findChild(QPushButton, object_name)
+            if button is not None:
+                button.setAccessibleDescription(button.toolTip())
 
         prompt = self.window.findChild(QWidget, "promptInput")
         if prompt is not None:
@@ -353,18 +317,20 @@ class PathenaStartupExperience(QObject):
 
         prompt = self.window.findChild(QWidget, "promptInput")
         if prompt is not None:
-            if core_ready:
-                prompt.setToolTip("Message the selected local model")
-            else:
-                prompt.setToolTip("Available when pATHENA and the selected model are ready")
+            prompt.setToolTip(
+                "Message the selected local model"
+                if core_ready
+                else "Available when pATHENA and the selected model are ready"
+            )
             prompt.setAccessibleDescription(prompt.toolTip())
 
         send = self.window.findChild(QPushButton, "sendButton")
         if send is not None:
-            if core_ready:
-                send.setToolTip("Send message (Ctrl+Enter)")
-            else:
-                send.setToolTip("Available when pATHENA and the selected model are ready")
+            send.setToolTip(
+                "Send message (Ctrl+Enter)"
+                if core_ready
+                else "Available when pATHENA and the selected model are ready"
+            )
             send.setAccessibleDescription(send.toolTip())
 
         self._polish_empty_state(core_ready=core_ready)
@@ -409,12 +375,7 @@ class PathenaStartupExperience(QObject):
             eyebrow = messages.findChild(QLabel, "emptyStateEyebrow")
             title = messages.findChild(QLabel, "emptyStateTitle")
             body = messages.findChild(QLabel, "emptyStateBody")
-            if (
-                panel is not None
-                and eyebrow is not None
-                and title is not None
-                and body is not None
-            ):
+            if panel is not None and eyebrow is not None and title is not None and body is not None:
                 self._sync_empty_state_width(messages=messages, panel=panel, body=body)
                 self._sync_empty_state_copy(
                     eyebrow=eyebrow,
@@ -431,10 +392,7 @@ class PathenaStartupExperience(QObject):
         panel = QFrame(messages)
         panel.setObjectName("emptyStatePanel")
         panel.setMinimumHeight(250)
-        panel.setSizePolicy(
-            QSizePolicy.Policy.Fixed,
-            QSizePolicy.Policy.Minimum,
-        )
+        panel.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
         panel_layout = QVBoxLayout(panel)
         panel_layout.setContentsMargins(28, 24, 28, 24)
         panel_layout.setSpacing(12)
@@ -456,7 +414,6 @@ class PathenaStartupExperience(QObject):
         title.setObjectName("emptyStateTitle")
         title.setAlignment(Qt.AlignmentFlag.AlignHCenter)
         title.setMinimumHeight(52)
-        title.setWordWrap(False)
 
         body = QLabel(panel)
         body.setObjectName("emptyStateBody")
@@ -479,10 +436,9 @@ class PathenaStartupExperience(QObject):
         panel_layout.addWidget(body, 0, Qt.AlignmentFlag.AlignHCenter)
 
         layout = messages.layout()
-        if not isinstance(layout, QVBoxLayout):
-            return
-        layout.insertStretch(0, 1)
-        layout.insertWidget(1, panel, 0, Qt.AlignmentFlag.AlignHCenter)
+        if isinstance(layout, QVBoxLayout):
+            layout.insertStretch(0, 1)
+            layout.insertWidget(1, panel, 0, Qt.AlignmentFlag.AlignHCenter)
 
     def _polish_composer_placement(self) -> None:
         center = self.window.findChild(QFrame, "conversation")
@@ -525,92 +481,77 @@ class PathenaStartupExperience(QObject):
 
         panel = inspector.findChild(QFrame, "chatKnowledgeOverview")
         if panel is None:
-            panel = QFrame(inspector)
-            panel.setObjectName("chatKnowledgeOverview")
-            panel.setAccessibleName("Knowledge overview")
-            panel_layout = QVBoxLayout(panel)
-            panel_layout.setContentsMargins(22, 28, 24, 26)
-            panel_layout.setSpacing(16)
-
-            header = QHBoxLayout()
-            title = QLabel("KNOWLEDGE", panel)
-            title.setObjectName("chatKnowledgeTitle")
-            header.addWidget(title)
-            header.addStretch(1)
-            panel_layout.addLayout(header)
-
-            tab = QLabel("OVERVIEW", panel)
-            tab.setObjectName("chatKnowledgeTab")
-            tab.setFixedWidth(72)
-            panel_layout.addWidget(tab)
-
-            metrics_section = QLabel("LOCAL KNOWLEDGE", panel)
-            metrics_section.setObjectName("chatKnowledgeSection")
-            panel_layout.addWidget(metrics_section)
-
-            for key, name in (
-                ("knowledge", "Knowledge"),
-                ("claims", "Claims"),
-                ("sources", "Sources"),
-                ("decisions", "Decisions"),
-            ):
-                row = QFrame(panel)
-                row.setObjectName("chatKnowledgeMetricRow")
-                row_layout = QHBoxLayout(row)
-                row_layout.setContentsMargins(0, 0, 0, 0)
-                metric_name = QLabel(name, row)
-                metric_name.setObjectName("chatKnowledgeMetricName")
-                metric_value = QLabel("0", row)
-                metric_value.setObjectName(f"chatKnowledgeMetric_{key}")
-                metric_value.setProperty("pathenaMetricValue", True)
-                row_layout.addWidget(metric_name)
-                row_layout.addStretch(1)
-                row_layout.addWidget(metric_value)
-                panel_layout.addWidget(row)
-
-            recent_section = QLabel("RECENTLY ADDED", panel)
-            recent_section.setObjectName("chatKnowledgeSection")
-            panel_layout.addWidget(recent_section)
-
-            for slot in range(3):
-                recent = QLabel(panel)
-                recent.setObjectName("chatKnowledgeRecentItem")
-                recent.setProperty("pathenaRecentSlot", slot)
-                recent.setWordWrap(True)
-                panel_layout.addWidget(recent)
-                meta = QLabel(panel)
-                meta.setObjectName("chatKnowledgeRecentMeta")
-                meta.setProperty("pathenaRecentMetaSlot", slot)
-                panel_layout.addWidget(meta)
-
-            panel_layout.addStretch(1)
-
-            open_knowledge = QPushButton("Open Knowledge  →", panel)
-            open_knowledge.setObjectName("chatKnowledgeOpenButton")
-            open_knowledge.setAccessibleName("Open Knowledge workspace")
-            if navigation is not None:
-                open_knowledge.clicked.connect(
-                    lambda _checked=False: navigation.setCurrentRow(1)
-                )
-            panel_layout.addWidget(open_knowledge)
-
-            pallas_controller = getattr(
-                self.window, "_pathena_pallas_full_view_controller", None
-            )
-            pallas_open = getattr(pallas_controller, "open_workspace", None)
-            if callable(pallas_open):
-                open_pallas = QPushButton("Open in PALLAS  →", panel)
-                open_pallas.setObjectName("chatKnowledgeOpenButton")
-                open_pallas.setAccessibleName("Open PALLAS workspace")
-                open_pallas.clicked.connect(pallas_open)
-                panel_layout.addWidget(open_pallas)
+            panel = self._build_chat_knowledge_overview(inspector)
 
         panel.setGeometry(0, 0, inspector.width(), inspector.height())
         panel.setVisible(chat_active)
         if not chat_active:
             return
         panel.raise_()
+        self._refresh_chat_knowledge_overview(panel)
 
+    def _build_chat_knowledge_overview(self, inspector: QFrame) -> QFrame:
+        panel = QFrame(inspector)
+        panel.setObjectName("chatKnowledgeOverview")
+        panel.setAccessibleName("Knowledge overview")
+        panel_layout = QVBoxLayout(panel)
+        panel_layout.setContentsMargins(22, 28, 24, 26)
+        panel_layout.setSpacing(16)
+
+        header = QHBoxLayout()
+        title = QLabel("KNOWLEDGE", panel)
+        title.setObjectName("chatKnowledgeTitle")
+        header.addWidget(title)
+        header.addStretch(1)
+        panel_layout.addLayout(header)
+
+        tab = QLabel("OVERVIEW", panel)
+        tab.setObjectName("chatKnowledgeTab")
+        tab.setFixedWidth(72)
+        panel_layout.addWidget(tab)
+
+        section = QLabel("LOCAL KNOWLEDGE", panel)
+        section.setObjectName("chatKnowledgeSection")
+        panel_layout.addWidget(section)
+
+        for key, name in (
+            ("knowledge", "Knowledge"),
+            ("claims", "Claims"),
+            ("sources", "Sources"),
+            ("decisions", "Decisions"),
+        ):
+            row = QFrame(panel)
+            row_layout = QHBoxLayout(row)
+            row_layout.setContentsMargins(0, 0, 0, 0)
+            metric_name = QLabel(name, row)
+            metric_name.setObjectName("chatKnowledgeMetricName")
+            metric_value = QLabel("0", row)
+            metric_value.setObjectName(f"chatKnowledgeMetric_{key}")
+            metric_value.setProperty("pathenaMetricValue", True)
+            row_layout.addWidget(metric_name)
+            row_layout.addStretch(1)
+            row_layout.addWidget(metric_value)
+            panel_layout.addWidget(row)
+
+        recent_section = QLabel("RECENTLY ADDED", panel)
+        recent_section.setObjectName("chatKnowledgeSection")
+        panel_layout.addWidget(recent_section)
+
+        for slot in range(3):
+            recent = QLabel(panel)
+            recent.setObjectName("chatKnowledgeRecentItem")
+            recent.setProperty("pathenaRecentSlot", slot)
+            recent.setWordWrap(True)
+            panel_layout.addWidget(recent)
+            meta = QLabel(panel)
+            meta.setObjectName("chatKnowledgeRecentMeta")
+            meta.setProperty("pathenaRecentMetaSlot", slot)
+            panel_layout.addWidget(meta)
+
+        panel_layout.addStretch(1)
+        return panel
+
+    def _refresh_chat_knowledge_overview(self, panel: QFrame) -> None:
         list_names = {
             "knowledge": "persistentKnowledgeList",
             "claims": "persistentClaimList",
@@ -630,10 +571,8 @@ class PathenaStartupExperience(QObject):
         if knowledge_list is not None:
             for index in range(min(3, knowledge_list.count())):
                 item = knowledge_list.item(index)
-                if item is not None:
-                    text = item.text().strip()
-                    if text:
-                        recent_texts.append(text.splitlines()[0])
+                if item is not None and item.text().strip():
+                    recent_texts.append(item.text().strip().splitlines()[0])
         if not recent_texts:
             recent_texts = ["No canonical knowledge yet"]
 

@@ -6,7 +6,6 @@ from PySide6.QtWidgets import (
     QLabel,
     QListWidget,
     QListWidgetItem,
-    QPushButton,
     QVBoxLayout,
     QWidget,
 )
@@ -68,9 +67,11 @@ def test_chat_reference_overview_uses_real_installed_workspace_counts() -> None:
     assert recent[0].text() == "Memory Architecture"
     assert recent[1].text() == "UI Design"
 
-    open_buttons = panel.findChildren(QPushButton, "chatKnowledgeOpenButton")
-    assert open_buttons
-    open_buttons[0].click()
+    # The passive Chat inspector must never own workspace navigation. A prior
+    # version exposed route-changing buttons here and could pull the canonical
+    # visual capture from Jobs back to Knowledge while events were processed.
+    assert panel.findChildren(QWidget, "chatKnowledgeOpenButton") == []
+    navigation.setCurrentRow(1)
     app.processEvents()
     assert navigation.currentRow() == 1
     assert panel.isHidden()
