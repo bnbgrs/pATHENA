@@ -23,7 +23,6 @@ from athena.source.blob_store import (
     PreparedBlob,
     SourceChangedDuringCaptureError,
     SourceFileNotReadableError,
-    SourceFileTooLargeError,
 )
 from athena.source.models import BlobRecord, SourceType
 
@@ -55,14 +54,29 @@ def _validated_max_file_bytes(value: int | None) -> int | None:
     return value
 
 
+def _capture_read_size(
+    *,
+    plaintext_length: int,
+    max_file_bytes: int | None,
+) -> int:
+    if max_file_bytes is None:
+        return PROTECTED_BLOB_CHUNK_SIZE
+    remaining = max_file_bytes - plaintext_length
+    if remaining < 0:
+        raise SourceChangedDuringCaptureError(
+            "Protected Source exceeded the configured maximum capture size."
+        )
+    return min(PROTECTED_BLOB_CHUNK_SIZE, remaining + 1)
+
+
 def _ensure_within_capture_limit(
     *,
     prospective_size: int,
     max_file_bytes: int | None,
 ) -> None:
     if max_file_bytes is not None and prospective_size > max_file_bytes:
-        raise SourceFileTooLargeError(
-            "Protected Source exceeds the configured maximum capture size."
+        raise SourceChangedDuringCaptureError(
+            "Protected Source exceeded the configured maximum capture size."
         )
 
 
@@ -276,7 +290,12 @@ class ProtectedBlobStore:
                     ciphertext_length += len(_MAGIC)
 
                     while True:
-                        chunk = source.read(PROTECTED_BLOB_CHUNK_SIZE)
+                        chunk = source.read(
+                            _capture_read_size(
+                                plaintext_length=plaintext_length,
+                                max_file_bytes=max_file_bytes,
+                            )
+                        )
                         if not chunk:
                             break
                         next_plaintext_length = plaintext_length + len(chunk)
