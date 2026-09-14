@@ -10,6 +10,11 @@ from pathlib import Path
 from athena.observability.logging import JsonFormatter
 
 _FILE_HANDLER_MARKER = "_athena_jsonl_handler"
+_ATHENA_LOGGER_NAME = "athena"
+# NOTSET (0) inherits an ancestor threshold. Level 1 is the lowest practical
+# explicit threshold, so ATHENA handler levels—not root reconfiguration—own
+# routing for all normal and custom positive logging levels.
+_ATHENA_RECORD_FLOOR = 1
 DEFAULT_JSONL_MAX_BYTES = 8 * 1024 * 1024
 DEFAULT_JSONL_BACKUP_COUNT = 5
 
@@ -86,6 +91,16 @@ def _prune_stale_rotated_files(path: Path, backup_count: int) -> None:
             continue
 
 
+def _owned_jsonl_handlers(
+    logger: logging.Logger,
+) -> list[logging.Handler]:
+    return [
+        handler
+        for handler in logger.handlers
+        if getattr(handler, _FILE_HANDLER_MARKER, False)
+    ]
+
+
 def configure_jsonl_logging(
     log_path: Path,
     *,
@@ -100,6 +115,12 @@ def configure_jsonl_logging(
     object per line through the shared privacy-preserving formatter, and retains
     at most ``backup_count`` rotated files plus the active file.
 
+    The file handler is attached to the ``athena`` namespace rather than root.
+    That namespace uses a permissive explicit record threshold while Console and
+    JSONL handlers keep their own output levels. Consequently a later Console
+    reconfiguration cannot raise the root threshold and suppress more-verbose
+    ATHENA records before the JSONL handler sees them.
+
     Repeated calls with the same configuration reuse the owned handler instead
     of duplicating persisted events. A changed path or rotation policy replaces
     the previous ATHENA-owned JSONL handler deterministically. Numeric backups
@@ -110,13 +131,16 @@ def configure_jsonl_logging(
     validated_max_bytes = _validated_positive_int(max_bytes, "max_bytes")
     validated_backup_count = _validated_positive_int(backup_count, "backup_count")
 
+    athena_logger = logging.getLogger(_ATHENA_LOGGER_NAME)
     root_logger = logging.getLogger()
-    owned_handlers = [
-        handler
-        for handler in root_logger.handlers
-        if getattr(handler, _FILE_HANDLER_MARKER, False)
-    ]
 
+    # Remove any legacy root-owned JSONL handler before installing/reusing the
+    # namespace-owned handler. This makes in-process upgrades deterministic.
+    for legacy in _owned_jsonl_handlers(root_logger):
+        root_logger.removeHandler(legacy)
+        legacy.close()
+
+    owned_handlers = _owned_jsonl_handlers(athena_logger)
     reusable: RotatingFileHandler | None = None
     for handler in owned_handlers:
         if (
@@ -128,13 +152,14 @@ def configure_jsonl_logging(
         ):
             reusable = handler
             continue
-        root_logger.removeHandler(handler)
+        athena_logger.removeHandler(handler)
         handler.close()
 
     _prune_stale_rotated_files(path, validated_backup_count)
 
-    if root_logger.level != logging.NOTSET and root_logger.level > numeric_level:
-        root_logger.setLevel(numeric_level)
+    # Handler thresholds own routing after JSONL is enabled. Root remains free
+    # to track the Console policy without suppressing ATHENA namespace records.
+    athena_logger.setLevel(_ATHENA_RECORD_FLOOR)
 
     if reusable is not None:
         reusable.setLevel(numeric_level)
@@ -151,4 +176,4 @@ def configure_jsonl_logging(
     setattr(handler, _FILE_HANDLER_MARKER, True)
     handler.setLevel(numeric_level)
     handler.setFormatter(JsonFormatter())
-    root_logger.addHandler(handler)
+    athena_logger.addHandler(handler)
