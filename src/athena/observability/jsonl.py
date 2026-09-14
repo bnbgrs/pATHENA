@@ -67,7 +67,7 @@ def _rotated_backup_index(path: Path, candidate: Path) -> int | None:
 
 def _prune_stale_rotated_files(path: Path, backup_count: int) -> None:
     """Remove numeric rotated files outside the configured retention window."""
-    for candidate in path.parent.glob(f"{path.name}.*"):
+    for candidate in path.parent.iterdir():
         index = _rotated_backup_index(path, candidate)
         if index is None or index <= backup_count:
             continue
