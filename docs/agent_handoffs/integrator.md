@@ -3,32 +3,30 @@
 ## Current integration
 
 - Integration target: `develop/pathena-next`.
-- Develop parent before this integration: `099eae91912e423ed5aa85064b0b7d081a9d4a47`.
-- Exact canonical Quality on that parent: `34804219596 = SUCCESS`.
+- Develop parent before this integration: `3231615650473fd549a7d852fb3bbe215f7b721f`.
+- Exact canonical Quality on that parent: `34811112376 = SUCCESS`.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
-## Iteration — canonical Claim inspection API adapter
+## Iteration — canonical Claim inspection composition boundary
 
-No current worker branch offered a new bounded product delta after the project-Knowledge-membership integration. The current Spec/Core handoff identifies central Claim inspection/API composition as the next Core dependency. This integration therefore adds the transport-neutral adapter layer needed for that composition without mutating Storage, repository semantics, or contradiction-review safety.
+The previous integration exposed the existing Claim inspection/contradiction-review adapter through `CoreApiFacade`. This iteration adds one small composition boundary in `src/athena/core/knowledge_inspection.py` so the application can construct the chain from the already-existing canonical `ClaimRepository`, `ReviewService`, and local actor provider without introducing a second repository, review queue, actor identity, persistence path, or DTO layer.
 
-`src/athena/api/knowledge_inspection.py` adapts the existing `KnowledgeInspectionService` boundary to the already-defined API DTO contracts for canonical Claim revisions, provenance inputs, evidence, and contradiction reviews. Claim lists/details/history and pending contradiction review reads remain read-only. Review resolution converts only the explicit `confirm`/`reject` client decision and obtains the actor identity from an injected local actor provider before delegating to the existing domain service; unknown decisions fail before any domain mutation.
+`build_knowledge_inspection_api(...)` constructs exactly `KnowledgeInspectionService(claims=..., reviews=...)` and wraps it in `KnowledgeInspectionApiService(..., actor_id_provider=...)`. It performs no storage mutation itself and preserves the existing inspection service's stale-review and fail-closed semantics.
 
-`tests/unit/test_api_knowledge_inspection.py` covers JSON-safe canonical Claim DTO conversion including provenance/evidence, local actor propagation plus typed contradiction decision mapping, and fail-closed rejection of unsupported decisions before a domain call.
-
-This slice deliberately does not yet alter `AthenaApplication` or `CoreApiFacade`; the next compatible Core composition step can attach this adapter to the canonical `ClaimRepository`, `ReviewService`, and local actor provider without inventing a second data path. No repository object or SQL row is exposed through the adapter.
+`tests/unit/test_core_knowledge_inspection_composition.py` verifies that the composition reuses the exact supplied Claim repository, Review service, and actor provider rather than creating shadow dependencies.
 
 ## Current worker truth at integration time
 
-- Errors: `80ffef405415a9dfde9bff8b1f54764224652ef7` — no new bounded product fix selected.
-- Spec/Core: `2c1aef57d1ffd5ab53283a05843c912c9e3e93ad` — its project-membership product delta is already integrated; no newer worker product delta exists.
-- Backend: `52eb61de9ecfde4074778a1bab2966e18aab526d` — no selected product delta.
-- UI: `5922cdca385ad622b9e97f4e17b32edb00c847b8` — current exact Visual lane remains failed and the branch is not promoted here.
+- Errors: `35871d5e32dd49306b433374de9b2693048eb24f` — current UI-capture root-cause documentation; no bounded product fix selected here.
+- Spec/Core: `ae82147ab8de6d3805bb5f2299497296af8ff19f` — previous facade slice already represented in Develop; no new selected product delta.
+- Backend: `52eb61de9ecfde4074778a1bab2966e18aab526d` — no new selected product delta.
+- UI: `5c2f066a9542569f8f23398e10cd7187c4722882` — new navigation-rail presentation work remains UI-owned and unpromoted pending exact qualification and visual review.
 
 ## Source-of-truth notes
 
 - `docs/agent_logs/ERROR_LEDGER.md` remains historical wherever newer exact-SHA evidence exists.
-- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` and `docs/ui/VISUAL_GAP_LEDGER.md` remain fail-closed: no `MATCH` without an opened original reference and a real rendered exact-SHA state.
-- The verified Send target remains 44×44 outer geometry.
+- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` and `docs/ui/VISUAL_GAP_LEDGER.md` remain fail-closed: no `MATCH` without opened original reference and real exact-SHA render.
+- Verified Send target remains 44×44 outer geometry.
 
 ## Persistent release guards
 
@@ -38,4 +36,4 @@ Retain without relaxation: pypdf packaging; fail-closed Frozen argv; Desktop/Wor
 
 `PROMOTION_READY=NO`
 
-Require canonical Quality on the resulting exact Develop SHA before any further Develop mutation. If green, the next Core-owned gap is the bounded central composition of `KnowledgeInspectionService` + `KnowledgeInspectionApiService` into `AthenaApplication`/`CoreApiFacade`, with no duplicate persistence path.
+Require canonical Quality on the resulting exact Develop SHA before any further Develop mutation. If green, the next bounded Core step is wiring this composition helper into `AthenaApplication` and attaching the resulting service to `CoreApiFacade`, using `ChatService.ensure_local_user` as the sole actor provider.

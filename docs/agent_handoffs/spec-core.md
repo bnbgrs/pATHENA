@@ -1,56 +1,38 @@
 # pATHENA Alpha/Beta Core Handoff
 
-## Current baseline
+## Current source of truth
 
-- Integration baseline: `develop/pathena-next@5bfa74e47ee9874b9df2055a0d50d46bc82d3cbb`.
-- Exact canonical Quality on that baseline: `34808031326 = SUCCESS`.
-- `main` and `bnbgrs/ATHENA` remain strictly read-only.
-- Worker branch: `postmerge/spec-core`.
-- Previous worker `2c1aef57d1ffd5ab53283a05843c912c9e3e93ad` is already integrated/closed and is not a current product target.
+- Develop inspected first: `develop/pathena-next@5024a7c2b60c80083d1650ae924c89cb3085019e`.
+- Worker before this repair: `postmerge/spec-core@ae82147ab8de6d3805bb5f2299497296af8ff19f`.
+- `main` and `bnbgrs/ATHENA` remain read-only.
+- Current Develop canonical Quality `34815625453` completed FAILURE: full pytest, Linux Storage, Local-install/Core restart/pypdf and the Windows release-guard lane succeeded; Ruff and mypy failed.
+- Current handoffs `errors.md`, `backend.md`, `ui.md`, `integrator.md`, Beta Claim/Knowledge spec and the relevant Claim/inspection tests were re-read before mutation.
 
-## Source-of-truth result
+## Current Core regression — Claim inspection composition dependency
 
-Current Develop already contains the transport-neutral `KnowledgeInspectionApiService` added by `5bfa74e47...`. It adapts the existing repository-backed `KnowledgeInspectionService` into canonical Claim, provenance/evidence, and contradiction-review DTOs. The adapter itself is already integrated and must not be duplicated.
+Develop introduced `src/athena/core/knowledge_inspection.py` to compose the already-existing Claim inspection API. The first version passed `ClaimRepository` directly to `KnowledgeInspectionService`.
 
-`CoreApiFacade` did not yet expose an attachment boundary for that adapter, so desktop/future transports could not discover or call canonical Claim inspection through the central API facade. This is the selected independent Core composition gap for this worker slice.
+That dependency is incorrect. `KnowledgeInspectionService` requires the established `ClaimReader` boundary (`load`, `list`, `history`, `evidence`, `provenance_inputs`). `ClaimRepository` intentionally exposes repository-shaped methods (`load_current`, `list_current`, `list_revisions`, `list_evidence`, `list_provenance_inputs`) and therefore does not satisfy that protocol. The existing `ClaimService` already implements the required boundary by delegating those operations to the canonical repository. `AthenaApplication` already constructs the canonical `self.claims = ClaimService(self.claim_repository, self.chat)` instance.
 
-## Selected product slice — Claim inspection through CoreApiFacade
+The repair therefore changes the composition helper to consume `ClaimService`, not a new adapter or second repository. `ReviewService` remains the canonical contradiction-review dependency and `ChatService.ensure_local_user` remains the sole actor provider for later application wiring.
 
-The worker candidate adds a bounded facade attachment without changing Storage, repository behavior, Claim semantics, contradiction-review semantics, Security, Recovery, packaging, or UI.
+The focused composition test is changed accordingly and its import order is corrected for Ruff. No storage, review, provenance, actor, DTO, Security, Recovery, packaging, runtime-locality or release-guard semantics are weakened.
 
-`src/athena/api/service.py` now:
+## Spec/architecture anchors
 
-- accepts `KnowledgeInspectionApiService` through a strict single-attach boundary;
-- advertises `knowledge.claim.inspect` and `knowledge.review.contradiction` only while the real adapter is attached;
-- exposes canonical Claim list/load/history calls by exact delegation;
-- exposes pending/load/resolve contradiction-review calls by exact delegation;
-- fails closed when inspection is unavailable;
-- performs no DTO rewriting, identity fabrication, actor fabrication, repository access, or alternate persistence.
-
-`tests/unit/test_api_knowledge_inspection_facade.py` focuses the new composition boundary:
-
-- capability absent before attachment and present after attachment;
-- duplicate attachment rejected;
-- calls fail closed before attachment;
-- Claim/review identifiers, limits, and decisions are delegated unchanged;
-- returned adapter objects are not rewritten by the facade.
-
-The already-integrated adapter remains responsible for UUID parsing, canonical DTO conversion, typed `confirm`/`reject` decisions, and actor acquisition through its injected provider.
+Beta chapter 05 keeps Claims, evidence, contradictions and provenance explicit and durable; inspection must preserve those canonical boundaries rather than inventing parallel state. The current `KnowledgeInspectionService` is transport-neutral and operates only through its minimal Claim/review protocols. The current `ClaimService` is the existing application-facing canonical Claim boundary and already implements the exact read operations required by inspection.
 
 ## Ownership / collision avoidance
 
-- Application auto-wiring remains a distinct next Core slice; this candidate does not invent a second application facade or actor path.
-- The canonical local actor source remains `ChatService.ensure_local_user()`; application composition must inject that existing UUID provider into `KnowledgeInspectionApiService` rather than fabricate identity.
-- Backend owns deep Storage/transaction/system work. No repository or schema path is duplicated here.
-- UI owns styling/Qt presentation. No UI files are touched.
-- No fake Claims, fake provenance, fake evidence, or synthetic review records are introduced.
+- Backend retains deep Storage/transport ownership; no storage path is duplicated here.
+- UI owns visual/Qt work; no UI file is touched.
+- Integrator owns Develop promotion; this worker only repairs the Core-owned regression on `postmerge/spec-core`.
+- Persistent guards remain mandatory: pypdf/Frozen argv/two-EXE, bounded worker tree, adaptive 2048-context reserve, Windows lane-lock cluster, duplicate-column/Core-startup/storage-bootstrap signatures, Security/Storage/Recovery gates, no Skip/XFail.
 
-## Qualification state at commit construction
+## Qualification contract
 
-- Baseline `5bfa74e47...`: canonical Quality `34808031326 = SUCCESS`.
-- Candidate focused/canonical exact-SHA qualification: pending branch publication.
-- No READY claim until focused tests and canonical Quality complete on the exact worker SHA.
+The repair must obtain exact-SHA Core Focused evidence first and then canonical Quality without superseding the candidate while canonical is active. READY must not be claimed until both applicable exact-SHA evidence paths are complete and no candidate-specific regression remains.
 
-## Next distinct Core gap
+## Next distinct Core gap after repair/integration
 
-After this facade slice is exact-qualified and integrated, compose the already-existing domain/API inspection services in `AthenaApplication` using the real `ClaimRepository`, existing `ReviewService`, and `ChatService.ensure_local_user()` actor provider, then attach that exact `KnowledgeInspectionApiService` instance to `CoreApiFacade`. Focused acceptance should verify application instance identity and real repository-backed Claim/provenance/review reads without introducing a parallel persistence path.
+Once this regression is exact-green and integrated, wire the repaired helper into `AthenaApplication` using the already-existing `self.claims`, `self.reviews`, and `self.chat.ensure_local_user`, then attach the exact resulting `KnowledgeInspectionApiService` instance to the existing `CoreApiFacade`. Acceptance must exercise real Claim list/load/history/evidence/provenance and contradiction-review delegation, not only private-field identity.

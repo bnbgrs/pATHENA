@@ -4,32 +4,30 @@ Evidence-only progress register for `develop/pathena-next`. No invented completi
 
 ## Current baseline
 
-- Develop parent before this integration: `099eae91912e423ed5aa85064b0b7d081a9d4a47`.
-- Exact canonical Quality on that parent: `34804219596 = SUCCESS`.
+- Develop parent before this integration: `3231615650473fd549a7d852fb3bbe215f7b721f`.
+- Exact canonical Quality on that parent: `34811112376 = SUCCESS`.
 - Persistent release guards remain mandatory and unchanged.
 
 ## Current integration state
 
-Develop retains the bounded product capabilities integrated through the current baseline, including temporal staleness consolidation, explicit user-correction and semantic-identity guards, ScheduleDefinition IANA timezone validation, configurable backup quiet hour, truthful visual-capture metadata, canonical 44×44 Send-target/title hierarchy contracts, Core focused-candidate mypy qualification, persistence-neutral Knowledge merge/split identity planning, application-facing read-only merge/split planning, the Core API discovery/authentication readiness barrier, and deterministic project Knowledge membership planning.
+Develop already contains persistence-neutral Knowledge merge/split planning, application-facing planning, Core API authentication-readiness ordering, deterministic project Knowledge membership, the transport-neutral canonical Claim inspection adapter, and facade exposure for Claim inspection/contradiction review.
 
-This integration adds the transport-neutral API adapter for the already-existing canonical Claim inspection and contradiction-review domain boundary. It converts Claim revisions, provenance inputs, evidence references, and contradiction reviews into the existing versioned API DTOs without exposing repositories or SQL rows. Contradiction decisions remain explicit `confirm`/`reject` operations, obtain actor identity from an injected local provider, and delegate stale-review/idempotency enforcement to the existing `KnowledgeInspectionService`; unsupported decisions fail before the domain service is called.
+This integration adds a bounded Core composition helper for that Claim-inspection chain. The helper consumes the existing canonical `ClaimRepository`, `ReviewService`, and actor provider, constructs `KnowledgeInspectionService`, and wraps it in `KnowledgeInspectionApiService`. It creates no second persistence, repository, review, actor, or DTO path.
 
-Focused regression coverage verifies JSON-safe Claim DTOs with provenance/evidence, local actor and typed decision propagation, and fail-closed invalid-decision behavior. Central `AthenaApplication`/`CoreApiFacade` attachment remains a separate bounded follow-up after this exact Develop SHA passes canonical Quality.
-
-No Security, Storage, Recovery, packaging, runtime locality, visual, test-strength, or Skip/XFail guard is relaxed.
+Focused regression coverage verifies exact dependency reuse by identity, including the actor provider. No Security, Storage, Recovery, packaging, runtime-locality, visual, test-strength, or Skip/XFail guard is relaxed.
 
 ## Current worker truth
 
-- Errors `80ffef405415a9dfde9bff8b1f54764224652ef7`: no new bounded product fix selected.
-- Spec/Core `2c1aef57d1ffd5ab53283a05843c912c9e3e93ad`: project-membership delta already integrated; no newer product delta.
-- Backend `52eb61de9ecfde4074778a1bab2966e18aab526d`: no selected product delta.
-- UI `5922cdca385ad622b9e97f4e17b32edb00c847b8`: presentation/visual work remains owner-side and unpromoted; current exact Visual evidence is not green.
+- Errors `35871d5e32dd49306b433374de9b2693048eb24f`: current UI-capture diagnosis/documentation; no selected product fix.
+- Spec/Core `ae82147ab8de6d3805bb5f2299497296af8ff19f`: previous facade product slice is already represented in Develop; no new selected delta.
+- Backend `52eb61de9ecfde4074778a1bab2966e18aab526d`: no new selected product delta.
+- UI `5c2f066a9542569f8f23398e10cd7187c4722882`: new navigation-rail presentation work remains unpromoted pending exact qualification and fail-closed visual review.
 
 ## Error and visual truth rules
 
 - `docs/agent_logs/ERROR_LEDGER.md` remains historical wherever newer exact-SHA evidence exists.
 - Eleven-screen status remains fail-closed; no visual `MATCH` without opened original reference plus real exact-SHA render and reviewed baseline.
-- The current verified Send target remains 44×44 outer geometry.
+- Current verified Send target remains 44×44 outer geometry.
 
 ## Persistent release guards
 
@@ -39,4 +37,4 @@ Do not relax: pypdf packaging; fail-closed Frozen argv; Desktop/Worker two-EXE s
 
 `PROMOTION_READY=NO`
 
-The resulting exact Develop SHA requires canonical Quality before any additional Develop mutation.
+The resulting exact Develop SHA requires canonical Quality before any additional Develop mutation. Once green, the next bounded step is `AthenaApplication` wiring of the new composition helper using `ChatService.ensure_local_user` as the sole local actor provider, followed by attachment to `CoreApiFacade`.
