@@ -39,6 +39,16 @@ def test_ocr_result_rejects_invalid_confidence(confidence: float) -> None:
         OCRResult(text="text", provider=provider, confidence=confidence)
 
 
+@pytest.mark.parametrize("confidence", [True, False, "0.5", object()])
+def test_ocr_result_rejects_non_numeric_or_boolean_confidence(
+    confidence: object,
+) -> None:
+    provider = ProviderIdentity(provider_id="ocr", provider_version="1")
+
+    with pytest.raises(TypeError, match="confidence"):
+        OCRResult(text="text", provider=provider, confidence=confidence)  # type: ignore[arg-type]
+
+
 def test_speech_segment_validates_text_and_time_range() -> None:
     with pytest.raises(ValueError, match="text"):
         SpeechTranscriptSegment(text=" ", start_time_ms=0, end_time_ms=1)
@@ -51,6 +61,28 @@ def test_speech_segment_validates_text_and_time_range() -> None:
 
     with pytest.raises(ValueError, match="end_time_ms"):
         SpeechTranscriptSegment(text="text", start_time_ms=10, end_time_ms=9)
+
+
+@pytest.mark.parametrize(
+    ("start_time_ms", "end_time_ms", "field_name"),
+    [
+        (True, 1, "start_time_ms"),
+        (0, False, "end_time_ms"),
+        ("0", 1, "start_time_ms"),
+        (0, 1.0, "end_time_ms"),
+    ],
+)
+def test_speech_segment_rejects_non_integer_or_boolean_time_values(
+    start_time_ms: object,
+    end_time_ms: object,
+    field_name: str,
+) -> None:
+    with pytest.raises(TypeError, match=field_name):
+        SpeechTranscriptSegment(
+            text="text",
+            start_time_ms=start_time_ms,  # type: ignore[arg-type]
+            end_time_ms=end_time_ms,  # type: ignore[arg-type]
+        )
 
 
 @pytest.mark.parametrize("confidence", [-0.01, 1.01, float("nan"), float("-inf")])
