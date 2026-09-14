@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from athena.desktop.pathena_design_tokens import PALETTE, SHELL, SPACE
+from athena.desktop.pathena_design_tokens import PALETTE, RADII, SHELL, SPACE
 from athena.desktop.pathena_window import PathenaMainWindow
 
 
@@ -102,6 +102,22 @@ class SettingsSecondaryNavigation(QObject):
 
         self.content = QWidget()
         self.content.setObjectName("settingsSecondaryContent")
+        self.content.setStyleSheet(
+            f"""
+            QWidget#settingsSecondaryContent {{
+                background: {PALETTE.canvas};
+            }}
+            QWidget#settingsRuntimePanel {{
+                background: {PALETTE.surface_raised};
+                border: 1px solid {PALETTE.border};
+                border-radius: {RADII.panel}px;
+                color: {PALETTE.text_muted};
+            }}
+            QWidget#settingsRuntimePanel QLabel {{
+                background: transparent;
+            }}
+            """
+        )
         content_layout = QVBoxLayout(self.content)
         content_layout.setContentsMargins(SPACE.xl, SPACE.sm, SPACE.lg, SPACE.xl)
         content_layout.setSpacing(SPACE.md)
