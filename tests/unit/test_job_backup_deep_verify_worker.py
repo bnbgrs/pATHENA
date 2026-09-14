@@ -23,7 +23,6 @@ from athena.jobs.backup_verify_worker import (
 from athena.jobs.models import JobPriority, JobRecord, JobState, WaitingReason
 from athena.jobs.service import DurableJobService
 
-
 _ACTOR_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
 _LEASE = b"v" * 32
 
