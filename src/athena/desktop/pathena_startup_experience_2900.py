@@ -22,6 +22,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from athena.desktop.pathena_design_tokens import SHELL
+
 
 @dataclass(frozen=True)
 class StartupTarget:
@@ -57,7 +59,7 @@ _STARTUP_REFINEMENTS: tuple[str, ...] = (
     "clarify first-run hierarchy",
     "preserve local-state truth",
     "tighten spatial rhythm",
-    "reserve orange for actionable intent",
+    "reserve color accents for actionable intent",
 )
 
 UI_REFINEMENT_TASKS_2801_2900: tuple[str, ...] = tuple(
@@ -182,18 +184,19 @@ class PathenaStartupExperience(QObject):
     def _apply_static_geometry(self) -> None:
         rail = self.window.findChild(QFrame, "rail")
         if rail is not None:
-            rail.setFixedWidth(196)
+            rail.setFixedWidth(SHELL.icon_rail_width)
             layout = rail.layout()
             if isinstance(layout, QVBoxLayout):
-                layout.setContentsMargins(18, 18, 14, 16)
-                layout.setSpacing(9)
+                layout.setContentsMargins(8, 14, 8, 14)
+                layout.setSpacing(8)
 
         navigation = self.window.findChild(QListWidget, "navigation")
         if navigation is not None:
-            navigation.setFixedHeight(224)
+            navigation.setFixedWidth(SHELL.icon_rail_width - 16)
+            navigation.setFixedHeight(min(360, navigation.count() * 48))
             for index in range(navigation.count()):
                 item = navigation.item(index)
-                item.setSizeHint(QSize(164, 32))
+                item.setSizeHint(QSize(SHELL.icon_rail_width - 24, 44))
                 tooltip = item.toolTip().strip()
                 if tooltip:
                     item.setData(Qt.ItemDataRole.AccessibleTextRole, tooltip)
@@ -232,12 +235,11 @@ class PathenaStartupExperience(QObject):
 
         prompt = self.window.findChild(QWidget, "promptInput")
         if prompt is not None:
-            prompt.setMinimumHeight(46)
+            prompt.setFixedHeight(SHELL.composer_min_height)
 
         send = self.window.findChild(QPushButton, "sendButton")
         if send is not None:
-            send.setMinimumWidth(66)
-            send.setMaximumWidth(78)
+            send.setFixedSize(SHELL.composer_action_size, SHELL.composer_action_size)
 
         chat_page = self.window.findChild(QWidget, "pageChat")
         if chat_page is not None:

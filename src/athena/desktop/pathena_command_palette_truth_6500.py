@@ -14,6 +14,37 @@ from athena.desktop.pathena_capability_catalog import (
     ResolvedCapability,
     resolve_capability_catalog,
 )
+from athena.desktop.pathena_design_tokens import PALETTE, RADII, SPACE, TYPE
+
+
+_PALETTE_RESULTS_STYLESHEET = f"""
+QListWidget#commandPaletteResults {{
+    color: {PALETTE.text_muted};
+    background: {PALETTE.surface};
+    border: 1px solid {PALETTE.border_strong};
+    border-radius: {RADII.panel}px;
+    padding: {SPACE.xxs}px;
+    outline: none;
+    font-family: {TYPE.content_family};
+    font-size: {TYPE.body_px}px;
+}}
+QListWidget#commandPaletteResults::item {{
+    min-height: 42px;
+    padding: 0 {SPACE.sm}px;
+    border: none;
+    border-left: 2px solid transparent;
+    border-bottom: 1px solid {PALETTE.border};
+}}
+QListWidget#commandPaletteResults::item:hover {{
+    color: {PALETTE.text};
+    background: {PALETTE.surface_hover};
+}}
+QListWidget#commandPaletteResults::item:selected {{
+    color: {PALETTE.text};
+    background: {PALETTE.accent_soft};
+    border-left: 2px solid {PALETTE.accent};
+}}
+"""
 
 
 class CommandPaletteTruthController(QObject):
@@ -29,6 +60,7 @@ class CommandPaletteTruthController(QObject):
         self.status.setWordWrap(True)
         self.status.setVisible(False)
         self.status.setProperty("role", "muted")
+        self._apply_reference_geometry()
         self._install_status_surface()
         self._apply_semantic_labels()
 
@@ -37,6 +69,18 @@ class CommandPaletteTruthController(QObject):
         palette.query.textChanged.connect(self._schedule_refresh)
         palette.results.currentRowChanged.connect(self._selection_changed)
         self._schedule_refresh()
+
+    def _apply_reference_geometry(self) -> None:
+        """Match the eleven-screen command surface without changing command behavior."""
+        self.palette.dialog.setMinimumSize(680, 420)
+        self.palette.dialog.resize(720, 460)
+        self.palette.query.setMinimumHeight(44)
+        self.palette.results.setMinimumHeight(320)
+        self.palette.results.setStyleSheet(_PALETTE_RESULTS_STYLESHEET)
+        layout = self.palette.dialog.layout()
+        if isinstance(layout, QBoxLayout):
+            layout.setContentsMargins(24, 22, 24, 18)
+            layout.setSpacing(12)
 
     def _apply_semantic_labels(self) -> None:
         self.palette.query.setAccessibleName("Command search")
