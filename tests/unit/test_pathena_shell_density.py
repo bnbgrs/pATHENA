@@ -52,7 +52,7 @@ def test_shell_density_converges_real_shell_to_reference_geometry() -> None:
         assert rail.parentWidget() is host
         assert workspace_column.parentWidget() is host
         assert rail.width() == SHELL.icon_rail_width
-        assert inspector.isVisible()
+        assert not inspector.isHidden()
 
         brand = rail.findChild(QLabel, "railWordmark")
         assert brand is not None

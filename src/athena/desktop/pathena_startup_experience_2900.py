@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from PySide6.QtCore import QEvent, QObject, QSize, Qt, QTimer
 from PySide6.QtWidgets import (
     QFrame,
+    QHBoxLayout,
     QLabel,
     QListWidget,
     QPushButton,
@@ -109,6 +110,68 @@ QLabel#emptyStateOrbitDot {
     border-radius: 8px;
     font-size: 9px;
 }
+QFrame#composerBottomBreathingRoom {
+    background: transparent;
+    border: none;
+}
+QFrame#chatKnowledgeOverview {
+    background: #0A0A0A;
+    border: none;
+}
+QLabel#chatKnowledgeTitle {
+    color: #F26A21;
+    font-family: "Cascadia Mono", "Consolas", monospace;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 1px;
+}
+QLabel#chatKnowledgeTab {
+    color: #F26A21;
+    border: none;
+    border-bottom: 1px solid #F26A21;
+    padding: 0 0 10px 0;
+    font-family: "Cascadia Mono", "Consolas", monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+}
+QLabel#chatKnowledgeSection {
+    color: #737373;
+    font-family: "Cascadia Mono", "Consolas", monospace;
+    font-size: 9px;
+    letter-spacing: 1px;
+}
+QLabel#chatKnowledgeMetricName {
+    color: #A8A8A8;
+    font-size: 13px;
+}
+QLabel#chatKnowledgeMetricValue {
+    color: #E4E4E4;
+    font-family: "Cascadia Mono", "Consolas", monospace;
+    font-size: 11px;
+}
+QLabel#chatKnowledgeRecentItem {
+    color: #C7C7C7;
+    font-size: 12px;
+}
+QLabel#chatKnowledgeRecentMeta {
+    color: #707070;
+    font-family: "Cascadia Mono", "Consolas", monospace;
+    font-size: 9px;
+}
+QPushButton#chatKnowledgeOpenButton {
+    color: #F26A21;
+    background: transparent;
+    border: none;
+    border-top: 1px solid #242424;
+    padding: 12px 0 0 0;
+    text-align: left;
+    font-size: 12px;
+}
+QPushButton#chatKnowledgeOpenButton:hover,
+QPushButton#chatKnowledgeOpenButton:focus {
+    color: #FF843E;
+    background: transparent;
+}
 QPushButton#sendButton:disabled {
     color: #555555;
     background: transparent;
@@ -178,8 +241,16 @@ class PathenaStartupExperience(QObject):
         if new_chat is not None:
             new_chat.clicked.connect(self._schedule_sync)
 
+        navigation = window.findChild(QListWidget, "navigation")
+        if navigation is not None:
+            navigation.currentRowChanged.connect(self._schedule_sync)
+
         self._apply_static_geometry()
         self._install_stylesheet()
+        self._reference_sync_timer = QTimer(self)
+        self._reference_sync_timer.setInterval(1_500)
+        self._reference_sync_timer.timeout.connect(self.sync)
+        self._reference_sync_timer.start()
         QTimer.singleShot(0, self.sync)
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
@@ -297,6 +368,8 @@ class PathenaStartupExperience(QObject):
             send.setAccessibleDescription(send.toolTip())
 
         self._polish_empty_state(core_ready=core_ready)
+        self._polish_composer_placement()
+        self._polish_chat_inspector()
 
     @staticmethod
     def _sync_empty_state_copy(
@@ -410,6 +483,175 @@ class PathenaStartupExperience(QObject):
             return
         layout.insertStretch(0, 1)
         layout.insertWidget(1, panel, 0, Qt.AlignmentFlag.AlignHCenter)
+
+    def _polish_composer_placement(self) -> None:
+        center = self.window.findChild(QFrame, "conversation")
+        composer = self.window.findChild(QFrame, "composer")
+        if center is None or composer is None:
+            return
+        layout = center.layout()
+        if not isinstance(layout, QVBoxLayout):
+            return
+
+        status_bar = center.findChild(QFrame, "workspaceStatusBar")
+        spacer = center.findChild(QFrame, "composerBottomBreathingRoom")
+        if spacer is None:
+            spacer = QFrame(center)
+            spacer.setObjectName("composerBottomBreathingRoom")
+            spacer.setFixedHeight(72)
+
+        if status_bar is not None:
+            layout.removeWidget(status_bar)
+        layout.removeWidget(spacer)
+        composer_index = layout.indexOf(composer)
+        if composer_index < 0:
+            return
+        layout.insertWidget(composer_index + 1, spacer)
+        if status_bar is not None:
+            layout.insertWidget(composer_index + 2, status_bar)
+
+        navigation = self.window.findChild(QListWidget, "navigation")
+        chat_active = navigation is None or navigation.currentRow() == 0
+        spacer.setVisible(chat_active)
+        if status_bar is not None:
+            status_bar.setVisible(chat_active)
+
+    def _polish_chat_inspector(self) -> None:
+        inspector = self.window.findChild(QFrame, "inspector")
+        navigation = self.window.findChild(QListWidget, "navigation")
+        if inspector is None:
+            return
+        chat_active = navigation is None or navigation.currentRow() == 0
+
+        panel = inspector.findChild(QFrame, "chatKnowledgeOverview")
+        if panel is None:
+            panel = QFrame(inspector)
+            panel.setObjectName("chatKnowledgeOverview")
+            panel.setAccessibleName("Knowledge overview")
+            panel_layout = QVBoxLayout(panel)
+            panel_layout.setContentsMargins(22, 28, 24, 26)
+            panel_layout.setSpacing(16)
+
+            header = QHBoxLayout()
+            title = QLabel("KNOWLEDGE", panel)
+            title.setObjectName("chatKnowledgeTitle")
+            header.addWidget(title)
+            header.addStretch(1)
+            panel_layout.addLayout(header)
+
+            tab = QLabel("OVERVIEW", panel)
+            tab.setObjectName("chatKnowledgeTab")
+            tab.setFixedWidth(72)
+            panel_layout.addWidget(tab)
+
+            metrics_section = QLabel("LOCAL KNOWLEDGE", panel)
+            metrics_section.setObjectName("chatKnowledgeSection")
+            panel_layout.addWidget(metrics_section)
+
+            for key, name in (
+                ("knowledge", "Knowledge"),
+                ("claims", "Claims"),
+                ("sources", "Sources"),
+                ("decisions", "Decisions"),
+            ):
+                row = QFrame(panel)
+                row.setObjectName("chatKnowledgeMetricRow")
+                row_layout = QHBoxLayout(row)
+                row_layout.setContentsMargins(0, 0, 0, 0)
+                metric_name = QLabel(name, row)
+                metric_name.setObjectName("chatKnowledgeMetricName")
+                metric_value = QLabel("0", row)
+                metric_value.setObjectName(f"chatKnowledgeMetric_{key}")
+                metric_value.setProperty("pathenaMetricValue", True)
+                row_layout.addWidget(metric_name)
+                row_layout.addStretch(1)
+                row_layout.addWidget(metric_value)
+                panel_layout.addWidget(row)
+
+            recent_section = QLabel("RECENTLY ADDED", panel)
+            recent_section.setObjectName("chatKnowledgeSection")
+            panel_layout.addWidget(recent_section)
+
+            for slot in range(3):
+                recent = QLabel(panel)
+                recent.setObjectName("chatKnowledgeRecentItem")
+                recent.setProperty("pathenaRecentSlot", slot)
+                recent.setWordWrap(True)
+                panel_layout.addWidget(recent)
+                meta = QLabel(panel)
+                meta.setObjectName("chatKnowledgeRecentMeta")
+                meta.setProperty("pathenaRecentMetaSlot", slot)
+                panel_layout.addWidget(meta)
+
+            panel_layout.addStretch(1)
+
+            open_knowledge = QPushButton("Open Knowledge  →", panel)
+            open_knowledge.setObjectName("chatKnowledgeOpenButton")
+            open_knowledge.setAccessibleName("Open Knowledge workspace")
+            if navigation is not None:
+                open_knowledge.clicked.connect(
+                    lambda _checked=False: navigation.setCurrentRow(1)
+                )
+            panel_layout.addWidget(open_knowledge)
+
+            pallas_controller = getattr(
+                self.window, "_pathena_pallas_full_view_controller", None
+            )
+            pallas_open = getattr(pallas_controller, "open_workspace", None)
+            if callable(pallas_open):
+                open_pallas = QPushButton("Open in PALLAS  →", panel)
+                open_pallas.setObjectName("chatKnowledgeOpenButton")
+                open_pallas.setAccessibleName("Open PALLAS workspace")
+                open_pallas.clicked.connect(pallas_open)
+                panel_layout.addWidget(open_pallas)
+
+        panel.setGeometry(0, 0, inspector.width(), inspector.height())
+        panel.setVisible(chat_active)
+        if not chat_active:
+            return
+        panel.raise_()
+
+        list_names = {
+            "knowledge": "persistentKnowledgeList",
+            "claims": "persistentClaimList",
+            "sources": "sourceList",
+            "decisions": "semanticReviewList",
+        }
+        lists: dict[str, QListWidget | None] = {}
+        for key, object_name in list_names.items():
+            source_list = self.window.findChild(QListWidget, object_name)
+            lists[key] = source_list
+            value = panel.findChild(QLabel, f"chatKnowledgeMetric_{key}")
+            if value is not None:
+                value.setText(str(source_list.count() if source_list is not None else 0))
+
+        knowledge_list = lists["knowledge"]
+        recent_texts: list[str] = []
+        if knowledge_list is not None:
+            for index in range(min(3, knowledge_list.count())):
+                item = knowledge_list.item(index)
+                if item is not None:
+                    text = item.text().strip()
+                    if text:
+                        recent_texts.append(text.splitlines()[0])
+        if not recent_texts:
+            recent_texts = ["No canonical knowledge yet"]
+
+        recent_labels = panel.findChildren(QLabel, "chatKnowledgeRecentItem")
+        recent_meta = panel.findChildren(QLabel, "chatKnowledgeRecentMeta")
+        recent_labels.sort(key=lambda label: int(label.property("pathenaRecentSlot") or 0))
+        recent_meta.sort(key=lambda label: int(label.property("pathenaRecentMetaSlot") or 0))
+        for slot in range(3):
+            text = recent_texts[slot] if slot < len(recent_texts) else ""
+            recent_labels[slot].setText(text)
+            recent_labels[slot].setVisible(bool(text))
+            if text and knowledge_list is not None and knowledge_list.count() > slot:
+                recent_meta[slot].setText("canonical · local")
+            elif text:
+                recent_meta[slot].setText("Explicitly accepted knowledge appears here")
+            else:
+                recent_meta[slot].clear()
+            recent_meta[slot].setVisible(bool(text))
 
 
 def install_startup_experience(window: QWidget) -> PathenaStartupExperience:
