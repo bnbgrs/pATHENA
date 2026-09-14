@@ -19,6 +19,7 @@ from athena.desktop.command_palette import CommandPaletteController
 from athena.desktop.pathena_command_palette_truth_6500 import (
     CommandPaletteTruthController,
 )
+from athena.desktop.pathena_design_tokens import PALETTE
 
 
 @pytest.fixture(scope="module")
@@ -60,6 +61,22 @@ def _filter(
     palette.query.setText(text)
     qapp.processEvents()
     qapp.processEvents()
+
+
+def test_reference_palette_geometry_is_applied_without_changing_command_truth(
+    qapp: QApplication,
+) -> None:
+    window, palette, _truth = _palette(qapp)
+    try:
+        assert palette.dialog.minimumWidth() >= 680
+        assert palette.dialog.minimumHeight() >= 420
+        assert palette.query.minimumHeight() >= 44
+        assert palette.results.minimumHeight() >= 320
+        assert PALETTE.accent in palette.results.styleSheet()
+        assert PALETTE.accent_soft in palette.results.styleSheet()
+    finally:
+        window.deleteLater()
+        qapp.processEvents()
 
 
 def test_available_command_executes_from_keyboard_and_closes_palette(
