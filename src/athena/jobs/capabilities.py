@@ -8,6 +8,7 @@ CONTROL_LANE_JOB_TYPES = frozenset(
     {
         "source.process",
         "backup.create",
+        "backup.verify_deep",
         "archive.replicate",
     }
 )
