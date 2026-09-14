@@ -7,9 +7,17 @@ while keeping accessible names, tooltips and object identities intact.
 
 from __future__ import annotations
 
-from PySide6.QtWidgets import QLabel, QTabWidget, QWidget
+from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QTabWidget, QWidget
 
 from athena.desktop.pathena_design_tokens import PALETTE, SPACE, TYPE
+
+_PRIMARY_NAVIGATION: tuple[tuple[str, int], ...] = (
+    ("Workspace", 0),
+    ("Library", 1),
+    ("Research", 2),
+    ("Jobs", 3),
+    ("Sources", 4),
+)
 
 _SYSTEM_TABS_STYLESHEET = f"""
 QTabWidget#systemOperationsTabs::pane {{
@@ -45,8 +53,49 @@ QTabWidget#systemOperationsTabs QTabBar::tab:selected {{
 """
 
 
+def _install_primary_top_navigation(window: QWidget) -> None:
+    """Expose the five real primary workspaces in the reference top chrome."""
+    top_bar = window.findChild(QWidget, "topBar")
+    navigation = getattr(window, "navigation", None)
+    if top_bar is None or navigation is None:
+        return
+    top_layout = top_bar.layout()
+    if not isinstance(top_layout, QHBoxLayout):
+        return
+
+    existing = top_bar.findChildren(QPushButton, "topNavButton")
+    if existing:
+        return
+
+    buttons: list[QPushButton] = []
+    for offset, (label, row) in enumerate(_PRIMARY_NAVIGATION):
+        if row >= navigation.count():
+            continue
+        button = QPushButton(label, top_bar)
+        button.setObjectName("topNavButton")
+        button.setCheckable(True)
+        button.setAutoExclusive(False)
+        button.setAccessibleName(f"Open {label}")
+        button.setToolTip(f"Open {label}")
+        button.clicked.connect(
+            lambda _checked=False, index=row: navigation.setCurrentRow(index)
+        )
+        top_layout.insertWidget(1 + offset, button)
+        buttons.append(button)
+
+    def sync_checked(row: int) -> None:
+        for button, (_label, target_row) in zip(buttons, _PRIMARY_NAVIGATION, strict=False):
+            button.setChecked(row == target_row)
+
+    navigation.currentRowChanged.connect(sync_checked)
+    sync_checked(navigation.currentRow())
+    window.__dict__["_pathena_primary_top_navigation"] = buttons
+
+
 def apply_shell_density(window: QWidget) -> None:
     """Reduce permanent shell chrome without obscuring control purpose."""
+    _install_primary_top_navigation(window)
+
     for label in window.findChildren(QLabel, "sessionLabel"):
         label.hide()
 
