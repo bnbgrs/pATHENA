@@ -147,3 +147,26 @@ def test_activity_tracker_uses_first_snapshot_as_baseline_and_can_reset() -> Non
     tracker.reset()
     assert tracker.has_baseline is False
     assert tracker.observe(second) is None
+
+
+def test_activity_tracker_keeps_last_valid_baseline_after_rejected_update() -> None:
+    tracker = PallasActivityTracker()
+    first = _snapshot("first", (_node("a", entity_id="entity-1"),))
+    invalid = _snapshot("invalid", (_node("a", entity_id="entity-2"),))
+    later = _snapshot(
+        "later",
+        (
+            _node("a", entity_id="entity-1"),
+            _node("b", entity_id="entity-3"),
+        ),
+    )
+
+    assert tracker.observe(first) is None
+    with pytest.raises(ValueError, match="node identity changed"):
+        tracker.observe(invalid)
+
+    delta = tracker.observe(later)
+    assert delta is not None
+    assert delta.before_graph_id == "first"
+    assert delta.after_graph_id == "later"
+    assert delta.added_node_ids == ("b",)
