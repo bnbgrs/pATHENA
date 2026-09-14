@@ -451,7 +451,7 @@ QPushButton[pathenaJobsDestructive="true"] {{
                 navigation.item(row).setHidden(True)
 
             if isinstance(page_title, QLabel):
-                self._page_title_was_visible = page_title.isVisible()
+                self._page_title_was_visible = not page_title.isHidden()
                 page_title.hide()
             return
 
