@@ -8,6 +8,7 @@ import stat
 from io import TextIOWrapper
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
+from typing import cast
 
 from athena.observability.logging import JsonFormatter
 
@@ -69,13 +70,14 @@ class _SecureRotatingFileHandler(RotatingFileHandler):
                 raise
             return descriptor
 
-        return self._builtin_open(
+        stream = self._builtin_open(
             self.baseFilename,
             self.mode,
             encoding=self.encoding,
             errors=self.errors,
             opener=opener,
         )
+        return cast(TextIOWrapper, stream)
 
 
 def _validated_log_level(level: object) -> int:
