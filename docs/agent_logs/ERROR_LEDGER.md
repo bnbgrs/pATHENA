@@ -4,26 +4,14 @@ Evidence-first ledger for current exact-SHA failures. Historical IDs, old runs a
 
 ## Current source of truth
 
-- `develop/pathena-next@0ea74a990f8375039769c7726a327fd9142d5985`; exact canonical Quality `34839249527 = SUCCESS`.
-- `postmerge/errors@c12664dd5cb8393bf65f782a9e89637f5f16a336` before this refresh; no exact workflow run exists on this documentation-only SHA.
-- `postmerge/spec-core@f5013995078ce355e64fe4dd7bd7c2a549a30ef9`; exact Core Focused `34838026579 = SUCCESS`, exact canonical Quality `34838026561 = FAILURE`.
-- `postmerge/backend@ef5a00fb79ebbbcbae0f77c826975068e7ec629f`; exact Storage Focused `34839202950 = SUCCESS`, exact canonical Quality `34839202948 = SUCCESS`.
-- `postmerge/ui@a88eac5f05db4128ae21b7c747e95c16a91191c4`; no newer exact UI successor exists.
+- `develop/pathena-next@fef85f3d53c9e3d13f20c515ed2bbb0558383f4c`; canonical Quality `34847605826 = IN_PROGRESS`. Windows path safety, Linux storage regressions, Local install/pypdf, specification validator, Ruff and mypy are green; full pytest is still running. Do not supersede this candidate.
+- `postmerge/errors@22d7a2534ff7c256bcf95f9caeb386de4d9c5a61` before this refresh; no workflow run exists on that SHA.
+- `postmerge/spec-core@7719c3f18de715fe1343980bdc466a2d12cdb286`; exact Core Focused `34843539383 = SUCCESS`, exact canonical Quality `34843539369 = SUCCESS`.
+- `postmerge/backend@8d2b07d4015f34328541ef035a155fd65d13dbf8`; exact Storage Focused `34844716718 = SUCCESS`, exact canonical Quality `34844716724 = SUCCESS`.
+- `postmerge/ui@575b8de0a4f25f512e423c78623bfa5b398c379d`; Core Focused `34845670246 = SUCCESS`, UI Focused `34845670143 = FAILURE`, canonical Quality `34845670362 = FAILURE`, 11-Surface Visual `34845664472 = FAILURE`.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
 ## OPEN
-
-### ERR-0066 — P2 — Supersession relation extends registry but canonical registry contract is stale
-
-Status: `OPEN`
-
-Owner: Spec/Core.
-
-Exact Spec/Core SHA `f5013995078ce355e64fe4dd7bd7c2a549a30ef9` has Core Focused `34838026579 = SUCCESS`, but canonical Quality `34838026561 = FAILURE`. Canonical Ruff, mypy, Linux Storage, Windows release guards and Local Install/pypdf are green; only full pytest is red.
-
-Exact canonical diagnostics artifact `canonical-quality-diagnostics-f5013995078ce355e64fe4dd7bd7c2a549a30ef9` (artifact id `10345975617`) was opened. Pytest result: `1 failed, 5164 passed, 17 skipped`. The sole failure is `tests/unit/test_relation_registry_contract.py::test_unknown_relation_type_falls_back_without_ontology_growth`: the test still asserts the old default relation tuple `related_to, same_as, different_from, belongs_to_project`, while this candidate intentionally registers the new directed Knowledge-to-Knowledge `superseded_by` definition. The runtime fallback assertion itself still resolves unknown relations to `related_to`; failure is the stale registry-definition expectation after intentional ontology growth.
-
-Do not weaken fallback behavior or the canonical gate. Spec/Core owns this same supersession slice and must make the minimal candidate-owned contract update, then obtain both exact Core Focused and canonical Quality success on the successor.
 
 ### ERR-0054 — P2 — Windows visual baseline review incomplete
 
@@ -31,39 +19,53 @@ Status: `OPEN`
 
 Owner: UI / Visual Review.
 
-No newer UI successor exists. Error worker must not create or accept a baseline. Closure still requires UI-owned real 11/11 reference/render review and final visual-verdict success.
+Current exact UI successor exists, but its Visual run is still red and the UI handoff remains fail-closed at `PAIRS_VERIFIED_0_OF_11` / `MATCH_0_OF_11` for the candidate until real exact renders are opened and compared to original references. Error worker must not create or accept a baseline. Closure requires truthful UI-owned 11/11 reference/render review and final visual-verdict success.
 
-### Current UI canonical regression handoff — P2 — UI-owned
+### Current UI exact-SHA regression cluster — P2 — UI-owned
 
 Status: `OPEN`
 
-Latest exact UI SHA remains `a88eac5f05db4128ae21b7c747e95c16a91191c4`; no newer exact UI successor exists in this run. Error worker does not patch UI product code in parallel.
+Exact UI SHA `575b8de0a4f25f512e423c78623bfa5b398c379d` has Core Focused green but UI Focused, canonical Quality and 11-Surface Visual red. This is a current UI-owned candidate, not an Error-owned product slice. Do not patch UI product code in parallel; consume the next UI successor and classify only its exact evidence.
+
+## IN_PROGRESS
+
+### Current Develop integration candidate
+
+Status: `IN_PROGRESS`
+
+Exact Develop SHA `fef85f3d53c9e3d13f20c515ed2bbb0558383f4c` bundles the already exact-green Core supersession slice and Backend WAL housekeeping slice. Canonical `34847605826` is still running only the full pytest step; all persistent release-guard lanes visible so far are green. No competing canonical run or further Develop mutation is permitted until terminal.
 
 ## FIXED / HELD CLOSED
 
-### ERR-0065 — P2 — prior exact Core Focused enforcement failure
+### ERR-0066 — P2 — supersession registry contract regression
 
 Status: `FIXED`
 
-The current Spec/Core successor `f5013995078ce355e64fe4dd7bd7c2a549a30ef9` has exact Core Focused `34838026579 = SUCCESS`. The prior hidden focused-substep failure on `873c6e3e...` is therefore closed and must not be conflated with new canonical-only ERR-0066.
+Current Spec/Core successor `7719c3f18de715fe1343980bdc466a2d12cdb286` repairs the stale registry contract without weakening unknown-relation fallback or ontology-growth protection. Exact Core Focused `34843539383 = SUCCESS` and exact canonical Quality `34843539369 = SUCCESS` on the same SHA. The repair snapshots registry definitions around unknown-relation resolution and explicitly requires canonical `superseded_by` presence.
+
+### ERR-0065 — P2 — prior Core Focused enforcement failure
+
+Status: `FIXED`
+
+Current Spec/Core exact focused and canonical evidence is green.
 
 ### ERR-0064 — P2 — Core Focused selector crossed ownership boundary
 
 Status: `FIXED`
 
-Bounded selector repair remains integrated; no current matching selector-contamination signature.
+Bounded selector repair remains integrated; no current matching regression.
 
 ### ERR-0063 — P2 — UI capture/route failure
 
 Status: `FIXED`
 
-No newer exact matching capture/route regression is reproduced.
+No current exact matching capture/route regression has been reclassified from the newer UI evidence; current UI red remains UI-owned and must be diagnosed on its exact successor.
 
 ### ERR-0059 — P2 — manifest capture truth
 
 Status: `FIXED`
 
-Capture-derived manifest fields, `assigned_reference_count=11`, and exact-eleven fail-closed PASS contract remain verified. No new matching regression.
+Capture-derived manifest fields, `assigned_reference_count = 11`, and exact-eleven fail-closed PASS contract remain held. No new matching exact regression.
 
 - `ERR-0062` — `FIXED`.
 - `ERR-0060` — `FIXED`.
@@ -80,12 +82,12 @@ Older Error-worker canonical red is inherited UI geometry against the authoritat
 
 ## Persistent release guards
 
-Current Develop canonical and current Backend canonical are green. No current exact evidence reopens pypdf packaging, fail-closed Frozen argv, Desktop/Worker executable separation, single Desktop with bounded workers, adaptive 2048-context reserve, Windows lane-lock escalation, duplicate-column, Core-startup or storage-bootstrap failures. Keep all guards unchanged.
+Current Backend focused and canonical are green. Current Develop canonical has Windows path safety, Linux storage, Local install/pypdf, validator, Ruff and mypy green while pytest is still in progress. No current exact evidence reopens pypdf packaging, fail-closed Frozen argv, Desktop/Worker executable separation, single Desktop with bounded workers, adaptive 2048-context reserve, Windows lane-lock escalation, duplicate-column, Core-startup or storage-bootstrap failures. Keep all guards unchanged.
 
 ## Next root cause
 
-1. Spec/Core owns ERR-0066: update only the stale registry-definition contract for intentional `superseded_by` growth; preserve unknown-type fallback and fail-closed canonical gate; require exact Core Focused and canonical success on the successor.
-2. Keep ERR-0065, ERR-0064, ERR-0059 and ERR-0063 closed absent new exact regression.
-3. Keep current Backend closed while its exact Focused and canonical runs remain green.
-4. Consume the next exact UI successor; existing UI failures remain UI-owned until then.
+1. Consume terminal Develop canonical `34847605826`; open a new cluster only if a new exact-SHA failure is reproduced.
+2. Keep ERR-0066, ERR-0065, ERR-0064 and ERR-0059 closed absent new exact regression.
+3. Keep Backend closed while exact Storage Focused and canonical remain green.
+4. Consume the next exact UI successor. Current UI Focused/canonical/Visual failures remain UI-owned; do not patch the same product slice from Error worker.
 5. UI owns ERR-0054: perform real 11/11 visual review; no baseline acceptance by Error worker.
