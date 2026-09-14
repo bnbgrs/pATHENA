@@ -180,6 +180,15 @@ QFrame#composer {{
     border: 1px solid #252525;
     border-radius: 16px;
 }}
+QFrame#composerContent,
+QFrame#composerPromptRow,
+QFrame#composerActionRow {{
+    background: transparent;
+    border: none;
+}}
+QFrame#composerActionRow {{
+    border-top: 1px solid #181818;
+}}
 QLineEdit#promptInput {{
     color: #E6E6E6;
     background: transparent;
@@ -307,16 +316,12 @@ def _configure_rail(window: QWidget) -> None:
         system_button.setObjectName("railUtilityButton")
         system_button.setAccessibleName("System")
         system_button.setToolTip("Open System")
-        system_button.clicked.connect(
-            lambda _checked=False: navigation.setCurrentRow(5)
-        )
+        system_button.clicked.connect(lambda _checked=False: navigation.setCurrentRow(5))
         settings_button = QPushButton("⚙", footer)
         settings_button.setObjectName("railUtilityButton")
         settings_button.setAccessibleName("Settings")
         settings_button.setToolTip("Open Settings")
-        settings_button.clicked.connect(
-            lambda _checked=False: navigation.setCurrentRow(6)
-        )
+        settings_button.clicked.connect(lambda _checked=False: navigation.setCurrentRow(6))
         footer_layout.addWidget(system_button)
         footer_layout.addWidget(settings_button)
         footer_layout.addStretch(1)
@@ -360,15 +365,7 @@ def _configure_top_bar(window: QWidget) -> None:
         clock = QLabel("--:--", cluster)
         clock.setObjectName("shellClock")
 
-        for widget in (
-            core_dot,
-            core_label,
-            sep_one,
-            pallas_label,
-            pallas_dot,
-            sep_two,
-            clock,
-        ):
+        for widget in (core_dot, core_label, sep_one, pallas_label, pallas_dot, sep_two, clock):
             cluster_layout.addWidget(widget)
 
         layout.setContentsMargins(18, 0, 18, 0)
@@ -415,14 +412,61 @@ def _configure_workspace_footer(window: QWidget) -> None:
 
     composer.setMinimumWidth(620)
     composer.setMaximumWidth(760)
-    composer.setFixedHeight(94)
+    composer.setFixedHeight(118)
     layout.setAlignment(composer, Qt.AlignmentFlag.AlignHCenter)
-    prompt = getattr(window, "prompt_input", None)
+
+    prompt = window.findChild(QWidget, "promptInput")
+    ground = window.findChild(QPushButton, "groundButton")
+    send = window.findChild(QPushButton, "sendButton")
     if prompt is not None:
-        prompt.setPlaceholderText("Ask anything…")
-    ground = getattr(window, "ground_button", None)
+        prompt.setMinimumHeight(46)
+        if hasattr(prompt, "setPlaceholderText"):
+            prompt.setPlaceholderText("Ask anything…")
     if ground is not None:
         ground.setText("Ground")
+
+    for object_name in ("detailsToggle", "contextToggle"):
+        button = window.findChild(QPushButton, object_name)
+        if button is not None:
+            button.hide()
+
+    composer_layout = composer.layout()
+    content = composer.findChild(QFrame, "composerContent")
+    if isinstance(composer_layout, QHBoxLayout) and content is None:
+        for widget in (prompt, ground, send):
+            if widget is not None:
+                composer_layout.removeWidget(widget)
+
+        composer_layout.setContentsMargins(14, 8, 10, 8)
+        composer_layout.setSpacing(0)
+        content = QFrame(composer)
+        content.setObjectName("composerContent")
+        content_layout = QVBoxLayout(content)
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(2)
+
+        prompt_row = QFrame(content)
+        prompt_row.setObjectName("composerPromptRow")
+        prompt_layout = QHBoxLayout(prompt_row)
+        prompt_layout.setContentsMargins(2, 0, 2, 0)
+        prompt_layout.setSpacing(0)
+        if prompt is not None:
+            prompt_layout.addWidget(prompt, 1)
+
+        action_row = QFrame(content)
+        action_row.setObjectName("composerActionRow")
+        action_layout = QHBoxLayout(action_row)
+        action_layout.setContentsMargins(2, 3, 0, 0)
+        action_layout.setSpacing(8)
+        if ground is not None:
+            action_layout.addWidget(ground)
+        action_layout.addStretch(1)
+        if send is not None:
+            action_layout.addWidget(send)
+
+        content_layout.addWidget(prompt_row, 1)
+        content_layout.addWidget(action_row, 0)
+        composer_layout.addWidget(content, 1)
 
 
 def _sync_reference_state(window: QWidget) -> None:
@@ -441,9 +485,7 @@ def _sync_reference_state(window: QWidget) -> None:
     core_dot = window.findChild(QLabel, "coreStateDot")
     if core_dot is not None:
         ready = bool(getattr(window, "_core_transport_ready", False))
-        core_dot.setStyleSheet(
-            f"color: {PALETTE.success};" if ready else "color: #5A5A5A;"
-        )
+        core_dot.setStyleSheet(f"color: {PALETTE.success};" if ready else "color: #5A5A5A;")
         core_dot.setToolTip("Local core ready" if ready else "Local core connecting")
 
     clock = window.findChild(QLabel, "shellClock")
@@ -478,7 +520,7 @@ def _sync_reference_state(window: QWidget) -> None:
         composer.setVisible(row == 0)
         composer.setMinimumWidth(620)
         composer.setMaximumWidth(760)
-        composer.setFixedHeight(94)
+        composer.setFixedHeight(118)
     if status_bar is not None:
         status_bar.setVisible(row == 0)
 
