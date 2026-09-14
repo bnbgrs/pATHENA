@@ -21,6 +21,7 @@ from athena.chat.service import ChatService
 from athena.chat.source_grounding import SourceGroundedChatService
 from athena.chat.unified_resumable import UnifiedLocalChatService
 from athena.config.settings import AthenaSettings
+from athena.core.knowledge_inspection import attach_knowledge_inspection_api
 from athena.core.services import LifecycleService, ServiceManager
 from athena.external.gateway import ExternalAccessGateway, ExternalResearchService
 from athena.jobs.archive_replication import DurableArchiveReplicationWorker
@@ -482,6 +483,12 @@ class AthenaApplication:
             semantic=self.archive_semantic_search,
         )
         self.reviews = ReviewService(self.database)
+        self.knowledge_inspection_api = attach_knowledge_inspection_api(
+            facade=self.api,
+            claims=self.claims,
+            reviews=self.reviews,
+            actor_id_provider=self.chat.ensure_local_user,
+        )
         self.source_extraction_snapshots = SourceExtractionSnapshotRepository(
             self.database, self.model_runs
         )
