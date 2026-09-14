@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from athena.config.settings import AthenaSettings
-from athena.core.application import AthenaApplication
-from athena.knowledge.models import ClaimKind
+from athena.config.settings import AthenaSettings  # type: ignore[import-untyped]
+from athena.core.application import AthenaApplication  # type: ignore[import-untyped]
+from athena.knowledge.models import ClaimKind  # type: ignore[import-untyped]
 
 
 def test_application_exposes_real_claim_inspection_through_core_api(
