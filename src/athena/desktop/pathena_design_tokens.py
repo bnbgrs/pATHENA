@@ -41,7 +41,7 @@ class Palette:
 
 @dataclass(frozen=True, slots=True)
 class Typography:
-    """Compact technical hierarchy shared by the eleven-screen reference family."""
+    """Compact technical sans/mono hierarchy for the reference family."""
 
     content_family: str = '"Segoe UI Variable", "Segoe UI", sans-serif'
     display_family: str = '"Segoe UI Variable Display", "Segoe UI Variable", "Segoe UI", sans-serif'
