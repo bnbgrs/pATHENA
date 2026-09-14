@@ -10,6 +10,7 @@ from PySide6.QtWidgets import QApplication, QFrame, QLabel, QPushButton
 
 from athena.desktop.app import create_application
 from athena.desktop.command_palette import install_command_palette
+from athena.desktop.pathena_comfyui import COMFYUI_URL_ENV
 from athena.desktop.pathena_external_workspaces import install_external_workspaces
 from athena.desktop.pathena_pallas_field import install_pallas_grounded_field
 from athena.desktop.pathena_pallas_full_view import install_pallas_full_view
@@ -75,8 +76,9 @@ def _surface():
 
 def _dispose(window, pallas, palette, external) -> None:
     external.dispose()
-    external.comfyui.dialog.deleteLater()
-    external.comfyui.deleteLater()
+    if external.comfyui is not None:
+        external.comfyui.dialog.deleteLater()
+        external.comfyui.deleteLater()
     external.deleteLater()
     pallas.dispose()
     pallas.deleteLater()
@@ -164,10 +166,12 @@ def test_pallas_and_comfyui_are_mutually_exclusive_and_command_is_registered() -
     comfyui = external.comfyui
     conversation = window.findChild(QFrame, "conversation")
     assert conversation is not None
+    assert comfyui is not None
 
     labels = {command.label for command in palette._commands}  # noqa: SLF001
     assert "Open ComfyUI" in labels
     assert window.property("pathenaComfyUiInstalled") is True
+    assert window.property("pathenaComfyUiUnavailableReason") is None
     assert window.property("pathenaExternalWorkspaceMutualExclusion") is True
     assert window.property("pathenaExternalWorkspaceOwner") == ""
 
@@ -198,5 +202,40 @@ def test_pallas_and_comfyui_are_mutually_exclusive_and_command_is_registered() -
     assert not pallas.is_open
     assert window.property("pathenaExternalWorkspaceOwner") == ""
     assert conversation.isVisible()
+
+    _dispose(window, pallas, palette, external)
+
+
+def test_invalid_optional_comfyui_configuration_does_not_break_pallas(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv(COMFYUI_URL_ENV, "https://example.com:8188")
+    app = _app()
+    window = PathenaMainWindow(api_controller=None)
+    grounded = install_pallas_grounded_field(window)
+    pallas = install_pallas_full_view(window, grounded)
+    palette = install_command_palette(window)
+
+    external = install_external_workspaces(window, palette, pallas)
+    window.resize(1480, 900)
+    window.show()
+    app.processEvents()
+
+    labels = {command.label for command in palette._commands}  # noqa: SLF001
+    conversation = window.findChild(QFrame, "conversation")
+    assert conversation is not None
+    assert external.comfyui is None
+    assert window.property("pathenaComfyUiInstalled") is False
+    assert "local HTTP" in str(window.property("pathenaComfyUiUnavailableReason"))
+    assert window.property("pathenaExternalWorkspaceMutualExclusion") is False
+    assert "Open ComfyUI" not in labels
+
+    pallas.open_workspace()
+    app.processEvents()
+
+    assert pallas.is_open
+    assert window.property("pathenaPallasShellOpen") is True
+    assert window.property("pathenaExternalWorkspaceOwner") == "pallas"
+    assert not conversation.isVisible()
 
     _dispose(window, pallas, palette, external)

@@ -10,6 +10,7 @@ from athena.desktop.command_palette import CommandPaletteController
 from athena.desktop.pathena_comfyui import (
     ComfyUiClient,
     ComfyUiController,
+    ComfyUiError,
     install_comfyui_integration,
 )
 from athena.desktop.pathena_pallas_full_view import PallasFullViewController
@@ -29,24 +30,36 @@ class ExternalWorkspaceCoordinator(QObject):
         super().__init__(window)
         self._window = window
         self.pallas = pallas
-        self.comfyui: ComfyUiController = install_comfyui_integration(
-            command_palette,
-            client=comfyui_client,
-        )
-        self._dialog = self.comfyui.dialog
+        self.comfyui: ComfyUiController | None = None
+        self._dialog: QWidget | None = None
         self._disposed = False
 
-        self._dialog.installEventFilter(self)
+        try:
+            self.comfyui = install_comfyui_integration(
+                command_palette,
+                client=comfyui_client,
+            )
+        except ComfyUiError as exc:
+            self._window.setProperty("pathenaComfyUiInstalled", False)
+            self._window.setProperty("pathenaComfyUiUnavailableReason", str(exc))
+        else:
+            self._dialog = self.comfyui.dialog
+            self._dialog.installEventFilter(self)
+            self._window.setProperty("pathenaComfyUiUnavailableReason", None)
+
         self.pallas.workspace_opened.connect(self._on_pallas_opened)
         self.pallas.workspace_closed.connect(self._on_pallas_closed)
-        self._window.setProperty("pathenaExternalWorkspaceMutualExclusion", True)
+        self._window.setProperty(
+            "pathenaExternalWorkspaceMutualExclusion",
+            self._dialog is not None,
+        )
         self._set_owner("")
 
     def _set_owner(self, owner: str) -> None:
         self._window.setProperty("pathenaExternalWorkspaceOwner", owner)
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:  # noqa: N802
-        if watched is self._dialog:
+        if self._dialog is not None and watched is self._dialog:
             if event.type() == QEvent.Type.Show:
                 if self.pallas.is_open:
                     self.pallas.close_workspace()
@@ -60,8 +73,9 @@ class ExternalWorkspaceCoordinator(QObject):
 
     @Slot()
     def _on_pallas_opened(self) -> None:
-        if isValid(self._dialog) and self._dialog.isVisible():
-            self._dialog.hide()
+        dialog = self._dialog
+        if dialog is not None and isValid(dialog) and dialog.isVisible():
+            dialog.hide()
         self._set_owner("pallas")
 
     @Slot()
@@ -79,9 +93,10 @@ class ExternalWorkspaceCoordinator(QObject):
             self.pallas.workspace_closed.disconnect(self._on_pallas_closed)
         except (RuntimeError, TypeError):
             pass
-        if isValid(self._dialog):
-            self._dialog.removeEventFilter(self)
-            self._dialog.hide()
+        dialog = self._dialog
+        if dialog is not None and isValid(dialog):
+            dialog.removeEventFilter(self)
+            dialog.hide()
         if self.pallas.is_open:
             self.pallas.close_workspace()
         self._window.setProperty("pathenaExternalWorkspaceMutualExclusion", False)
@@ -95,7 +110,7 @@ def install_external_workspaces(
     *,
     comfyui_client: ComfyUiClient | None = None,
 ) -> ExternalWorkspaceCoordinator:
-    """Install ComfyUI and coordinate its visibility with shell-hosted PALLAS."""
+    """Install optional ComfyUI and coordinate it with shell-hosted PALLAS."""
     existing = getattr(window, "_pathena_external_workspace_controller", None)
     if isinstance(existing, ExternalWorkspaceCoordinator):
         existing.dispose()
