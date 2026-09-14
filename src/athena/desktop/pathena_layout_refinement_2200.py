@@ -12,18 +12,14 @@ from dataclasses import dataclass
 from PySide6.QtCore import QEvent, QObject
 from PySide6.QtWidgets import (
     QAbstractItemView,
-    QFrame,
     QLabel,
     QLineEdit,
-    QListWidget,
     QPushButton,
     QSplitter,
     QTabWidget,
     QVBoxLayout,
     QWidget,
 )
-
-from athena.desktop.pathena_design_tokens import SHELL
 
 _COMPACT = 1260
 _WIDE = 1540
@@ -41,7 +37,7 @@ _LAYOUT_TARGETS: tuple[LayoutTarget, ...] = (
     LayoutTarget("persistentKnowledgeList", "Knowledge browser width"),
     LayoutTarget("persistentKnowledgeDetails", "Knowledge detail width"),
     LayoutTarget("persistentClaimList", "Claim browser width"),
-    LayoutTarget("persistentClaimDetails", "Claim detail width"),
+    LayoutTarget("persistentClaimDetails", "Knowledge detail width"),
     LayoutTarget("semanticReviewList", "Decision browser width"),
     LayoutTarget("semanticReviewDetails", "Decision detail width"),
     LayoutTarget("researchWorkspace", "Research workspace geometry"),
@@ -117,7 +113,6 @@ class PathenaLayoutRefinement(QObject):
     def apply_for_width(self, width: int) -> None:
         compact = width < _COMPACT
         wide = width >= _WIDE
-        self._tune_shell()
         self._tune_workspace_margins(compact=compact, wide=wide)
         self._tune_splitters(compact=compact, wide=wide)
         self._tune_lists(compact=compact, wide=wide)
@@ -128,37 +123,16 @@ class PathenaLayoutRefinement(QObject):
             "compact" if compact else "wide" if wide else "comfortable",
         )
 
-    def _tune_shell(self) -> None:
-        navigation = getattr(self.window, "navigation", None)
-        if isinstance(navigation, QListWidget):
-            navigation.setFixedWidth(SHELL.icon_rail_width)
-
-        icon_rail = self.window.findChild(QFrame, "iconRail")
-        if icon_rail is not None:
-            icon_rail.setFixedWidth(SHELL.icon_rail_width)
-
-        top_bar = self.window.findChild(QFrame, "topBar")
-        if top_bar is not None:
-            top_bar.setFixedHeight(SHELL.top_bar_height)
-
-        inspector = self.window.findChild(QFrame, "inspector")
-        if inspector is not None:
-            inspector.setFixedWidth(SHELL.inspector_width)
-
-        composer = self.window.findChild(QFrame, "composer")
-        if composer is not None:
-            composer.setFixedHeight(68)
-
     def _tune_workspace_margins(self, *, compact: bool, wide: bool) -> None:
         if compact:
-            margins = (8, 8, 12, 16)
-            spacing = 8
+            margins = (6, 0, 10, 16)
+            spacing = 9
         elif wide:
-            margins = (18, 14, 24, 24)
-            spacing = 12
+            margins = (12, 0, 24, 30)
+            spacing = 14
         else:
-            margins = (14, 10, 20, 20)
-            spacing = 10
+            margins = (8, 0, 18, 24)
+            spacing = 12
 
         for name in (
             "knowledgeWorkspace",
@@ -186,7 +160,7 @@ class PathenaLayoutRefinement(QObject):
                 continue
             for label in workspace.findChildren(QLabel, "settingsHelp"):
                 if label.wordWrap():
-                    label.setMaximumHeight(34 if compact else 48 if wide else 42)
+                    label.setMaximumHeight(34 if compact else 64 if wide else 52)
 
     def _tune_splitters(self, *, compact: bool, wide: bool) -> None:
         for workspace_name, reference_ratio in _REFERENCE_BROWSER_RATIOS.items():
@@ -225,17 +199,15 @@ class PathenaLayoutRefinement(QObject):
         send = self.window.findChild(QPushButton, "sendButton")
 
         if prompt is not None:
-            prompt.setMinimumHeight(SHELL.composer_min_height)
-            prompt.setMaximumHeight(SHELL.composer_min_height)
+            prompt.setMinimumHeight(38 if compact else 46 if wide else 42)
+            prompt.setMaximumHeight(50)
         if ground is not None:
-            ground.setMinimumWidth(62 if compact else 70)
-            ground.setMaximumWidth(78)
+            ground.setMinimumWidth(62 if compact else 72)
+            ground.setMaximumWidth(82)
             ground.setText("Source" if compact else "Sources")
         if send is not None:
-            send.setMinimumWidth(SHELL.composer_action_size)
-            send.setMaximumWidth(SHELL.composer_action_size)
-            send.setMinimumHeight(SHELL.composer_action_size)
-            send.setMaximumHeight(SHELL.composer_action_size)
+            send.setMinimumWidth(58 if compact else 68)
+            send.setMaximumWidth(84)
 
     def _tune_tabs(self, *, compact: bool) -> None:
         tabs = self.window.findChild(QTabWidget, "canonicalMemoryTabs")
