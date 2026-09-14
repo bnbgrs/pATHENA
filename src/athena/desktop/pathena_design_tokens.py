@@ -44,17 +44,17 @@ class Palette:
 
 @dataclass(frozen=True, slots=True)
 class Typography:
-    """Compact modern application hierarchy visible across the references."""
+    """Editorial display hierarchy plus compact application text."""
 
     content_family: str = '"Segoe UI Variable", "Segoe UI", "Inter", sans-serif'
-    display_family: str = (
-        '"Segoe UI Variable Display", "Segoe UI Variable", "Segoe UI", sans-serif'
-    )
+    # The opened reference family consistently uses a high-contrast editorial
+    # serif for large workspace titles while controls and body text remain sans.
+    display_family: str = '"Georgia", "Times New Roman", serif'
     metadata_family: str = '"Cascadia Mono", "Consolas", monospace'
     body_px: int = 15
     metadata_px: int = 12
-    title_px: int = 38
-    section_px: int = 20
+    title_px: int = 42
+    section_px: int = 21
 
 
 @dataclass(frozen=True, slots=True)
@@ -93,7 +93,7 @@ class ShellGeometry:
     secondary_nav_width: int = 256
     inspector_width: int = 360
     composer_min_height: int = 72
-    composer_action_size: int = 44
+    composer_action_size: int = 48
 
 
 PALETTE: Final = Palette()
