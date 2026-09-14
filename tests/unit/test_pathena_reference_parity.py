@@ -66,7 +66,8 @@ def test_reference_parity_applies_shared_reference_geometry() -> None:
         assert icon_rail is not None
         assert composer is not None
         assert inspector is not None
-        assert top_bar.height() == SHELL.top_bar_height
+        assert top_bar.minimumHeight() == SHELL.top_bar_height
+        assert top_bar.maximumHeight() == SHELL.top_bar_height
         assert icon_rail.width() == SHELL.icon_rail_width
         assert inspector.width() == SHELL.inspector_width + inspector.frameWidth()
         assert composer.minimumHeight() == 80
