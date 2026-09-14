@@ -3,42 +3,32 @@
 ## Current integration
 
 - Integration target: `develop/pathena-next`.
-- Develop parent before this integration: `cbe5854e35f6914cc785a2397718f6faff44eb03`.
-- Exact canonical Quality on that parent: `34843863295 = SUCCESS`.
+- Develop parent before this integration: `5048e8f2e88c1ac0553d3052db48c9c3be22bff1`.
+- Exact canonical Quality on that parent: `34851187301 = SUCCESS`.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
-- Bundle policy: two independently exact-SHA-verified, bounded, disjoint slices are combined in one Develop candidate.
+- `BUNDLED_SLICES=NONE` — this is a single Backend-owned bounded slice; Storage/Recovery-adjacent work is not bundled.
 
-## Bundled slices
+## Iteration — periodic Deep backup verification planner
 
-### Core — canonical Knowledge supersession planning
+Source head: `d0da4ca3677ebcda1e65e1637fd0d447810fb7fb`.
+Exact evidence: Backend Focused `34851416776 = SUCCESS`; canonical Quality `34851416765 = SUCCESS`.
 
-Source head: `7719c3f18de715fe1343980bdc466a2d12cdb286`.
-Exact evidence: Core Focused `34843539383 = SUCCESS`; canonical Quality `34843539369 = SUCCESS`.
+Only two bounded blobs are integrated from the worker lineage: `src/athena/jobs/backup_verify.py` and `tests/unit/test_backup_deep_verify_planner.py`. No worker history is merged.
 
-The slice extends the curated relation registry with directed `superseded_by` Knowledge-to-Knowledge semantics and adds a persistence-neutral supersession planner. It preserves historical Knowledge identities, rejects empty, duplicate and self-supersession inputs, validates UUID types, and fails closed if the registry falls back or changes the directed semantics. The registry contract test explicitly preserves the no-ad-hoc-ontology-growth invariant.
-
-### Backend — WAL scheduler control-housekeeping entrypoint
-
-Source head: `8d2b07d4015f34328541ef035a155fd65d13dbf8`.
-Exact evidence: Storage Focused `34844716718 = SUCCESS`; canonical Quality `34844716724 = SUCCESS`.
-
-The slice exposes `run_control_housekeeping()` on the existing WAL scheduler adapter and preserves the injected monotonic-clock path, provider-lane side-effect freedom, bounded interval gate, and no-thread/no-retry/no-TRUNCATE constraints. No schema, migration, Security or Recovery contract changes are introduced.
-
-## Bundle safety
-
-The Core and Backend slices touch no common product or test files and have no shared migration, schema, Storage/Security/Recovery prerequisite. Core changes are limited to Knowledge relation/supersession policy and tests; Backend changes are limited to the existing WAL scheduler adapter and its focused unit tests. Both exact worker heads have focused and canonical green evidence. Current Develop changes since their compatible bases are PALLAS/UI-test lineage and do not overlap these files.
+The new planner deterministically selects the oldest active completed backup snapshot whose Deep verification is due. It excludes failed, pruned, offline and not-due snapshots, uses a deterministic occurrence slot and idempotency key, leaves retryable environment/busy failures due for later orchestration, and fails closed on invalid runtime types or negative timestamps. It performs no backup creation, verification execution, schema change, migration or recovery mutation.
 
 ## Current worker truth at integration time
 
-- Errors: `22d7a2534ff7c256bcf95f9caeb386de4d9c5a61` — supersession-registry regression classification/documentation; no separate product slice selected.
-- Spec/Core: `7719c3f18de715fe1343980bdc466a2d12cdb286` — bundled bounded supersession slice.
-- Backend: `8d2b07d4015f34328541ef035a155fd65d13dbf8` — bundled bounded WAL control-housekeeping slice.
-- UI: `575b8de0a4f25f512e423c78623bfa5b398c379d` — current canonical Quality still in progress at qualification time; not bundled.
+- Errors: `a80e39b8b1669086d8db00deea10a7d37041507f` — documentation/evidence refresh only.
+- Spec/Core: `7719c3f18de715fe1343980bdc466a2d12cdb286` — supersession slice already represented in Develop.
+- Backend: `d0da4ca3677ebcda1e65e1637fd0d447810fb7fb` — bounded Deep verification planner selected here.
+- UI: `575b8de0a4f25f512e423c78623bfa5b398c379d` — not selected; separate PALLAS candidate qualification remains UI-owned.
 
 ## Source-of-truth notes
 
 - `docs/agent_logs/ERROR_LEDGER.md` remains historical wherever newer exact-SHA evidence exists; historical signatures are not OPEN without current reproduction.
-- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` and `docs/ui/VISUAL_GAP_LEDGER.md` remain fail-closed: no `MATCH` without an opened original reference and a real exact-SHA render. Only slot 01 has direct opened reference evidence; verified Send target remains 44×44 outer geometry.
+- `docs/ui/11_SCREEN_REFERENCE_MANIFEST.md` and `docs/ui/VISUAL_GAP_LEDGER.md` remain fail-closed: no `MATCH` without opened original reference and real exact-SHA render. Verified Send target remains 44×44 outer geometry.
+- The Backend worker handoff is stale relative to its current head, so this integration relies only on the bounded current-head code/test delta plus exact-head focused and canonical evidence; no broader Backend claims are imported.
 
 ## Persistent release guards
 
@@ -48,4 +38,4 @@ Retain without relaxation: pypdf packaging; fail-closed Frozen argv; Desktop/Wor
 
 `PROMOTION_READY=NO`
 
-Require a new complete canonical Quality `SUCCESS` on the resulting exact Develop SHA before any further Develop mutation. If it fails, diagnose only the new exact-SHA regression. If it succeeds, reload all worker heads before selecting the next bounded slice or cross-cutting gap.
+Require complete canonical Quality `SUCCESS` on the resulting exact Develop SHA before any further Develop mutation.
