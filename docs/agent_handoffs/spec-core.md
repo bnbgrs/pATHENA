@@ -2,41 +2,42 @@
 
 ## Current source of truth
 
-- Integration target checked first: `develop/pathena-next@b0bb67755ccd1e0df04c9988fa0a9416b9abd7c8`.
-- Worker before this slice: `postmerge/spec-core@fb7e923763cd9d376953a977281c3e7377fdd3cc`.
+- Develop checked first: `develop/pathena-next@b2063a274984448d5f0db5d1c917c7ee93ae80be`.
+- Worker before this run: `postmerge/spec-core@1d1334d82af52f8055d7da06b2afa3db575eac4b`.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
-- Previous canonical Knowledge-read composition candidate `fb7e923763cd9d376953a977281c3e7377fdd3cc` is exact-SHA verified: Core Focused `34856366095 = SUCCESS`, canonical Quality `34856370276 = SUCCESS`.
-- Current Develop still points to `b0bb67755ccd1e0df04c9988fa0a9416b9abd7c8`; the verified builder slice is not yet represented in Develop and therefore is not marked CLOSED.
+- Worker `1d1334d82af52f8055d7da06b2afa3db575eac4b` has exact-SHA Core Focused `34861762468 = SUCCESS` and canonical Quality `34861762425 = SUCCESS`.
+- Current Develop adds only the integrated PR-only Quality concurrency fix over the prior Develop baseline; the verified Knowledge-read worker changes are still not represented in Develop.
 
-## Current Core slice — expose Knowledge read through CoreApiFacade
+## Current Core slice — canonical Knowledge-read build+attach composition
 
-The existing `KnowledgeReadApiService` already delegates to truthful provenance explanation and immutable revision history. This slice exposes that existing service through the central transport-neutral facade without introducing a parallel API, repository, provenance store, cache or persistence path.
+The existing `build_knowledge_read_api()` already composes truthful provenance explanation and immutable revision history over one canonical Knowledge reader. `CoreApiFacade` already provides strict `attach_knowledge_read()` semantics from the prior verified slice. This run closes the remaining composition seam between those two established boundaries without adding a parallel reader, repository, cache, provenance representation, storage path or transport layer.
 
-Product changes:
+Product change in `src/athena/api/knowledge_read_composition.py`:
 
-- `CoreApiFacade` owns optional `KnowledgeReadApiService` attachment state.
-- `attach_knowledge_read()` is strict single-attach.
-- Capabilities are absent before attachment and present only while the real service is attached:
-  - `knowledge.read.why_known`
-  - `knowledge.read.revision_history`
-- `why_known()` delegates directly to the attached service.
-- `knowledge_revision_history()` delegates directly to the attached service.
-- Both operations fail closed before attachment.
-- Results are returned unchanged, preserving truthful provenance and immutable history projections supplied by the existing API services.
+- add a minimal `KnowledgeReadFacade` protocol exposing only `attach_knowledge_read()`;
+- add `attach_knowledge_read_api()` which builds exactly one `KnowledgeReadApiService`, attaches that exact instance to the supplied facade, and returns the same instance;
+- preserve the existing canonical Knowledge source for both Why-known and revision-history projections;
+- preserve facade-owned single-attach/fail-closed semantics rather than duplicating them in the composition helper.
 
-Focused acceptance in `tests/unit/test_api_knowledge_read_facade.py` covers capability gating, double-attach rejection, fail-closed access and direct result-preserving delegation.
+Focused acceptance in `tests/unit/test_knowledge_read_composition.py` now additionally proves:
+
+- the helper returns the exact service instance attached to the facade;
+- reads still route through the same canonical source;
+- a second attach fails and does not replace the originally attached service;
+- malformed Knowledge identity remains fail-closed before source access.
+
+## History-preserving baseline integration
+
+The candidate tree is built from current Develop so its CI-concurrency fix is retained, while all verified worker Knowledge-read files are overlaid unchanged except for the composition/test changes above. The commit has both prior worker and current Develop as parents. No force-push, rebase or history rewrite is used.
 
 ## Ownership / collision avoidance
 
-- Backend owns deep Storage/transaction/recovery/backup execution; no such path is changed.
-- UI owns PALLAS/Qt presentation and styling; no UI file is changed.
-- Protected Search remains authorization-first and is not mixed into this Knowledge-read slice.
-- Persistent release guards remain binding: pypdf/Frozen argv/two-EXE, bounded worker tree, adaptive 2048-context Chat reserve, Windows lane-lock cluster, duplicate-column/Core-startup/storage-bootstrap signatures; no Skip/XFail.
-
-## Qualification state
-
-The candidate is prepared atomically from the existing worker tree. No sync-only intermediate worker head is published. After publishing, Core Focused must be consumed first and canonical Quality must be allowed to finish on the same exact SHA before any further worker mutation.
+- Backend retains deep Storage/transaction/recovery/backup ownership.
+- UI retains Qt/PALLAS presentation and styling ownership.
+- Protected Search remains authorization-first and is not approximated through normal Search.
+- Persistent release guards remain binding: pypdf/Frozen argv/two-EXE, bounded worker tree, adaptive 2048-context Chat reserve, Windows lane-lock cluster, duplicate-column/Core-startup/storage-bootstrap signatures.
+- No Skip/XFail or guard relaxation.
 
 ## Next distinct Core gap
 
-After exact qualification of this facade slice, re-read current Develop/Handoffs/Coverage. If still absent, wire the already existing `build_knowledge_read_api(knowledge=self.knowledge)` into `AthenaApplication`, retain the exact returned `KnowledgeReadApiService` instance and attach that same instance once to `self.api`. Add application acceptance for exact-instance identity, capability presence and repository-backed Why-known/revision-history behavior. Do not create another reader, repository or provenance representation.
+After exact qualification and integration, wire `attach_knowledge_read_api(facade=self.api, knowledge=self.knowledge)` into `AthenaApplication`, retain the exact returned service instance, and add application acceptance proving exact-instance identity plus repository-backed Why-known/revision-history behavior. If central application mutation is unsafe with the available mutation interface, select another independent current Alpha/Beta Core gap rather than publishing a sync-only or docs-only follow-up.

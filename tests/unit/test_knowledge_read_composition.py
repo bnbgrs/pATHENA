@@ -4,7 +4,11 @@ import uuid
 
 import pytest
 
-from athena.api.knowledge_read_composition import build_knowledge_read_api
+from athena.api.knowledge_read import KnowledgeReadApiService
+from athena.api.knowledge_read_composition import (
+    attach_knowledge_read_api,
+    build_knowledge_read_api,
+)
 from athena.knowledge.models import (
     KnowledgeUnitRevision,
     KnowledgeUnitSnapshot,
@@ -36,6 +40,16 @@ class _KnowledgeSourceStub:
         raise LookupError("history source reached")
 
 
+class _FacadeStub:
+    def __init__(self) -> None:
+        self.attached: KnowledgeReadApiService | None = None
+
+    def attach_knowledge_read(self, service: KnowledgeReadApiService) -> None:
+        if self.attached is not None:
+            raise RuntimeError("Knowledge read service already attached.")
+        self.attached = service
+
+
 def test_builder_routes_both_views_through_same_canonical_source() -> None:
     source = _KnowledgeSourceStub()
     service = build_knowledge_read_api(knowledge=source)
@@ -60,3 +74,27 @@ def test_builder_preserves_fail_closed_identity_validation() -> None:
 
     assert source.loaded == []
     assert source.histories == []
+
+
+def test_attach_helper_returns_exact_service_attached_to_facade() -> None:
+    source = _KnowledgeSourceStub()
+    facade = _FacadeStub()
+
+    service = attach_knowledge_read_api(facade=facade, knowledge=source)
+
+    assert facade.attached is service
+    with pytest.raises(LookupError, match="explanation source reached"):
+        service.why_known(str(KNOWLEDGE_ID))
+    assert source.loaded == [KNOWLEDGE_ID]
+
+
+def test_attach_helper_preserves_single_attach_failure() -> None:
+    source = _KnowledgeSourceStub()
+    facade = _FacadeStub()
+
+    first = attach_knowledge_read_api(facade=facade, knowledge=source)
+
+    with pytest.raises(RuntimeError, match="already attached"):
+        attach_knowledge_read_api(facade=facade, knowledge=source)
+
+    assert facade.attached is first

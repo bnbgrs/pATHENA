@@ -19,6 +19,13 @@ class KnowledgeReadSource(KnowledgeProvenanceReader, KnowledgeHistoryReader, Pro
     """Single canonical Knowledge reader required by both audit projections."""
 
 
+class KnowledgeReadFacade(Protocol):
+    """Facade boundary required to expose the canonical Knowledge reader."""
+
+    def attach_knowledge_read(self, service: KnowledgeReadApiService) -> None:
+        """Attach exactly one Knowledge read API service."""
+
+
 def build_knowledge_read_api(*, knowledge: KnowledgeReadSource) -> KnowledgeReadApiService:
     """Compose existing truthful read projections over one canonical Knowledge source."""
 
@@ -28,3 +35,15 @@ def build_knowledge_read_api(*, knowledge: KnowledgeReadSource) -> KnowledgeRead
         explanation=explanation,
         history=history,
     )
+
+
+def attach_knowledge_read_api(
+    *,
+    facade: KnowledgeReadFacade,
+    knowledge: KnowledgeReadSource,
+) -> KnowledgeReadApiService:
+    """Build, attach and return one canonical Knowledge read service instance."""
+
+    service = build_knowledge_read_api(knowledge=knowledge)
+    facade.attach_knowledge_read(service)
+    return service
