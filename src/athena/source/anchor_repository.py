@@ -161,6 +161,153 @@ class SourceAnchorRepository:
                 created_at_us=now_us,
             )
 
+    def materialize_time_range(
+        self,
+        *,
+        actor_id: uuid.UUID,
+        source_id: uuid.UUID,
+        representation_id: uuid.UUID,
+        anchor_type: SourceAnchorType,
+        start_time_ms: int,
+        end_time_ms: int,
+        quoted_hash: bytes | None = None,
+    ) -> SourceAnchorRecord:
+        """Materialize an exact durable audio or video time range."""
+        if anchor_type not in {
+            SourceAnchorType.AUDIO_TIME_RANGE,
+            SourceAnchorType.VIDEO_TIME_RANGE,
+        }:
+            raise ValueError("Temporal SourceAnchor requires an audio or video time-range type.")
+        if isinstance(start_time_ms, bool) or not isinstance(start_time_ms, int):
+            raise TypeError("start_time_ms must be an integer.")
+        if isinstance(end_time_ms, bool) or not isinstance(end_time_ms, int):
+            raise TypeError("end_time_ms must be an integer.")
+        if start_time_ms < 0 or end_time_ms <= start_time_ms:
+            raise ValueError("Temporal SourceAnchor requires 0 <= start_time_ms < end_time_ms.")
+        if quoted_hash is not None:
+            if not isinstance(quoted_hash, bytes):
+                raise TypeError("quoted_hash must be bytes or None.")
+            if len(quoted_hash) != 32:
+                raise ValueError("quoted_hash must be a 32-byte SHA-256 digest.")
+
+        with self.database.write_transaction() as connection:
+            self._require_active_actor(connection, actor_id)
+            self._require_representation(connection, source_id, representation_id)
+            existing = self._find_exact_time_range(
+                connection,
+                source_id=source_id,
+                representation_id=representation_id,
+                anchor_type=anchor_type,
+                start_time_ms=start_time_ms,
+                end_time_ms=end_time_ms,
+                quoted_hash=quoted_hash,
+            )
+            if existing is not None:
+                return existing
+
+            now_us = utc_now_us()
+            anchor_id = new_uuid7()
+            provenance_id = new_uuid7()
+            commit_id = new_uuid7()
+            cursor = connection.execute(
+                """
+                INSERT INTO commit_records (
+                    commit_id, committed_at_us, actor_id, operation_type, reason
+                ) VALUES (?, ?, ?, 'source.anchor.time.materialize', NULL)
+                """,
+                (uuid_to_blob(commit_id), now_us, uuid_to_blob(actor_id)),
+            )
+            if cursor.lastrowid is None:
+                raise RuntimeError("SQLite did not return a commit sequence.")
+            commit_seq = int(cursor.lastrowid)
+            anchor_blob = uuid_to_blob(anchor_id)
+            actor_blob = uuid_to_blob(actor_id)
+            connection.execute(
+                """
+                INSERT INTO entity_registry (
+                    entity_id, entity_type, domain, created_at_us,
+                    created_by_actor_id, lifecycle_state, protection_scope_id,
+                    schema_version
+                ) VALUES (?, 'source_anchor', 'raw_archive', ?, ?, 'active', NULL, 1)
+                """,
+                (anchor_blob, now_us, actor_blob),
+            )
+            connection.execute(
+                """
+                INSERT INTO entity_state_history (
+                    entity_id, valid_from_commit_seq, valid_to_commit_seq,
+                    lifecycle_state, protection_scope_id, changed_by_actor_id, reason
+                ) VALUES (?, ?, NULL, 'active', NULL, ?, NULL)
+                """,
+                (anchor_blob, commit_seq, actor_blob),
+            )
+            connection.execute(
+                """
+                INSERT INTO source_anchors (
+                    anchor_id, source_id, representation_id, anchor_type,
+                    start_offset, end_offset, page_start, page_end,
+                    start_time_ms, end_time_ms, geometry_json, quoted_hash
+                ) VALUES (?, ?, ?, ?, NULL, NULL, NULL, NULL, ?, ?, NULL, ?)
+                """,
+                (
+                    anchor_blob,
+                    uuid_to_blob(source_id),
+                    uuid_to_blob(representation_id),
+                    anchor_type.value,
+                    start_time_ms,
+                    end_time_ms,
+                    quoted_hash,
+                ),
+            )
+            connection.execute(
+                """
+                INSERT INTO provenance_records (
+                    provenance_id, subject_entity_id, subject_revision_id,
+                    operation, actor_id, created_at_us, model_signature_id,
+                    processing_run_id, reason, protection_scope_id
+                ) VALUES (?, ?, NULL, 'source.anchor.time.materialize', ?, ?, NULL, NULL, NULL, NULL)
+                """,
+                (uuid_to_blob(provenance_id), anchor_blob, actor_blob, now_us),
+            )
+            connection.executemany(
+                """
+                INSERT INTO provenance_inputs (
+                    provenance_id, input_entity_id, input_revision_id, input_role, ordinal
+                ) VALUES (?, ?, NULL, ?, ?)
+                """,
+                (
+                    (uuid_to_blob(provenance_id), uuid_to_blob(source_id), "source", 0),
+                    (
+                        uuid_to_blob(provenance_id),
+                        uuid_to_blob(representation_id),
+                        "source_representation",
+                        1,
+                    ),
+                ),
+            )
+            connection.execute(
+                """
+                INSERT INTO commit_changes (commit_seq, entity_id, revision_id, change_type)
+                VALUES (?, ?, NULL, 'create')
+                """,
+                (commit_seq, anchor_blob),
+            )
+            return SourceAnchorRecord(
+                anchor_id=anchor_id,
+                source_id=source_id,
+                representation_id=representation_id,
+                anchor_type=anchor_type,
+                start_offset=None,
+                end_offset=None,
+                page_start=None,
+                page_end=None,
+                start_time_ms=start_time_ms,
+                end_time_ms=end_time_ms,
+                geometry_json=None,
+                quoted_hash=quoted_hash,
+                created_at_us=now_us,
+            )
+
     def materialize_structure(
         self,
         *,
@@ -346,7 +493,12 @@ class SourceAnchorRepository:
             raise SourceAnchorNotFoundError(f"SourceAnchor {anchor_id} not found.")
         return _anchor_from_row(row)
 
-    def list_for_source(self, source_id: uuid.UUID, *, limit: int = 500) -> tuple[SourceAnchorRecord, ...]:
+    def list_for_source(
+        self,
+        source_id: uuid.UUID,
+        *,
+        limit: int = 500,
+    ) -> tuple[SourceAnchorRecord, ...]:
         if not 1 <= limit <= 5000:
             raise ValueError("Anchor list limit must be between 1 and 5000.")
         rows = self.database.connection.execute(
@@ -414,6 +566,38 @@ class SourceAnchorRepository:
                 uuid_to_blob(representation_id),
                 start_offset,
                 end_offset,
+                quoted_hash,
+            ),
+        ).fetchone()
+        return None if row is None else _anchor_from_row(row)
+
+    @staticmethod
+    def _find_exact_time_range(
+        connection: sqlite3.Connection,
+        *,
+        source_id: uuid.UUID,
+        representation_id: uuid.UUID,
+        anchor_type: SourceAnchorType,
+        start_time_ms: int,
+        end_time_ms: int,
+        quoted_hash: bytes | None,
+    ) -> SourceAnchorRecord | None:
+        row = connection.execute(
+            """
+            SELECT a.*, e.created_at_us
+            FROM source_anchors AS a
+            JOIN entity_registry AS e ON e.entity_id = a.anchor_id
+            WHERE a.source_id = ? AND a.representation_id = ?
+              AND a.anchor_type = ?
+              AND a.start_time_ms = ? AND a.end_time_ms = ?
+              AND a.quoted_hash IS ?
+            """,
+            (
+                uuid_to_blob(source_id),
+                uuid_to_blob(representation_id),
+                anchor_type.value,
+                start_time_ms,
+                end_time_ms,
                 quoted_hash,
             ),
         ).fetchone()
