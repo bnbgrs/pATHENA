@@ -47,7 +47,6 @@ class _BoundedLocalResponse:
         *,
         max_bytes: int,
         total_timeout_seconds: float | None = None,
-        stream_sse: bool = False,
     ) -> None:
         if isinstance(max_bytes, bool) or not isinstance(max_bytes, int) or max_bytes <= 0:
             raise ValueError("Local model response byte limit must be a positive integer.")
@@ -60,7 +59,6 @@ class _BoundedLocalResponse:
         self._max_bytes = max_bytes
         self._bytes_read = 0
         self._byte_budget_poisoned = False
-        self._stream_sse = stream_sse
         self._deadline = (
             monotonic() + validated_total_timeout
             if validated_total_timeout is not None
@@ -83,7 +81,7 @@ class _BoundedLocalResponse:
         return None
 
     def __iter__(self) -> Any:
-        if self._stream_sse:
+        if self._is_event_stream():
             yield from self._iter_sse_events()
             return
 
@@ -95,7 +93,27 @@ class _BoundedLocalResponse:
                 return
             yield raw_line
 
+    def _is_event_stream(self) -> bool:
+        try:
+            headers = self._response.headers
+        except AttributeError:
+            return False
+
+        try:
+            content_type = headers.get_content_type()
+        except (AttributeError, TypeError, ValueError):
+            try:
+                raw_content_type = headers.get("Content-Type", "")
+            except (AttributeError, TypeError, ValueError):
+                return False
+            if not isinstance(raw_content_type, str):
+                return False
+            content_type = raw_content_type.partition(";")[0].strip()
+
+        return str(content_type).casefold() == "text/event-stream"
+
     def _iter_sse_events(self) -> Any:
+        """Yield one normalized ``data:`` line per complete SSE event."""
         data_lines: list[bytes] = []
         first_line = True
         while True:
@@ -277,12 +295,7 @@ def _bound_http_error_body(
         error.file = bounded_fp
 
 
-def open_local_request(
-    request: Request,
-    *,
-    timeout: float,
-    stream_sse: bool = False,
-) -> Any:
+def open_local_request(request: Request, *, timeout: float) -> Any:
     """Open a loopback provider request without proxies or redirect traversal.
 
     Explicitly installing an empty ``ProxyHandler`` keeps local model traffic
@@ -297,9 +310,9 @@ def open_local_request(
     ``readline()`` calls, a cumulative byte cap, and a monotonic total deadline
     in addition to the socket inactivity timeout, preventing giant SSE lines,
     many-small-event floods, and indefinitely active local streams from bypassing
-    the configured transport and generation bounds. In SSE mode, physical lines
-    pass through those bounds before logical ``data:`` fields are framed into
-    complete events. HTTP error bodies use the same byte and total-time bounds
+    the configured transport and generation bounds. Event-stream responses are
+    framed into complete logical ``data:`` events only after each physical line
+    passes those bounds. HTTP error bodies use the same byte and total-time bounds
     before provider-specific error parsing. Alternative raw response read APIs
     and body-handle escape attributes are rejected so callers cannot bypass the
     bounded read/readline paths accidentally.
@@ -317,11 +330,8 @@ def open_local_request(
             total_timeout_seconds=validated_timeout,
         )
         raise
-    if request.get_header("Accept") == "text/event-stream":
-        stream_sse = True
     return _BoundedLocalResponse(
         response,
         max_bytes=MAX_LOCAL_RESPONSE_BYTES,
         total_timeout_seconds=validated_timeout,
-        stream_sse=stream_sse,
     )
