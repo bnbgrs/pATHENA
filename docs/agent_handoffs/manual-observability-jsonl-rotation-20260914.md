@@ -47,6 +47,12 @@ The new tests cover:
 
 This does not claim runtime persistence is enabled. A later composition slice must choose an application-owned log directory using the existing runtime/path-safety contracts, then enable this primitive only after that directory boundary is proven. Cross-layer request/job/model-run correlation also remains separate.
 
+### Required startup ordering for the later composition slice
+
+Current `AthenaApplication.start()` intentionally performs the canonical database read-only integrity preflight before `StorageBootstrapService.start()` is allowed to create or probe runtime directories. `RuntimeLayoutService`, reached through storage bootstrap, is the existing owner that creates and validates `RuntimePaths.log_root`, rejects symlink boundaries, and proves that directory writable.
+
+Therefore do **not** call `configure_jsonl_logging()` beside the existing early `configure_logging()` call. Opening the JSONL file there would introduce a filesystem write before the canonical database read-only preflight. A later runtime-wiring slice must preserve that ordering: first complete the read-only database preflight, then establish the safe runtime layout through the existing storage lifecycle, and only then attach the JSONL sink at an application-owned path such as `paths.log_root / "athena.jsonl"`. Any startup failure before that point must remain console-only.
+
 ## Integration rule
 
 Fresh exact-head canonical ATHENA Quality is mandatory before promotion. Do not auto-merge this branch. Recheck current Develop, post-merge Quality, and worker collisions immediately before any integration. If Develop advances through PALLAS, Source/OCR, Backup, or other work, reconstruct/requalify this three-file slice on the then-current green Develop rather than relying on stale qualification evidence.
