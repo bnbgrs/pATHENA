@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from athena.desktop.pathena_design_tokens import PALETTE, SHELL
+from athena.desktop.pathena_design_tokens import PALETTE, SHELL, SPACE, TYPE
 from athena.desktop.pathena_window import PathenaMainWindow
 
 
@@ -65,23 +65,33 @@ class SettingsSecondaryNavigation(QObject):
             f"""
             QListWidget#settingsSecondaryNavigation {{
                 background: {PALETTE.surface};
-                border: 1px solid {PALETTE.border};
-                border-radius: 8px;
-                padding: 8px;
+                border: none;
+                border-right: 1px solid {PALETTE.border};
+                border-radius: 0;
+                padding: {SPACE.xs}px {SPACE.sm}px {SPACE.xs}px {SPACE.xs}px;
                 color: {PALETTE.text_muted};
+                font-family: {TYPE.content_family};
+                font-size: {TYPE.metadata_px}px;
             }}
             QListWidget#settingsSecondaryNavigation::item {{
                 min-height: 38px;
-                padding: 0 10px;
+                padding: 0 {SPACE.sm}px;
+                margin: 1px 0;
+                border: none;
+                border-left: 2px solid transparent;
                 border-radius: 6px;
             }}
             QListWidget#settingsSecondaryNavigation::item:selected {{
-                background: {PALETTE.surface_selected};
-                color: {PALETTE.text};
+                background: {PALETTE.accent_soft};
+                color: {PALETTE.accent};
                 border-left: 2px solid {PALETTE.accent};
             }}
             QListWidget#settingsSecondaryNavigation::item:hover {{
                 background: {PALETTE.surface_hover};
+                color: {PALETTE.text};
+            }}
+            QListWidget#settingsSecondaryNavigation::item:selected:hover {{
+                background: {PALETTE.accent_soft};
                 color: {PALETTE.text};
             }}
             """
@@ -101,8 +111,8 @@ class SettingsSecondaryNavigation(QObject):
         self.content = QWidget()
         self.content.setObjectName("settingsSecondaryContent")
         content_layout = QVBoxLayout(self.content)
-        content_layout.setContentsMargins(4, 0, 12, 28)
-        content_layout.setSpacing(18)
+        content_layout.setContentsMargins(SPACE.lg, 0, SPACE.sm, SPACE.xl)
+        content_layout.setSpacing(SPACE.lg)
         while page_layout.count():
             layout_item = page_layout.takeAt(0)
             if layout_item is None:
@@ -127,7 +137,7 @@ class SettingsSecondaryNavigation(QObject):
         self.container.setObjectName("settingsSecondaryContainer")
         container_layout = QHBoxLayout(self.container)
         container_layout.setContentsMargins(0, 0, 0, 0)
-        container_layout.setSpacing(24)
+        container_layout.setSpacing(0)
         container_layout.addWidget(self.navigation)
         container_layout.addWidget(self.scroll, 1)
         page_layout.addWidget(self.container, 1)
