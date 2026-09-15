@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QEvent, QObject, Qt, Signal, Slot
+from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import (
     QApplication,
     QFrame,
@@ -15,11 +16,30 @@ from PySide6.QtWidgets import (
 )
 from shiboken6 import isValid
 
+import athena.desktop.pathena_pallas_field as pallas_field_module
+from athena.desktop.pathena_design_tokens import PALETTE
 from athena.desktop.pathena_pallas_field import (
     PallasGroundedFieldController,
     PallasWorkspace,
 )
 from athena.desktop.pathena_pallas_living_qt import PallasLivingQtController
+
+
+def _apply_reference_renderer_palette(
+    grounded_controller: PallasGroundedFieldController,
+) -> None:
+    """Align renderer-only colors with the opened eleven-screen reference family."""
+    pallas_field_module._CANVAS = QColor(PALETTE.canvas)
+    pallas_field_module._TEXT = QColor(PALETTE.text)
+    pallas_field_module._MUTED = QColor(PALETTE.text_muted)
+    pallas_field_module._QUIET = QColor(PALETTE.text_quiet)
+    pallas_field_module._BORDER = QColor(PALETTE.border)
+    pallas_field_module._ACCENT = QColor(PALETTE.accent)
+    pallas_field_module._CONFLICT = QColor(PALETTE.error)
+    pallas_field_module._UNCERTAIN = QColor(PALETTE.warning)
+    grounded_controller.field.canvas.setBackgroundBrush(
+        QBrush(QColor(PALETTE.canvas))
+    )
 
 
 class PallasFullViewController(QObject):
@@ -61,6 +81,7 @@ class PallasFullViewController(QObject):
         self._opened_navigation_row: int | None = None
         self._viewport = grounded_controller.field.canvas.viewport()
         self._viewport.installEventFilter(self)
+        _apply_reference_renderer_palette(grounded_controller)
         self._living_controller = PallasLivingQtController(grounded_controller, self)
         self._living_controller.diagnostics_changed.connect(
             self._apply_living_diagnostics
@@ -169,6 +190,7 @@ class PallasFullViewController(QObject):
         host.setObjectName("pallasShellWorkspaceHost")
         host.setProperty("pathenaPallasShellHosted", True)
         host.setAccessibleName("PALLAS living workspace host")
+        host.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
 
         outer = QVBoxLayout(host)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -201,6 +223,8 @@ class PallasFullViewController(QObject):
         workspace.setObjectName("pallasShellWorkspace")
         workspace.setAccessibleName("PALLAS full living semantic workspace")
         workspace.setProperty("pathenaPallasShellHosted", True)
+        workspace.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        workspace.field.canvas.setBackgroundBrush(QBrush(QColor(PALETTE.canvas)))
         outer.addWidget(workspace, 1)
         self._body_layout.insertWidget(1, host, 1)
 
