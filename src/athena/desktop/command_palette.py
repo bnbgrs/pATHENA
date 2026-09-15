@@ -47,7 +47,7 @@ _WORKSPACE_HELP: tuple[tuple[str, str], ...] = (
         "cancel and wake actions.",
     ),
     (
-        "Files",
+        "Sources",
         "Import local sources into the Raw Archive, inspect retrieval readiness and "
         "process or retry supported files.",
     ),
@@ -107,9 +107,7 @@ class CommandPaletteController(QObject):
             "Available pATHENA commands matching the current search. Use Up and Down to move, "
             "then Enter to run the selected command."
         )
-        self.results.setHorizontalScrollBarPolicy(
-            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
-        )
+        self.results.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.results.setMinimumHeight(280)
 
         self.help_dialog = QDialog(window)
