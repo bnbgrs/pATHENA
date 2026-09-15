@@ -25,8 +25,8 @@ Canonical implementation values live in `src/athena/desktop/pathena_design_token
 
 | Ref | Surface | Required visual identity |
 | --- | --- | --- |
-| 01 | Chat / disconnected startup | Special first-run state. `Getting pATHENA ready`, `LOCAL CORE · CONNECTING`, centered quiet empty state, knowledge-oriented right context, disabled composer remains visible. |
-| 02 | Knowledge | Top destination remains `KNOWLEDGE`; workspace title is `Library`; canonical memory/search surfaces stay dense and provenance-first. |
+| 01 | Chat / disconnected startup | Dedicated disconnected mode: 248 px full-height left navigation, orange pATHENA wordmark, expanded `CHAT`/`KNOWLEDGE`/`RESEARCH`/`JOBS`/`SOURCES` rows, real System/Settings utilities, `Getting pATHENA ready`, `LOCAL CORE · CONNECTING`, centered quiet empty state, knowledge-oriented right context, disabled composer remains visible. The normal top bar returns when leaving this state. |
+| 02 | Knowledge | Top destination remains `Knowledge`; workspace title is `Library`; canonical memory/search surfaces stay dense and provenance-first. |
 | 03 | Research | `Research` title, query/filter hierarchy, run list and result/canonical-memory detail split. |
 | 04 | Jobs | `Jobs` title, quiet tabs/filtering, durable-job list and detail split; no decorative status color. |
 | 05 | Sources | `Sources` title, import/refresh actions, source list and source-detail split. |
@@ -39,7 +39,7 @@ Canonical implementation values live in `src/athena/desktop/pathena_design_token
 
 ## Navigation semantics
 
-The global destinations are `CHAT`, `KNOWLEDGE`, `RESEARCH`, `JOBS`, `SOURCES`; System and Settings remain utility destinations. The visible workspace title for Knowledge is intentionally `Library`. This distinction is part of the reference family and should not be normalized away.
+The normal workbench top bar renders `Chat`, `Knowledge`, `Research`, `Jobs`, and `Sources` in title case, matching the references. System and Settings remain icon utilities. The disconnected Chat screen intentionally switches to the expanded uppercase left-rail labels shown in reference 01. The visible workspace title for Knowledge is intentionally `Library`; this distinction should not be normalized away.
 
 ## Guardrails
 
