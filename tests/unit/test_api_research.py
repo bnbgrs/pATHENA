@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 
-from athena.api.research import ResearchApiService
+from athena.api.research import ResearchApiService, build_research_api
 from athena.jobs.models import JobPriority, JobState
 
 
@@ -78,3 +78,20 @@ def test_research_api_does_not_synthesize_or_rewrite_job_identity() -> None:
 
     assert first.job_id == second.job_id == str(research.job.job_id)
     assert first.job_type == second.job_type == research.job.job_type
+
+
+def test_build_research_api_wraps_the_exact_existing_orchestrator() -> None:
+    research = _Research()
+    api = build_research_api(research=research)
+
+    response = api.start_local("C", requested_model_id="model-c")
+
+    assert research.calls == [
+        {
+            "query": "C",
+            "priority": JobPriority.NORMAL,
+            "coverage_target": 1.0,
+            "requested_model_id": "model-c",
+        }
+    ]
+    assert response.job_id == str(research.job.job_id)

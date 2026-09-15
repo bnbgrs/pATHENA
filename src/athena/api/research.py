@@ -76,3 +76,9 @@ class ResearchApiService:
             priority=int(job.priority),
             state=job.state.value,
         )
+
+
+def build_research_api(*, research: LocalResearchEnqueuer) -> ResearchApiService:
+    """Build the canonical adapter around an existing durable Research service."""
+
+    return ResearchApiService(research=research)
