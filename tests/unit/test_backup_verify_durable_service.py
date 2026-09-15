@@ -4,9 +4,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from athena.jobs.backup_verify_durable_service import (
-    BackupDeepVerifyDurableJobService,
-)
+from athena.jobs.backup_verify_durable_service import BackupDeepVerifyDurableJobService
 from athena.jobs.backup_verify_payload import BACKUP_VERIFY_DEEP_JOB_TYPE
 from athena.jobs.models import JobPriority
 from athena.jobs.service import InvalidJobPayloadError
@@ -18,62 +16,88 @@ _SNAPSHOT_ID = "12345678-1234-5678-9234-567812345678"
 def _valid_payload() -> tuple[dict[str, object], dict[str, object]]:
     return (
         {"snapshot_id": _SNAPSHOT_ID, "occurrence_slot_us": 1},
-        {"pipeline_version": "backup-deep-verify-v1"},
+        {
+            "snapshot_id": _SNAPSHOT_ID,
+            "occurrence_slot_us": 1,
+            "retry_via_backup_create": False,
+        },
     )
 
 
-def test_deep_verify_rejects_invalid_payload_before_actor_or_repository_write() -> None:
+def test_deep_verify_rejects_malformed_payload_before_side_effects() -> None:
     repository = Mock()
-    chat = Mock()
-    service = BackupDeepVerifyDurableJobService(repository, chat)
+    actors = Mock()
+    canonical_service = Mock()
+    service = BackupDeepVerifyDurableJobService(
+        repository=repository,
+        actors=actors,
+        canonical_service=canonical_service,
+    )
 
     with pytest.raises(InvalidJobPayloadError):
         service.create(
             job_type=BACKUP_VERIFY_DEEP_JOB_TYPE,
-            requested_scope={"snapshot_id": _SNAPSHOT_ID},
-            pinned_configuration={"pipeline_version": "backup-deep-verify-v1"},
+            requested_scope={"snapshot_id": "not-a-uuid", "occurrence_slot_us": 1},
+            priority=JobPriority.TIME_CRITICAL,
         )
 
-    chat.ensure_local_user.assert_not_called()
+    actors.ensure_local_user.assert_not_called()
     repository.create.assert_not_called()
+    canonical_service.create.assert_not_called()
 
 
 def test_deep_verify_persists_validated_payload_once() -> None:
+    requested_scope, normalized_scope = _valid_payload()
     repository = Mock()
-    repository.create.return_value = Mock()
-    chat = Mock()
-    chat.ensure_local_user.return_value = "local-user"
-    service = BackupDeepVerifyDurableJobService(repository, chat)
-    scope, configuration = _valid_payload()
+    repository.create.return_value = "job-1"
+    actors = Mock()
+    actors.ensure_local_user.return_value = "actor-1"
+    canonical_service = Mock()
+    service = BackupDeepVerifyDurableJobService(
+        repository=repository,
+        actors=actors,
+        canonical_service=canonical_service,
+    )
 
     result = service.create(
         job_type=BACKUP_VERIFY_DEEP_JOB_TYPE,
+        requested_scope=requested_scope,
         priority=JobPriority.TIME_CRITICAL,
-        requested_scope=scope,
-        pinned_configuration=configuration,
-        next_run_at_us=2,
     )
 
-    assert result is repository.create.return_value
-    chat.ensure_local_user.assert_called_once_with()
-    repository.create.assert_called_once()
-    call = repository.create.call_args.kwargs
-    assert call["job_type"] == BACKUP_VERIFY_DEEP_JOB_TYPE
-    assert call["actor_id"] == "local-user"
-    assert call["priority"] is JobPriority.TIME_CRITICAL
-    assert call["next_run_at_us"] == 2
-    assert f'"snapshot_id":"{_SNAPSHOT_ID}"' in call["requested_scope_json"]
-    assert '"occurrence_slot_us":1' in call["requested_scope_json"]
-    assert call["pinned_configuration_json"] == '{"pipeline_version":"backup-deep-verify-v1"}'
+    assert result == "job-1"
+    actors.ensure_local_user.assert_called_once_with()
+    repository.create.assert_called_once_with(
+        job_type=BACKUP_VERIFY_DEEP_JOB_TYPE,
+        requested_scope=normalized_scope,
+        priority=JobPriority.TIME_CRITICAL,
+        actor_id="actor-1",
+    )
+    canonical_service.create.assert_not_called()
 
 
 def test_non_deep_verify_job_delegates_to_canonical_service_validation() -> None:
     repository = Mock()
-    chat = Mock()
-    service = BackupDeepVerifyDurableJobService(repository, chat)
+    actors = Mock()
+    canonical_service = Mock()
+    canonical_service.create.side_effect = InvalidJobPayloadError("invalid backup.create payload")
+    service = BackupDeepVerifyDurableJobService(
+        repository=repository,
+        actors=actors,
+        canonical_service=canonical_service,
+    )
 
-    with pytest.raises(InvalidJobPayloadError):
-        service.create(job_type="backup.create")
+    with pytest.raises(InvalidJobPayloadError, match="invalid backup.create payload"):
+        service.create(
+            job_type="backup.create",
+            requested_scope={},
+            priority=JobPriority.NORMAL,
+        )
 
-    chat.ensure_local_user.assert_not_called()
+    canonical_service.create.assert_called_once_with(
+        job_type="backup.create",
+        requested_scope={},
+        priority=JobPriority.NORMAL,
+    )
+    actors.ensure_local_user.assert_not_called()
     repository.create.assert_not_called()
