@@ -47,16 +47,17 @@ class SettingsSecondaryNavigation(QObject):
             raise RuntimeError("pATHENA Settings model controls are unavailable")
 
         runtime_target = settings_page.findChild(QWidget, "settingsRuntimePanel")
-        sections = [SecondarySection("model", "Model & inference", model_target)]
+        sections = [SecondarySection("model", "Models & inference", model_target)]
         if runtime_target is not None:
-            sections.append(SecondarySection("runtime", "Local runtime", runtime_target))
+            sections.append(SecondarySection("runtime", "System status", runtime_target))
         self.sections = tuple(sections)
 
         self.navigation = QListWidget()
         self.navigation.setObjectName("settingsSecondaryNavigation")
+        self.navigation.setProperty("referenceFamily", "11-screen-2026-08-24")
         self.navigation.setAccessibleName("Settings sections")
         self.navigation.setAccessibleDescription(
-            "Navigate between available Settings sections"
+            "Navigate between the Settings sections that are implemented in this desktop"
         )
         self.navigation.setFixedWidth(SHELL.secondary_nav_width)
         self.navigation.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -64,15 +65,16 @@ class SettingsSecondaryNavigation(QObject):
         self.navigation.setStyleSheet(
             f"""
             QListWidget#settingsSecondaryNavigation {{
-                background: {PALETTE.surface};
-                border: 1px solid {PALETTE.border};
-                border-radius: 8px;
-                padding: 8px;
+                background: transparent;
+                border: none;
+                border-right: 1px solid {PALETTE.border};
+                padding: 8px 18px 8px 0;
                 color: {PALETTE.text_muted};
             }}
             QListWidget#settingsSecondaryNavigation::item {{
-                min-height: 38px;
-                padding: 0 10px;
+                min-height: 40px;
+                padding: 0 12px;
+                border: none;
                 border-radius: 6px;
             }}
             QListWidget#settingsSecondaryNavigation::item:selected {{
@@ -101,8 +103,8 @@ class SettingsSecondaryNavigation(QObject):
         self.content = QWidget()
         self.content.setObjectName("settingsSecondaryContent")
         content_layout = QVBoxLayout(self.content)
-        content_layout.setContentsMargins(4, 0, 12, 28)
-        content_layout.setSpacing(18)
+        content_layout.setContentsMargins(20, 0, 24, 28)
+        content_layout.setSpacing(20)
         while page_layout.count():
             layout_item = page_layout.takeAt(0)
             if layout_item is None:
@@ -125,9 +127,10 @@ class SettingsSecondaryNavigation(QObject):
 
         self.container = QFrame()
         self.container.setObjectName("settingsSecondaryContainer")
+        self.container.setProperty("referenceFamily", "11-screen-2026-08-24")
         container_layout = QHBoxLayout(self.container)
         container_layout.setContentsMargins(0, 0, 0, 0)
-        container_layout.setSpacing(24)
+        container_layout.setSpacing(28)
         container_layout.addWidget(self.navigation)
         container_layout.addWidget(self.scroll, 1)
         page_layout.addWidget(self.container, 1)
