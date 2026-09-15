@@ -1,9 +1,9 @@
 """Deterministic painted backgrounds for the eleven-screen reference shell.
 
 Qt style sheets do not always make plain ``QWidget`` workspace roots paint an
-opaque background.  The legacy desktop palette can therefore leak through as
+opaque background. The legacy desktop palette can therefore leak through as
 near-black ``#060606`` blocks even when the final QSS correctly asks for the
-reference navy.  This module fixes only that paint contract; it does not own
+reference navy. This module fixes only that paint contract; it does not own
 workspace state or interaction.
 """
 
@@ -37,6 +37,7 @@ _CANVAS_ROOTS = (
 _SURFACE_ROOTS = (
     "inspector",
     "inspectorPanel",
+    "inspectorScrollContent",
     "helpSecondaryNavigation",
     "comfyUiIntegrationNav",
     "comfyUiConnectionPanel",
@@ -47,16 +48,17 @@ _CANVAS_SCROLL_AREAS = (
     "knowledgeWorkspaceScroll",
 )
 
+_SURFACE_SCROLL_AREAS = ("inspectorScroll",)
+
 
 def _paint(widget: QWidget, color: str) -> None:
-    """Give a plain Qt widget an explicit opaque Window/Base paint colour."""
+    """Give a Qt widget an explicit Window/Base palette and styled background."""
     qcolor = QColor(color)
     palette = widget.palette()
     palette.setColor(QPalette.ColorRole.Window, qcolor)
     palette.setColor(QPalette.ColorRole.Base, qcolor)
     widget.setPalette(palette)
     widget.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-    widget.setAutoFillBackground(True)
     widget.update()
 
 
@@ -66,6 +68,11 @@ def _paint_named(window: QWidget, object_name: str, color: str) -> QWidget | Non
         return None
     _paint(widget, color)
     return widget
+
+
+def _paint_scroll_area(area: QAbstractScrollArea, color: str) -> None:
+    _paint(area, color)
+    _paint(area.viewport(), color)
 
 
 def stabilize_reference_backgrounds(window: QWidget) -> None:
@@ -80,7 +87,10 @@ def stabilize_reference_backgrounds(window: QWidget) -> None:
 
     for object_name in _CANVAS_SCROLL_AREAS:
         area = window.findChild(QAbstractScrollArea, object_name)
-        if area is None:
-            continue
-        _paint(area, PALETTE.canvas)
-        _paint(area.viewport(), PALETTE.canvas)
+        if area is not None:
+            _paint_scroll_area(area, PALETTE.canvas)
+
+    for object_name in _SURFACE_SCROLL_AREAS:
+        area = window.findChild(QAbstractScrollArea, object_name)
+        if area is not None:
+            _paint_scroll_area(area, PALETTE.surface)
