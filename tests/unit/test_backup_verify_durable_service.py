@@ -10,9 +10,12 @@ from athena.jobs.models import JobPriority
 from athena.jobs.service import InvalidJobPayloadError
 
 
+_SNAPSHOT_ID = "12345678-1234-5678-9234-567812345678"
+
+
 def _valid_payload() -> tuple[dict[str, object], dict[str, object]]:
     return (
-        {"snapshot_id": "snapshot-1", "occurrence_slot_us": 1},
+        {"snapshot_id": _SNAPSHOT_ID, "occurrence_slot_us": 1},
         {"pipeline_version": "backup-deep-verify-v1"},
     )
 
@@ -25,7 +28,7 @@ def test_deep_verify_rejects_invalid_payload_before_actor_or_repository_write() 
     with pytest.raises(InvalidJobPayloadError):
         service.create(
             job_type=BACKUP_VERIFY_DEEP_JOB_TYPE,
-            requested_scope={"snapshot_id": "snapshot-1"},
+            requested_scope={"snapshot_id": _SNAPSHOT_ID},
             pinned_configuration={"pipeline_version": "backup-deep-verify-v1"},
         )
 
@@ -57,19 +60,18 @@ def test_deep_verify_persists_validated_payload_once() -> None:
     assert call["actor_id"] == "local-user"
     assert call["priority"] is JobPriority.TIME_CRITICAL
     assert call["next_run_at_us"] == 2
-    assert '"snapshot_id":"snapshot-1"' in call["requested_scope_json"]
+    assert f'"snapshot_id":"{_SNAPSHOT_ID}"' in call["requested_scope_json"]
     assert '"occurrence_slot_us":1' in call["requested_scope_json"]
     assert call["pinned_configuration_json"] == '{"pipeline_version":"backup-deep-verify-v1"}'
 
 
 def test_non_deep_verify_job_delegates_to_canonical_service_validation() -> None:
     repository = Mock()
-    repository.create.return_value = Mock()
     chat = Mock()
-    chat.ensure_local_user.return_value = "local-user"
     service = BackupDeepVerifyDurableJobService(repository, chat)
 
-    service.create(job_type="backup.create")
+    with pytest.raises(InvalidJobPayloadError):
+        service.create(job_type="backup.create")
 
-    chat.ensure_local_user.assert_called_once_with()
-    repository.create.assert_called_once()
+    chat.ensure_local_user.assert_not_called()
+    repository.create.assert_not_called()
