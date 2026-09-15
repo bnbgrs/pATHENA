@@ -4,30 +4,32 @@ Evidence-only progress register for `develop/pathena-next`. No invented completi
 
 ## Current baseline
 
-- Exact Develop parent before this integration: `f8a25be7fd7df9f2a8ca281a1567f79ddaabcfb6`.
-- Exact canonical Quality on that parent: `34883442620 = SUCCESS`.
+- Exact Develop parent before this integration: `6a7280ef9847c61c3c3b532c1e3a14068ae14583`.
+- Exact canonical Quality on that parent: `34907353758 = SUCCESS`.
 - Persistent release guards remain mandatory and unchanged.
 
 ## Current integration state
 
-A bounded Core slice integrates AthenaApplication-level canonical Knowledge-read wiring from source head `9fe5dd44473ae200941d40ba37d14bc8816fdcdf`; Core Focused `34886553609 = SUCCESS`; canonical Quality `34886553447 = SUCCESS`.
+A bounded Core slice integrates the transport-neutral local Exhaustive Research API projection from exact source head `52c4592efeeebec7c1ed3d70949a084b3d8c205f`; Core Focused `34908178408 = SUCCESS`; canonical Quality `34908178528 = SUCCESS`.
 
-The effective product/test delta is restricted to `src/athena/core/application.py` and new `tests/unit/test_knowledge_application_read.py`, plus the worker handoff. It reuses the already integrated canonical Knowledge-read attachment boundary, retains exact service identity in `AthenaApplication`, and validates real persisted Knowledge provenance plus immutable revision-history behavior through the running application. No alternate repository, DTO, provenance, persistence, Storage, Recovery or UI architecture is introduced.
+The source branch is one Develop commit behind after the isolated Backend Deep-verification integration, so worker history is not merged. The extracted scope is exactly four Core-owned quality/product/test files: `src/athena/api/research.py`, `tests/unit/test_api_research.py`, `.github/workflows/core-focused-candidate.yml`, and `tests/unit/test_core_focused_candidate_workflow.py`.
 
-`BUNDLED_SLICES=NONE`. The current Backend worker is Deep-backup/Recovery-adjacent and therefore remains a separate conservative candidate even when independently exact-green.
+`ResearchApiService` delegates to the existing durable local Research orchestrator and truthfully projects its durable job identity/type/priority/state. It does not add a parallel Research engine, scheduler, repository/storage bypass, fake result, synthetic provenance, or persistence semantics. The Core-focused selector update explicitly includes the new Research API/test paths and preserves exact lint/type/focused-test enforcement; no guard is relaxed and no Skip/XFail is introduced.
+
+`BUNDLED_SLICES=NONE`. The newer Backend lineage remains Recovery-adjacent and is not bundled with this Core slice.
 
 ## Current worker truth
 
-- Errors `f7f61c3dd543f8650b8bfc7c41eaa6a05ecb2a66`: evidence/handoff refresh; reproduced product failures remain UI-owned.
-- Spec/Core `9fe5dd44473ae200941d40ba37d14bc8816fdcdf`: selected exact-green application Knowledge-read wiring slice.
-- Backend `764f99c2949a7ff5eeee2199a9a65e4f71f06f13`: Deep-verify registration-boundary lineage; must be requalified from exact current evidence and integrated separately because it is Backup/Recovery-adjacent.
-- UI `e149515870b773548a164658775159f29de323af`: visual-evidence lineage; current handoff states `Integrator-ready: NO`.
+- Errors `d081508a572556852099cb8d91c30e05cbd9dc66`: exact handoff refresh; no selected product slice.
+- Spec/Core `52c4592efeeebec7c1ed3d70949a084b3d8c205f`: selected exact-green Research API/qualification slice.
+- Backend `2e42476fdbb276741eed38fbe829e2ad3bbd56a5`: not selected; exact canonical evidence must be re-read after the resulting Develop gate because this lineage is Backup/Recovery-adjacent.
+- UI `e149515870b773548a164658775159f29de323af`: no selected exact-green bounded UI slice.
 
 ## Error and visual truth rules
 
-- Historical Error-Ledger signatures are not OPEN without current reproduction.
-- Eleven-screen status remains fail-closed; checked-in manifest gives direct opened-reference evidence only for Slot 01, and no visual `MATCH` is valid without the opened original reference plus a real exact-SHA render and reviewed comparison.
-- Verified Send target remains 44×44 outer geometry.
+- Historical Error-Ledger signatures are not OPEN without exact-current reproduction.
+- Eleven-screen status remains fail-closed; only slot 01 has directly opened original-reference evidence and no visual `MATCH` is valid without a real exact-SHA render plus reviewed comparison.
+- The Visual Gap Ledger makes no screenshot-parity claim.
 
 ## Persistent release guards
 
