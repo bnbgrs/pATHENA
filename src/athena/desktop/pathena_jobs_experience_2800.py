@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 )
 
 from athena.desktop.jobs_workspace import JobsWorkspace
+from athena.desktop.pathena_design_tokens import PALETTE, RADII
 
 
 @dataclass(frozen=True)
@@ -93,33 +94,71 @@ _DETAIL_LABELS = {
     "CHECKPOINTS": "Checkpoints",
 }
 
-_STYLESHEET = r"""
-QLineEdit#jobsFilter {
-    background: #090909;
-    border: 1px solid #242424;
+# This controller owns a local stylesheet, so it must use the same canonical
+# tokens as the final 11-screen reference layer. The earlier neutral-black / orange
+# literals overrode the shared shell because widget-local Qt styles win the cascade.
+_STYLESHEET = f"""
+QWidget#jobsWorkspace {{
+    background: {PALETTE.canvas};
+    color: {PALETTE.text};
+}}
+QLineEdit#jobsFilter {{
+    background: {PALETTE.surface};
+    color: {PALETTE.text};
+    border: 1px solid {PALETTE.border};
+    border-radius: {RADII.control}px;
     padding: 7px 9px;
-}
-QLineEdit#jobsFilter:focus { border-color: #F26A21; }
-QPlainTextEdit#jobDetails {
-    background: #080808;
-    border: none;
-    color: #D8D8D8;
+}}
+QLineEdit#jobsFilter:hover {{ border-color: {PALETTE.border_strong}; }}
+QLineEdit#jobsFilter:focus {{ border-color: {PALETTE.accent}; }}
+QListWidget#durableJobList {{
+    color: {PALETTE.text_muted};
+    background: {PALETTE.surface};
+    border: 1px solid {PALETTE.border};
+    border-radius: {RADII.panel}px;
+    outline: 0;
+}}
+QListWidget#durableJobList::item {{
+    color: {PALETTE.text_muted};
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid {PALETTE.border};
+    min-height: 42px;
+    padding: 4px 9px;
+}}
+QListWidget#durableJobList::item:selected {{
+    color: {PALETTE.text};
+    background: {PALETTE.accent_soft};
+    border-left: 2px solid {PALETTE.accent};
+}}
+QPlainTextEdit#jobDetails {{
+    background: {PALETTE.surface};
+    border: 1px solid {PALETTE.border};
+    border-radius: {RADII.panel}px;
+    color: {PALETTE.text_muted};
     padding: 10px 12px;
-}
-QPushButton[pathenaJobsSecondary="true"] {
+    selection-background-color: {PALETTE.accent_soft};
+}}
+QPlainTextEdit#jobDetails:focus {{ border-color: {PALETTE.accent}; }}
+QPushButton[pathenaJobsSecondary="true"] {{
     background: transparent;
     border-color: transparent;
-    color: #9A9A9A;
-}
-QPushButton[pathenaJobsSecondary="true"]:hover {
-    color: #E2E2E2;
-    border-color: #242424;
-}
-QPushButton[pathenaJobsDestructive="true"] {
+    color: {PALETTE.text_subtle};
+}}
+QPushButton[pathenaJobsSecondary="true"]:hover {{
+    color: {PALETTE.text};
+    background: {PALETTE.surface_hover};
+    border-color: {PALETTE.border};
+}}
+QPushButton[pathenaJobsSecondary="true"]:focus {{ border-color: {PALETTE.accent}; }}
+QPushButton[pathenaJobsDestructive="true"] {{
     background: transparent;
-    color: #C98C86;
-    border-color: #392421;
-}
+    color: {PALETTE.error};
+    border-color: {PALETTE.error};
+}}
+QPushButton[pathenaJobsDestructive="true"]:hover {{
+    background: {PALETTE.surface_hover};
+}}
 """
 
 
@@ -265,7 +304,6 @@ class PathenaJobsExperience(QObject):
         if self.workspace._operation == "show":
             self._humanize_details()
         else:
-            # _operation is cleared by the workspace before this queued callback.
             text = self.workspace.details.toPlainText()
             if text.startswith("JOB "):
                 self._humanize_details()
@@ -297,7 +335,6 @@ class PathenaJobsExperience(QObject):
         try:
             count = self.workspace.jobs.count()
         except RuntimeError:
-            # A queued model signal may arrive during QObject teardown.
             return
         for index in range(count):
             item = self.workspace.jobs.item(index)
@@ -305,8 +342,6 @@ class PathenaJobsExperience(QObject):
             item.setHidden(bool(terms) and not all(term in haystack for term in terms))
 
     def _sync_actions(self, *_args: object) -> None:
-        # Visibility follows the workspace's existing enablement/state rules; no
-        # transition eligibility is reimplemented here.
         self.workspace.pause_button.setVisible(self.workspace.pause_button.isEnabled())
         self.workspace.resume_button.setVisible(self.workspace.resume_button.isEnabled())
         self.workspace.wake_button.setVisible(self.workspace.wake_button.isEnabled())

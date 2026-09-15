@@ -1,52 +1,100 @@
 # pATHENA Visual Gap Ledger
 
-Baseline: `c830b96a12d25914c52a0abc7749a6724b19cfae`
+Reference review: `2026-09-15`
+Candidate branch: `manual/ui-11screen-longrun-20260915`
+Base: `develop/pathena-next@3a8120805e41d0fe9d283fc948d6e52b327a8e58`
 Integration target: `develop/pathena-next`
 
-Only evidence-backed gaps belong here. Slot 01 has direct pixel evidence from the opened user reference `pATHENA: Dunkles KI-Dashboard mit Wissenspanel.png`. No screenshot-level `MATCH` claim is asserted because a real rendered current build from the exact candidate SHA has not yet been opened side-by-side with that reference.
+All eleven originals in `/pATHENA/Designreferenz – 11 Screenshots` were opened directly before this run. The old evidence blocker that treated ten references as unavailable is closed. No screenshot-level `MATCH` claim is made: exact-head native rendering and side-by-side review remain required.
 
-## UI-GAP-0001 — Inspector naming does not express the Evidence & Activity contract
+## UI-GAP-0001 — Inspector naming / evidence ownership
 
 - Category: `HIERARCHY`
-- Screen: `10 — Grounded Chat / Evidence & Activity`
 - Severity: `P1`
-- Status: `FIXED`
-- Product commit: `1f0fd548431be122d13a403fe9e2387087edf8fa`
-- Test commit: `d85d2a2e144abc9d3ef1008b80f74114c7fafe23`
-- Verification evidence: exact UI head `f31be028652095b18b8a98dfacd65b73be9af763` passed ATHENA Quality Gate `33720745475`; lineage is integrated in Develop.
+- Status: `FIXED_IN_DEVELOP`
+- Contract: evidence and activity are contextual, provenance-backed content rather than a generic always-on status panel.
+- Current run: preserved; no regression introduced.
 
-## UI-GAP-0002 — Inspector was forced permanently visible instead of remaining context-sensitive
+## UI-GAP-0002 — Generic inspector visible on unrelated workspaces
+
+- Category: `INTERACTION / COMPOSITION`
+- Severity: `P1`
+- Status: `CANDIDATE_REASSERTED`
+- Reference evidence: Workspace variants show Evidence/Activity when context exists; Settings, Jobs and System own dedicated detail structures.
+- Candidate behavior: final parity controller shows the generic inspector only for Chat when real context is available. Dedicated workspaces keep their own detail panes.
+- Product behavior changed: `NO` — presentation/visibility only.
+
+## UI-GAP-0003 — PALLAS full-view lifecycle / shell ownership
 
 - Category: `INTERACTION`
-- Screen: `01 — Workspace / Chat`, `10 — Grounded Chat / Evidence & Activity`
 - Severity: `P1`
-- Status: `FIXED`
-- Product commit: `177bef4dcdb4956f1df75bfcce9ee10c7a4bd1e2`
-- Test-contract commit: `1685221150c724deceb5d150a4d2dcff2bdd867b`
-- Verification evidence: exact corrected worker head `ce959e148ddbe8f13952ca56f7d07e7a7ce1addb` passed ATHENA Quality Gate `33745885426`; exact verified blobs were integrated into Develop in `93a9344d3902c920da5ff283eb51bbb1f0d815b8`.
+- Status: `FIXED_IN_DEVELOP / VISUAL_POLISH_CANDIDATE`
+- Current Develop already hosts full PALLAS inside the shared shell and preserves living state.
+- Candidate adds only reference-family host/status/lens styling; no graph, provenance, force, lens or persistence semantics change.
 
-## UI-GAP-0003 — PALLAS full-view transition can hit a transient missing tab-order document binding
-
-- Category: `INTERACTION`
-- Screen: `08 — PALLAS`
-- Severity: `P1`
-- Status: `FIXED`
-- Verification evidence: exact UI head `76cb122dbe7b58b0fa49bbcb36de2bd732922d4d` passed ATHENA Quality Gate `33751403354`; bounded equivalent product/test changes are integrated in Develop.
-
-## UI-GAP-0004 — Workspace composer is materially underscaled relative to opened reference
+## UI-GAP-0004 — Composer underscaled relative to Workspace references
 
 - Category: `HIERARCHY / ACCESSIBILITY`
-- Screen: `01 — Workspace / Chat`
 - Severity: `P1`
-- Status: `FIXED / INTEGRATOR_READY_TECHNICAL`
-- Pixel evidence: the opened user reference shows the composer as a large, prominent work surface near the lower center of the workspace, with a clearly separated arrow send target. Current Develop inherited the legacy compact composer before this UI slice.
-- Verified behavior: real chat input, grounding control and send route retained; composer 88 px, prompt 44 px, real Sources control 36 px, send outer target 44×44 px.
-- Exact verification: canonical ATHENA Quality Gate `34365616984` on exact synchronized UI head `90a51e111851f80c5e2388c11c4026c6ec62fa09` completed `success`.
-- The final QSS contract uses a 42×42 px send content box plus the inherited 1 px border per side; the runtime Qt contract independently verifies exact 44×44 outer width/height/min/max geometry.
-- Diff versus exact current Develop `c830b96a12d25914c52a0abc7749a6724b19cfae` is bounded to seven UI-owned files: three UI evidence docs, `pathena_shared_components.py`, `pathena_window.py`, and their two focused unit-test files. No Backend/Storage/Security product file is changed.
-- Acceptance preserved: no chat submission, grounding, model/provider, persistence, focus, shortcut, accessibility-name, backend, Storage or Security semantics change; no fake controls; no Skip/XFail.
-- Screenshot-level parity remains unverified until a current render from the exact implementation lineage is opened against the reference.
+- Previous state: earlier passes moved the composer to 88 px and a 44×44 send target.
+- Status: `CANDIDATE_REFINED`
+- Candidate geometry: composer `80–92 px`, centered with `620–980 px` width bounds; prompt `48–56 px`; send target exactly `48×48 px`.
+- Rationale: the opened dark Workspace references consistently treat the composer as a major work surface and the send action as a clearly separated circular primary control.
+- Functional contract: existing prompt, Sources/grounding and send routes are retained.
 
-## Evidence blocker
+## UI-GAP-0005 — Shared visual tokens diverge from the eleven-reference family
 
-`VISUAL_REFERENCE_PENDING` still applies to any slot whose original image has not been opened and to all screenshot-level `MATCH` claims until a real rendered current build can also be inspected.
+- Category: `COLOR / SYSTEM`
+- Severity: `P1`
+- Status: `CANDIDATE_FIXED`
+- Previous Develop: neutral black surfaces with global orange interaction accent.
+- Reference evidence: the opened dark family consistently uses deep navy-black surfaces and cobalt blue for primary navigation/focus/action. Warm colors are semantic status accents.
+- Candidate: canonical tokens move to navy surfaces (`#061421`, `#06121F`, `#0D1A2A`) and cobalt interaction accent (`#3B82F6`). Warning remains amber (`#E9A84D`).
+- Accessibility: subtle metadata contrast remains WCAG AA on canonical dark surfaces and is covered by token tests.
+
+## UI-GAP-0006 — Missing textual primary navigation and visible search affordance
+
+- Category: `NAVIGATION / DISCOVERABILITY`
+- Severity: `P1`
+- Status: `CANDIDATE_FIXED`
+- Reference evidence: the dominant reference family exposes textual top routes and a top-level search/command affordance in addition to the icon rail.
+- Candidate: installs `CHAT / KNOWLEDGE / RESEARCH / JOBS / SOURCES`; System and Settings remain utility destinations; search routes to the existing command palette.
+- No duplicate routing model is introduced: buttons set the existing navigation row.
+
+## UI-GAP-0007 — Administrative surfaces do not share the reference visual language
+
+- Category: `CONSISTENCY`
+- Severity: `P2`
+- Status: `CANDIDATE_FIXED_PENDING_RENDER`
+- Settings: existing truthful secondary navigation gets canonical navy/cobalt styling and width.
+- Jobs: real durable job list/details receive master-detail styling; no synthetic step/resource data is added.
+- System: existing snapshot-backed subnav/status/security-posture layout receives reference styling; unavailable telemetry stays unavailable.
+- Command palette/help: existing keyboard-first surfaces receive the opened palette/search hierarchy.
+
+## UI-GAP-0008 — PALLAS visual chrome competes with the living graph
+
+- Category: `HIERARCHY`
+- Severity: `P2`
+- Status: `CANDIDATE_FIXED_PENDING_RENDER`
+- Reference evidence: PALLAS is graph-first; controls and status are subordinate.
+- Candidate: shell host becomes canvas-level, living status uses semantic green, lens controls become small quiet bordered controls with cobalt selected state.
+- No PALLAS simulation or graph behavior changes.
+
+## UI-GAP-0009 — Light-theme reference could be misread as a required capability
+
+- Category: `PRODUCT TRUTH`
+- Severity: `P2`
+- Status: `GUARDED`
+- The opened light screenshot is retained as a composition/reference-language variant only.
+- Candidate does not add a light-theme toggle or claim light-theme support.
+
+## Remaining blocker — exact native visual comparison
+
+The candidate must not be promoted to screenshot `MATCH` until:
+
+1. the exact candidate head passes canonical Quality/focused UI tests;
+2. the current native Windows build renders the relevant surfaces from that same SHA;
+3. those captures are opened side-by-side with the eleven originals;
+4. any remaining geometry, typography, density or state-color differences are recorded here rather than patched blindly.
+
+Repository snapshot tests are regression evidence, not proof of fidelity to the user-provided references.

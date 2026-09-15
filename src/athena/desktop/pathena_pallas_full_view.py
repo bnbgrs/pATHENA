@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QEvent, QObject, Qt, Signal, Slot
+from PySide6.QtGui import QBrush, QColor
 from PySide6.QtWidgets import (
     QApplication,
     QFrame,
@@ -15,11 +16,30 @@ from PySide6.QtWidgets import (
 )
 from shiboken6 import isValid
 
+import athena.desktop.pathena_pallas_field as pallas_field_module
+from athena.desktop.pathena_design_tokens import PALETTE
 from athena.desktop.pathena_pallas_field import (
     PallasGroundedFieldController,
     PallasWorkspace,
 )
 from athena.desktop.pathena_pallas_living_qt import PallasLivingQtController
+
+
+def _apply_reference_renderer_palette(
+    grounded_controller: PallasGroundedFieldController,
+) -> None:
+    """Align renderer-only colors with the opened eleven-screen reference family."""
+    pallas_field_module._CANVAS = QColor(PALETTE.canvas)
+    pallas_field_module._TEXT = QColor(PALETTE.text)
+    pallas_field_module._MUTED = QColor(PALETTE.text_muted)
+    pallas_field_module._QUIET = QColor(PALETTE.text_quiet)
+    pallas_field_module._BORDER = QColor(PALETTE.border)
+    pallas_field_module._ACCENT = QColor(PALETTE.accent)
+    pallas_field_module._CONFLICT = QColor(PALETTE.error)
+    pallas_field_module._UNCERTAIN = QColor(PALETTE.warning)
+    grounded_controller.field.canvas.setBackgroundBrush(
+        QBrush(QColor(PALETTE.canvas))
+    )
 
 
 class PallasFullViewController(QObject):
@@ -61,6 +81,7 @@ class PallasFullViewController(QObject):
         self._opened_navigation_row: int | None = None
         self._viewport = grounded_controller.field.canvas.viewport()
         self._viewport.installEventFilter(self)
+        _apply_reference_renderer_palette(grounded_controller)
         self._living_controller = PallasLivingQtController(grounded_controller, self)
         self._living_controller.diagnostics_changed.connect(
             self._apply_living_diagnostics
@@ -147,11 +168,29 @@ class PallasFullViewController(QObject):
             return
         target.setFocus(Qt.FocusReason.OtherFocusReason)
 
+    def _pallas_inspector(self) -> object | None:
+        return getattr(self._window, "_pathena_pallas_inspector_controller", None)
+
+    def _claim_inspector_context(self) -> None:
+        inspector = self._pallas_inspector()
+        set_selection = getattr(inspector, "set_selection", None)
+        if not callable(set_selection):
+            return
+        selection = getattr(self._grounded_controller, "_selection", None)
+        set_selection(selection)
+
+    def _release_inspector_context(self) -> None:
+        inspector = self._pallas_inspector()
+        clear_selection = getattr(inspector, "clear_selection", None)
+        if callable(clear_selection):
+            clear_selection()
+
     def _create_shell_surface(self) -> PallasWorkspace:
         host = QFrame(self._reference_body)
         host.setObjectName("pallasShellWorkspaceHost")
         host.setProperty("pathenaPallasShellHosted", True)
         host.setAccessibleName("PALLAS living workspace host")
+        host.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
 
         outer = QVBoxLayout(host)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -184,6 +223,8 @@ class PallasFullViewController(QObject):
         workspace.setObjectName("pallasShellWorkspace")
         workspace.setAccessibleName("PALLAS full living semantic workspace")
         workspace.setProperty("pathenaPallasShellHosted", True)
+        workspace.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        workspace.field.canvas.setBackgroundBrush(QBrush(QColor(PALETTE.canvas)))
         outer.addWidget(workspace, 1)
         self._body_layout.insertWidget(1, host, 1)
 
@@ -222,6 +263,7 @@ class PallasFullViewController(QObject):
         workspace.show()
         self._open = True
         self._window.setProperty("pathenaPallasShellOpen", True)
+        self._claim_inspector_context()
         workspace.field.canvas.setFocus(Qt.FocusReason.OtherFocusReason)
         if opening:
             self.workspace_opened.emit()
@@ -237,6 +279,8 @@ class PallasFullViewController(QObject):
             self._center.show()
         self._open = False
         self._window.setProperty("pathenaPallasShellOpen", False)
+        if was_open:
+            self._release_inspector_context()
         self._restore_previous_focus()
         if was_open:
             self.workspace_closed.emit()

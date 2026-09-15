@@ -46,7 +46,11 @@ def test_settings_secondary_navigation_wraps_only_real_sections() -> None:
         assert controller.navigation.currentRow() == 0
         assert controller.navigation.accessibleName() == "Settings sections"
         assert controller.content.isAncestorOf(window.context_spin)
-        assert controller.content.isAncestorOf(runtime_panel)
+        assert not controller.content.isAncestorOf(runtime_panel)
+        assert controller.status_panel is not None
+        assert controller.status_panel.isAncestorOf(runtime_panel)
+        assert controller.status_panel.width() == SHELL.inspector_width
+        assert controller.status_panel.accessibleName() == "System status"
         assert controller.navigation.item(0).data(Qt.ItemDataRole.UserRole) == "model"
         assert controller.navigation.item(1).data(Qt.ItemDataRole.UserRole) == "runtime"
     finally:
@@ -87,6 +91,7 @@ def test_settings_secondary_navigation_does_not_invent_unavailable_sections() ->
         assert controller.navigation.findItems(
             "Local runtime", Qt.MatchFlag.MatchExactly
         ) == []
+        assert controller.status_panel is None
     finally:
         window.close()
 
@@ -109,6 +114,10 @@ def test_settings_secondary_navigation_keyboard_selection_is_deterministic() -> 
         assert controller.navigation.accessibleDescription() == (
             "Selected section: Local runtime"
         )
+        assert controller.status_panel is not None
+        assert controller.status_panel.accessibleDescription() == (
+            "Selected section: Local runtime"
+        )
         assert window.pages.currentIndex() == 6
     finally:
         window.close()
@@ -125,6 +134,7 @@ def test_settings_secondary_navigation_install_is_idempotent() -> None:
         settings_page = window.pages.widget(6)
         assert settings_page is not None
         assert len(settings_page.findChildren(QFrame, "settingsSecondaryContainer")) == 1
+        assert len(settings_page.findChildren(QFrame, "settingsStatusPanel")) == 1
         assert first.parent() is window
     finally:
         window.close()
