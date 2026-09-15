@@ -279,7 +279,6 @@ QLabel#emptyStateEyebrow {{
     color: {PALETTE.accent};
     font-size: 9px;
     font-weight: 600;
-    letter-spacing: 1px;
 }}
 QLabel#emptyStateTitle {{
     color: {PALETTE.text};
@@ -364,6 +363,12 @@ QPushButton[pathenaJobsDestructive="true"] {{
         if isinstance(body, QLabel):
             body.setText("What shall we explore today?")
 
+    def _set_navigation_row(self, row: int) -> None:
+        navigation = getattr(self._window, "navigation", None)
+        set_current_row = getattr(navigation, "setCurrentRow", None)
+        if callable(set_current_row):
+            set_current_row(row)
+
     def _ensure_startup_rail_extras(self, icon_rail: QFrame) -> None:
         layout = icon_rail.layout()
         if not isinstance(layout, QVBoxLayout):
@@ -388,14 +393,14 @@ QPushButton[pathenaJobsDestructive="true"] {{
             system_button.setToolTip("Open System")
             system_button.setAccessibleName("System")
             system_button.clicked.connect(
-                lambda _checked=False: self._window.navigation.setCurrentRow(5)
+                lambda _checked=False: self._set_navigation_row(5)
             )
             settings_button = QPushButton("⚙", utilities)
             settings_button.setObjectName("startupRailUtility")
             settings_button.setToolTip("Open Settings")
             settings_button.setAccessibleName("Settings")
             settings_button.clicked.connect(
-                lambda _checked=False: self._window.navigation.setCurrentRow(6)
+                lambda _checked=False: self._set_navigation_row(6)
             )
             utility_layout.addWidget(system_button)
             utility_layout.addStretch(1)
