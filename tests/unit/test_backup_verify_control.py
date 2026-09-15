@@ -1,15 +1,16 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from unittest.mock import Mock
 
 import pytest
 
+import athena.jobs.backup_verify_control as control_module
 from athena.jobs.backup_verify_control import (
     BackupDeepVerifyControlRoutingError,
     build_backup_deep_verify_control_route,
 )
 from athena.jobs.backup_verify_payload import BACKUP_VERIFY_DEEP_JOB_TYPE
-from athena.jobs.backup_verify_registration import BACKUP_VERIFY_DEEP_REGISTRATION
 from athena.jobs.backup_verify_worker import DurableBackupDeepVerifyWorker
 
 
@@ -33,8 +34,11 @@ def test_control_route_rejects_wrong_worker_type() -> None:
         build_backup_deep_verify_control_route(Mock())  # type: ignore[arg-type]
 
 
-def test_control_route_fails_closed_if_control_safety_drifts(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(BACKUP_VERIFY_DEEP_REGISTRATION, "control_lane_safe", False)
+def test_control_route_fails_closed_if_control_safety_drifts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    unsafe = replace(control_module.BACKUP_VERIFY_DEEP_REGISTRATION, control_lane_safe=False)
+    monkeypatch.setattr(control_module, "BACKUP_VERIFY_DEEP_REGISTRATION", unsafe)
 
     with pytest.raises(BackupDeepVerifyControlRoutingError, match="CONTROL-lane safe"):
         build_backup_deep_verify_control_route(_worker())
@@ -43,7 +47,8 @@ def test_control_route_fails_closed_if_control_safety_drifts(monkeypatch: pytest
 def test_control_route_fails_closed_if_backup_create_retry_is_enabled(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(BACKUP_VERIFY_DEEP_REGISTRATION, "retry_via_backup_create", True)
+    unsafe = replace(control_module.BACKUP_VERIFY_DEEP_REGISTRATION, retry_via_backup_create=True)
+    monkeypatch.setattr(control_module, "BACKUP_VERIFY_DEEP_REGISTRATION", unsafe)
 
     with pytest.raises(BackupDeepVerifyControlRoutingError, match="backup.create"):
         build_backup_deep_verify_control_route(_worker())
