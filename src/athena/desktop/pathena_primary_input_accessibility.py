@@ -1,11 +1,25 @@
-"""Stable assistive names for pATHENA's existing primary text inputs."""
+"""Stable assistive names for pATHENA's existing primary text inputs.
+
+The application installs this controller after the functional and refinement
+layers. For the real pATHENA window that makes it a safe final activation
+point for the shared eleven-reference presentation shell; generic widget tests
+and reusable input targets remain unaffected.
+"""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 
 from PySide6.QtCore import QObject
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import QLineEdit, QWidget
+
+from athena.desktop.pathena_reference_backgrounds import stabilize_reference_backgrounds
+from athena.desktop.pathena_reference_pallas_inspector import (
+    install_reference_pallas_inspector_continuity,
+)
+from athena.desktop.pathena_reference_shell import install_reference_shell
+from athena.desktop.pathena_window import PathenaMainWindow
 
 
 @dataclass(frozen=True)
@@ -33,11 +47,19 @@ class PrimaryInputAccessibility(QObject):
     def _apply(target: PrimaryInputTarget) -> None:
         control = target.control
         control.setAccessibleName(target.accessible_name)
-        control.setAccessibleDescription(
-            f"{target.purpose} {target.keyboard_context}"
-        )
+        control.setAccessibleDescription(f"{target.purpose} {target.keyboard_context}")
         control.setProperty("pathenaPrimaryInputPurpose", target.purpose)
         control.setProperty("pathenaPrimaryInputKeyboardContext", target.keyboard_context)
+
+
+def _open_existing_command_palette(window: PathenaMainWindow) -> None:
+    """Invoke the already-installed Ctrl+K command without duplicating its logic."""
+    expected = QKeySequence("Ctrl+K").toString(QKeySequence.SequenceFormat.PortableText)
+    for shortcut in window.findChildren(QShortcut):
+        key = shortcut.key().toString(QKeySequence.SequenceFormat.PortableText)
+        if key == expected:
+            shortcut.activated.emit()
+            return
 
 
 def install_primary_input_accessibility(
@@ -75,4 +97,9 @@ def install_primary_input_accessibility(
             "Typing updates only the visible Research run list.",
         ),
     )
-    return PrimaryInputAccessibility(window, targets)
+    controller = PrimaryInputAccessibility(window, targets)
+    if isinstance(window, PathenaMainWindow):
+        install_reference_shell(window, lambda: _open_existing_command_palette(window))
+        install_reference_pallas_inspector_continuity(window)
+        stabilize_reference_backgrounds(window)
+    return controller
