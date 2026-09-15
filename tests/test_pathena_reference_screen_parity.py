@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (  # noqa: E402
     QWidget,
 )
 
-from athena.desktop.pathena_design_tokens import PALETTE  # noqa: E402
+from athena.desktop.pathena_design_tokens import PALETTE, SHELL  # noqa: E402
 from athena.desktop.pathena_reference_screen_parity import (  # noqa: E402
     COMPOSER_PLACEHOLDER,
     PAGE_LABELS,
@@ -34,7 +34,9 @@ from athena.desktop.pathena_reference_screen_parity import (  # noqa: E402
 class _ReferenceWindow(QWidget):
     def __init__(self) -> None:
         super().__init__()
+        self._core_transport_ready = False
         self.navigation = QListWidget(self)
+        self.navigation.setObjectName("navigation")
         for label in (
             "Chat",
             "Knowledge",
@@ -83,6 +85,13 @@ class _ReferenceWindow(QWidget):
         self.inspector_title = QLabel("DETAILS", self.inspector)
         self.inspector_title.setObjectName("inspectorTitle")
 
+        self.empty_eyebrow = QLabel("LOCAL-FIRST WORKSPACE", self)
+        self.empty_eyebrow.setObjectName("emptyStateEyebrow")
+        self.empty_title = QLabel("Waiting for the local core", self)
+        self.empty_title.setObjectName("emptyStateTitle")
+        self.empty_body = QLabel("Reconnecting…", self)
+        self.empty_body.setObjectName("emptyStateBody")
+
         self.pallas_canvas = QGraphicsView(self)
         self.pallas_canvas.setObjectName("pallasSemanticCanvas")
 
@@ -130,11 +139,11 @@ def test_reference_contract_matches_selected_eleven_screen_family() -> None:
         "Settings",
     )
     assert TOP_NAV_LABELS == {
-        0: "CHAT",
-        1: "KNOWLEDGE",
-        2: "RESEARCH",
-        3: "JOBS",
-        4: "SOURCES",
+        0: "Chat",
+        1: "Knowledge",
+        2: "Research",
+        3: "Jobs",
+        4: "Sources",
     }
     assert COMPOSER_PLACEHOLDER == "Ask, explore, or build…"
     assert SEARCH_PLACEHOLDER == "Search commands or workspaces…"
@@ -148,11 +157,11 @@ def test_parity_adapter_normalizes_live_shell_copy_and_navigation() -> None:
 
     assert window.property("referenceFamily") == REFERENCE_FAMILY
     assert [button.text() for button in window.reference_top_nav_buttons] == [
-        "CHAT",
-        "KNOWLEDGE",
-        "RESEARCH",
-        "JOBS",
-        "SOURCES",
+        "Chat",
+        "Knowledge",
+        "Research",
+        "Jobs",
+        "Sources",
     ]
     assert window.prompt_input.placeholderText() == COMPOSER_PLACEHOLDER
     assert window.prompt_input.accessibleName() == "Ask pATHENA"
@@ -160,6 +169,19 @@ def test_parity_adapter_normalizes_live_shell_copy_and_navigation() -> None:
     assert window.local_status.text() == "Local · Private"
     assert window.page_title.text() == "Chat"
     assert window.inspector_title.text() == "KNOWLEDGE"
+    assert window.empty_eyebrow.text() == "LOCAL CORE · CONNECTING"
+    assert window.empty_title.text() == "Getting pATHENA ready"
+    assert window.empty_body.text() == "What shall we explore today?"
+
+    # Screen 01 uses its own wide, full-height navigation treatment while the
+    # local core is unavailable. This must collapse back to the shared shell as
+    # soon as another workbench destination is selected.
+    assert window.top_bar.isHidden()
+    assert window.icon_rail.width() == 248
+    assert window.navigation.item(0).text() == "›  CHAT"
+    assert window.navigation.item(4).text() == "▱  SOURCES"
+    assert window.navigation.item(5).isHidden()
+    assert window.navigation.item(6).isHidden()
 
     window.navigation.setCurrentRow(1)
     app.processEvents()
@@ -167,6 +189,10 @@ def test_parity_adapter_normalizes_live_shell_copy_and_navigation() -> None:
     assert window.inspector_title.text() == "EVIDENCE & ACTIVITY"
     assert window.reference_top_nav_buttons[1].isChecked()
     assert not window.reference_top_nav_buttons[0].isChecked()
+    assert not window.top_bar.isHidden()
+    assert window.icon_rail.width() == SHELL.icon_rail_width
+    assert window.navigation.item(0).text() == "Chat"
+    assert not window.navigation.item(5).isHidden()
 
     window.navigation.setCurrentRow(5)
     app.processEvents()
