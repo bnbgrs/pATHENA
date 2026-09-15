@@ -15,6 +15,9 @@ from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import QLineEdit, QWidget
 
 from athena.desktop.pathena_reference_backgrounds import stabilize_reference_backgrounds
+from athena.desktop.pathena_reference_pallas_inspector import (
+    install_reference_pallas_inspector_continuity,
+)
 from athena.desktop.pathena_reference_shell import install_reference_shell
 from athena.desktop.pathena_window import PathenaMainWindow
 
@@ -97,5 +100,6 @@ def install_primary_input_accessibility(
     controller = PrimaryInputAccessibility(window, targets)
     if isinstance(window, PathenaMainWindow):
         install_reference_shell(window, lambda: _open_existing_command_palette(window))
+        install_reference_pallas_inspector_continuity(window)
         stabilize_reference_backgrounds(window)
     return controller
