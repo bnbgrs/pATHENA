@@ -4,11 +4,11 @@ Evidence-first ledger for current exact-SHA failures. Historical IDs, old runs a
 
 ## Current source of truth
 
-- `develop/pathena-next@7bd4abfcf40a80c829731427c66d0a3b4aa09d13`; exact canonical Quality `34915516889 = SUCCESS`.
-- `postmerge/errors@563aedd3cb3bf7b4fbc13e226c242ba23ff894df` before this refresh.
-- `postmerge/spec-core@52c4592efeeebec7c1ed3d70949a084b3d8c205f`; exact Core Focused `34908178408 = SUCCESS`; exact canonical Quality `34908178528 = SUCCESS`.
+- `develop/pathena-next@fe7fd347ab2915c28568a672286604a778efdf8f`; exact canonical Quality `34922816635 = SUCCESS`.
+- `postmerge/errors@a6047c4346b5347d902bf49935ff396f559c3a81` before this refresh.
+- `postmerge/spec-core@6dddda87919cc5363ccf664863f6b4dca83784ed`; exact Core Focused `34920402028 = SUCCESS`; exact canonical Quality `34920401954 = SUCCESS`.
 - `postmerge/backend@2e42476fdbb276741eed38fbe829e2ad3bbd56a5`; exact Backend Focused `34909172871 = SUCCESS`; exact canonical Quality `34909172865 = SUCCESS`.
-- `postmerge/ui@e149515870b773548a164658775159f29de323af`; no new current-SHA canonical/focused product assertion evidence; latest exact UI evidence remains the fail-closed visual-review path.
+- `postmerge/ui@e149515870b773548a164658775159f29de323af`; no new current-SHA canonical/focused product assertion evidence established by the Error worker.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
 ## OPEN
@@ -19,7 +19,7 @@ Status: `OPEN`
 
 Owner: UI / Visual Review.
 
-No new closure evidence. Error worker must not create or accept a baseline. Closure still requires truthful review of all eleven original-reference + exact-render pairs.
+No Error-worker closure evidence. Error worker must not create or accept a baseline. Closure requires truthful review of all eleven original-reference + exact-render pairs.
 
 ## IN_PROGRESS
 
@@ -45,7 +45,7 @@ Status: `IN_PROGRESS`
 
 Owner: UI.
 
-Reproduced on prior UI SHA `a6298adb...`, not on current exact UI SHA `e1495158...`. Do not infer it from the visual-verdict failure.
+Reproduced on prior UI SHA `a6298adb...`, not on current exact UI SHA `e1495158...`. Do not infer it from a visual-verdict failure.
 
 ## FIXED / HELD CLOSED
 
@@ -53,19 +53,19 @@ Reproduced on prior UI SHA `a6298adb...`, not on current exact UI SHA `e1495158.
 
 Status: `FIXED`
 
-Current Develop `7bd4abfc...` completed exact canonical Quality `34915516889 = SUCCESS`. The integrated WAL-maintained scheduler composition introduces no current exact-SHA failure cluster.
+Current Develop `fe7fd347...` completed exact canonical Quality `34922816635 = SUCCESS`. The canonical Research API builder integration introduces no current exact-SHA failure cluster.
 
 ### ERR-0070 — P2 — Core focused selector contract drift after Research expansion
 
 Status: `FIXED`
 
-Exact successor `postmerge/spec-core@52c4592e...` is green in both Core Focused `34908178408` and canonical Quality `34908178528`. The Research qualification regression is closed on the same exact SHA.
+Current exact successor `postmerge/spec-core@6dddda87...` is green in both Core Focused `34920402028` and canonical Quality `34920401954`. No current Research qualification regression remains.
 
 ### ERR-0071 — P2 — focused mypy/package-resolution candidate
 
 Status: `FIXED`
 
-Exact successor `52c4592e...` is green in Core Focused and canonical Quality. No current failure signature remains; the prior focused typing/package-resolution candidate is closed.
+Current exact Spec/Core successor `6dddda87...` is green in Core Focused and canonical Quality. No current focused typing/package-resolution failure signature remains.
 
 ### Backend current successor
 
@@ -95,7 +95,7 @@ The Research selector expansion is intentional Core ownership, not recurrence of
 
 Status: `STALE`
 
-A generic enforcement conclusion is not itself a root cause; the successor is now exact green.
+A generic enforcement conclusion is not itself a root cause; current Spec/Core is exact green.
 
 - `ERR-0066` — `FIXED`.
 - `ERR-0062` — `FIXED`.
@@ -109,7 +109,7 @@ Develop, Spec/Core and Backend are current exact canonical green. Keep pypdf pac
 
 ## Next root cause
 
-1. Consume any new current-SHA UI canonical/focused evidence for `e1495158...`; reclassify `ERR-0067/0068/0069` independently from direct assertions only.
+1. Consume any new current-SHA UI canonical/focused evidence; reclassify `ERR-0067/0068/0069` independently from direct assertions only.
 2. Keep `ERR-0054` UI/Visual-Review-owned; no Error-worker baseline acceptance.
 3. Keep `ERR-0059`, `ERR-0070`, `ERR-0071`, Develop, Spec/Core and Backend closed absent a new exact regression.
 4. On any new worker/develop successor, consume exact-SHA canonical/focused evidence before reopening historical IDs.
