@@ -4,8 +4,8 @@ Evidence-first ledger for current exact-SHA failures. Historical IDs, old runs a
 
 ## Current source of truth
 
-- `develop/pathena-next@7b1a1c1dc045f54a74e4ed005abf434f2e2d313c`; exact canonical Quality `34910867498 = IN_PROGRESS`.
-- `postmerge/errors@d081508a572556852099cb8d91c30e05cbd9dc66` before this refresh.
+- `develop/pathena-next@7bd4abfcf40a80c829731427c66d0a3b4aa09d13`; exact canonical Quality `34915516889 = SUCCESS`.
+- `postmerge/errors@563aedd3cb3bf7b4fbc13e226c242ba23ff894df` before this refresh.
 - `postmerge/spec-core@52c4592efeeebec7c1ed3d70949a084b3d8c205f`; exact Core Focused `34908178408 = SUCCESS`; exact canonical Quality `34908178528 = SUCCESS`.
 - `postmerge/backend@2e42476fdbb276741eed38fbe829e2ad3bbd56a5`; exact Backend Focused `34909172871 = SUCCESS`; exact canonical Quality `34909172865 = SUCCESS`.
 - `postmerge/ui@e149515870b773548a164658775159f29de323af`; no new current-SHA canonical/focused product assertion evidence; latest exact UI evidence remains the fail-closed visual-review path.
@@ -48,6 +48,12 @@ Owner: UI.
 Reproduced on prior UI SHA `a6298adb...`, not on current exact UI SHA `e1495158...`. Do not infer it from the visual-verdict failure.
 
 ## FIXED / HELD CLOSED
+
+### Develop current successor
+
+Status: `FIXED`
+
+Current Develop `7bd4abfc...` completed exact canonical Quality `34915516889 = SUCCESS`. The integrated WAL-maintained scheduler composition introduces no current exact-SHA failure cluster.
 
 ### ERR-0070 — P2 — Core focused selector contract drift after Research expansion
 
@@ -99,11 +105,11 @@ A generic enforcement conclusion is not itself a root cause; the successor is no
 
 ## Persistent release guards
 
-Spec/Core and Backend are current exact focused + canonical green. Keep pypdf packaging, fail-closed Frozen argv, Desktop/Worker executable separation, single Desktop with bounded workers, adaptive 2048-context reserve, Windows lane-lock escalation, duplicate-column, Core-startup and storage-bootstrap protections unchanged.
+Develop, Spec/Core and Backend are current exact canonical green. Keep pypdf packaging, fail-closed Frozen argv, Desktop/Worker executable separation, single Desktop with bounded workers, adaptive 2048-context reserve, Windows lane-lock escalation, duplicate-column, Core-startup and storage-bootstrap protections unchanged.
 
 ## Next root cause
 
-1. Consume terminal canonical Quality `34910867498` for `develop/pathena-next@7b1a1c1d...`; do not supersede while it is running.
-2. Consume any new current-SHA UI canonical/focused evidence for `e1495158...`; reclassify `ERR-0067/0068/0069` independently from direct assertions only.
-3. Keep `ERR-0054` UI/Visual-Review-owned; no Error-worker baseline acceptance.
-4. Keep `ERR-0059`, `ERR-0070`, `ERR-0071`, Spec/Core and Backend closed absent a new exact regression.
+1. Consume any new current-SHA UI canonical/focused evidence for `e1495158...`; reclassify `ERR-0067/0068/0069` independently from direct assertions only.
+2. Keep `ERR-0054` UI/Visual-Review-owned; no Error-worker baseline acceptance.
+3. Keep `ERR-0059`, `ERR-0070`, `ERR-0071`, Develop, Spec/Core and Backend closed absent a new exact regression.
+4. On any new worker/develop successor, consume exact-SHA canonical/focused evidence before reopening historical IDs.
