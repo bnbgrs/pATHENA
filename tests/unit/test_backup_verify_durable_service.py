@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import json
 from unittest.mock import Mock
 
 import pytest
 
-from athena.jobs.backup_verify_durable_service import BackupDeepVerifyDurableJobService
+from athena.jobs.backup_verify_durable_service import (
+    BackupDeepVerifyDurableJobService,
+)
 from athena.jobs.backup_verify_payload import BACKUP_VERIFY_DEEP_JOB_TYPE
 from athena.jobs.models import JobPriority
 from athena.jobs.service import InvalidJobPayloadError
@@ -24,15 +27,15 @@ def _valid_payload() -> tuple[dict[str, object], dict[str, object]]:
     )
 
 
-def test_deep_verify_rejects_malformed_payload_before_side_effects() -> None:
+def _service() -> tuple[BackupDeepVerifyDurableJobService, Mock, Mock]:
     repository = Mock()
-    actors = Mock()
-    canonical_service = Mock()
-    service = BackupDeepVerifyDurableJobService(
-        repository=repository,
-        actors=actors,
-        canonical_service=canonical_service,
-    )
+    chat = Mock()
+    service = BackupDeepVerifyDurableJobService(repository=repository, chat=chat)
+    return service, repository, chat
+
+
+def test_deep_verify_rejects_malformed_payload_before_side_effects() -> None:
+    service, repository, chat = _service()
 
     with pytest.raises(InvalidJobPayloadError):
         service.create(
@@ -41,23 +44,15 @@ def test_deep_verify_rejects_malformed_payload_before_side_effects() -> None:
             priority=JobPriority.TIME_CRITICAL,
         )
 
-    actors.ensure_local_user.assert_not_called()
+    chat.ensure_local_user.assert_not_called()
     repository.create.assert_not_called()
-    canonical_service.create.assert_not_called()
 
 
 def test_deep_verify_persists_validated_payload_once() -> None:
     requested_scope, normalized_scope = _valid_payload()
-    repository = Mock()
+    service, repository, chat = _service()
     repository.create.return_value = "job-1"
-    actors = Mock()
-    actors.ensure_local_user.return_value = "actor-1"
-    canonical_service = Mock()
-    service = BackupDeepVerifyDurableJobService(
-        repository=repository,
-        actors=actors,
-        canonical_service=canonical_service,
-    )
+    chat.ensure_local_user.return_value = "actor-1"
 
     result = service.create(
         job_type=BACKUP_VERIFY_DEEP_JOB_TYPE,
@@ -66,38 +61,30 @@ def test_deep_verify_persists_validated_payload_once() -> None:
     )
 
     assert result == "job-1"
-    actors.ensure_local_user.assert_called_once_with()
+    chat.ensure_local_user.assert_called_once_with()
     repository.create.assert_called_once_with(
         job_type=BACKUP_VERIFY_DEEP_JOB_TYPE,
-        requested_scope=normalized_scope,
-        priority=JobPriority.TIME_CRITICAL,
         actor_id="actor-1",
+        priority=JobPriority.TIME_CRITICAL,
+        requested_scope_json=json.dumps(
+            normalized_scope,
+            sort_keys=True,
+            separators=(",", ":"),
+        ),
+        pinned_configuration_json=None,
+        next_run_at_us=None,
     )
-    canonical_service.create.assert_not_called()
 
 
 def test_non_deep_verify_job_delegates_to_canonical_service_validation() -> None:
-    repository = Mock()
-    actors = Mock()
-    canonical_service = Mock()
-    canonical_service.create.side_effect = InvalidJobPayloadError("invalid backup.create payload")
-    service = BackupDeepVerifyDurableJobService(
-        repository=repository,
-        actors=actors,
-        canonical_service=canonical_service,
-    )
+    service, repository, chat = _service()
 
-    with pytest.raises(InvalidJobPayloadError, match="invalid backup.create payload"):
+    with pytest.raises(InvalidJobPayloadError):
         service.create(
             job_type="backup.create",
             requested_scope={},
             priority=JobPriority.NORMAL,
         )
 
-    canonical_service.create.assert_called_once_with(
-        job_type="backup.create",
-        requested_scope={},
-        priority=JobPriority.NORMAL,
-    )
-    actors.ensure_local_user.assert_not_called()
+    chat.ensure_local_user.assert_not_called()
     repository.create.assert_not_called()
