@@ -117,7 +117,6 @@ class SettingsSecondaryNavigation(QObject):
             elif nested_layout is not None:
                 moved_items.append(nested_layout)
             else:
-                # Spacer ownership can remain with the new content layout.
                 moved_items.append(layout_item)  # type: ignore[arg-type]
 
         self.content = QWidget()
@@ -144,6 +143,25 @@ class SettingsSecondaryNavigation(QObject):
 
         self.runtime_column: QFrame | None = None
         if runtime_target is not None:
+            # The original runtime rows were built for a full-width form. Once
+            # placed in the reference's narrow right status column, values must
+            # wrap rather than elide or push the row beyond the column boundary.
+            for object_name in (
+                "settingsProviderState",
+                "settingsNetworkState",
+                "settingsPersistenceState",
+                "settingsRuntimeDetail",
+            ):
+                value = runtime_target.findChild(QLabel, object_name)
+                if value is None:
+                    continue
+                value.setWordWrap(True)
+                value.setAlignment(
+                    Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignTop
+                )
+                value.setMinimumWidth(130)
+                value.setMaximumWidth(176)
+
             runtime_column = QFrame()
             runtime_column.setObjectName("settingsRuntimeColumn")
             runtime_column.setAccessibleName("System status")
