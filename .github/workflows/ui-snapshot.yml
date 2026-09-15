@@ -35,6 +35,7 @@ jobs:
     timeout-minutes: 20
     env:
       PYTHONUTF8: "1"
+      PYTHONPATH: "."
       QT_QPA_PLATFORM: offscreen
       QT_QUICK_BACKEND: software
       QT_OPENGL: software
