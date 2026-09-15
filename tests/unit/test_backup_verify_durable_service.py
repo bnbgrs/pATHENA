@@ -43,7 +43,7 @@ def test_deep_verify_persists_validated_payload_once() -> None:
 
     result = service.create(
         job_type=BACKUP_VERIFY_DEEP_JOB_TYPE,
-        priority=JobPriority.HIGH,
+        priority=JobPriority.TIME_CRITICAL,
         requested_scope=scope,
         pinned_configuration=configuration,
         next_run_at_us=2,
@@ -55,7 +55,7 @@ def test_deep_verify_persists_validated_payload_once() -> None:
     call = repository.create.call_args.kwargs
     assert call["job_type"] == BACKUP_VERIFY_DEEP_JOB_TYPE
     assert call["actor_id"] == "local-user"
-    assert call["priority"] is JobPriority.HIGH
+    assert call["priority"] is JobPriority.TIME_CRITICAL
     assert call["next_run_at_us"] == 2
     assert '"snapshot_id":"snapshot-1"' in call["requested_scope_json"]
     assert '"occurrence_slot_us":1' in call["requested_scope_json"]
