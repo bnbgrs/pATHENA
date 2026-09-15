@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - bot/pathena-candidate
+      - ui/11-screen-deep-parity-20260915
     paths:
       - ".github/workflows/ui-snapshot.yml"
       - "scripts/render_pathena_ui_snapshot.py"
@@ -34,6 +35,7 @@ jobs:
     timeout-minutes: 20
     env:
       PYTHONUTF8: "1"
+      PYTHONPATH: "."
       QT_QPA_PLATFORM: offscreen
       QT_QUICK_BACKEND: software
       QT_OPENGL: software

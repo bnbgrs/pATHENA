@@ -15,6 +15,7 @@ from athena.desktop.pathena_capability_catalog import (
     resolve_capability_catalog,
 )
 from athena.desktop.pathena_comfyui import install_comfyui_integration
+from athena.desktop.pathena_pallas_command import install_pallas_command
 
 
 class CommandPaletteTruthController(QObject):
@@ -187,8 +188,9 @@ class CommandPaletteTruthController(QObject):
 def install_command_palette_truth(
     palette: CommandPaletteController,
 ) -> CommandPaletteTruthController:
-    """Install truthful availability guidance and the local ComfyUI command."""
+    """Install truthful availability guidance and local extension commands."""
     install_comfyui_integration(palette)
+    install_pallas_command(palette)
     controller = CommandPaletteTruthController(palette)
     palette.window.setProperty("pathenaCommandPaletteTruthController", controller)
     palette.window.setProperty("pathenaCommandPaletteTruthManaged", True)
