@@ -16,6 +16,8 @@ from PySide6.QtCore import QObject, Qt
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import QAbstractItemView, QPlainTextEdit, QSplitter, QWidget
 
+from athena.desktop.pathena_design_tokens import PALETTE, RADII
+
 if TYPE_CHECKING:
     from athena.desktop.research_results_extension import ResearchResultsExtension
     from athena.desktop.research_workspace import ResearchWorkspace
@@ -64,27 +66,45 @@ UI_REFINEMENT_TASKS_2401_2500: tuple[str, ...] = tuple(
     for refinement in _RESEARCH_REFINEMENTS
 )
 
-_RESEARCH_STYLESHEET = r"""
-QWidget[pathenaResearchRole="status"] {
-    color: #969696;
+# Local widget styles override ancestor/application QSS in Qt. Keep this layer,
+# but express it entirely with the canonical 11-screen tokens so Research cannot
+# reintroduce the earlier black/orange visual system.
+_RESEARCH_STYLESHEET = f"""
+QWidget#researchWorkspace {{
+    background: {PALETTE.canvas};
+    color: {PALETTE.text};
+}}
+QWidget[pathenaResearchRole="status"] {{
+    color: {PALETTE.text_subtle};
     background: transparent;
-}
-QWidget[pathenaResearchRole="detail"] {
-    background: #070707;
-    border: none;
-    color: #D8D8D8;
-}
-QWidget[pathenaResearchRole="browser"] {
-    background: #090909;
-    border: 1px solid #1E1E1E;
-}
-QWidget[pathenaResearchRole="action"] {
+}}
+QWidget[pathenaResearchRole="detail"] {{
+    background: {PALETTE.surface};
+    border: 1px solid {PALETTE.border};
+    border-radius: {RADII.panel}px;
+    color: {PALETTE.text_muted};
+}}
+QWidget[pathenaResearchRole="browser"] {{
+    background: {PALETTE.surface};
+    border: 1px solid {PALETTE.border};
+    border-radius: {RADII.panel}px;
+    color: {PALETTE.text_muted};
+}}
+QWidget[pathenaResearchRole="action"] {{
     background: transparent;
-}
+}}
+QWidget[pathenaResearchRole="action"]:hover {{
+    background: {PALETTE.surface_hover};
+    border-color: {PALETTE.border_strong};
+}}
 QWidget[pathenaResearchRole="decision"]:focus,
-QWidget[pathenaResearchRole="action"]:focus {
-    border: 1px solid #F26A21;
-}
+QWidget[pathenaResearchRole="action"]:focus {{
+    border: 1px solid {PALETTE.accent};
+}}
+QWidget[pathenaResearchRole="browser"]:focus,
+QWidget[pathenaResearchRole="detail"]:focus {{
+    border-color: {PALETTE.accent};
+}}
 """
 
 

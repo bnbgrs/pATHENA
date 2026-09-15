@@ -4,7 +4,16 @@ import os
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtWidgets import QApplication, QFrame, QListWidget, QPushButton
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import (
+    QApplication,
+    QFrame,
+    QLineEdit,
+    QListWidget,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 
 from athena.desktop.pathena_design_tokens import PALETTE, SHELL
 from athena.desktop.pathena_reference_parity import install_reference_parity
@@ -89,6 +98,50 @@ def test_reference_parity_applies_shared_reference_geometry() -> None:
         window.close()
 
 
+def test_reference_parity_marks_workspace_surfaces_for_qss_background_painting() -> None:
+    app = _app()
+    window = PathenaMainWindow()
+    research_page = window.pages.widget(2)
+    assert research_page is not None
+    layout = research_page.layout()
+    assert isinstance(layout, QVBoxLayout)
+    surface = QWidget(research_page)
+    surface.setObjectName("researchWorkspace")
+    layout.addWidget(surface)
+
+    parity = install_reference_parity(window, lambda: None)
+    app.processEvents()
+    try:
+        assert surface.testAttribute(Qt.WidgetAttribute.WA_StyledBackground)
+        assert "QWidget#researchWorkspace" in window.styleSheet()
+    finally:
+        parity.dispose()
+        window.close()
+
+
+def test_reference_parity_forces_cobalt_focus_on_real_research_inputs() -> None:
+    app = _app()
+    window = PathenaMainWindow()
+    research_page = window.pages.widget(2)
+    assert research_page is not None
+    layout = research_page.layout()
+    assert isinstance(layout, QVBoxLayout)
+    field = QLineEdit(research_page)
+    field.setObjectName("researchJobFilter")
+    layout.addWidget(field)
+
+    parity = install_reference_parity(window, lambda: None)
+    app.processEvents()
+    try:
+        stylesheet = field.styleSheet()
+        assert PALETTE.accent in stylesheet
+        assert PALETTE.surface in stylesheet
+        assert "#F26A21" not in stylesheet
+    finally:
+        parity.dispose()
+        window.close()
+
+
 def test_reference_parity_keeps_generic_inspector_contextual() -> None:
     app = _app()
     window = PathenaMainWindow()
@@ -124,6 +177,7 @@ def test_reference_parity_styles_pallas_jobs_system_and_settings_surfaces() -> N
         stylesheet = window.styleSheet()
         assert "QFrame#pallasShellWorkspaceHost" in stylesheet
         assert "QListWidget#durableJobList" in stylesheet
+        assert "QListWidget#sourceList" in stylesheet
         assert "QFrame#systemStatusRow" in stylesheet
         assert "QListWidget#settingsSecondaryNavigation" in stylesheet
         assert "QDialog#commandPalette" in stylesheet
