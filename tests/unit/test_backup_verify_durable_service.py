@@ -5,7 +5,7 @@ from unittest.mock import Mock
 
 import pytest
 
-import athena.jobs.backup_verify_durable_service as backup_verify_durable_service
+from athena.jobs.backup_verify_durable_service import BackupDeepVerifyDurableJobService
 from athena.jobs.backup_verify_payload import (
     BACKUP_VERIFY_DEEP_JOB_TYPE,
     BACKUP_VERIFY_DEEP_PIPELINE_VERSION,
@@ -27,10 +27,8 @@ def _valid_payload() -> tuple[dict[str, object], dict[str, object]]:
 def _service(
     *,
     submit: Mock | None = None,
-) -> backup_verify_durable_service.BackupDeepVerifyDurableJobService:
-    return backup_verify_durable_service.BackupDeepVerifyDurableJobService(
-        submit_job=submit or Mock(return_value="job-1")
-    )
+) -> BackupDeepVerifyDurableJobService:
+    return BackupDeepVerifyDurableJobService(submit_job=submit or Mock(return_value="job-1"))
 
 
 def test_submit_occurrence_uses_durable_backup_verify_job_contract() -> None:
