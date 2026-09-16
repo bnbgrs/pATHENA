@@ -3,9 +3,8 @@ from __future__ import annotations
 import json
 from unittest.mock import Mock
 
-import pytest
-
 import athena.jobs.backup_verify_durable_service as backup_verify_durable_service
+import pytest
 from athena.jobs.backup_verify_payload import (
     BACKUP_VERIFY_DEEP_JOB_TYPE,
     BACKUP_VERIFY_DEEP_PIPELINE_VERSION,
@@ -29,52 +28,45 @@ def _service(
     submit: Mock | None = None,
 ) -> backup_verify_durable_service.BackupDeepVerifyDurableJobService:
     return backup_verify_durable_service.BackupDeepVerifyDurableJobService(
-        submit=submit or Mock(return_value="job-1"),
+        submit_job=submit or Mock(return_value="job-1")
     )
 
 
-def test_submit_occurrence_uses_stable_idempotency_key() -> None:
-    submit = Mock(return_value="job-1")
+def test_submit_occurrence_uses_durable_backup_verify_job_contract() -> None:
+    submit = Mock(return_value="job-42")
     service = _service(submit=submit)
+    payload, input_snapshot = _valid_payload()
 
-    payload, inputs = _valid_payload()
-    first = service.submit_occurrence(payload=payload, inputs=inputs)
-    second = service.submit_occurrence(payload=payload, inputs=inputs)
+    job_id = service.submit_occurrence(payload=payload, input_snapshot=input_snapshot)
 
-    assert first == "job-1"
-    assert second == "job-1"
-    assert submit.call_count == 2
-    first_call = submit.call_args_list[0].kwargs
-    second_call = submit.call_args_list[1].kwargs
-    assert first_call["job_type"] == BACKUP_VERIFY_DEEP_JOB_TYPE
-    assert first_call["priority"] == JobPriority.CONTROL
-    assert first_call["payload"] == payload
-    assert first_call["inputs"] == inputs
-    assert first_call["idempotency_key"] == second_call["idempotency_key"]
-    assert first_call["idempotency_key"].startswith("backup-verify-deep:")
+    assert job_id == "job-42"
+    submit.assert_called_once_with(
+        BACKUP_VERIFY_DEEP_JOB_TYPE,
+        payload=payload,
+        priority=JobPriority.LOW,
+        input_snapshot=input_snapshot,
+    )
 
 
-def test_submit_occurrence_rejects_invalid_payload_before_submission() -> None:
-    submit = Mock(return_value="job-1")
+def test_submit_occurrence_rejects_invalid_payload_before_admission() -> None:
+    submit = Mock(return_value="job-42")
     service = _service(submit=submit)
+    payload, input_snapshot = _valid_payload()
+    payload["snapshot_id"] = "relative/path"
 
-    payload, inputs = _valid_payload()
-    payload["snapshot_id"] = "not-a-uuid"
-
-    with pytest.raises(InvalidJobPayloadError):
-        service.submit_occurrence(payload=payload, inputs=inputs)
+    with pytest.raises(InvalidJobPayloadError, match="snapshot_id"):
+        service.submit_occurrence(payload=payload, input_snapshot=input_snapshot)
 
     submit.assert_not_called()
 
 
-def test_submit_occurrence_rejects_invalid_inputs_before_submission() -> None:
-    submit = Mock(return_value="job-1")
+def test_submit_occurrence_rejects_invalid_input_snapshot_before_admission() -> None:
+    submit = Mock(return_value="job-42")
     service = _service(submit=submit)
+    payload, input_snapshot = _valid_payload()
+    input_snapshot["pipeline_version"] = "wrong"
 
-    payload, inputs = _valid_payload()
-    inputs["pipeline_version"] = "unexpected"
-
-    with pytest.raises(InvalidJobPayloadError):
-        service.submit_occurrence(payload=payload, inputs=inputs)
+    with pytest.raises(InvalidJobPayloadError, match="pipeline_version"):
+        service.submit_occurrence(payload=payload, input_snapshot=input_snapshot)
 
     submit.assert_not_called()
