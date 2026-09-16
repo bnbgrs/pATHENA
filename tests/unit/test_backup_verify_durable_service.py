@@ -3,8 +3,6 @@ from __future__ import annotations
 import json
 from unittest.mock import Mock
 
-import pytest
-
 import athena.jobs.backup_verify_durable_service as backup_verify_durable_service
 from athena.jobs.backup_verify_payload import (
     BACKUP_VERIFY_DEEP_JOB_TYPE,
@@ -12,6 +10,7 @@ from athena.jobs.backup_verify_payload import (
 )
 from athena.jobs.models import JobPriority
 from athena.jobs.service import InvalidJobPayloadError
+import pytest
 
 
 _SNAPSHOT_ID = "12345678-1234-5678-9234-567812345678"
