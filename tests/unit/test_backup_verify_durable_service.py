@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from unittest.mock import Mock
 
 import pytest
@@ -26,46 +25,62 @@ def _valid_payload() -> tuple[dict[str, object], dict[str, object]]:
 
 def _service(
     *,
-    submit: Mock | None = None,
-) -> BackupDeepVerifyDurableJobService:
-    return BackupDeepVerifyDurableJobService(submit_job=submit or Mock(return_value="job-1"))
+    create: Mock | None = None,
+) -> tuple[BackupDeepVerifyDurableJobService, Mock]:
+    repository = Mock()
+    repository.create = create or Mock(return_value="job-1")
+    chat = Mock()
+    chat.ensure_local_user.return_value = "actor-1"
+    return BackupDeepVerifyDurableJobService(repository, chat), repository.create
 
 
-def test_submit_occurrence_uses_durable_backup_verify_job_contract() -> None:
-    submit = Mock(return_value="job-42")
-    service = _service(submit=submit)
-    payload, input_snapshot = _valid_payload()
+def test_create_uses_durable_backup_verify_job_contract() -> None:
+    create = Mock(return_value="job-42")
+    service, persisted_create = _service(create=create)
+    requested_scope, pinned_configuration = _valid_payload()
 
-    job_id = service.submit_occurrence(payload=payload, input_snapshot=input_snapshot)
-
-    assert job_id == "job-42"
-    submit.assert_called_once_with(
-        BACKUP_VERIFY_DEEP_JOB_TYPE,
-        payload=payload,
+    job = service.create(
+        job_type=BACKUP_VERIFY_DEEP_JOB_TYPE,
         priority=JobPriority.LOW,
-        input_snapshot=input_snapshot,
+        requested_scope=requested_scope,
+        pinned_configuration=pinned_configuration,
+        next_run_at_us=1,
     )
 
+    assert job == "job-42"
+    persisted_create.assert_called_once()
+    call = persisted_create.call_args.kwargs
+    assert call["job_type"] == BACKUP_VERIFY_DEEP_JOB_TYPE
+    assert call["actor_id"] == "actor-1"
+    assert call["priority"] is JobPriority.LOW
+    assert call["next_run_at_us"] == 1
 
-def test_submit_occurrence_rejects_invalid_payload_before_admission() -> None:
-    submit = Mock(return_value="job-42")
-    service = _service(submit=submit)
-    payload, input_snapshot = _valid_payload()
-    payload["snapshot_id"] = "relative/path"
+
+def test_create_rejects_invalid_payload_before_persistence() -> None:
+    service, persisted_create = _service()
+    requested_scope, pinned_configuration = _valid_payload()
+    requested_scope["snapshot_id"] = "relative/path"
 
     with pytest.raises(InvalidJobPayloadError, match="snapshot_id"):
-        service.submit_occurrence(payload=payload, input_snapshot=input_snapshot)
+        service.create(
+            job_type=BACKUP_VERIFY_DEEP_JOB_TYPE,
+            requested_scope=requested_scope,
+            pinned_configuration=pinned_configuration,
+        )
 
-    submit.assert_not_called()
+    persisted_create.assert_not_called()
 
 
-def test_submit_occurrence_rejects_invalid_input_snapshot_before_admission() -> None:
-    submit = Mock(return_value="job-42")
-    service = _service(submit=submit)
-    payload, input_snapshot = _valid_payload()
-    input_snapshot["pipeline_version"] = "wrong"
+def test_create_rejects_invalid_configuration_before_persistence() -> None:
+    service, persisted_create = _service()
+    requested_scope, pinned_configuration = _valid_payload()
+    pinned_configuration["pipeline_version"] = "wrong"
 
     with pytest.raises(InvalidJobPayloadError, match="pipeline_version"):
-        service.submit_occurrence(payload=payload, input_snapshot=input_snapshot)
+        service.create(
+            job_type=BACKUP_VERIFY_DEEP_JOB_TYPE,
+            requested_scope=requested_scope,
+            pinned_configuration=pinned_configuration,
+        )
 
-    submit.assert_not_called()
+    persisted_create.assert_not_called()
