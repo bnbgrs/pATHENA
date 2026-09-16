@@ -3,9 +3,8 @@ from __future__ import annotations
 import json
 from unittest.mock import Mock
 
-import pytest
-
 import athena.jobs.backup_verify_durable_service as backup_verify_durable_service
+import pytest
 from athena.jobs.backup_verify_payload import (
     BACKUP_VERIFY_DEEP_JOB_TYPE,
     BACKUP_VERIFY_DEEP_PIPELINE_VERSION,
