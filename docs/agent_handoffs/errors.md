@@ -1,37 +1,29 @@
 # Error worker handoff
 
 ## Exact source of truth
-
 - Develop: `03157f15246c8acb0f51a30631bf45c4d2a72416`.
-- Error worker: `0d600cd268ab524fe3d7c057d241eef5bf2d85bb` after ledger refresh, before this handoff update.
+- Error worker: `6feda1729ffb86b62fa55d7b149ad8d207aae829` after ledger refresh, before this handoff update.
 - Spec/Core: `6dddda87919cc5363ccf664863f6b4dca83784ed`; no new current-SHA failure evidence.
-- Backend: `868f089215444e4292c7de50664e1d514eff2ac7`; Backend Focused `35115493099 = SUCCESS`; canonical `35115492992 = FAILURE`.
+- Backend: `b1922d7b907861312356dc07bf8e8d86ad72d108`; Backend Focused `35152504280 = SUCCESS`; canonical `35152504291 = FAILURE`.
 - UI: `e149515870b773548a164658775159f29de323af`; no new Error-worker closure evidence.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
-## ITERATION-1 — current Backend successor consumed
+## ITERATION-1 — bounded Backend successor consumed
+Backend advanced from `868f0892...` to `b1922d7b...` with `Backend: fix durable verify canonical regressions`. The commit changes only `tests/unit/test_backup_verify_durable_service.py` (2 additions / 3 deletions): invalid `JobPriority.LOW` becomes `JobPriority.MAINTENANCE`, and one import-section blank line is removed.
 
-Backend advanced from `fb25d5d6...` to `868f0892...` with `Backend: repair durable service regression harness`. No concurrent canonical run is active for this exact SHA; its focused and canonical runs are terminal.
+## ITERATION-2 — ERR-0075 closed on exact canonical evidence
+Canonical `35152504291` has full pytest SUCCESS. Therefore ERR-0075 is `FIXED` on exact `b1922d7b...`; do not reopen absent a new exact-SHA pytest failure signature.
 
-## ITERATION-2 — canonical failure remains two-cluster
-
-Exact canonical `35115492992` is FAILURE. Python 3.12 quality has Specification Validator SUCCESS, Ruff FAILURE, mypy SUCCESS, full pytest FAILURE. ERR-0074 remains OPEN and ERR-0075 remains IN_PROGRESS. Focused success does not close either canonical cluster.
-
-## ITERATION-3 — durable-service harness locality established
-
-Commit `868f0892...` modifies only `tests/unit/test_backup_verify_durable_service.py`, but substantially: 47 additions / 32 deletions. It replaces submit-occurrence tests with repository-backed `create` contract tests and changes the fixture shape. This is current exact locality evidence for investigating ERR-0075, but not proof of the exact failing pytest node/assertion.
+## ITERATION-3 — ERR-0074 remains sole Backend Python-quality failure
+On the same exact SHA, Specification Validator SUCCESS, Ruff FAILURE, mypy SUCCESS, pytest SUCCESS. ERR-0074 remains `OPEN` and Backend-owned. Focused `35152504280` is SUCCESS but does not close canonical Ruff.
 
 ## ITERATION-4 — release guards held closed
-
-Linux storage, Local-install smoke and Windows path/storage/durable-filesystem/API-boundary/ownership/packaged-runtime/adaptive-chat/restart/pypdf guards are SUCCESS on exact `868f0892...`. Do not reopen or relax them.
+Linux storage, Local-install smoke and Windows path/storage/durable-filesystem/API-boundary/ownership/packaged-runtime/adaptive-chat/restart/pypdf guards are SUCCESS on exact `b1922d7b...`. Do not reopen or relax them.
 
 ## ITERATION-5 — visual/manifest ownership preserved
-
-ERR-0059 = FIXED; preserve capture-derived fields, `assigned_reference_count = 11`, and exact-eleven fail-closed PASS semantics. ERR-0054 = OPEN / UI-Visual-Review-owned; Error worker must not create or accept a baseline.
+ERR-0059 = `FIXED`; preserve capture-derived fields, `assigned_reference_count = 11`, and exact-eleven fail-closed PASS semantics. ERR-0054 = `OPEN` / UI-Visual-Review-owned; Error worker must not create or accept a baseline.
 
 ## Next root cause
-
-1. Extract `canonical-quality-diagnostics-868f089215444e4292c7de50664e1d514eff2ac7` and identify ERR-0075's exact failing pytest node/assertion before mutation.
-2. Backend owns ERR-0074; consume its next terminal exact-SHA canonical successor before closure.
-3. Do not reopen ERR-0072/0073 unless exact ERR-0075 diagnostics match those historical signatures.
-4. Keep all currently green release guards closed.
+1. Consume the next Backend exact-SHA canonical successor for ERR-0074; close only if Ruff and canonical are terminal green.
+2. Do not touch ERR-0075 again absent a new exact pytest regression.
+3. Keep all currently green release guards closed.
