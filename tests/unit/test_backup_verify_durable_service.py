@@ -5,7 +5,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from athena.jobs import backup_verify_durable_service
+import athena.jobs.backup_verify_durable_service as backup_verify_durable_service
 from athena.jobs.backup_verify_payload import (
     BACKUP_VERIFY_DEEP_JOB_TYPE,
     BACKUP_VERIFY_DEEP_PIPELINE_VERSION,
