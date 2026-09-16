@@ -4,10 +4,10 @@ Evidence-first ledger for current exact-SHA failures. Historical IDs, old runs a
 
 ## Current source of truth
 
-- `develop/pathena-next@03157f15246c8acb0f51a30631bf45c4d2a72416`; unchanged in this run.
-- `postmerge/errors@bb9a2c80f8a4ab67eb60ffc13434707b36e3a61e` before this refresh.
+- `develop/pathena-next@03157f15246c8acb0f51a30631bf45c4d2a72416`; unchanged.
+- `postmerge/errors@12953c718fe69ffa835eb7f39ad6d10d18bd83b9` before this refresh.
 - `postmerge/spec-core@6dddda87919cc5363ccf664863f6b4dca83784ed`; no new current-SHA failure evidence.
-- `postmerge/backend@e850e7c423c689e0165952161aafb04ab35ee431`; Backend Focused `35068715724 = SUCCESS`; exact canonical Quality `35068715548 = FAILURE`.
+- `postmerge/backend@7e6274d05b431356b5d0b99175b6105a6ebd4220`; Backend Focused `35087092246 = SUCCESS`; exact canonical Quality `35087092238 = FAILURE`.
 - `postmerge/ui@e149515870b773548a164658775159f29de323af`; no new Error-worker closure evidence.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
@@ -16,12 +16,17 @@ Evidence-first ledger for current exact-SHA failures. Historical IDs, old runs a
 ### ERR-0054 — P2 — Windows visual baseline review incomplete
 Status: `OPEN`
 Owner: UI / Visual Review.
-No Error-worker closure evidence. Error worker must not create or accept a baseline. UI handoff still reports visual readiness `NO` and requires opening/comparing exact candidate artifacts against the original references. Closure requires truthful review of all eleven original-reference + exact-render pairs.
+No Error-worker closure evidence. Error worker must not create or accept a baseline. Closure requires truthful review of all eleven original-reference + exact-render pairs.
 
 ### ERR-0074 — P1 — Backend canonical Ruff import-order failure
 Status: `OPEN`
 Owner: Backend.
-Exact reproduction: `postmerge/backend@e850e7c423c689e0165952161aafb04ab35ee431`, canonical Quality `35068715548`, Python 3.12 quality. Specification validator, mypy and full pytest are green; Ruff alone fails. Canonical diagnostics contain exactly one Ruff error: `I001 Import block is un-sorted or un-formatted` at `tests/unit/test_backup_verify_durable_service.py:1:1`. The exact file currently places the `athena.*` imports before `import pytest`; Ruff 0.15.22 with repository `I` rules still rejects the block. Ruff reports the single issue as auto-fixable. This is the sole current canonical failure cluster. Minimal owner fix: use the repository-pinned Ruff formatter/fixer to derive the canonical import block rather than manually guessing ordering; no test, validation, guard, storage, recovery or security relaxation.
+Exact reproduction: `postmerge/backend@7e6274d05b431356b5d0b99175b6105a6ebd4220`, canonical Quality `35087092238`, Python 3.12 quality. Specification validator and mypy are green; Ruff fails. The bounded candidate commit changes only `tests/unit/test_backup_verify_durable_service.py` import sections, placing `pytest` between stdlib and `athena.*`, but canonical Ruff still fails. Repository pins Ruff `0.15.22` and enables `I` rules. Do not guess another manual ordering; derive the exact patch from the pinned Ruff fixer/check. No test, validation, guard, storage, recovery or security relaxation.
+
+### ERR-0075 — P1 — current full-pytest regression on Backend exact SHA
+Status: `IN_PROGRESS`
+Owner: Backend / exact diagnostics.
+Exact reproduction: `postmerge/backend@7e6274d05b431356b5d0b99175b6105a6ebd4220`, canonical Quality `35087092238`, Python 3.12 quality `Quality — pytest = FAILURE`. This is current exact-SHA evidence and therefore supersedes the older ledger statement that full pytest was green. The available GitHub Actions job metadata proves the failure but does not expose the failing test name/assertion; canonical diagnostics artifact `canonical-quality-diagnostics-7e6274d05b431356b5d0b99175b6105a6ebd4220` exists and must be inspected before assigning a narrower root cause. Do not infer that this is a Ruff cascade.
 
 ## IN_PROGRESS
 
@@ -48,11 +53,11 @@ No current exact evidence reproduces the manifest-truth defect. Preserve capture
 
 ### ERR-0072 — P1 — prior nonexistent-priority test contract
 Status: `FIXED`
-Not reproduced on current exact Backend SHA. Full canonical pytest is green on `e850e7c4...`; do not reopen from historical evidence.
+Historical closure retained only because no current exact evidence identifies this signature. The current full-pytest failure is tracked separately as ERR-0075 until exact diagnostics identify its signature.
 
 ### ERR-0073 — P1 — prior invalid backup.create delegation fixture
 Status: `FIXED`
-Not reproduced on current exact Backend SHA. Full canonical pytest is green on `e850e7c4...`; do not reopen from historical evidence.
+Historical closure retained only because no current exact evidence identifies this signature. Do not reopen it merely because full pytest is red; require exact matching diagnostics.
 
 - `ERR-0070` — `FIXED`.
 - `ERR-0071` — `FIXED`.
@@ -67,11 +72,12 @@ Not reproduced on current exact Backend SHA. Full canonical pytest is green on `
 
 ## Persistent release guards
 
-On exact Backend `e850e7c4...`, Linux storage regressions, Local-install smoke, and Windows path/storage/durable-filesystem/API-boundary/ownership/packaged-runtime/adaptive-chat/restart/pypdf guards are green. The canonical failure is isolated to Ruff I001 in one Backend unit-test import block. Keep pypdf packaging, fail-closed Frozen argv, Desktop/Worker executable separation, single Desktop with bounded workers, adaptive 2048-context reserve, Windows lane-lock escalation, duplicate-column, Core-startup and storage-bootstrap protections unchanged.
+On exact Backend `7e6274d0...`, Linux storage regressions, Local-install smoke, and Windows path/storage/durable-filesystem/API-boundary/ownership/packaged-runtime/adaptive-chat/restart/pypdf guards are green. Keep pypdf packaging, fail-closed Frozen argv, Desktop/Worker executable separation, single Desktop with bounded workers, adaptive 2048-context reserve, Windows lane-lock escalation, duplicate-column, Core-startup and storage-bootstrap protections unchanged.
 
 ## Next root cause
 
-1. Backend owns `ERR-0074`: run the pinned repository Ruff fixer/check against `tests/unit/test_backup_verify_durable_service.py` and apply exactly its canonical import organization; focused verify, then exact canonical Quality.
-2. Error worker consumes the next exact-SHA result; close `ERR-0074` only when Ruff and canonical Quality are terminal green, otherwise classify only the new concrete exact-SHA signature.
-3. Keep `ERR-0059` closed absent a new exact manifest regression and keep `ERR-0054` UI/Visual-Review-owned.
-4. Keep all currently green release guards and canonical pytest/mypy/specification clusters closed.
+1. Inspect the exact canonical diagnostics artifact for `7e6274d0...` and identify ERR-0075's failing pytest node/assertion before any product or test mutation.
+2. Backend owns ERR-0074: use repository-pinned Ruff 0.15.22 to generate the exact canonical import organization; do not alter test semantics while fixing I001.
+3. Consume the next exact Backend SHA; close each cluster only on matching terminal evidence.
+4. Keep ERR-0059 closed absent a new exact manifest regression and keep ERR-0054 UI/Visual-Review-owned.
+5. Keep all currently green release guards closed.
