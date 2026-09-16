@@ -5,9 +5,9 @@ Evidence-first ledger for current exact-SHA failures. Historical IDs, old runs a
 ## Current source of truth
 
 - `develop/pathena-next@03157f15246c8acb0f51a30631bf45c4d2a72416`; unchanged.
-- `postmerge/errors@12953c718fe69ffa835eb7f39ad6d10d18bd83b9` before this refresh.
+- `postmerge/errors@0e3c717c6c64c80edce75e54a77213a8edc174ef` before this refresh.
 - `postmerge/spec-core@6dddda87919cc5363ccf664863f6b4dca83784ed`; no new current-SHA failure evidence.
-- `postmerge/backend@7e6274d05b431356b5d0b99175b6105a6ebd4220`; Backend Focused `35087092246 = SUCCESS`; exact canonical Quality `35087092238 = FAILURE`.
+- `postmerge/backend@868f089215444e4292c7de50664e1d514eff2ac7`; Backend Focused `35115493099 = SUCCESS`; exact canonical Quality `35115492992 = FAILURE`.
 - `postmerge/ui@e149515870b773548a164658775159f29de323af`; no new Error-worker closure evidence.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
@@ -18,15 +18,15 @@ Status: `OPEN`
 Owner: UI / Visual Review.
 No Error-worker closure evidence. Error worker must not create or accept a baseline. Closure requires truthful review of all eleven original-reference + exact-render pairs.
 
-### ERR-0074 — P1 — Backend canonical Ruff import-order failure
+### ERR-0074 — P1 — Backend canonical Ruff failure
 Status: `OPEN`
 Owner: Backend.
-Exact reproduction: `postmerge/backend@7e6274d05b431356b5d0b99175b6105a6ebd4220`, canonical Quality `35087092238`, Python 3.12 quality. Specification validator and mypy are green; Ruff fails. The bounded candidate commit changes only `tests/unit/test_backup_verify_durable_service.py` import sections, placing `pytest` between stdlib and `athena.*`, but canonical Ruff still fails. Repository pins Ruff `0.15.22` and enables `I` rules. Do not guess another manual ordering; derive the exact patch from the pinned Ruff fixer/check. No test, validation, guard, storage, recovery or security relaxation.
+Exact reproduction: `postmerge/backend@868f089215444e4292c7de50664e1d514eff2ac7`, canonical Quality `35115492992`, Python 3.12 quality. Specification validator and mypy are green; Ruff fails. Backend Focused is green. Do not infer closure from focused success. Use repository-pinned Ruff output and do not relax tests or guards.
 
 ### ERR-0075 — P1 — current full-pytest regression on Backend exact SHA
 Status: `IN_PROGRESS`
 Owner: Backend / exact diagnostics.
-Exact reproduction: `postmerge/backend@7e6274d05b431356b5d0b99175b6105a6ebd4220`, canonical Quality `35087092238`, Python 3.12 quality `Quality — pytest = FAILURE`. This is current exact-SHA evidence and therefore supersedes the older ledger statement that full pytest was green. The available GitHub Actions job metadata proves the failure but does not expose the failing test name/assertion; canonical diagnostics artifact `canonical-quality-diagnostics-7e6274d05b431356b5d0b99175b6105a6ebd4220` exists and must be inspected before assigning a narrower root cause. Do not infer that this is a Ruff cascade.
+Exact reproduction: `postmerge/backend@868f089215444e4292c7de50664e1d514eff2ac7`, canonical Quality `35115492992`, `Quality — pytest = FAILURE`. Diagnostics artifact `canonical-quality-diagnostics-868f089215444e4292c7de50664e1d514eff2ac7` exists. The current Backend commit `Backend: repair durable service regression harness` changes only `tests/unit/test_backup_verify_durable_service.py`, but substantially: 47 additions / 32 deletions, replacing submit-occurrence contract tests with repository-backed create-contract tests. This is strong locality evidence, not sufficient to invent the failing node/assertion. Keep ERR-0075 independent until exact diagnostics identify the signature.
 
 ## IN_PROGRESS
 
@@ -53,11 +53,11 @@ No current exact evidence reproduces the manifest-truth defect. Preserve capture
 
 ### ERR-0072 — P1 — prior nonexistent-priority test contract
 Status: `FIXED`
-Historical closure retained only because no current exact evidence identifies this signature. The current full-pytest failure is tracked separately as ERR-0075 until exact diagnostics identify its signature.
+No current exact diagnostics identify this signature. Do not reopen merely because full pytest is red.
 
 ### ERR-0073 — P1 — prior invalid backup.create delegation fixture
 Status: `FIXED`
-Historical closure retained only because no current exact evidence identifies this signature. Do not reopen it merely because full pytest is red; require exact matching diagnostics.
+No current exact diagnostics identify this signature. Do not reopen merely because full pytest is red.
 
 - `ERR-0070` — `FIXED`.
 - `ERR-0071` — `FIXED`.
@@ -72,12 +72,12 @@ Historical closure retained only because no current exact evidence identifies th
 
 ## Persistent release guards
 
-On exact Backend `7e6274d0...`, Linux storage regressions, Local-install smoke, and Windows path/storage/durable-filesystem/API-boundary/ownership/packaged-runtime/adaptive-chat/restart/pypdf guards are green. Keep pypdf packaging, fail-closed Frozen argv, Desktop/Worker executable separation, single Desktop with bounded workers, adaptive 2048-context reserve, Windows lane-lock escalation, duplicate-column, Core-startup and storage-bootstrap protections unchanged.
+On exact Backend `868f0892...`, Linux storage regressions, Local-install smoke, and Windows path/storage/durable-filesystem/API-boundary/ownership/packaged-runtime/adaptive-chat/restart/pypdf guards are green. Keep pypdf packaging, fail-closed Frozen argv, Desktop/Worker executable separation, single Desktop with bounded workers, adaptive 2048-context reserve, Windows lane-lock escalation, duplicate-column, Core-startup and storage-bootstrap protections unchanged.
 
 ## Next root cause
 
-1. Inspect the exact canonical diagnostics artifact for `7e6274d0...` and identify ERR-0075's failing pytest node/assertion before any product or test mutation.
-2. Backend owns ERR-0074: use repository-pinned Ruff 0.15.22 to generate the exact canonical import organization; do not alter test semantics while fixing I001.
-3. Consume the next exact Backend SHA; close each cluster only on matching terminal evidence.
-4. Keep ERR-0059 closed absent a new exact manifest regression and keep ERR-0054 UI/Visual-Review-owned.
+1. Inspect exact canonical diagnostics for `868f0892...` and identify ERR-0075's failing pytest node/assertion before any Error-worker product/test mutation.
+2. Backend owns ERR-0074; consume only a terminal exact-SHA canonical successor before closure.
+3. Treat the 79-line durable-service harness rewrite as locality evidence for ERR-0075, not proof of its exact signature.
+4. Keep ERR-0059 closed absent a new exact manifest regression and ERR-0054 UI/Visual-Review-owned.
 5. Keep all currently green release guards closed.
