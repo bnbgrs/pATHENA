@@ -3,7 +3,6 @@ from __future__ import annotations
 from unittest.mock import Mock
 
 import pytest
-
 from athena.jobs.backup_verify_durable_service import BackupDeepVerifyDurableJobService
 from athena.jobs.backup_verify_payload import (
     BACKUP_VERIFY_DEEP_JOB_TYPE,
@@ -41,7 +40,7 @@ def test_create_uses_durable_backup_verify_job_contract() -> None:
 
     job = service.create(
         job_type=BACKUP_VERIFY_DEEP_JOB_TYPE,
-        priority=JobPriority.LOW,
+        priority=JobPriority.MAINTENANCE,
         requested_scope=requested_scope,
         pinned_configuration=pinned_configuration,
         next_run_at_us=1,
@@ -52,7 +51,7 @@ def test_create_uses_durable_backup_verify_job_contract() -> None:
     call = persisted_create.call_args.kwargs
     assert call["job_type"] == BACKUP_VERIFY_DEEP_JOB_TYPE
     assert call["actor_id"] == "actor-1"
-    assert call["priority"] is JobPriority.LOW
+    assert call["priority"] is JobPriority.MAINTENANCE
     assert call["next_run_at_us"] == 1
 
 
