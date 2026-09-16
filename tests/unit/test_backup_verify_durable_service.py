@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from unittest.mock import Mock
 
+import pytest
+
 import athena.jobs.backup_verify_durable_service as backup_verify_durable_service
 from athena.jobs.backup_verify_payload import (
     BACKUP_VERIFY_DEEP_JOB_TYPE,
@@ -10,7 +12,6 @@ from athena.jobs.backup_verify_payload import (
 )
 from athena.jobs.models import JobPriority
 from athena.jobs.service import InvalidJobPayloadError
-import pytest
 
 
 _SNAPSHOT_ID = "12345678-1234-5678-9234-567812345678"
@@ -23,73 +24,57 @@ def _valid_payload() -> tuple[dict[str, object], dict[str, object]]:
     )
 
 
-def _service() -> tuple[backup_verify_durable_service.BackupDeepVerifyDurableJobService, Mock, Mock]:
-    repository = Mock()
-    chat = Mock()
-    service = backup_verify_durable_service.BackupDeepVerifyDurableJobService(
-        repository=repository,
-        chat=chat,
+def _service(
+    *,
+    submit: Mock | None = None,
+) -> backup_verify_durable_service.BackupDeepVerifyDurableJobService:
+    return backup_verify_durable_service.BackupDeepVerifyDurableJobService(
+        submit=submit or Mock(return_value="job-1"),
     )
-    return service, repository, chat
 
 
-def test_deep_verify_rejects_malformed_payload_before_side_effects() -> None:
-    service, repository, chat = _service()
+def test_submit_occurrence_uses_stable_idempotency_key() -> None:
+    submit = Mock(return_value="job-1")
+    service = _service(submit=submit)
+
+    payload, inputs = _valid_payload()
+    first = service.submit_occurrence(payload=payload, inputs=inputs)
+    second = service.submit_occurrence(payload=payload, inputs=inputs)
+
+    assert first == "job-1"
+    assert second == "job-1"
+    assert submit.call_count == 2
+    first_call = submit.call_args_list[0].kwargs
+    second_call = submit.call_args_list[1].kwargs
+    assert first_call["job_type"] == BACKUP_VERIFY_DEEP_JOB_TYPE
+    assert first_call["priority"] == JobPriority.CONTROL
+    assert first_call["payload"] == payload
+    assert first_call["inputs"] == inputs
+    assert first_call["idempotency_key"] == second_call["idempotency_key"]
+    assert first_call["idempotency_key"].startswith("backup-verify-deep:")
+
+
+def test_submit_occurrence_rejects_invalid_payload_before_submission() -> None:
+    submit = Mock(return_value="job-1")
+    service = _service(submit=submit)
+
+    payload, inputs = _valid_payload()
+    payload["snapshot_id"] = "not-a-uuid"
 
     with pytest.raises(InvalidJobPayloadError):
-        service.create(
-            job_type=BACKUP_VERIFY_DEEP_JOB_TYPE,
-            requested_scope={"snapshot_id": "not-a-uuid", "occurrence_slot_us": 1},
-            pinned_configuration={"pipeline_version": BACKUP_VERIFY_DEEP_PIPELINE_VERSION},
-            priority=JobPriority.TIME_CRITICAL,
-        )
+        service.submit_occurrence(payload=payload, inputs=inputs)
 
-    chat.ensure_local_user.assert_not_called()
-    repository.create.assert_not_called()
+    submit.assert_not_called()
 
 
-def test_deep_verify_persists_validated_payload_once() -> None:
-    requested_scope, pinned_configuration = _valid_payload()
-    service, repository, chat = _service()
-    repository.create.return_value = "job-1"
-    chat.ensure_local_user.return_value = "actor-1"
+def test_submit_occurrence_rejects_invalid_inputs_before_submission() -> None:
+    submit = Mock(return_value="job-1")
+    service = _service(submit=submit)
 
-    result = service.create(
-        job_type=BACKUP_VERIFY_DEEP_JOB_TYPE,
-        requested_scope=requested_scope,
-        pinned_configuration=pinned_configuration,
-        priority=JobPriority.TIME_CRITICAL,
-    )
-
-    assert result == "job-1"
-    chat.ensure_local_user.assert_called_once_with()
-    repository.create.assert_called_once_with(
-        job_type=BACKUP_VERIFY_DEEP_JOB_TYPE,
-        actor_id="actor-1",
-        priority=JobPriority.TIME_CRITICAL,
-        requested_scope_json=json.dumps(
-            requested_scope,
-            sort_keys=True,
-            separators=(",", ":"),
-        ),
-        pinned_configuration_json=json.dumps(
-            pinned_configuration,
-            sort_keys=True,
-            separators=(",", ":"),
-        ),
-        next_run_at_us=None,
-    )
-
-
-def test_non_deep_verify_job_delegates_to_canonical_service_validation() -> None:
-    service, repository, chat = _service()
+    payload, inputs = _valid_payload()
+    inputs["pipeline_version"] = "unexpected"
 
     with pytest.raises(InvalidJobPayloadError):
-        service.create(
-            job_type="backup.create",
-            requested_scope={},
-            priority=JobPriority.NORMAL,
-        )
+        service.submit_occurrence(payload=payload, inputs=inputs)
 
-    chat.ensure_local_user.assert_not_called()
-    repository.create.assert_not_called()
+    submit.assert_not_called()
