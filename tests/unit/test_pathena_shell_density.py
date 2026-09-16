@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QApplication, QLabel, QTabWidget, QWidget
+from PySide6.QtWidgets import QApplication, QLabel, QPushButton, QTabWidget, QWidget
 
 from athena.desktop.app import create_application
+from athena.desktop.pathena_design_tokens import PALETTE
 from athena.desktop.pathena_shell_density import apply_shell_density
 from athena.desktop.pathena_window import PathenaMainWindow
 
@@ -25,12 +26,27 @@ def test_shell_density_hides_redundant_labels_but_keeps_control_semantics() -> N
         apply_shell_density(window)
         app.processEvents()
 
+        top_buttons = window.findChildren(QPushButton, "topNavButton")
+        assert [button.text() for button in top_buttons] == [
+            "Workspace",
+            "Library",
+            "Research",
+            "Jobs",
+            "Sources",
+        ]
+        assert top_buttons[window.navigation.currentRow()].isChecked()
+        window.navigation.setCurrentRow(2)
+        app.processEvents()
+        assert top_buttons[2].isChecked()
+        assert sum(button.isChecked() for button in top_buttons) == 1
+
         assert all(label.isHidden() for label in labels)
         assert window.chat_selector.accessibleName() == "Conversation"
         assert window.model_selector.accessibleName() == "Model"
         assert "Conversation" in window.chat_selector.toolTip()
         assert "Model" in window.model_selector.toolTip()
-        assert window.chat_selector.minimumWidth() == 280
+        assert window.chat_selector.minimumWidth() == 250
+        assert window.chat_selector.maximumWidth() == 360
         assert window.model_selector.maximumWidth() == 280
         assert window.new_chat_button.accessibleName() == "New conversation"
         assert window.delete_chat_button.accessibleName() == "Delete conversation"
@@ -38,6 +54,7 @@ def test_shell_density_hides_redundant_labels_but_keeps_control_semantics() -> N
         assert tabs.documentMode()
         assert tabs.usesScrollButtons() is False
         assert "border-bottom" in tabs.styleSheet()
+        assert PALETTE.accent in tabs.styleSheet()
         assert tabs.tabText(0) == "Runtime"
         assert tabs.tabText(1) == "Backup"
     finally:
