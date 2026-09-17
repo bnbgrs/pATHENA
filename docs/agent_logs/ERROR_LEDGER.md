@@ -4,32 +4,31 @@ Evidence-first ledger for current exact-SHA failures. Historical IDs/runs are no
 
 ## Current source of truth
 - `develop/pathena-next@03157f15246c8acb0f51a30631bf45c4d2a72416`.
-- `postmerge/errors@2f56bd541174c8f4d8956c9918ced683b07da6fa` before this refresh.
+- `postmerge/errors@32cbc4dcb5e037bd4638e42edfefcf951db614a0` before this refresh.
 - `postmerge/spec-core@6dddda87919cc5363ccf664863f6b4dca83784ed`; no new current-SHA failure evidence.
-- `postmerge/backend@8f23bf80d09cc0add2bb20f92af9525aaa42689f`; Backend Focused `35221156644 = SUCCESS`; canonical Quality `35221156651 = FAILURE`.
-- `postmerge/ui@e149515870b773548a164658775159f29de323af`; no current Error-worker closure evidence.
+- `postmerge/backend@ab3736bbdc73de3b07eb7062fa819273ee676bc2`; Backend Focused `35233727773 = SUCCESS`; canonical Quality `35233727718 = FAILURE`.
+- `postmerge/ui@e149515870b773548a164658775159f29de323af`; no Error-worker closure evidence.
 - `main` and `bnbgrs/ATHENA` remain strictly read-only.
 
 ## OPEN
 ### ERR-0054 — P2 — Windows visual baseline review incomplete
 Status: `OPEN`
 Owner: UI / Visual Review.
-No Error-worker closure evidence. Error worker must not create or accept a baseline. Closure requires truthful review of all eleven original-reference + exact-render pairs.
+No Error-worker closure evidence. UI handoff still states `PAIRS_VERIFIED_0_OF_11` / visual readiness NO for its current evidence lineage. Error worker must not create or accept a baseline. Closure requires truthful review of all eleven original-reference + exact-render pairs.
 
 ### ERR-0074 — P1 — Backend canonical Ruff failure
 Status: `OPEN`
 Owner: Backend.
-Exact reproduction: `postmerge/backend@8f23bf80d09cc0add2bb20f92af9525aaa42689f`, canonical Quality `35221156651`, Python 3.12 quality. Ruff reports exactly one `I001 [*] Import block is un-sorted or un-formatted` at `tests/unit/test_backup_verify_durable_service.py:1:1`; the current block has `pytest` in its own blank-separated section before wrapped `athena.*` imports. Do not reopen unrelated runtime code. Apply the complete pinned Ruff fixer output, not another manual partial permutation.
-
-### ERR-0075 — P1 — Backend durable-service contract regression
-Status: `OPEN`
-Owner: Backend.
-Reopened only because it is newly reproduced on exact `8f23bf80d09cc0add2bb20f92af9525aaa42689f`: canonical pytest has 3 failures, all in `tests/unit/test_backup_verify_durable_service.py`, with `TypeError: BackupDeepVerifyDurableJobService.create() got an unexpected keyword argument 'actor_id'`. The current production `create()` contract accepts `job_type`, `priority`, `requested_scope`, `pinned_configuration`, `next_run_at_us` and derives actor identity via `chat.ensure_local_user()`, while the test still calls the historical `actor_id/payload/version` API. This is a test/product-contract drift cluster, not three independent failures. Resolve against the current canonical service contract without weakening validation or persistence assertions; focused durable-service pytest must pass before canonical.
+Exact reproduction: `postmerge/backend@ab3736bbdc73de3b07eb7062fa819273ee676bc2`, canonical Quality `35233727718`, Python 3.12 quality. Specification validator, mypy and full pytest are SUCCESS; Ruff alone fails with exactly one `I001 [*] Import block is un-sorted or un-formatted` at `tests/unit/test_backup_verify_durable_service.py:1:1`. Exact diagnostics artifact `canonical-quality-diagnostics-ab3736bbdc73de3b07eb7062fa819273ee676bc2` confirms the entire lines 1-15 import block is fixable with `--fix`. Current source has `pytest` in a blank-separated section before the wrapped `athena.*` imports. Do not reopen runtime code or manually permute imports further: run the pinned Ruff 0.15.22 fixer on this exact file and consume its complete diff, then focused Ruff before another canonical candidate.
 
 ## FIXED / HELD CLOSED
+### ERR-0075 — P1 — Backend durable-service contract regression
+Status: `FIXED`
+On exact Backend `ab3736bbdc73de3b07eb7062fa819273ee676bc2`, Backend Focused is SUCCESS and canonical full pytest is SUCCESS (`5331 passed, 17 skipped`); `tests/unit/test_backup_verify_durable_service.py` contributes three passing tests. The prior `actor_id/payload/version` contract drift is no longer reproduced. Keep closed absent a new exact-SHA reproduction.
+
 ### ERR-0059 — P2 — manifest capture truth
 Status: `FIXED`
-On exact Backend `8f23bf80...`, `tests/qa/test_visual_capture_manifest_truth.py` passes in canonical pytest before the unrelated durable-service failures. Preserve capture-derived manifest fields, `assigned_reference_count = 11`, and fail-closed exact-eleven PASS semantics.
+On exact Backend `ab3736bbdc73de3b07eb7062fa819273ee676bc2`, `tests/qa/test_visual_capture_manifest_truth.py` passes in canonical pytest. Preserve capture-derived manifest fields, `assigned_reference_count = 11`, and fail-closed exact-eleven PASS semantics.
 
 - `ERR-0072` — `FIXED`; no current reproduction.
 - `ERR-0073` — `FIXED`; no current reproduction.
@@ -45,11 +44,11 @@ On exact Backend `8f23bf80...`, `tests/qa/test_visual_capture_manifest_truth.py`
 Historical closed errors remain closed absent new exact reproduction.
 
 ## Persistent release guards
-On exact Backend `8f23bf80d09cc0add2bb20f92af9525aaa42689f`, Linux storage regressions, Local-install smoke, and Windows path/storage/durable-filesystem/API-boundary/ownership/packaged-runtime/adaptive-chat/restart/pypdf guards are SUCCESS. Keep pypdf packaging, fail-closed Frozen argv, Desktop/Worker executable separation, single Desktop with bounded workers, adaptive 2048-context reserve, Windows lane-lock escalation, duplicate-column, Core-startup and storage-bootstrap protections unchanged.
+On exact Backend `ab3736bbdc73de3b07eb7062fa819273ee676bc2`, Linux storage regressions, Local-install smoke, and Windows path/storage/durable-filesystem/API-boundary/ownership/packaged-runtime/adaptive-chat/restart/pypdf guards are SUCCESS. Keep pypdf packaging, fail-closed Frozen argv, Desktop/Worker executable separation, single Desktop with bounded workers, adaptive 2048-context reserve, Windows lane-lock escalation, duplicate-column, Core-startup and storage-bootstrap protections unchanged.
 
 ## Next root cause
-1. ERR-0075 is newly current and higher-impact than treating Ruff alone: align `test_backup_verify_durable_service.py` with the actual current `BackupDeepVerifyDurableJobService.create()` contract while retaining fail-closed invalid snapshot/pipeline assertions and persistence truth.
-2. In the same bounded file, consume the complete Ruff 0.15.22 fixer output for ERR-0074 rather than another manual import permutation.
-3. Focused durable-service pytest and focused Ruff must both pass before a new canonical candidate.
-4. Close ERR-0074/ERR-0075 only on terminal exact-SHA canonical success for their respective steps.
-5. Keep ERR-0059 and all current release guards closed; ERR-0054 remains UI/Visual-Review-owned.
+1. ERR-0074 is the only current Backend Python-quality failure cluster on exact `ab3736bb...`.
+2. Backend must execute the pinned Ruff 0.15.22 `check --fix` on `tests/unit/test_backup_verify_durable_service.py` and consume the complete generated import-block transformation rather than another manual partial permutation.
+3. Focused Ruff and focused durable-service pytest must both pass before a new canonical candidate.
+4. Close ERR-0074 only on terminal exact-SHA canonical Ruff success.
+5. Keep ERR-0075, ERR-0059 and all current release guards closed; ERR-0054 remains UI/Visual-Review-owned.
