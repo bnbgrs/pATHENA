@@ -4,7 +4,7 @@ import os
 from collections.abc import Iterator
 
 import pytest
-from PySide6.QtWidgets import QApplication, QSplitter, QWidget
+from PySide6.QtWidgets import QApplication
 
 import athena.desktop.knowledge_workspace as knowledge_workspace_module
 from athena.desktop.knowledge_workspace import KnowledgeWorkspace
@@ -81,19 +81,6 @@ def _workspace(qapp: QApplication) -> KnowledgeWorkspace:
     workspace._selected_knowledge_id = "00000000-0000-0000-0000-000000000001"
     workspace.obsidian_export_button.setEnabled(True)
     return workspace
-
-
-def test_canonical_memory_tabs_expose_reference_surface_ownership(
-    qapp: QApplication,
-) -> None:
-    workspace = KnowledgeWorkspace(_FakeWindow(), None)
-    workspace._knowledge_refresh_timer.stop()
-    try:
-        assert len(workspace.findChildren(QSplitter, "canonicalMemorySplit")) == 3
-        assert len(workspace.findChildren(QWidget, "canonicalMemoryListPane")) == 3
-        assert len(workspace.findChildren(QWidget, "canonicalMemoryDetailPane")) == 3
-    finally:
-        workspace.deleteLater()
 
 
 def test_obsidian_export_button_is_visible_but_disabled_without_selection(

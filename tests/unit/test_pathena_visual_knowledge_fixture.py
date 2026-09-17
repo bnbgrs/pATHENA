@@ -11,7 +11,7 @@ import pytest
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 from PySide6.QtCore import QProcess, Qt
-from PySide6.QtWidgets import QApplication, QWidget
+from PySide6.QtWidgets import QApplication, QSplitter, QWidget
 
 from athena.desktop.knowledge_workspace import KnowledgeWorkspace
 from scripts.render_pathena_ui_snapshot_sequential import (
@@ -80,6 +80,9 @@ def test_visual_knowledge_fixture_is_idempotent_and_renders_real_detail(
     app = _app()
     workspace = KnowledgeWorkspace(QWidget(), None)
     try:
+        assert len(workspace.findChildren(QSplitter, "canonicalMemorySplit")) == 3
+        assert len(workspace.findChildren(QWidget, "canonicalMemoryListPane")) == 3
+        assert len(workspace.findChildren(QWidget, "canonicalMemoryDetailPane")) == 3
         _wait_until(
             app,
             lambda: (
