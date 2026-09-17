@@ -4,29 +4,32 @@ Evidence-only progress register for `develop/pathena-next`. No invented completi
 
 ## Current baseline
 
-- Exact Develop parent before this integration: `3a8120805e41d0fe9d283fc948d6e52b327a8e58`.
-- Exact canonical Quality on that parent: `34893392725 = SUCCESS`.
+- Exact Develop parent before this integration: `6a7280ef9847c61c3c3b532c1e3a14068ae14583`.
+- Exact canonical Quality on that parent: `34907353758 = SUCCESS`.
 - Persistent release guards remain mandatory and unchanged.
 
 ## Current integration state
 
-A bounded Backend slice integrates the durable Deep backup verification pipeline from source head `13ccd56eb7c4451e0b5b06532e98a67ec989c774`; Backend Focused `34899421459 = SUCCESS`; canonical Quality `34899421431 = SUCCESS`.
+A bounded Core slice integrates the transport-neutral local Exhaustive Research API projection from exact source head `52c4592efeeebec7c1ed3d70949a084b3d8c205f`; Core Focused `34908178408 = SUCCESS`; canonical Quality `34908178528 = SUCCESS`.
 
-The extracted scope is exactly five product modules — payload, registration, worker, occurrence materializer and admission boundary — plus their five focused unit-test files. Worker history is not merged. Payload/configuration are exact and fail-closed; occurrence/idempotency identity is deterministic; admission revalidates identity before durable write; the worker verifies only existing snapshots and never creates/replaces a backup. No schema, migration, alternate persistence path, Security/Storage/Recovery guard relaxation, Skip or XFail is introduced.
+The source branch is one Develop commit behind after the isolated Backend Deep-verification integration, so worker history is not merged. The extracted scope is exactly four Core-owned quality/product/test files: `src/athena/api/research.py`, `tests/unit/test_api_research.py`, `.github/workflows/core-focused-candidate.yml`, and `tests/unit/test_core_focused_candidate_workflow.py`.
 
-`BUNDLED_SLICES=NONE`. This slice is Backup/Recovery-adjacent and is therefore integrated as an isolated candidate despite independent exact-green evidence.
+`ResearchApiService` delegates to the existing durable local Research orchestrator and truthfully projects its durable job identity/type/priority/state. It does not add a parallel Research engine, scheduler, repository/storage bypass, fake result, synthetic provenance, or persistence semantics. The Core-focused selector update explicitly includes the new Research API/test paths and preserves exact lint/type/focused-test enforcement; no guard is relaxed and no Skip/XFail is introduced.
+
+`BUNDLED_SLICES=NONE`. The newer Backend lineage remains Recovery-adjacent and is not bundled with this Core slice.
 
 ## Current worker truth
 
-- Errors `44930e07f8cb422a13da9b4036c6187aa4a770eb`: evidence/handoff lineage; no selected independent product slice.
-- Spec/Core `95a60521bb06cb883e14bdc5803181b224f53f64`: not selected for this integration.
-- Backend `13ccd56eb7c4451e0b5b06532e98a67ec989c774`: selected exact-green bounded Deep-verify pipeline.
+- Errors `d081508a572556852099cb8d91c30e05cbd9dc66`: exact handoff refresh; no selected product slice.
+- Spec/Core `52c4592efeeebec7c1ed3d70949a084b3d8c205f`: selected exact-green Research API/qualification slice.
+- Backend `2e42476fdbb276741eed38fbe829e2ad3bbd56a5`: not selected; exact canonical evidence must be re-read after the resulting Develop gate because this lineage is Backup/Recovery-adjacent.
 - UI `e149515870b773548a164658775159f29de323af`: no selected exact-green bounded UI slice.
 
 ## Error and visual truth rules
 
-- Historical Error-Ledger signatures are not OPEN without current reproduction.
-- Eleven-screen status remains fail-closed; no visual `MATCH` is valid without opened original-reference evidence plus a real exact-SHA render and reviewed comparison.
+- Historical Error-Ledger signatures are not OPEN without exact-current reproduction.
+- Eleven-screen status remains fail-closed; only slot 01 has directly opened original-reference evidence and no visual `MATCH` is valid without a real exact-SHA render plus reviewed comparison.
+- The Visual Gap Ledger makes no screenshot-parity claim.
 
 ## Persistent release guards
 
