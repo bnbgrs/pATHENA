@@ -1,9 +1,10 @@
 # pATHENA 11-Screen Reference Manifest
 
 Reference review: `2026-09-15`
-Implementation branch: `manual/ui-11screen-longrun-20260915`
+Candidate consolidation: `2026-09-17`
+Implementation branch: `ui/11-screen-longrun-r2-20260915` (PR `#236`)
 Integration target: `develop/pathena-next`
-Branch base: `3a8120805e41d0fe9d283fc948d6e52b327a8e58`
+Develop merged through: `03157f15246c8acb0f51a30631bf45c4d2a72416`
 
 This is the canonical inventory for the eleven pATHENA design references stored in the user Library folder `/pATHENA/Designreferenz – 11 Screenshots`.
 
@@ -49,6 +50,7 @@ The eleven references are not eleven unrelated mock-ups. Their reusable DNA is:
 - top-bar, rail, center, inspector and composer geometry;
 - contextual generic inspector visibility;
 - Settings, command palette/help, PALLAS, Jobs and System reference styling;
+- repository-backed Knowledge capture in an isolated disposable runtime;
 - no Backend, Storage, provider, queue, network or persistence behavior changes.
 
 ## Promotion rules

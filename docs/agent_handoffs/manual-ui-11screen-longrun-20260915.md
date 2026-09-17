@@ -1,10 +1,11 @@
 # UI long-run handoff — 11-screen reference family
 
-Date: 2026-09-15
-Branch: `manual/ui-11screen-longrun-20260915`
-PR: `#233`
-Base at branch creation: `develop/pathena-next@3a8120805e41d0fe9d283fc948d6e52b327a8e58`
-Owner scope: desktop UI presentation only
+Initial date: 2026-09-15
+Consolidated: 2026-09-17
+Branch: `ui/11-screen-longrun-r2-20260915`
+PR: `#236`
+Develop merged through: `develop/pathena-next@03157f15246c8acb0f51a30631bf45c4d2a72416`
+Owner scope: desktop UI presentation and isolated visual-regression evidence
 
 ## Evidence source
 
@@ -58,7 +59,7 @@ It provides:
 - System and Settings retained as utility destinations;
 - a visible search button wired to the existing command palette;
 - shared top-bar, rail, center, inspector and composer geometry;
-- 48×48 send target and large centered composer;
+- shared-token 44×44 send target and large centered composer;
 - contextual generic inspector visibility;
 - canonical styling for Settings, command palette/help, PALLAS, Jobs and System.
 
@@ -85,11 +86,34 @@ Focused tests cover:
 - reference styling hooks for PALLAS, Jobs, System, Settings and command palette;
 - navy/cobalt token semantics.
 
+### Q7 — truthful Knowledge capture
+
+`scripts/render_pathena_ui_snapshot_sequential.py` now seeds a disposable visual-test runtime
+through the real `AthenaApplication` and `KnowledgeRepository`. It waits for the production
+`KnowledgeWorkspace` list and persisted detail subprocesses to finish before writing the
+Knowledge screenshot. The fixture is idempotent and never touches a user profile or production
+database. `tests/unit/test_pathena_visual_knowledge_fixture.py` proves the full repository → CLI
+subprocess → Qt list/detail path.
+
+Routine Core lifecycle logs previously shared the machine-readable stdout stream and could make
+a valid persisted detail fail parsing. The workspace now starts its Knowledge and Obsidian helper
+processes at `ATHENA_LOG_LEVEL=CRITICAL`; explicit command failures and process exit codes remain
+visible to the UI.
+
+### Q8 — consolidation repairs
+
+The candidate includes current Develop through `03157f15246c8acb0f51a30631bf45c4d2a72416`.
+The duplicate `persistentClaimDetails` accessibility label, stale orange theme assertion, Ruff
+blank line, and 48 px send-button regression from the earlier PR head have been reconciled. The
+authoritative send contract remains 44×44 px.
+
 ## Safety / ownership boundaries for other bots
 
 Do not modify Backend, Storage, model-provider, Research, Knowledge, queue, network or persistence semantics to make a screenshot look populated. Do not create fake controls, fake queue entries, fake security state or synthetic provenance. Avoid adding another final global stylesheet/controller on top of `pathena_reference_parity.py`; extend the shared parity layer or the owning workspace instead.
 
-Other UI branches may exist concurrently. Treat PR #233 as an isolated candidate and compare before cherry-picking. Do not auto-merge it while exact-head gates or native side-by-side review are pending.
+Other UI branches may exist concurrently. Treat PR #236 as the single consolidation candidate
+and compare before cherry-picking. Do not reopen parallel UI candidates while exact-head gates or
+native side-by-side review are pending.
 
 ## Promotion boundary
 

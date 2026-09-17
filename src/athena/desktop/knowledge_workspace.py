@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import sys
 
-from PySide6.QtCore import QProcess, Qt, QTimer
+from PySide6.QtCore import QProcess, QProcessEnvironment, Qt, QTimer
 from PySide6.QtGui import QTextCursor
 from PySide6.QtWidgets import (
     QFileDialog,
@@ -180,12 +180,16 @@ class KnowledgeWorkspace(QWidget):
 
         self._knowledge_process = QProcess(self)
         self._knowledge_process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
+        machine_environment = QProcessEnvironment.systemEnvironment()
+        machine_environment.insert("ATHENA_LOG_LEVEL", "CRITICAL")
+        self._knowledge_process.setProcessEnvironment(machine_environment)
         self._knowledge_process.readyReadStandardOutput.connect(self._drain_knowledge_output)
         self._knowledge_process.finished.connect(self._knowledge_process_finished)
         self._knowledge_process.errorOccurred.connect(self._knowledge_process_error)
 
         self._obsidian_process = QProcess(self)
         self._obsidian_process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
+        self._obsidian_process.setProcessEnvironment(machine_environment)
         self._obsidian_process.readyReadStandardOutput.connect(self._drain_obsidian_output)
         self._obsidian_process.finished.connect(self._obsidian_process_finished)
         self._obsidian_process.errorOccurred.connect(self._obsidian_process_error)

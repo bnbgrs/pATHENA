@@ -1,8 +1,9 @@
 # pATHENA Visual Gap Ledger
 
 Reference review: `2026-09-15`
-Candidate branch: `manual/ui-11screen-longrun-20260915`
-Base: `develop/pathena-next@3a8120805e41d0fe9d283fc948d6e52b327a8e58`
+Candidate consolidation: `2026-09-17`
+Candidate branch: `ui/11-screen-longrun-r2-20260915` (PR `#236`)
+Develop merged through: `develop/pathena-next@03157f15246c8acb0f51a30631bf45c4d2a72416`
 Integration target: `develop/pathena-next`
 
 All eleven originals in `/pATHENA/Designreferenz – 11 Screenshots` were opened directly before this run. The old evidence blocker that treated ten references as unavailable is closed. No screenshot-level `MATCH` claim is made: exact-head native rendering and side-by-side review remain required.
@@ -36,9 +37,11 @@ All eleven originals in `/pATHENA/Designreferenz – 11 Screenshots` were opened
 
 - Category: `HIERARCHY / ACCESSIBILITY`
 - Severity: `P1`
-- Previous state: earlier passes moved the composer to 88 px and a 44×44 send target.
+- Previous state: earlier passes moved the composer to 88 px and a 44×44 send target; the
+  first consolidated candidate accidentally widened that target to 48 px.
 - Status: `CANDIDATE_REFINED`
-- Candidate geometry: composer `80–92 px`, centered with `620–980 px` width bounds; prompt `48–56 px`; send target exactly `48×48 px`.
+- Candidate geometry: composer `80–92 px`, centered with `620–980 px` width bounds; prompt
+  `48–56 px`; send target restored to exactly `44×44 px` through the shared shell token.
 - Rationale: the opened dark Workspace references consistently treat the composer as a major work surface and the send action as a clearly separated circular primary control.
 - Functional contract: existing prompt, Sources/grounding and send routes are retained.
 
@@ -87,6 +90,24 @@ All eleven originals in `/pATHENA/Designreferenz – 11 Screenshots` were opened
 - Status: `GUARDED`
 - The opened light screenshot is retained as a composition/reference-language variant only.
 - Candidate does not add a light-theme toggle or claim light-theme support.
+
+## UI-GAP-0010 — Knowledge capture did not prove persisted content
+
+- Category: `PRODUCT TRUTH / VISUAL EVIDENCE`
+- Severity: `P1`
+- Status: `CANDIDATE_FIXED_PENDING_NATIVE_RENDER`
+- Previous state: the sequential renderer could navigate to Knowledge, but an empty or
+  still-loading surface did not prove the repository-backed list/detail path.
+- Candidate behavior: the renderer creates three clearly labelled reference entries through
+  `AthenaApplication` and `KnowledgeRepository` inside its disposable `ATHENA_LOCAL_ROOT`, then
+  waits for the real `KnowledgeWorkspace` subprocess to load both the persisted list and a
+  verified detail before capture.
+- Isolation contract: no production profile, user database or backend response is modified;
+  repeated seeding is idempotent and confined to the disposable visual-test runtime.
+- Parser contract: Knowledge/Obsidian subprocesses run with routine Core logging suppressed so
+  their machine-readable stdout cannot be prefixed by application lifecycle logs.
+- Evidence boundary: the focused repository-to-QProcess-to-widget regression is green locally;
+  native Windows pixels from the exact committed SHA are still required.
 
 ## Remaining blocker — exact native visual comparison
 

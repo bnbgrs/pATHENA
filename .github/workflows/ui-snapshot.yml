@@ -11,6 +11,7 @@ on:
       - ".github/workflows/ui-snapshot.yml"
       - "scripts/render_pathena_ui_snapshot.py"
       - "scripts/render_pathena_ui_snapshot_fontsafe.py"
+      - "scripts/render_pathena_ui_snapshot_sequential.py"
       - "scripts/compare_pathena_ui_snapshots.py"
       - "tests/qa/**"
       - "tests/qa/visual-baseline-windows.json"
@@ -91,6 +92,7 @@ jobs:
           uv run --locked --extra dev --extra desktop --no-sync ruff check `
             scripts/render_pathena_ui_snapshot.py `
             scripts/render_pathena_ui_snapshot_fontsafe.py `
+            scripts/render_pathena_ui_snapshot_sequential.py `
             scripts/compare_pathena_ui_snapshots.py `
             tests/qa/test_visual_snapshot_compare.py
           if ($LASTEXITCODE -ne 0) { throw "Visual harness Ruff failed." }
@@ -160,6 +162,16 @@ jobs:
             if ([int]$capture.page_index -ne $row) { throw "Workspace row $row captured page index $($capture.page_index)." }
             if ([int]$capture.ordinal -ne ($row + 1)) { throw "Workspace row $row has ordinal $($capture.ordinal)." }
             if ($capture.label -ne $expected[$row]) { throw "Workspace row $row label '$($capture.label)' != '$($expected[$row])'." }
+          }
+          $knowledge = $workspace | Where-Object { [int]$_.row -eq 1 }
+          if ($knowledge.fixture -ne "isolated repository-backed canonical Knowledge") {
+            throw "Knowledge capture did not report the repository-backed fixture."
+          }
+          if ([int]$knowledge.knowledge_count -lt 3) {
+            throw "Knowledge capture exposed fewer than three persisted entries."
+          }
+          if ($knowledge.selected_knowledge_state -ne "ready") {
+            throw "Knowledge capture did not verify its selected persisted detail."
           }
 
       - name: Compare committed baseline or emit proposal

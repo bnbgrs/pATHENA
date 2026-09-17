@@ -29,6 +29,71 @@ WORKSPACE_SURFACE_LABELS = (
     "Settings",
 )
 
+_REFERENCE_KNOWLEDGE_DRAFTS = (
+    (
+        "concept",
+        "Adaptive memory",
+        "Local memory should preserve useful context while keeping every retained item "
+        "inspectable, attributable, and reversible.",
+        "supported",
+    ),
+    (
+        "decision",
+        "Human-controlled forgetting",
+        "Forgetting remains an explicit user decision; automated maintenance may propose "
+        "changes but cannot silently erase canonical knowledge.",
+        "asserted",
+    ),
+    (
+        "project_knowledge",
+        "Local-first provenance",
+        "pATHENA keeps canonical knowledge and its revision history in the isolated local "
+        "runtime so the visual capture exercises the real repository-backed workbench.",
+        "supported",
+    ),
+)
+
+
+def _seed_reference_knowledge(runtime_root: Path) -> tuple[str, ...]:
+    """Create an idempotent, repository-backed Knowledge state for visual capture."""
+    from athena.config.settings import AthenaSettings
+    from athena.core.application import AthenaApplication
+    from athena.knowledge.models import (
+        EpistemicStatus,
+        KnowledgeKind,
+        KnowledgeUnitDraft,
+    )
+
+    core = AthenaApplication(settings=AthenaSettings(local_root=runtime_root))
+    core.start(run_startup_maintenance=False)
+    try:
+        actor_id = core.chat.ensure_local_user()
+        existing = {
+            snapshot.revision.payload.title: snapshot
+            for snapshot in core.knowledge_repository.list_current(limit=500)
+            if snapshot.revision.payload.title is not None
+        }
+        knowledge_ids: list[str] = []
+        for kind, title, body, status in _REFERENCE_KNOWLEDGE_DRAFTS:
+            snapshot = existing.get(title)
+            if snapshot is not None:
+                knowledge_ids.append(str(snapshot.knowledge_id))
+                continue
+            revision = core.knowledge_repository.create_knowledge_unit(
+                actor_id=actor_id,
+                draft=KnowledgeUnitDraft(
+                    knowledge_kind=KnowledgeKind(kind),
+                    title=title,
+                    body=body,
+                    epistemic_status=EpistemicStatus(status),
+                ),
+                reason="isolated native visual-regression fixture",
+            )
+            knowledge_ids.append(str(revision.knowledge_id))
+        return tuple(knowledge_ids)
+    finally:
+        core.stop()
+
 
 def _safe_name(value: str) -> str:
     normalized = re.sub(r"[^a-z0-9]+", "-", value.casefold()).strip("-")
@@ -99,6 +164,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     screenshot_directory.mkdir(parents=True, exist_ok=True)
     os.environ["ATHENA_LOCAL_ROOT"] = str(runtime_root)
     os.environ["QT_QPA_PLATFORM"] = "offscreen"
+    reference_knowledge_ids = _seed_reference_knowledge(runtime_root)
 
     _DiagnosticComfyHandler.posted_prompts.clear()
     comfy_server = ThreadingHTTPServer(("127.0.0.1", 0), _DiagnosticComfyHandler)
@@ -120,8 +186,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         encoding="utf-8",
     )
 
-    from PySide6.QtCore import QTimer
-    from PySide6.QtWidgets import QMainWindow, QWidget
+    from PySide6.QtCore import Qt, QTimer
+    from PySide6.QtWidgets import QListWidget, QMainWindow, QPlainTextEdit, QWidget
 
     from athena.desktop.app import create_application
     from athena.desktop.app import main as desktop_main
@@ -166,6 +232,51 @@ def main(argv: Sequence[str] | None = None) -> int:
             }
         )
 
+    def wait_for_reference_knowledge(window: QMainWindow) -> dict[str, object]:
+        knowledge_list = window.findChild(QListWidget, "persistentKnowledgeList")
+        knowledge_details = window.findChild(
+            QPlainTextEdit,
+            "persistentKnowledgeDetails",
+        )
+        if knowledge_list is None or knowledge_details is None:
+            raise RuntimeError("Real repository-backed Knowledge workbench is unavailable.")
+
+        expected_ids = set(reference_knowledge_ids)
+        deadline = time.monotonic() + 8.0
+        observed_ids: set[str] = set()
+        detail_id = ""
+        detail_state = ""
+        while time.monotonic() < deadline:
+            app.processEvents()
+            observed_ids = {
+                str(knowledge_list.item(index).data(Qt.ItemDataRole.UserRole))
+                for index in range(knowledge_list.count())
+            }
+            detail_id = str(
+                knowledge_details.property("pathenaKnowledgeEntityId") or ""
+            )
+            detail_state = str(
+                knowledge_details.property("pathenaKnowledgeReviewState") or ""
+            )
+            if (
+                expected_ids.issubset(observed_ids)
+                and detail_id in expected_ids
+                and detail_state == "ready"
+                and knowledge_details.toPlainText().strip()
+            ):
+                return {
+                    "fixture": "isolated repository-backed canonical Knowledge",
+                    "knowledge_count": knowledge_list.count(),
+                    "selected_knowledge_state": detail_state,
+                }
+            time.sleep(0.05)
+
+        raise RuntimeError(
+            "Repository-backed Knowledge did not become capture-ready: "
+            f"expected={len(expected_ids)}, observed={len(observed_ids)}, "
+            f"detail_state={detail_state!r}, detail_id={detail_id!r}."
+        )
+
     def capture_workspaces() -> None:
         window = find_window()
         navigation = getattr(window, "navigation", None)
@@ -192,10 +303,14 @@ def main(argv: Sequence[str] | None = None) -> int:
                     f"requested row {row}, navigation row {navigation.currentRow()}, "
                     f"page index {pages.currentIndex()}."
                 )
+            knowledge_evidence = (
+                wait_for_reference_knowledge(window) if row == 1 else {}
+            )
             save_widget(window, ordinal=row + 1, label=label, kind="workspace")
             captures[-1]["navigation_label"] = navigation.item(row).text()
             captures[-1]["row"] = row
             captures[-1]["page_index"] = pages.currentIndex()
+            captures[-1].update(knowledge_evidence)
 
     def diagnostic_pallas_snapshot() -> PallasGraphSnapshot:
         focus = PallasSemanticNode(
