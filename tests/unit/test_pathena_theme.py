@@ -176,13 +176,14 @@ def test_send_button_has_explicit_keyboard_focus_treatment() -> None:
     base_block = PATHENA_SPECIALIZED_STYLESHEET.split(
         "QPushButton#sendButton {", maxsplit=1
     )[1].split("QPushButton#sendButton:hover", maxsplit=1)[0]
-    assert "min-width: 48px;" in base_block
-    assert "max-width: 48px;" in base_block
-    assert "min-height: 48px;" in base_block
-    assert "max-height: 48px;" in base_block
+    content_size = SHELL.composer_action_size - 2
+    assert f"min-width: {content_size}px;" in base_block
+    assert f"max-width: {content_size}px;" in base_block
+    assert f"min-height: {content_size}px;" in base_block
+    assert f"max-height: {content_size}px;" in base_block
 
 
-def test_reference_title_and_composer_use_editorial_orange_contract() -> None:
+def test_reference_title_and_composer_use_display_and_accent_contract() -> None:
     assert "QLabel#pageTitle" in PATHENA_SPECIALIZED_STYLESHEET
     assert f"font-family: {TYPE.display_family};" in PATHENA_SPECIALIZED_STYLESHEET
     assert f"font-size: {TYPE.title_px}px;" in PATHENA_SPECIALIZED_STYLESHEET

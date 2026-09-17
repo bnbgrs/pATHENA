@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from athena.desktop.pathena_design_tokens import PALETTE
 from athena.desktop.pathena_progressive_workspace_2300 import (
     _PROGRESSIVE_REFINEMENTS,
     _PROGRESSIVE_STYLESHEET,
@@ -42,8 +43,9 @@ def test_workspace_titles_are_intentionally_deduplicated() -> None:
 
 def test_progressive_style_contract_stays_quiet() -> None:
     stylesheet = _PROGRESSIVE_STYLESHEET.lower()
-    assert "#f26a21" in stylesheet
-    assert "#080808" in stylesheet
+    assert PALETTE.accent.lower() in stylesheet
+    assert PALETTE.surface.lower() in stylesheet
+    assert "#f26a21" not in stylesheet
     assert "glow" not in stylesheet
     assert "shadow" not in stylesheet
     assert "gradient" not in stylesheet

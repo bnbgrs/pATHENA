@@ -17,6 +17,7 @@ from PySide6.QtWidgets import (
 
 from athena.desktop.pathena_design_tokens import PALETTE, SHELL
 from athena.desktop.pathena_reference_parity import install_reference_parity
+from athena.desktop.pathena_theme import PATHENA_STYLESHEET
 from athena.desktop.pathena_window import PathenaMainWindow
 
 
@@ -61,6 +62,8 @@ def test_reference_parity_installs_textual_top_workspace_navigation() -> None:
 
 def test_reference_parity_applies_shared_reference_geometry() -> None:
     app = _app()
+    previous_stylesheet = app.styleSheet()
+    app.setStyleSheet(PATHENA_STYLESHEET)
     window = PathenaMainWindow()
     parity = install_reference_parity(window, lambda: None)
     app.processEvents()
@@ -87,15 +90,16 @@ def test_reference_parity_applies_shared_reference_geometry() -> None:
         # while the 80–92 px composer supplies the final rendered geometry.
         assert window.prompt_input.minimumHeight() >= 44
         assert window.prompt_input.maximumHeight() <= 56
-        assert window.send_button.minimumWidth() == 48
-        assert window.send_button.maximumWidth() == 48
-        assert window.send_button.minimumHeight() == 48
-        assert window.send_button.maximumHeight() == 48
+        assert window.send_button.minimumWidth() == SHELL.composer_action_size
+        assert window.send_button.maximumWidth() == SHELL.composer_action_size
+        assert window.send_button.minimumHeight() == SHELL.composer_action_size
+        assert window.send_button.maximumHeight() == SHELL.composer_action_size
         if secondary is not None:
             assert secondary.width() == SHELL.secondary_nav_width
     finally:
         parity.dispose()
         window.close()
+        app.setStyleSheet(previous_stylesheet)
 
 
 def test_reference_parity_marks_workspace_surfaces_for_qss_background_painting() -> None:

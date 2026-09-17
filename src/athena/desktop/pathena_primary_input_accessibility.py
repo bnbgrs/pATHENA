@@ -9,7 +9,6 @@ from PySide6.QtWidgets import QLineEdit, QWidget
 
 from athena.desktop.pathena_design_tokens import PALETTE, RADII
 
-
 _REFERENCE_WORKSPACE_STYLESHEET = f"""
 QLineEdit[pathenaPrimaryInput="true"] {{
     background: {PALETTE.surface_raised};

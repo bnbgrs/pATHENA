@@ -71,4 +71,4 @@ def test_reference_shell_geometry_excludes_legacy_wide_sidebar() -> None:
     assert 330 <= SHELL.inspector_width <= 390
     assert 240 <= SHELL.secondary_nav_width <= 280
     assert SHELL.composer_min_height >= 72
-    assert SHELL.composer_action_size >= 48
+    assert SHELL.composer_action_size == 44

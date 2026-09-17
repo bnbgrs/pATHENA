@@ -37,7 +37,7 @@ _LAYOUT_TARGETS: tuple[LayoutTarget, ...] = (
     LayoutTarget("persistentKnowledgeList", "Knowledge browser width"),
     LayoutTarget("persistentKnowledgeDetails", "Knowledge detail width"),
     LayoutTarget("persistentClaimList", "Claim browser width"),
-    LayoutTarget("persistentClaimDetails", "Knowledge detail width"),
+    LayoutTarget("persistentClaimDetails", "Claim detail width"),
     LayoutTarget("semanticReviewList", "Decision browser width"),
     LayoutTarget("semanticReviewDetails", "Decision detail width"),
     LayoutTarget("researchWorkspace", "Research workspace geometry"),
