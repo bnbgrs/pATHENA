@@ -46,6 +46,9 @@ _PAGE_TITLES = (
 _LEGACY_INLINE_STYLE_OBJECTS = (
     "settingsSecondaryNavigation",
     "canonicalMemoryTabs",
+    "canonicalMemorySplit",
+    "canonicalMemoryListPane",
+    "canonicalMemoryDetailPane",
     "knowledgeSearchInput",
     "persistentKnowledgeList",
     "persistentKnowledgeDetails",
@@ -416,6 +419,16 @@ QTabWidget#canonicalMemoryTabs::pane {{
     border: 0;
     border-top: 1px solid {PALETTE.border};
     top: -1px;
+}}
+QSplitter#canonicalMemorySplit,
+QWidget#canonicalMemoryListPane,
+QWidget#canonicalMemoryDetailPane {{
+    background: {PALETTE.canvas};
+    border: 0;
+}}
+QSplitter#canonicalMemorySplit::handle {{
+    background: {PALETTE.border};
+    width: 1px;
 }}
 QTabWidget#canonicalMemoryTabs QTabBar::tab {{
     color: {PALETTE.text_subtle};

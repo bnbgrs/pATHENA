@@ -253,7 +253,9 @@ class KnowledgeWorkspace(QWidget):
 
     def _build_knowledge_tab(self) -> QWidget:
         splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setObjectName("canonicalMemorySplit")
         left = QWidget()
+        left.setObjectName("canonicalMemoryListPane")
         left_layout = QVBoxLayout(left)
         left_layout.setContentsMargins(0, 8, 8, 0)
         left_layout.setSpacing(8)
@@ -263,6 +265,7 @@ class KnowledgeWorkspace(QWidget):
         left_layout.addWidget(self.knowledge_list, 1)
 
         right = QWidget()
+        right.setObjectName("canonicalMemoryDetailPane")
         right_layout = QVBoxLayout(right)
         right_layout.setContentsMargins(8, 8, 0, 0)
         right_layout.setSpacing(8)
@@ -285,7 +288,9 @@ class KnowledgeWorkspace(QWidget):
 
     def _build_claims_tab(self) -> QWidget:
         splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setObjectName("canonicalMemorySplit")
         left = QWidget()
+        left.setObjectName("canonicalMemoryListPane")
         left_layout = QVBoxLayout(left)
         left_layout.setContentsMargins(0, 8, 8, 0)
         left_layout.setSpacing(8)
@@ -295,6 +300,7 @@ class KnowledgeWorkspace(QWidget):
         left_layout.addWidget(self.claim_list, 1)
 
         right = QWidget()
+        right.setObjectName("canonicalMemoryDetailPane")
         right_layout = QVBoxLayout(right)
         right_layout.setContentsMargins(8, 8, 0, 0)
         right_layout.setSpacing(8)
@@ -315,7 +321,9 @@ class KnowledgeWorkspace(QWidget):
 
     def _build_reviews_tab(self) -> QWidget:
         splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setObjectName("canonicalMemorySplit")
         left = QWidget()
+        left.setObjectName("canonicalMemoryListPane")
         left_layout = QVBoxLayout(left)
         left_layout.setContentsMargins(0, 8, 8, 0)
         left_layout.setSpacing(8)
@@ -325,6 +333,7 @@ class KnowledgeWorkspace(QWidget):
         left_layout.addWidget(self.review_list, 1)
 
         right = QWidget()
+        right.setObjectName("canonicalMemoryDetailPane")
         right_layout = QVBoxLayout(right)
         right_layout.setContentsMargins(8, 8, 0, 0)
         right_layout.setSpacing(8)

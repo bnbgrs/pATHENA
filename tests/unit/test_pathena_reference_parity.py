@@ -123,6 +123,22 @@ def test_reference_parity_marks_workspace_surfaces_for_qss_background_painting()
         window.close()
 
 
+def test_reference_parity_paints_canonical_memory_panes_with_canvas_token() -> None:
+    app = _app()
+    window = PathenaMainWindow()
+    pane = QWidget(window)
+    pane.setObjectName("canonicalMemoryListPane")
+    parity = install_reference_parity(window, lambda: None)
+    app.processEvents()
+    try:
+        assert pane.testAttribute(Qt.WidgetAttribute.WA_StyledBackground)
+        assert "QWidget#canonicalMemoryListPane" in window.styleSheet()
+        assert f"background: {PALETTE.canvas};" in window.styleSheet()
+    finally:
+        parity.dispose()
+        window.close()
+
+
 def test_reference_parity_forces_cobalt_focus_on_real_research_inputs() -> None:
     app = _app()
     window = PathenaMainWindow()
