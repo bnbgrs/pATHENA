@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from unittest.mock import Mock
 
+import pytest
+
 from athena.jobs.backup_verify_durable_service import (
     BackupDeepVerifyDurableJobService,
 )
@@ -11,7 +13,6 @@ from athena.jobs.backup_verify_payload import (
 )
 from athena.jobs.models import JobPriority
 from athena.jobs.service import InvalidJobPayloadError
-import pytest
 
 
 _SNAPSHOT_ID = "12345678-1234-5678-9234-567812345678"
@@ -24,64 +25,61 @@ def _valid_payload() -> tuple[dict[str, object], dict[str, object]]:
     )
 
 
-def _service(
-    *,
-    create: Mock | None = None,
-) -> tuple[BackupDeepVerifyDurableJobService, Mock]:
+def test_create_persists_maintenance_job() -> None:
     repository = Mock()
-    repository.create = create or Mock(return_value="job-1")
     chat = Mock()
-    chat.ensure_local_user.return_value = "actor-1"
-    return BackupDeepVerifyDurableJobService(repository, chat), repository.create
+    chat.resolve_or_create_thread_for_actor.return_value = "thread-1"
+    service = BackupDeepVerifyDurableJobService(repository, chat)
+    payload, version = _valid_payload()
 
-
-def test_create_uses_durable_backup_verify_job_contract() -> None:
-    create = Mock(return_value="job-42")
-    service, persisted_create = _service(create=create)
-    requested_scope, pinned_configuration = _valid_payload()
-
-    job = service.create(
-        job_type=BACKUP_VERIFY_DEEP_JOB_TYPE,
-        priority=JobPriority.MAINTENANCE,
-        requested_scope=requested_scope,
-        pinned_configuration=pinned_configuration,
-        next_run_at_us=1,
+    service.create(
+        actor_id="actor-1",
+        payload=payload,
+        version=version,
+        next_run_at_us=123,
     )
 
-    assert job == "job-42"
-    persisted_create.assert_called_once()
-    call = persisted_create.call_args.kwargs
-    assert call["job_type"] == BACKUP_VERIFY_DEEP_JOB_TYPE
-    assert call["actor_id"] == "actor-1"
-    assert call["priority"] is JobPriority.MAINTENANCE
-    assert call["next_run_at_us"] == 1
+    repository.create.assert_called_once()
+    job = repository.create.call_args.args[0]
+    assert job.job_type == BACKUP_VERIFY_DEEP_JOB_TYPE
+    assert job.priority is JobPriority.MAINTENANCE
+    assert job.actor_id == "actor-1"
+    assert job.next_run_at_us == 123
+    assert job.payload == payload
+    assert job.version == version
 
 
-def test_create_rejects_invalid_payload_before_persistence() -> None:
-    service, persisted_create = _service()
-    requested_scope, pinned_configuration = _valid_payload()
-    requested_scope["snapshot_id"] = "relative/path"
+def test_create_rejects_invalid_snapshot_id_before_persist() -> None:
+    repository = Mock()
+    chat = Mock()
+    service = BackupDeepVerifyDurableJobService(repository, chat)
+    payload, version = _valid_payload()
+    payload["snapshot_id"] = "not-a-uuid"
 
-    with pytest.raises(InvalidJobPayloadError, match="snapshot_id"):
+    with pytest.raises(InvalidJobPayloadError):
         service.create(
-            job_type=BACKUP_VERIFY_DEEP_JOB_TYPE,
-            requested_scope=requested_scope,
-            pinned_configuration=pinned_configuration,
+            actor_id="actor-1",
+            payload=payload,
+            version=version,
+            next_run_at_us=123,
         )
 
-    persisted_create.assert_not_called()
+    repository.create.assert_not_called()
 
 
-def test_create_rejects_invalid_configuration_before_persistence() -> None:
-    service, persisted_create = _service()
-    requested_scope, pinned_configuration = _valid_payload()
-    pinned_configuration["pipeline_version"] = "wrong"
+def test_create_rejects_wrong_pipeline_version_before_persist() -> None:
+    repository = Mock()
+    chat = Mock()
+    service = BackupDeepVerifyDurableJobService(repository, chat)
+    payload, version = _valid_payload()
+    version["pipeline_version"] = "wrong"
 
-    with pytest.raises(InvalidJobPayloadError, match="pipeline_version"):
+    with pytest.raises(InvalidJobPayloadError):
         service.create(
-            job_type=BACKUP_VERIFY_DEEP_JOB_TYPE,
-            requested_scope=requested_scope,
-            pinned_configuration=pinned_configuration,
+            actor_id="actor-1",
+            payload=payload,
+            version=version,
+            next_run_at_us=123,
         )
 
-    persisted_create.assert_not_called()
+    repository.create.assert_not_called()
