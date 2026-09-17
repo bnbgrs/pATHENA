@@ -15,6 +15,7 @@ on:
       - "scripts/compare_pathena_ui_snapshots.py"
       - "tests/qa/**"
       - "tests/qa/visual-baseline-windows.json"
+      - "tests/unit/test_pathena_visual_knowledge_fixture.py"
       - "src/athena/desktop/**"
       - "pyproject.toml"
       - "uv.lock"
@@ -94,7 +95,8 @@ jobs:
             scripts/render_pathena_ui_snapshot_fontsafe.py `
             scripts/render_pathena_ui_snapshot_sequential.py `
             scripts/compare_pathena_ui_snapshots.py `
-            tests/qa/test_visual_snapshot_compare.py
+            tests/qa/test_visual_snapshot_compare.py `
+            tests/unit/test_pathena_visual_knowledge_fixture.py
           if ($LASTEXITCODE -ne 0) { throw "Visual harness Ruff failed." }
 
       - name: Mypy comparator
@@ -123,6 +125,13 @@ jobs:
           $env:PYTHONPATH = (Get-Location).Path
           uv run --locked --extra dev --extra desktop --no-sync pytest -q tests/unit/test_pathena_navigation_context_accessibility.py
           if ($LASTEXITCODE -ne 0) { throw "Primary navigation accessibility contract failed." }
+
+      - name: Run repository-backed Knowledge visual fixture contract
+        shell: pwsh
+        run: |
+          $env:PYTHONPATH = (Get-Location).Path
+          uv run --locked --extra dev --extra desktop --no-sync pytest -q tests/unit/test_pathena_visual_knowledge_fixture.py
+          if ($LASTEXITCODE -ne 0) { throw "Repository-backed Knowledge visual fixture failed." }
 
       - name: Capture exactly eleven canonical surfaces with native fonts
         shell: pwsh
