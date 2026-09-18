@@ -4,7 +4,7 @@ from unittest.mock import Mock
 
 import pytest
 
-from athena.jobs.backup_verify_durable_service import BackupDeepVerifyDurableJobService
+import athena.jobs.backup_verify_durable_service as durable_service
 from athena.jobs.backup_verify_payload import (
     BACKUP_VERIFY_DEEP_JOB_TYPE,
     BACKUP_VERIFY_DEEP_PIPELINE_VERSION,
@@ -27,7 +27,7 @@ def test_create_persists_maintenance_job() -> None:
     repository = Mock()
     chat = Mock()
     chat.ensure_local_user.return_value = "actor-1"
-    service = BackupDeepVerifyDurableJobService(repository, chat)
+    service = durable_service.BackupDeepVerifyDurableJobService(repository, chat)
     requested_scope, pinned_configuration = _valid_payload()
 
     service.create(
@@ -57,7 +57,7 @@ def test_create_persists_maintenance_job() -> None:
 def test_create_rejects_invalid_snapshot_id_before_persist() -> None:
     repository = Mock()
     chat = Mock()
-    service = BackupDeepVerifyDurableJobService(repository, chat)
+    service = durable_service.BackupDeepVerifyDurableJobService(repository, chat)
     requested_scope, pinned_configuration = _valid_payload()
     requested_scope["snapshot_id"] = "not-a-uuid"
 
@@ -77,7 +77,7 @@ def test_create_rejects_invalid_snapshot_id_before_persist() -> None:
 def test_create_rejects_wrong_pipeline_version_before_persist() -> None:
     repository = Mock()
     chat = Mock()
-    service = BackupDeepVerifyDurableJobService(repository, chat)
+    service = durable_service.BackupDeepVerifyDurableJobService(repository, chat)
     requested_scope, pinned_configuration = _valid_payload()
     pinned_configuration["pipeline_version"] = "wrong"
 
