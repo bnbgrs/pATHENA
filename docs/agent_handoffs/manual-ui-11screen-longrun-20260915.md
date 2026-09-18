@@ -2,6 +2,7 @@
 
 Initial date: 2026-09-15
 Consolidated: 2026-09-17
+Native reviewed: `2026-09-18` at `0a9f92f8351500f07812857e374a5860884c3029`
 Branch: `ui/11-screen-longrun-r2-20260915`
 PR: `#236`
 Develop merged through: `develop/pathena-next@03157f15246c8acb0f51a30631bf45c4d2a72416`
@@ -132,11 +133,11 @@ native side-by-side review are pending.
 
 ## Promotion boundary
 
-Before promotion:
+Completed on the reviewed implementation SHA:
 
-1. exact PR head must pass `pATHENA UI Focused Candidate` and `ATHENA Quality Gate`;
-2. render the native Windows application from that same SHA;
-3. capture the representative Chat/Workspace, PALLAS, Settings, Command Palette, Jobs and System states;
-4. open those captures side-by-side with the corresponding originals;
-5. record remaining geometry/typography/density differences in `docs/ui/VISUAL_GAP_LEDGER.md`;
-6. only then use `MATCH` for any reference slot.
+1. UI Focused run `35313740166` and ATHENA Quality run `35313740153` passed at exact SHA `0a9f92f8351500f07812857e374a5860884c3029`;
+2. Windows Visual run `35313740239` captured all eleven canonical product surfaces with manifest `PASS` and no capture or teardown errors;
+3. all eleven captures were opened beside the corresponding or closest composition reference;
+4. the per-reference differences are recorded in `docs/ui/VISUAL_GAP_LEDGER.md`;
+5. result: `NATIVE_REVIEWED=11/11`, `MATCH=0/11`;
+6. the accepted baseline is only a regression lock for the truthful native states and does not upgrade any reference to `MATCH`.

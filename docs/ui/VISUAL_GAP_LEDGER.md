@@ -2,11 +2,38 @@
 
 Reference review: `2026-09-15`
 Candidate consolidation: `2026-09-18`
+Native Windows review: `2026-09-18`
+Reviewed candidate: `0a9f92f8351500f07812857e374a5860884c3029`
 Candidate branch: `ui/11-screen-longrun-r2-20260915` (PR `#236`)
 Develop merged through: `develop/pathena-next@03157f15246c8acb0f51a30631bf45c4d2a72416`
 Integration target: `develop/pathena-next`
 
-All eleven originals in `/pATHENA/Designreferenz – 11 Screenshots` were opened directly before this run. The old evidence blocker that treated ten references as unavailable is closed. No screenshot-level `MATCH` claim is made: exact-head native rendering and side-by-side review remain required.
+All eleven originals in `/pATHENA/Designreferenz – 11 Screenshots` were opened directly before this run. The old evidence blocker that treated ten references as unavailable is closed. Exact-head native rendering and side-by-side review are now complete. No screenshot-level `MATCH` claim is made because the reviewed truthful product states are not pixel-identical to the originals.
+
+## Native Windows comparison — exact SHA `0a9f92f83515`
+
+Evidence: Visual run `35313740239` (`windows-2025`, manifest `PASS`, `11/11`, zero capture
+errors), UI Focused run `35313740166` (`SUCCESS`) and ATHENA Quality run `35313740153`
+(`SUCCESS`). The Visual run is red only because no reviewed baseline was committed at that SHA;
+proposal generation and artifact upload both succeeded. Teardown diagnostics are clean.
+
+| Reference | Closest native capture | Confirmed alignment | Remaining difference / verdict |
+|---|---|---|---|
+| ComfyUI integration | `11-comfyui.png` | Navy form, bounded connection/workflow/activity groups, cobalt primary action | Current product is a truthful loopback dialog, not the reference's fabricated full integration route and rail. Composition-only; no `MATCH`. |
+| PALLAS semantic field | `08-pallas.png` | Shell-hosted graph-first view; Source blue, Claim/Knowledge green, Conflict red; quiet semantic lens controls | Diagnostic graph is smaller and sparser; it has no reference-like grouped branches, minimap, history or selected-object inspector. No `MATCH`. |
+| Settings | `07-settings.png` | Secondary navigation, wide model form and truthful System status column; navy/cobalt hierarchy | Only implemented `Models & inference` and `System status` destinations appear. Reference-only General/Privacy/Network/etc. are intentionally absent. No `MATCH`. |
+| Help | `10-help.png` | Search-first two-column help hierarchy and real capability rows; PALLAS and Sources are discoverable | Current Help is a capability dialog without the reference shell, shortcut inspector or identical row density. No `MATCH`. |
+| Elegant dark workspace | `01-chat.png` | Textual top navigation, narrow rail, navy canvas, restrained composer and cobalt send control | Capture truthfully shows reconnecting Chat instead of invented synthesis/evidence/graph content. No `MATCH`. |
+| Jobs | `04-jobs.png` | Real durable Jobs master/detail frame and reference-family palette | No job exists in the isolated native runtime, so steps, logs, resources and execution state remain absent. No `MATCH`. |
+| Command palette | `09-command-palette.png` | Keyboard-first search, selection, footer hints, and truthful `Open PALLAS`/`Open Sources` ordering | Current capture is the real dialog rather than the full Knowledge backdrop; category grouping and dimensions differ. No `MATCH`. |
+| System | `06-system.png` | Secondary rail, broad health rows, recent-events region, security posture and navy diagnostic cards | Snapshot-backed facts are unavailable in the isolated run and stay labelled unavailable/awaiting rather than copied from the reference. No `MATCH`. |
+| Dark research studio | `03-research.png` | Shared dark shell, explicit Research inputs and real result/canonical-memory master/detail region | No research run exists, so the reference synthesis map, graph cards, evidence and activity content are absent. No `MATCH`. |
+| Light intelligence studio | `05-files.png` plus shared shell captures | Shared spacing/navigation principles were checked | Light theme is a concept reference only; no unsupported light capability was added. No `MATCH`. |
+| Local memory | `02-knowledge.png` | Repository-backed list, real selected canonical detail and provenance on the shared dark shell | Product Knowledge uses review/list/detail semantics rather than the reference's synthetic workspace graph/activity composition. No `MATCH`. |
+
+Review total: `11/11` originals inspected, `11/11` native product captures inspected,
+`MATCH=0/11`. The committed Windows baseline is a regression lock for these approved truthful
+states and must never be cited as original-reference parity.
 
 ## UI-GAP-0001 — Inspector naming / evidence ownership
 
@@ -140,13 +167,13 @@ All eleven originals in `/pATHENA/Designreferenz – 11 Screenshots` were opened
   `Models & inference` and `System status`, with corresponding accessible descriptions and no
   fabricated General, Privacy, Network, Appearance, Knowledge or Advanced routes.
 
-## Remaining blocker — exact native visual comparison
+## Exact native visual comparison — completed, gaps retained
 
-The candidate must not be promoted to screenshot `MATCH` until:
+The candidate was reviewed under the required boundary:
 
-1. the exact candidate head passes canonical Quality/focused UI tests;
-2. the current native Windows build renders the relevant surfaces from that same SHA;
-3. those captures are opened side-by-side with the eleven originals;
-4. any remaining geometry, typography, density or state-color differences are recorded here rather than patched blindly.
+1. exact SHA `0a9f92f8351500f07812857e374a5860884c3029` passed canonical Quality and focused UI tests;
+2. its native Windows build rendered all eleven product surfaces;
+3. every capture was opened side-by-side with the closest original;
+4. remaining geometry, typography, density and state differences are recorded above rather than hidden by synthetic data or unsupported routes.
 
-Repository snapshot tests are regression evidence, not proof of fidelity to the user-provided references.
+Repository snapshot tests and the accepted Windows baseline remain regression evidence, not proof of fidelity to the user-provided references. `MATCH` remains unavailable for all eleven slots.
