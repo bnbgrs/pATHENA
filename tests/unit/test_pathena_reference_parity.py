@@ -199,6 +199,8 @@ def test_reference_parity_styles_pallas_jobs_system_and_settings_surfaces() -> N
         assert "QListWidget#durableJobList" in stylesheet
         assert "QListWidget#sourceList" in stylesheet
         assert "QFrame#systemStatusRow" in stylesheet
+        assert "QTabWidget#systemOperationsTabs" in stylesheet
+        assert "QFrame#systemHardwareAcceptance" in stylesheet
         assert "QListWidget#settingsSecondaryNavigation" in stylesheet
         assert "QDialog#commandPalette" in stylesheet
         assert "QWidget#helpWorkspace" in stylesheet

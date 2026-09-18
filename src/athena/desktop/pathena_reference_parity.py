@@ -795,6 +795,38 @@ QPushButton#pallasLensVitalityButton:checked {{
 }}
 
 /* System reference: secondary rail, structured health rows, posture column. */
+QTabWidget#systemOperationsTabs,
+QTabWidget#systemOperationsTabs::pane {{
+    background: {PALETTE.canvas};
+    border: 0;
+}}
+QTabWidget#systemOperationsTabs QTabBar {{
+    background: {PALETTE.canvas};
+    border: 0;
+}}
+QTabWidget#systemOperationsTabs QTabBar::tab {{
+    color: {PALETTE.text_subtle};
+    background: transparent;
+    border: 0;
+    border-bottom: 2px solid transparent;
+    min-height: 30px;
+    padding: 0 12px;
+}}
+QTabWidget#systemOperationsTabs QTabBar::tab:selected {{
+    color: {PALETTE.text};
+    border-bottom: 2px solid {PALETTE.accent};
+}}
+QFrame#systemHardwareAcceptance,
+QFrame#systemRecoveryPanel {{
+    color: {PALETTE.text_muted};
+    background: {PALETTE.surface};
+    border: 1px solid {PALETTE.border};
+    border-radius: {RADII.panel}px;
+}}
+QFrame#systemHardwareAcceptance QLabel,
+QFrame#systemRecoveryPanel QLabel {{
+    background: transparent;
+}}
 QFrame#systemSubnav {{
     background: {PALETTE.surface};
     border: 0;
@@ -829,7 +861,10 @@ QFrame#systemSecurityPosture {{
     border-left: 1px solid {PALETTE.border};
 }}
 QLabel#systemRecentEventsEmpty,
-QLabel#systemDetail {{ color: {PALETTE.text_subtle}; }}
+QLabel#systemDetail {{
+    color: {PALETTE.text_subtle};
+    background: transparent;
+}}
 """
 
 
