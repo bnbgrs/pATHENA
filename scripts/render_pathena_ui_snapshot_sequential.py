@@ -325,16 +325,34 @@ def main(argv: Sequence[str] | None = None) -> int:
             raise RuntimeError("Real repository-backed Knowledge workbench is unavailable.")
 
         expected_ids = set(reference_knowledge_ids)
+        target_knowledge_id = reference_knowledge_ids[0]
         deadline = time.monotonic() + 8.0
         observed_ids: set[str] = set()
         detail_id = ""
         detail_state = ""
+        target_row = -1
         while time.monotonic() < deadline:
             app.processEvents()
             observed_ids = {
                 str(knowledge_list.item(index).data(Qt.ItemDataRole.UserRole))
                 for index in range(knowledge_list.count())
             }
+            if expected_ids.issubset(observed_ids):
+                target_row = next(
+                    (
+                        index
+                        for index in range(knowledge_list.count())
+                        if str(
+                            knowledge_list.item(index).data(Qt.ItemDataRole.UserRole)
+                        )
+                        == target_knowledge_id
+                    ),
+                    -1,
+                )
+                if target_row >= 0 and knowledge_list.currentRow() != target_row:
+                    knowledge_list.setCurrentRow(target_row)
+                    app.processEvents()
+
             detail_id = str(
                 knowledge_details.property("pathenaKnowledgeEntityId") or ""
             )
@@ -343,13 +361,15 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             if (
                 expected_ids.issubset(observed_ids)
-                and detail_id in expected_ids
+                and target_row >= 0
+                and detail_id == target_knowledge_id
                 and detail_state == "ready"
                 and knowledge_details.toPlainText().strip()
             ):
                 return {
                     "fixture": "isolated repository-backed canonical Knowledge",
                     "knowledge_count": knowledge_list.count(),
+                    "selected_knowledge_id": target_knowledge_id,
                     "selected_knowledge_state": detail_state,
                 }
             time.sleep(0.05)
