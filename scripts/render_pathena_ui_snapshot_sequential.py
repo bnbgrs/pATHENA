@@ -15,6 +15,7 @@ import re
 import sys
 import threading
 import time
+import uuid
 from collections.abc import Sequence
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -27,6 +28,34 @@ WORKSPACE_SURFACE_LABELS = (
     "Files",
     "System",
     "Settings",
+)
+
+_REFERENCE_CHAT_ID = uuid.UUID("6f8cb7a8-1bd1-4ef0-9b82-2ba72209c0c1")
+_REFERENCE_CHAT_MESSAGES = (
+    (
+        "user",
+        "Summarize the current local-first research state and keep the answer grounded "
+        "in the evidence already stored in this workspace.",
+    ),
+    (
+        "assistant",
+        "The workspace keeps durable knowledge, source provenance, and research state "
+        "inside the local runtime. Evidence remains inspectable instead of being "
+        "collapsed into an opaque answer. Current work is organized around three "
+        "constraints: preserve local ownership, keep every important claim traceable, "
+        "and make automated changes reviewable before they become canonical knowledge.",
+    ),
+    (
+        "user",
+        "What should I verify before I treat the result as durable knowledge?",
+    ),
+    (
+        "assistant",
+        "Check the cited source identity, inspect any contradictory evidence, confirm "
+        "that the synthesis reflects the persisted material, and only then promote the "
+        "result into Knowledge. pATHENA should keep that decision reversible and retain "
+        "the provenance needed to audit it later.",
+    ),
 )
 
 _REFERENCE_KNOWLEDGE_DRAFTS = (
@@ -91,6 +120,59 @@ def _seed_reference_knowledge(runtime_root: Path) -> tuple[str, ...]:
             )
             knowledge_ids.append(str(revision.knowledge_id))
         return tuple(knowledge_ids)
+    finally:
+        core.stop()
+
+
+def _seed_reference_chat(runtime_root: Path) -> str:
+    """Create one idempotent repository-backed Chat state for visual capture."""
+    from athena.config.settings import AthenaSettings
+    from athena.core.application import AthenaApplication
+
+    core = AthenaApplication(settings=AthenaSettings(local_root=runtime_root))
+    core.start(run_startup_maintenance=False)
+    try:
+        chat_id = core.chat.create_chat(chat_id=_REFERENCE_CHAT_ID)
+        thread = core.chat.load_chat(chat_id)
+        actual = tuple(
+            (
+                message.message_type.value,
+                message.content or "",
+            )
+            for message in thread.messages
+        )
+        if not actual:
+            for role, content in _REFERENCE_CHAT_MESSAGES:
+                if role == "user":
+                    core.chat.add_user_message(
+                        chat_id=chat_id,
+                        content=content,
+                    )
+                elif role == "assistant":
+                    core.chat.add_assistant_message(
+                        chat_id=chat_id,
+                        content=content,
+                        provider_id="visual-regression-local",
+                        model_id="reference-model",
+                    )
+                else:
+                    raise RuntimeError(
+                        f"Unsupported reference Chat role {role!r}."
+                    )
+            thread = core.chat.load_chat(chat_id)
+            actual = tuple(
+                (
+                    message.message_type.value,
+                    message.content or "",
+                )
+                for message in thread.messages
+            )
+
+        if actual != _REFERENCE_CHAT_MESSAGES:
+            raise RuntimeError(
+                "Isolated reference Chat does not match the canonical capture fixture."
+            )
+        return str(chat_id)
     finally:
         core.stop()
 
@@ -165,6 +247,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     os.environ["ATHENA_LOCAL_ROOT"] = str(runtime_root)
     os.environ["QT_QPA_PLATFORM"] = "offscreen"
     reference_knowledge_ids = _seed_reference_knowledge(runtime_root)
+    reference_chat_id = _seed_reference_chat(runtime_root)
 
     _DiagnosticComfyHandler.posted_prompts.clear()
     comfy_server = ThreadingHTTPServer(("127.0.0.1", 0), _DiagnosticComfyHandler)
@@ -187,7 +270,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
 
     from PySide6.QtCore import Qt, QTimer
-    from PySide6.QtWidgets import QListWidget, QMainWindow, QPlainTextEdit, QWidget
+    from PySide6.QtWidgets import QLabel, QListWidget, QMainWindow, QPlainTextEdit, QWidget
 
     from athena.desktop.app import create_application
     from athena.desktop.app import main as desktop_main
@@ -242,16 +325,34 @@ def main(argv: Sequence[str] | None = None) -> int:
             raise RuntimeError("Real repository-backed Knowledge workbench is unavailable.")
 
         expected_ids = set(reference_knowledge_ids)
+        target_knowledge_id = reference_knowledge_ids[0]
         deadline = time.monotonic() + 8.0
         observed_ids: set[str] = set()
         detail_id = ""
         detail_state = ""
+        target_row = -1
         while time.monotonic() < deadline:
             app.processEvents()
             observed_ids = {
                 str(knowledge_list.item(index).data(Qt.ItemDataRole.UserRole))
                 for index in range(knowledge_list.count())
             }
+            if expected_ids.issubset(observed_ids):
+                target_row = next(
+                    (
+                        index
+                        for index in range(knowledge_list.count())
+                        if str(
+                            knowledge_list.item(index).data(Qt.ItemDataRole.UserRole)
+                        )
+                        == target_knowledge_id
+                    ),
+                    -1,
+                )
+                if target_row >= 0 and knowledge_list.currentRow() != target_row:
+                    knowledge_list.setCurrentRow(target_row)
+                    app.processEvents()
+
             detail_id = str(
                 knowledge_details.property("pathenaKnowledgeEntityId") or ""
             )
@@ -260,13 +361,15 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             if (
                 expected_ids.issubset(observed_ids)
-                and detail_id in expected_ids
+                and target_row >= 0
+                and detail_id == target_knowledge_id
                 and detail_state == "ready"
                 and knowledge_details.toPlainText().strip()
             ):
                 return {
                     "fixture": "isolated repository-backed canonical Knowledge",
                     "knowledge_count": knowledge_list.count(),
+                    "selected_knowledge_id": target_knowledge_id,
                     "selected_knowledge_state": detail_state,
                 }
             time.sleep(0.05)
@@ -275,6 +378,99 @@ def main(argv: Sequence[str] | None = None) -> int:
             "Repository-backed Knowledge did not become capture-ready: "
             f"expected={len(expected_ids)}, observed={len(observed_ids)}, "
             f"detail_state={detail_state!r}, detail_id={detail_id!r}."
+        )
+
+    def wait_for_reference_chat(window: QMainWindow) -> dict[str, object]:
+        controller = getattr(window, "api_controller", None)
+        chat_selector = getattr(window, "chat_selector", None)
+        if controller is None or chat_selector is None:
+            raise RuntimeError("Real desktop Chat controller is unavailable.")
+
+        deadline = time.monotonic() + 10.0
+        load_requested = False
+        listed_index = -1
+        while time.monotonic() < deadline:
+            app.processEvents()
+            listed_index = chat_selector.findData(reference_chat_id)
+            if (
+                listed_index >= 0
+                and not load_requested
+                and not bool(getattr(controller, "chat_busy", False))
+            ):
+                controller.load_chat(reference_chat_id)
+                load_requested = True
+
+            cards = window.findChildren(QWidget, "chatMessage")
+            body_labels = [
+                label
+                for object_name in ("userMessage", "message")
+                for label in window.findChildren(QLabel, object_name)
+            ]
+            geometry_ready = (
+                len(cards) == len(_REFERENCE_CHAT_MESSAGES)
+                and all(
+                    card.isVisible()
+                    and card.width() >= 100
+                    and card.height() >= 24
+                    for card in cards
+                )
+            )
+            text_ready = (
+                len(body_labels) == len(_REFERENCE_CHAT_MESSAGES)
+                and all(
+                    label.isVisible()
+                    and label.width() >= 80
+                    and label.height() >= 12
+                    and label.text().strip()
+                    for label in body_labels
+                )
+            )
+            if (
+                getattr(window, "loaded_chat_id", None) == reference_chat_id
+                and geometry_ready
+                and text_ready
+            ):
+                # A queued chat-loaded signal can create the cards one event-loop
+                # turn before Qt has completed the final layout/paint pass. Require
+                # one short stable interval, then prove the same widgets remain
+                # visible before the screenshot is allowed to proceed.
+                app.processEvents()
+                time.sleep(0.15)
+                app.processEvents()
+                stable_cards = window.findChildren(QWidget, "chatMessage")
+                if (
+                    len(stable_cards) == len(_REFERENCE_CHAT_MESSAGES)
+                    and all(
+                        card.isVisible()
+                        and card.width() >= 100
+                        and card.height() >= 24
+                        for card in stable_cards
+                    )
+                ):
+                    return {
+                        "fixture": "isolated repository-backed canonical Chat",
+                        "chat_id": reference_chat_id,
+                        "message_count": len(stable_cards),
+                        "visible_message_count": sum(
+                            1 for card in stable_cards if card.isVisible()
+                        ),
+                        "message_geometry": [
+                            {
+                                "width": card.width(),
+                                "height": card.height(),
+                            }
+                            for card in stable_cards
+                        ],
+                    }
+            time.sleep(0.05)
+
+        cards = window.findChildren(QWidget, "chatMessage")
+        raise RuntimeError(
+            "Repository-backed Chat did not become capture-ready: "
+            f"listed_index={listed_index}, "
+            f"loaded_chat_id={getattr(window, 'loaded_chat_id', None)!r}, "
+            f"message_cards={len(cards)}, "
+            f"visible_cards={sum(1 for card in cards if card.isVisible())}."
         )
 
     def capture_workspaces() -> None:
@@ -303,6 +499,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                     f"requested row {row}, navigation row {navigation.currentRow()}, "
                     f"page index {pages.currentIndex()}."
                 )
+            chat_evidence = (
+                wait_for_reference_chat(window) if row == 0 else {}
+            )
             knowledge_evidence = (
                 wait_for_reference_knowledge(window) if row == 1 else {}
             )
@@ -310,6 +509,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             captures[-1]["navigation_label"] = navigation.item(row).text()
             captures[-1]["row"] = row
             captures[-1]["page_index"] = pages.currentIndex()
+            captures[-1].update(chat_evidence)
             captures[-1].update(knowledge_evidence)
 
     def diagnostic_pallas_snapshot() -> PallasGraphSnapshot:
