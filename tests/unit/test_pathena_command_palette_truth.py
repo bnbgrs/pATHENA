@@ -21,6 +21,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from athena.desktop.pathena_capability_catalog import CAPABILITY_CATALOG_VERSION
 from athena.desktop.pathena_command_palette_truth_6500 import (
     CommandPaletteTruthController,
 )
@@ -146,8 +147,11 @@ def test_palette_rows_expose_shared_capability_catalog_contract() -> None:
     item = palette.results.item(0)
     assert item is not None
     assert item.data(257) == "context required"
-    assert item.data(258) == "2026.08.25.1"
-    assert palette.dialog.property("pathenaCapabilityCatalogVersion") == "2026.08.25.1"
+    assert item.data(258) == CAPABILITY_CATALOG_VERSION
+    assert (
+        palette.dialog.property("pathenaCapabilityCatalogVersion")
+        == CAPABILITY_CATALOG_VERSION
+    )
     assert palette.dialog.property("pathenaCapabilityCatalogDrift") is True
 
 
