@@ -270,7 +270,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
 
     from PySide6.QtCore import Qt, QTimer
-    from PySide6.QtWidgets import QListWidget, QMainWindow, QPlainTextEdit, QWidget
+    from PySide6.QtWidgets import QLabel, QListWidget, QMainWindow, QPlainTextEdit, QWidget
 
     from athena.desktop.app import create_application
     from athena.desktop.app import main as desktop_main
