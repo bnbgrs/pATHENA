@@ -1,7 +1,7 @@
 # pATHENA Visual Gap Ledger
 
 Reference review: `2026-09-15`
-Candidate consolidation: `2026-09-17`
+Candidate consolidation: `2026-09-18`
 Candidate branch: `ui/11-screen-longrun-r2-20260915` (PR `#236`)
 Develop merged through: `develop/pathena-next@03157f15246c8acb0f51a30631bf45c4d2a72416`
 Integration target: `develop/pathena-next`
@@ -108,6 +108,37 @@ All eleven originals in `/pATHENA/Designreferenz – 11 Screenshots` were opened
   their machine-readable stdout cannot be prefixed by application lifecycle logs.
 - Evidence boundary: the focused repository-to-QProcess-to-widget regression is green locally;
   native Windows pixels from the exact committed SHA are still required.
+
+## UI-GAP-0011 — PALLAS semantics collapsed into one legacy accent
+
+- Category: `COLOR / SEMANTIC HIERARCHY`
+- Severity: `P1`
+- Status: `CANDIDATE_FIXED_PENDING_NATIVE_RENDER`
+- Reference evidence: Sources are cobalt, Claim/Knowledge/Related nodes are green, Questions are
+  violet, Conflicts are red and uncertain state remains amber.
+- Candidate behavior: the real PALLAS renderer resolves every existing `PallasNodeKind` through
+  the canonical design tokens; the living graph and provenance model are unchanged.
+
+## UI-GAP-0012 — PALLAS and Sources were inconsistent in command discovery
+
+- Category: `DISCOVERABILITY / TERMINOLOGY`
+- Severity: `P1`
+- Status: `CANDIDATE_FIXED_PENDING_NATIVE_RENDER`
+- Candidate behavior: the existing shell-hosted synchronized PALLAS controller is exposed through
+  one idempotent `Open PALLAS` command. Workspace row four is presented consistently as `Sources`
+  in commands, help metadata and navigation guidance while internal file-ingestion class names stay
+  unchanged.
+- Truth boundary: the command opens the existing graph; it does not advertise universal search or
+  create a second graph/dialog state.
+
+## UI-GAP-0013 — Settings labels did not match their real reference roles
+
+- Category: `COPY / ACCESSIBILITY`
+- Severity: `P2`
+- Status: `CANDIDATE_FIXED_PENDING_NATIVE_RENDER`
+- Candidate behavior: the only implemented Settings destinations are now labelled
+  `Models & inference` and `System status`, with corresponding accessible descriptions and no
+  fabricated General, Privacy, Network, Appearance, Knowledge or Advanced routes.
 
 ## Remaining blocker — exact native visual comparison
 

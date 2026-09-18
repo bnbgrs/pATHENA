@@ -37,6 +37,7 @@ from PySide6.QtWidgets import (
 
 from athena.api.contracts import GroundedChatResponse
 from athena.desktop.api_controller import DesktopApiController
+from athena.desktop.pathena_design_tokens import PALETTE
 from athena.desktop.pathena_pallas_semantic import (
     PallasGraphSnapshot,
     PallasNodeKind,
@@ -45,14 +46,19 @@ from athena.desktop.pathena_pallas_semantic import (
     graph_from_grounded_response,
 )
 
-_CANVAS = QColor("#060606")
-_TEXT = QColor("#F4F1EC")
-_MUTED = QColor("#A9A29A")
-_QUIET = QColor("#706B65")
-_BORDER = QColor("#202020")
-_ACCENT = QColor("#F26A21")
-_CONFLICT = QColor("#D96B62")
-_UNCERTAIN = QColor("#D5A34B")
+_CANVAS = QColor(PALETTE.canvas)
+_TEXT = QColor(PALETTE.text)
+_MUTED = QColor(PALETTE.text_muted)
+_QUIET = QColor(PALETTE.text_quiet)
+_BORDER = QColor(PALETTE.border)
+_ACCENT = QColor(PALETTE.accent)
+_SOURCE = QColor(PALETTE.accent)
+_CLAIM = QColor(PALETTE.success)
+_KNOWLEDGE = QColor(PALETTE.success)
+_QUESTION = QColor(PALETTE.question)
+_MEMORY = QColor(PALETTE.success)
+_CONFLICT = QColor(PALETTE.error)
+_UNCERTAIN = QColor(PALETTE.warning)
 
 
 @dataclass(frozen=True, slots=True)
@@ -665,11 +671,20 @@ def install_pallas_grounded_field(
 def _node_color(node: PallasSemanticNode) -> QColor:
     if node.kind is PallasNodeKind.FOCUS:
         return _ACCENT
+    if node.kind is PallasNodeKind.SOURCE:
+        return _SOURCE
+    if node.kind is PallasNodeKind.CLAIM:
+        return _CLAIM
+    if node.kind is PallasNodeKind.KNOWLEDGE:
+        return _KNOWLEDGE
+    if node.kind is PallasNodeKind.HYPOTHESIS:
+        return _QUESTION
+    if node.kind is PallasNodeKind.MEMORY:
+        return _MEMORY
     if node.kind is PallasNodeKind.CONFLICT:
         return _CONFLICT
     if node.kind is PallasNodeKind.UNCERTAIN:
         return _UNCERTAIN
-    return _TEXT if node.cited else _QUIET
 
 
 def _node_tooltip(node: PallasSemanticNode) -> str:

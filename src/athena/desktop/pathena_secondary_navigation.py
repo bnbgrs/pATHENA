@@ -48,17 +48,18 @@ class SettingsSecondaryNavigation(QObject):
             raise RuntimeError("pATHENA Settings model controls are unavailable")
 
         runtime_target = settings_page.findChild(QWidget, "settingsRuntimePanel")
-        sections = [SecondarySection("model", "Model & inference", model_target)]
+        sections = [SecondarySection("model", "Models & inference", model_target)]
         if runtime_target is not None:
-            sections.append(SecondarySection("runtime", "Local runtime", runtime_target))
+            sections.append(SecondarySection("runtime", "System status", runtime_target))
         self.sections = tuple(sections)
         self.runtime_target = runtime_target
 
         self.navigation = QListWidget()
         self.navigation.setObjectName("settingsSecondaryNavigation")
+        self.navigation.setProperty("referenceFamily", "11-screen-2026-08-24")
         self.navigation.setAccessibleName("Settings sections")
         self.navigation.setAccessibleDescription(
-            "Navigate between available Settings sections"
+            "Navigate between the Settings sections implemented in this desktop"
         )
         self.navigation.setFixedWidth(SHELL.secondary_nav_width)
         self.navigation.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
@@ -175,6 +176,7 @@ class SettingsSecondaryNavigation(QObject):
 
         self.container = QFrame()
         self.container.setObjectName("settingsSecondaryContainer")
+        self.container.setProperty("referenceFamily", "11-screen-2026-08-24")
         container_layout = QHBoxLayout(self.container)
         container_layout.setContentsMargins(0, 0, 0, 0)
         container_layout.setSpacing(0)
@@ -199,7 +201,7 @@ class SettingsSecondaryNavigation(QObject):
         if section.key == "model":
             self.scroll.ensureWidgetVisible(section.target, 24, 36)
         elif section.key == "runtime" and self.status_panel is not None:
-            self.status_panel.setAccessibleDescription("Selected section: Local runtime")
+            self.status_panel.setAccessibleDescription("Selected section: System status")
         self.navigation.setAccessibleDescription(f"Selected section: {section.label}")
 
 

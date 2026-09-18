@@ -35,6 +35,11 @@ def _apply_reference_renderer_palette(
     pallas_field_module._QUIET = QColor(PALETTE.text_quiet)
     pallas_field_module._BORDER = QColor(PALETTE.border)
     pallas_field_module._ACCENT = QColor(PALETTE.accent)
+    pallas_field_module._SOURCE = QColor(PALETTE.accent)
+    pallas_field_module._CLAIM = QColor(PALETTE.success)
+    pallas_field_module._KNOWLEDGE = QColor(PALETTE.success)
+    pallas_field_module._QUESTION = QColor(PALETTE.question)
+    pallas_field_module._MEMORY = QColor(PALETTE.success)
     pallas_field_module._CONFLICT = QColor(PALETTE.error)
     pallas_field_module._UNCERTAIN = QColor(PALETTE.warning)
     grounded_controller.field.canvas.setBackgroundBrush(

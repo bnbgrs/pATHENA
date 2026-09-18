@@ -1,7 +1,7 @@
 # pATHENA 11-Screen Reference Manifest
 
 Reference review: `2026-09-15`
-Candidate consolidation: `2026-09-17`
+Candidate consolidation: `2026-09-18`
 Implementation branch: `ui/11-screen-longrun-r2-20260915` (PR `#236`)
 Integration target: `develop/pathena-next`
 Develop merged through: `03157f15246c8acb0f51a30631bf45c4d2a72416`
@@ -50,6 +50,8 @@ The eleven references are not eleven unrelated mock-ups. Their reusable DNA is:
 - top-bar, rail, center, inspector and composer geometry;
 - contextual generic inspector visibility;
 - Settings, command palette/help, PALLAS, Jobs and System reference styling;
+- semantic PALLAS node colors plus a truthful shell-hosted `Open PALLAS` command;
+- consistent user-facing `Sources` terminology and truthful Settings section labels;
 - repository-backed Knowledge capture in an isolated disposable runtime;
 - no Backend, Storage, provider, queue, network or persistence behavior changes.
 

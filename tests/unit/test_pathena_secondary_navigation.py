@@ -40,7 +40,7 @@ def test_settings_secondary_navigation_wraps_only_real_sections() -> None:
     try:
         controller = install_settings_secondary_navigation(window)
 
-        assert controller.section_names == ("Model & inference", "Local runtime")
+        assert controller.section_names == ("Models & inference", "System status")
         assert controller.navigation.width() == SHELL.secondary_nav_width
         assert 210 <= controller.navigation.width() <= 280
         assert controller.navigation.currentRow() == 0
@@ -65,16 +65,16 @@ def test_settings_secondary_navigation_exposes_accessible_section_semantics() ->
 
         model_item = controller.navigation.item(0)
         runtime_item = controller.navigation.item(1)
-        assert model_item.data(Qt.ItemDataRole.AccessibleTextRole) == "Model & inference"
+        assert model_item.data(Qt.ItemDataRole.AccessibleTextRole) == "Models & inference"
         assert model_item.data(Qt.ItemDataRole.AccessibleDescriptionRole) == (
-            "Open Model & inference settings"
+            "Open Models & inference settings"
         )
-        assert model_item.toolTip() == "Open Model & inference settings"
-        assert runtime_item.data(Qt.ItemDataRole.AccessibleTextRole) == "Local runtime"
+        assert model_item.toolTip() == "Open Models & inference settings"
+        assert runtime_item.data(Qt.ItemDataRole.AccessibleTextRole) == "System status"
         assert runtime_item.data(Qt.ItemDataRole.AccessibleDescriptionRole) == (
-            "Open Local runtime settings"
+            "Open System status settings"
         )
-        assert runtime_item.toolTip() == "Open Local runtime settings"
+        assert runtime_item.toolTip() == "Open System status settings"
     finally:
         window.close()
 
@@ -85,11 +85,11 @@ def test_settings_secondary_navigation_does_not_invent_unavailable_sections() ->
     try:
         controller = install_settings_secondary_navigation(window)
 
-        assert controller.section_names == ("Model & inference",)
+        assert controller.section_names == ("Models & inference",)
         assert controller.navigation.count() == 1
         assert controller.navigation.item(0).data(Qt.ItemDataRole.UserRole) == "model"
         assert controller.navigation.findItems(
-            "Local runtime", Qt.MatchFlag.MatchExactly
+            "System status", Qt.MatchFlag.MatchExactly
         ) == []
         assert controller.status_panel is None
     finally:
@@ -112,11 +112,11 @@ def test_settings_secondary_navigation_keyboard_selection_is_deterministic() -> 
 
         assert controller.navigation.currentRow() == 1
         assert controller.navigation.accessibleDescription() == (
-            "Selected section: Local runtime"
+            "Selected section: System status"
         )
         assert controller.status_panel is not None
         assert controller.status_panel.accessibleDescription() == (
-            "Selected section: Local runtime"
+            "Selected section: System status"
         )
         assert window.pages.currentIndex() == 6
     finally:

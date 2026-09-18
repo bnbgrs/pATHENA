@@ -107,6 +107,21 @@ The duplicate `persistentClaimDetails` accessibility label, stale orange theme a
 blank line, and 48 px send-button regression from the earlier PR head have been reconciled. The
 authoritative send contract remains 44×44 px.
 
+### Q9 — selective PR #238 convergence
+
+The useful parts of the older deep-parity draft were ported onto this current candidate instead
+of merging its stale branch history. PALLAS now gives Source, Claim/Knowledge/Memory, Question,
+Conflict and Uncertain nodes the semantic blue, green, violet, red and amber roles visible in the
+opened reference. The command palette exposes one truthful `Open PALLAS` action backed by the
+current shell-hosted synchronized controller. User-facing workspace terminology is consistently
+`Sources`, and the two implemented Settings destinations are labelled `Models & inference` and
+`System status`. No detached PALLAS dialog, synthetic Settings page or universal content search was
+introduced.
+
+Focused evidence for this convergence: specification validation `64/64`, repository Ruff, mypy
+across `467` source files, and `44` focused Qt/UI tests pass locally. Exact-head Windows capture and
+canonical CI remain the next promotion boundary.
+
 ## Safety / ownership boundaries for other bots
 
 Do not modify Backend, Storage, model-provider, Research, Knowledge, queue, network or persistence semantics to make a screenshot look populated. Do not create fake controls, fake queue entries, fake security state or synthetic provenance. Avoid adding another final global stylesheet/controller on top of `pathena_reference_parity.py`; extend the shared parity layer or the owning workspace instead.

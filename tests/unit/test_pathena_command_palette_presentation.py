@@ -40,7 +40,7 @@ def test_command_palette_uses_quiet_product_copy_without_losing_commands() -> No
             "Open Knowledge",
             "Open Research",
             "Open Jobs",
-            "Open Files",
+            "Open Sources",
             "Open System",
             "Open Settings",
         }.issubset(labels)

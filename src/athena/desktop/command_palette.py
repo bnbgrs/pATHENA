@@ -47,7 +47,7 @@ _WORKSPACE_HELP: tuple[tuple[str, str], ...] = (
         "cancel and wake actions.",
     ),
     (
-        "Files",
+        "Sources",
         "Import local sources into the Raw Archive, inspect retrieval readiness and "
         "process or retry supported files.",
     ),
