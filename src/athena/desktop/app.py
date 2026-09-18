@@ -237,6 +237,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     transient_dialog_shortcuts = install_transient_dialog_shortcut_continuity(command_palette)
     command_palette_truth = install_command_palette_truth(command_palette)
     capability_help = install_capability_help(command_palette)
+    app.aboutToQuit.connect(capability_help.dispose)
     empty_search_comprehension = install_empty_search_comprehension(
         window,
         command_palette,
@@ -338,6 +339,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     files_workspace.deleteLater()
     system_backup.deleteLater()
     system_workspace.deleteLater()
+    capability_help.dispose()
     capability_help.deleteLater()
     command_palette_truth.deleteLater()
     transient_dialog_shortcuts.deleteLater()

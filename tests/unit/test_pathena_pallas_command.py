@@ -36,6 +36,8 @@ def test_open_pallas_command_uses_installed_shell_workspace() -> None:
 
         commands = [command for command in palette._commands if command.label == "Open PALLAS"]
         assert len(commands) == 1
+        labels = [command.label for command in palette._commands]
+        assert labels.index("Open PALLAS") == labels.index("Open Knowledge") + 1
 
         commands[0].action()
         app.processEvents()

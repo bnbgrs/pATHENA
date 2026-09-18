@@ -201,6 +201,10 @@ def test_reference_parity_styles_pallas_jobs_system_and_settings_surfaces() -> N
         assert "QFrame#systemStatusRow" in stylesheet
         assert "QListWidget#settingsSecondaryNavigation" in stylesheet
         assert "QDialog#commandPalette" in stylesheet
+        assert "QWidget#helpWorkspace" in stylesheet
+        assert "QDialog#comfyUiDialog" in stylesheet
+        assert "QWidget#researchWorkspace QSplitter" in stylesheet
+        assert "QTabWidget#canonicalMemoryTabs QTabBar" in stylesheet
     finally:
         parity.dispose()
         window.close()

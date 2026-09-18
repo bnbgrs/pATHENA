@@ -92,6 +92,10 @@ QWidget#systemWorkspace,
 QWidget#systemMain,
 QWidget#settingsSecondaryContent,
 QFrame#settingsSecondaryContainer,
+QWidget#helpWorkspace,
+QFrame#helpBody,
+QFrame#helpCapabilityContent,
+QDialog#comfyUiDialog,
 QFrame#pallasShellWorkspaceHost,
 QWidget#pallasShellWorkspace {{
     background: {PALETTE.canvas};
@@ -375,6 +379,27 @@ QPushButton:hover {{
     border-color: {PALETTE.border_strong};
 }}
 QPushButton:focus {{ border-color: {PALETTE.accent}; }}
+QPushButton:disabled {{
+    color: {PALETTE.text_quiet};
+    background: transparent;
+    border-color: {PALETTE.border};
+}}
+QPushButton[pathenaReferencePrimary="true"] {{
+    color: #FFFFFF;
+    background: {PALETTE.accent};
+    border-color: {PALETTE.accent};
+    font-weight: 650;
+}}
+QPushButton[pathenaReferencePrimary="true"]:hover {{
+    color: #FFFFFF;
+    background: {PALETTE.accent_hover};
+    border-color: {PALETTE.accent_hover};
+}}
+QPushButton[pathenaReferencePrimary="true"]:disabled {{
+    color: {PALETTE.text_quiet};
+    background: {PALETTE.surface_selected};
+    border-color: {PALETTE.border};
+}}
 QCheckBox {{ color: {PALETTE.text_muted}; }}
 QCheckBox::indicator {{
     border: 1px solid {PALETTE.border_strong};
@@ -390,6 +415,17 @@ QSlider::handle:horizontal {{ background: {PALETTE.accent}; border: 0; }}
 QProgressBar::chunk {{ background: {PALETTE.accent}; }}
 QSplitter::handle {{ background: {PALETTE.border}; }}
 QSplitter::handle:horizontal {{ width: 1px; margin: 0 {SPACE.xs}px; }}
+QWidget#researchWorkspace QSplitter,
+QWidget#jobsWorkspace QSplitter,
+QWidget#filesWorkspace QSplitter {{
+    background: {PALETTE.canvas};
+    border: 0;
+}}
+QWidget#researchResultPanel {{
+    background: {PALETTE.canvas};
+    color: {PALETTE.text};
+    border: 0;
+}}
 QWidget[pathenaStateSurface="true"] {{ border-color: {PALETTE.border}; }}
 QWidget[pathenaUiState="busy"] {{
     color: {PALETTE.text_muted};
@@ -419,6 +455,10 @@ QTabWidget#canonicalMemoryTabs::pane {{
     border: 0;
     border-top: 1px solid {PALETTE.border};
     top: -1px;
+}}
+QTabWidget#canonicalMemoryTabs QTabBar {{
+    background: {PALETTE.canvas};
+    border: 0;
 }}
 QSplitter#canonicalMemorySplit,
 QWidget#canonicalMemoryListPane,
@@ -644,6 +684,80 @@ QPlainTextEdit#helpText {{
     border: 1px solid {PALETTE.border};
     border-radius: {RADII.panel}px;
     padding: 16px;
+}}
+
+/* Shell-hosted help uses the same navy document field as the workspace. */
+QWidget#helpWorkspace,
+QFrame#helpBody,
+QFrame#helpCapabilityContent {{
+    color: {PALETTE.text};
+    background: {PALETTE.surface_raised};
+    border: 0;
+}}
+QLabel#helpSecondaryTitle,
+QLabel#helpHeadline {{
+    color: {PALETTE.text};
+}}
+QLineEdit#helpSearch {{
+    min-height: 42px;
+    color: {PALETTE.text};
+    background: {PALETTE.surface};
+    border: 1px solid {PALETTE.border_strong};
+    border-radius: {RADII.control}px;
+    padding: 0 12px;
+}}
+QLineEdit#helpSearch:focus {{ border-color: {PALETTE.accent}; }}
+QListWidget#helpCapabilities {{
+    color: {PALETTE.text_muted};
+    background: {PALETTE.surface_raised};
+    border: 0;
+    outline: 0;
+}}
+QFrame#helpCapabilityRow {{
+    color: {PALETTE.text_muted};
+    background: {PALETTE.surface};
+    border: 1px solid {PALETTE.border};
+    border-radius: {RADII.panel}px;
+}}
+QFrame#helpCapabilityRow QLabel {{ background: transparent; }}
+QLabel#helpCapabilityTitle {{ color: {PALETTE.text}; }}
+QLabel#helpCapabilitySummary {{ color: {PALETTE.text_muted}; }}
+
+/* ComfyUI remains a truthful modeless integration surface, but shares the shell palette. */
+QDialog#comfyUiDialog {{
+    color: {PALETTE.text};
+    background: {PALETTE.surface_raised};
+    border: 1px solid {PALETTE.border_strong};
+}}
+QDialog#comfyUiDialog QLabel {{
+    color: {PALETTE.text_muted};
+    background: transparent;
+}}
+QLabel#comfyUiTitle {{
+    color: {PALETTE.text};
+    font-family: {TYPE.display_family};
+    font-size: 24px;
+    font-weight: 500;
+}}
+QLabel#comfyUiSectionLabel {{
+    color: {PALETTE.accent};
+    font-size: 10px;
+    font-weight: 650;
+}}
+QDialog#comfyUiDialog QLineEdit {{
+    color: {PALETTE.text};
+    background: {PALETTE.surface};
+    border: 1px solid {PALETTE.border};
+}}
+QPushButton#comfyUiQueueWorkflow {{
+    color: #FFFFFF;
+    background: {PALETTE.accent};
+    border-color: {PALETTE.accent};
+}}
+QPushButton#comfyUiQueueWorkflow:disabled {{
+    color: {PALETTE.text_quiet};
+    background: {PALETTE.surface_selected};
+    border-color: {PALETTE.border};
 }}
 
 /* PALLAS reference: graph is the workspace, controls stay quiet. */
@@ -885,6 +999,19 @@ class ReferenceParityController(QObject):
         keyboard_hint = self.window.findChild(QWidget, "keyboardHint")
         if keyboard_hint is not None:
             keyboard_hint.hide()
+
+        for object_name in ("researchStartButton", "comfyUiQueueWorkflow"):
+            primary_action = self.window.findChild(QPushButton, object_name)
+            if primary_action is not None:
+                primary_action.setProperty("pathenaReferencePrimary", True)
+                _repolish(primary_action)
+
+        files_workspace = self.window.findChild(QWidget, "filesWorkspace")
+        if files_workspace is not None:
+            for button in files_workspace.findChildren(QPushButton):
+                if button.text().strip().casefold() == "import file":
+                    button.setProperty("pathenaReferencePrimary", True)
+                    _repolish(button)
 
     def _apply_reference_styles(self) -> None:
         self.window.setStyleSheet(

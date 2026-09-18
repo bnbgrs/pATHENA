@@ -117,6 +117,7 @@ def test_help_is_shell_hosted_without_extending_primary_page_stack() -> None:
         assert window.inspector_object_id.text() == original_inspector_id
         assert route_overlay.isVisible()
     finally:
+        controller.dispose()
         controller.deleteLater()
         palette.deleteLater()
         window.close()
@@ -153,6 +154,7 @@ def test_f1_shortcut_uses_transient_shell_help_without_changing_route() -> None:
         assert controller.help_capabilities.isVisible()
         assert window.inspector_object_id.text() == "HELP / LIVE"
     finally:
+        controller.dispose()
         controller.deleteLater()
         palette.deleteLater()
         window.close()

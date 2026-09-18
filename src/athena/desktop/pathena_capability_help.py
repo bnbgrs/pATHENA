@@ -37,14 +37,23 @@ class CapabilityHelpController(QObject):
         self._original_render: Callable[[], str] = palette._render_help_text
         self._saved_inspector_state: tuple[str, str, str] | None = None
         self._saved_inspector_overlay_visible: bool | None = None
+        self._workspace: QFrame | None = None
+        self._disposed = False
         palette.__dict__["_render_help_text"] = self.render
         self._host_help_in_shell()
         self._build_help_hierarchy()
         self._publish_state(self.snapshot())
 
     def _workspace_host(self) -> QFrame | None:
-        """Return the real central workspace frame used by the reference shell."""
-        return self.window.findChild(QFrame, "conversation")
+        """Return the cached central workspace while its Qt wrapper is valid."""
+        if self._disposed:
+            return None
+        if self._workspace is not None:
+            return self._workspace
+        try:
+            return self.window.findChild(QFrame, "conversation")
+        except RuntimeError:
+            return None
 
     def _host_help_in_shell(self) -> None:
         """Host HELP in the workspace body without adding a primary page."""
@@ -53,6 +62,7 @@ class CapabilityHelpController(QObject):
         workspace = self._workspace_host()
         if workspace is None:
             return
+        self._workspace = workspace
         help_surface.setParent(workspace)
         help_surface.setWindowFlags(Qt.WindowType.Widget)
         help_surface.setObjectName("helpWorkspace")
@@ -261,26 +271,55 @@ class CapabilityHelpController(QObject):
             self.help_query.setFocus(Qt.FocusReason.ShortcutFocusReason)
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
-        if watched is self.palette.help_dialog:
-            if event.type() == QEvent.Type.Show:
-                self._fit_help_surface_to_workspace()
-                snapshot = self.snapshot()
-                self._refresh_hierarchy(snapshot)
-                self._publish_help_inspector(snapshot)
-                self.window.page_title.setText("Help")
-                self.window.page_title.setAccessibleDescription("Current workspace: Help.")
-                self.window.setProperty("pathenaHelpWorkspaceVisible", True)
-                QTimer.singleShot(0, self._focus_help_search)
-            elif event.type() == QEvent.Type.Hide:
-                self._restore_inspector()
-                sync_navigation = getattr(self.window, "_sync_reference_navigation", None)
-                if callable(sync_navigation):
-                    sync_navigation(self.window.navigation.currentRow())
-                self.window.setProperty("pathenaHelpWorkspaceVisible", False)
-        elif watched is self._workspace_host() and event.type() == QEvent.Type.Resize:
-            if self.palette.help_dialog.isVisible():
-                self._fit_help_surface_to_workspace()
-        return super().eventFilter(watched, event)
+        if self._disposed:
+            return False
+        try:
+            if watched is self.palette.help_dialog:
+                if event.type() == QEvent.Type.Show:
+                    self._fit_help_surface_to_workspace()
+                    snapshot = self.snapshot()
+                    self._refresh_hierarchy(snapshot)
+                    self._publish_help_inspector(snapshot)
+                    self.window.page_title.setText("Help")
+                    self.window.page_title.setAccessibleDescription("Current workspace: Help.")
+                    self.window.setProperty("pathenaHelpWorkspaceVisible", True)
+                    QTimer.singleShot(0, self._focus_help_search)
+                elif event.type() == QEvent.Type.Hide:
+                    self._restore_inspector()
+                    sync_navigation = getattr(self.window, "_sync_reference_navigation", None)
+                    if callable(sync_navigation):
+                        sync_navigation(self.window.navigation.currentRow())
+                    self.window.setProperty("pathenaHelpWorkspaceVisible", False)
+            elif watched is self._workspace and event.type() == QEvent.Type.Resize:
+                if self.palette.help_dialog.isVisible():
+                    self._fit_help_surface_to_workspace()
+        except RuntimeError:
+            self._disposed = True
+        return False
+
+    def dispose(self) -> None:
+        """Detach HELP filters before their parent window is destroyed."""
+        if self._disposed:
+            return
+        self._disposed = True
+        try:
+            self._restore_inspector()
+        except RuntimeError:
+            pass
+        try:
+            self.palette.help_dialog.removeEventFilter(self)
+        except RuntimeError:
+            pass
+        if self._workspace is not None:
+            try:
+                self._workspace.removeEventFilter(self)
+            except RuntimeError:
+                pass
+        self._workspace = None
+        try:
+            self.palette.__dict__["_render_help_text"] = self._original_render
+        except RuntimeError:
+            pass
 
     def snapshot(self) -> CapabilityCatalogSnapshot:
         return resolve_capability_catalog(self.window, self.palette._commands)

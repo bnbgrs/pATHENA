@@ -16,20 +16,30 @@ def install_pallas_command(
 ) -> bool:
     """Register one truthful command for the installed synchronized workspace."""
     if not any(command.label == _COMMAND_LABEL for command in palette._commands):
-        palette._commands = (
-            *palette._commands,
-            _Command(
-                label=_COMMAND_LABEL,
-                keywords=(
-                    "pallas",
-                    "knowledge",
-                    "graph",
-                    "semantic",
-                    "relationships",
-                    "explore",
-                ),
-                action=controller.open_workspace,
+        command = _Command(
+            label=_COMMAND_LABEL,
+            keywords=(
+                "pallas",
+                "knowledge",
+                "graph",
+                "semantic",
+                "relationships",
+                "explore",
             ),
+            action=controller.open_workspace,
+        )
+        insert_at = next(
+            (
+                index + 1
+                for index, existing in enumerate(palette._commands)
+                if existing.label == "Open Knowledge"
+            ),
+            len(palette._commands),
+        )
+        palette._commands = (
+            *palette._commands[:insert_at],
+            command,
+            *palette._commands[insert_at:],
         )
 
     window = palette.window
