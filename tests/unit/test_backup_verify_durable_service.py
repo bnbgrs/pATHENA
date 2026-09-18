@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from unittest.mock import Mock
 
+import pytest
+
 from athena.jobs.backup_verify_durable_service import BackupDeepVerifyDurableJobService
 from athena.jobs.backup_verify_payload import (
     BACKUP_VERIFY_DEEP_JOB_TYPE,
@@ -9,7 +11,6 @@ from athena.jobs.backup_verify_payload import (
 )
 from athena.jobs.models import JobPriority
 from athena.jobs.service import InvalidJobPayloadError
-import pytest
 
 
 _SNAPSHOT_ID = "12345678-1234-5678-9234-567812345678"
@@ -24,70 +25,47 @@ def _valid_payload() -> tuple[dict[str, object], dict[str, object]]:
 
 def test_create_persists_maintenance_job() -> None:
     repository = Mock()
-    chat = Mock()
-    chat.ensure_local_user.return_value = "actor-1"
-    service = BackupDeepVerifyDurableJobService(repository, chat)
-    requested_scope, pinned_configuration = _valid_payload()
+    service = BackupDeepVerifyDurableJobService(repository=repository)
 
-    service.create(
-        job_type=BACKUP_VERIFY_DEEP_JOB_TYPE,
-        priority=JobPriority.MAINTENANCE,
-        requested_scope=requested_scope,
-        pinned_configuration=pinned_configuration,
+    job = service.create(
+        job_id="backup-verify-deep:12345678-1234-5678-9234-567812345678:1",
+        payload={"snapshot_id": _SNAPSHOT_ID, "occurrence_slot_us": 1},
         next_run_at_us=123,
     )
 
-    chat.ensure_local_user.assert_called_once_with()
-    repository.create.assert_called_once_with(
-        job_type=BACKUP_VERIFY_DEEP_JOB_TYPE,
-        actor_id="actor-1",
-        priority=JobPriority.MAINTENANCE,
-        requested_scope_json=(
-            '{"occurrence_slot_us":1,'
-            '"snapshot_id":"12345678-1234-5678-9234-567812345678"}'
-        ),
-        pinned_configuration_json=(
-            '{"pipeline_version":"backup-deep-verify-v1"}'
-        ),
-        next_run_at_us=123,
-    )
+    assert job.type == BACKUP_VERIFY_DEEP_JOB_TYPE
+    assert job.priority == JobPriority.MAINTENANCE
+    assert job.next_run_at_us == 123
+    assert job.payload == {"snapshot_id": _SNAPSHOT_ID, "occurrence_slot_us": 1}
+    assert job.metadata == {"pipeline_version": BACKUP_VERIFY_DEEP_PIPELINE_VERSION}
+    repository.create.assert_called_once_with(job)
 
 
-def test_create_rejects_invalid_snapshot_id_before_persist() -> None:
+def test_create_rejects_invalid_payload_before_persisting() -> None:
     repository = Mock()
-    chat = Mock()
-    service = BackupDeepVerifyDurableJobService(repository, chat)
-    requested_scope, pinned_configuration = _valid_payload()
-    requested_scope["snapshot_id"] = "not-a-uuid"
+    service = BackupDeepVerifyDurableJobService(repository=repository)
 
     with pytest.raises(InvalidJobPayloadError):
         service.create(
-            job_type=BACKUP_VERIFY_DEEP_JOB_TYPE,
-            priority=JobPriority.MAINTENANCE,
-            requested_scope=requested_scope,
-            pinned_configuration=pinned_configuration,
+            job_id="backup-verify-deep:invalid:1",
+            payload={"snapshot_id": "not-a-uuid", "occurrence_slot_us": 1},
             next_run_at_us=123,
         )
 
-    chat.ensure_local_user.assert_not_called()
     repository.create.assert_not_called()
 
 
-def test_create_rejects_wrong_pipeline_version_before_persist() -> None:
+def test_create_rejects_invalid_metadata_before_persisting() -> None:
     repository = Mock()
-    chat = Mock()
-    service = BackupDeepVerifyDurableJobService(repository, chat)
-    requested_scope, pinned_configuration = _valid_payload()
-    pinned_configuration["pipeline_version"] = "wrong"
+    service = BackupDeepVerifyDurableJobService(repository=repository)
+    payload, _metadata = _valid_payload()
 
     with pytest.raises(InvalidJobPayloadError):
         service.create(
-            job_type=BACKUP_VERIFY_DEEP_JOB_TYPE,
-            priority=JobPriority.MAINTENANCE,
-            requested_scope=requested_scope,
-            pinned_configuration=pinned_configuration,
+            job_id="backup-verify-deep:12345678-1234-5678-9234-567812345678:1",
+            payload=payload,
             next_run_at_us=123,
+            metadata={"pipeline_version": "wrong"},
         )
 
-    chat.ensure_local_user.assert_not_called()
     repository.create.assert_not_called()
