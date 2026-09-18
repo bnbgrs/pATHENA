@@ -8,6 +8,7 @@ from athena.jobs.dependency_graph import (
     JobDependencyCycleError,
     JobDependencyDanglingError,
     JobDependencyTraversalLimitError,
+    inherited_priority,
     validate_dependency_insertion,
 )
 
@@ -59,4 +60,49 @@ def test_dependency_insertion_rejects_bounded_traversal_overflow() -> None:
             dependencies_of=lambda job_id: graph.get(job_id, ()),
             job_exists=lambda job_id: job_id in existing,
             max_nodes=2,
+        )
+
+
+def test_priority_inheritance_uses_most_urgent_transitive_dependent() -> None:
+    dependents = {_id(1): (_id(2),), _id(2): (_id(3),), _id(3): ()}
+    priorities = {_id(1): 30, _id(2): 20, _id(3): 10}
+    assert inherited_priority(
+        job_id=_id(1),
+        priority_of=priorities.__getitem__,
+        dependents_of=lambda job_id: dependents.get(job_id, ()),
+        job_exists=lambda job_id: job_id in priorities,
+    ) == 10
+
+
+def test_priority_inheritance_rejects_dangling_dependent() -> None:
+    priorities = {_id(1): 30}
+    with pytest.raises(JobDependencyDanglingError):
+        inherited_priority(
+            job_id=_id(1),
+            priority_of=priorities.__getitem__,
+            dependents_of=lambda job_id: (_id(2),) if job_id == _id(1) else (),
+            job_exists=lambda job_id: job_id in priorities,
+        )
+
+
+def test_priority_inheritance_rejects_bounded_traversal_overflow() -> None:
+    dependents = {_id(1): (_id(2),), _id(2): (_id(3),), _id(3): ()}
+    priorities = {_id(1): 30, _id(2): 20, _id(3): 10}
+    with pytest.raises(JobDependencyTraversalLimitError):
+        inherited_priority(
+            job_id=_id(1),
+            priority_of=priorities.__getitem__,
+            dependents_of=lambda job_id: dependents.get(job_id, ()),
+            job_exists=lambda job_id: job_id in priorities,
+            max_nodes=2,
+        )
+
+
+def test_priority_inheritance_rejects_bool_priority() -> None:
+    with pytest.raises(TypeError):
+        inherited_priority(
+            job_id=_id(1),
+            priority_of=lambda _job_id: True,
+            dependents_of=lambda _job_id: (),
+            job_exists=lambda _job_id: True,
         )
