@@ -21,7 +21,6 @@ on:
       - bot/pathena-candidate
       - postmerge/ui
       - manual/ui-11screen-longrun-20260915
-      - ui/11-screen-longrun-r2-20260915
     paths:
       - ".github/workflows/ui-snapshot.yml"
       - "scripts/render_pathena_ui_snapshot.py"
@@ -172,6 +171,18 @@ jobs:
             throw "Eleven-surface capture failed with exit code $captureExit."
           }
 
+      - name: Emit exact-head review payloads
+        shell: pwsh
+        run: |
+          $actualRoot = Join-Path (Get-Location) "artifacts\\visual-actual"
+          Get-ChildItem -Path $actualRoot -Filter "*.png" | Sort-Object Name | ForEach-Object {
+            $name = $_.Name
+            $payload = [Convert]::ToBase64String([IO.File]::ReadAllBytes($_.FullName))
+            Write-Host "===== BEGIN PATHENA PNG $name ====="
+            Write-Host $payload
+            Write-Host "===== END PATHENA PNG $name ====="
+          }
+
       - name: Verify captured workspace route identity
         shell: pwsh
         run: |
@@ -217,6 +228,9 @@ jobs:
               --write-baseline `
               --candidate-sha $env:CANDIDATE_SHA
             if ($LASTEXITCODE -ne 0) { throw "Baseline proposal generation failed." }
+            Write-Host "===== BEGIN VISUAL BASELINE PROPOSAL ====="
+            Get-Content $proposal -Raw
+            Write-Host "===== END VISUAL BASELINE PROPOSAL ====="
             throw "Committed visual baseline is absent; proposal uploaded for review."
           }
           uv run --locked --extra desktop --no-sync python scripts/compare_pathena_ui_snapshots.py `
