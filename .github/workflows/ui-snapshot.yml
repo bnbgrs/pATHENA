@@ -1,6 +1,21 @@
 name: pATHENA 11-Surface Visual Regression
 
 on:
+  pull_request:
+    branches:
+      - develop/pathena-next
+    paths:
+      - ".github/workflows/ui-snapshot.yml"
+      - "scripts/render_pathena_ui_snapshot.py"
+      - "scripts/render_pathena_ui_snapshot_fontsafe.py"
+      - "scripts/render_pathena_ui_snapshot_sequential.py"
+      - "scripts/compare_pathena_ui_snapshots.py"
+      - "tests/qa/**"
+      - "tests/qa/visual-baseline-windows.json"
+      - "tests/unit/test_pathena_visual_knowledge_fixture.py"
+      - "src/athena/desktop/**"
+      - "pyproject.toml"
+      - "uv.lock"
   push:
     branches:
       - bot/pathena-candidate
@@ -49,6 +64,8 @@ jobs:
         run: |
           if ("${{ github.event_name }}" -eq "workflow_dispatch") {
             $candidate = "${{ inputs.candidate_sha }}"
+          } elseif ("${{ github.event_name }}" -eq "pull_request") {
+            $candidate = "${{ github.event.pull_request.head.sha }}"
           } else {
             $candidate = "${{ github.sha }}"
           }
