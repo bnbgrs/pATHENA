@@ -15,6 +15,7 @@ import re
 import sys
 import threading
 import time
+import uuid
 from collections.abc import Sequence
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -27,6 +28,34 @@ WORKSPACE_SURFACE_LABELS = (
     "Files",
     "System",
     "Settings",
+)
+
+_REFERENCE_CHAT_ID = uuid.UUID("6f8cb7a8-1bd1-4ef0-9b82-2ba72209c0c1")
+_REFERENCE_CHAT_MESSAGES = (
+    (
+        "user",
+        "Summarize the current local-first research state and keep the answer grounded "
+        "in the evidence already stored in this workspace.",
+    ),
+    (
+        "assistant",
+        "The workspace keeps durable knowledge, source provenance, and research state "
+        "inside the local runtime. Evidence remains inspectable instead of being "
+        "collapsed into an opaque answer. Current work is organized around three "
+        "constraints: preserve local ownership, keep every important claim traceable, "
+        "and make automated changes reviewable before they become canonical knowledge.",
+    ),
+    (
+        "user",
+        "What should I verify before I treat the result as durable knowledge?",
+    ),
+    (
+        "assistant",
+        "Check the cited source identity, inspect any contradictory evidence, confirm "
+        "that the synthesis reflects the persisted material, and only then promote the "
+        "result into Knowledge. pATHENA should keep that decision reversible and retain "
+        "the provenance needed to audit it later.",
+    ),
 )
 
 _REFERENCE_KNOWLEDGE_DRAFTS = (
@@ -91,6 +120,59 @@ def _seed_reference_knowledge(runtime_root: Path) -> tuple[str, ...]:
             )
             knowledge_ids.append(str(revision.knowledge_id))
         return tuple(knowledge_ids)
+    finally:
+        core.stop()
+
+
+def _seed_reference_chat(runtime_root: Path) -> str:
+    """Create one idempotent repository-backed Chat state for visual capture."""
+    from athena.config.settings import AthenaSettings
+    from athena.core.application import AthenaApplication
+
+    core = AthenaApplication(settings=AthenaSettings(local_root=runtime_root))
+    core.start(run_startup_maintenance=False)
+    try:
+        chat_id = core.chat.create_chat(chat_id=_REFERENCE_CHAT_ID)
+        thread = core.chat.load_chat(chat_id)
+        actual = tuple(
+            (
+                message.message_type.value,
+                message.content or "",
+            )
+            for message in thread.messages
+        )
+        if not actual:
+            for role, content in _REFERENCE_CHAT_MESSAGES:
+                if role == "user":
+                    core.chat.add_user_message(
+                        chat_id=chat_id,
+                        content=content,
+                    )
+                elif role == "assistant":
+                    core.chat.add_assistant_message(
+                        chat_id=chat_id,
+                        content=content,
+                        provider_id="visual-regression-local",
+                        model_id="reference-model",
+                    )
+                else:
+                    raise RuntimeError(
+                        f"Unsupported reference Chat role {role!r}."
+                    )
+            thread = core.chat.load_chat(chat_id)
+            actual = tuple(
+                (
+                    message.message_type.value,
+                    message.content or "",
+                )
+                for message in thread.messages
+            )
+
+        if actual != _REFERENCE_CHAT_MESSAGES:
+            raise RuntimeError(
+                "Isolated reference Chat does not match the canonical capture fixture."
+            )
+        return str(chat_id)
     finally:
         core.stop()
 
@@ -165,6 +247,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     os.environ["ATHENA_LOCAL_ROOT"] = str(runtime_root)
     os.environ["QT_QPA_PLATFORM"] = "offscreen"
     reference_knowledge_ids = _seed_reference_knowledge(runtime_root)
+    reference_chat_id = _seed_reference_chat(runtime_root)
 
     _DiagnosticComfyHandler.posted_prompts.clear()
     comfy_server = ThreadingHTTPServer(("127.0.0.1", 0), _DiagnosticComfyHandler)
@@ -277,6 +360,45 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"detail_state={detail_state!r}, detail_id={detail_id!r}."
         )
 
+    def wait_for_reference_chat(window: QMainWindow) -> dict[str, object]:
+        controller = getattr(window, "api_controller", None)
+        chat_selector = getattr(window, "chat_selector", None)
+        if controller is None or chat_selector is None:
+            raise RuntimeError("Real desktop Chat controller is unavailable.")
+
+        deadline = time.monotonic() + 10.0
+        load_requested = False
+        listed_index = -1
+        while time.monotonic() < deadline:
+            app.processEvents()
+            listed_index = chat_selector.findData(reference_chat_id)
+            if (
+                listed_index >= 0
+                and not load_requested
+                and not bool(getattr(controller, "chat_busy", False))
+            ):
+                controller.load_chat(reference_chat_id)
+                load_requested = True
+
+            cards = window.findChildren(QWidget, "chatMessage")
+            if (
+                getattr(window, "loaded_chat_id", None) == reference_chat_id
+                and len(cards) == len(_REFERENCE_CHAT_MESSAGES)
+            ):
+                return {
+                    "fixture": "isolated repository-backed canonical Chat",
+                    "chat_id": reference_chat_id,
+                    "message_count": len(cards),
+                }
+            time.sleep(0.05)
+
+        raise RuntimeError(
+            "Repository-backed Chat did not become capture-ready: "
+            f"listed_index={listed_index}, "
+            f"loaded_chat_id={getattr(window, 'loaded_chat_id', None)!r}, "
+            f"message_cards={len(window.findChildren(QWidget, 'chatMessage'))}."
+        )
+
     def capture_workspaces() -> None:
         window = find_window()
         navigation = getattr(window, "navigation", None)
@@ -303,6 +425,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                     f"requested row {row}, navigation row {navigation.currentRow()}, "
                     f"page index {pages.currentIndex()}."
                 )
+            chat_evidence = (
+                wait_for_reference_chat(window) if row == 0 else {}
+            )
             knowledge_evidence = (
                 wait_for_reference_knowledge(window) if row == 1 else {}
             )
@@ -310,6 +435,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             captures[-1]["navigation_label"] = navigation.item(row).text()
             captures[-1]["row"] = row
             captures[-1]["page_index"] = pages.currentIndex()
+            captures[-1].update(chat_evidence)
             captures[-1].update(knowledge_evidence)
 
     def diagnostic_pallas_snapshot() -> PallasGraphSnapshot:
